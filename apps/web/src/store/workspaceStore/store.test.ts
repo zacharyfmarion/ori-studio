@@ -1104,6 +1104,7 @@ function createFileService(
   file: { text: string; name: string; path: string | null } | null = null
 ): FileService & {
   openTextFile: ReturnType<typeof vi.fn>;
+  openBinaryFile: ReturnType<typeof vi.fn>;
   saveTextFile: ReturnType<typeof vi.fn>;
   saveBinaryFile: ReturnType<typeof vi.fn>;
 } {
@@ -1111,6 +1112,7 @@ function createFileService(
     surface: 'web',
     supportsNativeDialogs: false,
     openTextFile: vi.fn(async () => file),
+    openBinaryFile: vi.fn(async () => null),
     saveTextFile: vi.fn(async (options: SaveTextFileOptions) => ({
       name: options.suggestedName,
       path: options.path ?? `/tmp/${options.suggestedName}`,

@@ -25,6 +25,9 @@ will host the ONNX model and manifest as versioned downloadable assets.
 ## Architecture
 
 - Use `onnxruntime-web` for the neural network runtime.
+- Browser V1 uses the plain WASM ONNX Runtime backend for predictable local
+  testing. WebGPU remains a later performance optimization once the packaged
+  path is stable.
 - Use Rust/WASM for deterministic post-processing: crop metadata, dense
   evidence conversion, square topology decoding, quality gates, FOLD export,
   and detector diagnostics.
@@ -151,45 +154,70 @@ assignments, and WASM FOLD export path.
 
 ### Phase 5: oristudio-cp Repair and Diagnostics
 
-- [ ] Load detector FOLD output through existing `oristudio-cp-wasm`.
-- [ ] If enabled by options, run:
+- [x] Load detector FOLD output through existing `oristudio-cp-wasm`.
+- [x] If enabled by options, run:
   - `Fix1`
   - `Fix2`
-- [ ] Run diagnostics:
+- [x] Run diagnostics:
   - `Check1`
   - `Check2`
   - `Check3`
   - `Check4`
   - `CheckCamv`
-- [ ] Run `FlatFoldableCheck` against the detected square boundary when the
+- [x] Run `FlatFoldableCheck` against the detected square boundary when the
   existing command payload can represent the boundary loop.
-- [ ] Preserve detector warnings and oristudio-cp diagnostics together in the
-  result payload.
+- [x] Preserve detector warnings in the detector FOLD metadata and show them in
+  the import review UI before import.
+- [ ] Add a unified post-import result payload that keeps detector warnings and
+  oristudio-cp diagnostics together after the modal closes.
 - [ ] Verify the final document can be exported as `.fold` and `.cp`.
 - [ ] Commit Phase 5.
 
+Phase 5 note: the current import flow runs `loadCreasePatternText`, then
+best-effort `Fix1`, `Fix2`, `Check1` through `Check4`, and
+`FlatFoldableCheck`. `CheckCamv` is refreshed by the existing always-on CP
+diagnostics path during load and after mutating fixes.
+
 ### Phase 6: Web UI
 
-- [ ] Add a menu or empty-state action: `Detect CP from Image`.
-- [ ] Add browser and Tauri-compatible image file open support for PNG/JPEG.
-- [ ] Add a compact staged import UI:
+- [x] Add a menu or empty-state action: `Detect CP from Image`.
+- [x] Add browser and Tauri-compatible image file open support for PNG/JPEG.
+- [x] Add a compact staged import UI:
   1. Upload
   2. Crop
   3. Detect
   4. Review
   5. Import
-- [ ] On the crop step, show auto-detected quad handles and allow manual
+- [x] On the crop step, show auto-detected quad handles and allow manual
   adjustment.
-- [ ] On the review step, default to a clean input/output view. Make overlays
-  opt-in:
+- [x] On the review step, default to a clean input/output view.
+- [ ] Add opt-in detection overlays:
   - crop quad
   - line confidence
   - boundary contacts
   - detector warnings
   - oristudio-cp diagnostics
-- [ ] Import the final document into normal crease-pattern mode.
-- [ ] Add focused component and store tests.
+- [x] Import the final document into normal crease-pattern mode.
+- [x] Add focused menu, file-service, capability, and inference tests.
+- [ ] Add focused component tests for the import modal.
 - [ ] Commit Phase 6.
+
+Phase 6 note: local browser validation has exercised the real flow with the
+ignored local model asset:
+
+```text
+clean-smoke.input.png
+  -> browser file upload
+  -> auto rectification
+  -> ONNX WASM inference
+  -> square topology decode
+  -> Ori Studio CP import
+  -> Fix1/Fix2/check commands
+```
+
+The smoke run imported as an editable crease-pattern document. It still
+reported CAMV and flat-folder diagnostics, which is a detector/decoder quality
+signal rather than a browser packaging failure.
 
 ### Phase 7: Release Packaging
 
@@ -255,12 +283,16 @@ Defaults:
 
 ## Validation Checklist
 
-- [ ] `cargo fmt --check`
-- [ ] `cargo test -p oristudio-cp-detect`
-- [ ] `wasm-pack test --node crates/oristudio-cp-detect-wasm`
-- [ ] `npm run typecheck:web`
-- [ ] `npm run test:web`
-- [ ] `npm run build:web`
+- [x] `cargo fmt --check`
+- [x] `cargo test -p oristudio-cp-detect`
+- [x] `cargo check -p oristudio-cp-detect-wasm`
+- [x] `wasm-pack test --node crates/oristudio-cp-detect-wasm`
+- [x] `cd apps/web && npx tsc --noEmit`
+- [x] focused web tests:
+  `npx vitest run src/lib/cpDetectInference.test.ts src/platform/fileService.test.ts src/commands/menuActions.test.ts src/lib/workspaceCapabilities.test.ts`
+- [x] `npm --workspace @treemaker/web run build`
+- [x] Automated browser smoke test:
+  `clean-smoke.input.png` upload, rectification, detection, import.
 - [ ] Manual browser test with at least:
   - clean synthetic CP image
   - text/watermark CP image

@@ -1,5 +1,7 @@
 import { expose } from 'comlink';
-import * as ort from 'onnxruntime-web';
+import * as ort from 'onnxruntime-web/wasm';
+import ortWasmMjsUrl from 'onnxruntime-web/ort-wasm-simd-threaded.mjs?url';
+import ortWasmUrl from 'onnxruntime-web/ort-wasm-simd-threaded.wasm?url';
 import init, {
   cp_detect_auto_rectify_rgba,
   cp_detect_decode_dense_outputs,
@@ -28,7 +30,11 @@ import {
 let wasmReady: Promise<void> | null = null;
 let sessionPromise: Promise<ort.InferenceSession> | null = null;
 let manifestPromise: Promise<CpDetectModelManifest> | null = null;
+let manifestKey: string | null = null;
+let modelPresencePromise: Promise<void> | null = null;
+let modelPresenceKey: string | null = null;
 let sessionKey: string | null = null;
+let ortRuntimeConfigured = false;
 
 async function ensureWasmReady() {
   wasmReady ??= init().then(() => undefined);
@@ -42,7 +48,16 @@ async function loadManifest(manifestUrl: string): Promise<CpDetectModelManifest>
 }
 
 async function ensureManifest(manifestUrl: string): Promise<CpDetectModelManifest> {
-  manifestPromise ??= loadManifest(manifestUrl);
+  if (!manifestPromise || manifestKey !== manifestUrl) {
+    manifestKey = manifestUrl;
+    manifestPromise = loadManifest(manifestUrl).catch((error) => {
+      if (manifestKey === manifestUrl) {
+        manifestKey = null;
+        manifestPromise = null;
+      }
+      throw error;
+    });
+  }
   return manifestPromise;
 }
 
@@ -51,11 +66,28 @@ async function ensureSession(
   manifestUrl: string,
   modelUrlOverride?: string
 ): Promise<ort.InferenceSession> {
+  configureOrtRuntime();
   const modelUrl = modelUrlOverride ?? resolveModelUrl(manifest.model.url, manifestUrl);
   if (sessionPromise && sessionKey === modelUrl) return sessionPromise;
   sessionKey = modelUrl;
-  sessionPromise = ort.InferenceSession.create(modelUrl, sessionOptions());
+  sessionPromise = ort.InferenceSession.create(modelUrl, sessionOptions()).catch((error) => {
+    if (sessionKey === modelUrl) {
+      sessionKey = null;
+      sessionPromise = null;
+    }
+    throw error;
+  });
   return sessionPromise;
+}
+
+function configureOrtRuntime(): void {
+  if (ortRuntimeConfigured) return;
+  ort.env.wasm.numThreads = 1;
+  ort.env.wasm.wasmPaths = {
+    mjs: ortWasmMjsUrl,
+    wasm: ortWasmUrl,
+  };
+  ortRuntimeConfigured = true;
 }
 
 function resolveModelUrl(modelUrl: string, manifestUrl: string): string {
@@ -63,10 +95,35 @@ function resolveModelUrl(modelUrl: string, manifestUrl: string): string {
   return new URL(modelUrl, manifestAbsoluteUrl).toString();
 }
 
-function sessionOptions(): ort.InferenceSession.SessionOptions {
-  if (typeof navigator !== 'undefined' && 'gpu' in navigator) {
-    return { executionProviders: ['webgpu', 'wasm'] };
+async function ensureModelPresent(
+  manifest: CpDetectModelManifest,
+  manifestUrl: string,
+  modelUrlOverride?: string
+): Promise<void> {
+  const modelUrl = modelUrlOverride ?? resolveModelUrl(manifest.model.url, manifestUrl);
+  if (modelPresencePromise && modelPresenceKey === modelUrl) return modelPresencePromise;
+  modelPresenceKey = modelUrl;
+  modelPresencePromise = fetchModelPresence(modelUrl).catch((error) => {
+    if (modelPresenceKey === modelUrl) {
+      modelPresenceKey = null;
+      modelPresencePromise = null;
+    }
+    throw error;
+  });
+  return modelPresencePromise;
+}
+
+async function fetchModelPresence(modelUrl: string): Promise<void> {
+  let response = await fetch(modelUrl, { method: 'HEAD' });
+  if (response.ok) return;
+  if (response.status === 405) {
+    response = await fetch(modelUrl, { headers: { Range: 'bytes=0-0' } });
+    if (response.ok || response.status === 206) return;
   }
+  throw new Error(`Failed to load CP detector model: ${response.status} ${response.statusText}`);
+}
+
+function sessionOptions(): ort.InferenceSession.SessionOptions {
   return { executionProviders: ['wasm'] };
 }
 
@@ -104,6 +161,14 @@ const api = {
       const manifestUrl = options.manifestUrl ?? DEFAULT_CP_DETECT_MODEL_MANIFEST_URL;
       const manifest = await ensureManifest(manifestUrl);
       await ensureSession(manifest, manifestUrl, options.modelUrl);
+      return manifest;
+    });
+  },
+  async verifyModelAssets(options: CpDetectWorkerRunOptions = {}): Promise<CpDetectModelManifest> {
+    return call(async () => {
+      const manifestUrl = options.manifestUrl ?? DEFAULT_CP_DETECT_MODEL_MANIFEST_URL;
+      const manifest = await ensureManifest(manifestUrl);
+      await ensureModelPresent(manifest, manifestUrl, options.modelUrl);
       return manifest;
     });
   },

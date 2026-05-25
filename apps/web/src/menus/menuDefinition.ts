@@ -36,6 +36,7 @@ export function getMenuBarDef(overrides?: ShortcutOverrides): MenuDef[] {
       items: [
         { type: 'action', id: 'file.new', label: 'New', shortcut: shortcut('file.new', overrides) },
         { type: 'action', id: 'file.open', label: 'Open...', shortcut: shortcut('file.open', overrides) },
+        { type: 'action', id: 'file.detectCpImage', label: 'Detect CP from Image...' },
         { type: 'separator' },
         { type: 'action', id: 'file.save', label: 'Save', shortcut: shortcut('file.save', overrides) },
         { type: 'action', id: 'file.saveAs', label: 'Save As...', shortcut: shortcut('file.saveAs', overrides) },

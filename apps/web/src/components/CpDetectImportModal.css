@@ -1,0 +1,200 @@
+.cp-detect-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--bg-primary) 68%, transparent);
+}
+
+.cp-detect-modal__surface {
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  width: min(1180px, 100%);
+  max-height: min(820px, calc(100vh - 48px));
+  padding: var(--space-4);
+  overflow: hidden;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  box-shadow: var(--shadow-context-menu);
+}
+
+.cp-detect-modal__header,
+.cp-detect-modal__actions,
+.cp-detect-modal__report {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.cp-detect-modal__header {
+  justify-content: space-between;
+}
+
+.cp-detect-modal__header h2,
+.cp-detect-modal__pane h3 {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 750;
+  letter-spacing: 0;
+}
+
+.cp-detect-modal__header p {
+  margin: 3px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+}
+
+.cp-detect-modal__actions {
+  flex-wrap: wrap;
+}
+
+.cp-detect-modal__status,
+.cp-detect-modal__error {
+  min-height: 24px;
+  padding: 5px 8px;
+  font-size: 0.76rem;
+  border-radius: 6px;
+}
+
+.cp-detect-modal__status {
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+}
+
+.cp-detect-modal__error {
+  color: var(--status-danger);
+  background: color-mix(in srgb, var(--status-danger) 12%, var(--bg-tertiary));
+}
+
+.cp-detect-modal__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  min-height: 0;
+}
+
+.cp-detect-modal__pane {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: var(--space-2);
+  min-width: 0;
+  min-height: 0;
+}
+
+.cp-detect-modal__image-wrap,
+.cp-detect-modal__empty,
+.cp-detect-modal__canvas,
+.cp-detect-modal__fold {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  min-height: 0;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+}
+
+.cp-detect-modal__image-wrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.cp-detect-modal__image-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+}
+
+.cp-detect-modal__overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.cp-detect-modal__quad {
+  fill: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  stroke: var(--accent-primary);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.cp-detect-modal__handle {
+  fill: var(--accent-primary);
+  stroke: var(--bg-primary);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  cursor: grab;
+  pointer-events: auto;
+}
+
+.cp-detect-modal__canvas {
+  display: block;
+  height: auto;
+  image-rendering: auto;
+}
+
+.cp-detect-modal__fold {
+  display: block;
+  background: var(--bg-primary);
+}
+
+.cp-detect-modal__fold-line {
+  stroke-width: 0.004;
+  vector-effect: non-scaling-stroke;
+  stroke-linecap: round;
+}
+
+.cp-detect-modal__fold-line--mountain {
+  stroke: var(--fold-mountain);
+}
+
+.cp-detect-modal__fold-line--valley {
+  stroke: var(--fold-valley);
+}
+
+.cp-detect-modal__fold-line--border {
+  stroke: var(--text-primary);
+  stroke-width: 0.006;
+}
+
+.cp-detect-modal__fold-line--unknown {
+  stroke: var(--text-tertiary);
+}
+
+.cp-detect-modal__report {
+  flex-wrap: wrap;
+  min-height: 24px;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+}
+
+.cp-detect-modal__report span {
+  padding: 3px 7px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+}
+
+@media (max-width: 860px) {
+  .cp-detect-modal {
+    padding: 10px;
+  }
+
+  .cp-detect-modal__surface {
+    max-height: calc(100vh - 20px);
+  }
+
+  .cp-detect-modal__grid {
+    grid-template-columns: 1fr;
+    overflow: auto;
+  }
+}

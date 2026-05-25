@@ -21,6 +21,11 @@ fn read_text_file(path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
+fn read_binary_file(path: String) -> Result<Vec<u8>, String> {
+    fs::read(path).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
 fn write_text_file(path: String, contents: String) -> Result<(), String> {
     fs::write(path, contents).map_err(|error| error.to_string())
 }
@@ -82,6 +87,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             platform_ping,
             read_text_file,
+            read_binary_file,
             write_text_file,
             write_binary_file,
             take_opened_files

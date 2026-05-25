@@ -12,6 +12,7 @@ describe('file service selection', () => {
     expect(service.surface).toBe('web');
     expect(service.supportsNativeDialogs).toBe(false);
     expect(service.openTextFile).toBeTypeOf('function');
+    expect(service.openBinaryFile).toBeTypeOf('function');
     expect(service.saveTextFile).toBeTypeOf('function');
   });
 
@@ -20,6 +21,7 @@ describe('file service selection', () => {
     expect(service.surface).toBe('desktop');
     expect(service.supportsNativeDialogs).toBe(true);
     expect(service.openTextFile).toBeTypeOf('function');
+    expect(service.openBinaryFile).toBeTypeOf('function');
     expect(service.saveTextFile).toBeTypeOf('function');
   });
 

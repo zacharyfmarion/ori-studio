@@ -479,6 +479,18 @@ describe('menu actions', () => {
     expect(deps.workspace.exportCp).toHaveBeenCalledWith(deps.fileService);
   });
 
+  it('opens the CP image detector from the File menu', async () => {
+    const deps = createDeps();
+    const listener = vi.fn();
+    window.addEventListener('ori-studio:detect-cp-image', listener);
+    try {
+      await expect(createMenuActionHandler(deps)('file.detectCpImage')).resolves.toBe(true);
+      expect(listener).toHaveBeenCalledOnce();
+    } finally {
+      window.removeEventListener('ori-studio:detect-cp-image', listener);
+    }
+  });
+
   it('does not dispatch disabled capabilities', async () => {
     const deps = {
       ...createDeps(),

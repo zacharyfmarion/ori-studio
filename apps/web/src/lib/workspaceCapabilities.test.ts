@@ -67,6 +67,10 @@ describe('workspace capabilities', () => {
   it('disables optimize and build when tree documents have no edges', () => {
     const state = capabilities();
 
+    expect(state['file.detectCpImage']).toMatchObject({
+      enabled: true,
+      reason: 'Detect a square crease pattern from an image',
+    });
     expect(state['optimize.scale'].enabled).toBe(false);
     expect(state['optimize.scale'].reason).toBe('Add at least one tree edge before optimizing');
     expect(state['cp.build'].enabled).toBe(false);

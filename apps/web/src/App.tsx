@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { MenuBar } from './components/MenuBar';
 import { CommandDialogModal } from './components/CommandDialogModal';
+import { CpDetectImportModal } from './components/CpDetectImportModal';
 import { GlobalToasts } from './components/GlobalToasts';
 import { HelpModal } from './components/HelpModal';
 import { SelectByIndexModal } from './components/SelectByIndexModal';
@@ -361,6 +362,7 @@ export default function App() {
       </div>
       <HelpModal />
       <SelectByIndexModal />
+      <CpDetectImportModal />
       <SettingsModal />
       <CommandDialogModal />
       <GlobalToasts />
