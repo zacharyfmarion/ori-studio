@@ -2291,6 +2291,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "oristudio-cp-detect"
+version = "0.1.1"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "oristudio-cp-detect-wasm"
+version = "0.1.1"
+dependencies = [
+ "oristudio-cp-detect",
+ "serde",
+ "serde-wasm-bindgen",
+ "serde_json",
+ "wasm-bindgen",
+ "wasm-bindgen-test",
+]
+
+[[package]]
 name = "oristudio-cp-wasm"
 version = "0.1.2"
 dependencies = [

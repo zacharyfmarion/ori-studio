@@ -1,0 +1,18 @@
+{
+  "schema": "oristudio/cp-detect-oracle-fixtures/v1",
+  "generated_by": "create-pattern-detector src.inference.cli",
+  "detector_checkpoint_id": "runpod-v2-replay-correction-full-4000ada",
+  "fixtures": [
+    {
+      "id": "clean-smoke",
+      "profile": "clean",
+      "source_image_path": "clean-smoke.input.png",
+      "rectified_image_path": "clean-smoke.rectified.png",
+      "fold_path": "clean-smoke.fold",
+      "report_path": "clean-smoke.report.json",
+      "expected_status": "outside_v1_envelope",
+      "expected_vertices": 63,
+      "expected_edges": 101
+    }
+  ]
+}

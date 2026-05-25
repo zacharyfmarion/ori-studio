@@ -47,26 +47,26 @@ phase starts.
 
 ### Phase 1: Oracle Fixtures and Package Skeleton
 
-- [ ] Add `crates/oristudio-cp-detect` for detector core logic.
-- [ ] Add `crates/oristudio-cp-detect-wasm` for the wasm-bindgen bridge.
-- [ ] Add workspace entries and web build scripts, following the existing
+- [x] Add `crates/oristudio-cp-detect` for detector core logic.
+- [x] Add `crates/oristudio-cp-detect-wasm` for the wasm-bindgen bridge.
+- [x] Add workspace entries and web build scripts, following the existing
   `oristudio-cp-wasm` pattern.
-- [ ] Add a local-only model directory convention:
+- [x] Add a local-only model directory convention:
   `apps/web/public/models/cp-detector-v2/`.
-- [ ] Add scripts/docs to export or place:
+- [x] Add scripts/docs to export or place:
   - `model.onnx`
   - `manifest.json`
   - optional checksum file
-- [ ] Generate a small oracle fixture set from the Python pipeline:
+- [x] Generate a small oracle fixture set from the Python pipeline:
   - input image
   - rectified image
   - crop metadata
   - dense-output metadata or saved intermediate arrays where practical
   - decoded FOLD
   - quality report
-- [ ] Add tests that load oracle fixture metadata and verify the Rust package
+- [x] Add tests that load oracle fixture metadata and verify the Rust package
   can parse expected inputs and output schemas.
-- [ ] Commit Phase 1.
+- [x] Commit Phase 1.
 
 ### Phase 2: ONNX Worker Inference
 

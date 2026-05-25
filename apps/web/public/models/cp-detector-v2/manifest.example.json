@@ -1,0 +1,28 @@
+{
+  "schema": "oristudio/cp-detect-model-manifest/v1",
+  "id": "runpod-v2-replay-correction-full-4000ada",
+  "created_at": "2026-05-22",
+  "model": {
+    "url": "model.onnx",
+    "sha256": "replace-with-onnx-sha256",
+    "format": "onnx"
+  },
+  "inference": {
+    "image_size": 1024,
+    "threshold": 0.65,
+    "preprocessing": "rgb_chw_float32_0_1"
+  },
+  "outputs": {
+    "line_logits": "line_logits",
+    "angle": "angle",
+    "junction_logits": "junction_logits",
+    "assignment_logits": "assignment_logits",
+    "non_crease_logits": "non_crease_logits",
+    "line_style_logits": "line_style_logits",
+    "boundary_contact_logits": "boundary_contact_logits",
+    "vertex_type_logits": "vertex_type_logits",
+    "boundary_side_logits": "boundary_side_logits",
+    "boundary_offset": "boundary_offset",
+    "boundary_coord": "boundary_coord"
+  }
+}

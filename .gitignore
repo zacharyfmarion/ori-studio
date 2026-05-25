@@ -8,6 +8,10 @@ node_modules/
 !apps/web/dist/.gitkeep
 coverage/
 apps/web/src/generated/
+apps/web/public/models/cp-detector-v2/*
+!apps/web/public/models/cp-detector-v2/.gitkeep
+!apps/web/public/models/cp-detector-v2/README.md
+!apps/web/public/models/cp-detector-v2/manifest.example.json
 tools/oracle/build/
 tools/oriedita-oracle/build/
 .env.release.local

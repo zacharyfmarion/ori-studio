@@ -6,7 +6,8 @@
   "scripts": {
     "build:treemaker-wasm": "wasm-pack build ../../crates/treemaker-wasm --target web --out-dir ../../apps/web/src/generated/treemaker-wasm",
     "build:oristudio-cp-wasm": "wasm-pack build ../../crates/oristudio-cp-wasm --target web --out-dir ../../apps/web/src/generated/oristudio-cp-wasm",
-    "build:wasm": "npm run build:treemaker-wasm && npm run build:oristudio-cp-wasm",
+    "build:oristudio-cp-detect-wasm": "wasm-pack build ../../crates/oristudio-cp-detect-wasm --target web --out-dir ../../apps/web/src/generated/oristudio-cp-detect-wasm",
+    "build:wasm": "npm run build:treemaker-wasm && npm run build:oristudio-cp-wasm && npm run build:oristudio-cp-detect-wasm",
     "build:simulator": "npm --workspace @treemaker/origami-simulator run build",
     "predev": "npm run build:simulator && npm run build:wasm",
     "prebuild": "npm run build:simulator && npm run build:wasm",
