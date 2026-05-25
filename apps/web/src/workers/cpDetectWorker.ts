@@ -1,12 +1,17 @@
 import { expose } from 'comlink';
 import * as ort from 'onnxruntime-web';
 import init, {
+  cp_detect_auto_rectify_rgba,
+  cp_detect_manual_rectify_rgba,
   cp_detect_package_info,
   cp_detect_parse_model_manifest,
 } from '../generated/oristudio-cp-detect-wasm/oristudio_cp_detect_wasm';
 import type {
   CpDetectInferenceResult,
   CpDetectModelManifest,
+  CpDetectQuad,
+  CpDetectRectifiedImage,
+  CpDetectRectificationReport,
   CpDetectWorkerRunOptions,
 } from '../engine/cpDetectTypes';
 import type { WasmErrorEnvelope } from '../engine/types';
@@ -99,6 +104,27 @@ const api = {
       return manifest;
     });
   },
+  async autoRectifyImage(image: ImageData, imageSize = 1024): Promise<CpDetectRectifiedImage> {
+    return call(() => rectifyFromWasm(cp_detect_auto_rectify_rgba(
+      imageDataBytes(image),
+      image.width,
+      image.height,
+      imageSize
+    )));
+  },
+  async manualRectifyImage(
+    image: ImageData,
+    quad: CpDetectQuad,
+    imageSize = 1024
+  ): Promise<CpDetectRectifiedImage> {
+    return call(() => rectifyFromWasm(cp_detect_manual_rectify_rgba(
+      imageDataBytes(image),
+      image.width,
+      image.height,
+      imageSize,
+      JSON.stringify(quad)
+    )));
+  },
   async runDenseInference(
     image: ImageData,
     options: CpDetectWorkerRunOptions = {}
@@ -127,6 +153,31 @@ const api = {
     });
   },
 };
+
+type WasmRectifiedImage = {
+  readonly width: number;
+  readonly height: number;
+  reportJson(): string;
+  rgba(): Uint8Array;
+  free?(): void;
+};
+
+function rectifyFromWasm(result: WasmRectifiedImage): CpDetectRectifiedImage {
+  try {
+    const report = JSON.parse(result.reportJson()) as CpDetectRectificationReport;
+    const rgba = result.rgba();
+    return {
+      image: new ImageData(new Uint8ClampedArray(rgba), result.width, result.height),
+      report,
+    };
+  } finally {
+    result.free?.();
+  }
+}
+
+function imageDataBytes(image: ImageData): Uint8Array {
+  return new Uint8Array(image.data.buffer, image.data.byteOffset, image.data.byteLength);
+}
 
 function cpDetectSessionFromOrt(session: ort.InferenceSession): CpDetectOnnxSession {
   return {

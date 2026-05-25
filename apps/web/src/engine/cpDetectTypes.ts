@@ -62,3 +62,41 @@ export interface CpDetectWorkerRunOptions {
   modelUrl?: string;
   threshold?: number;
 }
+
+export interface CpDetectPoint {
+  x: number;
+  y: number;
+}
+
+export interface CpDetectQuad {
+  top_left: CpDetectPoint;
+  top_right: CpDetectPoint;
+  bottom_right: CpDetectPoint;
+  bottom_left: CpDetectPoint;
+}
+
+export interface CpDetectRectificationWarning {
+  code: string;
+  message: string;
+  severity: string;
+  details?: unknown;
+}
+
+export interface CpDetectRectificationReport {
+  original_width: number;
+  original_height: number;
+  image_size: number;
+  mode: string;
+  confidence: number;
+  source_quad: CpDetectQuad;
+  detected_source_quad?: CpDetectQuad;
+  target_quad?: CpDetectQuad;
+  padding_rgb: [number, number, number];
+  warnings: CpDetectRectificationWarning[];
+  metrics: unknown;
+}
+
+export interface CpDetectRectifiedImage {
+  image: ImageData;
+  report: CpDetectRectificationReport;
+}

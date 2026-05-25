@@ -3,6 +3,36 @@
 use serde::Serialize;
 use wasm_bindgen::prelude::*;
 
+#[wasm_bindgen]
+pub struct WasmRectifiedImage {
+    rgba: Vec<u8>,
+    report_json: String,
+    width: u32,
+    height: u32,
+}
+
+#[wasm_bindgen]
+impl WasmRectifiedImage {
+    #[wasm_bindgen(getter)]
+    pub fn width(&self) -> u32 {
+        self.width
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn height(&self) -> u32 {
+        self.height
+    }
+
+    #[wasm_bindgen(js_name = reportJson)]
+    pub fn report_json(&self) -> String {
+        self.report_json.clone()
+    }
+
+    pub fn rgba(&self) -> Vec<u8> {
+        self.rgba.clone()
+    }
+}
+
 #[derive(Serialize)]
 struct JsErrorEnvelope {
     code: &'static str,
@@ -28,6 +58,34 @@ pub fn cp_detect_parse_oracle_fixture_manifest(text: &str) -> Result<JsValue, Js
     to_js_value(&manifest)
 }
 
+#[wasm_bindgen]
+pub fn cp_detect_auto_rectify_rgba(
+    rgba: &[u8],
+    width: u32,
+    height: u32,
+    image_size: u32,
+) -> Result<WasmRectifiedImage, JsValue> {
+    let result = oristudio_cp_detect::rectify::auto_rectify_rgba(rgba, width, height, image_size)
+        .map_err(to_js_rectification_error)?;
+    wasm_rectified_image(result)
+}
+
+#[wasm_bindgen]
+pub fn cp_detect_manual_rectify_rgba(
+    rgba: &[u8],
+    width: u32,
+    height: u32,
+    image_size: u32,
+    quad_json: &str,
+) -> Result<WasmRectifiedImage, JsValue> {
+    let quad: oristudio_cp_detect::rectify::Quad = serde_json::from_str(quad_json)
+        .map_err(|error| js_error("invalid_json", error.to_string()))?;
+    let result =
+        oristudio_cp_detect::rectify::manual_rectify_rgba(rgba, width, height, image_size, quad)
+            .map_err(to_js_rectification_error)?;
+    wasm_rectified_image(result)
+}
+
 fn to_js_config_error(error: oristudio_cp_detect::DetectConfigError) -> JsValue {
     let code = match error {
         oristudio_cp_detect::DetectConfigError::Json(_) => "invalid_json",
@@ -35,6 +93,35 @@ fn to_js_config_error(error: oristudio_cp_detect::DetectConfigError) -> JsValue 
         oristudio_cp_detect::DetectConfigError::InvalidField(_) => "invalid_field",
     };
     js_error(code, error.to_string())
+}
+
+fn to_js_rectification_error(error: oristudio_cp_detect::rectify::RectificationError) -> JsValue {
+    let code = match error {
+        oristudio_cp_detect::rectify::RectificationError::InvalidDimensions { .. } => {
+            "invalid_dimensions"
+        }
+        oristudio_cp_detect::rectify::RectificationError::RgbaLengthMismatch { .. } => {
+            "rgba_length_mismatch"
+        }
+        oristudio_cp_detect::rectify::RectificationError::InvalidQuad(_) => "invalid_quad",
+        oristudio_cp_detect::rectify::RectificationError::SingularHomography => {
+            "singular_homography"
+        }
+    };
+    js_error(code, error.to_string())
+}
+
+fn wasm_rectified_image(
+    result: oristudio_cp_detect::rectify::RectifiedRgbaImage,
+) -> Result<WasmRectifiedImage, JsValue> {
+    let report_json = serde_json::to_string(&result.report)
+        .map_err(|error| js_error("js_value", error.to_string()))?;
+    Ok(WasmRectifiedImage {
+        rgba: result.rgba,
+        report_json,
+        width: result.width,
+        height: result.height,
+    })
 }
 
 fn to_js_value(value: &impl Serialize) -> Result<JsValue, JsValue> {

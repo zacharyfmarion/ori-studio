@@ -104,22 +104,23 @@ model manifest and ONNX file.
 
 ### Phase 3: Crop and Rectification V1
 
-- [ ] Port the Python square rectifier behavior needed for browser V1:
-  - border quad detection
+- [x] Port the Python square rectifier behavior needed for browser V1:
+  - full-frame square preservation
+  - axis-aligned/projection panel detection
   - density crop fallback
   - confidence and warning metadata
   - square warp to `1024 x 1024`
-- [ ] Add manual crop/quad override as a first-class API path.
-- [ ] Do not hallucinate unrecoverable missing borders. Low-confidence or
+- [x] Add manual crop/quad override as a first-class API path.
+- [x] Do not hallucinate unrecoverable missing borders. Low-confidence or
   incomplete source borders should produce explicit warnings.
-- [ ] Add preview outputs:
+- [x] Add preview outputs:
   - original image dimensions
   - detected quad
   - rectified image
   - rectification warnings
-- [ ] Add Rust and WASM tests for crop metadata, homography sanity, and manual
+- [x] Add Rust and WASM tests for crop metadata, homography sanity, and manual
   override behavior.
-- [ ] Commit Phase 3.
+- [x] Commit Phase 3.
 
 ### Phase 4: Square Topology Decoder Port
 

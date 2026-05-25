@@ -42,3 +42,53 @@ fn model_manifest_parser_returns_typed_schema_error() {
 
     assert_eq!(error["code"], "unsupported_schema");
 }
+
+#[wasm_bindgen_test]
+fn auto_rectify_returns_report_and_rgba_bytes() {
+    let mut rgba = vec![255u8; 64 * 64 * 4];
+    for pixel in rgba.chunks_exact_mut(4) {
+        pixel[3] = 255;
+    }
+    draw_rect(&mut rgba, 64, 0, 0, 63, 63);
+    draw_line(&mut rgba, 64, 0, 0, 63, 63);
+
+    let result = oristudio_cp_detect_wasm::cp_detect_auto_rectify_rgba(&rgba, 64, 64, 64)
+        .expect("rectification should succeed");
+    let report: serde_json::Value =
+        serde_json::from_str(&result.report_json()).expect("report JSON should parse");
+
+    assert_eq!(result.width(), 64);
+    assert_eq!(result.height(), 64);
+    assert_eq!(result.rgba().len(), 64 * 64 * 4);
+    assert_eq!(report["mode"], "full_frame_resize");
+}
+
+fn draw_rect(rgba: &mut [u8], width: usize, x0: usize, y0: usize, x1: usize, y1: usize) {
+    for x in x0..=x1 {
+        set_pixel(rgba, width, x, y0);
+        set_pixel(rgba, width, x, y1);
+    }
+    for y in y0..=y1 {
+        set_pixel(rgba, width, x0, y);
+        set_pixel(rgba, width, x1, y);
+    }
+}
+
+fn draw_line(rgba: &mut [u8], width: usize, x0: usize, y0: usize, x1: usize, y1: usize) {
+    let dx = x1 as isize - x0 as isize;
+    let dy = y1 as isize - y0 as isize;
+    let steps = dx.abs().max(dy.abs()).max(1);
+    for step in 0..=steps {
+        let x = (x0 as isize + dx * step / steps) as usize;
+        let y = (y0 as isize + dy * step / steps) as usize;
+        set_pixel(rgba, width, x, y);
+    }
+}
+
+fn set_pixel(rgba: &mut [u8], width: usize, x: usize, y: usize) {
+    let idx = (y * width + x) * 4;
+    rgba[idx] = 0;
+    rgba[idx + 1] = 0;
+    rgba[idx + 2] = 0;
+    rgba[idx + 3] = 255;
+}

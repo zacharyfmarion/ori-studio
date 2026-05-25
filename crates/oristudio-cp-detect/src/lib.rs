@@ -4,6 +4,8 @@
 //! types. The numeric crop, evidence, topology, and FOLD export ports land in
 //! later roadmap phases behind these contracts.
 
+pub mod rectify;
+
 use serde::{Deserialize, Serialize};
 
 pub const MODEL_MANIFEST_SCHEMA: &str = "oristudio/cp-detect-model-manifest/v1";
