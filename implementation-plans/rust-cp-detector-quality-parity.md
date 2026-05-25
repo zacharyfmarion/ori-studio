@@ -175,6 +175,25 @@ carrier/contact over-generation before product claims can be made.
 - Re-run metrics and commit only if the delta is meaningful or diagnostically
   useful.
 
+Current checkpoint-2 result using the same `clean-smoke` browser-vs-Python
+oracle benchmark:
+
+```text
+Python oracle: 63 vertices, 101 edges, 16 B edges, status outside_v1_envelope
+Rust/browser:  46 vertices, 76 edges, 12 B edges, status valid
+
+vertex P/R/F1: 0.913 / 0.667 / 0.771
+edge   P/R/F1: 0.789 / 0.594 / 0.678
+border P/R/F1: 0.583 / 0.438 / 0.500
+```
+
+This is a meaningful improvement over checkpoint 1. The hand-rolled full-frame
+carrier behavior was over-producing border contacts; finite imageproc carriers
+reduced false vertices/edges sharply. The remaining gap is recall and Python
+topology behavior: Rust now under-splits/under-recovers some Python edges and
+does not yet emit comparable quality warnings. Continue to the full square
+topology decoder port rather than tuning Hough thresholds blindly.
+
 ### Checkpoint 3: Full Square Topology Decoder Port
 
 - Port the missing Python `SquareTopologyDecoder` behavior:

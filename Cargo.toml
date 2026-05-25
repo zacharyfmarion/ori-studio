@@ -25,6 +25,8 @@ homepage = "https://github.com/zacharyfmarion/ori-studio"
 [workspace.dependencies]
 anyhow = "1.0"
 clap = { version = "4.5", features = ["derive"] }
+image = { version = "0.25", default-features = false }
+imageproc = { version = "0.25", default-features = false }
 proptest = "1.6"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
