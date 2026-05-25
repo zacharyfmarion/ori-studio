@@ -2,11 +2,14 @@ import { expose } from 'comlink';
 import * as ort from 'onnxruntime-web';
 import init, {
   cp_detect_auto_rectify_rgba,
+  cp_detect_decode_dense_outputs,
   cp_detect_manual_rectify_rgba,
   cp_detect_package_info,
   cp_detect_parse_model_manifest,
 } from '../generated/oristudio-cp-detect-wasm/oristudio_cp_detect_wasm';
 import type {
+  CpDetectDenseOutputs,
+  CpDetectFoldResult,
   CpDetectInferenceResult,
   CpDetectModelManifest,
   CpDetectQuad,
@@ -129,30 +132,71 @@ const api = {
     image: ImageData,
     options: CpDetectWorkerRunOptions = {}
   ): Promise<CpDetectInferenceResult> {
+    return call(() => denseInferenceForImage(image, options));
+  },
+  async detectRectifiedFold(
+    image: ImageData,
+    options: CpDetectWorkerRunOptions = {}
+  ): Promise<CpDetectFoldResult> {
     return call(async () => {
-      const manifestUrl = options.manifestUrl ?? DEFAULT_CP_DETECT_MODEL_MANIFEST_URL;
-      const baseManifest = await ensureManifest(manifestUrl);
-      const manifest = {
-        ...baseManifest,
-        inference: {
-          ...baseManifest.inference,
-          threshold: options.threshold ?? baseManifest.inference.threshold,
-        },
+      const inference = await denseInferenceForImage(image, options);
+      const decoded = decodeFoldFromDenseOutputs(inference.outputs, inference.manifest);
+      return {
+        status: decoded.report.status,
+        foldJson: decoded.fold_json,
+        detectorReport: decoded.report,
+        manifest: inference.manifest,
       };
-      const session = await ensureSession(manifest, manifestUrl, options.modelUrl);
-      return runCpDetectDenseInference(
-        cpDetectSessionFromOrt(session),
-        {
-          float32(data, dims) {
-            return new ort.Tensor('float32', data, Array.from(dims));
-          },
-        },
-        image,
-        manifest
-      );
     });
   },
 };
+
+async function denseInferenceForImage(
+  image: ImageData,
+  options: CpDetectWorkerRunOptions
+): Promise<CpDetectInferenceResult> {
+  const manifestUrl = options.manifestUrl ?? DEFAULT_CP_DETECT_MODEL_MANIFEST_URL;
+  const baseManifest = await ensureManifest(manifestUrl);
+  const manifest = {
+    ...baseManifest,
+    inference: {
+      ...baseManifest.inference,
+      threshold: options.threshold ?? baseManifest.inference.threshold,
+    },
+  };
+  const session = await ensureSession(manifest, manifestUrl, options.modelUrl);
+  return runCpDetectDenseInference(
+    cpDetectSessionFromOrt(session),
+    {
+      float32(data, dims) {
+        return new ort.Tensor('float32', data, Array.from(dims));
+      },
+    },
+    image,
+    manifest
+  );
+}
+
+type WasmDecodedFold = {
+  fold_json: string;
+  report: CpDetectFoldResult['detectorReport'];
+};
+
+function decodeFoldFromDenseOutputs(
+  outputs: CpDetectDenseOutputs,
+  manifest: CpDetectModelManifest
+): WasmDecodedFold {
+  return cp_detect_decode_dense_outputs(
+    outputs.line_logits.data,
+    outputs.junction_logits.data,
+    outputs.assignment_logits.data,
+    outputs.non_crease_logits.data,
+    outputs.line_style_logits.data,
+    outputs.boundary_contact_logits.data,
+    manifest.inference.image_size,
+    manifest.inference.threshold
+  ) as WasmDecodedFold;
+}
 
 type WasmRectifiedImage = {
   readonly width: number;

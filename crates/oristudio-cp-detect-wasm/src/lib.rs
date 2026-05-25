@@ -86,6 +86,36 @@ pub fn cp_detect_manual_rectify_rgba(
     wasm_rectified_image(result)
 }
 
+#[wasm_bindgen]
+pub fn cp_detect_decode_dense_outputs(
+    line_logits: &[f32],
+    junction_logits: &[f32],
+    assignment_logits: &[f32],
+    non_crease_logits: &[f32],
+    line_style_logits: &[f32],
+    boundary_contact_logits: &[f32],
+    image_size: u32,
+    threshold: f32,
+) -> Result<JsValue, JsValue> {
+    let decoded = oristudio_cp_detect::decode::decode_dense_outputs(
+        oristudio_cp_detect::decode::DenseOutputs {
+            line_logits,
+            junction_logits,
+            assignment_logits,
+            non_crease_logits,
+            line_style_logits,
+            boundary_contact_logits,
+        },
+        oristudio_cp_detect::decode::DecodeConfig {
+            image_size,
+            threshold,
+            ..oristudio_cp_detect::decode::DecodeConfig::default()
+        },
+    )
+    .map_err(to_js_decode_error)?;
+    to_js_value(&decoded)
+}
+
 fn to_js_config_error(error: oristudio_cp_detect::DetectConfigError) -> JsValue {
     let code = match error {
         oristudio_cp_detect::DetectConfigError::Json(_) => "invalid_json",
@@ -107,6 +137,15 @@ fn to_js_rectification_error(error: oristudio_cp_detect::rectify::RectificationE
         oristudio_cp_detect::rectify::RectificationError::SingularHomography => {
             "singular_homography"
         }
+    };
+    js_error(code, error.to_string())
+}
+
+fn to_js_decode_error(error: oristudio_cp_detect::decode::DecodeError) -> JsValue {
+    let code = match error {
+        oristudio_cp_detect::decode::DecodeError::InvalidImageSize(_) => "invalid_image_size",
+        oristudio_cp_detect::decode::DecodeError::TensorLength { .. } => "tensor_length",
+        oristudio_cp_detect::decode::DecodeError::Json(_) => "invalid_json",
     };
     js_error(code, error.to_string())
 }

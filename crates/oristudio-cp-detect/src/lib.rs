@@ -4,6 +4,7 @@
 //! types. The numeric crop, evidence, topology, and FOLD export ports land in
 //! later roadmap phases behind these contracts.
 
+pub mod decode;
 pub mod rectify;
 
 use serde::{Deserialize, Serialize};

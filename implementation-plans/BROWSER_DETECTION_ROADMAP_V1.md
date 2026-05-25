@@ -124,11 +124,11 @@ model manifest and ONNX file.
 
 ### Phase 4: Square Topology Decoder Port
 
-- [ ] Port the detector-side evidence conversion:
+- [x] Port the detector-side evidence conversion:
   - sigmoid/softmax output conversion
   - assignment label raster
   - V2 auxiliary evidence maps
-- [ ] Port `SquareTopologyDecoder` behavior:
+- [x] Port `SquareTopologyDecoder` behavior:
   - hard square boundary prior
   - carrier extraction
   - boundary-contact vertices
@@ -136,12 +136,18 @@ model manifest and ONNX file.
   - interior edge support scoring
   - dashed/gapped support hook
   - non-crease suppression
-- [ ] Port assignment attribution, conservative repair, and quality report
+- [x] Port assignment attribution, conservative repair, and quality report
   warnings needed by V2 compile gates.
-- [ ] Export minimal FOLD JSON plus detector metadata.
+- [x] Export minimal FOLD JSON plus detector metadata.
 - [ ] Compare Rust/WASM outputs against Python oracle fixtures with explicit
   tolerances for floating-point differences.
-- [ ] Commit Phase 4.
+- [x] Commit Phase 4.
+
+Phase 4 note: V1 browser decoding ports the square-specific behavior needed for
+manual app testing. It does not yet aim for bit-for-bit parity with the Python
+OpenCV Hough implementation; explicit oracle comparison remains before release.
+The exposed contracts and tests cover the hard square boundary, carrier edges,
+assignments, and WASM FOLD export path.
 
 ### Phase 5: oristudio-cp Repair and Diagnostics
 

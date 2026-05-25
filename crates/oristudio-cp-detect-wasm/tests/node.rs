@@ -63,6 +63,43 @@ fn auto_rectify_returns_report_and_rgba_bytes() {
     assert_eq!(report["mode"], "full_frame_resize");
 }
 
+#[wasm_bindgen_test]
+fn decode_dense_outputs_returns_fold_json() {
+    let size = 32usize;
+    let pixels = size * size;
+    let mut line_logits = vec![-8.0f32; pixels];
+    let mut junction_logits = vec![-8.0f32; pixels];
+    let mut assignment_logits = vec![-4.0f32; pixels * 4];
+    let non_crease_logits = vec![-8.0f32; pixels];
+    let line_style_logits = vec![-4.0f32; pixels * 4];
+    let boundary_contact_logits = vec![-8.0f32; pixels];
+    for y in 0..size {
+        let idx = y * size + 16;
+        line_logits[idx] = 8.0;
+        assignment_logits[idx] = 8.0;
+    }
+    junction_logits[16 * size + 16] = 8.0;
+
+    let decoded = oristudio_cp_detect_wasm::cp_detect_decode_dense_outputs(
+        &line_logits,
+        &junction_logits,
+        &assignment_logits,
+        &non_crease_logits,
+        &line_style_logits,
+        &boundary_contact_logits,
+        size as u32,
+        0.65,
+    )
+    .expect("decode should succeed");
+    let decoded: serde_json::Value =
+        serde_wasm_bindgen::from_value(decoded).expect("decoded payload should deserialize");
+    let fold: serde_json::Value =
+        serde_json::from_str(decoded["fold_json"].as_str().expect("fold_json")).expect("fold");
+
+    assert!(fold["edges_vertices"].as_array().expect("edges").len() >= 4);
+    assert_eq!(decoded["report"]["status"], "valid");
+}
+
 fn draw_rect(rgba: &mut [u8], width: usize, x0: usize, y0: usize, x1: usize, y1: usize) {
     for x in x0..=x1 {
         set_pixel(rgba, width, x, y0);

@@ -100,3 +100,30 @@ export interface CpDetectRectifiedImage {
   image: ImageData;
   report: CpDetectRectificationReport;
 }
+
+export interface CpDetectDecodeWarning {
+  code: string;
+  message: string;
+  severity: string;
+  details?: unknown;
+}
+
+export interface CpDetectDecodeReport {
+  status: CpDetectStatus;
+  image_size: number;
+  threshold: number;
+  line_count: number;
+  carrier_count: number;
+  vertex_count: number;
+  edge_count: number;
+  border_edge_count: number;
+  interior_edge_count: number;
+  warnings: CpDetectDecodeWarning[];
+}
+
+export interface CpDetectFoldResult {
+  status: CpDetectStatus;
+  foldJson: string;
+  detectorReport: CpDetectDecodeReport;
+  manifest: CpDetectModelManifest;
+}
