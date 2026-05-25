@@ -13,6 +13,9 @@ manifest.json
 Keep `manifest.example.json` committed as the schema reference. The real
 `manifest.json` should point to `model.onnx`, include a SHA-256 checksum when
 available, and use tensor names that match the exported CPLineNet-V2 ONNX file.
+The browser detector requires the real local model artifact to be present during
+development; it intentionally fails if `manifest.json` or `model.onnx` is
+missing.
 
 The first implementation phase uses local ignored assets. A later release phase
 will publish these files as versioned release or CDN assets and configure the

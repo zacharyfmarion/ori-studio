@@ -28,6 +28,7 @@ export interface CpDetectOutputTensorNames {
   line_logits: string;
   angle: string;
   junction_logits: string;
+  junction_offset: string;
   assignment_logits: string;
   non_crease_logits: string;
   line_style_logits: string;

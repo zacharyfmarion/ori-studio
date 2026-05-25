@@ -24,6 +24,7 @@ fn model_manifest_parser_returns_typed_schema_error() {
             "line_logits": "line_logits",
             "angle": "angle",
             "junction_logits": "junction_logits",
+            "junction_offset": "junction_offset",
             "assignment_logits": "assignment_logits",
             "non_crease_logits": "non_crease_logits",
             "line_style_logits": "line_style_logits",

@@ -1,0 +1,187 @@
+#!/usr/bin/env python3
+"""Export a create-pattern-detector CPLineNet checkpoint for browser inference."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import inspect
+import json
+import os
+import sys
+from pathlib import Path
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_CHECKPOINT = "checkpoints/runpod_v2_replay_correction_full_4000ada/full/latest.pt"
+DEFAULT_MODEL_ID = "runpod-v2-replay-correction-full-4000ada"
+DEFAULT_OUTPUT_DIR = "apps/web/public/models/cp-detector-v2"
+OUTPUT_NAMES = [
+    "line_logits",
+    "angle",
+    "junction_logits",
+    "junction_offset",
+    "assignment_logits",
+    "non_crease_logits",
+    "line_style_logits",
+    "boundary_contact_logits",
+    "vertex_type_logits",
+    "boundary_side_logits",
+    "boundary_offset",
+    "boundary_coord",
+]
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--detector-repo",
+        type=Path,
+        default=None,
+        help="Path to the create-pattern-detector checkout. Defaults to CP_DETECTOR_REPO.",
+    )
+    parser.add_argument(
+        "--checkpoint",
+        type=Path,
+        default=Path(DEFAULT_CHECKPOINT),
+        help="Checkpoint path, absolute or relative to --detector-repo.",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=REPO_ROOT / DEFAULT_OUTPUT_DIR,
+        help="Browser model asset directory.",
+    )
+    parser.add_argument("--model-filename", default="model.onnx")
+    parser.add_argument("--model-id", default=DEFAULT_MODEL_ID)
+    parser.add_argument("--created-at", default="2026-05-22")
+    parser.add_argument("--image-size", type=int, default=1024)
+    parser.add_argument("--threshold", type=float, default=0.65)
+    parser.add_argument("--opset", type=int, default=17)
+    return parser.parse_args()
+
+
+def resolve_detector_repo(arg: Path | None) -> Path:
+    if arg is None:
+        env_value = os.environ.get("CP_DETECTOR_REPO")
+        if not env_value:
+            raise SystemExit(
+                "Missing --detector-repo. Set CP_DETECTOR_REPO or pass the detector checkout path."
+            )
+        arg = Path(env_value)
+    repo = arg.expanduser().resolve()
+    if not (repo / "src/models/cpline_net.py").exists():
+        raise SystemExit(f"Not a create-pattern-detector repo: {repo}")
+    return repo
+
+
+def absolute_checkpoint(detector_repo: Path, checkpoint: Path) -> Path:
+    path = checkpoint if checkpoint.is_absolute() else detector_repo / checkpoint
+    path = path.expanduser().resolve()
+    if not path.exists():
+        raise SystemExit(f"Missing checkpoint: {path}")
+    return path
+
+
+def load_model(detector_repo: Path, checkpoint: Path):
+    sys.path.insert(0, str(detector_repo))
+    import torch
+    from src.models import CPLineNet
+
+    loaded = torch.load(checkpoint, map_location="cpu", weights_only=False)
+    config = loaded.get("config", {})
+    model = CPLineNet(
+        backbone=config.get("backbone", "hrnet_w18"),
+        pretrained=False,
+        hidden_channels=int(config.get("hidden_channels", 128)),
+        v2_heads=bool(config.get("v2_heads", False)),
+    )
+    model.load_state_dict(loaded["model_state_dict"])
+    model.eval()
+    if not model.v2_heads:
+        raise SystemExit("Checkpoint does not have CPLineNet-V2 heads")
+    return torch, model
+
+
+def export_onnx(torch, model, output_path: Path, image_size: int, opset: int) -> None:
+    class BrowserExportWrapper(torch.nn.Module):
+        def __init__(self, inner):
+            super().__init__()
+            self.inner = inner
+
+        def forward(self, image):
+            outputs = self.inner(image)
+            return tuple(outputs[name] for name in OUTPUT_NAMES)
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    dummy = torch.zeros((1, 3, image_size, image_size), dtype=torch.float32)
+    kwargs = {
+        "input_names": ["image"],
+        "output_names": OUTPUT_NAMES,
+        "opset_version": opset,
+        "do_constant_folding": True,
+    }
+    if "dynamo" in inspect.signature(torch.onnx.export).parameters:
+        kwargs["dynamo"] = False
+    with torch.inference_mode():
+        torch.onnx.export(BrowserExportWrapper(model), dummy, output_path, **kwargs)
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def write_manifest(args: argparse.Namespace, model_path: Path, digest: str) -> Path:
+    manifest = {
+        "schema": "oristudio/cp-detect-model-manifest/v1",
+        "id": args.model_id,
+        "created_at": args.created_at,
+        "model": {
+            "url": args.model_filename,
+            "sha256": digest,
+            "size_bytes": model_path.stat().st_size,
+            "format": "onnx",
+        },
+        "inference": {
+            "image_size": args.image_size,
+            "threshold": args.threshold,
+            "preprocessing": "rgb_chw_float32_0_1",
+        },
+        "outputs": {name: name for name in OUTPUT_NAMES},
+    }
+    manifest_path = args.output_dir / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    return manifest_path
+
+
+def check_onnx(path: Path) -> None:
+    import onnx
+
+    model = onnx.load(path)
+    onnx.checker.check_model(model)
+
+
+def main() -> None:
+    args = parse_args()
+    detector_repo = resolve_detector_repo(args.detector_repo)
+    checkpoint = absolute_checkpoint(detector_repo, args.checkpoint)
+    args.output_dir = args.output_dir.expanduser().resolve()
+    model_path = args.output_dir / args.model_filename
+
+    torch, model = load_model(detector_repo, checkpoint)
+    export_onnx(torch, model, model_path, args.image_size, args.opset)
+    check_onnx(model_path)
+    digest = sha256(model_path)
+    manifest_path = write_manifest(args, model_path, digest)
+
+    print(f"wrote {model_path} ({model_path.stat().st_size} bytes)")
+    print(f"wrote {manifest_path}")
+    print(f"sha256 {digest}")
+
+
+if __name__ == "__main__":
+    main()

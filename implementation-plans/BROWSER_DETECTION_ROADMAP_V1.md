@@ -16,8 +16,11 @@ uploaded image
 ```
 
 The first implementation target is local app testing in an Ori Studio worktree.
-The model artifact can be ignored locally at first. A later release phase will
-host the ONNX model and manifest as versioned downloadable assets.
+The model artifact is ignored by git, but it is a hard runtime requirement for
+the feature. Local testing must place a real ONNX model and manifest under
+`apps/web/public/models/cp-detector-v2/`; missing model assets should produce a
+clear blocking error, not a mock or degraded fallback. A later release phase
+will host the ONNX model and manifest as versioned downloadable assets.
 
 ## Architecture
 
@@ -95,6 +98,9 @@ phase starts.
 - [x] Add worker tests with mocked ONNX output so web behavior does not require
   the large model artifact.
 - [x] Commit Phase 2.
+
+Phase 2 note: tests may mock tensor IO, but the product runtime requires a real
+model manifest and ONNX file.
 
 ### Phase 3: Crop and Rectification V1
 

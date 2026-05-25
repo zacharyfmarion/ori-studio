@@ -13,6 +13,7 @@ export const CP_DETECT_OUTPUT_KEYS = [
   'line_logits',
   'angle',
   'junction_logits',
+  'junction_offset',
   'assignment_logits',
   'non_crease_logits',
   'line_style_logits',
