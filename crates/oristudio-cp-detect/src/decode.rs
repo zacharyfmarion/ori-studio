@@ -9,6 +9,8 @@ pub struct DecodeConfig {
     pub threshold: f32,
     #[serde(default = "default_min_edge_support")]
     pub min_edge_support: f32,
+    #[serde(default = "default_min_edge_length_px")]
+    pub min_edge_length_px: f32,
     #[serde(default = "default_vertex_merge_px")]
     pub vertex_merge_px: f32,
     #[serde(default = "default_line_vertex_distance_px")]
@@ -31,6 +33,18 @@ pub struct DecodeConfig {
     pub carrier_merge_rho_px: f32,
     #[serde(default = "default_max_line_hypotheses")]
     pub max_line_hypotheses: usize,
+    #[serde(default = "default_max_intersection_lines")]
+    pub max_intersection_lines: usize,
+    #[serde(default = "default_junction_snap_px")]
+    pub junction_snap_px: f32,
+    #[serde(default = "default_planar_cleanup")]
+    pub planar_cleanup: bool,
+    #[serde(default = "default_planar_cleanup_max_edges")]
+    pub planar_cleanup_max_edges: usize,
+    #[serde(default = "default_planar_split_vertex_distance_px")]
+    pub planar_split_vertex_distance_px: f32,
+    #[serde(default = "default_planar_crossing_support_tie")]
+    pub planar_crossing_support_tie: f32,
 }
 
 impl Default for DecodeConfig {
@@ -39,6 +53,7 @@ impl Default for DecodeConfig {
             image_size: 1024,
             threshold: 0.65,
             min_edge_support: default_min_edge_support(),
+            min_edge_length_px: default_min_edge_length_px(),
             vertex_merge_px: default_vertex_merge_px(),
             line_vertex_distance_px: default_line_vertex_distance_px(),
             hough_vote_threshold: default_hough_vote_threshold(),
@@ -50,6 +65,12 @@ impl Default for DecodeConfig {
             carrier_merge_angle_degrees: default_carrier_merge_angle_degrees(),
             carrier_merge_rho_px: default_carrier_merge_rho_px(),
             max_line_hypotheses: default_max_line_hypotheses(),
+            max_intersection_lines: default_max_intersection_lines(),
+            junction_snap_px: default_junction_snap_px(),
+            planar_cleanup: default_planar_cleanup(),
+            planar_cleanup_max_edges: default_planar_cleanup_max_edges(),
+            planar_split_vertex_distance_px: default_planar_split_vertex_distance_px(),
+            planar_crossing_support_tie: default_planar_crossing_support_tie(),
         }
     }
 }
@@ -173,10 +194,12 @@ pub fn decode_dense_outputs(
         outputs.boundary_contact_logits,
         size,
     ));
+    let carrier_intersections = carrier_intersections(&carriers, &config);
     vertices.extend(junction_points(
         outputs.junction_logits,
         &effective,
         &carriers,
+        &carrier_intersections,
         &config,
     ));
     for carrier in &carriers {
@@ -190,13 +213,29 @@ pub fn decode_dense_outputs(
 
     let mut interior_edges = interior_edges(&vertices, &carriers, &effective, outputs, &config);
     dedupe_edges(&mut interior_edges);
-    let used_boundary =
-        used_boundary_vertices(&vertices, &interior_edges, size, config.vertex_merge_px);
+    let (vertices, mut interior_edges, used_boundary) =
+        drop_unused_non_border_vertices(vertices, interior_edges, size, config.vertex_merge_px);
+    let interior_support_refresh = support_for_edges(
+        &vertices,
+        &interior_edges,
+        &effective,
+        outputs.line_style_logits,
+        &config,
+    );
+    for (edge, support) in interior_edges
+        .iter_mut()
+        .zip(interior_support_refresh.into_iter())
+    {
+        edge.support = support;
+    }
     let mut border_edges = border_chain(&vertices, &used_boundary, size, &effective);
     let mut edges = Vec::new();
     edges.append(&mut interior_edges);
     edges.append(&mut border_edges);
     dedupe_edges(&mut edges);
+    if config.planar_cleanup {
+        edges = planar_cleanup(&vertices, edges, &config);
+    }
 
     let (vertices, edges) =
         drop_unused_vertices_keep_corners(vertices, edges, size, config.vertex_merge_px);
@@ -432,7 +471,7 @@ fn merge_carrier_segments(mut candidates: Vec<Line>, config: &DecodeConfig) -> V
     for line in candidates {
         if let Some(existing) = merged.iter_mut().find(|existing| {
             same_carrier_family(existing, &line, config)
-                && projection_intervals_touch(existing, &line, config.hough_max_segment_gap_px)
+                && projection_intervals_touch(existing, &line, config.carrier_extent_padding_px)
         }) {
             existing.t_min = existing.t_min.min(project(line.p0, existing.direction));
             existing.t_min = existing.t_min.min(project(line.p1, existing.direction));
@@ -578,6 +617,7 @@ fn junction_points(
     logits: &[f32],
     line_prob: &[f32],
     carriers: &[Line],
+    intersections: &[Point],
     config: &DecodeConfig,
 ) -> Vec<Point> {
     let size = config.image_size as usize;
@@ -600,7 +640,10 @@ fn junction_points(
                 .iter()
                 .any(|line| point_on_finite_line(point, line, config.line_vertex_distance_px))
             {
-                candidates.push((score, point));
+                candidates.push((
+                    score,
+                    snap_junction_to_intersection(point, intersections, config),
+                ));
             }
         }
     }
@@ -619,6 +662,66 @@ fn junction_points(
         }
     }
     points
+}
+
+fn carrier_intersections(carriers: &[Line], config: &DecodeConfig) -> Vec<Point> {
+    let size = config.image_size as usize;
+    let max_lines = carriers.len().min(config.max_intersection_lines);
+    let mut intersections = Vec::new();
+    for i in 0..max_lines {
+        for j in i + 1..max_lines {
+            let Some(point) = line_intersection(&carriers[i], &carriers[j]) else {
+                continue;
+            };
+            if !point_in_frame(point, size, 1.0) {
+                continue;
+            }
+            if !point_on_finite_line(point, &carriers[i], config.vertex_merge_px)
+                || !point_on_finite_line(point, &carriers[j], config.vertex_merge_px)
+            {
+                continue;
+            }
+            intersections.push(point);
+        }
+    }
+    intersections
+}
+
+fn line_intersection(first: &Line, second: &Line) -> Option<Point> {
+    let a1 = first.theta.cos();
+    let b1 = first.theta.sin();
+    let a2 = second.theta.cos();
+    let b2 = second.theta.sin();
+    let det = a1 * b2 - a2 * b1;
+    if det.abs() < 1e-6 {
+        return None;
+    }
+    Some(Point {
+        x: (first.rho * b2 - second.rho * b1) / det,
+        y: (a1 * second.rho - a2 * first.rho) / det,
+    })
+}
+
+fn snap_junction_to_intersection(
+    point: Point,
+    intersections: &[Point],
+    config: &DecodeConfig,
+) -> Point {
+    let mut best = None;
+    for intersection in intersections {
+        let item_distance = distance(point, *intersection);
+        if item_distance > config.junction_snap_px {
+            continue;
+        }
+        match best {
+            None => best = Some((*intersection, item_distance)),
+            Some((_, best_distance)) if item_distance < best_distance => {
+                best = Some((*intersection, item_distance))
+            }
+            _ => {}
+        }
+    }
+    best.map(|(intersection, _)| intersection).unwrap_or(point)
 }
 
 fn local_max_scalar(
@@ -666,7 +769,7 @@ fn interior_edges(
         for pair in on_line.windows(2) {
             let a = pair[0].0;
             let b = pair[1].0;
-            if distance(vertices[a], vertices[b]) < 3.0 {
+            if distance(vertices[a], vertices[b]) < config.min_edge_length_px {
                 continue;
             }
             if segment_is_frame_border(vertices[a], vertices[b], size) {
@@ -839,6 +942,7 @@ fn border_chain(
                         image_size: size as u32,
                         threshold: 0.0,
                         min_edge_support: 0.0,
+                        min_edge_length_px: 3.0,
                         vertex_merge_px: 2.0,
                         line_vertex_distance_px: 4.0,
                         ..DecodeConfig::default()
@@ -851,18 +955,75 @@ fn border_chain(
     edges
 }
 
-fn used_boundary_vertices(vertices: &[Point], edges: &[Edge], size: usize, tol: f32) -> Vec<usize> {
-    let mut used = Vec::new();
-    for edge in edges {
+fn drop_unused_non_border_vertices(
+    vertices: Vec<Point>,
+    edges: Vec<Edge>,
+    size: usize,
+    tol: f32,
+) -> (Vec<Point>, Vec<Edge>, Vec<usize>) {
+    if vertices.is_empty() {
+        return (vertices, edges, Vec::new());
+    }
+    let mut keep = vec![false; vertices.len()];
+    for (idx, point) in vertices.iter().enumerate() {
+        if is_corner(*point, size, tol) {
+            keep[idx] = true;
+        }
+    }
+    for edge in &edges {
+        keep[edge.a] = true;
+        keep[edge.b] = true;
+    }
+    let mut remap = vec![usize::MAX; vertices.len()];
+    let mut next_vertices = Vec::new();
+    for (idx, point) in vertices.iter().copied().enumerate() {
+        if keep[idx] {
+            remap[idx] = next_vertices.len();
+            next_vertices.push(point);
+        }
+    }
+    let next_edges: Vec<Edge> = edges
+        .into_iter()
+        .filter_map(|edge| {
+            let a = remap[edge.a];
+            let b = remap[edge.b];
+            (a != usize::MAX && b != usize::MAX && a != b).then_some(Edge { a, b, ..edge })
+        })
+        .collect();
+    let mut used_boundary = Vec::new();
+    for edge in &next_edges {
         for idx in [edge.a, edge.b] {
-            if point_on_frame(vertices[idx], size, tol) && !is_corner(vertices[idx], size, tol) {
-                used.push(idx);
+            if point_on_frame(next_vertices[idx], size, tol)
+                && !is_corner(next_vertices[idx], size, tol)
+            {
+                used_boundary.push(idx);
             }
         }
     }
-    used.sort_unstable();
-    used.dedup();
-    used
+    used_boundary.sort_unstable();
+    used_boundary.dedup();
+    (next_vertices, next_edges, used_boundary)
+}
+
+fn support_for_edges(
+    vertices: &[Point],
+    edges: &[Edge],
+    line_prob: &[f32],
+    line_style_logits: &[f32],
+    config: &DecodeConfig,
+) -> Vec<f32> {
+    edges
+        .iter()
+        .map(|edge| {
+            segment_support(
+                vertices[edge.a],
+                vertices[edge.b],
+                line_prob,
+                line_style_logits,
+                config,
+            )
+        })
+        .collect()
 }
 
 fn dedupe_edges(edges: &mut Vec<Edge>) {
@@ -885,6 +1046,183 @@ fn dedupe_edges(edges: &mut Vec<Edge>) {
         }
     }
     *edges = out;
+}
+
+fn planar_cleanup(vertices: &[Point], mut edges: Vec<Edge>, config: &DecodeConfig) -> Vec<Edge> {
+    if edges.len() <= 1 || vertices.len() < 3 || edges.len() > config.planar_cleanup_max_edges {
+        return edges;
+    }
+    edges = split_edges_at_intermediate_vertices(vertices, &edges, config);
+    dedupe_edges(&mut edges);
+    remove_crossing_edges(vertices, edges, config)
+}
+
+fn split_edges_at_intermediate_vertices(
+    vertices: &[Point],
+    edges: &[Edge],
+    config: &DecodeConfig,
+) -> Vec<Edge> {
+    let mut out = Vec::new();
+    for edge in edges {
+        let sequence = vertices_on_segment(vertices, edge.a, edge.b, config);
+        for pair in sequence.windows(2) {
+            let a = pair[0];
+            let b = pair[1];
+            if a == b || distance(vertices[a], vertices[b]) < config.min_edge_length_px {
+                continue;
+            }
+            out.push(Edge {
+                a,
+                b,
+                assignment: edge.assignment,
+                support: edge.support,
+            });
+        }
+    }
+    out
+}
+
+fn vertices_on_segment(
+    vertices: &[Point],
+    a: usize,
+    b: usize,
+    config: &DecodeConfig,
+) -> Vec<usize> {
+    let start = vertices[a];
+    let end = vertices[b];
+    let length = distance(start, end);
+    if length <= 1e-6 {
+        return vec![a, b];
+    }
+    let direction = Point {
+        x: (end.x - start.x) / length,
+        y: (end.y - start.y) / length,
+    };
+    let mut intermediate = Vec::new();
+    for (idx, point) in vertices.iter().enumerate() {
+        if idx == a || idx == b {
+            continue;
+        }
+        let rel = Point {
+            x: point.x - start.x,
+            y: point.y - start.y,
+        };
+        let projection = rel.x * direction.x + rel.y * direction.y;
+        if projection <= config.min_edge_length_px
+            || projection >= length - config.min_edge_length_px
+        {
+            continue;
+        }
+        let perp = (rel.x * direction.y - rel.y * direction.x).abs();
+        if perp <= config.planar_split_vertex_distance_px {
+            intermediate.push((idx, projection));
+        }
+    }
+    intermediate.sort_by(|left, right| left.1.total_cmp(&right.1));
+    let mut sequence = Vec::with_capacity(intermediate.len() + 2);
+    sequence.push(a);
+    sequence.extend(intermediate.into_iter().map(|(idx, _)| idx));
+    sequence.push(b);
+    sequence
+}
+
+fn remove_crossing_edges(vertices: &[Point], edges: Vec<Edge>, config: &DecodeConfig) -> Vec<Edge> {
+    if edges.len() <= 1 {
+        return edges;
+    }
+    let mut keep = vec![true; edges.len()];
+    let bboxes: Vec<(Point, Point)> = edges
+        .iter()
+        .map(|edge| edge_bbox(vertices[edge.a], vertices[edge.b]))
+        .collect();
+    for i in 0..edges.len() {
+        if !keep[i] {
+            continue;
+        }
+        for j in i + 1..edges.len() {
+            if !keep[j] || !bbox_intersects(bboxes[i], bboxes[j]) {
+                continue;
+            }
+            let edge_a = &edges[i];
+            let edge_b = &edges[j];
+            if [edge_a.a, edge_a.b]
+                .iter()
+                .any(|idx| *idx == edge_b.a || *idx == edge_b.b)
+            {
+                continue;
+            }
+            if !proper_segments_intersect(
+                vertices[edge_a.a],
+                vertices[edge_a.b],
+                vertices[edge_b.a],
+                vertices[edge_b.b],
+            ) {
+                continue;
+            }
+            let loser = crossing_loser(vertices, &edges, i, j, config);
+            keep[loser] = false;
+            if loser == i {
+                break;
+            }
+        }
+    }
+    edges
+        .into_iter()
+        .enumerate()
+        .filter_map(|(idx, edge)| keep[idx].then_some(edge))
+        .collect()
+}
+
+fn edge_bbox(a: Point, b: Point) -> (Point, Point) {
+    (
+        Point {
+            x: a.x.min(b.x),
+            y: a.y.min(b.y),
+        },
+        Point {
+            x: a.x.max(b.x),
+            y: a.y.max(b.y),
+        },
+    )
+}
+
+fn bbox_intersects(first: (Point, Point), second: (Point, Point)) -> bool {
+    !(first.1.x < second.0.x
+        || second.1.x < first.0.x
+        || first.1.y < second.0.y
+        || second.1.y < first.0.y)
+}
+
+fn proper_segments_intersect(a: Point, b: Point, c: Point, d: Point) -> bool {
+    let eps = 1e-6;
+    let o1 = orient(a, b, c);
+    let o2 = orient(a, b, d);
+    let o3 = orient(c, d, a);
+    let o4 = orient(c, d, b);
+    if o1.abs() < eps || o2.abs() < eps || o3.abs() < eps || o4.abs() < eps {
+        return false;
+    }
+    (o1 > 0.0) != (o2 > 0.0) && (o3 > 0.0) != (o4 > 0.0)
+}
+
+fn orient(a: Point, b: Point, c: Point) -> f32 {
+    (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
+}
+
+fn crossing_loser(
+    vertices: &[Point],
+    edges: &[Edge],
+    a: usize,
+    b: usize,
+    config: &DecodeConfig,
+) -> usize {
+    let support_delta = edges[a].support - edges[b].support;
+    if support_delta.abs() > config.planar_crossing_support_tie {
+        return if support_delta > 0.0 { b } else { a };
+    }
+    let len_a = distance(vertices[edges[a].a], vertices[edges[a].b]);
+    let len_b = distance(vertices[edges[b].a], vertices[edges[b].b]);
+    if len_a >= len_b { a } else { b }
 }
 
 fn drop_unused_vertices_keep_corners(
@@ -1040,6 +1378,11 @@ fn point_on_frame(point: Point, size: usize, tol: f32) -> bool {
         || (point.y - max).abs() <= tol
 }
 
+fn point_in_frame(point: Point, size: usize, tol: f32) -> bool {
+    let max = (size - 1) as f32;
+    point.x >= -tol && point.y >= -tol && point.x <= max + tol && point.y <= max + tol
+}
+
 fn point_on_side(point: Point, side: usize, size: usize, tol: f32) -> bool {
     let max = (size - 1) as f32;
     match side {
@@ -1159,6 +1502,10 @@ fn default_min_edge_support() -> f32 {
     0.45
 }
 
+fn default_min_edge_length_px() -> f32 {
+    3.0
+}
+
 fn default_vertex_merge_px() -> f32 {
     2.0
 }
@@ -1180,7 +1527,7 @@ fn default_hough_line_distance_px() -> f32 {
 }
 
 fn default_hough_min_segment_length_px() -> f32 {
-    8.0
+    6.0
 }
 
 fn default_hough_max_segment_gap_px() -> f32 {
@@ -1201,6 +1548,30 @@ fn default_carrier_merge_rho_px() -> f32 {
 
 fn default_max_line_hypotheses() -> usize {
     240
+}
+
+fn default_max_intersection_lines() -> usize {
+    180
+}
+
+fn default_junction_snap_px() -> f32 {
+    4.5
+}
+
+fn default_planar_cleanup() -> bool {
+    true
+}
+
+fn default_planar_cleanup_max_edges() -> usize {
+    2500
+}
+
+fn default_planar_split_vertex_distance_px() -> f32 {
+    2.0
+}
+
+fn default_planar_crossing_support_tie() -> f32 {
+    1e-4
 }
 
 #[cfg(test)]

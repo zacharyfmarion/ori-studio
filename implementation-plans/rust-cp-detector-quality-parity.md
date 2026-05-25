@@ -206,6 +206,38 @@ topology decoder port rather than tuning Hough thresholds blindly.
   - border assignments forced to `B`.
 - Re-run metrics and commit.
 
+Current checkpoint-3/4 implementation note:
+
+The Rust port now follows the Python topology ordering more closely:
+
+- compute analytic carrier intersections and snap nearby junction peaks;
+- drop unused non-border vertices before constructing the deterministic border
+  chain;
+- keep side-sorted square border edges deterministic;
+- run a conservative planar cleanup after border construction.
+
+One attempted direct Python behavior was rejected for the browser Rust path:
+unconditionally merging all same-family carrier runs by angle/rho increased false
+edges with imageproc polar Hough. Rust keeps a finite-run overlap/padding gate
+because imageproc produces different primitives than OpenCV `HoughLinesP`.
+
+Benchmark against the same `clean-smoke` frozen Python oracle:
+
+```text
+Python oracle: 63 vertices, 101 edges, 16 B edges, status outside_v1_envelope
+Rust/browser:  46 vertices, 72 edges, 12 B edges, status valid
+
+vertex P/R/F1: 0.913 / 0.667 / 0.771
+edge   P/R/F1: 0.819 / 0.584 / 0.682
+border P/R/F1: 0.583 / 0.438 / 0.500
+```
+
+This improves precision and overall edge F1 slightly over checkpoint 2, but it
+does not close the recall gap. The remaining parity issue is not just cleanup:
+Rust is missing vertices/edges that Python produces, so the next work should
+either add a larger benchmark suite or improve carrier/contact recall with
+clear metrics.
+
 ### Checkpoint 4: Cleanup, Quality, And Repair
 
 - Add planar cleanup:
