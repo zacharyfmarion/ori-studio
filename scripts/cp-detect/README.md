@@ -34,3 +34,20 @@ Then verify the local assets:
 ```bash
 node scripts/cp-detect/check-local-model-assets.mjs
 ```
+
+## Browser-vs-Oracle Benchmark
+
+With the web dev server running and real local model assets installed, compare
+the browser Rust/WASM detector against frozen Python oracle fixtures:
+
+```bash
+node scripts/cp-detect/benchmark-browser-vs-oracle.mjs \
+  --url http://127.0.0.1:5175/ \
+  --out artifacts/cp-detect-parity/browser-vs-python-baseline.json
+```
+
+The benchmark drives the actual browser upload/crop/detect flow with
+Playwright, captures the emitted FOLD JSON, and writes graph-count plus
+approximate vertex/edge/border matching metrics against the frozen Python
+fixture output. The generated report lives under ignored `artifacts/` by
+default.

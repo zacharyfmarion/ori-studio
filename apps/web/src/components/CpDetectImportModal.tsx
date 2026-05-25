@@ -167,13 +167,15 @@ export function CpDetectImportModal() {
     setError(null);
     try {
       const client = await getCpDetectClient();
-      setDetection(await client.detectRectifiedFold(rectified.image));
+      const nextDetection = await client.detectRectifiedFold(rectified.image);
+      setDetection(nextDetection);
+      publishDetectionResult(source, nextDetection);
     } catch (caught) {
       setError(cpDetectError(caught).message);
     } finally {
       setBusy(null);
     }
-  }, [rectified]);
+  }, [rectified, source]);
 
   const importDetection = useCallback(async () => {
     if (!detection || !source) return;
@@ -554,6 +556,18 @@ function busyLabel(busy: Exclude<BusyState, null>): string {
 
 function detectedFoldFilename(name: string): string {
   return `${name.replace(/\.[^.]+$/, '') || 'detected-cp'}.fold`;
+}
+
+function publishDetectionResult(source: SourceImage | null, detection: CpDetectFoldResult): void {
+  window.dispatchEvent(
+    new CustomEvent('ori-studio:cp-detect-result', {
+      detail: {
+        sourceName: source?.name ?? null,
+        sourcePath: source?.path ?? null,
+        detection,
+      },
+    })
+  );
 }
 
 function parseFoldPreview(foldJson: string): FoldPreviewData | null {

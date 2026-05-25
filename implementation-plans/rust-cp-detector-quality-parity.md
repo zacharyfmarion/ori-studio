@@ -145,6 +145,23 @@ Each checkpoint ends with a focused commit.
 - Generate a baseline report for the current Rust decoder.
 - Commit the harness and baseline report.
 
+Current checkpoint-1 baseline using
+`scripts/cp-detect/benchmark-browser-vs-oracle.mjs` against the frozen
+`clean-smoke` Python oracle fixture:
+
+```text
+Python oracle: 63 vertices, 101 edges, 16 B edges, status outside_v1_envelope
+Rust/browser:  80 vertices, 148 edges, 65 B edges, status valid
+
+vertex P/R/F1: 0.525 / 0.667 / 0.587
+edge   P/R/F1: 0.399 / 0.584 / 0.474
+border P/R/F1: 0.108 / 0.438 / 0.173
+```
+
+This confirms the current Rust/browser path is materially below Python quality,
+especially on border topology. The next checkpoint must reduce full-frame
+carrier/contact over-generation before product claims can be made.
+
 ### Checkpoint 2: Imageproc Hough And Finite Carriers
 
 - Replace the simplified hand-rolled Hough accumulator with
