@@ -278,6 +278,21 @@ clear metrics.
   plausibly close the gap, such as OpenCV.js for line segments or a different
   model output/decoder contract.
 
+### Checkpoint 7: Segment Extraction Parity Spike
+
+- Export frozen Python V2 decoder evidence for real-world fixtures:
+  - rectified image;
+  - line probability and line mask;
+  - OpenCV `HoughLinesP` raw segments;
+  - Python merged carriers;
+  - Python FOLD/report.
+- Implement a browser-safe Rust finite/probabilistic Hough spike that consumes
+  the same line mask and compares directly against the Python segment/carrier
+  evidence.
+- Tune extractor parameters enough to determine whether the architecture is
+  plausible before wiring it into product runtime.
+- Commit the spike and decision.
+
 ## First Implementation Target
 
 Start with the benchmark harness, then replace only line extraction with
@@ -298,42 +313,49 @@ checkpoint 2 edge F1 0.678, border F1 0.500
 checkpoint 3/4 edge F1 0.682, border F1 0.500
 ```
 
-But a broader 5-image real-world smoke slice exposed a significant limitation:
+But a broader 5-image real-world smoke slice exposed a significant limitation.
+The first report in this series accidentally used the Python CLI default Phase 3
+checkpoint, so it should not be used for V2 decision-making. The corrected run
+uses the explicit V2 checkpoint
+`runpod-v2-replay-correction-full-4000ada` for the frozen Python oracle:
 
 ```text
-Python oracle mode: batch-stats
-Rust/browser aggregate:
-vertex P/R/F1: 0.690 / 0.329 / 0.412
-edge   P/R/F1: 0.514 / 0.217 / 0.284
-border P/R/F1: 0.272 / 0.125 / 0.161
+vertex P/R/F1: 0.668 / 0.319 / 0.408
+edge   P/R/F1: 0.520 / 0.212 / 0.286
+border P/R/F1: 0.176 / 0.168 / 0.146
 ```
 
-Using Python's own rectified images as browser inputs did not materially fix the
-gap:
+The decoder-only segment extraction spike then compared Rust directly to
+Python's exported OpenCV `HoughLinesP` evidence on the same 5 real-world V2
+fixtures. Default strict matching:
 
 ```text
-rectified-input aggregate edge F1 0.296, border F1 0.165
+segment P/R/F1: 0.037 / 0.569 / 0.070
+line    P/R/F1: 0.259 / 0.360 / 0.299
 ```
 
-An eval-mode Python oracle also did not explain the mismatch:
+Relaxed line matching and extractor tuning did not get close enough to parity:
 
 ```text
-eval-oracle aggregate edge F1 0.084, border F1 0.119
+best relaxed line F1: ~0.45
+best tuned strict line F1: ~0.33
 ```
 
 Conclusion: the current browser-safe `imageproc::hough::detect_lines` polar-Hough
-port is useful for reducing the original full-frame carrier bug, but it is not a
-drop-in quality replacement for Python's OpenCV `HoughLinesP` segment extraction
-on real-world CPs. It is also slow enough in WASM that 5 examples take several
-minutes in the browser benchmark.
+port and the experimental pure-Rust Hough spike are useful diagnostics, but
+neither is a drop-in quality replacement for Python's OpenCV `HoughLinesP`
+segment extraction on real-world CPs. The segment evidence gap appears before
+square topology cleanup, so additional cleanup alone is unlikely to close the
+browser/Python metric gap.
 
 The next architecture decision should happen before more threshold tuning:
 
-- implement or adopt a browser-safe probabilistic Hough/finite segment extractor
-  that is closer to OpenCV `HoughLinesP`;
+- implement a closer OpenCV `HoughLinesP` port, including accumulator
+  suppression and finite segment growth behavior, with parity tests at the
+  segment-evidence layer;
 - or explicitly evaluate OpenCV.js despite its packaging cost;
 - or change the model/browser contract so the model emits finite carrier/contact
   primitives that reduce reliance on classical Hough.
 
 Do not mark browser detection parity-ready on the current pure imageproc polar
-Hough architecture.
+Hough architecture or on the first custom Rust Hough spike.

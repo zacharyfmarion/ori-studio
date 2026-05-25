@@ -1,0 +1,318 @@
+#!/usr/bin/env python3
+"""Export frozen Python CP detector evidence for Rust decoder parity work.
+
+This script is oracle tooling only. It imports an existing
+create-pattern-detector checkout and records the intermediate evidence produced
+by the frozen Python implementation without modifying that implementation.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+from PIL import Image
+
+
+DEFAULT_CHECKPOINT = "checkpoints/runpod_v2_replay_correction_full_4000ada/full/latest.pt"
+DEFAULT_CHECKPOINT_MANIFEST = "artifacts/checkpoints/runpod-v2-replay-correction-full-4000ada.json"
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("inputs", nargs="+", type=Path)
+    parser.add_argument(
+        "--detector-repo",
+        type=Path,
+        default=None,
+        help="create-pattern-detector checkout. Defaults to CP_DETECTOR_REPO.",
+    )
+    parser.add_argument("--checkpoint", type=Path, default=Path(DEFAULT_CHECKPOINT))
+    parser.add_argument(
+        "--checkpoint-manifest",
+        type=Path,
+        default=Path(DEFAULT_CHECKPOINT_MANIFEST),
+    )
+    parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--device", choices=["auto", "cpu", "mps", "cuda"], default="auto")
+    parser.add_argument("--batchnorm-mode", choices=["batch-stats", "eval"], default="batch-stats")
+    parser.add_argument("--threshold", type=float, default=None)
+    parser.add_argument("--alpha-matte", choices=["auto", "white", "black"], default="auto")
+    parser.add_argument("--image-size", type=int, default=1024)
+    parser.add_argument("--no-verify-checkpoint", action="store_true")
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    detector_repo = resolve_detector_repo(args.detector_repo)
+    args.output_dir = args.output_dir.expanduser().resolve()
+    sys.path.insert(0, str(detector_repo))
+
+    from src.inference.pipeline import (  # noqa: PLC0415
+        CPDetectPipeline,
+        InferenceConfig,
+        InferenceResult,
+        _image_tensor,
+        apply_rectification_warnings_to_report,
+        write_inference_outputs,
+    )
+    from src.models.batchnorm import model_eval_with_batchnorm_mode  # noqa: PLC0415
+    from src.vectorization import (  # noqa: PLC0415
+        attribute_graph_from_logits,
+        build_quality_report,
+        conservative_repair,
+        cpline_outputs_to_evidence,
+    )
+
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    config = InferenceConfig(
+        checkpoint=args.checkpoint,
+        checkpoint_manifest=args.checkpoint_manifest,
+        device=args.device,
+        image_size=args.image_size,
+        threshold=args.threshold,
+        batchnorm_mode=args.batchnorm_mode,
+        rectified=True,
+        alpha_matte=args.alpha_matte,
+        include_debug=False,
+        verify_checkpoint=not args.no_verify_checkpoint,
+    )
+    with pushd(detector_repo):
+        pipeline = CPDetectPipeline(config)
+
+        fixtures: list[dict[str, Any]] = []
+        for input_path in args.inputs:
+            input_path = input_path.expanduser().resolve()
+            fixture_dir = args.output_dir / input_path.stem
+            fixture_dir.mkdir(parents=True, exist_ok=True)
+            fixture = export_fixture(
+                input_path,
+                fixture_dir,
+                pipeline,
+                config,
+                InferenceResult,
+                _image_tensor,
+                model_eval_with_batchnorm_mode,
+                cpline_outputs_to_evidence,
+                attribute_graph_from_logits,
+                conservative_repair,
+                build_quality_report,
+                apply_rectification_warnings_to_report,
+                write_inference_outputs,
+            )
+            fixtures.append(fixture)
+            print(json.dumps({"id": fixture["id"], "status": fixture["expected_status"]}), flush=True)
+
+    manifest = {
+        "schema": "oristudio/cp-detect-python-evidence/v1",
+        "generated_by": "scripts/cp-detect/export-python-oracle-evidence.py",
+        "detector_repo": str(detector_repo),
+        "detector_checkpoint_id": pipeline.manifest.get("id"),
+        "checkpoint": {
+            "path": str(args.checkpoint),
+            "manifest": str(args.checkpoint_manifest),
+        },
+        "config": {
+            "image_size": args.image_size,
+            "threshold": pipeline.threshold,
+            "batchnorm_mode": args.batchnorm_mode,
+            "device": args.device,
+        },
+        "fixtures": fixtures,
+    }
+    manifest_path = args.output_dir / "manifest.json"
+    manifest_path.write_text(json.dumps(json_safe(manifest), indent=2) + "\n", encoding="utf-8")
+    print(f"wrote {manifest_path}")
+    return 0
+
+
+def export_fixture(
+    input_path: Path,
+    fixture_dir: Path,
+    pipeline: Any,
+    config: Any,
+    inference_result_type: Any,
+    image_tensor_fn: Any,
+    model_eval_with_batchnorm_mode: Any,
+    cpline_outputs_to_evidence: Any,
+    attribute_graph_from_logits: Any,
+    conservative_repair: Any,
+    build_quality_report: Any,
+    apply_rectification_warnings_to_report: Any,
+    write_inference_outputs: Any,
+) -> dict[str, Any]:
+    import torch  # noqa: PLC0415
+
+    rectification = pipeline.rectifier.rectify(input_path, rectified=True)
+    image_tensor = image_tensor_fn(rectification.rectified_rgb, pipeline.device)
+    with torch.no_grad(), model_eval_with_batchnorm_mode(
+        pipeline.model,
+        batchnorm_mode=config.batchnorm_mode,
+    ):
+        outputs = pipeline.model(image_tensor)
+
+    evidence = cpline_outputs_to_evidence(outputs, batch_index=0, line_threshold=pipeline.threshold)
+    decoder = pipeline.builder
+    effective_line_prob, suppression_stats = decoder._builder._effective_line_prob(  # noqa: SLF001
+        evidence.line_prob,
+        evidence,
+    )
+    mask = decoder._builder._line_mask(effective_line_prob)  # noqa: SLF001
+    raw_segments = decoder._builder._hough_segments(mask)  # noqa: SLF001
+    raw_lines = decoder._builder._merge_segments(raw_segments)  # noqa: SLF001
+    carriers = decoder._carriers_from_lines(raw_lines)  # noqa: SLF001
+    graph_result = decoder.build(evidence)
+    attributed = attribute_graph_from_logits(
+        graph_result,
+        outputs["assignment_logits"][0].detach().cpu(),
+        line_prob=evidence.line_prob,
+        config=pipeline.assignment_config,
+    )
+    repair = conservative_repair(
+        attributed,
+        line_prob=evidence.line_prob,
+        config=pipeline.repair_config,
+        infer_assignments=config.infer_assignments,
+    )
+    quality_report = build_quality_report(
+        repair.graph,
+        repair_actions=repair.actions,
+        config=pipeline.report_config,
+    )
+    apply_rectification_warnings_to_report(quality_report, rectification)
+
+    result = inference_result_type(
+        input_path=input_path,
+        rectification=rectification,
+        graph=repair.graph,
+        repair=repair,
+        quality_report=quality_report,
+        line_prob=evidence.line_prob.astype(np.float32),
+        junction_heatmap=evidence.junction_heatmap.astype(np.float32),
+        output_fold=fixture_dir / "oracle.fold",
+        report_path=fixture_dir / "oracle.report.json",
+        debug_dir=None,
+    )
+    write_inference_outputs(result, config=config, manifest=pipeline.manifest)
+
+    Image.fromarray(rectification.rectified_rgb).save(fixture_dir / "rectified.png")
+    write_pgm(fixture_dir / "line_prob.pgm", np.rint(evidence.line_prob * 255.0).clip(0, 255).astype(np.uint8))
+    write_pgm(
+        fixture_dir / "effective_line_prob.pgm",
+        np.rint(effective_line_prob * 255.0).clip(0, 255).astype(np.uint8),
+    )
+    write_pgm(fixture_dir / "line_mask.pgm", mask.astype(np.uint8))
+    write_json(fixture_dir / "raw_segments.json", raw_segments.astype(float).tolist())
+    write_json(fixture_dir / "raw_lines.json", [line_payload(line) for line in raw_lines])
+    write_json(fixture_dir / "carriers.json", [carrier_payload(carrier) for carrier in carriers])
+    write_json(fixture_dir / "suppression.json", suppression_stats)
+
+    fold_payload = json.loads((fixture_dir / "oracle.fold").read_text(encoding="utf-8"))
+    return {
+        "id": input_path.stem,
+        "profile": "real-smoke-v2",
+        "source_image_path": str(input_path),
+        "root": fixture_dir.name,
+        "rectified_image_path": f"{fixture_dir.name}/rectified.png",
+        "line_prob_pgm_path": f"{fixture_dir.name}/line_prob.pgm",
+        "effective_line_prob_pgm_path": f"{fixture_dir.name}/effective_line_prob.pgm",
+        "line_mask_pgm_path": f"{fixture_dir.name}/line_mask.pgm",
+        "raw_segments_path": f"{fixture_dir.name}/raw_segments.json",
+        "raw_lines_path": f"{fixture_dir.name}/raw_lines.json",
+        "carriers_path": f"{fixture_dir.name}/carriers.json",
+        "fold_path": f"{fixture_dir.name}/oracle.fold",
+        "report_path": f"{fixture_dir.name}/oracle.report.json",
+        "expected_status": quality_report.status,
+        "expected_vertices": len(fold_payload.get("vertices_coords", [])),
+        "expected_edges": len(fold_payload.get("edges_vertices", [])),
+    }
+
+
+def line_payload(line: Any) -> dict[str, Any]:
+    return {
+        "p0": array_payload(line.p0),
+        "p1": array_payload(line.p1),
+        "theta": float(line.theta),
+        "rho": float(line.rho),
+        "support": float(line.support),
+        "votes": int(line.votes),
+    }
+
+
+def carrier_payload(carrier: Any) -> dict[str, Any]:
+    return {
+        "line": line_payload(carrier.line),
+        "p0": array_payload(carrier.p0),
+        "p1": array_payload(carrier.p1),
+        "t_min": float(carrier.t_min),
+        "t_max": float(carrier.t_max),
+        "direction": array_payload(carrier.direction),
+    }
+
+
+def array_payload(value: Any) -> list[float]:
+    return [float(item) for item in np.asarray(value).reshape(-1).tolist()]
+
+
+def write_json(path: Path, value: Any) -> None:
+    path.write_text(json.dumps(json_safe(value), indent=2) + "\n", encoding="utf-8")
+
+
+def write_pgm(path: Path, image: np.ndarray) -> None:
+    if image.ndim != 2:
+        raise ValueError(f"PGM image must be 2D: {path}")
+    h, w = image.shape
+    with path.open("wb") as handle:
+        handle.write(f"P5\n{w} {h}\n255\n".encode("ascii"))
+        handle.write(np.ascontiguousarray(image, dtype=np.uint8).tobytes())
+
+
+def resolve_detector_repo(arg: Path | None) -> Path:
+    value = arg or (Path(os.environ["CP_DETECTOR_REPO"]) if "CP_DETECTOR_REPO" in os.environ else None)
+    if value is None:
+        raise SystemExit("Pass --detector-repo or set CP_DETECTOR_REPO")
+    repo = value.expanduser().resolve()
+    if not (repo / "src/inference/pipeline.py").exists():
+        raise SystemExit(f"Not a create-pattern-detector checkout: {repo}")
+    return repo
+
+
+class pushd:
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        self.previous: Path | None = None
+
+    def __enter__(self) -> None:
+        self.previous = Path.cwd()
+        os.chdir(self.path)
+
+    def __exit__(self, *_: Any) -> None:
+        if self.previous is not None:
+            os.chdir(self.previous)
+
+
+def json_safe(value: Any) -> Any:
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, np.ndarray):
+        return [json_safe(item) for item in value.tolist()]
+    if isinstance(value, np.generic):
+        return value.item()
+    if hasattr(value, "to_dict"):
+        return json_safe(value.to_dict())
+    if hasattr(value, "__dataclass_fields__"):
+        return json_safe(asdict(value))
+    if isinstance(value, dict):
+        return {str(key): json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [json_safe(item) for item in value]
+    return value
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

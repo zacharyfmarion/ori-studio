@@ -6,6 +6,7 @@
 
 pub mod decode;
 pub mod rectify;
+pub mod segments;
 
 use serde::{Deserialize, Serialize};
 

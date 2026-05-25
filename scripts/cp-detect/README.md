@@ -51,3 +51,40 @@ Playwright, captures the emitted FOLD JSON, and writes graph-count plus
 approximate vertex/edge/border matching metrics against the frozen Python
 fixture output. The generated report lives under ignored `artifacts/` by
 default.
+
+## Python Evidence Export And PHT Spike
+
+For decoder-only parity work, export frozen Python intermediates without
+modifying the Python implementation:
+
+```bash
+python scripts/cp-detect/export-python-oracle-evidence.py \
+  --detector-repo /Users/zacharymarion/.codex/worktrees/a00b/create-pattern-detector \
+  --checkpoint checkpoints/runpod_v2_replay_correction_full_4000ada/full/latest.pt \
+  --checkpoint-manifest artifacts/checkpoints/runpod-v2-replay-correction-full-4000ada.json \
+  --output-dir artifacts/cp-detect-oracle/evidence-real-smoke-v2 \
+  /path/to/cp-image.png
+```
+
+The exporter writes rectified inputs, line masks, OpenCV `HoughLinesP` raw
+segments, Python merged carriers, FOLD output, and reports under ignored
+`artifacts/`.
+
+Then run the Rust finite-segment spike against those masks:
+
+```bash
+cargo run -p oristudio-cp-detect --bin cp_detect_pht_spike -- \
+  --manifest artifacts/cp-detect-oracle/evidence-real-smoke-v2/manifest.json \
+  --out artifacts/cp-detect-parity/pht-spike-real-smoke-v2.json
+```
+
+This does not affect product runtime. It measures whether a browser-safe Rust
+segment extractor can get close enough to the Python OpenCV segment/carrier
+evidence before we wire anything into detection.
+
+Useful tuning flags include `--vote-threshold`, `--max-peaks`,
+`--line-distance-px`, `--min-line-length-px`, `--max-line-gap-px`,
+`--line-merge-angle-degrees`, `--line-merge-rho-px`, and
+`--max-line-hypotheses`. Matching tolerance flags are separate:
+`--segment-tolerance-px`, `--line-angle-tolerance-degrees`,
+`--line-rho-tolerance-px`, and `--line-overlap-tolerance`.
