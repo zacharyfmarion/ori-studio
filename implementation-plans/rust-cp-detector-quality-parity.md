@@ -284,3 +284,56 @@ Start with the benchmark harness, then replace only line extraction with
 `imageproc` Hough plus finite carrier extraction. The current browser failure
 shows too many full-frame carrier contacts; finite carriers are the highest
 leverage first decoder fix.
+
+## Current Parity Finding
+
+As of checkpoint `15f4f94`, the Rust/browser implementation has not reached
+quality parity with the frozen Python pipeline.
+
+Single-fixture progress on `clean-smoke` was real:
+
+```text
+checkpoint 1 edge F1 0.474, border F1 0.173
+checkpoint 2 edge F1 0.678, border F1 0.500
+checkpoint 3/4 edge F1 0.682, border F1 0.500
+```
+
+But a broader 5-image real-world smoke slice exposed a significant limitation:
+
+```text
+Python oracle mode: batch-stats
+Rust/browser aggregate:
+vertex P/R/F1: 0.690 / 0.329 / 0.412
+edge   P/R/F1: 0.514 / 0.217 / 0.284
+border P/R/F1: 0.272 / 0.125 / 0.161
+```
+
+Using Python's own rectified images as browser inputs did not materially fix the
+gap:
+
+```text
+rectified-input aggregate edge F1 0.296, border F1 0.165
+```
+
+An eval-mode Python oracle also did not explain the mismatch:
+
+```text
+eval-oracle aggregate edge F1 0.084, border F1 0.119
+```
+
+Conclusion: the current browser-safe `imageproc::hough::detect_lines` polar-Hough
+port is useful for reducing the original full-frame carrier bug, but it is not a
+drop-in quality replacement for Python's OpenCV `HoughLinesP` segment extraction
+on real-world CPs. It is also slow enough in WASM that 5 examples take several
+minutes in the browser benchmark.
+
+The next architecture decision should happen before more threshold tuning:
+
+- implement or adopt a browser-safe probabilistic Hough/finite segment extractor
+  that is closer to OpenCV `HoughLinesP`;
+- or explicitly evaluate OpenCV.js despite its packaging cost;
+- or change the model/browser contract so the model emits finite carrier/contact
+  primitives that reduce reliance on classical Hough.
+
+Do not mark browser detection parity-ready on the current pure imageproc polar
+Hough architecture.
