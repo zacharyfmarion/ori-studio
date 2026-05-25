@@ -31,6 +31,7 @@
     "comlink": "^4.4.2",
     "dockview": "^4.13.1",
     "lucide-react": "^0.563.0",
+    "onnxruntime-web": "^1.26.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-zoom-pan-pinch": "^3.7.0",

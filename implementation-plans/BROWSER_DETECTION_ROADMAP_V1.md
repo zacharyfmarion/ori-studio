@@ -70,17 +70,17 @@ phase starts.
 
 ### Phase 2: ONNX Worker Inference
 
-- [ ] Add `onnxruntime-web` to the web package.
-- [ ] Add a Comlink worker:
+- [x] Add `onnxruntime-web` to the web package.
+- [x] Add a Comlink worker:
   `apps/web/src/workers/cpDetectWorker.ts`.
-- [ ] Load model URL and manifest URL from local app config with sensible dev
+- [x] Load model URL and manifest URL from local app config with sensible dev
   defaults.
-- [ ] Match Python preprocessing exactly:
+- [x] Match Python preprocessing exactly:
   - RGB image input
   - `1024 x 1024`
   - CHW float32 tensor
   - values normalized by `/ 255`
-- [ ] Return typed arrays for CPLineNet-V2 outputs:
+- [x] Return typed arrays for CPLineNet-V2 outputs:
   - `line_logits`
   - `angle`
   - `junction_logits`
@@ -92,9 +92,9 @@ phase starts.
   - `boundary_side_logits`
   - `boundary_offset`
   - `boundary_coord`
-- [ ] Add worker tests with mocked ONNX output so web behavior does not require
+- [x] Add worker tests with mocked ONNX output so web behavior does not require
   the large model artifact.
-- [ ] Commit Phase 2.
+- [x] Commit Phase 2.
 
 ### Phase 3: Crop and Rectification V1
 
