@@ -139,3 +139,59 @@ For source-level debugging, `houghlinesp_cpp_trace.cpp` is a standalone C++
 tracer derived from OpenCV's CPU implementation. It is not product runtime; it
 exists to verify whether a mismatch is in the Rust port or in the Python/OpenCV
 oracle setup.
+
+## Correctness Benchmark Against FOLD Ground Truth
+
+The browser-vs-oracle scripts above are useful for port debugging, but final
+detector quality should compare both implementations against the same source
+`.fold` ground truth. The repeatable benchmark flow is:
+
+```text
+source .fold records
+  -> deterministic rendered image pack with GT graph
+  -> frozen Python PyTorch detector
+  -> browser ONNX Runtime Web + WASM detector
+  -> paired GT metrics and contact sheet
+```
+
+Build a smoke pack:
+
+```bash
+python scripts/cp-detect/build-correctness-benchmark-pack.py \
+  --tier smoke \
+  --samples-per-profile 3 \
+  --out artifacts/cp-detect-correctness/packs/smoke-1024-s3
+```
+
+Run the frozen Python baseline:
+
+```bash
+/Users/zacharymarion/.codex/worktrees/a00b/create-pattern-detector/.venv/bin/python \
+  scripts/cp-detect/run-python-correctness-baseline.py \
+  --pack artifacts/cp-detect-correctness/packs/smoke-1024-s3/manifest.json \
+  --out artifacts/cp-detect-correctness/runs/smoke-1024-s3/python \
+  --device auto
+```
+
+With the web app running locally, run the browser-fast path:
+
+```bash
+node scripts/cp-detect/run-browser-correctness-fast.mjs \
+  --url http://127.0.0.1:5175/ \
+  --pack artifacts/cp-detect-correctness/packs/smoke-1024-s3/manifest.json \
+  --out artifacts/cp-detect-correctness/runs/smoke-1024-s3/browser-fast
+```
+
+Score both runs against GT:
+
+```bash
+/Users/zacharymarion/.codex/worktrees/a00b/create-pattern-detector/.venv/bin/python \
+  scripts/cp-detect/evaluate-correctness-pair.py \
+  --pack artifacts/cp-detect-correctness/packs/smoke-1024-s3/manifest.json \
+  --python-run artifacts/cp-detect-correctness/runs/smoke-1024-s3/python/run_manifest.json \
+  --browser-run artifacts/cp-detect-correctness/runs/smoke-1024-s3/browser-fast/run_manifest.json \
+  --out artifacts/cp-detect-correctness/reports/smoke-1024-s3
+```
+
+The report directory contains `summary.json`, `summary.md`,
+`per_sample.jsonl`, `regressions.jsonl`, and `contact_sheet.png`.
