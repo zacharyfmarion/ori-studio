@@ -56,12 +56,84 @@ pub enum HoughError {
 }
 
 pub fn hough_lines_p_opencv_cpu(
-    _image: &[u8],
-    _width: usize,
-    _height: usize,
-    _config: &HoughLinesPConfig,
+    image: &[u8],
+    width: usize,
+    height: usize,
+    config: &HoughLinesPConfig,
 ) -> Result<Vec<HoughSegment>, HoughError> {
-    Err(HoughError::NotImplemented)
+    validate_config(image, width, height, config)?;
+    let line_length = cv_round_f64(config.min_line_length);
+    let line_gap = cv_round_f64(config.max_line_gap);
+    let numangle = compute_numangle(0.0, std::f64::consts::PI, config.theta as f64);
+    let numrho = compute_numrho(width, height, config.rho);
+    let trig_table = build_trig_table(numangle, config.theta, config.rho);
+    let mut accum = vec![0i32; numangle as usize * numrho as usize];
+    let (mut mask, mut nzloc) = collect_nonzero_mask(image, width, height)?;
+    let mut rng = OpenCvRng::new(u64::MAX);
+    let mut lines = Vec::new();
+    let mut count = nzloc.len();
+
+    while count > 0 {
+        let idx = rng.uniform(0, count as i32) as usize;
+        let point = nzloc[idx];
+        nzloc[idx] = nzloc[count - 1];
+        count -= 1;
+
+        let i = point.y;
+        let j = point.x;
+        if mask[point_index(point, width)] == 0 {
+            continue;
+        }
+
+        let mut max_val = config.threshold - 1;
+        let mut max_n = 0usize;
+        for (n, trig) in trig_table.iter().enumerate() {
+            let r = hough_rho_index(j, i, *trig, numrho);
+            let accum_idx = accumulator_index(n, r, numrho).ok_or(HoughError::InvalidInput(
+                "rho index out of accumulator range",
+            ))?;
+            accum[accum_idx] += 1;
+            let val = accum[accum_idx];
+            if max_val < val {
+                max_val = val;
+                max_n = n;
+            }
+        }
+
+        if max_val < config.threshold {
+            continue;
+        }
+
+        let setup = line_walk_setup(point, trig_table[max_n]);
+        let line_end = find_line_ends(point, setup, &mask, width, height, line_gap);
+        let good_line = (line_end[1].x - line_end[0].x).abs() >= line_length
+            || (line_end[1].y - line_end[0].y).abs() >= line_length;
+
+        clear_line_points(
+            setup,
+            line_end,
+            good_line,
+            &mut mask,
+            &mut accum,
+            &trig_table,
+            width,
+            numrho,
+        )?;
+
+        if good_line {
+            lines.push(HoughSegment {
+                x1: line_end[0].x,
+                y1: line_end[0].y,
+                x2: line_end[1].x,
+                y2: line_end[1].y,
+            });
+            if lines.len() >= config.lines_max as usize {
+                return Ok(lines);
+            }
+        }
+    }
+
+    Ok(lines)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -115,10 +187,10 @@ pub(crate) fn build_trig_table(numangle: i32, theta: f32, rho: f32) -> Vec<TrigE
     let irho = 1.0 / rho;
     (0..numangle)
         .map(|n| {
-            let angle = n as f32 * theta;
+            let angle = n as f64 * theta as f64;
             TrigEntry {
-                cos_irho: angle.cos() * irho,
-                sin_irho: angle.sin() * irho,
+                cos_irho: (angle.cos() * irho as f64) as f32,
+                sin_irho: (angle.sin() * irho as f64) as f32,
             }
         })
         .collect()
@@ -199,6 +271,140 @@ pub(crate) fn line_walk_setup(seed: Point, trig: TrigEntry) -> WalkSetup {
     }
 }
 
+fn validate_config(
+    image: &[u8],
+    width: usize,
+    height: usize,
+    config: &HoughLinesPConfig,
+) -> Result<(), HoughError> {
+    if width == 0 || height == 0 {
+        return Err(HoughError::InvalidInput(
+            "width and height must be positive",
+        ));
+    }
+    if image.len() != width * height {
+        return Err(HoughError::InvalidInput(
+            "image length must equal width * height",
+        ));
+    }
+    if !config.rho.is_finite() || config.rho <= 0.0 {
+        return Err(HoughError::InvalidInput("rho must be positive"));
+    }
+    if !config.theta.is_finite() || config.theta <= 0.0 {
+        return Err(HoughError::InvalidInput("theta must be positive"));
+    }
+    if config.threshold <= 0 {
+        return Err(HoughError::InvalidInput("threshold must be positive"));
+    }
+    if config.lines_max <= 0 {
+        return Err(HoughError::InvalidInput("lines_max must be positive"));
+    }
+    Ok(())
+}
+
+fn find_line_ends(
+    seed: Point,
+    setup: WalkSetup,
+    mask: &[u8],
+    width: usize,
+    height: usize,
+    line_gap: i32,
+) -> [Point; 2] {
+    let mut line_end = [seed, seed];
+    for (k, end) in line_end.iter_mut().enumerate() {
+        let mut gap = 0;
+        let mut x = setup.x0;
+        let mut y = setup.y0;
+        let mut dx = setup.dx0;
+        let mut dy = setup.dy0;
+        if k > 0 {
+            dx = -dx;
+            dy = -dy;
+        }
+        loop {
+            let point = walk_point(setup.xflag, x, y);
+            if point.x < 0 || point.x >= width as i32 || point.y < 0 || point.y >= height as i32 {
+                break;
+            }
+            if mask[point_index(point, width)] != 0 {
+                gap = 0;
+                *end = point;
+            } else {
+                gap += 1;
+                if gap > line_gap {
+                    break;
+                }
+            }
+            x += dx;
+            y += dy;
+        }
+    }
+    line_end
+}
+
+#[expect(clippy::too_many_arguments)]
+fn clear_line_points(
+    setup: WalkSetup,
+    line_end: [Point; 2],
+    good_line: bool,
+    mask: &mut [u8],
+    accum: &mut [i32],
+    trig_table: &[TrigEntry],
+    width: usize,
+    numrho: i32,
+) -> Result<(), HoughError> {
+    for (k, end) in line_end.iter().enumerate() {
+        let mut x = setup.x0;
+        let mut y = setup.y0;
+        let mut dx = setup.dx0;
+        let mut dy = setup.dy0;
+        if k > 0 {
+            dx = -dx;
+            dy = -dy;
+        }
+        loop {
+            let point = walk_point(setup.xflag, x, y);
+            let idx = point_index(point, width);
+            if mask[idx] != 0 {
+                if good_line {
+                    for (n, trig) in trig_table.iter().enumerate() {
+                        let r = hough_rho_index(point.x, point.y, *trig, numrho);
+                        let accum_idx = accumulator_index(n, r, numrho).ok_or(
+                            HoughError::InvalidInput("rho index out of accumulator range"),
+                        )?;
+                        accum[accum_idx] -= 1;
+                    }
+                }
+                mask[idx] = 0;
+            }
+            if point == *end {
+                break;
+            }
+            x += dx;
+            y += dy;
+        }
+    }
+    Ok(())
+}
+
+fn walk_point(xflag: bool, x: i64, y: i64) -> Point {
+    if xflag {
+        Point {
+            x: x as i32,
+            y: (y >> FIXED_POINT_SHIFT) as i32,
+        }
+    } else {
+        Point {
+            x: (x >> FIXED_POINT_SHIFT) as i32,
+            y: y as i32,
+        }
+    }
+}
+
+fn point_index(point: Point, width: usize) -> usize {
+    point.y as usize * width + point.x as usize
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct OpenCvRng {
     state: u64,
@@ -228,6 +434,10 @@ impl OpenCvRng {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use std::path::Path;
+
+    use serde::Deserialize;
 
     #[test]
     fn cv_round_matches_ties_to_even() {
@@ -325,5 +535,95 @@ mod tests {
                 dy0: 0,
             }
         );
+    }
+
+    #[test]
+    fn hough_lines_p_matches_tiny_opencv_oracle() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/houghlinesp_tiny");
+        let manifest: TestManifest =
+            serde_json::from_str(&fs::read_to_string(root.join("manifest.json")).unwrap()).unwrap();
+        let config = HoughLinesPConfig {
+            rho: manifest.config.rho,
+            theta: manifest.config.theta,
+            threshold: manifest.config.threshold,
+            min_line_length: manifest.config.min_line_length,
+            max_line_gap: manifest.config.max_line_gap,
+            lines_max: i32::MAX,
+        };
+        for fixture in manifest.fixtures {
+            let (width, height, mask) = read_test_pgm(&root.join(&fixture.mask_path));
+            let oracle: Vec<HoughSegment> = serde_json::from_str::<Vec<[i32; 4]>>(
+                &fs::read_to_string(root.join(&fixture.oracle_segments_path)).unwrap(),
+            )
+            .unwrap()
+            .into_iter()
+            .map(|row| HoughSegment {
+                x1: row[0],
+                y1: row[1],
+                x2: row[2],
+                y2: row[3],
+            })
+            .collect();
+            let actual = hough_lines_p_opencv_cpu(&mask, width, height, &config)
+                .unwrap_or_else(|error| panic!("{}: {error}", fixture.id));
+            assert_eq!(actual, oracle, "fixture {}", fixture.id);
+        }
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct TestManifest {
+        config: TestConfig,
+        fixtures: Vec<TestFixture>,
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct TestConfig {
+        rho: f32,
+        theta: f32,
+        threshold: i32,
+        min_line_length: f64,
+        max_line_gap: f64,
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct TestFixture {
+        id: String,
+        mask_path: String,
+        oracle_segments_path: String,
+    }
+
+    fn read_test_pgm(path: &Path) -> (usize, usize, Vec<u8>) {
+        let bytes = fs::read(path).unwrap();
+        let mut idx = 0usize;
+        assert_eq!(next_token(&bytes, &mut idx).unwrap(), b"P5");
+        let width: usize = std::str::from_utf8(next_token(&bytes, &mut idx).unwrap())
+            .unwrap()
+            .parse()
+            .unwrap();
+        let height: usize = std::str::from_utf8(next_token(&bytes, &mut idx).unwrap())
+            .unwrap()
+            .parse()
+            .unwrap();
+        assert_eq!(next_token(&bytes, &mut idx).unwrap(), b"255");
+        while idx < bytes.len() && bytes[idx].is_ascii_whitespace() {
+            idx += 1;
+        }
+        let data = bytes[idx..].to_vec();
+        assert_eq!(data.len(), width * height);
+        (width, height, data)
+    }
+
+    fn next_token<'a>(bytes: &'a [u8], idx: &mut usize) -> Option<&'a [u8]> {
+        while *idx < bytes.len() && bytes[*idx].is_ascii_whitespace() {
+            *idx += 1;
+        }
+        if *idx >= bytes.len() {
+            return None;
+        }
+        let start = *idx;
+        while *idx < bytes.len() && !bytes[*idx].is_ascii_whitespace() {
+            *idx += 1;
+        }
+        Some(&bytes[start..*idx])
     }
 }

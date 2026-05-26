@@ -2,6 +2,7 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use oristudio_cp_detect::opencv_hough_lines_p::{HoughLinesPConfig, hough_lines_p_opencv_cpu};
 use oristudio_cp_detect::segments::{SegmentExtractionConfig, extract_probabilistic_segments};
 use serde::{Deserialize, Serialize};
 
@@ -93,6 +94,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let (width, height, mask) =
                     read_pgm(&resolve_path(manifest_root, &fixture.mask_path))?;
                 custom_spike_segments(&mask, width, height)
+            }
+            Candidate::OpenCvPort => {
+                let (width, height, mask) =
+                    read_pgm(&resolve_path(manifest_root, &fixture.mask_path))?;
+                opencv_port_segments(&mask, width, height, &manifest.config)?
             }
         };
         let exact_ordered = candidate == oracle;
@@ -195,6 +201,7 @@ impl Args {
 #[serde(rename_all = "kebab-case")]
 enum Candidate {
     CustomSpike,
+    OpenCvPort,
 }
 
 impl std::str::FromStr for Candidate {
@@ -203,6 +210,7 @@ impl std::str::FromStr for Candidate {
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value {
             "custom-spike" => Ok(Self::CustomSpike),
+            "opencv-port" => Ok(Self::OpenCvPort),
             _ => Err(format!("unknown candidate: {value}")),
         }
     }
@@ -240,7 +248,7 @@ fn required_value(
 fn print_usage() {
     println!(
         "compare_houghlinesp_oracle --manifest PATH [--out PATH] \
-         [--candidate custom-spike] [--mode exact-ordered] \
+         [--candidate custom-spike|opencv-port] [--mode exact-ordered] \
          [--geometry-tolerance 1] [--allow-mismatch]"
     );
 }
@@ -338,6 +346,36 @@ fn custom_spike_segments(mask: &[u8], width: usize, height: usize) -> Vec<Segmen
             y2: segment.p1.y.round() as i32,
         })
         .collect()
+}
+
+fn opencv_port_segments(
+    mask: &[u8],
+    width: usize,
+    height: usize,
+    config: &OracleConfig,
+) -> Result<Vec<Segment>, Box<dyn std::error::Error>> {
+    let segments = hough_lines_p_opencv_cpu(
+        mask,
+        width,
+        height,
+        &HoughLinesPConfig {
+            rho: config.rho,
+            theta: config.theta,
+            threshold: config.threshold,
+            min_line_length: config.min_line_length,
+            max_line_gap: config.max_line_gap,
+            lines_max: i32::MAX,
+        },
+    )?;
+    Ok(segments
+        .into_iter()
+        .map(|segment| Segment {
+            x1: segment.x1,
+            y1: segment.y1,
+            x2: segment.x2,
+            y2: segment.y2,
+        })
+        .collect())
 }
 
 fn sorted_segments(segments: &[Segment]) -> Vec<Segment> {

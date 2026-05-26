@@ -100,25 +100,25 @@ Status legend:
 | Area | Status | Required behavior |
 | --- | --- | --- |
 | License attribution | Complete | Add OpenCV copyright/license notice to the Rust module. |
-| Public wrapper rounding | In progress | Match `HoughLinesP` conversion of `minLineLength` and `maxGap` through OpenCV `cvRound`. `cvRound` helper is implemented; wrapper use is not wired yet. |
-| Argument validation | Not implemented | Match required constraints for 8-bit single-channel input, positive `rho`, positive `theta`, and sensible dimensions. |
+| Public wrapper rounding | Complete | Match `HoughLinesP` conversion of `minLineLength` and `maxGap` through OpenCV `cvRound`. |
+| Argument validation | Complete | Match required constraints for 8-bit single-channel input, positive `rho`, positive `theta`, and sensible dimensions. |
 | `computeNumangle` | Complete | Match OpenCV angle-bin count and the duplicate-PI-bin removal rule. |
 | Trig table | Complete | Use `cos(n * theta) * irho` and `sin(n * theta) * irho`, stored as `f32`, matching OpenCV's table shape. |
 | `numrho` | Complete | Match `cvRound(((width + height) * 2 + 1) / rho)`. |
-| Accumulator layout | In progress | Use `numangle * numrho` signed integer storage and OpenCV's `r + (numrho - 1) / 2` indexing. Rho indexing helper is implemented; full accumulator mutation is not wired yet. |
+| Accumulator layout | Complete | Use `numangle * numrho` signed integer storage and OpenCV's `r + (numrho - 1) / 2` indexing. |
 | Mask layout | Complete | Build a mutable `width * height` byte mask with `1` for nonzero source pixels and `0` otherwise. |
 | Nonzero point order | Complete | Collect points in row-major `(x, y)` order exactly as OpenCV does. |
 | OpenCV RNG | Complete | Port `cv::RNG((uint64)-1)` and `uniform(0, count)` exactly. This is mandatory because line order and suppression depend on it. |
-| Random point removal | Not implemented | Match OpenCV's swap-with-last removal from `nzloc` before processing the point. |
-| Cleared-point skip | Not implemented | Skip a selected point if its mask cell has already been cleared by an accepted line. |
-| Per-point voting | Not implemented | Increment accumulator votes for all angles from the selected point, track `max_val` and `max_n`, and continue if `max_val < threshold`. |
-| Fixed-point walker | In progress | Port the `shift = 16` line walker exactly, including x-major/y-major branch, signed `dx0/dy0`, and `>> shift` behavior. Walk setup is implemented; endpoint scanning is not wired yet. |
-| Endpoint discovery | Not implemented | Walk both directions from the seed point, stop at image bounds or when gap exceeds `lineGap`, and record the last nonzero endpoint per direction. |
-| Good-line test | Not implemented | Accept when x-span or y-span is at least `lineLength`, matching OpenCV's `||` condition. |
-| Mask clearing pass | Not implemented | Walk both directions again; clear every encountered nonzero mask pixel. |
-| Accumulator decrement | Not implemented | Only for accepted lines, decrement every angle accumulator bucket for each cleared nonzero pixel. |
-| Output order | Not implemented | Push `Vec4i(x1, y1, x2, y2)` in OpenCV's accepted order and stop at `linesMax`. |
-| Degenerate cases | Not implemented | Match empty masks, weak masks, short segments, one-pixel noise, dense masks, and line gaps. |
+| Random point removal | Complete | Match OpenCV's swap-with-last removal from `nzloc` before processing the point. |
+| Cleared-point skip | Complete | Skip a selected point if its mask cell has already been cleared by an accepted line. |
+| Per-point voting | Complete | Increment accumulator votes for all angles from the selected point, track `max_val` and `max_n`, and continue if `max_val < threshold`. |
+| Fixed-point walker | Complete | Port the `shift = 16` line walker exactly, including x-major/y-major branch, signed `dx0/dy0`, and `>> shift` behavior. |
+| Endpoint discovery | Complete | Walk both directions from the seed point, stop at image bounds or when gap exceeds `lineGap`, and record the last nonzero endpoint per direction. |
+| Good-line test | Complete | Accept when x-span or y-span is at least `lineLength`, matching OpenCV's `||` condition. |
+| Mask clearing pass | Complete | Walk both directions again; clear every encountered nonzero mask pixel. |
+| Accumulator decrement | Complete | Only for accepted lines, decrement every angle accumulator bucket for each cleared nonzero pixel. |
+| Output order | Complete | Push `Vec4i(x1, y1, x2, y2)` in OpenCV's accepted order and stop at `linesMax`. |
+| Degenerate cases | In progress | Match empty masks, weak masks, short segments, one-pixel noise, dense masks, and line gaps. Tiny fixture parity passes; real CP masks are not tested yet. |
 | No OpenCL/IPP branch | Complete | Explicitly out of browser-runtime scope; oracle calls must force normal CPU/Mat behavior. |
 
 ## Oracle Strategy
@@ -284,7 +284,7 @@ Before the port can be considered complete:
 
 ## Current State
 
-Checkpoints 1 and 2 are complete.
+Checkpoints 1, 2, and 3 are complete.
 
 Checkpoint 1:
 
@@ -302,6 +302,17 @@ Checkpoint 2:
   OpenCV RNG, and fixed-point walk setup;
 - kept `hough_lines_p_opencv_cpu` explicitly unavailable with a
   `NotImplemented` error.
+
+Checkpoint 3:
+
+- implemented the private CPU `hough_lines_p_opencv_cpu` port;
+- wired `compare_houghlinesp_oracle --candidate opencv-port`;
+- exact ordered parity passes on all 14 tiny OpenCV oracle fixtures:
+
+```text
+fixture_count: 14
+exact_ordered_matches: 14
+```
 
 The existing `segments.rs` custom Hough spike is diagnostic only and should not
 be treated as an OpenCV port.
