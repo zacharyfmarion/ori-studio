@@ -352,7 +352,9 @@ The next architecture decision should happen before more threshold tuning:
 
 - implement a closer OpenCV `HoughLinesP` port, including accumulator
   suppression and finite segment growth behavior, with parity tests at the
-  segment-evidence layer;
+  segment-evidence layer. Use
+  [opencv-houghlinesp-rust-port.md](./opencv-houghlinesp-rust-port.md) as the
+  concrete implementation plan;
 - or explicitly evaluate OpenCV.js despite its packaging cost;
 - or change the model/browser contract so the model emits finite carrier/contact
   primitives that reduce reliance on classical Hough.
