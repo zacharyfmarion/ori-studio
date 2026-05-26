@@ -4,8 +4,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use oristudio_cp_detect::decode::{
-    DecodeConfig, DecodeVertexStageSnapshot, StageCarrier, StageHoughSegment, StageLine,
-    StageVertex, decode_vertex_stage_snapshot_from_maps,
+    DecodeConfig, DecodeEdgeStageSnapshot, StageCarrier, StageEdge, StageHoughSegment, StageLine,
+    StageVertex, decode_edge_stage_snapshot_from_maps,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -39,7 +39,13 @@ struct OracleFixture {
     junction_heatmap_f32_path: String,
     #[serde(default)]
     boundary_contact_heatmap_f32_path: Option<String>,
+    effective_line_prob_f32_path: String,
+    #[serde(default)]
+    assignment_labels_pgm_path: Option<String>,
+    #[serde(default)]
+    line_style_prob_f32_path: Option<String>,
     vertex_stage_path: String,
+    edge_stage_path: String,
     #[allow(dead_code)]
     fold_path: String,
     #[allow(dead_code)]
@@ -86,6 +92,23 @@ struct PythonVertexStage {
 }
 
 #[derive(Debug, Deserialize)]
+struct PythonEdgeStage {
+    initial_interior_edges: Vec<PythonStageEdge>,
+    vertices_after_drop: Vec<PythonStageVertex>,
+    used_boundary: Vec<usize>,
+    interior_edges: Vec<PythonStageEdge>,
+    border_edges: Vec<PythonStageEdge>,
+    combined_edges: Vec<PythonStageEdge>,
+}
+
+#[derive(Debug, Deserialize)]
+struct PythonStageEdge {
+    vertices: [usize; 2],
+    support: f64,
+    assignment: u8,
+}
+
+#[derive(Debug, Deserialize)]
 struct PythonStageVertex {
     point: Vec<f64>,
     kind: String,
@@ -116,6 +139,11 @@ struct Aggregate {
     carrier_ordered_geometry_matches: usize,
     candidate_vertex_ordered_matches: usize,
     merged_vertex_ordered_matches: usize,
+    initial_interior_edge_ordered_matches: usize,
+    vertices_after_drop_ordered_matches: usize,
+    interior_edge_ordered_matches: usize,
+    border_edge_ordered_matches: usize,
+    combined_edge_ordered_matches: usize,
     first_divergence_counts: BTreeMap<String, usize>,
 }
 
@@ -137,6 +165,12 @@ struct StageReports {
     boundary_contacts: PointListStageReport,
     candidate_vertices: VertexStageReport,
     merged_vertices: VertexStageReport,
+    initial_interior_edges: EdgeStageReport,
+    vertices_after_drop: VertexStageReport,
+    used_boundary: IndexListStageReport,
+    interior_edges: EdgeStageReport,
+    border_edges: EdgeStageReport,
+    combined_edges: EdgeStageReport,
     final_fold: NotImplementedStageReport,
 }
 
@@ -200,6 +234,28 @@ struct VertexStageReport {
 }
 
 #[derive(Debug, Serialize)]
+struct EdgeStageReport {
+    implemented: bool,
+    python_count: usize,
+    rust_count: usize,
+    count_equal: bool,
+    ordered_match: bool,
+    ordered_topology_match: bool,
+    max_support_delta: Option<f64>,
+    mean_support_delta: Option<f64>,
+    first_difference: Option<Value>,
+}
+
+#[derive(Debug, Serialize)]
+struct IndexListStageReport {
+    implemented: bool,
+    python_count: usize,
+    rust_count: usize,
+    exact_ordered: bool,
+    first_difference: Option<Value>,
+}
+
+#[derive(Debug, Serialize)]
 struct NotImplementedStageReport {
     implemented: bool,
     python_count: Option<usize>,
@@ -233,10 +289,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .as_ref()
             .map(|path| read_f32_map(&resolve_path(manifest_root, path)))
             .transpose()?;
-        let snapshot = decode_vertex_stage_snapshot_from_maps(
+        let effective_line_prob = read_f32_map(&resolve_path(
+            manifest_root,
+            &fixture.effective_line_prob_f32_path,
+        ))?;
+        let assignment_labels = fixture
+            .assignment_labels_pgm_path
+            .as_ref()
+            .map(|path| read_pgm(&resolve_path(manifest_root, path)).map(|(_, _, data)| data))
+            .transpose()?;
+        let line_style_prob = fixture
+            .line_style_prob_f32_path
+            .as_ref()
+            .map(|path| read_f32_map(&resolve_path(manifest_root, path)))
+            .transpose()?;
+        let snapshot = decode_edge_stage_snapshot_from_maps(
             &line_mask,
+            &effective_line_prob,
             &junction_heatmap,
             boundary_contact_heatmap.as_deref(),
+            assignment_labels.as_deref(),
+            line_style_prob.as_deref(),
             manifest.config.image_size,
             DecodeConfig {
                 image_size: manifest.config.image_size,
@@ -255,6 +328,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             read_python_carriers(&resolve_path(manifest_root, &fixture.carriers_path))?;
         let python_vertex_stage =
             read_python_vertex_stage(&resolve_path(manifest_root, &fixture.vertex_stage_path))?;
+        let python_edge_stage =
+            read_python_edge_stage(&resolve_path(manifest_root, &fixture.edge_stage_path))?;
 
         fixture_reports.push(compare_fixture(
             fixture,
@@ -262,6 +337,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             python_raw_lines.unwrap_or_default(),
             python_carriers,
             python_vertex_stage,
+            python_edge_stage,
             snapshot,
             args.carrier_tolerance_px,
         ));
@@ -301,45 +377,64 @@ fn compare_fixture(
     python_raw_lines: Vec<PythonLine>,
     python_carriers: Vec<PythonCarrier>,
     python_vertex_stage: PythonVertexStage,
-    rust: DecodeVertexStageSnapshot,
+    python_edge_stage: PythonEdgeStage,
+    rust: DecodeEdgeStageSnapshot,
     carrier_tolerance_px: f64,
 ) -> FixtureReport {
-    let raw_segment_report = compare_raw_segments(&python_segments, &rust.line_stage.raw_segments);
+    let vertex_stage = &rust.vertex_stage;
+    let raw_segment_report =
+        compare_raw_segments(&python_segments, &vertex_stage.line_stage.raw_segments);
     let raw_lines_report = compare_raw_lines(
         &python_raw_lines,
-        &rust.line_stage.raw_lines,
+        &vertex_stage.line_stage.raw_lines,
         carrier_tolerance_px,
     );
     let carrier_report = compare_carriers(
         &python_carriers,
-        &rust.line_stage.carriers,
+        &vertex_stage.line_stage.carriers,
         carrier_tolerance_px,
     );
     let intersections_report = compare_point_list(
         &python_vertex_stage.intersections,
-        &rust.intersections,
+        &vertex_stage.intersections,
         carrier_tolerance_px,
     );
     let junctions_report = compare_point_list(
         &python_vertex_stage.junctions,
-        &rust.junctions,
+        &vertex_stage.junctions,
         carrier_tolerance_px,
     );
     let boundary_contacts_report = compare_point_list(
         &python_vertex_stage.boundary_contacts,
-        &rust.boundary_contacts,
+        &vertex_stage.boundary_contacts,
         carrier_tolerance_px,
     );
     let candidate_vertices_report = compare_vertices(
         &python_vertex_stage.candidate_vertices,
-        &rust.candidate_vertices,
+        &vertex_stage.candidate_vertices,
         carrier_tolerance_px,
     );
     let merged_vertices_report = compare_vertices(
         &python_vertex_stage.merged_vertices,
-        &rust.merged_vertices,
+        &vertex_stage.merged_vertices,
         carrier_tolerance_px,
     );
+    let initial_interior_edges_report = compare_edges(
+        &python_edge_stage.initial_interior_edges,
+        &rust.initial_interior_edges,
+    );
+    let vertices_after_drop_report = compare_vertices(
+        &python_edge_stage.vertices_after_drop,
+        &rust.vertices_after_drop,
+        carrier_tolerance_px,
+    );
+    let used_boundary_report =
+        compare_index_list(&python_edge_stage.used_boundary, &rust.used_boundary);
+    let interior_edges_report =
+        compare_edges(&python_edge_stage.interior_edges, &rust.interior_edges);
+    let border_edges_report = compare_edges(&python_edge_stage.border_edges, &rust.border_edges);
+    let combined_edges_report =
+        compare_edges(&python_edge_stage.combined_edges, &rust.combined_edges);
     let final_fold_report = NotImplementedStageReport {
         implemented: false,
         python_count: None,
@@ -361,6 +456,18 @@ fn compare_fixture(
         "candidate_vertices"
     } else if !merged_vertices_report.ordered_match {
         "merged_vertices"
+    } else if !initial_interior_edges_report.ordered_match {
+        "initial_interior_edges"
+    } else if !vertices_after_drop_report.ordered_match {
+        "vertices_after_drop"
+    } else if !used_boundary_report.exact_ordered {
+        "used_boundary"
+    } else if !interior_edges_report.ordered_match {
+        "interior_edges"
+    } else if !border_edges_report.ordered_match {
+        "border_edges"
+    } else if !combined_edges_report.ordered_match {
+        "combined_edges"
     } else {
         "none"
     }
@@ -379,6 +486,12 @@ fn compare_fixture(
             boundary_contacts: boundary_contacts_report,
             candidate_vertices: candidate_vertices_report,
             merged_vertices: merged_vertices_report,
+            initial_interior_edges: initial_interior_edges_report,
+            vertices_after_drop: vertices_after_drop_report,
+            used_boundary: used_boundary_report,
+            interior_edges: interior_edges_report,
+            border_edges: border_edges_report,
+            combined_edges: combined_edges_report,
             final_fold: final_fold_report,
         },
     }
@@ -644,6 +757,95 @@ fn compare_vertices(
     }
 }
 
+fn compare_edges(python: &[PythonStageEdge], rust: &[StageEdge]) -> EdgeStageReport {
+    let paired = python.len().min(rust.len());
+    let mut support_deltas = Vec::new();
+    let mut first_difference = None;
+    for index in 0..paired {
+        let topology_match = python[index].vertices == rust[index].vertices
+            && python[index].assignment == rust[index].assignment;
+        let support_delta = (python[index].support - f64::from(rust[index].support)).abs();
+        support_deltas.push(support_delta);
+        if (!topology_match || support_delta > 1e-5) && first_difference.is_none() {
+            first_difference = Some(json!({
+                "index": index,
+                "support_delta": support_delta,
+                "python": {
+                    "vertices": python[index].vertices,
+                    "support": python[index].support,
+                    "assignment": python[index].assignment,
+                },
+                "rust": {
+                    "vertices": rust[index].vertices,
+                    "support": rust[index].support,
+                    "assignment": rust[index].assignment,
+                },
+            }));
+        }
+    }
+    if python.len() != rust.len() && first_difference.is_none() {
+        first_difference = Some(json!({
+            "index": paired,
+            "python": python.get(paired).map(|edge| json!({
+                "vertices": edge.vertices,
+                "support": edge.support,
+                "assignment": edge.assignment,
+            })),
+            "rust": rust.get(paired).map(|edge| json!({
+                "vertices": edge.vertices,
+                "support": edge.support,
+                "assignment": edge.assignment,
+            })),
+        }));
+    }
+    let ordered_topology_match = python.len() == rust.len()
+        && python.iter().zip(rust.iter()).all(|(left, right)| {
+            left.vertices == right.vertices && left.assignment == right.assignment
+        });
+    let ordered_match = ordered_topology_match && support_deltas.iter().all(|delta| *delta <= 1e-5);
+    EdgeStageReport {
+        implemented: true,
+        python_count: python.len(),
+        rust_count: rust.len(),
+        count_equal: python.len() == rust.len(),
+        ordered_match,
+        ordered_topology_match,
+        max_support_delta: support_deltas.iter().copied().reduce(f64::max),
+        mean_support_delta: mean(&support_deltas),
+        first_difference,
+    }
+}
+
+fn compare_index_list(python: &[usize], rust: &[usize]) -> IndexListStageReport {
+    let exact_ordered = python == rust;
+    let paired = python.len().min(rust.len());
+    let mut first_difference = None;
+    for index in 0..paired {
+        if python[index] != rust[index] {
+            first_difference = Some(json!({
+                "index": index,
+                "python": python[index],
+                "rust": rust[index],
+            }));
+            break;
+        }
+    }
+    if python.len() != rust.len() && first_difference.is_none() {
+        first_difference = Some(json!({
+            "index": paired,
+            "python": python.get(paired),
+            "rust": rust.get(paired),
+        }));
+    }
+    IndexListStageReport {
+        implemented: true,
+        python_count: python.len(),
+        rust_count: rust.len(),
+        exact_ordered,
+        first_difference,
+    }
+}
+
 fn point_list_deltas(
     python: &[Vec<f64>],
     rust: &[[f32; 2]],
@@ -704,6 +906,21 @@ fn aggregate(fixtures: &[FixtureReport]) -> Aggregate {
         }
         if fixture.stages.merged_vertices.ordered_match {
             aggregate.merged_vertex_ordered_matches += 1;
+        }
+        if fixture.stages.initial_interior_edges.ordered_match {
+            aggregate.initial_interior_edge_ordered_matches += 1;
+        }
+        if fixture.stages.vertices_after_drop.ordered_match {
+            aggregate.vertices_after_drop_ordered_matches += 1;
+        }
+        if fixture.stages.interior_edges.ordered_match {
+            aggregate.interior_edge_ordered_matches += 1;
+        }
+        if fixture.stages.border_edges.ordered_match {
+            aggregate.border_edge_ordered_matches += 1;
+        }
+        if fixture.stages.combined_edges.ordered_match {
+            aggregate.combined_edge_ordered_matches += 1;
         }
         if fixture.first_divergence != "none" {
             *aggregate
@@ -795,6 +1012,10 @@ fn read_python_carriers(path: &Path) -> Result<Vec<PythonCarrier>, Box<dyn std::
 }
 
 fn read_python_vertex_stage(path: &Path) -> Result<PythonVertexStage, Box<dyn std::error::Error>> {
+    Ok(serde_json::from_str(&fs::read_to_string(path)?)?)
+}
+
+fn read_python_edge_stage(path: &Path) -> Result<PythonEdgeStage, Box<dyn std::error::Error>> {
     Ok(serde_json::from_str(&fs::read_to_string(path)?)?)
 }
 

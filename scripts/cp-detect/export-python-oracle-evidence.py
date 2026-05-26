@@ -169,6 +169,7 @@ def export_fixture(
     raw_lines = decoder._builder._merge_segments(raw_segments)  # noqa: SLF001
     carriers = decoder._carriers_from_lines(raw_lines)  # noqa: SLF001
     vertex_stage = vertex_stage_payload(decoder, evidence, carriers, mask)
+    edge_stage = edge_stage_payload(decoder, evidence, carriers, effective_line_prob, mask)
     graph_result = decoder.build(evidence)
     attributed = attribute_graph_from_logits(
         graph_result,
@@ -210,6 +211,11 @@ def export_fixture(
     write_f32(fixture_dir / "junction_heatmap.f32", evidence.junction_heatmap)
     if evidence.boundary_contact_heatmap is not None:
         write_f32(fixture_dir / "boundary_contact_heatmap.f32", evidence.boundary_contact_heatmap)
+    write_f32(fixture_dir / "effective_line_prob.f32", effective_line_prob)
+    if evidence.assignment_labels is not None:
+        write_pgm(fixture_dir / "assignment_labels.pgm", evidence.assignment_labels.astype(np.uint8))
+    if evidence.line_style_prob is not None:
+        write_f32(fixture_dir / "line_style_prob.f32", evidence.line_style_prob)
     write_pgm(
         fixture_dir / "effective_line_prob.pgm",
         np.rint(effective_line_prob * 255.0).clip(0, 255).astype(np.uint8),
@@ -219,6 +225,7 @@ def export_fixture(
     write_json(fixture_dir / "raw_lines.json", [line_payload(line) for line in raw_lines])
     write_json(fixture_dir / "carriers.json", [carrier_payload(carrier) for carrier in carriers])
     write_json(fixture_dir / "vertex_stage.json", vertex_stage)
+    write_json(fixture_dir / "edge_stage.json", edge_stage)
     write_json(fixture_dir / "suppression.json", suppression_stats)
 
     fold_payload = json.loads((fixture_dir / "oracle.fold").read_text(encoding="utf-8"))
@@ -238,11 +245,19 @@ def export_fixture(
             else f"{fixture_dir.name}/boundary_contact_heatmap.f32"
         ),
         "effective_line_prob_pgm_path": f"{fixture_dir.name}/effective_line_prob.pgm",
+        "effective_line_prob_f32_path": f"{fixture_dir.name}/effective_line_prob.f32",
+        "assignment_labels_pgm_path": (
+            None if evidence.assignment_labels is None else f"{fixture_dir.name}/assignment_labels.pgm"
+        ),
+        "line_style_prob_f32_path": (
+            None if evidence.line_style_prob is None else f"{fixture_dir.name}/line_style_prob.f32"
+        ),
         "line_mask_pgm_path": f"{fixture_dir.name}/line_mask.pgm",
         "raw_segments_path": f"{fixture_dir.name}/raw_segments.json",
         "raw_lines_path": f"{fixture_dir.name}/raw_lines.json",
         "carriers_path": f"{fixture_dir.name}/carriers.json",
         "vertex_stage_path": f"{fixture_dir.name}/vertex_stage.json",
+        "edge_stage_path": f"{fixture_dir.name}/edge_stage.json",
         "fold_path": f"{fixture_dir.name}/oracle.fold",
         "report_path": f"{fixture_dir.name}/oracle.report.json",
         "expected_status": quality_report.status,
@@ -271,6 +286,97 @@ def vertex_stage_payload(decoder: Any, evidence: Any, carriers: list[Any], mask:
             for point, kind in zip(merged_vertices, merged_meta)
         ],
     }
+
+
+def edge_stage_payload(
+    decoder: Any,
+    evidence: Any,
+    carriers: list[Any],
+    effective_line_prob: np.ndarray,
+    mask: np.ndarray,
+) -> dict[str, Any]:
+    candidate_vertices, candidate_meta = decoder._candidate_vertices(evidence, carriers, mask)  # noqa: SLF001
+    merged_vertices = decoder._merge_vertices(candidate_vertices)  # noqa: SLF001
+    merged_meta = decoder._refresh_vertex_meta(merged_vertices, candidate_meta)  # noqa: SLF001
+    initial_edges, initial_support, initial_assignments = decoder._interior_edges(  # noqa: SLF001
+        merged_vertices,
+        carriers,
+        effective_line_prob,
+        evidence,
+    )
+    vertices_after_drop, interior_edges, _vertex_support, used_boundary = (  # noqa: SLF001
+        decoder._drop_unused_non_border_vertices(
+            merged_vertices,
+            initial_edges,
+            initial_support,
+            merged_meta,
+        )
+    )
+    interior_support = decoder._support_for_edges(  # noqa: SLF001
+        vertices_after_drop,
+        interior_edges,
+        effective_line_prob,
+        evidence.line_style_prob,
+    )
+    interior_assignments = decoder._assignments_for_edges(  # noqa: SLF001
+        vertices_after_drop,
+        interior_edges,
+        evidence.assignment_labels,
+        default=3,
+    )
+    border_edges, border_support, border_assignments = decoder._border_chain(  # noqa: SLF001
+        vertices_after_drop,
+        used_boundary,
+        effective_line_prob,
+    )
+    combined_edges, combined_support, combined_assignments = decoder._combine_edges(  # noqa: SLF001
+        interior_edges,
+        interior_support,
+        interior_assignments,
+        border_edges,
+        border_support,
+        border_assignments,
+    )
+    return {
+        "initial_interior_edges": edges_payload(
+            initial_edges,
+            initial_support,
+            initial_assignments,
+        ),
+        "vertices_after_drop": [
+            {"point": point_payload(point), "kind": str(kind)}
+            for point, kind in zip(
+                vertices_after_drop,
+                decoder._refresh_vertex_meta(vertices_after_drop, []),  # noqa: SLF001
+            )
+        ],
+        "used_boundary": [int(idx) for idx in sorted(used_boundary)],
+        "interior_edges": edges_payload(
+            interior_edges,
+            interior_support,
+            interior_assignments,
+        ),
+        "border_edges": edges_payload(border_edges, border_support, border_assignments),
+        "combined_edges": edges_payload(
+            combined_edges,
+            combined_support,
+            combined_assignments,
+        ),
+    }
+
+
+def edges_payload(edges: Any, support: Any, assignments: Any) -> list[dict[str, Any]]:
+    edge_array = np.asarray(edges, dtype=np.int64).reshape(-1, 2)
+    support_array = np.asarray(support, dtype=np.float32).reshape(-1)
+    assignment_array = np.asarray(assignments, dtype=np.int8).reshape(-1)
+    return [
+        {
+            "vertices": [int(edge[0]), int(edge[1])],
+            "support": float(item_support),
+            "assignment": int(assignment),
+        }
+        for edge, item_support, assignment in zip(edge_array, support_array, assignment_array)
+    ]
 
 
 def evidence_summary(evidence: Any) -> dict[str, Any]:

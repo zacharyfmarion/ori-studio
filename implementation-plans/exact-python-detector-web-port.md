@@ -213,8 +213,8 @@ Each checkpoint ends with a commit.
 | 5: Hough Segment Extraction Parity | Complete | OpenCV-compatible Rust `HoughLinesP` has exact ordered parity on tiny and real V2 masks. |
 | 6: Raw Segments To Carriers Parity | Complete | Raw lines and finite carriers match Python on the clean smoke and duck/cpoogle replay fixtures. |
 | 7: Peak Extraction And Candidate Vertex Parity | Complete | Intersections, junction peaks, boundary contacts, candidate vertices, and merged vertices match Python on the same replay fixtures. |
-| 8: Edge Construction And Support Parity | Pending | Next checkpoint. |
-| 9: Square Border Chain Parity | Pending | Depends on edge parity. |
+| 8: Edge Construction And Support Parity | Complete | Interior edge enumeration, support sampling, dashed/gapped support, and assignment voting match Python on the replay fixtures. |
+| 9: Square Border Chain Parity | Complete | Boundary used-contact sorting, deterministic border edges, and combined pre-cleanup edges match Python on the replay fixtures. |
 | 10: Cleanup, Repair, Quality, And Status Parity | Pending | Depends on graph parity. |
 | 11: FOLD Export Parity | Pending | Depends on final graph/report parity. |
 | 12: Native Rust, WASM, And Node Parity | Pending | Run after native stage parity. |
@@ -691,17 +691,61 @@ Compared with the post-carrier product benchmark, edge F1 improved from
 candidate-vertex parity helps edge recall, but border quality still depends on
 edge support and border-chain parity in later checkpoints.
 
+Checkpoint 8 and 9 edge/border parity is now complete on the same two-fixture
+oracle replay set:
+
+```text
+fixture_count: 2
+raw_segment_exact_ordered_matches: 2
+raw_line_ordered_geometry_matches: 2
+carrier_ordered_geometry_matches: 2
+candidate_vertex_ordered_matches: 2
+merged_vertex_ordered_matches: 2
+initial_interior_edge_ordered_matches: 2
+vertices_after_drop_ordered_matches: 2
+interior_edge_ordered_matches: 2
+border_edge_ordered_matches: 2
+combined_edge_ordered_matches: 2
+first_divergence_counts: {}
+```
+
+This covers Python/Rust parity for:
+
+- carrier-ordered interior edge enumeration;
+- Python's 1px segment sampling step and 3px perpendicular support band;
+- dashed/gapped style support contribution;
+- assignment voting from Python-style thresholded assignment labels;
+- unused non-border vertex pruning before border construction;
+- deterministic boundary-contact side ordering and square border-chain edges;
+- combined pre-cleanup edge topology and support values.
+
+The post-Checkpoint-9 browser product benchmark on the same two fixtures:
+
+```text
+vertex precision/recall/F1: 0.8871 / 0.6465 / 0.7479
+edge precision/recall/F1:   0.8279 / 0.5817 / 0.6810
+border precision/recall/F1: 0.5105 / 0.3299 / 0.4001
+```
+
+These browser metrics are unchanged from Checkpoint 7 even though native stage
+replay now matches through combined pre-cleanup edges. That means the remaining
+browser-vs-Python delta is no longer in carrier, vertex, edge-support, or
+border-chain construction for these replay inputs. The next likely gap is
+cleanup/repair/report/FOLD export parity or an earlier ungated product-path
+difference such as crop/model/evidence parity.
+
 ## First Implementation Target
 
-Checkpoint 7 closed candidate vertex parity on the initial replay set. Proceed
-to Checkpoint 8: edge construction and support parity.
+Checkpoint 8 and 9 closed edge construction and square-border pre-cleanup
+parity on the initial replay set. Proceed to Checkpoint 10: cleanup, repair,
+quality, and status parity.
 
 The first important question is:
 
 ```text
-Given identical Python line masks and identical OpenCV Hough segments, where is
-the first Rust divergence from Python topology?
+Given identical Python pre-cleanup topology, where does Rust first diverge in
+cleanup, repair, report/status, or final FOLD export?
 ```
 
-Do not spend more time tuning product thresholds until that question has a
-stage-level answer.
+Do not spend more time tuning product thresholds until the final graph/report
+path has a stage-level parity answer.

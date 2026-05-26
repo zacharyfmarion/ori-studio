@@ -10,6 +10,20 @@ pub struct DecodeConfig {
     pub min_edge_support: f32,
     #[serde(default = "default_min_edge_length_px")]
     pub min_edge_length_px: f32,
+    #[serde(default = "default_edge_sample_step_px")]
+    pub edge_sample_step_px: f32,
+    #[serde(default = "default_edge_sample_width_px")]
+    pub edge_sample_width_px: usize,
+    #[serde(default = "default_dashed_support_weight")]
+    pub dashed_support_weight: f32,
+    #[serde(default = "default_gapped_style_support_weight")]
+    pub gapped_style_support_weight: f32,
+    #[serde(default = "default_gapped_style_min_confidence")]
+    pub gapped_style_min_confidence: f32,
+    #[serde(default = "default_gapped_style_line_floor")]
+    pub gapped_style_line_floor: f32,
+    #[serde(default = "default_assignment_min_confidence")]
+    pub assignment_min_confidence: f32,
     #[serde(default = "default_vertex_merge_px")]
     pub vertex_merge_px: f32,
     #[serde(default = "default_line_vertex_distance_px")]
@@ -53,6 +67,13 @@ impl Default for DecodeConfig {
             threshold: 0.65,
             min_edge_support: default_min_edge_support(),
             min_edge_length_px: default_min_edge_length_px(),
+            edge_sample_step_px: default_edge_sample_step_px(),
+            edge_sample_width_px: default_edge_sample_width_px(),
+            dashed_support_weight: default_dashed_support_weight(),
+            gapped_style_support_weight: default_gapped_style_support_weight(),
+            gapped_style_min_confidence: default_gapped_style_min_confidence(),
+            gapped_style_line_floor: default_gapped_style_line_floor(),
+            assignment_min_confidence: default_assignment_min_confidence(),
             vertex_merge_px: default_vertex_merge_px(),
             line_vertex_distance_px: default_line_vertex_distance_px(),
             hough_vote_threshold: default_hough_vote_threshold(),
@@ -223,6 +244,24 @@ pub struct StageVertex {
     pub kind: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DecodeEdgeStageSnapshot {
+    pub vertex_stage: DecodeVertexStageSnapshot,
+    pub initial_interior_edges: Vec<StageEdge>,
+    pub vertices_after_drop: Vec<StageVertex>,
+    pub used_boundary: Vec<usize>,
+    pub interior_edges: Vec<StageEdge>,
+    pub border_edges: Vec<StageEdge>,
+    pub combined_edges: Vec<StageEdge>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct StageEdge {
+    pub vertices: [usize; 2],
+    pub support: f32,
+    pub assignment: u8,
+}
+
 pub fn decode_stage_snapshot_from_line_mask(
     line_mask: &[u8],
     image_size: u32,
@@ -292,6 +331,127 @@ pub fn decode_vertex_stage_snapshot_from_maps(
     })
 }
 
+pub fn decode_edge_stage_snapshot_from_maps(
+    line_mask: &[u8],
+    effective_line_prob: &[f32],
+    junction_heatmap: &[f32],
+    boundary_contact_heatmap: Option<&[f32]>,
+    assignment_labels: Option<&[u8]>,
+    line_style_prob: Option<&[f32]>,
+    image_size: u32,
+    mut config: DecodeConfig,
+) -> Result<DecodeEdgeStageSnapshot, DecodeError> {
+    let size = image_size as usize;
+    if size < 8 {
+        return Err(DecodeError::InvalidImageSize(image_size));
+    }
+    let pixels = size * size;
+    require_byte_len("line_mask", line_mask, pixels)?;
+    require_len("effective_line_prob", effective_line_prob, pixels)?;
+    require_len("junction_heatmap", junction_heatmap, pixels)?;
+    if let Some(boundary_contact_heatmap) = boundary_contact_heatmap {
+        require_len("boundary_contact_heatmap", boundary_contact_heatmap, pixels)?;
+    }
+    if let Some(assignment_labels) = assignment_labels {
+        require_byte_len("assignment_labels", assignment_labels, pixels)?;
+    }
+    if let Some(line_style_prob) = line_style_prob {
+        require_len("line_style_prob", line_style_prob, pixels * 4)?;
+    }
+    config.image_size = image_size;
+    let (line_stage, carriers) = line_stage_from_mask(line_mask, image_size, &config)?;
+    let raw_vertex_stage = vertex_stage_from_maps(
+        junction_heatmap,
+        boundary_contact_heatmap,
+        line_mask,
+        &carriers,
+        &config,
+    );
+    let initial_vertices = raw_vertex_stage.merged_vertices.clone();
+    let initial_meta = raw_vertex_stage.merged_meta.clone();
+    let initial_interior_edges = interior_edges(
+        &initial_vertices,
+        &carriers,
+        effective_line_prob,
+        line_style_prob,
+        assignment_labels,
+        &config,
+    );
+    let (vertices_after_drop, mut interior_edges, used_boundary) = drop_unused_non_border_vertices(
+        initial_vertices,
+        initial_interior_edges.clone(),
+        size,
+        &config,
+    );
+    let refreshed_support = support_for_edges(
+        &vertices_after_drop,
+        &interior_edges,
+        effective_line_prob,
+        line_style_prob,
+        &config,
+    );
+    for (edge, support) in interior_edges.iter_mut().zip(refreshed_support.into_iter()) {
+        edge.support = support;
+    }
+    for edge in &mut interior_edges {
+        edge.assignment = vote_assignment(
+            vertices_after_drop[edge.a],
+            vertices_after_drop[edge.b],
+            assignment_labels,
+            &config,
+            3,
+        );
+    }
+    let border_edges = border_chain(
+        &vertices_after_drop,
+        &used_boundary,
+        size,
+        effective_line_prob,
+        &config,
+    );
+    let mut combined_edges = Vec::new();
+    combined_edges.extend(interior_edges.iter().cloned());
+    combined_edges.extend(border_edges.iter().cloned());
+    dedupe_edges(&mut combined_edges);
+    Ok(DecodeEdgeStageSnapshot {
+        vertex_stage: DecodeVertexStageSnapshot {
+            line_stage,
+            intersections: raw_vertex_stage
+                .intersections
+                .iter()
+                .copied()
+                .map(point_array)
+                .collect(),
+            junctions: raw_vertex_stage
+                .junctions
+                .iter()
+                .copied()
+                .map(point_array)
+                .collect(),
+            boundary_contacts: raw_vertex_stage
+                .boundary_contacts
+                .iter()
+                .copied()
+                .map(point_array)
+                .collect(),
+            candidate_vertices: stage_vertices(
+                &raw_vertex_stage.candidate_vertices,
+                &raw_vertex_stage.candidate_meta,
+            ),
+            merged_vertices: stage_vertices(&raw_vertex_stage.merged_vertices, &initial_meta),
+        },
+        initial_interior_edges: stage_edges(&initial_interior_edges),
+        vertices_after_drop: stage_vertices(
+            &vertices_after_drop,
+            &refresh_vertex_meta(&vertices_after_drop, size, config.vertex_merge_px),
+        ),
+        used_boundary,
+        interior_edges: stage_edges(&interior_edges),
+        border_edges: stage_edges(&border_edges),
+        combined_edges: stage_edges(&combined_edges),
+    })
+}
+
 impl From<HoughSegment> for StageHoughSegment {
     fn from(segment: HoughSegment) -> Self {
         StageHoughSegment {
@@ -350,6 +510,17 @@ fn stage_vertices(points: &[Point], meta: &[String]) -> Vec<StageVertex> {
         .map(|(point, kind)| StageVertex {
             point: point_array(*point),
             kind: kind.clone(),
+        })
+        .collect()
+}
+
+fn stage_edges(edges: &[Edge]) -> Vec<StageEdge> {
+    edges
+        .iter()
+        .map(|edge| StageEdge {
+            vertices: [edge.a, edge.b],
+            support: edge.support,
+            assignment: edge.assignment,
         })
         .collect()
 }
@@ -430,16 +601,29 @@ pub fn decode_dense_outputs(
         &config,
     );
     let vertices = vertex_stage.merged_vertices;
+    let line_style_prob = line_style_prob_from_logits(outputs.line_style_logits, size);
+    let assignment_labels = assignment_labels_from_logits(
+        outputs.line_logits,
+        outputs.assignment_logits,
+        size,
+        config.threshold,
+    );
 
-    let mut interior_edges = interior_edges(&vertices, &carriers, &effective, outputs, &config);
-    dedupe_edges(&mut interior_edges);
+    let interior_edges = interior_edges(
+        &vertices,
+        &carriers,
+        &effective,
+        Some(&line_style_prob),
+        Some(&assignment_labels),
+        &config,
+    );
     let (vertices, mut interior_edges, used_boundary) =
-        drop_unused_non_border_vertices(vertices, interior_edges, size, config.vertex_merge_px);
+        drop_unused_non_border_vertices(vertices, interior_edges, size, &config);
     let interior_support_refresh = support_for_edges(
         &vertices,
         &interior_edges,
         &effective,
-        outputs.line_style_logits,
+        Some(&line_style_prob),
         &config,
     );
     for (edge, support) in interior_edges
@@ -448,7 +632,16 @@ pub fn decode_dense_outputs(
     {
         edge.support = support;
     }
-    let mut border_edges = border_chain(&vertices, &used_boundary, size, &effective);
+    for edge in &mut interior_edges {
+        edge.assignment = vote_assignment(
+            vertices[edge.a],
+            vertices[edge.b],
+            Some(&assignment_labels),
+            &config,
+            3,
+        );
+    }
+    let mut border_edges = border_chain(&vertices, &used_boundary, size, &effective, &config);
     let mut edges = Vec::new();
     edges.append(&mut interior_edges);
     edges.append(&mut border_edges);
@@ -549,6 +742,46 @@ fn effective_line_prob(outputs: DenseOutputs<'_>, config: &DecodeConfig) -> Vec<
 
 fn sigmoid_map(values: &[f32]) -> Vec<f32> {
     values.iter().map(|value| sigmoid(*value)).collect()
+}
+
+fn line_style_prob_from_logits(line_style_logits: &[f32], size: usize) -> Vec<f32> {
+    let pixels = size * size;
+    let mut prob = vec![0.0; pixels * 4];
+    for idx in 0..pixels {
+        let mut max_value = f32::NEG_INFINITY;
+        for channel in 0..4 {
+            max_value = max_value.max(line_style_logits[channel * pixels + idx]);
+        }
+        let mut denom = 0.0;
+        for channel in 0..4 {
+            denom += (line_style_logits[channel * pixels + idx] - max_value).exp();
+        }
+        if denom <= 0.0 {
+            continue;
+        }
+        for channel in 0..4 {
+            prob[idx * 4 + channel] =
+                (line_style_logits[channel * pixels + idx] - max_value).exp() / denom;
+        }
+    }
+    prob
+}
+
+fn assignment_labels_from_logits(
+    line_logits: &[f32],
+    assignment_logits: &[f32],
+    size: usize,
+    line_threshold: f32,
+) -> Vec<u8> {
+    let pixels = size * size;
+    let mut labels = vec![0u8; pixels];
+    for idx in 0..pixels {
+        if sigmoid(line_logits[idx]) < line_threshold {
+            continue;
+        }
+        labels[idx] = argmax_channel(assignment_logits, 4, idx, pixels) as u8 + 1;
+    }
+    labels
 }
 
 fn hough_lines(line_prob: &[f32], config: &DecodeConfig) -> Vec<Line> {
@@ -1114,15 +1347,19 @@ fn interior_edges(
     vertices: &[Point],
     carriers: &[Line],
     line_prob: &[f32],
-    outputs: DenseOutputs<'_>,
+    line_style_prob: Option<&[f32]>,
+    assignment_labels: Option<&[u8]>,
     config: &DecodeConfig,
 ) -> Vec<Edge> {
-    let mut edges = Vec::new();
-    let size = config.image_size as usize;
+    let mut edge_map: Vec<Edge> = Vec::new();
     for carrier in carriers {
         let mut on_line = Vec::new();
         for (idx, vertex) in vertices.iter().enumerate() {
-            if point_on_finite_line(*vertex, carrier, config.line_vertex_distance_px) {
+            let projection = project(*vertex, carrier.direction);
+            if point_line_distance(*vertex, carrier) <= config.line_vertex_distance_px
+                && projection >= carrier.t_min - config.vertex_merge_px
+                && projection <= carrier.t_max + config.vertex_merge_px
+            {
                 on_line.push((idx, project(*vertex, carrier.direction)));
             }
         }
@@ -1136,41 +1373,46 @@ fn interior_edges(
             if distance(vertices[a], vertices[b]) < config.min_edge_length_px {
                 continue;
             }
-            if segment_is_frame_border(vertices[a], vertices[b], size) {
-                continue;
-            }
-            let support = segment_support(
-                vertices[a],
-                vertices[b],
-                line_prob,
-                outputs.line_style_logits,
-                config,
-            );
+            let support =
+                segment_support(vertices[a], vertices[b], line_prob, line_style_prob, config);
             if support < config.min_edge_support {
                 continue;
             }
-            edges.push(Edge {
+            let next = Edge {
                 a,
                 b,
-                assignment: vote_assignment(
-                    vertices[a],
-                    vertices[b],
-                    outputs.assignment_logits,
-                    line_prob,
-                    config,
-                ),
+                assignment: vote_assignment(vertices[a], vertices[b], assignment_labels, config, 3),
                 support,
-            });
+            };
+            let key = (a.min(b), a.max(b));
+            if let Some(existing) = edge_map
+                .iter_mut()
+                .find(|edge| edge.a.min(edge.b) == key.0 && edge.a.max(edge.b) == key.1)
+            {
+                if support > existing.support {
+                    *existing = Edge {
+                        a: key.0,
+                        b: key.1,
+                        ..next
+                    };
+                }
+            } else {
+                edge_map.push(Edge {
+                    a: key.0,
+                    b: key.1,
+                    ..next
+                });
+            }
         }
     }
-    edges
+    edge_map
 }
 
 fn segment_support(
     a: Point,
     b: Point,
     line_prob: &[f32],
-    line_style_logits: &[f32],
+    line_style_prob: Option<&[f32]>,
     config: &DecodeConfig,
 ) -> f32 {
     let size = config.image_size as usize;
@@ -1179,89 +1421,104 @@ fn segment_support(
     if length <= 1e-6 {
         return 0.0;
     }
-    let samples = (length / 2.0).ceil().max(2.0) as usize;
+    let samples = sample_segment_points(a, b, config.edge_sample_step_px);
+    if samples.is_empty() {
+        return 0.0;
+    }
     let dx = (b.x - a.x) / length;
     let dy = (b.y - a.y) / length;
     let px = -dy;
     let py = dx;
+    let half_width = (config.edge_sample_width_px / 2) as isize;
     let mut hits = 0usize;
     let mut prob_sum = 0.0;
-    let mut dashed_sum = 0.0;
-    for step in 0..=samples {
-        let t = step as f32 / samples as f32;
-        let cx = a.x + (b.x - a.x) * t;
-        let cy = a.y + (b.y - a.y) * t;
+    let mut gapped_sum = 0.0;
+    for sample in &samples {
         let mut best = 0.0_f32;
-        let mut best_dashed = 0.0_f32;
-        for offset in -1..=1 {
-            let x = (cx + px * offset as f32).round() as isize;
-            let y = (cy + py * offset as f32).round() as isize;
+        let mut best_gapped = 0.0_f32;
+        for offset in -half_width..=half_width {
+            let x = round_ties_even(sample.x + px * offset as f32);
+            let y = round_ties_even(sample.y + py * offset as f32);
             if x < 0 || y < 0 || x >= size as isize || y >= size as isize {
                 continue;
             }
             let idx = y as usize * size + x as usize;
             best = best.max(line_prob[idx]);
-            best_dashed = best_dashed.max(softmax_channel(line_style_logits, 4, idx, 1, pixels));
+            if let Some(line_style_prob) = line_style_prob {
+                if line_style_prob.len() == pixels * 4 {
+                    best_gapped = best_gapped.max(line_style_prob[idx * 4 + 1]);
+                }
+            }
         }
         if best >= config.threshold {
             hits += 1;
         }
         prob_sum += best;
-        dashed_sum += best_dashed;
+        gapped_sum += best_gapped;
     }
-    let count = samples + 1;
+    let count = samples.len();
     let hit_fraction = hits as f32 / count as f32;
     let mean_prob = prob_sum / count as f32;
-    let dashed = dashed_sum / count as f32;
-    let dashed_support = if mean_prob >= 0.12 && dashed >= 0.55 {
-        dashed * 0.55
+    let gapped = gapped_sum / count as f32;
+    let gapped_support = if line_style_prob.is_some()
+        && mean_prob >= config.gapped_style_line_floor
+        && gapped >= config.gapped_style_min_confidence
+    {
+        gapped * config.gapped_style_support_weight
     } else {
         0.0
     };
-    hit_fraction.max(mean_prob * 0.35).max(dashed_support)
+    hit_fraction
+        .max(mean_prob * config.dashed_support_weight)
+        .max(gapped_support)
 }
 
 fn vote_assignment(
     a: Point,
     b: Point,
-    assignment_logits: &[f32],
-    line_prob: &[f32],
+    assignment_labels: Option<&[u8]>,
     config: &DecodeConfig,
+    default: u8,
 ) -> u8 {
+    let Some(assignment_labels) = assignment_labels else {
+        return default;
+    };
     let size = config.image_size as usize;
-    let pixels = size * size;
-    let length = distance(a, b);
-    let samples = (length / 3.0).ceil().max(2.0) as usize;
-    let trim = (samples / 10).max(1);
+    let mut points = sample_segment_points(a, b, config.edge_sample_step_px);
+    if points.len() > 6 {
+        let trim = (points.len() / 10).max(1);
+        points = points[trim..points.len() - trim].to_vec();
+    }
     let mut counts = [0usize; 4];
-    for step in trim..=samples.saturating_sub(trim) {
-        let t = step as f32 / samples as f32;
-        let x = (a.x + (b.x - a.x) * t).round() as isize;
-        let y = (a.y + (b.y - a.y) * t).round() as isize;
+    for point in points {
+        let x = round_ties_even(point.x);
+        let y = round_ties_even(point.y);
         if x < 0 || y < 0 || x >= size as isize || y >= size as isize {
             continue;
         }
         let idx = y as usize * size + x as usize;
-        if line_prob[idx] < config.threshold * 0.45 {
+        let label = assignment_labels[idx];
+        if label == 0 {
             continue;
         }
-        let label = argmax_channel(assignment_logits, 4, idx, pixels);
-        counts[label] += 1;
+        counts[(label - 1) as usize] += 1;
     }
     let total: usize = counts.iter().sum();
     if total == 0 {
-        return 3;
+        return default;
     }
-    let (label, count) = counts
-        .iter()
-        .copied()
-        .enumerate()
-        .max_by_key(|(_, count)| *count)
-        .unwrap_or((3, 0));
-    if count as f32 / total as f32 >= 0.75 {
-        label as u8
+    let mut best_label = 0usize;
+    let mut best_count = counts[0];
+    for (label, count) in counts.iter().copied().enumerate().skip(1) {
+        if count > best_count {
+            best_label = label;
+            best_count = count;
+        }
+    }
+    if best_count as f32 / total as f32 >= config.assignment_min_confidence {
+        best_label as u8
     } else {
-        3
+        default
     }
 }
 
@@ -1270,17 +1527,21 @@ fn border_chain(
     used_boundary: &[usize],
     size: usize,
     line_prob: &[f32],
+    config: &DecodeConfig,
 ) -> Vec<Edge> {
     let mut edges = Vec::new();
+    let mut seen = Vec::<(usize, usize)>::new();
     for side in 0..4 {
         let mut indices: Vec<usize> = vertices
             .iter()
             .enumerate()
             .filter_map(|(idx, point)| {
-                if !(is_corner(*point, size, 2.5) || used_boundary.contains(&idx)) {
+                if !(is_corner(*point, size, config.vertex_merge_px)
+                    || used_boundary.contains(&idx))
+                {
                     return None;
                 }
-                point_on_side(*point, side, size, 3.0).then_some(idx)
+                point_on_side(*point, side, size, config.vertex_merge_px + 1.0).then_some(idx)
             })
             .collect();
         indices.sort_by(|left, right| {
@@ -1293,26 +1554,17 @@ fn border_chain(
             if a == b {
                 continue;
             }
+            let key = (a.min(b), a.max(b));
+            if seen.contains(&key) {
+                continue;
+            }
+            seen.push(key);
             edges.push(Edge {
                 a,
                 b,
                 assignment: 2,
-                support: segment_support(
-                    vertices[a],
-                    vertices[b],
-                    line_prob,
-                    &[],
-                    &DecodeConfig {
-                        image_size: size as u32,
-                        threshold: 0.0,
-                        min_edge_support: 0.0,
-                        min_edge_length_px: 3.0,
-                        vertex_merge_px: 2.0,
-                        line_vertex_distance_px: 4.0,
-                        ..DecodeConfig::default()
-                    },
-                )
-                .max(0.99),
+                support: segment_support(vertices[a], vertices[b], line_prob, None, config)
+                    .max(0.99),
             });
         }
     }
@@ -1323,14 +1575,14 @@ fn drop_unused_non_border_vertices(
     vertices: Vec<Point>,
     edges: Vec<Edge>,
     size: usize,
-    tol: f32,
+    config: &DecodeConfig,
 ) -> (Vec<Point>, Vec<Edge>, Vec<usize>) {
     if vertices.is_empty() {
         return (vertices, edges, Vec::new());
     }
     let mut keep = vec![false; vertices.len()];
     for (idx, point) in vertices.iter().enumerate() {
-        if is_corner(*point, size, tol) {
+        if is_corner(*point, size, config.vertex_merge_px) {
             keep[idx] = true;
         }
     }
@@ -1357,8 +1609,8 @@ fn drop_unused_non_border_vertices(
     let mut used_boundary = Vec::new();
     for edge in &next_edges {
         for idx in [edge.a, edge.b] {
-            if point_on_frame(next_vertices[idx], size, tol)
-                && !is_corner(next_vertices[idx], size, tol)
+            if point_on_frame(next_vertices[idx], size, config.vertex_merge_px + 1.0)
+                && !is_corner(next_vertices[idx], size, config.vertex_merge_px)
             {
                 used_boundary.push(idx);
             }
@@ -1373,7 +1625,7 @@ fn support_for_edges(
     vertices: &[Point],
     edges: &[Edge],
     line_prob: &[f32],
-    line_style_logits: &[f32],
+    line_style_prob: Option<&[f32]>,
     config: &DecodeConfig,
 ) -> Vec<f32> {
     edges
@@ -1383,7 +1635,7 @@ fn support_for_edges(
                 vertices[edge.a],
                 vertices[edge.b],
                 line_prob,
-                line_style_logits,
+                line_style_prob,
                 config,
             )
         })
@@ -1837,6 +2089,39 @@ fn distance(a: Point, b: Point) -> f32 {
     (dx * dx + dy * dy).sqrt()
 }
 
+fn sample_segment_points(a: Point, b: Point, step: f32) -> Vec<Point> {
+    let length = distance(a, b);
+    if length <= 1e-6 {
+        return Vec::new();
+    }
+    let count = ((length / step.max(1e-3)).ceil() as usize + 1).max(2);
+    let denom = (count - 1) as f32;
+    (0..count)
+        .map(|idx| {
+            let t = idx as f32 / denom;
+            Point {
+                x: a.x + (b.x - a.x) * t,
+                y: a.y + (b.y - a.y) * t,
+            }
+        })
+        .collect()
+}
+
+fn round_ties_even(value: f32) -> isize {
+    let floor = value.floor();
+    let fraction = value - floor;
+    if (fraction - 0.5).abs() <= 1e-6 {
+        let floor_int = floor as isize;
+        if floor_int % 2 == 0 {
+            floor_int
+        } else {
+            floor_int + 1
+        }
+    } else {
+        value.round() as isize
+    }
+}
+
 fn angle_distance_f64(a: f64, b: f64) -> f64 {
     let mut d = (a - b).abs() % std::f64::consts::PI;
     if d > std::f64::consts::PI / 2.0 {
@@ -1862,35 +2147,40 @@ fn argmax_channel(values: &[f32], channels: usize, pixel_idx: usize, pixels: usi
     best
 }
 
-fn softmax_channel(
-    values: &[f32],
-    channels: usize,
-    pixel_idx: usize,
-    channel: usize,
-    pixels: usize,
-) -> f32 {
-    if values.is_empty() {
-        return 0.0;
-    }
-    let max_value = (0..channels)
-        .map(|idx| values[idx * pixels + pixel_idx])
-        .fold(f32::NEG_INFINITY, f32::max);
-    let denom: f32 = (0..channels)
-        .map(|idx| (values[idx * pixels + pixel_idx] - max_value).exp())
-        .sum();
-    if denom <= 0.0 {
-        0.0
-    } else {
-        (values[channel * pixels + pixel_idx] - max_value).exp() / denom
-    }
-}
-
 fn default_min_edge_support() -> f32 {
     0.45
 }
 
 fn default_min_edge_length_px() -> f32 {
     3.0
+}
+
+fn default_edge_sample_step_px() -> f32 {
+    1.0
+}
+
+fn default_edge_sample_width_px() -> usize {
+    3
+}
+
+fn default_dashed_support_weight() -> f32 {
+    0.35
+}
+
+fn default_gapped_style_support_weight() -> f32 {
+    0.55
+}
+
+fn default_gapped_style_min_confidence() -> f32 {
+    0.55
+}
+
+fn default_gapped_style_line_floor() -> f32 {
+    0.12
+}
+
+fn default_assignment_min_confidence() -> f32 {
+    0.75
 }
 
 fn default_vertex_merge_px() -> f32 {
@@ -2037,24 +2327,22 @@ mod tests {
     fn assignment_vote_recovers_valley_segment() {
         let size = 32usize;
         let pixels = size * size;
-        let mut line_prob = vec![0.0; pixels];
-        let mut assignment_logits = vec![-4.0; pixels * 4];
+        let mut assignment_labels = vec![0u8; pixels];
         for x in 2..30 {
             let idx = 16 * size + x;
-            line_prob[idx] = 1.0;
-            assignment_logits[pixels + idx] = 8.0;
+            assignment_labels[idx] = 2;
         }
 
         let assignment = vote_assignment(
             Point { x: 2.0, y: 16.0 },
             Point { x: 29.0, y: 16.0 },
-            &assignment_logits,
-            &line_prob,
+            Some(&assignment_labels),
             &DecodeConfig {
                 image_size: size as u32,
                 threshold: 0.65,
                 ..DecodeConfig::default()
             },
+            3,
         );
 
         assert_eq!(assignment, 1);
