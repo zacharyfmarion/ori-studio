@@ -44,9 +44,11 @@ def main() -> int:
     if args.generate_tiny_fixtures:
         for fixture_id, mask in tiny_fixture_masks():
             fixtures.append(export_fixture(fixture_id, mask, args.output_dir, args))
+    seen_input_ids: set[str] = set()
     for input_path in args.inputs:
         mask = read_mask(input_path)
-        fixtures.append(export_fixture(input_path.stem, mask, args.output_dir, args))
+        fixture_id = unique_input_id(input_path, seen_input_ids)
+        fixtures.append(export_fixture(fixture_id, mask, args.output_dir, args))
 
     manifest = {
         "schema": SCHEMA,
@@ -181,6 +183,19 @@ def tiny_fixture_masks() -> list[tuple[str, np.ndarray]]:
 def read_mask(path: Path) -> np.ndarray:
     image = Image.open(path).convert("L")
     return np.array(image, dtype=np.uint8)
+
+
+def unique_input_id(path: Path, seen: set[str]) -> str:
+    fixture_id = path.stem
+    if (fixture_id == "line_mask" or fixture_id in seen) and path.parent.name:
+        fixture_id = path.parent.name
+    candidate = fixture_id
+    suffix = 2
+    while candidate in seen:
+        candidate = f"{fixture_id}-{suffix}"
+        suffix += 1
+    seen.add(candidate)
+    return candidate
 
 
 def binary_mask(mask: np.ndarray) -> np.ndarray:

@@ -284,7 +284,7 @@ Before the port can be considered complete:
 
 ## Current State
 
-Checkpoints 1, 2, and 3 are complete.
+Checkpoints 1, 2, 3, and 4 are complete.
 
 Checkpoint 1:
 
@@ -313,6 +313,27 @@ Checkpoint 3:
 fixture_count: 14
 exact_ordered_matches: 14
 ```
+
+Checkpoint 4:
+
+- exported OpenCV oracle segments for the 5 real-world V2 line masks;
+- fixed the oracle exporter to produce unique fixture ids for repeated
+  `line_mask.pgm` inputs;
+- compared the Rust port against Python OpenCV on those real masks:
+
+```text
+fixture_count: 5
+exact_ordered_matches: 1
+exact_unordered_matches: 2
+geometry_equivalent_matches: 2
+```
+
+The port is therefore not ready to replace detector segment evidence. The
+counts match on all 5 real masks, and divergence starts late in each failed
+fixture, which suggests a small semantic/platform difference can cascade through
+OpenCV's destructive mask-clearing behavior. Do not proceed to decoder
+integration until this real-mask gap is resolved or explicitly accepted as a
+non-exact port.
 
 The existing `segments.rs` custom Hough spike is diagnostic only and should not
 be treated as an OpenCV port.
