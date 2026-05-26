@@ -2134,6 +2134,9 @@ fn conservative_repair(
     if let Some(action) = canonicalize_square_border(vertices, edges, line_prob, config) {
         actions.push(action);
     }
+    if let Some(action) = reconstruct_square_border_chain(vertices, edges, line_prob, config) {
+        actions.push(action);
+    }
     actions.extend(downgrade_low_confidence_mv(edges, 0.55, 0.08));
     actions
 }
@@ -2389,6 +2392,417 @@ fn canonicalize_square_border(
                 "geometry_reverted": false,
             }),
         })
+    }
+}
+
+fn reconstruct_square_border_chain(
+    vertices: &mut Vec<Point>,
+    edges: &mut Vec<AttributedEdge>,
+    line_prob: &[f32],
+    config: &DecodeConfig,
+) -> Option<RepairAction> {
+    if vertices.len() < 4 || edges.is_empty() {
+        return None;
+    }
+    let size = config.image_size as usize;
+    let frame = infer_border_frame_for_reconstruction(vertices, edges, size)?;
+    let side = (frame.right - frame.left).max(frame.bottom - frame.top);
+    let tolerance = border_chain_tolerance(side);
+    let snapped_all = snap_vertices_to_frame(vertices, frame, tolerance);
+    let seed_side_vertices = side_vertices(&snapped_all, frame, tolerance);
+    let eligible_sides = seed_side_vertices
+        .values()
+        .into_iter()
+        .filter(|indices| indices.len() >= 2)
+        .count();
+    if eligible_sides < 3 {
+        return None;
+    }
+
+    let max_snap_drift_px = 6.0;
+    let mut next_vertices = vertices.clone();
+    let mut selected = vec![false; next_vertices.len()];
+    let mut snap_rejected_for_drift = 0usize;
+    for indices in seed_side_vertices.values() {
+        for idx in indices {
+            let drift = distance(snapped_all[*idx], vertices[*idx]);
+            if drift > max_snap_drift_px {
+                snap_rejected_for_drift += 1;
+                continue;
+            }
+            next_vertices[*idx] = snapped_all[*idx];
+            selected[*idx] = true;
+        }
+    }
+
+    let mut added_corner_vertices = 0usize;
+    let mut corner_vertices = Vec::<(&'static str, usize)>::new();
+    for (name, corner) in frame_corners(frame) {
+        let nearest = next_vertices
+            .iter()
+            .enumerate()
+            .map(|(idx, point)| (idx, distance(*point, corner)))
+            .min_by(|left, right| left.1.total_cmp(&right.1));
+        if let Some((idx, nearest_distance)) = nearest {
+            if nearest_distance <= max_snap_drift_px {
+                next_vertices[idx] = corner;
+                selected[idx] = true;
+                corner_vertices.push((name, idx));
+                continue;
+            }
+        }
+        let idx = next_vertices.len();
+        next_vertices.push(corner);
+        selected.push(true);
+        corner_vertices.push((name, idx));
+        added_corner_vertices += 1;
+    }
+
+    let selected_by_side =
+        selected_border_vertices_by_side(&next_vertices, &selected, frame, tolerance, config);
+    if selected_by_side
+        .values()
+        .into_iter()
+        .any(|indices| indices.len() < 2)
+    {
+        return None;
+    }
+    let chain_edges = border_chain_edges_from_sides(&selected_by_side);
+    if chain_edges.len() < 4 {
+        return None;
+    }
+
+    let frame_edge_indices: Vec<usize> = edges
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, edge)| {
+            edge_lies_on_any_frame_side(&next_vertices, edge.edge.a, edge.edge.b, frame, tolerance)
+                .then_some(idx)
+        })
+        .collect();
+    let existing_b_indices: Vec<usize> = edges
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, edge)| (edge.edge.assignment == 2).then_some(idx))
+        .collect();
+    if existing_b_indices.len() >= 4 {
+        let frame_b_count = existing_b_indices
+            .iter()
+            .filter(|idx| frame_edge_indices.contains(idx))
+            .count();
+        let frame_b_fraction = frame_b_count as f32 / existing_b_indices.len() as f32;
+        if frame_b_fraction < 0.60 {
+            return None;
+        }
+        let max_chain_edges = 2.0 * existing_b_indices.len() as f32 + 4.0;
+        if chain_edges.len() as f32 > max_chain_edges {
+            return None;
+        }
+    }
+
+    let mut remove = vec![false; edges.len()];
+    for idx in &frame_edge_indices {
+        remove[*idx] = true;
+    }
+    let mut downgraded_off_frame_b = Vec::new();
+    for (idx, edge) in edges.iter_mut().enumerate() {
+        if remove[idx] {
+            continue;
+        }
+        if edge.edge.assignment == 2 {
+            edge.edge.assignment = 3;
+            edge.confidence = edge.confidence.min(0.5);
+            edge.margin = edge.margin.min(0.0);
+            edge.source = AssignmentSource::Unknown;
+            edge.probabilities = assignment_probability_row(3, 1.0);
+            downgraded_off_frame_b.push(idx);
+        }
+    }
+
+    let snapped_existing: Vec<usize> = selected
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, is_selected)| {
+            (*is_selected
+                && idx < vertices.len()
+                && distance(next_vertices[idx], vertices[idx]) > 1e-4)
+                .then_some(idx)
+        })
+        .collect();
+    let removed_frame_edges = remove.iter().filter(|item| **item).count();
+    let changed = !snapped_existing.is_empty()
+        || removed_frame_edges > 0
+        || !downgraded_off_frame_b.is_empty()
+        || added_corner_vertices > 0
+        || !chain_edges.is_empty();
+    if !changed {
+        return None;
+    }
+
+    let max_drift = snapped_existing
+        .iter()
+        .map(|idx| distance(next_vertices[*idx], vertices[*idx]))
+        .fold(0.0_f32, f32::max);
+
+    *vertices = next_vertices;
+    filter_attributed_edges_by_remove(edges, &remove);
+    for (a, b) in &chain_edges {
+        let support =
+            segment_support(vertices[*a], vertices[*b], line_prob, None, config).max(0.70);
+        edges.push(AttributedEdge {
+            edge: Edge {
+                a: *a,
+                b: *b,
+                assignment: 2,
+                support,
+            },
+            confidence: 1.0,
+            margin: 1.0,
+            source: AssignmentSource::Observed,
+            probabilities: assignment_probability_row(2, 1.0),
+        });
+    }
+    remove_zero_length_and_duplicate_edges(vertices, edges);
+    drop_unused_attributed_vertices(vertices, edges, config);
+
+    Some(RepairAction {
+        code: "reconstruct_square_border_chain".to_owned(),
+        message: "Rebuilt the inferred square border as a clean B chain.".to_owned(),
+        edge_indices: Vec::new(),
+        vertex_indices: snapped_existing,
+        details: json!({
+            "added_border_edges": chain_edges.len(),
+            "removed_frame_edges": removed_frame_edges,
+            "downgraded_off_frame_b_edges": downgraded_off_frame_b.len(),
+            "added_corner_vertices": added_corner_vertices,
+            "corner_vertices": corner_vertices
+                .into_iter()
+                .map(|(name, idx)| json!({ "name": name, "vertex": idx }))
+                .collect::<Vec<Value>>(),
+            "side_vertex_counts": {
+                "top": selected_by_side.top.len(),
+                "right": selected_by_side.right.len(),
+                "bottom": selected_by_side.bottom.len(),
+                "left": selected_by_side.left.len(),
+            },
+            "max_drift_px": max_drift,
+            "snap_rejected_for_drift": snap_rejected_for_drift,
+            "tolerance_px": tolerance,
+        }),
+    })
+}
+
+fn filter_attributed_edges_by_remove(edges: &mut Vec<AttributedEdge>, remove: &[bool]) {
+    let mut index = 0usize;
+    edges.retain(|_| {
+        let keep = !remove.get(index).copied().unwrap_or(false);
+        index += 1;
+        keep
+    });
+}
+
+fn infer_border_frame_for_reconstruction(
+    vertices: &[Point],
+    edges: &[AttributedEdge],
+    size: usize,
+) -> Option<BorderFrame> {
+    let border_points: Vec<Point> = edges
+        .iter()
+        .filter(|edge| edge.edge.assignment == 2)
+        .flat_map(|edge| [vertices[edge.edge.a], vertices[edge.edge.b]])
+        .collect();
+    if border_points.len() >= 4 {
+        if let Some(frame) = infer_border_frame(&border_points, size) {
+            return Some(frame);
+        }
+    }
+    infer_border_frame(vertices, size)
+}
+
+fn border_chain_tolerance(side_length: f32) -> f32 {
+    10.0_f32.min((0.01 * side_length).max(1.0))
+}
+
+fn frame_corners(frame: BorderFrame) -> [(&'static str, Point); 4] {
+    [
+        (
+            "top_left",
+            Point {
+                x: frame.left,
+                y: frame.top,
+            },
+        ),
+        (
+            "top_right",
+            Point {
+                x: frame.right,
+                y: frame.top,
+            },
+        ),
+        (
+            "bottom_right",
+            Point {
+                x: frame.right,
+                y: frame.bottom,
+            },
+        ),
+        (
+            "bottom_left",
+            Point {
+                x: frame.left,
+                y: frame.bottom,
+            },
+        ),
+    ]
+}
+
+fn selected_border_vertices_by_side(
+    vertices: &[Point],
+    selected: &[bool],
+    frame: BorderFrame,
+    tolerance: f32,
+    config: &DecodeConfig,
+) -> BTreeSideVertices {
+    let side_vertices = side_vertices(vertices, frame, tolerance);
+    BTreeSideVertices {
+        top: unique_selected_side_vertices(
+            &side_vertices.top,
+            vertices,
+            selected,
+            "top",
+            config.min_edge_length_px,
+        ),
+        right: unique_selected_side_vertices(
+            &side_vertices.right,
+            vertices,
+            selected,
+            "right",
+            config.min_edge_length_px,
+        ),
+        bottom: unique_selected_side_vertices(
+            &side_vertices.bottom,
+            vertices,
+            selected,
+            "bottom",
+            config.min_edge_length_px,
+        ),
+        left: unique_selected_side_vertices(
+            &side_vertices.left,
+            vertices,
+            selected,
+            "left",
+            config.min_edge_length_px,
+        ),
+    }
+}
+
+fn unique_selected_side_vertices(
+    indices: &[usize],
+    vertices: &[Point],
+    selected: &[bool],
+    side: &str,
+    min_spacing_px: f32,
+) -> Vec<usize> {
+    let mut ordered: Vec<usize> = indices
+        .iter()
+        .copied()
+        .filter(|idx| selected.get(*idx).copied().unwrap_or(false))
+        .collect();
+    ordered.sort_by(|left, right| {
+        side_position_by_name(vertices[*left], side)
+            .total_cmp(&side_position_by_name(vertices[*right], side))
+            .then_with(|| left.cmp(right))
+    });
+    let mut unique = Vec::new();
+    for idx in ordered {
+        if let Some(previous) = unique.last() {
+            let spacing = (side_position_by_name(vertices[idx], side)
+                - side_position_by_name(vertices[*previous], side))
+            .abs();
+            if spacing < min_spacing_px {
+                continue;
+            }
+        }
+        unique.push(idx);
+    }
+    unique
+}
+
+fn border_chain_edges_from_sides(sides: &BTreeSideVertices) -> Vec<(usize, usize)> {
+    let mut edges = Vec::new();
+    let mut seen = Vec::<(usize, usize)>::new();
+    for indices in [&sides.top, &sides.right, &sides.bottom, &sides.left] {
+        for pair in indices.windows(2) {
+            let a = pair[0];
+            let b = pair[1];
+            if a == b {
+                continue;
+            }
+            let key = (a.min(b), a.max(b));
+            if seen.contains(&key) {
+                continue;
+            }
+            seen.push(key);
+            edges.push((a, b));
+        }
+    }
+    edges
+}
+
+fn edge_lies_on_any_frame_side(
+    vertices: &[Point],
+    a: usize,
+    b: usize,
+    frame: BorderFrame,
+    tolerance: f32,
+) -> bool {
+    ["top", "right", "bottom", "left"]
+        .iter()
+        .any(|side| edge_lies_on_frame_side(vertices, a, b, frame, side, tolerance))
+}
+
+fn edge_lies_on_frame_side(
+    vertices: &[Point],
+    a: usize,
+    b: usize,
+    frame: BorderFrame,
+    side: &str,
+    tolerance: f32,
+) -> bool {
+    vertex_on_frame_side(vertices[a], frame, side, tolerance)
+        && vertex_on_frame_side(vertices[b], frame, side, tolerance)
+}
+
+fn vertex_on_frame_side(vertex: Point, frame: BorderFrame, side: &str, tolerance: f32) -> bool {
+    match side {
+        "top" => {
+            frame.left - tolerance <= vertex.x
+                && vertex.x <= frame.right + tolerance
+                && (vertex.y - frame.top).abs() <= tolerance
+        }
+        "right" => {
+            frame.top - tolerance <= vertex.y
+                && vertex.y <= frame.bottom + tolerance
+                && (vertex.x - frame.right).abs() <= tolerance
+        }
+        "bottom" => {
+            frame.left - tolerance <= vertex.x
+                && vertex.x <= frame.right + tolerance
+                && (vertex.y - frame.bottom).abs() <= tolerance
+        }
+        _ => {
+            frame.top - tolerance <= vertex.y
+                && vertex.y <= frame.bottom + tolerance
+                && (vertex.x - frame.left).abs() <= tolerance
+        }
+    }
+}
+
+fn side_position_by_name(vertex: Point, side: &str) -> f32 {
+    if side == "top" || side == "bottom" {
+        vertex.x
+    } else {
+        vertex.y
     }
 }
 
@@ -3887,6 +4301,108 @@ mod tests {
         );
 
         assert_eq!(assignment, 1);
+    }
+
+    #[test]
+    fn reconstruct_square_border_chain_rebuilds_missing_corner_frame() {
+        let size = 64usize;
+        let config = DecodeConfig {
+            image_size: size as u32,
+            min_edge_length_px: 2.0,
+            ..DecodeConfig::default()
+        };
+        let line_prob = vec![0.0; size * size];
+        let mut vertices = vec![
+            Point { x: 0.0, y: 0.0 },
+            Point { x: 30.0, y: 0.0 },
+            Point { x: 0.0, y: 32.0 },
+            Point { x: 0.0, y: 63.0 },
+            Point { x: 32.0, y: 63.0 },
+            Point { x: 63.0, y: 63.0 },
+            Point { x: 63.0, y: 32.0 },
+            Point { x: 30.0, y: 30.0 },
+        ];
+        let mut edges = vec![
+            attributed_edge(0, 1, 3),
+            attributed_edge(0, 2, 2),
+            attributed_edge(2, 3, 2),
+            attributed_edge(3, 4, 2),
+            attributed_edge(4, 5, 2),
+            attributed_edge(5, 6, 2),
+            attributed_edge(7, 1, 2),
+        ];
+
+        let action =
+            reconstruct_square_border_chain(&mut vertices, &mut edges, &line_prob, &config)
+                .expect("frame should be reconstructed");
+
+        assert_eq!(action.details["added_corner_vertices"], json!(1));
+        assert!(
+            vertices
+                .iter()
+                .any(|vertex| distance(*vertex, Point { x: 63.0, y: 0.0 }) < 1e-4),
+            "top-right corner should be synthesized"
+        );
+        let frame = infer_border_frame(&vertices, size).expect("frame after repair");
+        let tolerance =
+            border_chain_tolerance((frame.right - frame.left).max(frame.bottom - frame.top));
+        let frame_edges: Vec<&AttributedEdge> = edges
+            .iter()
+            .filter(|edge| {
+                edge_lies_on_any_frame_side(&vertices, edge.edge.a, edge.edge.b, frame, tolerance)
+            })
+            .collect();
+        assert!(
+            frame_edges.len() >= 8,
+            "expected split square frame, got {} edges",
+            frame_edges.len()
+        );
+        assert!(
+            frame_edges
+                .iter()
+                .all(|edge| edge.edge.assignment == 2 && edge.source == AssignmentSource::Observed),
+            "all reconstructed frame edges should be observed B"
+        );
+        assert!(
+            edges.iter().any(|edge| !edge_lies_on_any_frame_side(
+                &vertices,
+                edge.edge.a,
+                edge.edge.b,
+                frame,
+                tolerance
+            ) && edge.edge.assignment == 3),
+            "off-frame border labels should be downgraded to U"
+        );
+        assert!(
+            !edges.iter().any(|edge| edge.edge.assignment == 3
+                && edge_lies_on_any_frame_side(
+                    &vertices,
+                    edge.edge.a,
+                    edge.edge.b,
+                    frame,
+                    tolerance
+                )),
+            "frame edges should not remain U after reconstruction"
+        );
+    }
+
+    fn attributed_edge(a: usize, b: usize, assignment: u8) -> AttributedEdge {
+        AttributedEdge {
+            edge: Edge {
+                a,
+                b,
+                assignment,
+                support: 0.9,
+            },
+            confidence: 0.9,
+            margin: 0.9,
+            source: if assignment == 3 {
+                AssignmentSource::Unknown
+            } else {
+                AssignmentSource::Observed
+            },
+            probabilities: assignment_probability_row(assignment as usize, 0.9),
+        }
     }
 
     fn draw_prob_line(
