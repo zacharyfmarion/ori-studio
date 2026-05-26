@@ -151,6 +151,16 @@ struct Line {
     t_min: f32,
     t_max: f32,
     support: f32,
+    votes: usize,
+}
+
+#[derive(Debug, Clone)]
+struct SegmentLineCandidate {
+    p0: [f64; 2],
+    p1: [f64; 2],
+    theta: f64,
+    rho: f64,
+    length: f64,
 }
 
 #[derive(Debug, Clone)]
@@ -165,6 +175,7 @@ struct Edge {
 pub struct DecodeStageSnapshot {
     pub image_size: u32,
     pub raw_segments: Vec<StageHoughSegment>,
+    pub raw_lines: Vec<StageLine>,
     pub carriers: Vec<StageCarrier>,
 }
 
@@ -183,6 +194,7 @@ pub struct StageLine {
     pub theta: f32,
     pub rho: f32,
     pub support: f32,
+    pub votes: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -220,7 +232,8 @@ pub fn decode_stage_snapshot_from_line_mask(
         },
     )?;
     let segments = limit_hough_segments(segments, 12_000);
-    let carriers = merge_hough_segments_into_carriers(&segments, size, &config);
+    let raw_lines = merge_hough_segments_into_raw_lines(&segments, &config);
+    let carriers = carriers_from_raw_lines(&raw_lines, size, &config);
     Ok(DecodeStageSnapshot {
         image_size,
         raw_segments: segments
@@ -228,6 +241,7 @@ pub fn decode_stage_snapshot_from_line_mask(
             .copied()
             .map(StageHoughSegment::from)
             .collect(),
+        raw_lines: raw_lines.iter().map(StageLine::from).collect(),
         carriers: carriers.iter().map(StageCarrier::from).collect(),
     })
 }
@@ -251,6 +265,7 @@ impl From<&Line> for StageLine {
             theta: line.theta,
             rho: line.rho,
             support: line.support,
+            votes: line.votes,
         }
     }
 }
@@ -505,16 +520,24 @@ fn merge_hough_segments_into_carriers(
     size: usize,
     config: &DecodeConfig,
 ) -> Vec<Line> {
-    let mut groups: Vec<Vec<Line>> = Vec::new();
-    let angle_tol = config.carrier_merge_angle_degrees.to_radians();
+    let raw_lines = merge_hough_segments_into_raw_lines(segments, config);
+    carriers_from_raw_lines(&raw_lines, size, config)
+}
+
+fn merge_hough_segments_into_raw_lines(
+    segments: &[HoughSegment],
+    config: &DecodeConfig,
+) -> Vec<Line> {
+    let mut groups: Vec<Vec<SegmentLineCandidate>> = Vec::new();
+    let angle_tol = f64::from(config.carrier_merge_angle_degrees).to_radians();
     for segment in segments {
-        let Some(line) = line_from_hough_segment(*segment, config) else {
+        let Some(line) = candidate_from_hough_segment(*segment, config) else {
             continue;
         };
         if let Some(group) = groups.iter_mut().find(|group| {
             let first = &group[0];
-            angle_distance(first.theta, line.theta) <= angle_tol
-                && (first.rho - line.rho).abs() <= config.carrier_merge_rho_px
+            angle_distance_f64(first.theta, line.theta) <= angle_tol
+                && (first.rho - line.rho).abs() <= f64::from(config.carrier_merge_rho_px)
         }) {
             group.push(line);
         } else {
@@ -522,92 +545,120 @@ fn merge_hough_segments_into_carriers(
         }
     }
 
-    let mut carriers = Vec::new();
+    let mut raw_lines = Vec::new();
     for group in groups {
-        if let Some(line) = merged_hough_group(&group).and_then(|line| {
-            clip_and_pad_carrier(line, size, config.carrier_extent_padding_px, config)
-        }) {
-            carriers.push(line);
+        if let Some(line) = merged_hough_group(&group) {
+            raw_lines.push(line);
         }
     }
-    carriers.sort_by(|left, right| right.support.total_cmp(&left.support));
-    carriers.truncate(config.max_line_hypotheses);
+    raw_lines.sort_by(|left, right| right.support.total_cmp(&left.support));
+    raw_lines.truncate(config.max_line_hypotheses);
+    raw_lines
+}
+
+fn carriers_from_raw_lines(raw_lines: &[Line], size: usize, config: &DecodeConfig) -> Vec<Line> {
+    let mut carriers = Vec::new();
+    for line in raw_lines.iter().take(config.max_line_hypotheses) {
+        if line_is_frame_border(line, size) {
+            continue;
+        }
+        if let Some(carrier) =
+            clip_and_pad_carrier(line.clone(), size, config.carrier_extent_padding_px, config)
+        {
+            if !segment_is_frame_border(carrier.p0, carrier.p1, size) {
+                carriers.push(carrier);
+            }
+        }
+    }
     carriers
 }
 
-fn line_from_hough_segment(segment: HoughSegment, config: &DecodeConfig) -> Option<Line> {
-    let p0 = Point {
-        x: segment.x1 as f32,
-        y: segment.y1 as f32,
-    };
-    let p1 = Point {
-        x: segment.x2 as f32,
-        y: segment.y2 as f32,
-    };
-    let length = distance(p0, p1);
-    if length < config.min_edge_length_px {
+fn candidate_from_hough_segment(
+    segment: HoughSegment,
+    config: &DecodeConfig,
+) -> Option<SegmentLineCandidate> {
+    let p0 = [f64::from(segment.x1), f64::from(segment.y1)];
+    let p1 = [f64::from(segment.x2), f64::from(segment.y2)];
+    let dx = p1[0] - p0[0];
+    let dy = p1[1] - p0[1];
+    let length = (dx * dx + dy * dy).sqrt();
+    if length < f64::from(config.min_edge_length_px) {
         return None;
     }
-    let direction_angle = (p1.y - p0.y).atan2(p1.x - p0.x);
-    let direction = Point {
-        x: direction_angle.cos(),
-        y: direction_angle.sin(),
-    };
-    let normal = Point {
-        x: -direction.y,
-        y: direction.x,
-    };
-    let (theta, rho) = normalize_polar(normal.y.atan2(normal.x), project(p0, normal));
-    let t0 = project(p0, direction);
-    let t1 = project(p1, direction);
-    Some(Line {
+    let theta = dy.atan2(dx).rem_euclid(std::f64::consts::PI);
+    let normal = [-theta.sin(), theta.cos()];
+    Some(SegmentLineCandidate {
         theta,
-        rho,
+        rho: p0[0] * normal[0] + p0[1] * normal[1],
         p0,
         p1,
-        direction,
-        t_min: t0.min(t1),
-        t_max: t0.max(t1),
-        support: length,
+        length,
     })
 }
 
-fn merged_hough_group(group: &[Line]) -> Option<Line> {
-    let support_sum = group.iter().map(|line| line.support.max(1.0)).sum::<f32>();
+fn merged_hough_group(group: &[SegmentLineCandidate]) -> Option<Line> {
+    let support_sum = group.iter().map(|line| line.length).sum::<f64>();
     if support_sum <= 0.0 {
         return None;
     }
-    let theta = weighted_bidirectional_angle(
+    let theta = weighted_bidirectional_angle_f64(
         group.iter().map(|line| line.theta),
-        group.iter().map(|line| line.support.max(1.0)),
+        group.iter().map(|line| line.length),
     );
-    let rho = group
-        .iter()
-        .map(|line| line.rho * line.support.max(1.0))
-        .sum::<f32>()
-        / support_sum;
-    let direction = Point {
-        x: -theta.sin(),
-        y: theta.cos(),
-    };
-    let mut t_min = f32::INFINITY;
-    let mut t_max = f32::NEG_INFINITY;
+    let rho = group.iter().map(|line| line.rho * line.length).sum::<f64>() / support_sum;
+    let direction64 = [theta.cos(), theta.sin()];
+    let normal64 = [-theta.sin(), theta.cos()];
+    let mut endpoints = Vec::with_capacity(group.len() * 2);
     for line in group {
-        for point in [line.p0, line.p1] {
-            let t = project(point, direction);
-            t_min = t_min.min(t);
-            t_max = t_max.max(t);
-        }
+        endpoints.push(line.p0);
+        endpoints.push(line.p1);
     }
+    let ts: Vec<f64> = endpoints
+        .iter()
+        .map(|point| point[0] * direction64[0] + point[1] * direction64[1])
+        .collect();
+    let t_min = ts.iter().copied().fold(f64::INFINITY, f64::min);
+    let t_max = ts.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+    let center = [
+        direction64[0] * ((t_min + t_max) / 2.0),
+        direction64[1] * ((t_min + t_max) / 2.0),
+    ];
+    let center_normal = center[0] * normal64[0] + center[1] * normal64[1];
+    let signed_center = [
+        center[0] + normal64[0] * (rho - center_normal),
+        center[1] + normal64[1] * (rho - center_normal),
+    ];
+    let center_t = signed_center[0] * direction64[0] + signed_center[1] * direction64[1];
+    let p0 = [
+        signed_center[0] + direction64[0] * (t_min - center_t),
+        signed_center[1] + direction64[1] * (t_min - center_t),
+    ];
+    let p1 = [
+        signed_center[0] + direction64[0] * (t_max - center_t),
+        signed_center[1] + direction64[1] * (t_max - center_t),
+    ];
+    let theta = theta as f32;
+    let rho = rho as f32;
+    let direction = Point {
+        x: theta.cos(),
+        y: theta.sin(),
+    };
     Some(Line {
         theta,
         rho,
-        p0: point_on_polar_line(theta, rho, direction, t_min),
-        p1: point_on_polar_line(theta, rho, direction, t_max),
+        p0: Point {
+            x: p0[0] as f32,
+            y: p0[1] as f32,
+        },
+        p1: Point {
+            x: p1[0] as f32,
+            y: p1[1] as f32,
+        },
         direction,
-        t_min,
-        t_max,
-        support: support_sum,
+        t_min: t_min as f32,
+        t_max: t_max as f32,
+        support: support_sum as f32,
+        votes: group.len(),
     })
 }
 
@@ -617,75 +668,76 @@ fn clip_and_pad_carrier(
     padding: f32,
     config: &DecodeConfig,
 ) -> Option<Line> {
-    let (clip0, clip1) = clip_hough_line(line.theta, line.rho, size)?;
-    let square_t_min = project(clip0, line.direction).min(project(clip1, line.direction));
-    let square_t_max = project(clip0, line.direction).max(project(clip1, line.direction));
+    let (_, _, square_t_min, square_t_max) = clip_line_to_frame(&line, size, config)?;
     let t_min = (line.t_min - padding).max(square_t_min);
     let t_max = (line.t_max + padding).min(square_t_max);
     if t_max - t_min < config.min_edge_length_px {
         return None;
     }
+    let normal = line_normal(line.theta);
     Some(Line {
-        p0: point_on_polar_line(line.theta, line.rho, line.direction, t_min),
-        p1: point_on_polar_line(line.theta, line.rho, line.direction, t_max),
+        p0: add_points(
+            scale_point(line.direction, t_min),
+            scale_point(normal, line.rho),
+        ),
+        p1: add_points(
+            scale_point(line.direction, t_max),
+            scale_point(normal, line.rho),
+        ),
         t_min,
         t_max,
         ..line
     })
 }
 
-fn weighted_bidirectional_angle(
-    angles: impl Iterator<Item = f32>,
-    weights: impl Iterator<Item = f32>,
-) -> f32 {
+fn weighted_bidirectional_angle_f64(
+    angles: impl Iterator<Item = f64>,
+    weights: impl Iterator<Item = f64>,
+) -> f64 {
     let mut x = 0.0;
     let mut y = 0.0;
     for (angle, weight) in angles.zip(weights) {
         x += (2.0 * angle).cos() * weight;
         y += (2.0 * angle).sin() * weight;
     }
-    (0.5 * y.atan2(x)).rem_euclid(std::f32::consts::PI)
+    (0.5 * y.atan2(x)).rem_euclid(std::f64::consts::PI)
 }
 
-fn normalize_polar(mut theta: f32, mut rho: f32) -> (f32, f32) {
-    if rho < 0.0 {
-        rho = -rho;
-        theta += std::f32::consts::PI;
-    }
-    (theta.rem_euclid(std::f32::consts::TAU), rho)
-}
-
-fn point_on_polar_line(theta: f32, rho: f32, direction: Point, t: f32) -> Point {
-    Point {
-        x: theta.cos() * rho + direction.x * t,
-        y: theta.sin() * rho + direction.y * t,
-    }
-}
-
-fn clip_hough_line(theta: f32, rho: f32, size: usize) -> Option<(Point, Point)> {
+fn clip_line_to_frame(
+    line: &Line,
+    size: usize,
+    config: &DecodeConfig,
+) -> Option<(Point, Point, f32, f32)> {
     let max = (size - 1) as f32;
-    let cos_t = theta.cos();
-    let sin_t = theta.sin();
+    let frame_epsilon = 1.0;
     let mut points = Vec::new();
-    if sin_t.abs() > 1e-6 {
+    let delta = Point {
+        x: line.p1.x - line.p0.x,
+        y: line.p1.y - line.p0.y,
+    };
+    if delta.x.abs() > 1e-6 {
         for x in [0.0, max] {
-            let y = (rho - x * cos_t) / sin_t;
-            if (-1.0..=max + 1.0).contains(&y) {
-                points.push(Point {
-                    x,
-                    y: y.clamp(0.0, max),
-                });
+            let t = (x - line.p0.x) / delta.x;
+            let y = line.p0.y + t * delta.y;
+            if (-frame_epsilon..=max + frame_epsilon).contains(&y) {
+                points.push(snap_to_frame(
+                    Point { x, y },
+                    size,
+                    config.vertex_merge_px + frame_epsilon,
+                ));
             }
         }
     }
-    if cos_t.abs() > 1e-6 {
+    if delta.y.abs() > 1e-6 {
         for y in [0.0, max] {
-            let x = (rho - y * sin_t) / cos_t;
-            if (-1.0..=max + 1.0).contains(&x) {
-                points.push(Point {
-                    x: x.clamp(0.0, max),
-                    y,
-                });
+            let t = (y - line.p0.y) / delta.y;
+            let x = line.p0.x + t * delta.x;
+            if (-frame_epsilon..=max + frame_epsilon).contains(&x) {
+                points.push(snap_to_frame(
+                    Point { x, y },
+                    size,
+                    config.vertex_merge_px + frame_epsilon,
+                ));
             }
         }
     }
@@ -693,12 +745,33 @@ fn clip_hough_line(theta: f32, rho: f32, size: usize) -> Option<(Point, Point)> 
     if points.len() < 2 {
         return None;
     }
-    let dir = Point {
-        x: -sin_t,
-        y: cos_t,
-    };
-    points.sort_by(|a, b| project(*a, dir).total_cmp(&project(*b, dir)));
-    Some((*points.first()?, *points.last()?))
+    points.sort_by(|a, b| project(*a, line.direction).total_cmp(&project(*b, line.direction)));
+    let first = *points.first()?;
+    let last = *points.last()?;
+    let t_min = project(first, line.direction).min(project(last, line.direction));
+    let t_max = project(first, line.direction).max(project(last, line.direction));
+    Some((first, last, t_min, t_max))
+}
+
+fn line_normal(theta: f32) -> Point {
+    Point {
+        x: -theta.sin(),
+        y: theta.cos(),
+    }
+}
+
+fn add_points(left: Point, right: Point) -> Point {
+    Point {
+        x: left.x + right.x,
+        y: left.y + right.y,
+    }
+}
+
+fn scale_point(point: Point, scale: f32) -> Point {
+    Point {
+        x: point.x * scale,
+        y: point.y * scale,
+    }
 }
 
 fn boundary_contact_points(logits: &[f32], size: usize) -> Vec<Point> {
@@ -831,17 +904,28 @@ fn carrier_intersections(carriers: &[Line], config: &DecodeConfig) -> Vec<Point>
 }
 
 fn line_intersection(first: &Line, second: &Line) -> Option<Point> {
-    let a1 = first.theta.cos();
-    let b1 = first.theta.sin();
-    let a2 = second.theta.cos();
-    let b2 = second.theta.sin();
-    let det = a1 * b2 - a2 * b1;
-    if det.abs() < 1e-6 {
+    let p = first.p0;
+    let r = Point {
+        x: first.p1.x - first.p0.x,
+        y: first.p1.y - first.p0.y,
+    };
+    let q = second.p0;
+    let s = Point {
+        x: second.p1.x - second.p0.x,
+        y: second.p1.y - second.p0.y,
+    };
+    let denom = r.x * s.y - r.y * s.x;
+    if denom.abs() < 1e-6 {
         return None;
     }
+    let qp = Point {
+        x: q.x - p.x,
+        y: q.y - p.y,
+    };
+    let t = (qp.x * s.y - qp.y * s.x) / denom;
     Some(Point {
-        x: (first.rho * b2 - second.rho * b1) / det,
-        y: (a1 * second.rho - a2 * first.rho) / det,
+        x: p.x + t * r.x,
+        y: p.y + t * r.y,
     })
 }
 
@@ -1568,11 +1652,19 @@ fn snap_to_frame(point: Point, size: usize, tol: f32) -> Point {
 }
 
 fn point_line_distance(point: Point, line: &Line) -> f32 {
-    point_polar_distance(point, line.theta, line.rho)
-}
-
-fn point_polar_distance(point: Point, theta: f32, rho: f32) -> f32 {
-    (point.x * theta.cos() + point.y * theta.sin() - rho).abs()
+    let direction = Point {
+        x: line.p1.x - line.p0.x,
+        y: line.p1.y - line.p0.y,
+    };
+    let length = (direction.x * direction.x + direction.y * direction.y).sqrt();
+    if length <= 1e-6 {
+        return distance(point, line.p0);
+    }
+    let delta = Point {
+        x: point.x - line.p0.x,
+        y: point.y - line.p0.y,
+    };
+    ((direction.x * delta.y - direction.y * delta.x) / length).abs()
 }
 
 fn point_on_finite_line(point: Point, line: &Line, tol: f32) -> bool {
@@ -1593,10 +1685,10 @@ fn distance(a: Point, b: Point) -> f32 {
     (dx * dx + dy * dy).sqrt()
 }
 
-fn angle_distance(a: f32, b: f32) -> f32 {
-    let mut d = (a - b).abs() % std::f32::consts::PI;
-    if d > std::f32::consts::PI / 2.0 {
-        d = std::f32::consts::PI - d;
+fn angle_distance_f64(a: f64, b: f64) -> f64 {
+    let mut d = (a - b).abs() % std::f64::consts::PI;
+    if d > std::f64::consts::PI / 2.0 {
+        d = std::f64::consts::PI - d;
     }
     d
 }

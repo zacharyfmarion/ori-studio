@@ -607,11 +607,37 @@ clean-smoke: Python carriers 104, Rust carriers 83
 duck/cpoogle: Python carriers 150, Rust carriers 122
 ```
 
+Checkpoint 6 raw-line/carrier parity is now complete on the same two-fixture
+oracle replay set:
+
+```text
+fixture_count: 2
+raw_segment_exact_ordered_matches: 2
+raw_line_ordered_geometry_matches: 2
+carrier_ordered_geometry_matches: 2
+first_divergence_counts: {}
+```
+
+The post-port browser product benchmark on those same two fixtures:
+
+```text
+vertex precision/recall/F1: 0.8871 / 0.6465 / 0.7479
+edge precision/recall/F1:   0.8227 / 0.5530 / 0.6600
+border precision/recall/F1: 0.5182 / 0.3299 / 0.4021
+```
+
+Interpretation:
+
+- The classical evidence stack is now exact through Python raw segments, raw
+  lines, and finite carriers for the initial replay fixtures.
+- Remaining product gap is downstream of carriers: candidate vertex extraction,
+  edge support/assignment decisions, square border chain, cleanup/status, and
+  final FOLD export.
+
 ## First Implementation Target
 
-Checkpoint 1 confirmed the first post-Hough divergence. Go directly to
-Checkpoint 6 and port Python `_merge_segments` plus square-topology carrier
-construction exactly before doing more product threshold tuning.
+Checkpoint 6 closed the first post-Hough divergence on the initial replay set.
+Proceed to Checkpoint 7: peak extraction and candidate vertex parity.
 
 The first important question is:
 

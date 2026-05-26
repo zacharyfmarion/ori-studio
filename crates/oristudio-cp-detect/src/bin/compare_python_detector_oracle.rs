@@ -4,7 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use oristudio_cp_detect::decode::{
-    DecodeConfig, StageCarrier, StageHoughSegment, decode_stage_snapshot_from_line_mask,
+    DecodeConfig, StageCarrier, StageHoughSegment, StageLine, decode_stage_snapshot_from_line_mask,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -44,7 +44,7 @@ struct OracleFixture {
 #[derive(Debug, Deserialize)]
 struct PythonCarrier {
     #[allow(dead_code)]
-    line: Option<PythonLine>,
+    line: PythonLine,
     p0: Vec<f64>,
     p1: Vec<f64>,
     #[allow(dead_code)]
@@ -92,6 +92,7 @@ struct ReportConfig {
 struct Aggregate {
     fixture_count: usize,
     raw_segment_exact_ordered_matches: usize,
+    raw_line_ordered_geometry_matches: usize,
     carrier_ordered_geometry_matches: usize,
     first_divergence_counts: BTreeMap<String, usize>,
 }
@@ -107,7 +108,7 @@ struct FixtureReport {
 #[derive(Debug, Serialize)]
 struct StageReports {
     raw_segments: RawSegmentStageReport,
-    raw_lines: NotImplementedStageReport,
+    raw_lines: LineStageReport,
     carriers: CarrierStageReport,
     final_fold: NotImplementedStageReport,
 }
@@ -124,6 +125,18 @@ struct RawSegmentStageReport {
 
 #[derive(Debug, Serialize)]
 struct CarrierStageReport {
+    implemented: bool,
+    python_count: usize,
+    rust_count: usize,
+    count_equal: bool,
+    ordered_geometry_match: bool,
+    max_endpoint_delta_px: Option<f64>,
+    mean_endpoint_delta_px: Option<f64>,
+    first_difference: Option<Value>,
+}
+
+#[derive(Debug, Serialize)]
+struct LineStageReport {
     implemented: bool,
     python_count: usize,
     rust_count: usize,
@@ -170,10 +183,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         )?;
         let python_segments =
             read_raw_segments(&resolve_path(manifest_root, &fixture.raw_segments_path))?;
-        let python_raw_line_count = fixture
+        let python_raw_lines = fixture
             .raw_lines_path
             .as_ref()
-            .map(|path| count_json_array(&resolve_path(manifest_root, path)))
+            .map(|path| read_python_raw_lines(&resolve_path(manifest_root, path)))
             .transpose()?;
         let python_carriers =
             read_python_carriers(&resolve_path(manifest_root, &fixture.carriers_path))?;
@@ -181,9 +194,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         fixture_reports.push(compare_fixture(
             fixture,
             python_segments,
-            python_raw_line_count,
+            python_raw_lines.unwrap_or_default(),
             python_carriers,
             snapshot.raw_segments,
+            snapshot.raw_lines,
             snapshot.carriers,
             args.carrier_tolerance_px,
         ));
@@ -220,18 +234,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn compare_fixture(
     fixture: &OracleFixture,
     python_segments: Vec<StageHoughSegment>,
-    python_raw_line_count: Option<usize>,
+    python_raw_lines: Vec<PythonLine>,
     python_carriers: Vec<PythonCarrier>,
     rust_segments: Vec<StageHoughSegment>,
+    rust_raw_lines: Vec<StageLine>,
     rust_carriers: Vec<StageCarrier>,
     carrier_tolerance_px: f64,
 ) -> FixtureReport {
     let raw_segment_report = compare_raw_segments(&python_segments, &rust_segments);
-    let raw_lines_report = NotImplementedStageReport {
-        implemented: false,
-        python_count: python_raw_line_count,
-        reason: "Rust currently does not expose the Python _merge_segments raw-line stage separately from carrier construction.".to_owned(),
-    };
+    let raw_lines_report =
+        compare_raw_lines(&python_raw_lines, &rust_raw_lines, carrier_tolerance_px);
     let carrier_report = compare_carriers(&python_carriers, &rust_carriers, carrier_tolerance_px);
     let final_fold_report = NotImplementedStageReport {
         implemented: false,
@@ -240,8 +252,8 @@ fn compare_fixture(
     };
     let first_divergence = if !raw_segment_report.exact_ordered {
         "raw_segments"
-    } else if python_raw_line_count.is_some() {
-        "raw_lines_not_implemented"
+    } else if !raw_lines_report.ordered_geometry_match {
+        "raw_lines"
     } else if !carrier_report.ordered_geometry_match {
         "carriers"
     } else {
@@ -259,6 +271,81 @@ fn compare_fixture(
             carriers: carrier_report,
             final_fold: final_fold_report,
         },
+    }
+}
+
+fn compare_raw_lines(
+    python: &[PythonLine],
+    rust: &[StageLine],
+    tolerance_px: f64,
+) -> LineStageReport {
+    let mut deltas = Vec::new();
+    let paired = python.len().min(rust.len());
+    let mut first_difference = None;
+    for index in 0..paired {
+        let delta = line_endpoint_delta(&python[index], &rust[index]);
+        deltas.push(delta);
+        if delta > tolerance_px && first_difference.is_none() {
+            first_difference = Some(json!({
+                "index": index,
+                "endpoint_delta_px": delta,
+                "python": {
+                    "p0": &python[index].p0,
+                    "p1": &python[index].p1,
+                    "theta": python[index].theta,
+                    "rho": python[index].rho,
+                    "support": python[index].support,
+                    "votes": python[index].votes,
+                },
+                "rust": {
+                    "p0": rust[index].p0,
+                    "p1": rust[index].p1,
+                    "theta": rust[index].theta,
+                    "rho": rust[index].rho,
+                    "support": rust[index].support,
+                    "votes": rust[index].votes,
+                },
+            }));
+        }
+    }
+    if python.len() != rust.len() && first_difference.is_none() {
+        first_difference = Some(json!({
+            "index": paired,
+            "python": python.get(paired).map(|line| json!({
+                "p0": &line.p0,
+                "p1": &line.p1,
+                "theta": line.theta,
+                "rho": line.rho,
+                "support": line.support,
+                "votes": line.votes,
+            })),
+            "rust": rust.get(paired).map(|line| json!({
+                "p0": line.p0,
+                "p1": line.p1,
+                "theta": line.theta,
+                "rho": line.rho,
+                "support": line.support,
+                "votes": line.votes,
+            })),
+        }));
+    }
+    let max_endpoint_delta_px = deltas.iter().copied().reduce(f64::max);
+    let mean_endpoint_delta_px = if deltas.is_empty() {
+        None
+    } else {
+        Some(deltas.iter().sum::<f64>() / deltas.len() as f64)
+    };
+    let ordered_geometry_match =
+        python.len() == rust.len() && deltas.iter().all(|delta| *delta <= tolerance_px);
+    LineStageReport {
+        implemented: true,
+        python_count: python.len(),
+        rust_count: rust.len(),
+        count_equal: python.len() == rust.len(),
+        ordered_geometry_match,
+        max_endpoint_delta_px,
+        mean_endpoint_delta_px,
+        first_difference,
     }
 }
 
@@ -349,6 +436,9 @@ fn aggregate(fixtures: &[FixtureReport]) -> Aggregate {
         if fixture.stages.raw_segments.exact_ordered {
             aggregate.raw_segment_exact_ordered_matches += 1;
         }
+        if fixture.stages.raw_lines.ordered_geometry_match {
+            aggregate.raw_line_ordered_geometry_matches += 1;
+        }
         if fixture.stages.carriers.ordered_geometry_match {
             aggregate.carrier_ordered_geometry_matches += 1;
         }
@@ -433,13 +523,12 @@ fn read_raw_segments(path: &Path) -> Result<Vec<StageHoughSegment>, Box<dyn std:
         .collect())
 }
 
-fn read_python_carriers(path: &Path) -> Result<Vec<PythonCarrier>, Box<dyn std::error::Error>> {
+fn read_python_raw_lines(path: &Path) -> Result<Vec<PythonLine>, Box<dyn std::error::Error>> {
     Ok(serde_json::from_str(&fs::read_to_string(path)?)?)
 }
 
-fn count_json_array(path: &Path) -> Result<usize, Box<dyn std::error::Error>> {
-    let value: Value = serde_json::from_str(&fs::read_to_string(path)?)?;
-    Ok(value.as_array().map_or(0, Vec::len))
+fn read_python_carriers(path: &Path) -> Result<Vec<PythonCarrier>, Box<dyn std::error::Error>> {
+    Ok(serde_json::from_str(&fs::read_to_string(path)?)?)
 }
 
 fn read_pgm(path: &Path) -> Result<(usize, usize, Vec<u8>), Box<dyn std::error::Error>> {
@@ -528,6 +617,12 @@ fn first_segment_difference(
 }
 
 fn carrier_endpoint_delta(python: &PythonCarrier, rust: &StageCarrier) -> f64 {
+    let same = point_distance(&python.p0, rust.p0) + point_distance(&python.p1, rust.p1);
+    let swapped = point_distance(&python.p0, rust.p1) + point_distance(&python.p1, rust.p0);
+    same.min(swapped) / 2.0
+}
+
+fn line_endpoint_delta(python: &PythonLine, rust: &StageLine) -> f64 {
     let same = point_distance(&python.p0, rust.p0) + point_distance(&python.p1, rust.p1);
     let swapped = point_distance(&python.p0, rust.p1) + point_distance(&python.p1, rust.p0);
     same.min(swapped) / 2.0
