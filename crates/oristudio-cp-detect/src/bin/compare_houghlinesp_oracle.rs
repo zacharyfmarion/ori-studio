@@ -2,7 +2,9 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use oristudio_cp_detect::opencv_hough_lines_p::{HoughLinesPConfig, hough_lines_p_opencv_cpu};
+use oristudio_cp_detect::opencv_hough_lines_p::{
+    HoughAcceptedLineTrace, HoughLinesPConfig, hough_lines_p_opencv_cpu_trace,
+};
 use oristudio_cp_detect::segments::{SegmentExtractionConfig, extract_probabilistic_segments};
 use serde::{Deserialize, Serialize};
 
@@ -72,6 +74,7 @@ struct FixtureReport {
     exact_unordered: bool,
     geometry_equivalent: bool,
     first_difference: Option<FirstDifference>,
+    trace_around_first_difference: Vec<HoughAcceptedLineTrace>,
 }
 
 #[derive(Debug, Serialize)]
@@ -79,6 +82,11 @@ struct FirstDifference {
     index: usize,
     oracle: Option<Segment>,
     candidate: Option<Segment>,
+}
+
+struct CandidateOutput {
+    segments: Vec<Segment>,
+    accepted_trace: Vec<HoughAcceptedLineTrace>,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -93,7 +101,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Candidate::CustomSpike => {
                 let (width, height, mask) =
                     read_pgm(&resolve_path(manifest_root, &fixture.mask_path))?;
-                custom_spike_segments(&mask, width, height)
+                CandidateOutput {
+                    segments: custom_spike_segments(&mask, width, height),
+                    accepted_trace: Vec::new(),
+                }
             }
             Candidate::OpenCvPort => {
                 let (width, height, mask) =
@@ -101,17 +112,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 opencv_port_segments(&mask, width, height, &manifest.config)?
             }
         };
-        let exact_ordered = candidate == oracle;
-        let exact_unordered = sorted_segments(&candidate) == sorted_segments(&oracle);
-        let geometry_equivalent = geometry_equivalent(&candidate, &oracle, args.geometry_tolerance);
+        let exact_ordered = candidate.segments == oracle;
+        let exact_unordered = sorted_segments(&candidate.segments) == sorted_segments(&oracle);
+        let geometry_equivalent =
+            geometry_equivalent(&candidate.segments, &oracle, args.geometry_tolerance);
+        let first_difference = first_difference(&oracle, &candidate.segments);
+        let trace_around_first_difference = first_difference
+            .as_ref()
+            .map(|difference| {
+                trace_window(
+                    &candidate.accepted_trace,
+                    difference.index,
+                    args.trace_window,
+                )
+            })
+            .unwrap_or_default();
         reports.push(FixtureReport {
             id: fixture.id.clone(),
             oracle_count: oracle.len(),
-            candidate_count: candidate.len(),
+            candidate_count: candidate.segments.len(),
             exact_ordered,
             exact_unordered,
             geometry_equivalent,
-            first_difference: first_difference(&oracle, &candidate),
+            first_difference,
+            trace_around_first_difference,
         });
     }
     let aggregate = aggregate(&reports);
@@ -150,6 +174,7 @@ struct Args {
     candidate: Candidate,
     mode: CompareMode,
     geometry_tolerance: i32,
+    trace_window: usize,
     allow_mismatch: bool,
 }
 
@@ -160,6 +185,7 @@ impl Args {
         let mut candidate = Candidate::CustomSpike;
         let mut mode = CompareMode::ExactOrdered;
         let mut geometry_tolerance = 1;
+        let mut trace_window = 2usize;
         let mut allow_mismatch = false;
         let mut iter = env::args().skip(1);
         while let Some(arg) = iter.next() {
@@ -178,6 +204,9 @@ impl Args {
                     geometry_tolerance =
                         required_value(&mut iter, "--geometry-tolerance")?.parse()?;
                 }
+                "--trace-window" => {
+                    trace_window = required_value(&mut iter, "--trace-window")?.parse()?;
+                }
                 "--allow-mismatch" => allow_mismatch = true,
                 "--help" | "-h" => {
                     print_usage();
@@ -192,6 +221,7 @@ impl Args {
             candidate,
             mode,
             geometry_tolerance,
+            trace_window,
             allow_mismatch,
         })
     }
@@ -249,7 +279,7 @@ fn print_usage() {
     println!(
         "compare_houghlinesp_oracle --manifest PATH [--out PATH] \
          [--candidate custom-spike|opencv-port] [--mode exact-ordered] \
-         [--geometry-tolerance 1] [--allow-mismatch]"
+         [--geometry-tolerance 1] [--trace-window 2] [--allow-mismatch]"
     );
 }
 
@@ -353,8 +383,8 @@ fn opencv_port_segments(
     width: usize,
     height: usize,
     config: &OracleConfig,
-) -> Result<Vec<Segment>, Box<dyn std::error::Error>> {
-    let segments = hough_lines_p_opencv_cpu(
+) -> Result<CandidateOutput, Box<dyn std::error::Error>> {
+    let trace = hough_lines_p_opencv_cpu_trace(
         mask,
         width,
         height,
@@ -367,15 +397,19 @@ fn opencv_port_segments(
             lines_max: i32::MAX,
         },
     )?;
-    Ok(segments
-        .into_iter()
-        .map(|segment| Segment {
-            x1: segment.x1,
-            y1: segment.y1,
-            x2: segment.x2,
-            y2: segment.y2,
-        })
-        .collect())
+    Ok(CandidateOutput {
+        segments: trace
+            .segments
+            .into_iter()
+            .map(|segment| Segment {
+                x1: segment.x1,
+                y1: segment.y1,
+                x2: segment.x2,
+                y2: segment.y2,
+            })
+            .collect(),
+        accepted_trace: trace.accepted,
+    })
 }
 
 fn sorted_segments(segments: &[Segment]) -> Vec<Segment> {
@@ -424,6 +458,16 @@ fn first_difference(oracle: &[Segment], candidate: &[Segment]) -> Option<FirstDi
             candidate: candidate_segment,
         })
     })
+}
+
+fn trace_window(
+    accepted: &[HoughAcceptedLineTrace],
+    center_index: usize,
+    radius: usize,
+) -> Vec<HoughAcceptedLineTrace> {
+    let start = center_index.saturating_sub(radius);
+    let end = (center_index + radius + 1).min(accepted.len());
+    accepted[start..end].to_vec()
 }
 
 fn aggregate(reports: &[FixtureReport]) -> Aggregate {

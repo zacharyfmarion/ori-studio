@@ -118,7 +118,7 @@ Status legend:
 | Mask clearing pass | Complete | Walk both directions again; clear every encountered nonzero mask pixel. |
 | Accumulator decrement | Complete | Only for accepted lines, decrement every angle accumulator bucket for each cleared nonzero pixel. |
 | Output order | Complete | Push `Vec4i(x1, y1, x2, y2)` in OpenCV's accepted order and stop at `linesMax`. |
-| Degenerate cases | In progress | Match empty masks, weak masks, short segments, one-pixel noise, dense masks, and line gaps. Tiny fixture parity passes; real CP masks are not tested yet. |
+| Degenerate cases | In progress | Match empty masks, weak masks, short segments, one-pixel noise, dense masks, and line gaps. Tiny fixture parity and the 5-mask real CP smoke set pass; larger synthetic CP masks are still pending. |
 | No OpenCL/IPP branch | Complete | Explicitly out of browser-runtime scope; oracle calls must force normal CPU/Mat behavior. |
 
 ## Oracle Strategy
@@ -319,21 +319,25 @@ Checkpoint 4:
 - exported OpenCV oracle segments for the 5 real-world V2 line masks;
 - fixed the oracle exporter to produce unique fixture ids for repeated
   `line_mask.pgm` inputs;
-- compared the Rust port against Python OpenCV on those real masks:
+- added a standalone C++ source tracer to distinguish a Rust-port bug from
+  Python/OpenCV backend behavior;
+- confirmed the C++ source tracer matches Python OpenCV exactly on all 5 real
+  masks;
+- found and fixed the Rust parity gap in rho voting: the compiled C++ path uses
+  fused multiply-add behavior for `x * cos + y * sin` at bin boundaries, so the
+  Rust port now uses `mul_add` for the same accumulator vote calculation;
+- compared the cleaned Rust port against Python OpenCV on those real masks:
 
 ```text
 fixture_count: 5
-exact_ordered_matches: 1
-exact_unordered_matches: 2
-geometry_equivalent_matches: 2
+exact_ordered_matches: 5
+exact_unordered_matches: 5
+geometry_equivalent_matches: 5
 ```
 
-The port is therefore not ready to replace detector segment evidence. The
-counts match on all 5 real masks, and divergence starts late in each failed
-fixture, which suggests a small semantic/platform difference can cascade through
-OpenCV's destructive mask-clearing behavior. Do not proceed to decoder
-integration until this real-mask gap is resolved or explicitly accepted as a
-non-exact port.
+The port is now ready for the next checkpoint: replacing the current Rust
+segment evidence path behind an A/B gate and then measuring full graph parity.
+WASM/native parity still needs to be tested before product runtime replacement.
 
 The existing `segments.rs` custom Hough spike is diagnostic only and should not
 be treated as an OpenCV port.

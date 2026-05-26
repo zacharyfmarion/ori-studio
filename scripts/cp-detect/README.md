@@ -115,3 +115,27 @@ cargo run -p oristudio-cp-detect --bin compare_houghlinesp_oracle -- \
 
 `custom-spike` is a negative control, not the OpenCV port. It should fail exact
 ordered parity so the harness can prove it catches non-identical behavior.
+
+Once the oracle fixtures exist, run the OpenCV-compatible Rust port:
+
+```bash
+cargo run -p oristudio-cp-detect --bin compare_houghlinesp_oracle -- \
+  --manifest crates/oristudio-cp-detect/tests/fixtures/houghlinesp_tiny/manifest.json \
+  --candidate opencv-port \
+  --out artifacts/cp-detect-parity/houghlinesp-opencv-port-tiny.json
+```
+
+The ignored real-mask oracle set from the V2 smoke evidence should also pass
+exact ordered parity:
+
+```bash
+cargo run -p oristudio-cp-detect --bin compare_houghlinesp_oracle -- \
+  --manifest artifacts/cp-detect-oracle/houghlinesp-real-smoke-v2-20260525/manifest.json \
+  --candidate opencv-port \
+  --out artifacts/cp-detect-parity/houghlinesp-opencv-port-real-smoke-v2-20260525.json
+```
+
+For source-level debugging, `houghlinesp_cpp_trace.cpp` is a standalone C++
+tracer derived from OpenCV's CPU implementation. It is not product runtime; it
+exists to verify whether a mismatch is in the Rust port or in the Python/OpenCV
+oracle setup.

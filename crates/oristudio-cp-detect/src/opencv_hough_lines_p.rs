@@ -47,6 +47,31 @@ pub struct HoughSegment {
     pub y2: i32,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HoughTrace {
+    pub segments: Vec<HoughSegment>,
+    pub accepted: Vec<HoughAcceptedLineTrace>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HoughAcceptedLineTrace {
+    pub output_index: usize,
+    pub remaining_count_before: usize,
+    pub random_index: usize,
+    pub seed: TracePoint,
+    pub max_theta_index: usize,
+    pub max_votes: i32,
+    pub start: TracePoint,
+    pub end: TracePoint,
+    pub segment: HoughSegment,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TracePoint {
+    pub x: i32,
+    pub y: i32,
+}
+
 #[derive(Debug, Error)]
 pub enum HoughError {
     #[error("OpenCV-compatible HoughLinesP port is not implemented yet")]
@@ -61,6 +86,15 @@ pub fn hough_lines_p_opencv_cpu(
     height: usize,
     config: &HoughLinesPConfig,
 ) -> Result<Vec<HoughSegment>, HoughError> {
+    Ok(hough_lines_p_opencv_cpu_trace(image, width, height, config)?.segments)
+}
+
+pub fn hough_lines_p_opencv_cpu_trace(
+    image: &[u8],
+    width: usize,
+    height: usize,
+    config: &HoughLinesPConfig,
+) -> Result<HoughTrace, HoughError> {
     validate_config(image, width, height, config)?;
     let line_length = cv_round_f64(config.min_line_length);
     let line_gap = cv_round_f64(config.max_line_gap);
@@ -71,9 +105,11 @@ pub fn hough_lines_p_opencv_cpu(
     let (mut mask, mut nzloc) = collect_nonzero_mask(image, width, height)?;
     let mut rng = OpenCvRng::new(u64::MAX);
     let mut lines = Vec::new();
+    let mut accepted = Vec::new();
     let mut count = nzloc.len();
 
     while count > 0 {
+        let remaining_count_before = count;
         let idx = rng.uniform(0, count as i32) as usize;
         let point = nzloc[idx];
         nzloc[idx] = nzloc[count - 1];
@@ -120,26 +156,54 @@ pub fn hough_lines_p_opencv_cpu(
             numrho,
         )?;
 
+        let segment = HoughSegment {
+            x1: line_end[0].x,
+            y1: line_end[0].y,
+            x2: line_end[1].x,
+            y2: line_end[1].y,
+        };
+
         if good_line {
-            lines.push(HoughSegment {
-                x1: line_end[0].x,
-                y1: line_end[0].y,
-                x2: line_end[1].x,
-                y2: line_end[1].y,
+            accepted.push(HoughAcceptedLineTrace {
+                output_index: lines.len(),
+                remaining_count_before,
+                random_index: idx,
+                seed: point.into(),
+                max_theta_index: max_n,
+                max_votes: max_val,
+                start: line_end[0].into(),
+                end: line_end[1].into(),
+                segment,
             });
+            lines.push(segment);
             if lines.len() >= config.lines_max as usize {
-                return Ok(lines);
+                return Ok(HoughTrace {
+                    segments: lines,
+                    accepted,
+                });
             }
         }
     }
 
-    Ok(lines)
+    Ok(HoughTrace {
+        segments: lines,
+        accepted,
+    })
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct Point {
     pub x: i32,
     pub y: i32,
+}
+
+impl From<Point> for TracePoint {
+    fn from(point: Point) -> Self {
+        Self {
+            x: point.x,
+            y: point.y,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -158,11 +222,11 @@ pub(crate) struct WalkSetup {
 }
 
 pub(crate) fn cv_round_f64(value: f64) -> i32 {
-    value.round_ties_even() as i32
+    opencv_round_f64(value)
 }
 
 pub(crate) fn cv_round_f32(value: f32) -> i32 {
-    value.round_ties_even() as i32
+    opencv_round_f32(value)
 }
 
 pub(crate) fn cv_floor(value: f64) -> i32 {
@@ -189,8 +253,8 @@ pub(crate) fn build_trig_table(numangle: i32, theta: f32, rho: f32) -> Vec<TrigE
         .map(|n| {
             let angle = n as f64 * theta as f64;
             TrigEntry {
-                cos_irho: (angle.cos() * irho as f64) as f32,
-                sin_irho: (angle.sin() * irho as f64) as f32,
+                cos_irho: (opencv_cos(angle) * irho as f64) as f32,
+                sin_irho: (opencv_sin(angle) * irho as f64) as f32,
             }
         })
         .collect()
@@ -205,7 +269,9 @@ pub(crate) fn accumulator_index(theta_idx: usize, rho_idx: i32, numrho: i32) -> 
 }
 
 pub(crate) fn hough_rho_index(x: i32, y: i32, trig: TrigEntry, numrho: i32) -> i32 {
-    let r = cv_round_f32(x as f32 * trig.cos_irho + y as f32 * trig.sin_irho);
+    // Clang/OpenCV contracts this expression at some bin boundaries; matching
+    // that fused operation is required for exact destructive-mask parity.
+    let r = cv_round_f32((x as f32).mul_add(trig.cos_irho, y as f32 * trig.sin_irho));
     r + (numrho - 1) / 2
 }
 
@@ -403,6 +469,58 @@ fn walk_point(xflag: bool, x: i64, y: i64) -> Point {
 
 fn point_index(point: Point, width: usize) -> usize {
     point.y as usize * width + point.x as usize
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+unsafe extern "C" {
+    #[link_name = "cos"]
+    fn c_cos(value: f64) -> f64;
+    #[link_name = "sin"]
+    fn c_sin(value: f64) -> f64;
+    #[link_name = "lrint"]
+    fn c_lrint(value: f64) -> isize;
+    #[link_name = "lrintf"]
+    fn c_lrintf(value: f32) -> isize;
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn opencv_cos(value: f64) -> f64 {
+    unsafe { c_cos(value) }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn opencv_sin(value: f64) -> f64 {
+    unsafe { c_sin(value) }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn opencv_round_f64(value: f64) -> i32 {
+    unsafe { c_lrint(value) as i32 }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn opencv_round_f32(value: f32) -> i32 {
+    unsafe { c_lrintf(value) as i32 }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn opencv_cos(value: f64) -> f64 {
+    value.cos()
+}
+
+#[cfg(target_arch = "wasm32")]
+fn opencv_sin(value: f64) -> f64 {
+    value.sin()
+}
+
+#[cfg(target_arch = "wasm32")]
+fn opencv_round_f64(value: f64) -> i32 {
+    value.round_ties_even() as i32
+}
+
+#[cfg(target_arch = "wasm32")]
+fn opencv_round_f32(value: f32) -> i32 {
+    value.round_ties_even() as i32
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
