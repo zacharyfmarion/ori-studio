@@ -794,6 +794,51 @@ line_style_logits max/mean abs error:       0.0931141 / 0.0026217
 boundary_contact_logits max/mean abs error: 0.0302668 / 0.0018361
 ```
 
+Deeper ONNX diagnosis:
+
+- The exported graph is wired correctly: the first `Conv` output matches
+  PyTorch to float noise (`max 0.00000021`, `mean 0.00000000`) in ONNX Runtime
+  Web.
+- The first meaningful divergence happens immediately at the first per-image
+  BatchNorm statistics reduction:
+
+```text
+ONNX Runtime Web versus PyTorch, clean-smoke input:
+backbone.backbone.conv1 max/mean/p99: 0.00000021 / 0.00000000 / 0.00000003
+backbone.backbone.bn1   max/mean/p99: 0.04481506 / 0.00615612 / 0.02017868
+backbone.backbone.act1  max/mean/p99: 0.04481506 / 0.00358113 / 0.02017868
+backbone.backbone.conv2 max/mean/p99: 0.04920864 / 0.00982633 / 0.03972137
+backbone.backbone.bn2   max/mean/p99: 0.04333234 / 0.00094855 / 0.01043689
+```
+
+- The specific statistic tensors already differ in the first BatchNorm:
+
+```text
+bn1 mean max/mean relative error: 0.00190127 / 0.00026651 / 0.00373122
+bn1 var  max/mean relative error: 0.00003365 / 0.00000368 / 0.00425663
+```
+
+- Native ONNX Runtime CPU is closer, which shows this is not simply a bad ONNX
+  graph:
+
+```text
+Native ONNX Runtime CPU versus PyTorch heads:
+clean line_logits max/mean abs error:   0.00873184 / 0.00053278, mask diffs 0
+cpoogle line_logits max/mean abs error: 0.01461601 / 0.00087432, mask diffs 3
+native ORT final_fold_matches: 1 / 2
+
+ONNX Runtime Web versus PyTorch heads:
+line_logits max/mean abs error: 0.06810856 / 0.00415100, mask diffs 30
+web ORT final_fold_matches: 0 / 2
+```
+
+Conclusion: the current CPLineNet checkpoint relies on inference-time
+per-image BatchNorm (`batch-stats`). That makes exact browser parity fragile
+because ONNX Runtime Web's WASM reductions for BatchNorm mean/variance do not
+match PyTorch's reduction numerics. Those small statistic differences are then
+amplified by hundreds of BatchNorm layers and eventually flip line-mask pixels
+near the fixed `0.65` threshold.
+
 Running the real browser UI path with the explicit-BatchNorm ONNX asset gives:
 
 ```text
@@ -824,9 +869,15 @@ Remaining required phases:
   `input_tensor.f32` and writes browser ONNX outputs plus evidence maps. This
   removes canvas/image preprocessing from model parity.
 - Decide the model runtime strategy for exact parity. Current ONNX Runtime Web
-  is not exact enough for a strict Python-identical graph; options are a
-  declared tolerance gate, a different browser runtime/export path, or accepting
-  product-level metric parity rather than exact PyTorch parity.
+  is not exact enough for a strict Python-identical graph while the model uses
+  inference-time BatchNorm statistics. Options are:
+  - ship with a declared product-metric tolerance instead of exact graph
+    equality;
+  - find a browser runtime/custom op path that exactly matches PyTorch's
+    BatchNorm reductions;
+  - retrain or fine-tune a browser-targeted checkpoint that does not depend on
+    dynamic BatchNorm at inference, such as eval/frozen BatchNorm after
+    calibration or a normalization choice like GroupNorm/InstanceNorm.
 - Port/gate the Python rectifier behavior for arbitrary uploads. The current
   product rectifier is usable but not proven 1:1.
 
