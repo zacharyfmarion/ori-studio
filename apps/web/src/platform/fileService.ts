@@ -270,6 +270,15 @@ export function createOpenedPathFileService(path: string): FileService {
       const text = await invoke<string>('read_text_file', { path });
       return { text, name: filenameFromPath(path), path };
     },
+    async openBinaryFile(): Promise<OpenBinaryFileResult | null> {
+      const bytes = await invoke<number[]>('read_binary_file', { path });
+      return {
+        bytes: new Uint8Array(bytes),
+        name: filenameFromPath(path),
+        path,
+        mimeType: mimeTypeFromFilename(path),
+      };
+    },
     saveTextFile: (options) => desktopService.saveTextFile(options),
     saveBinaryFile: (options) => desktopService.saveBinaryFile(options),
   };

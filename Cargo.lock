@@ -2462,7 +2462,7 @@ dependencies = [
 
 [[package]]
 name = "oristudio-cp-detect"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "image",
  "imageproc",
@@ -2473,7 +2473,7 @@ dependencies = [
 
 [[package]]
 name = "oristudio-cp-detect-wasm"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "oristudio-cp-detect",
  "serde",
