@@ -4266,6 +4266,7 @@ version = "0.1.2"
 dependencies = [
  "anyhow",
  "clap",
+ "oristudio-cp",
  "serde",
  "serde_json",
  "sha2",
