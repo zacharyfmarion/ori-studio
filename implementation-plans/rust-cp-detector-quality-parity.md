@@ -1,5 +1,13 @@
 # Rust CP Detector Quality Parity Plan
 
+## Superseded Note
+
+This was the earlier "comparable quality" plan. The current detector-porting
+contract is stricter: use
+`implementation-plans/exact-python-detector-web-port.md` for the remaining
+Python-to-Rust/WASM work. That plan requires stage-by-stage 1:1 parity with the
+frozen Python implementation rather than merely comparable aggregate metrics.
+
 ## Goal
 
 Bring the browser/Rust CP detector to quality parity with the frozen Python
