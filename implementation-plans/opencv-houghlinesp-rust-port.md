@@ -284,7 +284,15 @@ Before the port can be considered complete:
 
 ## Current State
 
-Everything in this plan is currently `Not implemented` except the explicit
-decision to exclude OpenCL/IPP runtime branches. The existing
+Checkpoint 1 is complete:
+
+- added `export-houghlinesp-oracle.py`;
+- added `compare_houghlinesp_oracle`;
+- generated committed tiny OpenCV oracle fixtures;
+- confirmed the existing `segments.rs` custom Hough spike fails exact ordered
+  parity on the tiny oracle set, as expected.
+
+Everything in the 1:1 functionality table is currently `Not implemented` except
+the explicit decision to exclude OpenCL/IPP runtime branches. The existing
 `segments.rs` custom Hough spike is diagnostic only and should not be treated as
 an OpenCV port.

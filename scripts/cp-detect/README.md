@@ -88,3 +88,30 @@ Useful tuning flags include `--vote-threshold`, `--max-peaks`,
 `--max-line-hypotheses`. Matching tolerance flags are separate:
 `--segment-tolerance-px`, `--line-angle-tolerance-degrees`,
 `--line-rho-tolerance-px`, and `--line-overlap-tolerance`.
+
+## OpenCV HoughLinesP Oracle
+
+The OpenCV `HoughLinesP` Rust port uses Python OpenCV as its exact oracle. Build
+the tiny fixture set with:
+
+```bash
+python scripts/cp-detect/export-houghlinesp-oracle.py \
+  --output-dir crates/oristudio-cp-detect/tests/fixtures/houghlinesp_tiny \
+  --generate-tiny-fixtures \
+  --threshold 2 \
+  --min-line-length 6 \
+  --max-line-gap 2
+```
+
+Then compare a Rust candidate against the oracle:
+
+```bash
+cargo run -p oristudio-cp-detect --bin compare_houghlinesp_oracle -- \
+  --manifest crates/oristudio-cp-detect/tests/fixtures/houghlinesp_tiny/manifest.json \
+  --candidate custom-spike \
+  --allow-mismatch \
+  --out artifacts/cp-detect-parity/houghlinesp-custom-spike-negative-control.json
+```
+
+`custom-spike` is a negative control, not the OpenCV port. It should fail exact
+ordered parity so the harness can prove it catches non-identical behavior.
