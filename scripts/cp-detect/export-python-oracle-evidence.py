@@ -168,6 +168,7 @@ def export_fixture(
     raw_segments = decoder._builder._hough_segments(mask)  # noqa: SLF001
     raw_lines = decoder._builder._merge_segments(raw_segments)  # noqa: SLF001
     carriers = decoder._carriers_from_lines(raw_lines)  # noqa: SLF001
+    vertex_stage = vertex_stage_payload(decoder, evidence, carriers, mask)
     graph_result = decoder.build(evidence)
     attributed = attribute_graph_from_logits(
         graph_result,
@@ -206,6 +207,9 @@ def export_fixture(
     write_json(fixture_dir / "rectification.json", rectification.metadata())
     write_json(fixture_dir / "evidence_summary.json", evidence_summary(evidence))
     write_pgm(fixture_dir / "line_prob.pgm", np.rint(evidence.line_prob * 255.0).clip(0, 255).astype(np.uint8))
+    write_f32(fixture_dir / "junction_heatmap.f32", evidence.junction_heatmap)
+    if evidence.boundary_contact_heatmap is not None:
+        write_f32(fixture_dir / "boundary_contact_heatmap.f32", evidence.boundary_contact_heatmap)
     write_pgm(
         fixture_dir / "effective_line_prob.pgm",
         np.rint(effective_line_prob * 255.0).clip(0, 255).astype(np.uint8),
@@ -214,6 +218,7 @@ def export_fixture(
     write_json(fixture_dir / "raw_segments.json", raw_segments.astype(float).tolist())
     write_json(fixture_dir / "raw_lines.json", [line_payload(line) for line in raw_lines])
     write_json(fixture_dir / "carriers.json", [carrier_payload(carrier) for carrier in carriers])
+    write_json(fixture_dir / "vertex_stage.json", vertex_stage)
     write_json(fixture_dir / "suppression.json", suppression_stats)
 
     fold_payload = json.loads((fixture_dir / "oracle.fold").read_text(encoding="utf-8"))
@@ -226,16 +231,45 @@ def export_fixture(
         "rectified_image_path": f"{fixture_dir.name}/rectified.png",
         "evidence_summary_path": f"{fixture_dir.name}/evidence_summary.json",
         "line_prob_pgm_path": f"{fixture_dir.name}/line_prob.pgm",
+        "junction_heatmap_f32_path": f"{fixture_dir.name}/junction_heatmap.f32",
+        "boundary_contact_heatmap_f32_path": (
+            None
+            if evidence.boundary_contact_heatmap is None
+            else f"{fixture_dir.name}/boundary_contact_heatmap.f32"
+        ),
         "effective_line_prob_pgm_path": f"{fixture_dir.name}/effective_line_prob.pgm",
         "line_mask_pgm_path": f"{fixture_dir.name}/line_mask.pgm",
         "raw_segments_path": f"{fixture_dir.name}/raw_segments.json",
         "raw_lines_path": f"{fixture_dir.name}/raw_lines.json",
         "carriers_path": f"{fixture_dir.name}/carriers.json",
+        "vertex_stage_path": f"{fixture_dir.name}/vertex_stage.json",
         "fold_path": f"{fixture_dir.name}/oracle.fold",
         "report_path": f"{fixture_dir.name}/oracle.report.json",
         "expected_status": quality_report.status,
         "expected_vertices": len(fold_payload.get("vertices_coords", [])),
         "expected_edges": len(fold_payload.get("edges_vertices", [])),
+    }
+
+
+def vertex_stage_payload(decoder: Any, evidence: Any, carriers: list[Any], mask: np.ndarray) -> dict[str, Any]:
+    intersections = decoder._carrier_intersections(carriers)  # noqa: SLF001
+    junctions = decoder._junction_points(evidence, mask)  # noqa: SLF001
+    boundary_contacts = decoder._boundary_contact_points(evidence)  # noqa: SLF001
+    candidate_vertices, candidate_meta = decoder._candidate_vertices(evidence, carriers, mask)  # noqa: SLF001
+    merged_vertices = decoder._merge_vertices(candidate_vertices)  # noqa: SLF001
+    merged_meta = decoder._refresh_vertex_meta(merged_vertices, candidate_meta)  # noqa: SLF001
+    return {
+        "intersections": points_payload(intersections),
+        "junctions": points_payload(junctions),
+        "boundary_contacts": points_payload(boundary_contacts),
+        "candidate_vertices": [
+            {"point": point_payload(point), "kind": str(kind)}
+            for point, kind in zip(candidate_vertices, candidate_meta)
+        ],
+        "merged_vertices": [
+            {"point": point_payload(point), "kind": str(kind)}
+            for point, kind in zip(merged_vertices, merged_meta)
+        ],
     }
 
 
@@ -297,6 +331,18 @@ def carrier_payload(carrier: Any) -> dict[str, Any]:
     }
 
 
+def points_payload(points: Any) -> list[list[float]]:
+    array = np.asarray(points, dtype=np.float32)
+    if array.size == 0:
+        return []
+    return [point_payload(point) for point in array.reshape(-1, 2)]
+
+
+def point_payload(point: Any) -> list[float]:
+    array = np.asarray(point, dtype=np.float32).reshape(-1)
+    return [float(array[0]), float(array[1])]
+
+
 def array_payload(value: Any) -> list[float]:
     return [float(item) for item in np.asarray(value).reshape(-1).tolist()]
 
@@ -312,6 +358,12 @@ def write_pgm(path: Path, image: np.ndarray) -> None:
     with path.open("wb") as handle:
         handle.write(f"P5\n{w} {h}\n255\n".encode("ascii"))
         handle.write(np.ascontiguousarray(image, dtype=np.uint8).tobytes())
+
+
+def write_f32(path: Path, array: np.ndarray | None) -> None:
+    if array is None:
+        return
+    np.asarray(array, dtype="<f4").tofile(path)
 
 
 def resolve_detector_repo(arg: Path | None) -> Path:

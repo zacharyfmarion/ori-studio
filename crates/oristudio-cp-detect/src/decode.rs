@@ -207,6 +207,22 @@ pub struct StageCarrier {
     pub direction: [f32; 2],
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DecodeVertexStageSnapshot {
+    pub line_stage: DecodeStageSnapshot,
+    pub intersections: Vec<[f32; 2]>,
+    pub junctions: Vec<[f32; 2]>,
+    pub boundary_contacts: Vec<[f32; 2]>,
+    pub candidate_vertices: Vec<StageVertex>,
+    pub merged_vertices: Vec<StageVertex>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct StageVertex {
+    pub point: [f32; 2],
+    pub kind: String,
+}
+
 pub fn decode_stage_snapshot_from_line_mask(
     line_mask: &[u8],
     image_size: u32,
@@ -218,31 +234,61 @@ pub fn decode_stage_snapshot_from_line_mask(
     }
     require_byte_len("line_mask", line_mask, size * size)?;
     config.image_size = image_size;
-    let segments = hough_lines_p_opencv_cpu(
+    let (snapshot, _) = line_stage_from_mask(line_mask, image_size, &config)?;
+    Ok(snapshot)
+}
+
+pub fn decode_vertex_stage_snapshot_from_maps(
+    line_mask: &[u8],
+    junction_heatmap: &[f32],
+    boundary_contact_heatmap: Option<&[f32]>,
+    image_size: u32,
+    mut config: DecodeConfig,
+) -> Result<DecodeVertexStageSnapshot, DecodeError> {
+    let size = image_size as usize;
+    if size < 8 {
+        return Err(DecodeError::InvalidImageSize(image_size));
+    }
+    let pixels = size * size;
+    require_byte_len("line_mask", line_mask, pixels)?;
+    require_len("junction_heatmap", junction_heatmap, pixels)?;
+    if let Some(boundary_contact_heatmap) = boundary_contact_heatmap {
+        require_len("boundary_contact_heatmap", boundary_contact_heatmap, pixels)?;
+    }
+    config.image_size = image_size;
+    let (line_stage, carriers) = line_stage_from_mask(line_mask, image_size, &config)?;
+    let vertex_stage = vertex_stage_from_maps(
+        junction_heatmap,
+        boundary_contact_heatmap,
         line_mask,
-        size,
-        size,
-        &HoughLinesPConfig {
-            rho: 1.0,
-            theta: std::f32::consts::PI / 720.0,
-            threshold: config.hough_vote_threshold.max(1) as i32,
-            min_line_length: config.hough_min_segment_length_px as f64,
-            max_line_gap: config.hough_max_segment_gap_px as f64,
-            lines_max: i32::MAX,
-        },
-    )?;
-    let segments = limit_hough_segments(segments, 12_000);
-    let raw_lines = merge_hough_segments_into_raw_lines(&segments, &config);
-    let carriers = carriers_from_raw_lines(&raw_lines, size, &config);
-    Ok(DecodeStageSnapshot {
-        image_size,
-        raw_segments: segments
+        &carriers,
+        &config,
+    );
+    Ok(DecodeVertexStageSnapshot {
+        line_stage,
+        intersections: vertex_stage
+            .intersections
             .iter()
             .copied()
-            .map(StageHoughSegment::from)
+            .map(point_array)
             .collect(),
-        raw_lines: raw_lines.iter().map(StageLine::from).collect(),
-        carriers: carriers.iter().map(StageCarrier::from).collect(),
+        junctions: vertex_stage
+            .junctions
+            .iter()
+            .copied()
+            .map(point_array)
+            .collect(),
+        boundary_contacts: vertex_stage
+            .boundary_contacts
+            .iter()
+            .copied()
+            .map(point_array)
+            .collect(),
+        candidate_vertices: stage_vertices(
+            &vertex_stage.candidate_vertices,
+            &vertex_stage.candidate_meta,
+        ),
+        merged_vertices: stage_vertices(&vertex_stage.merged_vertices, &vertex_stage.merged_meta),
     })
 }
 
@@ -287,6 +333,64 @@ fn point_array(point: Point) -> [f32; 2] {
     [point.x, point.y]
 }
 
+struct VertexStage {
+    intersections: Vec<Point>,
+    junctions: Vec<Point>,
+    boundary_contacts: Vec<Point>,
+    candidate_vertices: Vec<Point>,
+    candidate_meta: Vec<String>,
+    merged_vertices: Vec<Point>,
+    merged_meta: Vec<String>,
+}
+
+fn stage_vertices(points: &[Point], meta: &[String]) -> Vec<StageVertex> {
+    points
+        .iter()
+        .zip(meta.iter())
+        .map(|(point, kind)| StageVertex {
+            point: point_array(*point),
+            kind: kind.clone(),
+        })
+        .collect()
+}
+
+fn line_stage_from_mask(
+    line_mask: &[u8],
+    image_size: u32,
+    config: &DecodeConfig,
+) -> Result<(DecodeStageSnapshot, Vec<Line>), DecodeError> {
+    let size = image_size as usize;
+    let segments = hough_lines_p_opencv_cpu(
+        line_mask,
+        size,
+        size,
+        &HoughLinesPConfig {
+            rho: 1.0,
+            theta: std::f32::consts::PI / 720.0,
+            threshold: config.hough_vote_threshold.max(1) as i32,
+            min_line_length: config.hough_min_segment_length_px as f64,
+            max_line_gap: config.hough_max_segment_gap_px as f64,
+            lines_max: i32::MAX,
+        },
+    )?;
+    let segments = limit_hough_segments(segments, 12_000);
+    let raw_lines = merge_hough_segments_into_raw_lines(&segments, config);
+    let carriers = carriers_from_raw_lines(&raw_lines, size, config);
+    Ok((
+        DecodeStageSnapshot {
+            image_size,
+            raw_segments: segments
+                .iter()
+                .copied()
+                .map(StageHoughSegment::from)
+                .collect(),
+            raw_lines: raw_lines.iter().map(StageLine::from).collect(),
+            carriers: carriers.iter().map(StageCarrier::from).collect(),
+        },
+        carriers,
+    ))
+}
+
 pub fn decode_dense_outputs(
     outputs: DenseOutputs<'_>,
     config: DecodeConfig,
@@ -308,6 +412,7 @@ pub fn decode_dense_outputs(
     require_len("line_style_logits", outputs.line_style_logits, pixels * 4)?;
 
     let effective = effective_line_prob(outputs, &config);
+    let (mask, _) = hough_mask(&effective, &config);
     let lines = hough_lines(&effective, &config);
     let carriers: Vec<Line> = lines
         .iter()
@@ -315,27 +420,16 @@ pub fn decode_dense_outputs(
         .cloned()
         .collect();
 
-    let mut vertices = square_corners(size);
-    vertices.extend(boundary_contact_points(
-        outputs.boundary_contact_logits,
-        size,
-    ));
-    let carrier_intersections = carrier_intersections(&carriers, &config);
-    vertices.extend(junction_points(
-        outputs.junction_logits,
-        &effective,
+    let junction_heatmap = sigmoid_map(outputs.junction_logits);
+    let boundary_contact_heatmap = sigmoid_map(outputs.boundary_contact_logits);
+    let vertex_stage = vertex_stage_from_maps(
+        &junction_heatmap,
+        Some(&boundary_contact_heatmap),
+        &mask,
         &carriers,
-        &carrier_intersections,
         &config,
-    ));
-    for carrier in &carriers {
-        for endpoint in [carrier.p0, carrier.p1] {
-            if point_on_frame(endpoint, size, config.vertex_merge_px * 2.0) {
-                vertices.push(snap_to_frame(endpoint, size, config.vertex_merge_px));
-            }
-        }
-    }
-    vertices = merge_vertices(&vertices, size, config.vertex_merge_px);
+    );
+    let vertices = vertex_stage.merged_vertices;
 
     let mut interior_edges = interior_edges(&vertices, &carriers, &effective, outputs, &config);
     dedupe_edges(&mut interior_edges);
@@ -451,6 +545,10 @@ fn effective_line_prob(outputs: DenseOutputs<'_>, config: &DecodeConfig) -> Vec<
             }
         })
         .collect()
+}
+
+fn sigmoid_map(values: &[f32]) -> Vec<f32> {
+    values.iter().map(|value| sigmoid(*value)).collect()
 }
 
 fn hough_lines(line_prob: &[f32], config: &DecodeConfig) -> Vec<Line> {
@@ -774,10 +872,76 @@ fn scale_point(point: Point, scale: f32) -> Point {
     }
 }
 
-fn boundary_contact_points(logits: &[f32], size: usize) -> Vec<Point> {
+fn vertex_stage_from_maps(
+    junction_heatmap: &[f32],
+    boundary_contact_heatmap: Option<&[f32]>,
+    line_mask: &[u8],
+    carriers: &[Line],
+    config: &DecodeConfig,
+) -> VertexStage {
+    let size = config.image_size as usize;
+    let mut candidate_vertices = Vec::new();
+    let mut candidate_meta = Vec::new();
+
+    for corner in square_corners(size) {
+        candidate_vertices.push(corner);
+        candidate_meta.push("corner".to_owned());
+    }
+
+    let boundary_contacts = boundary_contact_heatmap
+        .map(|heatmap| boundary_contact_points(heatmap, size))
+        .unwrap_or_default();
+    for point in &boundary_contacts {
+        candidate_vertices.push(*point);
+        candidate_meta.push("boundary_contact".to_owned());
+    }
+
+    let intersections = carrier_intersections(carriers, config);
+    let junctions = junction_points(junction_heatmap, line_mask, config);
+    for point in &junctions {
+        if carriers
+            .iter()
+            .any(|line| point_on_finite_line(*point, line, config.line_vertex_distance_px))
+        {
+            candidate_vertices.push(snap_junction_to_intersection(
+                *point,
+                &intersections,
+                config,
+            ));
+            candidate_meta.push("junction".to_owned());
+        }
+    }
+
+    for carrier in carriers {
+        for endpoint in [carrier.p0, carrier.p1] {
+            if point_on_frame(endpoint, size, config.vertex_merge_px + 1.0) {
+                candidate_vertices.push(snap_to_frame(
+                    endpoint,
+                    size,
+                    config.vertex_merge_px + 1.0,
+                ));
+                candidate_meta.push("boundary_contact".to_owned());
+            }
+        }
+    }
+
+    let merged_vertices = merge_vertices(&candidate_vertices, size, config.vertex_merge_px);
+    let merged_meta = refresh_vertex_meta(&merged_vertices, size, config.vertex_merge_px);
+    VertexStage {
+        intersections,
+        junctions,
+        boundary_contacts,
+        candidate_vertices,
+        candidate_meta,
+        merged_vertices,
+        merged_meta,
+    }
+}
+
+fn boundary_contact_points(heatmap: &[f32], size: usize) -> Vec<Point> {
     let max = (size - 1) as f32;
     let band = (size as f32 * 0.04).max(4.0) as usize;
-    let radius = (size / 256).max(2);
+    let radius = 4usize;
     let mut points = Vec::new();
     for side in 0..4 {
         let mut candidates = Vec::new();
@@ -793,8 +957,8 @@ fn boundary_contact_points(logits: &[f32], size: usize) -> Vec<Point> {
                     continue;
                 }
                 let idx = y * size + x;
-                let score = sigmoid(logits[idx]);
-                if score < 0.25 || !local_max_scalar(logits, size, x, y, radius, score) {
+                let score = heatmap[idx];
+                if score < 0.25 || !local_max_scalar(heatmap, size, x, y, radius, score) {
                     continue;
                 }
                 let point = match side {
@@ -829,55 +993,28 @@ fn boundary_contact_points(logits: &[f32], size: usize) -> Vec<Point> {
     points
 }
 
-fn junction_points(
-    logits: &[f32],
-    line_prob: &[f32],
-    carriers: &[Line],
-    intersections: &[Point],
-    config: &DecodeConfig,
-) -> Vec<Point> {
+fn junction_points(heatmap: &[f32], line_mask: &[u8], config: &DecodeConfig) -> Vec<Point> {
     let size = config.image_size as usize;
     let mut candidates = Vec::new();
     for y in 1..size - 1 {
         for x in 1..size - 1 {
             let idx = y * size + x;
-            if line_prob[idx] < config.threshold * 0.45 {
+            if line_mask[idx] == 0 {
                 continue;
             }
-            let score = sigmoid(logits[idx]);
-            if score < 0.20 || !local_max_scalar(logits, size, x, y, 2, score) {
+            let score = heatmap[idx];
+            if score < 0.20 || !local_max_scalar(heatmap, size, x, y, 2, score) {
                 continue;
             }
             let point = Point {
                 x: x as f32,
                 y: y as f32,
             };
-            if carriers
-                .iter()
-                .any(|line| point_on_finite_line(point, line, config.line_vertex_distance_px))
-            {
-                candidates.push((
-                    score,
-                    snap_junction_to_intersection(point, intersections, config),
-                ));
-            }
+            candidates.push((score, point));
         }
     }
     candidates.sort_by(|a, b| b.0.total_cmp(&a.0));
-    let mut points = Vec::new();
-    for (_, point) in candidates {
-        if points
-            .iter()
-            .any(|other| distance(*other, point) <= config.vertex_merge_px * 2.0)
-        {
-            continue;
-        }
-        points.push(point);
-        if points.len() >= 1600 {
-            break;
-        }
-    }
-    points
+    candidates.into_iter().map(|(_, point)| point).collect()
 }
 
 fn carrier_intersections(carriers: &[Line], config: &DecodeConfig) -> Vec<Point> {
@@ -952,7 +1089,7 @@ fn snap_junction_to_intersection(
 }
 
 fn local_max_scalar(
-    logits: &[f32],
+    values: &[f32],
     size: usize,
     x: usize,
     y: usize,
@@ -965,7 +1102,7 @@ fn local_max_scalar(
     let y1 = (y + radius).min(size - 1);
     for yy in y0..=y1 {
         for xx in x0..=x1 {
-            if sigmoid(logits[yy * size + xx]) > score {
+            if values[yy * size + xx] > score {
                 return false;
             }
         }
@@ -1574,6 +1711,21 @@ fn merge_vertices(vertices: &[Point], size: usize, tol: f32) -> Vec<Point> {
     merged
 }
 
+fn refresh_vertex_meta(vertices: &[Point], size: usize, vertex_merge_px: f32) -> Vec<String> {
+    vertices
+        .iter()
+        .map(|vertex| {
+            if is_corner(*vertex, size, vertex_merge_px) {
+                "corner".to_owned()
+            } else if point_on_frame(*vertex, size, vertex_merge_px + 1.0) {
+                "boundary_contact".to_owned()
+            } else {
+                "junction".to_owned()
+            }
+        })
+        .collect()
+}
+
 fn dedupe_points(points: &mut Vec<Point>, tol: f32) {
     let mut out = Vec::new();
     for point in points.drain(..) {
@@ -1746,7 +1898,7 @@ fn default_vertex_merge_px() -> f32 {
 }
 
 fn default_line_vertex_distance_px() -> f32 {
-    4.0
+    4.0 * 1024.0 / 768.0
 }
 
 fn default_hough_vote_threshold() -> u32 {

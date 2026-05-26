@@ -4,7 +4,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use oristudio_cp_detect::decode::{
-    DecodeConfig, StageCarrier, StageHoughSegment, StageLine, decode_stage_snapshot_from_line_mask,
+    DecodeConfig, DecodeVertexStageSnapshot, StageCarrier, StageHoughSegment, StageLine,
+    StageVertex, decode_vertex_stage_snapshot_from_maps,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -35,6 +36,10 @@ struct OracleFixture {
     #[serde(default)]
     raw_lines_path: Option<String>,
     carriers_path: String,
+    junction_heatmap_f32_path: String,
+    #[serde(default)]
+    boundary_contact_heatmap_f32_path: Option<String>,
+    vertex_stage_path: String,
     #[allow(dead_code)]
     fold_path: String,
     #[allow(dead_code)]
@@ -71,6 +76,21 @@ struct PythonLine {
     votes: Option<usize>,
 }
 
+#[derive(Debug, Deserialize)]
+struct PythonVertexStage {
+    intersections: Vec<Vec<f64>>,
+    junctions: Vec<Vec<f64>>,
+    boundary_contacts: Vec<Vec<f64>>,
+    candidate_vertices: Vec<PythonStageVertex>,
+    merged_vertices: Vec<PythonStageVertex>,
+}
+
+#[derive(Debug, Deserialize)]
+struct PythonStageVertex {
+    point: Vec<f64>,
+    kind: String,
+}
+
 #[derive(Debug, Serialize)]
 struct Report {
     schema: &'static str,
@@ -94,6 +114,8 @@ struct Aggregate {
     raw_segment_exact_ordered_matches: usize,
     raw_line_ordered_geometry_matches: usize,
     carrier_ordered_geometry_matches: usize,
+    candidate_vertex_ordered_matches: usize,
+    merged_vertex_ordered_matches: usize,
     first_divergence_counts: BTreeMap<String, usize>,
 }
 
@@ -110,6 +132,11 @@ struct StageReports {
     raw_segments: RawSegmentStageReport,
     raw_lines: LineStageReport,
     carriers: CarrierStageReport,
+    intersections: PointListStageReport,
+    junctions: PointListStageReport,
+    boundary_contacts: PointListStageReport,
+    candidate_vertices: VertexStageReport,
+    merged_vertices: VertexStageReport,
     final_fold: NotImplementedStageReport,
 }
 
@@ -148,6 +175,31 @@ struct LineStageReport {
 }
 
 #[derive(Debug, Serialize)]
+struct PointListStageReport {
+    implemented: bool,
+    python_count: usize,
+    rust_count: usize,
+    count_equal: bool,
+    ordered_geometry_match: bool,
+    max_delta_px: Option<f64>,
+    mean_delta_px: Option<f64>,
+    first_difference: Option<Value>,
+}
+
+#[derive(Debug, Serialize)]
+struct VertexStageReport {
+    implemented: bool,
+    python_count: usize,
+    rust_count: usize,
+    count_equal: bool,
+    ordered_match: bool,
+    ordered_geometry_match: bool,
+    max_delta_px: Option<f64>,
+    mean_delta_px: Option<f64>,
+    first_difference: Option<Value>,
+}
+
+#[derive(Debug, Serialize)]
 struct NotImplementedStageReport {
     implemented: bool,
     python_count: Option<usize>,
@@ -172,8 +224,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for fixture in &manifest.fixtures {
         let (_, _, line_mask) =
             read_pgm(&resolve_path(manifest_root, &fixture.line_mask_pgm_path))?;
-        let snapshot = decode_stage_snapshot_from_line_mask(
+        let junction_heatmap = read_f32_map(&resolve_path(
+            manifest_root,
+            &fixture.junction_heatmap_f32_path,
+        ))?;
+        let boundary_contact_heatmap = fixture
+            .boundary_contact_heatmap_f32_path
+            .as_ref()
+            .map(|path| read_f32_map(&resolve_path(manifest_root, path)))
+            .transpose()?;
+        let snapshot = decode_vertex_stage_snapshot_from_maps(
             &line_mask,
+            &junction_heatmap,
+            boundary_contact_heatmap.as_deref(),
             manifest.config.image_size,
             DecodeConfig {
                 image_size: manifest.config.image_size,
@@ -190,15 +253,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .transpose()?;
         let python_carriers =
             read_python_carriers(&resolve_path(manifest_root, &fixture.carriers_path))?;
+        let python_vertex_stage =
+            read_python_vertex_stage(&resolve_path(manifest_root, &fixture.vertex_stage_path))?;
 
         fixture_reports.push(compare_fixture(
             fixture,
             python_segments,
             python_raw_lines.unwrap_or_default(),
             python_carriers,
-            snapshot.raw_segments,
-            snapshot.raw_lines,
-            snapshot.carriers,
+            python_vertex_stage,
+            snapshot,
             args.carrier_tolerance_px,
         ));
     }
@@ -236,15 +300,46 @@ fn compare_fixture(
     python_segments: Vec<StageHoughSegment>,
     python_raw_lines: Vec<PythonLine>,
     python_carriers: Vec<PythonCarrier>,
-    rust_segments: Vec<StageHoughSegment>,
-    rust_raw_lines: Vec<StageLine>,
-    rust_carriers: Vec<StageCarrier>,
+    python_vertex_stage: PythonVertexStage,
+    rust: DecodeVertexStageSnapshot,
     carrier_tolerance_px: f64,
 ) -> FixtureReport {
-    let raw_segment_report = compare_raw_segments(&python_segments, &rust_segments);
-    let raw_lines_report =
-        compare_raw_lines(&python_raw_lines, &rust_raw_lines, carrier_tolerance_px);
-    let carrier_report = compare_carriers(&python_carriers, &rust_carriers, carrier_tolerance_px);
+    let raw_segment_report = compare_raw_segments(&python_segments, &rust.line_stage.raw_segments);
+    let raw_lines_report = compare_raw_lines(
+        &python_raw_lines,
+        &rust.line_stage.raw_lines,
+        carrier_tolerance_px,
+    );
+    let carrier_report = compare_carriers(
+        &python_carriers,
+        &rust.line_stage.carriers,
+        carrier_tolerance_px,
+    );
+    let intersections_report = compare_point_list(
+        &python_vertex_stage.intersections,
+        &rust.intersections,
+        carrier_tolerance_px,
+    );
+    let junctions_report = compare_point_list(
+        &python_vertex_stage.junctions,
+        &rust.junctions,
+        carrier_tolerance_px,
+    );
+    let boundary_contacts_report = compare_point_list(
+        &python_vertex_stage.boundary_contacts,
+        &rust.boundary_contacts,
+        carrier_tolerance_px,
+    );
+    let candidate_vertices_report = compare_vertices(
+        &python_vertex_stage.candidate_vertices,
+        &rust.candidate_vertices,
+        carrier_tolerance_px,
+    );
+    let merged_vertices_report = compare_vertices(
+        &python_vertex_stage.merged_vertices,
+        &rust.merged_vertices,
+        carrier_tolerance_px,
+    );
     let final_fold_report = NotImplementedStageReport {
         implemented: false,
         python_count: None,
@@ -256,6 +351,16 @@ fn compare_fixture(
         "raw_lines"
     } else if !carrier_report.ordered_geometry_match {
         "carriers"
+    } else if !intersections_report.ordered_geometry_match {
+        "intersections"
+    } else if !junctions_report.ordered_geometry_match {
+        "junctions"
+    } else if !boundary_contacts_report.ordered_geometry_match {
+        "boundary_contacts"
+    } else if !candidate_vertices_report.ordered_match {
+        "candidate_vertices"
+    } else if !merged_vertices_report.ordered_match {
+        "merged_vertices"
     } else {
         "none"
     }
@@ -269,6 +374,11 @@ fn compare_fixture(
             raw_segments: raw_segment_report,
             raw_lines: raw_lines_report,
             carriers: carrier_report,
+            intersections: intersections_report,
+            junctions: junctions_report,
+            boundary_contacts: boundary_contacts_report,
+            candidate_vertices: candidate_vertices_report,
+            merged_vertices: merged_vertices_report,
             final_fold: final_fold_report,
         },
     }
@@ -427,6 +537,153 @@ fn compare_carriers(
     }
 }
 
+fn compare_point_list(
+    python: &[Vec<f64>],
+    rust: &[[f32; 2]],
+    tolerance_px: f64,
+) -> PointListStageReport {
+    let (deltas, first_difference) = point_list_deltas(
+        python,
+        rust,
+        tolerance_px,
+        |point| json!(point),
+        |point| json!(point),
+    );
+    let max_delta_px = deltas.iter().copied().reduce(f64::max);
+    let mean_delta_px = mean(&deltas);
+    let ordered_geometry_match =
+        python.len() == rust.len() && deltas.iter().all(|delta| *delta <= tolerance_px);
+    PointListStageReport {
+        implemented: true,
+        python_count: python.len(),
+        rust_count: rust.len(),
+        count_equal: python.len() == rust.len(),
+        ordered_geometry_match,
+        max_delta_px,
+        mean_delta_px,
+        first_difference,
+    }
+}
+
+fn compare_vertices(
+    python: &[PythonStageVertex],
+    rust: &[StageVertex],
+    tolerance_px: f64,
+) -> VertexStageReport {
+    let paired = python.len().min(rust.len());
+    let mut deltas = Vec::new();
+    let mut first_difference = None;
+    for index in 0..paired {
+        let delta = point_distance(&python[index].point, rust[index].point);
+        deltas.push(delta);
+        if delta > tolerance_px && first_difference.is_none() {
+            first_difference = Some(json!({
+                "index": index,
+                "delta_px": delta,
+                "python": {
+                    "point": &python[index].point,
+                    "kind": &python[index].kind,
+                },
+                "rust": {
+                    "point": rust[index].point,
+                    "kind": &rust[index].kind,
+                },
+                "reason": "point_mismatch",
+            }));
+        }
+    }
+    if python.len() != rust.len() && first_difference.is_none() {
+        first_difference = Some(json!({
+            "index": paired,
+            "python": python.get(paired).map(|vertex| json!({
+                "point": &vertex.point,
+                "kind": &vertex.kind,
+            })),
+            "rust": rust.get(paired).map(|vertex| json!({
+                "point": vertex.point,
+                "kind": &vertex.kind,
+            })),
+        }));
+    }
+    let mut kind_match = true;
+    for index in 0..paired {
+        if python[index].kind != rust[index].kind {
+            kind_match = false;
+            if first_difference.is_none() {
+                first_difference = Some(json!({
+                    "index": index,
+                    "python": {
+                        "point": &python[index].point,
+                        "kind": &python[index].kind,
+                    },
+                    "rust": {
+                        "point": rust[index].point,
+                        "kind": &rust[index].kind,
+                    },
+                    "reason": "kind_mismatch",
+                }));
+            }
+            break;
+        }
+    }
+    let max_delta_px = deltas.iter().copied().reduce(f64::max);
+    let mean_delta_px = mean(&deltas);
+    let ordered_geometry_match =
+        python.len() == rust.len() && deltas.iter().all(|delta| *delta <= tolerance_px);
+    let ordered_match = ordered_geometry_match && kind_match;
+    VertexStageReport {
+        implemented: true,
+        python_count: python.len(),
+        rust_count: rust.len(),
+        count_equal: python.len() == rust.len(),
+        ordered_match,
+        ordered_geometry_match,
+        max_delta_px,
+        mean_delta_px,
+        first_difference,
+    }
+}
+
+fn point_list_deltas(
+    python: &[Vec<f64>],
+    rust: &[[f32; 2]],
+    tolerance_px: f64,
+    python_json: impl Fn(&Vec<f64>) -> Value,
+    rust_json: impl Fn(&[f32; 2]) -> Value,
+) -> (Vec<f64>, Option<Value>) {
+    let paired = python.len().min(rust.len());
+    let mut deltas = Vec::new();
+    let mut first_difference = None;
+    for index in 0..paired {
+        let delta = point_distance(&python[index], rust[index]);
+        deltas.push(delta);
+        if delta > tolerance_px && first_difference.is_none() {
+            first_difference = Some(json!({
+                "index": index,
+                "delta_px": delta,
+                "python": python_json(&python[index]),
+                "rust": rust_json(&rust[index]),
+            }));
+        }
+    }
+    if python.len() != rust.len() && first_difference.is_none() {
+        first_difference = Some(json!({
+            "index": paired,
+            "python": python.get(paired).map(&python_json),
+            "rust": rust.get(paired).map(&rust_json),
+        }));
+    }
+    (deltas, first_difference)
+}
+
+fn mean(values: &[f64]) -> Option<f64> {
+    if values.is_empty() {
+        None
+    } else {
+        Some(values.iter().sum::<f64>() / values.len() as f64)
+    }
+}
+
 fn aggregate(fixtures: &[FixtureReport]) -> Aggregate {
     let mut aggregate = Aggregate {
         fixture_count: fixtures.len(),
@@ -441,6 +698,12 @@ fn aggregate(fixtures: &[FixtureReport]) -> Aggregate {
         }
         if fixture.stages.carriers.ordered_geometry_match {
             aggregate.carrier_ordered_geometry_matches += 1;
+        }
+        if fixture.stages.candidate_vertices.ordered_match {
+            aggregate.candidate_vertex_ordered_matches += 1;
+        }
+        if fixture.stages.merged_vertices.ordered_match {
+            aggregate.merged_vertex_ordered_matches += 1;
         }
         if fixture.first_divergence != "none" {
             *aggregate
@@ -529,6 +792,26 @@ fn read_python_raw_lines(path: &Path) -> Result<Vec<PythonLine>, Box<dyn std::er
 
 fn read_python_carriers(path: &Path) -> Result<Vec<PythonCarrier>, Box<dyn std::error::Error>> {
     Ok(serde_json::from_str(&fs::read_to_string(path)?)?)
+}
+
+fn read_python_vertex_stage(path: &Path) -> Result<PythonVertexStage, Box<dyn std::error::Error>> {
+    Ok(serde_json::from_str(&fs::read_to_string(path)?)?)
+}
+
+fn read_f32_map(path: &Path) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
+    let bytes = fs::read(path)?;
+    if bytes.len() % 4 != 0 {
+        return Err(format!(
+            "f32 map byte length must be divisible by 4 in {}: {}",
+            path.display(),
+            bytes.len()
+        )
+        .into());
+    }
+    Ok(bytes
+        .chunks_exact(4)
+        .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
+        .collect())
 }
 
 fn read_pgm(path: &Path) -> Result<(usize, usize, Vec<u8>), Box<dyn std::error::Error>> {

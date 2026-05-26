@@ -201,6 +201,25 @@ For unlabeled real-world fixtures:
 
 Each checkpoint ends with a commit.
 
+## Checkpoint Status
+
+| Checkpoint | Status | Notes |
+| --- | --- | --- |
+| 0: Plan | Complete | Exact-port plan added and older quality-parity plan marked superseded. |
+| 1: Oracle Replay Harness | Complete | Python evidence export and Rust replay comparison harness are in place. |
+| 2: Rectifier And Crop Parity | Pending | Product crop exists, but exact Python rectifier parity is not yet gated. |
+| 3: Model I/O And Head Parity | Pending | Browser ONNX works, but PyTorch-vs-ONNX head parity is not yet gated. |
+| 4: Evidence Conversion Parity | Pending | Some conversion exists in product code; exact dense-map parity is not yet gated. |
+| 5: Hough Segment Extraction Parity | Complete | OpenCV-compatible Rust `HoughLinesP` has exact ordered parity on tiny and real V2 masks. |
+| 6: Raw Segments To Carriers Parity | Complete | Raw lines and finite carriers match Python on the clean smoke and duck/cpoogle replay fixtures. |
+| 7: Peak Extraction And Candidate Vertex Parity | Complete | Intersections, junction peaks, boundary contacts, candidate vertices, and merged vertices match Python on the same replay fixtures. |
+| 8: Edge Construction And Support Parity | Pending | Next checkpoint. |
+| 9: Square Border Chain Parity | Pending | Depends on edge parity. |
+| 10: Cleanup, Repair, Quality, And Status Parity | Pending | Depends on graph parity. |
+| 11: FOLD Export Parity | Pending | Depends on final graph/report parity. |
+| 12: Native Rust, WASM, And Node Parity | Pending | Run after native stage parity. |
+| 13: Full Browser End-To-End Parity | Pending | Final product gate. |
+
 ### Checkpoint 0: Plan
 
 - Add this exact-port plan.
@@ -634,10 +653,48 @@ Interpretation:
   edge support/assignment decisions, square border chain, cleanup/status, and
   final FOLD export.
 
+Checkpoint 7 candidate-vertex parity is now complete on the same two-fixture
+oracle replay set:
+
+```text
+fixture_count: 2
+raw_segment_exact_ordered_matches: 2
+raw_line_ordered_geometry_matches: 2
+carrier_ordered_geometry_matches: 2
+candidate_vertex_ordered_matches: 2
+merged_vertex_ordered_matches: 2
+first_divergence_counts: {}
+```
+
+This covers Python/Rust parity for:
+
+- analytic carrier intersections;
+- junction peak extraction;
+- boundary-contact peak extraction;
+- candidate vertex source/order;
+- post-merge vertex source/order.
+
+The Rust default `line_vertex_distance_px` was aligned to the Python V2
+1024-pixel value, `4 * 1024 / 768 = 5.333px`, which was required for the
+duck/cpoogle candidate-junction replay.
+
+The post-Checkpoint-7 browser product benchmark on the same two fixtures:
+
+```text
+vertex precision/recall/F1: 0.8871 / 0.6465 / 0.7479
+edge precision/recall/F1:   0.8279 / 0.5817 / 0.6810
+border precision/recall/F1: 0.5105 / 0.3299 / 0.4001
+```
+
+Compared with the post-carrier product benchmark, edge F1 improved from
+`0.6600` to `0.6810`; border F1 is effectively unchanged. That is expected:
+candidate-vertex parity helps edge recall, but border quality still depends on
+edge support and border-chain parity in later checkpoints.
+
 ## First Implementation Target
 
-Checkpoint 6 closed the first post-Hough divergence on the initial replay set.
-Proceed to Checkpoint 7: peak extraction and candidate vertex parity.
+Checkpoint 7 closed candidate vertex parity on the initial replay set. Proceed
+to Checkpoint 8: edge construction and support parity.
 
 The first important question is:
 
