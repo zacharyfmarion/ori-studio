@@ -5,6 +5,7 @@
 //! later roadmap phases behind these contracts.
 
 pub mod decode;
+pub mod opencv_hough_lines_p;
 pub mod rectify;
 pub mod segments;
 

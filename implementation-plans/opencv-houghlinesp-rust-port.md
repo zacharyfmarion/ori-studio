@@ -99,20 +99,20 @@ Status legend:
 
 | Area | Status | Required behavior |
 | --- | --- | --- |
-| License attribution | Not implemented | Add OpenCV copyright/license notice to the Rust module. |
-| Public wrapper rounding | Not implemented | Match `HoughLinesP` conversion of `minLineLength` and `maxGap` through OpenCV `cvRound`. |
+| License attribution | Complete | Add OpenCV copyright/license notice to the Rust module. |
+| Public wrapper rounding | In progress | Match `HoughLinesP` conversion of `minLineLength` and `maxGap` through OpenCV `cvRound`. `cvRound` helper is implemented; wrapper use is not wired yet. |
 | Argument validation | Not implemented | Match required constraints for 8-bit single-channel input, positive `rho`, positive `theta`, and sensible dimensions. |
-| `computeNumangle` | Not implemented | Match OpenCV angle-bin count and the duplicate-PI-bin removal rule. |
-| Trig table | Not implemented | Use `cos(n * theta) * irho` and `sin(n * theta) * irho`, stored as `f32`, matching OpenCV's table shape. |
-| `numrho` | Not implemented | Match `cvRound(((width + height) * 2 + 1) / rho)`. |
-| Accumulator layout | Not implemented | Use `numangle * numrho` signed integer storage and OpenCV's `r + (numrho - 1) / 2` indexing. |
-| Mask layout | Not implemented | Build a mutable `width * height` byte mask with `1` for nonzero source pixels and `0` otherwise. |
-| Nonzero point order | Not implemented | Collect points in row-major `(x, y)` order exactly as OpenCV does. |
-| OpenCV RNG | Not implemented | Port `cv::RNG((uint64)-1)` and `uniform(0, count)` exactly. This is mandatory because line order and suppression depend on it. |
+| `computeNumangle` | Complete | Match OpenCV angle-bin count and the duplicate-PI-bin removal rule. |
+| Trig table | Complete | Use `cos(n * theta) * irho` and `sin(n * theta) * irho`, stored as `f32`, matching OpenCV's table shape. |
+| `numrho` | Complete | Match `cvRound(((width + height) * 2 + 1) / rho)`. |
+| Accumulator layout | In progress | Use `numangle * numrho` signed integer storage and OpenCV's `r + (numrho - 1) / 2` indexing. Rho indexing helper is implemented; full accumulator mutation is not wired yet. |
+| Mask layout | Complete | Build a mutable `width * height` byte mask with `1` for nonzero source pixels and `0` otherwise. |
+| Nonzero point order | Complete | Collect points in row-major `(x, y)` order exactly as OpenCV does. |
+| OpenCV RNG | Complete | Port `cv::RNG((uint64)-1)` and `uniform(0, count)` exactly. This is mandatory because line order and suppression depend on it. |
 | Random point removal | Not implemented | Match OpenCV's swap-with-last removal from `nzloc` before processing the point. |
 | Cleared-point skip | Not implemented | Skip a selected point if its mask cell has already been cleared by an accepted line. |
 | Per-point voting | Not implemented | Increment accumulator votes for all angles from the selected point, track `max_val` and `max_n`, and continue if `max_val < threshold`. |
-| Fixed-point walker | Not implemented | Port the `shift = 16` line walker exactly, including x-major/y-major branch, signed `dx0/dy0`, and `>> shift` behavior. |
+| Fixed-point walker | In progress | Port the `shift = 16` line walker exactly, including x-major/y-major branch, signed `dx0/dy0`, and `>> shift` behavior. Walk setup is implemented; endpoint scanning is not wired yet. |
 | Endpoint discovery | Not implemented | Walk both directions from the seed point, stop at image bounds or when gap exceeds `lineGap`, and record the last nonzero endpoint per direction. |
 | Good-line test | Not implemented | Accept when x-span or y-span is at least `lineLength`, matching OpenCV's `||` condition. |
 | Mask clearing pass | Not implemented | Walk both directions again; clear every encountered nonzero mask pixel. |
@@ -284,7 +284,9 @@ Before the port can be considered complete:
 
 ## Current State
 
-Checkpoint 1 is complete:
+Checkpoints 1 and 2 are complete.
+
+Checkpoint 1:
 
 - added `export-houghlinesp-oracle.py`;
 - added `compare_houghlinesp_oracle`;
@@ -292,7 +294,14 @@ Checkpoint 1 is complete:
 - confirmed the existing `segments.rs` custom Hough spike fails exact ordered
   parity on the tiny oracle set, as expected.
 
-Everything in the 1:1 functionality table is currently `Not implemented` except
-the explicit decision to exclude OpenCL/IPP runtime branches. The existing
-`segments.rs` custom Hough spike is diagnostic only and should not be treated as
-an OpenCV port.
+Checkpoint 2:
+
+- added `opencv_hough_lines_p.rs` with OpenCV attribution;
+- implemented helper primitives for `cvRound`, `computeNumangle`, `numrho`,
+  trig tables, accumulator rho indexing, row-major mask/nonzero collection,
+  OpenCV RNG, and fixed-point walk setup;
+- kept `hough_lines_p_opencv_cpu` explicitly unavailable with a
+  `NotImplemented` error.
+
+The existing `segments.rs` custom Hough spike is diagnostic only and should not
+be treated as an OpenCV port.
