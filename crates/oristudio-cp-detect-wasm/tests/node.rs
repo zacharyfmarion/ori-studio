@@ -65,18 +65,41 @@ fn auto_rectify_returns_report_and_rgba_bytes() {
 
 #[wasm_bindgen_test]
 fn decode_dense_outputs_returns_fold_json() {
-    let size = 32usize;
+    let size = 64usize;
     let pixels = size * size;
     let mut line_logits = vec![-8.0f32; pixels];
     let mut junction_logits = vec![-8.0f32; pixels];
     let mut assignment_logits = vec![-4.0f32; pixels * 4];
     let non_crease_logits = vec![-8.0f32; pixels];
     let line_style_logits = vec![-4.0f32; pixels * 4];
-    let boundary_contact_logits = vec![-8.0f32; pixels];
+    let mut boundary_contact_logits = vec![-8.0f32; pixels];
+
+    draw_logit_line(&mut line_logits, size, (32, 0), (32, 63), 8.0);
+    draw_logit_line(&mut line_logits, size, (0, 32), (63, 32), 8.0);
+    draw_logit_line(&mut line_logits, size, (0, 0), (63, 0), 8.0);
+    draw_logit_line(&mut line_logits, size, (63, 0), (63, 63), 8.0);
+    draw_logit_line(&mut line_logits, size, (0, 63), (63, 63), 8.0);
+    draw_logit_line(&mut line_logits, size, (0, 0), (0, 63), 8.0);
+    junction_logits[32 * size + 32] = 8.0;
+    boundary_contact_logits[32] = 8.0;
+    boundary_contact_logits[63 * size + 32] = 8.0;
+    boundary_contact_logits[32 * size] = 8.0;
+    boundary_contact_logits[32 * size + 63] = 8.0;
     for y in 0..size {
-        let idx = y * size + 16;
-        line_logits[idx] = 8.0;
+        let idx = y * size + 32;
         assignment_logits[idx] = 8.0;
+    }
+    for x in 0..size {
+        let idx = 32 * size + x;
+        assignment_logits[pixels + idx] = 8.0;
+    }
+    for x in 0..size {
+        assignment_logits[2 * pixels + x] = 8.0;
+        assignment_logits[2 * pixels + (size - 1) * size + x] = 8.0;
+    }
+    for y in 0..size {
+        assignment_logits[2 * pixels + y * size] = 8.0;
+        assignment_logits[2 * pixels + y * size + size - 1] = 8.0;
     }
     junction_logits[16 * size + 16] = 8.0;
 
@@ -96,8 +119,41 @@ fn decode_dense_outputs_returns_fold_json() {
     let fold: serde_json::Value =
         serde_json::from_str(decoded["fold_json"].as_str().expect("fold_json")).expect("fold");
 
-    assert!(fold["edges_vertices"].as_array().expect("edges").len() >= 4);
-    assert_eq!(decoded["report"]["status"], "valid");
+    assert!(fold["edges_vertices"].as_array().expect("edges").len() >= 8);
+    assert_eq!(decoded["report"]["status"], "outside_v1_envelope");
+    assert!(
+        decoded["report"]["warnings"]
+            .as_array()
+            .expect("warnings")
+            .len()
+            > 0
+    );
+}
+
+fn draw_logit_line(
+    logits: &mut [f32],
+    size: usize,
+    start: (usize, usize),
+    end: (usize, usize),
+    value: f32,
+) {
+    let dx = end.0 as isize - start.0 as isize;
+    let dy = end.1 as isize - start.1 as isize;
+    let steps = dx.abs().max(dy.abs()).max(1);
+    for step in 0..=steps {
+        let x = start.0 as isize + dx * step / steps;
+        let y = start.1 as isize + dy * step / steps;
+        for oy in -1..=1 {
+            for ox in -1..=1 {
+                let px = x + ox;
+                let py = y + oy;
+                if px < 0 || py < 0 || px >= size as isize || py >= size as isize {
+                    continue;
+                }
+                logits[py as usize * size + px as usize] = value;
+            }
+        }
+    }
 }
 
 fn draw_rect(rgba: &mut [u8], width: usize, x0: usize, y0: usize, x1: usize, y1: usize) {

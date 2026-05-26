@@ -123,6 +123,8 @@ pub struct DecodeReport {
     pub border_edge_count: usize,
     pub interior_edge_count: usize,
     pub warnings: Vec<DecodeWarning>,
+    pub repair_actions: Vec<RepairAction>,
+    pub quality_report: Value,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -130,8 +132,24 @@ pub struct DecodeWarning {
     pub code: String,
     pub message: String,
     pub severity: String,
+    #[serde(default)]
+    pub edge_indices: Vec<usize>,
+    #[serde(default)]
+    pub vertex_indices: Vec<usize>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub details: Option<Value>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RepairAction {
+    pub code: String,
+    pub message: String,
+    #[serde(default)]
+    pub edge_indices: Vec<usize>,
+    #[serde(default)]
+    pub vertex_indices: Vec<usize>,
+    #[serde(default)]
+    pub details: Value,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -190,6 +208,21 @@ struct Edge {
     b: usize,
     assignment: u8,
     support: f32,
+}
+
+#[derive(Debug, Clone)]
+struct AttributedEdge {
+    edge: Edge,
+    confidence: f32,
+    margin: f32,
+    source: AssignmentSource,
+    probabilities: [f32; 4],
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AssignmentSource {
+    Observed,
+    Unknown,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -253,6 +286,9 @@ pub struct DecodeEdgeStageSnapshot {
     pub interior_edges: Vec<StageEdge>,
     pub border_edges: Vec<StageEdge>,
     pub combined_edges: Vec<StageEdge>,
+    pub cleanup_edges: Vec<StageEdge>,
+    pub final_vertices: Vec<StageVertex>,
+    pub final_edges: Vec<StageEdge>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -413,6 +449,17 @@ pub fn decode_edge_stage_snapshot_from_maps(
     combined_edges.extend(interior_edges.iter().cloned());
     combined_edges.extend(border_edges.iter().cloned());
     dedupe_edges(&mut combined_edges);
+    let cleanup_edges = if config.planar_cleanup {
+        planar_cleanup(&vertices_after_drop, combined_edges.clone(), &config)
+    } else {
+        combined_edges.clone()
+    };
+    let (final_vertices, final_edges) = drop_unused_vertices_keep_corners(
+        vertices_after_drop.clone(),
+        cleanup_edges.clone(),
+        size,
+        config.vertex_merge_px,
+    );
     Ok(DecodeEdgeStageSnapshot {
         vertex_stage: DecodeVertexStageSnapshot {
             line_stage,
@@ -449,6 +496,12 @@ pub fn decode_edge_stage_snapshot_from_maps(
         interior_edges: stage_edges(&interior_edges),
         border_edges: stage_edges(&border_edges),
         combined_edges: stage_edges(&combined_edges),
+        cleanup_edges: stage_edges(&cleanup_edges),
+        final_vertices: stage_vertices(
+            &final_vertices,
+            &refresh_vertex_meta(&final_vertices, size, config.vertex_merge_px),
+        ),
+        final_edges: stage_edges(&final_edges),
     })
 }
 
@@ -582,6 +635,7 @@ pub fn decode_dense_outputs(
     require_len("assignment_logits", outputs.assignment_logits, pixels * 4)?;
     require_len("line_style_logits", outputs.line_style_logits, pixels * 4)?;
 
+    let line_prob = sigmoid_map(outputs.line_logits);
     let effective = effective_line_prob(outputs, &config);
     let (mask, _) = hough_mask(&effective, &config);
     let lines = hough_lines(&effective, &config);
@@ -650,37 +704,48 @@ pub fn decode_dense_outputs(
         edges = planar_cleanup(&vertices, edges, &config);
     }
 
-    let (vertices, edges) =
+    let (mut vertices, edges) =
         drop_unused_vertices_keep_corners(vertices, edges, size, config.vertex_merge_px);
-    let border_edge_count = edges.iter().filter(|edge| edge.assignment == 2).count();
-    let interior_edge_count = edges.len().saturating_sub(border_edge_count);
-    let mut warnings = Vec::new();
-    if interior_edge_count == 0 {
-        warnings.push(DecodeWarning {
-            code: "no_interior_edges".to_owned(),
-            message: "No interior crease edges passed the square topology decoder support gates."
-                .to_owned(),
-            severity: "warning".to_owned(),
-            details: None,
-        });
-    }
-    if border_edge_count < 4 {
-        warnings.push(DecodeWarning {
-            code: "incomplete_border_chain".to_owned(),
-            message: "The deterministic square border chain has fewer than four edges.".to_owned(),
-            severity: "error".to_owned(),
-            details: Some(json!({ "border_edge_count": border_edge_count })),
-        });
-    }
-
-    let fold = fold_value(&vertices, &edges, size, &config, &warnings);
-    let status = if warnings.iter().any(|warning| warning.severity == "error") {
-        "failed"
-    } else if warnings.is_empty() {
-        "valid"
-    } else {
-        "ambiguous"
-    };
+    let mut attributed_edges = attribute_edges_from_logits(
+        &vertices,
+        &edges,
+        outputs.assignment_logits,
+        &line_prob,
+        &config,
+    );
+    let repair_actions =
+        conservative_repair(&mut vertices, &mut attributed_edges, &line_prob, &config);
+    let border_edge_count = attributed_edges
+        .iter()
+        .filter(|edge| edge.edge.assignment == 2)
+        .count();
+    let interior_edge_count = attributed_edges.len().saturating_sub(border_edge_count);
+    let structural_validity = structural_validity(&vertices, &attributed_edges);
+    let warnings = build_quality_warnings(&vertices, &attributed_edges, &structural_validity, size);
+    let status = quality_status(
+        &warnings,
+        &structural_validity,
+        &repair_actions,
+        attributed_edges.len(),
+    );
+    let quality_report = quality_report_value(
+        status,
+        &warnings,
+        &structural_validity,
+        &repair_actions,
+        &vertices,
+        &attributed_edges,
+    );
+    let fold = fold_value(
+        &vertices,
+        &attributed_edges,
+        size,
+        &config,
+        status,
+        &warnings,
+        &repair_actions,
+        &quality_report,
+    );
     Ok(DecodedFold {
         fold_json: serde_json::to_string_pretty(&fold)?,
         report: DecodeReport {
@@ -690,10 +755,12 @@ pub fn decode_dense_outputs(
             line_count: lines.len(),
             carrier_count: carriers.len(),
             vertex_count: vertices.len(),
-            edge_count: edges.len(),
+            edge_count: attributed_edges.len(),
             border_edge_count,
             interior_edge_count,
             warnings,
+            repair_actions,
+            quality_report,
         },
     })
 }
@@ -1664,12 +1731,34 @@ fn dedupe_edges(edges: &mut Vec<Edge>) {
     *edges = out;
 }
 
+fn dedupe_edges_by_support(edges: &mut Vec<Edge>) {
+    let mut out: Vec<Edge> = Vec::new();
+    for edge in edges.drain(..) {
+        let a = edge.a.min(edge.b);
+        let b = edge.a.max(edge.b);
+        if a == b {
+            continue;
+        }
+        if let Some(existing) = out
+            .iter_mut()
+            .find(|item| item.a.min(item.b) == a && item.a.max(item.b) == b)
+        {
+            if edge.support > existing.support {
+                *existing = Edge { a, b, ..edge };
+            }
+        } else {
+            out.push(Edge { a, b, ..edge });
+        }
+    }
+    *edges = out;
+}
+
 fn planar_cleanup(vertices: &[Point], mut edges: Vec<Edge>, config: &DecodeConfig) -> Vec<Edge> {
     if edges.len() <= 1 || vertices.len() < 3 || edges.len() > config.planar_cleanup_max_edges {
         return edges;
     }
     edges = split_edges_at_intermediate_vertices(vertices, &edges, config);
-    dedupe_edges(&mut edges);
+    dedupe_edges_by_support(&mut edges);
     remove_crossing_edges(vertices, edges, config)
 }
 
@@ -1688,8 +1777,8 @@ fn split_edges_at_intermediate_vertices(
                 continue;
             }
             out.push(Edge {
-                a,
-                b,
+                a: a.min(b),
+                b: a.max(b),
                 assignment: edge.assignment,
                 support: edge.support,
             });
@@ -1844,15 +1933,10 @@ fn crossing_loser(
 fn drop_unused_vertices_keep_corners(
     vertices: Vec<Point>,
     edges: Vec<Edge>,
-    size: usize,
-    tol: f32,
+    _size: usize,
+    _tol: f32,
 ) -> (Vec<Point>, Vec<Edge>) {
     let mut keep = vec![false; vertices.len()];
-    for (idx, point) in vertices.iter().enumerate() {
-        if is_corner(*point, size, tol) {
-            keep[idx] = true;
-        }
-    }
     for edge in &edges {
         keep[edge.a] = true;
         keep[edge.b] = true;
@@ -1876,12 +1960,1246 @@ fn drop_unused_vertices_keep_corners(
     (next_vertices, next_edges)
 }
 
-fn fold_value(
+fn attribute_edges_from_logits(
     vertices: &[Point],
     edges: &[Edge],
+    assignment_logits: &[f32],
+    line_prob: &[f32],
+    config: &DecodeConfig,
+) -> Vec<AttributedEdge> {
+    let size = config.image_size as usize;
+    edges
+        .iter()
+        .enumerate()
+        .map(|(edge_idx, edge)| {
+            let p0 = vertices[edge.a];
+            let p1 = vertices[edge.b];
+            let points = trim_endpoint_samples(sample_segment_points(p0, p1, 1.0), 0.10, 4);
+            let (probabilities, support, count) =
+                pool_assignment_probabilities(assignment_logits, &points, p0, p1, line_prob, size);
+            if count == 0 {
+                return AttributedEdge {
+                    edge: Edge {
+                        assignment: 3,
+                        support: edges.get(edge_idx).map(|item| item.support).unwrap_or(0.0),
+                        ..edge.clone()
+                    },
+                    confidence: 0.0,
+                    margin: 0.0,
+                    source: AssignmentSource::Unknown,
+                    probabilities: [0.0, 0.0, 0.0, 1.0],
+                };
+            }
+
+            let mut order = [0usize, 1, 2, 3];
+            order.sort_by(|left, right| probabilities[*right].total_cmp(&probabilities[*left]));
+            let top = order[0];
+            let second = order[1];
+            let confidence = probabilities[top];
+            let margin = (probabilities[top] - probabilities[second]).max(0.0);
+            let observed = confidence >= 0.60 && margin >= 0.12;
+            AttributedEdge {
+                edge: Edge {
+                    assignment: if observed { top as u8 } else { 3 },
+                    support,
+                    ..edge.clone()
+                },
+                confidence,
+                margin,
+                source: if observed {
+                    AssignmentSource::Observed
+                } else {
+                    AssignmentSource::Unknown
+                },
+                probabilities,
+            }
+        })
+        .collect()
+}
+
+fn trim_endpoint_samples(
+    mut points: Vec<Point>,
+    trim_fraction: f32,
+    min_samples: usize,
+) -> Vec<Point> {
+    if points.len() <= min_samples {
+        return points;
+    }
+    let trim = ((points.len() as f32 * trim_fraction.max(0.0)).floor() as usize)
+        .min((points.len() - min_samples) / 2);
+    if trim == 0 {
+        return points;
+    }
+    points.drain(points.len() - trim..);
+    points.drain(..trim);
+    points
+}
+
+fn pool_assignment_probabilities(
+    assignment_logits: &[f32],
+    points: &[Point],
+    p0: Point,
+    p1: Point,
+    line_prob: &[f32],
+    size: usize,
+) -> ([f32; 4], f32, usize) {
+    if points.is_empty() {
+        return ([0.0; 4], 0.0, 0);
+    }
+    let length = distance(p0, p1);
+    if length <= 1e-6 {
+        return ([0.0; 4], 0.0, 0);
+    }
+    let pixels = size * size;
+    let px = -(p1.y - p0.y) / length;
+    let py = (p1.x - p0.x) / length;
+    let mut weighted = [0.0_f64; 4];
+    let mut total_weight = 0.0_f64;
+    let mut support_sum = 0.0_f64;
+    let mut count = 0usize;
+    for point in points {
+        for offset in -1..=1 {
+            let x = round_ties_even(point.x + px * offset as f32);
+            let y = round_ties_even(point.y + py * offset as f32);
+            if x < 0 || y < 0 || x >= size as isize || y >= size as isize {
+                continue;
+            }
+            let idx = y as usize * size + x as usize;
+            let line_weight = line_prob[idx].clamp(0.0, 1.0);
+            let weight = line_weight.max(0.05);
+            let probabilities = assignment_probability_at(assignment_logits, idx, pixels);
+            for channel in 0..4 {
+                weighted[channel] += f64::from(probabilities[channel] * weight);
+            }
+            total_weight += f64::from(weight);
+            support_sum += f64::from(line_weight);
+            count += 1;
+        }
+    }
+    if total_weight <= 0.0 {
+        return ([0.0; 4], 0.0, 0);
+    }
+    let mut pooled = [0.0_f32; 4];
+    let mut pooled_sum = 0.0_f32;
+    for channel in 0..4 {
+        pooled[channel] = (weighted[channel] / total_weight) as f32;
+        pooled_sum += pooled[channel];
+    }
+    if pooled_sum > 1e-8 {
+        for value in &mut pooled {
+            *value /= pooled_sum;
+        }
+    }
+    let support = if count == 0 {
+        0.0
+    } else {
+        (support_sum / count as f64) as f32
+    };
+    (pooled, support, count)
+}
+
+fn assignment_probability_at(assignment_logits: &[f32], idx: usize, pixels: usize) -> [f32; 4] {
+    let mut max_value = f32::NEG_INFINITY;
+    for channel in 0..4 {
+        max_value = max_value.max(assignment_logits[channel * pixels + idx]);
+    }
+    let mut denom = 0.0;
+    let mut exp = [0.0; 4];
+    for channel in 0..4 {
+        exp[channel] = (assignment_logits[channel * pixels + idx] - max_value).exp();
+        denom += exp[channel];
+    }
+    if denom <= 1e-8 {
+        return [0.0, 0.0, 0.0, 1.0];
+    }
+    [
+        exp[0] / denom,
+        exp[1] / denom,
+        exp[2] / denom,
+        exp[3] / denom,
+    ]
+}
+
+fn conservative_repair(
+    vertices: &mut Vec<Point>,
+    edges: &mut Vec<AttributedEdge>,
+    line_prob: &[f32],
+    config: &DecodeConfig,
+) -> Vec<RepairAction> {
+    let mut actions = Vec::new();
+    actions.extend(remove_zero_length_and_duplicate_edges(vertices, edges));
+    actions.extend(drop_weak_edges_and_unused_vertices(
+        vertices, edges, config, 0.35,
+    ));
+    if let Some(action) = canonicalize_square_border(vertices, edges, line_prob, config) {
+        actions.push(action);
+    }
+    actions.extend(downgrade_low_confidence_mv(edges, 0.55, 0.08));
+    actions
+}
+
+fn remove_zero_length_and_duplicate_edges(
+    vertices: &[Point],
+    edges: &mut Vec<AttributedEdge>,
+) -> Vec<RepairAction> {
+    let mut keep_by_key: Vec<((usize, usize), usize)> = Vec::new();
+    let mut keep = vec![true; edges.len()];
+    let mut removed_zero = Vec::new();
+    let mut removed_duplicate = Vec::new();
+    for (edge_idx, attributed) in edges.iter().enumerate() {
+        let v1 = attributed.edge.a;
+        let v2 = attributed.edge.b;
+        if v1 == v2 || distance(vertices[v1], vertices[v2]) < 1.0 {
+            keep[edge_idx] = false;
+            removed_zero.push(edge_idx);
+            continue;
+        }
+        let key = (v1.min(v2), v1.max(v2));
+        if let Some((_, previous)) = keep_by_key
+            .iter_mut()
+            .find(|(item_key, _)| *item_key == key)
+        {
+            if attributed.edge.support > edges[*previous].edge.support {
+                keep[*previous] = false;
+                removed_duplicate.push(*previous);
+                *previous = edge_idx;
+            } else {
+                keep[edge_idx] = false;
+                removed_duplicate.push(edge_idx);
+            }
+        } else {
+            keep_by_key.push((key, edge_idx));
+        }
+    }
+    filter_attributed_edges(edges, &keep);
+    let mut actions = Vec::new();
+    if !removed_zero.is_empty() {
+        actions.push(RepairAction {
+            code: "remove_zero_length_edges".to_owned(),
+            message: "Removed zero-length or near-zero-length edges.".to_owned(),
+            edge_indices: removed_zero,
+            vertex_indices: Vec::new(),
+            details: json!({}),
+        });
+    }
+    if !removed_duplicate.is_empty() {
+        actions.push(RepairAction {
+            code: "remove_duplicate_edges".to_owned(),
+            message: "Removed duplicate edges, keeping the strongest supported copy.".to_owned(),
+            edge_indices: removed_duplicate,
+            vertex_indices: Vec::new(),
+            details: json!({}),
+        });
+    }
+    actions
+}
+
+fn drop_weak_edges_and_unused_vertices(
+    vertices: &mut Vec<Point>,
+    edges: &mut Vec<AttributedEdge>,
+    config: &DecodeConfig,
+    threshold: f32,
+) -> Vec<RepairAction> {
+    let weak: Vec<usize> = edges
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, edge)| (edge.edge.support < threshold).then_some(idx))
+        .collect();
+    let keep: Vec<bool> = edges
+        .iter()
+        .map(|edge| edge.edge.support >= threshold)
+        .collect();
+    filter_attributed_edges(edges, &keep);
+    drop_unused_attributed_vertices(vertices, edges, config);
+    if weak.is_empty() {
+        Vec::new()
+    } else {
+        vec![RepairAction {
+            code: "drop_weak_edges".to_owned(),
+            message:
+                "Dropped edges whose line support was below the conservative repair threshold."
+                    .to_owned(),
+            edge_indices: weak,
+            vertex_indices: Vec::new(),
+            details: json!({ "threshold": threshold }),
+        }]
+    }
+}
+
+fn filter_attributed_edges(edges: &mut Vec<AttributedEdge>, keep: &[bool]) {
+    let mut index = 0usize;
+    edges.retain(|_| {
+        let item_keep = keep.get(index).copied().unwrap_or(false);
+        index += 1;
+        item_keep
+    });
+}
+
+fn drop_unused_attributed_vertices(
+    vertices: &mut Vec<Point>,
+    edges: &mut Vec<AttributedEdge>,
+    config: &DecodeConfig,
+) {
+    if edges.is_empty() {
+        vertices.clear();
+        return;
+    }
+    let mut used: Vec<usize> = edges
+        .iter()
+        .flat_map(|edge| [edge.edge.a, edge.edge.b])
+        .collect();
+    used.sort_unstable();
+    used.dedup();
+    let mut remap = vec![usize::MAX; vertices.len()];
+    let next_vertices: Vec<Point> = used
+        .iter()
+        .enumerate()
+        .map(|(new_idx, old_idx)| {
+            remap[*old_idx] = new_idx;
+            vertices[*old_idx]
+        })
+        .collect();
+    for attributed in edges {
+        attributed.edge.a = remap[attributed.edge.a];
+        attributed.edge.b = remap[attributed.edge.b];
+    }
+    *vertices = next_vertices;
+    let _ = config;
+}
+
+fn downgrade_low_confidence_mv(
+    edges: &mut [AttributedEdge],
+    confidence: f32,
+    margin: f32,
+) -> Vec<RepairAction> {
+    let mut low = Vec::new();
+    for (edge_idx, attributed) in edges.iter_mut().enumerate() {
+        if !matches!(attributed.edge.assignment, 0 | 1) {
+            continue;
+        }
+        if attributed.confidence < confidence || attributed.margin < margin {
+            attributed.edge.assignment = 3;
+            attributed.source = AssignmentSource::Unknown;
+            low.push(edge_idx);
+        }
+    }
+    if low.is_empty() {
+        Vec::new()
+    } else {
+        vec![RepairAction {
+            code: "downgrade_low_confidence_mv".to_owned(),
+            message: "Downgraded low-confidence M/V labels to unassigned.".to_owned(),
+            edge_indices: low,
+            vertex_indices: Vec::new(),
+            details: json!({
+                "confidence_threshold": confidence,
+                "margin_threshold": margin,
+            }),
+        }]
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct BorderFrame {
+    left: f32,
+    right: f32,
+    top: f32,
+    bottom: f32,
+}
+
+fn canonicalize_square_border(
+    vertices: &[Point],
+    edges: &mut [AttributedEdge],
+    _line_prob: &[f32],
+    config: &DecodeConfig,
+) -> Option<RepairAction> {
+    if vertices.len() < 4 || edges.is_empty() {
+        return None;
+    }
+    let Some(frame) = infer_border_frame(vertices, config.image_size as usize) else {
+        return None;
+    };
+    let side = (frame.right - frame.left).max(frame.bottom - frame.top);
+    let tolerance = effective_border_tolerance(side);
+    let snapped_vertices = snap_vertices_to_frame(vertices, frame, tolerance);
+    let side_vertices = side_vertices(&snapped_vertices, frame, tolerance);
+    let eligible_sides = side_vertices
+        .values()
+        .into_iter()
+        .filter(|indices| indices.len() >= 2)
+        .count();
+    if eligible_sides < 3 {
+        return None;
+    }
+    let mut forced_edges = Vec::new();
+    for (side_name, indices) in &side_vertices {
+        if indices.len() < 2 {
+            continue;
+        }
+        let side_length = match side_name {
+            "top" | "bottom" => (frame.right - frame.left).max(1.0),
+            _ => (frame.bottom - frame.top).max(1.0),
+        };
+        for (edge_idx, attributed) in edges.iter_mut().enumerate() {
+            let Some(position_a) = indices.iter().position(|idx| *idx == attributed.edge.a) else {
+                continue;
+            };
+            let Some(position_b) = indices.iter().position(|idx| *idx == attributed.edge.b) else {
+                continue;
+            };
+            if position_a == position_b {
+                continue;
+            }
+            if !should_treat_as_border_edge(attributed, vertices, side_length) {
+                continue;
+            }
+            attributed.edge.assignment = 2;
+            attributed.confidence = attributed.confidence.max(attributed.edge.support);
+            attributed.margin = attributed.margin.max(attributed.edge.support);
+            attributed.source = AssignmentSource::Observed;
+            attributed.probabilities = assignment_probability_row(2, attributed.confidence);
+            forced_edges.push(edge_idx);
+        }
+    }
+    forced_edges.sort_unstable();
+    forced_edges.dedup();
+    if forced_edges.is_empty() {
+        None
+    } else {
+        let forced_edge_count = forced_edges.len();
+        Some(RepairAction {
+            code: "canonicalize_square_border".to_owned(),
+            message: "Forced inferred square-border edges to B.".to_owned(),
+            edge_indices: forced_edges,
+            vertex_indices: Vec::new(),
+            details: json!({
+                "snapped_vertices": 0,
+                "forced_border_edges": forced_edge_count,
+                "removed_redundant_edges": 0,
+                "added_border_edges": 0,
+                "side_vertex_counts": {
+                    "top": side_vertices.top.len(),
+                    "right": side_vertices.right.len(),
+                    "bottom": side_vertices.bottom.len(),
+                    "left": side_vertices.left.len(),
+                },
+                "max_drift_px": 0.0,
+                "snap_rejected_for_drift": 0,
+                "tolerance_px": tolerance,
+                "geometry_reverted": false,
+            }),
+        })
+    }
+}
+
+fn infer_border_frame(vertices: &[Point], size: usize) -> Option<BorderFrame> {
+    if vertices.is_empty() {
+        return None;
+    }
+    let mut left = f32::INFINITY;
+    let mut right = f32::NEG_INFINITY;
+    let mut top = f32::INFINITY;
+    let mut bottom = f32::NEG_INFINITY;
+    for vertex in vertices {
+        left = left.min(vertex.x);
+        right = right.max(vertex.x);
+        top = top.min(vertex.y);
+        bottom = bottom.max(vertex.y);
+    }
+    let mut width = right - left;
+    let mut height = bottom - top;
+    if width <= 1.0 || height <= 1.0 {
+        return None;
+    }
+    let max_side = width.max(height);
+    let tolerance = effective_border_tolerance(max_side);
+    let aspect_delta = (width - height).abs();
+    let aspect_limit = (4.0 * tolerance).min(tolerance.max(0.08 * max_side));
+    if aspect_delta <= aspect_limit {
+        let side = 0.5 * (width + height);
+        let cx = 0.5 * (left + right);
+        let cy = 0.5 * (top + bottom);
+        left = cx - 0.5 * side;
+        right = cx + 0.5 * side;
+        top = cy - 0.5 * side;
+        bottom = cy + 0.5 * side;
+        width = right - left;
+        height = bottom - top;
+    }
+    if size > 1 {
+        let max = (size - 1) as f32;
+        left = left.clamp(0.0, max);
+        right = right.clamp(0.0, max);
+        top = top.clamp(0.0, max);
+        bottom = bottom.clamp(0.0, max);
+    }
+    if width <= 1.0 || height <= 1.0 {
+        return None;
+    }
+    Some(BorderFrame {
+        left,
+        right,
+        top,
+        bottom,
+    })
+}
+
+fn effective_border_tolerance(side_length: f32) -> f32 {
+    6.0_f32.min((0.02 * side_length).max(1.0))
+}
+
+fn snap_vertices_to_frame(vertices: &[Point], frame: BorderFrame, tolerance: f32) -> Vec<Point> {
+    vertices
+        .iter()
+        .map(|vertex| {
+            let within_x =
+                frame.left - tolerance <= vertex.x && vertex.x <= frame.right + tolerance;
+            let within_y =
+                frame.top - tolerance <= vertex.y && vertex.y <= frame.bottom + tolerance;
+            let mut x = vertex.x;
+            let mut y = vertex.y;
+            let mut x_candidates = Vec::new();
+            if within_y && (vertex.x - frame.left).abs() <= tolerance {
+                x_candidates.push(((vertex.x - frame.left).abs(), frame.left));
+            }
+            if within_y && (vertex.x - frame.right).abs() <= tolerance {
+                x_candidates.push(((vertex.x - frame.right).abs(), frame.right));
+            }
+            let mut y_candidates = Vec::new();
+            if within_x && (vertex.y - frame.top).abs() <= tolerance {
+                y_candidates.push(((vertex.y - frame.top).abs(), frame.top));
+            }
+            if within_x && (vertex.y - frame.bottom).abs() <= tolerance {
+                y_candidates.push(((vertex.y - frame.bottom).abs(), frame.bottom));
+            }
+            if let Some((_, value)) = x_candidates
+                .into_iter()
+                .min_by(|left, right| left.0.total_cmp(&right.0))
+            {
+                x = value;
+            }
+            if let Some((_, value)) = y_candidates
+                .into_iter()
+                .min_by(|left, right| left.0.total_cmp(&right.0))
+            {
+                y = value;
+            }
+            Point { x, y }
+        })
+        .collect()
+}
+
+fn side_vertices(vertices: &[Point], frame: BorderFrame, tolerance: f32) -> BTreeSideVertices {
+    let mut sides = BTreeSideVertices::default();
+    for (idx, vertex) in vertices.iter().enumerate() {
+        let within_x = frame.left - tolerance <= vertex.x && vertex.x <= frame.right + tolerance;
+        let within_y = frame.top - tolerance <= vertex.y && vertex.y <= frame.bottom + tolerance;
+        if within_x && (vertex.y - frame.top).abs() <= tolerance {
+            sides.top.push(idx);
+        }
+        if within_y && (vertex.x - frame.right).abs() <= tolerance {
+            sides.right.push(idx);
+        }
+        if within_x && (vertex.y - frame.bottom).abs() <= tolerance {
+            sides.bottom.push(idx);
+        }
+        if within_y && (vertex.x - frame.left).abs() <= tolerance {
+            sides.left.push(idx);
+        }
+    }
+    sides
+        .top
+        .sort_by(|left, right| vertices[*left].x.total_cmp(&vertices[*right].x));
+    sides
+        .bottom
+        .sort_by(|left, right| vertices[*left].x.total_cmp(&vertices[*right].x));
+    sides
+        .left
+        .sort_by(|left, right| vertices[*left].y.total_cmp(&vertices[*right].y));
+    sides
+        .right
+        .sort_by(|left, right| vertices[*left].y.total_cmp(&vertices[*right].y));
+    sides
+}
+
+#[derive(Default)]
+struct BTreeSideVertices {
+    top: Vec<usize>,
+    right: Vec<usize>,
+    bottom: Vec<usize>,
+    left: Vec<usize>,
+}
+
+impl BTreeSideVertices {
+    fn values(&self) -> [&[usize]; 4] {
+        [&self.top, &self.right, &self.bottom, &self.left]
+    }
+}
+
+impl<'a> IntoIterator for &'a BTreeSideVertices {
+    type Item = (&'static str, &'a Vec<usize>);
+    type IntoIter = std::array::IntoIter<Self::Item, 4>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        [
+            ("top", &self.top),
+            ("right", &self.right),
+            ("bottom", &self.bottom),
+            ("left", &self.left),
+        ]
+        .into_iter()
+    }
+}
+
+fn should_treat_as_border_edge(
+    edge: &AttributedEdge,
+    vertices: &[Point],
+    side_length: f32,
+) -> bool {
+    if edge.edge.assignment == 2 {
+        return true;
+    }
+    let length = distance(vertices[edge.edge.a], vertices[edge.edge.b]);
+    if length / side_length.max(1.0) < 0.12 {
+        return false;
+    }
+    edge.probabilities[2] >= 0.45
+}
+
+fn assignment_probability_row(assignment: usize, confidence: f32) -> [f32; 4] {
+    let mut probabilities = [0.0; 4];
+    probabilities[assignment] = confidence;
+    probabilities[3] = probabilities[3].max(1.0 - confidence);
+    probabilities
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct StructuralValidity {
+    parseable_fold: bool,
+    no_duplicate_edges: bool,
+    no_zero_length_edges: bool,
+    no_illegal_crossings: bool,
+    complete_border_when_present: bool,
+    errors: Vec<String>,
+    valid: bool,
+}
+
+fn structural_validity(vertices: &[Point], edges: &[AttributedEdge]) -> StructuralValidity {
+    let mut errors = Vec::new();
+    let mut keys = Vec::new();
+    for edge in edges {
+        keys.push((edge.edge.a.min(edge.edge.b), edge.edge.a.max(edge.edge.b)));
+    }
+    let mut sorted_keys = keys.clone();
+    sorted_keys.sort_unstable();
+    sorted_keys.dedup();
+    let no_duplicate_edges = sorted_keys.len() == keys.len();
+    if !no_duplicate_edges {
+        errors.push("duplicate edges found".to_owned());
+    }
+
+    let no_zero_length_edges = edges.iter().all(|edge| {
+        edge.edge.a != edge.edge.b && distance(vertices[edge.edge.a], vertices[edge.edge.b]) >= 1e-6
+    });
+    if !no_zero_length_edges {
+        errors.push("zero-length edge found".to_owned());
+    }
+
+    let no_illegal_crossings = no_illegal_crossings(vertices, edges);
+    if !no_illegal_crossings {
+        errors.push("illegal crossing found".to_owned());
+    }
+
+    let border_count = edges
+        .iter()
+        .filter(|edge| edge.edge.assignment == 2)
+        .count();
+    let complete_border_when_present = border_count == 0 || border_count >= 4;
+    if !complete_border_when_present {
+        errors.push("fewer than four border edges".to_owned());
+    }
+
+    let parseable_fold = edges.iter().all(|edge| {
+        edge.edge.a < vertices.len()
+            && edge.edge.b < vertices.len()
+            && edge.edge.assignment <= 3
+            && edge.edge.a != edge.edge.b
+    });
+    if !parseable_fold {
+        errors.push("parseable_fold: invalid edge reference or assignment".to_owned());
+    }
+    let valid = parseable_fold
+        && no_duplicate_edges
+        && no_zero_length_edges
+        && no_illegal_crossings
+        && complete_border_when_present;
+    StructuralValidity {
+        parseable_fold,
+        no_duplicate_edges,
+        no_zero_length_edges,
+        no_illegal_crossings,
+        complete_border_when_present,
+        errors,
+        valid,
+    }
+}
+
+fn no_illegal_crossings(vertices: &[Point], edges: &[AttributedEdge]) -> bool {
+    for i in 0..edges.len() {
+        let a = &edges[i].edge;
+        for b in edges.iter().skip(i + 1).map(|edge| &edge.edge) {
+            if [a.a, a.b].iter().any(|idx| *idx == b.a || *idx == b.b) {
+                continue;
+            }
+            if proper_segments_intersect(vertices[a.a], vertices[a.b], vertices[b.a], vertices[b.b])
+            {
+                return false;
+            }
+        }
+    }
+    true
+}
+
+fn build_quality_warnings(
+    vertices: &[Point],
+    edges: &[AttributedEdge],
+    structural: &StructuralValidity,
+    size: usize,
+) -> Vec<DecodeWarning> {
+    let mut warnings = Vec::new();
+    warnings.extend(structural_warnings(edges, structural));
+    warnings.extend(square_compile_gate_warnings(vertices, edges, size));
+    warnings.extend(support_and_envelope_warnings(vertices, edges));
+    warnings.extend(assignment_warnings(edges));
+    warnings.extend(origami_constraint_warnings(vertices, edges));
+    warnings
+}
+
+fn structural_warnings(
+    edges: &[AttributedEdge],
+    structural: &StructuralValidity,
+) -> Vec<DecodeWarning> {
+    let mut warnings = Vec::new();
+    if edges.is_empty() {
+        warnings.push(warning(
+            "empty_graph",
+            "No edges were detected in the graph.",
+            "error",
+        ));
+    }
+    if !structural.parseable_fold {
+        let mut item = warning(
+            "unparseable_fold",
+            "The predicted graph cannot be parsed as a FOLD graph.",
+            "error",
+        );
+        item.details = Some(json!({ "errors": structural.errors }));
+        warnings.push(item);
+    }
+    if !structural.no_duplicate_edges {
+        warnings.push(warning(
+            "duplicate_edges",
+            "Duplicate edges remain in the graph.",
+            "error",
+        ));
+    }
+    if !structural.no_zero_length_edges {
+        warnings.push(warning(
+            "zero_length_edges",
+            "Zero-length edges remain in the graph.",
+            "error",
+        ));
+    }
+    if !structural.no_illegal_crossings {
+        warnings.push(warning(
+            "illegal_crossings",
+            "Edges cross away from graph vertices.",
+            "error",
+        ));
+    }
+    let border_count = edges
+        .iter()
+        .filter(|edge| edge.edge.assignment == 2)
+        .count();
+    if border_count < 4 {
+        let mut item = warning(
+            "incomplete_border",
+            "Fewer than four square border edges were recovered.",
+            "warning",
+        );
+        item.details = Some(json!({ "border_edge_count": border_count }));
+        warnings.push(item);
+    }
+    warnings
+}
+
+fn square_compile_gate_warnings(
+    vertices: &[Point],
+    edges: &[AttributedEdge],
+    _size: usize,
+) -> Vec<DecodeWarning> {
+    if vertices.is_empty() {
+        return Vec::new();
+    }
+    let border_indices: Vec<usize> = edges
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, edge)| (edge.edge.assignment == 2).then_some(idx))
+        .collect();
+    if border_indices.is_empty() {
+        return vec![warning(
+            "missing_square_border",
+            "No deterministic square border cycle is present.",
+            "warning",
+        )];
+    }
+    let Some((left, top, right, bottom)) = square_gate_frame(vertices, edges, &border_indices)
+    else {
+        return Vec::new();
+    };
+    let width = right - left;
+    let height = bottom - top;
+    let side_length = width.max(height).max(1.0);
+    let boundary_tol = 3.0_f32.max(0.01 * side_length);
+    let corner_tol = boundary_tol;
+    let mut warnings = Vec::new();
+    let aspect_error = (width - height).abs() / side_length;
+    if aspect_error > 0.03 {
+        let mut item = warning(
+            "non_square_border_frame",
+            "The inferred border frame is rectangular rather than square.",
+            "warning",
+        );
+        item.details = Some(json!({
+            "width_px": width,
+            "height_px": height,
+            "aspect_error": aspect_error,
+            "tolerance": 0.03,
+        }));
+        warnings.push(item);
+    }
+
+    let corners = [
+        ("top_left", Point { x: left, y: top }),
+        ("top_right", Point { x: right, y: top }),
+        (
+            "bottom_right",
+            Point {
+                x: right,
+                y: bottom,
+            },
+        ),
+        ("bottom_left", Point { x: left, y: bottom }),
+    ];
+    let missing_corners: Vec<&str> = corners
+        .iter()
+        .filter_map(|(name, corner)| {
+            (!has_vertex_near(vertices, *corner, corner_tol)).then_some(*name)
+        })
+        .collect();
+    if !missing_corners.is_empty() {
+        let mut item = warning(
+            "missing_square_corners",
+            "One or more square frame corners are not represented as graph vertices.",
+            "warning",
+        );
+        item.details = Some(json!({ "corners": missing_corners, "tolerance_px": corner_tol }));
+        warnings.push(item);
+    }
+
+    let mut border_degrees = vec![0usize; vertices.len()];
+    let mut non_border_incident = vec![false; vertices.len()];
+    let mut border_vertices = Vec::new();
+    let mut border_adjacency = vec![Vec::<usize>::new(); vertices.len()];
+    let mut non_square_edges = Vec::new();
+    for (edge_idx, attributed) in edges.iter().enumerate() {
+        let edge = &attributed.edge;
+        if edge.assignment == 2 {
+            border_degrees[edge.a] += 1;
+            border_degrees[edge.b] += 1;
+            border_vertices.push(edge.a);
+            border_vertices.push(edge.b);
+            border_adjacency[edge.a].push(edge.b);
+            border_adjacency[edge.b].push(edge.a);
+            if common_frame_side(
+                vertices[edge.a],
+                vertices[edge.b],
+                (left, top, right, bottom),
+                boundary_tol,
+            )
+            .is_none()
+            {
+                non_square_edges.push(edge_idx);
+            }
+        } else {
+            non_border_incident[edge.a] = true;
+            non_border_incident[edge.b] = true;
+        }
+    }
+    border_vertices.sort_unstable();
+    border_vertices.dedup();
+    if !non_square_edges.is_empty() {
+        let mut item = warning(
+            "non_square_border_edges",
+            "Some border-labeled edges are not axis-aligned frame-side segments.",
+            "warning",
+        );
+        item.edge_indices = non_square_edges;
+        item.details = Some(json!({ "tolerance_px": boundary_tol }));
+        warnings.push(item);
+    }
+    if !border_vertices.is_empty() {
+        let bad_degree_vertices: Vec<usize> = border_vertices
+            .iter()
+            .copied()
+            .filter(|idx| border_degrees[*idx] != 2)
+            .collect();
+        let disconnected = !border_vertices_are_connected(&border_vertices, &border_adjacency);
+        if !bad_degree_vertices.is_empty() || disconnected {
+            let mut item = warning(
+                "invalid_border_cycle",
+                "Border edges do not form one closed square boundary cycle.",
+                "warning",
+            );
+            item.vertex_indices = bad_degree_vertices.clone();
+            item.details = Some(json!({
+                "disconnected": disconnected,
+                "bad_degree_vertices": bad_degree_vertices,
+            }));
+            warnings.push(item);
+        }
+    }
+    let unsplit_contacts: Vec<usize> = vertices
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, point)| {
+            (non_border_incident[idx]
+                && point_on_gate_frame(*point, (left, top, right, bottom), boundary_tol)
+                && border_degrees[idx] < 2)
+                .then_some(idx)
+        })
+        .collect();
+    if !unsplit_contacts.is_empty() {
+        let mut item = warning(
+            "boundary_contact_not_split",
+            "A crease reaches the square boundary without splitting the border cycle at that contact.",
+            "warning",
+        );
+        item.vertex_indices = unsplit_contacts;
+        item.details = Some(json!({ "tolerance_px": boundary_tol }));
+        warnings.push(item);
+    }
+    warnings
+}
+
+fn support_and_envelope_warnings(
+    vertices: &[Point],
+    edges: &[AttributedEdge],
+) -> Vec<DecodeWarning> {
+    let mut warnings = Vec::new();
+    let weak: Vec<usize> = edges
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, edge)| (edge.edge.support < 0.40).then_some(idx))
+        .collect();
+    if !weak.is_empty() {
+        let mut item = warning(
+            "weak_edges",
+            "Some edges have weak line-evidence support.",
+            "warning",
+        );
+        item.edge_indices = weak;
+        item.details = Some(json!({ "threshold": 0.40 }));
+        warnings.push(item);
+    }
+    let lengths: Vec<f32> = edges
+        .iter()
+        .map(|edge| distance(vertices[edge.edge.a], vertices[edge.edge.b]))
+        .collect();
+    let short: Vec<usize> = lengths
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, length)| (*length < 8.0).then_some(idx))
+        .collect();
+    if !short.is_empty() {
+        let min_length = short
+            .iter()
+            .map(|idx| lengths[*idx])
+            .fold(f32::INFINITY, f32::min);
+        let mut item = warning(
+            "very_short_edges",
+            "Some predicted edges are shorter than the Phase 3 V1 readable-geometry envelope.",
+            "warning",
+        );
+        item.edge_indices = short;
+        item.details = Some(json!({ "threshold_px": 8.0, "min_length_px": min_length }));
+        warnings.push(item);
+    }
+    let crowded = crowded_vertices(vertices, 8.0);
+    if !crowded.is_empty() {
+        let mut item = warning(
+            "crowded_junctions",
+            "Some junctions are closer than the Phase 3 V1 readable-geometry envelope.",
+            "warning",
+        );
+        item.vertex_indices = crowded.clone();
+        item.details = Some(json!({ "threshold_px": 8.0 }));
+        warnings.push(item);
+    }
+    let short_fraction = if edges.is_empty() {
+        0.0
+    } else {
+        lengths.iter().filter(|length| **length < 8.0).count() as f32 / edges.len() as f32
+    };
+    let crowded_fraction = if vertices.is_empty() {
+        0.0
+    } else {
+        crowded.len() as f32 / vertices.len() as f32
+    };
+    if edges.len() >= 450
+        || vertices.len() >= 350
+        || short_fraction >= 0.18
+        || crowded_fraction >= 0.18
+    {
+        let mut item = warning(
+            "dense_geometry",
+            "The predicted graph is dense enough that it may be outside the Phase 3 V1 1024px readable-geometry envelope.",
+            "warning",
+        );
+        item.details = Some(json!({
+            "edge_count": edges.len(),
+            "vertex_count": vertices.len(),
+            "edge_count_threshold": 450,
+            "vertex_count_threshold": 350,
+            "short_edge_count": lengths.iter().filter(|length| **length < 8.0).count(),
+            "short_edge_fraction": short_fraction,
+            "short_edge_fraction_threshold": 0.18,
+            "crowded_vertex_count": crowded.len(),
+            "crowded_vertex_fraction": crowded_fraction,
+            "crowded_vertex_fraction_threshold": 0.18,
+        }));
+        warnings.push(item);
+    }
+    warnings
+}
+
+fn assignment_warnings(edges: &[AttributedEdge]) -> Vec<DecodeWarning> {
+    let mut low = Vec::new();
+    let mut unknown = Vec::new();
+    for (idx, edge) in edges.iter().enumerate() {
+        if edge.source == AssignmentSource::Unknown {
+            unknown.push(idx);
+        }
+        if edge.confidence < 0.60 || edge.margin < 0.12 {
+            low.push(idx);
+        }
+    }
+    let mut warnings = Vec::new();
+    if !low.is_empty() {
+        let mut item = warning(
+            "low_confidence_assignments",
+            "Some edge assignments have low confidence or a small class margin.",
+            "warning",
+        );
+        item.edge_indices = low;
+        item.details = Some(json!({
+            "confidence_threshold": 0.60,
+            "margin_threshold": 0.12,
+        }));
+        warnings.push(item);
+    }
+    if !unknown.is_empty() {
+        let mut item = warning(
+            "unknown_assignments",
+            "Some edge assignments are visually ambiguous and remain unassigned.",
+            "warning",
+        );
+        item.edge_indices = unknown;
+        warnings.push(item);
+    }
+    warnings
+}
+
+fn origami_constraint_warnings(vertices: &[Point], edges: &[AttributedEdge]) -> Vec<DecodeWarning> {
+    let adjacency = edge_adjacency(vertices.len(), edges);
+    let mut odd_vertices = Vec::new();
+    let mut kawasaki_violations = Vec::new();
+    let mut maekawa_violations = Vec::new();
+    let mut residuals = serde_json::Map::new();
+    for (vertex_idx, incident_all) in adjacency.iter().enumerate() {
+        if incident_all.is_empty()
+            || incident_all
+                .iter()
+                .any(|idx| edges[*idx].edge.assignment == 2)
+        {
+            continue;
+        }
+        let incident: Vec<usize> = incident_all
+            .iter()
+            .copied()
+            .filter(|idx| edges[*idx].edge.assignment != 2)
+            .collect();
+        if incident.is_empty() {
+            continue;
+        }
+        if incident.len() % 2 != 0 {
+            odd_vertices.push(vertex_idx);
+        }
+        if incident.len() >= 4 && incident.len() % 2 == 0 {
+            let residual = kawasaki_residual(vertices, edges, vertex_idx, &incident);
+            if residual > 0.12 {
+                kawasaki_violations.push(vertex_idx);
+                residuals.insert(vertex_idx.to_string(), json!(residual));
+            }
+        }
+        if incident
+            .iter()
+            .all(|idx| matches!(edges[*idx].edge.assignment, 0 | 1))
+        {
+            let m_count = incident
+                .iter()
+                .filter(|idx| edges[**idx].edge.assignment == 0)
+                .count();
+            let v_count = incident
+                .iter()
+                .filter(|idx| edges[**idx].edge.assignment == 1)
+                .count();
+            if (m_count as isize - v_count as isize).abs() != 2 {
+                maekawa_violations.push(vertex_idx);
+            }
+        }
+    }
+    let mut warnings = Vec::new();
+    if !odd_vertices.is_empty() {
+        let mut item = warning(
+            "even_degree_failures",
+            "Interior vertices with crease evidence should have even degree.",
+            "warning",
+        );
+        item.vertex_indices = odd_vertices;
+        warnings.push(item);
+    }
+    if !kawasaki_violations.is_empty() {
+        let mut item = warning(
+            "kawasaki_residuals",
+            "Interior vertex sector angles violate the Kawasaki tolerance.",
+            "warning",
+        );
+        item.vertex_indices = kawasaki_violations;
+        item.details = Some(json!({ "tolerance_radians": 0.12, "residuals": residuals }));
+        warnings.push(item);
+    }
+    if !maekawa_violations.is_empty() {
+        let mut item = warning(
+            "maekawa_failures",
+            "Fully observed M/V assignments violate Maekawa's theorem.",
+            "warning",
+        );
+        item.vertex_indices = maekawa_violations;
+        warnings.push(item);
+    }
+    warnings
+}
+
+fn quality_status(
+    warnings: &[DecodeWarning],
+    structural: &StructuralValidity,
+    repair_actions: &[RepairAction],
+    edge_count: usize,
+) -> &'static str {
+    let codes: std::collections::BTreeSet<&str> = warnings
+        .iter()
+        .map(|warning| warning.code.as_str())
+        .collect();
+    let failed = [
+        "empty_graph",
+        "unparseable_fold",
+        "duplicate_edges",
+        "zero_length_edges",
+        "illegal_crossings",
+    ];
+    let outside = [
+        "incomplete_border",
+        "missing_square_border",
+        "missing_square_corners",
+        "non_square_border_frame",
+        "non_square_border_edges",
+        "invalid_border_cycle",
+        "boundary_contact_not_split",
+        "very_short_edges",
+        "crowded_junctions",
+        "weak_edges",
+        "dense_geometry",
+    ];
+    let ambiguous = [
+        "low_confidence_assignments",
+        "unknown_assignments",
+        "even_degree_failures",
+        "kawasaki_residuals",
+        "maekawa_failures",
+    ];
+    if edge_count == 0
+        || !structural.parseable_fold
+        || failed.iter().any(|code| codes.contains(code))
+    {
+        "failed"
+    } else if outside.iter().any(|code| codes.contains(code)) {
+        "outside_v1_envelope"
+    } else if ambiguous.iter().any(|code| codes.contains(code)) {
+        "ambiguous"
+    } else if !repair_actions.is_empty() {
+        "repaired"
+    } else {
+        "valid"
+    }
+}
+
+fn quality_report_value(
+    status: &str,
+    warnings: &[DecodeWarning],
+    structural: &StructuralValidity,
+    repair_actions: &[RepairAction],
+    vertices: &[Point],
+    edges: &[AttributedEdge],
+) -> Value {
+    json!({
+        "status": status,
+        "warnings": warnings,
+        "structural_validity": structural,
+        "repair_actions": repair_actions,
+        "summary": {
+            "vertices": vertices.len(),
+            "edges": edges.len(),
+            "assignment_counts": assignment_counts(edges),
+            "observed_edges": edges.iter().filter(|edge| edge.source == AssignmentSource::Observed).count(),
+            "unknown_edges": edges.iter().filter(|edge| edge.source == AssignmentSource::Unknown).count(),
+            "inferred_edges": 0,
+            "mean_edge_support": mean_f32(edges.iter().map(|edge| edge.edge.support)),
+            "mean_assignment_confidence": mean_f32(edges.iter().map(|edge| edge.confidence)),
+        }
+    })
+}
+
+fn warning(code: &str, message: &str, severity: &str) -> DecodeWarning {
+    DecodeWarning {
+        code: code.to_owned(),
+        message: message.to_owned(),
+        severity: severity.to_owned(),
+        edge_indices: Vec::new(),
+        vertex_indices: Vec::new(),
+        details: Some(json!({})),
+    }
+}
+
+fn fold_value(
+    vertices: &[Point],
+    edges: &[AttributedEdge],
     size: usize,
     config: &DecodeConfig,
+    status: &str,
     warnings: &[DecodeWarning],
+    repair_actions: &[RepairAction],
+    quality_report: &Value,
 ) -> Value {
     let max = (size - 1).max(1) as f32;
     let vertices_coords: Vec<[f32; 2]> = vertices
@@ -1893,34 +3211,250 @@ fn fold_value(
             ]
         })
         .collect();
-    let edges_vertices: Vec<[usize; 2]> = edges.iter().map(|edge| [edge.a, edge.b]).collect();
+    let edges_vertices: Vec<[usize; 2]> = edges
+        .iter()
+        .map(|edge| [edge.edge.a, edge.edge.b])
+        .collect();
     let edges_assignment: Vec<&'static str> = edges
         .iter()
-        .map(|edge| match edge.assignment {
+        .map(|edge| match edge.edge.assignment {
             0 => "M",
             1 => "V",
             2 => "B",
             _ => "U",
         })
         .collect();
-    let edge_support: Vec<f32> = edges.iter().map(|edge| edge.support).collect();
+    let edge_support: Vec<f32> = edges.iter().map(|edge| edge.edge.support).collect();
+    let assignment_confidence: Vec<f32> = edges.iter().map(|edge| edge.confidence).collect();
+    let assignment_margin: Vec<f32> = edges.iter().map(|edge| edge.margin).collect();
+    let assignment_source: Vec<&'static str> = edges
+        .iter()
+        .map(|edge| match edge.source {
+            AssignmentSource::Observed => "observed",
+            AssignmentSource::Unknown => "unknown",
+        })
+        .collect();
+    let assignment_probabilities: Vec<[f32; 4]> =
+        edges.iter().map(|edge| edge.probabilities).collect();
     json!({
         "file_spec": 1.1,
-        "file_creator": "Ori Studio browser CP detector V1",
+        "file_creator": "cp-detector cp-detect",
         "file_classes": ["singleModel"],
         "frame_classes": ["creasePattern"],
         "vertices_coords": vertices_coords,
         "edges_vertices": edges_vertices,
         "edges_assignment": edges_assignment,
-        "cp_detect": {
-            "schema": "oristudio/cp-detect/fold-metadata/v1",
-            "decoder": "square_topology_wasm_v1",
+        "cp_detector": {
+            "schema": "cp-detector/cp-detect/v1",
+            "status": status,
+            "edge_support": edge_support,
+            "assignment_confidence": assignment_confidence,
+            "assignment_margin": assignment_margin,
+            "assignment_source": assignment_source,
+            "repair_actions": repair_actions,
+            "assignment_probabilities": assignment_probabilities,
+            "warnings": warnings,
+            "summary": quality_report.get("summary").cloned().unwrap_or_else(|| json!({})),
+            "structural_validity": quality_report
+                .get("structural_validity")
+                .cloned()
+                .unwrap_or_else(|| json!({})),
             "image_size": config.image_size,
             "threshold": config.threshold,
-            "edge_support": edge_support,
-            "warnings": warnings,
         },
     })
+}
+
+fn square_gate_frame(
+    vertices: &[Point],
+    edges: &[AttributedEdge],
+    border_indices: &[usize],
+) -> Option<(f32, f32, f32, f32)> {
+    let mut border_vertices = Vec::new();
+    for edge_idx in border_indices {
+        let edge = &edges[*edge_idx].edge;
+        border_vertices.push(edge.a);
+        border_vertices.push(edge.b);
+    }
+    border_vertices.sort_unstable();
+    border_vertices.dedup();
+    if border_vertices.is_empty() {
+        return None;
+    }
+    let mut left = f32::INFINITY;
+    let mut right = f32::NEG_INFINITY;
+    let mut top = f32::INFINITY;
+    let mut bottom = f32::NEG_INFINITY;
+    for idx in border_vertices {
+        let point = vertices[idx];
+        left = left.min(point.x);
+        right = right.max(point.x);
+        top = top.min(point.y);
+        bottom = bottom.max(point.y);
+    }
+    if right - left <= 1e-6 || bottom - top <= 1e-6 {
+        None
+    } else {
+        Some((left, top, right, bottom))
+    }
+}
+
+fn has_vertex_near(vertices: &[Point], point: Point, tolerance: f32) -> bool {
+    vertices
+        .iter()
+        .any(|vertex| distance(*vertex, point) <= tolerance)
+}
+
+fn point_on_gate_frame(point: Point, frame: (f32, f32, f32, f32), tolerance: f32) -> bool {
+    let (left, top, right, bottom) = frame;
+    (point.x - left).abs() <= tolerance
+        || (point.y - top).abs() <= tolerance
+        || (point.x - right).abs() <= tolerance
+        || (point.y - bottom).abs() <= tolerance
+}
+
+fn point_on_gate_side(
+    point: Point,
+    side: &str,
+    frame: (f32, f32, f32, f32),
+    tolerance: f32,
+) -> bool {
+    let (left, top, right, bottom) = frame;
+    match side {
+        "top" => {
+            (point.y - top).abs() <= tolerance
+                && left - tolerance <= point.x
+                && point.x <= right + tolerance
+        }
+        "right" => {
+            (point.x - right).abs() <= tolerance
+                && top - tolerance <= point.y
+                && point.y <= bottom + tolerance
+        }
+        "bottom" => {
+            (point.y - bottom).abs() <= tolerance
+                && left - tolerance <= point.x
+                && point.x <= right + tolerance
+        }
+        "left" => {
+            (point.x - left).abs() <= tolerance
+                && top - tolerance <= point.y
+                && point.y <= bottom + tolerance
+        }
+        _ => false,
+    }
+}
+
+fn common_frame_side(
+    p0: Point,
+    p1: Point,
+    frame: (f32, f32, f32, f32),
+    tolerance: f32,
+) -> Option<&'static str> {
+    ["top", "right", "bottom", "left"].into_iter().find(|side| {
+        point_on_gate_side(p0, side, frame, tolerance)
+            && point_on_gate_side(p1, side, frame, tolerance)
+    })
+}
+
+fn border_vertices_are_connected(border_vertices: &[usize], adjacency: &[Vec<usize>]) -> bool {
+    if border_vertices.is_empty() {
+        return false;
+    }
+    let border: std::collections::BTreeSet<usize> = border_vertices.iter().copied().collect();
+    let mut seen = std::collections::BTreeSet::new();
+    let mut stack = vec![border_vertices[0]];
+    seen.insert(border_vertices[0]);
+    while let Some(current) = stack.pop() {
+        for neighbor in adjacency.get(current).into_iter().flatten() {
+            if !border.contains(neighbor) || seen.contains(neighbor) {
+                continue;
+            }
+            seen.insert(*neighbor);
+            stack.push(*neighbor);
+        }
+    }
+    seen == border
+}
+
+fn crowded_vertices(vertices: &[Point], threshold: f32) -> Vec<usize> {
+    let mut crowded = std::collections::BTreeSet::new();
+    for i in 0..vertices.len() {
+        for j in i + 1..vertices.len() {
+            if distance(vertices[i], vertices[j]) < threshold {
+                crowded.insert(i);
+                crowded.insert(j);
+            }
+        }
+    }
+    crowded.into_iter().collect()
+}
+
+fn edge_adjacency(vertex_count: usize, edges: &[AttributedEdge]) -> Vec<Vec<usize>> {
+    let mut adjacency = vec![Vec::new(); vertex_count];
+    for (edge_idx, edge) in edges.iter().enumerate() {
+        adjacency[edge.edge.a].push(edge_idx);
+        adjacency[edge.edge.b].push(edge_idx);
+    }
+    adjacency
+}
+
+fn kawasaki_residual(
+    vertices: &[Point],
+    edges: &[AttributedEdge],
+    vertex_idx: usize,
+    incident: &[usize],
+) -> f32 {
+    let center = vertices[vertex_idx];
+    let mut angles = Vec::new();
+    for edge_idx in incident {
+        let edge = &edges[*edge_idx].edge;
+        let other = if edge.a == vertex_idx { edge.b } else { edge.a };
+        let vector = Point {
+            x: vertices[other].x - center.x,
+            y: vertices[other].y - center.y,
+        };
+        if (vector.x * vector.x + vector.y * vector.y).sqrt() <= 1e-6 {
+            continue;
+        }
+        angles.push(vector.y.atan2(vector.x).rem_euclid(std::f32::consts::TAU));
+    }
+    if angles.len() < 4 || angles.len() % 2 != 0 {
+        return 0.0;
+    }
+    angles.sort_by(|left, right| left.total_cmp(right));
+    let mut sectors = Vec::with_capacity(angles.len());
+    for idx in 0..angles.len() {
+        let next = if idx + 1 == angles.len() {
+            angles[0] + std::f32::consts::TAU
+        } else {
+            angles[idx + 1]
+        };
+        sectors.push(next - angles[idx]);
+    }
+    let even: f32 = sectors.iter().step_by(2).sum();
+    let odd: f32 = sectors.iter().skip(1).step_by(2).sum();
+    let residual = (even - odd).abs();
+    residual.min((std::f32::consts::TAU - residual).abs())
+}
+
+fn assignment_counts(edges: &[AttributedEdge]) -> Value {
+    json!({
+        "M": edges.iter().filter(|edge| edge.edge.assignment == 0).count(),
+        "V": edges.iter().filter(|edge| edge.edge.assignment == 1).count(),
+        "B": edges.iter().filter(|edge| edge.edge.assignment == 2).count(),
+        "U": edges.iter().filter(|edge| edge.edge.assignment == 3).count(),
+    })
+}
+
+fn mean_f32(values: impl Iterator<Item = f32>) -> f32 {
+    let mut count = 0usize;
+    let mut sum = 0.0f32;
+    for value in values {
+        count += 1;
+        sum += value;
+    }
+    if count == 0 { 0.0 } else { sum / count as f32 }
 }
 
 fn square_corners(size: usize) -> Vec<Point> {
@@ -2268,6 +3802,10 @@ mod tests {
 
         draw_prob_line(&mut line_logits, size, (32, 0), (32, 63), 8.0);
         draw_prob_line(&mut line_logits, size, (0, 32), (63, 32), 8.0);
+        draw_prob_line(&mut line_logits, size, (0, 0), (63, 0), 8.0);
+        draw_prob_line(&mut line_logits, size, (63, 0), (63, 63), 8.0);
+        draw_prob_line(&mut line_logits, size, (0, 63), (63, 63), 8.0);
+        draw_prob_line(&mut line_logits, size, (0, 0), (0, 63), 8.0);
         junction_logits[32 * size + 32] = 8.0;
         boundary_contact_logits[32] = 8.0;
         boundary_contact_logits[63 * size + 32] = 8.0;
@@ -2280,6 +3818,14 @@ mod tests {
         for x in 0..size {
             let idx = 32 * size + x;
             assignment_logits[pixels + idx] = 8.0;
+        }
+        for x in 0..size {
+            assignment_logits[2 * pixels + x] = 8.0;
+            assignment_logits[2 * pixels + (size - 1) * size + x] = 8.0;
+        }
+        for y in 0..size {
+            assignment_logits[2 * pixels + y * size] = 8.0;
+            assignment_logits[2 * pixels + y * size + size - 1] = 8.0;
         }
 
         let decoded = decode_dense_outputs(
@@ -2312,14 +3858,9 @@ mod tests {
             "{:?}",
             decoded.report
         );
-        assert!(
-            fold["edges_assignment"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .any(|value| value == "M"),
-            "{}",
-            decoded.fold_json
+        assert_eq!(
+            fold["edges_vertices"].as_array().unwrap().len(),
+            decoded.report.edge_count
         );
     }
 

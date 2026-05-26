@@ -57,6 +57,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--created-at", default="2026-05-22")
     parser.add_argument("--image-size", type=int, default=1024)
     parser.add_argument("--threshold", type=float, default=0.65)
+    parser.add_argument(
+        "--batchnorm-mode",
+        choices=["eval", "batch-stats", "explicit-batch-stats"],
+        default="explicit-batch-stats",
+        help=(
+            "BatchNorm export strategy. explicit-batch-stats rewrites BatchNorm2d "
+            "to explicit per-image mean/variance ops so ONNX Runtime does not need "
+            "training-mode BatchNormalization semantics."
+        ),
+    )
     parser.add_argument("--opset", type=int, default=17)
     return parser.parse_args()
 
@@ -103,7 +113,9 @@ def load_model(detector_repo: Path, checkpoint: Path):
     return torch, model
 
 
-def export_onnx(torch, model, output_path: Path, image_size: int, opset: int) -> None:
+def export_onnx(torch, model, output_path: Path, image_size: int, opset: int, batchnorm_mode: str) -> None:
+    from src.models.batchnorm import model_eval_with_batchnorm_mode
+
     class BrowserExportWrapper(torch.nn.Module):
         def __init__(self, inner):
             super().__init__()
@@ -113,17 +125,47 @@ def export_onnx(torch, model, output_path: Path, image_size: int, opset: int) ->
             outputs = self.inner(image)
             return tuple(outputs[name] for name in OUTPUT_NAMES)
 
+    class ExplicitBatchNorm2d(torch.nn.Module):
+        def __init__(self, source):
+            super().__init__()
+            self.eps = float(source.eps)
+            if source.affine:
+                self.register_buffer("weight", source.weight.detach().clone())
+                self.register_buffer("bias", source.bias.detach().clone())
+            else:
+                self.register_buffer("weight", torch.ones(source.num_features, dtype=torch.float32))
+                self.register_buffer("bias", torch.zeros(source.num_features, dtype=torch.float32))
+
+        def forward(self, x):
+            mean = x.mean(dim=(0, 2, 3), keepdim=True)
+            centered = x - mean
+            variance = (centered * centered).mean(dim=(0, 2, 3), keepdim=True)
+            normalized = centered / torch.sqrt(variance + self.eps)
+            return normalized * self.weight.view(1, -1, 1, 1) + self.bias.view(1, -1, 1, 1)
+
+    def replace_batchnorm_with_explicit(module):
+        for name, child in list(module.named_children()):
+            if isinstance(child, torch.nn.modules.batchnorm._BatchNorm):
+                setattr(module, name, ExplicitBatchNorm2d(child))
+            else:
+                replace_batchnorm_with_explicit(child)
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
     dummy = torch.zeros((1, 3, image_size, image_size), dtype=torch.float32)
+    if batchnorm_mode == "explicit-batch-stats":
+        replace_batchnorm_with_explicit(model)
+    training = torch.onnx.TrainingMode.PRESERVE if batchnorm_mode == "batch-stats" else torch.onnx.TrainingMode.EVAL
     kwargs = {
         "input_names": ["image"],
         "output_names": OUTPUT_NAMES,
         "opset_version": opset,
-        "do_constant_folding": True,
+        "training": training,
+        "do_constant_folding": batchnorm_mode != "batch-stats",
     }
     if "dynamo" in inspect.signature(torch.onnx.export).parameters:
         kwargs["dynamo"] = False
-    with torch.inference_mode():
+    context_mode = "eval" if batchnorm_mode == "explicit-batch-stats" else batchnorm_mode
+    with torch.inference_mode(), model_eval_with_batchnorm_mode(model, batchnorm_mode=context_mode):
         torch.onnx.export(BrowserExportWrapper(model), dummy, output_path, **kwargs)
 
 
@@ -150,6 +192,7 @@ def write_manifest(args: argparse.Namespace, model_path: Path, digest: str) -> P
             "image_size": args.image_size,
             "threshold": args.threshold,
             "preprocessing": "rgb_chw_float32_0_1",
+            "batchnorm_mode": args.batchnorm_mode,
         },
         "outputs": {name: name for name in OUTPUT_NAMES},
     }
@@ -173,7 +216,7 @@ def main() -> None:
     model_path = args.output_dir / args.model_filename
 
     torch, model = load_model(detector_repo, checkpoint)
-    export_onnx(torch, model, model_path, args.image_size, args.opset)
+    export_onnx(torch, model, model_path, args.image_size, args.opset, args.batchnorm_mode)
     check_onnx(model_path)
     digest = sha256(model_path)
     manifest_path = write_manifest(args, model_path, digest)

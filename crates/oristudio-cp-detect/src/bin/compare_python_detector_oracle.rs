@@ -4,8 +4,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use oristudio_cp_detect::decode::{
-    DecodeConfig, DecodeEdgeStageSnapshot, StageCarrier, StageEdge, StageHoughSegment, StageLine,
-    StageVertex, decode_edge_stage_snapshot_from_maps,
+    DecodeConfig, DecodeEdgeStageSnapshot, DenseOutputs, StageCarrier, StageEdge,
+    StageHoughSegment, StageLine, StageVertex, decode_dense_outputs,
+    decode_edge_stage_snapshot_from_maps,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -44,8 +45,15 @@ struct OracleFixture {
     assignment_labels_pgm_path: Option<String>,
     #[serde(default)]
     line_style_prob_f32_path: Option<String>,
+    line_logits_f32_path: String,
+    junction_logits_f32_path: String,
+    assignment_logits_f32_path: String,
+    non_crease_logits_f32_path: String,
+    line_style_logits_f32_path: String,
+    boundary_contact_logits_f32_path: String,
     vertex_stage_path: String,
     edge_stage_path: String,
+    final_stage_path: String,
     #[allow(dead_code)]
     fold_path: String,
     #[allow(dead_code)]
@@ -99,6 +107,12 @@ struct PythonEdgeStage {
     interior_edges: Vec<PythonStageEdge>,
     border_edges: Vec<PythonStageEdge>,
     combined_edges: Vec<PythonStageEdge>,
+    #[serde(default)]
+    cleanup_edges: Vec<PythonStageEdge>,
+    #[serde(default)]
+    final_vertices: Vec<PythonStageVertex>,
+    #[serde(default)]
+    final_edges: Vec<PythonStageEdge>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -144,6 +158,11 @@ struct Aggregate {
     interior_edge_ordered_matches: usize,
     border_edge_ordered_matches: usize,
     combined_edge_ordered_matches: usize,
+    cleanup_edge_ordered_matches: usize,
+    final_vertex_ordered_matches: usize,
+    final_edge_ordered_matches: usize,
+    final_fold_matches: usize,
+    final_report_matches: usize,
     first_divergence_counts: BTreeMap<String, usize>,
 }
 
@@ -171,7 +190,11 @@ struct StageReports {
     interior_edges: EdgeStageReport,
     border_edges: EdgeStageReport,
     combined_edges: EdgeStageReport,
-    final_fold: NotImplementedStageReport,
+    cleanup_edges: EdgeStageReport,
+    final_vertices: VertexStageReport,
+    final_edges: EdgeStageReport,
+    final_fold: FoldStageReport,
+    final_report: ReportStageReport,
 }
 
 #[derive(Debug, Serialize)]
@@ -256,10 +279,33 @@ struct IndexListStageReport {
 }
 
 #[derive(Debug, Serialize)]
-struct NotImplementedStageReport {
+struct FoldStageReport {
     implemented: bool,
-    python_count: Option<usize>,
-    reason: String,
+    python_vertices: usize,
+    rust_vertices: usize,
+    python_edges: usize,
+    rust_edges: usize,
+    vertices_exact: bool,
+    edges_exact: bool,
+    assignments_exact: bool,
+    exact: bool,
+    first_difference: Option<Value>,
+}
+
+#[derive(Debug, Serialize)]
+struct ReportStageReport {
+    implemented: bool,
+    status_match: bool,
+    warning_codes_match: bool,
+    repair_action_codes_match: bool,
+    exact: bool,
+    python_status: Option<String>,
+    rust_status: String,
+    python_warning_codes: Vec<String>,
+    rust_warning_codes: Vec<String>,
+    python_repair_action_codes: Vec<String>,
+    rust_repair_action_codes: Vec<String>,
+    first_difference: Option<Value>,
 }
 
 #[derive(Debug)]
@@ -303,6 +349,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .as_ref()
             .map(|path| read_f32_map(&resolve_path(manifest_root, path)))
             .transpose()?;
+        let line_logits =
+            read_f32_map(&resolve_path(manifest_root, &fixture.line_logits_f32_path))?;
+        let junction_logits = read_f32_map(&resolve_path(
+            manifest_root,
+            &fixture.junction_logits_f32_path,
+        ))?;
+        let assignment_logits = read_f32_map(&resolve_path(
+            manifest_root,
+            &fixture.assignment_logits_f32_path,
+        ))?;
+        let non_crease_logits = read_f32_map(&resolve_path(
+            manifest_root,
+            &fixture.non_crease_logits_f32_path,
+        ))?;
+        let line_style_logits = read_f32_map(&resolve_path(
+            manifest_root,
+            &fixture.line_style_logits_f32_path,
+        ))?;
+        let boundary_contact_logits = read_f32_map(&resolve_path(
+            manifest_root,
+            &fixture.boundary_contact_logits_f32_path,
+        ))?;
         let snapshot = decode_edge_stage_snapshot_from_maps(
             &line_mask,
             &effective_line_prob,
@@ -330,6 +398,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             read_python_vertex_stage(&resolve_path(manifest_root, &fixture.vertex_stage_path))?;
         let python_edge_stage =
             read_python_edge_stage(&resolve_path(manifest_root, &fixture.edge_stage_path))?;
+        let python_fold: Value = serde_json::from_str(&fs::read_to_string(resolve_path(
+            manifest_root,
+            &fixture.fold_path,
+        ))?)?;
+        let python_final_stage: Value = serde_json::from_str(&fs::read_to_string(resolve_path(
+            manifest_root,
+            &fixture.final_stage_path,
+        ))?)?;
+        let rust_decoded = decode_dense_outputs(
+            DenseOutputs {
+                line_logits: &line_logits,
+                junction_logits: &junction_logits,
+                assignment_logits: &assignment_logits,
+                non_crease_logits: &non_crease_logits,
+                line_style_logits: &line_style_logits,
+                boundary_contact_logits: &boundary_contact_logits,
+            },
+            DecodeConfig {
+                image_size: manifest.config.image_size,
+                threshold: manifest.config.threshold,
+                ..DecodeConfig::default()
+            },
+        )?;
+        let rust_fold: Value = serde_json::from_str(&rust_decoded.fold_json)?;
 
         fixture_reports.push(compare_fixture(
             fixture,
@@ -339,6 +431,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             python_vertex_stage,
             python_edge_stage,
             snapshot,
+            python_fold,
+            rust_fold,
+            python_final_stage,
+            serde_json::to_value(&rust_decoded.report)?,
             args.carrier_tolerance_px,
         ));
     }
@@ -379,6 +475,10 @@ fn compare_fixture(
     python_vertex_stage: PythonVertexStage,
     python_edge_stage: PythonEdgeStage,
     rust: DecodeEdgeStageSnapshot,
+    python_fold: Value,
+    rust_fold: Value,
+    python_final_stage: Value,
+    rust_report: Value,
     carrier_tolerance_px: f64,
 ) -> FixtureReport {
     let vertex_stage = &rust.vertex_stage;
@@ -435,11 +535,15 @@ fn compare_fixture(
     let border_edges_report = compare_edges(&python_edge_stage.border_edges, &rust.border_edges);
     let combined_edges_report =
         compare_edges(&python_edge_stage.combined_edges, &rust.combined_edges);
-    let final_fold_report = NotImplementedStageReport {
-        implemented: false,
-        python_count: None,
-        reason: "Replay currently compares decoder evidence stages only; final FOLD parity requires dense tensor replay in a later checkpoint.".to_owned(),
-    };
+    let cleanup_edges_report = compare_edges(&python_edge_stage.cleanup_edges, &rust.cleanup_edges);
+    let final_vertices_report = compare_vertices(
+        &python_edge_stage.final_vertices,
+        &rust.final_vertices,
+        carrier_tolerance_px,
+    );
+    let final_edges_report = compare_edges(&python_edge_stage.final_edges, &rust.final_edges);
+    let final_fold_report = compare_fold(&python_fold, &rust_fold);
+    let final_report_report = compare_report(&python_final_stage, &rust_report);
     let first_divergence = if !raw_segment_report.exact_ordered {
         "raw_segments"
     } else if !raw_lines_report.ordered_geometry_match {
@@ -468,6 +572,16 @@ fn compare_fixture(
         "border_edges"
     } else if !combined_edges_report.ordered_match {
         "combined_edges"
+    } else if !cleanup_edges_report.ordered_match {
+        "cleanup_edges"
+    } else if !final_vertices_report.ordered_match {
+        "final_vertices"
+    } else if !final_edges_report.ordered_match {
+        "final_edges"
+    } else if !final_fold_report.exact {
+        "final_fold"
+    } else if !final_report_report.exact {
+        "final_report"
     } else {
         "none"
     }
@@ -492,7 +606,11 @@ fn compare_fixture(
             interior_edges: interior_edges_report,
             border_edges: border_edges_report,
             combined_edges: combined_edges_report,
+            cleanup_edges: cleanup_edges_report,
+            final_vertices: final_vertices_report,
+            final_edges: final_edges_report,
             final_fold: final_fold_report,
+            final_report: final_report_report,
         },
     }
 }
@@ -846,6 +964,205 @@ fn compare_index_list(python: &[usize], rust: &[usize]) -> IndexListStageReport 
     }
 }
 
+fn compare_fold(python: &Value, rust: &Value) -> FoldStageReport {
+    let python_vertices = python["vertices_coords"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    let rust_vertices = rust["vertices_coords"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    let python_edges = python["edges_vertices"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    let rust_edges = rust["edges_vertices"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    let python_assignments = python["edges_assignment"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    let rust_assignments = rust["edges_assignment"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    let (vertices_exact, vertex_difference) =
+        compare_vertex_arrays(&python_vertices, &rust_vertices, 1e-6);
+    let edges_exact = python_edges == rust_edges;
+    let assignments_exact = python_assignments == rust_assignments;
+    let first_difference = if !vertices_exact {
+        vertex_difference
+    } else if !edges_exact {
+        Some(first_array_difference(
+            "edges_vertices",
+            &python_edges,
+            &rust_edges,
+        ))
+    } else if !assignments_exact {
+        Some(first_array_difference(
+            "edges_assignment",
+            &python_assignments,
+            &rust_assignments,
+        ))
+    } else {
+        None
+    };
+    FoldStageReport {
+        implemented: true,
+        python_vertices: python_vertices.len(),
+        rust_vertices: rust_vertices.len(),
+        python_edges: python_edges.len(),
+        rust_edges: rust_edges.len(),
+        vertices_exact,
+        edges_exact,
+        assignments_exact,
+        exact: vertices_exact && edges_exact && assignments_exact,
+        first_difference,
+    }
+}
+
+fn compare_report(python_final_stage: &Value, rust_report: &Value) -> ReportStageReport {
+    let python_quality = &python_final_stage["quality_report"];
+    let python_status = python_quality["status"].as_str().map(str::to_owned);
+    let rust_status = rust_report["status"].as_str().unwrap_or("").to_owned();
+    let python_warning_codes = code_list(&python_quality["warnings"]);
+    let rust_warning_codes = code_list(&rust_report["warnings"]);
+    let python_repair_action_codes = code_list(&python_final_stage["repair"]["actions"]);
+    let rust_repair_action_codes = code_list(&rust_report["repair_actions"]);
+    let status_match = python_status.as_deref() == Some(rust_status.as_str());
+    let warning_codes_match = python_warning_codes == rust_warning_codes;
+    let repair_action_codes_match = python_repair_action_codes == rust_repair_action_codes;
+    let first_difference = if !status_match {
+        Some(json!({
+            "field": "status",
+            "python": python_status,
+            "rust": rust_status,
+        }))
+    } else if !warning_codes_match {
+        Some(json!({
+            "field": "warning_codes",
+            "python": python_warning_codes,
+            "rust": rust_warning_codes,
+        }))
+    } else if !repair_action_codes_match {
+        Some(json!({
+            "field": "repair_action_codes",
+            "python": python_repair_action_codes,
+            "rust": rust_repair_action_codes,
+        }))
+    } else {
+        None
+    };
+    ReportStageReport {
+        implemented: true,
+        status_match,
+        warning_codes_match,
+        repair_action_codes_match,
+        exact: status_match && warning_codes_match && repair_action_codes_match,
+        python_status,
+        rust_status,
+        python_warning_codes,
+        rust_warning_codes,
+        python_repair_action_codes,
+        rust_repair_action_codes,
+        first_difference,
+    }
+}
+
+fn code_list(value: &Value) -> Vec<String> {
+    value
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|item| item["code"].as_str().map(str::to_owned))
+        .collect()
+}
+
+fn compare_vertex_arrays(
+    python: &[Value],
+    rust: &[Value],
+    tolerance: f64,
+) -> (bool, Option<Value>) {
+    let paired = python.len().min(rust.len());
+    for index in 0..paired {
+        let Some(left) = value_pair(&python[index]) else {
+            return (
+                false,
+                Some(
+                    json!({"field": "vertices_coords", "index": index, "python": python[index], "rust": rust[index]}),
+                ),
+            );
+        };
+        let Some(right) = value_pair(&rust[index]) else {
+            return (
+                false,
+                Some(
+                    json!({"field": "vertices_coords", "index": index, "python": python[index], "rust": rust[index]}),
+                ),
+            );
+        };
+        let dx = left[0] - right[0];
+        let dy = left[1] - right[1];
+        let delta = (dx * dx + dy * dy).sqrt();
+        if delta > tolerance {
+            return (
+                false,
+                Some(json!({
+                    "field": "vertices_coords",
+                    "index": index,
+                    "delta": delta,
+                    "tolerance": tolerance,
+                    "python": python[index],
+                    "rust": rust[index],
+                })),
+            );
+        }
+    }
+    if python.len() != rust.len() {
+        return (
+            false,
+            Some(json!({
+                "field": "vertices_coords",
+                "index": paired,
+                "python": python.get(paired),
+                "rust": rust.get(paired),
+            })),
+        );
+    }
+    (true, None)
+}
+
+fn value_pair(value: &Value) -> Option<[f64; 2]> {
+    let array = value.as_array()?;
+    if array.len() != 2 {
+        return None;
+    }
+    Some([array[0].as_f64()?, array[1].as_f64()?])
+}
+
+fn first_array_difference(name: &'static str, python: &[Value], rust: &[Value]) -> Value {
+    let paired = python.len().min(rust.len());
+    for index in 0..paired {
+        if python[index] != rust[index] {
+            return json!({
+                "field": name,
+                "index": index,
+                "python": python[index],
+                "rust": rust[index],
+            });
+        }
+    }
+    json!({
+        "field": name,
+        "index": paired,
+        "python": python.get(paired),
+        "rust": rust.get(paired),
+    })
+}
+
 fn point_list_deltas(
     python: &[Vec<f64>],
     rust: &[[f32; 2]],
@@ -921,6 +1238,21 @@ fn aggregate(fixtures: &[FixtureReport]) -> Aggregate {
         }
         if fixture.stages.combined_edges.ordered_match {
             aggregate.combined_edge_ordered_matches += 1;
+        }
+        if fixture.stages.cleanup_edges.ordered_match {
+            aggregate.cleanup_edge_ordered_matches += 1;
+        }
+        if fixture.stages.final_vertices.ordered_match {
+            aggregate.final_vertex_ordered_matches += 1;
+        }
+        if fixture.stages.final_edges.ordered_match {
+            aggregate.final_edge_ordered_matches += 1;
+        }
+        if fixture.stages.final_fold.exact {
+            aggregate.final_fold_matches += 1;
+        }
+        if fixture.stages.final_report.exact {
+            aggregate.final_report_matches += 1;
         }
         if fixture.first_divergence != "none" {
             *aggregate

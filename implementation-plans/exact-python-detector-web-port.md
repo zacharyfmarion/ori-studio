@@ -207,18 +207,18 @@ Each checkpoint ends with a commit.
 | --- | --- | --- |
 | 0: Plan | Complete | Exact-port plan added and older quality-parity plan marked superseded. |
 | 1: Oracle Replay Harness | Complete | Python evidence export and Rust replay comparison harness are in place. |
-| 2: Rectifier And Crop Parity | Pending | Product crop exists, but exact Python rectifier parity is not yet gated. |
-| 3: Model I/O And Head Parity | Pending | Browser ONNX works, but PyTorch-vs-ONNX head parity is not yet gated. |
-| 4: Evidence Conversion Parity | Pending | Some conversion exists in product code; exact dense-map parity is not yet gated. |
+| 2: Rectifier And Crop Parity | Pending | Product crop exists, but exact Python rectifier parity is still not gated. |
+| 3: Model I/O And Head Parity | Blocked | Browser ONNX runs, but ONNX Runtime Web head tensors still drift from frozen PyTorch batch-stat inference. |
+| 4: Evidence Conversion Parity | Complete | Python-logit replay now matches through final graph/report/FOLD on the current replay fixtures. |
 | 5: Hough Segment Extraction Parity | Complete | OpenCV-compatible Rust `HoughLinesP` has exact ordered parity on tiny and real V2 masks. |
 | 6: Raw Segments To Carriers Parity | Complete | Raw lines and finite carriers match Python on the clean smoke and duck/cpoogle replay fixtures. |
 | 7: Peak Extraction And Candidate Vertex Parity | Complete | Intersections, junction peaks, boundary contacts, candidate vertices, and merged vertices match Python on the same replay fixtures. |
 | 8: Edge Construction And Support Parity | Complete | Interior edge enumeration, support sampling, dashed/gapped support, and assignment voting match Python on the replay fixtures. |
 | 9: Square Border Chain Parity | Complete | Boundary used-contact sorting, deterministic border edges, and combined pre-cleanup edges match Python on the replay fixtures. |
-| 10: Cleanup, Repair, Quality, And Status Parity | Pending | Depends on graph parity. |
-| 11: FOLD Export Parity | Pending | Depends on final graph/report parity. |
-| 12: Native Rust, WASM, And Node Parity | Pending | Run after native stage parity. |
-| 13: Full Browser End-To-End Parity | Pending | Final product gate. |
+| 10: Cleanup, Repair, Quality, And Status Parity | Complete | Native replay matches final report/status/warning/action codes on the two current oracle fixtures. |
+| 11: FOLD Export Parity | Complete | Native canonical FOLD graph output matches Python on the two current oracle fixtures. |
+| 12: Native Rust, WASM, And Node Parity | Complete | Browser WASM decode fed with Python logits reaches 1.0 graph metrics and matching reports on the two current oracle fixtures. |
+| 13: Full Browser End-To-End Parity | Blocked | Full UI path is close but not exact because model/ONNX and rectifier/product-path drift remain upstream of decode. |
 
 ### Checkpoint 0: Plan
 
@@ -734,18 +734,114 @@ border-chain construction for these replay inputs. The next likely gap is
 cleanup/repair/report/FOLD export parity or an earlier ungated product-path
 difference such as crop/model/evidence parity.
 
-## First Implementation Target
-
-Checkpoint 8 and 9 closed edge construction and square-border pre-cleanup
-parity on the initial replay set. Proceed to Checkpoint 10: cleanup, repair,
-quality, and status parity.
-
-The first important question is:
+Checkpoint 10 and 11 cleanup/repair/report/FOLD parity are now complete on the
+same two-fixture oracle replay set:
 
 ```text
-Given identical Python pre-cleanup topology, where does Rust first diverge in
-cleanup, repair, report/status, or final FOLD export?
+fixture_count: 2
+raw_segment_exact_ordered_matches: 2
+raw_line_ordered_geometry_matches: 2
+carrier_ordered_geometry_matches: 2
+candidate_vertex_ordered_matches: 2
+merged_vertex_ordered_matches: 2
+initial_interior_edge_ordered_matches: 2
+vertices_after_drop_ordered_matches: 2
+interior_edge_ordered_matches: 2
+border_edge_ordered_matches: 2
+combined_edge_ordered_matches: 2
+cleanup_edge_ordered_matches: 2
+final_vertex_ordered_matches: 2
+final_edge_ordered_matches: 2
+final_fold_matches: 2
+final_report_matches: 2
+first_divergence_counts: {}
 ```
 
-Do not spend more time tuning product thresholds until the final graph/report
-path has a stage-level parity answer.
+This covers the current replay fixtures for:
+
+- cleanup edge ordering and support-preserving dedupe behavior;
+- conservative repair action codes;
+- square-border canonicalization report plumbing;
+- final warning/status/report code parity;
+- final FOLD graph parity.
+
+Checkpoint 12 browser WASM decode parity is also complete when the browser is
+fed the exact frozen Python dense logits:
+
+```text
+fixture_count: 2
+report_matches: 2
+vertex precision/recall/F1: 1.0000 / 1.0000 / 1.0000
+edge precision/recall/F1:   1.0000 / 1.0000 / 1.0000
+border precision/recall/F1: 1.0000 / 1.0000 / 1.0000
+```
+
+This isolates the remaining full-product mismatch to stages before the Rust
+decoder: crop/rectification, browser preprocessing, or model inference.
+
+The model-inference isolation result is the current blocker. The exporter now
+supports an `explicit-batch-stats` mode that rewrites `BatchNorm2d` into
+explicit per-image mean/variance ops before ONNX export. That ruled out ONNX
+training-mode BatchNorm as the blocker, because the head drift is unchanged:
+
+```text
+line_logits max/mean abs error:             0.0681086 / 0.0041510
+line_logits threshold mask diffs at 0.65:   30
+junction_logits max/mean abs error:         0.0558589 / 0.0030738
+assignment_logits max/mean abs error:       0.0443964 / 0.0021552
+non_crease_logits max/mean abs error:       0.1068382 / 0.0074808
+line_style_logits max/mean abs error:       0.0931141 / 0.0026217
+boundary_contact_logits max/mean abs error: 0.0302668 / 0.0018361
+```
+
+Running the real browser UI path with the explicit-BatchNorm ONNX asset gives:
+
+```text
+Original uploads:
+vertex precision/recall/F1: 0.9478 / 0.9113 / 0.9283
+edge precision/recall/F1:   0.8912 / 0.8742 / 0.8823
+border precision/recall/F1: 0.9319 / 0.9333 / 0.9294
+
+Python-rectified inputs through the same UI:
+vertex precision/recall/F1: 0.9697 / 0.8773 / 0.9201
+edge precision/recall/F1:   0.9320 / 0.8633 / 0.8961
+border precision/recall/F1: 0.9444 / 0.9556 / 0.9473
+```
+
+Interpretation:
+
+- The browser decoder and final FOLD/report export are no longer the parity
+  blocker for the current fixtures.
+- ONNX Runtime Web inference is close but not exact relative to frozen PyTorch
+  batch-stat inference. The remaining logit drift is enough to alter line masks
+  and final graphs.
+- The arbitrary-upload path still also needs exact rectifier/crop parity before
+  full end-to-end parity can be claimed.
+
+Remaining required phases:
+
+- Build a direct browser model benchmark that starts from Python's exported
+  `input_tensor.f32` and writes browser ONNX outputs plus evidence maps. This
+  removes canvas/image preprocessing from model parity.
+- Decide the model runtime strategy for exact parity. Current ONNX Runtime Web
+  is not exact enough for a strict Python-identical graph; options are a
+  declared tolerance gate, a different browser runtime/export path, or accepting
+  product-level metric parity rather than exact PyTorch parity.
+- Port/gate the Python rectifier behavior for arbitrary uploads. The current
+  product rectifier is usable but not proven 1:1.
+
+## Next Implementation Target
+
+Checkpoint 10, 11, and 12 closed the Rust/browser decoder path on the initial
+replay set. Proceed only on upstream parity now: direct model-runtime evidence
+maps, then exact crop/rectifier parity.
+
+The first important question is now:
+
+```text
+Given identical Python input tensors, which browser model/evidence operation
+first changes the final graph?
+```
+
+Do not spend more time tuning product thresholds until the upstream
+model/evidence path has a stage-level parity answer.

@@ -189,6 +189,7 @@ def export_fixture(
         config=pipeline.report_config,
     )
     apply_rectification_warnings_to_report(quality_report, rectification)
+    final_stage = final_stage_payload(graph_result, attributed, repair, quality_report)
 
     result = inference_result_type(
         input_path=input_path,
@@ -207,7 +208,17 @@ def export_fixture(
     Image.fromarray(rectification.rectified_rgb).save(fixture_dir / "rectified.png")
     write_json(fixture_dir / "rectification.json", rectification.metadata())
     write_json(fixture_dir / "evidence_summary.json", evidence_summary(evidence))
+    write_f32(fixture_dir / "input_tensor.f32", tensor_payload(image_tensor, channels=3))
     write_pgm(fixture_dir / "line_prob.pgm", np.rint(evidence.line_prob * 255.0).clip(0, 255).astype(np.uint8))
+    write_f32(fixture_dir / "line_logits.f32", tensor_payload(outputs["line_logits"], channels=None))
+    write_f32(fixture_dir / "junction_logits.f32", tensor_payload(outputs["junction_logits"], channels=None))
+    write_f32(fixture_dir / "assignment_logits.f32", tensor_payload(outputs["assignment_logits"], channels=4))
+    write_f32(fixture_dir / "non_crease_logits.f32", tensor_payload(outputs["non_crease_logits"], channels=None))
+    write_f32(fixture_dir / "line_style_logits.f32", tensor_payload(outputs["line_style_logits"], channels=4))
+    write_f32(
+        fixture_dir / "boundary_contact_logits.f32",
+        tensor_payload(outputs["boundary_contact_logits"], channels=None),
+    )
     write_f32(fixture_dir / "junction_heatmap.f32", evidence.junction_heatmap)
     if evidence.boundary_contact_heatmap is not None:
         write_f32(fixture_dir / "boundary_contact_heatmap.f32", evidence.boundary_contact_heatmap)
@@ -226,6 +237,7 @@ def export_fixture(
     write_json(fixture_dir / "carriers.json", [carrier_payload(carrier) for carrier in carriers])
     write_json(fixture_dir / "vertex_stage.json", vertex_stage)
     write_json(fixture_dir / "edge_stage.json", edge_stage)
+    write_json(fixture_dir / "final_stage.json", final_stage)
     write_json(fixture_dir / "suppression.json", suppression_stats)
 
     fold_payload = json.loads((fixture_dir / "oracle.fold").read_text(encoding="utf-8"))
@@ -237,7 +249,14 @@ def export_fixture(
         "rectification_path": f"{fixture_dir.name}/rectification.json",
         "rectified_image_path": f"{fixture_dir.name}/rectified.png",
         "evidence_summary_path": f"{fixture_dir.name}/evidence_summary.json",
+        "input_tensor_f32_path": f"{fixture_dir.name}/input_tensor.f32",
         "line_prob_pgm_path": f"{fixture_dir.name}/line_prob.pgm",
+        "line_logits_f32_path": f"{fixture_dir.name}/line_logits.f32",
+        "junction_logits_f32_path": f"{fixture_dir.name}/junction_logits.f32",
+        "assignment_logits_f32_path": f"{fixture_dir.name}/assignment_logits.f32",
+        "non_crease_logits_f32_path": f"{fixture_dir.name}/non_crease_logits.f32",
+        "line_style_logits_f32_path": f"{fixture_dir.name}/line_style_logits.f32",
+        "boundary_contact_logits_f32_path": f"{fixture_dir.name}/boundary_contact_logits.f32",
         "junction_heatmap_f32_path": f"{fixture_dir.name}/junction_heatmap.f32",
         "boundary_contact_heatmap_f32_path": (
             None
@@ -258,6 +277,7 @@ def export_fixture(
         "carriers_path": f"{fixture_dir.name}/carriers.json",
         "vertex_stage_path": f"{fixture_dir.name}/vertex_stage.json",
         "edge_stage_path": f"{fixture_dir.name}/edge_stage.json",
+        "final_stage_path": f"{fixture_dir.name}/final_stage.json",
         "fold_path": f"{fixture_dir.name}/oracle.fold",
         "report_path": f"{fixture_dir.name}/oracle.report.json",
         "expected_status": quality_report.status,
@@ -337,6 +357,26 @@ def edge_stage_payload(
         border_support,
         border_assignments,
     )
+    cleanup_edges = combined_edges
+    cleanup_support = combined_support
+    cleanup_assignments = combined_assignments
+    cleanup_stats: dict[str, Any] = {}
+    if decoder.config.planar_cleanup:
+        cleanup_edges, cleanup_support, cleanup_assignments, cleanup_stats = (  # noqa: SLF001
+            decoder._builder._planar_cleanup(
+                vertices_after_drop,
+                combined_edges,
+                combined_support,
+                combined_assignments,
+                line_prob=effective_line_prob,
+            )
+        )
+    vertex_support = np.ones(len(vertices_after_drop), dtype=np.float32)
+    final_vertices, final_edges, final_vertex_support = decoder._drop_unused_vertices_keep_corners(  # noqa: SLF001
+        vertices_after_drop,
+        cleanup_edges,
+        vertex_support,
+    )
     return {
         "initial_interior_edges": edges_payload(
             initial_edges,
@@ -362,6 +402,25 @@ def edge_stage_payload(
             combined_support,
             combined_assignments,
         ),
+        "cleanup_stats": cleanup_stats,
+        "cleanup_edges": edges_payload(
+            cleanup_edges,
+            cleanup_support,
+            cleanup_assignments,
+        ),
+        "final_vertices": [
+            {"point": point_payload(point), "kind": str(kind)}
+            for point, kind in zip(
+                final_vertices,
+                decoder._refresh_vertex_meta(final_vertices, []),  # noqa: SLF001
+            )
+        ],
+        "final_edges": edges_payload(
+            final_edges,
+            cleanup_support,
+            cleanup_assignments,
+        ),
+        "final_vertex_support": array_payload(final_vertex_support),
     }
 
 
@@ -377,6 +436,53 @@ def edges_payload(edges: Any, support: Any, assignments: Any) -> list[dict[str, 
         }
         for edge, item_support, assignment in zip(edge_array, support_array, assignment_array)
     ]
+
+
+def final_stage_payload(
+    graph_result: Any,
+    attributed: Any,
+    repair: Any,
+    quality_report: Any,
+) -> dict[str, Any]:
+    return {
+        "graph_result": graph_payload(graph_result),
+        "attributed_graph": graph_payload(attributed),
+        "repair_graph": graph_payload(repair.graph),
+        "repair": repair.to_dict(),
+        "quality_report": quality_report.to_dict(),
+    }
+
+
+def graph_payload(graph: Any) -> dict[str, Any]:
+    payload = {
+        "vertices_coords": np.asarray(graph.vertices_coords, dtype=np.float32),
+        "pixel_vertices": np.asarray(graph.pixel_vertices, dtype=np.float32),
+        "edges_vertices": np.asarray(graph.edges_vertices, dtype=np.int64),
+        "edges_assignment": np.asarray(graph.edges_assignment, dtype=np.int8),
+        "edge_support": np.asarray(graph.edge_support, dtype=np.float32),
+        "vertex_support": np.asarray(graph.vertex_support, dtype=np.float32),
+    }
+    for name in ("assignment_confidence", "assignment_margin", "assignment_source", "assignment_probabilities"):
+        if hasattr(graph, name):
+            payload[name] = getattr(graph, name)
+    return payload
+
+
+def tensor_payload(tensor: Any, *, channels: int | None) -> np.ndarray:
+    array = tensor.detach().cpu().numpy().astype("<f4")
+    if array.ndim == 4:
+        if array.shape[0] != 1:
+            raise ValueError(f"Expected batch size one for tensor export, got {array.shape}")
+        array = array[0]
+    if channels is None:
+        if array.ndim == 3 and array.shape[0] == 1:
+            array = array[0]
+        if array.ndim != 2:
+            raise ValueError(f"Expected scalar map tensor, got {array.shape}")
+        return np.ascontiguousarray(array, dtype="<f4")
+    if array.ndim != 3 or array.shape[0] != channels:
+        raise ValueError(f"Expected {channels}-channel tensor, got {array.shape}")
+    return np.ascontiguousarray(array, dtype="<f4")
 
 
 def evidence_summary(evidence: Any) -> dict[str, Any]:
