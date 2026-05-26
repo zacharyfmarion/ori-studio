@@ -145,6 +145,8 @@ fn to_js_decode_error(error: oristudio_cp_detect::decode::DecodeError) -> JsValu
     let code = match error {
         oristudio_cp_detect::decode::DecodeError::InvalidImageSize(_) => "invalid_image_size",
         oristudio_cp_detect::decode::DecodeError::TensorLength { .. } => "tensor_length",
+        oristudio_cp_detect::decode::DecodeError::BufferLength { .. } => "buffer_length",
+        oristudio_cp_detect::decode::DecodeError::Hough(_) => "hough",
         oristudio_cp_detect::decode::DecodeError::Json(_) => "invalid_json",
     };
     js_error(code, error.to_string())

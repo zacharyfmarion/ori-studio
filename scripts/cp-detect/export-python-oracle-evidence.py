@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
@@ -201,6 +203,8 @@ def export_fixture(
     write_inference_outputs(result, config=config, manifest=pipeline.manifest)
 
     Image.fromarray(rectification.rectified_rgb).save(fixture_dir / "rectified.png")
+    write_json(fixture_dir / "rectification.json", rectification.metadata())
+    write_json(fixture_dir / "evidence_summary.json", evidence_summary(evidence))
     write_pgm(fixture_dir / "line_prob.pgm", np.rint(evidence.line_prob * 255.0).clip(0, 255).astype(np.uint8))
     write_pgm(
         fixture_dir / "effective_line_prob.pgm",
@@ -218,7 +222,9 @@ def export_fixture(
         "profile": "real-smoke-v2",
         "source_image_path": str(input_path),
         "root": fixture_dir.name,
+        "rectification_path": f"{fixture_dir.name}/rectification.json",
         "rectified_image_path": f"{fixture_dir.name}/rectified.png",
+        "evidence_summary_path": f"{fixture_dir.name}/evidence_summary.json",
         "line_prob_pgm_path": f"{fixture_dir.name}/line_prob.pgm",
         "effective_line_prob_pgm_path": f"{fixture_dir.name}/effective_line_prob.pgm",
         "line_mask_pgm_path": f"{fixture_dir.name}/line_mask.pgm",
@@ -231,6 +237,42 @@ def export_fixture(
         "expected_vertices": len(fold_payload.get("vertices_coords", [])),
         "expected_edges": len(fold_payload.get("edges_vertices", [])),
     }
+
+
+def evidence_summary(evidence: Any) -> dict[str, Any]:
+    return {
+        "line_prob": array_summary(evidence.line_prob),
+        "angle": array_summary(evidence.angle),
+        "junction_heatmap": array_summary(evidence.junction_heatmap),
+        "assignment_labels": array_summary(evidence.assignment_labels),
+        "non_crease_prob": array_summary(evidence.non_crease_prob),
+        "line_style_prob": array_summary(evidence.line_style_prob),
+        "boundary_contact_heatmap": array_summary(evidence.boundary_contact_heatmap),
+        "vertex_type_prob": array_summary(evidence.vertex_type_prob),
+        "boundary_side_prob": array_summary(evidence.boundary_side_prob),
+        "boundary_offset": array_summary(evidence.boundary_offset),
+        "boundary_coord": array_summary(evidence.boundary_coord),
+    }
+
+
+def array_summary(value: Any) -> dict[str, Any] | None:
+    if value is None:
+        return None
+    array = np.asarray(value)
+    summary: dict[str, Any] = {
+        "shape": list(array.shape),
+        "dtype": str(array.dtype),
+    }
+    if array.size:
+        numeric = array.astype(np.float64, copy=False)
+        summary.update(
+            {
+                "min": float(np.min(numeric)),
+                "max": float(np.max(numeric)),
+                "mean": float(np.mean(numeric)),
+            }
+        )
+    return summary
 
 
 def line_payload(line: Any) -> dict[str, Any]:

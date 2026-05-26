@@ -123,6 +123,14 @@ pub enum DecodeError {
         expected: usize,
         actual: usize,
     },
+    #[error("{name} byte length mismatch: expected {expected}, got {actual}")]
+    BufferLength {
+        name: &'static str,
+        expected: usize,
+        actual: usize,
+    },
+    #[error("OpenCV-compatible HoughLinesP failed: {0}")]
+    Hough(#[from] crate::opencv_hough_lines_p::HoughError),
     #[error("failed to serialize FOLD JSON: {0}")]
     Json(#[from] serde_json::Error),
 }
@@ -151,6 +159,117 @@ struct Edge {
     b: usize,
     assignment: u8,
     support: f32,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DecodeStageSnapshot {
+    pub image_size: u32,
+    pub raw_segments: Vec<StageHoughSegment>,
+    pub carriers: Vec<StageCarrier>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct StageHoughSegment {
+    pub x1: i32,
+    pub y1: i32,
+    pub x2: i32,
+    pub y2: i32,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct StageLine {
+    pub p0: [f32; 2],
+    pub p1: [f32; 2],
+    pub theta: f32,
+    pub rho: f32,
+    pub support: f32,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct StageCarrier {
+    pub line: StageLine,
+    pub p0: [f32; 2],
+    pub p1: [f32; 2],
+    pub t_min: f32,
+    pub t_max: f32,
+    pub direction: [f32; 2],
+}
+
+pub fn decode_stage_snapshot_from_line_mask(
+    line_mask: &[u8],
+    image_size: u32,
+    mut config: DecodeConfig,
+) -> Result<DecodeStageSnapshot, DecodeError> {
+    let size = image_size as usize;
+    if size < 8 {
+        return Err(DecodeError::InvalidImageSize(image_size));
+    }
+    require_byte_len("line_mask", line_mask, size * size)?;
+    config.image_size = image_size;
+    let segments = hough_lines_p_opencv_cpu(
+        line_mask,
+        size,
+        size,
+        &HoughLinesPConfig {
+            rho: 1.0,
+            theta: std::f32::consts::PI / 720.0,
+            threshold: config.hough_vote_threshold.max(1) as i32,
+            min_line_length: config.hough_min_segment_length_px as f64,
+            max_line_gap: config.hough_max_segment_gap_px as f64,
+            lines_max: i32::MAX,
+        },
+    )?;
+    let segments = limit_hough_segments(segments, 12_000);
+    let carriers = merge_hough_segments_into_carriers(&segments, size, &config);
+    Ok(DecodeStageSnapshot {
+        image_size,
+        raw_segments: segments
+            .iter()
+            .copied()
+            .map(StageHoughSegment::from)
+            .collect(),
+        carriers: carriers.iter().map(StageCarrier::from).collect(),
+    })
+}
+
+impl From<HoughSegment> for StageHoughSegment {
+    fn from(segment: HoughSegment) -> Self {
+        StageHoughSegment {
+            x1: segment.x1,
+            y1: segment.y1,
+            x2: segment.x2,
+            y2: segment.y2,
+        }
+    }
+}
+
+impl From<&Line> for StageLine {
+    fn from(line: &Line) -> Self {
+        StageLine {
+            p0: point_array(line.p0),
+            p1: point_array(line.p1),
+            theta: line.theta,
+            rho: line.rho,
+            support: line.support,
+        }
+    }
+}
+
+impl From<&Line> for StageCarrier {
+    fn from(line: &Line) -> Self {
+        StageCarrier {
+            line: StageLine::from(line),
+            p0: point_array(line.p0),
+            p1: point_array(line.p1),
+            t_min: line.t_min,
+            t_max: line.t_max,
+            direction: point_array(line.direction),
+        }
+    }
+}
+
+fn point_array(point: Point) -> [f32; 2] {
+    [point.x, point.y]
 }
 
 pub fn decode_dense_outputs(
@@ -280,6 +399,17 @@ pub fn decode_dense_outputs(
 fn require_len(name: &'static str, values: &[f32], expected: usize) -> Result<(), DecodeError> {
     if values.len() != expected {
         return Err(DecodeError::TensorLength {
+            name,
+            expected,
+            actual: values.len(),
+        });
+    }
+    Ok(())
+}
+
+fn require_byte_len(name: &'static str, values: &[u8], expected: usize) -> Result<(), DecodeError> {
+    if values.len() != expected {
+        return Err(DecodeError::BufferLength {
             name,
             expected,
             actual: values.len(),

@@ -559,6 +559,14 @@ Completed:
 - The OpenCV-compatible Rust `HoughLinesP` port has exact ordered parity on the
   current tiny and real V2 mask sets.
 - The decoder uses the OpenCV-compatible segment source.
+- Checkpoint 1 oracle replay harness exists:
+  - the Python oracle exporter now writes rectification metadata and evidence
+    summaries in addition to line masks, raw segments, raw lines, carriers,
+    FOLD, and report artifacts;
+  - `compare_python_detector_oracle` reads a Python evidence manifest and
+    compares stage outputs directly against Rust;
+  - `decode_stage_snapshot_from_line_mask` exposes Rust raw Hough segments and
+    current carrier construction for replay.
 
 Most recent 5-fixture browser-vs-Python real-smoke report after replacing the
 Hough source:
@@ -577,11 +585,33 @@ Interpretation:
   edge support decisions, border-chain construction, cleanup/status, and FOLD
   export semantics.
 
+Checkpoint 1 replay baseline, generated locally under ignored
+`artifacts/cp-detect-parity/python-oracle-replay-20260526/`:
+
+```text
+fixture_count: 2
+raw_segment_exact_ordered_matches: 2
+carrier_ordered_geometry_matches: 0
+first_divergence_counts:
+  raw_lines_not_implemented: 2
+```
+
+The two fixtures were the clean smoke fixture and the named duck/cpoogle image.
+Both match Python exactly through raw OpenCV Hough segments. Both diverge at the
+next layer because Rust does not yet expose or port Python's `_merge_segments`
+raw-line stage separately from carrier construction. Current carrier counts also
+diverge:
+
+```text
+clean-smoke: Python carriers 104, Rust carriers 83
+duck/cpoogle: Python carriers 150, Rust carriers 122
+```
+
 ## First Implementation Target
 
-Start with Checkpoint 1, then go directly to Checkpoint 6 if the replay harness
-confirms that rectifier/model/evidence fixtures are already sufficient for
-decoder-only comparison.
+Checkpoint 1 confirmed the first post-Hough divergence. Go directly to
+Checkpoint 6 and port Python `_merge_segments` plus square-topology carrier
+construction exactly before doing more product threshold tuning.
 
 The first important question is:
 
