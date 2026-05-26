@@ -284,7 +284,7 @@ Before the port can be considered complete:
 
 ## Current State
 
-Checkpoints 1, 2, 3, and 4 are complete.
+Checkpoints 1, 2, 3, 4, and 5 are complete.
 
 Checkpoint 1:
 
@@ -335,9 +335,30 @@ exact_unordered_matches: 5
 geometry_equivalent_matches: 5
 ```
 
-The port is now ready for the next checkpoint: replacing the current Rust
-segment evidence path behind an A/B gate and then measuring full graph parity.
-WASM/native parity still needs to be tested before product runtime replacement.
+Checkpoint 5:
+
+- replaced the Rust decoder's `imageproc` polar-Hough carrier source with the
+  OpenCV-compatible `HoughLinesP` segment source;
+- merged OpenCV raw segments into finite carriers using the same segment-group
+  shape as the Python square-topology path;
+- aligned the default Hough threshold, max segment gap, and carrier padding with
+  the Python V2 square decoder defaults;
+- rebuilt `oristudio-cp-detect-wasm` and confirmed the WASM target checks;
+- ran the browser-vs-Python benchmark on the 5 real-smoke V2 fixtures:
+
+```text
+fixture_count: 5
+vertex_f1: 0.3959
+edge_f1: 0.2674
+border_f1: 0.2199
+```
+
+Compared with the previous real-smoke V2 browser report, border F1 improved
+from `0.1464` to `0.2199` and edge precision improved from `0.5205` to
+`0.5720`, but vertex/edge recall fell. This confirms the raw segment extractor
+is no longer the exactness blocker; the remaining parity gap is downstream in
+carrier-to-topology construction, border-chain semantics, and warning/status
+parity.
 
 The existing `segments.rs` custom Hough spike is diagnostic only and should not
 be treated as an OpenCV port.

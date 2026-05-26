@@ -1,5 +1,4 @@
-use image::{GrayImage, Luma};
-use imageproc::hough::{LineDetectionOptions, PolarLine, detect_lines};
+use crate::opencv_hough_lines_p::{HoughLinesPConfig, HoughSegment, hough_lines_p_opencv_cpu};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
@@ -138,7 +137,6 @@ struct Point {
 struct Line {
     theta: f32,
     rho: f32,
-    votes: i32,
     p0: Point,
     p1: Point,
     direction: Point,
@@ -153,12 +151,6 @@ struct Edge {
     b: usize,
     assignment: u8,
     support: f32,
-}
-
-#[derive(Debug, Clone, Copy)]
-struct ForegroundPoint {
-    point: Point,
-    score: f32,
 }
 
 pub fn decode_dense_outputs(
@@ -318,35 +310,33 @@ fn effective_line_prob(outputs: DenseOutputs<'_>, config: &DecodeConfig) -> Vec<
 
 fn hough_lines(line_prob: &[f32], config: &DecodeConfig) -> Vec<Line> {
     let size = config.image_size as usize;
-    let (mask, foreground) = hough_mask(line_prob, config);
-    if foreground.is_empty() {
+    let (mask, foreground_count) = hough_mask(line_prob, config);
+    if foreground_count == 0 {
         return Vec::new();
     }
-    let vote_threshold = config.hough_vote_threshold.max((size / 18).max(10) as u32);
-    let polar_lines = detect_lines(
+    let Ok(segments) = hough_lines_p_opencv_cpu(
         &mask,
-        LineDetectionOptions {
-            vote_threshold,
-            suppression_radius: config.hough_suppression_radius,
+        size,
+        size,
+        &HoughLinesPConfig {
+            rho: 1.0,
+            theta: std::f32::consts::PI / 720.0,
+            threshold: config.hough_vote_threshold.max(1) as i32,
+            min_line_length: config.hough_min_segment_length_px as f64,
+            max_line_gap: config.hough_max_segment_gap_px as f64,
+            lines_max: i32::MAX,
         },
-    );
-
-    let mut candidates = Vec::new();
-    for polar in polar_lines {
-        candidates.extend(finite_carriers_from_polar_line(
-            polar,
-            &foreground,
-            size,
-            config,
-        ));
-    }
-    merge_carrier_segments(candidates, config)
+    ) else {
+        return Vec::new();
+    };
+    let segments = limit_hough_segments(segments, 12_000);
+    merge_hough_segments_into_carriers(&segments, size, config)
 }
 
-fn hough_mask(line_prob: &[f32], config: &DecodeConfig) -> (GrayImage, Vec<ForegroundPoint>) {
+fn hough_mask(line_prob: &[f32], config: &DecodeConfig) -> (Vec<u8>, usize) {
     let size = config.image_size as usize;
-    let mut mask = GrayImage::new(config.image_size, config.image_size);
-    let mut foreground = Vec::new();
+    let mut mask = vec![0u8; size * size];
+    let mut foreground_count = 0usize;
     for y in 0..size {
         for x in 0..size {
             let idx = y * size + x;
@@ -354,162 +344,185 @@ fn hough_mask(line_prob: &[f32], config: &DecodeConfig) -> (GrayImage, Vec<Foreg
             if score < config.threshold {
                 continue;
             }
-            mask.put_pixel(x as u32, y as u32, Luma([255]));
-            foreground.push(ForegroundPoint {
-                point: Point {
-                    x: x as f32,
-                    y: y as f32,
-                },
-                score,
-            });
+            mask[idx] = 255;
+            foreground_count += 1;
         }
     }
-    (mask, foreground)
+    (mask, foreground_count)
 }
 
-fn finite_carriers_from_polar_line(
-    polar: PolarLine,
-    foreground: &[ForegroundPoint],
+fn limit_hough_segments(mut segments: Vec<HoughSegment>, max_segments: usize) -> Vec<HoughSegment> {
+    if segments.len() <= max_segments {
+        return segments;
+    }
+    segments.sort_by(|left, right| {
+        hough_segment_length_sq(*right)
+            .partial_cmp(&hough_segment_length_sq(*left))
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    segments.truncate(max_segments);
+    segments
+}
+
+fn hough_segment_length_sq(segment: HoughSegment) -> f32 {
+    let dx = (segment.x2 - segment.x1) as f32;
+    let dy = (segment.y2 - segment.y1) as f32;
+    dx * dx + dy * dy
+}
+
+fn merge_hough_segments_into_carriers(
+    segments: &[HoughSegment],
     size: usize,
     config: &DecodeConfig,
 ) -> Vec<Line> {
-    let theta = (polar.angle_in_degrees as f32).to_radians();
-    let rho = polar.r;
+    let mut groups: Vec<Vec<Line>> = Vec::new();
+    let angle_tol = config.carrier_merge_angle_degrees.to_radians();
+    for segment in segments {
+        let Some(line) = line_from_hough_segment(*segment, config) else {
+            continue;
+        };
+        if let Some(group) = groups.iter_mut().find(|group| {
+            let first = &group[0];
+            angle_distance(first.theta, line.theta) <= angle_tol
+                && (first.rho - line.rho).abs() <= config.carrier_merge_rho_px
+        }) {
+            group.push(line);
+        } else {
+            groups.push(vec![line]);
+        }
+    }
+
+    let mut carriers = Vec::new();
+    for group in groups {
+        if let Some(line) = merged_hough_group(&group).and_then(|line| {
+            clip_and_pad_carrier(line, size, config.carrier_extent_padding_px, config)
+        }) {
+            carriers.push(line);
+        }
+    }
+    carriers.sort_by(|left, right| right.support.total_cmp(&left.support));
+    carriers.truncate(config.max_line_hypotheses);
+    carriers
+}
+
+fn line_from_hough_segment(segment: HoughSegment, config: &DecodeConfig) -> Option<Line> {
+    let p0 = Point {
+        x: segment.x1 as f32,
+        y: segment.y1 as f32,
+    };
+    let p1 = Point {
+        x: segment.x2 as f32,
+        y: segment.y2 as f32,
+    };
+    let length = distance(p0, p1);
+    if length < config.min_edge_length_px {
+        return None;
+    }
+    let direction_angle = (p1.y - p0.y).atan2(p1.x - p0.x);
+    let direction = Point {
+        x: direction_angle.cos(),
+        y: direction_angle.sin(),
+    };
+    let normal = Point {
+        x: -direction.y,
+        y: direction.x,
+    };
+    let (theta, rho) = normalize_polar(normal.y.atan2(normal.x), project(p0, normal));
+    let t0 = project(p0, direction);
+    let t1 = project(p1, direction);
+    Some(Line {
+        theta,
+        rho,
+        p0,
+        p1,
+        direction,
+        t_min: t0.min(t1),
+        t_max: t0.max(t1),
+        support: length,
+    })
+}
+
+fn merged_hough_group(group: &[Line]) -> Option<Line> {
+    let support_sum = group.iter().map(|line| line.support.max(1.0)).sum::<f32>();
+    if support_sum <= 0.0 {
+        return None;
+    }
+    let theta = weighted_bidirectional_angle(
+        group.iter().map(|line| line.theta),
+        group.iter().map(|line| line.support.max(1.0)),
+    );
+    let rho = group
+        .iter()
+        .map(|line| line.rho * line.support.max(1.0))
+        .sum::<f32>()
+        / support_sum;
     let direction = Point {
         x: -theta.sin(),
         y: theta.cos(),
     };
-    let Some((clip0, clip1)) = clip_hough_line(theta, rho, size) else {
-        return Vec::new();
-    };
-    let square_t_min = project(clip0, direction).min(project(clip1, direction));
-    let square_t_max = project(clip0, direction).max(project(clip1, direction));
-    let distance_tolerance = config
-        .hough_line_distance_px
-        .max(config.line_vertex_distance_px * 0.75);
-    let mut projections = Vec::new();
-    for foreground_point in foreground {
-        if point_polar_distance(foreground_point.point, theta, rho) <= distance_tolerance {
-            projections.push((
-                project(foreground_point.point, direction),
-                foreground_point.score,
-            ));
+    let mut t_min = f32::INFINITY;
+    let mut t_max = f32::NEG_INFINITY;
+    for line in group {
+        for point in [line.p0, line.p1] {
+            let t = project(point, direction);
+            t_min = t_min.min(t);
+            t_max = t_max.max(t);
         }
     }
-    if projections.len() < config.hough_vote_threshold.max(3) as usize {
-        return Vec::new();
-    }
-    projections.sort_by(|left, right| left.0.total_cmp(&right.0));
-
-    let mut carriers = Vec::new();
-    let mut run_start = 0usize;
-    for idx in 1..=projections.len() {
-        let gap = if idx < projections.len() {
-            projections[idx].0 - projections[idx - 1].0
-        } else {
-            f32::INFINITY
-        };
-        if gap <= config.hough_max_segment_gap_px {
-            continue;
-        }
-        let run = &projections[run_start..idx];
-        if let Some(line) = carrier_from_projection_run(
-            theta,
-            rho,
-            direction,
-            square_t_min,
-            square_t_max,
-            run,
-            config,
-        ) {
-            carriers.push(line);
-        }
-        run_start = idx;
-    }
-    carriers
-}
-
-fn carrier_from_projection_run(
-    theta: f32,
-    rho: f32,
-    direction: Point,
-    square_t_min: f32,
-    square_t_max: f32,
-    run: &[(f32, f32)],
-    config: &DecodeConfig,
-) -> Option<Line> {
-    if run.len() < config.hough_vote_threshold.max(3) as usize {
-        return None;
-    }
-    let t_min = (run.first()?.0 - config.carrier_extent_padding_px).max(square_t_min);
-    let t_max = (run.last()?.0 + config.carrier_extent_padding_px).min(square_t_max);
-    if t_max - t_min < config.hough_min_segment_length_px {
-        return None;
-    }
-    let support = run.iter().map(|(_, score)| *score).sum::<f32>() / run.len() as f32;
     Some(Line {
         theta,
         rho,
-        votes: run.len() as i32,
         p0: point_on_polar_line(theta, rho, direction, t_min),
         p1: point_on_polar_line(theta, rho, direction, t_max),
         direction,
         t_min,
         t_max,
-        support,
+        support: support_sum,
     })
 }
 
-fn merge_carrier_segments(mut candidates: Vec<Line>, config: &DecodeConfig) -> Vec<Line> {
-    candidates.sort_by(|left, right| {
-        right
-            .votes
-            .cmp(&left.votes)
-            .then_with(|| right.support.total_cmp(&left.support))
-    });
-    let mut merged: Vec<Line> = Vec::new();
-    for line in candidates {
-        if let Some(existing) = merged.iter_mut().find(|existing| {
-            same_carrier_family(existing, &line, config)
-                && projection_intervals_touch(existing, &line, config.carrier_extent_padding_px)
-        }) {
-            existing.t_min = existing.t_min.min(project(line.p0, existing.direction));
-            existing.t_min = existing.t_min.min(project(line.p1, existing.direction));
-            existing.t_max = existing.t_max.max(project(line.p0, existing.direction));
-            existing.t_max = existing.t_max.max(project(line.p1, existing.direction));
-            existing.p0 = point_on_polar_line(
-                existing.theta,
-                existing.rho,
-                existing.direction,
-                existing.t_min,
-            );
-            existing.p1 = point_on_polar_line(
-                existing.theta,
-                existing.rho,
-                existing.direction,
-                existing.t_max,
-            );
-            existing.votes += line.votes;
-            existing.support = existing.support.max(line.support);
-            continue;
-        }
-        merged.push(line);
-        if merged.len() >= config.max_line_hypotheses {
-            break;
-        }
+fn clip_and_pad_carrier(
+    line: Line,
+    size: usize,
+    padding: f32,
+    config: &DecodeConfig,
+) -> Option<Line> {
+    let (clip0, clip1) = clip_hough_line(line.theta, line.rho, size)?;
+    let square_t_min = project(clip0, line.direction).min(project(clip1, line.direction));
+    let square_t_max = project(clip0, line.direction).max(project(clip1, line.direction));
+    let t_min = (line.t_min - padding).max(square_t_min);
+    let t_max = (line.t_max + padding).min(square_t_max);
+    if t_max - t_min < config.min_edge_length_px {
+        return None;
     }
-    merged
+    Some(Line {
+        p0: point_on_polar_line(line.theta, line.rho, line.direction, t_min),
+        p1: point_on_polar_line(line.theta, line.rho, line.direction, t_max),
+        t_min,
+        t_max,
+        ..line
+    })
 }
 
-fn same_carrier_family(left: &Line, right: &Line, config: &DecodeConfig) -> bool {
-    angle_distance(left.theta, right.theta) <= config.carrier_merge_angle_degrees.to_radians()
-        && (left.rho - right.rho).abs() <= config.carrier_merge_rho_px
+fn weighted_bidirectional_angle(
+    angles: impl Iterator<Item = f32>,
+    weights: impl Iterator<Item = f32>,
+) -> f32 {
+    let mut x = 0.0;
+    let mut y = 0.0;
+    for (angle, weight) in angles.zip(weights) {
+        x += (2.0 * angle).cos() * weight;
+        y += (2.0 * angle).sin() * weight;
+    }
+    (0.5 * y.atan2(x)).rem_euclid(std::f32::consts::PI)
 }
 
-fn projection_intervals_touch(left: &Line, right: &Line, gap: f32) -> bool {
-    let right_t0 = project(right.p0, left.direction).min(project(right.p1, left.direction));
-    let right_t1 = project(right.p0, left.direction).max(project(right.p1, left.direction));
-    left.t_min <= right_t1 + gap && right_t0 <= left.t_max + gap
+fn normalize_polar(mut theta: f32, mut rho: f32) -> (f32, f32) {
+    if rho < 0.0 {
+        rho = -rho;
+        theta += std::f32::consts::PI;
+    }
+    (theta.rem_euclid(std::f32::consts::TAU), rho)
 }
 
 fn point_on_polar_line(theta: f32, rho: f32, direction: Point, t: f32) -> Point {
@@ -1515,7 +1528,7 @@ fn default_line_vertex_distance_px() -> f32 {
 }
 
 fn default_hough_vote_threshold() -> u32 {
-    0
+    10
 }
 
 fn default_hough_suppression_radius() -> u32 {
@@ -1531,11 +1544,11 @@ fn default_hough_min_segment_length_px() -> f32 {
 }
 
 fn default_hough_max_segment_gap_px() -> f32 {
-    18.0
+    4.0
 }
 
 fn default_carrier_extent_padding_px() -> f32 {
-    8.0
+    24.0
 }
 
 fn default_carrier_merge_angle_degrees() -> f32 {
@@ -1587,11 +1600,15 @@ mod tests {
         let non_crease_logits = vec![-8.0; pixels];
         let mut assignment_logits = vec![-4.0; pixels * 4];
         let line_style_logits = vec![-4.0; pixels * 4];
-        let boundary_contact_logits = vec![-8.0; pixels];
+        let mut boundary_contact_logits = vec![-8.0; pixels];
 
         draw_prob_line(&mut line_logits, size, (32, 0), (32, 63), 8.0);
         draw_prob_line(&mut line_logits, size, (0, 32), (63, 32), 8.0);
         junction_logits[32 * size + 32] = 8.0;
+        boundary_contact_logits[32] = 8.0;
+        boundary_contact_logits[63 * size + 32] = 8.0;
+        boundary_contact_logits[32 * size] = 8.0;
+        boundary_contact_logits[32 * size + 63] = 8.0;
         for y in 0..size {
             let idx = y * size + 32;
             assignment_logits[idx] = 8.0;
@@ -1613,6 +1630,7 @@ mod tests {
             DecodeConfig {
                 image_size: size as u32,
                 threshold: 0.65,
+                carrier_extent_padding_px: size as f32,
                 ..DecodeConfig::default()
             },
         )
