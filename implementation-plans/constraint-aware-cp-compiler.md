@@ -992,13 +992,18 @@ Phase 10 status:
   browser errors. The local file-picker upload/import flow still needs manual
   end-to-end confirmation because the automated smoke exercises the browser
   model/decode path directly.
+- Added a native/WASM dense-head parity harness. On a two-fixture smoke slice,
+  native Rust and WASM produced matching graph topology within `1e-6`
+  coordinate tolerance and matching reports within `1e-4` numeric tolerance.
+  Exact JSON is not byte-for-byte identical because legacy diagnostic residuals
+  can drift by tiny float amounts across native and WASM runtimes.
 
 Tests:
 
 - [x] Node/WASM compiler fixture test calls `constraint_compiler_v1`.
 - [x] Browser smoke test for modal open and compiler-backed browser detection.
 - [ ] Manual browser smoke test for local file upload/crop/import.
-- [ ] Native Rust and WASM compiler outputs match on fixture inputs.
+- [x] Native Rust and WASM compiler outputs match on fixture inputs.
 
 Gate:
 
