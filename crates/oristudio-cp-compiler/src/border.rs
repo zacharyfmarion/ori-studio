@@ -30,6 +30,7 @@ pub struct LockedBorderReport {
     pub boundary_contact_vertices: usize,
     pub inserted_corner_vertices: usize,
     pub frame: [f64; 4],
+    pub reused_existing_clean_border: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -82,6 +83,19 @@ pub fn lock_square_border(
         .iter()
         .filter(|edge| edge.selection == EdgeSelection::Selected && is_border_edge(edge))
         .count();
+    if existing_selected_border_is_clean(&next, frame, options.boundary_tolerance.max(1e-9)) {
+        return LockedBorderProgram {
+            program: next,
+            report: LockedBorderReport {
+                old_selected_border_edges,
+                new_border_edges: old_selected_border_edges,
+                boundary_contact_vertices: selected_border_vertex_count(program),
+                inserted_corner_vertices: 0,
+                frame: frame.as_array(),
+                reused_existing_clean_border: true,
+            },
+        };
+    }
 
     for edge in &mut next.edges {
         if is_border_edge(edge) {
@@ -192,8 +206,132 @@ pub fn lock_square_border(
             boundary_contact_vertices: boundary_contacts.len(),
             inserted_corner_vertices,
             frame: frame.as_array(),
+            reused_existing_clean_border: false,
         },
     }
+}
+
+fn existing_selected_border_is_clean(
+    program: &CandidateProgram,
+    frame: BorderFrame,
+    tolerance: f64,
+) -> bool {
+    let border_edges: Vec<&CandidateEdge> = program
+        .edges
+        .iter()
+        .filter(|edge| edge.selection == EdgeSelection::Selected && is_border_edge(edge))
+        .collect();
+    if border_edges.len() < 4 {
+        return false;
+    }
+
+    let mut border_vertices = Vec::<usize>::new();
+    let mut degrees = vec![0usize; program.vertices.len()];
+    let mut adjacency = vec![Vec::<usize>::new(); program.vertices.len()];
+    for edge in border_edges {
+        let [a, b] = edge.vertices;
+        if a == b
+            || a >= program.vertices.len()
+            || b >= program.vertices.len()
+            || !edge_lies_on_any_frame_side(program, a, b, frame, tolerance)
+        {
+            return false;
+        }
+        degrees[a] += 1;
+        degrees[b] += 1;
+        adjacency[a].push(b);
+        adjacency[b].push(a);
+        border_vertices.push(a);
+        border_vertices.push(b);
+    }
+    border_vertices.sort_unstable();
+    border_vertices.dedup();
+    if border_vertices.len() < 4
+        || border_vertices
+            .iter()
+            .any(|vertex_index| degrees[*vertex_index] != 2)
+    {
+        return false;
+    }
+    border_vertices_are_connected(&border_vertices, &adjacency)
+}
+
+fn selected_border_vertex_count(program: &CandidateProgram) -> usize {
+    let mut vertices: Vec<usize> = program
+        .edges
+        .iter()
+        .filter(|edge| edge.selection == EdgeSelection::Selected && is_border_edge(edge))
+        .flat_map(|edge| edge.vertices)
+        .collect();
+    vertices.sort_unstable();
+    vertices.dedup();
+    vertices.len()
+}
+
+fn edge_lies_on_any_frame_side(
+    program: &CandidateProgram,
+    a: usize,
+    b: usize,
+    frame: BorderFrame,
+    tolerance: f64,
+) -> bool {
+    let Some(start) = program.vertices.get(a).map(|vertex| vertex.position) else {
+        return false;
+    };
+    let Some(end) = program.vertices.get(b).map(|vertex| vertex.position) else {
+        return false;
+    };
+    [Side::Top, Side::Right, Side::Bottom, Side::Left]
+        .iter()
+        .any(|side| {
+            vertex_on_frame_side(start, frame, *side, tolerance)
+                && vertex_on_frame_side(end, frame, *side, tolerance)
+        })
+}
+
+fn vertex_on_frame_side(point: Point2, frame: BorderFrame, side: Side, tolerance: f64) -> bool {
+    match side {
+        Side::Top => {
+            frame.min_x - tolerance <= point.x
+                && point.x <= frame.max_x + tolerance
+                && (point.y - frame.min_y).abs() <= tolerance
+        }
+        Side::Right => {
+            frame.min_y - tolerance <= point.y
+                && point.y <= frame.max_y + tolerance
+                && (point.x - frame.max_x).abs() <= tolerance
+        }
+        Side::Bottom => {
+            frame.min_x - tolerance <= point.x
+                && point.x <= frame.max_x + tolerance
+                && (point.y - frame.max_y).abs() <= tolerance
+        }
+        Side::Left => {
+            frame.min_y - tolerance <= point.y
+                && point.y <= frame.max_y + tolerance
+                && (point.x - frame.min_x).abs() <= tolerance
+        }
+    }
+}
+
+fn border_vertices_are_connected(border_vertices: &[usize], adjacency: &[Vec<usize>]) -> bool {
+    if border_vertices.is_empty() {
+        return false;
+    }
+    let border: std::collections::BTreeSet<usize> = border_vertices.iter().copied().collect();
+    let mut seen = std::collections::BTreeSet::new();
+    let mut stack = vec![border_vertices[0]];
+    seen.insert(border_vertices[0]);
+    while let Some(vertex) = stack.pop() {
+        for neighbor in &adjacency[vertex] {
+            if !border.contains(neighbor) || seen.contains(neighbor) {
+                continue;
+            }
+            seen.insert(*neighbor);
+            stack.push(*neighbor);
+        }
+    }
+    seen == border
 }
 
 fn snap_boundary_vertex(

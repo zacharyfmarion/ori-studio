@@ -1251,7 +1251,7 @@ artifacts/cp-detect-correctness/dense-cache/smoke-1024-s3-browser-onnx/
   - Browser cache runtime: `346.67s` wall for 12 samples, roughly
     `28-33s/sample`.
   - Native release replay of geometry/border/exactization stages from cached
-    logits: `7.88s` wall for 12 samples, roughly `0.66s/sample`.
+    logits: `6.91s` wall for 12 samples, roughly `0.58s/sample`.
   - Native release replay with topology enabled on a single dense Rabbit Ear
     sample took `51.44s` even with assignment solving skipped. This is too slow
     for the default inner loop. Topology and assignment stages remain available
@@ -1262,22 +1262,23 @@ artifacts/cp-detect-correctness/dense-cache/smoke-1024-s3-browser-onnx/
     square may be inset inside the image. The border pass now infers the active
     paper frame from selected border evidence and preserves existing border
     split/contact vertices before rebuilding deterministic `B` edges.
-  - Current fast-stage metrics on `smoke-1024-s3`:
+  - Current fast-stage metrics on `smoke-1024-s3` after adding legacy-style
+    clean-border reuse:
 
 ```text
 stage                    vertex F1   edge F1   border F1   assignment acc
 legacy                   0.8971      0.7701    0.8971      0.9971
 candidate_seed           0.8971      0.7701    0.8971      0.9971
-locked_border            0.8964      0.7652    0.8778      0.9971
+locked_border            0.8971      0.7701    0.8971      0.9971
 exactized_seed           0.8422      0.6765    0.8265      0.9967
-locked_border_exactized  0.7803      0.6030    0.5567      0.9963
+locked_border_exactized  0.8422      0.6765    0.8265      0.9967
 ```
 
   - Interpretation:
     - Seed conversion is effectively lossless relative to legacy on this pack.
-    - The frame-aware locked-border pass is close to legacy but still slightly
-      worse; it needs targeted border-contact preservation/metric work before
-      it can replace legacy border cleanup.
+    - The frame-aware locked-border pass now matches legacy exactly on this
+      pack because it reuses an existing clean deterministic `B` cycle instead
+      of rebuilding an already-repaired border.
     - Exactization is the clear regression source. This confirms the
       architectural hypothesis: exactization should be a speculative projection
       used for constraint scoring and final export after topology is accepted,
