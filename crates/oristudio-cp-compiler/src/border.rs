@@ -9,6 +9,7 @@ use std::collections::BTreeSet;
 pub struct LockedBorderOptions {
     pub min_edge_length_px: f64,
     pub max_snap_drift_px: f64,
+    pub min_selected_edge_support: f64,
 }
 
 impl Default for LockedBorderOptions {
@@ -16,6 +17,7 @@ impl Default for LockedBorderOptions {
         Self {
             min_edge_length_px: 3.0,
             max_snap_drift_px: 6.0,
+            min_selected_edge_support: 0.35,
         }
     }
 }
@@ -97,6 +99,44 @@ impl SideVertices {
     fn values(&self) -> [&[usize]; 4] {
         [&self.top, &self.right, &self.bottom, &self.left]
     }
+}
+
+fn filter_side_vertices(mut sides: SideVertices, eligible: &[bool]) -> SideVertices {
+    sides
+        .top
+        .retain(|idx| eligible.get(*idx).copied().unwrap_or(false));
+    sides
+        .right
+        .retain(|idx| eligible.get(*idx).copied().unwrap_or(false));
+    sides
+        .bottom
+        .retain(|idx| eligible.get(*idx).copied().unwrap_or(false));
+    sides
+        .left
+        .retain(|idx| eligible.get(*idx).copied().unwrap_or(false));
+    sides
+}
+
+fn eligible_selected_vertex_mask(program: &CandidateProgram, min_support: f64) -> Vec<bool> {
+    let mut eligible = vec![false; program.vertices.len()];
+    for vertex in &program.vertices {
+        if vertex.kind == VertexKind::Corner {
+            if let Some(item) = eligible.get_mut(vertex.id) {
+                *item = true;
+            }
+        }
+    }
+    for edge in &program.edges {
+        if edge.selection != EdgeSelection::Selected || edge.line_support < min_support {
+            continue;
+        }
+        for vertex in edge.vertices {
+            if let Some(item) = eligible.get_mut(vertex) {
+                *item = true;
+            }
+        }
+    }
+    eligible
 }
 
 pub fn lock_square_border(
@@ -189,8 +229,13 @@ fn reconstruct_square_border_chain(
     if program.vertices.len() < 4 || program.edges.is_empty() {
         return None;
     }
+    let eligible_vertices =
+        eligible_selected_vertex_mask(program, options.min_selected_edge_support);
     let snapped_all = snap_vertices_to_frame(program, frame, tolerance);
-    let seed_side_vertices = side_vertices(&snapped_all, frame, tolerance);
+    let seed_side_vertices = filter_side_vertices(
+        side_vertices(&snapped_all, frame, tolerance),
+        &eligible_vertices,
+    );
     let eligible_sides = seed_side_vertices
         .values()
         .into_iter()
@@ -351,10 +396,8 @@ fn reconstruct_square_border_chain(
         .iter()
         .enumerate()
         .filter_map(|(idx, is_selected)| {
-            (*is_selected && idx < program.vertices.len()).then_some(distance(
-                next.vertices[idx].position,
-                program.vertices[idx].position,
-            ))
+            (*is_selected && idx < program.vertices.len() && idx < next.vertices.len())
+                .then(|| distance(next.vertices[idx].position, program.vertices[idx].position))
         })
         .fold(0.0_f64, f64::max);
 

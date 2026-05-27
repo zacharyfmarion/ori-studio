@@ -208,7 +208,7 @@ tensor back to React for every UI interaction.
 Purpose:
 
 Show the graph produced by the legacy threshold/vectorization path, which is
-currently also the compiler seed.
+now a separate comparison baseline rather than the compiler seed.
 
 Substeps:
 
@@ -266,13 +266,15 @@ assignment stages       opt-in slow stage
 
 Important current interpretation:
 
-- `candidate_seed` should match legacy on current smoke data.
-- `locked_border` should match legacy when legacy already emitted a clean border
-  cycle.
+- `candidate_seed` is raw compiler evidence and may differ from legacy,
+  especially around the boundary.
+- `locked_border` is the promoted compiler stage: it applies the compiler-owned
+  deterministic square boundary prior and should preserve legacy-level border
+  metrics while leaving interior candidates benchmarkable against legacy.
 - exactization currently regresses metrics, so this UI should make vertex
   motion and edge changes highly visible.
-- topology and assignment stages can be slow and should be run only when the
-  user asks for slow compiler diagnostics.
+- topology and assignment stages are currently regressive and slow; run them
+  only when the user asks for slow compiler diagnostics.
 
 Visuals:
 
@@ -572,4 +574,3 @@ Benchmark loop:
   query param.
 - How much CAMV/check/flat-folder data can be mapped back to source graph ids.
 - Whether topology diagnostics need cancellation support or only a warning.
-

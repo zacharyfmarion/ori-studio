@@ -30,13 +30,11 @@ pub fn decode_dense_outputs_with_backend(
     match backend {
         DecoderBackend::LegacyV2 => crate::legacy_decode::decode_dense_outputs(outputs, config),
         DecoderBackend::ConstraintCompilerV1 => {
-            let legacy = crate::legacy_decode::decode_dense_outputs(outputs, config.clone())?;
-            let program = crate::legacy_decode::compiler_candidate_program_from_dense_outputs(
+            let program = crate::compiler_decode::candidate_program_from_dense_outputs(
                 outputs,
-                config,
-                &legacy.fold_json,
+                config.clone(),
             )?;
-            compiler_from_program(legacy, program)
+            compiler_from_program(program, config)
         }
     }
 }
@@ -82,11 +80,8 @@ pub fn ablate_dense_outputs_with_options(
     options: CompilerAblationOptions,
 ) -> Result<CompilerAblationResult, DecodeError> {
     let legacy = crate::legacy_decode::decode_dense_outputs(outputs, config.clone())?;
-    let seed = crate::legacy_decode::compiler_candidate_program_from_dense_outputs(
-        outputs,
-        config.clone(),
-        &legacy.fold_json,
-    )?;
+    let seed =
+        crate::compiler_decode::candidate_program_from_dense_outputs(outputs, config.clone())?;
     let locked_border =
         oristudio_cp_compiler::border::lock_square_border(&seed, Default::default());
     let exactized_seed =
@@ -237,23 +232,16 @@ pub fn ablate_dense_outputs_with_options(
 }
 
 fn compiler_from_program(
-    mut legacy_baseline: DecodedFold,
     program: oristudio_cp_compiler::CandidateProgram,
+    config: DecodeConfig,
 ) -> Result<DecodedFold, DecodeError> {
-    let legacy_report = serde_json::to_value(&legacy_baseline.report)?;
+    let locked_border =
+        oristudio_cp_compiler::border::lock_square_border(&program, Default::default());
     let initial_verification = oristudio_cp_compiler::verify::verify_program(
-        &program,
+        &locked_border.program,
         oristudio_cp_compiler::verify::GlobalVerificationOptions::default(),
     );
-    let topology = oristudio_cp_compiler::optimizer::optimize_topology(
-        &program,
-        oristudio_cp_compiler::optimizer::TopologyOptimizerOptions::default(),
-    );
-    let assignments = oristudio_cp_compiler::assignments::solve_assignments(
-        &topology.program,
-        oristudio_cp_compiler::assignments::AssignmentSolverOptions::default(),
-    );
-    let final_program = assignments.program;
+    let final_program = locked_border.program;
     let candidate_verification = oristudio_cp_compiler::verify::verify_program(
         &final_program,
         oristudio_cp_compiler::verify::GlobalVerificationOptions::default(),
@@ -261,10 +249,8 @@ fn compiler_from_program(
     let candidate_clean = verification_clean(&candidate_verification);
     let final_verification = candidate_verification.clone();
     let summary = oristudio_cp_compiler::CompilerSummary::from_program(&final_program);
-    let topology_changed = !topology.accepted_moves.is_empty();
-    let assignment_changed = assignments.decisions.iter().any(|decision| {
-        decision.provenance != oristudio_cp_compiler::Provenance::AssignmentObserved
-    });
+    let topology_changed = false;
+    let assignment_changed = false;
     let compiler_report = serde_json::json!({
         "backend": oristudio_cp_compiler::COMPILER_BACKEND_ID,
         "mode": "global_feedback_v1",
@@ -275,21 +261,25 @@ fn compiler_from_program(
         },
         "summary": summary,
         "candidate_pool": compiler_candidate_pool_summary(&program),
-        "legacy_report": legacy_report,
+        "locked_border": locked_border.report,
         "initial_verification": initial_verification,
         "topology": {
-            "cost": topology.cost,
-            "accepted_moves": topology.accepted_moves,
-            "rejected_move_count": topology.rejected_moves.len(),
-            "exhausted_budget": topology.exhausted_budget,
-            "ambiguous": topology.ambiguous
+            "enabled": false,
+            "reason": "disabled_in_main_backend_after_ablation_regression",
+            "cost": 0.0,
+            "accepted_moves": [],
+            "rejected_move_count": 0,
+            "exhausted_budget": false,
+            "ambiguous": false
         },
         "assignments": {
-            "solved": assignments.solved,
-            "ambiguous": assignments.ambiguous,
-            "exhausted_budget": assignments.exhausted_budget,
-            "cost": assignments.cost,
-            "decisions": assignments.decisions
+            "enabled": false,
+            "reason": "disabled_in_main_backend_until_topology_stage_is_promoted",
+            "solved": false,
+            "ambiguous": false,
+            "exhausted_budget": false,
+            "cost": 0.0,
+            "decisions": []
         },
         "candidate_verification": candidate_verification,
         "final_verification": final_verification
@@ -317,31 +307,31 @@ fn compiler_from_program(
             );
         }
     }
-    legacy_baseline.fold_json = serde_json::to_string_pretty(&fold)?;
-    legacy_baseline.report.decoder_backend = DecoderBackend::ConstraintCompilerV1;
-    legacy_baseline.report.status =
-        compiler_status(&compiler_report, topology_changed, assignment_changed);
-    legacy_baseline.report.vertex_count = summary.vertices;
-    legacy_baseline.report.edge_count = summary.edges;
-    legacy_baseline.report.carrier_count = summary.carriers;
-    legacy_baseline.report.border_edge_count = summary.border_edges;
-    legacy_baseline.report.interior_edge_count = summary.interior_edges;
-    legacy_baseline
-        .report
-        .repair_actions
-        .extend(compiler_repair_actions(&compiler_report));
-    legacy_baseline
-        .report
-        .warnings
-        .extend(compiler_warnings(&compiler_report));
-    if let Some(report) = legacy_baseline.report.quality_report.as_object_mut() {
-        report.insert(
-            "decoder_backend".to_owned(),
-            serde_json::json!(DecoderBackend::ConstraintCompilerV1.id()),
-        );
-        report.insert("compiler_report".to_owned(), compiler_report);
-    }
-    Ok(legacy_baseline)
+    let status = compiler_status(&compiler_report, topology_changed, assignment_changed);
+    let warnings = compiler_warnings(&compiler_report);
+    let repair_actions = compiler_repair_actions(&compiler_report);
+    let quality_report = serde_json::json!({
+        "decoder_backend": DecoderBackend::ConstraintCompilerV1.id(),
+        "compiler_report": compiler_report
+    });
+    Ok(DecodedFold {
+        fold_json: serde_json::to_string_pretty(&fold)?,
+        report: DecodeReport {
+            status,
+            decoder_backend: DecoderBackend::ConstraintCompilerV1,
+            image_size: config.image_size,
+            threshold: config.threshold,
+            line_count: summary.edges,
+            carrier_count: summary.carriers,
+            vertex_count: summary.vertices,
+            edge_count: summary.edges,
+            border_edge_count: summary.border_edges,
+            interior_edge_count: summary.interior_edges,
+            warnings,
+            repair_actions,
+            quality_report,
+        },
+    })
 }
 
 fn ablation_program_stage(
@@ -623,31 +613,15 @@ mod tests {
     #[test]
     fn compiler_backend_runs_global_feedback_pipeline() {
         let (outputs, config) = square_cross_fixture();
-        let legacy =
-            decode_dense_outputs_with_backend(outputs, config.clone(), DecoderBackend::LegacyV2)
-                .expect("legacy decode");
         let compiler = decode_dense_outputs_with_backend(
             outputs,
             config,
             DecoderBackend::ConstraintCompilerV1,
         )
         .expect("compiler decode");
-        let legacy_fold: Value = serde_json::from_str(&legacy.fold_json).expect("legacy fold");
         let compiler_fold: Value =
             serde_json::from_str(&compiler.fold_json).expect("compiler fold");
 
-        assert_eq!(
-            legacy_fold["vertices_coords"],
-            compiler_fold["vertices_coords"]
-        );
-        assert_eq!(
-            legacy_fold["edges_vertices"],
-            compiler_fold["edges_vertices"]
-        );
-        assert_eq!(
-            legacy_fold["edges_assignment"],
-            compiler_fold["edges_assignment"]
-        );
         assert_eq!(
             compiler.report.decoder_backend,
             DecoderBackend::ConstraintCompilerV1
@@ -664,8 +638,34 @@ mod tests {
         assert!(
             compiler.report.quality_report["compiler_report"]["initial_verification"].is_object()
         );
+        assert!(compiler.report.quality_report["compiler_report"]["locked_border"].is_object());
+        assert!(
+            compiler.report.quality_report["compiler_report"]["locked_border"]
+                ["old_selected_border_edges"]
+                .as_u64()
+                .expect("old selected border edges")
+                <= compiler.report.quality_report["compiler_report"]["locked_border"]
+                    ["new_border_edges"]
+                    .as_u64()
+                    .expect("new border edges")
+        );
+        assert!(
+            compiler.report.quality_report["compiler_report"]["locked_border"]["new_border_edges"]
+                .as_u64()
+                .expect("new border edges")
+                > 0
+        );
         assert!(
             compiler.report.quality_report["compiler_report"]["final_verification"].is_object()
+        );
+        assert_eq!(
+            compiler.report.quality_report["compiler_report"]["topology"]["enabled"],
+            false
+        );
+        assert!(
+            compiler.report.quality_report["compiler_report"]
+                .get("legacy_report")
+                .is_none()
         );
     }
 

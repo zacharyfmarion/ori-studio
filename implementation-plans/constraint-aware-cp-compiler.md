@@ -699,29 +699,31 @@ Phase 2 status:
   intermediates," the first implementation built `CandidateProgram` only from
   the final legacy FOLD output. That violated Step 1 of this plan because weak
   carriers/edges discarded by legacy thresholding never reached the compiler.
-- Corrected on May 27, 2026: `DecoderBackend::ConstraintCompilerV1` now runs
-  legacy decode only as a baseline seed/reporting source, then augments the
-  compiler candidate pool from dense detector evidence using permissive
-  thresholds, Hough carriers, merged junction/boundary vertices, assignment
-  logits, and line-style-aware support.
+- Corrected on May 27, 2026: `DecoderBackend::ConstraintCompilerV1` no longer
+  consumes final legacy FOLD or uses legacy as a hidden fallback. It builds a
+  compiler candidate pool from dense detector evidence using selected interior
+  edges, permissive weak interior candidates, boundary-contact evidence, and the
+  compiler-owned square boundary prior.
 - Updated on May 27, 2026: the compiler backend no longer preserves or emits
   legacy geometry when the candidate is not clean. `ConstraintCompilerV1` always
   exports the compiled candidate. Legacy remains available only as the separate
   `LegacyV2` backend so benchmarks can compare compiler output against legacy.
-- Automatic repair, exact arrangement, diagnostics, and assignment solving are
-  still intentionally not implemented.
+- Updated on May 27, 2026: topology repair, exactization, and assignment
+  solving remain available as ablation/debug stages, but are not promoted into
+  the main compiler backend because current smoke metrics show they are
+  regressive.
 
 Unit tests:
 
 - [x] Candidate graph round-trips through JSON.
 - [x] Provenance is preserved.
-- [x] No-op compiler output matches legacy on tiny fixtures.
+- [x] Compiler output carries an explicit locked-border report on tiny fixtures.
 - [x] Compiler candidate pool can contain observed undecided edges; only selected
   compiler edges are exported to FOLD.
 
 Gate:
 
-- [x] Compiler backend can run without changing output.
+- [x] Compiler backend can run independently from legacy FOLD/fallback.
 - [x] The compiler no longer relies only on final legacy FOLD geometry for its
   candidate universe.
 
@@ -1008,13 +1010,17 @@ Benchmark gate:
 
 Phase 10 status:
 
-- The detector backend router now runs the full compiler pipeline for
-  `constraint_compiler_v1`: candidate graph, topology optimization, assignment
-  solving, FOLD export, and global verification metadata.
+- The detector backend router now runs the promoted compiler pipeline for
+  `constraint_compiler_v1`: candidate graph, compiler-owned locked square
+  boundary, FOLD export, and global verification metadata.
 - After the May 27 divergence correction, the candidate graph is no longer
-  reconstructed only from final legacy FOLD. The backend still runs legacy for
-  baseline/reporting, but compiler input is augmented from dense detector
-  evidence and contains observed undecided candidate edges.
+  reconstructed from final legacy FOLD, and the backend does not run legacy for
+  seeding or fallback. Legacy remains callable only as the separate
+  `legacy_v2_decoder` backend for benchmark/A-B comparison.
+- Topology optimization, assignment solving, and exactization remain exposed in
+  ablation/debug output, but the main backend intentionally stops at
+  `locked_border` because the current optimizer/exactizer stages regress smoke
+  metrics.
 - The legacy backend remains the default low-level WASM decode function and is
   still available through worker options for A/B comparisons.
 - The CP import modal now requests `constraint_compiler_v1` by default and shows
@@ -1028,7 +1034,7 @@ Phase 10 status:
   off-by-default review toggles for inferred geometry and M/V assignment
   changes.
 - The browser integration no longer uses a conservative compiler acceptance
-  fallback. `ConstraintCompilerV1` always emits the compiled candidate and
+  fallback. `ConstraintCompilerV1` always emits the compiler candidate and
   records whether that candidate verified clean in
   `compiler_report.output.verified_clean`. Non-clean candidates emit
   `constraint_compiler_unresolved` warnings with the verifier classifications.
@@ -1253,18 +1259,20 @@ artifacts/cp-detect-correctness/dense-cache/smoke-1024-s3-browser-onnx/
   - Browser cache runtime: `346.67s` wall for 12 samples, roughly
     `28-33s/sample`.
   - Native release replay of geometry/border/exactization stages from cached
-    logits: `6.18s` wall for 12 samples, roughly `0.51s/sample`.
-  - Native release replay with topology enabled on a single dense Rabbit Ear
-    sample took `51.44s` even with assignment solving skipped. This is too slow
-    for the default inner loop. Topology and assignment stages remain available
-    as opt-in slower checks, but the fast loop should focus on seed conversion,
-    locked border, and exactization first.
+    logits: `10.04s` wall for 12 samples, roughly `0.84s/sample`.
+  - Native release replay with topology and assignment stages enabled took
+    `308.8s` wall for 12 samples. Dense Rabbit Ear samples dominated the run
+    (`55-93s` each). This is too slow for the default inner loop. Topology and
+    assignment stages remain available as opt-in slower checks, but the fast
+    loop should focus on seed conversion, locked border, and exactization first.
   - Border cleanup status: complete legacy-equivalent port lives in
     `crates/oristudio-cp-compiler/src/border.rs`. The earlier simplified
     compiler-only rebuild path has been removed. Border creases are determined
     with the legacy reconstruction semantics:
-    - infer the active square frame from selected `B` edges first, then all
+    - infer the active square frame from selected `B`/border evidence, then all
       vertices only as a fallback
+    - split the frame only at vertices supported by selected edges above the
+      conservative repair threshold, plus corners
     - reuse an existing clean connected square-frame `B` cycle unchanged
     - snap frame vertices only within the legacy drift limit
     - require at least three eligible sides and at least two selected vertices
@@ -1272,35 +1280,44 @@ artifacts/cp-detect-correctness/dense-cache/smoke-1024-s3-browser-onnx/
     - preserve legacy side ordering and minimum spacing
     - remove/rebuild frame-side border edges as deterministic `B` edges
     - downgrade off-frame `B` labels instead of letting them pollute the border
-  - Current fast-stage metrics on `smoke-1024-s3` after the legacy-equivalent
-    border port:
+  - Current fast-stage metrics on `smoke-1024-s3` after the compiler-owned
+    boundary prior correction:
 
 ```text
 stage                    vertex F1   edge F1   border F1   assignment acc
 legacy                   0.8971      0.7701    0.8971      0.9971
-candidate_seed           0.8971      0.7701    0.8971      0.9971
-locked_border            0.8971      0.7701    0.8971      0.9971
-exactized_seed           0.8422      0.6765    0.8265      0.9967
-locked_border_exactized  0.8422      0.6765    0.8265      0.9967
+candidate_seed           0.8972      0.7613    0.8281      0.9505
+locked_border            0.8978      0.7646    0.8971      0.9905
+exactized_seed           0.7850      0.6005    0.5906      0.9493
+locked_border_exactized  0.7781      0.5948    0.5765      0.9890
+```
+
+  - Full ablation with topology/assignment enabled:
+
+```text
+stage                       vertex F1   edge F1   border F1   assignment acc
+topology_locked_border      0.7866      0.6095    0.5844      0.9893
+assignments_locked_border   0.7866      0.6095    0.5844      0.9893
+topology_current            0.7803      0.6009    0.5790      0.9543
+assignments_current         0.7803      0.6009    0.5790      0.9543
 ```
 
   - Interpretation:
-    - Seed conversion is effectively lossless relative to legacy on this pack.
-    - The compiler border stage now matches legacy exactly on this pack. This
-      is intentional: the benchmark samples already have clean legacy border
-      cycles, so the compiler must not rebuild or perturb them.
-    - Exactization is the clear regression source. This confirms the
-      architectural hypothesis: exactization should be a speculative projection
-      used for constraint scoring and final export after topology is accepted,
-      not an unconditional early mutation.
-    - The current topology optimizer is also too slow for dense native replay
-      and needs profiling/bounding before it is part of every benchmark run.
+    - The compiler boundary prior now restores legacy-level border F1 without
+      consuming legacy FOLD or falling back to legacy output.
+    - `candidate_seed` confirms why the boundary prior is necessary: raw model
+      evidence has reasonable vertices/edges but worse border and assignment
+      metrics.
+    - Exactization is still a clear regression source and should remain a
+      speculative scoring/export tool, not an unconditional early mutation.
+    - The current topology optimizer is both slow and destructive on this pack,
+      so it must remain out of the main backend until repaired.
 - Decision for this phase: keep legacy as an explicit benchmark/backend, but
-  benchmark raw compiler stages directly. The border module is now the
-  compiler-owned home for the legacy border algorithm, not a second competing
-  algorithm. The next compiler work should focus on moving exactization into
-  score/evaluate/export contexts and profiling/bounding topology search before
-  promotion.
+  benchmark raw compiler stages directly. The main compiler backend currently
+  emits the `locked_border` stage. The border module is now the compiler-owned
+  home for the deterministic square boundary prior, not a second competing
+  algorithm. The next compiler work should focus on improving assignment
+  attribution and replacing/profiling topology search before promotion.
 
 Benchmark artifacts:
 
@@ -1308,6 +1325,10 @@ Benchmark artifacts:
 artifacts/cp-detect-correctness/dense-cache/smoke-1024-s3-browser-onnx/manifest.json
 artifacts/cp-detect-correctness/runs/smoke-1024-s3/native-ablation-geometry-release/ablation_manifest.json
 artifacts/cp-detect-correctness/reports/smoke-1024-s3-native-ablation-geometry-release/
+artifacts/cp-detect-correctness/runs/smoke-1024-s3/native-ablation-compiler-boundary-prior-v2/ablation_manifest.json
+artifacts/cp-detect-correctness/reports/smoke-1024-s3-native-ablation-compiler-boundary-prior-v2/
+artifacts/cp-detect-correctness/runs/smoke-1024-s3/native-ablation-compiler-full-v2/ablation_manifest.json
+artifacts/cp-detect-correctness/reports/smoke-1024-s3-native-ablation-compiler-full-v2/
 artifacts/cp-detect-correctness/reports/smoke-1024-s3-compiler-v1-conservative/summary.md
 artifacts/cp-detect-correctness/reports/smoke-1024-s3-compiler-v1-conservative/contact_sheet.png
 artifacts/cp-detect-correctness/reports/smoke-1024-s3-compiler-v1-evidence-pool/summary.md

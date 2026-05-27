@@ -5,6 +5,7 @@
 //! later roadmap phases behind these contracts.
 
 mod backend;
+mod compiler_decode;
 pub mod decode;
 mod legacy_decode;
 pub mod opencv_hough_lines_p;
