@@ -174,6 +174,8 @@ pub enum DecodeError {
     Hough(#[from] crate::opencv_hough_lines_p::HoughError),
     #[error("failed to serialize FOLD JSON: {0}")]
     Json(#[from] serde_json::Error),
+    #[error("constraint compiler failed: {0}")]
+    Compiler(#[from] oristudio_cp_compiler::CompilerError),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

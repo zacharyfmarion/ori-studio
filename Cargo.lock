@@ -2461,11 +2461,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "oristudio-cp-compiler"
+version = "0.1.2"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "oristudio-cp-detect"
 version = "0.1.2"
 dependencies = [
  "image",
  "imageproc",
+ "oristudio-cp-compiler",
  "serde",
  "serde_json",
  "thiserror 2.0.18",

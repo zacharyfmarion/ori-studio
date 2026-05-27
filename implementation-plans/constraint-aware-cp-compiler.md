@@ -675,22 +675,32 @@ Gate:
 
 ### Phase 2: Compiler Data Model
 
-- [ ] Add `crates/oristudio-cp-compiler`.
-- [ ] Define evidence, carriers, vertices, edges, assignments, and provenance.
-- [ ] Add conversion from current legacy decoder intermediates into a
+- [x] Add `crates/oristudio-cp-compiler`.
+- [x] Define evidence, carriers, vertices, edges, assignments, and provenance.
+- [x] Add conversion from current legacy decoder intermediates into a
   `CandidateProgram`.
-- [ ] Add JSON serialization for debug reports.
-- [ ] Add no-op compiler path that emits the same graph as legacy.
+- [x] Add JSON serialization for debug reports.
+- [x] Add no-op compiler path that emits the same graph as legacy.
+
+Phase 2 status:
+
+- Completed in this implementation pass.
+- `oristudio-cp-compiler` now owns the candidate program data model.
+- The compiler can build a `CandidateProgram` from the legacy FOLD output.
+- `DecoderBackend::ConstraintCompilerV1` runs a no-op compiler pass over legacy
+  output and preserves the graph while adding compiler metadata.
+- Automatic repair, exact arrangement, diagnostics, and assignment solving are
+  still intentionally not implemented.
 
 Unit tests:
 
-- Candidate graph round-trips through JSON.
-- Provenance is preserved.
-- No-op compiler output matches legacy on tiny fixtures.
+- [x] Candidate graph round-trips through JSON.
+- [x] Provenance is preserved.
+- [x] No-op compiler output matches legacy on tiny fixtures.
 
 Gate:
 
-- Compiler backend can run without changing output.
+- [x] Compiler backend can run without changing output.
 
 ### Phase 3: Exact Square Arrangement
 

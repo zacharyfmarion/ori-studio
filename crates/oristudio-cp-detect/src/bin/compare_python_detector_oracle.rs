@@ -1311,6 +1311,9 @@ impl Args {
 fn parse_decoder_backend(value: &str) -> Result<DecoderBackend, Box<dyn std::error::Error>> {
     match value {
         "legacy-v2" | "legacy_v2" | "legacy_v2_decoder" => Ok(DecoderBackend::LegacyV2),
+        "constraint-compiler-v1" | "constraint_compiler_v1" => {
+            Ok(DecoderBackend::ConstraintCompilerV1)
+        }
         other => Err(format!("unsupported decoder backend: {other}").into()),
     }
 }

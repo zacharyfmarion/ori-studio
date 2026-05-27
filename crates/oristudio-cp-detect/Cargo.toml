@@ -13,6 +13,7 @@ include = ["Cargo.toml", "src/**", "tests/**"]
 [dependencies]
 image.workspace = true
 imageproc.workspace = true
+oristudio-cp-compiler.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
