@@ -1251,19 +1251,27 @@ artifacts/cp-detect-correctness/dense-cache/smoke-1024-s3-browser-onnx/
   - Browser cache runtime: `346.67s` wall for 12 samples, roughly
     `28-33s/sample`.
   - Native release replay of geometry/border/exactization stages from cached
-    logits: `6.91s` wall for 12 samples, roughly `0.58s/sample`.
+    logits: `6.18s` wall for 12 samples, roughly `0.51s/sample`.
   - Native release replay with topology enabled on a single dense Rabbit Ear
     sample took `51.44s` even with assignment solving skipped. This is too slow
     for the default inner loop. Topology and assignment stages remain available
     as opt-in slower checks, but the fast loop should focus on seed conversion,
     locked border, and exactization first.
-  - The first locked-border pass hard-coded the paper frame as `[0, 0, 1, 1]`.
-    That was wrong for benchmark/browser coordinates, where the rendered paper
-    square may be inset inside the image. The border pass now infers the active
-    paper frame from selected border evidence and preserves existing border
-    split/contact vertices before rebuilding deterministic `B` edges.
-  - Current fast-stage metrics on `smoke-1024-s3` after adding legacy-style
-    clean-border reuse:
+  - Border cleanup status: complete legacy-equivalent port lives in
+    `crates/oristudio-cp-compiler/src/border.rs`. The earlier simplified
+    compiler-only rebuild path has been removed. Border creases are determined
+    with the legacy reconstruction semantics:
+    - infer the active square frame from selected `B` edges first, then all
+      vertices only as a fallback
+    - reuse an existing clean connected square-frame `B` cycle unchanged
+    - snap frame vertices only within the legacy drift limit
+    - require at least three eligible sides and at least two selected vertices
+      per side before rebuilding
+    - preserve legacy side ordering and minimum spacing
+    - remove/rebuild frame-side border edges as deterministic `B` edges
+    - downgrade off-frame `B` labels instead of letting them pollute the border
+  - Current fast-stage metrics on `smoke-1024-s3` after the legacy-equivalent
+    border port:
 
 ```text
 stage                    vertex F1   edge F1   border F1   assignment acc
@@ -1276,33 +1284,20 @@ locked_border_exactized  0.8422      0.6765    0.8265      0.9967
 
   - Interpretation:
     - Seed conversion is effectively lossless relative to legacy on this pack.
-    - The frame-aware locked-border pass now matches legacy exactly on this
-      pack because it reuses an existing clean deterministic `B` cycle instead
-      of rebuilding an already-repaired border.
+    - The compiler border stage now matches legacy exactly on this pack. This
+      is intentional: the benchmark samples already have clean legacy border
+      cycles, so the compiler must not rebuild or perturb them.
     - Exactization is the clear regression source. This confirms the
       architectural hypothesis: exactization should be a speculative projection
       used for constraint scoring and final export after topology is accepted,
       not an unconditional early mutation.
     - The current topology optimizer is also too slow for dense native replay
       and needs profiling/bounding before it is part of every benchmark run.
-- The fallback result exactly matched legacy browser metrics on the slice:
-
-```text
-vertex F1:      0.8970679975 -> 0.8970679975 (+0.0000)
-edge F1:        0.7700810612 -> 0.7700810612 (+0.0000)
-border F1:      0.8970588235 -> 0.8970588235 (+0.0000)
-assignment acc: 0.9971291866 -> 0.9971291866 (+0.0000)
-structural:     1.0000000000 -> 1.0000000000 (+0.0000)
-```
-
-- Historical note: the fallback result above was from the conservative browser
-  compiler wrapper. That fallback path has been removed from compiler
-  benchmarking because the goal is to compare compiler output against legacy,
-  not silently emit legacy when compiler output is worse.
 - Decision for this phase: keep legacy as an explicit benchmark/backend, but
-  benchmark raw compiler stages directly. The next compiler work should focus
-  on making locked-border non-regressive, moving exactization into
-  score/evaluate/export contexts, and profiling/bounding topology search before
+  benchmark raw compiler stages directly. The border module is now the
+  compiler-owned home for the legacy border algorithm, not a second competing
+  algorithm. The next compiler work should focus on moving exactization into
+  score/evaluate/export contexts and profiling/bounding topology search before
   promotion.
 
 Benchmark artifacts:
