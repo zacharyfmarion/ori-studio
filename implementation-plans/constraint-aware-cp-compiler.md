@@ -1024,7 +1024,8 @@ Gate:
 
 - [x] Run legacy vs compiler benchmark on the first agreed smoke slice.
 - [x] Produce report with graph metrics and product metrics.
-- [ ] Produce contact sheets for visually inspecting inferred/deleted creases.
+- [x] Produce contact sheets for visually inspecting raw compiler candidates
+  against ground truth, legacy output, and final emitted output.
 - [x] Decide whether compiler becomes the default emitted graph for this slice.
 
 Phase 11 status:
@@ -1057,6 +1058,8 @@ Benchmark artifacts:
 ```text
 artifacts/cp-detect-correctness/reports/smoke-1024-s3-compiler-v1-conservative/summary.md
 artifacts/cp-detect-correctness/reports/smoke-1024-s3-compiler-v1-conservative/contact_sheet.png
+artifacts/cp-detect-correctness/reports/smoke-1024-s3-compiler-audit/compiler_audit_sheet.png
+artifacts/cp-detect-correctness/reports/smoke-1024-s3-compiler-audit/compiler_audit.md
 ```
 
 Promotion criteria:
