@@ -4,6 +4,7 @@
 //! phases replace the no-op path with exact arrangement, diagnostics, repair,
 //! assignment solving, and verification.
 
+pub mod arrangement;
 pub mod candidates;
 pub mod evidence;
 pub mod fold_export;
@@ -48,7 +49,9 @@ pub enum CompilerError {
 pub fn compile_noop(input: NoopCompileInput) -> Result<CompilerOutput, CompilerError> {
     let fold_value: Value = serde_json::from_str(&input.fold_json)?;
     let program = CandidateProgram::from_fold_value(&fold_value)?;
-    let report = CompilerReport::noop(&program, input.legacy_report);
+    let arrangement =
+        arrangement::build_square_arrangement(&program, arrangement::ArrangementOptions::default());
+    let report = CompilerReport::noop(&program, Some(arrangement.summary()), input.legacy_report);
     Ok(CompilerOutput {
         fold_json: input.fold_json,
         program,

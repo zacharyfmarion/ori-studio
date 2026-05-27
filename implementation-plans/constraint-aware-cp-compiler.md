@@ -704,24 +704,37 @@ Gate:
 
 ### Phase 3: Exact Square Arrangement
 
-- [ ] Implement unit-square frame representation.
-- [ ] Implement side-sorted boundary vertices.
-- [ ] Implement carrier-boundary and carrier-carrier intersections.
-- [ ] Implement deterministic edge interval construction.
-- [ ] Rebuild square border as exact `B` edges.
+- [x] Implement unit-square frame representation.
+- [x] Implement side-sorted boundary vertices.
+- [x] Implement carrier-boundary and carrier-carrier intersections.
+- [x] Implement deterministic edge interval construction.
+- [x] Rebuild square border as exact `B` edges.
+
+Phase 3 status:
+
+- Completed in this implementation pass as compiler-internal arrangement
+  infrastructure.
+- `SquareArrangement` now creates virtual exact corners, deduplicates existing
+  boundary vertices, computes carrier-square contacts, computes carrier-carrier
+  intersections inside the unit square, and emits deterministic side-ordered
+  border intervals.
+- The compiler report includes an arrangement summary.
+- This phase does not yet rewrite exported FOLD geometry; Phase 4 moves from
+  arrangement to projection/exactization.
 
 Unit tests:
 
-- Four square sides are always exact.
-- Boundary contacts are sorted correctly on all four sides.
-- Corners are stable and not duplicated.
-- A carrier crossing the square creates the expected two boundary contacts.
-- Adjacent contacts create deterministic border edges.
+- [x] Four square sides are always exact.
+- [x] Boundary contacts are sorted correctly on all four sides.
+- [x] Corners are stable and not duplicated.
+- [x] A carrier crossing the square creates the expected two boundary contacts.
+- [x] Adjacent contacts create deterministic border edges.
 
 Gate:
 
-- Border topology improves or stays equal on benchmark smoke cases.
-- No complete-square regressions.
+- [x] Border topology stays equal because this phase is report-only and does not
+  mutate exported FOLD.
+- [x] No complete-square regressions.
 
 ### Phase 4: Geometric Projection / Exactizer V1
 
