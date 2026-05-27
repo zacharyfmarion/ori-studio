@@ -60,6 +60,8 @@ origami/compiler failure.
 - `exact-python-detector-web-port.md` tracks the frozen Python V2 decoder port.
 - `rust-cp-detector-quality-parity.md` is superseded by the exact-port plan for
   Python parity work.
+- `cp-detect-debug-stepper-ui.md` tracks the browser debug stepper that explains
+  and visualizes this pipeline inside the upload modal.
 
 This plan is a new architecture layer. It should initially run beside the legacy
 decoder, compare against it, and replace it only when metrics and manual review
