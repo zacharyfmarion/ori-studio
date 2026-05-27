@@ -1060,8 +1060,13 @@ artifacts/cp-detect-correctness/reports/smoke-1024-s3-compiler-v1-conservative/s
 artifacts/cp-detect-correctness/reports/smoke-1024-s3-compiler-v1-conservative/contact_sheet.png
 artifacts/cp-detect-correctness/reports/smoke-1024-s3-compiler-audit/compiler_audit_sheet.png
 artifacts/cp-detect-correctness/reports/smoke-1024-s3-compiler-audit/compiler_delta_sheet.png
+artifacts/cp-detect-correctness/reports/smoke-1024-s3-compiler-audit/compiler_fourup_sheet_thin.png
 artifacts/cp-detect-correctness/reports/smoke-1024-s3-compiler-audit/compiler_audit.md
 ```
+
+Diff note: the audit diff is tolerance-matched by segment geometry. Exactization
+can move endpoints without changing the visual crease, so exact endpoint-key
+matching produced false purple “added” lines during review.
 
 Promotion criteria:
 

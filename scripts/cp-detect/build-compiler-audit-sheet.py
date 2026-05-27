@@ -24,14 +24,14 @@ ASSIGNMENT_COLORS = {
     "F": (155, 155, 155),
     "U": (130, 138, 148),
 }
-RENDER_SCALE = 4
+RENDER_SCALE = 8
 RENDER_PADDING = 8
 ASSIGNMENT_WIDTHS = {
-    "B": 1.8,
-    "M": 1.2,
-    "V": 1.2,
-    "F": 1.1,
-    "U": 1.1,
+    "B": 1.15,
+    "M": 0.7,
+    "V": 0.7,
+    "F": 0.65,
+    "U": 0.65,
 }
 DIFF_COLORS = {
     "same": (188, 196, 208),
@@ -39,6 +39,7 @@ DIFF_COLORS = {
     "added": (153, 81, 230),
     "changed": (226, 180, 35),
 }
+EDGE_MATCH_TOLERANCE = 0.03
 
 
 def main() -> int:
@@ -86,6 +87,21 @@ def main() -> int:
     args.out_dir.mkdir(parents=True, exist_ok=True)
     write_sheet(rows=rows, out_path=args.out_dir / "compiler_audit_sheet.png", cell=args.cell)
     write_delta_sheet(rows=rows, out_path=args.out_dir / "compiler_delta_sheet.png", cell=args.cell)
+    write_sheet(
+        rows=rows,
+        out_path=args.out_dir / "compiler_audit_sheet_thin.png",
+        cell=args.cell,
+    )
+    write_delta_sheet(
+        rows=rows,
+        out_path=args.out_dir / "compiler_delta_sheet_thin.png",
+        cell=args.cell,
+    )
+    write_fourup_sheet(
+        rows=rows,
+        out_path=args.out_dir / "compiler_fourup_sheet_thin.png",
+        cell=args.cell,
+    )
     write_json(args.out_dir / "compiler_audit.json", {"samples": rows})
     write_markdown(args.out_dir / "compiler_audit.md", rows)
     return 0
@@ -291,6 +307,83 @@ def write_delta_sheet(*, rows: list[dict[str, Any]], out_path: Path, cell: int) 
     sheet.save(out_path)
 
 
+def write_fourup_sheet(*, rows: list[dict[str, Any]], out_path: Path, cell: int) -> None:
+    cols = 4
+    header_h = 72
+    row_h = header_h + cell + 18
+    label_h = 40
+    width = cols * cell
+    height = label_h + max(1, len(rows)) * row_h
+    sheet = Image.new("RGB", (width, height), (255, 255, 255))
+    draw = ImageDraw.Draw(sheet)
+    font = ImageFont.load_default()
+    bold = ImageFont.load_default()
+    titles = [
+        "Ground truth",
+        "Legacy prediction",
+        "Compiler candidate",
+        "Legacy -> compiler diff",
+    ]
+    subtitles = [
+        "",
+        "",
+        "",
+        "gray=same  orange=removed  purple=added  yellow=M/V changed",
+    ]
+    for col, title in enumerate(titles):
+        x = col * cell
+        draw.rectangle((x, 0, x + cell, label_h), fill=(245, 247, 250))
+        draw.text((x + 10, 7), title, fill=(20, 24, 32), font=bold)
+        if subtitles[col]:
+            draw.text((x + 10, 24), subtitles[col], fill=(90, 99, 112), font=font)
+
+    for row_index, row in enumerate(rows):
+        y = label_h + row_index * row_h
+        if row_index % 2:
+            draw.rectangle((0, y, width, y + row_h), fill=(250, 251, 253))
+        diff = row["diff"]
+        draw.text(
+            (10, y + 8),
+            f"{row['profile']} | {row['family']} | {short_id(row['id'])}",
+            fill=(18, 24, 38),
+            font=bold,
+        )
+        draw.text(
+            (10, y + 25),
+            f"legacy={row['legacy_status']}  compiler={row['candidate_status']}  removed={diff['removed']} added={diff['added']} assignment_changed={diff['assignment_changed']}",
+            fill=(55, 65, 81),
+            font=font,
+        )
+        classes = ", ".join(str(item) for item in row["candidate_classes"]) or "none"
+        draw.text(
+            (10, y + 42),
+            f"compiler verification: {classes}"[:160],
+            fill=(90, 99, 112),
+            font=font,
+        )
+
+        panels = [
+            load_panel_image(row["gt_fold"], cell - 20),
+            load_panel_image(row["legacy_fold"], cell - 20),
+            load_panel_image(row["candidate_fold"], cell - 20),
+            render_diff_panel(row["legacy_fold"], row["candidate_fold"], cell - 20),
+        ]
+        for col, image in enumerate(panels):
+            x = col * cell
+            px = x + (cell - image.width) // 2
+            py = y + header_h + (cell - image.height) // 2
+            sheet.paste(image, (px, py))
+            draw.rectangle(
+                (x + 8, y + header_h + 8, x + cell - 8, y + header_h + cell - 8),
+                outline=(205, 212, 222),
+                width=1,
+            )
+        draw.line((0, y + row_h - 1, width, y + row_h - 1), fill=(225, 229, 235))
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    sheet.save(out_path)
+
+
 def load_panel_image(path: str | None, size: int) -> Image.Image:
     if path is None:
         return missing_panel(size)
@@ -351,51 +444,122 @@ def render_diff_panel(legacy_path: str | None, candidate_path: str | None, size:
         return missing_panel(size)
     legacy = load_json(legacy_file)
     candidate = load_json(candidate_file)
-    legacy_edges = edge_map(legacy)
-    candidate_edges = edge_map(candidate)
+    diff = diff_edges(legacy, candidate)
     hi_size = size * RENDER_SCALE
     image = Image.new("RGB", (hi_size, hi_size), (255, 255, 255))
     draw = ImageDraw.Draw(image)
-    common = sorted(set(legacy_edges) & set(candidate_edges))
-    removed = sorted(set(legacy_edges) - set(candidate_edges))
-    added = sorted(set(candidate_edges) - set(legacy_edges))
-    changed = [
-        key for key in common if legacy_edges[key]["assignment"] != candidate_edges[key]["assignment"]
-    ]
-    for key in common:
-        if key not in changed:
-            draw_segment(
-                draw,
-                legacy_edges[key]["segment"],
-                hi_size,
-                DIFF_COLORS["same"],
-                stroke_width(0.9),
-            )
-    for key in removed:
+    for legacy_edge, _candidate_edge in diff["same"]:
         draw_segment(
             draw,
-            legacy_edges[key]["segment"],
+            legacy_edge["segment"],
             hi_size,
-            DIFF_COLORS["removed"],
-            stroke_width(2.0),
+            DIFF_COLORS["same"],
+            stroke_width(0.9),
         )
-    for key in added:
+    for _legacy_edge, candidate_edge in diff["changed"]:
         draw_segment(
             draw,
-            candidate_edges[key]["segment"],
-            hi_size,
-            DIFF_COLORS["added"],
-            stroke_width(2.0),
-        )
-    for key in changed:
-        draw_segment(
-            draw,
-            candidate_edges[key]["segment"],
+            candidate_edge["segment"],
             hi_size,
             DIFF_COLORS["changed"],
             stroke_width(2.0),
         )
+    for legacy_edge in diff["removed"]:
+        draw_segment(
+            draw,
+            legacy_edge["segment"],
+            hi_size,
+            DIFF_COLORS["removed"],
+            stroke_width(2.0),
+        )
+    for candidate_edge in diff["added"]:
+        draw_segment(
+            draw,
+            candidate_edge["segment"],
+            hi_size,
+            DIFF_COLORS["added"],
+            stroke_width(2.0),
+        )
     return downsample(image, size)
+
+
+def diff_edges(legacy: dict[str, Any], candidate: dict[str, Any]) -> dict[str, Any]:
+    legacy_edges = edge_records(legacy)
+    candidate_edges = edge_records(candidate)
+    candidate_by_index = {edge["index"]: edge for edge in candidate_edges}
+    unmatched_legacy = {edge["index"]: edge for edge in legacy_edges}
+    unmatched_candidate = {edge["index"]: edge for edge in candidate_edges}
+    possible_matches = []
+    for legacy_edge in legacy_edges:
+        for candidate_edge in candidate_edges:
+            distance = segment_endpoint_distance(legacy_edge["segment"], candidate_edge["segment"])
+            if distance <= EDGE_MATCH_TOLERANCE:
+                possible_matches.append((distance, legacy_edge["index"], candidate_edge["index"]))
+    possible_matches.sort()
+
+    same = []
+    changed = []
+    for _distance, legacy_index, candidate_index in possible_matches:
+        legacy_edge = unmatched_legacy.get(legacy_index)
+        candidate_edge = unmatched_candidate.get(candidate_index)
+        if legacy_edge is None or candidate_edge is None:
+            continue
+        del unmatched_legacy[legacy_index]
+        del unmatched_candidate[candidate_index]
+        if legacy_edge["assignment"] == candidate_edge["assignment"]:
+            same.append((legacy_edge, candidate_edge))
+        else:
+            changed.append((legacy_edge, candidate_edge))
+
+    return {
+        "same": same,
+        "changed": changed,
+        "removed": list(unmatched_legacy.values()),
+        "added": list(unmatched_candidate.values()),
+        "candidate_by_index": candidate_by_index,
+    }
+
+
+def segment_endpoint_distance(
+    left: tuple[float, float, float, float],
+    right: tuple[float, float, float, float],
+) -> float:
+    ax, ay, bx, by = left
+    cx, cy, dx, dy = right
+    forward = ((ax - cx) ** 2 + (ay - cy) ** 2) ** 0.5 + (
+        (bx - dx) ** 2 + (by - dy) ** 2
+    ) ** 0.5
+    reversed_distance = ((ax - dx) ** 2 + (ay - dy) ** 2) ** 0.5 + (
+        (bx - cx) ** 2 + (by - cy) ** 2
+    ) ** 0.5
+    return min(forward, reversed_distance)
+
+
+def edge_records(fold: dict[str, Any]) -> list[dict[str, Any]]:
+    vertices = fold.get("vertices_coords", [])
+    edges = fold.get("edges_vertices", [])
+    assignments = fold.get("edges_assignment", [])
+    result = []
+    for index, edge in enumerate(edges):
+        try:
+            a = vertices[int(edge[0])]
+            b = vertices[int(edge[1])]
+            ax = float(a[0])
+            ay = float(a[1])
+            bx = float(b[0])
+            by = float(b[1])
+        except (IndexError, TypeError, ValueError):
+            continue
+        if not all(-0.2 <= value <= 1.2 for value in (ax, ay, bx, by)):
+            continue
+        result.append(
+            {
+                "index": index,
+                "assignment": str(assignments[index]) if index < len(assignments) else "U",
+                "segment": (ax, ay, bx, by),
+            }
+        )
+    return result
 
 
 def draw_segment(
@@ -439,45 +603,12 @@ def fold_diff(legacy_path: str | None, candidate_path: str | None) -> dict[str, 
     candidate_file = Path(candidate_path)
     if not legacy_file.exists() or not candidate_file.exists():
         return {"removed": 0, "added": 0, "assignment_changed": 0}
-    legacy_edges = edge_map(load_json(legacy_file))
-    candidate_edges = edge_map(load_json(candidate_file))
-    common = set(legacy_edges) & set(candidate_edges)
+    diff = diff_edges(load_json(legacy_file), load_json(candidate_file))
     return {
-        "removed": len(set(legacy_edges) - set(candidate_edges)),
-        "added": len(set(candidate_edges) - set(legacy_edges)),
-        "assignment_changed": sum(
-            1
-            for key in common
-            if legacy_edges[key]["assignment"] != candidate_edges[key]["assignment"]
-        ),
+        "removed": len(diff["removed"]),
+        "added": len(diff["added"]),
+        "assignment_changed": len(diff["changed"]),
     }
-
-
-def edge_map(fold: dict[str, Any]) -> dict[tuple[tuple[float, float], tuple[float, float]], dict[str, Any]]:
-    vertices = fold.get("vertices_coords", [])
-    edges = fold.get("edges_vertices", [])
-    assignments = fold.get("edges_assignment", [])
-    result = {}
-    for index, edge in enumerate(edges):
-        try:
-            a = vertices[int(edge[0])]
-            b = vertices[int(edge[1])]
-            ax = float(a[0])
-            ay = float(a[1])
-            bx = float(b[0])
-            by = float(b[1])
-        except (IndexError, TypeError, ValueError):
-            continue
-        if not all(-0.2 <= value <= 1.2 for value in (ax, ay, bx, by)):
-            continue
-        pa = (round(ax, 3), round(ay, 3))
-        pb = (round(bx, 3), round(by, 3))
-        key = (pa, pb) if pa <= pb else (pb, pa)
-        result[key] = {
-            "assignment": str(assignments[index]) if index < len(assignments) else "U",
-            "segment": (ax, ay, bx, by),
-        }
-    return result
 
 
 def missing_panel(size: int) -> Image.Image:
@@ -494,7 +625,7 @@ def write_markdown(path: Path, rows: list[dict[str, Any]]) -> None:
         "",
         "Columns: input image, ground truth, legacy browser output, raw compiler candidate, final emitted output.",
         "",
-        "`compiler_delta_sheet.png` highlights legacy-vs-candidate graph deltas: gray unchanged, orange removed, purple added, yellow assignment changed.",
+        "`compiler_delta_sheet.png` highlights tolerance-matched legacy-vs-candidate graph deltas: gray unchanged, orange removed, purple added, yellow assignment changed.",
         "",
         "| sample | statuses | candidate verification | final |",
         "| --- | --- | --- | --- |",
