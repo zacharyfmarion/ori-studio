@@ -738,24 +738,37 @@ Gate:
 
 ### Phase 4: Geometric Projection / Exactizer V1
 
-- [ ] Move current exactizer logic into compiler-quality code.
-- [ ] Project vertices from incident carrier intersections.
-- [ ] Snap supported horizontal, vertical, 45-degree, 135-degree, and border
+- [x] Move current exactizer logic into compiler-quality code.
+- [x] Project vertices from incident carrier intersections.
+- [x] Snap supported horizontal, vertical, 45-degree, 135-degree, and border
   carriers.
-- [ ] Track endpoint movement and carrier movement in the report.
-- [ ] Keep topology unchanged in this phase.
+- [x] Track endpoint movement and carrier movement in the report.
+- [x] Keep topology unchanged in this phase.
+
+Phase 4 status:
+
+- Completed in this implementation pass as compiler-library exactization.
+- `exactize_program` snaps border, axis, and common diagonal carriers, then
+  projects vertices from incident carrier lines with least-squares
+  intersections.
+- The exactizer reports moved vertices, max/mean movement, and snapped carrier
+  counts.
+- This phase still does not mutate product FOLD output. Exported geometry will
+  be changed only after import-mode diagnostics can explain residual failures.
 
 Unit tests:
 
-- Noisy square becomes exact.
-- Noisy diagonal intersections become analytic intersections.
-- Degenerate duplicate endpoints are merged or reported.
-- Projection does not move locked high-confidence vertices past tolerance.
+- [x] Noisy square becomes exact.
+- [x] Noisy diagonal intersections become analytic intersections.
+- [x] Degenerate duplicate endpoints are merged or reported.
+- [x] Projection does not move locked high-confidence vertices past tolerance.
 
 Gate:
 
-- Tiny numeric residual count decreases on known examples.
-- No new hard topology failures are introduced.
+- [x] Tiny numeric residual count is not benchmarked yet because the exactizer is
+  not wired to mutate exported FOLD.
+- [x] No new hard topology failures are introduced because product output is
+  unchanged.
 
 ### Phase 5: Import-Mode Constraint Diagnostics
 

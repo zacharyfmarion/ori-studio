@@ -7,6 +7,7 @@
 pub mod arrangement;
 pub mod candidates;
 pub mod evidence;
+pub mod exactize;
 pub mod fold_export;
 pub mod report;
 
