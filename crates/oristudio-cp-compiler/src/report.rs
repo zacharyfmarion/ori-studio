@@ -1,4 +1,5 @@
 use crate::arrangement::SquareArrangementSummary;
+use crate::constraints::ConstraintDiagnostics;
 use crate::{COMPILER_BACKEND_ID, CandidateProgram};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -11,6 +12,8 @@ pub struct CompilerReport {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub arrangement: Option<SquareArrangementSummary>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub constraints: Option<ConstraintDiagnostics>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub legacy_report: Option<Value>,
 }
 
@@ -18,6 +21,7 @@ impl CompilerReport {
     pub fn noop(
         program: &CandidateProgram,
         arrangement: Option<SquareArrangementSummary>,
+        constraints: Option<ConstraintDiagnostics>,
         legacy_report: Option<Value>,
     ) -> Self {
         Self {
@@ -25,6 +29,7 @@ impl CompilerReport {
             mode: "noop_legacy_passthrough".to_owned(),
             summary: CompilerSummary::from_program(program),
             arrangement,
+            constraints,
             legacy_report,
         }
     }

@@ -6,6 +6,7 @@
 
 pub mod arrangement;
 pub mod candidates;
+pub mod constraints;
 pub mod evidence;
 pub mod exactize;
 pub mod fold_export;
@@ -18,6 +19,7 @@ pub use candidates::{
     AssignmentCandidate, AssignmentLabel, CandidateCarrier, CandidateEdge, CandidateProgram,
     CandidateVertex, CarrierFamily, EdgeSelection, Point2, VertexKind,
 };
+pub use constraints::{ConstraintDiagnostics, ConstraintSeverity, VertexConstraintDiagnostic};
 pub use evidence::{EvidenceSource, Provenance};
 pub use report::{CompilerReport, CompilerSummary};
 
@@ -52,7 +54,16 @@ pub fn compile_noop(input: NoopCompileInput) -> Result<CompilerOutput, CompilerE
     let program = CandidateProgram::from_fold_value(&fold_value)?;
     let arrangement =
         arrangement::build_square_arrangement(&program, arrangement::ArrangementOptions::default());
-    let report = CompilerReport::noop(&program, Some(arrangement.summary()), input.legacy_report);
+    let diagnostics = constraints::diagnose_constraints(
+        &program,
+        constraints::ConstraintDiagnosticOptions::default(),
+    );
+    let report = CompilerReport::noop(
+        &program,
+        Some(arrangement.summary()),
+        Some(diagnostics),
+        input.legacy_report,
+    );
     Ok(CompilerOutput {
         fold_json: input.fold_json,
         program,
@@ -92,6 +103,10 @@ mod tests {
         assert_eq!(output.report.backend, COMPILER_BACKEND_ID);
         assert_eq!(output.report.summary.border_edges, 4);
         assert_eq!(output.report.summary.interior_edges, 1);
+        assert!(
+            output.report.constraints.is_some(),
+            "compiler report should carry import-mode diagnostics"
+        );
     }
 
     #[test]

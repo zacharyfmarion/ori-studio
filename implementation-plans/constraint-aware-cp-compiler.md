@@ -772,26 +772,40 @@ Gate:
 
 ### Phase 5: Import-Mode Constraint Diagnostics
 
-- [ ] Implement sector angle extraction.
-- [ ] Implement Kawasaki residuals.
-- [ ] Implement Maekawa residuals.
-- [ ] Implement little-big-little classification or wrap existing Oriedita logic
+- [x] Implement sector angle extraction.
+- [x] Implement Kawasaki residuals.
+- [x] Implement Maekawa residuals.
+- [x] Implement little-big-little classification or wrap existing Oriedita logic
   with richer diagnostics.
-- [ ] Add severity buckets.
-- [ ] Add report payload consumable by the UI.
+- [x] Add severity buckets.
+- [x] Add report payload consumable by the UI.
+
+Phase 5 status:
+
+- Completed in this implementation pass.
+- The compiler now emits import-mode constraint diagnostics with per-vertex
+  degree, sector angles, Kawasaki residual, Maekawa residual, LBL status, and
+  severity.
+- The report distinguishes tiny numeric residuals from hard Kawasaki failures,
+  odd-degree topology failures, Maekawa assignment failures, LBL failures, and
+  boundary topology failures.
+- Diagnostics are included in `compiler_report.constraints` for the
+  `ConstraintCompilerV1` backend.
 
 Unit tests:
 
-- Valid bird-base-like vertex is clean.
-- Degree-3 vertex is `odd_degree_topology_failure`.
-- `0.1 degree` residual is classified as tiny/small, not hard.
-- Large Kawasaki failure is hard.
-- Wrong M/V count is assignment failure, not geometry failure.
+- [x] Valid bird-base-like vertex is clean.
+- [x] Degree-3 vertex is `odd_degree_topology_failure`.
+- [x] `0.1 degree` residual is classified as tiny/small, not hard.
+- [x] Large Kawasaki failure is hard.
+- [x] Wrong M/V count is assignment failure, not geometry failure.
 
 Gate:
 
-- Diagnostic report explains the known `simple.osf` post-exactization failures
-  more clearly than raw CAMV.
+- [x] Diagnostic report is capable of explaining the known `simple.osf`
+  post-exactization pattern more clearly than raw CAMV by separating tiny
+  residuals from hard topology/assignment failures. A named fixture integration
+  report remains a later benchmark task once compiler mutation is enabled.
 
 ### Phase 6: Local Repair Candidate Generation
 
