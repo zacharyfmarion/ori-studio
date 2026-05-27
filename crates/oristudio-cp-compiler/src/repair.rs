@@ -2,6 +2,7 @@ use crate::arrangement::SquareSide;
 use crate::constraints::{ConstraintDiagnosticOptions, ConstraintSeverity, diagnose_constraints};
 use crate::{AssignmentLabel, CandidateProgram, EdgeSelection, Point2, Provenance};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct RepairCandidateOptions {
@@ -95,7 +96,7 @@ pub fn generate_repair_candidates(
         else {
             continue;
         };
-        let rays = incident.get(vertex_id).cloned().unwrap_or_default();
+        let rays = incident.get(&vertex_id).cloned().unwrap_or_default();
         match diagnostic.severity {
             ConstraintSeverity::OddDegreeTopologyFailure => {
                 candidates.extend(missing_crease_candidates(
@@ -125,8 +126,8 @@ pub fn generate_repair_candidates(
     RepairCandidateSet { candidates }
 }
 
-fn incident_edges(program: &CandidateProgram) -> Vec<Vec<IncidentEdge>> {
-    let mut incident = vec![Vec::new(); program.vertices.len()];
+fn incident_edges(program: &CandidateProgram) -> BTreeMap<usize, Vec<IncidentEdge>> {
+    let mut incident = BTreeMap::<usize, Vec<IncidentEdge>>::new();
     for edge in &program.edges {
         if edge.selection != EdgeSelection::Selected {
             continue;
@@ -144,14 +145,14 @@ fn incident_edges(program: &CandidateProgram) -> Vec<Vec<IncidentEdge>> {
         let Some(vertex_b) = program.vertices.get(b) else {
             continue;
         };
-        incident[a].push(IncidentEdge {
+        incident.entry(vertex_a.id).or_default().push(IncidentEdge {
             edge_id: edge.id,
             angle_degrees: angle_degrees(vertex_a.position, vertex_b.position),
             assignment: edge.assignment.label,
             line_support: edge.line_support,
             assignment_confidence: edge.assignment.confidence,
         });
-        incident[b].push(IncidentEdge {
+        incident.entry(vertex_b.id).or_default().push(IncidentEdge {
             edge_id: edge.id,
             angle_degrees: angle_degrees(vertex_b.position, vertex_a.position),
             assignment: edge.assignment.label,
@@ -159,7 +160,7 @@ fn incident_edges(program: &CandidateProgram) -> Vec<Vec<IncidentEdge>> {
             assignment_confidence: edge.assignment.confidence,
         });
     }
-    for edges in &mut incident {
+    for edges in incident.values_mut() {
         edges.sort_by(|left, right| left.angle_degrees.total_cmp(&right.angle_degrees));
     }
     incident

@@ -789,6 +789,8 @@ Phase 5 status:
 - The report distinguishes tiny numeric residuals from hard Kawasaki failures,
   odd-degree topology failures, Maekawa assignment failures, LBL failures, and
   boundary topology failures.
+- Boundary contacts now validate square-border topology separately and do not
+  require interior Kawasaki/Maekawa parity.
 - Diagnostics are included in `compiler_report.constraints` for the
   `ConstraintCompilerV1` backend.
 
@@ -799,6 +801,8 @@ Unit tests:
 - [x] `0.1 degree` residual is classified as tiny/small, not hard.
 - [x] Large Kawasaki failure is hard.
 - [x] Wrong M/V count is assignment failure, not geometry failure.
+- [x] Boundary contact with two border edges is not treated as an interior
+  flat-foldability failure.
 
 Gate:
 
@@ -848,18 +852,38 @@ Gate:
 
 ### Phase 7: Bounded Topology Optimizer
 
-- [ ] Implement state cost.
-- [ ] Implement beam search over local repair moves.
-- [ ] Re-project affected neighborhoods after moves.
-- [ ] Record accepted/rejected move provenance.
-- [ ] Add configurable search budgets for browser runtime.
+- [x] Implement state cost.
+- [x] Implement beam search over local repair moves.
+- [x] Re-project candidate states after moves.
+- [x] Record accepted/rejected move provenance.
+- [x] Add configurable search budgets for browser runtime.
+
+Phase 7 status:
+
+- `oristudio-cp-compiler::optimizer` now runs a bounded beam search over repair
+  candidates and chooses only moves that improve a transparent topology cost.
+- The first cost function heavily penalizes hard local constraint failures, then
+  adds smaller penalties for inferred edges, weak selected evidence, and deleted
+  observed support.
+- Move application supports missing-crease insertion, weak-crease rejection,
+  near-duplicate vertex merge, carrier-intersection split, and low-confidence
+  assignment flip.
+- Missing creases to a boundary contact now split an existing square border edge
+  so the inserted contact remains valid boundary topology.
+- Projection is currently full-state exactization after each move, not a
+  neighborhood-only projector. That is simpler and safer for the first optimizer
+  pass; neighborhood projection can be added when runtime profiling says it is
+  needed.
+- The optimizer is still a library layer and is not wired into product FOLD/OSF
+  export by default.
 
 Unit tests:
 
-- One-missing-crease fixture is repaired.
-- One-false-positive fixture deletes the weak false line.
-- Ambiguous fixture reports ambiguity instead of inventing arbitrary geometry.
-- Search budget exhaustion is reported cleanly.
+- [x] One-missing-crease fixture is repaired.
+- [x] One-false-positive fixture deletes the weak false line.
+- [x] Ambiguous fixture reports ambiguity instead of inventing arbitrary
+  geometry.
+- [x] Search budget exhaustion is reported cleanly.
 
 Benchmark gate:
 

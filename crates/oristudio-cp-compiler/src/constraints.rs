@@ -245,8 +245,12 @@ fn classify_severity(
     little_big_little: LittleBigLittleStatus,
     options: ConstraintDiagnosticOptions,
 ) -> ConstraintSeverity {
-    if kind != VertexKind::Interior && boundary_edges != 2 {
-        return ConstraintSeverity::BoundaryTopologyFailure;
+    if kind != VertexKind::Interior {
+        return if boundary_edges == 2 {
+            ConstraintSeverity::Clean
+        } else {
+            ConstraintSeverity::BoundaryTopologyFailure
+        };
     }
     if degree == 0 {
         return ConstraintSeverity::Clean;
@@ -474,6 +478,63 @@ mod tests {
         assert_eq!(center.severity, ConstraintSeverity::LittleBigLittleFailure);
     }
 
+    #[test]
+    fn boundary_contact_with_two_border_edges_does_not_need_interior_flat_foldability() {
+        let program = CandidateProgram {
+            coordinate_space: "unit_test".to_owned(),
+            image_size: None,
+            carriers: Vec::new(),
+            vertices: vec![
+                CandidateVertex {
+                    id: 0,
+                    position: Point2::new(0.5, 0.5),
+                    kind: VertexKind::Interior,
+                    support: 1.0,
+                    boundary_side: None,
+                    incident_carriers: Vec::new(),
+                    provenance: vec![Provenance::LegacyDecoder],
+                },
+                CandidateVertex {
+                    id: 1,
+                    position: Point2::new(1.0, 0.5),
+                    kind: VertexKind::Boundary,
+                    support: 1.0,
+                    boundary_side: Some("right".to_owned()),
+                    incident_carriers: Vec::new(),
+                    provenance: vec![Provenance::LegacyDecoder],
+                },
+                CandidateVertex {
+                    id: 2,
+                    position: Point2::new(1.0, 0.0),
+                    kind: VertexKind::Corner,
+                    support: 1.0,
+                    boundary_side: Some("right".to_owned()),
+                    incident_carriers: Vec::new(),
+                    provenance: vec![Provenance::LegacyDecoder],
+                },
+                CandidateVertex {
+                    id: 3,
+                    position: Point2::new(1.0, 1.0),
+                    kind: VertexKind::Corner,
+                    support: 1.0,
+                    boundary_side: Some("right".to_owned()),
+                    incident_carriers: Vec::new(),
+                    provenance: vec![Provenance::LegacyDecoder],
+                },
+            ],
+            edges: vec![
+                edge(0, [2, 1], AssignmentLabel::Boundary),
+                edge(1, [1, 3], AssignmentLabel::Boundary),
+                edge(2, [0, 1], AssignmentLabel::Mountain),
+            ],
+        };
+
+        let diagnostics = diagnose_constraints(&program, Default::default());
+
+        assert_eq!(diagnostics.vertices[1].boundary_edge_count, 2);
+        assert_eq!(diagnostics.vertices[1].severity, ConstraintSeverity::Clean);
+    }
+
     fn star(rays: &[(f64, AssignmentLabel)]) -> CandidateProgram {
         let mut vertices = vec![CandidateVertex {
             id: 0,
@@ -519,6 +580,24 @@ mod tests {
             carriers: Vec::new(),
             vertices,
             edges,
+        }
+    }
+
+    fn edge(id: usize, vertices: [usize; 2], label: AssignmentLabel) -> CandidateEdge {
+        CandidateEdge {
+            id,
+            carrier_id: id,
+            vertices,
+            assignment: AssignmentCandidate {
+                label,
+                confidence: 1.0,
+                margin: 1.0,
+            },
+            line_support: 1.0,
+            style_support: 0.0,
+            selection: EdgeSelection::Selected,
+            source: EvidenceSource::ObservedStrong,
+            provenance: vec![Provenance::LegacyDecoder],
         }
     }
 }
