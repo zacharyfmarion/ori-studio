@@ -6,6 +6,8 @@ use std::collections::BTreeMap;
 pub struct ExactizeOptions {
     pub border_tolerance: f64,
     pub angle_tolerance_degrees: f64,
+    pub max_vertex_move: f64,
+    pub projection_bounds_padding: f64,
 }
 
 impl Default for ExactizeOptions {
@@ -13,6 +15,8 @@ impl Default for ExactizeOptions {
         Self {
             border_tolerance: 0.025,
             angle_tolerance_degrees: 2.0,
+            max_vertex_move: 0.05,
+            projection_bounds_padding: 0.05,
         }
     }
 }
@@ -63,7 +67,7 @@ pub fn exactize_program(program: &CandidateProgram, options: ExactizeOptions) ->
             .iter()
             .filter_map(|id| carrier_by_id.get(id))
             .collect::<Vec<_>>();
-        let projected = project_vertex(vertex.position, vertex.kind, &lines);
+        let projected = project_vertex(vertex.position, vertex.kind, &lines, options);
         let movement = distance(old, projected);
         if movement > 1e-9 {
             vertices_moved += 1;
@@ -212,20 +216,32 @@ fn snap_diagonal_carrier(carrier: &mut CandidateCarrier, angle_tolerance: f64) -
     true
 }
 
-fn project_vertex(point: Point2, kind: VertexKind, carriers: &[&CandidateCarrier]) -> Point2 {
+fn project_vertex(
+    point: Point2,
+    kind: VertexKind,
+    carriers: &[&CandidateCarrier],
+    options: ExactizeOptions,
+) -> Point2 {
     if kind == VertexKind::Corner {
         return Point2::new(round_unit(point.x), round_unit(point.y));
     }
+    let fallback = snap_boundary_if_needed(point, kind);
     if carriers.len() >= 2 {
         if let Some(projected) = solve_lines_least_squares(carriers) {
-            return snap_boundary_if_needed(projected, kind);
+            let projected = snap_boundary_if_needed(projected, kind);
+            if projection_is_safe(point, projected, options) {
+                return projected;
+            }
         }
     }
     if carriers.len() == 1 {
         let projected = project_to_line(point, carriers[0]);
-        return snap_boundary_if_needed(projected, kind);
+        let projected = snap_boundary_if_needed(projected, kind);
+        if projection_is_safe(point, projected, options) {
+            return projected;
+        }
     }
-    snap_boundary_if_needed(point, kind)
+    fallback
 }
 
 fn solve_lines_least_squares(carriers: &[&CandidateCarrier]) -> Option<Point2> {
@@ -259,6 +275,21 @@ fn project_to_line(point: Point2, carrier: &CandidateCarrier) -> Point2 {
         point.x - distance * carrier.normal.x,
         point.y - distance * carrier.normal.y,
     )
+}
+
+fn projection_is_safe(original: Point2, projected: Point2, options: ExactizeOptions) -> bool {
+    if !projected.x.is_finite() || !projected.y.is_finite() {
+        return false;
+    }
+    let padding = options.projection_bounds_padding.max(0.0);
+    if projected.x < -padding
+        || projected.x > 1.0 + padding
+        || projected.y < -padding
+        || projected.y > 1.0 + padding
+    {
+        return false;
+    }
+    distance(original, projected) <= options.max_vertex_move.max(0.0)
 }
 
 fn snap_boundary_if_needed(point: Point2, kind: VertexKind) -> Point2 {
@@ -357,6 +388,41 @@ mod tests {
     }
 
     #[test]
+    fn ill_conditioned_projection_keeps_original_vertex() {
+        let original = Point2::new(0.03025, 0.66862);
+        let n0 = normalized(Point2::new(1.0, 0.1));
+        let n1 = normalized(Point2::new(1.0, 0.100001));
+        let program = program_with_vertices_and_carriers(
+            vec![vertex(
+                0,
+                original.x,
+                original.y,
+                VertexKind::Interior,
+                vec![0, 1],
+            )],
+            vec![
+                carrier(
+                    0,
+                    CarrierFamily::Free,
+                    n0,
+                    n0.x * original.x + n0.y * original.y,
+                ),
+                carrier(
+                    1,
+                    CarrierFamily::Free,
+                    n1,
+                    n1.x * original.x + n1.y * original.y + 0.01,
+                ),
+            ],
+        );
+
+        let exact = exactize_program(&program, Default::default());
+        assert_close(exact.program.vertices[0].position.x, original.x, 1e-12);
+        assert_close(exact.program.vertices[0].position.y, original.y, 1e-12);
+        assert_eq!(exact.report.vertices_moved, 0);
+    }
+
+    #[test]
     fn noisy_diagonal_carriers_snap_to_common_diagonal_family() {
         let diagonal = std::f64::consts::FRAC_1_SQRT_2;
         let program = program_with_vertices_and_carriers(
@@ -441,6 +507,11 @@ mod tests {
 
     fn border_carrier(id: usize, normal: Point2, rho: f64) -> CandidateCarrier {
         carrier(id, CarrierFamily::Border, normal, rho)
+    }
+
+    fn normalized(point: Point2) -> Point2 {
+        let norm = (point.x * point.x + point.y * point.y).sqrt();
+        Point2::new(point.x / norm, point.y / norm)
     }
 
     fn assert_close(actual: f64, expected: f64, tolerance: f64) {

@@ -51,18 +51,38 @@ fn compiler_from_legacy(mut legacy: DecodedFold) -> Result<DecodedFold, DecodeEr
         oristudio_cp_compiler::assignments::AssignmentSolverOptions::default(),
     );
     let final_program = assignments.program;
-    let final_verification = oristudio_cp_compiler::verify::verify_program(
+    let candidate_verification = oristudio_cp_compiler::verify::verify_program(
         &final_program,
         oristudio_cp_compiler::verify::GlobalVerificationOptions::default(),
     );
-    let summary = oristudio_cp_compiler::CompilerSummary::from_program(&final_program);
-    let topology_changed = !topology.accepted_moves.is_empty();
-    let assignment_changed = assignments.decisions.iter().any(|decision| {
-        decision.provenance != oristudio_cp_compiler::Provenance::AssignmentObserved
-    });
+    let accept_candidate = verification_clean(&candidate_verification);
+    let output_program = if accept_candidate {
+        &final_program
+    } else {
+        &program
+    };
+    let final_verification = if accept_candidate {
+        candidate_verification.clone()
+    } else {
+        initial_verification.clone()
+    };
+    let summary = oristudio_cp_compiler::CompilerSummary::from_program(output_program);
+    let topology_changed = accept_candidate && !topology.accepted_moves.is_empty();
+    let assignment_changed = accept_candidate
+        && assignments.decisions.iter().any(|decision| {
+            decision.provenance != oristudio_cp_compiler::Provenance::AssignmentObserved
+        });
     let compiler_report = serde_json::json!({
         "backend": oristudio_cp_compiler::COMPILER_BACKEND_ID,
         "mode": "global_feedback_v1",
+        "output": {
+            "selected": if accept_candidate { "compiled" } else { "legacy_fallback" },
+            "reason": if accept_candidate {
+                "candidate_verified_clean"
+            } else {
+                "candidate_still_failed_verification"
+            }
+        },
         "summary": summary,
         "legacy_report": legacy_report,
         "initial_verification": initial_verification,
@@ -80,11 +100,16 @@ fn compiler_from_legacy(mut legacy: DecodedFold) -> Result<DecodedFold, DecodeEr
             "cost": assignments.cost,
             "decisions": assignments.decisions
         },
+        "candidate_verification": candidate_verification,
         "final_verification": final_verification
     });
-    let mut fold: serde_json::Value = serde_json::from_str(
-        &oristudio_cp_compiler::fold_export::export_program_to_fold_json(&final_program)?,
-    )?;
+    let mut fold: serde_json::Value = if accept_candidate {
+        serde_json::from_str(
+            &oristudio_cp_compiler::fold_export::export_program_to_fold_json(&final_program)?,
+        )?
+    } else {
+        fold_value
+    };
     if let Some(object) = fold.as_object_mut() {
         let detector = object
             .entry("cp_detector".to_owned())
@@ -107,20 +132,25 @@ fn compiler_from_legacy(mut legacy: DecodedFold) -> Result<DecodedFold, DecodeEr
     }
     legacy.fold_json = serde_json::to_string_pretty(&fold)?;
     legacy.report.decoder_backend = DecoderBackend::ConstraintCompilerV1;
-    legacy.report.status = compiler_status(&compiler_report, topology_changed, assignment_changed);
+    if accept_candidate {
+        legacy.report.status =
+            compiler_status(&compiler_report, topology_changed, assignment_changed);
+    }
     legacy.report.vertex_count = summary.vertices;
     legacy.report.edge_count = summary.edges;
     legacy.report.carrier_count = summary.carriers;
     legacy.report.border_edge_count = summary.border_edges;
     legacy.report.interior_edge_count = summary.interior_edges;
-    legacy
-        .report
-        .repair_actions
-        .extend(compiler_repair_actions(&compiler_report));
+    if accept_candidate {
+        legacy
+            .report
+            .repair_actions
+            .extend(compiler_repair_actions(&compiler_report));
+    }
     legacy
         .report
         .warnings
-        .extend(compiler_warnings(&compiler_report));
+        .extend(compiler_warnings(&compiler_report, accept_candidate));
     if let Some(report) = legacy.report.quality_report.as_object_mut() {
         report.insert(
             "decoder_backend".to_owned(),
@@ -129,6 +159,12 @@ fn compiler_from_legacy(mut legacy: DecodedFold) -> Result<DecodedFold, DecodeEr
         report.insert("compiler_report".to_owned(), compiler_report);
     }
     Ok(legacy)
+}
+
+fn verification_clean(report: &oristudio_cp_compiler::verify::GlobalVerificationReport) -> bool {
+    report.classifications.iter().any(|classification| {
+        *classification == oristudio_cp_compiler::verify::GlobalFailureClassification::Clean
+    })
 }
 
 fn compiler_status(
@@ -206,7 +242,27 @@ fn compiler_repair_actions(compiler_report: &serde_json::Value) -> Vec<RepairAct
     actions
 }
 
-fn compiler_warnings(compiler_report: &serde_json::Value) -> Vec<DecodeWarning> {
+fn compiler_warnings(
+    compiler_report: &serde_json::Value,
+    accepted_candidate: bool,
+) -> Vec<DecodeWarning> {
+    if !accepted_candidate {
+        let candidate_classes = compiler_report
+            .pointer("/candidate_verification/classifications")
+            .and_then(serde_json::Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        return vec![DecodeWarning {
+            code: "constraint_compiler_fallback".to_owned(),
+            message:
+                "Constraint compiler candidate failed verification; preserving legacy geometry"
+                    .to_owned(),
+            severity: "warning".to_owned(),
+            edge_indices: Vec::new(),
+            vertex_indices: Vec::new(),
+            details: Some(serde_json::json!({ "candidate_classifications": candidate_classes })),
+        }];
+    }
     let final_classes = compiler_report
         .pointer("/final_verification/classifications")
         .and_then(serde_json::Value::as_array)
@@ -339,29 +395,51 @@ mod tests {
             compiler_fold["cp_detector"]["decoder_backend"],
             "constraint_compiler_v1"
         );
-        assert_eq!(
-            compiler_fold["cp_detector"]["edge_ids"]
-                .as_array()
-                .expect("edge ids")
-                .len(),
-            compiler_fold["edges_vertices"]
-                .as_array()
-                .expect("edges")
-                .len()
-        );
-        assert!(
-            compiler_fold["cp_detector"]["edge_provenance"]
-                .as_array()
-                .expect("edge provenance")
-                .iter()
-                .all(Value::is_array)
-        );
+        assert_compiler_output_contract(&compiler, &compiler_fold);
         assert!(
             compiler.report.quality_report["compiler_report"]["initial_verification"].is_object()
         );
         assert!(
             compiler.report.quality_report["compiler_report"]["final_verification"].is_object()
         );
+    }
+
+    fn assert_compiler_output_contract(compiler: &DecodedFold, compiler_fold: &Value) {
+        let selected = compiler.report.quality_report["compiler_report"]["output"]["selected"]
+            .as_str()
+            .expect("selected compiler output");
+        assert!(matches!(selected, "compiled" | "legacy_fallback"));
+        assert_eq!(
+            compiler_fold["cp_detector"]["compiler_report"]["output"]["selected"],
+            selected
+        );
+        if selected == "compiled" {
+            assert_eq!(
+                compiler_fold["cp_detector"]["edge_ids"]
+                    .as_array()
+                    .expect("edge ids")
+                    .len(),
+                compiler_fold["edges_vertices"]
+                    .as_array()
+                    .expect("edges")
+                    .len()
+            );
+            assert!(
+                compiler_fold["cp_detector"]["edge_provenance"]
+                    .as_array()
+                    .expect("edge provenance")
+                    .iter()
+                    .all(Value::is_array)
+            );
+        } else {
+            assert!(
+                compiler
+                    .report
+                    .warnings
+                    .iter()
+                    .any(|warning| warning.code == "constraint_compiler_fallback")
+            );
+        }
     }
 
     fn square_cross_fixture() -> (DenseOutputs<'static>, DecodeConfig) {

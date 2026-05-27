@@ -163,23 +163,42 @@ fn decode_dense_outputs_returns_fold_json() {
         compiler_fold["cp_detector"]["decoder_backend"],
         "constraint_compiler_v1"
     );
+    let selected =
+        compiler_decoded["report"]["quality_report"]["compiler_report"]["output"]["selected"]
+            .as_str()
+            .expect("selected compiler output");
+    assert!(matches!(selected, "compiled" | "legacy_fallback"));
     assert_eq!(
-        compiler_fold["cp_detector"]["edge_ids"]
-            .as_array()
-            .expect("edge ids")
-            .len(),
-        compiler_fold["edges_vertices"]
-            .as_array()
-            .expect("edges")
-            .len()
+        compiler_fold["cp_detector"]["compiler_report"]["output"]["selected"],
+        selected
     );
-    assert!(
-        compiler_fold["cp_detector"]["edge_provenance"]
-            .as_array()
-            .expect("edge provenance")
-            .iter()
-            .all(serde_json::Value::is_array)
-    );
+    if selected == "compiled" {
+        assert_eq!(
+            compiler_fold["cp_detector"]["edge_ids"]
+                .as_array()
+                .expect("edge ids")
+                .len(),
+            compiler_fold["edges_vertices"]
+                .as_array()
+                .expect("edges")
+                .len()
+        );
+        assert!(
+            compiler_fold["cp_detector"]["edge_provenance"]
+                .as_array()
+                .expect("edge provenance")
+                .iter()
+                .all(serde_json::Value::is_array)
+        );
+    } else {
+        assert!(
+            compiler_decoded["report"]["warnings"]
+                .as_array()
+                .expect("warnings")
+                .iter()
+                .any(|warning| warning["code"] == "constraint_compiler_fallback")
+        );
+    }
 }
 
 fn draw_logit_line(

@@ -763,6 +763,7 @@ function compilerPreviewOverlay(detection: CpDetectFoldResult | null): CompilerP
   if (!report || typeof report !== 'object') return { assignmentEdgeIds };
   const compilerReport = (report as { compiler_report?: unknown }).compiler_report;
   if (!compilerReport || typeof compilerReport !== 'object') return { assignmentEdgeIds };
+  if (!compilerOutputWasEmitted(compilerReport)) return { assignmentEdgeIds };
   const decisions = (compilerReport as { assignments?: { decisions?: unknown[] } }).assignments?.decisions ?? [];
   for (const decision of decisions) {
     if (!decision || typeof decision !== 'object') continue;
@@ -780,21 +781,26 @@ function compilerReportMetadata(detection: CpDetectFoldResult | null): string[] 
   if (!report || typeof report !== 'object') return [];
   const compilerReport = (report as { compiler_report?: unknown }).compiler_report;
   if (!compilerReport || typeof compilerReport !== 'object') return [];
+  const emitted = compilerOutputWasEmitted(compilerReport);
   const data = compilerReport as {
+    output?: { selected?: string };
     topology?: { accepted_moves?: unknown[]; ambiguous?: boolean };
     assignments?: { decisions?: unknown[]; ambiguous?: boolean };
     final_verification?: { classifications?: string[] };
   };
   const items: string[] = [];
-  const moves = data.topology?.accepted_moves?.length ?? 0;
+  if (!emitted && data.output?.selected === 'legacy_fallback') {
+    items.push('compiler fallback');
+  }
+  const moves = emitted ? data.topology?.accepted_moves?.length ?? 0 : 0;
   if (moves > 0) items.push(`${moves} topology ${moves === 1 ? 'move' : 'moves'}`);
-  const decisions = data.assignments?.decisions?.filter((decision) => {
+  const decisions = emitted ? data.assignments?.decisions?.filter((decision) => {
     return (
       decision &&
       typeof decision === 'object' &&
       (decision as { provenance?: unknown }).provenance !== 'assignment_observed'
     );
-  }).length ?? 0;
+  }).length ?? 0 : 0;
   if (decisions > 0) items.push(`${decisions} assignment ${decisions === 1 ? 'change' : 'changes'}`);
   if (data.topology?.ambiguous || data.assignments?.ambiguous) items.push('ambiguous');
   const classifications = data.final_verification?.classifications ?? [];
@@ -802,4 +808,12 @@ function compilerReportMetadata(detection: CpDetectFoldResult | null): string[] 
     items.push(...classifications);
   }
   return items;
+}
+
+function compilerOutputWasEmitted(compilerReport: unknown): boolean {
+  return (
+    compilerReport !== null &&
+    typeof compilerReport === 'object' &&
+    (compilerReport as { output?: { selected?: unknown } }).output?.selected === 'compiled'
+  );
 }

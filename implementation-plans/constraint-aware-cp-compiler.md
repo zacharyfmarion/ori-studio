@@ -753,6 +753,10 @@ Phase 4 status:
   intersections.
 - The exactizer reports moved vertices, max/mean movement, and snapped carrier
   counts.
+- A smoke benchmark exposed an ill-conditioned least-squares case where nearly
+  parallel incident carriers projected vertices far outside the unit square.
+  The exactizer now rejects non-finite, out-of-bounds, and overly large vertex
+  projections and keeps the original/safely snapped position instead.
 - This phase still does not mutate product FOLD output. Exported geometry will
   be changed only after import-mode diagnostics can explain residual failures.
 
@@ -762,6 +766,8 @@ Unit tests:
 - [x] Noisy diagonal intersections become analytic intersections.
 - [x] Degenerate duplicate endpoints are merged or reported.
 - [x] Projection does not move locked high-confidence vertices past tolerance.
+- [x] Ill-conditioned nearly parallel carrier intersections do not blow up
+  vertex coordinates.
 
 Gate:
 
@@ -987,6 +993,11 @@ Phase 10 status:
   assignment confidence arrays. The import modal uses this table to show
   off-by-default review toggles for inferred geometry and M/V assignment
   changes.
+- The browser integration now uses a conservative compiler acceptance gate:
+  a compiled candidate is emitted only when global verification classifies it as
+  clean. If the candidate still has local theorem or assignment conflicts, the
+  browser preserves the legacy graph, attaches the compiler report, and emits a
+  `constraint_compiler_fallback` warning instead of silently regressing output.
 - The browser correctness runner accepts `--decoder-backend`; the smoke pack
   was run against `constraint_compiler_v1` with 4/4 samples decoded and no
   browser errors. The local file-picker upload/import flow still needs manual
@@ -1011,10 +1022,42 @@ Gate:
 
 ### Phase 11: Benchmark Decision
 
-- [ ] Run legacy vs compiler benchmark on the agreed slices.
-- [ ] Produce report with graph metrics and product metrics.
+- [x] Run legacy vs compiler benchmark on the first agreed smoke slice.
+- [x] Produce report with graph metrics and product metrics.
 - [ ] Produce contact sheets for visually inspecting inferred/deleted creases.
-- [ ] Decide whether compiler becomes the default backend.
+- [x] Decide whether compiler becomes the default emitted graph for this slice.
+
+Phase 11 status:
+
+- First benchmark slice completed on `smoke-1024-s3` with the browser compiler
+  backend.
+- Raw compiler emission after exactizer guarding was still worse than legacy:
+  edge F1 dropped by about `0.116`, border F1 by about `0.086`, and structural
+  validity by `0.333` on the 12-sample smoke slice.
+- After adding conservative acceptance, all 12 compiler candidates on this
+  slice were rejected as `legacy_fallback` because candidate verification still
+  reported `local_theorem_failure` and `assignment_conflict`.
+- The fallback result exactly matched legacy browser metrics on the slice:
+
+```text
+vertex F1:      0.8970679975 -> 0.8970679975 (+0.0000)
+edge F1:        0.7700810612 -> 0.7700810612 (+0.0000)
+border F1:      0.8970588235 -> 0.8970588235 (+0.0000)
+assignment acc: 0.9971291866 -> 0.9971291866 (+0.0000)
+structural:     1.0000000000 -> 1.0000000000 (+0.0000)
+```
+
+- Decision for this phase: the compiler stays enabled as a reporting and
+  review layer, but it must not replace legacy geometry unless its candidate
+  verifies cleanly. The next compiler work should focus on improving repair
+  quality and assignment/global verification before promotion.
+
+Benchmark artifacts:
+
+```text
+artifacts/cp-detect-correctness/reports/smoke-1024-s3-compiler-v1-conservative/summary.md
+artifacts/cp-detect-correctness/reports/smoke-1024-s3-compiler-v1-conservative/contact_sheet.png
+```
 
 Promotion criteria:
 
