@@ -110,6 +110,7 @@ export interface CpDetectDecodeWarning {
 
 export interface CpDetectDecodeReport {
   status: CpDetectStatus;
+  decoder_backend: string;
   image_size: number;
   threshold: number;
   line_count: number;

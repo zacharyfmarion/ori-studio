@@ -4,7 +4,9 @@
 //! types. The numeric crop, evidence, topology, and FOLD export ports land in
 //! later roadmap phases behind these contracts.
 
+mod backend;
 pub mod decode;
+mod legacy_decode;
 pub mod opencv_hough_lines_p;
 pub mod rectify;
 pub mod segments;

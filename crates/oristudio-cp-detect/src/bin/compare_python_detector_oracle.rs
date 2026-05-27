@@ -4,8 +4,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use oristudio_cp_detect::decode::{
-    DecodeConfig, DecodeEdgeStageSnapshot, DenseOutputs, StageCarrier, StageEdge,
-    StageHoughSegment, StageLine, StageVertex, decode_dense_outputs,
+    DecodeConfig, DecodeEdgeStageSnapshot, DecoderBackend, DenseOutputs, StageCarrier, StageEdge,
+    StageHoughSegment, StageLine, StageVertex, decode_dense_outputs_with_backend,
     decode_edge_stage_snapshot_from_maps,
 };
 use serde::{Deserialize, Serialize};
@@ -143,6 +143,7 @@ struct ReportConfig {
     image_size: u32,
     threshold: f32,
     carrier_tolerance_px: f64,
+    decoder_backend: DecoderBackend,
 }
 
 #[derive(Debug, Default, Serialize)]
@@ -313,6 +314,7 @@ struct Args {
     manifest: PathBuf,
     out: Option<PathBuf>,
     carrier_tolerance_px: f64,
+    decoder_backend: DecoderBackend,
     allow_mismatch: bool,
 }
 
@@ -406,7 +408,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             manifest_root,
             &fixture.final_stage_path,
         ))?)?;
-        let rust_decoded = decode_dense_outputs(
+        let rust_decoded = decode_dense_outputs_with_backend(
             DenseOutputs {
                 line_logits: &line_logits,
                 junction_logits: &junction_logits,
@@ -420,6 +422,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 threshold: manifest.config.threshold,
                 ..DecodeConfig::default()
             },
+            args.decoder_backend,
         )?;
         let rust_fold: Value = serde_json::from_str(&rust_decoded.fold_json)?;
 
@@ -448,6 +451,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             image_size: manifest.config.image_size,
             threshold: manifest.config.threshold,
             carrier_tolerance_px: args.carrier_tolerance_px,
+            decoder_backend: args.decoder_backend,
         },
         aggregate,
         fixtures: fixture_reports,
@@ -1269,6 +1273,7 @@ impl Args {
         let mut manifest = None;
         let mut out = None;
         let mut carrier_tolerance_px = 1.0;
+        let mut decoder_backend = DecoderBackend::LegacyV2;
         let mut allow_mismatch = false;
         let mut iter = env::args().skip(1);
         while let Some(arg) = iter.next() {
@@ -1280,6 +1285,10 @@ impl Args {
                 "--carrier-tolerance-px" => {
                     carrier_tolerance_px =
                         required_value(&mut iter, "--carrier-tolerance-px")?.parse()?;
+                }
+                "--decoder-backend" => {
+                    decoder_backend =
+                        parse_decoder_backend(&required_value(&mut iter, "--decoder-backend")?)?;
                 }
                 "--allow-mismatch" => allow_mismatch = true,
                 "--help" | "-h" => {
@@ -1293,8 +1302,16 @@ impl Args {
             manifest: manifest.ok_or("--manifest is required")?,
             out,
             carrier_tolerance_px,
+            decoder_backend,
             allow_mismatch,
         })
+    }
+}
+
+fn parse_decoder_backend(value: &str) -> Result<DecoderBackend, Box<dyn std::error::Error>> {
+    match value {
+        "legacy-v2" | "legacy_v2" | "legacy_v2_decoder" => Ok(DecoderBackend::LegacyV2),
+        other => Err(format!("unsupported decoder backend: {other}").into()),
     }
 }
 
@@ -1309,7 +1326,7 @@ fn required_value(
 fn print_usage() {
     println!(
         "compare_python_detector_oracle --manifest PATH [--out PATH] \
-         [--carrier-tolerance-px 1.0] [--allow-mismatch]"
+         [--carrier-tolerance-px 1.0] [--decoder-backend legacy-v2] [--allow-mismatch]"
     );
 }
 

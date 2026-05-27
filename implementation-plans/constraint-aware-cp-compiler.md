@@ -636,7 +636,7 @@ focused commit
 ### Phase 0: Plan
 
 - [x] Write this implementation plan.
-- [ ] Commit the plan.
+- [x] Commit the plan.
 
 Gate:
 
@@ -644,24 +644,34 @@ Gate:
 
 ### Phase 1: Legacy Cordon And Baseline Harness
 
-- [ ] Move current decoder implementation behind an explicit legacy module or
+- [x] Move current decoder implementation behind an explicit legacy module or
   compatibility wrapper.
-- [ ] Add `DecoderBackend::LegacyV2`.
-- [ ] Add report metadata identifying legacy output.
-- [ ] Keep public behavior unchanged.
-- [ ] Add baseline tests proving legacy output did not change.
-- [ ] Add benchmark command support for legacy vs compiler backends, even if the
+- [x] Add `DecoderBackend::LegacyV2`.
+- [x] Add report metadata identifying legacy output.
+- [x] Keep public behavior unchanged.
+- [x] Add baseline tests proving legacy output did not change.
+- [x] Add benchmark command support for legacy vs compiler backends, even if the
   compiler backend initially delegates to legacy.
+
+Phase 1 status:
+
+- Completed in this implementation pass.
+- The current decoder implementation lives in `legacy_decode.rs`.
+- `decode.rs` is now a public backend router.
+- Reports and exported FOLD metadata identify `legacy_v2_decoder`.
+- `compare_python_detector_oracle` accepts `--decoder-backend legacy-v2`.
+- The compiler backend is not implemented yet; Phase 2 introduces the no-op
+  compiler path.
 
 Unit tests:
 
-- Legacy decode fixture returns the same canonical FOLD as before the move.
-- Legacy report includes `decoder_backend = legacy_v2_decoder`.
-- Browser/WASM decode still works with the legacy backend.
+- [x] Legacy decode fixture returns the same canonical FOLD as before the move.
+- [x] Legacy report includes `decoder_backend = legacy_v2_decoder`.
+- [x] Browser/WASM decode still works with the legacy backend.
 
 Gate:
 
-- No graph/report deltas except the new backend metadata.
+- [x] No graph/report deltas except the new backend metadata.
 
 ### Phase 2: Compiler Data Model
 

@@ -120,6 +120,7 @@ fn decode_dense_outputs_returns_fold_json() {
         serde_json::from_str(decoded["fold_json"].as_str().expect("fold_json")).expect("fold");
 
     assert!(fold["edges_vertices"].as_array().expect("edges").len() >= 8);
+    assert_eq!(decoded["report"]["decoder_backend"], "legacy_v2_decoder");
     assert_eq!(decoded["report"]["status"], "outside_v1_envelope");
     assert!(
         decoded["report"]["warnings"]
