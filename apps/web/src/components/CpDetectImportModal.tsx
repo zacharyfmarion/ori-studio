@@ -26,6 +26,12 @@ import './CpDetectImportModal.css';
 type BusyState = 'loading_model' | 'opening' | 'rectifying' | 'detecting' | 'importing' | null;
 type QuadHandle = keyof CpDetectQuad;
 type ModalStage = 'upload' | 'crop' | 'detecting' | 'review';
+type PreviewOverlayKey = 'inferred' | 'assignments';
+
+interface PreviewOverlayState {
+  inferred: boolean;
+  assignments: boolean;
+}
 
 interface SourceImage {
   image: ImageData;
@@ -39,6 +45,10 @@ const DETECT_DECODER_BACKEND = 'constraint_compiler_v1' as const;
 const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp'];
 const IMAGE_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const QUAD_HANDLES: QuadHandle[] = ['top_left', 'top_right', 'bottom_right', 'bottom_left'];
+const DEFAULT_PREVIEW_OVERLAYS: PreviewOverlayState = {
+  inferred: false,
+  assignments: false,
+};
 
 export function CpDetectImportModal() {
   const [open, setOpen] = useState(false);
@@ -51,6 +61,7 @@ export function CpDetectImportModal() {
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState<QuadHandle | null>(null);
   const [dropActive, setDropActive] = useState(false);
+  const [previewOverlays, setPreviewOverlays] = useState<PreviewOverlayState>(DEFAULT_PREVIEW_OVERLAYS);
   const sourceImageRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
@@ -104,6 +115,7 @@ export function CpDetectImportModal() {
     setQuad(null);
     setRectified(null);
     setDetection(null);
+    setPreviewOverlays(DEFAULT_PREVIEW_OVERLAYS);
 
     const client = await getCpDetectClient();
     setBusy('rectifying');
@@ -152,6 +164,7 @@ export function CpDetectImportModal() {
     setBusy('rectifying');
     setError(null);
     setDetection(null);
+    setPreviewOverlays(DEFAULT_PREVIEW_OVERLAYS);
     try {
       const client = await getCpDetectClient();
       setRectified(await client.manualRectifyImage(source.image, quad, DETECT_IMAGE_SIZE));
@@ -221,6 +234,7 @@ export function CpDetectImportModal() {
   const rectificationWarnings = rectified?.report.warnings ?? [];
   const detectorWarnings = detection?.detectorReport.warnings ?? [];
   const compilerMetadata = useMemo(() => compilerReportMetadata(detection), [detection]);
+  const compilerOverlay = useMemo(() => compilerPreviewOverlay(detection), [detection]);
   const foldPreview = useMemo(
     () => (detection ? parseFoldPreview(detection.foldJson) : null),
     [detection]
@@ -229,6 +243,9 @@ export function CpDetectImportModal() {
     busy === 'detecting' ? 'detecting' : detection ? 'review' : source ? 'crop' : 'upload';
   const canChooseImage = modelManifest !== null && busy === null;
   const status = busy ? busyLabel(busy) : null;
+  const togglePreviewOverlay = useCallback((key: PreviewOverlayKey) => {
+    setPreviewOverlays((previous) => ({ ...previous, [key]: !previous[key] }));
+  }, []);
 
   if (!open) return null;
 
@@ -351,8 +368,20 @@ export function CpDetectImportModal() {
               </section>
 
               <section className="cp-detect-modal__pane">
-                <h3>Detected</h3>
-                {foldPreview ? <FoldPreview preview={foldPreview} /> : <div className="cp-detect-modal__empty" />}
+                <div className="cp-detect-modal__pane-heading">
+                  <h3>Detected</h3>
+                  <CompilerPreviewControls
+                    overlay={previewOverlays}
+                    hasInferred={foldPreview?.edgeProvenance.some(edgeHasInferredProvenance) ?? false}
+                    hasAssignments={compilerOverlay.assignmentEdgeIds.size > 0}
+                    onToggle={togglePreviewOverlay}
+                  />
+                </div>
+                {foldPreview ? (
+                  <FoldPreview preview={foldPreview} overlay={previewOverlays} compilerOverlay={compilerOverlay} />
+                ) : (
+                  <div className="cp-detect-modal__empty" />
+                )}
               </section>
             </div>
           </>
@@ -466,9 +495,65 @@ interface FoldPreviewData {
   vertices: [number, number][];
   edges: [number, number][];
   assignments: string[];
+  edgeIds: number[];
+  edgeSources: string[];
+  edgeProvenance: string[][];
+  assignmentConfidence: number[];
 }
 
-function FoldPreview({ preview }: { preview: FoldPreviewData }) {
+interface CompilerPreviewOverlay {
+  assignmentEdgeIds: Set<number>;
+}
+
+function CompilerPreviewControls({
+  overlay,
+  hasInferred,
+  hasAssignments,
+  onToggle,
+}: {
+  overlay: PreviewOverlayState;
+  hasInferred: boolean;
+  hasAssignments: boolean;
+  onToggle: (key: PreviewOverlayKey) => void;
+}) {
+  if (!hasInferred && !hasAssignments) return null;
+  return (
+    <div className="cp-detect-modal__preview-controls" aria-label="Compiler review overlays">
+      {hasInferred && (
+        <Button
+          size="sm"
+          variant="ghost"
+          isActive={overlay.inferred}
+          aria-pressed={overlay.inferred}
+          onClick={() => onToggle('inferred')}
+        >
+          Inferred
+        </Button>
+      )}
+      {hasAssignments && (
+        <Button
+          size="sm"
+          variant="ghost"
+          isActive={overlay.assignments}
+          aria-pressed={overlay.assignments}
+          onClick={() => onToggle('assignments')}
+        >
+          M/V changes
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function FoldPreview({
+  preview,
+  overlay,
+  compilerOverlay,
+}: {
+  preview: FoldPreviewData;
+  overlay: PreviewOverlayState;
+  compilerOverlay: CompilerPreviewOverlay;
+}) {
   return (
     <svg className="cp-detect-modal__fold" viewBox="0 0 1 1">
       {preview.edges.map(([a, b], index) => {
@@ -486,7 +571,39 @@ function FoldPreview({ preview }: { preview: FoldPreviewData }) {
           />
         );
       })}
+      {overlay.inferred &&
+        preview.edges.map(([a, b], index) => {
+          if (!edgeIsInferred(preview, index)) return null;
+          return provenanceLine(preview, a, b, index, 'inferred');
+        })}
+      {overlay.assignments &&
+        preview.edges.map(([a, b], index) => {
+          if (!compilerOverlay.assignmentEdgeIds.has(edgeIdAt(preview, index))) return null;
+          return provenanceLine(preview, a, b, index, 'assignment');
+        })}
     </svg>
+  );
+}
+
+function provenanceLine(
+  preview: FoldPreviewData,
+  a: number,
+  b: number,
+  index: number,
+  kind: 'inferred' | 'assignment'
+) {
+  const start = preview.vertices[a];
+  const end = preview.vertices[b];
+  if (!start || !end) return null;
+  return (
+    <line
+      key={`${kind}-${a}-${b}-${index}`}
+      x1={start[0]}
+      y1={start[1]}
+      x2={end[0]}
+      y2={end[1]}
+      className={`cp-detect-modal__fold-provenance cp-detect-modal__fold-provenance--${kind}`}
+    />
   );
 }
 
@@ -584,12 +701,22 @@ function parseFoldPreview(foldJson: string): FoldPreviewData | null {
       vertices_coords?: [number, number][];
       edges_vertices?: [number, number][];
       edges_assignment?: string[];
+      cp_detector?: {
+        edge_ids?: unknown[];
+        edge_source?: unknown[];
+        edge_provenance?: unknown[];
+        assignment_confidence?: unknown[];
+      };
     };
     if (!Array.isArray(fold.vertices_coords) || !Array.isArray(fold.edges_vertices)) return null;
     return {
       vertices: fold.vertices_coords,
       edges: fold.edges_vertices,
       assignments: fold.edges_assignment ?? [],
+      edgeIds: numericArray(fold.cp_detector?.edge_ids),
+      edgeSources: stringArray(fold.cp_detector?.edge_source),
+      edgeProvenance: stringMatrix(fold.cp_detector?.edge_provenance),
+      assignmentConfidence: numericArray(fold.cp_detector?.assignment_confidence),
     };
   } catch {
     return null;
@@ -601,6 +728,51 @@ function assignmentClass(assignment: string | undefined): string {
   if (assignment === 'V') return 'valley';
   if (assignment === 'B') return 'border';
   return 'unknown';
+}
+
+function edgeIdAt(preview: FoldPreviewData, index: number): number {
+  return preview.edgeIds[index] ?? index;
+}
+
+function edgeIsInferred(preview: FoldPreviewData, index: number): boolean {
+  return preview.edgeSources[index] === 'inferred' || edgeHasInferredProvenance(preview.edgeProvenance[index] ?? []);
+}
+
+function edgeHasInferredProvenance(provenance: string[]): boolean {
+  return provenance.some((value) => value.startsWith('inferred_by'));
+}
+
+function numericArray(value: unknown[] | undefined): number[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is number => typeof item === 'number' && Number.isFinite(item));
+}
+
+function stringArray(value: unknown[] | undefined): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === 'string');
+}
+
+function stringMatrix(value: unknown[] | undefined): string[][] {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => stringArray(Array.isArray(item) ? item : undefined));
+}
+
+function compilerPreviewOverlay(detection: CpDetectFoldResult | null): CompilerPreviewOverlay {
+  const assignmentEdgeIds = new Set<number>();
+  const report = detection?.detectorReport.quality_report;
+  if (!report || typeof report !== 'object') return { assignmentEdgeIds };
+  const compilerReport = (report as { compiler_report?: unknown }).compiler_report;
+  if (!compilerReport || typeof compilerReport !== 'object') return { assignmentEdgeIds };
+  const decisions = (compilerReport as { assignments?: { decisions?: unknown[] } }).assignments?.decisions ?? [];
+  for (const decision of decisions) {
+    if (!decision || typeof decision !== 'object') continue;
+    const record = decision as { edge_id?: unknown; provenance?: unknown };
+    if (record.provenance === 'assignment_observed') continue;
+    if (typeof record.edge_id === 'number' && Number.isInteger(record.edge_id)) {
+      assignmentEdgeIds.add(record.edge_id);
+    }
+  }
+  return { assignmentEdgeIds };
 }
 
 function compilerReportMetadata(detection: CpDetectFoldResult | null): string[] {

@@ -968,7 +968,7 @@ Benchmark gate:
 - [x] Add `DecoderBackend::ConstraintCompilerV1` to product worker options.
 - [x] Keep legacy backend available for A/B comparison.
 - [x] Add UI metadata for observed/inferred/deleted/assignment-flipped elements.
-- [ ] Add import review overlay toggles for compiler provenance.
+- [x] Add import review overlay toggles for compiler provenance.
 
 Phase 10 status:
 
@@ -982,14 +982,22 @@ Phase 10 status:
   ambiguity, and non-clean verification classifications.
 - The generated browser WASM package has been rebuilt with
   `cp_detect_decode_dense_outputs_with_backend`.
-- Provenance-specific overlay toggles are still not implemented because the
-  exported FOLD does not yet carry a per-edge provenance table that the preview
-  can render directly.
+- Compiled FOLD output now carries per-edge detector provenance under
+  `cp_detector.edge_ids`, `edge_source`, `edge_provenance`, support, and
+  assignment confidence arrays. The import modal uses this table to show
+  off-by-default review toggles for inferred geometry and M/V assignment
+  changes.
+- The browser correctness runner accepts `--decoder-backend`; the smoke pack
+  was run against `constraint_compiler_v1` with 4/4 samples decoded and no
+  browser errors. The local file-picker upload/import flow still needs manual
+  end-to-end confirmation because the automated smoke exercises the browser
+  model/decode path directly.
 
 Tests:
 
 - [x] Node/WASM compiler fixture test calls `constraint_compiler_v1`.
-- [ ] Browser smoke test for upload/crop/detect/import.
+- [x] Browser smoke test for modal open and compiler-backed browser detection.
+- [ ] Manual browser smoke test for local file upload/crop/import.
 - [ ] Native Rust and WASM compiler outputs match on fixture inputs.
 
 Gate:

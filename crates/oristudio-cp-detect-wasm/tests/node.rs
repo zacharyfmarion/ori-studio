@@ -153,6 +153,33 @@ fn decode_dense_outputs_returns_fold_json() {
         compiler_decoded["report"]["quality_report"]["compiler_report"]["mode"],
         "global_feedback_v1"
     );
+    let compiler_fold: serde_json::Value = serde_json::from_str(
+        compiler_decoded["fold_json"]
+            .as_str()
+            .expect("compiler fold_json"),
+    )
+    .expect("compiler fold");
+    assert_eq!(
+        compiler_fold["cp_detector"]["decoder_backend"],
+        "constraint_compiler_v1"
+    );
+    assert_eq!(
+        compiler_fold["cp_detector"]["edge_ids"]
+            .as_array()
+            .expect("edge ids")
+            .len(),
+        compiler_fold["edges_vertices"]
+            .as_array()
+            .expect("edges")
+            .len()
+    );
+    assert!(
+        compiler_fold["cp_detector"]["edge_provenance"]
+            .as_array()
+            .expect("edge provenance")
+            .iter()
+            .all(serde_json::Value::is_array)
+    );
 }
 
 fn draw_logit_line(

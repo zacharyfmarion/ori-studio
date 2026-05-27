@@ -85,15 +85,26 @@ fn compiler_from_legacy(mut legacy: DecodedFold) -> Result<DecodedFold, DecodeEr
     let mut fold: serde_json::Value = serde_json::from_str(
         &oristudio_cp_compiler::fold_export::export_program_to_fold_json(&final_program)?,
     )?;
-    fold.as_object_mut().map(|object| {
-        object.insert(
-            "cp_detector".to_owned(),
-            serde_json::json!({
-                "decoder_backend": DecoderBackend::ConstraintCompilerV1.id(),
-                "compiler_report": compiler_report.clone()
-            }),
-        );
-    });
+    if let Some(object) = fold.as_object_mut() {
+        let detector = object
+            .entry("cp_detector".to_owned())
+            .or_insert_with(|| serde_json::json!({}));
+        if let Some(detector_object) = detector.as_object_mut() {
+            detector_object.insert(
+                "decoder_backend".to_owned(),
+                serde_json::json!(DecoderBackend::ConstraintCompilerV1.id()),
+            );
+            detector_object.insert("compiler_report".to_owned(), compiler_report.clone());
+        } else {
+            object.insert(
+                "cp_detector".to_owned(),
+                serde_json::json!({
+                    "decoder_backend": DecoderBackend::ConstraintCompilerV1.id(),
+                    "compiler_report": compiler_report.clone()
+                }),
+            );
+        }
+    }
     legacy.fold_json = serde_json::to_string_pretty(&fold)?;
     legacy.report.decoder_backend = DecoderBackend::ConstraintCompilerV1;
     legacy.report.status = compiler_status(&compiler_report, topology_changed, assignment_changed);
@@ -323,6 +334,27 @@ mod tests {
         assert_eq!(
             compiler.report.quality_report["compiler_report"]["mode"],
             "global_feedback_v1"
+        );
+        assert_eq!(
+            compiler_fold["cp_detector"]["decoder_backend"],
+            "constraint_compiler_v1"
+        );
+        assert_eq!(
+            compiler_fold["cp_detector"]["edge_ids"]
+                .as_array()
+                .expect("edge ids")
+                .len(),
+            compiler_fold["edges_vertices"]
+                .as_array()
+                .expect("edges")
+                .len()
+        );
+        assert!(
+            compiler_fold["cp_detector"]["edge_provenance"]
+                .as_array()
+                .expect("edge provenance")
+                .iter()
+                .all(Value::is_array)
         );
         assert!(
             compiler.report.quality_report["compiler_report"]["initial_verification"].is_object()

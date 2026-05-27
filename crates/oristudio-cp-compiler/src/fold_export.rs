@@ -1,4 +1,5 @@
 use crate::{AssignmentLabel, CandidateProgram, EdgeSelection};
+use serde_json::json;
 use treemaker_fold::{Assignment, FoldAngle, FoldDocument};
 
 pub fn export_program_to_fold_document(program: &CandidateProgram) -> FoldDocument {
@@ -29,6 +30,27 @@ pub fn export_program_to_fold_document(program: &CandidateProgram) -> FoldDocume
     document.frame_title = Some("compiled crease pattern".to_owned());
     document.edges_assignment = edges_assignment;
     document.edges_fold_angle = edges_fold_angle;
+    document.extra.insert(
+        "cp_detector".to_owned(),
+        json!({
+            "edge_ids": selected_edges.iter().map(|edge| edge.id).collect::<Vec<_>>(),
+            "edge_carrier_ids": selected_edges.iter().map(|edge| edge.carrier_id).collect::<Vec<_>>(),
+            "edge_source": selected_edges.iter().map(|edge| edge.source).collect::<Vec<_>>(),
+            "edge_provenance": selected_edges
+                .iter()
+                .map(|edge| edge.provenance.clone())
+                .collect::<Vec<_>>(),
+            "edge_support": selected_edges.iter().map(|edge| edge.line_support).collect::<Vec<_>>(),
+            "assignment_confidence": selected_edges
+                .iter()
+                .map(|edge| edge.assignment.confidence)
+                .collect::<Vec<_>>(),
+            "assignment_margin": selected_edges
+                .iter()
+                .map(|edge| edge.assignment.margin)
+                .collect::<Vec<_>>(),
+        }),
+    );
     document
 }
 
@@ -91,6 +113,14 @@ mod tests {
         assert_eq!(
             fold.edges_assignment,
             vec![Assignment::Boundary, Assignment::Mountain]
+        );
+        assert_eq!(
+            fold.extra["cp_detector"]["edge_ids"],
+            serde_json::json!([0, 1])
+        );
+        assert_eq!(
+            fold.extra["cp_detector"]["edge_provenance"],
+            serde_json::json!([["legacy_decoder"], ["legacy_decoder"]])
         );
     }
 

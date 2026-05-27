@@ -39,7 +39,9 @@
 
 .cp-detect-modal__header,
 .cp-detect-modal__actions,
-.cp-detect-modal__report {
+.cp-detect-modal__report,
+.cp-detect-modal__pane-heading,
+.cp-detect-modal__preview-controls {
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -47,6 +49,22 @@
 
 .cp-detect-modal__header {
   justify-content: space-between;
+}
+
+.cp-detect-modal__pane-heading {
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.cp-detect-modal__preview-controls {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.cp-detect-modal__preview-controls .ui-button {
+  min-height: 24px;
+  padding-inline: 8px;
+  font-size: 0.72rem;
 }
 
 .cp-detect-modal__header h2,
@@ -221,6 +239,25 @@
 
 .cp-detect-modal__fold-line--unknown {
   stroke: #7a848c;
+}
+
+.cp-detect-modal__fold-provenance {
+  fill: none;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+.cp-detect-modal__fold-provenance--inferred {
+  stroke: #d18b00;
+  stroke-width: 0.012;
+  opacity: 0.72;
+}
+
+.cp-detect-modal__fold-provenance--assignment {
+  stroke: #7c3aed;
+  stroke-width: 0.009;
+  stroke-dasharray: 0.018 0.012;
+  opacity: 0.86;
 }
 
 .cp-detect-modal__detecting {

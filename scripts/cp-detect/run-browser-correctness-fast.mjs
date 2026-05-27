@@ -72,6 +72,7 @@ async function main() {
     manifest_url: options.manifestUrl ?? '/models/cp-detector-v2/manifest.json',
     model_url: options.modelUrl ?? null,
     threshold: options.threshold === undefined ? null : Number(options.threshold),
+    decoder_backend: options.decoderBackend ?? null,
     sample_count: rows.length,
     ok_count: rows.filter((row) => row.ok).length,
     samples: rows,
@@ -89,7 +90,7 @@ async function main() {
 async function runSample(page, sample, imageBase64, options) {
   try {
     const detection = await page.evaluate(
-      async ({ base64, imageSize, manifestUrl, modelUrl, threshold }) => {
+      async ({ base64, imageSize, manifestUrl, modelUrl, threshold, decoderBackend }) => {
         const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
         const blob = new Blob([bytes], { type: 'image/png' });
         const bitmap = await createImageBitmap(blob);
@@ -106,6 +107,7 @@ async function runSample(page, sample, imageBase64, options) {
         const options = { manifestUrl };
         if (modelUrl) options.modelUrl = modelUrl;
         if (threshold !== null && threshold !== undefined) options.threshold = threshold;
+        if (decoderBackend) options.decoderBackend = decoderBackend;
         return window.__cpDetectClient.detectRectifiedFold(image, options);
       },
       {
@@ -114,6 +116,7 @@ async function runSample(page, sample, imageBase64, options) {
         manifestUrl: options.manifestUrl ?? '/models/cp-detector-v2/manifest.json',
         modelUrl: options.modelUrl ?? null,
         threshold: options.threshold === undefined ? null : Number(options.threshold),
+        decoderBackend: options.decoderBackend ?? null,
       }
     );
     return {
