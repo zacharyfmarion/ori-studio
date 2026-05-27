@@ -894,23 +894,37 @@ Benchmark gate:
 
 ### Phase 8: Assignment Solver
 
-- [ ] Implement weighted M/V variable solver.
-- [ ] Lock high-confidence labels.
-- [ ] Allow low-confidence flips with provenance.
-- [ ] Detect ambiguous equivalent assignments.
-- [ ] Emit assignment confidence/provenance per edge.
+- [x] Implement weighted M/V variable solver.
+- [x] Lock high-confidence labels.
+- [x] Allow low-confidence flips with provenance.
+- [x] Detect ambiguous equivalent assignments.
+- [x] Emit assignment confidence/provenance per edge.
+
+Phase 8 status:
+
+- `oristudio-cp-compiler::assignments` now solves M/V labels after topology is
+  fixed.
+- High-confidence observed M/V labels are locked by default.
+- Unknown and low-confidence labels become variables in a bounded
+  branch-and-bound search.
+- The solver minimizes unresolved Maekawa/LBL assignment errors first, then
+  assignment invention and observed-label flips.
+- Equivalent best assignments are reported as ambiguous and left uncommitted
+  rather than choosing an arbitrary M/V pattern.
+- This phase does not move geometry, add creases, delete creases, or run global
+  flat-folder verification.
 
 Unit tests:
 
-- Maekawa-satisfiable component solves without geometry changes.
-- High-confidence labels are respected unless explicitly impossible.
-- Low-confidence wrong label is flipped.
-- Multiple equivalent assignments are marked ambiguous.
+- [x] Maekawa-satisfiable component solves without geometry changes.
+- [x] High-confidence labels are respected unless explicitly impossible.
+- [x] Low-confidence wrong label is flipped.
+- [x] Multiple equivalent assignments are marked ambiguous.
 
 Gate:
 
-- Assignment accuracy improves or stays equal.
-- Flat-folder assignment conflicts decrease.
+- [ ] Assignment accuracy improves or stays equal.
+- [ ] Flat-folder assignment conflicts decrease.
 
 ### Phase 9: Global Verification Loop
 

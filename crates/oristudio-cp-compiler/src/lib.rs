@@ -5,6 +5,7 @@
 //! assignment solving, and verification.
 
 pub mod arrangement;
+pub mod assignments;
 pub mod candidates;
 pub mod constraints;
 pub mod evidence;
