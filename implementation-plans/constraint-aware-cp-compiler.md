@@ -1119,6 +1119,75 @@ compiler structural:  0.7500000000  (-0.2500)
   The next compiler phase should focus on why accepted topology moves leave all
   samples with local theorem and assignment conflicts, rather than reintroducing
   an emit fallback.
+- Architecture/hypothesis update from May 27 review:
+  - "Compiler no-op equals legacy" is a diagnostic baseline, not a product goal.
+    The compiler may temporarily make an intermediate graph worse if later
+    constrained reconstruction makes the final graph better. However, we still
+    need to know whether a regression was introduced by seed conversion,
+    border handling, exactization, repair, or assignment solving.
+  - Exactization should probably not be an unconditional first mutation. It was
+    originally first because Kawasaki/sector-angle checks need precise geometry,
+    but that does not imply the graph should be permanently projected before
+    topology decisions. A better architecture is likely:
+
+```text
+visual candidate graph
+  -> deterministic locked square border
+  -> speculative exactized copy for constraint scoring
+  -> topology search proposes moves
+  -> exactize candidate state for evaluation
+  -> accept moves only if invariants improve
+  -> export final exactized state
+```
+
+  - The square border should get special treatment. Legacy border cleanup
+    performed well because it rebuilt a deterministic square chain. The
+    compiler should adopt the same hard prior: corners are fixed, boundary
+    contacts are sorted per side, border edges are rebuilt as exact `B` edges,
+    and repair may add/split a boundary contact but may not directly mangle the
+    border chain.
+  - Assignment conflicts are probably downstream symptoms until geometry is
+    stable. Assignment accuracy barely changed in the raw benchmark, while
+    vertex/edge/border metrics and structural validity regressed.
+- Diagnostic plan to confirm:
+
+```text
+A. legacy output
+B. compiler seed graph with selected legacy/evidence edges only
+C. compiler seed + legacy-style deterministic locked border
+D. compiler seed + exactization only
+E. compiler seed + topology repair
+F. compiler seed + topology repair + assignment solver
+```
+
+  For every stage, emit a FOLD and report:
+
+```text
+vertex/edge/border F1
+structural validity
+illegal crossings / duplicate edges / zero-length edges
+Kawasaki/Maekawa/LBL/global classifications
+accepted topology moves
+assignment decisions
+vertex movement and border-contact changes
+```
+
+  This ablation will answer:
+  - Does seed conversion/export already hurt legacy?
+  - Does locked-border reconstruction recover the border F1 drop?
+  - Does exactization alone introduce edge/vertex/border regressions?
+  - Do accepted topology moves improve constraints while hurting GT metrics?
+  - Are remaining assignment conflicts caused by wrong labels or wrong geometry?
+- Expected architecture changes if the hypotheses confirm:
+  - Promote locked-border reconstruction into the compiler core before
+    exactization and topology repair.
+  - Make exactization a speculative projection used for scoring and candidate
+    evaluation, not an unconditional first edit.
+  - Tighten topology move acceptance with hard invariants: no new illegal
+    crossings, no duplicate edges, no border degradation, hard local error count
+    must decrease, and global classifications must not get worse.
+  - Keep raw compiler output benchmarkable against legacy; do not reintroduce a
+    hidden legacy emit fallback.
 - The fallback result exactly matched legacy browser metrics on the slice:
 
 ```text
