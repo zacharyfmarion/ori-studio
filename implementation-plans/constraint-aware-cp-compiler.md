@@ -809,25 +809,42 @@ Gate:
 
 ### Phase 6: Local Repair Candidate Generation
 
-- [ ] Generate missing-crease candidates for odd-degree vertices.
-- [ ] Generate add/drop/merge/split moves for hard Kawasaki failures.
-- [ ] Generate assignment-only moves for Maekawa failures.
-- [ ] Generate weak-line deletion moves for likely false positives.
-- [ ] Score moves by evidence and expected constraint improvement.
+- [x] Generate missing-crease candidates for odd-degree vertices.
+- [x] Generate weak drop and carrier-split moves for hard Kawasaki failures.
+- [x] Generate near-duplicate vertex merge candidates.
+- [x] Generate assignment-only moves for Maekawa failures.
+- [x] Generate weak-line deletion moves for likely false positives.
+- [x] Score moves by evidence and expected constraint improvement.
+- [ ] Generate topology-add candidates for even-degree hard Kawasaki failures.
+
+Phase 6 status:
+
+- Candidate generation is implemented in `oristudio-cp-compiler::repair`.
+- The compiler now proposes explicit, provenance-tagged moves rather than
+  mutating the graph: missing creases, weak crease drops, nearby vertex merges,
+  carrier-intersection splits, and low-confidence M/V flips.
+- Missing-crease candidates are currently limited to odd-degree vertices because
+  a single added crease can restore even degree and Kawasaki simultaneously.
+  Even-degree hard Kawasaki failures usually require a paired add/drop or merge
+  decision, so those are left for the Phase 7 optimizer rather than guessed in
+  isolation.
+- No repair candidates are applied to product output yet.
 
 Unit tests:
 
-- Degree-3 fixture produces the expected Kawasaki-completing ray.
-- Missing crease candidate clips to an existing vertex when appropriate.
-- Missing crease candidate clips to boundary when no target vertex exists.
-- Strong observed creases are not proposed for deletion.
-- Low-confidence wrong assignments produce assignment moves before geometry
+- [x] Degree-3 fixture produces the expected Kawasaki-completing ray.
+- [x] Missing crease candidate clips to an existing vertex when appropriate.
+- [x] Missing crease candidate clips to boundary when no target vertex exists.
+- [x] Strong observed creases are not proposed for deletion.
+- [x] Low-confidence wrong assignments produce assignment moves before geometry
   moves.
 
 Gate:
 
-- Repair candidates include the visually expected missing crease on at least one
+- [ ] Repair candidates include the visually expected missing crease on at least one
   known real-world example without selecting it yet.
+- [x] Deterministic fixture coverage proves the candidate generator can propose
+  the major local move types without changing exported geometry.
 
 ### Phase 7: Bounded Topology Optimizer
 
