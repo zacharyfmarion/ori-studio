@@ -136,6 +136,36 @@ pub fn cp_detect_decode_dense_outputs_with_backend(
     )
 }
 
+#[wasm_bindgen]
+pub fn cp_detect_ablate_dense_outputs(
+    line_logits: &[f32],
+    junction_logits: &[f32],
+    assignment_logits: &[f32],
+    non_crease_logits: &[f32],
+    line_style_logits: &[f32],
+    boundary_contact_logits: &[f32],
+    image_size: u32,
+    threshold: f32,
+) -> Result<JsValue, JsValue> {
+    let result = oristudio_cp_detect::decode::ablate_dense_outputs(
+        oristudio_cp_detect::decode::DenseOutputs {
+            line_logits,
+            junction_logits,
+            assignment_logits,
+            non_crease_logits,
+            line_style_logits,
+            boundary_contact_logits,
+        },
+        oristudio_cp_detect::decode::DecodeConfig {
+            image_size,
+            threshold,
+            ..oristudio_cp_detect::decode::DecodeConfig::default()
+        },
+    )
+    .map_err(to_js_decode_error)?;
+    to_js_value(&result)
+}
+
 fn decode_dense_outputs_with_backend(
     line_logits: &[f32],
     junction_logits: &[f32],

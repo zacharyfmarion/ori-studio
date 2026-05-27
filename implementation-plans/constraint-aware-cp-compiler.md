@@ -1188,6 +1188,102 @@ vertex movement and border-contact changes
     must decrease, and global classifications must not get worse.
   - Keep raw compiler output benchmarkable against legacy; do not reintroduce a
     hidden legacy emit fallback.
+- Iteration-loop update: split browser inference from compiler replay.
+  Browser/WASM ablation is the most product-faithful path because it exercises
+  the exact ONNX runtime and WASM bindings Ori Studio uses. It is also too slow
+  for tight compiler iteration. The preferred loop is now:
+
+```text
+1. Run browser ONNX inference once on the benchmark pack.
+2. Cache dense output tensors for every sample:
+   - line_logits.f32
+   - junction_logits.f32
+   - assignment_logits.f32
+   - non_crease_logits.f32
+   - line_style_logits.f32
+   - boundary_contact_logits.f32
+   - manifest metadata: sample id, profile, image size, threshold, source image.
+3. Run all ablation stages natively in Rust from those cached tensors.
+4. Evaluate each native replay stage against GT using the existing correctness
+   evaluator.
+5. Iterate on compiler logic using native replay because it avoids browser/model
+   inference cost.
+6. Re-run browser/WASM ablation only as a confirmation gate after a compiler
+   change looks good natively.
+```
+
+  This keeps the logits product-faithful while making the post-inference
+  compiler loop fast. The cache format should be deterministic and reusable:
+
+```text
+artifacts/cp-detect-correctness/dense-cache/<pack-name>/
+  manifest.json
+  <sample-id>/
+    line_logits.f32
+    junction_logits.f32
+    assignment_logits.f32
+    non_crease_logits.f32
+    line_style_logits.f32
+    boundary_contact_logits.f32
+```
+
+  Native replay should produce the same run-manifest shape as browser runs so
+  `evaluate-correctness-pair.py` can score any stage without special cases:
+
+```text
+artifacts/cp-detect-correctness/runs/<pack-name>/native-ablation/<stage>/
+  run_manifest.json
+  predictions/<sample-id>.fold
+  reports/<sample-id>.json
+```
+
+  Guardrail: after optimizing against the native replay, verify a representative
+  slice in browser/WASM to catch runtime, float, serialization, or binding
+  differences before trusting the result in the app.
+- Dense-cache replay status from May 27:
+  - Implemented browser ONNX dense-logit caching and native Rust replay.
+  - Cached the 12-sample `smoke-1024-s3` pack from the browser product runtime:
+
+```text
+artifacts/cp-detect-correctness/dense-cache/smoke-1024-s3-browser-onnx/
+```
+
+  - Browser cache runtime: `346.67s` wall for 12 samples, roughly
+    `28-33s/sample`.
+  - Native release replay of geometry/border/exactization stages from cached
+    logits: `7.88s` wall for 12 samples, roughly `0.66s/sample`.
+  - Native release replay with topology enabled on a single dense Rabbit Ear
+    sample took `51.44s` even with assignment solving skipped. This is too slow
+    for the default inner loop. Topology and assignment stages remain available
+    as opt-in slower checks, but the fast loop should focus on seed conversion,
+    locked border, and exactization first.
+  - The first locked-border pass hard-coded the paper frame as `[0, 0, 1, 1]`.
+    That was wrong for benchmark/browser coordinates, where the rendered paper
+    square may be inset inside the image. The border pass now infers the active
+    paper frame from selected border evidence and preserves existing border
+    split/contact vertices before rebuilding deterministic `B` edges.
+  - Current fast-stage metrics on `smoke-1024-s3`:
+
+```text
+stage                    vertex F1   edge F1   border F1   assignment acc
+legacy                   0.8971      0.7701    0.8971      0.9971
+candidate_seed           0.8971      0.7701    0.8971      0.9971
+locked_border            0.8964      0.7652    0.8778      0.9971
+exactized_seed           0.8422      0.6765    0.8265      0.9967
+locked_border_exactized  0.7803      0.6030    0.5567      0.9963
+```
+
+  - Interpretation:
+    - Seed conversion is effectively lossless relative to legacy on this pack.
+    - The frame-aware locked-border pass is close to legacy but still slightly
+      worse; it needs targeted border-contact preservation/metric work before
+      it can replace legacy border cleanup.
+    - Exactization is the clear regression source. This confirms the
+      architectural hypothesis: exactization should be a speculative projection
+      used for constraint scoring and final export after topology is accepted,
+      not an unconditional early mutation.
+    - The current topology optimizer is also too slow for dense native replay
+      and needs profiling/bounding before it is part of every benchmark run.
 - The fallback result exactly matched legacy browser metrics on the slice:
 
 ```text
@@ -1198,14 +1294,22 @@ assignment acc: 0.9971291866 -> 0.9971291866 (+0.0000)
 structural:     1.0000000000 -> 1.0000000000 (+0.0000)
 ```
 
-- Decision for this phase: the compiler stays enabled as a reporting and
-  review layer, but it must not replace legacy geometry unless its candidate
-  verifies cleanly. The next compiler work should focus on improving repair
-  quality and assignment/global verification before promotion.
+- Historical note: the fallback result above was from the conservative browser
+  compiler wrapper. That fallback path has been removed from compiler
+  benchmarking because the goal is to compare compiler output against legacy,
+  not silently emit legacy when compiler output is worse.
+- Decision for this phase: keep legacy as an explicit benchmark/backend, but
+  benchmark raw compiler stages directly. The next compiler work should focus
+  on making locked-border non-regressive, moving exactization into
+  score/evaluate/export contexts, and profiling/bounding topology search before
+  promotion.
 
 Benchmark artifacts:
 
 ```text
+artifacts/cp-detect-correctness/dense-cache/smoke-1024-s3-browser-onnx/manifest.json
+artifacts/cp-detect-correctness/runs/smoke-1024-s3/native-ablation-geometry-release/ablation_manifest.json
+artifacts/cp-detect-correctness/reports/smoke-1024-s3-native-ablation-geometry-release/
 artifacts/cp-detect-correctness/reports/smoke-1024-s3-compiler-v1-conservative/summary.md
 artifacts/cp-detect-correctness/reports/smoke-1024-s3-compiler-v1-conservative/contact_sheet.png
 artifacts/cp-detect-correctness/reports/smoke-1024-s3-compiler-v1-evidence-pool/summary.md

@@ -4,6 +4,8 @@
 //! constraint-aware compiler can be introduced as an explicit alternative
 //! instead of growing inside the old threshold/cleanup implementation.
 
+use serde::Serialize;
+
 pub use crate::backend::DecoderBackend;
 pub use crate::legacy_decode::{
     DecodeConfig, DecodeEdgeStageSnapshot, DecodeError, DecodeReport, DecodeStageSnapshot,
@@ -37,6 +39,201 @@ pub fn decode_dense_outputs_with_backend(
             compiler_from_program(legacy, program)
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CompilerAblationResult {
+    pub schema: &'static str,
+    pub stages: Vec<CompilerAblationStage>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CompilerAblationStage {
+    pub id: &'static str,
+    pub fold_json: String,
+    pub report: DecodeReport,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct CompilerAblationOptions {
+    pub include_topology: bool,
+    pub include_assignments: bool,
+}
+
+impl Default for CompilerAblationOptions {
+    fn default() -> Self {
+        Self {
+            include_topology: true,
+            include_assignments: true,
+        }
+    }
+}
+
+pub fn ablate_dense_outputs(
+    outputs: DenseOutputs<'_>,
+    config: DecodeConfig,
+) -> Result<CompilerAblationResult, DecodeError> {
+    ablate_dense_outputs_with_options(outputs, config, CompilerAblationOptions::default())
+}
+
+pub fn ablate_dense_outputs_with_options(
+    outputs: DenseOutputs<'_>,
+    config: DecodeConfig,
+    options: CompilerAblationOptions,
+) -> Result<CompilerAblationResult, DecodeError> {
+    let legacy = crate::legacy_decode::decode_dense_outputs(outputs, config.clone())?;
+    let seed = crate::legacy_decode::compiler_candidate_program_from_dense_outputs(
+        outputs,
+        config.clone(),
+        &legacy.fold_json,
+    )?;
+    let locked_border =
+        oristudio_cp_compiler::border::lock_square_border(&seed, Default::default());
+    let exactized_seed =
+        oristudio_cp_compiler::exactize::exactize_program(&seed, Default::default());
+    let exactized_locked = oristudio_cp_compiler::exactize::exactize_program(
+        &locked_border.program,
+        Default::default(),
+    );
+
+    let mut stages = Vec::new();
+    stages.push(CompilerAblationStage {
+        id: "legacy",
+        fold_json: legacy.fold_json.clone(),
+        report: legacy.report.clone(),
+    });
+    stages.push(ablation_program_stage(
+        "candidate_seed",
+        &seed,
+        &config,
+        serde_json::json!({
+            "candidate_pool": compiler_candidate_pool_summary(&seed)
+        }),
+    )?);
+    stages.push(ablation_program_stage(
+        "locked_border",
+        &locked_border.program,
+        &config,
+        serde_json::json!({
+            "locked_border": locked_border.report.clone()
+        }),
+    )?);
+    stages.push(ablation_program_stage(
+        "exactized_seed",
+        &exactized_seed.program,
+        &config,
+        serde_json::json!({
+            "exactize": exactized_seed.report.clone()
+        }),
+    )?);
+    stages.push(ablation_program_stage(
+        "locked_border_exactized",
+        &exactized_locked.program,
+        &config,
+        serde_json::json!({
+            "locked_border": locked_border.report.clone(),
+            "exactize": exactized_locked.report.clone()
+        }),
+    )?);
+
+    if options.include_topology {
+        let topology_current = oristudio_cp_compiler::optimizer::optimize_topology(
+            &seed,
+            oristudio_cp_compiler::optimizer::TopologyOptimizerOptions::default(),
+        );
+        let topology_locked = oristudio_cp_compiler::optimizer::optimize_topology(
+            &locked_border.program,
+            oristudio_cp_compiler::optimizer::TopologyOptimizerOptions::default(),
+        );
+        stages.push(ablation_program_stage(
+            "topology_current",
+            &topology_current.program,
+            &config,
+            serde_json::json!({
+                "topology": {
+                    "cost": topology_current.cost,
+                    "accepted_moves": topology_current.accepted_moves.clone(),
+                    "rejected_move_count": topology_current.rejected_moves.len(),
+                    "exhausted_budget": topology_current.exhausted_budget,
+                    "ambiguous": topology_current.ambiguous
+                }
+            }),
+        )?);
+        stages.push(ablation_program_stage(
+            "topology_locked_border",
+            &topology_locked.program,
+            &config,
+            serde_json::json!({
+                "locked_border": locked_border.report.clone(),
+                "topology": {
+                    "cost": topology_locked.cost,
+                    "accepted_moves": topology_locked.accepted_moves.clone(),
+                    "rejected_move_count": topology_locked.rejected_moves.len(),
+                    "exhausted_budget": topology_locked.exhausted_budget,
+                    "ambiguous": topology_locked.ambiguous
+                }
+            }),
+        )?);
+
+        if options.include_assignments {
+            let assignments_current = oristudio_cp_compiler::assignments::solve_assignments(
+                &topology_current.program,
+                oristudio_cp_compiler::assignments::AssignmentSolverOptions::default(),
+            );
+            let assignments_locked = oristudio_cp_compiler::assignments::solve_assignments(
+                &topology_locked.program,
+                oristudio_cp_compiler::assignments::AssignmentSolverOptions::default(),
+            );
+            stages.push(ablation_program_stage(
+                "assignments_current",
+                &assignments_current.program,
+                &config,
+                serde_json::json!({
+                    "topology": {
+                        "cost": topology_current.cost,
+                        "accepted_moves": topology_current.accepted_moves.clone(),
+                        "rejected_move_count": topology_current.rejected_moves.len(),
+                        "exhausted_budget": topology_current.exhausted_budget,
+                        "ambiguous": topology_current.ambiguous
+                    },
+                    "assignments": {
+                        "solved": assignments_current.solved,
+                        "ambiguous": assignments_current.ambiguous,
+                        "exhausted_budget": assignments_current.exhausted_budget,
+                        "cost": assignments_current.cost,
+                        "decisions": assignments_current.decisions.clone()
+                    }
+                }),
+            )?);
+            stages.push(ablation_program_stage(
+                "assignments_locked_border",
+                &assignments_locked.program,
+                &config,
+                serde_json::json!({
+                    "locked_border": locked_border.report.clone(),
+                    "topology": {
+                        "cost": topology_locked.cost,
+                        "accepted_moves": topology_locked.accepted_moves.clone(),
+                        "rejected_move_count": topology_locked.rejected_moves.len(),
+                        "exhausted_budget": topology_locked.exhausted_budget,
+                        "ambiguous": topology_locked.ambiguous
+                    },
+                    "assignments": {
+                        "solved": assignments_locked.solved,
+                        "ambiguous": assignments_locked.ambiguous,
+                        "exhausted_budget": assignments_locked.exhausted_budget,
+                        "cost": assignments_locked.cost,
+                        "decisions": assignments_locked.decisions.clone()
+                    }
+                }),
+            )?);
+        }
+    }
+
+    Ok(CompilerAblationResult {
+        schema: "oristudio/cp-detect-compiler-ablation/v1",
+        stages,
+    })
 }
 
 fn compiler_from_program(
@@ -145,6 +342,68 @@ fn compiler_from_program(
         report.insert("compiler_report".to_owned(), compiler_report);
     }
     Ok(legacy_baseline)
+}
+
+fn ablation_program_stage(
+    id: &'static str,
+    program: &oristudio_cp_compiler::CandidateProgram,
+    config: &DecodeConfig,
+    stage_details: serde_json::Value,
+) -> Result<CompilerAblationStage, DecodeError> {
+    let fold_json = oristudio_cp_compiler::fold_export::export_program_to_fold_json(program)?;
+    let summary = oristudio_cp_compiler::CompilerSummary::from_program(program);
+    let constraints = oristudio_cp_compiler::constraints::diagnose_constraints(
+        program,
+        oristudio_cp_compiler::constraints::ConstraintDiagnosticOptions::default(),
+    );
+    let verification = oristudio_cp_compiler::verify::verify_program(
+        program,
+        oristudio_cp_compiler::verify::GlobalVerificationOptions {
+            run_flat_folder: false,
+            ..oristudio_cp_compiler::verify::GlobalVerificationOptions::default()
+        },
+    );
+    let clean = verification_clean(&verification);
+    let classifications = serde_json::to_value(&verification.classifications)?;
+    let warnings = if clean {
+        Vec::new()
+    } else {
+        vec![DecodeWarning {
+            code: "compiler_ablation_unresolved".to_owned(),
+            message: "Compiler ablation stage still has verification failures".to_owned(),
+            severity: "info".to_owned(),
+            edge_indices: Vec::new(),
+            vertex_indices: Vec::new(),
+            details: Some(serde_json::json!({ "classifications": classifications })),
+        }]
+    };
+    let quality_report = serde_json::json!({
+        "decoder_backend": DecoderBackend::ConstraintCompilerV1.id(),
+        "ablation_stage": id,
+        "summary": summary,
+        "constraints": constraints,
+        "verification": verification,
+        "stage_details": stage_details
+    });
+    Ok(CompilerAblationStage {
+        id,
+        fold_json,
+        report: DecodeReport {
+            status: if clean { "valid" } else { "ambiguous" }.to_owned(),
+            decoder_backend: DecoderBackend::ConstraintCompilerV1,
+            image_size: config.image_size,
+            threshold: config.threshold,
+            line_count: summary.edges,
+            carrier_count: summary.carriers,
+            vertex_count: summary.vertices,
+            edge_count: summary.edges,
+            border_edge_count: summary.border_edges,
+            interior_edge_count: summary.interior_edges,
+            warnings,
+            repair_actions: Vec::new(),
+            quality_report,
+        },
+    })
 }
 
 fn compiler_candidate_pool_summary(

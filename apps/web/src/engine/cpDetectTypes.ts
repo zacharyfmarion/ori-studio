@@ -131,3 +131,15 @@ export interface CpDetectFoldResult {
   detectorReport: CpDetectDecodeReport;
   manifest: CpDetectModelManifest;
 }
+
+export interface CpDetectAblationStage {
+  id: string;
+  fold_json: string;
+  report: CpDetectDecodeReport;
+}
+
+export interface CpDetectAblationResult {
+  schema: 'oristudio/cp-detect-compiler-ablation/v1';
+  stages: CpDetectAblationStage[];
+  manifest: CpDetectModelManifest;
+}

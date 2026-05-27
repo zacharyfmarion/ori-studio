@@ -3,6 +3,7 @@ import * as ort from 'onnxruntime-web/wasm';
 import ortWasmMjsUrl from 'onnxruntime-web/ort-wasm-simd-threaded.mjs?url';
 import ortWasmUrl from 'onnxruntime-web/ort-wasm-simd-threaded.wasm?url';
 import init, {
+  cp_detect_ablate_dense_outputs,
   cp_detect_auto_rectify_rgba,
   cp_detect_decode_dense_outputs,
   cp_detect_decode_dense_outputs_with_backend,
@@ -12,6 +13,7 @@ import init, {
 } from '../generated/oristudio-cp-detect-wasm/oristudio_cp_detect_wasm';
 import type {
   CpDetectDenseOutputs,
+  CpDetectAblationResult,
   CpDetectFoldResult,
   CpDetectInferenceResult,
   CpDetectModelManifest,
@@ -211,6 +213,28 @@ const api = {
         status: decoded.report.status,
         foldJson: decoded.fold_json,
         detectorReport: decoded.report,
+        manifest: inference.manifest,
+      };
+    });
+  },
+  async ablateRectifiedFold(
+    image: ImageData,
+    options: CpDetectWorkerRunOptions = {}
+  ): Promise<CpDetectAblationResult> {
+    return call(async () => {
+      const inference = await denseInferenceForImage(image, options);
+      const ablation = cp_detect_ablate_dense_outputs(
+        inference.outputs.line_logits.data,
+        inference.outputs.junction_logits.data,
+        inference.outputs.assignment_logits.data,
+        inference.outputs.non_crease_logits.data,
+        inference.outputs.line_style_logits.data,
+        inference.outputs.boundary_contact_logits.data,
+        inference.manifest.inference.image_size,
+        inference.manifest.inference.threshold
+      ) as Omit<CpDetectAblationResult, 'manifest'>;
+      return {
+        ...ablation,
         manifest: inference.manifest,
       };
     });
