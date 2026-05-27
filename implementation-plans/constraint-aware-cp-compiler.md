@@ -1,0 +1,907 @@
+# Constraint-Aware CP Compiler Plan
+
+## Goal
+
+Build a Rust/WASM crease-pattern compiler that turns noisy detector evidence
+into an importable, structurally valid square origami CP.
+
+The compiler is not another threshold-tuning pass. It is a reconstruction layer:
+
+```text
+model probabilities
+  -> scored candidate CP program
+  -> exact square arrangement
+  -> constraint-aware topology selection
+  -> assignment solving
+  -> global verification
+  -> FOLD/OSF plus repair provenance
+```
+
+The target product outcome is:
+
+```text
+uploaded CP image
+  -> crop/rectify
+  -> model inference
+  -> constraint-aware CP compiler
+  -> import into Ori Studio
+  -> CAMV/check4/flat-folder hard errors near zero
+  -> folded form available in most supported cases
+```
+
+## Core Thesis
+
+The detector output should be evidence, not law.
+
+The current browser detector roughly does this:
+
+```text
+model probabilities -> thresholded graph -> deterministic cleanup -> FOLD
+```
+
+The compiler should instead keep multiple competing geometric possibilities and
+choose the graph that best explains the image while satisfying origami
+constraints.
+
+This matters because some failures are not numeric cleanup problems. A CP can
+look visually close while still missing a crease, carrying a wrong M/V label, or
+having a tiny vertex displacement that breaks exact flat-foldability checks.
+
+## Relationship To Existing Plans
+
+- `BROWSER_DETECTION_ROADMAP_V1.md` tracks browser product integration.
+- `exact-python-detector-web-port.md` tracks the frozen Python V2 decoder port.
+- `rust-cp-detector-quality-parity.md` is superseded by the exact-port plan for
+  Python parity work.
+
+This plan is a new architecture layer. It should initially run beside the legacy
+decoder, compare against it, and replace it only when metrics and manual review
+show a real improvement.
+
+## Non-Negotiable Guardrails
+
+- Python detector code remains frozen.
+- The Rust compiler must run in browser WASM.
+- Do not hallucinate unrecoverable cropped/missing borders.
+- Do not add symmetry recovery in V2. Symmetry can be a later optional mode.
+- Do not silently invent geometry. Every inferred crease, deleted crease,
+  moved vertex, or flipped assignment must have provenance and confidence.
+- Do not optimize only for edge F1. The product goal is importable, foldable
+  CPs, so flat-folder success and hard CAMV error reduction are first-class
+  metrics.
+- Each phase must have unit tests or a clearly documented reason why the phase
+  is benchmark/integration-only.
+- Do not proceed from one phase to the next until the phase gate is satisfied or
+  the failure is explicitly recorded.
+- Keep old decoder code cordoned off as a legacy baseline so it can be removed
+  cleanly if the compiler wins.
+
+## Runtime Crate Shape
+
+Add a new compiler crate:
+
+```text
+crates/oristudio-cp-compiler/
+  src/lib.rs
+  src/evidence.rs
+  src/candidates.rs
+  src/arrangement.rs
+  src/exactize.rs
+  src/constraints.rs
+  src/repair.rs
+  src/optimizer.rs
+  src/assignments.rs
+  src/verify.rs
+  src/report.rs
+  src/fold_export.rs
+```
+
+Expected dependencies:
+
+- `serde`, `serde_json`, `thiserror` for stable APIs and reports.
+- `nalgebra` for least-squares projection and small linear solves.
+- `rstar` or an equivalent spatial index for local graph queries.
+- Existing `oristudio-cp`, `oristudio-cp-detect`, `treemaker-fold`, and
+  `treemaker-flatfold` crates for model import/export, diagnostics, and global
+  verification.
+
+Avoid heavyweight native dependencies. Browser runtime must stay WASM-safe.
+
+## Legacy Decoder Cordon
+
+The existing post-processing path should be preserved as a baseline but clearly
+marked as legacy.
+
+Target structure:
+
+```text
+crates/oristudio-cp-detect/src/
+  decode.rs              thin public compatibility wrapper
+  legacy_decode.rs       current threshold/cleanup decoder implementation
+  compiler_decode.rs     adapter into oristudio-cp-compiler
+```
+
+Rules:
+
+- Keep legacy behavior callable for benchmarks and A/B review.
+- New product code should select a decoder backend explicitly:
+
+```text
+DecoderBackend::LegacyV2
+DecoderBackend::ConstraintCompilerV1
+```
+
+- Do not delete legacy code until the compiler has beaten it on the agreed
+  benchmark set.
+- Once the compiler is wired, mark legacy APIs with Rust deprecation attributes
+  or doc comments, depending on whether warnings would disrupt active tests.
+- Legacy reports should identify themselves as `legacy_v2_decoder`.
+- Compiler reports should identify themselves as `constraint_compiler_v1`.
+
+This cordon is important because the current decoder still provides useful
+oracle comparisons, but it should stop being the conceptual home for new repair
+logic.
+
+## Compiler Data Model
+
+The compiler works with scored facts rather than a single graph.
+
+### Evidence Fields
+
+Inputs from the existing detector:
+
+```text
+line probability
+effective line probability
+non-crease probability
+junction probability
+boundary contact probability
+assignment probabilities
+line style probabilities
+rectifier/crop confidence
+```
+
+### Candidate Carriers
+
+A carrier is a possible infinite crease line:
+
+```text
+normal dot p = rho
+```
+
+Stored fields:
+
+```text
+id
+line parameters
+finite support interval
+visual support score
+dashed/gapped support score
+non-crease penalty
+source: observed_strong | observed_weak | inferred | border
+```
+
+Special carrier families:
+
+```text
+horizontal: y = c
+vertical:   x = c
+diagonal:   x + y = c
+diagonal:   x - y = c
+free:       theta/rho
+```
+
+### Candidate Vertices
+
+Vertices come from:
+
+```text
+carrier intersections
+junction peaks
+boundary contacts
+square corners
+repair-generated points
+```
+
+Stored fields:
+
+```text
+id
+position
+source set
+support score
+boundary side, if any
+incident candidate carriers
+```
+
+### Candidate Edges
+
+Edges are intervals between adjacent vertices on a carrier.
+
+Stored fields:
+
+```text
+id
+carrier id
+endpoint vertex ids
+assignment probabilities
+line support score
+style support score
+selected / rejected / undecided
+source: observed | inferred | border
+```
+
+### Provenance
+
+Every output element must explain why it exists:
+
+```text
+observed_strong
+observed_weak
+inferred_by_kawasaki
+inferred_by_even_degree
+inferred_by_boundary_contact
+deleted_low_support
+assignment_observed
+assignment_flipped
+assignment_inferred
+assignment_ambiguous
+```
+
+## Algorithm
+
+### Step 1: Generate Candidate Program
+
+Use permissive thresholds to collect evidence, not just high-confidence final
+lines.
+
+Inputs:
+
+```text
+Hough/OpenCV-compatible segments
+merged finite carriers
+junction peaks
+boundary contact peaks
+assignment logits
+line style logits
+non-crease logits
+```
+
+Output:
+
+```text
+CandidateProgram {
+  carriers,
+  vertices,
+  edges,
+  evidence_maps,
+  warnings
+}
+```
+
+Why this approach:
+
+- The model may return weak evidence for a real crease.
+- A missing crease can be obvious only after checking local flat-foldability.
+- The compiler needs optional candidates to select from.
+
+### Step 2: Exact Square Arrangement
+
+Move the graph into exact square coordinates.
+
+Hard constraints:
+
+```text
+left border:   x = 0
+right border:  x = 1
+top border:    y = 0
+bottom border: y = 1
+```
+
+Build an arrangement of selected or candidate carriers:
+
+```text
+carrier intersections
+carrier-boundary contacts
+side-sorted boundary vertices
+edge intervals between adjacent vertices
+```
+
+Why this approach:
+
+- Square origami CPs are not generic line drawings.
+- Border geometry should be deterministic after rectification.
+- Candidate topology should be represented in a coordinate system where exact
+  flat-foldability constraints have meaning.
+
+### Step 3: Geometric Projection
+
+Given a selected topology, compute the nearest clean geometry.
+
+Minimize:
+
+```text
+endpoint displacement
+carrier displacement from visual evidence
+movement of high-confidence junctions
+movement of high-confidence boundary contacts
+```
+
+Subject to:
+
+```text
+border is exactly square
+vertices lie on incident carriers
+edges on same carrier are collinear
+illegal crossings are split or rejected
+boundary contacts stay on their side
+```
+
+Initial implementation:
+
+- Deterministic snapping for border, horizontal, vertical, and common diagonal
+  families.
+- Local least-squares intersection using `nalgebra`.
+- Neighborhood-only projection after local repair moves.
+
+Do not start with a large nonlinear optimizer. Add one only if deterministic
+projection cannot meet the benchmark gate.
+
+### Step 4: Import-Mode Constraint Diagnostics
+
+For each vertex, compute an import-oriented diagnostic record:
+
+```text
+degree
+boundary/interior classification
+incident edge ids
+sector angles
+Kawasaki residual
+M/V counts
+Maekawa residual
+little-big-little status
+line evidence summary
+assignment evidence summary
+severity
+```
+
+Severity buckets:
+
+```text
+clean
+tiny_numeric_residual
+small_geometry_residual
+hard_kawasaki_failure
+odd_degree_topology_failure
+maekawa_assignment_failure
+little_big_little_failure
+boundary_topology_failure
+global_flatfolder_failure
+```
+
+Why this approach:
+
+- Oriedita-style exact CAMV checks are useful, but too strict as a user-facing
+  detector diagnostic.
+- A `0.11 degree` Kawasaki residual and a missing crease should not be reported
+  as equally mysterious "Angles" failures.
+
+### Step 5: Local Repair Move Generation
+
+Generate explicit candidate repairs for hard violations.
+
+#### Missing Crease From Odd Degree
+
+For an interior odd-degree vertex:
+
+```text
+1. Sort incident ray angles.
+2. For each angular gap, solve for an inserted ray angle that satisfies
+   Kawasaki's alternating sector equation.
+3. Reject the ray if it falls outside the gap or duplicates an existing ray.
+4. Clip the ray to the nearest plausible target:
+   existing vertex, carrier, boundary contact, or square boundary.
+5. Score the new edge by visual support, endpoint evidence, and constraint
+   improvement at both ends.
+```
+
+This directly targets the "model missed one crease" case.
+
+#### Hard Kawasaki Residual
+
+For an even-degree vertex with large Kawasaki residual:
+
+```text
+try carrier projection
+try adding one crease
+try deleting one weak crease
+try merging a nearby duplicate vertex
+try splitting a nearby missed intersection
+```
+
+#### Maekawa / Assignment Failure
+
+Do not change geometry first. Generate assignment variable changes:
+
+```text
+flip low-confidence M/V
+mark uncertain label unknown
+infer label if locally forced
+```
+
+#### False Positive Line
+
+Delete only if:
+
+```text
+line support is weak
+non-crease evidence is high or assignment evidence is poor
+deletion improves local constraints
+deletion does not break obvious border/interior topology
+```
+
+### Step 6: Bounded Topology Optimization
+
+Use a bounded beam search over local repair moves.
+
+State:
+
+```text
+selected edges
+deleted weak edges
+inferred edges
+current projected geometry
+constraint diagnostics
+cost
+```
+
+Cost terms:
+
+```text
+missed strong visual evidence
+selected weak/inferred evidence
+deleted observed evidence
+geometry movement
+unresolved Kawasaki residual
+unresolved Maekawa residual
+little-big-little violations
+boundary topology failures
+assignment conflicts
+flat-folder failure
+```
+
+Search:
+
+```text
+1. Start from legacy decoder graph.
+2. Diagnose hard violations.
+3. Generate local repair moves around worst violations.
+4. Apply top K moves.
+5. Re-project affected geometry.
+6. Re-score local and global constraints.
+7. Keep best beam states.
+8. Stop when valid, budget exhausted, or ambiguity remains.
+```
+
+Why beam search:
+
+- The graph is spatial and most failures are local.
+- It is browser-safe and inspectable.
+- It produces concrete explanations.
+- It avoids committing early to a heavyweight SAT/MILP dependency.
+
+If beam search cannot handle common examples, revisit a hybrid solver for a
+later phase.
+
+### Step 7: Assignment Solver
+
+Solve M/V labels after topology is plausible.
+
+Inputs:
+
+```text
+selected graph
+assignment probabilities
+local Maekawa constraints
+little-big-little constraints
+locked high-confidence labels
+```
+
+Algorithm:
+
+```text
+1. Lock high-confidence observed labels.
+2. Treat low-confidence labels as variables.
+3. Solve connected components with branch-and-bound.
+4. Minimize observed-label flips, unknown labels, and LBL violations.
+5. If multiple equivalent solutions exist, report ambiguity.
+```
+
+Output provenance:
+
+```text
+observed_high_confidence
+observed_low_confidence
+flipped_to_satisfy_constraints
+inferred_for_maekawa
+ambiguous
+unknown
+```
+
+### Step 8: Global Verification
+
+Run final checks:
+
+```text
+FOLD structural validation
+Oriedita check1/check2/check3/check4/CAMV
+flat-folder solve
+Ori Studio import/export smoke
+```
+
+If global verification fails, classify the failure:
+
+```text
+local theorem failure remains
+assignment conflict
+precision failure
+overlap/order conflict
+unsupported global ambiguity
+```
+
+One bounded feedback pass may generate more local repairs from the global
+failure. Do not create an unbounded repair loop.
+
+## Testing Strategy
+
+Testing should be layered. Each phase needs a small, fast unit suite before it
+graduates to benchmark fixtures.
+
+### Unit Fixture Families
+
+Keep tiny deterministic fixtures in git:
+
+```text
+simple square border
+single diagonal
+bird-base-like vertex
+degree-3 missing-crease vertex
+near-Kawasaki residual vertex
+wrong low-confidence assignment
+false-positive weak crease
+boundary contact split
+illegal crossing needing split
+```
+
+These should be hand-authored, not generated from the large dataset.
+
+### Golden Diagnostic Fixtures
+
+For diagnostics, use JSON snapshots:
+
+```text
+input graph
+expected sector angles
+expected residuals
+expected severity
+expected repair candidates
+```
+
+### Benchmark Fixtures
+
+Use the existing detector correctness framework for larger checks:
+
+```text
+synthetic labeled CPs
+V2 issue profiles
+dark/combined stress cases
+real-world smoke cases
+named duck/cpoogle cases
+```
+
+### Acceptance Metrics
+
+Report both graph metrics and product metrics:
+
+```text
+vertex precision/recall/F1
+edge precision/recall/F1
+border precision/recall/F1
+assignment accuracy
+complete square border rate
+hard CAMV error count
+tiny residual count
+flat-folder success rate
+valid FOLD rate
+inferred crease count
+deleted crease count
+assignment flip count
+manual edit distance proxy, when available
+```
+
+Tiny numeric residuals should be reported separately from hard theorem failures.
+
+## Phase Plan
+
+Each phase ends with:
+
+```text
+cargo fmt
+cargo test for touched crates
+targeted wasm/node test if WASM-facing APIs changed
+small benchmark or snapshot update where relevant
+focused commit
+```
+
+### Phase 0: Plan
+
+- [x] Write this implementation plan.
+- [ ] Commit the plan.
+
+Gate:
+
+- `git diff --check`
+
+### Phase 1: Legacy Cordon And Baseline Harness
+
+- [ ] Move current decoder implementation behind an explicit legacy module or
+  compatibility wrapper.
+- [ ] Add `DecoderBackend::LegacyV2`.
+- [ ] Add report metadata identifying legacy output.
+- [ ] Keep public behavior unchanged.
+- [ ] Add baseline tests proving legacy output did not change.
+- [ ] Add benchmark command support for legacy vs compiler backends, even if the
+  compiler backend initially delegates to legacy.
+
+Unit tests:
+
+- Legacy decode fixture returns the same canonical FOLD as before the move.
+- Legacy report includes `decoder_backend = legacy_v2_decoder`.
+- Browser/WASM decode still works with the legacy backend.
+
+Gate:
+
+- No graph/report deltas except the new backend metadata.
+
+### Phase 2: Compiler Data Model
+
+- [ ] Add `crates/oristudio-cp-compiler`.
+- [ ] Define evidence, carriers, vertices, edges, assignments, and provenance.
+- [ ] Add conversion from current legacy decoder intermediates into a
+  `CandidateProgram`.
+- [ ] Add JSON serialization for debug reports.
+- [ ] Add no-op compiler path that emits the same graph as legacy.
+
+Unit tests:
+
+- Candidate graph round-trips through JSON.
+- Provenance is preserved.
+- No-op compiler output matches legacy on tiny fixtures.
+
+Gate:
+
+- Compiler backend can run without changing output.
+
+### Phase 3: Exact Square Arrangement
+
+- [ ] Implement unit-square frame representation.
+- [ ] Implement side-sorted boundary vertices.
+- [ ] Implement carrier-boundary and carrier-carrier intersections.
+- [ ] Implement deterministic edge interval construction.
+- [ ] Rebuild square border as exact `B` edges.
+
+Unit tests:
+
+- Four square sides are always exact.
+- Boundary contacts are sorted correctly on all four sides.
+- Corners are stable and not duplicated.
+- A carrier crossing the square creates the expected two boundary contacts.
+- Adjacent contacts create deterministic border edges.
+
+Gate:
+
+- Border topology improves or stays equal on benchmark smoke cases.
+- No complete-square regressions.
+
+### Phase 4: Geometric Projection / Exactizer V1
+
+- [ ] Move current exactizer logic into compiler-quality code.
+- [ ] Project vertices from incident carrier intersections.
+- [ ] Snap supported horizontal, vertical, 45-degree, 135-degree, and border
+  carriers.
+- [ ] Track endpoint movement and carrier movement in the report.
+- [ ] Keep topology unchanged in this phase.
+
+Unit tests:
+
+- Noisy square becomes exact.
+- Noisy diagonal intersections become analytic intersections.
+- Degenerate duplicate endpoints are merged or reported.
+- Projection does not move locked high-confidence vertices past tolerance.
+
+Gate:
+
+- Tiny numeric residual count decreases on known examples.
+- No new hard topology failures are introduced.
+
+### Phase 5: Import-Mode Constraint Diagnostics
+
+- [ ] Implement sector angle extraction.
+- [ ] Implement Kawasaki residuals.
+- [ ] Implement Maekawa residuals.
+- [ ] Implement little-big-little classification or wrap existing Oriedita logic
+  with richer diagnostics.
+- [ ] Add severity buckets.
+- [ ] Add report payload consumable by the UI.
+
+Unit tests:
+
+- Valid bird-base-like vertex is clean.
+- Degree-3 vertex is `odd_degree_topology_failure`.
+- `0.1 degree` residual is classified as tiny/small, not hard.
+- Large Kawasaki failure is hard.
+- Wrong M/V count is assignment failure, not geometry failure.
+
+Gate:
+
+- Diagnostic report explains the known `simple.osf` post-exactization failures
+  more clearly than raw CAMV.
+
+### Phase 6: Local Repair Candidate Generation
+
+- [ ] Generate missing-crease candidates for odd-degree vertices.
+- [ ] Generate add/drop/merge/split moves for hard Kawasaki failures.
+- [ ] Generate assignment-only moves for Maekawa failures.
+- [ ] Generate weak-line deletion moves for likely false positives.
+- [ ] Score moves by evidence and expected constraint improvement.
+
+Unit tests:
+
+- Degree-3 fixture produces the expected Kawasaki-completing ray.
+- Missing crease candidate clips to an existing vertex when appropriate.
+- Missing crease candidate clips to boundary when no target vertex exists.
+- Strong observed creases are not proposed for deletion.
+- Low-confidence wrong assignments produce assignment moves before geometry
+  moves.
+
+Gate:
+
+- Repair candidates include the visually expected missing crease on at least one
+  known real-world example without selecting it yet.
+
+### Phase 7: Bounded Topology Optimizer
+
+- [ ] Implement state cost.
+- [ ] Implement beam search over local repair moves.
+- [ ] Re-project affected neighborhoods after moves.
+- [ ] Record accepted/rejected move provenance.
+- [ ] Add configurable search budgets for browser runtime.
+
+Unit tests:
+
+- One-missing-crease fixture is repaired.
+- One-false-positive fixture deletes the weak false line.
+- Ambiguous fixture reports ambiguity instead of inventing arbitrary geometry.
+- Search budget exhaustion is reported cleanly.
+
+Benchmark gate:
+
+- Hard CAMV error count decreases on smoke cases.
+- Flat-folder success rate improves or stays equal.
+- Edge F1 does not materially regress.
+- Inferred crease count stays within reviewable bounds.
+
+### Phase 8: Assignment Solver
+
+- [ ] Implement weighted M/V variable solver.
+- [ ] Lock high-confidence labels.
+- [ ] Allow low-confidence flips with provenance.
+- [ ] Detect ambiguous equivalent assignments.
+- [ ] Emit assignment confidence/provenance per edge.
+
+Unit tests:
+
+- Maekawa-satisfiable component solves without geometry changes.
+- High-confidence labels are respected unless explicitly impossible.
+- Low-confidence wrong label is flipped.
+- Multiple equivalent assignments are marked ambiguous.
+
+Gate:
+
+- Assignment accuracy improves or stays equal.
+- Flat-folder assignment conflicts decrease.
+
+### Phase 9: Global Verification Loop
+
+- [ ] Run FOLD validation.
+- [ ] Run Oriedita check suite.
+- [ ] Run flat-folder.
+- [ ] Classify global failures.
+- [ ] Add one bounded feedback pass from global failure to local repair.
+
+Unit tests:
+
+- Precision failure is classified separately from assignment conflict.
+- Local theorem failure is reported at the responsible vertex.
+- Global failure does not cause unbounded repair loops.
+
+Benchmark gate:
+
+- Valid FOLD rate and flat-folder success rate improve over legacy.
+
+### Phase 10: Browser/WASM Integration
+
+- [ ] Add `DecoderBackend::ConstraintCompilerV1` to product worker options.
+- [ ] Keep legacy backend available for A/B comparison.
+- [ ] Add UI metadata for observed/inferred/deleted/assignment-flipped elements.
+- [ ] Add import review overlay toggles for compiler provenance.
+
+Tests:
+
+- Node/WASM compiler fixture test.
+- Browser smoke test for upload/crop/detect/import.
+- Native Rust and WASM compiler outputs match on fixture inputs.
+
+Gate:
+
+- Browser output matches native Rust compiler output.
+
+### Phase 11: Benchmark Decision
+
+- [ ] Run legacy vs compiler benchmark on the agreed slices.
+- [ ] Produce report with graph metrics and product metrics.
+- [ ] Produce contact sheets for visually inspecting inferred/deleted creases.
+- [ ] Decide whether compiler becomes the default backend.
+
+Promotion criteria:
+
+- Flat-folder success improves meaningfully.
+- Hard CAMV errors decrease meaningfully.
+- Complete square border stays strong.
+- Edge F1 does not regress beyond an agreed small tolerance.
+- Inferred geometry is explainable and visually plausible.
+- Manual review says the compiler output is easier to fix than legacy output.
+
+### Phase 12: Legacy Removal Decision
+
+Only after compiler promotion:
+
+- [ ] Mark legacy backend deprecated in code.
+- [ ] Move legacy tests to regression-only coverage.
+- [ ] Remove product UI references to legacy unless a debug flag is enabled.
+- [ ] Create a deletion checklist for legacy decoder code.
+
+Do not delete legacy code until there is at least one stable release or manual
+testing cycle where the compiler backend is clearly better.
+
+## Open Questions
+
+- What threshold separates tiny numeric residuals from small repairable
+  geometry residuals? Initial proposal: under `0.25 degrees` is tiny, `0.25` to
+  `2 degrees` is small, over `2 degrees` is hard unless local context says
+  otherwise.
+- Should inferred creases default to unknown assignment until assignment solving,
+  or should they inherit local M/V hypotheses immediately?
+- Should the optimizer optimize assignment and topology jointly for hard cases,
+  or keep the first version staged as topology then assignment?
+- How much inferred geometry is acceptable before the UI should ask the user to
+  confirm?
+- Which real-world smoke cases become the canonical compiler evaluation set?
+
+## Initial Recommendation
+
+Start with phases 1 through 5 before implementing any automatic repair.
+
+That sequence gives us:
+
+```text
+legacy cordon
+compiler data model
+exact square arrangement
+geometry projection
+clear import-mode diagnostics
+```
+
+At that point we can inspect exactly which failures are numeric, which are
+missing topology, and which are assignment conflicts. Then topology repair can
+be implemented with much less guesswork.
