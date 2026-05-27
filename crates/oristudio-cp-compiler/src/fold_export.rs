@@ -3,19 +3,37 @@ use serde_json::json;
 use treemaker_fold::{Assignment, FoldAngle, FoldDocument};
 
 pub fn export_program_to_fold_document(program: &CandidateProgram) -> FoldDocument {
-    let vertices_coords = program
-        .vertices
-        .iter()
-        .map(|vertex| vec![vertex.position.x, vertex.position.y])
-        .collect::<Vec<_>>();
     let selected_edges = program
         .edges
         .iter()
         .filter(|edge| edge.selection == EdgeSelection::Selected)
         .collect::<Vec<_>>();
+    let mut used_vertices = selected_edges
+        .iter()
+        .flat_map(|edge| edge.vertices)
+        .collect::<Vec<_>>();
+    used_vertices.sort_unstable();
+    used_vertices.dedup();
+    let mut vertex_remap = vec![usize::MAX; program.vertices.len()];
+    let vertices_coords = used_vertices
+        .iter()
+        .enumerate()
+        .filter_map(|(next_index, old_index)| {
+            vertex_remap[*old_index] = next_index;
+            program
+                .vertices
+                .get(*old_index)
+                .map(|vertex| vec![vertex.position.x, vertex.position.y])
+        })
+        .collect::<Vec<_>>();
     let edges_vertices = selected_edges
         .iter()
-        .map(|edge| edge.vertices)
+        .map(|edge| {
+            [
+                vertex_remap[edge.vertices[0]],
+                vertex_remap[edge.vertices[1]],
+            ]
+        })
         .collect::<Vec<_>>();
     let edges_assignment = selected_edges
         .iter()

@@ -267,6 +267,19 @@ pub fn apply_repair_candidate(
 ) -> Option<CandidateProgram> {
     let mut next = program.clone();
     match &candidate.kind {
+        RepairCandidateKind::SelectWeakCrease { edge_id } => {
+            let edge_index = next.edges.iter().position(|edge| edge.id == *edge_id)?;
+            let edge_vertices = next.edges[edge_index].vertices;
+            let edge = &mut next.edges[edge_index];
+            edge.selection = EdgeSelection::Selected;
+            edge.provenance
+                .push(if edge.source == EvidenceSource::ObservedStrong {
+                    Provenance::ObservedStrong
+                } else {
+                    Provenance::ObservedWeak
+                });
+            split_boundary_edges_for_selected_edge(&mut next, edge_vertices);
+        }
         RepairCandidateKind::AddMissingCrease {
             vertex_id, target, ..
         } => apply_add_missing_crease(&mut next, *vertex_id, target)?,
@@ -361,6 +374,21 @@ fn apply_add_missing_crease(
     Some(())
 }
 
+fn split_boundary_edges_for_selected_edge(program: &mut CandidateProgram, vertices: [usize; 2]) {
+    for vertex_index in vertices {
+        let Some(vertex) = program.vertices.get(vertex_index) else {
+            continue;
+        };
+        if vertex.kind != VertexKind::Boundary {
+            continue;
+        }
+        let Some(side) = side_for_boundary_point(vertex.position) else {
+            continue;
+        };
+        split_boundary_edge_at(program, vertex_index, side, vertex.position);
+    }
+}
+
 fn split_boundary_edge_at(
     program: &mut CandidateProgram,
     new_index: usize,
@@ -402,6 +430,12 @@ fn split_boundary_edge_at(
         return true;
     }
     false
+}
+
+fn side_for_boundary_point(point: Point2) -> Option<SquareSide> {
+    SquareSide::all()
+        .into_iter()
+        .find(|side| point_on_side(point, *side))
 }
 
 fn apply_merge_vertices(
@@ -639,6 +673,43 @@ mod tests {
                 .edges
                 .iter()
                 .any(|edge| edge.source == EvidenceSource::Inferred)
+        );
+    }
+
+    #[test]
+    fn observed_undecided_crease_is_selected_before_inventing_geometry() {
+        let mut program = centered_star(&[
+            (0.0, AssignmentLabel::Mountain, 1.0, 1.0),
+            (90.0, AssignmentLabel::Mountain, 1.0, 1.0),
+            (180.0, AssignmentLabel::Valley, 1.0, 1.0),
+        ]);
+        let target = upsert_boundary_vertex(&mut program.vertices, Point2::new(0.5, 0.0));
+        let edge_id = program.edges.len();
+        add_segment(
+            &program.vertices,
+            &mut program.edges,
+            &mut program.carriers,
+            [0, target],
+            AssignmentLabel::Unknown,
+            0.8,
+            0.4,
+        );
+        program.edges[edge_id].selection = EdgeSelection::Undecided;
+        program.edges[edge_id].source = EvidenceSource::ObservedWeak;
+        program.edges[edge_id].provenance = vec![Provenance::ObservedWeak];
+        program.carriers[edge_id].source = EvidenceSource::ObservedWeak;
+        program.carriers[edge_id].provenance = vec![Provenance::ObservedWeak];
+
+        let result = optimize_topology(&program, TopologyOptimizerOptions::default());
+
+        assert_eq!(result.cost.hard_errors, 0);
+        assert!(result.accepted_moves.iter().any(|record| matches!(
+            record.candidate.kind,
+            RepairCandidateKind::SelectWeakCrease { edge_id: id } if id == edge_id
+        )));
+        assert_eq!(
+            result.program.edges[edge_id].selection,
+            EdgeSelection::Selected
         );
     }
 

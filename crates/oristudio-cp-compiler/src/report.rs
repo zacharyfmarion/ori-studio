@@ -47,6 +47,12 @@ pub struct CompilerSummary {
 
 impl CompilerSummary {
     pub fn from_program(program: &CandidateProgram) -> Self {
+        let selected_vertex_ids = program
+            .edges
+            .iter()
+            .filter(|edge| edge.selection == crate::EdgeSelection::Selected)
+            .flat_map(|edge| edge.vertices)
+            .collect::<std::collections::BTreeSet<_>>();
         let border_edges = program
             .edges
             .iter()
@@ -66,7 +72,7 @@ impl CompilerSummary {
             .count();
         Self {
             carriers: program.carriers.len(),
-            vertices: program.vertices.len(),
+            vertices: selected_vertex_ids.len(),
             edges,
             border_edges,
             interior_edges: edges.saturating_sub(border_edges),

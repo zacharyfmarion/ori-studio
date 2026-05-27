@@ -41,6 +41,9 @@ pub struct RepairCandidate {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum RepairCandidateKind {
+    SelectWeakCrease {
+        edge_id: usize,
+    },
     AddMissingCrease {
         vertex_id: usize,
         angle_degrees: f64,
@@ -99,6 +102,7 @@ pub fn generate_repair_candidates(
         let rays = incident.get(&vertex_id).cloned().unwrap_or_default();
         match diagnostic.severity {
             ConstraintSeverity::OddDegreeTopologyFailure => {
+                candidates.extend(select_undecided_candidates(program, vertex_id, options));
                 candidates.extend(missing_crease_candidates(
                     program,
                     vertex.position,
@@ -109,6 +113,7 @@ pub fn generate_repair_candidates(
                 ));
             }
             ConstraintSeverity::HardKawasakiFailure => {
+                candidates.extend(select_undecided_candidates(program, vertex_id, options));
                 candidates.extend(drop_weak_candidates(&rays, options));
                 candidates.extend(split_intersection_candidates(program, options));
             }
@@ -124,6 +129,43 @@ pub fn generate_repair_candidates(
     dedupe_candidates(&mut candidates);
     candidates.sort_by(|left, right| right.score.total_cmp(&left.score));
     RepairCandidateSet { candidates }
+}
+
+fn select_undecided_candidates(
+    program: &CandidateProgram,
+    vertex_id: usize,
+    options: RepairCandidateOptions,
+) -> Vec<RepairCandidate> {
+    let Some(vertex_index) = program
+        .vertices
+        .iter()
+        .position(|vertex| vertex.id == vertex_id)
+    else {
+        return Vec::new();
+    };
+    program
+        .edges
+        .iter()
+        .filter(|edge| edge.selection == EdgeSelection::Undecided)
+        .filter(|edge| edge.vertices.contains(&vertex_index))
+        .filter(|edge| {
+            !matches!(
+                edge.assignment.label,
+                AssignmentLabel::Boundary | AssignmentLabel::Flat
+            )
+        })
+        .filter(|edge| edge.line_support >= options.weak_line_support_threshold * 0.35)
+        .map(|edge| RepairCandidate {
+            kind: RepairCandidateKind::SelectWeakCrease { edge_id: edge.id },
+            score: edge.line_support.clamp(0.0, 1.0) + 0.25,
+            reason: "undecided observed line may resolve local flat-foldability failure".to_owned(),
+            provenance: vec![if edge.source == crate::EvidenceSource::ObservedStrong {
+                Provenance::ObservedStrong
+            } else {
+                Provenance::ObservedWeak
+            }],
+        })
+        .collect()
 }
 
 fn incident_edges(program: &CandidateProgram) -> BTreeMap<usize, Vec<IncidentEdge>> {
@@ -599,6 +641,56 @@ mod tests {
                 to: AssignmentLabel::Valley,
                 ..
             }
+        )));
+    }
+
+    #[test]
+    fn undecided_observed_line_generates_selection_candidate() {
+        let mut program = centered_star(&[
+            (0.0, AssignmentLabel::Mountain, 1.0, 1.0),
+            (90.0, AssignmentLabel::Mountain, 1.0, 1.0),
+            (180.0, AssignmentLabel::Valley, 1.0, 1.0),
+        ]);
+        let vertex_id = program.vertices.len();
+        program.vertices.push(vertex(
+            vertex_id,
+            Point2::new(0.5, 0.1),
+            VertexKind::Interior,
+        ));
+        let edge_id = program.edges.len();
+        program.edges.push(CandidateEdge {
+            id: edge_id,
+            carrier_id: edge_id,
+            vertices: [0, vertex_id],
+            assignment: AssignmentCandidate {
+                label: AssignmentLabel::Unknown,
+                confidence: 0.4,
+                margin: 0.0,
+            },
+            line_support: 0.7,
+            style_support: 0.0,
+            selection: EdgeSelection::Undecided,
+            source: EvidenceSource::ObservedWeak,
+            provenance: vec![Provenance::ObservedWeak],
+        });
+        program.carriers.push(CandidateCarrier {
+            id: edge_id,
+            family: CarrierFamily::Vertical,
+            normal: Point2::new(1.0, 0.0),
+            rho: 0.5,
+            support_interval: [0.1, 0.5],
+            visual_support: 0.7,
+            dashed_support: 0.0,
+            non_crease_penalty: 0.0,
+            source: EvidenceSource::ObservedWeak,
+            provenance: vec![Provenance::ObservedWeak],
+        });
+
+        let repairs = generate_repair_candidates(&program, Default::default());
+
+        assert!(repairs.candidates.iter().any(|candidate| matches!(
+            candidate.kind,
+            RepairCandidateKind::SelectWeakCrease { edge_id: id } if id == edge_id
         )));
     }
 

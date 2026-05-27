@@ -47,6 +47,13 @@ This matters because some failures are not numeric cleanup problems. A CP can
 look visually close while still missing a crease, carrying a wrong M/V label, or
 having a tiny vertex displacement that breaks exact flat-foldability checks.
 
+In compiler reports, `clean` has a narrow meaning: the emitted candidate passed
+the current structural FOLD validation, import-mode local checks
+Kawasaki/Maekawa/LBL/boundary topology, and global flat-folder verification
+without a hard classified failure. `clean` is not a claim that the candidate is
+ground-truth-correct; it only means the current verifier did not find a hard
+origami/compiler failure.
+
 ## Relationship To Existing Plans
 
 - `BROWSER_DETECTION_ROADMAP_V1.md` tracks browser product integration.
@@ -686,9 +693,19 @@ Phase 2 status:
 
 - Completed in this implementation pass.
 - `oristudio-cp-compiler` now owns the candidate program data model.
-- The compiler can build a `CandidateProgram` from the legacy FOLD output.
-- `DecoderBackend::ConstraintCompilerV1` runs a no-op compiler pass over legacy
-  output and preserves the graph while adding compiler metadata.
+- Divergence found on May 27, 2026: although the checklist said "legacy decoder
+  intermediates," the first implementation built `CandidateProgram` only from
+  the final legacy FOLD output. That violated Step 1 of this plan because weak
+  carriers/edges discarded by legacy thresholding never reached the compiler.
+- Corrected on May 27, 2026: `DecoderBackend::ConstraintCompilerV1` now runs
+  legacy decode only as a baseline seed/reporting source, then augments the
+  compiler candidate pool from dense detector evidence using permissive
+  thresholds, Hough carriers, merged junction/boundary vertices, assignment
+  logits, and line-style-aware support.
+- Updated on May 27, 2026: the compiler backend no longer preserves or emits
+  legacy geometry when the candidate is not clean. `ConstraintCompilerV1` always
+  exports the compiled candidate. Legacy remains available only as the separate
+  `LegacyV2` backend so benchmarks can compare compiler output against legacy.
 - Automatic repair, exact arrangement, diagnostics, and assignment solving are
   still intentionally not implemented.
 
@@ -697,10 +714,14 @@ Unit tests:
 - [x] Candidate graph round-trips through JSON.
 - [x] Provenance is preserved.
 - [x] No-op compiler output matches legacy on tiny fixtures.
+- [x] Compiler candidate pool can contain observed undecided edges; only selected
+  compiler edges are exported to FOLD.
 
 Gate:
 
 - [x] Compiler backend can run without changing output.
+- [x] The compiler no longer relies only on final legacy FOLD geometry for its
+  candidate universe.
 
 ### Phase 3: Exact Square Arrangement
 
@@ -832,7 +853,8 @@ Phase 6 status:
 - Candidate generation is implemented in `oristudio-cp-compiler::repair`.
 - The compiler now proposes explicit, provenance-tagged moves rather than
   mutating the graph: missing creases, weak crease drops, nearby vertex merges,
-  carrier-intersection splits, and low-confidence M/V flips.
+  carrier-intersection splits, observed-undecided crease selection, and
+  low-confidence M/V flips.
 - Missing-crease candidates are currently limited to odd-degree vertices because
   a single added crease can restore even degree and Kawasaki simultaneously.
   Even-degree hard Kawasaki failures usually require a paired add/drop or merge
@@ -848,6 +870,8 @@ Unit tests:
 - [x] Strong observed creases are not proposed for deletion.
 - [x] Low-confidence wrong assignments produce assignment moves before geometry
   moves.
+- [x] Observed undecided lines can be proposed as selection moves for local
+  theorem failures.
 
 Gate:
 
@@ -872,10 +896,12 @@ Phase 7 status:
   adds smaller penalties for inferred edges, weak selected evidence, and deleted
   observed support.
 - Move application supports missing-crease insertion, weak-crease rejection,
-  near-duplicate vertex merge, carrier-intersection split, and low-confidence
-  assignment flip.
+  observed-undecided crease selection, near-duplicate vertex merge,
+  carrier-intersection split, and low-confidence assignment flip.
 - Missing creases to a boundary contact now split an existing square border edge
   so the inserted contact remains valid boundary topology.
+- Observed-undecided creases selected into a boundary contact also split the
+  square border edge before re-verification.
 - Projection is currently full-state exactization after each move, not a
   neighborhood-only projector. That is simpler and safer for the first optimizer
   pass; neighborhood projection can be added when runtime profiling says it is
@@ -886,6 +912,8 @@ Phase 7 status:
 Unit tests:
 
 - [x] One-missing-crease fixture is repaired.
+- [x] One observed-undecided missing crease fixture is selected before inferred
+  geometry is invented.
 - [x] One-false-positive fixture deletes the weak false line.
 - [x] Ambiguous fixture reports ambiguity instead of inventing arbitrary
   geometry.
@@ -981,6 +1009,10 @@ Phase 10 status:
 - The detector backend router now runs the full compiler pipeline for
   `constraint_compiler_v1`: candidate graph, topology optimization, assignment
   solving, FOLD export, and global verification metadata.
+- After the May 27 divergence correction, the candidate graph is no longer
+  reconstructed only from final legacy FOLD. The backend still runs legacy for
+  baseline/reporting, but compiler input is augmented from dense detector
+  evidence and contains observed undecided candidate edges.
 - The legacy backend remains the default low-level WASM decode function and is
   still available through worker options for A/B comparisons.
 - The CP import modal now requests `constraint_compiler_v1` by default and shows
@@ -993,11 +1025,12 @@ Phase 10 status:
   assignment confidence arrays. The import modal uses this table to show
   off-by-default review toggles for inferred geometry and M/V assignment
   changes.
-- The browser integration now uses a conservative compiler acceptance gate:
-  a compiled candidate is emitted only when global verification classifies it as
-  clean. If the candidate still has local theorem or assignment conflicts, the
-  browser preserves the legacy graph, attaches the compiler report, and emits a
-  `constraint_compiler_fallback` warning instead of silently regressing output.
+- The browser integration no longer uses a conservative compiler acceptance
+  fallback. `ConstraintCompilerV1` always emits the compiled candidate and
+  records whether that candidate verified clean in
+  `compiler_report.output.verified_clean`. Non-clean candidates emit
+  `constraint_compiler_unresolved` warnings with the verifier classifications.
+  Legacy is still callable as `LegacyV2`, but only for A/B comparison.
 - The browser correctness runner accepts `--decoder-backend`; the smoke pack
   was run against `constraint_compiler_v1` with 4/4 samples decoded and no
   browser errors. The local file-picker upload/import flow still needs manual
@@ -1038,6 +1071,54 @@ Phase 11 status:
 - After adding conservative acceptance, all 12 compiler candidates on this
   slice were rejected as `legacy_fallback` because candidate verification still
   reported `local_theorem_failure` and `assignment_conflict`.
+- May 27 divergence audit: the compiler benchmark initially looked like "the
+  compiler is doing nothing" because it was mostly true. The compiler was
+  starting from final legacy FOLD output, not the permissive detector evidence
+  pool required by Phase 2. That meant the optimizer could exactize and inspect
+  the legacy graph, but it could not select weak lines that legacy had already
+  thresholded away.
+- May 27 correction rerun: `constraint_compiler_v1` now augments the candidate
+  graph from dense detector evidence. The corrected run produced observed
+  undecided candidates on 11/12 samples, with per-sample candidate pools ranging
+  from `55` to `247` edges and undecided edge counts ranging from `0` to `86`.
+  Topology search accepted moves internally on 6/12 samples.
+- Product output did not change on the corrected rerun because the conservative
+  acceptance gate still rejected all 12 compiled candidates as non-clean:
+  `selected = legacy_fallback` for every sample. This is expected under the
+  current guardrail: weak candidates may be explored, but they are not emitted
+  until global verification is clean.
+- Same-day product decision reversal: the fallback gate hid the behavior we need
+  to evaluate. It has been removed. The benchmark target is now raw compiler
+  output against legacy output, not guarded legacy-preserving output.
+- Raw no-fallback benchmark on `smoke-1024-s3` completed after removing the
+  gate. All 12 outputs were emitted as `selected = compiled`; 12/12 were still
+  non-clean with `local_theorem_failure` and `assignment_conflict`. Statuses
+  were `11 ambiguous`, `1 failed`.
+- Raw compiler output is not ready to replace legacy yet:
+
+```text
+legacy vertex F1:     0.8970679975
+compiler vertex F1:   0.8394753279  (-0.0576)
+
+legacy edge F1:       0.7700810612
+compiler edge F1:     0.6718118339  (-0.0983)
+
+legacy border F1:     0.8970588235
+compiler border F1:   0.8188512518  (-0.0782)
+
+legacy assignment:    0.9971291866
+compiler assignment:  0.9967177243  (-0.0004)
+
+legacy structural:    1.0000000000
+compiler structural:  0.7500000000  (-0.2500)
+```
+
+- Interpretation: the compiler now exposes its real behavior. The candidate
+  universe correction worked, but topology repair/selection is too aggressive or
+  insufficiently constrained, especially around borders and artifact profiles.
+  The next compiler phase should focus on why accepted topology moves leave all
+  samples with local theorem and assignment conflicts, rather than reintroducing
+  an emit fallback.
 - The fallback result exactly matched legacy browser metrics on the slice:
 
 ```text
@@ -1058,6 +1139,9 @@ Benchmark artifacts:
 ```text
 artifacts/cp-detect-correctness/reports/smoke-1024-s3-compiler-v1-conservative/summary.md
 artifacts/cp-detect-correctness/reports/smoke-1024-s3-compiler-v1-conservative/contact_sheet.png
+artifacts/cp-detect-correctness/reports/smoke-1024-s3-compiler-v1-evidence-pool/summary.md
+artifacts/cp-detect-correctness/reports/smoke-1024-s3-compiler-v1-raw-no-fallback/summary.md
+artifacts/cp-detect-correctness/reports/smoke-1024-s3-compiler-v1-raw-no-fallback/contact_sheet.png
 artifacts/cp-detect-correctness/reports/smoke-1024-s3-compiler-audit/compiler_audit_sheet.png
 artifacts/cp-detect-correctness/reports/smoke-1024-s3-compiler-audit/compiler_delta_sheet.png
 artifacts/cp-detect-correctness/reports/smoke-1024-s3-compiler-audit/compiler_fourup_sheet_thin.png
