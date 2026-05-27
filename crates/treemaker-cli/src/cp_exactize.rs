@@ -49,9 +49,11 @@ struct DiagnosticSummary {
     check4_violations: usize,
     check4_rules: BTreeMap<String, usize>,
     check4_samples: Vec<ViolationSample>,
+    check4_errors: Vec<ViolationSample>,
     camv_violations: usize,
     camv_rules: BTreeMap<String, usize>,
     camv_samples: Vec<ViolationSample>,
+    camv_errors: Vec<ViolationSample>,
     flatfold: FlatfoldStatus,
 }
 
@@ -293,9 +295,11 @@ fn summarize_document(
         check4_violations: check4.len(),
         check4_rules: rule_counts(&check4),
         check4_samples: violation_samples(&check4),
+        check4_errors: violation_errors(&check4),
         camv_violations: camv.len(),
         camv_rules: rule_counts(&camv),
         camv_samples: violation_samples(&camv),
+        camv_errors: violation_errors(&camv),
         flatfold,
     }
 }
@@ -576,6 +580,18 @@ fn violation_samples(violations: &[checks::FlatFoldabilityViolation]) -> Vec<Vio
     violations
         .iter()
         .take(12)
+        .map(|violation| ViolationSample {
+            x: violation.point.x,
+            y: violation.point.y,
+            rule: format!("{:?}", violation.rule),
+            color: format!("{:?}", violation.color),
+        })
+        .collect()
+}
+
+fn violation_errors(violations: &[checks::FlatFoldabilityViolation]) -> Vec<ViolationSample> {
+    violations
+        .iter()
         .map(|violation| ViolationSample {
             x: violation.point.x,
             y: violation.point.y,
