@@ -5,6 +5,7 @@ import ortWasmUrl from 'onnxruntime-web/ort-wasm-simd-threaded.wasm?url';
 import init, {
   cp_detect_auto_rectify_rgba,
   cp_detect_decode_dense_outputs,
+  cp_detect_decode_dense_outputs_with_backend,
   cp_detect_manual_rectify_rgba,
   cp_detect_package_info,
   cp_detect_parse_model_manifest,
@@ -205,7 +206,7 @@ const api = {
   ): Promise<CpDetectFoldResult> {
     return call(async () => {
       const inference = await denseInferenceForImage(image, options);
-      const decoded = decodeFoldFromDenseOutputs(inference.outputs, inference.manifest);
+      const decoded = decodeFoldFromDenseOutputs(inference.outputs, inference.manifest, options);
       return {
         status: decoded.report.status,
         foldJson: decoded.fold_json,
@@ -249,9 +250,23 @@ type WasmDecodedFold = {
 
 function decodeFoldFromDenseOutputs(
   outputs: CpDetectDenseOutputs,
-  manifest: CpDetectModelManifest
+  manifest: CpDetectModelManifest,
+  options: CpDetectWorkerRunOptions = {}
 ): WasmDecodedFold {
-  return cp_detect_decode_dense_outputs(
+  const decoderBackend = options.decoderBackend ?? 'legacy_v2_decoder';
+  if (decoderBackend === 'legacy_v2_decoder') {
+    return cp_detect_decode_dense_outputs(
+      outputs.line_logits.data,
+      outputs.junction_logits.data,
+      outputs.assignment_logits.data,
+      outputs.non_crease_logits.data,
+      outputs.line_style_logits.data,
+      outputs.boundary_contact_logits.data,
+      manifest.inference.image_size,
+      manifest.inference.threshold
+    ) as WasmDecodedFold;
+  }
+  return cp_detect_decode_dense_outputs_with_backend(
     outputs.line_logits.data,
     outputs.junction_logits.data,
     outputs.assignment_logits.data,
@@ -259,7 +274,8 @@ function decodeFoldFromDenseOutputs(
     outputs.line_style_logits.data,
     outputs.boundary_contact_logits.data,
     manifest.inference.image_size,
-    manifest.inference.threshold
+    manifest.inference.threshold,
+    decoderBackend
   ) as WasmDecodedFold;
 }
 

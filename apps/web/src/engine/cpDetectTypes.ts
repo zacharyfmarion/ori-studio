@@ -61,6 +61,7 @@ export interface CpDetectWorkerRunOptions {
   manifestUrl?: string;
   modelUrl?: string;
   threshold?: number;
+  decoderBackend?: 'legacy_v2_decoder' | 'constraint_compiler_v1';
 }
 
 export interface CpDetectPoint {
@@ -120,6 +121,8 @@ export interface CpDetectDecodeReport {
   border_edge_count: number;
   interior_edge_count: number;
   warnings: CpDetectDecodeWarning[];
+  repair_actions?: unknown[];
+  quality_report?: unknown;
 }
 
 export interface CpDetectFoldResult {

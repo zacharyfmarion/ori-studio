@@ -965,16 +965,32 @@ Benchmark gate:
 
 ### Phase 10: Browser/WASM Integration
 
-- [ ] Add `DecoderBackend::ConstraintCompilerV1` to product worker options.
-- [ ] Keep legacy backend available for A/B comparison.
-- [ ] Add UI metadata for observed/inferred/deleted/assignment-flipped elements.
+- [x] Add `DecoderBackend::ConstraintCompilerV1` to product worker options.
+- [x] Keep legacy backend available for A/B comparison.
+- [x] Add UI metadata for observed/inferred/deleted/assignment-flipped elements.
 - [ ] Add import review overlay toggles for compiler provenance.
+
+Phase 10 status:
+
+- The detector backend router now runs the full compiler pipeline for
+  `constraint_compiler_v1`: candidate graph, topology optimization, assignment
+  solving, FOLD export, and global verification metadata.
+- The legacy backend remains the default low-level WASM decode function and is
+  still available through worker options for A/B comparisons.
+- The CP import modal now requests `constraint_compiler_v1` by default and shows
+  compact compiler metadata chips for topology moves, assignment changes,
+  ambiguity, and non-clean verification classifications.
+- The generated browser WASM package has been rebuilt with
+  `cp_detect_decode_dense_outputs_with_backend`.
+- Provenance-specific overlay toggles are still not implemented because the
+  exported FOLD does not yet carry a per-edge provenance table that the preview
+  can render directly.
 
 Tests:
 
-- Node/WASM compiler fixture test.
-- Browser smoke test for upload/crop/detect/import.
-- Native Rust and WASM compiler outputs match on fixture inputs.
+- [x] Node/WASM compiler fixture test calls `constraint_compiler_v1`.
+- [ ] Browser smoke test for upload/crop/detect/import.
+- [ ] Native Rust and WASM compiler outputs match on fixture inputs.
 
 Gate:
 

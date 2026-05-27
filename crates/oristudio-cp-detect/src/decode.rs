@@ -29,32 +29,87 @@ pub fn decode_dense_outputs_with_backend(
         DecoderBackend::LegacyV2 => crate::legacy_decode::decode_dense_outputs(outputs, config),
         DecoderBackend::ConstraintCompilerV1 => {
             let legacy = crate::legacy_decode::decode_dense_outputs(outputs, config)?;
-            compiler_noop_from_legacy(legacy)
+            compiler_from_legacy(legacy)
         }
     }
 }
 
-fn compiler_noop_from_legacy(mut legacy: DecodedFold) -> Result<DecodedFold, DecodeError> {
+fn compiler_from_legacy(mut legacy: DecodedFold) -> Result<DecodedFold, DecodeError> {
     let legacy_report = serde_json::to_value(&legacy.report)?;
-    let compiler_output =
-        oristudio_cp_compiler::compile_noop(oristudio_cp_compiler::NoopCompileInput {
-            fold_json: legacy.fold_json,
-            legacy_report: Some(legacy_report),
-        })?;
-    let compiler_report = serde_json::to_value(&compiler_output.report)?;
-    let mut fold: serde_json::Value = serde_json::from_str(&compiler_output.fold_json)?;
-    if let Some(cp_detector) = fold
-        .get_mut("cp_detector")
-        .and_then(serde_json::Value::as_object_mut)
-    {
-        cp_detector.insert(
-            "decoder_backend".to_owned(),
-            serde_json::json!(DecoderBackend::ConstraintCompilerV1.id()),
+    let fold_value: serde_json::Value = serde_json::from_str(&legacy.fold_json)?;
+    let program = oristudio_cp_compiler::CandidateProgram::from_fold_value(&fold_value)?;
+    let initial_verification = oristudio_cp_compiler::verify::verify_program(
+        &program,
+        oristudio_cp_compiler::verify::GlobalVerificationOptions::default(),
+    );
+    let topology = oristudio_cp_compiler::optimizer::optimize_topology(
+        &program,
+        oristudio_cp_compiler::optimizer::TopologyOptimizerOptions::default(),
+    );
+    let assignments = oristudio_cp_compiler::assignments::solve_assignments(
+        &topology.program,
+        oristudio_cp_compiler::assignments::AssignmentSolverOptions::default(),
+    );
+    let final_program = assignments.program;
+    let final_verification = oristudio_cp_compiler::verify::verify_program(
+        &final_program,
+        oristudio_cp_compiler::verify::GlobalVerificationOptions::default(),
+    );
+    let summary = oristudio_cp_compiler::CompilerSummary::from_program(&final_program);
+    let topology_changed = !topology.accepted_moves.is_empty();
+    let assignment_changed = assignments.decisions.iter().any(|decision| {
+        decision.provenance != oristudio_cp_compiler::Provenance::AssignmentObserved
+    });
+    let compiler_report = serde_json::json!({
+        "backend": oristudio_cp_compiler::COMPILER_BACKEND_ID,
+        "mode": "global_feedback_v1",
+        "summary": summary,
+        "legacy_report": legacy_report,
+        "initial_verification": initial_verification,
+        "topology": {
+            "cost": topology.cost,
+            "accepted_moves": topology.accepted_moves,
+            "rejected_move_count": topology.rejected_moves.len(),
+            "exhausted_budget": topology.exhausted_budget,
+            "ambiguous": topology.ambiguous
+        },
+        "assignments": {
+            "solved": assignments.solved,
+            "ambiguous": assignments.ambiguous,
+            "exhausted_budget": assignments.exhausted_budget,
+            "cost": assignments.cost,
+            "decisions": assignments.decisions
+        },
+        "final_verification": final_verification
+    });
+    let mut fold: serde_json::Value = serde_json::from_str(
+        &oristudio_cp_compiler::fold_export::export_program_to_fold_json(&final_program)?,
+    )?;
+    fold.as_object_mut().map(|object| {
+        object.insert(
+            "cp_detector".to_owned(),
+            serde_json::json!({
+                "decoder_backend": DecoderBackend::ConstraintCompilerV1.id(),
+                "compiler_report": compiler_report.clone()
+            }),
         );
-        cp_detector.insert("compiler_report".to_owned(), compiler_report.clone());
-    }
+    });
     legacy.fold_json = serde_json::to_string_pretty(&fold)?;
     legacy.report.decoder_backend = DecoderBackend::ConstraintCompilerV1;
+    legacy.report.status = compiler_status(&compiler_report, topology_changed, assignment_changed);
+    legacy.report.vertex_count = summary.vertices;
+    legacy.report.edge_count = summary.edges;
+    legacy.report.carrier_count = summary.carriers;
+    legacy.report.border_edge_count = summary.border_edges;
+    legacy.report.interior_edge_count = summary.interior_edges;
+    legacy
+        .report
+        .repair_actions
+        .extend(compiler_repair_actions(&compiler_report));
+    legacy
+        .report
+        .warnings
+        .extend(compiler_warnings(&compiler_report));
     if let Some(report) = legacy.report.quality_report.as_object_mut() {
         report.insert(
             "decoder_backend".to_owned(),
@@ -63,6 +118,103 @@ fn compiler_noop_from_legacy(mut legacy: DecodedFold) -> Result<DecodedFold, Dec
         report.insert("compiler_report".to_owned(), compiler_report);
     }
     Ok(legacy)
+}
+
+fn compiler_status(
+    compiler_report: &serde_json::Value,
+    topology_changed: bool,
+    assignment_changed: bool,
+) -> String {
+    let final_classes = compiler_report
+        .pointer("/final_verification/classifications")
+        .and_then(serde_json::Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let clean = final_classes
+        .iter()
+        .any(|value| value.as_str() == Some("clean"));
+    let ambiguous = compiler_report
+        .pointer("/topology/ambiguous")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false)
+        || compiler_report
+            .pointer("/assignments/ambiguous")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false);
+    if clean && (topology_changed || assignment_changed) {
+        "repaired".to_owned()
+    } else if clean {
+        "valid".to_owned()
+    } else if ambiguous {
+        "ambiguous".to_owned()
+    } else {
+        "failed".to_owned()
+    }
+}
+
+fn compiler_repair_actions(compiler_report: &serde_json::Value) -> Vec<RepairAction> {
+    let mut actions = Vec::new();
+    if let Some(moves) = compiler_report
+        .pointer("/topology/accepted_moves")
+        .and_then(serde_json::Value::as_array)
+    {
+        for value in moves {
+            actions.push(RepairAction {
+                code: "compiler_topology_move".to_owned(),
+                message: "Constraint compiler accepted a topology repair move".to_owned(),
+                edge_indices: Vec::new(),
+                vertex_indices: Vec::new(),
+                details: value.clone(),
+            });
+        }
+    }
+    if let Some(decisions) = compiler_report
+        .pointer("/assignments/decisions")
+        .and_then(serde_json::Value::as_array)
+    {
+        for value in decisions {
+            if value.get("provenance").and_then(serde_json::Value::as_str)
+                == Some("assignment_observed")
+            {
+                continue;
+            }
+            actions.push(RepairAction {
+                code: "compiler_assignment_decision".to_owned(),
+                message: "Constraint compiler inferred or changed an assignment".to_owned(),
+                edge_indices: value
+                    .get("edge_id")
+                    .and_then(serde_json::Value::as_u64)
+                    .and_then(|edge| usize::try_from(edge).ok())
+                    .into_iter()
+                    .collect(),
+                vertex_indices: Vec::new(),
+                details: value.clone(),
+            });
+        }
+    }
+    actions
+}
+
+fn compiler_warnings(compiler_report: &serde_json::Value) -> Vec<DecodeWarning> {
+    let final_classes = compiler_report
+        .pointer("/final_verification/classifications")
+        .and_then(serde_json::Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let clean = final_classes
+        .iter()
+        .any(|value| value.as_str() == Some("clean"));
+    if clean {
+        return Vec::new();
+    }
+    vec![DecodeWarning {
+        code: "constraint_compiler_unresolved".to_owned(),
+        message: "Constraint compiler output still has verification failures".to_owned(),
+        severity: "warning".to_owned(),
+        edge_indices: Vec::new(),
+        vertex_indices: Vec::new(),
+        details: Some(serde_json::json!({ "classifications": final_classes })),
+    }]
 }
 
 #[cfg(test)]
@@ -137,7 +289,7 @@ mod tests {
     }
 
     #[test]
-    fn compiler_backend_noop_preserves_legacy_graph() {
+    fn compiler_backend_runs_global_feedback_pipeline() {
         let (outputs, config) = square_cross_fixture();
         let legacy =
             decode_dense_outputs_with_backend(outputs, config.clone(), DecoderBackend::LegacyV2)
@@ -170,7 +322,13 @@ mod tests {
         );
         assert_eq!(
             compiler.report.quality_report["compiler_report"]["mode"],
-            "noop_legacy_passthrough"
+            "global_feedback_v1"
+        );
+        assert!(
+            compiler.report.quality_report["compiler_report"]["initial_verification"].is_object()
+        );
+        assert!(
+            compiler.report.quality_report["compiler_report"]["final_verification"].is_object()
         );
     }
 

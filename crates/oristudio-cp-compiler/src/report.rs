@@ -50,19 +50,26 @@ impl CompilerSummary {
         let border_edges = program
             .edges
             .iter()
+            .filter(|edge| edge.selection == crate::EdgeSelection::Selected)
             .filter(|edge| edge.assignment.label == crate::AssignmentLabel::Boundary)
             .count();
         let inferred_edges = program
             .edges
             .iter()
+            .filter(|edge| edge.selection == crate::EdgeSelection::Selected)
             .filter(|edge| edge.source == crate::EvidenceSource::Inferred)
+            .count();
+        let edges = program
+            .edges
+            .iter()
+            .filter(|edge| edge.selection == crate::EdgeSelection::Selected)
             .count();
         Self {
             carriers: program.carriers.len(),
             vertices: program.vertices.len(),
-            edges: program.edges.len(),
+            edges,
             border_edges,
-            interior_edges: program.edges.len().saturating_sub(border_edges),
+            interior_edges: edges.saturating_sub(border_edges),
             inferred_edges,
         }
     }

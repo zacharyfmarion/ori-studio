@@ -35,6 +35,7 @@ interface SourceImage {
 }
 
 const DETECT_IMAGE_SIZE = 1024;
+const DETECT_DECODER_BACKEND = 'constraint_compiler_v1' as const;
 const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp'];
 const IMAGE_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const QUAD_HANDLES: QuadHandle[] = ['top_left', 'top_right', 'bottom_right', 'bottom_left'];
@@ -167,7 +168,9 @@ export function CpDetectImportModal() {
     setError(null);
     try {
       const client = await getCpDetectClient();
-      const nextDetection = await client.detectRectifiedFold(rectified.image);
+      const nextDetection = await client.detectRectifiedFold(rectified.image, {
+        decoderBackend: DETECT_DECODER_BACKEND,
+      });
       setDetection(nextDetection);
       publishDetectionResult(source, nextDetection);
     } catch (caught) {
@@ -217,6 +220,7 @@ export function CpDetectImportModal() {
 
   const rectificationWarnings = rectified?.report.warnings ?? [];
   const detectorWarnings = detection?.detectorReport.warnings ?? [];
+  const compilerMetadata = useMemo(() => compilerReportMetadata(detection), [detection]);
   const foldPreview = useMemo(
     () => (detection ? parseFoldPreview(detection.foldJson) : null),
     [detection]
@@ -363,6 +367,10 @@ export function CpDetectImportModal() {
                   {detection.detectorReport.vertex_count} vertices, {detection.detectorReport.edge_count} edges
                 </span>
               )}
+              {detection && <span>{detection.detectorReport.decoder_backend}</span>}
+              {compilerMetadata.map((item) => (
+                <span key={item}>{item}</span>
+              ))}
               {[...rectificationWarnings, ...detectorWarnings].map((warning, index) => (
                 <span key={`${warning.code}-${index}`}>{warning.code}</span>
               ))}
@@ -593,4 +601,33 @@ function assignmentClass(assignment: string | undefined): string {
   if (assignment === 'V') return 'valley';
   if (assignment === 'B') return 'border';
   return 'unknown';
+}
+
+function compilerReportMetadata(detection: CpDetectFoldResult | null): string[] {
+  const report = detection?.detectorReport.quality_report;
+  if (!report || typeof report !== 'object') return [];
+  const compilerReport = (report as { compiler_report?: unknown }).compiler_report;
+  if (!compilerReport || typeof compilerReport !== 'object') return [];
+  const data = compilerReport as {
+    topology?: { accepted_moves?: unknown[]; ambiguous?: boolean };
+    assignments?: { decisions?: unknown[]; ambiguous?: boolean };
+    final_verification?: { classifications?: string[] };
+  };
+  const items: string[] = [];
+  const moves = data.topology?.accepted_moves?.length ?? 0;
+  if (moves > 0) items.push(`${moves} topology ${moves === 1 ? 'move' : 'moves'}`);
+  const decisions = data.assignments?.decisions?.filter((decision) => {
+    return (
+      decision &&
+      typeof decision === 'object' &&
+      (decision as { provenance?: unknown }).provenance !== 'assignment_observed'
+    );
+  }).length ?? 0;
+  if (decisions > 0) items.push(`${decisions} assignment ${decisions === 1 ? 'change' : 'changes'}`);
+  if (data.topology?.ambiguous || data.assignments?.ambiguous) items.push('ambiguous');
+  const classifications = data.final_verification?.classifications ?? [];
+  if (classifications.length > 0 && !classifications.includes('clean')) {
+    items.push(...classifications);
+  }
+  return items;
 }

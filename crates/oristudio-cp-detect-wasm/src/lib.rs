@@ -97,7 +97,57 @@ pub fn cp_detect_decode_dense_outputs(
     image_size: u32,
     threshold: f32,
 ) -> Result<JsValue, JsValue> {
-    let decoded = oristudio_cp_detect::decode::decode_dense_outputs(
+    decode_dense_outputs_with_backend(
+        line_logits,
+        junction_logits,
+        assignment_logits,
+        non_crease_logits,
+        line_style_logits,
+        boundary_contact_logits,
+        image_size,
+        threshold,
+        oristudio_cp_detect::decode::DecoderBackend::LegacyV2,
+    )
+}
+
+#[wasm_bindgen]
+pub fn cp_detect_decode_dense_outputs_with_backend(
+    line_logits: &[f32],
+    junction_logits: &[f32],
+    assignment_logits: &[f32],
+    non_crease_logits: &[f32],
+    line_style_logits: &[f32],
+    boundary_contact_logits: &[f32],
+    image_size: u32,
+    threshold: f32,
+    decoder_backend: &str,
+) -> Result<JsValue, JsValue> {
+    let backend = parse_decoder_backend(decoder_backend)?;
+    decode_dense_outputs_with_backend(
+        line_logits,
+        junction_logits,
+        assignment_logits,
+        non_crease_logits,
+        line_style_logits,
+        boundary_contact_logits,
+        image_size,
+        threshold,
+        backend,
+    )
+}
+
+fn decode_dense_outputs_with_backend(
+    line_logits: &[f32],
+    junction_logits: &[f32],
+    assignment_logits: &[f32],
+    non_crease_logits: &[f32],
+    line_style_logits: &[f32],
+    boundary_contact_logits: &[f32],
+    image_size: u32,
+    threshold: f32,
+    decoder_backend: oristudio_cp_detect::decode::DecoderBackend,
+) -> Result<JsValue, JsValue> {
+    let decoded = oristudio_cp_detect::decode::decode_dense_outputs_with_backend(
         oristudio_cp_detect::decode::DenseOutputs {
             line_logits,
             junction_logits,
@@ -111,9 +161,27 @@ pub fn cp_detect_decode_dense_outputs(
             threshold,
             ..oristudio_cp_detect::decode::DecodeConfig::default()
         },
+        decoder_backend,
     )
     .map_err(to_js_decode_error)?;
     to_js_value(&decoded)
+}
+
+fn parse_decoder_backend(
+    value: &str,
+) -> Result<oristudio_cp_detect::decode::DecoderBackend, JsValue> {
+    match value {
+        "legacy-v2" | "legacy_v2" | "legacy_v2_decoder" => {
+            Ok(oristudio_cp_detect::decode::DecoderBackend::LegacyV2)
+        }
+        "constraint-compiler-v1" | "constraint_compiler_v1" => {
+            Ok(oristudio_cp_detect::decode::DecoderBackend::ConstraintCompilerV1)
+        }
+        other => Err(js_error(
+            "invalid_decoder_backend",
+            format!("unsupported decoder backend {other:?}"),
+        )),
+    }
 }
 
 fn to_js_config_error(error: oristudio_cp_detect::DetectConfigError) -> JsValue {

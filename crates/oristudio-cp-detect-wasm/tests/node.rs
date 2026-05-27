@@ -129,6 +129,30 @@ fn decode_dense_outputs_returns_fold_json() {
             .len()
             > 0
     );
+
+    let compiler_decoded = oristudio_cp_detect_wasm::cp_detect_decode_dense_outputs_with_backend(
+        &line_logits,
+        &junction_logits,
+        &assignment_logits,
+        &non_crease_logits,
+        &line_style_logits,
+        &boundary_contact_logits,
+        size as u32,
+        0.65,
+        "constraint_compiler_v1",
+    )
+    .expect("compiler decode should succeed");
+    let compiler_decoded: serde_json::Value =
+        serde_wasm_bindgen::from_value(compiler_decoded).expect("compiler payload");
+
+    assert_eq!(
+        compiler_decoded["report"]["decoder_backend"],
+        "constraint_compiler_v1"
+    );
+    assert_eq!(
+        compiler_decoded["report"]["quality_report"]["compiler_report"]["mode"],
+        "global_feedback_v1"
+    );
 }
 
 fn draw_logit_line(
