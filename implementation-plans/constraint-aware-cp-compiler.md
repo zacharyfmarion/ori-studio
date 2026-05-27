@@ -1059,6 +1059,7 @@ Benchmark artifacts:
 artifacts/cp-detect-correctness/reports/smoke-1024-s3-compiler-v1-conservative/summary.md
 artifacts/cp-detect-correctness/reports/smoke-1024-s3-compiler-v1-conservative/contact_sheet.png
 artifacts/cp-detect-correctness/reports/smoke-1024-s3-compiler-audit/compiler_audit_sheet.png
+artifacts/cp-detect-correctness/reports/smoke-1024-s3-compiler-audit/compiler_delta_sheet.png
 artifacts/cp-detect-correctness/reports/smoke-1024-s3-compiler-audit/compiler_audit.md
 ```
 

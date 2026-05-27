@@ -18,11 +18,26 @@ from PIL import Image, ImageDraw, ImageFont
 
 
 ASSIGNMENT_COLORS = {
-    "M": (225, 42, 70),
-    "V": (37, 96, 235),
-    "B": (24, 30, 38),
-    "F": (150, 150, 150),
-    "U": (120, 128, 140),
+    "M": (238, 78, 88),
+    "V": (79, 127, 238),
+    "B": (48, 48, 48),
+    "F": (155, 155, 155),
+    "U": (130, 138, 148),
+}
+RENDER_SCALE = 4
+RENDER_PADDING = 8
+ASSIGNMENT_WIDTHS = {
+    "B": 1.8,
+    "M": 1.2,
+    "V": 1.2,
+    "F": 1.1,
+    "U": 1.1,
+}
+DIFF_COLORS = {
+    "same": (188, 196, 208),
+    "removed": (242, 133, 68),
+    "added": (153, 81, 230),
+    "changed": (226, 180, 35),
 }
 
 
@@ -70,6 +85,7 @@ def main() -> int:
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
     write_sheet(rows=rows, out_path=args.out_dir / "compiler_audit_sheet.png", cell=args.cell)
+    write_delta_sheet(rows=rows, out_path=args.out_dir / "compiler_delta_sheet.png", cell=args.cell)
     write_json(args.out_dir / "compiler_audit.json", {"samples": rows})
     write_markdown(args.out_dir / "compiler_audit.md", rows)
     return 0
@@ -113,6 +129,7 @@ def build_row(
         "assignment_decisions": len(
             final_compiler.get("assignments", {}).get("decisions", [])
         ),
+        "diff": fold_diff(run_path(legacy_root, legacy, "fold"), run_path(candidate_root, candidate, "fold")),
     }
 
 
@@ -193,6 +210,87 @@ def write_sheet(*, rows: list[dict[str, Any]], out_path: Path, cell: int) -> Non
     sheet.save(out_path)
 
 
+def write_delta_sheet(*, rows: list[dict[str, Any]], out_path: Path, cell: int) -> None:
+    cols = 3
+    header_h = 88
+    row_h = header_h + cell + 18
+    label_h = 44
+    width = cols * cell
+    height = label_h + max(1, len(rows)) * row_h
+    sheet = Image.new("RGB", (width, height), (255, 255, 255))
+    draw = ImageDraw.Draw(sheet)
+    font = ImageFont.load_default()
+    bold = ImageFont.load_default()
+    titles = [
+        "Input image",
+        "Ground truth",
+        "Legacy -> candidate diff",
+    ]
+    subtitles = [
+        "",
+        "",
+        "gray=same  orange=removed  purple=added  yellow=M/V changed",
+    ]
+    for col, title in enumerate(titles):
+        x = col * cell
+        draw.rectangle((x, 0, x + cell, label_h), fill=(245, 247, 250))
+        draw.text((x + 10, 8), title, fill=(20, 24, 32), font=bold)
+        if subtitles[col]:
+            draw.text((x + 10, 25), subtitles[col], fill=(90, 99, 112), font=font)
+
+    for row_index, row in enumerate(rows):
+        y = label_h + row_index * row_h
+        if row_index % 2:
+            draw.rectangle((0, y, width, y + row_h), fill=(250, 251, 253))
+        diff = row["diff"]
+        draw.text(
+            (10, y + 8),
+            f"{row['profile']} | {row['family']} | {short_id(row['id'])}",
+            fill=(18, 24, 38),
+            font=bold,
+        )
+        draw.text(
+            (10, y + 25),
+            f"removed={diff['removed']} added={diff['added']} assignment_changed={diff['assignment_changed']} final={row['final_selected']}",
+            fill=(55, 65, 81),
+            font=font,
+        )
+        classes = ", ".join(str(item) for item in row["candidate_classes"]) or "none"
+        draw.text(
+            (10, y + 42),
+            f"candidate verification: {classes}"[:130],
+            fill=(90, 99, 112),
+            font=font,
+        )
+        if diff["removed"] == 0 and diff["added"] == 0 and diff["assignment_changed"] == 0:
+            draw.text(
+                (10, y + 59),
+                "No visible graph delta; candidate differs only in metadata or tiny numeric values.",
+                fill=(95, 105, 120),
+                font=font,
+            )
+
+        panels = [
+            load_panel_image(row["input_png"], cell - 20),
+            load_panel_image(row["gt_fold"], cell - 20),
+            render_diff_panel(row["legacy_fold"], row["candidate_fold"], cell - 20),
+        ]
+        for col, image in enumerate(panels):
+            x = col * cell
+            px = x + (cell - image.width) // 2
+            py = y + header_h + (cell - image.height) // 2
+            sheet.paste(image, (px, py))
+            draw.rectangle(
+                (x + 8, y + header_h + 8, x + cell - 8, y + header_h + cell - 8),
+                outline=(205, 212, 222),
+                width=1,
+            )
+        draw.line((0, y + row_h - 1, width, y + row_h - 1), fill=(225, 229, 235))
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    sheet.save(out_path)
+
+
 def load_panel_image(path: str | None, size: int) -> Image.Image:
     if path is None:
         return missing_panel(size)
@@ -210,7 +308,8 @@ def load_panel_image(path: str | None, size: int) -> Image.Image:
 
 
 def render_fold(fold: dict[str, Any], size: int) -> Image.Image:
-    image = Image.new("RGB", (size, size), (255, 255, 255))
+    hi_size = size * RENDER_SCALE
+    image = Image.new("RGB", (hi_size, hi_size), (255, 255, 255))
     draw = ImageDraw.Draw(image)
     vertices = fold.get("vertices_coords", [])
     edges = fold.get("edges_vertices", [])
@@ -229,18 +328,156 @@ def render_fold(fold: dict[str, Any], size: int) -> Image.Image:
             continue
         label = str(assignments[index]) if index < len(assignments) else "U"
         color = ASSIGNMENT_COLORS.get(label, ASSIGNMENT_COLORS["U"])
-        width = 4 if label == "B" else 3
+        width = stroke_width(ASSIGNMENT_WIDTHS.get(label, ASSIGNMENT_WIDTHS["U"]))
         draw.line(
             (
-                int(round(ax * (size - 1))),
-                int(round(ay * (size - 1))),
-                int(round(bx * (size - 1))),
-                int(round(by * (size - 1))),
+                coord_to_pixel(ax, hi_size),
+                coord_to_pixel(ay, hi_size),
+                coord_to_pixel(bx, hi_size),
+                coord_to_pixel(by, hi_size),
             ),
             fill=color,
             width=width,
         )
-    return image
+    return downsample(image, size)
+
+
+def render_diff_panel(legacy_path: str | None, candidate_path: str | None, size: int) -> Image.Image:
+    if legacy_path is None or candidate_path is None:
+        return missing_panel(size)
+    legacy_file = Path(legacy_path)
+    candidate_file = Path(candidate_path)
+    if not legacy_file.exists() or not candidate_file.exists():
+        return missing_panel(size)
+    legacy = load_json(legacy_file)
+    candidate = load_json(candidate_file)
+    legacy_edges = edge_map(legacy)
+    candidate_edges = edge_map(candidate)
+    hi_size = size * RENDER_SCALE
+    image = Image.new("RGB", (hi_size, hi_size), (255, 255, 255))
+    draw = ImageDraw.Draw(image)
+    common = sorted(set(legacy_edges) & set(candidate_edges))
+    removed = sorted(set(legacy_edges) - set(candidate_edges))
+    added = sorted(set(candidate_edges) - set(legacy_edges))
+    changed = [
+        key for key in common if legacy_edges[key]["assignment"] != candidate_edges[key]["assignment"]
+    ]
+    for key in common:
+        if key not in changed:
+            draw_segment(
+                draw,
+                legacy_edges[key]["segment"],
+                hi_size,
+                DIFF_COLORS["same"],
+                stroke_width(0.9),
+            )
+    for key in removed:
+        draw_segment(
+            draw,
+            legacy_edges[key]["segment"],
+            hi_size,
+            DIFF_COLORS["removed"],
+            stroke_width(2.0),
+        )
+    for key in added:
+        draw_segment(
+            draw,
+            candidate_edges[key]["segment"],
+            hi_size,
+            DIFF_COLORS["added"],
+            stroke_width(2.0),
+        )
+    for key in changed:
+        draw_segment(
+            draw,
+            candidate_edges[key]["segment"],
+            hi_size,
+            DIFF_COLORS["changed"],
+            stroke_width(2.0),
+        )
+    return downsample(image, size)
+
+
+def draw_segment(
+    draw: ImageDraw.ImageDraw,
+    segment: tuple[float, float, float, float],
+    size: int,
+    color: tuple[int, int, int],
+    width: int,
+) -> None:
+    ax, ay, bx, by = segment
+    draw.line(
+        (
+            coord_to_pixel(ax, size),
+            coord_to_pixel(ay, size),
+            coord_to_pixel(bx, size),
+            coord_to_pixel(by, size),
+        ),
+        fill=color,
+        width=width,
+    )
+
+
+def coord_to_pixel(value: float, size: int) -> int:
+    padding = RENDER_PADDING * RENDER_SCALE
+    span = size - 1 - 2 * padding
+    return int(round(padding + value * span))
+
+
+def stroke_width(width_px: float) -> int:
+    return max(1, int(round(width_px * RENDER_SCALE)))
+
+
+def downsample(image: Image.Image, size: int) -> Image.Image:
+    return image.resize((size, size), Image.Resampling.LANCZOS)
+
+
+def fold_diff(legacy_path: str | None, candidate_path: str | None) -> dict[str, int]:
+    if legacy_path is None or candidate_path is None:
+        return {"removed": 0, "added": 0, "assignment_changed": 0}
+    legacy_file = Path(legacy_path)
+    candidate_file = Path(candidate_path)
+    if not legacy_file.exists() or not candidate_file.exists():
+        return {"removed": 0, "added": 0, "assignment_changed": 0}
+    legacy_edges = edge_map(load_json(legacy_file))
+    candidate_edges = edge_map(load_json(candidate_file))
+    common = set(legacy_edges) & set(candidate_edges)
+    return {
+        "removed": len(set(legacy_edges) - set(candidate_edges)),
+        "added": len(set(candidate_edges) - set(legacy_edges)),
+        "assignment_changed": sum(
+            1
+            for key in common
+            if legacy_edges[key]["assignment"] != candidate_edges[key]["assignment"]
+        ),
+    }
+
+
+def edge_map(fold: dict[str, Any]) -> dict[tuple[tuple[float, float], tuple[float, float]], dict[str, Any]]:
+    vertices = fold.get("vertices_coords", [])
+    edges = fold.get("edges_vertices", [])
+    assignments = fold.get("edges_assignment", [])
+    result = {}
+    for index, edge in enumerate(edges):
+        try:
+            a = vertices[int(edge[0])]
+            b = vertices[int(edge[1])]
+            ax = float(a[0])
+            ay = float(a[1])
+            bx = float(b[0])
+            by = float(b[1])
+        except (IndexError, TypeError, ValueError):
+            continue
+        if not all(-0.2 <= value <= 1.2 for value in (ax, ay, bx, by)):
+            continue
+        pa = (round(ax, 3), round(ay, 3))
+        pb = (round(bx, 3), round(by, 3))
+        key = (pa, pb) if pa <= pb else (pb, pa)
+        result[key] = {
+            "assignment": str(assignments[index]) if index < len(assignments) else "U",
+            "segment": (ax, ay, bx, by),
+        }
+    return result
 
 
 def missing_panel(size: int) -> Image.Image:
@@ -256,6 +493,8 @@ def write_markdown(path: Path, rows: list[dict[str, Any]]) -> None:
         "# Constraint Compiler Visual Audit",
         "",
         "Columns: input image, ground truth, legacy browser output, raw compiler candidate, final emitted output.",
+        "",
+        "`compiler_delta_sheet.png` highlights legacy-vs-candidate graph deltas: gray unchanged, orange removed, purple added, yellow assignment changed.",
         "",
         "| sample | statuses | candidate verification | final |",
         "| --- | --- | --- | --- |",
