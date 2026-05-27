@@ -11,9 +11,12 @@ categories = ["algorithms", "mathematics"]
 include = ["Cargo.toml", "src/**", "tests/**"]
 
 [dependencies]
+oristudio-cp.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+treemaker-flatfold.workspace = true
+treemaker-fold.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true

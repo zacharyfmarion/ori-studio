@@ -2464,9 +2464,12 @@ dependencies = [
 name = "oristudio-cp-compiler"
 version = "0.1.2"
 dependencies = [
+ "oristudio-cp",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
+ "treemaker-flatfold",
+ "treemaker-fold",
 ]
 
 [[package]]

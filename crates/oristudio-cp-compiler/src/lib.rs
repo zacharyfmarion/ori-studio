@@ -14,6 +14,7 @@ pub mod fold_export;
 pub mod optimizer;
 pub mod repair;
 pub mod report;
+pub mod verify;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

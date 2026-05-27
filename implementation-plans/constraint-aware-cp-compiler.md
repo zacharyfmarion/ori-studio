@@ -928,17 +928,36 @@ Gate:
 
 ### Phase 9: Global Verification Loop
 
-- [ ] Run FOLD validation.
-- [ ] Run Oriedita check suite.
-- [ ] Run flat-folder.
-- [ ] Classify global failures.
-- [ ] Add one bounded feedback pass from global failure to local repair.
+- [x] Run FOLD validation.
+- [x] Run Oriedita check suite.
+- [x] Run flat-folder.
+- [x] Classify global failures.
+- [x] Add one bounded feedback pass from global failure to local repair.
+
+Phase 9 status:
+
+- `oristudio-cp-compiler::fold_export` now exports selected compiler candidate
+  programs to FOLD documents.
+- `oristudio-cp-compiler::verify` now runs structural FOLD validation,
+  Oriedita-compatible check1/check2/check3/CAMV diagnostics, and
+  `treemaker-flatfold` solving.
+- Global failures are classified as invalid FOLD, local theorem failure,
+  assignment conflict, precision failure, overlap/order conflict, unsupported
+  global ambiguity, or clean.
+- `verify_program_with_feedback` performs exactly one feedback pass:
+  verification, bounded topology optimization, assignment solving, and
+  verification again. It reports both verification states plus accepted topology
+  moves and assignment decisions.
+- The feedback pass is library-only and not yet product-default behavior.
 
 Unit tests:
 
-- Precision failure is classified separately from assignment conflict.
-- Local theorem failure is reported at the responsible vertex.
-- Global failure does not cause unbounded repair loops.
+- [x] Clean square FOLD verifies cleanly.
+- [x] CAMV/Maekawa failure is classified as local theorem failure.
+- [x] Invalid FOLD reports validation error.
+- [x] Precision failure is classified separately from assignment conflict.
+- [x] One-missing-crease fixture is repaired by a single bounded feedback pass.
+- [x] Global failure does not cause unbounded repair loops.
 
 Benchmark gate:
 
