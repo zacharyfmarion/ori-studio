@@ -347,8 +347,22 @@ mod tests {
         let value = serde_json::to_value(&document).expect("fold value");
         let program = CandidateProgram::from_fold_value(&value).expect("candidate program");
 
-        let report =
-            verify_program_with_feedback(&program, GlobalVerificationLoopOptions::default());
+        let report = verify_program_with_feedback(
+            &program,
+            GlobalVerificationLoopOptions {
+                topology: crate::optimizer::TopologyOptimizerOptions {
+                    preserve_boundary: false,
+                    repair_options: crate::repair::RepairCandidateOptions {
+                        inferred_edge_penalty: 4.0,
+                        selected_weak_edge_penalty: 8.0,
+                        rejected_observed_support_penalty: 12.0,
+                        ..crate::repair::RepairCandidateOptions::default()
+                    },
+                    ..crate::optimizer::TopologyOptimizerOptions::default()
+                },
+                ..GlobalVerificationLoopOptions::default()
+            },
+        );
 
         assert!(!report_is_clean(&report.initial));
         assert!(report.feedback_applied);

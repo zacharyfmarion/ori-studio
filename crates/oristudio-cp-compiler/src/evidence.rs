@@ -23,6 +23,7 @@ pub enum Provenance {
     AssignmentFlipped,
     AssignmentInferred,
     AssignmentAmbiguous,
+    CarrierReconciled,
     LegacyDecoder,
     BorderPrior,
 }

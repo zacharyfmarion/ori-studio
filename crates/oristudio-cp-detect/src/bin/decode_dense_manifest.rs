@@ -184,6 +184,9 @@ fn parse_decoder_backend(value: &str) -> Result<DecoderBackend, Box<dyn std::err
         "constraint-compiler-v1" | "constraint_compiler_v1" => {
             Ok(DecoderBackend::ConstraintCompilerV1)
         }
+        "constraint-compiler-v2" | "constraint_compiler_v2" => {
+            Ok(DecoderBackend::ConstraintCompilerV2)
+        }
         other => Err(format!("unsupported decoder backend: {other}").into()),
     }
 }
@@ -197,5 +200,7 @@ fn required_value(
 }
 
 fn print_usage() {
-    println!("decode_dense_manifest --manifest PATH [--decoder-backend legacy-v2] [--limit N]");
+    println!(
+        "decode_dense_manifest --manifest PATH [--decoder-backend legacy-v2|constraint-compiler-v1|constraint-compiler-v2] [--limit N]"
+    );
 }

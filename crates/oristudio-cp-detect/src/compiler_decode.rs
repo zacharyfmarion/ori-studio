@@ -1,3 +1,7 @@
+use crate::evidence_extract::{
+    CompilerEvidence, DenseOutputRefs, EvidenceExtractionConfig, EvidenceExtractionError,
+    LinePrimitive, PrimitiveSource, extract_compiler_evidence,
+};
 use crate::legacy_decode::{
     DecodeConfig, DecodeEdgeStageSnapshot, DecodeError, DenseOutputs, StageEdge, StageVertex,
     decode_edge_stage_snapshot_from_maps,
@@ -24,6 +28,32 @@ pub(crate) fn candidate_program_from_dense_outputs(
     );
     rebuild_incident_carriers(&mut program);
     Ok(program)
+}
+
+pub(crate) struct CompilerV2Seed {
+    pub program: CandidateProgram,
+    pub evidence: CompilerEvidence,
+}
+
+pub(crate) fn candidate_program_from_dense_outputs_v2(
+    outputs: DenseOutputs<'_>,
+    config: DecodeConfig,
+) -> Result<CompilerV2Seed, DecodeError> {
+    let evidence = extract_compiler_evidence(
+        DenseOutputRefs {
+            line_logits: outputs.line_logits,
+            junction_logits: outputs.junction_logits,
+            assignment_logits: outputs.assignment_logits,
+            non_crease_logits: outputs.non_crease_logits,
+            line_style_logits: outputs.line_style_logits,
+            boundary_contact_logits: outputs.boundary_contact_logits,
+        },
+        compiler_v2_evidence_config(&config),
+    )
+    .map_err(evidence_error_to_decode_error)?;
+    let mut program = program_from_compiler_evidence(&evidence, &config);
+    rebuild_incident_carriers(&mut program);
+    Ok(CompilerV2Seed { program, evidence })
 }
 
 fn edge_snapshot_from_outputs(
@@ -284,6 +314,159 @@ fn compiler_evidence_config(config: &DecodeConfig) -> DecodeConfig {
     next.max_line_hypotheses = config.max_line_hypotheses.max(360);
     next.max_intersection_lines = config.max_intersection_lines.max(240);
     next
+}
+
+fn compiler_v2_evidence_config(config: &DecodeConfig) -> EvidenceExtractionConfig {
+    EvidenceExtractionConfig {
+        image_size: config.image_size,
+        line_threshold: (config.threshold * 0.55).max(0.10).min(config.threshold),
+        strong_line_support: config.min_edge_support,
+        min_line_length_px: config.min_edge_length_px,
+        edge_sample_step_px: config.edge_sample_step_px,
+        assignment_min_confidence: config.assignment_min_confidence,
+        hough_vote_threshold: ((config.hough_vote_threshold as f32 * 0.60).round() as u32)
+            .max(1)
+            .min(config.hough_vote_threshold.max(1)),
+        hough_min_segment_length_px: config.hough_min_segment_length_px,
+        hough_max_segment_gap_px: config.hough_max_segment_gap_px,
+        max_line_primitives: config.max_line_hypotheses.max(360),
+        max_junction_primitives: config.max_intersection_lines.max(240),
+        max_boundary_contact_primitives: config.max_intersection_lines.max(240),
+        primitive_nms_radius_px: config.junction_snap_px.max(2.0),
+    }
+}
+
+fn evidence_error_to_decode_error(error: EvidenceExtractionError) -> DecodeError {
+    match error {
+        EvidenceExtractionError::InvalidImageSize(size) => DecodeError::InvalidImageSize(size),
+        EvidenceExtractionError::TensorLength {
+            name,
+            expected,
+            actual,
+        } => DecodeError::TensorLength {
+            name,
+            expected,
+            actual,
+        },
+        EvidenceExtractionError::Hough(error) => DecodeError::Hough(error),
+    }
+}
+
+fn program_from_compiler_evidence(
+    evidence: &CompilerEvidence,
+    config: &DecodeConfig,
+) -> CandidateProgram {
+    let mut program = CandidateProgram {
+        coordinate_space: "fold_normalized".to_owned(),
+        image_size: Some(config.image_size),
+        carriers: Vec::new(),
+        vertices: Vec::new(),
+        edges: Vec::new(),
+    };
+    for primitive in &evidence.line_primitives {
+        push_line_primitive(&mut program, primitive, config);
+    }
+    program
+}
+
+fn push_line_primitive(
+    program: &mut CandidateProgram,
+    primitive: &LinePrimitive,
+    config: &DecodeConfig,
+) {
+    let start = normalize_point(primitive.p0, config.image_size);
+    let end = normalize_point(primitive.p1, config.image_size);
+    if distance(start, end) < px_to_unit(config, config.min_edge_length_px) {
+        return;
+    }
+    let a = upsert_point_vertex(program, start, primitive.support, primitive.source, config);
+    let b = upsert_point_vertex(program, end, primitive.support, primitive.source, config);
+    if a == b || edge_exists(program, a, b, start, end, config) {
+        return;
+    }
+    let label = assignment_from_u8(primitive.assignment.label);
+    let source = primitive_evidence_source(primitive);
+    let provenance = edge_provenance(source, label);
+    let selection = if primitive.source == PrimitiveSource::ObservedStrong {
+        EdgeSelection::Selected
+    } else {
+        EdgeSelection::Undecided
+    };
+    let carrier_id = next_carrier_id(program);
+    let edge_id = next_edge_id(program);
+    let normal = line_normal(start, end);
+    program.carriers.push(CandidateCarrier {
+        id: carrier_id,
+        family: carrier_family(start, end, label),
+        normal,
+        rho: normal.x * start.x + normal.y * start.y,
+        support_interval: support_interval(start, end),
+        visual_support: f64::from(primitive.support.clamp(0.0, 1.0)),
+        dashed_support: f64::from(primitive.style.dashed_or_gapped_support.clamp(0.0, 1.0)),
+        non_crease_penalty: 0.0,
+        source,
+        provenance: provenance.clone(),
+    });
+    program.edges.push(CandidateEdge {
+        id: edge_id,
+        carrier_id,
+        vertices: [a, b],
+        assignment: AssignmentCandidate {
+            label,
+            confidence: f64::from(primitive.assignment.confidence.clamp(0.0, 1.0)),
+            margin: f64::from(primitive.assignment.margin.clamp(0.0, 1.0)),
+        },
+        line_support: f64::from(primitive.support.clamp(0.0, 1.0)),
+        style_support: f64::from(primitive.style.dashed_or_gapped_support.clamp(0.0, 1.0)),
+        selection,
+        source,
+        provenance,
+    });
+}
+
+fn upsert_point_vertex(
+    program: &mut CandidateProgram,
+    point: Point2,
+    support: f32,
+    source: PrimitiveSource,
+    config: &DecodeConfig,
+) -> usize {
+    let tolerance = px_to_unit(config, config.vertex_merge_px + 1.0);
+    if let Some(index) = program
+        .vertices
+        .iter()
+        .position(|item| distance(item.position, point) <= tolerance)
+    {
+        if let Some(vertex) = program.vertices.get_mut(index) {
+            vertex.support = vertex.support.max(f64::from(support.clamp(0.0, 1.0)));
+        }
+        return index;
+    }
+    let id = program.vertices.len();
+    let provenance = match source {
+        PrimitiveSource::ObservedStrong => vec![Provenance::ObservedStrong],
+        PrimitiveSource::ObservedWeak => vec![Provenance::ObservedWeak],
+    };
+    program.vertices.push(CandidateVertex {
+        id,
+        position: point,
+        kind: vertex_kind(point, tolerance),
+        support: f64::from(support.clamp(0.0, 1.0)),
+        boundary_side: boundary_side(point, tolerance).map(str::to_owned),
+        incident_carriers: Vec::new(),
+        provenance,
+    });
+    id
+}
+
+fn primitive_evidence_source(primitive: &LinePrimitive) -> EvidenceSource {
+    if primitive.assignment.label == 2 {
+        EvidenceSource::Border
+    } else if primitive.source == PrimitiveSource::ObservedStrong {
+        EvidenceSource::ObservedStrong
+    } else {
+        EvidenceSource::ObservedWeak
+    }
 }
 
 fn effective_line_prob(outputs: DenseOutputs<'_>, config: &DecodeConfig) -> Vec<f32> {

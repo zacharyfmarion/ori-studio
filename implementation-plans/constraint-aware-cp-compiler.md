@@ -1318,6 +1318,87 @@ assignments_current         0.7803      0.6009    0.5790      0.9543
   home for the deterministic square boundary prior, not a second competing
   algorithm. The next compiler work should focus on improving assignment
   attribution and replacing/profiling topology search before promotion.
+- Exactizer/topology guard update from May 27:
+  - Exactization is now conservative by default:
+    - boundary/corner vertices are frozen
+    - border/axis/diagonal carrier snapping is disabled
+    - vertex movement is capped to a few pixels at 1024px
+    - projection is skipped whenever the whole program still has hard local
+      topology/assignment failures
+    - only small-residual Kawasaki cleanup is eligible for movement
+    - reports include edit accounting: moved vertices, boundary moves,
+      accepted projection counts, hard-error before/after counts, and selected
+      edge before/after counts
+  - The current smoke pack contains many hard local failures, so the safe
+    exactizer correctly refuses to move geometry. This means exactized stages
+    now preserve the input metrics instead of degrading them:
+
+```text
+stage                    vertex F1   edge F1   border F1   assignment acc
+legacy                   0.8971      0.7701    0.8971      0.9971
+candidate_seed           0.8972      0.7613    0.8281      0.9505
+locked_border            0.8978      0.7646    0.8971      0.9905
+exactized_seed           0.8972      0.7613    0.8281      0.9505
+locked_border_exactized  0.8978      0.7646    0.8971      0.9905
+```
+
+  - Topology search is now split into move-family ablations and preserves the
+    locked border by default. On the same 12-sample cached smoke pack:
+
+```text
+stage                                   vertex F1   edge F1   border F1   assignment acc
+locked_border                           0.8978      0.7646    0.8971      0.9905
+topology_locked_border                  0.8994      0.7651    0.8971      0.9905
+topology_locked_border_select_weak_only 0.8978      0.7640    0.8971      0.9905
+topology_locked_border_add_missing_only 0.8978      0.7646    0.8971      0.9905
+topology_locked_border_drop_weak_only   0.8978      0.7646    0.8971      0.9905
+topology_locked_border_merge_only       0.9023      0.7668    0.8971      0.9905
+topology_locked_border_split_only       0.8978      0.7646    0.8971      0.9905
+```
+
+  - Edit-accounting interpretation:
+    - `locked_border_exactized` made zero edits on this pack, which is the
+      desired behavior while topology is still wrong.
+    - `merge_only` was the only clearly positive topology move family, removing
+      8 selected edges and moving 16 vertices with no boundary movement.
+    - `select_weak_only` added 10 selected weak edges and slightly hurt edge F1.
+      This confirms weak-line selection needs stronger evidence/scoring before
+      promotion.
+    - inferred `add_missing` made no accepted changes under locked-boundary and
+      conservative inferred-edge penalties.
+  - Current promotion decision: keep the main compiler output at
+    `locked_border`. The safe exactizer can remain available as a no-regression
+    diagnostic/export stage, and topology search should not be promoted until
+    merge behavior is separated from weak-line selection and validated on a
+    larger benchmark.
+- Carrier reconciliation update from May 27:
+  - Added an isolated `carrier_reconciled_locked_border` ablation stage.
+  - The first version grouped every nearly collinear selected crease by angle
+    and rho. It moved many vertices per sample and regressed the smoke metrics:
+
+```text
+stage                             vertex F1   edge F1   border F1   assignment acc
+locked_border                     0.8978      0.7646    0.8971      0.9905
+carrier_reconciled_locked_border  0.8965      0.7624    0.8971      0.9914
+```
+
+  - Tightened the pass so it only reconciles connected collinear chains, freezes
+    boundary vertices, and by default only projects vertices constrained by at
+    least two carrier groups. This removes the regression but also means the
+    current pass is mostly neutral on the cached smoke pack:
+
+```text
+stage                             vertex F1   edge F1   border F1   assignment acc
+locked_border                     0.8978      0.7646    0.8971      0.9905
+carrier_reconciled_locked_border  0.8978      0.7646    0.8971      0.9905
+```
+
+  - Interpretation: carrier projection is a useful exactization primitive, but
+    the safe version is not yet solving the visually obvious disconnected-vertex
+    cases. The only positive signal so far remains the topology `merge_only`
+    family, so the next improvement should be a dedicated junction merge/snap
+    pass with explicit edit accounting and visual diff output rather than broad
+    carrier fitting.
 
 Benchmark artifacts:
 
@@ -1329,6 +1410,12 @@ artifacts/cp-detect-correctness/runs/smoke-1024-s3/native-ablation-compiler-boun
 artifacts/cp-detect-correctness/reports/smoke-1024-s3-native-ablation-compiler-boundary-prior-v2/
 artifacts/cp-detect-correctness/runs/smoke-1024-s3/native-ablation-compiler-full-v2/ablation_manifest.json
 artifacts/cp-detect-correctness/reports/smoke-1024-s3-native-ablation-compiler-full-v2/
+artifacts/cp-detect-correctness/runs/smoke-1024-s3/native-ablation-exactizer-guard-v6/ablation_manifest.json
+artifacts/cp-detect-correctness/reports/smoke-1024-s3-native-ablation-exactizer-guard-v6/
+artifacts/cp-detect-correctness/runs/smoke-1024-s3/native-ablation-topology-split-v1/ablation_manifest.json
+artifacts/cp-detect-correctness/reports/smoke-1024-s3-native-ablation-topology-split-v1/
+artifacts/cp-detect-correctness/runs/smoke-1024-s3/native-ablation-carrier-reconcile-v2-fast/ablation_manifest.json
+artifacts/cp-detect-correctness/reports/smoke-1024-s3-native-ablation-carrier-reconcile-v2-fast/
 artifacts/cp-detect-correctness/reports/smoke-1024-s3-compiler-v1-conservative/summary.md
 artifacts/cp-detect-correctness/reports/smoke-1024-s3-compiler-v1-conservative/contact_sheet.png
 artifacts/cp-detect-correctness/reports/smoke-1024-s3-compiler-v1-evidence-pool/summary.md

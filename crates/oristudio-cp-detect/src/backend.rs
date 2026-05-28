@@ -7,6 +7,8 @@ pub enum DecoderBackend {
     LegacyV2,
     #[serde(rename = "constraint_compiler_v1")]
     ConstraintCompilerV1,
+    #[serde(rename = "constraint_compiler_v2")]
+    ConstraintCompilerV2,
 }
 
 impl DecoderBackend {
@@ -14,6 +16,7 @@ impl DecoderBackend {
         match self {
             DecoderBackend::LegacyV2 => "legacy_v2_decoder",
             DecoderBackend::ConstraintCompilerV1 => "constraint_compiler_v1",
+            DecoderBackend::ConstraintCompilerV2 => "constraint_compiler_v2",
         }
     }
 }

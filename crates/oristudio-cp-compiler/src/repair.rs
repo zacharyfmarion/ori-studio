@@ -11,6 +11,15 @@ pub struct RepairCandidateOptions {
     pub weak_line_support_threshold: f64,
     pub low_assignment_confidence_threshold: f64,
     pub merge_distance: f64,
+    pub allow_select_weak_creases: bool,
+    pub allow_add_missing_creases: bool,
+    pub allow_drop_weak_creases: bool,
+    pub allow_merge_vertices: bool,
+    pub allow_split_intersections: bool,
+    pub allow_assignment_changes: bool,
+    pub inferred_edge_penalty: f64,
+    pub selected_weak_edge_penalty: f64,
+    pub rejected_observed_support_penalty: f64,
 }
 
 impl Default for RepairCandidateOptions {
@@ -21,6 +30,15 @@ impl Default for RepairCandidateOptions {
             weak_line_support_threshold: 0.45,
             low_assignment_confidence_threshold: 0.7,
             merge_distance: 0.01,
+            allow_select_weak_creases: true,
+            allow_add_missing_creases: true,
+            allow_drop_weak_creases: true,
+            allow_merge_vertices: true,
+            allow_split_intersections: true,
+            allow_assignment_changes: true,
+            inferred_edge_penalty: 240.0,
+            selected_weak_edge_penalty: 18.0,
+            rejected_observed_support_penalty: 36.0,
         }
     }
 }
@@ -102,30 +120,46 @@ pub fn generate_repair_candidates(
         let rays = incident.get(&vertex_id).cloned().unwrap_or_default();
         match diagnostic.severity {
             ConstraintSeverity::OddDegreeTopologyFailure => {
-                candidates.extend(select_undecided_candidates(program, vertex_id, options));
-                candidates.extend(missing_crease_candidates(
-                    program,
-                    vertex.position,
-                    vertex_id,
-                    &rays,
-                    options,
-                    "odd degree can be made even while satisfying Kawasaki",
-                ));
+                if options.allow_select_weak_creases {
+                    candidates.extend(select_undecided_candidates(program, vertex_id, options));
+                }
+                if options.allow_add_missing_creases {
+                    candidates.extend(missing_crease_candidates(
+                        program,
+                        vertex.position,
+                        vertex_id,
+                        &rays,
+                        options,
+                        "odd degree can be made even while satisfying Kawasaki",
+                    ));
+                }
             }
             ConstraintSeverity::HardKawasakiFailure => {
-                candidates.extend(select_undecided_candidates(program, vertex_id, options));
-                candidates.extend(drop_weak_candidates(&rays, options));
-                candidates.extend(split_intersection_candidates(program, options));
+                if options.allow_select_weak_creases {
+                    candidates.extend(select_undecided_candidates(program, vertex_id, options));
+                }
+                if options.allow_drop_weak_creases {
+                    candidates.extend(drop_weak_candidates(&rays, options));
+                }
+                if options.allow_split_intersections {
+                    candidates.extend(split_intersection_candidates(program, options));
+                }
             }
             ConstraintSeverity::MaekawaAssignmentFailure => {
-                candidates.extend(assignment_candidates(&rays, options));
+                if options.allow_assignment_changes {
+                    candidates.extend(assignment_candidates(&rays, options));
+                }
             }
             _ => {}
         }
     }
 
-    candidates.extend(global_weak_drop_candidates(program, options));
-    candidates.extend(merge_vertex_candidates(program, options));
+    if options.allow_drop_weak_creases {
+        candidates.extend(global_weak_drop_candidates(program, options));
+    }
+    if options.allow_merge_vertices {
+        candidates.extend(merge_vertex_candidates(program, options));
+    }
     dedupe_candidates(&mut candidates);
     candidates.sort_by(|left, right| right.score.total_cmp(&left.score));
     RepairCandidateSet { candidates }

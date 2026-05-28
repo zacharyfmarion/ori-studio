@@ -8,6 +8,7 @@ pub mod arrangement;
 pub mod assignments;
 pub mod border;
 pub mod candidates;
+pub mod carrier_reconcile;
 pub mod constraints;
 pub mod evidence;
 pub mod exactize;

@@ -7,6 +7,7 @@
 mod backend;
 mod compiler_decode;
 pub mod decode;
+pub mod evidence_extract;
 mod legacy_decode;
 pub mod opencv_hough_lines_p;
 pub mod rectify;

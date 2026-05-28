@@ -207,6 +207,9 @@ fn parse_decoder_backend(
         "constraint-compiler-v1" | "constraint_compiler_v1" => {
             Ok(oristudio_cp_detect::decode::DecoderBackend::ConstraintCompilerV1)
         }
+        "constraint-compiler-v2" | "constraint_compiler_v2" => {
+            Ok(oristudio_cp_detect::decode::DecoderBackend::ConstraintCompilerV2)
+        }
         other => Err(js_error(
             "invalid_decoder_backend",
             format!("unsupported decoder backend {other:?}"),

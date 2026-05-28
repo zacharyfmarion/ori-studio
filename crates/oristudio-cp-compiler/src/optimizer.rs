@@ -21,6 +21,9 @@ pub struct TopologyOptimizerOptions {
     pub candidates_per_state: usize,
     pub repair_options: RepairCandidateOptions,
     pub exactize_options: ExactizeOptions,
+    pub exactize_each_state: bool,
+    pub preserve_boundary: bool,
+    pub min_cost_improvement: f64,
 }
 
 impl Default for TopologyOptimizerOptions {
@@ -31,6 +34,9 @@ impl Default for TopologyOptimizerOptions {
             candidates_per_state: 8,
             repair_options: RepairCandidateOptions::default(),
             exactize_options: ExactizeOptions::default(),
+            exactize_each_state: false,
+            preserve_boundary: true,
+            min_cost_improvement: 1e-6,
         }
     }
 }
@@ -77,7 +83,11 @@ pub fn optimize_topology(
     program: &CandidateProgram,
     options: TopologyOptimizerOptions,
 ) -> TopologyOptimizationResult {
-    let start_program = exactize_program(program, options.exactize_options).program;
+    let start_program = if options.exactize_each_state {
+        exactize_program(program, options.exactize_options).program
+    } else {
+        program.clone()
+    };
     let start_diagnostics =
         diagnose_constraints(&start_program, ConstraintDiagnosticOptions::default());
     let start_cost = score_program(&start_program, &start_diagnostics, options.repair_options);
@@ -134,25 +144,53 @@ pub fn optimize_topology(
                     });
                     continue;
                 };
-                candidate_program =
-                    exactize_program(&candidate_program, options.exactize_options).program;
+                if options.preserve_boundary
+                    && boundary_signature(&state.program) != boundary_signature(&candidate_program)
+                {
+                    rejected_moves.push(TopologyMoveRecord {
+                        candidate,
+                        before_cost: state.cost.total,
+                        after_cost: state.cost.total,
+                        accepted: false,
+                        reason: "move changes locked boundary topology".to_owned(),
+                    });
+                    continue;
+                }
+                if options.exactize_each_state {
+                    candidate_program =
+                        exactize_program(&candidate_program, options.exactize_options).program;
+                    if options.preserve_boundary
+                        && boundary_signature(&state.program)
+                            != boundary_signature(&candidate_program)
+                    {
+                        rejected_moves.push(TopologyMoveRecord {
+                            candidate,
+                            before_cost: state.cost.total,
+                            after_cost: state.cost.total,
+                            accepted: false,
+                            reason: "exactized move changes locked boundary topology".to_owned(),
+                        });
+                        continue;
+                    }
+                }
                 let diagnostics = diagnose_constraints(
                     &candidate_program,
                     ConstraintDiagnosticOptions::default(),
                 );
                 let cost = score_program(&candidate_program, &diagnostics, options.repair_options);
+                let accepted = cost.total + options.min_cost_improvement < state.cost.total;
                 let record = TopologyMoveRecord {
                     candidate,
                     before_cost: state.cost.total,
                     after_cost: cost.total,
-                    accepted: cost.total + 1e-9 < state.cost.total,
-                    reason: if cost.total + 1e-9 < state.cost.total {
+                    accepted,
+                    reason: if accepted {
                         "move improves topology cost".to_owned()
                     } else {
                         "move does not improve topology cost".to_owned()
                     },
                 };
-                if record.accepted {
+                if accepted {
                     let mut accepted_moves = state.accepted_moves.clone();
                     accepted_moves.push(record);
                     next_states.push(SearchState {
@@ -248,9 +286,9 @@ pub fn score_program(
             ConstraintSeverity::GlobalFlatfolderFailure => 500.0,
         })
         .sum::<f64>();
-    let evidence_cost = inferred_edges as f64 * 4.0
-        + selected_weak_edges as f64 * 8.0
-        + rejected_observed_support * 12.0;
+    let evidence_cost = inferred_edges as f64 * repair_options.inferred_edge_penalty
+        + selected_weak_edges as f64 * repair_options.selected_weak_edge_penalty
+        + rejected_observed_support * repair_options.rejected_observed_support_penalty;
     TopologyCost {
         total: severity_cost + residual_cost * 0.1 + evidence_cost,
         hard_errors: diagnostics.summary.hard_error_count,
@@ -560,6 +598,30 @@ fn state_key(program: &CandidateProgram) -> String {
     format!("v{}|{}", program.vertices.len(), edges.join("|"))
 }
 
+fn boundary_signature(program: &CandidateProgram) -> Vec<String> {
+    let mut entries = program
+        .edges
+        .iter()
+        .filter(|edge| {
+            edge.selection == EdgeSelection::Selected
+                && edge.assignment.label == AssignmentLabel::Boundary
+        })
+        .filter_map(|edge| {
+            let start = program.vertices.get(edge.vertices[0])?.position;
+            let end = program.vertices.get(edge.vertices[1])?.position;
+            Some(format!(
+                "{:.6},{:.6}:{:.6},{:.6}",
+                start.x.min(end.x),
+                start.y.min(end.y),
+                start.x.max(end.x),
+                start.y.max(end.y)
+            ))
+        })
+        .collect::<Vec<_>>();
+    entries.sort();
+    entries
+}
+
 fn vertex_index_by_id(program: &CandidateProgram, id: usize) -> Option<usize> {
     program.vertices.iter().position(|vertex| vertex.id == id)
 }
@@ -660,7 +722,7 @@ mod tests {
             (180.0, AssignmentLabel::Valley, 1.0, 1.0),
         ]);
 
-        let result = optimize_topology(&program, TopologyOptimizerOptions::default());
+        let result = optimize_topology(&program, permissive_topology_options());
 
         assert_eq!(result.cost.hard_errors, 0);
         assert!(result.accepted_moves.iter().any(|record| matches!(
@@ -700,7 +762,7 @@ mod tests {
         program.carriers[edge_id].source = EvidenceSource::ObservedWeak;
         program.carriers[edge_id].provenance = vec![Provenance::ObservedWeak];
 
-        let result = optimize_topology(&program, TopologyOptimizerOptions::default());
+        let result = optimize_topology(&program, permissive_topology_options());
 
         assert_eq!(result.cost.hard_errors, 0);
         assert!(result.accepted_moves.iter().any(|record| matches!(
@@ -808,6 +870,19 @@ mod tests {
             carriers,
             vertices,
             edges,
+        }
+    }
+
+    fn permissive_topology_options() -> TopologyOptimizerOptions {
+        TopologyOptimizerOptions {
+            preserve_boundary: false,
+            repair_options: RepairCandidateOptions {
+                inferred_edge_penalty: 4.0,
+                selected_weak_edge_penalty: 8.0,
+                rejected_observed_support_penalty: 12.0,
+                ..RepairCandidateOptions::default()
+            },
+            ..TopologyOptimizerOptions::default()
         }
     }
 

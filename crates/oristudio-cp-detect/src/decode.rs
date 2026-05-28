@@ -5,6 +5,7 @@
 //! instead of growing inside the old threshold/cleanup implementation.
 
 use serde::Serialize;
+use std::collections::BTreeSet;
 
 pub use crate::backend::DecoderBackend;
 pub use crate::legacy_decode::{
@@ -35,6 +36,23 @@ pub fn decode_dense_outputs_with_backend(
                 config.clone(),
             )?;
             compiler_from_program(program, config)
+        }
+        DecoderBackend::ConstraintCompilerV2 => {
+            let seed = crate::compiler_decode::candidate_program_from_dense_outputs_v2(
+                outputs,
+                config.clone(),
+            )?;
+            compiler_from_program_with_context(
+                seed.program,
+                config,
+                CompilerBackendContext {
+                    backend: DecoderBackend::ConstraintCompilerV2,
+                    architecture: "v2",
+                    mode: "compiler_native_evidence_v2_locked_border_baseline",
+                    legacy_dependency: false,
+                    evidence_report: Some(serde_json::to_value(seed.evidence.report)?),
+                },
+            )
         }
     }
 }
@@ -84,6 +102,10 @@ pub fn ablate_dense_outputs_with_options(
         crate::compiler_decode::candidate_program_from_dense_outputs(outputs, config.clone())?;
     let locked_border =
         oristudio_cp_compiler::border::lock_square_border(&seed, Default::default());
+    let carrier_reconciled = oristudio_cp_compiler::carrier_reconcile::reconcile_carriers(
+        &locked_border.program,
+        Default::default(),
+    );
     let exactized_seed =
         oristudio_cp_compiler::exactize::exactize_program(&seed, Default::default());
     let exactized_locked = oristudio_cp_compiler::exactize::exactize_program(
@@ -102,7 +124,8 @@ pub fn ablate_dense_outputs_with_options(
         &seed,
         &config,
         serde_json::json!({
-            "candidate_pool": compiler_candidate_pool_summary(&seed)
+            "candidate_pool": compiler_candidate_pool_summary(&seed),
+            "edits": compiler_edit_accounting(&seed, &seed)
         }),
     )?);
     stages.push(ablation_program_stage(
@@ -110,7 +133,18 @@ pub fn ablate_dense_outputs_with_options(
         &locked_border.program,
         &config,
         serde_json::json!({
-            "locked_border": locked_border.report.clone()
+            "locked_border": locked_border.report.clone(),
+            "edits": compiler_edit_accounting(&seed, &locked_border.program)
+        }),
+    )?);
+    stages.push(ablation_program_stage(
+        "carrier_reconciled_locked_border",
+        &carrier_reconciled.program,
+        &config,
+        serde_json::json!({
+            "locked_border": locked_border.report.clone(),
+            "carrier_reconcile": carrier_reconciled.report.clone(),
+            "edits": compiler_edit_accounting(&locked_border.program, &carrier_reconciled.program)
         }),
     )?);
     stages.push(ablation_program_stage(
@@ -118,7 +152,8 @@ pub fn ablate_dense_outputs_with_options(
         &exactized_seed.program,
         &config,
         serde_json::json!({
-            "exactize": exactized_seed.report.clone()
+            "exactize": exactized_seed.report.clone(),
+            "edits": compiler_edit_accounting(&seed, &exactized_seed.program)
         }),
     )?);
     stages.push(ablation_program_stage(
@@ -127,79 +162,55 @@ pub fn ablate_dense_outputs_with_options(
         &config,
         serde_json::json!({
             "locked_border": locked_border.report.clone(),
-            "exactize": exactized_locked.report.clone()
+            "exactize": exactized_locked.report.clone(),
+            "edits": compiler_edit_accounting(&locked_border.program, &exactized_locked.program)
         }),
     )?);
 
     if options.include_topology {
-        let topology_current = oristudio_cp_compiler::optimizer::optimize_topology(
-            &seed,
-            oristudio_cp_compiler::optimizer::TopologyOptimizerOptions::default(),
-        );
-        let topology_locked = oristudio_cp_compiler::optimizer::optimize_topology(
-            &locked_border.program,
-            oristudio_cp_compiler::optimizer::TopologyOptimizerOptions::default(),
-        );
-        stages.push(ablation_program_stage(
-            "topology_current",
-            &topology_current.program,
-            &config,
-            serde_json::json!({
-                "topology": {
-                    "cost": topology_current.cost,
-                    "accepted_moves": topology_current.accepted_moves.clone(),
-                    "rejected_move_count": topology_current.rejected_moves.len(),
-                    "exhausted_budget": topology_current.exhausted_budget,
-                    "ambiguous": topology_current.ambiguous
-                }
-            }),
-        )?);
-        stages.push(ablation_program_stage(
+        let topology_locked = topology_stage(
             "topology_locked_border",
-            &topology_locked.program,
+            &locked_border.program,
             &config,
             serde_json::json!({
-                "locked_border": locked_border.report.clone(),
-                "topology": {
-                    "cost": topology_locked.cost,
-                    "accepted_moves": topology_locked.accepted_moves.clone(),
-                    "rejected_move_count": topology_locked.rejected_moves.len(),
-                    "exhausted_budget": topology_locked.exhausted_budget,
-                    "ambiguous": topology_locked.ambiguous
-                }
+                "locked_border": locked_border.report.clone()
             }),
-        )?);
+            oristudio_cp_compiler::optimizer::TopologyOptimizerOptions::default(),
+        )?;
+        stages.push(topology_locked.stage.clone());
+        stages.push(
+            topology_stage(
+                "topology_carrier_reconciled",
+                &carrier_reconciled.program,
+                &config,
+                serde_json::json!({
+                    "locked_border": locked_border.report.clone(),
+                    "carrier_reconcile": carrier_reconciled.report.clone()
+                }),
+                oristudio_cp_compiler::optimizer::TopologyOptimizerOptions::default(),
+            )?
+            .stage,
+        );
+        for variant in topology_ablation_variants() {
+            stages.push(
+                topology_stage(
+                    variant.id,
+                    &locked_border.program,
+                    &config,
+                    serde_json::json!({
+                        "locked_border": locked_border.report.clone()
+                    }),
+                    variant.options,
+                )?
+                .stage,
+            );
+        }
 
         if options.include_assignments {
-            let assignments_current = oristudio_cp_compiler::assignments::solve_assignments(
-                &topology_current.program,
-                oristudio_cp_compiler::assignments::AssignmentSolverOptions::default(),
-            );
             let assignments_locked = oristudio_cp_compiler::assignments::solve_assignments(
                 &topology_locked.program,
                 oristudio_cp_compiler::assignments::AssignmentSolverOptions::default(),
             );
-            stages.push(ablation_program_stage(
-                "assignments_current",
-                &assignments_current.program,
-                &config,
-                serde_json::json!({
-                    "topology": {
-                        "cost": topology_current.cost,
-                        "accepted_moves": topology_current.accepted_moves.clone(),
-                        "rejected_move_count": topology_current.rejected_moves.len(),
-                        "exhausted_budget": topology_current.exhausted_budget,
-                        "ambiguous": topology_current.ambiguous
-                    },
-                    "assignments": {
-                        "solved": assignments_current.solved,
-                        "ambiguous": assignments_current.ambiguous,
-                        "exhausted_budget": assignments_current.exhausted_budget,
-                        "cost": assignments_current.cost,
-                        "decisions": assignments_current.decisions.clone()
-                    }
-                }),
-            )?);
             stages.push(ablation_program_stage(
                 "assignments_locked_border",
                 &assignments_locked.program,
@@ -207,11 +218,11 @@ pub fn ablate_dense_outputs_with_options(
                 serde_json::json!({
                     "locked_border": locked_border.report.clone(),
                     "topology": {
-                        "cost": topology_locked.cost,
-                        "accepted_moves": topology_locked.accepted_moves.clone(),
-                        "rejected_move_count": topology_locked.rejected_moves.len(),
-                        "exhausted_budget": topology_locked.exhausted_budget,
-                        "ambiguous": topology_locked.ambiguous
+                        "cost": topology_locked.result.cost,
+                        "accepted_moves": topology_locked.result.accepted_moves.clone(),
+                        "rejected_move_count": topology_locked.result.rejected_moves.len(),
+                        "exhausted_budget": topology_locked.result.exhausted_budget,
+                        "ambiguous": topology_locked.result.ambiguous
                     },
                     "assignments": {
                         "solved": assignments_locked.solved,
@@ -219,7 +230,8 @@ pub fn ablate_dense_outputs_with_options(
                         "exhausted_budget": assignments_locked.exhausted_budget,
                         "cost": assignments_locked.cost,
                         "decisions": assignments_locked.decisions.clone()
-                    }
+                    },
+                    "edits": compiler_edit_accounting(&locked_border.program, &assignments_locked.program)
                 }),
             )?);
         }
@@ -234,6 +246,32 @@ pub fn ablate_dense_outputs_with_options(
 fn compiler_from_program(
     program: oristudio_cp_compiler::CandidateProgram,
     config: DecodeConfig,
+) -> Result<DecodedFold, DecodeError> {
+    compiler_from_program_with_context(
+        program,
+        config,
+        CompilerBackendContext {
+            backend: DecoderBackend::ConstraintCompilerV1,
+            architecture: "v1",
+            mode: "global_feedback_v1",
+            legacy_dependency: true,
+            evidence_report: None,
+        },
+    )
+}
+
+struct CompilerBackendContext {
+    backend: DecoderBackend,
+    architecture: &'static str,
+    mode: &'static str,
+    legacy_dependency: bool,
+    evidence_report: Option<serde_json::Value>,
+}
+
+fn compiler_from_program_with_context(
+    program: oristudio_cp_compiler::CandidateProgram,
+    config: DecodeConfig,
+    context: CompilerBackendContext,
 ) -> Result<DecodedFold, DecodeError> {
     let locked_border =
         oristudio_cp_compiler::border::lock_square_border(&program, Default::default());
@@ -253,7 +291,10 @@ fn compiler_from_program(
     let assignment_changed = false;
     let compiler_report = serde_json::json!({
         "backend": oristudio_cp_compiler::COMPILER_BACKEND_ID,
-        "mode": "global_feedback_v1",
+        "compiler_architecture": context.architecture,
+        "mode": context.mode,
+        "legacy_dependency": context.legacy_dependency,
+        "evidence": context.evidence_report,
         "output": {
             "selected": "compiled",
             "reason": "compiler_backend_always_emits_compiled_candidate",
@@ -262,6 +303,9 @@ fn compiler_from_program(
         "summary": summary,
         "candidate_pool": compiler_candidate_pool_summary(&program),
         "locked_border": locked_border.report,
+        "edits": {
+            "locked_border": compiler_edit_accounting(&program, &final_program)
+        },
         "initial_verification": initial_verification,
         "topology": {
             "enabled": false,
@@ -294,14 +338,14 @@ fn compiler_from_program(
         if let Some(detector_object) = detector.as_object_mut() {
             detector_object.insert(
                 "decoder_backend".to_owned(),
-                serde_json::json!(DecoderBackend::ConstraintCompilerV1.id()),
+                serde_json::json!(context.backend.id()),
             );
             detector_object.insert("compiler_report".to_owned(), compiler_report.clone());
         } else {
             object.insert(
                 "cp_detector".to_owned(),
                 serde_json::json!({
-                    "decoder_backend": DecoderBackend::ConstraintCompilerV1.id(),
+                    "decoder_backend": context.backend.id(),
                     "compiler_report": compiler_report.clone()
                 }),
             );
@@ -311,14 +355,14 @@ fn compiler_from_program(
     let warnings = compiler_warnings(&compiler_report);
     let repair_actions = compiler_repair_actions(&compiler_report);
     let quality_report = serde_json::json!({
-        "decoder_backend": DecoderBackend::ConstraintCompilerV1.id(),
+        "decoder_backend": context.backend.id(),
         "compiler_report": compiler_report
     });
     Ok(DecodedFold {
         fold_json: serde_json::to_string_pretty(&fold)?,
         report: DecodeReport {
             status,
-            decoder_backend: DecoderBackend::ConstraintCompilerV1,
+            decoder_backend: context.backend,
             image_size: config.image_size,
             threshold: config.threshold,
             line_count: summary.edges,
@@ -332,6 +376,218 @@ fn compiler_from_program(
             quality_report,
         },
     })
+}
+
+#[derive(Clone)]
+struct TopologyStageOutput {
+    stage: CompilerAblationStage,
+    program: oristudio_cp_compiler::CandidateProgram,
+    result: oristudio_cp_compiler::optimizer::TopologyOptimizationResult,
+}
+
+#[derive(Clone)]
+struct TopologyAblationVariant {
+    id: &'static str,
+    options: oristudio_cp_compiler::optimizer::TopologyOptimizerOptions,
+}
+
+fn topology_stage(
+    id: &'static str,
+    program: &oristudio_cp_compiler::CandidateProgram,
+    config: &DecodeConfig,
+    context_report: serde_json::Value,
+    options: oristudio_cp_compiler::optimizer::TopologyOptimizerOptions,
+) -> Result<TopologyStageOutput, DecodeError> {
+    let result = oristudio_cp_compiler::optimizer::optimize_topology(program, options);
+    let stage = ablation_program_stage(
+        id,
+        &result.program,
+        config,
+        serde_json::json!({
+            "context": context_report,
+            "topology": {
+                "cost": result.cost,
+                "accepted_moves": result.accepted_moves.clone(),
+                "rejected_move_count": result.rejected_moves.len(),
+                "exhausted_budget": result.exhausted_budget,
+                "ambiguous": result.ambiguous
+            },
+            "edits": compiler_edit_accounting(program, &result.program)
+        }),
+    )?;
+    Ok(TopologyStageOutput {
+        stage,
+        program: result.program.clone(),
+        result,
+    })
+}
+
+fn topology_ablation_variants() -> Vec<TopologyAblationVariant> {
+    vec![
+        TopologyAblationVariant {
+            id: "topology_locked_border_select_weak_only",
+            options: topology_options_for_repair_mask(true, false, false, false, false, false),
+        },
+        TopologyAblationVariant {
+            id: "topology_locked_border_add_missing_only",
+            options: topology_options_for_repair_mask(false, true, false, false, false, false),
+        },
+        TopologyAblationVariant {
+            id: "topology_locked_border_drop_weak_only",
+            options: topology_options_for_repair_mask(false, false, true, false, false, false),
+        },
+        TopologyAblationVariant {
+            id: "topology_locked_border_merge_only",
+            options: topology_options_for_repair_mask(false, false, false, true, false, false),
+        },
+        TopologyAblationVariant {
+            id: "topology_locked_border_split_only",
+            options: topology_options_for_repair_mask(false, false, false, false, true, false),
+        },
+        TopologyAblationVariant {
+            id: "topology_locked_border_with_exactize",
+            options: oristudio_cp_compiler::optimizer::TopologyOptimizerOptions {
+                exactize_each_state: true,
+                ..oristudio_cp_compiler::optimizer::TopologyOptimizerOptions::default()
+            },
+        },
+    ]
+}
+
+fn topology_options_for_repair_mask(
+    select_weak: bool,
+    add_missing: bool,
+    drop_weak: bool,
+    merge: bool,
+    split: bool,
+    assignments: bool,
+) -> oristudio_cp_compiler::optimizer::TopologyOptimizerOptions {
+    oristudio_cp_compiler::optimizer::TopologyOptimizerOptions {
+        repair_options: oristudio_cp_compiler::repair::RepairCandidateOptions {
+            allow_select_weak_creases: select_weak,
+            allow_add_missing_creases: add_missing,
+            allow_drop_weak_creases: drop_weak,
+            allow_merge_vertices: merge,
+            allow_split_intersections: split,
+            allow_assignment_changes: assignments,
+            ..oristudio_cp_compiler::repair::RepairCandidateOptions::default()
+        },
+        ..oristudio_cp_compiler::optimizer::TopologyOptimizerOptions::default()
+    }
+}
+
+fn compiler_edit_accounting(
+    before: &oristudio_cp_compiler::CandidateProgram,
+    after: &oristudio_cp_compiler::CandidateProgram,
+) -> serde_json::Value {
+    let before_selected = selected_edge_ids(before);
+    let after_selected = selected_edge_ids(after);
+    let added_selected = after_selected
+        .difference(&before_selected)
+        .copied()
+        .collect::<Vec<_>>();
+    let removed_selected = before_selected
+        .difference(&after_selected)
+        .copied()
+        .collect::<Vec<_>>();
+    let changed_assignments = before
+        .edges
+        .iter()
+        .filter_map(|edge| {
+            let other = after
+                .edges
+                .iter()
+                .find(|candidate| candidate.id == edge.id)?;
+            (edge.assignment.label != other.assignment.label).then_some(edge.id)
+        })
+        .collect::<Vec<_>>();
+    let mut moved_vertices = 0usize;
+    let mut moved_boundary_vertices = 0usize;
+    let mut total_move = 0.0;
+    let mut max_move = 0.0;
+    for vertex in &before.vertices {
+        let Some(other) = after
+            .vertices
+            .iter()
+            .find(|candidate| candidate.id == vertex.id)
+        else {
+            continue;
+        };
+        let distance = point_distance(vertex.position, other.position);
+        if distance > 1e-9 {
+            moved_vertices += 1;
+            total_move += distance;
+            max_move = f64::max(max_move, distance);
+            if vertex.kind != oristudio_cp_compiler::VertexKind::Interior
+                || other.kind != oristudio_cp_compiler::VertexKind::Interior
+            {
+                moved_boundary_vertices += 1;
+            }
+        }
+    }
+    serde_json::json!({
+        "vertices_before": before.vertices.len(),
+        "vertices_after": after.vertices.len(),
+        "edges_before": before.edges.len(),
+        "edges_after": after.edges.len(),
+        "selected_edges_before": before_selected.len(),
+        "selected_edges_after": after_selected.len(),
+        "selected_edges_added": added_selected.len(),
+        "selected_edges_removed": removed_selected.len(),
+        "selected_edge_ids_added": added_selected,
+        "selected_edge_ids_removed": removed_selected,
+        "selected_border_edges_before": selected_border_edge_count(before),
+        "selected_border_edges_after": selected_border_edge_count(after),
+        "selected_interior_edges_before": selected_interior_edge_count(before),
+        "selected_interior_edges_after": selected_interior_edge_count(after),
+        "assignments_changed": changed_assignments.len(),
+        "assignment_edge_ids_changed": changed_assignments,
+        "vertices_moved": moved_vertices,
+        "boundary_vertices_moved": moved_boundary_vertices,
+        "max_vertex_move": max_move,
+        "mean_vertex_move": if moved_vertices == 0 { 0.0 } else { total_move / moved_vertices as f64 },
+    })
+}
+
+fn selected_edge_ids(program: &oristudio_cp_compiler::CandidateProgram) -> BTreeSet<usize> {
+    program
+        .edges
+        .iter()
+        .filter(|edge| edge.selection == oristudio_cp_compiler::EdgeSelection::Selected)
+        .map(|edge| edge.id)
+        .collect()
+}
+
+fn selected_border_edge_count(program: &oristudio_cp_compiler::CandidateProgram) -> usize {
+    program
+        .edges
+        .iter()
+        .filter(|edge| {
+            edge.selection == oristudio_cp_compiler::EdgeSelection::Selected
+                && edge.assignment.label == oristudio_cp_compiler::AssignmentLabel::Boundary
+        })
+        .count()
+}
+
+fn selected_interior_edge_count(program: &oristudio_cp_compiler::CandidateProgram) -> usize {
+    program
+        .edges
+        .iter()
+        .filter(|edge| {
+            edge.selection == oristudio_cp_compiler::EdgeSelection::Selected
+                && edge.assignment.label != oristudio_cp_compiler::AssignmentLabel::Boundary
+                && edge.assignment.label != oristudio_cp_compiler::AssignmentLabel::Flat
+        })
+        .count()
+}
+
+fn point_distance(
+    left: oristudio_cp_compiler::Point2,
+    right: oristudio_cp_compiler::Point2,
+) -> f64 {
+    let dx = left.x - right.x;
+    let dy = left.y - right.y;
+    (dx * dx + dy * dy).sqrt()
 }
 
 fn ablation_program_stage(
@@ -667,6 +923,47 @@ mod tests {
                 .get("legacy_report")
                 .is_none()
         );
+    }
+
+    #[test]
+    fn compiler_v2_backend_uses_native_evidence_path() {
+        let (outputs, config) = square_cross_fixture();
+        let compiler = decode_dense_outputs_with_backend(
+            outputs,
+            config,
+            DecoderBackend::ConstraintCompilerV2,
+        )
+        .expect("compiler v2 decode");
+        let compiler_fold: Value =
+            serde_json::from_str(&compiler.fold_json).expect("compiler fold");
+
+        assert_eq!(
+            compiler.report.decoder_backend,
+            DecoderBackend::ConstraintCompilerV2
+        );
+        assert_eq!(
+            compiler.report.quality_report["compiler_report"]["compiler_architecture"],
+            "v2"
+        );
+        assert_eq!(
+            compiler.report.quality_report["compiler_report"]["legacy_dependency"],
+            false
+        );
+        assert_eq!(
+            compiler.report.quality_report["compiler_report"]["evidence"]["legacy_dependency"],
+            false
+        );
+        assert!(
+            compiler.report.quality_report["compiler_report"]["evidence"]["line_primitives"]
+                .as_u64()
+                .expect("line primitives")
+                > 0
+        );
+        assert_eq!(
+            compiler_fold["cp_detector"]["decoder_backend"],
+            "constraint_compiler_v2"
+        );
+        assert_compiler_output_contract(&compiler, &compiler_fold);
     }
 
     fn assert_compiler_output_contract(compiler: &DecodedFold, compiler_fold: &Value) {

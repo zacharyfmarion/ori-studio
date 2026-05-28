@@ -1,4 +1,8 @@
-use crate::{CandidateCarrier, CandidateProgram, CarrierFamily, Point2, VertexKind};
+use crate::constraints::{ConstraintDiagnosticOptions, diagnose_constraints};
+use crate::{
+    AssignmentLabel, CandidateCarrier, CandidateProgram, CarrierFamily, EdgeSelection, Point2,
+    VertexKind,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -8,6 +12,16 @@ pub struct ExactizeOptions {
     pub angle_tolerance_degrees: f64,
     pub max_vertex_move: f64,
     pub projection_bounds_padding: f64,
+    pub freeze_boundary_vertices: bool,
+    pub snap_border_carriers: bool,
+    pub snap_axis_carriers: bool,
+    pub snap_diagonal_carriers: bool,
+    pub carrier_projection_enabled: bool,
+    pub kawasaki_projection_enabled: bool,
+    pub min_kawasaki_improvement_degrees: f64,
+    pub max_exactizable_residual_degrees: f64,
+    pub max_program_hard_errors_for_projection: usize,
+    pub kawasaki_search_steps: usize,
 }
 
 impl Default for ExactizeOptions {
@@ -15,8 +29,18 @@ impl Default for ExactizeOptions {
         Self {
             border_tolerance: 0.025,
             angle_tolerance_degrees: 2.0,
-            max_vertex_move: 0.05,
-            projection_bounds_padding: 0.05,
+            max_vertex_move: 0.006,
+            projection_bounds_padding: 0.01,
+            freeze_boundary_vertices: true,
+            snap_border_carriers: false,
+            snap_axis_carriers: false,
+            snap_diagonal_carriers: false,
+            carrier_projection_enabled: true,
+            kawasaki_projection_enabled: true,
+            min_kawasaki_improvement_degrees: 0.1,
+            max_exactizable_residual_degrees: 5.0,
+            max_program_hard_errors_for_projection: 0,
+            kawasaki_search_steps: 3,
         }
     }
 }
@@ -30,16 +54,33 @@ pub struct ExactizedProgram {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ExactizeReport {
     pub vertices_moved: usize,
+    pub boundary_vertices_frozen: usize,
+    pub candidate_vertices_considered: usize,
+    pub carrier_projection_candidates: usize,
+    pub carrier_projection_accepted: usize,
+    pub kawasaki_projection_candidates: usize,
+    pub kawasaki_projection_accepted: usize,
+    pub rejected_for_movement: usize,
+    pub rejected_for_constraints: usize,
     pub degenerate_edges: usize,
     pub max_vertex_move: f64,
     pub mean_vertex_move: f64,
     pub snapped_border_carriers: usize,
     pub snapped_axis_carriers: usize,
     pub snapped_diagonal_carriers: usize,
+    pub selected_edges_before: usize,
+    pub selected_edges_after: usize,
+    pub hard_errors_before: usize,
+    pub hard_errors_after: usize,
+    pub max_kawasaki_residual_before_degrees: f64,
+    pub max_kawasaki_residual_after_degrees: f64,
 }
 
 pub fn exactize_program(program: &CandidateProgram, options: ExactizeOptions) -> ExactizedProgram {
     let mut exact = program.clone();
+    let before_diagnostics = diagnose_constraints(program, ConstraintDiagnosticOptions::default());
+    let projection_allowed = before_diagnostics.summary.hard_error_count
+        <= options.max_program_hard_errors_for_projection;
     let mut snapped_border_carriers = 0usize;
     let mut snapped_axis_carriers = 0usize;
     let mut snapped_diagonal_carriers = 0usize;
@@ -60,21 +101,101 @@ pub fn exactize_program(program: &CandidateProgram, options: ExactizeOptions) ->
         .collect::<BTreeMap<_, _>>();
     let mut movements = Vec::new();
     let mut vertices_moved = 0usize;
-    for vertex in &mut exact.vertices {
-        let old = vertex.position;
-        let lines = vertex
+    let mut boundary_vertices_frozen = 0usize;
+    let mut candidate_vertices_considered = 0usize;
+    let mut carrier_projection_candidates = 0usize;
+    let mut carrier_projection_accepted = 0usize;
+    let mut kawasaki_projection_candidates = 0usize;
+    let mut kawasaki_projection_accepted = 0usize;
+    let mut rejected_for_movement = 0usize;
+    let mut rejected_for_constraints = 0usize;
+
+    for index in 0..exact.vertices.len() {
+        let old = exact.vertices[index].position;
+        if options.freeze_boundary_vertices && exact.vertices[index].kind != VertexKind::Interior {
+            boundary_vertices_frozen += 1;
+            movements.push(0.0);
+            continue;
+        }
+        if !projection_allowed {
+            movements.push(0.0);
+            continue;
+        }
+        let raw_local_residual =
+            raw_local_kawasaki_residual(&exact, index, exact.vertices[index].position);
+        if raw_local_residual
+            .is_some_and(|residual| residual > options.max_exactizable_residual_degrees)
+        {
+            movements.push(0.0);
+            continue;
+        }
+        let before_score = local_kawasaki_residual(&exact, index);
+        let mut best = old;
+        let mut best_score = before_score;
+        let lines = exact.vertices[index]
             .incident_carriers
             .iter()
             .filter_map(|id| carrier_by_id.get(id))
             .collect::<Vec<_>>();
-        let projected = project_vertex(vertex.position, vertex.kind, &lines, options);
-        let movement = distance(old, projected);
+        if before_score.is_some() {
+            candidate_vertices_considered += 1;
+        }
+        let allow_unconstrained_projection = options.snap_border_carriers
+            || options.snap_axis_carriers
+            || options.snap_diagonal_carriers;
+        if options.carrier_projection_enabled
+            && !lines.is_empty()
+            && (before_score.is_some() || allow_unconstrained_projection)
+        {
+            carrier_projection_candidates += 1;
+            let projected = project_vertex(old, exact.vertices[index].kind, &lines, options);
+            if before_score.is_none() && allow_unconstrained_projection {
+                if projection_is_safe(old, projected, options) {
+                    best = projected;
+                    carrier_projection_accepted += 1;
+                } else {
+                    rejected_for_movement += 1;
+                }
+                let movement = distance(old, best);
+                if movement > 1e-9 {
+                    vertices_moved += 1;
+                }
+                exact.vertices[index].position = best;
+                movements.push(movement);
+                continue;
+            }
+            match candidate_score(&exact, index, old, projected, options) {
+                CandidateScore::Accepted(score)
+                    if improves_score(before_score, Some(score), options) =>
+                {
+                    best = projected;
+                    best_score = Some(score);
+                    carrier_projection_accepted += 1;
+                }
+                CandidateScore::RejectedForMovement => rejected_for_movement += 1,
+                CandidateScore::RejectedForConstraints => rejected_for_constraints += 1,
+                CandidateScore::Accepted(_) => rejected_for_constraints += 1,
+            }
+        }
+        if options.kawasaki_projection_enabled && before_score.is_some() {
+            kawasaki_projection_candidates += 1;
+            if let Some((projected, _score)) =
+                optimize_vertex_for_kawasaki(&exact, index, best, best_score, options)
+            {
+                best = projected;
+                kawasaki_projection_accepted += 1;
+            } else {
+                rejected_for_constraints += 1;
+            }
+        }
+        let movement = distance(old, best);
         if movement > 1e-9 {
             vertices_moved += 1;
         }
-        vertex.position = projected;
+        exact.vertices[index].position = best;
         movements.push(movement);
     }
+    rebuild_carriers_from_edges(&mut exact);
     let degenerate_edges = exact
         .edges
         .iter()
@@ -89,10 +210,22 @@ pub fn exactize_program(program: &CandidateProgram, options: ExactizeOptions) ->
         })
         .count();
 
+    let after_diagnostics = diagnose_constraints(&exact, ConstraintDiagnosticOptions::default());
+
+    let selected_edges_after = selected_edge_count(&exact);
+
     ExactizedProgram {
         program: exact,
         report: ExactizeReport {
             vertices_moved,
+            boundary_vertices_frozen,
+            candidate_vertices_considered,
+            carrier_projection_candidates,
+            carrier_projection_accepted,
+            kawasaki_projection_candidates,
+            kawasaki_projection_accepted,
+            rejected_for_movement,
+            rejected_for_constraints,
             degenerate_edges,
             max_vertex_move: movements.iter().copied().fold(0.0, f64::max),
             mean_vertex_move: if movements.is_empty() {
@@ -103,6 +236,16 @@ pub fn exactize_program(program: &CandidateProgram, options: ExactizeOptions) ->
             snapped_border_carriers,
             snapped_axis_carriers,
             snapped_diagonal_carriers,
+            selected_edges_before: selected_edge_count(program),
+            selected_edges_after,
+            hard_errors_before: before_diagnostics.summary.hard_error_count,
+            hard_errors_after: after_diagnostics.summary.hard_error_count,
+            max_kawasaki_residual_before_degrees: before_diagnostics
+                .summary
+                .max_kawasaki_residual_degrees,
+            max_kawasaki_residual_after_degrees: after_diagnostics
+                .summary
+                .max_kawasaki_residual_degrees,
         },
     }
 }
@@ -117,15 +260,19 @@ enum CarrierSnap {
 
 fn snap_carrier(carrier: &mut CandidateCarrier, options: ExactizeOptions) -> CarrierSnap {
     canonicalize_carrier(carrier);
-    if carrier.family == CarrierFamily::Border {
+    if options.snap_border_carriers && carrier.family == CarrierFamily::Border {
         if snap_border_carrier(carrier, options.border_tolerance) {
             return CarrierSnap::Border;
         }
     }
-    if snap_axis_carrier(carrier, options.angle_tolerance_degrees.to_radians()) {
+    if options.snap_axis_carriers
+        && snap_axis_carrier(carrier, options.angle_tolerance_degrees.to_radians())
+    {
         return CarrierSnap::Axis;
     }
-    if snap_diagonal_carrier(carrier, options.angle_tolerance_degrees.to_radians()) {
+    if options.snap_diagonal_carriers
+        && snap_diagonal_carrier(carrier, options.angle_tolerance_degrees.to_radians())
+    {
         return CarrierSnap::Diagonal;
     }
     CarrierSnap::None
@@ -320,6 +467,296 @@ fn distance(left: Point2, right: Point2) -> f64 {
     (dx * dx + dy * dy).sqrt()
 }
 
+enum CandidateScore {
+    Accepted(f64),
+    RejectedForMovement,
+    RejectedForConstraints,
+}
+
+fn candidate_score(
+    program: &CandidateProgram,
+    vertex_index: usize,
+    original: Point2,
+    candidate: Point2,
+    options: ExactizeOptions,
+) -> CandidateScore {
+    if !projection_is_safe(original, candidate, options) {
+        return CandidateScore::RejectedForMovement;
+    }
+    let Some(score) = affected_kawasaki_score(program, vertex_index, candidate) else {
+        return CandidateScore::RejectedForConstraints;
+    };
+    CandidateScore::Accepted(score)
+}
+
+fn improves_score(before: Option<f64>, after: Option<f64>, options: ExactizeOptions) -> bool {
+    let Some(before) = before else {
+        return false;
+    };
+    let Some(after) = after else {
+        return false;
+    };
+    before - after >= options.min_kawasaki_improvement_degrees.max(0.0)
+}
+
+fn optimize_vertex_for_kawasaki(
+    program: &CandidateProgram,
+    vertex_index: usize,
+    start: Point2,
+    start_score: Option<f64>,
+    options: ExactizeOptions,
+) -> Option<(Point2, f64)> {
+    let original = program.vertices.get(vertex_index)?.position;
+    let mut best = start;
+    let mut best_score = start_score?;
+    let mut step = options.max_vertex_move.max(0.0) * 0.5;
+    if step <= 0.0 {
+        return None;
+    }
+    for _ in 0..options.kawasaki_search_steps.max(1) {
+        let mut improved = false;
+        for dx in [-step, 0.0, step] {
+            for dy in [-step, 0.0, step] {
+                if dx == 0.0 && dy == 0.0 {
+                    continue;
+                }
+                let candidate = Point2::new(best.x + dx, best.y + dy);
+                let CandidateScore::Accepted(score) =
+                    candidate_score(program, vertex_index, original, candidate, options)
+                else {
+                    continue;
+                };
+                if score + 1e-9 < best_score {
+                    best = candidate;
+                    best_score = score;
+                    improved = true;
+                }
+            }
+        }
+        if !improved {
+            step *= 0.5;
+        }
+    }
+    if improves_score(
+        local_kawasaki_residual(program, vertex_index),
+        Some(best_score),
+        options,
+    ) {
+        Some((best, best_score))
+    } else {
+        None
+    }
+}
+
+fn local_kawasaki_residual(program: &CandidateProgram, vertex_index: usize) -> Option<f64> {
+    let point = program.vertices.get(vertex_index)?.position;
+    affected_kawasaki_score(program, vertex_index, point)
+}
+
+fn raw_local_kawasaki_residual(
+    program: &CandidateProgram,
+    vertex_index: usize,
+    point: Point2,
+) -> Option<f64> {
+    local_kawasaki_residual_with_override(program, vertex_index, vertex_index, point)
+}
+
+fn affected_kawasaki_score(
+    program: &CandidateProgram,
+    moved_vertex_index: usize,
+    moved_point: Point2,
+) -> Option<f64> {
+    let mut scored = 0usize;
+    let mut residual_sum = 0.0;
+    let mut hard_count = 0usize;
+    for vertex_index in affected_vertices(program, moved_vertex_index) {
+        let Some(residual) = local_kawasaki_residual_with_override(
+            program,
+            vertex_index,
+            moved_vertex_index,
+            moved_point,
+        ) else {
+            continue;
+        };
+        scored += 1;
+        residual_sum += residual;
+        if residual > 2.0 {
+            hard_count += 1;
+        }
+    }
+    (scored > 0).then_some(residual_sum + hard_count as f64 * 200.0)
+}
+
+fn affected_vertices(program: &CandidateProgram, vertex_index: usize) -> Vec<usize> {
+    let mut affected = vec![vertex_index];
+    for edge in &program.edges {
+        if edge.selection != EdgeSelection::Selected {
+            continue;
+        }
+        if matches!(
+            edge.assignment.label,
+            AssignmentLabel::Boundary | AssignmentLabel::Flat
+        ) {
+            continue;
+        }
+        if edge.vertices[0] == vertex_index && !affected.contains(&edge.vertices[1]) {
+            affected.push(edge.vertices[1]);
+        } else if edge.vertices[1] == vertex_index && !affected.contains(&edge.vertices[0]) {
+            affected.push(edge.vertices[0]);
+        }
+    }
+    affected
+}
+
+fn local_kawasaki_residual_with_override(
+    program: &CandidateProgram,
+    vertex_index: usize,
+    moved_vertex_index: usize,
+    moved_point: Point2,
+) -> Option<f64> {
+    let point = if vertex_index == moved_vertex_index {
+        moved_point
+    } else {
+        program.vertices.get(vertex_index)?.position
+    };
+    let mut angles = Vec::new();
+    for edge in &program.edges {
+        if edge.selection != EdgeSelection::Selected {
+            continue;
+        }
+        if matches!(
+            edge.assignment.label,
+            AssignmentLabel::Boundary | AssignmentLabel::Flat
+        ) {
+            continue;
+        }
+        let other_index = if edge.vertices[0] == vertex_index {
+            edge.vertices[1]
+        } else if edge.vertices[1] == vertex_index {
+            edge.vertices[0]
+        } else {
+            continue;
+        };
+        let other = if other_index == moved_vertex_index {
+            moved_point
+        } else {
+            let Some(other) = program
+                .vertices
+                .get(other_index)
+                .map(|vertex| vertex.position)
+            else {
+                continue;
+            };
+            other
+        };
+        if distance(point, other) <= 1e-9 {
+            continue;
+        }
+        angles.push(angle_degrees(point, other));
+    }
+    if angles.len() < 4 || angles.len() % 2 == 1 {
+        return None;
+    }
+    angles.sort_by(f64::total_cmp);
+    let mut sectors = Vec::with_capacity(angles.len());
+    for index in 0..angles.len() {
+        let next = (index + 1) % angles.len();
+        sectors.push((angles[next] - angles[index]).rem_euclid(360.0));
+    }
+    let odd = sectors.iter().step_by(2).sum::<f64>();
+    let even = sectors.iter().skip(1).step_by(2).sum::<f64>();
+    Some((odd - even).abs())
+}
+
+fn angle_degrees(origin: Point2, target: Point2) -> f64 {
+    let mut angle = (target.y - origin.y)
+        .atan2(target.x - origin.x)
+        .to_degrees();
+    if angle < 0.0 {
+        angle += 360.0;
+    }
+    angle
+}
+
+fn selected_edge_count(program: &CandidateProgram) -> usize {
+    program
+        .edges
+        .iter()
+        .filter(|edge| edge.selection == EdgeSelection::Selected)
+        .count()
+}
+
+fn rebuild_carriers_from_edges(program: &mut CandidateProgram) {
+    let edges = program.edges.clone();
+    for edge in edges {
+        let Some(start) = program
+            .vertices
+            .get(edge.vertices[0])
+            .map(|vertex| vertex.position)
+        else {
+            continue;
+        };
+        let Some(end) = program
+            .vertices
+            .get(edge.vertices[1])
+            .map(|vertex| vertex.position)
+        else {
+            continue;
+        };
+        if distance(start, end) <= 1e-9 {
+            continue;
+        }
+        let normal = line_normal(start, end);
+        if let Some(carrier) = program
+            .carriers
+            .iter_mut()
+            .find(|carrier| carrier.id == edge.carrier_id)
+        {
+            carrier.normal = normal;
+            carrier.rho = normal.x * start.x + normal.y * start.y;
+            carrier.family = carrier_family(start, end, edge.assignment.label);
+            carrier.support_interval = support_interval(start, end);
+        }
+    }
+}
+
+fn line_normal(start: Point2, end: Point2) -> Point2 {
+    let dx = end.x - start.x;
+    let dy = end.y - start.y;
+    let length = (dx * dx + dy * dy).sqrt().max(1e-12);
+    Point2::new(-dy / length, dx / length)
+}
+
+fn carrier_family(start: Point2, end: Point2, assignment: AssignmentLabel) -> CarrierFamily {
+    if assignment == AssignmentLabel::Boundary {
+        return CarrierFamily::Border;
+    }
+    let dx = end.x - start.x;
+    let dy = end.y - start.y;
+    let epsilon = 1e-6;
+    if dy.abs() <= epsilon {
+        CarrierFamily::Horizontal
+    } else if dx.abs() <= epsilon {
+        CarrierFamily::Vertical
+    } else if (dx.abs() - dy.abs()).abs() <= epsilon {
+        if dx.signum() == dy.signum() {
+            CarrierFamily::DiagonalPositive
+        } else {
+            CarrierFamily::DiagonalNegative
+        }
+    } else {
+        CarrierFamily::Free
+    }
+}
+
+fn support_interval(start: Point2, end: Point2) -> [f64; 2] {
+    if (end.x - start.x).abs() >= (end.y - start.y).abs() {
+        [start.x.min(end.x), start.x.max(end.x)]
+    } else {
+        [start.y.min(end.y), start.y.max(end.y)]
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -345,7 +782,7 @@ mod tests {
             ],
         );
 
-        let exact = exactize_program(&program, Default::default());
+        let exact = exactize_program(&program, legacy_snap_options());
         let points: Vec<Point2> = exact
             .program
             .vertices
@@ -381,7 +818,7 @@ mod tests {
             ],
         );
 
-        let exact = exactize_program(&program, Default::default());
+        let exact = exactize_program(&program, legacy_snap_options());
         assert_close(exact.program.vertices[0].position.x, 0.50005, 1e-5);
         assert_close(exact.program.vertices[0].position.y, 0.250025, 1e-5);
         assert_eq!(exact.report.snapped_axis_carriers, 2);
@@ -416,7 +853,7 @@ mod tests {
             ],
         );
 
-        let exact = exactize_program(&program, Default::default());
+        let exact = exactize_program(&program, legacy_snap_options());
         assert_close(exact.program.vertices[0].position.x, original.x, 1e-12);
         assert_close(exact.program.vertices[0].position.y, original.y, 1e-12);
         assert_eq!(exact.report.vertices_moved, 0);
@@ -435,7 +872,7 @@ mod tests {
             )],
         );
 
-        let exact = exactize_program(&program, Default::default());
+        let exact = exactize_program(&program, legacy_snap_options());
         assert_eq!(
             exact.program.carriers[0].family,
             CarrierFamily::DiagonalPositive
@@ -519,6 +956,18 @@ mod tests {
             (actual - expected).abs() <= tolerance,
             "expected {actual} to be within {tolerance} of {expected}"
         );
+    }
+
+    fn legacy_snap_options() -> ExactizeOptions {
+        ExactizeOptions {
+            freeze_boundary_vertices: false,
+            snap_border_carriers: true,
+            snap_axis_carriers: true,
+            snap_diagonal_carriers: true,
+            max_vertex_move: 0.05,
+            max_program_hard_errors_for_projection: usize::MAX,
+            ..Default::default()
+        }
     }
 
     #[allow(dead_code)]
