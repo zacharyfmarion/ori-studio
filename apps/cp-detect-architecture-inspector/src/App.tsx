@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Activity, CircleDot, GitBranch, Layers3, RefreshCw, SlidersHorizontal } from 'lucide-react';
-import { fetchStage1Example, fetchStage1Examples, fetchStage2Example, fetchStages } from './api';
+import { fetchStage1Example, fetchStage1Examples, fetchStage2Example, fetchStage3Example, fetchStages } from './api';
 import type {
   ArrangementAtomicEdge,
   ArrangementCarrier,
@@ -12,6 +12,7 @@ import type {
   MapPayload,
   Stage1Response,
   Stage2Response,
+  Stage3Response,
 } from './types';
 
 const BACKGROUND_OPTIONS = [
@@ -34,10 +35,10 @@ export function App() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [examples, setExamples] = useState<ExampleRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [activeStage, setActiveStage] = useState<'stage1' | 'stage2'>('stage2');
+  const [activeStage, setActiveStage] = useState<'stage1' | 'stage2' | 'stage3'>('stage3');
   const [threshold, setThreshold] = useState(0.65);
   const [mapSize, setMapSize] = useState(192);
-  const [stage, setStage] = useState<Stage1Response | Stage2Response | null>(null);
+  const [stage, setStage] = useState<Stage1Response | Stage2Response | Stage3Response | null>(null);
   const [loadingStage, setLoadingStage] = useState(false);
   const [background, setBackground] = useState('input');
   const [showLines, setShowLines] = useState(true);
@@ -47,6 +48,9 @@ export function App() {
   const [showInferredCrossings, setShowInferredCrossings] = useState(false);
   const [showSharedCarriers, setShowSharedCarriers] = useState(true);
   const [showAtomicEdges, setShowAtomicEdges] = useState(true);
+  const [showSelectedEdges, setShowSelectedEdges] = useState(true);
+  const [showRejectedEdges, setShowRejectedEdges] = useState(false);
+  const [showUndecidedEdges, setShowUndecidedEdges] = useState(false);
   const [selectedMapId, setSelectedMapId] = useState('line_probability');
   const [reloadToken, setReloadToken] = useState(0);
 
@@ -76,9 +80,11 @@ export function App() {
     setStage(null);
     setLoadingStage(true);
     const request =
-      activeStage === 'stage2'
-        ? fetchStage2Example(selectedId, { threshold, mapSize })
-        : fetchStage1Example(selectedId, { threshold, mapSize });
+      activeStage === 'stage3'
+        ? fetchStage3Example(selectedId, { threshold, mapSize })
+        : activeStage === 'stage2'
+          ? fetchStage2Example(selectedId, { threshold, mapSize })
+          : fetchStage1Example(selectedId, { threshold, mapSize });
     request
       .then((payload) => {
         if (cancelled) return;
@@ -144,9 +150,10 @@ export function App() {
             <PanelTitle icon={<SlidersHorizontal size={17} />} title="Evidence Extraction" />
             <label>
               Stage
-              <select value={activeStage} onChange={(event) => setActiveStage(event.target.value as 'stage1' | 'stage2')}>
+              <select value={activeStage} onChange={(event) => setActiveStage(event.target.value as 'stage1' | 'stage2' | 'stage3')}>
                 <option value="stage1">Stage 1: dense evidence</option>
                 <option value="stage2">Stage 2: candidate arrangement</option>
+                <option value="stage3">Stage 3: weighted selection</option>
               </select>
             </label>
             <label>
@@ -193,18 +200,29 @@ export function App() {
 
           {serverError ? <div className="error-panel">{serverError}</div> : null}
 
-          {activeStage === 'stage2' ? (
+          {activeStage === 'stage3' ? (
             <section className="summary-grid">
-              <Metric label="observed carriers" value={isStage2(stage) ? stage.arrangement.report.observed_carriers : '...'} />
+              <Metric label="selected edges" value={isStage3(stage) ? stage.selection.report.selected_edges : '...'} />
+              <Metric label="undecided edges" value={isStage3(stage) ? stage.selection.report.undecided_edges : '...'} />
+              <Metric label="weak promoted" value={isStage3(stage) ? stage.selection.report.weak_edges_promoted : '...'} />
+              <Metric label="odd vertices" value={isStage3(stage) ? stage.selection.report.odd_degree_vertices : '...'} />
+              <Metric
+                label="total score"
+                value={isStage3(stage) ? stage.selection.report.total_score.toFixed(1) : '...'}
+              />
+            </section>
+          ) : activeStage === 'stage2' ? (
+            <section className="summary-grid">
+              <Metric label="observed carriers" value={hasArrangement(stage) ? stage.arrangement.report.observed_carriers : '...'} />
               <Metric
                 label="shared alternatives"
-                value={isStage2(stage) ? stage.arrangement.report.shared_carrier_alternatives : '...'}
+                value={hasArrangement(stage) ? stage.arrangement.report.shared_carrier_alternatives : '...'}
               />
-              <Metric label="observed junctions" value={isStage2(stage) ? stage.arrangement.report.observed_junctions : '...'} />
-              <Metric label="inferred crossings" value={isStage2(stage) ? stage.arrangement.report.carrier_intersections : '...'} />
+              <Metric label="observed junctions" value={hasArrangement(stage) ? stage.arrangement.report.observed_junctions : '...'} />
+              <Metric label="inferred crossings" value={hasArrangement(stage) ? stage.arrangement.report.carrier_intersections : '...'} />
               <Metric
                 label="suppressed crossings"
-                value={isStage2(stage) ? stage.arrangement.report.suppressed_carrier_intersections : '...'}
+                value={hasArrangement(stage) ? stage.arrangement.report.suppressed_carrier_intersections : '...'}
               />
             </section>
           ) : (
@@ -221,15 +239,21 @@ export function App() {
             <div className="viewer-panel">
               <div className="viewer-toolbar">
                 <PanelTitle
-                  icon={activeStage === 'stage2' ? <GitBranch size={17} /> : <Layers3 size={17} />}
-                  title={activeStage === 'stage2' ? 'Input + Candidate Arrangement' : 'Input + Stage 1 Primitives'}
+                  icon={activeStage !== 'stage1' ? <GitBranch size={17} /> : <Layers3 size={17} />}
+                  title={
+                    activeStage === 'stage3'
+                      ? 'Input + Weighted Selection'
+                      : activeStage === 'stage2'
+                        ? 'Input + Candidate Arrangement'
+                        : 'Input + Stage 1 Primitives'
+                  }
                 />
                 <div className="toggle-row">
                   <label>
                     <input type="checkbox" checked={showLines} onChange={(event) => setShowLines(event.target.checked)} />
-                    {activeStage === 'stage2' ? 'observed carriers' : 'lines'}
+                    {activeStage !== 'stage1' ? 'observed carriers' : 'lines'}
                   </label>
-                  {activeStage === 'stage2' ? (
+                  {activeStage !== 'stage1' ? (
                     <label>
                       <input
                         type="checkbox"
@@ -249,15 +273,45 @@ export function App() {
                       atomic intervals
                     </label>
                   ) : null}
+                  {activeStage === 'stage3' ? (
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={showSelectedEdges}
+                        onChange={(event) => setShowSelectedEdges(event.target.checked)}
+                      />
+                      selected
+                    </label>
+                  ) : null}
+                  {activeStage === 'stage3' ? (
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={showUndecidedEdges}
+                        onChange={(event) => setShowUndecidedEdges(event.target.checked)}
+                      />
+                      undecided
+                    </label>
+                  ) : null}
+                  {activeStage === 'stage3' ? (
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={showRejectedEdges}
+                        onChange={(event) => setShowRejectedEdges(event.target.checked)}
+                      />
+                      rejected
+                    </label>
+                  ) : null}
                   <label>
                     <input
                       type="checkbox"
                       checked={showJunctions}
                       onChange={(event) => setShowJunctions(event.target.checked)}
                     />
-                    {activeStage === 'stage2' ? 'observed junctions' : 'junctions'}
+                    {activeStage !== 'stage1' ? 'observed junctions' : 'junctions'}
                   </label>
-                  {activeStage === 'stage2' ? (
+                  {activeStage !== 'stage1' ? (
                     <label>
                       <input
                         type="checkbox"
@@ -287,7 +341,20 @@ export function App() {
                   </label>
                 </div>
               </div>
-              {isStage2(stage) ? (
+              {isStage3(stage) ? (
+                <SelectionViewer
+                  backgroundMap={backgroundMap}
+                  showContacts={showContacts}
+                  showJunctions={showJunctions}
+                  showLineEndpoints={showLineEndpoints}
+                  showLines={showLines}
+                  showRejectedEdges={showRejectedEdges}
+                  showSelectedEdges={showSelectedEdges}
+                  showSharedCarriers={showSharedCarriers}
+                  showUndecidedEdges={showUndecidedEdges}
+                  stage={stage}
+                />
+              ) : hasArrangement(stage) ? (
                 <ArrangementViewer
                   backgroundMap={backgroundMap}
                   showInferredCrossings={showInferredCrossings}
@@ -335,7 +402,7 @@ export function App() {
                   </button>
                 ))}
               </div>
-              {isStage2(stage) ? <Stage2LayerSummary stage={stage} /> : null}
+              {isStage3(stage) ? <Stage3LayerSummary stage={stage} /> : hasArrangement(stage) ? <Stage2LayerSummary stage={stage} /> : null}
             </aside>
           </section>
         </section>
@@ -344,8 +411,12 @@ export function App() {
   );
 }
 
-function isStage2(stage: Stage1Response | Stage2Response | null): stage is Stage2Response {
+function hasArrangement(stage: Stage1Response | Stage2Response | Stage3Response | null): stage is Stage2Response | Stage3Response {
   return Boolean(stage && 'arrangement' in stage);
+}
+
+function isStage3(stage: Stage1Response | Stage2Response | Stage3Response | null): stage is Stage3Response {
+  return Boolean(stage && 'selection' in stage);
 }
 
 function PanelTitle({ icon, title }: { icon: React.ReactNode; title: string }) {
@@ -533,6 +604,156 @@ function ArrangementViewer({
   );
 }
 
+function SelectionViewer({
+  backgroundMap,
+  showContacts,
+  showJunctions,
+  showLineEndpoints,
+  showLines,
+  showRejectedEdges,
+  showSelectedEdges,
+  showSharedCarriers,
+  showUndecidedEdges,
+  stage,
+}: {
+  backgroundMap: MapPayload | null;
+  showContacts: boolean;
+  showJunctions: boolean;
+  showLineEndpoints: boolean;
+  showLines: boolean;
+  showRejectedEdges: boolean;
+  showSelectedEdges: boolean;
+  showSharedCarriers: boolean;
+  showUndecidedEdges: boolean;
+  stage: Stage3Response;
+}) {
+  const verticesById = useMemo(() => {
+    const values = new Map<number, ArrangementVertex>();
+    for (const vertex of stage.arrangement.vertices) values.set(vertex.id, vertex);
+    return values;
+  }, [stage.arrangement.vertices]);
+  const edgesById = useMemo(() => {
+    const values = new Map<number, ArrangementAtomicEdge>();
+    for (const edge of stage.arrangement.atomic_edges) values.set(edge.id, edge);
+    return values;
+  }, [stage.arrangement.atomic_edges]);
+  const scoresByEdgeId = useMemo(() => {
+    const values = new Map<number, Stage3Response['selection']['edge_scores'][number]>();
+    for (const score of stage.selection.edge_scores) values.set(score.edge_id, score);
+    return values;
+  }, [stage.selection.edge_scores]);
+  const size = stage.config.image_size;
+
+  const renderSelectionEdges = (ids: number[], decision: 'selected' | 'rejected' | 'undecided') =>
+    ids
+      .slice(0, decision === 'selected' ? 5000 : 1500)
+      .map((edgeId) => {
+        const edge = edgesById.get(edgeId);
+        const score = scoresByEdgeId.get(edgeId);
+        if (!edge || !score) return null;
+        return (
+          <SelectionEdgeView
+            decision={decision}
+            edge={edge}
+            frame={stage.overlay_frame_px}
+            key={`${decision}-${edgeId}`}
+            score={score}
+            verticesById={verticesById}
+          />
+        );
+      });
+
+  return (
+    <div className="viewer-canvas">
+      {backgroundMap ? (
+        <Heatmap map={backgroundMap} mode="background" />
+      ) : (
+        <img alt="" className="input-image" src={stage.sample.input_image_url} />
+      )}
+      <svg
+        className="primitive-overlay arrangement-overlay"
+        viewBox={`0 0 ${size} ${size}`}
+        role="img"
+        aria-label="Stage 3 weighted selection"
+      >
+        {showRejectedEdges ? renderSelectionEdges(stage.selection.rejected_edge_ids, 'rejected') : null}
+        {showUndecidedEdges ? renderSelectionEdges(stage.selection.undecided_edge_ids, 'undecided') : null}
+        {showLines
+          ? stage.arrangement.carriers
+              .filter((carrier) => carrier.kind === 'observed_local')
+              .map((carrier) => <CarrierView carrier={carrier} frame={stage.overlay_frame_px} key={carrier.id} />)
+          : null}
+        {showSharedCarriers
+          ? stage.arrangement.carriers
+              .filter((carrier) => carrier.kind === 'shared_collinear_alternative')
+              .map((carrier) => <CarrierView carrier={carrier} frame={stage.overlay_frame_px} key={carrier.id} shared />)
+          : null}
+        {showSelectedEdges ? renderSelectionEdges(stage.selection.selected_edge_ids, 'selected') : null}
+        {showJunctions
+          ? stage.arrangement.vertices
+              .filter((vertex) => vertex.kind === 'observed_junction' || vertex.kind === 'junction_cluster')
+              .map((vertex) => <ArrangementVertexView frame={stage.overlay_frame_px} key={vertex.id} vertex={vertex} />)
+          : null}
+        {showLineEndpoints
+          ? stage.arrangement.vertices
+              .filter((vertex) => vertex.kind === 'observed_line_endpoint')
+              .map((vertex) => <ArrangementVertexView frame={stage.overlay_frame_px} key={vertex.id} vertex={vertex} />)
+          : null}
+        {showContacts
+          ? stage.arrangement.vertices
+              .filter((vertex) => vertex.kind === 'boundary_contact' || vertex.kind === 'corner')
+              .map((vertex) => <ArrangementVertexView frame={stage.overlay_frame_px} key={`contact-${vertex.id}`} vertex={vertex} />)
+          : null}
+      </svg>
+    </div>
+  );
+}
+
+function SelectionEdgeView({
+  decision,
+  edge,
+  frame,
+  score,
+  verticesById,
+}: {
+  decision: 'selected' | 'rejected' | 'undecided';
+  edge: ArrangementAtomicEdge;
+  frame: Stage2Response['overlay_frame_px'];
+  score: Stage3Response['selection']['edge_scores'][number];
+  verticesById: Map<number, ArrangementVertex>;
+}) {
+  const a = verticesById.get(edge.vertices[0]);
+  const b = verticesById.get(edge.vertices[1]);
+  if (!a || !b) return null;
+  const p0 = imagePoint(a.point, frame);
+  const p1 = imagePoint(b.point, frame);
+  const color =
+    decision === 'selected'
+      ? arrangementAssignmentColor(edge.assignment.label)
+      : decision === 'undecided'
+        ? '#f59e0b'
+        : '#94a3b8';
+  return (
+    <line
+      stroke={color}
+      strokeDasharray={decision === 'selected' ? undefined : decision === 'undecided' ? '7 5' : '3 7'}
+      strokeLinecap="round"
+      strokeOpacity={decision === 'selected' ? 0.96 : decision === 'undecided' ? 0.62 : 0.24}
+      strokeWidth={decision === 'selected' ? 3.1 : 1.5}
+      vectorEffect="non-scaling-stroke"
+      x1={p0.x}
+      x2={p1.x}
+      y1={p0.y}
+      y2={p1.y}
+    >
+      <title>
+        {decision} edge {edge.id} score {score.total_score.toFixed(3)} support {edge.line_support.toFixed(3)};{' '}
+        {score.reasons.join('; ')}
+      </title>
+    </line>
+  );
+}
+
 function CarrierView({
   carrier,
   frame,
@@ -669,6 +890,48 @@ function Stage2LayerSummary({ stage }: { stage: Stage2Response }) {
         </div>
       ))}
       <p>Stage 2 keeps alternatives open. It emits {report.selected_edges} selected FOLD edges by design.</p>
+    </div>
+  );
+}
+
+function Stage3LayerSummary({ stage }: { stage: Stage3Response }) {
+  const report = stage.selection.report;
+  const selectedScores = stage.selection.edge_scores
+    .filter((score) => score.decision === 'selected')
+    .sort((left, right) => right.total_score - left.total_score)
+    .slice(0, 10);
+  return (
+    <div className="hypothesis-panel">
+      <PanelTitle icon={<GitBranch size={17} />} title="Stage 3 Selection" />
+      <LayerRow color="#16a34a" label="Selected edges" value={report.selected_edges} note="atomic intervals chosen for the graph" />
+      <LayerRow color="#f59e0b" label="Undecided edges" value={report.undecided_edges} note="plausible evidence not selected yet" />
+      <LayerRow color="#94a3b8" label="Rejected edges" value={report.rejected_edges} note="candidates below current costs" />
+      <LayerRow color="#2563eb" label="Weak promoted" value={report.weak_edges_promoted} note="weak evidence selected by topology benefit" />
+      <LayerRow color="#9333ea" label="Hypotheses" value={report.selected_hypotheses} note="arrangement hypotheses referenced by selection" />
+      <LayerRow color="#ef4444" label="Odd vertices" value={report.odd_degree_vertices} note="remaining local topology warnings" />
+      <div className="hypothesis-divider" />
+      <div className="selection-status-row">
+        <span>Total selected score</span>
+        <strong>{report.total_score.toFixed(2)}</strong>
+      </div>
+      <div className="selection-status-row">
+        <span>Exactizability probes</span>
+        <strong>{report.exactizability_evaluated ? 'evaluated' : 'phase 4'}</strong>
+      </div>
+      <div className="selection-status-row">
+        <span>Emits FOLD graph</span>
+        <strong>{report.emits_fold_graph ? 'yes' : 'no'}</strong>
+      </div>
+      <div className="hypothesis-divider" />
+      <PanelTitle icon={<GitBranch size={17} />} title="Accepted Edge Scores" />
+      {selectedScores.map((score) => (
+        <div className="score-row" key={score.edge_id}>
+          <strong>edge {score.edge_id}</strong>
+          <span>{score.total_score.toFixed(2)}</span>
+          <em>{score.reasons[0] ?? 'selected'}</em>
+        </div>
+      ))}
+      <p>Stage 3 chooses candidate intervals with visual and topology costs. Exact geometric theorem costs arrive in Phase 4.</p>
     </div>
   );
 }

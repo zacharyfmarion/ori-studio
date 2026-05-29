@@ -4,6 +4,9 @@ use oristudio_cp_compiler::arrangement_v2::{
     ArrangementLinePrimitive, ArrangementPaperFramePx, ArrangementV2Input, ArrangementV2Options,
     CandidateArrangement, build_candidate_arrangement,
 };
+use oristudio_cp_compiler::selection::{
+    CandidateSelection, SelectionOptions, select_candidate_graph,
+};
 use oristudio_cp_compiler::{AssignmentCandidate, AssignmentLabel, EvidenceSource, Point2};
 use oristudio_cp_detect::decode::DecodeConfig;
 use oristudio_cp_detect::evidence_extract::{
@@ -125,6 +128,20 @@ struct Stage2Response {
     maps: Vec<MapPayload>,
     primitives: PrimitivePayload,
     arrangement: CandidateArrangement,
+}
+
+#[derive(Debug, Serialize)]
+struct Stage3Response {
+    schema: &'static str,
+    sample: ExampleRow,
+    map_size: usize,
+    config: EvidenceConfigSummary,
+    overlay_frame_px: OverlayFramePx,
+    report: Value,
+    maps: Vec<MapPayload>,
+    primitives: PrimitivePayload,
+    arrangement: CandidateArrangement,
+    selection: CandidateSelection,
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]
@@ -320,6 +337,12 @@ fn route_request(request: &HttpRequest, state: &AppState) -> HttpResponse {
                     label: "Stage 2",
                     title: "Candidate planar graph arrangement",
                     status: "implemented"
+                },
+                StageInfo {
+                    id: "stage3",
+                    label: "Stage 3",
+                    title: "Weighted candidate selection",
+                    status: "implemented"
                 }
             ]
         }))
@@ -333,6 +356,11 @@ fn route_request(request: &HttpRequest, state: &AppState) -> HttpResponse {
     } else if let Some(encoded_id) = path.strip_prefix("/api/stage2/examples/") {
         let sample_id = percent_decode(encoded_id);
         stage2_example(state, &sample_id, query).and_then(|payload| json_response(&payload))
+    } else if path == "/api/stage3/examples" {
+        stage3_examples(state).and_then(|payload| json_response(&payload))
+    } else if let Some(encoded_id) = path.strip_prefix("/api/stage3/examples/") {
+        let sample_id = percent_decode(encoded_id);
+        stage3_example(state, &sample_id, query).and_then(|payload| json_response(&payload))
     } else if let Some(encoded_id) = path.strip_prefix("/assets/input/") {
         let sample_id = percent_decode(encoded_id.trim_end_matches(".png"));
         serve_input_image(state, &sample_id)
@@ -380,6 +408,13 @@ fn stage2_examples(state: &AppState) -> Result<ExamplesResponse> {
     examples_response(
         state,
         "oristudio/cp-detect-architecture-inspector/stage2-index/v1",
+    )
+}
+
+fn stage3_examples(state: &AppState) -> Result<ExamplesResponse> {
+    examples_response(
+        state,
+        "oristudio/cp-detect-architecture-inspector/stage3-index/v1",
     )
 }
 
@@ -547,6 +582,27 @@ fn stage2_example(
             )?,
         },
         arrangement,
+    })
+}
+
+fn stage3_example(
+    state: &AppState,
+    sample_id: &str,
+    query: BTreeMap<String, String>,
+) -> Result<Stage3Response> {
+    let stage2 = stage2_example(state, sample_id, query)?;
+    let selection = select_candidate_graph(&stage2.arrangement, SelectionOptions::default());
+    Ok(Stage3Response {
+        schema: "oristudio/cp-detect-architecture-inspector/stage3/v1",
+        sample: stage2.sample,
+        map_size: stage2.map_size,
+        config: stage2.config,
+        overlay_frame_px: stage2.overlay_frame_px,
+        report: stage2.report,
+        maps: stage2.maps,
+        primitives: stage2.primitives,
+        arrangement: stage2.arrangement,
+        selection,
     })
 }
 

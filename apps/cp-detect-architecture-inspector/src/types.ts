@@ -221,3 +221,54 @@ export interface Stage2Response extends Stage1Response {
   };
   arrangement: CandidateArrangement;
 }
+
+export interface SelectionScoreBreakdown {
+  visual_reward: number;
+  vertex_anchor_reward: number;
+  assignment_reward: number;
+  topology_delta: number;
+  weak_support_cost: number;
+  inferred_geometry_cost: number;
+  shared_carrier_cost: number;
+  tiny_edge_cost: number;
+  duplicate_cost: number;
+  exactizability_cost: number;
+}
+
+export interface SelectionEdgeScore {
+  edge_id: number;
+  carrier_id: number;
+  vertices: [number, number];
+  decision: 'selected' | 'rejected' | 'undecided' | string;
+  total_score: number;
+  breakdown: SelectionScoreBreakdown;
+  reasons: string[];
+}
+
+export interface CandidateSelection {
+  schema: string;
+  coordinate_space: string;
+  image_size: number;
+  selected_edge_ids: number[];
+  rejected_edge_ids: number[];
+  undecided_edge_ids: number[];
+  selected_hypothesis_ids: number[];
+  edge_scores: SelectionEdgeScore[];
+  report: {
+    selected_edges: number;
+    rejected_edges: number;
+    undecided_edges: number;
+    selected_hypotheses: number;
+    weak_edges_promoted: number;
+    topology_improved_edges: number;
+    duplicate_edges_rejected: number;
+    odd_degree_vertices: number;
+    total_score: number;
+    exactizability_evaluated: boolean;
+    emits_fold_graph: boolean;
+  };
+}
+
+export interface Stage3Response extends Stage2Response {
+  selection: CandidateSelection;
+}

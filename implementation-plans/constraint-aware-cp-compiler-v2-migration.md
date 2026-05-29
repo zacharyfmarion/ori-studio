@@ -1,11 +1,16 @@
 # Constraint-Aware CP Compiler V2 Migration Plan
 
-Status: Draft implementation plan, May 28, 2026.
+Status: Active implementation plan, May 29, 2026.
 
 Progress:
 
-- Phase 0 is implemented as of May 29, 2026.
-- Phase 1 is implemented as of May 28, 2026.
+- Phase 0 is complete as of May 29, 2026.
+- Phase 1 is complete as of May 28, 2026.
+- Phase 2 is complete as of May 29, 2026 for the first inspectable candidate
+  arrangement pass.
+- Phase 3 is complete as of May 29, 2026 for the first inspectable weighted
+  selection pass. Full exactizability scoring remains assigned to Phase 4, as
+  planned.
 - A `ConstraintCompilerV2` backend now exists for the compiler-native evidence
   route, while `ConstraintCompilerV1` remains the current locked-border
   baseline.
@@ -17,10 +22,11 @@ Progress:
 - V2 reports evidence extraction time separately from compiler time.
 - V2 reports explicit stage IDs in `compiler_report.stage_ids`.
 - `apps/cp-detect-architecture-inspector` and
-  `oristudio-cp-detect-inspector` provide a local Stage 1 debug UI/API for
-  visually inspecting dense evidence maps and extracted primitives.
-- The V2 route is intentionally evidence + locked-border only for now; it does
-  not yet implement the V2 arrangement, weighted selection, or exact solve.
+  `oristudio-cp-detect-inspector` provide local Stage 1, Stage 2, and Stage 3
+  debug UI/API for visually inspecting dense evidence, arrangement candidates,
+  and weighted selection output.
+- The V2 product route is still not promoted. Exact solve, assignment solve,
+  verifier/export contract, and benchmark gates remain open.
 
 Goal: migrate the current browser CP detector/compiler into the target
 architecture:
@@ -351,6 +357,13 @@ Acceptance:
 Purpose: choose a graph from the arrangement using visual evidence plus origami
 and geometry costs.
 
+Status: Complete for the first inspectable deterministic selection pass. The
+compiler crate now owns `selection.rs`, which consumes a `CandidateArrangement`
+and emits selected/rejected/undecided atomic intervals with score breakdowns,
+selected high-level hypotheses, topology edit accounting, and an explicit
+`exactizability_evaluated: false` marker. The architecture inspector exposes
+Stage 3 from the same dense-cache samples as Stages 1 and 2.
+
 New module:
 
 ```text
@@ -405,35 +418,47 @@ simplicity cost:
 
 Algorithm:
 
-- Start with deterministic beam search, not ILP.
-- Keep top K graph states.
-- Every state stores:
-  - selected hypothesis IDs
-  - selected edge IDs
-  - selected junction merge IDs
-  - score breakdown
-  - edit accounting
-- Use small local exactizability probes during scoring.
-- Keep the solver deterministic and explainable before considering more complex
-  MaxSAT/ILP/factor-graph approaches.
+- Current inspectable pass:
+  - start from strong visual atomic intervals
+  - reject duplicate selected intervals between the same vertex pair
+  - promote weak edges only when they reduce odd-degree topology cost and have
+    nearby visual evidence
+  - keep plausible but unselected edges as `undecided`
+  - report selected high-level carrier/merge hypotheses
+  - report score breakdowns and accepted-edge reasons
+- Full Phase 3 after Phase 4:
+  - add exactizability probe costs to the score
+  - expand from greedy deterministic selection to bounded beam search if needed
+  - keep top K graph states when local choices are ambiguous
+  - consider MaxSAT/ILP/factor-graph approaches only after deterministic scoring
+    is understandable and benchmarked
 
 Tests:
 
+- A strong visual edge is selected.
 - A weak edge is selected if it fixes odd degree and has nearby visual evidence.
-- A no-evidence edge is rejected even if it would reduce one local residual.
-- A near-duplicate false line is rejected when it creates topology/constraint
-  cost.
-- A merge is selected when it fixes a disconnected near-junction with small
-  movement.
-- A real small angle is preserved when merging would require high movement or
-  contradict visual/junction evidence.
+- A no-evidence edge is rejected even when it would be topologically useful.
+- A duplicate selected interval keeps only the highest-scoring candidate.
+- A low-cost merge hypothesis is reported when a selected edge uses the merged
+  junction cluster.
+- A high-cost merge hypothesis is not selected.
+- The exactizability-dependent small-angle preservation tests remain Phase 4/5
+  work because they need local exactizability probes and/or full exact solve.
 
 Acceptance:
 
 - Selection produces a graph and a score report.
 - Score report explains why each accepted edit was chosen.
-- On smoke benchmark, selection-only output is benchmarked separately from exact
-  solve.
+- Architecture inspector Stage 3 shows:
+  - selected edges
+  - undecided edges
+  - rejected edges
+  - weak topology-promoted edges
+  - selected high-level hypotheses
+  - remaining odd-degree vertices
+  - accepted edge score reasons
+- Selection-only output is visually inspectable separately from exact solve.
+  Smoke benchmark metrics for Stage 3 remain Phase 8 work.
 
 ## Phase 4: Local Exactizability Probes
 

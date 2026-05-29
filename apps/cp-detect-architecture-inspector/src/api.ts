@@ -1,4 +1,4 @@
-import type { ExamplesResponse, Stage1Response, Stage2Response, StageInfo } from './types';
+import type { ExamplesResponse, Stage1Response, Stage2Response, Stage3Response, StageInfo } from './types';
 
 async function requestJson<T>(url: string): Promise<T> {
   const response = await fetch(url);
@@ -42,4 +42,19 @@ export function fetchStage2Example(
     map_size: String(options.mapSize),
   });
   return requestJson(`/api/stage2/examples/${encodeURIComponent(sampleId)}?${params}`);
+}
+
+export function fetchStage3Examples(): Promise<ExamplesResponse> {
+  return requestJson('/api/stage3/examples');
+}
+
+export function fetchStage3Example(
+  sampleId: string,
+  options: { threshold: number; mapSize: number },
+): Promise<Stage3Response> {
+  const params = new URLSearchParams({
+    threshold: String(options.threshold),
+    map_size: String(options.mapSize),
+  });
+  return requestJson(`/api/stage3/examples/${encodeURIComponent(sampleId)}?${params}`);
 }
