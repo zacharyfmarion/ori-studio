@@ -159,7 +159,7 @@ button {
   align-items: end;
   display: grid;
   gap: 12px;
-  grid-template-columns: 220px repeat(3, minmax(130px, 1fr)) auto;
+  grid-template-columns: 220px repeat(4, minmax(130px, 1fr)) auto;
   padding: 12px;
 }
 
@@ -294,10 +294,26 @@ select {
   width: auto;
 }
 
+.arrangement-overlay {
+  overflow: visible;
+}
+
+.render-cap-note {
+  background: rgb(15 23 42 / 0.82);
+  border: 1px solid rgb(148 163 184 / 0.45);
+  border-radius: 6px;
+  bottom: 10px;
+  color: #e2e8f0;
+  font-size: 12px;
+  left: 10px;
+  padding: 7px 9px;
+  position: absolute;
+}
+
 .map-panel {
   display: grid;
   gap: 10px;
-  grid-template-rows: auto auto auto 1fr;
+  grid-template-rows: auto auto auto minmax(160px, 1fr) auto;
 }
 
 .heatmap.large {
@@ -355,4 +371,33 @@ select {
 .error-panel {
   border-color: #fecaca;
   color: #b91c1c;
+}
+
+.hypothesis-panel {
+  border-top: 1px solid #d7dee8;
+  display: grid;
+  gap: 7px;
+  padding-top: 10px;
+}
+
+.hypothesis-row {
+  align-items: center;
+  display: flex;
+  font-size: 12px;
+  justify-content: space-between;
+}
+
+.hypothesis-row span {
+  color: #475569;
+}
+
+.hypothesis-row strong {
+  color: #172033;
+}
+
+.hypothesis-panel p {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.35;
+  margin: 4px 0 0;
 }

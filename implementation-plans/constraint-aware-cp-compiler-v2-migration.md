@@ -268,6 +268,14 @@ Deferred to later phases:
 
 Purpose: create the search space without prematurely choosing geometry.
 
+Status: Complete for the first inspectable V2 arrangement pass. The compiler
+crate now owns `arrangement_v2.rs`, which builds a candidate arrangement from
+compiler-native evidence primitives without consuming a legacy FOLD graph. The
+architecture inspector exposes Stage 2 from the same dense-cache samples as
+Stage 1 so observed carriers, shared-carrier alternatives, boundary contacts,
+candidate vertices, atomic intervals, and hypothesis counts can be inspected
+visually before any selection/export phase is introduced.
+
 New or rewritten module:
 
 ```text

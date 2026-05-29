@@ -5,6 +5,7 @@
 //! assignment solving, and verification.
 
 pub mod arrangement;
+pub mod arrangement_v2;
 pub mod assignments;
 pub mod border;
 pub mod candidates;

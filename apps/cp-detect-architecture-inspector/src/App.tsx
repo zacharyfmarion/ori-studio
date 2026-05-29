@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Activity, CircleDot, Layers3, RefreshCw, SlidersHorizontal } from 'lucide-react';
-import { fetchStage1Example, fetchStage1Examples, fetchStages } from './api';
+import { Activity, CircleDot, GitBranch, Layers3, RefreshCw, SlidersHorizontal } from 'lucide-react';
+import { fetchStage1Example, fetchStage1Examples, fetchStage2Example, fetchStages } from './api';
 import type {
+  ArrangementAtomicEdge,
+  ArrangementCarrier,
+  ArrangementVertex,
   BoundaryContactPrimitive,
   ExampleRow,
   JunctionPrimitive,
   LinePrimitive,
   MapPayload,
   Stage1Response,
+  Stage2Response,
 } from './types';
 
 const BACKGROUND_OPTIONS = [
@@ -30,14 +34,17 @@ export function App() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [examples, setExamples] = useState<ExampleRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [activeStage, setActiveStage] = useState<'stage1' | 'stage2'>('stage2');
   const [threshold, setThreshold] = useState(0.65);
   const [mapSize, setMapSize] = useState(192);
-  const [stage, setStage] = useState<Stage1Response | null>(null);
+  const [stage, setStage] = useState<Stage1Response | Stage2Response | null>(null);
   const [loadingStage, setLoadingStage] = useState(false);
   const [background, setBackground] = useState('input');
   const [showLines, setShowLines] = useState(true);
   const [showJunctions, setShowJunctions] = useState(true);
   const [showContacts, setShowContacts] = useState(true);
+  const [showSharedCarriers, setShowSharedCarriers] = useState(true);
+  const [showAtomicEdges, setShowAtomicEdges] = useState(true);
   const [selectedMapId, setSelectedMapId] = useState('line_probability');
   const [reloadToken, setReloadToken] = useState(0);
 
@@ -64,8 +71,13 @@ export function App() {
   useEffect(() => {
     if (!selectedId) return;
     let cancelled = false;
+    setStage(null);
     setLoadingStage(true);
-    fetchStage1Example(selectedId, { threshold, mapSize })
+    const request =
+      activeStage === 'stage2'
+        ? fetchStage2Example(selectedId, { threshold, mapSize })
+        : fetchStage1Example(selectedId, { threshold, mapSize });
+    request
       .then((payload) => {
         if (cancelled) return;
         setStage(payload);
@@ -81,7 +93,7 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [selectedId, threshold, mapSize, reloadToken]);
+  }, [selectedId, activeStage, threshold, mapSize, reloadToken]);
 
   const selectedMap = useMemo(
     () => stage?.maps.find((map) => map.id === selectedMapId) ?? stage?.maps[0] ?? null,
@@ -108,7 +120,7 @@ export function App() {
 
       <main className="workspace">
         <aside className="sample-panel">
-          <PanelTitle icon={<CircleDot size={17} />} title="Stage 1 Samples" />
+          <PanelTitle icon={<CircleDot size={17} />} title="Samples" />
           <div className="sample-list">
             {examples.map((example) => (
               <button
@@ -128,6 +140,13 @@ export function App() {
         <section className="main-panel">
           <div className="controls-panel">
             <PanelTitle icon={<SlidersHorizontal size={17} />} title="Evidence Extraction" />
+            <label>
+              Stage
+              <select value={activeStage} onChange={(event) => setActiveStage(event.target.value as 'stage1' | 'stage2')}>
+                <option value="stage1">Stage 1: dense evidence</option>
+                <option value="stage2">Stage 2: candidate arrangement</option>
+              </select>
+            </label>
             <label>
               Threshold
               <input
@@ -172,30 +191,66 @@ export function App() {
 
           {serverError ? <div className="error-panel">{serverError}</div> : null}
 
-          <section className="summary-grid">
-            <Metric label="line primitives" value={stage?.report.line_primitives ?? '...'} />
-            <Metric label="junctions" value={stage?.report.junction_primitives ?? '...'} />
-            <Metric label="boundary contacts" value={stage?.report.boundary_contact_primitives ?? '...'} />
-            <Metric label="Hough segments" value={stage?.report.hough_segments ?? '...'} />
-            <Metric label="legacy dependency" value={stage?.report.legacy_dependency === false ? 'false' : '...'} />
-          </section>
+          {activeStage === 'stage2' ? (
+            <section className="summary-grid">
+              <Metric label="observed carriers" value={isStage2(stage) ? stage.arrangement.report.observed_carriers : '...'} />
+              <Metric
+                label="shared alternatives"
+                value={isStage2(stage) ? stage.arrangement.report.shared_carrier_alternatives : '...'}
+              />
+              <Metric label="vertices" value={isStage2(stage) ? stage.arrangement.report.vertices : '...'} />
+              <Metric label="atomic intervals" value={isStage2(stage) ? stage.arrangement.report.atomic_edges : '...'} />
+              <Metric label="selected edges" value={isStage2(stage) ? stage.arrangement.report.selected_edges : '...'} />
+            </section>
+          ) : (
+            <section className="summary-grid">
+              <Metric label="line primitives" value={stage?.report.line_primitives ?? '...'} />
+              <Metric label="junctions" value={stage?.report.junction_primitives ?? '...'} />
+              <Metric label="boundary contacts" value={stage?.report.boundary_contact_primitives ?? '...'} />
+              <Metric label="Hough segments" value={stage?.report.hough_segments ?? '...'} />
+              <Metric label="legacy dependency" value={stage?.report.legacy_dependency === false ? 'false' : '...'} />
+            </section>
+          )}
 
           <section className="viewer-and-maps">
             <div className="viewer-panel">
               <div className="viewer-toolbar">
-                <PanelTitle icon={<Layers3 size={17} />} title="Input + Stage 1 Primitives" />
+                <PanelTitle
+                  icon={activeStage === 'stage2' ? <GitBranch size={17} /> : <Layers3 size={17} />}
+                  title={activeStage === 'stage2' ? 'Input + Candidate Arrangement' : 'Input + Stage 1 Primitives'}
+                />
                 <div className="toggle-row">
                   <label>
                     <input type="checkbox" checked={showLines} onChange={(event) => setShowLines(event.target.checked)} />
-                    lines
+                    {activeStage === 'stage2' ? 'observed carriers' : 'lines'}
                   </label>
+                  {activeStage === 'stage2' ? (
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={showSharedCarriers}
+                        onChange={(event) => setShowSharedCarriers(event.target.checked)}
+                      />
+                      shared alternatives
+                    </label>
+                  ) : null}
+                  {activeStage === 'stage2' ? (
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={showAtomicEdges}
+                        onChange={(event) => setShowAtomicEdges(event.target.checked)}
+                      />
+                      atomic intervals
+                    </label>
+                  ) : null}
                   <label>
                     <input
                       type="checkbox"
                       checked={showJunctions}
                       onChange={(event) => setShowJunctions(event.target.checked)}
                     />
-                    junctions
+                    {activeStage === 'stage2' ? 'candidate vertices' : 'junctions'}
                   </label>
                   <label>
                     <input
@@ -207,7 +262,17 @@ export function App() {
                   </label>
                 </div>
               </div>
-              {stage ? (
+              {isStage2(stage) ? (
+                <ArrangementViewer
+                  backgroundMap={backgroundMap}
+                  showAtomicEdges={showAtomicEdges}
+                  showContacts={showContacts}
+                  showJunctions={showJunctions}
+                  showLines={showLines}
+                  showSharedCarriers={showSharedCarriers}
+                  stage={stage}
+                />
+              ) : stage ? (
                 <PrimitiveViewer
                   backgroundMap={backgroundMap}
                   showContacts={showContacts}
@@ -243,12 +308,17 @@ export function App() {
                   </button>
                 ))}
               </div>
+              {isStage2(stage) ? <HypothesisSummary stage={stage} /> : null}
             </aside>
           </section>
         </section>
       </main>
     </div>
   );
+}
+
+function isStage2(stage: Stage1Response | Stage2Response | null): stage is Stage2Response {
+  return Boolean(stage && 'arrangement' in stage);
 }
 
 function PanelTitle({ icon, title }: { icon: React.ReactNode; title: string }) {
@@ -350,6 +420,191 @@ function BoundaryContactView({ contact }: { contact: BoundaryContactPrimitive })
   );
 }
 
+function ArrangementViewer({
+  backgroundMap,
+  showAtomicEdges,
+  showContacts,
+  showJunctions,
+  showLines,
+  showSharedCarriers,
+  stage,
+}: {
+  backgroundMap: MapPayload | null;
+  showAtomicEdges: boolean;
+  showContacts: boolean;
+  showJunctions: boolean;
+  showLines: boolean;
+  showSharedCarriers: boolean;
+  stage: Stage2Response;
+}) {
+  const verticesById = useMemo(() => {
+    const values = new Map<number, ArrangementVertex>();
+    for (const vertex of stage.arrangement.vertices) values.set(vertex.id, vertex);
+    return values;
+  }, [stage.arrangement.vertices]);
+  const renderedAtomicEdges = stage.arrangement.atomic_edges.slice(0, 5000);
+  const clippedAtomicEdges = stage.arrangement.atomic_edges.length - renderedAtomicEdges.length;
+
+  return (
+    <div className="viewer-canvas">
+      {backgroundMap ? (
+        <Heatmap map={backgroundMap} mode="background" />
+      ) : (
+        <img alt="" className="input-image" src={stage.sample.input_image_url} />
+      )}
+      <svg className="primitive-overlay arrangement-overlay" viewBox="0 0 1 1" role="img" aria-label="Stage 2 candidate arrangement">
+        {showAtomicEdges
+          ? renderedAtomicEdges.map((edge) => (
+              <AtomicEdgeView edge={edge} key={edge.id} verticesById={verticesById} />
+            ))
+          : null}
+        {showLines
+          ? stage.arrangement.carriers
+              .filter((carrier) => carrier.kind === 'observed_local')
+              .map((carrier) => <CarrierView carrier={carrier} key={carrier.id} />)
+          : null}
+        {showSharedCarriers
+          ? stage.arrangement.carriers
+              .filter((carrier) => carrier.kind === 'shared_collinear_alternative')
+              .map((carrier) => <CarrierView carrier={carrier} key={carrier.id} shared />)
+          : null}
+        {showJunctions
+          ? stage.arrangement.vertices
+              .filter((vertex) => vertex.kind !== 'boundary_contact' && vertex.kind !== 'corner')
+              .map((vertex) => <ArrangementVertexView key={vertex.id} vertex={vertex} />)
+          : null}
+        {showContacts
+          ? stage.arrangement.vertices
+              .filter((vertex) => vertex.kind === 'boundary_contact' || vertex.kind === 'corner')
+              .map((vertex) => <ArrangementVertexView key={`contact-${vertex.id}`} vertex={vertex} />)
+          : null}
+      </svg>
+      {clippedAtomicEdges > 0 ? (
+        <div className="render-cap-note">showing first 5000 atomic intervals; {clippedAtomicEdges} hidden for speed</div>
+      ) : null}
+    </div>
+  );
+}
+
+function CarrierView({ carrier, shared = false }: { carrier: ArrangementCarrier; shared?: boolean }) {
+  const p0 = pointAtCarrierT(carrier, carrier.support_interval[0]);
+  const p1 = pointAtCarrierT(carrier, carrier.support_interval[1]);
+  const color = shared ? '#9333ea' : arrangementAssignmentColor(carrier.assignment.label);
+  return (
+    <line
+      stroke={color}
+      strokeDasharray={shared ? '7 5' : undefined}
+      strokeLinecap="round"
+      strokeOpacity={shared ? 0.82 : carrier.source === 'observed_strong' ? 0.9 : 0.55}
+      strokeWidth={shared ? 2.4 : 2.1}
+      vectorEffect="non-scaling-stroke"
+      x1={p0.x}
+      x2={p1.x}
+      y1={p0.y}
+      y2={p1.y}
+    >
+      <title>
+        {carrier.kind} support {carrier.visual_support.toFixed(3)} cost {carrier.hypothesis_cost.toFixed(3)}
+      </title>
+    </line>
+  );
+}
+
+function AtomicEdgeView({
+  edge,
+  verticesById,
+}: {
+  edge: ArrangementAtomicEdge;
+  verticesById: Map<number, ArrangementVertex>;
+}) {
+  const a = verticesById.get(edge.vertices[0]);
+  const b = verticesById.get(edge.vertices[1]);
+  if (!a || !b) return null;
+  return (
+    <line
+      stroke="#f59e0b"
+      strokeLinecap="round"
+      strokeOpacity={0.22 + Math.min(0.38, edge.line_support * 0.38)}
+      strokeWidth={1.2}
+      vectorEffect="non-scaling-stroke"
+      x1={a.point.x}
+      x2={b.point.x}
+      y1={a.point.y}
+      y2={b.point.y}
+    >
+      <title>
+        atomic interval {edge.id} carrier {edge.carrier_id} support {edge.line_support.toFixed(3)} overlap{' '}
+        {edge.support_overlap.toFixed(3)}
+      </title>
+    </line>
+  );
+}
+
+function ArrangementVertexView({ vertex }: { vertex: ArrangementVertex }) {
+  const color =
+    vertex.kind === 'corner'
+      ? '#111827'
+      : vertex.kind === 'boundary_contact'
+        ? '#22c55e'
+        : vertex.kind === 'observed_junction'
+          ? '#facc15'
+          : vertex.kind === 'junction_cluster'
+            ? '#06b6d4'
+            : vertex.kind === 'carrier_intersection'
+              ? '#f97316'
+              : '#94a3b8';
+  const radius = vertex.kind === 'corner' || vertex.kind === 'boundary_contact' ? 0.008 : 0.006;
+  return (
+    <circle
+      cx={vertex.point.x}
+      cy={vertex.point.y}
+      fill={color}
+      r={radius}
+      stroke="#0f172a"
+      strokeOpacity={0.75}
+      strokeWidth={1.1}
+      vectorEffect="non-scaling-stroke"
+    >
+      <title>
+        {vertex.kind} support {vertex.support.toFixed(3)} carriers {vertex.carrier_ids.join(',') || 'none'}
+      </title>
+    </circle>
+  );
+}
+
+function HypothesisSummary({ stage }: { stage: Stage2Response }) {
+  const counts = stage.arrangement.hypotheses.reduce<Record<string, number>>((acc, hypothesis) => {
+    acc[hypothesis.kind] = (acc[hypothesis.kind] ?? 0) + 1;
+    return acc;
+  }, {});
+  return (
+    <div className="hypothesis-panel">
+      <PanelTitle icon={<GitBranch size={17} />} title="Hypotheses" />
+      {Object.entries(counts).map(([kind, count]) => (
+        <div className="hypothesis-row" key={kind}>
+          <span>{kind.replaceAll('_', ' ')}</span>
+          <strong>{count}</strong>
+        </div>
+      ))}
+      <p>Stage 2 keeps alternatives open. It emits zero selected FOLD edges by design.</p>
+    </div>
+  );
+}
+
+function pointAtCarrierT(carrier: ArrangementCarrier, t: number) {
+  return {
+    x: carrier.normal.x * carrier.rho + carrier.direction.x * t,
+    y: carrier.normal.y * carrier.rho + carrier.direction.y * t,
+  };
+}
+
+function arrangementAssignmentColor(label: string) {
+  if (label === 'mountain') return '#e11d48';
+  if (label === 'valley') return '#2563eb';
+  if (label === 'boundary') return '#111827';
+  return '#64748b';
+}
+
 function Heatmap({ map, mode }: { map: MapPayload; mode: 'thumb' | 'large' | 'background' }) {
   const [dataUrl, setDataUrl] = useState('');
 
@@ -377,7 +632,7 @@ function Heatmap({ map, mode }: { map: MapPayload; mode: 'thumb' | 'large' | 'ba
     <img
       alt=""
       className={mode === 'thumb' ? 'heatmap thumb' : mode === 'background' ? 'heatmap background' : 'heatmap large'}
-      src={dataUrl}
+      src={dataUrl || undefined}
     />
   );
 }

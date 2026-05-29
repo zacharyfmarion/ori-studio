@@ -1,7 +1,14 @@
 use anyhow::{Context, Result, anyhow, bail};
+use oristudio_cp_compiler::arrangement_v2::{
+    ArrangementBoundaryContactPrimitive, ArrangementBoundarySide, ArrangementJunctionPrimitive,
+    ArrangementLinePrimitive, ArrangementV2Input, ArrangementV2Options, CandidateArrangement,
+    build_candidate_arrangement,
+};
+use oristudio_cp_compiler::{AssignmentCandidate, AssignmentLabel, EvidenceSource, Point2};
 use oristudio_cp_detect::decode::DecodeConfig;
 use oristudio_cp_detect::evidence_extract::{
-    CompilerEvidence, DenseOutputRefs, EvidenceExtractionConfig, extract_compiler_evidence,
+    AssignmentEvidence, BoundarySide, CompilerEvidence, DenseOutputRefs, EvidenceExtractionConfig,
+    PrimitiveSource, extract_compiler_evidence,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -105,6 +112,18 @@ struct Stage1Response {
     report: Value,
     maps: Vec<MapPayload>,
     primitives: PrimitivePayload,
+}
+
+#[derive(Debug, Serialize)]
+struct Stage2Response {
+    schema: &'static str,
+    sample: ExampleRow,
+    map_size: usize,
+    config: EvidenceConfigSummary,
+    report: Value,
+    maps: Vec<MapPayload>,
+    primitives: PrimitivePayload,
+    arrangement: CandidateArrangement,
 }
 
 #[derive(Debug, Serialize)]
@@ -291,7 +310,7 @@ fn route_request(request: &HttpRequest, state: &AppState) -> HttpResponse {
                     id: "stage2",
                     label: "Stage 2",
                     title: "Candidate planar graph arrangement",
-                    status: "planned"
+                    status: "implemented"
                 }
             ]
         }))
@@ -300,6 +319,11 @@ fn route_request(request: &HttpRequest, state: &AppState) -> HttpResponse {
     } else if let Some(encoded_id) = path.strip_prefix("/api/stage1/examples/") {
         let sample_id = percent_decode(encoded_id);
         stage1_example(state, &sample_id, query).and_then(|payload| json_response(&payload))
+    } else if path == "/api/stage2/examples" {
+        stage2_examples(state).and_then(|payload| json_response(&payload))
+    } else if let Some(encoded_id) = path.strip_prefix("/api/stage2/examples/") {
+        let sample_id = percent_decode(encoded_id);
+        stage2_example(state, &sample_id, query).and_then(|payload| json_response(&payload))
     } else if let Some(encoded_id) = path.strip_prefix("/assets/input/") {
         let sample_id = percent_decode(encoded_id.trim_end_matches(".png"));
         serve_input_image(state, &sample_id)
@@ -337,6 +361,20 @@ fn split_query(target: &str) -> (&str, BTreeMap<String, String>) {
 }
 
 fn stage1_examples(state: &AppState) -> Result<ExamplesResponse> {
+    examples_response(
+        state,
+        "oristudio/cp-detect-architecture-inspector/stage1-index/v1",
+    )
+}
+
+fn stage2_examples(state: &AppState) -> Result<ExamplesResponse> {
+    examples_response(
+        state,
+        "oristudio/cp-detect-architecture-inspector/stage2-index/v1",
+    )
+}
+
+fn examples_response(state: &AppState, schema: &'static str) -> Result<ExamplesResponse> {
     let mut profiles = BTreeMap::<String, usize>::new();
     let mut families = BTreeMap::<String, usize>::new();
     let rows = state
@@ -354,7 +392,7 @@ fn stage1_examples(state: &AppState) -> Result<ExamplesResponse> {
         })
         .collect();
     Ok(ExamplesResponse {
-        schema: "oristudio/cp-detect-architecture-inspector/stage1-index/v1",
+        schema,
         dense_schema: state.manifest.schema.clone(),
         dense_manifest: state.manifest_path.display().to_string(),
         generated_at: state.manifest.generated_at.clone(),
@@ -432,6 +470,75 @@ fn stage1_example(
     })
 }
 
+fn stage2_example(
+    state: &AppState,
+    sample_id: &str,
+    query: BTreeMap<String, String>,
+) -> Result<Stage2Response> {
+    let sample = state
+        .manifest
+        .samples
+        .iter()
+        .find(|sample| sample.id == sample_id)
+        .ok_or_else(|| anyhow!("unknown sample {sample_id:?}"))?;
+    let threshold = query
+        .get("threshold")
+        .and_then(|value| value.parse::<f32>().ok())
+        .unwrap_or(sample.threshold);
+    let map_size = query
+        .get("map_size")
+        .and_then(|value| value.parse::<usize>().ok())
+        .unwrap_or(192)
+        .clamp(16, MAX_MAP_SIZE);
+    let outputs = read_dense_outputs(state, sample)?;
+    let decode_config = DecodeConfig {
+        image_size: sample.image_size,
+        threshold,
+        ..DecodeConfig::default()
+    };
+    let evidence_config = evidence_config_from_decode(&decode_config);
+    let evidence = extract_compiler_evidence(
+        DenseOutputRefs {
+            line_logits: &outputs.line_logits,
+            junction_logits: &outputs.junction_logits,
+            assignment_logits: &outputs.assignment_logits,
+            non_crease_logits: &outputs.non_crease_logits,
+            line_style_logits: &outputs.line_style_logits,
+            boundary_contact_logits: &outputs.boundary_contact_logits,
+        },
+        evidence_config,
+    )?;
+    let maps = evidence_maps(&evidence, map_size)?;
+    let arrangement_input = arrangement_input_from_evidence(&evidence);
+    let arrangement =
+        build_candidate_arrangement(&arrangement_input, ArrangementV2Options::default());
+    Ok(Stage2Response {
+        schema: "oristudio/cp-detect-architecture-inspector/stage2/v1",
+        sample: example_row(sample),
+        map_size,
+        config: EvidenceConfigSummary {
+            image_size: evidence_config.image_size,
+            threshold,
+            line_threshold: evidence_config.line_threshold,
+            strong_line_support: evidence_config.strong_line_support,
+            hough_vote_threshold: evidence_config.hough_vote_threshold,
+            max_line_primitives: evidence_config.max_line_primitives,
+            max_junction_primitives: evidence_config.max_junction_primitives,
+            max_boundary_contact_primitives: evidence_config.max_boundary_contact_primitives,
+        },
+        report: serde_json::to_value(evidence.report)?,
+        maps,
+        primitives: PrimitivePayload {
+            line_primitives: serde_json::to_value(&evidence.line_primitives)?,
+            junction_primitives: serde_json::to_value(&evidence.junction_primitives)?,
+            boundary_contact_primitives: serde_json::to_value(
+                &evidence.boundary_contact_primitives,
+            )?,
+        },
+        arrangement,
+    })
+}
+
 fn example_row(sample: &DenseCacheSample) -> ExampleRow {
     ExampleRow {
         id: sample.id.clone(),
@@ -462,6 +569,84 @@ fn evidence_config_from_decode(config: &DecodeConfig) -> EvidenceExtractionConfi
         max_junction_primitives: config.max_intersection_lines.max(240),
         max_boundary_contact_primitives: config.max_intersection_lines.max(240),
         primitive_nms_radius_px: config.junction_snap_px.max(2.0),
+    }
+}
+
+fn arrangement_input_from_evidence(evidence: &CompilerEvidence) -> ArrangementV2Input {
+    ArrangementV2Input {
+        image_size: evidence.image_size,
+        line_primitives: evidence
+            .line_primitives
+            .iter()
+            .enumerate()
+            .map(|(id, primitive)| ArrangementLinePrimitive {
+                id,
+                p0: point_from_array(primitive.p0),
+                p1: point_from_array(primitive.p1),
+                support: primitive.support as f64,
+                votes: primitive.votes,
+                assignment: assignment_from_evidence(&primitive.assignment),
+                style_support: primitive.style.dashed_or_gapped_support as f64,
+                source: source_from_primitive(primitive.source),
+            })
+            .collect(),
+        junction_primitives: evidence
+            .junction_primitives
+            .iter()
+            .enumerate()
+            .map(|(id, primitive)| ArrangementJunctionPrimitive {
+                id,
+                point: point_from_array(primitive.point),
+                support: primitive.support as f64,
+                source: source_from_primitive(primitive.source),
+            })
+            .collect(),
+        boundary_contact_primitives: evidence
+            .boundary_contact_primitives
+            .iter()
+            .enumerate()
+            .map(|(id, primitive)| ArrangementBoundaryContactPrimitive {
+                id,
+                point: point_from_array(primitive.point),
+                side: side_from_boundary(primitive.side),
+                side_coordinate: primitive.side_coordinate as f64,
+                support: primitive.support as f64,
+                source: source_from_primitive(primitive.source),
+            })
+            .collect(),
+    }
+}
+
+fn point_from_array(point: [f32; 2]) -> Point2 {
+    Point2::new(point[0] as f64, point[1] as f64)
+}
+
+fn assignment_from_evidence(assignment: &AssignmentEvidence) -> AssignmentCandidate {
+    AssignmentCandidate {
+        label: match assignment.label {
+            0 => AssignmentLabel::Mountain,
+            1 => AssignmentLabel::Valley,
+            2 => AssignmentLabel::Boundary,
+            _ => AssignmentLabel::Unknown,
+        },
+        confidence: assignment.confidence as f64,
+        margin: assignment.margin as f64,
+    }
+}
+
+fn source_from_primitive(source: PrimitiveSource) -> EvidenceSource {
+    match source {
+        PrimitiveSource::ObservedStrong => EvidenceSource::ObservedStrong,
+        PrimitiveSource::ObservedWeak => EvidenceSource::ObservedWeak,
+    }
+}
+
+fn side_from_boundary(side: BoundarySide) -> ArrangementBoundarySide {
+    match side {
+        BoundarySide::Top => ArrangementBoundarySide::Top,
+        BoundarySide::Right => ArrangementBoundarySide::Right,
+        BoundarySide::Bottom => ArrangementBoundarySide::Bottom,
+        BoundarySide::Left => ArrangementBoundarySide::Left,
     }
 }
 
