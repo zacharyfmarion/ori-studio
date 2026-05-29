@@ -1,3 +1,9 @@
+//! Deprecated V1 local exactization pass.
+//!
+//! This conservative cleanup pass remains useful for comparison, but V2 should
+//! use explicit exactizability probes and a full exact solve instead of this
+//! local mutation entry point.
+
 use crate::constraints::{ConstraintDiagnosticOptions, diagnose_constraints};
 use crate::{
     AssignmentLabel, CandidateCarrier, CandidateProgram, CarrierFamily, EdgeSelection, Point2,

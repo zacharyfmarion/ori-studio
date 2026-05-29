@@ -1,3 +1,8 @@
+//! Deprecated V1 carrier reconciliation experiment.
+//!
+//! Broad carrier mutation was regressive in ablations. Keep this module for
+//! diagnostics only until V2 arrangement-level alternatives replace it.
+
 use crate::{
     AssignmentLabel, CandidateProgram, CarrierFamily, EdgeSelection, Point2, Provenance, VertexKind,
 };

@@ -1,3 +1,9 @@
+//! Deprecated V1 diagnostic topology optimizer.
+//!
+//! This mutation-style search remains available only for ablation and baseline
+//! comparison while the V2 arrangement/selection architecture is built. It is
+//! not part of the intended product compiler path.
+
 use crate::arrangement::SquareSide;
 use crate::constraints::{
     ConstraintDiagnosticOptions, ConstraintDiagnostics, ConstraintSeverity, diagnose_constraints,

@@ -39,7 +39,7 @@ pub fn decode_dense_outputs_with_backend(
             compiler_from_program(program, config)
         }
         DecoderBackend::ConstraintCompilerV2 => {
-            let seed = crate::compiler_decode::candidate_program_from_dense_outputs_v2(
+            let seed = crate::compiler_decode_v2::candidate_program_from_dense_outputs_v2(
                 outputs,
                 config.clone(),
             )?;
@@ -297,11 +297,13 @@ fn compiler_from_program_with_context(
         .and_then(|report| report.get("extraction_seconds"))
         .cloned();
     let compiler_seconds = compiler_started.elapsed().as_secs_f64();
+    let stage_ids = compiler_stage_ids(context.evidence_report.is_some());
     let compiler_report = serde_json::json!({
         "backend": oristudio_cp_compiler::COMPILER_BACKEND_ID,
         "compiler_architecture": context.architecture,
         "mode": context.mode,
         "legacy_dependency": context.legacy_dependency,
+        "stage_ids": stage_ids,
         "evidence": context.evidence_report,
         "timings": {
             "evidence_extraction_seconds": evidence_extraction_seconds,
@@ -388,6 +390,21 @@ fn compiler_from_program_with_context(
             quality_report,
         },
     })
+}
+
+fn compiler_stage_ids(has_native_evidence: bool) -> Vec<&'static str> {
+    let mut stages = Vec::new();
+    if has_native_evidence {
+        stages.push("evidence_extract");
+    }
+    stages.extend([
+        "candidate_program_adapter",
+        "lock_square_border",
+        "verify_initial",
+        "verify_final",
+        "fold_export",
+    ]);
+    stages
 }
 
 #[derive(Clone)]
@@ -983,6 +1000,13 @@ mod tests {
                 .as_f64()
                 .expect("compiler seconds")
                 >= 0.0
+        );
+        assert!(
+            compiler.report.quality_report["compiler_report"]["stage_ids"]
+                .as_array()
+                .expect("stage ids")
+                .iter()
+                .any(|stage| stage == "evidence_extract")
         );
         assert_eq!(
             compiler_fold["cp_detector"]["decoder_backend"],

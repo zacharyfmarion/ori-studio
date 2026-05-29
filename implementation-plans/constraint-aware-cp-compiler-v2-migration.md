@@ -4,14 +4,18 @@ Status: Draft implementation plan, May 28, 2026.
 
 Progress:
 
+- Phase 0 is implemented as of May 29, 2026.
 - Phase 1 is implemented as of May 28, 2026.
 - A `ConstraintCompilerV2` backend now exists for the compiler-native evidence
   route, while `ConstraintCompilerV1` remains the current locked-border
   baseline.
+- The V2 adapter is cordoned into `compiler_decode_v2.rs`; the mixed
+  `compiler_decode.rs` file is V1-only.
 - `evidence_extract.rs` converts dense model tensors into compiler-native
   line, junction, and boundary-contact primitives without importing
   `legacy_decode`.
 - V2 reports evidence extraction time separately from compiler time.
+- V2 reports explicit stage IDs in `compiler_report.stage_ids`.
 - The V2 route is intentionally evidence + locked-border only for now; it does
   not yet implement the V2 arrangement, weighted selection, or exact solve.
 
@@ -105,6 +109,11 @@ mutation-style exactizer/topology code in the product path.
 
 Purpose: prevent more confusion about which path owns which behavior.
 
+Status: Complete for the current boundary. V2 now has its own adapter module
+with a dependency guard, and V1 mutation modules are documented as deprecated
+diagnostics. Legacy remains available only as `LegacyV2` / `ConstraintCompilerV1`
+baseline code until Phase 9 removes it from the product path.
+
 Work:
 
 - Add a `ConstraintCompilerV2` backend enum value, but keep it disabled from
@@ -127,6 +136,28 @@ Acceptance:
 - Current `legacy` and `locked_border` metrics are unchanged.
 - There is a machine-checkable assertion that V2 does not import legacy decoder
   modules.
+
+Implemented:
+
+- `DecoderBackend::ConstraintCompilerV2` exists and is not the default backend.
+- `DecoderBackend::default()` remains `LegacyV2`.
+- `ConstraintCompilerV1` remains the locked-border compiler baseline.
+- `compiler_decode_v2.rs` owns the V2 adapter and has a test preventing direct
+  imports of the old decoder implementation.
+- `evidence_extract.rs` has a separate test preventing direct imports of the old
+  decoder implementation.
+- Compiler reports include:
+  - `compiler_architecture`
+  - `legacy_dependency`
+  - `stage_ids`
+- V1-only mutation modules have module docs marking them deprecated diagnostics:
+  - `optimizer`
+  - `repair`
+  - `carrier_reconcile`
+  - `exactize`
+- Existing baseline artifacts remain under
+  `artifacts/cp-detect-correctness/runs/smoke-1024-s3/`, including
+  `browser-legacy-v2`, `browser-compiler-v1`, and locked-border ablation runs.
 
 ## Phase 1: Compiler-Native Evidence Extraction
 

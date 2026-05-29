@@ -1,3 +1,9 @@
+//! Deprecated V1 repair-candidate generator.
+//!
+//! This module mutates a single candidate graph. V2 should represent competing
+//! hypotheses in the arrangement and selection stages instead of using this as
+//! product repair logic.
+
 use crate::arrangement::SquareSide;
 use crate::constraints::{ConstraintDiagnosticOptions, ConstraintSeverity, diagnose_constraints};
 use crate::{AssignmentLabel, CandidateProgram, EdgeSelection, Point2, Provenance};

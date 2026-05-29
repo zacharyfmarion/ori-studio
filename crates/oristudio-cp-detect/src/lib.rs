@@ -6,6 +6,7 @@
 
 mod backend;
 mod compiler_decode;
+mod compiler_decode_v2;
 pub mod decode;
 pub mod evidence_extract;
 mod legacy_decode;
