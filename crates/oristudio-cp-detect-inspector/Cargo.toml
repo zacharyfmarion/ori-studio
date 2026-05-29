@@ -1,0 +1,20 @@
+[package]
+name = "oristudio-cp-detect-inspector"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Local Rust API server for inspecting crease-pattern detection stages"
+repository.workspace = true
+homepage.workspace = true
+publish = false
+
+[[bin]]
+name = "oristudio-cp-detect-inspector"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+oristudio-cp-detect.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+

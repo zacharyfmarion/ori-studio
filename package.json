@@ -4,13 +4,16 @@
   "workspaces": [
     "packages/origami-simulator",
     "apps/web",
-    "apps/tauri"
+    "apps/tauri",
+    "apps/cp-detect-architecture-inspector"
   ],
   "scripts": {
     "dev:web": "npm --workspace @treemaker/web run dev",
     "dev:desktop": "npm --workspace @treemaker/tauri run dev",
+    "dev:cp-detect-inspector": "npm --workspace @treemaker/cp-detect-architecture-inspector run dev",
     "build:web": "npm --workspace @treemaker/web run build",
     "build:desktop": "npm --workspace @treemaker/tauri run build",
+    "build:cp-detect-inspector": "npm --workspace @treemaker/cp-detect-architecture-inspector run build",
     "build:simulator": "npm --workspace @treemaker/origami-simulator run build",
     "lint:web": "npm --workspace @treemaker/web run lint",
     "test:simulator": "npm --workspace @treemaker/origami-simulator run test",

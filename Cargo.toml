@@ -3,6 +3,7 @@ members = [
     "crates/oristudio-cp",
     "crates/oristudio-cp-compiler",
     "crates/oristudio-cp-detect",
+    "crates/oristudio-cp-detect-inspector",
     "crates/oristudio-cp-detect-wasm",
     "crates/oristudio-cp-wasm",
     "crates/treemaker-flatfold",

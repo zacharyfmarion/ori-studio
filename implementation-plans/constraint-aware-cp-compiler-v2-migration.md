@@ -16,6 +16,9 @@ Progress:
   `legacy_decode`.
 - V2 reports evidence extraction time separately from compiler time.
 - V2 reports explicit stage IDs in `compiler_report.stage_ids`.
+- `apps/cp-detect-architecture-inspector` and
+  `oristudio-cp-detect-inspector` provide a local Stage 1 debug UI/API for
+  visually inspecting dense evidence maps and extracted primitives.
 - The V2 route is intentionally evidence + locked-border only for now; it does
   not yet implement the V2 arrangement, weighted selection, or exact solve.
 
@@ -247,6 +250,11 @@ Implemented:
     `legacy_dependency = false`
   - V2 backend reports `timings.evidence_extraction_seconds` separately from
     `timings.compiler_seconds`
+- Stage 1 visual inspection:
+  - Rust backend `oristudio-cp-detect-inspector`
+  - Vite app `apps/cp-detect-architecture-inspector`
+  - overlays line, junction, and boundary-contact primitives over input images
+  - displays downsampled dense evidence probability maps
 
 Deferred to later phases:
 

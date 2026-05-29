@@ -2485,6 +2485,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "oristudio-cp-detect-inspector"
+version = "0.1.2"
+dependencies = [
+ "anyhow",
+ "oristudio-cp-detect",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "oristudio-cp-detect-wasm"
 version = "0.1.2"
 dependencies = [
