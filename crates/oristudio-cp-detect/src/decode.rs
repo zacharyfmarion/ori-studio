@@ -6,6 +6,7 @@
 
 use serde::Serialize;
 use std::collections::BTreeSet;
+use std::time::Instant;
 
 pub use crate::backend::DecoderBackend;
 pub use crate::legacy_decode::{
@@ -273,6 +274,7 @@ fn compiler_from_program_with_context(
     config: DecodeConfig,
     context: CompilerBackendContext,
 ) -> Result<DecodedFold, DecodeError> {
+    let compiler_started = Instant::now();
     let locked_border =
         oristudio_cp_compiler::border::lock_square_border(&program, Default::default());
     let initial_verification = oristudio_cp_compiler::verify::verify_program(
@@ -289,12 +291,22 @@ fn compiler_from_program_with_context(
     let summary = oristudio_cp_compiler::CompilerSummary::from_program(&final_program);
     let topology_changed = false;
     let assignment_changed = false;
+    let evidence_extraction_seconds = context
+        .evidence_report
+        .as_ref()
+        .and_then(|report| report.get("extraction_seconds"))
+        .cloned();
+    let compiler_seconds = compiler_started.elapsed().as_secs_f64();
     let compiler_report = serde_json::json!({
         "backend": oristudio_cp_compiler::COMPILER_BACKEND_ID,
         "compiler_architecture": context.architecture,
         "mode": context.mode,
         "legacy_dependency": context.legacy_dependency,
         "evidence": context.evidence_report,
+        "timings": {
+            "evidence_extraction_seconds": evidence_extraction_seconds,
+            "compiler_seconds": compiler_seconds
+        },
         "output": {
             "selected": "compiled",
             "reason": "compiler_backend_always_emits_compiled_candidate",
@@ -958,6 +970,19 @@ mod tests {
                 .as_u64()
                 .expect("line primitives")
                 > 0
+        );
+        assert!(
+            compiler.report.quality_report["compiler_report"]["timings"]
+                ["evidence_extraction_seconds"]
+                .as_f64()
+                .expect("evidence extraction seconds")
+                >= 0.0
+        );
+        assert!(
+            compiler.report.quality_report["compiler_report"]["timings"]["compiler_seconds"]
+                .as_f64()
+                .expect("compiler seconds")
+                >= 0.0
         );
         assert_eq!(
             compiler_fold["cp_detector"]["decoder_backend"],

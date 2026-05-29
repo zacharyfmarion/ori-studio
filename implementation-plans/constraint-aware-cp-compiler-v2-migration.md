@@ -11,6 +11,7 @@ Progress:
 - `evidence_extract.rs` converts dense model tensors into compiler-native
   line, junction, and boundary-contact primitives without importing
   `legacy_decode`.
+- V2 reports evidence extraction time separately from compiler time.
 - The V2 route is intentionally evidence + locked-border only for now; it does
   not yet implement the V2 arrangement, weighted selection, or exact solve.
 
@@ -211,6 +212,8 @@ Implemented:
     `super::legacy_decode`
   - V2 backend emits `compiler_architecture = "v2"` and
     `legacy_dependency = false`
+  - V2 backend reports `timings.evidence_extraction_seconds` separately from
+    `timings.compiler_seconds`
 
 Deferred to later phases:
 
@@ -218,8 +221,7 @@ Deferred to later phases:
   `CandidateProgram` so we can smoke-test the backend today. This is not the
   final architecture; Phase 2 replaces that temporary graph conversion with a
   true candidate planar graph arrangement.
-- Runtime is not yet separately benchmarked beyond the evidence report fields;
-  Phase 8 will add full timing breakdowns.
+- Phase 8 will expand timing into full benchmark summaries across larger packs.
 
 ## Phase 2: Candidate Planar Graph Arrangement V2
 

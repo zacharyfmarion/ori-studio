@@ -10,6 +10,7 @@ use oristudio_cp_compiler::{
     AssignmentCandidate, AssignmentLabel, CandidateCarrier, CandidateEdge, CandidateProgram,
     CandidateVertex, CarrierFamily, EdgeSelection, EvidenceSource, Point2, Provenance, VertexKind,
 };
+use std::time::Instant;
 
 pub(crate) fn candidate_program_from_dense_outputs(
     outputs: DenseOutputs<'_>,
@@ -39,7 +40,8 @@ pub(crate) fn candidate_program_from_dense_outputs_v2(
     outputs: DenseOutputs<'_>,
     config: DecodeConfig,
 ) -> Result<CompilerV2Seed, DecodeError> {
-    let evidence = extract_compiler_evidence(
+    let evidence_started = Instant::now();
+    let mut evidence = extract_compiler_evidence(
         DenseOutputRefs {
             line_logits: outputs.line_logits,
             junction_logits: outputs.junction_logits,
@@ -51,6 +53,7 @@ pub(crate) fn candidate_program_from_dense_outputs_v2(
         compiler_v2_evidence_config(&config),
     )
     .map_err(evidence_error_to_decode_error)?;
+    evidence.report.extraction_seconds = evidence_started.elapsed().as_secs_f64();
     let mut program = program_from_compiler_evidence(&evidence, &config);
     rebuild_incident_carriers(&mut program);
     Ok(CompilerV2Seed { program, evidence })
