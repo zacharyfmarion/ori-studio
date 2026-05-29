@@ -202,6 +202,7 @@ export interface CandidateArrangement {
     junction_clusters: number;
     boundary_contacts: number;
     carrier_intersections: number;
+    suppressed_carrier_intersections: number;
     line_endpoints: number;
     vertices: number;
     atomic_edges: number;

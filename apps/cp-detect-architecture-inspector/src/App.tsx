@@ -43,6 +43,8 @@ export function App() {
   const [showLines, setShowLines] = useState(true);
   const [showJunctions, setShowJunctions] = useState(true);
   const [showContacts, setShowContacts] = useState(true);
+  const [showLineEndpoints, setShowLineEndpoints] = useState(false);
+  const [showInferredCrossings, setShowInferredCrossings] = useState(false);
   const [showSharedCarriers, setShowSharedCarriers] = useState(true);
   const [showAtomicEdges, setShowAtomicEdges] = useState(true);
   const [selectedMapId, setSelectedMapId] = useState('line_probability');
@@ -198,9 +200,12 @@ export function App() {
                 label="shared alternatives"
                 value={isStage2(stage) ? stage.arrangement.report.shared_carrier_alternatives : '...'}
               />
-              <Metric label="vertices" value={isStage2(stage) ? stage.arrangement.report.vertices : '...'} />
-              <Metric label="atomic intervals" value={isStage2(stage) ? stage.arrangement.report.atomic_edges : '...'} />
-              <Metric label="selected edges" value={isStage2(stage) ? stage.arrangement.report.selected_edges : '...'} />
+              <Metric label="observed junctions" value={isStage2(stage) ? stage.arrangement.report.observed_junctions : '...'} />
+              <Metric label="inferred crossings" value={isStage2(stage) ? stage.arrangement.report.carrier_intersections : '...'} />
+              <Metric
+                label="suppressed crossings"
+                value={isStage2(stage) ? stage.arrangement.report.suppressed_carrier_intersections : '...'}
+              />
             </section>
           ) : (
             <section className="summary-grid">
@@ -250,8 +255,28 @@ export function App() {
                       checked={showJunctions}
                       onChange={(event) => setShowJunctions(event.target.checked)}
                     />
-                    {activeStage === 'stage2' ? 'candidate vertices' : 'junctions'}
+                    {activeStage === 'stage2' ? 'observed junctions' : 'junctions'}
                   </label>
+                  {activeStage === 'stage2' ? (
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={showLineEndpoints}
+                        onChange={(event) => setShowLineEndpoints(event.target.checked)}
+                      />
+                      endpoints
+                    </label>
+                  ) : null}
+                  {activeStage === 'stage2' ? (
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={showInferredCrossings}
+                        onChange={(event) => setShowInferredCrossings(event.target.checked)}
+                      />
+                      inferred crossings
+                    </label>
+                  ) : null}
                   <label>
                     <input
                       type="checkbox"
@@ -265,9 +290,11 @@ export function App() {
               {isStage2(stage) ? (
                 <ArrangementViewer
                   backgroundMap={backgroundMap}
+                  showInferredCrossings={showInferredCrossings}
                   showAtomicEdges={showAtomicEdges}
                   showContacts={showContacts}
                   showJunctions={showJunctions}
+                  showLineEndpoints={showLineEndpoints}
                   showLines={showLines}
                   showSharedCarriers={showSharedCarriers}
                   stage={stage}
@@ -308,7 +335,7 @@ export function App() {
                   </button>
                 ))}
               </div>
-              {isStage2(stage) ? <HypothesisSummary stage={stage} /> : null}
+              {isStage2(stage) ? <Stage2LayerSummary stage={stage} /> : null}
             </aside>
           </section>
         </section>
@@ -424,7 +451,9 @@ function ArrangementViewer({
   backgroundMap,
   showAtomicEdges,
   showContacts,
+  showInferredCrossings,
   showJunctions,
+  showLineEndpoints,
   showLines,
   showSharedCarriers,
   stage,
@@ -432,7 +461,9 @@ function ArrangementViewer({
   backgroundMap: MapPayload | null;
   showAtomicEdges: boolean;
   showContacts: boolean;
+  showInferredCrossings: boolean;
   showJunctions: boolean;
+  showLineEndpoints: boolean;
   showLines: boolean;
   showSharedCarriers: boolean;
   stage: Stage2Response;
@@ -476,7 +507,17 @@ function ArrangementViewer({
           : null}
         {showJunctions
           ? stage.arrangement.vertices
-              .filter((vertex) => vertex.kind !== 'boundary_contact' && vertex.kind !== 'corner')
+              .filter((vertex) => vertex.kind === 'observed_junction' || vertex.kind === 'junction_cluster')
+              .map((vertex) => <ArrangementVertexView frame={stage.overlay_frame_px} key={vertex.id} vertex={vertex} />)
+          : null}
+        {showLineEndpoints
+          ? stage.arrangement.vertices
+              .filter((vertex) => vertex.kind === 'observed_line_endpoint')
+              .map((vertex) => <ArrangementVertexView frame={stage.overlay_frame_px} key={vertex.id} vertex={vertex} />)
+          : null}
+        {showInferredCrossings
+          ? stage.arrangement.vertices
+              .filter((vertex) => vertex.kind === 'carrier_intersection')
               .map((vertex) => <ArrangementVertexView frame={stage.overlay_frame_px} key={vertex.id} vertex={vertex} />)
           : null}
         {showContacts
@@ -597,13 +638,29 @@ function ArrangementVertexView({
   );
 }
 
-function HypothesisSummary({ stage }: { stage: Stage2Response }) {
+function Stage2LayerSummary({ stage }: { stage: Stage2Response }) {
   const counts = stage.arrangement.hypotheses.reduce<Record<string, number>>((acc, hypothesis) => {
     acc[hypothesis.kind] = (acc[hypothesis.kind] ?? 0) + 1;
     return acc;
   }, {});
+  const report = stage.arrangement.report;
   return (
     <div className="hypothesis-panel">
+      <PanelTitle icon={<GitBranch size={17} />} title="Stage 2 Layers" />
+      <LayerRow color="#e11d48" label="Observed carriers" value={report.observed_carriers} note="line evidence from the dense model" />
+      <LayerRow color="#9333ea" label="Shared alternatives" value={report.shared_carrier_alternatives} note="optional collinear carrier interpretations" />
+      <LayerRow color="#facc15" label="Observed junctions" value={report.observed_junctions} note="model junction peaks" />
+      <LayerRow color="#94a3b8" label="Line endpoints" value={report.line_endpoints} note="ends of observed line primitives" />
+      <LayerRow color="#22c55e" label="Boundary contacts" value={report.boundary_contacts} note="square-side contact candidates" />
+      <LayerRow color="#f97316" label="Inferred crossings" value={report.carrier_intersections} note="supported carrier-carrier crossings" />
+      <LayerRow
+        color="#64748b"
+        label="Suppressed crossings"
+        value={report.suppressed_carrier_intersections}
+        note="infinite-line crossings outside observed support"
+      />
+      <LayerRow color="#f59e0b" label="Atomic intervals" value={report.atomic_edges} note="adjacent candidate vertex intervals; not selected" />
+      <div className="hypothesis-divider" />
       <PanelTitle icon={<GitBranch size={17} />} title="Hypotheses" />
       {Object.entries(counts).map(([kind, count]) => (
         <div className="hypothesis-row" key={kind}>
@@ -611,7 +668,20 @@ function HypothesisSummary({ stage }: { stage: Stage2Response }) {
           <strong>{count}</strong>
         </div>
       ))}
-      <p>Stage 2 keeps alternatives open. It emits zero selected FOLD edges by design.</p>
+      <p>Stage 2 keeps alternatives open. It emits {report.selected_edges} selected FOLD edges by design.</p>
+    </div>
+  );
+}
+
+function LayerRow({ color, label, note, value }: { color: string; label: string; note: string; value: number }) {
+  return (
+    <div className="layer-row">
+      <span className="layer-swatch" style={{ background: color }} />
+      <span>
+        <strong>{label}</strong>
+        <em>{note}</em>
+      </span>
+      <b>{value}</b>
     </div>
   );
 }

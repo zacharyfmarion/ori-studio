@@ -377,7 +377,49 @@ select {
   border-top: 1px solid #d7dee8;
   display: grid;
   gap: 7px;
+  max-height: 360px;
+  overflow: auto;
   padding-top: 10px;
+}
+
+.layer-row {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+}
+
+.layer-swatch {
+  border: 1px solid rgb(15 23 42 / 0.45);
+  border-radius: 999px;
+  height: 12px;
+  width: 12px;
+}
+
+.layer-row span:not(.layer-swatch) {
+  display: grid;
+  gap: 1px;
+}
+
+.layer-row strong {
+  color: #172033;
+  font-size: 12px;
+}
+
+.layer-row em {
+  color: #64748b;
+  font-size: 11px;
+  font-style: normal;
+}
+
+.layer-row b {
+  color: #172033;
+  font-size: 12px;
+}
+
+.hypothesis-divider {
+  border-top: 1px solid #e2e8f0;
+  margin: 3px 0;
 }
 
 .hypothesis-row {

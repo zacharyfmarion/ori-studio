@@ -84,6 +84,7 @@ pub struct ArrangementV2Options {
     pub vertex_merge_px: f64,
     pub carrier_membership_px: f64,
     pub junction_cluster_px: f64,
+    pub intersection_support_px: f64,
     pub collinear_angle_degrees: f64,
     pub collinear_rho_px: f64,
     pub min_atomic_interval: f64,
@@ -96,6 +97,7 @@ impl Default for ArrangementV2Options {
             vertex_merge_px: 3.0,
             carrier_membership_px: 3.0,
             junction_cluster_px: 4.0,
+            intersection_support_px: 5.0,
             collinear_angle_degrees: 2.0,
             collinear_rho_px: 4.0,
             min_atomic_interval: 1e-5,
@@ -217,6 +219,7 @@ pub struct CandidateArrangementReport {
     pub junction_clusters: usize,
     pub boundary_contacts: usize,
     pub carrier_intersections: usize,
+    pub suppressed_carrier_intersections: usize,
     pub line_endpoints: usize,
     pub vertices: usize,
     pub atomic_edges: usize,
@@ -284,16 +287,23 @@ pub fn build_candidate_arrangement(
         &mut hypotheses,
         &options,
     );
-    add_carrier_intersections(
+    let suppressed_carrier_intersections = add_carrier_intersections(
         &carriers,
         &mut vertices,
         merge_tol,
         &mut hypotheses,
         &options,
+        scale,
     );
 
     let atomic_edges = build_atomic_edges(&carriers, &vertices, membership_tol, &options);
-    let report = arrangement_report(&carriers, &vertices, &atomic_edges, &hypotheses);
+    let report = arrangement_report(
+        &carriers,
+        &vertices,
+        &atomic_edges,
+        &hypotheses,
+        suppressed_carrier_intersections,
+    );
     CandidateArrangement {
         schema: SCHEMA.to_owned(),
         coordinate_space: "unit_square".to_owned(),
@@ -695,14 +705,29 @@ fn add_carrier_intersections(
     merge_tol: f64,
     hypotheses: &mut Vec<ArrangementHypothesis>,
     options: &ArrangementV2Options,
-) {
+    scale: f64,
+) -> usize {
+    let support_tol = options.intersection_support_px / scale;
+    let mut suppressed = 0usize;
     for left_index in 0..carriers.len() {
         for right in carriers.iter().skip(left_index + 1) {
             let left = &carriers[left_index];
+            if carriers_share_primitive(left, right) {
+                suppressed += 1;
+                continue;
+            }
             let Some(point) = carrier_intersection(left, right, options.epsilon) else {
                 continue;
             };
             if !within_unit_square(point, options.epsilon) {
+                continue;
+            }
+            let left_t = project(left.direction, point);
+            let right_t = project(right.direction, point);
+            if !within_interval_with_tolerance(left_t, left.support_interval, support_tol)
+                || !within_interval_with_tolerance(right_t, right.support_interval, support_tol)
+            {
+                suppressed += 1;
                 continue;
             }
             let support = left.visual_support.min(right.visual_support);
@@ -738,6 +763,7 @@ fn add_carrier_intersections(
             });
         }
     }
+    suppressed
 }
 
 fn build_atomic_edges(
@@ -797,6 +823,7 @@ fn arrangement_report(
     vertices: &[ArrangementVertex],
     atomic_edges: &[ArrangementAtomicEdge],
     hypotheses: &[ArrangementHypothesis],
+    suppressed_carrier_intersections: usize,
 ) -> CandidateArrangementReport {
     CandidateArrangementReport {
         observed_carriers: carriers
@@ -828,6 +855,7 @@ fn arrangement_report(
             .iter()
             .filter(|vertex| vertex.kind == ArrangementVertexKind::CarrierIntersection)
             .count(),
+        suppressed_carrier_intersections,
         line_endpoints: vertices
             .iter()
             .filter(|vertex| vertex.kind == ArrangementVertexKind::ObservedLineEndpoint)
@@ -838,6 +866,16 @@ fn arrangement_report(
         selected_edges: 0,
         emits_fold_graph: false,
     }
+}
+
+fn carriers_share_primitive(left: &ArrangementCarrier, right: &ArrangementCarrier) -> bool {
+    left.primitive_ids
+        .iter()
+        .any(|primitive_id| right.primitive_ids.contains(primitive_id))
+}
+
+fn within_interval_with_tolerance(value: f64, interval: [f64; 2], tolerance: f64) -> bool {
+    value >= interval[0] - tolerance && value <= interval[1] + tolerance
 }
 
 fn add_vertex(
@@ -1174,6 +1212,24 @@ mod tests {
         assert_eq!(arrangement.report.atomic_edges, 4);
         assert!(arrangement.report.selected_edges == 0);
         assert!(!arrangement.report.emits_fold_graph);
+    }
+
+    #[test]
+    fn unsupported_infinite_line_crossing_is_not_promoted() {
+        let input = ArrangementV2Input {
+            image_size: 101,
+            paper_frame_px: None,
+            line_primitives: vec![
+                line(0, [20.0, 0.0], [20.0, 10.0]),
+                line(1, [0.0, 80.0], [10.0, 80.0]),
+            ],
+            junction_primitives: Vec::new(),
+            boundary_contact_primitives: Vec::new(),
+        };
+        let arrangement = build_candidate_arrangement(&input, ArrangementV2Options::default());
+
+        assert_eq!(arrangement.report.carrier_intersections, 0);
+        assert!(arrangement.report.suppressed_carrier_intersections > 0);
     }
 
     #[test]
