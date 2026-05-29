@@ -51,6 +51,7 @@ export function App() {
   const [showSelectedEdges, setShowSelectedEdges] = useState(true);
   const [showRejectedEdges, setShowRejectedEdges] = useState(false);
   const [showUndecidedEdges, setShowUndecidedEdges] = useState(false);
+  const [showCarrierGeometry, setShowCarrierGeometry] = useState(true);
   const [selectedMapId, setSelectedMapId] = useState('line_probability');
   const [reloadToken, setReloadToken] = useState(0);
 
@@ -66,6 +67,7 @@ export function App() {
       setShowContacts(true);
       setShowLineEndpoints(false);
       setShowInferredCrossings(false);
+      setShowCarrierGeometry(true);
     } else if (activeStage === 'stage2') {
       setShowLines(true);
       setShowSharedCarriers(true);
@@ -77,6 +79,7 @@ export function App() {
       setShowContacts(true);
       setShowLineEndpoints(false);
       setShowInferredCrossings(false);
+      setShowCarrierGeometry(false);
     } else {
       setShowLines(true);
       setShowSharedCarriers(false);
@@ -88,6 +91,7 @@ export function App() {
       setShowContacts(true);
       setShowLineEndpoints(false);
       setShowInferredCrossings(false);
+      setShowCarrierGeometry(false);
     }
   }, [activeStage]);
 
@@ -314,6 +318,16 @@ export function App() {
                     <label>
                       <input
                         type="checkbox"
+                        checked={showCarrierGeometry}
+                        onChange={(event) => setShowCarrierGeometry(event.target.checked)}
+                      />
+                      carrier geometry
+                    </label>
+                  ) : null}
+                  {activeStage === 'stage3' ? (
+                    <label>
+                      <input
+                        type="checkbox"
                         checked={showSelectedEdges}
                         onChange={(event) => setShowSelectedEdges(event.target.checked)}
                       />
@@ -381,6 +395,7 @@ export function App() {
               {isStage3(stage) ? (
                 <SelectionViewer
                   backgroundMap={backgroundMap}
+                  showCarrierGeometry={showCarrierGeometry}
                   showContacts={showContacts}
                   showJunctions={showJunctions}
                   showLineEndpoints={showLineEndpoints}
@@ -643,6 +658,7 @@ function ArrangementViewer({
 
 function SelectionViewer({
   backgroundMap,
+  showCarrierGeometry,
   showContacts,
   showJunctions,
   showLineEndpoints,
@@ -654,6 +670,7 @@ function SelectionViewer({
   stage,
 }: {
   backgroundMap: MapPayload | null;
+  showCarrierGeometry: boolean;
   showContacts: boolean;
   showJunctions: boolean;
   showLineEndpoints: boolean;
@@ -674,6 +691,11 @@ function SelectionViewer({
     for (const edge of stage.arrangement.atomic_edges) values.set(edge.id, edge);
     return values;
   }, [stage.arrangement.atomic_edges]);
+  const carriersById = useMemo(() => {
+    const values = new Map<number, ArrangementCarrier>();
+    for (const carrier of stage.arrangement.carriers) values.set(carrier.id, carrier);
+    return values;
+  }, [stage.arrangement.carriers]);
   const scoresByEdgeId = useMemo(() => {
     const values = new Map<number, Stage3Response['selection']['edge_scores'][number]>();
     for (const score of stage.selection.edge_scores) values.set(score.edge_id, score);
@@ -695,6 +717,8 @@ function SelectionViewer({
             frame={stage.overlay_frame_px}
             key={`${decision}-${edgeId}`}
             score={score}
+            carriersById={carriersById}
+            showCarrierGeometry={showCarrierGeometry}
             verticesById={verticesById}
           />
         );
@@ -718,12 +742,12 @@ function SelectionViewer({
         {showLines
           ? stage.arrangement.carriers
               .filter((carrier) => carrier.kind === 'observed_local')
-              .map((carrier) => <CarrierView carrier={carrier} frame={stage.overlay_frame_px} key={carrier.id} />)
+              .map((carrier) => <CarrierView carrier={carrier} frame={stage.overlay_frame_px} key={carrier.id} muted />)
           : null}
         {showSharedCarriers
           ? stage.arrangement.carriers
               .filter((carrier) => carrier.kind === 'shared_collinear_alternative')
-              .map((carrier) => <CarrierView carrier={carrier} frame={stage.overlay_frame_px} key={carrier.id} shared />)
+              .map((carrier) => <CarrierView carrier={carrier} frame={stage.overlay_frame_px} key={carrier.id} muted shared />)
           : null}
         {showSelectedEdges ? renderSelectionEdges(stage.selection.selected_edge_ids, 'selected') : null}
         {showJunctions
@@ -747,23 +771,34 @@ function SelectionViewer({
 }
 
 function SelectionEdgeView({
+  carriersById,
   decision,
   edge,
   frame,
   score,
+  showCarrierGeometry,
   verticesById,
 }: {
+  carriersById: Map<number, ArrangementCarrier>;
   decision: 'selected' | 'rejected' | 'undecided';
   edge: ArrangementAtomicEdge;
   frame: Stage2Response['overlay_frame_px'];
   score: Stage3Response['selection']['edge_scores'][number];
+  showCarrierGeometry: boolean;
   verticesById: Map<number, ArrangementVertex>;
 }) {
   const a = verticesById.get(edge.vertices[0]);
   const b = verticesById.get(edge.vertices[1]);
   if (!a || !b) return null;
-  const p0 = imagePoint(a.point, frame);
-  const p1 = imagePoint(b.point, frame);
+  const carrier = carriersById.get(edge.carrier_id);
+  const p0 =
+    showCarrierGeometry && carrier
+      ? imagePoint(pointAtCarrierT(carrier, edge.t_interval[0]), frame)
+      : imagePoint(a.point, frame);
+  const p1 =
+    showCarrierGeometry && carrier
+      ? imagePoint(pointAtCarrierT(carrier, edge.t_interval[1]), frame)
+      : imagePoint(b.point, frame);
   const color =
     decision === 'selected'
       ? arrangementAssignmentColor(edge.assignment.label)
@@ -784,8 +819,8 @@ function SelectionEdgeView({
       y2={p1.y}
     >
       <title>
-        {decision} edge {edge.id} score {score.total_score.toFixed(3)} support {edge.line_support.toFixed(3)};{' '}
-        {score.reasons.join('; ')}
+        {decision} edge {edge.id} carrier {edge.carrier_id} {carrier?.kind ?? 'unknown'} score {score.total_score.toFixed(3)} support{' '}
+        {edge.line_support.toFixed(3)}; {score.reasons.join('; ')}
       </title>
     </line>
   );
@@ -935,7 +970,19 @@ function Stage2LayerSummary({ stage }: { stage: Stage2Response }) {
 
 function Stage3LayerSummary({ stage }: { stage: Stage3Response }) {
   const report = stage.selection.report;
-  const selectedScores = stage.selection.edge_scores
+  const carriersById = new Map(stage.arrangement.carriers.map((carrier) => [carrier.id, carrier]));
+  const selectedScores = stage.selection.edge_scores.filter((score) => score.decision === 'selected');
+  const selectedCarrierIds = new Set(selectedScores.map((score) => score.carrier_id));
+  const selectedSharedEdges = selectedScores.filter(
+    (score) => carriersById.get(score.carrier_id)?.kind === 'shared_collinear_alternative',
+  ).length;
+  const selectedObservedEdges = selectedScores.filter(
+    (score) => carriersById.get(score.carrier_id)?.kind === 'observed_local',
+  ).length;
+  const selectedSharedCarriers = Array.from(selectedCarrierIds).filter(
+    (carrierId) => carriersById.get(carrierId)?.kind === 'shared_collinear_alternative',
+  ).length;
+  const topSelectedScores = selectedScores
     .filter((score) => score.decision === 'selected')
     .sort((left, right) => right.total_score - left.total_score)
     .slice(0, 10);
@@ -943,6 +990,9 @@ function Stage3LayerSummary({ stage }: { stage: Stage3Response }) {
     <div className="hypothesis-panel">
       <PanelTitle icon={<GitBranch size={17} />} title="Stage 3 Selection" />
       <LayerRow color="#16a34a" label="Selected edges" value={report.selected_edges} note="atomic intervals chosen for the graph" />
+      <LayerRow color="#9333ea" label="Shared selected" value={selectedSharedEdges} note="selected intervals from shared straight carriers" />
+      <LayerRow color="#475569" label="Observed selected" value={selectedObservedEdges} note="selected intervals from local observed carriers" />
+      <LayerRow color="#0f766e" label="Selected carriers" value={selectedCarrierIds.size} note={`${selectedSharedCarriers} shared carrier(s) selected`} />
       <LayerRow color="#f59e0b" label="Undecided edges" value={report.undecided_edges} note="plausible evidence not selected yet" />
       <LayerRow color="#94a3b8" label="Rejected edges" value={report.rejected_edges} note="candidates below current costs" />
       <LayerRow color="#2563eb" label="Weak promoted" value={report.weak_edges_promoted} note="weak evidence selected by topology benefit" />
@@ -963,7 +1013,7 @@ function Stage3LayerSummary({ stage }: { stage: Stage3Response }) {
       </div>
       <div className="hypothesis-divider" />
       <PanelTitle icon={<GitBranch size={17} />} title="Accepted Edge Scores" />
-      {selectedScores.map((score) => (
+      {topSelectedScores.map((score) => (
         <div className="score-row" key={score.edge_id}>
           <strong>edge {score.edge_id}</strong>
           <span>{score.total_score.toFixed(2)}</span>
