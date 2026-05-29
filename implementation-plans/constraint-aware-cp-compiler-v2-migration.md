@@ -8,9 +8,11 @@ Progress:
 - Phase 1 is complete as of May 28, 2026.
 - Phase 2 is complete as of May 29, 2026 for the first inspectable candidate
   arrangement pass.
-- Phase 3 is complete as of May 29, 2026 for the first inspectable weighted
-  selection pass. Full exactizability scoring remains assigned to Phase 4, as
-  planned.
+- Phase 3 is complete as of May 29, 2026 for selection scaffolding and score
+  accounting. It is deliberately not the final graph selector.
+- Phase 4 is next: local exactizability probes that make origami constraints
+  usable as costs instead of brittle pass/fail checks.
+- Phase 5 will complete weighted beam selection using the Phase 4 probe costs.
 - A `ConstraintCompilerV2` backend now exists for the compiler-native evidence
   route, while `ConstraintCompilerV1` remains the current locked-border
   baseline.
@@ -121,7 +123,7 @@ Purpose: prevent more confusion about which path owns which behavior.
 Status: Complete for the current boundary. V2 now has its own adapter module
 with a dependency guard, and V1 mutation modules are documented as deprecated
 diagnostics. Legacy remains available only as `LegacyV2` / `ConstraintCompilerV1`
-baseline code until Phase 9 removes it from the product path.
+baseline code until Phase 10 removes it from the product path.
 
 Work:
 
@@ -227,7 +229,7 @@ Tests:
 - Initial regression tests comparing primitive presence and report fields from
   deterministic dense tensors.
 - Larger cached-dense golden tests and native/WASM determinism checks belong in
-  Phase 8 with the benchmark pack, after Phase 2 replaces the temporary
+  Phase 9 with the benchmark pack, after Phase 2 replaces the temporary
   `CandidateProgram` conversion.
 
 Acceptance:
@@ -268,7 +270,7 @@ Deferred to later phases:
   `CandidateProgram` so we can smoke-test the backend today. This is not the
   final architecture; Phase 2 replaces that temporary graph conversion with a
   true candidate planar graph arrangement.
-- Phase 8 will expand timing into full benchmark summaries across larger packs.
+- Phase 9 will expand timing into full benchmark summaries across larger packs.
 
 ## Phase 2: Candidate Planar Graph Arrangement V2
 
@@ -352,12 +354,12 @@ Acceptance:
 - Arrangement is high-recall: ground-truth edges should usually exist somewhere
   in the candidate space even when not selected.
 
-## Phase 3: Weighted Constraint Selection V2
+## Phase 3: Selection Scaffold And Score Accounting
 
-Purpose: choose a graph from the arrangement using visual evidence plus origami
-and geometry costs.
+Purpose: turn the Stage 2 arrangement into an inspectable selected/rejected/
+undecided graph candidate before adding theorem-aware exactizability costs.
 
-Status: Complete for the first inspectable deterministic selection pass. The
+Status: Complete for the first inspectable deterministic selection scaffold. The
 compiler crate now owns `selection.rs`, which consumes a `CandidateArrangement`
 and emits selected/rejected/undecided atomic intervals with score breakdowns,
 selected high-level hypotheses, topology edit accounting, and an explicit
@@ -370,15 +372,14 @@ New module:
 crates/oristudio-cp-compiler/src/selection.rs
 ```
 
-State decisions:
+Implemented state decisions:
 
 - Select/reject atomic edge.
-- Select carrier hypothesis: separate vs shared.
-- Merge/split candidate junctions.
-- Select boundary contacts.
-- Keep observed assignment, flip low-confidence assignment, or mark unknown.
+- Keep plausible but unselected atomic edges as undecided.
+- Report high-level carrier/merge hypotheses referenced by selected edges.
+- Report odd-degree topology warnings that remain after selection.
 
-Score terms:
+Implemented score terms:
 
 ```text
 visual reward:
@@ -395,43 +396,36 @@ visual/artifact cost:
 
 topology cost:
   odd-degree interior vertices
-  disconnected near-junctions
-  unmodeled crossings
   degenerate/tiny edges
-  invalid boundary topology
-
-exactizability cost:
-  estimated movement needed to satisfy Kawasaki
-  estimated carrier movement
-  high-confidence evidence movement penalty
-
-assignment cost:
-  Maekawa residual after unknown/flexible labels
-  low-confidence flips
-  high-confidence flips
-  LBL violations after geometry probe
 
 simplicity cost:
   duplicate parallel alternatives
   unnecessary tiny fragments
 ```
 
+Not implemented yet:
+
+- Beam search over multiple competing graph states.
+- Exactizability cost:
+  - estimated movement needed to satisfy Kawasaki
+  - estimated carrier movement
+  - high-confidence evidence movement penalty
+- Assignment cost:
+  - Maekawa residual after unknown/flexible labels
+  - low-confidence flips
+  - high-confidence flips
+  - LBL violations after geometry probe
+- Final boundary/contact topology selection.
+
 Algorithm:
 
-- Current inspectable pass:
-  - start from strong visual atomic intervals
-  - reject duplicate selected intervals between the same vertex pair
-  - promote weak edges only when they reduce odd-degree topology cost and have
-    nearby visual evidence
-  - keep plausible but unselected edges as `undecided`
-  - report selected high-level carrier/merge hypotheses
-  - report score breakdowns and accepted-edge reasons
-- Full Phase 3 after Phase 4:
-  - add exactizability probe costs to the score
-  - expand from greedy deterministic selection to bounded beam search if needed
-  - keep top K graph states when local choices are ambiguous
-  - consider MaxSAT/ILP/factor-graph approaches only after deterministic scoring
-    is understandable and benchmarked
+- Start from strong visual atomic intervals.
+- Reject duplicate selected intervals between the same vertex pair.
+- Promote weak edges only when they reduce odd-degree topology cost and have
+  nearby visual evidence.
+- Keep plausible but unselected edges as `undecided`.
+- Report selected high-level carrier/merge hypotheses.
+- Report score breakdowns and accepted-edge reasons.
 
 Tests:
 
@@ -442,12 +436,10 @@ Tests:
 - A low-cost merge hypothesis is reported when a selected edge uses the merged
   junction cluster.
 - A high-cost merge hypothesis is not selected.
-- The exactizability-dependent small-angle preservation tests remain Phase 4/5
-  work because they need local exactizability probes and/or full exact solve.
 
 Acceptance:
 
-- Selection produces a graph and a score report.
+- Selection scaffold produces a graph candidate and a score report.
 - Score report explains why each accepted edit was chosen.
 - Architecture inspector Stage 3 shows:
   - selected edges
@@ -457,13 +449,22 @@ Acceptance:
   - selected high-level hypotheses
   - remaining odd-degree vertices
   - accepted edge score reasons
-- Selection-only output is visually inspectable separately from exact solve.
-  Smoke benchmark metrics for Stage 3 remain Phase 8 work.
+- Stage 3 UI defaults to the selected graph candidate so it is visually distinct
+  from Stage 2's arrangement/evidence view.
+
+Left for later phases:
+
+- Phase 4 adds exactizability probes.
+- Phase 5 replaces the scaffold with weighted beam selection using those probe
+  costs.
+- Phase 9 benchmarks selection-only output separately from exact solve.
 
 ## Phase 4: Local Exactizability Probes
 
 Purpose: let selection use origami theorems without treating noisy raw angles as
 final truth.
+
+Status: Not started. This is the next planned implementation phase.
 
 New module:
 
@@ -511,8 +512,57 @@ Acceptance:
 - Selection can distinguish:
   - "raw angle off but exactizable"
   - "topology wrong; geometry cannot fix it"
+- Probe costs are exposed in the inspector before they are used to promote a
+  product path.
 
-## Phase 5: Full Exact Geometric Solve
+## Phase 5: Weighted Beam Selection V2
+
+Purpose: replace the Phase 3 greedy scaffold with the planned bounded selector
+that uses visual evidence, topology costs, and Phase 4 exactizability probes.
+
+Status: Not started. This phase depends on Phase 4 probe outputs.
+
+State decisions:
+
+- Select/reject atomic edge.
+- Select carrier hypothesis: separate vs shared.
+- Merge/split candidate junctions.
+- Select boundary contacts.
+- Keep observed assignment, flip low-confidence assignment, or mark unknown.
+
+Algorithm:
+
+- Start with deterministic beam search, not ILP.
+- Keep top K graph states.
+- Every state stores:
+  - selected hypothesis IDs
+  - selected edge IDs
+  - selected junction merge IDs
+  - score breakdown
+  - edit accounting
+- Use Phase 4 exactizability probes during scoring.
+- Keep the solver deterministic and explainable before considering more complex
+  MaxSAT/ILP/factor-graph approaches.
+
+Tests:
+
+- A weak edge is selected if it fixes odd degree and has nearby visual evidence.
+- A no-evidence edge is rejected even if it would reduce one local residual.
+- A near-duplicate false line is rejected when it creates topology/constraint
+  cost.
+- A merge is selected when it fixes a disconnected near-junction with small
+  movement.
+- A real small angle is preserved when merging would require high movement or
+  contradict visual/junction evidence.
+
+Acceptance:
+
+- Beam selector produces selected graph states and score reports.
+- Score reports explain why each accepted edit was chosen.
+- Exactizability costs are visible in the debug UI.
+- Selection-only output is benchmarked separately from exact solve in Phase 9.
+
+## Phase 6: Full Exact Geometric Solve
 
 Purpose: convert the selected topology into exact coordinates.
 
@@ -573,7 +623,7 @@ Acceptance:
 - Exact solve improves CAMV/flat-folder success on curated noisy fixtures.
 - Movement reports are understandable in the debug UI.
 
-## Phase 6: Assignment Solver V2
+## Phase 7: Assignment Solver V2
 
 Purpose: solve M/V after topology and geometry are plausible.
 
@@ -604,7 +654,7 @@ Acceptance:
 - Assignment accuracy must not regress materially versus current baseline.
 - Assignment changes are separately reported from topology and geometry edits.
 
-## Phase 7: Verifier, Export, And Product Contract
+## Phase 8: Verifier, Export, And Product Contract
 
 Purpose: only export what the compiler can honestly justify.
 
@@ -651,7 +701,7 @@ Acceptance:
   - verification report
   - diff/edit accounting
 
-## Phase 8: Benchmarks And Visual Review Gates
+## Phase 9: Benchmarks And Visual Review Gates
 
 Purpose: prevent metrics-only or visual-only mistakes.
 
@@ -709,7 +759,7 @@ Acceptance:
 - If V2 improves validity but slightly hurts pixel-style edge F1, manual review
   decides whether that tradeoff is acceptable.
 
-## Phase 9: Product Migration And Legacy Removal
+## Phase 10: Product Migration And Legacy Removal
 
 Purpose: ensure old code cannot keep influencing the product path.
 
@@ -754,16 +804,14 @@ dense model outputs
 1. Phase 0: add backend/guardrails and current dependency tests.
 2. Phase 1: compiler-native evidence extraction.
 3. Phase 2: arrangement V2 with visual debug output.
-4. Phase 4: local exactizability probes.
-5. Phase 3: weighted selection using the probes.
-6. Phase 5: full exact solve.
-7. Phase 6: assignment solver integration.
-8. Phase 7: verifier/export contract.
-9. Phase 8: benchmark and visual review gates.
-10. Phase 9: product promotion and legacy removal.
-
-Phase 4 comes before full Phase 3 implementation because weighted selection
-needs an exactizability cost, not raw noisy theorem residuals.
+4. Phase 3: selection scaffold and score accounting.
+5. Phase 4: local exactizability probes.
+6. Phase 5: weighted beam selection using the probes.
+7. Phase 6: full exact solve.
+8. Phase 7: assignment solver integration.
+9. Phase 8: verifier/export contract.
+10. Phase 9: benchmark and visual review gates.
+11. Phase 10: product promotion and legacy removal.
 
 ## Open Design Questions
 

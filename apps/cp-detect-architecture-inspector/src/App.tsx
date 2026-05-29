@@ -55,6 +55,43 @@ export function App() {
   const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
+    if (activeStage === 'stage3') {
+      setShowLines(false);
+      setShowSharedCarriers(false);
+      setShowAtomicEdges(false);
+      setShowSelectedEdges(true);
+      setShowUndecidedEdges(false);
+      setShowRejectedEdges(false);
+      setShowJunctions(true);
+      setShowContacts(true);
+      setShowLineEndpoints(false);
+      setShowInferredCrossings(false);
+    } else if (activeStage === 'stage2') {
+      setShowLines(true);
+      setShowSharedCarriers(true);
+      setShowAtomicEdges(true);
+      setShowSelectedEdges(false);
+      setShowUndecidedEdges(false);
+      setShowRejectedEdges(false);
+      setShowJunctions(true);
+      setShowContacts(true);
+      setShowLineEndpoints(false);
+      setShowInferredCrossings(false);
+    } else {
+      setShowLines(true);
+      setShowSharedCarriers(false);
+      setShowAtomicEdges(false);
+      setShowSelectedEdges(false);
+      setShowUndecidedEdges(false);
+      setShowRejectedEdges(false);
+      setShowJunctions(true);
+      setShowContacts(true);
+      setShowLineEndpoints(false);
+      setShowInferredCrossings(false);
+    }
+  }, [activeStage]);
+
+  useEffect(() => {
     let cancelled = false;
     Promise.all([fetchStages(), fetchStage1Examples()])
       .then(([, exampleResponse]) => {
@@ -569,12 +606,12 @@ function ArrangementViewer({
         {showLines
           ? stage.arrangement.carriers
               .filter((carrier) => carrier.kind === 'observed_local')
-              .map((carrier) => <CarrierView carrier={carrier} frame={stage.overlay_frame_px} key={carrier.id} />)
+              .map((carrier) => <CarrierView carrier={carrier} frame={stage.overlay_frame_px} key={carrier.id} muted />)
           : null}
         {showSharedCarriers
           ? stage.arrangement.carriers
               .filter((carrier) => carrier.kind === 'shared_collinear_alternative')
-              .map((carrier) => <CarrierView carrier={carrier} frame={stage.overlay_frame_px} key={carrier.id} shared />)
+              .map((carrier) => <CarrierView carrier={carrier} frame={stage.overlay_frame_px} key={carrier.id} muted shared />)
           : null}
         {showJunctions
           ? stage.arrangement.vertices
@@ -757,22 +794,24 @@ function SelectionEdgeView({
 function CarrierView({
   carrier,
   frame,
+  muted = false,
   shared = false,
 }: {
   carrier: ArrangementCarrier;
   frame: Stage2Response['overlay_frame_px'];
+  muted?: boolean;
   shared?: boolean;
 }) {
   const p0 = imagePoint(pointAtCarrierT(carrier, carrier.support_interval[0]), frame);
   const p1 = imagePoint(pointAtCarrierT(carrier, carrier.support_interval[1]), frame);
-  const color = shared ? '#9333ea' : arrangementAssignmentColor(carrier.assignment.label);
+  const color = muted ? (shared ? '#7c3aed' : '#475569') : shared ? '#9333ea' : arrangementAssignmentColor(carrier.assignment.label);
   return (
     <line
       stroke={color}
       strokeDasharray={shared ? '7 5' : undefined}
       strokeLinecap="round"
-      strokeOpacity={shared ? 0.82 : carrier.source === 'observed_strong' ? 0.9 : 0.55}
-      strokeWidth={shared ? 2.4 : 2.1}
+      strokeOpacity={muted ? 0.24 : shared ? 0.82 : carrier.source === 'observed_strong' ? 0.9 : 0.55}
+      strokeWidth={muted ? 1.2 : shared ? 2.4 : 2.1}
       vectorEffect="non-scaling-stroke"
       x1={p0.x}
       x2={p1.x}
@@ -931,7 +970,10 @@ function Stage3LayerSummary({ stage }: { stage: Stage3Response }) {
           <em>{score.reasons[0] ?? 'selected'}</em>
         </div>
       ))}
-      <p>Stage 3 chooses candidate intervals with visual and topology costs. Exact geometric theorem costs arrive in Phase 4.</p>
+      <p>
+        Stage 3 shows the selected graph candidate by default. Turn on observed carriers or shared alternatives only when
+        comparing the choice against Stage 2 evidence. Exact geometric theorem costs arrive in Phase 4.
+      </p>
     </div>
   );
 }
