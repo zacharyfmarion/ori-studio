@@ -15,12 +15,22 @@ const SCHEMA: &str = "oristudio/cp-compiler/candidate-arrangement-v2";
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ArrangementV2Input {
     pub image_size: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub paper_frame_px: Option<ArrangementPaperFramePx>,
     #[serde(default)]
     pub line_primitives: Vec<ArrangementLinePrimitive>,
     #[serde(default)]
     pub junction_primitives: Vec<ArrangementJunctionPrimitive>,
     #[serde(default)]
     pub boundary_contact_primitives: Vec<ArrangementBoundaryContactPrimitive>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct ArrangementPaperFramePx {
+    pub x_min: f64,
+    pub y_min: f64,
+    pub x_max: f64,
+    pub y_max: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -219,10 +229,11 @@ pub fn build_candidate_arrangement(
     input: &ArrangementV2Input,
     options: ArrangementV2Options,
 ) -> CandidateArrangement {
-    let scale = coordinate_scale(input.image_size);
+    let transform = CoordinateTransform::from_input(input);
+    let scale = transform.average_span();
     let merge_tol = options.vertex_merge_px / scale;
     let membership_tol = options.carrier_membership_px / scale;
-    let mut carriers = observed_carriers(input, scale, &options);
+    let mut carriers = observed_carriers(input, transform, &options);
     let mut hypotheses = carriers
         .iter()
         .map(|carrier| ArrangementHypothesis {
@@ -256,16 +267,16 @@ pub fn build_candidate_arrangement(
     let mut vertices = Vec::<ArrangementVertex>::new();
     add_square_corners(&mut vertices, merge_tol);
     add_observed_line_endpoints(&mut vertices, &carriers[..shared_carrier_start], merge_tol);
-    add_observed_junctions(input, scale, &mut vertices, merge_tol);
+    add_observed_junctions(input, transform, &mut vertices, merge_tol);
     add_junction_clusters(
         input,
-        scale,
+        transform,
         &mut vertices,
         merge_tol,
         &mut hypotheses,
         &options,
     );
-    add_explicit_boundary_contacts(input, scale, &mut vertices, merge_tol, &mut hypotheses);
+    add_explicit_boundary_contacts(input, transform, &mut vertices, merge_tol, &mut hypotheses);
     add_carrier_boundary_contacts(
         &carriers,
         &mut vertices,
@@ -298,13 +309,13 @@ pub fn build_candidate_arrangement(
 
 fn observed_carriers(
     input: &ArrangementV2Input,
-    scale: f64,
+    transform: CoordinateTransform,
     options: &ArrangementV2Options,
 ) -> Vec<ArrangementCarrier> {
     let mut carriers = Vec::new();
     for primitive in &input.line_primitives {
-        let p0 = normalize_point(primitive.p0, scale);
-        let p1 = normalize_point(primitive.p1, scale);
+        let p0 = transform.normalize_unclamped(primitive.p0);
+        let p1 = transform.normalize_unclamped(primitive.p1);
         let Some(line) = line_from_points(p0, p1, options.epsilon) else {
             continue;
         };
@@ -474,11 +485,15 @@ fn add_observed_line_endpoints(
 ) {
     for carrier in carriers {
         for t in carrier.support_interval {
+            let point = point_on_carrier(carrier, t);
+            if !within_unit_square(point, merge_tol) {
+                continue;
+            }
             add_vertex(
                 vertices,
                 ArrangementVertex {
                     id: 0,
-                    point: point_on_carrier(carrier, t),
+                    point: clamp_unit_point(point),
                     kind: ArrangementVertexKind::ObservedLineEndpoint,
                     support: carrier.visual_support,
                     carrier_ids: vec![carrier.id],
@@ -495,7 +510,7 @@ fn add_observed_line_endpoints(
 
 fn add_observed_junctions(
     input: &ArrangementV2Input,
-    scale: f64,
+    transform: CoordinateTransform,
     vertices: &mut Vec<ArrangementVertex>,
     merge_tol: f64,
 ) {
@@ -504,7 +519,7 @@ fn add_observed_junctions(
             vertices,
             ArrangementVertex {
                 id: 0,
-                point: normalize_point(primitive.point, scale),
+                point: transform.normalize_clamped(primitive.point),
                 kind: ArrangementVertexKind::ObservedJunction,
                 support: primitive.support.clamp(0.0, 1.0),
                 carrier_ids: Vec::new(),
@@ -520,20 +535,20 @@ fn add_observed_junctions(
 
 fn add_junction_clusters(
     input: &ArrangementV2Input,
-    scale: f64,
+    transform: CoordinateTransform,
     vertices: &mut Vec<ArrangementVertex>,
     merge_tol: f64,
     hypotheses: &mut Vec<ArrangementHypothesis>,
     options: &ArrangementV2Options,
 ) {
-    let cluster_tol = options.junction_cluster_px / scale;
+    let cluster_tol = options.junction_cluster_px / transform.average_span();
     let normalized = input
         .junction_primitives
         .iter()
         .map(|primitive| {
             (
                 primitive.id,
-                normalize_point(primitive.point, scale),
+                transform.normalize_clamped(primitive.point),
                 primitive.support.clamp(0.0, 1.0),
             )
         })
@@ -596,16 +611,17 @@ fn add_junction_clusters(
 
 fn add_explicit_boundary_contacts(
     input: &ArrangementV2Input,
-    scale: f64,
+    transform: CoordinateTransform,
     vertices: &mut Vec<ArrangementVertex>,
     merge_tol: f64,
     hypotheses: &mut Vec<ArrangementHypothesis>,
 ) {
     for primitive in &input.boundary_contact_primitives {
+        let normalized = transform.normalize_clamped(primitive.point);
         let point = snap_to_boundary(
-            normalize_point(primitive.point, scale),
+            normalized,
             primitive.side,
-            primitive.side_coordinate.clamp(0.0, 1.0),
+            side_coordinate(normalized, primitive.side),
         );
         let vertex_id = add_vertex(
             vertices,
@@ -999,15 +1015,45 @@ fn project(axis: Point2, point: Point2) -> f64 {
     axis.x * point.x + axis.y * point.y
 }
 
-fn normalize_point(point: Point2, scale: f64) -> Point2 {
-    Point2::new(
-        (point.x / scale).clamp(0.0, 1.0),
-        (point.y / scale).clamp(0.0, 1.0),
-    )
-}
-
 fn coordinate_scale(image_size: u32) -> f64 {
     image_size.saturating_sub(1).max(1) as f64
+}
+
+#[derive(Debug, Clone, Copy)]
+struct CoordinateTransform {
+    frame: ArrangementPaperFramePx,
+}
+
+impl CoordinateTransform {
+    fn from_input(input: &ArrangementV2Input) -> Self {
+        let max = coordinate_scale(input.image_size);
+        let frame = input
+            .paper_frame_px
+            .filter(|frame| frame.x_max > frame.x_min && frame.y_max > frame.y_min)
+            .unwrap_or(ArrangementPaperFramePx {
+                x_min: 0.0,
+                y_min: 0.0,
+                x_max: max,
+                y_max: max,
+            });
+        Self { frame }
+    }
+
+    fn average_span(self) -> f64 {
+        ((self.frame.x_max - self.frame.x_min) + (self.frame.y_max - self.frame.y_min)).max(2.0)
+            * 0.5
+    }
+
+    fn normalize_unclamped(self, point: Point2) -> Point2 {
+        Point2::new(
+            (point.x - self.frame.x_min) / (self.frame.x_max - self.frame.x_min),
+            (point.y - self.frame.y_min) / (self.frame.y_max - self.frame.y_min),
+        )
+    }
+
+    fn normalize_clamped(self, point: Point2) -> Point2 {
+        clamp_unit_point(self.normalize_unclamped(point))
+    }
 }
 
 fn snap_to_boundary(point: Point2, side: ArrangementBoundarySide, side_coordinate: f64) -> Point2 {
@@ -1114,6 +1160,7 @@ mod tests {
     fn two_crossing_carriers_create_intersection_and_four_atomic_intervals() {
         let input = ArrangementV2Input {
             image_size: 101,
+            paper_frame_px: None,
             line_primitives: vec![
                 line(0, [50.0, 0.0], [50.0, 100.0]),
                 line(1, [0.0, 50.0], [100.0, 50.0]),
@@ -1133,6 +1180,7 @@ mod tests {
     fn nearly_collinear_segments_keep_separate_and_shared_hypotheses() {
         let input = ArrangementV2Input {
             image_size: 101,
+            paper_frame_px: None,
             line_primitives: vec![
                 line(0, [10.0, 20.0], [45.0, 20.0]),
                 line(1, [48.0, 21.0], [90.0, 21.0]),
@@ -1162,6 +1210,7 @@ mod tests {
     fn close_but_angled_segments_remain_separate_without_shared_hypothesis() {
         let input = ArrangementV2Input {
             image_size: 101,
+            paper_frame_px: None,
             line_primitives: vec![
                 line(0, [10.0, 20.0], [45.0, 20.0]),
                 line(1, [48.0, 22.0], [90.0, 33.0]),
@@ -1187,6 +1236,7 @@ mod tests {
     fn carrier_crossing_square_creates_boundary_contacts_on_correct_sides() {
         let input = ArrangementV2Input {
             image_size: 101,
+            paper_frame_px: None,
             line_primitives: vec![line(0, [25.0, 0.0], [25.0, 100.0])],
             junction_primitives: Vec::new(),
             boundary_contact_primitives: Vec::new(),
@@ -1207,6 +1257,7 @@ mod tests {
     fn arrangement_alone_does_not_emit_selected_fold_edges() {
         let input = ArrangementV2Input {
             image_size: 101,
+            paper_frame_px: None,
             line_primitives: vec![line(0, [0.0, 0.0], [100.0, 100.0])],
             junction_primitives: Vec::new(),
             boundary_contact_primitives: Vec::new(),
@@ -1216,6 +1267,36 @@ mod tests {
         assert_eq!(arrangement.report.selected_edges, 0);
         assert!(!arrangement.report.emits_fold_graph);
         assert!(!arrangement.atomic_edges.is_empty());
+    }
+
+    #[test]
+    fn paper_frame_maps_boundary_contacts_to_visible_square() {
+        let input = ArrangementV2Input {
+            image_size: 1024,
+            paper_frame_px: Some(ArrangementPaperFramePx {
+                x_min: 32.0,
+                y_min: 32.0,
+                x_max: 992.0,
+                y_max: 992.0,
+            }),
+            line_primitives: vec![line(0, [32.0, 512.0], [992.0, 512.0])],
+            junction_primitives: Vec::new(),
+            boundary_contact_primitives: Vec::new(),
+        };
+        let arrangement = build_candidate_arrangement(&input, ArrangementV2Options::default());
+
+        let left = arrangement.vertices.iter().any(|vertex| {
+            vertex.kind == ArrangementVertexKind::BoundaryContact
+                && vertex.boundary_side == Some(ArrangementBoundarySide::Left)
+                && (vertex.point.y - 0.5).abs() < 1e-6
+        });
+        let right = arrangement.vertices.iter().any(|vertex| {
+            vertex.kind == ArrangementVertexKind::BoundaryContact
+                && vertex.boundary_side == Some(ArrangementBoundarySide::Right)
+                && (vertex.point.y - 0.5).abs() < 1e-6
+        });
+        assert!(left);
+        assert!(right);
     }
 
     fn line(id: usize, p0: [f64; 2], p1: [f64; 2]) -> ArrangementLinePrimitive {

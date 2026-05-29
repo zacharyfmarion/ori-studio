@@ -212,5 +212,11 @@ export interface CandidateArrangement {
 }
 
 export interface Stage2Response extends Stage1Response {
+  overlay_frame_px: {
+    x_min: number;
+    y_min: number;
+    x_max: number;
+    y_max: number;
+  };
   arrangement: CandidateArrangement;
 }

@@ -444,6 +444,7 @@ function ArrangementViewer({
   }, [stage.arrangement.vertices]);
   const renderedAtomicEdges = stage.arrangement.atomic_edges.slice(0, 5000);
   const clippedAtomicEdges = stage.arrangement.atomic_edges.length - renderedAtomicEdges.length;
+  const size = stage.config.image_size;
 
   return (
     <div className="viewer-canvas">
@@ -452,31 +453,36 @@ function ArrangementViewer({
       ) : (
         <img alt="" className="input-image" src={stage.sample.input_image_url} />
       )}
-      <svg className="primitive-overlay arrangement-overlay" viewBox="0 0 1 1" role="img" aria-label="Stage 2 candidate arrangement">
+      <svg
+        className="primitive-overlay arrangement-overlay"
+        viewBox={`0 0 ${size} ${size}`}
+        role="img"
+        aria-label="Stage 2 candidate arrangement"
+      >
         {showAtomicEdges
           ? renderedAtomicEdges.map((edge) => (
-              <AtomicEdgeView edge={edge} key={edge.id} verticesById={verticesById} />
+              <AtomicEdgeView edge={edge} frame={stage.overlay_frame_px} key={edge.id} verticesById={verticesById} />
             ))
           : null}
         {showLines
           ? stage.arrangement.carriers
               .filter((carrier) => carrier.kind === 'observed_local')
-              .map((carrier) => <CarrierView carrier={carrier} key={carrier.id} />)
+              .map((carrier) => <CarrierView carrier={carrier} frame={stage.overlay_frame_px} key={carrier.id} />)
           : null}
         {showSharedCarriers
           ? stage.arrangement.carriers
               .filter((carrier) => carrier.kind === 'shared_collinear_alternative')
-              .map((carrier) => <CarrierView carrier={carrier} key={carrier.id} shared />)
+              .map((carrier) => <CarrierView carrier={carrier} frame={stage.overlay_frame_px} key={carrier.id} shared />)
           : null}
         {showJunctions
           ? stage.arrangement.vertices
               .filter((vertex) => vertex.kind !== 'boundary_contact' && vertex.kind !== 'corner')
-              .map((vertex) => <ArrangementVertexView key={vertex.id} vertex={vertex} />)
+              .map((vertex) => <ArrangementVertexView frame={stage.overlay_frame_px} key={vertex.id} vertex={vertex} />)
           : null}
         {showContacts
           ? stage.arrangement.vertices
               .filter((vertex) => vertex.kind === 'boundary_contact' || vertex.kind === 'corner')
-              .map((vertex) => <ArrangementVertexView key={`contact-${vertex.id}`} vertex={vertex} />)
+              .map((vertex) => <ArrangementVertexView frame={stage.overlay_frame_px} key={`contact-${vertex.id}`} vertex={vertex} />)
           : null}
       </svg>
       {clippedAtomicEdges > 0 ? (
@@ -486,9 +492,17 @@ function ArrangementViewer({
   );
 }
 
-function CarrierView({ carrier, shared = false }: { carrier: ArrangementCarrier; shared?: boolean }) {
-  const p0 = pointAtCarrierT(carrier, carrier.support_interval[0]);
-  const p1 = pointAtCarrierT(carrier, carrier.support_interval[1]);
+function CarrierView({
+  carrier,
+  frame,
+  shared = false,
+}: {
+  carrier: ArrangementCarrier;
+  frame: Stage2Response['overlay_frame_px'];
+  shared?: boolean;
+}) {
+  const p0 = imagePoint(pointAtCarrierT(carrier, carrier.support_interval[0]), frame);
+  const p1 = imagePoint(pointAtCarrierT(carrier, carrier.support_interval[1]), frame);
   const color = shared ? '#9333ea' : arrangementAssignmentColor(carrier.assignment.label);
   return (
     <line
@@ -512,14 +526,18 @@ function CarrierView({ carrier, shared = false }: { carrier: ArrangementCarrier;
 
 function AtomicEdgeView({
   edge,
+  frame,
   verticesById,
 }: {
   edge: ArrangementAtomicEdge;
+  frame: Stage2Response['overlay_frame_px'];
   verticesById: Map<number, ArrangementVertex>;
 }) {
   const a = verticesById.get(edge.vertices[0]);
   const b = verticesById.get(edge.vertices[1]);
   if (!a || !b) return null;
+  const p0 = imagePoint(a.point, frame);
+  const p1 = imagePoint(b.point, frame);
   return (
     <line
       stroke="#f59e0b"
@@ -527,10 +545,10 @@ function AtomicEdgeView({
       strokeOpacity={0.22 + Math.min(0.38, edge.line_support * 0.38)}
       strokeWidth={1.2}
       vectorEffect="non-scaling-stroke"
-      x1={a.point.x}
-      x2={b.point.x}
-      y1={a.point.y}
-      y2={b.point.y}
+      x1={p0.x}
+      x2={p1.x}
+      y1={p0.y}
+      y2={p1.y}
     >
       <title>
         atomic interval {edge.id} carrier {edge.carrier_id} support {edge.line_support.toFixed(3)} overlap{' '}
@@ -540,7 +558,13 @@ function AtomicEdgeView({
   );
 }
 
-function ArrangementVertexView({ vertex }: { vertex: ArrangementVertex }) {
+function ArrangementVertexView({
+  frame,
+  vertex,
+}: {
+  frame: Stage2Response['overlay_frame_px'];
+  vertex: ArrangementVertex;
+}) {
   const color =
     vertex.kind === 'corner'
       ? '#111827'
@@ -553,11 +577,12 @@ function ArrangementVertexView({ vertex }: { vertex: ArrangementVertex }) {
             : vertex.kind === 'carrier_intersection'
               ? '#f97316'
               : '#94a3b8';
-  const radius = vertex.kind === 'corner' || vertex.kind === 'boundary_contact' ? 0.008 : 0.006;
+  const point = imagePoint(vertex.point, frame);
+  const radius = vertex.kind === 'corner' || vertex.kind === 'boundary_contact' ? 7 : 5;
   return (
     <circle
-      cx={vertex.point.x}
-      cy={vertex.point.y}
+      cx={point.x}
+      cy={point.y}
       fill={color}
       r={radius}
       stroke="#0f172a"
@@ -595,6 +620,13 @@ function pointAtCarrierT(carrier: ArrangementCarrier, t: number) {
   return {
     x: carrier.normal.x * carrier.rho + carrier.direction.x * t,
     y: carrier.normal.y * carrier.rho + carrier.direction.y * t,
+  };
+}
+
+function imagePoint(point: { x: number; y: number }, frame: Stage2Response['overlay_frame_px']) {
+  return {
+    x: frame.x_min + point.x * (frame.x_max - frame.x_min),
+    y: frame.y_min + point.y * (frame.y_max - frame.y_min),
   };
 }
 

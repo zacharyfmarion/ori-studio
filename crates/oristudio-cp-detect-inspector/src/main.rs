@@ -1,8 +1,8 @@
 use anyhow::{Context, Result, anyhow, bail};
 use oristudio_cp_compiler::arrangement_v2::{
     ArrangementBoundaryContactPrimitive, ArrangementBoundarySide, ArrangementJunctionPrimitive,
-    ArrangementLinePrimitive, ArrangementV2Input, ArrangementV2Options, CandidateArrangement,
-    build_candidate_arrangement,
+    ArrangementLinePrimitive, ArrangementPaperFramePx, ArrangementV2Input, ArrangementV2Options,
+    CandidateArrangement, build_candidate_arrangement,
 };
 use oristudio_cp_compiler::{AssignmentCandidate, AssignmentLabel, EvidenceSource, Point2};
 use oristudio_cp_detect::decode::DecodeConfig;
@@ -120,10 +120,19 @@ struct Stage2Response {
     sample: ExampleRow,
     map_size: usize,
     config: EvidenceConfigSummary,
+    overlay_frame_px: OverlayFramePx,
     report: Value,
     maps: Vec<MapPayload>,
     primitives: PrimitivePayload,
     arrangement: CandidateArrangement,
+}
+
+#[derive(Debug, Clone, Copy, Serialize)]
+struct OverlayFramePx {
+    x_min: f64,
+    y_min: f64,
+    x_max: f64,
+    y_max: f64,
 }
 
 #[derive(Debug, Serialize)]
@@ -509,7 +518,8 @@ fn stage2_example(
         evidence_config,
     )?;
     let maps = evidence_maps(&evidence, map_size)?;
-    let arrangement_input = arrangement_input_from_evidence(&evidence);
+    let overlay_frame_px = overlay_frame_for_sample(state, sample)?;
+    let arrangement_input = arrangement_input_from_evidence(&evidence, Some(overlay_frame_px));
     let arrangement =
         build_candidate_arrangement(&arrangement_input, ArrangementV2Options::default());
     Ok(Stage2Response {
@@ -526,6 +536,7 @@ fn stage2_example(
             max_junction_primitives: evidence_config.max_junction_primitives,
             max_boundary_contact_primitives: evidence_config.max_boundary_contact_primitives,
         },
+        overlay_frame_px,
         report: serde_json::to_value(evidence.report)?,
         maps,
         primitives: PrimitivePayload {
@@ -572,9 +583,18 @@ fn evidence_config_from_decode(config: &DecodeConfig) -> EvidenceExtractionConfi
     }
 }
 
-fn arrangement_input_from_evidence(evidence: &CompilerEvidence) -> ArrangementV2Input {
+fn arrangement_input_from_evidence(
+    evidence: &CompilerEvidence,
+    overlay_frame_px: Option<OverlayFramePx>,
+) -> ArrangementV2Input {
     ArrangementV2Input {
         image_size: evidence.image_size,
+        paper_frame_px: overlay_frame_px.map(|frame| ArrangementPaperFramePx {
+            x_min: frame.x_min,
+            y_min: frame.y_min,
+            x_max: frame.x_max,
+            y_max: frame.y_max,
+        }),
         line_primitives: evidence
             .line_primitives
             .iter()
@@ -614,6 +634,65 @@ fn arrangement_input_from_evidence(evidence: &CompilerEvidence) -> ArrangementV2
                 source: source_from_primitive(primitive.source),
             })
             .collect(),
+    }
+}
+
+fn overlay_frame_for_sample(state: &AppState, sample: &DenseCacheSample) -> Result<OverlayFramePx> {
+    let default = default_overlay_frame(sample.image_size);
+    let Some(input_parent) = state
+        .pack_root
+        .join(&sample.input_png)
+        .parent()
+        .map(Path::to_path_buf)
+    else {
+        return Ok(default);
+    };
+    let metadata_path = input_parent.join("render_metadata.json");
+    if !metadata_path.exists() {
+        return Ok(default);
+    }
+    let metadata: Value = serde_json::from_str(
+        &fs::read_to_string(&metadata_path)
+            .with_context(|| format!("read {}", metadata_path.display()))?,
+    )
+    .with_context(|| format!("parse {}", metadata_path.display()))?;
+    let Some(frame) = metadata
+        .get("v2_boundary")
+        .and_then(|value| value.get("frame"))
+    else {
+        return Ok(default);
+    };
+    let parsed = OverlayFramePx {
+        x_min: frame
+            .get("x_min")
+            .and_then(Value::as_f64)
+            .unwrap_or(default.x_min),
+        y_min: frame
+            .get("y_min")
+            .and_then(Value::as_f64)
+            .unwrap_or(default.y_min),
+        x_max: frame
+            .get("x_max")
+            .and_then(Value::as_f64)
+            .unwrap_or(default.x_max),
+        y_max: frame
+            .get("y_max")
+            .and_then(Value::as_f64)
+            .unwrap_or(default.y_max),
+    };
+    if parsed.x_max <= parsed.x_min || parsed.y_max <= parsed.y_min {
+        return Ok(default);
+    }
+    Ok(parsed)
+}
+
+fn default_overlay_frame(image_size: u32) -> OverlayFramePx {
+    let max = image_size.saturating_sub(1).max(1) as f64;
+    OverlayFramePx {
+        x_min: 0.0,
+        y_min: 0.0,
+        x_max: max,
+        y_max: max,
     }
 }
 
