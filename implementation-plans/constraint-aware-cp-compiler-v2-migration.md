@@ -10,8 +10,10 @@ Progress:
   arrangement pass.
 - Phase 3 is complete as of May 29, 2026 for selection scaffolding and score
   accounting. It is deliberately not the final graph selector.
-- Phase 4 is next: local exactizability probes that make origami constraints
-  usable as costs instead of brittle pass/fail checks.
+- Phase 4 is complete as of May 29, 2026 for the first inspectable local
+  exactizability probe pass. The probes make origami constraints visible as
+  costs instead of brittle pass/fail checks, but they still do not mutate the
+  graph.
 - Phase 5 will complete weighted beam selection using the Phase 4 probe costs.
 - A `ConstraintCompilerV2` backend now exists for the compiler-native evidence
   route, while `ConstraintCompilerV1` remains the current locked-border
@@ -24,9 +26,9 @@ Progress:
 - V2 reports evidence extraction time separately from compiler time.
 - V2 reports explicit stage IDs in `compiler_report.stage_ids`.
 - `apps/cp-detect-architecture-inspector` and
-  `oristudio-cp-detect-inspector` provide local Stage 1, Stage 2, and Stage 3
-  debug UI/API for visually inspecting dense evidence, arrangement candidates,
-  and weighted selection output.
+  `oristudio-cp-detect-inspector` provide local Stage 1, Stage 2, Stage 3, and
+  Stage 4 debug UI/API for visually inspecting dense evidence, arrangement
+  candidates, weighted selection output, and exactizability probes.
 - The V2 product route is still not promoted. Exact solve, assignment solve,
   verifier/export contract, and benchmark gates remain open.
 
@@ -464,7 +466,10 @@ Left for later phases:
 Purpose: let selection use origami theorems without treating noisy raw angles as
 final truth.
 
-Status: Not started. This is the next planned implementation phase.
+Status: Complete for the first inspectable probe pass. The compiler crate now
+owns `exact_probe.rs`, which consumes the Stage 3 selection and reports local
+exactizability costs without changing graph topology or coordinates. The
+architecture inspector exposes Stage 4 on the same dense-cache samples.
 
 New module:
 
@@ -481,11 +486,26 @@ Probe types:
 Probe output:
 
 ```text
-ExactizabilityProbe
+ExactizabilityReport
+  summary:
+    feasible
+    low_cost
+    high_cost
+    infeasible
+    odd_degree_vertices
+    hard_kawasaki_vertices
+    max_kawasaki_residual_degrees
+    max_estimated_vertex_move
+    max_carrier_endpoint_move
+    max_boundary_move
+    total_estimated_energy
+
+VertexExactizabilityProbe / CarrierExactizabilityProbe / BoundaryExactizabilityProbe
   feasible: bool
+  status: feasible | low_cost | high_cost | infeasible
   estimated_energy
   max_vertex_move
-  max_carrier_angle_move
+  max_endpoint_move
   residual_before
   residual_after
   blockers
@@ -493,27 +513,57 @@ ExactizabilityProbe
 
 Implementation:
 
-- Use pure Rust linear algebra, preferably `nalgebra`, so native and WASM share
-  behavior.
-- Start with small least-squares/Gauss-Newton style probes.
+- Use pure Rust geometry so native and WASM share behavior.
+- Evaluate the selected graph only; undecided candidates remain available for
+  Phase 5 but are not changed here.
+- Per interior selected vertex:
+  - count crease rays after excluding boundary/flat assignments
+  - mark odd degree infeasible because geometry-only exactization cannot fix it
+  - compute sector angles and Kawasaki residual for even-degree vertices
+  - estimate the minimum local movement needed from residual and incident edge
+    length
+  - classify feasible/low-cost/high-cost/infeasible using movement and
+    high-confidence evidence budgets
+- Per selected carrier:
+  - estimate endpoint projection movement needed to put selected endpoints back
+    on that carrier line
+  - classify the projection as feasible/low-cost/high-cost/infeasible
+- Per selected boundary/corner contact:
+  - estimate movement needed to snap back to the relevant square side
+  - classify the boundary movement with a tight budget
 - Do not mutate the selected graph in this phase.
-- Return costs to the weighted selector.
+- Return costs for the weighted selector planned in Phase 5.
 
 Tests:
 
-- A small Kawasaki residual is low cost if it can be fixed with small movement.
-- A small-looking residual is high cost if it requires moving a high-confidence
-  carrier too far.
-- Odd degree is infeasible by geometry-only exactization.
-- Boundary vertices remain on the square.
+- [x] A small Kawasaki residual is low cost if it can be fixed with small
+  movement.
+- [x] A small-looking residual is high cost if it requires moving
+  high-confidence evidence too far.
+- [x] Odd degree is infeasible by geometry-only exactization.
+- [x] Boundary vertices remain on the square.
 
 Acceptance:
 
-- Selection can distinguish:
+- [x] Selection can distinguish:
   - "raw angle off but exactizable"
   - "topology wrong; geometry cannot fix it"
-- Probe costs are exposed in the inspector before they are used to promote a
+- [x] Probe costs are exposed in the inspector before they are used to promote a
   product path.
+
+What remains after Phase 4:
+
+- Phase 4 is diagnostic-only. It intentionally does not solve exact coordinates
+  and does not select better topology.
+- Stage 4 circles/squares mark the selected graph's local exactizability:
+  green = already feasible, cyan = low-cost movement, amber = high-cost
+  movement, red = infeasible without topology changes.
+- Stage 4 inspector defaults to the problem-focused view, showing high-cost and
+  infeasible probes over selected carrier-geometry edges. The `all probes`
+  toggle reveals feasible and low-cost probes when needed.
+- Phase 5 must use these costs while choosing between observed local segments,
+  shared straight-carrier alternatives, junction merges, and undecided weak
+  evidence.
 
 ## Phase 5: Weighted Beam Selection V2
 

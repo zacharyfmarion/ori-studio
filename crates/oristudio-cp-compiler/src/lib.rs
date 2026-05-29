@@ -12,6 +12,7 @@ pub mod candidates;
 pub mod carrier_reconcile;
 pub mod constraints;
 pub mod evidence;
+pub mod exact_probe;
 pub mod exactize;
 pub mod fold_export;
 pub mod optimizer;

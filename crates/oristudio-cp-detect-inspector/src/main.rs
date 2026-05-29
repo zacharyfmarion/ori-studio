@@ -4,6 +4,9 @@ use oristudio_cp_compiler::arrangement_v2::{
     ArrangementLinePrimitive, ArrangementPaperFramePx, ArrangementV2Input, ArrangementV2Options,
     CandidateArrangement, build_candidate_arrangement,
 };
+use oristudio_cp_compiler::exact_probe::{
+    ExactProbeOptions, ExactizabilityReport, probe_exactizability,
+};
 use oristudio_cp_compiler::selection::{
     CandidateSelection, SelectionOptions, select_candidate_graph,
 };
@@ -142,6 +145,21 @@ struct Stage3Response {
     primitives: PrimitivePayload,
     arrangement: CandidateArrangement,
     selection: CandidateSelection,
+}
+
+#[derive(Debug, Serialize)]
+struct Stage4Response {
+    schema: &'static str,
+    sample: ExampleRow,
+    map_size: usize,
+    config: EvidenceConfigSummary,
+    overlay_frame_px: OverlayFramePx,
+    report: Value,
+    maps: Vec<MapPayload>,
+    primitives: PrimitivePayload,
+    arrangement: CandidateArrangement,
+    selection: CandidateSelection,
+    exactizability: ExactizabilityReport,
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]
@@ -343,6 +361,12 @@ fn route_request(request: &HttpRequest, state: &AppState) -> HttpResponse {
                     label: "Stage 3",
                     title: "Weighted candidate selection",
                     status: "implemented"
+                },
+                StageInfo {
+                    id: "stage4",
+                    label: "Stage 4",
+                    title: "Local exactizability probes",
+                    status: "implemented"
                 }
             ]
         }))
@@ -361,6 +385,11 @@ fn route_request(request: &HttpRequest, state: &AppState) -> HttpResponse {
     } else if let Some(encoded_id) = path.strip_prefix("/api/stage3/examples/") {
         let sample_id = percent_decode(encoded_id);
         stage3_example(state, &sample_id, query).and_then(|payload| json_response(&payload))
+    } else if path == "/api/stage4/examples" {
+        stage4_examples(state).and_then(|payload| json_response(&payload))
+    } else if let Some(encoded_id) = path.strip_prefix("/api/stage4/examples/") {
+        let sample_id = percent_decode(encoded_id);
+        stage4_example(state, &sample_id, query).and_then(|payload| json_response(&payload))
     } else if let Some(encoded_id) = path.strip_prefix("/assets/input/") {
         let sample_id = percent_decode(encoded_id.trim_end_matches(".png"));
         serve_input_image(state, &sample_id)
@@ -415,6 +444,13 @@ fn stage3_examples(state: &AppState) -> Result<ExamplesResponse> {
     examples_response(
         state,
         "oristudio/cp-detect-architecture-inspector/stage3-index/v1",
+    )
+}
+
+fn stage4_examples(state: &AppState) -> Result<ExamplesResponse> {
+    examples_response(
+        state,
+        "oristudio/cp-detect-architecture-inspector/stage4-index/v1",
     )
 }
 
@@ -603,6 +639,32 @@ fn stage3_example(
         primitives: stage2.primitives,
         arrangement: stage2.arrangement,
         selection,
+    })
+}
+
+fn stage4_example(
+    state: &AppState,
+    sample_id: &str,
+    query: BTreeMap<String, String>,
+) -> Result<Stage4Response> {
+    let stage3 = stage3_example(state, sample_id, query)?;
+    let exactizability = probe_exactizability(
+        &stage3.arrangement,
+        &stage3.selection,
+        ExactProbeOptions::default(),
+    );
+    Ok(Stage4Response {
+        schema: "oristudio/cp-detect-architecture-inspector/stage4/v1",
+        sample: stage3.sample,
+        map_size: stage3.map_size,
+        config: stage3.config,
+        overlay_frame_px: stage3.overlay_frame_px,
+        report: stage3.report,
+        maps: stage3.maps,
+        primitives: stage3.primitives,
+        arrangement: stage3.arrangement,
+        selection: stage3.selection,
+        exactizability,
     })
 }
 

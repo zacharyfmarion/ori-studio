@@ -272,3 +272,78 @@ export interface CandidateSelection {
 export interface Stage3Response extends Stage2Response {
   selection: CandidateSelection;
 }
+
+export type ExactProbeStatus = 'feasible' | 'low_cost' | 'high_cost' | 'infeasible' | string;
+
+export interface ExactizabilityProbeSummary {
+  exactizability_evaluated: boolean;
+  vertex_probes: number;
+  carrier_probes: number;
+  boundary_probes: number;
+  feasible: number;
+  low_cost: number;
+  high_cost: number;
+  infeasible: number;
+  odd_degree_vertices: number;
+  hard_kawasaki_vertices: number;
+  max_kawasaki_residual_degrees: number;
+  max_estimated_vertex_move: number;
+  max_carrier_endpoint_move: number;
+  max_boundary_move: number;
+  total_estimated_energy: number;
+}
+
+export interface VertexExactizabilityProbe {
+  vertex_id: number;
+  point: { x: number; y: number };
+  degree: number;
+  feasible: boolean;
+  status: ExactProbeStatus;
+  estimated_energy: number;
+  max_vertex_move: number;
+  residual_before_degrees?: number | null;
+  residual_after_degrees?: number | null;
+  ray_angles_degrees: number[];
+  sector_angles_degrees: number[];
+  incident_edge_ids: number[];
+  blockers: string[];
+}
+
+export interface CarrierExactizabilityProbe {
+  carrier_id: number;
+  carrier_kind: 'observed_local' | 'shared_collinear_alternative' | string;
+  selected_edges: number;
+  feasible: boolean;
+  status: ExactProbeStatus;
+  estimated_energy: number;
+  max_endpoint_move: number;
+  mean_endpoint_move: number;
+  blockers: string[];
+}
+
+export interface BoundaryExactizabilityProbe {
+  vertex_id: number;
+  point: { x: number; y: number };
+  side?: 'top' | 'right' | 'bottom' | 'left' | null | string;
+  feasible: boolean;
+  status: ExactProbeStatus;
+  estimated_energy: number;
+  max_vertex_move: number;
+  residual_before: number;
+  residual_after: number;
+  blockers: string[];
+}
+
+export interface ExactizabilityReport {
+  schema: string;
+  coordinate_space: string;
+  image_size: number;
+  summary: ExactizabilityProbeSummary;
+  vertex_probes: VertexExactizabilityProbe[];
+  carrier_probes: CarrierExactizabilityProbe[];
+  boundary_probes: BoundaryExactizabilityProbe[];
+}
+
+export interface Stage4Response extends Stage3Response {
+  exactizability: ExactizabilityReport;
+}
