@@ -184,9 +184,11 @@ Implementation notes:
 Tests:
 
 - Unit tests for tensor-to-evidence conversion.
-- Golden tests comparing primitive counts/support ranges against current cached
-  dense tensors.
-- Regression check that evidence extraction is deterministic in native and WASM.
+- Initial regression tests comparing primitive presence and report fields from
+  deterministic dense tensors.
+- Larger cached-dense golden tests and native/WASM determinism checks belong in
+  Phase 8 with the benchmark pack, after Phase 2 replaces the temporary
+  `CandidateProgram` conversion.
 
 Acceptance:
 
