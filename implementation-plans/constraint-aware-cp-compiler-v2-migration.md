@@ -555,12 +555,16 @@ What remains after Phase 4:
 
 - Phase 4 is diagnostic-only. It intentionally does not solve exact coordinates
   and does not select better topology.
-- Stage 4 circles/squares mark the selected graph's local exactizability:
-  green = already feasible, cyan = low-cost movement, amber = high-cost
-  movement, red = infeasible without topology changes.
-- Stage 4 inspector defaults to the problem-focused view, showing high-cost and
-  infeasible probes over selected carrier-geometry edges. The `all probes`
-  toggle reveals feasible and low-cost probes when needed.
+- Stage 4 visualizes probe markers over the input image without the selected
+  graph overlay, so the view is about exactizability only. Vertex, carrier, and
+  boundary probes are independently toggleable per status where that probe type
+  exists. Green = already feasible, cyan = low-cost movement, amber = high-cost
+  movement, red = infeasible without topology changes, and purple/red vertex
+  overlays call out hard-Kawasaki and odd-degree blockers.
+- Stage 4 inspector is focused on probe review rather than dense evidence maps.
+  The right sidebar is a probe matrix: each status row controls the vertex,
+  carrier, and boundary probe types that exist for that status. This keeps the
+  canvas and controls about exactizability only.
 - Phase 5 must use these costs while choosing between observed local segments,
   shared straight-carrier alternatives, junction merges, and undecided weak
   evidence.

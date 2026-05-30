@@ -7,6 +7,7 @@ import type {
   ArrangementVertex,
   BoundaryExactizabilityProbe,
   BoundaryContactPrimitive,
+  CarrierExactizabilityProbe,
   ExampleRow,
   JunctionPrimitive,
   LinePrimitive,
@@ -33,6 +34,42 @@ const ASSIGNMENT_LABELS: Record<number, string> = {
   3: 'U',
 };
 
+type ProbeKindId = 'vertex' | 'carrier' | 'boundary';
+type ProbeStatusId = 'feasible' | 'low_cost' | 'high_cost' | 'infeasible' | 'odd_degree' | 'hard_kawasaki';
+type ProbeVisibility = Record<ProbeStatusId, Record<ProbeKindId, boolean>>;
+
+const PROBE_KIND_LABELS: Record<ProbeKindId, string> = {
+  vertex: 'V',
+  carrier: 'C',
+  boundary: 'B',
+};
+
+const PROBE_STATUS_ROWS: Array<{
+  id: ProbeStatusId;
+  label: string;
+  note: string;
+  color: string;
+  kinds: ProbeKindId[];
+}> = [
+  { id: 'feasible', label: 'Feasible', note: 'already locally exact', color: '#16a34a', kinds: ['vertex', 'carrier', 'boundary'] },
+  { id: 'low_cost', label: 'Low cost', note: 'small movement should fix local geometry', color: '#0891b2', kinds: ['vertex', 'carrier', 'boundary'] },
+  { id: 'high_cost', label: 'High cost', note: 'possible but expensive or evidence-moving', color: '#f59e0b', kinds: ['vertex', 'carrier', 'boundary'] },
+  { id: 'infeasible', label: 'Infeasible', note: 'topology or movement budget blocker', color: '#dc2626', kinds: ['vertex', 'carrier', 'boundary'] },
+  { id: 'odd_degree', label: 'Odd vertices', note: 'geometry cannot repair odd degree', color: '#ef4444', kinds: ['vertex'] },
+  { id: 'hard_kawasaki', label: 'Hard Kawasaki', note: 'large local angle residuals', color: '#9333ea', kinds: ['vertex'] },
+];
+
+function defaultProbeVisibility(): ProbeVisibility {
+  return {
+    feasible: { vertex: false, carrier: false, boundary: false },
+    low_cost: { vertex: false, carrier: false, boundary: false },
+    high_cost: { vertex: true, carrier: true, boundary: true },
+    infeasible: { vertex: true, carrier: true, boundary: true },
+    odd_degree: { vertex: true, carrier: false, boundary: false },
+    hard_kawasaki: { vertex: true, carrier: false, boundary: false },
+  };
+}
+
 export function App() {
   const [serverOk, setServerOk] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -55,8 +92,7 @@ export function App() {
   const [showRejectedEdges, setShowRejectedEdges] = useState(false);
   const [showUndecidedEdges, setShowUndecidedEdges] = useState(false);
   const [showCarrierGeometry, setShowCarrierGeometry] = useState(true);
-  const [showExactProbes, setShowExactProbes] = useState(true);
-  const [showAllExactProbes, setShowAllExactProbes] = useState(false);
+  const [probeVisibility, setProbeVisibility] = useState<ProbeVisibility>(() => defaultProbeVisibility());
   const [selectedMapId, setSelectedMapId] = useState('line_probability');
   const [reloadToken, setReloadToken] = useState(0);
 
@@ -65,7 +101,7 @@ export function App() {
       setShowLines(false);
       setShowSharedCarriers(false);
       setShowAtomicEdges(false);
-      setShowSelectedEdges(true);
+      setShowSelectedEdges(false);
       setShowUndecidedEdges(false);
       setShowRejectedEdges(false);
       setShowJunctions(false);
@@ -73,8 +109,7 @@ export function App() {
       setShowLineEndpoints(false);
       setShowInferredCrossings(false);
       setShowCarrierGeometry(true);
-      setShowExactProbes(true);
-      setShowAllExactProbes(false);
+      setProbeVisibility(defaultProbeVisibility());
     } else if (activeStage === 'stage3') {
       setShowLines(false);
       setShowSharedCarriers(false);
@@ -87,8 +122,6 @@ export function App() {
       setShowLineEndpoints(false);
       setShowInferredCrossings(false);
       setShowCarrierGeometry(true);
-      setShowExactProbes(false);
-      setShowAllExactProbes(false);
     } else if (activeStage === 'stage2') {
       setShowLines(true);
       setShowSharedCarriers(true);
@@ -101,8 +134,6 @@ export function App() {
       setShowLineEndpoints(false);
       setShowInferredCrossings(false);
       setShowCarrierGeometry(false);
-      setShowExactProbes(false);
-      setShowAllExactProbes(false);
     } else {
       setShowLines(true);
       setShowSharedCarriers(false);
@@ -115,8 +146,6 @@ export function App() {
       setShowLineEndpoints(false);
       setShowInferredCrossings(false);
       setShowCarrierGeometry(false);
-      setShowExactProbes(false);
-      setShowAllExactProbes(false);
     }
   }, [activeStage]);
 
@@ -181,6 +210,16 @@ export function App() {
     [background, stage?.maps],
   );
 
+  const toggleProbeVisibility = (status: ProbeStatusId, kind: ProbeKindId) => {
+    setProbeVisibility((current) => ({
+      ...current,
+      [status]: {
+        ...current[status],
+        [kind]: !current[status][kind],
+      },
+    }));
+  };
+
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -236,27 +275,31 @@ export function App() {
                 onChange={(event) => setThreshold(Number(event.target.value))}
               />
             </label>
-            <label>
-              Map size
-              <input
-                min="64"
-                max="512"
-                step="32"
-                type="number"
-                value={mapSize}
-                onChange={(event) => setMapSize(Number(event.target.value))}
-              />
-            </label>
-            <label>
-              Background
-              <select value={background} onChange={(event) => setBackground(event.target.value)}>
-                {BACKGROUND_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option.replaceAll('_', ' ')}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {activeStage !== 'stage4' ? (
+              <label>
+                Map size
+                <input
+                  min="64"
+                  max="512"
+                  step="32"
+                  type="number"
+                  value={mapSize}
+                  onChange={(event) => setMapSize(Number(event.target.value))}
+                />
+              </label>
+            ) : null}
+            {activeStage !== 'stage4' ? (
+              <label>
+                Background
+                <select value={background} onChange={(event) => setBackground(event.target.value)}>
+                  {BACKGROUND_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option.replaceAll('_', ' ')}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
             <button
               className="refresh-button"
               disabled={!selectedId || loadingStage}
@@ -321,7 +364,7 @@ export function App() {
             </section>
           )}
 
-          <section className="viewer-and-maps">
+          <section className={activeStage === 'stage4' ? 'viewer-and-maps stage4-viewer-layout' : 'viewer-and-maps'}>
             <div className="viewer-panel">
               <div className="viewer-toolbar">
                 <PanelTitle
@@ -336,6 +379,7 @@ export function App() {
                         : 'Input + Stage 1 Primitives'
                   }
                 />
+                {activeStage !== 'stage4' ? (
                 <div className="toggle-row">
                   <label>
                     <input type="checkbox" checked={showLines} onChange={(event) => setShowLines(event.target.checked)} />
@@ -361,7 +405,7 @@ export function App() {
                       atomic intervals
                     </label>
                   ) : null}
-                  {activeStage === 'stage3' || activeStage === 'stage4' ? (
+                  {activeStage === 'stage3' ? (
                     <label>
                       <input
                         type="checkbox"
@@ -371,7 +415,7 @@ export function App() {
                       carrier geometry
                     </label>
                   ) : null}
-                  {activeStage === 'stage3' || activeStage === 'stage4' ? (
+                  {activeStage === 'stage3' ? (
                     <label>
                       <input
                         type="checkbox"
@@ -381,7 +425,7 @@ export function App() {
                       selected
                     </label>
                   ) : null}
-                  {activeStage === 'stage3' || activeStage === 'stage4' ? (
+                  {activeStage === 'stage3' ? (
                     <label>
                       <input
                         type="checkbox"
@@ -391,7 +435,7 @@ export function App() {
                       undecided
                     </label>
                   ) : null}
-                  {activeStage === 'stage3' || activeStage === 'stage4' ? (
+                  {activeStage === 'stage3' ? (
                     <label>
                       <input
                         type="checkbox"
@@ -401,37 +445,15 @@ export function App() {
                       rejected
                     </label>
                   ) : null}
-                  {activeStage === 'stage4' ? (
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={showExactProbes}
-                        onChange={(event) => setShowExactProbes(event.target.checked)}
-                      />
-                      exact probes
-                    </label>
-                  ) : null}
-                  {activeStage === 'stage4' ? (
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={showAllExactProbes}
-                        onChange={(event) => setShowAllExactProbes(event.target.checked)}
-                      />
-                      all probes
-                    </label>
-                  ) : null}
-                  {activeStage !== 'stage4' ? (
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={showJunctions}
-                        onChange={(event) => setShowJunctions(event.target.checked)}
-                      />
-                      {activeStage !== 'stage1' ? 'observed junctions' : 'junctions'}
-                    </label>
-                  ) : null}
-                  {activeStage !== 'stage1' && activeStage !== 'stage4' ? (
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={showJunctions}
+                      onChange={(event) => setShowJunctions(event.target.checked)}
+                    />
+                    {activeStage !== 'stage1' ? 'observed junctions' : 'junctions'}
+                  </label>
+                  {activeStage !== 'stage1' ? (
                     <label>
                       <input
                         type="checkbox"
@@ -451,23 +473,20 @@ export function App() {
                       inferred crossings
                     </label>
                   ) : null}
-                  {activeStage !== 'stage4' ? (
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={showContacts}
-                        onChange={(event) => setShowContacts(event.target.checked)}
-                      />
-                      contacts
-                    </label>
-                  ) : null}
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={showContacts}
+                      onChange={(event) => setShowContacts(event.target.checked)}
+                    />
+                    contacts
+                  </label>
                 </div>
+                ) : null}
               </div>
               {isStage3(stage) ? (
                 <SelectionViewer
-                  backgroundMap={backgroundMap}
-                  showAllExactProbes={showAllExactProbes}
-                  showExactProbes={showExactProbes}
+                  backgroundMap={activeStage === 'stage4' ? null : backgroundMap}
                   showCarrierGeometry={showCarrierGeometry}
                   showContacts={showContacts}
                   showJunctions={showJunctions}
@@ -477,6 +496,7 @@ export function App() {
                   showSelectedEdges={showSelectedEdges}
                   showSharedCarriers={showSharedCarriers}
                   showUndecidedEdges={showUndecidedEdges}
+                  probeVisibility={probeVisibility}
                   stage={stage}
                 />
               ) : hasArrangement(stage) ? (
@@ -504,6 +524,15 @@ export function App() {
               )}
             </div>
 
+            {isStage4(stage) ? (
+              <aside className="map-panel stage4-probe-panel">
+                <Stage4LayerSummary
+                  onToggleProbe={toggleProbeVisibility}
+                  probeVisibility={probeVisibility}
+                  stage={stage}
+                />
+              </aside>
+            ) : (
             <aside className="map-panel">
               <PanelTitle icon={<Layers3 size={17} />} title="Dense Evidence Maps" />
               <select value={selectedMapId} onChange={(event) => setSelectedMapId(event.target.value)}>
@@ -527,8 +556,9 @@ export function App() {
                   </button>
                 ))}
               </div>
-              {isStage4(stage) ? <Stage4LayerSummary stage={stage} /> : isStage3(stage) ? <Stage3LayerSummary stage={stage} /> : hasArrangement(stage) ? <Stage2LayerSummary stage={stage} /> : null}
+              {isStage3(stage) ? <Stage3LayerSummary stage={stage} /> : hasArrangement(stage) ? <Stage2LayerSummary stage={stage} /> : null}
             </aside>
+            )}
           </section>
         </section>
       </main>
@@ -741,11 +771,10 @@ function SelectionViewer({
   backgroundMap,
   showCarrierGeometry,
   showContacts,
-  showAllExactProbes,
-  showExactProbes,
   showJunctions,
   showLineEndpoints,
   showLines,
+  probeVisibility,
   showRejectedEdges,
   showSelectedEdges,
   showSharedCarriers,
@@ -755,11 +784,10 @@ function SelectionViewer({
   backgroundMap: MapPayload | null;
   showCarrierGeometry: boolean;
   showContacts: boolean;
-  showAllExactProbes: boolean;
-  showExactProbes: boolean;
   showJunctions: boolean;
   showLineEndpoints: boolean;
   showLines: boolean;
+  probeVisibility: ProbeVisibility;
   showRejectedEdges: boolean;
   showSelectedEdges: boolean;
   showSharedCarriers: boolean;
@@ -788,16 +816,18 @@ function SelectionViewer({
   }, [stage.selection.edge_scores]);
   const visibleVertexProbes = useMemo(() => {
     if (!isStage4(stage)) return [];
-    return stage.exactizability.vertex_probes.filter(
-      (probe) => showAllExactProbes || probe.status === 'high_cost' || probe.status === 'infeasible',
-    );
-  }, [showAllExactProbes, stage]);
+    return stage.exactizability.vertex_probes
+      .map((probe) => ({ probe, displayStatus: vertexProbeDisplayStatus(probe, probeVisibility) }))
+      .filter((entry): entry is { probe: VertexExactizabilityProbe; displayStatus: ProbeStatusId } => entry.displayStatus !== null);
+  }, [probeVisibility, stage]);
+  const visibleCarrierProbes = useMemo(() => {
+    if (!isStage4(stage)) return [];
+    return stage.exactizability.carrier_probes.filter((probe) => isProbeStatusVisible(probe.status, 'carrier', probeVisibility));
+  }, [probeVisibility, stage]);
   const visibleBoundaryProbes = useMemo(() => {
     if (!isStage4(stage)) return [];
-    return stage.exactizability.boundary_probes.filter(
-      (probe) => showAllExactProbes || probe.status === 'high_cost' || probe.status === 'infeasible',
-    );
-  }, [showAllExactProbes, stage]);
+    return stage.exactizability.boundary_probes.filter((probe) => isProbeStatusVisible(probe.status, 'boundary', probeVisibility));
+  }, [probeVisibility, stage]);
   const size = stage.config.image_size;
 
   const renderSelectionEdges = (ids: number[], decision: 'selected' | 'rejected' | 'undecided') =>
@@ -862,15 +892,33 @@ function SelectionViewer({
               .filter((vertex) => vertex.kind === 'boundary_contact' || vertex.kind === 'corner')
               .map((vertex) => <ArrangementVertexView frame={stage.overlay_frame_px} key={`contact-${vertex.id}`} vertex={vertex} />)
           : null}
-        {showExactProbes && isStage4(stage)
-          ? [
-              ...visibleBoundaryProbes.map((probe) => (
-                <ExactBoundaryProbeView frame={stage.overlay_frame_px} key={`boundary-probe-${probe.vertex_id}`} probe={probe} />
-              )),
-              ...visibleVertexProbes.map((probe) => (
-                <ExactVertexProbeView frame={stage.overlay_frame_px} key={`vertex-probe-${probe.vertex_id}`} probe={probe} />
-              )),
-            ]
+        {isStage4(stage)
+          ? visibleCarrierProbes.map((probe) => {
+              const carrier = carriersById.get(probe.carrier_id);
+              return carrier ? (
+                <ExactCarrierProbeView
+                  carrier={carrier}
+                  frame={stage.overlay_frame_px}
+                  key={`carrier-probe-${probe.carrier_id}`}
+                  probe={probe}
+                />
+              ) : null;
+            })
+          : null}
+        {isStage4(stage)
+          ? visibleBoundaryProbes.map((probe) => (
+              <ExactBoundaryProbeView frame={stage.overlay_frame_px} key={`boundary-probe-${probe.vertex_id}`} probe={probe} />
+            ))
+          : null}
+        {isStage4(stage)
+          ? visibleVertexProbes.map(({ displayStatus, probe }) => (
+              <ExactVertexProbeView
+                displayStatus={displayStatus}
+                frame={stage.overlay_frame_px}
+                key={`vertex-probe-${probe.vertex_id}`}
+                probe={probe}
+              />
+            ))
           : null}
       </svg>
     </div>
@@ -1041,29 +1089,35 @@ function ArrangementVertexView({
 }
 
 function ExactVertexProbeView({
+  displayStatus,
   frame,
   probe,
 }: {
+  displayStatus: ProbeStatusId;
   frame: Stage2Response['overlay_frame_px'];
   probe: VertexExactizabilityProbe;
 }) {
   const point = imagePoint(probe.point, frame);
-  const color = exactStatusColor(probe.status);
-  const isHard = probe.status === 'infeasible' || probe.status === 'high_cost';
+  const color = exactStatusColor(displayStatus);
+  const isHard =
+    displayStatus === 'infeasible' ||
+    displayStatus === 'high_cost' ||
+    displayStatus === 'odd_degree' ||
+    displayStatus === 'hard_kawasaki';
   return (
     <circle
       cx={point.x}
       cy={point.y}
       fill="white"
       fillOpacity={isHard ? 0.2 : 0.08}
-      r={probe.status === 'infeasible' ? 11 : probe.status === 'high_cost' ? 9 : 5}
+      r={displayStatus === 'infeasible' || displayStatus === 'odd_degree' || displayStatus === 'hard_kawasaki' ? 11 : displayStatus === 'high_cost' ? 9 : 5}
       stroke={color}
       strokeOpacity={isHard ? 0.95 : 0.55}
       strokeWidth={isHard ? 3 : 1.8}
       vectorEffect="non-scaling-stroke"
     >
       <title>
-        vertex {probe.vertex_id}: {probe.status.replaceAll('_', ' ')}; degree {probe.degree}; Kawasaki residual{' '}
+        vertex {probe.vertex_id}: {displayStatus.replaceAll('_', ' ')}; base status {probe.status.replaceAll('_', ' ')}; degree {probe.degree}; Kawasaki residual{' '}
         {probe.residual_before_degrees?.toFixed(3) ?? 'n/a'}°; move {probe.max_vertex_move.toFixed(5)}
         {probe.blockers.length ? `; ${probe.blockers.join('; ')}` : ''}
       </title>
@@ -1100,6 +1154,41 @@ function ExactBoundaryProbeView({
         {probe.blockers.length ? `; ${probe.blockers.join('; ')}` : ''}
       </title>
     </rect>
+  );
+}
+
+function ExactCarrierProbeView({
+  carrier,
+  frame,
+  probe,
+}: {
+  carrier: ArrangementCarrier;
+  frame: Stage2Response['overlay_frame_px'];
+  probe: CarrierExactizabilityProbe;
+}) {
+  const p0 = imagePoint(pointAtCarrierT(carrier, carrier.support_interval[0]), frame);
+  const p1 = imagePoint(pointAtCarrierT(carrier, carrier.support_interval[1]), frame);
+  const color = exactStatusColor(probe.status);
+  const isHard = probe.status === 'infeasible' || probe.status === 'high_cost';
+  return (
+    <line
+      stroke={color}
+      strokeDasharray={isHard ? '10 5' : '4 5'}
+      strokeLinecap="round"
+      strokeOpacity={isHard ? 0.9 : 0.48}
+      strokeWidth={isHard ? 4.2 : 2}
+      vectorEffect="non-scaling-stroke"
+      x1={p0.x}
+      x2={p1.x}
+      y1={p0.y}
+      y2={p1.y}
+    >
+      <title>
+        carrier {probe.carrier_id}: {probe.status.replaceAll('_', ' ')}; {probe.carrier_kind.replaceAll('_', ' ')}; selected edges{' '}
+        {probe.selected_edges}; max endpoint move {probe.max_endpoint_move.toFixed(5)}, mean {probe.mean_endpoint_move.toFixed(5)}
+        {probe.blockers.length ? `; ${probe.blockers.join('; ')}` : ''}
+      </title>
+    </line>
   );
 }
 
@@ -1198,7 +1287,15 @@ function Stage3LayerSummary({ stage }: { stage: Stage3Response }) {
   );
 }
 
-function Stage4LayerSummary({ stage }: { stage: Stage4Response }) {
+function Stage4LayerSummary({
+  onToggleProbe,
+  probeVisibility,
+  stage,
+}: {
+  onToggleProbe: (status: ProbeStatusId, kind: ProbeKindId) => void;
+  probeVisibility: ProbeVisibility;
+  stage: Stage4Response;
+}) {
   const summary = stage.exactizability.summary;
   const hardestVertices = stage.exactizability.vertex_probes
     .filter((probe) => probe.status === 'infeasible' || probe.status === 'high_cost')
@@ -1211,12 +1308,23 @@ function Stage4LayerSummary({ stage }: { stage: Stage4Response }) {
   return (
     <div className="hypothesis-panel">
       <PanelTitle icon={<GitBranch size={17} />} title="Stage 4 Probes" />
-      <LayerRow color={exactStatusColor('feasible')} label="Feasible" value={summary.feasible} note="already locally exact" />
-      <LayerRow color={exactStatusColor('low_cost')} label="Low cost" value={summary.low_cost} note="small movement should fix local geometry" />
-      <LayerRow color={exactStatusColor('high_cost')} label="High cost" value={summary.high_cost} note="possible but expensive or evidence-moving" />
-      <LayerRow color={exactStatusColor('infeasible')} label="Infeasible" value={summary.infeasible} note="topology or movement budget blocker" />
-      <LayerRow color="#ef4444" label="Odd vertices" value={summary.odd_degree_vertices} note="geometry cannot repair odd degree" />
-      <LayerRow color="#9333ea" label="Hard Kawasaki" value={summary.hard_kawasaki_vertices} note="large local angle residuals" />
+      <div className="probe-kind-header">
+        <span />
+        <span />
+        <b>V</b>
+        <b>C</b>
+        <b>B</b>
+        <span />
+      </div>
+      {PROBE_STATUS_ROWS.map((row) => (
+        <ProbeToggleRow
+          key={row.id}
+          row={row}
+          value={stage4ProbeRowCount(summary, row.id)}
+          visibility={probeVisibility[row.id]}
+          onToggle={(kind) => onToggleProbe(row.id, kind)}
+        />
+      ))}
       <div className="hypothesis-divider" />
       <div className="selection-status-row">
         <span>Max Kawasaki residual</span>
@@ -1277,6 +1385,43 @@ function Stage4LayerSummary({ stage }: { stage: Stage4Response }) {
   );
 }
 
+function ProbeToggleRow({
+  onToggle,
+  row,
+  value,
+  visibility,
+}: {
+  onToggle: (kind: ProbeKindId) => void;
+  row: (typeof PROBE_STATUS_ROWS)[number];
+  value: number;
+  visibility: Record<ProbeKindId, boolean>;
+}) {
+  return (
+    <div className="probe-toggle-row">
+      <span className="layer-swatch" style={{ background: row.color }} />
+      <span className="probe-toggle-copy">
+        <strong>{row.label}</strong>
+        <em>{row.note}</em>
+      </span>
+      {(['vertex', 'carrier', 'boundary'] as ProbeKindId[]).map((kind) => {
+        const available = row.kinds.includes(kind);
+        return (
+          <label className={available ? 'probe-kind-toggle' : 'probe-kind-toggle disabled'} key={kind}>
+            <input
+              aria-label={`${row.label} ${PROBE_KIND_LABELS[kind]} probes`}
+              checked={available ? visibility[kind] : false}
+              disabled={!available}
+              onChange={() => onToggle(kind)}
+              type="checkbox"
+            />
+          </label>
+        );
+      })}
+      <b>{value}</b>
+    </div>
+  );
+}
+
 function LayerRow({ color, label, note, value }: { color: string; label: string; note: string; value: number }) {
   return (
     <div className="layer-row">
@@ -1311,7 +1456,31 @@ function arrangementAssignmentColor(label: string) {
   return '#64748b';
 }
 
+function stage4ProbeRowCount(summary: Stage4Response['exactizability']['summary'], status: ProbeStatusId) {
+  if (status === 'odd_degree') return summary.odd_degree_vertices;
+  if (status === 'hard_kawasaki') return summary.hard_kawasaki_vertices;
+  return summary[status];
+}
+
+function isProbeStatusVisible(status: string, kind: ProbeKindId, visibility: ProbeVisibility) {
+  if (status === 'feasible' || status === 'low_cost' || status === 'high_cost' || status === 'infeasible') {
+    return visibility[status][kind];
+  }
+  return false;
+}
+
+function vertexProbeDisplayStatus(probe: VertexExactizabilityProbe, visibility: ProbeVisibility): ProbeStatusId | null {
+  if (visibility.odd_degree.vertex && probe.degree % 2 === 1) return 'odd_degree';
+  if (visibility.hard_kawasaki.vertex && (probe.residual_before_degrees ?? 0) > 12) return 'hard_kawasaki';
+  if (isProbeStatusVisible(probe.status, 'vertex', visibility)) {
+    return probe.status as ProbeStatusId;
+  }
+  return null;
+}
+
 function exactStatusColor(status: string) {
+  if (status === 'odd_degree') return '#ef4444';
+  if (status === 'hard_kawasaki') return '#9333ea';
   if (status === 'feasible') return '#16a34a';
   if (status === 'low_cost') return '#0891b2';
   if (status === 'high_cost') return '#f59e0b';
