@@ -2,7 +2,7 @@ use anyhow::{Context, Result, anyhow, bail};
 use oristudio_cp_compiler::arrangement_v2::{
     ArrangementBoundaryContactPrimitive, ArrangementBoundarySide, ArrangementJunctionPrimitive,
     ArrangementLinePrimitive, ArrangementPaperFramePx, ArrangementV2Input, ArrangementV2Options,
-    CandidateArrangement, build_candidate_arrangement,
+    ArrangementVertex, ArrangementVertexKind, CandidateArrangement, build_candidate_arrangement,
 };
 use oristudio_cp_compiler::exact_probe::{
     ExactProbeOptions, ExactizabilityReport, probe_exactizability,
@@ -18,7 +18,7 @@ use oristudio_cp_detect::evidence_extract::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
@@ -174,8 +174,57 @@ struct Stage5Response {
     primitives: PrimitivePayload,
     arrangement: CandidateArrangement,
     selection: CandidateSelection,
+    compiled_selection_graph: CompiledSelectionGraphPayload,
     exactizability: ExactizabilityReport,
     ground_truth: Option<GroundTruthGraphPayload>,
+}
+
+#[derive(Debug, Serialize)]
+struct CompiledSelectionGraphPayload {
+    coordinate_space: String,
+    image_size: u32,
+    vertices: Vec<CompiledSelectionVertexPayload>,
+    edges: Vec<CompiledSelectionEdgePayload>,
+    report: CompiledSelectionGraphReport,
+}
+
+#[derive(Debug, Serialize)]
+struct CompiledSelectionVertexPayload {
+    id: usize,
+    arrangement_vertex_id: usize,
+    point: Point2,
+    source_kind: ArrangementVertexKind,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    boundary_side: Option<ArrangementBoundarySide>,
+    selected_degree: usize,
+}
+
+#[derive(Debug, Serialize)]
+struct CompiledSelectionEdgePayload {
+    id: usize,
+    vertices: [usize; 2],
+    carrier_id: usize,
+    assignment_label: String,
+    assignment_confidence: f64,
+    carrier_t_interval: [f64; 2],
+    source_atomic_edge_ids: Vec<usize>,
+    collapsed_vertex_ids: Vec<usize>,
+    line_support_min: f64,
+    line_support_mean: f64,
+    line_support_max: f64,
+}
+
+#[derive(Debug, Serialize)]
+struct CompiledSelectionGraphReport {
+    vertices: usize,
+    edges: usize,
+    source_atomic_edges: usize,
+    collapsed_pass_through_vertices: usize,
+    non_collinear_degree_two_vertices: usize,
+    mountain_edges: usize,
+    valley_edges: usize,
+    boundary_edges: usize,
+    unknown_edges: usize,
 }
 
 #[derive(Debug, Serialize)]
@@ -729,6 +778,7 @@ fn stage5_example(
         exact_options,
     );
     let exactizability = probe_exactizability(&stage2.arrangement, &selection, exact_options);
+    let compiled_selection_graph = compile_selection_graph(&stage2.arrangement, &selection);
     let ground_truth = read_ground_truth_graph(state, sample)?;
     Ok(Stage5Response {
         schema: "oristudio/cp-detect-architecture-inspector/stage5/v1",
@@ -741,9 +791,375 @@ fn stage5_example(
         primitives: stage2.primitives,
         arrangement: stage2.arrangement,
         selection,
+        compiled_selection_graph,
         exactizability,
         ground_truth,
     })
+}
+
+fn compile_selection_graph(
+    arrangement: &CandidateArrangement,
+    selection: &CandidateSelection,
+) -> CompiledSelectionGraphPayload {
+    let selected = selection
+        .selected_edge_ids
+        .iter()
+        .copied()
+        .collect::<BTreeSet<_>>();
+    let vertices_by_id = arrangement
+        .vertices
+        .iter()
+        .map(|vertex| (vertex.id, vertex))
+        .collect::<BTreeMap<_, _>>();
+    let edges_by_id = arrangement
+        .atomic_edges
+        .iter()
+        .map(|edge| (edge.id, edge))
+        .collect::<BTreeMap<_, _>>();
+    let mut incident = BTreeMap::<usize, Vec<usize>>::new();
+    for edge in arrangement
+        .atomic_edges
+        .iter()
+        .filter(|edge| selected.contains(&edge.id))
+    {
+        incident.entry(edge.vertices[0]).or_default().push(edge.id);
+        incident.entry(edge.vertices[1]).or_default().push(edge.id);
+    }
+
+    let mut selected_by_carrier = BTreeMap::<usize, Vec<usize>>::new();
+    for edge_id in &selected {
+        if let Some(edge) = edges_by_id.get(edge_id) {
+            selected_by_carrier
+                .entry(edge.carrier_id)
+                .or_default()
+                .push(*edge_id);
+        }
+    }
+
+    let mut compiled_vertices = Vec::<CompiledSelectionVertexPayload>::new();
+    let mut compiled_vertex_ids = BTreeMap::<usize, usize>::new();
+    let mut compiled_edges = Vec::<CompiledSelectionEdgePayload>::new();
+    let mut all_collapsed_vertices = BTreeSet::<usize>::new();
+
+    for (carrier_id, carrier_edge_ids) in selected_by_carrier {
+        let mut adjacency = BTreeMap::<usize, Vec<(usize, usize)>>::new();
+        for edge_id in carrier_edge_ids {
+            let Some(edge) = edges_by_id.get(&edge_id) else {
+                continue;
+            };
+            adjacency
+                .entry(edge.vertices[0])
+                .or_default()
+                .push((edge.vertices[1], edge.id));
+            adjacency
+                .entry(edge.vertices[1])
+                .or_default()
+                .push((edge.vertices[0], edge.id));
+        }
+
+        let keep_vertices = adjacency
+            .keys()
+            .copied()
+            .filter(|vertex_id| {
+                !is_compiled_pass_through_vertex(
+                    *vertex_id,
+                    carrier_id,
+                    &incident,
+                    &edges_by_id,
+                    &vertices_by_id,
+                )
+            })
+            .collect::<BTreeSet<_>>();
+        let mut visited_edges = BTreeSet::<usize>::new();
+
+        for start_id in &keep_vertices {
+            let Some(neighbors) = adjacency.get(start_id) else {
+                continue;
+            };
+            for (next_id, edge_id) in neighbors {
+                if visited_edges.contains(edge_id) {
+                    continue;
+                }
+                let mut path_edge_ids = vec![*edge_id];
+                let mut collapsed_vertex_ids = Vec::new();
+                visited_edges.insert(*edge_id);
+
+                let mut previous_id = *start_id;
+                let mut current_id = *next_id;
+                while is_compiled_pass_through_vertex(
+                    current_id,
+                    carrier_id,
+                    &incident,
+                    &edges_by_id,
+                    &vertices_by_id,
+                ) {
+                    collapsed_vertex_ids.push(current_id);
+                    all_collapsed_vertices.insert(current_id);
+                    let Some(next_step) = adjacency
+                        .get(&current_id)
+                        .and_then(|items| {
+                            items.iter().find(|(candidate_id, candidate_edge_id)| {
+                                *candidate_id != previous_id
+                                    && !visited_edges.contains(candidate_edge_id)
+                            })
+                        })
+                        .copied()
+                    else {
+                        break;
+                    };
+                    previous_id = current_id;
+                    current_id = next_step.0;
+                    visited_edges.insert(next_step.1);
+                    path_edge_ids.push(next_step.1);
+                }
+
+                push_compiled_edge(
+                    arrangement,
+                    &vertices_by_id,
+                    &edges_by_id,
+                    &incident,
+                    &mut compiled_vertices,
+                    &mut compiled_vertex_ids,
+                    &mut compiled_edges,
+                    *start_id,
+                    current_id,
+                    carrier_id,
+                    path_edge_ids,
+                    collapsed_vertex_ids,
+                );
+            }
+        }
+
+        for edge_id in adjacency
+            .values()
+            .flat_map(|neighbors| neighbors.iter().map(|(_, edge_id)| *edge_id))
+            .collect::<BTreeSet<_>>()
+        {
+            if visited_edges.contains(&edge_id) {
+                continue;
+            }
+            if let Some(edge) = edges_by_id.get(&edge_id) {
+                push_compiled_edge(
+                    arrangement,
+                    &vertices_by_id,
+                    &edges_by_id,
+                    &incident,
+                    &mut compiled_vertices,
+                    &mut compiled_vertex_ids,
+                    &mut compiled_edges,
+                    edge.vertices[0],
+                    edge.vertices[1],
+                    carrier_id,
+                    vec![edge_id],
+                    Vec::new(),
+                );
+            }
+        }
+    }
+
+    let mut compiled_degrees = vec![0usize; compiled_vertices.len()];
+    for edge in &compiled_edges {
+        if let Some(degree) = compiled_degrees.get_mut(edge.vertices[0]) {
+            *degree += 1;
+        }
+        if let Some(degree) = compiled_degrees.get_mut(edge.vertices[1]) {
+            *degree += 1;
+        }
+    }
+    for vertex in &mut compiled_vertices {
+        vertex.selected_degree = compiled_degrees.get(vertex.id).copied().unwrap_or(0);
+    }
+
+    let mut mountain_edges = 0usize;
+    let mut valley_edges = 0usize;
+    let mut boundary_edges = 0usize;
+    let mut unknown_edges = 0usize;
+    for edge in &compiled_edges {
+        match edge.assignment_label.as_str() {
+            "mountain" => mountain_edges += 1,
+            "valley" => valley_edges += 1,
+            "boundary" => boundary_edges += 1,
+            _ => unknown_edges += 1,
+        }
+    }
+
+    CompiledSelectionGraphPayload {
+        coordinate_space: arrangement.coordinate_space.clone(),
+        image_size: arrangement.image_size,
+        report: CompiledSelectionGraphReport {
+            vertices: compiled_vertices.len(),
+            edges: compiled_edges.len(),
+            source_atomic_edges: selected.len(),
+            collapsed_pass_through_vertices: all_collapsed_vertices.len(),
+            non_collinear_degree_two_vertices: selection.report.non_collinear_degree_two_vertices,
+            mountain_edges,
+            valley_edges,
+            boundary_edges,
+            unknown_edges,
+        },
+        vertices: compiled_vertices,
+        edges: compiled_edges,
+    }
+}
+
+fn is_compiled_pass_through_vertex(
+    vertex_id: usize,
+    carrier_id: usize,
+    incident: &BTreeMap<usize, Vec<usize>>,
+    edges_by_id: &BTreeMap<usize, &oristudio_cp_compiler::arrangement_v2::ArrangementAtomicEdge>,
+    vertices_by_id: &BTreeMap<usize, &ArrangementVertex>,
+) -> bool {
+    let Some(vertex) = vertices_by_id.get(&vertex_id).copied() else {
+        return false;
+    };
+    if matches!(vertex.kind, ArrangementVertexKind::Corner) {
+        return false;
+    }
+    let Some(edge_ids) = incident.get(&vertex_id) else {
+        return false;
+    };
+    edge_ids.len() == 2
+        && edge_ids.iter().all(|edge_id| {
+            edges_by_id
+                .get(edge_id)
+                .is_some_and(|edge| edge.carrier_id == carrier_id)
+        })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn push_compiled_edge(
+    arrangement: &CandidateArrangement,
+    vertices_by_id: &BTreeMap<usize, &ArrangementVertex>,
+    edges_by_id: &BTreeMap<usize, &oristudio_cp_compiler::arrangement_v2::ArrangementAtomicEdge>,
+    incident: &BTreeMap<usize, Vec<usize>>,
+    compiled_vertices: &mut Vec<CompiledSelectionVertexPayload>,
+    compiled_vertex_ids: &mut BTreeMap<usize, usize>,
+    compiled_edges: &mut Vec<CompiledSelectionEdgePayload>,
+    start_id: usize,
+    end_id: usize,
+    carrier_id: usize,
+    source_atomic_edge_ids: Vec<usize>,
+    collapsed_vertex_ids: Vec<usize>,
+) {
+    if start_id == end_id || source_atomic_edge_ids.is_empty() {
+        return;
+    }
+    let Some(start_vertex_id) = compiled_vertex_id(
+        start_id,
+        vertices_by_id,
+        incident,
+        compiled_vertices,
+        compiled_vertex_ids,
+    ) else {
+        return;
+    };
+    let Some(end_vertex_id) = compiled_vertex_id(
+        end_id,
+        vertices_by_id,
+        incident,
+        compiled_vertices,
+        compiled_vertex_ids,
+    ) else {
+        return;
+    };
+    let mut t_min = f64::INFINITY;
+    let mut t_max = f64::NEG_INFINITY;
+    let mut support_min = f64::INFINITY;
+    let mut support_max = f64::NEG_INFINITY;
+    let mut support_sum = 0.0;
+    let mut support_count = 0usize;
+    let mut labels = BTreeMap::<String, (usize, f64)>::new();
+    for edge_id in &source_atomic_edge_ids {
+        let Some(edge) = edges_by_id.get(edge_id).copied() else {
+            continue;
+        };
+        t_min = t_min.min(edge.t_interval[0]).min(edge.t_interval[1]);
+        t_max = t_max.max(edge.t_interval[0]).max(edge.t_interval[1]);
+        support_min = support_min.min(edge.line_support);
+        support_max = support_max.max(edge.line_support);
+        support_sum += edge.line_support;
+        support_count += 1;
+        let label = assignment_label_name(edge.assignment.label).to_owned();
+        let entry = labels.entry(label).or_default();
+        entry.0 += 1;
+        entry.1 += edge.assignment.confidence;
+    }
+    let (assignment_label, (_, confidence_sum)) = labels
+        .into_iter()
+        .max_by(|left, right| {
+            left.1
+                .0
+                .cmp(&right.1.0)
+                .then_with(|| left.1.1.total_cmp(&right.1.1))
+        })
+        .unwrap_or_else(|| {
+            arrangement
+                .carriers
+                .iter()
+                .find(|carrier| carrier.id == carrier_id)
+                .map(|carrier| {
+                    (
+                        assignment_label_name(carrier.assignment.label).to_owned(),
+                        (1, carrier.assignment.confidence),
+                    )
+                })
+                .unwrap_or_else(|| ("unknown".to_owned(), (1, 0.0)))
+        });
+    let assignment_count = source_atomic_edge_ids.len().max(1) as f64;
+    compiled_edges.push(CompiledSelectionEdgePayload {
+        id: compiled_edges.len(),
+        vertices: [start_vertex_id, end_vertex_id],
+        carrier_id,
+        assignment_label,
+        assignment_confidence: confidence_sum / assignment_count,
+        carrier_t_interval: [t_min, t_max],
+        source_atomic_edge_ids,
+        collapsed_vertex_ids,
+        line_support_min: if support_count == 0 { 0.0 } else { support_min },
+        line_support_mean: if support_count == 0 {
+            0.0
+        } else {
+            support_sum / support_count as f64
+        },
+        line_support_max: if support_count == 0 { 0.0 } else { support_max },
+    });
+}
+
+fn compiled_vertex_id(
+    arrangement_vertex_id: usize,
+    vertices_by_id: &BTreeMap<usize, &ArrangementVertex>,
+    incident: &BTreeMap<usize, Vec<usize>>,
+    compiled_vertices: &mut Vec<CompiledSelectionVertexPayload>,
+    compiled_vertex_ids: &mut BTreeMap<usize, usize>,
+) -> Option<usize> {
+    if let Some(id) = compiled_vertex_ids.get(&arrangement_vertex_id) {
+        return Some(*id);
+    }
+    let vertex = vertices_by_id.get(&arrangement_vertex_id).copied()?;
+    let id = compiled_vertices.len();
+    compiled_vertices.push(CompiledSelectionVertexPayload {
+        id,
+        arrangement_vertex_id,
+        point: vertex.point,
+        source_kind: vertex.kind,
+        boundary_side: vertex.boundary_side,
+        selected_degree: incident
+            .get(&arrangement_vertex_id)
+            .map(Vec::len)
+            .unwrap_or(0),
+    });
+    compiled_vertex_ids.insert(arrangement_vertex_id, id);
+    Some(id)
+}
+
+fn assignment_label_name(label: AssignmentLabel) -> &'static str {
+    match label {
+        AssignmentLabel::Mountain => "mountain",
+        AssignmentLabel::Valley => "valley",
+        AssignmentLabel::Boundary => "boundary",
+        AssignmentLabel::Unknown => "unknown",
+        AssignmentLabel::Flat => "flat",
+    }
 }
 
 fn read_ground_truth_graph(

@@ -8,6 +8,7 @@ import type {
   BoundaryExactizabilityProbe,
   BoundaryContactPrimitive,
   CarrierExactizabilityProbe,
+  CompiledSelectionGraph,
   ExampleRow,
   GroundTruthGraph,
   JunctionPrimitive,
@@ -416,11 +417,15 @@ export function App() {
 
           {activeStage === 'stage5' ? (
             <section className="summary-grid">
-              <Metric label="selected edges" value={isStage5(stage) ? stage.selection.report.selected_edges : '...'} />
+              <Metric label="compiled edges" value={isStage5(stage) ? stage.compiled_selection_graph.report.edges : '...'} />
+              <Metric label="compiled vertices" value={isStage5(stage) ? stage.compiled_selection_graph.report.vertices : '...'} />
+              <Metric label="atomic intervals" value={isStage5(stage) ? stage.compiled_selection_graph.report.source_atomic_edges : '...'} />
+              <Metric label="collapsed vertices" value={isStage5(stage) ? stage.compiled_selection_graph.report.collapsed_pass_through_vertices : '...'} />
               <Metric label="weak promoted" value={isStage5(stage) ? stage.selection.report.weak_edges_promoted : '...'} />
-              <Metric label="hard probes" value={isStage5(stage) ? `${stage.exactizability.summary.infeasible} hard / ${stage.exactizability.summary.high_cost} high` : '...'} />
-              <Metric label="odd vertices" value={isStage5(stage) ? stage.exactizability.summary.odd_degree_vertices : '...'} />
-              <Metric label="GT edges" value={isStage5(stage) ? (stage.ground_truth?.edges_vertices.length ?? 'none') : '...'} />
+              <Metric
+                label="GT graph"
+                value={isStage5(stage) && stage.ground_truth ? `${stage.ground_truth.vertices_px.length} V / ${stage.ground_truth.edges_vertices.length} E` : 'none'}
+              />
             </section>
           ) : activeStage === 'stage4' ? (
             <section className="summary-grid">
@@ -489,7 +494,7 @@ export function App() {
                   icon={activeStage !== 'stage1' ? <GitBranch size={17} /> : <Layers3 size={17} />}
                   title={
                     activeStage === 'stage5'
-                      ? 'Beam Selected vs Ground Truth'
+                      ? 'Compiled Selection vs Ground Truth'
                       : activeStage === 'stage4'
                       ? 'Input + Exactizability Probes'
                       : activeStage === 'stage3'
@@ -507,7 +512,7 @@ export function App() {
                         checked={showSelectedEdges}
                         onChange={(event) => setShowSelectedEdges(event.target.checked)}
                       />
-                      beam selected graph
+                      compiled graph
                     </label>
                     <label>
                       <input
@@ -516,6 +521,14 @@ export function App() {
                         onChange={(event) => setShowGroundTruth(event.target.checked)}
                       />
                       GT graph
+                    </label>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={showAtomicEdges}
+                        onChange={(event) => setShowAtomicEdges(event.target.checked)}
+                      />
+                      atomic provenance
                     </label>
                   </div>
                 ) : activeStage !== 'stage4' ? (
@@ -633,6 +646,7 @@ export function App() {
                   showLines={showLines}
                   showExactProbes={activeStage === 'stage4'}
                   showGroundTruth={showGroundTruth}
+                  showAtomicEdges={showAtomicEdges}
                   showRejectedEdges={showRejectedEdges}
                   showSelectedEdges={showSelectedEdges}
                   showSharedCarriers={showSharedCarriers}
@@ -928,6 +942,7 @@ function ArrangementViewer({
 function SelectionViewer({
   backgroundMap,
   showCarrierGeometry,
+  showAtomicEdges,
   showContacts,
   showExactProbes,
   showGroundTruth,
@@ -944,6 +959,7 @@ function SelectionViewer({
 }: {
   backgroundMap: MapPayload | null;
   showCarrierGeometry: boolean;
+  showAtomicEdges: boolean;
   showContacts: boolean;
   showExactProbes: boolean;
   showGroundTruth: boolean;
@@ -978,28 +994,6 @@ function SelectionViewer({
     for (const score of stage.selection.edge_scores) values.set(score.edge_id, score);
     return values;
   }, [stage.selection.edge_scores]);
-  const selectedGraphJunctions = useMemo(() => {
-    if (!isStage5(stage)) return [];
-    const stats = new Map<number, { degree: number; carrierIds: Set<number> }>();
-    for (const edgeId of stage.selection.selected_edge_ids) {
-      const edge = edgesById.get(edgeId);
-      if (!edge) continue;
-      for (const vertexId of edge.vertices) {
-        const entry = stats.get(vertexId) ?? { degree: 0, carrierIds: new Set<number>() };
-        entry.degree += 1;
-        entry.carrierIds.add(edge.carrier_id);
-        stats.set(vertexId, entry);
-      }
-    }
-    return stage.arrangement.vertices
-      .map((vertex) => ({ vertex, stats: stats.get(vertex.id) }))
-      .filter((entry): entry is { vertex: ArrangementVertex; stats: { degree: number; carrierIds: Set<number> } } => {
-        if (!entry.stats) return false;
-        if (entry.vertex.kind === 'corner') return true;
-        if (entry.stats.degree !== 2) return true;
-        return entry.stats.carrierIds.size > 1;
-      });
-  }, [edgesById, stage]);
   const visibleVertexProbes = useMemo(() => {
     if (!showExactProbes || !hasExactizability(stage)) return [];
     return stage.exactizability.vertex_probes
@@ -1054,6 +1048,7 @@ function SelectionViewer({
         {showGroundTruth && isStage5(stage) && stage.ground_truth ? (
           <GroundTruthGraphView graph={stage.ground_truth} />
         ) : null}
+        {showAtomicEdges ? renderSelectionEdges(stage.selection.selected_edge_ids, 'selected') : null}
         {showRejectedEdges ? renderSelectionEdges(stage.selection.rejected_edge_ids, 'rejected') : null}
         {showUndecidedEdges ? renderSelectionEdges(stage.selection.undecided_edge_ids, 'undecided') : null}
         {showLines
@@ -1066,17 +1061,15 @@ function SelectionViewer({
               .filter((carrier) => carrier.kind === 'shared_collinear_alternative')
               .map((carrier) => <CarrierView carrier={carrier} frame={stage.overlay_frame_px} key={carrier.id} muted shared />)
           : null}
-        {showSelectedEdges ? renderSelectionEdges(stage.selection.selected_edge_ids, 'selected') : null}
-        {showSelectedEdges && isStage5(stage)
-          ? selectedGraphJunctions.map(({ stats, vertex }) => (
-              <SelectedGraphJunctionView
-                degree={stats.degree}
-                frame={stage.overlay_frame_px}
-                key={`selected-junction-${vertex.id}`}
-                vertex={vertex}
-              />
-            ))
-          : null}
+        {showSelectedEdges && isStage5(stage) ? (
+          <CompiledSelectionGraphView
+            carriersById={carriersById}
+            frame={stage.overlay_frame_px}
+            graph={stage.compiled_selection_graph}
+          />
+        ) : showSelectedEdges ? (
+          renderSelectionEdges(stage.selection.selected_edge_ids, 'selected')
+        ) : null}
         {showJunctions
           ? stage.arrangement.vertices
               .filter((vertex) => vertex.kind === 'observed_junction' || vertex.kind === 'junction_cluster')
@@ -1188,6 +1181,108 @@ function GroundTruthGraphView({ graph }: { graph: GroundTruthGraph }) {
           <title>GT vertex {index}</title>
         </circle>
       ))}
+    </g>
+  );
+}
+
+function CompiledSelectionGraphView({
+  carriersById,
+  frame,
+  graph,
+}: {
+  carriersById: Map<number, ArrangementCarrier>;
+  frame: Stage2Response['overlay_frame_px'];
+  graph: CompiledSelectionGraph;
+}) {
+  const verticesById = new Map(graph.vertices.map((vertex) => [vertex.id, vertex]));
+  return (
+    <g className="compiled-selection-graph" aria-label="Compiled selected graph">
+      {graph.edges.map((edge) => {
+        const a = verticesById.get(edge.vertices[0]);
+        const b = verticesById.get(edge.vertices[1]);
+        if (!a || !b) return null;
+        const carrier = carriersById.get(edge.carrier_id);
+        const p0 = carrier ? imagePoint(pointAtCarrierT(carrier, edge.carrier_t_interval[0]), frame) : imagePoint(a.point, frame);
+        const p1 = carrier ? imagePoint(pointAtCarrierT(carrier, edge.carrier_t_interval[1]), frame) : imagePoint(b.point, frame);
+        const color = arrangementAssignmentColor(edge.assignment_label);
+        return (
+          <g key={`compiled-edge-${edge.id}`}>
+            <line
+              stroke="#ffffff"
+              strokeLinecap="round"
+              strokeOpacity={0.88}
+              strokeWidth={4.3}
+              vectorEffect="non-scaling-stroke"
+              x1={p0.x}
+              x2={p1.x}
+              y1={p0.y}
+              y2={p1.y}
+            />
+            <line
+              stroke={color}
+              strokeLinecap="round"
+              strokeOpacity={0.96}
+              strokeWidth={2.2}
+              vectorEffect="non-scaling-stroke"
+              x1={p0.x}
+              x2={p1.x}
+              y1={p0.y}
+              y2={p1.y}
+            >
+              <title>
+                compiled edge {edge.id}: {edge.assignment_label}; carrier {edge.carrier_id}; {edge.source_atomic_edge_ids.length} atomic interval(s),{' '}
+                {edge.collapsed_vertex_ids.length} collapsed pass-through vertex/vertices; support mean {edge.line_support_mean.toFixed(3)}
+              </title>
+            </line>
+          </g>
+        );
+      })}
+      {graph.vertices.map((vertex) => (
+        <CompiledSelectionVertexView frame={frame} key={`compiled-vertex-${vertex.id}`} vertex={vertex} />
+      ))}
+    </g>
+  );
+}
+
+function CompiledSelectionVertexView({
+  frame,
+  vertex,
+}: {
+  frame: Stage2Response['overlay_frame_px'];
+  vertex: CompiledSelectionGraph['vertices'][number];
+}) {
+  const point = imagePoint(vertex.point, frame);
+  const isBoundary = vertex.source_kind === 'corner' || vertex.source_kind === 'boundary_contact' || Boolean(vertex.boundary_side);
+  const isObserved = vertex.source_kind === 'observed_junction' || vertex.source_kind === 'junction_cluster';
+  const fill = isBoundary ? '#22c55e' : isObserved ? '#facc15' : '#f8fafc';
+  const radius = isBoundary ? 3.2 : isObserved ? 3.0 : 2.6;
+  return (
+    <g aria-label="compiled graph junction">
+      <circle
+        cx={point.x}
+        cy={point.y}
+        fill="#ffffff"
+        fillOpacity={0.92}
+        r={radius + 1.7}
+        stroke="#ffffff"
+        strokeWidth={0.8}
+        vectorEffect="non-scaling-stroke"
+      />
+      <circle
+        cx={point.x}
+        cy={point.y}
+        fill={fill}
+        r={radius}
+        stroke="#0f172a"
+        strokeOpacity={0.86}
+        strokeWidth={0.9}
+        vectorEffect="non-scaling-stroke"
+      >
+        <title>
+          compiled vertex {vertex.id}; arrangement vertex {vertex.arrangement_vertex_id}; {vertex.source_kind}; selected degree{' '}
+          {vertex.selected_degree}
+        </title>
+      </circle>
     </g>
   );
 }
@@ -1352,50 +1447,6 @@ function ArrangementVertexView({
         {vertex.kind} support {vertex.support.toFixed(3)} carriers {vertex.carrier_ids.join(',') || 'none'}
       </title>
     </circle>
-  );
-}
-
-function SelectedGraphJunctionView({
-  degree,
-  frame,
-  vertex,
-}: {
-  degree: number;
-  frame: Stage2Response['overlay_frame_px'];
-  vertex: ArrangementVertex;
-}) {
-  const point = imagePoint(vertex.point, frame);
-  const isBoundary = vertex.kind === 'corner' || vertex.kind === 'boundary_contact';
-  const isObserved = vertex.kind === 'observed_junction' || vertex.kind === 'junction_cluster';
-  const fill = isBoundary ? '#22c55e' : isObserved ? '#facc15' : '#f8fafc';
-  const radius = isBoundary ? 3.6 : isObserved ? 3.3 : 2.8;
-  return (
-    <g aria-label="selected graph junction">
-      <circle
-        cx={point.x}
-        cy={point.y}
-        fill="#ffffff"
-        fillOpacity={0.88}
-        r={radius + 1.8}
-        stroke="#ffffff"
-        strokeWidth={1}
-        vectorEffect="non-scaling-stroke"
-      />
-      <circle
-        cx={point.x}
-        cy={point.y}
-        fill={fill}
-        r={radius}
-        stroke="#0f172a"
-        strokeOpacity={0.86}
-        strokeWidth={1}
-        vectorEffect="non-scaling-stroke"
-      >
-        <title>
-          selected junction vertex {vertex.id} {vertex.kind}; degree {degree}; carriers {vertex.carrier_ids.join(',') || 'none'}
-        </title>
-      </circle>
-    </g>
   );
 }
 
