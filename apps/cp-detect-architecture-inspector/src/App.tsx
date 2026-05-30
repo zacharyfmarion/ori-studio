@@ -626,7 +626,7 @@ export function App() {
               {isStage3(stage) ? (
                 <SelectionViewer
                   backgroundMap={activeStage === 'stage4' || activeStage === 'stage5' ? null : backgroundMap}
-                  showCarrierGeometry={activeStage === 'stage5' ? false : showCarrierGeometry}
+                  showCarrierGeometry={activeStage === 'stage5' ? true : showCarrierGeometry}
                   showContacts={showContacts}
                   showJunctions={showJunctions}
                   showLineEndpoints={showLineEndpoints}
@@ -978,6 +978,28 @@ function SelectionViewer({
     for (const score of stage.selection.edge_scores) values.set(score.edge_id, score);
     return values;
   }, [stage.selection.edge_scores]);
+  const selectedGraphJunctions = useMemo(() => {
+    if (!isStage5(stage)) return [];
+    const stats = new Map<number, { degree: number; carrierIds: Set<number> }>();
+    for (const edgeId of stage.selection.selected_edge_ids) {
+      const edge = edgesById.get(edgeId);
+      if (!edge) continue;
+      for (const vertexId of edge.vertices) {
+        const entry = stats.get(vertexId) ?? { degree: 0, carrierIds: new Set<number>() };
+        entry.degree += 1;
+        entry.carrierIds.add(edge.carrier_id);
+        stats.set(vertexId, entry);
+      }
+    }
+    return stage.arrangement.vertices
+      .map((vertex) => ({ vertex, stats: stats.get(vertex.id) }))
+      .filter((entry): entry is { vertex: ArrangementVertex; stats: { degree: number; carrierIds: Set<number> } } => {
+        if (!entry.stats) return false;
+        if (entry.vertex.kind === 'corner') return true;
+        if (entry.stats.degree !== 2) return true;
+        return entry.stats.carrierIds.size > 1;
+      });
+  }, [edgesById, stage]);
   const visibleVertexProbes = useMemo(() => {
     if (!showExactProbes || !hasExactizability(stage)) return [];
     return stage.exactizability.vertex_probes
@@ -1045,6 +1067,16 @@ function SelectionViewer({
               .map((carrier) => <CarrierView carrier={carrier} frame={stage.overlay_frame_px} key={carrier.id} muted shared />)
           : null}
         {showSelectedEdges ? renderSelectionEdges(stage.selection.selected_edge_ids, 'selected') : null}
+        {showSelectedEdges && isStage5(stage)
+          ? selectedGraphJunctions.map(({ stats, vertex }) => (
+              <SelectedGraphJunctionView
+                degree={stats.degree}
+                frame={stage.overlay_frame_px}
+                key={`selected-junction-${vertex.id}`}
+                vertex={vertex}
+              />
+            ))
+          : null}
         {showJunctions
           ? stage.arrangement.vertices
               .filter((vertex) => vertex.kind === 'observed_junction' || vertex.kind === 'junction_cluster')
@@ -1141,6 +1173,21 @@ function GroundTruthGraphView({ graph }: { graph: GroundTruthGraph }) {
           </line>
         );
       })}
+      {graph.vertices_px.map((point, index) => (
+        <circle
+          cx={point[0]}
+          cy={point[1]}
+          fill="none"
+          key={`gt-vertex-${index}`}
+          r={1.8}
+          stroke="#334155"
+          strokeOpacity={0.34}
+          strokeWidth={0.8}
+          vectorEffect="non-scaling-stroke"
+        >
+          <title>GT vertex {index}</title>
+        </circle>
+      ))}
     </g>
   );
 }
@@ -1186,7 +1233,7 @@ function SelectionEdgeView({
       strokeDasharray={decision === 'selected' ? undefined : decision === 'undecided' ? '7 5' : '3 7'}
       strokeLinecap="round"
       strokeOpacity={decision === 'selected' ? 0.96 : decision === 'undecided' ? 0.62 : 0.24}
-      strokeWidth={decision === 'selected' ? 3.1 : 1.5}
+      strokeWidth={decision === 'selected' ? 2.35 : 1.25}
       vectorEffect="non-scaling-stroke"
       x1={p0.x}
       x2={p1.x}
@@ -1305,6 +1352,50 @@ function ArrangementVertexView({
         {vertex.kind} support {vertex.support.toFixed(3)} carriers {vertex.carrier_ids.join(',') || 'none'}
       </title>
     </circle>
+  );
+}
+
+function SelectedGraphJunctionView({
+  degree,
+  frame,
+  vertex,
+}: {
+  degree: number;
+  frame: Stage2Response['overlay_frame_px'];
+  vertex: ArrangementVertex;
+}) {
+  const point = imagePoint(vertex.point, frame);
+  const isBoundary = vertex.kind === 'corner' || vertex.kind === 'boundary_contact';
+  const isObserved = vertex.kind === 'observed_junction' || vertex.kind === 'junction_cluster';
+  const fill = isBoundary ? '#22c55e' : isObserved ? '#facc15' : '#f8fafc';
+  const radius = isBoundary ? 3.6 : isObserved ? 3.3 : 2.8;
+  return (
+    <g aria-label="selected graph junction">
+      <circle
+        cx={point.x}
+        cy={point.y}
+        fill="#ffffff"
+        fillOpacity={0.88}
+        r={radius + 1.8}
+        stroke="#ffffff"
+        strokeWidth={1}
+        vectorEffect="non-scaling-stroke"
+      />
+      <circle
+        cx={point.x}
+        cy={point.y}
+        fill={fill}
+        r={radius}
+        stroke="#0f172a"
+        strokeOpacity={0.86}
+        strokeWidth={1}
+        vectorEffect="non-scaling-stroke"
+      >
+        <title>
+          selected junction vertex {vertex.id} {vertex.kind}; degree {degree}; carriers {vertex.carrier_ids.join(',') || 'none'}
+        </title>
+      </circle>
+    </g>
   );
 }
 
@@ -1690,11 +1781,34 @@ function Stage3LayerSummary({ stage }: { stage: Stage3Response }) {
       <LayerRow color="#2563eb" label="Weak promoted" value={report.weak_edges_promoted} note="weak evidence selected by topology benefit" />
       <LayerRow color="#9333ea" label="Hypotheses" value={report.selected_hypotheses} note="arrangement hypotheses referenced by selection" />
       <LayerRow color="#ef4444" label="Odd vertices" value={report.odd_degree_vertices} note="remaining local topology warnings" />
+      {isBeamSelection ? (
+        <>
+          <div className="hypothesis-divider" />
+          <PanelTitle icon={<GitBranch size={17} />} title="Structural Edits" />
+          <LayerRow color="#7c3aed" label="Shared replacements" value={report.shared_replacements} note="straight carriers replacing local fragments" />
+          <LayerRow color="#7c3aed" label="Fragments replaced" value={report.local_fragments_replaced} note="local intervals explained by shared carriers" />
+          <LayerRow color="#f59e0b" label="Fragments retained" value={report.local_fragments_retained} note="local intervals kept despite shared alternatives" />
+          <LayerRow color="#0f766e" label="Pass-through vertices" value={report.collapsible_degree_two_vertices} note="degree-2 collinear vertices to collapse later" />
+          <LayerRow color="#dc2626" label="Bad degree-2 vertices" value={report.non_collinear_degree_two_vertices} note="degree-2 pseudo-junction penalties" />
+        </>
+      ) : null}
       <div className="hypothesis-divider" />
       <div className="selection-status-row">
         <span>Total selected score</span>
         <strong>{report.total_score.toFixed(2)}</strong>
       </div>
+      {isBeamSelection ? (
+        <>
+          <div className="selection-status-row">
+            <span>Continuity reward</span>
+            <strong>{report.continuity_reward.toFixed(2)}</strong>
+          </div>
+          <div className="selection-status-row">
+            <span>Structural penalty</span>
+            <strong>{report.structural_penalty.toFixed(2)}</strong>
+          </div>
+        </>
+      ) : null}
       <div className="selection-status-row">
         <span>Exactizability probes</span>
         <strong>{report.exactizability_evaluated ? 'evaluated' : 'phase 4'}</strong>

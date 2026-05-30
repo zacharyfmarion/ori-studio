@@ -14,7 +14,12 @@ Progress:
   exactizability probe pass. The probes make origami constraints visible as
   costs instead of brittle pass/fail checks, but they still do not mutate the
   graph.
-- Phase 5 will complete weighted beam selection using the Phase 4 probe costs.
+- Phase 5 is complete as of May 30, 2026 for first-pass exactizability-aware
+  beam selection.
+- Phase 5b is complete as of May 30, 2026. It fixes a structural weakness in
+  Phase 5: local high-confidence fragments were selected independently, so the
+  graph often preferred many small intervals over one clean crease carrier
+  between real junctions.
 - A `ConstraintCompilerV2` backend now exists for the compiler-native evidence
   route, while `ConstraintCompilerV1` remains the current locked-border
   baseline.
@@ -27,8 +32,9 @@ Progress:
 - V2 reports explicit stage IDs in `compiler_report.stage_ids`.
 - `apps/cp-detect-architecture-inspector` and
   `oristudio-cp-detect-inspector` provide local Stage 1, Stage 2, Stage 3, and
-  Stage 4 debug UI/API for visually inspecting dense evidence, arrangement
-  candidates, weighted selection output, and exactizability probes.
+  Stage 5 debug UI/API for visually inspecting dense evidence, arrangement
+  candidates, weighted selection output, exactizability probes, and beam-selected
+  structural replacements.
 - The V2 product route is still not promoted. Exact solve, assignment solve,
   verifier/export contract, and benchmark gates remain open.
 
@@ -665,6 +671,125 @@ What remains after Phase 5:
 - Phase 6 must exact-solve geometry for a chosen topology instead of merely
   probing exactizability.
 - Phase 7 must solve assignments after topology/geometry are plausible.
+
+## Phase 5b: Structural Replacement Beam Selection
+
+Purpose: make Phase 5 choose crease-level structure, not merely high-scoring
+atomic evidence intervals.
+
+Status: Complete for the Phase 5b debug selector. The selected graph is still
+not expected to be product-valid until Phase 6 exact solve and Phase 7 assignment
+solve are implemented.
+
+Problem found during Stage 5 visual inspection:
+
+- The beam-selected graph often contains chains of short, slightly wobbly local
+  segments where the intended crease is visually one straight line between two
+  real junctions.
+- This happens because Phase 5 starts from all strong local intervals and only
+  explores additive moves. Once fragments are seeded, the beam has no strong
+  way to replace them with a shared-carrier interpretation.
+- Degree-2 interior vertices are too cheap. Odd-degree checks do not catch them,
+  because degree 2 is even. In origami, a degree-2 interior point is usually a
+  pass-through point on a crease, not a real junction. If the incident edges are
+  not collinear, it is a topology smell.
+
+Architecture changes:
+
+- Keep atomic intervals as the arrangement representation, but score graph states
+  at the structural level.
+- Add shared-carrier replacement moves:
+  - selecting a shared carrier can add its contiguous atomic intervals as a
+    group
+  - local observed fragments explained by that shared carrier are removed from
+    the state
+  - selecting a local fragment removes overlapping selected shared-carrier
+    intervals from the same primitive family
+- Treat degree-2 interior vertices explicitly:
+  - collinear degree-2 vertices are pass-through/collapsible and should be
+    hidden from junction visualization and recorded as collapsible edits
+  - non-collinear degree-2 vertices receive a structural penalty
+- Reward continuity:
+  - selected shared-carrier groups receive a continuity reward proportional to
+    the amount of local fragmented evidence they explain
+  - local fragments that have an available shared-carrier alternative receive a
+    fragmentation penalty unless the shared alternative loses on evidence or
+    constraints
+- Add edit accounting:
+  - shared carrier replacements
+  - local fragments removed by replacement
+  - collapsible degree-2 pass-through vertices
+  - non-collinear degree-2 warnings
+- Keep the browser/debug loop bounded by making exactizability lazy:
+  - the inner beam uses cheap structural state scoring
+  - full exactizability probes run only for the initial state and the best
+    survivor states after structural pruning
+  - exactizability penalties are cached by selected-edge-set key, so repeated
+    graph states are never probed twice
+  - no beam-width or move-space shrink should be used as a hidden substitute for
+    the structural search
+- Keep structural scoring bounded with a precomputed selection index:
+  - map each shared-carrier alternative to the local fragments it can explain
+  - map each local fragment to whether it has any shared-carrier alternative
+  - use those indexes during beam scoring instead of scanning all carriers and
+    all atomic intervals for every candidate state
+  - preserve the same search space; the index is a performance optimization, not
+    a pruning heuristic
+
+Algorithm:
+
+- [x] Build beam moves over both individual edge additions and shared-carrier
+  replacement groups.
+- [x] Re-score each proposed state from the full selected set after replacement,
+  rather than only adding an incremental edge score.
+- [x] Include structural penalties/rewards in the state score:
+  - visual/assignment/anchor evidence
+  - exactizability penalty
+  - odd-degree count
+  - non-collinear degree-2 cost
+  - local fragmentation cost
+  - shared-carrier continuity reward
+- [x] Use lazy exactizability:
+  - cheap structural scoring inside the beam
+  - exact penalty cache keyed by selected edge set
+  - exact rescore of the top survivor states before returning the selected graph
+- [x] Add precomputed structural indexes so the browser/debug loop can inspect
+  Stage 5 without rescanning the whole arrangement for every beam state.
+- [x] Keep deterministic ordering for moves and beam states.
+- [x] Keep selection output inspectable as atomic intervals, while edit
+  accounting explains which selected intervals are structural replacements or
+  collapsible pass-throughs.
+
+Tests:
+
+- [x] A shared-carrier replacement can beat several strong local fragments when
+  it explains the same primitives with less structural cost.
+- [x] Selecting a shared carrier removes/conflicts with local fragments that it
+  explains.
+- [x] A non-collinear degree-2 interior vertex is penalized.
+- [x] A collinear degree-2 interior vertex is reported as collapsible, not as a
+  hard topology error.
+- [x] Edit accounting reports the replacement and collapsed-pass-through counts.
+
+Inspector/performance notes:
+
+- The Stage 5 inspector renders the selected graph with carrier-aligned geometry
+  and visible selected junctions so pass-through points are distinguishable from
+  real branch/corner/contact junctions.
+- A large smoke sample with 5,880 arrangement intervals improved from roughly
+  43.8 seconds to 20.6 seconds end-to-end through the Stage 5 API after adding
+  lazy exactizability and structural indexes. Stage 2/JSON payload generation is
+  now the dominant cost at roughly 14-19 seconds on the same sample.
+
+Acceptance:
+
+- [ ] Stage 5 selected graph visibly prefers shared straight carriers over
+  wobbly fragment chains when the arrangement contains that alternative.
+- [ ] Inspector Stage 5 reports structural edits so visual review can tell
+  whether the compiler replaced fragments or merely selected the old local
+  evidence.
+- [ ] Existing Phase 5 tests continue to pass or are updated to the new
+  structural semantics.
 
 ## Phase 6: Full Exact Geometric Solve
 

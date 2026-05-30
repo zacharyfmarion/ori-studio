@@ -233,6 +233,9 @@ export interface SelectionScoreBreakdown {
   tiny_edge_cost: number;
   duplicate_cost: number;
   exactizability_cost: number;
+  continuity_reward: number;
+  fragmentation_cost: number;
+  degree_two_cost: number;
 }
 
 export interface SelectionEdgeScore {
@@ -254,6 +257,7 @@ export interface CandidateSelection {
   undecided_edge_ids: number[];
   selected_hypothesis_ids: number[];
   edge_scores: SelectionEdgeScore[];
+  structural_edits: SelectionStructuralEdit[];
   report: {
     selected_edges: number;
     rejected_edges: number;
@@ -265,8 +269,30 @@ export interface CandidateSelection {
     odd_degree_vertices: number;
     total_score: number;
     exactizability_evaluated: boolean;
+    shared_replacements: number;
+    local_fragments_replaced: number;
+    local_fragments_retained: number;
+    collapsible_degree_two_vertices: number;
+    non_collinear_degree_two_vertices: number;
+    structural_penalty: number;
+    continuity_reward: number;
     emits_fold_graph: boolean;
   };
+}
+
+export interface SelectionStructuralEdit {
+  kind:
+    | 'shared_carrier_replacement'
+    | 'collapsible_degree_two_vertex'
+    | 'non_collinear_degree_two_vertex'
+    | 'local_fragment_retained'
+    | string;
+  vertex_ids: number[];
+  carrier_ids: number[];
+  added_edge_ids: number[];
+  removed_edge_ids: number[];
+  score_delta: number;
+  reason: string;
 }
 
 export interface Stage3Response extends Stage2Response {
