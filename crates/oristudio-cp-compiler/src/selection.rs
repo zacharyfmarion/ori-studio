@@ -398,7 +398,8 @@ pub fn select_candidate_graph_beam(
 
     let seed_selected = selected_edge_ids(&seed_scores);
     let seed_odd = odd_degree_count(arrangement, &vertices, &seed_selected);
-    let mut beam = vec![score_beam_state(
+    let mut exact_cache = BTreeMap::<Vec<usize>, f64>::new();
+    let mut seed_state = score_beam_state(
         arrangement,
         &options,
         &scores,
@@ -408,7 +409,15 @@ pub fn select_candidate_graph_beam(
         seed_odd,
         seed_selected,
         BTreeMap::new(),
-    )];
+    );
+    apply_exact_penalty(
+        arrangement,
+        &options,
+        &exact_options,
+        &mut exact_cache,
+        &mut seed_state,
+    );
+    let mut beam = vec![seed_state];
 
     let mut moves = scores
         .iter()
@@ -422,7 +431,9 @@ pub fn select_candidate_graph_beam(
                     .get(&edge.carrier_id)
                     .is_some_and(|carrier| carrier.kind == ArrangementCarrierKind::ObservedLocal)
         })
-        .map(|score| BeamMove::Edge { edge_id: score.edge_id })
+        .map(|score| BeamMove::Edge {
+            edge_id: score.edge_id,
+        })
         .collect::<Vec<_>>();
 
     moves.extend(shared_carrier_moves(
@@ -462,15 +473,20 @@ pub fn select_candidate_graph_beam(
         let mut next = Vec::with_capacity(beam.len() * 2);
         for state in &beam {
             next.push(state.clone());
-            let Some(applied) =
-                apply_beam_move(arrangement, &scores, &carriers, &options, &state.selected, &candidate_move)
-            else {
+            let Some(applied) = apply_beam_move(
+                arrangement,
+                &scores,
+                &carriers,
+                &options,
+                &state.selected,
+                &candidate_move,
+            ) else {
                 continue;
             };
             if applied.selected == state.selected {
                 continue;
             }
-            let after_state = score_beam_state(
+            let mut after_state = score_beam_state(
                 arrangement,
                 &options,
                 &scores,
@@ -481,18 +497,26 @@ pub fn select_candidate_graph_beam(
                 applied.selected,
                 state.impacts.clone(),
             );
-            let topology_delta =
-                (state.odd_degree_vertices as f64 - after_state.odd_degree_vertices as f64)
-                    * options.odd_degree_bonus;
-            let exact_delta = 0.0;
+            apply_exact_penalty(
+                arrangement,
+                &options,
+                &exact_options,
+                &mut exact_cache,
+                &mut after_state,
+            );
+            let topology_delta = (state.odd_degree_vertices as f64
+                - after_state.odd_degree_vertices as f64)
+                * options.odd_degree_bonus;
+            let exact_delta = state.exact_penalty - after_state.exact_penalty;
             let structural_delta = (state.structural_penalty - after_state.structural_penalty)
                 + (after_state.continuity_reward - state.continuity_reward);
             let improves_topology = topology_delta > 0.0;
+            let improves_exact = exact_delta >= options.minimum_exact_improvement;
             let improves_structure = structural_delta > 0.0 || !applied.removed_edge_ids.is_empty();
             let visually_strong = applied.added_edge_ids.iter().any(|edge_id| {
                 arrangement.atomic_edges[*edge_id].line_support >= options.strong_edge_support
             });
-            if !improves_structure && !improves_topology && !visually_strong {
+            if !improves_structure && !improves_topology && !improves_exact && !visually_strong {
                 continue;
             }
             let mut candidate_state = after_state;
@@ -516,15 +540,8 @@ pub fn select_candidate_graph_beam(
         beam = next;
     }
 
-    let mut exact_cache = BTreeMap::<Vec<usize>, f64>::new();
-    let best = rescore_exact_survivors(
-        arrangement,
-        &options,
-        &exact_options,
-        &mut exact_cache,
-        beam,
-    )
-    .unwrap_or_else(|| BeamState {
+    beam.sort_by(beam_state_order);
+    let best = beam.into_iter().next().unwrap_or_else(|| BeamState {
         selected: BTreeSet::new(),
         exact_penalty: 0.0,
         structural_penalty: 0.0,
@@ -697,8 +714,13 @@ struct BeamEdgeImpact {
 
 #[derive(Debug, Clone)]
 enum BeamMove {
-    Edge { edge_id: usize },
-    SharedCarrier { carrier_id: usize, edge_ids: Vec<usize> },
+    Edge {
+        edge_id: usize,
+    },
+    SharedCarrier {
+        carrier_id: usize,
+        edge_ids: Vec<usize>,
+    },
 }
 
 impl BeamMove {
@@ -844,23 +866,17 @@ fn score_beam_state(
     }
 }
 
-fn rescore_exact_survivors(
+fn apply_exact_penalty(
     arrangement: &CandidateArrangement,
     options: &SelectionOptions,
     exact_options: &ExactProbeOptions,
     cache: &mut BTreeMap<Vec<usize>, f64>,
-    mut states: Vec<BeamState>,
-) -> Option<BeamState> {
-    states.sort_by(beam_state_order);
-    let survivor_count = options.beam_width.max(1);
-    states.truncate(survivor_count);
-    for state in &mut states {
-        let penalty = exact_penalty_cached(arrangement, options, exact_options, cache, &state.selected);
-        state.exact_penalty = penalty;
-        state.total_score -= penalty;
-    }
-    states.sort_by(beam_state_order);
-    states.into_iter().next()
+    state: &mut BeamState,
+) {
+    let penalty = exact_penalty_cached(arrangement, options, exact_options, cache, &state.selected);
+    state.total_score += state.exact_penalty;
+    state.exact_penalty = penalty;
+    state.total_score -= penalty;
 }
 
 fn shared_carrier_moves(
@@ -882,9 +898,9 @@ fn shared_carrier_moves(
                 .filter(|edge| !seed_selected.contains(&edge.id))
                 .filter(|edge| edge.line_support >= options.weak_edge_support)
                 .filter(|edge| {
-                    scores
-                        .get(edge.id)
-                        .is_some_and(|score| score.breakdown.total() >= options.weak_candidate_floor)
+                    scores.get(edge.id).is_some_and(|score| {
+                        score.breakdown.total() >= options.weak_candidate_floor
+                    })
                 })
                 .map(|edge| edge.id)
                 .collect::<Vec<_>>();
@@ -923,7 +939,14 @@ fn apply_beam_move(
                 let conflicts = selected
                     .iter()
                     .copied()
-                    .filter(|selected_id| selected_edge_conflicts_with_carrier(arrangement, carriers, *selected_id, carrier.id))
+                    .filter(|selected_id| {
+                        selected_edge_conflicts_with_carrier(
+                            arrangement,
+                            carriers,
+                            *selected_id,
+                            carrier.id,
+                        )
+                    })
                     .collect::<Vec<_>>();
                 for selected_id in conflicts {
                     if next.remove(&selected_id) {
@@ -931,7 +954,9 @@ fn apply_beam_move(
                     }
                 }
             }
-            if !next.contains(edge_id) && !has_duplicate_selected_interval(arrangement, &next, *edge_id) {
+            if !next.contains(edge_id)
+                && !has_duplicate_selected_interval(arrangement, &next, *edge_id)
+            {
                 next.insert(*edge_id);
                 added_edge_ids.push(*edge_id);
             }
@@ -944,7 +969,14 @@ fn apply_beam_move(
             let conflicts = selected
                 .iter()
                 .copied()
-                .filter(|selected_id| selected_edge_conflicts_with_carrier(arrangement, carriers, *selected_id, carrier.id))
+                .filter(|selected_id| {
+                    selected_edge_conflicts_with_carrier(
+                        arrangement,
+                        carriers,
+                        *selected_id,
+                        carrier.id,
+                    )
+                })
                 .collect::<Vec<_>>();
             for selected_id in conflicts {
                 if next.remove(&selected_id) {
@@ -962,7 +994,9 @@ fn apply_beam_move(
                 {
                     continue;
                 }
-                if next.contains(edge_id) || has_duplicate_selected_interval(arrangement, &next, *edge_id) {
+                if next.contains(edge_id)
+                    || has_duplicate_selected_interval(arrangement, &next, *edge_id)
+                {
                     continue;
                 }
                 next.insert(*edge_id);
@@ -1025,7 +1059,9 @@ fn beam_move_priority(
     options: &SelectionOptions,
 ) -> f64 {
     match candidate_move {
-        BeamMove::Edge { edge_id } => beam_candidate_priority(arrangement, &scores[*edge_id], carriers),
+        BeamMove::Edge { edge_id } => {
+            beam_candidate_priority(arrangement, &scores[*edge_id], carriers)
+        }
         BeamMove::SharedCarrier {
             carrier_id,
             edge_ids,
@@ -1102,8 +1138,14 @@ fn analyze_structural(
         .iter()
         .filter(|edge| selected_edges.contains(&edge.id))
     {
-        incident_edges.entry(edge.vertices[0]).or_default().push(edge.id);
-        incident_edges.entry(edge.vertices[1]).or_default().push(edge.id);
+        incident_edges
+            .entry(edge.vertices[0])
+            .or_default()
+            .push(edge.id);
+        incident_edges
+            .entry(edge.vertices[1])
+            .or_default()
+            .push(edge.id);
     }
 
     for (vertex_id, edge_ids) in &incident_edges {
@@ -1126,8 +1168,7 @@ fn analyze_structural(
                 added_edge_ids: edge_ids.clone(),
                 removed_edge_ids: Vec::new(),
                 score_delta: 0.0,
-                reason: "degree-2 collinear vertex is a pass-through point on a crease"
-                    .to_owned(),
+                reason: "degree-2 collinear vertex is a pass-through point on a crease".to_owned(),
             });
         } else {
             non_collinear_degree_two_vertices += 1;
@@ -1155,9 +1196,9 @@ fn analyze_structural(
         .filter_map(|edge_id| arrangement.atomic_edges.get(*edge_id))
         .map(|edge| edge.carrier_id)
         .filter(|carrier_id| {
-            carriers
-                .get(carrier_id)
-                .is_some_and(|carrier| carrier.kind == ArrangementCarrierKind::SharedCollinearAlternative)
+            carriers.get(carrier_id).is_some_and(|carrier| {
+                carrier.kind == ArrangementCarrierKind::SharedCollinearAlternative
+            })
         })
         .collect::<BTreeSet<_>>();
     let mut shared_replacements = 0usize;
@@ -1199,8 +1240,9 @@ fn analyze_structural(
             added_edge_ids,
             removed_edge_ids,
             score_delta: reward,
-            reason: "shared straight carrier replaces local observed fragments from the same primitives"
-                .to_owned(),
+            reason:
+                "shared straight carrier replaces local observed fragments from the same primitives"
+                    .to_owned(),
         });
     }
 
@@ -1259,7 +1301,11 @@ fn incident_edges_are_collinear(
     let dot = (left.normal.x * right.normal.x + left.normal.y * right.normal.y)
         .clamp(-1.0, 1.0)
         .abs();
-    let angle_tol = arrangement.options.collinear_angle_degrees.to_radians().max(3.0_f64.to_radians());
+    let angle_tol = arrangement
+        .options
+        .collinear_angle_degrees
+        .to_radians()
+        .max(3.0_f64.to_radians());
     let rho_tol = arrangement.options.collinear_rho_px / arrangement.image_size.max(1) as f64;
     dot.acos() <= angle_tol && (left.rho - right.rho).abs() <= rho_tol.max(0.006)
 }
@@ -1643,7 +1689,7 @@ mod tests {
     }
 
     #[test]
-    fn beam_selects_weak_edge_when_it_improves_topology_before_lazy_exact_rescore() {
+    fn beam_selects_weak_edge_when_it_improves_topology_before_pruning() {
         let arrangement = fixture_arrangement(vec![
             edge(0, 0, [0, 1], 0.88),
             edge(1, 1, [2, 3], 0.86),
@@ -1804,10 +1850,8 @@ mod tests {
 
     #[test]
     fn beam_reports_collinear_degree_two_vertices_as_collapsible() {
-        let arrangement = fixture_arrangement(vec![
-            edge(0, 0, [0, 1], 0.86),
-            edge(1, 1, [1, 2], 0.84),
-        ]);
+        let arrangement =
+            fixture_arrangement(vec![edge(0, 0, [0, 1], 0.86), edge(1, 1, [1, 2], 0.84)]);
 
         let selection =
             select_candidate_graph_beam(&arrangement, beam_options(), ExactProbeOptions::default());
@@ -1822,10 +1866,8 @@ mod tests {
 
     #[test]
     fn beam_penalizes_non_collinear_degree_two_vertices() {
-        let mut arrangement = fixture_arrangement(vec![
-            edge(0, 0, [0, 1], 0.86),
-            edge(1, 1, [1, 2], 0.84),
-        ]);
+        let mut arrangement =
+            fixture_arrangement(vec![edge(0, 0, [0, 1], 0.86), edge(1, 1, [1, 2], 0.84)]);
         arrangement.carriers[1].normal = Point2::new(1.0, 0.0);
         arrangement.carriers[1].direction = Point2::new(0.0, 1.0);
         arrangement.carriers[1].rho = 0.4;

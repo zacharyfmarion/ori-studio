@@ -720,14 +720,14 @@ Architecture changes:
   - local fragments removed by replacement
   - collapsible degree-2 pass-through vertices
   - non-collinear degree-2 warnings
-- Keep the browser/debug loop bounded by making exactizability lazy:
-  - the inner beam uses cheap structural state scoring
-  - full exactizability probes run only for the initial state and the best
-    survivor states after structural pruning
+- Score exactizability before beam pruning:
+  - each beam state carries an exactizability penalty
+  - replacement candidates are allowed to survive because the exact probe sees
+    the cleaner topology before the beam is truncated
   - exactizability penalties are cached by selected-edge-set key, so repeated
     graph states are never probed twice
-  - no beam-width or move-space shrink should be used as a hidden substitute for
-    the structural search
+  - the previous lazy final-survivor-only exact rescore was removed because it
+    pruned clean shared-carrier hypotheses too early
 - Keep structural scoring bounded with a precomputed selection index:
   - map each shared-carrier alternative to the local fragments it can explain
   - map each local fragment to whether it has any shared-carrier alternative
@@ -749,10 +749,10 @@ Algorithm:
   - non-collinear degree-2 cost
   - local fragmentation cost
   - shared-carrier continuity reward
-- [x] Use lazy exactizability:
-  - cheap structural scoring inside the beam
+- [x] Use correctness-first exactizability:
+  - exact penalty is applied to candidate states before beam pruning
   - exact penalty cache keyed by selected edge set
-  - exact rescore of the top survivor states before returning the selected graph
+  - final selection is the best already-exact-scored beam state
 - [x] Add precomputed structural indexes so the browser/debug loop can inspect
   Stage 5 without rescanning the whole arrangement for every beam state.
 - [x] Keep deterministic ordering for moves and beam states.
@@ -776,16 +776,20 @@ Inspector/performance notes:
 - The Stage 5 inspector renders the selected graph with carrier-aligned geometry
   and visible selected junctions so pass-through points are distinguishable from
   real branch/corner/contact junctions.
-- A large smoke sample with 5,880 arrangement intervals improved from roughly
-  43.8 seconds to 20.6 seconds end-to-end through the Stage 5 API after adding
-  lazy exactizability and structural indexes. Stage 2/JSON payload generation is
-  now the dominant cost at roughly 14-19 seconds on the same sample.
+- The correctness-first selector is still usable for debug inspection: the
+  treemaker smoke sample `treemaker_tree_v1-5gjmj-004937__clean__001` takes
+  roughly 17-18 seconds end-to-end through the Stage 5 API on the local dev
+  machine.
+- On that same sample, the selector now chooses the previously missed
+  shared-carrier replacement for carrier `288`: it replaces 116 local fragments
+  with 29 shared-carrier intervals, reduces selected local fragments with shared
+  alternatives from 451 to 255, and reduces odd vertices from 101 to 72.
 
 Acceptance:
 
-- [ ] Stage 5 selected graph visibly prefers shared straight carriers over
+- [x] Stage 5 selected graph visibly prefers shared straight carriers over
   wobbly fragment chains when the arrangement contains that alternative.
-- [ ] Inspector Stage 5 reports structural edits so visual review can tell
+- [x] Inspector Stage 5 reports structural edits so visual review can tell
   whether the compiler replaced fragments or merely selected the old local
   evidence.
 - [ ] Existing Phase 5 tests continue to pass or are updated to the new
