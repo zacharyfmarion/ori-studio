@@ -583,47 +583,88 @@ What remains after Phase 4:
 Purpose: replace the Phase 3 greedy scaffold with the planned bounded selector
 that uses visual evidence, topology costs, and Phase 4 exactizability probes.
 
-Status: Not started. This phase depends on Phase 4 probe outputs.
+Status: Implemented as the first bounded, exactizability-aware selector.
+
+Implementation notes:
+
+- `select_candidate_graph` remains the Phase 3 greedy scaffold so benchmark and
+  inspector comparisons can still isolate the old weighted-selection behavior.
+- `select_candidate_graph_beam` is the Phase 5 path. It starts from the
+  high-confidence visual graph, explores a bounded beam of plausible weak/shared
+  atomic edge additions, and scores states by:
+  - visual/assignment/anchor evidence from Phase 3 score accounting
+  - duplicate interval rejection
+  - odd-degree improvement
+  - Phase 4 exactizability probe penalties and improvements
+- The selector is deterministic: candidates are sorted by score/id, beam states
+  are sorted by total score, exact penalty, odd-degree count, and selected edge
+  count.
+- Phase 5 does not mutate coordinates. It only chooses a selected graph
+  candidate and reports why selected edges were accepted.
+- Assignment flipping/unknown-label solving is still Phase 7. Stage 5 preserves
+  observed assignment labels while selecting topology, because using M/V solving
+  here would blur topology selection with the later assignment solver.
+- Inspector Stage 5 now shows the selected graph over the input and includes a
+  `GT graph` toggle that draws the known FOLD graph underneath for visual
+  comparison.
 
 State decisions:
 
-- Select/reject atomic edge.
-- Select carrier hypothesis: separate vs shared.
-- Merge/split candidate junctions.
-- Select boundary contacts.
-- Keep observed assignment, flip low-confidence assignment, or mark unknown.
+- [x] Select/reject atomic edge.
+- [x] Select carrier hypothesis: separate vs shared when selected edges refer to
+  those carriers.
+- [x] Report low-cost merge hypotheses referenced by selected cluster vertices.
+- [x] Select boundary contacts indirectly through selected boundary/corner
+  vertices.
+- [ ] Keep observed assignment, flip low-confidence assignment, or mark unknown.
+  This is intentionally deferred to Phase 7 so topology selection and assignment
+  solving stay separable.
 
 Algorithm:
 
-- Start with deterministic beam search, not ILP.
-- Keep top K graph states.
-- Every state stores:
-  - selected hypothesis IDs
+- [x] Start with deterministic beam search, not ILP.
+- [x] Keep top K graph states.
+- [x] Every state stores:
   - selected edge IDs
-  - selected junction merge IDs
   - score breakdown
-  - edit accounting
-- Use Phase 4 exactizability probes during scoring.
-- Keep the solver deterministic and explainable before considering more complex
+  - exactizability penalty
+  - odd-degree count
+  - per-edge improvement accounting
+- [x] Use Phase 4 exactizability probes during scoring.
+- [x] Keep the solver deterministic and explainable before considering more complex
   MaxSAT/ILP/factor-graph approaches.
 
 Tests:
 
-- A weak edge is selected if it fixes odd degree and has nearby visual evidence.
-- A no-evidence edge is rejected even if it would reduce one local residual.
-- A near-duplicate false line is rejected when it creates topology/constraint
+- [x] A weak edge is selected if it fixes odd degree and has nearby visual
+  evidence.
+- [x] A no-evidence edge is rejected even if it would reduce one local residual.
+- [x] A near-duplicate false line is rejected when it creates topology/constraint
   cost.
-- A merge is selected when it fixes a disconnected near-junction with small
+- [x] A merge is selected when it fixes a disconnected near-junction with small
   movement.
-- A real small angle is preserved when merging would require high movement or
-  contradict visual/junction evidence.
+- [x] A high-cost merge is not selected.
+- [x] A visually stronger but topology-worse candidate is kept out when a weaker
+  candidate improves exactizability.
+- [x] A shared carrier hypothesis can be selected when selected edges use it.
 
 Acceptance:
 
-- Beam selector produces selected graph states and score reports.
-- Score reports explain why each accepted edit was chosen.
-- Exactizability costs are visible in the debug UI.
-- Selection-only output is benchmarked separately from exact solve in Phase 9.
+- [x] Beam selector produces selected graph states and score reports.
+- [x] Score reports explain why each accepted edit was chosen.
+- [x] Exactizability costs are visible in the debug UI.
+- [ ] Selection-only output is benchmarked separately from exact solve in Phase
+  9.
+
+What remains after Phase 5:
+
+- The selected graph is still not expected to be product-valid. On the smoke
+  inspector sample, Stage 5 exposes a noisy selected graph with many remaining
+  exactizability failures. That is useful signal for Phase 6/9 rather than a
+  failure of the debug stage itself.
+- Phase 6 must exact-solve geometry for a chosen topology instead of merely
+  probing exactizability.
+- Phase 7 must solve assignments after topology/geometry are plausible.
 
 ## Phase 6: Full Exact Geometric Solve
 

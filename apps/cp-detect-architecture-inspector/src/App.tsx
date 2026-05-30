@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Activity, CircleDot, GitBranch, Layers3, ListFilter, RefreshCw, SlidersHorizontal } from 'lucide-react';
-import { fetchStage1Example, fetchStage1Examples, fetchStage2Example, fetchStage3Example, fetchStage4Example, fetchStages } from './api';
+import { fetchStage1Example, fetchStage1Examples, fetchStage2Example, fetchStage3Example, fetchStage4Example, fetchStage5Example, fetchStages } from './api';
 import type {
   ArrangementAtomicEdge,
   ArrangementCarrier,
@@ -9,6 +9,7 @@ import type {
   BoundaryContactPrimitive,
   CarrierExactizabilityProbe,
   ExampleRow,
+  GroundTruthGraph,
   JunctionPrimitive,
   LinePrimitive,
   MapPayload,
@@ -16,6 +17,7 @@ import type {
   Stage2Response,
   Stage3Response,
   Stage4Response,
+  Stage5Response,
   VertexExactizabilityProbe,
 } from './types';
 
@@ -121,10 +123,10 @@ export function App() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [examples, setExamples] = useState<ExampleRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [activeStage, setActiveStage] = useState<'stage1' | 'stage2' | 'stage3' | 'stage4'>('stage4');
+  const [activeStage, setActiveStage] = useState<'stage1' | 'stage2' | 'stage3' | 'stage4' | 'stage5'>('stage5');
   const [threshold, setThreshold] = useState(0.65);
   const [mapSize, setMapSize] = useState(192);
-  const [stage, setStage] = useState<Stage1Response | Stage2Response | Stage3Response | Stage4Response | null>(null);
+  const [stage, setStage] = useState<Stage1Response | Stage2Response | Stage3Response | Stage4Response | Stage5Response | null>(null);
   const [loadingStage, setLoadingStage] = useState(false);
   const [background, setBackground] = useState('input');
   const [showLines, setShowLines] = useState(true);
@@ -138,6 +140,7 @@ export function App() {
   const [showRejectedEdges, setShowRejectedEdges] = useState(false);
   const [showUndecidedEdges, setShowUndecidedEdges] = useState(false);
   const [showCarrierGeometry, setShowCarrierGeometry] = useState(true);
+  const [showGroundTruth, setShowGroundTruth] = useState(true);
   const [probeVisibility, setProbeVisibility] = useState<ProbeVisibility>(() => defaultProbeVisibility());
   const [stage4IssueFilter, setStage4IssueFilter] = useState<Stage4IssueFilter>('all');
   const [selectedStage4IssueId, setSelectedStage4IssueId] = useState<string | null>(null);
@@ -145,7 +148,20 @@ export function App() {
   const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
-    if (activeStage === 'stage4') {
+    if (activeStage === 'stage5') {
+      setShowLines(false);
+      setShowSharedCarriers(false);
+      setShowAtomicEdges(false);
+      setShowSelectedEdges(true);
+      setShowUndecidedEdges(false);
+      setShowRejectedEdges(false);
+      setShowJunctions(false);
+      setShowContacts(false);
+      setShowLineEndpoints(false);
+      setShowInferredCrossings(false);
+      setShowCarrierGeometry(true);
+      setShowGroundTruth(true);
+    } else if (activeStage === 'stage4') {
       setShowLines(false);
       setShowSharedCarriers(false);
       setShowAtomicEdges(false);
@@ -157,6 +173,7 @@ export function App() {
       setShowLineEndpoints(false);
       setShowInferredCrossings(false);
       setShowCarrierGeometry(true);
+      setShowGroundTruth(false);
       setProbeVisibility(defaultProbeVisibility());
     } else if (activeStage === 'stage3') {
       setShowLines(false);
@@ -170,6 +187,7 @@ export function App() {
       setShowLineEndpoints(false);
       setShowInferredCrossings(false);
       setShowCarrierGeometry(true);
+      setShowGroundTruth(false);
     } else if (activeStage === 'stage2') {
       setShowLines(true);
       setShowSharedCarriers(true);
@@ -182,6 +200,7 @@ export function App() {
       setShowLineEndpoints(false);
       setShowInferredCrossings(false);
       setShowCarrierGeometry(false);
+      setShowGroundTruth(false);
     } else {
       setShowLines(true);
       setShowSharedCarriers(false);
@@ -194,6 +213,7 @@ export function App() {
       setShowLineEndpoints(false);
       setShowInferredCrossings(false);
       setShowCarrierGeometry(false);
+      setShowGroundTruth(false);
     }
   }, [activeStage]);
 
@@ -223,7 +243,9 @@ export function App() {
     setStage(null);
     setLoadingStage(true);
     const request =
-      activeStage === 'stage4'
+      activeStage === 'stage5'
+        ? fetchStage5Example(selectedId, { threshold, mapSize })
+        : activeStage === 'stage4'
         ? fetchStage4Example(selectedId, { threshold, mapSize })
         : activeStage === 'stage3'
         ? fetchStage3Example(selectedId, { threshold, mapSize })
@@ -258,7 +280,7 @@ export function App() {
     [background, stage?.maps],
   );
 
-  const stage4Issues = useMemo(() => (isStage4(stage) ? buildStage4Issues(stage) : []), [stage]);
+  const stage4Issues = useMemo(() => (activeStage === 'stage4' && isStage4(stage) ? buildStage4Issues(stage) : []), [activeStage, stage]);
   const filteredStage4Issues = useMemo(
     () => filterStage4Issues(stage4Issues, stage4IssueFilter),
     [stage4IssueFilter, stage4Issues],
@@ -336,11 +358,12 @@ export function App() {
             <PanelTitle icon={<SlidersHorizontal size={17} />} title="Evidence Extraction" />
             <label>
               Stage
-              <select value={activeStage} onChange={(event) => setActiveStage(event.target.value as 'stage1' | 'stage2' | 'stage3' | 'stage4')}>
+              <select value={activeStage} onChange={(event) => setActiveStage(event.target.value as 'stage1' | 'stage2' | 'stage3' | 'stage4' | 'stage5')}>
                 <option value="stage1">Stage 1: dense evidence</option>
                 <option value="stage2">Stage 2: candidate arrangement</option>
                 <option value="stage3">Stage 3: weighted selection</option>
                 <option value="stage4">Stage 4: exactizability probes</option>
+                <option value="stage5">Stage 5: beam selection</option>
               </select>
             </label>
             <label>
@@ -391,7 +414,15 @@ export function App() {
 
           {serverError ? <div className="error-panel">{serverError}</div> : null}
 
-          {activeStage === 'stage4' ? (
+          {activeStage === 'stage5' ? (
+            <section className="summary-grid">
+              <Metric label="selected edges" value={isStage5(stage) ? stage.selection.report.selected_edges : '...'} />
+              <Metric label="weak promoted" value={isStage5(stage) ? stage.selection.report.weak_edges_promoted : '...'} />
+              <Metric label="hard probes" value={isStage5(stage) ? `${stage.exactizability.summary.infeasible} hard / ${stage.exactizability.summary.high_cost} high` : '...'} />
+              <Metric label="odd vertices" value={isStage5(stage) ? stage.exactizability.summary.odd_degree_vertices : '...'} />
+              <Metric label="GT edges" value={isStage5(stage) ? (stage.ground_truth?.edges_vertices.length ?? 'none') : '...'} />
+            </section>
+          ) : activeStage === 'stage4' ? (
             <section className="summary-grid">
               <Metric label="probe verdicts" value={isStage4(stage) ? `${stage.exactizability.summary.infeasible} hard / ${stage.exactizability.summary.high_cost} high` : '...'} />
               <Metric label="odd vertices" value={isStage4(stage) ? stage.exactizability.summary.odd_degree_vertices : '...'} />
@@ -449,7 +480,9 @@ export function App() {
                 <PanelTitle
                   icon={activeStage !== 'stage1' ? <GitBranch size={17} /> : <Layers3 size={17} />}
                   title={
-                    activeStage === 'stage4'
+                    activeStage === 'stage5'
+                      ? 'Selected Graph + Ground Truth'
+                      : activeStage === 'stage4'
                       ? 'Input + Exactizability Probes'
                       : activeStage === 'stage3'
                       ? 'Input + Weighted Selection'
@@ -484,7 +517,7 @@ export function App() {
                       atomic intervals
                     </label>
                   ) : null}
-                  {activeStage === 'stage3' ? (
+                  {activeStage === 'stage3' || activeStage === 'stage5' ? (
                     <label>
                       <input
                         type="checkbox"
@@ -494,7 +527,17 @@ export function App() {
                       carrier geometry
                     </label>
                   ) : null}
-                  {activeStage === 'stage3' ? (
+                  {activeStage === 'stage5' ? (
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={showGroundTruth}
+                        onChange={(event) => setShowGroundTruth(event.target.checked)}
+                      />
+                      GT graph
+                    </label>
+                  ) : null}
+                  {activeStage === 'stage3' || activeStage === 'stage5' ? (
                     <label>
                       <input
                         type="checkbox"
@@ -504,7 +547,7 @@ export function App() {
                       selected
                     </label>
                   ) : null}
-                  {activeStage === 'stage3' ? (
+                  {activeStage === 'stage3' || activeStage === 'stage5' ? (
                     <label>
                       <input
                         type="checkbox"
@@ -514,7 +557,7 @@ export function App() {
                       undecided
                     </label>
                   ) : null}
-                  {activeStage === 'stage3' ? (
+                  {activeStage === 'stage3' || activeStage === 'stage5' ? (
                     <label>
                       <input
                         type="checkbox"
@@ -571,6 +614,8 @@ export function App() {
                   showJunctions={showJunctions}
                   showLineEndpoints={showLineEndpoints}
                   showLines={showLines}
+                  showExactProbes={activeStage === 'stage4'}
+                  showGroundTruth={showGroundTruth}
                   showRejectedEdges={showRejectedEdges}
                   showSelectedEdges={showSelectedEdges}
                   showSharedCarriers={showSharedCarriers}
@@ -653,19 +698,29 @@ export function App() {
 }
 
 function hasArrangement(
-  stage: Stage1Response | Stage2Response | Stage3Response | Stage4Response | null,
-): stage is Stage2Response | Stage3Response | Stage4Response {
+  stage: Stage1Response | Stage2Response | Stage3Response | Stage4Response | Stage5Response | null,
+): stage is Stage2Response | Stage3Response | Stage4Response | Stage5Response {
   return Boolean(stage && 'arrangement' in stage);
 }
 
 function isStage3(
-  stage: Stage1Response | Stage2Response | Stage3Response | Stage4Response | null,
-): stage is Stage3Response | Stage4Response {
+  stage: Stage1Response | Stage2Response | Stage3Response | Stage4Response | Stage5Response | null,
+): stage is Stage3Response | Stage4Response | Stage5Response {
   return Boolean(stage && 'selection' in stage);
 }
 
-function isStage4(stage: Stage1Response | Stage2Response | Stage3Response | Stage4Response | null): stage is Stage4Response {
+function hasExactizability(
+  stage: Stage1Response | Stage2Response | Stage3Response | Stage4Response | Stage5Response | null,
+): stage is Stage4Response | Stage5Response {
   return Boolean(stage && 'exactizability' in stage);
+}
+
+function isStage4(stage: Stage1Response | Stage2Response | Stage3Response | Stage4Response | Stage5Response | null): stage is Stage4Response {
+  return Boolean(stage && 'exactizability' in stage && !('ground_truth' in stage));
+}
+
+function isStage5(stage: Stage1Response | Stage2Response | Stage3Response | Stage4Response | Stage5Response | null): stage is Stage5Response {
+  return Boolean(stage && 'ground_truth' in stage);
 }
 
 function PanelTitle({ icon, title }: { icon: React.ReactNode; title: string }) {
@@ -857,6 +912,8 @@ function SelectionViewer({
   backgroundMap,
   showCarrierGeometry,
   showContacts,
+  showExactProbes,
+  showGroundTruth,
   showJunctions,
   showLineEndpoints,
   showLines,
@@ -871,6 +928,8 @@ function SelectionViewer({
   backgroundMap: MapPayload | null;
   showCarrierGeometry: boolean;
   showContacts: boolean;
+  showExactProbes: boolean;
+  showGroundTruth: boolean;
   showJunctions: boolean;
   showLineEndpoints: boolean;
   showLines: boolean;
@@ -880,7 +939,7 @@ function SelectionViewer({
   showSharedCarriers: boolean;
   showUndecidedEdges: boolean;
   selectedStage4Issue: Stage4Issue | null;
-  stage: Stage3Response | Stage4Response;
+  stage: Stage3Response | Stage4Response | Stage5Response;
 }) {
   const verticesById = useMemo(() => {
     const values = new Map<number, ArrangementVertex>();
@@ -903,20 +962,20 @@ function SelectionViewer({
     return values;
   }, [stage.selection.edge_scores]);
   const visibleVertexProbes = useMemo(() => {
-    if (!isStage4(stage)) return [];
+    if (!showExactProbes || !hasExactizability(stage)) return [];
     return stage.exactizability.vertex_probes
       .map((probe) => ({ probe, displayStatus: vertexProbeDisplayStatus(probe, probeVisibility) }))
       .filter((entry): entry is { probe: VertexExactizabilityProbe; displayStatus: ProbeStatusId } => entry.displayStatus !== null);
-  }, [probeVisibility, stage]);
+  }, [probeVisibility, showExactProbes, stage]);
   const visibleCarrierProbes = useMemo(() => {
-    if (!isStage4(stage)) return [];
+    if (!showExactProbes || !hasExactizability(stage)) return [];
     return stage.exactizability.carrier_probes.filter((probe) => isProbeStatusVisible(probe.status, 'carrier', probeVisibility));
-  }, [probeVisibility, stage]);
+  }, [probeVisibility, showExactProbes, stage]);
   const visibleBoundaryProbes = useMemo(() => {
-    if (!isStage4(stage)) return [];
+    if (!showExactProbes || !hasExactizability(stage)) return [];
     return stage.exactizability.boundary_probes.filter((probe) => isProbeStatusVisible(probe.status, 'boundary', probeVisibility));
-  }, [probeVisibility, stage]);
-  const stage4Active = isStage4(stage);
+  }, [probeVisibility, showExactProbes, stage]);
+  const stage4Active = showExactProbes && hasExactizability(stage);
   const size = stage.config.image_size;
 
   const renderSelectionEdges = (ids: number[], decision: 'selected' | 'rejected' | 'undecided') =>
@@ -951,8 +1010,11 @@ function SelectionViewer({
         className="primitive-overlay arrangement-overlay"
         viewBox={`0 0 ${size} ${size}`}
         role="img"
-        aria-label={isStage4(stage) ? 'Stage 4 exactizability probes' : 'Stage 3 weighted selection'}
+        aria-label={stage4Active ? 'Stage 4 exactizability probes' : isStage5(stage) ? 'Stage 5 selected graph' : 'Stage 3 weighted selection'}
       >
+        {showGroundTruth && isStage5(stage) && stage.ground_truth ? (
+          <GroundTruthGraphView graph={stage.ground_truth} />
+        ) : null}
         {showRejectedEdges ? renderSelectionEdges(stage.selection.rejected_edge_ids, 'rejected') : null}
         {showUndecidedEdges ? renderSelectionEdges(stage.selection.undecided_edge_ids, 'undecided') : null}
         {showLines
@@ -981,7 +1043,7 @@ function SelectionViewer({
               .filter((vertex) => vertex.kind === 'boundary_contact' || vertex.kind === 'corner')
               .map((vertex) => <ArrangementVertexView frame={stage.overlay_frame_px} key={`contact-${vertex.id}`} vertex={vertex} />)
           : null}
-        {isStage4(stage)
+        {stage4Active && hasExactizability(stage)
           ? visibleCarrierProbes.map((probe) => {
               const carrier = carriersById.get(probe.carrier_id);
               return carrier ? (
@@ -996,7 +1058,7 @@ function SelectionViewer({
               ) : null;
             })
           : null}
-        {isStage4(stage)
+        {stage4Active && hasExactizability(stage)
           ? visibleBoundaryProbes.map((probe) => (
               <ExactBoundaryProbeView
                 frame={stage.overlay_frame_px}
@@ -1007,7 +1069,7 @@ function SelectionViewer({
               />
             ))
           : null}
-        {isStage4(stage)
+        {stage4Active && hasExactizability(stage)
           ? visibleVertexProbes.map(({ displayStatus, probe }) => (
               <ExactVertexProbeView
                 displayStatus={displayStatus}
@@ -1032,6 +1094,37 @@ function SelectionViewer({
         ) : null}
       </svg>
     </div>
+  );
+}
+
+function GroundTruthGraphView({ graph }: { graph: GroundTruthGraph }) {
+  return (
+    <g className="ground-truth-graph" aria-label="Ground truth graph">
+      {graph.edges_vertices.map(([aId, bId], index) => {
+        const a = graph.vertices_px[aId];
+        const b = graph.vertices_px[bId];
+        if (!a || !b) return null;
+        const label = graph.edges_assignment_labels[index] ?? 'U';
+        return (
+          <line
+            key={`gt-${index}`}
+            stroke={groundTruthAssignmentColor(label)}
+            strokeLinecap="round"
+            strokeOpacity={label === 'B' ? 0.5 : 0.38}
+            strokeWidth={label === 'B' ? 2.0 : 1.35}
+            vectorEffect="non-scaling-stroke"
+            x1={a[0]}
+            x2={b[0]}
+            y1={a[1]}
+            y2={b[1]}
+          >
+            <title>
+              GT {label} edge {index}: {aId} {'->'} {bId}
+            </title>
+          </line>
+        );
+      })}
+    </g>
   );
 }
 
@@ -1551,6 +1644,7 @@ function Stage2LayerSummary({ stage }: { stage: Stage2Response }) {
 
 function Stage3LayerSummary({ stage }: { stage: Stage3Response }) {
   const report = stage.selection.report;
+  const isBeamSelection = report.exactizability_evaluated;
   const carriersById = new Map(stage.arrangement.carriers.map((carrier) => [carrier.id, carrier]));
   const selectedScores = stage.selection.edge_scores.filter((score) => score.decision === 'selected');
   const selectedCarrierIds = new Set(selectedScores.map((score) => score.carrier_id));
@@ -1569,7 +1663,7 @@ function Stage3LayerSummary({ stage }: { stage: Stage3Response }) {
     .slice(0, 10);
   return (
     <div className="hypothesis-panel">
-      <PanelTitle icon={<GitBranch size={17} />} title="Stage 3 Selection" />
+      <PanelTitle icon={<GitBranch size={17} />} title={isBeamSelection ? 'Stage 5 Beam Selection' : 'Stage 3 Selection'} />
       <LayerRow color="#16a34a" label="Selected edges" value={report.selected_edges} note="atomic intervals chosen for the graph" />
       <LayerRow color="#9333ea" label="Shared selected" value={selectedSharedEdges} note="selected intervals from shared straight carriers" />
       <LayerRow color="#475569" label="Observed selected" value={selectedObservedEdges} note="selected intervals from local observed carriers" />
@@ -1602,8 +1696,9 @@ function Stage3LayerSummary({ stage }: { stage: Stage3Response }) {
         </div>
       ))}
       <p>
-        Stage 3 shows the selected graph candidate by default. Turn on observed carriers or shared alternatives only when
-        comparing the choice against Stage 2 evidence. Exact geometric theorem costs arrive in Phase 4.
+        {isBeamSelection
+          ? 'Stage 5 shows the exactizability-aware selected graph candidate. Toggle GT graph to compare the selected topology against the known fold file.'
+          : 'Stage 3 shows the selected graph candidate by default. Turn on observed carriers or shared alternatives only when comparing the choice against Stage 2 evidence. Exact geometric theorem costs arrive in Phase 4.'}
       </p>
     </div>
   );
@@ -1849,6 +1944,13 @@ function arrangementAssignmentColor(label: string) {
   if (label === 'valley') return '#2563eb';
   if (label === 'boundary') return '#111827';
   return '#64748b';
+}
+
+function groundTruthAssignmentColor(label: string) {
+  if (label === 'M' || label === 'mountain') return '#991b1b';
+  if (label === 'V' || label === 'valley') return '#1d4ed8';
+  if (label === 'B' || label === 'boundary') return '#020617';
+  return '#475569';
 }
 
 function buildStage4Issues(stage: Stage4Response): Stage4Issue[] {

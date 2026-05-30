@@ -347,3 +347,14 @@ export interface ExactizabilityReport {
 export interface Stage4Response extends Stage3Response {
   exactizability: ExactizabilityReport;
 }
+
+export interface GroundTruthGraph {
+  image_size: number;
+  vertices_px: [number, number][];
+  edges_vertices: [number, number][];
+  edges_assignment_labels: string[];
+}
+
+export interface Stage5Response extends Stage4Response {
+  ground_truth?: GroundTruthGraph | null;
+}

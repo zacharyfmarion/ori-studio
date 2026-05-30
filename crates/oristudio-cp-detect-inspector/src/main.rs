@@ -8,7 +8,7 @@ use oristudio_cp_compiler::exact_probe::{
     ExactProbeOptions, ExactizabilityReport, probe_exactizability,
 };
 use oristudio_cp_compiler::selection::{
-    CandidateSelection, SelectionOptions, select_candidate_graph,
+    CandidateSelection, SelectionOptions, select_candidate_graph, select_candidate_graph_beam,
 };
 use oristudio_cp_compiler::{AssignmentCandidate, AssignmentLabel, EvidenceSource, Point2};
 use oristudio_cp_detect::decode::DecodeConfig;
@@ -160,6 +160,30 @@ struct Stage4Response {
     arrangement: CandidateArrangement,
     selection: CandidateSelection,
     exactizability: ExactizabilityReport,
+}
+
+#[derive(Debug, Serialize)]
+struct Stage5Response {
+    schema: &'static str,
+    sample: ExampleRow,
+    map_size: usize,
+    config: EvidenceConfigSummary,
+    overlay_frame_px: OverlayFramePx,
+    report: Value,
+    maps: Vec<MapPayload>,
+    primitives: PrimitivePayload,
+    arrangement: CandidateArrangement,
+    selection: CandidateSelection,
+    exactizability: ExactizabilityReport,
+    ground_truth: Option<GroundTruthGraphPayload>,
+}
+
+#[derive(Debug, Serialize)]
+struct GroundTruthGraphPayload {
+    image_size: u32,
+    vertices_px: Vec<[f64; 2]>,
+    edges_vertices: Vec<[usize; 2]>,
+    edges_assignment_labels: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]
@@ -367,6 +391,12 @@ fn route_request(request: &HttpRequest, state: &AppState) -> HttpResponse {
                     label: "Stage 4",
                     title: "Local exactizability probes",
                     status: "implemented"
+                },
+                StageInfo {
+                    id: "stage5",
+                    label: "Stage 5",
+                    title: "Exactizability-aware beam selection",
+                    status: "implemented"
                 }
             ]
         }))
@@ -390,6 +420,11 @@ fn route_request(request: &HttpRequest, state: &AppState) -> HttpResponse {
     } else if let Some(encoded_id) = path.strip_prefix("/api/stage4/examples/") {
         let sample_id = percent_decode(encoded_id);
         stage4_example(state, &sample_id, query).and_then(|payload| json_response(&payload))
+    } else if path == "/api/stage5/examples" {
+        stage5_examples(state).and_then(|payload| json_response(&payload))
+    } else if let Some(encoded_id) = path.strip_prefix("/api/stage5/examples/") {
+        let sample_id = percent_decode(encoded_id);
+        stage5_example(state, &sample_id, query).and_then(|payload| json_response(&payload))
     } else if let Some(encoded_id) = path.strip_prefix("/assets/input/") {
         let sample_id = percent_decode(encoded_id.trim_end_matches(".png"));
         serve_input_image(state, &sample_id)
@@ -451,6 +486,13 @@ fn stage4_examples(state: &AppState) -> Result<ExamplesResponse> {
     examples_response(
         state,
         "oristudio/cp-detect-architecture-inspector/stage4-index/v1",
+    )
+}
+
+fn stage5_examples(state: &AppState) -> Result<ExamplesResponse> {
+    examples_response(
+        state,
+        "oristudio/cp-detect-architecture-inspector/stage5-index/v1",
     )
 }
 
@@ -666,6 +708,143 @@ fn stage4_example(
         selection: stage3.selection,
         exactizability,
     })
+}
+
+fn stage5_example(
+    state: &AppState,
+    sample_id: &str,
+    query: BTreeMap<String, String>,
+) -> Result<Stage5Response> {
+    let sample = state
+        .manifest
+        .samples
+        .iter()
+        .find(|sample| sample.id == sample_id)
+        .ok_or_else(|| anyhow!("unknown sample {sample_id:?}"))?;
+    let stage2 = stage2_example(state, sample_id, query)?;
+    let exact_options = ExactProbeOptions::default();
+    let selection = select_candidate_graph_beam(
+        &stage2.arrangement,
+        SelectionOptions::default(),
+        exact_options,
+    );
+    let exactizability = probe_exactizability(&stage2.arrangement, &selection, exact_options);
+    let ground_truth = read_ground_truth_graph(state, sample)?;
+    Ok(Stage5Response {
+        schema: "oristudio/cp-detect-architecture-inspector/stage5/v1",
+        sample: stage2.sample,
+        map_size: stage2.map_size,
+        config: stage2.config,
+        overlay_frame_px: stage2.overlay_frame_px,
+        report: stage2.report,
+        maps: stage2.maps,
+        primitives: stage2.primitives,
+        arrangement: stage2.arrangement,
+        selection,
+        exactizability,
+        ground_truth,
+    })
+}
+
+fn read_ground_truth_graph(
+    state: &AppState,
+    sample: &DenseCacheSample,
+) -> Result<Option<GroundTruthGraphPayload>> {
+    let Some(relative_path) = sample.gt_graph.as_deref() else {
+        return Ok(None);
+    };
+    let path = resolve_pack_path(state, relative_path);
+    if !path.exists() {
+        return Ok(None);
+    }
+    let value: Value = serde_json::from_str(
+        &fs::read_to_string(&path).with_context(|| format!("read {}", path.display()))?,
+    )
+    .with_context(|| format!("parse {}", path.display()))?;
+    let image_size = value
+        .get("image_size")
+        .and_then(Value::as_u64)
+        .unwrap_or(sample.image_size as u64) as u32;
+    let vertices_px = parse_point_array(
+        value
+            .get("vertices_px")
+            .ok_or_else(|| anyhow!("{} missing vertices_px", path.display()))?,
+    )?;
+    let edges_vertices = parse_usize_pair_array(
+        value
+            .get("edges_vertices")
+            .ok_or_else(|| anyhow!("{} missing edges_vertices", path.display()))?,
+    )?;
+    let edges_assignment_labels = value
+        .get("edges_assignment_labels")
+        .and_then(Value::as_array)
+        .map(|values| {
+            values
+                .iter()
+                .map(|value| value.as_str().unwrap_or("U").to_owned())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_else(|| vec!["U".to_owned(); edges_vertices.len()]);
+    Ok(Some(GroundTruthGraphPayload {
+        image_size,
+        vertices_px,
+        edges_vertices,
+        edges_assignment_labels,
+    }))
+}
+
+fn resolve_pack_path(state: &AppState, relative_path: &str) -> PathBuf {
+    let path = PathBuf::from(relative_path);
+    if path.is_absolute() {
+        return path;
+    }
+    let from_pack = state.pack_root.join(&path);
+    if from_pack.exists() {
+        return from_pack;
+    }
+    state.manifest_root.join(path)
+}
+
+fn parse_point_array(value: &Value) -> Result<Vec<[f64; 2]>> {
+    let points = value
+        .as_array()
+        .ok_or_else(|| anyhow!("expected point array"))?;
+    points
+        .iter()
+        .map(|point| {
+            let coords = point.as_array().ok_or_else(|| anyhow!("expected point"))?;
+            if coords.len() < 2 {
+                bail!("expected 2D point");
+            }
+            Ok([
+                coords[0].as_f64().context("point x should be numeric")?,
+                coords[1].as_f64().context("point y should be numeric")?,
+            ])
+        })
+        .collect()
+}
+
+fn parse_usize_pair_array(value: &Value) -> Result<Vec<[usize; 2]>> {
+    let pairs = value
+        .as_array()
+        .ok_or_else(|| anyhow!("expected pair array"))?;
+    pairs
+        .iter()
+        .map(|pair| {
+            let values = pair.as_array().ok_or_else(|| anyhow!("expected pair"))?;
+            if values.len() < 2 {
+                bail!("expected pair");
+            }
+            Ok([
+                values[0]
+                    .as_u64()
+                    .context("pair first value should be uint")? as usize,
+                values[1]
+                    .as_u64()
+                    .context("pair second value should be uint")? as usize,
+            ])
+        })
+        .collect()
 }
 
 fn example_row(sample: &DenseCacheSample) -> ExampleRow {
