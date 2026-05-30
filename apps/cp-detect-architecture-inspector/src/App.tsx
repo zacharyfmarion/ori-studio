@@ -377,7 +377,7 @@ export function App() {
                 onChange={(event) => setThreshold(Number(event.target.value))}
               />
             </label>
-            {activeStage !== 'stage4' ? (
+            {activeStage !== 'stage4' && activeStage !== 'stage5' ? (
               <label>
                 Map size
                 <input
@@ -390,7 +390,7 @@ export function App() {
                 />
               </label>
             ) : null}
-            {activeStage !== 'stage4' ? (
+            {activeStage !== 'stage4' && activeStage !== 'stage5' ? (
               <label>
                 Background
                 <select value={background} onChange={(event) => setBackground(event.target.value)}>
@@ -474,14 +474,22 @@ export function App() {
             </section>
           )}
 
-          <section className={activeStage === 'stage4' ? 'viewer-and-maps stage4-viewer-layout' : 'viewer-and-maps'}>
+          <section
+            className={
+              activeStage === 'stage4'
+                ? 'viewer-and-maps stage4-viewer-layout'
+                : activeStage === 'stage5'
+                  ? 'viewer-and-maps stage5-viewer-layout'
+                  : 'viewer-and-maps'
+            }
+          >
             <div className="viewer-panel">
               <div className="viewer-toolbar">
                 <PanelTitle
                   icon={activeStage !== 'stage1' ? <GitBranch size={17} /> : <Layers3 size={17} />}
                   title={
                     activeStage === 'stage5'
-                      ? 'Selected Graph + Ground Truth'
+                      ? 'Beam Selected vs Ground Truth'
                       : activeStage === 'stage4'
                       ? 'Input + Exactizability Probes'
                       : activeStage === 'stage3'
@@ -491,8 +499,27 @@ export function App() {
                         : 'Input + Stage 1 Primitives'
                   }
                 />
-                {activeStage !== 'stage4' ? (
-                <div className="toggle-row">
+                {activeStage === 'stage5' ? (
+                  <div className="toggle-row stage5-toggle-row">
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={showSelectedEdges}
+                        onChange={(event) => setShowSelectedEdges(event.target.checked)}
+                      />
+                      beam selected graph
+                    </label>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={showGroundTruth}
+                        onChange={(event) => setShowGroundTruth(event.target.checked)}
+                      />
+                      GT graph
+                    </label>
+                  </div>
+                ) : activeStage !== 'stage4' ? (
+                  <div className="toggle-row">
                   <label>
                     <input type="checkbox" checked={showLines} onChange={(event) => setShowLines(event.target.checked)} />
                     {activeStage !== 'stage1' ? 'observed carriers' : 'lines'}
@@ -517,7 +544,7 @@ export function App() {
                       atomic intervals
                     </label>
                   ) : null}
-                  {activeStage === 'stage3' || activeStage === 'stage5' ? (
+                  {activeStage === 'stage3' ? (
                     <label>
                       <input
                         type="checkbox"
@@ -527,17 +554,7 @@ export function App() {
                       carrier geometry
                     </label>
                   ) : null}
-                  {activeStage === 'stage5' ? (
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={showGroundTruth}
-                        onChange={(event) => setShowGroundTruth(event.target.checked)}
-                      />
-                      GT graph
-                    </label>
-                  ) : null}
-                  {activeStage === 'stage3' || activeStage === 'stage5' ? (
+                  {activeStage === 'stage3' ? (
                     <label>
                       <input
                         type="checkbox"
@@ -547,7 +564,7 @@ export function App() {
                       selected
                     </label>
                   ) : null}
-                  {activeStage === 'stage3' || activeStage === 'stage5' ? (
+                  {activeStage === 'stage3' ? (
                     <label>
                       <input
                         type="checkbox"
@@ -557,7 +574,7 @@ export function App() {
                       undecided
                     </label>
                   ) : null}
-                  {activeStage === 'stage3' || activeStage === 'stage5' ? (
+                  {activeStage === 'stage3' ? (
                     <label>
                       <input
                         type="checkbox"
@@ -608,8 +625,8 @@ export function App() {
               </div>
               {isStage3(stage) ? (
                 <SelectionViewer
-                  backgroundMap={activeStage === 'stage4' ? null : backgroundMap}
-                  showCarrierGeometry={showCarrierGeometry}
+                  backgroundMap={activeStage === 'stage4' || activeStage === 'stage5' ? null : backgroundMap}
+                  showCarrierGeometry={activeStage === 'stage5' ? false : showCarrierGeometry}
                   showContacts={showContacts}
                   showJunctions={showJunctions}
                   showLineEndpoints={showLineEndpoints}
@@ -663,7 +680,7 @@ export function App() {
                   stage={stage}
                 />
               </aside>
-            ) : (
+            ) : activeStage === 'stage5' ? null : (
             <aside className="map-panel">
               <PanelTitle icon={<Layers3 size={17} />} title="Dense Evidence Maps" />
               <select value={selectedMapId} onChange={(event) => setSelectedMapId(event.target.value)}>

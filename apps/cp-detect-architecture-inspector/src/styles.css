@@ -229,6 +229,10 @@ select {
   grid-template-columns: minmax(620px, 1fr) 430px;
 }
 
+.stage5-viewer-layout {
+  grid-template-columns: minmax(620px, 1fr);
+}
+
 .viewer-panel,
 .map-panel {
   min-height: 0;
