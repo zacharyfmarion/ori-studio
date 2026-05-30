@@ -16,10 +16,14 @@ Progress:
   graph.
 - Phase 5 is complete as of May 30, 2026 for first-pass exactizability-aware
   beam selection.
-- Phase 5b is complete as of May 30, 2026. It fixes a structural weakness in
-  Phase 5: local high-confidence fragments were selected independently, so the
-  graph often preferred many small intervals over one clean crease carrier
-  between real junctions.
+- Phase 5b was audited on May 30, 2026 and found incomplete. The selector did
+  add shared-carrier moves and structural edit accounting, but the public graph
+  still exported selected atomic intervals as if they were final crease edges.
+  The inspector then tried to hide that mismatch with a post-selection compiled
+  graph view. That was misleading and has to be removed rather than polished.
+- Phase 5c is complete as of May 30, 2026. Final crease spans are now
+  first-class selection output. Stage 5 shows exactly what the beam selected as
+  final crease spans, with atomic intervals available only as provenance.
 - A `ConstraintCompilerV2` backend now exists for the compiler-native evidence
   route, while `ConstraintCompilerV1` remains the current locked-border
   baseline.
@@ -31,10 +35,10 @@ Progress:
 - V2 reports evidence extraction time separately from compiler time.
 - V2 reports explicit stage IDs in `compiler_report.stage_ids`.
 - `apps/cp-detect-architecture-inspector` and
-  `oristudio-cp-detect-inspector` provide local Stage 1, Stage 2, Stage 3, and
-  Stage 5 debug UI/API for visually inspecting dense evidence, arrangement
-  candidates, weighted selection output, exactizability probes, and beam-selected
-  structural replacements.
+  `oristudio-cp-detect-inspector` provide local Stage 1 through Stage 5 debug
+  UI/API for visually inspecting dense evidence, arrangement candidates,
+  weighted selection output, exactizability probes, and beam-selected final
+  crease spans.
 - The V2 product route is still not promoted. Exact solve, assignment solve,
   verifier/export contract, and benchmark gates remain open.
 
@@ -672,14 +676,40 @@ What remains after Phase 5:
   probing exactizability.
 - Phase 7 must solve assignments after topology/geometry are plausible.
 
-## Phase 5b: Structural Replacement Beam Selection
+## Phase 5b: Structural Replacement Beam Selection Audit
 
 Purpose: make Phase 5 choose crease-level structure, not merely high-scoring
 atomic evidence intervals.
 
-Status: Complete for the Phase 5b debug selector. The selected graph is still
-not expected to be product-valid until Phase 6 exact solve and Phase 7 assignment
-solve are implemented.
+Status: Incomplete. This phase correctly identified the structural problem and
+introduced useful beam moves and accounting, but it did not actually change the
+output abstraction. The beam still emitted `selected_edge_ids`, where every ID
+is an atomic interval from the arrangement. Those atomic intervals are evidence
+provenance, not final crease edges.
+
+Where it got fucked up:
+
+- The intended architecture was "beam chooses final crease-level alternatives."
+  For example, it should choose between "keep these local fragments" and "select
+  this one shared straight carrier span between real junctions."
+- The implemented code instead chose atomic intervals and then reported
+  structural edits saying some intervals belonged to a shared-carrier
+  replacement.
+- Because the public selected graph was still atomic, the Stage 5 inspector
+  showed many tiny segments even when the edit accounting said a shared carrier
+  had won.
+- The follow-up `compiled_selection_graph` inspector artifact was a
+  post-selection contraction layer. It made the UI look closer to the desired
+  graph but was not what the beam had selected, so it violated the debug UI's
+  purpose.
+
+Corrective decision:
+
+- Do not keep inspector-only graph beautification.
+- Keep atomic intervals as provenance and exact-probe input.
+- Add a first-class selected span output to the compiler selection result.
+- Render selected spans by default in Stage 5.
+- Keep raw atomic intervals behind an explicit provenance/debug toggle.
 
 Problem found during Stage 5 visual inspection:
 
@@ -785,15 +815,98 @@ Inspector/performance notes:
   with 29 shared-carrier intervals, reduces selected local fragments with shared
   alternatives from 451 to 255, and reduces odd vertices from 101 to 72.
 
-Acceptance:
+Original acceptance, now corrected:
 
-- [x] Stage 5 selected graph visibly prefers shared straight carriers over
+- [ ] Stage 5 selected graph visibly prefers shared straight carriers over
   wobbly fragment chains when the arrangement contains that alternative.
 - [x] Inspector Stage 5 reports structural edits so visual review can tell
   whether the compiler replaced fragments or merely selected the old local
   evidence.
 - [ ] Existing Phase 5 tests continue to pass or are updated to the new
   structural semantics.
+
+## Phase 5c: First-Class Final Crease Span Selection
+
+Purpose: make the selected graph representation match the intended compiler
+architecture.
+
+Status: Complete as of May 30, 2026.
+
+Architecture:
+
+- Add `selected_spans` to `CandidateSelection`.
+- A selected span is a final crease candidate, not an atomic evidence interval.
+  It contains:
+  - final endpoint vertex IDs
+  - selected carrier ID
+  - assignment label/confidence copied from the selected evidence
+  - source atomic interval IDs used as provenance
+  - replaced local atomic interval IDs when it is a shared-carrier replacement
+  - score/reason metadata for inspector/debugging
+- Shared-carrier beam moves emit `shared_carrier_span` selections. Their atomic
+  intervals remain in `selected_edge_ids` only so exactizability probes can
+  inspect evidence support and so the UI can show provenance.
+- Non-replaced local selections emit `atomic_interval` spans. That is an honest
+  output: if the beam failed to choose a shared span, the final graph should show
+  the ugly local fragments, not hide them.
+- Stage 5 inspector renders `selection.selected_spans` by default.
+- Stage 5 inspector can toggle raw selected atomic intervals as provenance.
+- Remove `compiled_selection_graph` from the inspector API/UI. The compiler's
+  selection result is the source of truth.
+
+Algorithm:
+
+- Build final spans from the beam's selected state and structural replacement
+  edits.
+- For a shared-carrier replacement:
+  - group selected atomic intervals by selected shared carrier
+  - walk contiguous interval chains
+  - collapse pass-through vertices only inside that selected span candidate
+  - preserve observed junctions, junction clusters, boundary contacts, and
+    square corners as possible span endpoints
+  - record collapsed atomic intervals as provenance, not graph edges
+- For local selections not replaced by a shared-carrier span:
+  - emit one `atomic_interval` span per selected atomic interval
+  - do not merge these cosmetically
+- `selected_edge_ids` remains as selected evidence/provenance, but
+  `selected_spans` is the final graph surface for Stage 5 and later phases.
+
+Tests:
+
+- [x] Shared-carrier replacement emits one final selected span instead of all
+  source atomic intervals as graph edges.
+- [x] Shared-carrier replacement preserves a real observed junction as a split
+  point, producing two spans when a true branch lies on the carrier.
+- [x] Local fragments remain as separate selected spans when the beam does not
+  select a shared-carrier replacement.
+- [x] `selected_edge_ids` still contains selected atomic provenance for
+  exactizability probes.
+- [x] Stage 5 inspector renders selected spans by default and raw atomic
+  provenance only when toggled.
+- [x] The treemaker debug sample no longer shows the selected shared carrier as
+  a chain of tiny atomic graph edges when a shared-carrier span was actually
+  selected.
+
+Acceptance:
+
+- [x] The selection API makes it impossible to confuse final graph spans with
+  atomic evidence intervals.
+- [x] Tests fail if a shared-carrier replacement is reported but no
+  `shared_carrier_span` is emitted.
+- [x] Inspector code contains no post-hoc selected-graph contraction layer.
+
+Verification:
+
+- `cargo test -p oristudio-cp-compiler`
+- `cargo test -p oristudio-cp-detect-inspector`
+- `npm --workspace @treemaker/cp-detect-architecture-inspector run build`
+- Stage 5 smoke API on
+  `treemaker_tree_v1-5gjmj-004937__clean__001`: `selected_spans=360`,
+  `selected_edges=497`, `shared_spans=85`, `collapsed=137`, and no
+  `compiled_selection_graph` payload.
+- Browser sanity check at `http://localhost:5176/`: Stage 5 loaded without
+  `Request failed`/`not found`; toolbar only exposes selected graph, GT graph,
+  and atomic provenance toggles.
 
 ## Phase 6: Full Exact Geometric Solve
 

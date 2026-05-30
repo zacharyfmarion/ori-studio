@@ -5,8 +5,8 @@
 //! `select_candidate_graph_beam` is the Phase 5 exactizability-aware selector.
 
 use crate::arrangement_v2::{
-    ArrangementAtomicEdge, ArrangementCarrierKind, ArrangementHypothesisKind, ArrangementVertex,
-    ArrangementVertexKind, CandidateArrangement,
+    ArrangementAtomicEdge, ArrangementCarrier, ArrangementCarrierKind, ArrangementHypothesisKind,
+    ArrangementVertex, ArrangementVertexKind, CandidateArrangement,
 };
 use crate::exact_probe::{ExactProbeOptions, probe_exactizability};
 use crate::{AssignmentLabel, EvidenceSource};
@@ -75,6 +75,8 @@ pub struct CandidateSelection {
     pub image_size: u32,
     pub options: SelectionOptions,
     pub selected_edge_ids: Vec<usize>,
+    #[serde(default)]
+    pub selected_spans: Vec<SelectionSpan>,
     pub rejected_edge_ids: Vec<usize>,
     pub undecided_edge_ids: Vec<usize>,
     pub selected_hypothesis_ids: Vec<usize>,
@@ -82,6 +84,35 @@ pub struct CandidateSelection {
     #[serde(default)]
     pub structural_edits: Vec<SelectionStructuralEdit>,
     pub report: CandidateSelectionReport,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SelectionSpan {
+    pub id: usize,
+    pub kind: SelectionSpanKind,
+    pub carrier_id: usize,
+    pub vertices: [usize; 2],
+    pub t_interval: [f64; 2],
+    pub assignment: crate::AssignmentCandidate,
+    #[serde(default)]
+    pub source_atomic_edge_ids: Vec<usize>,
+    #[serde(default)]
+    pub replaced_atomic_edge_ids: Vec<usize>,
+    #[serde(default)]
+    pub collapsed_vertex_ids: Vec<usize>,
+    pub line_support_min: f64,
+    pub line_support_mean: f64,
+    pub line_support_max: f64,
+    pub score: f64,
+    #[serde(default)]
+    pub reasons: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SelectionSpanKind {
+    AtomicInterval,
+    SharedCarrierSpan,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -165,6 +196,7 @@ pub enum SelectionStructuralEditKind {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CandidateSelectionReport {
     pub selected_edges: usize,
+    pub selected_spans: usize,
     pub rejected_edges: usize,
     pub undecided_edges: usize,
     pub selected_hypotheses: usize,
@@ -306,6 +338,8 @@ pub fn select_candidate_graph(
     let selected_edge_ids = ordered_ids(&scores, SelectionDecision::Selected);
     let rejected_edge_ids = ordered_ids(&scores, SelectionDecision::Rejected);
     let undecided_edge_ids = ordered_ids(&scores, SelectionDecision::Undecided);
+    let selected_spans =
+        selected_spans_from_selection(arrangement, &scores, &selected, &[], &vertices, &carriers);
     let duplicate_edges_rejected = scores
         .iter()
         .filter(|score| score.breakdown.duplicate_cost > 0.0)
@@ -317,6 +351,7 @@ pub fn select_candidate_graph(
         .sum();
     let report = CandidateSelectionReport {
         selected_edges: selected_edge_ids.len(),
+        selected_spans: selected_spans.len(),
         rejected_edges: rejected_edge_ids.len(),
         undecided_edges: undecided_edge_ids.len(),
         selected_hypotheses: selected_hypotheses.len(),
@@ -342,6 +377,7 @@ pub fn select_candidate_graph(
         image_size: arrangement.image_size,
         options,
         selected_edge_ids,
+        selected_spans,
         rejected_edge_ids,
         undecided_edge_ids,
         selected_hypothesis_ids: selected_hypotheses.into_iter().collect(),
@@ -641,6 +677,14 @@ pub fn select_candidate_graph_beam(
     let selected_edge_ids = ordered_ids(&scores, SelectionDecision::Selected);
     let rejected_edge_ids = ordered_ids(&scores, SelectionDecision::Rejected);
     let undecided_edge_ids = ordered_ids(&scores, SelectionDecision::Undecided);
+    let selected_spans = selected_spans_from_selection(
+        arrangement,
+        &scores,
+        &selected,
+        &final_structural.edits,
+        &vertices,
+        &carriers,
+    );
     let duplicate_edges_rejected = scores
         .iter()
         .filter(|score| score.breakdown.duplicate_cost > 0.0)
@@ -659,6 +703,7 @@ pub fn select_candidate_graph_beam(
     let total_score = best.total_score;
     let report = CandidateSelectionReport {
         selected_edges: selected_edge_ids.len(),
+        selected_spans: selected_spans.len(),
         rejected_edges: rejected_edge_ids.len(),
         undecided_edges: undecided_edge_ids.len(),
         selected_hypotheses: selected_hypotheses.len(),
@@ -684,6 +729,7 @@ pub fn select_candidate_graph_beam(
         image_size: arrangement.image_size,
         options,
         selected_edge_ids,
+        selected_spans,
         rejected_edge_ids,
         undecided_edge_ids,
         selected_hypothesis_ids: selected_hypotheses.into_iter().collect(),
@@ -1310,6 +1356,388 @@ fn incident_edges_are_collinear(
     dot.acos() <= angle_tol && (left.rho - right.rho).abs() <= rho_tol.max(0.006)
 }
 
+#[derive(Debug, Clone)]
+struct SpanPath {
+    vertices: [usize; 2],
+    edge_ids: Vec<usize>,
+    collapsed_vertex_ids: Vec<usize>,
+}
+
+fn selected_spans_from_selection(
+    arrangement: &CandidateArrangement,
+    scores: &[SelectionEdgeScore],
+    selected_edges: &BTreeSet<usize>,
+    structural_edits: &[SelectionStructuralEdit],
+    vertices: &BTreeMap<usize, &ArrangementVertex>,
+    carriers: &BTreeMap<usize, &ArrangementCarrier>,
+) -> Vec<SelectionSpan> {
+    let incident = selected_incident_edges(arrangement, selected_edges);
+    let mut consumed_shared_edges = BTreeSet::<usize>::new();
+    let mut spans = Vec::<SelectionSpan>::new();
+
+    for edit in structural_edits
+        .iter()
+        .filter(|edit| edit.kind == SelectionStructuralEditKind::SharedCarrierReplacement)
+    {
+        for carrier_id in &edit.carrier_ids {
+            let selected_carrier_edges = edit
+                .added_edge_ids
+                .iter()
+                .copied()
+                .filter(|edge_id| selected_edges.contains(edge_id))
+                .filter(|edge_id| {
+                    arrangement
+                        .atomic_edges
+                        .get(*edge_id)
+                        .is_some_and(|edge| edge.carrier_id == *carrier_id)
+                })
+                .collect::<Vec<_>>();
+            if selected_carrier_edges.is_empty() {
+                continue;
+            }
+            for path in shared_carrier_span_paths(
+                arrangement,
+                vertices,
+                carriers,
+                &incident,
+                *carrier_id,
+                &selected_carrier_edges,
+            ) {
+                consumed_shared_edges.extend(path.edge_ids.iter().copied());
+                if let Some(span) = selection_span_from_path(
+                    arrangement,
+                    scores,
+                    carriers,
+                    SelectionSpanKind::SharedCarrierSpan,
+                    *carrier_id,
+                    path,
+                    edit.removed_edge_ids.clone(),
+                    vec![
+                        "selected shared carrier span".to_owned(),
+                        format!(
+                            "replaces {} local atomic fragment(s)",
+                            edit.removed_edge_ids.len()
+                        ),
+                    ],
+                ) {
+                    spans.push(span);
+                }
+            }
+        }
+    }
+
+    for edge_id in selected_edges {
+        if consumed_shared_edges.contains(edge_id) {
+            continue;
+        }
+        let Some(edge) = arrangement.atomic_edges.get(*edge_id) else {
+            continue;
+        };
+        let path = SpanPath {
+            vertices: edge.vertices,
+            edge_ids: vec![edge.id],
+            collapsed_vertex_ids: Vec::new(),
+        };
+        if let Some(span) = selection_span_from_path(
+            arrangement,
+            scores,
+            carriers,
+            SelectionSpanKind::AtomicInterval,
+            edge.carrier_id,
+            path,
+            Vec::new(),
+            vec![
+                "selected atomic interval".to_owned(),
+                "no selected shared-carrier span covers this evidence interval".to_owned(),
+            ],
+        ) {
+            spans.push(span);
+        }
+    }
+
+    spans.sort_by(|left, right| {
+        left.vertices
+            .cmp(&right.vertices)
+            .then_with(|| left.carrier_id.cmp(&right.carrier_id))
+            .then_with(|| left.t_interval[0].total_cmp(&right.t_interval[0]))
+            .then_with(|| left.t_interval[1].total_cmp(&right.t_interval[1]))
+            .then_with(|| left.kind.cmp(&right.kind))
+    });
+    for (id, span) in spans.iter_mut().enumerate() {
+        span.id = id;
+    }
+    spans
+}
+
+fn shared_carrier_span_paths(
+    arrangement: &CandidateArrangement,
+    vertices: &BTreeMap<usize, &ArrangementVertex>,
+    carriers: &BTreeMap<usize, &ArrangementCarrier>,
+    incident: &BTreeMap<usize, Vec<usize>>,
+    carrier_id: usize,
+    edge_ids: &[usize],
+) -> Vec<SpanPath> {
+    let edge_set = edge_ids.iter().copied().collect::<BTreeSet<_>>();
+    let mut adjacency = BTreeMap::<usize, Vec<(usize, usize)>>::new();
+    for edge_id in &edge_set {
+        let Some(edge) = arrangement.atomic_edges.get(*edge_id) else {
+            continue;
+        };
+        adjacency
+            .entry(edge.vertices[0])
+            .or_default()
+            .push((edge.vertices[1], edge.id));
+        adjacency
+            .entry(edge.vertices[1])
+            .or_default()
+            .push((edge.vertices[0], edge.id));
+    }
+    for neighbors in adjacency.values_mut() {
+        neighbors.sort_by_key(|(vertex_id, edge_id)| (*vertex_id, *edge_id));
+    }
+
+    let keep_vertices = adjacency
+        .keys()
+        .copied()
+        .filter(|vertex_id| {
+            !is_selection_span_pass_through_vertex(
+                *vertex_id,
+                carrier_id,
+                incident,
+                arrangement,
+                vertices,
+            )
+        })
+        .collect::<BTreeSet<_>>();
+    let mut visited_edges = BTreeSet::<usize>::new();
+    let mut paths = Vec::<SpanPath>::new();
+
+    for start_id in &keep_vertices {
+        let Some(neighbors) = adjacency.get(start_id) else {
+            continue;
+        };
+        for (next_id, edge_id) in neighbors {
+            if visited_edges.contains(edge_id) {
+                continue;
+            }
+            let mut path_edge_ids = vec![*edge_id];
+            let mut collapsed_vertex_ids = Vec::new();
+            visited_edges.insert(*edge_id);
+            let mut previous_id = *start_id;
+            let mut current_id = *next_id;
+
+            while is_selection_span_pass_through_vertex(
+                current_id,
+                carrier_id,
+                incident,
+                arrangement,
+                vertices,
+            ) {
+                collapsed_vertex_ids.push(current_id);
+                let Some((following_vertex_id, following_edge_id)) = adjacency
+                    .get(&current_id)
+                    .and_then(|neighbors| {
+                        neighbors
+                            .iter()
+                            .find(|(candidate_vertex_id, candidate_edge_id)| {
+                                *candidate_vertex_id != previous_id
+                                    && !visited_edges.contains(candidate_edge_id)
+                            })
+                    })
+                    .copied()
+                else {
+                    break;
+                };
+                previous_id = current_id;
+                current_id = following_vertex_id;
+                visited_edges.insert(following_edge_id);
+                path_edge_ids.push(following_edge_id);
+            }
+
+            paths.push(SpanPath {
+                vertices: [*start_id, current_id],
+                edge_ids: path_edge_ids,
+                collapsed_vertex_ids,
+            });
+        }
+    }
+
+    for edge_id in edge_set {
+        if visited_edges.contains(&edge_id) {
+            continue;
+        }
+        let Some(edge) = arrangement.atomic_edges.get(edge_id) else {
+            continue;
+        };
+        let mut collapsed_vertex_ids = edge
+            .vertices
+            .iter()
+            .copied()
+            .filter(|vertex_id| {
+                is_selection_span_pass_through_vertex(
+                    *vertex_id,
+                    carrier_id,
+                    incident,
+                    arrangement,
+                    vertices,
+                )
+            })
+            .collect::<Vec<_>>();
+        collapsed_vertex_ids.sort_unstable();
+        paths.push(SpanPath {
+            vertices: edge.vertices,
+            edge_ids: vec![edge.id],
+            collapsed_vertex_ids,
+        });
+    }
+
+    paths.sort_by(|left, right| {
+        path_min_t(vertices, carriers, carrier_id, left)
+            .total_cmp(&path_min_t(vertices, carriers, carrier_id, right))
+            .then_with(|| left.vertices.cmp(&right.vertices))
+    });
+    paths
+}
+
+fn is_selection_span_pass_through_vertex(
+    vertex_id: usize,
+    carrier_id: usize,
+    incident: &BTreeMap<usize, Vec<usize>>,
+    arrangement: &CandidateArrangement,
+    vertices: &BTreeMap<usize, &ArrangementVertex>,
+) -> bool {
+    let Some(vertex) = vertices.get(&vertex_id).copied() else {
+        return false;
+    };
+    if vertex.boundary_side.is_some()
+        || matches!(
+            vertex.kind,
+            ArrangementVertexKind::Corner
+                | ArrangementVertexKind::BoundaryContact
+                | ArrangementVertexKind::ObservedJunction
+                | ArrangementVertexKind::JunctionCluster
+        )
+    {
+        return false;
+    }
+    let Some(edge_ids) = incident.get(&vertex_id) else {
+        return false;
+    };
+    edge_ids.len() == 2
+        && edge_ids.iter().all(|edge_id| {
+            arrangement
+                .atomic_edges
+                .get(*edge_id)
+                .is_some_and(|edge| edge.carrier_id == carrier_id)
+        })
+}
+
+fn selection_span_from_path(
+    arrangement: &CandidateArrangement,
+    scores: &[SelectionEdgeScore],
+    carriers: &BTreeMap<usize, &ArrangementCarrier>,
+    kind: SelectionSpanKind,
+    carrier_id: usize,
+    path: SpanPath,
+    replaced_atomic_edge_ids: Vec<usize>,
+    mut reasons: Vec<String>,
+) -> Option<SelectionSpan> {
+    if path.vertices[0] == path.vertices[1] || path.edge_ids.is_empty() {
+        return None;
+    }
+    let carrier = carriers.get(&carrier_id).copied()?;
+    let mut t_min = f64::INFINITY;
+    let mut t_max = f64::NEG_INFINITY;
+    let mut support_min = f64::INFINITY;
+    let mut support_max = f64::NEG_INFINITY;
+    let mut support_sum = 0.0;
+    let mut support_count = 0usize;
+    let mut score = 0.0;
+    let mut edge_ids = path.edge_ids;
+    edge_ids.sort_unstable();
+    edge_ids.dedup();
+    for edge_id in &edge_ids {
+        let edge = arrangement.atomic_edges.get(*edge_id)?;
+        t_min = t_min.min(edge.t_interval[0]).min(edge.t_interval[1]);
+        t_max = t_max.max(edge.t_interval[0]).max(edge.t_interval[1]);
+        support_min = support_min.min(edge.line_support);
+        support_max = support_max.max(edge.line_support);
+        support_sum += edge.line_support;
+        support_count += 1;
+        if let Some(edge_score) = scores.get(*edge_id) {
+            score += edge_score.total_score;
+        }
+    }
+    if !t_min.is_finite() || !t_max.is_finite() || t_min >= t_max {
+        return None;
+    }
+    reasons.push(format!(
+        "uses {} selected atomic evidence interval(s)",
+        edge_ids.len()
+    ));
+    if !path.collapsed_vertex_ids.is_empty() {
+        reasons.push(format!(
+            "collapses {} pass-through vertex/vertices",
+            path.collapsed_vertex_ids.len()
+        ));
+    }
+    Some(SelectionSpan {
+        id: 0,
+        kind,
+        carrier_id,
+        vertices: path.vertices,
+        t_interval: [t_min, t_max],
+        assignment: carrier.assignment,
+        source_atomic_edge_ids: edge_ids,
+        replaced_atomic_edge_ids,
+        collapsed_vertex_ids: path.collapsed_vertex_ids,
+        line_support_min: if support_count == 0 { 0.0 } else { support_min },
+        line_support_mean: if support_count == 0 {
+            0.0
+        } else {
+            support_sum / support_count as f64
+        },
+        line_support_max: if support_count == 0 { 0.0 } else { support_max },
+        score,
+        reasons,
+    })
+}
+
+fn selected_incident_edges(
+    arrangement: &CandidateArrangement,
+    selected_edges: &BTreeSet<usize>,
+) -> BTreeMap<usize, Vec<usize>> {
+    let mut incident = BTreeMap::<usize, Vec<usize>>::new();
+    for edge in arrangement
+        .atomic_edges
+        .iter()
+        .filter(|edge| selected_edges.contains(&edge.id))
+    {
+        incident.entry(edge.vertices[0]).or_default().push(edge.id);
+        incident.entry(edge.vertices[1]).or_default().push(edge.id);
+    }
+    for edge_ids in incident.values_mut() {
+        edge_ids.sort_unstable();
+    }
+    incident
+}
+
+fn path_min_t(
+    vertices: &BTreeMap<usize, &ArrangementVertex>,
+    carriers: &BTreeMap<usize, &ArrangementCarrier>,
+    carrier_id: usize,
+    path: &SpanPath,
+) -> f64 {
+    let Some(carrier) = carriers.get(&carrier_id).copied() else {
+        return f64::INFINITY;
+    };
+    path.vertices
+        .iter()
+        .filter_map(|vertex_id| vertices.get(vertex_id).copied())
+        .map(|vertex| vertex.point.x * carrier.direction.x + vertex.point.y * carrier.direction.y)
+        .fold(f64::INFINITY, f64::min)
+}
+
 fn carriers_share_any_primitive(
     left: &crate::arrangement_v2::ArrangementCarrier,
     right: &crate::arrangement_v2::ArrangementCarrier,
@@ -1331,6 +1759,7 @@ fn temporary_selection_for_probe(
         image_size: arrangement.image_size,
         options,
         selected_edge_ids,
+        selected_spans: Vec::new(),
         rejected_edge_ids: Vec::new(),
         undecided_edge_ids: Vec::new(),
         selected_hypothesis_ids: Vec::new(),
@@ -1338,6 +1767,7 @@ fn temporary_selection_for_probe(
         structural_edits: Vec::new(),
         report: CandidateSelectionReport {
             selected_edges: selected_edges.len(),
+            selected_spans: 0,
             rejected_edges: 0,
             undecided_edges: 0,
             selected_hypotheses: 0,
@@ -1591,7 +2021,13 @@ mod tests {
         let selection = select_candidate_graph(&arrangement, SelectionOptions::default());
 
         assert_eq!(selection.report.selected_edges, 1);
+        assert_eq!(selection.report.selected_spans, 1);
         assert_eq!(selection.selected_edge_ids, vec![0]);
+        assert_eq!(
+            selection.selected_spans[0].kind,
+            SelectionSpanKind::AtomicInterval
+        );
+        assert_eq!(selection.selected_spans[0].source_atomic_edge_ids, vec![0]);
     }
 
     #[test]
@@ -1842,10 +2278,76 @@ mod tests {
         assert_eq!(selection.report.shared_replacements, 1);
         assert_eq!(selection.report.local_fragments_replaced, 3);
         assert_eq!(selection.report.local_fragments_retained, 0);
+        assert_eq!(selection.report.selected_spans, 3);
         assert!(selection.structural_edits.iter().any(|edit| {
             edit.kind == SelectionStructuralEditKind::SharedCarrierReplacement
                 && edit.removed_edge_ids == vec![0, 1, 2]
         }));
+    }
+
+    #[test]
+    fn shared_carrier_replacement_emits_final_span_with_atomic_provenance() {
+        let mut arrangement = shared_carrier_replacement_fixture();
+        arrangement.vertices[1].kind = ArrangementVertexKind::ObservedLineEndpoint;
+        arrangement.vertices[2].kind = ArrangementVertexKind::CarrierIntersection;
+
+        let selection =
+            select_candidate_graph_beam(&arrangement, beam_options(), ExactProbeOptions::default());
+
+        assert_eq!(selection.selected_edge_ids, vec![3, 4, 5]);
+        assert_eq!(selection.report.shared_replacements, 1);
+        assert_eq!(selection.report.selected_spans, 1);
+        let span = &selection.selected_spans[0];
+        assert_eq!(span.kind, SelectionSpanKind::SharedCarrierSpan);
+        assert_eq!(span.vertices, [0, 3]);
+        assert_eq!(span.source_atomic_edge_ids, vec![3, 4, 5]);
+        assert_eq!(span.replaced_atomic_edge_ids, vec![0, 1, 2]);
+        assert_eq!(span.collapsed_vertex_ids, vec![1, 2]);
+    }
+
+    #[test]
+    fn shared_carrier_span_preserves_real_observed_junction_as_split_point() {
+        let mut arrangement = shared_carrier_replacement_fixture();
+        arrangement.vertices[1].kind = ArrangementVertexKind::ObservedLineEndpoint;
+        arrangement.vertices[2].kind = ArrangementVertexKind::ObservedJunction;
+
+        let selection =
+            select_candidate_graph_beam(&arrangement, beam_options(), ExactProbeOptions::default());
+
+        assert_eq!(selection.report.shared_replacements, 1);
+        let shared_spans = selection
+            .selected_spans
+            .iter()
+            .filter(|span| span.kind == SelectionSpanKind::SharedCarrierSpan)
+            .collect::<Vec<_>>();
+        assert_eq!(shared_spans.len(), 2);
+        assert_eq!(shared_spans[0].vertices, [0, 2]);
+        assert_eq!(shared_spans[0].source_atomic_edge_ids, vec![3, 4]);
+        assert_eq!(shared_spans[0].collapsed_vertex_ids, vec![1]);
+        assert_eq!(shared_spans[1].vertices, [2, 3]);
+        assert_eq!(shared_spans[1].source_atomic_edge_ids, vec![5]);
+        assert!(shared_spans[1].collapsed_vertex_ids.is_empty());
+    }
+
+    #[test]
+    fn local_fragments_remain_atomic_spans_without_shared_replacement() {
+        let arrangement =
+            fixture_arrangement(vec![edge(0, 0, [0, 1], 0.86), edge(1, 1, [1, 2], 0.84)]);
+
+        let selection =
+            select_candidate_graph_beam(&arrangement, beam_options(), ExactProbeOptions::default());
+
+        assert_eq!(selection.report.shared_replacements, 0);
+        assert_eq!(selection.selected_edge_ids, vec![0, 1]);
+        assert_eq!(selection.report.selected_spans, 2);
+        assert!(
+            selection
+                .selected_spans
+                .iter()
+                .all(|span| span.kind == SelectionSpanKind::AtomicInterval)
+        );
+        assert_eq!(selection.selected_spans[0].source_atomic_edge_ids, vec![0]);
+        assert_eq!(selection.selected_spans[1].source_atomic_edge_ids, vec![1]);
     }
 
     #[test]
@@ -1934,6 +2436,35 @@ mod tests {
                 emits_fold_graph: false,
             },
         }
+    }
+
+    fn shared_carrier_replacement_fixture() -> CandidateArrangement {
+        let mut arrangement = fixture_arrangement(vec![
+            edge(0, 0, [0, 1], 0.86),
+            edge(1, 1, [1, 2], 0.84),
+            edge(2, 2, [2, 3], 0.83),
+            edge(3, 3, [0, 1], 0.78),
+            edge(4, 3, [1, 2], 0.78),
+            edge(5, 3, [2, 3], 0.78),
+        ]);
+        arrangement.carriers[3].kind = ArrangementCarrierKind::SharedCollinearAlternative;
+        arrangement.carriers[3].primitive_ids = vec![0, 1, 2];
+        arrangement.carriers[3].hypothesis_cost = 0.08;
+        arrangement.carriers[3].source = EvidenceSource::Inferred;
+        for (offset, edge) in arrangement.atomic_edges[3..=5].iter_mut().enumerate() {
+            edge.source = EvidenceSource::Inferred;
+            edge.t_interval = [offset as f64 * 0.2, (offset + 1) as f64 * 0.2];
+        }
+        arrangement.hypotheses.push(ArrangementHypothesis {
+            id: 9,
+            kind: ArrangementHypothesisKind::SharedCarrier,
+            carrier_ids: vec![3],
+            vertex_ids: Vec::new(),
+            atomic_edge_ids: vec![3, 4, 5],
+            cost: 0.08,
+            reason: "test shared".to_owned(),
+        });
+        arrangement
     }
 
     fn carrier(id: usize) -> ArrangementCarrier {

@@ -8,7 +8,6 @@ import type {
   BoundaryExactizabilityProbe,
   BoundaryContactPrimitive,
   CarrierExactizabilityProbe,
-  CompiledSelectionGraph,
   ExampleRow,
   GroundTruthGraph,
   JunctionPrimitive,
@@ -136,7 +135,7 @@ export function App() {
   const [showLineEndpoints, setShowLineEndpoints] = useState(false);
   const [showInferredCrossings, setShowInferredCrossings] = useState(false);
   const [showSharedCarriers, setShowSharedCarriers] = useState(true);
-  const [showAtomicEdges, setShowAtomicEdges] = useState(true);
+  const [showAtomicEdges, setShowAtomicEdges] = useState(false);
   const [showSelectedEdges, setShowSelectedEdges] = useState(true);
   const [showRejectedEdges, setShowRejectedEdges] = useState(false);
   const [showUndecidedEdges, setShowUndecidedEdges] = useState(false);
@@ -417,10 +416,20 @@ export function App() {
 
           {activeStage === 'stage5' ? (
             <section className="summary-grid">
-              <Metric label="compiled edges" value={isStage5(stage) ? stage.compiled_selection_graph.report.edges : '...'} />
-              <Metric label="compiled vertices" value={isStage5(stage) ? stage.compiled_selection_graph.report.vertices : '...'} />
-              <Metric label="atomic intervals" value={isStage5(stage) ? stage.compiled_selection_graph.report.source_atomic_edges : '...'} />
-              <Metric label="collapsed vertices" value={isStage5(stage) ? stage.compiled_selection_graph.report.collapsed_pass_through_vertices : '...'} />
+              <Metric label="selected spans" value={isStage5(stage) ? stage.selection.report.selected_spans : '...'} />
+              <Metric
+                label="span vertices"
+                value={isStage5(stage) ? new Set(stage.selection.selected_spans.flatMap((span) => span.vertices)).size : '...'}
+              />
+              <Metric label="atomic provenance" value={isStage5(stage) ? stage.selection.selected_edge_ids.length : '...'} />
+              <Metric
+                label="shared spans"
+                value={isStage5(stage) ? stage.selection.selected_spans.filter((span) => span.kind === 'shared_carrier_span').length : '...'}
+              />
+              <Metric
+                label="collapsed vertices"
+                value={isStage5(stage) ? stage.selection.selected_spans.reduce((sum, span) => sum + span.collapsed_vertex_ids.length, 0) : '...'}
+              />
               <Metric label="weak promoted" value={isStage5(stage) ? stage.selection.report.weak_edges_promoted : '...'} />
               <Metric
                 label="GT graph"
@@ -494,7 +503,7 @@ export function App() {
                   icon={activeStage !== 'stage1' ? <GitBranch size={17} /> : <Layers3 size={17} />}
                   title={
                     activeStage === 'stage5'
-                      ? 'Compiled Selection vs Ground Truth'
+                      ? 'Selected Graph vs Ground Truth'
                       : activeStage === 'stage4'
                       ? 'Input + Exactizability Probes'
                       : activeStage === 'stage3'
@@ -512,7 +521,7 @@ export function App() {
                         checked={showSelectedEdges}
                         onChange={(event) => setShowSelectedEdges(event.target.checked)}
                       />
-                      compiled graph
+                      selected graph
                     </label>
                     <label>
                       <input
@@ -1062,10 +1071,11 @@ function SelectionViewer({
               .map((carrier) => <CarrierView carrier={carrier} frame={stage.overlay_frame_px} key={carrier.id} muted shared />)
           : null}
         {showSelectedEdges && isStage5(stage) ? (
-          <CompiledSelectionGraphView
+          <SelectionSpanGraphView
             carriersById={carriersById}
             frame={stage.overlay_frame_px}
-            graph={stage.compiled_selection_graph}
+            selection={stage.selection}
+            verticesById={verticesById}
           />
         ) : showSelectedEdges ? (
           renderSelectionEdges(stage.selection.selected_edge_ids, 'selected')
@@ -1185,33 +1195,47 @@ function GroundTruthGraphView({ graph }: { graph: GroundTruthGraph }) {
   );
 }
 
-function CompiledSelectionGraphView({
+function SelectionSpanGraphView({
   carriersById,
   frame,
-  graph,
+  selection,
+  verticesById,
 }: {
   carriersById: Map<number, ArrangementCarrier>;
   frame: Stage2Response['overlay_frame_px'];
-  graph: CompiledSelectionGraph;
+  selection: Stage5Response['selection'];
+  verticesById: Map<number, ArrangementVertex>;
 }) {
-  const verticesById = new Map(graph.vertices.map((vertex) => [vertex.id, vertex]));
+  const spanEndpointIds = new Set<number>();
+  const degrees = new Map<number, number>();
+  for (const span of selection.selected_spans) {
+    spanEndpointIds.add(span.vertices[0]);
+    spanEndpointIds.add(span.vertices[1]);
+    degrees.set(span.vertices[0], (degrees.get(span.vertices[0]) ?? 0) + 1);
+    degrees.set(span.vertices[1], (degrees.get(span.vertices[1]) ?? 0) + 1);
+  }
+  const endpoints = [...spanEndpointIds]
+    .map((vertexId) => verticesById.get(vertexId))
+    .filter((vertex): vertex is ArrangementVertex => Boolean(vertex));
+
   return (
-    <g className="compiled-selection-graph" aria-label="Compiled selected graph">
-      {graph.edges.map((edge) => {
-        const a = verticesById.get(edge.vertices[0]);
-        const b = verticesById.get(edge.vertices[1]);
+    <g className="selection-span-graph" aria-label="Beam-selected final crease spans">
+      {selection.selected_spans.map((span) => {
+        const a = verticesById.get(span.vertices[0]);
+        const b = verticesById.get(span.vertices[1]);
         if (!a || !b) return null;
-        const carrier = carriersById.get(edge.carrier_id);
-        const p0 = carrier ? imagePoint(pointAtCarrierT(carrier, edge.carrier_t_interval[0]), frame) : imagePoint(a.point, frame);
-        const p1 = carrier ? imagePoint(pointAtCarrierT(carrier, edge.carrier_t_interval[1]), frame) : imagePoint(b.point, frame);
-        const color = arrangementAssignmentColor(edge.assignment_label);
+        const carrier = carriersById.get(span.carrier_id);
+        const p0 = carrier ? imagePoint(pointAtCarrierT(carrier, span.t_interval[0]), frame) : imagePoint(a.point, frame);
+        const p1 = carrier ? imagePoint(pointAtCarrierT(carrier, span.t_interval[1]), frame) : imagePoint(b.point, frame);
+        const color = arrangementAssignmentColor(span.assignment.label);
+        const strokeWidth = span.kind === 'shared_carrier_span' ? 2.35 : 1.65;
         return (
-          <g key={`compiled-edge-${edge.id}`}>
+          <g key={`selected-span-${span.id}`}>
             <line
               stroke="#ffffff"
               strokeLinecap="round"
-              strokeOpacity={0.88}
-              strokeWidth={4.3}
+              strokeOpacity={0.9}
+              strokeWidth={strokeWidth + 1.9}
               vectorEffect="non-scaling-stroke"
               x1={p0.x}
               x2={p1.x}
@@ -1221,8 +1245,8 @@ function CompiledSelectionGraphView({
             <line
               stroke={color}
               strokeLinecap="round"
-              strokeOpacity={0.96}
-              strokeWidth={2.2}
+              strokeOpacity={span.kind === 'shared_carrier_span' ? 0.98 : 0.86}
+              strokeWidth={strokeWidth}
               vectorEffect="non-scaling-stroke"
               x1={p0.x}
               x2={p1.x}
@@ -1230,40 +1254,44 @@ function CompiledSelectionGraphView({
               y2={p1.y}
             >
               <title>
-                compiled edge {edge.id}: {edge.assignment_label}; carrier {edge.carrier_id}; {edge.source_atomic_edge_ids.length} atomic interval(s),{' '}
-                {edge.collapsed_vertex_ids.length} collapsed pass-through vertex/vertices; support mean {edge.line_support_mean.toFixed(3)}
+                selected span {span.id}: {span.kind}; {span.assignment.label}; carrier {span.carrier_id}; endpoints {span.vertices[0]} {'->'}{' '}
+                {span.vertices[1]}; {span.source_atomic_edge_ids.length} atomic evidence interval(s); {span.collapsed_vertex_ids.length} collapsed
+                pass-through vertex/vertices; {span.replaced_atomic_edge_ids.length} replaced local fragment(s); score {span.score.toFixed(3)};{' '}
+                {span.reasons.join('; ')}
               </title>
             </line>
           </g>
         );
       })}
-      {graph.vertices.map((vertex) => (
-        <CompiledSelectionVertexView frame={frame} key={`compiled-vertex-${vertex.id}`} vertex={vertex} />
+      {endpoints.map((vertex) => (
+        <SelectionSpanEndpointView degree={degrees.get(vertex.id) ?? 0} frame={frame} key={`selection-span-endpoint-${vertex.id}`} vertex={vertex} />
       ))}
     </g>
   );
 }
 
-function CompiledSelectionVertexView({
+function SelectionSpanEndpointView({
+  degree,
   frame,
   vertex,
 }: {
+  degree: number;
   frame: Stage2Response['overlay_frame_px'];
-  vertex: CompiledSelectionGraph['vertices'][number];
+  vertex: ArrangementVertex;
 }) {
   const point = imagePoint(vertex.point, frame);
-  const isBoundary = vertex.source_kind === 'corner' || vertex.source_kind === 'boundary_contact' || Boolean(vertex.boundary_side);
-  const isObserved = vertex.source_kind === 'observed_junction' || vertex.source_kind === 'junction_cluster';
+  const isBoundary = vertex.kind === 'corner' || vertex.kind === 'boundary_contact' || Boolean(vertex.boundary_side);
+  const isObserved = vertex.kind === 'observed_junction' || vertex.kind === 'junction_cluster';
   const fill = isBoundary ? '#22c55e' : isObserved ? '#facc15' : '#f8fafc';
-  const radius = isBoundary ? 3.2 : isObserved ? 3.0 : 2.6;
+  const radius = isBoundary ? 3.1 : isObserved ? 3.0 : 2.45;
   return (
-    <g aria-label="compiled graph junction">
+    <g aria-label="selected graph junction">
       <circle
         cx={point.x}
         cy={point.y}
         fill="#ffffff"
         fillOpacity={0.92}
-        r={radius + 1.7}
+        r={radius + 1.65}
         stroke="#ffffff"
         strokeWidth={0.8}
         vectorEffect="non-scaling-stroke"
@@ -1274,13 +1302,12 @@ function CompiledSelectionVertexView({
         fill={fill}
         r={radius}
         stroke="#0f172a"
-        strokeOpacity={0.86}
-        strokeWidth={0.9}
+        strokeOpacity={0.88}
+        strokeWidth={0.85}
         vectorEffect="non-scaling-stroke"
       >
         <title>
-          compiled vertex {vertex.id}; arrangement vertex {vertex.arrangement_vertex_id}; {vertex.source_kind}; selected degree{' '}
-          {vertex.selected_degree}
+          selected span endpoint {vertex.id}; {vertex.kind}; selected span degree {degree}
         </title>
       </circle>
     </g>

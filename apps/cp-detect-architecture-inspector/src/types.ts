@@ -253,6 +253,7 @@ export interface CandidateSelection {
   coordinate_space: string;
   image_size: number;
   selected_edge_ids: number[];
+  selected_spans: SelectionSpan[];
   rejected_edge_ids: number[];
   undecided_edge_ids: number[];
   selected_hypothesis_ids: number[];
@@ -260,6 +261,7 @@ export interface CandidateSelection {
   structural_edits: SelectionStructuralEdit[];
   report: {
     selected_edges: number;
+    selected_spans: number;
     rejected_edges: number;
     undecided_edges: number;
     selected_hypotheses: number;
@@ -278,6 +280,27 @@ export interface CandidateSelection {
     continuity_reward: number;
     emits_fold_graph: boolean;
   };
+}
+
+export interface SelectionSpan {
+  id: number;
+  kind: 'atomic_interval' | 'shared_carrier_span' | string;
+  carrier_id: number;
+  vertices: [number, number];
+  t_interval: [number, number];
+  assignment: {
+    label: 'mountain' | 'valley' | 'boundary' | 'unknown' | 'flat' | string;
+    confidence: number;
+    margin: number;
+  };
+  source_atomic_edge_ids: number[];
+  replaced_atomic_edge_ids: number[];
+  collapsed_vertex_ids: number[];
+  line_support_min: number;
+  line_support_mean: number;
+  line_support_max: number;
+  score: number;
+  reasons: string[];
 }
 
 export interface SelectionStructuralEdit {
@@ -381,55 +404,6 @@ export interface GroundTruthGraph {
   edges_assignment_labels: string[];
 }
 
-export interface CompiledSelectionVertex {
-  id: number;
-  arrangement_vertex_id: number;
-  point: { x: number; y: number };
-  source_kind:
-    | 'corner'
-    | 'observed_junction'
-    | 'junction_cluster'
-    | 'boundary_contact'
-    | 'carrier_intersection'
-    | 'observed_line_endpoint'
-    | string;
-  boundary_side?: 'top' | 'right' | 'bottom' | 'left' | null | string;
-  selected_degree: number;
-}
-
-export interface CompiledSelectionEdge {
-  id: number;
-  vertices: [number, number];
-  carrier_id: number;
-  assignment_label: 'mountain' | 'valley' | 'boundary' | 'unknown' | 'flat' | string;
-  assignment_confidence: number;
-  carrier_t_interval: [number, number];
-  source_atomic_edge_ids: number[];
-  collapsed_vertex_ids: number[];
-  line_support_min: number;
-  line_support_mean: number;
-  line_support_max: number;
-}
-
-export interface CompiledSelectionGraph {
-  coordinate_space: string;
-  image_size: number;
-  vertices: CompiledSelectionVertex[];
-  edges: CompiledSelectionEdge[];
-  report: {
-    vertices: number;
-    edges: number;
-    source_atomic_edges: number;
-    collapsed_pass_through_vertices: number;
-    non_collinear_degree_two_vertices: number;
-    mountain_edges: number;
-    valley_edges: number;
-    boundary_edges: number;
-    unknown_edges: number;
-  };
-}
-
 export interface Stage5Response extends Stage4Response {
-  compiled_selection_graph: CompiledSelectionGraph;
   ground_truth?: GroundTruthGraph | null;
 }
