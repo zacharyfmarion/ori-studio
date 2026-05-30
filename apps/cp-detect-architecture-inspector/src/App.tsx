@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Activity, CircleDot, GitBranch, Layers3, RefreshCw, SlidersHorizontal } from 'lucide-react';
+import { Activity, CircleDot, GitBranch, Layers3, ListFilter, RefreshCw, SlidersHorizontal } from 'lucide-react';
 import { fetchStage1Example, fetchStage1Examples, fetchStage2Example, fetchStage3Example, fetchStage4Example, fetchStages } from './api';
 import type {
   ArrangementAtomicEdge,
@@ -37,6 +37,39 @@ const ASSIGNMENT_LABELS: Record<number, string> = {
 type ProbeKindId = 'vertex' | 'carrier' | 'boundary';
 type ProbeStatusId = 'feasible' | 'low_cost' | 'high_cost' | 'infeasible' | 'odd_degree' | 'hard_kawasaki';
 type ProbeVisibility = Record<ProbeStatusId, Record<ProbeKindId, boolean>>;
+type Stage4IssueFilter = 'all' | 'hard_kawasaki' | 'odd_degree' | 'infeasible' | 'high_cost' | 'vertex' | 'carrier' | 'boundary';
+
+interface Stage4Issue {
+  id: string;
+  probeKind: ProbeKindId;
+  status: ProbeStatusId;
+  label: string;
+  summary: string;
+  detail: string;
+  value: number;
+  valueLabel: string;
+  color: string;
+  vertexId?: number;
+  carrierId?: number;
+  side?: string | null;
+  point?: { x: number; y: number };
+  selectedEdgeIds: number[];
+  candidateEdgeIds: number[];
+  carrierIds: number[];
+  blockers: string[];
+  degree?: number;
+  residualDegrees?: number | null;
+  maxMove?: number;
+  rayAngles?: number[];
+  sectorAngles?: number[];
+}
+
+interface Stage4IssueSection {
+  id: Stage4IssueFilter;
+  label: string;
+  issues: Stage4Issue[];
+  total: number;
+}
 
 const PROBE_KIND_LABELS: Record<ProbeKindId, string> = {
   vertex: 'V',
@@ -58,6 +91,19 @@ const PROBE_STATUS_ROWS: Array<{
   { id: 'odd_degree', label: 'Odd vertices', note: 'geometry cannot repair odd degree', color: '#ef4444', kinds: ['vertex'] },
   { id: 'hard_kawasaki', label: 'Hard Kawasaki', note: 'large local angle residuals', color: '#9333ea', kinds: ['vertex'] },
 ];
+
+const ISSUE_FILTERS: Array<{ id: Stage4IssueFilter; label: string }> = [
+  { id: 'all', label: 'All' },
+  { id: 'hard_kawasaki', label: 'Kawasaki' },
+  { id: 'odd_degree', label: 'Odd' },
+  { id: 'infeasible', label: 'Infeasible' },
+  { id: 'high_cost', label: 'High cost' },
+  { id: 'vertex', label: 'Vertex' },
+  { id: 'carrier', label: 'Carrier' },
+  { id: 'boundary', label: 'Boundary' },
+];
+
+const ISSUE_LIST_LIMIT_PER_TYPE = 10;
 
 function defaultProbeVisibility(): ProbeVisibility {
   return {
@@ -93,6 +139,8 @@ export function App() {
   const [showUndecidedEdges, setShowUndecidedEdges] = useState(false);
   const [showCarrierGeometry, setShowCarrierGeometry] = useState(true);
   const [probeVisibility, setProbeVisibility] = useState<ProbeVisibility>(() => defaultProbeVisibility());
+  const [stage4IssueFilter, setStage4IssueFilter] = useState<Stage4IssueFilter>('all');
+  const [selectedStage4IssueId, setSelectedStage4IssueId] = useState<string | null>(null);
   const [selectedMapId, setSelectedMapId] = useState('line_probability');
   const [reloadToken, setReloadToken] = useState(0);
 
@@ -210,12 +258,43 @@ export function App() {
     [background, stage?.maps],
   );
 
+  const stage4Issues = useMemo(() => (isStage4(stage) ? buildStage4Issues(stage) : []), [stage]);
+  const filteredStage4Issues = useMemo(
+    () => filterStage4Issues(stage4Issues, stage4IssueFilter),
+    [stage4IssueFilter, stage4Issues],
+  );
+  const selectedStage4Issue = useMemo(
+    () => filteredStage4Issues.find((issue) => issue.id === selectedStage4IssueId) ?? null,
+    [filteredStage4Issues, selectedStage4IssueId],
+  );
+
+  useEffect(() => {
+    if (activeStage !== 'stage4') {
+      setSelectedStage4IssueId(null);
+      return;
+    }
+    setSelectedStage4IssueId((current) =>
+      current && filteredStage4Issues.some((issue) => issue.id === current) ? current : (filteredStage4Issues[0]?.id ?? null),
+    );
+  }, [activeStage, filteredStage4Issues]);
+
   const toggleProbeVisibility = (status: ProbeStatusId, kind: ProbeKindId) => {
     setProbeVisibility((current) => ({
       ...current,
       [status]: {
         ...current[status],
         [kind]: !current[status][kind],
+      },
+    }));
+  };
+
+  const selectStage4Issue = (issue: Stage4Issue) => {
+    setSelectedStage4IssueId(issue.id);
+    setProbeVisibility((current) => ({
+      ...current,
+      [issue.status]: {
+        ...current[issue.status],
+        [issue.probeKind]: true,
       },
     }));
   };
@@ -497,6 +576,7 @@ export function App() {
                   showSharedCarriers={showSharedCarriers}
                   showUndecidedEdges={showUndecidedEdges}
                   probeVisibility={probeVisibility}
+                  selectedStage4Issue={selectedStage4Issue}
                   stage={stage}
                 />
               ) : hasArrangement(stage) ? (
@@ -527,8 +607,14 @@ export function App() {
             {isStage4(stage) ? (
               <aside className="map-panel stage4-probe-panel">
                 <Stage4LayerSummary
+                  filteredIssues={filteredStage4Issues}
+                  issueFilter={stage4IssueFilter}
+                  issues={stage4Issues}
                   onToggleProbe={toggleProbeVisibility}
+                  onIssueFilterChange={setStage4IssueFilter}
+                  onSelectIssue={selectStage4Issue}
                   probeVisibility={probeVisibility}
+                  selectedIssue={selectedStage4Issue}
                   stage={stage}
                 />
               </aside>
@@ -779,6 +865,7 @@ function SelectionViewer({
   showSelectedEdges,
   showSharedCarriers,
   showUndecidedEdges,
+  selectedStage4Issue,
   stage,
 }: {
   backgroundMap: MapPayload | null;
@@ -792,6 +879,7 @@ function SelectionViewer({
   showSelectedEdges: boolean;
   showSharedCarriers: boolean;
   showUndecidedEdges: boolean;
+  selectedStage4Issue: Stage4Issue | null;
   stage: Stage3Response | Stage4Response;
 }) {
   const verticesById = useMemo(() => {
@@ -828,6 +916,7 @@ function SelectionViewer({
     if (!isStage4(stage)) return [];
     return stage.exactizability.boundary_probes.filter((probe) => isProbeStatusVisible(probe.status, 'boundary', probeVisibility));
   }, [probeVisibility, stage]);
+  const stage4Active = isStage4(stage);
   const size = stage.config.image_size;
 
   const renderSelectionEdges = (ids: number[], decision: 'selected' | 'rejected' | 'undecided') =>
@@ -852,11 +941,11 @@ function SelectionViewer({
       });
 
   return (
-    <div className="viewer-canvas">
+    <div className={stage4Active ? 'viewer-canvas stage4-issue-canvas' : 'viewer-canvas'}>
       {backgroundMap ? (
         <Heatmap map={backgroundMap} mode="background" />
       ) : (
-        <img alt="" className="input-image" src={stage.sample.input_image_url} />
+        <img alt="" className={stage4Active ? 'input-image stage4-source-image' : 'input-image'} src={stage.sample.input_image_url} />
       )}
       <svg
         className="primitive-overlay arrangement-overlay"
@@ -900,14 +989,22 @@ function SelectionViewer({
                   carrier={carrier}
                   frame={stage.overlay_frame_px}
                   key={`carrier-probe-${probe.carrier_id}`}
+                  muted={Boolean(selectedStage4Issue && !stage4IssueMatchesProbe(selectedStage4Issue, 'carrier', probe))}
                   probe={probe}
+                  selected={Boolean(selectedStage4Issue && stage4IssueMatchesProbe(selectedStage4Issue, 'carrier', probe))}
                 />
               ) : null;
             })
           : null}
         {isStage4(stage)
           ? visibleBoundaryProbes.map((probe) => (
-              <ExactBoundaryProbeView frame={stage.overlay_frame_px} key={`boundary-probe-${probe.vertex_id}`} probe={probe} />
+              <ExactBoundaryProbeView
+                frame={stage.overlay_frame_px}
+                key={`boundary-probe-${probe.vertex_id}`}
+                muted={Boolean(selectedStage4Issue && !stage4IssueMatchesProbe(selectedStage4Issue, 'boundary', probe))}
+                probe={probe}
+                selected={Boolean(selectedStage4Issue && stage4IssueMatchesProbe(selectedStage4Issue, 'boundary', probe))}
+              />
             ))
           : null}
         {isStage4(stage)
@@ -916,10 +1013,23 @@ function SelectionViewer({
                 displayStatus={displayStatus}
                 frame={stage.overlay_frame_px}
                 key={`vertex-probe-${probe.vertex_id}`}
+                muted={Boolean(selectedStage4Issue && !stage4IssueMatchesProbe(selectedStage4Issue, 'vertex', probe, displayStatus))}
                 probe={probe}
+                selected={Boolean(selectedStage4Issue && stage4IssueMatchesProbe(selectedStage4Issue, 'vertex', probe, displayStatus))}
               />
             ))
           : null}
+        {stage4Active && selectedStage4Issue ? (
+          <Stage4IssueContextView
+            carriersById={carriersById}
+            edgesById={edgesById}
+            frame={stage.overlay_frame_px}
+            issue={selectedStage4Issue}
+            scoresByEdgeId={scoresByEdgeId}
+            showCarrierGeometry={showCarrierGeometry}
+            verticesById={verticesById}
+          />
+        ) : null}
       </svg>
     </div>
   );
@@ -1091,11 +1201,15 @@ function ArrangementVertexView({
 function ExactVertexProbeView({
   displayStatus,
   frame,
+  muted = false,
   probe,
+  selected = false,
 }: {
   displayStatus: ProbeStatusId;
   frame: Stage2Response['overlay_frame_px'];
+  muted?: boolean;
   probe: VertexExactizabilityProbe;
+  selected?: boolean;
 }) {
   const point = imagePoint(probe.point, frame);
   const color = exactStatusColor(displayStatus);
@@ -1109,11 +1223,11 @@ function ExactVertexProbeView({
       cx={point.x}
       cy={point.y}
       fill="white"
-      fillOpacity={isHard ? 0.2 : 0.08}
-      r={displayStatus === 'infeasible' || displayStatus === 'odd_degree' || displayStatus === 'hard_kawasaki' ? 11 : displayStatus === 'high_cost' ? 9 : 5}
+      fillOpacity={selected ? 0.3 : muted ? 0.04 : isHard ? 0.2 : 0.08}
+      r={selected ? 11 : displayStatus === 'infeasible' || displayStatus === 'odd_degree' || displayStatus === 'hard_kawasaki' ? 9 : displayStatus === 'high_cost' ? 7 : 5}
       stroke={color}
-      strokeOpacity={isHard ? 0.95 : 0.55}
-      strokeWidth={isHard ? 3 : 1.8}
+      strokeOpacity={muted ? 0.18 : isHard ? 0.95 : 0.55}
+      strokeWidth={selected ? 2.6 : isHard ? 2.1 : 1.4}
       vectorEffect="non-scaling-stroke"
     >
       <title>
@@ -1127,26 +1241,31 @@ function ExactVertexProbeView({
 
 function ExactBoundaryProbeView({
   frame,
+  muted = false,
   probe,
+  selected = false,
 }: {
   frame: Stage2Response['overlay_frame_px'];
+  muted?: boolean;
   probe: BoundaryExactizabilityProbe;
+  selected?: boolean;
 }) {
   const point = imagePoint(probe.point, frame);
   const color = exactStatusColor(probe.status);
   const isHard = probe.status === 'infeasible' || probe.status === 'high_cost';
+  const size = selected ? 15 : isHard ? 12 : 8;
   return (
     <rect
       fill="white"
-      fillOpacity={isHard ? 0.16 : 0.06}
-      height={isHard ? 15 : 9}
+      fillOpacity={selected ? 0.24 : muted ? 0.03 : isHard ? 0.16 : 0.06}
+      height={size}
       stroke={color}
-      strokeOpacity={isHard ? 0.95 : 0.55}
-      strokeWidth={isHard ? 2.6 : 1.5}
+      strokeOpacity={muted ? 0.18 : isHard ? 0.95 : 0.55}
+      strokeWidth={selected ? 2.6 : isHard ? 1.9 : 1.2}
       vectorEffect="non-scaling-stroke"
-      width={isHard ? 15 : 9}
-      x={point.x - (isHard ? 7.5 : 4.5)}
-      y={point.y - (isHard ? 7.5 : 4.5)}
+      width={size}
+      x={point.x - size / 2}
+      y={point.y - size / 2}
     >
       <title>
         boundary vertex {probe.vertex_id}: {probe.status.replaceAll('_', ' ')}; side {probe.side ?? 'nearest'}; boundary move{' '}
@@ -1160,11 +1279,15 @@ function ExactBoundaryProbeView({
 function ExactCarrierProbeView({
   carrier,
   frame,
+  muted = false,
   probe,
+  selected = false,
 }: {
   carrier: ArrangementCarrier;
   frame: Stage2Response['overlay_frame_px'];
+  muted?: boolean;
   probe: CarrierExactizabilityProbe;
+  selected?: boolean;
 }) {
   const p0 = imagePoint(pointAtCarrierT(carrier, carrier.support_interval[0]), frame);
   const p1 = imagePoint(pointAtCarrierT(carrier, carrier.support_interval[1]), frame);
@@ -1175,8 +1298,8 @@ function ExactCarrierProbeView({
       stroke={color}
       strokeDasharray={isHard ? '10 5' : '4 5'}
       strokeLinecap="round"
-      strokeOpacity={isHard ? 0.9 : 0.48}
-      strokeWidth={isHard ? 4.2 : 2}
+      strokeOpacity={muted ? 0.14 : isHard ? 0.9 : 0.48}
+      strokeWidth={selected ? 3.2 : isHard ? 2.4 : 1.4}
       vectorEffect="non-scaling-stroke"
       x1={p0.x}
       x2={p1.x}
@@ -1189,6 +1312,205 @@ function ExactCarrierProbeView({
         {probe.blockers.length ? `; ${probe.blockers.join('; ')}` : ''}
       </title>
     </line>
+  );
+}
+
+function Stage4IssueContextView({
+  carriersById,
+  edgesById,
+  frame,
+  issue,
+  scoresByEdgeId,
+  showCarrierGeometry,
+  verticesById,
+}: {
+  carriersById: Map<number, ArrangementCarrier>;
+  edgesById: Map<number, ArrangementAtomicEdge>;
+  frame: Stage2Response['overlay_frame_px'];
+  issue: Stage4Issue;
+  scoresByEdgeId: Map<number, Stage3Response['selection']['edge_scores'][number]>;
+  showCarrierGeometry: boolean;
+  verticesById: Map<number, ArrangementVertex>;
+}) {
+  const selectedIds = issue.selectedEdgeIds.slice(0, 120);
+  const candidateIds = issue.candidateEdgeIds.slice(0, 80);
+  const carrierIds = issue.carrierIds.slice(0, 24);
+  return (
+    <g aria-label={`Selected issue ${issue.label}`}>
+      {carrierIds.map((carrierId) => {
+        const carrier = carriersById.get(carrierId);
+        return carrier ? <Stage4IssueCarrierContext carrier={carrier} frame={frame} key={`issue-carrier-${carrierId}`} /> : null;
+      })}
+      {candidateIds.map((edgeId) => {
+        const edge = edgesById.get(edgeId);
+        if (!edge) return null;
+        return (
+          <Stage4IssueEdgeContext
+            edge={edge}
+            frame={frame}
+            key={`issue-candidate-${edgeId}`}
+            role="candidate"
+            score={scoresByEdgeId.get(edgeId)}
+            carriersById={carriersById}
+            showCarrierGeometry={showCarrierGeometry}
+            verticesById={verticesById}
+          />
+        );
+      })}
+      {selectedIds.map((edgeId) => {
+        const edge = edgesById.get(edgeId);
+        if (!edge) return null;
+        return (
+          <Stage4IssueEdgeContext
+            edge={edge}
+            frame={frame}
+            key={`issue-selected-${edgeId}`}
+            role="selected"
+            score={scoresByEdgeId.get(edgeId)}
+            carriersById={carriersById}
+            showCarrierGeometry={showCarrierGeometry}
+            verticesById={verticesById}
+          />
+        );
+      })}
+      {issue.point ? <Stage4IssueFocusMarker frame={frame} issue={issue} /> : null}
+    </g>
+  );
+}
+
+function Stage4IssueCarrierContext({ carrier, frame }: { carrier: ArrangementCarrier; frame: Stage2Response['overlay_frame_px'] }) {
+  const p0 = imagePoint(pointAtCarrierT(carrier, carrier.support_interval[0]), frame);
+  const p1 = imagePoint(pointAtCarrierT(carrier, carrier.support_interval[1]), frame);
+  return (
+    <line
+      stroke="#0f766e"
+      strokeDasharray="13 8"
+      strokeLinecap="round"
+      strokeOpacity={0.72}
+      strokeWidth={2.2}
+      vectorEffect="non-scaling-stroke"
+      x1={p0.x}
+      x2={p1.x}
+      y1={p0.y}
+      y2={p1.y}
+    >
+      <title>
+        associated carrier {carrier.id}: {carrier.kind.replaceAll('_', ' ')}
+      </title>
+    </line>
+  );
+}
+
+function Stage4IssueEdgeContext({
+  carriersById,
+  edge,
+  frame,
+  role,
+  score,
+  showCarrierGeometry,
+  verticesById,
+}: {
+  carriersById: Map<number, ArrangementCarrier>;
+  edge: ArrangementAtomicEdge;
+  frame: Stage2Response['overlay_frame_px'];
+  role: 'selected' | 'candidate';
+  score?: Stage3Response['selection']['edge_scores'][number];
+  showCarrierGeometry: boolean;
+  verticesById: Map<number, ArrangementVertex>;
+}) {
+  const a = verticesById.get(edge.vertices[0]);
+  const b = verticesById.get(edge.vertices[1]);
+  if (!a || !b) return null;
+  const carrier = carriersById.get(edge.carrier_id);
+  const p0 =
+    showCarrierGeometry && carrier
+      ? imagePoint(pointAtCarrierT(carrier, edge.t_interval[0]), frame)
+      : imagePoint(a.point, frame);
+  const p1 =
+    showCarrierGeometry && carrier
+      ? imagePoint(pointAtCarrierT(carrier, edge.t_interval[1]), frame)
+      : imagePoint(b.point, frame);
+  const color = role === 'selected' ? arrangementAssignmentColor(edge.assignment.label) : '#f59e0b';
+  return (
+    <g>
+      <line
+        stroke={role === 'selected' ? '#ffffff' : '#111827'}
+        strokeLinecap="round"
+        strokeOpacity={role === 'selected' ? 0.95 : 0.55}
+        strokeWidth={role === 'selected' ? 4 : 3}
+        vectorEffect="non-scaling-stroke"
+        x1={p0.x}
+        x2={p1.x}
+        y1={p0.y}
+        y2={p1.y}
+      />
+      <line
+        stroke={color}
+        strokeDasharray={role === 'selected' ? undefined : '9 6'}
+        strokeLinecap="round"
+        strokeOpacity={role === 'selected' ? 0.98 : 0.86}
+        strokeWidth={role === 'selected' ? 2.2 : 1.6}
+        vectorEffect="non-scaling-stroke"
+        x1={p0.x}
+        x2={p1.x}
+        y1={p0.y}
+        y2={p1.y}
+      >
+        <title>
+          {role} associated edge {edge.id} carrier {edge.carrier_id}; score {score?.total_score.toFixed(3) ?? 'n/a'}
+        </title>
+      </line>
+    </g>
+  );
+}
+
+function Stage4IssueFocusMarker({ frame, issue }: { frame: Stage2Response['overlay_frame_px']; issue: Stage4Issue }) {
+  if (!issue.point) return null;
+  const point = imagePoint(issue.point, frame);
+  const color = issue.color;
+  return (
+    <g>
+      <circle
+        cx={point.x}
+        cy={point.y}
+        fill="none"
+        r={20}
+        stroke="#ffffff"
+        strokeOpacity={0.95}
+        strokeWidth={3.5}
+        vectorEffect="non-scaling-stroke"
+      />
+      <circle
+        cx={point.x}
+        cy={point.y}
+        fill="none"
+        r={20}
+        stroke={color}
+        strokeOpacity={0.98}
+        strokeWidth={1.9}
+        vectorEffect="non-scaling-stroke"
+      />
+      <line
+        stroke={color}
+        strokeLinecap="round"
+        strokeWidth={1.6}
+        vectorEffect="non-scaling-stroke"
+        x1={point.x - 13}
+        x2={point.x + 13}
+        y1={point.y}
+        y2={point.y}
+      />
+      <line
+        stroke={color}
+        strokeLinecap="round"
+        strokeWidth={1.6}
+        vectorEffect="non-scaling-stroke"
+        x1={point.x}
+        x2={point.x}
+        y1={point.y - 13}
+        y2={point.y + 13}
+      />
+    </g>
   );
 }
 
@@ -1288,26 +1610,71 @@ function Stage3LayerSummary({ stage }: { stage: Stage3Response }) {
 }
 
 function Stage4LayerSummary({
+  filteredIssues,
+  issueFilter,
+  issues,
+  onIssueFilterChange,
+  onSelectIssue,
   onToggleProbe,
   probeVisibility,
+  selectedIssue,
   stage,
 }: {
+  filteredIssues: Stage4Issue[];
+  issueFilter: Stage4IssueFilter;
+  issues: Stage4Issue[];
+  onIssueFilterChange: (filter: Stage4IssueFilter) => void;
+  onSelectIssue: (issue: Stage4Issue) => void;
   onToggleProbe: (status: ProbeStatusId, kind: ProbeKindId) => void;
   probeVisibility: ProbeVisibility;
+  selectedIssue: Stage4Issue | null;
   stage: Stage4Response;
 }) {
   const summary = stage.exactizability.summary;
-  const hardestVertices = stage.exactizability.vertex_probes
-    .filter((probe) => probe.status === 'infeasible' || probe.status === 'high_cost')
-    .sort((left, right) => right.max_vertex_move - left.max_vertex_move)
-    .slice(0, 8);
-  const hardestCarriers = stage.exactizability.carrier_probes
-    .filter((probe) => probe.status === 'infeasible' || probe.status === 'high_cost')
-    .sort((left, right) => right.max_endpoint_move - left.max_endpoint_move)
-    .slice(0, 5);
+  const issueSections = stage4IssueSections(issues, issueFilter);
   return (
     <div className="hypothesis-panel">
-      <PanelTitle icon={<GitBranch size={17} />} title="Stage 4 Probes" />
+      <PanelTitle icon={<ListFilter size={17} />} title="Issue Debugger" />
+      <div className="issue-filter-grid">
+        {ISSUE_FILTERS.map((filter) => (
+          <button
+            className={filter.id === issueFilter ? 'issue-filter selected' : 'issue-filter'}
+            key={filter.id}
+            onClick={() => onIssueFilterChange(filter.id)}
+          >
+            <span>{filter.label}</span>
+            <b>{filterStage4Issues(issues, filter.id).length}</b>
+          </button>
+        ))}
+      </div>
+      {selectedIssue ? <Stage4IssueDetail issue={selectedIssue} /> : <p>No exactizability issues match this filter.</p>}
+      <div className="issue-list">
+        {issueSections.map((section) => (
+          <div className="issue-section" key={section.id}>
+            <div className="issue-section-header">
+              <span>{section.label}</span>
+              <b>
+                showing {section.issues.length} / {section.total}
+              </b>
+            </div>
+            {section.issues.map((issue) => (
+              <Stage4IssueRow
+                issue={issue}
+                key={`${section.id}-${issue.id}`}
+                onSelect={() => onSelectIssue(issue)}
+                selected={selectedIssue?.id === issue.id}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+      {filteredIssues.length > ISSUE_LIST_LIMIT_PER_TYPE ? (
+        <p>
+          Showing up to {ISSUE_LIST_LIMIT_PER_TYPE} issue(s) per selected type. Use filters to focus a specific family.
+        </p>
+      ) : null}
+      <div className="hypothesis-divider" />
+      <PanelTitle icon={<GitBranch size={17} />} title="Probe Visibility" />
       <div className="probe-kind-header">
         <span />
         <span />
@@ -1346,41 +1713,69 @@ function Stage4LayerSummary({
         <span>Total estimated energy</span>
         <strong>{summary.total_estimated_energy.toFixed(2)}</strong>
       </div>
-      <div className="hypothesis-divider" />
-      <PanelTitle icon={<GitBranch size={17} />} title="Hardest Vertices" />
-      {hardestVertices.length ? (
-        hardestVertices.map((probe) => (
-          <div className="score-row" key={probe.vertex_id}>
-            <strong>vertex {probe.vertex_id}</strong>
-            <span>{probe.status.replaceAll('_', ' ')}</span>
-            <em>
-              degree {probe.degree}, residual {probe.residual_before_degrees?.toFixed(2) ?? 'n/a'}°, move{' '}
-              {probe.max_vertex_move.toFixed(4)}
-            </em>
-          </div>
-        ))
-      ) : (
-        <p>No high-cost or infeasible interior vertex probes.</p>
-      )}
-      <div className="hypothesis-divider" />
-      <PanelTitle icon={<GitBranch size={17} />} title="Carrier Movement" />
-      {hardestCarriers.length ? (
-        hardestCarriers.map((probe) => (
-          <div className="score-row" key={probe.carrier_id}>
-            <strong>carrier {probe.carrier_id}</strong>
-            <span>{probe.status.replaceAll('_', ' ')}</span>
-            <em>
-              {probe.carrier_kind.replaceAll('_', ' ')}, max move {probe.max_endpoint_move.toFixed(4)}
-            </em>
-          </div>
-        ))
-      ) : (
-        <p>No high-cost or infeasible carrier projection probes.</p>
-      )}
       <p>
-        Stage 4 does not alter the graph. It marks where the Stage 3 selection looks locally exact, cheap to
-        exactize, expensive, or impossible without a topology change.
+        Stage 4 does not alter the graph. Select an issue to highlight the associated selected edges, weak candidates,
+        carriers, and local theorem evidence.
       </p>
+    </div>
+  );
+}
+
+function Stage4IssueRow({
+  issue,
+  onSelect,
+  selected,
+}: {
+  issue: Stage4Issue;
+  onSelect: () => void;
+  selected: boolean;
+}) {
+  return (
+    <button className={selected ? 'issue-row selected' : 'issue-row'} onClick={onSelect}>
+      <span className="layer-swatch" style={{ background: issue.color }} />
+      <span>
+        <strong>{issue.label}</strong>
+        <em>{issue.summary}</em>
+      </span>
+      <b>{issue.valueLabel}</b>
+    </button>
+  );
+}
+
+function Stage4IssueDetail({ issue }: { issue: Stage4Issue }) {
+  const alternating = issue.sectorAngles ? alternatingAngleSums(issue.sectorAngles) : null;
+  return (
+    <div className="issue-detail">
+      <div className="issue-detail-title">
+        <span className="layer-swatch" style={{ background: issue.color }} />
+        <strong>{issue.label}</strong>
+        <b>{issue.valueLabel}</b>
+      </div>
+      <p>{issue.detail}</p>
+      <div className="issue-facts">
+        <span>selected edges</span>
+        <strong>{issue.selectedEdgeIds.length}</strong>
+        <span>candidate edges</span>
+        <strong>{issue.candidateEdgeIds.length}</strong>
+        <span>carriers</span>
+        <strong>{issue.carrierIds.length}</strong>
+      </div>
+      {alternating ? (
+        <div className="kawasaki-panel">
+          <span>Kawasaki sums</span>
+          <strong>
+            {alternating.even.toFixed(2)}° / {alternating.odd.toFixed(2)}°
+          </strong>
+          <em>residual {Math.abs(alternating.even - alternating.odd).toFixed(2)}°</em>
+        </div>
+      ) : null}
+      {issue.blockers.length ? (
+        <div className="blocker-list">
+          {issue.blockers.slice(0, 4).map((blocker) => (
+            <span key={blocker}>{blocker}</span>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1454,6 +1849,255 @@ function arrangementAssignmentColor(label: string) {
   if (label === 'valley') return '#2563eb';
   if (label === 'boundary') return '#111827';
   return '#64748b';
+}
+
+function buildStage4Issues(stage: Stage4Response): Stage4Issue[] {
+  const selectedEdgeIds = new Set(stage.selection.selected_edge_ids);
+  const candidateEdgeIds = new Set([...stage.selection.undecided_edge_ids, ...stage.selection.rejected_edge_ids]);
+  const verticesById = new Map(stage.arrangement.vertices.map((vertex) => [vertex.id, vertex]));
+  const carriersById = new Map(stage.arrangement.carriers.map((carrier) => [carrier.id, carrier]));
+  const edgeById = new Map(stage.arrangement.atomic_edges.map((edge) => [edge.id, edge]));
+  const edgesByVertex = new Map<
+    number,
+    { selectedEdgeIds: number[]; candidateEdgeIds: number[]; carrierIds: Set<number> }
+  >();
+  const edgesByCarrier = new Map<number, { selectedEdgeIds: number[]; candidateEdgeIds: number[] }>();
+
+  for (const edge of stage.arrangement.atomic_edges) {
+    const carrierEntry = edgesByCarrier.get(edge.carrier_id) ?? { selectedEdgeIds: [], candidateEdgeIds: [] };
+    if (selectedEdgeIds.has(edge.id)) carrierEntry.selectedEdgeIds.push(edge.id);
+    if (candidateEdgeIds.has(edge.id)) carrierEntry.candidateEdgeIds.push(edge.id);
+    edgesByCarrier.set(edge.carrier_id, carrierEntry);
+
+    for (const vertexId of edge.vertices) {
+      const vertexEntry = edgesByVertex.get(vertexId) ?? {
+        selectedEdgeIds: [],
+        candidateEdgeIds: [],
+        carrierIds: new Set<number>(),
+      };
+      if (selectedEdgeIds.has(edge.id)) vertexEntry.selectedEdgeIds.push(edge.id);
+      if (candidateEdgeIds.has(edge.id)) vertexEntry.candidateEdgeIds.push(edge.id);
+      vertexEntry.carrierIds.add(edge.carrier_id);
+      edgesByVertex.set(vertexId, vertexEntry);
+    }
+  }
+
+  const vertexAssociation = (vertexId: number, incidentEdgeIds: number[] = []) => {
+    const vertex = verticesById.get(vertexId);
+    const entry = edgesByVertex.get(vertexId);
+    const selected = uniqueNumbers([
+      ...incidentEdgeIds.filter((edgeId) => selectedEdgeIds.has(edgeId)),
+      ...(entry?.selectedEdgeIds ?? []),
+    ]);
+    const candidates = uniqueNumbers([
+      ...incidentEdgeIds.filter((edgeId) => candidateEdgeIds.has(edgeId)),
+      ...(entry?.candidateEdgeIds ?? []),
+    ]);
+    const carriers = new Set<number>(vertex?.carrier_ids ?? []);
+    for (const carrierId of entry?.carrierIds ?? []) carriers.add(carrierId);
+    for (const edgeId of [...selected, ...candidates]) {
+      const edge = edgeById.get(edgeId);
+      if (edge) carriers.add(edge.carrier_id);
+    }
+    return {
+      candidateEdgeIds: candidates,
+      carrierIds: Array.from(carriers),
+      point: vertex?.point,
+      selectedEdgeIds: selected,
+    };
+  };
+
+  const carrierAssociation = (carrierId: number) => {
+    const entry = edgesByCarrier.get(carrierId);
+    return {
+      candidateEdgeIds: uniqueNumbers(entry?.candidateEdgeIds ?? []),
+      carrierIds: [carrierId],
+      selectedEdgeIds: uniqueNumbers(entry?.selectedEdgeIds ?? []),
+    };
+  };
+
+  const issues: Stage4Issue[] = [];
+  const pushIssue = (issue: Stage4Issue) => {
+    issues.push({
+      ...issue,
+      candidateEdgeIds: issue.candidateEdgeIds.slice(0, 220),
+      carrierIds: uniqueNumbers(issue.carrierIds).slice(0, 80),
+      selectedEdgeIds: uniqueNumbers(issue.selectedEdgeIds).slice(0, 220),
+    });
+  };
+
+  for (const probe of stage.exactizability.vertex_probes) {
+    const associated = vertexAssociation(probe.vertex_id, probe.incident_edge_ids);
+    const residual = probe.residual_before_degrees ?? 0;
+    if (residual > 12) {
+      pushIssue({
+        ...associated,
+        blockers: probe.blockers,
+        color: exactStatusColor('hard_kawasaki'),
+        degree: probe.degree,
+        detail: `Alternating sector angles around vertex ${probe.vertex_id} differ by ${residual.toFixed(2)} degrees before exactization.`,
+        id: `vertex-${probe.vertex_id}-hard-kawasaki`,
+        label: `vertex ${probe.vertex_id}`,
+        maxMove: probe.max_vertex_move,
+        probeKind: 'vertex',
+        rayAngles: probe.ray_angles_degrees,
+        residualDegrees: residual,
+        sectorAngles: probe.sector_angles_degrees,
+        status: 'hard_kawasaki',
+        summary: `hard Kawasaki, degree ${probe.degree}`,
+        value: residual,
+        valueLabel: `${residual.toFixed(1)}deg`,
+        vertexId: probe.vertex_id,
+      });
+    }
+    if (probe.degree % 2 === 1) {
+      pushIssue({
+        ...associated,
+        blockers: probe.blockers,
+        color: exactStatusColor('odd_degree'),
+        degree: probe.degree,
+        detail: `Vertex ${probe.vertex_id} has odd degree ${probe.degree}; geometry movement alone cannot make this locally flat-foldable.`,
+        id: `vertex-${probe.vertex_id}-odd-degree`,
+        label: `vertex ${probe.vertex_id}`,
+        maxMove: probe.max_vertex_move,
+        probeKind: 'vertex',
+        residualDegrees: probe.residual_before_degrees,
+        sectorAngles: probe.sector_angles_degrees,
+        status: 'odd_degree',
+        summary: `odd degree ${probe.degree}`,
+        value: probe.degree,
+        valueLabel: `degree ${probe.degree}`,
+        vertexId: probe.vertex_id,
+      });
+    }
+    if (probe.status === 'infeasible' || probe.status === 'high_cost') {
+      const status = probe.status as ProbeStatusId;
+      pushIssue({
+        ...associated,
+        blockers: probe.blockers,
+        color: exactStatusColor(status),
+        degree: probe.degree,
+        detail: `Vertex ${probe.vertex_id} is ${status.replaceAll('_', ' ')} with max estimated movement ${probe.max_vertex_move.toFixed(5)}.`,
+        id: `vertex-${probe.vertex_id}-${status}`,
+        label: `vertex ${probe.vertex_id}`,
+        maxMove: probe.max_vertex_move,
+        probeKind: 'vertex',
+        residualDegrees: probe.residual_before_degrees,
+        sectorAngles: probe.sector_angles_degrees,
+        status,
+        summary: `${status.replaceAll('_', ' ')}, move ${probe.max_vertex_move.toFixed(4)}`,
+        value: Math.max(probe.max_vertex_move, probe.residual_before_degrees ?? 0),
+        valueLabel: probe.max_vertex_move.toFixed(4),
+        vertexId: probe.vertex_id,
+      });
+    }
+  }
+
+  for (const probe of stage.exactizability.carrier_probes) {
+    if (probe.status !== 'infeasible' && probe.status !== 'high_cost') continue;
+    const status = probe.status as ProbeStatusId;
+    const carrier = carriersById.get(probe.carrier_id);
+    const p0 = carrier ? pointAtCarrierT(carrier, carrier.support_interval[0]) : null;
+    const p1 = carrier ? pointAtCarrierT(carrier, carrier.support_interval[1]) : null;
+    pushIssue({
+      ...carrierAssociation(probe.carrier_id),
+      blockers: probe.blockers,
+      carrierId: probe.carrier_id,
+      color: exactStatusColor(status),
+      detail: `Carrier ${probe.carrier_id} is ${status.replaceAll('_', ' ')}; projecting its selected intervals would move endpoints by up to ${probe.max_endpoint_move.toFixed(5)}.`,
+      id: `carrier-${probe.carrier_id}-${status}`,
+      label: `carrier ${probe.carrier_id}`,
+      maxMove: probe.max_endpoint_move,
+      point: p0 && p1 ? { x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 } : undefined,
+      probeKind: 'carrier',
+      status,
+      summary: `${probe.carrier_kind.replaceAll('_', ' ')}, ${probe.selected_edges} selected`,
+      value: probe.max_endpoint_move,
+      valueLabel: probe.max_endpoint_move.toFixed(4),
+    });
+  }
+
+  for (const probe of stage.exactizability.boundary_probes) {
+    if (probe.status !== 'infeasible' && probe.status !== 'high_cost') continue;
+    const status = probe.status as ProbeStatusId;
+    const associated = vertexAssociation(probe.vertex_id);
+    pushIssue({
+      ...associated,
+      blockers: probe.blockers,
+      color: exactStatusColor(status),
+      detail: `Boundary vertex ${probe.vertex_id} on ${probe.side ?? 'nearest'} side needs movement ${probe.max_vertex_move.toFixed(5)} to stay on the square boundary.`,
+      id: `boundary-${probe.vertex_id}-${status}`,
+      label: `boundary ${probe.vertex_id}`,
+      maxMove: probe.max_vertex_move,
+      point: probe.point,
+      probeKind: 'boundary',
+      side: probe.side,
+      status,
+      summary: `${status.replaceAll('_', ' ')}, side ${probe.side ?? 'nearest'}`,
+      value: probe.max_vertex_move,
+      valueLabel: probe.max_vertex_move.toFixed(4),
+      vertexId: probe.vertex_id,
+    });
+  }
+
+  return issues.sort((left, right) => issuePriority(right) - issuePriority(left) || right.value - left.value);
+}
+
+function filterStage4Issues(issues: Stage4Issue[], filter: Stage4IssueFilter) {
+  if (filter === 'all') return issues;
+  if (filter === 'vertex' || filter === 'carrier' || filter === 'boundary') {
+    return issues.filter((issue) => issue.probeKind === filter);
+  }
+  return issues.filter((issue) => issue.status === filter);
+}
+
+function stage4IssueSections(issues: Stage4Issue[], filter: Stage4IssueFilter): Stage4IssueSection[] {
+  const sectionFilters = filter === 'all' ? ISSUE_FILTERS.filter((entry) => entry.id !== 'all') : ISSUE_FILTERS.filter((entry) => entry.id === filter);
+  return sectionFilters
+    .map((entry) => {
+      const sectionIssues = filterStage4Issues(issues, entry.id);
+      return {
+        id: entry.id,
+        issues: sectionIssues.slice(0, ISSUE_LIST_LIMIT_PER_TYPE),
+        label: entry.label,
+        total: sectionIssues.length,
+      };
+    })
+    .filter((section) => section.total > 0);
+}
+
+function issuePriority(issue: Stage4Issue) {
+  if (issue.status === 'infeasible') return 50;
+  if (issue.status === 'hard_kawasaki') return 42;
+  if (issue.status === 'odd_degree') return 38;
+  if (issue.status === 'high_cost') return 30;
+  return 0;
+}
+
+function stage4IssueMatchesProbe(
+  issue: Stage4Issue,
+  kind: ProbeKindId,
+  probe: VertexExactizabilityProbe | CarrierExactizabilityProbe | BoundaryExactizabilityProbe,
+  _displayStatus?: ProbeStatusId,
+) {
+  if (issue.probeKind !== kind) return false;
+  if (kind === 'carrier') return issue.carrierId === (probe as CarrierExactizabilityProbe).carrier_id;
+  return issue.vertexId === (probe as VertexExactizabilityProbe | BoundaryExactizabilityProbe).vertex_id;
+}
+
+function uniqueNumbers(values: Iterable<number>) {
+  return Array.from(new Set(values));
+}
+
+function alternatingAngleSums(angles: number[]) {
+  return angles.reduce(
+    (acc, angle, index) => {
+      if (index % 2 === 0) acc.even += angle;
+      else acc.odd += angle;
+      return acc;
+    },
+    { even: 0, odd: 0 },
+  );
 }
 
 function stage4ProbeRowCount(summary: Stage4Response['exactizability']['summary'], status: ProbeStatusId) {

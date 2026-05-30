@@ -565,6 +565,15 @@ What remains after Phase 4:
   The right sidebar is a probe matrix: each status row controls the vertex,
   carrier, and boundary probe types that exist for that status. This keeps the
   canvas and controls about exactizability only.
+- Stage 4 now also has an issue-centric debugger. It builds a filterable list of
+  exactizability issues from vertex, carrier, and boundary probes. Selecting an
+  issue dims the source image, highlights the associated selected graph edges,
+  weak/rejected candidate intervals, carriers, and focus point, and shows local
+  theorem facts such as Kawasaki alternating sums. The list intentionally shows
+  up to ten examples per issue type so visual QA can sample each failure family
+  without drowning the browser. This is the preferred visual validation path
+  because it checks the candidate graph evidence instead of treating the
+  synthetic source image as ground truth.
 - Phase 5 must use these costs while choosing between observed local segments,
   shared straight-carrier alternatives, junction merges, and undecided weak
   evidence.
