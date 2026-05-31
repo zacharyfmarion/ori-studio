@@ -24,6 +24,11 @@ Progress:
 - Phase 5c is complete as of May 30, 2026. Final crease spans are now
   first-class selection output. Stage 5 shows exactly what the beam selected as
   final crease spans, with atomic intervals available only as provenance.
+- Phase 5d selection-objective work is complete as of May 31, 2026. The beam
+  now searches first-class final span hypotheses instead of atomic intervals,
+  and the old atomic beam path has been removed. Exactizability probes still
+  consume selected atomic provenance internally; making those probes fully
+  span-native remains follow-up work before the full exact solver.
 - A `ConstraintCompilerV2` backend now exists for the compiler-native evidence
   route, while `ConstraintCompilerV1` remains the current locked-border
   baseline.
@@ -49,7 +54,7 @@ architecture:
 model evidence
 -> compiler-native evidence primitives
 -> candidate planar graph arrangement
--> weighted constraint selection with exactizability probes
+-> weighted span selection with exactizability probes
 -> full exact geometric solve
 -> assignment solve
 -> verifier
@@ -907,6 +912,211 @@ Verification:
 - Browser sanity check at `http://localhost:5176/`: Stage 5 loaded without
   `Request failed`/`not found`; toolbar only exposes selected graph, GT graph,
   and atomic provenance toggles.
+
+## Phase 5d: Span-Level Beam Objective
+
+Purpose: make the Stage 5 selector choose between final crease hypotheses, not
+between atomic evidence intervals.
+
+Status: Selection-objective implementation complete as of May 31, 2026.
+
+Root cause from the May 31 treemaker sample:
+
+- Sample: `treemaker_tree_v1-5gjmj-004937__clean__001`.
+- Phase 5c correctly exposed `selected_spans`, but those spans are still
+  derived after the beam has selected atomic intervals.
+- The beam state is still `BTreeSet<atomic_edge_id>`.
+- `score_beam_state` still sums selected atomic edge scores.
+- Shared-carrier moves still add many shared atomic intervals, then
+  `selected_spans_from_selection` contracts them afterward.
+- This makes the search compare:
+  - many high-confidence observed local atomic fragments
+  - versus many inferred shared-carrier atomic intervals
+- It does not compare:
+  - one clean final crease span
+  - versus a chain of tiny pass-through fragments.
+- Because local Hough fragments each receive their own visual reward, the
+  objective accidentally rewards fragmentation.
+- Because shared-carrier alternatives are charged `shared_carrier_cost` per
+  atomic interval, long clean shared spans are over-penalized when they cross
+  many candidate vertices.
+- Example diagnostics:
+  - shared carrier `258` would explain the visible right-side valley chain, but
+    loses: local fragments score about `20.55`, while shared evidence scores
+    about `8.27` plus only about `3.6` continuity reward.
+  - shared carrier `273` loses similarly: local fragments score about `38.90`,
+    shared evidence scores about `16.81` plus about `6.84` reward.
+
+Implementation result:
+
+- `select_candidate_graph_beam` now builds span candidates before search.
+- The beam state is now selected span IDs plus derived atomic provenance.
+- Atomic intervals are candidate spans only when they are plausible final
+  geometry; shared-carrier spans compete directly against local fragments.
+- Shared spans score support once per final span, charge carrier hypothesis
+  cost once, and receive replacement/fragmentation credit only for local
+  fragments they geometrically explain.
+- Local atomic fragments with shared alternatives are penalized in the span
+  objective and in structural accounting.
+- The old `BeamMove::Edge` / `BeamMove::SharedCarrier` atomic selector,
+  atomic beam state, and post-selection replacement objective were deleted.
+- The Stage 5 public output remains `selected_spans`; `selected_edge_ids` is
+  selected evidence/provenance.
+
+Target architecture:
+
+- Introduce a first-class span hypothesis type used by the beam itself.
+- Atomic intervals become provenance and support samples, not the optimization
+  unit for the final graph.
+- Stage 5 search state stores selected span hypothesis IDs.
+- Each selected span has:
+  - carrier ID
+  - final endpoint vertex IDs
+  - source atomic edge IDs as evidence/provenance
+  - replaced local atomic edge IDs when applicable
+  - assignment candidate
+  - support statistics
+  - topology endpoints used by degree/exactizability probes
+  - score breakdown and reasons.
+- `selected_edge_ids` remains available only as selected evidence/provenance
+  for diagnostics and exactizability probes.
+- `selected_spans` becomes both the public Stage 5 graph and the internal
+  optimization surface.
+
+Span hypothesis construction:
+
+- Build `atomic_interval` span hypotheses for local observed intervals.
+- Build `shared_carrier_span` hypotheses directly from shared carriers:
+  - group contiguous selected-support intervals on the shared carrier
+  - collapse only carrier-intersection and observed-line-endpoint pass-through
+    vertices
+  - preserve observed junctions, junction clusters, boundary contacts, and
+    square corners as true span endpoints
+  - attach all atomic intervals along the path as provenance
+  - attach all local fragments explained by the shared carrier as replaceable
+    provenance.
+- Build optional `local_chain_span` hypotheses only when local observed
+  fragments are already collinear on the same underlying observed carrier and
+  can be collapsed without conflicting with a shared-carrier span. This is a
+  fallback for cases where no shared carrier exists.
+- Do not build cosmetic merged spans after selection.
+
+Conflict model:
+
+- Two span hypotheses conflict if they claim the same atomic interval as final
+  geometry and are not the same selected span.
+- A shared-carrier span conflicts with local fragments it explains.
+- A span conflicts with another span when their endpoint/topology path would
+  create duplicate edges between the same true endpoints.
+- Boundary spans remain governed by the locked-border/border-prior path; border
+  cleanup is not reintroduced as an experimental compiler pass here.
+
+Scoring:
+
+- Score support once per final span, not once per atomic interval.
+- Use aggregated evidence:
+  - mean/min/max line support along source atomic intervals
+  - support coverage along the span
+  - endpoint support
+  - assignment confidence
+  - carrier fit residual or hypothesis cost once per span
+  - length/scale sanity
+  - artifact/non-crease evidence where available.
+- Reward replacing many local fragments only when the replacement is a
+  geometrically coherent span with comparable visual support.
+- Penalize fragmentation explicitly:
+  - degree-2 pass-through vertices that remain in the final span graph
+  - multiple short adjacent spans on near-identical carriers when a clean shared
+    span exists
+  - selected local fragments that have an unselected shared alternative with
+    enough evidence.
+- Do not make shared carriers win unconditionally. A local fragment chain should
+  remain selected when:
+  - the shared carrier has poor support coverage
+  - the shared carrier crosses a real observed junction incorrectly
+  - the shared carrier assignment/evidence is incompatible
+  - the shared carrier would worsen exactizability or topology.
+
+Search:
+
+- Replace `BeamMove::Edge` / `BeamMove::SharedCarrier` with span-level moves.
+- Beam state stores selected span IDs plus derived selected atomic provenance.
+- Exactizability probes currently still consume selected atomic provenance. This
+  keeps the existing probe implementation working, but it is not the final
+  architecture; the next exactization phase should make probes consume selected
+  span endpoints directly.
+- Start with correctness-first beam width and candidate limits. Tune speed only
+  after the treemaker failure case is fixed and covered by tests.
+- Add debug output for rejected span hypotheses:
+  - candidate span score
+  - conflicting selected spans
+  - replaced fragments
+  - exactizability delta
+  - reason it lost.
+
+Inspector:
+
+- Stage 5 should show selected span hypotheses exactly as selected by the beam.
+- Add an optional "candidate spans" overlay for this phase:
+  - selected
+  - rejected shared spans
+  - rejected local fragments
+  - conflicts/replacements for a hovered or selected span.
+- Add a per-span details panel so the treemaker right-side failure can be
+  inspected without reading JSON.
+
+Tests:
+
+- [x] Synthetic fixture where three collinear observed fragments and one shared
+  carrier compete; the beam selects one `shared_carrier_span`.
+- [x] Synthetic fixture where a true observed junction lies on the carrier; the
+  beam preserves the split into two spans.
+- [ ] Synthetic fixture where a weak/incorrect shared carrier crosses a real
+  junction; local spans remain selected.
+- [x] Stage 5 smoke check for `treemaker_tree_v1-5gjmj-004937__clean__001`
+  proving shared carrier `258` or its equivalent selected span replaces the
+  right-side tiny valley fragment chain.
+- [x] Stage 5 smoke check proving shared carrier `273` or its equivalent span
+  replaces the central/right unknown fragment chain if visual inspection
+  confirms that is the correct crease.
+- [x] `selected_edge_ids` remains provenance-only and cannot be rendered as the
+  default final graph.
+- [ ] Exactizability probes consume selected span endpoints rather than atomic
+  provenance. Current implementation still uses provenance for probe
+  compatibility.
+- [x] Stage 5 inspector has no post-hoc graph beautification layer.
+
+May 31 verification:
+
+- `cargo test -p oristudio-cp-compiler`: 74 passed.
+- `cargo test -p oristudio-cp-detect-inspector`: 2 passed.
+- `npm --workspace @treemaker/cp-detect-architecture-inspector run build`:
+  passed.
+- Stage 5 API smoke on
+  `treemaker_tree_v1-5gjmj-004937__clean__001?threshold=0.65&map_size=32`:
+  `selected_spans=286`, `selected_edges=517`, `shared_spans=47`,
+  `atomic_spans=239`, `collapsed=231`,
+  `shared_replacements=26`, `local_fragments_replaced=881`,
+  `local_fragments_retained=195`, `odd_degree_vertices=58`.
+- The same smoke check selected shared carrier `258` as one shared span
+  replacing 20 local fragments.
+- The same smoke check selected shared carrier `273` as two shared spans
+  replacing 36 local fragments total.
+- Correctness-first Stage 5 smoke latency for that sample was about `7.1s` on
+  the local debug server.
+
+Acceptance:
+
+- The treemaker debug sample no longer shows the obvious right-side chain as
+  many tiny selected final spans when a coherent shared span candidate exists.
+- Selected final graph has materially fewer impossible degree-2 pass-through
+  vertices without deleting real observed junctions.
+- Shared spans improve structural quality without blindly hallucinating lines.
+- The objective and debug UI make it clear why a shared span won or lost.
+- Existing compiler and inspector test suites pass.
+- A Stage 5 API smoke check reports selected spans and no
+  `compiled_selection_graph` payload. Rejected candidate-span explanation UI is
+  still future inspector work.
 
 ## Phase 6: Full Exact Geometric Solve
 
