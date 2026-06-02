@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
 const SCHEMA: &str = "oristudio/cp-compiler/candidate-selection-v2";
-const LOCAL_FRAGMENT_SELECTION_COST_MULTIPLIER: f64 = 4.0;
+const LOCAL_FRAGMENT_SELECTION_COST_MULTIPLIER: f64 = 6.0;
 const SPAN_COMPLEXITY_COST: f64 = 0.08;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -114,6 +114,7 @@ pub struct SelectionSpan {
 #[serde(rename_all = "snake_case")]
 pub enum SelectionSpanKind {
     AtomicInterval,
+    ObservedCarrierSpan,
     SharedCarrierSpan,
 }
 
@@ -714,6 +715,12 @@ fn build_span_candidates(
     options: &SelectionOptions,
 ) -> Vec<SpanCandidate> {
     let mut candidates = Vec::<SpanCandidate>::new();
+    let observed_chain_paths =
+        observed_carrier_span_paths(arrangement, scores, vertices, carriers, options);
+    let observed_chain_edge_ids = observed_chain_paths
+        .iter()
+        .flat_map(|(_, path)| path.edge_ids.iter().copied())
+        .collect::<BTreeSet<_>>();
 
     for edge in &arrangement.atomic_edges {
         let Some(carrier) = carriers.get(&edge.carrier_id).copied() else {
@@ -747,10 +754,49 @@ fn build_span_candidates(
         ) else {
             continue;
         };
-        span.score = atomic_span_score(edge, score, structural_index, options, &mut span.reasons);
+        span.score = atomic_span_score(
+            edge,
+            score,
+            structural_index,
+            &observed_chain_edge_ids,
+            options,
+            &mut span.reasons,
+        );
         if span.score >= options.weak_candidate_floor
             || edge.line_support >= options.strong_edge_support
         {
+            candidates.push(SpanCandidate {
+                id: 0,
+                span,
+                conflicts: BTreeSet::new(),
+            });
+        }
+    }
+
+    for (carrier_id, path) in observed_chain_paths {
+        let Some(mut span) = selection_span_from_path(
+            arrangement,
+            scores,
+            carriers,
+            SelectionSpanKind::ObservedCarrierSpan,
+            carrier_id,
+            path,
+            Vec::new(),
+            vec!["candidate observed carrier span".to_owned()],
+        ) else {
+            continue;
+        };
+        let Some(carrier) = carriers.get(&carrier_id).copied() else {
+            continue;
+        };
+        span.score = observed_carrier_span_score(arrangement, &span, vertices, carrier, options);
+        span.reasons.push(format!(
+            "span-level objective score {:.3}; collapses {} pass-through vertex/vertices over {} atomic evidence interval(s)",
+            span.score,
+            span.collapsed_vertex_ids.len(),
+            span.source_atomic_edge_ids.len()
+        ));
+        if span.score >= options.weak_candidate_floor {
             candidates.push(SpanCandidate {
                 id: 0,
                 span,
@@ -853,6 +899,7 @@ fn atomic_span_score(
     edge: &ArrangementAtomicEdge,
     score: &SelectionEdgeScore,
     structural_index: &StructuralIndex,
+    observed_chain_edge_ids: &BTreeSet<usize>,
     options: &SelectionOptions,
     reasons: &mut Vec<String>,
 ) -> f64 {
@@ -868,8 +915,117 @@ fn atomic_span_score(
             cost
         ));
     }
+    if observed_chain_edge_ids.contains(&edge.id) {
+        let cost = options.local_fragment_cost * LOCAL_FRAGMENT_SELECTION_COST_MULTIPLIER;
+        total -= cost;
+        reasons.push(format!(
+            "penalized {:.3} because an observed carrier span can explain this pass-through fragment",
+            cost
+        ));
+    }
     reasons.push(format!("span-level objective score {:.3}", total));
     total
+}
+
+fn observed_carrier_span_paths(
+    arrangement: &CandidateArrangement,
+    scores: &[SelectionEdgeScore],
+    vertices: &BTreeMap<usize, &ArrangementVertex>,
+    carriers: &BTreeMap<usize, &ArrangementCarrier>,
+    options: &SelectionOptions,
+) -> Vec<(usize, SpanPath)> {
+    let mut paths = Vec::new();
+    for carrier in carriers.values().copied().filter(|carrier| {
+        carrier.kind == ArrangementCarrierKind::ObservedLocal
+            && carrier.assignment.label != AssignmentLabel::Boundary
+    }) {
+        let edge_ids = arrangement
+            .atomic_edges
+            .iter()
+            .filter(|edge| edge.carrier_id == carrier.id)
+            .filter(|edge| edge.assignment.label != AssignmentLabel::Boundary)
+            .filter(|edge| edge.line_support >= options.weak_edge_support)
+            .filter(|edge| {
+                scores
+                    .get(edge.id)
+                    .is_some_and(|score| score.breakdown.total() >= options.weak_candidate_floor)
+            })
+            .map(|edge| edge.id)
+            .collect::<Vec<_>>();
+        if edge_ids.len() < 2 {
+            continue;
+        }
+        let source_edge_set = edge_ids.iter().copied().collect::<BTreeSet<_>>();
+        let incident = selected_incident_edges(arrangement, &source_edge_set);
+        for path in shared_carrier_span_paths(
+            arrangement,
+            vertices,
+            carriers,
+            &incident,
+            carrier.id,
+            &edge_ids,
+        ) {
+            if path.edge_ids.len() < 2 && path.collapsed_vertex_ids.is_empty() {
+                continue;
+            }
+            paths.push((carrier.id, path));
+        }
+    }
+    paths
+}
+
+fn observed_carrier_span_score(
+    arrangement: &CandidateArrangement,
+    span: &SelectionSpan,
+    vertices: &BTreeMap<usize, &ArrangementVertex>,
+    carrier: &ArrangementCarrier,
+    options: &SelectionOptions,
+) -> f64 {
+    let (support_min, support_mean, support_max) = combined_support_stats(arrangement, span)
+        .unwrap_or((
+            span.line_support_min,
+            span.line_support_mean,
+            span.line_support_max,
+        ));
+    let visual_reward = 1.85 * support_mean + 0.25 * support_max;
+    let endpoint_reward = span
+        .vertices
+        .iter()
+        .filter_map(|vertex_id| vertices.get(vertex_id).copied())
+        .map(vertex_anchor_reward)
+        .sum::<f64>();
+    let assignment_reward = if span.assignment.label == AssignmentLabel::Unknown {
+        0.0
+    } else {
+        0.18 * span.assignment.confidence.clamp(0.0, 1.0)
+    };
+    let weak_support_cost = if support_min < options.weak_edge_support {
+        (options.weak_edge_support - support_min).max(0.0) * 0.9
+    } else if support_mean < options.strong_edge_support {
+        (options.strong_edge_support - support_mean).max(0.0) * 0.45
+    } else {
+        0.0
+    };
+    let length = (span.t_interval[1] - span.t_interval[0]).abs();
+    let tiny_edge_cost = if length < options.min_edge_length {
+        options.tiny_edge_cost * (1.0 - length / options.min_edge_length).max(0.0)
+    } else {
+        0.0
+    };
+    let fragment_count = span.source_atomic_edge_ids.len().saturating_sub(1) as f64;
+    let fragmentation_avoidance =
+        fragment_count * options.local_fragment_cost * LOCAL_FRAGMENT_SELECTION_COST_MULTIPLIER;
+    let pass_through_reward = span.collapsed_vertex_ids.len() as f64 * 0.12;
+
+    visual_reward
+        + endpoint_reward
+        + assignment_reward
+        + fragmentation_avoidance
+        + pass_through_reward
+        - weak_support_cost
+        - carrier.hypothesis_cost
+        - tiny_edge_cost
+        - SPAN_COMPLEXITY_COST
 }
 
 fn shared_span_score(
@@ -1197,7 +1353,18 @@ fn span_candidate_priority(candidate: &SpanCandidate) -> f64 {
     } else {
         0.0
     };
-    candidate.span.score + shared_bonus
+    let observed_chain_bonus = if candidate.span.kind == SelectionSpanKind::ObservedCarrierSpan {
+        candidate
+            .span
+            .source_atomic_edge_ids
+            .len()
+            .saturating_sub(1) as f64
+            * 0.35
+            + candidate.span.collapsed_vertex_ids.len() as f64 * 0.12
+    } else {
+        0.0
+    };
+    candidate.span.score + shared_bonus + observed_chain_bonus
 }
 
 fn selected_edge_ids_for_span_ids(
@@ -2430,6 +2597,54 @@ mod tests {
     }
 
     #[test]
+    fn beam_prefers_observed_carrier_span_over_tiny_pass_through_fragments() {
+        let mut arrangement = observed_carrier_chain_fixture();
+        arrangement.vertices[1].kind = ArrangementVertexKind::ObservedLineEndpoint;
+        arrangement.vertices[2].kind = ArrangementVertexKind::CarrierIntersection;
+
+        let mut options = beam_options();
+        options.max_beam_candidates = 32;
+        let selection =
+            select_candidate_graph_beam(&arrangement, options, ExactProbeOptions::default());
+
+        assert_eq!(selection.selected_edge_ids, vec![0, 1, 2]);
+        assert_eq!(selection.report.selected_spans, 1);
+        let span = &selection.selected_spans[0];
+        assert_eq!(span.kind, SelectionSpanKind::ObservedCarrierSpan);
+        assert_eq!(span.vertices, [0, 3]);
+        assert_eq!(span.source_atomic_edge_ids, vec![0, 1, 2]);
+        assert_eq!(span.collapsed_vertex_ids, vec![1, 2]);
+    }
+
+    #[test]
+    fn observed_carrier_span_preserves_real_junction_as_endpoint() {
+        let mut arrangement = observed_carrier_chain_fixture();
+        arrangement.vertices[1].kind = ArrangementVertexKind::ObservedLineEndpoint;
+        arrangement.vertices[2].kind = ArrangementVertexKind::ObservedJunction;
+
+        let mut options = beam_options();
+        options.max_beam_candidates = 32;
+        let selection =
+            select_candidate_graph_beam(&arrangement, options, ExactProbeOptions::default());
+
+        assert_eq!(selection.selected_edge_ids, vec![0, 1, 2]);
+        assert_eq!(selection.report.selected_spans, 2);
+        assert!(selection.selected_spans.iter().any(|span| span.kind
+            == SelectionSpanKind::ObservedCarrierSpan
+            && span.vertices == [0, 2]
+            && span.source_atomic_edge_ids == vec![0, 1]
+            && span.collapsed_vertex_ids == vec![1]));
+        assert!(
+            selection
+                .selected_spans
+                .iter()
+                .any(|span| span.kind == SelectionSpanKind::AtomicInterval
+                    && span.vertices == [2, 3]
+                    && span.source_atomic_edge_ids == vec![2])
+        );
+    }
+
+    #[test]
     fn shared_carrier_replacement_emits_final_span_with_atomic_provenance() {
         let mut arrangement = shared_carrier_replacement_fixture();
         arrangement.vertices[1].kind = ArrangementVertexKind::ObservedLineEndpoint;
@@ -2608,6 +2823,18 @@ mod tests {
             cost: 0.08,
             reason: "test shared".to_owned(),
         });
+        arrangement
+    }
+
+    fn observed_carrier_chain_fixture() -> CandidateArrangement {
+        let mut arrangement = fixture_arrangement(vec![
+            edge(0, 0, [0, 1], 0.94),
+            edge(1, 0, [1, 2], 0.93),
+            edge(2, 0, [2, 3], 0.92),
+        ]);
+        for (offset, edge) in arrangement.atomic_edges.iter_mut().enumerate() {
+            edge.t_interval = [0.2 + offset as f64 * 0.2, 0.2 + (offset + 1) as f64 * 0.2];
+        }
         arrangement
     }
 

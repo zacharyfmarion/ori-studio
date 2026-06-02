@@ -29,6 +29,11 @@ Progress:
   and the old atomic beam path has been removed. Exactizability probes still
   consume selected atomic provenance internally; making those probes fully
   span-native remains follow-up work before the full exact solver.
+- Phase 5e is complete as of June 1, 2026. Phase 5d fixed shared-carrier
+  alternatives, but selected graphs could still show tiny pass-through chains
+  when the carrier was already an observed local carrier. Phase 5e adds
+  observed-carrier span candidates so the beam can choose one final crease
+  through degree-2 pass-through vertices instead of many atomic fragments.
 - A `ConstraintCompilerV2` backend now exists for the compiler-native evidence
   route, while `ConstraintCompilerV1` remains the current locked-border
   baseline.
@@ -1117,6 +1122,89 @@ Acceptance:
 - A Stage 5 API smoke check reports selected spans and no
   `compiled_selection_graph` payload. Rejected candidate-span explanation UI is
   still future inspector work.
+
+## Phase 5e: Observed Carrier Chain Spans
+
+Purpose: make ordinary observed carriers span-complete, not only shared-carrier
+alternatives.
+
+Status: Complete as of June 1, 2026.
+
+Root cause from visual inspection:
+
+- Phase 5d made shared-carrier spans compete directly against local fragments.
+- The selected graph could still show tiny selected spans when all fragments
+  belonged to the same `observed_local` carrier.
+- In that case the clean long crease was not a `shared_collinear_alternative`;
+  it was the original observed carrier split by many carrier-intersection or
+  observed-line-endpoint pseudo-vertices.
+- The beam was therefore choosing between tiny `atomic_interval` candidates,
+  because the clean observed-carrier span did not exist as a candidate.
+- Making exactizability probes span-native is still desirable, but it does not
+  solve missing candidate coverage. The selector cannot choose a long span that
+  is never generated.
+
+Target behavior:
+
+- For each observed local carrier, find maximal chains of selected-support
+  atomic intervals.
+- Collapse only pass-through vertices:
+  - `carrier_intersection`
+  - `observed_line_endpoint`
+  - interior degree-2 vertices whose incident selected-support intervals are on
+    the same carrier.
+- Preserve true endpoints:
+  - observed junctions
+  - junction clusters
+  - boundary contacts
+  - square corners.
+- Emit an `observed_carrier_span` candidate for each maximal chain with at
+  least two source intervals or at least one collapsed pass-through vertex.
+- The observed-carrier span conflicts with every atomic interval it covers, so
+  the beam must choose either the long crease or the tiny fragments.
+- Atomic intervals covered by an observed-carrier span receive an explicit
+  fragmentation penalty.
+- Boundary spans remain governed by the locked-border path; this phase should
+  not invent a second border cleanup algorithm.
+
+Tests:
+
+- [x] Synthetic fixture where three tiny intervals on one observed carrier are
+  collapsed into one `observed_carrier_span`.
+- [x] Synthetic fixture where a real observed junction lies in the chain and is
+  preserved as a split endpoint.
+- [x] Stage 5 smoke check on
+  `treemaker_tree_v1-5gjmj-004937__clean__001` showing fewer atomic selected
+  spans and more long carrier spans.
+- [x] Inspector renders `observed_carrier_span` as selected final graph
+  geometry, not as atomic provenance.
+
+June 1 verification:
+
+- `cargo test -p oristudio-cp-compiler`: 76 passed.
+- `cargo test -p oristudio-cp-detect-inspector`: 2 passed.
+- `npm --workspace @treemaker/cp-detect-architecture-inspector run build`:
+  passed.
+- Stage 5 API smoke on
+  `treemaker_tree_v1-5gjmj-004937__clean__001?threshold=0.65&map_size=32`:
+  `selected_spans=270`, `selected_edges=514`, `atomic_interval=233`,
+  `shared_carrier_span=36`, `observed_carrier_span=1`, `collapsed=244`,
+  `shared_replacements=25`, `local_fragments_replaced=851`,
+  `local_fragments_retained=207`, `odd_degree_vertices=68`.
+- The smoke selected carrier `111` as one `observed_carrier_span` with `19`
+  atomic evidence intervals and `18` collapsed pass-through vertices, replacing
+  the visually obvious row of tiny selected spans in the treemaker example.
+- Correctness-first Stage 5 smoke latency for that sample was about `8.2s` on
+  the local debug server.
+
+Acceptance:
+
+- The selected graph no longer shows obvious degree-2 chains as many selected
+  final spans when all fragments lie on one observed carrier.
+- Real observed junctions are not collapsed away.
+- Existing compiler and inspector tests pass.
+- The Stage 5 smoke sample remains usable in the browser without reintroducing
+  post-hoc visualization cleanup.
 
 ## Phase 6: Full Exact Geometric Solve
 

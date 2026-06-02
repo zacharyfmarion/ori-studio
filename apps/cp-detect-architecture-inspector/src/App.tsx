@@ -1228,7 +1228,8 @@ function SelectionSpanGraphView({
         const p0 = carrier ? imagePoint(pointAtCarrierT(carrier, span.t_interval[0]), frame) : imagePoint(a.point, frame);
         const p1 = carrier ? imagePoint(pointAtCarrierT(carrier, span.t_interval[1]), frame) : imagePoint(b.point, frame);
         const color = arrangementAssignmentColor(span.assignment.label);
-        const strokeWidth = span.kind === 'shared_carrier_span' ? 2.35 : 1.65;
+        const isCarrierSpan = span.kind === 'shared_carrier_span' || span.kind === 'observed_carrier_span';
+        const strokeWidth = isCarrierSpan ? 2.35 : 1.65;
         return (
           <g key={`selected-span-${span.id}`}>
             <line
@@ -1245,7 +1246,7 @@ function SelectionSpanGraphView({
             <line
               stroke={color}
               strokeLinecap="round"
-              strokeOpacity={span.kind === 'shared_carrier_span' ? 0.98 : 0.86}
+              strokeOpacity={isCarrierSpan ? 0.98 : 0.86}
               strokeWidth={strokeWidth}
               vectorEffect="non-scaling-stroke"
               x1={p0.x}
