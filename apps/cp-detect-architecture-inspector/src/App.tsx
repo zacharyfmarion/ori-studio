@@ -140,7 +140,8 @@ export function App() {
   const [showRejectedEdges, setShowRejectedEdges] = useState(false);
   const [showUndecidedEdges, setShowUndecidedEdges] = useState(false);
   const [showCarrierGeometry, setShowCarrierGeometry] = useState(true);
-  const [showGroundTruth, setShowGroundTruth] = useState(true);
+  const [showGroundTruth, setShowGroundTruth] = useState(false);
+  const [showLegacyGraph, setShowLegacyGraph] = useState(false);
   const [probeVisibility, setProbeVisibility] = useState<ProbeVisibility>(() => defaultProbeVisibility());
   const [stage4IssueFilter, setStage4IssueFilter] = useState<Stage4IssueFilter>('all');
   const [selectedStage4IssueId, setSelectedStage4IssueId] = useState<string | null>(null);
@@ -160,7 +161,7 @@ export function App() {
       setShowLineEndpoints(false);
       setShowInferredCrossings(false);
       setShowCarrierGeometry(true);
-      setShowGroundTruth(true);
+      setShowGroundTruth(false);
     } else if (activeStage === 'stage4') {
       setShowLines(false);
       setShowSharedCarriers(false);
@@ -427,6 +428,14 @@ export function App() {
                 value={isStage5(stage) ? stage.selection.selected_spans.filter((span) => span.kind === 'shared_carrier_span').length : '...'}
               />
               <Metric
+                label="normalized spans"
+                value={
+                  isStage5(stage)
+                    ? stage.selection.selected_spans.filter((span) => span.kind === 'normalized_pass_through_span').length
+                    : '...'
+                }
+              />
+              <Metric
                 label="collapsed vertices"
                 value={isStage5(stage) ? stage.selection.selected_spans.reduce((sum, span) => sum + span.collapsed_vertex_ids.length, 0) : '...'}
               />
@@ -434,6 +443,10 @@ export function App() {
               <Metric
                 label="GT graph"
                 value={isStage5(stage) && stage.ground_truth ? `${stage.ground_truth.vertices_px.length} V / ${stage.ground_truth.edges_vertices.length} E` : 'none'}
+              />
+              <Metric
+                label="legacy graph"
+                value={isStage5(stage) && stage.legacy_graph ? `${stage.legacy_graph.vertices_px.length} V / ${stage.legacy_graph.edges_vertices.length} E` : 'none'}
               />
             </section>
           ) : activeStage === 'stage4' ? (
@@ -530,6 +543,14 @@ export function App() {
                         onChange={(event) => setShowGroundTruth(event.target.checked)}
                       />
                       GT graph
+                    </label>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={showLegacyGraph}
+                        onChange={(event) => setShowLegacyGraph(event.target.checked)}
+                      />
+                      legacy graph
                     </label>
                     <label>
                       <input
@@ -655,6 +676,7 @@ export function App() {
                   showLines={showLines}
                   showExactProbes={activeStage === 'stage4'}
                   showGroundTruth={showGroundTruth}
+                  showLegacyGraph={showLegacyGraph}
                   showAtomicEdges={showAtomicEdges}
                   showRejectedEdges={showRejectedEdges}
                   showSelectedEdges={showSelectedEdges}
@@ -955,6 +977,7 @@ function SelectionViewer({
   showContacts,
   showExactProbes,
   showGroundTruth,
+  showLegacyGraph,
   showJunctions,
   showLineEndpoints,
   showLines,
@@ -972,6 +995,7 @@ function SelectionViewer({
   showContacts: boolean;
   showExactProbes: boolean;
   showGroundTruth: boolean;
+  showLegacyGraph: boolean;
   showJunctions: boolean;
   showLineEndpoints: boolean;
   showLines: boolean;
@@ -1045,6 +1069,8 @@ function SelectionViewer({
     <div className={stage4Active ? 'viewer-canvas stage4-issue-canvas' : 'viewer-canvas'}>
       {backgroundMap ? (
         <Heatmap map={backgroundMap} mode="background" />
+      ) : isStage5(stage) ? (
+        <div className="stage5-blank-paper" />
       ) : (
         <img alt="" className={stage4Active ? 'input-image stage4-source-image' : 'input-image'} src={stage.sample.input_image_url} />
       )}
@@ -1056,6 +1082,9 @@ function SelectionViewer({
       >
         {showGroundTruth && isStage5(stage) && stage.ground_truth ? (
           <GroundTruthGraphView graph={stage.ground_truth} />
+        ) : null}
+        {showLegacyGraph && isStage5(stage) && stage.legacy_graph ? (
+          <LegacyGraphView graph={stage.legacy_graph} />
         ) : null}
         {showAtomicEdges ? renderSelectionEdges(stage.selection.selected_edge_ids, 'selected') : null}
         {showRejectedEdges ? renderSelectionEdges(stage.selection.rejected_edge_ids, 'rejected') : null}
@@ -1195,6 +1224,65 @@ function GroundTruthGraphView({ graph }: { graph: GroundTruthGraph }) {
   );
 }
 
+function LegacyGraphView({ graph }: { graph: GroundTruthGraph }) {
+  return (
+    <g className="legacy-graph" aria-label="Legacy decoder graph">
+      {graph.edges_vertices.map(([aId, bId], index) => {
+        const a = graph.vertices_px[aId];
+        const b = graph.vertices_px[bId];
+        if (!a || !b) return null;
+        const label = graph.edges_assignment_labels[index] ?? 'U';
+        return (
+          <g key={`legacy-${index}`}>
+            <line
+              stroke="#ffffff"
+              strokeLinecap="round"
+              strokeOpacity={0.82}
+              strokeWidth={label === 'B' ? 3.0 : 2.35}
+              vectorEffect="non-scaling-stroke"
+              x1={a[0]}
+              x2={b[0]}
+              y1={a[1]}
+              y2={b[1]}
+            />
+            <line
+              stroke={legacyAssignmentColor(label)}
+              strokeLinecap="round"
+              strokeOpacity={label === 'B' ? 0.72 : 0.82}
+              strokeWidth={label === 'B' ? 2.05 : 1.55}
+              vectorEffect="non-scaling-stroke"
+              x1={a[0]}
+              x2={b[0]}
+              y1={a[1]}
+              y2={b[1]}
+            >
+              <title>
+                legacy {label} edge {index}: {aId} {'->'} {bId}
+              </title>
+            </line>
+          </g>
+        );
+      })}
+      {graph.vertices_px.map((point, index) => (
+        <circle
+          cx={point[0]}
+          cy={point[1]}
+          fill="#fef3c7"
+          fillOpacity={0.88}
+          key={`legacy-vertex-${index}`}
+          r={1.7}
+          stroke="#92400e"
+          strokeOpacity={0.75}
+          strokeWidth={0.75}
+          vectorEffect="non-scaling-stroke"
+        >
+          <title>legacy vertex {index}</title>
+        </circle>
+      ))}
+    </g>
+  );
+}
+
 function SelectionSpanGraphView({
   carriersById,
   frame,
@@ -1228,7 +1316,8 @@ function SelectionSpanGraphView({
         const p0 = carrier ? imagePoint(pointAtCarrierT(carrier, span.t_interval[0]), frame) : imagePoint(a.point, frame);
         const p1 = carrier ? imagePoint(pointAtCarrierT(carrier, span.t_interval[1]), frame) : imagePoint(b.point, frame);
         const color = arrangementAssignmentColor(span.assignment.label);
-        const isCarrierSpan = span.kind === 'shared_carrier_span' || span.kind === 'observed_carrier_span';
+        const isCarrierSpan =
+          span.kind === 'shared_carrier_span' || span.kind === 'observed_carrier_span' || span.kind === 'normalized_pass_through_span';
         const strokeWidth = isCarrierSpan ? 2.35 : 1.65;
         return (
           <g key={`selected-span-${span.id}`}>
@@ -2161,6 +2250,13 @@ function groundTruthAssignmentColor(label: string) {
   if (label === 'V' || label === 'valley') return '#1d4ed8';
   if (label === 'B' || label === 'boundary') return '#020617';
   return '#475569';
+}
+
+function legacyAssignmentColor(label: string) {
+  if (label === 'M' || label === 'mountain') return '#f97316';
+  if (label === 'V' || label === 'valley') return '#0891b2';
+  if (label === 'B' || label === 'boundary') return '#0f172a';
+  return '#a16207';
 }
 
 function buildStage4Issues(stage: Stage4Response): Stage4Issue[] {

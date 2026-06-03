@@ -286,13 +286,21 @@ select {
 }
 
 .input-image,
-.heatmap.background {
+.heatmap.background,
+.stage5-blank-paper {
   display: block;
   height: min(100%, 76vh);
   max-height: 100%;
   max-width: 100%;
   object-fit: contain;
   width: auto;
+}
+
+.stage5-blank-paper {
+  aspect-ratio: 1;
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1px #cbd5e1;
+  width: min(100%, 76vh);
 }
 
 .primitive-overlay {

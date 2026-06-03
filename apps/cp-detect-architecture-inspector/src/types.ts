@@ -284,7 +284,7 @@ export interface CandidateSelection {
 
 export interface SelectionSpan {
   id: number;
-  kind: 'atomic_interval' | 'shared_carrier_span' | string;
+  kind: 'atomic_interval' | 'observed_carrier_span' | 'normalized_pass_through_span' | 'shared_carrier_span' | string;
   carrier_id: number;
   vertices: [number, number];
   t_interval: [number, number];
@@ -406,4 +406,5 @@ export interface GroundTruthGraph {
 
 export interface Stage5Response extends Stage4Response {
   ground_truth?: GroundTruthGraph | null;
+  legacy_graph?: GroundTruthGraph | null;
 }

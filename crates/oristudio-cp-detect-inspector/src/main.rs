@@ -11,7 +11,7 @@ use oristudio_cp_compiler::selection::{
     CandidateSelection, SelectionOptions, select_candidate_graph, select_candidate_graph_beam,
 };
 use oristudio_cp_compiler::{AssignmentCandidate, AssignmentLabel, EvidenceSource, Point2};
-use oristudio_cp_detect::decode::DecodeConfig;
+use oristudio_cp_detect::decode::{DecodeConfig, DenseOutputs, decode_dense_outputs};
 use oristudio_cp_detect::evidence_extract::{
     AssignmentEvidence, BoundarySide, CompilerEvidence, DenseOutputRefs, EvidenceExtractionConfig,
     PrimitiveSource, extract_compiler_evidence,
@@ -176,6 +176,7 @@ struct Stage5Response {
     selection: CandidateSelection,
     exactizability: ExactizabilityReport,
     ground_truth: Option<GroundTruthGraphPayload>,
+    legacy_graph: Option<GroundTruthGraphPayload>,
 }
 
 #[derive(Debug, Serialize)]
@@ -730,6 +731,12 @@ fn stage5_example(
     );
     let exactizability = probe_exactizability(&stage2.arrangement, &selection, exact_options);
     let ground_truth = read_ground_truth_graph(state, sample)?;
+    let legacy_graph = read_legacy_graph(
+        state,
+        sample,
+        stage2.config.threshold,
+        stage2.overlay_frame_px,
+    )?;
     Ok(Stage5Response {
         schema: "oristudio/cp-detect-architecture-inspector/stage5/v1",
         sample: stage2.sample,
@@ -743,7 +750,71 @@ fn stage5_example(
         selection,
         exactizability,
         ground_truth,
+        legacy_graph,
     })
+}
+
+fn read_legacy_graph(
+    state: &AppState,
+    sample: &DenseCacheSample,
+    threshold: f32,
+    _overlay_frame_px: OverlayFramePx,
+) -> Result<Option<GroundTruthGraphPayload>> {
+    let outputs = read_dense_outputs(state, sample)?;
+    let decoded = decode_dense_outputs(
+        DenseOutputs {
+            line_logits: &outputs.line_logits,
+            junction_logits: &outputs.junction_logits,
+            assignment_logits: &outputs.assignment_logits,
+            non_crease_logits: &outputs.non_crease_logits,
+            line_style_logits: &outputs.line_style_logits,
+            boundary_contact_logits: &outputs.boundary_contact_logits,
+        },
+        DecodeConfig {
+            image_size: sample.image_size,
+            threshold,
+            ..DecodeConfig::default()
+        },
+    )
+    .with_context(|| format!("decode legacy graph for {}", sample.id))?;
+    let value: Value = serde_json::from_str(&decoded.fold_json)
+        .with_context(|| format!("parse legacy FOLD for {}", sample.id))?;
+    let vertices_coords = parse_point_array(
+        value
+            .get("vertices_coords")
+            .ok_or_else(|| anyhow!("legacy FOLD for {} missing vertices_coords", sample.id))?,
+    )?;
+    let frame = default_overlay_frame(sample.image_size);
+    let vertices_px = vertices_coords
+        .into_iter()
+        .map(|[x, y]| {
+            [
+                frame.x_min + x * (frame.x_max - frame.x_min),
+                frame.y_min + y * (frame.y_max - frame.y_min),
+            ]
+        })
+        .collect::<Vec<_>>();
+    let edges_vertices = parse_usize_pair_array(
+        value
+            .get("edges_vertices")
+            .ok_or_else(|| anyhow!("legacy FOLD for {} missing edges_vertices", sample.id))?,
+    )?;
+    let edges_assignment_labels = value
+        .get("edges_assignment")
+        .and_then(Value::as_array)
+        .map(|values| {
+            values
+                .iter()
+                .map(|value| value.as_str().unwrap_or("U").to_owned())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_else(|| vec!["U".to_owned(); edges_vertices.len()]);
+    Ok(Some(GroundTruthGraphPayload {
+        image_size: sample.image_size,
+        vertices_px,
+        edges_vertices,
+        edges_assignment_labels,
+    }))
 }
 
 fn read_ground_truth_graph(

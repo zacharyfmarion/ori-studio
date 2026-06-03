@@ -34,6 +34,12 @@ Progress:
   when the carrier was already an observed local carrier. Phase 5e adds
   observed-carrier span candidates so the beam can choose one final crease
   through degree-2 pass-through vertices instead of many atomic fragments.
+- Phase 5f is in progress as of June 2, 2026. Phase 5e was still too local: it
+  collapsed same-carrier chains, but the beam could still seed and retain strong
+  atomic fragments across nearly collinear observed carriers. Phase 5f moves
+  semantic degree-2 pass-through normalization before beam search so
+  crease-level spans are the default candidates and atomic intervals are
+  provenance/fallback only.
 - A `ConstraintCompilerV2` backend now exists for the compiler-native evidence
   route, while `ConstraintCompilerV1` remains the current locked-border
   baseline.
@@ -1205,6 +1211,114 @@ Acceptance:
 - Existing compiler and inspector tests pass.
 - The Stage 5 smoke sample remains usable in the browser without reintroducing
   post-hoc visualization cleanup.
+
+## Phase 5f: Semantic Pass-Through Normalization Before Beam Search
+
+Purpose: make Stage 5 select crease-level topology by default, not high-scoring
+atomic evidence fragments.
+
+Status: Complete as of June 3, 2026 for the compiler normalization
+implementation and inspector plumbing. The real treemaker smoke sample still
+shows that normalization alone is not enough to make the compiler graph clean;
+remaining quality work belongs to the later exact/constraint selection phases,
+not to hidden post-hoc visualization cleanup.
+
+Root cause from repeated visual inspection:
+
+- Phase 5d/e created long span candidates, but the search still seeded many
+  strong `atomic_interval` candidates before those long spans competed.
+- Phase 5e only produced `observed_carrier_span` candidates when all fragments
+  belonged to the same observed carrier.
+- Real detector output often represents one visual crease as several nearly
+  collinear observed carriers, split by tiny endpoint/intersection/junction
+  artifacts.
+- Those artifacts can be degree-2, collinear, and visually unsupported as true
+  origami vertices, yet still survive because each small segment has local line
+  support.
+- Reporting a selected degree-2 vertex as "collapsible" is not enough. If it is
+  collapsible, it should not remain in the selected final graph.
+
+Target behavior:
+
+- Before beam search, build semantic pass-through span candidates over maximal
+  chains of plausible atomic intervals.
+- Collapse an interior vertex by default when:
+  - it is not a square corner, boundary contact, or boundary vertex;
+  - the candidate graph has exactly two plausible incident intervals at that
+    vertex;
+  - the two intervals are same-assignment-compatible;
+  - their carriers/edge directions are nearly collinear.
+- Preserve a vertex as a real endpoint when it has a branch, lies on the
+  boundary, is a corner/contact, or represents a meaningful non-collinear split.
+- Emit a `normalized_pass_through_span` candidate for each maximal chain that
+  collapses at least one pass-through vertex.
+- The normalized span conflicts with every atomic interval it covers.
+- Atomic intervals covered by a normalized pass-through span should not be
+  seeded as ordinary final graph edges. They remain provenance and only become
+  selectable fallback when no semantic span explains them.
+- The beam seed should prefer high-confidence crease-level spans first, then
+  uncovered atomic fallback intervals.
+- The Stage 5 inspector must render the actual selected spans. No post-hoc
+  graph beautification is allowed.
+
+Implementation guardrails:
+
+- Do not reintroduce the legacy decoder or a hidden fallback path.
+- Do not change the Python implementation.
+- Do not add a visualization-only collapse. The selected graph data itself must
+  contain the semantic spans.
+- Keep boundary/border handling out of this phase; borders remain governed by
+  the locked-border prior.
+- If a tradeoff appears between collapsing uncertain vertices and preserving
+  real junctions, stop and make that tradeoff explicit instead of silently
+  changing the target architecture.
+
+Tests:
+
+- [x] Synthetic fixture where a chain of high-scoring fragments across multiple
+  nearly collinear observed carriers collapses into one
+  `normalized_pass_through_span`
+  (`local_fragments_on_degree_two_chain_normalize_without_shared_replacement`).
+- [x] Synthetic fixture where a branch at the middle vertex prevents collapse
+  (`normalized_pass_through_span_preserves_branch_junction_as_endpoint`).
+- [x] Synthetic fixture where a non-collinear degree-2 bend is not normalized
+  into a straight crease.
+- [x] Synthetic fixture where a single uncovered edge remains available as an
+  atomic fallback (`beam_marks_exactizability_as_evaluated` now asserts the
+  selected Stage 5 span stays atomic).
+- [x] Stage 5 smoke check on
+  `treemaker_tree_v1-5gjmj-004937__clean__001` runs against the actual selected
+  graph surface. Current result at threshold `0.65`, map size `32`: 11.25s,
+  `598` selected provenance edges, `261` selected spans (`177`
+  `atomic_interval`, `71` `shared_carrier_span`, `13`
+  `observed_carrier_span`), `337` collapsed pass-through vertices recorded in
+  spans, `840` local fragments replaced, `47` remaining collapsible degree-2
+  vertices, and `5` non-collinear degree-2 vertices. This confirms the selected
+  graph is no longer post-hoc beautified, but also confirms the real sample is
+  still not clean enough.
+
+Acceptance:
+
+- Selected final graph spans are crease-level candidates wherever the topology
+  has collapsible degree-2 pass-through chains.
+- Strong local evidence cannot by itself force a fragmented final graph when a
+  semantic span explains the same evidence.
+- Remaining `atomic_interval` spans correspond to true single-edge fallback
+  geometry, not chains that should have been normalized.
+- Compiler and inspector tests pass.
+- The plan records smoke metrics before the checkpoint is committed.
+
+Implementation notes:
+
+- The selected graph output now comes directly from beam-selected span
+  candidates. The temporary post-beam normalizer was removed because it could
+  collapse through split points after the search had already chosen separate
+  spans, making the inspector look cleaner than the actual selected state.
+- Pass-through normalization candidates only collapse vertices with exactly two
+  plausible incident intervals. Branches, boundaries, corners/contacts, and
+  non-collinear degree-2 bends remain explicit graph structure.
+- `selected_edge_ids` remains provenance for model/evidence intervals;
+  `selected_spans` is the Stage 5 graph surface to inspect and feed forward.
 
 ## Phase 6: Full Exact Geometric Solve
 
