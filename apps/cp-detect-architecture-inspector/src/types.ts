@@ -212,6 +212,30 @@ export interface CandidateArrangement {
   };
 }
 
+export interface CandidateGraph {
+  schema: string;
+  coordinate_space: string;
+  image_size?: number | null;
+  vertices: unknown[];
+  crease_candidates: unknown[];
+  conflicts: unknown[];
+  report: {
+    vertices: number;
+    crease_candidates: number;
+    locked_border_spans: number;
+    legacy_selected_spans: number;
+    legacy_low_threshold_spans: number;
+    arrangement_observed_spans: number;
+    arrangement_shared_spans: number;
+    conflicts: number;
+  };
+  provenance: {
+    source_adapter: string;
+    source_ids: string[];
+    notes: string[];
+  };
+}
+
 export interface Stage2Response extends Stage1Response {
   overlay_frame_px: {
     x_min: number;
@@ -405,6 +429,8 @@ export interface GroundTruthGraph {
 }
 
 export interface Stage5Response extends Stage4Response {
+  candidate_source: string;
+  candidate_graph: CandidateGraph;
   ground_truth?: GroundTruthGraph | null;
   legacy_graph?: GroundTruthGraph | null;
 }

@@ -8,9 +8,13 @@ use oristudio_cp_compiler::exact_probe::{
     ExactProbeOptions, ExactizabilityReport, probe_exactizability,
 };
 use oristudio_cp_compiler::selection::{
-    CandidateSelection, SelectionOptions, select_candidate_graph, select_candidate_graph_beam,
+    CandidateSelection, SelectionOptions, candidate_graph_from_arrangement_for_selection,
+    select_candidate_graph, select_candidate_graph_beam_from_ir,
 };
-use oristudio_cp_compiler::{AssignmentCandidate, AssignmentLabel, EvidenceSource, Point2};
+use oristudio_cp_compiler::{
+    AssignmentCandidate, AssignmentLabel, CandidateGraph, CandidateProgram, EvidenceSource,
+    LegacyCandidateAdapter, Point2,
+};
 use oristudio_cp_detect::decode::{DecodeConfig, DenseOutputs, decode_dense_outputs};
 use oristudio_cp_detect::evidence_extract::{
     AssignmentEvidence, BoundarySide, CompilerEvidence, DenseOutputRefs, EvidenceExtractionConfig,
@@ -173,6 +177,8 @@ struct Stage5Response {
     maps: Vec<MapPayload>,
     primitives: PrimitivePayload,
     arrangement: CandidateArrangement,
+    candidate_source: String,
+    candidate_graph: CandidateGraph,
     selection: CandidateSelection,
     exactizability: ExactizabilityReport,
     ground_truth: Option<GroundTruthGraphPayload>,
@@ -722,10 +728,25 @@ fn stage5_example(
         .iter()
         .find(|sample| sample.id == sample_id)
         .ok_or_else(|| anyhow!("unknown sample {sample_id:?}"))?;
+    let candidate_source = query
+        .get("candidate_source")
+        .cloned()
+        .unwrap_or_else(|| "arrangement".to_owned());
     let stage2 = stage2_example(state, sample_id, query)?;
     let exact_options = ExactProbeOptions::default();
-    let selection = select_candidate_graph_beam(
-        &stage2.arrangement,
+    let candidate_graph = match candidate_source.as_str() {
+        "legacy" => {
+            let program = read_legacy_candidate_program(state, sample, stage2.config.threshold)?;
+            LegacyCandidateAdapter::from_program(&program)
+        }
+        "arrangement" | "" => candidate_graph_from_arrangement_for_selection(
+            &stage2.arrangement,
+            SelectionOptions::default(),
+        ),
+        other => bail!("unknown candidate_source {other:?}"),
+    };
+    let selection = select_candidate_graph_beam_from_ir(
+        &candidate_graph,
         SelectionOptions::default(),
         exact_options,
     );
@@ -747,11 +768,41 @@ fn stage5_example(
         maps: stage2.maps,
         primitives: stage2.primitives,
         arrangement: stage2.arrangement,
+        candidate_source,
+        candidate_graph,
         selection,
         exactizability,
         ground_truth,
         legacy_graph,
     })
+}
+
+fn read_legacy_candidate_program(
+    state: &AppState,
+    sample: &DenseCacheSample,
+    threshold: f32,
+) -> Result<CandidateProgram> {
+    let outputs = read_dense_outputs(state, sample)?;
+    let decoded = decode_dense_outputs(
+        DenseOutputs {
+            line_logits: &outputs.line_logits,
+            junction_logits: &outputs.junction_logits,
+            assignment_logits: &outputs.assignment_logits,
+            non_crease_logits: &outputs.non_crease_logits,
+            line_style_logits: &outputs.line_style_logits,
+            boundary_contact_logits: &outputs.boundary_contact_logits,
+        },
+        DecodeConfig {
+            image_size: sample.image_size,
+            threshold,
+            ..DecodeConfig::default()
+        },
+    )
+    .with_context(|| format!("decode legacy candidate program for {}", sample.id))?;
+    let value: Value = serde_json::from_str(&decoded.fold_json)
+        .with_context(|| format!("parse legacy FOLD for {}", sample.id))?;
+    CandidateProgram::from_fold_value(&value)
+        .with_context(|| format!("convert legacy FOLD to candidate program for {}", sample.id))
 }
 
 fn read_legacy_graph(

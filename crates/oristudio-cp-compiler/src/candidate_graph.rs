@@ -1,0 +1,1461 @@
+//! Source-neutral candidate graph IR for the V2 compiler.
+//!
+//! Phase 6 makes candidate production explicit: legacy-selected graph proposals
+//! and compiler-native arrangement proposals both become `CandidateGraph`
+//! instances before selection. Downstream stages should consume this IR instead
+//! of branching on where a candidate came from.
+
+use crate::arrangement_v2::{
+    ArrangementBoundarySide, ArrangementCarrierKind, ArrangementVertexKind, CandidateArrangement,
+};
+use crate::{
+    AssignmentCandidate, AssignmentLabel, CandidateProgram, EdgeSelection, Point2, Provenance,
+    VertexKind,
+};
+use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, BTreeSet};
+
+const SCHEMA: &str = "oristudio/cp-compiler/candidate-graph-v1";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CandidateSourceAdapter {
+    Legacy,
+    LegacyLowThreshold,
+    ArrangementV2,
+    RepairCandidate,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CandidateVertexKind {
+    Corner,
+    BoundaryContact,
+    InteriorJunction,
+    LineEndpoint,
+    CandidateIntersection,
+    JunctionCluster,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CandidateVertexMovementPolicy {
+    Locked,
+    BoundaryOnly,
+    Movable,
+    MergeCandidate,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BoundarySide {
+    Top,
+    Right,
+    Bottom,
+    Left,
+}
+
+impl BoundarySide {
+    pub const fn all() -> [Self; 4] {
+        [Self::Top, Self::Right, Self::Bottom, Self::Left]
+    }
+
+    fn sort_key(self, point: Point2) -> f64 {
+        match self {
+            Self::Top | Self::Bottom => point.x,
+            Self::Right | Self::Left => point.y,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CandidateVertex {
+    pub id: usize,
+    pub point: Point2,
+    pub kind: CandidateVertexKind,
+    pub support: f64,
+    pub movement_policy: CandidateVertexMovementPolicy,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub boundary_side: Option<BoundarySide>,
+    #[serde(default)]
+    pub source_vertex_ids: Vec<usize>,
+    #[serde(default)]
+    pub source_carrier_ids: Vec<usize>,
+    pub source_adapter: CandidateSourceAdapter,
+    #[serde(default)]
+    pub provenance: Vec<Provenance>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct CandidateCarrierGeometry {
+    pub normal: Point2,
+    pub direction: Point2,
+    pub rho: f64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct AssignmentEvidence {
+    pub mountain: f64,
+    pub valley: f64,
+    pub boundary: f64,
+    pub auxiliary: f64,
+    pub unknown: f64,
+    pub observed_label: AssignmentLabel,
+    pub source: AssignmentEvidenceSource,
+    pub confidence: f64,
+    pub margin: f64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AssignmentEvidenceSource {
+    LegacyColor,
+    ModelAssignmentHead,
+    SpanAggregate,
+    Inferred,
+    Unknown,
+}
+
+impl AssignmentEvidence {
+    pub fn from_candidate(
+        candidate: AssignmentCandidate,
+        source: AssignmentEvidenceSource,
+    ) -> Self {
+        let confidence = candidate.confidence.clamp(0.0, 1.0);
+        let weak = ((1.0 - confidence) / 4.0).max(0.01);
+        let mut evidence = Self {
+            mountain: weak,
+            valley: weak,
+            boundary: weak,
+            auxiliary: weak,
+            unknown: (1.0 - confidence).max(0.05),
+            observed_label: candidate.label,
+            source,
+            confidence,
+            margin: candidate.margin.clamp(0.0, 1.0),
+        };
+        match candidate.label {
+            AssignmentLabel::Mountain => evidence.mountain = confidence.max(0.01),
+            AssignmentLabel::Valley => evidence.valley = confidence.max(0.01),
+            AssignmentLabel::Boundary => evidence.boundary = confidence.max(0.01),
+            AssignmentLabel::Flat => evidence.auxiliary = confidence.max(0.01),
+            AssignmentLabel::Unknown => evidence.unknown = confidence.max(0.50),
+        }
+        evidence
+    }
+
+    pub fn probability(self, label: AssignmentLabel) -> f64 {
+        match label {
+            AssignmentLabel::Mountain => self.mountain,
+            AssignmentLabel::Valley => self.valley,
+            AssignmentLabel::Boundary => self.boundary,
+            AssignmentLabel::Flat => self.auxiliary,
+            AssignmentLabel::Unknown => self.unknown,
+        }
+    }
+
+    pub fn cost(self, label: AssignmentLabel, cost_model: &CostModel) -> f64 {
+        cost_model.probability_cost(self.probability(label))
+    }
+
+    pub fn to_assignment_candidate(self) -> AssignmentCandidate {
+        AssignmentCandidate {
+            label: self.observed_label,
+            confidence: self.confidence,
+            margin: self.margin,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CandidateCreaseSourceKind {
+    LegacySelected,
+    LegacyLowThreshold,
+    ArrangementObserved,
+    ArrangementShared,
+    RepairCandidate,
+    BorderGenerated,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CandidateSelectionPolicy {
+    Locked,
+    StrongOptional,
+    Optional,
+    WeakOptional,
+    Discouraged,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CandidateCreaseSpanKind {
+    AtomicInterval,
+    ObservedCarrierSpan,
+    NormalizedPassThroughSpan,
+    SharedCarrierSpan,
+    BorderSpan,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CandidateCreaseSpan {
+    pub id: usize,
+    pub kind: CandidateCreaseSpanKind,
+    pub vertices: [usize; 2],
+    pub carrier: CandidateCarrierGeometry,
+    pub t_interval: [f64; 2],
+    pub assignment_evidence: AssignmentEvidence,
+    pub presence_probability: f64,
+    pub line_support_min: f64,
+    pub line_support_mean: f64,
+    pub line_support_max: f64,
+    pub style_support: f64,
+    pub non_crease_support: f64,
+    pub source_kind: CandidateCreaseSourceKind,
+    pub selection_policy: CandidateSelectionPolicy,
+    #[serde(default)]
+    pub source_edge_ids: Vec<usize>,
+    #[serde(default)]
+    pub source_atomic_edge_ids: Vec<usize>,
+    #[serde(default)]
+    pub source_carrier_ids: Vec<usize>,
+    #[serde(default)]
+    pub replaced_span_ids: Vec<usize>,
+    #[serde(default)]
+    pub replaced_atomic_edge_ids: Vec<usize>,
+    #[serde(default)]
+    pub collapsed_vertex_ids: Vec<usize>,
+    #[serde(default)]
+    pub provenance: Vec<Provenance>,
+    #[serde(default)]
+    pub reasons: Vec<String>,
+}
+
+impl CandidateCreaseSpan {
+    pub fn assignment_label(&self) -> AssignmentLabel {
+        self.assignment_evidence.observed_label
+    }
+
+    pub fn selection_score(&self, graph: &CandidateGraph) -> f64 {
+        let cost_model = &graph.cost_model;
+        let presence_cost = cost_model.probability_cost(self.presence_probability);
+        let assignment_cost = self
+            .assignment_evidence
+            .cost(self.assignment_evidence.observed_label, cost_model);
+        let source_cost = cost_model.source_prior_cost(self.source_kind);
+        let fragmentation_cost =
+            self.collapsed_vertex_ids.len() as f64 * cost_model.fragmentation_cost_weight;
+        let continuity_reward = if matches!(
+            self.kind,
+            CandidateCreaseSpanKind::ObservedCarrierSpan
+                | CandidateCreaseSpanKind::NormalizedPassThroughSpan
+                | CandidateCreaseSpanKind::SharedCarrierSpan
+        ) {
+            cost_model.continuity_reward
+                * self
+                    .replaced_span_ids
+                    .len()
+                    .max(self.replaced_atomic_edge_ids.len())
+                    .max(self.collapsed_vertex_ids.len()) as f64
+        } else {
+            0.0
+        };
+        self.line_support_mean - presence_cost - assignment_cost - source_cost - fragmentation_cost
+            + continuity_reward
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BoundaryModel {
+    pub corners: [usize; 4],
+    pub sides: Vec<BoundarySideModel>,
+    #[serde(default)]
+    pub generated_border_span_ids: Vec<usize>,
+    pub reconstruction_policy: BoundaryReconstructionPolicy,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BoundarySideModel {
+    pub side: BoundarySide,
+    pub corner_vertices: [usize; 2],
+    pub contact_vertices: Vec<usize>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BoundaryReconstructionPolicy {
+    LockedUnitSquareSortedContacts,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CandidateConflictKind {
+    DuplicateSpan,
+    SpanReplacesFragments,
+    UnsupportedCrossing,
+    NearbyVertexAlternative,
+    SharedCarrierAlternative,
+    BorderGeneratedReplacesDetected,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CandidateConflict {
+    pub id: usize,
+    pub kind: CandidateConflictKind,
+    pub candidate_ids: Vec<usize>,
+    pub hard: bool,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CostModel {
+    pub probability_epsilon: f64,
+    pub sigma_distance_px: f64,
+    pub sigma_angle_degrees: f64,
+    pub sigma_rho_px: f64,
+    pub fragmentation_cost_weight: f64,
+    pub continuity_reward: f64,
+    pub legacy_selected_prior_cost: f64,
+    pub legacy_low_threshold_prior_cost: f64,
+    pub arrangement_observed_prior_cost: f64,
+    pub arrangement_shared_prior_cost: f64,
+    pub repair_candidate_prior_cost: f64,
+    pub border_generated_prior_cost: f64,
+}
+
+impl Default for CostModel {
+    fn default() -> Self {
+        Self {
+            probability_epsilon: 0.01,
+            sigma_distance_px: 6.0,
+            sigma_angle_degrees: 2.0,
+            sigma_rho_px: 4.0,
+            fragmentation_cost_weight: 0.08,
+            continuity_reward: 0.42,
+            legacy_selected_prior_cost: 0.02,
+            legacy_low_threshold_prior_cost: 0.80,
+            arrangement_observed_prior_cost: 0.18,
+            arrangement_shared_prior_cost: 0.30,
+            repair_candidate_prior_cost: 1.20,
+            border_generated_prior_cost: -1.00,
+        }
+    }
+}
+
+impl CostModel {
+    pub fn probability_cost(&self, probability: f64) -> f64 {
+        -probability
+            .clamp(self.probability_epsilon, 1.0 - self.probability_epsilon)
+            .ln()
+    }
+
+    pub fn movement_cost(&self, distance_px: f64) -> f64 {
+        (distance_px / self.sigma_distance_px.max(1e-9)).powi(2)
+    }
+
+    pub fn angle_cost(&self, angle_degrees: f64) -> f64 {
+        (angle_degrees / self.sigma_angle_degrees.max(1e-9)).powi(2)
+    }
+
+    pub fn rho_cost(&self, rho_px: f64) -> f64 {
+        (rho_px / self.sigma_rho_px.max(1e-9)).powi(2)
+    }
+
+    pub fn source_prior_cost(&self, source: CandidateCreaseSourceKind) -> f64 {
+        match source {
+            CandidateCreaseSourceKind::LegacySelected => self.legacy_selected_prior_cost,
+            CandidateCreaseSourceKind::LegacyLowThreshold => self.legacy_low_threshold_prior_cost,
+            CandidateCreaseSourceKind::ArrangementObserved => self.arrangement_observed_prior_cost,
+            CandidateCreaseSourceKind::ArrangementShared => self.arrangement_shared_prior_cost,
+            CandidateCreaseSourceKind::RepairCandidate => self.repair_candidate_prior_cost,
+            CandidateCreaseSourceKind::BorderGenerated => self.border_generated_prior_cost,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CandidateGraphProvenance {
+    pub source_adapter: CandidateSourceAdapter,
+    #[serde(default)]
+    pub source_ids: Vec<String>,
+    #[serde(default)]
+    pub notes: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CandidateGraphReport {
+    pub vertices: usize,
+    pub crease_candidates: usize,
+    pub locked_border_spans: usize,
+    pub legacy_selected_spans: usize,
+    pub legacy_low_threshold_spans: usize,
+    pub arrangement_observed_spans: usize,
+    pub arrangement_shared_spans: usize,
+    pub conflicts: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CandidateGraph {
+    pub schema: String,
+    pub coordinate_space: String,
+    pub image_size: Option<u32>,
+    pub vertices: Vec<CandidateVertex>,
+    pub crease_candidates: Vec<CandidateCreaseSpan>,
+    pub boundary: BoundaryModel,
+    #[serde(default)]
+    pub conflicts: Vec<CandidateConflict>,
+    #[serde(default)]
+    pub alternatives: Vec<CandidateConflict>,
+    pub cost_model: CostModel,
+    pub provenance: CandidateGraphProvenance,
+    pub report: CandidateGraphReport,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct LegacyCandidateAdapterOptions {
+    pub selected_presence_probability: f64,
+    pub weak_presence_probability: f64,
+    pub rejected_presence_probability: f64,
+    pub border_presence_probability: f64,
+    pub duplicate_endpoint_tolerance: f64,
+}
+
+impl Default for LegacyCandidateAdapterOptions {
+    fn default() -> Self {
+        Self {
+            selected_presence_probability: 0.94,
+            weak_presence_probability: 0.45,
+            rejected_presence_probability: 0.06,
+            border_presence_probability: 0.99,
+            duplicate_endpoint_tolerance: 1e-6,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ArrangementCandidateAdapterOptions {
+    pub strong_presence_floor: f64,
+    pub weak_presence_floor: f64,
+}
+
+impl Default for ArrangementCandidateAdapterOptions {
+    fn default() -> Self {
+        Self {
+            strong_presence_floor: 0.52,
+            weak_presence_floor: 0.22,
+        }
+    }
+}
+
+pub struct LegacyCandidateAdapter;
+
+impl LegacyCandidateAdapter {
+    pub fn from_program(program: &CandidateProgram) -> CandidateGraph {
+        Self::from_programs(program, None, LegacyCandidateAdapterOptions::default())
+    }
+
+    pub fn from_programs(
+        selected_program: &CandidateProgram,
+        low_threshold_program: Option<&CandidateProgram>,
+        options: LegacyCandidateAdapterOptions,
+    ) -> CandidateGraph {
+        let mut vertices = selected_program
+            .vertices
+            .iter()
+            .map(|vertex| legacy_vertex(vertex, CandidateSourceAdapter::Legacy))
+            .collect::<Vec<_>>();
+        let corners = ensure_unit_square_corners(&mut vertices, CandidateSourceAdapter::Legacy);
+        let mut spans = selected_program
+            .edges
+            .iter()
+            .filter_map(|edge| {
+                let carrier = selected_program.carriers.get(edge.carrier_id)?;
+                Some(legacy_span(
+                    edge,
+                    carrier,
+                    CandidateCreaseSourceKind::LegacySelected,
+                    CandidateSourceAdapter::Legacy,
+                    &options,
+                ))
+            })
+            .collect::<Vec<_>>();
+
+        if let Some(weak_program) = low_threshold_program {
+            let existing_keys = spans
+                .iter()
+                .map(|span| {
+                    span_endpoint_key(
+                        &vertices,
+                        span.vertices,
+                        options.duplicate_endpoint_tolerance,
+                    )
+                })
+                .collect::<BTreeSet<_>>();
+            for edge in &weak_program.edges {
+                let Some(carrier) = weak_program.carriers.get(edge.carrier_id) else {
+                    continue;
+                };
+                let Some(vertices_pair) = map_weak_vertices(&mut vertices, weak_program, edge)
+                else {
+                    continue;
+                };
+                let key = span_endpoint_key(
+                    &vertices,
+                    vertices_pair,
+                    options.duplicate_endpoint_tolerance,
+                );
+                if existing_keys.contains(&key) {
+                    continue;
+                }
+                let mut span = legacy_span_with_vertices(
+                    edge,
+                    carrier,
+                    vertices_pair,
+                    CandidateCreaseSourceKind::LegacyLowThreshold,
+                    CandidateSourceAdapter::LegacyLowThreshold,
+                    &options,
+                );
+                span.id = spans.len();
+                span.reasons
+                    .push("optional lower-threshold legacy candidate".to_owned());
+                spans.push(span);
+            }
+        }
+
+        assign_span_ids(&mut spans);
+        let mut graph = CandidateGraph {
+            schema: SCHEMA.to_owned(),
+            coordinate_space: selected_program.coordinate_space.clone(),
+            image_size: selected_program.image_size,
+            boundary: boundary_model_from_vertices(&vertices, corners, &spans),
+            vertices,
+            crease_candidates: spans,
+            conflicts: Vec::new(),
+            alternatives: Vec::new(),
+            cost_model: CostModel::default(),
+            provenance: CandidateGraphProvenance {
+                source_adapter: CandidateSourceAdapter::Legacy,
+                source_ids: Vec::new(),
+                notes: vec![
+                    "legacy-selected graph converted into source-neutral CandidateGraph".to_owned(),
+                ],
+            },
+            report: CandidateGraphReport::empty(),
+        };
+        graph.conflicts = generate_conflicts(&graph);
+        graph.alternatives = graph.conflicts.clone();
+        graph.report = CandidateGraphReport::from_graph(&graph);
+        graph
+    }
+}
+
+pub struct ArrangementCandidateAdapter;
+
+impl ArrangementCandidateAdapter {
+    pub fn from_arrangement(arrangement: &CandidateArrangement) -> CandidateGraph {
+        Self::from_arrangement_with_options(
+            arrangement,
+            ArrangementCandidateAdapterOptions::default(),
+        )
+    }
+
+    pub fn from_arrangement_with_options(
+        arrangement: &CandidateArrangement,
+        options: ArrangementCandidateAdapterOptions,
+    ) -> CandidateGraph {
+        let mut vertices = arrangement
+            .vertices
+            .iter()
+            .map(|vertex| CandidateVertex {
+                id: vertex.id,
+                point: vertex.point,
+                kind: arrangement_vertex_kind(vertex.kind),
+                support: vertex.support.clamp(0.0, 1.0),
+                movement_policy: movement_policy_for_arrangement_vertex(vertex.kind),
+                boundary_side: vertex.boundary_side.map(boundary_side_from_arrangement),
+                source_vertex_ids: vec![vertex.id],
+                source_carrier_ids: vertex.carrier_ids.clone(),
+                source_adapter: CandidateSourceAdapter::ArrangementV2,
+                provenance: vertex.provenance.clone(),
+            })
+            .collect::<Vec<_>>();
+        let corners =
+            ensure_unit_square_corners(&mut vertices, CandidateSourceAdapter::ArrangementV2);
+        let carriers = arrangement
+            .carriers
+            .iter()
+            .map(|carrier| (carrier.id, carrier))
+            .collect::<BTreeMap<_, _>>();
+        let mut spans = Vec::new();
+        for edge in &arrangement.atomic_edges {
+            let Some(carrier) = carriers.get(&edge.carrier_id).copied() else {
+                continue;
+            };
+            let is_shared = carrier.kind == ArrangementCarrierKind::SharedCollinearAlternative;
+            let source_kind = if edge.assignment.label == AssignmentLabel::Boundary {
+                CandidateCreaseSourceKind::BorderGenerated
+            } else if is_shared {
+                CandidateCreaseSourceKind::ArrangementShared
+            } else {
+                CandidateCreaseSourceKind::ArrangementObserved
+            };
+            let selection_policy = if edge.assignment.label == AssignmentLabel::Boundary {
+                CandidateSelectionPolicy::Locked
+            } else if edge.line_support >= options.strong_presence_floor {
+                CandidateSelectionPolicy::StrongOptional
+            } else if edge.line_support >= options.weak_presence_floor {
+                CandidateSelectionPolicy::WeakOptional
+            } else {
+                CandidateSelectionPolicy::Discouraged
+            };
+            spans.push(CandidateCreaseSpan {
+                id: spans.len(),
+                kind: if is_shared {
+                    CandidateCreaseSpanKind::SharedCarrierSpan
+                } else {
+                    CandidateCreaseSpanKind::AtomicInterval
+                },
+                vertices: edge.vertices,
+                carrier: CandidateCarrierGeometry {
+                    normal: carrier.normal,
+                    direction: carrier.direction,
+                    rho: carrier.rho,
+                },
+                t_interval: edge.t_interval,
+                assignment_evidence: AssignmentEvidence::from_candidate(
+                    edge.assignment,
+                    AssignmentEvidenceSource::ModelAssignmentHead,
+                ),
+                presence_probability: edge.line_support.clamp(0.01, 0.99),
+                line_support_min: edge.line_support.clamp(0.0, 1.0),
+                line_support_mean: edge.line_support.clamp(0.0, 1.0),
+                line_support_max: edge.line_support.clamp(0.0, 1.0),
+                style_support: edge.style_support.clamp(0.0, 1.0),
+                non_crease_support: 0.0,
+                source_kind,
+                selection_policy,
+                source_edge_ids: vec![edge.id],
+                source_atomic_edge_ids: vec![edge.id],
+                source_carrier_ids: vec![carrier.id],
+                replaced_span_ids: Vec::new(),
+                replaced_atomic_edge_ids: Vec::new(),
+                collapsed_vertex_ids: Vec::new(),
+                provenance: edge.provenance.clone(),
+                reasons: vec![if is_shared {
+                    "arrangement V2 shared carrier candidate".to_owned()
+                } else {
+                    "arrangement V2 observed atomic interval candidate".to_owned()
+                }],
+            });
+        }
+
+        assign_span_ids(&mut spans);
+        let mut graph = CandidateGraph {
+            schema: SCHEMA.to_owned(),
+            coordinate_space: arrangement.coordinate_space.clone(),
+            image_size: Some(arrangement.image_size),
+            boundary: boundary_model_from_vertices(&vertices, corners, &spans),
+            vertices,
+            crease_candidates: spans,
+            conflicts: Vec::new(),
+            alternatives: Vec::new(),
+            cost_model: CostModel::default(),
+            provenance: CandidateGraphProvenance {
+                source_adapter: CandidateSourceAdapter::ArrangementV2,
+                source_ids: Vec::new(),
+                notes: vec![
+                    "arrangement V2 converted into source-neutral CandidateGraph".to_owned(),
+                ],
+            },
+            report: CandidateGraphReport::empty(),
+        };
+        graph.conflicts = generate_conflicts(&graph);
+        graph.alternatives = graph.conflicts.clone();
+        graph.report = CandidateGraphReport::from_graph(&graph);
+        graph
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SelectedGraph {
+    pub schema: String,
+    pub source_candidate_graph_schema: String,
+    pub selected_span_ids: Vec<usize>,
+    pub selected_vertex_ids: Vec<usize>,
+    pub boundary: BoundaryModel,
+    #[serde(default)]
+    pub fixed_assignment_labels: BTreeMap<usize, AssignmentLabel>,
+    #[serde(default)]
+    pub rejected_span_ids: Vec<usize>,
+    #[serde(default)]
+    pub undecided_span_ids: Vec<usize>,
+    #[serde(default)]
+    pub structural_edit_accounting: Vec<SelectedGraphEdit>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SelectedGraphEdit {
+    pub kind: String,
+    #[serde(default)]
+    pub span_ids: Vec<usize>,
+    #[serde(default)]
+    pub vertex_ids: Vec<usize>,
+    pub reason: String,
+}
+
+impl SelectedGraph {
+    pub fn from_selected_span_ids(graph: &CandidateGraph, selected_span_ids: Vec<usize>) -> Self {
+        let selected = selected_span_ids.iter().copied().collect::<BTreeSet<_>>();
+        let mut selected_vertex_ids = selected_span_ids
+            .iter()
+            .filter_map(|span_id| graph.crease_candidates.get(*span_id))
+            .flat_map(|span| span.vertices)
+            .collect::<Vec<_>>();
+        selected_vertex_ids.sort_unstable();
+        selected_vertex_ids.dedup();
+        let mut rejected_span_ids = Vec::new();
+        let mut undecided_span_ids = Vec::new();
+        for span in &graph.crease_candidates {
+            if selected.contains(&span.id) {
+                continue;
+            }
+            if span.selection_policy == CandidateSelectionPolicy::Discouraged {
+                rejected_span_ids.push(span.id);
+            } else {
+                undecided_span_ids.push(span.id);
+            }
+        }
+        Self {
+            schema: "oristudio/cp-compiler/selected-graph-v1".to_owned(),
+            source_candidate_graph_schema: graph.schema.clone(),
+            selected_span_ids,
+            selected_vertex_ids,
+            boundary: graph.boundary.clone(),
+            fixed_assignment_labels: BTreeMap::new(),
+            rejected_span_ids,
+            undecided_span_ids,
+            structural_edit_accounting: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ExactSolveInput {
+    pub schema: String,
+    pub coordinate_space: String,
+    pub image_size: Option<u32>,
+    pub vertices: Vec<CandidateVertex>,
+    pub selected_spans: Vec<CandidateCreaseSpan>,
+    pub boundary: BoundaryModel,
+    pub cost_model: CostModel,
+    pub provenance: CandidateGraphProvenance,
+}
+
+impl ExactSolveInput {
+    pub fn from_candidate_selection(graph: &CandidateGraph, selected: &SelectedGraph) -> Self {
+        let selected_ids = selected
+            .selected_span_ids
+            .iter()
+            .copied()
+            .collect::<BTreeSet<_>>();
+        Self {
+            schema: "oristudio/cp-compiler/exact-solve-input-v1".to_owned(),
+            coordinate_space: graph.coordinate_space.clone(),
+            image_size: graph.image_size,
+            vertices: graph.vertices.clone(),
+            selected_spans: graph
+                .crease_candidates
+                .iter()
+                .filter(|span| selected_ids.contains(&span.id))
+                .cloned()
+                .collect(),
+            boundary: selected.boundary.clone(),
+            cost_model: graph.cost_model.clone(),
+            provenance: graph.provenance.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ExactSolvedGraph {
+    pub schema: String,
+    pub vertices_exact: Vec<Point2>,
+    pub edges_exact: Vec<[usize; 2]>,
+    pub movement_report: serde_json::Value,
+    pub theorem_residual_report: serde_json::Value,
+    pub status: ExactSolvedGraphStatus,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExactSolvedGraphStatus {
+    Solved,
+    Ambiguous,
+    Failed,
+}
+
+impl CandidateGraphReport {
+    fn empty() -> Self {
+        Self {
+            vertices: 0,
+            crease_candidates: 0,
+            locked_border_spans: 0,
+            legacy_selected_spans: 0,
+            legacy_low_threshold_spans: 0,
+            arrangement_observed_spans: 0,
+            arrangement_shared_spans: 0,
+            conflicts: 0,
+        }
+    }
+
+    fn from_graph(graph: &CandidateGraph) -> Self {
+        Self {
+            vertices: graph.vertices.len(),
+            crease_candidates: graph.crease_candidates.len(),
+            locked_border_spans: graph
+                .crease_candidates
+                .iter()
+                .filter(|span| span.selection_policy == CandidateSelectionPolicy::Locked)
+                .count(),
+            legacy_selected_spans: graph
+                .crease_candidates
+                .iter()
+                .filter(|span| span.source_kind == CandidateCreaseSourceKind::LegacySelected)
+                .count(),
+            legacy_low_threshold_spans: graph
+                .crease_candidates
+                .iter()
+                .filter(|span| span.source_kind == CandidateCreaseSourceKind::LegacyLowThreshold)
+                .count(),
+            arrangement_observed_spans: graph
+                .crease_candidates
+                .iter()
+                .filter(|span| span.source_kind == CandidateCreaseSourceKind::ArrangementObserved)
+                .count(),
+            arrangement_shared_spans: graph
+                .crease_candidates
+                .iter()
+                .filter(|span| span.source_kind == CandidateCreaseSourceKind::ArrangementShared)
+                .count(),
+            conflicts: graph.conflicts.len(),
+        }
+    }
+}
+
+fn legacy_vertex(
+    vertex: &crate::candidates::CandidateVertex,
+    source_adapter: CandidateSourceAdapter,
+) -> CandidateVertex {
+    let boundary_side = vertex
+        .boundary_side
+        .as_deref()
+        .and_then(boundary_side_from_str);
+    CandidateVertex {
+        id: vertex.id,
+        point: vertex.position,
+        kind: match vertex.kind {
+            VertexKind::Corner => CandidateVertexKind::Corner,
+            VertexKind::Boundary => CandidateVertexKind::BoundaryContact,
+            VertexKind::Interior => CandidateVertexKind::InteriorJunction,
+        },
+        support: vertex.support.clamp(0.0, 1.0),
+        movement_policy: match vertex.kind {
+            VertexKind::Corner => CandidateVertexMovementPolicy::Locked,
+            VertexKind::Boundary => CandidateVertexMovementPolicy::BoundaryOnly,
+            VertexKind::Interior => CandidateVertexMovementPolicy::Movable,
+        },
+        boundary_side,
+        source_vertex_ids: vec![vertex.id],
+        source_carrier_ids: vertex.incident_carriers.clone(),
+        source_adapter,
+        provenance: vertex.provenance.clone(),
+    }
+}
+
+fn legacy_span(
+    edge: &crate::candidates::CandidateEdge,
+    carrier: &crate::candidates::CandidateCarrier,
+    source_kind: CandidateCreaseSourceKind,
+    source_adapter: CandidateSourceAdapter,
+    options: &LegacyCandidateAdapterOptions,
+) -> CandidateCreaseSpan {
+    legacy_span_with_vertices(
+        edge,
+        carrier,
+        edge.vertices,
+        source_kind,
+        source_adapter,
+        options,
+    )
+}
+
+fn legacy_span_with_vertices(
+    edge: &crate::candidates::CandidateEdge,
+    carrier: &crate::candidates::CandidateCarrier,
+    vertices: [usize; 2],
+    source_kind: CandidateCreaseSourceKind,
+    source_adapter: CandidateSourceAdapter,
+    options: &LegacyCandidateAdapterOptions,
+) -> CandidateCreaseSpan {
+    let is_border = edge.assignment.label == AssignmentLabel::Boundary
+        || source_kind == CandidateCreaseSourceKind::BorderGenerated;
+    let source_kind = if is_border {
+        CandidateCreaseSourceKind::BorderGenerated
+    } else {
+        source_kind
+    };
+    let selection_policy = if is_border {
+        CandidateSelectionPolicy::Locked
+    } else {
+        match edge.selection {
+            EdgeSelection::Selected => CandidateSelectionPolicy::StrongOptional,
+            EdgeSelection::Undecided => CandidateSelectionPolicy::WeakOptional,
+            EdgeSelection::Rejected => CandidateSelectionPolicy::Discouraged,
+        }
+    };
+    let presence_probability = if is_border {
+        options.border_presence_probability
+    } else if source_kind == CandidateCreaseSourceKind::LegacyLowThreshold {
+        options.weak_presence_probability
+    } else {
+        match edge.selection {
+            EdgeSelection::Selected => options.selected_presence_probability,
+            EdgeSelection::Undecided => options.weak_presence_probability,
+            EdgeSelection::Rejected => options.rejected_presence_probability,
+        }
+    };
+    let direction = Point2::new(carrier.normal.y, -carrier.normal.x);
+    CandidateCreaseSpan {
+        id: edge.id,
+        kind: if is_border {
+            CandidateCreaseSpanKind::BorderSpan
+        } else {
+            CandidateCreaseSpanKind::AtomicInterval
+        },
+        vertices,
+        carrier: CandidateCarrierGeometry {
+            normal: carrier.normal,
+            direction,
+            rho: carrier.rho,
+        },
+        t_interval: carrier.support_interval,
+        assignment_evidence: AssignmentEvidence::from_candidate(
+            edge.assignment,
+            if source_adapter == CandidateSourceAdapter::Legacy {
+                AssignmentEvidenceSource::LegacyColor
+            } else {
+                AssignmentEvidenceSource::ModelAssignmentHead
+            },
+        ),
+        presence_probability: presence_probability.clamp(0.01, 0.99),
+        line_support_min: edge.line_support.clamp(0.0, 1.0),
+        line_support_mean: edge.line_support.clamp(0.0, 1.0),
+        line_support_max: edge.line_support.clamp(0.0, 1.0),
+        style_support: edge.style_support.clamp(0.0, 1.0),
+        non_crease_support: 0.0,
+        source_kind,
+        selection_policy,
+        source_edge_ids: vec![edge.id],
+        source_atomic_edge_ids: vec![edge.id],
+        source_carrier_ids: vec![carrier.id],
+        replaced_span_ids: Vec::new(),
+        replaced_atomic_edge_ids: Vec::new(),
+        collapsed_vertex_ids: Vec::new(),
+        provenance: edge.provenance.clone(),
+        reasons: vec![
+            if source_kind == CandidateCreaseSourceKind::LegacyLowThreshold {
+                "legacy lower-threshold optional candidate".to_owned()
+            } else {
+                "legacy selected graph candidate".to_owned()
+            },
+        ],
+    }
+}
+
+fn map_weak_vertices(
+    vertices: &mut Vec<CandidateVertex>,
+    weak_program: &CandidateProgram,
+    edge: &crate::candidates::CandidateEdge,
+) -> Option<[usize; 2]> {
+    let mut mapped = [0usize; 2];
+    for (slot, source_vertex_id) in edge.vertices.iter().enumerate() {
+        let source = weak_program.vertices.get(*source_vertex_id)?;
+        let existing = vertices.iter().position(|vertex| {
+            distance(vertex.point, source.position) <= 1e-6
+                && vertex.boundary_side
+                    == source
+                        .boundary_side
+                        .as_deref()
+                        .and_then(boundary_side_from_str)
+        });
+        mapped[slot] = if let Some(index) = existing {
+            index
+        } else {
+            let mut vertex = legacy_vertex(source, CandidateSourceAdapter::LegacyLowThreshold);
+            vertex.id = vertices.len();
+            vertices.push(vertex);
+            vertices.len() - 1
+        };
+    }
+    Some(mapped)
+}
+
+fn ensure_unit_square_corners(
+    vertices: &mut Vec<CandidateVertex>,
+    source_adapter: CandidateSourceAdapter,
+) -> [usize; 4] {
+    let corners = [
+        (Point2::new(0.0, 0.0), BoundarySide::Top),
+        (Point2::new(1.0, 0.0), BoundarySide::Right),
+        (Point2::new(1.0, 1.0), BoundarySide::Bottom),
+        (Point2::new(0.0, 1.0), BoundarySide::Left),
+    ];
+    let mut ids = [0usize; 4];
+    for (index, (point, side)) in corners.into_iter().enumerate() {
+        if let Some(existing) = vertices
+            .iter()
+            .position(|vertex| distance(vertex.point, point) <= 1e-9)
+        {
+            ids[index] = existing;
+            if let Some(vertex) = vertices.get_mut(existing) {
+                vertex.kind = CandidateVertexKind::Corner;
+                vertex.movement_policy = CandidateVertexMovementPolicy::Locked;
+            }
+            continue;
+        }
+        let id = vertices.len();
+        vertices.push(CandidateVertex {
+            id,
+            point,
+            kind: CandidateVertexKind::Corner,
+            support: 1.0,
+            movement_policy: CandidateVertexMovementPolicy::Locked,
+            boundary_side: Some(side),
+            source_vertex_ids: Vec::new(),
+            source_carrier_ids: Vec::new(),
+            source_adapter,
+            provenance: vec![Provenance::BorderPrior],
+        });
+        ids[index] = id;
+    }
+    for (id, vertex) in vertices.iter_mut().enumerate() {
+        vertex.id = id;
+    }
+    ids
+}
+
+fn boundary_model_from_vertices(
+    vertices: &[CandidateVertex],
+    corners: [usize; 4],
+    spans: &[CandidateCreaseSpan],
+) -> BoundaryModel {
+    let mut sides = Vec::new();
+    for (side, corner_vertices) in [
+        (BoundarySide::Top, [corners[0], corners[1]]),
+        (BoundarySide::Right, [corners[1], corners[2]]),
+        (BoundarySide::Bottom, [corners[3], corners[2]]),
+        (BoundarySide::Left, [corners[0], corners[3]]),
+    ] {
+        let mut contact_vertices = vertices
+            .iter()
+            .filter(|vertex| vertex.boundary_side == Some(side))
+            .map(|vertex| vertex.id)
+            .collect::<Vec<_>>();
+        contact_vertices.sort_by(|left, right| {
+            side.sort_key(vertices[*left].point)
+                .total_cmp(&side.sort_key(vertices[*right].point))
+                .then_with(|| left.cmp(right))
+        });
+        contact_vertices.dedup();
+        sides.push(BoundarySideModel {
+            side,
+            corner_vertices,
+            contact_vertices,
+        });
+    }
+    BoundaryModel {
+        corners,
+        sides,
+        generated_border_span_ids: spans
+            .iter()
+            .filter(|span| span.source_kind == CandidateCreaseSourceKind::BorderGenerated)
+            .map(|span| span.id)
+            .collect(),
+        reconstruction_policy: BoundaryReconstructionPolicy::LockedUnitSquareSortedContacts,
+    }
+}
+
+fn generate_conflicts(graph: &CandidateGraph) -> Vec<CandidateConflict> {
+    let mut conflicts = Vec::new();
+    let mut by_key = BTreeMap::<SpanKey, Vec<usize>>::new();
+    for span in &graph.crease_candidates {
+        by_key
+            .entry(span_endpoint_key(&graph.vertices, span.vertices, 1e-6))
+            .or_default()
+            .push(span.id);
+    }
+    for ids in by_key.values().filter(|ids| ids.len() > 1) {
+        conflicts.push(CandidateConflict {
+            id: conflicts.len(),
+            kind: CandidateConflictKind::DuplicateSpan,
+            candidate_ids: ids.clone(),
+            hard: true,
+            reason: "duplicate candidate spans share effective endpoints".to_owned(),
+        });
+    }
+    for span in &graph.crease_candidates {
+        if span.replaced_span_ids.is_empty() && span.replaced_atomic_edge_ids.is_empty() {
+            continue;
+        }
+        let mut ids = vec![span.id];
+        ids.extend(span.replaced_span_ids.iter().copied());
+        ids.extend(span.replaced_atomic_edge_ids.iter().copied());
+        ids.sort_unstable();
+        ids.dedup();
+        if ids.len() > 1 {
+            conflicts.push(CandidateConflict {
+                id: conflicts.len(),
+                kind: CandidateConflictKind::SpanReplacesFragments,
+                candidate_ids: ids,
+                hard: true,
+                reason: "long candidate span replaces fragment chain".to_owned(),
+            });
+        }
+    }
+    conflicts
+}
+
+fn assign_span_ids(spans: &mut [CandidateCreaseSpan]) {
+    for (id, span) in spans.iter_mut().enumerate() {
+        span.id = id;
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct SpanKey {
+    a: (i64, i64),
+    b: (i64, i64),
+}
+
+fn span_endpoint_key(
+    vertices: &[CandidateVertex],
+    endpoints: [usize; 2],
+    tolerance: f64,
+) -> SpanKey {
+    let scale = (1.0 / tolerance.max(1e-9)).round();
+    let mut points = endpoints.map(|id| {
+        let point = vertices
+            .get(id)
+            .map(|vertex| vertex.point)
+            .unwrap_or(Point2::new(0.0, 0.0));
+        (
+            (point.x * scale).round() as i64,
+            (point.y * scale).round() as i64,
+        )
+    });
+    if points[1] < points[0] {
+        points.swap(0, 1);
+    }
+    SpanKey {
+        a: points[0],
+        b: points[1],
+    }
+}
+
+fn arrangement_vertex_kind(kind: ArrangementVertexKind) -> CandidateVertexKind {
+    match kind {
+        ArrangementVertexKind::Corner => CandidateVertexKind::Corner,
+        ArrangementVertexKind::ObservedJunction => CandidateVertexKind::InteriorJunction,
+        ArrangementVertexKind::JunctionCluster => CandidateVertexKind::JunctionCluster,
+        ArrangementVertexKind::BoundaryContact => CandidateVertexKind::BoundaryContact,
+        ArrangementVertexKind::CarrierIntersection => CandidateVertexKind::CandidateIntersection,
+        ArrangementVertexKind::ObservedLineEndpoint => CandidateVertexKind::LineEndpoint,
+    }
+}
+
+fn movement_policy_for_arrangement_vertex(
+    kind: ArrangementVertexKind,
+) -> CandidateVertexMovementPolicy {
+    match kind {
+        ArrangementVertexKind::Corner => CandidateVertexMovementPolicy::Locked,
+        ArrangementVertexKind::BoundaryContact => CandidateVertexMovementPolicy::BoundaryOnly,
+        ArrangementVertexKind::JunctionCluster => CandidateVertexMovementPolicy::MergeCandidate,
+        ArrangementVertexKind::ObservedJunction
+        | ArrangementVertexKind::CarrierIntersection
+        | ArrangementVertexKind::ObservedLineEndpoint => CandidateVertexMovementPolicy::Movable,
+    }
+}
+
+fn boundary_side_from_arrangement(side: ArrangementBoundarySide) -> BoundarySide {
+    match side {
+        ArrangementBoundarySide::Top => BoundarySide::Top,
+        ArrangementBoundarySide::Right => BoundarySide::Right,
+        ArrangementBoundarySide::Bottom => BoundarySide::Bottom,
+        ArrangementBoundarySide::Left => BoundarySide::Left,
+    }
+}
+
+fn boundary_side_from_str(side: &str) -> Option<BoundarySide> {
+    match side {
+        "top" => Some(BoundarySide::Top),
+        "right" => Some(BoundarySide::Right),
+        "bottom" => Some(BoundarySide::Bottom),
+        "left" => Some(BoundarySide::Left),
+        _ => None,
+    }
+}
+
+fn distance(a: Point2, b: Point2) -> f64 {
+    let dx = a.x - b.x;
+    let dy = a.y - b.y;
+    (dx * dx + dy * dy).sqrt()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::EvidenceSource;
+    use crate::candidates::{
+        CandidateCarrier, CandidateEdge, CandidateVertex as LegacyVertex, CarrierFamily,
+    };
+    use serde_json::json;
+
+    #[test]
+    fn cost_model_clamps_probability_costs() {
+        let model = CostModel::default();
+        assert_eq!(model.probability_cost(0.0), model.probability_cost(0.01));
+        assert_eq!(model.probability_cost(1.0), model.probability_cost(0.99));
+        assert!(model.probability_cost(0.9) < model.probability_cost(0.2));
+    }
+
+    #[test]
+    fn assignment_cost_prefers_observed_label() {
+        let model = CostModel::default();
+        let evidence = AssignmentEvidence::from_candidate(
+            AssignmentCandidate {
+                label: AssignmentLabel::Mountain,
+                confidence: 0.90,
+                margin: 0.80,
+            },
+            AssignmentEvidenceSource::LegacyColor,
+        );
+        assert!(
+            evidence.cost(AssignmentLabel::Mountain, &model)
+                < evidence.cost(AssignmentLabel::Valley, &model)
+        );
+    }
+
+    #[test]
+    fn source_prior_ordering_keeps_legacy_selected_cheaper_than_weak() {
+        let model = CostModel::default();
+        assert!(
+            model.source_prior_cost(CandidateCreaseSourceKind::LegacySelected)
+                < model.source_prior_cost(CandidateCreaseSourceKind::LegacyLowThreshold)
+        );
+        assert!(
+            model.source_prior_cost(CandidateCreaseSourceKind::BorderGenerated)
+                < model.source_prior_cost(CandidateCreaseSourceKind::LegacySelected)
+        );
+    }
+
+    #[test]
+    fn candidate_graph_serializes_deterministically() {
+        let program = square_program();
+        let graph = LegacyCandidateAdapter::from_program(&program);
+        let encoded = serde_json::to_string(&graph).expect("encode graph");
+        let decoded: CandidateGraph = serde_json::from_str(&encoded).expect("decode graph");
+        assert_eq!(decoded.schema, graph.schema);
+        assert_eq!(decoded.vertices.len(), graph.vertices.len());
+        assert_eq!(
+            decoded.crease_candidates.len(),
+            graph.crease_candidates.len()
+        );
+        assert_eq!(decoded.boundary.corners, graph.boundary.corners);
+        assert_eq!(decoded.report, graph.report);
+        assert_eq!(decoded.boundary.corners.len(), 4);
+    }
+
+    #[test]
+    fn legacy_adapter_preserves_topology_and_assignments() {
+        let program = square_program();
+        let graph = LegacyCandidateAdapter::from_program(&program);
+        assert_eq!(graph.vertices.len(), program.vertices.len());
+        assert_eq!(graph.crease_candidates.len(), program.edges.len());
+        let labels = graph
+            .crease_candidates
+            .iter()
+            .map(|span| span.assignment_evidence.observed_label)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            labels,
+            program
+                .edges
+                .iter()
+                .map(|edge| edge.assignment.label)
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(graph.report.locked_border_spans, 4);
+    }
+
+    #[test]
+    fn legacy_adapter_adds_lower_threshold_candidates_without_exporting_duplicates() {
+        let selected = square_program();
+        let mut weak = selected.clone();
+        let a = weak.vertices.len();
+        weak.vertices.push(legacy_vertex_raw(
+            a,
+            Point2::new(0.0, 0.5),
+            VertexKind::Boundary,
+        ));
+        let b = weak.vertices.len();
+        weak.vertices.push(legacy_vertex_raw(
+            b,
+            Point2::new(1.0, 0.5),
+            VertexKind::Boundary,
+        ));
+        weak.carriers.push(carrier_raw(
+            weak.carriers.len(),
+            Point2::new(0.0, 0.5),
+            Point2::new(1.0, 0.5),
+            AssignmentLabel::Mountain,
+        ));
+        weak.edges.push(CandidateEdge {
+            id: weak.edges.len(),
+            carrier_id: weak.carriers.len() - 1,
+            vertices: [a, b],
+            assignment: AssignmentCandidate {
+                label: AssignmentLabel::Mountain,
+                confidence: 0.55,
+                margin: 0.10,
+            },
+            line_support: 0.35,
+            style_support: 0.0,
+            selection: EdgeSelection::Undecided,
+            source: EvidenceSource::ObservedWeak,
+            provenance: vec![Provenance::ObservedWeak],
+        });
+        let graph = LegacyCandidateAdapter::from_programs(
+            &selected,
+            Some(&weak),
+            LegacyCandidateAdapterOptions::default(),
+        );
+        assert_eq!(graph.report.legacy_selected_spans, selected.edges.len() - 4);
+        assert_eq!(graph.report.legacy_low_threshold_spans, 1);
+        assert!(graph.crease_candidates.iter().any(|span| span.source_kind
+            == CandidateCreaseSourceKind::LegacyLowThreshold
+            && span.selection_policy == CandidateSelectionPolicy::WeakOptional));
+    }
+
+    #[test]
+    fn exact_solve_input_is_source_neutral() {
+        let graph = LegacyCandidateAdapter::from_program(&square_program());
+        let selected = SelectedGraph::from_selected_span_ids(&graph, vec![0, 1, 2, 3]);
+        let input = ExactSolveInput::from_candidate_selection(&graph, &selected);
+        assert_eq!(input.selected_spans.len(), 4);
+        assert_eq!(input.boundary.corners, graph.boundary.corners);
+        assert_eq!(
+            input.provenance.source_adapter,
+            CandidateSourceAdapter::Legacy
+        );
+    }
+
+    fn square_program() -> CandidateProgram {
+        let vertices = vec![
+            legacy_vertex_raw(0, Point2::new(0.0, 0.0), VertexKind::Corner),
+            legacy_vertex_raw(1, Point2::new(1.0, 0.0), VertexKind::Corner),
+            legacy_vertex_raw(2, Point2::new(1.0, 1.0), VertexKind::Corner),
+            legacy_vertex_raw(3, Point2::new(0.0, 1.0), VertexKind::Corner),
+            legacy_vertex_raw(4, Point2::new(0.5, 0.5), VertexKind::Interior),
+        ];
+        let edge_specs = [
+            ([0, 1], AssignmentLabel::Boundary),
+            ([1, 2], AssignmentLabel::Boundary),
+            ([2, 3], AssignmentLabel::Boundary),
+            ([3, 0], AssignmentLabel::Boundary),
+            ([0, 4], AssignmentLabel::Mountain),
+            ([4, 2], AssignmentLabel::Valley),
+        ];
+        let mut carriers = Vec::new();
+        let mut edges = Vec::new();
+        for (id, (edge_vertices, label)) in edge_specs.into_iter().enumerate() {
+            let p0 = vertices[edge_vertices[0]].position;
+            let p1 = vertices[edge_vertices[1]].position;
+            carriers.push(carrier_raw(id, p0, p1, label));
+            edges.push(CandidateEdge {
+                id,
+                carrier_id: id,
+                vertices: edge_vertices,
+                assignment: AssignmentCandidate {
+                    label,
+                    confidence: 0.95,
+                    margin: 0.75,
+                },
+                line_support: 0.90,
+                style_support: 0.0,
+                selection: EdgeSelection::Selected,
+                source: if label == AssignmentLabel::Boundary {
+                    EvidenceSource::Border
+                } else {
+                    EvidenceSource::Legacy
+                },
+                provenance: vec![Provenance::LegacyDecoder],
+            });
+        }
+        CandidateProgram {
+            coordinate_space: "fold_normalized".to_owned(),
+            image_size: Some(128),
+            carriers,
+            vertices,
+            edges,
+        }
+    }
+
+    fn legacy_vertex_raw(id: usize, position: Point2, kind: VertexKind) -> LegacyVertex {
+        LegacyVertex {
+            id,
+            position,
+            kind,
+            support: 1.0,
+            boundary_side: None,
+            incident_carriers: Vec::new(),
+            provenance: vec![Provenance::LegacyDecoder],
+        }
+    }
+
+    fn carrier_raw(id: usize, p0: Point2, p1: Point2, label: AssignmentLabel) -> CandidateCarrier {
+        let dx = p1.x - p0.x;
+        let dy = p1.y - p0.y;
+        let length = (dx * dx + dy * dy).sqrt().max(1e-12);
+        let normal = Point2::new(-dy / length, dx / length);
+        CandidateCarrier {
+            id,
+            family: if label == AssignmentLabel::Boundary {
+                CarrierFamily::Border
+            } else {
+                CarrierFamily::Free
+            },
+            normal,
+            rho: normal.x * p0.x + normal.y * p0.y,
+            support_interval: [0.0, length],
+            visual_support: 1.0,
+            dashed_support: 0.0,
+            non_crease_penalty: 0.0,
+            source: EvidenceSource::Legacy,
+            provenance: vec![Provenance::LegacyDecoder],
+        }
+    }
+
+    #[test]
+    fn candidate_graph_can_be_loaded_from_fold_json() {
+        let fold = json!({
+            "vertices_coords": [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]],
+            "edges_vertices": [[0, 1], [1, 2], [2, 3], [3, 0]],
+            "edges_assignment": ["B", "B", "B", "B"]
+        });
+        let program = CandidateProgram::from_fold_value(&fold).expect("program");
+        let graph = LegacyCandidateAdapter::from_program(&program);
+        assert_eq!(graph.report.locked_border_spans, 4);
+        assert_eq!(graph.boundary.sides.len(), 4);
+    }
+}

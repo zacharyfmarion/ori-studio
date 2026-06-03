@@ -8,6 +8,7 @@ pub mod arrangement;
 pub mod arrangement_v2;
 pub mod assignments;
 pub mod border;
+pub mod candidate_graph;
 pub mod candidates;
 pub mod carrier_reconcile;
 pub mod constraints;
@@ -24,6 +25,14 @@ pub mod verify;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+pub use candidate_graph::{
+    ArrangementCandidateAdapter, AssignmentEvidence, AssignmentEvidenceSource, BoundaryModel,
+    BoundarySide, CandidateConflict, CandidateConflictKind, CandidateCreaseSourceKind,
+    CandidateCreaseSpan, CandidateCreaseSpanKind, CandidateGraph, CandidateGraphProvenance,
+    CandidateGraphReport, CandidateSelectionPolicy, CandidateSourceAdapter, CandidateVertexKind,
+    CandidateVertexMovementPolicy, CostModel, ExactSolveInput, ExactSolvedGraph,
+    ExactSolvedGraphStatus, LegacyCandidateAdapter, SelectedGraph,
+};
 pub use candidates::{
     AssignmentCandidate, AssignmentLabel, CandidateCarrier, CandidateEdge, CandidateProgram,
     CandidateVertex, CarrierFamily, EdgeSelection, Point2, VertexKind,

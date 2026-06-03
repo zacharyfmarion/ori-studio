@@ -126,6 +126,7 @@ export function App() {
   const [activeStage, setActiveStage] = useState<'stage1' | 'stage2' | 'stage3' | 'stage4' | 'stage5'>('stage5');
   const [threshold, setThreshold] = useState(0.65);
   const [mapSize, setMapSize] = useState(192);
+  const [candidateSource, setCandidateSource] = useState<'arrangement' | 'legacy'>('arrangement');
   const [stage, setStage] = useState<Stage1Response | Stage2Response | Stage3Response | Stage4Response | Stage5Response | null>(null);
   const [loadingStage, setLoadingStage] = useState(false);
   const [background, setBackground] = useState('input');
@@ -245,7 +246,7 @@ export function App() {
     setLoadingStage(true);
     const request =
       activeStage === 'stage5'
-        ? fetchStage5Example(selectedId, { threshold, mapSize })
+        ? fetchStage5Example(selectedId, { threshold, mapSize, candidateSource })
         : activeStage === 'stage4'
         ? fetchStage4Example(selectedId, { threshold, mapSize })
         : activeStage === 'stage3'
@@ -269,7 +270,7 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [selectedId, activeStage, threshold, mapSize, reloadToken]);
+  }, [selectedId, activeStage, threshold, mapSize, candidateSource, reloadToken]);
 
   const selectedMap = useMemo(
     () => stage?.maps.find((map) => map.id === selectedMapId) ?? stage?.maps[0] ?? null,
@@ -403,6 +404,15 @@ export function App() {
                 </select>
               </label>
             ) : null}
+            {activeStage === 'stage5' ? (
+              <label>
+                Candidate source
+                <select value={candidateSource} onChange={(event) => setCandidateSource(event.target.value as 'arrangement' | 'legacy')}>
+                  <option value="arrangement">Arrangement V2</option>
+                  <option value="legacy">Legacy adapter</option>
+                </select>
+              </label>
+            ) : null}
             <button
               className="refresh-button"
               disabled={!selectedId || loadingStage}
@@ -418,6 +428,9 @@ export function App() {
           {activeStage === 'stage5' ? (
             <section className="summary-grid">
               <Metric label="selected spans" value={isStage5(stage) ? stage.selection.report.selected_spans : '...'} />
+              <Metric label="source" value={isStage5(stage) ? stage.candidate_graph.provenance.source_adapter : '...'} />
+              <Metric label="candidates" value={isStage5(stage) ? stage.candidate_graph.report.crease_candidates : '...'} />
+              <Metric label="conflicts" value={isStage5(stage) ? stage.candidate_graph.report.conflicts : '...'} />
               <Metric
                 label="span vertices"
                 value={isStage5(stage) ? new Set(stage.selection.selected_spans.flatMap((span) => span.vertices)).size : '...'}

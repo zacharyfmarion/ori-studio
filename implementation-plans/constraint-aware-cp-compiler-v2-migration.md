@@ -34,12 +34,18 @@ Progress:
   when the carrier was already an observed local carrier. Phase 5e adds
   observed-carrier span candidates so the beam can choose one final crease
   through degree-2 pass-through vertices instead of many atomic fragments.
-- Phase 5f is in progress as of June 2, 2026. Phase 5e was still too local: it
-  collapsed same-carrier chains, but the beam could still seed and retain strong
-  atomic fragments across nearly collinear observed carriers. Phase 5f moves
-  semantic degree-2 pass-through normalization before beam search so
-  crease-level spans are the default candidates and atomic intervals are
-  provenance/fallback only.
+- Phase 5f is complete as of June 3, 2026. It moves semantic degree-2
+  pass-through normalization before beam search so crease-level spans are
+  selectable candidates and atomic intervals are provenance/fallback only. The
+  real treemaker smoke sample still is not clean, which is now tracked as a
+  candidate-generation/constraint-solve problem rather than a visualization
+  problem.
+- Phase 6 is complete as of June 3, 2026. It introduces a source-neutral
+  `CandidateGraph` IR so legacy-selected graph proposals, lower-threshold weak
+  crease candidates, and compiler-native arrangement candidates all feed one
+  shared selector contract and one shared exact-solver contract. This is a
+  top-level phase because Phase 7 exact solving must not be built on
+  arrangement-specific or legacy-specific selector types.
 - A `ConstraintCompilerV2` backend now exists for the compiler-native evidence
   route, while `ConstraintCompilerV1` remains the current locked-border
   baseline.
@@ -62,9 +68,9 @@ Goal: migrate the current browser CP detector/compiler into the target
 architecture:
 
 ```text
-model evidence
--> compiler-native evidence primitives
--> candidate planar graph arrangement
+model evidence and/or legacy graph proposals
+-> source adapter
+-> CandidateGraph IR
 -> weighted span selection with exactizability probes
 -> full exact geometric solve
 -> assignment solve
@@ -73,8 +79,11 @@ model evidence
 ```
 
 The compiler should treat model output as evidence, not final geometry. The end
-state should not depend on legacy decoder graph cleanup, hidden fallback, or old
-mutation-style exactizer/topology code in the product path.
+state should not depend on hidden fallback or old mutation-style
+exactizer/topology code in the product path. Legacy is allowed as an explicit
+candidate source and frozen benchmark because it is currently the strongest
+topology proposal generator; it must not become a second selector, second exact
+solver, or silent post-processing path.
 
 ## Target Principles
 
@@ -151,7 +160,7 @@ Purpose: prevent more confusion about which path owns which behavior.
 Status: Complete for the current boundary. V2 now has its own adapter module
 with a dependency guard, and V1 mutation modules are documented as deprecated
 diagnostics. Legacy remains available only as `LegacyV2` / `ConstraintCompilerV1`
-baseline code until Phase 10 removes it from the product path.
+baseline code until Phase 11 removes it from the product path.
 
 Work:
 
@@ -257,7 +266,7 @@ Tests:
 - Initial regression tests comparing primitive presence and report fields from
   deterministic dense tensors.
 - Larger cached-dense golden tests and native/WASM determinism checks belong in
-  Phase 9 with the benchmark pack, after Phase 2 replaces the temporary
+  Phase 10 with the benchmark pack, after Phase 2 replaces the temporary
   `CandidateProgram` conversion.
 
 Acceptance:
@@ -298,7 +307,7 @@ Deferred to later phases:
   `CandidateProgram` so we can smoke-test the backend today. This is not the
   final architecture; Phase 2 replaces that temporary graph conversion with a
   true candidate planar graph arrangement.
-- Phase 9 will expand timing into full benchmark summaries across larger packs.
+- Phase 10 will expand timing into full benchmark summaries across larger packs.
 
 ## Phase 2: Candidate Planar Graph Arrangement V2
 
@@ -485,7 +494,7 @@ Left for later phases:
 - Phase 4 adds exactizability probes.
 - Phase 5 replaces the scaffold with weighted beam selection using those probe
   costs.
-- Phase 9 benchmarks selection-only output separately from exact solve.
+- Phase 10 benchmarks selection-only output separately from exact solve.
 
 ## Phase 4: Local Exactizability Probes
 
@@ -627,7 +636,7 @@ Implementation notes:
   count.
 - Phase 5 does not mutate coordinates. It only chooses a selected graph
   candidate and reports why selected edges were accepted.
-- Assignment flipping/unknown-label solving is still Phase 7. Stage 5 preserves
+- Assignment flipping/unknown-label solving is still Phase 8. Stage 5 preserves
   observed assignment labels while selecting topology, because using M/V solving
   here would blur topology selection with the later assignment solver.
 - Inspector Stage 5 now shows the selected graph over the input and includes a
@@ -643,7 +652,7 @@ State decisions:
 - [x] Select boundary contacts indirectly through selected boundary/corner
   vertices.
 - [ ] Keep observed assignment, flip low-confidence assignment, or mark unknown.
-  This is intentionally deferred to Phase 7 so topology selection and assignment
+  This is intentionally deferred to Phase 8 so topology selection and assignment
   solving stay separable.
 
 Algorithm:
@@ -680,17 +689,17 @@ Acceptance:
 - [x] Score reports explain why each accepted edit was chosen.
 - [x] Exactizability costs are visible in the debug UI.
 - [ ] Selection-only output is benchmarked separately from exact solve in Phase
-  9.
+  10.
 
 What remains after Phase 5:
 
 - The selected graph is still not expected to be product-valid. On the smoke
   inspector sample, Stage 5 exposes a noisy selected graph with many remaining
-  exactizability failures. That is useful signal for Phase 6/9 rather than a
+  exactizability failures. That is useful signal for Phase 7/10 rather than a
   failure of the debug stage itself.
-- Phase 6 must exact-solve geometry for a chosen topology instead of merely
+- Phase 7 must exact-solve geometry for a chosen topology instead of merely
   probing exactizability.
-- Phase 7 must solve assignments after topology/geometry are plausible.
+- Phase 8 must solve assignments after topology/geometry are plausible.
 
 ## Phase 5b: Structural Replacement Beam Selection Audit
 
@@ -1320,7 +1329,561 @@ Implementation notes:
 - `selected_edge_ids` remains provenance for model/evidence intervals;
   `selected_spans` is the Stage 5 graph surface to inspect and feed forward.
 
-## Phase 6: Full Exact Geometric Solve
+## Phase 6: Source-Neutral CandidateGraph IR And Legacy-First Adapter
+
+Purpose: stop building competing selector/exact-solver paths. Legacy is already
+good at proposing most of the topology, while the compiler-native arrangement
+path is still useful as an evidence generator and research path. Both should
+feed one shared candidate representation, one shared beam selector, and one
+shared exact solver.
+
+Status: Complete as of June 3, 2026.
+
+Implementation notes:
+
+- `crates/oristudio-cp-compiler/src/candidate_graph.rs` defines the
+  source-neutral IR, cost model, assignment evidence, conflicts, selected graph,
+  and Phase 7 exact-solver input/output contract.
+- `LegacyCandidateAdapter` converts frozen legacy `CandidateProgram` output
+  into `CandidateGraph`, including optional lower-threshold spans when a weak
+  program is supplied.
+- The arrangement path uses
+  `candidate_graph_from_arrangement_for_selection` so the Phase 5c-5f
+  normalized/shared span candidates are preserved before feeding the shared
+  CandidateGraph selector.
+- `select_candidate_graph_beam_from_ir` is the source-neutral selector entry
+  point. The older arrangement selector remains for regression comparison and
+  existing tests, but Stage 5 inspector now uses the CandidateGraph path.
+- `compare_candidate_graph_selector` is the repeatable dense-cache command for
+  comparing frozen legacy counts against `legacy_candidates + selector`.
+
+Core architectural rule:
+
+```text
+legacy selected graph + low-threshold candidates ─┐
+                                                  ├─> CandidateGraph
+arrangement_v2 compiler candidates ───────────────┘
+       -> shared beam selector
+       -> SelectedGraph
+       -> exact geometric solve
+       -> assignment solve / verifier / FOLD export
+```
+
+There must not be a separate "legacy beam selector." The only intended
+divergence is how candidates are produced and what priors/provenance they carry.
+Everything after `CandidateGraph` should be shared.
+
+Why this phase exists:
+
+- Legacy currently gets most graph topology right. The most visible residual
+  failures are missing creases and local geometric inaccuracy.
+- Lowering the line threshold directly in legacy would improve recall but also
+  admit more false positives. Those lower-threshold lines should become optional
+  candidates with costs, not unconditional exported edges.
+- The exact solver should not care whether the chosen topology came from legacy
+  or arrangement V2. It should consume a selected topology with evidence,
+  movement policies, and constraints.
+- Without a source-neutral IR, Phase 7 would either hard-code today’s
+  arrangement-specific types or accidentally create a parallel legacy pipeline.
+
+### CandidateGraph Schema
+
+Create a new source-neutral module:
+
+```text
+crates/oristudio-cp-compiler/src/candidate_graph.rs
+```
+
+The top-level object should be serializable for inspector snapshots and fixture
+tests:
+
+```rust
+CandidateGraph {
+    schema,
+    coordinate_space,
+    image_size,
+    vertices,
+    crease_candidates,
+    boundary,
+    conflicts,
+    alternatives,
+    cost_model,
+    provenance,
+    report,
+}
+```
+
+#### Vertices
+
+Each `CandidateVertex` is a possible graph point, not necessarily a final
+exported FOLD vertex.
+
+Required fields:
+
+- `id`
+- approximate `point`
+- `kind`: `corner`, `boundary_contact`, `interior_junction`,
+  `line_endpoint`, `candidate_intersection`, `junction_cluster`
+- `support`: calibrated confidence that this is a real vertex
+- `movement_policy`: `locked`, `boundary_only`, `movable`, `merge_candidate`
+- optional `boundary_side`
+- source/provenance ids
+
+Downstream usage:
+
+- Beam selector uses vertex support and kind to score candidate endpoints,
+  avoid fake degree-2 junctions, and explain selected/rejected topology.
+- Exact solver creates variables only for movable vertices. Corners are fixed,
+  boundary contacts stay on their side, and locked vertices get very high
+  movement cost.
+- Debug UI can show why a vertex is locked, movable, inferred, or inherited
+  from legacy.
+
+Done means:
+
+- Unit tests cover fixed corners, boundary contacts, movable interior vertices,
+  and merge-candidate vertices.
+- Serialization round-trips preserve ids, movement policies, boundary sides,
+  and provenance.
+- No downstream code needs to infer vertex kind from source-specific structs.
+
+#### Crease Candidates: Edge vs Span
+
+Use `CandidateCreaseSpan` as the main selection unit. A span may represent one
+simple crease edge or one clean crease hypothesis that replaces many tiny
+observed fragments.
+
+Definitions:
+
+- **Crease edge**: a final FOLD-style graph edge between two real vertices.
+- **Crease span**: a selectable candidate explanation between two candidate
+  vertices. It may cover multiple observed atomic fragments and collapsed
+  pass-through vertices.
+
+Required fields:
+
+- `id`
+- endpoint vertex ids
+- approximate carrier: direction, normal/rho or point-direction form
+- optional `source_interval` on the carrier
+- `assignment_evidence`
+- `presence_probability` or calibrated presence logit
+- visual/support summaries: min/mean/max support, style support, non-crease
+  support if available
+- `source_kind`: `legacy_selected`, `legacy_low_threshold`,
+  `arrangement_observed`, `arrangement_shared`, `repair_candidate`,
+  `border_generated`
+- `selection_policy`: `locked`, `strong_optional`, `optional`,
+  `weak_optional`, `discouraged`
+- source atomic fragment ids and collapsed pass-through vertex ids
+- provenance/explanation strings
+
+Downstream usage:
+
+- Beam selector chooses spans, not raw fragments. Long clean spans conflict with
+  fragment chains they explain.
+- Exact solver turns selected spans into exact crease edges after moving
+  vertices and fitting carriers.
+- Export emits final edges from selected/exact solved spans.
+- Debug UI can show selected spans by default and atomic fragments only as
+  provenance.
+
+Done means:
+
+- A selected span can represent one edge or many fragments without changing
+  selector/exact-solver APIs.
+- Tests prove a long span conflicts with and replaces its fragment chain.
+- Tests prove a single uncovered candidate remains selectable as an atomic
+  fallback.
+- The inspector labels selected spans separately from provenance intervals.
+
+#### Boundary Model
+
+Boundary should not compete like normal visual evidence.
+
+Required fields:
+
+- four locked square corners
+- four sides
+- boundary-contact vertices
+- deterministic border reconstruction policy
+- generated border spans/edges with `border_generated` provenance
+
+Downstream usage:
+
+- Beam selector treats border as locked context, not an ordinary line
+  detection problem.
+- Exact solver locks square coordinates and keeps boundary contacts on their
+  assigned side.
+- Export emits clean square boundary edges sorted by side contacts.
+
+Done means:
+
+- The legacy locked-border behavior is preserved when converted through
+  `CandidateGraph`.
+- Boundary contacts sort deterministically per side.
+- Tests prove malformed detected border fragments are not exported as competing
+  interior candidates.
+
+#### Assignment Evidence
+
+Recommendation: assignment evidence lives on each crease candidate. Keep
+separate provenance records only for debugging/aggregation when a span combines
+many source fragments.
+
+Required fields:
+
+- probabilities or logits for `mountain`, `valley`, `boundary`, `auxiliary`,
+  `unknown`
+- observed label, if any
+- source: `legacy_color`, `model_assignment_head`, `span_aggregate`,
+  `inferred`, `unknown`
+- confidence/margin
+
+Cost handling:
+
+- Do not store an imperative "flip this" decision in `CandidateGraph`.
+- Store the probability/logit surface.
+- Downstream derives additive label cost:
+
+```text
+cost(label) = -ln(clamp(P(label), 0.01, 0.99))
+flip_cost(A -> B) = cost(B) - cost(A)
+```
+
+Downstream usage:
+
+- Beam selector may use assignment costs lightly to avoid obviously bad
+  topology, but should not overfit M/V before geometry is exact.
+- Phase 8 assignment solver uses the same evidence strongly while satisfying
+  Maekawa/LBL and reporting observed vs inferred labels.
+- Exact solver mostly ignores M/V except where assignment-specific constraints
+  are explicitly introduced later.
+
+Done means:
+
+- CandidateGraph stores assignment probability evidence, not pre-decided flip
+  mutations.
+- Span aggregation from multiple fragments is deterministic and tested.
+- Tests cover high-confidence label preservation, low-confidence ambiguity, and
+  unknown-label neutrality.
+
+#### Conflicts And Alternatives
+
+Conflicts make the selector choose between explanations instead of selecting
+contradictory candidates.
+
+Required relationship types:
+
+- duplicate spans between same endpoints
+- long span replaces fragment chain
+- candidates cross without a supported junction
+- nearby vertex alternatives / merge candidates
+- shared-carrier alternative versus separate local segments
+- border-generated edge versus detected border-like fragment
+
+Downstream usage:
+
+- Beam selector enforces hard conflicts and can score soft alternatives.
+- Debug UI explains why a candidate lost.
+- Exact solver receives a coherent selected topology instead of contradictory
+  overlaid geometry.
+
+Done means:
+
+- Conflict generation is source-neutral and tested independently of both
+  adapters.
+- The selector cannot select both a span and the fragments it replaces.
+- The selector cannot select two duplicate candidates with the same effective
+  endpoints/carrier unless explicitly allowed.
+
+#### Priors And Cost Normalization
+
+Use additive energy where lower is better internally. Existing "higher score is
+better" selector code may keep a score wrapper temporarily, but the
+`CandidateGraph` cost model should be expressed as normalized cost terms so the
+exact solver and selector speak the same language.
+
+Recommended normalized terms:
+
+```text
+presence_cost        = -ln(clamp(p_present, 0.01, 0.99))
+assignment_cost      = -ln(clamp(p_label, 0.01, 0.99))
+movement_cost        = (distance_px / sigma_distance_px)^2
+angle_cost           = (angle_degrees / sigma_angle_degrees)^2
+rho_cost             = (rho_px / sigma_rho_px)^2
+fragmentation_cost   = pass_through_count * weight
+source_prior_cost    = adapter-specific additive prior
+continuity_reward    = negative cost for clean spans replacing fragments
+```
+
+Initial source priors:
+
+- `legacy_selected`: high presence probability, high removal cost, but not
+  locked unless border.
+- `legacy_low_threshold`: medium/low presence probability, cheap to reject,
+  useful when constraints/evidence support it.
+- `arrangement_observed`: calibrated from line support and vertex support.
+- `arrangement_shared`: pays hypothesis/source cost, gains continuity reward
+  when replacing fragments.
+- `repair_candidate`: expensive until it repairs hard local constraints.
+- `border_generated`: locked.
+
+Done means:
+
+- Cost normalization constants live in one config struct with documented units.
+- Unit tests cover probability-to-cost clamping, movement/angle normalization,
+  and source prior ordering.
+- No adapter hard-codes final decisions with magic thresholds after candidate
+  creation; thresholds only control candidate generation and initial priors.
+
+#### Provenance And Reports
+
+Every candidate must be explainable.
+
+Required provenance:
+
+- source adapter: `legacy`, `legacy_low_threshold`, `arrangement_v2`,
+  `repair_candidate`
+- source edge/vertex/primitive ids
+- original model or legacy scores
+- crop/image coordinate context when available
+- explanation strings suitable for inspector UI
+
+Done means:
+
+- Debug UI can answer "why is this line here?" and "why did it lose?"
+- Benchmark reports can separate legacy-kept, weak-added, compiler-added,
+  dropped, and exact-solver-moved geometry.
+- Fixture snapshots are deterministic enough for regression review.
+
+### Adapters
+
+#### LegacyCandidateAdapter
+
+Purpose: turn the frozen legacy decoder output into a high-quality
+`CandidateGraph` proposal, then add optional lower-threshold candidates to
+repair omissions.
+
+Inputs:
+
+- normal-threshold legacy decoded graph
+- lower-threshold decoded/evidence lines
+- dense model assignment evidence where available
+- locked border reconstruction output
+
+Behavior:
+
+- Legacy-selected interior creases become `legacy_selected`
+  `CandidateCreaseSpan`s with strong presence priors.
+- Lower-threshold extra lines become `legacy_low_threshold` candidates with
+  weaker presence priors and clear provenance.
+- Border is generated from the locked border model, not copied as noisy visual
+  fragments.
+- Legacy M/V labels become assignment evidence, not immutable decisions.
+- Extra low-threshold lines conflict with duplicate legacy lines and with
+  spans/fragments they replace.
+
+Done means:
+
+- Normal-threshold legacy graph round-trips into `CandidateGraph` without
+  losing vertices, assignments, or border contacts.
+- Lower-threshold extras are present as optional candidates and never silently
+  exported unless selected.
+- A frozen legacy baseline can still be rendered separately for comparison.
+- Tests cover: no-loss legacy conversion, weak extra candidate generation,
+  duplicate conflict generation, locked border preservation, and assignment
+  evidence transfer.
+
+#### ArrangementCandidateAdapter
+
+Purpose: preserve the compiler-native evidence route by translating
+`arrangement_v2` carriers, vertices, atomic intervals, shared carrier spans, and
+normalized pass-through spans into the same `CandidateGraph`.
+
+Behavior:
+
+- Existing `selected_spans` concepts become `CandidateCreaseSpan` candidates.
+- Atomic intervals become provenance/fallback candidates.
+- Shared carriers and normalized pass-through spans become long span
+  candidates with replacement conflicts.
+- Existing arrangement vertex kinds map to `CandidateVertex.kind` and
+  `movement_policy`.
+
+Done means:
+
+- Current Stage 5 synthetic tests can run through the adapter without losing
+  the behaviors added in Phases 5c-5f.
+- The old arrangement-specific selector is either removed or reduced to a thin
+  compatibility wrapper around the shared selector.
+- Inspector can switch candidate source between `legacy` and `arrangement_v2`
+  while the selected graph panel uses the same payload type.
+
+### Shared Beam Selector Refactor
+
+Goal: refactor current Stage 5 selection so it consumes `CandidateGraph` and
+emits `SelectedGraph`.
+
+`SelectedGraph` should contain:
+
+- selected candidate span ids
+- selected vertex ids
+- selected boundary model
+- selected assignment labels only where already fixed; otherwise assignment
+  evidence remains unresolved for Phase 8
+- rejected/undecided candidate ids with reasons
+- structural edit accounting: added weak line, dropped legacy line, replaced
+  fragments, collapsed pass-through vertex, duplicate rejection
+- score/cost breakdown
+
+Refactor rules:
+
+- No second beam implementation for legacy.
+- Existing beam tests should be ported to CandidateGraph fixtures.
+- Arrangement-specific code may remain only in adapter tests or a compatibility
+  layer during the transition.
+- The selector should choose among spans. Raw atomic intervals are fallback
+  candidates/provenance, not the default final graph surface.
+
+Done means:
+
+- `select_candidate_graph_beam` or its replacement has a source-neutral
+  signature.
+- Both adapters call the same selector.
+- There is one set of selector objective weights.
+- Tests prove source-specific priors change costs, not control flow.
+- Inspector Stage 5 can label the source adapter used for the candidate graph.
+
+### Exact Solver Contract
+
+Phase 6 does not implement the full exact solve, but it must define the
+contract Phase 7 will consume.
+
+`ExactSolveInput` should be derivable from:
+
+```text
+CandidateGraph + SelectedGraph
+```
+
+It should expose:
+
+- selected crease spans as topology
+- vertex movement policies and weights
+- carrier/collinearity groups
+- square boundary locks
+- boundary-contact side constraints
+- assignment evidence for later solver phases
+- provenance for reporting movement/error by source
+
+Phase 7 output should be:
+
+```text
+ExactSolvedGraph {
+    vertices_exact,
+    edges_exact,
+    movement_report,
+    theorem_residual_report,
+    solved | ambiguous | failed,
+}
+```
+
+Done means for Phase 6:
+
+- The exact-solver input/output structs are declared or documented in code
+  before Phase 7 starts.
+- There is a fixture that converts a selected legacy candidate graph into an
+  `ExactSolveInput`.
+- No exact-solver implementation has to know whether the candidates came from
+  legacy or arrangement V2.
+
+### Inspector And Benchmark Requirements
+
+Inspector updates:
+
+- Candidate source selector: `legacy candidates`, `arrangement candidates`.
+- Panels for:
+  - candidate graph summary
+  - selected spans
+  - weak legacy additions
+  - dropped legacy lines
+  - conflicts/replacements
+  - cost breakdown
+  - movement policy preview
+- Overlay toggles:
+  - frozen legacy baseline
+  - CandidateGraph candidates
+  - SelectedGraph output
+  - ground truth
+  - provenance fragments
+
+Benchmark updates:
+
+- Keep frozen legacy baseline metrics.
+- Add:
+  - `legacy_candidates + selector`
+  - `arrangement_candidates + selector`
+  - later `legacy_candidates + selector + exact_solve`
+  - later `arrangement_candidates + selector + exact_solve`
+- Report metrics by source:
+  - legacy kept
+  - legacy dropped
+  - weak added
+  - compiler added
+  - false positives removed
+  - missing creases recovered
+
+Done means:
+
+- A repeatable command produces side-by-side metrics for frozen legacy and
+  `legacy_candidates + selector`.
+- Visual review folders/contact sheets distinguish baseline legacy from selected
+  candidate graph output.
+- Benchmarks do not require rerunning previous checkpoints unless candidate
+  generation changes.
+
+### Non-Goals For Phase 6
+
+- Do not solve exact geometry yet.
+- Do not promote V2 into the product path.
+- Do not remove legacy baseline rendering.
+- Do not tune thresholds to win one smoke example without recording the cost
+  model and benchmark impact.
+- Do not implement assignment solving beyond carrying assignment evidence and
+  exposing label costs.
+
+### Acceptance Checklist
+
+- [x] `CandidateGraph`, `CandidateVertex`, `CandidateCreaseSpan`,
+  `BoundaryModel`, `AssignmentEvidence`, `CandidateConflict`, `CostModel`, and
+  `SelectedGraph` are defined in source-neutral modules.
+- [x] CandidateGraph serialization round-trips through deterministic fixtures.
+- [x] LegacyCandidateAdapter converts frozen legacy output with no topology or
+  assignment loss.
+- [x] LegacyCandidateAdapter adds lower-threshold weak candidates as optional
+  spans with provenance and conflicts.
+- [x] The arrangement candidate path preserves Phase 5c-5f span behavior through
+  the CandidateGraph path.
+- [x] The shared beam selector consumes CandidateGraph, not
+  CandidateArrangement directly.
+- [x] There is no separate legacy-specific beam selector.
+- [x] ExactSolveInput/ExactSolvedGraph contract is defined before Phase 7
+  implementation begins.
+- [x] Inspector can display both adapter sources using the same selected graph
+  payload.
+- [x] Benchmark command compares frozen legacy against
+  `legacy_candidates + selector`.
+- [x] Unit tests cover assignment cost derivation, source prior ordering,
+  conflicts, long-span-vs-fragment selection, no-loss legacy conversion, weak
+  candidate additions, and boundary locking.
+- [x] Full validation passes for the affected crates/apps.
+
+Phase 6 is complete only when every checklist item above is checked. If one
+adapter works but the selector remains source-specific, this phase is not done.
+If the inspector can render the result only by applying post-hoc cleanup, this
+phase is not done. If exact solve has to branch on legacy-vs-arrangement source,
+this phase is not done.
+
+## Phase 7: Full Exact Geometric Solve
 
 Purpose: convert the selected topology into exact coordinates.
 
@@ -1381,7 +1944,7 @@ Acceptance:
 - Exact solve improves CAMV/flat-folder success on curated noisy fixtures.
 - Movement reports are understandable in the debug UI.
 
-## Phase 7: Assignment Solver V2
+## Phase 8: Assignment Solver V2
 
 Purpose: solve M/V after topology and geometry are plausible.
 
@@ -1412,7 +1975,7 @@ Acceptance:
 - Assignment accuracy must not regress materially versus current baseline.
 - Assignment changes are separately reported from topology and geometry edits.
 
-## Phase 8: Verifier, Export, And Product Contract
+## Phase 9: Verifier, Export, And Product Contract
 
 Purpose: only export what the compiler can honestly justify.
 
@@ -1459,7 +2022,7 @@ Acceptance:
   - verification report
   - diff/edit accounting
 
-## Phase 9: Benchmarks And Visual Review Gates
+## Phase 10: Benchmarks And Visual Review Gates
 
 Purpose: prevent metrics-only or visual-only mistakes.
 
@@ -1517,7 +2080,7 @@ Acceptance:
 - If V2 improves validity but slightly hurts pixel-style edge F1, manual review
   decides whether that tradeoff is acceptable.
 
-## Phase 10: Product Migration And Legacy Removal
+## Phase 11: Product Migration And Legacy Removal
 
 Purpose: ensure old code cannot keep influencing the product path.
 
@@ -1545,7 +2108,8 @@ Acceptance:
 ```text
 dense model outputs
 -> evidence_extract
--> arrangement_v2
+-> source adapter
+-> CandidateGraph IR
 -> selection
 -> exact_solve
 -> assignments
@@ -1565,11 +2129,12 @@ dense model outputs
 4. Phase 3: selection scaffold and score accounting.
 5. Phase 4: local exactizability probes.
 6. Phase 5: weighted beam selection using the probes.
-7. Phase 6: full exact solve.
-8. Phase 7: assignment solver integration.
-9. Phase 8: verifier/export contract.
-10. Phase 9: benchmark and visual review gates.
-11. Phase 10: product promotion and legacy removal.
+7. Phase 6: source-neutral CandidateGraph IR and legacy/compiler adapters.
+8. Phase 7: full exact solve.
+9. Phase 8: assignment solver integration.
+10. Phase 9: verifier/export contract.
+11. Phase 10: benchmark and visual review gates.
+12. Phase 11: product promotion and legacy removal.
 
 ## Open Design Questions
 
@@ -1583,3 +2148,6 @@ dense model outputs
   only for vertices with plausible flat-foldable topology?
 - What threshold of CAMV/flat-folder success justifies replacing legacy in the
   product path?
+- What low-threshold candidate recall target is enough before exact solving:
+  all visually present lines as candidates, or only lines needed to repair local
+  theorem failures?

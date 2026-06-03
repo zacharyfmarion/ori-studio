@@ -8,8 +8,13 @@ use crate::arrangement_v2::{
     ArrangementAtomicEdge, ArrangementCarrier, ArrangementCarrierKind, ArrangementHypothesisKind,
     ArrangementVertex, ArrangementVertexKind, CandidateArrangement,
 };
+use crate::candidate_graph::{
+    ArrangementCandidateAdapter, AssignmentEvidence, AssignmentEvidenceSource, CandidateConflict,
+    CandidateConflictKind, CandidateCreaseSourceKind, CandidateCreaseSpan, CandidateCreaseSpanKind,
+    CandidateGraph, CandidateGraphReport, CandidateSelectionPolicy, SelectedGraph,
+};
 use crate::exact_probe::{ExactProbeOptions, probe_exactizability};
-use crate::{AssignmentLabel, EvidenceSource};
+use crate::{AssignmentLabel, EvidenceSource, Point2};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -220,6 +225,257 @@ pub struct CandidateSelectionReport {
     pub emits_fold_graph: bool,
 }
 
+pub fn select_candidate_graph_from_ir(
+    graph: &CandidateGraph,
+    options: SelectionOptions,
+) -> CandidateSelection {
+    select_candidate_graph_beam_from_ir(graph, options, ExactProbeOptions::default())
+}
+
+pub fn candidate_graph_from_arrangement_for_selection(
+    arrangement: &CandidateArrangement,
+    options: SelectionOptions,
+) -> CandidateGraph {
+    let vertices = arrangement
+        .vertices
+        .iter()
+        .map(|vertex| (vertex.id, vertex))
+        .collect::<BTreeMap<_, _>>();
+    let carriers = arrangement
+        .carriers
+        .iter()
+        .map(|carrier| (carrier.id, carrier))
+        .collect::<BTreeMap<_, _>>();
+    let structural_index = StructuralIndex::build(arrangement, &carriers, &options);
+    let scores = arrangement
+        .atomic_edges
+        .iter()
+        .map(|edge| {
+            let mut score = base_score(edge, &vertices, &carriers, &options);
+            score.total_score = score.breakdown.total();
+            score
+        })
+        .collect::<Vec<_>>();
+    let span_candidates = build_span_candidates(
+        arrangement,
+        &scores,
+        &vertices,
+        &carriers,
+        &structural_index,
+        &options,
+    );
+    let mut graph = ArrangementCandidateAdapter::from_arrangement(arrangement);
+    graph.crease_candidates = span_candidates
+        .iter()
+        .map(|candidate| {
+            candidate_graph_span_from_selection_candidate(candidate, &carriers, &options)
+        })
+        .collect();
+    graph.conflicts = candidate_graph_conflicts_from_span_candidates(&span_candidates);
+    graph.alternatives = graph.conflicts.clone();
+    graph.boundary.generated_border_span_ids = graph
+        .crease_candidates
+        .iter()
+        .filter(|span| span.source_kind == CandidateCreaseSourceKind::BorderGenerated)
+        .map(|span| span.id)
+        .collect();
+    graph.report = candidate_graph_report_from_selection_graph(&graph);
+    graph
+}
+
+pub fn select_candidate_graph_beam_from_ir(
+    graph: &CandidateGraph,
+    options: SelectionOptions,
+    _exact_options: ExactProbeOptions,
+) -> CandidateSelection {
+    let mut candidate_ids = graph
+        .crease_candidates
+        .iter()
+        .filter(|span| span.selection_policy != CandidateSelectionPolicy::Locked)
+        .map(|span| span.id)
+        .collect::<Vec<_>>();
+    candidate_ids.sort_by(|left, right| {
+        graph.crease_candidates[*right]
+            .selection_score(graph)
+            .total_cmp(&graph.crease_candidates[*left].selection_score(graph))
+            .then_with(|| left.cmp(right))
+    });
+    candidate_ids.truncate(options.max_beam_candidates);
+
+    let conflict_map = candidate_conflict_map(graph);
+    let locked_ids = graph
+        .crease_candidates
+        .iter()
+        .filter(|span| span.selection_policy == CandidateSelectionPolicy::Locked)
+        .map(|span| span.id)
+        .collect::<BTreeSet<_>>();
+    let seed_ids = graph
+        .crease_candidates
+        .iter()
+        .filter(|span| {
+            span.selection_policy == CandidateSelectionPolicy::Locked
+                || (span.selection_policy == CandidateSelectionPolicy::StrongOptional
+                    && span.selection_score(graph) >= options.min_selected_score)
+        })
+        .map(|span| span.id)
+        .collect::<BTreeSet<_>>();
+    let mut beam = vec![score_ir_beam_state(graph, &seed_ids, &options)];
+    for candidate_id in candidate_ids {
+        let mut next = Vec::with_capacity(beam.len() * 2);
+        for state in &beam {
+            next.push(state.clone());
+            if state.selected_span_ids.contains(&candidate_id) {
+                continue;
+            }
+            let conflicts = conflict_map.get(&candidate_id).cloned().unwrap_or_default();
+            if !locked_ids.is_empty() && !conflicts.is_disjoint(&locked_ids) {
+                continue;
+            }
+            let mut selected = state.selected_span_ids.clone();
+            for conflict_id in conflicts {
+                selected.remove(&conflict_id);
+            }
+            selected.insert(candidate_id);
+            next.push(score_ir_beam_state(graph, &selected, &options));
+        }
+        next.sort_by(ir_beam_state_order);
+        next.dedup_by(|left, right| left.selected_span_ids == right.selected_span_ids);
+        next.truncate(options.beam_width.max(1));
+        beam = next;
+    }
+
+    beam.sort_by(ir_beam_state_order);
+    let best = beam
+        .into_iter()
+        .next()
+        .unwrap_or_else(|| score_ir_beam_state(graph, &seed_ids, &options));
+    candidate_selection_from_ir_state(graph, &best, &options)
+}
+
+fn candidate_graph_span_from_selection_candidate(
+    candidate: &SpanCandidate,
+    carriers: &BTreeMap<usize, &ArrangementCarrier>,
+    options: &SelectionOptions,
+) -> CandidateCreaseSpan {
+    let span = &candidate.span;
+    let carrier = carriers.get(&span.carrier_id).copied();
+    let source_kind = if span.assignment.label == AssignmentLabel::Boundary {
+        CandidateCreaseSourceKind::BorderGenerated
+    } else if span.kind == SelectionSpanKind::SharedCarrierSpan {
+        CandidateCreaseSourceKind::ArrangementShared
+    } else {
+        CandidateCreaseSourceKind::ArrangementObserved
+    };
+    CandidateCreaseSpan {
+        id: candidate.id,
+        kind: match span.kind {
+            SelectionSpanKind::AtomicInterval => CandidateCreaseSpanKind::AtomicInterval,
+            SelectionSpanKind::ObservedCarrierSpan => CandidateCreaseSpanKind::ObservedCarrierSpan,
+            SelectionSpanKind::NormalizedPassThroughSpan => {
+                CandidateCreaseSpanKind::NormalizedPassThroughSpan
+            }
+            SelectionSpanKind::SharedCarrierSpan => CandidateCreaseSpanKind::SharedCarrierSpan,
+        },
+        vertices: span.vertices,
+        carrier: crate::candidate_graph::CandidateCarrierGeometry {
+            normal: carrier
+                .map(|carrier| carrier.normal)
+                .unwrap_or(Point2::new(0.0, 1.0)),
+            direction: carrier
+                .map(|carrier| carrier.direction)
+                .unwrap_or(Point2::new(1.0, 0.0)),
+            rho: carrier.map(|carrier| carrier.rho).unwrap_or(0.0),
+        },
+        t_interval: span.t_interval,
+        assignment_evidence: AssignmentEvidence::from_candidate(
+            span.assignment,
+            AssignmentEvidenceSource::ModelAssignmentHead,
+        ),
+        presence_probability: span.line_support_mean.clamp(0.01, 0.99),
+        line_support_min: span.line_support_min,
+        line_support_mean: span.line_support_mean,
+        line_support_max: span.line_support_max,
+        style_support: 0.0,
+        non_crease_support: 0.0,
+        source_kind,
+        selection_policy: if source_kind == CandidateCreaseSourceKind::BorderGenerated {
+            CandidateSelectionPolicy::Locked
+        } else if span.line_support_mean >= options.strong_edge_support {
+            CandidateSelectionPolicy::StrongOptional
+        } else {
+            CandidateSelectionPolicy::WeakOptional
+        },
+        source_edge_ids: span.source_atomic_edge_ids.clone(),
+        source_atomic_edge_ids: span.source_atomic_edge_ids.clone(),
+        source_carrier_ids: vec![span.carrier_id],
+        replaced_span_ids: span.replaced_atomic_edge_ids.clone(),
+        replaced_atomic_edge_ids: span.replaced_atomic_edge_ids.clone(),
+        collapsed_vertex_ids: span.collapsed_vertex_ids.clone(),
+        provenance: Vec::new(),
+        reasons: span.reasons.clone(),
+    }
+}
+
+fn candidate_graph_conflicts_from_span_candidates(
+    candidates: &[SpanCandidate],
+) -> Vec<CandidateConflict> {
+    let mut seen = BTreeSet::<Vec<usize>>::new();
+    let mut conflicts = Vec::new();
+    for candidate in candidates {
+        if candidate.conflicts.is_empty() {
+            continue;
+        }
+        let mut ids = vec![candidate.id];
+        ids.extend(candidate.conflicts.iter().copied());
+        ids.sort_unstable();
+        ids.dedup();
+        if ids.len() < 2 || !seen.insert(ids.clone()) {
+            continue;
+        }
+        conflicts.push(CandidateConflict {
+            id: conflicts.len(),
+            kind: CandidateConflictKind::SpanReplacesFragments,
+            candidate_ids: ids,
+            hard: true,
+            reason: "selection span alternatives cannot both be selected".to_owned(),
+        });
+    }
+    conflicts
+}
+
+fn candidate_graph_report_from_selection_graph(graph: &CandidateGraph) -> CandidateGraphReport {
+    CandidateGraphReport {
+        vertices: graph.vertices.len(),
+        crease_candidates: graph.crease_candidates.len(),
+        locked_border_spans: graph
+            .crease_candidates
+            .iter()
+            .filter(|span| span.selection_policy == CandidateSelectionPolicy::Locked)
+            .count(),
+        legacy_selected_spans: graph
+            .crease_candidates
+            .iter()
+            .filter(|span| span.source_kind == CandidateCreaseSourceKind::LegacySelected)
+            .count(),
+        legacy_low_threshold_spans: graph
+            .crease_candidates
+            .iter()
+            .filter(|span| span.source_kind == CandidateCreaseSourceKind::LegacyLowThreshold)
+            .count(),
+        arrangement_observed_spans: graph
+            .crease_candidates
+            .iter()
+            .filter(|span| span.source_kind == CandidateCreaseSourceKind::ArrangementObserved)
+            .count(),
+        arrangement_shared_spans: graph
+            .crease_candidates
+            .iter()
+            .filter(|span| span.source_kind == CandidateCreaseSourceKind::ArrangementShared)
+            .count(),
+        conflicts: graph.conflicts.len(),
+    }
+}
+
 pub fn select_candidate_graph(
     arrangement: &CandidateArrangement,
     options: SelectionOptions,
@@ -388,6 +644,286 @@ pub fn select_candidate_graph(
         edge_scores: scores,
         structural_edits: Vec::new(),
         report,
+    }
+}
+
+#[derive(Debug, Clone)]
+struct IrBeamState {
+    selected_span_ids: BTreeSet<usize>,
+    total_score: f64,
+    odd_degree_vertices: usize,
+}
+
+fn score_ir_beam_state(
+    graph: &CandidateGraph,
+    selected_span_ids: &BTreeSet<usize>,
+    options: &SelectionOptions,
+) -> IrBeamState {
+    let base_score = selected_span_ids
+        .iter()
+        .filter_map(|span_id| graph.crease_candidates.get(*span_id))
+        .map(|span| span.selection_score(graph))
+        .sum::<f64>();
+    let odd_degree_vertices = odd_degree_count_for_ir(graph, selected_span_ids);
+    let odd_penalty = odd_degree_vertices as f64 * options.odd_degree_bonus * 0.50;
+    IrBeamState {
+        selected_span_ids: selected_span_ids.clone(),
+        total_score: base_score - odd_penalty,
+        odd_degree_vertices,
+    }
+}
+
+fn ir_beam_state_order(left: &IrBeamState, right: &IrBeamState) -> std::cmp::Ordering {
+    right
+        .total_score
+        .total_cmp(&left.total_score)
+        .then_with(|| left.odd_degree_vertices.cmp(&right.odd_degree_vertices))
+        .then_with(|| {
+            left.selected_span_ids
+                .len()
+                .cmp(&right.selected_span_ids.len())
+        })
+}
+
+fn candidate_conflict_map(graph: &CandidateGraph) -> BTreeMap<usize, BTreeSet<usize>> {
+    let mut map = BTreeMap::<usize, BTreeSet<usize>>::new();
+    for conflict in &graph.conflicts {
+        if !conflict.hard {
+            continue;
+        }
+        for id in &conflict.candidate_ids {
+            map.entry(*id).or_default().extend(
+                conflict
+                    .candidate_ids
+                    .iter()
+                    .copied()
+                    .filter(|other| other != id),
+            );
+        }
+    }
+    map
+}
+
+fn odd_degree_count_for_ir(graph: &CandidateGraph, selected_span_ids: &BTreeSet<usize>) -> usize {
+    let mut degree = BTreeMap::<usize, usize>::new();
+    for span_id in selected_span_ids {
+        let Some(span) = graph.crease_candidates.get(*span_id) else {
+            continue;
+        };
+        if matches!(
+            span.assignment_label(),
+            AssignmentLabel::Boundary | AssignmentLabel::Flat
+        ) {
+            continue;
+        }
+        for vertex_id in span.vertices {
+            *degree.entry(vertex_id).or_default() += 1;
+        }
+    }
+    degree
+        .into_iter()
+        .filter(|(vertex_id, count)| {
+            *count % 2 == 1
+                && graph
+                    .vertices
+                    .get(*vertex_id)
+                    .is_some_and(|vertex| vertex.boundary_side.is_none())
+        })
+        .count()
+}
+
+fn candidate_selection_from_ir_state(
+    graph: &CandidateGraph,
+    state: &IrBeamState,
+    options: &SelectionOptions,
+) -> CandidateSelection {
+    let selected_graph = SelectedGraph::from_selected_span_ids(
+        graph,
+        state.selected_span_ids.iter().copied().collect(),
+    );
+    let mut selected_edge_ids = state
+        .selected_span_ids
+        .iter()
+        .filter_map(|span_id| graph.crease_candidates.get(*span_id))
+        .flat_map(|span| {
+            if span.source_atomic_edge_ids.is_empty() {
+                vec![span.id]
+            } else {
+                span.source_atomic_edge_ids.clone()
+            }
+        })
+        .collect::<Vec<_>>();
+    selected_edge_ids.sort_unstable();
+    selected_edge_ids.dedup();
+
+    let mut edge_scores = Vec::new();
+    let mut rejected_edge_ids = Vec::new();
+    let mut undecided_edge_ids = Vec::new();
+    for span in &graph.crease_candidates {
+        let selected = state.selected_span_ids.contains(&span.id);
+        let decision = if selected {
+            SelectionDecision::Selected
+        } else if span.selection_policy == CandidateSelectionPolicy::Discouraged {
+            SelectionDecision::Rejected
+        } else {
+            SelectionDecision::Undecided
+        };
+        if decision == SelectionDecision::Rejected {
+            rejected_edge_ids.push(span.id);
+        } else if decision == SelectionDecision::Undecided {
+            undecided_edge_ids.push(span.id);
+        }
+        let mut reasons = span.reasons.clone();
+        if selected {
+            reasons.push("selected by source-neutral CandidateGraph beam".to_owned());
+        } else if decision == SelectionDecision::Undecided {
+            reasons.push("kept as plausible but not selected by CandidateGraph beam".to_owned());
+        } else {
+            reasons.push("rejected by CandidateGraph policy/cost".to_owned());
+        }
+        let score = span.selection_score(graph);
+        edge_scores.push(SelectionEdgeScore {
+            edge_id: span.id,
+            carrier_id: span.source_carrier_ids.first().copied().unwrap_or(span.id),
+            vertices: span.vertices,
+            decision,
+            total_score: score,
+            breakdown: SelectionScoreBreakdown {
+                visual_reward: span.line_support_mean,
+                vertex_anchor_reward: 0.0,
+                assignment_reward: -span
+                    .assignment_evidence
+                    .cost(span.assignment_evidence.observed_label, &graph.cost_model),
+                topology_delta: 0.0,
+                weak_support_cost: graph.cost_model.probability_cost(span.presence_probability),
+                inferred_geometry_cost: 0.0,
+                shared_carrier_cost: graph.cost_model.source_prior_cost(span.source_kind),
+                tiny_edge_cost: 0.0,
+                duplicate_cost: 0.0,
+                exactizability_cost: 0.0,
+                continuity_reward: if matches!(
+                    span.kind,
+                    CandidateCreaseSpanKind::ObservedCarrierSpan
+                        | CandidateCreaseSpanKind::NormalizedPassThroughSpan
+                        | CandidateCreaseSpanKind::SharedCarrierSpan
+                ) {
+                    graph.cost_model.continuity_reward
+                } else {
+                    0.0
+                },
+                fragmentation_cost: span.collapsed_vertex_ids.len() as f64
+                    * graph.cost_model.fragmentation_cost_weight,
+                degree_two_cost: 0.0,
+            },
+            reasons,
+        });
+    }
+
+    let selected_spans = state
+        .selected_span_ids
+        .iter()
+        .filter_map(|span_id| graph.crease_candidates.get(*span_id))
+        .map(|span| selection_span_from_ir_span(graph, span))
+        .collect::<Vec<_>>();
+    let weak_edges_promoted = selected_spans
+        .iter()
+        .filter(|span| span.line_support_mean < options.strong_edge_support)
+        .count();
+    CandidateSelection {
+        schema: "oristudio/cp-compiler/candidate-selection-v2-from-candidate-graph".to_owned(),
+        coordinate_space: graph.coordinate_space.clone(),
+        image_size: graph.image_size.unwrap_or_default(),
+        options: *options,
+        selected_edge_ids,
+        selected_spans,
+        rejected_edge_ids,
+        undecided_edge_ids,
+        selected_hypothesis_ids: Vec::new(),
+        edge_scores,
+        structural_edits: selected_graph
+            .structural_edit_accounting
+            .iter()
+            .map(|edit| SelectionStructuralEdit {
+                kind: SelectionStructuralEditKind::SharedCarrierReplacement,
+                vertex_ids: edit.vertex_ids.clone(),
+                carrier_ids: Vec::new(),
+                added_edge_ids: edit.span_ids.clone(),
+                removed_edge_ids: Vec::new(),
+                score_delta: 0.0,
+                reason: edit.reason.clone(),
+            })
+            .collect(),
+        report: CandidateSelectionReport {
+            selected_edges: state.selected_span_ids.len(),
+            selected_spans: state.selected_span_ids.len(),
+            rejected_edges: graph
+                .crease_candidates
+                .iter()
+                .filter(|span| span.selection_policy == CandidateSelectionPolicy::Discouraged)
+                .count(),
+            undecided_edges: graph
+                .crease_candidates
+                .len()
+                .saturating_sub(state.selected_span_ids.len()),
+            selected_hypotheses: 0,
+            weak_edges_promoted,
+            topology_improved_edges: weak_edges_promoted,
+            duplicate_edges_rejected: graph.conflicts.len(),
+            odd_degree_vertices: state.odd_degree_vertices,
+            total_score: state.total_score,
+            exactizability_evaluated: false,
+            shared_replacements: graph
+                .crease_candidates
+                .iter()
+                .filter(|span| {
+                    state.selected_span_ids.contains(&span.id)
+                        && span.kind == CandidateCreaseSpanKind::SharedCarrierSpan
+                })
+                .count(),
+            local_fragments_replaced: graph
+                .crease_candidates
+                .iter()
+                .filter(|span| state.selected_span_ids.contains(&span.id))
+                .map(|span| span.replaced_span_ids.len() + span.replaced_atomic_edge_ids.len())
+                .sum(),
+            local_fragments_retained: 0,
+            collapsible_degree_two_vertices: 0,
+            non_collinear_degree_two_vertices: state.odd_degree_vertices,
+            structural_penalty: 0.0,
+            continuity_reward: graph.cost_model.continuity_reward,
+            emits_fold_graph: false,
+        },
+    }
+}
+
+fn selection_span_from_ir_span(
+    graph: &CandidateGraph,
+    span: &CandidateCreaseSpan,
+) -> SelectionSpan {
+    SelectionSpan {
+        id: span.id,
+        kind: match span.kind {
+            CandidateCreaseSpanKind::AtomicInterval | CandidateCreaseSpanKind::BorderSpan => {
+                SelectionSpanKind::AtomicInterval
+            }
+            CandidateCreaseSpanKind::ObservedCarrierSpan => SelectionSpanKind::ObservedCarrierSpan,
+            CandidateCreaseSpanKind::NormalizedPassThroughSpan => {
+                SelectionSpanKind::NormalizedPassThroughSpan
+            }
+            CandidateCreaseSpanKind::SharedCarrierSpan => SelectionSpanKind::SharedCarrierSpan,
+        },
+        carrier_id: span.source_carrier_ids.first().copied().unwrap_or(span.id),
+        vertices: span.vertices,
+        t_interval: span.t_interval,
+        assignment: span.assignment_evidence.to_assignment_candidate(),
+        source_atomic_edge_ids: span.source_atomic_edge_ids.clone(),
+        replaced_atomic_edge_ids: span.replaced_atomic_edge_ids.clone(),
+        collapsed_vertex_ids: span.collapsed_vertex_ids.clone(),
+        line_support_min: span.line_support_min,
+        line_support_mean: span.line_support_mean,
+        line_support_max: span.line_support_max,
+        score: span.selection_score(graph),
+        reasons: span.reasons.clone(),
     }
 }
 
@@ -2818,7 +3354,100 @@ mod tests {
         ArrangementAtomicEdge, ArrangementCarrier, ArrangementCarrierKind, ArrangementHypothesis,
         ArrangementV2Options,
     };
+    use crate::candidate_graph::{
+        AssignmentEvidence, AssignmentEvidenceSource, BoundaryModel, BoundaryReconstructionPolicy,
+        BoundarySide, BoundarySideModel, CandidateConflict, CandidateConflictKind,
+        CandidateCreaseSourceKind, CandidateCreaseSpan, CandidateCreaseSpanKind, CandidateGraph,
+        CandidateGraphProvenance, CandidateGraphReport, CandidateSelectionPolicy,
+        CandidateSourceAdapter, CandidateVertexKind, CandidateVertexMovementPolicy, CostModel,
+    };
     use crate::{AssignmentCandidate, AssignmentLabel, Point2, Provenance};
+
+    #[test]
+    fn ir_selector_selects_from_candidate_graph_without_arrangement_source() {
+        let graph = fixture_candidate_graph(Vec::new());
+        let selection = select_candidate_graph_beam_from_ir(
+            &graph,
+            SelectionOptions::default(),
+            ExactProbeOptions::default(),
+        );
+
+        assert!(selection.selected_spans.iter().any(|span| span.id == 0));
+        assert!(selection.selected_spans.iter().any(|span| span.id == 1));
+        assert_eq!(
+            selection.schema,
+            "oristudio/cp-compiler/candidate-selection-v2-from-candidate-graph"
+        );
+    }
+
+    #[test]
+    fn ir_selector_chooses_long_span_over_conflicting_fragments() {
+        let mut graph = fixture_candidate_graph(Vec::new());
+        graph.crease_candidates.push(candidate_span(
+            2,
+            [0, 1],
+            CandidateCreaseSpanKind::AtomicInterval,
+            CandidateCreaseSourceKind::ArrangementObserved,
+            CandidateSelectionPolicy::StrongOptional,
+            0.72,
+        ));
+        graph.crease_candidates.push(candidate_span(
+            3,
+            [1, 2],
+            CandidateCreaseSpanKind::AtomicInterval,
+            CandidateCreaseSourceKind::ArrangementObserved,
+            CandidateSelectionPolicy::StrongOptional,
+            0.72,
+        ));
+        let mut long = candidate_span(
+            4,
+            [0, 2],
+            CandidateCreaseSpanKind::SharedCarrierSpan,
+            CandidateCreaseSourceKind::ArrangementShared,
+            CandidateSelectionPolicy::StrongOptional,
+            0.90,
+        );
+        long.replaced_span_ids = vec![2, 3];
+        long.replaced_atomic_edge_ids = vec![2, 3];
+        long.collapsed_vertex_ids = vec![1];
+        graph.crease_candidates.push(long);
+        graph.conflicts.push(CandidateConflict {
+            id: 0,
+            kind: CandidateConflictKind::SpanReplacesFragments,
+            candidate_ids: vec![2, 3, 4],
+            hard: true,
+            reason: "long span replaces fragments".to_owned(),
+        });
+        graph.report = CandidateGraphReport {
+            vertices: graph.vertices.len(),
+            crease_candidates: graph.crease_candidates.len(),
+            locked_border_spans: 0,
+            legacy_selected_spans: 0,
+            legacy_low_threshold_spans: 0,
+            arrangement_observed_spans: 2,
+            arrangement_shared_spans: 1,
+            conflicts: graph.conflicts.len(),
+        };
+
+        let selection = select_candidate_graph_beam_from_ir(
+            &graph,
+            SelectionOptions {
+                beam_width: 8,
+                max_beam_candidates: 8,
+                ..SelectionOptions::default()
+            },
+            ExactProbeOptions::default(),
+        );
+
+        let selected = selection
+            .selected_spans
+            .iter()
+            .map(|span| span.id)
+            .collect::<BTreeSet<_>>();
+        assert!(selected.contains(&4), "long shared span should win");
+        assert!(!selected.contains(&2), "fragment should be excluded");
+        assert!(!selected.contains(&3), "fragment should be excluded");
+    }
 
     #[test]
     fn strong_visual_edge_is_selected() {
@@ -3154,6 +3783,24 @@ mod tests {
     }
 
     #[test]
+    fn arrangement_candidate_graph_preserves_normalized_pass_through_span_candidate() {
+        let mut arrangement = observed_carrier_chain_fixture();
+        arrangement.vertices[1].kind = ArrangementVertexKind::ObservedLineEndpoint;
+        arrangement.vertices[2].kind = ArrangementVertexKind::CarrierIntersection;
+
+        let mut options = beam_options();
+        options.max_beam_candidates = 32;
+        let graph = candidate_graph_from_arrangement_for_selection(&arrangement, options);
+
+        assert!(graph.crease_candidates.iter().any(|span| {
+            span.kind == CandidateCreaseSpanKind::NormalizedPassThroughSpan
+                && span.vertices == [0, 3]
+                && span.source_atomic_edge_ids == vec![0, 1, 2]
+                && span.collapsed_vertex_ids == vec![1, 2]
+        }));
+    }
+
+    #[test]
     fn normalized_pass_through_span_collapses_degree_two_observed_junction() {
         let mut arrangement = observed_carrier_chain_fixture();
         arrangement.vertices[1].kind = ArrangementVertexKind::ObservedLineEndpoint;
@@ -3471,6 +4118,153 @@ mod tests {
             label: AssignmentLabel::Mountain,
             confidence: 0.8,
             margin: 0.6,
+        }
+    }
+
+    fn fixture_candidate_graph(extra_conflicts: Vec<CandidateConflict>) -> CandidateGraph {
+        let vertices = vec![
+            ir_vertex(0, Point2::new(0.0, 0.0), Some(BoundarySide::Top)),
+            ir_vertex(1, Point2::new(0.5, 0.0), Some(BoundarySide::Top)),
+            ir_vertex(2, Point2::new(1.0, 0.0), Some(BoundarySide::Right)),
+            ir_vertex(3, Point2::new(0.0, 1.0), Some(BoundarySide::Left)),
+        ];
+        let crease_candidates = vec![
+            candidate_span(
+                0,
+                [0, 3],
+                CandidateCreaseSpanKind::BorderSpan,
+                CandidateCreaseSourceKind::BorderGenerated,
+                CandidateSelectionPolicy::Locked,
+                0.99,
+            ),
+            candidate_span(
+                1,
+                [0, 2],
+                CandidateCreaseSpanKind::AtomicInterval,
+                CandidateCreaseSourceKind::LegacySelected,
+                CandidateSelectionPolicy::StrongOptional,
+                0.94,
+            ),
+        ];
+        CandidateGraph {
+            schema: "test/candidate-graph".to_owned(),
+            coordinate_space: "unit_square".to_owned(),
+            image_size: Some(128),
+            vertices,
+            boundary: BoundaryModel {
+                corners: [0, 2, 2, 3],
+                sides: vec![
+                    BoundarySideModel {
+                        side: BoundarySide::Top,
+                        corner_vertices: [0, 2],
+                        contact_vertices: vec![0, 1, 2],
+                    },
+                    BoundarySideModel {
+                        side: BoundarySide::Right,
+                        corner_vertices: [2, 2],
+                        contact_vertices: vec![2],
+                    },
+                    BoundarySideModel {
+                        side: BoundarySide::Bottom,
+                        corner_vertices: [3, 2],
+                        contact_vertices: Vec::new(),
+                    },
+                    BoundarySideModel {
+                        side: BoundarySide::Left,
+                        corner_vertices: [0, 3],
+                        contact_vertices: vec![0, 3],
+                    },
+                ],
+                generated_border_span_ids: vec![0],
+                reconstruction_policy: BoundaryReconstructionPolicy::LockedUnitSquareSortedContacts,
+            },
+            crease_candidates,
+            conflicts: extra_conflicts.clone(),
+            alternatives: extra_conflicts,
+            cost_model: CostModel::default(),
+            provenance: CandidateGraphProvenance {
+                source_adapter: CandidateSourceAdapter::Legacy,
+                source_ids: Vec::new(),
+                notes: Vec::new(),
+            },
+            report: CandidateGraphReport {
+                vertices: 4,
+                crease_candidates: 2,
+                locked_border_spans: 1,
+                legacy_selected_spans: 1,
+                legacy_low_threshold_spans: 0,
+                arrangement_observed_spans: 0,
+                arrangement_shared_spans: 0,
+                conflicts: 0,
+            },
+        }
+    }
+
+    fn ir_vertex(
+        id: usize,
+        point: Point2,
+        boundary_side: Option<BoundarySide>,
+    ) -> crate::candidate_graph::CandidateVertex {
+        crate::candidate_graph::CandidateVertex {
+            id,
+            point,
+            kind: if boundary_side.is_some() {
+                CandidateVertexKind::BoundaryContact
+            } else {
+                CandidateVertexKind::InteriorJunction
+            },
+            support: 1.0,
+            movement_policy: if boundary_side.is_some() {
+                CandidateVertexMovementPolicy::BoundaryOnly
+            } else {
+                CandidateVertexMovementPolicy::Movable
+            },
+            boundary_side,
+            source_vertex_ids: vec![id],
+            source_carrier_ids: Vec::new(),
+            source_adapter: CandidateSourceAdapter::Legacy,
+            provenance: vec![Provenance::LegacyDecoder],
+        }
+    }
+
+    fn candidate_span(
+        id: usize,
+        vertices: [usize; 2],
+        kind: CandidateCreaseSpanKind,
+        source_kind: CandidateCreaseSourceKind,
+        policy: CandidateSelectionPolicy,
+        presence: f64,
+    ) -> CandidateCreaseSpan {
+        CandidateCreaseSpan {
+            id,
+            kind,
+            vertices,
+            carrier: crate::candidate_graph::CandidateCarrierGeometry {
+                normal: Point2::new(0.0, 1.0),
+                direction: Point2::new(1.0, 0.0),
+                rho: 0.0,
+            },
+            t_interval: [0.0, 1.0],
+            assignment_evidence: AssignmentEvidence::from_candidate(
+                assignment(),
+                AssignmentEvidenceSource::LegacyColor,
+            ),
+            presence_probability: presence,
+            line_support_min: presence,
+            line_support_mean: presence,
+            line_support_max: presence,
+            style_support: 0.0,
+            non_crease_support: 0.0,
+            source_kind,
+            selection_policy: policy,
+            source_edge_ids: vec![id],
+            source_atomic_edge_ids: vec![id],
+            source_carrier_ids: vec![id],
+            replaced_span_ids: Vec::new(),
+            replaced_atomic_edge_ids: Vec::new(),
+            collapsed_vertex_ids: Vec::new(),
+            provenance: vec![Provenance::LegacyDecoder],
+            reasons: Vec::new(),
         }
     }
 

@@ -80,11 +80,12 @@ export function fetchStage5Examples(): Promise<ExamplesResponse> {
 
 export function fetchStage5Example(
   sampleId: string,
-  options: { threshold: number; mapSize: number },
+  options: { threshold: number; mapSize: number; candidateSource: string },
 ): Promise<Stage5Response> {
   const params = new URLSearchParams({
     threshold: String(options.threshold),
     map_size: String(options.mapSize),
+    candidate_source: options.candidateSource,
   });
   return requestJson(`/api/stage5/examples/${encodeURIComponent(sampleId)}?${params}`);
 }
