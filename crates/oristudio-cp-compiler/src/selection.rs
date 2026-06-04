@@ -99,6 +99,8 @@ pub struct SelectionSpan {
     pub kind: SelectionSpanKind,
     pub carrier_id: usize,
     pub vertices: [usize; 2],
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub endpoint_points: Option<[Point2; 2]>,
     pub t_interval: [f64; 2],
     pub assignment: crate::AssignmentCandidate,
     #[serde(default)]
@@ -914,6 +916,13 @@ fn selection_span_from_ir_span(
         },
         carrier_id: span.source_carrier_ids.first().copied().unwrap_or(span.id),
         vertices: span.vertices,
+        endpoint_points: match (
+            graph.vertices.get(span.vertices[0]),
+            graph.vertices.get(span.vertices[1]),
+        ) {
+            (Some(a), Some(b)) => Some([a.point, b.point]),
+            _ => None,
+        },
         t_interval: span.t_interval,
         assignment: span.assignment_evidence.to_assignment_candidate(),
         source_atomic_edge_ids: span.source_atomic_edge_ids.clone(),
@@ -3036,6 +3045,7 @@ fn selection_span_from_path(
         kind,
         carrier_id,
         vertices: path.vertices,
+        endpoint_points: None,
         t_interval: [t_min, t_max],
         assignment: carrier.assignment,
         source_atomic_edge_ids: edge_ids,

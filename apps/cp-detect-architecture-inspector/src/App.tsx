@@ -127,6 +127,7 @@ export function App() {
   const [threshold, setThreshold] = useState(0.65);
   const [mapSize, setMapSize] = useState(192);
   const [candidateSource, setCandidateSource] = useState<'arrangement' | 'legacy'>('arrangement');
+  const [legacyLowThreshold, setLegacyLowThreshold] = useState(0.35);
   const [stage, setStage] = useState<Stage1Response | Stage2Response | Stage3Response | Stage4Response | Stage5Response | null>(null);
   const [loadingStage, setLoadingStage] = useState(false);
   const [background, setBackground] = useState('input');
@@ -246,7 +247,7 @@ export function App() {
     setLoadingStage(true);
     const request =
       activeStage === 'stage5'
-        ? fetchStage5Example(selectedId, { threshold, mapSize, candidateSource })
+        ? fetchStage5Example(selectedId, { threshold, mapSize, candidateSource, legacyLowThreshold })
         : activeStage === 'stage4'
         ? fetchStage4Example(selectedId, { threshold, mapSize })
         : activeStage === 'stage3'
@@ -270,7 +271,7 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [selectedId, activeStage, threshold, mapSize, candidateSource, reloadToken]);
+  }, [selectedId, activeStage, threshold, mapSize, candidateSource, legacyLowThreshold, reloadToken]);
 
   const selectedMap = useMemo(
     () => stage?.maps.find((map) => map.id === selectedMapId) ?? stage?.maps[0] ?? null,
@@ -415,6 +416,19 @@ export function App() {
                 </select>
               </label>
             ) : null}
+            {activeStage === 'stage5' && candidateSource === 'legacy' ? (
+              <label>
+                Weak threshold
+                <input
+                  max={threshold}
+                  min={0.05}
+                  onChange={(event) => setLegacyLowThreshold(Number(event.target.value))}
+                  step={0.01}
+                  type="number"
+                  value={legacyLowThreshold}
+                />
+              </label>
+            ) : null}
             <button
               className="refresh-button"
               disabled={!selectedId || loadingStage}
@@ -432,6 +446,7 @@ export function App() {
               <Metric label="selected spans" value={stage5 ? stage5.selection.report.selected_spans : '...'} />
               <Metric label="source" value={candidateGraph?.provenance?.source_adapter ?? stage5?.candidate_source ?? candidateSource} />
               <Metric label="candidates" value={candidateGraph?.report?.crease_candidates ?? '...'} />
+              <Metric label="weak candidates" value={candidateGraph?.report?.legacy_low_threshold_spans ?? '...'} />
               <Metric label="conflicts" value={candidateGraph?.report?.conflicts ?? '...'} />
               <Metric
                 label="span vertices"
@@ -1326,10 +1341,22 @@ function SelectionSpanGraphView({
       {selection.selected_spans.map((span) => {
         const a = verticesById.get(span.vertices[0]);
         const b = verticesById.get(span.vertices[1]);
-        if (!a || !b) return null;
         const carrier = carriersById.get(span.carrier_id);
-        const p0 = carrier ? imagePoint(pointAtCarrierT(carrier, span.t_interval[0]), frame) : imagePoint(a.point, frame);
-        const p1 = carrier ? imagePoint(pointAtCarrierT(carrier, span.t_interval[1]), frame) : imagePoint(b.point, frame);
+        const p0 = span.endpoint_points
+          ? imagePoint(span.endpoint_points[0], frame)
+          : carrier
+            ? imagePoint(pointAtCarrierT(carrier, span.t_interval[0]), frame)
+            : a
+              ? imagePoint(a.point, frame)
+              : null;
+        const p1 = span.endpoint_points
+          ? imagePoint(span.endpoint_points[1], frame)
+          : carrier
+            ? imagePoint(pointAtCarrierT(carrier, span.t_interval[1]), frame)
+            : b
+              ? imagePoint(b.point, frame)
+              : null;
+        if (!p0 || !p1) return null;
         const color = arrangementAssignmentColor(span.assignment.label);
         const isCarrierSpan =
           span.kind === 'shared_carrier_span' || span.kind === 'observed_carrier_span' || span.kind === 'normalized_pass_through_span';

@@ -13,7 +13,7 @@ use oristudio_cp_compiler::selection::{
 };
 use oristudio_cp_compiler::{
     AssignmentCandidate, AssignmentLabel, CandidateGraph, CandidateProgram, EvidenceSource,
-    LegacyCandidateAdapter, Point2,
+    LegacyCandidateAdapter, LegacyCandidateAdapterOptions, Point2,
 };
 use oristudio_cp_detect::decode::{DecodeConfig, DenseOutputs, decode_dense_outputs};
 use oristudio_cp_detect::evidence_extract::{
@@ -732,12 +732,31 @@ fn stage5_example(
         .get("candidate_source")
         .cloned()
         .unwrap_or_else(|| "arrangement".to_owned());
+    let legacy_low_threshold = query
+        .get("legacy_low_threshold")
+        .and_then(|value| value.parse::<f32>().ok())
+        .unwrap_or_else(|| {
+            default_low_threshold(stage_threshold_from_query_or_sample(&query, sample))
+        });
     let stage2 = stage2_example(state, sample_id, query)?;
     let exact_options = ExactProbeOptions::default();
     let candidate_graph = match candidate_source.as_str() {
         "legacy" => {
             let program = read_legacy_candidate_program(state, sample, stage2.config.threshold)?;
-            LegacyCandidateAdapter::from_program(&program)
+            let weak_program = if legacy_low_threshold < stage2.config.threshold {
+                Some(read_legacy_candidate_program(
+                    state,
+                    sample,
+                    legacy_low_threshold,
+                )?)
+            } else {
+                None
+            };
+            LegacyCandidateAdapter::from_programs(
+                &program,
+                weak_program.as_ref(),
+                legacy_adapter_options(sample.image_size),
+            )
         }
         "arrangement" | "" => candidate_graph_from_arrangement_for_selection(
             &stage2.arrangement,
@@ -999,6 +1018,27 @@ fn evidence_config_from_decode(config: &DecodeConfig) -> EvidenceExtractionConfi
         max_junction_primitives: config.max_intersection_lines.max(240),
         max_boundary_contact_primitives: config.max_intersection_lines.max(240),
         primitive_nms_radius_px: config.junction_snap_px.max(2.0),
+    }
+}
+
+fn stage_threshold_from_query_or_sample(
+    query: &BTreeMap<String, String>,
+    sample: &DenseCacheSample,
+) -> f32 {
+    query
+        .get("threshold")
+        .and_then(|value| value.parse::<f32>().ok())
+        .unwrap_or(sample.threshold)
+}
+
+fn default_low_threshold(threshold: f32) -> f32 {
+    (threshold * 0.55).max(0.10).min(threshold)
+}
+
+fn legacy_adapter_options(image_size: u32) -> LegacyCandidateAdapterOptions {
+    LegacyCandidateAdapterOptions {
+        duplicate_endpoint_tolerance: (3.0 / image_size.max(1) as f64).max(1e-6),
+        ..LegacyCandidateAdapterOptions::default()
     }
 }
 

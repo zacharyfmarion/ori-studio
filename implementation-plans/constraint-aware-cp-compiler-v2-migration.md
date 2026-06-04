@@ -1356,6 +1356,15 @@ Implementation notes:
   existing tests, but Stage 5 inspector now uses the CandidateGraph path.
 - `compare_candidate_graph_selector` is the repeatable dense-cache command for
   comparing frozen legacy counts against `legacy_candidates + selector`.
+- Follow-up on June 3, 2026: the Stage 5 inspector and comparison command now
+  pass a lower-threshold legacy decode into `LegacyCandidateAdapter::from_programs`.
+  Weak boundary fragments are intentionally ignored so the deterministic border
+  remains owned by the normal locked border path. On the 12-sample
+  `smoke-1024-s3-browser-onnx` cache, this produced 151 weak interior
+  candidates but selected 0 of them under the current beam costs; aggregate
+  normalized-FOLD segment F1 stayed effectively flat/slightly worse
+  (`0.86735 -> 0.86726`). This means the plumbing is present, but the selector
+  objective is not yet recovering missing low-threshold creases.
 
 Core architectural rule:
 

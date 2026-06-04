@@ -493,11 +493,18 @@ impl LegacyCandidateAdapter {
                 })
                 .collect::<BTreeSet<_>>();
             for edge in &weak_program.edges {
+                if edge.assignment.label == AssignmentLabel::Boundary {
+                    continue;
+                }
                 let Some(carrier) = weak_program.carriers.get(edge.carrier_id) else {
                     continue;
                 };
-                let Some(vertices_pair) = map_weak_vertices(&mut vertices, weak_program, edge)
-                else {
+                let Some(vertices_pair) = map_weak_vertices(
+                    &mut vertices,
+                    weak_program,
+                    edge,
+                    options.duplicate_endpoint_tolerance,
+                ) else {
                     continue;
                 };
                 let key = span_endpoint_key(
@@ -977,12 +984,13 @@ fn map_weak_vertices(
     vertices: &mut Vec<CandidateVertex>,
     weak_program: &CandidateProgram,
     edge: &crate::candidates::CandidateEdge,
+    tolerance: f64,
 ) -> Option<[usize; 2]> {
     let mut mapped = [0usize; 2];
     for (slot, source_vertex_id) in edge.vertices.iter().enumerate() {
         let source = weak_program.vertices.get(*source_vertex_id)?;
         let existing = vertices.iter().position(|vertex| {
-            distance(vertex.point, source.position) <= 1e-6
+            distance(vertex.point, source.position) <= tolerance
                 && vertex.boundary_side
                     == source
                         .boundary_side
@@ -1345,6 +1353,53 @@ mod tests {
         assert!(graph.crease_candidates.iter().any(|span| span.source_kind
             == CandidateCreaseSourceKind::LegacyLowThreshold
             && span.selection_policy == CandidateSelectionPolicy::WeakOptional));
+    }
+
+    #[test]
+    fn legacy_adapter_ignores_lower_threshold_border_fragments() {
+        let selected = square_program();
+        let mut weak = selected.clone();
+        let a = weak.vertices.len();
+        weak.vertices.push(legacy_vertex_raw(
+            a,
+            Point2::new(0.0, 0.5),
+            VertexKind::Boundary,
+        ));
+        let b = weak.vertices.len();
+        weak.vertices.push(legacy_vertex_raw(
+            b,
+            Point2::new(1.0, 0.5),
+            VertexKind::Boundary,
+        ));
+        weak.carriers.push(carrier_raw(
+            weak.carriers.len(),
+            Point2::new(0.0, 0.5),
+            Point2::new(1.0, 0.5),
+            AssignmentLabel::Boundary,
+        ));
+        weak.edges.push(CandidateEdge {
+            id: weak.edges.len(),
+            carrier_id: weak.carriers.len() - 1,
+            vertices: [a, b],
+            assignment: AssignmentCandidate {
+                label: AssignmentLabel::Boundary,
+                confidence: 0.55,
+                margin: 0.10,
+            },
+            line_support: 0.35,
+            style_support: 0.0,
+            selection: EdgeSelection::Undecided,
+            source: EvidenceSource::ObservedWeak,
+            provenance: vec![Provenance::ObservedWeak],
+        });
+        let graph = LegacyCandidateAdapter::from_programs(
+            &selected,
+            Some(&weak),
+            LegacyCandidateAdapterOptions::default(),
+        );
+        assert_eq!(graph.report.legacy_low_threshold_spans, 0);
+        assert_eq!(graph.report.locked_border_spans, 4);
+        assert_eq!(graph.crease_candidates.len(), selected.edges.len());
     }
 
     #[test]

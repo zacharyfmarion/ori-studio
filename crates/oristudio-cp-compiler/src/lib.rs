@@ -31,7 +31,7 @@ pub use candidate_graph::{
     CandidateCreaseSpan, CandidateCreaseSpanKind, CandidateGraph, CandidateGraphProvenance,
     CandidateGraphReport, CandidateSelectionPolicy, CandidateSourceAdapter, CandidateVertexKind,
     CandidateVertexMovementPolicy, CostModel, ExactSolveInput, ExactSolvedGraph,
-    ExactSolvedGraphStatus, LegacyCandidateAdapter, SelectedGraph,
+    ExactSolvedGraphStatus, LegacyCandidateAdapter, LegacyCandidateAdapterOptions, SelectedGraph,
 };
 pub use candidates::{
     AssignmentCandidate, AssignmentLabel, CandidateCarrier, CandidateEdge, CandidateProgram,

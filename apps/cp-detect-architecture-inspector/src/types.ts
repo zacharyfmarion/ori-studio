@@ -311,6 +311,7 @@ export interface SelectionSpan {
   kind: 'atomic_interval' | 'observed_carrier_span' | 'normalized_pass_through_span' | 'shared_carrier_span' | string;
   carrier_id: number;
   vertices: [number, number];
+  endpoint_points?: [{ x: number; y: number }, { x: number; y: number }] | null;
   t_interval: [number, number];
   assignment: {
     label: 'mountain' | 'valley' | 'boundary' | 'unknown' | 'flat' | string;
