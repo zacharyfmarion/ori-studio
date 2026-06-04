@@ -382,6 +382,7 @@ pub fn plan_folding_sequence_with_options(
 struct PlanningContext {
     next_state_serial: usize,
     seen_state_keys: HashSet<String>,
+    seen_document_keys: HashSet<String>,
     target_cache: HashMap<String, TargetState>,
     target_solves: usize,
     target_solve_cache_hits: usize,
@@ -396,6 +397,7 @@ impl PlanningContext {
         Self {
             next_state_serial: 0,
             seen_state_keys: HashSet::from([sequence_state_key(target_state)]),
+            seen_document_keys: HashSet::from([sequence_document_key(&target_state.document)]),
             target_cache,
             target_solves: 0,
             target_solve_cache_hits: 0,
@@ -411,7 +413,7 @@ impl PlanningContext {
 
     fn document_key_is_seen(&mut self, document: &FoldDocument) -> bool {
         if self
-            .seen_state_keys
+            .seen_document_keys
             .contains(&sequence_document_key(document))
         {
             self.note_duplicate_candidate();
@@ -423,6 +425,8 @@ impl PlanningContext {
 
     fn reserve_state(&mut self, state: &SequenceState) -> bool {
         if self.seen_state_keys.insert(sequence_state_key(state)) {
+            self.seen_document_keys
+                .insert(sequence_document_key(&state.document));
             true
         } else {
             self.note_duplicate_candidate();
@@ -552,21 +556,33 @@ fn search_node_score(node: &SearchNode) -> (usize, usize, usize) {
 fn sequence_state_key(state: &SequenceState) -> String {
     let mut active_creases = state.active_creases.clone();
     active_creases.sort_unstable();
-    sequence_assignment_key(&active_creases, &state.document.edges_assignment)
+    sequence_assignment_key(
+        &active_creases,
+        &state.document.edges_assignment,
+        &state.face_orders,
+    )
 }
 
 fn sequence_document_key(document: &FoldDocument) -> String {
     let active_creases = active_creases_for_assignments(&document.edges_assignment);
-    sequence_assignment_key(&active_creases, &document.edges_assignment)
+    sequence_assignment_key(
+        &active_creases,
+        &document.edges_assignment,
+        &document.face_orders,
+    )
 }
 
-fn sequence_assignment_key(active_creases: &[usize], assignments: &[Assignment]) -> String {
+fn sequence_assignment_key(
+    active_creases: &[usize],
+    assignments: &[Assignment],
+    face_orders: &[[i64; 3]],
+) -> String {
     let assignments = assignments
         .iter()
         .map(|assignment| assignment.as_str())
         .collect::<Vec<_>>()
         .join("");
-    format!("{active_creases:?}|{assignments}")
+    format!("{active_creases:?}|{assignments}|{face_orders:?}")
 }
 
 fn active_creases_for_assignments(assignments: &[Assignment]) -> Vec<usize> {
@@ -3084,6 +3100,22 @@ mod tests {
         assert!(context.document_key_is_seen(&unfolded));
         assert_eq!(context.duplicate_candidates_pruned, 1);
         assert_eq!(context.repeated_states, 1);
+    }
+
+    #[test]
+    fn sequence_state_key_distinguishes_selected_layer_order() {
+        let target = resolve_target_state(&two_face_valley(), TargetStateOptions::default())
+            .expect("target state");
+        let mut first = SequenceState::from_target("first", &target);
+        let mut second = first.clone();
+        first.face_orders = vec![[0, 1, 1]];
+        second.face_orders = vec![[0, 1, -1]];
+
+        assert_ne!(sequence_state_key(&first), sequence_state_key(&second));
+        assert_eq!(
+            sequence_document_key(&first.document),
+            sequence_document_key(&second.document)
+        );
     }
 
     #[test]
