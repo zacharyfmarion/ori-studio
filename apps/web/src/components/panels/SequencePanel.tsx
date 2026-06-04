@@ -5,6 +5,7 @@ import type {
   SequenceInstructionStep,
   SequencePlan,
   SequenceStateSnapshot,
+  SequenceStepCertificate,
   SequenceTargetState,
 } from '../../engine/types';
 import { useWorkspaceStore } from '../../store/workspaceStore';
@@ -207,6 +208,15 @@ function SequenceDiagramList({ plan }: { plan: SequencePlan }) {
               <div className="sequence-diagram-step__header-main">
                 <span>Step {index + 1}</span>
                 <strong>{formatKind(step.kind)}</strong>
+                {step.certificate && (
+                  <span
+                    className="sequence-diagram-step__certificate"
+                    data-tone={certificateTone(step.certificate)}
+                    title={certificateTitle(step.certificate)}
+                  >
+                    {formatCertificateStatus(step.certificate)}
+                  </span>
+                )}
               </div>
               <div className="sequence-diagram-step__header-actions">
                 <Button
@@ -249,6 +259,11 @@ function SequenceDiagramList({ plan }: { plan: SequencePlan }) {
               <div className="sequence-diagram-step__meta">
                 {step.after_state ? `${step.before_state} to ${step.after_state}` : formatKind(step.kind)}
               </div>
+              {step.certificate && (
+                <div className="sequence-diagram-step__certificate-note">
+                  {certificateNote(step.certificate)}
+                </div>
+              )}
             </div>
           </li>
         );
@@ -395,6 +410,28 @@ function formatStatus(status: string): string {
 
 function formatKind(kind: string): string {
   return kind.replaceAll('_', ' ');
+}
+
+function formatCertificateStatus(certificate: SequenceStepCertificate): string {
+  return certificate.status.replaceAll('_', ' ');
+}
+
+function certificateTone(certificate: SequenceStepCertificate): 'good' | 'warn' | 'bad' {
+  if (certificate.status === 'verified') return 'good';
+  if (certificate.status === 'manual') return 'bad';
+  return 'warn';
+}
+
+function certificateTitle(certificate: SequenceStepCertificate): string {
+  return `${formatCertificateStatus(certificate)} by ${certificate.recognizer.replaceAll('_', ' ')}`;
+}
+
+function certificateNote(certificate: SequenceStepCertificate): string {
+  const uncertainChecks = [...certificate.preconditions, ...certificate.postconditions].filter(
+    (check) => check.status === 'warning' || check.status === 'not_checked'
+  ).length;
+  const suffix = uncertainChecks > 0 ? ` | ${uncertainChecks} open check${uncertainChecks === 1 ? '' : 's'}` : '';
+  return `${certificate.recognizer.replaceAll('_', ' ')}${suffix}`;
 }
 
 interface SequenceHighlights {

@@ -1,7 +1,13 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { FoldArtifacts, FoldDocument, SequencePlan, SequenceStateSnapshot } from '../../engine/types';
+import type {
+  FoldArtifacts,
+  FoldDocument,
+  SequencePlan,
+  SequenceStateSnapshot,
+  SequenceStepCertificate,
+} from '../../engine/types';
 import { createSampleProject } from '../../lib/sampleProject';
 import { useLayoutStore } from '../../store/layoutStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
@@ -37,7 +43,11 @@ describe('SequencePanel', () => {
     expect(rendered.querySelector<HTMLDetailsElement>('.sequence-panel__details')?.open).toBe(false);
     expect(rendered.querySelector('.sequence-diagram-step__header')?.textContent).toContain('Step 1');
     expect(rendered.querySelector('.sequence-diagram-step__header')?.textContent).toContain('Simulate');
+    expect(rendered.querySelector('.sequence-diagram-step__header')?.textContent).toContain('verified');
     expect(rendered.querySelector('.sequence-diagram-step__header')?.textContent).not.toContain('1 crease');
+    expect(rendered.querySelector('.sequence-diagram-step__certificate-note')?.textContent).toContain(
+      'boundary simple fold'
+    );
     expect(rendered.querySelector('.sequence-diagram-step__label')?.textContent).toContain(
       'Make a valley fold on crease 6'
     );
@@ -65,12 +75,14 @@ describe('SequencePanel', () => {
         affected_faces: [0],
         before_state: 'flat-cp',
         after_state: 'target',
+        certificate: certificate('manual', 'manual_collapse_boundary', [1, 2], [0]),
       },
     ];
 
     const rendered = renderPanel(plan);
 
     expect(rendered.textContent).toContain('Collapse up until this point');
+    expect(rendered.querySelector('.sequence-diagram-step__certificate')?.textContent).toContain('manual');
     expect(rendered.textContent).not.toContain('Unsupported collapse region');
     expect(rendered.querySelector('[aria-label="Step 1 Before folded state flat-cp"]')).not.toBeNull();
     expect(rendered.querySelector('[aria-label="Step 1 After folded state target"]')).not.toBeNull();
@@ -151,6 +163,7 @@ function simplePlan(): SequencePlan {
         affected_faces: [0, 1],
         before_state: 'unfolded',
         after_state: 'target',
+        certificate: certificate('verified', 'boundary_simple_fold', [6], [0, 1]),
       },
     ],
     states: [unfolded, target],
@@ -167,6 +180,24 @@ function simplePlan(): SequencePlan {
       target_solve_cache_hits: 0,
       duplicate_candidates_pruned: 0,
     },
+  };
+}
+
+function certificate(
+  status: SequenceStepCertificate['status'],
+  recognizer: string,
+  creases: number[],
+  faces: number[]
+): SequenceStepCertificate {
+  return {
+    status,
+    recognizer,
+    checked_creases: creases,
+    checked_faces: faces,
+    preconditions: [],
+    postconditions: status === 'verified' ? [] : [{ code: 'open', status: 'warning', message: 'Open check' }],
+    layer_order: { policy: 'preserved', preserved: true },
+    diagnostics: [],
   };
 }
 

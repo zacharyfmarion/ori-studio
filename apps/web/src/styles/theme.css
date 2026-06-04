@@ -735,6 +735,36 @@
   white-space: nowrap;
 }
 
+.sequence-diagram-step__certificate {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  max-width: 100%;
+  padding: 2px 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-size: 0.64rem;
+  font-weight: 780;
+  line-height: 1.2;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.sequence-diagram-step__certificate[data-tone='good'] {
+  border-color: color-mix(in srgb, var(--status-success) 28%, var(--border-subtle));
+  color: var(--status-success);
+}
+
+.sequence-diagram-step__certificate[data-tone='warn'] {
+  border-color: color-mix(in srgb, var(--status-warning) 28%, var(--border-subtle));
+  color: var(--status-warning);
+}
+
+.sequence-diagram-step__certificate[data-tone='bad'] {
+  border-color: color-mix(in srgb, var(--status-danger) 28%, var(--border-subtle));
+  color: var(--status-danger);
+}
+
 .sequence-diagram-step__header-actions {
   display: flex;
   flex: 0 0 auto;
@@ -763,6 +793,14 @@
   color: var(--text-tertiary);
   font-size: 0.7rem;
   font-weight: 650;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.sequence-diagram-step__certificate-note {
+  color: var(--text-tertiary);
+  font-size: 0.68rem;
+  font-weight: 620;
   line-height: 1.35;
   overflow-wrap: anywhere;
 }

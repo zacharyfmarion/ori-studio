@@ -195,7 +195,7 @@ ranked search order on the same fixture/corpus set.
       diagnostics.
 - [x] Split unresolved regions by connectivity and attach recognizer failure
       reasons.
-- [ ] Update WASM types and web UI to display certificate and preview certainty.
+- [x] Update WASM types and web UI to display certificate and preview certainty.
 - [ ] Add corpus/replay reporting for complete, partial, unsupported, and invalid
       rates.
 - [ ] Revisit offline ML ranking only after the successful symbolic trace count
