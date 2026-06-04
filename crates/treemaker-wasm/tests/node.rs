@@ -247,7 +247,11 @@ fn sequence_plan_fold_completes_complex_local_move() {
 
     let plan = json(sequence_plan_fold(&fold.to_string(), options).expect("plan"));
     assert_eq!(plan["status"], "complete");
-    assert_eq!(plan["steps"][0]["kind"], "rabbit_ear");
+    assert_eq!(plan["steps"][0]["kind"], "local_collapse");
+    assert_eq!(
+        plan["steps"][0]["certificate"]["recognizer"],
+        "topology_only_rabbit_ear"
+    );
     let diagnostics = plan["diagnostics"].as_array().expect("diagnostics");
     assert!(!diagnostics.iter().any(|diagnostic| {
         diagnostic["code"]

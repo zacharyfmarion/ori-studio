@@ -127,7 +127,7 @@ fn phase0_complex_fixtures_are_recognized_but_not_faked() {
                 plan.steps
                     .iter()
                     .any(|step| step_matches_kind(step, &expected_kind)),
-                "{fixture}: completed complex fixture should use a complex step"
+                "{fixture}: completed complex fixture should use a certified or heuristic local collapse step"
             );
             assert!(
                 plan.unresolved_regions.is_empty(),
@@ -162,25 +162,34 @@ fn phase0_complex_fixtures_are_recognized_but_not_faked() {
 }
 
 fn step_matches_kind(step: &treemaker_sequence::InstructionStep, kind: &ComplexMoveKind) -> bool {
-    matches!(
-        (step, kind),
-        (
-            treemaker_sequence::InstructionStep::ReverseFold(_),
-            ComplexMoveKind::ReverseFold
-        ) | (
-            treemaker_sequence::InstructionStep::SquashFold(_),
-            ComplexMoveKind::SquashFold
-        ) | (
-            treemaker_sequence::InstructionStep::RabbitEar(_),
-            ComplexMoveKind::RabbitEar
-        ) | (
+    match (step, kind) {
+        (treemaker_sequence::InstructionStep::ReverseFold(_), ComplexMoveKind::ReverseFold)
+        | (treemaker_sequence::InstructionStep::SquashFold(_), ComplexMoveKind::SquashFold)
+        | (treemaker_sequence::InstructionStep::RabbitEar(_), ComplexMoveKind::RabbitEar)
+        | (
             treemaker_sequence::InstructionStep::MoleculeCollapse(_),
-            ComplexMoveKind::MoleculeCollapse
-        ) | (
-            treemaker_sequence::InstructionStep::SimultaneousCollapse(_),
-            ComplexMoveKind::SimultaneousCollapse
+            ComplexMoveKind::MoleculeCollapse,
         )
-    )
+        | (
+            treemaker_sequence::InstructionStep::SimultaneousCollapse(_),
+            ComplexMoveKind::SimultaneousCollapse,
+        ) => true,
+        (treemaker_sequence::InstructionStep::LocalCollapse(details), kind) => details
+            .certificate
+            .as_ref()
+            .is_some_and(|certificate| certificate.recognizer == topology_recognizer(kind)),
+        _ => false,
+    }
+}
+
+fn topology_recognizer(kind: &ComplexMoveKind) -> &'static str {
+    match kind {
+        ComplexMoveKind::ReverseFold => "topology_only_reverse_fold",
+        ComplexMoveKind::SquashFold => "topology_only_squash_fold",
+        ComplexMoveKind::RabbitEar => "topology_only_rabbit_ear",
+        ComplexMoveKind::MoleculeCollapse => "topology_only_molecule_collapse",
+        ComplexMoveKind::SimultaneousCollapse => "topology_only_simultaneous_collapse",
+    }
 }
 
 #[test]

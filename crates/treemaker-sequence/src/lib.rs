@@ -713,6 +713,7 @@ fn rewrite_step_state_ids(step: &mut InstructionStep, id_map: &HashMap<String, S
         | InstructionStep::SquashFold(details)
         | InstructionStep::RabbitEar(details)
         | InstructionStep::MoleculeCollapse(details)
+        | InstructionStep::LocalCollapse(details)
         | InstructionStep::SimultaneousCollapse(details)
         | InstructionStep::ManualCollapse(details) => {
             rewrite_state_reference(&mut details.before_state, id_map);
@@ -1146,6 +1147,7 @@ pub enum InstructionStep {
     SquashFold(StepDetails),
     RabbitEar(StepDetails),
     MoleculeCollapse(StepDetails),
+    LocalCollapse(StepDetails),
     SimultaneousCollapse(StepDetails),
     ManualCollapse(StepDetails),
     ManualChoice(ManualChoiceStep),
@@ -1161,6 +1163,7 @@ impl InstructionStep {
             | InstructionStep::SquashFold(details)
             | InstructionStep::RabbitEar(details)
             | InstructionStep::MoleculeCollapse(details)
+            | InstructionStep::LocalCollapse(details)
             | InstructionStep::SimultaneousCollapse(details)
             | InstructionStep::ManualCollapse(details) => &details.id,
             InstructionStep::ManualChoice(step) => &step.id,
@@ -1176,6 +1179,7 @@ impl InstructionStep {
             | InstructionStep::SquashFold(details)
             | InstructionStep::RabbitEar(details)
             | InstructionStep::MoleculeCollapse(details)
+            | InstructionStep::LocalCollapse(details)
             | InstructionStep::SimultaneousCollapse(details)
             | InstructionStep::ManualCollapse(details) => details.certificate.as_ref(),
             InstructionStep::ManualChoice(_) | InstructionStep::UnsupportedRegion(_) => None,
@@ -2328,13 +2332,7 @@ fn complex_candidate_to_forward_step(
         "accepted as a heuristic macro move; lower-level sub-folds are not decomposed".to_string(),
     );
     details.certificate = Some(StepCertificate::heuristic_complex(candidate));
-    match candidate.kind {
-        ComplexMoveKind::ReverseFold => InstructionStep::ReverseFold(details),
-        ComplexMoveKind::SquashFold => InstructionStep::SquashFold(details),
-        ComplexMoveKind::RabbitEar => InstructionStep::RabbitEar(details),
-        ComplexMoveKind::MoleculeCollapse => InstructionStep::MoleculeCollapse(details),
-        ComplexMoveKind::SimultaneousCollapse => InstructionStep::SimultaneousCollapse(details),
-    }
+    InstructionStep::LocalCollapse(details)
 }
 
 fn complex_step_label(candidate: &ComplexMoveCandidate) -> String {
@@ -2343,7 +2341,7 @@ fn complex_step_label(candidate: &ComplexMoveCandidate) -> String {
         .map(|vertex| format!(" at vertex {vertex}"))
         .unwrap_or_default();
     format!(
-        "Perform a {}{}",
+        "Collapse a local {} candidate{}",
         complex_kind_label(&candidate.kind),
         center
     )
@@ -2367,6 +2365,7 @@ fn set_step_id(step: &mut InstructionStep, id: String) {
         | InstructionStep::SquashFold(details)
         | InstructionStep::RabbitEar(details)
         | InstructionStep::MoleculeCollapse(details)
+        | InstructionStep::LocalCollapse(details)
         | InstructionStep::SimultaneousCollapse(details)
         | InstructionStep::ManualCollapse(details) => details.id = id,
         InstructionStep::ManualChoice(step) => step.id = id,
@@ -2391,6 +2390,7 @@ fn trace_candidate_for_step(
         | InstructionStep::SquashFold(details)
         | InstructionStep::RabbitEar(details)
         | InstructionStep::MoleculeCollapse(details)
+        | InstructionStep::LocalCollapse(details)
         | InstructionStep::SimultaneousCollapse(details) => TraceCandidate {
             step_id: details.id.clone(),
             kind: instruction_kind(step).to_string(),
@@ -2454,6 +2454,7 @@ fn instruction_kind(step: &InstructionStep) -> &'static str {
         InstructionStep::SquashFold(_) => "squash_fold",
         InstructionStep::RabbitEar(_) => "rabbit_ear",
         InstructionStep::MoleculeCollapse(_) => "molecule_collapse",
+        InstructionStep::LocalCollapse(_) => "local_collapse",
         InstructionStep::SimultaneousCollapse(_) => "simultaneous_collapse",
         InstructionStep::ManualCollapse(_) => "manual_collapse",
         InstructionStep::ManualChoice(_) => "manual_choice",
@@ -3119,7 +3120,7 @@ mod tests {
     }
 
     #[test]
-    fn isolated_rabbit_ear_transform_applies_as_complex_step() {
+    fn isolated_rabbit_ear_transform_applies_as_local_collapse_step() {
         let target = resolve_target_state(&rabbit_ear_local(), TargetStateOptions::default())
             .expect("target state");
         let state = SequenceState::from_target("target", &target);
@@ -3134,7 +3135,10 @@ mod tests {
 
         assert_eq!(result.status, ComplexTransformStatus::Applied);
         assert!(result.after_state.is_some());
-        assert!(matches!(result.step, Some(InstructionStep::RabbitEar(_))));
+        assert!(matches!(
+            result.step,
+            Some(InstructionStep::LocalCollapse(_))
+        ));
         assert!(result.diagnostics.iter().any(|diagnostic| {
             diagnostic.code == "complex_transform_applied"
                 && diagnostic.severity == DiagnosticSeverity::Info
@@ -3171,12 +3175,13 @@ mod tests {
                 .any(|diagnostic| diagnostic.code == "complex_transform_applied")
         );
         match &plan.steps[0] {
-            InstructionStep::SquashFold(details) => {
+            InstructionStep::LocalCollapse(details) => {
                 assert_eq!(details.affected_creases.len(), 8);
                 assert_eq!(details.before_state, "state-1");
                 assert_eq!(details.after_state, "target");
                 let certificate = details.certificate.as_ref().expect("squash certificate");
                 assert_eq!(certificate.status, CertificateStatus::Heuristic);
+                assert_eq!(certificate.recognizer, "topology_only_squash_fold");
                 assert!(
                     certificate
                         .diagnostics
@@ -3184,7 +3189,7 @@ mod tests {
                         .any(|diagnostic| diagnostic.code == "heuristic_step_certificate")
                 );
             }
-            other => panic!("expected squash fold step, got {other:?}"),
+            other => panic!("expected local collapse step, got {other:?}"),
         }
         assert!(
             plan.states
@@ -3202,11 +3207,18 @@ mod tests {
         assert_eq!(plan.status, PlanStatus::Complete);
         assert!(plan.unresolved_regions.is_empty());
         match &plan.steps[0] {
-            InstructionStep::MoleculeCollapse(details) => {
+            InstructionStep::LocalCollapse(details) => {
                 assert_eq!(details.affected_creases.len(), 6);
                 assert_eq!(details.after_state, "target");
+                assert_eq!(
+                    details
+                        .certificate
+                        .as_ref()
+                        .map(|cert| cert.recognizer.as_str()),
+                    Some("topology_only_molecule_collapse")
+                );
             }
-            other => panic!("expected molecule collapse step, got {other:?}"),
+            other => panic!("expected local collapse step, got {other:?}"),
         }
     }
 

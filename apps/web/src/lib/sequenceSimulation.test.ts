@@ -63,7 +63,7 @@ describe('buildSequenceStepSimulation', () => {
 
   it('warns for heuristic macro-step previews', () => {
     const plan = planWithStep({
-      kind: 'rabbit_ear',
+      kind: 'local_collapse',
       id: 'macro',
       label: 'Perform a rabbit ear',
       affected_creases: [4, 5],

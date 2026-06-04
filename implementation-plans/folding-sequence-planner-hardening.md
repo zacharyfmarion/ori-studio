@@ -190,7 +190,7 @@ ranked search order on the same fixture/corpus set.
       checks.
 - [ ] Add negative tests for simple-fold lookalikes that must stay unsupported.
 - [ ] Split complex move recognition into move-specific recognizers.
-- [ ] Downgrade uncertified named complex moves to generic local/manual collapse.
+- [x] Downgrade uncertified named complex moves to generic local/manual collapse.
 - [x] Include layer-order information in state identity, scoring, and
       diagnostics.
 - [x] Split unresolved regions by connectivity and attach recognizer failure
