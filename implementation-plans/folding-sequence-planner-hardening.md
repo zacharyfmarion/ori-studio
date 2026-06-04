@@ -189,7 +189,7 @@ ranked search order on the same fixture/corpus set.
 - [x] Replace boundary-only simple fold detection with face-graph reflection
       checks.
 - [x] Add negative tests for simple-fold lookalikes that must stay unsupported.
-- [ ] Split complex move recognition into move-specific recognizers.
+- [x] Split complex move recognition into move-specific recognizers.
 - [x] Downgrade uncertified named complex moves to generic local/manual collapse.
 - [x] Include layer-order information in state identity, scoring, and
       diagnostics.

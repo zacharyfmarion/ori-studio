@@ -2195,23 +2195,38 @@ pub fn inspect_complex_transform_candidate(
 }
 
 fn classify_complex_candidate(state: &SequenceState, creases: &[usize]) -> ComplexMoveKind {
-    match creases.len() {
-        3 => ComplexMoveKind::ReverseFold,
-        4 => ComplexMoveKind::RabbitEar,
-        5..=6 => ComplexMoveKind::MoleculeCollapse,
-        _ => {
-            let valley_count = creases
-                .iter()
-                .filter(|crease| state.document.assignment_for_edge(**crease) == Assignment::Valley)
-                .count();
-            let mountain_count = creases.len().saturating_sub(valley_count);
-            if valley_count > mountain_count {
-                ComplexMoveKind::SimultaneousCollapse
-            } else {
-                ComplexMoveKind::SquashFold
-            }
-        }
+    if recognizes_reverse_fold_topology(creases) {
+        ComplexMoveKind::ReverseFold
+    } else if recognizes_rabbit_ear_topology(creases) {
+        ComplexMoveKind::RabbitEar
+    } else if recognizes_molecule_collapse_topology(creases) {
+        ComplexMoveKind::MoleculeCollapse
+    } else if recognizes_simultaneous_collapse_topology(state, creases) {
+        ComplexMoveKind::SimultaneousCollapse
+    } else {
+        ComplexMoveKind::SquashFold
     }
+}
+
+fn recognizes_reverse_fold_topology(creases: &[usize]) -> bool {
+    creases.len() == 3
+}
+
+fn recognizes_rabbit_ear_topology(creases: &[usize]) -> bool {
+    creases.len() == 4
+}
+
+fn recognizes_molecule_collapse_topology(creases: &[usize]) -> bool {
+    (5..=6).contains(&creases.len())
+}
+
+fn recognizes_simultaneous_collapse_topology(state: &SequenceState, creases: &[usize]) -> bool {
+    let valley_count = creases
+        .iter()
+        .filter(|crease| state.document.assignment_for_edge(**crease) == Assignment::Valley)
+        .count();
+    let mountain_count = creases.len().saturating_sub(valley_count);
+    valley_count > mountain_count
 }
 
 fn complex_kind_rank(kind: &ComplexMoveKind) -> usize {
@@ -3370,6 +3385,22 @@ mod tests {
             regions[0].reason,
             "no validated simple-fold rewrite matches this crease"
         );
+    }
+
+    #[test]
+    fn complex_topology_recognizers_are_split_by_move_family() {
+        let state = state_from_document("triad", triad_molecule());
+
+        assert!(recognizes_reverse_fold_topology(&[1, 2, 3]));
+        assert!(recognizes_rabbit_ear_topology(&[1, 2, 3, 4]));
+        assert!(recognizes_molecule_collapse_topology(&[1, 2, 3, 4, 5]));
+        assert!(!recognizes_molecule_collapse_topology(&[
+            1, 2, 3, 4, 5, 6, 7
+        ]));
+        assert!(!recognizes_simultaneous_collapse_topology(
+            &state,
+            &[6, 7, 8, 9, 10, 11]
+        ));
     }
 
     #[test]
