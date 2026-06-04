@@ -193,7 +193,7 @@ ranked search order on the same fixture/corpus set.
 - [ ] Downgrade uncertified named complex moves to generic local/manual collapse.
 - [ ] Include layer-order information in state identity, scoring, and
       diagnostics.
-- [ ] Split unresolved regions by connectivity and attach recognizer failure
+- [x] Split unresolved regions by connectivity and attach recognizer failure
       reasons.
 - [ ] Update WASM types and web UI to display certificate and preview certainty.
 - [ ] Add corpus/replay reporting for complete, partial, unsupported, and invalid

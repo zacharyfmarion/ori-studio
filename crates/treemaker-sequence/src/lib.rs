@@ -2101,26 +2101,143 @@ fn unresolved_regions_for_state(state: &SequenceState) -> Vec<UnresolvedRegion> 
     if state.active_creases.is_empty() {
         return Vec::new();
     }
-    let mut faces = Vec::new();
-    if let Ok(edges_faces) = if state.document.edges_faces.is_empty() {
+    let edges_faces = if state.document.edges_faces.is_empty() {
         build_edges_faces(&state.document)
     } else {
         Ok(state.document.edges_faces.clone())
-    } {
-        for crease in &state.active_creases {
-            if let Some(edge_faces) = edges_faces.get(*crease) {
-                faces.extend(edge_faces.iter().copied());
+    };
+    let edges_faces = edges_faces.unwrap_or_default();
+    connected_active_crease_components(state)
+        .into_iter()
+        .enumerate()
+        .map(|(index, creases)| {
+            let mut faces = Vec::new();
+            for crease in &creases {
+                if let Some(edge_faces) = edges_faces.get(*crease) {
+                    faces.extend(edge_faces.iter().copied());
+                }
+            }
+            faces.sort_unstable();
+            faces.dedup();
+            UnresolvedRegion {
+                id: format!("unresolved-{}", index + 1),
+                reason: unresolved_region_reason(state, &creases),
+                creases,
+                faces,
+            }
+        })
+        .collect()
+}
+
+fn connected_active_crease_components(state: &SequenceState) -> Vec<Vec<usize>> {
+    let active_set = state.active_creases.iter().copied().collect::<HashSet<_>>();
+    let mut active_creases = state.active_creases.clone();
+    active_creases.sort_unstable();
+    active_creases.dedup();
+    let mut active_by_vertex = vec![Vec::new(); state.document.vertices_coords.len()];
+    for crease in &active_creases {
+        let Some([a, b]) = state.document.edges_vertices.get(*crease).copied() else {
+            continue;
+        };
+        if let Some(creases) = active_by_vertex.get_mut(a) {
+            creases.push(*crease);
+        }
+        if let Some(creases) = active_by_vertex.get_mut(b) {
+            creases.push(*crease);
+        }
+    }
+
+    let edges_faces = if state.document.edges_faces.is_empty() {
+        build_edges_faces(&state.document)
+    } else {
+        Ok(state.document.edges_faces.clone())
+    };
+    let edges_faces = edges_faces.unwrap_or_default();
+    let mut active_by_face = vec![Vec::new(); state.document.faces_vertices.len()];
+    for crease in &state.active_creases {
+        if let Some(edge_faces) = edges_faces.get(*crease) {
+            for face in edge_faces {
+                if let Some(creases) = active_by_face.get_mut(*face) {
+                    creases.push(*crease);
+                }
             }
         }
-        faces.sort_unstable();
-        faces.dedup();
     }
-    vec![UnresolvedRegion {
-        id: "unresolved-1".to_string(),
-        creases: state.active_creases.clone(),
-        faces,
-        reason: "no validated Phase 3 simple-fold rewrite matches these creases".to_string(),
-    }]
+
+    let mut visited = HashSet::new();
+    let mut components = Vec::new();
+    for start in active_creases {
+        if !active_set.contains(&start) || !visited.insert(start) {
+            continue;
+        }
+        let mut stack = vec![start];
+        let mut component = Vec::new();
+        while let Some(crease) = stack.pop() {
+            component.push(crease);
+            let Some([a, b]) = state.document.edges_vertices.get(crease).copied() else {
+                continue;
+            };
+            for neighbor in active_by_vertex
+                .get(a)
+                .into_iter()
+                .chain(active_by_vertex.get(b))
+                .flat_map(|creases| creases.iter().copied())
+            {
+                if visited.insert(neighbor) {
+                    stack.push(neighbor);
+                }
+            }
+            if let Some(edge_faces) = edges_faces.get(crease) {
+                for face in edge_faces {
+                    for neighbor in active_by_face
+                        .get(*face)
+                        .into_iter()
+                        .flat_map(|creases| creases.iter().copied())
+                    {
+                        if visited.insert(neighbor) {
+                            stack.push(neighbor);
+                        }
+                    }
+                }
+            }
+        }
+        component.sort_unstable();
+        component.dedup();
+        components.push(component);
+    }
+    components.sort_by_key(|component| component.first().copied().unwrap_or(usize::MAX));
+    components
+}
+
+fn unresolved_region_reason(state: &SequenceState, creases: &[usize]) -> String {
+    if creases.len() == 1 {
+        return "no validated simple-fold rewrite matches this crease".to_string();
+    }
+    if component_has_interior_complex_vertex(state, creases) {
+        "connected region resembles a local complex move, but no certified transform matched"
+            .to_string()
+    } else {
+        "no validated rewrite matches this connected crease region".to_string()
+    }
+}
+
+fn component_has_interior_complex_vertex(state: &SequenceState, creases: &[usize]) -> bool {
+    let boundary_vertices = boundary_vertex_flags(&state.document);
+    let mut counts = vec![0usize; state.document.vertices_coords.len()];
+    for crease in creases {
+        let Some([a, b]) = state.document.edges_vertices.get(*crease).copied() else {
+            continue;
+        };
+        if let Some(count) = counts.get_mut(a) {
+            *count += 1;
+        }
+        if let Some(count) = counts.get_mut(b) {
+            *count += 1;
+        }
+    }
+    counts.into_iter().enumerate().any(|(vertex, count)| {
+        count >= 3 && !boundary_vertices.get(vertex).copied().unwrap_or(false)
+    })
 }
 
 fn boundary_vertex_flags(document: &FoldDocument) -> Vec<bool> {
@@ -2767,6 +2884,74 @@ mod tests {
         document
     }
 
+    fn disconnected_unresolved_state() -> SequenceState {
+        let mut document = FoldDocument::new(
+            vec![
+                vec![0.0, 0.0],
+                vec![1.0, 0.0],
+                vec![1.0, 1.0],
+                vec![0.0, 1.0],
+                vec![3.0, 0.0],
+                vec![4.0, 0.0],
+                vec![4.0, 1.0],
+                vec![3.0, 1.0],
+            ],
+            vec![
+                [0, 1],
+                [1, 2],
+                [2, 3],
+                [3, 0],
+                [0, 2],
+                [4, 5],
+                [5, 6],
+                [6, 7],
+                [7, 4],
+                [4, 6],
+            ],
+        );
+        document.edges_assignment = vec![
+            Assignment::Boundary,
+            Assignment::Boundary,
+            Assignment::Boundary,
+            Assignment::Boundary,
+            Assignment::Valley,
+            Assignment::Boundary,
+            Assignment::Boundary,
+            Assignment::Boundary,
+            Assignment::Boundary,
+            Assignment::Mountain,
+        ];
+        document.faces_vertices = vec![vec![0, 1, 2], vec![0, 2, 3], vec![4, 5, 6], vec![4, 6, 7]];
+        state_from_document("disconnected", document)
+    }
+
+    fn state_from_document(id: &str, document: FoldDocument) -> SequenceState {
+        let folded_vertices = document
+            .vertices_coords
+            .iter()
+            .map(|coord| [coord[0], coord[1]])
+            .collect();
+        let active_creases = document
+            .edges_assignment
+            .iter()
+            .enumerate()
+            .filter_map(|(edge, assignment)| {
+                matches!(assignment, Assignment::Mountain | Assignment::Valley).then_some(edge)
+            })
+            .collect();
+        SequenceState {
+            id: id.to_string(),
+            document,
+            active_creases,
+            face_orders: Vec::new(),
+            folded_vertices,
+            unresolved_regions: Vec::new(),
+            provenance: StateProvenance::input(),
+            layer_order_policy: LayerOrderPolicy::Preserved,
+            diagnostics: Vec::new(),
+        }
+    }
+
     #[test]
     fn target_state_wraps_flatfold_result() {
         let target = resolve_target_state(&two_face_valley(), TargetStateOptions::default())
@@ -2991,6 +3176,35 @@ mod tests {
             }
             other => panic!("expected molecule collapse step, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn unresolved_regions_are_split_by_connected_components() {
+        let state = disconnected_unresolved_state();
+        let regions = unresolved_regions_for_state(&state);
+
+        assert_eq!(regions.len(), 2);
+        assert_eq!(regions[0].id, "unresolved-1");
+        assert_eq!(regions[0].creases, vec![4]);
+        assert_eq!(regions[0].faces, vec![0, 1]);
+        assert_eq!(regions[1].id, "unresolved-2");
+        assert_eq!(regions[1].creases, vec![9]);
+        assert_eq!(regions[1].faces, vec![2, 3]);
+        assert!(
+            regions
+                .iter()
+                .all(|region| region.reason.contains("simple-fold"))
+        );
+    }
+
+    #[test]
+    fn unresolved_region_reason_marks_complex_like_components() {
+        let state = state_from_document("triad", triad_molecule());
+        let regions = unresolved_regions_for_state(&state);
+
+        assert_eq!(regions.len(), 1);
+        assert_eq!(regions[0].creases.len(), 6);
+        assert!(regions[0].reason.contains("local complex move"));
     }
 
     #[test]
