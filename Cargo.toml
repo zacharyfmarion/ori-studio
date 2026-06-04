@@ -29,6 +29,8 @@ anyhow = "1.0"
 clap = { version = "4.5", features = ["derive"] }
 image = { version = "0.25", default-features = false }
 imageproc = { version = "0.25", default-features = false }
+levenberg-marquardt = "0.15.0"
+nalgebra = "0.34.2"
 proptest = "1.6"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

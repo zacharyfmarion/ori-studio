@@ -14,6 +14,7 @@ pub mod carrier_reconcile;
 pub mod constraints;
 pub mod evidence;
 pub mod exact_probe;
+pub mod exact_solve;
 pub mod exactize;
 pub mod fold_export;
 pub mod optimizer;
@@ -39,6 +40,7 @@ pub use candidates::{
 };
 pub use constraints::{ConstraintDiagnostics, ConstraintSeverity, VertexConstraintDiagnostic};
 pub use evidence::{EvidenceSource, Provenance};
+pub use exact_solve::{ExactSolveOptions, solve_exact};
 pub use report::{CompilerReport, CompilerSummary};
 
 pub const COMPILER_BACKEND_ID: &str = "constraint_compiler_v1";

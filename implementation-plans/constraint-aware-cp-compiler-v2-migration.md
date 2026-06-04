@@ -1885,6 +1885,8 @@ Done means:
   conflicts, long-span-vs-fragment selection, no-loss legacy conversion, weak
   candidate additions, and boundary locking.
 - [x] Full validation passes for the affected crates/apps.
+- [x] Inspector defaults to the legacy candidate adapter for the product-like
+  path; Arrangement V2 remains an explicit alternate source for research/debug.
 
 Phase 6 is complete only when every checklist item above is checked. If one
 adapter works but the selector remains source-specific, this phase is not done.
@@ -1934,7 +1936,9 @@ minimize
 Implementation:
 
 - Begin with deterministic constrained nonlinear least squares.
-- Use `nalgebra` for matrix operations.
+- Use `levenberg-marquardt` plus `nalgebra` for the optimizer. Both must compile
+  for `wasm32-unknown-unknown`; if a future dependency cannot compile to WASM,
+  it is not acceptable for this browser pipeline.
 - Keep a bounded iteration count for browser runtime.
 - Return exact coordinates plus a full residual report.
 - If no nearby exact solution exists, return structured failure; do not emit a
@@ -1947,6 +1951,46 @@ Tests:
 - Wrong topology fails exact solve rather than warping wildly.
 - Boundary/corners remain exact.
 - Native and WASM exact solve match within tolerance.
+
+### Phase 7 Status - June 3, 2026
+
+Core solver implementation is complete, but Phase 7 as a product/debugging phase
+is not fully complete until the inspector has a separate exact-solve stage and
+the curated metric comparison is run.
+
+Completed:
+
+- [x] Added `crates/oristudio-cp-compiler/src/exact_solve.rs`.
+- [x] Added `levenberg-marquardt = 0.15.0` and `nalgebra = 0.34.2`.
+- [x] Implemented deterministic bounded nonlinear least-squares over
+  `ExactSolveInput`.
+- [x] Model variables include free interior vertex coordinates, side-only
+  boundary contact coordinates, and selected carrier angle/rho parameters.
+- [x] Objective includes weighted vertex movement, boundary contact movement,
+  carrier movement, carrier incidence, and Kawasaki residuals for eligible
+  interior vertices.
+- [x] Hard reports/failures include odd-degree topology, degenerate selected
+  edges, unmodeled crossings, boundary failures, and movement beyond budget.
+- [x] Output includes exact coordinates, selected edges, movement report,
+  theorem residual report, and `solved` / `ambiguous` / `failed` status.
+- [x] Unit coverage includes stable valid CPs, noisy Kawasaki improvement,
+  odd-degree topology failure, boundary-only contact movement, shared-carrier
+  split-vertex straightening, and excessive-movement failure.
+- [x] Validation run:
+  - `cargo test -p oristudio-cp-compiler`
+  - `cargo check -p oristudio-cp-compiler --target wasm32-unknown-unknown`
+  - `cargo check -p oristudio-cp-detect-wasm --target wasm32-unknown-unknown`
+  - `cargo check -p oristudio-cp-detect-inspector`
+  - `npm --workspace @treemaker/cp-detect-architecture-inspector run build`
+
+Remaining:
+
+- [ ] Add a new inspector dropdown stage for exact solve, separate from Stage 5.
+- [ ] Show selected graph before solve, exact-solved graph after solve, changed
+  vertices/edges, and theorem/CAMV diagnostics in that new stage.
+- [ ] Run curated legacy-vs-selected-vs-exact-solved metric comparisons.
+- [ ] Decide, from visual + metric review, whether exact solve should be wired
+  into browser import output or remain a diagnostic-only stage for now.
 
 Acceptance:
 

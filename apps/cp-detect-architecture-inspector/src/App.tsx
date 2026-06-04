@@ -126,7 +126,7 @@ export function App() {
   const [activeStage, setActiveStage] = useState<'stage1' | 'stage2' | 'stage3' | 'stage4' | 'stage5'>('stage5');
   const [threshold, setThreshold] = useState(0.65);
   const [mapSize, setMapSize] = useState(192);
-  const [candidateSource, setCandidateSource] = useState<'arrangement' | 'legacy'>('arrangement');
+  const [candidateSource, setCandidateSource] = useState<'arrangement' | 'legacy'>('legacy');
   const [legacyLowThreshold, setLegacyLowThreshold] = useState(0.35);
   const [stage, setStage] = useState<Stage1Response | Stage2Response | Stage3Response | Stage4Response | Stage5Response | null>(null);
   const [loadingStage, setLoadingStage] = useState(false);
@@ -411,8 +411,8 @@ export function App() {
               <label>
                 Candidate source
                 <select value={candidateSource} onChange={(event) => setCandidateSource(event.target.value as 'arrangement' | 'legacy')}>
-                  <option value="arrangement">Arrangement V2</option>
                   <option value="legacy">Legacy adapter</option>
+                  <option value="arrangement">Arrangement V2</option>
                 </select>
               </label>
             ) : null}

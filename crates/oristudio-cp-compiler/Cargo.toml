@@ -11,6 +11,8 @@ categories = ["algorithms", "mathematics"]
 include = ["Cargo.toml", "src/**", "tests/**"]
 
 [dependencies]
+levenberg-marquardt.workspace = true
+nalgebra.workspace = true
 oristudio-cp.workspace = true
 serde.workspace = true
 serde_json.workspace = true

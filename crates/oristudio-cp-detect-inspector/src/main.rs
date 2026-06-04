@@ -731,7 +731,7 @@ fn stage5_example(
     let candidate_source = query
         .get("candidate_source")
         .cloned()
-        .unwrap_or_else(|| "arrangement".to_owned());
+        .unwrap_or_else(|| "legacy".to_owned());
     let legacy_low_threshold = query
         .get("legacy_low_threshold")
         .and_then(|value| value.parse::<f32>().ok())
