@@ -46,6 +46,11 @@ Progress:
   shared selector contract and one shared exact-solver contract. This is a
   top-level phase because Phase 7 exact solving must not be built on
   arrangement-specific or legacy-specific selector types.
+- Phase 7 has a working exact-solve inspector stage as of June 4, 2026. The
+  backend now exposes Stage 6 and the inspector shows selected-before,
+  exact-solved-after, movement, failed-vertex overlays, and before/after solver
+  diagnostics. Phase 7 remains diagnostic-only until curated metrics say it is
+  good enough to wire into browser import output.
 - A `ConstraintCompilerV2` backend now exists for the compiler-native evidence
   route, while `ConstraintCompilerV1` remains the current locked-border
   baseline.
@@ -57,10 +62,10 @@ Progress:
 - V2 reports evidence extraction time separately from compiler time.
 - V2 reports explicit stage IDs in `compiler_report.stage_ids`.
 - `apps/cp-detect-architecture-inspector` and
-  `oristudio-cp-detect-inspector` provide local Stage 1 through Stage 5 debug
+  `oristudio-cp-detect-inspector` provide local Stage 1 through Stage 6 debug
   UI/API for visually inspecting dense evidence, arrangement candidates,
   weighted selection output, exactizability probes, and beam-selected final
-  crease spans.
+  crease spans, plus exact-solve before/after geometry.
 - The V2 product route is still not promoted. Exact solve, assignment solve,
   verifier/export contract, and benchmark gates remain open.
 
@@ -1952,11 +1957,10 @@ Tests:
 - Boundary/corners remain exact.
 - Native and WASM exact solve match within tolerance.
 
-### Phase 7 Status - June 3, 2026
+### Phase 7 Status - June 4, 2026
 
-Core solver implementation is complete, but Phase 7 as a product/debugging phase
-is not fully complete until the inspector has a separate exact-solve stage and
-the curated metric comparison is run.
+Core solver implementation and first inspector integration are complete, but
+Phase 7 remains diagnostic-only until the curated metric comparison is run.
 
 Completed:
 
@@ -1982,12 +1986,30 @@ Completed:
   - `cargo check -p oristudio-cp-detect-wasm --target wasm32-unknown-unknown`
   - `cargo check -p oristudio-cp-detect-inspector`
   - `npm --workspace @treemaker/cp-detect-architecture-inspector run build`
+- [x] Added a new inspector dropdown stage for exact solve, separate from Stage
+  5.
+- [x] Stage 6 backend response includes Stage 5 selected topology,
+  `ExactSolvedGraph`, movement report, theorem residual report, ground truth,
+  and legacy graph payloads.
+- [x] Stage 6 UI shows:
+  - selected graph before solve
+  - exact-solved graph after solve
+  - vertex movement overlay
+  - failed-vertex overlay
+  - GT graph toggle
+  - before/after diagnostics for Kawasaki, carrier residual, odd vertices,
+    degree-2 vertices, Maekawa failures, degenerate edges, crossings, boundary
+    failures, objective, movement budget, and top moved vertices.
+- [x] Stage 6 defaults to the smallest cached sample so the inspector opens to a
+  responsive exact-solve case. Larger samples remain selectable manually.
+- [x] Validation run on June 4:
+  - `cargo check -p oristudio-cp-detect-inspector`
+  - `npm --workspace @treemaker/cp-detect-architecture-inspector run build`
+  - direct Stage 6 API smoke on the clean treemaker sample
+  - browser smoke at `http://127.0.0.1:5176/`
 
 Remaining:
 
-- [ ] Add a new inspector dropdown stage for exact solve, separate from Stage 5.
-- [ ] Show selected graph before solve, exact-solved graph after solve, changed
-  vertices/edges, and theorem/CAMV diagnostics in that new stage.
 - [ ] Run curated legacy-vs-selected-vs-exact-solved metric comparisons.
 - [ ] Decide, from visual + metric review, whether exact solve should be wired
   into browser import output or remain a diagnostic-only stage for now.

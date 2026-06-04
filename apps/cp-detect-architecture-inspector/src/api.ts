@@ -1,4 +1,13 @@
-import type { ExamplesResponse, Stage1Response, Stage2Response, Stage3Response, Stage4Response, Stage5Response, StageInfo } from './types';
+import type {
+  ExamplesResponse,
+  Stage1Response,
+  Stage2Response,
+  Stage3Response,
+  Stage4Response,
+  Stage5Response,
+  Stage6Response,
+  StageInfo,
+} from './types';
 
 async function requestJson<T>(url: string): Promise<T> {
   const response = await fetch(url);
@@ -89,4 +98,21 @@ export function fetchStage5Example(
     legacy_low_threshold: String(options.legacyLowThreshold),
   });
   return requestJson(`/api/stage5/examples/${encodeURIComponent(sampleId)}?${params}`);
+}
+
+export function fetchStage6Examples(): Promise<ExamplesResponse> {
+  return requestJson('/api/stage6/examples');
+}
+
+export function fetchStage6Example(
+  sampleId: string,
+  options: { threshold: number; mapSize: number; candidateSource: string; legacyLowThreshold: number },
+): Promise<Stage6Response> {
+  const params = new URLSearchParams({
+    threshold: String(options.threshold),
+    map_size: String(options.mapSize),
+    candidate_source: options.candidateSource,
+    legacy_low_threshold: String(options.legacyLowThreshold),
+  });
+  return requestJson(`/api/stage6/examples/${encodeURIComponent(sampleId)}?${params}`);
 }

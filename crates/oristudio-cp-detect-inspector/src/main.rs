@@ -13,7 +13,8 @@ use oristudio_cp_compiler::selection::{
 };
 use oristudio_cp_compiler::{
     AssignmentCandidate, AssignmentLabel, CandidateGraph, CandidateProgram, EvidenceSource,
-    LegacyCandidateAdapter, LegacyCandidateAdapterOptions, Point2,
+    ExactSolveInput, ExactSolvedGraph, LegacyCandidateAdapter, LegacyCandidateAdapterOptions,
+    Point2, SelectedGraph, solve_exact,
 };
 use oristudio_cp_detect::decode::{DecodeConfig, DenseOutputs, decode_dense_outputs};
 use oristudio_cp_detect::evidence_extract::{
@@ -181,6 +182,26 @@ struct Stage5Response {
     candidate_graph: CandidateGraph,
     selection: CandidateSelection,
     exactizability: ExactizabilityReport,
+    ground_truth: Option<GroundTruthGraphPayload>,
+    legacy_graph: Option<GroundTruthGraphPayload>,
+}
+
+#[derive(Debug, Serialize)]
+struct Stage6Response {
+    schema: &'static str,
+    sample: ExampleRow,
+    map_size: usize,
+    config: EvidenceConfigSummary,
+    overlay_frame_px: OverlayFramePx,
+    report: Value,
+    maps: Vec<MapPayload>,
+    primitives: PrimitivePayload,
+    arrangement: CandidateArrangement,
+    candidate_source: String,
+    candidate_graph: CandidateGraph,
+    selection: CandidateSelection,
+    exactizability: ExactizabilityReport,
+    exact_solve: ExactSolvedGraph,
     ground_truth: Option<GroundTruthGraphPayload>,
     legacy_graph: Option<GroundTruthGraphPayload>,
 }
@@ -404,6 +425,12 @@ fn route_request(request: &HttpRequest, state: &AppState) -> HttpResponse {
                     label: "Stage 5",
                     title: "Exactizability-aware beam selection",
                     status: "implemented"
+                },
+                StageInfo {
+                    id: "stage6",
+                    label: "Stage 6",
+                    title: "Full exact geometric solve",
+                    status: "implemented"
                 }
             ]
         }))
@@ -432,6 +459,11 @@ fn route_request(request: &HttpRequest, state: &AppState) -> HttpResponse {
     } else if let Some(encoded_id) = path.strip_prefix("/api/stage5/examples/") {
         let sample_id = percent_decode(encoded_id);
         stage5_example(state, &sample_id, query).and_then(|payload| json_response(&payload))
+    } else if path == "/api/stage6/examples" {
+        stage6_examples(state).and_then(|payload| json_response(&payload))
+    } else if let Some(encoded_id) = path.strip_prefix("/api/stage6/examples/") {
+        let sample_id = percent_decode(encoded_id);
+        stage6_example(state, &sample_id, query).and_then(|payload| json_response(&payload))
     } else if let Some(encoded_id) = path.strip_prefix("/assets/input/") {
         let sample_id = percent_decode(encoded_id.trim_end_matches(".png"));
         serve_input_image(state, &sample_id)
@@ -500,6 +532,13 @@ fn stage5_examples(state: &AppState) -> Result<ExamplesResponse> {
     examples_response(
         state,
         "oristudio/cp-detect-architecture-inspector/stage5-index/v1",
+    )
+}
+
+fn stage6_examples(state: &AppState) -> Result<ExamplesResponse> {
+    examples_response(
+        state,
+        "oristudio/cp-detect-architecture-inspector/stage6-index/v1",
     )
 }
 
@@ -793,6 +832,44 @@ fn stage5_example(
         exactizability,
         ground_truth,
         legacy_graph,
+    })
+}
+
+fn stage6_example(
+    state: &AppState,
+    sample_id: &str,
+    query: BTreeMap<String, String>,
+) -> Result<Stage6Response> {
+    let stage5 = stage5_example(state, sample_id, query)?;
+    let selected_graph = SelectedGraph::from_selected_span_ids(
+        &stage5.candidate_graph,
+        stage5
+            .selection
+            .selected_spans
+            .iter()
+            .map(|span| span.id)
+            .collect(),
+    );
+    let exact_input =
+        ExactSolveInput::from_candidate_selection(&stage5.candidate_graph, &selected_graph);
+    let exact_solve = solve_exact(&exact_input, Default::default());
+    Ok(Stage6Response {
+        schema: "oristudio/cp-detect-architecture-inspector/stage6/v1",
+        sample: stage5.sample,
+        map_size: stage5.map_size,
+        config: stage5.config,
+        overlay_frame_px: stage5.overlay_frame_px,
+        report: stage5.report,
+        maps: stage5.maps,
+        primitives: stage5.primitives,
+        arrangement: stage5.arrangement,
+        candidate_source: stage5.candidate_source,
+        candidate_graph: stage5.candidate_graph,
+        selection: stage5.selection,
+        exactizability: stage5.exactizability,
+        exact_solve,
+        ground_truth: stage5.ground_truth,
+        legacy_graph: stage5.legacy_graph,
     })
 }
 

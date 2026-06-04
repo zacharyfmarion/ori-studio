@@ -435,3 +435,74 @@ export interface Stage5Response extends Stage4Response {
   ground_truth?: GroundTruthGraph | null;
   legacy_graph?: GroundTruthGraph | null;
 }
+
+export interface ExactSolvePoint {
+  x: number;
+  y: number;
+}
+
+export interface ExactMovedVertex {
+  vertex_id: number;
+  before: ExactSolvePoint;
+  after: ExactSolvePoint;
+  movement: number;
+  movement_policy?: string;
+  boundary_side?: 'top' | 'right' | 'bottom' | 'left' | null | string;
+  support?: number;
+}
+
+export interface ExactVertexDiagnostic {
+  vertex_id: number;
+  degree: number;
+  mountain_count: number;
+  valley_count: number;
+  unknown_count: number;
+  kawasaki_residual_degrees?: number | null;
+  maekawa_residual?: number | null;
+}
+
+export interface ExactSolveAnalysis {
+  eligible_vertices: number;
+  odd_degree_vertices: number[];
+  degree_two_vertices: number[];
+  maekawa_failures: number[];
+  max_kawasaki_residual_degrees: number;
+  max_carrier_residual: number;
+  max_vertex_movement: number;
+  mean_vertex_movement: number;
+  degenerate_edges: [number, number][];
+  unmodeled_crossings: [number, number][];
+  boundary_failures: number[];
+  vertex_diagnostics: ExactVertexDiagnostic[];
+}
+
+export interface ExactSolveMovementReport {
+  schema: string;
+  termination: string;
+  evaluations: number;
+  initial_objective: number;
+  final_objective: number;
+  max_vertex_movement: number;
+  max_vertex_movement_budget: number;
+  moved_vertices: ExactMovedVertex[];
+}
+
+export interface ExactSolveTheoremReport {
+  schema: string;
+  termination: string;
+  before: ExactSolveAnalysis;
+  after: ExactSolveAnalysis;
+}
+
+export interface ExactSolvedGraph {
+  schema: string;
+  vertices_exact: ExactSolvePoint[];
+  edges_exact: [number, number][];
+  movement_report: ExactSolveMovementReport;
+  theorem_residual_report: ExactSolveTheoremReport;
+  status: 'solved' | 'ambiguous' | 'failed' | string;
+}
+
+export interface Stage6Response extends Stage5Response {
+  exact_solve: ExactSolvedGraph;
+}

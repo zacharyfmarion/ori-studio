@@ -1,6 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Activity, CircleDot, GitBranch, Layers3, ListFilter, RefreshCw, SlidersHorizontal } from 'lucide-react';
-import { fetchStage1Example, fetchStage1Examples, fetchStage2Example, fetchStage3Example, fetchStage4Example, fetchStage5Example, fetchStages } from './api';
+import {
+  fetchStage1Example,
+  fetchStage1Examples,
+  fetchStage2Example,
+  fetchStage3Example,
+  fetchStage4Example,
+  fetchStage5Example,
+  fetchStage6Example,
+  fetchStages,
+} from './api';
 import type {
   ArrangementAtomicEdge,
   ArrangementCarrier,
@@ -18,6 +27,7 @@ import type {
   Stage3Response,
   Stage4Response,
   Stage5Response,
+  Stage6Response,
   VertexExactizabilityProbe,
 } from './types';
 
@@ -107,6 +117,9 @@ const ISSUE_FILTERS: Array<{ id: Stage4IssueFilter; label: string }> = [
 
 const ISSUE_LIST_LIMIT_PER_TYPE = 10;
 
+type ActiveStage = 'stage1' | 'stage2' | 'stage3' | 'stage4' | 'stage5' | 'stage6';
+type AnyStageResponse = Stage1Response | Stage2Response | Stage3Response | Stage4Response | Stage5Response | Stage6Response;
+
 function defaultProbeVisibility(): ProbeVisibility {
   return {
     feasible: { vertex: false, carrier: false, boundary: false },
@@ -123,12 +136,12 @@ export function App() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [examples, setExamples] = useState<ExampleRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [activeStage, setActiveStage] = useState<'stage1' | 'stage2' | 'stage3' | 'stage4' | 'stage5'>('stage5');
+  const [activeStage, setActiveStage] = useState<ActiveStage>('stage6');
   const [threshold, setThreshold] = useState(0.65);
   const [mapSize, setMapSize] = useState(192);
   const [candidateSource, setCandidateSource] = useState<'arrangement' | 'legacy'>('legacy');
   const [legacyLowThreshold, setLegacyLowThreshold] = useState(0.35);
-  const [stage, setStage] = useState<Stage1Response | Stage2Response | Stage3Response | Stage4Response | Stage5Response | null>(null);
+  const [stage, setStage] = useState<AnyStageResponse | null>(null);
   const [loadingStage, setLoadingStage] = useState(false);
   const [background, setBackground] = useState('input');
   const [showLines, setShowLines] = useState(true);
@@ -144,6 +157,10 @@ export function App() {
   const [showCarrierGeometry, setShowCarrierGeometry] = useState(true);
   const [showGroundTruth, setShowGroundTruth] = useState(false);
   const [showLegacyGraph, setShowLegacyGraph] = useState(false);
+  const [showExactBefore, setShowExactBefore] = useState(true);
+  const [showExactAfter, setShowExactAfter] = useState(true);
+  const [showExactMovement, setShowExactMovement] = useState(true);
+  const [showExactFailures, setShowExactFailures] = useState(true);
   const [probeVisibility, setProbeVisibility] = useState<ProbeVisibility>(() => defaultProbeVisibility());
   const [stage4IssueFilter, setStage4IssueFilter] = useState<Stage4IssueFilter>('all');
   const [selectedStage4IssueId, setSelectedStage4IssueId] = useState<string | null>(null);
@@ -151,7 +168,25 @@ export function App() {
   const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
-    if (activeStage === 'stage5') {
+    if (activeStage === 'stage6') {
+      setShowLines(false);
+      setShowSharedCarriers(false);
+      setShowAtomicEdges(false);
+      setShowSelectedEdges(true);
+      setShowUndecidedEdges(false);
+      setShowRejectedEdges(false);
+      setShowJunctions(false);
+      setShowContacts(false);
+      setShowLineEndpoints(false);
+      setShowInferredCrossings(false);
+      setShowCarrierGeometry(true);
+      setShowGroundTruth(false);
+      setShowLegacyGraph(false);
+      setShowExactBefore(true);
+      setShowExactAfter(true);
+      setShowExactMovement(true);
+      setShowExactFailures(true);
+    } else if (activeStage === 'stage5') {
       setShowLines(false);
       setShowSharedCarriers(false);
       setShowAtomicEdges(false);
@@ -228,7 +263,7 @@ export function App() {
         setServerOk(true);
         setServerError(null);
         setExamples(exampleResponse.rows);
-        setSelectedId((current) => current ?? exampleResponse.rows[0]?.id ?? null);
+        setSelectedId((current) => current ?? defaultExampleForStage(exampleResponse.rows, activeStage)?.id ?? exampleResponse.rows[0]?.id ?? null);
       })
       .catch((error: unknown) => {
         if (cancelled) return;
@@ -238,7 +273,7 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [activeStage]);
 
   useEffect(() => {
     if (!selectedId) return;
@@ -246,7 +281,9 @@ export function App() {
     setStage(null);
     setLoadingStage(true);
     const request =
-      activeStage === 'stage5'
+      activeStage === 'stage6'
+        ? fetchStage6Example(selectedId, { threshold, mapSize, candidateSource, legacyLowThreshold })
+        : activeStage === 'stage5'
         ? fetchStage5Example(selectedId, { threshold, mapSize, candidateSource, legacyLowThreshold })
         : activeStage === 'stage4'
         ? fetchStage4Example(selectedId, { threshold, mapSize })
@@ -293,7 +330,9 @@ export function App() {
     [filteredStage4Issues, selectedStage4IssueId],
   );
   const stage5 = isStage5(stage) ? stage : null;
-  const candidateGraph = stage5?.candidate_graph ?? null;
+  const stage5Like = isStage5Like(stage) ? stage : null;
+  const stage6 = isStage6(stage) ? stage : null;
+  const candidateGraph = stage5Like?.candidate_graph ?? null;
 
   useEffect(() => {
     if (activeStage !== 'stage4') {
@@ -363,12 +402,13 @@ export function App() {
             <PanelTitle icon={<SlidersHorizontal size={17} />} title="Evidence Extraction" />
             <label>
               Stage
-              <select value={activeStage} onChange={(event) => setActiveStage(event.target.value as 'stage1' | 'stage2' | 'stage3' | 'stage4' | 'stage5')}>
+              <select value={activeStage} onChange={(event) => setActiveStage(event.target.value as ActiveStage)}>
                 <option value="stage1">Stage 1: dense evidence</option>
                 <option value="stage2">Stage 2: candidate arrangement</option>
                 <option value="stage3">Stage 3: weighted selection</option>
                 <option value="stage4">Stage 4: exactizability probes</option>
                 <option value="stage5">Stage 5: beam selection</option>
+                <option value="stage6">Stage 6: exact solve</option>
               </select>
             </label>
             <label>
@@ -382,7 +422,7 @@ export function App() {
                 onChange={(event) => setThreshold(Number(event.target.value))}
               />
             </label>
-            {activeStage !== 'stage4' && activeStage !== 'stage5' ? (
+            {activeStage !== 'stage4' && activeStage !== 'stage5' && activeStage !== 'stage6' ? (
               <label>
                 Map size
                 <input
@@ -395,7 +435,7 @@ export function App() {
                 />
               </label>
             ) : null}
-            {activeStage !== 'stage4' && activeStage !== 'stage5' ? (
+            {activeStage !== 'stage4' && activeStage !== 'stage5' && activeStage !== 'stage6' ? (
               <label>
                 Background
                 <select value={background} onChange={(event) => setBackground(event.target.value)}>
@@ -407,7 +447,7 @@ export function App() {
                 </select>
               </label>
             ) : null}
-            {activeStage === 'stage5' ? (
+            {activeStage === 'stage5' || activeStage === 'stage6' ? (
               <label>
                 Candidate source
                 <select value={candidateSource} onChange={(event) => setCandidateSource(event.target.value as 'arrangement' | 'legacy')}>
@@ -416,7 +456,7 @@ export function App() {
                 </select>
               </label>
             ) : null}
-            {activeStage === 'stage5' && candidateSource === 'legacy' ? (
+            {(activeStage === 'stage5' || activeStage === 'stage6') && candidateSource === 'legacy' ? (
               <label>
                 Weak threshold
                 <input
@@ -441,7 +481,69 @@ export function App() {
 
           {serverError ? <div className="error-panel">{serverError}</div> : null}
 
-          {activeStage === 'stage5' ? (
+          {activeStage === 'stage6' ? (
+            <section className="summary-grid">
+              <Metric label="exact status" value={stage6?.exact_solve.status ?? '...'} />
+              <Metric
+                label="Kawasaki"
+                value={
+                  stage6
+                    ? `${formatDegrees(stage6.exact_solve.theorem_residual_report.before.max_kawasaki_residual_degrees)} → ${formatDegrees(
+                        stage6.exact_solve.theorem_residual_report.after.max_kawasaki_residual_degrees,
+                      )}`
+                    : '...'
+                }
+              />
+              <Metric
+                label="Maekawa fails"
+                value={
+                  stage6
+                    ? `${stage6.exact_solve.theorem_residual_report.before.maekawa_failures.length} → ${stage6.exact_solve.theorem_residual_report.after.maekawa_failures.length}`
+                    : '...'
+                }
+              />
+              <Metric
+                label="odd vertices"
+                value={
+                  stage6
+                    ? `${stage6.exact_solve.theorem_residual_report.before.odd_degree_vertices.length} → ${stage6.exact_solve.theorem_residual_report.after.odd_degree_vertices.length}`
+                    : '...'
+                }
+              />
+              <Metric
+                label="carrier residual"
+                value={
+                  stage6
+                    ? `${formatMetricNumber(stage6.exact_solve.theorem_residual_report.before.max_carrier_residual, 5)} → ${formatMetricNumber(
+                        stage6.exact_solve.theorem_residual_report.after.max_carrier_residual,
+                        5,
+                      )}`
+                    : '...'
+                }
+              />
+              <Metric label="moved vertices" value={stage6 ? stage6.exact_solve.movement_report.moved_vertices.length : '...'} />
+              <Metric
+                label="max movement"
+                value={stage6 ? formatMetricNumber(stage6.exact_solve.movement_report.max_vertex_movement, 5) : '...'}
+              />
+              <Metric
+                label="objective"
+                value={
+                  stage6
+                    ? `${formatMetricNumber(stage6.exact_solve.movement_report.initial_objective, 2)} → ${formatMetricNumber(
+                        stage6.exact_solve.movement_report.final_objective,
+                        2,
+                      )}`
+                    : '...'
+                }
+              />
+              <Metric label="selected spans" value={stage6 ? stage6.selection.report.selected_spans : '...'} />
+              <Metric
+                label="GT graph"
+                value={stage6?.ground_truth ? `${stage6.ground_truth.vertices_px.length} V / ${stage6.ground_truth.edges_vertices.length} E` : 'none'}
+              />
+            </section>
+          ) : activeStage === 'stage5' ? (
             <section className="summary-grid">
               <Metric label="selected spans" value={stage5 ? stage5.selection.report.selected_spans : '...'} />
               <Metric label="source" value={candidateGraph?.provenance?.source_adapter ?? stage5?.candidate_source ?? candidateSource} />
@@ -537,6 +639,8 @@ export function App() {
                 ? 'viewer-and-maps stage4-viewer-layout'
                 : activeStage === 'stage5'
                   ? 'viewer-and-maps stage5-viewer-layout'
+                  : activeStage === 'stage6'
+                    ? 'viewer-and-maps stage6-viewer-layout'
                   : 'viewer-and-maps'
             }
           >
@@ -547,6 +651,8 @@ export function App() {
                   title={
                     activeStage === 'stage5'
                       ? 'Selected Graph vs Ground Truth'
+                      : activeStage === 'stage6'
+                        ? 'Exact Solve Before / After'
                       : activeStage === 'stage4'
                       ? 'Input + Exactizability Probes'
                       : activeStage === 'stage3'
@@ -556,7 +662,50 @@ export function App() {
                         : 'Input + Stage 1 Primitives'
                   }
                 />
-                {activeStage === 'stage5' ? (
+                {activeStage === 'stage6' ? (
+                  <div className="toggle-row stage6-toggle-row">
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={showExactBefore}
+                        onChange={(event) => setShowExactBefore(event.target.checked)}
+                      />
+                      selected before
+                    </label>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={showExactAfter}
+                        onChange={(event) => setShowExactAfter(event.target.checked)}
+                      />
+                      exact solved
+                    </label>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={showExactMovement}
+                        onChange={(event) => setShowExactMovement(event.target.checked)}
+                      />
+                      movement
+                    </label>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={showExactFailures}
+                        onChange={(event) => setShowExactFailures(event.target.checked)}
+                      />
+                      failed vertices
+                    </label>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={showGroundTruth}
+                        onChange={(event) => setShowGroundTruth(event.target.checked)}
+                      />
+                      GT graph
+                    </label>
+                  </div>
+                ) : activeStage === 'stage5' ? (
                   <div className="toggle-row stage5-toggle-row">
                     <label>
                       <input
@@ -696,7 +845,16 @@ export function App() {
                 </div>
                 ) : null}
               </div>
-              {isStage3(stage) ? (
+              {isStage6(stage) ? (
+                <ExactSolveViewer
+                  showAfter={showExactAfter}
+                  showBefore={showExactBefore}
+                  showFailures={showExactFailures}
+                  showGroundTruth={showGroundTruth}
+                  showMovement={showExactMovement}
+                  stage={stage}
+                />
+              ) : isStage3(stage) ? (
                 <SelectionViewer
                   backgroundMap={activeStage === 'stage4' || activeStage === 'stage5' ? null : backgroundMap}
                   showCarrierGeometry={activeStage === 'stage5' ? true : showCarrierGeometry}
@@ -741,7 +899,11 @@ export function App() {
               )}
             </div>
 
-            {isStage4(stage) ? (
+            {isStage6(stage) ? (
+              <aside className="map-panel stage6-diagnostics-panel">
+                <Stage6LayerSummary stage={stage} />
+              </aside>
+            ) : isStage4(stage) ? (
               <aside className="map-panel stage4-probe-panel">
                 <Stage4LayerSummary
                   filteredIssues={filteredStage4Issues}
@@ -789,30 +951,32 @@ export function App() {
   );
 }
 
-function hasArrangement(
-  stage: Stage1Response | Stage2Response | Stage3Response | Stage4Response | Stage5Response | null,
-): stage is Stage2Response | Stage3Response | Stage4Response | Stage5Response {
+function hasArrangement(stage: AnyStageResponse | null): stage is Stage2Response | Stage3Response | Stage4Response | Stage5Response | Stage6Response {
   return Boolean(stage && 'arrangement' in stage);
 }
 
-function isStage3(
-  stage: Stage1Response | Stage2Response | Stage3Response | Stage4Response | Stage5Response | null,
-): stage is Stage3Response | Stage4Response | Stage5Response {
+function isStage3(stage: AnyStageResponse | null): stage is Stage3Response | Stage4Response | Stage5Response | Stage6Response {
   return Boolean(stage && 'selection' in stage);
 }
 
-function hasExactizability(
-  stage: Stage1Response | Stage2Response | Stage3Response | Stage4Response | Stage5Response | null,
-): stage is Stage4Response | Stage5Response {
+function hasExactizability(stage: AnyStageResponse | null): stage is Stage4Response | Stage5Response | Stage6Response {
   return Boolean(stage && 'exactizability' in stage);
 }
 
-function isStage4(stage: Stage1Response | Stage2Response | Stage3Response | Stage4Response | Stage5Response | null): stage is Stage4Response {
+function isStage4(stage: AnyStageResponse | null): stage is Stage4Response {
   return Boolean(stage && 'exactizability' in stage && !('ground_truth' in stage));
 }
 
-function isStage5(stage: Stage1Response | Stage2Response | Stage3Response | Stage4Response | Stage5Response | null): stage is Stage5Response {
+function isStage5Like(stage: AnyStageResponse | null): stage is Stage5Response | Stage6Response {
   return Boolean(stage && 'ground_truth' in stage);
+}
+
+function isStage5(stage: AnyStageResponse | null): stage is Stage5Response {
+  return Boolean(stage && 'ground_truth' in stage && !('exact_solve' in stage));
+}
+
+function isStage6(stage: AnyStageResponse | null): stage is Stage6Response {
+  return Boolean(stage && 'exact_solve' in stage);
 }
 
 function PanelTitle({ icon, title }: { icon: React.ReactNode; title: string }) {
@@ -831,6 +995,24 @@ function Metric({ label, value }: { label: string; value: string | number }) {
       <strong>{value}</strong>
     </div>
   );
+}
+
+function formatMetricNumber(value: number | undefined | null, digits = 3): string {
+  return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(digits) : 'n/a';
+}
+
+function formatDegrees(value: number | undefined | null): string {
+  return `${formatMetricNumber(value, 2)}°`;
+}
+
+function defaultExampleForStage(rows: ExampleRow[], activeStage: ActiveStage): ExampleRow | null {
+  if (!rows.length) return null;
+  if (activeStage !== 'stage6') return rows[0] ?? null;
+  return rows.reduce((best, row) => {
+    const bestEdges = best.edge_count ?? Number.POSITIVE_INFINITY;
+    const rowEdges = row.edge_count ?? Number.POSITIVE_INFINITY;
+    return rowEdges < bestEdges ? row : best;
+  }, rows[0]);
 }
 
 function PrimitiveViewer({
@@ -1465,6 +1647,258 @@ function SelectionSpanEndpointView({
   );
 }
 
+function ExactSolveViewer({
+  showAfter,
+  showBefore,
+  showFailures,
+  showGroundTruth,
+  showMovement,
+  stage,
+}: {
+  showAfter: boolean;
+  showBefore: boolean;
+  showFailures: boolean;
+  showGroundTruth: boolean;
+  showMovement: boolean;
+  stage: Stage6Response;
+}) {
+  const verticesById = useMemo(() => {
+    const values = new Map<number, ArrangementVertex>();
+    for (const vertex of stage.arrangement.vertices) values.set(vertex.id, vertex);
+    return values;
+  }, [stage.arrangement.vertices]);
+  const carriersById = useMemo(() => {
+    const values = new Map<number, ArrangementCarrier>();
+    for (const carrier of stage.arrangement.carriers) values.set(carrier.id, carrier);
+    return values;
+  }, [stage.arrangement.carriers]);
+  const size = stage.config.image_size;
+
+  return (
+    <div className="viewer-canvas exact-solve-canvas">
+      <div className="stage5-blank-paper" />
+      <svg className="primitive-overlay arrangement-overlay" viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Stage 6 exact solve">
+        {showGroundTruth && stage.ground_truth ? <GroundTruthGraphView graph={stage.ground_truth} /> : null}
+        {showBefore ? (
+          <g className="exact-before-layer">
+            <SelectionSpanGraphView
+              carriersById={carriersById}
+              frame={stage.overlay_frame_px}
+              selection={stage.selection}
+              verticesById={verticesById}
+            />
+          </g>
+        ) : null}
+        {showAfter ? <ExactSolvedGraphView stage={stage} /> : null}
+        {showMovement ? <ExactMovementView stage={stage} /> : null}
+        {showFailures ? <ExactFailureVertexView stage={stage} /> : null}
+      </svg>
+    </div>
+  );
+}
+
+function ExactSolvedGraphView({ stage }: { stage: Stage6Response }) {
+  const endpointDegrees = new Map<number, number>();
+  for (const [aId, bId] of stage.exact_solve.edges_exact) {
+    endpointDegrees.set(aId, (endpointDegrees.get(aId) ?? 0) + 1);
+    endpointDegrees.set(bId, (endpointDegrees.get(bId) ?? 0) + 1);
+  }
+  return (
+    <g className={`exact-solved-graph exact-status-${stage.exact_solve.status}`} aria-label="Exact-solved graph">
+      {stage.exact_solve.edges_exact.map(([aId, bId], index) => {
+        const a = stage.exact_solve.vertices_exact[aId];
+        const b = stage.exact_solve.vertices_exact[bId];
+        if (!a || !b) return null;
+        const label = exactEdgeAssignmentLabel(stage, [aId, bId], index);
+        const p0 = imagePoint(a, stage.overlay_frame_px);
+        const p1 = imagePoint(b, stage.overlay_frame_px);
+        return (
+          <g key={`exact-edge-${index}-${aId}-${bId}`}>
+            <line
+              stroke="#ffffff"
+              strokeLinecap="round"
+              strokeOpacity={0.94}
+              strokeWidth={label === 'boundary' || label === 'B' ? 4.15 : 3.45}
+              vectorEffect="non-scaling-stroke"
+              x1={p0.x}
+              x2={p1.x}
+              y1={p0.y}
+              y2={p1.y}
+            />
+            <line
+              stroke={arrangementAssignmentColor(label)}
+              strokeDasharray={label === 'valley' || label === 'V' ? '7 5' : undefined}
+              strokeLinecap="round"
+              strokeOpacity={label === 'boundary' || label === 'B' ? 0.78 : 0.98}
+              strokeWidth={label === 'boundary' || label === 'B' ? 2.3 : 1.95}
+              vectorEffect="non-scaling-stroke"
+              x1={p0.x}
+              x2={p1.x}
+              y1={p0.y}
+              y2={p1.y}
+            >
+              <title>
+                exact edge {index}: {label}; vertices {aId} {'->'} {bId}
+              </title>
+            </line>
+          </g>
+        );
+      })}
+      {[...endpointDegrees.entries()].map(([vertexId, degree]) => {
+        const point = stage.exact_solve.vertices_exact[vertexId];
+        if (!point) return null;
+        const image = imagePoint(point, stage.overlay_frame_px);
+        const boundary = nearUnit(point.x, 0) || nearUnit(point.x, 1) || nearUnit(point.y, 0) || nearUnit(point.y, 1);
+        return (
+          <circle
+            cx={image.x}
+            cy={image.y}
+            fill={boundary ? '#14b8a6' : degree === 2 ? '#f8fafc' : '#fde047'}
+            key={`exact-endpoint-${vertexId}`}
+            r={boundary ? 2.85 : degree === 2 ? 2.05 : 2.65}
+            stroke="#0f172a"
+            strokeOpacity={0.88}
+            strokeWidth={0.8}
+            vectorEffect="non-scaling-stroke"
+          >
+            <title>
+              exact vertex {vertexId}; degree {degree}
+            </title>
+          </circle>
+        );
+      })}
+    </g>
+  );
+}
+
+function ExactMovementView({ stage }: { stage: Stage6Response }) {
+  const moved = stage.exact_solve.movement_report.moved_vertices
+    .filter((vertex) => vertex.movement > 0.00001)
+    .sort((left, right) => right.movement - left.movement)
+    .slice(0, 200);
+  return (
+    <g className="exact-movement-layer" aria-label="Exact solve vertex movement">
+      {moved.map((vertex) => {
+        const before = imagePoint(vertex.before, stage.overlay_frame_px);
+        const after = imagePoint(vertex.after, stage.overlay_frame_px);
+        return (
+          <g key={`movement-${vertex.vertex_id}`}>
+            <line
+              stroke="#06b6d4"
+              strokeLinecap="round"
+              strokeOpacity={0.82}
+              strokeWidth={1.2}
+              vectorEffect="non-scaling-stroke"
+              x1={before.x}
+              x2={after.x}
+              y1={before.y}
+              y2={after.y}
+            />
+            <circle
+              cx={after.x}
+              cy={after.y}
+              fill="#06b6d4"
+              fillOpacity={0.9}
+              r={2.3}
+              stroke="#ffffff"
+              strokeWidth={0.7}
+              vectorEffect="non-scaling-stroke"
+            >
+              <title>
+                vertex {vertex.vertex_id} moved {vertex.movement.toFixed(6)}
+              </title>
+            </circle>
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+function ExactFailureVertexView({ stage }: { stage: Stage6Response }) {
+  const failures = exactFailureVertices(stage);
+  return (
+    <g className="exact-failure-layer" aria-label="Exact solve failing vertices">
+      {failures.map((failure) => {
+        const point = stage.exact_solve.vertices_exact[failure.vertexId];
+        if (!point) return null;
+        const image = imagePoint(point, stage.overlay_frame_px);
+        return (
+          <g key={`exact-failure-${failure.vertexId}`}>
+            <circle
+              cx={image.x}
+              cy={image.y}
+              fill="none"
+              r={7.2}
+              stroke={failure.color}
+              strokeOpacity={0.9}
+              strokeWidth={2}
+              vectorEffect="non-scaling-stroke"
+            />
+            <circle
+              cx={image.x}
+              cy={image.y}
+              fill={failure.color}
+              fillOpacity={0.9}
+              r={2.2}
+              stroke="#ffffff"
+              strokeWidth={0.8}
+              vectorEffect="non-scaling-stroke"
+            >
+              <title>
+                vertex {failure.vertexId}: {failure.reasons.join('; ')}
+              </title>
+            </circle>
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+function exactEdgeAssignmentLabel(stage: Stage6Response, edge: [number, number], index: number): string {
+  const indexed = stage.selection.selected_spans[index];
+  if (indexed && sameUndirectedEdge(indexed.vertices, edge)) return indexed.assignment.label;
+  const matched = stage.selection.selected_spans.find((span) => sameUndirectedEdge(span.vertices, edge));
+  return matched?.assignment.label ?? indexed?.assignment.label ?? 'unknown';
+}
+
+function sameUndirectedEdge(left: [number, number], right: [number, number]): boolean {
+  return (left[0] === right[0] && left[1] === right[1]) || (left[0] === right[1] && left[1] === right[0]);
+}
+
+function exactFailureVertices(stage: Stage6Response): Array<{ vertexId: number; reasons: string[]; color: string }> {
+  const after = stage.exact_solve.theorem_residual_report.after;
+  const failures = new Map<number, string[]>();
+  const remember = (vertexId: number, reason: string) => {
+    const reasons = failures.get(vertexId) ?? [];
+    reasons.push(reason);
+    failures.set(vertexId, reasons);
+  };
+  for (const vertexId of after.odd_degree_vertices) remember(vertexId, 'odd degree');
+  for (const vertexId of after.degree_two_vertices) remember(vertexId, 'degree 2 pass-through');
+  for (const vertexId of after.maekawa_failures) remember(vertexId, 'Maekawa failure');
+  for (const vertexId of after.boundary_failures) remember(vertexId, 'boundary failure');
+  for (const diagnostic of after.vertex_diagnostics) {
+    if ((diagnostic.kawasaki_residual_degrees ?? 0) > 0.001) {
+      remember(vertexIdFromDiagnostic(diagnostic), `Kawasaki ${formatDegrees(diagnostic.kawasaki_residual_degrees)}`);
+    }
+  }
+  return [...failures.entries()].map(([vertexId, reasons]) => ({
+    vertexId,
+    reasons,
+    color: reasons.some((reason) => reason.includes('Maekawa') || reason.includes('odd'))
+      ? '#dc2626'
+      : reasons.some((reason) => reason.includes('Kawasaki'))
+        ? '#9333ea'
+        : '#f59e0b',
+  }));
+}
+
+function vertexIdFromDiagnostic(diagnostic: { vertex_id: number }): number {
+  return diagnostic.vertex_id;
+}
+
 function SelectionEdgeView({
   carriersById,
   decision,
@@ -2060,6 +2494,99 @@ function Stage3LayerSummary({ stage }: { stage: Stage3Response }) {
           ? 'Stage 5 shows the exactizability-aware selected graph candidate. Toggle GT graph to compare the selected topology against the known fold file.'
           : 'Stage 3 shows the selected graph candidate by default. Turn on observed carriers or shared alternatives only when comparing the choice against Stage 2 evidence. Exact geometric theorem costs arrive in Phase 4.'}
       </p>
+    </div>
+  );
+}
+
+function Stage6LayerSummary({ stage }: { stage: Stage6Response }) {
+  const before = stage.exact_solve.theorem_residual_report.before;
+  const after = stage.exact_solve.theorem_residual_report.after;
+  const movement = stage.exact_solve.movement_report;
+  const failures = exactFailureVertices(stage).slice(0, 18);
+  const movedVertices = movement.moved_vertices
+    .slice()
+    .sort((left, right) => right.movement - left.movement)
+    .slice(0, 14);
+  return (
+    <div className="hypothesis-panel exact-solve-panel">
+      <PanelTitle icon={<GitBranch size={17} />} title="Exact Solve Diagnostics" />
+      <div className={`exact-status-pill ${stage.exact_solve.status}`}>
+        <span>Status</span>
+        <strong>{stage.exact_solve.status}</strong>
+      </div>
+      <div className="selection-status-row">
+        <span>Termination</span>
+        <strong>{movement.termination}</strong>
+      </div>
+      <div className="selection-status-row">
+        <span>Evaluations</span>
+        <strong>{movement.evaluations}</strong>
+      </div>
+      <div className="hypothesis-divider" />
+      <PanelTitle icon={<ListFilter size={17} />} title="Before / After Checks" />
+      <ExactDiagnosticRow label="Kawasaki max" before={formatDegrees(before.max_kawasaki_residual_degrees)} after={formatDegrees(after.max_kawasaki_residual_degrees)} />
+      <ExactDiagnosticRow label="Carrier residual" before={formatMetricNumber(before.max_carrier_residual, 6)} after={formatMetricNumber(after.max_carrier_residual, 6)} />
+      <ExactDiagnosticRow label="Odd vertices" before={String(before.odd_degree_vertices.length)} after={String(after.odd_degree_vertices.length)} />
+      <ExactDiagnosticRow label="Degree-2 vertices" before={String(before.degree_two_vertices.length)} after={String(after.degree_two_vertices.length)} />
+      <ExactDiagnosticRow label="Maekawa failures" before={String(before.maekawa_failures.length)} after={String(after.maekawa_failures.length)} />
+      <ExactDiagnosticRow label="Degenerate edges" before={String(before.degenerate_edges.length)} after={String(after.degenerate_edges.length)} />
+      <ExactDiagnosticRow label="Crossings" before={String(before.unmodeled_crossings.length)} after={String(after.unmodeled_crossings.length)} />
+      <ExactDiagnosticRow label="Boundary failures" before={String(before.boundary_failures.length)} after={String(after.boundary_failures.length)} />
+      <div className="hypothesis-divider" />
+      <PanelTitle icon={<GitBranch size={17} />} title="Movement" />
+      <ExactDiagnosticRow
+        label="Objective"
+        before={formatMetricNumber(movement.initial_objective, 3)}
+        after={formatMetricNumber(movement.final_objective, 3)}
+      />
+      <ExactDiagnosticRow
+        label="Max vertex move"
+        before="0.00000"
+        after={formatMetricNumber(movement.max_vertex_movement, 5)}
+      />
+      <div className="selection-status-row">
+        <span>Movement budget</span>
+        <strong>{formatMetricNumber(movement.max_vertex_movement_budget, 5)}</strong>
+      </div>
+      <div className="moved-vertex-list">
+        {movedVertices.map((vertex) => (
+          <div className="moved-vertex-row" key={`moved-${vertex.vertex_id}`}>
+            <strong>v{vertex.vertex_id}</strong>
+            <span>{formatMetricNumber(vertex.movement, 6)}</span>
+            <em>{vertex.boundary_side ?? vertex.movement_policy ?? 'free'}</em>
+          </div>
+        ))}
+      </div>
+      <div className="hypothesis-divider" />
+      <PanelTitle icon={<ListFilter size={17} />} title="Remaining Failed Vertices" />
+      {failures.length ? (
+        <div className="exact-failure-list">
+          {failures.map((failure) => (
+            <div className="exact-failure-row" key={`failure-row-${failure.vertexId}`}>
+              <span className="layer-swatch" style={{ background: failure.color }} />
+              <strong>v{failure.vertexId}</strong>
+              <em>{failure.reasons.join(', ')}</em>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p>No local theorem failures remain in the exact-solved graph.</p>
+      )}
+      <p>
+        Stage 6 preserves Stage 5 topology. It only moves vertices and carrier parameters within the exact solver, then reports
+        whether local theorem and geometry residuals improved.
+      </p>
+    </div>
+  );
+}
+
+function ExactDiagnosticRow({ after, before, label }: { after: string; before: string; label: string }) {
+  return (
+    <div className="exact-diagnostic-row">
+      <span>{label}</span>
+      <strong>{before}</strong>
+      <b>→</b>
+      <strong>{after}</strong>
     </div>
   );
 }
