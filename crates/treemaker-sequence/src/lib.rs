@@ -976,6 +976,13 @@ pub struct SimpleFoldRule {
     pub crease: usize,
     pub faces: Vec<usize>,
     pub assignment: Assignment,
+    pub proof: SimpleFoldProof,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SimpleFoldProof {
+    BoundaryEndpoints,
+    FaceGraphSeparation,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1281,9 +1288,28 @@ pub struct StepCertificate {
 
 impl StepCertificate {
     fn simple_fold(rule: &SimpleFoldRule) -> Self {
+        let (recognizer, proof_check) = match rule.proof {
+            SimpleFoldProof::BoundaryEndpoints => (
+                "boundary_simple_fold",
+                CertificateCheck::passed(
+                    "boundary_endpoints",
+                    format!("crease {} has boundary endpoints", rule.crease),
+                ),
+            ),
+            SimpleFoldProof::FaceGraphSeparation => (
+                "face_graph_simple_fold",
+                CertificateCheck::passed(
+                    "face_graph_separation",
+                    format!(
+                        "removing crease {} separates the face adjacency graph",
+                        rule.crease
+                    ),
+                ),
+            ),
+        };
         Self {
             status: CertificateStatus::Verified,
-            recognizer: "boundary_simple_fold".to_string(),
+            recognizer: recognizer.to_string(),
             checked_creases: vec![rule.crease],
             checked_faces: rule.faces.clone(),
             preconditions: vec![
@@ -1299,10 +1325,7 @@ impl StepCertificate {
                     "two_adjacent_faces",
                     format!("crease {} has two adjacent faces", rule.crease),
                 ),
-                CertificateCheck::passed(
-                    "boundary_endpoints",
-                    format!("crease {} has boundary endpoints", rule.crease),
-                ),
+                proof_check,
             ],
             postconditions: vec![
                 CertificateCheck::passed(
@@ -1629,14 +1652,28 @@ pub fn detect_simple_folds(state: &SequenceState) -> Result<Vec<SimpleFoldRule>>
             continue;
         };
         let faces = edges_faces.get(crease).cloned().unwrap_or_default();
-        if faces.len() == 2
-            && boundary_vertices.get(a).copied().unwrap_or(false)
+        if faces.len() != 2 {
+            continue;
+        }
+        let proof = if boundary_vertices.get(a).copied().unwrap_or(false)
             && boundary_vertices.get(b).copied().unwrap_or(false)
         {
+            Some(SimpleFoldProof::BoundaryEndpoints)
+        } else if crease_separates_face_graph(
+            crease,
+            &edges_faces,
+            state.document.faces_vertices.len(),
+        ) {
+            Some(SimpleFoldProof::FaceGraphSeparation)
+        } else {
+            None
+        };
+        if let Some(proof) = proof {
             out.push(SimpleFoldRule {
                 crease,
                 faces,
                 assignment,
+                proof,
             });
         }
     }
@@ -1649,13 +1686,51 @@ fn choose_simple_fold(mut simple_folds: Vec<SimpleFoldRule>) -> Option<SimpleFol
     simple_folds.into_iter().next()
 }
 
-fn simple_fold_sort_key(rule: &SimpleFoldRule) -> (usize, usize, u8) {
+fn simple_fold_sort_key(rule: &SimpleFoldRule) -> (usize, usize, u8, u8) {
     let assignment_rank = match rule.assignment {
         Assignment::Valley => 0,
         Assignment::Mountain => 1,
         _ => 2,
     };
-    (rule.faces.len(), rule.crease, assignment_rank)
+    let proof_rank = match rule.proof {
+        SimpleFoldProof::BoundaryEndpoints => 0,
+        SimpleFoldProof::FaceGraphSeparation => 1,
+    };
+    (rule.faces.len(), rule.crease, assignment_rank, proof_rank)
+}
+
+fn crease_separates_face_graph(
+    crease: usize,
+    edges_faces: &[Vec<usize>],
+    face_count: usize,
+) -> bool {
+    let Some(faces) = edges_faces.get(crease) else {
+        return false;
+    };
+    let [start, target] = faces.as_slice() else {
+        return false;
+    };
+    if start == target || *start >= face_count || *target >= face_count {
+        return false;
+    }
+
+    let mut visited = vec![false; face_count];
+    let mut stack = vec![*start];
+    visited[*start] = true;
+    while let Some(face) = stack.pop() {
+        for (edge, adjacent_faces) in edges_faces.iter().enumerate() {
+            if edge == crease || adjacent_faces.len() != 2 || !adjacent_faces.contains(&face) {
+                continue;
+            }
+            for neighbor in adjacent_faces {
+                if *neighbor < face_count && !visited[*neighbor] {
+                    visited[*neighbor] = true;
+                    stack.push(*neighbor);
+                }
+            }
+        }
+    }
+    !visited[*target]
 }
 
 pub fn recognize_complex_moves(state: &SequenceState) -> Result<Vec<ComplexMoveCandidate>> {
@@ -2942,6 +3017,49 @@ mod tests {
         state_from_document("disconnected", document)
     }
 
+    fn face_graph_simple_fold_document() -> FoldDocument {
+        let mut document = FoldDocument::new(
+            vec![
+                vec![0.0, 0.0],
+                vec![1.0, 0.0],
+                vec![0.5, 1.0],
+                vec![0.5, -1.0],
+            ],
+            vec![[0, 1], [1, 2], [2, 0], [1, 3], [3, 0]],
+        );
+        document.edges_assignment = vec![
+            Assignment::Valley,
+            Assignment::Flat,
+            Assignment::Flat,
+            Assignment::Flat,
+            Assignment::Flat,
+        ];
+        document.faces_vertices = vec![vec![0, 1, 2], vec![1, 0, 3]];
+        document
+    }
+
+    fn non_separating_simple_fold_lookalike() -> FoldDocument {
+        let mut document = FoldDocument::new(
+            vec![
+                vec![0.0, 0.0],
+                vec![1.0, 0.0],
+                vec![0.5, 1.0],
+                vec![0.5, -1.0],
+            ],
+            vec![[0, 1], [1, 2], [2, 0], [1, 3], [3, 0], [2, 3]],
+        );
+        document.edges_assignment = vec![
+            Assignment::Valley,
+            Assignment::Flat,
+            Assignment::Flat,
+            Assignment::Flat,
+            Assignment::Flat,
+            Assignment::Flat,
+        ];
+        document.faces_vertices = vec![vec![0, 1, 2], vec![1, 0, 3], vec![0, 2, 3]];
+        document
+    }
+
     fn state_from_document(id: &str, document: FoldDocument) -> SequenceState {
         let folded_vertices = document
             .vertices_coords
@@ -3158,6 +3276,34 @@ mod tests {
         state.active_creases.push(0);
 
         assert!(local_complex_transform_is_supported(&state, &candidate));
+    }
+
+    #[test]
+    fn detect_simple_folds_accepts_face_graph_separation() {
+        let state = state_from_document("face-graph", face_graph_simple_fold_document());
+        let simple_folds = detect_simple_folds(&state).expect("simple folds");
+
+        assert_eq!(simple_folds.len(), 1);
+        assert_eq!(simple_folds[0].crease, 0);
+        assert_eq!(simple_folds[0].proof, SimpleFoldProof::FaceGraphSeparation);
+        let step = simple_folds[0].to_forward_step(0, "before".to_string(), "after".to_string());
+        let certificate = step.certificate().expect("certificate");
+        assert_eq!(certificate.status, CertificateStatus::Verified);
+        assert_eq!(certificate.recognizer, "face_graph_simple_fold");
+    }
+
+    #[test]
+    fn detect_simple_folds_rejects_non_separating_internal_crease() {
+        let state = state_from_document("lookalike", non_separating_simple_fold_lookalike());
+        let simple_folds = detect_simple_folds(&state).expect("simple folds");
+
+        assert!(simple_folds.is_empty());
+        let regions = unresolved_regions_for_state(&state);
+        assert_eq!(regions.len(), 1);
+        assert_eq!(
+            regions[0].reason,
+            "no validated simple-fold rewrite matches this crease"
+        );
     }
 
     #[test]

@@ -186,9 +186,9 @@ ranked search order on the same fixture/corpus set.
 - [ ] Freeze baseline planner behavior with fixture and trace regressions.
 - [x] Define serializable step certificate types and validation helpers.
 - [x] Add certificate output for existing simple and complex accepted steps.
-- [ ] Replace boundary-only simple fold detection with face-graph reflection
+- [x] Replace boundary-only simple fold detection with face-graph reflection
       checks.
-- [ ] Add negative tests for simple-fold lookalikes that must stay unsupported.
+- [x] Add negative tests for simple-fold lookalikes that must stay unsupported.
 - [ ] Split complex move recognition into move-specific recognizers.
 - [x] Downgrade uncertified named complex moves to generic local/manual collapse.
 - [x] Include layer-order information in state identity, scoring, and
