@@ -1,17 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Eye, GitBranch, Layers3 } from 'lucide-react';
-import type { FoldedBaseSnapshot, FoldedBaseVertex } from '../../engine/types';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { FoldedSurfaceSvg, type FoldedSurfaceViewOptions } from '../folded/FoldedSurfaceSvg';
 import { IconButton } from '../ui/IconButton';
 import { NextDocumentAction } from './NextDocumentAction';
-
-const VIEWBOX = 720;
-const PADDING = 62;
-
-interface FoldedBaseViewOptions {
-  wireframe: boolean;
-  translucent: boolean;
-}
 
 export function FoldedBasePanel() {
   const creaseCount = useWorkspaceStore((state) => state.project.creases.length);
@@ -22,7 +14,7 @@ export function FoldedBasePanel() {
   const foldArtifactError = useWorkspaceStore((state) => state.foldArtifactError);
   const foldArtifactStatus = useWorkspaceStore((state) => state.foldArtifactStatus);
   const ensureFoldArtifacts = useWorkspaceStore((state) => state.ensureFoldArtifacts);
-  const [viewOptions, setViewOptions] = useState<FoldedBaseViewOptions>({
+  const [viewOptions, setViewOptions] = useState<FoldedSurfaceViewOptions>({
     wireframe: false,
     translucent: false,
   });
@@ -102,7 +94,11 @@ export function FoldedBasePanel() {
       </div>
       <div className="panel-body folded-base-panel__body">
         {foldedBase ? (
-          <FoldedBaseSvg snapshot={foldedBase} viewOptions={viewOptions} />
+          <FoldedSurfaceSvg
+            snapshot={foldedBase}
+            viewOptions={viewOptions}
+            ariaLabel="Folded base"
+          />
         ) : (
           <div className="folded-base-panel__empty">
             <span title={foldedBaseError ?? undefined}>{emptyStatus}</span>
@@ -112,124 +108,6 @@ export function FoldedBasePanel() {
       </div>
     </section>
   );
-}
-
-function FoldedBaseSvg({
-  snapshot,
-  viewOptions,
-}: {
-  snapshot: FoldedBaseSnapshot;
-  viewOptions: FoldedBaseViewOptions;
-}) {
-  const projection = useMemo(() => createProjection(snapshot.vertices), [snapshot.vertices]);
-  const verticesById = useMemo(
-    () => new Map(snapshot.vertices.map((vertex) => [vertex.id, vertex])),
-    [snapshot.vertices]
-  );
-  const facets = useMemo(
-    () => [...snapshot.facets].sort((a, b) => a.order - b.order || a.id - b.id),
-    [snapshot.facets]
-  );
-  const showCreases = viewOptions.wireframe;
-  const visibleCreases = showCreases
-    ? snapshot.creases
-    : snapshot.creases.filter((crease) => crease.fold === 3);
-
-  return (
-    <svg
-      className="folded-base-canvas"
-      data-wireframe={viewOptions.wireframe || undefined}
-      data-translucent={viewOptions.translucent || undefined}
-      viewBox={`0 0 ${VIEWBOX} ${VIEWBOX}`}
-      role="img"
-      aria-label="Folded base"
-    >
-      {facets.map((facet) => {
-        const points = facet.vertices
-          .map((id) => verticesById.get(id))
-          .filter(isVertex)
-          .map((vertex) => projection(vertex))
-          .map((point) => `${point.x},${point.y}`)
-          .join(' ');
-        if (!points) return null;
-        return (
-          <polygon
-            key={facet.id}
-            className={`folded-base-facet folded-base-facet--color-${facet.color}`}
-            points={points}
-          />
-        );
-      })}
-      {visibleCreases.map((crease) => {
-        const a = verticesById.get(crease.vertices[0]);
-        const b = verticesById.get(crease.vertices[1]);
-        if (!a || !b) return null;
-        const p1 = projection(a);
-        const p2 = projection(b);
-        return (
-          <line
-            key={crease.id}
-            className={
-              showCreases
-                ? `folded-base-crease folded-base-crease--fold-${crease.fold}`
-                : 'folded-base-outline'
-            }
-            x1={p1.x}
-            y1={p1.y}
-            x2={p2.x}
-            y2={p2.y}
-          />
-        );
-      })}
-      {viewOptions.wireframe &&
-        snapshot.vertices.map((vertex) => {
-          const point = projection(vertex);
-          return (
-            <circle
-              key={vertex.id}
-              className={
-                vertex.is_border
-                  ? 'folded-base-vertex folded-base-vertex--border'
-                  : 'folded-base-vertex'
-              }
-              cx={point.x}
-              cy={point.y}
-              r={vertex.is_border ? 3.2 : 2.4}
-            />
-          );
-        })}
-    </svg>
-  );
-}
-
-function createProjection(vertices: FoldedBaseVertex[]) {
-  const bounds = vertices.reduce(
-    (acc, vertex) => ({
-      minX: Math.min(acc.minX, vertex.loc.x),
-      maxX: Math.max(acc.maxX, vertex.loc.x),
-      minY: Math.min(acc.minY, vertex.loc.y),
-      maxY: Math.max(acc.maxY, vertex.loc.y),
-    }),
-    { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity }
-  );
-  const minX = Number.isFinite(bounds.minX) ? bounds.minX : 0;
-  const maxX = Number.isFinite(bounds.maxX) ? bounds.maxX : 1;
-  const minY = Number.isFinite(bounds.minY) ? bounds.minY : 0;
-  const maxY = Number.isFinite(bounds.maxY) ? bounds.maxY : 1;
-  const spanX = Math.max(0.001, maxX - minX);
-  const spanY = Math.max(0.001, maxY - minY);
-  const scale = Math.min((VIEWBOX - PADDING * 2) / spanX, (VIEWBOX - PADDING * 2) / spanY);
-  const offsetX = (VIEWBOX - spanX * scale) / 2;
-  const offsetY = (VIEWBOX - spanY * scale) / 2;
-
-  return (vertex: FoldedBaseVertex) => ({
-    x: offsetX + (vertex.loc.x - minX) * scale,
-    y: VIEWBOX - offsetY - (vertex.loc.y - minY) * scale,
-  });
-}
-
-function isVertex(vertex: FoldedBaseVertex | undefined): vertex is FoldedBaseVertex {
-  return vertex !== undefined;
 }
 
 function shortStatus(message: string): string {

@@ -617,6 +617,10 @@
   aspect-ratio: 1;
 }
 
+.sequence-preview-canvas.folded-base-canvas {
+  height: auto;
+}
+
 .sequence-preview-plane {
   fill: color-mix(in srgb, var(--text-primary) 4%, transparent);
   stroke: color-mix(in srgb, var(--text-primary) 10%, transparent);
@@ -2770,6 +2774,17 @@
   fill: color-mix(in srgb, var(--text-secondary) 26%, var(--bg-paper));
 }
 
+.folded-base-facet--highlight {
+  fill: color-mix(in srgb, var(--accent-tertiary) 46%, var(--bg-paper));
+  stroke: color-mix(in srgb, var(--accent-tertiary) 92%, transparent);
+}
+
+.folded-base-canvas[data-surface='sequence-preview'] .folded-base-facet {
+  filter: none;
+  fill: color-mix(in srgb, var(--bg-paper) 96%, white 4%);
+  stroke: transparent;
+}
+
 .folded-base-canvas[data-translucent='true'] .folded-base-facet {
   opacity: 0.36;
   stroke: color-mix(in srgb, var(--text-primary) 22%, transparent);
@@ -2806,6 +2821,25 @@
 
 .folded-base-crease--fold-0 {
   stroke: var(--fold-flat);
+}
+
+.folded-base-crease--highlight {
+  opacity: 0.98;
+  stroke: var(--status-warning);
+  stroke-width: 4.5;
+}
+
+.folded-base-crease--guide {
+  opacity: 0.98;
+  stroke-width: 3.5;
+}
+
+.folded-base-crease--guide.folded-base-crease--fold-1 {
+  stroke-dasharray: 1 7;
+}
+
+.folded-base-crease--guide.folded-base-crease--fold-2 {
+  stroke-dasharray: none;
 }
 
 .folded-base-vertex {

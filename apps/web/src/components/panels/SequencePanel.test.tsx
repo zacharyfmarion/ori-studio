@@ -39,7 +39,14 @@ describe('SequencePanel', () => {
     expect(rendered.querySelector('[aria-label="Folding sequence diagram"]')).not.toBeNull();
     expect(rendered.querySelector('[aria-label="Step 1 Before folded state unfolded"]')).not.toBeNull();
     expect(rendered.querySelector('[aria-label="Step 1 After folded state target"]')).not.toBeNull();
-    expect(rendered.querySelectorAll('.sequence-preview-crease--highlight')).toHaveLength(2);
+    expect(rendered.querySelectorAll('.sequence-preview-crease')).toHaveLength(0);
+    expect(rendered.querySelectorAll('.folded-base-facet')).toHaveLength(4);
+    expect(rendered.querySelectorAll('.folded-base-outline')).toHaveLength(12);
+    expect(rendered.querySelectorAll('.folded-base-crease--highlight')).toHaveLength(1);
+    expect(rendered.querySelectorAll('.folded-base-crease--guide')).toHaveLength(1);
+    expect(
+      rendered.querySelector('.folded-base-crease--guide.folded-base-crease--fold-2')
+    ).not.toBeNull();
     expect(rendered.querySelector<HTMLDetailsElement>('.sequence-panel__details')?.open).toBe(false);
     expect(rendered.querySelector('.sequence-diagram-step__header')?.textContent).toContain('Step 1');
     expect(rendered.querySelector('.sequence-diagram-step__header')?.textContent).toContain('Simulate');
@@ -86,8 +93,9 @@ describe('SequencePanel', () => {
     expect(rendered.textContent).not.toContain('Unsupported collapse region');
     expect(rendered.querySelector('[aria-label="Step 1 Before folded state flat-cp"]')).not.toBeNull();
     expect(rendered.querySelector('[aria-label="Step 1 After folded state target"]')).not.toBeNull();
-    expect(rendered.querySelectorAll('.sequence-preview-crease--highlight')).toHaveLength(4);
-    expect(rendered.querySelector('.sequence-preview-face--highlight')).not.toBeNull();
+    expect(rendered.querySelectorAll('.folded-base-crease')).toHaveLength(2);
+    expect(rendered.querySelectorAll('.folded-base-crease--highlight')).toHaveLength(0);
+    expect(rendered.querySelector('.folded-base-facet--highlight')).toBeNull();
   });
 
   it('focuses the simulator on a step when the step simulate action is clicked', () => {

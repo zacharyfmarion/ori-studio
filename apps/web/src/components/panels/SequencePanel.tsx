@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, ArrowRight, CheckCircle2, CircleDashed, Layers3, Play, Waves } from 'lucide-react';
 import type {
-  FoldDocument,
   SequenceInstructionStep,
   SequencePlan,
   SequenceStateSnapshot,
@@ -10,10 +9,13 @@ import type {
 } from '../../engine/types';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { useLayoutStore } from '../../store/layoutStore';
+import { foldedSurfaceFromSequenceState } from '../folded/foldedSurfaceAdapters';
+import { FoldedSurfaceSvg } from '../folded/FoldedSurfaceSvg';
 import { Button } from '../ui/Button';
 
 const PREVIEW_VIEWBOX = 320;
 const PREVIEW_PADDING = 24;
+const SEQUENCE_PREVIEW_OPTIONS = { wireframe: false, translucent: false };
 
 export function SequencePanel() {
   const foldArtifacts = useWorkspaceStore((state) => state.foldArtifacts);
@@ -202,6 +204,7 @@ function SequenceDiagramList({ plan }: { plan: SequencePlan }) {
         const beforeState = step.before_state ? stateById.get(step.before_state) : null;
         const afterState = step.after_state ? stateById.get(step.after_state) : null;
         const highlights = highlightsForStep(step);
+        const guideCreases = afterState ? guideCreasesForStep(afterState, highlights.creases) : undefined;
         return (
           <li key={step.id} className="sequence-diagram-step">
             <div className="sequence-diagram-step__header">
@@ -241,6 +244,7 @@ function SequenceDiagramList({ plan }: { plan: SequencePlan }) {
                 state={beforeState}
                 mode="folded"
                 highlights={highlights}
+                guideCreases={guideCreases}
                 stepLabel={`Step ${index + 1}`}
               />
               <div className="sequence-diagram-step__arrow" aria-hidden="true">
@@ -277,20 +281,27 @@ function SequencePreview({
   state,
   mode,
   highlights,
+  guideCreases,
   stepLabel,
 }: {
   title: string;
   state: SequenceStateSnapshot | null | undefined;
   mode: 'paper' | 'folded';
   highlights: SequenceHighlights;
+  guideCreases?: ReadonlyMap<number, number>;
   stepLabel?: string;
 }) {
-  const projection = useMemo(() => {
+  const snapshot = useMemo(() => {
     if (!state) return null;
-    return createPreviewProjection(pointsForState(state, mode));
+    return foldedSurfaceFromSequenceState(state, mode);
   }, [mode, state]);
+  const activeCreases = useMemo(() => new Set(state?.active_creases ?? []), [state]);
+  const highlightedCreases = useMemo(
+    () => intersectSets(highlights.creases, activeCreases),
+    [activeCreases, highlights.creases]
+  );
 
-  if (!state || !projection) {
+  if (!state || !snapshot) {
     return (
       <div className="sequence-panel__preview" data-empty>
         <div className="sequence-panel__preview-title">
@@ -302,8 +313,6 @@ function SequencePreview({
     );
   }
 
-  const points = pointsForState(state, mode);
-
   return (
     <div className="sequence-panel__preview">
       <div className="sequence-panel__preview-title">
@@ -311,49 +320,20 @@ function SequencePreview({
         <span>{title}</span>
         <span>{state.id}</span>
       </div>
-      <svg
-        className="sequence-preview-canvas"
-        viewBox={`0 0 ${PREVIEW_VIEWBOX} ${PREVIEW_VIEWBOX}`}
-        role="img"
-        aria-label={[stepLabel, title, mode === 'folded' ? 'folded state' : 'crease pattern', state.id]
+      <FoldedSurfaceSvg
+        snapshot={snapshot}
+        viewOptions={SEQUENCE_PREVIEW_OPTIONS}
+        ariaLabel={[stepLabel, title, mode === 'folded' ? 'folded state' : 'crease pattern', state.id]
           .filter(Boolean)
           .join(' ')}
-      >
-        <rect className="sequence-preview-plane" x="12" y="12" width="296" height="296" rx="4" />
-        {state.document.faces_vertices.map((face, index) => {
-          const polygon = polygonPoints(face, points, projection);
-          if (!polygon) return null;
-          return (
-            <polygon
-              key={`face-${index}`}
-              className={[
-                'sequence-preview-face',
-                highlights.faces.has(index) ? 'sequence-preview-face--highlight' : '',
-              ].join(' ')}
-              points={polygon}
-            />
-          );
-        })}
-        {state.document.edges_vertices.map(([a, b], index) => {
-          const p1 = projection(points[a]);
-          const p2 = projection(points[b]);
-          if (!p1 || !p2) return null;
-          return (
-            <line
-              key={`edge-${index}`}
-              className={[
-                'sequence-preview-crease',
-                `sequence-preview-crease--${assignmentForEdge(state.document, index).toLowerCase()}`,
-                highlights.creases.has(index) ? 'sequence-preview-crease--highlight' : '',
-              ].join(' ')}
-              x1={p1.x}
-              y1={p1.y}
-              x2={p2.x}
-              y2={p2.y}
-            />
-          );
-        })}
-      </svg>
+        className="sequence-preview-canvas folded-base-canvas"
+        surface="sequence-preview"
+        viewBoxSize={PREVIEW_VIEWBOX}
+        padding={PREVIEW_PADDING}
+        visibleCreases={activeCreases}
+        guideCreases={guideCreases}
+        highlights={{ creases: highlightedCreases }}
+      />
     </div>
   );
 }
@@ -447,58 +427,28 @@ function highlightsForStep(step: SequenceInstructionStep): SequenceHighlights {
   };
 }
 
-function pointsForState(state: SequenceStateSnapshot, mode: 'paper' | 'folded'): Array<[number, number]> {
-  if (mode === 'folded' && state.folded_vertices.length === state.document.vertices_coords.length) {
-    return state.folded_vertices;
-  }
-  return state.document.vertices_coords.map((coord) => [coord[0] ?? 0, coord[1] ?? 0]);
+function intersectSets(a: ReadonlySet<number>, b: ReadonlySet<number>): Set<number> {
+  const result = new Set<number>();
+  a.forEach((value) => {
+    if (b.has(value)) result.add(value);
+  });
+  return result;
 }
 
-function createPreviewProjection(points: Array<[number, number]>) {
-  if (points.length === 0) return null;
-  const bounds = points.reduce(
-    (acc, [x, y]) => ({
-      minX: Math.min(acc.minX, x),
-      maxX: Math.max(acc.maxX, x),
-      minY: Math.min(acc.minY, y),
-      maxY: Math.max(acc.maxY, y),
-    }),
-    { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity }
-  );
-  const minX = Number.isFinite(bounds.minX) ? bounds.minX : 0;
-  const maxX = Number.isFinite(bounds.maxX) ? bounds.maxX : 1;
-  const minY = Number.isFinite(bounds.minY) ? bounds.minY : 0;
-  const maxY = Number.isFinite(bounds.maxY) ? bounds.maxY : 1;
-  const spanX = Math.max(0.001, maxX - minX);
-  const spanY = Math.max(0.001, maxY - minY);
-  const scale = Math.min(
-    (PREVIEW_VIEWBOX - PREVIEW_PADDING * 2) / spanX,
-    (PREVIEW_VIEWBOX - PREVIEW_PADDING * 2) / spanY
-  );
-  const offsetX = (PREVIEW_VIEWBOX - spanX * scale) / 2;
-  const offsetY = (PREVIEW_VIEWBOX - spanY * scale) / 2;
-  return (point: [number, number] | undefined) => {
-    if (!point) return null;
-    const [x, y] = point;
-    return {
-      x: offsetX + (x - minX) * scale,
-      y: PREVIEW_VIEWBOX - offsetY - (y - minY) * scale,
-    };
-  };
+function guideCreasesForStep(
+  state: SequenceStateSnapshot,
+  creases: ReadonlySet<number>
+): Map<number, number> {
+  const guides = new Map<number, number>();
+  creases.forEach((crease) => {
+    const fold = foldNumberForGuide(state.document.edges_assignment?.[crease]);
+    if (fold !== null) guides.set(crease, fold);
+  });
+  return guides;
 }
 
-function polygonPoints(
-  face: number[],
-  points: Array<[number, number]>,
-  project: NonNullable<ReturnType<typeof createPreviewProjection>>
-): string | null {
-  const projected = face
-    .map((vertex) => project(points[vertex]))
-    .filter((point): point is { x: number; y: number } => point !== null);
-  if (projected.length < 3) return null;
-  return projected.map((point) => `${point.x},${point.y}`).join(' ');
-}
-
-function assignmentForEdge(document: FoldDocument, edge: number): string {
-  return document.edges_assignment?.[edge] ?? 'U';
+function foldNumberForGuide(assignment: string | undefined): number | null {
+  if (assignment === 'M') return 1;
+  if (assignment === 'V') return 2;
+  return null;
 }
