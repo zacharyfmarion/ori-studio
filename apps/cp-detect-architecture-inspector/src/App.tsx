@@ -1324,17 +1324,14 @@ function SelectionSpanGraphView({
   selection: Stage5Response['selection'];
   verticesById: Map<number, ArrangementVertex>;
 }) {
-  const spanEndpointIds = new Set<number>();
-  const degrees = new Map<number, number>();
+  const endpointsById = new Map<number, { degree: number; id: number; point: { x: number; y: number } }>();
   for (const span of selection.selected_spans) {
-    spanEndpointIds.add(span.vertices[0]);
-    spanEndpointIds.add(span.vertices[1]);
-    degrees.set(span.vertices[0], (degrees.get(span.vertices[0]) ?? 0) + 1);
-    degrees.set(span.vertices[1], (degrees.get(span.vertices[1]) ?? 0) + 1);
+    const fallbackA = verticesById.get(span.vertices[0]);
+    const fallbackB = verticesById.get(span.vertices[1]);
+    rememberSelectionEndpoint(endpointsById, span.vertices[0], span.endpoint_points?.[0] ?? fallbackA?.point ?? null);
+    rememberSelectionEndpoint(endpointsById, span.vertices[1], span.endpoint_points?.[1] ?? fallbackB?.point ?? null);
   }
-  const endpoints = [...spanEndpointIds]
-    .map((vertexId) => verticesById.get(vertexId))
-    .filter((vertex): vertex is ArrangementVertex => Boolean(vertex));
+  const endpoints = [...endpointsById.values()];
 
   return (
     <g className="selection-span-graph" aria-label="Beam-selected final crease spans">
@@ -1396,31 +1393,53 @@ function SelectionSpanGraphView({
         );
       })}
       {endpoints.map((vertex) => (
-        <SelectionSpanEndpointView degree={degrees.get(vertex.id) ?? 0} frame={frame} key={`selection-span-endpoint-${vertex.id}`} vertex={vertex} />
+        <SelectionSpanEndpointView
+          degree={vertex.degree}
+          frame={frame}
+          id={vertex.id}
+          key={`selection-span-endpoint-${vertex.id}`}
+          point={vertex.point}
+        />
       ))}
     </g>
   );
 }
 
+function rememberSelectionEndpoint(
+  endpointsById: Map<number, { degree: number; id: number; point: { x: number; y: number } }>,
+  id: number,
+  point: { x: number; y: number } | null,
+) {
+  if (!point) return;
+  const existing = endpointsById.get(id);
+  if (existing) {
+    existing.degree += 1;
+    return;
+  }
+  endpointsById.set(id, { degree: 1, id, point });
+}
+
 function SelectionSpanEndpointView({
   degree,
   frame,
-  vertex,
+  id,
+  point,
 }: {
   degree: number;
   frame: Stage2Response['overlay_frame_px'];
-  vertex: ArrangementVertex;
+  id: number;
+  point: { x: number; y: number };
 }) {
-  const point = imagePoint(vertex.point, frame);
-  const isBoundary = vertex.kind === 'corner' || vertex.kind === 'boundary_contact' || Boolean(vertex.boundary_side);
-  const isObserved = vertex.kind === 'observed_junction' || vertex.kind === 'junction_cluster';
+  const image = imagePoint(point, frame);
+  const isBoundary = nearUnit(point.x, 0) || nearUnit(point.x, 1) || nearUnit(point.y, 0) || nearUnit(point.y, 1);
+  const isObserved = degree !== 2;
   const fill = isBoundary ? '#22c55e' : isObserved ? '#facc15' : '#f8fafc';
   const radius = isBoundary ? 3.1 : isObserved ? 3.0 : 2.45;
   return (
     <g aria-label="selected graph junction">
       <circle
-        cx={point.x}
-        cy={point.y}
+        cx={image.x}
+        cy={image.y}
         fill="#ffffff"
         fillOpacity={0.92}
         r={radius + 1.65}
@@ -1429,8 +1448,8 @@ function SelectionSpanEndpointView({
         vectorEffect="non-scaling-stroke"
       />
       <circle
-        cx={point.x}
-        cy={point.y}
+        cx={image.x}
+        cy={image.y}
         fill={fill}
         r={radius}
         stroke="#0f172a"
@@ -1439,7 +1458,7 @@ function SelectionSpanEndpointView({
         vectorEffect="non-scaling-stroke"
       >
         <title>
-          selected span endpoint {vertex.id}; {vertex.kind}; selected span degree {degree}
+          selected span endpoint {id}; selected span degree {degree}
         </title>
       </circle>
     </g>
@@ -2278,6 +2297,10 @@ function imagePoint(point: { x: number; y: number }, frame: Stage2Response['over
     x: frame.x_min + point.x * (frame.x_max - frame.x_min),
     y: frame.y_min + point.y * (frame.y_max - frame.y_min),
   };
+}
+
+function nearUnit(value: number, target: number) {
+  return Math.abs(value - target) <= 1e-6;
 }
 
 function arrangementAssignmentColor(label: string) {

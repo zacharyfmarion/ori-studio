@@ -8,6 +8,7 @@
 use crate::arrangement_v2::{
     ArrangementBoundarySide, ArrangementCarrierKind, ArrangementVertexKind, CandidateArrangement,
 };
+use crate::candidates::{CandidateCarrier as LegacyCarrier, CarrierFamily};
 use crate::{
     AssignmentCandidate, AssignmentLabel, CandidateProgram, EdgeSelection, Point2, Provenance,
     VertexKind,
@@ -460,6 +461,10 @@ impl LegacyCandidateAdapter {
         low_threshold_program: Option<&CandidateProgram>,
         options: LegacyCandidateAdapterOptions,
     ) -> CandidateGraph {
+        let normalization = LegacyUnitSquareNormalization::from_program(selected_program);
+        let selected_program = normalize_legacy_program(selected_program, normalization);
+        let low_threshold_program =
+            low_threshold_program.map(|program| normalize_legacy_program(program, normalization));
         let mut vertices = selected_program
             .vertices
             .iter()
@@ -481,7 +486,7 @@ impl LegacyCandidateAdapter {
             })
             .collect::<Vec<_>>();
 
-        if let Some(weak_program) = low_threshold_program {
+        if let Some(weak_program) = low_threshold_program.as_ref() {
             let existing_keys = spans
                 .iter()
                 .map(|span| {
@@ -554,6 +559,206 @@ impl LegacyCandidateAdapter {
         graph.alternatives = graph.conflicts.clone();
         graph.report = CandidateGraphReport::from_graph(&graph);
         graph
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct LegacyUnitSquareNormalization {
+    x_min: f64,
+    y_min: f64,
+    width: f64,
+    height: f64,
+}
+
+impl LegacyUnitSquareNormalization {
+    fn identity() -> Self {
+        Self {
+            x_min: 0.0,
+            y_min: 0.0,
+            width: 1.0,
+            height: 1.0,
+        }
+    }
+
+    fn from_program(program: &CandidateProgram) -> Self {
+        let mut points = Vec::new();
+        for edge in &program.edges {
+            if edge.assignment.label != AssignmentLabel::Boundary {
+                continue;
+            }
+            for vertex_id in edge.vertices {
+                if let Some(vertex) = program.vertices.get(vertex_id) {
+                    points.push(vertex.position);
+                }
+            }
+        }
+        if points.len() < 2 {
+            points.extend(program.vertices.iter().map(|vertex| vertex.position));
+        }
+        if points.len() < 2 {
+            return Self::identity();
+        }
+        let x_min = points
+            .iter()
+            .map(|point| point.x)
+            .fold(f64::INFINITY, f64::min);
+        let x_max = points
+            .iter()
+            .map(|point| point.x)
+            .fold(f64::NEG_INFINITY, f64::max);
+        let y_min = points
+            .iter()
+            .map(|point| point.y)
+            .fold(f64::INFINITY, f64::min);
+        let y_max = points
+            .iter()
+            .map(|point| point.y)
+            .fold(f64::NEG_INFINITY, f64::max);
+        let width = x_max - x_min;
+        let height = y_max - y_min;
+        if width <= 1e-9 || height <= 1e-9 {
+            return Self::identity();
+        }
+        Self {
+            x_min,
+            y_min,
+            width,
+            height,
+        }
+    }
+
+    fn normalize_point(self, point: Point2) -> Point2 {
+        Point2::new(
+            snap_unit((point.x - self.x_min) / self.width),
+            snap_unit((point.y - self.y_min) / self.height),
+        )
+    }
+}
+
+fn normalize_legacy_program(
+    program: &CandidateProgram,
+    normalization: LegacyUnitSquareNormalization,
+) -> CandidateProgram {
+    let mut normalized = program.clone();
+    for vertex in &mut normalized.vertices {
+        vertex.position = normalization.normalize_point(vertex.position);
+        vertex.kind = legacy_vertex_kind_from_point(vertex.position);
+        vertex.boundary_side = legacy_boundary_side_from_point(vertex.position).map(str::to_owned);
+    }
+    let mut carriers = normalized.carriers.clone();
+    for edge in &normalized.edges {
+        let Some(p0) = normalized
+            .vertices
+            .get(edge.vertices[0])
+            .map(|vertex| vertex.position)
+        else {
+            continue;
+        };
+        let Some(p1) = normalized
+            .vertices
+            .get(edge.vertices[1])
+            .map(|vertex| vertex.position)
+        else {
+            continue;
+        };
+        let Some(carrier) = carriers.get_mut(edge.carrier_id) else {
+            continue;
+        };
+        *carrier = normalized_legacy_carrier(carrier, p0, p1, edge.assignment.label);
+    }
+    normalized.carriers = carriers;
+    normalized
+}
+
+fn normalized_legacy_carrier(
+    carrier: &LegacyCarrier,
+    p0: Point2,
+    p1: Point2,
+    assignment: AssignmentLabel,
+) -> LegacyCarrier {
+    let dx = p1.x - p0.x;
+    let dy = p1.y - p0.y;
+    let length = (dx * dx + dy * dy).sqrt().max(1e-12);
+    let normal = Point2::new(-dy / length, dx / length);
+    let direction = Point2::new(dx / length, dy / length);
+    let t0 = p0.x * direction.x + p0.y * direction.y;
+    let t1 = p1.x * direction.x + p1.y * direction.y;
+    LegacyCarrier {
+        id: carrier.id,
+        family: legacy_carrier_family(p0, p1, assignment),
+        normal,
+        rho: normal.x * p0.x + normal.y * p0.y,
+        support_interval: [t0.min(t1), t0.max(t1)],
+        visual_support: carrier.visual_support,
+        dashed_support: carrier.dashed_support,
+        non_crease_penalty: carrier.non_crease_penalty,
+        source: carrier.source,
+        provenance: carrier.provenance.clone(),
+    }
+}
+
+fn legacy_carrier_family(p0: Point2, p1: Point2, assignment: AssignmentLabel) -> CarrierFamily {
+    if assignment == AssignmentLabel::Boundary {
+        return CarrierFamily::Border;
+    }
+    let dx = (p1.x - p0.x).abs();
+    let dy = (p1.y - p0.y).abs();
+    if dy < 1e-9 {
+        CarrierFamily::Horizontal
+    } else if dx < 1e-9 {
+        CarrierFamily::Vertical
+    } else if ((p1.y - p0.y) - (p1.x - p0.x)).abs() < 1e-9 {
+        CarrierFamily::DiagonalPositive
+    } else if ((p1.y - p0.y) + (p1.x - p0.x)).abs() < 1e-9 {
+        CarrierFamily::DiagonalNegative
+    } else {
+        CarrierFamily::Free
+    }
+}
+
+fn legacy_vertex_kind_from_point(point: Point2) -> VertexKind {
+    let boundary_count = [
+        near_unit(point.x, 0.0),
+        near_unit(point.x, 1.0),
+        near_unit(point.y, 0.0),
+        near_unit(point.y, 1.0),
+    ]
+    .into_iter()
+    .filter(|value| *value)
+    .count();
+    match boundary_count {
+        0 => VertexKind::Interior,
+        1 => VertexKind::Boundary,
+        _ => VertexKind::Corner,
+    }
+}
+
+fn legacy_boundary_side_from_point(point: Point2) -> Option<&'static str> {
+    if near_unit(point.x, 0.0) {
+        Some("left")
+    } else if near_unit(point.x, 1.0) {
+        Some("right")
+    } else if near_unit(point.y, 0.0) {
+        Some("top")
+    } else if near_unit(point.y, 1.0) {
+        Some("bottom")
+    } else {
+        None
+    }
+}
+
+fn near_unit(value: f64, target: f64) -> bool {
+    (value - target).abs() <= 1e-6
+}
+
+fn snap_unit(value: f64) -> f64 {
+    let clamped = value.clamp(0.0, 1.0);
+    if near_unit(clamped, 0.0) {
+        0.0
+    } else if near_unit(clamped, 1.0) {
+        1.0
+    } else {
+        clamped
     }
 }
 
@@ -1304,6 +1509,39 @@ mod tests {
                 .collect::<Vec<_>>()
         );
         assert_eq!(graph.report.locked_border_spans, 4);
+    }
+
+    #[test]
+    fn legacy_adapter_normalizes_shrunken_legacy_frame() {
+        let mut program = square_program();
+        for vertex in &mut program.vertices {
+            vertex.position = Point2::new(
+                0.03 + vertex.position.x * 0.94,
+                0.04 + vertex.position.y * 0.92,
+            );
+            vertex.kind = VertexKind::Interior;
+            vertex.boundary_side = None;
+        }
+        let graph = LegacyCandidateAdapter::from_program(&program);
+        assert_eq!(graph.vertices.len(), program.vertices.len());
+        assert_eq!(graph.report.locked_border_spans, 4);
+        assert_eq!(
+            graph.vertices[graph.boundary.corners[0]].point,
+            Point2::new(0.0, 0.0)
+        );
+        assert_eq!(
+            graph.vertices[graph.boundary.corners[1]].point,
+            Point2::new(1.0, 0.0)
+        );
+        assert_eq!(
+            graph.vertices[graph.boundary.corners[2]].point,
+            Point2::new(1.0, 1.0)
+        );
+        assert_eq!(
+            graph.vertices[graph.boundary.corners[3]].point,
+            Point2::new(0.0, 1.0)
+        );
+        assert_eq!(graph.vertices[4].point, Point2::new(0.5, 0.5));
     }
 
     #[test]
