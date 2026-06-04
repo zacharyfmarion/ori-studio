@@ -800,6 +800,72 @@ pub fn ml_readiness_decision(total_traces: usize, complete_traces: usize) -> MlR
     }
 }
 
+pub fn summarize_planner_corpus(plans: &[SequencePlan]) -> PlannerCorpusSummary {
+    let mut summary = PlannerCorpusSummary {
+        total_plans: plans.len(),
+        ..PlannerCorpusSummary::default()
+    };
+    for plan in plans {
+        match plan.status {
+            PlanStatus::Complete => summary.complete += 1,
+            PlanStatus::Partial => summary.partial += 1,
+            PlanStatus::Unsupported => summary.unsupported += 1,
+            PlanStatus::InvalidInput => summary.invalid_input += 1,
+        }
+        summary.unresolved_regions += plan.unresolved_regions.len();
+        summary.unresolved_creases += plan
+            .unresolved_regions
+            .iter()
+            .map(|region| region.creases.len())
+            .sum::<usize>();
+        for step in &plan.steps {
+            match step.certificate().map(|certificate| &certificate.status) {
+                Some(CertificateStatus::Verified) => summary.verified_steps += 1,
+                Some(CertificateStatus::Heuristic) => summary.heuristic_steps += 1,
+                Some(CertificateStatus::Manual) => summary.manual_steps += 1,
+                None => summary.uncertified_steps += 1,
+            }
+        }
+    }
+    summary.ml_decision = ml_readiness_decision(summary.total_plans, summary.complete);
+    summary
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PlannerCorpusSummary {
+    pub total_plans: usize,
+    pub complete: usize,
+    pub partial: usize,
+    pub unsupported: usize,
+    pub invalid_input: usize,
+    pub verified_steps: usize,
+    pub heuristic_steps: usize,
+    pub manual_steps: usize,
+    pub uncertified_steps: usize,
+    pub unresolved_regions: usize,
+    pub unresolved_creases: usize,
+    pub ml_decision: MlReadinessDecision,
+}
+
+impl Default for PlannerCorpusSummary {
+    fn default() -> Self {
+        Self {
+            total_plans: 0,
+            complete: 0,
+            partial: 0,
+            unsupported: 0,
+            invalid_input: 0,
+            verified_steps: 0,
+            heuristic_steps: 0,
+            manual_steps: 0,
+            uncertified_steps: 0,
+            unresolved_regions: 0,
+            unresolved_creases: 0,
+            ml_decision: ml_readiness_decision(0, 0),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PlanStatus {
@@ -3496,6 +3562,38 @@ mod tests {
         );
         assert_eq!(
             trace.ml_decision.recommendation,
+            MlRecommendation::CollectMoreTraces
+        );
+    }
+
+    #[test]
+    fn planner_corpus_summary_counts_statuses_and_certificates() {
+        let simple_target = resolve_target_state(&two_face_valley(), TargetStateOptions::default())
+            .expect("simple target");
+        let simple_plan = plan_folding_sequence(&simple_target).expect("simple plan");
+        let partial_plan = plan_folding_sequence_with_options(
+            &simple_target,
+            SequencePlanOptions {
+                max_steps: 0,
+                ..SequencePlanOptions::default()
+            },
+        )
+        .expect("partial plan");
+        let complex_target = resolve_target_state(&squash_local(), TargetStateOptions::default())
+            .expect("complex target");
+        let complex_plan = plan_folding_sequence(&complex_target).expect("complex plan");
+
+        let summary = summarize_planner_corpus(&[simple_plan, partial_plan, complex_plan]);
+
+        assert_eq!(summary.total_plans, 3);
+        assert_eq!(summary.complete, 2);
+        assert_eq!(summary.partial, 1);
+        assert_eq!(summary.verified_steps, 1);
+        assert_eq!(summary.heuristic_steps, 1);
+        assert_eq!(summary.manual_steps, 1);
+        assert!(summary.unresolved_regions >= 1);
+        assert_eq!(
+            summary.ml_decision.recommendation,
             MlRecommendation::CollectMoreTraces
         );
     }
