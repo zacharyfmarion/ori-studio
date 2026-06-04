@@ -61,6 +61,34 @@ describe('buildSequenceStepSimulation', () => {
     expect(result.simulation.warning).toMatch(/not a validated fold decomposition/i);
   });
 
+  it('warns for heuristic macro-step previews', () => {
+    const plan = planWithStep({
+      kind: 'rabbit_ear',
+      id: 'macro',
+      label: 'Perform a rabbit ear',
+      affected_creases: [4, 5],
+      affected_faces: [0, 1],
+      before_state: 'before',
+      after_state: 'after',
+      certificate: {
+        status: 'heuristic',
+        recognizer: 'topology_only_rabbit_ear',
+        checked_creases: [4, 5],
+        checked_faces: [0, 1],
+        preconditions: [],
+        postconditions: [],
+        layer_order: { policy: 'preserved', preserved: true },
+        diagnostics: [],
+      },
+    });
+
+    const result = buildSequenceStepSimulation(plan, 'macro');
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.simulation.warning).toMatch(/not been geometrically certified/i);
+  });
+
   it('returns an explicit unavailable result when state ids are missing', () => {
     const plan = planWithStep({
       kind: 'simple_fold',

@@ -102,6 +102,32 @@ export interface SequenceUnresolvedRegion {
   reason: string;
 }
 
+export type SequenceCertificateStatus = 'verified' | 'heuristic' | 'manual';
+export type SequenceCertificateCheckStatus = 'passed' | 'warning' | 'failed' | 'not_checked';
+
+export interface SequenceCertificateCheck {
+  code: string;
+  status: SequenceCertificateCheckStatus;
+  message: string;
+}
+
+export interface SequenceLayerOrderCertificate {
+  policy: 'preserved' | 'relaxed_with_diagnostic';
+  preserved: boolean;
+  diagnostic?: string;
+}
+
+export interface SequenceStepCertificate {
+  status: SequenceCertificateStatus;
+  recognizer: string;
+  checked_creases: number[];
+  checked_faces: number[];
+  preconditions: SequenceCertificateCheck[];
+  postconditions: SequenceCertificateCheck[];
+  layer_order: SequenceLayerOrderCertificate;
+  diagnostics: SequenceDiagnostic[];
+}
+
 export interface SequenceStateSnapshot {
   id: string;
   document: FoldDocument;
@@ -119,6 +145,7 @@ export interface SequenceStepDetails {
   affected_faces?: number[];
   before_state?: string;
   after_state?: string;
+  certificate?: SequenceStepCertificate;
   diagnostics?: SequenceDiagnostic[];
 }
 

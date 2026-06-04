@@ -25,6 +25,8 @@ export type SequenceStepSimulationResult =
 
 const MANUAL_COLLAPSE_WARNING =
   'Approximate manual collapse preview. This is not a validated fold decomposition.';
+const HEURISTIC_STEP_WARNING =
+  'Approximate macro-step preview. This step has not been geometrically certified yet.';
 
 export function buildSequenceStepSimulation(
   plan: SequencePlan | null | undefined,
@@ -50,6 +52,11 @@ export function buildSequenceStepSimulation(
   const affectedCreases = affectedCreasesForStep(step);
   const affectedFaces = affectedFacesForStep(step);
   const isManualCollapse = step.kind === 'manual_collapse';
+  const warning = isManualCollapse
+    ? MANUAL_COLLAPSE_WARNING
+    : step.certificate?.status === 'heuristic'
+      ? HEURISTIC_STEP_WARNING
+      : null;
   const ranges = afterState.document.edges_vertices.map((_, edge) => {
     const fromAngle = isManualCollapse ? 0 : foldAngleForEdge(beforeState.document, edge);
     const toAngle =
@@ -77,7 +84,7 @@ export function buildSequenceStepSimulation(
       foldProfile: { ranges },
       affectedCreases,
       affectedFaces,
-      warning: isManualCollapse ? MANUAL_COLLAPSE_WARNING : null,
+      warning,
     },
   };
 }

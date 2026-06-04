@@ -184,8 +184,8 @@ ranked search order on the same fixture/corpus set.
 ## Checklist
 
 - [ ] Freeze baseline planner behavior with fixture and trace regressions.
-- [ ] Define serializable step certificate types and validation helpers.
-- [ ] Add certificate output for existing simple and complex accepted steps.
+- [x] Define serializable step certificate types and validation helpers.
+- [x] Add certificate output for existing simple and complex accepted steps.
 - [ ] Replace boundary-only simple fold detection with face-graph reflection
       checks.
 - [ ] Add negative tests for simple-fold lookalikes that must stay unsupported.

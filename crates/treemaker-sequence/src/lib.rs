@@ -354,6 +354,9 @@ pub fn plan_folding_sequence_with_options(
         states.insert(0, manual_before);
     }
     normalize_sequence_ids(&mut states, &mut steps);
+    for step in &steps {
+        diagnostics.extend(inspect_step_certificate(step));
+    }
 
     Ok(SequencePlan {
         status,
@@ -647,6 +650,11 @@ fn manual_collapse_step(
         "manual_collapse_required",
         "planner could not solve this highlighted region from the flat crease pattern",
     )];
+    details.certificate = Some(StepCertificate::manual(
+        details.affected_creases.clone(),
+        details.affected_faces.clone(),
+        details.diagnostics.clone(),
+    ));
     InstructionStep::ManualCollapse(details)
 }
 
@@ -885,6 +893,8 @@ pub struct TraceCandidate {
     pub affected_creases: Vec<usize>,
     pub accepted: bool,
     pub unresolved_after: usize,
+    pub certificate_status: Option<CertificateStatus>,
+    pub recognizer: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1141,6 +1151,65 @@ impl InstructionStep {
             InstructionStep::UnsupportedRegion(step) => &step.id,
         }
     }
+
+    pub fn certificate(&self) -> Option<&StepCertificate> {
+        match self {
+            InstructionStep::PrecreaseRegion(details)
+            | InstructionStep::SimpleFold(details)
+            | InstructionStep::ReverseFold(details)
+            | InstructionStep::SquashFold(details)
+            | InstructionStep::RabbitEar(details)
+            | InstructionStep::MoleculeCollapse(details)
+            | InstructionStep::SimultaneousCollapse(details)
+            | InstructionStep::ManualCollapse(details) => details.certificate.as_ref(),
+            InstructionStep::ManualChoice(_) | InstructionStep::UnsupportedRegion(_) => None,
+        }
+    }
+}
+
+pub fn inspect_step_certificate(step: &InstructionStep) -> Vec<SequenceDiagnostic> {
+    let Some(certificate) = step.certificate() else {
+        return Vec::new();
+    };
+    let mut diagnostics = Vec::new();
+    for check in certificate
+        .preconditions
+        .iter()
+        .chain(certificate.postconditions.iter())
+    {
+        if check.status == CertificateCheckStatus::Failed {
+            diagnostics.push(SequenceDiagnostic::error(
+                "step_certificate_failed_check",
+                format!("{} failed: {}", check.code, check.message),
+            ));
+        }
+    }
+    if certificate.status == CertificateStatus::Verified
+        && certificate
+            .preconditions
+            .iter()
+            .chain(certificate.postconditions.iter())
+            .any(|check| {
+                matches!(
+                    check.status,
+                    CertificateCheckStatus::Warning | CertificateCheckStatus::NotChecked
+                )
+            })
+    {
+        diagnostics.push(SequenceDiagnostic::warning(
+            "verified_certificate_has_uncertain_check",
+            "verified certificates should not contain warning or not_checked checks",
+        ));
+    }
+    if certificate.layer_order.policy == LayerOrderPolicy::Preserved
+        && !certificate.layer_order.preserved
+    {
+        diagnostics.push(SequenceDiagnostic::error(
+            "step_certificate_layer_order_conflict",
+            "certificate says layer-order policy is preserved but preserved is false",
+        ));
+    }
+    diagnostics
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1152,6 +1221,8 @@ pub struct StepDetails {
     pub before_state: String,
     pub after_state: String,
     pub metadata: MoveMetadata,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub certificate: Option<StepCertificate>,
     pub diagnostics: Vec<SequenceDiagnostic>,
 }
 
@@ -1170,7 +1241,205 @@ impl StepDetails {
             before_state: before_state.into(),
             after_state: after_state.into(),
             metadata: MoveMetadata::default(),
+            certificate: None,
             diagnostics: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct StepCertificate {
+    pub status: CertificateStatus,
+    pub recognizer: String,
+    pub checked_creases: Vec<usize>,
+    pub checked_faces: Vec<usize>,
+    pub preconditions: Vec<CertificateCheck>,
+    pub postconditions: Vec<CertificateCheck>,
+    pub layer_order: LayerOrderCertificate,
+    pub diagnostics: Vec<SequenceDiagnostic>,
+}
+
+impl StepCertificate {
+    fn simple_fold(rule: &SimpleFoldRule) -> Self {
+        Self {
+            status: CertificateStatus::Verified,
+            recognizer: "boundary_simple_fold".to_string(),
+            checked_creases: vec![rule.crease],
+            checked_faces: rule.faces.clone(),
+            preconditions: vec![
+                CertificateCheck::passed(
+                    "active_mv_crease",
+                    format!(
+                        "crease {} is active with {} assignment",
+                        rule.crease,
+                        rule.assignment.as_str()
+                    ),
+                ),
+                CertificateCheck::passed(
+                    "two_adjacent_faces",
+                    format!("crease {} has two adjacent faces", rule.crease),
+                ),
+                CertificateCheck::passed(
+                    "boundary_endpoints",
+                    format!("crease {} has boundary endpoints", rule.crease),
+                ),
+            ],
+            postconditions: vec![
+                CertificateCheck::passed(
+                    "crease_deactivated",
+                    format!("crease {} is reset in the reverse state", rule.crease),
+                ),
+                CertificateCheck::passed(
+                    "target_resolved",
+                    "reverse state resolved through the flat-fold target solver",
+                ),
+            ],
+            layer_order: LayerOrderCertificate::preserved(),
+            diagnostics: Vec::new(),
+        }
+    }
+
+    fn heuristic_complex(candidate: &ComplexMoveCandidate) -> Self {
+        Self {
+            status: CertificateStatus::Heuristic,
+            recognizer: format!(
+                "topology_only_{}",
+                complex_kind_label(&candidate.kind).replace(' ', "_")
+            ),
+            checked_creases: candidate.creases.clone(),
+            checked_faces: candidate.faces.clone(),
+            preconditions: vec![
+                CertificateCheck::passed(
+                    "active_mv_group",
+                    "candidate creases are active mountain/valley creases",
+                ),
+                CertificateCheck::passed(
+                    "interior_center_vertex",
+                    "candidate is grouped around an interior vertex",
+                ),
+                CertificateCheck::warning(
+                    "move_specific_geometry_not_checked",
+                    "sector geometry and named-move kinematics are not yet certified",
+                ),
+            ],
+            postconditions: vec![
+                CertificateCheck::passed(
+                    "candidate_creases_deactivated",
+                    "candidate creases are reset in the reverse state",
+                ),
+                CertificateCheck::passed(
+                    "target_resolved",
+                    "reverse state resolved through the flat-fold target solver",
+                ),
+                CertificateCheck::warning(
+                    "macro_move_not_decomposed",
+                    "accepted as a macro step without lower-level sub-fold certificates",
+                ),
+            ],
+            layer_order: LayerOrderCertificate::preserved(),
+            diagnostics: vec![SequenceDiagnostic::warning(
+                "heuristic_step_certificate",
+                "step is accepted by topology and target resolution, but the named move is not geometrically certified yet",
+            )],
+        }
+    }
+
+    fn manual(
+        checked_creases: Vec<usize>,
+        checked_faces: Vec<usize>,
+        diagnostics: Vec<SequenceDiagnostic>,
+    ) -> Self {
+        Self {
+            status: CertificateStatus::Manual,
+            recognizer: "manual_collapse_boundary".to_string(),
+            checked_creases,
+            checked_faces,
+            preconditions: vec![CertificateCheck::warning(
+                "planner_boundary",
+                "planner could not certify a deterministic fold decomposition for this region",
+            )],
+            postconditions: vec![CertificateCheck::not_checked(
+                "manual_result",
+                "manual collapse result is represented by the next planned state",
+            )],
+            layer_order: LayerOrderCertificate::preserved(),
+            diagnostics,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CertificateStatus {
+    Verified,
+    Heuristic,
+    Manual,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CertificateCheck {
+    pub code: String,
+    pub status: CertificateCheckStatus,
+    pub message: String,
+}
+
+impl CertificateCheck {
+    pub fn passed(code: impl Into<String>, message: impl Into<String>) -> Self {
+        Self {
+            code: code.into(),
+            status: CertificateCheckStatus::Passed,
+            message: message.into(),
+        }
+    }
+
+    pub fn warning(code: impl Into<String>, message: impl Into<String>) -> Self {
+        Self {
+            code: code.into(),
+            status: CertificateCheckStatus::Warning,
+            message: message.into(),
+        }
+    }
+
+    pub fn failed(code: impl Into<String>, message: impl Into<String>) -> Self {
+        Self {
+            code: code.into(),
+            status: CertificateCheckStatus::Failed,
+            message: message.into(),
+        }
+    }
+
+    pub fn not_checked(code: impl Into<String>, message: impl Into<String>) -> Self {
+        Self {
+            code: code.into(),
+            status: CertificateCheckStatus::NotChecked,
+            message: message.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CertificateCheckStatus {
+    Passed,
+    Warning,
+    Failed,
+    NotChecked,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LayerOrderCertificate {
+    pub policy: LayerOrderPolicy,
+    pub preserved: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub diagnostic: Option<String>,
+}
+
+impl LayerOrderCertificate {
+    fn preserved() -> Self {
+        Self {
+            policy: LayerOrderPolicy::Preserved,
+            preserved: true,
+            diagnostic: None,
         }
     }
 }
@@ -1661,7 +1930,7 @@ fn finish_reverse_complex_group(
     diagnostics.push(SequenceDiagnostic::info(
         "complex_transform_applied",
         format!(
-            "{:?} transform accepted as a validated local complex collapse over creases {:?}",
+            "{:?} transform accepted as a heuristic local complex collapse over creases {:?}",
             candidate.kind, candidate.creases
         ),
     ));
@@ -1902,6 +2171,7 @@ impl SimpleFoldRule {
             confidence: 1.0,
             notes: Vec::new(),
         };
+        details.certificate = Some(StepCertificate::simple_fold(self));
         InstructionStep::SimpleFold(details)
     }
 }
@@ -1922,9 +2192,9 @@ fn complex_candidate_to_forward_step(
     details.metadata = candidate.metadata.clone();
     details.metadata.confidence = details.metadata.confidence.max(0.7);
     details.metadata.notes.push(
-        "accepted as a validated local complex move; lower-level sub-folds are not decomposed"
-            .to_string(),
+        "accepted as a heuristic macro move; lower-level sub-folds are not decomposed".to_string(),
     );
+    details.certificate = Some(StepCertificate::heuristic_complex(candidate));
     match candidate.kind {
         ComplexMoveKind::ReverseFold => InstructionStep::ReverseFold(details),
         ComplexMoveKind::SquashFold => InstructionStep::SquashFold(details),
@@ -1994,6 +2264,14 @@ fn trace_candidate_for_step(
             affected_creases: details.affected_creases.clone(),
             accepted: true,
             unresolved_after,
+            certificate_status: details
+                .certificate
+                .as_ref()
+                .map(|certificate| certificate.status.clone()),
+            recognizer: details
+                .certificate
+                .as_ref()
+                .map(|certificate| certificate.recognizer.clone()),
         },
         InstructionStep::ManualCollapse(details) => TraceCandidate {
             step_id: details.id.clone(),
@@ -2001,6 +2279,14 @@ fn trace_candidate_for_step(
             affected_creases: details.affected_creases.clone(),
             accepted: false,
             unresolved_after,
+            certificate_status: details
+                .certificate
+                .as_ref()
+                .map(|certificate| certificate.status.clone()),
+            recognizer: details
+                .certificate
+                .as_ref()
+                .map(|certificate| certificate.recognizer.clone()),
         },
         InstructionStep::ManualChoice(step) => TraceCandidate {
             step_id: step.id.clone(),
@@ -2012,6 +2298,8 @@ fn trace_candidate_for_step(
                 .collect(),
             accepted: false,
             unresolved_after,
+            certificate_status: None,
+            recognizer: None,
         },
         InstructionStep::UnsupportedRegion(step) => TraceCandidate {
             step_id: step.id.clone(),
@@ -2019,6 +2307,8 @@ fn trace_candidate_for_step(
             affected_creases: step.region.creases.clone(),
             accepted: false,
             unresolved_after,
+            certificate_status: None,
+            recognizer: None,
         },
     }
 }
@@ -2544,9 +2834,17 @@ mod tests {
             InstructionStep::SimpleFold(details) => {
                 assert_eq!(details.affected_creases, vec![4]);
                 assert_eq!(details.metadata.difficulty, MoveDifficulty::Simple);
+                let certificate = details
+                    .certificate
+                    .as_ref()
+                    .expect("simple fold certificate");
+                assert_eq!(certificate.status, CertificateStatus::Verified);
+                assert_eq!(certificate.recognizer, "boundary_simple_fold");
+                assert_eq!(certificate.checked_creases, vec![4]);
             }
             other => panic!("expected simple fold step, got {other:?}"),
         }
+        assert!(inspect_step_certificate(&plan.steps[0]).is_empty());
     }
 
     #[test]
@@ -2660,6 +2958,14 @@ mod tests {
                 assert_eq!(details.affected_creases.len(), 8);
                 assert_eq!(details.before_state, "state-1");
                 assert_eq!(details.after_state, "target");
+                let certificate = details.certificate.as_ref().expect("squash certificate");
+                assert_eq!(certificate.status, CertificateStatus::Heuristic);
+                assert!(
+                    certificate
+                        .diagnostics
+                        .iter()
+                        .any(|diagnostic| diagnostic.code == "heuristic_step_certificate")
+                );
             }
             other => panic!("expected squash fold step, got {other:?}"),
         }
@@ -2740,6 +3046,10 @@ mod tests {
                 if details.label == "Collapse up until this point"
                     && details.before_state == "flat-cp"
                     && details.after_state == "target"
+                    && details.certificate.as_ref().is_some_and(|certificate| {
+                        certificate.status == CertificateStatus::Manual
+                            && certificate.recognizer == "manual_collapse_boundary"
+                    })
         ));
         assert!(
             plan.states
@@ -2773,9 +3083,42 @@ mod tests {
         assert_eq!(trace.score, plan.score());
         assert_eq!(trace.candidates.len(), plan.steps.len());
         assert_eq!(
+            trace.candidates[0].certificate_status,
+            Some(CertificateStatus::Verified)
+        );
+        assert_eq!(
+            trace.candidates[0].recognizer.as_deref(),
+            Some("boundary_simple_fold")
+        );
+        assert_eq!(
             trace.ml_decision.recommendation,
             MlRecommendation::CollectMoreTraces
         );
+    }
+
+    #[test]
+    fn step_certificate_inspector_reports_failed_checks() {
+        let mut details = StepDetails::new("step-1", "Bad certificate", "before", "after");
+        details.certificate = Some(StepCertificate {
+            status: CertificateStatus::Verified,
+            recognizer: "test".to_string(),
+            checked_creases: Vec::new(),
+            checked_faces: Vec::new(),
+            preconditions: vec![CertificateCheck::failed(
+                "broken_precondition",
+                "synthetic failure",
+            )],
+            postconditions: Vec::new(),
+            layer_order: LayerOrderCertificate::preserved(),
+            diagnostics: Vec::new(),
+        });
+        let step = InstructionStep::SimpleFold(details);
+        let diagnostics = inspect_step_certificate(&step);
+
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic.severity == DiagnosticSeverity::Error
+                && diagnostic.code == "step_certificate_failed_check"
+        }));
     }
 
     #[test]
