@@ -429,8 +429,8 @@ export interface GroundTruthGraph {
 }
 
 export interface Stage5Response extends Stage4Response {
-  candidate_source: string;
-  candidate_graph: CandidateGraph;
+  candidate_source?: string;
+  candidate_graph?: CandidateGraph | null;
   ground_truth?: GroundTruthGraph | null;
   legacy_graph?: GroundTruthGraph | null;
 }

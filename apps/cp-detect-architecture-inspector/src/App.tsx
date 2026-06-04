@@ -291,6 +291,8 @@ export function App() {
     () => filteredStage4Issues.find((issue) => issue.id === selectedStage4IssueId) ?? null,
     [filteredStage4Issues, selectedStage4IssueId],
   );
+  const stage5 = isStage5(stage) ? stage : null;
+  const candidateGraph = stage5?.candidate_graph ?? null;
 
   useEffect(() => {
     if (activeStage !== 'stage4') {
@@ -427,39 +429,39 @@ export function App() {
 
           {activeStage === 'stage5' ? (
             <section className="summary-grid">
-              <Metric label="selected spans" value={isStage5(stage) ? stage.selection.report.selected_spans : '...'} />
-              <Metric label="source" value={isStage5(stage) ? stage.candidate_graph.provenance.source_adapter : '...'} />
-              <Metric label="candidates" value={isStage5(stage) ? stage.candidate_graph.report.crease_candidates : '...'} />
-              <Metric label="conflicts" value={isStage5(stage) ? stage.candidate_graph.report.conflicts : '...'} />
+              <Metric label="selected spans" value={stage5 ? stage5.selection.report.selected_spans : '...'} />
+              <Metric label="source" value={candidateGraph?.provenance?.source_adapter ?? stage5?.candidate_source ?? candidateSource} />
+              <Metric label="candidates" value={candidateGraph?.report?.crease_candidates ?? '...'} />
+              <Metric label="conflicts" value={candidateGraph?.report?.conflicts ?? '...'} />
               <Metric
                 label="span vertices"
-                value={isStage5(stage) ? new Set(stage.selection.selected_spans.flatMap((span) => span.vertices)).size : '...'}
+                value={stage5 ? new Set(stage5.selection.selected_spans.flatMap((span) => span.vertices)).size : '...'}
               />
-              <Metric label="atomic provenance" value={isStage5(stage) ? stage.selection.selected_edge_ids.length : '...'} />
+              <Metric label="atomic provenance" value={stage5 ? stage5.selection.selected_edge_ids.length : '...'} />
               <Metric
                 label="shared spans"
-                value={isStage5(stage) ? stage.selection.selected_spans.filter((span) => span.kind === 'shared_carrier_span').length : '...'}
+                value={stage5 ? stage5.selection.selected_spans.filter((span) => span.kind === 'shared_carrier_span').length : '...'}
               />
               <Metric
                 label="normalized spans"
                 value={
-                  isStage5(stage)
-                    ? stage.selection.selected_spans.filter((span) => span.kind === 'normalized_pass_through_span').length
+                  stage5
+                    ? stage5.selection.selected_spans.filter((span) => span.kind === 'normalized_pass_through_span').length
                     : '...'
                 }
               />
               <Metric
                 label="collapsed vertices"
-                value={isStage5(stage) ? stage.selection.selected_spans.reduce((sum, span) => sum + span.collapsed_vertex_ids.length, 0) : '...'}
+                value={stage5 ? stage5.selection.selected_spans.reduce((sum, span) => sum + span.collapsed_vertex_ids.length, 0) : '...'}
               />
-              <Metric label="weak promoted" value={isStage5(stage) ? stage.selection.report.weak_edges_promoted : '...'} />
+              <Metric label="weak promoted" value={stage5 ? stage5.selection.report.weak_edges_promoted : '...'} />
               <Metric
                 label="GT graph"
-                value={isStage5(stage) && stage.ground_truth ? `${stage.ground_truth.vertices_px.length} V / ${stage.ground_truth.edges_vertices.length} E` : 'none'}
+                value={stage5?.ground_truth ? `${stage5.ground_truth.vertices_px.length} V / ${stage5.ground_truth.edges_vertices.length} E` : 'none'}
               />
               <Metric
                 label="legacy graph"
-                value={isStage5(stage) && stage.legacy_graph ? `${stage.legacy_graph.vertices_px.length} V / ${stage.legacy_graph.edges_vertices.length} E` : 'none'}
+                value={stage5?.legacy_graph ? `${stage5.legacy_graph.vertices_px.length} V / ${stage5.legacy_graph.edges_vertices.length} E` : 'none'}
               />
             </section>
           ) : activeStage === 'stage4' ? (
