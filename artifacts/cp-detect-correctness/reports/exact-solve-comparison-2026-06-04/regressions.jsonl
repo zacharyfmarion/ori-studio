@@ -1,0 +1,3 @@
+{"after":0.658031,"before":0.782383,"delta":-0.124352,"metric":"exact_vs_selected_edge_f1","sample_id":"rabbit_ear_fold_program_v1-5wk0b-000109__line-style__000"}
+{"after":0.591304,"before":0.730435,"delta":-0.13913,"metric":"exact_vs_selected_edge_f1","sample_id":"treemaker_tree_v1-5gjmj-004937__line-style__001"}
+{"after":0.875598,"before":0.878282,"delta":-0.002684,"metric":"selected_vs_legacy_edge_f1","sample_id":"rabbit_ear_fold_program_v1-5wk0b-000109__v2-watermark__000"}

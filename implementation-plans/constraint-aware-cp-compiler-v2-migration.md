@@ -2010,9 +2010,113 @@ Completed:
 
 Remaining:
 
-- [ ] Run curated legacy-vs-selected-vs-exact-solved metric comparisons.
+- [x] Run curated legacy-vs-selected-vs-exact-solved metric comparisons.
 - [ ] Decide, from visual + metric review, whether exact solve should be wired
   into browser import output or remain a diagnostic-only stage for now.
+
+### Phase 7 Benchmark Gate: Legacy vs Selected vs Exact-Solved
+
+Purpose: make the exact-solve decision repeatable. Visual inspection is still
+necessary, but Phase 7 should not graduate into the browser import path unless a
+dated benchmark shows what exact solving improves, what it regresses, and
+whether those changes matter to the product validators.
+
+Benchmark command:
+
+```bash
+cargo run -p oristudio-cp-detect --bin compare_exact_solve_benchmark -- \
+  --dense-manifest artifacts/cp-detect-correctness/dense-cache/smoke-1024-s3-browser-onnx/manifest.json \
+  --candidate-source legacy \
+  --threshold 0.65 \
+  --legacy-low-threshold 0.35 \
+  --out artifacts/cp-detect-correctness/reports/exact-solve-comparison-YYYY-MM-DD
+```
+
+The benchmark compares three outputs from the same cached neural evidence:
+
+1. Frozen legacy decode output.
+2. Legacy-backed `CandidateGraph` after Stage 5 beam selection.
+3. Stage 5 selected topology after Stage 6 exact solve.
+
+Required metrics:
+
+- Ground-truth graph metrics: edge precision, recall, F1, boundary edge F1, and
+  assignment accuracy for matched edges.
+- Structural metrics: degree-2 interior vertices, odd-degree interior vertices,
+  Maekawa failures, maximum Kawasaki residual, degenerate edges, unmodeled
+  crossings, and boundary failures.
+- Product validators: FOLD validity, Oriedita-style Check1/Check2/Check3/CAMV
+  counts, flat-folder solved status, and flat-folder error kind/message.
+- Exact-solve diagnostics: status, objective before/after, max vertex movement,
+  moved vertex count, evaluation count, and solve seconds.
+
+Report artifacts:
+
+```text
+artifacts/cp-detect-correctness/reports/exact-solve-comparison-YYYY-MM-DD/
+  README.md
+  summary.json
+  summary.md
+  per_sample.jsonl
+  regressions.jsonl
+```
+
+Also update:
+
+```text
+implementation-plans/cp-detect-benchmark-history.md
+```
+
+Done means:
+
+- [x] The command above can be rerun from a clean worktree with only the dense
+  cache present.
+- [x] The report separates topology accuracy from geometry/product validity.
+- [x] The dated result directory and benchmark-history note are committed.
+- [x] Any exact-solve regression is listed in `regressions.jsonl` with the
+  affected sample id and metric.
+
+### Phase 7 Benchmark Result - June 4, 2026
+
+Command:
+
+```bash
+cargo run -p oristudio-cp-detect --bin compare_exact_solve_benchmark -- \
+  --dense-manifest artifacts/cp-detect-correctness/dense-cache/smoke-1024-s3-browser-onnx/manifest.json \
+  --candidate-source legacy \
+  --threshold 0.65 \
+  --legacy-low-threshold 0.35 \
+  --out artifacts/cp-detect-correctness/reports/exact-solve-comparison-2026-06-04
+```
+
+Result summary:
+
+- Runtime: 848.439 seconds for 12 smoke-pack samples.
+- Legacy adapted graph: edge F1 0.8651, border F1 0.9588, assignment accuracy
+  0.9966, CAMV 459, flat-folder solved 0/12.
+- Stage 5 selected graph: edge F1 0.8650, border F1 0.9588, assignment accuracy
+  0.9974, CAMV 459, flat-folder solved 0/12.
+- Stage 6 exact-solved graph: edge F1 0.8444, border F1 0.9588, assignment
+  accuracy 0.9983, CAMV 459, flat-folder solved 0/12.
+- Exact solve reduced maximum Kawasaki residual from 156.1668 degrees to
+  0.0330 degrees, but solved 0 samples, marked 2 ambiguous and 10 failed.
+- Exact solve introduced measurable edge-F1 regressions on line-style samples:
+  - `rabbit_ear_fold_program_v1-5wk0b-000109__line-style__000`: 0.7824 ->
+    0.6580
+  - `treemaker_tree_v1-5gjmj-004937__line-style__001`: 0.7304 -> 0.5913
+
+Interpretation:
+
+- Stage 5 currently behaves almost identically to the legacy-adapted baseline on
+  this smoke pack. It is not yet making useful topology choices from the
+  lower-threshold candidate pool.
+- Stage 6 proves the optimizer can drive local Kawasaki residuals down, but it
+  can move vertices enough to hurt GT edge matching and does not improve
+  CAMV/flat-folder success because topology and assignment failures remain.
+- Exact solve should remain diagnostic-only. Do not wire it into browser import
+  output until the solver is constrained to preserve topology/edge matching and
+  the selector or assignment solver reduces the local theorem failures that
+  block flat-folder.
 
 Acceptance:
 

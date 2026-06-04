@@ -1,0 +1,1466 @@
+use std::collections::{BTreeMap, BTreeSet};
+use std::env;
+use std::fs;
+use std::ops::AddAssign;
+use std::path::{Path, PathBuf};
+use std::process::Command;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
+
+use oristudio_cp_compiler::selection::{SelectionOptions, select_candidate_graph_beam_from_ir};
+use oristudio_cp_compiler::verify::{GlobalVerificationOptions, verify_fold_json};
+use oristudio_cp_compiler::{
+    AssignmentLabel, CandidateGraph, CandidateProgram, ExactSolveInput, ExactSolveOptions,
+    ExactSolvedGraph, ExactSolvedGraphStatus, LegacyCandidateAdapter,
+    LegacyCandidateAdapterOptions, Point2, SelectedGraph, solve_exact,
+};
+use oristudio_cp_detect::decode::{DecodeConfig, DenseOutputs, decode_dense_outputs};
+use serde::{Deserialize, Serialize};
+use serde_json::{Value, json};
+
+const SCHEMA: &str = "oristudio/cp-detect-exact-solve-comparison/v1";
+const DEFAULT_DENSE_MANIFEST: &str =
+    "artifacts/cp-detect-correctness/dense-cache/smoke-1024-s3-browser-onnx/manifest.json";
+
+#[derive(Debug, Deserialize)]
+struct DenseCacheManifest {
+    schema: Option<String>,
+    pack: Option<String>,
+    samples: Vec<DenseCacheSample>,
+}
+
+#[derive(Debug, Deserialize)]
+struct DenseCacheSample {
+    id: String,
+    #[serde(default)]
+    source_id: Option<String>,
+    #[serde(default)]
+    family: Option<String>,
+    #[serde(default)]
+    profile: Option<String>,
+    image_size: u32,
+    threshold: f32,
+    line_logits_f32_path: String,
+    junction_logits_f32_path: String,
+    assignment_logits_f32_path: String,
+    non_crease_logits_f32_path: String,
+    line_style_logits_f32_path: String,
+    boundary_contact_logits_f32_path: String,
+    #[serde(default)]
+    gt_graph: Option<String>,
+}
+
+#[derive(Debug)]
+struct Args {
+    dense_manifest: PathBuf,
+    out: PathBuf,
+    candidate_source: String,
+    threshold: Option<f32>,
+    legacy_low_threshold: Option<f32>,
+    exact_patience: Option<usize>,
+    limit: Option<usize>,
+    match_tolerance_px: f64,
+    skip_flat_folder: bool,
+}
+
+#[derive(Debug, Serialize)]
+struct BenchmarkSummary {
+    schema: &'static str,
+    generated_by: &'static str,
+    generated_at_unix: u64,
+    git_commit: Option<String>,
+    dense_manifest: String,
+    dense_schema: Option<String>,
+    pack: Option<String>,
+    config: BenchmarkConfig,
+    sample_count: usize,
+    total_seconds: f64,
+    implementations: BTreeMap<String, ImplementationAggregate>,
+}
+
+#[derive(Debug, Serialize)]
+struct BenchmarkConfig {
+    candidate_source: String,
+    threshold: Option<f32>,
+    legacy_low_threshold: Option<f32>,
+    exact_patience: Option<usize>,
+    match_tolerance_px: f64,
+    flat_folder_enabled: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct BenchmarkSample {
+    id: String,
+    source_id: Option<String>,
+    family: Option<String>,
+    profile: Option<String>,
+    gt_edges: usize,
+    legacy: OutputMetrics,
+    selected: OutputMetrics,
+    exact_solved: OutputMetrics,
+    selection: SelectionSummary,
+    exact_solve: ExactSolveSummary,
+    seconds: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct OutputMetrics {
+    vertices: usize,
+    edges: usize,
+    edge_metrics: SegmentMetrics,
+    border_metrics: SegmentMetrics,
+    assignment_metrics: AssignmentMetrics,
+    structural: StructuralMetrics,
+    verification: VerificationMetrics,
+}
+
+#[derive(Debug, Default, Clone, Serialize)]
+struct ImplementationAggregate {
+    samples: usize,
+    vertices: usize,
+    edges: usize,
+    edge_metrics: SegmentMetrics,
+    border_metrics: SegmentMetrics,
+    assignment_metrics: AssignmentMetrics,
+    structural: StructuralAggregate,
+    verification: VerificationAggregate,
+    exact: ExactSolveAggregate,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct SelectionSummary {
+    candidate_spans: usize,
+    selected_spans: usize,
+    selected_weak_spans: usize,
+    dropped_legacy_spans: usize,
+    total_score: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct ExactSolveSummary {
+    status: String,
+    seconds: f64,
+    initial_objective: Option<f64>,
+    final_objective: Option<f64>,
+    max_vertex_movement: Option<f64>,
+    moved_vertices: usize,
+    evaluations: Option<usize>,
+}
+
+#[derive(Debug, Default, Clone, Copy, Serialize)]
+struct ExactSolveAggregate {
+    attempted: usize,
+    solved: usize,
+    ambiguous: usize,
+    failed: usize,
+    total_seconds: f64,
+    max_vertex_movement: f64,
+    moved_vertices: usize,
+}
+
+impl ExactSolveAggregate {
+    fn add(&mut self, exact: &ExactSolveSummary) {
+        self.attempted += 1;
+        match exact.status.as_str() {
+            "solved" => self.solved += 1,
+            "ambiguous" => self.ambiguous += 1,
+            _ => self.failed += 1,
+        }
+        self.total_seconds += exact.seconds;
+        self.max_vertex_movement = self
+            .max_vertex_movement
+            .max(exact.max_vertex_movement.unwrap_or(0.0));
+        self.moved_vertices += exact.moved_vertices;
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, Serialize)]
+struct SegmentMetrics {
+    precision: f64,
+    recall: f64,
+    f1: f64,
+    true_positive: usize,
+    false_positive: usize,
+    false_negative: usize,
+}
+
+impl SegmentMetrics {
+    fn finalize(&mut self) {
+        self.precision = ratio(self.true_positive, self.true_positive + self.false_positive);
+        self.recall = ratio(self.true_positive, self.true_positive + self.false_negative);
+        self.f1 = if self.precision + self.recall > 0.0 {
+            2.0 * self.precision * self.recall / (self.precision + self.recall)
+        } else {
+            0.0
+        };
+    }
+}
+
+impl AddAssign for SegmentMetrics {
+    fn add_assign(&mut self, rhs: Self) {
+        self.true_positive += rhs.true_positive;
+        self.false_positive += rhs.false_positive;
+        self.false_negative += rhs.false_negative;
+        self.precision = 0.0;
+        self.recall = 0.0;
+        self.f1 = 0.0;
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, Serialize)]
+struct AssignmentMetrics {
+    accuracy: f64,
+    matched: usize,
+    correct: usize,
+    incorrect: usize,
+}
+
+impl AssignmentMetrics {
+    fn finalize(&mut self) {
+        self.accuracy = ratio(self.correct, self.matched);
+    }
+}
+
+impl AddAssign for AssignmentMetrics {
+    fn add_assign(&mut self, rhs: Self) {
+        self.matched += rhs.matched;
+        self.correct += rhs.correct;
+        self.incorrect += rhs.incorrect;
+        self.accuracy = 0.0;
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, Serialize)]
+struct StructuralMetrics {
+    interior_vertices: usize,
+    degree_two_vertices: usize,
+    odd_degree_vertices: usize,
+    maekawa_failures: usize,
+    eligible_kawasaki_vertices: usize,
+    max_kawasaki_residual_degrees: f64,
+    degenerate_edges: usize,
+    unmodeled_crossings: usize,
+    boundary_failures: usize,
+}
+
+#[derive(Debug, Default, Clone, Copy, Serialize)]
+struct StructuralAggregate {
+    interior_vertices: usize,
+    degree_two_vertices: usize,
+    odd_degree_vertices: usize,
+    maekawa_failures: usize,
+    eligible_kawasaki_vertices: usize,
+    max_kawasaki_residual_degrees: f64,
+    degenerate_edges: usize,
+    unmodeled_crossings: usize,
+    boundary_failures: usize,
+}
+
+impl StructuralAggregate {
+    fn add(&mut self, metrics: StructuralMetrics) {
+        self.interior_vertices += metrics.interior_vertices;
+        self.degree_two_vertices += metrics.degree_two_vertices;
+        self.odd_degree_vertices += metrics.odd_degree_vertices;
+        self.maekawa_failures += metrics.maekawa_failures;
+        self.eligible_kawasaki_vertices += metrics.eligible_kawasaki_vertices;
+        self.max_kawasaki_residual_degrees = self
+            .max_kawasaki_residual_degrees
+            .max(metrics.max_kawasaki_residual_degrees);
+        self.degenerate_edges += metrics.degenerate_edges;
+        self.unmodeled_crossings += metrics.unmodeled_crossings;
+        self.boundary_failures += metrics.boundary_failures;
+    }
+}
+
+#[derive(Debug, Default, Clone, Serialize)]
+struct VerificationMetrics {
+    fold_valid: bool,
+    fold_error: Option<String>,
+    check1_segments: usize,
+    check2_segments: usize,
+    check3_markers: usize,
+    camv_violations: usize,
+    flat_folder_solved: bool,
+    flat_folder_error_kind: Option<String>,
+    flat_folder_error_message: Option<String>,
+    classifications: Vec<String>,
+}
+
+#[derive(Debug, Default, Clone, Serialize)]
+struct VerificationAggregate {
+    fold_valid: usize,
+    check1_segments: usize,
+    check2_segments: usize,
+    check3_markers: usize,
+    camv_violations: usize,
+    flat_folder_solved: usize,
+    flat_folder_errors: BTreeMap<String, usize>,
+    classifications: BTreeMap<String, usize>,
+}
+
+impl VerificationAggregate {
+    fn add(&mut self, metrics: &VerificationMetrics) {
+        if metrics.fold_valid {
+            self.fold_valid += 1;
+        }
+        self.check1_segments += metrics.check1_segments;
+        self.check2_segments += metrics.check2_segments;
+        self.check3_markers += metrics.check3_markers;
+        self.camv_violations += metrics.camv_violations;
+        if metrics.flat_folder_solved {
+            self.flat_folder_solved += 1;
+        }
+        if let Some(kind) = &metrics.flat_folder_error_kind {
+            *self.flat_folder_errors.entry(kind.clone()).or_default() += 1;
+        }
+        for classification in &metrics.classifications {
+            *self
+                .classifications
+                .entry(classification.clone())
+                .or_default() += 1;
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct GroundTruthGraph {
+    image_size: Option<u32>,
+    vertices_px: Vec<[f64; 2]>,
+    edges_vertices: Vec<[usize; 2]>,
+    #[serde(default)]
+    edges_assignment_labels: Vec<Value>,
+    #[serde(default)]
+    edges_assignment: Vec<Value>,
+}
+
+#[derive(Debug, Clone)]
+struct GraphDoc {
+    vertices: Vec<Point2>,
+    edges: Vec<[usize; 2]>,
+    assignments: Vec<AssignmentLabel>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct SegmentPx {
+    a: [f64; 2],
+    b: [f64; 2],
+    assignment: AssignmentLabel,
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args = Args::parse()?;
+    if args.candidate_source != "legacy" {
+        return Err(format!(
+            "candidate source {:?} is not supported by this benchmark yet",
+            args.candidate_source
+        )
+        .into());
+    }
+
+    let started = Instant::now();
+    let manifest_path = args.dense_manifest.canonicalize()?;
+    let manifest_root = manifest_path.parent().unwrap_or_else(|| Path::new("."));
+    let manifest: DenseCacheManifest = serde_json::from_str(&fs::read_to_string(&manifest_path)?)?;
+    fs::create_dir_all(&args.out)?;
+
+    let verify_options = GlobalVerificationOptions {
+        run_flat_folder: !args.skip_flat_folder,
+        flat_folder_solution_limit: 1,
+        ..GlobalVerificationOptions::default()
+    };
+    let mut rows = Vec::new();
+    let mut aggregates = BTreeMap::<String, ImplementationAggregate>::new();
+
+    for sample in manifest
+        .samples
+        .iter()
+        .take(args.limit.unwrap_or(usize::MAX))
+    {
+        let sample_started = Instant::now();
+        let threshold = args.threshold.unwrap_or(sample.threshold);
+        let low_threshold = args
+            .legacy_low_threshold
+            .unwrap_or_else(|| default_low_threshold(threshold));
+        let logits = read_sample_logits(manifest_root, sample)?;
+        let legacy_program = decode_program(sample, &logits, threshold)?;
+        let weak_program = if low_threshold < threshold {
+            Some(decode_program(sample, &logits, low_threshold)?)
+        } else {
+            None
+        };
+        let candidate_graph = LegacyCandidateAdapter::from_programs(
+            &legacy_program,
+            weak_program.as_ref(),
+            legacy_adapter_options(sample.image_size),
+        );
+        let selection = select_candidate_graph_beam_from_ir(
+            &candidate_graph,
+            SelectionOptions::default(),
+            Default::default(),
+        );
+        let selected_span_ids = selection
+            .selected_spans
+            .iter()
+            .map(|span| span.id)
+            .collect::<Vec<_>>();
+        let selected_span_set = selected_span_ids.iter().copied().collect::<BTreeSet<_>>();
+        let selected_graph =
+            SelectedGraph::from_selected_span_ids(&candidate_graph, selected_span_ids);
+        let exact_input =
+            ExactSolveInput::from_candidate_selection(&candidate_graph, &selected_graph);
+        eprintln!(
+            "{}",
+            serde_json::to_string(&json!({
+                "id": sample.id,
+                "event": "start_exact_solve",
+                "selected_spans": exact_input.selected_spans.len(),
+                "vertices": exact_input.vertices.len(),
+            }))?
+        );
+        let exact_started = Instant::now();
+        let mut exact_options = ExactSolveOptions::default();
+        if let Some(patience) = args.exact_patience {
+            exact_options.patience = patience;
+        }
+        let exact_solved = solve_exact(&exact_input, exact_options);
+        let exact_seconds = exact_started.elapsed().as_secs_f64();
+        eprintln!(
+            "{}",
+            serde_json::to_string(&json!({
+                "id": sample.id,
+                "event": "finish_exact_solve",
+                "seconds": round3(exact_seconds),
+                "status": exact_status_label(exact_solved.status),
+            }))?
+        );
+
+        let gt = read_ground_truth(manifest_root, manifest.pack.as_deref(), sample)?;
+        let legacy_span_set = candidate_graph
+            .crease_candidates
+            .iter()
+            .filter(|span| {
+                matches!(
+                    span.source_kind,
+                    oristudio_cp_compiler::CandidateCreaseSourceKind::LegacySelected
+                        | oristudio_cp_compiler::CandidateCreaseSourceKind::BorderGenerated
+                )
+            })
+            .map(|span| span.id)
+            .collect::<BTreeSet<_>>();
+        let legacy_doc = GraphDoc::from_candidate_selection(&candidate_graph, &legacy_span_set);
+        let selected_doc = GraphDoc::from_candidate_selection(&candidate_graph, &selected_span_set);
+        let exact_doc = GraphDoc::from_exact_solve(&exact_input, &exact_solved);
+        let gt_segments = gt.segments();
+
+        let legacy = output_metrics(
+            &legacy_doc,
+            &gt_segments,
+            sample.image_size,
+            args.match_tolerance_px,
+            verify_options,
+        )?;
+        let selected = output_metrics(
+            &selected_doc,
+            &gt_segments,
+            sample.image_size,
+            args.match_tolerance_px,
+            verify_options,
+        )?;
+        let exact_output = output_metrics(
+            &exact_doc,
+            &gt_segments,
+            sample.image_size,
+            args.match_tolerance_px,
+            verify_options,
+        )?;
+        let exact_summary = exact_solve_summary(&exact_solved, exact_seconds);
+        let selected_weak_spans = selection
+            .selected_spans
+            .iter()
+            .filter(|span| {
+                candidate_graph
+                    .crease_candidates
+                    .get(span.id)
+                    .is_some_and(|candidate| {
+                        candidate.source_kind
+                            == oristudio_cp_compiler::CandidateCreaseSourceKind::LegacyLowThreshold
+                    })
+            })
+            .count();
+        let dropped_legacy_spans = candidate_graph
+            .crease_candidates
+            .iter()
+            .filter(|span| {
+                span.source_kind == oristudio_cp_compiler::CandidateCreaseSourceKind::LegacySelected
+                    && !selected_span_set.contains(&span.id)
+            })
+            .count();
+
+        let row = BenchmarkSample {
+            id: sample.id.clone(),
+            source_id: sample.source_id.clone(),
+            family: sample.family.clone(),
+            profile: sample.profile.clone(),
+            gt_edges: gt_segments.len(),
+            legacy,
+            selected,
+            exact_solved: exact_output,
+            selection: SelectionSummary {
+                candidate_spans: candidate_graph.crease_candidates.len(),
+                selected_spans: selection.selected_spans.len(),
+                selected_weak_spans,
+                dropped_legacy_spans,
+                total_score: round6(selection.report.total_score),
+            },
+            exact_solve: exact_summary,
+            seconds: round3(sample_started.elapsed().as_secs_f64()),
+        };
+
+        add_output(&mut aggregates, "legacy", &row.legacy, None);
+        add_output(&mut aggregates, "selected", &row.selected, None);
+        add_output(
+            &mut aggregates,
+            "exact_solved",
+            &row.exact_solved,
+            Some(&row.exact_solve),
+        );
+        eprintln!(
+            "{}",
+            serde_json::to_string(&json!({
+                "id": row.id,
+                "seconds": row.seconds,
+                "legacy_f1": row.legacy.edge_metrics.f1,
+                "selected_f1": row.selected.edge_metrics.f1,
+                "exact_f1": row.exact_solved.edge_metrics.f1,
+                "exact_status": row.exact_solve.status,
+            }))?
+        );
+        rows.push(row);
+    }
+
+    for aggregate in aggregates.values_mut() {
+        aggregate.edge_metrics.finalize();
+        aggregate.border_metrics.finalize();
+        aggregate.assignment_metrics.finalize();
+    }
+
+    let summary = BenchmarkSummary {
+        schema: SCHEMA,
+        generated_by: "compare_exact_solve_benchmark",
+        generated_at_unix: now_unix(),
+        git_commit: git_commit(),
+        dense_manifest: manifest_path.display().to_string(),
+        dense_schema: manifest.schema,
+        pack: manifest.pack,
+        config: BenchmarkConfig {
+            candidate_source: args.candidate_source,
+            threshold: args.threshold,
+            legacy_low_threshold: args.legacy_low_threshold,
+            exact_patience: args.exact_patience,
+            match_tolerance_px: args.match_tolerance_px,
+            flat_folder_enabled: !args.skip_flat_folder,
+        },
+        sample_count: rows.len(),
+        total_seconds: round3(started.elapsed().as_secs_f64()),
+        implementations: aggregates,
+    };
+
+    write_reports(&args.out, &summary, &rows)?;
+    println!("{}", serde_json::to_string_pretty(&summary)?);
+    Ok(())
+}
+
+impl Args {
+    fn parse() -> Result<Self, Box<dyn std::error::Error>> {
+        let mut dense_manifest = None;
+        let mut out = None;
+        let mut candidate_source = "legacy".to_owned();
+        let mut threshold = None;
+        let mut legacy_low_threshold = None;
+        let mut exact_patience = None;
+        let mut limit = None;
+        let mut match_tolerance_px = 12.0;
+        let mut skip_flat_folder = false;
+        let mut iter = env::args().skip(1);
+        while let Some(arg) = iter.next() {
+            match arg.as_str() {
+                "--dense-manifest" | "--manifest" | "--cache" => {
+                    dense_manifest = Some(PathBuf::from(required_value(&mut iter, &arg)?));
+                }
+                "--out" => out = Some(PathBuf::from(required_value(&mut iter, "--out")?)),
+                "--candidate-source" => {
+                    candidate_source = required_value(&mut iter, "--candidate-source")?
+                }
+                "--threshold" => {
+                    threshold = Some(required_value(&mut iter, "--threshold")?.parse()?)
+                }
+                "--legacy-low-threshold" => {
+                    legacy_low_threshold =
+                        Some(required_value(&mut iter, "--legacy-low-threshold")?.parse()?);
+                }
+                "--exact-patience" => {
+                    exact_patience = Some(required_value(&mut iter, "--exact-patience")?.parse()?);
+                }
+                "--limit" => limit = Some(required_value(&mut iter, "--limit")?.parse()?),
+                "--match-tolerance-px" => {
+                    match_tolerance_px =
+                        required_value(&mut iter, "--match-tolerance-px")?.parse()?;
+                }
+                "--skip-flat-folder" => skip_flat_folder = true,
+                "--help" | "-h" => {
+                    print_usage();
+                    std::process::exit(0);
+                }
+                other => return Err(format!("unknown argument: {other}").into()),
+            }
+        }
+        let dense_manifest =
+            dense_manifest.unwrap_or_else(|| PathBuf::from(DEFAULT_DENSE_MANIFEST));
+        let out = out.ok_or("--out is required")?;
+        Ok(Self {
+            dense_manifest,
+            out,
+            candidate_source,
+            threshold,
+            legacy_low_threshold,
+            exact_patience,
+            limit,
+            match_tolerance_px,
+            skip_flat_folder,
+        })
+    }
+}
+
+struct SampleLogits {
+    line_logits: Vec<f32>,
+    junction_logits: Vec<f32>,
+    assignment_logits: Vec<f32>,
+    non_crease_logits: Vec<f32>,
+    line_style_logits: Vec<f32>,
+    boundary_contact_logits: Vec<f32>,
+}
+
+fn read_sample_logits(
+    root: &Path,
+    sample: &DenseCacheSample,
+) -> Result<SampleLogits, Box<dyn std::error::Error>> {
+    Ok(SampleLogits {
+        line_logits: read_f32_file(&resolve_path(root, &sample.line_logits_f32_path))?,
+        junction_logits: read_f32_file(&resolve_path(root, &sample.junction_logits_f32_path))?,
+        assignment_logits: read_f32_file(&resolve_path(root, &sample.assignment_logits_f32_path))?,
+        non_crease_logits: read_f32_file(&resolve_path(root, &sample.non_crease_logits_f32_path))?,
+        line_style_logits: read_f32_file(&resolve_path(root, &sample.line_style_logits_f32_path))?,
+        boundary_contact_logits: read_f32_file(&resolve_path(
+            root,
+            &sample.boundary_contact_logits_f32_path,
+        ))?,
+    })
+}
+
+fn decode_program(
+    sample: &DenseCacheSample,
+    logits: &SampleLogits,
+    threshold: f32,
+) -> Result<CandidateProgram, Box<dyn std::error::Error>> {
+    let decoded = decode_dense_outputs(
+        DenseOutputs {
+            line_logits: &logits.line_logits,
+            junction_logits: &logits.junction_logits,
+            assignment_logits: &logits.assignment_logits,
+            non_crease_logits: &logits.non_crease_logits,
+            line_style_logits: &logits.line_style_logits,
+            boundary_contact_logits: &logits.boundary_contact_logits,
+        },
+        DecodeConfig {
+            image_size: sample.image_size,
+            threshold,
+            ..DecodeConfig::default()
+        },
+    )?;
+    let value: Value = serde_json::from_str(&decoded.fold_json)?;
+    Ok(CandidateProgram::from_fold_value(&value)?)
+}
+
+fn read_ground_truth(
+    manifest_root: &Path,
+    pack: Option<&str>,
+    sample: &DenseCacheSample,
+) -> Result<GroundTruthGraph, Box<dyn std::error::Error>> {
+    let Some(path) = sample.gt_graph.as_deref() else {
+        return Err(format!("sample {} has no gt_graph", sample.id).into());
+    };
+    let path = resolve_gt_path(manifest_root, pack, path);
+    let mut gt: GroundTruthGraph = serde_json::from_str(&fs::read_to_string(&path)?)?;
+    if gt.edges_assignment_labels.is_empty() && !gt.edges_assignment.is_empty() {
+        gt.edges_assignment_labels = gt.edges_assignment.clone();
+    }
+    if gt.edges_assignment_labels.len() < gt.edges_vertices.len() {
+        gt.edges_assignment_labels
+            .resize(gt.edges_vertices.len(), Value::String("U".to_owned()));
+    }
+    Ok(gt)
+}
+
+impl GroundTruthGraph {
+    fn segments(&self) -> Vec<SegmentPx> {
+        let _image_size = self.image_size;
+        self.edges_vertices
+            .iter()
+            .enumerate()
+            .filter_map(|(index, edge)| {
+                let a = *self.vertices_px.get(edge[0])?;
+                let b = *self.vertices_px.get(edge[1])?;
+                Some(SegmentPx {
+                    a,
+                    b,
+                    assignment: self
+                        .edges_assignment_labels
+                        .get(index)
+                        .map(parse_assignment_value)
+                        .unwrap_or(AssignmentLabel::Unknown),
+                })
+            })
+            .collect()
+    }
+}
+
+impl GraphDoc {
+    fn from_candidate_selection(
+        graph: &CandidateGraph,
+        selected_span_ids: &BTreeSet<usize>,
+    ) -> Self {
+        let mut selected = selected_span_ids
+            .iter()
+            .filter_map(|span_id| graph.crease_candidates.get(*span_id))
+            .collect::<Vec<_>>();
+        selected.sort_by_key(|span| span.id);
+        Self {
+            vertices: graph.vertices.iter().map(|vertex| vertex.point).collect(),
+            edges: selected.iter().map(|span| span.vertices).collect(),
+            assignments: selected
+                .iter()
+                .map(|span| span.assignment_label())
+                .collect(),
+        }
+    }
+
+    fn from_exact_solve(input: &ExactSolveInput, exact: &ExactSolvedGraph) -> Self {
+        Self {
+            vertices: exact.vertices_exact.clone(),
+            edges: exact.edges_exact.clone(),
+            assignments: input
+                .selected_spans
+                .iter()
+                .map(|span| span.assignment_label())
+                .collect(),
+        }
+    }
+
+    fn segments_px(&self, image_size: u32) -> Vec<SegmentPx> {
+        self.edges
+            .iter()
+            .enumerate()
+            .filter_map(|(index, edge)| {
+                let a = *self.vertices.get(edge[0])?;
+                let b = *self.vertices.get(edge[1])?;
+                Some(SegmentPx {
+                    a: normalized_to_px(a, image_size),
+                    b: normalized_to_px(b, image_size),
+                    assignment: self
+                        .assignments
+                        .get(index)
+                        .copied()
+                        .unwrap_or(AssignmentLabel::Unknown),
+                })
+            })
+            .collect()
+    }
+
+    fn to_fold_json(&self) -> Result<String, serde_json::Error> {
+        let mut used_vertices = self.edges.iter().flat_map(|edge| *edge).collect::<Vec<_>>();
+        used_vertices.sort_unstable();
+        used_vertices.dedup();
+        let mut remap = vec![usize::MAX; self.vertices.len()];
+        let vertices_coords = used_vertices
+            .iter()
+            .enumerate()
+            .filter_map(|(new_id, old_id)| {
+                remap[*old_id] = new_id;
+                self.vertices
+                    .get(*old_id)
+                    .map(|point| vec![point.x, point.y])
+            })
+            .collect::<Vec<_>>();
+        let edges_vertices = self
+            .edges
+            .iter()
+            .filter_map(|edge| {
+                let a = remap.get(edge[0]).copied().unwrap_or(usize::MAX);
+                let b = remap.get(edge[1]).copied().unwrap_or(usize::MAX);
+                (a != usize::MAX && b != usize::MAX).then_some([a, b])
+            })
+            .collect::<Vec<_>>();
+        let edges_assignment = self
+            .assignments
+            .iter()
+            .take(edges_vertices.len())
+            .map(|assignment| assignment_code(*assignment))
+            .collect::<Vec<_>>();
+        serde_json::to_string_pretty(&json!({
+            "file_spec": 1.2,
+            "file_creator": "oristudio-cp-detect exact solve benchmark",
+            "vertices_coords": vertices_coords,
+            "edges_vertices": edges_vertices,
+            "edges_assignment": edges_assignment,
+        }))
+    }
+}
+
+fn output_metrics(
+    doc: &GraphDoc,
+    gt_segments: &[SegmentPx],
+    image_size: u32,
+    tolerance_px: f64,
+    verify_options: GlobalVerificationOptions,
+) -> Result<OutputMetrics, Box<dyn std::error::Error>> {
+    let predicted_segments = doc.segments_px(image_size);
+    let edge_metrics = segment_metrics(&predicted_segments, gt_segments, tolerance_px);
+    let border_metrics = segment_metrics(
+        &filter_assignment(&predicted_segments, AssignmentLabel::Boundary),
+        &filter_assignment(gt_segments, AssignmentLabel::Boundary),
+        tolerance_px,
+    );
+    let assignment_metrics = assignment_metrics(&predicted_segments, gt_segments, tolerance_px);
+    let structural = structural_metrics(doc);
+    let verification = verification_metrics(&doc.to_fold_json()?, verify_options)?;
+    Ok(OutputMetrics {
+        vertices: doc.vertices.len(),
+        edges: doc.edges.len(),
+        edge_metrics,
+        border_metrics,
+        assignment_metrics,
+        structural,
+        verification,
+    })
+}
+
+fn verification_metrics(
+    fold_json: &str,
+    options: GlobalVerificationOptions,
+) -> Result<VerificationMetrics, Box<dyn std::error::Error>> {
+    let report = verify_fold_json(fold_json, options)?;
+    Ok(VerificationMetrics {
+        fold_valid: report.fold_valid,
+        fold_error: report.fold_error,
+        check1_segments: report.oristudio.check1_segments,
+        check2_segments: report.oristudio.check2_segments,
+        check3_markers: report.oristudio.check3_markers,
+        camv_violations: report.oristudio.camv_violations,
+        flat_folder_solved: report.flat_folder.solved,
+        flat_folder_error_kind: report.flat_folder.error_kind,
+        flat_folder_error_message: report.flat_folder.error_message,
+        classifications: report
+            .classifications
+            .into_iter()
+            .map(|classification| format!("{classification:?}"))
+            .collect(),
+    })
+}
+
+fn exact_solve_summary(exact: &ExactSolvedGraph, seconds: f64) -> ExactSolveSummary {
+    ExactSolveSummary {
+        status: exact_status_label(exact.status).to_owned(),
+        seconds: round3(seconds),
+        initial_objective: json_f64(&exact.movement_report, "initial_objective"),
+        final_objective: json_f64(&exact.movement_report, "final_objective"),
+        max_vertex_movement: json_f64(&exact.movement_report, "max_vertex_movement"),
+        moved_vertices: exact
+            .movement_report
+            .get("moved_vertices")
+            .and_then(Value::as_array)
+            .map_or(0, Vec::len),
+        evaluations: exact
+            .movement_report
+            .get("evaluations")
+            .and_then(Value::as_u64)
+            .map(|value| value as usize),
+    }
+}
+
+fn exact_status_label(status: ExactSolvedGraphStatus) -> &'static str {
+    match status {
+        ExactSolvedGraphStatus::Solved => "solved",
+        ExactSolvedGraphStatus::Ambiguous => "ambiguous",
+        ExactSolvedGraphStatus::Failed => "failed",
+    }
+}
+
+fn add_output(
+    aggregates: &mut BTreeMap<String, ImplementationAggregate>,
+    name: &str,
+    metrics: &OutputMetrics,
+    exact: Option<&ExactSolveSummary>,
+) {
+    let aggregate = aggregates.entry(name.to_owned()).or_default();
+    aggregate.samples += 1;
+    aggregate.vertices += metrics.vertices;
+    aggregate.edges += metrics.edges;
+    aggregate.edge_metrics += metrics.edge_metrics;
+    aggregate.border_metrics += metrics.border_metrics;
+    aggregate.assignment_metrics += metrics.assignment_metrics;
+    aggregate.structural.add(metrics.structural);
+    aggregate.verification.add(&metrics.verification);
+    if let Some(exact) = exact {
+        aggregate.exact.add(exact);
+    }
+}
+
+fn segment_metrics(
+    predicted: &[SegmentPx],
+    ground_truth: &[SegmentPx],
+    tolerance_px: f64,
+) -> SegmentMetrics {
+    let mut matched_gt = vec![false; ground_truth.len()];
+    let mut metrics = SegmentMetrics::default();
+    for predicted in predicted {
+        let (best_index, best_distance) = best_match(predicted, ground_truth, &matched_gt);
+        if best_distance <= tolerance_px {
+            if let Some(index) = best_index {
+                matched_gt[index] = true;
+                metrics.true_positive += 1;
+            }
+        } else {
+            metrics.false_positive += 1;
+        }
+    }
+    metrics.false_negative = ground_truth.len().saturating_sub(metrics.true_positive);
+    metrics.finalize();
+    metrics
+}
+
+fn assignment_metrics(
+    predicted: &[SegmentPx],
+    ground_truth: &[SegmentPx],
+    tolerance_px: f64,
+) -> AssignmentMetrics {
+    let mut matched_gt = vec![false; ground_truth.len()];
+    let mut metrics = AssignmentMetrics::default();
+    for predicted in predicted {
+        let (best_index, best_distance) = best_match(predicted, ground_truth, &matched_gt);
+        if best_distance <= tolerance_px {
+            if let Some(index) = best_index {
+                matched_gt[index] = true;
+                metrics.matched += 1;
+                if predicted.assignment == ground_truth[index].assignment {
+                    metrics.correct += 1;
+                } else {
+                    metrics.incorrect += 1;
+                }
+            }
+        }
+    }
+    metrics.finalize();
+    metrics
+}
+
+fn best_match(
+    predicted: &SegmentPx,
+    ground_truth: &[SegmentPx],
+    matched_gt: &[bool],
+) -> (Option<usize>, f64) {
+    let mut best = None;
+    let mut best_distance = f64::INFINITY;
+    for (index, gt) in ground_truth.iter().enumerate() {
+        if matched_gt[index] {
+            continue;
+        }
+        let distance = segment_endpoint_distance(*predicted, *gt);
+        if distance < best_distance {
+            best = Some(index);
+            best_distance = distance;
+        }
+    }
+    (best, best_distance)
+}
+
+fn filter_assignment(segments: &[SegmentPx], assignment: AssignmentLabel) -> Vec<SegmentPx> {
+    segments
+        .iter()
+        .copied()
+        .filter(|segment| segment.assignment == assignment)
+        .collect()
+}
+
+fn structural_metrics(doc: &GraphDoc) -> StructuralMetrics {
+    let mut incident = vec![Vec::<IncidentRay>::new(); doc.vertices.len()];
+    for (edge_index, edge) in doc.edges.iter().enumerate() {
+        let assignment = doc
+            .assignments
+            .get(edge_index)
+            .copied()
+            .unwrap_or(AssignmentLabel::Unknown);
+        if matches!(
+            assignment,
+            AssignmentLabel::Boundary | AssignmentLabel::Flat
+        ) {
+            continue;
+        }
+        let Some(a) = doc.vertices.get(edge[0]).copied() else {
+            continue;
+        };
+        let Some(b) = doc.vertices.get(edge[1]).copied() else {
+            continue;
+        };
+        incident[edge[0]].push(IncidentRay {
+            angle: angle_radians(a, b),
+            assignment,
+        });
+        incident[edge[1]].push(IncidentRay {
+            angle: angle_radians(b, a),
+            assignment,
+        });
+    }
+
+    let mut metrics = StructuralMetrics::default();
+    for (vertex_id, point) in doc.vertices.iter().enumerate() {
+        if is_boundary_point(*point) {
+            continue;
+        }
+        metrics.interior_vertices += 1;
+        let mut rays = incident[vertex_id].clone();
+        let degree = rays.len();
+        if degree == 0 {
+            continue;
+        }
+        if degree == 2 {
+            metrics.degree_two_vertices += 1;
+        }
+        if degree % 2 == 1 {
+            metrics.odd_degree_vertices += 1;
+        }
+        let mountain = rays
+            .iter()
+            .filter(|ray| ray.assignment == AssignmentLabel::Mountain)
+            .count();
+        let valley = rays
+            .iter()
+            .filter(|ray| ray.assignment == AssignmentLabel::Valley)
+            .count();
+        let unknown = rays
+            .iter()
+            .filter(|ray| ray.assignment == AssignmentLabel::Unknown)
+            .count();
+        if unknown == 0 && mountain.abs_diff(valley) != 2 {
+            metrics.maekawa_failures += 1;
+        }
+        if degree >= 4 && degree % 2 == 0 {
+            rays.sort_by(|left, right| left.angle.total_cmp(&right.angle));
+            metrics.eligible_kawasaki_vertices += 1;
+            metrics.max_kawasaki_residual_degrees = metrics
+                .max_kawasaki_residual_degrees
+                .max(signed_kawasaki_residual_radians(&rays).abs().to_degrees());
+        }
+    }
+
+    metrics.degenerate_edges = doc
+        .edges
+        .iter()
+        .filter(|edge| {
+            let Some(a) = doc.vertices.get(edge[0]).copied() else {
+                return true;
+            };
+            let Some(b) = doc.vertices.get(edge[1]).copied() else {
+                return true;
+            };
+            distance(a, b) < 1e-6
+        })
+        .count();
+    metrics.unmodeled_crossings = crossing_count(doc);
+    metrics.boundary_failures = boundary_failure_count(doc);
+    metrics
+}
+
+#[derive(Debug, Clone, Copy)]
+struct IncidentRay {
+    angle: f64,
+    assignment: AssignmentLabel,
+}
+
+fn crossing_count(doc: &GraphDoc) -> usize {
+    let mut count = 0;
+    for (left_index, left) in doc.edges.iter().enumerate() {
+        for right in doc.edges.iter().skip(left_index + 1) {
+            if shares_vertex(*left, *right) {
+                continue;
+            }
+            let Some(a) = doc.vertices.get(left[0]).copied() else {
+                continue;
+            };
+            let Some(b) = doc.vertices.get(left[1]).copied() else {
+                continue;
+            };
+            let Some(c) = doc.vertices.get(right[0]).copied() else {
+                continue;
+            };
+            let Some(d) = doc.vertices.get(right[1]).copied() else {
+                continue;
+            };
+            if segments_intersect_strict(a, b, c, d) {
+                count += 1;
+            }
+        }
+    }
+    count
+}
+
+fn boundary_failure_count(doc: &GraphDoc) -> usize {
+    let outside_vertices = doc
+        .vertices
+        .iter()
+        .filter(|point| {
+            point.x < -1e-6 || point.x > 1.0 + 1e-6 || point.y < -1e-6 || point.y > 1.0 + 1e-6
+        })
+        .count();
+    let boundary_edges_off_frame = doc
+        .edges
+        .iter()
+        .enumerate()
+        .filter(|(index, edge)| {
+            doc.assignments.get(*index).copied() == Some(AssignmentLabel::Boundary)
+                && edge.iter().any(|vertex_id| {
+                    doc.vertices
+                        .get(*vertex_id)
+                        .is_none_or(|point| !is_boundary_point(*point))
+                })
+        })
+        .count();
+    outside_vertices + boundary_edges_off_frame
+}
+
+fn segments_intersect_strict(a: Point2, b: Point2, c: Point2, d: Point2) -> bool {
+    let o1 = orient(a, b, c);
+    let o2 = orient(a, b, d);
+    let o3 = orient(c, d, a);
+    let o4 = orient(c, d, b);
+    o1.abs() > 1e-9
+        && o2.abs() > 1e-9
+        && o3.abs() > 1e-9
+        && o4.abs() > 1e-9
+        && (o1 > 0.0) != (o2 > 0.0)
+        && (o3 > 0.0) != (o4 > 0.0)
+}
+
+fn orient(a: Point2, b: Point2, c: Point2) -> f64 {
+    (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
+}
+
+fn shares_vertex(left: [usize; 2], right: [usize; 2]) -> bool {
+    left[0] == right[0] || left[0] == right[1] || left[1] == right[0] || left[1] == right[1]
+}
+
+fn signed_kawasaki_residual_radians(rays: &[IncidentRay]) -> f64 {
+    let mut odd_sum = 0.0;
+    let mut even_sum = 0.0;
+    for index in 0..rays.len() {
+        let next = (index + 1) % rays.len();
+        let sector = (rays[next].angle - rays[index].angle).rem_euclid(std::f64::consts::TAU);
+        if index % 2 == 0 {
+            odd_sum += sector;
+        } else {
+            even_sum += sector;
+        }
+    }
+    odd_sum - even_sum
+}
+
+fn write_reports(
+    out: &Path,
+    summary: &BenchmarkSummary,
+    rows: &[BenchmarkSample],
+) -> Result<(), Box<dyn std::error::Error>> {
+    fs::write(
+        out.join("summary.json"),
+        serde_json::to_string_pretty(summary)? + "\n",
+    )?;
+    let mut per_sample = String::new();
+    for row in rows {
+        per_sample.push_str(&serde_json::to_string(row)?);
+        per_sample.push('\n');
+    }
+    fs::write(out.join("per_sample.jsonl"), per_sample)?;
+    let regressions = regression_lines(rows)?;
+    fs::write(out.join("regressions.jsonl"), regressions)?;
+    fs::write(out.join("summary.md"), summary_markdown(summary))?;
+    fs::write(out.join("README.md"), report_readme(summary))?;
+    Ok(())
+}
+
+fn regression_lines(rows: &[BenchmarkSample]) -> Result<String, serde_json::Error> {
+    let mut lines = String::new();
+    for row in rows {
+        push_regression(
+            &mut lines,
+            &row.id,
+            "selected_vs_legacy_edge_f1",
+            row.legacy.edge_metrics.f1,
+            row.selected.edge_metrics.f1,
+        )?;
+        push_regression(
+            &mut lines,
+            &row.id,
+            "exact_vs_selected_edge_f1",
+            row.selected.edge_metrics.f1,
+            row.exact_solved.edge_metrics.f1,
+        )?;
+        push_regression(
+            &mut lines,
+            &row.id,
+            "exact_vs_selected_border_f1",
+            row.selected.border_metrics.f1,
+            row.exact_solved.border_metrics.f1,
+        )?;
+        if row.exact_solved.verification.camv_violations > row.selected.verification.camv_violations
+        {
+            lines.push_str(&serde_json::to_string(&json!({
+                "sample_id": row.id,
+                "metric": "exact_vs_selected_camv_violations",
+                "before": row.selected.verification.camv_violations,
+                "after": row.exact_solved.verification.camv_violations,
+            }))?);
+            lines.push('\n');
+        }
+        if row.selected.verification.flat_folder_solved
+            && !row.exact_solved.verification.flat_folder_solved
+        {
+            lines.push_str(&serde_json::to_string(&json!({
+                "sample_id": row.id,
+                "metric": "exact_vs_selected_flat_folder_solved",
+                "before": true,
+                "after": false,
+                "error_kind": row.exact_solved.verification.flat_folder_error_kind,
+            }))?);
+            lines.push('\n');
+        }
+    }
+    Ok(lines)
+}
+
+fn push_regression(
+    lines: &mut String,
+    sample_id: &str,
+    metric: &str,
+    before: f64,
+    after: f64,
+) -> Result<(), serde_json::Error> {
+    if after + 0.001 < before {
+        lines.push_str(&serde_json::to_string(&json!({
+            "sample_id": sample_id,
+            "metric": metric,
+            "before": round6(before),
+            "after": round6(after),
+            "delta": round6(after - before),
+        }))?);
+        lines.push('\n');
+    }
+    Ok(())
+}
+
+fn summary_markdown(summary: &BenchmarkSummary) -> String {
+    let mut out = String::new();
+    out.push_str("# Exact Solve Comparison\n\n");
+    out.push_str(&format!(
+        "- Samples: {}\n- Total seconds: {:.3}\n- Dense manifest: `{}`\n- Git commit: `{}`\n\n",
+        summary.sample_count,
+        summary.total_seconds,
+        summary.dense_manifest,
+        summary.git_commit.as_deref().unwrap_or("unknown")
+    ));
+    out.push_str("| Implementation | Edge F1 | Border F1 | Assignment Acc | CAMV | Flat-folder solved | Degree-2 | Odd | Max Kawasaki |\n");
+    out.push_str("|---|---:|---:|---:|---:|---:|---:|---:|---:|\n");
+    for (name, aggregate) in &summary.implementations {
+        out.push_str(&format!(
+            "| {} | {:.4} | {:.4} | {:.4} | {} | {}/{} | {} | {} | {:.4} |\n",
+            name,
+            aggregate.edge_metrics.f1,
+            aggregate.border_metrics.f1,
+            aggregate.assignment_metrics.accuracy,
+            aggregate.verification.camv_violations,
+            aggregate.verification.flat_folder_solved,
+            aggregate.samples,
+            aggregate.structural.degree_two_vertices,
+            aggregate.structural.odd_degree_vertices,
+            aggregate.structural.max_kawasaki_residual_degrees,
+        ));
+    }
+    out
+}
+
+fn report_readme(summary: &BenchmarkSummary) -> String {
+    format!(
+        "# {}\n\nGenerated by `compare_exact_solve_benchmark`.\n\nThis directory compares frozen legacy decode, Stage 5 selected graph, and Stage 6 exact-solved graph from the same dense cache.\n\nFiles:\n\n- `summary.json`: aggregate machine-readable metrics.\n- `summary.md`: human-readable aggregate table.\n- `per_sample.jsonl`: one full metrics record per sample.\n- `regressions.jsonl`: metric regressions detected by the benchmark.\n\nConfig:\n\n```json\n{}\n```\n",
+        SCHEMA,
+        serde_json::to_string_pretty(&summary.config).unwrap_or_else(|_| "{}".to_owned())
+    )
+}
+
+fn required_value(
+    iter: &mut impl Iterator<Item = String>,
+    name: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    iter.next()
+        .ok_or_else(|| format!("{name} requires a value").into())
+}
+
+fn read_f32_file(path: &Path) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
+    let bytes = fs::read(path)?;
+    if bytes.len() % 4 != 0 {
+        return Err(format!("{} length is not divisible by 4", path.display()).into());
+    }
+    Ok(bytes
+        .chunks_exact(4)
+        .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
+        .collect())
+}
+
+fn resolve_path(root: &Path, value: &str) -> PathBuf {
+    let path = PathBuf::from(value);
+    if path.is_absolute() {
+        path
+    } else {
+        root.join(path)
+    }
+}
+
+fn resolve_gt_path(manifest_root: &Path, pack: Option<&str>, value: &str) -> PathBuf {
+    let path = PathBuf::from(value);
+    if path.is_absolute() {
+        return path;
+    }
+    if let Some(pack) = pack {
+        let pack_path = PathBuf::from(pack);
+        let pack_root = pack_path.parent().unwrap_or_else(|| Path::new("."));
+        return pack_root.join(path);
+    }
+    manifest_root.join(path)
+}
+
+fn default_low_threshold(threshold: f32) -> f32 {
+    (threshold * 0.55).max(0.10).min(threshold)
+}
+
+fn legacy_adapter_options(image_size: u32) -> LegacyCandidateAdapterOptions {
+    LegacyCandidateAdapterOptions {
+        duplicate_endpoint_tolerance: (3.0 / image_size.max(1) as f64).max(1e-6),
+        ..LegacyCandidateAdapterOptions::default()
+    }
+}
+
+fn normalized_to_px(point: Point2, image_size: u32) -> [f64; 2] {
+    let inset = 32.0;
+    let span = image_size as f64 - inset * 2.0;
+    [inset + point.x * span, inset + point.y * span]
+}
+
+fn segment_endpoint_distance(left: SegmentPx, right: SegmentPx) -> f64 {
+    let same = point_distance(left.a, right.a).max(point_distance(left.b, right.b));
+    let flipped = point_distance(left.a, right.b).max(point_distance(left.b, right.a));
+    same.min(flipped)
+}
+
+fn point_distance(left: [f64; 2], right: [f64; 2]) -> f64 {
+    let dx = left[0] - right[0];
+    let dy = left[1] - right[1];
+    (dx * dx + dy * dy).sqrt()
+}
+
+fn distance(left: Point2, right: Point2) -> f64 {
+    let dx = left.x - right.x;
+    let dy = left.y - right.y;
+    (dx * dx + dy * dy).sqrt()
+}
+
+fn angle_radians(from: Point2, to: Point2) -> f64 {
+    (to.y - from.y).atan2(to.x - from.x)
+}
+
+fn is_boundary_point(point: Point2) -> bool {
+    point.x.abs() <= 1e-6
+        || (point.x - 1.0).abs() <= 1e-6
+        || point.y.abs() <= 1e-6
+        || (point.y - 1.0).abs() <= 1e-6
+}
+
+fn parse_assignment(value: &str) -> AssignmentLabel {
+    match value {
+        "M" | "m" | "mountain" => AssignmentLabel::Mountain,
+        "V" | "v" | "valley" => AssignmentLabel::Valley,
+        "B" | "b" | "boundary" => AssignmentLabel::Boundary,
+        "F" | "f" | "flat" => AssignmentLabel::Flat,
+        _ => AssignmentLabel::Unknown,
+    }
+}
+
+fn parse_assignment_value(value: &Value) -> AssignmentLabel {
+    if let Some(label) = value.as_str() {
+        return parse_assignment(label);
+    }
+    match value.as_i64() {
+        Some(0) => AssignmentLabel::Mountain,
+        Some(1) => AssignmentLabel::Valley,
+        Some(2) => AssignmentLabel::Boundary,
+        Some(3) => AssignmentLabel::Flat,
+        _ => AssignmentLabel::Unknown,
+    }
+}
+
+fn assignment_code(label: AssignmentLabel) -> &'static str {
+    match label {
+        AssignmentLabel::Mountain => "M",
+        AssignmentLabel::Valley => "V",
+        AssignmentLabel::Boundary => "B",
+        AssignmentLabel::Flat => "F",
+        AssignmentLabel::Unknown => "U",
+    }
+}
+
+fn ratio(numerator: usize, denominator: usize) -> f64 {
+    if denominator == 0 {
+        0.0
+    } else {
+        numerator as f64 / denominator as f64
+    }
+}
+
+fn json_f64(value: &Value, key: &str) -> Option<f64> {
+    value.get(key).and_then(Value::as_f64)
+}
+
+fn now_unix() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |duration| duration.as_secs())
+}
+
+fn git_commit() -> Option<String> {
+    let output = Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .output()
+        .ok()?;
+    output
+        .status
+        .success()
+        .then(|| String::from_utf8_lossy(&output.stdout).trim().to_owned())
+}
+
+fn round3(value: f64) -> f64 {
+    (value * 1000.0).round() / 1000.0
+}
+
+fn round6(value: f64) -> f64 {
+    (value * 1_000_000.0).round() / 1_000_000.0
+}
+
+fn print_usage() {
+    println!(
+        "compare_exact_solve_benchmark --out DIR [--dense-manifest PATH] [--candidate-source legacy] [--threshold T] [--legacy-low-threshold T] [--exact-patience N] [--limit N] [--match-tolerance-px PX] [--skip-flat-folder]"
+    );
+}
