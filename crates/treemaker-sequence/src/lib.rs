@@ -1198,7 +1198,7 @@ pub fn inspect_step_certificate(step: &InstructionStep) -> Vec<SequenceDiagnosti
     let Some(certificate) = step.certificate() else {
         return Vec::new();
     };
-    let mut diagnostics = Vec::new();
+    let mut diagnostics = certificate.diagnostics.clone();
     for check in certificate
         .preconditions
         .iter()

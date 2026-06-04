@@ -2,8 +2,9 @@ use std::path::Path;
 
 use treemaker_fold::FoldDocument;
 use treemaker_sequence::{
-    ComplexMoveKind, PlanStatus, SequenceError, SequenceState, SolutionLimit, TargetStateOptions,
-    plan_folding_sequence, recognize_complex_moves, resolve_target_state,
+    CertificateStatus, ComplexMoveKind, PlanStatus, SequenceError, SequenceState, SolutionLimit,
+    TargetStateOptions, plan_folding_sequence, recognize_complex_moves, resolve_target_state,
+    trace_plan,
 };
 
 fn fixture_root() -> &'static Path {
@@ -156,6 +157,71 @@ fn phase0_complex_fixtures_are_recognized_but_not_faked() {
             assert!(
                 !plan.unresolved_regions.is_empty(),
                 "{fixture}: complex moves must not be silently dropped"
+            );
+        }
+    }
+}
+
+#[test]
+fn phase0_fixture_traces_lock_step_certainty_contracts() {
+    let root = fixture_root().join("tests/fixtures/folding-sequence/fold");
+    for (fixture, expected_kind, expected_status, expected_recognizer) in [
+        (
+            "simple-valley.fold",
+            "simple_fold",
+            Some(CertificateStatus::Verified),
+            Some("boundary_simple_fold"),
+        ),
+        (
+            "kite-rabbit-ear-local.fold",
+            "local_collapse",
+            Some(CertificateStatus::Heuristic),
+            Some("topology_only_rabbit_ear"),
+        ),
+        (
+            "squash-local.fold",
+            "local_collapse",
+            Some(CertificateStatus::Heuristic),
+            Some("topology_only_squash_fold"),
+        ),
+        (
+            "treemaker-triad-base.fold",
+            "local_collapse",
+            Some(CertificateStatus::Heuristic),
+            Some("topology_only_molecule_collapse"),
+        ),
+        (
+            "simultaneous-collapse-unsupported.fold",
+            "manual_collapse",
+            Some(CertificateStatus::Manual),
+            Some("manual_collapse_boundary"),
+        ),
+    ] {
+        let document = read_fold(root.join(fixture));
+        let target = resolve_target_state(&document, TargetStateOptions::default())
+            .unwrap_or_else(|error| panic!("{fixture}: {error}"));
+        let plan =
+            plan_folding_sequence(&target).unwrap_or_else(|error| panic!("{fixture}: {error}"));
+        let trace = trace_plan(&plan);
+        let first = trace
+            .candidates
+            .first()
+            .unwrap_or_else(|| panic!("{fixture}: expected at least one trace candidate"));
+
+        assert_eq!(first.kind, expected_kind, "{fixture}");
+        assert_eq!(first.certificate_status, expected_status, "{fixture}");
+        assert_eq!(
+            first.recognizer.as_deref(),
+            expected_recognizer,
+            "{fixture}"
+        );
+        if first.certificate_status == Some(CertificateStatus::Heuristic) {
+            assert_eq!(plan.status, PlanStatus::Complete, "{fixture}");
+            assert!(
+                plan.diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.code == "heuristic_step_certificate"),
+                "{fixture}: heuristic traces should include an explicit diagnostic"
             );
         }
     }
