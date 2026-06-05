@@ -23,7 +23,6 @@ interface FoldedSurfaceSvgProps {
   surface?: 'folded-base' | 'sequence-preview';
   viewBoxSize?: number;
   padding?: number;
-  visibleCreases?: ReadonlySet<number>;
   guideCreases?: ReadonlyMap<number, number>;
   highlights?: FoldedSurfaceHighlights;
 }
@@ -36,7 +35,6 @@ export function FoldedSurfaceSvg({
   surface = 'folded-base',
   viewBoxSize = DEFAULT_VIEWBOX,
   padding = DEFAULT_PADDING,
-  visibleCreases,
   guideCreases,
   highlights,
 }: FoldedSurfaceSvgProps) {
@@ -60,7 +58,6 @@ export function FoldedSurfaceSvg({
       snapshot.creases
         .filter((crease) => {
           if (showCreases || crease.fold === 3) return true;
-          if (visibleCreases && creaseSelected(crease, visibleCreases)) return true;
           if (guideFoldForCrease(crease, guideCreases) !== null) return true;
           return creaseHighlighted(crease, highlightedCreases);
         })
@@ -71,7 +68,7 @@ export function FoldedSurfaceSvg({
             Number(creaseHighlighted(a, highlightedCreases)) -
             Number(creaseHighlighted(b, highlightedCreases))
         ),
-    [guideCreases, highlightedCreases, showCreases, snapshot.creases, visibleCreases]
+    [guideCreases, highlightedCreases, showCreases, snapshot.creases]
   );
 
   return (
@@ -113,13 +110,12 @@ export function FoldedSurfaceSvg({
         const guideFold = guideFoldForCrease(crease, guideCreases);
         const guided = guideFold !== null;
         const highlighted = creaseHighlighted(crease, highlightedCreases);
-        const active = visibleCreases ? creaseSelected(crease, visibleCreases) : false;
         const fold = guided ? guideFold : crease.fold;
         return (
           <line
             key={crease.id}
             className={
-              guided || showCreases || highlighted || active
+              guided || showCreases || highlighted
                 ? [
                     'folded-base-crease',
                     `folded-base-crease--fold-${fold}`,

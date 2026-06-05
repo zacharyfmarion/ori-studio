@@ -54,10 +54,37 @@ function foldedSurfaceFromFoldDocument(
       id: index,
       source_facet: index,
       vertices,
-      color: index % 2 === 0 ? 1 : 2,
+      color: faceSideColor(document, foldedVertices, vertices),
       order: layerOrder[index] ?? index,
     })),
   };
+}
+
+function faceSideColor(
+  document: FoldDocument,
+  foldedVertices: Array<[number, number]>,
+  face: number[]
+): number {
+  const paperArea = signedFaceArea(face, (vertex) => {
+    const coords = document.vertices_coords[vertex];
+    return [coords?.[0] ?? 0, coords?.[1] ?? 0];
+  });
+  const foldedArea = signedFaceArea(face, (vertex) => foldedVertices[vertex] ?? [0, 0]);
+  if (Math.abs(paperArea) < 1e-9 || Math.abs(foldedArea) < 1e-9) return 1;
+  return Math.sign(paperArea) === Math.sign(foldedArea) ? 1 : 2;
+}
+
+function signedFaceArea(
+  face: number[],
+  pointForVertex: (vertex: number) => [number, number]
+): number {
+  let area = 0;
+  for (let index = 0; index < face.length; index += 1) {
+    const [x1, y1] = pointForVertex(face[index] ?? 0);
+    const [x2, y2] = pointForVertex(face[(index + 1) % face.length] ?? 0);
+    area += x1 * y2 - x2 * y1;
+  }
+  return area / 2;
 }
 
 function borderVertexFlags(document: FoldDocument): boolean[] {

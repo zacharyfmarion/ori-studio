@@ -330,7 +330,6 @@ function SequencePreview({
         surface="sequence-preview"
         viewBoxSize={PREVIEW_VIEWBOX}
         padding={PREVIEW_PADDING}
-        visibleCreases={activeCreases}
         guideCreases={guideCreases}
         highlights={{ creases: highlightedCreases }}
       />

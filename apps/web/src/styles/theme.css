@@ -2781,7 +2781,6 @@
 
 .folded-base-canvas[data-surface='sequence-preview'] .folded-base-facet {
   filter: none;
-  fill: color-mix(in srgb, var(--bg-paper) 96%, white 4%);
   stroke: transparent;
 }
 
