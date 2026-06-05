@@ -466,6 +466,8 @@ export interface ExactSolveAnalysis {
   odd_degree_vertices: number[];
   degree_two_vertices: number[];
   maekawa_failures: number[];
+  boundary_span_ids: number[];
+  boundary_vertices: number[];
   max_kawasaki_residual_degrees: number;
   max_carrier_residual: number;
   max_vertex_movement: number;

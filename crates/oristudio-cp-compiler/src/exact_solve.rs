@@ -415,6 +415,8 @@ struct GraphAnalysis {
     odd_degree_vertices: Vec<usize>,
     degree_two_vertices: Vec<usize>,
     maekawa_failures: Vec<usize>,
+    boundary_span_ids: Vec<usize>,
+    boundary_vertices: Vec<usize>,
     vertex_diagnostics: Vec<VertexAnalysis>,
     max_kawasaki_residual_degrees: f64,
     max_carrier_residual: f64,
@@ -444,10 +446,10 @@ fn analyze_graph(
     options: ExactSolveOptions,
 ) -> GraphAnalysis {
     let mut incident = vec![Vec::<IncidentRay>::new(); input.vertices.len()];
+    let boundary_span_ids = boundary_span_ids(&input.selected_spans);
+    let boundary_vertex_ids = boundary_vertex_ids(&input.selected_spans);
     for span in &input.selected_spans {
-        if span.assignment_label() == AssignmentLabel::Boundary
-            || span.kind == CandidateCreaseSpanKind::BorderSpan
-        {
+        if is_boundary_like_span(span) {
             continue;
         }
         let [a, b] = span.vertices;
@@ -471,7 +473,7 @@ fn analyze_graph(
     let mut vertex_diagnostics = Vec::new();
     let mut max_kawasaki_residual_degrees = 0.0_f64;
     for vertex in &input.vertices {
-        if !is_interior_vertex(vertex) {
+        if !is_interior_fold_vertex(vertex, &boundary_vertex_ids) {
             continue;
         }
         let mut rays = incident[vertex.id].clone();
@@ -560,6 +562,8 @@ fn analyze_graph(
         odd_degree_vertices,
         degree_two_vertices,
         maekawa_failures,
+        boundary_span_ids,
+        boundary_vertices: boundary_vertex_ids.iter().copied().collect(),
         vertex_diagnostics,
         max_kawasaki_residual_degrees,
         max_carrier_residual,
@@ -583,10 +587,9 @@ fn kawasaki_residuals(
     spans: &[CandidateCreaseSpan],
 ) -> Vec<f64> {
     let mut incident = vec![Vec::<IncidentRay>::new(); vertices.len()];
+    let boundary_vertices = boundary_vertex_ids(spans);
     for span in spans {
-        if span.assignment_label() == AssignmentLabel::Boundary
-            || span.kind == CandidateCreaseSpanKind::BorderSpan
-        {
+        if is_boundary_like_span(span) {
             continue;
         }
         let [a, b] = span.vertices;
@@ -604,7 +607,7 @@ fn kawasaki_residuals(
     }
     vertices
         .iter()
-        .filter(|vertex| is_interior_vertex(vertex))
+        .filter(|vertex| is_interior_fold_vertex(vertex, &boundary_vertices))
         .filter_map(|vertex| {
             let mut rays = incident[vertex.id].clone();
             rays.sort_by(|left, right| left.angle.total_cmp(&right.angle));
@@ -747,6 +750,8 @@ fn analysis_json(analysis: &GraphAnalysis) -> Value {
         "odd_degree_vertices": analysis.odd_degree_vertices,
         "degree_two_vertices": analysis.degree_two_vertices,
         "maekawa_failures": analysis.maekawa_failures,
+        "boundary_span_ids": analysis.boundary_span_ids,
+        "boundary_vertices": analysis.boundary_vertices,
         "max_kawasaki_residual_degrees": round6(analysis.max_kawasaki_residual_degrees),
         "max_carrier_residual": round6(analysis.max_carrier_residual),
         "max_vertex_movement": round6(analysis.max_vertex_movement),
@@ -778,12 +783,36 @@ fn failed_graph(
     }
 }
 
-fn is_interior_vertex(vertex: &CandidateVertex) -> bool {
+fn is_interior_fold_vertex(vertex: &CandidateVertex, boundary_vertices: &BTreeSet<usize>) -> bool {
+    if boundary_vertices.contains(&vertex.id) {
+        return false;
+    }
     vertex.boundary_side.is_none()
         && !matches!(
             vertex.kind,
             CandidateVertexKind::Corner | CandidateVertexKind::BoundaryContact
         )
+}
+
+fn is_boundary_like_span(span: &CandidateCreaseSpan) -> bool {
+    span.assignment_label() == AssignmentLabel::Boundary
+        || span.kind == CandidateCreaseSpanKind::BorderSpan
+}
+
+fn boundary_span_ids(spans: &[CandidateCreaseSpan]) -> Vec<usize> {
+    spans
+        .iter()
+        .filter(|span| is_boundary_like_span(span))
+        .map(|span| span.id)
+        .collect()
+}
+
+fn boundary_vertex_ids(spans: &[CandidateCreaseSpan]) -> BTreeSet<usize> {
+    spans
+        .iter()
+        .filter(|span| is_boundary_like_span(span))
+        .flat_map(|span| span.vertices)
+        .collect()
 }
 
 fn corner_points(boundary: &BoundaryModel) -> BTreeMap<usize, Point2> {
@@ -870,11 +899,11 @@ fn unmodeled_crossings(
 ) -> Vec<[usize; 2]> {
     let mut crossings = Vec::new();
     for (left_index, left) in input.selected_spans.iter().enumerate() {
-        if left.assignment_label() == AssignmentLabel::Boundary {
+        if is_boundary_like_span(left) {
             continue;
         }
         for right in input.selected_spans.iter().skip(left_index + 1) {
-            if right.assignment_label() == AssignmentLabel::Boundary {
+            if is_boundary_like_span(right) {
                 continue;
             }
             if left.vertices.iter().any(|id| right.vertices.contains(id)) {
@@ -999,6 +1028,58 @@ mod tests {
             .unwrap();
         assert_eq!(odd.len(), 1);
         assert_eq!(odd[0].as_u64().unwrap(), 4);
+    }
+
+    #[test]
+    fn theorem_checks_skip_vertices_incident_to_cut_boundary_spans() {
+        let mut input = base_square_input();
+        let a = input.vertices.len();
+        input.vertices.push(vertex(
+            a,
+            Point2::new(0.20, 0.70),
+            CandidateVertexKind::InteriorJunction,
+            CandidateVertexMovementPolicy::Movable,
+            None,
+        ));
+        let b = input.vertices.len();
+        input.vertices.push(vertex(
+            b,
+            Point2::new(0.70, 0.80),
+            CandidateVertexKind::InteriorJunction,
+            CandidateVertexMovementPolicy::Movable,
+            None,
+        ));
+        input.selected_spans.push(span(
+            input.selected_spans.len(),
+            a,
+            b,
+            AssignmentLabel::Boundary,
+            90,
+            &input.vertices,
+        ));
+        input.selected_spans.push(span(
+            input.selected_spans.len(),
+            a,
+            0,
+            AssignmentLabel::Mountain,
+            91,
+            &input.vertices,
+        ));
+
+        let solved = solve_exact(&input, ExactSolveOptions::default());
+        let after = &solved.theorem_residual_report["after"];
+        assert_eq!(
+            after["odd_degree_vertices"].as_array().unwrap(),
+            &Vec::<serde_json::Value>::new()
+        );
+        let boundary_vertices = after["boundary_vertices"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|value| value.as_u64())
+            .collect::<Vec<_>>();
+        assert!(boundary_vertices.contains(&(a as u64)));
+        assert!(boundary_vertices.contains(&(b as u64)));
     }
 
     #[test]

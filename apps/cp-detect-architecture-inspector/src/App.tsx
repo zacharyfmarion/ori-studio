@@ -1857,10 +1857,14 @@ function ExactFailureVertexView({ stage }: { stage: Stage6Response }) {
 }
 
 function exactEdgeAssignmentLabel(stage: Stage6Response, edge: [number, number], index: number): string {
+  const boundarySpanIds = new Set(stage.exact_solve.theorem_residual_report.after.boundary_span_ids ?? []);
   const indexed = stage.selection.selected_spans[index];
-  if (indexed && sameUndirectedEdge(indexed.vertices, edge)) return indexed.assignment.label;
+  if (indexed && sameUndirectedEdge(indexed.vertices, edge)) {
+    return boundarySpanIds.has(indexed.id) ? 'boundary' : indexed.assignment.label;
+  }
   const matched = stage.selection.selected_spans.find((span) => sameUndirectedEdge(span.vertices, edge));
-  return matched?.assignment.label ?? indexed?.assignment.label ?? 'unknown';
+  if (matched) return boundarySpanIds.has(matched.id) ? 'boundary' : matched.assignment.label;
+  return indexed && boundarySpanIds.has(indexed.id) ? 'boundary' : (indexed?.assignment.label ?? 'unknown');
 }
 
 function sameUndirectedEdge(left: [number, number], right: [number, number]): boolean {
@@ -1870,24 +1874,31 @@ function sameUndirectedEdge(left: [number, number], right: [number, number]): bo
 function exactFailureVertices(stage: Stage6Response): Array<{ vertexId: number; reasons: string[]; color: string }> {
   const after = stage.exact_solve.theorem_residual_report.after;
   const failures = new Map<number, string[]>();
+  const diagnosticsByVertex = new Map(after.vertex_diagnostics.map((diagnostic) => [diagnostic.vertex_id, diagnostic]));
   const remember = (vertexId: number, reason: string) => {
     const reasons = failures.get(vertexId) ?? [];
-    reasons.push(reason);
+    if (!reasons.includes(reason)) reasons.push(reason);
     failures.set(vertexId, reasons);
   };
-  for (const vertexId of after.odd_degree_vertices) remember(vertexId, 'odd degree');
-  for (const vertexId of after.degree_two_vertices) remember(vertexId, 'degree 2 pass-through');
-  for (const vertexId of after.maekawa_failures) remember(vertexId, 'Maekawa failure');
-  for (const vertexId of after.boundary_failures) remember(vertexId, 'boundary failure');
+  for (const vertexId of after.odd_degree_vertices) {
+    const degree = diagnosticsByVertex.get(vertexId)?.degree;
+    remember(vertexId, typeof degree === 'number' ? `Odd degree ${degree}` : 'Odd degree');
+  }
+  for (const vertexId of after.degree_two_vertices) remember(vertexId, 'Degree-2 pass-through');
+  for (const vertexId of after.maekawa_failures) {
+    const residual = diagnosticsByVertex.get(vertexId)?.maekawa_residual;
+    remember(vertexId, typeof residual === 'number' ? `Maekawa residual ${formatMetricNumber(residual, 0)}` : 'Maekawa failure');
+  }
+  for (const vertexId of after.boundary_failures) remember(vertexId, 'Boundary failure');
   for (const diagnostic of after.vertex_diagnostics) {
-    if ((diagnostic.kawasaki_residual_degrees ?? 0) > 0.001) {
+    if ((diagnostic.kawasaki_residual_degrees ?? 0) >= 0.01) {
       remember(vertexIdFromDiagnostic(diagnostic), `Kawasaki ${formatDegrees(diagnostic.kawasaki_residual_degrees)}`);
     }
   }
   return [...failures.entries()].map(([vertexId, reasons]) => ({
     vertexId,
     reasons,
-    color: reasons.some((reason) => reason.includes('Maekawa') || reason.includes('odd'))
+    color: reasons.some((reason) => reason.includes('Maekawa') || reason.includes('Odd'))
       ? '#dc2626'
       : reasons.some((reason) => reason.includes('Kawasaki'))
         ? '#9333ea'

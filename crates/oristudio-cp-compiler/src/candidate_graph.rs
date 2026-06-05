@@ -971,17 +971,20 @@ impl ExactSolveInput {
             .iter()
             .copied()
             .collect::<BTreeSet<_>>();
+        let mut selected_spans = graph
+            .crease_candidates
+            .iter()
+            .filter(|span| selected_ids.contains(&span.id))
+            .cloned()
+            .collect::<Vec<_>>();
+        apply_fixed_assignment_labels(&mut selected_spans, &selected.fixed_assignment_labels);
+        classify_cut_boundary_spans(&graph.vertices, &mut selected_spans);
         Self {
             schema: "oristudio/cp-compiler/exact-solve-input-v1".to_owned(),
             coordinate_space: graph.coordinate_space.clone(),
             image_size: graph.image_size,
             vertices: graph.vertices.clone(),
-            selected_spans: graph
-                .crease_candidates
-                .iter()
-                .filter(|span| selected_ids.contains(&span.id))
-                .cloned()
-                .collect(),
+            selected_spans,
             boundary: selected.boundary.clone(),
             cost_model: graph.cost_model.clone(),
             provenance: graph.provenance.clone(),
@@ -1339,6 +1342,175 @@ fn generate_conflicts(graph: &CandidateGraph) -> Vec<CandidateConflict> {
     conflicts
 }
 
+fn apply_fixed_assignment_labels(
+    spans: &mut [CandidateCreaseSpan],
+    fixed_labels: &BTreeMap<usize, AssignmentLabel>,
+) {
+    for span in spans {
+        let Some(label) = fixed_labels.get(&span.id).copied() else {
+            continue;
+        };
+        set_span_assignment_label(span, label, "fixed assignment from selected graph");
+    }
+}
+
+fn classify_cut_boundary_spans(vertices: &[CandidateVertex], spans: &mut [CandidateCreaseSpan]) {
+    if spans.iter().any(is_selected_boundary_span) {
+        return;
+    }
+    let exterior_span_ids = exterior_face_span_ids(vertices, spans);
+    for span in spans {
+        if !exterior_span_ids.contains(&span.id) {
+            continue;
+        }
+        if span.assignment_label() != AssignmentLabel::Unknown {
+            continue;
+        }
+        set_span_assignment_label(
+            span,
+            AssignmentLabel::Boundary,
+            "exterior unassigned span classified as cut boundary",
+        );
+        if !span.provenance.contains(&Provenance::BorderPrior) {
+            span.provenance.push(Provenance::BorderPrior);
+        }
+    }
+}
+
+fn is_selected_boundary_span(span: &CandidateCreaseSpan) -> bool {
+    span.assignment_label() == AssignmentLabel::Boundary
+        || span.kind == CandidateCreaseSpanKind::BorderSpan
+}
+
+fn set_span_assignment_label(span: &mut CandidateCreaseSpan, label: AssignmentLabel, reason: &str) {
+    if span.assignment_evidence.observed_label == label {
+        return;
+    }
+    span.assignment_evidence.observed_label = label;
+    if label == AssignmentLabel::Boundary {
+        let confidence = span
+            .assignment_evidence
+            .confidence
+            .max(span.presence_probability)
+            .max(0.85);
+        span.assignment_evidence.boundary = span.assignment_evidence.boundary.max(confidence);
+        span.assignment_evidence.confidence = span.assignment_evidence.confidence.max(confidence);
+        span.assignment_evidence.margin = span.assignment_evidence.margin.max(0.50);
+    }
+    if !span.reasons.iter().any(|existing| existing == reason) {
+        span.reasons.push(reason.to_owned());
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct FaceHalfEdge {
+    to: usize,
+    span_id: usize,
+    angle: f64,
+}
+
+fn exterior_face_span_ids(
+    vertices: &[CandidateVertex],
+    spans: &[CandidateCreaseSpan],
+) -> BTreeSet<usize> {
+    let mut adjacency = vec![Vec::<FaceHalfEdge>::new(); vertices.len()];
+    for span in spans {
+        let [a, b] = span.vertices;
+        let (Some(vertex_a), Some(vertex_b)) = (vertices.get(a), vertices.get(b)) else {
+            continue;
+        };
+        if distance(vertex_a.point, vertex_b.point) <= 1e-9 {
+            continue;
+        }
+        adjacency[a].push(FaceHalfEdge {
+            to: b,
+            span_id: span.id,
+            angle: face_angle(vertex_a.point, vertex_b.point),
+        });
+        adjacency[b].push(FaceHalfEdge {
+            to: a,
+            span_id: span.id,
+            angle: face_angle(vertex_b.point, vertex_a.point),
+        });
+    }
+    for outgoing in &mut adjacency {
+        outgoing.sort_by(|left, right| {
+            left.angle
+                .total_cmp(&right.angle)
+                .then_with(|| left.to.cmp(&right.to))
+                .then_with(|| left.span_id.cmp(&right.span_id))
+        });
+    }
+
+    let mut visited = BTreeSet::<(usize, usize)>::new();
+    let mut exterior: Option<(f64, BTreeSet<usize>)> = None;
+    let max_steps = spans.len().saturating_mul(4).max(8);
+    for start_from in 0..adjacency.len() {
+        for start_index in 0..adjacency[start_from].len() {
+            let start_span_id = adjacency[start_from][start_index].span_id;
+            if visited.contains(&(start_from, start_span_id)) {
+                continue;
+            }
+            let mut from = start_from;
+            let mut edge_index = start_index;
+            let mut area2 = 0.0_f64;
+            let mut face_span_ids = BTreeSet::new();
+            let mut closed = false;
+            for _ in 0..max_steps {
+                let edge = adjacency[from][edge_index];
+                if !visited.insert((from, edge.span_id)) {
+                    break;
+                }
+                let p0 = vertices[from].point;
+                let p1 = vertices[edge.to].point;
+                area2 += p0.x * p1.y - p0.y * p1.x;
+                face_span_ids.insert(edge.span_id);
+
+                let reverse_from = edge.to;
+                let Some(reverse_index) = adjacency[reverse_from].iter().position(|candidate| {
+                    candidate.to == from && candidate.span_id == edge.span_id
+                }) else {
+                    break;
+                };
+                let outgoing_count = adjacency[reverse_from].len();
+                if outgoing_count == 0 {
+                    break;
+                }
+                from = reverse_from;
+                edge_index = if reverse_index == 0 {
+                    outgoing_count - 1
+                } else {
+                    reverse_index - 1
+                };
+                if from == start_from && adjacency[from][edge_index].span_id == start_span_id {
+                    closed = true;
+                    break;
+                }
+            }
+            if !closed || face_span_ids.is_empty() || area2.abs() <= 1e-9 {
+                continue;
+            }
+            let area = area2 * 0.5;
+            if exterior
+                .as_ref()
+                .is_none_or(|(existing_area, _)| area < *existing_area)
+            {
+                exterior = Some((area, face_span_ids));
+            }
+        }
+    }
+    exterior
+        .filter(|(area, _)| *area < -1e-9)
+        .map(|(_, span_ids)| span_ids)
+        .unwrap_or_default()
+}
+
+fn face_angle(origin: Point2, target: Point2) -> f64 {
+    (target.y - origin.y)
+        .atan2(target.x - origin.x)
+        .rem_euclid(std::f64::consts::TAU)
+}
+
 fn assign_span_ids(spans: &mut [CandidateCreaseSpan]) {
     for (id, span) in spans.iter_mut().enumerate() {
         span.id = id;
@@ -1653,6 +1825,75 @@ mod tests {
         );
     }
 
+    #[test]
+    fn exact_solve_input_reclassifies_unassigned_exterior_spans_as_cut_boundary() {
+        let program = unassigned_cut_boundary_program();
+        let graph = LegacyCandidateAdapter::from_program(&program);
+        let selected = SelectedGraph::from_selected_span_ids(
+            &graph,
+            graph.crease_candidates.iter().map(|span| span.id).collect(),
+        );
+        let input = ExactSolveInput::from_candidate_selection(&graph, &selected);
+
+        let boundary_source_edges = input
+            .selected_spans
+            .iter()
+            .filter(|span| span.assignment_label() == AssignmentLabel::Boundary)
+            .flat_map(|span| span.source_edge_ids.iter().copied())
+            .collect::<BTreeSet<_>>();
+        assert_eq!(boundary_source_edges, BTreeSet::from([0, 1, 2, 3]));
+
+        let interior_diagonal = input
+            .selected_spans
+            .iter()
+            .find(|span| span.source_edge_ids == vec![4])
+            .expect("interior unknown diagonal should still exist");
+        assert_eq!(
+            interior_diagonal.assignment_label(),
+            AssignmentLabel::Unknown
+        );
+        assert!(
+            !interior_diagonal
+                .reasons
+                .iter()
+                .any(|reason| reason.contains("cut boundary"))
+        );
+    }
+
+    #[test]
+    fn exact_solve_input_does_not_add_cut_boundary_when_boundary_already_exists() {
+        let program = square_with_unassigned_exterior_like_program();
+        let graph = LegacyCandidateAdapter::from_program(&program);
+        let selected = SelectedGraph::from_selected_span_ids(
+            &graph,
+            graph.crease_candidates.iter().map(|span| span.id).collect(),
+        );
+        let input = ExactSolveInput::from_candidate_selection(&graph, &selected);
+
+        let boundary_source_edges = input
+            .selected_spans
+            .iter()
+            .filter(|span| span.assignment_label() == AssignmentLabel::Boundary)
+            .flat_map(|span| span.source_edge_ids.iter().copied())
+            .collect::<BTreeSet<_>>();
+        assert_eq!(boundary_source_edges, BTreeSet::from([0, 1, 2, 3]));
+
+        for source_edge in [4, 5, 6, 7] {
+            let span = input
+                .selected_spans
+                .iter()
+                .find(|span| span.source_edge_ids == vec![source_edge])
+                .expect("unknown cut-like span should still exist");
+            assert_eq!(span.assignment_label(), AssignmentLabel::Unknown);
+            assert!(
+                !span
+                    .reasons
+                    .iter()
+                    .any(|reason| reason.contains("cut boundary"))
+            );
+        }
+    }
+
     fn square_program() -> CandidateProgram {
         let vertices = vec![
             legacy_vertex_raw(0, Point2::new(0.0, 0.0), VertexKind::Corner),
@@ -1692,6 +1933,109 @@ mod tests {
                 } else {
                     EvidenceSource::Legacy
                 },
+                provenance: vec![Provenance::LegacyDecoder],
+            });
+        }
+        CandidateProgram {
+            coordinate_space: "fold_normalized".to_owned(),
+            image_size: Some(128),
+            carriers,
+            vertices,
+            edges,
+        }
+    }
+
+    fn square_with_unassigned_exterior_like_program() -> CandidateProgram {
+        let vertices = vec![
+            legacy_vertex_raw(0, Point2::new(0.0, 0.0), VertexKind::Corner),
+            legacy_vertex_raw(1, Point2::new(1.0, 0.0), VertexKind::Corner),
+            legacy_vertex_raw(2, Point2::new(1.0, 1.0), VertexKind::Corner),
+            legacy_vertex_raw(3, Point2::new(0.0, 1.0), VertexKind::Corner),
+            legacy_vertex_raw(4, Point2::new(0.15, 0.25), VertexKind::Interior),
+            legacy_vertex_raw(5, Point2::new(0.85, 0.20), VertexKind::Interior),
+            legacy_vertex_raw(6, Point2::new(0.80, 0.80), VertexKind::Interior),
+            legacy_vertex_raw(7, Point2::new(0.20, 0.85), VertexKind::Interior),
+        ];
+        let edge_specs = [
+            ([0, 1], AssignmentLabel::Boundary),
+            ([1, 2], AssignmentLabel::Boundary),
+            ([2, 3], AssignmentLabel::Boundary),
+            ([3, 0], AssignmentLabel::Boundary),
+            ([4, 5], AssignmentLabel::Unknown),
+            ([5, 6], AssignmentLabel::Unknown),
+            ([6, 7], AssignmentLabel::Unknown),
+            ([7, 4], AssignmentLabel::Unknown),
+            ([4, 6], AssignmentLabel::Mountain),
+            ([5, 7], AssignmentLabel::Valley),
+        ];
+        let mut carriers = Vec::new();
+        let mut edges = Vec::new();
+        for (id, (edge_vertices, label)) in edge_specs.into_iter().enumerate() {
+            let p0 = vertices[edge_vertices[0]].position;
+            let p1 = vertices[edge_vertices[1]].position;
+            carriers.push(carrier_raw(id, p0, p1, label));
+            edges.push(CandidateEdge {
+                id,
+                carrier_id: id,
+                vertices: edge_vertices,
+                assignment: AssignmentCandidate {
+                    label,
+                    confidence: 0.90,
+                    margin: 0.60,
+                },
+                line_support: 0.90,
+                style_support: 0.0,
+                selection: EdgeSelection::Selected,
+                source: if label == AssignmentLabel::Boundary {
+                    EvidenceSource::Border
+                } else {
+                    EvidenceSource::Legacy
+                },
+                provenance: vec![Provenance::LegacyDecoder],
+            });
+        }
+        CandidateProgram {
+            coordinate_space: "fold_normalized".to_owned(),
+            image_size: Some(128),
+            carriers,
+            vertices,
+            edges,
+        }
+    }
+
+    fn unassigned_cut_boundary_program() -> CandidateProgram {
+        let vertices = vec![
+            legacy_vertex_raw(0, Point2::new(0.10, 0.20), VertexKind::Interior),
+            legacy_vertex_raw(1, Point2::new(0.90, 0.10), VertexKind::Interior),
+            legacy_vertex_raw(2, Point2::new(0.80, 0.90), VertexKind::Interior),
+            legacy_vertex_raw(3, Point2::new(0.20, 0.80), VertexKind::Interior),
+        ];
+        let edge_specs = [
+            ([0, 1], AssignmentLabel::Unknown),
+            ([1, 2], AssignmentLabel::Unknown),
+            ([2, 3], AssignmentLabel::Unknown),
+            ([3, 0], AssignmentLabel::Unknown),
+            ([0, 2], AssignmentLabel::Unknown),
+        ];
+        let mut carriers = Vec::new();
+        let mut edges = Vec::new();
+        for (id, (edge_vertices, label)) in edge_specs.into_iter().enumerate() {
+            let p0 = vertices[edge_vertices[0]].position;
+            let p1 = vertices[edge_vertices[1]].position;
+            carriers.push(carrier_raw(id, p0, p1, label));
+            edges.push(CandidateEdge {
+                id,
+                carrier_id: id,
+                vertices: edge_vertices,
+                assignment: AssignmentCandidate {
+                    label,
+                    confidence: 0.80,
+                    margin: 0.50,
+                },
+                line_support: 0.90,
+                style_support: 0.0,
+                selection: EdgeSelection::Selected,
+                source: EvidenceSource::Legacy,
                 provenance: vec![Provenance::LegacyDecoder],
             });
         }
