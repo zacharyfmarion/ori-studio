@@ -40,8 +40,12 @@ describe('SequencePanel', () => {
     expect(rendered.querySelector('[aria-label="Step 1 Before folded state unfolded"]')).not.toBeNull();
     expect(rendered.querySelector('[aria-label="Step 1 After folded state target"]')).not.toBeNull();
     expect(rendered.querySelectorAll('.sequence-preview-crease')).toHaveLength(0);
-    expect(rendered.querySelectorAll('.folded-base-facet')).toHaveLength(4);
-    expect(rendered.querySelectorAll('.sequence-preview-canvas .folded-base-facet--color-1')).toHaveLength(4);
+    expect(
+      rendered.querySelector('[aria-label="Step 1 Before folded state unfolded"]')
+        ?.querySelectorAll('.folded-base-facet')
+    ).toHaveLength(1);
+    expect(rendered.querySelectorAll('.folded-base-facet')).toHaveLength(3);
+    expect(rendered.querySelectorAll('.sequence-preview-canvas .folded-base-facet--color-1')).toHaveLength(3);
     expect(rendered.querySelector('.sequence-preview-canvas .folded-base-facet--color-2')).toBeNull();
     expect(rendered.querySelectorAll('.folded-base-outline')).toHaveLength(12);
     expect(rendered.querySelectorAll('.folded-base-crease--highlight')).toHaveLength(0);

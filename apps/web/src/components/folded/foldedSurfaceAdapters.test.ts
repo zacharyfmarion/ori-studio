@@ -6,7 +6,24 @@ describe('foldedSurfaceFromSequenceState', () => {
   it('keeps an unfolded crease pattern on one side of the paper', () => {
     const snapshot = foldedSurfaceFromSequenceState(sequenceState('flat', simpleFold()));
 
-    expect(snapshot.facets.map((facet) => facet.color)).toEqual([1, 1]);
+    expect(snapshot.facets.map((facet) => facet.color)).toEqual([1]);
+  });
+
+  it('collapses inactive face boundaries into one surface facet', () => {
+    const snapshot = foldedSurfaceFromSequenceState(sequenceState('flat', simpleFold()));
+
+    expect(snapshot.facets).toHaveLength(1);
+    expect(snapshot.facets[0]?.vertices).toEqual([0, 1, 5, 2, 3, 4]);
+  });
+
+  it('keeps active creases as physical surface boundaries', () => {
+    const snapshot = foldedSurfaceFromSequenceState(sequenceState('folded', simpleFold(), undefined, [6]));
+
+    expect(snapshot.facets).toHaveLength(2);
+    expect(snapshot.facets.map((facet) => facet.vertices)).toEqual([
+      [0, 1, 5, 4],
+      [4, 5, 2, 3],
+    ]);
   });
 
   it('marks faces with reversed folded orientation as the back side', () => {
@@ -19,7 +36,8 @@ describe('foldedSurfaceFromSequenceState', () => {
         [0, 0],
         [0, 0.5],
         [1, 0.5],
-      ])
+      ],
+      [6])
     );
 
     expect(snapshot.facets.map((facet) => facet.color)).toEqual([1, 2]);
@@ -29,12 +47,13 @@ describe('foldedSurfaceFromSequenceState', () => {
 function sequenceState(
   id: string,
   document: FoldDocument,
-  foldedVertices = document.vertices_coords.map((coord) => [coord[0] ?? 0, coord[1] ?? 0] as [number, number])
+  foldedVertices = document.vertices_coords.map((coord) => [coord[0] ?? 0, coord[1] ?? 0] as [number, number]),
+  activeCreases: number[] = []
 ): SequenceStateSnapshot {
   return {
     id,
     document,
-    active_creases: [],
+    active_creases: activeCreases,
     face_orders: [],
     folded_vertices: foldedVertices,
     unresolved_regions: [],

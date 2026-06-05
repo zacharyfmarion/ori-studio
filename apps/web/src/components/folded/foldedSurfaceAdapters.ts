@@ -15,17 +15,24 @@ export function foldedSurfaceFromSequenceState(
       : state.document.vertices_coords.map(
           (coord) => [coord[0] ?? 0, coord[1] ?? 0] as [number, number]
         );
-  return foldedSurfaceFromFoldDocument(state.document, foldedVertices, state.face_orders);
+  return foldedSurfaceFromFoldDocument(
+    state.document,
+    foldedVertices,
+    state.face_orders,
+    new Set(state.active_creases)
+  );
 }
 
 function foldedSurfaceFromFoldDocument(
   document: FoldDocument,
   foldedVertices: Array<[number, number]>,
-  faceOrders: Array<[number, number, number]>
+  faceOrders: Array<[number, number, number]>,
+  activeCreases: ReadonlySet<number>
 ): FoldedBaseSnapshot {
   const borderVertices = borderVertexFlags(document);
   const layerOrder = layerOrderFromFaceOrders(document.faces_vertices.length, faceOrders);
   const vertexCount = Math.max(document.vertices_coords.length, foldedVertices.length);
+  const surfaceFacets = surfaceFacetsFromActiveCreases(document, foldedVertices, activeCreases, layerOrder);
   return {
     vertices: Array.from({ length: vertexCount }, (_, index) => {
       const [x, y] = foldedVertices[index] ?? [
@@ -50,14 +57,190 @@ function foldedSurfaceFromFoldDocument(
       kind: 0,
       fold: foldNumber(assignmentForEdge(document, index)),
     })),
-    facets: document.faces_vertices.map((vertices, index) => ({
-      id: index,
-      source_facet: index,
-      vertices,
-      color: faceSideColor(document, foldedVertices, vertices),
-      order: layerOrder[index] ?? index,
-    })),
+    facets: surfaceFacets,
   };
+}
+
+function surfaceFacetsFromActiveCreases(
+  document: FoldDocument,
+  foldedVertices: Array<[number, number]>,
+  activeCreases: ReadonlySet<number>,
+  layerOrder: number[]
+): FoldedBaseSnapshot['facets'] {
+  const faceComponents = surfaceFaceComponents(document, activeCreases);
+  const edgeUses = faceEdgeUses(document);
+  return faceComponents.flatMap((component, componentIndex) => {
+    const componentFaces = new Set(component);
+    const loops = boundaryLoopsForComponent(document, componentFaces, edgeUses, activeCreases);
+    const sourceFacet = Math.min(...component);
+    const color = faceSideColor(document, foldedVertices, document.faces_vertices[sourceFacet] ?? []);
+    const order = Math.min(...component.map((face) => layerOrder[face] ?? face));
+    return loops.map((vertices, loopIndex) => ({
+      id: componentIndex * 1000 + loopIndex,
+      source_facet: sourceFacet,
+      vertices,
+      color,
+      order,
+    }));
+  });
+}
+
+function surfaceFaceComponents(
+  document: FoldDocument,
+  activeCreases: ReadonlySet<number>
+): number[][] {
+  const faceCount = document.faces_vertices.length;
+  const parent = Array.from({ length: faceCount }, (_, index) => index);
+  const uses = faceEdgeUses(document);
+
+  uses.forEach((edgeUses) => {
+    if (edgeUses.length < 2) return;
+    const sourceEdge = edgeUses[0]?.edge;
+    if (sourceEdge !== null && edgeIsSurfaceBoundary(document, sourceEdge, activeCreases)) return;
+    const firstFace = edgeUses[0]?.face;
+    if (firstFace === undefined) return;
+    edgeUses.slice(1).forEach((use) => union(parent, firstFace, use.face));
+  });
+
+  const components = new Map<number, number[]>();
+  for (let face = 0; face < faceCount; face += 1) {
+    const root = find(parent, face);
+    const component = components.get(root) ?? [];
+    component.push(face);
+    components.set(root, component);
+  }
+  return [...components.values()];
+}
+
+interface FaceEdgeUse {
+  face: number;
+  start: number;
+  end: number;
+  edge: number | null;
+}
+
+function faceEdgeUses(document: FoldDocument): Map<string, FaceEdgeUse[]> {
+  const sourceEdges = sourceEdgeMap(document);
+  const uses = new Map<string, FaceEdgeUse[]>();
+  document.faces_vertices.forEach((vertices, face) => {
+    for (let index = 0; index < vertices.length; index += 1) {
+      const start = vertices[index] ?? 0;
+      const end = vertices[(index + 1) % vertices.length] ?? 0;
+      const key = edgeKey(start, end);
+      const edgeUses = uses.get(key) ?? [];
+      edgeUses.push({
+        face,
+        start,
+        end,
+        edge: sourceEdges.get(key) ?? null,
+      });
+      uses.set(key, edgeUses);
+    }
+  });
+  return uses;
+}
+
+function sourceEdgeMap(document: FoldDocument): Map<string, number> {
+  const map = new Map<string, number>();
+  document.edges_vertices.forEach(([a, b], edge) => {
+    map.set(edgeKey(a, b), edge);
+  });
+  return map;
+}
+
+function boundaryLoopsForComponent(
+  document: FoldDocument,
+  componentFaces: ReadonlySet<number>,
+  edgeUses: Map<string, FaceEdgeUse[]>,
+  activeCreases: ReadonlySet<number>
+): number[][] {
+  const boundaryEdges: Array<[number, number]> = [];
+  edgeUses.forEach((uses) => {
+    const componentUses = uses.filter((use) => componentFaces.has(use.face));
+    if (componentUses.length === 0) return;
+    const sourceEdge = componentUses[0]?.edge;
+    const boundary =
+      componentUses.length < uses.length ||
+      componentUses.length === 1 ||
+      (sourceEdge !== null && edgeIsSurfaceBoundary(document, sourceEdge, activeCreases));
+    if (!boundary) return;
+    componentUses.forEach((use) => boundaryEdges.push([use.start, use.end]));
+  });
+
+  const loops = traceBoundaryLoops(boundaryEdges);
+  if (loops.length > 0) return loops;
+
+  return [...componentFaces]
+    .map((face) => document.faces_vertices[face] ?? [])
+    .filter((vertices) => vertices.length >= 3);
+}
+
+function traceBoundaryLoops(edges: Array<[number, number]>): number[][] {
+  const unused = new Set(edges.map((_, index) => index));
+  const byStart = new Map<number, number[]>();
+  edges.forEach(([start], index) => {
+    const starts = byStart.get(start) ?? [];
+    starts.push(index);
+    byStart.set(start, starts);
+  });
+
+  const loops: number[][] = [];
+  while (unused.size > 0) {
+    const firstEdge = unused.values().next().value as number | undefined;
+    if (firstEdge === undefined) break;
+    const [start, firstEnd] = edges[firstEdge] ?? [];
+    if (start === undefined || firstEnd === undefined) {
+      unused.delete(firstEdge);
+      continue;
+    }
+    unused.delete(firstEdge);
+    const loop = [start, firstEnd];
+    let current = firstEnd;
+
+    while (current !== start) {
+      const nextEdge = byStart.get(current)?.find((candidate) => unused.has(candidate));
+      if (nextEdge === undefined) break;
+      unused.delete(nextEdge);
+      const [, nextEnd] = edges[nextEdge] ?? [];
+      if (nextEnd === undefined) break;
+      loop.push(nextEnd);
+      current = nextEnd;
+    }
+
+    if (loop.length >= 4 && loop[loop.length - 1] === start) {
+      loops.push(loop.slice(0, -1));
+    }
+  }
+  return loops.filter((loop) => loop.length >= 3);
+}
+
+function edgeIsSurfaceBoundary(
+  document: FoldDocument,
+  edge: number,
+  activeCreases: ReadonlySet<number>
+): boolean {
+  return activeCreases.has(edge) || assignmentForEdge(document, edge) === 'B';
+}
+
+function edgeKey(a: number, b: number): string {
+  return a < b ? `${a}:${b}` : `${b}:${a}`;
+}
+
+function find(parent: number[], value: number): number {
+  let root = value;
+  while (parent[root] !== root) root = parent[root] ?? root;
+  while (parent[value] !== value) {
+    const next = parent[value] ?? value;
+    parent[value] = root;
+    value = next;
+  }
+  return root;
+}
+
+function union(parent: number[], a: number, b: number) {
+  const rootA = find(parent, a);
+  const rootB = find(parent, b);
+  if (rootA !== rootB) parent[rootB] = rootA;
 }
 
 function faceSideColor(
