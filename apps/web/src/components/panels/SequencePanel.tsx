@@ -243,7 +243,6 @@ function SequenceDiagramList({ plan }: { plan: SequencePlan }) {
                 title="Before"
                 state={beforeState}
                 mode="folded"
-                highlights={highlights}
                 guideCreases={guideCreases}
                 stepLabel={`Step ${index + 1}`}
               />
@@ -254,7 +253,6 @@ function SequenceDiagramList({ plan }: { plan: SequencePlan }) {
                 title="After"
                 state={afterState}
                 mode="folded"
-                highlights={highlights}
                 stepLabel={`Step ${index + 1}`}
               />
             </div>
@@ -280,14 +278,12 @@ function SequencePreview({
   title,
   state,
   mode,
-  highlights,
   guideCreases,
   stepLabel,
 }: {
   title: string;
   state: SequenceStateSnapshot | null | undefined;
   mode: 'paper' | 'folded';
-  highlights: SequenceHighlights;
   guideCreases?: ReadonlyMap<number, number>;
   stepLabel?: string;
 }) {
@@ -295,11 +291,6 @@ function SequencePreview({
     if (!state) return null;
     return foldedSurfaceFromSequenceState(state, mode);
   }, [mode, state]);
-  const activeCreases = useMemo(() => new Set(state?.active_creases ?? []), [state]);
-  const highlightedCreases = useMemo(
-    () => intersectSets(highlights.creases, activeCreases),
-    [activeCreases, highlights.creases]
-  );
 
   if (!state || !snapshot) {
     return (
@@ -327,11 +318,9 @@ function SequencePreview({
           .filter(Boolean)
           .join(' ')}
         className="sequence-preview-canvas folded-base-canvas"
-        surface="sequence-preview"
         viewBoxSize={PREVIEW_VIEWBOX}
         padding={PREVIEW_PADDING}
         guideCreases={guideCreases}
-        highlights={{ creases: highlightedCreases }}
       />
     </div>
   );
@@ -424,14 +413,6 @@ function highlightsForStep(step: SequenceInstructionStep): SequenceHighlights {
     creases: new Set(region?.creases ?? step.affected_creases ?? []),
     faces: new Set(region?.faces ?? step.affected_faces ?? []),
   };
-}
-
-function intersectSets(a: ReadonlySet<number>, b: ReadonlySet<number>): Set<number> {
-  const result = new Set<number>();
-  a.forEach((value) => {
-    if (b.has(value)) result.add(value);
-  });
-  return result;
 }
 
 function guideCreasesForStep(

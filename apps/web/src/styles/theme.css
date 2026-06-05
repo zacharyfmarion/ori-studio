@@ -2779,11 +2779,6 @@
   stroke: color-mix(in srgb, var(--accent-tertiary) 92%, transparent);
 }
 
-.folded-base-canvas[data-surface='sequence-preview'] .folded-base-facet {
-  filter: none;
-  stroke: transparent;
-}
-
 .folded-base-canvas[data-translucent='true'] .folded-base-facet {
   opacity: 0.36;
   stroke: color-mix(in srgb, var(--text-primary) 22%, transparent);

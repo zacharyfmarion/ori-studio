@@ -20,7 +20,6 @@ interface FoldedSurfaceSvgProps {
   viewOptions: FoldedSurfaceViewOptions;
   ariaLabel: string;
   className?: string;
-  surface?: 'folded-base' | 'sequence-preview';
   viewBoxSize?: number;
   padding?: number;
   guideCreases?: ReadonlyMap<number, number>;
@@ -32,7 +31,6 @@ export function FoldedSurfaceSvg({
   viewOptions,
   ariaLabel,
   className = 'folded-base-canvas',
-  surface = 'folded-base',
   viewBoxSize = DEFAULT_VIEWBOX,
   padding = DEFAULT_PADDING,
   guideCreases,
@@ -76,7 +74,6 @@ export function FoldedSurfaceSvg({
       className={className}
       data-wireframe={viewOptions.wireframe || undefined}
       data-translucent={viewOptions.translucent || undefined}
-      data-surface={surface}
       viewBox={`0 0 ${viewBoxSize} ${viewBoxSize}`}
       role="img"
       aria-label={ariaLabel}
