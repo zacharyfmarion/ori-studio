@@ -15,7 +15,9 @@ use levenberg_marquardt::{LeastSquaresProblem, LevenbergMarquardt};
 use nalgebra::{Dyn, OMatrix, OVector, storage::Owned};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use std::cell::Cell;
 use std::collections::{BTreeMap, BTreeSet};
+use std::rc::Rc;
 
 const SCHEMA: &str = "oristudio/cp-compiler/exact-solved-graph-v1";
 const TAU: f64 = std::f64::consts::TAU;
@@ -84,28 +86,76 @@ pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> Exact
     let initial_params = model.initial_params.clone();
     let before_points = model.points_from_params(&initial_params);
     let before = analyze_graph(input, &before_points, &model, &initial_params, options);
-    let initial_objective = residual_energy(&model.residuals_for(&initial_params));
+    let (initial_residuals, initial_breakdown) = model.residuals_with_breakdown(&initial_params);
+    let initial_objective = residual_energy(&initial_residuals);
+    let preflight_rejection_reasons = exact_solve_preflight_rejection_reasons(&before);
+    if !preflight_rejection_reasons.is_empty() {
+        let counters = SolveCounterSnapshot::default();
+        let movement_report = movement_report(
+            input,
+            &before_points,
+            &before_points,
+            &before_points,
+            initial_objective,
+            initial_objective,
+            initial_objective,
+            0,
+            "preflight_blocked",
+            options,
+            false,
+            &preflight_rejection_reasons,
+            &model,
+            &initial_breakdown,
+            &initial_breakdown,
+            &initial_breakdown,
+            &counters,
+        );
+        let theorem_residual_report = theorem_report(
+            &before,
+            &before,
+            &before,
+            "preflight_blocked",
+            false,
+            &preflight_rejection_reasons,
+        );
+        return ExactSolvedGraph {
+            schema: SCHEMA.to_owned(),
+            vertices_exact: before_points,
+            edges_exact: input
+                .selected_spans
+                .iter()
+                .map(|span| span.vertices)
+                .collect(),
+            movement_report,
+            theorem_residual_report,
+            status: ExactSolvedGraphStatus::Failed,
+        };
+    }
 
-    let (final_params, termination, evaluations, objective) = if initial_params.is_empty() {
+    let (final_params, termination, evaluations, objective, counters) = if initial_params.is_empty()
+    {
         (
             initial_params.clone(),
             "no_parameters".to_owned(),
             0usize,
             initial_objective,
+            SolveCounterSnapshot::default(),
         )
     } else {
-        let residuals = model.residuals_for(&initial_params);
-        if residuals.is_empty() {
+        if initial_residuals.is_empty() {
             (
                 initial_params.clone(),
                 "no_residuals".to_owned(),
                 0usize,
                 initial_objective,
+                SolveCounterSnapshot::default(),
             )
         } else {
+            let counters = Rc::new(SolveCounters::default());
             let solver = ExactLeastSquaresProblem {
                 model: model.clone(),
                 params: initial_params.clone(),
+                counters: counters.clone(),
             };
             let lm = LevenbergMarquardt::new()
                 .with_patience(options.patience)
@@ -118,28 +168,75 @@ pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> Exact
                 format!("{:?}", report.termination),
                 report.number_of_evaluations,
                 report.objective_function,
+                counters.snapshot(),
             )
         }
     };
 
-    let after_points = model.points_from_params(&final_params);
-    let after = analyze_graph(input, &after_points, &model, &final_params, options);
-    let status = classify_status(&before, &after, options);
+    let candidate_points = model.points_from_params(&final_params);
+    let candidate_after = analyze_graph(input, &candidate_points, &model, &final_params, options);
+    let candidate_status = classify_status(&before, &candidate_after, options);
+    let rejection_reasons = exact_solution_rejection_reasons(
+        &before,
+        &candidate_after,
+        candidate_status,
+        initial_objective,
+        objective,
+        options,
+    );
+    let accepted = rejection_reasons.is_empty();
+    let (vertices_exact, after, accepted_objective, status) = if accepted {
+        (
+            candidate_points.clone(),
+            candidate_after.clone(),
+            objective,
+            candidate_status,
+        )
+    } else {
+        (
+            before_points.clone(),
+            before.clone(),
+            initial_objective,
+            ExactSolvedGraphStatus::Failed,
+        )
+    };
+    let (_, accepted_breakdown) = if accepted {
+        model.residuals_with_breakdown(&final_params)
+    } else {
+        (initial_residuals.clone(), initial_breakdown)
+    };
+    let (_, candidate_breakdown) = model.residuals_with_breakdown(&final_params);
     let movement_report = movement_report(
         input,
         &before_points,
-        &after_points,
+        &vertices_exact,
+        &candidate_points,
         initial_objective,
+        accepted_objective,
         objective,
         evaluations,
         &termination,
         options,
+        accepted,
+        &rejection_reasons,
+        &model,
+        &initial_breakdown,
+        &accepted_breakdown,
+        &candidate_breakdown,
+        &counters,
     );
-    let theorem_residual_report = theorem_report(&before, &after, &termination);
+    let theorem_residual_report = theorem_report(
+        &before,
+        &after,
+        &candidate_after,
+        &termination,
+        accepted,
+        &rejection_reasons,
+    );
 
     ExactSolvedGraph {
         schema: SCHEMA.to_owned(),
-        vertices_exact: after_points,
+        vertices_exact,
         edges_exact: input
             .selected_spans
             .iter()
@@ -262,8 +359,16 @@ impl SolveModel {
     }
 
     fn residuals_for(&self, params: &OVector<f64, Dyn>) -> Vec<f64> {
+        self.residuals_with_breakdown(params).0
+    }
+
+    fn residuals_with_breakdown(
+        &self,
+        params: &OVector<f64, Dyn>,
+    ) -> (Vec<f64>, ResidualBreakdown) {
         let points = self.points_from_params(params);
         let mut residuals = Vec::new();
+        let mut breakdown = ResidualBreakdown::default();
         let source_weight = if self.provenance.source_adapter == CandidateSourceAdapter::Legacy {
             1.0
         } else {
@@ -278,15 +383,28 @@ impl SolveModel {
                         .boundary_side
                         .map_or(vertex.point.x, |side| side_coord(side, vertex.point));
                     let weight = movement_weight(vertex.support, source_weight);
-                    residuals.push(
+                    push_residual(
+                        &mut residuals,
+                        &mut breakdown,
+                        ResidualFamily::BoundaryMovement,
                         weight * (params[index] - original) / self.options.boundary_movement_sigma,
                     );
                 }
                 VertexParameterization::Free { x_index, y_index } => {
                     let sigma = movement_sigma(&self.cost_model, self.options, vertex.support);
                     let weight = movement_weight(vertex.support, source_weight);
-                    residuals.push(weight * (params[x_index] - vertex.point.x) / sigma);
-                    residuals.push(weight * (params[y_index] - vertex.point.y) / sigma);
+                    push_residual(
+                        &mut residuals,
+                        &mut breakdown,
+                        ResidualFamily::Movement,
+                        weight * (params[x_index] - vertex.point.x) / sigma,
+                    );
+                    push_residual(
+                        &mut residuals,
+                        &mut breakdown,
+                        ResidualFamily::Movement,
+                        weight * (params[y_index] - vertex.point.y) / sigma,
+                    );
                 }
             }
         }
@@ -294,16 +412,27 @@ impl SolveModel {
         for group in &self.carrier_groups {
             let theta = params[group.theta_index];
             let rho = params[group.rho_index];
-            residuals.push(
+            push_residual(
+                &mut residuals,
+                &mut breakdown,
+                ResidualFamily::CarrierPrior,
                 angle_delta(theta, group.initial_theta) / self.options.carrier_angle_sigma_radians,
             );
-            residuals.push((rho - group.initial_rho) / self.options.carrier_rho_sigma);
+            push_residual(
+                &mut residuals,
+                &mut breakdown,
+                ResidualFamily::CarrierPrior,
+                (rho - group.initial_rho) / self.options.carrier_rho_sigma,
+            );
             let normal = Point2::new(theta.cos(), theta.sin());
             for span_index in &group.span_indices {
                 let span = &self.selected_spans[*span_index];
                 for vertex_id in span.vertices {
                     let point = points[vertex_id];
-                    residuals.push(
+                    push_residual(
+                        &mut residuals,
+                        &mut breakdown,
+                        ResidualFamily::CarrierIncidence,
                         (normal.x * point.x + normal.y * point.y - rho)
                             / self.options.carrier_incidence_sigma,
                     );
@@ -312,11 +441,93 @@ impl SolveModel {
         }
 
         for residual in kawasaki_residuals(&points, &self.vertices, &self.selected_spans) {
-            residuals.push(residual / self.options.kawasaki_sigma_radians);
+            push_residual(
+                &mut residuals,
+                &mut breakdown,
+                ResidualFamily::Kawasaki,
+                residual / self.options.kawasaki_sigma_radians,
+            );
         }
 
-        residuals
+        (residuals, breakdown)
     }
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
+struct ResidualBreakdown {
+    movement_count: usize,
+    movement_energy: f64,
+    boundary_movement_count: usize,
+    boundary_movement_energy: f64,
+    carrier_prior_count: usize,
+    carrier_prior_energy: f64,
+    carrier_incidence_count: usize,
+    carrier_incidence_energy: f64,
+    kawasaki_count: usize,
+    kawasaki_energy: f64,
+}
+
+impl ResidualBreakdown {
+    fn count(self) -> usize {
+        self.movement_count
+            + self.boundary_movement_count
+            + self.carrier_prior_count
+            + self.carrier_incidence_count
+            + self.kawasaki_count
+    }
+
+    fn energy(self) -> f64 {
+        self.movement_energy
+            + self.boundary_movement_energy
+            + self.carrier_prior_energy
+            + self.carrier_incidence_energy
+            + self.kawasaki_energy
+    }
+
+    fn record(&mut self, family: ResidualFamily, residual: f64) {
+        let energy = 0.5 * residual * residual;
+        match family {
+            ResidualFamily::Movement => {
+                self.movement_count += 1;
+                self.movement_energy += energy;
+            }
+            ResidualFamily::BoundaryMovement => {
+                self.boundary_movement_count += 1;
+                self.boundary_movement_energy += energy;
+            }
+            ResidualFamily::CarrierPrior => {
+                self.carrier_prior_count += 1;
+                self.carrier_prior_energy += energy;
+            }
+            ResidualFamily::CarrierIncidence => {
+                self.carrier_incidence_count += 1;
+                self.carrier_incidence_energy += energy;
+            }
+            ResidualFamily::Kawasaki => {
+                self.kawasaki_count += 1;
+                self.kawasaki_energy += energy;
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+enum ResidualFamily {
+    Movement,
+    BoundaryMovement,
+    CarrierPrior,
+    CarrierIncidence,
+    Kawasaki,
+}
+
+fn push_residual(
+    residuals: &mut Vec<f64>,
+    breakdown: &mut ResidualBreakdown,
+    family: ResidualFamily,
+    residual: f64,
+) {
+    residuals.push(residual);
+    breakdown.record(family, residual);
 }
 
 #[derive(Debug, Clone)]
@@ -366,6 +577,34 @@ struct CarrierGroup {
 struct ExactLeastSquaresProblem {
     model: SolveModel,
     params: OVector<f64, Dyn>,
+    counters: Rc<SolveCounters>,
+}
+
+#[derive(Debug, Default)]
+struct SolveCounters {
+    residual_calls: Cell<usize>,
+    jacobian_calls: Cell<usize>,
+    finite_difference_columns: Cell<usize>,
+    residual_vector_evaluations: Cell<usize>,
+}
+
+impl SolveCounters {
+    fn snapshot(&self) -> SolveCounterSnapshot {
+        SolveCounterSnapshot {
+            residual_calls: self.residual_calls.get(),
+            jacobian_calls: self.jacobian_calls.get(),
+            finite_difference_columns: self.finite_difference_columns.get(),
+            residual_vector_evaluations: self.residual_vector_evaluations.get(),
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Serialize)]
+struct SolveCounterSnapshot {
+    residual_calls: usize,
+    jacobian_calls: usize,
+    finite_difference_columns: usize,
+    residual_vector_evaluations: usize,
 }
 
 impl LeastSquaresProblem<f64, Dyn, Dyn> for ExactLeastSquaresProblem {
@@ -382,15 +621,30 @@ impl LeastSquaresProblem<f64, Dyn, Dyn> for ExactLeastSquaresProblem {
     }
 
     fn residuals(&self) -> Option<OVector<f64, Dyn>> {
+        self.counters
+            .residual_calls
+            .set(self.counters.residual_calls.get() + 1);
+        self.counters
+            .residual_vector_evaluations
+            .set(self.counters.residual_vector_evaluations.get() + 1);
         Some(OVector::<f64, Dyn>::from_vec(
             self.model.residuals_for(&self.params),
         ))
     }
 
     fn jacobian(&self) -> Option<OMatrix<f64, Dyn, Dyn>> {
+        self.counters
+            .jacobian_calls
+            .set(self.counters.jacobian_calls.get() + 1);
         let base = self.model.residuals_for(&self.params);
         let rows = base.len();
         let cols = self.params.len();
+        self.counters
+            .finite_difference_columns
+            .set(self.counters.finite_difference_columns.get() + cols);
+        self.counters
+            .residual_vector_evaluations
+            .set(self.counters.residual_vector_evaluations.get() + 1 + cols);
         let mut matrix = OMatrix::<f64, Dyn, Dyn>::zeros(rows, cols);
         if rows == 0 || cols == 0 {
             return Some(matrix);
@@ -670,21 +924,23 @@ fn classify_status(
     after: &GraphAnalysis,
     options: ExactSolveOptions,
 ) -> ExactSolvedGraphStatus {
-    if !after.odd_degree_vertices.is_empty()
-        || !after.degenerate_edges.is_empty()
+    if !after.degenerate_edges.is_empty()
         || !after.unmodeled_crossings.is_empty()
         || !after.boundary_failures.is_empty()
         || after.max_vertex_movement > options.max_vertex_movement
     {
         return ExactSolvedGraphStatus::Failed;
     }
-    if after.max_kawasaki_residual_degrees <= options.solved_kawasaki_epsilon_degrees
+    let topology_clean = after.odd_degree_vertices.is_empty();
+    if topology_clean
+        && after.max_kawasaki_residual_degrees <= options.solved_kawasaki_epsilon_degrees
         && after.max_carrier_residual <= options.solved_carrier_epsilon
     {
         return ExactSolvedGraphStatus::Solved;
     }
-    if after.max_kawasaki_residual_degrees < before.max_kawasaki_residual_degrees
-        || after.max_carrier_residual < before.max_carrier_residual
+    if after.odd_degree_vertices.len() <= before.odd_degree_vertices.len()
+        && (after.max_kawasaki_residual_degrees < before.max_kawasaki_residual_degrees
+            || after.max_carrier_residual < before.max_carrier_residual)
     {
         ExactSolvedGraphStatus::Ambiguous
     } else {
@@ -692,15 +948,72 @@ fn classify_status(
     }
 }
 
+fn exact_solution_rejection_reasons(
+    before: &GraphAnalysis,
+    after: &GraphAnalysis,
+    candidate_status: ExactSolvedGraphStatus,
+    initial_objective: f64,
+    candidate_objective: f64,
+    options: ExactSolveOptions,
+) -> Vec<String> {
+    let mut reasons = Vec::new();
+    if candidate_status == ExactSolvedGraphStatus::Failed {
+        reasons.push("candidate_status_failed".to_owned());
+    }
+    if after.max_vertex_movement > options.max_vertex_movement {
+        reasons.push("movement_budget_exceeded".to_owned());
+    }
+    if after.odd_degree_vertices.len() > before.odd_degree_vertices.len() {
+        reasons.push("odd_degree_vertices_worsened".to_owned());
+    }
+    if after.degenerate_edges.len() > before.degenerate_edges.len() {
+        reasons.push("degenerate_edges_worsened".to_owned());
+    }
+    if after.unmodeled_crossings.len() > before.unmodeled_crossings.len() {
+        reasons.push("unmodeled_crossings_worsened".to_owned());
+    }
+    if after.boundary_failures.len() > before.boundary_failures.len() {
+        reasons.push("boundary_failures_worsened".to_owned());
+    }
+    if candidate_status != ExactSolvedGraphStatus::Solved
+        && candidate_objective + 1e-9 >= initial_objective
+    {
+        reasons.push("objective_not_improved".to_owned());
+    }
+    reasons.sort();
+    reasons.dedup();
+    reasons
+}
+
+fn exact_solve_preflight_rejection_reasons(before: &GraphAnalysis) -> Vec<String> {
+    let mut reasons = Vec::new();
+    if !before.degenerate_edges.is_empty() {
+        reasons.push("preflight_degenerate_edges".to_owned());
+    }
+    if !before.boundary_failures.is_empty() {
+        reasons.push("preflight_boundary_failures".to_owned());
+    }
+    reasons
+}
+
 fn movement_report(
     input: &ExactSolveInput,
     before_points: &[Point2],
     after_points: &[Point2],
+    candidate_points: &[Point2],
     initial_objective: f64,
     final_objective: f64,
+    candidate_objective: f64,
     evaluations: usize,
     termination: &str,
     options: ExactSolveOptions,
+    accepted: bool,
+    rejection_reasons: &[String],
+    model: &SolveModel,
+    initial_breakdown: &ResidualBreakdown,
+    accepted_breakdown: &ResidualBreakdown,
+    candidate_breakdown: &ResidualBreakdown,
+    counters: &SolveCounterSnapshot,
 ) -> Value {
     let moved_vertices = input
         .vertices
@@ -729,24 +1042,142 @@ fn movement_report(
         .zip(after_points)
         .map(|((_, before), after)| distance(*before, *after))
         .fold(0.0_f64, f64::max);
+    let attempted_moved_vertices = input
+        .vertices
+        .iter()
+        .zip(before_points)
+        .zip(candidate_points)
+        .filter_map(|((vertex, before), after)| {
+            let movement = distance(*before, *after);
+            (movement > 1e-10).then(|| {
+                json!({
+                    "vertex_id": vertex.id,
+                    "before": before,
+                    "after": after,
+                    "movement": round6(movement),
+                    "movement_policy": vertex.movement_policy,
+                    "boundary_side": vertex.boundary_side,
+                    "support": round6(vertex.support),
+                })
+            })
+        })
+        .collect::<Vec<_>>();
+    let attempted_max_movement = input
+        .vertices
+        .iter()
+        .zip(before_points)
+        .zip(candidate_points)
+        .map(|((_, before), after)| distance(*before, *after))
+        .fold(0.0_f64, f64::max);
     json!({
         "schema": "oristudio/cp-compiler/exact-solve-movement-report-v1",
         "termination": termination,
+        "accepted": accepted,
+        "rejection_reasons": rejection_reasons,
         "evaluations": evaluations,
         "initial_objective": round6(initial_objective),
         "final_objective": round6(final_objective),
+        "candidate_objective": round6(candidate_objective),
         "max_vertex_movement": round6(max_movement),
+        "attempted_max_vertex_movement": round6(attempted_max_movement),
         "max_vertex_movement_budget": options.max_vertex_movement,
         "moved_vertices": moved_vertices,
+        "attempted_moved_vertices": attempted_moved_vertices,
+        "trace": exact_solve_trace_json(
+            input,
+            model,
+            initial_breakdown,
+            accepted_breakdown,
+            candidate_breakdown,
+            counters,
+        ),
     })
 }
 
-fn theorem_report(before: &GraphAnalysis, after: &GraphAnalysis, termination: &str) -> Value {
+fn theorem_report(
+    before: &GraphAnalysis,
+    after: &GraphAnalysis,
+    candidate_after: &GraphAnalysis,
+    termination: &str,
+    accepted: bool,
+    rejection_reasons: &[String],
+) -> Value {
     json!({
         "schema": "oristudio/cp-compiler/exact-solve-theorem-report-v1",
         "termination": termination,
+        "accepted": accepted,
+        "rejection_reasons": rejection_reasons,
         "before": analysis_json(before),
         "after": analysis_json(after),
+        "candidate_after": analysis_json(candidate_after),
+    })
+}
+
+fn exact_solve_trace_json(
+    input: &ExactSolveInput,
+    model: &SolveModel,
+    initial_breakdown: &ResidualBreakdown,
+    accepted_breakdown: &ResidualBreakdown,
+    candidate_breakdown: &ResidualBreakdown,
+    counters: &SolveCounterSnapshot,
+) -> Value {
+    let fixed_vertices = model
+        .vertex_params
+        .iter()
+        .filter(|param| matches!(param, VertexParameterization::Fixed { .. }))
+        .count();
+    let boundary_vertices = model
+        .vertex_params
+        .iter()
+        .filter(|param| matches!(param, VertexParameterization::Boundary { .. }))
+        .count();
+    let free_vertices = model
+        .vertex_params
+        .iter()
+        .filter(|param| matches!(param, VertexParameterization::Free { .. }))
+        .count();
+    json!({
+        "parameter_count": model.initial_params.len(),
+        "residual_count": initial_breakdown.count(),
+        "selected_spans": input.selected_spans.len(),
+        "vertices": input.vertices.len(),
+        "carrier_groups": model.carrier_groups.len(),
+        "vertex_parameters": {
+            "fixed": fixed_vertices,
+            "boundary": boundary_vertices,
+            "free": free_vertices,
+        },
+        "counters": counters,
+        "initial_residuals": residual_breakdown_json(initial_breakdown),
+        "accepted_residuals": residual_breakdown_json(accepted_breakdown),
+        "candidate_residuals": residual_breakdown_json(candidate_breakdown),
+    })
+}
+
+fn residual_breakdown_json(breakdown: &ResidualBreakdown) -> Value {
+    json!({
+        "count": breakdown.count(),
+        "energy": round6(breakdown.energy()),
+        "movement": {
+            "count": breakdown.movement_count,
+            "energy": round6(breakdown.movement_energy),
+        },
+        "boundary_movement": {
+            "count": breakdown.boundary_movement_count,
+            "energy": round6(breakdown.boundary_movement_energy),
+        },
+        "carrier_prior": {
+            "count": breakdown.carrier_prior_count,
+            "energy": round6(breakdown.carrier_prior_energy),
+        },
+        "carrier_incidence": {
+            "count": breakdown.carrier_incidence_count,
+            "energy": round6(breakdown.carrier_incidence_energy),
+        },
+        "kawasaki": {
+            "count": breakdown.kawasaki_count,
+            "energy": round6(breakdown.kawasaki_energy),
+        },
     })
 }
 
@@ -1054,6 +1485,63 @@ mod tests {
     }
 
     #[test]
+    fn odd_degree_elsewhere_does_not_block_partial_exactization() {
+        let mut input = four_ray_input(Point2::new(0.53, 0.50));
+        let dangling = input.vertices.len();
+        input.vertices.push(vertex(
+            dangling,
+            Point2::new(0.25, 0.25),
+            CandidateVertexKind::InteriorJunction,
+            CandidateVertexMovementPolicy::Movable,
+            None,
+        ));
+        input.selected_spans.push(span(
+            input.selected_spans.len(),
+            dangling,
+            0,
+            AssignmentLabel::Mountain,
+            77,
+            &input.vertices,
+        ));
+
+        let before_model = SolveModel::new(&input, ExactSolveOptions::default());
+        let before = analyze_graph(
+            &input,
+            &input
+                .vertices
+                .iter()
+                .map(|vertex| vertex.point)
+                .collect::<Vec<_>>(),
+            &before_model,
+            &before_model.initial_params,
+            ExactSolveOptions::default(),
+        );
+        assert_eq!(before.odd_degree_vertices, vec![dangling]);
+
+        let solved = solve_exact(&input, ExactSolveOptions::default());
+        assert_eq!(solved.status, ExactSolvedGraphStatus::Ambiguous);
+        assert!(solved.movement_report["accepted"].as_bool().unwrap());
+        assert!(
+            solved.theorem_residual_report["after"]["max_kawasaki_residual_degrees"]
+                .as_f64()
+                .unwrap()
+                < before.max_kawasaki_residual_degrees,
+            "valid even-degree vertices should still be exactized"
+        );
+        assert!(
+            distance(solved.vertices_exact[4], input.vertices[4].point) > 1e-4,
+            "noisy valid vertex should move even though another region has bad topology"
+        );
+        assert_eq!(
+            solved.theorem_residual_report["after"]["odd_degree_vertices"]
+                .as_array()
+                .unwrap()
+                .len(),
+            1
+        );
+    }
+
+    #[test]
     fn theorem_checks_skip_vertices_incident_to_cut_boundary_spans() {
         let mut input = base_square_input();
         let a = input.vertices.len();
@@ -1194,8 +1682,16 @@ mod tests {
         input.image_size = Some(1024);
         let solved = solve_exact(&input, ExactSolveOptions::default());
         assert_eq!(solved.status, ExactSolvedGraphStatus::Failed);
+        assert_eq!(solved.vertices_exact[4], Point2::new(0.64, 0.50));
+        assert!(!solved.movement_report["accepted"].as_bool().unwrap());
         assert!(
             solved.movement_report["max_vertex_movement"]
+                .as_f64()
+                .unwrap()
+                <= ExactSolveOptions::default().max_vertex_movement
+        );
+        assert!(
+            solved.movement_report["attempted_max_vertex_movement"]
                 .as_f64()
                 .unwrap()
                 > ExactSolveOptions::default().max_vertex_movement

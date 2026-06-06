@@ -148,11 +148,27 @@ struct SelectionSummary {
 struct ExactSolveSummary {
     status: String,
     seconds: f64,
+    accepted: Option<bool>,
+    rejection_reasons: Vec<String>,
     initial_objective: Option<f64>,
     final_objective: Option<f64>,
+    candidate_objective: Option<f64>,
     max_vertex_movement: Option<f64>,
+    attempted_max_vertex_movement: Option<f64>,
     moved_vertices: usize,
+    attempted_moved_vertices: usize,
     evaluations: Option<usize>,
+    trace: ExactSolveTraceSummary,
+}
+
+#[derive(Debug, Default, Clone, Copy, Serialize)]
+struct ExactSolveTraceSummary {
+    parameter_count: Option<usize>,
+    residual_count: Option<usize>,
+    carrier_groups: Option<usize>,
+    residual_vector_evaluations: Option<usize>,
+    jacobian_calls: Option<usize>,
+    finite_difference_columns: Option<usize>,
 }
 
 #[derive(Debug, Default, Clone, Copy, Serialize)]
@@ -161,9 +177,19 @@ struct ExactSolveAggregate {
     solved: usize,
     ambiguous: usize,
     failed: usize,
+    accepted: usize,
+    rejected: usize,
     total_seconds: f64,
     max_vertex_movement: f64,
+    attempted_max_vertex_movement: f64,
     moved_vertices: usize,
+    attempted_moved_vertices: usize,
+    evaluations: usize,
+    residual_vector_evaluations: usize,
+    jacobian_calls: usize,
+    finite_difference_columns: usize,
+    max_parameter_count: usize,
+    max_residual_count: usize,
 }
 
 impl ExactSolveAggregate {
@@ -174,11 +200,30 @@ impl ExactSolveAggregate {
             "ambiguous" => self.ambiguous += 1,
             _ => self.failed += 1,
         }
+        if exact.accepted.unwrap_or(false) {
+            self.accepted += 1;
+        } else {
+            self.rejected += 1;
+        }
         self.total_seconds += exact.seconds;
         self.max_vertex_movement = self
             .max_vertex_movement
             .max(exact.max_vertex_movement.unwrap_or(0.0));
+        self.attempted_max_vertex_movement = self
+            .attempted_max_vertex_movement
+            .max(exact.attempted_max_vertex_movement.unwrap_or(0.0));
         self.moved_vertices += exact.moved_vertices;
+        self.attempted_moved_vertices += exact.attempted_moved_vertices;
+        self.evaluations += exact.evaluations.unwrap_or(0);
+        self.residual_vector_evaluations += exact.trace.residual_vector_evaluations.unwrap_or(0);
+        self.jacobian_calls += exact.trace.jacobian_calls.unwrap_or(0);
+        self.finite_difference_columns += exact.trace.finite_difference_columns.unwrap_or(0);
+        self.max_parameter_count = self
+            .max_parameter_count
+            .max(exact.trace.parameter_count.unwrap_or(0));
+        self.max_residual_count = self
+            .max_residual_count
+            .max(exact.trace.residual_count.unwrap_or(0));
     }
 }
 
@@ -1010,12 +1055,38 @@ fn exact_solve_summary(exact: &ExactSolvedGraph, seconds: f64) -> ExactSolveSumm
     ExactSolveSummary {
         status: exact_status_label(exact.status).to_owned(),
         seconds: round3(seconds),
+        accepted: exact
+            .movement_report
+            .get("accepted")
+            .and_then(Value::as_bool),
+        rejection_reasons: exact
+            .movement_report
+            .get("rejection_reasons")
+            .and_then(Value::as_array)
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .map(ToOwned::to_owned)
+                    .collect()
+            })
+            .unwrap_or_default(),
         initial_objective: json_f64(&exact.movement_report, "initial_objective"),
         final_objective: json_f64(&exact.movement_report, "final_objective"),
+        candidate_objective: json_f64(&exact.movement_report, "candidate_objective"),
         max_vertex_movement: json_f64(&exact.movement_report, "max_vertex_movement"),
+        attempted_max_vertex_movement: json_f64(
+            &exact.movement_report,
+            "attempted_max_vertex_movement",
+        ),
         moved_vertices: exact
             .movement_report
             .get("moved_vertices")
+            .and_then(Value::as_array)
+            .map_or(0, Vec::len),
+        attempted_moved_vertices: exact
+            .movement_report
+            .get("attempted_moved_vertices")
             .and_then(Value::as_array)
             .map_or(0, Vec::len),
         evaluations: exact
@@ -1023,6 +1094,23 @@ fn exact_solve_summary(exact: &ExactSolvedGraph, seconds: f64) -> ExactSolveSumm
             .get("evaluations")
             .and_then(Value::as_u64)
             .map(|value| value as usize),
+        trace: ExactSolveTraceSummary {
+            parameter_count: json_usize_path(&exact.movement_report, &["trace", "parameter_count"]),
+            residual_count: json_usize_path(&exact.movement_report, &["trace", "residual_count"]),
+            carrier_groups: json_usize_path(&exact.movement_report, &["trace", "carrier_groups"]),
+            residual_vector_evaluations: json_usize_path(
+                &exact.movement_report,
+                &["trace", "counters", "residual_vector_evaluations"],
+            ),
+            jacobian_calls: json_usize_path(
+                &exact.movement_report,
+                &["trace", "counters", "jacobian_calls"],
+            ),
+            finite_difference_columns: json_usize_path(
+                &exact.movement_report,
+                &["trace", "counters", "finite_difference_columns"],
+            ),
+        },
     }
 }
 
@@ -1427,11 +1515,13 @@ fn summary_markdown(summary: &BenchmarkSummary) -> String {
         summary.dense_manifest,
         summary.git_commit.as_deref().unwrap_or("unknown")
     ));
-    out.push_str("| Implementation | Edge F1 | Strict edge F1 | Exact topology | Exact topology + assignments | Border F1 | Assignment Acc | CAMV | Flat-folder solved | Degree-2 | Odd | Max Kawasaki |\n");
-    out.push_str("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|\n");
+    out.push_str("| Implementation | Edge F1 | Strict edge F1 | Exact topology | Exact topology + assignments | Border F1 | Assignment Acc | CAMV | Flat-folder solved | Exact accepted | LM evals | Residual evals | Params | Residuals | Degree-2 | Odd | Max Kawasaki |\n");
+    out.push_str(
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|\n",
+    );
     for (name, aggregate) in &summary.implementations {
         out.push_str(&format!(
-            "| {} | {:.4} | {:.4} | {}/{} | {}/{} | {:.4} | {:.4} | {} | {}/{} | {} | {} | {:.4} |\n",
+            "| {} | {:.4} | {:.4} | {}/{} | {}/{} | {:.4} | {:.4} | {} | {}/{} | {}/{} | {} | {} | {} | {} | {} | {} | {:.4} |\n",
             name,
             aggregate.edge_metrics.f1,
             aggregate.strict_topology.edges.f1,
@@ -1446,6 +1536,12 @@ fn summary_markdown(summary: &BenchmarkSummary) -> String {
             aggregate.verification.camv_violations,
             aggregate.verification.flat_folder_solved,
             aggregate.samples,
+            aggregate.exact.accepted,
+            aggregate.exact.attempted,
+            aggregate.exact.evaluations,
+            aggregate.exact.residual_vector_evaluations,
+            aggregate.exact.max_parameter_count,
+            aggregate.exact.max_residual_count,
             aggregate.structural.degree_two_vertices,
             aggregate.structural.odd_degree_vertices,
             aggregate.structural.max_kawasaki_residual_degrees,
@@ -1610,6 +1706,14 @@ fn ratio(numerator: usize, denominator: usize) -> f64 {
 
 fn json_f64(value: &Value, key: &str) -> Option<f64> {
     value.get(key).and_then(Value::as_f64)
+}
+
+fn json_usize_path(value: &Value, path: &[&str]) -> Option<usize> {
+    let mut current = value;
+    for key in path {
+        current = current.get(*key)?;
+    }
+    current.as_u64().map(|value| value as usize)
 }
 
 fn now_unix() -> u64 {
