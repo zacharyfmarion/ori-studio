@@ -2829,11 +2829,11 @@
 }
 
 .folded-base-crease--guide.folded-base-crease--fold-1 {
-  stroke-dasharray: 1 7;
+  stroke-dasharray: none;
 }
 
 .folded-base-crease--guide.folded-base-crease--fold-2 {
-  stroke-dasharray: none;
+  stroke-dasharray: 10 7;
 }
 
 .folded-base-vertex {
