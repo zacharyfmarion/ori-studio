@@ -451,6 +451,175 @@ impl SolveModel {
 
         (residuals, breakdown)
     }
+
+    fn analytic_jacobian(&self, params: &OVector<f64, Dyn>) -> OMatrix<f64, Dyn, Dyn> {
+        let points = self.points_from_params(params);
+        let kawasaki_entries =
+            kawasaki_residual_entries(&points, &self.vertices, &self.selected_spans);
+        let rows = self.analytic_residual_count(kawasaki_entries.len());
+        let cols = params.len();
+        let mut matrix = OMatrix::<f64, Dyn, Dyn>::zeros(rows, cols);
+        if rows == 0 || cols == 0 {
+            return matrix;
+        }
+
+        let source_weight = if self.provenance.source_adapter == CandidateSourceAdapter::Legacy {
+            1.0
+        } else {
+            0.85
+        };
+        let mut row = 0usize;
+
+        for (vertex, param) in self.vertices.iter().zip(&self.vertex_params) {
+            match *param {
+                VertexParameterization::Fixed { .. } => {}
+                VertexParameterization::Boundary { index, .. } => {
+                    let weight = movement_weight(vertex.support, source_weight);
+                    matrix[(row, index)] = weight / self.options.boundary_movement_sigma;
+                    row += 1;
+                }
+                VertexParameterization::Free { x_index, y_index } => {
+                    let sigma = movement_sigma(&self.cost_model, self.options, vertex.support);
+                    let weight = movement_weight(vertex.support, source_weight);
+                    matrix[(row, x_index)] = weight / sigma;
+                    row += 1;
+                    matrix[(row, y_index)] = weight / sigma;
+                    row += 1;
+                }
+            }
+        }
+
+        for group in &self.carrier_groups {
+            let theta = params[group.theta_index];
+            let normal = Point2::new(theta.cos(), theta.sin());
+            matrix[(row, group.theta_index)] = 1.0 / self.options.carrier_angle_sigma_radians;
+            row += 1;
+            matrix[(row, group.rho_index)] = 1.0 / self.options.carrier_rho_sigma;
+            row += 1;
+
+            for span_index in &group.span_indices {
+                let span = &self.selected_spans[*span_index];
+                for vertex_id in span.vertices {
+                    let point = points[vertex_id];
+                    let scale = 1.0 / self.options.carrier_incidence_sigma;
+                    matrix[(row, group.theta_index)] +=
+                        (-theta.sin() * point.x + theta.cos() * point.y) * scale;
+                    matrix[(row, group.rho_index)] -= scale;
+                    self.add_point_derivative(
+                        &mut matrix,
+                        row,
+                        vertex_id,
+                        normal.x * scale,
+                        normal.y * scale,
+                        params,
+                    );
+                    row += 1;
+                }
+            }
+        }
+
+        for entry in &kawasaki_entries {
+            for (index, ray) in entry.rays.iter().enumerate() {
+                let angle_weight = if index % 2 == 0 { -2.0 } else { 2.0 };
+                let scale = angle_weight / self.options.kawasaki_sigma_radians;
+                self.add_angle_derivative(
+                    &mut matrix,
+                    row,
+                    entry.vertex_id,
+                    ray.target_vertex_id,
+                    scale,
+                    &points,
+                    params,
+                );
+            }
+            row += 1;
+        }
+
+        matrix
+    }
+
+    fn analytic_residual_count(&self, kawasaki_residual_count: usize) -> usize {
+        let vertex_residuals = self
+            .vertex_params
+            .iter()
+            .map(|param| match param {
+                VertexParameterization::Fixed { .. } => 0,
+                VertexParameterization::Boundary { .. } => 1,
+                VertexParameterization::Free { .. } => 2,
+            })
+            .sum::<usize>();
+        let carrier_residuals = self
+            .carrier_groups
+            .iter()
+            .map(|group| 2 + group.span_indices.len() * 2)
+            .sum::<usize>();
+        vertex_residuals + carrier_residuals + kawasaki_residual_count
+    }
+
+    fn add_angle_derivative(
+        &self,
+        matrix: &mut OMatrix<f64, Dyn, Dyn>,
+        row: usize,
+        origin_id: usize,
+        target_id: usize,
+        scale: f64,
+        points: &[Point2],
+        params: &OVector<f64, Dyn>,
+    ) {
+        let origin = points[origin_id];
+        let target = points[target_id];
+        let dx = target.x - origin.x;
+        let dy = target.y - origin.y;
+        let radius_squared = dx * dx + dy * dy;
+        if radius_squared <= 1e-12 {
+            return;
+        }
+
+        self.add_point_derivative(
+            matrix,
+            row,
+            origin_id,
+            scale * dy / radius_squared,
+            scale * -dx / radius_squared,
+            params,
+        );
+        self.add_point_derivative(
+            matrix,
+            row,
+            target_id,
+            scale * -dy / radius_squared,
+            scale * dx / radius_squared,
+            params,
+        );
+    }
+
+    fn add_point_derivative(
+        &self,
+        matrix: &mut OMatrix<f64, Dyn, Dyn>,
+        row: usize,
+        vertex_id: usize,
+        dx: f64,
+        dy: f64,
+        params: &OVector<f64, Dyn>,
+    ) {
+        match self.vertex_params[vertex_id] {
+            VertexParameterization::Fixed { .. } => {}
+            VertexParameterization::Boundary { index, side } => {
+                matrix[(row, index)] += match side {
+                    BoundarySide::Top | BoundarySide::Bottom => dx,
+                    BoundarySide::Right | BoundarySide::Left => dy,
+                };
+            }
+            VertexParameterization::Free { x_index, y_index } => {
+                if params[x_index] > -0.25 && params[x_index] < 1.25 {
+                    matrix[(row, x_index)] += dx;
+                }
+                if params[y_index] > -0.25 && params[y_index] < 1.25 {
+                    matrix[(row, y_index)] += dy;
+                }
+            }
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
@@ -636,30 +805,7 @@ impl LeastSquaresProblem<f64, Dyn, Dyn> for ExactLeastSquaresProblem {
         self.counters
             .jacobian_calls
             .set(self.counters.jacobian_calls.get() + 1);
-        let base = self.model.residuals_for(&self.params);
-        let rows = base.len();
-        let cols = self.params.len();
-        self.counters
-            .finite_difference_columns
-            .set(self.counters.finite_difference_columns.get() + cols);
-        self.counters
-            .residual_vector_evaluations
-            .set(self.counters.residual_vector_evaluations.get() + 1 + cols);
-        let mut matrix = OMatrix::<f64, Dyn, Dyn>::zeros(rows, cols);
-        if rows == 0 || cols == 0 {
-            return Some(matrix);
-        }
-        for column in 0..cols {
-            let mut perturbed = self.params.clone();
-            let step =
-                self.model.options.finite_difference_epsilon * self.params[column].abs().max(1.0);
-            perturbed[column] += step;
-            let plus = self.model.residuals_for(&perturbed);
-            for row in 0..rows {
-                matrix[(row, column)] = (plus[row] - base[row]) / step;
-            }
-        }
-        Some(matrix)
+        Some(self.model.analytic_jacobian(&self.params))
     }
 }
 
@@ -715,10 +861,12 @@ fn analyze_graph(
             continue;
         }
         incident[a].push(IncidentRay {
+            target_vertex_id: b,
             angle: angle_radians(points[a], points[b]),
             assignment: span.assignment_label(),
         });
         incident[b].push(IncidentRay {
+            target_vertex_id: a,
             angle: angle_radians(points[b], points[a]),
             assignment: span.assignment_label(),
         });
@@ -837,8 +985,15 @@ fn analyze_graph(
 
 #[derive(Debug, Clone)]
 struct IncidentRay {
+    target_vertex_id: usize,
     angle: f64,
     assignment: AssignmentLabel,
+}
+
+#[derive(Debug, Clone)]
+struct KawasakiResidualEntry {
+    vertex_id: usize,
+    rays: Vec<IncidentRay>,
 }
 
 fn kawasaki_residuals(
@@ -846,6 +1001,17 @@ fn kawasaki_residuals(
     vertices: &[CandidateVertex],
     spans: &[CandidateCreaseSpan],
 ) -> Vec<f64> {
+    kawasaki_residual_entries(points, vertices, spans)
+        .iter()
+        .map(|entry| signed_kawasaki_residual_radians(&entry.rays))
+        .collect()
+}
+
+fn kawasaki_residual_entries(
+    points: &[Point2],
+    vertices: &[CandidateVertex],
+    spans: &[CandidateCreaseSpan],
+) -> Vec<KawasakiResidualEntry> {
     let mut incident = vec![Vec::<IncidentRay>::new(); vertices.len()];
     let boundary_vertices = boundary_vertex_ids(spans);
     for span in spans {
@@ -857,10 +1023,12 @@ fn kawasaki_residuals(
             continue;
         }
         incident[a].push(IncidentRay {
+            target_vertex_id: b,
             angle: angle_radians(points[a], points[b]),
             assignment: span.assignment_label(),
         });
         incident[b].push(IncidentRay {
+            target_vertex_id: a,
             angle: angle_radians(points[b], points[a]),
             assignment: span.assignment_label(),
         });
@@ -872,7 +1040,10 @@ fn kawasaki_residuals(
             let mut rays = incident[vertex.id].clone();
             rays.sort_by(|left, right| left.angle.total_cmp(&right.angle));
             if rays.len() >= 4 && rays.len() % 2 == 0 {
-                Some(signed_kawasaki_residual_radians(&rays))
+                Some(KawasakiResidualEntry {
+                    vertex_id: vertex.id,
+                    rays,
+                })
             } else {
                 None
             }
@@ -1677,6 +1848,63 @@ mod tests {
     }
 
     #[test]
+    fn analytic_jacobian_matches_finite_difference_for_kawasaki_vertex() {
+        let input = four_ray_input(Point2::new(0.53, 0.48));
+        assert_analytic_jacobian_matches_finite_difference(&input);
+    }
+
+    #[test]
+    fn analytic_jacobian_matches_finite_difference_for_shared_carrier_split() {
+        let mut input = base_square_input();
+        let a = input.vertices.len();
+        input.vertices.push(vertex(
+            a,
+            Point2::new(0.0, 0.5),
+            CandidateVertexKind::BoundaryContact,
+            CandidateVertexMovementPolicy::BoundaryOnly,
+            Some(BoundarySide::Left),
+        ));
+        let b = input.vertices.len();
+        input.vertices.push(vertex(
+            b,
+            Point2::new(0.5, 0.515),
+            CandidateVertexKind::InteriorJunction,
+            CandidateVertexMovementPolicy::Movable,
+            None,
+        ));
+        let c = input.vertices.len();
+        input.vertices.push(vertex(
+            c,
+            Point2::new(1.0, 0.5),
+            CandidateVertexKind::BoundaryContact,
+            CandidateVertexMovementPolicy::BoundaryOnly,
+            Some(BoundarySide::Right),
+        ));
+        input.selected_spans.push(span_with_carrier(
+            input.selected_spans.len(),
+            a,
+            b,
+            AssignmentLabel::Mountain,
+            99,
+            Point2::new(0.0, 1.0),
+            0.5,
+            &input.vertices,
+        ));
+        input.selected_spans.push(span_with_carrier(
+            input.selected_spans.len(),
+            b,
+            c,
+            AssignmentLabel::Mountain,
+            99,
+            Point2::new(0.0, 1.0),
+            0.5,
+            &input.vertices,
+        ));
+
+        assert_analytic_jacobian_matches_finite_difference(&input);
+    }
+
+    #[test]
     fn impossible_large_movement_is_reported_failed() {
         let mut input = four_ray_input(Point2::new(0.64, 0.50));
         input.image_size = Some(1024);
@@ -1715,9 +1943,51 @@ mod tests {
         ] {
             input
                 .selected_spans
-                .push(span(id, 4, corner, label, id, &input.vertices));
+            .push(span(id, 4, corner, label, id, &input.vertices));
         }
         input
+    }
+
+    fn assert_analytic_jacobian_matches_finite_difference(input: &ExactSolveInput) {
+        let model = SolveModel::new(input, ExactSolveOptions::default());
+        let params = model.initial_params.clone();
+        let analytic = model.analytic_jacobian(&params);
+        let finite_difference = central_finite_difference_jacobian(&model, &params);
+        assert_eq!(analytic.shape(), finite_difference.shape());
+        for row in 0..analytic.nrows() {
+            for column in 0..analytic.ncols() {
+                let left = analytic[(row, column)];
+                let right = finite_difference[(row, column)];
+                let tolerance = 2e-4_f64.max(right.abs() * 2e-5).max(left.abs() * 2e-5);
+                assert!(
+                    (left - right).abs() <= tolerance,
+                    "jacobian mismatch at row {row}, col {column}: analytic={left}, finite_difference={right}, tolerance={tolerance}"
+                );
+            }
+        }
+    }
+
+    fn central_finite_difference_jacobian(
+        model: &SolveModel,
+        params: &OVector<f64, Dyn>,
+    ) -> OMatrix<f64, Dyn, Dyn> {
+        let base = model.residuals_for(params);
+        let rows = base.len();
+        let cols = params.len();
+        let mut matrix = OMatrix::<f64, Dyn, Dyn>::zeros(rows, cols);
+        for column in 0..cols {
+            let step = model.options.finite_difference_epsilon * params[column].abs().max(1.0);
+            let mut plus_params = params.clone();
+            let mut minus_params = params.clone();
+            plus_params[column] += step;
+            minus_params[column] -= step;
+            let plus = model.residuals_for(&plus_params);
+            let minus = model.residuals_for(&minus_params);
+            for row in 0..rows {
+                matrix[(row, column)] = (plus[row] - minus[row]) / (2.0 * step);
+            }
+        }
+        matrix
     }
 
     fn base_square_input() -> ExactSolveInput {
