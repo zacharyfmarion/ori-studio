@@ -49,3 +49,15 @@ oristudio-cp-eval = { version = "0.1.2", path = "crates/oristudio-cp-eval" }
 wasm-bindgen = "0.2"
 wasm-bindgen-test = "0.3"
 walkdir = "2.5"
+
+# CP detection exact solve is dominated by nalgebra/LM numeric kernels. Keep
+# normal dev builds broad and debuggable, but optimize this narrow path so the
+# local inspector behaves closer to production/release WASM.
+[profile.dev.package.oristudio-cp-compiler]
+opt-level = 2
+
+[profile.dev.package.levenberg-marquardt]
+opt-level = 3
+
+[profile.dev.package.nalgebra]
+opt-level = 3
