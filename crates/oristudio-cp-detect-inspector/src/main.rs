@@ -8,8 +8,9 @@ use oristudio_cp_compiler::exact_probe::{
     ExactProbeOptions, ExactizabilityReport, probe_exactizability,
 };
 use oristudio_cp_compiler::selection::{
-    CandidateSelection, SelectionOptions, candidate_graph_from_arrangement_for_selection,
-    select_candidate_graph, select_candidate_graph_beam_from_ir,
+    CandidateSelection, SelectionDecision, SelectionOptions,
+    candidate_graph_from_arrangement_for_selection, select_candidate_graph,
+    select_candidate_graph_beam_from_ir,
 };
 use oristudio_cp_compiler::{
     AssignmentCandidate, AssignmentLabel, CandidateGraph, CandidateProgram, EvidenceSource,
@@ -23,7 +24,7 @@ use oristudio_cp_detect::evidence_extract::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
@@ -187,6 +188,26 @@ struct Stage5Response {
 }
 
 #[derive(Debug, Serialize)]
+struct Stage5bResponse {
+    schema: &'static str,
+    sample: ExampleRow,
+    map_size: usize,
+    config: EvidenceConfigSummary,
+    overlay_frame_px: OverlayFramePx,
+    report: Value,
+    maps: Vec<MapPayload>,
+    primitives: PrimitivePayload,
+    arrangement: CandidateArrangement,
+    candidate_source: String,
+    candidate_graph: CandidateGraph,
+    selection: CandidateSelection,
+    exactizability: ExactizabilityReport,
+    ground_truth: Option<GroundTruthGraphPayload>,
+    legacy_graph: Option<GroundTruthGraphPayload>,
+    decision_audit: CandidateDecisionAudit,
+}
+
+#[derive(Debug, Serialize)]
 struct Stage6Response {
     schema: &'static str,
     sample: ExampleRow,
@@ -204,6 +225,86 @@ struct Stage6Response {
     exact_solve: ExactSolvedGraph,
     ground_truth: Option<GroundTruthGraphPayload>,
     legacy_graph: Option<GroundTruthGraphPayload>,
+}
+
+#[derive(Debug, Serialize)]
+struct CandidateDecisionAudit {
+    schema: &'static str,
+    summary: CandidateDecisionAuditSummary,
+    candidates: Vec<CandidateDecisionRecord>,
+    gt_edges: Vec<GtEdgeAuditRecord>,
+}
+
+#[derive(Debug, Default, Serialize)]
+struct CandidateDecisionAuditSummary {
+    total_candidates: usize,
+    selected: usize,
+    available: usize,
+    rejected: usize,
+    conflicted_with_selected: usize,
+    dominated_or_replaced: usize,
+    locked: usize,
+    gt_edges: usize,
+    gt_edges_with_selected_match: usize,
+    gt_edges_without_candidate: usize,
+}
+
+#[derive(Debug, Serialize)]
+struct CandidateDecisionRecord {
+    id: usize,
+    kind: String,
+    vertices: [usize; 2],
+    endpoint_points: Option<[Point2; 2]>,
+    assignment_label: String,
+    boundary_role: String,
+    source_kind: String,
+    selection_policy: String,
+    decision: String,
+    reason_category: String,
+    score: f64,
+    score_breakdown: Option<oristudio_cp_compiler::selection::SelectionScoreBreakdown>,
+    line_support_min: f64,
+    line_support_mean: f64,
+    line_support_max: f64,
+    presence_probability: f64,
+    conflicts: Vec<DecisionConflictRecord>,
+    replaced_by: Vec<usize>,
+    replaces: Vec<usize>,
+    source_atomic_edge_ids: Vec<usize>,
+    replaced_atomic_edge_ids: Vec<usize>,
+    collapsed_vertex_ids: Vec<usize>,
+    reasons: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct DecisionConflictRecord {
+    id: usize,
+    kind: String,
+    candidate_ids: Vec<usize>,
+    hard: bool,
+    reason: String,
+    touches_selected: bool,
+}
+
+#[derive(Debug, Serialize)]
+struct GtEdgeAuditRecord {
+    gt_edge_id: usize,
+    vertices: [usize; 2],
+    assignment_label: String,
+    root_cause: String,
+    best_candidate_ids: Vec<usize>,
+    selected_candidate_ids: Vec<usize>,
+    matches: Vec<GtCandidateMatchRecord>,
+}
+
+#[derive(Debug, Serialize)]
+struct GtCandidateMatchRecord {
+    candidate_id: usize,
+    decision: String,
+    reason_category: String,
+    distance_px: f64,
+    angle_delta_degrees: f64,
+    selected: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -427,6 +528,12 @@ fn route_request(request: &HttpRequest, state: &AppState) -> HttpResponse {
                     status: "implemented"
                 },
                 StageInfo {
+                    id: "stage5b",
+                    label: "Stage 5b",
+                    title: "Candidate decision audit",
+                    status: "implemented"
+                },
+                StageInfo {
                     id: "stage6",
                     label: "Stage 6",
                     title: "Full exact geometric solve",
@@ -459,6 +566,11 @@ fn route_request(request: &HttpRequest, state: &AppState) -> HttpResponse {
     } else if let Some(encoded_id) = path.strip_prefix("/api/stage5/examples/") {
         let sample_id = percent_decode(encoded_id);
         stage5_example(state, &sample_id, query).and_then(|payload| json_response(&payload))
+    } else if path == "/api/stage5b/examples" {
+        stage5b_examples(state).and_then(|payload| json_response(&payload))
+    } else if let Some(encoded_id) = path.strip_prefix("/api/stage5b/examples/") {
+        let sample_id = percent_decode(encoded_id);
+        stage5b_example(state, &sample_id, query).and_then(|payload| json_response(&payload))
     } else if path == "/api/stage6/examples" {
         stage6_examples(state).and_then(|payload| json_response(&payload))
     } else if let Some(encoded_id) = path.strip_prefix("/api/stage6/examples/") {
@@ -532,6 +644,13 @@ fn stage5_examples(state: &AppState) -> Result<ExamplesResponse> {
     examples_response(
         state,
         "oristudio/cp-detect-architecture-inspector/stage5-index/v1",
+    )
+}
+
+fn stage5b_examples(state: &AppState) -> Result<ExamplesResponse> {
+    examples_response(
+        state,
+        "oristudio/cp-detect-architecture-inspector/stage5b-index/v1",
     )
 }
 
@@ -835,6 +954,38 @@ fn stage5_example(
     })
 }
 
+fn stage5b_example(
+    state: &AppState,
+    sample_id: &str,
+    query: BTreeMap<String, String>,
+) -> Result<Stage5bResponse> {
+    let stage5 = stage5_example(state, sample_id, query)?;
+    let decision_audit = candidate_decision_audit(
+        &stage5.candidate_graph,
+        &stage5.selection,
+        stage5.ground_truth.as_ref(),
+        stage5.overlay_frame_px,
+    );
+    Ok(Stage5bResponse {
+        schema: "oristudio/cp-detect-architecture-inspector/stage5b/v1",
+        sample: stage5.sample,
+        map_size: stage5.map_size,
+        config: stage5.config,
+        overlay_frame_px: stage5.overlay_frame_px,
+        report: stage5.report,
+        maps: stage5.maps,
+        primitives: stage5.primitives,
+        arrangement: stage5.arrangement,
+        candidate_source: stage5.candidate_source,
+        candidate_graph: stage5.candidate_graph,
+        selection: stage5.selection,
+        exactizability: stage5.exactizability,
+        ground_truth: stage5.ground_truth,
+        legacy_graph: stage5.legacy_graph,
+        decision_audit,
+    })
+}
+
 fn stage6_example(
     state: &AppState,
     sample_id: &str,
@@ -852,6 +1003,7 @@ fn stage6_example(
     );
     let exact_input =
         ExactSolveInput::from_candidate_selection(&stage5.candidate_graph, &selected_graph);
+    let selection = selection_with_exact_roles(stage5.selection, &exact_input);
     let exact_solve = solve_exact(&exact_input, Default::default());
     Ok(Stage6Response {
         schema: "oristudio/cp-detect-architecture-inspector/stage6/v1",
@@ -865,12 +1017,389 @@ fn stage6_example(
         arrangement: stage5.arrangement,
         candidate_source: stage5.candidate_source,
         candidate_graph: stage5.candidate_graph,
-        selection: stage5.selection,
+        selection,
         exactizability: stage5.exactizability,
         exact_solve,
         ground_truth: stage5.ground_truth,
         legacy_graph: stage5.legacy_graph,
     })
+}
+
+fn candidate_decision_audit(
+    graph: &CandidateGraph,
+    selection: &CandidateSelection,
+    ground_truth: Option<&GroundTruthGraphPayload>,
+    overlay_frame_px: OverlayFramePx,
+) -> CandidateDecisionAudit {
+    let selected_ids = selection
+        .selected_spans
+        .iter()
+        .map(|span| span.id)
+        .collect::<BTreeSet<_>>();
+    let score_by_id = selection
+        .edge_scores
+        .iter()
+        .map(|score| (score.edge_id, score))
+        .collect::<BTreeMap<_, _>>();
+    let conflicts_by_candidate = conflicts_by_candidate(graph, &selected_ids);
+    let selected_candidate_spans = graph
+        .crease_candidates
+        .iter()
+        .filter(|span| selected_ids.contains(&span.id))
+        .collect::<Vec<_>>();
+
+    let candidates = graph
+        .crease_candidates
+        .iter()
+        .map(|span| {
+            let score = score_by_id.get(&span.id).copied();
+            let decision = score
+                .map(|score| selection_decision_label(&score.decision))
+                .unwrap_or("not_considered")
+                .to_owned();
+            let conflicts = conflicts_by_candidate
+                .get(&span.id)
+                .cloned()
+                .unwrap_or_default();
+            let replaced_by = selected_candidate_spans
+                .iter()
+                .filter(|selected| selected.id != span.id)
+                .filter(|selected| {
+                    selected.replaced_span_ids.contains(&span.id)
+                        || selected.replaced_atomic_edge_ids.contains(&span.id)
+                        || selected.source_atomic_edge_ids.contains(&span.id)
+                })
+                .map(|selected| selected.id)
+                .collect::<Vec<_>>();
+            let reason_category =
+                reason_category(&decision, &conflicts, &replaced_by, &span.selection_policy);
+            let mut reasons = span.reasons.clone();
+            if let Some(score) = score {
+                for reason in &score.reasons {
+                    if !reasons.iter().any(|existing| existing == reason) {
+                        reasons.push(reason.clone());
+                    }
+                }
+            }
+            CandidateDecisionRecord {
+                id: span.id,
+                kind: json_label(&span.kind),
+                vertices: span.vertices,
+                endpoint_points: candidate_endpoint_points(graph, span.vertices),
+                assignment_label: json_label(&span.assignment_evidence.observed_label),
+                boundary_role: json_label(&span.boundary_role()),
+                source_kind: json_label(&span.source_kind),
+                selection_policy: json_label(&span.selection_policy),
+                decision,
+                reason_category,
+                score: score
+                    .map(|score| score.total_score)
+                    .unwrap_or_else(|| span.selection_score(graph)),
+                score_breakdown: score.map(|score| score.breakdown.clone()),
+                line_support_min: span.line_support_min,
+                line_support_mean: span.line_support_mean,
+                line_support_max: span.line_support_max,
+                presence_probability: span.presence_probability,
+                conflicts,
+                replaced_by,
+                replaces: span.replaced_span_ids.clone(),
+                source_atomic_edge_ids: span.source_atomic_edge_ids.clone(),
+                replaced_atomic_edge_ids: span.replaced_atomic_edge_ids.clone(),
+                collapsed_vertex_ids: span.collapsed_vertex_ids.clone(),
+                reasons,
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let gt_edges = ground_truth
+        .map(|ground_truth| gt_edge_audits(ground_truth, &candidates, overlay_frame_px))
+        .unwrap_or_default();
+    let mut summary = CandidateDecisionAuditSummary {
+        total_candidates: candidates.len(),
+        gt_edges: gt_edges.len(),
+        ..Default::default()
+    };
+    for candidate in &candidates {
+        match candidate.reason_category.as_str() {
+            "selected" => summary.selected += 1,
+            "available" => summary.available += 1,
+            "conflict" => {
+                summary.rejected += 1;
+                summary.conflicted_with_selected += 1;
+            }
+            "dominated" => {
+                summary.rejected += 1;
+                summary.dominated_or_replaced += 1;
+            }
+            "locked" => {
+                summary.selected += 1;
+                summary.locked += 1;
+            }
+            _ => summary.rejected += 1,
+        }
+    }
+    for edge in &gt_edges {
+        if edge.selected_candidate_ids.is_empty() {
+            summary.gt_edges_without_candidate +=
+                usize::from(edge.root_cause == "no_candidate_carrier");
+        } else {
+            summary.gt_edges_with_selected_match += 1;
+        }
+    }
+
+    CandidateDecisionAudit {
+        schema: "oristudio/cp-detect-architecture-inspector/candidate-decision-audit/v1",
+        summary,
+        candidates,
+        gt_edges,
+    }
+}
+
+fn conflicts_by_candidate(
+    graph: &CandidateGraph,
+    selected_ids: &BTreeSet<usize>,
+) -> BTreeMap<usize, Vec<DecisionConflictRecord>> {
+    let mut by_candidate = BTreeMap::<usize, Vec<DecisionConflictRecord>>::new();
+    for conflict in graph.conflicts.iter().chain(graph.alternatives.iter()) {
+        let touches_selected = conflict
+            .candidate_ids
+            .iter()
+            .any(|candidate_id| selected_ids.contains(candidate_id));
+        for candidate_id in &conflict.candidate_ids {
+            by_candidate
+                .entry(*candidate_id)
+                .or_default()
+                .push(DecisionConflictRecord {
+                    id: conflict.id,
+                    kind: json_label(&conflict.kind),
+                    candidate_ids: conflict.candidate_ids.clone(),
+                    hard: conflict.hard,
+                    reason: conflict.reason.clone(),
+                    touches_selected,
+                });
+        }
+    }
+    by_candidate
+}
+
+fn selection_decision_label(decision: &SelectionDecision) -> &'static str {
+    match decision {
+        SelectionDecision::Selected => "selected",
+        SelectionDecision::Rejected => "rejected",
+        SelectionDecision::Undecided => "undecided",
+    }
+}
+
+fn reason_category(
+    decision: &str,
+    conflicts: &[DecisionConflictRecord],
+    replaced_by: &[usize],
+    policy: &oristudio_cp_compiler::CandidateSelectionPolicy,
+) -> String {
+    if decision == "selected" {
+        return if json_label(policy) == "locked" {
+            "locked".to_owned()
+        } else {
+            "selected".to_owned()
+        };
+    }
+    if !replaced_by.is_empty() {
+        return "dominated".to_owned();
+    }
+    if conflicts
+        .iter()
+        .any(|conflict| conflict.hard && conflict.touches_selected)
+    {
+        return "conflict".to_owned();
+    }
+    if decision == "undecided" {
+        return "available".to_owned();
+    }
+    if json_label(policy) == "discouraged" {
+        return "policy".to_owned();
+    }
+    if decision == "not_considered" {
+        return "not_considered".to_owned();
+    }
+    "cost".to_owned()
+}
+
+fn candidate_endpoint_points(graph: &CandidateGraph, vertices: [usize; 2]) -> Option<[Point2; 2]> {
+    Some([
+        graph.vertices.get(vertices[0])?.point,
+        graph.vertices.get(vertices[1])?.point,
+    ])
+}
+
+fn gt_edge_audits(
+    ground_truth: &GroundTruthGraphPayload,
+    candidates: &[CandidateDecisionRecord],
+    overlay_frame_px: OverlayFramePx,
+) -> Vec<GtEdgeAuditRecord> {
+    ground_truth
+        .edges_vertices
+        .iter()
+        .enumerate()
+        .map(|(gt_edge_id, vertices)| {
+            let gt_a = point_from_gt(ground_truth.vertices_px.get(vertices[0]).copied());
+            let gt_b = point_from_gt(ground_truth.vertices_px.get(vertices[1]).copied());
+            let mut matches = match (gt_a, gt_b) {
+                (Some(gt_a), Some(gt_b)) => candidates
+                    .iter()
+                    .filter_map(|candidate| {
+                        let [candidate_a, candidate_b] = candidate.endpoint_points?;
+                        let candidate_a = point_to_overlay_frame(candidate_a, overlay_frame_px);
+                        let candidate_b = point_to_overlay_frame(candidate_b, overlay_frame_px);
+                        let distance =
+                            symmetric_segment_distance(gt_a, gt_b, candidate_a, candidate_b);
+                        let angle =
+                            segment_angle_delta_degrees(gt_a, gt_b, candidate_a, candidate_b);
+                        Some(GtCandidateMatchRecord {
+                            candidate_id: candidate.id,
+                            decision: candidate.decision.clone(),
+                            reason_category: candidate.reason_category.clone(),
+                            distance_px: distance,
+                            angle_delta_degrees: angle,
+                            selected: candidate.decision == "selected",
+                        })
+                    })
+                    .collect::<Vec<_>>(),
+                _ => Vec::new(),
+            };
+            matches.sort_by(|left, right| {
+                gt_match_score(left)
+                    .total_cmp(&gt_match_score(right))
+                    .then_with(|| left.candidate_id.cmp(&right.candidate_id))
+            });
+            matches.truncate(8);
+            let selected_candidate_ids = matches
+                .iter()
+                .filter(|candidate| {
+                    candidate.selected
+                        && candidate.distance_px <= 10.0
+                        && candidate.angle_delta_degrees <= 10.0
+                })
+                .map(|candidate| candidate.candidate_id)
+                .collect::<Vec<_>>();
+            let best_candidate_ids = matches
+                .iter()
+                .take(4)
+                .map(|candidate| candidate.candidate_id)
+                .collect::<Vec<_>>();
+            let root_cause = gt_root_cause(&matches, &selected_candidate_ids);
+            GtEdgeAuditRecord {
+                gt_edge_id,
+                vertices: *vertices,
+                assignment_label: ground_truth
+                    .edges_assignment_labels
+                    .get(gt_edge_id)
+                    .cloned()
+                    .unwrap_or_else(|| "U".to_owned()),
+                root_cause,
+                best_candidate_ids,
+                selected_candidate_ids,
+                matches,
+            }
+        })
+        .collect()
+}
+
+fn gt_root_cause(matches: &[GtCandidateMatchRecord], selected_candidate_ids: &[usize]) -> String {
+    if !selected_candidate_ids.is_empty() {
+        return "selected".to_owned();
+    }
+    let Some(best) = matches.first() else {
+        return "no_candidate_carrier".to_owned();
+    };
+    if best.distance_px > 18.0 || best.angle_delta_degrees > 16.0 {
+        return "no_candidate_carrier".to_owned();
+    }
+    match best.reason_category.as_str() {
+        "available" => "candidate_lost_by_score".to_owned(),
+        "conflict" => "candidate_rejected_by_conflict".to_owned(),
+        "dominated" => "candidate_dominated_or_replaced".to_owned(),
+        "policy" => "candidate_rejected_by_policy".to_owned(),
+        other => format!("candidate_{other}"),
+    }
+}
+
+fn gt_match_score(candidate: &GtCandidateMatchRecord) -> f64 {
+    candidate.distance_px + candidate.angle_delta_degrees * 0.65
+}
+
+fn point_from_gt(point: Option<[f64; 2]>) -> Option<Point2> {
+    point.map(|[x, y]| Point2::new(x, y))
+}
+
+fn point_to_overlay_frame(point: Point2, frame: OverlayFramePx) -> Point2 {
+    Point2::new(
+        frame.x_min + point.x * (frame.x_max - frame.x_min),
+        frame.y_min + point.y * (frame.y_max - frame.y_min),
+    )
+}
+
+fn symmetric_segment_distance(a0: Point2, a1: Point2, b0: Point2, b1: Point2) -> f64 {
+    let a_to_b = (point_segment_distance(a0, b0, b1) + point_segment_distance(a1, b0, b1)) * 0.5;
+    let b_to_a = (point_segment_distance(b0, a0, a1) + point_segment_distance(b1, a0, a1)) * 0.5;
+    let endpoint_direct = ((point_distance(a0, b0) + point_distance(a1, b1)) * 0.5)
+        .min((point_distance(a0, b1) + point_distance(a1, b0)) * 0.5);
+    a_to_b.min(b_to_a).min(endpoint_direct)
+}
+
+fn point_segment_distance(point: Point2, a: Point2, b: Point2) -> f64 {
+    let ab_x = b.x - a.x;
+    let ab_y = b.y - a.y;
+    let denom = ab_x * ab_x + ab_y * ab_y;
+    if denom <= 1e-9 {
+        return point_distance(point, a);
+    }
+    let t = (((point.x - a.x) * ab_x + (point.y - a.y) * ab_y) / denom).clamp(0.0, 1.0);
+    let projection = Point2::new(a.x + ab_x * t, a.y + ab_y * t);
+    point_distance(point, projection)
+}
+
+fn point_distance(a: Point2, b: Point2) -> f64 {
+    ((a.x - b.x).powi(2) + (a.y - b.y).powi(2)).sqrt()
+}
+
+fn segment_angle_delta_degrees(a0: Point2, a1: Point2, b0: Point2, b1: Point2) -> f64 {
+    let a = (a1.y - a0.y).atan2(a1.x - a0.x);
+    let b = (b1.y - b0.y).atan2(b1.x - b0.x);
+    let mut delta = (a - b).abs().rem_euclid(std::f64::consts::PI);
+    if delta > std::f64::consts::FRAC_PI_2 {
+        delta = std::f64::consts::PI - delta;
+    }
+    delta.to_degrees()
+}
+
+fn json_label<T: Serialize>(value: &T) -> String {
+    serde_json::to_value(value)
+        .ok()
+        .and_then(|value| value.as_str().map(str::to_owned))
+        .unwrap_or_else(|| "unknown".to_owned())
+}
+
+fn selection_with_exact_roles(
+    mut selection: CandidateSelection,
+    exact_input: &ExactSolveInput,
+) -> CandidateSelection {
+    let roles = exact_input
+        .selected_spans
+        .iter()
+        .map(|span| (span.id, (span.boundary_role(), span.reasons.clone())))
+        .collect::<BTreeMap<_, _>>();
+    for span in &mut selection.selected_spans {
+        let Some((boundary_role, reasons)) = roles.get(&span.id) else {
+            continue;
+        };
+        span.boundary_role = *boundary_role;
+        for reason in reasons {
+            if !span.reasons.iter().any(|existing| existing == reason) {
+                span.reasons.push(reason.clone());
+            }
+        }
+    }
+    selection
 }
 
 fn read_legacy_candidate_program(

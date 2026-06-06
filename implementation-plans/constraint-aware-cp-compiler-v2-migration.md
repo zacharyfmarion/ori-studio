@@ -2008,6 +2008,47 @@ Completed:
   - direct Stage 6 API smoke on the clean treemaker sample
   - browser smoke at `http://127.0.0.1:5176/`
 
+### Phase 7 Cut-Boundary Semantics Fix - June 6, 2026
+
+TreeMaker examples can contain a useful-polygon / cut-boundary drawn inside the
+rectangular image frame. That boundary is not a fold ray and should be excluded
+from local flat-foldability theorem checks, but it is also not the square paper
+border. Stage 6 now keeps these concepts separate:
+
+- `paper_boundary` means the actual square/canvas paper frame.
+- `cut_boundary` means an unknown/flat useful-polygon boundary adjacent to the
+  paper frame. It is theorem-excluded like a boundary, but remains visually and
+  semantically distinct from the paper frame.
+
+This fixes the misleading `odd degree 3` diagnostics on the clean TreeMaker
+sample without drawing the useful polygon as a square border. The direct Stage 6
+smoke on `treemaker_tree_v1-5gjmj-004937__clean__001` now reports 11 paper
+boundary spans, 10 cut-boundary spans, no odd-degree failures, no Maekawa
+failures, and a remaining ambiguous status only from small Kawasaki residuals.
+
+The flat-folder input path now uses the same boundary-role classifier for
+TreeMaker-style samples before calling the flat-folder solver. For documents
+with `treemaker_metadata` or `cp_detector.flat_folder_boundary_hint =
+"treemaker_useful_polygon"`, verification promotes the detected cut-boundary
+spans to FOLD `B`, normalizes the physical useful-polygon domain, emits explicit
+faces/edge-face topology, and drops orphaned canvas/cutaway geometry. This makes
+the canonical GT FOLD for `treemaker_tree_v1-5gjmj-004937` flat-fold
+successfully through `treemaker flatfold`; the recognized legacy/selected/exact
+outputs for the same clean sample still fail flat-folder with assignment
+conflicts and 22 CAMV violations, which means the export semantics are fixed
+but the recognized graph/assignments are not yet globally valid.
+
+Validation run:
+
+```bash
+cargo test -p oristudio-cp-compiler exact_solve -- --nocapture
+cargo check -p oristudio-cp-detect-inspector
+npm run build # from apps/cp-detect-architecture-inspector
+cargo test -p oristudio-cp-compiler verify::tests -- --nocapture
+cargo check -p treemaker-cli
+cargo check -p oristudio-cp-detect --bin compare_exact_solve_benchmark
+```
+
 Remaining:
 
 - [x] Run curated legacy-vs-selected-vs-exact-solved metric comparisons.

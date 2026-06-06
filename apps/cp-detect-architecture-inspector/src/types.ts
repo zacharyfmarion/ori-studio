@@ -216,9 +216,10 @@ export interface CandidateGraph {
   schema: string;
   coordinate_space: string;
   image_size?: number | null;
-  vertices: unknown[];
-  crease_candidates: unknown[];
-  conflicts: unknown[];
+  vertices: CandidateGraphVertex[];
+  crease_candidates: CandidateGraphCreaseCandidate[];
+  conflicts: CandidateGraphConflict[];
+  alternatives?: CandidateGraphConflict[];
   report: {
     vertices: number;
     crease_candidates: number;
@@ -234,6 +235,67 @@ export interface CandidateGraph {
     source_ids: string[];
     notes: string[];
   };
+}
+
+export interface CandidateGraphVertex {
+  id: number;
+  point: { x: number; y: number };
+  kind: string;
+  support: number;
+  boundary_side?: 'top' | 'right' | 'bottom' | 'left' | null | string;
+  source_vertex_ids?: number[];
+  source_carrier_ids?: number[];
+  provenance?: string[];
+}
+
+export interface CandidateCarrierGeometry {
+  normal: { x: number; y: number };
+  direction: { x: number; y: number };
+  rho: number;
+}
+
+export interface CandidateGraphCreaseCandidate {
+  id: number;
+  kind: string;
+  vertices: [number, number];
+  carrier: CandidateCarrierGeometry;
+  t_interval: [number, number];
+  assignment_evidence: {
+    mountain: number;
+    valley: number;
+    boundary: number;
+    auxiliary: number;
+    unknown: number;
+    observed_label: 'mountain' | 'valley' | 'boundary' | 'unknown' | 'flat' | string;
+    source: string;
+    confidence: number;
+    margin: number;
+  };
+  presence_probability: number;
+  line_support_min: number;
+  line_support_mean: number;
+  line_support_max: number;
+  style_support: number;
+  non_crease_support: number;
+  source_kind: string;
+  selection_policy: string;
+  boundary_role?: 'none' | 'paper_boundary' | 'cut_boundary' | string;
+  source_edge_ids?: number[];
+  source_atomic_edge_ids?: number[];
+  source_carrier_ids?: number[];
+  replaced_span_ids?: number[];
+  replaced_atomic_edge_ids?: number[];
+  collapsed_vertex_ids?: number[];
+  provenance?: string[];
+  reasons?: string[];
+}
+
+export interface CandidateGraphConflict {
+  id: number;
+  kind: string;
+  candidate_ids: number[];
+  hard: boolean;
+  reason: string;
 }
 
 export interface Stage2Response extends Stage1Response {
@@ -318,6 +380,7 @@ export interface SelectionSpan {
     confidence: number;
     margin: number;
   };
+  boundary_role?: 'none' | 'paper_boundary' | 'cut_boundary' | string;
   source_atomic_edge_ids: number[];
   replaced_atomic_edge_ids: number[];
   collapsed_vertex_ids: number[];
@@ -436,6 +499,82 @@ export interface Stage5Response extends Stage4Response {
   legacy_graph?: GroundTruthGraph | null;
 }
 
+export interface CandidateDecisionAudit {
+  schema: string;
+  summary: {
+    total_candidates: number;
+    selected: number;
+    available: number;
+    rejected: number;
+    conflicted_with_selected: number;
+    dominated_or_replaced: number;
+    locked: number;
+    gt_edges: number;
+    gt_edges_with_selected_match: number;
+    gt_edges_without_candidate: number;
+  };
+  candidates: CandidateDecisionRecord[];
+  gt_edges: GtEdgeAuditRecord[];
+}
+
+export interface DecisionConflictRecord {
+  id: number;
+  kind: string;
+  candidate_ids: number[];
+  hard: boolean;
+  reason: string;
+  touches_selected: boolean;
+}
+
+export interface CandidateDecisionRecord {
+  id: number;
+  kind: string;
+  vertices: [number, number];
+  endpoint_points?: [{ x: number; y: number }, { x: number; y: number }] | null;
+  assignment_label: 'mountain' | 'valley' | 'boundary' | 'unknown' | 'flat' | string;
+  boundary_role: 'none' | 'paper_boundary' | 'cut_boundary' | string;
+  source_kind: string;
+  selection_policy: string;
+  decision: 'selected' | 'rejected' | 'undecided' | 'not_considered' | string;
+  reason_category: 'selected' | 'locked' | 'available' | 'conflict' | 'dominated' | 'policy' | 'cost' | 'not_considered' | string;
+  score: number;
+  score_breakdown?: SelectionScoreBreakdown | null;
+  line_support_min: number;
+  line_support_mean: number;
+  line_support_max: number;
+  presence_probability: number;
+  conflicts: DecisionConflictRecord[];
+  replaced_by: number[];
+  replaces: number[];
+  source_atomic_edge_ids: number[];
+  replaced_atomic_edge_ids: number[];
+  collapsed_vertex_ids: number[];
+  reasons: string[];
+}
+
+export interface GtCandidateMatchRecord {
+  candidate_id: number;
+  decision: string;
+  reason_category: string;
+  distance_px: number;
+  angle_delta_degrees: number;
+  selected: boolean;
+}
+
+export interface GtEdgeAuditRecord {
+  gt_edge_id: number;
+  vertices: [number, number];
+  assignment_label: string;
+  root_cause: string;
+  best_candidate_ids: number[];
+  selected_candidate_ids: number[];
+  matches: GtCandidateMatchRecord[];
+}
+
+export interface Stage5bResponse extends Stage5Response {
+  decision_audit: CandidateDecisionAudit;
+}
+
 export interface ExactSolvePoint {
   x: number;
   y: number;
@@ -467,6 +606,8 @@ export interface ExactSolveAnalysis {
   degree_two_vertices: number[];
   maekawa_failures: number[];
   boundary_span_ids: number[];
+  paper_boundary_span_ids: number[];
+  cut_boundary_span_ids: number[];
   boundary_vertices: number[];
   max_kawasaki_residual_degrees: number;
   max_carrier_residual: number;

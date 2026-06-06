@@ -2646,6 +2646,7 @@ dependencies = [
  "image",
  "imageproc",
  "oristudio-cp-compiler",
+ "oristudio-cp-eval",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -2672,6 +2673,15 @@ dependencies = [
  "serde_json",
  "wasm-bindgen",
  "wasm-bindgen-test",
+]
+
+[[package]]
+name = "oristudio-cp-eval"
+version = "0.1.2"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -4471,6 +4481,7 @@ dependencies = [
  "anyhow",
  "clap",
  "oristudio-cp",
+ "oristudio-cp-compiler",
  "serde",
  "serde_json",
  "sha2",

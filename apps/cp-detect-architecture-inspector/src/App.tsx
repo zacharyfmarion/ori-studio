@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import type { FormEvent } from 'react';
 import { Activity, CircleDot, GitBranch, Layers3, ListFilter, RefreshCw, SlidersHorizontal } from 'lucide-react';
 import {
   fetchStage1Example,
@@ -7,6 +8,7 @@ import {
   fetchStage3Example,
   fetchStage4Example,
   fetchStage5Example,
+  fetchStage5bExample,
   fetchStage6Example,
   fetchStages,
 } from './api';
@@ -16,8 +18,10 @@ import type {
   ArrangementVertex,
   BoundaryExactizabilityProbe,
   BoundaryContactPrimitive,
+  CandidateDecisionRecord,
   CarrierExactizabilityProbe,
   ExampleRow,
+  GtEdgeAuditRecord,
   GroundTruthGraph,
   JunctionPrimitive,
   LinePrimitive,
@@ -27,6 +31,7 @@ import type {
   Stage3Response,
   Stage4Response,
   Stage5Response,
+  Stage5bResponse,
   Stage6Response,
   VertexExactizabilityProbe,
 } from './types';
@@ -117,8 +122,18 @@ const ISSUE_FILTERS: Array<{ id: Stage4IssueFilter; label: string }> = [
 
 const ISSUE_LIST_LIMIT_PER_TYPE = 10;
 
-type ActiveStage = 'stage1' | 'stage2' | 'stage3' | 'stage4' | 'stage5' | 'stage6';
-type AnyStageResponse = Stage1Response | Stage2Response | Stage3Response | Stage4Response | Stage5Response | Stage6Response;
+type ActiveStage = 'stage1' | 'stage2' | 'stage3' | 'stage4' | 'stage5' | 'stage5b' | 'stage6';
+type AnyStageResponse = Stage1Response | Stage2Response | Stage3Response | Stage4Response | Stage5Response | Stage5bResponse | Stage6Response;
+type AuditCategoryId = 'selected' | 'locked' | 'available' | 'conflict' | 'dominated' | 'rejected';
+
+const AUDIT_CATEGORIES: Array<{ id: AuditCategoryId; label: string; color: string }> = [
+  { id: 'selected', label: 'selected', color: '#16a34a' },
+  { id: 'locked', label: 'locked', color: '#0f172a' },
+  { id: 'available', label: 'available', color: '#f59e0b' },
+  { id: 'conflict', label: 'conflict', color: '#dc2626' },
+  { id: 'dominated', label: 'replaced', color: '#9333ea' },
+  { id: 'rejected', label: 'other rejected', color: '#94a3b8' },
+];
 
 function defaultProbeVisibility(): ProbeVisibility {
   return {
@@ -161,6 +176,16 @@ export function App() {
   const [showExactAfter, setShowExactAfter] = useState(true);
   const [showExactMovement, setShowExactMovement] = useState(true);
   const [showExactFailures, setShowExactFailures] = useState(true);
+  const [auditVisibility, setAuditVisibility] = useState<Record<AuditCategoryId, boolean>>({
+    selected: true,
+    locked: true,
+    available: true,
+    conflict: true,
+    dominated: true,
+    rejected: false,
+  });
+  const [auditLookup, setAuditLookup] = useState('');
+  const [selectedAuditTarget, setSelectedAuditTarget] = useState<string | null>(null);
   const [probeVisibility, setProbeVisibility] = useState<ProbeVisibility>(() => defaultProbeVisibility());
   const [stage4IssueFilter, setStage4IssueFilter] = useState<Stage4IssueFilter>('all');
   const [selectedStage4IssueId, setSelectedStage4IssueId] = useState<string | null>(null);
@@ -186,6 +211,29 @@ export function App() {
       setShowExactAfter(true);
       setShowExactMovement(true);
       setShowExactFailures(true);
+    } else if (activeStage === 'stage5b') {
+      setShowLines(false);
+      setShowSharedCarriers(false);
+      setShowAtomicEdges(false);
+      setShowSelectedEdges(true);
+      setShowUndecidedEdges(true);
+      setShowRejectedEdges(true);
+      setShowJunctions(false);
+      setShowContacts(false);
+      setShowLineEndpoints(false);
+      setShowInferredCrossings(false);
+      setShowCarrierGeometry(true);
+      setShowGroundTruth(true);
+      setShowLegacyGraph(false);
+      setAuditVisibility({
+        selected: true,
+        locked: true,
+        available: true,
+        conflict: true,
+        dominated: true,
+        rejected: false,
+      });
+      setSelectedAuditTarget(null);
     } else if (activeStage === 'stage5') {
       setShowLines(false);
       setShowSharedCarriers(false);
@@ -283,6 +331,8 @@ export function App() {
     const request =
       activeStage === 'stage6'
         ? fetchStage6Example(selectedId, { threshold, mapSize, candidateSource, legacyLowThreshold })
+        : activeStage === 'stage5b'
+        ? fetchStage5bExample(selectedId, { threshold, mapSize, candidateSource, legacyLowThreshold })
         : activeStage === 'stage5'
         ? fetchStage5Example(selectedId, { threshold, mapSize, candidateSource, legacyLowThreshold })
         : activeStage === 'stage4'
@@ -330,6 +380,7 @@ export function App() {
     [filteredStage4Issues, selectedStage4IssueId],
   );
   const stage5 = isStage5(stage) ? stage : null;
+  const stage5b = isStage5b(stage) ? stage : null;
   const stage5Like = isStage5Like(stage) ? stage : null;
   const stage6 = isStage6(stage) ? stage : null;
   const candidateGraph = stage5Like?.candidate_graph ?? null;
@@ -408,6 +459,7 @@ export function App() {
                 <option value="stage3">Stage 3: weighted selection</option>
                 <option value="stage4">Stage 4: exactizability probes</option>
                 <option value="stage5">Stage 5: beam selection</option>
+                <option value="stage5b">Stage 5b: decision audit</option>
                 <option value="stage6">Stage 6: exact solve</option>
               </select>
             </label>
@@ -422,7 +474,7 @@ export function App() {
                 onChange={(event) => setThreshold(Number(event.target.value))}
               />
             </label>
-            {activeStage !== 'stage4' && activeStage !== 'stage5' && activeStage !== 'stage6' ? (
+            {activeStage !== 'stage4' && activeStage !== 'stage5' && activeStage !== 'stage5b' && activeStage !== 'stage6' ? (
               <label>
                 Map size
                 <input
@@ -435,7 +487,7 @@ export function App() {
                 />
               </label>
             ) : null}
-            {activeStage !== 'stage4' && activeStage !== 'stage5' && activeStage !== 'stage6' ? (
+            {activeStage !== 'stage4' && activeStage !== 'stage5' && activeStage !== 'stage5b' && activeStage !== 'stage6' ? (
               <label>
                 Background
                 <select value={background} onChange={(event) => setBackground(event.target.value)}>
@@ -447,7 +499,7 @@ export function App() {
                 </select>
               </label>
             ) : null}
-            {activeStage === 'stage5' || activeStage === 'stage6' ? (
+            {activeStage === 'stage5' || activeStage === 'stage5b' || activeStage === 'stage6' ? (
               <label>
                 Candidate source
                 <select value={candidateSource} onChange={(event) => setCandidateSource(event.target.value as 'arrangement' | 'legacy')}>
@@ -456,7 +508,7 @@ export function App() {
                 </select>
               </label>
             ) : null}
-            {(activeStage === 'stage5' || activeStage === 'stage6') && candidateSource === 'legacy' ? (
+            {(activeStage === 'stage5' || activeStage === 'stage5b' || activeStage === 'stage6') && candidateSource === 'legacy' ? (
               <label>
                 Weak threshold
                 <input
@@ -542,6 +594,24 @@ export function App() {
                 label="GT graph"
                 value={stage6?.ground_truth ? `${stage6.ground_truth.vertices_px.length} V / ${stage6.ground_truth.edges_vertices.length} E` : 'none'}
               />
+            </section>
+          ) : activeStage === 'stage5b' ? (
+            <section className="summary-grid">
+              <Metric label="candidates" value={stage5b ? stage5b.decision_audit.summary.total_candidates : '...'} />
+              <Metric label="selected" value={stage5b ? stage5b.decision_audit.summary.selected : '...'} />
+              <Metric label="available" value={stage5b ? stage5b.decision_audit.summary.available : '...'} />
+              <Metric label="conflicts" value={stage5b ? stage5b.decision_audit.summary.conflicted_with_selected : '...'} />
+              <Metric label="replaced" value={stage5b ? stage5b.decision_audit.summary.dominated_or_replaced : '...'} />
+              <Metric label="rejected" value={stage5b ? stage5b.decision_audit.summary.rejected : '...'} />
+              <Metric
+                label="GT selected"
+                value={
+                  stage5b
+                    ? `${stage5b.decision_audit.summary.gt_edges_with_selected_match} / ${stage5b.decision_audit.summary.gt_edges}`
+                    : '...'
+                }
+              />
+              <Metric label="source" value={candidateGraph?.provenance?.source_adapter ?? stage5b?.candidate_source ?? candidateSource} />
             </section>
           ) : activeStage === 'stage5' ? (
             <section className="summary-grid">
@@ -639,6 +709,8 @@ export function App() {
                 ? 'viewer-and-maps stage4-viewer-layout'
                 : activeStage === 'stage5'
                   ? 'viewer-and-maps stage5-viewer-layout'
+                  : activeStage === 'stage5b'
+                    ? 'viewer-and-maps stage5b-viewer-layout'
                   : activeStage === 'stage6'
                     ? 'viewer-and-maps stage6-viewer-layout'
                   : 'viewer-and-maps'
@@ -649,7 +721,9 @@ export function App() {
                 <PanelTitle
                   icon={activeStage !== 'stage1' ? <GitBranch size={17} /> : <Layers3 size={17} />}
                   title={
-                    activeStage === 'stage5'
+                    activeStage === 'stage5b'
+                      ? 'Candidate Decision Audit'
+                      : activeStage === 'stage5'
                       ? 'Selected Graph vs Ground Truth'
                       : activeStage === 'stage6'
                         ? 'Exact Solve Before / After'
@@ -703,6 +777,29 @@ export function App() {
                         onChange={(event) => setShowGroundTruth(event.target.checked)}
                       />
                       GT graph
+                    </label>
+                  </div>
+                ) : activeStage === 'stage5b' ? (
+                  <div className="toggle-row stage5b-toggle-row">
+                    {AUDIT_CATEGORIES.map((category) => (
+                      <label key={category.id}>
+                        <input
+                          checked={auditVisibility[category.id]}
+                          onChange={(event) =>
+                            setAuditVisibility((current) => ({ ...current, [category.id]: event.target.checked }))
+                          }
+                          type="checkbox"
+                        />
+                        {category.label}
+                      </label>
+                    ))}
+                    <label>
+                      <input checked={showGroundTruth} onChange={(event) => setShowGroundTruth(event.target.checked)} type="checkbox" />
+                      GT graph
+                    </label>
+                    <label>
+                      <input checked={showLegacyGraph} onChange={(event) => setShowLegacyGraph(event.target.checked)} type="checkbox" />
+                      legacy graph
                     </label>
                   </div>
                 ) : activeStage === 'stage5' ? (
@@ -854,6 +951,15 @@ export function App() {
                   showMovement={showExactMovement}
                   stage={stage}
                 />
+              ) : isStage5b(stage) ? (
+                <Stage5bAuditViewer
+                  auditVisibility={auditVisibility}
+                  selectedTarget={selectedAuditTarget}
+                  showGroundTruth={showGroundTruth}
+                  showLegacyGraph={showLegacyGraph}
+                  stage={stage}
+                  onSelectTarget={setSelectedAuditTarget}
+                />
               ) : isStage3(stage) ? (
                 <SelectionViewer
                   backgroundMap={activeStage === 'stage4' || activeStage === 'stage5' ? null : backgroundMap}
@@ -917,6 +1023,16 @@ export function App() {
                   stage={stage}
                 />
               </aside>
+            ) : isStage5b(stage) ? (
+              <aside className="map-panel stage5b-audit-panel">
+                <Stage5bAuditPanel
+                  lookup={auditLookup}
+                  onLookupChange={setAuditLookup}
+                  onSelectTarget={setSelectedAuditTarget}
+                  selectedTarget={selectedAuditTarget}
+                  stage={stage}
+                />
+              </aside>
             ) : activeStage === 'stage5' ? null : (
             <aside className="map-panel">
               <PanelTitle icon={<Layers3 size={17} />} title="Dense Evidence Maps" />
@@ -967,12 +1083,16 @@ function isStage4(stage: AnyStageResponse | null): stage is Stage4Response {
   return Boolean(stage && 'exactizability' in stage && !('ground_truth' in stage));
 }
 
-function isStage5Like(stage: AnyStageResponse | null): stage is Stage5Response | Stage6Response {
+function isStage5Like(stage: AnyStageResponse | null): stage is Stage5Response | Stage5bResponse | Stage6Response {
   return Boolean(stage && 'ground_truth' in stage);
 }
 
 function isStage5(stage: AnyStageResponse | null): stage is Stage5Response {
-  return Boolean(stage && 'ground_truth' in stage && !('exact_solve' in stage));
+  return Boolean(stage && 'ground_truth' in stage && !('decision_audit' in stage) && !('exact_solve' in stage));
+}
+
+function isStage5b(stage: AnyStageResponse | null): stage is Stage5bResponse {
+  return Boolean(stage && 'decision_audit' in stage);
 }
 
 function isStage6(stage: AnyStageResponse | null): stage is Stage6Response {
@@ -1387,6 +1507,142 @@ function SelectionViewer({
         ) : null}
       </svg>
     </div>
+  );
+}
+
+function Stage5bAuditViewer({
+  auditVisibility,
+  onSelectTarget,
+  selectedTarget,
+  showGroundTruth,
+  showLegacyGraph,
+  stage,
+}: {
+  auditVisibility: Record<AuditCategoryId, boolean>;
+  onSelectTarget: (target: string) => void;
+  selectedTarget: string | null;
+  showGroundTruth: boolean;
+  showLegacyGraph: boolean;
+  stage: Stage5bResponse;
+}) {
+  const size = stage.config.image_size;
+  const parsedTarget = parseAuditTarget(selectedTarget);
+  const selectedCandidateId = parsedTarget?.kind === 'span' ? parsedTarget.id : null;
+  const selectedGtId = parsedTarget?.kind === 'gt' ? parsedTarget.id : null;
+  const visibleCandidates = stage.decision_audit.candidates.filter((candidate) => auditVisibility[auditCategory(candidate)]);
+
+  return (
+    <div className="viewer-canvas stage5b-canvas">
+      <div className="stage5-blank-paper" />
+      <svg className="primitive-overlay arrangement-overlay" viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Stage 5b candidate decision audit">
+        {showGroundTruth && stage.ground_truth ? <GroundTruthGraphView graph={stage.ground_truth} /> : null}
+        {showLegacyGraph && stage.legacy_graph ? <LegacyGraphView graph={stage.legacy_graph} /> : null}
+        {visibleCandidates.map((candidate) => (
+          <Stage5bCandidateView
+            candidate={candidate}
+            frame={stage.overlay_frame_px}
+            highlighted={candidate.id === selectedCandidateId}
+            key={`audit-candidate-${candidate.id}`}
+            onSelect={() => onSelectTarget(`span:${candidate.id}`)}
+          />
+        ))}
+        {selectedGtId !== null && stage.ground_truth ? <Stage5bGtEdgeHighlight graph={stage.ground_truth} gtEdgeId={selectedGtId} /> : null}
+      </svg>
+    </div>
+  );
+}
+
+function Stage5bCandidateView({
+  candidate,
+  frame,
+  highlighted,
+  onSelect,
+}: {
+  candidate: CandidateDecisionRecord;
+  frame: Stage2Response['overlay_frame_px'];
+  highlighted: boolean;
+  onSelect: () => void;
+}) {
+  if (!candidate.endpoint_points) return null;
+  const p0 = imagePoint(candidate.endpoint_points[0], frame);
+  const p1 = imagePoint(candidate.endpoint_points[1], frame);
+  const category = auditCategory(candidate);
+  const color = auditCategoryColor(category);
+  const selected = category === 'selected' || category === 'locked';
+  const strokeWidth = highlighted ? 4.2 : selected ? 2.5 : category === 'available' ? 1.8 : 1.35;
+  const opacity = highlighted ? 1 : selected ? 0.92 : category === 'available' ? 0.72 : 0.48;
+  const dash = category === 'available' ? '7 5' : category === 'dominated' ? '3 5' : category === 'rejected' ? '2 7' : undefined;
+  return (
+    <g className={`audit-candidate audit-${category}`}>
+      {highlighted ? (
+        <line
+          stroke="#fef08a"
+          strokeLinecap="round"
+          strokeOpacity={0.98}
+          strokeWidth={strokeWidth + 5}
+          vectorEffect="non-scaling-stroke"
+          x1={p0.x}
+          x2={p1.x}
+          y1={p0.y}
+          y2={p1.y}
+        />
+      ) : null}
+      <line
+        onClick={onSelect}
+        role="button"
+        stroke={color}
+        strokeDasharray={dash}
+        strokeLinecap="round"
+        strokeOpacity={opacity}
+        strokeWidth={strokeWidth}
+        vectorEffect="non-scaling-stroke"
+        x1={p0.x}
+        x2={p1.x}
+        y1={p0.y}
+        y2={p1.y}
+      >
+        <title>
+          span:{candidate.id} {candidate.reason_category}; {candidate.kind}; {candidate.assignment_label}; score{' '}
+          {candidate.score.toFixed(3)}; {candidate.reasons.join('; ')}
+        </title>
+      </line>
+    </g>
+  );
+}
+
+function Stage5bGtEdgeHighlight({ graph, gtEdgeId }: { graph: GroundTruthGraph; gtEdgeId: number }) {
+  const edge = graph.edges_vertices[gtEdgeId];
+  if (!edge) return null;
+  const a = graph.vertices_px[edge[0]];
+  const b = graph.vertices_px[edge[1]];
+  if (!a || !b) return null;
+  return (
+    <g className="stage5b-gt-highlight">
+      <line
+        stroke="#fef08a"
+        strokeLinecap="round"
+        strokeOpacity={0.96}
+        strokeWidth={7}
+        vectorEffect="non-scaling-stroke"
+        x1={a[0]}
+        x2={b[0]}
+        y1={a[1]}
+        y2={b[1]}
+      />
+      <line
+        stroke="#020617"
+        strokeLinecap="round"
+        strokeOpacity={0.9}
+        strokeWidth={2.4}
+        vectorEffect="non-scaling-stroke"
+        x1={a[0]}
+        x2={b[0]}
+        y1={a[1]}
+        y2={b[1]}
+      >
+        <title>gt:{gtEdgeId}</title>
+      </line>
+    </g>
   );
 }
 
@@ -1857,7 +2113,7 @@ function ExactFailureVertexView({ stage }: { stage: Stage6Response }) {
 }
 
 function exactEdgeAssignmentLabel(stage: Stage6Response, edge: [number, number], index: number): string {
-  const boundarySpanIds = new Set(stage.exact_solve.theorem_residual_report.after.boundary_span_ids ?? []);
+  const boundarySpanIds = new Set(stage.exact_solve.theorem_residual_report.after.paper_boundary_span_ids ?? []);
   const indexed = stage.selection.selected_spans[index];
   if (indexed && sameUndirectedEdge(indexed.vertices, edge)) {
     return boundarySpanIds.has(indexed.id) ? 'boundary' : indexed.assignment.label;
@@ -2424,6 +2680,205 @@ function Stage2LayerSummary({ stage }: { stage: Stage2Response }) {
   );
 }
 
+function Stage5bAuditPanel({
+  lookup,
+  onLookupChange,
+  onSelectTarget,
+  selectedTarget,
+  stage,
+}: {
+  lookup: string;
+  onLookupChange: (value: string) => void;
+  onSelectTarget: (target: string) => void;
+  selectedTarget: string | null;
+  stage: Stage5bResponse;
+}) {
+  const target = parseAuditTarget(selectedTarget);
+  const selectedCandidate = target?.kind === 'span' ? stage.decision_audit.candidates.find((candidate) => candidate.id === target.id) ?? null : null;
+  const selectedGt = target?.kind === 'gt' ? stage.decision_audit.gt_edges.find((edge) => edge.gt_edge_id === target.id) ?? null : null;
+  const candidatesById = useMemo(
+    () => new Map(stage.decision_audit.candidates.map((candidate) => [candidate.id, candidate])),
+    [stage.decision_audit.candidates],
+  );
+  const problemGtEdges = stage.decision_audit.gt_edges.filter((edge) => edge.root_cause !== 'selected').slice(0, 20);
+  const submitLookup = (event: FormEvent) => {
+    event.preventDefault();
+    const normalized = normalizeAuditLookup(lookup);
+    if (normalized) onSelectTarget(normalized);
+  };
+
+  return (
+    <div className="stage5b-audit-summary">
+      <PanelTitle icon={<ListFilter size={17} />} title="Decision Audit" />
+      <form className="audit-lookup" onSubmit={submitLookup}>
+        <input onChange={(event) => onLookupChange(event.target.value)} placeholder="span:1842 or gt:97" type="text" value={lookup} />
+        <button type="submit">Find</button>
+      </form>
+
+      <div className="audit-legend">
+        {AUDIT_CATEGORIES.map((category) => (
+          <div key={category.id}>
+            <span style={{ background: category.color }} />
+            {category.label}
+          </div>
+        ))}
+      </div>
+
+      {selectedCandidate ? <CandidateAuditDetails candidate={selectedCandidate} /> : null}
+      {selectedGt ? <GtAuditDetails candidatesById={candidatesById} edge={selectedGt} onSelectTarget={onSelectTarget} /> : null}
+      {!selectedCandidate && !selectedGt ? (
+        <div className="audit-empty-state">
+          <strong>Pick a candidate or GT edge</strong>
+          <p>Click a colored candidate span, or enter an id like span:42 / gt:12.</p>
+        </div>
+      ) : null}
+
+      <div className="audit-section">
+        <h3>GT Edges Needing Attention</h3>
+        {problemGtEdges.length ? (
+          problemGtEdges.map((edge) => (
+            <button className="audit-list-row" key={`gt-problem-${edge.gt_edge_id}`} onClick={() => onSelectTarget(`gt:${edge.gt_edge_id}`)}>
+              <strong>gt:{edge.gt_edge_id}</strong>
+              <span>{edge.root_cause.replaceAll('_', ' ')}</span>
+            </button>
+          ))
+        ) : (
+          <p className="audit-muted">No missing GT-edge matches in the current audit heuristic.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CandidateAuditDetails({ candidate }: { candidate: CandidateDecisionRecord }) {
+  return (
+    <div className="audit-details">
+      <h3>span:{candidate.id}</h3>
+      <div className="audit-detail-grid">
+        <span>status</span>
+        <strong>{candidate.reason_category}</strong>
+        <span>decision</span>
+        <strong>{candidate.decision}</strong>
+        <span>kind</span>
+        <strong>{candidate.kind}</strong>
+        <span>assignment</span>
+        <strong>{candidate.assignment_label}</strong>
+        <span>source</span>
+        <strong>{candidate.source_kind}</strong>
+        <span>policy</span>
+        <strong>{candidate.selection_policy}</strong>
+        <span>score</span>
+        <strong>{candidate.score.toFixed(3)}</strong>
+        <span>support</span>
+        <strong>{candidate.line_support_mean.toFixed(3)}</strong>
+        <span>presence</span>
+        <strong>{candidate.presence_probability.toFixed(3)}</strong>
+      </div>
+      <AuditIdList label="vertices" values={candidate.vertices} />
+      <AuditIdList label="source atomic" values={candidate.source_atomic_edge_ids} />
+      <AuditIdList label="replaces" values={candidate.replaces} />
+      <AuditIdList label="replaced by" values={candidate.replaced_by} />
+      <AuditIdList label="collapsed vertices" values={candidate.collapsed_vertex_ids} />
+      {candidate.conflicts.length ? (
+        <div className="audit-section">
+          <h3>Conflicts</h3>
+          {candidate.conflicts.slice(0, 8).map((conflict) => (
+            <div className="audit-conflict" key={`conflict-${conflict.id}`}>
+              <strong>
+                {conflict.kind} #{conflict.id}
+              </strong>
+              <span>{conflict.touches_selected ? 'touches selected' : 'not selected'}</span>
+              <p>{conflict.reason}</p>
+              <em>{conflict.candidate_ids.map((id) => `span:${id}`).join(', ')}</em>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      <AuditReasons reasons={candidate.reasons} />
+      {candidate.score_breakdown ? <AuditScoreBreakdown breakdown={candidate.score_breakdown} /> : null}
+    </div>
+  );
+}
+
+function GtAuditDetails({
+  candidatesById,
+  edge,
+  onSelectTarget,
+}: {
+  candidatesById: Map<number, CandidateDecisionRecord>;
+  edge: GtEdgeAuditRecord;
+  onSelectTarget: (target: string) => void;
+}) {
+  return (
+    <div className="audit-details">
+      <h3>gt:{edge.gt_edge_id}</h3>
+      <div className="audit-detail-grid">
+        <span>root cause</span>
+        <strong>{edge.root_cause.replaceAll('_', ' ')}</strong>
+        <span>assignment</span>
+        <strong>{edge.assignment_label}</strong>
+        <span>vertices</span>
+        <strong>{edge.vertices.join(' -> ')}</strong>
+        <span>selected matches</span>
+        <strong>{edge.selected_candidate_ids.length}</strong>
+      </div>
+      <div className="audit-section">
+        <h3>Nearest Candidates</h3>
+        {edge.matches.map((match) => {
+          const candidate = candidatesById.get(match.candidate_id);
+          return (
+            <button className="audit-list-row" key={`gt-match-${edge.gt_edge_id}-${match.candidate_id}`} onClick={() => onSelectTarget(`span:${match.candidate_id}`)}>
+              <strong>span:{match.candidate_id}</strong>
+              <span>
+                {match.reason_category} · {match.distance_px.toFixed(2)}px · {match.angle_delta_degrees.toFixed(1)}° ·{' '}
+                {candidate?.kind ?? 'unknown'}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function AuditIdList({ label, values }: { label: string; values: readonly number[] }) {
+  if (!values.length) return null;
+  return (
+    <div className="audit-id-list">
+      <span>{label}</span>
+      <strong>{values.map((value) => String(value)).join(', ')}</strong>
+    </div>
+  );
+}
+
+function AuditReasons({ reasons }: { reasons: string[] }) {
+  if (!reasons.length) return null;
+  return (
+    <div className="audit-section">
+      <h3>Reasons</h3>
+      <ul className="audit-reasons">
+        {reasons.map((reason, index) => (
+          <li key={`${reason}-${index}`}>{reason}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function AuditScoreBreakdown({ breakdown }: { breakdown: NonNullable<CandidateDecisionRecord['score_breakdown']> }) {
+  return (
+    <div className="audit-section">
+      <h3>Score Breakdown</h3>
+      <div className="audit-detail-grid">
+        {Object.entries(breakdown).flatMap(([key, value]) => [
+          <span key={`${key}-label`}>{key.replaceAll('_', ' ')}</span>,
+          <strong key={`${key}-value`}>{Number(value).toFixed(3)}</strong>,
+        ])}
+      </div>
+    </div>
+  );
+}
+
 function Stage3LayerSummary({ stage }: { stage: Stage3Response }) {
   const report = stage.selection.report;
   const isBeamSelection = report.exactizability_evaluated;
@@ -2821,6 +3276,38 @@ function LayerRow({ color, label, note, value }: { color: string; label: string;
       <b>{value}</b>
     </div>
   );
+}
+
+function auditCategory(candidate: CandidateDecisionRecord): AuditCategoryId {
+  if (candidate.reason_category === 'selected') return 'selected';
+  if (candidate.reason_category === 'locked') return 'locked';
+  if (candidate.reason_category === 'available') return 'available';
+  if (candidate.reason_category === 'conflict') return 'conflict';
+  if (candidate.reason_category === 'dominated') return 'dominated';
+  return 'rejected';
+}
+
+function auditCategoryColor(category: AuditCategoryId): string {
+  return AUDIT_CATEGORIES.find((entry) => entry.id === category)?.color ?? '#94a3b8';
+}
+
+function parseAuditTarget(value: string | null): { kind: 'span' | 'gt'; id: number } | null {
+  if (!value) return null;
+  const trimmed = value.trim().toLowerCase();
+  const match = /^(span|candidate|cand|gt|edge)\s*:?\s*(\d+)$/.exec(trimmed);
+  if (!match) return null;
+  return {
+    kind: match[1] === 'gt' || match[1] === 'edge' ? 'gt' : 'span',
+    id: Number(match[2]),
+  };
+}
+
+function normalizeAuditLookup(value: string): string | null {
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) return null;
+  if (/^\d+$/.test(trimmed)) return `span:${trimmed}`;
+  const parsed = parseAuditTarget(trimmed);
+  return parsed ? `${parsed.kind}:${parsed.id}` : null;
 }
 
 function pointAtCarrierT(carrier: ArrangementCarrier, t: number) {

@@ -1,12 +1,16 @@
-use crate::CandidateProgram;
 use crate::assignments::{AssignmentDecision, AssignmentSolverOptions, solve_assignments};
+use crate::candidate_graph::CandidateCreaseBoundaryRole;
 use crate::fold_export::export_program_to_fold_document;
 use crate::optimizer::{TopologyMoveRecord, TopologyOptimizerOptions, optimize_topology};
+use crate::{CandidateProgram, ExactSolveInput, LegacyCandidateAdapter, SelectedGraph};
 use oristudio_cp::checks::{check_camv_task, check1, check2, check3};
 use oristudio_cp::io::fold::import_fold_document;
 use serde::{Deserialize, Serialize};
-use treemaker_flatfold::{FlatFoldError, SolutionLimit, SolveOptions, solve_flat_fold};
-use treemaker_fold::{FoldDocument, validate_basic};
+use serde_json::{Value, json};
+use treemaker_flatfold::{
+    FlatFoldError, NormalizeOptions, SolutionLimit, SolveOptions, normalize_fold, solve_flat_fold,
+};
+use treemaker_fold::{Assignment, FoldAngle, FoldDocument, validate_basic};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GlobalVerificationOptions {
@@ -81,11 +85,24 @@ pub struct FlatFolderCheckReport {
     pub attempted: bool,
     pub solved: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub input_preprocess: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub input_cut_boundary_edges: Vec<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error_kind: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error_message: Option<String>,
     pub face_orders: usize,
     pub constraint_variables: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FlatFolderPreparedDocument {
+    pub document: FoldDocument,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preprocess: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub cut_boundary_edges: Vec<usize>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -195,11 +212,14 @@ fn run_flat_folder(document: &FoldDocument, solution_limit: usize) -> FlatFolder
         attempted: true,
         ..FlatFolderCheckReport::default()
     };
+    let prepared = prepare_flat_folder_document(document);
+    report.input_preprocess = prepared.preprocess.clone();
+    report.input_cut_boundary_edges = prepared.cut_boundary_edges.clone();
     let options = SolveOptions {
         solution_limit: SolutionLimit::Count(solution_limit.max(1)),
         ..SolveOptions::default()
     };
-    match solve_flat_fold(document, options) {
+    match solve_flat_fold(&prepared.document, options) {
         Ok(result) => {
             report.solved = true;
             report.face_orders = result.face_orders.len();
@@ -211,6 +231,206 @@ fn run_flat_folder(document: &FoldDocument, solution_limit: usize) -> FlatFolder
         }
     }
     report
+}
+
+pub fn prepare_flat_folder_document(document: &FoldDocument) -> FlatFolderPreparedDocument {
+    let mut prepared = FlatFolderPreparedDocument {
+        document: document.clone(),
+        preprocess: None,
+        cut_boundary_edges: Vec::new(),
+    };
+    if !has_treemaker_useful_polygon_hint(document) {
+        return prepared;
+    }
+
+    let cut_boundary_edges = treemaker_cut_boundary_edge_ids(document);
+    if cut_boundary_edges.is_empty() {
+        return prepared;
+    }
+
+    if prepared.document.edges_assignment.len() != prepared.document.edges_vertices.len() {
+        prepared.document.edges_assignment = (0..prepared.document.edges_vertices.len())
+            .map(|edge| document.assignment_for_edge(edge))
+            .collect();
+    }
+    if !prepared.document.edges_fold_angle.is_empty()
+        && prepared.document.edges_fold_angle.len() != prepared.document.edges_vertices.len()
+    {
+        prepared
+            .document
+            .edges_fold_angle
+            .resize(prepared.document.edges_vertices.len(), None);
+    }
+
+    for edge in &cut_boundary_edges {
+        let Some(assignment) = prepared.document.edges_assignment.get_mut(*edge) else {
+            continue;
+        };
+        *assignment = Assignment::Boundary;
+        if let Some(fold_angle) = prepared.document.edges_fold_angle.get_mut(*edge) {
+            *fold_angle = FoldAngle::default_for_assignment(Assignment::Boundary);
+        }
+    }
+
+    let preprocess = "treemaker_useful_polygon_boundary".to_owned();
+    if let Some(compacted) = compact_normalized_flat_folder_domain(&prepared.document) {
+        prepared.document = compacted;
+    }
+    prepared.document.extra.insert(
+        "flat_folder_preprocess".to_owned(),
+        json!({
+            "profile": preprocess,
+            "cut_boundary_edges": cut_boundary_edges,
+            "description": "promoted TreeMaker useful-polygon flat edges to boundary and compacted the normalized physical domain for flat-folder solving"
+        }),
+    );
+    prepared.preprocess = Some(preprocess);
+    prepared.cut_boundary_edges = cut_boundary_edges;
+    prepared
+}
+
+fn has_treemaker_useful_polygon_hint(document: &FoldDocument) -> bool {
+    document.extra.contains_key("treemaker_metadata")
+        || document
+            .extra
+            .get("cp_detector")
+            .and_then(|value| value.get("flat_folder_boundary_hint"))
+            .and_then(Value::as_str)
+            == Some("treemaker_useful_polygon")
+}
+
+fn treemaker_cut_boundary_edge_ids(document: &FoldDocument) -> Vec<usize> {
+    let Ok(value) = serde_json::to_value(document) else {
+        return Vec::new();
+    };
+    let Ok(program) = CandidateProgram::from_fold_value(&value) else {
+        return Vec::new();
+    };
+    let graph = LegacyCandidateAdapter::from_program(&program);
+    let selected = SelectedGraph::from_selected_span_ids(
+        &graph,
+        graph.crease_candidates.iter().map(|span| span.id).collect(),
+    );
+    let input = ExactSolveInput::from_candidate_selection(&graph, &selected);
+    let mut edge_ids = input
+        .selected_spans
+        .iter()
+        .filter(|span| span.boundary_role() == CandidateCreaseBoundaryRole::CutBoundary)
+        .flat_map(|span| span.source_edge_ids.iter().copied())
+        .collect::<Vec<_>>();
+    edge_ids.sort_unstable();
+    edge_ids.dedup();
+    edge_ids
+}
+
+fn compact_normalized_flat_folder_domain(document: &FoldDocument) -> Option<FoldDocument> {
+    let normalized = normalize_fold(document, NormalizeOptions::default())
+        .ok()?
+        .document;
+    if normalized.faces_vertices.is_empty() || normalized.faces_edges.is_empty() {
+        return None;
+    }
+
+    let mut used_edges = normalized
+        .faces_edges
+        .iter()
+        .flatten()
+        .copied()
+        .collect::<Vec<_>>();
+    used_edges.sort_unstable();
+    used_edges.dedup();
+    if used_edges.is_empty() {
+        return None;
+    }
+
+    let mut used_vertices = normalized
+        .faces_vertices
+        .iter()
+        .flatten()
+        .copied()
+        .collect::<Vec<_>>();
+    used_vertices.sort_unstable();
+    used_vertices.dedup();
+    if used_vertices.is_empty() {
+        return None;
+    }
+
+    let mut vertex_remap = vec![usize::MAX; normalized.vertices_coords.len()];
+    let vertices_coords = used_vertices
+        .iter()
+        .enumerate()
+        .filter_map(|(new_id, old_id)| {
+            vertex_remap[*old_id] = new_id;
+            normalized.vertices_coords.get(*old_id).cloned()
+        })
+        .collect::<Vec<_>>();
+
+    let mut edge_remap = vec![usize::MAX; normalized.edges_vertices.len()];
+    let mut edges_vertices = Vec::with_capacity(used_edges.len());
+    let mut edges_assignment = Vec::with_capacity(used_edges.len());
+    let mut edges_fold_angle = Vec::new();
+    for old_edge in &used_edges {
+        let edge = *normalized.edges_vertices.get(*old_edge)?;
+        let a = *vertex_remap.get(edge[0])?;
+        let b = *vertex_remap.get(edge[1])?;
+        if a == usize::MAX || b == usize::MAX {
+            return None;
+        }
+        edge_remap[*old_edge] = edges_vertices.len();
+        edges_vertices.push([a, b]);
+        edges_assignment.push(normalized.assignment_for_edge(*old_edge));
+        if !normalized.edges_fold_angle.is_empty() {
+            edges_fold_angle.push(
+                normalized
+                    .edges_fold_angle
+                    .get(*old_edge)
+                    .copied()
+                    .flatten(),
+            );
+        }
+    }
+
+    let faces_vertices = normalized
+        .faces_vertices
+        .iter()
+        .map(|face| {
+            face.iter()
+                .filter_map(|vertex| {
+                    let remapped = vertex_remap.get(*vertex).copied().unwrap_or(usize::MAX);
+                    (remapped != usize::MAX).then_some(remapped)
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+    let faces_edges = normalized
+        .faces_edges
+        .iter()
+        .map(|face| {
+            face.iter()
+                .filter_map(|edge| {
+                    let remapped = edge_remap.get(*edge).copied().unwrap_or(usize::MAX);
+                    (remapped != usize::MAX).then_some(remapped)
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+
+    let mut edges_faces = vec![Vec::<usize>::new(); edges_vertices.len()];
+    for (face_id, face_edges) in faces_edges.iter().enumerate() {
+        for edge in face_edges {
+            edges_faces[*edge].push(face_id);
+        }
+    }
+
+    let mut compacted = normalized;
+    compacted.vertices_coords = vertices_coords;
+    compacted.edges_vertices = edges_vertices;
+    compacted.edges_assignment = edges_assignment;
+    compacted.edges_fold_angle = edges_fold_angle;
+    compacted.faces_vertices = faces_vertices;
+    compacted.faces_edges = faces_edges;
+    compacted.edges_faces = edges_faces;
+    Some(compacted)
 }
 
 fn classify_failures(
@@ -339,6 +559,51 @@ mod tests {
             classify_failures(true, &oristudio, &assignment),
             vec![GlobalFailureClassification::AssignmentConflict]
         );
+    }
+
+    #[test]
+    fn treemaker_flat_folder_preprocess_promotes_cut_boundary_and_compacts_domain() {
+        let document = treemaker_cut_cap_fold(true, true);
+
+        let prepared = prepare_flat_folder_document(&document);
+
+        assert_eq!(
+            prepared.preprocess.as_deref(),
+            Some("treemaker_useful_polygon_boundary")
+        );
+        assert_eq!(prepared.cut_boundary_edges, vec![6, 7]);
+        assert!(
+            !prepared.document.faces_vertices.is_empty(),
+            "prepared flat-folder input should carry explicit normalized physical faces"
+        );
+        assert!(
+            prepared
+                .document
+                .extra
+                .contains_key("flat_folder_preprocess")
+        );
+    }
+
+    #[test]
+    fn prepared_treemaker_cut_boundary_input_flat_folds() {
+        let document = treemaker_cut_cap_fold(true, true);
+
+        let prepared = prepare_flat_folder_document(&document);
+
+        assert_eq!(prepared.cut_boundary_edges, vec![6, 7]);
+        solve_flat_fold(&prepared.document, SolveOptions::default())
+            .expect("prepared TreeMaker cut-cap document should flat-fold");
+    }
+
+    #[test]
+    fn flat_folder_preprocess_is_opt_in() {
+        let document = treemaker_cut_cap_fold(false, true);
+
+        let prepared = prepare_flat_folder_document(&document);
+
+        assert!(prepared.preprocess.is_none());
+        assert!(prepared.cut_boundary_edges.is_empty());
+        assert_eq!(prepared.document, document);
     }
 
     #[test]
@@ -493,6 +758,60 @@ mod tests {
             .iter()
             .map(|assignment| FoldAngle::default_for_assignment(*assignment))
             .collect();
+        document
+    }
+
+    fn treemaker_cut_cap_fold(with_hint: bool, include_internal_crease: bool) -> FoldDocument {
+        let mut edges = vec![
+            [0, 1],
+            [1, 2],
+            [2, 3],
+            [3, 4],
+            [4, 5],
+            [5, 0],
+            [1, 6],
+            [6, 2],
+        ];
+        if include_internal_crease {
+            edges.push([6, 4]);
+        }
+        let mut document = FoldDocument::new(
+            vec![
+                vec![0.0, 0.0],
+                vec![0.25, 0.0],
+                vec![0.75, 0.0],
+                vec![1.0, 0.0],
+                vec![1.0, 1.0],
+                vec![0.0, 1.0],
+                vec![0.5, 0.25],
+                vec![0.5, 0.75],
+            ],
+            edges,
+        );
+        document.edges_assignment = vec![
+            Assignment::Boundary,
+            Assignment::Boundary,
+            Assignment::Boundary,
+            Assignment::Boundary,
+            Assignment::Boundary,
+            Assignment::Boundary,
+            Assignment::Flat,
+            Assignment::Flat,
+        ];
+        if include_internal_crease {
+            document.edges_assignment.push(Assignment::Mountain);
+        }
+        document.edges_fold_angle = document
+            .edges_assignment
+            .iter()
+            .map(|assignment| FoldAngle::default_for_assignment(*assignment))
+            .collect();
+        if with_hint {
+            document.extra.insert(
+                "cp_detector".to_owned(),
+                json!({"flat_folder_boundary_hint": "treemaker_useful_polygon"}),
+            );
+        }
         document
     }
 }

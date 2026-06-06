@@ -6,14 +6,19 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
+use oristudio_cp_compiler::candidate_graph::CandidateCreaseBoundaryRole;
 use oristudio_cp_compiler::selection::{SelectionOptions, select_candidate_graph_beam_from_ir};
 use oristudio_cp_compiler::verify::{GlobalVerificationOptions, verify_fold_json};
 use oristudio_cp_compiler::{
-    AssignmentLabel, CandidateGraph, CandidateProgram, ExactSolveInput, ExactSolveOptions,
-    ExactSolvedGraph, ExactSolvedGraphStatus, LegacyCandidateAdapter,
-    LegacyCandidateAdapterOptions, Point2, SelectedGraph, solve_exact,
+    AssignmentLabel, CandidateProgram, ExactSolveInput, ExactSolveOptions, ExactSolvedGraph,
+    ExactSolvedGraphStatus, LegacyCandidateAdapter, LegacyCandidateAdapterOptions, Point2,
+    SelectedGraph, solve_exact,
 };
 use oristudio_cp_detect::decode::{DecodeConfig, DenseOutputs, decode_dense_outputs};
+use oristudio_cp_eval::{
+    EvalAssignment, EvalBoundaryRole, EvalEdge, EvalGraph, EvalPoint, StrictTopologyAggregate,
+    StrictTopologyMetrics, StrictTopologyOptions, strict_topology_metrics,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
@@ -59,6 +64,7 @@ struct Args {
     exact_patience: Option<usize>,
     limit: Option<usize>,
     match_tolerance_px: f64,
+    strict_vertex_tolerance_px: f64,
     skip_flat_folder: bool,
 }
 
@@ -84,6 +90,7 @@ struct BenchmarkConfig {
     legacy_low_threshold: Option<f32>,
     exact_patience: Option<usize>,
     match_tolerance_px: f64,
+    strict_vertex_tolerance_px: f64,
     flat_folder_enabled: bool,
 }
 
@@ -109,6 +116,7 @@ struct OutputMetrics {
     edge_metrics: SegmentMetrics,
     border_metrics: SegmentMetrics,
     assignment_metrics: AssignmentMetrics,
+    strict_topology: StrictTopologyMetrics,
     structural: StructuralMetrics,
     verification: VerificationMetrics,
 }
@@ -121,6 +129,7 @@ struct ImplementationAggregate {
     edge_metrics: SegmentMetrics,
     border_metrics: SegmentMetrics,
     assignment_metrics: AssignmentMetrics,
+    strict_topology: StrictTopologyAggregate,
     structural: StructuralAggregate,
     verification: VerificationAggregate,
     exact: ExactSolveAggregate,
@@ -280,6 +289,8 @@ struct VerificationMetrics {
     check3_markers: usize,
     camv_violations: usize,
     flat_folder_solved: bool,
+    flat_folder_input_preprocess: Option<String>,
+    flat_folder_input_cut_boundary_edges: usize,
     flat_folder_error_kind: Option<String>,
     flat_folder_error_message: Option<String>,
     classifications: Vec<String>,
@@ -337,6 +348,8 @@ struct GraphDoc {
     vertices: Vec<Point2>,
     edges: Vec<[usize; 2]>,
     assignments: Vec<AssignmentLabel>,
+    boundary_roles: Vec<CandidateCreaseBoundaryRole>,
+    flat_folder_boundary_hint: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -446,30 +459,47 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             })
             .map(|span| span.id)
             .collect::<BTreeSet<_>>();
-        let legacy_doc = GraphDoc::from_candidate_selection(&candidate_graph, &legacy_span_set);
-        let selected_doc = GraphDoc::from_candidate_selection(&candidate_graph, &selected_span_set);
-        let exact_doc = GraphDoc::from_exact_solve(&exact_input, &exact_solved);
+        let flat_folder_boundary_hint = flat_folder_boundary_hint_for_sample(sample);
+        let legacy_graph = SelectedGraph::from_selected_span_ids(
+            &candidate_graph,
+            legacy_span_set.iter().copied().collect(),
+        );
+        let legacy_exact_input =
+            ExactSolveInput::from_candidate_selection(&candidate_graph, &legacy_graph);
+        let legacy_doc = GraphDoc::from_exact_input(&legacy_exact_input)
+            .with_flat_folder_boundary_hint(flat_folder_boundary_hint.clone());
+        let selected_doc = GraphDoc::from_exact_input(&exact_input)
+            .with_flat_folder_boundary_hint(flat_folder_boundary_hint.clone());
+        let exact_doc = GraphDoc::from_exact_solve(&exact_input, &exact_solved)
+            .with_flat_folder_boundary_hint(flat_folder_boundary_hint);
         let gt_segments = gt.segments();
+        let gt_eval_graph = gt.eval_graph();
 
         let legacy = output_metrics(
             &legacy_doc,
             &gt_segments,
+            &gt_eval_graph,
             sample.image_size,
             args.match_tolerance_px,
+            args.strict_vertex_tolerance_px,
             verify_options,
         )?;
         let selected = output_metrics(
             &selected_doc,
             &gt_segments,
+            &gt_eval_graph,
             sample.image_size,
             args.match_tolerance_px,
+            args.strict_vertex_tolerance_px,
             verify_options,
         )?;
         let exact_output = output_metrics(
             &exact_doc,
             &gt_segments,
+            &gt_eval_graph,
             sample.image_size,
             args.match_tolerance_px,
+            args.strict_vertex_tolerance_px,
             verify_options,
         )?;
         let exact_summary = exact_solve_summary(&exact_solved, exact_seconds);
@@ -541,6 +571,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         aggregate.edge_metrics.finalize();
         aggregate.border_metrics.finalize();
         aggregate.assignment_metrics.finalize();
+        aggregate.strict_topology.finalize();
     }
 
     let summary = BenchmarkSummary {
@@ -557,6 +588,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             legacy_low_threshold: args.legacy_low_threshold,
             exact_patience: args.exact_patience,
             match_tolerance_px: args.match_tolerance_px,
+            strict_vertex_tolerance_px: args.strict_vertex_tolerance_px,
             flat_folder_enabled: !args.skip_flat_folder,
         },
         sample_count: rows.len(),
@@ -579,6 +611,7 @@ impl Args {
         let mut exact_patience = None;
         let mut limit = None;
         let mut match_tolerance_px = 12.0;
+        let mut strict_vertex_tolerance_px = 2.0;
         let mut skip_flat_folder = false;
         let mut iter = env::args().skip(1);
         while let Some(arg) = iter.next() {
@@ -605,6 +638,10 @@ impl Args {
                     match_tolerance_px =
                         required_value(&mut iter, "--match-tolerance-px")?.parse()?;
                 }
+                "--strict-vertex-tolerance-px" => {
+                    strict_vertex_tolerance_px =
+                        required_value(&mut iter, "--strict-vertex-tolerance-px")?.parse()?;
+                }
                 "--skip-flat-folder" => skip_flat_folder = true,
                 "--help" | "-h" => {
                     print_usage();
@@ -625,6 +662,7 @@ impl Args {
             exact_patience,
             limit,
             match_tolerance_px,
+            strict_vertex_tolerance_px,
             skip_flat_folder,
         })
     }
@@ -721,25 +759,53 @@ impl GroundTruthGraph {
             })
             .collect()
     }
+
+    fn eval_graph(&self) -> EvalGraph {
+        let vertices = self
+            .vertices_px
+            .iter()
+            .copied()
+            .map(EvalPoint::from)
+            .collect::<Vec<_>>();
+        let edges = self
+            .edges_vertices
+            .iter()
+            .enumerate()
+            .map(|(index, vertices)| {
+                EvalEdge::new(
+                    *vertices,
+                    self.edges_assignment_labels
+                        .get(index)
+                        .map(parse_assignment_value)
+                        .map(eval_assignment)
+                        .unwrap_or(EvalAssignment::Unknown),
+                )
+            })
+            .collect::<Vec<_>>();
+        EvalGraph::new(vertices, edges)
+    }
 }
 
 impl GraphDoc {
-    fn from_candidate_selection(
-        graph: &CandidateGraph,
-        selected_span_ids: &BTreeSet<usize>,
-    ) -> Self {
-        let mut selected = selected_span_ids
-            .iter()
-            .filter_map(|span_id| graph.crease_candidates.get(*span_id))
-            .collect::<Vec<_>>();
-        selected.sort_by_key(|span| span.id);
+    fn from_exact_input(input: &ExactSolveInput) -> Self {
         Self {
-            vertices: graph.vertices.iter().map(|vertex| vertex.point).collect(),
-            edges: selected.iter().map(|span| span.vertices).collect(),
-            assignments: selected
+            vertices: input.vertices.iter().map(|vertex| vertex.point).collect(),
+            edges: input
+                .selected_spans
+                .iter()
+                .map(|span| span.vertices)
+                .collect(),
+            assignments: input
+                .selected_spans
                 .iter()
                 .map(|span| span.assignment_label())
                 .collect(),
+            boundary_roles: input
+                .selected_spans
+                .iter()
+                .map(|span| span.boundary_role())
+                .collect(),
+            flat_folder_boundary_hint: None,
         }
     }
 
@@ -752,7 +818,18 @@ impl GraphDoc {
                 .iter()
                 .map(|span| span.assignment_label())
                 .collect(),
+            boundary_roles: input
+                .selected_spans
+                .iter()
+                .map(|span| span.boundary_role())
+                .collect(),
+            flat_folder_boundary_hint: None,
         }
+    }
+
+    fn with_flat_folder_boundary_hint(mut self, hint: Option<String>) -> Self {
+        self.flat_folder_boundary_hint = hint;
+        self
     }
 
     fn segments_px(&self, image_size: u32) -> Vec<SegmentPx> {
@@ -773,6 +850,43 @@ impl GraphDoc {
                 })
             })
             .collect()
+    }
+
+    fn eval_graph_px(&self, image_size: u32) -> EvalGraph {
+        let vertices = self
+            .vertices
+            .iter()
+            .copied()
+            .map(|point| EvalPoint::from(normalized_to_px(point, image_size)))
+            .collect::<Vec<_>>();
+        let edges = self
+            .edges
+            .iter()
+            .enumerate()
+            .filter_map(|(index, vertices)| {
+                if vertices[0] >= self.vertices.len() || vertices[1] >= self.vertices.len() {
+                    return None;
+                }
+                Some(
+                    EvalEdge::new(
+                        *vertices,
+                        self.assignments
+                            .get(index)
+                            .copied()
+                            .map(eval_assignment)
+                            .unwrap_or(EvalAssignment::Unknown),
+                    )
+                    .with_boundary_role(
+                        self.boundary_roles
+                            .get(index)
+                            .copied()
+                            .map(eval_boundary_role)
+                            .unwrap_or_default(),
+                    ),
+                )
+            })
+            .collect::<Vec<_>>();
+        EvalGraph::new(vertices, edges)
     }
 
     fn to_fold_json(&self) -> Result<String, serde_json::Error> {
@@ -805,24 +919,38 @@ impl GraphDoc {
             .take(edges_vertices.len())
             .map(|assignment| assignment_code(*assignment))
             .collect::<Vec<_>>();
-        serde_json::to_string_pretty(&json!({
+        let mut value = json!({
             "file_spec": 1.2,
             "file_creator": "oristudio-cp-detect exact solve benchmark",
             "vertices_coords": vertices_coords,
             "edges_vertices": edges_vertices,
             "edges_assignment": edges_assignment,
-        }))
+        });
+        if let Some(hint) = &self.flat_folder_boundary_hint {
+            value["cp_detector"] = json!({
+                "flat_folder_boundary_hint": hint,
+            });
+        }
+        serde_json::to_string_pretty(&value)
     }
+}
+
+fn flat_folder_boundary_hint_for_sample(sample: &DenseCacheSample) -> Option<String> {
+    (sample.family.as_deref() == Some("treemaker-tree"))
+        .then(|| "treemaker_useful_polygon".to_owned())
 }
 
 fn output_metrics(
     doc: &GraphDoc,
     gt_segments: &[SegmentPx],
+    gt_graph: &EvalGraph,
     image_size: u32,
     tolerance_px: f64,
+    strict_vertex_tolerance_px: f64,
     verify_options: GlobalVerificationOptions,
 ) -> Result<OutputMetrics, Box<dyn std::error::Error>> {
     let predicted_segments = doc.segments_px(image_size);
+    let predicted_graph = doc.eval_graph_px(image_size);
     let edge_metrics = segment_metrics(&predicted_segments, gt_segments, tolerance_px);
     let border_metrics = segment_metrics(
         &filter_assignment(&predicted_segments, AssignmentLabel::Boundary),
@@ -830,6 +958,15 @@ fn output_metrics(
         tolerance_px,
     );
     let assignment_metrics = assignment_metrics(&predicted_segments, gt_segments, tolerance_px);
+    let strict_topology = strict_topology_metrics(
+        &predicted_graph,
+        gt_graph,
+        StrictTopologyOptions {
+            vertex_tolerance: strict_vertex_tolerance_px,
+            split_merge_tolerance: strict_vertex_tolerance_px,
+            compare_assignments: true,
+        },
+    );
     let structural = structural_metrics(doc);
     let verification = verification_metrics(&doc.to_fold_json()?, verify_options)?;
     Ok(OutputMetrics {
@@ -838,6 +975,7 @@ fn output_metrics(
         edge_metrics,
         border_metrics,
         assignment_metrics,
+        strict_topology,
         structural,
         verification,
     })
@@ -856,6 +994,8 @@ fn verification_metrics(
         check3_markers: report.oristudio.check3_markers,
         camv_violations: report.oristudio.camv_violations,
         flat_folder_solved: report.flat_folder.solved,
+        flat_folder_input_preprocess: report.flat_folder.input_preprocess,
+        flat_folder_input_cut_boundary_edges: report.flat_folder.input_cut_boundary_edges.len(),
         flat_folder_error_kind: report.flat_folder.error_kind,
         flat_folder_error_message: report.flat_folder.error_message,
         classifications: report
@@ -907,6 +1047,7 @@ fn add_output(
     aggregate.edge_metrics += metrics.edge_metrics;
     aggregate.border_metrics += metrics.border_metrics;
     aggregate.assignment_metrics += metrics.assignment_metrics;
+    aggregate.strict_topology.add(&metrics.strict_topology);
     aggregate.structural.add(metrics.structural);
     aggregate.verification.add(&metrics.verification);
     if let Some(exact) = exact {
@@ -992,7 +1133,19 @@ fn filter_assignment(segments: &[SegmentPx], assignment: AssignmentLabel) -> Vec
 
 fn structural_metrics(doc: &GraphDoc) -> StructuralMetrics {
     let mut incident = vec![Vec::<IncidentRay>::new(); doc.vertices.len()];
+    let mut theorem_excluded_vertices = BTreeSet::<usize>::new();
     for (edge_index, edge) in doc.edges.iter().enumerate() {
+        if doc
+            .boundary_roles
+            .get(edge_index)
+            .copied()
+            .unwrap_or(CandidateCreaseBoundaryRole::None)
+            != CandidateCreaseBoundaryRole::None
+        {
+            theorem_excluded_vertices.insert(edge[0]);
+            theorem_excluded_vertices.insert(edge[1]);
+            continue;
+        }
         let assignment = doc
             .assignments
             .get(edge_index)
@@ -1022,7 +1175,7 @@ fn structural_metrics(doc: &GraphDoc) -> StructuralMetrics {
 
     let mut metrics = StructuralMetrics::default();
     for (vertex_id, point) in doc.vertices.iter().enumerate() {
-        if is_boundary_point(*point) {
+        if is_boundary_point(*point) || theorem_excluded_vertices.contains(&vertex_id) {
             continue;
         }
         metrics.interior_vertices += 1;
@@ -1274,13 +1427,20 @@ fn summary_markdown(summary: &BenchmarkSummary) -> String {
         summary.dense_manifest,
         summary.git_commit.as_deref().unwrap_or("unknown")
     ));
-    out.push_str("| Implementation | Edge F1 | Border F1 | Assignment Acc | CAMV | Flat-folder solved | Degree-2 | Odd | Max Kawasaki |\n");
-    out.push_str("|---|---:|---:|---:|---:|---:|---:|---:|---:|\n");
+    out.push_str("| Implementation | Edge F1 | Strict edge F1 | Exact topology | Exact topology + assignments | Border F1 | Assignment Acc | CAMV | Flat-folder solved | Degree-2 | Odd | Max Kawasaki |\n");
+    out.push_str("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|\n");
     for (name, aggregate) in &summary.implementations {
         out.push_str(&format!(
-            "| {} | {:.4} | {:.4} | {:.4} | {} | {}/{} | {} | {} | {:.4} |\n",
+            "| {} | {:.4} | {:.4} | {}/{} | {}/{} | {:.4} | {:.4} | {} | {}/{} | {} | {} | {:.4} |\n",
             name,
             aggregate.edge_metrics.f1,
+            aggregate.strict_topology.edges.f1,
+            aggregate.strict_topology.exact_topology_samples,
+            aggregate.strict_topology.samples,
+            aggregate
+                .strict_topology
+                .exact_topology_and_assignment_samples,
+            aggregate.strict_topology.samples,
             aggregate.border_metrics.f1,
             aggregate.assignment_metrics.accuracy,
             aggregate.verification.camv_violations,
@@ -1296,7 +1456,7 @@ fn summary_markdown(summary: &BenchmarkSummary) -> String {
 
 fn report_readme(summary: &BenchmarkSummary) -> String {
     format!(
-        "# {}\n\nGenerated by `compare_exact_solve_benchmark`.\n\nThis directory compares frozen legacy decode, Stage 5 selected graph, and Stage 6 exact-solved graph from the same dense cache.\n\nFiles:\n\n- `summary.json`: aggregate machine-readable metrics.\n- `summary.md`: human-readable aggregate table.\n- `per_sample.jsonl`: one full metrics record per sample.\n- `regressions.jsonl`: metric regressions detected by the benchmark.\n\nConfig:\n\n```json\n{}\n```\n",
+        "# {}\n\nGenerated by `compare_exact_solve_benchmark`.\n\nThis directory compares frozen legacy decode, Stage 5 selected graph, and Stage 6 exact-solved graph from the same dense cache.\n\nFiles:\n\n- `summary.json`: aggregate machine-readable metrics, including `strict_topology` from `oristudio-cp-eval`.\n- `summary.md`: human-readable aggregate table.\n- `per_sample.jsonl`: one full metrics record per sample.\n- `regressions.jsonl`: metric regressions detected by the benchmark.\n\nStrict topology is the tight graph-isomorphism-style metric: predicted vertices must match GT vertices within `strict_vertex_tolerance_px`, predicted endpoint pairs must exactly correspond to GT edges, and assignments must match on those strict edges.\n\nConfig:\n\n```json\n{}\n```\n",
         SCHEMA,
         serde_json::to_string_pretty(&summary.config).unwrap_or_else(|_| "{}".to_owned())
     )
@@ -1412,6 +1572,24 @@ fn parse_assignment_value(value: &Value) -> AssignmentLabel {
     }
 }
 
+fn eval_assignment(label: AssignmentLabel) -> EvalAssignment {
+    match label {
+        AssignmentLabel::Mountain => EvalAssignment::Mountain,
+        AssignmentLabel::Valley => EvalAssignment::Valley,
+        AssignmentLabel::Boundary => EvalAssignment::Boundary,
+        AssignmentLabel::Flat => EvalAssignment::Auxiliary,
+        AssignmentLabel::Unknown => EvalAssignment::Unknown,
+    }
+}
+
+fn eval_boundary_role(role: CandidateCreaseBoundaryRole) -> EvalBoundaryRole {
+    match role {
+        CandidateCreaseBoundaryRole::None => EvalBoundaryRole::None,
+        CandidateCreaseBoundaryRole::PaperBoundary => EvalBoundaryRole::PaperBoundary,
+        CandidateCreaseBoundaryRole::CutBoundary => EvalBoundaryRole::CutBoundary,
+    }
+}
+
 fn assignment_code(label: AssignmentLabel) -> &'static str {
     match label {
         AssignmentLabel::Mountain => "M",
@@ -1461,6 +1639,6 @@ fn round6(value: f64) -> f64 {
 
 fn print_usage() {
     println!(
-        "compare_exact_solve_benchmark --out DIR [--dense-manifest PATH] [--candidate-source legacy] [--threshold T] [--legacy-low-threshold T] [--exact-patience N] [--limit N] [--match-tolerance-px PX] [--skip-flat-folder]"
+        "compare_exact_solve_benchmark --out DIR [--dense-manifest PATH] [--candidate-source legacy] [--threshold T] [--legacy-low-threshold T] [--exact-patience N] [--limit N] [--match-tolerance-px PX] [--strict-vertex-tolerance-px PX] [--skip-flat-folder]"
     );
 }

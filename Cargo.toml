@@ -4,6 +4,7 @@ members = [
     "crates/oristudio-cp-compiler",
     "crates/oristudio-cp-detect",
     "crates/oristudio-cp-detect-inspector",
+    "crates/oristudio-cp-eval",
     "crates/oristudio-cp-detect-wasm",
     "crates/oristudio-cp-wasm",
     "crates/treemaker-flatfold",
@@ -44,6 +45,7 @@ treemaker-sequence = { version = "0.1.1", path = "crates/treemaker-sequence" }
 oristudio-cp = { version = "0.1.1", path = "crates/oristudio-cp" }
 oristudio-cp-compiler = { version = "0.1.1", path = "crates/oristudio-cp-compiler" }
 oristudio-cp-detect = { version = "0.1.1", path = "crates/oristudio-cp-detect" }
+oristudio-cp-eval = { version = "0.1.2", path = "crates/oristudio-cp-eval" }
 wasm-bindgen = "0.2"
 wasm-bindgen-test = "0.3"
 walkdir = "2.5"

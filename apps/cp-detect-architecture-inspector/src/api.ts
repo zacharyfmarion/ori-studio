@@ -5,6 +5,7 @@ import type {
   Stage3Response,
   Stage4Response,
   Stage5Response,
+  Stage5bResponse,
   Stage6Response,
   StageInfo,
 } from './types';
@@ -98,6 +99,23 @@ export function fetchStage5Example(
     legacy_low_threshold: String(options.legacyLowThreshold),
   });
   return requestJson(`/api/stage5/examples/${encodeURIComponent(sampleId)}?${params}`);
+}
+
+export function fetchStage5bExamples(): Promise<ExamplesResponse> {
+  return requestJson('/api/stage5b/examples');
+}
+
+export function fetchStage5bExample(
+  sampleId: string,
+  options: { threshold: number; mapSize: number; candidateSource: string; legacyLowThreshold: number },
+): Promise<Stage5bResponse> {
+  const params = new URLSearchParams({
+    threshold: String(options.threshold),
+    map_size: String(options.mapSize),
+    candidate_source: options.candidateSource,
+    legacy_low_threshold: String(options.legacyLowThreshold),
+  });
+  return requestJson(`/api/stage5b/examples/${encodeURIComponent(sampleId)}?${params}`);
 }
 
 export function fetchStage6Examples(): Promise<ExamplesResponse> {

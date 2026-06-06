@@ -4,7 +4,7 @@
 //! coordinates that better satisfy geometric/origami constraints. It does not
 //! add or remove creases; topology selection belongs to the previous phase.
 
-use crate::candidate_graph::CandidateVertex;
+use crate::candidate_graph::{CandidateCreaseBoundaryRole, CandidateVertex};
 use crate::{
     AssignmentLabel, BoundaryModel, BoundarySide, CandidateCreaseSpan, CandidateCreaseSpanKind,
     CandidateGraphProvenance, CandidateSourceAdapter, CandidateVertexKind,
@@ -416,6 +416,8 @@ struct GraphAnalysis {
     degree_two_vertices: Vec<usize>,
     maekawa_failures: Vec<usize>,
     boundary_span_ids: Vec<usize>,
+    paper_boundary_span_ids: Vec<usize>,
+    cut_boundary_span_ids: Vec<usize>,
     boundary_vertices: Vec<usize>,
     vertex_diagnostics: Vec<VertexAnalysis>,
     max_kawasaki_residual_degrees: f64,
@@ -447,6 +449,8 @@ fn analyze_graph(
 ) -> GraphAnalysis {
     let mut incident = vec![Vec::<IncidentRay>::new(); input.vertices.len()];
     let boundary_span_ids = boundary_span_ids(&input.selected_spans);
+    let paper_boundary_span_ids = paper_boundary_span_ids(&input.selected_spans);
+    let cut_boundary_span_ids = cut_boundary_span_ids(&input.selected_spans);
     let boundary_vertex_ids = boundary_vertex_ids(&input.selected_spans);
     for span in &input.selected_spans {
         if is_boundary_like_span(span) {
@@ -563,6 +567,8 @@ fn analyze_graph(
         degree_two_vertices,
         maekawa_failures,
         boundary_span_ids,
+        paper_boundary_span_ids,
+        cut_boundary_span_ids,
         boundary_vertices: boundary_vertex_ids.iter().copied().collect(),
         vertex_diagnostics,
         max_kawasaki_residual_degrees,
@@ -751,6 +757,8 @@ fn analysis_json(analysis: &GraphAnalysis) -> Value {
         "degree_two_vertices": analysis.degree_two_vertices,
         "maekawa_failures": analysis.maekawa_failures,
         "boundary_span_ids": analysis.boundary_span_ids,
+        "paper_boundary_span_ids": analysis.paper_boundary_span_ids,
+        "cut_boundary_span_ids": analysis.cut_boundary_span_ids,
         "boundary_vertices": analysis.boundary_vertices,
         "max_kawasaki_residual_degrees": round6(analysis.max_kawasaki_residual_degrees),
         "max_carrier_residual": round6(analysis.max_carrier_residual),
@@ -795,14 +803,29 @@ fn is_interior_fold_vertex(vertex: &CandidateVertex, boundary_vertices: &BTreeSe
 }
 
 fn is_boundary_like_span(span: &CandidateCreaseSpan) -> bool {
-    span.assignment_label() == AssignmentLabel::Boundary
-        || span.kind == CandidateCreaseSpanKind::BorderSpan
+    span.boundary_role() != CandidateCreaseBoundaryRole::None
 }
 
 fn boundary_span_ids(spans: &[CandidateCreaseSpan]) -> Vec<usize> {
     spans
         .iter()
         .filter(|span| is_boundary_like_span(span))
+        .map(|span| span.id)
+        .collect()
+}
+
+fn paper_boundary_span_ids(spans: &[CandidateCreaseSpan]) -> Vec<usize> {
+    spans
+        .iter()
+        .filter(|span| span.boundary_role() == CandidateCreaseBoundaryRole::PaperBoundary)
+        .map(|span| span.id)
+        .collect()
+}
+
+fn cut_boundary_span_ids(spans: &[CandidateCreaseSpan]) -> Vec<usize> {
+    spans
+        .iter()
+        .filter(|span| span.boundary_role() == CandidateCreaseBoundaryRole::CutBoundary)
         .map(|span| span.id)
         .collect()
 }
@@ -1053,10 +1076,15 @@ mod tests {
             input.selected_spans.len(),
             a,
             b,
-            AssignmentLabel::Boundary,
+            AssignmentLabel::Unknown,
             90,
             &input.vertices,
         ));
+        input
+            .selected_spans
+            .last_mut()
+            .expect("cut boundary span")
+            .boundary_role = CandidateCreaseBoundaryRole::CutBoundary;
         input.selected_spans.push(span(
             input.selected_spans.len(),
             a,
@@ -1367,6 +1395,11 @@ mod tests {
                 CandidateSelectionPolicy::Locked
             } else {
                 CandidateSelectionPolicy::StrongOptional
+            },
+            boundary_role: if label == AssignmentLabel::Boundary {
+                CandidateCreaseBoundaryRole::PaperBoundary
+            } else {
+                CandidateCreaseBoundaryRole::None
             },
             source_edge_ids: vec![id],
             source_atomic_edge_ids: vec![id],

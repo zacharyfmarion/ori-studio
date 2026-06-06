@@ -10,8 +10,9 @@ use crate::arrangement_v2::{
 };
 use crate::candidate_graph::{
     ArrangementCandidateAdapter, AssignmentEvidence, AssignmentEvidenceSource, CandidateConflict,
-    CandidateConflictKind, CandidateCreaseSourceKind, CandidateCreaseSpan, CandidateCreaseSpanKind,
-    CandidateGraph, CandidateGraphReport, CandidateSelectionPolicy, SelectedGraph,
+    CandidateConflictKind, CandidateCreaseBoundaryRole, CandidateCreaseSourceKind,
+    CandidateCreaseSpan, CandidateCreaseSpanKind, CandidateGraph, CandidateGraphReport,
+    CandidateSelectionPolicy, CandidateVertexKind, SelectedGraph,
 };
 use crate::exact_probe::{ExactProbeOptions, probe_exactizability};
 use crate::{AssignmentLabel, EvidenceSource, Point2};
@@ -21,6 +22,7 @@ use std::collections::{BTreeMap, BTreeSet};
 const SCHEMA: &str = "oristudio/cp-compiler/candidate-selection-v2";
 const LOCAL_FRAGMENT_SELECTION_COST_MULTIPLIER: f64 = 6.0;
 const SPAN_COMPLEXITY_COST: f64 = 0.08;
+const IR_RESCUE_MIN_IMPROVEMENT: f64 = 0.02;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct SelectionOptions {
@@ -103,6 +105,8 @@ pub struct SelectionSpan {
     pub endpoint_points: Option<[Point2; 2]>,
     pub t_interval: [f64; 2],
     pub assignment: crate::AssignmentCandidate,
+    #[serde(default)]
+    pub boundary_role: CandidateCreaseBoundaryRole,
     #[serde(default)]
     pub source_atomic_edge_ids: Vec<usize>,
     #[serde(default)]
@@ -290,20 +294,6 @@ pub fn select_candidate_graph_beam_from_ir(
     options: SelectionOptions,
     _exact_options: ExactProbeOptions,
 ) -> CandidateSelection {
-    let mut candidate_ids = graph
-        .crease_candidates
-        .iter()
-        .filter(|span| span.selection_policy != CandidateSelectionPolicy::Locked)
-        .map(|span| span.id)
-        .collect::<Vec<_>>();
-    candidate_ids.sort_by(|left, right| {
-        graph.crease_candidates[*right]
-            .selection_score(graph)
-            .total_cmp(&graph.crease_candidates[*left].selection_score(graph))
-            .then_with(|| left.cmp(right))
-    });
-    candidate_ids.truncate(options.max_beam_candidates);
-
     let conflict_map = candidate_conflict_map(graph);
     let locked_ids = graph
         .crease_candidates
@@ -321,7 +311,35 @@ pub fn select_candidate_graph_beam_from_ir(
         })
         .map(|span| span.id)
         .collect::<BTreeSet<_>>();
-    let mut beam = vec![score_ir_beam_state(graph, &seed_ids, &options)];
+    let seed_state = score_ir_beam_state(graph, &seed_ids, &options);
+    let mut candidate_ids = graph
+        .crease_candidates
+        .iter()
+        .filter(|span| span.selection_policy != CandidateSelectionPolicy::Locked)
+        .map(|span| span.id)
+        .collect::<Vec<_>>();
+    candidate_ids.sort_by(|left, right| {
+        ir_candidate_priority(
+            graph,
+            &seed_state,
+            *right,
+            &conflict_map,
+            &locked_ids,
+            &options,
+        )
+        .total_cmp(&ir_candidate_priority(
+            graph,
+            &seed_state,
+            *left,
+            &conflict_map,
+            &locked_ids,
+            &options,
+        ))
+        .then_with(|| left.cmp(right))
+    });
+    candidate_ids.truncate(options.max_beam_candidates);
+
+    let mut beam = vec![seed_state];
     for candidate_id in candidate_ids {
         let mut next = Vec::with_capacity(beam.len() * 2);
         for state in &beam {
@@ -329,16 +347,15 @@ pub fn select_candidate_graph_beam_from_ir(
             if state.selected_span_ids.contains(&candidate_id) {
                 continue;
             }
-            let conflicts = conflict_map.get(&candidate_id).cloned().unwrap_or_default();
-            if !locked_ids.is_empty() && !conflicts.is_disjoint(&locked_ids) {
-                continue;
+            if let Some(selected) = ir_selected_with_candidate(
+                graph,
+                &state.selected_span_ids,
+                candidate_id,
+                &conflict_map,
+                &locked_ids,
+            ) {
+                next.push(score_ir_beam_state(graph, &selected, &options));
             }
-            let mut selected = state.selected_span_ids.clone();
-            for conflict_id in conflicts {
-                selected.remove(&conflict_id);
-            }
-            selected.insert(candidate_id);
-            next.push(score_ir_beam_state(graph, &selected, &options));
         }
         next.sort_by(ir_beam_state_order);
         next.dedup_by(|left, right| left.selected_span_ids == right.selected_span_ids);
@@ -351,6 +368,7 @@ pub fn select_candidate_graph_beam_from_ir(
         .into_iter()
         .next()
         .unwrap_or_else(|| score_ir_beam_state(graph, &seed_ids, &options));
+    let best = rescue_ir_weak_candidates(graph, best, &conflict_map, &locked_ids, &options);
     candidate_selection_from_ir_state(graph, &best, &options)
 }
 
@@ -406,6 +424,11 @@ fn candidate_graph_span_from_selection_candidate(
             CandidateSelectionPolicy::StrongOptional
         } else {
             CandidateSelectionPolicy::WeakOptional
+        },
+        boundary_role: if source_kind == CandidateCreaseSourceKind::BorderGenerated {
+            CandidateCreaseBoundaryRole::PaperBoundary
+        } else {
+            CandidateCreaseBoundaryRole::None
         },
         source_edge_ids: span.source_atomic_edge_ids.clone(),
         source_atomic_edge_ids: span.source_atomic_edge_ids.clone(),
@@ -653,7 +676,25 @@ pub fn select_candidate_graph(
 struct IrBeamState {
     selected_span_ids: BTreeSet<usize>,
     total_score: f64,
+    residuals: IrStateResiduals,
+}
+
+#[derive(Debug, Clone, Default)]
+struct IrStateResiduals {
     odd_degree_vertices: usize,
+    dangling_interior_vertices: usize,
+    non_collinear_degree_two_vertices: usize,
+    hard_kawasaki_vertices: usize,
+    maekawa_impossible_vertices: usize,
+    maekawa_ambiguous_vertices: usize,
+    topology_penalty: f64,
+    local_theorem_penalty: f64,
+}
+
+impl IrStateResiduals {
+    fn total_penalty(&self) -> f64 {
+        self.topology_penalty + self.local_theorem_penalty
+    }
 }
 
 fn score_ir_beam_state(
@@ -666,12 +707,11 @@ fn score_ir_beam_state(
         .filter_map(|span_id| graph.crease_candidates.get(*span_id))
         .map(|span| span.selection_score(graph))
         .sum::<f64>();
-    let odd_degree_vertices = odd_degree_count_for_ir(graph, selected_span_ids);
-    let odd_penalty = odd_degree_vertices as f64 * options.odd_degree_bonus * 0.50;
+    let residuals = ir_state_residuals(graph, selected_span_ids, options);
     IrBeamState {
         selected_span_ids: selected_span_ids.clone(),
-        total_score: base_score - odd_penalty,
-        odd_degree_vertices,
+        total_score: base_score - residuals.total_penalty(),
+        residuals,
     }
 }
 
@@ -679,12 +719,158 @@ fn ir_beam_state_order(left: &IrBeamState, right: &IrBeamState) -> std::cmp::Ord
     right
         .total_score
         .total_cmp(&left.total_score)
-        .then_with(|| left.odd_degree_vertices.cmp(&right.odd_degree_vertices))
+        .then_with(|| {
+            left.residuals
+                .odd_degree_vertices
+                .cmp(&right.residuals.odd_degree_vertices)
+        })
+        .then_with(|| {
+            left.residuals
+                .dangling_interior_vertices
+                .cmp(&right.residuals.dangling_interior_vertices)
+        })
         .then_with(|| {
             left.selected_span_ids
                 .len()
                 .cmp(&right.selected_span_ids.len())
         })
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+struct IrCandidateDelta {
+    topology_delta: f64,
+    local_theorem_delta: f64,
+    degree_two_delta: isize,
+}
+
+impl IrCandidateDelta {
+    fn combined_score_delta(self) -> f64 {
+        self.topology_delta + self.local_theorem_delta
+    }
+}
+
+fn ir_candidate_priority(
+    graph: &CandidateGraph,
+    state: &IrBeamState,
+    candidate_id: usize,
+    conflict_map: &BTreeMap<usize, BTreeSet<usize>>,
+    locked_ids: &BTreeSet<usize>,
+    options: &SelectionOptions,
+) -> f64 {
+    let Some(span) = graph.crease_candidates.get(candidate_id) else {
+        return f64::NEG_INFINITY;
+    };
+    let delta = ir_candidate_delta(
+        graph,
+        state,
+        candidate_id,
+        conflict_map,
+        locked_ids,
+        options,
+    )
+    .unwrap_or_default();
+    span.selection_score(graph) + delta.combined_score_delta()
+}
+
+fn rescue_ir_weak_candidates(
+    graph: &CandidateGraph,
+    mut best: IrBeamState,
+    conflict_map: &BTreeMap<usize, BTreeSet<usize>>,
+    locked_ids: &BTreeSet<usize>,
+    options: &SelectionOptions,
+) -> IrBeamState {
+    for _ in 0..graph.crease_candidates.len().min(16) {
+        let mut next_best: Option<IrBeamState> = None;
+        for span in &graph.crease_candidates {
+            if span.source_kind != CandidateCreaseSourceKind::LegacyLowThreshold
+                || span.selection_policy == CandidateSelectionPolicy::Discouraged
+                || best.selected_span_ids.contains(&span.id)
+            {
+                continue;
+            }
+            let Some(selected) = ir_selected_with_candidate(
+                graph,
+                &best.selected_span_ids,
+                span.id,
+                conflict_map,
+                locked_ids,
+            ) else {
+                continue;
+            };
+            let trial = score_ir_beam_state(graph, &selected, options);
+            if trial.total_score >= best.total_score + IR_RESCUE_MIN_IMPROVEMENT
+                && next_best
+                    .as_ref()
+                    .is_none_or(|candidate| trial.total_score > candidate.total_score)
+            {
+                next_best = Some(trial);
+            }
+        }
+        let Some(improved) = next_best else {
+            break;
+        };
+        best = improved;
+    }
+    best
+}
+
+fn ir_selected_with_candidate(
+    graph: &CandidateGraph,
+    selected_span_ids: &BTreeSet<usize>,
+    candidate_id: usize,
+    conflict_map: &BTreeMap<usize, BTreeSet<usize>>,
+    locked_ids: &BTreeSet<usize>,
+) -> Option<BTreeSet<usize>> {
+    let span = graph.crease_candidates.get(candidate_id)?;
+    if span.selection_policy == CandidateSelectionPolicy::Discouraged {
+        return None;
+    }
+    let conflicts = conflict_map.get(&candidate_id).cloned().unwrap_or_default();
+    if !locked_ids.is_empty() && !conflicts.is_disjoint(locked_ids) {
+        return None;
+    }
+    let mut selected = selected_span_ids.clone();
+    for conflict_id in conflicts {
+        selected.remove(&conflict_id);
+    }
+    selected.insert(candidate_id);
+    Some(selected)
+}
+
+fn ir_candidate_delta(
+    graph: &CandidateGraph,
+    state: &IrBeamState,
+    candidate_id: usize,
+    conflict_map: &BTreeMap<usize, BTreeSet<usize>>,
+    locked_ids: &BTreeSet<usize>,
+    options: &SelectionOptions,
+) -> Option<IrCandidateDelta> {
+    let selected = state.selected_span_ids.contains(&candidate_id);
+    let trial_ids = if selected {
+        let mut without = state.selected_span_ids.clone();
+        without.remove(&candidate_id);
+        without
+    } else {
+        ir_selected_with_candidate(
+            graph,
+            &state.selected_span_ids,
+            candidate_id,
+            conflict_map,
+            locked_ids,
+        )?
+    };
+    let trial = ir_state_residuals(graph, &trial_ids, options);
+    let (before, after) = if selected {
+        (&trial, &state.residuals)
+    } else {
+        (&state.residuals, &trial)
+    };
+    Some(IrCandidateDelta {
+        topology_delta: before.topology_penalty - after.topology_penalty,
+        local_theorem_delta: before.local_theorem_penalty - after.local_theorem_penalty,
+        degree_two_delta: before.non_collinear_degree_two_vertices as isize
+            - after.non_collinear_degree_two_vertices as isize,
+    })
 }
 
 fn candidate_conflict_map(graph: &CandidateGraph) -> BTreeMap<usize, BTreeSet<usize>> {
@@ -706,32 +892,168 @@ fn candidate_conflict_map(graph: &CandidateGraph) -> BTreeMap<usize, BTreeSet<us
     map
 }
 
-fn odd_degree_count_for_ir(graph: &CandidateGraph, selected_span_ids: &BTreeSet<usize>) -> usize {
-    let mut degree = BTreeMap::<usize, usize>::new();
+#[derive(Debug, Clone, Copy)]
+struct IrIncidentRay {
+    angle_degrees: f64,
+    assignment: AssignmentLabel,
+}
+
+fn ir_state_residuals(
+    graph: &CandidateGraph,
+    selected_span_ids: &BTreeSet<usize>,
+    options: &SelectionOptions,
+) -> IrStateResiduals {
+    let mut incident = BTreeMap::<usize, Vec<IrIncidentRay>>::new();
     for span_id in selected_span_ids {
         let Some(span) = graph.crease_candidates.get(*span_id) else {
             continue;
         };
-        if matches!(
-            span.assignment_label(),
-            AssignmentLabel::Boundary | AssignmentLabel::Flat
-        ) {
+        if !span_counts_for_local_theorems(span) {
             continue;
         }
-        for vertex_id in span.vertices {
-            *degree.entry(vertex_id).or_default() += 1;
+        let [a, b] = span.vertices;
+        let Some(vertex_a) = graph.vertices.get(a) else {
+            continue;
+        };
+        let Some(vertex_b) = graph.vertices.get(b) else {
+            continue;
+        };
+        incident.entry(a).or_default().push(IrIncidentRay {
+            angle_degrees: angle_degrees(vertex_a.point, vertex_b.point),
+            assignment: span.assignment_label(),
+        });
+        incident.entry(b).or_default().push(IrIncidentRay {
+            angle_degrees: angle_degrees(vertex_b.point, vertex_a.point),
+            assignment: span.assignment_label(),
+        });
+    }
+
+    let mut residuals = IrStateResiduals::default();
+    for (vertex_id, mut rays) in incident {
+        let Some(vertex) = graph.vertices.get(vertex_id) else {
+            continue;
+        };
+        if !ir_vertex_is_interior_fold_vertex(vertex) {
+            continue;
+        }
+        rays.sort_by(|left, right| left.angle_degrees.total_cmp(&right.angle_degrees));
+        let degree = rays.len();
+        if degree == 0 {
+            continue;
+        }
+        if degree % 2 == 1 {
+            residuals.odd_degree_vertices += 1;
+            residuals.topology_penalty += options.odd_degree_bonus;
+        }
+        if degree == 1 {
+            residuals.dangling_interior_vertices += 1;
+            residuals.topology_penalty += options.odd_degree_bonus * 1.25;
+        } else if degree == 2 && !degree_two_is_collinear(&rays) {
+            residuals.non_collinear_degree_two_vertices += 1;
+            residuals.topology_penalty += options.non_collinear_degree_two_cost;
+        }
+        if let Some(kawasaki) = kawasaki_residual_degrees(&rays) {
+            let normalized = (kawasaki / 12.0).min(3.0);
+            residuals.local_theorem_penalty +=
+                normalized * normalized * options.exact_hard_kawasaki_cost;
+            if kawasaki > 12.0 {
+                residuals.hard_kawasaki_vertices += 1;
+            }
+        }
+        if degree >= 4 {
+            let (maekawa_cost, ambiguous) = maekawa_cost(&rays, options);
+            residuals.local_theorem_penalty += maekawa_cost;
+            if maekawa_cost > 0.0 && !ambiguous {
+                residuals.maekawa_impossible_vertices += 1;
+            } else if ambiguous {
+                residuals.maekawa_ambiguous_vertices += 1;
+            }
         }
     }
-    degree
-        .into_iter()
-        .filter(|(vertex_id, count)| {
-            *count % 2 == 1
-                && graph
-                    .vertices
-                    .get(*vertex_id)
-                    .is_some_and(|vertex| vertex.boundary_side.is_none())
-        })
-        .count()
+    residuals
+}
+
+fn span_counts_for_local_theorems(span: &CandidateCreaseSpan) -> bool {
+    span.boundary_role() == CandidateCreaseBoundaryRole::None
+        && !matches!(
+            span.assignment_label(),
+            AssignmentLabel::Boundary | AssignmentLabel::Flat
+        )
+}
+
+fn ir_vertex_is_interior_fold_vertex(vertex: &crate::candidate_graph::CandidateVertex) -> bool {
+    vertex.boundary_side.is_none()
+        && !matches!(
+            vertex.kind,
+            CandidateVertexKind::Corner | CandidateVertexKind::BoundaryContact
+        )
+}
+
+fn degree_two_is_collinear(rays: &[IrIncidentRay]) -> bool {
+    let diff = angle_delta_degrees(rays[0].angle_degrees, rays[1].angle_degrees);
+    (180.0 - diff).abs() <= 3.0
+}
+
+fn kawasaki_residual_degrees(rays: &[IrIncidentRay]) -> Option<f64> {
+    if rays.len() < 4 || rays.len() % 2 == 1 {
+        return None;
+    }
+    let mut odd = 0.0;
+    let mut even = 0.0;
+    for index in 0..rays.len() {
+        let next = (index + 1) % rays.len();
+        let sector = (rays[next].angle_degrees - rays[index].angle_degrees).rem_euclid(360.0);
+        if index % 2 == 0 {
+            even += sector;
+        } else {
+            odd += sector;
+        }
+    }
+    Some((even - odd).abs())
+}
+
+fn maekawa_cost(rays: &[IrIncidentRay], options: &SelectionOptions) -> (f64, bool) {
+    let mountain_count = rays
+        .iter()
+        .filter(|ray| ray.assignment == AssignmentLabel::Mountain)
+        .count();
+    let valley_count = rays
+        .iter()
+        .filter(|ray| ray.assignment == AssignmentLabel::Valley)
+        .count();
+    let unknown_count = rays
+        .iter()
+        .filter(|ray| ray.assignment == AssignmentLabel::Unknown)
+        .count();
+    if unknown_count > 0 {
+        let satisfiable = (0..=unknown_count).any(|unknown_mountains| {
+            let mountains = mountain_count + unknown_mountains;
+            let valleys = valley_count + unknown_count - unknown_mountains;
+            mountains.abs_diff(valleys) == 2
+        });
+        return if satisfiable {
+            (options.odd_degree_bonus * 0.08, true)
+        } else {
+            (options.odd_degree_bonus, false)
+        };
+    }
+    let residual = mountain_count.abs_diff(valley_count).abs_diff(2);
+    (residual as f64 * options.odd_degree_bonus, false)
+}
+
+fn angle_degrees(origin: Point2, target: Point2) -> f64 {
+    let mut angle = (target.y - origin.y)
+        .atan2(target.x - origin.x)
+        .to_degrees();
+    if angle < 0.0 {
+        angle += 360.0;
+    }
+    angle
+}
+
+fn angle_delta_degrees(left: f64, right: f64) -> f64 {
+    let diff = (left - right).abs().rem_euclid(360.0);
+    diff.min(360.0 - diff)
 }
 
 fn candidate_selection_from_ir_state(
@@ -758,6 +1080,13 @@ fn candidate_selection_from_ir_state(
     selected_edge_ids.sort_unstable();
     selected_edge_ids.dedup();
 
+    let conflict_map = candidate_conflict_map(graph);
+    let locked_ids = graph
+        .crease_candidates
+        .iter()
+        .filter(|span| span.selection_policy == CandidateSelectionPolicy::Locked)
+        .map(|span| span.id)
+        .collect::<BTreeSet<_>>();
     let mut edge_scores = Vec::new();
     let mut rejected_edge_ids = Vec::new();
     let mut undecided_edge_ids = Vec::new();
@@ -783,40 +1112,59 @@ fn candidate_selection_from_ir_state(
         } else {
             reasons.push("rejected by CandidateGraph policy/cost".to_owned());
         }
-        let score = span.selection_score(graph);
+        let delta = ir_candidate_delta(graph, state, span.id, &conflict_map, &locked_ids, options)
+            .unwrap_or_default();
+        if delta.topology_delta.abs() > 1e-6 {
+            reasons.push(format!("local topology delta {:+.3}", delta.topology_delta));
+        }
+        if delta.local_theorem_delta.abs() > 1e-6 {
+            reasons.push(format!(
+                "local theorem delta {:+.3}",
+                delta.local_theorem_delta
+            ));
+        }
+        if delta.degree_two_delta != 0 {
+            reasons.push(format!(
+                "non-collinear degree-2 vertex delta {:+}",
+                delta.degree_two_delta
+            ));
+        }
+        let breakdown = SelectionScoreBreakdown {
+            visual_reward: span.line_support_mean,
+            vertex_anchor_reward: delta.local_theorem_delta.max(0.0),
+            assignment_reward: -span.selection_assignment_cost(graph),
+            topology_delta: delta.topology_delta.max(0.0),
+            weak_support_cost: graph.cost_model.probability_cost(span.presence_probability),
+            inferred_geometry_cost: (-delta.topology_delta).max(0.0),
+            shared_carrier_cost: span.selection_source_cost(graph),
+            tiny_edge_cost: 0.0,
+            duplicate_cost: 0.0,
+            exactizability_cost: (-delta.local_theorem_delta).max(0.0),
+            continuity_reward: if matches!(
+                span.kind,
+                CandidateCreaseSpanKind::ObservedCarrierSpan
+                    | CandidateCreaseSpanKind::NormalizedPassThroughSpan
+                    | CandidateCreaseSpanKind::SharedCarrierSpan
+            ) {
+                graph.cost_model.continuity_reward
+            } else {
+                0.0
+            },
+            fragmentation_cost: span.collapsed_vertex_ids.len() as f64
+                * graph.cost_model.fragmentation_cost_weight,
+            degree_two_cost: if delta.degree_two_delta < 0 {
+                -delta.degree_two_delta as f64 * options.non_collinear_degree_two_cost
+            } else {
+                0.0
+            },
+        };
         edge_scores.push(SelectionEdgeScore {
             edge_id: span.id,
             carrier_id: span.source_carrier_ids.first().copied().unwrap_or(span.id),
             vertices: span.vertices,
             decision,
-            total_score: score,
-            breakdown: SelectionScoreBreakdown {
-                visual_reward: span.line_support_mean,
-                vertex_anchor_reward: 0.0,
-                assignment_reward: -span
-                    .assignment_evidence
-                    .cost(span.assignment_evidence.observed_label, &graph.cost_model),
-                topology_delta: 0.0,
-                weak_support_cost: graph.cost_model.probability_cost(span.presence_probability),
-                inferred_geometry_cost: 0.0,
-                shared_carrier_cost: graph.cost_model.source_prior_cost(span.source_kind),
-                tiny_edge_cost: 0.0,
-                duplicate_cost: 0.0,
-                exactizability_cost: 0.0,
-                continuity_reward: if matches!(
-                    span.kind,
-                    CandidateCreaseSpanKind::ObservedCarrierSpan
-                        | CandidateCreaseSpanKind::NormalizedPassThroughSpan
-                        | CandidateCreaseSpanKind::SharedCarrierSpan
-                ) {
-                    graph.cost_model.continuity_reward
-                } else {
-                    0.0
-                },
-                fragmentation_cost: span.collapsed_vertex_ids.len() as f64
-                    * graph.cost_model.fragmentation_cost_weight,
-                degree_two_cost: 0.0,
-            },
+            total_score: breakdown.total(),
+            breakdown,
             reasons,
         });
     }
@@ -827,9 +1175,20 @@ fn candidate_selection_from_ir_state(
         .filter_map(|span_id| graph.crease_candidates.get(*span_id))
         .map(|span| selection_span_from_ir_span(graph, span))
         .collect::<Vec<_>>();
-    let weak_edges_promoted = selected_spans
+    let weak_edges_promoted = state
+        .selected_span_ids
         .iter()
-        .filter(|span| span.line_support_mean < options.strong_edge_support)
+        .filter_map(|span_id| graph.crease_candidates.get(*span_id))
+        .filter(|span| {
+            span.source_kind == CandidateCreaseSourceKind::LegacyLowThreshold
+                || span.line_support_mean < options.strong_edge_support
+        })
+        .count();
+    let topology_improved_edges = edge_scores
+        .iter()
+        .filter(|score| {
+            score.decision == SelectionDecision::Selected && score.breakdown.topology_delta > 0.0
+        })
         .count();
     CandidateSelection {
         schema: "oristudio/cp-compiler/candidate-selection-v2-from-candidate-graph".to_owned(),
@@ -869,9 +1228,9 @@ fn candidate_selection_from_ir_state(
                 .saturating_sub(state.selected_span_ids.len()),
             selected_hypotheses: 0,
             weak_edges_promoted,
-            topology_improved_edges: weak_edges_promoted,
+            topology_improved_edges,
             duplicate_edges_rejected: graph.conflicts.len(),
-            odd_degree_vertices: state.odd_degree_vertices,
+            odd_degree_vertices: state.residuals.odd_degree_vertices,
             total_score: state.total_score,
             exactizability_evaluated: false,
             shared_replacements: graph
@@ -890,8 +1249,8 @@ fn candidate_selection_from_ir_state(
                 .sum(),
             local_fragments_retained: 0,
             collapsible_degree_two_vertices: 0,
-            non_collinear_degree_two_vertices: state.odd_degree_vertices,
-            structural_penalty: 0.0,
+            non_collinear_degree_two_vertices: state.residuals.non_collinear_degree_two_vertices,
+            structural_penalty: state.residuals.total_penalty(),
             continuity_reward: graph.cost_model.continuity_reward,
             emits_fold_graph: false,
         },
@@ -925,6 +1284,7 @@ fn selection_span_from_ir_span(
         },
         t_interval: span.t_interval,
         assignment: span.assignment_evidence.to_assignment_candidate(),
+        boundary_role: span.boundary_role(),
         source_atomic_edge_ids: span.source_atomic_edge_ids.clone(),
         replaced_atomic_edge_ids: span.replaced_atomic_edge_ids.clone(),
         collapsed_vertex_ids: span.collapsed_vertex_ids.clone(),
@@ -3048,6 +3408,7 @@ fn selection_span_from_path(
         endpoint_points: None,
         t_interval: [t_min, t_max],
         assignment: carrier.assignment,
+        boundary_role: CandidateCreaseBoundaryRole::None,
         source_atomic_edge_ids: edge_ids,
         replaced_atomic_edge_ids,
         collapsed_vertex_ids: path.collapsed_vertex_ids,
@@ -3457,6 +3818,291 @@ mod tests {
         assert!(selected.contains(&4), "long shared span should win");
         assert!(!selected.contains(&2), "fragment should be excluded");
         assert!(!selected.contains(&3), "fragment should be excluded");
+    }
+
+    #[test]
+    fn ir_selector_promotes_low_threshold_edge_that_repairs_local_topology() {
+        let graph = interior_candidate_graph(
+            vec![
+                Point2::new(0.0, 0.5),
+                Point2::new(0.33, 0.5),
+                Point2::new(0.66, 0.5),
+                Point2::new(1.0, 0.5),
+            ],
+            vec![
+                candidate_span_with_evidence(
+                    0,
+                    [0, 1],
+                    CandidateCreaseSpanKind::AtomicInterval,
+                    CandidateCreaseSourceKind::LegacySelected,
+                    CandidateSelectionPolicy::StrongOptional,
+                    0.94,
+                    0.94,
+                    AssignmentLabel::Mountain,
+                ),
+                candidate_span_with_evidence(
+                    1,
+                    [2, 3],
+                    CandidateCreaseSpanKind::AtomicInterval,
+                    CandidateCreaseSourceKind::LegacySelected,
+                    CandidateSelectionPolicy::StrongOptional,
+                    0.94,
+                    0.94,
+                    AssignmentLabel::Valley,
+                ),
+                candidate_span_with_evidence(
+                    2,
+                    [1, 2],
+                    CandidateCreaseSpanKind::AtomicInterval,
+                    CandidateCreaseSourceKind::LegacyLowThreshold,
+                    CandidateSelectionPolicy::WeakOptional,
+                    0.45,
+                    0.62,
+                    AssignmentLabel::Mountain,
+                ),
+            ],
+            Vec::new(),
+        );
+
+        let selection = select_candidate_graph_beam_from_ir(
+            &graph,
+            beam_options(),
+            ExactProbeOptions::default(),
+        );
+        let selected = selected_span_ids(&selection);
+
+        assert!(
+            selected.contains(&2),
+            "weak bridge should repair the local chain"
+        );
+        let score = selection
+            .edge_scores
+            .iter()
+            .find(|score| score.edge_id == 2)
+            .expect("weak candidate score");
+        assert!(score.breakdown.topology_delta > 0.0);
+        assert!(
+            score
+                .reasons
+                .iter()
+                .any(|reason| reason.contains("local topology delta"))
+        );
+    }
+
+    #[test]
+    fn ir_selector_rejects_low_threshold_edge_that_creates_dangling_topology() {
+        let graph = interior_candidate_graph(
+            vec![
+                Point2::new(0.0, 0.5),
+                Point2::new(1.0, 0.5),
+                Point2::new(0.25, 0.2),
+                Point2::new(0.75, 0.2),
+            ],
+            vec![
+                candidate_span_with_evidence(
+                    0,
+                    [0, 1],
+                    CandidateCreaseSpanKind::AtomicInterval,
+                    CandidateCreaseSourceKind::LegacySelected,
+                    CandidateSelectionPolicy::StrongOptional,
+                    0.94,
+                    0.94,
+                    AssignmentLabel::Mountain,
+                ),
+                candidate_span_with_evidence(
+                    1,
+                    [2, 3],
+                    CandidateCreaseSpanKind::AtomicInterval,
+                    CandidateCreaseSourceKind::LegacyLowThreshold,
+                    CandidateSelectionPolicy::WeakOptional,
+                    0.45,
+                    0.96,
+                    AssignmentLabel::Valley,
+                ),
+            ],
+            Vec::new(),
+        );
+
+        let selection = select_candidate_graph_beam_from_ir(
+            &graph,
+            beam_options(),
+            ExactProbeOptions::default(),
+        );
+        let selected = selected_span_ids(&selection);
+        let score = selection
+            .edge_scores
+            .iter()
+            .find(|score| score.edge_id == 1)
+            .expect("false weak candidate score");
+
+        assert!(
+            !selected.contains(&1),
+            "isolated weak edge should remain out"
+        );
+        assert!(score.breakdown.inferred_geometry_cost > 0.0);
+    }
+
+    #[test]
+    fn ir_selector_allows_unknown_assignment_when_maekawa_is_satisfiable() {
+        let mut graph = interior_candidate_graph(
+            vec![
+                Point2::new(0.5, 0.5),
+                Point2::new(1.0, 0.5),
+                Point2::new(0.5, 1.0),
+                Point2::new(0.0, 0.5),
+                Point2::new(0.5, 0.0),
+            ],
+            vec![
+                candidate_span_with_evidence(
+                    0,
+                    [0, 1],
+                    CandidateCreaseSpanKind::AtomicInterval,
+                    CandidateCreaseSourceKind::LegacySelected,
+                    CandidateSelectionPolicy::StrongOptional,
+                    0.94,
+                    0.94,
+                    AssignmentLabel::Mountain,
+                ),
+                candidate_span_with_evidence(
+                    1,
+                    [0, 2],
+                    CandidateCreaseSpanKind::AtomicInterval,
+                    CandidateCreaseSourceKind::LegacySelected,
+                    CandidateSelectionPolicy::StrongOptional,
+                    0.94,
+                    0.94,
+                    AssignmentLabel::Mountain,
+                ),
+                candidate_span_with_evidence(
+                    2,
+                    [0, 3],
+                    CandidateCreaseSpanKind::AtomicInterval,
+                    CandidateCreaseSourceKind::LegacySelected,
+                    CandidateSelectionPolicy::StrongOptional,
+                    0.94,
+                    0.94,
+                    AssignmentLabel::Valley,
+                ),
+                candidate_span_with_evidence(
+                    3,
+                    [0, 4],
+                    CandidateCreaseSpanKind::AtomicInterval,
+                    CandidateCreaseSourceKind::LegacyLowThreshold,
+                    CandidateSelectionPolicy::WeakOptional,
+                    0.45,
+                    0.80,
+                    AssignmentLabel::Unknown,
+                ),
+            ],
+            Vec::new(),
+        );
+        for (vertex_id, side) in [
+            (1, BoundarySide::Right),
+            (2, BoundarySide::Top),
+            (3, BoundarySide::Left),
+            (4, BoundarySide::Bottom),
+        ] {
+            graph.vertices[vertex_id].kind = CandidateVertexKind::BoundaryContact;
+            graph.vertices[vertex_id].movement_policy = CandidateVertexMovementPolicy::BoundaryOnly;
+            graph.vertices[vertex_id].boundary_side = Some(side);
+        }
+
+        let selection = select_candidate_graph_beam_from_ir(
+            &graph,
+            beam_options(),
+            ExactProbeOptions::default(),
+        );
+        let selected = selected_span_ids(&selection);
+
+        assert!(
+            selected.contains(&3),
+            "unknown assignment should not block a satisfiable repair"
+        );
+    }
+
+    #[test]
+    fn ir_selector_rejects_extra_weak_edge_that_breaks_clean_vertex() {
+        let graph = interior_candidate_graph(
+            vec![
+                Point2::new(0.5, 0.5),
+                Point2::new(1.0, 0.5),
+                Point2::new(0.5, 1.0),
+                Point2::new(0.0, 0.5),
+                Point2::new(0.5, 0.0),
+                Point2::new(0.86, 0.86),
+            ],
+            vec![
+                candidate_span_with_evidence(
+                    0,
+                    [0, 1],
+                    CandidateCreaseSpanKind::AtomicInterval,
+                    CandidateCreaseSourceKind::LegacySelected,
+                    CandidateSelectionPolicy::StrongOptional,
+                    0.94,
+                    0.94,
+                    AssignmentLabel::Mountain,
+                ),
+                candidate_span_with_evidence(
+                    1,
+                    [0, 2],
+                    CandidateCreaseSpanKind::AtomicInterval,
+                    CandidateCreaseSourceKind::LegacySelected,
+                    CandidateSelectionPolicy::StrongOptional,
+                    0.94,
+                    0.94,
+                    AssignmentLabel::Mountain,
+                ),
+                candidate_span_with_evidence(
+                    2,
+                    [0, 3],
+                    CandidateCreaseSpanKind::AtomicInterval,
+                    CandidateCreaseSourceKind::LegacySelected,
+                    CandidateSelectionPolicy::StrongOptional,
+                    0.94,
+                    0.94,
+                    AssignmentLabel::Valley,
+                ),
+                candidate_span_with_evidence(
+                    3,
+                    [0, 4],
+                    CandidateCreaseSpanKind::AtomicInterval,
+                    CandidateCreaseSourceKind::LegacySelected,
+                    CandidateSelectionPolicy::StrongOptional,
+                    0.94,
+                    0.94,
+                    AssignmentLabel::Valley,
+                ),
+                candidate_span_with_evidence(
+                    4,
+                    [0, 5],
+                    CandidateCreaseSpanKind::AtomicInterval,
+                    CandidateCreaseSourceKind::LegacyLowThreshold,
+                    CandidateSelectionPolicy::WeakOptional,
+                    0.45,
+                    0.96,
+                    AssignmentLabel::Mountain,
+                ),
+            ],
+            Vec::new(),
+        );
+
+        let selection = select_candidate_graph_beam_from_ir(
+            &graph,
+            beam_options(),
+            ExactProbeOptions::default(),
+        );
+        let selected = selected_span_ids(&selection);
+        let score = selection
+            .edge_scores
+            .iter()
+            .find(|score| score.edge_id == 4)
+            .expect("extra weak candidate score");
+
+        assert!(
+            !selected.contains(&4),
+            "extra crease should not break a clean degree-4 vertex"
+        );
+        assert!(score.breakdown.inferred_geometry_cost > 0.0);
     }
 
     #[test]
@@ -4210,6 +4856,107 @@ mod tests {
         }
     }
 
+    fn selected_span_ids(selection: &CandidateSelection) -> BTreeSet<usize> {
+        selection
+            .selected_spans
+            .iter()
+            .map(|span| span.id)
+            .collect()
+    }
+
+    fn interior_candidate_graph(
+        points: Vec<Point2>,
+        crease_candidates: Vec<CandidateCreaseSpan>,
+        extra_conflicts: Vec<CandidateConflict>,
+    ) -> CandidateGraph {
+        let vertices = points
+            .into_iter()
+            .enumerate()
+            .map(|(id, point)| ir_vertex(id, point, None))
+            .collect::<Vec<_>>();
+        let vertex_count = vertices.len();
+        let conflict_count = extra_conflicts.len();
+        CandidateGraph {
+            schema: "test/interior-candidate-graph".to_owned(),
+            coordinate_space: "unit_square".to_owned(),
+            image_size: Some(128),
+            vertices,
+            boundary: BoundaryModel {
+                corners: [0, 0, 0, 0],
+                sides: Vec::new(),
+                generated_border_span_ids: Vec::new(),
+                reconstruction_policy: BoundaryReconstructionPolicy::LockedUnitSquareSortedContacts,
+            },
+            conflicts: extra_conflicts.clone(),
+            alternatives: extra_conflicts,
+            report: CandidateGraphReport {
+                vertices: vertex_count,
+                crease_candidates: crease_candidates.len(),
+                locked_border_spans: crease_candidates
+                    .iter()
+                    .filter(|span| span.selection_policy == CandidateSelectionPolicy::Locked)
+                    .count(),
+                legacy_selected_spans: crease_candidates
+                    .iter()
+                    .filter(|span| span.source_kind == CandidateCreaseSourceKind::LegacySelected)
+                    .count(),
+                legacy_low_threshold_spans: crease_candidates
+                    .iter()
+                    .filter(|span| {
+                        span.source_kind == CandidateCreaseSourceKind::LegacyLowThreshold
+                    })
+                    .count(),
+                arrangement_observed_spans: crease_candidates
+                    .iter()
+                    .filter(|span| {
+                        span.source_kind == CandidateCreaseSourceKind::ArrangementObserved
+                    })
+                    .count(),
+                arrangement_shared_spans: crease_candidates
+                    .iter()
+                    .filter(|span| span.source_kind == CandidateCreaseSourceKind::ArrangementShared)
+                    .count(),
+                conflicts: conflict_count,
+            },
+            crease_candidates,
+            cost_model: CostModel::default(),
+            provenance: CandidateGraphProvenance {
+                source_adapter: CandidateSourceAdapter::Legacy,
+                source_ids: Vec::new(),
+                notes: Vec::new(),
+            },
+        }
+    }
+
+    fn candidate_span_with_evidence(
+        id: usize,
+        vertices: [usize; 2],
+        kind: CandidateCreaseSpanKind,
+        source_kind: CandidateCreaseSourceKind,
+        policy: CandidateSelectionPolicy,
+        presence: f64,
+        support: f64,
+        label: AssignmentLabel,
+    ) -> CandidateCreaseSpan {
+        let mut span = candidate_span(id, vertices, kind, source_kind, policy, presence);
+        span.line_support_min = support;
+        span.line_support_mean = support;
+        span.line_support_max = support;
+        span.assignment_evidence = AssignmentEvidence::from_candidate(
+            AssignmentCandidate {
+                label,
+                confidence: if label == AssignmentLabel::Unknown {
+                    0.50
+                } else {
+                    0.80
+                },
+                margin: 0.60,
+            },
+            AssignmentEvidenceSource::LegacyColor,
+        );
+        span
+    }
+
     fn ir_vertex(
         id: usize,
         point: Point2,
@@ -4267,6 +5014,11 @@ mod tests {
             non_crease_support: 0.0,
             source_kind,
             selection_policy: policy,
+            boundary_role: if source_kind == CandidateCreaseSourceKind::BorderGenerated {
+                CandidateCreaseBoundaryRole::PaperBoundary
+            } else {
+                CandidateCreaseBoundaryRole::None
+            },
             source_edge_ids: vec![id],
             source_atomic_edge_ids: vec![id],
             source_carrier_ids: vec![id],
