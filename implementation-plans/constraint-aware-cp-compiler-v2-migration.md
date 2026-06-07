@@ -46,11 +46,11 @@ Progress:
   shared selector contract and one shared exact-solver contract. This is a
   top-level phase because Phase 7 exact solving must not be built on
   arrangement-specific or legacy-specific selector types.
-- Phase 7 has a working exact-solve inspector stage as of June 4, 2026. The
-  backend now exposes Stage 6 and the inspector shows selected-before,
-  exact-solved-after, movement, failed-vertex overlays, and before/after solver
-  diagnostics. Phase 7 remains diagnostic-only until curated metrics say it is
-  good enough to wire into browser import output.
+- Phase 7 has a working exact-solve inspector stage as of June 4, 2026 and a
+  transitional product import route as of June 7, 2026. The product route is
+  not full compiler-native V2 promotion; it uses legacy graph proposals plus
+  lower-threshold weak candidates as the explicit candidate source, then runs
+  the shared candidate selector, exact solve, and exact-solved FOLD export.
 - A `ConstraintCompilerV2` backend now exists for the compiler-native evidence
   route, while `ConstraintCompilerV1` remains the current locked-border
   baseline.
@@ -66,8 +66,11 @@ Progress:
   UI/API for visually inspecting dense evidence, arrangement candidates,
   weighted selection output, exactizability probes, and beam-selected final
   crease spans, plus exact-solve before/after geometry.
-- The V2 product route is still not promoted. Exact solve, assignment solve,
-  verifier/export contract, and benchmark gates remain open.
+- The full compiler-native V2 product route is still not promoted. The browser
+  import modal now uses `legacy_candidate_exact_solve_v1` as a transitional
+  route: legacy candidates -> shared selector -> exact solve -> exact-solved
+  FOLD export. Assignment solve, full browser verifier policy, and final
+  ConstraintCompilerV2 promotion gates remain open.
 
 Goal: migrate the current browser CP detector/compiler into the target
 architecture:
@@ -2152,8 +2155,68 @@ cargo check -p oristudio-cp-detect --bin compare_exact_solve_benchmark
 Remaining:
 
 - [x] Run curated legacy-vs-selected-vs-exact-solved metric comparisons.
-- [ ] Decide, from visual + metric review, whether exact solve should be wired
+- [x] Decide, from visual + metric review, whether exact solve should be wired
   into browser import output or remain a diagnostic-only stage for now.
+
+### Phase 7 Product Export Wiring - June 7, 2026
+
+The browser import modal now uses `legacy_candidate_exact_solve_v1` instead of
+`constraint_compiler_v1`. This is a deliberate transitional route, not full
+compiler-native V2 promotion:
+
+```text
+browser image
+-> ONNX Runtime Web dense model outputs
+-> legacy selected graph at normal threshold
+-> legacy weak graph at lower threshold
+-> LegacyCandidateAdapter
+-> CandidateGraph IR
+-> shared beam selector
+-> ExactSolveInput
+-> exact solve
+-> exact-solved FOLD export
+```
+
+Export now comes from `ExactSolvedGraph.edges_exact` and
+`ExactSolvedGraph.vertices_exact`, with span/source/provenance metadata copied
+into `cp_detector`. The exported metadata includes both `edge_span_ids` for the
+new compiler flow and `edge_ids` for the existing product preview overlay.
+
+The product route runs only basic FOLD validation inside the detector worker.
+It intentionally does not run Oriedita/CAMV or flat-folder verification during
+detection. Those checks remain available in inspector/eval/product validation
+surfaces, but they should not be on the critical browser detection/export path.
+
+Browser-specific fix: compiler-backed routes previously panicked in WASM
+because diagnostic timers used `std::time::Instant`, which is unsupported in
+the browser `wasm32-unknown-unknown` target. Decode/evidence timing now uses a
+small target-aware timer shim: native builds keep real elapsed seconds; WASM
+reports `0.0` for those compiler diagnostic timings. The WASM wrapper also
+installs a panic hook and returns large decode payloads through JSON
+serialization plus `JSON.parse`, avoiding fragile recursive Rust-to-JS
+conversion for exact-solve reports.
+
+Validation run:
+
+```bash
+cargo test -p oristudio-cp-compiler fold_export
+cargo test -p oristudio-cp-detect legacy_candidate_exact_solve_backend_exports_exact_solved_fold --lib
+cargo test -p oristudio-cp-detect-wasm backend --tests
+npm --workspace @treemaker/web run build:oristudio-cp-detect-wasm
+node scripts/cp-detect/run-browser-correctness-fast.mjs \
+  --url http://127.0.0.1:5175/ \
+  --pack artifacts/cp-detect-correctness/packs/smoke-1024-s1/manifest.json \
+  --out artifacts/cp-detect-correctness/runs/smoke-1024-s1/browser-exact-solve-e2e \
+  --decoder-backend legacy_candidate_exact_solve_v1 \
+  --timeout-ms 300000
+npm --workspace @treemaker/web run build
+```
+
+The 4-sample browser smoke returned exact-solved FOLD output for every sample.
+A product-shaped browser check on the real CPOogle image
+`cpoogle_original-cpoogle-1_cTC_TSf2qtkaR9rKdYgShDoCsNRJmmm-None-001f1efefefbff47.png`
+also completed auto-rectify -> detect -> exact-solved FOLD export with no
+browser console errors.
 
 ### Phase 7 Benchmark Gate: Legacy vs Selected vs Exact-Solved
 

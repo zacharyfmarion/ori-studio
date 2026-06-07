@@ -1,7 +1,10 @@
 //! `wasm-bindgen` wrapper around `oristudio-cp-detect`.
 
 use serde::Serialize;
+use std::sync::Once;
 use wasm_bindgen::prelude::*;
+
+static PANIC_HOOK: Once = Once::new();
 
 #[wasm_bindgen]
 pub struct WasmRectifiedImage {
@@ -41,11 +44,13 @@ struct JsErrorEnvelope {
 
 #[wasm_bindgen]
 pub fn cp_detect_package_info() -> Result<JsValue, JsValue> {
+    install_panic_hook();
     to_js_value(&oristudio_cp_detect::package_info())
 }
 
 #[wasm_bindgen]
 pub fn cp_detect_parse_model_manifest(text: &str) -> Result<JsValue, JsValue> {
+    install_panic_hook();
     let manifest =
         oristudio_cp_detect::parse_model_manifest_json(text).map_err(to_js_config_error)?;
     to_js_value(&manifest)
@@ -53,6 +58,7 @@ pub fn cp_detect_parse_model_manifest(text: &str) -> Result<JsValue, JsValue> {
 
 #[wasm_bindgen]
 pub fn cp_detect_parse_oracle_fixture_manifest(text: &str) -> Result<JsValue, JsValue> {
+    install_panic_hook();
     let manifest = oristudio_cp_detect::parse_oracle_fixture_manifest_json(text)
         .map_err(to_js_config_error)?;
     to_js_value(&manifest)
@@ -65,6 +71,7 @@ pub fn cp_detect_auto_rectify_rgba(
     height: u32,
     image_size: u32,
 ) -> Result<WasmRectifiedImage, JsValue> {
+    install_panic_hook();
     let result = oristudio_cp_detect::rectify::auto_rectify_rgba(rgba, width, height, image_size)
         .map_err(to_js_rectification_error)?;
     wasm_rectified_image(result)
@@ -78,6 +85,7 @@ pub fn cp_detect_manual_rectify_rgba(
     image_size: u32,
     quad_json: &str,
 ) -> Result<WasmRectifiedImage, JsValue> {
+    install_panic_hook();
     let quad: oristudio_cp_detect::rectify::Quad = serde_json::from_str(quad_json)
         .map_err(|error| js_error("invalid_json", error.to_string()))?;
     let result =
@@ -97,6 +105,7 @@ pub fn cp_detect_decode_dense_outputs(
     image_size: u32,
     threshold: f32,
 ) -> Result<JsValue, JsValue> {
+    install_panic_hook();
     decode_dense_outputs_with_backend(
         line_logits,
         junction_logits,
@@ -122,6 +131,7 @@ pub fn cp_detect_decode_dense_outputs_with_backend(
     threshold: f32,
     decoder_backend: &str,
 ) -> Result<JsValue, JsValue> {
+    install_panic_hook();
     let backend = parse_decoder_backend(decoder_backend)?;
     decode_dense_outputs_with_backend(
         line_logits,
@@ -147,6 +157,7 @@ pub fn cp_detect_ablate_dense_outputs(
     image_size: u32,
     threshold: f32,
 ) -> Result<JsValue, JsValue> {
+    install_panic_hook();
     let result = oristudio_cp_detect::decode::ablate_dense_outputs(
         oristudio_cp_detect::decode::DenseOutputs {
             line_logits,
@@ -177,6 +188,7 @@ fn decode_dense_outputs_with_backend(
     threshold: f32,
     decoder_backend: oristudio_cp_detect::decode::DecoderBackend,
 ) -> Result<JsValue, JsValue> {
+    install_panic_hook();
     let decoded = oristudio_cp_detect::decode::decode_dense_outputs_with_backend(
         oristudio_cp_detect::decode::DenseOutputs {
             line_logits,
@@ -194,7 +206,11 @@ fn decode_dense_outputs_with_backend(
         decoder_backend,
     )
     .map_err(to_js_decode_error)?;
-    to_js_value(&decoded)
+    to_js_value_via_json(&decoded)
+}
+
+fn install_panic_hook() {
+    PANIC_HOOK.call_once(console_error_panic_hook::set_once);
 }
 
 fn parse_decoder_backend(
@@ -209,6 +225,9 @@ fn parse_decoder_backend(
         }
         "constraint-compiler-v2" | "constraint_compiler_v2" => {
             Ok(oristudio_cp_detect::decode::DecoderBackend::ConstraintCompilerV2)
+        }
+        "legacy-candidate-exact-solve-v1" | "legacy_candidate_exact_solve_v1" => {
+            Ok(oristudio_cp_detect::decode::DecoderBackend::LegacyCandidateExactSolveV1)
         }
         other => Err(js_error(
             "invalid_decoder_backend",
@@ -272,6 +291,17 @@ fn to_js_value(value: &impl Serialize) -> Result<JsValue, JsValue> {
     value
         .serialize(&serializer)
         .map_err(|error| js_error("js_value", error.to_string()))
+}
+
+fn to_js_value_via_json(value: &impl Serialize) -> Result<JsValue, JsValue> {
+    let text =
+        serde_json::to_string(value).map_err(|error| js_error("js_value", error.to_string()))?;
+    js_sys::JSON::parse(&text).map_err(|error| {
+        js_error(
+            "js_value",
+            format!("failed to parse serialized JSON result: {error:?}"),
+        )
+    })
 }
 
 fn js_error(code: &'static str, message: String) -> JsValue {

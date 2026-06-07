@@ -14,7 +14,9 @@ include = ["Cargo.toml", "src/**", "tests/**", "!pkg/**"]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+console_error_panic_hook.workspace = true
 oristudio-cp-detect.workspace = true
+js-sys.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 serde-wasm-bindgen.workspace = true

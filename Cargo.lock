@@ -476,6 +476,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "console_error_panic_hook"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a06aeb73f470f66dcdbf7223caeebb85984942f22f1adb2a088cf9668146bbbc"
+dependencies = [
+ "cfg-if",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "cookie"
 version = "0.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2667,6 +2677,8 @@ dependencies = [
 name = "oristudio-cp-detect-wasm"
 version = "0.1.2"
 dependencies = [
+ "console_error_panic_hook",
+ "js-sys",
  "oristudio-cp-detect",
  "serde",
  "serde-wasm-bindgen",

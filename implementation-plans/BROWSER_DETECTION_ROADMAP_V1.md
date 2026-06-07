@@ -152,6 +152,14 @@ OpenCV Hough implementation; explicit oracle comparison remains before release.
 The exposed contracts and tests cover the hard square boundary, carrier edges,
 assignments, and WASM FOLD export path.
 
+June 7 update: the modal's default decoder backend is now
+`legacy_candidate_exact_solve_v1`. Browser import no longer emits the older
+locked-border compiler baseline directly; it runs legacy normal-threshold and
+lower-threshold proposals through the shared `CandidateGraph` selector, runs
+the exact solver, and exports FOLD geometry from exact-solved vertices/edges.
+Heavyweight CAMV/flat-folder validation is intentionally outside the detector
+worker export path and remains part of product diagnostics/eval surfaces.
+
 ### Phase 5: oristudio-cp Repair and Diagnostics
 
 - [x] Load detector FOLD output through existing `oristudio-cp-wasm`.

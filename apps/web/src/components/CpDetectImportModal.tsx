@@ -41,7 +41,7 @@ interface SourceImage {
 }
 
 const DETECT_IMAGE_SIZE = 1024;
-const DETECT_DECODER_BACKEND = 'constraint_compiler_v1' as const;
+const DETECT_DECODER_BACKEND = 'legacy_candidate_exact_solve_v1' as const;
 const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp'];
 const IMAGE_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const QUAD_HANDLES: QuadHandle[] = ['top_left', 'top_right', 'bottom_right', 'bottom_left'];

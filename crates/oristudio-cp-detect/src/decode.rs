@@ -6,6 +6,7 @@
 
 use serde::Serialize;
 use std::collections::BTreeSet;
+#[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
 
 pub use crate::backend::DecoderBackend;
@@ -55,6 +56,41 @@ pub fn decode_dense_outputs_with_backend(
                 },
             )
         }
+        DecoderBackend::LegacyCandidateExactSolveV1 => {
+            legacy_candidate_exact_solve(outputs, config)
+        }
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+struct StageTimer {
+    started_at: Instant,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl StageTimer {
+    fn start() -> Self {
+        Self {
+            started_at: Instant::now(),
+        }
+    }
+
+    fn elapsed_seconds(&self) -> f64 {
+        self.started_at.elapsed().as_secs_f64()
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+struct StageTimer;
+
+#[cfg(target_arch = "wasm32")]
+impl StageTimer {
+    fn start() -> Self {
+        Self
+    }
+
+    fn elapsed_seconds(&self) -> f64 {
+        0.0
     }
 }
 
@@ -261,6 +297,187 @@ fn compiler_from_program(
     )
 }
 
+fn legacy_candidate_exact_solve(
+    outputs: DenseOutputs<'_>,
+    config: DecodeConfig,
+) -> Result<DecodedFold, DecodeError> {
+    let compiler_started = StageTimer::start();
+    let legacy = crate::legacy_decode::decode_dense_outputs(outputs, config.clone())?;
+    let weak_threshold = legacy_candidate_low_threshold(config.threshold);
+    let weak = if weak_threshold < config.threshold {
+        Some(crate::legacy_decode::decode_dense_outputs(
+            outputs,
+            DecodeConfig {
+                threshold: weak_threshold,
+                ..config.clone()
+            },
+        )?)
+    } else {
+        None
+    };
+    let legacy_program = candidate_program_from_fold_json(&legacy.fold_json)?;
+    let weak_program = weak
+        .as_ref()
+        .map(|decoded| candidate_program_from_fold_json(&decoded.fold_json))
+        .transpose()?;
+    let candidate_graph = oristudio_cp_compiler::LegacyCandidateAdapter::from_programs(
+        &legacy_program,
+        weak_program.as_ref(),
+        legacy_candidate_adapter_options(config.image_size),
+    );
+    let selection = oristudio_cp_compiler::selection::select_candidate_graph_beam_from_ir(
+        &candidate_graph,
+        oristudio_cp_compiler::selection::SelectionOptions::default(),
+        oristudio_cp_compiler::exact_probe::ExactProbeOptions::default(),
+    );
+    let selected_span_ids = selection
+        .selected_spans
+        .iter()
+        .map(|span| span.id)
+        .collect::<Vec<_>>();
+    let selected_span_set = selected_span_ids.iter().copied().collect::<BTreeSet<_>>();
+    let selected_graph = oristudio_cp_compiler::SelectedGraph::from_selected_span_ids(
+        &candidate_graph,
+        selected_span_ids,
+    );
+    let exact_input = oristudio_cp_compiler::ExactSolveInput::from_candidate_selection(
+        &candidate_graph,
+        &selected_graph,
+    );
+    let exact_started = StageTimer::start();
+    let exact_solve = oristudio_cp_compiler::solve_exact(
+        &exact_input,
+        oristudio_cp_compiler::ExactSolveOptions::default(),
+    );
+    let exact_seconds = exact_started.elapsed_seconds();
+    let mut fold_document =
+        oristudio_cp_compiler::fold_export::export_exact_solved_to_fold_document(
+            &exact_input,
+            &exact_solve,
+        )?;
+    let final_verification = oristudio_cp_compiler::verify::verify_fold_document(
+        &fold_document,
+        product_export_verification_options(),
+    );
+    let candidate_clean = verification_clean(&final_verification);
+    let summary = exact_export_summary(&exact_input);
+    let weak_selected_spans = exact_input
+        .selected_spans
+        .iter()
+        .filter(|span| {
+            span.source_kind == oristudio_cp_compiler::CandidateCreaseSourceKind::LegacyLowThreshold
+        })
+        .count();
+    let dropped_legacy_spans = candidate_graph
+        .crease_candidates
+        .iter()
+        .filter(|span| {
+            span.source_kind == oristudio_cp_compiler::CandidateCreaseSourceKind::LegacySelected
+                && !selected_span_set.contains(&span.id)
+        })
+        .count();
+    let moved_vertices = exact_moved_vertex_count(&exact_solve);
+    let compiler_seconds = compiler_started.elapsed_seconds();
+    let compiler_report = serde_json::json!({
+        "backend": "legacy_candidate_exact_solve_v1",
+        "compiler_architecture": "v2",
+        "mode": "legacy_candidates_beam_selection_exact_solve",
+        "legacy_dependency": true,
+        "stage_ids": [
+            "legacy_decode",
+            "legacy_low_threshold_decode",
+            "legacy_candidate_adapter",
+            "candidate_graph_beam_selection",
+            "exact_solve",
+            "verify_final",
+            "fold_export"
+        ],
+        "timings": {
+            "compiler_seconds": compiler_seconds,
+            "exact_solve_seconds": exact_seconds
+        },
+        "output": {
+            "selected": "exact_solved",
+            "reason": "legacy candidates selected by shared beam selector, then exported from exact-solved coordinates",
+            "verified_clean": candidate_clean
+        },
+        "final_verification_scope": {
+            "run_oristudio_checks": false,
+            "run_flat_folder": false,
+            "reason": "browser product export keeps heavyweight global validation out of the detector worker"
+        },
+        "candidate_graph": {
+            "report": candidate_graph.report,
+            "provenance": candidate_graph.provenance,
+            "legacy_low_threshold": weak_threshold
+        },
+        "selection": {
+            "report": selection.report,
+            "weak_selected_spans": weak_selected_spans,
+            "dropped_legacy_spans": dropped_legacy_spans
+        },
+        "exact_solve": exact_solve,
+        "summary": summary,
+        "topology": {
+            "enabled": true,
+            "source": "candidate_graph_beam_selection",
+            "accepted_moves": [],
+            "weak_selected_spans": weak_selected_spans,
+            "dropped_legacy_spans": dropped_legacy_spans,
+            "ambiguous": false
+        },
+        "assignments": {
+            "enabled": false,
+            "reason": "assignment_solver_not_promoted_in_product_route",
+            "solved": false,
+            "ambiguous": false,
+            "exhausted_budget": false,
+            "cost": 0.0,
+            "decisions": []
+        },
+        "final_verification": final_verification
+    });
+    if let Some(detector_object) = fold_document
+        .extra
+        .entry("cp_detector".to_owned())
+        .or_insert_with(|| serde_json::json!({}))
+        .as_object_mut()
+    {
+        detector_object.insert(
+            "decoder_backend".to_owned(),
+            serde_json::json!(DecoderBackend::LegacyCandidateExactSolveV1.id()),
+        );
+        detector_object.insert("compiler_report".to_owned(), compiler_report.clone());
+    }
+    let topology_changed =
+        weak_selected_spans > 0 || dropped_legacy_spans > 0 || moved_vertices > 0;
+    let status = compiler_status(&compiler_report, topology_changed, false);
+    let warnings = compiler_warnings(&compiler_report);
+    let repair_actions = compiler_repair_actions(&compiler_report);
+    let quality_report = serde_json::json!({
+        "decoder_backend": DecoderBackend::LegacyCandidateExactSolveV1.id(),
+        "compiler_report": compiler_report
+    });
+    Ok(DecodedFold {
+        fold_json: serde_json::to_string_pretty(&fold_document)?,
+        report: DecodeReport {
+            status,
+            decoder_backend: DecoderBackend::LegacyCandidateExactSolveV1,
+            image_size: config.image_size,
+            threshold: config.threshold,
+            line_count: summary.edges,
+            carrier_count: exact_input.selected_spans.len(),
+            vertex_count: summary.vertices,
+            edge_count: summary.edges,
+            border_edge_count: summary.border_edges,
+            interior_edge_count: summary.interior_edges,
+            warnings,
+            repair_actions,
+            quality_report,
+        },
+    })
+}
+
 struct CompilerBackendContext {
     backend: DecoderBackend,
     architecture: &'static str,
@@ -274,7 +491,7 @@ fn compiler_from_program_with_context(
     config: DecodeConfig,
     context: CompilerBackendContext,
 ) -> Result<DecodedFold, DecodeError> {
-    let compiler_started = Instant::now();
+    let compiler_started = StageTimer::start();
     let locked_border =
         oristudio_cp_compiler::border::lock_square_border(&program, Default::default());
     let initial_verification = oristudio_cp_compiler::verify::verify_program(
@@ -296,7 +513,7 @@ fn compiler_from_program_with_context(
         .as_ref()
         .and_then(|report| report.get("extraction_seconds"))
         .cloned();
-    let compiler_seconds = compiler_started.elapsed().as_secs_f64();
+    let compiler_seconds = compiler_started.elapsed_seconds();
     let stage_ids = compiler_stage_ids(context.evidence_report.is_some());
     let compiler_report = serde_json::json!({
         "backend": oristudio_cp_compiler::COMPILER_BACKEND_ID,
@@ -405,6 +622,78 @@ fn compiler_stage_ids(has_native_evidence: bool) -> Vec<&'static str> {
         "fold_export",
     ]);
     stages
+}
+
+fn candidate_program_from_fold_json(
+    fold_json: &str,
+) -> Result<oristudio_cp_compiler::CandidateProgram, DecodeError> {
+    let value = serde_json::from_str::<serde_json::Value>(fold_json)?;
+    Ok(oristudio_cp_compiler::CandidateProgram::from_fold_value(
+        &value,
+    )?)
+}
+
+fn legacy_candidate_low_threshold(threshold: f32) -> f32 {
+    (threshold * 0.55).max(0.10).min(threshold)
+}
+
+fn legacy_candidate_adapter_options(
+    image_size: u32,
+) -> oristudio_cp_compiler::LegacyCandidateAdapterOptions {
+    oristudio_cp_compiler::LegacyCandidateAdapterOptions {
+        duplicate_endpoint_tolerance: (3.0 / image_size.max(1) as f64).max(1e-6),
+        ..oristudio_cp_compiler::LegacyCandidateAdapterOptions::default()
+    }
+}
+
+fn product_export_verification_options() -> oristudio_cp_compiler::verify::GlobalVerificationOptions
+{
+    oristudio_cp_compiler::verify::GlobalVerificationOptions {
+        run_oristudio_checks: false,
+        run_flat_folder: false,
+        ..oristudio_cp_compiler::verify::GlobalVerificationOptions::default()
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize)]
+struct ExactExportSummary {
+    vertices: usize,
+    edges: usize,
+    border_edges: usize,
+    interior_edges: usize,
+}
+
+fn exact_export_summary(input: &oristudio_cp_compiler::ExactSolveInput) -> ExactExportSummary {
+    let mut used_vertices = input
+        .selected_spans
+        .iter()
+        .flat_map(|span| span.vertices)
+        .collect::<Vec<_>>();
+    used_vertices.sort_unstable();
+    used_vertices.dedup();
+    let border_edges = input
+        .selected_spans
+        .iter()
+        .filter(|span| {
+            span.boundary_role()
+                == oristudio_cp_compiler::candidate_graph::CandidateCreaseBoundaryRole::PaperBoundary
+        })
+        .count();
+    let edges = input.selected_spans.len();
+    ExactExportSummary {
+        vertices: used_vertices.len(),
+        edges,
+        border_edges,
+        interior_edges: edges.saturating_sub(border_edges),
+    }
+}
+
+fn exact_moved_vertex_count(exact: &oristudio_cp_compiler::ExactSolvedGraph) -> usize {
+    exact
+        .movement_report
+        .get("moved_vertices")
+        .and_then(serde_json::Value::as_array)
+        .map_or(0, Vec::len)
 }
 
 #[derive(Clone)]
@@ -741,9 +1030,14 @@ fn compiler_status(
         .iter()
         .any(|value| value.as_str() == Some("clean"));
     let ambiguous = compiler_report
-        .pointer("/topology/ambiguous")
-        .and_then(serde_json::Value::as_bool)
+        .pointer("/exact_solve/status")
+        .and_then(serde_json::Value::as_str)
+        .map(|status| status == "ambiguous" || status == "failed")
         .unwrap_or(false)
+        || compiler_report
+            .pointer("/topology/ambiguous")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false)
         || compiler_report
             .pointer("/assignments/ambiguous")
             .and_then(serde_json::Value::as_bool)
@@ -1013,6 +1307,54 @@ mod tests {
             "constraint_compiler_v2"
         );
         assert_compiler_output_contract(&compiler, &compiler_fold);
+    }
+
+    #[test]
+    fn legacy_candidate_exact_solve_backend_exports_exact_solved_fold() {
+        let (outputs, config) = square_cross_fixture();
+        let compiler = decode_dense_outputs_with_backend(
+            outputs,
+            config,
+            DecoderBackend::LegacyCandidateExactSolveV1,
+        )
+        .expect("legacy candidate exact solve decode");
+        let compiler_fold: Value =
+            serde_json::from_str(&compiler.fold_json).expect("compiler fold");
+
+        assert_eq!(
+            compiler.report.decoder_backend,
+            DecoderBackend::LegacyCandidateExactSolveV1
+        );
+        assert_eq!(
+            compiler.report.quality_report["compiler_report"]["mode"],
+            "legacy_candidates_beam_selection_exact_solve"
+        );
+        assert_eq!(
+            compiler.report.quality_report["compiler_report"]["legacy_dependency"],
+            true
+        );
+        assert_eq!(
+            compiler_fold["cp_detector"]["decoder_backend"],
+            "legacy_candidate_exact_solve_v1"
+        );
+        assert_eq!(compiler_fold["cp_detector"]["source"], "exact_solve");
+        assert_eq!(
+            compiler_fold["cp_detector"]["compiler_report"]["output"]["selected"],
+            "exact_solved"
+        );
+        assert!(
+            compiler_fold["cp_detector"]["compiler_report"]["exact_solve"]["status"].is_string()
+        );
+        assert_eq!(
+            compiler_fold["cp_detector"]["edge_span_ids"]
+                .as_array()
+                .expect("span ids")
+                .len(),
+            compiler_fold["edges_vertices"]
+                .as_array()
+                .expect("edges")
+                .len()
+        );
     }
 
     fn assert_compiler_output_contract(compiler: &DecodedFold, compiler_fold: &Value) {

@@ -199,6 +199,51 @@ fn decode_dense_outputs_returns_fold_json() {
                 .any(|warning| warning["code"] == "constraint_compiler_fallback")
         );
     }
+
+    let exact_decoded = oristudio_cp_detect_wasm::cp_detect_decode_dense_outputs_with_backend(
+        &line_logits,
+        &junction_logits,
+        &assignment_logits,
+        &non_crease_logits,
+        &line_style_logits,
+        &boundary_contact_logits,
+        size as u32,
+        0.65,
+        "legacy_candidate_exact_solve_v1",
+    )
+    .expect("legacy candidate exact solve decode should succeed");
+    let exact_decoded: serde_json::Value =
+        serde_wasm_bindgen::from_value(exact_decoded).expect("exact payload");
+    let exact_fold: serde_json::Value = serde_json::from_str(
+        exact_decoded["fold_json"]
+            .as_str()
+            .expect("exact fold_json"),
+    )
+    .expect("exact fold");
+
+    assert_eq!(
+        exact_decoded["report"]["decoder_backend"],
+        "legacy_candidate_exact_solve_v1"
+    );
+    assert_eq!(
+        exact_fold["cp_detector"]["decoder_backend"],
+        "legacy_candidate_exact_solve_v1"
+    );
+    assert_eq!(exact_fold["cp_detector"]["source"], "exact_solve");
+    assert_eq!(
+        exact_fold["cp_detector"]["compiler_report"]["output"]["selected"],
+        "exact_solved"
+    );
+    assert_eq!(
+        exact_fold["cp_detector"]["edge_span_ids"]
+            .as_array()
+            .expect("span ids")
+            .len(),
+        exact_fold["edges_vertices"]
+            .as_array()
+            .expect("edges")
+            .len()
+    );
 }
 
 fn draw_logit_line(

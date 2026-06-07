@@ -156,6 +156,11 @@ pub fn export_exact_solved_to_fold_document(
             "image_size": input.image_size,
             "exact_status": solved.status,
             "vertex_original_ids": used_vertices,
+            "edge_ids": input
+                .selected_spans
+                .iter()
+                .map(|span| span.source_edge_ids.first().copied().unwrap_or(span.id))
+                .collect::<Vec<_>>(),
             "edge_span_ids": input.selected_spans.iter().map(|span| span.id).collect::<Vec<_>>(),
             "edge_source": input.selected_spans.iter().map(|span| span.source_kind).collect::<Vec<_>>(),
             "edge_provenance": input
@@ -215,8 +220,9 @@ fn fold_assignment(label: AssignmentLabel) -> Assignment {
 mod tests {
     use super::*;
     use crate::{
-        AssignmentCandidate, CandidateEdge, CandidateVertex, EvidenceSource, ExactSolvedGraphStatus,
-        LegacyCandidateAdapter, Point2, Provenance, SelectedGraph, VertexKind,
+        AssignmentCandidate, CandidateCarrier, CandidateEdge, CandidateVertex, CarrierFamily,
+        EvidenceSource, ExactSolvedGraphStatus, LegacyCandidateAdapter, Point2, Provenance,
+        SelectedGraph, VertexKind,
     };
 
     #[test]
@@ -270,7 +276,7 @@ mod tests {
         let program = CandidateProgram {
             coordinate_space: "unit_test".to_owned(),
             image_size: Some(100),
-            carriers: Vec::new(),
+            carriers: vec![carrier(0)],
             vertices: vec![
                 vertex(0, Point2::new(0.0, 0.0)),
                 vertex(1, Point2::new(1.0, 0.0)),
@@ -288,7 +294,11 @@ mod tests {
         let mut solved = ExactSolvedGraph {
             schema: "test".to_owned(),
             vertices_exact: input.vertices.iter().map(|vertex| vertex.point).collect(),
-            edges_exact: input.selected_spans.iter().map(|span| span.vertices).collect(),
+            edges_exact: input
+                .selected_spans
+                .iter()
+                .map(|span| span.vertices)
+                .collect(),
             movement_report: serde_json::json!({"status": "test"}),
             theorem_residual_report: serde_json::json!({"status": "test"}),
             status: ExactSolvedGraphStatus::Solved,
@@ -298,11 +308,36 @@ mod tests {
         let fold =
             export_exact_solved_to_fold_document(&input, &solved).expect("exact FOLD export");
 
-        assert_eq!(fold.vertices_coords, vec![vec![0.0, 0.0], vec![0.875, 0.125]]);
+        assert_eq!(
+            fold.vertices_coords,
+            vec![vec![0.0, 0.0], vec![0.875, 0.125]]
+        );
         assert_eq!(fold.edges_vertices, vec![[0, 1]]);
         assert_eq!(fold.edges_assignment, vec![Assignment::Mountain]);
         assert_eq!(fold.extra["cp_detector"]["source"], "exact_solve");
-        assert_eq!(fold.extra["cp_detector"]["edge_span_ids"], serde_json::json!([0]));
+        assert_eq!(
+            fold.extra["cp_detector"]["edge_span_ids"],
+            serde_json::json!([0])
+        );
+        assert_eq!(
+            fold.extra["cp_detector"]["edge_ids"],
+            serde_json::json!([0])
+        );
+    }
+
+    fn carrier(id: usize) -> CandidateCarrier {
+        CandidateCarrier {
+            id,
+            family: CarrierFamily::Free,
+            normal: Point2::new(0.0, 1.0),
+            rho: 0.0,
+            support_interval: [0.0, 1.0],
+            visual_support: 1.0,
+            dashed_support: 0.0,
+            non_crease_penalty: 0.0,
+            source: EvidenceSource::ObservedStrong,
+            provenance: vec![Provenance::LegacyDecoder],
+        }
     }
 
     fn vertex(id: usize, position: Point2) -> CandidateVertex {

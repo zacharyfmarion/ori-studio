@@ -78,7 +78,7 @@ export interface CpDetectWorkerRunOptions {
   modelUrl?: string;
   threshold?: number;
   executionProvider?: CpDetectExecutionProvider;
-  decoderBackend?: 'legacy_v2_decoder' | 'constraint_compiler_v1';
+  decoderBackend?: 'legacy_v2_decoder' | 'constraint_compiler_v1' | 'legacy_candidate_exact_solve_v1';
 }
 
 export interface CpDetectPoint {

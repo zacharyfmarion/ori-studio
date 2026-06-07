@@ -10,8 +10,12 @@ use serde_json::Value;
 
 #[derive(Debug, Deserialize)]
 struct DenseManifest {
-    config: DenseConfig,
+    #[serde(default)]
+    config: Option<DenseConfig>,
+    #[serde(default)]
     fixtures: Vec<DenseFixture>,
+    #[serde(default)]
+    samples: Vec<DenseFixture>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -25,6 +29,10 @@ struct DenseFixture {
     id: String,
     #[serde(default)]
     profile: Option<String>,
+    #[serde(default)]
+    image_size: Option<u32>,
+    #[serde(default)]
+    threshold: Option<f32>,
     line_logits_f32_path: String,
     junction_logits_f32_path: String,
     assignment_logits_f32_path: String,
@@ -61,13 +69,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse()?;
     let manifest_root = args.manifest.parent().unwrap_or_else(|| Path::new("."));
     let manifest: DenseManifest = serde_json::from_str(&fs::read_to_string(&args.manifest)?)?;
+    let input_fixtures = if manifest.fixtures.is_empty() {
+        &manifest.samples
+    } else {
+        &manifest.fixtures
+    };
     let mut fixtures = Vec::new();
 
-    for fixture in manifest
-        .fixtures
-        .iter()
-        .take(args.limit.unwrap_or(usize::MAX))
-    {
+    for fixture in input_fixtures.iter().take(args.limit.unwrap_or(usize::MAX)) {
         let line_logits =
             read_f32_file(&resolve_path(manifest_root, &fixture.line_logits_f32_path))?;
         let junction_logits = read_f32_file(&resolve_path(
@@ -100,8 +109,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 boundary_contact_logits: &boundary_contact_logits,
             },
             DecodeConfig {
-                image_size: manifest.config.image_size,
-                threshold: manifest.config.threshold,
+                image_size: fixture
+                    .image_size
+                    .or_else(|| manifest.config.as_ref().map(|config| config.image_size))
+                    .ok_or("dense manifest is missing image_size")?,
+                threshold: fixture
+                    .threshold
+                    .or_else(|| manifest.config.as_ref().map(|config| config.threshold))
+                    .ok_or("dense manifest is missing threshold")?,
                 ..DecodeConfig::default()
             },
             args.decoder_backend,
@@ -187,6 +202,9 @@ fn parse_decoder_backend(value: &str) -> Result<DecoderBackend, Box<dyn std::err
         "constraint-compiler-v2" | "constraint_compiler_v2" => {
             Ok(DecoderBackend::ConstraintCompilerV2)
         }
+        "legacy-candidate-exact-solve-v1" | "legacy_candidate_exact_solve_v1" => {
+            Ok(DecoderBackend::LegacyCandidateExactSolveV1)
+        }
         other => Err(format!("unsupported decoder backend: {other}").into()),
     }
 }
@@ -201,6 +219,6 @@ fn required_value(
 
 fn print_usage() {
     println!(
-        "decode_dense_manifest --manifest PATH [--decoder-backend legacy-v2|constraint-compiler-v1|constraint-compiler-v2] [--limit N]"
+        "decode_dense_manifest --manifest PATH [--decoder-backend legacy-v2|constraint-compiler-v1|constraint-compiler-v2|legacy-candidate-exact-solve-v1] [--limit N]"
     );
 }

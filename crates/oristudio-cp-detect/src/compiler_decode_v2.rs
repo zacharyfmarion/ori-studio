@@ -13,7 +13,40 @@ use oristudio_cp_compiler::{
     AssignmentCandidate, AssignmentLabel, CandidateCarrier, CandidateEdge, CandidateProgram,
     CandidateVertex, CarrierFamily, EdgeSelection, EvidenceSource, Point2, Provenance, VertexKind,
 };
+#[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
+
+#[cfg(not(target_arch = "wasm32"))]
+struct EvidenceTimer {
+    started_at: Instant,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl EvidenceTimer {
+    fn start() -> Self {
+        Self {
+            started_at: Instant::now(),
+        }
+    }
+
+    fn elapsed_seconds(&self) -> f64 {
+        self.started_at.elapsed().as_secs_f64()
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+struct EvidenceTimer;
+
+#[cfg(target_arch = "wasm32")]
+impl EvidenceTimer {
+    fn start() -> Self {
+        Self
+    }
+
+    fn elapsed_seconds(&self) -> f64 {
+        0.0
+    }
+}
 
 pub(crate) struct CompilerV2Seed {
     pub program: CandidateProgram,
@@ -24,7 +57,7 @@ pub(crate) fn candidate_program_from_dense_outputs_v2(
     outputs: DenseOutputs<'_>,
     config: DecodeConfig,
 ) -> Result<CompilerV2Seed, DecodeError> {
-    let evidence_started = Instant::now();
+    let evidence_started = EvidenceTimer::start();
     let mut evidence = extract_compiler_evidence(
         DenseOutputRefs {
             line_logits: outputs.line_logits,
@@ -37,7 +70,7 @@ pub(crate) fn candidate_program_from_dense_outputs_v2(
         compiler_v2_evidence_config(&config),
     )
     .map_err(evidence_error_to_decode_error)?;
-    evidence.report.extraction_seconds = evidence_started.elapsed().as_secs_f64();
+    evidence.report.extraction_seconds = evidence_started.elapsed_seconds();
     let mut program = program_from_compiler_evidence(&evidence, &config);
     rebuild_incident_carriers(&mut program);
     Ok(CompilerV2Seed { program, evidence })
