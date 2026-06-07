@@ -67,6 +67,8 @@ pub enum CompilerError {
     MissingField(&'static str),
     #[error("FOLD {field} entry {index} is invalid")]
     InvalidEntry { field: &'static str, index: usize },
+    #[error("exact-solved FOLD export failed: {0}")]
+    ExactExport(String),
 }
 
 pub fn compile_noop(input: NoopCompileInput) -> Result<CompilerOutput, CompilerError> {
