@@ -1,5 +1,3 @@
-mod cp_exactize;
-
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use oristudio_cp_compiler::verify::prepare_flat_folder_document;
@@ -64,25 +62,6 @@ enum Command {
         limit: String,
         #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
         format: OutputFormat,
-    },
-    CpExactizeOsf {
-        file: PathBuf,
-        #[arg(long)]
-        out_osf: Option<PathBuf>,
-        #[arg(long)]
-        out_fold: Option<PathBuf>,
-        #[arg(long)]
-        report: Option<PathBuf>,
-        #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
-        format: OutputFormat,
-        #[arg(long, default_value_t = 1.25)]
-        endpoint_tolerance: f64,
-        #[arg(long, default_value_t = 1.5)]
-        angle_tolerance_degrees: f64,
-        #[arg(long, default_value_t = 2.5)]
-        rho_tolerance: f64,
-        #[arg(long)]
-        run_fix12: bool,
     },
     RunFixtures {
         #[arg(long)]
@@ -181,29 +160,6 @@ fn main() -> Result<()> {
                     solved,
                 ),
             )?;
-        }
-        Command::CpExactizeOsf {
-            file,
-            out_osf,
-            out_fold,
-            report,
-            format,
-            endpoint_tolerance,
-            angle_tolerance_degrees,
-            rho_tolerance,
-            run_fix12,
-        } => {
-            let output = cp_exactize::run(cp_exactize::ExactizeCommand {
-                file,
-                out_osf,
-                out_fold,
-                report,
-                endpoint_tolerance,
-                angle_tolerance_degrees,
-                rho_tolerance,
-                run_fix12,
-            })?;
-            print_value(format, &output)?;
         }
         Command::RunFixtures { dir } => {
             let dir = dir.unwrap_or_else(|| PathBuf::from("tests/fixtures"));
