@@ -896,6 +896,11 @@ fn stage5_example(
         .unwrap_or_else(|| {
             default_low_threshold(stage_threshold_from_query_or_sample(&query, sample))
         });
+    let legacy_snap_radius_px = query
+        .get("legacy_snap_radius_px")
+        .and_then(|value| value.parse::<f64>().ok())
+        .unwrap_or(DEFAULT_WEAK_ENDPOINT_SNAP_RADIUS_PX)
+        .clamp(0.0, 128.0);
     let stage2 = stage2_example(state, sample_id, query)?;
     let exact_options = ExactProbeOptions::default();
     let candidate_graph = match candidate_source.as_str() {
@@ -913,7 +918,7 @@ fn stage5_example(
             LegacyCandidateAdapter::from_programs(
                 &program,
                 weak_program.as_ref(),
-                legacy_adapter_options(sample.image_size),
+                legacy_adapter_options(sample.image_size, legacy_snap_radius_px),
             )
         }
         "arrangement" | "" => candidate_graph_from_arrangement_for_selection(
@@ -1641,9 +1646,20 @@ fn default_low_threshold(threshold: f32) -> f32 {
     (threshold * 0.55).max(0.10).min(threshold)
 }
 
-fn legacy_adapter_options(image_size: u32) -> LegacyCandidateAdapterOptions {
+const DEFAULT_WEAK_ENDPOINT_SNAP_RADIUS_PX: f64 = 12.0;
+
+fn legacy_adapter_options(
+    image_size: u32,
+    weak_endpoint_snap_radius_px: f64,
+) -> LegacyCandidateAdapterOptions {
+    let scale = 1.0 / image_size.max(1) as f64;
     LegacyCandidateAdapterOptions {
-        duplicate_endpoint_tolerance: (3.0 / image_size.max(1) as f64).max(1e-6),
+        duplicate_endpoint_tolerance: (3.0 * scale).max(1e-6),
+        weak_endpoint_snap_tolerance: (weak_endpoint_snap_radius_px * scale).max(1e-6),
+        weak_boundary_endpoint_snap_tolerance: (10.0 * scale).max(1e-6),
+        weak_carrier_incidence_tolerance: (6.0 * scale).max(1e-6),
+        weak_span_split_tolerance: (4.0 * scale).max(1e-6),
+        weak_min_split_length: (3.0 * scale).max(1e-6),
         ..LegacyCandidateAdapterOptions::default()
     }
 }

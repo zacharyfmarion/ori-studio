@@ -125,6 +125,14 @@ const ISSUE_LIST_LIMIT_PER_TYPE = 10;
 type ActiveStage = 'stage1' | 'stage2' | 'stage3' | 'stage4' | 'stage5' | 'stage5b' | 'stage6';
 type AnyStageResponse = Stage1Response | Stage2Response | Stage3Response | Stage4Response | Stage5Response | Stage5bResponse | Stage6Response;
 type AuditCategoryId = 'selected' | 'locked' | 'available' | 'conflict' | 'dominated' | 'rejected';
+type CandidateSource = 'arrangement' | 'legacy';
+type QueryControls = {
+  threshold: number;
+  mapSize: number;
+  candidateSource: CandidateSource;
+  legacyLowThreshold: number;
+  legacySnapRadiusPx: number;
+};
 
 const AUDIT_CATEGORIES: Array<{ id: AuditCategoryId; label: string; color: string }> = [
   { id: 'selected', label: 'selected', color: '#16a34a' },
@@ -154,8 +162,16 @@ export function App() {
   const [activeStage, setActiveStage] = useState<ActiveStage>('stage6');
   const [threshold, setThreshold] = useState(0.65);
   const [mapSize, setMapSize] = useState(192);
-  const [candidateSource, setCandidateSource] = useState<'arrangement' | 'legacy'>('legacy');
+  const [candidateSource, setCandidateSource] = useState<CandidateSource>('legacy');
   const [legacyLowThreshold, setLegacyLowThreshold] = useState(0.35);
+  const [legacySnapRadiusPx, setLegacySnapRadiusPx] = useState(12);
+  const [queryControls, setQueryControls] = useState<QueryControls>({
+    threshold: 0.65,
+    mapSize: 192,
+    candidateSource: 'legacy',
+    legacyLowThreshold: 0.35,
+    legacySnapRadiusPx: 12,
+  });
   const [stage, setStage] = useState<AnyStageResponse | null>(null);
   const [loadingStage, setLoadingStage] = useState(false);
   const [background, setBackground] = useState('input');
@@ -172,6 +188,8 @@ export function App() {
   const [showCarrierGeometry, setShowCarrierGeometry] = useState(true);
   const [showGroundTruth, setShowGroundTruth] = useState(false);
   const [showLegacyGraph, setShowLegacyGraph] = useState(false);
+  const [showWeakSelected, setShowWeakSelected] = useState(true);
+  const [showStrongSelected, setShowStrongSelected] = useState(true);
   const [showExactBefore, setShowExactBefore] = useState(true);
   const [showExactAfter, setShowExactAfter] = useState(true);
   const [showExactMovement, setShowExactMovement] = useState(true);
@@ -225,6 +243,8 @@ export function App() {
       setShowCarrierGeometry(true);
       setShowGroundTruth(true);
       setShowLegacyGraph(false);
+      setShowWeakSelected(true);
+      setShowStrongSelected(true);
       setAuditVisibility({
         selected: true,
         locked: true,
@@ -330,18 +350,18 @@ export function App() {
     setLoadingStage(true);
     const request =
       activeStage === 'stage6'
-        ? fetchStage6Example(selectedId, { threshold, mapSize, candidateSource, legacyLowThreshold })
+        ? fetchStage6Example(selectedId, queryControls)
         : activeStage === 'stage5b'
-        ? fetchStage5bExample(selectedId, { threshold, mapSize, candidateSource, legacyLowThreshold })
+        ? fetchStage5bExample(selectedId, queryControls)
         : activeStage === 'stage5'
-        ? fetchStage5Example(selectedId, { threshold, mapSize, candidateSource, legacyLowThreshold })
+        ? fetchStage5Example(selectedId, queryControls)
         : activeStage === 'stage4'
-        ? fetchStage4Example(selectedId, { threshold, mapSize })
+        ? fetchStage4Example(selectedId, queryControls)
         : activeStage === 'stage3'
-        ? fetchStage3Example(selectedId, { threshold, mapSize })
+        ? fetchStage3Example(selectedId, queryControls)
         : activeStage === 'stage2'
-          ? fetchStage2Example(selectedId, { threshold, mapSize })
-          : fetchStage1Example(selectedId, { threshold, mapSize });
+          ? fetchStage2Example(selectedId, queryControls)
+          : fetchStage1Example(selectedId, queryControls);
     request
       .then((payload) => {
         if (cancelled) return;
@@ -358,7 +378,7 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [selectedId, activeStage, threshold, mapSize, candidateSource, legacyLowThreshold, reloadToken]);
+  }, [selectedId, activeStage, queryControls, reloadToken]);
 
   const selectedMap = useMemo(
     () => stage?.maps.find((map) => map.id === selectedMapId) ?? stage?.maps[0] ?? null,
@@ -384,6 +404,17 @@ export function App() {
   const stage5Like = isStage5Like(stage) ? stage : null;
   const stage6 = isStage6(stage) ? stage : null;
   const candidateGraph = stage5Like?.candidate_graph ?? null;
+
+  const refreshStage = () => {
+    setQueryControls({
+      threshold,
+      mapSize,
+      candidateSource,
+      legacyLowThreshold,
+      legacySnapRadiusPx,
+    });
+    setReloadToken((value) => value + 1);
+  };
 
   useEffect(() => {
     if (activeStage !== 'stage4') {
@@ -502,7 +533,7 @@ export function App() {
             {activeStage === 'stage5' || activeStage === 'stage5b' || activeStage === 'stage6' ? (
               <label>
                 Candidate source
-                <select value={candidateSource} onChange={(event) => setCandidateSource(event.target.value as 'arrangement' | 'legacy')}>
+                <select value={candidateSource} onChange={(event) => setCandidateSource(event.target.value as CandidateSource)}>
                   <option value="legacy">Legacy adapter</option>
                   <option value="arrangement">Arrangement V2</option>
                 </select>
@@ -521,10 +552,23 @@ export function App() {
                 />
               </label>
             ) : null}
+            {(activeStage === 'stage5' || activeStage === 'stage5b' || activeStage === 'stage6') && candidateSource === 'legacy' ? (
+              <label>
+                Snap radius px
+                <input
+                  max={128}
+                  min={0}
+                  onChange={(event) => setLegacySnapRadiusPx(Number(event.target.value))}
+                  step={1}
+                  type="number"
+                  value={legacySnapRadiusPx}
+                />
+              </label>
+            ) : null}
             <button
               className="refresh-button"
               disabled={!selectedId || loadingStage}
-              onClick={() => setReloadToken((value) => value + 1)}
+              onClick={refreshStage}
             >
               <RefreshCw size={16} />
               Refresh
@@ -801,6 +845,14 @@ export function App() {
                       <input checked={showLegacyGraph} onChange={(event) => setShowLegacyGraph(event.target.checked)} type="checkbox" />
                       legacy graph
                     </label>
+                    <label>
+                      <input checked={showWeakSelected} onChange={(event) => setShowWeakSelected(event.target.checked)} type="checkbox" />
+                      weak selected{stage5b ? ` (${stage5b.decision_audit.candidates.filter(isWeakSelectedCandidate).length})` : ''}
+                    </label>
+                    <label>
+                      <input checked={showStrongSelected} onChange={(event) => setShowStrongSelected(event.target.checked)} type="checkbox" />
+                      strong selected{stage5b ? ` (${stage5b.decision_audit.candidates.filter(isStrongSelectedCandidate).length})` : ''}
+                    </label>
                   </div>
                 ) : activeStage === 'stage5' ? (
                   <div className="toggle-row stage5-toggle-row">
@@ -957,6 +1009,8 @@ export function App() {
                   selectedTarget={selectedAuditTarget}
                   showGroundTruth={showGroundTruth}
                   showLegacyGraph={showLegacyGraph}
+                  showStrongSelected={showStrongSelected}
+                  showWeakSelected={showWeakSelected}
                   stage={stage}
                   onSelectTarget={setSelectedAuditTarget}
                 />
@@ -1516,6 +1570,8 @@ function Stage5bAuditViewer({
   selectedTarget,
   showGroundTruth,
   showLegacyGraph,
+  showStrongSelected,
+  showWeakSelected,
   stage,
 }: {
   auditVisibility: Record<AuditCategoryId, boolean>;
@@ -1523,6 +1579,8 @@ function Stage5bAuditViewer({
   selectedTarget: string | null;
   showGroundTruth: boolean;
   showLegacyGraph: boolean;
+  showStrongSelected: boolean;
+  showWeakSelected: boolean;
   stage: Stage5bResponse;
 }) {
   const size = stage.config.image_size;
@@ -1530,6 +1588,8 @@ function Stage5bAuditViewer({
   const selectedCandidateId = parsedTarget?.kind === 'span' ? parsedTarget.id : null;
   const selectedGtId = parsedTarget?.kind === 'gt' ? parsedTarget.id : null;
   const visibleCandidates = stage.decision_audit.candidates.filter((candidate) => auditVisibility[auditCategory(candidate)]);
+  const strongSelectedCandidates = showStrongSelected ? stage.decision_audit.candidates.filter(isStrongSelectedCandidate) : [];
+  const weakSelectedCandidates = showWeakSelected ? stage.decision_audit.candidates.filter(isWeakSelectedCandidate) : [];
 
   return (
     <div className="viewer-canvas stage5b-canvas">
@@ -1544,6 +1604,20 @@ function Stage5bAuditViewer({
             highlighted={candidate.id === selectedCandidateId}
             key={`audit-candidate-${candidate.id}`}
             onSelect={() => onSelectTarget(`span:${candidate.id}`)}
+          />
+        ))}
+        {strongSelectedCandidates.map((candidate) => (
+          <Stage5bStrongSelectedHighlight
+            candidate={candidate}
+            frame={stage.overlay_frame_px}
+            key={`strong-selected-${candidate.id}`}
+          />
+        ))}
+        {weakSelectedCandidates.map((candidate) => (
+          <Stage5bWeakSelectedHighlight
+            candidate={candidate}
+            frame={stage.overlay_frame_px}
+            key={`weak-selected-${candidate.id}`}
           />
         ))}
         {selectedGtId !== null && stage.ground_truth ? <Stage5bGtEdgeHighlight graph={stage.ground_truth} gtEdgeId={selectedGtId} /> : null}
@@ -1606,6 +1680,83 @@ function Stage5bCandidateView({
           {candidate.score.toFixed(3)}; {candidate.reasons.join('; ')}
         </title>
       </line>
+    </g>
+  );
+}
+
+function Stage5bStrongSelectedHighlight({
+  candidate,
+  frame,
+}: {
+  candidate: CandidateDecisionRecord;
+  frame: Stage2Response['overlay_frame_px'];
+}) {
+  if (!candidate.endpoint_points) return null;
+  const p0 = imagePoint(candidate.endpoint_points[0], frame);
+  const p1 = imagePoint(candidate.endpoint_points[1], frame);
+  return (
+    <g className="audit-strong-selected-highlight" pointerEvents="none">
+      <line
+        stroke="#06b6d4"
+        strokeLinecap="round"
+        strokeOpacity={0.62}
+        strokeWidth={7.5}
+        vectorEffect="non-scaling-stroke"
+        x1={p0.x}
+        x2={p1.x}
+        y1={p0.y}
+        y2={p1.y}
+      />
+      <line
+        stroke="#e0f2fe"
+        strokeLinecap="round"
+        strokeOpacity={0.9}
+        strokeWidth={1.2}
+        vectorEffect="non-scaling-stroke"
+        x1={p0.x}
+        x2={p1.x}
+        y1={p0.y}
+        y2={p1.y}
+      />
+    </g>
+  );
+}
+
+function Stage5bWeakSelectedHighlight({
+  candidate,
+  frame,
+}: {
+  candidate: CandidateDecisionRecord;
+  frame: Stage2Response['overlay_frame_px'];
+}) {
+  if (!candidate.endpoint_points) return null;
+  const p0 = imagePoint(candidate.endpoint_points[0], frame);
+  const p1 = imagePoint(candidate.endpoint_points[1], frame);
+  return (
+    <g className="audit-weak-selected-highlight" pointerEvents="none">
+      <line
+        stroke="#111827"
+        strokeLinecap="round"
+        strokeOpacity={0.78}
+        strokeWidth={5.8}
+        vectorEffect="non-scaling-stroke"
+        x1={p0.x}
+        x2={p1.x}
+        y1={p0.y}
+        y2={p1.y}
+      />
+      <line
+        stroke="#fb923c"
+        strokeDasharray="8 4"
+        strokeLinecap="round"
+        strokeOpacity={0.98}
+        strokeWidth={3.1}
+        vectorEffect="non-scaling-stroke"
+        x1={p0.x}
+        x2={p1.x}
+        y1={p0.y}
+        y2={p1.y}
+      />
     </g>
   );
 }
@@ -3289,6 +3440,29 @@ function auditCategory(candidate: CandidateDecisionRecord): AuditCategoryId {
 
 function auditCategoryColor(category: AuditCategoryId): string {
   return AUDIT_CATEGORIES.find((entry) => entry.id === category)?.color ?? '#94a3b8';
+}
+
+function isWeakSelectedCandidate(candidate: CandidateDecisionRecord): boolean {
+  if (auditCategory(candidate) !== 'selected') return false;
+  const weakFields = [
+    candidate.source_kind,
+    candidate.selection_policy,
+    candidate.kind,
+    ...candidate.reasons,
+  ]
+    .join(' ')
+    .toLowerCase();
+  return weakFields.includes('legacy_low_threshold') || weakFields.includes('weak_optional') || /\bweak\b/.test(weakFields);
+}
+
+function isStrongSelectedCandidate(candidate: CandidateDecisionRecord): boolean {
+  if (auditCategory(candidate) !== 'selected') return false;
+  if (isWeakSelectedCandidate(candidate)) return false;
+  const policy = candidate.selection_policy.toLowerCase();
+  const source = candidate.source_kind.toLowerCase();
+  const boundaryRole = candidate.boundary_role.toLowerCase();
+  if (policy === 'locked' || source === 'border_generated' || boundaryRole !== 'none') return false;
+  return true;
 }
 
 function parseAuditTarget(value: string | null): { kind: 'span' | 'gt'; id: number } | null {

@@ -65,6 +65,7 @@ async function main() {
         edge_count: sample.edge_count ?? null,
         image_size: dense.image_size,
         threshold: dense.threshold,
+        runtime: dense.runtime ?? null,
         input_png: sample.input_png,
         gt_fold: sample.gt_fold,
         gt_graph: sample.gt_graph,
@@ -78,6 +79,7 @@ async function main() {
           ok: true,
           seconds: Number(((performance.now() - sampleStart) / 1000).toFixed(3)),
           image_size: dense.image_size,
+          runtime: dense.runtime ?? null,
         })}\n`
       );
     }
@@ -107,7 +109,7 @@ async function main() {
 
 async function runSample(page, sample, imageBase64, options) {
   return page.evaluate(
-    async ({ base64, imageSize, manifestUrl, modelUrl, threshold, outputKeys }) => {
+    async ({ base64, imageSize, manifestUrl, modelUrl, threshold, executionProvider, outputKeys }) => {
       const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
       const blob = new Blob([bytes], { type: 'image/png' });
       const bitmap = await createImageBitmap(blob);
@@ -124,6 +126,7 @@ async function runSample(page, sample, imageBase64, options) {
       const runOptions = { manifestUrl };
       if (modelUrl) runOptions.modelUrl = modelUrl;
       if (threshold !== null && threshold !== undefined) runOptions.threshold = threshold;
+      if (executionProvider) runOptions.executionProvider = executionProvider;
       const inference = await window.__cpDetectClient.runDenseInference(image, runOptions);
       const outputs = {};
       for (const key of outputKeys) {
@@ -136,6 +139,7 @@ async function runSample(page, sample, imageBase64, options) {
       return {
         image_size: inference.manifest.inference.image_size,
         threshold: inference.manifest.inference.threshold,
+        runtime: inference.runtime ?? null,
         outputs,
       };
 
@@ -156,6 +160,7 @@ async function runSample(page, sample, imageBase64, options) {
       manifestUrl: options.manifestUrl ?? '/models/cp-detector-v2/manifest.json',
       modelUrl: options.modelUrl ?? null,
       threshold: options.threshold === undefined ? null : Number(options.threshold),
+      executionProvider: options.executionProvider ?? null,
       outputKeys: OUTPUT_KEYS,
     }
   );

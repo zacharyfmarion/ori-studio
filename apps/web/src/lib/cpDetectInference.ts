@@ -70,23 +70,35 @@ export async function runCpDetectDenseInference(
   image: ImageData,
   manifest: CpDetectModelManifest
 ): Promise<CpDetectInferenceResult> {
+  const startedAt = performance.now();
   const imageSize = manifest.inference.image_size;
   const inputName = session.inputNames[0];
   if (!inputName) {
     throw new Error('CP detector ONNX session has no input names');
   }
+  const preprocessStartedAt = performance.now();
   const inputTensor = tensorFactory.float32(
     preprocessCpDetectImage(image, imageSize),
     [1, 3, imageSize, imageSize]
   );
+  const runStartedAt = performance.now();
   const rawOutputs = await session.run({ [inputName]: inputTensor });
+  const collectStartedAt = performance.now();
+  const outputs = collectCpDetectOutputs(rawOutputs, manifest.outputs);
+  const finishedAt = performance.now();
   return {
     manifest,
     input: {
       image_size: imageSize,
       input_name: inputName,
     },
-    outputs: collectCpDetectOutputs(rawOutputs, manifest.outputs),
+    outputs,
+    runtime: {
+      preprocess_ms: runStartedAt - preprocessStartedAt,
+      model_run_ms: collectStartedAt - runStartedAt,
+      output_collect_ms: finishedAt - collectStartedAt,
+      total_inference_ms: finishedAt - startedAt,
+    },
   };
 }
 

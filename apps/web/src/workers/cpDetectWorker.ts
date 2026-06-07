@@ -1,7 +1,7 @@
 import { expose } from 'comlink';
-import * as ort from 'onnxruntime-web/wasm';
-import ortWasmMjsUrl from 'onnxruntime-web/ort-wasm-simd-threaded.mjs?url';
-import ortWasmUrl from 'onnxruntime-web/ort-wasm-simd-threaded.wasm?url';
+import * as ort from 'onnxruntime-web/webgpu';
+import ortWasmMjsUrl from 'onnxruntime-web/ort-wasm-simd-threaded.asyncify.mjs?url';
+import ortWasmUrl from 'onnxruntime-web/ort-wasm-simd-threaded.asyncify.wasm?url';
 import init, {
   cp_detect_ablate_dense_outputs,
   cp_detect_auto_rectify_rgba,
@@ -14,8 +14,10 @@ import init, {
 import type {
   CpDetectDenseOutputs,
   CpDetectAblationResult,
+  CpDetectExecutionProvider,
   CpDetectFoldResult,
   CpDetectInferenceResult,
+  CpDetectRuntimeInfo,
   CpDetectModelManifest,
   CpDetectQuad,
   CpDetectRectifiedImage,
@@ -31,13 +33,21 @@ import {
 } from '../lib/cpDetectInference';
 
 let wasmReady: Promise<void> | null = null;
-let sessionPromise: Promise<ort.InferenceSession> | null = null;
+let sessionPromise: Promise<CpDetectSessionRuntime> | null = null;
 let manifestPromise: Promise<CpDetectModelManifest> | null = null;
 let manifestKey: string | null = null;
 let modelPresencePromise: Promise<void> | null = null;
 let modelPresenceKey: string | null = null;
 let sessionKey: string | null = null;
 let ortRuntimeConfigured = false;
+let ortWasmThreads = 1;
+
+type ActiveExecutionProvider = 'webgpu' | 'wasm';
+
+interface CpDetectSessionRuntime {
+  session: ort.InferenceSession;
+  runtime: CpDetectRuntimeInfo;
+}
 
 async function ensureWasmReady() {
   wasmReady ??= init().then(() => undefined);
@@ -67,14 +77,20 @@ async function ensureManifest(manifestUrl: string): Promise<CpDetectModelManifes
 async function ensureSession(
   manifest: CpDetectModelManifest,
   manifestUrl: string,
-  modelUrlOverride?: string
-): Promise<ort.InferenceSession> {
+  options: CpDetectWorkerRunOptions = {}
+): Promise<CpDetectSessionRuntime> {
   configureOrtRuntime();
-  const modelUrl = modelUrlOverride ?? resolveModelUrl(manifest.model.url, manifestUrl);
-  if (sessionPromise && sessionKey === modelUrl) return sessionPromise;
-  sessionKey = modelUrl;
-  sessionPromise = ort.InferenceSession.create(modelUrl, sessionOptions()).catch((error) => {
-    if (sessionKey === modelUrl) {
+  const modelUrl = options.modelUrl ?? resolveModelUrl(manifest.model.url, manifestUrl);
+  const requestedProvider = options.executionProvider ?? 'auto';
+  const key = JSON.stringify({
+    modelUrl,
+    requestedProvider,
+    wasmThreads: ortWasmThreads,
+  });
+  if (sessionPromise && sessionKey === key) return sessionPromise;
+  sessionKey = key;
+  sessionPromise = createSessionRuntime(modelUrl, requestedProvider).catch((error) => {
+    if (sessionKey === key) {
       sessionKey = null;
       sessionPromise = null;
     }
@@ -85,12 +101,64 @@ async function ensureSession(
 
 function configureOrtRuntime(): void {
   if (ortRuntimeConfigured) return;
-  ort.env.wasm.numThreads = 1;
+  ortWasmThreads = chooseWasmThreadCount();
+  ort.env.wasm.numThreads = ortWasmThreads;
   ort.env.wasm.wasmPaths = {
     mjs: ortWasmMjsUrl,
     wasm: ortWasmUrl,
   };
+  ort.env.webgpu.powerPreference = 'high-performance';
   ortRuntimeConfigured = true;
+}
+
+async function createSessionRuntime(
+  modelUrl: string,
+  requestedProvider: CpDetectExecutionProvider
+): Promise<CpDetectSessionRuntime> {
+  const webgpuAvailable = hasWebGpu();
+  let fallbackReason: string | undefined;
+  for (const provider of providerCandidates(requestedProvider, webgpuAvailable)) {
+    const startedAt = performance.now();
+    try {
+      const session = await ort.InferenceSession.create(modelUrl, sessionOptions(provider));
+      return {
+        session,
+        runtime: {
+          requested_execution_provider: requestedProvider,
+          active_execution_provider: provider,
+          webgpu_available: webgpuAvailable,
+          wasm_threads: ortWasmThreads,
+          session_create_ms: performance.now() - startedAt,
+          fallback_reason: fallbackReason,
+        },
+      };
+    } catch (error) {
+      if (requestedProvider !== 'auto' || provider !== 'webgpu') {
+        throw error;
+      }
+      fallbackReason = error instanceof Error ? error.message : String(error);
+    }
+  }
+  throw new Error('No CP detector execution provider is available');
+}
+
+function chooseWasmThreadCount(): number {
+  if (!self.crossOriginIsolated) return 1;
+  const hardwareConcurrency = navigator.hardwareConcurrency || 1;
+  return Math.max(1, Math.min(4, Math.ceil(hardwareConcurrency / 2)));
+}
+
+function hasWebGpu(): boolean {
+  return !!(navigator as Navigator & { gpu?: unknown }).gpu;
+}
+
+function providerCandidates(
+  requestedProvider: CpDetectExecutionProvider,
+  webgpuAvailable: boolean
+): ActiveExecutionProvider[] {
+  if (requestedProvider === 'wasm') return ['wasm'];
+  if (requestedProvider === 'webgpu') return ['webgpu'];
+  return webgpuAvailable ? ['webgpu', 'wasm'] : ['wasm'];
 }
 
 function resolveModelUrl(modelUrl: string, manifestUrl: string): string {
@@ -126,8 +194,11 @@ async function fetchModelPresence(modelUrl: string): Promise<void> {
   throw new Error(`Failed to load CP detector model: ${response.status} ${response.statusText}`);
 }
 
-function sessionOptions(): ort.InferenceSession.SessionOptions {
-  return { executionProviders: ['wasm'] };
+function sessionOptions(provider: ActiveExecutionProvider): ort.InferenceSession.SessionOptions {
+  return {
+    executionProviders: provider === 'webgpu' ? ['webgpu', 'wasm'] : ['wasm'],
+    graphOptimizationLevel: 'all',
+  };
 }
 
 function normalizeError(error: unknown): WasmErrorEnvelope {
@@ -163,7 +234,7 @@ const api = {
     return call(async () => {
       const manifestUrl = options.manifestUrl ?? DEFAULT_CP_DETECT_MODEL_MANIFEST_URL;
       const manifest = await ensureManifest(manifestUrl);
-      await ensureSession(manifest, manifestUrl, options.modelUrl);
+      await ensureSession(manifest, manifestUrl, options);
       return manifest;
     });
   },
@@ -214,6 +285,7 @@ const api = {
         foldJson: decoded.fold_json,
         detectorReport: decoded.report,
         manifest: inference.manifest,
+        runtime: inference.runtime,
       };
     });
   },
@@ -254,9 +326,9 @@ async function denseInferenceForImage(
       threshold: options.threshold ?? baseManifest.inference.threshold,
     },
   };
-  const session = await ensureSession(manifest, manifestUrl, options.modelUrl);
-  return runCpDetectDenseInference(
-    cpDetectSessionFromOrt(session),
+  const sessionRuntime = await ensureSession(manifest, manifestUrl, options);
+  const inference = await runCpDetectDenseInference(
+    cpDetectSessionFromOrt(sessionRuntime.session),
     {
       float32(data, dims) {
         return new ort.Tensor('float32', data, Array.from(dims));
@@ -265,6 +337,13 @@ async function denseInferenceForImage(
     image,
     manifest
   );
+  return {
+    ...inference,
+    runtime: {
+      ...sessionRuntime.runtime,
+      ...inference.runtime,
+    },
+  };
 }
 
 type WasmDecodedFold = {

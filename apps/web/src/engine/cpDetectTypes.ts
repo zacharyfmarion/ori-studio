@@ -6,6 +6,21 @@ export type CpDetectStatus =
   | 'outside_v1_envelope'
   | 'failed';
 
+export type CpDetectExecutionProvider = 'auto' | 'webgpu' | 'wasm';
+
+export interface CpDetectRuntimeInfo {
+  requested_execution_provider?: CpDetectExecutionProvider;
+  active_execution_provider?: 'webgpu' | 'wasm';
+  webgpu_available?: boolean;
+  wasm_threads?: number;
+  session_create_ms?: number;
+  fallback_reason?: string;
+  preprocess_ms?: number;
+  model_run_ms?: number;
+  output_collect_ms?: number;
+  total_inference_ms?: number;
+}
+
 export interface CpDetectModelManifest {
   schema: 'oristudio/cp-detect-model-manifest/v1';
   id: string;
@@ -55,12 +70,14 @@ export interface CpDetectInferenceResult {
     input_name: string;
   };
   outputs: CpDetectDenseOutputs;
+  runtime?: CpDetectRuntimeInfo;
 }
 
 export interface CpDetectWorkerRunOptions {
   manifestUrl?: string;
   modelUrl?: string;
   threshold?: number;
+  executionProvider?: CpDetectExecutionProvider;
   decoderBackend?: 'legacy_v2_decoder' | 'constraint_compiler_v1';
 }
 
@@ -130,6 +147,7 @@ export interface CpDetectFoldResult {
   foldJson: string;
   detectorReport: CpDetectDecodeReport;
   manifest: CpDetectModelManifest;
+  runtime?: CpDetectRuntimeInfo;
 }
 
 export interface CpDetectAblationStage {

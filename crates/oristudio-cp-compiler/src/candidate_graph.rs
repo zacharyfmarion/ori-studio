@@ -460,6 +460,11 @@ pub struct LegacyCandidateAdapterOptions {
     pub rejected_presence_probability: f64,
     pub border_presence_probability: f64,
     pub duplicate_endpoint_tolerance: f64,
+    pub weak_endpoint_snap_tolerance: f64,
+    pub weak_boundary_endpoint_snap_tolerance: f64,
+    pub weak_carrier_incidence_tolerance: f64,
+    pub weak_span_split_tolerance: f64,
+    pub weak_min_split_length: f64,
 }
 
 impl Default for LegacyCandidateAdapterOptions {
@@ -470,6 +475,11 @@ impl Default for LegacyCandidateAdapterOptions {
             rejected_presence_probability: 0.06,
             border_presence_probability: 0.99,
             duplicate_endpoint_tolerance: 1e-6,
+            weak_endpoint_snap_tolerance: 0.012,
+            weak_boundary_endpoint_snap_tolerance: 0.012,
+            weak_carrier_incidence_tolerance: 0.006,
+            weak_span_split_tolerance: 0.006,
+            weak_min_split_length: 0.003,
         }
     }
 }
@@ -527,7 +537,7 @@ impl LegacyCandidateAdapter {
             .collect::<Vec<_>>();
 
         if let Some(weak_program) = low_threshold_program.as_ref() {
-            let existing_keys = spans
+            let mut existing_keys = spans
                 .iter()
                 .map(|span| {
                     span_endpoint_key(
@@ -544,37 +554,62 @@ impl LegacyCandidateAdapter {
                 let Some(carrier) = weak_program.carriers.get(edge.carrier_id) else {
                     continue;
                 };
-                let Some(vertices_pair) = map_weak_vertices(
-                    &mut vertices,
-                    weak_program,
-                    edge,
-                    options.duplicate_endpoint_tolerance,
-                ) else {
+                let Some(vertices_pair_reasons) =
+                    map_weak_vertices(&mut vertices, weak_program, edge, carrier, &options)
+                else {
                     continue;
                 };
-                let key = span_endpoint_key(
+                let split_vertices = weak_span_vertex_sequence(
                     &vertices,
-                    vertices_pair,
-                    options.duplicate_endpoint_tolerance,
-                );
-                if existing_keys.contains(&key) {
-                    continue;
-                }
-                let mut span = legacy_span_with_vertices(
-                    edge,
+                    vertices_pair_reasons.vertices,
                     carrier,
-                    vertices_pair,
-                    CandidateCreaseSourceKind::LegacyLowThreshold,
-                    CandidateSourceAdapter::LegacyLowThreshold,
                     &options,
                 );
-                span.id = spans.len();
-                span.reasons
-                    .push("optional lower-threshold legacy candidate".to_owned());
-                spans.push(span);
+                let was_split = split_vertices.len() > 2;
+                for pair in split_vertices.windows(2) {
+                    let vertices_pair = [pair[0], pair[1]];
+                    if span_length(&vertices, vertices_pair) <= options.weak_min_split_length {
+                        continue;
+                    }
+                    let key = span_endpoint_key(
+                        &vertices,
+                        vertices_pair,
+                        options.duplicate_endpoint_tolerance,
+                    );
+                    if existing_keys.contains(&key)
+                        || span_has_near_duplicate(
+                            &vertices,
+                            &spans,
+                            vertices_pair,
+                            options.duplicate_endpoint_tolerance,
+                        )
+                    {
+                        continue;
+                    }
+                    let mut span = legacy_span_with_vertices(
+                        edge,
+                        carrier,
+                        vertices_pair,
+                        CandidateCreaseSourceKind::LegacyLowThreshold,
+                        CandidateSourceAdapter::LegacyLowThreshold,
+                        &options,
+                    );
+                    span.id = spans.len();
+                    span.t_interval = span_interval_for_vertices(&vertices, vertices_pair, carrier);
+                    span.reasons
+                        .push("optional lower-threshold legacy candidate".to_owned());
+                    span.reasons.extend(vertices_pair_reasons.reasons.clone());
+                    if was_split {
+                        span.reasons
+                            .push("split weak span at canonical strong junction".to_owned());
+                    }
+                    existing_keys.insert(key);
+                    spans.push(span);
+                }
             }
         }
 
+        let corners = prune_unreferenced_low_threshold_vertices(&mut vertices, &mut spans, corners);
         assign_span_ids(&mut spans);
         let mut graph = CandidateGraph {
             schema: SCHEMA.to_owned(),
@@ -1238,33 +1273,210 @@ fn legacy_span_with_vertices(
     }
 }
 
+#[derive(Debug, Clone)]
+struct WeakVertexMapping {
+    vertices: [usize; 2],
+    reasons: Vec<String>,
+}
+
 fn map_weak_vertices(
     vertices: &mut Vec<CandidateVertex>,
     weak_program: &CandidateProgram,
     edge: &crate::candidates::CandidateEdge,
-    tolerance: f64,
-) -> Option<[usize; 2]> {
+    carrier: &LegacyCarrier,
+    options: &LegacyCandidateAdapterOptions,
+) -> Option<WeakVertexMapping> {
     let mut mapped = [0usize; 2];
+    let mut reasons = Vec::new();
     for (slot, source_vertex_id) in edge.vertices.iter().enumerate() {
         let source = weak_program.vertices.get(*source_vertex_id)?;
-        let existing = vertices.iter().position(|vertex| {
-            distance(vertex.point, source.position) <= tolerance
-                && vertex.boundary_side
-                    == source
-                        .boundary_side
-                        .as_deref()
-                        .and_then(boundary_side_from_str)
-        });
-        mapped[slot] = if let Some(index) = existing {
-            index
-        } else {
-            let mut vertex = legacy_vertex(source, CandidateSourceAdapter::LegacyLowThreshold);
-            vertex.id = vertices.len();
-            vertices.push(vertex);
-            vertices.len() - 1
-        };
+        let (vertex_id, reason) = map_weak_vertex(vertices, source, carrier, options);
+        mapped[slot] = vertex_id;
+        if let Some(reason) = reason {
+            reasons.push(reason);
+        }
     }
-    Some(mapped)
+    Some(WeakVertexMapping {
+        vertices: mapped,
+        reasons,
+    })
+}
+
+fn map_weak_vertex(
+    vertices: &mut Vec<CandidateVertex>,
+    source: &crate::candidates::CandidateVertex,
+    carrier: &LegacyCarrier,
+    options: &LegacyCandidateAdapterOptions,
+) -> (usize, Option<String>) {
+    let source_side = source
+        .boundary_side
+        .as_deref()
+        .and_then(boundary_side_from_str);
+    if let Some(existing) = vertices.iter().position(|vertex| {
+        distance(vertex.point, source.position) <= options.duplicate_endpoint_tolerance
+            && vertex.boundary_side == source_side
+    }) {
+        return (existing, None);
+    }
+
+    if let Some((existing, _score)) =
+        best_weak_endpoint_snap(vertices, source.position, source_side, carrier, options)
+    {
+        return (
+            existing,
+            Some(format!(
+                "reattached weak endpoint {} to canonical strong vertex {}",
+                source.id, existing
+            )),
+        );
+    }
+
+    let mut vertex = legacy_vertex(source, CandidateSourceAdapter::LegacyLowThreshold);
+    vertex.id = vertices.len();
+    vertices.push(vertex);
+    (vertices.len() - 1, None)
+}
+
+fn best_weak_endpoint_snap(
+    vertices: &[CandidateVertex],
+    point: Point2,
+    source_side: Option<BoundarySide>,
+    carrier: &LegacyCarrier,
+    options: &LegacyCandidateAdapterOptions,
+) -> Option<(usize, f64)> {
+    vertices
+        .iter()
+        .filter(|vertex| vertex.source_adapter == CandidateSourceAdapter::Legacy)
+        .filter_map(|vertex| {
+            let distance_to_vertex = distance(vertex.point, point);
+            let carrier_incidence = legacy_carrier_incidence(carrier, vertex.point);
+            let is_boundary_snap = source_side.is_some() || vertex.boundary_side.is_some();
+            if is_boundary_snap {
+                if source_side != vertex.boundary_side {
+                    return None;
+                }
+                if distance_to_vertex > options.weak_boundary_endpoint_snap_tolerance {
+                    return None;
+                }
+                let incidence_tolerance = options.weak_carrier_incidence_tolerance * 2.0;
+                if carrier_incidence > incidence_tolerance {
+                    return None;
+                }
+                let score = distance_to_vertex / options.weak_boundary_endpoint_snap_tolerance
+                    + carrier_incidence / incidence_tolerance.max(1e-9);
+                return Some((vertex.id, score));
+            }
+
+            if vertex.boundary_side.is_some()
+                || matches!(
+                    vertex.kind,
+                    CandidateVertexKind::Corner | CandidateVertexKind::BoundaryContact
+                )
+            {
+                return None;
+            }
+            if distance_to_vertex > options.weak_endpoint_snap_tolerance {
+                return None;
+            }
+            if carrier_incidence > options.weak_carrier_incidence_tolerance {
+                return None;
+            }
+            let score = distance_to_vertex / options.weak_endpoint_snap_tolerance
+                + carrier_incidence / options.weak_carrier_incidence_tolerance.max(1e-9);
+            Some((vertex.id, score))
+        })
+        .min_by(|(_, left_score), (_, right_score)| {
+            left_score
+                .partial_cmp(right_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
+}
+
+fn weak_span_vertex_sequence(
+    vertices: &[CandidateVertex],
+    endpoints: [usize; 2],
+    carrier: &LegacyCarrier,
+    options: &LegacyCandidateAdapterOptions,
+) -> Vec<usize> {
+    let Some(start) = vertices.get(endpoints[0]).map(|vertex| vertex.point) else {
+        return endpoints.to_vec();
+    };
+    let Some(end) = vertices.get(endpoints[1]).map(|vertex| vertex.point) else {
+        return endpoints.to_vec();
+    };
+    let t0 = legacy_carrier_projection(carrier, start);
+    let t1 = legacy_carrier_projection(carrier, end);
+    let min_t = t0.min(t1);
+    let max_t = t0.max(t1);
+    let mut sequence = vec![(t0, endpoints[0]), (t1, endpoints[1])];
+
+    for vertex in vertices {
+        if vertex.source_adapter != CandidateSourceAdapter::Legacy {
+            continue;
+        }
+        if endpoints.contains(&vertex.id) {
+            continue;
+        }
+        let t = legacy_carrier_projection(carrier, vertex.point);
+        if t <= min_t + options.weak_min_split_length || t >= max_t - options.weak_min_split_length
+        {
+            continue;
+        }
+        if legacy_carrier_incidence(carrier, vertex.point) > options.weak_span_split_tolerance {
+            continue;
+        }
+        sequence.push((t, vertex.id));
+    }
+
+    sequence.sort_by(|(left_t, _), (right_t, _)| {
+        left_t
+            .partial_cmp(right_t)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    sequence.dedup_by_key(|(_, vertex_id)| *vertex_id);
+    sequence
+        .into_iter()
+        .map(|(_, vertex_id)| vertex_id)
+        .collect()
+}
+
+fn legacy_carrier_direction(carrier: &LegacyCarrier) -> Point2 {
+    Point2::new(carrier.normal.y, -carrier.normal.x)
+}
+
+fn legacy_carrier_projection(carrier: &LegacyCarrier, point: Point2) -> f64 {
+    let direction = legacy_carrier_direction(carrier);
+    point.x * direction.x + point.y * direction.y
+}
+
+fn legacy_carrier_incidence(carrier: &LegacyCarrier, point: Point2) -> f64 {
+    (carrier.normal.x * point.x + carrier.normal.y * point.y - carrier.rho).abs()
+}
+
+fn span_interval_for_vertices(
+    vertices: &[CandidateVertex],
+    endpoints: [usize; 2],
+    carrier: &LegacyCarrier,
+) -> [f64; 2] {
+    let t0 = vertices
+        .get(endpoints[0])
+        .map(|vertex| legacy_carrier_projection(carrier, vertex.point))
+        .unwrap_or(carrier.support_interval[0]);
+    let t1 = vertices
+        .get(endpoints[1])
+        .map(|vertex| legacy_carrier_projection(carrier, vertex.point))
+        .unwrap_or(carrier.support_interval[1]);
+    [t0.min(t1), t0.max(t1)]
+}
+
+fn span_length(vertices: &[CandidateVertex], endpoints: [usize; 2]) -> f64 {
+    let Some(a) = vertices.get(endpoints[0]).map(|vertex| vertex.point) else {
+        return 0.0;
+    };
+    let Some(b) = vertices.get(endpoints[1]).map(|vertex| vertex.point) else {
+        return 0.0;
+    };
+    distance(a, b)
 }
 
 fn ensure_unit_square_corners(
@@ -1642,6 +1854,41 @@ fn assign_span_ids(spans: &mut [CandidateCreaseSpan]) {
     }
 }
 
+fn prune_unreferenced_low_threshold_vertices(
+    vertices: &mut Vec<CandidateVertex>,
+    spans: &mut [CandidateCreaseSpan],
+    corners: [usize; 4],
+) -> [usize; 4] {
+    let referenced_vertices = spans
+        .iter()
+        .flat_map(|span| span.vertices)
+        .collect::<BTreeSet<_>>();
+    let mut remap = vec![None; vertices.len()];
+    let mut retained = Vec::with_capacity(vertices.len());
+    for vertex in vertices.iter().cloned() {
+        let keep = vertex.source_adapter != CandidateSourceAdapter::LegacyLowThreshold
+            || referenced_vertices.contains(&vertex.id);
+        if !keep {
+            continue;
+        }
+        let old_id = vertex.id;
+        let mut remapped = vertex;
+        remapped.id = retained.len();
+        remap[old_id] = Some(remapped.id);
+        retained.push(remapped);
+    }
+    if retained.len() == vertices.len() {
+        return corners;
+    }
+    for span in spans {
+        span.vertices = span.vertices.map(|id| {
+            remap[id].expect("referenced span endpoint should survive weak-vertex pruning")
+        });
+    }
+    *vertices = retained;
+    corners.map(|corner| remap[corner].expect("paper corner should survive weak-vertex pruning"))
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct SpanKey {
     a: (i64, i64),
@@ -1671,6 +1918,33 @@ fn span_endpoint_key(
         a: points[0],
         b: points[1],
     }
+}
+
+fn span_has_near_duplicate(
+    vertices: &[CandidateVertex],
+    spans: &[CandidateCreaseSpan],
+    endpoints: [usize; 2],
+    tolerance: f64,
+) -> bool {
+    let Some(candidate_start) = vertices.get(endpoints[0]).map(|vertex| vertex.point) else {
+        return false;
+    };
+    let Some(candidate_end) = vertices.get(endpoints[1]).map(|vertex| vertex.point) else {
+        return false;
+    };
+    spans.iter().any(|span| {
+        let Some(span_start) = vertices.get(span.vertices[0]).map(|vertex| vertex.point) else {
+            return false;
+        };
+        let Some(span_end) = vertices.get(span.vertices[1]).map(|vertex| vertex.point) else {
+            return false;
+        };
+        let same_orientation = distance(candidate_start, span_start) <= tolerance
+            && distance(candidate_end, span_end) <= tolerance;
+        let reversed_orientation = distance(candidate_start, span_end) <= tolerance
+            && distance(candidate_end, span_start) <= tolerance;
+        same_orientation || reversed_orientation
+    })
 }
 
 fn arrangement_vertex_kind(kind: ArrangementVertexKind) -> CandidateVertexKind {
@@ -1848,19 +2122,19 @@ mod tests {
         let a = weak.vertices.len();
         weak.vertices.push(legacy_vertex_raw(
             a,
-            Point2::new(0.0, 0.5),
+            Point2::new(0.0, 0.35),
             VertexKind::Boundary,
         ));
         let b = weak.vertices.len();
         weak.vertices.push(legacy_vertex_raw(
             b,
-            Point2::new(1.0, 0.5),
+            Point2::new(1.0, 0.35),
             VertexKind::Boundary,
         ));
         weak.carriers.push(carrier_raw(
             weak.carriers.len(),
-            Point2::new(0.0, 0.5),
-            Point2::new(1.0, 0.5),
+            Point2::new(0.0, 0.35),
+            Point2::new(1.0, 0.35),
             AssignmentLabel::Mountain,
         ));
         weak.edges.push(CandidateEdge {
@@ -1888,6 +2162,190 @@ mod tests {
         assert!(graph.crease_candidates.iter().any(|span| span.source_kind
             == CandidateCreaseSourceKind::LegacyLowThreshold
             && span.selection_policy == CandidateSelectionPolicy::WeakOptional));
+    }
+
+    #[test]
+    fn legacy_adapter_geometrically_dedupes_near_duplicate_lower_threshold_candidates() {
+        let selected = square_program();
+        let mut weak = selected.clone();
+        let near_corner = weak.vertices.len();
+        weak.vertices.push(legacy_vertex_raw(
+            near_corner,
+            Point2::new(0.006, 0.004),
+            VertexKind::Interior,
+        ));
+        weak.carriers.push(carrier_raw(
+            weak.carriers.len(),
+            Point2::new(0.006, 0.004),
+            Point2::new(0.5, 0.5),
+            AssignmentLabel::Mountain,
+        ));
+        weak.edges.push(CandidateEdge {
+            id: weak.edges.len(),
+            carrier_id: weak.carriers.len() - 1,
+            vertices: [near_corner, 4],
+            assignment: AssignmentCandidate {
+                label: AssignmentLabel::Mountain,
+                confidence: 0.55,
+                margin: 0.10,
+            },
+            line_support: 0.35,
+            style_support: 0.0,
+            selection: EdgeSelection::Selected,
+            source: EvidenceSource::ObservedWeak,
+            provenance: vec![Provenance::ObservedWeak],
+        });
+
+        let graph = LegacyCandidateAdapter::from_programs(
+            &selected,
+            Some(&weak),
+            LegacyCandidateAdapterOptions {
+                duplicate_endpoint_tolerance: 0.01,
+                ..LegacyCandidateAdapterOptions::default()
+            },
+        );
+
+        assert_eq!(graph.report.legacy_low_threshold_spans, 0);
+        assert!(
+            !graph
+                .crease_candidates
+                .iter()
+                .any(|span| { span.source_kind == CandidateCreaseSourceKind::LegacyLowThreshold })
+        );
+        assert!(
+            !graph
+                .vertices
+                .iter()
+                .any(|vertex| vertex.source_adapter == CandidateSourceAdapter::LegacyLowThreshold)
+        );
+    }
+
+    #[test]
+    fn legacy_adapter_reattaches_lower_threshold_endpoint_to_strong_junction() {
+        let selected = square_program();
+        let mut weak = selected.clone();
+        let near_center = weak.vertices.len();
+        weak.vertices.push(legacy_vertex_raw(
+            near_center,
+            Point2::new(0.54, 0.5),
+            VertexKind::Interior,
+        ));
+        let right = weak.vertices.len();
+        weak.vertices.push(legacy_vertex_raw(
+            right,
+            Point2::new(1.0, 0.5),
+            VertexKind::Boundary,
+        ));
+        weak.carriers.push(carrier_raw(
+            weak.carriers.len(),
+            Point2::new(0.54, 0.5),
+            Point2::new(1.0, 0.5),
+            AssignmentLabel::Valley,
+        ));
+        weak.edges.push(CandidateEdge {
+            id: weak.edges.len(),
+            carrier_id: weak.carriers.len() - 1,
+            vertices: [near_center, right],
+            assignment: AssignmentCandidate {
+                label: AssignmentLabel::Valley,
+                confidence: 0.55,
+                margin: 0.10,
+            },
+            line_support: 0.35,
+            style_support: 0.0,
+            selection: EdgeSelection::Undecided,
+            source: EvidenceSource::ObservedWeak,
+            provenance: vec![Provenance::ObservedWeak],
+        });
+
+        let graph = LegacyCandidateAdapter::from_programs(
+            &selected,
+            Some(&weak),
+            LegacyCandidateAdapterOptions {
+                weak_endpoint_snap_tolerance: 0.06,
+                weak_carrier_incidence_tolerance: 0.01,
+                ..LegacyCandidateAdapterOptions::default()
+            },
+        );
+
+        let weak_span = graph
+            .crease_candidates
+            .iter()
+            .find(|span| span.source_kind == CandidateCreaseSourceKind::LegacyLowThreshold)
+            .expect("weak span");
+        assert!(weak_span.vertices.contains(&4));
+        assert!(
+            weak_span
+                .reasons
+                .iter()
+                .any(|reason| reason.contains("reattached weak endpoint"))
+        );
+        assert!(!graph.vertices.iter().any(|vertex| {
+            vertex.source_adapter == CandidateSourceAdapter::LegacyLowThreshold
+                && distance(vertex.point, Point2::new(0.54, 0.5)) <= 1e-9
+        }));
+    }
+
+    #[test]
+    fn legacy_adapter_splits_lower_threshold_span_at_strong_junction() {
+        let selected = square_program();
+        let mut weak = selected.clone();
+        let left = weak.vertices.len();
+        weak.vertices.push(legacy_vertex_raw(
+            left,
+            Point2::new(0.0, 0.5),
+            VertexKind::Boundary,
+        ));
+        let right = weak.vertices.len();
+        weak.vertices.push(legacy_vertex_raw(
+            right,
+            Point2::new(1.0, 0.5),
+            VertexKind::Boundary,
+        ));
+        weak.carriers.push(carrier_raw(
+            weak.carriers.len(),
+            Point2::new(0.0, 0.5),
+            Point2::new(1.0, 0.5),
+            AssignmentLabel::Mountain,
+        ));
+        weak.edges.push(CandidateEdge {
+            id: weak.edges.len(),
+            carrier_id: weak.carriers.len() - 1,
+            vertices: [left, right],
+            assignment: AssignmentCandidate {
+                label: AssignmentLabel::Mountain,
+                confidence: 0.55,
+                margin: 0.10,
+            },
+            line_support: 0.35,
+            style_support: 0.0,
+            selection: EdgeSelection::Undecided,
+            source: EvidenceSource::ObservedWeak,
+            provenance: vec![Provenance::ObservedWeak],
+        });
+
+        let graph = LegacyCandidateAdapter::from_programs(
+            &selected,
+            Some(&weak),
+            LegacyCandidateAdapterOptions {
+                weak_span_split_tolerance: 0.01,
+                weak_min_split_length: 0.02,
+                ..LegacyCandidateAdapterOptions::default()
+            },
+        );
+
+        let weak_spans = graph
+            .crease_candidates
+            .iter()
+            .filter(|span| span.source_kind == CandidateCreaseSourceKind::LegacyLowThreshold)
+            .collect::<Vec<_>>();
+        assert_eq!(weak_spans.len(), 2);
+        assert!(weak_spans.iter().all(|span| span.vertices.contains(&4)));
+        assert!(weak_spans.iter().all(|span| {
+            span.reasons
+                .iter()
+                .any(|reason| reason.contains("split weak span"))
+        }));
     }
 
     #[test]

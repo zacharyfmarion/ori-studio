@@ -20,6 +20,13 @@ async function requestJson<T>(url: string): Promise<T> {
   return payload as T;
 }
 
+type StageQueryOptions = { threshold: number; mapSize: number };
+type CandidateStageQueryOptions = StageQueryOptions & {
+  candidateSource: string;
+  legacyLowThreshold: number;
+  legacySnapRadiusPx: number;
+};
+
 export function fetchStages(): Promise<{ stages: StageInfo[] }> {
   return requestJson('/api/stages');
 }
@@ -30,7 +37,7 @@ export function fetchStage1Examples(): Promise<ExamplesResponse> {
 
 export function fetchStage1Example(
   sampleId: string,
-  options: { threshold: number; mapSize: number },
+  options: StageQueryOptions,
 ): Promise<Stage1Response> {
   const params = new URLSearchParams({
     threshold: String(options.threshold),
@@ -45,7 +52,7 @@ export function fetchStage2Examples(): Promise<ExamplesResponse> {
 
 export function fetchStage2Example(
   sampleId: string,
-  options: { threshold: number; mapSize: number },
+  options: StageQueryOptions,
 ): Promise<Stage2Response> {
   const params = new URLSearchParams({
     threshold: String(options.threshold),
@@ -60,7 +67,7 @@ export function fetchStage3Examples(): Promise<ExamplesResponse> {
 
 export function fetchStage3Example(
   sampleId: string,
-  options: { threshold: number; mapSize: number },
+  options: StageQueryOptions,
 ): Promise<Stage3Response> {
   const params = new URLSearchParams({
     threshold: String(options.threshold),
@@ -75,7 +82,7 @@ export function fetchStage4Examples(): Promise<ExamplesResponse> {
 
 export function fetchStage4Example(
   sampleId: string,
-  options: { threshold: number; mapSize: number },
+  options: StageQueryOptions,
 ): Promise<Stage4Response> {
   const params = new URLSearchParams({
     threshold: String(options.threshold),
@@ -90,13 +97,14 @@ export function fetchStage5Examples(): Promise<ExamplesResponse> {
 
 export function fetchStage5Example(
   sampleId: string,
-  options: { threshold: number; mapSize: number; candidateSource: string; legacyLowThreshold: number },
+  options: CandidateStageQueryOptions,
 ): Promise<Stage5Response> {
   const params = new URLSearchParams({
     threshold: String(options.threshold),
     map_size: String(options.mapSize),
     candidate_source: options.candidateSource,
     legacy_low_threshold: String(options.legacyLowThreshold),
+    legacy_snap_radius_px: String(options.legacySnapRadiusPx),
   });
   return requestJson(`/api/stage5/examples/${encodeURIComponent(sampleId)}?${params}`);
 }
@@ -107,13 +115,14 @@ export function fetchStage5bExamples(): Promise<ExamplesResponse> {
 
 export function fetchStage5bExample(
   sampleId: string,
-  options: { threshold: number; mapSize: number; candidateSource: string; legacyLowThreshold: number },
+  options: CandidateStageQueryOptions,
 ): Promise<Stage5bResponse> {
   const params = new URLSearchParams({
     threshold: String(options.threshold),
     map_size: String(options.mapSize),
     candidate_source: options.candidateSource,
     legacy_low_threshold: String(options.legacyLowThreshold),
+    legacy_snap_radius_px: String(options.legacySnapRadiusPx),
   });
   return requestJson(`/api/stage5b/examples/${encodeURIComponent(sampleId)}?${params}`);
 }
@@ -124,13 +133,14 @@ export function fetchStage6Examples(): Promise<ExamplesResponse> {
 
 export function fetchStage6Example(
   sampleId: string,
-  options: { threshold: number; mapSize: number; candidateSource: string; legacyLowThreshold: number },
+  options: CandidateStageQueryOptions,
 ): Promise<Stage6Response> {
   const params = new URLSearchParams({
     threshold: String(options.threshold),
     map_size: String(options.mapSize),
     candidate_source: options.candidateSource,
     legacy_low_threshold: String(options.legacyLowThreshold),
+    legacy_snap_radius_px: String(options.legacySnapRadiusPx),
   });
   return requestJson(`/api/stage6/examples/${encodeURIComponent(sampleId)}?${params}`);
 }

@@ -1899,6 +1899,106 @@ If the inspector can render the result only by applying post-hoc cleanup, this
 phase is not done. If exact solve has to branch on legacy-vs-arrangement source,
 this phase is not done.
 
+## Phase 6B: Legacy Weak Candidate Topology Normalization
+
+Purpose: preserve the useful recall gain from lower-threshold legacy candidates
+without importing a second, inconsistent lower-threshold vertex topology.
+
+Finding from Stage 5b on June 6, 2026:
+
+- The beam-scoring rescue phase promoted many weak candidates that matched GT
+  edges, but it also increased odd/dangling topology residuals.
+- The root cause is not primarily false-positive line selection. A weak edge can
+  be visually correct while its endpoint comes from the low-threshold legacy
+  decode and misses the normal-threshold junction by tens of pixels.
+- Exact solve cannot fix this after selection because topology is encoded by
+  shared vertex ids, not by visually nearby endpoints.
+
+Architecture:
+
+```text
+normal-threshold legacy decode
+  -> canonical strong vertex pool
+
+low-threshold legacy decode
+  -> weak edge evidence
+  -> reattach weak endpoints to canonical strong vertices when carrier geometry
+     and distance make the shared junction plausible
+  -> split weak spans at canonical strong vertices they pass through
+  -> topology-normalized weak candidates
+  -> source-neutral beam selection
+```
+
+Implementation requirements:
+
+- Do not change the frozen legacy decoder output.
+- Keep the normal-threshold legacy graph unchanged when no low-threshold program
+  is supplied.
+- Treat normal-threshold legacy vertices as the canonical topology skeleton.
+- Reuse exact duplicate weak endpoints as before.
+- For non-duplicate weak endpoints, prefer a nearby normal-threshold junction
+  when the weak carrier passes through that junction within a tight incidence
+  tolerance.
+- Split weak spans at existing canonical vertices on the same carrier before
+  adding them as candidates.
+- Mark normalized candidates with explicit reasons so Stage 5b can explain why
+  the weak candidate uses a canonical vertex or was split.
+- Keep raw weak topology only when no plausible canonical attachment exists.
+- Do not hide this as a rendering-only cleanup; the actual `CandidateGraph`
+  handed to the beam must contain the normalized endpoint ids.
+
+Done means:
+
+- [x] Unit tests prove a weak endpoint near a strong junction is reattached to
+  the strong vertex when the carrier passes through it.
+- [x] Unit tests prove a weak span crossing an existing strong junction is split
+  into topology-safe candidate spans.
+- [x] Existing legacy-adapter tests still prove normal legacy round-trips with
+  no topology or assignment loss.
+- [ ] Stage 5b smoke for the known weak-candidate failure shows promoted weak
+  candidates no longer create separate near-junction endpoint ids for that case.
+- [x] The 12-sample Stage 5b comparison is rerun and reports recall, selected
+  span count, odd vertices, dangling vertices, and degree-2 vertices against
+  default legacy.
+
+Benchmark result on June 6, 2026:
+
+- Compared clean `HEAD` before Phase 6B against the Phase 6B topology-normalized
+  adapter on the 12-sample `smoke-1024-s3-browser-onnx` Stage 5b pack.
+- Topology improved: selected spans dropped `1448 -> 1384`, weak selected spans
+  dropped `159 -> 95`, odd-degree vertices dropped `208 -> 167`,
+  non-collinear degree-2 vertices dropped `26 -> 17`, and structural penalty
+  dropped `308.735 -> 230.521`.
+- Recall proxy slightly regressed: GT selected matches dropped `1341 -> 1339`
+  out of `1424`; no-candidate GT edges increased `64 -> 66`.
+- The adapter produced `16` reattached weak candidates and `4` split weak
+  candidates; `14` reattached and all `4` split candidates were selected.
+- Two regressions were both on `rabbit_ear_fold_program_v1-5wk0b` stress
+  profiles (`line-style` and `v2-watermark`). In both cases, an old selected
+  low-threshold span stopped matching the GT audit after normalization. The
+  likely issue is that endpoint reattachment/splitting can change a visually
+  correct weak span's angle enough to fail the `<=10px` / `<=10deg` audit gate.
+
+Interpretation: Phase 6B does make topology cleaner, but it is not yet a pure
+quality improvement. The next pass should make weak endpoint normalization more
+conservative or preserve a topology-normalized and a raw weak alternative when
+snapping would materially change the candidate's GT/audit geometry.
+
+Tuning update on June 7, 2026:
+
+- Tested lower weak endpoint snap radii against the same 12-sample Stage 5b
+  pack.
+- `24px` did not improve the GT-audit regression versus `48px`: GT selected
+  matches stayed `1339`, while odd-degree vertices worsened `167 -> 175`.
+- `12px` recovered one GT selected match versus `48px`: `1339 -> 1340`, and
+  reduced no-candidate GT edges `66 -> 65`. Topology was slightly worse than
+  `48px` (`167 -> 177` odd vertices), but still much cleaner than pre-Phase-6B
+  clean `HEAD` (`208` odd vertices).
+- Decision: use `12px` for now because the visual failure mode is over-snapping
+  to wrong strong vertices, and `12px` is the best tested compromise. The next
+  architectural improvement should preserve raw weak candidates alongside
+  snapped variants instead of forcing a single normalized topology.
+
 ## Phase 7: Full Exact Geometric Solve
 
 Purpose: convert the selected topology into exact coordinates.
