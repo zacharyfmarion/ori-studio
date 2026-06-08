@@ -1943,7 +1943,7 @@ mod tests {
         ] {
             input
                 .selected_spans
-            .push(span(id, 4, corner, label, id, &input.vertices));
+                .push(span(id, 4, corner, label, id, &input.vertices));
         }
         input
     }
