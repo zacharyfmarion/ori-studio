@@ -104,6 +104,8 @@ canonicalization and conflict semantics.
 
 ## Phase 1: Cordon Off Compiler Candidate Generation
 
+Status: Complete.
+
 ### Work
 
 - Audit compiler-owned candidate generation entrypoints and usages.
@@ -113,6 +115,14 @@ canonicalization and conflict semantics.
   production strategy path.
 - Ensure production detection flows no longer expose or route through the old
   compiler candidate generation path.
+
+### Result
+
+The Stage 5/5b/6 inspector backend no longer accepts `candidate_source =
+"arrangement"` and the frontend no longer offers Arrangement V2 as a candidate
+source. Low-level arrangement/exact-probe internals remain available for earlier
+diagnostic stages and tests, but they are not exposed as a production candidate
+generation path.
 
 ### Done Means
 
@@ -238,7 +248,7 @@ canonicalization and conflict semantics.
 
 ## Validation Checklist
 
-- [ ] Compiler candidate generation code removed or explicitly deprecated and
+- [x] Compiler candidate generation code removed or explicitly deprecated and
       unreachable from production flows.
 - [ ] `legacy-threshold` strategy implemented in `oristudio-cp-detect`.
 - [ ] Default product and inspector behavior still uses legacy-threshold.

@@ -125,7 +125,7 @@ const ISSUE_LIST_LIMIT_PER_TYPE = 10;
 type ActiveStage = 'stage1' | 'stage2' | 'stage3' | 'stage4' | 'stage5' | 'stage5b' | 'stage6';
 type AnyStageResponse = Stage1Response | Stage2Response | Stage3Response | Stage4Response | Stage5Response | Stage5bResponse | Stage6Response;
 type AuditCategoryId = 'selected' | 'locked' | 'available' | 'conflict' | 'dominated' | 'rejected';
-type CandidateSource = 'arrangement' | 'legacy';
+type CandidateSource = 'legacy';
 type QueryControls = {
   threshold: number;
   mapSize: number;
@@ -535,7 +535,6 @@ export function App() {
                 Candidate source
                 <select value={candidateSource} onChange={(event) => setCandidateSource(event.target.value as CandidateSource)}>
                   <option value="legacy">Legacy adapter</option>
-                  <option value="arrangement">Arrangement V2</option>
                 </select>
               </label>
             ) : null}

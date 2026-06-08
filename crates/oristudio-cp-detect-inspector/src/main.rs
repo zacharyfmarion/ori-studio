@@ -8,8 +8,7 @@ use oristudio_cp_compiler::exact_probe::{
     ExactProbeOptions, ExactizabilityReport, probe_exactizability,
 };
 use oristudio_cp_compiler::selection::{
-    CandidateSelection, SelectionDecision, SelectionOptions,
-    candidate_graph_from_arrangement_for_selection, select_candidate_graph,
+    CandidateSelection, SelectionDecision, SelectionOptions, select_candidate_graph,
     select_candidate_graph_beam_from_ir,
 };
 use oristudio_cp_compiler::{
@@ -876,6 +875,12 @@ fn stage5_example(
         .get("candidate_source")
         .cloned()
         .unwrap_or_else(|| "legacy".to_owned());
+    if candidate_source != "legacy" {
+        bail!(
+            "candidate_source {:?} is no longer supported; use legacy until strategy selection is available",
+            candidate_source
+        );
+    }
     let legacy_low_threshold = query
         .get("legacy_low_threshold")
         .and_then(|value| value.parse::<f32>().ok())
@@ -889,30 +894,21 @@ fn stage5_example(
         .clamp(0.0, 128.0);
     let stage2 = stage2_example(state, sample_id, query)?;
     let exact_options = ExactProbeOptions::default();
-    let candidate_graph = match candidate_source.as_str() {
-        "legacy" => {
-            let program = read_legacy_candidate_program(state, sample, stage2.config.threshold)?;
-            let weak_program = if legacy_low_threshold < stage2.config.threshold {
-                Some(read_legacy_candidate_program(
-                    state,
-                    sample,
-                    legacy_low_threshold,
-                )?)
-            } else {
-                None
-            };
-            LegacyCandidateAdapter::from_programs(
-                &program,
-                weak_program.as_ref(),
-                legacy_adapter_options(sample.image_size, legacy_snap_radius_px),
-            )
-        }
-        "arrangement" | "" => candidate_graph_from_arrangement_for_selection(
-            &stage2.arrangement,
-            SelectionOptions::default(),
-        ),
-        other => bail!("unknown candidate_source {other:?}"),
+    let program = read_legacy_candidate_program(state, sample, stage2.config.threshold)?;
+    let weak_program = if legacy_low_threshold < stage2.config.threshold {
+        Some(read_legacy_candidate_program(
+            state,
+            sample,
+            legacy_low_threshold,
+        )?)
+    } else {
+        None
     };
+    let candidate_graph = LegacyCandidateAdapter::from_programs(
+        &program,
+        weak_program.as_ref(),
+        legacy_adapter_options(sample.image_size, legacy_snap_radius_px),
+    );
     let selection = select_candidate_graph_beam_from_ir(
         &candidate_graph,
         SelectionOptions::default(),
