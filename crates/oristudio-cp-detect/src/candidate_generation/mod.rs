@@ -175,6 +175,9 @@ pub fn generate_candidate_graph(
     ctx: CandidateGenerationContext<'_>,
     options: CandidateGenerationOptions,
 ) -> Result<CandidateGenerationOutput, DecodeError> {
+    // Register new complete candidate-generation strategies here. Do not mix
+    // unrelated strategy outputs unless the hybrid is itself an explicit
+    // strategy with dedupe/conflict semantics.
     match options.strategy {
         CandidateGenerationStrategyName::LegacyThreshold => {
             LegacyThresholdStrategy::new(options.legacy_threshold).generate(ctx)

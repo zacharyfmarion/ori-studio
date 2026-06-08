@@ -257,6 +257,8 @@ active UI no longer uses source terminology.
 
 ## Phase 5: Prepare For New Strategies
 
+Status: Complete.
+
 ### Work
 
 - Add a placeholder registration point for future strategies, but do not
@@ -268,6 +270,13 @@ active UI no longer uses source terminology.
   - what metrics must be run before enabling it in UI defaults
 - Add a short note warning against candidate-source soup: hybrids must be
   explicit strategies with dedupe/conflict semantics.
+
+### Result
+
+`candidate_generation::generate_candidate_graph` is now the explicit
+registration point for complete strategies, and
+`crates/oristudio-cp-detect/src/candidate_generation/README.md` documents how
+to add, test, benchmark, and safely expose a new strategy.
 
 ### Done Means
 
@@ -299,4 +308,4 @@ active UI no longer uses source terminology.
       candidate generation options.
 - [x] Rust unit tests cover strategy dispatch and legacy option conversion.
 - [x] Release benchmark runs successfully on `clean-1024-s15`.
-- [ ] Documentation explains how to add and benchmark a new strategy.
+- [x] Documentation explains how to add and benchmark a new strategy.
