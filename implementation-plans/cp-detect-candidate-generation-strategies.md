@@ -224,6 +224,8 @@ The strategy refactor preserved the existing baseline:
 
 ## Phase 4: Strategy-Aware Architecture Inspector
 
+Status: Complete.
+
 ### Work
 
 - Update `apps/cp-detect-architecture-inspector` so candidate generation
@@ -235,6 +237,14 @@ The strategy refactor preserved the existing baseline:
 - Make the UI labels clear: the selected graph is the output of selection over
   the selected strategy's candidate graph, not a blend of all known candidate
   sources.
+
+### Result
+
+The inspector now exposes `Candidate strategy` with `legacy-threshold` as the
+default and only visible option. Stage 5/5b/6 requests send `strategy=...` to
+the backend, and backend responses record `candidate_strategy`. The backend
+keeps a compatibility parser for old `candidate_source=legacy` URLs, but the
+active UI no longer uses source terminology.
 
 ### Done Means
 
@@ -285,7 +295,7 @@ The strategy refactor preserved the existing baseline:
 - [x] Default product and inspector behavior still uses legacy-threshold.
 - [x] Candidate coverage benchmark accepts `--strategy`.
 - [x] Benchmark artifacts record strategy name and options.
-- [ ] Architecture inspector exposes strategy selection and removes compiler
+- [x] Architecture inspector exposes strategy selection and removes compiler
       candidate generation options.
 - [x] Rust unit tests cover strategy dispatch and legacy option conversion.
 - [x] Release benchmark runs successfully on `clean-1024-s15`.

@@ -125,11 +125,11 @@ const ISSUE_LIST_LIMIT_PER_TYPE = 10;
 type ActiveStage = 'stage1' | 'stage2' | 'stage3' | 'stage4' | 'stage5' | 'stage5b' | 'stage6';
 type AnyStageResponse = Stage1Response | Stage2Response | Stage3Response | Stage4Response | Stage5Response | Stage5bResponse | Stage6Response;
 type AuditCategoryId = 'selected' | 'locked' | 'available' | 'conflict' | 'dominated' | 'rejected';
-type CandidateSource = 'legacy';
+type CandidateGenerationStrategy = 'legacy-threshold';
 type QueryControls = {
   threshold: number;
   mapSize: number;
-  candidateSource: CandidateSource;
+  strategy: CandidateGenerationStrategy;
   legacyLowThreshold: number;
   legacySnapRadiusPx: number;
 };
@@ -162,13 +162,13 @@ export function App() {
   const [activeStage, setActiveStage] = useState<ActiveStage>('stage6');
   const [threshold, setThreshold] = useState(0.65);
   const [mapSize, setMapSize] = useState(192);
-  const [candidateSource, setCandidateSource] = useState<CandidateSource>('legacy');
+  const [candidateStrategy, setCandidateStrategy] = useState<CandidateGenerationStrategy>('legacy-threshold');
   const [legacyLowThreshold, setLegacyLowThreshold] = useState(0.35);
   const [legacySnapRadiusPx, setLegacySnapRadiusPx] = useState(12);
   const [queryControls, setQueryControls] = useState<QueryControls>({
     threshold: 0.65,
     mapSize: 192,
-    candidateSource: 'legacy',
+    strategy: 'legacy-threshold',
     legacyLowThreshold: 0.35,
     legacySnapRadiusPx: 12,
   });
@@ -409,7 +409,7 @@ export function App() {
     setQueryControls({
       threshold,
       mapSize,
-      candidateSource,
+      strategy: candidateStrategy,
       legacyLowThreshold,
       legacySnapRadiusPx,
     });
@@ -532,13 +532,13 @@ export function App() {
             ) : null}
             {activeStage === 'stage5' || activeStage === 'stage5b' || activeStage === 'stage6' ? (
               <label>
-                Candidate source
-                <select value={candidateSource} onChange={(event) => setCandidateSource(event.target.value as CandidateSource)}>
-                  <option value="legacy">Legacy adapter</option>
+                Candidate strategy
+                <select value={candidateStrategy} onChange={(event) => setCandidateStrategy(event.target.value as CandidateGenerationStrategy)}>
+                  <option value="legacy-threshold">Legacy threshold</option>
                 </select>
               </label>
             ) : null}
-            {(activeStage === 'stage5' || activeStage === 'stage5b' || activeStage === 'stage6') && candidateSource === 'legacy' ? (
+            {(activeStage === 'stage5' || activeStage === 'stage5b' || activeStage === 'stage6') && candidateStrategy === 'legacy-threshold' ? (
               <label>
                 Weak threshold
                 <input
@@ -551,7 +551,7 @@ export function App() {
                 />
               </label>
             ) : null}
-            {(activeStage === 'stage5' || activeStage === 'stage5b' || activeStage === 'stage6') && candidateSource === 'legacy' ? (
+            {(activeStage === 'stage5' || activeStage === 'stage5b' || activeStage === 'stage6') && candidateStrategy === 'legacy-threshold' ? (
               <label>
                 Snap radius px
                 <input
@@ -654,12 +654,12 @@ export function App() {
                     : '...'
                 }
               />
-              <Metric label="source" value={candidateGraph?.provenance?.source_adapter ?? stage5b?.candidate_source ?? candidateSource} />
+              <Metric label="strategy" value={stage5b?.candidate_strategy ?? candidateStrategy} />
             </section>
           ) : activeStage === 'stage5' ? (
             <section className="summary-grid">
               <Metric label="selected spans" value={stage5 ? stage5.selection.report.selected_spans : '...'} />
-              <Metric label="source" value={candidateGraph?.provenance?.source_adapter ?? stage5?.candidate_source ?? candidateSource} />
+              <Metric label="strategy" value={stage5?.candidate_strategy ?? candidateStrategy} />
               <Metric label="candidates" value={candidateGraph?.report?.crease_candidates ?? '...'} />
               <Metric label="weak candidates" value={candidateGraph?.report?.legacy_low_threshold_spans ?? '...'} />
               <Metric label="conflicts" value={candidateGraph?.report?.conflicts ?? '...'} />

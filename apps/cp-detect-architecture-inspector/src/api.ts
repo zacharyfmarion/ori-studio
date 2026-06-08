@@ -22,7 +22,7 @@ async function requestJson<T>(url: string): Promise<T> {
 
 type StageQueryOptions = { threshold: number; mapSize: number };
 type CandidateStageQueryOptions = StageQueryOptions & {
-  candidateSource: string;
+  strategy: string;
   legacyLowThreshold: number;
   legacySnapRadiusPx: number;
 };
@@ -102,7 +102,7 @@ export function fetchStage5Example(
   const params = new URLSearchParams({
     threshold: String(options.threshold),
     map_size: String(options.mapSize),
-    candidate_source: options.candidateSource,
+    strategy: options.strategy,
     legacy_low_threshold: String(options.legacyLowThreshold),
     legacy_snap_radius_px: String(options.legacySnapRadiusPx),
   });
@@ -120,7 +120,7 @@ export function fetchStage5bExample(
   const params = new URLSearchParams({
     threshold: String(options.threshold),
     map_size: String(options.mapSize),
-    candidate_source: options.candidateSource,
+    strategy: options.strategy,
     legacy_low_threshold: String(options.legacyLowThreshold),
     legacy_snap_radius_px: String(options.legacySnapRadiusPx),
   });
@@ -138,7 +138,7 @@ export function fetchStage6Example(
   const params = new URLSearchParams({
     threshold: String(options.threshold),
     map_size: String(options.mapSize),
-    candidate_source: options.candidateSource,
+    strategy: options.strategy,
     legacy_low_threshold: String(options.legacyLowThreshold),
     legacy_snap_radius_px: String(options.legacySnapRadiusPx),
   });

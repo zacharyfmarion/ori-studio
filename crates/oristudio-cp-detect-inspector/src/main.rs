@@ -16,8 +16,8 @@ use oristudio_cp_compiler::{
     ExactSolvedGraph, Point2, SelectedGraph, solve_exact,
 };
 use oristudio_cp_detect::candidate_generation::{
-    CandidateGenerationContext, CandidateGenerationOptions, LegacyThresholdStrategyOptions,
-    default_low_threshold, generate_candidate_graph,
+    CandidateGenerationContext, CandidateGenerationOptions, CandidateGenerationStrategyName,
+    LegacyThresholdStrategyOptions, default_low_threshold, generate_candidate_graph,
 };
 use oristudio_cp_detect::decode::{DecodeConfig, DenseOutputs, decode_dense_outputs};
 use oristudio_cp_detect::evidence_extract::{
@@ -187,7 +187,7 @@ struct Stage5Response {
     maps: Vec<MapPayload>,
     primitives: PrimitivePayload,
     arrangement: CandidateArrangement,
-    candidate_source: String,
+    candidate_strategy: String,
     candidate_graph: CandidateGraph,
     selection: CandidateSelection,
     exactizability: ExactizabilityReport,
@@ -206,7 +206,7 @@ struct Stage5bResponse {
     maps: Vec<MapPayload>,
     primitives: PrimitivePayload,
     arrangement: CandidateArrangement,
-    candidate_source: String,
+    candidate_strategy: String,
     candidate_graph: CandidateGraph,
     selection: CandidateSelection,
     exactizability: ExactizabilityReport,
@@ -226,7 +226,7 @@ struct Stage6Response {
     maps: Vec<MapPayload>,
     primitives: PrimitivePayload,
     arrangement: CandidateArrangement,
-    candidate_source: String,
+    candidate_strategy: String,
     candidate_graph: CandidateGraph,
     selection: CandidateSelection,
     exactizability: ExactizabilityReport,
@@ -874,16 +874,7 @@ fn stage5_example(
         .iter()
         .find(|sample| sample.id == sample_id)
         .ok_or_else(|| anyhow!("unknown sample {sample_id:?}"))?;
-    let candidate_source = query
-        .get("candidate_source")
-        .cloned()
-        .unwrap_or_else(|| "legacy".to_owned());
-    if candidate_source != "legacy" {
-        bail!(
-            "candidate_source {:?} is no longer supported; use legacy until strategy selection is available",
-            candidate_source
-        );
-    }
+    let candidate_strategy = candidate_strategy_from_query(&query)?;
     let legacy_low_threshold = query
         .get("legacy_low_threshold")
         .and_then(|value| value.parse::<f32>().ok())
@@ -908,6 +899,7 @@ fn stage5_example(
             },
         },
         CandidateGenerationOptions {
+            strategy: candidate_strategy,
             legacy_threshold: LegacyThresholdStrategyOptions {
                 low_threshold: Some(legacy_low_threshold),
                 weak_endpoint_snap_radius_px: Some(legacy_snap_radius_px),
@@ -923,7 +915,7 @@ fn stage5_example(
     .with_context(|| {
         format!(
             "generate {} candidate graph for {}",
-            candidate_source, sample.id
+            candidate_strategy, sample.id
         )
     })?;
     let candidate_graph = generation.candidate_graph;
@@ -950,7 +942,7 @@ fn stage5_example(
         maps: stage2.maps,
         primitives: stage2.primitives,
         arrangement: stage2.arrangement,
-        candidate_source,
+        candidate_strategy: candidate_strategy.to_string(),
         candidate_graph,
         selection,
         exactizability,
@@ -981,7 +973,7 @@ fn stage5b_example(
         maps: stage5.maps,
         primitives: stage5.primitives,
         arrangement: stage5.arrangement,
-        candidate_source: stage5.candidate_source,
+        candidate_strategy: stage5.candidate_strategy,
         candidate_graph: stage5.candidate_graph,
         selection: stage5.selection,
         exactizability: stage5.exactizability,
@@ -1020,7 +1012,7 @@ fn stage6_example(
         maps: stage5.maps,
         primitives: stage5.primitives,
         arrangement: stage5.arrangement,
-        candidate_source: stage5.candidate_source,
+        candidate_strategy: stage5.candidate_strategy,
         candidate_graph: stage5.candidate_graph,
         selection,
         exactizability: stage5.exactizability,
@@ -1595,6 +1587,20 @@ fn evidence_config_from_decode(config: &DecodeConfig) -> EvidenceExtractionConfi
         max_boundary_contact_primitives: config.max_intersection_lines.max(240),
         primitive_nms_radius_px: config.junction_snap_px.max(2.0),
     }
+}
+
+fn candidate_strategy_from_query(
+    query: &BTreeMap<String, String>,
+) -> Result<CandidateGenerationStrategyName> {
+    let value = query
+        .get("strategy")
+        .or_else(|| query.get("candidate_strategy"))
+        .or_else(|| query.get("candidate_source"))
+        .map(String::as_str)
+        .unwrap_or("legacy-threshold");
+    value
+        .parse::<CandidateGenerationStrategyName>()
+        .with_context(|| format!("parse candidate generation strategy {value:?}"))
 }
 
 fn stage_threshold_from_query_or_sample(
