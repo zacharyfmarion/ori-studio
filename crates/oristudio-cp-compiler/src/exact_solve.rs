@@ -141,36 +141,34 @@ pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> Exact
             initial_objective,
             SolveCounterSnapshot::default(),
         )
+    } else if initial_residuals.is_empty() {
+        (
+            initial_params.clone(),
+            "no_residuals".to_owned(),
+            0usize,
+            initial_objective,
+            SolveCounterSnapshot::default(),
+        )
     } else {
-        if initial_residuals.is_empty() {
-            (
-                initial_params.clone(),
-                "no_residuals".to_owned(),
-                0usize,
-                initial_objective,
-                SolveCounterSnapshot::default(),
-            )
-        } else {
-            let counters = Rc::new(SolveCounters::default());
-            let solver = ExactLeastSquaresProblem {
-                model: model.clone(),
-                params: initial_params.clone(),
-                counters: counters.clone(),
-            };
-            let lm = LevenbergMarquardt::new()
-                .with_patience(options.patience)
-                .with_ftol(options.ftol)
-                .with_xtol(options.xtol)
-                .with_gtol(options.gtol);
-            let (solved, report) = lm.minimize(solver);
-            (
-                solved.params,
-                format!("{:?}", report.termination),
-                report.number_of_evaluations,
-                report.objective_function,
-                counters.snapshot(),
-            )
-        }
+        let counters = Rc::new(SolveCounters::default());
+        let solver = ExactLeastSquaresProblem {
+            model: model.clone(),
+            params: initial_params.clone(),
+            counters: counters.clone(),
+        };
+        let lm = LevenbergMarquardt::new()
+            .with_patience(options.patience)
+            .with_ftol(options.ftol)
+            .with_xtol(options.xtol)
+            .with_gtol(options.gtol);
+        let (solved, report) = lm.minimize(solver);
+        (
+            solved.params,
+            format!("{:?}", report.termination),
+            report.number_of_evaluations,
+            report.objective_function,
+            counters.snapshot(),
+        )
     };
 
     let candidate_points = model.points_from_params(&final_params);
@@ -556,6 +554,7 @@ impl SolveModel {
         vertex_residuals + carrier_residuals + kawasaki_residual_count
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn add_angle_derivative(
         &self,
         matrix: &mut OMatrix<f64, Dyn, Dyn>,
@@ -894,7 +893,7 @@ fn analyze_graph(
         if degree % 2 == 1 {
             odd_degree_vertices.push(vertex.id);
         }
-        let kawasaki = if degree >= 4 && degree % 2 == 0 {
+        let kawasaki = if degree >= 4 && degree.is_multiple_of(2) {
             eligible_vertices += 1;
             let residual = signed_kawasaki_residual_radians(&rays).abs().to_degrees();
             max_kawasaki_residual_degrees = max_kawasaki_residual_degrees.max(residual);
@@ -1039,7 +1038,7 @@ fn kawasaki_residual_entries(
         .filter_map(|vertex| {
             let mut rays = incident[vertex.id].clone();
             rays.sort_by(|left, right| left.angle.total_cmp(&right.angle));
-            if rays.len() >= 4 && rays.len() % 2 == 0 {
+            if rays.len() >= 4 && rays.len().is_multiple_of(2) {
                 Some(KawasakiResidualEntry {
                     vertex_id: vertex.id,
                     rays,
@@ -1167,6 +1166,7 @@ fn exact_solve_preflight_rejection_reasons(before: &GraphAnalysis) -> Vec<String
     reasons
 }
 
+#[allow(clippy::too_many_arguments)]
 fn movement_report(
     input: &ExactSolveInput,
     before_points: &[Point2],
@@ -2113,6 +2113,7 @@ mod tests {
         span_with_carrier(id, a, b, label, source_carrier_id, normal, rho, vertices)
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn span_with_carrier(
         id: usize,
         a: usize,

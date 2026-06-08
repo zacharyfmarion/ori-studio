@@ -546,10 +546,14 @@ mod tests {
     #[test]
     fn flat_folder_error_kinds_are_classified_distinctly() {
         let oristudio = OrieditaCheckReport::default();
-        let mut precision = FlatFolderCheckReport::default();
-        precision.error_kind = Some("precision_failure".to_owned());
-        let mut assignment = FlatFolderCheckReport::default();
-        assignment.error_kind = Some("assignment_conflict".to_owned());
+        let precision = FlatFolderCheckReport {
+            error_kind: Some("precision_failure".to_owned()),
+            ..Default::default()
+        };
+        let assignment = FlatFolderCheckReport {
+            error_kind: Some("assignment_conflict".to_owned()),
+            ..Default::default()
+        };
 
         assert_eq!(
             classify_failures(true, &oristudio, &precision),

@@ -266,10 +266,11 @@ enum CarrierSnap {
 
 fn snap_carrier(carrier: &mut CandidateCarrier, options: ExactizeOptions) -> CarrierSnap {
     canonicalize_carrier(carrier);
-    if options.snap_border_carriers && carrier.family == CarrierFamily::Border {
-        if snap_border_carrier(carrier, options.border_tolerance) {
-            return CarrierSnap::Border;
-        }
+    if options.snap_border_carriers
+        && carrier.family == CarrierFamily::Border
+        && snap_border_carrier(carrier, options.border_tolerance)
+    {
+        return CarrierSnap::Border;
     }
     if options.snap_axis_carriers
         && snap_axis_carrier(carrier, options.angle_tolerance_degrees.to_radians())
@@ -379,12 +380,12 @@ fn project_vertex(
         return Point2::new(round_unit(point.x), round_unit(point.y));
     }
     let fallback = snap_boundary_if_needed(point, kind);
-    if carriers.len() >= 2 {
-        if let Some(projected) = solve_lines_least_squares(carriers) {
-            let projected = snap_boundary_if_needed(projected, kind);
-            if projection_is_safe(point, projected, options) {
-                return projected;
-            }
+    if carriers.len() >= 2
+        && let Some(projected) = solve_lines_least_squares(carriers)
+    {
+        let projected = snap_boundary_if_needed(projected, kind);
+        if projection_is_safe(point, projected, options) {
+            return projected;
         }
     }
     if carriers.len() == 1 {

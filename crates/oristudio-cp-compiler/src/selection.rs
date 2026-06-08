@@ -2702,6 +2702,7 @@ fn apply_span_candidate(
     selected
 }
 
+#[allow(clippy::too_many_arguments)]
 fn score_span_beam_state(
     arrangement: &CandidateArrangement,
     candidates: &[SpanCandidate],
@@ -3341,6 +3342,7 @@ fn is_selection_span_pass_through_vertex(
         })
 }
 
+#[allow(clippy::too_many_arguments)]
 fn selection_span_from_path(
     arrangement: &CandidateArrangement,
     scores: &[SelectionEdgeScore],
@@ -4928,6 +4930,7 @@ mod tests {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn candidate_span_with_evidence(
         id: usize,
         vertices: [usize; 2],

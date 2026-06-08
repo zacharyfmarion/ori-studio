@@ -120,10 +120,10 @@ fn filter_side_vertices(mut sides: SideVertices, eligible: &[bool]) -> SideVerti
 fn eligible_selected_vertex_mask(program: &CandidateProgram, min_support: f64) -> Vec<bool> {
     let mut eligible = vec![false; program.vertices.len()];
     for vertex in &program.vertices {
-        if vertex.kind == VertexKind::Corner {
-            if let Some(item) = eligible.get_mut(vertex.id) {
-                *item = true;
-            }
+        if vertex.kind == VertexKind::Corner
+            && let Some(item) = eligible.get_mut(vertex.id)
+        {
+            *item = true;
         }
     }
     for edge in &program.edges {
@@ -270,12 +270,12 @@ fn reconstruct_square_border_chain(
             .enumerate()
             .map(|(idx, point)| (idx, distance(*point, corner)))
             .min_by(|left, right| left.1.total_cmp(&right.1));
-        if let Some((idx, nearest_distance)) = nearest {
-            if nearest_distance <= max_snap_drift {
-                next_positions[idx] = corner;
-                selected[idx] = true;
-                continue;
-            }
+        if let Some((idx, nearest_distance)) = nearest
+            && nearest_distance <= max_snap_drift
+        {
+            next_positions[idx] = corner;
+            selected[idx] = true;
+            continue;
         }
         let idx = next.vertices.len();
         next.vertices.push(CandidateVertex {
@@ -395,10 +395,10 @@ fn reconstruct_square_border_chain(
     let max_drift = selected
         .iter()
         .enumerate()
-        .filter_map(|(idx, is_selected)| {
-            (*is_selected && idx < program.vertices.len() && idx < next.vertices.len())
-                .then(|| distance(next.vertices[idx].position, program.vertices[idx].position))
+        .filter(|(idx, is_selected)| {
+            **is_selected && *idx < program.vertices.len() && *idx < next.vertices.len()
         })
+        .map(|(idx, _)| distance(next.vertices[idx].position, program.vertices[idx].position))
         .fold(0.0_f64, f64::max);
 
     for (a, b) in chain_edges {
@@ -475,10 +475,10 @@ fn infer_border_frame_for_reconstruction(program: &CandidateProgram) -> Option<B
                 .filter_map(|vertex| program.vertices.get(*vertex).map(|item| item.position))
         })
         .collect();
-    if border_points.len() >= 4 {
-        if let Some(frame) = infer_border_frame_from_points(program, &border_points) {
-            return Some(frame);
-        }
+    if border_points.len() >= 4
+        && let Some(frame) = infer_border_frame_from_points(program, &border_points)
+    {
+        return Some(frame);
     }
     let all_points = program
         .vertices
@@ -1052,7 +1052,7 @@ mod tests {
         assert_eq!(selected_border_edges, 5);
         assert_eq!(locked.report.old_selected_border_edges, 1);
         assert_eq!(locked.report.boundary_contact_vertices, 1);
-        assert_eq!(locked.report.reconstructed, true);
+        assert!(locked.report.reconstructed);
     }
 
     #[test]
@@ -1080,8 +1080,8 @@ mod tests {
 
         assert_eq!(locked.program.edges, program.edges);
         assert_eq!(locked.program.vertices, program.vertices);
-        assert_eq!(locked.report.reused_existing_clean_border, true);
-        assert_eq!(locked.report.reconstructed, false);
+        assert!(locked.report.reused_existing_clean_border);
+        assert!(!locked.report.reconstructed);
     }
 
     fn vertex(id: usize, x: f64, y: f64, kind: VertexKind) -> CandidateVertex {

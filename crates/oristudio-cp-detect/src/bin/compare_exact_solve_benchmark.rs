@@ -44,6 +44,18 @@ struct DenseCacheSample {
     profile: Option<String>,
     image_size: u32,
     threshold: f32,
+    #[serde(default)]
+    angle_f32_path: Option<String>,
+    #[serde(default)]
+    junction_offset_f32_path: Option<String>,
+    #[serde(default)]
+    vertex_type_logits_f32_path: Option<String>,
+    #[serde(default)]
+    boundary_side_logits_f32_path: Option<String>,
+    #[serde(default)]
+    boundary_offset_f32_path: Option<String>,
+    #[serde(default)]
+    boundary_coord_f32_path: Option<String>,
     line_logits_f32_path: String,
     junction_logits_f32_path: String,
     assignment_logits_f32_path: String,
@@ -715,11 +727,36 @@ impl Args {
 
 struct SampleLogits {
     line_logits: Vec<f32>,
+    angle: Option<Vec<f32>>,
     junction_logits: Vec<f32>,
+    junction_offset: Option<Vec<f32>>,
     assignment_logits: Vec<f32>,
     non_crease_logits: Vec<f32>,
     line_style_logits: Vec<f32>,
+    vertex_type_logits: Option<Vec<f32>>,
     boundary_contact_logits: Vec<f32>,
+    boundary_side_logits: Option<Vec<f32>>,
+    boundary_offset: Option<Vec<f32>>,
+    boundary_coord: Option<Vec<f32>>,
+}
+
+impl SampleLogits {
+    fn as_dense_outputs(&self) -> DenseOutputs<'_> {
+        DenseOutputs::from_legacy_heads(
+            &self.line_logits,
+            &self.junction_logits,
+            &self.assignment_logits,
+            &self.non_crease_logits,
+            &self.line_style_logits,
+            &self.boundary_contact_logits,
+        )
+        .with_angle(self.angle.as_deref())
+        .with_junction_offset(self.junction_offset.as_deref())
+        .with_vertex_type_logits(self.vertex_type_logits.as_deref())
+        .with_boundary_side_logits(self.boundary_side_logits.as_deref())
+        .with_boundary_offset(self.boundary_offset.as_deref())
+        .with_boundary_coord(self.boundary_coord.as_deref())
+    }
 }
 
 fn read_sample_logits(
@@ -728,14 +765,26 @@ fn read_sample_logits(
 ) -> Result<SampleLogits, Box<dyn std::error::Error>> {
     Ok(SampleLogits {
         line_logits: read_f32_file(&resolve_path(root, &sample.line_logits_f32_path))?,
+        angle: read_optional_f32_file(root, sample.angle_f32_path.as_deref())?,
         junction_logits: read_f32_file(&resolve_path(root, &sample.junction_logits_f32_path))?,
+        junction_offset: read_optional_f32_file(root, sample.junction_offset_f32_path.as_deref())?,
         assignment_logits: read_f32_file(&resolve_path(root, &sample.assignment_logits_f32_path))?,
         non_crease_logits: read_f32_file(&resolve_path(root, &sample.non_crease_logits_f32_path))?,
         line_style_logits: read_f32_file(&resolve_path(root, &sample.line_style_logits_f32_path))?,
+        vertex_type_logits: read_optional_f32_file(
+            root,
+            sample.vertex_type_logits_f32_path.as_deref(),
+        )?,
         boundary_contact_logits: read_f32_file(&resolve_path(
             root,
             &sample.boundary_contact_logits_f32_path,
         ))?,
+        boundary_side_logits: read_optional_f32_file(
+            root,
+            sample.boundary_side_logits_f32_path.as_deref(),
+        )?,
+        boundary_offset: read_optional_f32_file(root, sample.boundary_offset_f32_path.as_deref())?,
+        boundary_coord: read_optional_f32_file(root, sample.boundary_coord_f32_path.as_deref())?,
     })
 }
 
@@ -745,14 +794,7 @@ fn decode_program(
     threshold: f32,
 ) -> Result<CandidateProgram, Box<dyn std::error::Error>> {
     let decoded = decode_dense_outputs(
-        DenseOutputs {
-            line_logits: &logits.line_logits,
-            junction_logits: &logits.junction_logits,
-            assignment_logits: &logits.assignment_logits,
-            non_crease_logits: &logits.non_crease_logits,
-            line_style_logits: &logits.line_style_logits,
-            boundary_contact_logits: &logits.boundary_contact_logits,
-        },
+        logits.as_dense_outputs(),
         DecodeConfig {
             image_size: sample.image_size,
             threshold,
@@ -1575,6 +1617,14 @@ fn read_f32_file(path: &Path) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
         .chunks_exact(4)
         .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
         .collect())
+}
+
+fn read_optional_f32_file(
+    root: &Path,
+    path: Option<&str>,
+) -> Result<Option<Vec<f32>>, Box<dyn std::error::Error>> {
+    path.map(|path| read_f32_file(&resolve_path(root, path)))
+        .transpose()
 }
 
 fn resolve_path(root: &Path, value: &str) -> PathBuf {

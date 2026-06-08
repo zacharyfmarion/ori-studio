@@ -151,10 +151,8 @@ pub fn generate_repair_candidates(
                     candidates.extend(split_intersection_candidates(program, options));
                 }
             }
-            ConstraintSeverity::MaekawaAssignmentFailure => {
-                if options.allow_assignment_changes {
-                    candidates.extend(assignment_candidates(&rays, options));
-                }
+            ConstraintSeverity::MaekawaAssignmentFailure if options.allow_assignment_changes => {
+                candidates.extend(assignment_candidates(&rays, options));
             }
             _ => {}
         }
