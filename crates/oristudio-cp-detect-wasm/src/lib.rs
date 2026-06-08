@@ -95,6 +95,7 @@ pub fn cp_detect_manual_rectify_rgba(
 }
 
 #[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
 pub fn cp_detect_decode_dense_outputs(
     line_logits: &[f32],
     junction_logits: &[f32],
@@ -120,6 +121,7 @@ pub fn cp_detect_decode_dense_outputs(
 }
 
 #[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
 pub fn cp_detect_decode_dense_outputs_with_backend(
     line_logits: &[f32],
     junction_logits: &[f32],
@@ -147,6 +149,7 @@ pub fn cp_detect_decode_dense_outputs_with_backend(
 }
 
 #[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
 pub fn cp_detect_ablate_dense_outputs(
     line_logits: &[f32],
     junction_logits: &[f32],
@@ -177,6 +180,7 @@ pub fn cp_detect_ablate_dense_outputs(
     to_js_value(&result)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn decode_dense_outputs_with_backend(
     line_logits: &[f32],
     junction_logits: &[f32],

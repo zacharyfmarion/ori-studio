@@ -371,6 +371,7 @@ pub fn decode_vertex_stage_snapshot_from_maps(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn decode_edge_stage_snapshot_from_maps(
     line_mask: &[u8],
     effective_line_prob: &[f32],
@@ -967,10 +968,9 @@ fn carriers_from_raw_lines(raw_lines: &[Line], size: usize, config: &DecodeConfi
         }
         if let Some(carrier) =
             clip_and_pad_carrier(line.clone(), size, config.carrier_extent_padding_px, config)
+            && !segment_is_frame_border(carrier.p0, carrier.p1, size)
         {
-            if !segment_is_frame_border(carrier.p0, carrier.p1, size) {
-                carriers.push(carrier);
-            }
+            carriers.push(carrier);
         }
     }
     carriers
@@ -1516,10 +1516,10 @@ fn segment_support(
             }
             let idx = y as usize * size + x as usize;
             best = best.max(line_prob[idx]);
-            if let Some(line_style_prob) = line_style_prob {
-                if line_style_prob.len() == pixels * 4 {
-                    best_gapped = best_gapped.max(line_style_prob[idx * 4 + 1]);
-                }
+            if let Some(line_style_prob) = line_style_prob
+                && line_style_prob.len() == pixels * 4
+            {
+                best_gapped = best_gapped.max(line_style_prob[idx * 4 + 1]);
             }
         }
         if best >= config.threshold {
@@ -2324,9 +2324,7 @@ fn canonicalize_square_border(
     if vertices.len() < 4 || edges.is_empty() {
         return None;
     }
-    let Some(frame) = infer_border_frame(vertices, config.image_size as usize) else {
-        return None;
-    };
+    let frame = infer_border_frame(vertices, config.image_size as usize)?;
     let side = (frame.right - frame.left).max(frame.bottom - frame.top);
     let tolerance = effective_border_tolerance(side);
     let snapped_vertices = snap_vertices_to_frame(vertices, frame, tolerance);
@@ -2448,13 +2446,13 @@ fn reconstruct_square_border_chain(
             .enumerate()
             .map(|(idx, point)| (idx, distance(*point, corner)))
             .min_by(|left, right| left.1.total_cmp(&right.1));
-        if let Some((idx, nearest_distance)) = nearest {
-            if nearest_distance <= max_snap_drift_px {
-                next_vertices[idx] = corner;
-                selected[idx] = true;
-                corner_vertices.push((name, idx));
-                continue;
-            }
+        if let Some((idx, nearest_distance)) = nearest
+            && nearest_distance <= max_snap_drift_px
+        {
+            next_vertices[idx] = corner;
+            selected[idx] = true;
+            corner_vertices.push((name, idx));
+            continue;
         }
         let idx = next_vertices.len();
         next_vertices.push(corner);
@@ -2616,10 +2614,10 @@ fn infer_border_frame_for_reconstruction(
         .filter(|edge| edge.edge.assignment == 2)
         .flat_map(|edge| [vertices[edge.edge.a], vertices[edge.edge.b]])
         .collect();
-    if border_points.len() >= 4 {
-        if let Some(frame) = infer_border_frame(&border_points, size) {
-            return Some(frame);
-        }
+    if border_points.len() >= 4
+        && let Some(frame) = infer_border_frame(&border_points, size)
+    {
+        return Some(frame);
     }
     infer_border_frame(vertices, size)
 }
@@ -3461,10 +3459,10 @@ fn origami_constraint_warnings(vertices: &[Point], edges: &[AttributedEdge]) -> 
         if incident.is_empty() {
             continue;
         }
-        if incident.len() % 2 != 0 {
+        if !incident.len().is_multiple_of(2) {
             odd_vertices.push(vertex_idx);
         }
-        if incident.len() >= 4 && incident.len() % 2 == 0 {
+        if incident.len() >= 4 && incident.len().is_multiple_of(2) {
             let residual = kawasaki_residual(vertices, edges, vertex_idx, &incident);
             if residual > 0.12 {
                 kawasaki_violations.push(vertex_idx);
@@ -3611,6 +3609,7 @@ fn warning(code: &str, message: &str, severity: &str) -> DecodeWarning {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn fold_value(
     vertices: &[Point],
     edges: &[AttributedEdge],

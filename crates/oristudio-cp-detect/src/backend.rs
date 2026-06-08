@@ -1,9 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum DecoderBackend {
     #[serde(rename = "legacy_v2_decoder")]
+    #[default]
     LegacyV2,
     #[serde(rename = "constraint_compiler_v1")]
     ConstraintCompilerV1,
@@ -21,11 +22,5 @@ impl DecoderBackend {
             DecoderBackend::ConstraintCompilerV2 => "constraint_compiler_v2",
             DecoderBackend::LegacyCandidateExactSolveV1 => "legacy_candidate_exact_solve_v1",
         }
-    }
-}
-
-impl Default for DecoderBackend {
-    fn default() -> Self {
-        Self::LegacyV2
     }
 }

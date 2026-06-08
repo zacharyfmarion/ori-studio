@@ -323,7 +323,7 @@ fn edge_mask(luma: &[f32], width: usize, height: usize) -> Vec<bool> {
                 + luma[(y + 1) * width + x + 1];
             let value = (gx * gx + gy * gy).sqrt();
             gradient[idx] = value;
-            if idx % stride == 0 {
+            if idx.is_multiple_of(stride) {
                 samples.push(value);
             }
         }
@@ -436,7 +436,7 @@ fn axis_scores(analysis: &ImageAnalysis, vertical: bool) -> Vec<f32> {
         analysis.width
     };
     let mut scores = vec![0.0; len];
-    for outer in 0..len {
+    for (outer, score_slot) in scores.iter_mut().enumerate().take(len) {
         let mut score = 0.0;
         for inner in 0..cross {
             let idx = if vertical {
@@ -448,7 +448,7 @@ fn axis_scores(analysis: &ImageAnalysis, vertical: bool) -> Vec<f32> {
                 score += 1.0;
             }
         }
-        scores[outer] = score;
+        *score_slot = score;
     }
     scores
 }
@@ -1034,7 +1034,7 @@ fn active_axis_cluster_count(edges: &[bool], width: usize, height: usize, vertic
     let len = if vertical { width } else { height };
     let cross = if vertical { height } else { width };
     let mut scores = vec![0.0; len];
-    for outer in 0..len {
+    for (outer, score) in scores.iter_mut().enumerate().take(len) {
         for inner in 0..cross {
             let idx = if vertical {
                 inner * width + outer
@@ -1042,7 +1042,7 @@ fn active_axis_cluster_count(edges: &[bool], width: usize, height: usize, vertic
                 outer * width + inner
             };
             if edges[idx] {
-                scores[outer] += 1.0;
+                *score += 1.0;
             }
         }
     }
@@ -1155,19 +1155,24 @@ fn solve_8x8(mut matrix: [[f64; 9]; 8]) -> Option<[f64; 8]> {
             matrix.swap(pivot, col);
         }
         let pivot_value = matrix[col][col];
-        for c in col..9 {
-            matrix[col][c] /= pivot_value;
+        for value in matrix[col].iter_mut().skip(col) {
+            *value /= pivot_value;
         }
-        for row in 0..8 {
+        let pivot_row = matrix[col];
+        for (row, matrix_row) in matrix.iter_mut().enumerate() {
             if row == col {
                 continue;
             }
-            let factor = matrix[row][col];
+            let factor = matrix_row[col];
             if factor.abs() <= 1e-12 {
                 continue;
             }
-            for c in col..9 {
-                matrix[row][c] -= factor * matrix[col][c];
+            for (value, pivot_value) in matrix_row
+                .iter_mut()
+                .skip(col)
+                .zip(pivot_row.iter().skip(col))
+            {
+                *value -= factor * *pivot_value;
             }
         }
     }
@@ -1215,7 +1220,7 @@ fn infer_padding_rgb(rgba: &[u8], width: usize, height: usize) -> [u8; 3] {
                 continue;
             }
             let idx = (y * width + x) * 4;
-            if idx / 4 % stride != 0 {
+            if !(idx / 4).is_multiple_of(stride) {
                 continue;
             }
             let alpha = rgba[idx + 3];
@@ -1363,6 +1368,7 @@ mod tests {
         image
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn draw_rect(
         image: &mut [u8],
         width: usize,
@@ -1381,6 +1387,7 @@ mod tests {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn draw_line(
         image: &mut [u8],
         width: usize,

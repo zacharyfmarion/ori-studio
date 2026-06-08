@@ -604,9 +604,9 @@ fn split_query(target: &str) -> (&str, BTreeMap<String, String>) {
     let params = query
         .split('&')
         .filter(|item| !item.is_empty())
-        .filter_map(|item| {
+        .map(|item| {
             let (key, value) = item.split_once('=').unwrap_or((item, ""));
-            Some((percent_decode(key), percent_decode(value)))
+            (percent_decode(key), percent_decode(value))
         })
         .collect();
     (path, params)
@@ -1855,35 +1855,36 @@ fn read_f32_file(path: &Path) -> Result<Vec<f32>> {
 
 fn evidence_maps(evidence: &CompilerEvidence, map_size: usize) -> Result<Vec<MapPayload>> {
     let size = evidence.image_size as usize;
-    let mut maps = Vec::new();
-    maps.push(scalar_map(
-        "line_probability",
-        "line probability",
-        &evidence.dense.line_probability,
-        size,
-        map_size,
-    )?);
-    maps.push(scalar_map(
-        "non_crease_probability",
-        "non-crease probability",
-        &evidence.dense.non_crease_probability,
-        size,
-        map_size,
-    )?);
-    maps.push(scalar_map(
-        "junction_probability",
-        "junction probability",
-        &evidence.dense.junction_probability,
-        size,
-        map_size,
-    )?);
-    maps.push(scalar_map(
-        "boundary_contact_probability",
-        "boundary contact probability",
-        &evidence.dense.boundary_contact_probability,
-        size,
-        map_size,
-    )?);
+    let mut maps = vec![
+        scalar_map(
+            "line_probability",
+            "line probability",
+            &evidence.dense.line_probability,
+            size,
+            map_size,
+        )?,
+        scalar_map(
+            "non_crease_probability",
+            "non-crease probability",
+            &evidence.dense.non_crease_probability,
+            size,
+            map_size,
+        )?,
+        scalar_map(
+            "junction_probability",
+            "junction probability",
+            &evidence.dense.junction_probability,
+            size,
+            map_size,
+        )?,
+        scalar_map(
+            "boundary_contact_probability",
+            "boundary contact probability",
+            &evidence.dense.boundary_contact_probability,
+            size,
+            map_size,
+        )?,
+    ];
     for (channel, (id, label)) in [
         ("assignment_mountain", "assignment mountain"),
         ("assignment_valley", "assignment valley"),
@@ -2085,12 +2086,13 @@ fn percent_decode(value: &str) -> String {
     let mut out = Vec::with_capacity(bytes.len());
     let mut index = 0;
     while index < bytes.len() {
-        if bytes[index] == b'%' && index + 2 < bytes.len() {
-            if let Ok(hex) = u8::from_str_radix(&value[index + 1..index + 3], 16) {
-                out.push(hex);
-                index += 3;
-                continue;
-            }
+        if bytes[index] == b'%'
+            && index + 2 < bytes.len()
+            && let Ok(hex) = u8::from_str_radix(&value[index + 1..index + 3], 16)
+        {
+            out.push(hex);
+            index += 3;
+            continue;
         }
         out.push(if bytes[index] == b'+' {
             b' '

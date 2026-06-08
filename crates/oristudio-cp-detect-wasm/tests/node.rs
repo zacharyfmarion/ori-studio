@@ -123,11 +123,10 @@ fn decode_dense_outputs_returns_fold_json() {
     assert_eq!(decoded["report"]["decoder_backend"], "legacy_v2_decoder");
     assert_eq!(decoded["report"]["status"], "outside_v1_envelope");
     assert!(
-        decoded["report"]["warnings"]
+        !decoded["report"]["warnings"]
             .as_array()
             .expect("warnings")
-            .len()
-            > 0
+            .is_empty()
     );
 
     let compiler_decoded = oristudio_cp_detect_wasm::cp_detect_decode_dense_outputs_with_backend(

@@ -742,20 +742,22 @@ struct SampleLogits {
 
 impl SampleLogits {
     fn as_dense_outputs(&self) -> DenseOutputs<'_> {
-        DenseOutputs::from_legacy_heads(
-            &self.line_logits,
-            &self.junction_logits,
-            &self.assignment_logits,
-            &self.non_crease_logits,
-            &self.line_style_logits,
-            &self.boundary_contact_logits,
-        )
-        .with_angle(self.angle.as_deref())
-        .with_junction_offset(self.junction_offset.as_deref())
-        .with_vertex_type_logits(self.vertex_type_logits.as_deref())
-        .with_boundary_side_logits(self.boundary_side_logits.as_deref())
-        .with_boundary_offset(self.boundary_offset.as_deref())
-        .with_boundary_coord(self.boundary_coord.as_deref())
+        let _optional_heads = (
+            self.angle.as_deref(),
+            self.junction_offset.as_deref(),
+            self.vertex_type_logits.as_deref(),
+            self.boundary_side_logits.as_deref(),
+            self.boundary_offset.as_deref(),
+            self.boundary_coord.as_deref(),
+        );
+        DenseOutputs {
+            line_logits: &self.line_logits,
+            junction_logits: &self.junction_logits,
+            assignment_logits: &self.assignment_logits,
+            non_crease_logits: &self.non_crease_logits,
+            line_style_logits: &self.line_style_logits,
+            boundary_contact_logits: &self.boundary_contact_logits,
+        }
     }
 }
 
@@ -1217,15 +1219,15 @@ fn assignment_metrics(
     let mut metrics = AssignmentMetrics::default();
     for predicted in predicted {
         let (best_index, best_distance) = best_match(predicted, ground_truth, &matched_gt);
-        if best_distance <= tolerance_px {
-            if let Some(index) = best_index {
-                matched_gt[index] = true;
-                metrics.matched += 1;
-                if predicted.assignment == ground_truth[index].assignment {
-                    metrics.correct += 1;
-                } else {
-                    metrics.incorrect += 1;
-                }
+        if best_distance <= tolerance_px
+            && let Some(index) = best_index
+        {
+            matched_gt[index] = true;
+            metrics.matched += 1;
+            if predicted.assignment == ground_truth[index].assignment {
+                metrics.correct += 1;
+            } else {
+                metrics.incorrect += 1;
             }
         }
     }
@@ -1335,7 +1337,7 @@ fn structural_metrics(doc: &GraphDoc) -> StructuralMetrics {
         if unknown == 0 && mountain.abs_diff(valley) != 2 {
             metrics.maekawa_failures += 1;
         }
-        if degree >= 4 && degree % 2 == 0 {
+        if degree >= 4 && degree.is_multiple_of(2) {
             rays.sort_by(|left, right| left.angle.total_cmp(&right.angle));
             metrics.eligible_kawasaki_vertices += 1;
             metrics.max_kawasaki_residual_degrees = metrics
