@@ -168,6 +168,8 @@ adapter locally.
 
 ## Phase 3: Strategy-Aware Benchmarking
 
+Status: Complete.
+
 ### Work
 
 - Update candidate coverage benchmarks to accept a candidate generation strategy
@@ -184,6 +186,25 @@ adapter locally.
   - selected graph
   - root-cause buckets
   - runtime per sample
+
+### Result
+
+`compare_candidate_coverage` now accepts `--strategy legacy-threshold`, routes
+candidate construction through `oristudio-cp-detect::candidate_generation`, and
+records the strategy name plus legacy strategy tolerances in `summary.json`.
+
+The release benchmark ran successfully on `clean-1024-s15`:
+
+```text
+artifacts/cp-detect-correctness/reports/clean-1024-s15-candidate-coverage-strategy-2026-06-08
+```
+
+The strategy refactor preserved the existing baseline:
+
+- candidate oracle recall: `0.9089`
+- selected recall: `0.9054`
+- selected assignment matches: `1826 / 2240`
+- total runtime: `14.44s` for 15 samples
 
 ### Done Means
 
@@ -262,10 +283,10 @@ adapter locally.
       unreachable from production flows.
 - [x] `legacy-threshold` strategy implemented in `oristudio-cp-detect`.
 - [x] Default product and inspector behavior still uses legacy-threshold.
-- [ ] Candidate coverage benchmark accepts `--strategy`.
-- [ ] Benchmark artifacts record strategy name and options.
+- [x] Candidate coverage benchmark accepts `--strategy`.
+- [x] Benchmark artifacts record strategy name and options.
 - [ ] Architecture inspector exposes strategy selection and removes compiler
       candidate generation options.
 - [x] Rust unit tests cover strategy dispatch and legacy option conversion.
-- [ ] Release benchmark runs successfully on `clean-1024-s15`.
+- [x] Release benchmark runs successfully on `clean-1024-s15`.
 - [ ] Documentation explains how to add and benchmark a new strategy.

@@ -167,6 +167,7 @@ The current benchmark runner is:
 
 ```bash
 cargo run --release -p oristudio-cp-detect --bin compare_candidate_coverage -- \
+  --strategy legacy-threshold \
   --manifest artifacts/cp-detect-correctness/dense-cache/clean-1024-s15-browser-onnx/manifest.json \
   --out artifacts/cp-detect-correctness/reports/clean-1024-s15-candidate-coverage-YYYY-MM-DD
 ```

@@ -8,11 +8,12 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use oristudio_cp_compiler::candidate_graph::CandidateGraph;
 use oristudio_cp_compiler::selection::{SelectionOptions, select_candidate_graph_beam_from_ir};
-use oristudio_cp_compiler::{
-    AssignmentLabel, CandidateProgram, LegacyCandidateAdapter, LegacyCandidateAdapterOptions,
-    Point2,
+use oristudio_cp_compiler::{AssignmentLabel, CandidateProgram, Point2};
+use oristudio_cp_detect::candidate_generation::{
+    CandidateGenerationContext, CandidateGenerationOptions, CandidateGenerationStrategyName,
+    LegacyThresholdStrategyOptions, generate_candidate_graph,
 };
-use oristudio_cp_detect::decode::{DecodeConfig, DenseOutputs, decode_dense_outputs};
+use oristudio_cp_detect::decode::{DecodeConfig, DenseOutputs};
 use oristudio_cp_eval::{
     CandidateCoverageAggregate, CandidateCoverageOptions, CandidateCoverageReport,
     CoverageCandidate, CoverageCandidateSet, CoverageCarrier, CoverageDenseEvidence,
@@ -111,6 +112,7 @@ impl GroundTruthGraph {
 struct Args {
     dense_manifest: PathBuf,
     out: PathBuf,
+    strategy: CandidateGenerationStrategyName,
     threshold: Option<f32>,
     legacy_low_threshold: Option<f32>,
     limit: Option<usize>,
@@ -136,9 +138,21 @@ struct BenchmarkSummary {
 
 #[derive(Debug, Serialize)]
 struct BenchmarkConfig {
+    strategy: String,
     threshold: Option<f32>,
     legacy_low_threshold: Option<f32>,
+    legacy_threshold_options: LegacyThresholdBenchmarkOptions,
     options: CandidateCoverageOptions,
+}
+
+#[derive(Debug, Serialize)]
+struct LegacyThresholdBenchmarkOptions {
+    duplicate_endpoint_tolerance_px: f64,
+    weak_endpoint_snap_radius_px: Option<f64>,
+    weak_boundary_endpoint_snap_radius_px: Option<f64>,
+    weak_carrier_incidence_tolerance_px: Option<f64>,
+    weak_span_split_tolerance_px: Option<f64>,
+    weak_min_split_length_px: Option<f64>,
 }
 
 #[derive(Debug, Serialize)]
@@ -176,9 +190,7 @@ struct SampleRow {
 #[derive(Debug, Default, Clone, Copy, Serialize)]
 struct SampleTimings {
     read_logits_seconds: f64,
-    legacy_decode_seconds: f64,
-    low_decode_seconds: f64,
-    adapter_seconds: f64,
+    strategy_generation_seconds: f64,
     selection_seconds: f64,
     metrics_seconds: f64,
     total_seconds: f64,
@@ -240,29 +252,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         let sample_started = Instant::now();
         let threshold = args.threshold.unwrap_or(sample.threshold);
-        let low_threshold = args
-            .legacy_low_threshold
-            .unwrap_or_else(|| default_low_threshold(threshold));
+        let strategy_options =
+            candidate_generation_options(args.strategy, args.legacy_low_threshold);
 
         let read_logits_started = Instant::now();
         let logits = read_sample_logits(manifest_root, sample)?;
         let read_logits_seconds = read_logits_started.elapsed().as_secs_f64();
 
-        let legacy_decode_started = Instant::now();
-        let high_program = decode_program(sample, &logits, threshold)?;
-        let legacy_decode_seconds = legacy_decode_started.elapsed().as_secs_f64();
-
-        let low_decode_started = Instant::now();
-        let low_program = decode_program(sample, &logits, low_threshold)?;
-        let low_decode_seconds = low_decode_started.elapsed().as_secs_f64();
-
-        let adapter_started = Instant::now();
-        let candidate_graph = LegacyCandidateAdapter::from_programs(
-            &high_program,
-            Some(&low_program),
-            legacy_adapter_options(sample.image_size),
-        );
-        let adapter_seconds = adapter_started.elapsed().as_secs_f64();
+        let generation_started = Instant::now();
+        let generation = generate_candidate_graph(
+            CandidateGenerationContext {
+                outputs: logits.as_dense_outputs(),
+                config: DecodeConfig {
+                    image_size: sample.image_size,
+                    threshold,
+                    ..DecodeConfig::default()
+                },
+            },
+            strategy_options,
+        )?;
+        let strategy_generation_seconds = generation_started.elapsed().as_secs_f64();
+        let low_threshold = generation.low_threshold;
+        let high_program = &generation.primary_program;
+        let low_program = generation
+            .weak_program
+            .as_ref()
+            .unwrap_or(&generation.primary_program);
+        let candidate_graph = generation.candidate_graph;
 
         let selection_started = Instant::now();
         let selection = select_candidate_graph_beam_from_ir(
@@ -282,8 +298,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let gt_graph = gt.eval_graph();
         let dense_evidence =
             dense_evidence_for_gt(&gt_graph, &logits, sample.image_size, threshold);
-        let high_set = candidate_set_from_program("high_legacy", &high_program, sample.image_size);
-        let low_set = candidate_set_from_program("low_legacy", &low_program, sample.image_size);
+        let high_set = candidate_set_from_program("high_legacy", high_program, sample.image_size);
+        let low_set = candidate_set_from_program("low_legacy", low_program, sample.image_size);
         let adapter_set = candidate_set_from_graph(
             "adapter",
             &candidate_graph,
@@ -319,9 +335,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             low_threshold,
             timings: SampleTimings {
                 read_logits_seconds,
-                legacy_decode_seconds,
-                low_decode_seconds,
-                adapter_seconds,
+                strategy_generation_seconds,
                 selection_seconds,
                 metrics_seconds,
                 total_seconds: sample_started.elapsed().as_secs_f64(),
@@ -358,8 +372,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         dense_schema: manifest.schema,
         pack: manifest.pack,
         config: BenchmarkConfig {
+            strategy: args.strategy.to_string(),
             threshold: args.threshold,
             legacy_low_threshold: args.legacy_low_threshold,
+            legacy_threshold_options: legacy_threshold_benchmark_options(
+                legacy_threshold_strategy_options(args.legacy_low_threshold),
+            ),
             options: args.options,
         },
         sample_count: sample_rows.len(),
@@ -375,23 +393,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     fs::write(args.out.join("README.md"), markdown_summary(&summary))?;
     println!("{}", args.out.display());
     Ok(())
-}
-
-fn decode_program(
-    sample: &DenseCacheSample,
-    logits: &SampleLogits,
-    threshold: f32,
-) -> Result<CandidateProgram, Box<dyn std::error::Error>> {
-    let decoded = decode_dense_outputs(
-        logits.as_dense_outputs(),
-        DecodeConfig {
-            image_size: sample.image_size,
-            threshold,
-            ..DecodeConfig::default()
-        },
-    )?;
-    let value: Value = serde_json::from_str(&decoded.fold_json)?;
-    Ok(CandidateProgram::from_fold_value(&value)?)
 }
 
 fn candidate_set_from_program(
@@ -660,6 +661,7 @@ impl Args {
     fn parse() -> Result<Self, Box<dyn std::error::Error>> {
         let mut dense_manifest = None;
         let mut out = None;
+        let mut strategy = CandidateGenerationStrategyName::default();
         let mut threshold = None;
         let mut legacy_low_threshold = None;
         let mut limit = None;
@@ -671,6 +673,9 @@ impl Args {
                     dense_manifest = Some(PathBuf::from(required_value(&mut iter, &arg)?));
                 }
                 "--out" => out = Some(PathBuf::from(required_value(&mut iter, "--out")?)),
+                "--strategy" => {
+                    strategy = required_value(&mut iter, "--strategy")?.parse()?;
+                }
                 "--threshold" => {
                     threshold = Some(required_value(&mut iter, "--threshold")?.parse()?)
                 }
@@ -718,6 +723,7 @@ impl Args {
         Ok(Self {
             dense_manifest: dense_manifest.unwrap_or_else(|| PathBuf::from(DEFAULT_DENSE_MANIFEST)),
             out: out.ok_or("--out is required")?,
+            strategy,
             threshold,
             legacy_low_threshold,
             limit,
@@ -736,7 +742,7 @@ fn required_value(
 
 fn print_usage() {
     eprintln!(
-        "compare_candidate_coverage --out PATH [--manifest PATH] [--limit N] [--threshold P] [--legacy-low-threshold P]"
+        "compare_candidate_coverage --out PATH [--strategy legacy-threshold] [--manifest PATH] [--limit N] [--threshold P] [--legacy-low-threshold P]"
     );
 }
 
@@ -781,20 +787,38 @@ fn resolve_gt_path(manifest_root: &Path, pack: Option<&str>, value: &str) -> Pat
     manifest_root.join(path)
 }
 
-fn default_low_threshold(threshold: f32) -> f32 {
-    (threshold * 0.55).max(0.10).min(threshold)
+fn candidate_generation_options(
+    strategy: CandidateGenerationStrategyName,
+    legacy_low_threshold: Option<f32>,
+) -> CandidateGenerationOptions {
+    CandidateGenerationOptions {
+        strategy,
+        legacy_threshold: legacy_threshold_strategy_options(legacy_low_threshold),
+    }
 }
 
-fn legacy_adapter_options(image_size: u32) -> LegacyCandidateAdapterOptions {
-    let scale = 1.0 / image_size.max(1) as f64;
-    LegacyCandidateAdapterOptions {
-        duplicate_endpoint_tolerance: (3.0 * scale).max(1e-6),
-        weak_endpoint_snap_tolerance: (12.0 * scale).max(1e-6),
-        weak_boundary_endpoint_snap_tolerance: (10.0 * scale).max(1e-6),
-        weak_carrier_incidence_tolerance: (6.0 * scale).max(1e-6),
-        weak_span_split_tolerance: (4.0 * scale).max(1e-6),
-        weak_min_split_length: (3.0 * scale).max(1e-6),
-        ..LegacyCandidateAdapterOptions::default()
+fn legacy_threshold_strategy_options(low_threshold: Option<f32>) -> LegacyThresholdStrategyOptions {
+    LegacyThresholdStrategyOptions {
+        low_threshold,
+        duplicate_endpoint_tolerance_px: 3.0,
+        weak_endpoint_snap_radius_px: Some(12.0),
+        weak_boundary_endpoint_snap_radius_px: Some(10.0),
+        weak_carrier_incidence_tolerance_px: Some(6.0),
+        weak_span_split_tolerance_px: Some(4.0),
+        weak_min_split_length_px: Some(3.0),
+    }
+}
+
+fn legacy_threshold_benchmark_options(
+    options: LegacyThresholdStrategyOptions,
+) -> LegacyThresholdBenchmarkOptions {
+    LegacyThresholdBenchmarkOptions {
+        duplicate_endpoint_tolerance_px: options.duplicate_endpoint_tolerance_px,
+        weak_endpoint_snap_radius_px: options.weak_endpoint_snap_radius_px,
+        weak_boundary_endpoint_snap_radius_px: options.weak_boundary_endpoint_snap_radius_px,
+        weak_carrier_incidence_tolerance_px: options.weak_carrier_incidence_tolerance_px,
+        weak_span_split_tolerance_px: options.weak_span_split_tolerance_px,
+        weak_min_split_length_px: options.weak_min_split_length_px,
     }
 }
 
@@ -922,6 +946,7 @@ fn markdown_summary(summary: &BenchmarkSummary) -> String {
     let pct = |value: usize| format!("{:.1}%", value as f64 * 100.0 / evaluated as f64);
     let mut out = String::new();
     out.push_str("# Candidate Coverage Benchmark\n\n");
+    out.push_str(&format!("- Strategy: `{}`\n", summary.config.strategy));
     out.push_str(&format!("- Samples: `{}`\n", summary.sample_count));
     out.push_str(&format!(
         "- Evaluated non-boundary GT edges: `{}`\n",
