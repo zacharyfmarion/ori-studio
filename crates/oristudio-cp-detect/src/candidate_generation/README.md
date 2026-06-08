@@ -17,6 +17,20 @@ legacy image logic, or build candidate hypotheses from pixels. It consumes the
 primary threshold, optionally runs a low-threshold decode for weak recall, and
 uses `LegacyCandidateAdapter` to produce a deduped candidate graph.
 
+`legacy-topology-v2` is an experimental strategy that starts from
+`legacy-threshold`, then adds structural pass-through candidates that replace
+strong collinear fragment chains. The fragment spans remain as provenance and
+alternatives, but the selector can choose one clean structural span instead of a
+run of degree-2 micro-spans.
+
+Initial `clean-1024-s15` benchmark signal was intentionally modest: it improved
+candidate oracle recall from `0.9089` to `0.9094`, kept selected recall flat at
+`0.9054`, improved assignment-correct selected edges by one edge, and reduced
+selected chain matches from `62` to `60`. A stronger variant that made the
+structural spans the default selected many more normalized spans but regressed
+GT correctness, so the kept strategy leaves structural spans as weak
+alternatives.
+
 ## Adding A Strategy
 
 1. Add a strategy implementation in this module, for example

@@ -6,12 +6,16 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
-use oristudio_cp_compiler::candidate_graph::CandidateGraph;
-use oristudio_cp_compiler::selection::{SelectionOptions, select_candidate_graph_beam_from_ir};
+use oristudio_cp_compiler::candidate_graph::{
+    CandidateCreaseSpanKind, CandidateGraph, CandidateGraphReport,
+};
+use oristudio_cp_compiler::selection::{
+    SelectionOptions, SelectionSpanKind, select_candidate_graph_beam_from_ir,
+};
 use oristudio_cp_compiler::{AssignmentLabel, CandidateProgram, Point2};
 use oristudio_cp_detect::candidate_generation::{
     CandidateGenerationContext, CandidateGenerationOptions, CandidateGenerationStrategyName,
-    LegacyThresholdStrategyOptions, generate_candidate_graph,
+    LegacyThresholdStrategyOptions, LegacyTopologyV2StrategyOptions, generate_candidate_graph,
 };
 use oristudio_cp_detect::decode::{DecodeConfig, DenseOutputs};
 use oristudio_cp_eval::{
@@ -131,6 +135,7 @@ struct BenchmarkSummary {
     config: BenchmarkConfig,
     sample_count: usize,
     total_seconds: f64,
+    strategy_diagnostics: StrategyDiagnosticAggregate,
     aggregate: CandidateCoverageAggregate,
     top_root_causes: Vec<RootCauseCount>,
     worst_samples: Vec<WorstSample>,
@@ -142,6 +147,7 @@ struct BenchmarkConfig {
     threshold: Option<f32>,
     legacy_low_threshold: Option<f32>,
     legacy_threshold_options: LegacyThresholdBenchmarkOptions,
+    legacy_topology_v2_options: LegacyTopologyV2BenchmarkOptions,
     options: CandidateCoverageOptions,
 }
 
@@ -153,6 +159,14 @@ struct LegacyThresholdBenchmarkOptions {
     weak_carrier_incidence_tolerance_px: Option<f64>,
     weak_span_split_tolerance_px: Option<f64>,
     weak_min_split_length_px: Option<f64>,
+}
+
+#[derive(Debug, Serialize)]
+struct LegacyTopologyV2BenchmarkOptions {
+    pass_through_angle_tolerance_degrees: f64,
+    endpoint_rho_tolerance_px: f64,
+    min_chain_spans: usize,
+    min_structural_mean_support: f64,
 }
 
 #[derive(Debug, Serialize)]
@@ -183,8 +197,71 @@ struct SampleRow {
     profile: Option<String>,
     threshold: f32,
     low_threshold: f32,
+    candidate_graph_report: CandidateGraphReport,
+    strategy_diagnostics: StrategyDiagnostics,
     report: CandidateCoverageReport,
     timings: SampleTimings,
+}
+
+#[derive(Debug, Default, Clone, Copy, Serialize)]
+struct StrategyDiagnosticAggregate {
+    candidate_normalized_pass_through_spans: usize,
+    selected_normalized_pass_through_spans: usize,
+    candidate_collapsed_vertices: usize,
+    selected_collapsed_vertices: usize,
+    selected_weak_spans: usize,
+}
+
+impl StrategyDiagnosticAggregate {
+    fn add(&mut self, sample: StrategyDiagnostics) {
+        self.candidate_normalized_pass_through_spans +=
+            sample.candidate_normalized_pass_through_spans;
+        self.selected_normalized_pass_through_spans +=
+            sample.selected_normalized_pass_through_spans;
+        self.candidate_collapsed_vertices += sample.candidate_collapsed_vertices;
+        self.selected_collapsed_vertices += sample.selected_collapsed_vertices;
+        self.selected_weak_spans += sample.selected_weak_spans;
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, Serialize)]
+struct StrategyDiagnostics {
+    candidate_normalized_pass_through_spans: usize,
+    selected_normalized_pass_through_spans: usize,
+    candidate_collapsed_vertices: usize,
+    selected_collapsed_vertices: usize,
+    selected_weak_spans: usize,
+}
+
+impl StrategyDiagnostics {
+    fn from_graph_selection(
+        graph: &CandidateGraph,
+        selection: &oristudio_cp_compiler::selection::CandidateSelection,
+    ) -> Self {
+        Self {
+            candidate_normalized_pass_through_spans: graph
+                .crease_candidates
+                .iter()
+                .filter(|span| span.kind == CandidateCreaseSpanKind::NormalizedPassThroughSpan)
+                .count(),
+            selected_normalized_pass_through_spans: selection
+                .selected_spans
+                .iter()
+                .filter(|span| span.kind == SelectionSpanKind::NormalizedPassThroughSpan)
+                .count(),
+            candidate_collapsed_vertices: graph
+                .crease_candidates
+                .iter()
+                .map(|span| span.collapsed_vertex_ids.len())
+                .sum(),
+            selected_collapsed_vertices: selection
+                .selected_spans
+                .iter()
+                .map(|span| span.collapsed_vertex_ids.len())
+                .sum(),
+            selected_weak_spans: selection.report.weak_edges_promoted,
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone, Copy, Serialize)]
@@ -239,6 +316,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     fs::create_dir_all(&args.out)?;
 
     let mut aggregate = CandidateCoverageAggregate::default();
+    let mut strategy_diagnostics = StrategyDiagnosticAggregate::default();
     let per_sample_path = args.out.join("per_sample.jsonl");
     let per_gt_edge_path = args.out.join("per_gt_edge.jsonl");
     let mut per_sample = fs::File::create(&per_sample_path)?;
@@ -291,6 +369,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .iter()
             .map(|span| span.id)
             .collect::<BTreeSet<_>>();
+        let sample_strategy_diagnostics =
+            StrategyDiagnostics::from_graph_selection(&candidate_graph, &selection);
+        strategy_diagnostics.add(sample_strategy_diagnostics);
         let selection_seconds = selection_started.elapsed().as_secs_f64();
 
         let metrics_started = Instant::now();
@@ -333,6 +414,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             profile: sample.profile.clone(),
             threshold,
             low_threshold,
+            candidate_graph_report: candidate_graph.report.clone(),
+            strategy_diagnostics: sample_strategy_diagnostics,
             timings: SampleTimings {
                 read_logits_seconds,
                 strategy_generation_seconds,
@@ -378,10 +461,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             legacy_threshold_options: legacy_threshold_benchmark_options(
                 legacy_threshold_strategy_options(args.legacy_low_threshold),
             ),
+            legacy_topology_v2_options: legacy_topology_v2_benchmark_options(
+                LegacyTopologyV2StrategyOptions::default(),
+            ),
             options: args.options,
         },
         sample_count: sample_rows.len(),
         total_seconds: started.elapsed().as_secs_f64(),
+        strategy_diagnostics,
         aggregate,
         top_root_causes,
         worst_samples,
@@ -794,6 +881,7 @@ fn candidate_generation_options(
     CandidateGenerationOptions {
         strategy,
         legacy_threshold: legacy_threshold_strategy_options(legacy_low_threshold),
+        ..CandidateGenerationOptions::default()
     }
 }
 
@@ -819,6 +907,17 @@ fn legacy_threshold_benchmark_options(
         weak_carrier_incidence_tolerance_px: options.weak_carrier_incidence_tolerance_px,
         weak_span_split_tolerance_px: options.weak_span_split_tolerance_px,
         weak_min_split_length_px: options.weak_min_split_length_px,
+    }
+}
+
+fn legacy_topology_v2_benchmark_options(
+    options: LegacyTopologyV2StrategyOptions,
+) -> LegacyTopologyV2BenchmarkOptions {
+    LegacyTopologyV2BenchmarkOptions {
+        pass_through_angle_tolerance_degrees: options.pass_through_angle_tolerance_degrees,
+        endpoint_rho_tolerance_px: options.endpoint_rho_tolerance_px,
+        min_chain_spans: options.min_chain_spans,
+        min_structural_mean_support: options.min_structural_mean_support,
     }
 }
 
@@ -973,6 +1072,27 @@ fn markdown_summary(summary: &BenchmarkSummary) -> String {
     out.push_str(&format!(
         "- Adapter candidate available: `{}`\n\n",
         pct(summary.aggregate.summary.adapter_any)
+    ));
+    out.push_str("## Strategy Diagnostics\n\n");
+    out.push_str(&format!(
+        "- Candidate normalized pass-through spans: `{}`\n",
+        summary
+            .strategy_diagnostics
+            .candidate_normalized_pass_through_spans
+    ));
+    out.push_str(&format!(
+        "- Selected normalized pass-through spans: `{}`\n",
+        summary
+            .strategy_diagnostics
+            .selected_normalized_pass_through_spans
+    ));
+    out.push_str(&format!(
+        "- Candidate collapsed vertices: `{}`\n",
+        summary.strategy_diagnostics.candidate_collapsed_vertices
+    ));
+    out.push_str(&format!(
+        "- Selected collapsed vertices: `{}`\n\n",
+        summary.strategy_diagnostics.selected_collapsed_vertices
     ));
     out.push_str("## Root Causes\n\n");
     for item in &summary.top_root_causes {

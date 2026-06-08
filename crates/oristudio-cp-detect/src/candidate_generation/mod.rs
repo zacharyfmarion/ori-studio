@@ -1,22 +1,27 @@
 use std::fmt;
 use std::str::FromStr;
 
+mod legacy_topology_v2;
+
 use crate::legacy_decode::{DecodeConfig, DecodeError, DenseOutputs};
 use oristudio_cp_compiler::{
     CandidateGraph, CandidateProgram, LegacyCandidateAdapter, LegacyCandidateAdapterOptions,
 };
 
 pub const LEGACY_THRESHOLD_STRATEGY_ID: &str = "legacy-threshold";
+pub const LEGACY_TOPOLOGY_V2_STRATEGY_ID: &str = "legacy-topology-v2";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CandidateGenerationStrategyName {
     LegacyThreshold,
+    LegacyTopologyV2,
 }
 
 impl CandidateGenerationStrategyName {
     pub const fn id(self) -> &'static str {
         match self {
             Self::LegacyThreshold => LEGACY_THRESHOLD_STRATEGY_ID,
+            Self::LegacyTopologyV2 => LEGACY_TOPOLOGY_V2_STRATEGY_ID,
         }
     }
 }
@@ -41,6 +46,7 @@ impl FromStr for CandidateGenerationStrategyName {
             LEGACY_THRESHOLD_STRATEGY_ID | "legacy" | "legacy_threshold" => {
                 Ok(Self::LegacyThreshold)
             }
+            LEGACY_TOPOLOGY_V2_STRATEGY_ID | "legacy_topology_v2" => Ok(Self::LegacyTopologyV2),
             other => Err(CandidateGenerationStrategyParseError {
                 value: other.to_owned(),
             }),
@@ -64,6 +70,7 @@ pub struct CandidateGenerationContext<'a> {
 pub struct CandidateGenerationOptions {
     pub strategy: CandidateGenerationStrategyName,
     pub legacy_threshold: LegacyThresholdStrategyOptions,
+    pub legacy_topology_v2: LegacyTopologyV2StrategyOptions,
 }
 
 impl Default for CandidateGenerationOptions {
@@ -71,6 +78,7 @@ impl Default for CandidateGenerationOptions {
         Self {
             strategy: CandidateGenerationStrategyName::LegacyThreshold,
             legacy_threshold: LegacyThresholdStrategyOptions::default(),
+            legacy_topology_v2: LegacyTopologyV2StrategyOptions::default(),
         }
     }
 }
@@ -96,6 +104,25 @@ impl Default for LegacyThresholdStrategyOptions {
             weak_carrier_incidence_tolerance_px: None,
             weak_span_split_tolerance_px: None,
             weak_min_split_length_px: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LegacyTopologyV2StrategyOptions {
+    pub pass_through_angle_tolerance_degrees: f64,
+    pub endpoint_rho_tolerance_px: f64,
+    pub min_chain_spans: usize,
+    pub min_structural_mean_support: f64,
+}
+
+impl Default for LegacyTopologyV2StrategyOptions {
+    fn default() -> Self {
+        Self {
+            pass_through_angle_tolerance_degrees: 4.0,
+            endpoint_rho_tolerance_px: 5.0,
+            min_chain_spans: 2,
+            min_structural_mean_support: 0.42,
         }
     }
 }
@@ -171,6 +198,45 @@ impl CandidateGenerationStrategy for LegacyThresholdStrategy {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct LegacyTopologyV2Strategy {
+    legacy_options: LegacyThresholdStrategyOptions,
+    topology_options: LegacyTopologyV2StrategyOptions,
+}
+
+impl LegacyTopologyV2Strategy {
+    pub const fn new(
+        legacy_options: LegacyThresholdStrategyOptions,
+        topology_options: LegacyTopologyV2StrategyOptions,
+    ) -> Self {
+        Self {
+            legacy_options,
+            topology_options,
+        }
+    }
+}
+
+impl CandidateGenerationStrategy for LegacyTopologyV2Strategy {
+    fn name(&self) -> CandidateGenerationStrategyName {
+        CandidateGenerationStrategyName::LegacyTopologyV2
+    }
+
+    fn generate(
+        &self,
+        ctx: CandidateGenerationContext<'_>,
+    ) -> Result<CandidateGenerationOutput, DecodeError> {
+        let image_size = ctx.config.image_size;
+        let mut output = LegacyThresholdStrategy::new(self.legacy_options).generate(ctx)?;
+        legacy_topology_v2::add_structural_topology_candidates(
+            &mut output.candidate_graph,
+            image_size,
+            self.topology_options,
+        );
+        output.strategy = self.name();
+        Ok(output)
+    }
+}
+
 pub fn generate_candidate_graph(
     ctx: CandidateGenerationContext<'_>,
     options: CandidateGenerationOptions,
@@ -181,6 +247,10 @@ pub fn generate_candidate_graph(
     match options.strategy {
         CandidateGenerationStrategyName::LegacyThreshold => {
             LegacyThresholdStrategy::new(options.legacy_threshold).generate(ctx)
+        }
+        CandidateGenerationStrategyName::LegacyTopologyV2 => {
+            LegacyTopologyV2Strategy::new(options.legacy_threshold, options.legacy_topology_v2)
+                .generate(ctx)
         }
     }
 }
@@ -247,6 +317,12 @@ mod tests {
             "arrangement"
                 .parse::<CandidateGenerationStrategyName>()
                 .is_err()
+        );
+        assert_eq!(
+            "legacy-topology-v2"
+                .parse::<CandidateGenerationStrategyName>()
+                .expect("strategy"),
+            CandidateGenerationStrategyName::LegacyTopologyV2
         );
     }
 

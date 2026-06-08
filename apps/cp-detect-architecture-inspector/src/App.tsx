@@ -125,7 +125,7 @@ const ISSUE_LIST_LIMIT_PER_TYPE = 10;
 type ActiveStage = 'stage1' | 'stage2' | 'stage3' | 'stage4' | 'stage5' | 'stage5b' | 'stage6';
 type AnyStageResponse = Stage1Response | Stage2Response | Stage3Response | Stage4Response | Stage5Response | Stage5bResponse | Stage6Response;
 type AuditCategoryId = 'selected' | 'locked' | 'available' | 'conflict' | 'dominated' | 'rejected';
-type CandidateGenerationStrategy = 'legacy-threshold';
+type CandidateGenerationStrategy = 'legacy-threshold' | 'legacy-topology-v2';
 type QueryControls = {
   threshold: number;
   mapSize: number;
@@ -535,10 +535,11 @@ export function App() {
                 Candidate strategy
                 <select value={candidateStrategy} onChange={(event) => setCandidateStrategy(event.target.value as CandidateGenerationStrategy)}>
                   <option value="legacy-threshold">Legacy threshold</option>
+                  <option value="legacy-topology-v2">Legacy topology v2</option>
                 </select>
               </label>
             ) : null}
-            {(activeStage === 'stage5' || activeStage === 'stage5b' || activeStage === 'stage6') && candidateStrategy === 'legacy-threshold' ? (
+            {activeStage === 'stage5' || activeStage === 'stage5b' || activeStage === 'stage6' ? (
               <label>
                 Weak threshold
                 <input
@@ -551,7 +552,7 @@ export function App() {
                 />
               </label>
             ) : null}
-            {(activeStage === 'stage5' || activeStage === 'stage5b' || activeStage === 'stage6') && candidateStrategy === 'legacy-threshold' ? (
+            {activeStage === 'stage5' || activeStage === 'stage5b' || activeStage === 'stage6' ? (
               <label>
                 Snap radius px
                 <input

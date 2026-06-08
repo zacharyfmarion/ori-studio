@@ -309,3 +309,52 @@ to add, test, benchmark, and safely expose a new strategy.
 - [x] Rust unit tests cover strategy dispatch and legacy option conversion.
 - [x] Release benchmark runs successfully on `clean-1024-s15`.
 - [x] Documentation explains how to add and benchmark a new strategy.
+
+## Follow-Up Strategy Experiment: `legacy-topology-v2`
+
+Status: Complete as a conservative experiment.
+
+### Goal
+
+Test whether a strategy can improve topology cleanliness without replacing the
+legacy candidate generator wholesale. The experiment starts from
+`legacy-threshold`, finds strict collinear chains through interior degree-2
+pass-through vertices, and adds a single `NormalizedPassThroughSpan` candidate
+that can replace the fragment chain.
+
+### Guardrails
+
+- Do not force structural spans when GT metrics regress.
+- Do not collapse through boundary contacts, corners, or vertices that have a
+  third non-boundary weak/strong incident candidate.
+- Keep replaced fragment spans available as alternatives and model the
+  replacement as a hard conflict.
+- Record candidate/selected normalized-span counts in benchmark artifacts so
+  future iterations can distinguish generation failures from selection
+  failures.
+
+### Result
+
+`legacy-topology-v2` is now available as a strategy in the benchmark and
+architecture inspector. On `clean-1024-s15`, compared with `legacy-threshold`:
+
+- Candidate oracle recall: `0.9089 -> 0.9094`
+- Selected recall: `0.9054 -> 0.9054`
+- Assignment-correct selected edges: `1826 -> 1827`
+- Adapter chain matches: `62 -> 53`
+- Selected chain matches: `62 -> 60`
+- Candidate normalized pass-through spans: `0 -> 23`
+- Selected normalized pass-through spans: `0 -> 5`
+
+The stronger variant that made structural spans the default selected `22`
+normalized spans and reduced selected chain matches to `49`, but it regressed
+selected recall and assignment-correct matches. That is useful signal: cleaning
+topology by force can make the graph look nicer while making it less correct.
+
+### Interpretation
+
+This strategy is worth keeping as a small, safe baseline, but it is not the
+major topology fix. Most remaining misses are still caused upstream by missing
+carriers or edge support before selection. The next meaningful improvement
+should focus on candidate generation coverage, likely a new strategy rather than
+more aggressive pass-through normalization.
