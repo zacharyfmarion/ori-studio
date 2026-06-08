@@ -431,7 +431,7 @@ pub fn decode_edge_stage_snapshot_from_maps(
         line_style_prob,
         &config,
     );
-    for (edge, support) in interior_edges.iter_mut().zip(refreshed_support.into_iter()) {
+    for (edge, support) in interior_edges.iter_mut().zip(refreshed_support) {
         edge.support = support;
     }
     for edge in &mut interior_edges {
@@ -685,10 +685,7 @@ pub fn decode_dense_outputs(
         Some(&line_style_prob),
         &config,
     );
-    for (edge, support) in interior_edges
-        .iter_mut()
-        .zip(interior_support_refresh.into_iter())
-    {
+    for (edge, support) in interior_edges.iter_mut().zip(interior_support_refresh) {
         edge.support = support;
     }
     for edge in &mut interior_edges {
