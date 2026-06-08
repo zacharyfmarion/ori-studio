@@ -126,3 +126,58 @@ Supported fields:
 
 Prefer adding a new metric family over changing the meaning of an existing
 metric. Historical benchmark results should remain comparable.
+
+## Candidate Coverage
+
+`candidate_coverage_metrics(...)` answers an earlier pipeline question than
+strict topology:
+
+> Did candidate generation ever offer the correct GT edge before beam selection
+> and exact solve?
+
+It compares each non-boundary GT crease against four candidate stages:
+
+1. **High-threshold legacy**: the normal legacy decode.
+2. **Low-threshold legacy**: the recall-oriented legacy decode used to add weak
+   candidates.
+3. **Adapter candidates**: the source-neutral `CandidateGraph` before beam
+   selection.
+4. **Selected candidates**: the spans chosen by beam selection.
+
+For each GT edge, the metric records:
+
+- dense line/non-crease support along the GT segment;
+- whether both GT endpoints exist in each candidate stage;
+- whether an aligned carrier exists;
+- whether the GT edge is represented as one span, a fragmented chain, or an
+  overlong span;
+- whether beam selection selected a matching span/chain;
+- a deterministic first-failure/root-cause label.
+
+The aggregate summary highlights the main bottleneck:
+
+- `candidate_oracle_recall`: percent of evaluated GT creases represented by any
+  adapter candidate before selection.
+- `selected_recall`: percent represented after beam selection.
+- root-cause counts such as `carrier_missing_high_and_low`,
+  `low_threshold_found_but_adapter_lost`, and
+  `candidate_available_but_rejected`.
+
+The current benchmark runner is:
+
+```bash
+cargo run --release -p oristudio-cp-detect --bin compare_candidate_coverage -- \
+  --manifest artifacts/cp-detect-correctness/dense-cache/clean-1024-s15-browser-onnx/manifest.json \
+  --out artifacts/cp-detect-correctness/reports/clean-1024-s15-candidate-coverage-YYYY-MM-DD
+```
+
+It writes:
+
+- `summary.json`: aggregate metrics and worst samples;
+- `per_sample.jsonl`: one full report per sample;
+- `per_gt_edge.jsonl`: one attribution row per evaluated GT edge;
+- `README.md`: human-readable summary.
+
+Candidate coverage intentionally ignores boundary GT edges by default because
+paper borders are handled by a deterministic border path. Pass
+`--include-boundary-edges` when debugging border-specific regressions.
