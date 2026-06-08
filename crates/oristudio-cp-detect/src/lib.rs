@@ -5,6 +5,7 @@
 //! later roadmap phases behind these contracts.
 
 mod backend;
+pub mod candidate_generation;
 mod compiler_decode;
 mod compiler_decode_v2;
 pub mod decode;

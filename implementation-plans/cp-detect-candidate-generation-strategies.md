@@ -135,6 +135,8 @@ generation path.
 
 ## Phase 2: Add Candidate Generation Strategy Boundary
 
+Status: Complete.
+
 ### Work
 
 - Add `crates/oristudio-cp-detect/src/candidate_generation/`.
@@ -145,6 +147,14 @@ generation path.
 - Preserve current behavior as the default strategy.
 - Keep the existing `CandidateGraph` type in `oristudio-cp-compiler`; do not
   duplicate IR types in detect.
+
+### Result
+
+`oristudio-cp-detect` now exposes a `candidate_generation` module with a
+strategy name, context, options, trait, and `legacy-threshold` implementation.
+The product legacy-candidate exact-solve backend and the inspector Stage 5 path
+both call this shared strategy implementation instead of rebuilding the legacy
+adapter locally.
 
 ### Done Means
 
@@ -250,12 +260,12 @@ generation path.
 
 - [x] Compiler candidate generation code removed or explicitly deprecated and
       unreachable from production flows.
-- [ ] `legacy-threshold` strategy implemented in `oristudio-cp-detect`.
-- [ ] Default product and inspector behavior still uses legacy-threshold.
+- [x] `legacy-threshold` strategy implemented in `oristudio-cp-detect`.
+- [x] Default product and inspector behavior still uses legacy-threshold.
 - [ ] Candidate coverage benchmark accepts `--strategy`.
 - [ ] Benchmark artifacts record strategy name and options.
 - [ ] Architecture inspector exposes strategy selection and removes compiler
       candidate generation options.
-- [ ] Rust unit tests cover strategy dispatch and legacy parity.
+- [x] Rust unit tests cover strategy dispatch and legacy option conversion.
 - [ ] Release benchmark runs successfully on `clean-1024-s15`.
 - [ ] Documentation explains how to add and benchmark a new strategy.

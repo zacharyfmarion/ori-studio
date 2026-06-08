@@ -302,29 +302,15 @@ fn legacy_candidate_exact_solve(
     config: DecodeConfig,
 ) -> Result<DecodedFold, DecodeError> {
     let compiler_started = StageTimer::start();
-    let legacy = crate::legacy_decode::decode_dense_outputs(outputs, config.clone())?;
-    let weak_threshold = legacy_candidate_low_threshold(config.threshold);
-    let weak = if weak_threshold < config.threshold {
-        Some(crate::legacy_decode::decode_dense_outputs(
+    let generation = crate::candidate_generation::generate_candidate_graph(
+        crate::candidate_generation::CandidateGenerationContext {
             outputs,
-            DecodeConfig {
-                threshold: weak_threshold,
-                ..config.clone()
-            },
-        )?)
-    } else {
-        None
-    };
-    let legacy_program = candidate_program_from_fold_json(&legacy.fold_json)?;
-    let weak_program = weak
-        .as_ref()
-        .map(|decoded| candidate_program_from_fold_json(&decoded.fold_json))
-        .transpose()?;
-    let candidate_graph = oristudio_cp_compiler::LegacyCandidateAdapter::from_programs(
-        &legacy_program,
-        weak_program.as_ref(),
-        legacy_candidate_adapter_options(config.image_size),
-    );
+            config: config.clone(),
+        },
+        crate::candidate_generation::CandidateGenerationOptions::default(),
+    )?;
+    let weak_threshold = generation.low_threshold;
+    let candidate_graph = generation.candidate_graph;
     let selection = oristudio_cp_compiler::selection::select_candidate_graph_beam_from_ir(
         &candidate_graph,
         oristudio_cp_compiler::selection::SelectionOptions::default(),
@@ -622,28 +608,6 @@ fn compiler_stage_ids(has_native_evidence: bool) -> Vec<&'static str> {
         "fold_export",
     ]);
     stages
-}
-
-fn candidate_program_from_fold_json(
-    fold_json: &str,
-) -> Result<oristudio_cp_compiler::CandidateProgram, DecodeError> {
-    let value = serde_json::from_str::<serde_json::Value>(fold_json)?;
-    Ok(oristudio_cp_compiler::CandidateProgram::from_fold_value(
-        &value,
-    )?)
-}
-
-fn legacy_candidate_low_threshold(threshold: f32) -> f32 {
-    (threshold * 0.55).max(0.10).min(threshold)
-}
-
-fn legacy_candidate_adapter_options(
-    image_size: u32,
-) -> oristudio_cp_compiler::LegacyCandidateAdapterOptions {
-    oristudio_cp_compiler::LegacyCandidateAdapterOptions {
-        duplicate_endpoint_tolerance: (3.0 / image_size.max(1) as f64).max(1e-6),
-        ..oristudio_cp_compiler::LegacyCandidateAdapterOptions::default()
-    }
 }
 
 fn product_export_verification_options() -> oristudio_cp_compiler::verify::GlobalVerificationOptions

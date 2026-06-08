@@ -12,9 +12,12 @@ use oristudio_cp_compiler::selection::{
     select_candidate_graph_beam_from_ir,
 };
 use oristudio_cp_compiler::{
-    AssignmentCandidate, AssignmentLabel, CandidateGraph, CandidateProgram, EvidenceSource,
-    ExactSolveInput, ExactSolvedGraph, LegacyCandidateAdapter, LegacyCandidateAdapterOptions,
-    Point2, SelectedGraph, solve_exact,
+    AssignmentCandidate, AssignmentLabel, CandidateGraph, EvidenceSource, ExactSolveInput,
+    ExactSolvedGraph, Point2, SelectedGraph, solve_exact,
+};
+use oristudio_cp_detect::candidate_generation::{
+    CandidateGenerationContext, CandidateGenerationOptions, LegacyThresholdStrategyOptions,
+    default_low_threshold, generate_candidate_graph,
 };
 use oristudio_cp_detect::decode::{DecodeConfig, DenseOutputs, decode_dense_outputs};
 use oristudio_cp_detect::evidence_extract::{
@@ -894,21 +897,36 @@ fn stage5_example(
         .clamp(0.0, 128.0);
     let stage2 = stage2_example(state, sample_id, query)?;
     let exact_options = ExactProbeOptions::default();
-    let program = read_legacy_candidate_program(state, sample, stage2.config.threshold)?;
-    let weak_program = if legacy_low_threshold < stage2.config.threshold {
-        Some(read_legacy_candidate_program(
-            state,
-            sample,
-            legacy_low_threshold,
-        )?)
-    } else {
-        None
-    };
-    let candidate_graph = LegacyCandidateAdapter::from_programs(
-        &program,
-        weak_program.as_ref(),
-        legacy_adapter_options(sample.image_size, legacy_snap_radius_px),
-    );
+    let outputs = read_dense_outputs(state, sample)?;
+    let generation = generate_candidate_graph(
+        CandidateGenerationContext {
+            outputs: outputs.as_dense_outputs(),
+            config: DecodeConfig {
+                image_size: sample.image_size,
+                threshold: stage2.config.threshold,
+                ..DecodeConfig::default()
+            },
+        },
+        CandidateGenerationOptions {
+            legacy_threshold: LegacyThresholdStrategyOptions {
+                low_threshold: Some(legacy_low_threshold),
+                weak_endpoint_snap_radius_px: Some(legacy_snap_radius_px),
+                weak_boundary_endpoint_snap_radius_px: Some(10.0),
+                weak_carrier_incidence_tolerance_px: Some(6.0),
+                weak_span_split_tolerance_px: Some(4.0),
+                weak_min_split_length_px: Some(3.0),
+                ..LegacyThresholdStrategyOptions::default()
+            },
+            ..CandidateGenerationOptions::default()
+        },
+    )
+    .with_context(|| {
+        format!(
+            "generate {} candidate graph for {}",
+            candidate_source, sample.id
+        )
+    })?;
+    let candidate_graph = generation.candidate_graph;
     let selection = select_candidate_graph_beam_from_ir(
         &candidate_graph,
         SelectionOptions::default(),
@@ -1389,27 +1407,6 @@ fn selection_with_exact_roles(
     selection
 }
 
-fn read_legacy_candidate_program(
-    state: &AppState,
-    sample: &DenseCacheSample,
-    threshold: f32,
-) -> Result<CandidateProgram> {
-    let outputs = read_dense_outputs(state, sample)?;
-    let decoded = decode_dense_outputs(
-        outputs.as_dense_outputs(),
-        DecodeConfig {
-            image_size: sample.image_size,
-            threshold,
-            ..DecodeConfig::default()
-        },
-    )
-    .with_context(|| format!("decode legacy candidate program for {}", sample.id))?;
-    let value: Value = serde_json::from_str(&decoded.fold_json)
-        .with_context(|| format!("parse legacy FOLD for {}", sample.id))?;
-    CandidateProgram::from_fold_value(&value)
-        .with_context(|| format!("convert legacy FOLD to candidate program for {}", sample.id))
-}
-
 fn read_legacy_graph(
     state: &AppState,
     sample: &DenseCacheSample,
@@ -1610,27 +1607,7 @@ fn stage_threshold_from_query_or_sample(
         .unwrap_or(sample.threshold)
 }
 
-fn default_low_threshold(threshold: f32) -> f32 {
-    (threshold * 0.55).max(0.10).min(threshold)
-}
-
 const DEFAULT_WEAK_ENDPOINT_SNAP_RADIUS_PX: f64 = 12.0;
-
-fn legacy_adapter_options(
-    image_size: u32,
-    weak_endpoint_snap_radius_px: f64,
-) -> LegacyCandidateAdapterOptions {
-    let scale = 1.0 / image_size.max(1) as f64;
-    LegacyCandidateAdapterOptions {
-        duplicate_endpoint_tolerance: (3.0 * scale).max(1e-6),
-        weak_endpoint_snap_tolerance: (weak_endpoint_snap_radius_px * scale).max(1e-6),
-        weak_boundary_endpoint_snap_tolerance: (10.0 * scale).max(1e-6),
-        weak_carrier_incidence_tolerance: (6.0 * scale).max(1e-6),
-        weak_span_split_tolerance: (4.0 * scale).max(1e-6),
-        weak_min_split_length: (3.0 * scale).max(1e-6),
-        ..LegacyCandidateAdapterOptions::default()
-    }
-}
 
 fn arrangement_input_from_evidence(
     evidence: &CompilerEvidence,
