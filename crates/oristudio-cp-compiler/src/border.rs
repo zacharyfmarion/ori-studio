@@ -843,7 +843,7 @@ fn reject_zero_length_and_duplicate_edges(program: &mut CandidateProgram) {
             keep_by_key.push((key, edge_idx));
         }
     }
-    for (edge, should_reject) in program.edges.iter_mut().zip(reject.into_iter()) {
+    for (edge, should_reject) in program.edges.iter_mut().zip(reject) {
         if should_reject {
             edge.selection = EdgeSelection::Rejected;
         }
