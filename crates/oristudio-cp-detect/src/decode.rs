@@ -1158,14 +1158,14 @@ mod tests {
             assignment_logits[2 * pixels + y * size + size - 1] = 8.0;
         }
 
-        let outputs = DenseOutputs {
-            line_logits: &line_logits,
-            junction_logits: &junction_logits,
-            assignment_logits: &assignment_logits,
-            non_crease_logits: &non_crease_logits,
-            line_style_logits: &line_style_logits,
-            boundary_contact_logits: &boundary_contact_logits,
-        };
+        let outputs = DenseOutputs::from_legacy_heads(
+            &line_logits,
+            &junction_logits,
+            &assignment_logits,
+            &non_crease_logits,
+            &line_style_logits,
+            &boundary_contact_logits,
+        );
         let config = DecodeConfig {
             image_size: size as u32,
             threshold: 0.65,
@@ -1420,14 +1420,14 @@ mod tests {
         }
 
         (
-            DenseOutputs {
+            DenseOutputs::from_legacy_heads(
                 line_logits,
                 junction_logits,
                 assignment_logits,
                 non_crease_logits,
                 line_style_logits,
                 boundary_contact_logits,
-            },
+            ),
             DecodeConfig {
                 image_size: size as u32,
                 threshold: 0.65,

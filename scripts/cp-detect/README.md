@@ -154,7 +154,17 @@ source .fold records
   -> paired GT metrics and contact sheet
 ```
 
-Build a smoke pack:
+Build the default clean iteration pack. This is the first topology benchmark to
+use when tuning detector/compiler behavior because it gives 15 unique CPs with
+no augmentation repeats:
+
+```bash
+python scripts/cp-detect/build-correctness-benchmark-pack.py \
+  --tier clean \
+  --out artifacts/cp-detect-correctness/packs/clean-1024-s15
+```
+
+Build the smaller varied-profile smoke pack:
 
 ```bash
 python scripts/cp-detect/build-correctness-benchmark-pack.py \
@@ -180,6 +190,19 @@ node scripts/cp-detect/run-browser-correctness-fast.mjs \
   --url http://127.0.0.1:5175/ \
   --pack artifacts/cp-detect-correctness/packs/smoke-1024-s3/manifest.json \
   --out artifacts/cp-detect-correctness/runs/smoke-1024-s3/browser-fast
+```
+
+For post-inference Rust/compiler iteration, cache browser ONNX dense outputs
+instead of rerunning model inference for every ablation. The dense cache writer
+stores every model head currently exposed by the manifest, including optional
+heads such as `angle`, `junction_offset`, `vertex_type_logits`,
+`boundary_side_logits`, `boundary_offset`, and `boundary_coord`:
+
+```bash
+node scripts/cp-detect/run-browser-dense-cache.mjs \
+  --url http://127.0.0.1:5175/ \
+  --pack artifacts/cp-detect-correctness/packs/clean-1024-s15/manifest.json \
+  --out artifacts/cp-detect-correctness/dense-cache/clean-1024-s15-browser-onnx
 ```
 
 Score both runs against GT:

@@ -5,8 +5,7 @@ import ortWasmUrl from 'onnxruntime-web/ort-wasm-simd-threaded.asyncify.wasm?url
 import init, {
   cp_detect_ablate_dense_outputs,
   cp_detect_auto_rectify_rgba,
-  cp_detect_decode_dense_outputs,
-  cp_detect_decode_dense_outputs_with_backend,
+  cp_detect_decode_dense_output_bundle,
   cp_detect_manual_rectify_rgba,
   cp_detect_package_info,
   cp_detect_parse_model_manifest,
@@ -27,6 +26,7 @@ import type {
 import type { WasmErrorEnvelope } from '../engine/types';
 import {
   DEFAULT_CP_DETECT_MODEL_MANIFEST_URL,
+  CP_DETECT_OUTPUT_KEYS,
   fetchCpDetectModelManifest,
   runCpDetectDenseInference,
   type CpDetectOnnxSession,
@@ -357,25 +357,13 @@ function decodeFoldFromDenseOutputs(
   options: CpDetectWorkerRunOptions = {}
 ): WasmDecodedFold {
   const decoderBackend = options.decoderBackend ?? 'legacy_v2_decoder';
-  if (decoderBackend === 'legacy_v2_decoder') {
-    return cp_detect_decode_dense_outputs(
-      outputs.line_logits.data,
-      outputs.junction_logits.data,
-      outputs.assignment_logits.data,
-      outputs.non_crease_logits.data,
-      outputs.line_style_logits.data,
-      outputs.boundary_contact_logits.data,
-      manifest.inference.image_size,
-      manifest.inference.threshold
-    ) as WasmDecodedFold;
-  }
-  return cp_detect_decode_dense_outputs_with_backend(
-    outputs.line_logits.data,
-    outputs.junction_logits.data,
-    outputs.assignment_logits.data,
-    outputs.non_crease_logits.data,
-    outputs.line_style_logits.data,
-    outputs.boundary_contact_logits.data,
+  const outputBundle = Object.fromEntries(
+    CP_DETECT_OUTPUT_KEYS
+      .filter((key) => outputs[key])
+      .map((key) => [key, outputs[key].data])
+  );
+  return cp_detect_decode_dense_output_bundle(
+    outputBundle,
     manifest.inference.image_size,
     manifest.inference.threshold,
     decoderBackend

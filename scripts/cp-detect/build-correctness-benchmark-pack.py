@@ -19,6 +19,7 @@ from PIL import Image
 SCHEMA = "oristudio/cp-detect-correctness-pack/v1"
 ASSIGNMENT_LABELS = {0: "M", 1: "V", 2: "B", 3: "U"}
 TIER_PROFILES = {
+    "clean": ["clean"],
     "smoke": ["clean", "line-style", "v2-watermark", "v2-dashed"],
     "iteration": [
         "clean",
@@ -51,7 +52,7 @@ TIER_PROFILES = {
         "v2-dark-combined",
     ],
 }
-TIER_SAMPLES_PER_PROFILE = {"smoke": 3, "iteration": 8, "promotion": 24}
+TIER_SAMPLES_PER_PROFILE = {"clean": 15, "smoke": 3, "iteration": 8, "promotion": 24}
 
 
 def main() -> int:

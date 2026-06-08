@@ -24,7 +24,7 @@ use serde_json::{Value, json};
 
 const SCHEMA: &str = "oristudio/cp-detect-exact-solve-comparison/v1";
 const DEFAULT_DENSE_MANIFEST: &str =
-    "artifacts/cp-detect-correctness/dense-cache/smoke-1024-s3-browser-onnx/manifest.json";
+    "artifacts/cp-detect-correctness/dense-cache/clean-1024-s15-browser-onnx/manifest.json";
 
 #[derive(Debug, Deserialize)]
 struct DenseCacheManifest {
@@ -92,6 +92,7 @@ struct BenchmarkSummary {
     config: BenchmarkConfig,
     sample_count: usize,
     total_seconds: f64,
+    timing: BenchmarkTimingAggregate,
     implementations: BTreeMap<String, ImplementationAggregate>,
 }
 
@@ -118,7 +119,34 @@ struct BenchmarkSample {
     exact_solved: OutputMetrics,
     selection: SelectionSummary,
     exact_solve: ExactSolveSummary,
+    timing: BenchmarkSampleTiming,
     seconds: f64,
+}
+
+#[derive(Debug, Default, Clone, Copy, Serialize)]
+struct BenchmarkSampleTiming {
+    read_logits_seconds: f64,
+    legacy_decode_seconds: f64,
+    weak_decode_seconds: f64,
+    candidate_adapter_seconds: f64,
+    selection_seconds: f64,
+    exact_solve_seconds: f64,
+    metrics_seconds: f64,
+    total_seconds: f64,
+}
+
+#[derive(Debug, Default, Clone, Copy, Serialize)]
+struct BenchmarkTimingAggregate {
+    sample_total_seconds: f64,
+    mean_sample_seconds: f64,
+    max_sample_seconds: f64,
+    read_logits_seconds: f64,
+    legacy_decode_seconds: f64,
+    weak_decode_seconds: f64,
+    candidate_adapter_seconds: f64,
+    selection_seconds: f64,
+    exact_solve_seconds: f64,
+    metrics_seconds: f64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -450,23 +478,37 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let low_threshold = args
             .legacy_low_threshold
             .unwrap_or_else(|| default_low_threshold(threshold));
+        let read_logits_started = Instant::now();
         let logits = read_sample_logits(manifest_root, sample)?;
+        let read_logits_seconds = read_logits_started.elapsed().as_secs_f64();
+
+        let legacy_decode_started = Instant::now();
         let legacy_program = decode_program(sample, &logits, threshold)?;
+        let legacy_decode_seconds = legacy_decode_started.elapsed().as_secs_f64();
+
+        let weak_decode_started = Instant::now();
         let weak_program = if low_threshold < threshold {
             Some(decode_program(sample, &logits, low_threshold)?)
         } else {
             None
         };
+        let weak_decode_seconds = weak_decode_started.elapsed().as_secs_f64();
+
+        let candidate_adapter_started = Instant::now();
         let candidate_graph = LegacyCandidateAdapter::from_programs(
             &legacy_program,
             weak_program.as_ref(),
             legacy_adapter_options(sample.image_size),
         );
+        let candidate_adapter_seconds = candidate_adapter_started.elapsed().as_secs_f64();
+
+        let selection_started = Instant::now();
         let selection = select_candidate_graph_beam_from_ir(
             &candidate_graph,
             SelectionOptions::default(),
             Default::default(),
         );
+        let selection_seconds = selection_started.elapsed().as_secs_f64();
         let selected_span_ids = selection
             .selected_spans
             .iter()
@@ -503,6 +545,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }))?
         );
 
+        let metrics_started = Instant::now();
         let gt = read_ground_truth(manifest_root, manifest.pack.as_deref(), sample)?;
         let legacy_span_set = candidate_graph
             .crease_candidates
@@ -560,6 +603,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             verify_options,
         )?;
         let exact_summary = exact_solve_summary(&exact_solved, exact_seconds);
+        let metrics_seconds = metrics_started.elapsed().as_secs_f64();
         let selected_weak_spans = selection
             .selected_spans
             .iter()
@@ -582,6 +626,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             })
             .count();
 
+        let sample_seconds = sample_started.elapsed().as_secs_f64();
         let row = BenchmarkSample {
             id: sample.id.clone(),
             source_id: sample.source_id.clone(),
@@ -599,7 +644,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 total_score: round6(selection.report.total_score),
             },
             exact_solve: exact_summary,
-            seconds: round3(sample_started.elapsed().as_secs_f64()),
+            timing: BenchmarkSampleTiming {
+                read_logits_seconds: round3(read_logits_seconds),
+                legacy_decode_seconds: round3(legacy_decode_seconds),
+                weak_decode_seconds: round3(weak_decode_seconds),
+                candidate_adapter_seconds: round3(candidate_adapter_seconds),
+                selection_seconds: round3(selection_seconds),
+                exact_solve_seconds: round3(exact_seconds),
+                metrics_seconds: round3(metrics_seconds),
+                total_seconds: round3(sample_seconds),
+            },
+            seconds: round3(sample_seconds),
         };
 
         add_output(&mut aggregates, "legacy", &row.legacy, None);
@@ -650,6 +705,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         },
         sample_count: rows.len(),
         total_seconds: round3(started.elapsed().as_secs_f64()),
+        timing: aggregate_timing(&rows),
         implementations: aggregates,
     };
 
@@ -1185,6 +1241,36 @@ fn add_output(
     if let Some(exact) = exact {
         aggregate.exact.add(exact);
     }
+}
+
+fn aggregate_timing(rows: &[BenchmarkSample]) -> BenchmarkTimingAggregate {
+    if rows.is_empty() {
+        return BenchmarkTimingAggregate::default();
+    }
+    let mut aggregate = BenchmarkTimingAggregate::default();
+    for row in rows {
+        let timing = row.timing;
+        aggregate.sample_total_seconds += timing.total_seconds;
+        aggregate.max_sample_seconds = aggregate.max_sample_seconds.max(timing.total_seconds);
+        aggregate.read_logits_seconds += timing.read_logits_seconds;
+        aggregate.legacy_decode_seconds += timing.legacy_decode_seconds;
+        aggregate.weak_decode_seconds += timing.weak_decode_seconds;
+        aggregate.candidate_adapter_seconds += timing.candidate_adapter_seconds;
+        aggregate.selection_seconds += timing.selection_seconds;
+        aggregate.exact_solve_seconds += timing.exact_solve_seconds;
+        aggregate.metrics_seconds += timing.metrics_seconds;
+    }
+    aggregate.sample_total_seconds = round3(aggregate.sample_total_seconds);
+    aggregate.mean_sample_seconds = round3(aggregate.sample_total_seconds / rows.len() as f64);
+    aggregate.max_sample_seconds = round3(aggregate.max_sample_seconds);
+    aggregate.read_logits_seconds = round3(aggregate.read_logits_seconds);
+    aggregate.legacy_decode_seconds = round3(aggregate.legacy_decode_seconds);
+    aggregate.weak_decode_seconds = round3(aggregate.weak_decode_seconds);
+    aggregate.candidate_adapter_seconds = round3(aggregate.candidate_adapter_seconds);
+    aggregate.selection_seconds = round3(aggregate.selection_seconds);
+    aggregate.exact_solve_seconds = round3(aggregate.exact_solve_seconds);
+    aggregate.metrics_seconds = round3(aggregate.metrics_seconds);
+    aggregate
 }
 
 fn segment_metrics(

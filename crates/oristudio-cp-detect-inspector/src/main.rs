@@ -35,7 +35,7 @@ use std::thread;
 const DEFAULT_HOST: &str = "127.0.0.1";
 const DEFAULT_PORT: u16 = 8788;
 const DEFAULT_DENSE_MANIFEST: &str =
-    "artifacts/cp-detect-correctness/dense-cache/smoke-1024-s3-browser-onnx/manifest.json";
+    "artifacts/cp-detect-correctness/dense-cache/clean-1024-s15-browser-onnx/manifest.json";
 const DEFAULT_DIST: &str = "apps/cp-detect-architecture-inspector/dist";
 const MAX_MAP_SIZE: usize = 512;
 
@@ -77,6 +77,12 @@ struct DenseCacheSample {
     gt_fold: Option<String>,
     gt_graph: Option<String>,
     dims: BTreeMap<String, Vec<usize>>,
+    angle_f32_path: Option<String>,
+    junction_offset_f32_path: Option<String>,
+    vertex_type_logits_f32_path: Option<String>,
+    boundary_side_logits_f32_path: Option<String>,
+    boundary_offset_f32_path: Option<String>,
+    boundary_coord_f32_path: Option<String>,
     line_logits_f32_path: String,
     junction_logits_f32_path: String,
     assignment_logits_f32_path: String,
@@ -719,17 +725,7 @@ fn stage1_example(
         ..DecodeConfig::default()
     };
     let evidence_config = evidence_config_from_decode(&decode_config);
-    let evidence = extract_compiler_evidence(
-        DenseOutputRefs {
-            line_logits: &outputs.line_logits,
-            junction_logits: &outputs.junction_logits,
-            assignment_logits: &outputs.assignment_logits,
-            non_crease_logits: &outputs.non_crease_logits,
-            line_style_logits: &outputs.line_style_logits,
-            boundary_contact_logits: &outputs.boundary_contact_logits,
-        },
-        evidence_config,
-    )?;
+    let evidence = extract_compiler_evidence(outputs.as_dense_refs(), evidence_config)?;
     let maps = evidence_maps(&evidence, map_size)?;
     Ok(Stage1Response {
         schema: "oristudio/cp-detect-architecture-inspector/stage1/v1",
@@ -784,17 +780,7 @@ fn stage2_example(
         ..DecodeConfig::default()
     };
     let evidence_config = evidence_config_from_decode(&decode_config);
-    let evidence = extract_compiler_evidence(
-        DenseOutputRefs {
-            line_logits: &outputs.line_logits,
-            junction_logits: &outputs.junction_logits,
-            assignment_logits: &outputs.assignment_logits,
-            non_crease_logits: &outputs.non_crease_logits,
-            line_style_logits: &outputs.line_style_logits,
-            boundary_contact_logits: &outputs.boundary_contact_logits,
-        },
-        evidence_config,
-    )?;
+    let evidence = extract_compiler_evidence(outputs.as_dense_refs(), evidence_config)?;
     let maps = evidence_maps(&evidence, map_size)?;
     let overlay_frame_px = overlay_frame_for_sample(state, sample)?;
     let arrangement_input = arrangement_input_from_evidence(&evidence, Some(overlay_frame_px));
@@ -1414,14 +1400,7 @@ fn read_legacy_candidate_program(
 ) -> Result<CandidateProgram> {
     let outputs = read_dense_outputs(state, sample)?;
     let decoded = decode_dense_outputs(
-        DenseOutputs {
-            line_logits: &outputs.line_logits,
-            junction_logits: &outputs.junction_logits,
-            assignment_logits: &outputs.assignment_logits,
-            non_crease_logits: &outputs.non_crease_logits,
-            line_style_logits: &outputs.line_style_logits,
-            boundary_contact_logits: &outputs.boundary_contact_logits,
-        },
+        outputs.as_dense_outputs(),
         DecodeConfig {
             image_size: sample.image_size,
             threshold,
@@ -1443,14 +1422,7 @@ fn read_legacy_graph(
 ) -> Result<Option<GroundTruthGraphPayload>> {
     let outputs = read_dense_outputs(state, sample)?;
     let decoded = decode_dense_outputs(
-        DenseOutputs {
-            line_logits: &outputs.line_logits,
-            junction_logits: &outputs.junction_logits,
-            assignment_logits: &outputs.assignment_logits,
-            non_crease_logits: &outputs.non_crease_logits,
-            line_style_logits: &outputs.line_style_logits,
-            boundary_contact_logits: &outputs.boundary_contact_logits,
-        },
+        outputs.as_dense_outputs(),
         DecodeConfig {
             image_size: sample.image_size,
             threshold,
@@ -1812,18 +1784,29 @@ fn side_from_boundary(side: BoundarySide) -> ArrangementBoundarySide {
 
 struct DenseOutputsOwned {
     line_logits: Vec<f32>,
+    angle: Option<Vec<f32>>,
     junction_logits: Vec<f32>,
+    junction_offset: Option<Vec<f32>>,
     assignment_logits: Vec<f32>,
     non_crease_logits: Vec<f32>,
     line_style_logits: Vec<f32>,
+    vertex_type_logits: Option<Vec<f32>>,
     boundary_contact_logits: Vec<f32>,
+    boundary_side_logits: Option<Vec<f32>>,
+    boundary_offset: Option<Vec<f32>>,
+    boundary_coord: Option<Vec<f32>>,
 }
 
 fn read_dense_outputs(state: &AppState, sample: &DenseCacheSample) -> Result<DenseOutputsOwned> {
     Ok(DenseOutputsOwned {
         line_logits: read_f32_file(&state.manifest_root.join(&sample.line_logits_f32_path))?,
+        angle: read_optional_f32_file(&state.manifest_root, sample.angle_f32_path.as_deref())?,
         junction_logits: read_f32_file(
             &state.manifest_root.join(&sample.junction_logits_f32_path),
+        )?,
+        junction_offset: read_optional_f32_file(
+            &state.manifest_root,
+            sample.junction_offset_f32_path.as_deref(),
         )?,
         assignment_logits: read_f32_file(
             &state.manifest_root.join(&sample.assignment_logits_f32_path),
@@ -1834,12 +1817,68 @@ fn read_dense_outputs(state: &AppState, sample: &DenseCacheSample) -> Result<Den
         line_style_logits: read_f32_file(
             &state.manifest_root.join(&sample.line_style_logits_f32_path),
         )?,
+        vertex_type_logits: read_optional_f32_file(
+            &state.manifest_root,
+            sample.vertex_type_logits_f32_path.as_deref(),
+        )?,
         boundary_contact_logits: read_f32_file(
             &state
                 .manifest_root
                 .join(&sample.boundary_contact_logits_f32_path),
         )?,
+        boundary_side_logits: read_optional_f32_file(
+            &state.manifest_root,
+            sample.boundary_side_logits_f32_path.as_deref(),
+        )?,
+        boundary_offset: read_optional_f32_file(
+            &state.manifest_root,
+            sample.boundary_offset_f32_path.as_deref(),
+        )?,
+        boundary_coord: read_optional_f32_file(
+            &state.manifest_root,
+            sample.boundary_coord_f32_path.as_deref(),
+        )?,
     })
+}
+
+impl DenseOutputsOwned {
+    fn as_dense_outputs(&self) -> DenseOutputs<'_> {
+        DenseOutputs::from_legacy_heads(
+            &self.line_logits,
+            &self.junction_logits,
+            &self.assignment_logits,
+            &self.non_crease_logits,
+            &self.line_style_logits,
+            &self.boundary_contact_logits,
+        )
+        .with_angle(self.angle.as_deref())
+        .with_junction_offset(self.junction_offset.as_deref())
+        .with_vertex_type_logits(self.vertex_type_logits.as_deref())
+        .with_boundary_side_logits(self.boundary_side_logits.as_deref())
+        .with_boundary_offset(self.boundary_offset.as_deref())
+        .with_boundary_coord(self.boundary_coord.as_deref())
+    }
+
+    fn as_dense_refs(&self) -> DenseOutputRefs<'_> {
+        DenseOutputRefs::from_legacy_heads(
+            &self.line_logits,
+            &self.junction_logits,
+            &self.assignment_logits,
+            &self.non_crease_logits,
+            &self.line_style_logits,
+            &self.boundary_contact_logits,
+        )
+        .with_angle(self.angle.as_deref())
+        .with_junction_offset(self.junction_offset.as_deref())
+        .with_vertex_type_logits(self.vertex_type_logits.as_deref())
+        .with_boundary_side_logits(self.boundary_side_logits.as_deref())
+        .with_boundary_offset(self.boundary_offset.as_deref())
+        .with_boundary_coord(self.boundary_coord.as_deref())
+    }
+}
+
+fn read_optional_f32_file(root: &Path, path: Option<&str>) -> Result<Option<Vec<f32>>> {
+    path.map(|path| read_f32_file(&root.join(path))).transpose()
 }
 
 fn read_f32_file(path: &Path) -> Result<Vec<f32>> {

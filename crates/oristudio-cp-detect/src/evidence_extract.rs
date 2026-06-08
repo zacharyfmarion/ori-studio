@@ -12,11 +12,76 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy)]
 pub struct DenseOutputRefs<'a> {
     pub line_logits: &'a [f32],
+    pub angle: Option<&'a [f32]>,
     pub junction_logits: &'a [f32],
+    pub junction_offset: Option<&'a [f32]>,
     pub assignment_logits: &'a [f32],
     pub non_crease_logits: &'a [f32],
     pub line_style_logits: &'a [f32],
+    pub vertex_type_logits: Option<&'a [f32]>,
     pub boundary_contact_logits: &'a [f32],
+    pub boundary_side_logits: Option<&'a [f32]>,
+    pub boundary_offset: Option<&'a [f32]>,
+    pub boundary_coord: Option<&'a [f32]>,
+}
+
+impl<'a> DenseOutputRefs<'a> {
+    pub const fn from_legacy_heads(
+        line_logits: &'a [f32],
+        junction_logits: &'a [f32],
+        assignment_logits: &'a [f32],
+        non_crease_logits: &'a [f32],
+        line_style_logits: &'a [f32],
+        boundary_contact_logits: &'a [f32],
+    ) -> Self {
+        Self {
+            line_logits,
+            angle: None,
+            junction_logits,
+            junction_offset: None,
+            assignment_logits,
+            non_crease_logits,
+            line_style_logits,
+            vertex_type_logits: None,
+            boundary_contact_logits,
+            boundary_side_logits: None,
+            boundary_offset: None,
+            boundary_coord: None,
+        }
+    }
+
+    pub const fn with_angle(mut self, angle: Option<&'a [f32]>) -> Self {
+        self.angle = angle;
+        self
+    }
+
+    pub const fn with_junction_offset(mut self, junction_offset: Option<&'a [f32]>) -> Self {
+        self.junction_offset = junction_offset;
+        self
+    }
+
+    pub const fn with_vertex_type_logits(mut self, vertex_type_logits: Option<&'a [f32]>) -> Self {
+        self.vertex_type_logits = vertex_type_logits;
+        self
+    }
+
+    pub const fn with_boundary_side_logits(
+        mut self,
+        boundary_side_logits: Option<&'a [f32]>,
+    ) -> Self {
+        self.boundary_side_logits = boundary_side_logits;
+        self
+    }
+
+    pub const fn with_boundary_offset(mut self, boundary_offset: Option<&'a [f32]>) -> Self {
+        self.boundary_offset = boundary_offset;
+        self
+    }
+
+    pub const fn with_boundary_coord(mut self, boundary_coord: Option<&'a [f32]>) -> Self {
+        self.boundary_coord = boundary_coord;
+        self
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -644,14 +709,14 @@ mod tests {
         boundary_contact_logits[32] = 8.0;
 
         let evidence = extract_compiler_evidence(
-            DenseOutputRefs {
-                line_logits: &line_logits,
-                junction_logits: &junction_logits,
-                assignment_logits: &assignment_logits,
-                non_crease_logits: &non_crease_logits,
-                line_style_logits: &line_style_logits,
-                boundary_contact_logits: &boundary_contact_logits,
-            },
+            DenseOutputRefs::from_legacy_heads(
+                &line_logits,
+                &junction_logits,
+                &assignment_logits,
+                &non_crease_logits,
+                &line_style_logits,
+                &boundary_contact_logits,
+            ),
             EvidenceExtractionConfig {
                 image_size: size as u32,
                 line_threshold: 0.65,

@@ -149,6 +149,29 @@ pub fn cp_detect_decode_dense_outputs_with_backend(
 }
 
 #[wasm_bindgen]
+pub fn cp_detect_decode_dense_output_bundle(
+    outputs: JsValue,
+    image_size: u32,
+    threshold: f32,
+    decoder_backend: &str,
+) -> Result<JsValue, JsValue> {
+    install_panic_hook();
+    let backend = parse_decoder_backend(decoder_backend)?;
+    let outputs = JsDenseOutputBundle::from_js(&outputs)?;
+    let decoded = oristudio_cp_detect::decode::decode_dense_outputs_with_backend(
+        outputs.as_dense_outputs(),
+        oristudio_cp_detect::decode::DecodeConfig {
+            image_size,
+            threshold,
+            ..oristudio_cp_detect::decode::DecodeConfig::default()
+        },
+        backend,
+    )
+    .map_err(to_js_decode_error)?;
+    to_js_value_via_json(&decoded)
+}
+
+#[wasm_bindgen]
 #[allow(clippy::too_many_arguments)]
 pub fn cp_detect_ablate_dense_outputs(
     line_logits: &[f32],
@@ -162,14 +185,14 @@ pub fn cp_detect_ablate_dense_outputs(
 ) -> Result<JsValue, JsValue> {
     install_panic_hook();
     let result = oristudio_cp_detect::decode::ablate_dense_outputs(
-        oristudio_cp_detect::decode::DenseOutputs {
+        oristudio_cp_detect::decode::DenseOutputs::from_legacy_heads(
             line_logits,
             junction_logits,
             assignment_logits,
             non_crease_logits,
             line_style_logits,
             boundary_contact_logits,
-        },
+        ),
         oristudio_cp_detect::decode::DecodeConfig {
             image_size,
             threshold,
@@ -178,6 +201,84 @@ pub fn cp_detect_ablate_dense_outputs(
     )
     .map_err(to_js_decode_error)?;
     to_js_value(&result)
+}
+
+struct JsDenseOutputBundle {
+    line_logits: Vec<f32>,
+    angle: Option<Vec<f32>>,
+    junction_logits: Vec<f32>,
+    junction_offset: Option<Vec<f32>>,
+    assignment_logits: Vec<f32>,
+    non_crease_logits: Vec<f32>,
+    line_style_logits: Vec<f32>,
+    vertex_type_logits: Option<Vec<f32>>,
+    boundary_contact_logits: Vec<f32>,
+    boundary_side_logits: Option<Vec<f32>>,
+    boundary_offset: Option<Vec<f32>>,
+    boundary_coord: Option<Vec<f32>>,
+}
+
+impl JsDenseOutputBundle {
+    fn from_js(value: &JsValue) -> Result<Self, JsValue> {
+        Ok(Self {
+            line_logits: required_f32_array(value, "line_logits")?,
+            angle: optional_f32_array(value, "angle")?,
+            junction_logits: required_f32_array(value, "junction_logits")?,
+            junction_offset: optional_f32_array(value, "junction_offset")?,
+            assignment_logits: required_f32_array(value, "assignment_logits")?,
+            non_crease_logits: required_f32_array(value, "non_crease_logits")?,
+            line_style_logits: required_f32_array(value, "line_style_logits")?,
+            vertex_type_logits: optional_f32_array(value, "vertex_type_logits")?,
+            boundary_contact_logits: required_f32_array(value, "boundary_contact_logits")?,
+            boundary_side_logits: optional_f32_array(value, "boundary_side_logits")?,
+            boundary_offset: optional_f32_array(value, "boundary_offset")?,
+            boundary_coord: optional_f32_array(value, "boundary_coord")?,
+        })
+    }
+
+    fn as_dense_outputs(&self) -> oristudio_cp_detect::decode::DenseOutputs<'_> {
+        oristudio_cp_detect::decode::DenseOutputs::from_legacy_heads(
+            &self.line_logits,
+            &self.junction_logits,
+            &self.assignment_logits,
+            &self.non_crease_logits,
+            &self.line_style_logits,
+            &self.boundary_contact_logits,
+        )
+        .with_angle(self.angle.as_deref())
+        .with_junction_offset(self.junction_offset.as_deref())
+        .with_vertex_type_logits(self.vertex_type_logits.as_deref())
+        .with_boundary_side_logits(self.boundary_side_logits.as_deref())
+        .with_boundary_offset(self.boundary_offset.as_deref())
+        .with_boundary_coord(self.boundary_coord.as_deref())
+    }
+}
+
+fn required_f32_array(object: &JsValue, name: &'static str) -> Result<Vec<f32>, JsValue> {
+    optional_f32_array(object, name)?.ok_or_else(|| {
+        js_error(
+            "missing_dense_output",
+            format!("missing dense output {name}"),
+        )
+    })
+}
+
+fn optional_f32_array(object: &JsValue, name: &'static str) -> Result<Option<Vec<f32>>, JsValue> {
+    let value = js_sys::Reflect::get(object, &JsValue::from_str(name))
+        .map_err(|_| js_error("invalid_dense_output", format!("could not read {name}")))?;
+    if value.is_undefined() || value.is_null() {
+        return Ok(None);
+    }
+    if !value.is_instance_of::<js_sys::Float32Array>() {
+        return Err(js_error(
+            "invalid_dense_output",
+            format!("{name} must be a Float32Array"),
+        ));
+    }
+    let array = js_sys::Float32Array::new(&value);
+    let mut data = vec![0.0; array.length() as usize];
+    array.copy_to(&mut data);
+    Ok(Some(data))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -194,14 +295,14 @@ fn decode_dense_outputs_with_backend(
 ) -> Result<JsValue, JsValue> {
     install_panic_hook();
     let decoded = oristudio_cp_detect::decode::decode_dense_outputs_with_backend(
-        oristudio_cp_detect::decode::DenseOutputs {
+        oristudio_cp_detect::decode::DenseOutputs::from_legacy_heads(
             line_logits,
             junction_logits,
             assignment_logits,
             non_crease_logits,
             line_style_logits,
             boundary_contact_logits,
-        },
+        ),
         oristudio_cp_detect::decode::DecodeConfig {
             image_size,
             threshold,

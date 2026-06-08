@@ -172,14 +172,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ))?;
 
         let legacy = decode_dense_outputs(
-            DenseOutputs {
-                line_logits: &line_logits,
-                junction_logits: &junction_logits,
-                assignment_logits: &assignment_logits,
-                non_crease_logits: &non_crease_logits,
-                line_style_logits: &line_style_logits,
-                boundary_contact_logits: &boundary_contact_logits,
-            },
+            DenseOutputs::from_legacy_heads(
+                &line_logits,
+                &junction_logits,
+                &assignment_logits,
+                &non_crease_logits,
+                &line_style_logits,
+                &boundary_contact_logits,
+            ),
             DecodeConfig {
                 image_size: sample.image_size,
                 threshold: sample.threshold,
@@ -193,14 +193,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .unwrap_or_else(|| default_low_threshold(sample.threshold));
         let weak_program = if low_threshold < sample.threshold {
             let weak = decode_dense_outputs(
-                DenseOutputs {
-                    line_logits: &line_logits,
-                    junction_logits: &junction_logits,
-                    assignment_logits: &assignment_logits,
-                    non_crease_logits: &non_crease_logits,
-                    line_style_logits: &line_style_logits,
-                    boundary_contact_logits: &boundary_contact_logits,
-                },
+                DenseOutputs::from_legacy_heads(
+                    &line_logits,
+                    &junction_logits,
+                    &assignment_logits,
+                    &non_crease_logits,
+                    &line_style_logits,
+                    &boundary_contact_logits,
+                ),
                 DecodeConfig {
                     image_size: sample.image_size,
                     threshold: low_threshold,

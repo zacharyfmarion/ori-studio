@@ -99,11 +99,76 @@ impl Default for DecodeConfig {
 #[derive(Debug, Clone, Copy)]
 pub struct DenseOutputs<'a> {
     pub line_logits: &'a [f32],
+    pub angle: Option<&'a [f32]>,
     pub junction_logits: &'a [f32],
+    pub junction_offset: Option<&'a [f32]>,
     pub assignment_logits: &'a [f32],
     pub non_crease_logits: &'a [f32],
     pub line_style_logits: &'a [f32],
+    pub vertex_type_logits: Option<&'a [f32]>,
     pub boundary_contact_logits: &'a [f32],
+    pub boundary_side_logits: Option<&'a [f32]>,
+    pub boundary_offset: Option<&'a [f32]>,
+    pub boundary_coord: Option<&'a [f32]>,
+}
+
+impl<'a> DenseOutputs<'a> {
+    pub const fn from_legacy_heads(
+        line_logits: &'a [f32],
+        junction_logits: &'a [f32],
+        assignment_logits: &'a [f32],
+        non_crease_logits: &'a [f32],
+        line_style_logits: &'a [f32],
+        boundary_contact_logits: &'a [f32],
+    ) -> Self {
+        Self {
+            line_logits,
+            angle: None,
+            junction_logits,
+            junction_offset: None,
+            assignment_logits,
+            non_crease_logits,
+            line_style_logits,
+            vertex_type_logits: None,
+            boundary_contact_logits,
+            boundary_side_logits: None,
+            boundary_offset: None,
+            boundary_coord: None,
+        }
+    }
+
+    pub const fn with_angle(mut self, angle: Option<&'a [f32]>) -> Self {
+        self.angle = angle;
+        self
+    }
+
+    pub const fn with_junction_offset(mut self, junction_offset: Option<&'a [f32]>) -> Self {
+        self.junction_offset = junction_offset;
+        self
+    }
+
+    pub const fn with_vertex_type_logits(mut self, vertex_type_logits: Option<&'a [f32]>) -> Self {
+        self.vertex_type_logits = vertex_type_logits;
+        self
+    }
+
+    pub const fn with_boundary_side_logits(
+        mut self,
+        boundary_side_logits: Option<&'a [f32]>,
+    ) -> Self {
+        self.boundary_side_logits = boundary_side_logits;
+        self
+    }
+
+    pub const fn with_boundary_offset(mut self, boundary_offset: Option<&'a [f32]>) -> Self {
+        self.boundary_offset = boundary_offset;
+        self
+    }
+
+    pub const fn with_boundary_coord(mut self, boundary_coord: Option<&'a [f32]>) -> Self {
+        self.boundary_coord = boundary_coord;
+        self
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -338,6 +403,11 @@ pub fn decode_vertex_stage_snapshot_from_maps(
     let (line_stage, carriers) = line_stage_from_mask(line_mask, image_size, &config)?;
     let vertex_stage = vertex_stage_from_maps(
         junction_heatmap,
+        None,
+        None,
+        None,
+        None,
+        None,
         boundary_contact_heatmap,
         line_mask,
         &carriers,
@@ -403,6 +473,11 @@ pub fn decode_edge_stage_snapshot_from_maps(
     let (line_stage, carriers) = line_stage_from_mask(line_mask, image_size, &config)?;
     let raw_vertex_stage = vertex_stage_from_maps(
         junction_heatmap,
+        None,
+        None,
+        None,
+        None,
+        None,
         boundary_contact_heatmap,
         line_mask,
         &carriers,
@@ -631,6 +706,21 @@ pub fn decode_dense_outputs(
     let pixels = size * size;
     require_len("line_logits", outputs.line_logits, pixels)?;
     require_len("junction_logits", outputs.junction_logits, pixels)?;
+    if let Some(junction_offset) = outputs.junction_offset {
+        require_len("junction_offset", junction_offset, pixels * 2)?;
+    }
+    if let Some(vertex_type_logits) = outputs.vertex_type_logits {
+        require_len("vertex_type_logits", vertex_type_logits, pixels * 4)?;
+    }
+    if let Some(boundary_side_logits) = outputs.boundary_side_logits {
+        require_len("boundary_side_logits", boundary_side_logits, pixels * 4)?;
+    }
+    if let Some(boundary_offset) = outputs.boundary_offset {
+        require_len("boundary_offset", boundary_offset, pixels * 2)?;
+    }
+    if let Some(boundary_coord) = outputs.boundary_coord {
+        require_len("boundary_coord", boundary_coord, pixels)?;
+    }
     require_len("non_crease_logits", outputs.non_crease_logits, pixels)?;
     require_len(
         "boundary_contact_logits",
@@ -651,9 +741,20 @@ pub fn decode_dense_outputs(
         .collect();
 
     let junction_heatmap = sigmoid_map(outputs.junction_logits);
+    let vertex_type_probability = outputs
+        .vertex_type_logits
+        .map(|logits| channel_probability_from_logits(logits, size, 4));
+    let boundary_side_probability = outputs
+        .boundary_side_logits
+        .map(|logits| channel_probability_from_logits(logits, size, 4));
     let boundary_contact_heatmap = sigmoid_map(outputs.boundary_contact_logits);
     let vertex_stage = vertex_stage_from_maps(
         &junction_heatmap,
+        outputs.junction_offset,
+        vertex_type_probability.as_deref(),
+        boundary_side_probability.as_deref(),
+        outputs.boundary_offset,
+        outputs.boundary_coord,
         Some(&boundary_contact_heatmap),
         &mask,
         &carriers,
@@ -815,23 +916,27 @@ fn sigmoid_map(values: &[f32]) -> Vec<f32> {
 }
 
 fn line_style_prob_from_logits(line_style_logits: &[f32], size: usize) -> Vec<f32> {
+    channel_probability_from_logits(line_style_logits, size, 4)
+}
+
+fn channel_probability_from_logits(logits: &[f32], size: usize, channels: usize) -> Vec<f32> {
     let pixels = size * size;
-    let mut prob = vec![0.0; pixels * 4];
+    let mut prob = vec![0.0; pixels * channels];
     for idx in 0..pixels {
         let mut max_value = f32::NEG_INFINITY;
-        for channel in 0..4 {
-            max_value = max_value.max(line_style_logits[channel * pixels + idx]);
+        for channel in 0..channels {
+            max_value = max_value.max(logits[channel * pixels + idx]);
         }
         let mut denom = 0.0;
-        for channel in 0..4 {
-            denom += (line_style_logits[channel * pixels + idx] - max_value).exp();
+        for channel in 0..channels {
+            denom += (logits[channel * pixels + idx] - max_value).exp();
         }
         if denom <= 0.0 {
             continue;
         }
-        for channel in 0..4 {
-            prob[idx * 4 + channel] =
-                (line_style_logits[channel * pixels + idx] - max_value).exp() / denom;
+        for channel in 0..channels {
+            prob[idx * channels + channel] =
+                (logits[channel * pixels + idx] - max_value).exp() / denom;
         }
     }
     prob
@@ -1176,6 +1281,11 @@ fn scale_point(point: Point, scale: f32) -> Point {
 
 fn vertex_stage_from_maps(
     junction_heatmap: &[f32],
+    junction_offset: Option<&[f32]>,
+    vertex_type_probability: Option<&[f32]>,
+    boundary_side_probability: Option<&[f32]>,
+    boundary_offset: Option<&[f32]>,
+    boundary_coord: Option<&[f32]>,
     boundary_contact_heatmap: Option<&[f32]>,
     line_mask: &[u8],
     carriers: &[Line],
@@ -1191,7 +1301,15 @@ fn vertex_stage_from_maps(
     }
 
     let boundary_contacts = boundary_contact_heatmap
-        .map(|heatmap| boundary_contact_points(heatmap, size))
+        .map(|heatmap| {
+            boundary_contact_points(
+                heatmap,
+                boundary_side_probability,
+                boundary_offset,
+                boundary_coord,
+                size,
+            )
+        })
         .unwrap_or_default();
     for point in &boundary_contacts {
         candidate_vertices.push(*point);
@@ -1199,7 +1317,13 @@ fn vertex_stage_from_maps(
     }
 
     let intersections = carrier_intersections(carriers, config);
-    let junctions = junction_points(junction_heatmap, line_mask, config);
+    let junctions = junction_points(
+        junction_heatmap,
+        junction_offset,
+        vertex_type_probability,
+        line_mask,
+        config,
+    );
     for point in &junctions {
         if carriers
             .iter()
@@ -1240,20 +1364,56 @@ fn vertex_stage_from_maps(
     }
 }
 
-fn boundary_contact_points(heatmap: &[f32], size: usize) -> Vec<Point> {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BoundaryContactSide {
+    Top,
+    Right,
+    Bottom,
+    Left,
+}
+
+impl BoundaryContactSide {
+    const fn from_index(index: usize) -> Self {
+        match index {
+            0 => Self::Top,
+            1 => Self::Right,
+            2 => Self::Bottom,
+            _ => Self::Left,
+        }
+    }
+
+    const fn index(self) -> usize {
+        match self {
+            Self::Top => 0,
+            Self::Right => 1,
+            Self::Bottom => 2,
+            Self::Left => 3,
+        }
+    }
+}
+
+fn boundary_contact_points(
+    heatmap: &[f32],
+    boundary_side_probability: Option<&[f32]>,
+    boundary_offset: Option<&[f32]>,
+    boundary_coord: Option<&[f32]>,
+    size: usize,
+) -> Vec<Point> {
     let max = (size - 1) as f32;
+    let pixels = size * size;
     let band = (size as f32 * 0.04).max(4.0) as usize;
     let radius = 4usize;
     let mut points = Vec::new();
-    for side in 0..4 {
+    for side_index in 0..4 {
+        let scan_side = BoundaryContactSide::from_index(side_index);
         let mut candidates = Vec::new();
         for y in 0..size {
             for x in 0..size {
-                let in_band = match side {
-                    0 => y <= band,
-                    1 => x + band >= size - 1,
-                    2 => y + band >= size - 1,
-                    _ => x <= band,
+                let in_band = match scan_side {
+                    BoundaryContactSide::Top => y <= band,
+                    BoundaryContactSide::Right => x + band >= size - 1,
+                    BoundaryContactSide::Bottom => y + band >= size - 1,
+                    BoundaryContactSide::Left => x <= band,
                 };
                 if !in_band {
                     continue;
@@ -1263,24 +1423,18 @@ fn boundary_contact_points(heatmap: &[f32], size: usize) -> Vec<Point> {
                 if score < 0.25 || !local_max_scalar(heatmap, size, x, y, radius, score) {
                     continue;
                 }
-                let point = match side {
-                    0 => Point {
-                        x: x as f32,
-                        y: 0.0,
-                    },
-                    1 => Point {
-                        x: max,
-                        y: y as f32,
-                    },
-                    2 => Point {
-                        x: x as f32,
-                        y: max,
-                    },
-                    _ => Point {
-                        x: 0.0,
-                        y: y as f32,
-                    },
-                };
+                let point = boundary_contact_point_for_candidate(
+                    scan_side,
+                    x,
+                    y,
+                    idx,
+                    pixels,
+                    boundary_side_probability,
+                    boundary_offset,
+                    boundary_coord,
+                    size,
+                    max,
+                );
                 candidates.push((score, point));
             }
         }
@@ -1295,8 +1449,60 @@ fn boundary_contact_points(heatmap: &[f32], size: usize) -> Vec<Point> {
     points
 }
 
-fn junction_points(heatmap: &[f32], line_mask: &[u8], config: &DecodeConfig) -> Vec<Point> {
+fn boundary_contact_point_for_candidate(
+    side: BoundaryContactSide,
+    x: usize,
+    y: usize,
+    idx: usize,
+    pixels: usize,
+    boundary_side_probability: Option<&[f32]>,
+    boundary_offset: Option<&[f32]>,
+    boundary_coord: Option<&[f32]>,
+    size: usize,
+    max: f32,
+) -> Point {
+    let offset_point = offset_refined_point(x, y, idx, pixels, boundary_offset, size);
+    let side_support = boundary_side_probability
+        .and_then(|probability| probability.get(idx * 4 + side.index()).copied())
+        .unwrap_or(0.0);
+    let side_coordinate = if side_support >= 0.50 {
+        boundary_coord
+            .and_then(|coord| coord.get(idx).copied())
+            .filter(|coord| coord.is_finite())
+            .map(|coord| coord.clamp(0.0, 1.0) * max)
+    } else {
+        None
+    };
+    match side {
+        BoundaryContactSide::Top => Point {
+            x: side_coordinate.unwrap_or(offset_point.x).clamp(0.0, max),
+            y: 0.0,
+        },
+        BoundaryContactSide::Right => Point {
+            x: max,
+            y: side_coordinate.unwrap_or(offset_point.y).clamp(0.0, max),
+        },
+        BoundaryContactSide::Bottom => Point {
+            x: side_coordinate.unwrap_or(offset_point.x).clamp(0.0, max),
+            y: max,
+        },
+        BoundaryContactSide::Left => Point {
+            x: 0.0,
+            y: side_coordinate.unwrap_or(offset_point.y).clamp(0.0, max),
+        },
+    }
+}
+
+fn junction_points(
+    heatmap: &[f32],
+    junction_offset: Option<&[f32]>,
+    vertex_type_probability: Option<&[f32]>,
+    line_mask: &[u8],
+    config: &DecodeConfig,
+) -> Vec<Point> {
     let size = config.image_size as usize;
+    let pixels = size * size;
+    let score_map = junction_score_map(heatmap, vertex_type_probability, pixels);
     let mut candidates = Vec::new();
     for y in 1..size - 1 {
         for x in 1..size - 1 {
@@ -1304,19 +1510,80 @@ fn junction_points(heatmap: &[f32], line_mask: &[u8], config: &DecodeConfig) -> 
             if line_mask[idx] == 0 {
                 continue;
             }
-            let score = heatmap[idx];
-            if score < 0.20 || !local_max_scalar(heatmap, size, x, y, 2, score) {
+            let score = score_map[idx];
+            if score < 0.20 || !local_max_scalar(&score_map, size, x, y, 2, score) {
                 continue;
             }
-            let point = Point {
-                x: x as f32,
-                y: y as f32,
-            };
+            let point = offset_refined_point(x, y, idx, pixels, junction_offset, size);
             candidates.push((score, point));
         }
     }
     candidates.sort_by(|a, b| b.0.total_cmp(&a.0));
     candidates.into_iter().map(|(_, point)| point).collect()
+}
+
+fn junction_score_map(
+    junction_heatmap: &[f32],
+    vertex_type_probability: Option<&[f32]>,
+    pixels: usize,
+) -> Vec<f32> {
+    let Some(vertex_type_probability) = vertex_type_probability else {
+        return junction_heatmap.to_vec();
+    };
+    if vertex_type_probability.len() < pixels * 4 {
+        return junction_heatmap.to_vec();
+    }
+    const VERTEX_TYPE_BACKGROUND_SUPPRESSION_FLOOR: f32 = 0.05;
+    (0..pixels)
+        .map(|idx| {
+            let junction = junction_heatmap[idx];
+            let vertex_like = vertex_type_probability[idx * 4 + 1]
+                .max(vertex_type_probability[idx * 4 + 2])
+                .max(vertex_type_probability[idx * 4 + 3]);
+            if vertex_like < VERTEX_TYPE_BACKGROUND_SUPPRESSION_FLOOR {
+                junction * 0.15
+            } else {
+                junction
+            }
+        })
+        .collect()
+}
+
+fn offset_refined_point(
+    x: usize,
+    y: usize,
+    idx: usize,
+    pixels: usize,
+    junction_offset: Option<&[f32]>,
+    size: usize,
+) -> Point {
+    let Some(offset) = junction_offset else {
+        return Point {
+            x: x as f32,
+            y: y as f32,
+        };
+    };
+    if offset.len() < pixels * 2 {
+        return Point {
+            x: x as f32,
+            y: y as f32,
+        };
+    }
+    let dx = finite_offset(offset[idx]);
+    let dy = finite_offset(offset[pixels + idx]);
+    let max = (size - 1) as f32;
+    Point {
+        x: (x as f32 + dx).clamp(0.0, max),
+        y: (y as f32 + dy).clamp(0.0, max),
+    }
+}
+
+fn finite_offset(value: f32) -> f32 {
+    if value.is_finite() {
+        value.clamp(-0.5, 0.5)
+    } else {
+        0.0
+    }
 }
 
 fn carrier_intersections(carriers: &[Line], config: &DecodeConfig) -> Vec<Point> {
@@ -4207,6 +4474,189 @@ mod tests {
     use super::*;
 
     #[test]
+    fn junction_points_apply_subpixel_offset_channels() {
+        let size = 16usize;
+        let pixels = size * size;
+        let mut heatmap = vec![0.0; pixels];
+        let line_mask = vec![255; pixels];
+        let mut junction_offset = vec![0.0; pixels * 2];
+        let x = 8usize;
+        let y = 7usize;
+        let idx = y * size + x;
+        heatmap[idx] = 0.9;
+        junction_offset[idx] = 0.25;
+        junction_offset[pixels + idx] = -0.5;
+
+        let config = DecodeConfig {
+            image_size: size as u32,
+            ..DecodeConfig::default()
+        };
+        let points = junction_points(&heatmap, Some(&junction_offset), None, &line_mask, &config);
+
+        assert_eq!(points.len(), 1);
+        assert!((points[0].x - 8.25).abs() < 1e-6);
+        assert!((points[0].y - 6.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn junction_points_clamp_invalid_offsets() {
+        let size = 16usize;
+        let pixels = size * size;
+        let mut heatmap = vec![0.0; pixels];
+        let line_mask = vec![255; pixels];
+        let mut junction_offset = vec![0.0; pixels * 2];
+        let x = 8usize;
+        let y = 7usize;
+        let idx = y * size + x;
+        heatmap[idx] = 0.9;
+        junction_offset[idx] = 3.0;
+        junction_offset[pixels + idx] = f32::NAN;
+
+        let config = DecodeConfig {
+            image_size: size as u32,
+            ..DecodeConfig::default()
+        };
+        let points = junction_points(&heatmap, Some(&junction_offset), None, &line_mask, &config);
+
+        assert_eq!(points.len(), 1);
+        assert!((points[0].x - 8.5).abs() < 1e-6);
+        assert!((points[0].y - 7.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn junction_points_do_not_use_vertex_type_to_create_junctions() {
+        let size = 16usize;
+        let pixels = size * size;
+        let mut heatmap = vec![0.0; pixels];
+        let line_mask = vec![255; pixels];
+        let mut vertex_type_probability = vec![0.0; pixels * 4];
+        let x = 8usize;
+        let y = 7usize;
+        let idx = y * size + x;
+        heatmap[idx] = 0.15;
+        vertex_type_probability[idx * 4] = 0.025;
+        vertex_type_probability[idx * 4 + 1] = 0.025;
+        vertex_type_probability[idx * 4 + 2] = 0.025;
+        vertex_type_probability[idx * 4 + 3] = 0.925;
+
+        let config = DecodeConfig {
+            image_size: size as u32,
+            ..DecodeConfig::default()
+        };
+        let points = junction_points(
+            &heatmap,
+            None,
+            Some(&vertex_type_probability),
+            &line_mask,
+            &config,
+        );
+
+        assert!(points.is_empty());
+    }
+
+    #[test]
+    fn junction_points_suppress_background_vertex_type_peak() {
+        let size = 16usize;
+        let pixels = size * size;
+        let mut heatmap = vec![0.0; pixels];
+        let line_mask = vec![255; pixels];
+        let mut vertex_type_probability = vec![0.0; pixels * 4];
+        let idx = 7usize * size + 8usize;
+        heatmap[idx] = 0.9;
+        vertex_type_probability[idx * 4] = 1.0;
+
+        let config = DecodeConfig {
+            image_size: size as u32,
+            ..DecodeConfig::default()
+        };
+        let points = junction_points(
+            &heatmap,
+            None,
+            Some(&vertex_type_probability),
+            &line_mask,
+            &config,
+        );
+
+        assert!(points.is_empty());
+    }
+
+    #[test]
+    fn junction_points_keep_vertex_type_gated_by_line_mask() {
+        let size = 16usize;
+        let pixels = size * size;
+        let heatmap = vec![0.0; pixels];
+        let line_mask = vec![0; pixels];
+        let mut vertex_type_probability = vec![0.0; pixels * 4];
+        let idx = 7usize * size + 8usize;
+        vertex_type_probability[idx * 4 + 3] = 1.0;
+
+        let config = DecodeConfig {
+            image_size: size as u32,
+            ..DecodeConfig::default()
+        };
+        let points = junction_points(
+            &heatmap,
+            None,
+            Some(&vertex_type_probability),
+            &line_mask,
+            &config,
+        );
+
+        assert!(points.is_empty());
+    }
+
+    #[test]
+    fn boundary_contact_points_use_side_coordinate_when_confident() {
+        let size = 16usize;
+        let pixels = size * size;
+        let mut heatmap = vec![0.0; pixels];
+        let mut boundary_side_probability = vec![0.0; pixels * 4];
+        let mut boundary_coord = vec![0.0; pixels];
+        let idx = size + 8;
+        heatmap[idx] = 0.9;
+        boundary_side_probability[idx * 4] = 0.9;
+        boundary_coord[idx] = 0.25;
+
+        let points = boundary_contact_points(
+            &heatmap,
+            Some(&boundary_side_probability),
+            None,
+            Some(&boundary_coord),
+            size,
+        );
+
+        assert_eq!(points.len(), 1);
+        assert!((points[0].x - 3.75).abs() < 1e-6);
+        assert!((points[0].y - 0.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn boundary_contact_points_use_offset_when_side_coordinate_is_not_confident() {
+        let size = 16usize;
+        let pixels = size * size;
+        let mut heatmap = vec![0.0; pixels];
+        let mut boundary_side_probability = vec![0.0; pixels * 4];
+        let mut boundary_offset = vec![0.0; pixels * 2];
+        let idx = size + 8;
+        heatmap[idx] = 0.9;
+        boundary_side_probability[idx * 4] = 0.4;
+        boundary_offset[idx] = 0.5;
+        boundary_offset[pixels + idx] = 0.5;
+
+        let points = boundary_contact_points(
+            &heatmap,
+            Some(&boundary_side_probability),
+            Some(&boundary_offset),
+            None,
+            size,
+        );
+
+        assert_eq!(points.len(), 1);
+        assert!((points[0].x - 8.5).abs() < 1e-6);
+        assert!((points[0].y - 0.0).abs() < 1e-6);
+    }
+
+    #[test]
     fn decodes_square_cross_into_fold_json() {
         let size = 64usize;
         let pixels = size * size;
@@ -4246,14 +4696,14 @@ mod tests {
         }
 
         let decoded = decode_dense_outputs(
-            DenseOutputs {
-                line_logits: &line_logits,
-                junction_logits: &junction_logits,
-                assignment_logits: &assignment_logits,
-                non_crease_logits: &non_crease_logits,
-                line_style_logits: &line_style_logits,
-                boundary_contact_logits: &boundary_contact_logits,
-            },
+            DenseOutputs::from_legacy_heads(
+                &line_logits,
+                &junction_logits,
+                &assignment_logits,
+                &non_crease_logits,
+                &line_style_logits,
+                &boundary_contact_logits,
+            ),
             DecodeConfig {
                 image_size: size as u32,
                 threshold: 0.65,

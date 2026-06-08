@@ -139,14 +139,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ))?;
 
         let result = ablate_dense_outputs_with_options(
-            DenseOutputs {
-                line_logits: &line_logits,
-                junction_logits: &junction_logits,
-                assignment_logits: &assignment_logits,
-                non_crease_logits: &non_crease_logits,
-                line_style_logits: &line_style_logits,
-                boundary_contact_logits: &boundary_contact_logits,
-            },
+            DenseOutputs::from_legacy_heads(
+                &line_logits,
+                &junction_logits,
+                &assignment_logits,
+                &non_crease_logits,
+                &line_style_logits,
+                &boundary_contact_logits,
+            ),
             DecodeConfig {
                 image_size: sample.image_size,
                 threshold: sample.threshold,

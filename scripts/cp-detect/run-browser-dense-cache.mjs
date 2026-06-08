@@ -8,10 +8,16 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const OUTPUT_KEYS = [
   'line_logits',
   'junction_logits',
+  'angle',
+  'junction_offset',
   'assignment_logits',
   'non_crease_logits',
   'line_style_logits',
+  'vertex_type_logits',
   'boundary_contact_logits',
+  'boundary_side_logits',
+  'boundary_offset',
+  'boundary_coord',
 ];
 
 async function main() {

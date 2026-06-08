@@ -59,14 +59,20 @@ pub(crate) fn candidate_program_from_dense_outputs_v2(
 ) -> Result<CompilerV2Seed, DecodeError> {
     let evidence_started = EvidenceTimer::start();
     let mut evidence = extract_compiler_evidence(
-        DenseOutputRefs {
-            line_logits: outputs.line_logits,
-            junction_logits: outputs.junction_logits,
-            assignment_logits: outputs.assignment_logits,
-            non_crease_logits: outputs.non_crease_logits,
-            line_style_logits: outputs.line_style_logits,
-            boundary_contact_logits: outputs.boundary_contact_logits,
-        },
+        DenseOutputRefs::from_legacy_heads(
+            outputs.line_logits,
+            outputs.junction_logits,
+            outputs.assignment_logits,
+            outputs.non_crease_logits,
+            outputs.line_style_logits,
+            outputs.boundary_contact_logits,
+        )
+        .with_angle(outputs.angle)
+        .with_junction_offset(outputs.junction_offset)
+        .with_vertex_type_logits(outputs.vertex_type_logits)
+        .with_boundary_side_logits(outputs.boundary_side_logits)
+        .with_boundary_offset(outputs.boundary_offset)
+        .with_boundary_coord(outputs.boundary_coord),
         compiler_v2_evidence_config(&config),
     )
     .map_err(evidence_error_to_decode_error)?;
