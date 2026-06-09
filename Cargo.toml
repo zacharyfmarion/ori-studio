@@ -1,6 +1,11 @@
 [workspace]
 members = [
     "crates/oristudio-cp",
+    "crates/oristudio-cp-compiler",
+    "crates/oristudio-cp-detect",
+    "crates/oristudio-cp-detect-inspector",
+    "crates/oristudio-cp-eval",
+    "crates/oristudio-cp-detect-wasm",
     "crates/oristudio-cp-wasm",
     "crates/treemaker-flatfold",
     "crates/treemaker-fold",
@@ -23,10 +28,16 @@ homepage = "https://github.com/zacharyfmarion/ori-studio"
 [workspace.dependencies]
 anyhow = "1.0"
 clap = { version = "4.5", features = ["derive"] }
+console_error_panic_hook = "0.1"
+image = { version = "0.25", default-features = false }
+imageproc = { version = "0.25", default-features = false }
+levenberg-marquardt = "0.15.0"
+nalgebra = "0.34.2"
 proptest = "1.6"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde-wasm-bindgen = "0.6"
+js-sys = "0.3"
 encoding_rs = "0.8"
 sha2 = "0.10"
 thiserror = "2.0"
@@ -34,6 +45,21 @@ treemaker-fold = { version = "0.1.2", path = "crates/treemaker-fold" }
 treemaker-flatfold = { version = "0.1.2", path = "crates/treemaker-flatfold" }
 treemaker-sequence = { version = "0.1.1", path = "crates/treemaker-sequence" }
 oristudio-cp = { version = "0.1.1", path = "crates/oristudio-cp" }
+oristudio-cp-compiler = { version = "0.1.1", path = "crates/oristudio-cp-compiler" }
+oristudio-cp-detect = { version = "0.1.1", path = "crates/oristudio-cp-detect" }
+oristudio-cp-eval = { version = "0.1.2", path = "crates/oristudio-cp-eval" }
 wasm-bindgen = "0.2"
 wasm-bindgen-test = "0.3"
 walkdir = "2.5"
+
+# CP detection exact solve is dominated by nalgebra/LM numeric kernels. Keep
+# normal dev builds broad and debuggable, but optimize this narrow path so the
+# local inspector behaves closer to production/release WASM.
+[profile.dev.package.oristudio-cp-compiler]
+opt-level = 2
+
+[profile.dev.package.levenberg-marquardt]
+opt-level = 3
+
+[profile.dev.package.nalgebra]
+opt-level = 3

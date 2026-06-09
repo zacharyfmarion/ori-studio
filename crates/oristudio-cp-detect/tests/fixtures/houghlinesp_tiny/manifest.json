@@ -1,0 +1,137 @@
+{
+  "schema": "oristudio/cp-detect-houghlinesp-oracle/v1",
+  "generated_by": "scripts/cp-detect/export-houghlinesp-oracle.py",
+  "opencv": {
+    "version": "4.13.0",
+    "opencl_available": true,
+    "opencl_used": false,
+    "build_summary": [
+      "  CPU/HW features:",
+      "    Extra dependencies:          -framework OpenCL -framework Accelerate -framework Cocoa avif -framework AppKit",
+      "  Parallel framework:            GCD",
+      "  OpenCL:                        YES (no extra features)",
+      "    Link libraries:              -framework OpenCL"
+    ]
+  },
+  "config": {
+    "rho": 1.0,
+    "theta": 0.004363323129985824,
+    "threshold": 2,
+    "min_line_length": 6.0,
+    "max_line_gap": 2.0
+  },
+  "fixtures": [
+    {
+      "id": "tiny_empty",
+      "width": 32,
+      "height": 32,
+      "mask_path": "tiny_empty/mask.pgm",
+      "oracle_segments_path": "tiny_empty/oracle_segments.json",
+      "oracle_segment_count": 0
+    },
+    {
+      "id": "tiny_single_point",
+      "width": 32,
+      "height": 32,
+      "mask_path": "tiny_single_point/mask.pgm",
+      "oracle_segments_path": "tiny_single_point/oracle_segments.json",
+      "oracle_segment_count": 0
+    },
+    {
+      "id": "tiny_short_horizontal",
+      "width": 32,
+      "height": 32,
+      "mask_path": "tiny_short_horizontal/mask.pgm",
+      "oracle_segments_path": "tiny_short_horizontal/oracle_segments.json",
+      "oracle_segment_count": 0
+    },
+    {
+      "id": "tiny_horizontal",
+      "width": 32,
+      "height": 32,
+      "mask_path": "tiny_horizontal/mask.pgm",
+      "oracle_segments_path": "tiny_horizontal/oracle_segments.json",
+      "oracle_segment_count": 1
+    },
+    {
+      "id": "tiny_vertical",
+      "width": 32,
+      "height": 32,
+      "mask_path": "tiny_vertical/mask.pgm",
+      "oracle_segments_path": "tiny_vertical/oracle_segments.json",
+      "oracle_segment_count": 1
+    },
+    {
+      "id": "tiny_diagonal",
+      "width": 32,
+      "height": 32,
+      "mask_path": "tiny_diagonal/mask.pgm",
+      "oracle_segments_path": "tiny_diagonal/oracle_segments.json",
+      "oracle_segment_count": 1
+    },
+    {
+      "id": "tiny_gap_within",
+      "width": 32,
+      "height": 32,
+      "mask_path": "tiny_gap_within/mask.pgm",
+      "oracle_segments_path": "tiny_gap_within/oracle_segments.json",
+      "oracle_segment_count": 1
+    },
+    {
+      "id": "tiny_gap_beyond",
+      "width": 32,
+      "height": 32,
+      "mask_path": "tiny_gap_beyond/mask.pgm",
+      "oracle_segments_path": "tiny_gap_beyond/oracle_segments.json",
+      "oracle_segment_count": 1
+    },
+    {
+      "id": "tiny_crossing_diagonals",
+      "width": 32,
+      "height": 32,
+      "mask_path": "tiny_crossing_diagonals/mask.pgm",
+      "oracle_segments_path": "tiny_crossing_diagonals/oracle_segments.json",
+      "oracle_segment_count": 2
+    },
+    {
+      "id": "tiny_parallel",
+      "width": 32,
+      "height": 32,
+      "mask_path": "tiny_parallel/mask.pgm",
+      "oracle_segments_path": "tiny_parallel/oracle_segments.json",
+      "oracle_segment_count": 2
+    },
+    {
+      "id": "tiny_t_junction",
+      "width": 32,
+      "height": 32,
+      "mask_path": "tiny_t_junction/mask.pgm",
+      "oracle_segments_path": "tiny_t_junction/oracle_segments.json",
+      "oracle_segment_count": 2
+    },
+    {
+      "id": "tiny_border_touching",
+      "width": 32,
+      "height": 32,
+      "mask_path": "tiny_border_touching/mask.pgm",
+      "oracle_segments_path": "tiny_border_touching/oracle_segments.json",
+      "oracle_segment_count": 2
+    },
+    {
+      "id": "tiny_line_plus_noise",
+      "width": 32,
+      "height": 32,
+      "mask_path": "tiny_line_plus_noise/mask.pgm",
+      "oracle_segments_path": "tiny_line_plus_noise/oracle_segments.json",
+      "oracle_segment_count": 2
+    },
+    {
+      "id": "tiny_grid",
+      "width": 32,
+      "height": 32,
+      "mask_path": "tiny_grid/mask.pgm",
+      "oracle_segments_path": "tiny_grid/oracle_segments.json",
+      "oracle_segment_count": 12
+    }
+  ]
+}

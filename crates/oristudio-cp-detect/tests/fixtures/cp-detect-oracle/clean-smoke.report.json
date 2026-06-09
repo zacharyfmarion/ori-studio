@@ -1,0 +1,606 @@
+{
+  "checkpoint": {
+    "id": "runpod-v2-replay-correction-full-4000ada",
+    "manifest": "artifacts/checkpoints/runpod-v2-replay-correction-full-4000ada.json",
+    "path": "checkpoints/runpod_v2_replay_correction_full_4000ada/full/latest.pt",
+    "sha256": "e3f9aa7ebb06a6c631512ba567038c34f37ae05edd04672afa39ea5b142956f2"
+  },
+  "config": {
+    "alpha_matte": "auto",
+    "batchnorm_mode": "batch-stats",
+    "device": "cpu",
+    "image_size": 1024,
+    "infer_assignments": false,
+    "repair_near_endpoint_crossings": false,
+    "threshold": 0.65
+  },
+  "graph": {
+    "assignment_confidence_mean": 0.9428294897079468,
+    "assignment_source_counts": {
+      "inferred": 0,
+      "observed": 95,
+      "unknown": 6
+    },
+    "edge_support_mean": 0.9482637643814087,
+    "edges": 101,
+    "vertices": 63
+  },
+  "input": {
+    "path": "visualizations/stage4_inspector/cache/assets/clean__000__rabbit_ear_fold_program_v1-5wk0c-000225__97c0c5664d95/input.png",
+    "rectified": true
+  },
+  "model": {
+    "backbone": "hrnet_w18",
+    "class": "CPLineNet",
+    "hiddenChannels": 128,
+    "imageSize": 1024,
+    "v2Heads": true
+  },
+  "outputs": {
+    "debug_dir": "/tmp/ori_cp_detect_oracle_debug/clean_smoke.debug",
+    "fold": "/tmp/ori_cp_detect_oracle_debug/clean_smoke.fold",
+    "fold_written": true,
+    "report": "/tmp/ori_cp_detect_oracle_debug/clean_smoke.report.json"
+  },
+  "quality_report": {
+    "repair_actions": [
+      {
+        "code": "drop_weak_edges",
+        "details": {
+          "threshold": 0.35
+        },
+        "edge_indices": [
+          70,
+          77,
+          97,
+          104,
+          105,
+          106,
+          107
+        ],
+        "message": "Dropped edges whose line support was below the conservative repair threshold.",
+        "vertex_indices": []
+      },
+      {
+        "code": "canonicalize_square_border",
+        "details": {
+          "added_border_edges": 0,
+          "forced_border_edges": 16,
+          "geometry_reverted": false,
+          "max_drift_px": 0.0,
+          "removed_redundant_edges": 0,
+          "side_vertex_counts": {
+            "bottom": 3,
+            "left": 6,
+            "right": 5,
+            "top": 7
+          },
+          "snap_rejected_for_drift": 0,
+          "snapped_vertices": 0,
+          "tolerance_px": 6.0
+        },
+        "edge_indices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          23,
+          24,
+          26,
+          27,
+          28
+        ],
+        "message": "Forced inferred square-border edges to B.",
+        "vertex_indices": []
+      }
+    ],
+    "status": "outside_v1_envelope",
+    "structural_validity": {
+      "complete_border_when_present": true,
+      "errors": [],
+      "no_duplicate_edges": true,
+      "no_illegal_crossings": true,
+      "no_zero_length_edges": true,
+      "parseable_fold": true,
+      "valid": true
+    },
+    "summary": {
+      "assignment_counts": {
+        "B": 16,
+        "M": 45,
+        "U": 6,
+        "V": 34
+      },
+      "edges": 101,
+      "inferred_edges": 0,
+      "mean_assignment_confidence": 0.9428294897079468,
+      "mean_edge_support": 0.9482637643814087,
+      "observed_edges": 95,
+      "unknown_edges": 6,
+      "vertices": 63
+    },
+    "warnings": [
+      {
+        "code": "missing_square_corners",
+        "details": {
+          "corners": [
+            "bottom_right"
+          ],
+          "tolerance_px": 9.59112060546875
+        },
+        "edge_indices": [],
+        "message": "One or more square frame corners are not represented as graph vertices.",
+        "severity": "warning",
+        "vertex_indices": []
+      },
+      {
+        "code": "invalid_border_cycle",
+        "details": {
+          "bad_degree_vertices": [
+            17,
+            24,
+            33,
+            42
+          ],
+          "disconnected": true
+        },
+        "edge_indices": [],
+        "message": "Border edges do not form one closed square boundary cycle.",
+        "severity": "warning",
+        "vertex_indices": [
+          17,
+          24,
+          33,
+          42
+        ]
+      },
+      {
+        "code": "boundary_contact_not_split",
+        "details": {
+          "tolerance_px": 9.59112060546875
+        },
+        "edge_indices": [],
+        "message": "A crease reaches the square boundary without splitting the border cycle at that contact.",
+        "severity": "warning",
+        "vertex_indices": [
+          17,
+          24,
+          33,
+          42
+        ]
+      },
+      {
+        "code": "very_short_edges",
+        "details": {
+          "min_length_px": 3.1622776985168457,
+          "threshold_px": 8.0
+        },
+        "edge_indices": [
+          34,
+          42,
+          43,
+          51,
+          91
+        ],
+        "message": "Some predicted edges are shorter than the Phase 3 V1 readable-geometry envelope.",
+        "severity": "warning",
+        "vertex_indices": []
+      },
+      {
+        "code": "crowded_junctions",
+        "details": {
+          "threshold_px": 8.0
+        },
+        "edge_indices": [],
+        "message": "Some junctions are closer than the Phase 3 V1 readable-geometry envelope.",
+        "severity": "warning",
+        "vertex_indices": [
+          50,
+          51,
+          54,
+          58,
+          60,
+          61,
+          62
+        ]
+      },
+      {
+        "code": "low_confidence_assignments",
+        "details": {
+          "confidence_threshold": 0.6,
+          "margin_threshold": 0.12
+        },
+        "edge_indices": [
+          25,
+          34,
+          42,
+          43,
+          56,
+          76
+        ],
+        "message": "Some edge assignments have low confidence or a small class margin.",
+        "severity": "warning",
+        "vertex_indices": []
+      },
+      {
+        "code": "unknown_assignments",
+        "details": {},
+        "edge_indices": [
+          25,
+          34,
+          42,
+          43,
+          56,
+          76
+        ],
+        "message": "Some edge assignments are visually ambiguous and remain unassigned.",
+        "severity": "warning",
+        "vertex_indices": []
+      },
+      {
+        "code": "even_degree_failures",
+        "details": {},
+        "edge_indices": [],
+        "message": "Interior vertices with crease evidence should have even degree.",
+        "severity": "warning",
+        "vertex_indices": [
+          29,
+          44,
+          50,
+          58,
+          60,
+          62
+        ]
+      },
+      {
+        "code": "kawasaki_residuals",
+        "details": {
+          "residuals": {
+            "43": 0.18883258501161748,
+            "6": 0.1388456185711462,
+            "61": 2.636169672012329
+          },
+          "tolerance_radians": 0.12
+        },
+        "edge_indices": [],
+        "message": "Interior vertex sector angles violate the Kawasaki tolerance.",
+        "severity": "warning",
+        "vertex_indices": [
+          6,
+          43,
+          61
+        ]
+      },
+      {
+        "code": "maekawa_failures",
+        "details": {},
+        "edge_indices": [],
+        "message": "Fully observed M/V assignments violate Maekawa's theorem.",
+        "severity": "warning",
+        "vertex_indices": [
+          27,
+          29,
+          35,
+          48,
+          49,
+          58
+        ]
+      }
+    ]
+  },
+  "rectification": {
+    "alpha_matte_policy": "none",
+    "alpha_matte_rgb": null,
+    "homography_image_to_square": [
+      [
+        0.9958505034446716,
+        -4.2164888327533845e-06,
+        1.1163363456726074
+      ],
+      [
+        4.259733486833284e-06,
+        0.9979145526885986,
+        1.076981782913208
+      ],
+      [
+        -1.0036471849161899e-06,
+        1.005677972898411e-06,
+        1.0
+      ]
+    ],
+    "original_size": [
+      1024,
+      1024
+    ],
+    "padding_rgb": [
+      255,
+      255,
+      255
+    ],
+    "processed_size": [
+      1024,
+      1024
+    ],
+    "rectification_confidence": 0.958844449939039,
+    "transform": {
+      "border_margin_px": 32,
+      "border_margin_ratio": 0.03125,
+      "confidence": 0.958844449939039,
+      "detected_source_quad": [
+        [
+          31.0,
+          31.0
+        ],
+        [
+          993.0,
+          31.0
+        ],
+        [
+          994.0,
+          992.0
+        ],
+        [
+          31.0,
+          993.0
+        ]
+      ],
+      "method": "border_quad",
+      "metrics": {
+        "angle_bin_count": 12,
+        "area_ratio": 0.8825721740722656,
+        "aspect": 1.0010400413045701,
+        "border_score": 1.0,
+        "coverage_score": 0.6875,
+        "density_score": 1.0,
+        "edge_density": 0.07621135552913198,
+        "line_count": 70,
+        "line_score": 1.0,
+        "size_score": 1.0,
+        "square_score": 0.9982314997967967
+      },
+      "mode": "detect_quad_warp",
+      "padded_target_quad": [
+        [
+          8.049917221069336,
+          8.049917221069336
+        ],
+        [
+          1014.9500732421875,
+          8.049917221069336
+        ],
+        [
+          1014.9500732421875,
+          1014.9500732421875
+        ],
+        [
+          8.049917221069336,
+          1014.9500732421875
+        ]
+      ],
+      "resized_size": [
+        1024,
+        1024
+      ],
+      "source_crop_padding_px": 24.025013732910157,
+      "source_crop_padding_ratio": 0.025,
+      "source_quad": [
+        [
+          6.962501525878906,
+          6.987478256225586
+        ],
+        [
+          1017.0250244140625,
+          6.97498893737793
+        ],
+        [
+          1018.0624389648438,
+          1015.987548828125
+        ],
+        [
+          6.97498893737793,
+          1017.0250244140625
+        ]
+      ],
+      "target_crop_padding_px": 23.9500855745031,
+      "target_quad": [
+        [
+          32.0,
+          32.0
+        ],
+        [
+          991.0,
+          32.0
+        ],
+        [
+          991.0,
+          991.0
+        ],
+        [
+          32.0,
+          991.0
+        ]
+      ]
+    },
+    "warnings": []
+  },
+  "schema": "cp-detector/cp-detect-report/v1",
+  "status": "outside_v1_envelope",
+  "warnings": {
+    "quality": [
+      {
+        "code": "missing_square_corners",
+        "details": {
+          "corners": [
+            "bottom_right"
+          ],
+          "tolerance_px": 9.59112060546875
+        },
+        "edge_indices": [],
+        "message": "One or more square frame corners are not represented as graph vertices.",
+        "severity": "warning",
+        "vertex_indices": []
+      },
+      {
+        "code": "invalid_border_cycle",
+        "details": {
+          "bad_degree_vertices": [
+            17,
+            24,
+            33,
+            42
+          ],
+          "disconnected": true
+        },
+        "edge_indices": [],
+        "message": "Border edges do not form one closed square boundary cycle.",
+        "severity": "warning",
+        "vertex_indices": [
+          17,
+          24,
+          33,
+          42
+        ]
+      },
+      {
+        "code": "boundary_contact_not_split",
+        "details": {
+          "tolerance_px": 9.59112060546875
+        },
+        "edge_indices": [],
+        "message": "A crease reaches the square boundary without splitting the border cycle at that contact.",
+        "severity": "warning",
+        "vertex_indices": [
+          17,
+          24,
+          33,
+          42
+        ]
+      },
+      {
+        "code": "very_short_edges",
+        "details": {
+          "min_length_px": 3.1622776985168457,
+          "threshold_px": 8.0
+        },
+        "edge_indices": [
+          34,
+          42,
+          43,
+          51,
+          91
+        ],
+        "message": "Some predicted edges are shorter than the Phase 3 V1 readable-geometry envelope.",
+        "severity": "warning",
+        "vertex_indices": []
+      },
+      {
+        "code": "crowded_junctions",
+        "details": {
+          "threshold_px": 8.0
+        },
+        "edge_indices": [],
+        "message": "Some junctions are closer than the Phase 3 V1 readable-geometry envelope.",
+        "severity": "warning",
+        "vertex_indices": [
+          50,
+          51,
+          54,
+          58,
+          60,
+          61,
+          62
+        ]
+      },
+      {
+        "code": "low_confidence_assignments",
+        "details": {
+          "confidence_threshold": 0.6,
+          "margin_threshold": 0.12
+        },
+        "edge_indices": [
+          25,
+          34,
+          42,
+          43,
+          56,
+          76
+        ],
+        "message": "Some edge assignments have low confidence or a small class margin.",
+        "severity": "warning",
+        "vertex_indices": []
+      },
+      {
+        "code": "unknown_assignments",
+        "details": {},
+        "edge_indices": [
+          25,
+          34,
+          42,
+          43,
+          56,
+          76
+        ],
+        "message": "Some edge assignments are visually ambiguous and remain unassigned.",
+        "severity": "warning",
+        "vertex_indices": []
+      },
+      {
+        "code": "even_degree_failures",
+        "details": {},
+        "edge_indices": [],
+        "message": "Interior vertices with crease evidence should have even degree.",
+        "severity": "warning",
+        "vertex_indices": [
+          29,
+          44,
+          50,
+          58,
+          60,
+          62
+        ]
+      },
+      {
+        "code": "kawasaki_residuals",
+        "details": {
+          "residuals": {
+            "43": 0.18883258501161748,
+            "6": 0.1388456185711462,
+            "61": 2.636169672012329
+          },
+          "tolerance_radians": 0.12
+        },
+        "edge_indices": [],
+        "message": "Interior vertex sector angles violate the Kawasaki tolerance.",
+        "severity": "warning",
+        "vertex_indices": [
+          6,
+          43,
+          61
+        ]
+      },
+      {
+        "code": "maekawa_failures",
+        "details": {},
+        "edge_indices": [],
+        "message": "Fully observed M/V assignments violate Maekawa's theorem.",
+        "severity": "warning",
+        "vertex_indices": [
+          27,
+          29,
+          35,
+          48,
+          49,
+          58
+        ]
+      }
+    ],
+    "rectification": []
+  }
+}

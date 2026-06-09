@@ -1,0 +1,209 @@
+{
+  "schema": "oristudio/cp-detect-exact-solve-comparison/v1",
+  "generated_by": "compare_exact_solve_benchmark",
+  "generated_at_unix": 1780610974,
+  "git_commit": "b10a252015025bb38ecdba1d25ca7f90cefab914",
+  "dense_manifest": "/Users/zacharymarion/.codex/worktrees/cp-detect-browser-v1/tree-maker-rust/artifacts/cp-detect-correctness/dense-cache/smoke-1024-s3-browser-onnx/manifest.json",
+  "dense_schema": "oristudio/cp-detect-dense-cache/v1",
+  "pack": "/Users/zacharymarion/.codex/worktrees/cp-detect-browser-v1/tree-maker-rust/artifacts/cp-detect-correctness/packs/smoke-1024-s3/manifest.json",
+  "config": {
+    "candidate_source": "legacy",
+    "threshold": 0.65,
+    "legacy_low_threshold": 0.35,
+    "exact_patience": null,
+    "match_tolerance_px": 12.0,
+    "flat_folder_enabled": true
+  },
+  "sample_count": 12,
+  "total_seconds": 848.439,
+  "implementations": {
+    "exact_solved": {
+      "samples": 12,
+      "vertices": 967,
+      "edges": 1288,
+      "edge_metrics": {
+        "precision": 0.8889751552795031,
+        "recall": 0.8040730337078652,
+        "f1": 0.8443952802359882,
+        "true_positive": 1145,
+        "false_positive": 143,
+        "false_negative": 279
+      },
+      "border_metrics": {
+        "precision": 0.9702380952380952,
+        "recall": 0.9476744186046512,
+        "f1": 0.9588235294117647,
+        "true_positive": 326,
+        "false_positive": 10,
+        "false_negative": 18
+      },
+      "assignment_metrics": {
+        "accuracy": 0.9982532751091703,
+        "matched": 1145,
+        "correct": 1143,
+        "incorrect": 2
+      },
+      "structural": {
+        "interior_vertices": 629,
+        "degree_two_vertices": 59,
+        "odd_degree_vertices": 106,
+        "maekawa_failures": 80,
+        "eligible_kawasaki_vertices": 282,
+        "max_kawasaki_residual_degrees": 0.03296021766235128,
+        "degenerate_edges": 0,
+        "unmodeled_crossings": 10,
+        "boundary_failures": 0
+      },
+      "verification": {
+        "fold_valid": 12,
+        "check1_segments": 2,
+        "check2_segments": 0,
+        "check3_markers": 1940,
+        "camv_violations": 459,
+        "flat_folder_solved": 0,
+        "flat_folder_errors": {
+          "assignment_conflict": 11,
+          "invalid_input": 1
+        },
+        "classifications": {
+          "AssignmentConflict": 11,
+          "InvalidFold": 1,
+          "LocalTheoremFailure": 12
+        }
+      },
+      "exact": {
+        "attempted": 12,
+        "solved": 0,
+        "ambiguous": 2,
+        "failed": 10,
+        "total_seconds": 769.634,
+        "max_vertex_movement": 0.06533,
+        "moved_vertices": 685
+      }
+    },
+    "legacy": {
+      "samples": 12,
+      "vertices": 967,
+      "edges": 1290,
+      "edge_metrics": {
+        "precision": 0.9100775193798449,
+        "recall": 0.824438202247191,
+        "f1": 0.8651436993367723,
+        "true_positive": 1174,
+        "false_positive": 116,
+        "false_negative": 250
+      },
+      "border_metrics": {
+        "precision": 0.9702380952380952,
+        "recall": 0.9476744186046512,
+        "f1": 0.9588235294117647,
+        "true_positive": 326,
+        "false_positive": 10,
+        "false_negative": 18
+      },
+      "assignment_metrics": {
+        "accuracy": 0.9965928449744463,
+        "matched": 1174,
+        "correct": 1170,
+        "incorrect": 4
+      },
+      "structural": {
+        "interior_vertices": 629,
+        "degree_two_vertices": 61,
+        "odd_degree_vertices": 103,
+        "maekawa_failures": 77,
+        "eligible_kawasaki_vertices": 283,
+        "max_kawasaki_residual_degrees": 156.1667675405249,
+        "degenerate_edges": 0,
+        "unmodeled_crossings": 0,
+        "boundary_failures": 0
+      },
+      "verification": {
+        "fold_valid": 12,
+        "check1_segments": 0,
+        "check2_segments": 0,
+        "check3_markers": 1938,
+        "camv_violations": 459,
+        "flat_folder_solved": 0,
+        "flat_folder_errors": {
+          "assignment_conflict": 12
+        },
+        "classifications": {
+          "AssignmentConflict": 12,
+          "LocalTheoremFailure": 12
+        }
+      },
+      "exact": {
+        "attempted": 0,
+        "solved": 0,
+        "ambiguous": 0,
+        "failed": 0,
+        "total_seconds": 0.0,
+        "max_vertex_movement": 0.0,
+        "moved_vertices": 0
+      }
+    },
+    "selected": {
+      "samples": 12,
+      "vertices": 967,
+      "edges": 1288,
+      "edge_metrics": {
+        "precision": 0.9107142857142857,
+        "recall": 0.8237359550561798,
+        "f1": 0.8650442477876106,
+        "true_positive": 1173,
+        "false_positive": 115,
+        "false_negative": 251
+      },
+      "border_metrics": {
+        "precision": 0.9702380952380952,
+        "recall": 0.9476744186046512,
+        "f1": 0.9588235294117647,
+        "true_positive": 326,
+        "false_positive": 10,
+        "false_negative": 18
+      },
+      "assignment_metrics": {
+        "accuracy": 0.9974424552429667,
+        "matched": 1173,
+        "correct": 1170,
+        "incorrect": 3
+      },
+      "structural": {
+        "interior_vertices": 629,
+        "degree_two_vertices": 59,
+        "odd_degree_vertices": 106,
+        "maekawa_failures": 80,
+        "eligible_kawasaki_vertices": 282,
+        "max_kawasaki_residual_degrees": 156.1667675405249,
+        "degenerate_edges": 0,
+        "unmodeled_crossings": 0,
+        "boundary_failures": 0
+      },
+      "verification": {
+        "fold_valid": 12,
+        "check1_segments": 0,
+        "check2_segments": 0,
+        "check3_markers": 1940,
+        "camv_violations": 459,
+        "flat_folder_solved": 0,
+        "flat_folder_errors": {
+          "assignment_conflict": 12
+        },
+        "classifications": {
+          "AssignmentConflict": 12,
+          "LocalTheoremFailure": 12
+        }
+      },
+      "exact": {
+        "attempted": 0,
+        "solved": 0,
+        "ambiguous": 0,
+        "failed": 0,
+        "total_seconds": 0.0,
+        "max_vertex_movement": 0.0,
+        "moved_vertices": 0
+      }
+    }
+  }
+}

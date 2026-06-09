@@ -24,6 +24,7 @@ export const MENU_ACTION_IDS = [
   'app.quit',
   'file.new',
   'file.open',
+  'file.detectCpImage',
   'file.save',
   'file.saveAs',
   'file.settings',
@@ -346,6 +347,9 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
         return true;
       case 'file.new':
         return (deps.showStartScreen ?? requestStartScreen)();
+      case 'file.detectCpImage':
+        window.dispatchEvent(new CustomEvent('ori-studio:detect-cp-image'));
+        return true;
       case 'file.settings':
         deps.settings?.();
         return true;

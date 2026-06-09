@@ -1,0 +1,360 @@
+# CP Detect Candidate Generation Strategies
+
+## Goal
+
+Create a clean foundation for iterating on crease-pattern candidate generation
+approaches. The end state should make it easy to compare the current legacy
+approach, a future junction-pair approach, and future ML-assisted approaches
+without mixing incompatible candidate sources into an incoherent graph.
+
+The core principle is:
+
+```text
+candidate generation strategy -> coherent CandidateGraph -> selection -> exact solve
+```
+
+A strategy is a complete approach for producing one internally consistent
+candidate hypothesis space. Strategies may use multiple internal signals, but
+they must canonicalize, dedupe, and encode conflicts before producing a
+`CandidateGraph`. The beam selector should not receive an undifferentiated pile
+of edges from unrelated sources.
+
+## Current Problem
+
+The current candidate generation path is hard to reason about:
+
+- The legacy detector decodes dense model heads into a FOLD-like graph.
+- A legacy adapter turns that graph into the compiler's `CandidateGraph`.
+- There is also compiler-owned candidate generation code from earlier
+  experiments, but it has performed poorly and creates confusion about which
+  path is authoritative.
+- Benchmarking and the architecture inspector do not yet make candidate
+  generation strategy selection a first-class concept.
+
+The latest candidate-coverage benchmark shows candidate generation is the main
+topology bottleneck: dense evidence often supports a true GT edge, but the
+adapter candidate graph does not contain the needed carrier/span. Beam selection
+is only slightly worse than the candidate oracle, so the next iteration should
+make candidate generation modular and benchmarkable before adding another
+generator.
+
+## Target Architecture
+
+Keep crate ownership explicit:
+
+```text
+oristudio-cp-detect
+  dense heads / decoded evidence
+  candidate_generation/
+    strategy.rs
+    legacy_threshold.rs
+    future junction_pair.rs
+    future hybrid_explicit.rs
+
+oristudio-cp-compiler
+  CandidateGraph IR
+  selection
+  exact solve
+  report/export
+
+oristudio-cp-eval
+  candidate coverage metrics
+  selected graph metrics
+  exact solve metrics
+```
+
+`oristudio-cp-compiler` should not know how to read dense heads, run legacy
+decode, interpret image pixels, or perform Hough-style image detection. It
+should consume a `CandidateGraph` and produce selected/exact output.
+
+`oristudio-cp-detect` should own candidate generation strategies because they
+consume model heads and image-space evidence.
+
+## Strategy Contract
+
+Introduce a detection-side strategy boundary shaped roughly like:
+
+```rust
+pub trait CandidateGenerationStrategy {
+    fn name(&self) -> &'static str;
+    fn generate(&self, ctx: &CandidateGenerationContext) -> Result<CandidateGraph>;
+}
+```
+
+`CandidateGenerationContext` should hold the inputs shared by strategies:
+
+- image size
+- dense model heads
+- selected thresholds/options
+- optional debug/sample metadata
+
+Each strategy must return a coherent `CandidateGraph`:
+
+- candidate vertices in normalized compiler coordinates
+- candidate spans/carriers
+- assignment evidence
+- source/provenance labels
+- support/cost priors
+- dedupe/equivalence information where applicable
+- conflict groups where candidates are alternatives
+
+Important guardrail: do not merge unrelated strategy outputs by default. If a
+hybrid strategy is added later, it should be an explicit strategy with clear
+canonicalization and conflict semantics.
+
+## Phase 1: Cordon Off Compiler Candidate Generation
+
+Status: Complete.
+
+### Work
+
+- Audit compiler-owned candidate generation entrypoints and usages.
+- Remove dead compiler candidate generation code if nothing depends on it.
+- If immediate removal would be risky, move it behind an explicitly deprecated
+  module/test-only path with names that make it impossible to confuse with the
+  production strategy path.
+- Ensure production detection flows no longer expose or route through the old
+  compiler candidate generation path.
+
+### Result
+
+The Stage 5/5b/6 inspector backend no longer accepts `candidate_source =
+"arrangement"` and the frontend no longer offers Arrangement V2 as a candidate
+source. Low-level arrangement/exact-probe internals remain available for earlier
+diagnostic stages and tests, but they are not exposed as a production candidate
+generation path.
+
+### Done Means
+
+- No default code path uses compiler-owned candidate generation.
+- The compiler crate still owns `CandidateGraph`, selection, exact solve, and
+  export/report logic.
+- Any remaining experimental code is clearly marked deprecated and not exposed
+  in the inspector or benchmark strategy selectors.
+- Tests/builds pass for affected crates.
+
+## Phase 2: Add Candidate Generation Strategy Boundary
+
+Status: Complete.
+
+### Work
+
+- Add `crates/oristudio-cp-detect/src/candidate_generation/`.
+- Define `CandidateGenerationStrategy`, `CandidateGenerationContext`, strategy
+  names, and shared strategy options.
+- Move/wrap the current legacy high/low-threshold adapter flow into
+  `LegacyThresholdStrategy`.
+- Preserve current behavior as the default strategy.
+- Keep the existing `CandidateGraph` type in `oristudio-cp-compiler`; do not
+  duplicate IR types in detect.
+
+### Result
+
+`oristudio-cp-detect` now exposes a `candidate_generation` module with a
+strategy name, context, options, trait, and `legacy-threshold` implementation.
+The product legacy-candidate exact-solve backend and the inspector Stage 5 path
+both call this shared strategy implementation instead of rebuilding the legacy
+adapter locally.
+
+### Done Means
+
+- The current legacy path can be invoked through a named strategy.
+- A new strategy can be added by implementing the trait and registering its
+  name, without changing selection or exact solve.
+- Existing detection flows produce the same selected graph for the legacy
+  strategy as before the refactor, modulo intentional cleanup.
+- Unit tests cover strategy dispatch and legacy strategy parity on at least one
+  small fixture.
+
+## Phase 3: Strategy-Aware Benchmarking
+
+Status: Complete.
+
+### Work
+
+- Update candidate coverage benchmarks to accept a candidate generation strategy
+  name.
+- Record the selected strategy and strategy options in benchmark artifacts.
+- Keep output files stable:
+  - `summary.json`
+  - `per_sample.jsonl`
+  - `per_gt_edge.jsonl`
+  - `README.md`
+- Ensure candidate coverage metrics compare:
+  - dense evidence
+  - strategy candidate oracle
+  - selected graph
+  - root-cause buckets
+  - runtime per sample
+
+### Result
+
+`compare_candidate_coverage` now accepts `--strategy legacy-threshold`, routes
+candidate construction through `oristudio-cp-detect::candidate_generation`, and
+records the strategy name plus legacy strategy tolerances in `summary.json`.
+
+The release benchmark ran successfully on `clean-1024-s15`:
+
+```text
+artifacts/cp-detect-correctness/reports/clean-1024-s15-candidate-coverage-strategy-2026-06-08
+```
+
+The strategy refactor preserved the existing baseline:
+
+- candidate oracle recall: `0.9089`
+- selected recall: `0.9054`
+- selected assignment matches: `1826 / 2240`
+- total runtime: `14.44s` for 15 samples
+
+### Done Means
+
+- We can run at least:
+
+  ```bash
+  target/release/compare_candidate_coverage \
+    --strategy legacy-threshold \
+    --manifest artifacts/cp-detect-correctness/dense-cache/clean-1024-s15-browser-onnx/manifest.json \
+    --out artifacts/cp-detect-correctness/reports/<name>
+  ```
+
+- The benchmark report records the strategy name and options.
+- Historical reports are self-contained enough to compare future runs without
+  rerunning old baselines.
+- The default strategy is `legacy-threshold`.
+
+## Phase 4: Strategy-Aware Architecture Inspector
+
+Status: Complete.
+
+### Work
+
+- Update `apps/cp-detect-architecture-inspector` so candidate generation
+  strategy is a first-class selector.
+- Remove inspector options for the old compiler candidate generation path.
+- Default to `legacy-threshold`.
+- Ensure stages that depend on candidate generation request the selected
+  strategy from the Rust backend.
+- Make the UI labels clear: the selected graph is the output of selection over
+  the selected strategy's candidate graph, not a blend of all known candidate
+  sources.
+
+### Result
+
+The inspector now exposes `Candidate strategy` with `legacy-threshold` as the
+default and only visible option. Stage 5/5b/6 requests send `strategy=...` to
+the backend, and backend responses record `candidate_strategy`. The backend
+keeps a compatibility parser for old `candidate_source=legacy` URLs, but the
+active UI no longer uses source terminology.
+
+### Done Means
+
+- The inspector can switch candidate generation strategy without changing the
+  rest of the pipeline controls.
+- The compiler-owned candidate generation path is no longer visible.
+- Stage 5/5b/6 style views show the graph produced from the selected strategy.
+- The backend API response records the selected strategy so screenshots and
+  reports remain interpretable.
+
+## Phase 5: Prepare For New Strategies
+
+Status: Complete.
+
+### Work
+
+- Add a placeholder registration point for future strategies, but do not
+  implement junction-pair generation in this cleanup phase.
+- Document how to add a new strategy:
+  - where the module lives
+  - how it receives dense heads
+  - how it emits a coherent `CandidateGraph`
+  - what metrics must be run before enabling it in UI defaults
+- Add a short note warning against candidate-source soup: hybrids must be
+  explicit strategies with dedupe/conflict semantics.
+
+### Result
+
+`candidate_generation::generate_candidate_graph` is now the explicit
+registration point for complete strategies, and
+`crates/oristudio-cp-detect/src/candidate_generation/README.md` documents how
+to add, test, benchmark, and safely expose a new strategy.
+
+### Done Means
+
+- A future `JunctionPairStrategy` can be added without modifying compiler
+  selection/exact solve code.
+- A future ML-assisted strategy can be added as another strategy or as an
+  internal scorer inside an explicit strategy.
+- Docs tell future engineers where candidate generation belongs and where it
+  does not belong.
+
+## Non-Goals
+
+- Do not implement the junction-pair generator in this refactor unless it is
+  explicitly requested as a follow-up.
+- Do not tune beam search weights as part of this cleanup.
+- Do not change exact solve behavior.
+- Do not merge multiple candidate generation strategies into one pool without
+  explicit conflict/equivalence modeling.
+
+## Validation Checklist
+
+- [x] Compiler candidate generation code removed or explicitly deprecated and
+      unreachable from production flows.
+- [x] `legacy-threshold` strategy implemented in `oristudio-cp-detect`.
+- [x] Default product and inspector behavior still uses legacy-threshold.
+- [x] Candidate coverage benchmark accepts `--strategy`.
+- [x] Benchmark artifacts record strategy name and options.
+- [x] Architecture inspector exposes strategy selection and removes compiler
+      candidate generation options.
+- [x] Rust unit tests cover strategy dispatch and legacy option conversion.
+- [x] Release benchmark runs successfully on `clean-1024-s15`.
+- [x] Documentation explains how to add and benchmark a new strategy.
+
+## Follow-Up Strategy Experiment: `legacy-topology-v2`
+
+Status: Complete as a conservative experiment.
+
+### Goal
+
+Test whether a strategy can improve topology cleanliness without replacing the
+legacy candidate generator wholesale. The experiment starts from
+`legacy-threshold`, finds strict collinear chains through interior degree-2
+pass-through vertices, and adds a single `NormalizedPassThroughSpan` candidate
+that can replace the fragment chain.
+
+### Guardrails
+
+- Do not force structural spans when GT metrics regress.
+- Do not collapse through boundary contacts, corners, or vertices that have a
+  third non-boundary weak/strong incident candidate.
+- Keep replaced fragment spans available as alternatives and model the
+  replacement as a hard conflict.
+- Record candidate/selected normalized-span counts in benchmark artifacts so
+  future iterations can distinguish generation failures from selection
+  failures.
+
+### Result
+
+`legacy-topology-v2` is now available as a strategy in the benchmark and
+architecture inspector. On `clean-1024-s15`, compared with `legacy-threshold`:
+
+- Candidate oracle recall: `0.9089 -> 0.9094`
+- Selected recall: `0.9054 -> 0.9054`
+- Assignment-correct selected edges: `1826 -> 1827`
+- Adapter chain matches: `62 -> 53`
+- Selected chain matches: `62 -> 60`
+- Candidate normalized pass-through spans: `0 -> 23`
+- Selected normalized pass-through spans: `0 -> 5`
+
+The stronger variant that made structural spans the default selected `22`
+normalized spans and reduced selected chain matches to `49`, but it regressed
+selected recall and assignment-correct matches. That is useful signal: cleaning
+topology by force can make the graph look nicer while making it less correct.
+
+### Interpretation
+
+This strategy is worth keeping as a small, safe baseline, but it is not the
+major topology fix. Most remaining misses are still caused upstream by missing
+carriers or edge support before selection. The next meaningful improvement
+should focus on candidate generation coverage, likely a new strategy rather than
+more aggressive pass-through normalization.

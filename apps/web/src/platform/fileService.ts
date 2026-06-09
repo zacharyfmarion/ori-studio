@@ -23,6 +23,19 @@ export interface OpenTextFileResult {
   path: string | null;
 }
 
+export interface OpenBinaryFileOptions {
+  title: string;
+  extensions: string[];
+  mimeTypes?: string[];
+}
+
+export interface OpenBinaryFileResult {
+  bytes: Uint8Array;
+  name: string;
+  path: string | null;
+  mimeType: string;
+}
+
 export interface SaveFileResult {
   name: string;
   path: string | null;
@@ -49,6 +62,7 @@ export interface FileService {
   surface: RuntimeSurface;
   supportsNativeDialogs: boolean;
   openTextFile(options: OpenTextFileOptions): Promise<OpenTextFileResult | null>;
+  openBinaryFile(options: OpenBinaryFileOptions): Promise<OpenBinaryFileResult | null>;
   saveTextFile(options: SaveTextFileOptions): Promise<SaveFileResult | null>;
   saveBinaryFile(options: SaveBinaryFileOptions): Promise<SaveFileResult | null>;
 }
@@ -105,12 +119,55 @@ function openBrowserTextFile(options: OpenTextFileOptions): Promise<OpenTextFile
   });
 }
 
+function openBrowserBinaryFile(
+  options: OpenBinaryFileOptions
+): Promise<OpenBinaryFileResult | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    const extensionAccept = options.extensions.map((extension) => `.${extension}`);
+    input.accept = [...extensionAccept, ...(options.mimeTypes ?? [])].join(',');
+    input.style.display = 'none';
+    document.body.append(input);
+
+    input.addEventListener(
+      'change',
+      () => {
+        const file = input.files?.[0] ?? null;
+        input.remove();
+        if (!file) {
+          resolve(null);
+          return;
+        }
+        file
+          .arrayBuffer()
+          .then((buffer) =>
+            resolve({
+              bytes: new Uint8Array(buffer),
+              name: file.name,
+              path: null,
+              mimeType: file.type || 'application/octet-stream',
+            })
+          )
+          .catch(() => resolve(null));
+      },
+      { once: true }
+    );
+
+    input.click();
+  });
+}
+
 class BrowserFileService implements FileService {
   readonly surface = 'web' as const;
   readonly supportsNativeDialogs = false;
 
   async openTextFile(options: OpenTextFileOptions): Promise<OpenTextFileResult | null> {
     return openBrowserTextFile(options);
+  }
+
+  async openBinaryFile(options: OpenBinaryFileOptions): Promise<OpenBinaryFileResult | null> {
+    return openBrowserBinaryFile(options);
   }
 
   async saveTextFile(options: SaveTextFileOptions): Promise<SaveFileResult | null> {
@@ -141,6 +198,23 @@ class TauriFileService implements FileService {
     if (typeof selected !== 'string') return null;
     const text = await invoke<string>('read_text_file', { path: selected });
     return { text, name: filenameFromPath(selected), path: selected };
+  }
+
+  async openBinaryFile(options: OpenBinaryFileOptions): Promise<OpenBinaryFileResult | null> {
+    const { open } = await import('@tauri-apps/plugin-dialog');
+    const selected = await open({
+      title: options.title,
+      multiple: false,
+      filters: [{ name: 'Image', extensions: options.extensions }],
+    });
+    if (typeof selected !== 'string') return null;
+    const bytes = await invoke<number[]>('read_binary_file', { path: selected });
+    return {
+      bytes: new Uint8Array(bytes),
+      name: filenameFromPath(selected),
+      path: selected,
+      mimeType: mimeTypeFromFilename(selected),
+    };
   }
 
   async saveTextFile(options: SaveTextFileOptions): Promise<SaveFileResult | null> {
@@ -176,6 +250,13 @@ class TauriFileService implements FileService {
   }
 }
 
+function mimeTypeFromFilename(filename: string): string {
+  if (/\.png$/i.test(filename)) return 'image/png';
+  if (/\.jpe?g$/i.test(filename)) return 'image/jpeg';
+  if (/\.webp$/i.test(filename)) return 'image/webp';
+  return 'application/octet-stream';
+}
+
 export function createFileService(surface: RuntimeSurface): FileService {
   return surface === 'desktop' ? new TauriFileService() : new BrowserFileService();
 }
@@ -188,6 +269,15 @@ export function createOpenedPathFileService(path: string): FileService {
     async openTextFile(): Promise<OpenTextFileResult | null> {
       const text = await invoke<string>('read_text_file', { path });
       return { text, name: filenameFromPath(path), path };
+    },
+    async openBinaryFile(): Promise<OpenBinaryFileResult | null> {
+      const bytes = await invoke<number[]>('read_binary_file', { path });
+      return {
+        bytes: new Uint8Array(bytes),
+        name: filenameFromPath(path),
+        path,
+        mimeType: mimeTypeFromFilename(path),
+      };
     },
     saveTextFile: (options) => desktopService.saveTextFile(options),
     saveBinaryFile: (options) => desktopService.saveBinaryFile(options),

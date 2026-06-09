@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
+use oristudio_cp_compiler::verify::prepare_flat_folder_document;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
@@ -141,15 +142,24 @@ fn main() -> Result<()> {
             format,
         } => {
             let document = read_fold(&file)?;
+            let prepared = prepare_flat_folder_document(&document);
             let solved = solve_flat_fold(
-                &document,
+                &prepared.document,
                 SolveOptions {
                     solution_limit: parse_solution_limit(&limit)?,
                     ..SolveOptions::default()
                 },
             )
             .with_context(|| format!("failed to solve flat fold {}", file.display()))?;
-            print_value(format, &FlatfoldReport::from_result(&file, solved))?;
+            print_value(
+                format,
+                &FlatfoldReport::from_result(
+                    &file,
+                    prepared.preprocess,
+                    prepared.cut_boundary_edges,
+                    solved,
+                ),
+            )?;
         }
         Command::RunFixtures { dir } => {
             let dir = dir.unwrap_or_else(|| PathBuf::from("tests/fixtures"));
@@ -210,6 +220,10 @@ fn print_value<T: serde::Serialize + std::fmt::Debug>(
 #[derive(Debug, Serialize)]
 struct FlatfoldReport {
     path: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    input_preprocess: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    input_cut_boundary_edges: Vec<usize>,
     constraints: ConstraintSummary,
     component_sizes: Vec<usize>,
     solution_counts: Vec<usize>,
@@ -218,9 +232,16 @@ struct FlatfoldReport {
 }
 
 impl FlatfoldReport {
-    fn from_result(path: &Path, result: treemaker_flatfold::SolveResult) -> Self {
+    fn from_result(
+        path: &Path,
+        input_preprocess: Option<String>,
+        input_cut_boundary_edges: Vec<usize>,
+        result: treemaker_flatfold::SolveResult,
+    ) -> Self {
         Self {
             path: path.display().to_string(),
+            input_preprocess,
+            input_cut_boundary_edges,
             constraints: result.constraints,
             component_sizes: result.component_sizes,
             solution_counts: result.solution_counts,

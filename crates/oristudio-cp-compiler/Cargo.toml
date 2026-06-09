@@ -1,0 +1,24 @@
+[package]
+name = "oristudio-cp-compiler"
+version.workspace = true
+edition.workspace = true
+license = "MIT OR Apache-2.0"
+description = "Constraint-aware crease-pattern compiler core for Ori Studio"
+repository.workspace = true
+homepage.workspace = true
+keywords = ["origami", "crease-pattern", "compiler", "wasm"]
+categories = ["algorithms", "mathematics"]
+include = ["Cargo.toml", "src/**", "tests/**"]
+
+[dependencies]
+levenberg-marquardt.workspace = true
+nalgebra.workspace = true
+oristudio-cp.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+treemaker-flatfold.workspace = true
+treemaker-fold.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

@@ -22,6 +22,7 @@ clap.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
+oristudio-cp-compiler = { path = "../oristudio-cp-compiler" }
 treemaker-core = { version = "0.1.2", path = "../treemaker-core" }
 treemaker-flatfold.workspace = true
 treemaker-fold.workspace = true

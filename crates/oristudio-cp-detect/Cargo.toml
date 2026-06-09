@@ -1,0 +1,23 @@
+[package]
+name = "oristudio-cp-detect"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Browser crease-pattern detection core types and oracle fixture plumbing"
+repository.workspace = true
+homepage.workspace = true
+keywords = ["origami", "crease-pattern", "wasm", "detection"]
+categories = ["algorithms", "wasm"]
+include = ["Cargo.toml", "src/**", "tests/**"]
+
+[dependencies]
+image.workspace = true
+imageproc.workspace = true
+oristudio-cp-compiler.workspace = true
+oristudio-cp-eval.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
