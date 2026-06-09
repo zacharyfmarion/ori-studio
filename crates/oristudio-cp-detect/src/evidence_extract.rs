@@ -9,6 +9,9 @@ use crate::opencv_hough_lines_p::{
 };
 use serde::{Deserialize, Serialize};
 
+const SYNTHETIC_RENDER_INSET_PX: f32 = 32.0;
+const VERTEX_TYPE_BACKGROUND_SUPPRESSION_FLOOR: f32 = 0.05;
+
 #[derive(Debug, Clone, Copy)]
 pub struct DenseOutputRefs<'a> {
     pub line_logits: &'a [f32],
@@ -228,6 +231,15 @@ pub fn extract_compiler_evidence(
     )?;
     require_len("assignment_logits", outputs.assignment_logits, pixels * 4)?;
     require_len("line_style_logits", outputs.line_style_logits, pixels * 4)?;
+    require_optional_len("junction_offset", outputs.junction_offset, pixels * 2)?;
+    require_optional_len("vertex_type_logits", outputs.vertex_type_logits, pixels * 4)?;
+    require_optional_len(
+        "boundary_side_logits",
+        outputs.boundary_side_logits,
+        pixels * 4,
+    )?;
+    require_optional_len("boundary_offset", outputs.boundary_offset, pixels * 2)?;
+    require_optional_len("boundary_coord", outputs.boundary_coord, pixels)?;
 
     let non_crease_probability = sigmoid_map(outputs.non_crease_logits);
     let line_probability = effective_line_probability(
@@ -236,6 +248,8 @@ pub fn extract_compiler_evidence(
         config.line_threshold,
     );
     let junction_probability = sigmoid_map(outputs.junction_logits);
+    let junction_peak_probability =
+        junction_score_map(&junction_probability, outputs.vertex_type_logits, size);
     let boundary_contact_probability = sigmoid_map(outputs.boundary_contact_logits);
     let assignment_probability = softmax_channels(outputs.assignment_logits, 4, pixels);
     let line_style_probability = softmax_channels(outputs.line_style_logits, 4, pixels);
@@ -276,7 +290,7 @@ pub fn extract_compiler_evidence(
     line_primitives.truncate(config.max_line_primitives);
 
     let junction_primitives = local_maxima_primitives(
-        &junction_probability,
+        &junction_peak_probability,
         size,
         config.line_threshold.max(0.50),
         config.primitive_nms_radius_px,
@@ -284,7 +298,7 @@ pub fn extract_compiler_evidence(
     )
     .into_iter()
     .map(|(point, support)| JunctionPrimitive {
-        point,
+        point: offset_refined_point(point, outputs.junction_offset, size),
         support,
         source: primitive_source(support, config.strong_line_support),
     })
@@ -297,7 +311,9 @@ pub fn extract_compiler_evidence(
         config.max_boundary_contact_primitives,
     )
     .into_iter()
-    .map(|(point, support)| boundary_contact_primitive(point, support, config))
+    .map(|(point, support)| {
+        boundary_contact_primitive(point, support, outputs.boundary_offset, config)
+    })
     .collect::<Vec<_>>();
 
     let strong_line_primitives = line_primitives
@@ -349,6 +365,17 @@ fn require_len(
     Ok(())
 }
 
+fn require_optional_len(
+    name: &'static str,
+    values: Option<&[f32]>,
+    expected: usize,
+) -> Result<(), EvidenceExtractionError> {
+    let Some(values) = values else {
+        return Ok(());
+    };
+    require_len(name, values, expected)
+}
+
 fn sigmoid_map(values: &[f32]) -> Vec<f32> {
     values.iter().map(|value| sigmoid(*value)).collect()
 }
@@ -391,6 +418,30 @@ fn softmax_channels(values: &[f32], channels: usize, pixels: usize) -> Vec<f32> 
         }
     }
     probabilities
+}
+
+fn junction_score_map(
+    junction_probability: &[f32],
+    vertex_type_logits: Option<&[f32]>,
+    size: usize,
+) -> Vec<f32> {
+    let Some(vertex_type_logits) = vertex_type_logits else {
+        return junction_probability.to_vec();
+    };
+    let pixels = size * size;
+    let vertex_type_probability = softmax_channels(vertex_type_logits, 4, pixels);
+    (0..pixels)
+        .map(|idx| {
+            let vertex_like = vertex_type_probability[idx * 4 + 1]
+                .max(vertex_type_probability[idx * 4 + 2])
+                .max(vertex_type_probability[idx * 4 + 3]);
+            if vertex_like < VERTEX_TYPE_BACKGROUND_SUPPRESSION_FLOOR {
+                junction_probability[idx] * 0.15
+            } else {
+                junction_probability[idx]
+            }
+        })
+        .collect()
 }
 
 fn hough_mask(
@@ -612,30 +663,86 @@ fn local_maxima_primitives(
 fn boundary_contact_primitive(
     point: [f32; 2],
     support: f32,
+    boundary_offset: Option<&[f32]>,
     config: EvidenceExtractionConfig,
 ) -> BoundaryContactPrimitive {
-    let max = config.image_size.saturating_sub(1).max(1) as f32;
+    let refined_point = offset_refined_point(point, boundary_offset, config.image_size as usize);
+    let (frame_min, frame_max) = rendered_square_frame(config.image_size);
+    let span = (frame_max - frame_min).max(1.0);
     let distances = [
-        (BoundarySide::Top, point[1]),
-        (BoundarySide::Right, max - point[0]),
-        (BoundarySide::Bottom, max - point[1]),
-        (BoundarySide::Left, point[0]),
+        (BoundarySide::Top, (refined_point[1] - frame_min).abs()),
+        (BoundarySide::Right, (refined_point[0] - frame_max).abs()),
+        (BoundarySide::Bottom, (refined_point[1] - frame_max).abs()),
+        (BoundarySide::Left, (refined_point[0] - frame_min).abs()),
     ];
     let (side, _) = distances
         .into_iter()
         .min_by(|left, right| left.1.total_cmp(&right.1))
         .unwrap_or((BoundarySide::Top, 0.0));
     let side_coordinate = match side {
-        BoundarySide::Top | BoundarySide::Bottom => point[0] / max,
-        BoundarySide::Right | BoundarySide::Left => point[1] / max,
+        BoundarySide::Top | BoundarySide::Bottom => (refined_point[0] - frame_min) / span,
+        BoundarySide::Right | BoundarySide::Left => (refined_point[1] - frame_min) / span,
     }
     .clamp(0.0, 1.0);
+    let snapped_point = boundary_point_from_side_coordinate(side, side_coordinate, frame_min, span);
     BoundaryContactPrimitive {
-        point,
+        point: snapped_point,
         side,
         side_coordinate,
         support,
         source: primitive_source(support, config.strong_line_support),
+    }
+}
+
+fn offset_refined_point(point: [f32; 2], offset: Option<&[f32]>, size: usize) -> [f32; 2] {
+    let Some(offset) = offset else {
+        return point;
+    };
+    let pixels = size * size;
+    let Some(idx) = pixel_index(point, size) else {
+        return point;
+    };
+    if offset.len() < pixels * 2 {
+        return point;
+    }
+    let max = size.saturating_sub(1) as f32;
+    [
+        (point[0] + finite_offset(offset[idx])).clamp(0.0, max),
+        (point[1] + finite_offset(offset[pixels + idx])).clamp(0.0, max),
+    ]
+}
+
+fn finite_offset(value: f32) -> f32 {
+    if value.is_finite() {
+        value.clamp(-0.5, 0.5)
+    } else {
+        0.0
+    }
+}
+
+fn rendered_square_frame(image_size: u32) -> (f32, f32) {
+    let raw_max = image_size.saturating_sub(1) as f32;
+    let inset = if image_size as f32 > SYNTHETIC_RENDER_INSET_PX * 2.0 {
+        SYNTHETIC_RENDER_INSET_PX
+    } else {
+        raw_max * 0.25
+    };
+    let frame_max = (image_size as f32 - inset).clamp(inset, raw_max);
+    (inset, frame_max)
+}
+
+fn boundary_point_from_side_coordinate(
+    side: BoundarySide,
+    side_coordinate: f32,
+    frame_min: f32,
+    span: f32,
+) -> [f32; 2] {
+    let coordinate = frame_min + side_coordinate.clamp(0.0, 1.0) * span;
+    match side {
+        BoundarySide::Top => [coordinate, frame_min],
+        BoundarySide::Right => [frame_min + span, coordinate],
+        BoundarySide::Bottom => [coordinate, frame_min + span],
+        BoundarySide::Left => [frame_min, coordinate],
     }
 }
 
@@ -690,6 +797,36 @@ fn sigmoid(value: f32) -> f32 {
 mod tests {
     use super::*;
 
+    fn test_config(size: usize) -> EvidenceExtractionConfig {
+        EvidenceExtractionConfig {
+            image_size: size as u32,
+            line_threshold: 0.65,
+            strong_line_support: 0.35,
+            min_line_length_px: 6.0,
+            edge_sample_step_px: 2.0,
+            assignment_min_confidence: 0.5,
+            hough_vote_threshold: 8,
+            hough_min_segment_length_px: 6.0,
+            hough_max_segment_gap_px: 4.0,
+            max_line_primitives: 32,
+            max_junction_primitives: 32,
+            max_boundary_contact_primitives: 32,
+            primitive_nms_radius_px: 3.0,
+        }
+    }
+
+    fn blank_heads(size: usize) -> (Vec<f32>, Vec<f32>, Vec<f32>, Vec<f32>, Vec<f32>, Vec<f32>) {
+        let pixels = size * size;
+        (
+            vec![-8.0; pixels],
+            vec![-8.0; pixels],
+            vec![-4.0; pixels * 4],
+            vec![-8.0; pixels],
+            vec![-4.0; pixels * 4],
+            vec![-8.0; pixels],
+        )
+    }
+
     #[test]
     fn extracts_line_and_junction_primitives_without_legacy_decoder() {
         let size = 64usize;
@@ -717,21 +854,7 @@ mod tests {
                 &line_style_logits,
                 &boundary_contact_logits,
             ),
-            EvidenceExtractionConfig {
-                image_size: size as u32,
-                line_threshold: 0.65,
-                strong_line_support: 0.35,
-                min_line_length_px: 6.0,
-                edge_sample_step_px: 2.0,
-                assignment_min_confidence: 0.5,
-                hough_vote_threshold: 8,
-                hough_min_segment_length_px: 6.0,
-                hough_max_segment_gap_px: 4.0,
-                max_line_primitives: 32,
-                max_junction_primitives: 32,
-                max_boundary_contact_primitives: 32,
-                primitive_nms_radius_px: 3.0,
-            },
+            test_config(size),
         )
         .expect("evidence extraction");
 
@@ -739,6 +862,159 @@ mod tests {
         assert!(!evidence.junction_primitives.is_empty());
         assert!(!evidence.boundary_contact_primitives.is_empty());
         assert!(!evidence.report.legacy_dependency);
+    }
+
+    #[test]
+    fn junction_primitives_use_subpixel_offsets() {
+        let size = 128usize;
+        let pixels = size * size;
+        let (
+            line_logits,
+            mut junction_logits,
+            assignment_logits,
+            non_crease_logits,
+            line_style_logits,
+            boundary_contact_logits,
+        ) = blank_heads(size);
+        let idx = 64 * size + 64;
+        junction_logits[idx] = 8.0;
+        let mut junction_offset = vec![0.0; pixels * 2];
+        junction_offset[idx] = 0.25;
+        junction_offset[pixels + idx] = -0.5;
+
+        let evidence = extract_compiler_evidence(
+            DenseOutputRefs::from_legacy_heads(
+                &line_logits,
+                &junction_logits,
+                &assignment_logits,
+                &non_crease_logits,
+                &line_style_logits,
+                &boundary_contact_logits,
+            )
+            .with_junction_offset(Some(&junction_offset)),
+            test_config(size),
+        )
+        .expect("evidence extraction");
+
+        assert_eq!(evidence.junction_primitives.len(), 1);
+        let point = evidence.junction_primitives[0].point;
+        assert!((point[0] - 64.25).abs() < 1.0e-4, "{point:?}");
+        assert!((point[1] - 63.5).abs() < 1.0e-4, "{point:?}");
+    }
+
+    #[test]
+    fn vertex_type_suppresses_background_junction_peaks() {
+        let size = 128usize;
+        let pixels = size * size;
+        let (
+            line_logits,
+            mut junction_logits,
+            assignment_logits,
+            non_crease_logits,
+            line_style_logits,
+            boundary_contact_logits,
+        ) = blank_heads(size);
+        let background_idx = 40 * size + 40;
+        let interior_idx = 80 * size + 80;
+        junction_logits[background_idx] = 8.0;
+        junction_logits[interior_idx] = 8.0;
+        let mut vertex_type_logits = vec![-4.0; pixels * 4];
+        vertex_type_logits[background_idx] = 8.0;
+        vertex_type_logits[3 * pixels + interior_idx] = 8.0;
+
+        let evidence = extract_compiler_evidence(
+            DenseOutputRefs::from_legacy_heads(
+                &line_logits,
+                &junction_logits,
+                &assignment_logits,
+                &non_crease_logits,
+                &line_style_logits,
+                &boundary_contact_logits,
+            )
+            .with_vertex_type_logits(Some(&vertex_type_logits)),
+            test_config(size),
+        )
+        .expect("evidence extraction");
+
+        assert_eq!(evidence.junction_primitives.len(), 1);
+        assert_eq!(evidence.junction_primitives[0].point, [80.0, 80.0]);
+    }
+
+    #[test]
+    fn boundary_contacts_use_rendered_square_frame_coordinates() {
+        let size = 128usize;
+        let (
+            line_logits,
+            junction_logits,
+            assignment_logits,
+            non_crease_logits,
+            line_style_logits,
+            mut boundary_contact_logits,
+        ) = blank_heads(size);
+        boundary_contact_logits[32 * size + 64] = 8.0;
+
+        let evidence = extract_compiler_evidence(
+            DenseOutputRefs::from_legacy_heads(
+                &line_logits,
+                &junction_logits,
+                &assignment_logits,
+                &non_crease_logits,
+                &line_style_logits,
+                &boundary_contact_logits,
+            ),
+            test_config(size),
+        )
+        .expect("evidence extraction");
+
+        assert_eq!(evidence.boundary_contact_primitives.len(), 1);
+        let contact = &evidence.boundary_contact_primitives[0];
+        assert_eq!(contact.side, BoundarySide::Top);
+        assert!(
+            (contact.side_coordinate - 0.5).abs() < 1.0e-4,
+            "{contact:?}"
+        );
+        assert_eq!(contact.point, [64.0, 32.0]);
+    }
+
+    #[test]
+    fn boundary_contacts_use_offset_before_frame_projection() {
+        let size = 128usize;
+        let pixels = size * size;
+        let (
+            line_logits,
+            junction_logits,
+            assignment_logits,
+            non_crease_logits,
+            line_style_logits,
+            mut boundary_contact_logits,
+        ) = blank_heads(size);
+        let idx = 32 * size + 64;
+        boundary_contact_logits[idx] = 8.0;
+        let mut boundary_offset = vec![0.0; pixels * 2];
+        boundary_offset[idx] = 0.5;
+
+        let evidence = extract_compiler_evidence(
+            DenseOutputRefs::from_legacy_heads(
+                &line_logits,
+                &junction_logits,
+                &assignment_logits,
+                &non_crease_logits,
+                &line_style_logits,
+                &boundary_contact_logits,
+            )
+            .with_boundary_offset(Some(&boundary_offset)),
+            test_config(size),
+        )
+        .expect("evidence extraction");
+
+        let contact = &evidence.boundary_contact_primitives[0];
+        assert_eq!(contact.side, BoundarySide::Top);
+        assert!(
+            (contact.side_coordinate - (32.5 / 64.0)).abs() < 1.0e-4,
+            "{contact:?}"
+        );
+        assert!((contact.point[0] - 64.5).abs() < 1.0e-4, "{contact:?}");
+        assert!((contact.point[1] - 32.0).abs() < 1.0e-4, "{contact:?}");
     }
 
     #[test]
