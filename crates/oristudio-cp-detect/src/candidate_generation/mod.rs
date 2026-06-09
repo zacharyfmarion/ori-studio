@@ -1,6 +1,7 @@
 use std::fmt;
 use std::str::FromStr;
 
+mod junction_carrier_v1;
 mod legacy_topology_v2;
 
 use crate::legacy_decode::{DecodeConfig, DecodeError, DenseOutputs};
@@ -10,11 +11,13 @@ use oristudio_cp_compiler::{
 
 pub const LEGACY_THRESHOLD_STRATEGY_ID: &str = "legacy-threshold";
 pub const LEGACY_TOPOLOGY_V2_STRATEGY_ID: &str = "legacy-topology-v2";
+pub const JUNCTION_CARRIER_V1_STRATEGY_ID: &str = "junction-carrier-v1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CandidateGenerationStrategyName {
     LegacyThreshold,
     LegacyTopologyV2,
+    JunctionCarrierV1,
 }
 
 impl CandidateGenerationStrategyName {
@@ -22,6 +25,7 @@ impl CandidateGenerationStrategyName {
         match self {
             Self::LegacyThreshold => LEGACY_THRESHOLD_STRATEGY_ID,
             Self::LegacyTopologyV2 => LEGACY_TOPOLOGY_V2_STRATEGY_ID,
+            Self::JunctionCarrierV1 => JUNCTION_CARRIER_V1_STRATEGY_ID,
         }
     }
 }
@@ -47,6 +51,7 @@ impl FromStr for CandidateGenerationStrategyName {
                 Ok(Self::LegacyThreshold)
             }
             LEGACY_TOPOLOGY_V2_STRATEGY_ID | "legacy_topology_v2" => Ok(Self::LegacyTopologyV2),
+            JUNCTION_CARRIER_V1_STRATEGY_ID | "junction_carrier_v1" => Ok(Self::JunctionCarrierV1),
             other => Err(CandidateGenerationStrategyParseError {
                 value: other.to_owned(),
             }),
@@ -71,6 +76,7 @@ pub struct CandidateGenerationOptions {
     pub strategy: CandidateGenerationStrategyName,
     pub legacy_threshold: LegacyThresholdStrategyOptions,
     pub legacy_topology_v2: LegacyTopologyV2StrategyOptions,
+    pub junction_carrier_v1: JunctionCarrierV1StrategyOptions,
 }
 
 impl Default for CandidateGenerationOptions {
@@ -79,6 +85,7 @@ impl Default for CandidateGenerationOptions {
             strategy: CandidateGenerationStrategyName::LegacyThreshold,
             legacy_threshold: LegacyThresholdStrategyOptions::default(),
             legacy_topology_v2: LegacyTopologyV2StrategyOptions::default(),
+            junction_carrier_v1: JunctionCarrierV1StrategyOptions::default(),
         }
     }
 }
@@ -123,6 +130,45 @@ impl Default for LegacyTopologyV2StrategyOptions {
             endpoint_rho_tolerance_px: 5.0,
             min_chain_spans: 2,
             min_structural_mean_support: 0.42,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct JunctionCarrierV1StrategyOptions {
+    pub vertex_merge_radius_px: f64,
+    pub carrier_angle_tolerance_degrees: f64,
+    pub carrier_rho_tolerance_px: f64,
+    pub carrier_extent_padding_px: f64,
+    pub vertex_carrier_distance_px: f64,
+    pub min_span_length_px: f64,
+    pub min_span_line_support: f64,
+    pub strong_span_line_support: f64,
+    pub min_span_line_min_support: f64,
+    pub max_skip_vertices: usize,
+    pub max_line_endpoint_vertices: usize,
+    pub max_vertices_per_carrier: usize,
+    pub max_spans_per_carrier: usize,
+    pub max_total_spans: usize,
+}
+
+impl Default for JunctionCarrierV1StrategyOptions {
+    fn default() -> Self {
+        Self {
+            vertex_merge_radius_px: 6.0,
+            carrier_angle_tolerance_degrees: 2.5,
+            carrier_rho_tolerance_px: 8.0,
+            carrier_extent_padding_px: 16.0,
+            vertex_carrier_distance_px: 7.0,
+            min_span_length_px: 8.0,
+            min_span_line_support: 0.42,
+            strong_span_line_support: 0.62,
+            min_span_line_min_support: 0.08,
+            max_skip_vertices: 3,
+            max_line_endpoint_vertices: 0,
+            max_vertices_per_carrier: 120,
+            max_spans_per_carrier: 360,
+            max_total_spans: 8000,
         }
     }
 }
@@ -237,6 +283,40 @@ impl CandidateGenerationStrategy for LegacyTopologyV2Strategy {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct JunctionCarrierV1Strategy {
+    options: JunctionCarrierV1StrategyOptions,
+}
+
+impl JunctionCarrierV1Strategy {
+    pub const fn new(options: JunctionCarrierV1StrategyOptions) -> Self {
+        Self { options }
+    }
+}
+
+impl CandidateGenerationStrategy for JunctionCarrierV1Strategy {
+    fn name(&self) -> CandidateGenerationStrategyName {
+        CandidateGenerationStrategyName::JunctionCarrierV1
+    }
+
+    fn generate(
+        &self,
+        ctx: CandidateGenerationContext<'_>,
+    ) -> Result<CandidateGenerationOutput, DecodeError> {
+        let threshold = ctx.config.threshold;
+        let candidate_graph =
+            junction_carrier_v1::generate_candidate_graph(ctx.outputs, &ctx.config, self.options)?;
+        Ok(CandidateGenerationOutput {
+            strategy: self.name(),
+            threshold,
+            low_threshold: threshold,
+            primary_program: empty_program(ctx.config.image_size),
+            weak_program: None,
+            candidate_graph,
+        })
+    }
+}
+
 pub fn generate_candidate_graph(
     ctx: CandidateGenerationContext<'_>,
     options: CandidateGenerationOptions,
@@ -251,6 +331,9 @@ pub fn generate_candidate_graph(
         CandidateGenerationStrategyName::LegacyTopologyV2 => {
             LegacyTopologyV2Strategy::new(options.legacy_threshold, options.legacy_topology_v2)
                 .generate(ctx)
+        }
+        CandidateGenerationStrategyName::JunctionCarrierV1 => {
+            JunctionCarrierV1Strategy::new(options.junction_carrier_v1).generate(ctx)
         }
     }
 }
@@ -295,6 +378,16 @@ fn decode_program(
     Ok(CandidateProgram::from_fold_value(&value)?)
 }
 
+fn empty_program(image_size: u32) -> CandidateProgram {
+    CandidateProgram {
+        coordinate_space: "unit_square".to_owned(),
+        image_size: Some(image_size),
+        carriers: Vec::new(),
+        vertices: Vec::new(),
+        edges: Vec::new(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -323,6 +416,12 @@ mod tests {
                 .parse::<CandidateGenerationStrategyName>()
                 .expect("strategy"),
             CandidateGenerationStrategyName::LegacyTopologyV2
+        );
+        assert_eq!(
+            "junction-carrier-v1"
+                .parse::<CandidateGenerationStrategyName>()
+                .expect("strategy"),
+            CandidateGenerationStrategyName::JunctionCarrierV1
         );
     }
 

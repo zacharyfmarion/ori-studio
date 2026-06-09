@@ -31,6 +31,21 @@ structural spans the default selected many more normalized spans but regressed
 GT correctness, so the kept strategy leaves structural spans as weak
 alternatives.
 
+`junction-carrier-v1` is an experimental non-ML strategy that does not consume
+the legacy decoded FOLD graph. It extracts junction and boundary-contact
+vertices from dense heads, groups Hough line primitives into long carriers, and
+creates vertex-pair spans when dense line support exists along the segment. It
+is intended as a baseline for topology-first candidate generation: if it works,
+it should make future junction-pair or ML-scored candidate generators easier to
+compare; if it fails, its benchmark diagnostics should tell us whether the
+missing piece is vertices, carriers, support scoring, or selection.
+
+The initial `clean-1024-s15` benchmark did not beat legacy: final default
+selected recall was `0.7580` versus `0.9054` for `legacy-threshold`. A broad
+optional Hough-endpoint fallback reached `0.8741` selected recall but was too
+slow and produced many fragmented chain matches, so it remains disabled by
+default.
+
 ## Adding A Strategy
 
 1. Add a strategy implementation in this module, for example

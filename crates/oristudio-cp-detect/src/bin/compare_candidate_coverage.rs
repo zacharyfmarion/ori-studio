@@ -15,7 +15,8 @@ use oristudio_cp_compiler::selection::{
 use oristudio_cp_compiler::{AssignmentLabel, CandidateProgram, Point2};
 use oristudio_cp_detect::candidate_generation::{
     CandidateGenerationContext, CandidateGenerationOptions, CandidateGenerationStrategyName,
-    LegacyThresholdStrategyOptions, LegacyTopologyV2StrategyOptions, generate_candidate_graph,
+    JunctionCarrierV1StrategyOptions, LegacyThresholdStrategyOptions,
+    LegacyTopologyV2StrategyOptions, generate_candidate_graph,
 };
 use oristudio_cp_detect::decode::{DecodeConfig, DenseOutputs};
 use oristudio_cp_eval::{
@@ -148,6 +149,7 @@ struct BenchmarkConfig {
     legacy_low_threshold: Option<f32>,
     legacy_threshold_options: LegacyThresholdBenchmarkOptions,
     legacy_topology_v2_options: LegacyTopologyV2BenchmarkOptions,
+    junction_carrier_v1_options: JunctionCarrierV1BenchmarkOptions,
     options: CandidateCoverageOptions,
 }
 
@@ -167,6 +169,24 @@ struct LegacyTopologyV2BenchmarkOptions {
     endpoint_rho_tolerance_px: f64,
     min_chain_spans: usize,
     min_structural_mean_support: f64,
+}
+
+#[derive(Debug, Serialize)]
+struct JunctionCarrierV1BenchmarkOptions {
+    vertex_merge_radius_px: f64,
+    carrier_angle_tolerance_degrees: f64,
+    carrier_rho_tolerance_px: f64,
+    carrier_extent_padding_px: f64,
+    vertex_carrier_distance_px: f64,
+    min_span_length_px: f64,
+    min_span_line_support: f64,
+    strong_span_line_support: f64,
+    min_span_line_min_support: f64,
+    max_skip_vertices: usize,
+    max_line_endpoint_vertices: usize,
+    max_vertices_per_carrier: usize,
+    max_spans_per_carrier: usize,
+    max_total_spans: usize,
 }
 
 #[derive(Debug, Serialize)]
@@ -463,6 +483,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             ),
             legacy_topology_v2_options: legacy_topology_v2_benchmark_options(
                 LegacyTopologyV2StrategyOptions::default(),
+            ),
+            junction_carrier_v1_options: junction_carrier_v1_benchmark_options(
+                JunctionCarrierV1StrategyOptions::default(),
             ),
             options: args.options,
         },
@@ -918,6 +941,27 @@ fn legacy_topology_v2_benchmark_options(
         endpoint_rho_tolerance_px: options.endpoint_rho_tolerance_px,
         min_chain_spans: options.min_chain_spans,
         min_structural_mean_support: options.min_structural_mean_support,
+    }
+}
+
+fn junction_carrier_v1_benchmark_options(
+    options: JunctionCarrierV1StrategyOptions,
+) -> JunctionCarrierV1BenchmarkOptions {
+    JunctionCarrierV1BenchmarkOptions {
+        vertex_merge_radius_px: options.vertex_merge_radius_px,
+        carrier_angle_tolerance_degrees: options.carrier_angle_tolerance_degrees,
+        carrier_rho_tolerance_px: options.carrier_rho_tolerance_px,
+        carrier_extent_padding_px: options.carrier_extent_padding_px,
+        vertex_carrier_distance_px: options.vertex_carrier_distance_px,
+        min_span_length_px: options.min_span_length_px,
+        min_span_line_support: options.min_span_line_support,
+        strong_span_line_support: options.strong_span_line_support,
+        min_span_line_min_support: options.min_span_line_min_support,
+        max_skip_vertices: options.max_skip_vertices,
+        max_line_endpoint_vertices: options.max_line_endpoint_vertices,
+        max_vertices_per_carrier: options.max_vertices_per_carrier,
+        max_spans_per_carrier: options.max_spans_per_carrier,
+        max_total_spans: options.max_total_spans,
     }
 }
 
