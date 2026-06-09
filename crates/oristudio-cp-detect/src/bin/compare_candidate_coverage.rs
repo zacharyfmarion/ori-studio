@@ -1437,7 +1437,7 @@ fn sorted_root_causes(map: &BTreeMap<CoverageRootCause, usize>) -> Vec<RootCause
             count: *count,
         })
         .collect::<Vec<_>>();
-    values.sort_by(|left, right| right.count.cmp(&left.count));
+    values.sort_by_key(|value| std::cmp::Reverse(value.count));
     values
 }
 
