@@ -797,6 +797,8 @@ fn sigmoid(value: f32) -> f32 {
 mod tests {
     use super::*;
 
+    type BlankHeads = (Vec<f32>, Vec<f32>, Vec<f32>, Vec<f32>, Vec<f32>, Vec<f32>);
+
     fn test_config(size: usize) -> EvidenceExtractionConfig {
         EvidenceExtractionConfig {
             image_size: size as u32,
@@ -815,7 +817,7 @@ mod tests {
         }
     }
 
-    fn blank_heads(size: usize) -> (Vec<f32>, Vec<f32>, Vec<f32>, Vec<f32>, Vec<f32>, Vec<f32>) {
+    fn blank_heads(size: usize) -> BlankHeads {
         let pixels = size * size;
         (
             vec![-8.0; pixels],

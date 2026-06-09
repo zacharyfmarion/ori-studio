@@ -13,8 +13,9 @@ pub const LEGACY_THRESHOLD_STRATEGY_ID: &str = "legacy-threshold";
 pub const LEGACY_TOPOLOGY_V2_STRATEGY_ID: &str = "legacy-topology-v2";
 pub const JUNCTION_CARRIER_V1_STRATEGY_ID: &str = "junction-carrier-v1";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum CandidateGenerationStrategyName {
+    #[default]
     LegacyThreshold,
     LegacyTopologyV2,
     JunctionCarrierV1,
@@ -27,12 +28,6 @@ impl CandidateGenerationStrategyName {
             Self::LegacyTopologyV2 => LEGACY_TOPOLOGY_V2_STRATEGY_ID,
             Self::JunctionCarrierV1 => JUNCTION_CARRIER_V1_STRATEGY_ID,
         }
-    }
-}
-
-impl Default for CandidateGenerationStrategyName {
-    fn default() -> Self {
-        Self::LegacyThreshold
     }
 }
 

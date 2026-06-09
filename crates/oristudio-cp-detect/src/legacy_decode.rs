@@ -402,15 +402,19 @@ pub fn decode_vertex_stage_snapshot_from_maps(
     config.image_size = image_size;
     let (line_stage, carriers) = line_stage_from_mask(line_mask, image_size, &config)?;
     let vertex_stage = vertex_stage_from_maps(
-        junction_heatmap,
-        None,
-        None,
-        None,
-        None,
-        None,
-        boundary_contact_heatmap,
-        line_mask,
-        &carriers,
+        VertexMapInputs {
+            junction_heatmap,
+            junction_offset: None,
+            vertex_type_probability: None,
+            boundary: BoundaryMapInputs {
+                contact_heatmap: boundary_contact_heatmap,
+                side_probability: None,
+                offset: None,
+                coord: None,
+            },
+            line_mask,
+            carriers: &carriers,
+        },
         &config,
     );
     Ok(DecodeVertexStageSnapshot {
@@ -472,15 +476,19 @@ pub fn decode_edge_stage_snapshot_from_maps(
     config.image_size = image_size;
     let (line_stage, carriers) = line_stage_from_mask(line_mask, image_size, &config)?;
     let raw_vertex_stage = vertex_stage_from_maps(
-        junction_heatmap,
-        None,
-        None,
-        None,
-        None,
-        None,
-        boundary_contact_heatmap,
-        line_mask,
-        &carriers,
+        VertexMapInputs {
+            junction_heatmap,
+            junction_offset: None,
+            vertex_type_probability: None,
+            boundary: BoundaryMapInputs {
+                contact_heatmap: boundary_contact_heatmap,
+                side_probability: None,
+                offset: None,
+                coord: None,
+            },
+            line_mask,
+            carriers: &carriers,
+        },
         &config,
     );
     let initial_vertices = raw_vertex_stage.merged_vertices.clone();
@@ -749,15 +757,19 @@ pub fn decode_dense_outputs(
         .map(|logits| channel_probability_from_logits(logits, size, 4));
     let boundary_contact_heatmap = sigmoid_map(outputs.boundary_contact_logits);
     let vertex_stage = vertex_stage_from_maps(
-        &junction_heatmap,
-        outputs.junction_offset,
-        vertex_type_probability.as_deref(),
-        boundary_side_probability.as_deref(),
-        outputs.boundary_offset,
-        outputs.boundary_coord,
-        Some(&boundary_contact_heatmap),
-        &mask,
-        &carriers,
+        VertexMapInputs {
+            junction_heatmap: &junction_heatmap,
+            junction_offset: outputs.junction_offset,
+            vertex_type_probability: vertex_type_probability.as_deref(),
+            boundary: BoundaryMapInputs {
+                contact_heatmap: Some(&boundary_contact_heatmap),
+                side_probability: boundary_side_probability.as_deref(),
+                offset: outputs.boundary_offset,
+                coord: outputs.boundary_coord,
+            },
+            line_mask: &mask,
+            carriers: &carriers,
+        },
         &config,
     );
     let vertices = vertex_stage.merged_vertices;
@@ -1279,18 +1291,25 @@ fn scale_point(point: Point, scale: f32) -> Point {
     }
 }
 
-fn vertex_stage_from_maps(
-    junction_heatmap: &[f32],
-    junction_offset: Option<&[f32]>,
-    vertex_type_probability: Option<&[f32]>,
-    boundary_side_probability: Option<&[f32]>,
-    boundary_offset: Option<&[f32]>,
-    boundary_coord: Option<&[f32]>,
-    boundary_contact_heatmap: Option<&[f32]>,
-    line_mask: &[u8],
-    carriers: &[Line],
-    config: &DecodeConfig,
-) -> VertexStage {
+#[derive(Clone, Copy)]
+struct BoundaryMapInputs<'a> {
+    contact_heatmap: Option<&'a [f32]>,
+    side_probability: Option<&'a [f32]>,
+    offset: Option<&'a [f32]>,
+    coord: Option<&'a [f32]>,
+}
+
+#[derive(Clone, Copy)]
+struct VertexMapInputs<'a> {
+    junction_heatmap: &'a [f32],
+    junction_offset: Option<&'a [f32]>,
+    vertex_type_probability: Option<&'a [f32]>,
+    boundary: BoundaryMapInputs<'a>,
+    line_mask: &'a [u8],
+    carriers: &'a [Line],
+}
+
+fn vertex_stage_from_maps(inputs: VertexMapInputs<'_>, config: &DecodeConfig) -> VertexStage {
     let size = config.image_size as usize;
     let mut candidate_vertices = Vec::new();
     let mut candidate_meta = Vec::new();
@@ -1300,32 +1319,27 @@ fn vertex_stage_from_maps(
         candidate_meta.push("corner".to_owned());
     }
 
-    let boundary_contacts = boundary_contact_heatmap
-        .map(|heatmap| {
-            boundary_contact_points(
-                heatmap,
-                boundary_side_probability,
-                boundary_offset,
-                boundary_coord,
-                size,
-            )
-        })
+    let boundary_contacts = inputs
+        .boundary
+        .contact_heatmap
+        .map(|heatmap| boundary_contact_points(heatmap, inputs.boundary, size))
         .unwrap_or_default();
     for point in &boundary_contacts {
         candidate_vertices.push(*point);
         candidate_meta.push("boundary_contact".to_owned());
     }
 
-    let intersections = carrier_intersections(carriers, config);
+    let intersections = carrier_intersections(inputs.carriers, config);
     let junctions = junction_points(
-        junction_heatmap,
-        junction_offset,
-        vertex_type_probability,
-        line_mask,
+        inputs.junction_heatmap,
+        inputs.junction_offset,
+        inputs.vertex_type_probability,
+        inputs.line_mask,
         config,
     );
     for point in &junctions {
-        if carriers
+        if inputs
+            .carriers
             .iter()
             .any(|line| point_on_finite_line(*point, line, config.line_vertex_distance_px))
         {
@@ -1338,7 +1352,7 @@ fn vertex_stage_from_maps(
         }
     }
 
-    for carrier in carriers {
+    for carrier in inputs.carriers {
         for endpoint in [carrier.p0, carrier.p1] {
             if point_on_frame(endpoint, size, config.vertex_merge_px + 1.0) {
                 candidate_vertices.push(snap_to_frame(
@@ -1394,13 +1408,9 @@ impl BoundaryContactSide {
 
 fn boundary_contact_points(
     heatmap: &[f32],
-    boundary_side_probability: Option<&[f32]>,
-    boundary_offset: Option<&[f32]>,
-    boundary_coord: Option<&[f32]>,
+    boundary: BoundaryMapInputs<'_>,
     size: usize,
 ) -> Vec<Point> {
-    let max = (size - 1) as f32;
-    let pixels = size * size;
     let band = (size as f32 * 0.04).max(4.0) as usize;
     let radius = 4usize;
     let mut points = Vec::new();
@@ -1424,16 +1434,14 @@ fn boundary_contact_points(
                     continue;
                 }
                 let point = boundary_contact_point_for_candidate(
-                    scan_side,
-                    x,
-                    y,
-                    idx,
-                    pixels,
-                    boundary_side_probability,
-                    boundary_offset,
-                    boundary_coord,
+                    BoundaryContactCandidate {
+                        side: scan_side,
+                        x,
+                        y,
+                        idx,
+                    },
+                    boundary,
                     size,
-                    max,
                 );
                 candidates.push((score, point));
             }
@@ -1449,31 +1457,47 @@ fn boundary_contact_points(
     points
 }
 
-fn boundary_contact_point_for_candidate(
+#[derive(Clone, Copy)]
+struct BoundaryContactCandidate {
     side: BoundaryContactSide,
     x: usize,
     y: usize,
     idx: usize,
-    pixels: usize,
-    boundary_side_probability: Option<&[f32]>,
-    boundary_offset: Option<&[f32]>,
-    boundary_coord: Option<&[f32]>,
+}
+
+fn boundary_contact_point_for_candidate(
+    candidate: BoundaryContactCandidate,
+    boundary: BoundaryMapInputs<'_>,
     size: usize,
-    max: f32,
 ) -> Point {
-    let offset_point = offset_refined_point(x, y, idx, pixels, boundary_offset, size);
-    let side_support = boundary_side_probability
-        .and_then(|probability| probability.get(idx * 4 + side.index()).copied())
+    let max = (size - 1) as f32;
+    let pixels = size * size;
+    let offset_point = offset_refined_point(
+        candidate.x,
+        candidate.y,
+        candidate.idx,
+        pixels,
+        boundary.offset,
+        size,
+    );
+    let side_support = boundary
+        .side_probability
+        .and_then(|probability| {
+            probability
+                .get(candidate.idx * 4 + candidate.side.index())
+                .copied()
+        })
         .unwrap_or(0.0);
     let side_coordinate = if side_support >= 0.50 {
-        boundary_coord
-            .and_then(|coord| coord.get(idx).copied())
+        boundary
+            .coord
+            .and_then(|coord| coord.get(candidate.idx).copied())
             .filter(|coord| coord.is_finite())
             .map(|coord| coord.clamp(0.0, 1.0) * max)
     } else {
         None
     };
-    match side {
+    match candidate.side {
         BoundaryContactSide::Top => Point {
             x: side_coordinate.unwrap_or(offset_point.x).clamp(0.0, max),
             y: 0.0,
@@ -4619,9 +4643,12 @@ mod tests {
 
         let points = boundary_contact_points(
             &heatmap,
-            Some(&boundary_side_probability),
-            None,
-            Some(&boundary_coord),
+            BoundaryMapInputs {
+                contact_heatmap: Some(&heatmap),
+                side_probability: Some(&boundary_side_probability),
+                offset: None,
+                coord: Some(&boundary_coord),
+            },
             size,
         );
 
@@ -4645,9 +4672,12 @@ mod tests {
 
         let points = boundary_contact_points(
             &heatmap,
-            Some(&boundary_side_probability),
-            Some(&boundary_offset),
-            None,
+            BoundaryMapInputs {
+                contact_heatmap: Some(&heatmap),
+                side_probability: Some(&boundary_side_probability),
+                offset: Some(&boundary_offset),
+                coord: None,
+            },
             size,
         );
 

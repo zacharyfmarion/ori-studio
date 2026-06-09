@@ -109,7 +109,7 @@ pub struct CoverageEdgeMatch {
     pub candidate_ids: Vec<String>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CoverageRootCause {
     CandidateSelected,
@@ -123,13 +123,8 @@ pub enum CoverageRootCause {
     EndpointMissingFromAdapter,
     DenseEvidenceMissing,
     BoundarySkipped,
+    #[default]
     Unknown,
-}
-
-impl Default for CoverageRootCause {
-    fn default() -> Self {
-        Self::Unknown
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
