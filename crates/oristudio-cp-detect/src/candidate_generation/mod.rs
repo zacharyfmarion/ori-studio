@@ -6,7 +6,7 @@ mod legacy_topology_v2;
 
 use crate::legacy_decode::{DecodeConfig, DecodeError, DenseOutputs};
 use oristudio_cp_compiler::{
-    CandidateGraph, CandidateProgram, LegacyCandidateAdapter, LegacyCandidateAdapterOptions,
+    CandidateGraph, CandidateProgram, LegacyCandidateAdapter, LegacyCandidateAdapterOptions, Point2,
 };
 
 pub const LEGACY_THRESHOLD_STRATEGY_ID: &str = "legacy-threshold";
@@ -181,6 +181,30 @@ pub struct CandidateGenerationOutput {
     pub primary_program: CandidateProgram,
     pub weak_program: Option<CandidateProgram>,
     pub candidate_graph: CandidateGraph,
+    pub diagnostics: CandidateGenerationDiagnostics,
+}
+
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct CandidateGenerationDiagnostics {
+    pub junction_carrier_v1: Option<JunctionCarrierV1Diagnostics>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct JunctionCarrierV1Diagnostics {
+    pub line_primitives: usize,
+    pub carrier_hypotheses: Vec<JunctionCarrierDiagnosticCarrier>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct JunctionCarrierDiagnosticCarrier {
+    pub id: usize,
+    pub normal: Point2,
+    pub direction: Point2,
+    pub rho: f64,
+    pub t_interval: [f64; 2],
+    pub support: f64,
+    pub incident_vertices: usize,
+    pub emitted_spans: usize,
 }
 
 pub trait CandidateGenerationStrategy {
@@ -240,6 +264,7 @@ impl CandidateGenerationStrategy for LegacyThresholdStrategy {
             primary_program,
             weak_program,
             candidate_graph,
+            diagnostics: CandidateGenerationDiagnostics::default(),
         })
     }
 }
@@ -304,8 +329,12 @@ impl CandidateGenerationStrategy for JunctionCarrierV1Strategy {
         ctx: CandidateGenerationContext<'_>,
     ) -> Result<CandidateGenerationOutput, DecodeError> {
         let threshold = ctx.config.threshold;
-        let candidate_graph =
-            junction_carrier_v1::generate_candidate_graph(ctx.outputs, &ctx.config, self.options)?;
+        let (candidate_graph, diagnostics) =
+            junction_carrier_v1::generate_candidate_graph_with_diagnostics(
+                ctx.outputs,
+                &ctx.config,
+                self.options,
+            )?;
         Ok(CandidateGenerationOutput {
             strategy: self.name(),
             threshold,
@@ -313,6 +342,9 @@ impl CandidateGenerationStrategy for JunctionCarrierV1Strategy {
             primary_program: empty_program(ctx.config.image_size),
             weak_program: None,
             candidate_graph,
+            diagnostics: CandidateGenerationDiagnostics {
+                junction_carrier_v1: Some(diagnostics),
+            },
         })
     }
 }

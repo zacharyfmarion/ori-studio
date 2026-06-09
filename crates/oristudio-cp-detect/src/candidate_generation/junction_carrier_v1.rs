@@ -1,6 +1,9 @@
 use std::collections::BTreeMap;
 
-use super::JunctionCarrierV1StrategyOptions;
+use super::{
+    JunctionCarrierDiagnosticCarrier, JunctionCarrierV1Diagnostics,
+    JunctionCarrierV1StrategyOptions,
+};
 use crate::evidence_extract::{
     BoundarySide as EvidenceBoundarySide, CompilerEvidence, DenseOutputRefs,
     EvidenceExtractionConfig, EvidenceExtractionError, LinePrimitive, extract_compiler_evidence,
@@ -19,11 +22,11 @@ use oristudio_cp_compiler::{
 
 const SYNTHETIC_RENDER_INSET_PX: f64 = 32.0;
 
-pub fn generate_candidate_graph(
+pub fn generate_candidate_graph_with_diagnostics(
     outputs: DenseOutputs<'_>,
     config: &DecodeConfig,
     options: JunctionCarrierV1StrategyOptions,
-) -> Result<CandidateGraph, DecodeError> {
+) -> Result<(CandidateGraph, JunctionCarrierV1Diagnostics), DecodeError> {
     let evidence =
         extract_compiler_evidence(dense_output_refs(outputs), evidence_config(config, options))
             .map_err(evidence_error_to_decode_error)?;
@@ -90,7 +93,7 @@ fn graph_from_evidence(
     evidence: &CompilerEvidence,
     config: &DecodeConfig,
     options: JunctionCarrierV1StrategyOptions,
-) -> CandidateGraph {
+) -> (CandidateGraph, JunctionCarrierV1Diagnostics) {
     let mut vertices = build_vertices(evidence, config.image_size, options);
     let corner_ids = [0, 1, 2, 3];
     let boundary = boundary_model(&vertices, corner_ids);
@@ -141,7 +144,64 @@ fn graph_from_evidence(
     graph.conflicts = generate_conflicts(&graph);
     graph.alternatives = graph.conflicts.clone();
     graph.report = graph_report(&graph);
-    graph
+    let diagnostics =
+        junction_carrier_diagnostics(evidence, &graph, &carriers, config.image_size, options);
+    (graph, diagnostics)
+}
+
+fn junction_carrier_diagnostics(
+    evidence: &CompilerEvidence,
+    graph: &CandidateGraph,
+    carriers: &[CarrierHypothesis],
+    image_size: u32,
+    options: JunctionCarrierV1StrategyOptions,
+) -> JunctionCarrierV1Diagnostics {
+    JunctionCarrierV1Diagnostics {
+        line_primitives: evidence.line_primitives.len(),
+        carrier_hypotheses: carriers
+            .iter()
+            .map(|carrier| JunctionCarrierDiagnosticCarrier {
+                id: carrier.id,
+                normal: carrier.normal,
+                direction: carrier.direction,
+                rho: carrier.rho,
+                t_interval: carrier.t_interval,
+                support: carrier.support,
+                incident_vertices: carrier_incident_vertex_count(
+                    &graph.vertices,
+                    carrier,
+                    image_size,
+                    options,
+                ),
+                emitted_spans: graph
+                    .crease_candidates
+                    .iter()
+                    .filter(|span| span.source_carrier_ids.contains(&carrier.id))
+                    .count(),
+            })
+            .collect(),
+    }
+}
+
+fn carrier_incident_vertex_count(
+    vertices: &[CandidateVertex],
+    carrier: &CarrierHypothesis,
+    image_size: u32,
+    options: JunctionCarrierV1StrategyOptions,
+) -> usize {
+    let distance_tol = options.vertex_carrier_distance_px / unit_scale(image_size);
+    let extent_padding = options.carrier_extent_padding_px / unit_scale(image_size);
+    vertices
+        .iter()
+        .filter(|vertex| {
+            if point_line_distance(vertex.point, carrier) > distance_tol {
+                return false;
+            }
+            let t = project(vertex.point, carrier.direction);
+            t >= carrier.t_interval[0] - extent_padding
+                && t <= carrier.t_interval[1] + extent_padding
+        })
+        .count()
 }
 
 fn build_vertices(

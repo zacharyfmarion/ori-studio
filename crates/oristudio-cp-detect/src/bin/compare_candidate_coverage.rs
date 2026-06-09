@@ -14,7 +14,8 @@ use oristudio_cp_compiler::selection::{
 };
 use oristudio_cp_compiler::{AssignmentLabel, CandidateProgram, Point2};
 use oristudio_cp_detect::candidate_generation::{
-    CandidateGenerationContext, CandidateGenerationOptions, CandidateGenerationStrategyName,
+    CandidateGenerationContext, CandidateGenerationDiagnostics, CandidateGenerationOptions,
+    CandidateGenerationStrategyName, JunctionCarrierDiagnosticCarrier,
     JunctionCarrierV1StrategyOptions, LegacyThresholdStrategyOptions,
     LegacyTopologyV2StrategyOptions, generate_candidate_graph,
 };
@@ -223,6 +224,37 @@ struct SampleRow {
     timings: SampleTimings,
 }
 
+#[derive(Debug, Clone, Serialize)]
+struct GtEdgeCandidateDiagnostics {
+    gt_length_px: f64,
+    below_junction_carrier_min_span_length: bool,
+    nearest_graph_vertex_a_px: Option<f64>,
+    nearest_graph_vertex_b_px: Option<f64>,
+    graph_vertices_near_gt_line: usize,
+    graph_vertices_between_gt_endpoints: usize,
+    nearest_endpoint_rank_gap: Option<usize>,
+    exceeds_junction_carrier_max_skip_vertices: Option<bool>,
+    relaxed_line_like_spans: usize,
+    relaxed_endpoint_close_spans: usize,
+    best_relaxed_span_id: Option<usize>,
+    best_relaxed_span_endpoint_distance_px: Option<f64>,
+    best_relaxed_span_angle_delta_degrees: Option<f64>,
+    best_relaxed_span_line_distance_px: Option<f64>,
+    best_relaxed_span_overlap_fraction: Option<f64>,
+    raw_carrier_relaxed_available: bool,
+    raw_carrier_line_like_count: usize,
+    best_raw_carrier_id: Option<usize>,
+    best_raw_carrier_angle_delta_degrees: Option<f64>,
+    best_raw_carrier_line_distance_px: Option<f64>,
+    best_raw_carrier_overlap_fraction: Option<f64>,
+    best_raw_carrier_incident_vertices: Option<usize>,
+    best_raw_carrier_emitted_spans: Option<usize>,
+    raw_carrier_collinear_count: usize,
+    best_collinear_raw_carrier_id: Option<usize>,
+    best_collinear_raw_carrier_line_distance_px: Option<f64>,
+    best_collinear_raw_carrier_overlap_fraction: Option<f64>,
+}
+
 #[derive(Debug, Default, Clone, Copy, Serialize)]
 struct StrategyDiagnosticAggregate {
     candidate_normalized_pass_through_spans: usize,
@@ -376,6 +408,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .weak_program
             .as_ref()
             .unwrap_or(&generation.primary_program);
+        let generation_diagnostics = generation.diagnostics.clone();
         let candidate_graph = generation.candidate_graph;
 
         let selection_started = Instant::now();
@@ -448,6 +481,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         serde_json::to_writer(&mut per_sample, &row)?;
         writeln!(per_sample)?;
         for edge in &row.report.per_gt_edge {
+            let diagnostics = gt_edge_candidate_diagnostics(
+                &gt_graph,
+                edge,
+                &candidate_graph,
+                sample.image_size,
+                args.options,
+                strategy_options.junction_carrier_v1,
+                &generation_diagnostics,
+            );
             serde_json::to_writer(
                 &mut per_gt_edge,
                 &serde_json::json!({
@@ -456,6 +498,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     "family": row.family,
                     "profile": row.profile,
                     "edge": edge,
+                    "candidate_diagnostics": diagnostics,
                 }),
             )?;
             writeln!(per_gt_edge)?;
@@ -767,6 +810,274 @@ fn read_ground_truth(
     Ok(serde_json::from_str(&fs::read_to_string(&path)?)?)
 }
 
+fn gt_edge_candidate_diagnostics(
+    graph: &EvalGraph,
+    edge: &oristudio_cp_eval::GtEdgeCoverageRecord,
+    candidate_graph: &CandidateGraph,
+    image_size: u32,
+    coverage_options: CandidateCoverageOptions,
+    junction_options: JunctionCarrierV1StrategyOptions,
+    generation_diagnostics: &CandidateGenerationDiagnostics,
+) -> Option<GtEdgeCandidateDiagnostics> {
+    let gt_segment = gt_edge_segment(graph, edge.vertices)?;
+    let gt_length_px = eval_segment_length(gt_segment);
+    let graph_vertices = candidate_graph
+        .vertices
+        .iter()
+        .map(|vertex| EvalPoint::from(normalized_to_px(vertex.point, image_size)))
+        .collect::<Vec<_>>();
+    let nearest_graph_vertex_a_px = nearest_eval_distance(&graph_vertices, gt_segment[0]);
+    let nearest_graph_vertex_b_px = nearest_eval_distance(&graph_vertices, gt_segment[1]);
+
+    let direction = eval_unit_direction(gt_segment);
+    let mut line_vertices = graph_vertices
+        .iter()
+        .enumerate()
+        .filter_map(|(index, point)| {
+            let t = eval_dot(eval_sub(*point, gt_segment[0]), direction);
+            let distance = eval_point_line_distance(*point, gt_segment);
+            let near_line = distance <= coverage_options.carrier_distance_tolerance;
+            let near_interval = t >= -junction_options.carrier_extent_padding_px
+                && t <= gt_length_px + junction_options.carrier_extent_padding_px;
+            (near_line && near_interval).then_some((index, t, distance, *point))
+        })
+        .collect::<Vec<_>>();
+    line_vertices.sort_by(|left, right| left.1.total_cmp(&right.1));
+    let graph_vertices_near_gt_line = line_vertices.len();
+    let graph_vertices_between_gt_endpoints = line_vertices
+        .iter()
+        .filter(|(_, t, _, _)| *t >= 0.0 && *t <= gt_length_px)
+        .count();
+    let endpoint_a_line_rank =
+        nearest_rank_on_line(&line_vertices, gt_segment[0], coverage_options);
+    let endpoint_b_line_rank =
+        nearest_rank_on_line(&line_vertices, gt_segment[1], coverage_options);
+    let nearest_endpoint_rank_gap = endpoint_a_line_rank
+        .zip(endpoint_b_line_rank)
+        .map(|(rank_a, rank_b)| rank_a.abs_diff(rank_b).saturating_sub(1));
+    let exceeds_junction_carrier_max_skip_vertices =
+        nearest_endpoint_rank_gap.map(|gap| gap > junction_options.max_skip_vertices);
+
+    let mut relaxed_line_like_spans = 0usize;
+    let mut relaxed_endpoint_close_spans = 0usize;
+    let mut best_relaxed: Option<(usize, f64, f64, f64, f64)> = None;
+    for span in &candidate_graph.crease_candidates {
+        if span.assignment_label() == AssignmentLabel::Boundary {
+            continue;
+        }
+        let Some(a) = candidate_graph
+            .vertices
+            .get(span.vertices[0])
+            .map(|vertex| EvalPoint::from(normalized_to_px(vertex.point, image_size)))
+        else {
+            continue;
+        };
+        let Some(b) = candidate_graph
+            .vertices
+            .get(span.vertices[1])
+            .map(|vertex| EvalPoint::from(normalized_to_px(vertex.point, image_size)))
+        else {
+            continue;
+        };
+        let endpoints = [a, b];
+        if eval_segment_length(endpoints) <= 1e-9 {
+            continue;
+        }
+        let angle_delta = eval_angle_delta_degrees(endpoints, gt_segment);
+        let line_distance = eval_point_line_distance(gt_segment[0], endpoints)
+            .max(eval_point_line_distance(gt_segment[1], endpoints));
+        let overlap = eval_interval_overlap_fraction(endpoints, gt_segment);
+        let endpoint_distance = eval_symmetric_endpoint_distance(endpoints, gt_segment);
+        let relaxed_line_like = angle_delta <= (coverage_options.angle_tolerance_degrees * 2.0)
+            && line_distance <= (coverage_options.segment_distance_tolerance * 2.0)
+            && overlap > 0.0;
+        if !relaxed_line_like {
+            continue;
+        }
+        relaxed_line_like_spans += 1;
+        relaxed_endpoint_close_spans +=
+            usize::from(endpoint_distance <= coverage_options.relaxed_vertex_tolerance);
+        if best_relaxed
+            .as_ref()
+            .is_none_or(|(_, best_distance, _, _, _)| endpoint_distance < *best_distance)
+        {
+            best_relaxed = Some((
+                span.id,
+                endpoint_distance,
+                angle_delta,
+                line_distance,
+                overlap,
+            ));
+        }
+    }
+    let (
+        best_relaxed_span_id,
+        best_relaxed_span_endpoint_distance_px,
+        best_relaxed_span_angle_delta_degrees,
+        best_relaxed_span_line_distance_px,
+        best_relaxed_span_overlap_fraction,
+    ) = match best_relaxed {
+        Some((id, endpoint_distance, angle_delta, line_distance, overlap)) => (
+            Some(id),
+            Some(endpoint_distance),
+            Some(angle_delta),
+            Some(line_distance),
+            Some(overlap),
+        ),
+        None => (None, None, None, None, None),
+    };
+    let raw_carrier = raw_carrier_diagnostics(
+        generation_diagnostics,
+        gt_segment,
+        image_size,
+        coverage_options,
+    );
+
+    Some(GtEdgeCandidateDiagnostics {
+        gt_length_px,
+        below_junction_carrier_min_span_length: gt_length_px < junction_options.min_span_length_px,
+        nearest_graph_vertex_a_px,
+        nearest_graph_vertex_b_px,
+        graph_vertices_near_gt_line,
+        graph_vertices_between_gt_endpoints,
+        nearest_endpoint_rank_gap,
+        exceeds_junction_carrier_max_skip_vertices,
+        relaxed_line_like_spans,
+        relaxed_endpoint_close_spans,
+        best_relaxed_span_id,
+        best_relaxed_span_endpoint_distance_px,
+        best_relaxed_span_angle_delta_degrees,
+        best_relaxed_span_line_distance_px,
+        best_relaxed_span_overlap_fraction,
+        raw_carrier_relaxed_available: raw_carrier.relaxed_available,
+        raw_carrier_line_like_count: raw_carrier.line_like_count,
+        best_raw_carrier_id: raw_carrier.best_id,
+        best_raw_carrier_angle_delta_degrees: raw_carrier.best_angle_delta_degrees,
+        best_raw_carrier_line_distance_px: raw_carrier.best_line_distance_px,
+        best_raw_carrier_overlap_fraction: raw_carrier.best_overlap_fraction,
+        best_raw_carrier_incident_vertices: raw_carrier.best_incident_vertices,
+        best_raw_carrier_emitted_spans: raw_carrier.best_emitted_spans,
+        raw_carrier_collinear_count: raw_carrier.collinear_count,
+        best_collinear_raw_carrier_id: raw_carrier.best_collinear_id,
+        best_collinear_raw_carrier_line_distance_px: raw_carrier.best_collinear_line_distance_px,
+        best_collinear_raw_carrier_overlap_fraction: raw_carrier.best_collinear_overlap_fraction,
+    })
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+struct RawCarrierEdgeDiagnostics {
+    relaxed_available: bool,
+    line_like_count: usize,
+    best_id: Option<usize>,
+    best_angle_delta_degrees: Option<f64>,
+    best_line_distance_px: Option<f64>,
+    best_overlap_fraction: Option<f64>,
+    best_incident_vertices: Option<usize>,
+    best_emitted_spans: Option<usize>,
+    collinear_count: usize,
+    best_collinear_id: Option<usize>,
+    best_collinear_line_distance_px: Option<f64>,
+    best_collinear_overlap_fraction: Option<f64>,
+}
+
+fn raw_carrier_diagnostics(
+    generation_diagnostics: &CandidateGenerationDiagnostics,
+    gt_segment: [EvalPoint; 2],
+    image_size: u32,
+    coverage_options: CandidateCoverageOptions,
+) -> RawCarrierEdgeDiagnostics {
+    let Some(junction_diagnostics) = generation_diagnostics.junction_carrier_v1.as_ref() else {
+        return RawCarrierEdgeDiagnostics::default();
+    };
+    let mut out = RawCarrierEdgeDiagnostics::default();
+    for carrier in &junction_diagnostics.carrier_hypotheses {
+        let endpoints = raw_carrier_endpoints(carrier, image_size);
+        let angle_delta = eval_angle_delta_degrees(endpoints, gt_segment);
+        let line_distance = eval_point_line_distance(gt_segment[0], endpoints)
+            .max(eval_point_line_distance(gt_segment[1], endpoints));
+        let overlap = eval_interval_overlap_fraction(endpoints, gt_segment);
+        let collinear = angle_delta <= (coverage_options.angle_tolerance_degrees * 2.0)
+            && line_distance <= (coverage_options.carrier_distance_tolerance * 2.0);
+        if !collinear {
+            continue;
+        }
+        out.collinear_count += 1;
+        if out
+            .best_collinear_line_distance_px
+            .is_none_or(|best_distance| line_distance < best_distance)
+        {
+            out.best_collinear_id = Some(carrier.id);
+            out.best_collinear_line_distance_px = Some(line_distance);
+            out.best_collinear_overlap_fraction = Some(overlap);
+        }
+        let line_like = overlap >= 0.01;
+        if !line_like {
+            continue;
+        }
+        out.line_like_count += 1;
+        out.relaxed_available = true;
+        if out
+            .best_line_distance_px
+            .is_none_or(|best_distance| line_distance < best_distance)
+        {
+            out.best_id = Some(carrier.id);
+            out.best_angle_delta_degrees = Some(angle_delta);
+            out.best_line_distance_px = Some(line_distance);
+            out.best_overlap_fraction = Some(overlap);
+            out.best_incident_vertices = Some(carrier.incident_vertices);
+            out.best_emitted_spans = Some(carrier.emitted_spans);
+        }
+    }
+    out
+}
+
+fn raw_carrier_endpoints(
+    carrier: &JunctionCarrierDiagnosticCarrier,
+    image_size: u32,
+) -> [EvalPoint; 2] {
+    [
+        EvalPoint::from(normalized_to_px(
+            point_on_carrier(
+                carrier.normal,
+                carrier.direction,
+                carrier.rho,
+                carrier.t_interval[0],
+            ),
+            image_size,
+        )),
+        EvalPoint::from(normalized_to_px(
+            point_on_carrier(
+                carrier.normal,
+                carrier.direction,
+                carrier.rho,
+                carrier.t_interval[1],
+            ),
+            image_size,
+        )),
+    ]
+}
+
+fn gt_edge_segment(graph: &EvalGraph, vertices: [usize; 2]) -> Option<[EvalPoint; 2]> {
+    Some([
+        *graph.vertices.get(vertices[0])?,
+        *graph.vertices.get(vertices[1])?,
+    ])
+}
+
+fn nearest_rank_on_line(
+    line_vertices: &[(usize, f64, f64, EvalPoint)],
+    target: EvalPoint,
+    options: CandidateCoverageOptions,
+) -> Option<usize> {
+    line_vertices
+        .iter()
+        .enumerate()
+        .map(|(rank, (_, _, _, point))| (rank, eval_distance(*point, target)))
+        .filter(|(_, distance)| *distance <= options.relaxed_vertex_tolerance)
+        .min_by(|left, right| left.1.total_cmp(&right.1))
+        .map(|(rank, _)| rank)
+}
+
 impl Args {
     fn parse() -> Result<Self, Box<dyn std::error::Error>> {
         let mut dense_manifest = None;
@@ -1005,6 +1316,84 @@ fn pixel_index(point: EvalPoint, size: usize) -> Option<usize> {
 
 fn sigmoid(value: f32) -> f64 {
     1.0 / (1.0 + f64::from(-value).exp())
+}
+
+fn nearest_eval_distance(points: &[EvalPoint], target: EvalPoint) -> Option<f64> {
+    points
+        .iter()
+        .map(|point| eval_distance(*point, target))
+        .min_by(|left, right| left.total_cmp(right))
+}
+
+fn eval_symmetric_endpoint_distance(left: [EvalPoint; 2], right: [EvalPoint; 2]) -> f64 {
+    let same = eval_distance(left[0], right[0]).max(eval_distance(left[1], right[1]));
+    let flipped = eval_distance(left[0], right[1]).max(eval_distance(left[1], right[0]));
+    same.min(flipped)
+}
+
+fn eval_angle_delta_degrees(left: [EvalPoint; 2], right: [EvalPoint; 2]) -> f64 {
+    let left_angle = (left[1].y - left[0].y).atan2(left[1].x - left[0].x);
+    let right_angle = (right[1].y - right[0].y).atan2(right[1].x - right[0].x);
+    let diff = (left_angle - right_angle)
+        .abs()
+        .rem_euclid(std::f64::consts::PI);
+    diff.min(std::f64::consts::PI - diff).to_degrees()
+}
+
+fn eval_interval_overlap_fraction(candidate: [EvalPoint; 2], gt: [EvalPoint; 2]) -> f64 {
+    let gt_len = eval_segment_length(gt);
+    if gt_len <= 1e-9 {
+        return 0.0;
+    }
+    let [mut min_t, mut max_t] = eval_projected_interval(candidate, gt);
+    min_t = min_t.clamp(0.0, gt_len);
+    max_t = max_t.clamp(0.0, gt_len);
+    ((max_t - min_t).max(0.0) / gt_len).clamp(0.0, 1.0)
+}
+
+fn eval_projected_interval(candidate: [EvalPoint; 2], gt: [EvalPoint; 2]) -> [f64; 2] {
+    let direction = eval_unit_direction(gt);
+    let t0 = eval_dot(eval_sub(candidate[0], gt[0]), direction);
+    let t1 = eval_dot(eval_sub(candidate[1], gt[0]), direction);
+    [t0.min(t1), t0.max(t1)]
+}
+
+fn eval_point_line_distance(point: EvalPoint, line: [EvalPoint; 2]) -> f64 {
+    let len = eval_segment_length(line);
+    if len <= 1e-9 {
+        return eval_distance(point, line[0]);
+    }
+    let area2 = ((line[1].x - line[0].x) * (line[0].y - point.y)
+        - (line[0].x - point.x) * (line[1].y - line[0].y))
+        .abs();
+    area2 / len
+}
+
+fn eval_segment_length(segment: [EvalPoint; 2]) -> f64 {
+    eval_distance(segment[0], segment[1])
+}
+
+fn eval_unit_direction(segment: [EvalPoint; 2]) -> EvalPoint {
+    let len = eval_segment_length(segment).max(1e-12);
+    EvalPoint {
+        x: (segment[1].x - segment[0].x) / len,
+        y: (segment[1].y - segment[0].y) / len,
+    }
+}
+
+fn eval_sub(left: EvalPoint, right: EvalPoint) -> EvalPoint {
+    EvalPoint {
+        x: left.x - right.x,
+        y: left.y - right.y,
+    }
+}
+
+fn eval_dot(left: EvalPoint, right: EvalPoint) -> f64 {
+    left.x * right.x + left.y * right.y
+}
+
+fn eval_distance(left: EvalPoint, right: EvalPoint) -> f64 {
+    ((left.x - right.x).powi(2) + (left.y - right.y).powi(2)).sqrt()
 }
 
 fn parse_assignment(value: &str) -> AssignmentLabel {
