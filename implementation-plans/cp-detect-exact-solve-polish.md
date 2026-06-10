@@ -127,3 +127,50 @@ noise. Pins the cliff so future folder changes can't silently tighten it.
   guardrail.
 - Context: `crates/oristudio-cp-compiler/src/verify.rs` (folder invocation),
   `crates/treemaker-flatfold/src/constraints.rs` (the assignment_conflict site).
+
+## Findings (2026-06-10, post-implementation)
+
+Phase 1 landed and exceeded its target: re-anchored polish reaches 1e-7..1e-12
+degrees Kawasaki in ~0.2-7s, and the exact-solve stage reports **"solved" on
+6/15 clean samples** (previously zero, ever). Acceptance subtlety: the
+polished candidate must be judged in polish-model objective units; the
+original objective re-rejects every successful polish by construction.
+
+End-to-end folding remains **0/15**, and the failure ladder beyond the plan's
+scope was peeled sample-by-sample:
+
+1. assignment_conflict from noise — fixed by polish.
+2. precision_failure in the folded-graph epsilon ladder — fixed by tighter
+   polish (1e-6 deg target).
+3. "non-overlapping face pair" — fixed: sliver-face eps-merges fed the
+   constraint choice table non-distinct face quadruples
+   (treemaker-flatfold/constraints.rs now skips shared-face edge pairs).
+4. Residual layer-solver assignment_conflict. Root-caused on the two best
+   debug vehicles:
+   - 000346 (GT folds; detection solved at 3e-7 deg, zero M/V disagreements):
+     a 4px GT border sliver (boundary contact 0.0038 units from a corner) was
+     merged into the corner by detection; the crease terminates at the wrong
+     point and the GT-labeled pattern becomes genuinely unfoldable. The
+     tiny-feature/close-pair detection limit again, in border form.
+   - 012950 (topologically exact, assignments exactly GT incl. 22 U edges,
+     1e-7 deg geometry): still conflicts, as does GT itself; prime suspect is
+     folded-space epsilon-merging of its 5px features corrupting the
+     cell/overlap structure (the constraint guard removes the degenerate
+     constraints but not the underlying merge). A finest-stable-plateau eps
+     experiment did not fix it (reverted).
+
+Conclusions:
+
+- The exactization lever is DONE and valuable (prerequisite for everything;
+  ship it). The folder's precision cliff is no longer the binding constraint
+  for samples with correct structure.
+- Flat-foldability is brittle to STRUCTURAL deviation: a single 4px-wrong
+  crease endpoint flips global foldability. E2E folding therefore requires
+  topology exact to GT including tiny features — re-coupling this plan to the
+  close-pair/tiny-feature detection limit (model-side, see
+  create-pattern-detector docs/v2-close-pair-junction-recovery.md).
+- The remaining folder-side work is folded-space robustness around tiny
+  features (eps-merge corrupting cells for patterns with ~5px creases) —
+  exact/rational arithmetic on folded coordinates or feature-aware epsilon
+  selection. That is a self-contained treemaker-flatfold project; the Miura
+  tolerance guardrail and --dump-folds give it a harness.
