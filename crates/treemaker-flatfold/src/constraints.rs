@@ -339,6 +339,15 @@ fn fill_edge_edge_constraints(
             let f2 = edges_faces[e1][1];
             let f3 = edges_faces[*e2][0];
             let f4 = edges_faces[*e2][1];
+            // Two distinct edges of the same rigid face cannot fold onto the
+            // same segment; when the folded-graph epsilon merges a sliver
+            // face's borders this pair shows up anyway and the 3-bit choice
+            // table below (which assumes four distinct faces) derives
+            // degenerate self-pair constraints. Skip, matching the upstream
+            // flat-folder assumption that the face quadruple is distinct.
+            if f1 == f3 || f1 == f4 || f2 == f3 || f2 == f4 {
+                continue;
+            }
             let f1f2 = check_overlap(f1, f2, variable_index);
             let f1f3 = check_overlap(f1, f3, variable_index);
             let f1f4 = check_overlap(f1, f4, variable_index);
@@ -424,9 +433,10 @@ fn add_constraint(
     for pair in pairs_for_type(constraint_type, faces) {
         let key = math::encode_order_pair(pair[0], pair[1]);
         let Some(index) = variable_index.get(&key).copied() else {
-            return Err(FlatFoldError::InvalidInput(
-                "constraint references a non-overlapping face pair".to_string(),
-            ));
+            return Err(FlatFoldError::InvalidInput(format!(
+                "constraint references a non-overlapping face pair: type={constraint_type} faces={faces:?} missing_pair=({},{})",
+                pair[0], pair[1]
+            )));
         };
         constraints[index][constraint_type].push(math::encode(faces));
     }

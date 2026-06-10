@@ -40,6 +40,44 @@ pub struct ExactSolveOptions {
     pub solved_carrier_epsilon: f64,
     pub degenerate_edge_epsilon: f64,
     pub crossing_epsilon: f64,
+    /// Run a second LM pass after an accepted solve, re-anchored to the
+    /// stage-1 solution with tightened theorem sigmas. The stage-1 priors
+    /// anchor to the noisy detected positions, so the first pass equilibrates
+    /// near ~3e-3 degrees Kawasaki — above the flat-folder's measured ~1e-4
+    /// relative-precision tolerance. Re-anchoring removes that floor.
+    #[serde(default = "default_polish")]
+    pub polish: bool,
+    #[serde(default = "default_polish_kawasaki_sigma_radians")]
+    pub polish_kawasaki_sigma_radians: f64,
+    #[serde(default = "default_polish_carrier_incidence_sigma")]
+    pub polish_carrier_incidence_sigma: f64,
+    /// Maximum re-anchored polish rounds; each round tightens the remaining
+    /// theorem residuals by roughly the prior/theorem sigma ratio.
+    #[serde(default = "default_polish_rounds")]
+    pub polish_rounds: usize,
+    /// Stop polishing once the max Kawasaki residual is below this (degrees).
+    #[serde(default = "default_polish_target_kawasaki_degrees")]
+    pub polish_target_kawasaki_degrees: f64,
+}
+
+const fn default_polish() -> bool {
+    true
+}
+
+fn default_polish_kawasaki_sigma_radians() -> f64 {
+    0.001_f64.to_radians()
+}
+
+const fn default_polish_carrier_incidence_sigma() -> f64 {
+    1e-7
+}
+
+const fn default_polish_rounds() -> usize {
+    6
+}
+
+const fn default_polish_target_kawasaki_degrees() -> f64 {
+    1e-6
 }
 
 impl Default for ExactSolveOptions {
@@ -61,6 +99,11 @@ impl Default for ExactSolveOptions {
             solved_carrier_epsilon: 5e-4,
             degenerate_edge_epsilon: 1e-6,
             crossing_epsilon: 1e-7,
+            polish: default_polish(),
+            polish_kawasaki_sigma_radians: default_polish_kawasaki_sigma_radians(),
+            polish_carrier_incidence_sigma: default_polish_carrier_incidence_sigma(),
+            polish_rounds: default_polish_rounds(),
+            polish_target_kawasaki_degrees: default_polish_target_kawasaki_degrees(),
         }
     }
 }
@@ -171,17 +214,114 @@ pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> Exact
         )
     };
 
+    // Polish: the stage-1 priors anchor to noisy detected positions, so LM
+    // equilibrates near ~3e-3 degrees Kawasaki — above the flat-folder's
+    // ~1e-4 precision tolerance. Re-anchor the priors to the accepted stage-1
+    // solution and re-solve with tightened theorem sigmas. Runs only when the
+    // stage-1 candidate would be accepted, so failure paths are untouched.
+    let (final_params, termination, evaluations, objective, polish_adopted) = 'polish: {
+        if !options.polish || final_params.is_empty() {
+            break 'polish (final_params, termination, evaluations, objective, false);
+        }
+        let stage1_points = model.points_from_params(&final_params);
+        let stage1_after = analyze_graph(input, &stage1_points, &model, &final_params, options);
+        let stage1_status = classify_status(&before, &stage1_after, options);
+        let stage1_accepted = exact_solution_rejection_reasons(
+            &before,
+            &stage1_after,
+            stage1_status,
+            initial_objective,
+            objective,
+            options,
+        )
+        .is_empty();
+        if !stage1_accepted {
+            break 'polish (final_params, termination, evaluations, objective, false);
+        }
+        let mut current_params = final_params.clone();
+        let mut current_kawasaki = stage1_after.max_kawasaki_residual_degrees;
+        let mut polish_evaluations = 0usize;
+        let mut rounds_adopted = 0usize;
+        for _round in 0..options.polish_rounds {
+            if current_kawasaki <= options.polish_target_kawasaki_degrees {
+                break;
+            }
+            let polish_model = model.reanchored_for_polish(&current_params);
+            let polish_start_energy = residual_energy(&polish_model.residuals_for(&current_params));
+            let polish_counters = Rc::new(SolveCounters::default());
+            let solver = ExactLeastSquaresProblem {
+                model: polish_model.clone(),
+                params: current_params.clone(),
+                counters: polish_counters,
+            };
+            let lm = LevenbergMarquardt::new()
+                .with_patience(options.patience)
+                .with_ftol(options.ftol)
+                .with_xtol(options.xtol)
+                .with_gtol(options.gtol);
+            let (polished, polish_report) = lm.minimize(solver);
+            let polish_final_energy =
+                residual_energy(&polish_model.residuals_for(&polished.params));
+            let polished_points = model.points_from_params(&polished.params);
+            let polished_after =
+                analyze_graph(input, &polished_points, &model, &polished.params, options);
+            let polished_status = classify_status(&before, &polished_after, options);
+            // Judge the polish candidate's objective progress in the POLISH
+            // model's units: the original objective anchors to the noisy
+            // detected positions, which is exactly the equilibrium the polish
+            // exists to escape; under it any successful polish looks "worse"
+            // by construction. Geometric sanity (movement budget from the
+            // original points, odd/degenerate/crossing/boundary
+            // non-regression) still uses the original before/after analyses.
+            let polish_rejections = exact_solution_rejection_reasons(
+                &before,
+                &polished_after,
+                polished_status,
+                polish_start_energy,
+                polish_final_energy,
+                options,
+            );
+            let improved = polish_rejections.is_empty()
+                && polished_after.max_kawasaki_residual_degrees <= current_kawasaki;
+            if !improved {
+                break;
+            }
+            current_params = polished.params;
+            current_kawasaki = polished_after.max_kawasaki_residual_degrees;
+            polish_evaluations += polish_report.number_of_evaluations;
+            rounds_adopted += 1;
+        }
+        if rounds_adopted == 0 {
+            break 'polish (final_params, termination, evaluations, objective, false);
+        }
+        let polished_objective = residual_energy(&model.residuals_for(&current_params));
+        (
+            current_params,
+            format!("{termination}+polish(rounds={rounds_adopted})"),
+            evaluations + polish_evaluations,
+            polished_objective,
+            true,
+        )
+    };
+
     let candidate_points = model.points_from_params(&final_params);
     let candidate_after = analyze_graph(input, &candidate_points, &model, &final_params, options);
     let candidate_status = classify_status(&before, &candidate_after, options);
-    let rejection_reasons = exact_solution_rejection_reasons(
-        &before,
-        &candidate_after,
-        candidate_status,
-        initial_objective,
-        objective,
-        options,
-    );
+    // A polish-adopted candidate already passed the full acceptance gate (in
+    // polish-model objective units); re-judging it against the original noisy
+    // anchors would re-reject every successful polish.
+    let rejection_reasons = if polish_adopted {
+        Vec::new()
+    } else {
+        exact_solution_rejection_reasons(
+            &before,
+            &candidate_after,
+            candidate_status,
+            initial_objective,
+            objective,
+            options,
+        )
+    };
     let accepted = rejection_reasons.is_empty();
     let (vertices_exact, after, accepted_objective, status) = if accepted {
         (
@@ -354,6 +494,26 @@ impl SolveModel {
                 ),
             })
             .collect()
+    }
+
+    /// A copy of this model whose movement/carrier priors anchor to the given
+    /// solved parameters instead of the original detected positions, with the
+    /// polish-stage theorem sigmas. Parameter layout is identical, so solved
+    /// params from this model evaluate directly in the original model.
+    fn reanchored_for_polish(&self, solved: &OVector<f64, Dyn>) -> Self {
+        let mut polished = self.clone();
+        let solved_points = self.points_from_params(solved);
+        for (vertex, point) in polished.vertices.iter_mut().zip(&solved_points) {
+            vertex.point = *point;
+        }
+        for group in &mut polished.carrier_groups {
+            group.initial_theta = solved[group.theta_index];
+            group.initial_rho = solved[group.rho_index];
+        }
+        polished.initial_params = solved.clone();
+        polished.options.kawasaki_sigma_radians = self.options.polish_kawasaki_sigma_radians;
+        polished.options.carrier_incidence_sigma = self.options.polish_carrier_incidence_sigma;
+        polished
     }
 
     fn residuals_for(&self, params: &OVector<f64, Dyn>) -> Vec<f64> {
@@ -1639,6 +1799,43 @@ mod tests {
                 ExactSolvedGraphStatus::Solved | ExactSolvedGraphStatus::Ambiguous
             ),
             "solver should find a nearby solution or report ambiguity, not hard-fail"
+        );
+    }
+
+    #[test]
+    fn polish_tightens_kawasaki_beyond_stage_one() {
+        let input = four_ray_input(Point2::new(0.53, 0.50));
+        let unpolished = solve_exact(
+            &input,
+            ExactSolveOptions {
+                polish: false,
+                ..ExactSolveOptions::default()
+            },
+        );
+        let polished = solve_exact(&input, ExactSolveOptions::default());
+        let residual = |graph: &ExactSolvedGraph| {
+            graph.theorem_residual_report["after"]["max_kawasaki_residual_degrees"]
+                .as_f64()
+                .unwrap()
+        };
+        assert!(polished.movement_report["accepted"].as_bool().unwrap());
+        assert!(
+            residual(&polished) <= residual(&unpolished),
+            "polish must not loosen the stage-1 result ({} vs {})",
+            residual(&polished),
+            residual(&unpolished),
+        );
+        assert!(
+            residual(&polished) < 1e-4,
+            "polish should land below the flat-folder precision cliff, got {}",
+            residual(&polished),
+        );
+        assert!(
+            polished.movement_report["termination"]
+                .as_str()
+                .unwrap()
+                .contains("polish"),
+            "polish stage should be recorded in the termination string"
         );
     }
 
