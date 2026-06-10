@@ -102,6 +102,12 @@ pub struct EvidenceExtractionConfig {
     pub max_junction_primitives: usize,
     pub max_boundary_contact_primitives: usize,
     pub primitive_nms_radius_px: f32,
+    /// Offset normalization radius (px) the junction_offset head was trained
+    /// with (CenterNet-style nearest-vertex offsets). 0 keeps the legacy
+    /// local-maxima decode with sub-pixel refinement. >0 switches junction
+    /// extraction to offset-vote clustering, which can split a fused heatmap
+    /// blob covering two close vertices into two primitives.
+    pub junction_offset_cluster_radius_px: f32,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -289,16 +295,38 @@ pub fn extract_compiler_evidence(
     });
     line_primitives.truncate(config.max_line_primitives);
 
-    let junction_primitives = local_maxima_primitives(
-        &junction_peak_probability,
-        size,
-        config.line_threshold.max(0.50),
-        config.primitive_nms_radius_px,
-        config.max_junction_primitives,
-    )
+    let cluster_offset = (config.junction_offset_cluster_radius_px > 0.0)
+        .then_some(outputs.junction_offset)
+        .flatten();
+    let junction_primitives = if let Some(junction_offset) = cluster_offset {
+        offset_cluster_primitives(
+            &junction_peak_probability,
+            junction_offset,
+            size,
+            config.line_threshold.max(0.50),
+            config.junction_offset_cluster_radius_px,
+            config.max_junction_primitives,
+        )
+    } else {
+        local_maxima_primitives(
+            &junction_peak_probability,
+            size,
+            config.line_threshold.max(0.50),
+            config.primitive_nms_radius_px,
+            config.max_junction_primitives,
+        )
+        .into_iter()
+        .map(|(point, support)| {
+            (
+                offset_refined_point(point, outputs.junction_offset, size),
+                support,
+            )
+        })
+        .collect()
+    }
     .into_iter()
     .map(|(point, support)| JunctionPrimitive {
-        point: offset_refined_point(point, outputs.junction_offset, size),
+        point,
         support,
         source: primitive_source(support, config.strong_line_support),
     })
@@ -694,6 +722,93 @@ fn boundary_contact_primitive(
     }
 }
 
+const JUNCTION_CLUSTER_BANDWIDTH_PX: f32 = 1.5;
+const JUNCTION_CLUSTER_MIN_SUPPORT: f32 = 2.0;
+
+/// Offset-vote junction decoding (CenterNet-style).
+///
+/// Every pixel above the threshold votes at `pixel + offset * radius`, where
+/// the offset head was trained with radius-normalized vectors toward the
+/// nearest vertex. Votes are greedily mean-shift clustered; each cluster with
+/// enough probability mass becomes one junction. Unlike local-maxima decoding
+/// this recovers BOTH vertices of a close pair whose heatmap fused into a
+/// single blob, because the offset field over the blob is bimodal.
+fn offset_cluster_primitives(
+    probability: &[f32],
+    offset: &[f32],
+    size: usize,
+    threshold: f32,
+    radius_px: f32,
+    max_count: usize,
+) -> Vec<([f32; 2], f32)> {
+    let pixels = size * size;
+    if offset.len() < pixels * 2 {
+        return Vec::new();
+    }
+    let mut votes = Vec::<([f32; 2], f32)>::new();
+    for y in 0..size {
+        for x in 0..size {
+            let idx = y * size + x;
+            let weight = probability[idx];
+            if weight < threshold {
+                continue;
+            }
+            let dx = normalized_offset(offset[idx]) * radius_px;
+            let dy = normalized_offset(offset[pixels + idx]) * radius_px;
+            votes.push(([x as f32 + dx, y as f32 + dy], weight));
+        }
+    }
+    votes.sort_by(|left, right| right.1.total_cmp(&left.1));
+
+    let mut centers = Vec::<[f32; 2]>::new();
+    let mut sums = Vec::<[f32; 2]>::new();
+    let mut mass = Vec::<f32>::new();
+    let mut peak = Vec::<f32>::new();
+    for (vote, weight) in votes {
+        let mut assigned = false;
+        for index in 0..centers.len() {
+            let dx = vote[0] - centers[index][0];
+            let dy = vote[1] - centers[index][1];
+            if (dx * dx + dy * dy).sqrt() <= JUNCTION_CLUSTER_BANDWIDTH_PX {
+                sums[index][0] += vote[0] * weight;
+                sums[index][1] += vote[1] * weight;
+                mass[index] += weight;
+                centers[index] = [sums[index][0] / mass[index], sums[index][1] / mass[index]];
+                peak[index] = peak[index].max(weight);
+                assigned = true;
+                break;
+            }
+        }
+        if !assigned {
+            centers.push(vote);
+            sums.push([vote[0] * weight, vote[1] * weight]);
+            mass.push(weight);
+            peak.push(weight);
+        }
+    }
+    let mut clusters = centers
+        .into_iter()
+        .zip(mass)
+        .zip(peak)
+        .filter(|((_, mass), _)| *mass >= JUNCTION_CLUSTER_MIN_SUPPORT)
+        .map(|((center, mass), peak)| (center, peak, mass))
+        .collect::<Vec<_>>();
+    clusters.sort_by(|left, right| right.2.total_cmp(&left.2));
+    clusters.truncate(max_count);
+    clusters
+        .into_iter()
+        .map(|(center, peak, _)| (center, peak))
+        .collect()
+}
+
+fn normalized_offset(value: f32) -> f32 {
+    if value.is_finite() {
+        value.clamp(-1.0, 1.0)
+    } else {
+        0.0
+    }
+}
+
 fn offset_refined_point(point: [f32; 2], offset: Option<&[f32]>, size: usize) -> [f32; 2] {
     let Some(offset) = offset else {
         return point;
@@ -814,6 +929,7 @@ mod tests {
             max_junction_primitives: 32,
             max_boundary_contact_primitives: 32,
             primitive_nms_radius_px: 3.0,
+            junction_offset_cluster_radius_px: 0.0,
         }
     }
 
@@ -827,6 +943,57 @@ mod tests {
             vec![-4.0; pixels * 4],
             vec![-8.0; pixels],
         )
+    }
+
+    #[test]
+    fn offset_cluster_decode_splits_fused_close_pair_blob() {
+        // Mirrors the python eval fixture: a single wide bell (one local
+        // maximum) over a 5px-apart vertex pair, with radius-normalized
+        // offsets pointing to the nearest vertex. The legacy local-maxima
+        // decode sees one vertex; offset clustering must recover both.
+        let size = 32usize;
+        let pixels = size * size;
+        let radius = 3.0_f32;
+        let a = [13.5_f32, 16.0];
+        let b = [18.5_f32, 16.0];
+        let mid = [(a[0] + b[0]) / 2.0, (a[1] + b[1]) / 2.0];
+        let mut probability = vec![0.0_f32; pixels];
+        let mut offset = vec![0.0_f32; pixels * 2];
+        for y in 0..size {
+            for x in 0..size {
+                let idx = y * size + x;
+                let dx = x as f32 - mid[0];
+                let dy = y as f32 - mid[1];
+                let value = 0.99 * (-(dx * dx + dy * dy) / (2.0 * 3.33 * 3.33)).exp();
+                probability[idx] = value;
+                if value >= 0.5 {
+                    let target =
+                        if distance([x as f32, y as f32], a) <= distance([x as f32, y as f32], b) {
+                            a
+                        } else {
+                            b
+                        };
+                    offset[idx] = (target[0] - x as f32) / radius;
+                    offset[pixels + idx] = (target[1] - y as f32) / radius;
+                }
+            }
+        }
+        let clusters = offset_cluster_primitives(&probability, &offset, size, 0.5, radius, 32);
+        assert_eq!(clusters.len(), 2, "fused blob must split into two vertices");
+        let near = |target: [f32; 2]| {
+            clusters
+                .iter()
+                .map(|(point, _)| distance(*point, target))
+                .fold(f32::INFINITY, f32::min)
+        };
+        assert!(near(a) < 0.75, "vertex a recovered within 0.75px");
+        assert!(near(b) < 0.75, "vertex b recovered within 0.75px");
+
+        let peaks = local_maxima_primitives(&probability, size, 0.5, 2.0, 32);
+        assert!(
+            peaks.len() <= 1,
+            "legacy local-maxima decode cannot split the blob (documents the gap)"
+        );
     }
 
     #[test]

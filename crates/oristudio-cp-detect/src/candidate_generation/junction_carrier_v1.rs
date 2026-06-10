@@ -70,6 +70,7 @@ pub(super) fn evidence_config(
         max_junction_primitives: config.max_intersection_lines.max(500),
         max_boundary_contact_primitives: config.max_intersection_lines.max(500),
         primitive_nms_radius_px: (options.vertex_merge_radius_px * 0.55).max(2.0) as f32,
+        junction_offset_cluster_radius_px: options.junction_offset_cluster_radius_px as f32,
     }
 }
 

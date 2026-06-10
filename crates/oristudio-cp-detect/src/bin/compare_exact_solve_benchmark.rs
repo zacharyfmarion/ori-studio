@@ -87,6 +87,7 @@ struct Args {
     junction_first_corridor_px: Option<f64>,
     junction_first_endpoint_margin_px: Option<f64>,
     junction_first_min_span_px: Option<f64>,
+    junction_first_offset_cluster_radius_px: Option<f64>,
     parity_repair: Option<bool>,
 }
 
@@ -528,6 +529,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if let Some(value) = args.junction_first_min_span_px {
                     generation_options.junction_first_v1.min_span_length_px = value;
                 }
+                if let Some(value) = args.junction_first_offset_cluster_radius_px {
+                    generation_options
+                        .junction_first_v1
+                        .junction_offset_cluster_radius_px = value;
+                }
                 let generation = generate_candidate_graph(
                     CandidateGenerationContext {
                         outputs: logits.as_dense_outputs(),
@@ -793,6 +799,7 @@ impl Args {
         let mut junction_first_corridor_px = None;
         let mut junction_first_endpoint_margin_px = None;
         let mut junction_first_min_span_px = None;
+        let mut junction_first_offset_cluster_radius_px = None;
         let mut parity_repair = None;
         let mut iter = env::args().skip(1);
         while let Some(arg) = iter.next() {
@@ -839,6 +846,10 @@ impl Args {
                 "--junction-first-min-span-px" => {
                     junction_first_min_span_px = Some(required_value(&mut iter, &arg)?.parse()?);
                 }
+                "--junction-first-offset-cluster-radius-px" => {
+                    junction_first_offset_cluster_radius_px =
+                        Some(required_value(&mut iter, &arg)?.parse()?);
+                }
                 "--parity-repair" => parity_repair = Some(true),
                 "--no-parity-repair" => parity_repair = Some(false),
                 "--help" | "-h" => {
@@ -867,6 +878,7 @@ impl Args {
             junction_first_corridor_px,
             junction_first_endpoint_margin_px,
             junction_first_min_span_px,
+            junction_first_offset_cluster_radius_px,
             parity_repair,
         })
     }
