@@ -47,6 +47,23 @@ pub struct SelectionOptions {
     pub non_collinear_degree_two_cost: f64,
     pub local_fragment_cost: f64,
     pub shared_carrier_continuity_reward: f64,
+    /// Post-selection local search that flips single candidates incident to
+    /// odd-degree interior vertices when the flip reduces the odd count.
+    #[serde(default)]
+    pub parity_repair: bool,
+    #[serde(default = "default_parity_repair_budget")]
+    pub parity_repair_budget: usize,
+    /// Maximum total-score regression a parity-fixing flip may cost.
+    #[serde(default = "default_parity_repair_max_cost")]
+    pub parity_repair_max_cost: f64,
+}
+
+const fn default_parity_repair_budget() -> usize {
+    24
+}
+
+const fn default_parity_repair_max_cost() -> f64 {
+    0.35
 }
 
 impl Default for SelectionOptions {
@@ -73,6 +90,9 @@ impl Default for SelectionOptions {
             non_collinear_degree_two_cost: 0.65,
             local_fragment_cost: 0.18,
             shared_carrier_continuity_reward: 0.36,
+            parity_repair: true,
+            parity_repair_budget: default_parity_repair_budget(),
+            parity_repair_max_cost: default_parity_repair_max_cost(),
         }
     }
 }
@@ -369,7 +389,116 @@ pub fn select_candidate_graph_beam_from_ir(
         .next()
         .unwrap_or_else(|| score_ir_beam_state(graph, &seed_ids, &options));
     let best = rescue_ir_weak_candidates(graph, best, &conflict_map, &locked_ids, &options);
+    let best = parity_repair_ir_state(graph, best, &conflict_map, &locked_ids, &options);
     candidate_selection_from_ir_state(graph, &best, &options)
+}
+
+/// Local search that converts odd-degree interior vertices into parity-correct
+/// ones via single candidate flips (add an unselected span or drop a selected
+/// one incident to an odd vertex). The beam can miss these flips because it
+/// only explores the top-priority candidate prefix; here the search is exact
+/// but restricted to spans touching an odd vertex. A flip is accepted only if
+/// it strictly reduces the odd count and costs at most
+/// `parity_repair_max_cost` total score.
+fn parity_repair_ir_state(
+    graph: &CandidateGraph,
+    mut best: IrBeamState,
+    conflict_map: &BTreeMap<usize, BTreeSet<usize>>,
+    locked_ids: &BTreeSet<usize>,
+    options: &SelectionOptions,
+) -> IrBeamState {
+    if !options.parity_repair {
+        return best;
+    }
+    for _ in 0..options.parity_repair_budget {
+        if best.residuals.odd_degree_vertices == 0 {
+            break;
+        }
+        let odd_vertices = ir_odd_interior_vertices(graph, &best.selected_span_ids);
+        if odd_vertices.is_empty() {
+            break;
+        }
+        let mut next_best: Option<IrBeamState> = None;
+        for span in &graph.crease_candidates {
+            if span.selection_policy == CandidateSelectionPolicy::Locked
+                || span.selection_policy == CandidateSelectionPolicy::Discouraged
+                || !span_counts_for_local_theorems(span)
+            {
+                continue;
+            }
+            if !odd_vertices.contains(&span.vertices[0])
+                && !odd_vertices.contains(&span.vertices[1])
+            {
+                continue;
+            }
+            let trial_ids = if best.selected_span_ids.contains(&span.id) {
+                let mut without = best.selected_span_ids.clone();
+                without.remove(&span.id);
+                without
+            } else {
+                let Some(with) = ir_selected_with_candidate(
+                    graph,
+                    &best.selected_span_ids,
+                    span.id,
+                    conflict_map,
+                    locked_ids,
+                ) else {
+                    continue;
+                };
+                with
+            };
+            let trial = score_ir_beam_state(graph, &trial_ids, options);
+            if trial.residuals.odd_degree_vertices >= best.residuals.odd_degree_vertices {
+                continue;
+            }
+            if trial.total_score < best.total_score - options.parity_repair_max_cost {
+                continue;
+            }
+            let better = next_best.as_ref().is_none_or(|current| {
+                trial.residuals.odd_degree_vertices < current.residuals.odd_degree_vertices
+                    || (trial.residuals.odd_degree_vertices
+                        == current.residuals.odd_degree_vertices
+                        && trial.total_score > current.total_score)
+            });
+            if better {
+                next_best = Some(trial);
+            }
+        }
+        let Some(improved) = next_best else {
+            break;
+        };
+        best = improved;
+    }
+    best
+}
+
+fn ir_odd_interior_vertices(
+    graph: &CandidateGraph,
+    selected_span_ids: &BTreeSet<usize>,
+) -> BTreeSet<usize> {
+    let mut degrees = BTreeMap::<usize, usize>::new();
+    for span_id in selected_span_ids {
+        let Some(span) = graph.crease_candidates.get(*span_id) else {
+            continue;
+        };
+        if !span_counts_for_local_theorems(span) {
+            continue;
+        }
+        for vertex_id in span.vertices {
+            *degrees.entry(vertex_id).or_default() += 1;
+        }
+    }
+    degrees
+        .into_iter()
+        .filter(|(vertex_id, degree)| {
+            degree % 2 == 1
+                && graph
+                    .vertices
+                    .get(*vertex_id)
+                    .is_some_and(ir_vertex_is_interior_fold_vertex)
+        })
+        .map(|(vertex_id, _)| vertex_id)
+        .collect()
 }
 
 fn candidate_graph_span_from_selection_candidate(
@@ -4928,6 +5057,96 @@ mod tests {
                 notes: Vec::new(),
             },
         }
+    }
+
+    fn parity_square_graph() -> CandidateGraph {
+        // Open square cycle: spans 0..=2 are strong/selected, span 3 closes the
+        // cycle but is weak. With only 0..=2 selected, v0 and v3 are odd.
+        interior_candidate_graph(
+            vec![
+                Point2::new(0.3, 0.3),
+                Point2::new(0.7, 0.3),
+                Point2::new(0.7, 0.7),
+                Point2::new(0.3, 0.7),
+            ],
+            vec![
+                candidate_span_with_evidence(
+                    0,
+                    [0, 1],
+                    CandidateCreaseSpanKind::AtomicInterval,
+                    CandidateCreaseSourceKind::LegacySelected,
+                    CandidateSelectionPolicy::StrongOptional,
+                    0.94,
+                    0.94,
+                    AssignmentLabel::Mountain,
+                ),
+                candidate_span_with_evidence(
+                    1,
+                    [1, 2],
+                    CandidateCreaseSpanKind::AtomicInterval,
+                    CandidateCreaseSourceKind::LegacySelected,
+                    CandidateSelectionPolicy::StrongOptional,
+                    0.94,
+                    0.94,
+                    AssignmentLabel::Valley,
+                ),
+                candidate_span_with_evidence(
+                    2,
+                    [2, 3],
+                    CandidateCreaseSpanKind::AtomicInterval,
+                    CandidateCreaseSourceKind::LegacySelected,
+                    CandidateSelectionPolicy::StrongOptional,
+                    0.94,
+                    0.94,
+                    AssignmentLabel::Mountain,
+                ),
+                candidate_span_with_evidence(
+                    3,
+                    [3, 0],
+                    CandidateCreaseSpanKind::AtomicInterval,
+                    CandidateCreaseSourceKind::LegacyLowThreshold,
+                    CandidateSelectionPolicy::WeakOptional,
+                    0.50,
+                    0.50,
+                    AssignmentLabel::Unknown,
+                ),
+            ],
+            Vec::new(),
+        )
+    }
+
+    #[test]
+    fn parity_repair_adds_weak_span_that_fixes_odd_vertices() {
+        let graph = parity_square_graph();
+        let options = SelectionOptions {
+            parity_repair: true,
+            ..SelectionOptions::default()
+        };
+        let conflict_map = candidate_conflict_map(&graph);
+        let locked_ids = BTreeSet::new();
+        let state = score_ir_beam_state(&graph, &BTreeSet::from([0, 1, 2]), &options);
+        assert_eq!(state.residuals.odd_degree_vertices, 2);
+        let repaired = parity_repair_ir_state(&graph, state, &conflict_map, &locked_ids, &options);
+        assert!(
+            repaired.selected_span_ids.contains(&3),
+            "parity repair should select the cycle-closing weak span"
+        );
+        assert_eq!(repaired.residuals.odd_degree_vertices, 0);
+    }
+
+    #[test]
+    fn parity_repair_disabled_leaves_state_unchanged() {
+        let graph = parity_square_graph();
+        let options = SelectionOptions {
+            parity_repair: false,
+            ..SelectionOptions::default()
+        };
+        let conflict_map = candidate_conflict_map(&graph);
+        let locked_ids = BTreeSet::new();
+        let state = score_ir_beam_state(&graph, &BTreeSet::from([0, 1, 2]), &options);
+        let repaired =
+            parity_repair_ir_state(&graph, state.clone(), &conflict_map, &locked_ids, &options);
+        assert_eq!(repaired.selected_span_ids, state.selected_span_ids);
     }
 
     #[allow(clippy::too_many_arguments)]

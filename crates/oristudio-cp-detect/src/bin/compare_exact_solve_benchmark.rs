@@ -14,6 +14,10 @@ use oristudio_cp_compiler::{
     ExactSolvedGraphStatus, LegacyCandidateAdapter, LegacyCandidateAdapterOptions, Point2,
     SelectedGraph, solve_exact,
 };
+use oristudio_cp_detect::candidate_generation::{
+    CandidateGenerationContext, CandidateGenerationOptions, CandidateGenerationStrategyName,
+    generate_candidate_graph,
+};
 use oristudio_cp_detect::decode::{DecodeConfig, DenseOutputs, decode_dense_outputs};
 use oristudio_cp_eval::{
     EvalAssignment, EvalBoundaryRole, EvalEdge, EvalGraph, EvalPoint, StrictTopologyAggregate,
@@ -78,6 +82,12 @@ struct Args {
     match_tolerance_px: f64,
     strict_vertex_tolerance_px: f64,
     skip_flat_folder: bool,
+    skip_exact_solve: bool,
+    junction_first_merge_radius_px: Option<f64>,
+    junction_first_corridor_px: Option<f64>,
+    junction_first_endpoint_margin_px: Option<f64>,
+    junction_first_min_span_px: Option<f64>,
+    parity_repair: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]
@@ -446,13 +456,15 @@ struct SegmentPx {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse()?;
-    if args.candidate_source != "legacy" {
-        return Err(format!(
-            "candidate source {:?} is not supported by this benchmark yet",
+    let strategy = if args.candidate_source == "legacy" {
+        None
+    } else {
+        Some(
             args.candidate_source
+                .parse::<CandidateGenerationStrategyName>()
+                .map_err(|error| format!("unsupported candidate source: {error}"))?,
         )
-        .into());
-    }
+    };
 
     let started = Instant::now();
     let manifest_path = args.dense_manifest.canonicalize()?;
@@ -483,29 +495,65 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let read_logits_seconds = read_logits_started.elapsed().as_secs_f64();
 
         let legacy_decode_started = Instant::now();
-        let legacy_program = decode_program(sample, &logits, threshold)?;
-        let legacy_decode_seconds = legacy_decode_started.elapsed().as_secs_f64();
-
-        let weak_decode_started = Instant::now();
-        let weak_program = if low_threshold < threshold {
-            Some(decode_program(sample, &logits, low_threshold)?)
-        } else {
-            None
+        let candidate_graph = match strategy {
+            None => {
+                let legacy_program = decode_program(sample, &logits, threshold)?;
+                let weak_program = if low_threshold < threshold {
+                    Some(decode_program(sample, &logits, low_threshold)?)
+                } else {
+                    None
+                };
+                LegacyCandidateAdapter::from_programs(
+                    &legacy_program,
+                    weak_program.as_ref(),
+                    legacy_adapter_options(sample.image_size),
+                )
+            }
+            Some(name) => {
+                let mut generation_options = CandidateGenerationOptions {
+                    strategy: name,
+                    ..CandidateGenerationOptions::default()
+                };
+                if let Some(value) = args.junction_first_merge_radius_px {
+                    generation_options.junction_first_v1.vertex_merge_radius_px = value;
+                }
+                if let Some(value) = args.junction_first_corridor_px {
+                    generation_options
+                        .junction_first_v1
+                        .intermediate_corridor_px = value;
+                }
+                if let Some(value) = args.junction_first_endpoint_margin_px {
+                    generation_options.junction_first_v1.endpoint_margin_px = value;
+                }
+                if let Some(value) = args.junction_first_min_span_px {
+                    generation_options.junction_first_v1.min_span_length_px = value;
+                }
+                let generation = generate_candidate_graph(
+                    CandidateGenerationContext {
+                        outputs: logits.as_dense_outputs(),
+                        config: DecodeConfig {
+                            image_size: sample.image_size,
+                            threshold,
+                            ..DecodeConfig::default()
+                        },
+                    },
+                    generation_options,
+                )?;
+                generation.candidate_graph
+            }
         };
-        let weak_decode_seconds = weak_decode_started.elapsed().as_secs_f64();
-
-        let candidate_adapter_started = Instant::now();
-        let candidate_graph = LegacyCandidateAdapter::from_programs(
-            &legacy_program,
-            weak_program.as_ref(),
-            legacy_adapter_options(sample.image_size),
-        );
-        let candidate_adapter_seconds = candidate_adapter_started.elapsed().as_secs_f64();
+        let legacy_decode_seconds = legacy_decode_started.elapsed().as_secs_f64();
+        let weak_decode_seconds = 0.0;
+        let candidate_adapter_seconds = 0.0;
 
         let selection_started = Instant::now();
+        let mut selection_options = SelectionOptions::default();
+        if let Some(parity_repair) = args.parity_repair {
+            selection_options.parity_repair = parity_repair;
+        }
         let selection = select_candidate_graph_beam_from_ir(
             &candidate_graph,
-            SelectionOptions::default(),
+            selection_options,
             Default::default(),
         );
         let selection_seconds = selection_started.elapsed().as_secs_f64();
@@ -529,11 +577,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }))?
         );
         let exact_started = Instant::now();
-        let mut exact_options = ExactSolveOptions::default();
-        if let Some(patience) = args.exact_patience {
-            exact_options.patience = patience;
-        }
-        let exact_solved = solve_exact(&exact_input, exact_options);
+        let exact_solved = if args.skip_exact_solve {
+            None
+        } else {
+            let mut exact_options = ExactSolveOptions::default();
+            if let Some(patience) = args.exact_patience {
+                exact_options.patience = patience;
+            }
+            Some(solve_exact(&exact_input, exact_options))
+        };
         let exact_seconds = exact_started.elapsed().as_secs_f64();
         eprintln!(
             "{}",
@@ -541,7 +593,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "id": sample.id,
                 "event": "finish_exact_solve",
                 "seconds": round3(exact_seconds),
-                "status": exact_status_label(exact_solved.status),
+                "status": exact_solved
+                    .as_ref()
+                    .map_or("skipped", |exact| exact_status_label(exact.status)),
             }))?
         );
 
@@ -570,8 +624,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .with_flat_folder_boundary_hint(flat_folder_boundary_hint.clone());
         let selected_doc = GraphDoc::from_exact_input(&exact_input)
             .with_flat_folder_boundary_hint(flat_folder_boundary_hint.clone());
-        let exact_doc = GraphDoc::from_exact_solve(&exact_input, &exact_solved)
-            .with_flat_folder_boundary_hint(flat_folder_boundary_hint);
+        let exact_doc = exact_solved.as_ref().map(|exact| {
+            GraphDoc::from_exact_solve(&exact_input, exact)
+                .with_flat_folder_boundary_hint(flat_folder_boundary_hint.clone())
+        });
         let gt_segments = gt.segments();
         let gt_eval_graph = gt.eval_graph();
 
@@ -593,16 +649,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             args.strict_vertex_tolerance_px,
             verify_options,
         )?;
-        let exact_output = output_metrics(
-            &exact_doc,
-            &gt_segments,
-            &gt_eval_graph,
-            sample.image_size,
-            args.match_tolerance_px,
-            args.strict_vertex_tolerance_px,
-            verify_options,
-        )?;
-        let exact_summary = exact_solve_summary(&exact_solved, exact_seconds);
+        let exact_output = match &exact_doc {
+            Some(doc) => output_metrics(
+                doc,
+                &gt_segments,
+                &gt_eval_graph,
+                sample.image_size,
+                args.match_tolerance_px,
+                args.strict_vertex_tolerance_px,
+                verify_options,
+            )?,
+            None => selected.clone(),
+        };
+        let exact_summary = match &exact_solved {
+            Some(exact) => exact_solve_summary(exact, exact_seconds),
+            None => skipped_exact_solve_summary(),
+        };
         let metrics_seconds = metrics_started.elapsed().as_secs_f64();
         let selected_weak_spans = selection
             .selected_spans
@@ -726,6 +788,12 @@ impl Args {
         let mut match_tolerance_px = 12.0;
         let mut strict_vertex_tolerance_px = 2.0;
         let mut skip_flat_folder = false;
+        let mut skip_exact_solve = false;
+        let mut junction_first_merge_radius_px = None;
+        let mut junction_first_corridor_px = None;
+        let mut junction_first_endpoint_margin_px = None;
+        let mut junction_first_min_span_px = None;
+        let mut parity_repair = None;
         let mut iter = env::args().skip(1);
         while let Some(arg) = iter.next() {
             match arg.as_str() {
@@ -756,6 +824,23 @@ impl Args {
                         required_value(&mut iter, "--strict-vertex-tolerance-px")?.parse()?;
                 }
                 "--skip-flat-folder" => skip_flat_folder = true,
+                "--skip-exact-solve" => skip_exact_solve = true,
+                "--junction-first-merge-radius-px" => {
+                    junction_first_merge_radius_px =
+                        Some(required_value(&mut iter, &arg)?.parse()?);
+                }
+                "--junction-first-corridor-px" => {
+                    junction_first_corridor_px = Some(required_value(&mut iter, &arg)?.parse()?);
+                }
+                "--junction-first-endpoint-margin-px" => {
+                    junction_first_endpoint_margin_px =
+                        Some(required_value(&mut iter, &arg)?.parse()?);
+                }
+                "--junction-first-min-span-px" => {
+                    junction_first_min_span_px = Some(required_value(&mut iter, &arg)?.parse()?);
+                }
+                "--parity-repair" => parity_repair = Some(true),
+                "--no-parity-repair" => parity_repair = Some(false),
                 "--help" | "-h" => {
                     print_usage();
                     std::process::exit(0);
@@ -777,6 +862,12 @@ impl Args {
             match_tolerance_px,
             strict_vertex_tolerance_px,
             skip_flat_folder,
+            skip_exact_solve,
+            junction_first_merge_radius_px,
+            junction_first_corridor_px,
+            junction_first_endpoint_margin_px,
+            junction_first_min_span_px,
+            parity_repair,
         })
     }
 }
@@ -1147,6 +1238,24 @@ fn verification_metrics(
             .map(|classification| format!("{classification:?}"))
             .collect(),
     })
+}
+
+fn skipped_exact_solve_summary() -> ExactSolveSummary {
+    ExactSolveSummary {
+        status: "skipped".to_owned(),
+        seconds: 0.0,
+        accepted: None,
+        rejection_reasons: Vec::new(),
+        initial_objective: None,
+        final_objective: None,
+        candidate_objective: None,
+        max_vertex_movement: None,
+        attempted_max_vertex_movement: None,
+        moved_vertices: 0,
+        attempted_moved_vertices: 0,
+        evaluations: None,
+        trace: ExactSolveTraceSummary::default(),
+    }
 }
 
 fn exact_solve_summary(exact: &ExactSolvedGraph, seconds: f64) -> ExactSolveSummary {

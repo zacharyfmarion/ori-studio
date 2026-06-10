@@ -1592,12 +1592,13 @@ fn evidence_config_from_decode(config: &DecodeConfig) -> EvidenceExtractionConfi
 fn candidate_strategy_from_query(
     query: &BTreeMap<String, String>,
 ) -> Result<CandidateGenerationStrategyName> {
+    let default_strategy = CandidateGenerationStrategyName::default();
     let value = query
         .get("strategy")
         .or_else(|| query.get("candidate_strategy"))
         .or_else(|| query.get("candidate_source"))
         .map(String::as_str)
-        .unwrap_or("legacy-threshold");
+        .unwrap_or_else(|| default_strategy.id());
     value
         .parse::<CandidateGenerationStrategyName>()
         .with_context(|| format!("parse candidate generation strategy {value:?}"))

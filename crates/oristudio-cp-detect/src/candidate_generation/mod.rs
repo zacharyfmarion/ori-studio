@@ -2,6 +2,7 @@ use std::fmt;
 use std::str::FromStr;
 
 mod junction_carrier_v1;
+mod junction_first_v1;
 mod legacy_topology_v2;
 
 use crate::legacy_decode::{DecodeConfig, DecodeError, DenseOutputs};
@@ -12,13 +13,18 @@ use oristudio_cp_compiler::{
 pub const LEGACY_THRESHOLD_STRATEGY_ID: &str = "legacy-threshold";
 pub const LEGACY_TOPOLOGY_V2_STRATEGY_ID: &str = "legacy-topology-v2";
 pub const JUNCTION_CARRIER_V1_STRATEGY_ID: &str = "junction-carrier-v1";
+pub const JUNCTION_FIRST_V1_STRATEGY_ID: &str = "junction-first-v1";
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum CandidateGenerationStrategyName {
-    #[default]
     LegacyThreshold,
     LegacyTopologyV2,
     JunctionCarrierV1,
+    /// Production default: adjacency-constrained dense strategy. On
+    /// clean-1024-s15 strict topology it beats legacy-threshold on every
+    /// metric (edge F1 0.942 vs 0.902 with parity repair enabled).
+    #[default]
+    JunctionFirstV1,
 }
 
 impl CandidateGenerationStrategyName {
@@ -27,6 +33,7 @@ impl CandidateGenerationStrategyName {
             Self::LegacyThreshold => LEGACY_THRESHOLD_STRATEGY_ID,
             Self::LegacyTopologyV2 => LEGACY_TOPOLOGY_V2_STRATEGY_ID,
             Self::JunctionCarrierV1 => JUNCTION_CARRIER_V1_STRATEGY_ID,
+            Self::JunctionFirstV1 => JUNCTION_FIRST_V1_STRATEGY_ID,
         }
     }
 }
@@ -47,6 +54,7 @@ impl FromStr for CandidateGenerationStrategyName {
             }
             LEGACY_TOPOLOGY_V2_STRATEGY_ID | "legacy_topology_v2" => Ok(Self::LegacyTopologyV2),
             JUNCTION_CARRIER_V1_STRATEGY_ID | "junction_carrier_v1" => Ok(Self::JunctionCarrierV1),
+            JUNCTION_FIRST_V1_STRATEGY_ID | "junction_first_v1" => Ok(Self::JunctionFirstV1),
             other => Err(CandidateGenerationStrategyParseError {
                 value: other.to_owned(),
             }),
@@ -66,23 +74,13 @@ pub struct CandidateGenerationContext<'a> {
     pub config: DecodeConfig,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub struct CandidateGenerationOptions {
     pub strategy: CandidateGenerationStrategyName,
     pub legacy_threshold: LegacyThresholdStrategyOptions,
     pub legacy_topology_v2: LegacyTopologyV2StrategyOptions,
     pub junction_carrier_v1: JunctionCarrierV1StrategyOptions,
-}
-
-impl Default for CandidateGenerationOptions {
-    fn default() -> Self {
-        Self {
-            strategy: CandidateGenerationStrategyName::LegacyThreshold,
-            legacy_threshold: LegacyThresholdStrategyOptions::default(),
-            legacy_topology_v2: LegacyTopologyV2StrategyOptions::default(),
-            junction_carrier_v1: JunctionCarrierV1StrategyOptions::default(),
-        }
-    }
+    pub junction_first_v1: JunctionFirstV1StrategyOptions,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -164,6 +162,51 @@ impl Default for JunctionCarrierV1StrategyOptions {
             max_vertices_per_carrier: 120,
             max_spans_per_carrier: 360,
             max_total_spans: 8000,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct JunctionFirstV1StrategyOptions {
+    /// Vertex merge radius forwarded to dense evidence vertex building.
+    pub vertex_merge_radius_px: f64,
+    /// Minimum proposed span length.
+    pub min_span_length_px: f64,
+    /// A pair (A, B) is rejected when a third vertex sits within this
+    /// perpendicular corridor of segment A-B (the adjacency constraint).
+    pub intermediate_corridor_px: f64,
+    /// Projection margin at both segment ends inside which a third vertex does
+    /// not count as intermediate (it is effectively an endpoint duplicate).
+    pub endpoint_margin_px: f64,
+    /// Cheap preflight: max line probability over mid/quarter samples must
+    /// reach this before full segment scoring runs.
+    pub preflight_min_line_support: f64,
+    pub min_span_line_support: f64,
+    pub strong_span_line_support: f64,
+    pub min_span_line_min_support: f64,
+    pub max_non_crease_support: f64,
+    /// Near-collinear overlap conflict thresholds.
+    pub collinear_conflict_angle_degrees: f64,
+    pub collinear_conflict_distance_px: f64,
+}
+
+impl Default for JunctionFirstV1StrategyOptions {
+    fn default() -> Self {
+        // Tuned on clean-1024-s15 strict topology (2026-06-09): merge radius 3
+        // and min span 3 with a 2px endpoint margin preserve close vertex
+        // pairs and tiny creases that the previous 6/8/4 defaults destroyed.
+        Self {
+            vertex_merge_radius_px: 3.0,
+            min_span_length_px: 3.0,
+            intermediate_corridor_px: 3.0,
+            endpoint_margin_px: 2.0,
+            preflight_min_line_support: 0.25,
+            min_span_line_support: 0.42,
+            strong_span_line_support: 0.62,
+            min_span_line_min_support: 0.08,
+            max_non_crease_support: 0.72,
+            collinear_conflict_angle_degrees: 2.0,
+            collinear_conflict_distance_px: 3.0,
         }
     }
 }
@@ -344,6 +387,41 @@ impl CandidateGenerationStrategy for JunctionCarrierV1Strategy {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct JunctionFirstV1Strategy {
+    options: JunctionFirstV1StrategyOptions,
+}
+
+impl JunctionFirstV1Strategy {
+    pub const fn new(options: JunctionFirstV1StrategyOptions) -> Self {
+        Self { options }
+    }
+}
+
+impl CandidateGenerationStrategy for JunctionFirstV1Strategy {
+    fn name(&self) -> CandidateGenerationStrategyName {
+        CandidateGenerationStrategyName::JunctionFirstV1
+    }
+
+    fn generate(
+        &self,
+        ctx: CandidateGenerationContext<'_>,
+    ) -> Result<CandidateGenerationOutput, DecodeError> {
+        let threshold = ctx.config.threshold;
+        let candidate_graph =
+            junction_first_v1::generate_candidate_graph(ctx.outputs, &ctx.config, self.options)?;
+        Ok(CandidateGenerationOutput {
+            strategy: self.name(),
+            threshold,
+            low_threshold: threshold,
+            primary_program: empty_program(ctx.config.image_size),
+            weak_program: None,
+            candidate_graph,
+            diagnostics: CandidateGenerationDiagnostics::default(),
+        })
+    }
+}
+
 pub fn generate_candidate_graph(
     ctx: CandidateGenerationContext<'_>,
     options: CandidateGenerationOptions,
@@ -361,6 +439,9 @@ pub fn generate_candidate_graph(
         }
         CandidateGenerationStrategyName::JunctionCarrierV1 => {
             JunctionCarrierV1Strategy::new(options.junction_carrier_v1).generate(ctx)
+        }
+        CandidateGenerationStrategyName::JunctionFirstV1 => {
+            JunctionFirstV1Strategy::new(options.junction_first_v1).generate(ctx)
         }
     }
 }
@@ -449,6 +530,12 @@ mod tests {
                 .parse::<CandidateGenerationStrategyName>()
                 .expect("strategy"),
             CandidateGenerationStrategyName::JunctionCarrierV1
+        );
+        assert_eq!(
+            "junction-first-v1"
+                .parse::<CandidateGenerationStrategyName>()
+                .expect("strategy"),
+            CandidateGenerationStrategyName::JunctionFirstV1
         );
     }
 
