@@ -1,5 +1,38 @@
 # Browser CP Detector Assets
 
+## Fresh checkout prerequisites
+
+The browser-driven scripts in this directory (`run-browser-dense-cache.mjs`,
+`run-browser-correctness-fast.mjs`, ...) need three things a fresh
+checkout/worktree of this repo does NOT have, because they are gitignored or
+build artifacts. All three failure modes used to present as a silent hang;
+`run-browser-dense-cache.mjs` now fails fast with a pointer here.
+
+1. **Node dependencies.** Run `npm install` at the repo root. Without it the
+   inference worker 500s inside vite (`Failed to resolve import
+   "onnxruntime-web"`) and inference never resolves. If you install while a
+   vite dev server is already running, restart the server afterwards — vite's
+   dependency re-optimization reloads open pages mid-run (the dense-cache
+   runner re-bootstraps once when it detects this, but a clean restart is
+   saner).
+2. **Model assets.** `apps/web/public/models/cp-detector-*/{model.onnx,
+   manifest.json}` are gitignored. Copy them from a checkout that has them, or
+   re-export from a `create-pattern-detector` checkout with
+   `scripts/cp-detect/export-cpline-onnx.py`. Verify with
+   `node scripts/cp-detect/check-local-model-assets.mjs`.
+3. **Generated wasm modules.** `apps/web/src/generated/` is produced by
+   wasm-pack. Either run the full `npm run dev:web` once (its `predev` builds
+   everything) or build the missing crate directly, e.g.
+   `npm --workspace @treemaker/web run build:oristudio-cp-detect-wasm`.
+
+Then start the dev server the runners point at:
+
+```bash
+cd apps/web && npx vite --host 127.0.0.1 --port 5175
+```
+
+## Model layout
+
 Phase 1 keeps the browser detector model artifact local and ignored. Put the
 exported ONNX model here during development:
 

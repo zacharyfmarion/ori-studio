@@ -30,28 +30,61 @@ async function main() {
   await mkdir(outDir, { recursive: true });
 
   const url = options.url ?? 'http://127.0.0.1:5175/';
+  const manifestUrl = options.manifestUrl ?? '/models/cp-detector-v2/manifest.json';
+  // Fail fast on the common fresh-checkout traps instead of hanging inside
+  // the page (model assets are gitignored; node_modules may be stale). See
+  // scripts/cp-detect/README.md "Fresh checkout prerequisites".
+  await preflight(url, manifestUrl);
+
   const browser = await chromium.launch({ headless: options.headed !== 'true' });
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   page.setDefaultTimeout(Number(options.timeoutMs ?? 300000));
   const browserErrors = [];
-  page.on('pageerror', (error) => browserErrors.push(error.message));
+  // Stream browser-side failures immediately: a failed worker or module load
+  // otherwise turns into a silent hang awaiting an inference that never runs.
+  const recordError = (text) => {
+    browserErrors.push(text);
+    process.stderr.write(`[browser] ${text}\n`);
+  };
+  page.on('pageerror', (error) => recordError(error.message));
   page.on('console', (message) => {
-    if (message.type() === 'error') browserErrors.push(message.text());
+    if (message.type() === 'error') recordError(message.text());
+  });
+  page.on('requestfailed', (request) => recordError(`request failed: ${request.url()}`));
+  page.on('response', (response) => {
+    if (response.status() >= 400) recordError(`HTTP ${response.status()}: ${response.url()}`);
   });
 
-  const samples = [];
-  try {
+  const bootstrap = async () => {
     await page.goto(url, { waitUntil: 'networkidle' });
     await page.evaluate(async () => {
       const runtime = await import('/src/store/workspaceStore/cpDetectRuntime.ts');
       window.__cpDetectClient = await runtime.getCpDetectClient();
     });
+  };
+
+  const samples = [];
+  try {
+    await bootstrap();
 
     for (const sample of pack.samples.slice(0, limitOrAll(options.limit))) {
       const sampleStart = performance.now();
       const inputPath = resolve(packRoot, sample.input_png);
       const imageBase64 = await readFile(inputPath, 'base64');
-      const dense = await runSample(page, sample, imageBase64, options);
+      let dense;
+      try {
+        dense = await runSample(page, sample, imageBase64, options);
+      } catch (error) {
+        // Vite dependency re-optimization reloads the page mid-run and
+        // destroys the evaluation context; re-bootstrap once and retry.
+        if (`${error.message}`.includes('Execution context was destroyed')) {
+          process.stderr.write('page reloaded (vite re-optimization?); re-bootstrapping\n');
+          await bootstrap();
+          dense = await runSample(page, sample, imageBase64, options);
+        } else {
+          throw error;
+        }
+      }
       const sampleDirName = safePathSegment(sample.id);
       const sampleDir = resolve(outDir, sampleDirName);
       await mkdir(sampleDir, { recursive: true });
@@ -170,6 +203,44 @@ async function runSample(page, sample, imageBase64, options) {
       outputKeys: OUTPUT_KEYS,
     }
   );
+}
+
+async function preflight(url, manifestUrl) {
+  const checks = [
+    [new URL(manifestUrl, url).href, 'model manifest (model assets are gitignored — copy them from a checkout that has them or re-export with scripts/cp-detect/export-cpline-onnx.py)'],
+  ];
+  let manifest;
+  for (const [target, hint] of checks) {
+    let response;
+    try {
+      response = await fetch(target);
+    } catch (error) {
+      throw new Error(`dev server not reachable at ${target}: ${error.message}. Start it with: cd apps/web && npx vite --host 127.0.0.1 --port 5175`);
+    }
+    if (!response.ok) {
+      throw new Error(`preflight ${response.status} for ${target} — missing ${hint}`);
+    }
+    // Vite's SPA fallback answers missing files with index.html and a 200.
+    const body = await response.text();
+    try {
+      manifest = JSON.parse(body);
+    } catch {
+      throw new Error(`preflight got non-JSON (SPA fallback?) for ${target} — missing ${hint}`);
+    }
+  }
+  const modelUrl = new URL(manifest.model.url, new URL(manifestUrl, url)).href;
+  const head = await fetch(modelUrl, { method: 'HEAD' });
+  if (!head.ok) {
+    throw new Error(`preflight ${head.status} for ${modelUrl} — model.onnx missing next to its manifest (gitignored asset)`);
+  }
+  // The inference worker imports onnxruntime-web; if node_modules are stale
+  // the worker 500s inside the page and the run hangs without this check.
+  const workerProbe = await fetch(new URL('/src/workers/cpDetectWorker.ts', url).href);
+  if (!workerProbe.ok) {
+    throw new Error(
+      `preflight ${workerProbe.status} for cpDetectWorker.ts — vite cannot serve the inference worker. Usually missing npm dependencies (run: npm install). Check the vite log for the unresolved import.`
+    );
+  }
 }
 
 function safePathSegment(value) {
