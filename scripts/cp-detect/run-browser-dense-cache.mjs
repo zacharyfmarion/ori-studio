@@ -30,7 +30,7 @@ async function main() {
   await mkdir(outDir, { recursive: true });
 
   const url = options.url ?? 'http://127.0.0.1:5175/';
-  const manifestUrl = options.manifestUrl ?? '/models/cp-detector-v2/manifest.json';
+  const manifestUrl = options.manifestUrl ?? '/models/cp-detector-v3/manifest.json';
   // Fail fast on the common fresh-checkout traps instead of hanging inside
   // the page (model assets are gitignored; node_modules may be stale). See
   // scripts/cp-detect/README.md "Fresh checkout prerequisites".
@@ -132,7 +132,7 @@ async function main() {
     generated_at: new Date().toISOString(),
     pack: packPath,
     browser_url: url,
-    manifest_url: options.manifestUrl ?? '/models/cp-detector-v2/manifest.json',
+    manifest_url: options.manifestUrl ?? '/models/cp-detector-v3/manifest.json',
     model_url: options.modelUrl ?? null,
     sample_count: samples.length,
     output_keys: OUTPUT_KEYS,
@@ -196,7 +196,7 @@ async function runSample(page, sample, imageBase64, options) {
     {
       base64: imageBase64,
       imageSize: Number(options.imageSize ?? 1024),
-      manifestUrl: options.manifestUrl ?? '/models/cp-detector-v2/manifest.json',
+      manifestUrl: options.manifestUrl ?? '/models/cp-detector-v3/manifest.json',
       modelUrl: options.modelUrl ?? null,
       threshold: options.threshold === undefined ? null : Number(options.threshold),
       executionProvider: options.executionProvider ?? null,

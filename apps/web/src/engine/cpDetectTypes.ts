@@ -35,6 +35,12 @@ export interface CpDetectModelManifest {
     image_size: number;
     threshold: number;
     preprocessing?: 'rgb_chw_float32_0_1' | string;
+    /**
+     * Offset normalization radius (px) of the model's junction_offset head.
+     * Radius-trained models (close-pair recipe) decode junctions via
+     * offset-vote clustering; absent/0 means legacy sub-pixel offsets.
+     */
+    junction_offset_radius_px?: number;
   };
   outputs: CpDetectOutputTensorNames;
 }

@@ -302,12 +302,18 @@ fn legacy_candidate_exact_solve(
     config: DecodeConfig,
 ) -> Result<DecodedFold, DecodeError> {
     let compiler_started = StageTimer::start();
+    let mut generation_options = crate::candidate_generation::CandidateGenerationOptions::default();
+    // The model manifest declares the offset head's normalization radius;
+    // radius-trained models decode junctions via offset-vote clustering.
+    generation_options
+        .junction_first_v1
+        .junction_offset_cluster_radius_px = config.junction_offset_cluster_radius_px as f64;
     let generation = crate::candidate_generation::generate_candidate_graph(
         crate::candidate_generation::CandidateGenerationContext {
             outputs,
             config: config.clone(),
         },
-        crate::candidate_generation::CandidateGenerationOptions::default(),
+        generation_options,
     )?;
     let weak_threshold = generation.low_threshold;
     let candidate_graph = generation.candidate_graph;

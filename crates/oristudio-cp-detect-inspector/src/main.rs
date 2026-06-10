@@ -886,6 +886,12 @@ fn stage5_example(
         .and_then(|value| value.parse::<f64>().ok())
         .unwrap_or(DEFAULT_WEAK_ENDPOINT_SNAP_RADIUS_PX)
         .clamp(0.0, 128.0);
+    // Offset-vote junction decoding for radius-trained models, e.g.
+    // ?offset_cluster_radius_px=3 with the close-pair dense caches.
+    let offset_cluster_radius_px = query
+        .get("offset_cluster_radius_px")
+        .and_then(|value| value.parse::<f64>().ok())
+        .unwrap_or(0.0);
     let stage2 = stage2_example(state, sample_id, query)?;
     let exact_options = ExactProbeOptions::default();
     let outputs = read_dense_outputs(state, sample)?;
@@ -898,18 +904,24 @@ fn stage5_example(
                 ..DecodeConfig::default()
             },
         },
-        CandidateGenerationOptions {
-            strategy: candidate_strategy,
-            legacy_threshold: LegacyThresholdStrategyOptions {
-                low_threshold: Some(legacy_low_threshold),
-                weak_endpoint_snap_radius_px: Some(legacy_snap_radius_px),
-                weak_boundary_endpoint_snap_radius_px: Some(10.0),
-                weak_carrier_incidence_tolerance_px: Some(6.0),
-                weak_span_split_tolerance_px: Some(4.0),
-                weak_min_split_length_px: Some(3.0),
-                ..LegacyThresholdStrategyOptions::default()
-            },
-            ..CandidateGenerationOptions::default()
+        {
+            let mut generation_options = CandidateGenerationOptions {
+                strategy: candidate_strategy,
+                legacy_threshold: LegacyThresholdStrategyOptions {
+                    low_threshold: Some(legacy_low_threshold),
+                    weak_endpoint_snap_radius_px: Some(legacy_snap_radius_px),
+                    weak_boundary_endpoint_snap_radius_px: Some(10.0),
+                    weak_carrier_incidence_tolerance_px: Some(6.0),
+                    weak_span_split_tolerance_px: Some(4.0),
+                    weak_min_split_length_px: Some(3.0),
+                    ..LegacyThresholdStrategyOptions::default()
+                },
+                ..CandidateGenerationOptions::default()
+            };
+            generation_options
+                .junction_first_v1
+                .junction_offset_cluster_radius_px = offset_cluster_radius_px;
+            generation_options
         },
     )
     .with_context(|| {
@@ -1586,6 +1598,7 @@ fn evidence_config_from_decode(config: &DecodeConfig) -> EvidenceExtractionConfi
         max_junction_primitives: config.max_intersection_lines.max(240),
         max_boundary_contact_primitives: config.max_intersection_lines.max(240),
         primitive_nms_radius_px: config.junction_snap_px.max(2.0),
+        junction_offset_cluster_radius_px: config.junction_offset_cluster_radius_px,
     }
 }
 

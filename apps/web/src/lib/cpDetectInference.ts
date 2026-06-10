@@ -7,7 +7,7 @@ import type {
   CpDetectTensorData,
 } from '../engine/cpDetectTypes';
 
-export const DEFAULT_CP_DETECT_MODEL_MANIFEST_URL = '/models/cp-detector-v2/manifest.json';
+export const DEFAULT_CP_DETECT_MODEL_MANIFEST_URL = '/models/cp-detector-v3/manifest.json';
 
 export const CP_DETECT_OUTPUT_KEYS = [
   'line_logits',

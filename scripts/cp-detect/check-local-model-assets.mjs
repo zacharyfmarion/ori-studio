@@ -4,7 +4,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const root = resolve(import.meta.dirname, '../..');
-const modelDir = resolve(root, 'apps/web/public/models/cp-detector-v2');
+const modelDir = resolve(root, 'apps/web/public/models/cp-detector-v3');
 const manifestPath = resolve(modelDir, 'manifest.json');
 
 function fail(message) {
