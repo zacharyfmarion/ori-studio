@@ -1052,7 +1052,11 @@ pub(super) struct SpanKey {
     b: (i64, i64),
 }
 
-pub(super) fn span_endpoint_key(graph: &CandidateGraph, endpoints: [usize; 2], tolerance: f64) -> SpanKey {
+pub(super) fn span_endpoint_key(
+    graph: &CandidateGraph,
+    endpoints: [usize; 2],
+    tolerance: f64,
+) -> SpanKey {
     let scale = (1.0 / tolerance.max(1e-9)).round();
     let mut points = endpoints.map(|id| {
         let point = graph.vertices[id].point;

@@ -518,7 +518,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     generation_options.junction_first_v1.vertex_merge_radius_px = value;
                 }
                 if let Some(value) = args.junction_first_corridor_px {
-                    generation_options.junction_first_v1.intermediate_corridor_px = value;
+                    generation_options
+                        .junction_first_v1
+                        .intermediate_corridor_px = value;
                 }
                 if let Some(value) = args.junction_first_endpoint_margin_px {
                     generation_options.junction_first_v1.endpoint_margin_px = value;

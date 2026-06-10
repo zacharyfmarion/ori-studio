@@ -5144,13 +5144,8 @@ mod tests {
         let conflict_map = candidate_conflict_map(&graph);
         let locked_ids = BTreeSet::new();
         let state = score_ir_beam_state(&graph, &BTreeSet::from([0, 1, 2]), &options);
-        let repaired = parity_repair_ir_state(
-            &graph,
-            state.clone(),
-            &conflict_map,
-            &locked_ids,
-            &options,
-        );
+        let repaired =
+            parity_repair_ir_state(&graph, state.clone(), &conflict_map, &locked_ids, &options);
         assert_eq!(repaired.selected_span_ids, state.selected_span_ids);
     }
 

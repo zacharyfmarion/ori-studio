@@ -130,7 +130,13 @@ fn add_adjacent_pair_spans(
             if has_intermediate_vertex(vertices, i, j, corridor, endpoint_margin) {
                 continue;
             }
-            let stats = sample_span_stats(a, b, evidence, image_size, carrier_equivalent_options(options));
+            let stats = sample_span_stats(
+                a,
+                b,
+                evidence,
+                image_size,
+                carrier_equivalent_options(options),
+            );
             if !pair_supported(stats, options) {
                 continue;
             }
@@ -225,8 +231,7 @@ fn span_from_adjacent_pair(
     stats: SpanStats,
     options: JunctionFirstV1StrategyOptions,
 ) -> CandidateCreaseSpan {
-    let direction =
-        normalized(Point2::new(b.x - a.x, b.y - a.y)).unwrap_or(Point2::new(1.0, 0.0));
+    let direction = normalized(Point2::new(b.x - a.x, b.y - a.y)).unwrap_or(Point2::new(1.0, 0.0));
     let mut normal = Point2::new(-direction.y, direction.x);
     let mut rho = normal.x * a.x + normal.y * a.y;
     if rho < 0.0 {
@@ -326,13 +331,7 @@ fn generate_conflicts(
                     hard: true,
                     reason: "candidate spans cross without a shared vertex".to_owned(),
                 });
-            } else if collinear_overlap(
-                graph,
-                left,
-                right,
-                collinear_angle,
-                collinear_distance,
-            ) {
+            } else if collinear_overlap(graph, left, right, collinear_angle, collinear_distance) {
                 conflicts.push(CandidateConflict {
                     id: conflicts.len(),
                     kind: CandidateConflictKind::SharedCarrierAlternative,
@@ -397,8 +396,7 @@ fn collinear_overlap(
     }
     let (q, q2) = span_segment(graph, right);
     let line_distance = |point: Point2| {
-        (point.x * left.carrier.normal.x + point.y * left.carrier.normal.y - left.carrier.rho)
-            .abs()
+        (point.x * left.carrier.normal.x + point.y * left.carrier.normal.y - left.carrier.rho).abs()
     };
     if line_distance(q) > distance_tolerance || line_distance(q2) > distance_tolerance {
         return false;
@@ -425,10 +423,10 @@ mod tests {
     use super::super::junction_carrier_v1::unit_from_px;
     use super::*;
     use crate::evidence_extract::{DenseEvidence, EvidenceExtractionReport};
+    use oristudio_cp_compiler::CandidateVertexKind;
     use oristudio_cp_compiler::candidate_graph::{
         BoundaryModel, BoundaryReconstructionPolicy, CandidateVertexMovementPolicy,
     };
-    use oristudio_cp_compiler::CandidateVertexKind;
 
     const SIZE: u32 = 128;
 
@@ -639,13 +637,11 @@ mod tests {
             test_span(1, [2, 3], vertices[2].point, vertices[3].point),
         ];
         let graph = graph_with_spans(vertices, spans);
-        let conflicts =
-            generate_conflicts(&graph, SIZE, JunctionFirstV1StrategyOptions::default());
+        let conflicts = generate_conflicts(&graph, SIZE, JunctionFirstV1StrategyOptions::default());
         assert!(
-            conflicts
-                .iter()
-                .any(|conflict| conflict.kind == CandidateConflictKind::UnsupportedCrossing
-                    && conflict.hard),
+            conflicts.iter().any(|conflict| conflict.kind
+                == CandidateConflictKind::UnsupportedCrossing
+                && conflict.hard),
             "crossing spans must produce a hard UnsupportedCrossing conflict"
         );
     }
@@ -662,8 +658,7 @@ mod tests {
             test_span(1, [0, 2], vertices[0].point, vertices[2].point),
         ];
         let graph = graph_with_spans(vertices, spans);
-        let conflicts =
-            generate_conflicts(&graph, SIZE, JunctionFirstV1StrategyOptions::default());
+        let conflicts = generate_conflicts(&graph, SIZE, JunctionFirstV1StrategyOptions::default());
         assert!(
             conflicts
                 .iter()
@@ -684,14 +679,11 @@ mod tests {
             test_span(1, [2, 3], vertices[2].point, vertices[3].point),
         ];
         let graph = graph_with_spans(vertices, spans);
-        let conflicts =
-            generate_conflicts(&graph, SIZE, JunctionFirstV1StrategyOptions::default());
+        let conflicts = generate_conflicts(&graph, SIZE, JunctionFirstV1StrategyOptions::default());
         assert!(
-            conflicts
-                .iter()
-                .any(|conflict| conflict.kind
-                    == CandidateConflictKind::SharedCarrierAlternative
-                    && conflict.hard),
+            conflicts.iter().any(|conflict| conflict.kind
+                == CandidateConflictKind::SharedCarrierAlternative
+                && conflict.hard),
             "near-collinear overlapping spans must produce a hard conflict"
         );
     }
@@ -713,6 +705,9 @@ mod tests {
             JunctionFirstV1StrategyOptions::default(),
             &mut spans,
         );
-        assert!(spans.is_empty(), "border-aligned pair must be left to locked border spans");
+        assert!(
+            spans.is_empty(),
+            "border-aligned pair must be left to locked border spans"
+        );
     }
 }
