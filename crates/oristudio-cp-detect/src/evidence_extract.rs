@@ -722,8 +722,9 @@ fn boundary_contact_primitive(
     }
 }
 
-const JUNCTION_CLUSTER_BANDWIDTH_PX: f32 = 1.5;
-const JUNCTION_CLUSTER_MIN_SUPPORT: f32 = 2.0;
+const JUNCTION_CLUSTER_BANDWIDTH_PX: f32 = 1.2;
+const JUNCTION_CLUSTER_MERGE_PX: f32 = 1.0;
+const JUNCTION_CLUSTER_MIN_SUPPORT: f32 = 0.8;
 
 /// Offset-vote junction decoding (CenterNet-style).
 ///
@@ -745,12 +746,16 @@ fn offset_cluster_primitives(
     if offset.len() < pixels * 2 {
         return Vec::new();
     }
+    // Sharp sigma-1.5 heatmaps leave few pixels above the junction threshold,
+    // so votes are collected from a lower floor to give each vertex enough
+    // mass (mirrors VOTE_THRESHOLD in the python eval).
+    let vote_threshold = threshold * 0.6;
     let mut votes = Vec::<([f32; 2], f32)>::new();
     for y in 0..size {
         for x in 0..size {
             let idx = y * size + x;
             let weight = probability[idx];
-            if weight < threshold {
+            if weight < vote_threshold {
                 continue;
             }
             let dx = normalized_offset(offset[idx]) * radius_px;
@@ -760,43 +765,74 @@ fn offset_cluster_primitives(
     }
     votes.sort_by(|left, right| right.1.total_cmp(&left.1));
 
-    let mut centers = Vec::<[f32; 2]>::new();
+    // Seed-anchored assignment: votes attach to the nearest fixed seed (the
+    // strongest vote that opened the cluster). A running mean would drift
+    // across the ~5px gap between close-pair modes and swallow the second
+    // vertex.
+    let mut seeds = Vec::<[f32; 2]>::new();
     let mut sums = Vec::<[f32; 2]>::new();
     let mut mass = Vec::<f32>::new();
     let mut peak = Vec::<f32>::new();
     for (vote, weight) in votes {
         let mut assigned = false;
-        for index in 0..centers.len() {
-            let dx = vote[0] - centers[index][0];
-            let dy = vote[1] - centers[index][1];
+        for index in 0..seeds.len() {
+            let dx = vote[0] - seeds[index][0];
+            let dy = vote[1] - seeds[index][1];
             if (dx * dx + dy * dy).sqrt() <= JUNCTION_CLUSTER_BANDWIDTH_PX {
                 sums[index][0] += vote[0] * weight;
                 sums[index][1] += vote[1] * weight;
                 mass[index] += weight;
-                centers[index] = [sums[index][0] / mass[index], sums[index][1] / mass[index]];
                 peak[index] = peak[index].max(weight);
                 assigned = true;
                 break;
             }
         }
         if !assigned {
-            centers.push(vote);
+            seeds.push(vote);
             sums.push([vote[0] * weight, vote[1] * weight]);
             mass.push(weight);
             peak.push(weight);
         }
     }
-    let mut clusters = centers
+    let mut clusters = sums
         .into_iter()
         .zip(mass)
         .zip(peak)
-        .filter(|((_, mass), _)| *mass >= JUNCTION_CLUSTER_MIN_SUPPORT)
-        .map(|((center, mass), peak)| (center, peak, mass))
+        .map(|((sum, mass), peak)| ([sum[0] / mass, sum[1] / mass], peak, mass))
         .collect::<Vec<_>>();
     clusters.sort_by(|left, right| right.2.total_cmp(&left.2));
-    clusters.truncate(max_count);
-    clusters
+
+    // Merge pass: weighted means within the merge radius are duplicates of
+    // the same vertex (seeds quantize to the strongest vote).
+    let mut merged = Vec::<([f32; 2], f32, f32)>::new();
+    for (center, peak, mass) in clusters {
+        let mut absorbed = false;
+        for existing in merged.iter_mut() {
+            let dx = center[0] - existing.0[0];
+            let dy = center[1] - existing.0[1];
+            if (dx * dx + dy * dy).sqrt() <= JUNCTION_CLUSTER_MERGE_PX {
+                let total = existing.2 + mass;
+                existing.0 = [
+                    (existing.0[0] * existing.2 + center[0] * mass) / total,
+                    (existing.0[1] * existing.2 + center[1] * mass) / total,
+                ];
+                existing.1 = existing.1.max(peak);
+                existing.2 = total;
+                absorbed = true;
+                break;
+            }
+        }
+        if !absorbed {
+            merged.push((center, peak, mass));
+        }
+    }
+    let mut kept = merged
         .into_iter()
+        .filter(|(_, _, mass)| *mass >= JUNCTION_CLUSTER_MIN_SUPPORT)
+        .collect::<Vec<_>>();
+    kept.sort_by(|left, right| right.2.total_cmp(&left.2));
+    kept.truncate(max_count);
+    kept.into_iter()
         .map(|(center, peak, _)| (center, peak))
         .collect()
 }
@@ -966,7 +1002,8 @@ mod tests {
                 let dy = y as f32 - mid[1];
                 let value = 0.99 * (-(dx * dx + dy * dy) / (2.0 * 3.33 * 3.33)).exp();
                 probability[idx] = value;
-                if value >= 0.5 {
+                // Offsets are supervised over the whole vote-collection range.
+                if value >= 0.25 {
                     let target =
                         if distance([x as f32, y as f32], a) <= distance([x as f32, y as f32], b) {
                             a
