@@ -302,14 +302,21 @@ fn legacy_candidate_exact_solve(
     config: DecodeConfig,
 ) -> Result<DecodedFold, DecodeError> {
     let compiler_started = StageTimer::start();
+    let mut generation_options = crate::candidate_generation::CandidateGenerationOptions::default();
+    // The model manifest declares the offset head's normalization radius;
+    // radius-trained models decode junctions via offset-vote clustering.
+    generation_options
+        .junction_first_v1
+        .junction_offset_cluster_radius_px = config.junction_offset_cluster_radius_px as f64;
     let generation = crate::candidate_generation::generate_candidate_graph(
         crate::candidate_generation::CandidateGenerationContext {
             outputs,
             config: config.clone(),
         },
-        crate::candidate_generation::CandidateGenerationOptions::default(),
+        generation_options,
     )?;
     let weak_threshold = generation.low_threshold;
+    let candidate_strategy = generation.strategy.id();
     let candidate_graph = generation.candidate_graph;
     let selection = oristudio_cp_compiler::selection::select_candidate_graph_beam_from_ir(
         &candidate_graph,
@@ -365,14 +372,16 @@ fn legacy_candidate_exact_solve(
     let moved_vertices = exact_moved_vertex_count(&exact_solve);
     let compiler_seconds = compiler_started.elapsed_seconds();
     let compiler_report = serde_json::json!({
+        // Historical backend id kept for wire compatibility; the candidate
+        // stage is whatever strategy CandidateGenerationOptions selects
+        // (junction-first-v1 by default since PR #55), not the legacy adapter.
         "backend": "legacy_candidate_exact_solve_v1",
+        "candidate_strategy": candidate_strategy,
         "compiler_architecture": "v2",
-        "mode": "legacy_candidates_beam_selection_exact_solve",
-        "legacy_dependency": true,
+        "mode": "candidate_generation_beam_selection_exact_solve",
+        "legacy_dependency": false,
         "stage_ids": [
-            "legacy_decode",
-            "legacy_low_threshold_decode",
-            "legacy_candidate_adapter",
+            "candidate_generation",
             "candidate_graph_beam_selection",
             "exact_solve",
             "verify_final",
@@ -433,6 +442,10 @@ fn legacy_candidate_exact_solve(
             "decoder_backend".to_owned(),
             serde_json::json!(DecoderBackend::LegacyCandidateExactSolveV1.id()),
         );
+        detector_object.insert(
+            "candidate_strategy".to_owned(),
+            serde_json::json!(candidate_strategy),
+        );
         detector_object.insert("compiler_report".to_owned(), compiler_report.clone());
     }
     let topology_changed =
@@ -442,6 +455,7 @@ fn legacy_candidate_exact_solve(
     let repair_actions = compiler_repair_actions(&compiler_report);
     let quality_report = serde_json::json!({
         "decoder_backend": DecoderBackend::LegacyCandidateExactSolveV1.id(),
+        "candidate_strategy": candidate_strategy,
         "compiler_report": compiler_report
     });
     Ok(DecodedFold {
@@ -1291,15 +1305,23 @@ mod tests {
         );
         assert_eq!(
             compiler.report.quality_report["compiler_report"]["mode"],
-            "legacy_candidates_beam_selection_exact_solve"
+            "candidate_generation_beam_selection_exact_solve"
         );
         assert_eq!(
             compiler.report.quality_report["compiler_report"]["legacy_dependency"],
-            true
+            false
+        );
+        assert_eq!(
+            compiler.report.quality_report["candidate_strategy"],
+            "junction-first-v1"
         );
         assert_eq!(
             compiler_fold["cp_detector"]["decoder_backend"],
             "legacy_candidate_exact_solve_v1"
+        );
+        assert_eq!(
+            compiler_fold["cp_detector"]["candidate_strategy"],
+            "junction-first-v1"
         );
         assert_eq!(compiler_fold["cp_detector"]["source"], "exact_solve");
         assert_eq!(

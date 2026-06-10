@@ -100,17 +100,19 @@ def load_model(detector_repo: Path, checkpoint: Path):
 
     loaded = torch.load(checkpoint, map_location="cpu", weights_only=False)
     config = loaded.get("config", {})
+    offset_radius = float(config.get("junction_offset_radius_px", 0.0) or 0.0)
     model = CPLineNet(
         backbone=config.get("backbone", "hrnet_w18"),
         pretrained=False,
         hidden_channels=int(config.get("hidden_channels", 128)),
         v2_heads=bool(config.get("v2_heads", False)),
+        junction_offset_clamp=1.0 if offset_radius > 0 else 0.5,
     )
     model.load_state_dict(loaded["model_state_dict"])
     model.eval()
     if not model.v2_heads:
         raise SystemExit("Checkpoint does not have CPLineNet-V2 heads")
-    return torch, model
+    return torch, model, offset_radius
 
 
 def export_onnx(torch, model, output_path: Path, image_size: int, opset: int, batchnorm_mode: str) -> None:
@@ -177,7 +179,9 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def write_manifest(args: argparse.Namespace, model_path: Path, digest: str) -> Path:
+def write_manifest(
+    args: argparse.Namespace, model_path: Path, digest: str, offset_radius: float
+) -> Path:
     manifest = {
         "schema": "oristudio/cp-detect-model-manifest/v1",
         "id": args.model_id,
@@ -193,6 +197,10 @@ def write_manifest(args: argparse.Namespace, model_path: Path, digest: str) -> P
             "threshold": args.threshold,
             "preprocessing": "rgb_chw_float32_0_1",
             "batchnorm_mode": args.batchnorm_mode,
+            # CenterNet-style nearest-vertex offset normalization radius; 0
+            # means legacy sub-pixel offsets. Decoders need this to scale
+            # junction_offset votes (see junction_offset_cluster_radius_px).
+            "junction_offset_radius_px": offset_radius,
         },
         "outputs": {name: name for name in OUTPUT_NAMES},
     }
@@ -215,11 +223,11 @@ def main() -> None:
     args.output_dir = args.output_dir.expanduser().resolve()
     model_path = args.output_dir / args.model_filename
 
-    torch, model = load_model(detector_repo, checkpoint)
+    torch, model, offset_radius = load_model(detector_repo, checkpoint)
     export_onnx(torch, model, model_path, args.image_size, args.opset, args.batchnorm_mode)
     check_onnx(model_path)
     digest = sha256(model_path)
-    manifest_path = write_manifest(args, model_path, digest)
+    manifest_path = write_manifest(args, model_path, digest, offset_radius)
 
     print(f"wrote {model_path} ({model_path.stat().st_size} bytes)")
     print(f"wrote {manifest_path}")

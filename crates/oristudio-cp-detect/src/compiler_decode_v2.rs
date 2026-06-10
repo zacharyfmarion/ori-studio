@@ -99,6 +99,7 @@ fn compiler_v2_evidence_config(config: &DecodeConfig) -> EvidenceExtractionConfi
         max_junction_primitives: config.max_intersection_lines.max(240),
         max_boundary_contact_primitives: config.max_intersection_lines.max(240),
         primitive_nms_radius_px: config.junction_snap_px.max(2.0),
+        junction_offset_cluster_radius_px: 0.0,
     }
 }
 

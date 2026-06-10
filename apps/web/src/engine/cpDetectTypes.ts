@@ -35,6 +35,12 @@ export interface CpDetectModelManifest {
     image_size: number;
     threshold: number;
     preprocessing?: 'rgb_chw_float32_0_1' | string;
+    /**
+     * Offset normalization radius (px) of the model's junction_offset head.
+     * Radius-trained models (close-pair recipe) decode junctions via
+     * offset-vote clustering; absent/0 means legacy sub-pixel offsets.
+     */
+    junction_offset_radius_px?: number;
   };
   outputs: CpDetectOutputTensorNames;
 }
@@ -139,7 +145,10 @@ export interface CpDetectDecodeReport {
   interior_edge_count: number;
   warnings: CpDetectDecodeWarning[];
   repair_actions?: unknown[];
-  quality_report?: unknown;
+  quality_report?: {
+    /** Candidate generation strategy id, e.g. junction-first-v1. */
+    candidate_strategy?: string;
+  } & Record<string, unknown>;
 }
 
 export interface CpDetectFoldResult {

@@ -69,7 +69,7 @@ async function main() {
     generated_at: new Date().toISOString(),
     pack: packPath,
     browser_url: url,
-    manifest_url: options.manifestUrl ?? '/models/cp-detector-v2/manifest.json',
+    manifest_url: options.manifestUrl ?? '/models/cp-detector-v3/manifest.json',
     model_url: options.modelUrl ?? null,
     threshold: options.threshold === undefined ? null : Number(options.threshold),
     decoder_backend: options.decoderBackend ?? null,
@@ -113,7 +113,7 @@ async function runSample(page, sample, imageBase64, options) {
       {
         base64: imageBase64,
         imageSize: Number(options.imageSize ?? 1024),
-        manifestUrl: options.manifestUrl ?? '/models/cp-detector-v2/manifest.json',
+        manifestUrl: options.manifestUrl ?? '/models/cp-detector-v3/manifest.json',
         modelUrl: options.modelUrl ?? null,
         threshold: options.threshold === undefined ? null : Number(options.threshold),
         decoderBackend: options.decoderBackend ?? null,

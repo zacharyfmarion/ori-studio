@@ -59,6 +59,12 @@ pub struct DecodeConfig {
     pub planar_split_vertex_distance_px: f32,
     #[serde(default = "default_planar_crossing_support_tie")]
     pub planar_crossing_support_tie: f32,
+    /// Offset normalization radius (px) of the model's junction_offset head
+    /// (CenterNet-style nearest-vertex offsets). Comes from the model
+    /// manifest's `inference.junction_offset_radius_px`; 0 means the legacy
+    /// sub-pixel offset head and keeps local-maxima junction decoding.
+    #[serde(default)]
+    pub junction_offset_cluster_radius_px: f32,
 }
 
 impl Default for DecodeConfig {
@@ -92,6 +98,7 @@ impl Default for DecodeConfig {
             planar_cleanup_max_edges: default_planar_cleanup_max_edges(),
             planar_split_vertex_distance_px: default_planar_split_vertex_distance_px(),
             planar_crossing_support_tie: default_planar_crossing_support_tie(),
+            junction_offset_cluster_radius_px: 0.0,
         }
     }
 }

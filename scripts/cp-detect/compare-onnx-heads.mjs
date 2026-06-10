@@ -137,7 +137,7 @@ function aggregate(results) {
 function parseArgs(args) {
   const options = {
     manifest: null,
-    model: 'apps/web/public/models/cp-detector-v2/model.onnx',
+    model: 'apps/web/public/models/cp-detector-v3/model.onnx',
     out: 'artifacts/cp-detect-parity/onnx-head-parity.json',
     exportManifest: null,
     numThreads: '1',

@@ -51,6 +51,7 @@ fn carrier_equivalent_options(
         vertex_merge_radius_px: options.vertex_merge_radius_px,
         strong_span_line_support: options.strong_span_line_support,
         max_line_endpoint_vertices: 0,
+        junction_offset_cluster_radius_px: options.junction_offset_cluster_radius_px,
         ..JunctionCarrierV1StrategyOptions::default()
     }
 }

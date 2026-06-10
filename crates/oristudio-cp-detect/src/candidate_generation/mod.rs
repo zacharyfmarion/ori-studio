@@ -143,6 +143,9 @@ pub struct JunctionCarrierV1StrategyOptions {
     pub max_vertices_per_carrier: usize,
     pub max_spans_per_carrier: usize,
     pub max_total_spans: usize,
+    /// Offset normalization radius for offset-vote junction decoding.
+    /// 0 keeps legacy local-maxima extraction (see EvidenceExtractionConfig).
+    pub junction_offset_cluster_radius_px: f64,
 }
 
 impl Default for JunctionCarrierV1StrategyOptions {
@@ -162,6 +165,7 @@ impl Default for JunctionCarrierV1StrategyOptions {
             max_vertices_per_carrier: 120,
             max_spans_per_carrier: 360,
             max_total_spans: 8000,
+            junction_offset_cluster_radius_px: 0.0,
         }
     }
 }
@@ -188,6 +192,10 @@ pub struct JunctionFirstV1StrategyOptions {
     /// Near-collinear overlap conflict thresholds.
     pub collinear_conflict_angle_degrees: f64,
     pub collinear_conflict_distance_px: f64,
+    /// Offset normalization radius for offset-vote junction decoding (the
+    /// radius the model's junction_offset head was trained with). 0 keeps the
+    /// legacy local-maxima vertex extraction.
+    pub junction_offset_cluster_radius_px: f64,
 }
 
 impl Default for JunctionFirstV1StrategyOptions {
@@ -207,6 +215,7 @@ impl Default for JunctionFirstV1StrategyOptions {
             max_non_crease_support: 0.72,
             collinear_conflict_angle_degrees: 2.0,
             collinear_conflict_distance_px: 3.0,
+            junction_offset_cluster_radius_px: 0.0,
         }
     }
 }
