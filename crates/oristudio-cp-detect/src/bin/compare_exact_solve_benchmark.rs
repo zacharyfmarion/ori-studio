@@ -87,7 +87,7 @@ struct Args {
     junction_first_corridor_px: Option<f64>,
     junction_first_endpoint_margin_px: Option<f64>,
     junction_first_min_span_px: Option<f64>,
-    parity_repair: bool,
+    parity_repair: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]
@@ -545,10 +545,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let candidate_adapter_seconds = 0.0;
 
         let selection_started = Instant::now();
-        let selection_options = SelectionOptions {
-            parity_repair: args.parity_repair,
-            ..SelectionOptions::default()
-        };
+        let mut selection_options = SelectionOptions::default();
+        if let Some(parity_repair) = args.parity_repair {
+            selection_options.parity_repair = parity_repair;
+        }
         let selection = select_candidate_graph_beam_from_ir(
             &candidate_graph,
             selection_options,
@@ -791,7 +791,7 @@ impl Args {
         let mut junction_first_corridor_px = None;
         let mut junction_first_endpoint_margin_px = None;
         let mut junction_first_min_span_px = None;
-        let mut parity_repair = false;
+        let mut parity_repair = None;
         let mut iter = env::args().skip(1);
         while let Some(arg) = iter.next() {
             match arg.as_str() {
@@ -837,7 +837,8 @@ impl Args {
                 "--junction-first-min-span-px" => {
                     junction_first_min_span_px = Some(required_value(&mut iter, &arg)?.parse()?);
                 }
-                "--parity-repair" => parity_repair = true,
+                "--parity-repair" => parity_repair = Some(true),
+                "--no-parity-repair" => parity_repair = Some(false),
                 "--help" | "-h" => {
                     print_usage();
                     std::process::exit(0);

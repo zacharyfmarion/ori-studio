@@ -17,10 +17,13 @@ pub const JUNCTION_FIRST_V1_STRATEGY_ID: &str = "junction-first-v1";
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum CandidateGenerationStrategyName {
-    #[default]
     LegacyThreshold,
     LegacyTopologyV2,
     JunctionCarrierV1,
+    /// Production default: adjacency-constrained dense strategy. On
+    /// clean-1024-s15 strict topology it beats legacy-threshold on every
+    /// metric (edge F1 0.942 vs 0.902 with parity repair enabled).
+    #[default]
     JunctionFirstV1,
 }
 
@@ -71,25 +74,13 @@ pub struct CandidateGenerationContext<'a> {
     pub config: DecodeConfig,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub struct CandidateGenerationOptions {
     pub strategy: CandidateGenerationStrategyName,
     pub legacy_threshold: LegacyThresholdStrategyOptions,
     pub legacy_topology_v2: LegacyTopologyV2StrategyOptions,
     pub junction_carrier_v1: JunctionCarrierV1StrategyOptions,
     pub junction_first_v1: JunctionFirstV1StrategyOptions,
-}
-
-impl Default for CandidateGenerationOptions {
-    fn default() -> Self {
-        Self {
-            strategy: CandidateGenerationStrategyName::LegacyThreshold,
-            legacy_threshold: LegacyThresholdStrategyOptions::default(),
-            legacy_topology_v2: LegacyTopologyV2StrategyOptions::default(),
-            junction_carrier_v1: JunctionCarrierV1StrategyOptions::default(),
-            junction_first_v1: JunctionFirstV1StrategyOptions::default(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

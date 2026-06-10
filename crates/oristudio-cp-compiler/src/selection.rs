@@ -90,7 +90,7 @@ impl Default for SelectionOptions {
             non_collinear_degree_two_cost: 0.65,
             local_fragment_cost: 0.18,
             shared_carrier_continuity_reward: 0.36,
-            parity_repair: false,
+            parity_repair: true,
             parity_repair_budget: default_parity_repair_budget(),
             parity_repair_max_cost: default_parity_repair_max_cost(),
         }
@@ -5137,8 +5137,10 @@ mod tests {
     #[test]
     fn parity_repair_disabled_leaves_state_unchanged() {
         let graph = parity_square_graph();
-        let options = SelectionOptions::default();
-        assert!(!options.parity_repair);
+        let options = SelectionOptions {
+            parity_repair: false,
+            ..SelectionOptions::default()
+        };
         let conflict_map = candidate_conflict_map(&graph);
         let locked_ids = BTreeSet::new();
         let state = score_ir_beam_state(&graph, &BTreeSet::from([0, 1, 2]), &options);
