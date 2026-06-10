@@ -33,7 +33,7 @@ pub fn generate_candidate_graph_with_diagnostics(
     Ok(graph_from_evidence(&evidence, config, options))
 }
 
-fn dense_output_refs(outputs: DenseOutputs<'_>) -> DenseOutputRefs<'_> {
+pub(super) fn dense_output_refs(outputs: DenseOutputs<'_>) -> DenseOutputRefs<'_> {
     DenseOutputRefs::from_legacy_heads(
         outputs.line_logits,
         outputs.junction_logits,
@@ -50,7 +50,7 @@ fn dense_output_refs(outputs: DenseOutputs<'_>) -> DenseOutputRefs<'_> {
     .with_boundary_coord(outputs.boundary_coord)
 }
 
-fn evidence_config(
+pub(super) fn evidence_config(
     config: &DecodeConfig,
     options: JunctionCarrierV1StrategyOptions,
 ) -> EvidenceExtractionConfig {
@@ -73,7 +73,7 @@ fn evidence_config(
     }
 }
 
-fn evidence_error_to_decode_error(error: EvidenceExtractionError) -> DecodeError {
+pub(super) fn evidence_error_to_decode_error(error: EvidenceExtractionError) -> DecodeError {
     match error {
         EvidenceExtractionError::InvalidImageSize(size) => DecodeError::InvalidImageSize(size),
         EvidenceExtractionError::TensorLength {
@@ -204,7 +204,7 @@ fn carrier_incident_vertex_count(
         .count()
 }
 
-fn build_vertices(
+pub(super) fn build_vertices(
     evidence: &CompilerEvidence,
     image_size: u32,
     options: JunctionCarrierV1StrategyOptions,
@@ -341,7 +341,7 @@ fn vertex(
     }
 }
 
-fn assign_vertex_ids(vertices: &mut [CandidateVertex]) {
+pub(super) fn assign_vertex_ids(vertices: &mut [CandidateVertex]) {
     for (id, vertex) in vertices.iter_mut().enumerate() {
         vertex.id = id;
     }
@@ -639,16 +639,16 @@ fn add_carrier_pair_spans(
 }
 
 #[derive(Debug, Clone, Copy)]
-struct SpanStats {
-    line_min: f64,
-    line_mean: f64,
-    line_max: f64,
-    non_crease_mean: f64,
-    style_support: f64,
-    assignment: AssignmentEvidence,
+pub(super) struct SpanStats {
+    pub(super) line_min: f64,
+    pub(super) line_mean: f64,
+    pub(super) line_max: f64,
+    pub(super) non_crease_mean: f64,
+    pub(super) style_support: f64,
+    pub(super) assignment: AssignmentEvidence,
 }
 
-fn sample_span_stats(
+pub(super) fn sample_span_stats(
     a: Point2,
     b: Point2,
     evidence: &CompilerEvidence,
@@ -824,7 +824,7 @@ fn unknown_assignment() -> AssignmentEvidence {
     }
 }
 
-fn add_locked_border_spans(
+pub(super) fn add_locked_border_spans(
     vertices: &[CandidateVertex],
     boundary: &BoundaryModel,
     spans: &mut Vec<CandidateCreaseSpan>,
@@ -893,7 +893,7 @@ fn add_locked_border_spans(
     }
 }
 
-fn boundary_model(vertices: &[CandidateVertex], corners: [usize; 4]) -> BoundaryModel {
+pub(super) fn boundary_model(vertices: &[CandidateVertex], corners: [usize; 4]) -> BoundaryModel {
     let sides = vec![
         side_model(vertices, BoundarySide::Top, [corners[0], corners[1]]),
         side_model(vertices, BoundarySide::Right, [corners[1], corners[2]]),
@@ -1007,7 +1007,7 @@ fn span_projection_interval(graph: &CandidateGraph, span: &CandidateCreaseSpan) 
     [t0.min(t1), t0.max(t1)]
 }
 
-fn graph_report(graph: &CandidateGraph) -> CandidateGraphReport {
+pub(super) fn graph_report(graph: &CandidateGraph) -> CandidateGraphReport {
     CandidateGraphReport {
         vertices: graph.vertices.len(),
         crease_candidates: graph.crease_candidates.len(),
@@ -1040,19 +1040,19 @@ fn graph_report(graph: &CandidateGraph) -> CandidateGraphReport {
     }
 }
 
-fn assign_span_ids(spans: &mut [CandidateCreaseSpan]) {
+pub(super) fn assign_span_ids(spans: &mut [CandidateCreaseSpan]) {
     for (id, span) in spans.iter_mut().enumerate() {
         span.id = id;
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-struct SpanKey {
+pub(super) struct SpanKey {
     a: (i64, i64),
     b: (i64, i64),
 }
 
-fn span_endpoint_key(graph: &CandidateGraph, endpoints: [usize; 2], tolerance: f64) -> SpanKey {
+pub(super) fn span_endpoint_key(graph: &CandidateGraph, endpoints: [usize; 2], tolerance: f64) -> SpanKey {
     let scale = (1.0 / tolerance.max(1e-9)).round();
     let mut points = endpoints.map(|id| {
         let point = graph.vertices[id].point;
@@ -1068,7 +1068,7 @@ fn span_endpoint_key(graph: &CandidateGraph, endpoints: [usize; 2], tolerance: f
     }
 }
 
-fn unit_from_px(point: [f32; 2], image_size: u32) -> Point2 {
+pub(super) fn unit_from_px(point: [f32; 2], image_size: u32) -> Point2 {
     let span = unit_scale(image_size);
     Point2::new(
         ((point[0] as f64 - SYNTHETIC_RENDER_INSET_PX) / span).clamp(0.0, 1.0),
@@ -1076,7 +1076,7 @@ fn unit_from_px(point: [f32; 2], image_size: u32) -> Point2 {
     )
 }
 
-fn px_from_unit(point: Point2, image_size: u32) -> [f32; 2] {
+pub(super) fn px_from_unit(point: Point2, image_size: u32) -> [f32; 2] {
     let span = unit_scale(image_size);
     [
         (SYNTHETIC_RENDER_INSET_PX + point.x * span) as f32,
@@ -1084,20 +1084,20 @@ fn px_from_unit(point: Point2, image_size: u32) -> [f32; 2] {
     ]
 }
 
-fn unit_scale(image_size: u32) -> f64 {
+pub(super) fn unit_scale(image_size: u32) -> f64 {
     (image_size as f64 - SYNTHETIC_RENDER_INSET_PX * 2.0).max(1.0)
 }
 
-fn distance(a: Point2, b: Point2) -> f64 {
+pub(super) fn distance(a: Point2, b: Point2) -> f64 {
     ((a.x - b.x).powi(2) + (a.y - b.y).powi(2)).sqrt()
 }
 
-fn normalized(vector: Point2) -> Option<Point2> {
+pub(super) fn normalized(vector: Point2) -> Option<Point2> {
     let length = (vector.x * vector.x + vector.y * vector.y).sqrt();
     (length > 1e-9).then(|| Point2::new(vector.x / length, vector.y / length))
 }
 
-fn project(point: Point2, direction: Point2) -> f64 {
+pub(super) fn project(point: Point2, direction: Point2) -> f64 {
     point.x * direction.x + point.y * direction.y
 }
 
@@ -1110,7 +1110,7 @@ fn angle_delta(left: f64, right: f64) -> f64 {
     diff.min(std::f64::consts::PI - diff)
 }
 
-fn sample_points(a: [f32; 2], b: [f32; 2], step_px: f32) -> Vec<[f32; 2]> {
+pub(super) fn sample_points(a: [f32; 2], b: [f32; 2], step_px: f32) -> Vec<[f32; 2]> {
     let dx = b[0] - a[0];
     let dy = b[1] - a[1];
     let length = (dx * dx + dy * dy).sqrt().max(1.0);
@@ -1123,7 +1123,7 @@ fn sample_points(a: [f32; 2], b: [f32; 2], step_px: f32) -> Vec<[f32; 2]> {
         .collect()
 }
 
-fn pixel_index(point: [f32; 2], size: usize) -> Option<usize> {
+pub(super) fn pixel_index(point: [f32; 2], size: usize) -> Option<usize> {
     let x = point[0].round() as isize;
     let y = point[1].round() as isize;
     if x < 0 || y < 0 || x >= size as isize || y >= size as isize {
