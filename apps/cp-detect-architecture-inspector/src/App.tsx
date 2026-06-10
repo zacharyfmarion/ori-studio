@@ -125,7 +125,11 @@ const ISSUE_LIST_LIMIT_PER_TYPE = 10;
 type ActiveStage = 'stage1' | 'stage2' | 'stage3' | 'stage4' | 'stage5' | 'stage5b' | 'stage6';
 type AnyStageResponse = Stage1Response | Stage2Response | Stage3Response | Stage4Response | Stage5Response | Stage5bResponse | Stage6Response;
 type AuditCategoryId = 'selected' | 'locked' | 'available' | 'conflict' | 'dominated' | 'rejected';
-type CandidateGenerationStrategy = 'legacy-threshold' | 'legacy-topology-v2' | 'junction-carrier-v1';
+type CandidateGenerationStrategy =
+  | 'legacy-threshold'
+  | 'legacy-topology-v2'
+  | 'junction-carrier-v1'
+  | 'junction-first-v1';
 type QueryControls = {
   threshold: number;
   mapSize: number;
@@ -162,13 +166,13 @@ export function App() {
   const [activeStage, setActiveStage] = useState<ActiveStage>('stage6');
   const [threshold, setThreshold] = useState(0.65);
   const [mapSize, setMapSize] = useState(192);
-  const [candidateStrategy, setCandidateStrategy] = useState<CandidateGenerationStrategy>('legacy-threshold');
+  const [candidateStrategy, setCandidateStrategy] = useState<CandidateGenerationStrategy>('junction-first-v1');
   const [legacyLowThreshold, setLegacyLowThreshold] = useState(0.35);
   const [legacySnapRadiusPx, setLegacySnapRadiusPx] = useState(12);
   const [queryControls, setQueryControls] = useState<QueryControls>({
     threshold: 0.65,
     mapSize: 192,
-    strategy: 'legacy-threshold',
+    strategy: 'junction-first-v1',
     legacyLowThreshold: 0.35,
     legacySnapRadiusPx: 12,
   });
@@ -534,9 +538,10 @@ export function App() {
               <label>
                 Candidate strategy
                 <select value={candidateStrategy} onChange={(event) => setCandidateStrategy(event.target.value as CandidateGenerationStrategy)}>
-                  <option value="legacy-threshold">Legacy threshold</option>
-                  <option value="legacy-topology-v2">Legacy topology v2</option>
+                  <option value="junction-first-v1">Junction-first v1 (default)</option>
                   <option value="junction-carrier-v1">Junction/carrier v1</option>
+                  <option value="legacy-topology-v2">Legacy topology v2</option>
+                  <option value="legacy-threshold">Legacy threshold</option>
                 </select>
               </label>
             ) : null}
