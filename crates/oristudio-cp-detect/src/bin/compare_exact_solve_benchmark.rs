@@ -89,6 +89,7 @@ struct Args {
     junction_first_min_span_px: Option<f64>,
     junction_first_offset_cluster_radius_px: Option<f64>,
     parity_repair: Option<bool>,
+    dump_folds: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -671,6 +672,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Some(exact) => exact_solve_summary(exact, exact_seconds),
             None => skipped_exact_solve_summary(),
         };
+        if args.dump_folds {
+            if let Some(doc) = &exact_doc {
+                let path = args.out.join(format!("{}.exact_solved.fold", sample.id));
+                fs::write(&path, doc.to_fold_json()?)?;
+            }
+            let path = args.out.join(format!("{}.selected.fold", sample.id));
+            fs::write(&path, selected_doc.to_fold_json()?)?;
+        }
         let metrics_seconds = metrics_started.elapsed().as_secs_f64();
         let selected_weak_spans = selection
             .selected_spans
@@ -801,6 +810,7 @@ impl Args {
         let mut junction_first_min_span_px = None;
         let mut junction_first_offset_cluster_radius_px = None;
         let mut parity_repair = None;
+        let mut dump_folds = false;
         let mut iter = env::args().skip(1);
         while let Some(arg) = iter.next() {
             match arg.as_str() {
@@ -852,6 +862,7 @@ impl Args {
                 }
                 "--parity-repair" => parity_repair = Some(true),
                 "--no-parity-repair" => parity_repair = Some(false),
+                "--dump-folds" => dump_folds = true,
                 "--help" | "-h" => {
                     print_usage();
                     std::process::exit(0);
@@ -880,6 +891,7 @@ impl Args {
             junction_first_min_span_px,
             junction_first_offset_cluster_radius_px,
             parity_repair,
+            dump_folds,
         })
     }
 }
