@@ -201,11 +201,14 @@ pub struct JunctionFirstV1StrategyOptions {
 
 impl Default for JunctionFirstV1StrategyOptions {
     fn default() -> Self {
+        // Tuned on clean-1024-s15 strict topology (2026-06-09): merge radius 3
+        // and min span 3 with a 2px endpoint margin preserve close vertex
+        // pairs and tiny creases that the previous 6/8/4 defaults destroyed.
         Self {
-            vertex_merge_radius_px: 6.0,
-            min_span_length_px: 8.0,
+            vertex_merge_radius_px: 3.0,
+            min_span_length_px: 3.0,
             intermediate_corridor_px: 3.0,
-            endpoint_margin_px: 4.0,
+            endpoint_margin_px: 2.0,
             preflight_min_line_support: 0.25,
             min_span_line_support: 0.42,
             strong_span_line_support: 0.62,

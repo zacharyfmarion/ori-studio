@@ -83,6 +83,10 @@ struct Args {
     strict_vertex_tolerance_px: f64,
     skip_flat_folder: bool,
     skip_exact_solve: bool,
+    junction_first_merge_radius_px: Option<f64>,
+    junction_first_corridor_px: Option<f64>,
+    junction_first_endpoint_margin_px: Option<f64>,
+    junction_first_min_span_px: Option<f64>,
 }
 
 #[derive(Debug, Serialize)]
@@ -505,6 +509,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 )
             }
             Some(name) => {
+                let mut generation_options = CandidateGenerationOptions {
+                    strategy: name,
+                    ..CandidateGenerationOptions::default()
+                };
+                if let Some(value) = args.junction_first_merge_radius_px {
+                    generation_options.junction_first_v1.vertex_merge_radius_px = value;
+                }
+                if let Some(value) = args.junction_first_corridor_px {
+                    generation_options.junction_first_v1.intermediate_corridor_px = value;
+                }
+                if let Some(value) = args.junction_first_endpoint_margin_px {
+                    generation_options.junction_first_v1.endpoint_margin_px = value;
+                }
+                if let Some(value) = args.junction_first_min_span_px {
+                    generation_options.junction_first_v1.min_span_length_px = value;
+                }
                 let generation = generate_candidate_graph(
                     CandidateGenerationContext {
                         outputs: logits.as_dense_outputs(),
@@ -514,10 +534,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             ..DecodeConfig::default()
                         },
                     },
-                    CandidateGenerationOptions {
-                        strategy: name,
-                        ..CandidateGenerationOptions::default()
-                    },
+                    generation_options,
                 )?;
                 generation.candidate_graph
             }
@@ -765,6 +782,10 @@ impl Args {
         let mut strict_vertex_tolerance_px = 2.0;
         let mut skip_flat_folder = false;
         let mut skip_exact_solve = false;
+        let mut junction_first_merge_radius_px = None;
+        let mut junction_first_corridor_px = None;
+        let mut junction_first_endpoint_margin_px = None;
+        let mut junction_first_min_span_px = None;
         let mut iter = env::args().skip(1);
         while let Some(arg) = iter.next() {
             match arg.as_str() {
@@ -796,6 +817,20 @@ impl Args {
                 }
                 "--skip-flat-folder" => skip_flat_folder = true,
                 "--skip-exact-solve" => skip_exact_solve = true,
+                "--junction-first-merge-radius-px" => {
+                    junction_first_merge_radius_px =
+                        Some(required_value(&mut iter, &arg)?.parse()?);
+                }
+                "--junction-first-corridor-px" => {
+                    junction_first_corridor_px = Some(required_value(&mut iter, &arg)?.parse()?);
+                }
+                "--junction-first-endpoint-margin-px" => {
+                    junction_first_endpoint_margin_px =
+                        Some(required_value(&mut iter, &arg)?.parse()?);
+                }
+                "--junction-first-min-span-px" => {
+                    junction_first_min_span_px = Some(required_value(&mut iter, &arg)?.parse()?);
+                }
                 "--help" | "-h" => {
                     print_usage();
                     std::process::exit(0);
@@ -818,6 +853,10 @@ impl Args {
             strict_vertex_tolerance_px,
             skip_flat_folder,
             skip_exact_solve,
+            junction_first_merge_radius_px,
+            junction_first_corridor_px,
+            junction_first_endpoint_margin_px,
+            junction_first_min_span_px,
         })
     }
 }
