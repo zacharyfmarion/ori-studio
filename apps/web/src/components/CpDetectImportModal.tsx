@@ -396,7 +396,12 @@ export function CpDetectImportModal() {
                   {detection.detectorReport.vertex_count} vertices, {detection.detectorReport.edge_count} edges
                 </span>
               )}
-              {detection && <span>{detection.detectorReport.decoder_backend}</span>}
+              {detection && (
+                <span>
+                  {detection.detectorReport.quality_report?.candidate_strategy ??
+                    detection.detectorReport.decoder_backend}
+                </span>
+              )}
               {compilerMetadata.map((item) => (
                 <span key={item}>{item}</span>
               ))}

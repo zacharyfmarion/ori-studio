@@ -145,7 +145,10 @@ export interface CpDetectDecodeReport {
   interior_edge_count: number;
   warnings: CpDetectDecodeWarning[];
   repair_actions?: unknown[];
-  quality_report?: unknown;
+  quality_report?: {
+    /** Candidate generation strategy id, e.g. junction-first-v1. */
+    candidate_strategy?: string;
+  } & Record<string, unknown>;
 }
 
 export interface CpDetectFoldResult {
