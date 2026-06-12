@@ -2680,6 +2680,7 @@ dependencies = [
  "console_error_panic_hook",
  "js-sys",
  "oristudio-cp-detect",
+ "oristudio-cp-detect-inspector",
  "serde",
  "serde-wasm-bindgen",
  "serde_json",

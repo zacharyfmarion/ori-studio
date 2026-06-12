@@ -16,6 +16,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 console_error_panic_hook.workspace = true
 oristudio-cp-detect.workspace = true
+oristudio-cp-detect-inspector = { path = "../oristudio-cp-detect-inspector" }
 js-sys.workspace = true
 serde.workspace = true
 serde_json.workspace = true

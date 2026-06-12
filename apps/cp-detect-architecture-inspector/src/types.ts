@@ -63,6 +63,40 @@ export interface MapPayload {
   values: number[];
 }
 
+export interface DenseTensorSummary {
+  id: string;
+  length: number;
+  dims: number[];
+  channels: number;
+  min: number;
+  max: number;
+  mean: number;
+}
+
+export interface Stage0Response {
+  schema: string;
+  sample: ExampleRow;
+  map_size: number;
+  config: EvidenceConfigSummary;
+  maps: MapPayload[];
+  model_manifest_id?: string | null;
+  rectification_report?: unknown;
+  runtime?: {
+    requested_execution_provider?: string;
+    active_execution_provider?: string;
+    webgpu_available?: boolean;
+    wasm_threads?: number;
+    session_create_ms?: number;
+    fallback_reason?: string;
+    preprocess_ms?: number;
+    model_run_ms?: number;
+    output_collect_ms?: number;
+    total_inference_ms?: number;
+  } | null;
+  input_image_url: string;
+  dense_outputs: DenseTensorSummary[];
+}
+
 export interface AssignmentEvidence {
   label: number;
   confidence: number;
@@ -648,4 +682,22 @@ export interface ExactSolvedGraph {
 
 export interface Stage6Response extends Stage5Response {
   exact_solve: ExactSolvedGraph;
+}
+
+export interface UploadedInspectorRunBundle {
+  schema: string;
+  source: 'upload';
+  sample: ExampleRow;
+  active_stage: string;
+  stage_order: string[];
+  stages: {
+    stage0: Stage0Response;
+    stage1: Stage1Response;
+    stage2: Stage2Response;
+    stage3: Stage3Response;
+    stage4: Stage4Response;
+    stage5: Stage5Response;
+    stage5b: Stage5bResponse;
+    stage6: Stage6Response;
+  };
 }

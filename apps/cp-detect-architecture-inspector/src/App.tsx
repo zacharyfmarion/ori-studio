@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { FormEvent } from 'react';
-import { Activity, CircleDot, GitBranch, Layers3, ListFilter, RefreshCw, SlidersHorizontal } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { DragEvent as ReactDragEvent, FormEvent, PointerEvent as ReactPointerEvent } from 'react';
+import { Activity, CircleDot, GitBranch, ImagePlus, Layers3, ListFilter, Loader2, Play, RefreshCw, SlidersHorizontal } from 'lucide-react';
 import {
   fetchStage1Example,
   fetchStage1Examples,
@@ -26,6 +26,7 @@ import type {
   JunctionPrimitive,
   LinePrimitive,
   MapPayload,
+  Stage0Response,
   Stage1Response,
   Stage2Response,
   Stage3Response,
@@ -33,8 +34,10 @@ import type {
   Stage5Response,
   Stage5bResponse,
   Stage6Response,
+  UploadedInspectorRunBundle,
   VertexExactizabilityProbe,
 } from './types';
+import { getInspectorUploadClient, inspectorUploadError } from './uploadRuntime';
 
 const BACKGROUND_OPTIONS = [
   'input',
@@ -121,15 +124,20 @@ const ISSUE_FILTERS: Array<{ id: Stage4IssueFilter; label: string }> = [
 ];
 
 const ISSUE_LIST_LIMIT_PER_TYPE = 10;
+const UPLOAD_QUAD_HANDLES: UploadQuadHandle[] = ['top_left', 'top_right', 'bottom_right', 'bottom_left'];
+const DEFAULT_UPLOAD_IMAGE_SIZE = 1024;
 
-type ActiveStage = 'stage1' | 'stage2' | 'stage3' | 'stage4' | 'stage5' | 'stage5b' | 'stage6';
-type AnyStageResponse = Stage1Response | Stage2Response | Stage3Response | Stage4Response | Stage5Response | Stage5bResponse | Stage6Response;
+type ActiveStage = 'stage0' | 'stage1' | 'stage2' | 'stage3' | 'stage4' | 'stage5' | 'stage5b' | 'stage6';
+type AnyStageResponse = Stage0Response | Stage1Response | Stage2Response | Stage3Response | Stage4Response | Stage5Response | Stage5bResponse | Stage6Response;
 type AuditCategoryId = 'selected' | 'locked' | 'available' | 'conflict' | 'dominated' | 'rejected';
 type CandidateGenerationStrategy =
   | 'legacy-threshold'
   | 'legacy-topology-v2'
   | 'junction-carrier-v1'
   | 'junction-first-v1';
+type DataMode = 'samples' | 'upload';
+type UploadBusy = 'opening' | 'rectifying' | 'building' | null;
+type UploadQuadHandle = 'top_left' | 'top_right' | 'bottom_right' | 'bottom_left';
 type QueryControls = {
   threshold: number;
   mapSize: number;
@@ -137,6 +145,25 @@ type QueryControls = {
   legacyLowThreshold: number;
   legacySnapRadiusPx: number;
 };
+
+interface UploadPoint {
+  x: number;
+  y: number;
+}
+
+type UploadQuad = Record<UploadQuadHandle, UploadPoint>;
+
+interface UploadSourceImage {
+  image: ImageData;
+  name: string;
+  url: string;
+}
+
+interface UploadRectifiedImage {
+  image: ImageData;
+  report: unknown;
+  url: string;
+}
 
 const AUDIT_CATEGORIES: Array<{ id: AuditCategoryId; label: string; color: string }> = [
   { id: 'selected', label: 'selected', color: '#16a34a' },
@@ -213,6 +240,17 @@ export function App() {
   const [selectedStage4IssueId, setSelectedStage4IssueId] = useState<string | null>(null);
   const [selectedMapId, setSelectedMapId] = useState('line_probability');
   const [reloadToken, setReloadToken] = useState(0);
+  const [dataMode, setDataMode] = useState<DataMode>('samples');
+  const [uploadSource, setUploadSource] = useState<UploadSourceImage | null>(null);
+  const [uploadQuad, setUploadQuad] = useState<UploadQuad | null>(null);
+  const [uploadDragging, setUploadDragging] = useState<UploadQuadHandle | null>(null);
+  const [uploadRectified, setUploadRectified] = useState<UploadRectifiedImage | null>(null);
+  const [uploadRun, setUploadRun] = useState<UploadedInspectorRunBundle | null>(null);
+  const [uploadBusy, setUploadBusy] = useState<UploadBusy>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadDropActive, setUploadDropActive] = useState(false);
+  const uploadFileInputRef = useRef<HTMLInputElement>(null);
+  const uploadSourceImageRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
     if (activeStage === 'stage6') {
@@ -328,6 +366,24 @@ export function App() {
   }, [activeStage]);
 
   useEffect(() => {
+    if (dataMode === 'samples' && activeStage === 'stage0') {
+      setActiveStage('stage1');
+    }
+  }, [activeStage, dataMode]);
+
+  useEffect(() => {
+    return () => {
+      if (uploadSource?.url) URL.revokeObjectURL(uploadSource.url);
+    };
+  }, [uploadSource?.url]);
+
+  useEffect(() => {
+    return () => {
+      if (uploadRectified?.url) URL.revokeObjectURL(uploadRectified.url);
+    };
+  }, [uploadRectified?.url]);
+
+  useEffect(() => {
     let cancelled = false;
     Promise.all([fetchStages(), fetchStage1Examples()])
       .then(([, exampleResponse]) => {
@@ -348,7 +404,7 @@ export function App() {
   }, [activeStage]);
 
   useEffect(() => {
-    if (!selectedId) return;
+    if (dataMode === 'upload' || !selectedId || activeStage === 'stage0') return;
     let cancelled = false;
     setStage(null);
     setLoadingStage(true);
@@ -382,19 +438,21 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [selectedId, activeStage, queryControls, reloadToken]);
+  }, [selectedId, activeStage, dataMode, queryControls, reloadToken]);
+
+  const currentStage = dataMode === 'upload' ? uploadRun?.stages[activeStage as keyof UploadedInspectorRunBundle['stages']] ?? null : stage;
 
   const selectedMap = useMemo(
-    () => stage?.maps.find((map) => map.id === selectedMapId) ?? stage?.maps[0] ?? null,
-    [selectedMapId, stage?.maps],
+    () => currentStage?.maps.find((map) => map.id === selectedMapId) ?? currentStage?.maps[0] ?? null,
+    [selectedMapId, currentStage?.maps],
   );
 
   const backgroundMap = useMemo(
-    () => stage?.maps.find((map) => map.id === background) ?? null,
-    [background, stage?.maps],
+    () => currentStage?.maps.find((map) => map.id === background) ?? null,
+    [background, currentStage?.maps],
   );
 
-  const stage4Issues = useMemo(() => (activeStage === 'stage4' && isStage4(stage) ? buildStage4Issues(stage) : []), [activeStage, stage]);
+  const stage4Issues = useMemo(() => (activeStage === 'stage4' && isStage4(currentStage) ? buildStage4Issues(currentStage) : []), [activeStage, currentStage]);
   const filteredStage4Issues = useMemo(
     () => filterStage4Issues(stage4Issues, stage4IssueFilter),
     [stage4IssueFilter, stage4Issues],
@@ -403,10 +461,10 @@ export function App() {
     () => filteredStage4Issues.find((issue) => issue.id === selectedStage4IssueId) ?? null,
     [filteredStage4Issues, selectedStage4IssueId],
   );
-  const stage5 = isStage5(stage) ? stage : null;
-  const stage5b = isStage5b(stage) ? stage : null;
-  const stage5Like = isStage5Like(stage) ? stage : null;
-  const stage6 = isStage6(stage) ? stage : null;
+  const stage5 = isStage5(currentStage) ? currentStage : null;
+  const stage5b = isStage5b(currentStage) ? currentStage : null;
+  const stage5Like = isStage5Like(currentStage) ? currentStage : null;
+  const stage6 = isStage6(currentStage) ? currentStage : null;
   const candidateGraph = stage5Like?.candidate_graph ?? null;
 
   const refreshStage = () => {
@@ -451,6 +509,105 @@ export function App() {
     }));
   };
 
+  const setNextRectified = useCallback(async (rectified: { image: ImageData; report: unknown }) => {
+    const url = await imageDataObjectUrl(rectified.image);
+    setUploadRectified((previous) => {
+      if (previous?.url) URL.revokeObjectURL(previous.url);
+      return { ...rectified, url };
+    });
+    setUploadRun(null);
+  }, []);
+
+  const loadUploadFile = useCallback(
+    async (file: File) => {
+      if (!isSupportedUploadImage(file)) {
+        setUploadError('Use a PNG, JPEG, or WebP image.');
+        return;
+      }
+      setDataMode('upload');
+      setUploadBusy('opening');
+      setUploadError(null);
+      try {
+        const source = await uploadSourceImageFromFile(file);
+        setUploadSource((previous) => {
+          if (previous?.url) URL.revokeObjectURL(previous.url);
+          return source;
+        });
+        setUploadQuad(fullImageQuad(source.image));
+        setUploadRectified((previous) => {
+          if (previous?.url) URL.revokeObjectURL(previous.url);
+          return null;
+        });
+        setUploadRun(null);
+        setUploadBusy('rectifying');
+        const client = getInspectorUploadClient();
+        const rectified = await client.autoRectifyImage(source.image, DEFAULT_UPLOAD_IMAGE_SIZE);
+        setUploadQuad(uploadQuadFromReport(rectified.report) ?? fullImageQuad(source.image));
+        await setNextRectified(rectified);
+      } catch (error) {
+        setUploadError(inspectorUploadError(error));
+      } finally {
+        setUploadBusy(null);
+      }
+    },
+    [setNextRectified],
+  );
+
+  const chooseUploadImage = useCallback(() => {
+    uploadFileInputRef.current?.click();
+  }, []);
+
+  const rerunUploadRectification = useCallback(async () => {
+    if (!uploadSource || !uploadQuad) return;
+    setUploadBusy('rectifying');
+    setUploadError(null);
+    try {
+      const client = getInspectorUploadClient();
+      const rectified = await client.manualRectifyImage(uploadSource.image, uploadQuad, DEFAULT_UPLOAD_IMAGE_SIZE);
+      await setNextRectified(rectified);
+    } catch (error) {
+      setUploadError(inspectorUploadError(error));
+    } finally {
+      setUploadBusy(null);
+    }
+  }, [setNextRectified, uploadQuad, uploadSource]);
+
+  const runUploadedInspector = useCallback(async () => {
+    if (!uploadRectified) return;
+    setDataMode('upload');
+    setUploadBusy('building');
+    setUploadError(null);
+    try {
+      const client = getInspectorUploadClient();
+      const run = await client.runUploadedInspector(uploadRectified.image, {
+        filename: uploadSource?.name ?? 'uploaded image',
+        inputImageUrl: uploadRectified.url,
+        threshold,
+        candidateStrategy,
+        legacyLowThreshold,
+        legacySnapRadiusPx,
+        rectificationReport: uploadRectified.report,
+      });
+      setUploadRun(run);
+      setActiveStage('stage6');
+      setSelectedMapId(run.stages.stage6.maps[0]?.id ?? 'line_probability');
+    } catch (error) {
+      setUploadError(inspectorUploadError(error));
+    } finally {
+      setUploadBusy(null);
+    }
+  }, [candidateStrategy, legacyLowThreshold, legacySnapRadiusPx, threshold, uploadRectified, uploadSource?.name]);
+
+  const onUploadDrop = useCallback(
+    (event: ReactDragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      setUploadDropActive(false);
+      const file = event.dataTransfer.files?.[0];
+      if (file) void loadUploadFile(file);
+    },
+    [loadUploadFile],
+  );
+
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -466,21 +623,111 @@ export function App() {
 
       <main className="workspace">
         <aside className="sample-panel">
-          <PanelTitle icon={<CircleDot size={17} />} title="Samples" />
-          <div className="sample-list">
-            {examples.map((example) => (
-              <button
-                className={example.id === selectedId ? 'sample-row selected' : 'sample-row'}
-                key={example.id}
-                onClick={() => setSelectedId(example.id)}
-              >
-                <strong>{example.source_id ?? example.id}</strong>
-                <span>
-                  {example.family ?? 'unknown'} · {example.profile ?? 'unknown'} · {example.edge_count ?? 0} GT edges
-                </span>
+          <div className="sample-panel-header">
+            <PanelTitle icon={<CircleDot size={17} />} title={dataMode === 'upload' ? 'Upload' : 'Samples'} />
+            <div className="mode-switch" aria-label="Data source">
+              <button className={dataMode === 'samples' ? 'selected' : ''} onClick={() => setDataMode('samples')}>
+                Samples
               </button>
-            ))}
+              <button className={dataMode === 'upload' ? 'selected' : ''} onClick={() => setDataMode('upload')}>
+                Upload
+              </button>
+            </div>
           </div>
+          {dataMode === 'samples' ? (
+            <div className="sample-list">
+              {examples.length > 0 ? (
+                examples.map((example) => (
+                  <button
+                    className={example.id === selectedId ? 'sample-row selected' : 'sample-row'}
+                    key={example.id}
+                    onClick={() => setSelectedId(example.id)}
+                  >
+                    <strong>{example.source_id ?? example.id}</strong>
+                    <span>
+                      {example.family ?? 'unknown'} · {example.profile ?? 'unknown'} · {example.edge_count ?? 0} GT edges
+                    </span>
+                  </button>
+                ))
+              ) : (
+                <div className="sample-empty">
+                  <strong>No cached samples</strong>
+                  <span>Upload an image, or start the backend with a dense-cache manifest.</span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div
+              className={`upload-panel${uploadDropActive ? ' drop-active' : ''}`}
+              onDragEnter={(event) => {
+                event.preventDefault();
+                setUploadDropActive(true);
+              }}
+              onDragOver={(event) => event.preventDefault()}
+              onDragLeave={(event) => {
+                event.preventDefault();
+                setUploadDropActive(false);
+              }}
+              onDrop={onUploadDrop}
+            >
+              <input
+                accept="image/png,image/jpeg,image/webp"
+                hidden
+                onChange={(event) => {
+                  const file = event.currentTarget.files?.[0];
+                  event.currentTarget.value = '';
+                  if (file) void loadUploadFile(file);
+                }}
+                ref={uploadFileInputRef}
+                type="file"
+              />
+              <button className="upload-action primary" disabled={uploadBusy !== null} onClick={chooseUploadImage}>
+                <ImagePlus size={15} />
+                Choose Image
+              </button>
+              <div className="upload-drop-hint">Drop image here</div>
+              {uploadBusy ? (
+                <div className="upload-status">
+                  <Loader2 size={14} className="spinner" />
+                  {uploadBusyLabel(uploadBusy)}
+                </div>
+              ) : null}
+              {uploadError ? <div className="upload-error">{uploadError}</div> : null}
+              {uploadSource ? (
+                <div className="upload-preview-stack">
+                  <strong>{uploadSource.name}</strong>
+                  <UploadCropEditor
+                    dragging={uploadDragging}
+                    imageRef={uploadSourceImageRef}
+                    onDragHandle={setUploadDragging}
+                    onUpdateQuad={setUploadQuad}
+                    quad={uploadQuad}
+                    source={uploadSource}
+                  />
+                  <button className="upload-action" disabled={!uploadQuad || uploadBusy !== null} onClick={rerunUploadRectification}>
+                    <RefreshCw size={14} />
+                    Update Crop
+                  </button>
+                </div>
+              ) : null}
+              {uploadRectified ? (
+                <div className="upload-preview-stack">
+                  <strong>Rectified</strong>
+                  <CanvasImage image={uploadRectified.image} />
+                  <button className="upload-action primary" disabled={uploadBusy !== null} onClick={runUploadedInspector}>
+                    <Play size={14} />
+                    Run Inspector
+                  </button>
+                </div>
+              ) : null}
+              {uploadRun ? (
+                <button className="sample-row selected upload-run-row" onClick={() => setActiveStage('stage6')}>
+                  <strong>{uploadRun.sample.source_id ?? uploadRun.sample.id}</strong>
+                  <span>{uploadRun.stages.stage6.selection.report.selected_spans} selected spans · no GT</span>
+                </button>
+              ) : null}
+            </div>
+          )}
         </aside>
 
         <section className="main-panel">
@@ -489,6 +736,7 @@ export function App() {
             <label>
               Stage
               <select value={activeStage} onChange={(event) => setActiveStage(event.target.value as ActiveStage)}>
+                {dataMode === 'upload' ? <option value="stage0">Stage 0: raw dense outputs</option> : null}
                 <option value="stage1">Stage 1: dense evidence</option>
                 <option value="stage2">Stage 2: candidate arrangement</option>
                 <option value="stage3">Stage 3: weighted selection</option>
@@ -573,11 +821,11 @@ export function App() {
             ) : null}
             <button
               className="refresh-button"
-              disabled={!selectedId || loadingStage}
-              onClick={refreshStage}
+              disabled={dataMode === 'upload' ? !uploadRectified || uploadBusy !== null : !selectedId || loadingStage}
+              onClick={dataMode === 'upload' ? runUploadedInspector : refreshStage}
             >
-              <RefreshCw size={16} />
-              Refresh
+              {dataMode === 'upload' ? <Play size={16} /> : <RefreshCw size={16} />}
+              {dataMode === 'upload' ? 'Run' : 'Refresh'}
             </button>
           </div>
 
@@ -703,53 +951,61 @@ export function App() {
             </section>
           ) : activeStage === 'stage4' ? (
             <section className="summary-grid">
-              <Metric label="probe verdicts" value={isStage4(stage) ? `${stage.exactizability.summary.infeasible} hard / ${stage.exactizability.summary.high_cost} high` : '...'} />
-              <Metric label="odd vertices" value={isStage4(stage) ? stage.exactizability.summary.odd_degree_vertices : '...'} />
+              <Metric label="probe verdicts" value={isStage4(currentStage) ? `${currentStage.exactizability.summary.infeasible} hard / ${currentStage.exactizability.summary.high_cost} high` : '...'} />
+              <Metric label="odd vertices" value={isStage4(currentStage) ? currentStage.exactizability.summary.odd_degree_vertices : '...'} />
               <Metric
                 label="max Kawasaki"
-                value={isStage4(stage) ? `${stage.exactizability.summary.max_kawasaki_residual_degrees.toFixed(1)}°` : '...'}
+                value={isStage4(currentStage) ? `${currentStage.exactizability.summary.max_kawasaki_residual_degrees.toFixed(1)}°` : '...'}
               />
               <Metric
                 label="max vertex move"
-                value={isStage4(stage) ? stage.exactizability.summary.max_estimated_vertex_move.toFixed(4) : '...'}
+                value={isStage4(currentStage) ? currentStage.exactizability.summary.max_estimated_vertex_move.toFixed(4) : '...'}
               />
               <Metric
                 label="max carrier move"
-                value={isStage4(stage) ? stage.exactizability.summary.max_carrier_endpoint_move.toFixed(4) : '...'}
+                value={isStage4(currentStage) ? currentStage.exactizability.summary.max_carrier_endpoint_move.toFixed(4) : '...'}
               />
             </section>
           ) : activeStage === 'stage3' ? (
             <section className="summary-grid">
-              <Metric label="selected edges" value={isStage3(stage) ? stage.selection.report.selected_edges : '...'} />
-              <Metric label="undecided edges" value={isStage3(stage) ? stage.selection.report.undecided_edges : '...'} />
-              <Metric label="weak promoted" value={isStage3(stage) ? stage.selection.report.weak_edges_promoted : '...'} />
-              <Metric label="odd vertices" value={isStage3(stage) ? stage.selection.report.odd_degree_vertices : '...'} />
+              <Metric label="selected edges" value={isStage3(currentStage) ? currentStage.selection.report.selected_edges : '...'} />
+              <Metric label="undecided edges" value={isStage3(currentStage) ? currentStage.selection.report.undecided_edges : '...'} />
+              <Metric label="weak promoted" value={isStage3(currentStage) ? currentStage.selection.report.weak_edges_promoted : '...'} />
+              <Metric label="odd vertices" value={isStage3(currentStage) ? currentStage.selection.report.odd_degree_vertices : '...'} />
               <Metric
                 label="total score"
-                value={isStage3(stage) ? stage.selection.report.total_score.toFixed(1) : '...'}
+                value={isStage3(currentStage) ? currentStage.selection.report.total_score.toFixed(1) : '...'}
               />
             </section>
           ) : activeStage === 'stage2' ? (
             <section className="summary-grid">
-              <Metric label="observed carriers" value={hasArrangement(stage) ? stage.arrangement.report.observed_carriers : '...'} />
+              <Metric label="observed carriers" value={hasArrangement(currentStage) ? currentStage.arrangement.report.observed_carriers : '...'} />
               <Metric
                 label="shared alternatives"
-                value={hasArrangement(stage) ? stage.arrangement.report.shared_carrier_alternatives : '...'}
+                value={hasArrangement(currentStage) ? currentStage.arrangement.report.shared_carrier_alternatives : '...'}
               />
-              <Metric label="observed junctions" value={hasArrangement(stage) ? stage.arrangement.report.observed_junctions : '...'} />
-              <Metric label="inferred crossings" value={hasArrangement(stage) ? stage.arrangement.report.carrier_intersections : '...'} />
+              <Metric label="observed junctions" value={hasArrangement(currentStage) ? currentStage.arrangement.report.observed_junctions : '...'} />
+              <Metric label="inferred crossings" value={hasArrangement(currentStage) ? currentStage.arrangement.report.carrier_intersections : '...'} />
               <Metric
                 label="suppressed crossings"
-                value={hasArrangement(stage) ? stage.arrangement.report.suppressed_carrier_intersections : '...'}
+                value={hasArrangement(currentStage) ? currentStage.arrangement.report.suppressed_carrier_intersections : '...'}
               />
+            </section>
+          ) : activeStage === 'stage0' && isStage0(currentStage) ? (
+            <section className="summary-grid">
+              <Metric label="model" value={currentStage.model_manifest_id ?? 'unknown'} />
+              <Metric label="provider" value={currentStage.runtime?.active_execution_provider ?? 'unknown'} />
+              <Metric label="model run ms" value={formatMetricNumber(currentStage.runtime?.model_run_ms, 1)} />
+              <Metric label="outputs" value={currentStage.dense_outputs.length} />
+              <Metric label="image size" value={currentStage.config.image_size} />
             </section>
           ) : (
             <section className="summary-grid">
-              <Metric label="line primitives" value={stage?.report.line_primitives ?? '...'} />
-              <Metric label="junctions" value={stage?.report.junction_primitives ?? '...'} />
-              <Metric label="boundary contacts" value={stage?.report.boundary_contact_primitives ?? '...'} />
-              <Metric label="Hough segments" value={stage?.report.hough_segments ?? '...'} />
-              <Metric label="legacy dependency" value={stage?.report.legacy_dependency === false ? 'false' : '...'} />
+              <Metric label="line primitives" value={isStage1(currentStage) ? currentStage.report.line_primitives : '...'} />
+              <Metric label="junctions" value={isStage1(currentStage) ? currentStage.report.junction_primitives : '...'} />
+              <Metric label="boundary contacts" value={isStage1(currentStage) ? currentStage.report.boundary_contact_primitives : '...'} />
+              <Metric label="Hough segments" value={isStage1(currentStage) ? currentStage.report.hough_segments : '...'} />
+              <Metric label="legacy dependency" value={isStage1(currentStage) && currentStage.report.legacy_dependency === false ? 'false' : '...'} />
             </section>
           )}
 
@@ -769,7 +1025,7 @@ export function App() {
             <div className="viewer-panel">
               <div className="viewer-toolbar">
                 <PanelTitle
-                  icon={activeStage !== 'stage1' ? <GitBranch size={17} /> : <Layers3 size={17} />}
+                  icon={activeStage !== 'stage1' && activeStage !== 'stage0' ? <GitBranch size={17} /> : <Layers3 size={17} />}
                   title={
                     activeStage === 'stage5b'
                       ? 'Candidate Decision Audit'
@@ -783,6 +1039,8 @@ export function App() {
                       ? 'Input + Weighted Selection'
                       : activeStage === 'stage2'
                         ? 'Input + Candidate Arrangement'
+                        : activeStage === 'stage0'
+                          ? 'Raw Dense Outputs'
                         : 'Input + Stage 1 Primitives'
                   }
                 />
@@ -820,14 +1078,16 @@ export function App() {
                       />
                       failed vertices
                     </label>
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={showGroundTruth}
-                        onChange={(event) => setShowGroundTruth(event.target.checked)}
-                      />
-                      GT graph
-                    </label>
+                    {stage6?.ground_truth ? (
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={showGroundTruth}
+                          onChange={(event) => setShowGroundTruth(event.target.checked)}
+                        />
+                        GT graph
+                      </label>
+                    ) : null}
                   </div>
                 ) : activeStage === 'stage5b' ? (
                   <div className="toggle-row stage5b-toggle-row">
@@ -843,10 +1103,12 @@ export function App() {
                         {category.label}
                       </label>
                     ))}
-                    <label>
-                      <input checked={showGroundTruth} onChange={(event) => setShowGroundTruth(event.target.checked)} type="checkbox" />
-                      GT graph
-                    </label>
+                    {stage5b?.ground_truth ? (
+                      <label>
+                        <input checked={showGroundTruth} onChange={(event) => setShowGroundTruth(event.target.checked)} type="checkbox" />
+                        GT graph
+                      </label>
+                    ) : null}
                     <label>
                       <input checked={showLegacyGraph} onChange={(event) => setShowLegacyGraph(event.target.checked)} type="checkbox" />
                       legacy graph
@@ -870,14 +1132,16 @@ export function App() {
                       />
                       selected graph
                     </label>
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={showGroundTruth}
-                        onChange={(event) => setShowGroundTruth(event.target.checked)}
-                      />
-                      GT graph
-                    </label>
+                    {stage5?.ground_truth ? (
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={showGroundTruth}
+                          onChange={(event) => setShowGroundTruth(event.target.checked)}
+                        />
+                        GT graph
+                      </label>
+                    ) : null}
                     <label>
                       <input
                         type="checkbox"
@@ -1000,16 +1264,16 @@ export function App() {
                 </div>
                 ) : null}
               </div>
-              {isStage6(stage) ? (
+              {isStage6(currentStage) ? (
                 <ExactSolveViewer
                   showAfter={showExactAfter}
                   showBefore={showExactBefore}
                   showFailures={showExactFailures}
                   showGroundTruth={showGroundTruth}
                   showMovement={showExactMovement}
-                  stage={stage}
+                  stage={currentStage}
                 />
-              ) : isStage5b(stage) ? (
+              ) : isStage5b(currentStage) ? (
                 <Stage5bAuditViewer
                   auditVisibility={auditVisibility}
                   selectedTarget={selectedAuditTarget}
@@ -1017,10 +1281,10 @@ export function App() {
                   showLegacyGraph={showLegacyGraph}
                   showStrongSelected={showStrongSelected}
                   showWeakSelected={showWeakSelected}
-                  stage={stage}
+                  stage={currentStage}
                   onSelectTarget={setSelectedAuditTarget}
                 />
-              ) : isStage3(stage) ? (
+              ) : isStage3(currentStage) ? (
                 <SelectionViewer
                   backgroundMap={activeStage === 'stage4' || activeStage === 'stage5' ? null : backgroundMap}
                   showCarrierGeometry={activeStage === 'stage5' ? true : showCarrierGeometry}
@@ -1038,9 +1302,9 @@ export function App() {
                   showUndecidedEdges={showUndecidedEdges}
                   probeVisibility={probeVisibility}
                   selectedStage4Issue={selectedStage4Issue}
-                  stage={stage}
+                  stage={currentStage}
                 />
-              ) : hasArrangement(stage) ? (
+              ) : hasArrangement(currentStage) ? (
                 <ArrangementViewer
                   backgroundMap={backgroundMap}
                   showInferredCrossings={showInferredCrossings}
@@ -1050,26 +1314,28 @@ export function App() {
                   showLineEndpoints={showLineEndpoints}
                   showLines={showLines}
                   showSharedCarriers={showSharedCarriers}
-                  stage={stage}
+                  stage={currentStage}
                 />
-              ) : stage ? (
+              ) : isStage1(currentStage) ? (
                 <PrimitiveViewer
                   backgroundMap={backgroundMap}
                   showContacts={showContacts}
                   showJunctions={showJunctions}
                   showLines={showLines}
-                  stage={stage}
+                  stage={currentStage}
                 />
+              ) : isStage0(currentStage) ? (
+                <RawDenseViewer stage={currentStage} selectedMap={selectedMap} />
               ) : (
                 <div className="loading-panel">Loading dense evidence...</div>
               )}
             </div>
 
-            {isStage6(stage) ? (
+            {isStage6(currentStage) ? (
               <aside className="map-panel stage6-diagnostics-panel">
-                <Stage6LayerSummary stage={stage} />
+                <Stage6LayerSummary stage={currentStage} />
               </aside>
-            ) : isStage4(stage) ? (
+            ) : isStage4(currentStage) ? (
               <aside className="map-panel stage4-probe-panel">
                 <Stage4LayerSummary
                   filteredIssues={filteredStage4Issues}
@@ -1080,24 +1346,24 @@ export function App() {
                   onSelectIssue={selectStage4Issue}
                   probeVisibility={probeVisibility}
                   selectedIssue={selectedStage4Issue}
-                  stage={stage}
+                  stage={currentStage}
                 />
               </aside>
-            ) : isStage5b(stage) ? (
+            ) : isStage5b(currentStage) ? (
               <aside className="map-panel stage5b-audit-panel">
                 <Stage5bAuditPanel
                   lookup={auditLookup}
                   onLookupChange={setAuditLookup}
                   onSelectTarget={setSelectedAuditTarget}
                   selectedTarget={selectedAuditTarget}
-                  stage={stage}
+                  stage={currentStage}
                 />
               </aside>
             ) : activeStage === 'stage5' ? null : (
             <aside className="map-panel">
               <PanelTitle icon={<Layers3 size={17} />} title="Dense Evidence Maps" />
               <select value={selectedMapId} onChange={(event) => setSelectedMapId(event.target.value)}>
-                {stage?.maps.map((map) => (
+                {currentStage?.maps.map((map) => (
                   <option key={map.id} value={map.id}>
                     {map.label}
                   </option>
@@ -1105,7 +1371,7 @@ export function App() {
               </select>
               {selectedMap ? <Heatmap map={selectedMap} mode="large" /> : <div className="loading-panel">No map loaded.</div>}
               <div className="map-grid">
-                {stage?.maps.map((map) => (
+                {currentStage?.maps.map((map) => (
                   <button
                     className={map.id === selectedMapId ? 'map-thumb selected' : 'map-thumb'}
                     key={map.id}
@@ -1117,7 +1383,7 @@ export function App() {
                   </button>
                 ))}
               </div>
-              {isStage3(stage) ? <Stage3LayerSummary stage={stage} /> : hasArrangement(stage) ? <Stage2LayerSummary stage={stage} /> : null}
+              {isStage3(currentStage) ? <Stage3LayerSummary stage={currentStage} /> : hasArrangement(currentStage) ? <Stage2LayerSummary stage={currentStage} /> : isStage0(currentStage) ? <RawDenseSummary stage={currentStage} /> : null}
             </aside>
             )}
           </section>
@@ -1125,6 +1391,14 @@ export function App() {
       </main>
     </div>
   );
+}
+
+function isStage0(stage: AnyStageResponse | null): stage is Stage0Response {
+  return Boolean(stage && 'dense_outputs' in stage);
+}
+
+function isStage1(stage: AnyStageResponse | null): stage is Stage1Response {
+  return Boolean(stage && 'primitives' in stage);
 }
 
 function hasArrangement(stage: AnyStageResponse | null): stage is Stage2Response | Stage3Response | Stage4Response | Stage5Response | Stage6Response {
@@ -1193,6 +1467,217 @@ function defaultExampleForStage(rows: ExampleRow[], activeStage: ActiveStage): E
     const rowEdges = row.edge_count ?? Number.POSITIVE_INFINITY;
     return rowEdges < bestEdges ? row : best;
   }, rows[0]);
+}
+
+function RawDenseViewer({ selectedMap, stage }: { selectedMap: MapPayload | null; stage: Stage0Response }) {
+  const size = stage.config.image_size;
+  return (
+    <div className="viewer-canvas raw-dense-canvas">
+      {selectedMap ? (
+        <Heatmap map={selectedMap} mode="background" />
+      ) : (
+        <img alt="" className="input-image" src={stage.input_image_url || stage.sample.input_image_url} />
+      )}
+      <svg className="primitive-overlay" viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Raw dense model outputs">
+        <rect className="raw-dense-frame" x={1} y={1} width={size - 2} height={size - 2} />
+      </svg>
+    </div>
+  );
+}
+
+function RawDenseSummary({ stage }: { stage: Stage0Response }) {
+  return (
+    <div className="hypothesis-panel raw-dense-summary">
+      <h3>Raw Dense Outputs</h3>
+      <div className="raw-dense-meta">
+        <span>model</span>
+        <strong>{stage.model_manifest_id ?? 'unknown'}</strong>
+        <span>provider</span>
+        <strong>{stage.runtime?.active_execution_provider ?? 'unknown'}</strong>
+      </div>
+      <div className="raw-tensor-list">
+        {stage.dense_outputs.map((tensor) => (
+          <div className="raw-tensor-row" key={tensor.id}>
+            <strong>{tensor.id}</strong>
+            <span>
+              {tensor.channels} ch · {tensor.length.toLocaleString()} f32
+            </span>
+            <em>
+              {formatMetricNumber(tensor.min, 3)} / {formatMetricNumber(tensor.max, 3)} / {formatMetricNumber(tensor.mean, 3)}
+            </em>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CanvasImage({ image }: { image: ImageData }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    canvas.width = image.width;
+    canvas.height = image.height;
+    canvas.getContext('2d')?.putImageData(image, 0, 0);
+  }, [image]);
+
+  return <canvas ref={ref} className="upload-canvas" />;
+}
+
+function UploadCropEditor({
+  dragging,
+  imageRef,
+  onDragHandle,
+  onUpdateQuad,
+  quad,
+  source,
+}: {
+  dragging: UploadQuadHandle | null;
+  imageRef: React.RefObject<HTMLImageElement | null>;
+  onDragHandle: (handle: UploadQuadHandle | null) => void;
+  onUpdateQuad: (quad: UploadQuad) => void;
+  quad: UploadQuad | null;
+  source: UploadSourceImage;
+}) {
+  return (
+    <div
+      className="upload-crop-editor"
+      onPointerLeave={() => onDragHandle(null)}
+      onPointerMove={(event) => {
+        if (!dragging || !imageRef.current || !quad) return;
+        event.preventDefault();
+        const point = uploadPointFromPointer(event, imageRef.current, source.image);
+        onUpdateQuad({ ...quad, [dragging]: clampUploadPoint(point, source.image) });
+      }}
+      onPointerUp={() => onDragHandle(null)}
+      style={{ aspectRatio: `${source.image.width} / ${source.image.height}` }}
+    >
+      <img alt="" draggable={false} ref={imageRef} src={source.url} />
+      {quad ? (
+        <svg className="upload-crop-overlay" viewBox={`0 0 ${source.image.width} ${source.image.height}`}>
+          <polygon className="upload-crop-quad" points={uploadQuadPolygon(quad)} />
+          {UPLOAD_QUAD_HANDLES.map((handle) => (
+            <circle
+              className="upload-crop-handle"
+              cx={quad[handle].x}
+              cy={quad[handle].y}
+              key={handle}
+              onPointerDown={(event) => {
+                event.preventDefault();
+                (event.currentTarget as SVGCircleElement).setPointerCapture(event.pointerId);
+                onDragHandle(handle);
+              }}
+              r={Math.max(source.image.width, source.image.height) * 0.014}
+            />
+          ))}
+        </svg>
+      ) : null}
+    </div>
+  );
+}
+
+async function uploadSourceImageFromFile(file: File): Promise<UploadSourceImage> {
+  const url = URL.createObjectURL(file);
+  try {
+    const bitmap = await createImageBitmap(file);
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Canvas 2D is unavailable');
+    context.drawImage(bitmap, 0, 0);
+    bitmap.close?.();
+    return {
+      image: context.getImageData(0, 0, canvas.width, canvas.height),
+      name: file.name,
+      url,
+    };
+  } catch (error) {
+    URL.revokeObjectURL(url);
+    throw error;
+  }
+}
+
+async function imageDataObjectUrl(image: ImageData): Promise<string> {
+  const canvas = document.createElement('canvas');
+  canvas.width = image.width;
+  canvas.height = image.height;
+  canvas.getContext('2d')?.putImageData(image, 0, 0);
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((value) => {
+      if (value) resolve(value);
+      else reject(new Error('Failed to encode rectified image preview'));
+    }, 'image/png');
+  });
+  return URL.createObjectURL(blob);
+}
+
+function isSupportedUploadImage(file: File): boolean {
+  if (['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) return true;
+  const extension = file.name.split('.').pop()?.toLowerCase() ?? '';
+  return ['png', 'jpg', 'jpeg', 'webp'].includes(extension);
+}
+
+function uploadBusyLabel(busy: Exclude<UploadBusy, null>): string {
+  return {
+    opening: 'Opening image',
+    rectifying: 'Rectifying crop',
+    building: 'Running dense model and stages',
+  }[busy];
+}
+
+function uploadQuadFromReport(report: unknown): UploadQuad | null {
+  if (!report || typeof report !== 'object') return null;
+  const value = report as { detected_source_quad?: unknown; source_quad?: unknown };
+  return normalizeUploadQuad(value.detected_source_quad) ?? normalizeUploadQuad(value.source_quad);
+}
+
+function normalizeUploadQuad(value: unknown): UploadQuad | null {
+  if (!value || typeof value !== 'object') return null;
+  const quad = value as Partial<Record<UploadQuadHandle, unknown>>;
+  const points = Object.fromEntries(
+    UPLOAD_QUAD_HANDLES.map((handle) => [handle, normalizeUploadPoint(quad[handle])]),
+  ) as Record<UploadQuadHandle, UploadPoint | null>;
+  if (UPLOAD_QUAD_HANDLES.some((handle) => points[handle] === null)) return null;
+  return points as UploadQuad;
+}
+
+function normalizeUploadPoint(value: unknown): UploadPoint | null {
+  if (!value || typeof value !== 'object') return null;
+  const point = value as { x?: unknown; y?: unknown };
+  return typeof point.x === 'number' && typeof point.y === 'number' ? { x: point.x, y: point.y } : null;
+}
+
+function fullImageQuad(image: ImageData): UploadQuad {
+  const xMax = image.width - 1;
+  const yMax = image.height - 1;
+  return {
+    top_left: { x: 0, y: 0 },
+    top_right: { x: xMax, y: 0 },
+    bottom_right: { x: xMax, y: yMax },
+    bottom_left: { x: 0, y: yMax },
+  };
+}
+
+function uploadPointFromPointer(event: ReactPointerEvent, element: HTMLElement, image: ImageData): UploadPoint {
+  const rect = element.getBoundingClientRect();
+  return {
+    x: ((event.clientX - rect.left) / rect.width) * image.width,
+    y: ((event.clientY - rect.top) / rect.height) * image.height,
+  };
+}
+
+function clampUploadPoint(point: UploadPoint, image: ImageData): UploadPoint {
+  return {
+    x: Math.min(Math.max(point.x, 0), image.width - 1),
+    y: Math.min(Math.max(point.y, 0), image.height - 1),
+  };
+}
+
+function uploadQuadPolygon(quad: UploadQuad): string {
+  return UPLOAD_QUAD_HANDLES.map((handle) => `${quad[handle].x},${quad[handle].y}`).join(' ');
 }
 
 function PrimitiveViewer({

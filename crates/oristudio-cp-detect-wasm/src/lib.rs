@@ -208,6 +208,37 @@ pub fn cp_detect_ablate_dense_outputs(
     to_js_value(&result)
 }
 
+#[wasm_bindgen]
+pub fn cp_detect_build_inspector_stage_bundle(
+    outputs: JsValue,
+    options_json: &str,
+) -> Result<JsValue, JsValue> {
+    install_panic_hook();
+    let outputs = JsDenseOutputBundle::from_js(&outputs)?;
+    let options: oristudio_cp_detect_inspector::UploadInspectorOptions =
+        serde_json::from_str(options_json)
+            .map_err(|error| js_error("invalid_json", error.to_string()))?;
+    let bundle = oristudio_cp_detect_inspector::build_uploaded_stage_bundle(
+        oristudio_cp_detect_inspector::DenseOutputsOwned {
+            line_logits: outputs.line_logits,
+            angle: outputs.angle,
+            junction_logits: outputs.junction_logits,
+            junction_offset: outputs.junction_offset,
+            assignment_logits: outputs.assignment_logits,
+            non_crease_logits: outputs.non_crease_logits,
+            line_style_logits: outputs.line_style_logits,
+            vertex_type_logits: outputs.vertex_type_logits,
+            boundary_contact_logits: outputs.boundary_contact_logits,
+            boundary_side_logits: outputs.boundary_side_logits,
+            boundary_offset: outputs.boundary_offset,
+            boundary_coord: outputs.boundary_coord,
+        },
+        options,
+    )
+    .map_err(|error| js_error("inspector_stage_build", format!("{error:#}")))?;
+    to_js_value_via_json(&bundle)
+}
+
 struct JsDenseOutputBundle {
     line_logits: Vec<f32>,
     angle: Option<Vec<f32>>,

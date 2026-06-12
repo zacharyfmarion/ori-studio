@@ -104,6 +104,34 @@ button {
   padding: 14px;
 }
 
+.sample-panel-header {
+  display: grid;
+  gap: 10px;
+}
+
+.mode-switch {
+  background: #eef2f7;
+  border: 1px solid #d7dee8;
+  border-radius: 7px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 3px;
+}
+
+.mode-switch button {
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  color: #475569;
+  padding: 7px 8px;
+}
+
+.mode-switch button.selected {
+  background: #ffffff;
+  color: #0f766e;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.12);
+}
+
 .panel-title {
   gap: 8px;
 }
@@ -146,6 +174,149 @@ button {
 .sample-row.selected {
   background: #e9f7f6;
   border-color: #14b8a6;
+}
+
+.sample-empty {
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  color: #64748b;
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+}
+
+.sample-empty strong {
+  color: #172033;
+  font-size: 13px;
+}
+
+.sample-empty span {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.upload-panel {
+  align-content: start;
+  display: grid;
+  gap: 10px;
+  grid-auto-rows: max-content;
+  min-height: 0;
+  overflow: auto;
+}
+
+.upload-panel.drop-active {
+  outline: 2px solid #14b8a6;
+  outline-offset: 3px;
+}
+
+.upload-action {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #0f172a;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  padding: 9px 10px;
+}
+
+.upload-action.primary {
+  background: #0f766e;
+  border-color: #0f766e;
+  color: white;
+}
+
+.upload-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.upload-drop-hint,
+.upload-status,
+.upload-error {
+  border-radius: 6px;
+  font-size: 12px;
+  padding: 8px 9px;
+}
+
+.upload-drop-hint {
+  background: #f8fafc;
+  color: #64748b;
+  text-align: center;
+}
+
+.upload-status {
+  align-items: center;
+  background: #ecfeff;
+  color: #155e75;
+  display: flex;
+  gap: 8px;
+}
+
+.upload-error {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.upload-preview-stack {
+  display: grid;
+  gap: 8px;
+}
+
+.upload-preview-stack strong {
+  color: #172033;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upload-crop-editor {
+  background: #0f172a;
+  border: 1px solid #d7dee8;
+  border-radius: 7px;
+  overflow: hidden;
+  position: relative;
+}
+
+.upload-crop-editor img,
+.upload-canvas {
+  display: block;
+  width: 100%;
+}
+
+.upload-crop-overlay {
+  inset: 0;
+  position: absolute;
+}
+
+.upload-crop-quad {
+  fill: rgb(20 184 166 / 0.16);
+  stroke: #14b8a6;
+  stroke-width: 3;
+}
+
+.upload-crop-handle {
+  cursor: grab;
+  fill: #f8fafc;
+  stroke: #0f766e;
+  stroke-width: 3;
+}
+
+.upload-run-row {
+  margin-top: 4px;
 }
 
 .main-panel {
@@ -309,6 +480,53 @@ select {
   background: #ffffff;
   box-shadow: inset 0 0 0 1px #cbd5e1;
   width: min(100%, 76vh);
+}
+
+.raw-dense-frame {
+  fill: none;
+  stroke: #0f766e;
+  stroke-dasharray: 10 8;
+  stroke-width: 2;
+}
+
+.raw-dense-summary {
+  margin-top: 14px;
+}
+
+.raw-dense-meta,
+.raw-tensor-row {
+  display: grid;
+  gap: 3px;
+}
+
+.raw-dense-meta {
+  grid-template-columns: auto 1fr;
+  margin-bottom: 12px;
+}
+
+.raw-dense-meta span,
+.raw-tensor-row span,
+.raw-tensor-row em {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.raw-dense-meta strong,
+.raw-tensor-row strong {
+  color: #172033;
+  font-size: 12px;
+}
+
+.raw-tensor-list {
+  display: grid;
+  gap: 7px;
+}
+
+.raw-tensor-row {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 8px;
 }
 
 .primitive-overlay {

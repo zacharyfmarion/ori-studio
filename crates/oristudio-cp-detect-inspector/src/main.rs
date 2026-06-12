@@ -39,6 +39,7 @@ const DEFAULT_PORT: u16 = 8788;
 const DEFAULT_DENSE_MANIFEST: &str =
     "artifacts/cp-detect-correctness/dense-cache/clean-1024-s15-browser-onnx/manifest.json";
 const DEFAULT_DIST: &str = "apps/cp-detect-architecture-inspector/dist";
+const DEFAULT_PUBLIC: &str = "apps/web/public";
 const MAX_MAP_SIZE: usize = 512;
 
 #[derive(Debug, Clone)]
@@ -47,6 +48,7 @@ struct Args {
     port: u16,
     dense_manifest: PathBuf,
     dist: PathBuf,
+    public: PathBuf,
 }
 
 #[derive(Debug, Clone)]
@@ -55,6 +57,7 @@ struct AppState {
     manifest_root: PathBuf,
     pack_root: PathBuf,
     dist: PathBuf,
+    public: PathBuf,
     manifest: DenseCacheManifest,
 }
 
@@ -361,6 +364,24 @@ struct PrimitivePayload {
     boundary_contact_primitives: Value,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct UploadInspectorOptions {
+    pub id: Option<String>,
+    pub source_id: Option<String>,
+    pub filename: Option<String>,
+    pub image_size: u32,
+    pub threshold: f32,
+    pub map_size: Option<usize>,
+    pub input_image_url: Option<String>,
+    pub model_manifest_id: Option<String>,
+    pub rectification_report: Option<Value>,
+    pub runtime: Option<Value>,
+    pub candidate_strategy: Option<String>,
+    pub legacy_low_threshold: Option<f32>,
+    pub legacy_snap_radius_px: Option<f64>,
+    pub offset_cluster_radius_px: Option<f64>,
+}
+
 fn main() -> Result<()> {
     let args = parse_args(std::env::args().skip(1))?;
     let state = Arc::new(load_state(&args)?);
@@ -393,6 +414,7 @@ fn parse_args(args: impl Iterator<Item = String>) -> Result<Args> {
         port: DEFAULT_PORT,
         dense_manifest: PathBuf::from(DEFAULT_DENSE_MANIFEST),
         dist: PathBuf::from(DEFAULT_DIST),
+        public: PathBuf::from(DEFAULT_PUBLIC),
     };
     let mut args = args.peekable();
     while let Some(arg) = args.next() {
@@ -411,6 +433,7 @@ fn parse_args(args: impl Iterator<Item = String>) -> Result<Args> {
             }
             "--dense-manifest" => &mut result.dense_manifest,
             "--dist" => &mut result.dist,
+            "--public" => &mut result.public,
             "--help" | "-h" => {
                 print_help();
                 std::process::exit(0);
@@ -425,7 +448,8 @@ fn parse_args(args: impl Iterator<Item = String>) -> Result<Args> {
 fn print_help() {
     println!(
         "Usage: oristudio-cp-detect-inspector [--host 127.0.0.1] [--port 8788] \\
-         [--dense-manifest artifacts/.../manifest.json] [--dist apps/.../dist]"
+         [--dense-manifest artifacts/.../manifest.json] [--dist apps/.../dist] \\
+         [--public apps/web/public]"
     );
 }
 
@@ -433,16 +457,25 @@ fn load_state(args: &Args) -> Result<AppState> {
     let manifest_path = args
         .dense_manifest
         .canonicalize()
-        .with_context(|| format!("dense manifest {}", args.dense_manifest.display()))?;
+        .unwrap_or_else(|_| args.dense_manifest.clone());
     let manifest_root = manifest_path
         .parent()
         .context("manifest should have a parent")?
         .to_path_buf();
-    let manifest: DenseCacheManifest = serde_json::from_str(
-        &fs::read_to_string(&manifest_path)
-            .with_context(|| format!("read {}", manifest_path.display()))?,
-    )
-    .with_context(|| format!("parse {}", manifest_path.display()))?;
+    let manifest: DenseCacheManifest = if manifest_path.exists() {
+        serde_json::from_str(
+            &fs::read_to_string(&manifest_path)
+                .with_context(|| format!("read {}", manifest_path.display()))?,
+        )
+        .with_context(|| format!("parse {}", manifest_path.display()))?
+    } else {
+        DenseCacheManifest {
+            schema: "oristudio/cp-detect-architecture-inspector/empty-dense-cache/v1".to_owned(),
+            generated_at: None,
+            pack: None,
+            samples: Vec::new(),
+        }
+    };
     let pack_root = manifest
         .pack
         .as_deref()
@@ -459,6 +492,7 @@ fn load_state(args: &Args) -> Result<AppState> {
         manifest_root,
         pack_root,
         dist: args.dist.clone(),
+        public: args.public.clone(),
         manifest,
     })
 }
@@ -1034,6 +1068,250 @@ fn stage6_example(
     })
 }
 
+pub fn build_uploaded_stage_bundle(
+    outputs: DenseOutputsOwned,
+    options: UploadInspectorOptions,
+) -> Result<Value> {
+    let image_size = options.image_size;
+    let threshold = options.threshold;
+    let map_size = options.map_size.unwrap_or(192).clamp(16, MAX_MAP_SIZE);
+    let offset_cluster_radius_px = options.offset_cluster_radius_px.unwrap_or(0.0);
+    let decode_config = DecodeConfig {
+        image_size,
+        threshold,
+        junction_offset_cluster_radius_px: offset_cluster_radius_px as f32,
+        ..DecodeConfig::default()
+    };
+    let evidence_config = evidence_config_from_decode(&decode_config);
+    let evidence = extract_compiler_evidence(outputs.as_dense_refs(), evidence_config)?;
+    let maps = evidence_maps(&evidence, map_size)?;
+    let overlay_frame_px = default_overlay_frame(image_size);
+    let sample = ExampleRow {
+        id: options
+            .id
+            .clone()
+            .unwrap_or_else(|| "uploaded-image".to_owned()),
+        source_id: options.source_id.clone().or(options.filename.clone()),
+        family: Some("uploaded".to_owned()),
+        profile: Some("ad-hoc".to_owned()),
+        edge_count: None,
+        image_size,
+        threshold,
+        input_image_url: options.input_image_url.clone().unwrap_or_default(),
+    };
+    let config = EvidenceConfigSummary {
+        image_size: evidence_config.image_size,
+        threshold,
+        line_threshold: evidence_config.line_threshold,
+        strong_line_support: evidence_config.strong_line_support,
+        hough_vote_threshold: evidence_config.hough_vote_threshold,
+        max_line_primitives: evidence_config.max_line_primitives,
+        max_junction_primitives: evidence_config.max_junction_primitives,
+        max_boundary_contact_primitives: evidence_config.max_boundary_contact_primitives,
+    };
+    let report = serde_json::to_value(&evidence.report)?;
+    let primitives = PrimitivePayload {
+        line_primitives: serde_json::to_value(&evidence.line_primitives)?,
+        junction_primitives: serde_json::to_value(&evidence.junction_primitives)?,
+        boundary_contact_primitives: serde_json::to_value(&evidence.boundary_contact_primitives)?,
+    };
+    let stage0 = json!({
+        "schema": "oristudio/cp-detect-architecture-inspector/stage0/v1",
+        "sample": &sample,
+        "map_size": map_size,
+        "config": &config,
+        "model_manifest_id": options.model_manifest_id,
+        "rectification_report": options.rectification_report,
+        "runtime": options.runtime,
+        "input_image_url": &sample.input_image_url,
+        "dense_outputs": dense_tensor_summaries(&outputs, image_size),
+        "maps": &maps
+    });
+    let stage1 = json!({
+        "schema": "oristudio/cp-detect-architecture-inspector/stage1/v1",
+        "sample": &sample,
+        "map_size": map_size,
+        "config": &config,
+        "report": &report,
+        "maps": &maps,
+        "primitives": &primitives
+    });
+    let arrangement_input = arrangement_input_from_evidence(&evidence, Some(overlay_frame_px));
+    let arrangement =
+        build_candidate_arrangement(&arrangement_input, ArrangementV2Options::default());
+    let stage2 = json!({
+        "schema": "oristudio/cp-detect-architecture-inspector/stage2/v1",
+        "sample": &sample,
+        "map_size": map_size,
+        "config": &config,
+        "overlay_frame_px": overlay_frame_px,
+        "report": &report,
+        "maps": &maps,
+        "primitives": &primitives,
+        "arrangement": &arrangement
+    });
+    let selection = select_candidate_graph(&arrangement, SelectionOptions::default());
+    let stage3 = json!({
+        "schema": "oristudio/cp-detect-architecture-inspector/stage3/v1",
+        "sample": &sample,
+        "map_size": map_size,
+        "config": &config,
+        "overlay_frame_px": overlay_frame_px,
+        "report": &report,
+        "maps": &maps,
+        "primitives": &primitives,
+        "arrangement": &arrangement,
+        "selection": &selection
+    });
+    let exact_options = ExactProbeOptions::default();
+    let exactizability = probe_exactizability(&arrangement, &selection, exact_options);
+    let stage4 = json!({
+        "schema": "oristudio/cp-detect-architecture-inspector/stage4/v1",
+        "sample": &sample,
+        "map_size": map_size,
+        "config": &config,
+        "overlay_frame_px": overlay_frame_px,
+        "report": &report,
+        "maps": &maps,
+        "primitives": &primitives,
+        "arrangement": &arrangement,
+        "selection": &selection,
+        "exactizability": &exactizability
+    });
+    let default_strategy = CandidateGenerationStrategyName::default();
+    let strategy_text = options
+        .candidate_strategy
+        .as_deref()
+        .unwrap_or_else(|| default_strategy.id());
+    let candidate_strategy = strategy_text
+        .parse::<CandidateGenerationStrategyName>()
+        .with_context(|| format!("parse candidate generation strategy {strategy_text:?}"))?;
+    let legacy_low_threshold = options
+        .legacy_low_threshold
+        .unwrap_or_else(|| default_low_threshold(threshold));
+    let legacy_snap_radius_px = options
+        .legacy_snap_radius_px
+        .unwrap_or(DEFAULT_WEAK_ENDPOINT_SNAP_RADIUS_PX)
+        .clamp(0.0, 128.0);
+    let generation = generate_candidate_graph(
+        CandidateGenerationContext {
+            outputs: outputs.as_dense_outputs(),
+            config: decode_config,
+        },
+        {
+            let mut generation_options = CandidateGenerationOptions {
+                strategy: candidate_strategy,
+                legacy_threshold: LegacyThresholdStrategyOptions {
+                    low_threshold: Some(legacy_low_threshold),
+                    weak_endpoint_snap_radius_px: Some(legacy_snap_radius_px),
+                    weak_boundary_endpoint_snap_radius_px: Some(10.0),
+                    weak_carrier_incidence_tolerance_px: Some(6.0),
+                    weak_span_split_tolerance_px: Some(4.0),
+                    weak_min_split_length_px: Some(3.0),
+                    ..LegacyThresholdStrategyOptions::default()
+                },
+                ..CandidateGenerationOptions::default()
+            };
+            generation_options
+                .junction_first_v1
+                .junction_offset_cluster_radius_px = offset_cluster_radius_px;
+            generation_options
+        },
+    )
+    .with_context(|| format!("generate {candidate_strategy} candidate graph for uploaded image"))?;
+    let candidate_graph = generation.candidate_graph;
+    let selection = select_candidate_graph_beam_from_ir(
+        &candidate_graph,
+        SelectionOptions::default(),
+        exact_options,
+    );
+    let exactizability = probe_exactizability(&arrangement, &selection, exact_options);
+    let legacy_graph = legacy_graph_from_dense_outputs(&outputs, image_size, threshold)?;
+    let stage5 = json!({
+        "schema": "oristudio/cp-detect-architecture-inspector/stage5/v1",
+        "sample": &sample,
+        "map_size": map_size,
+        "config": &config,
+        "overlay_frame_px": overlay_frame_px,
+        "report": &report,
+        "maps": &maps,
+        "primitives": &primitives,
+        "arrangement": &arrangement,
+        "candidate_strategy": candidate_strategy.to_string(),
+        "candidate_graph": &candidate_graph,
+        "selection": &selection,
+        "exactizability": &exactizability,
+        "ground_truth": null,
+        "legacy_graph": &legacy_graph
+    });
+    let decision_audit =
+        candidate_decision_audit(&candidate_graph, &selection, None, overlay_frame_px);
+    let stage5b = json!({
+        "schema": "oristudio/cp-detect-architecture-inspector/stage5b/v1",
+        "sample": &sample,
+        "map_size": map_size,
+        "config": &config,
+        "overlay_frame_px": overlay_frame_px,
+        "report": &report,
+        "maps": &maps,
+        "primitives": &primitives,
+        "arrangement": &arrangement,
+        "candidate_strategy": candidate_strategy.to_string(),
+        "candidate_graph": &candidate_graph,
+        "selection": &selection,
+        "exactizability": &exactizability,
+        "ground_truth": null,
+        "legacy_graph": &legacy_graph,
+        "decision_audit": &decision_audit
+    });
+    let selected_graph = SelectedGraph::from_selected_span_ids(
+        &candidate_graph,
+        selection
+            .selected_spans
+            .iter()
+            .map(|span| span.id)
+            .collect(),
+    );
+    let exact_input = ExactSolveInput::from_candidate_selection(&candidate_graph, &selected_graph);
+    let selection = selection_with_exact_roles(selection, &exact_input);
+    let exact_solve = solve_exact(&exact_input, Default::default());
+    let stage6 = json!({
+        "schema": "oristudio/cp-detect-architecture-inspector/stage6/v1",
+        "sample": &sample,
+        "map_size": map_size,
+        "config": &config,
+        "overlay_frame_px": overlay_frame_px,
+        "report": &report,
+        "maps": &maps,
+        "primitives": &primitives,
+        "arrangement": &arrangement,
+        "candidate_strategy": candidate_strategy.to_string(),
+        "candidate_graph": &candidate_graph,
+        "selection": &selection,
+        "exactizability": &exactizability,
+        "exact_solve": &exact_solve,
+        "ground_truth": null,
+        "legacy_graph": &legacy_graph
+    });
+    Ok(json!({
+        "schema": "oristudio/cp-detect-architecture-inspector/uploaded-run/v1",
+        "source": "upload",
+        "sample": sample,
+        "active_stage": "stage6",
+        "stage_order": ["stage0", "stage1", "stage2", "stage3", "stage4", "stage5", "stage5b", "stage6"],
+        "stages": {
+            "stage0": stage0,
+            "stage1": stage1,
+            "stage2": stage2,
+            "stage3": stage3,
+            "stage4": stage4,
+            "stage5": stage5,
+            "stage5b": stage5b,
+            "stage6": stage6
+        }
+    }))
+}
+
 fn candidate_decision_audit(
     graph: &CandidateGraph,
     selection: &CandidateSelection,
@@ -1467,6 +1745,60 @@ fn read_legacy_graph(
     }))
 }
 
+fn legacy_graph_from_dense_outputs(
+    outputs: &DenseOutputsOwned,
+    image_size: u32,
+    threshold: f32,
+) -> Result<Option<GroundTruthGraphPayload>> {
+    let decoded = decode_dense_outputs(
+        outputs.as_dense_outputs(),
+        DecodeConfig {
+            image_size,
+            threshold,
+            ..DecodeConfig::default()
+        },
+    )
+    .context("decode legacy graph for uploaded image")?;
+    let value: Value =
+        serde_json::from_str(&decoded.fold_json).context("parse uploaded legacy FOLD")?;
+    let vertices_coords = parse_point_array(
+        value
+            .get("vertices_coords")
+            .ok_or_else(|| anyhow!("uploaded legacy FOLD missing vertices_coords"))?,
+    )?;
+    let frame = default_overlay_frame(image_size);
+    let vertices_px = vertices_coords
+        .into_iter()
+        .map(|[x, y]| {
+            [
+                frame.x_min + x * (frame.x_max - frame.x_min),
+                frame.y_min + y * (frame.y_max - frame.y_min),
+            ]
+        })
+        .collect::<Vec<_>>();
+    let edges_vertices = parse_usize_pair_array(
+        value
+            .get("edges_vertices")
+            .ok_or_else(|| anyhow!("uploaded legacy FOLD missing edges_vertices"))?,
+    )?;
+    let edges_assignment_labels = value
+        .get("edges_assignment")
+        .and_then(Value::as_array)
+        .map(|values| {
+            values
+                .iter()
+                .map(|value| value.as_str().unwrap_or("U").to_owned())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_else(|| vec!["U".to_owned(); edges_vertices.len()]);
+    Ok(Some(GroundTruthGraphPayload {
+        image_size,
+        vertices_px,
+        edges_vertices,
+        edges_assignment_labels,
+    }))
+}
+
 fn read_ground_truth_graph(
     state: &AppState,
     sample: &DenseCacheSample,
@@ -1775,19 +2107,19 @@ fn side_from_boundary(side: BoundarySide) -> ArrangementBoundarySide {
     }
 }
 
-struct DenseOutputsOwned {
-    line_logits: Vec<f32>,
-    angle: Option<Vec<f32>>,
-    junction_logits: Vec<f32>,
-    junction_offset: Option<Vec<f32>>,
-    assignment_logits: Vec<f32>,
-    non_crease_logits: Vec<f32>,
-    line_style_logits: Vec<f32>,
-    vertex_type_logits: Option<Vec<f32>>,
-    boundary_contact_logits: Vec<f32>,
-    boundary_side_logits: Option<Vec<f32>>,
-    boundary_offset: Option<Vec<f32>>,
-    boundary_coord: Option<Vec<f32>>,
+pub struct DenseOutputsOwned {
+    pub line_logits: Vec<f32>,
+    pub angle: Option<Vec<f32>>,
+    pub junction_logits: Vec<f32>,
+    pub junction_offset: Option<Vec<f32>>,
+    pub assignment_logits: Vec<f32>,
+    pub non_crease_logits: Vec<f32>,
+    pub line_style_logits: Vec<f32>,
+    pub vertex_type_logits: Option<Vec<f32>>,
+    pub boundary_contact_logits: Vec<f32>,
+    pub boundary_side_logits: Option<Vec<f32>>,
+    pub boundary_offset: Option<Vec<f32>>,
+    pub boundary_coord: Option<Vec<f32>>,
 }
 
 fn read_dense_outputs(state: &AppState, sample: &DenseCacheSample) -> Result<DenseOutputsOwned> {
@@ -1868,6 +2200,147 @@ impl DenseOutputsOwned {
         .with_boundary_offset(self.boundary_offset.as_deref())
         .with_boundary_coord(self.boundary_coord.as_deref())
     }
+}
+
+fn dense_tensor_summaries(outputs: &DenseOutputsOwned, image_size: u32) -> Vec<Value> {
+    let pixel_count = image_size as usize * image_size as usize;
+    let mut summaries = Vec::new();
+    push_tensor_summary(
+        &mut summaries,
+        "line_logits",
+        &outputs.line_logits,
+        pixel_count,
+        image_size,
+    );
+    push_optional_tensor_summary(
+        &mut summaries,
+        "angle",
+        outputs.angle.as_deref(),
+        pixel_count,
+        image_size,
+    );
+    push_tensor_summary(
+        &mut summaries,
+        "junction_logits",
+        &outputs.junction_logits,
+        pixel_count,
+        image_size,
+    );
+    push_optional_tensor_summary(
+        &mut summaries,
+        "junction_offset",
+        outputs.junction_offset.as_deref(),
+        pixel_count,
+        image_size,
+    );
+    push_tensor_summary(
+        &mut summaries,
+        "assignment_logits",
+        &outputs.assignment_logits,
+        pixel_count,
+        image_size,
+    );
+    push_tensor_summary(
+        &mut summaries,
+        "non_crease_logits",
+        &outputs.non_crease_logits,
+        pixel_count,
+        image_size,
+    );
+    push_tensor_summary(
+        &mut summaries,
+        "line_style_logits",
+        &outputs.line_style_logits,
+        pixel_count,
+        image_size,
+    );
+    push_optional_tensor_summary(
+        &mut summaries,
+        "vertex_type_logits",
+        outputs.vertex_type_logits.as_deref(),
+        pixel_count,
+        image_size,
+    );
+    push_tensor_summary(
+        &mut summaries,
+        "boundary_contact_logits",
+        &outputs.boundary_contact_logits,
+        pixel_count,
+        image_size,
+    );
+    push_optional_tensor_summary(
+        &mut summaries,
+        "boundary_side_logits",
+        outputs.boundary_side_logits.as_deref(),
+        pixel_count,
+        image_size,
+    );
+    push_optional_tensor_summary(
+        &mut summaries,
+        "boundary_offset",
+        outputs.boundary_offset.as_deref(),
+        pixel_count,
+        image_size,
+    );
+    push_optional_tensor_summary(
+        &mut summaries,
+        "boundary_coord",
+        outputs.boundary_coord.as_deref(),
+        pixel_count,
+        image_size,
+    );
+    summaries
+}
+
+fn push_optional_tensor_summary(
+    summaries: &mut Vec<Value>,
+    id: &'static str,
+    values: Option<&[f32]>,
+    pixel_count: usize,
+    image_size: u32,
+) {
+    if let Some(values) = values {
+        push_tensor_summary(summaries, id, values, pixel_count, image_size);
+    }
+}
+
+fn push_tensor_summary(
+    summaries: &mut Vec<Value>,
+    id: &'static str,
+    values: &[f32],
+    pixel_count: usize,
+    image_size: u32,
+) {
+    let channels = if pixel_count == 0 {
+        0
+    } else {
+        values.len() / pixel_count
+    };
+    let (min, max, mean) = tensor_stats(values);
+    summaries.push(json!({
+        "id": id,
+        "length": values.len(),
+        "dims": [1, channels, image_size, image_size],
+        "channels": channels,
+        "min": min,
+        "max": max,
+        "mean": mean
+    }));
+}
+
+fn tensor_stats(values: &[f32]) -> (f32, f32, f32) {
+    if values.is_empty() {
+        return (0.0, 0.0, 0.0);
+    }
+    let mut min = f32::INFINITY;
+    let mut max = f32::NEG_INFINITY;
+    let mut sum = 0.0f64;
+    for value in values {
+        min = min.min(*value);
+        max = max.max(*value);
+        sum += *value as f64;
+    }
+    (min, max, (sum / values.len() as f64) as f32)
 }
 
 fn read_optional_f32_file(root: &Path, path: Option<&str>) -> Result<Option<Vec<f32>>> {
@@ -2056,6 +2529,23 @@ fn serve_static(state: &AppState, path: &str) -> Result<HttpResponse> {
             body: fs::read(&file_path)?,
         });
     }
+    if path.starts_with("/models/") {
+        let public_path = state.public.join(relative);
+        if public_path.exists() {
+            let content_type = content_type_for_path(&public_path);
+            return Ok(HttpResponse {
+                status: 200,
+                content_type,
+                body: fs::read(&public_path)?,
+            });
+        }
+    }
+    if path.starts_with("/models/") || path.starts_with("/assets/") {
+        return Ok(error_response(
+            404,
+            &format!("static asset not found: {path}"),
+        ));
+    }
     if path == "/index.html" || !path.starts_with("/api/") {
         return Ok(HttpResponse {
             status: 200,
@@ -2070,10 +2560,12 @@ fn content_type_for_path(path: &Path) -> &'static str {
     match path.extension().and_then(|ext| ext.to_str()).unwrap_or("") {
         "html" => "text/html; charset=utf-8",
         "js" => "application/javascript; charset=utf-8",
+        "mjs" => "application/javascript; charset=utf-8",
         "css" => "text/css; charset=utf-8",
         "png" => "image/png",
         "svg" => "image/svg+xml",
         "json" => "application/json; charset=utf-8",
+        "wasm" => "application/wasm",
         _ => "application/octet-stream",
     }
 }
@@ -2097,13 +2589,14 @@ fn error_response(status: u16, message: &str) -> HttpResponse {
 fn write_response(stream: &mut TcpStream, response: HttpResponse) -> Result<()> {
     let status_text = match response.status {
         200 => "OK",
+        404 => "Not Found",
         405 => "Method Not Allowed",
         500 => "Internal Server Error",
         _ => "Error",
     };
     write!(
         stream,
-        "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n",
+        "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\nCross-Origin-Opener-Policy: same-origin\r\nCross-Origin-Embedder-Policy: require-corp\r\nConnection: close\r\n\r\n",
         response.status,
         status_text,
         response.content_type,
