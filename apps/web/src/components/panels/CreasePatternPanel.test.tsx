@@ -93,6 +93,26 @@ function renderPanel(
     points: [],
     diagnostics: [],
   }));
+  const setOristudioCpGridSize = vi.fn(async (gridSize: number) => {
+    const current = useWorkspaceStore.getState().oristudioCpDocument;
+    if (!current) return false;
+    useWorkspaceStore.setState({
+      oristudioCpDocument: {
+        ...current,
+        document: {
+          ...current.document,
+          crease_pattern: {
+            ...current.document.crease_pattern,
+            grid: {
+              ...current.document.crease_pattern.grid,
+              grid_size: gridSize,
+            },
+          },
+        },
+      },
+    });
+    return true;
+  });
   useWorkspaceStore.setState(
     {
       ...useWorkspaceStore.getInitialState(),
@@ -102,6 +122,7 @@ function renderPanel(
       optimizeScale,
       buildCreasePattern,
       previewOristudioCpCommand,
+      setOristudioCpGridSize,
       ...state,
     },
     true
@@ -125,7 +146,13 @@ function renderPanel(
   transformMocks.setTransform.mockClear();
   transformMocks.zoomIn.mockClear();
   transformMocks.zoomOut.mockClear();
-  return { container, buildCreasePattern, optimizeScale, previewOristudioCpCommand };
+  return {
+    container,
+    buildCreasePattern,
+    optimizeScale,
+    previewOristudioCpCommand,
+    setOristudioCpGridSize,
+  };
 }
 
 function importedCpDocument(): ImportedCreasePatternDocument {
@@ -673,17 +700,22 @@ describe('CreasePatternPanel', () => {
   });
 
   it('renders editable CP kernel geometry with grid, selection, and viewport toggles', async () => {
-    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
-      importedCreasePattern: importedCpDocument(),
-      oristudioCpDocument: editableCpState(),
-    });
+    const { container, setOristudioCpGridSize } = renderPanel(
+      createSampleProject(),
+      'crease_pattern_ready',
+      {
+        documentMode: 'crease-pattern',
+        importedCreasePattern: importedCpDocument(),
+        oristudioCpDocument: editableCpState(),
+      }
+    );
 
     expect(container.textContent).toContain('Editable kernel: 2 lines');
     expect(container.querySelectorAll('[data-cp-line-id]')).toHaveLength(2);
     expect(container.querySelectorAll('[data-cp-line-hit-id]')).toHaveLength(2);
     expect(container.querySelectorAll('[data-cp-vertex-id]')).toHaveLength(3);
     expect(container.querySelector('.cp-grid-line')).not.toBeNull();
+    expect(container.querySelector('.cp-grid-line--major')).toBeNull();
     expect(container.querySelector('.cp-circle')).not.toBeNull();
     expect(container.querySelector('.cp-point')).not.toBeNull();
     expect(container.querySelector('.cp-text')?.textContent).toBe('note');
@@ -842,6 +874,25 @@ describe('CreasePatternPanel', () => {
       );
     });
     expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual([]);
+
+    const gridSizeInput = container.querySelector<HTMLInputElement>('input[aria-label="Grid size"]');
+    expect(gridSizeInput?.value).toBe('8');
+    await act(async () => {
+      if (!gridSizeInput) throw new Error('Grid size input did not render');
+      setNumberInputValue(gridSizeInput, '16');
+      await Promise.resolve();
+    });
+    expect(setOristudioCpGridSize).toHaveBeenLastCalledWith(16);
+    expect(
+      useWorkspaceStore.getState().oristudioCpDocument?.document.crease_pattern.grid.grid_size
+    ).toBe(16);
+
+    await act(async () => {
+      if (!gridSizeInput) throw new Error('Grid size input did not render');
+      setNumberInputValue(gridSizeInput, '0');
+      await Promise.resolve();
+    });
+    expect(setOristudioCpGridSize).toHaveBeenLastCalledWith(1);
 
     act(() => {
       container.querySelector<HTMLButtonElement>('button[aria-label="Grid"]')?.click();

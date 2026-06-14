@@ -198,7 +198,7 @@ export function orieditaGridBaseState(state: string): OrieditaGridBaseState {
 }
 
 export function getOrieditaGridBasis(grid: OristudioCpGridMetadata): OrieditaGridBasis {
-  const gridSize = Math.max(1, Math.trunc(grid.grid_size));
+  const gridSize = normalizeOrieditaGridSize(grid.grid_size);
   const gridWidth = ORIEDITA_PAPER_SIZE / gridSize;
   const gridXLength = grid.grid_xa + grid.grid_xb * Math.sqrt(Math.max(0, grid.grid_xc));
   const gridYLength = grid.grid_ya + grid.grid_yb * Math.sqrt(Math.max(0, grid.grid_yc));
@@ -223,6 +223,11 @@ export function getOrieditaGridBasis(grid: OristudioCpGridMetadata): OrieditaGri
     diagonalMax: Math.max(diagonalA, diagonalB),
     diagonalMin: Math.min(diagonalA, diagonalB),
   };
+}
+
+export function normalizeOrieditaGridSize(gridSize: number): number {
+  if (!Number.isFinite(gridSize)) return 1;
+  return Math.max(1, Math.trunc(gridSize));
 }
 
 export function visibleOrieditaGridMetadata(

@@ -16,6 +16,7 @@ import {
   modelPointToCpSvg,
   nearestCpSnapTarget,
   nearestOrieditaDrawPointTarget,
+  normalizeOrieditaGridSize,
   ORIEDITA_PAPER_BOUNDS,
   orieditaGridBaseState,
   toggleCpSelectionList,
@@ -146,6 +147,19 @@ describe('crease pattern viewport helpers', () => {
         base_state: 'WithinPaper',
       }).baseState
     ).toBe('full');
+  });
+
+  it('normalizes Oriedita grid size input with a minimum of one division', () => {
+    expect(normalizeOrieditaGridSize(32.8)).toBe(32);
+    expect(normalizeOrieditaGridSize(0)).toBe(1);
+    expect(normalizeOrieditaGridSize(-8)).toBe(1);
+    expect(normalizeOrieditaGridSize(Number.NaN)).toBe(1);
+    expect(
+      getOrieditaGridBasis({
+        ...document.crease_pattern.grid,
+        grid_size: 0,
+      }).gridWidth
+    ).toBe(400);
   });
 
   it('extends full-state grids across the visible CP viewport', () => {

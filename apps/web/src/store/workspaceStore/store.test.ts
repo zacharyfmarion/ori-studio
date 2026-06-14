@@ -2293,6 +2293,57 @@ describe('workspace store slices', () => {
     );
   });
 
+  it('updates editable CP grid size as undoable document metadata', async () => {
+    resetStores(seedSnapshot());
+    const documentState = blankCpDocumentState();
+    const selection = { ...emptyOristudioCpSelection(), lines: [1] };
+    useWorkspaceStore.setState({
+      documentMode: 'crease-pattern',
+      activeEditingSurface: 'crease-pattern',
+      oristudioCpDocument: documentState,
+      oristudioCpSelection: selection,
+      status: 'crease_pattern_ready',
+      dirty: false,
+    });
+
+    await expect(useWorkspaceStore.getState().setOristudioCpGridSize(32.8)).resolves.toBe(
+      true
+    );
+
+    expect(oristudioCpMocks.restoreOristudioCpDocument).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        crease_pattern: expect.objectContaining({
+          grid: expect.objectContaining({ grid_size: 32 }),
+        }),
+      }),
+      documentState.source,
+      null
+    );
+    expect(
+      useWorkspaceStore.getState().oristudioCpDocument?.document.crease_pattern.grid.grid_size
+    ).toBe(32);
+    expect(useWorkspaceStore.getState().oristudioCpSelection).toEqual(selection);
+    expect(useWorkspaceStore.getState().dirty).toBe(true);
+    expect(useWorkspaceStore.getState().projectMessage).toBe('Set grid size to 32');
+    expect(useWorkspaceStore.getState().oristudioCpHistoryPast[0]).toMatchObject({
+      document: documentState.document,
+      selection,
+      label: 'Set grid size to 32',
+    });
+
+    await useWorkspaceStore.getState().undo();
+    expect(
+      useWorkspaceStore.getState().oristudioCpDocument?.document.crease_pattern.grid.grid_size
+    ).toBe(8);
+    expect(useWorkspaceStore.getState().projectMessage).toBe('Undid Set grid size to 32');
+
+    await useWorkspaceStore.getState().redo();
+    expect(
+      useWorkspaceStore.getState().oristudioCpDocument?.document.crease_pattern.grid.grid_size
+    ).toBe(32);
+    expect(useWorkspaceStore.getState().projectMessage).toBe('Redid Set grid size to 32');
+  });
+
   it('applies editing and condition actions through the engine', async () => {
     const api = resetStores(
       makeSnapshot({
