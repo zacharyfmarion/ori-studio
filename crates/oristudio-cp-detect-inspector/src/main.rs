@@ -2311,11 +2311,7 @@ fn push_tensor_summary(
     pixel_count: usize,
     image_size: u32,
 ) {
-    let channels = if pixel_count == 0 {
-        0
-    } else {
-        values.len() / pixel_count
-    };
+    let channels = values.len().checked_div(pixel_count).unwrap_or(0);
     let (min, max, mean) = tensor_stats(values);
     summaries.push(json!({
         "id": id,
