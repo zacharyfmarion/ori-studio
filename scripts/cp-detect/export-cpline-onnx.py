@@ -15,7 +15,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CHECKPOINT = "checkpoints/runpod_v2_replay_correction_full_4000ada/full/latest.pt"
 DEFAULT_MODEL_ID = "runpod-v2-replay-correction-full-4000ada"
-DEFAULT_OUTPUT_DIR = "apps/web/public/models/cp-detector-v2"
+DEFAULT_OUTPUT_DIR = "apps/web/public/models/cp-detector-v3"
 OUTPUT_NAMES = [
     "line_logits",
     "angle",
@@ -101,13 +101,15 @@ def load_model(detector_repo: Path, checkpoint: Path):
     loaded = torch.load(checkpoint, map_location="cpu", weights_only=False)
     config = loaded.get("config", {})
     offset_radius = float(config.get("junction_offset_radius_px", 0.0) or 0.0)
-    model = CPLineNet(
-        backbone=config.get("backbone", "hrnet_w18"),
-        pretrained=False,
-        hidden_channels=int(config.get("hidden_channels", 128)),
-        v2_heads=bool(config.get("v2_heads", False)),
-        junction_offset_clamp=1.0 if offset_radius > 0 else 0.5,
-    )
+    model_kwargs = {
+        "backbone": config.get("backbone", "hrnet_w18"),
+        "pretrained": False,
+        "hidden_channels": int(config.get("hidden_channels", 128)),
+        "v2_heads": bool(config.get("v2_heads", False)),
+    }
+    if "junction_offset_clamp" in inspect.signature(CPLineNet).parameters:
+        model_kwargs["junction_offset_clamp"] = 1.0 if offset_radius > 0 else 0.5
+    model = CPLineNet(**model_kwargs)
     model.load_state_dict(loaded["model_state_dict"])
     model.eval()
     if not model.v2_heads:

@@ -4,13 +4,17 @@
   "version": "0.1.2",
   "type": "module",
   "scripts": {
+    "predev": "npm --workspace @treemaker/web run build:oristudio-cp-detect-wasm",
     "dev": "vite --host 127.0.0.1 --port 5176",
+    "prebuild": "npm --workspace @treemaker/web run build:oristudio-cp-detect-wasm",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1 --port 4176"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^5.1.1",
+    "comlink": "^4.4.2",
     "lucide-react": "^0.563.0",
+    "onnxruntime-web": "^1.26.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "vite": "^7.3.1"
