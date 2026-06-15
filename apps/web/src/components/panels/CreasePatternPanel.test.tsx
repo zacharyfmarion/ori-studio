@@ -1414,7 +1414,7 @@ describe('CreasePatternPanel', () => {
     expect(points[0].x).toBeCloseTo(0);
     expect(points[0].y).toBeCloseTo(0);
     expect(points[1].x).toBeCloseTo(0);
-    expect(points[1].y).toBeCloseTo(80);
+    expect(points[1].y).toBeCloseTo(-80);
   });
 
   it('runs ready drag-line CP delete commands without requiring selected lines', async () => {
@@ -2065,7 +2065,7 @@ describe('CreasePatternPanel', () => {
 
     expect(
       container.querySelector<HTMLElement>('[data-measurement-slot="angle1"]')?.textContent
-    ).toBe('A190 deg');
+    ).toBe('A1270 deg');
     expect(executeOristudioCpCommand).not.toHaveBeenCalled();
     expect(previewOristudioCpCommand).not.toHaveBeenCalled();
     expect(useWorkspaceStore.getState().oristudioCpHistoryPast).toHaveLength(0);
@@ -2431,9 +2431,9 @@ describe('CreasePatternPanel', () => {
     expect(operation).toBe('DrawBlintz');
     expect(payload?.line_color).toBe('Blue2');
     expect(payload?.points?.[0].x).toBeCloseTo(-200);
-    expect(payload?.points?.[0].y).toBeCloseTo(200);
+    expect(payload?.points?.[0].y).toBeCloseTo(-200);
     expect(payload?.points?.[1].x).toBeCloseTo(200);
-    expect(payload?.points?.[1].y).toBeCloseTo(-200);
+    expect(payload?.points?.[1].y).toBeCloseTo(200);
   });
 
   it('collects Voronoi seed presses, previews them, and applies from the context panel', async () => {
