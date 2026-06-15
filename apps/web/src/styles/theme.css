@@ -2256,15 +2256,10 @@
 }
 
 .cp-grid-line {
-  stroke: color-mix(in srgb, var(--border-subtle) 72%, transparent);
-  stroke-width: 0.65;
-  vector-effect: non-scaling-stroke;
-  pointer-events: none;
-}
-
-.cp-grid-line--major {
   stroke: color-mix(in srgb, var(--border-default) 82%, transparent);
   stroke-width: 0.95;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
 }
 
 .cp-point {
@@ -3797,6 +3792,31 @@
 
 .cp-line-type-toolbar__button[data-active][data-line-color='Cyan3'] {
   color: var(--fold-flat);
+}
+
+.cp-grid-size-control {
+  width: 42px;
+  height: 28px;
+  min-width: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 760;
+  text-align: center;
+}
+
+.cp-grid-size-control:hover {
+  background: color-mix(in srgb, var(--bg-secondary) 82%, transparent);
+}
+
+.cp-grid-size-control:focus-visible {
+  background: var(--bg-secondary);
+  outline: 1px solid var(--accent-primary);
+  outline-offset: -1px;
 }
 
 .viewport-toolbar__menu-anchor {

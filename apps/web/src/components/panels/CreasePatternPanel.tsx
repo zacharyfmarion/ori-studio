@@ -118,6 +118,7 @@ import {
   modelPointToCpSvg,
   nearestCpSnapTarget,
   nearestOrieditaDrawPointTarget,
+  normalizeOrieditaGridSize,
   ORIEDITA_PAPER_BOUNDS,
   textCoordinate,
   visibleOrieditaGridMetadata,
@@ -537,6 +538,53 @@ function CpLineTypeToolbar({
         );
       })}
     </div>
+  );
+}
+
+function CpGridSizeControl({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  const normalizedValue = normalizeOrieditaGridSize(value);
+  const [draft, setDraft] = useState(String(normalizedValue));
+
+  useEffect(() => {
+    setDraft(String(normalizedValue));
+  }, [normalizedValue]);
+
+  const updateDraft = (nextDraft: string) => {
+    setDraft(nextDraft);
+    const parsed = Number(nextDraft);
+    if (!Number.isFinite(parsed)) return;
+    const nextValue = normalizeOrieditaGridSize(parsed);
+    if (nextValue !== normalizedValue) {
+      onChange(nextValue);
+    }
+  };
+
+  const normalizeDraft = () => {
+    const parsed = Number(draft);
+    setDraft(
+      Number.isFinite(parsed)
+        ? String(normalizeOrieditaGridSize(parsed))
+        : String(normalizedValue)
+    );
+  };
+
+  return (
+    <input
+      className="cp-grid-size-control"
+      aria-label="Grid size"
+      type="number"
+      min={1}
+      step={1}
+      value={draft}
+      onBlur={normalizeDraft}
+      onChange={(event) => updateDraft(event.currentTarget.value)}
+    />
   );
 }
 
@@ -1112,6 +1160,7 @@ export function CreasePatternPanel() {
   const setOristudioCpViewportOption = useWorkspaceStore(
     (state) => state.setOristudioCpViewportOption
   );
+  const setOristudioCpGridSize = useWorkspaceStore((state) => state.setOristudioCpGridSize);
   const setOristudioCpSymmetry = useWorkspaceStore((state) => state.setOristudioCpSymmetry);
   const setActiveEditingSurface = useWorkspaceStore((state) => state.setActiveEditingSurface);
   const toggleOristudioCpLineSelection = useWorkspaceStore(
@@ -1179,6 +1228,9 @@ export function CreasePatternPanel() {
         : undefined,
     [editableCp]
   );
+  const editableCpGridSize = editableCp
+    ? normalizeOrieditaGridSize(editableCp.crease_pattern.grid.grid_size)
+    : 8;
   const editableCpVertices = useMemo(() => getCpVertices(editableCp), [editableCp]);
   const hasEditableCreasePattern = !!editableCp;
   const hasCreasePattern =
@@ -3560,6 +3612,12 @@ export function CreasePatternPanel() {
                     >
                       <Grid2X2 size={14} />
                     </IconButton>
+                    <CpGridSizeControl
+                      value={editableCpGridSize}
+                      onChange={(gridSize) => {
+                        void setOristudioCpGridSize(gridSize);
+                      }}
+                    />
                     <IconButton
                       size="sm"
                       variant="toolbar"
@@ -3759,7 +3817,7 @@ function EditableCreasePattern({
           return (
             <line
               key={line.id}
-              className={['cp-grid-line', line.major ? 'cp-grid-line--major' : ''].join(' ')}
+              className="cp-grid-line"
               x1={a.x}
               y1={a.y}
               x2={b.x}

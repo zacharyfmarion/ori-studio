@@ -17,6 +17,7 @@ import {
   DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
   emptyOristudioCpSelection,
   getCpVertices,
+  normalizeOrieditaGridSize,
 } from '../../../lib/creasePatternViewport';
 import {
   blankCpLineage,
@@ -1198,6 +1199,68 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       return applyOristudioCpLineMutation(label, () =>
         replaceRuntimeOristudioCpLineSegments(lineIds, segments)
       );
+    },
+
+    setOristudioCpGridSize: async (gridSize) => {
+      const currentDocumentState = get().oristudioCpDocument;
+      if (!currentDocumentState) {
+        set({
+          oristudioCpError: 'No editable crease-pattern document is loaded',
+          error: {
+            code: 'invalid_operation',
+            message: 'No editable crease-pattern document is loaded',
+          },
+        });
+        return false;
+      }
+
+      const normalizedGridSize = normalizeOrieditaGridSize(gridSize);
+      const previousDocument = currentDocumentState.document;
+      if (previousDocument.crease_pattern.grid.grid_size === normalizedGridSize) return true;
+
+      const previousSelection = get().oristudioCpSelection;
+      const nextSnapshot: OristudioCpDocumentSnapshot = {
+        ...previousDocument,
+        crease_pattern: {
+          ...previousDocument.crease_pattern,
+          grid: {
+            ...previousDocument.crease_pattern.grid,
+            grid_size: normalizedGridSize,
+          },
+        },
+      };
+
+      try {
+        const nextDocument = await restoreOristudioCpDocument(
+          nextSnapshot,
+          currentDocumentState.source,
+          currentDocumentState.lastCommandResult
+        );
+        const label = `Set grid size to ${normalizedGridSize}`;
+        set({
+          oristudioCpDocument: nextDocument,
+          activeEditingSurface: 'crease-pattern',
+          oristudioCpLineage: markCpLineageEdited(get().oristudioCpLineage),
+          oristudioCpOperationDescriptors: nextDocument.operationDescriptors,
+          oristudioCpError: null,
+          oristudioCpHistoryPast: [
+            ...get().oristudioCpHistoryPast,
+            cpHistoryEntry(previousDocument, label, previousSelection),
+          ],
+          oristudioCpHistoryFuture: [],
+          error: null,
+          dirty: true,
+          projectMessage: label,
+        });
+        return true;
+      } catch (error) {
+        const normalized = oristudioCpError(error);
+        set({
+          oristudioCpError: normalized.message,
+          error: normalized,
+        });
+        return false;
+      }
     },
 
     previewOristudioCpCommand: async (operationId, payload = {}) => {

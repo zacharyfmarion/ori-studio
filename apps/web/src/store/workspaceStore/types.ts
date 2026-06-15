@@ -113,6 +113,7 @@ export interface ProjectSliceActions {
     segments: OristudioCpLineSegment[],
     label?: string
   ) => Promise<boolean>;
+  setOristudioCpGridSize: (gridSize: number) => Promise<boolean>;
   previewOristudioCpCommand: (
     operationId: OristudioCpOperationId,
     payload?: OristudioCpCommandPayload
