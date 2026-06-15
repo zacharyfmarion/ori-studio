@@ -1,0 +1,36 @@
+name: Install wasm-pack
+description: Install wasm-pack with retries for transient registry/network failures.
+
+inputs:
+  version:
+    description: wasm-pack version to install.
+    required: false
+    default: 0.13.1
+
+runs:
+  using: composite
+  steps:
+    - name: Install wasm-pack with retry
+      shell: bash
+      env:
+        CARGO_HTTP_MULTIPLEXING: "false"
+        WASM_PACK_VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+
+        for attempt in 1 2 3; do
+          echo "Installing wasm-pack ${WASM_PACK_VERSION} (attempt ${attempt}/3)"
+          if cargo install wasm-pack --version "${WASM_PACK_VERSION}" --locked; then
+            wasm-pack --version
+            exit 0
+          fi
+
+          if [ "${attempt}" -eq 3 ]; then
+            echo "wasm-pack install failed after ${attempt} attempts" >&2
+            exit 1
+          fi
+
+          sleep_seconds=$((attempt * 10))
+          echo "wasm-pack install failed; retrying in ${sleep_seconds}s" >&2
+          sleep "${sleep_seconds}"
+        done
