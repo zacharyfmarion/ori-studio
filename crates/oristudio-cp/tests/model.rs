@@ -158,8 +158,20 @@ fn fold_assignment_and_custom_color_mapping_match_oriedita_exporters() {
         Assignment::Flat
     );
     assert_eq!(
+        fold_assignment_for_line_color(LineColor::Purple8),
+        Assignment::Flat
+    );
+    assert_eq!(
+        fold_assignment_for_line_color(LineColor::None),
+        Assignment::Unassigned
+    );
+    assert_eq!(
         line_color_for_fold_assignment(Assignment::Flat),
         LineColor::Cyan3
+    );
+    assert_eq!(
+        line_color_for_fold_assignment(Assignment::Unassigned),
+        LineColor::None
     );
     assert_eq!(
         line_color_for_fold_assignment(Assignment::Mountain),

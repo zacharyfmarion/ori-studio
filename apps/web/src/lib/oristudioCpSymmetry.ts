@@ -78,6 +78,7 @@ export const ORISTUDIO_CP_SYMMETRY_POLICIES: Partial<
   CreaseMakeMountain: 'selection-scoped-edit',
   CreaseMakeValley: 'selection-scoped-edit',
   CreaseMakeEdge: 'selection-scoped-edit',
+  CreaseSetLineColor: 'selection-scoped-edit',
   LineSegmentDivision: 'fixed-arity-entity',
   LineSegmentRatioSet: 'fixed-arity-entity',
   PolygonSetNoCorners: 'geometry-points',

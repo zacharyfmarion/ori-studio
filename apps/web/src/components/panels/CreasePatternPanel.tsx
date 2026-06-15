@@ -18,6 +18,7 @@ import {
   GitBranch,
   Grid2X2,
   Magnet,
+  Palette,
   RotateCcw,
   RotateCw,
   ScanLine,
@@ -90,6 +91,7 @@ import {
   type OristudioCpToolInstructions,
 } from '../../lib/oristudioCpToolInstructions';
 import { cpLineageStatusLabel } from '../../lib/oristudioCpLineage';
+import { cpPaletteEntryForColor } from '../../lib/oristudioCpPalette';
 import {
   axisFromTwoPoints,
   cpSymmetryAxisLine,
@@ -494,26 +496,19 @@ function isReflectSelectionOperation(operationId: string | null | undefined): bo
 }
 
 function cpLineTypeStatusLabel(lineColor: OristudioCpLineColor): string {
-  switch (lineColor) {
-    case 'Red1':
-      return 'Line M';
-    case 'Blue2':
-      return 'Line V';
-    case 'Black0':
-      return 'Line E';
-    case 'Cyan3':
-      return 'Line A';
-    default:
-      return `Line ${cpLineAssignmentLabel(lineColor)}`;
-  }
+  return cpPaletteEntryForColor(lineColor)?.statusLabel ?? `Line ${cpLineAssignmentLabel(lineColor)}`;
 }
 
 function CpLineTypeToolbar({
   activeLineColor,
+  applyDisabled,
+  onApplyLineColor,
   onSelectLineColor,
   shortcutOverrides,
 }: {
   activeLineColor: OristudioCpLineColor;
+  applyDisabled: boolean;
+  onApplyLineColor: () => void;
   onSelectLineColor: (lineColor: OristudioCpLineColor) => void;
   shortcutOverrides: ShortcutOverrides;
 }) {
@@ -533,10 +528,26 @@ function CpLineTypeToolbar({
             isActive={activeLineColor === action.lineColor}
             onClick={() => onSelectLineColor(action.lineColor)}
           >
+            <span className="cp-line-type-toolbar__swatch" aria-hidden="true" />
             <span aria-hidden="true">{action.railLabel}</span>
           </IconButton>
         );
       })}
+      <IconButton
+        size="sm"
+        variant="toolbar"
+        title={
+          applyDisabled
+            ? 'Select lines before applying the active line color'
+            : 'Apply active line color to selected lines'
+        }
+        aria-label="Apply active line color"
+        className="cp-line-type-toolbar__apply"
+        disabled={applyDisabled}
+        onClick={onApplyLineColor}
+      >
+        <Palette size={14} />
+      </IconButton>
     </div>
   );
 }
@@ -1633,6 +1644,14 @@ export function CreasePatternPanel() {
     }
     clearOristudioCpActionRequest(oristudioCpActionRequest.id);
   }, [clearOristudioCpActionRequest, handleCpToolAction, oristudioCpActionRequest]);
+
+  const handleApplyActiveLineColor = useCallback(() => {
+    if (!editableCp || oristudioCpSelection.lines.length === 0) return;
+    void executeOristudioCpCommand('CreaseSetLineColor', {
+      line_ids: oristudioCpSelection.lines,
+      line_color: activeCpLineColor,
+    });
+  }, [activeCpLineColor, editableCp, executeOristudioCpCommand, oristudioCpSelection.lines]);
 
   const handleApplyActiveContextCommand = useCallback(() => {
     if (
@@ -3653,6 +3672,8 @@ export function CreasePatternPanel() {
                     <ViewportToolbarSeparator />
                     <CpLineTypeToolbar
                       activeLineColor={activeCpLineColor}
+                      applyDisabled={oristudioCpSelection.lines.length === 0}
+                      onApplyLineColor={handleApplyActiveLineColor}
                       onSelectLineColor={setActiveCpLineColor}
                       shortcutOverrides={shortcutOverrides}
                     />

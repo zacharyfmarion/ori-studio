@@ -1,4 +1,5 @@
 import type { OristudioCpLineColor } from '../engine/oristudioCpTypes';
+import { ORISTUDIO_CP_LINE_COLOR_PALETTE } from './oristudioCpPalette';
 import {
   ORISTUDIO_CP_COMMAND_GROUPS,
   ORISTUDIO_CP_COMMANDS,
@@ -66,10 +67,16 @@ export type OristudioCpActionDefinition =
   | OristudioCpCommandActionDefinition;
 
 export const ORISTUDIO_CP_LINE_TYPE_ACTIONS = [
-  lineTypeAction('mountain', 'Mountain', 'M', 'Red1', 'colRedAction', 'line-type-mountain'),
-  lineTypeAction('valley', 'Valley', 'V', 'Blue2', 'colBlueAction', 'line-type-valley'),
-  lineTypeAction('edge', 'Edge', 'E', 'Black0', 'colBlackAction', 'line-type-edge'),
-  lineTypeAction('auxiliary', 'Auxiliary', 'A', 'Cyan3', 'colCyanAction', 'line-type-auxiliary'),
+  ...ORISTUDIO_CP_LINE_COLOR_PALETTE.map((entry) =>
+    lineTypeAction(
+      entry.id,
+      entry.label,
+      entry.shortLabel,
+      entry.lineColor,
+      upstreamLineColorAction(entry.lineColor),
+      `line-type-${entry.cssClass}`
+    )
+  ),
 ] as const satisfies readonly OristudioCpLineTypeActionDefinition[];
 
 const AUXILIARY_DRAW_COMMAND = cpCommandByOperation('DrawCreaseFree');
@@ -550,6 +557,25 @@ function lineTypeAction(
     lineColor,
     lineInputMode: 'fold-line',
   };
+}
+
+function upstreamLineColorAction(lineColor: OristudioCpLineColor): string {
+  switch (lineColor) {
+    case 'Red1':
+      return 'colRedAction';
+    case 'Blue2':
+      return 'colBlueAction';
+    case 'Black0':
+      return 'colBlackAction';
+    case 'Cyan3':
+      return 'colCyanAction';
+    case 'Orange4':
+      return 'colOrangeAction';
+    case 'Yellow7':
+      return 'colYellowAction';
+    default:
+      return 'lineColorAction';
+  }
 }
 
 function commandAction(

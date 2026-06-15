@@ -410,10 +410,13 @@ describe('crease pattern viewport helpers', () => {
 
   it('maps Oriedita line colors to existing CP render classes', () => {
     expect(orieditaGridBaseState('WITHIN_PAPER')).toBe('within-paper');
-    expect(cpLineColorClass('Red1', 'mvf')).toBe('crease crease--fold-mountain');
-    expect(cpLineColorClass('Blue2', 'mvf')).toBe('crease crease--fold-valley');
-    expect(cpLineColorClass('Cyan3', 'mvf')).toBe('crease crease--fold-flat');
+    expect(cpLineColorClass('Red1', 'mvf')).toBe('crease crease--fold-mountain crease--line-color-mountain');
+    expect(cpLineColorClass('Blue2', 'mvf')).toBe('crease crease--fold-valley crease--line-color-valley');
+    expect(cpLineColorClass('Cyan3', 'mvf')).toBe('crease crease--fold-flat crease--line-color-flat');
+    expect(cpLineColorClass('None', 'mvf')).toBe('crease crease--line-color-unassigned');
+    expect(cpLineColorClass('Purple8', 'mvf')).toBe('crease crease--line-color-purple');
     expect(cpLineColorClass('Red1', 'agrh')).toBe('crease crease--kind-axial');
     expect(cpLineAssignmentLabel('Black0')).toBe('edge');
+    expect(cpLineAssignmentLabel('Purple8')).toBe('purple');
   });
 });

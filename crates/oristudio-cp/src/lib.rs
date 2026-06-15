@@ -308,6 +308,7 @@ pub enum OperationId {
     CreaseMakeMountain,
     CreaseMakeValley,
     CreaseMakeEdge,
+    CreaseSetLineColor,
     BackgroundChangePosition,
     LineSegmentDivision,
     LineSegmentRatioSet,
@@ -614,6 +615,14 @@ const OPERATION_DESCRIPTORS: &[OperationDescriptor] = &[
         Kernel,
         6,
         OracleTested
+    ),
+    descriptor!(
+        CreaseSetLineColor,
+        "OriStudioSetLineColor",
+        "operations::color::set_line_color_for_indices",
+        Kernel,
+        8,
+        UnitTested
     ),
     descriptor!(
         BackgroundChangePosition,
@@ -1416,6 +1425,21 @@ pub fn execute_command(
         OperationId::CreaseMakeEdge => {
             let line_indices = required_line_indices(&command)?;
             operations::color::make_edge(&mut document.crease_pattern, &line_indices)
+        }
+        OperationId::CreaseSetLineColor => {
+            let line_indices = required_line_indices(&command)?;
+            let color = command
+                .payload
+                .line_color
+                .ok_or_else(|| CommandError::InvalidInput {
+                    operation: command.operation,
+                    message: "expected active line color".to_string(),
+                })?;
+            operations::color::set_line_color_for_indices(
+                &mut document.crease_pattern,
+                &line_indices,
+                color,
+            )
         }
         OperationId::CreaseMakeAux => {
             let line_indices = required_line_indices(&command)?;
@@ -3611,6 +3635,44 @@ mod tests {
         assert_eq!(
             document.crease_pattern.line_segments[1].color,
             LineColor::Red1
+        );
+    }
+
+    #[test]
+    fn command_dispatch_sets_selected_lines_to_arbitrary_line_color() {
+        let mut document = CreasePatternDocument::default();
+        document.crease_pattern.add_line(
+            Point::new(0.0, 0.0),
+            Point::new(1.0, 0.0),
+            LineColor::Red1,
+        );
+        document.crease_pattern.add_line(
+            Point::new(0.0, 0.0),
+            Point::new(0.0, 1.0),
+            LineColor::Blue2,
+        );
+
+        let result = execute_command(
+            &mut document,
+            CreasePatternCommand::new(OperationId::CreaseSetLineColor).with_payload(
+                CreasePatternCommandPayload {
+                    line_ids: vec![1, 2],
+                    line_color: Some(LineColor::Purple8),
+                    ..CreasePatternCommandPayload::default()
+                },
+            ),
+        )
+        .expect("generic selected line color command should execute");
+
+        assert_eq!(result.operation, OperationId::CreaseSetLineColor);
+        assert_eq!(result.status, OperationStatus::UnitTested);
+        assert_eq!(result.diagnostics, vec!["Changed 2 line(s)"]);
+        assert!(
+            document
+                .crease_pattern
+                .line_segments
+                .iter()
+                .all(|segment| segment.color == LineColor::Purple8)
         );
     }
 
