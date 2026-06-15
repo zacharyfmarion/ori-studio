@@ -1179,7 +1179,7 @@ impl Tree {
         let vertices_coords = self
             .vertices
             .iter()
-            .map(|vertex| vec![vertex.loc.x, vertex.loc.y])
+            .map(|vertex| vec![vertex.loc.x, self.paper_height - vertex.loc.y])
             .collect::<Vec<_>>();
         let edges_vertices = self
             .creases
@@ -10218,6 +10218,10 @@ mod tests {
         assert_eq!(fold.vertices_coords.len(), tree.vertices.len());
         assert_eq!(fold.edges_vertices.len(), tree.creases.len());
         assert_eq!(fold.faces_vertices.len(), tree.facets.len());
+        for (fold_vertex, tree_vertex) in fold.vertices_coords.iter().zip(&tree.vertices) {
+            assert_eq!(fold_vertex[0], tree_vertex.loc.x);
+            assert_eq!(fold_vertex[1], tree.paper_height - tree_vertex.loc.y);
+        }
         assert!(fold.frame_classes.contains(&"creasePattern".to_string()));
         assert!(fold.extra.contains_key("tm:creaseKinds"));
 

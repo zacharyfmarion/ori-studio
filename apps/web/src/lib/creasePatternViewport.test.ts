@@ -74,6 +74,15 @@ describe('crease pattern viewport helpers', () => {
     const bounds = getEditableCpModelBounds(document);
     expect(bounds).toEqual(ORIEDITA_PAPER_BOUNDS);
 
+    expect(modelPointToCpSvg({ x: -200, y: -200 }, bounds)).toEqual({
+      x: CP_PAPER_RECT.x,
+      y: CP_PAPER_RECT.y,
+    });
+    expect(modelPointToCpSvg({ x: 200, y: 200 }, bounds)).toEqual({
+      x: CP_PAPER_RECT.x + CP_PAPER_RECT.width,
+      y: CP_PAPER_RECT.y + CP_PAPER_RECT.height,
+    });
+
     const svg = modelPointToCpSvg({ x: 5, y: 5 }, bounds);
     const model = cpSvgPointToModel(svg, bounds);
     expect(model.x).toBeCloseTo(5);
@@ -363,7 +372,7 @@ describe('crease pattern viewport helpers', () => {
       nearestCpSnapTarget(document, { x: 198, y: 199 }, ORIEDITA_PAPER_BOUNDS, options, 4)
     ).toMatchObject({
       kind: 'vertex',
-      label: 'paper top right',
+      label: 'paper bottom right',
       point: { x: 200, y: 200 },
     });
     expect(
@@ -376,7 +385,7 @@ describe('crease pattern viewport helpers', () => {
       )
     ).toMatchObject({
       kind: 'vertex',
-      label: 'paper bottom left',
+      label: 'paper top left',
       point: { x: -200, y: -200 },
     });
   });

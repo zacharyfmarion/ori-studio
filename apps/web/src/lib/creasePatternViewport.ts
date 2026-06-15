@@ -33,10 +33,10 @@ export const ORIEDITA_PAPER_BOUNDS: CpModelBounds = {
   spanY: ORIEDITA_PAPER_SIZE,
 };
 const ORIEDITA_PAPER_CORNERS: Array<{ point: Point; label: string }> = [
-  { point: { x: ORIEDITA_PAPER_MIN, y: ORIEDITA_PAPER_MAX }, label: 'paper top left' },
-  { point: { x: ORIEDITA_PAPER_MAX, y: ORIEDITA_PAPER_MAX }, label: 'paper top right' },
-  { point: { x: ORIEDITA_PAPER_MIN, y: ORIEDITA_PAPER_MIN }, label: 'paper bottom left' },
-  { point: { x: ORIEDITA_PAPER_MAX, y: ORIEDITA_PAPER_MIN }, label: 'paper bottom right' },
+  { point: { x: ORIEDITA_PAPER_MIN, y: ORIEDITA_PAPER_MIN }, label: 'paper top left' },
+  { point: { x: ORIEDITA_PAPER_MAX, y: ORIEDITA_PAPER_MIN }, label: 'paper top right' },
+  { point: { x: ORIEDITA_PAPER_MIN, y: ORIEDITA_PAPER_MAX }, label: 'paper bottom left' },
+  { point: { x: ORIEDITA_PAPER_MAX, y: ORIEDITA_PAPER_MAX }, label: 'paper bottom right' },
 ];
 
 const MODEL_PADDING_RATIO = 0.04;
@@ -320,7 +320,7 @@ export function modelPointToCpSvg(
 ): Point {
   return {
     x: rect.x + ((point.x - bounds.minX) / bounds.spanX) * rect.width,
-    y: rect.y + ((bounds.maxY - point.y) / bounds.spanY) * rect.height,
+    y: rect.y + ((point.y - bounds.minY) / bounds.spanY) * rect.height,
   };
 }
 
@@ -331,7 +331,7 @@ export function cpSvgPointToModel(
 ): Point {
   return {
     x: bounds.minX + ((point.x - rect.x) / rect.width) * bounds.spanX,
-    y: bounds.maxY - ((point.y - rect.y) / rect.height) * bounds.spanY,
+    y: bounds.minY + ((point.y - rect.y) / rect.height) * bounds.spanY,
   };
 }
 
