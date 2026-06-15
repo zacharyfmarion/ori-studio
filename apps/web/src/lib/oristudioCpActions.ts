@@ -1,5 +1,5 @@
 import type { OristudioCpLineColor } from '../engine/oristudioCpTypes';
-import { ORISTUDIO_CP_LINE_COLOR_PALETTE } from './oristudioCpPalette';
+import { ORISTUDIO_CP_PRIMARY_LINE_COLOR_PALETTE } from './oristudioCpPalette';
 import {
   ORISTUDIO_CP_COMMAND_GROUPS,
   ORISTUDIO_CP_COMMANDS,
@@ -67,7 +67,7 @@ export type OristudioCpActionDefinition =
   | OristudioCpCommandActionDefinition;
 
 export const ORISTUDIO_CP_LINE_TYPE_ACTIONS = [
-  ...ORISTUDIO_CP_LINE_COLOR_PALETTE.map((entry) =>
+  ...ORISTUDIO_CP_PRIMARY_LINE_COLOR_PALETTE.map((entry) =>
     lineTypeAction(
       entry.id,
       entry.label,

@@ -743,9 +743,14 @@ describe('CreasePatternPanel', () => {
     expect(container.querySelector('button[aria-label="Edge"]')?.textContent).toContain('E');
     expect(container.querySelector('button[aria-label="Unassigned"]')?.textContent).toContain('U');
     expect(container.querySelector('button[aria-label="Auxiliary"]')?.textContent).toContain('A');
-    expect(container.querySelector('button[aria-label="Orange"]')?.textContent).toContain('O');
-    expect(container.querySelector('button[aria-label="Purple"]')?.textContent).toContain('R');
-    expect(container.querySelector('button[aria-label="Other"]')?.textContent).toContain('X');
+    expect(container.querySelector('button[aria-label="Orange"]')).toBeNull();
+    expect(container.querySelector('button[aria-label="More line colors"]')).not.toBeNull();
+    act(() => {
+      container.querySelector<HTMLButtonElement>('button[aria-label="More line colors"]')?.click();
+    });
+    expect(container.querySelector('button[aria-label="Orange"]')?.textContent).toBe('');
+    expect(container.querySelector('button[aria-label="Purple"]')?.textContent).toBe('');
+    expect(container.querySelector('button[aria-label="Other"]')?.textContent).toBe('');
     expect(container.querySelector('button[aria-label="Apply active line color"]')).not.toBeNull();
     const rabbitEarButton = container.querySelector<HTMLButtonElement>(
       'button[aria-label="Rabbit Ear"]'
@@ -929,6 +934,10 @@ describe('CreasePatternPanel', () => {
       executeOristudioCpCommand,
     });
 
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('button[aria-label="More line colors"]')?.click();
+      await Promise.resolve();
+    });
     await act(async () => {
       container.querySelector<HTMLButtonElement>('button[aria-label="Purple"]')?.click();
       await Promise.resolve();

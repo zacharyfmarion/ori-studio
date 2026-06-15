@@ -23,12 +23,6 @@ describe('oristudio CP action registry', () => {
       'E',
       'U',
       'A',
-      'O',
-      'P',
-      'G',
-      'Y',
-      'R',
-      'X',
     ]);
     expect(ORISTUDIO_CP_LINE_TYPE_ACTIONS.map((action) => action.lineColor)).toEqual([
       'Red1',
@@ -36,12 +30,6 @@ describe('oristudio CP action registry', () => {
       'Black0',
       'None',
       'Cyan3',
-      'Orange4',
-      'Magenta5',
-      'Green6',
-      'Yellow7',
-      'Purple8',
-      'Other9',
     ]);
     expect(ORISTUDIO_CP_LINE_TYPE_ACTIONS.every((action) => action.placement === 'bottom-toolbar')).toBe(true);
     expect(cpRailActions().some((action) => action.kind === 'line-type')).toBe(false);

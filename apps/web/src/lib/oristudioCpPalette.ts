@@ -24,6 +24,25 @@ export const ORISTUDIO_CP_LINE_COLOR_PALETTE = [
   paletteEntry('other', 'Other', 'X', 'Other9', 'other', 'Line other', false),
 ] as const satisfies readonly OristudioCpPaletteEntry[];
 
+export const ORISTUDIO_CP_PRIMARY_LINE_COLOR_PALETTE = ORISTUDIO_CP_LINE_COLOR_PALETTE.filter(
+  (entry) =>
+    entry.id === 'mountain' ||
+    entry.id === 'valley' ||
+    entry.id === 'edge' ||
+    entry.id === 'unassigned' ||
+    entry.id === 'auxiliary'
+);
+
+export const ORISTUDIO_CP_EXTRA_LINE_COLOR_PALETTE = ORISTUDIO_CP_LINE_COLOR_PALETTE.filter(
+  (entry) =>
+    entry.id === 'orange' ||
+    entry.id === 'magenta' ||
+    entry.id === 'green' ||
+    entry.id === 'yellow' ||
+    entry.id === 'purple' ||
+    entry.id === 'other'
+);
+
 export const ORISTUDIO_CP_LINE_COLOR_BY_COLOR = new Map(
   ORISTUDIO_CP_LINE_COLOR_PALETTE.map((entry) => [entry.lineColor, entry])
 );
