@@ -252,3 +252,61 @@ Score both runs against GT:
 
 The report directory contains `summary.json`, `summary.md`,
 `per_sample.jsonl`, `regressions.jsonl`, and `contact_sheet.png`.
+
+## Box-Pleat Native Eval
+
+Box-pleated real-world CPs are selected by the `create-pattern-detector` repo,
+not by a committed path list in this repo. The ML repo owns the deterministic
+candidate recipe, canonical FOLD hashing, and expected fingerprints in
+`eval_specs/box_pleat_native_v1.json`. This repo owns the product-side eval:
+turning those selected FOLDs into a correctness pack, running the shipped ONNX
+model in the browser, and measuring the Rust/WASM post-processing behavior.
+
+Build a full product correctness pack from the ML repo's BP eval spec:
+
+```bash
+/path/to/create-pattern-detector/.venv/bin/python \
+  scripts/cp-detect/build-box-pleat-native-pack.py \
+  --detector-repo /path/to/create-pattern-detector \
+  --fold-root /path/to/scraped/native/converted_fold \
+  --out artifacts/cp-detect-correctness/packs/box-pleat-native-v1
+```
+
+Add `--limit 3` and use a distinct output directory for a fast smoke pack. The
+builder always verifies the full BP eval fingerprints before applying the
+limit, so a smoke pack still catches dataset drift.
+
+With the web app running locally, cache the browser ONNX dense heads:
+
+```bash
+node scripts/cp-detect/run-browser-dense-cache.mjs \
+  --url http://127.0.0.1:5175/ \
+  --pack artifacts/cp-detect-correctness/packs/box-pleat-native-v1/manifest.json \
+  --out artifacts/cp-detect-correctness/dense-cache/box-pleat-native-v1-browser-onnx-v3 \
+  --manifest-url /models/cp-detector-v3/manifest.json
+```
+
+Measure whether orthogonal BP crease pixels are missing from the line head, or
+are being removed by product non-crease suppression:
+
+```bash
+python3 scripts/cp-detect/evaluate-box-pleat-dense-cache.py \
+  --dense-manifest artifacts/cp-detect-correctness/dense-cache/box-pleat-native-v1-browser-onnx-v3/manifest.json \
+  --out artifacts/cp-detect-correctness/reports/box-pleat-native-v1-dense-heads
+```
+
+Then run the normal Rust topology benchmark against the same dense cache:
+
+```bash
+cargo run -p oristudio-cp-detect --bin compare_exact_solve_benchmark -- \
+  --dense-manifest artifacts/cp-detect-correctness/dense-cache/box-pleat-native-v1-browser-onnx-v3/manifest.json \
+  --out artifacts/cp-detect-correctness/reports/box-pleat-native-v1-strict-v3 \
+  --candidate-source junction-first-v1 \
+  --junction-first-offset-cluster-radius-px 3 \
+  --skip-exact-solve \
+  --strict-vertex-tolerance-px 4
+```
+
+All generated packs, dense caches, and reports belong under ignored
+`artifacts/`. Commit only the deterministic ML eval spec/fingerprints and the
+small scripts/docs that make this product-side flow reproducible.

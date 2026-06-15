@@ -153,6 +153,16 @@ Match local validation to the affected CI surface before opening a pull request.
 4. Avoid pushing product behavior into the Tauri shell unless it is truly native
    shell behavior.
 
+### CP detector eval work
+
+The `create-pattern-detector` ML repo owns deterministic dataset selection for
+the native box-pleat eval. This repo owns product-side browser ONNX,
+Rust/WASM, and post-processing evals over that selected set. Before changing
+box-pleat detector behavior, read
+`scripts/cp-detect/README.md#box-pleat-native-eval` and use the ignored
+`artifacts/cp-detect-correctness/` tree for generated packs, dense caches, and
+reports.
+
 ### Release work
 
 Release notes and package workflow details live in `RELEASE.md`. Keep release
