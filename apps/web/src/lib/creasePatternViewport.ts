@@ -60,6 +60,7 @@ export interface OristudioCpViewportOptions {
   snapToGrid: boolean;
   snapToVertices: boolean;
   snapToLines: boolean;
+  camvIssuesVisible?: boolean;
 }
 
 export type OristudioCpViewportOptionKey = keyof OristudioCpViewportOptions;
@@ -78,6 +79,7 @@ export const DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS: OristudioCpViewportOptions =
   snapToGrid: true,
   snapToVertices: true,
   snapToLines: true,
+  camvIssuesVisible: true,
 };
 
 export interface CpModelBounds {

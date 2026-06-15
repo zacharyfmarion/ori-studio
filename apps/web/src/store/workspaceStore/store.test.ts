@@ -2287,6 +2287,11 @@ describe('workspace store slices', () => {
       snapToVertices: true,
     });
 
+    useWorkspaceStore.getState().setOristudioCpViewportOption('camvIssuesVisible', false);
+    expect(useWorkspaceStore.getState().oristudioCpViewport).toMatchObject({
+      camvIssuesVisible: false,
+    });
+
     useWorkspaceStore.getState().clearOristudioCpSelection();
     expect(useWorkspaceStore.getState().oristudioCpSelection).toEqual(
       emptyOristudioCpSelection()

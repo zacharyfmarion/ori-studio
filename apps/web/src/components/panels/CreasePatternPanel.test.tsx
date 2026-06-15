@@ -1735,6 +1735,32 @@ describe('CreasePatternPanel', () => {
     });
 
     expect(useWorkspaceStore.getState().oristudioCpActiveDiagnosticId).toBe('CheckCamv-1');
+
+    const hideCamvButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Hide CAMV issues"]'
+    );
+    expect(hideCamvButton?.getAttribute('aria-pressed')).toBe('true');
+
+    act(() => {
+      hideCamvButton?.click();
+    });
+
+    expect(useWorkspaceStore.getState().oristudioCpViewport.camvIssuesVisible).toBe(false);
+    expect(container.querySelector('.cp-diagnostic-point')).toBeNull();
+    expect(container.querySelector('.cp-diagnostic-hud')).toBeNull();
+
+    const showCamvButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Show CAMV issues"]'
+    );
+    expect(showCamvButton?.getAttribute('aria-pressed')).toBe('false');
+
+    act(() => {
+      showCamvButton?.click();
+    });
+
+    expect(useWorkspaceStore.getState().oristudioCpViewport.camvIssuesVisible).toBe(true);
+    expect(container.querySelector('.cp-diagnostic-point')).not.toBeNull();
+    expect(container.querySelector('.cp-diagnostic-hud')?.textContent).toContain('1 CAMV Error');
   });
 
   it('does not show the diagnostic HUD for ordinary edit command results', () => {

@@ -12,6 +12,8 @@ import { TransformComponent, TransformWrapper, type ReactZoomPanPinchRef } from 
 import {
   ChevronDown,
   ChevronRight,
+  Eye,
+  EyeOff,
   FlipHorizontal,
   FlipHorizontal2,
   FlipVertical,
@@ -1232,6 +1234,7 @@ export function CreasePatternPanel() {
     ? normalizeOrieditaGridSize(editableCp.crease_pattern.grid.grid_size)
     : 8;
   const editableCpVertices = useMemo(() => getCpVertices(editableCp), [editableCp]);
+  const camvIssuesVisible = oristudioCpViewport.camvIssuesVisible !== false;
   const hasEditableCreasePattern = !!editableCp;
   const hasCreasePattern =
     hasEditableCreasePattern || project.creases.length > 0 || project.facets.length > 0;
@@ -1410,34 +1413,48 @@ export function CreasePatternPanel() {
     return axis ? cpSymmetryAxisLine(axis, editableCpBounds) : null;
   }, [cpSymmetryAxisPickPoints, cursorModelPoint, editableCp, editableCpBounds, snapTarget]);
   const lastCommandResult = oristudioCpDocument?.lastCommandResult ?? null;
-  const camvDiagnosticEntries =
-    oristudioCpCamvResult?.diagnostic_entries ?? EMPTY_DIAGNOSTIC_ENTRIES;
+  const camvDiagnosticEntries = camvIssuesVisible
+    ? (oristudioCpCamvResult?.diagnostic_entries ?? EMPTY_DIAGNOSTIC_ENTRIES)
+    : EMPTY_DIAGNOSTIC_ENTRIES;
   const latestCommandDiagnosticEntries =
     lastCommandResult && isDiagnosticResultOperation(lastCommandResult.operation)
       ? (lastCommandResult.diagnostic_entries ?? EMPTY_DIAGNOSTIC_ENTRIES)
       : EMPTY_DIAGNOSTIC_ENTRIES;
+  const visibleLatestCommandDiagnosticEntries =
+    !camvIssuesVisible && lastCommandResult?.operation === 'CheckCamv'
+      ? EMPTY_DIAGNOSTIC_ENTRIES
+      : latestCommandDiagnosticEntries;
   const latestDiagnosticEntries = useMemo(() => {
-    if (lastCommandResult?.operation === 'CheckCamv') return latestCommandDiagnosticEntries;
-    if (camvDiagnosticEntries.length === 0) return latestCommandDiagnosticEntries;
-    if (latestCommandDiagnosticEntries.length === 0) return camvDiagnosticEntries;
-    return [...camvDiagnosticEntries, ...latestCommandDiagnosticEntries];
-  }, [camvDiagnosticEntries, latestCommandDiagnosticEntries, lastCommandResult?.operation]);
+    if (lastCommandResult?.operation === 'CheckCamv') return visibleLatestCommandDiagnosticEntries;
+    if (camvDiagnosticEntries.length === 0) return visibleLatestCommandDiagnosticEntries;
+    if (visibleLatestCommandDiagnosticEntries.length === 0) return camvDiagnosticEntries;
+    return [...camvDiagnosticEntries, ...visibleLatestCommandDiagnosticEntries];
+  }, [camvDiagnosticEntries, lastCommandResult?.operation, visibleLatestCommandDiagnosticEntries]);
   const diagnosticStatus = useMemo(
-    () =>
-      diagnosticHudStatus(oristudioCpCamvResult, { issueOnly: true }) ??
-      diagnosticHudStatus(lastCommandResult),
-    [lastCommandResult, oristudioCpCamvResult]
+    () => {
+      const camvStatus = camvIssuesVisible
+        ? diagnosticHudStatus(oristudioCpCamvResult, { issueOnly: true })
+        : null;
+      const commandStatus =
+        !camvIssuesVisible && lastCommandResult?.operation === 'CheckCamv'
+          ? null
+          : diagnosticHudStatus(lastCommandResult);
+      return camvStatus ?? commandStatus;
+    },
+    [camvIssuesVisible, lastCommandResult, oristudioCpCamvResult]
   );
   const diagnosticHudEntries = useMemo(() => {
     const hudResult =
-      diagnosticHudStatus(oristudioCpCamvResult, { issueOnly: true }) !== null
+      camvIssuesVisible && diagnosticHudStatus(oristudioCpCamvResult, { issueOnly: true }) !== null
         ? oristudioCpCamvResult
-        : lastCommandResult;
+        : !camvIssuesVisible && lastCommandResult?.operation === 'CheckCamv'
+          ? null
+          : lastCommandResult;
     if (!hudResult || !isDiagnosticResultOperation(hudResult.operation)) {
       return EMPTY_DIAGNOSTIC_ENTRIES;
     }
     return hudResult.diagnostic_entries ?? EMPTY_DIAGNOSTIC_ENTRIES;
-  }, [lastCommandResult, oristudioCpCamvResult]);
+  }, [camvIssuesVisible, lastCommandResult, oristudioCpCamvResult]);
   const activeDiagnosticEntry = useMemo(
     () =>
       latestDiagnosticEntries.find((entry) => entry.id === oristudioCpActiveDiagnosticId) ?? null,
@@ -3618,6 +3635,18 @@ export function CreasePatternPanel() {
                         void setOristudioCpGridSize(gridSize);
                       }}
                     />
+                    <IconButton
+                      size="sm"
+                      variant="toolbar"
+                      title={camvIssuesVisible ? 'Hide CAMV issues' : 'Show CAMV issues'}
+                      aria-pressed={camvIssuesVisible}
+                      isActive={camvIssuesVisible}
+                      onClick={() =>
+                        setOristudioCpViewportOption('camvIssuesVisible', !camvIssuesVisible)
+                      }
+                    >
+                      {camvIssuesVisible ? <Eye size={14} /> : <EyeOff size={14} />}
+                    </IconButton>
                     <IconButton
                       size="sm"
                       variant="toolbar"
