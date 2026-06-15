@@ -9,6 +9,7 @@ use serde_json::{Value, json};
 use treemaker_fold::FoldDocument;
 
 const ORIEDITA_VERSION: &str = "dev";
+const ORISTUDIO_EDGES_LINE_COLORS: &str = "oristudio:edges_line_colors";
 
 /// Import a FOLD JSON document with Oriedita extension fields.
 pub fn import_fold_json(input: &str) -> Result<CreasePatternModel> {
@@ -18,6 +19,7 @@ pub fn import_fold_json(input: &str) -> Result<CreasePatternModel> {
 
 pub fn import_fold_document(fold: &FoldDocument) -> Result<CreasePatternModel> {
     let mut model = CreasePatternModel::default();
+    let edge_line_colors = line_color_array_extra(fold, ORISTUDIO_EDGES_LINE_COLORS)?;
     let edge_colors = string_array_extra(fold, "oriedita:edges_colors")?;
     let mut bounds = FoldImportBounds::default();
 
@@ -26,11 +28,11 @@ pub fn import_fold_document(fold: &FoldDocument) -> Result<CreasePatternModel> {
         let b = vertex_point(fold, edge[1])?;
         bounds.include(a);
         bounds.include(b);
-        let mut segment = LineSegment::with_color(
-            a,
-            b,
-            line_color_for_fold_assignment(fold.assignment_for_edge(index)),
-        );
+        let line_color = edge_line_colors
+            .as_ref()
+            .and_then(|colors| colors.get(index).copied().flatten())
+            .unwrap_or_else(|| line_color_for_fold_assignment(fold.assignment_for_edge(index)));
+        let mut segment = LineSegment::with_color(a, b, line_color);
 
         if let Some(hex) = edge_colors.as_ref().and_then(|colors| colors.get(index))
             && !hex.is_empty()
@@ -54,11 +56,13 @@ pub fn export_fold_document(model: &CreasePatternModel, title: Option<String>) -
     let topology = FoldGraph::from_model_for_export(model);
     let mut assignments = Vec::new();
     let mut fold_angles = Vec::new();
+    let mut edge_line_colors = Vec::new();
     let mut edge_custom_colors = Vec::new();
 
     for segment in &topology.segments {
         assignments.push(fold_assignment_for_line_color(segment.color));
         fold_angles.push(Some(fold_angle_for_line_color(segment.color)));
+        edge_line_colors.push(segment.color.number());
         edge_custom_colors.push(if segment.customized == 1 {
             custom_color_hex(segment.customized_color)
         } else {
@@ -91,6 +95,10 @@ pub fn export_fold_document(model: &CreasePatternModel, title: Option<String>) -
     fold.extra.insert(
         "oriedita:edges_colors".to_string(),
         json!(edge_custom_colors),
+    );
+    fold.extra.insert(
+        ORISTUDIO_EDGES_LINE_COLORS.to_string(),
+        json!(edge_line_colors),
     );
     export_circles(model, &mut fold);
     export_texts(model, &mut fold);
@@ -338,6 +346,42 @@ fn string_array_extra(fold: &FoldDocument, key: &'static str) -> Result<Option<V
                     field: key,
                     message: "expected string array".to_string(),
                 })
+        })
+        .collect::<Result<Vec<_>>>()
+        .map(Some)
+}
+
+fn line_color_array_extra(
+    fold: &FoldDocument,
+    key: &'static str,
+) -> Result<Option<Vec<Option<LineColor>>>> {
+    let Some(value) = fold.extra.get(key) else {
+        return Ok(None);
+    };
+    let Some(values) = value.as_array() else {
+        return Err(IoError::InvalidField {
+            field: key,
+            message: "expected array".to_string(),
+        });
+    };
+
+    values
+        .iter()
+        .map(|value| {
+            if value.is_null() {
+                return Ok(None);
+            }
+            let number = value.as_i64().ok_or_else(|| IoError::InvalidField {
+                field: key,
+                message: format!("expected integer line color, got {value}"),
+            })?;
+            let number = i32::try_from(number).map_err(|_| IoError::InvalidField {
+                field: key,
+                message: format!("line color {number} is outside i32 range"),
+            })?;
+            LineColor::from_number(number)
+                .map(Some)
+                .map_err(IoError::from)
         })
         .collect::<Result<Vec<_>>>()
         .map(Some)

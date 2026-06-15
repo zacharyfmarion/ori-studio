@@ -63,6 +63,39 @@ fn command_dispatch_accepts_resolved_line_payloads() {
 }
 
 #[wasm_bindgen_test]
+fn command_dispatch_accepts_active_line_color_payloads() {
+    let handle = oristudio_cp_wasm::load_cp("1 0 0 1 0\n3 0 0 0 1\n", "sample")
+        .expect("cp import should succeed");
+    let result = oristudio_cp_wasm::execute_cp_command(
+        handle,
+        serde_wasm_bindgen::to_value("CreaseSetLineColor").expect("operation id should serialize"),
+        serde_wasm_bindgen::to_value(&oristudio_cp::CreasePatternCommandPayload {
+            line_ids: vec![1, 2],
+            line_color: Some(oristudio_cp::geometry::LineColor::Purple8),
+            ..oristudio_cp::CreasePatternCommandPayload::default()
+        })
+        .expect("payload should serialize"),
+    )
+    .expect("selected line color command should execute");
+    let result: serde_json::Value =
+        serde_wasm_bindgen::from_value(result).expect("result should deserialize");
+    let snapshot = oristudio_cp_wasm::document_snapshot(handle).expect("snapshot should serialize");
+    let snapshot: serde_json::Value =
+        serde_wasm_bindgen::from_value(snapshot).expect("snapshot should deserialize");
+
+    assert_eq!(result["operation"], "CreaseSetLineColor");
+    assert_eq!(
+        snapshot["crease_pattern"]["line_segments"][0]["color"],
+        "Purple8"
+    );
+    assert_eq!(
+        snapshot["crease_pattern"]["line_segments"][1]["color"],
+        "Purple8"
+    );
+    oristudio_cp_wasm::free_document(handle).expect("document handle should free");
+}
+
+#[wasm_bindgen_test]
 fn inserts_and_replaces_clipboard_line_segments() {
     let handle =
         oristudio_cp_wasm::load_cp("1 0 0 1 0\n", "sample").expect("cp import should succeed");

@@ -4,6 +4,7 @@ import type {
   OristudioCpLineSegment,
 } from '../engine/oristudioCpTypes';
 import type { Point, PlotRect } from './geometry';
+import { cpPaletteEntryForColor } from './oristudioCpPalette';
 
 export const CP_VIEWBOX_SIZE = 720;
 export const CP_WORLD_RECT: PlotRect = { x: 0, y: 0, width: CP_VIEWBOX_SIZE, height: CP_VIEWBOX_SIZE };
@@ -337,6 +338,17 @@ export function cpSvgPointToModel(
 
 export function cpLineColorClass(color: string, mode: 'mvf' | 'agrh'): string {
   if (mode === 'agrh') return 'crease crease--kind-axial';
+  const paletteEntry = cpPaletteEntryForColor(color);
+  if (paletteEntry) {
+    const legacyClass = legacyFoldClassForLineColor(color);
+    return [
+      'crease',
+      legacyClass,
+      `crease--line-color-${paletteEntry.cssClass}`,
+    ]
+      .filter(Boolean)
+      .join(' ');
+  }
   switch (color) {
     case 'Red1':
       return 'crease crease--fold-mountain';
@@ -349,7 +361,24 @@ export function cpLineColorClass(color: string, mode: 'mvf' | 'agrh'): string {
   }
 }
 
+function legacyFoldClassForLineColor(color: string): string | null {
+  switch (color) {
+    case 'Red1':
+      return 'crease--fold-mountain';
+    case 'Blue2':
+      return 'crease--fold-valley';
+    case 'Black0':
+      return 'crease--fold-border';
+    case 'Cyan3':
+      return 'crease--fold-flat';
+    default:
+      return null;
+  }
+}
+
 export function cpLineAssignmentLabel(color: string): string {
+  const paletteEntry = cpPaletteEntryForColor(color);
+  if (paletteEntry) return paletteEntry.label.toLowerCase();
   switch (color) {
     case 'Red1':
       return 'mountain';

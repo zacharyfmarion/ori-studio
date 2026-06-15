@@ -741,7 +741,17 @@ describe('CreasePatternPanel', () => {
     expect(container.querySelector('button[aria-label="Mountain"]')?.textContent).toContain('M');
     expect(container.querySelector('button[aria-label="Valley"]')?.textContent).toContain('V');
     expect(container.querySelector('button[aria-label="Edge"]')?.textContent).toContain('E');
+    expect(container.querySelector('button[aria-label="Unassigned"]')?.textContent).toContain('U');
     expect(container.querySelector('button[aria-label="Auxiliary"]')?.textContent).toContain('A');
+    expect(container.querySelector('button[aria-label="Orange"]')).toBeNull();
+    expect(container.querySelector('button[aria-label="More line colors"]')).not.toBeNull();
+    act(() => {
+      container.querySelector<HTMLButtonElement>('button[aria-label="More line colors"]')?.click();
+    });
+    expect(container.querySelector('button[aria-label="Orange"]')?.textContent).toBe('');
+    expect(container.querySelector('button[aria-label="Purple"]')?.textContent).toBe('');
+    expect(container.querySelector('button[aria-label="Other"]')?.textContent).toBe('');
+    expect(container.querySelector('button[aria-label="Apply active line color"]')).not.toBeNull();
     const rabbitEarButton = container.querySelector<HTMLButtonElement>(
       'button[aria-label="Rabbit Ear"]'
     );
@@ -905,6 +915,42 @@ describe('CreasePatternPanel', () => {
     expect(useWorkspaceStore.getState().oristudioCpViewport.snapToGrid).toBe(false);
     expect(useWorkspaceStore.getState().oristudioCpViewport.snapToVertices).toBe(false);
     expect(useWorkspaceStore.getState().oristudioCpViewport.snapToLines).toBe(false);
+  });
+
+  it('applies the active palette color to selected editable CP lines', async () => {
+    const executeOristudioCpCommand = vi.fn(async () => true);
+    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
+      documentMode: 'crease-pattern',
+      importedCreasePattern: importedCpDocument(),
+      oristudioCpDocument: editableCpState(),
+      oristudioCpSelection: {
+        lines: [1, 2],
+        vertices: [],
+        points: [],
+        circles: [],
+        texts: [],
+        faces: [],
+      },
+      executeOristudioCpCommand,
+    });
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('button[aria-label="More line colors"]')?.click();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('button[aria-label="Purple"]')?.click();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('button[aria-label="Apply active line color"]')?.click();
+      await Promise.resolve();
+    });
+
+    expect(executeOristudioCpCommand).toHaveBeenCalledWith('CreaseSetLineColor', {
+      line_ids: [1, 2],
+      line_color: 'Purple8',
+    });
   });
 
   it('renders generated CP companions as editable with compact toolbar symmetry controls', () => {

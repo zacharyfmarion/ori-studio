@@ -88,11 +88,13 @@ describe('native project file', () => {
 
   it('preserves editable CP snapshots, fold projection, and view state', () => {
     const selection = { ...emptyOristudioCpSelection(), lines: [1] };
+    const documentSnapshot = cpDocument();
+    documentSnapshot.crease_pattern.line_segments[0].color = 'Purple8';
     const file = createNativeCreasePatternProjectFile({
       title: 'Square CP',
       filename: 'square.cp',
       path: '/tmp/square.cp',
-      document: cpDocument(),
+      document: documentSnapshot,
       source: { format: 'cp', filename: 'square.cp', path: '/tmp/square.cp' },
       foldProjection: {
         file_spec: 1.2,
@@ -123,6 +125,7 @@ describe('native project file', () => {
     expect(document.kind).toBe('crease-pattern');
     if (document.kind !== 'crease-pattern') throw new Error('expected CP document');
     expect(document.creasePattern.document.crease_pattern.line_segments).toHaveLength(1);
+    expect(document.creasePattern.document.crease_pattern.line_segments[0].color).toBe('Purple8');
     expect(document.creasePattern.foldProjection?.edges_vertices).toEqual([[0, 1]]);
     expect(document.viewState).toMatchObject({
       creaseColorMode: 'agrh',

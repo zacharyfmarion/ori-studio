@@ -490,17 +490,20 @@ pub fn fold_assignment_for_line_color(line_color: LineColor) -> Assignment {
         | LineColor::Green6
         | LineColor::Yellow7
         | LineColor::Purple8
-        | LineColor::Other9 => Assignment::Flat,
+        | LineColor::Other9
+        | LineColor::Grey10 => Assignment::Flat,
         _ => Assignment::Unassigned,
     }
 }
 
 pub fn line_color_for_fold_assignment(assignment: Assignment) -> LineColor {
     match assignment {
+        Assignment::Boundary => LineColor::Black0,
         Assignment::Mountain => LineColor::Red1,
         Assignment::Valley => LineColor::Blue2,
         Assignment::Flat => LineColor::Cyan3,
-        _ => LineColor::Black0,
+        Assignment::Unassigned => LineColor::None,
+        Assignment::Cut | Assignment::Join => LineColor::Black0,
     }
 }
 

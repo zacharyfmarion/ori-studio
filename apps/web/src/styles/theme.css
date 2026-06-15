@@ -57,6 +57,13 @@
   --fold-valley: #60a5fa;
   --fold-flat: #85919a;
   --fold-border: #111417;
+  --fold-unassigned: #9aa4ad;
+  --cp-color-orange: #f97316;
+  --cp-color-magenta: #d946ef;
+  --cp-color-green: #22c55e;
+  --cp-color-yellow: #eab308;
+  --cp-color-purple: #8b5cf6;
+  --cp-color-other: #14b8a6;
   --fold-ridge: #d2545f;
   --fold-hinge: #4d88e8;
   --fold-pseudohinge: #3fbec4;
@@ -3762,6 +3769,10 @@
   font-weight: 800;
 }
 
+.cp-line-type-toolbar__apply {
+  min-width: 28px;
+}
+
 .cp-line-type-toolbar__button[data-line-color='Red1'] {
   color: var(--fold-mountain);
 }
@@ -3778,6 +3789,10 @@
   color: var(--fold-flat);
 }
 
+.cp-line-type-toolbar__button[data-line-color='None'] {
+  color: var(--fold-unassigned);
+}
+
 .cp-line-type-toolbar__button[data-active][data-line-color='Red1'] {
   color: var(--fold-mountain);
 }
@@ -3792,6 +3807,10 @@
 
 .cp-line-type-toolbar__button[data-active][data-line-color='Cyan3'] {
   color: var(--fold-flat);
+}
+
+.cp-line-type-toolbar__button[data-active][data-line-color='None'] {
+  color: var(--fold-unassigned);
 }
 
 .cp-grid-size-control {
@@ -3895,6 +3914,104 @@
   min-width: 76px;
   padding: 4px;
   transform: translateX(-50%);
+}
+
+.cp-line-color-menu__trigger {
+  min-width: 28px;
+  width: 28px;
+}
+
+.cp-line-color-menu__trigger-swatch,
+.cp-line-color-menu__swatch {
+  display: block;
+  flex: 0 0 auto;
+  aspect-ratio: 1 / 1;
+  box-sizing: border-box;
+  border-radius: var(--radius-sm);
+  background: currentColor;
+  box-shadow:
+    0 0 0 1px rgba(16, 20, 23, 0.38),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+
+.cp-line-color-menu__trigger-swatch {
+  inline-size: 14px;
+  block-size: 14px;
+  min-inline-size: 14px;
+  max-inline-size: 14px;
+  background: conic-gradient(
+    from 90deg,
+    var(--cp-color-orange),
+    var(--cp-color-magenta),
+    var(--cp-color-green),
+    var(--cp-color-yellow),
+    var(--cp-color-purple),
+    var(--cp-color-other),
+    var(--cp-color-orange)
+  );
+}
+
+.cp-line-color-menu__trigger[data-line-color] .cp-line-color-menu__trigger-swatch {
+  background: currentColor;
+}
+
+.cp-line-color-menu [data-line-color='Orange4'] {
+  color: var(--cp-color-orange);
+}
+
+.cp-line-color-menu [data-line-color='Magenta5'] {
+  color: var(--cp-color-magenta);
+}
+
+.cp-line-color-menu [data-line-color='Green6'] {
+  color: var(--cp-color-green);
+}
+
+.cp-line-color-menu [data-line-color='Yellow7'] {
+  color: var(--cp-color-yellow);
+}
+
+.cp-line-color-menu [data-line-color='Purple8'] {
+  color: var(--cp-color-purple);
+}
+
+.cp-line-color-menu [data-line-color='Other9'] {
+  color: var(--cp-color-other);
+}
+
+.cp-line-color-menu__panel {
+  grid-template-columns: repeat(3, 28px);
+  min-width: 0;
+  padding: 6px;
+  gap: 5px;
+}
+
+.cp-line-color-menu__swatch-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+}
+
+.cp-line-color-menu__swatch-button:hover {
+  background: var(--bg-surface);
+}
+
+.cp-line-color-menu__swatch-button[data-active] {
+  border-color: color-mix(in srgb, currentColor 48%, transparent);
+  background: color-mix(in srgb, currentColor 16%, transparent);
+}
+
+.cp-line-color-menu__swatch {
+  inline-size: 16px;
+  block-size: 16px;
+  min-inline-size: 16px;
+  max-inline-size: 16px;
 }
 
 .viewport-toolbar__dropdown-item {
@@ -4160,6 +4277,63 @@
 .crease--fold-border {
   stroke: var(--fold-border);
   stroke-width: 4;
+}
+
+.crease--line-color-mountain {
+  stroke: var(--fold-mountain);
+  stroke-width: 3;
+}
+
+.crease--line-color-valley {
+  stroke: var(--fold-valley);
+  stroke-width: 3;
+  stroke-dasharray: 10 7;
+}
+
+.crease--line-color-border {
+  stroke: var(--fold-border);
+  stroke-width: 4;
+}
+
+.crease--line-color-unassigned {
+  stroke: var(--fold-unassigned);
+  stroke-width: 2;
+  stroke-dasharray: 3 7;
+}
+
+.crease--line-color-flat {
+  stroke: var(--fold-flat);
+  stroke-width: 1.5;
+}
+
+.crease--line-color-orange {
+  stroke: var(--cp-color-orange);
+  stroke-width: 2.4;
+}
+
+.crease--line-color-magenta {
+  stroke: var(--cp-color-magenta);
+  stroke-width: 2.4;
+}
+
+.crease--line-color-green {
+  stroke: var(--cp-color-green);
+  stroke-width: 2.4;
+}
+
+.crease--line-color-yellow {
+  stroke: var(--cp-color-yellow);
+  stroke-width: 2.4;
+}
+
+.crease--line-color-purple {
+  stroke: var(--cp-color-purple);
+  stroke-width: 2.4;
+}
+
+.crease--line-color-other {
+  stroke: var(--cp-color-other);
+  stroke-width: 2.4;
 }
 
 .crease--kind-axial {

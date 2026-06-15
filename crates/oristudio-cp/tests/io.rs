@@ -23,6 +23,22 @@ fn cp_import_and_export_preserve_oriedita_assignment_numbers() {
 }
 
 #[test]
+fn cp_export_collapses_extended_line_colors_to_auxiliary_code() {
+    let mut model = CreasePatternModel::default();
+    model.add_line(Point::new(0.0, 0.0), Point::new(1.0, 0.0), LineColor::None);
+    model.add_line(
+        Point::new(0.0, 1.0),
+        Point::new(1.0, 1.0),
+        LineColor::Purple8,
+    );
+
+    assert_eq!(
+        cp::export_cp_string(&model),
+        "4 0.0 0.0 1.0 0.0\n4 0.0 1.0 1.0 1.0\n"
+    );
+}
+
+#[test]
 fn fold_import_reads_edges_and_oriedita_extensions() {
     let input = r##"{
       "file_spec": 1.1,
@@ -67,6 +83,22 @@ fn fold_import_reads_edges_and_oriedita_extensions() {
 }
 
 #[test]
+fn fold_import_prefers_oristudio_line_color_extension_over_assignment() {
+    let input = r##"{
+      "file_spec": 1.1,
+      "vertices_coords": [[0, 0], [10, 0], [10, 10]],
+      "edges_vertices": [[0, 1], [1, 2]],
+      "edges_assignment": ["M", "U"],
+      "oristudio:edges_line_colors": [8, -1]
+    }"##;
+
+    let model = fold::import_fold_json(input).expect("valid fold");
+
+    assert_eq!(model.line_segments[0].color, LineColor::Purple8);
+    assert_eq!(model.line_segments[1].color, LineColor::None);
+}
+
+#[test]
 fn fold_import_defaults_missing_oriedita_grid_style_to_hidden_like_oriedita() {
     let input = r#"{
       "file_spec": 1.1,
@@ -103,9 +135,38 @@ fn fold_export_round_trips_canonical_model_data() {
     model.grid.base_state = GridState::Hidden;
 
     let json = fold::export_fold_json(&model, Some("fold".to_string())).expect("serializes");
+    let exported: serde_json::Value = serde_json::from_str(&json).expect("json");
+    assert_eq!(
+        exported["oristudio:edges_line_colors"],
+        serde_json::json!([2, 3])
+    );
     let imported = fold::import_fold_json(&json).expect("imports exported fold");
 
     assert_eq!(model.canonical(1.0e-9), imported.canonical(1.0e-9));
+}
+
+#[test]
+fn fold_export_preserves_extended_line_color_metadata_with_standard_assignments() {
+    let mut model = CreasePatternModel::default();
+    model.add_line(
+        Point::new(0.0, 0.0),
+        Point::new(1.0, 0.0),
+        LineColor::Purple8,
+    );
+    model.add_line(Point::new(0.0, 1.0), Point::new(1.0, 1.0), LineColor::None);
+
+    let json = fold::export_fold_json(&model, Some("colors".to_string())).expect("serializes");
+    let exported: serde_json::Value = serde_json::from_str(&json).expect("json");
+
+    assert_eq!(exported["edges_assignment"], serde_json::json!(["F", "U"]));
+    assert_eq!(
+        exported["oristudio:edges_line_colors"],
+        serde_json::json!([8, -1])
+    );
+
+    let imported = fold::import_fold_json(&json).expect("imports exported fold");
+    assert_eq!(imported.line_segments[0].color, LineColor::Purple8);
+    assert_eq!(imported.line_segments[1].color, LineColor::None);
 }
 
 #[test]

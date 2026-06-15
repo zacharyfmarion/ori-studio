@@ -20,6 +20,7 @@ import {
   GitBranch,
   Grid2X2,
   Magnet,
+  Palette,
   RotateCcw,
   RotateCw,
   ScanLine,
@@ -92,6 +93,10 @@ import {
   type OristudioCpToolInstructions,
 } from '../../lib/oristudioCpToolInstructions';
 import { cpLineageStatusLabel } from '../../lib/oristudioCpLineage';
+import {
+  ORISTUDIO_CP_EXTRA_LINE_COLOR_PALETTE,
+  cpPaletteEntryForColor,
+} from '../../lib/oristudioCpPalette';
 import {
   axisFromTwoPoints,
   cpSymmetryAxisLine,
@@ -496,26 +501,19 @@ function isReflectSelectionOperation(operationId: string | null | undefined): bo
 }
 
 function cpLineTypeStatusLabel(lineColor: OristudioCpLineColor): string {
-  switch (lineColor) {
-    case 'Red1':
-      return 'Line M';
-    case 'Blue2':
-      return 'Line V';
-    case 'Black0':
-      return 'Line E';
-    case 'Cyan3':
-      return 'Line A';
-    default:
-      return `Line ${cpLineAssignmentLabel(lineColor)}`;
-  }
+  return cpPaletteEntryForColor(lineColor)?.statusLabel ?? `Line ${cpLineAssignmentLabel(lineColor)}`;
 }
 
 function CpLineTypeToolbar({
   activeLineColor,
+  applyDisabled,
+  onApplyLineColor,
   onSelectLineColor,
   shortcutOverrides,
 }: {
   activeLineColor: OristudioCpLineColor;
+  applyDisabled: boolean;
+  onApplyLineColor: () => void;
   onSelectLineColor: (lineColor: OristudioCpLineColor) => void;
   shortcutOverrides: ShortcutOverrides;
 }) {
@@ -539,6 +537,97 @@ function CpLineTypeToolbar({
           </IconButton>
         );
       })}
+      <CpLineColorMenuButton
+        activeLineColor={activeLineColor}
+        onSelectLineColor={onSelectLineColor}
+      />
+      <IconButton
+        size="sm"
+        variant="toolbar"
+        title={
+          applyDisabled
+            ? 'Select lines before applying the active line color'
+            : 'Apply active line color to selected lines'
+        }
+        aria-label="Apply active line color"
+        className="cp-line-type-toolbar__apply"
+        disabled={applyDisabled}
+        onClick={onApplyLineColor}
+      >
+        <Palette size={14} />
+      </IconButton>
+    </div>
+  );
+}
+
+function CpLineColorMenuButton({
+  activeLineColor,
+  onSelectLineColor,
+}: {
+  activeLineColor: OristudioCpLineColor;
+  onSelectLineColor: (lineColor: OristudioCpLineColor) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const activeExtraEntry = ORISTUDIO_CP_EXTRA_LINE_COLOR_PALETTE.find(
+    (entry) => entry.lineColor === activeLineColor
+  );
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onPointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (menuRef.current?.contains(target)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, [open]);
+
+  const chooseColor = (lineColor: OristudioCpLineColor) => {
+    onSelectLineColor(lineColor);
+    setOpen(false);
+  };
+
+  return (
+    <div className="viewport-toolbar__menu-anchor cp-line-color-menu" ref={menuRef}>
+      <IconButton
+        size="sm"
+        variant="toolbar"
+        title={activeExtraEntry ? activeExtraEntry.label : 'More line colors'}
+        aria-label="More line colors"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="cp-line-color-menu__trigger"
+        data-line-color={activeExtraEntry?.lineColor}
+        isActive={Boolean(activeExtraEntry)}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <span className="cp-line-color-menu__trigger-swatch" aria-hidden="true" />
+      </IconButton>
+      {open && (
+        <div
+          className="viewport-toolbar__dropdown cp-line-color-menu__panel"
+          role="menu"
+          aria-label="Extra line colors"
+        >
+          {ORISTUDIO_CP_EXTRA_LINE_COLOR_PALETTE.map((entry) => (
+            <button
+              key={entry.id}
+              type="button"
+              className="cp-line-color-menu__swatch-button"
+              data-active={activeLineColor === entry.lineColor ? true : undefined}
+              data-line-color={entry.lineColor}
+              role="menuitemradio"
+              aria-checked={activeLineColor === entry.lineColor}
+              aria-label={entry.label}
+              onClick={() => chooseColor(entry.lineColor)}
+            >
+              <span className="cp-line-color-menu__swatch" aria-hidden="true" />
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -1650,6 +1739,14 @@ export function CreasePatternPanel() {
     }
     clearOristudioCpActionRequest(oristudioCpActionRequest.id);
   }, [clearOristudioCpActionRequest, handleCpToolAction, oristudioCpActionRequest]);
+
+  const handleApplyActiveLineColor = useCallback(() => {
+    if (!editableCp || oristudioCpSelection.lines.length === 0) return;
+    void executeOristudioCpCommand('CreaseSetLineColor', {
+      line_ids: oristudioCpSelection.lines,
+      line_color: activeCpLineColor,
+    });
+  }, [activeCpLineColor, editableCp, executeOristudioCpCommand, oristudioCpSelection.lines]);
 
   const handleApplyActiveContextCommand = useCallback(() => {
     if (
@@ -3682,6 +3779,8 @@ export function CreasePatternPanel() {
                     <ViewportToolbarSeparator />
                     <CpLineTypeToolbar
                       activeLineColor={activeCpLineColor}
+                      applyDisabled={oristudioCpSelection.lines.length === 0}
+                      onApplyLineColor={handleApplyActiveLineColor}
                       onSelectLineColor={setActiveCpLineColor}
                       shortcutOverrides={shortcutOverrides}
                     />

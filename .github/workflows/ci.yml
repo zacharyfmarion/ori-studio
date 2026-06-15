@@ -35,7 +35,7 @@ jobs:
             ${{ runner.os }}-${{ github.repository }}-web-cargo-
 
       - name: Install wasm-pack
-        run: cargo install wasm-pack --version 0.13.1 --locked
+        uses: ./.github/actions/install-wasm-pack
 
       - name: Set up Node
         uses: actions/setup-node@v4

@@ -316,6 +316,11 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     selectionRequirement: 'selected lines',
     tooltip: 'Make selected lines edge folds',
   }),
+  ready('CreaseSetLineColor', 'Set selected line color', 'color', 'palette', 'OriStudioSetLineColor', {
+    placement: 'palette',
+    selectionRequirement: 'selected lines',
+    tooltip: 'Apply the active line color to selected lines',
+  }),
   outOfScopeUi(
     'BackgroundChangePosition',
     'Move background',
@@ -641,6 +646,7 @@ export const ORISTUDIO_CP_SOURCE_MAP_OPERATION_IDS = [
   'CreaseMakeMountain',
   'CreaseMakeValley',
   'CreaseMakeEdge',
+  'CreaseSetLineColor',
   'BackgroundChangePosition',
   'LineSegmentDivision',
   'LineSegmentRatioSet',

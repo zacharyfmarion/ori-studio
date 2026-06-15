@@ -38,6 +38,11 @@ describe('oristudio CP command registry', () => {
       placement: 'menu',
       selectionRequirement: 'selected lines',
     });
+    expect(cpCommandByOperation('CreaseSetLineColor')).toMatchObject({
+      uiStatus: 'ready',
+      placement: 'palette',
+      selectionRequirement: 'selected lines',
+    });
     expect(cpCommandByOperation('CreaseMove')).toMatchObject({
       uiStatus: 'ready',
       toolSteps: ['Pick source point', 'Pick destination point'],
