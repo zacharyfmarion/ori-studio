@@ -3924,6 +3924,9 @@
 .cp-line-color-menu__trigger-swatch,
 .cp-line-color-menu__swatch {
   display: block;
+  flex: 0 0 auto;
+  aspect-ratio: 1 / 1;
+  box-sizing: border-box;
   border-radius: var(--radius-sm);
   background: currentColor;
   box-shadow:
@@ -3932,8 +3935,10 @@
 }
 
 .cp-line-color-menu__trigger-swatch {
-  width: 14px;
-  height: 14px;
+  inline-size: 14px;
+  block-size: 14px;
+  min-inline-size: 14px;
+  max-inline-size: 14px;
   background: conic-gradient(
     from 90deg,
     var(--cp-color-orange),
@@ -4003,8 +4008,10 @@
 }
 
 .cp-line-color-menu__swatch {
-  width: 16px;
-  height: 16px;
+  inline-size: 16px;
+  block-size: 16px;
+  min-inline-size: 16px;
+  max-inline-size: 16px;
 }
 
 .viewport-toolbar__dropdown-item {
