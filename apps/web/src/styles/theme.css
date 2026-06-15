@@ -3924,7 +3924,7 @@
 .cp-line-color-menu__trigger-swatch,
 .cp-line-color-menu__swatch {
   display: block;
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
   background: currentColor;
   box-shadow:
     0 0 0 1px rgba(16, 20, 23, 0.38),
