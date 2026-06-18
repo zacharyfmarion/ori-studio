@@ -12,6 +12,7 @@ pub mod decode;
 pub mod evidence_extract;
 mod legacy_decode;
 pub mod opencv_hough_lines_p;
+pub mod raster_candidate_generation;
 pub mod raster_evidence;
 pub mod rectify;
 pub mod segments;
