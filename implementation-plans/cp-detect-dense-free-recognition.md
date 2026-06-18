@@ -273,8 +273,8 @@ assignment is the real blocker.
 
 ## Checklist
 
-- [ ] Define `RasterEvidence`, extraction config, and report schema.
-- [ ] Add deterministic image mask extraction from rectified PNG/RGBA input.
+- [x] Define `RasterEvidence`, extraction config, and report schema.
+- [x] Add deterministic image mask extraction from rectified PNG/RGBA input.
 - [ ] Add `raster-carrier-v1` strategy that emits `CandidateGraph`.
 - [ ] Add unit tests for raster masks, Hough carrier grouping, intersections,
       border contacts, locked borders, and adjacent-span emission.
