@@ -1,6 +1,7 @@
 # CP Detect Dense-Free Recognition Experiment
 
-Status: Implemented through real-pack ablation ladder, June 18, 2026.
+Status: Dense-free deterministic paths blocked; sparse-model audit complete,
+June 18, 2026.
 
 ## Goal
 
@@ -302,5 +303,10 @@ assignment is the real blocker.
       bottleneck analysis. The deterministic raster vertex proposal ceiling is
       not competitive, so the next serious path is a sparse non-dense
       vertex/edge predictor rather than more carrier tuning.
-- [ ] Inspect and benchmark the existing sparse close-pair/graph-head assets on
+- [x] Inspect and benchmark the existing sparse close-pair/graph-head assets on
       the real correctness packs before adding product wiring.
+- [x] Probe an alternate skeleton-topology vectorizer on the real correctness
+      packs as a deterministic fallback. It is not competitive.
+- [x] Document the blocker: no current strict dense-free strategy is close to
+      the dense baseline; a serious next attempt requires training a true
+      sparse non-dense model or changing the runtime contract.

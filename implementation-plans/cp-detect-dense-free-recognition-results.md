@@ -1,6 +1,6 @@
 # CP Detect Dense-Free Recognition Results
 
-Status: Phase 5 ablation report, corrected June 18, 2026.
+Status: Phase 6 blocker report, corrected June 18, 2026.
 
 ## Summary
 
@@ -29,6 +29,13 @@ vertices and GT adjacency, clean recall tops out at `66.0%` even with `360`
 carriers, no span budget, and an extremely loose `1px` merge radius that emits
 more than `140k` proposed vertices across 15 samples. That is not a
 default-ready shape.
+
+I also audited the existing `create-pattern-detector` close-pair and graph-head
+assets. They are useful learned-vertex diagnostics, but not a strict
+dense-free runtime path: the close-pair checkpoints decode `junction_logits`
+and `junction_offset`, and the old graph head consumes dense pixel-head
+segmentation/backbone features. A true sparse approach would require training
+or distilling a new non-dense head.
 
 ## Data Used
 
@@ -228,14 +235,56 @@ Takeaways:
   competitive path needs a better vertex/edge proposal source, most likely a
   sparse non-dense model.
 
+## Skeleton Topology Probe
+
+As a second deterministic path, I ran the detector repo's older skeleton
+topology extractor directly on the real rectified PNGs. The input was a
+thresholded raster line mask; no model dense heads were used.
+
+| Probe | Pack | Vertex P/R | Edge P/R | Pred vertices | Pred edges | Time |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| skeleton-default | `smoke-1024-s1` | 19.5% / 56.4% | 15.5% / 22.8% | 544 | 464 | 1.7s |
+| skeleton-merge6 | `smoke-1024-s1` | 20.2% / 55.9% | 18.4% / 25.6% | 521 | 440 | 1.7s |
+| hybrid direct/skeleton | `smoke-1024-s1` | 20.0% / 55.9% | 20.3% / 9.2% | 526 | 143 | 1.0s |
+| skeleton-default | `clean-1024-s15` | 57.7% / 71.1% | 39.6% / 41.7% | 1680 | 2788 | 8.5s |
+| skeleton-merge6 | `clean-1024-s15` | 69.1% / 72.2% | 51.0% / 49.6% | 1423 | 2574 | 9.3s |
+| hybrid direct/skeleton | `clean-1024-s15` | 64.4% / 73.1% | 29.1% / 10.6% | 1546 | 965 | 7.0s |
+
+The clean `skeleton-merge6` result is better than tight-budget
+`raster-carrier-v1` selected recall, but still misses about half the topology
+and performs poorly on the smoke profile mix. It does not change the default
+decision.
+
+## Sparse Model Audit
+
+Existing learned assets are not directly reusable as strict dense-free runtime
+strategies:
+
+- `r1_close_pair_warmstart` and `r3_close_pair_scratch` are CPLineNet
+  checkpoints. Their close-pair eval decodes dense `junction_logits` and
+  `junction_offset`.
+- The close-pair report shows useful but limited learned vertex improvement:
+  pair resolution improved from `5.4%` to `26.5%`, while strict eF1 improved
+  from `0.942` to `0.953`. It did not pass the original close-pair gate.
+- The older graph-head training path freezes a pixel model, extracts candidate
+  graphs from dense segmentation/junction heatmaps, and samples dense
+  segmentation/backbone features along nodes/edges. That violates the strict
+  "no dense outputs" experiment boundary.
+
+This leaves no existing trained sparse checkpoint that can be honestly plugged
+into the dense-free benchmark. A competitive next attempt needs new training:
+for example `rectified image -> sparse vertices + sparse edge probabilities`
+with a JSON/export contract that feeds the existing `CandidateGraph` compiler.
+
 ## Comparison
 
-| Path | Pack | Selected recall | Assignment match | Time | Candidate/conflict profile |
+| Path | Pack | Topology recall | Assignment match | Time | Candidate/conflict profile |
 | --- | --- | ---: | ---: | ---: | --- |
 | dense `junction-first-v1` | clean-1024-s15 | 95.8% | 91.6% | 6.3s | 2651 candidates, 113 conflicts |
 | raster carrier tight | clean-1024-s15 | 21.8% | 0.4% | 80.3s | 16986 candidates, 15559 conflicts |
 | raster carrier tight | smoke-1024-s1 | 42.9% | 0.0% | 26.5s | 5363 candidates, 5007 conflicts |
 | raster vertices plus GT adjacency, best ablation | clean-1024-s15 | 66.0% | not meaningful | 22.1s | oracle adjacency over 141046 raster vertices |
+| skeleton topology, best clean probe | clean-1024-s15 | 49.6% | not measured | 9.3s | 1423 vertices, 2574 edges |
 
 This is a decisive gap. The raster path produces many more alternatives, many
 more conflicts, lower recall, and almost no assignment correctness. Even the
@@ -244,9 +293,8 @@ recovering less than a quarter of clean topology.
 
 ## Conclusion
 
-`raster-carrier-v1` should not become the default recognition path, and the
-current deterministic Hough/carrier vertex proposal should not be promoted as
-the dense-free default candidate source.
+No current strict dense-free strategy should become the default recognition
+path.
 
 The strict dense-free experiment still taught us something valuable: real CP
 images do contain enough raster signal for a subset of clean/line-style edges,
@@ -254,19 +302,23 @@ but carrier-first extraction is the wrong default shape. The bottleneck is not
 the binary line mask; it is sparse vertex/endpoint proposal. The ablation
 ladder strengthens that conclusion because GT vertices recover all topology
 edges while raster vertices miss too many even when GT adjacency is supplied.
+The independent skeleton probe points to the same conclusion from a different
+deterministic extractor.
 
-The next dense-free experiment should pivot away from deterministic carrier
-tuning and test a sparse non-dense predictor:
+Blocker reached: the current branch has no competitive dense-free default
+candidate. The next viable attempt is outside pure deterministic tuning and
+requires a true sparse non-dense predictor:
 
 - keep `RasterEvidence`;
-- evaluate the existing close-pair/graph-head assets, if reusable, on the same
-  real correctness packs;
 - generate sparse vertices, close-pair probabilities, or direct edge
   probabilities without reading dense heads;
 - feed those sparse candidates into the existing compiler/selection metrics;
 - include assignment as a separate strict track after topology is competitive;
 - benchmark on `clean-1024-s15`, `smoke-1024-s1`, and a dashed/watermark tier
   from the start.
+
+Until that sparse model exists, the dense `junction-first-v1` path remains the
+only candidate with default-level evidence.
 
 The repo-local fixture pack remains useful for unit-test-like smoke coverage,
 but it is not sufficient evidence for product decisions.
