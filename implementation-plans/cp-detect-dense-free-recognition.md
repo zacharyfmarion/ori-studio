@@ -1,6 +1,6 @@
 # CP Detect Dense-Free Recognition Experiment
 
-Status: Proposed implementation plan, June 18, 2026.
+Status: Implemented through `raster-carrier-v1` benchmark report, June 18, 2026.
 
 ## Goal
 
@@ -279,14 +279,25 @@ assignment is the real blocker.
 - [x] Add unit tests for raster masks, Hough carrier grouping, intersections,
       border contacts, locked borders, and adjacent-span emission.
 - [x] Add `compare_raster_candidate_coverage` over correctness pack manifests.
+- [x] Add repo-local FOLD fixture pack builder for deterministic raster
+      benchmarking when external packs/assets are unavailable.
 - [ ] Run `clean-1024-s15` against `raster-carrier-v1` and current dense
-      `junction-first-v1`.
+      `junction-first-v1`. Blocked in this worktree by missing local
+      `cp-detector-v3` model assets and absent dense-cache manifests; see
+      `implementation-plans/cp-detect-dense-free-recognition-results.md`.
 - [x] Add root-cause diagnostics for raster-specific misses.
+- [x] Run repo-local raster fixture benchmarks, dense-diagram budget ablations,
+      and exact-solve smoke diagnostics.
 - [ ] Add oracle/ablation modes with GT vertices and GT carrier/adjacency
       hints.
-- [ ] Decide whether `raster-junction-pair-v1` is warranted.
+- [x] Decide whether `raster-junction-pair-v1` is warranted. It is warranted as
+      a follow-up because carrier-only candidates have useful signal but are too
+      noisy and brittle on dense diagrams.
 - [ ] If warranted, implement and benchmark `raster-junction-pair-v1`.
-- [ ] Evaluate topology and assignment separately on clean and smoke tiers.
+- [x] Evaluate topology and assignment separately on repo-local fixture and
+      `clean-smoke` fallback tiers.
+- [ ] Evaluate topology and assignment separately on standard clean and smoke
+      tiers once the standard packs and dense assets are available.
 - [ ] Add architecture-inspector visualization once benchmark reports are
       actionable.
 - [ ] Decide whether to pursue a sparse non-dense model based on the raster

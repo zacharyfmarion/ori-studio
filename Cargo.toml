@@ -29,7 +29,7 @@ homepage = "https://github.com/zacharyfmarion/ori-studio"
 anyhow = "1.0"
 clap = { version = "4.5", features = ["derive"] }
 console_error_panic_hook = "0.1"
-image = { version = "0.25", default-features = false }
+image = { version = "0.25", default-features = false, features = ["png"] }
 imageproc = { version = "0.25", default-features = false }
 levenberg-marquardt = "0.15.0"
 nalgebra = "0.34.2"

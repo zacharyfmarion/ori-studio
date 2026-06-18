@@ -859,6 +859,7 @@ fn add_carrier_pair_spans(
             incident.truncate(options.max_vertices_per_carrier);
         }
         let mut carrier_spans = 0usize;
+        let mut adjacent_supported = Vec::<usize>::new();
         for i in 0..incident.len() {
             let max_j = (i + options.max_skip_vertices + 2).min(incident.len());
             for j in (i + 1)..max_j {
@@ -878,16 +879,62 @@ fn add_carrier_pair_spans(
                 if !span_supported(stats, options) {
                     continue;
                 }
+                if j == i + 1 {
+                    adjacent_supported.push(i);
+                }
                 spans.push(span_from_pair(
                     spans.len(),
                     [a_id, b_id],
                     carrier,
+                    [
+                        incident[i].0.min(incident[j].0),
+                        incident[i].0.max(incident[j].0),
+                    ],
                     stats,
                     j - i,
                     options,
                 ));
                 carrier_spans += 1;
             }
+        }
+        let mut run_index = 0usize;
+        while run_index < adjacent_supported.len() {
+            let run_start = adjacent_supported[run_index];
+            let mut run_end = run_start + 1;
+            while run_index + 1 < adjacent_supported.len()
+                && adjacent_supported[run_index + 1] == run_end
+            {
+                run_index += 1;
+                run_end += 1;
+            }
+            if run_end > run_start + 1
+                && carrier_spans < options.max_spans_per_carrier
+                && spans.len() < options.max_total_spans
+            {
+                let a_id = incident[run_start].1;
+                let b_id = incident[run_end].1;
+                let a = vertices[a_id].point;
+                let b = vertices[b_id].point;
+                if distance(a, b) >= min_length && !border_aligned_pair(a, b) {
+                    let stats = sample_span_stats(a, b, evidence, options);
+                    if span_supported(stats, options) {
+                        spans.push(span_from_pair(
+                            spans.len(),
+                            [a_id, b_id],
+                            carrier,
+                            [
+                                incident[run_start].0.min(incident[run_end].0),
+                                incident[run_start].0.max(incident[run_end].0),
+                            ],
+                            stats,
+                            run_end - run_start,
+                            options,
+                        ));
+                        carrier_spans += 1;
+                    }
+                }
+            }
+            run_index += 1;
         }
     }
 }
@@ -951,6 +998,7 @@ fn span_from_pair(
     id: usize,
     vertices: [usize; 2],
     carrier: &CarrierHypothesis,
+    t_interval: [f64; 2],
     stats: RasterSpanStats,
     vertex_gap: usize,
     options: RasterCarrierV1Options,
@@ -974,7 +1022,7 @@ fn span_from_pair(
             direction: carrier.direction,
             rho: carrier.rho,
         },
-        t_interval: [0.0, 1.0],
+        t_interval,
         assignment_evidence: unknown_assignment(),
         presence_probability: presence,
         line_support_min: stats.line_min,
