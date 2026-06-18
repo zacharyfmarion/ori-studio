@@ -1,6 +1,6 @@
 # CP Detect Dense-Free Recognition Results
 
-Status: Phase 4 report, corrected June 18, 2026.
+Status: Phase 5 ablation report, corrected June 18, 2026.
 
 ## Summary
 
@@ -20,6 +20,15 @@ Result: `raster-carrier-v1` should not become the default recognition path. On
 the real `clean-1024-s15` pack, tight-budget raster carrier selection recovered
 only `21.8%` of topology edges, while dense `junction-first-v1` selected
 `95.8%` and matched assignments on `91.6%` of evaluated edges.
+
+The ablation ladder found the deterministic image-only blocker: the raster line
+evidence is strong enough when true vertices are known, but current
+Hough/carrier vertex proposal is not competitive. With GT vertices, raster
+support reaches `100.0%` topology recall on both real packs. With raster
+vertices and GT adjacency, clean recall tops out at `66.0%` even with `360`
+carriers, no span budget, and an extremely loose `1px` merge radius that emits
+more than `140k` proposed vertices across 15 samples. That is not a
+default-ready shape.
 
 ## Data Used
 
@@ -168,6 +177,57 @@ is not simply foreground thresholding. The main miss is endpoint proposal:
 Hough carriers and raster intersections do not recover enough true vertices on
 real correctness-pack CPs, especially larger generated tree patterns.
 
+## Ablation Ladder
+
+The benchmark runner now supports diagnostic modes via `--ablation`:
+
+- `gt-edges-raster-support`: emit only GT edges whose segment is supported by
+  raster evidence.
+- `gt-vertices-raster-pairs`: emit all GT-vertex pairs that pass raster support.
+- `hough-segments-raster`: emit direct Hough segments from the raster mask.
+- `raster-vertices-gt-adjacency`: use raster-proposed vertices, then connect
+  nearest proposed vertices with GT adjacency.
+
+These are oracle/debug modes, not product strategies. Assignment results are
+not meaningful in these modes because they deliberately isolate topology.
+
+| Ablation | Pack | Samples | GT edges | Candidate recall | Selected recall | Candidates | Time |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| GT edges with raster support | `clean-1024-s15` | 15 | 2240 | 100.0% | 100.0% | 2649 | 5.2s |
+| GT vertices plus raster-supported pairs | `clean-1024-s15` | 15 | 2240 | 100.0% | 100.0% | 46639 | 6.1s |
+| Direct Hough segments from raster | `clean-1024-s15` | 15 | 2240 | 30.3% | 30.3% | 23858 | 20.1s |
+| Raster vertices plus GT adjacency, tight | `clean-1024-s15` | 15 | 2240 | 30.8% | 30.8% | 2488 | 20.1s |
+| Raster vertices plus GT adjacency, 360 carriers | `clean-1024-s15` | 15 | 2240 | 61.1% | 61.1% | 2607 | 20.7s |
+| Raster vertices plus GT adjacency, 360 carriers, `1px` merge | `clean-1024-s15` | 15 | 2240 | 66.0% | 66.0% | 2623 | 22.1s |
+| GT edges with raster support | `smoke-1024-s1` | 4 | 212 | 100.0% | 100.0% | 316 | 0.9s |
+| GT vertices plus raster-supported pairs | `smoke-1024-s1` | 4 | 212 | 100.0% | 100.0% | 1442 | 0.8s |
+| Direct Hough segments from raster | `smoke-1024-s1` | 4 | 212 | 49.1% | 49.1% | 6166 | 3.5s |
+| Raster vertices plus GT adjacency, tight | `smoke-1024-s1` | 4 | 212 | 65.1% | 65.1% | 310 | 3.5s |
+
+Merge-radius sweep for `raster-vertices-gt-adjacency` on
+`clean-1024-s15`, with `360` carriers and span emission disabled:
+
+| Vertex merge radius | Proposed vertices | Selected recall | Time |
+| ---: | ---: | ---: | ---: |
+| `1px` | 141046 | 66.0% | 22.1s |
+| `2px` | 99834 | 64.2% | 21.5s |
+| `4px` | 60139 | 61.1% | 20.7s |
+| `8px` | 29096 | 51.5% | 22.0s |
+| `12px` | 16418 | 44.0% | 21.6s |
+
+Takeaways:
+
+- Raster line evidence is not the limiting factor on these packs: GT-edge and
+  GT-vertex support both recover all topology edges.
+- Direct Hough segment vectorization is much weaker than the dense baseline.
+- Raster-proposed vertices are the limiting factor. Even with GT adjacency,
+  the clean pack misses roughly one third of topology edges.
+- The best deterministic vertex recall requires an impractically large vertex
+  set and still falls nearly `30` points below dense selected recall.
+- More carrier threshold tuning is unlikely to close the gap. The next
+  competitive path needs a better vertex/edge proposal source, most likely a
+  sparse non-dense model.
+
 ## Comparison
 
 | Path | Pack | Selected recall | Assignment match | Time | Candidate/conflict profile |
@@ -175,6 +235,7 @@ real correctness-pack CPs, especially larger generated tree patterns.
 | dense `junction-first-v1` | clean-1024-s15 | 95.8% | 91.6% | 6.3s | 2651 candidates, 113 conflicts |
 | raster carrier tight | clean-1024-s15 | 21.8% | 0.4% | 80.3s | 16986 candidates, 15559 conflicts |
 | raster carrier tight | smoke-1024-s1 | 42.9% | 0.0% | 26.5s | 5363 candidates, 5007 conflicts |
+| raster vertices plus GT adjacency, best ablation | clean-1024-s15 | 66.0% | not meaningful | 22.1s | oracle adjacency over 141046 raster vertices |
 
 This is a decisive gap. The raster path produces many more alternatives, many
 more conflicts, lower recall, and almost no assignment correctness. Even the
@@ -183,20 +244,27 @@ recovering less than a quarter of clean topology.
 
 ## Conclusion
 
-`raster-carrier-v1` should not become the default recognition path.
+`raster-carrier-v1` should not become the default recognition path, and the
+current deterministic Hough/carrier vertex proposal should not be promoted as
+the dense-free default candidate source.
 
 The strict dense-free experiment still taught us something valuable: real CP
 images do contain enough raster signal for a subset of clean/line-style edges,
 but carrier-first extraction is the wrong default shape. The bottleneck is not
-the binary line mask; it is sparse vertex/endpoint proposal and conflict-heavy
-candidate generation.
+the binary line mask; it is sparse vertex/endpoint proposal. The ablation
+ladder strengthens that conclusion because GT vertices recover all topology
+edges while raster vertices miss too many even when GT adjacency is supplied.
 
-The next dense-free experiment should be bounded and pair-oriented:
+The next dense-free experiment should pivot away from deterministic carrier
+tuning and test a sparse non-dense predictor:
 
 - keep `RasterEvidence`;
-- add `raster-junction-pair-v1` or a sparse non-dense pair scorer;
-- generate far fewer candidates before beam selection;
-- include assignment as a separate strict track;
+- evaluate the existing close-pair/graph-head assets, if reusable, on the same
+  real correctness packs;
+- generate sparse vertices, close-pair probabilities, or direct edge
+  probabilities without reading dense heads;
+- feed those sparse candidates into the existing compiler/selection metrics;
+- include assignment as a separate strict track after topology is competitive;
 - benchmark on `clean-1024-s15`, `smoke-1024-s1`, and a dashed/watermark tier
   from the start.
 

@@ -1,6 +1,6 @@
 # CP Detect Dense-Free Recognition Experiment
 
-Status: Implemented through `raster-carrier-v1` benchmark report, June 18, 2026.
+Status: Implemented through real-pack ablation ladder, June 18, 2026.
 
 ## Goal
 
@@ -288,7 +288,7 @@ assignment is the real blocker.
 - [x] Run real `smoke-1024-s1` against tight-budget `raster-carrier-v1`.
 - [x] Run repo-local raster fixture benchmarks, dense-diagram budget ablations,
       and exact-solve smoke diagnostics as secondary/debug coverage.
-- [ ] Add oracle/ablation modes with GT vertices and GT carrier/adjacency
+- [x] Add oracle/ablation modes with GT vertices and GT carrier/adjacency
       hints.
 - [x] Decide whether `raster-junction-pair-v1` is warranted. It is warranted as
       a follow-up because carrier-only candidates have useful signal but are too
@@ -298,5 +298,9 @@ assignment is the real blocker.
       tiers.
 - [ ] Add architecture-inspector visualization once benchmark reports are
       actionable.
-- [ ] Decide whether to pursue a sparse non-dense model based on the raster
-      bottleneck analysis.
+- [x] Decide whether to pursue a sparse non-dense model based on the raster
+      bottleneck analysis. The deterministic raster vertex proposal ceiling is
+      not competitive, so the next serious path is a sparse non-dense
+      vertex/edge predictor rather than more carrier tuning.
+- [ ] Inspect and benchmark the existing sparse close-pair/graph-head assets on
+      the real correctness packs before adding product wiring.

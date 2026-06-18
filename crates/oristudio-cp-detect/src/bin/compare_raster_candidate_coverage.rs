@@ -7,7 +7,9 @@ use std::process::Command;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use image::ImageReader;
-use oristudio_cp_compiler::candidate_graph::{CandidateCreaseSpanKind, CandidateGraph};
+use oristudio_cp_compiler::candidate_graph::{
+    CandidateCreaseSpanKind, CandidateGraph, CandidateGraphReport,
+};
 use oristudio_cp_compiler::selection::{
     SelectionOptions, SelectionSpanKind, select_candidate_graph_beam_from_ir,
 };
@@ -15,6 +17,7 @@ use oristudio_cp_compiler::{
     AssignmentLabel, ExactSolveInput, ExactSolveOptions, ExactSolvedGraphStatus, Point2,
     SelectedGraph, solve_exact,
 };
+use oristudio_cp_detect::opencv_hough_lines_p::{HoughLinesPConfig, hough_lines_p_opencv_cpu};
 use oristudio_cp_detect::raster_candidate_generation::{
     RasterCandidateGenerationContext, RasterCandidateGenerationDiagnostics,
     RasterCandidateGenerationOptions, RasterCandidateGenerationStrategyName,
@@ -106,6 +109,7 @@ struct Args {
     pack_manifest: PathBuf,
     out: PathBuf,
     strategy: RasterCandidateGenerationStrategyName,
+    ablation: RasterAblationMode,
     limit: Option<usize>,
     line_threshold: Option<f32>,
     include_boundary_edges: bool,
@@ -113,6 +117,59 @@ struct Args {
     exact_patience: Option<usize>,
     carrier_options: RasterCarrierV1Options,
     coverage_options: CandidateCoverageOptions,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+enum RasterAblationMode {
+    #[default]
+    None,
+    GtEdgesRasterSupport,
+    GtVerticesRasterPairs,
+    HoughSegmentsRaster,
+    RasterVerticesGtAdjacency,
+}
+
+impl RasterAblationMode {
+    const fn id(self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::GtEdgesRasterSupport => "gt-edges-raster-support",
+            Self::GtVerticesRasterPairs => "gt-vertices-raster-pairs",
+            Self::HoughSegmentsRaster => "hough-segments-raster",
+            Self::RasterVerticesGtAdjacency => "raster-vertices-gt-adjacency",
+        }
+    }
+
+    const fn uses_candidate_graph(self) -> bool {
+        matches!(self, Self::RasterVerticesGtAdjacency)
+    }
+}
+
+impl std::str::FromStr for RasterAblationMode {
+    type Err = RasterAblationModeParseError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "none" => Ok(Self::None),
+            "gt-edges-raster-support" | "gt_edges_raster_support" => Ok(Self::GtEdgesRasterSupport),
+            "gt-vertices-raster-pairs" | "gt_vertices_raster_pairs" => {
+                Ok(Self::GtVerticesRasterPairs)
+            }
+            "hough-segments-raster" | "hough_segments_raster" => Ok(Self::HoughSegmentsRaster),
+            "raster-vertices-gt-adjacency" | "raster_vertices_gt_adjacency" => {
+                Ok(Self::RasterVerticesGtAdjacency)
+            }
+            other => Err(RasterAblationModeParseError {
+                value: other.to_owned(),
+            }),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("unknown raster ablation mode {value:?}")]
+struct RasterAblationModeParseError {
+    value: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -139,6 +196,7 @@ struct BenchmarkSummary {
 #[derive(Debug, Serialize)]
 struct BenchmarkConfig {
     strategy: String,
+    ablation: String,
     raster_evidence: RasterEvidenceConfig,
     raster_carrier_v1: RasterCarrierV1Options,
     include_boundary_edges: bool,
@@ -371,93 +429,179 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let evidence = extract_raster_evidence_from_rgba(&rgba, width, height, evidence_config)?;
         let raster_evidence_seconds = evidence_started.elapsed().as_secs_f64();
 
-        let generation_started = Instant::now();
-        let generation = generate_raster_candidate_graph(
-            RasterCandidateGenerationContext {
-                evidence: &evidence,
-            },
-            RasterCandidateGenerationOptions {
-                strategy: args.strategy,
-                raster_carrier_v1: args.carrier_options,
-            },
-        )?;
-        let strategy_generation_seconds = generation_started.elapsed().as_secs_f64();
-        raster_diagnostics.add(&evidence, &generation.diagnostics);
-        let candidate_graph = generation.candidate_graph;
-
-        let selection_started = Instant::now();
-        let selection = select_candidate_graph_beam_from_ir(
-            &candidate_graph,
-            SelectionOptions::default(),
-            Default::default(),
-        );
-        let selected_ids = selection
-            .selected_spans
-            .iter()
-            .map(|span| span.id)
-            .collect::<BTreeSet<_>>();
-        let sample_strategy_diagnostics =
-            StrategyDiagnostics::from_graph_selection(&candidate_graph, &selection);
-        strategy_diagnostics.add(sample_strategy_diagnostics);
-        let selection_seconds = selection_started.elapsed().as_secs_f64();
-
-        let exact_started = Instant::now();
-        let sample_exact = if args.skip_exact_solve {
-            SampleExactSolve {
-                enabled: false,
-                status: None,
-                seconds: 0.0,
-                selected_spans: selection.selected_spans.len(),
-                selected_vertices: 0,
-                exact_edges: 0,
-            }
-        } else {
-            let selected_span_ids = selection
-                .selected_spans
-                .iter()
-                .map(|span| span.id)
-                .collect::<Vec<_>>();
-            let selected_graph =
-                SelectedGraph::from_selected_span_ids(&candidate_graph, selected_span_ids);
-            let exact_input =
-                ExactSolveInput::from_candidate_selection(&candidate_graph, &selected_graph);
-            let mut exact_options = ExactSolveOptions::default();
-            if let Some(patience) = args.exact_patience {
-                exact_options.patience = patience;
-            }
-            let exact = solve_exact(&exact_input, exact_options);
-            SampleExactSolve {
-                enabled: true,
-                status: Some(exact_status_label(exact.status).to_owned()),
-                seconds: exact_started.elapsed().as_secs_f64(),
-                selected_spans: exact_input.selected_spans.len(),
-                selected_vertices: exact_input.vertices.len(),
-                exact_edges: exact.edges_exact.len(),
-            }
-        };
-        let exact_solve_seconds = exact_started.elapsed().as_secs_f64();
-        exact_solve.add(sample_exact.clone());
-
-        let metrics_started = Instant::now();
         let gt = read_ground_truth(pack_root, sample)?;
         let gt_graph = gt.eval_graph();
         let raster_support = raster_evidence_for_gt(&gt_graph, &evidence);
         let empty_high = CoverageCandidateSet::empty("no_dense_high");
         let empty_low = CoverageCandidateSet::empty("no_dense_low");
-        let adapter_set = candidate_set_from_graph(
-            "raster_adapter",
-            &candidate_graph,
-            &selected_ids,
-            false,
-            sample.image_size,
-        );
-        let selected_set = candidate_set_from_graph(
-            "raster_selected",
-            &candidate_graph,
-            &selected_ids,
-            true,
-            sample.image_size,
-        );
+
+        let generation_started = Instant::now();
+        let (
+            candidate_graph_report,
+            sample_strategy_diagnostics,
+            adapter_set,
+            selected_set,
+            selection_seconds,
+            sample_exact,
+            exact_solve_seconds,
+            candidate_graph_for_diagnostics,
+        ) = if args.ablation == RasterAblationMode::None {
+            let generation = generate_raster_candidate_graph(
+                RasterCandidateGenerationContext {
+                    evidence: &evidence,
+                },
+                RasterCandidateGenerationOptions {
+                    strategy: args.strategy,
+                    raster_carrier_v1: args.carrier_options,
+                },
+            )?;
+            raster_diagnostics.add(&evidence, &generation.diagnostics);
+            let candidate_graph = generation.candidate_graph;
+
+            let selection_started = Instant::now();
+            let selection = select_candidate_graph_beam_from_ir(
+                &candidate_graph,
+                SelectionOptions::default(),
+                Default::default(),
+            );
+            let selected_ids = selection
+                .selected_spans
+                .iter()
+                .map(|span| span.id)
+                .collect::<BTreeSet<_>>();
+            let sample_strategy_diagnostics =
+                StrategyDiagnostics::from_graph_selection(&candidate_graph, &selection);
+            strategy_diagnostics.add(sample_strategy_diagnostics);
+            let selection_seconds = selection_started.elapsed().as_secs_f64();
+
+            let exact_started = Instant::now();
+            let sample_exact = if args.skip_exact_solve {
+                SampleExactSolve {
+                    enabled: false,
+                    status: None,
+                    seconds: 0.0,
+                    selected_spans: selection.selected_spans.len(),
+                    selected_vertices: 0,
+                    exact_edges: 0,
+                }
+            } else {
+                let selected_span_ids = selection
+                    .selected_spans
+                    .iter()
+                    .map(|span| span.id)
+                    .collect::<Vec<_>>();
+                let selected_graph =
+                    SelectedGraph::from_selected_span_ids(&candidate_graph, selected_span_ids);
+                let exact_input =
+                    ExactSolveInput::from_candidate_selection(&candidate_graph, &selected_graph);
+                let mut exact_options = ExactSolveOptions::default();
+                if let Some(patience) = args.exact_patience {
+                    exact_options.patience = patience;
+                }
+                let exact = solve_exact(&exact_input, exact_options);
+                SampleExactSolve {
+                    enabled: true,
+                    status: Some(exact_status_label(exact.status).to_owned()),
+                    seconds: exact_started.elapsed().as_secs_f64(),
+                    selected_spans: exact_input.selected_spans.len(),
+                    selected_vertices: exact_input.vertices.len(),
+                    exact_edges: exact.edges_exact.len(),
+                }
+            };
+            let exact_solve_seconds = exact_started.elapsed().as_secs_f64();
+            let adapter_set = candidate_set_from_graph(
+                "raster_adapter",
+                &candidate_graph,
+                &selected_ids,
+                false,
+                sample.image_size,
+            );
+            let selected_set = candidate_set_from_graph(
+                "raster_selected",
+                &candidate_graph,
+                &selected_ids,
+                true,
+                sample.image_size,
+            );
+            (
+                candidate_graph.report.clone(),
+                sample_strategy_diagnostics,
+                adapter_set,
+                selected_set,
+                selection_seconds,
+                sample_exact,
+                exact_solve_seconds,
+                Some(candidate_graph),
+            )
+        } else if args.ablation.uses_candidate_graph() {
+            let generation = generate_raster_candidate_graph(
+                RasterCandidateGenerationContext {
+                    evidence: &evidence,
+                },
+                RasterCandidateGenerationOptions {
+                    strategy: args.strategy,
+                    raster_carrier_v1: args.carrier_options,
+                },
+            )?;
+            raster_diagnostics.add(&evidence, &generation.diagnostics);
+            let candidate_graph = generation.candidate_graph;
+            let adapter_set = graph_ablation_candidate_set(
+                args.ablation,
+                &gt_graph,
+                &candidate_graph,
+                sample.image_size,
+            );
+            let selected_set = adapter_set.clone();
+            let sample_exact = SampleExactSolve {
+                enabled: false,
+                status: None,
+                seconds: 0.0,
+                selected_spans: selected_set.candidates.len(),
+                selected_vertices: selected_set.vertices.len(),
+                exact_edges: 0,
+            };
+            (
+                candidate_set_report(&adapter_set),
+                StrategyDiagnostics::default(),
+                adapter_set,
+                selected_set,
+                0.0,
+                sample_exact,
+                0.0,
+                Some(candidate_graph),
+            )
+        } else {
+            let adapter_set = ablation_candidate_set(
+                args.ablation,
+                &gt_graph,
+                &evidence,
+                args.carrier_options,
+                args.coverage_options,
+            )?;
+            let selected_set = adapter_set.clone();
+            let sample_exact = SampleExactSolve {
+                enabled: false,
+                status: None,
+                seconds: 0.0,
+                selected_spans: selected_set.candidates.len(),
+                selected_vertices: selected_set.vertices.len(),
+                exact_edges: 0,
+            };
+            (
+                candidate_set_report(&adapter_set),
+                StrategyDiagnostics::default(),
+                adapter_set,
+                selected_set,
+                0.0,
+                sample_exact,
+                0.0,
+                None,
+            )
+        };
+        let strategy_generation_seconds = generation_started.elapsed().as_secs_f64();
+        exact_solve.add(sample_exact.clone());
+
+        let metrics_started = Instant::now();
         let report = candidate_coverage_metrics(
             &gt_graph,
             &raster_support,
@@ -476,7 +620,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             family: sample.family.clone(),
             profile: sample.profile.clone(),
             raster_report: evidence.report.clone(),
-            candidate_graph_report: candidate_graph.report.clone(),
+            candidate_graph_report,
             strategy_diagnostics: sample_strategy_diagnostics,
             exact_solve: sample_exact,
             timings: SampleTimings {
@@ -493,14 +637,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         serde_json::to_writer(&mut per_sample, &row)?;
         writeln!(per_sample)?;
         for edge in &row.report.per_gt_edge {
-            let diagnostics = raster_gt_edge_diagnostics(
-                &gt_graph,
-                edge,
-                &candidate_graph,
-                &evidence,
-                sample.image_size,
-                args.coverage_options,
-            );
+            let diagnostics =
+                candidate_graph_for_diagnostics
+                    .as_ref()
+                    .and_then(|candidate_graph| {
+                        raster_gt_edge_diagnostics(
+                            &gt_graph,
+                            edge,
+                            candidate_graph,
+                            &evidence,
+                            sample.image_size,
+                            args.coverage_options,
+                        )
+                    });
             serde_json::to_writer(
                 &mut per_gt_edge,
                 &serde_json::json!({
@@ -531,6 +680,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         profiles: manifest.profiles,
         config: BenchmarkConfig {
             strategy: args.strategy.id().to_owned(),
+            ablation: args.ablation.id().to_owned(),
             raster_evidence: evidence_config(
                 sample_rows
                     .first()
@@ -650,6 +800,208 @@ fn candidate_set_from_graph(
         vertices,
         carriers,
         candidates,
+    }
+}
+
+fn ablation_candidate_set(
+    mode: RasterAblationMode,
+    ground_truth: &EvalGraph,
+    evidence: &RasterEvidence,
+    carrier_options: RasterCarrierV1Options,
+    coverage_options: CandidateCoverageOptions,
+) -> Result<CoverageCandidateSet, Box<dyn std::error::Error>> {
+    let mut vertices = match mode {
+        RasterAblationMode::HoughSegmentsRaster => Vec::new(),
+        _ => ground_truth.vertices.clone(),
+    };
+    let mut carriers = Vec::new();
+    let mut candidates = Vec::new();
+    match mode {
+        RasterAblationMode::None | RasterAblationMode::RasterVerticesGtAdjacency => {}
+        RasterAblationMode::GtEdgesRasterSupport => {
+            for (edge_index, edge) in ground_truth.edges.iter().enumerate() {
+                let Some(segment) = gt_edge_segment(ground_truth, edge.vertices) else {
+                    continue;
+                };
+                let support = raster_evidence_for_segment(segment, evidence);
+                if !support.supported(coverage_options.dense_support_threshold) {
+                    continue;
+                }
+                push_ablation_candidate(
+                    &mut candidates,
+                    &mut carriers,
+                    format!("gt-edge-{edge_index}"),
+                    segment,
+                    "GtEdgeRasterSupport",
+                    support.line_mean,
+                );
+            }
+        }
+        RasterAblationMode::GtVerticesRasterPairs => {
+            for a_index in 0..ground_truth.vertices.len() {
+                for b_index in (a_index + 1)..ground_truth.vertices.len() {
+                    let segment = [
+                        ground_truth.vertices[a_index],
+                        ground_truth.vertices[b_index],
+                    ];
+                    if eval_segment_length(segment) <= 1e-9 {
+                        continue;
+                    }
+                    let support = raster_evidence_for_segment(segment, evidence);
+                    if !support.supported(coverage_options.dense_support_threshold) {
+                        continue;
+                    }
+                    push_ablation_candidate(
+                        &mut candidates,
+                        &mut carriers,
+                        format!("gt-pair-{a_index}-{b_index}"),
+                        segment,
+                        "GtVertexRasterPair",
+                        support.line_mean,
+                    );
+                }
+            }
+        }
+        RasterAblationMode::HoughSegmentsRaster => {
+            let size = evidence.image_size as usize;
+            let segments = hough_lines_p_opencv_cpu(
+                &evidence.line_mask,
+                size,
+                size,
+                &HoughLinesPConfig {
+                    rho: 1.0,
+                    theta: std::f32::consts::PI / 720.0,
+                    threshold: carrier_options.hough_vote_threshold.max(1),
+                    min_line_length: carrier_options.hough_min_segment_length_px,
+                    max_line_gap: carrier_options.hough_max_segment_gap_px,
+                    lines_max: i32::MAX,
+                },
+            )?;
+            let mut segments = segments
+                .into_iter()
+                .map(|segment| {
+                    let endpoints = [
+                        EvalPoint::new(segment.x1 as f64, segment.y1 as f64),
+                        EvalPoint::new(segment.x2 as f64, segment.y2 as f64),
+                    ];
+                    let support = raster_evidence_for_segment(endpoints, evidence);
+                    (segment, endpoints, support)
+                })
+                .filter(|(_, endpoints, support)| {
+                    eval_segment_length(*endpoints) >= carrier_options.hough_min_segment_length_px
+                        && support.supported(coverage_options.dense_support_threshold)
+                })
+                .collect::<Vec<_>>();
+            segments.sort_by(|left, right| {
+                right
+                    .2
+                    .line_mean
+                    .total_cmp(&left.2.line_mean)
+                    .then_with(|| {
+                        eval_segment_length(right.1).total_cmp(&eval_segment_length(left.1))
+                    })
+            });
+            segments.truncate(carrier_options.max_line_primitives);
+            for (index, (_, endpoints, support)) in segments.into_iter().enumerate() {
+                vertices.push(endpoints[0]);
+                vertices.push(endpoints[1]);
+                push_ablation_candidate(
+                    &mut candidates,
+                    &mut carriers,
+                    format!("hough-segment-{index}"),
+                    endpoints,
+                    "HoughSegmentRaster",
+                    support.line_mean,
+                );
+            }
+        }
+    }
+    Ok(CoverageCandidateSet {
+        name: mode.id().to_owned(),
+        vertices,
+        carriers,
+        candidates,
+    })
+}
+
+fn graph_ablation_candidate_set(
+    mode: RasterAblationMode,
+    ground_truth: &EvalGraph,
+    graph: &CandidateGraph,
+    image_size: u32,
+) -> CoverageCandidateSet {
+    let vertices = graph
+        .vertices
+        .iter()
+        .map(|vertex| EvalPoint::from(normalized_to_px(vertex.point, image_size)))
+        .collect::<Vec<_>>();
+    let mut carriers = Vec::new();
+    let mut candidates = Vec::new();
+    if mode == RasterAblationMode::RasterVerticesGtAdjacency {
+        for (edge_index, edge) in ground_truth.edges.iter().enumerate() {
+            let Some(gt_segment) = gt_edge_segment(ground_truth, edge.vertices) else {
+                continue;
+            };
+            let Some(a_index) = nearest_eval_index(&vertices, gt_segment[0]) else {
+                continue;
+            };
+            let Some(b_index) = nearest_eval_index(&vertices, gt_segment[1]) else {
+                continue;
+            };
+            if a_index == b_index {
+                continue;
+            }
+            push_ablation_candidate(
+                &mut candidates,
+                &mut carriers,
+                format!("raster-vertex-gt-edge-{edge_index}"),
+                [vertices[a_index], vertices[b_index]],
+                "RasterVertexGtAdjacency",
+                1.0,
+            );
+        }
+    }
+    CoverageCandidateSet {
+        name: mode.id().to_owned(),
+        vertices,
+        carriers,
+        candidates,
+    }
+}
+
+fn push_ablation_candidate(
+    candidates: &mut Vec<CoverageCandidate>,
+    carriers: &mut Vec<CoverageCarrier>,
+    id: String,
+    segment: [EvalPoint; 2],
+    source_kind: &'static str,
+    line_support: f64,
+) {
+    candidates.push(CoverageCandidate {
+        id: id.clone(),
+        endpoints: segment,
+        assignment: EvalAssignment::Auxiliary,
+        selected: true,
+        source_kind: source_kind.to_owned(),
+        line_support,
+    });
+    carriers.push(CoverageCarrier {
+        id,
+        endpoints: segment,
+        source_kind: source_kind.to_owned(),
+    });
+}
+
+fn candidate_set_report(candidate_set: &CoverageCandidateSet) -> CandidateGraphReport {
+    CandidateGraphReport {
+        vertices: candidate_set.vertices.len(),
+        crease_candidates: candidate_set.candidates.len(),
+        locked_border_spans: 0,
+        legacy_selected_spans: 0,
+        legacy_low_threshold_spans: 0,
+        arrangement_observed_spans: candidate_set.candidates.len(),
+        arrangement_shared_spans: 0,
+        conflicts: 0,
     }
 }
 
@@ -907,6 +1259,15 @@ fn nearest_eval_distance(points: &[EvalPoint], target: EvalPoint) -> Option<f64>
         .min_by(|left, right| left.total_cmp(right))
 }
 
+fn nearest_eval_index(points: &[EvalPoint], target: EvalPoint) -> Option<usize> {
+    points
+        .iter()
+        .enumerate()
+        .map(|(index, point)| (index, eval_distance(*point, target)))
+        .min_by(|left, right| left.1.total_cmp(&right.1))
+        .map(|(index, _)| index)
+}
+
 fn eval_symmetric_endpoint_distance(left: [EvalPoint; 2], right: [EvalPoint; 2]) -> f64 {
     let same = eval_distance(left[0], right[0]).max(eval_distance(left[1], right[1]));
     let flipped = eval_distance(left[0], right[1]).max(eval_distance(left[1], right[0]));
@@ -1069,6 +1430,7 @@ fn markdown_summary(summary: &BenchmarkSummary) -> String {
     let mut out = String::new();
     out.push_str("# Raster Candidate Coverage Benchmark\n\n");
     out.push_str(&format!("- Strategy: `{}`\n", summary.config.strategy));
+    out.push_str(&format!("- Ablation: `{}`\n", summary.config.ablation));
     out.push_str(&format!("- Samples: `{}`\n", summary.sample_count));
     out.push_str(&format!(
         "- Evaluated GT edges: `{}`\n",
@@ -1183,6 +1545,7 @@ impl Args {
         let mut pack_manifest = None;
         let mut out = None;
         let mut strategy = RasterCandidateGenerationStrategyName::RasterCarrierV1;
+        let mut ablation = RasterAblationMode::None;
         let mut limit = None;
         let mut line_threshold = None;
         let mut include_boundary_edges = false;
@@ -1201,6 +1564,9 @@ impl Args {
                 }
                 "--strategy" => {
                     strategy = required_value(&mut iter, &arg)?.parse()?;
+                }
+                "--ablation" => {
+                    ablation = required_value(&mut iter, &arg)?.parse()?;
                 }
                 "--limit" => {
                     limit = Some(required_value(&mut iter, &arg)?.parse()?);
@@ -1268,6 +1634,7 @@ impl Args {
             pack_manifest: pack_manifest.unwrap_or_else(|| PathBuf::from(DEFAULT_PACK_MANIFEST)),
             out: out.ok_or("--out is required")?,
             strategy,
+            ablation,
             limit,
             line_threshold,
             include_boundary_edges,
@@ -1289,6 +1656,6 @@ fn required_value(
 
 fn print_usage() {
     eprintln!(
-        "compare_raster_candidate_coverage --out PATH [--pack PATH] [--strategy raster-carrier-v1] [--limit N] [--skip-exact-solve]"
+        "compare_raster_candidate_coverage --out PATH [--pack PATH] [--strategy raster-carrier-v1] [--ablation none|gt-edges-raster-support|gt-vertices-raster-pairs|hough-segments-raster|raster-vertices-gt-adjacency] [--limit N] [--skip-exact-solve]"
     );
 }
