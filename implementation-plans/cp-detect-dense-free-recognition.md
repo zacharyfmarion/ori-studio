@@ -278,10 +278,10 @@ assignment is the real blocker.
 - [x] Add `raster-carrier-v1` strategy that emits `CandidateGraph`.
 - [x] Add unit tests for raster masks, Hough carrier grouping, intersections,
       border contacts, locked borders, and adjacent-span emission.
-- [ ] Add `compare_raster_candidate_coverage` over correctness pack manifests.
+- [x] Add `compare_raster_candidate_coverage` over correctness pack manifests.
 - [ ] Run `clean-1024-s15` against `raster-carrier-v1` and current dense
       `junction-first-v1`.
-- [ ] Add root-cause diagnostics for raster-specific misses.
+- [x] Add root-cause diagnostics for raster-specific misses.
 - [ ] Add oracle/ablation modes with GT vertices and GT carrier/adjacency
       hints.
 - [ ] Decide whether `raster-junction-pair-v1` is warranted.
