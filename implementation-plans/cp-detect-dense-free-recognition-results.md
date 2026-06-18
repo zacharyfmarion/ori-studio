@@ -1,10 +1,11 @@
 # CP Detect Dense-Free Recognition Results
 
-Status: Phase 4 report, June 18, 2026.
+Status: Phase 4 report, corrected June 18, 2026.
 
 ## Summary
 
-The strict dense-free path is implemented far enough to benchmark:
+The strict dense-free path is implemented far enough to benchmark on the real
+CP-detect correctness packs:
 
 - `RasterEvidence` extracts deterministic luma, line probability, binary line
   mask, and extraction diagnostics from rectified pixels.
@@ -12,206 +13,192 @@ The strict dense-free path is implemented far enough to benchmark:
   dense heads.
 - `compare_raster_candidate_coverage` benchmarks correctness-pack PNG inputs
   against GT graph JSON.
-- `scripts/cp-detect/build-raster-fold-fixture-pack.py` builds a reproducible
-  repo-local raster pack from committed FOLD fixtures when the external
-  correctness pack is unavailable.
+- The current dense `junction-first-v1` baseline was run from the existing
+  `clean-1024-s15-browser-onnx` dense cache.
 
-The result is useful but not default-ready. On simpler repo fixtures,
-`raster-carrier-v1` recovers meaningful topology candidates, but selected recall
-is still low, assignments are unresolved, exact solve fails on noisy selected
-graphs, and dense diagrams need aggressive candidate budgets to finish.
+Result: `raster-carrier-v1` should not become the default recognition path. On
+the real `clean-1024-s15` pack, tight-budget raster carrier selection recovered
+only `21.8%` of topology edges, while dense `junction-first-v1` selected
+`95.8%` and matched assignments on `91.6%` of evaluated edges.
 
-## Environment Limits
+## Data Used
 
-The intended same-run comparison against the standard `clean-1024-s15` pack and
-the current dense `junction-first-v1` default was blocked in this worktree:
+Real benchmark inputs were found under:
 
-```bash
-node scripts/cp-detect/check-local-model-assets.mjs
+```text
+/Users/zacharymarion/.codex/worktrees/cp-detect-browser-v1/tree-maker-rust/artifacts/cp-detect-correctness
 ```
 
-failed because `apps/web/public/models/cp-detector-v3/manifest.json` is
-missing. `artifacts/cp-detect-correctness/dense-cache` is also absent. The
-benchmarks below therefore use a deterministic repo-local fallback pack and
-should be treated as dense-free signal, not a replacement for the missing
-standard dense baseline.
+The benchmarked data:
 
-Historical in-repo context still matters: the current dense default documents
-`junction-first-v1` at strict topology edge F1 `0.942` on `clean-1024-s15`,
-versus `0.902` for the legacy threshold path. The older dense candidate coverage
-report in `implementation-plans/cp-detect-junction-carrier-strategy.md` recorded
-candidate oracle recall around `0.91` for legacy dense strategies. Those are not
-same-run numbers, but they frame the gap.
+- `packs/clean-1024-s15/manifest.json`
+- `packs/smoke-1024-s1/manifest.json`
+- `dense-cache/clean-1024-s15-browser-onnx/manifest.json`
 
-## Benchmark Pack
+The clean pack samples reference the actual generated CP-detect validation data
+under `/Users/zacharymarion/Documents/datasets/create-pattern-detector`, for
+example:
 
-Generated packs:
-
-```bash
-python3 scripts/cp-detect/build-raster-fold-fixture-pack.py \
-  --out artifacts/cp-detect-correctness/packs/raster-fold-fixtures-1024
-
-python3 scripts/cp-detect/build-raster-fold-fixture-pack.py \
-  --out artifacts/cp-detect-correctness/packs/raster-fold-fixtures-1024-no-clean-smoke \
-  --fixtures \
-  crates/oristudio-cp/resources/default-molecules/blintz.fold \
-  crates/oristudio-cp/resources/default-molecules/bird_base.fold \
-  crates/oristudio-cp/resources/default-molecules/fish_base.fold \
-  crates/oristudio-cp/resources/default-molecules/frog_base.fold \
-  crates/oristudio-cp/resources/default-molecules/dove_base.fold \
-  tests/fixtures/folding-sequence/fold/simple-valley.fold \
-  tests/fixtures/folding-sequence/fold/kite-rabbit-ear-local.fold \
-  tests/fixtures/folding-sequence/fold/squash-local.fold \
-  tests/fixtures/folding-sequence/fold/accordion-book-fold.fold \
-  tests/fixtures/folding-sequence/fold/simultaneous-collapse-unsupported.fold \
-  tests/fixtures/folding-sequence/fold/treemaker-triad-base.fold
-
-python3 scripts/cp-detect/build-raster-fold-fixture-pack.py \
-  --out artifacts/cp-detect-correctness/packs/raster-fold-fixtures-1024-clean-smoke-only \
-  --fixtures crates/oristudio-cp-detect/tests/fixtures/cp-detect-oracle/clean-smoke.fold
+```text
+/Users/zacharymarion/Documents/datasets/create-pattern-detector/synthetic/cp_training_mix_v1/folds/...
 ```
 
-The fallback renderer uses 1024 px images, a 32 px inset, and 3 px colored
-creases. It writes `input.png`, `gt.graph.json`, and normalized `gt.fold` per
-sample.
+The earlier repo-local FOLD fixture benchmark is superseded by this report. It
+remains useful only as a fast local smoke/debug path.
 
-## Candidate-Only Results
+## Dense Baseline
 
 Command:
 
 ```bash
 cargo run -p oristudio-cp-detect --release \
-  --bin compare_raster_candidate_coverage -- \
-  --pack artifacts/cp-detect-correctness/packs/raster-fold-fixtures-1024-no-clean-smoke/manifest.json \
-  --out artifacts/cp-detect-correctness/reports/raster-fold-fixtures-1024-no-clean-smoke-raster-carrier-v1-2026-06-18 \
-  --skip-exact-solve
+  --bin compare_candidate_coverage -- \
+  --manifest /Users/zacharymarion/.codex/worktrees/cp-detect-browser-v1/tree-maker-rust/artifacts/cp-detect-correctness/dense-cache/clean-1024-s15-browser-onnx/manifest.json \
+  --strategy junction-first-v1 \
+  --out artifacts/cp-detect-correctness/reports/real-clean-1024-s15-junction-first-v1-2026-06-18
 ```
 
 Result:
 
-| Pack | Samples | GT edges | Candidate oracle recall | Selected recall | Assignment matches | Total time |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| repo FOLD fixtures, excluding `clean-smoke` | 11 | 82 | 78.0% | 59.8% | 0.0% | 33.3s |
+| Strategy | Pack | Samples | GT edges | Candidate recall | Selected recall | Assignment match | Candidates | Conflicts | Total time |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| dense `junction-first-v1` | `clean-1024-s15` | 15 | 2240 | 95.9% | 95.8% | 91.6% | 2651 | 113 | 6.3s |
 
-Per-sample selected topology recall:
+Per-sample selected recall was high across the pack. The worst cases were still
+well above the raster path:
 
 | Sample | Candidate | Selected | Candidates | Conflicts | Total time |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `blintz` | 4/4 | 3/4 | 318 | 350 | 0.29s |
-| `bird_base` | 8/12 | 5/12 | 996 | 1142 | 2.84s |
-| `fish_base` | 6/6 | 3/6 | 803 | 925 | 1.42s |
-| `frog_base` | 17/24 | 14/24 | 2072 | 2295 | 18.38s |
-| `dove_base` | 3/7 | 2/7 | 1376 | 1534 | 5.86s |
-| `simple-valley` | 1/1 | 1/1 | 483 | 317 | 0.39s |
-| `kite-rabbit-ear-local` | 4/4 | 4/4 | 567 | 319 | 0.54s |
-| `squash-local` | 6/8 | 6/8 | 505 | 429 | 0.68s |
-| `accordion-book-fold` | 2/2 | 2/2 | 484 | 240 | 0.41s |
-| `simultaneous-collapse-unsupported` | 8/8 | 5/8 | 554 | 456 | 0.71s |
-| `treemaker-triad-base` | 5/6 | 4/6 | 792 | 918 | 1.57s |
+| `treemaker_tree_v1-5gjmj-000148__clean__000` | 256/257 | 256/257 | 280 | 17 | 0.61s |
+| `rabbit_ear_fold_program_v1-5wk0f-000086__clean__002` | 65/72 | 65/72 | 103 | 2 | 0.31s |
+| `rabbit_ear_fold_program_v1-5wk0c-000181__clean__007` | 165/187 | 162/187 | 224 | 20 | 0.43s |
+| `rabbit_ear_fold_program_v1-5wk0b-000080__clean__008` | 31/42 | 31/42 | 57 | 0 | 0.20s |
 
-Root causes:
+## Raster Carrier On Real Smoke
 
-| Root cause | Count |
-| --- | ---: |
-| Candidate selected, assignment unresolved | 49 |
-| Candidate chain available but not selected | 11 |
-| Edge missing despite endpoint and carrier | 9 |
-| Carrier missing | 9 |
-| Overlong candidate available but not selected | 4 |
+The unbudgeted `raster-carrier-v1` run on `smoke-1024-s1` was interrupted after
+more than one minute with no completed sample. This means default carrier
+generation is not usable on real correctness-pack images.
 
-The raster line mask supported 100% of evaluated GT edges, so the first-order
-failure is not thresholding. The bottlenecks are carrier/vertex proposal,
-candidate conflict density, selection, and assignment.
-
-## Dense Diagram Stress
-
-The full 12-sample pack with default `raster-carrier-v1` options was interrupted
-after more than 3.5 minutes. It completed the first 11 samples and then stalled
-on `clean-smoke`, which has 101 GT edges before boundary filtering.
-
-Budgeted `clean-smoke` runs:
+The tight-budget run:
 
 ```bash
 cargo run -p oristudio-cp-detect --release \
   --bin compare_raster_candidate_coverage -- \
-  --pack artifacts/cp-detect-correctness/packs/raster-fold-fixtures-1024-clean-smoke-only/manifest.json \
-  --out artifacts/cp-detect-correctness/reports/raster-fold-fixtures-1024-clean-smoke-raster-carrier-v1-budgeted-2026-06-18 \
-  --skip-exact-solve \
-  --max-carriers 120 \
-  --max-total-spans 3500
-
-cargo run -p oristudio-cp-detect --release \
-  --bin compare_raster_candidate_coverage -- \
-  --pack artifacts/cp-detect-correctness/packs/raster-fold-fixtures-1024-clean-smoke-only/manifest.json \
-  --out artifacts/cp-detect-correctness/reports/raster-fold-fixtures-1024-clean-smoke-raster-carrier-v1-tight-2026-06-18 \
+  --pack /Users/zacharymarion/.codex/worktrees/cp-detect-browser-v1/tree-maker-rust/artifacts/cp-detect-correctness/packs/smoke-1024-s1/manifest.json \
+  --out artifacts/cp-detect-correctness/reports/real-smoke-1024-s1-raster-carrier-v1-tight-2026-06-18 \
   --skip-exact-solve \
   --max-carriers 60 \
   --max-total-spans 1500
 ```
 
-| Budget | GT edges | Candidate oracle recall | Selected recall | Candidates | Conflicts | Total time |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| 120 carriers, 3500 spans | 85 | 43.5% | 32.9% | 3500 | 3956 | 61.5s |
-| 60 carriers, 1500 spans | 85 | 37.6% | 35.3% | 1500 | 1666 | 10.1s |
+Result:
 
-The tighter budget selected slightly more GT topology while running much faster.
-That is an important signal: adding more raster candidates can hurt the selector
-because the alternative/conflict graph gets too dense.
+| Strategy | Pack | Samples | GT edges | Candidate recall | Selected recall | Assignment match | Candidates | Conflicts | Total time |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `raster-carrier-v1`, tight | `smoke-1024-s1` | 4 | 212 | 54.2% | 42.9% | 0.0% | 5363 | 5007 | 26.5s |
 
-## Exact Solve
+Per-profile result:
+
+| Sample | Candidate | Selected | Candidates | Conflicts | Total time |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| clean | 36/53 | 35/53 | 1422 | 1391 | 8.27s |
+| line-style | 36/53 | 35/53 | 1500 | 1390 | 8.40s |
+| watermark | 24/53 | 18/53 | 1009 | 847 | 3.12s |
+| dashed | 19/53 | 3/53 | 1432 | 1379 | 6.73s |
+
+The clean and line-style profiles show some topology signal. The dashed profile
+breaks the carrier-first assumption badly: candidate chains exist, but the beam
+selector does not recover the underlying topology.
+
+## Raster Carrier On Real Clean
 
 Command:
 
 ```bash
 cargo run -p oristudio-cp-detect --release \
   --bin compare_raster_candidate_coverage -- \
-  --pack artifacts/cp-detect-correctness/packs/raster-fold-fixtures-1024-no-clean-smoke/manifest.json \
-  --out artifacts/cp-detect-correctness/reports/raster-fold-fixtures-1024-no-clean-smoke-raster-carrier-v1-exact-2026-06-18 \
-  --exact-patience 8
+  --pack /Users/zacharymarion/.codex/worktrees/cp-detect-browser-v1/tree-maker-rust/artifacts/cp-detect-correctness/packs/clean-1024-s15/manifest.json \
+  --out artifacts/cp-detect-correctness/reports/real-clean-1024-s15-raster-carrier-v1-tight-2026-06-18 \
+  --skip-exact-solve \
+  --max-carriers 60 \
+  --max-total-spans 1500
 ```
 
-This was interrupted after the first three samples because all three exact
-solves failed and exact solve time was already 53.6s:
+Result:
 
-| Sample | Selected topology | Exact status | Exact time | Selected spans |
-| --- | ---: | --- | ---: | ---: |
-| `blintz` | 3/4 | failed | 2.06s | 214 |
-| `bird_base` | 5/12 | failed | 31.34s | 526 |
-| `fish_base` | 3/6 | failed | 20.21s | 502 |
+| Strategy | Pack | Samples | GT edges | Candidate recall | Selected recall | Assignment match | Candidates | Conflicts | Total time |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `raster-carrier-v1`, tight | `clean-1024-s15` | 15 | 2240 | 25.8% | 21.8% | 0.4% | 16986 | 15559 | 80.3s |
 
-This selected graph is not yet a reliable downstream seed for the compiler.
+Per-sample selected recall:
 
-## Implementation Findings
+| Sample | Candidate | Selected | Candidates | Conflicts | Total time |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `treemaker_tree_v1-5gjmj-000148__clean__000` | 63/257 | 51/257 | 1288 | 1261 | 7.03s |
+| `treemaker_tree_v1-5gjme-012950__clean__001` | 46/98 | 44/98 | 1500 | 1460 | 9.16s |
+| `rabbit_ear_fold_program_v1-5wk0f-000086__clean__002` | 38/72 | 29/72 | 1500 | 1538 | 8.15s |
+| `rabbit_ear_fold_program_v1-5wk0e-000354__clean__003` | 79/212 | 74/212 | 1356 | 1337 | 7.87s |
+| `rabbit_ear_fold_program_v1-5wk0a-000270__clean__004` | 15/198 | 13/198 | 548 | 300 | 1.47s |
+| `rabbit_ear_fold_program_v1-5wk0a-000346__clean__005` | 36/54 | 33/54 | 1500 | 1552 | 8.68s |
+| `treemaker_tree_v1-5gjmc-016496__clean__006` | 60/181 | 43/181 | 1464 | 1386 | 8.53s |
+| `rabbit_ear_fold_program_v1-5wk0c-000181__clean__007` | 44/187 | 35/187 | 996 | 859 | 3.52s |
+| `rabbit_ear_fold_program_v1-5wk0b-000080__clean__008` | 17/42 | 17/42 | 1323 | 1346 | 7.04s |
+| `treemaker_tree_v1-5gjmj-005471__clean__009` | 35/216 | 19/216 | 1057 | 979 | 4.02s |
+| `treemaker_tree_v1-5gjmi-003673__clean__010` | 51/166 | 47/166 | 1058 | 860 | 4.07s |
+| `treemaker_tree_v1-5gjmb-011364__clean__011` | 21/149 | 17/149 | 877 | 724 | 2.91s |
+| `rabbit_ear_fold_program_v1-5wk0a-000048__clean__012` | 29/162 | 26/162 | 716 | 500 | 1.62s |
+| `treemaker_tree_v1-5gjma-007269__clean__013` | 12/153 | 10/153 | 665 | 469 | 1.85s |
+| `rabbit_ear_fold_program_v1-5wk08-000155__clean__014` | 32/93 | 30/93 | 1138 | 988 | 4.44s |
 
-The first smoke run exposed a graph emission problem: endpoints and carriers
-were available, but candidate oracle recall was 0%. Adding compact supported-run
-spans fixed that failure mode without using dense outputs:
+Root causes:
 
-| Smoke variant | Candidate oracle recall | Selected recall | Total time |
-| --- | ---: | ---: | ---: |
-| adjacent-only spans | 0.0% | 0.0% | 2.9s |
-| supported-run spans | 75.0% | 50.0% | 3.1s |
+| Root cause | Count | Share |
+| --- | ---: | ---: |
+| Endpoint missing from raster adapter | 1210 | 54.0% |
+| Candidate selected, assignment unresolved/wrong | 479 | 21.4% |
+| Carrier missing from raster adapter | 431 | 19.2% |
+| Overlong candidate available but not selected | 64 | 2.9% |
+| Candidate chain available but not selected | 26 | 1.2% |
+| Edge missing despite endpoint and carrier | 21 | 0.9% |
+| Candidate selected with matching assignment | 9 | 0.4% |
 
-PNG decode support also had to be enabled explicitly for the native benchmark
-runner because the workspace uses `image` with default features disabled.
+The raster line mask reported support for all evaluated GT edges, so the issue
+is not simply foreground thresholding. The main miss is endpoint proposal:
+Hough carriers and raster intersections do not recover enough true vertices on
+real correctness-pack CPs, especially larger generated tree patterns.
+
+## Comparison
+
+| Path | Pack | Selected recall | Assignment match | Time | Candidate/conflict profile |
+| --- | --- | ---: | ---: | ---: | --- |
+| dense `junction-first-v1` | clean-1024-s15 | 95.8% | 91.6% | 6.3s | 2651 candidates, 113 conflicts |
+| raster carrier tight | clean-1024-s15 | 21.8% | 0.4% | 80.3s | 16986 candidates, 15559 conflicts |
+| raster carrier tight | smoke-1024-s1 | 42.9% | 0.0% | 26.5s | 5363 candidates, 5007 conflicts |
+
+This is a decisive gap. The raster path produces many more alternatives, many
+more conflicts, lower recall, and almost no assignment correctness. Even the
+tight budget is more than 12x slower than the dense clean baseline while
+recovering less than a quarter of clean topology.
 
 ## Conclusion
 
 `raster-carrier-v1` should not become the default recognition path.
 
-It does prove that a strict dense-free path can recover useful topology from
-rectified pixels, especially when the CP is sparse and clean. But it is not yet
-competitive with the documented dense default:
+The strict dense-free experiment still taught us something valuable: real CP
+images do contain enough raster signal for a subset of clean/line-style edges,
+but carrier-first extraction is the wrong default shape. The bottleneck is not
+the binary line mask; it is sparse vertex/endpoint proposal and conflict-heavy
+candidate generation.
 
-- no assignment solution yet;
-- selected recall is far below the dense path's documented topology quality;
-- dense diagrams require hard candidate budgets;
-- exact solve fails on the selected raster graphs;
-- runtime is selector-bound once conflicts exceed roughly a thousand spans.
+The next dense-free experiment should be bounded and pair-oriented:
 
-The next experiment is warranted, but it should not be "more carriers." The
-data points toward a bounded `raster-junction-pair-v1` or a sparse non-dense
-model that proposes fewer, better edge hypotheses. The highest-value follow-up
-is to keep the deterministic raster evidence and vertex diagnostics, then add a
-pair scorer that can reject overlapping alternatives before they reach the beam
-selector.
+- keep `RasterEvidence`;
+- add `raster-junction-pair-v1` or a sparse non-dense pair scorer;
+- generate far fewer candidates before beam selection;
+- include assignment as a separate strict track;
+- benchmark on `clean-1024-s15`, `smoke-1024-s1`, and a dashed/watermark tier
+  from the start.
+
+The repo-local fixture pack remains useful for unit-test-like smoke coverage,
+but it is not sufficient evidence for product decisions.

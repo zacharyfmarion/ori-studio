@@ -281,23 +281,21 @@ assignment is the real blocker.
 - [x] Add `compare_raster_candidate_coverage` over correctness pack manifests.
 - [x] Add repo-local FOLD fixture pack builder for deterministic raster
       benchmarking when external packs/assets are unavailable.
-- [ ] Run `clean-1024-s15` against `raster-carrier-v1` and current dense
-      `junction-first-v1`. Blocked in this worktree by missing local
-      `cp-detector-v3` model assets and absent dense-cache manifests; see
+- [x] Run real `clean-1024-s15` against tight-budget `raster-carrier-v1` and
+      current dense `junction-first-v1`; see
       `implementation-plans/cp-detect-dense-free-recognition-results.md`.
 - [x] Add root-cause diagnostics for raster-specific misses.
+- [x] Run real `smoke-1024-s1` against tight-budget `raster-carrier-v1`.
 - [x] Run repo-local raster fixture benchmarks, dense-diagram budget ablations,
-      and exact-solve smoke diagnostics.
+      and exact-solve smoke diagnostics as secondary/debug coverage.
 - [ ] Add oracle/ablation modes with GT vertices and GT carrier/adjacency
       hints.
 - [x] Decide whether `raster-junction-pair-v1` is warranted. It is warranted as
       a follow-up because carrier-only candidates have useful signal but are too
       noisy and brittle on dense diagrams.
 - [ ] If warranted, implement and benchmark `raster-junction-pair-v1`.
-- [x] Evaluate topology and assignment separately on repo-local fixture and
-      `clean-smoke` fallback tiers.
-- [ ] Evaluate topology and assignment separately on standard clean and smoke
-      tiers once the standard packs and dense assets are available.
+- [x] Evaluate topology and assignment separately on standard clean and smoke
+      tiers.
 - [ ] Add architecture-inspector visualization once benchmark reports are
       actionable.
 - [ ] Decide whether to pursue a sparse non-dense model based on the raster
