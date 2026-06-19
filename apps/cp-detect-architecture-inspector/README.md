@@ -16,10 +16,10 @@ cargo run -p oristudio-cp-detect-inspector -- --port 8788
 ```
 
 By default the backend opens the clean-15 dense cache generated from the
-promoted dense-edge max1200 V3 model:
+promoted tess15 weighted V3 model:
 
 ```text
-artifacts/cp-detect-correctness/dense-cache/clean-1024-s15-browser-onnx-v3-dense-edges-max1200-probe-20260618/manifest.json
+artifacts/cp-detect-correctness/dense-cache/clean-1024-s15-browser-onnx-v3-tess15-weighted-probe-20260619/manifest.json
 ```
 
 Use `--dense-manifest artifacts/.../manifest.json` to inspect another cached

@@ -42,9 +42,9 @@ apps/web/public/models/cp-detector-v3/manifest.json
 ```
 
 The source checkpoint and Python oracle currently live in the
-`create-pattern-detector` repository. The local model manifest should use the
-schema in `apps/web/public/models/cp-detector-v2/manifest.example.json` until a
-v3 example manifest is checked in.
+`create-pattern-detector` repository. The current stable local model is the V3
+tess15 weighted export registered in the ML repo as
+`artifacts/checkpoints/runpod-v3-no-guide-grid-close-pair-dense-edges-tess15-weighted-4090.json`.
 
 Run the local asset checker before app testing:
 
