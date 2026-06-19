@@ -29,7 +29,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 const SCHEMA: &str = "oristudio/cp-detect-candidate-coverage-benchmark/v1";
-const DEFAULT_DENSE_MANIFEST: &str = "artifacts/cp-detect-correctness/dense-cache/clean-1024-s15-browser-onnx-v3-dense-edges-max700-probe-20260618/manifest.json";
+const DEFAULT_DENSE_MANIFEST: &str = "artifacts/cp-detect-correctness/dense-cache/clean-1024-s15-browser-onnx-v3-dense-edges-max1200-probe-20260618/manifest.json";
 
 #[derive(Debug, Deserialize)]
 struct DenseCacheManifest {
