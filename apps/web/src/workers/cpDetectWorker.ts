@@ -367,7 +367,8 @@ function decodeFoldFromDenseOutputs(
     manifest.inference.image_size,
     manifest.inference.threshold,
     decoderBackend,
-    manifest.inference.junction_offset_radius_px
+    manifest.inference.junction_offset_radius_px,
+    options.exactSolveTimeoutSeconds ?? null
   ) as WasmDecodedFold;
 }
 

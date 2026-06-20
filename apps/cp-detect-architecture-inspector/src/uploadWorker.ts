@@ -49,6 +49,7 @@ export interface UploadedInspectorRunOptions extends CpDetectWorkerRunOptions {
   candidateStrategy?: string;
   legacyLowThreshold?: number;
   legacySnapRadiusPx?: number;
+  exactSolveTimeoutSeconds?: number;
   rectificationReport?: unknown;
 }
 
@@ -330,6 +331,7 @@ const api = {
         legacy_low_threshold: options.legacyLowThreshold ?? null,
         legacy_snap_radius_px: options.legacySnapRadiusPx ?? null,
         offset_cluster_radius_px: inference.manifest.inference.junction_offset_radius_px ?? null,
+        exact_solve_timeout_seconds: options.exactSolveTimeoutSeconds ?? null,
       }),
     ) as UploadedInspectorRunBundle;
   },

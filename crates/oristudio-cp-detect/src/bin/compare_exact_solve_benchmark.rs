@@ -77,6 +77,7 @@ struct Args {
     threshold: Option<f32>,
     legacy_low_threshold: Option<f32>,
     exact_patience: Option<usize>,
+    exact_solve_timeout_seconds: f64,
     limit: Option<usize>,
     match_tolerance_px: f64,
     strict_vertex_tolerance_px: f64,
@@ -113,6 +114,7 @@ struct BenchmarkConfig {
     threshold: Option<f32>,
     legacy_low_threshold: Option<f32>,
     exact_patience: Option<usize>,
+    exact_solve_timeout_seconds: f64,
     match_tolerance_px: f64,
     strict_vertex_tolerance_px: f64,
     flat_folder_enabled: bool,
@@ -590,6 +592,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             if let Some(patience) = args.exact_patience {
                 exact_options.patience = patience;
             }
+            exact_options.timeout_seconds = args.exact_solve_timeout_seconds;
             Some(solve_exact(&exact_input, exact_options))
         };
         let exact_seconds = exact_started.elapsed().as_secs_f64();
@@ -775,6 +778,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             threshold: args.threshold,
             legacy_low_threshold: args.legacy_low_threshold,
             exact_patience: args.exact_patience,
+            exact_solve_timeout_seconds: args.exact_solve_timeout_seconds,
             match_tolerance_px: args.match_tolerance_px,
             strict_vertex_tolerance_px: args.strict_vertex_tolerance_px,
             flat_folder_enabled: !args.skip_flat_folder,
@@ -798,6 +802,8 @@ impl Args {
         let mut threshold = None;
         let mut legacy_low_threshold = None;
         let mut exact_patience = None;
+        let mut exact_solve_timeout_seconds =
+            oristudio_cp_compiler::DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS;
         let mut limit = None;
         let mut match_tolerance_px = 12.0;
         let mut strict_vertex_tolerance_px = 2.0;
@@ -829,6 +835,9 @@ impl Args {
                 }
                 "--exact-patience" => {
                     exact_patience = Some(required_value(&mut iter, "--exact-patience")?.parse()?);
+                }
+                "--exact-solve-timeout-seconds" => {
+                    exact_solve_timeout_seconds = required_value(&mut iter, &arg)?.parse()?;
                 }
                 "--limit" => limit = Some(required_value(&mut iter, "--limit")?.parse()?),
                 "--match-tolerance-px" => {
@@ -879,6 +888,7 @@ impl Args {
             threshold,
             legacy_low_threshold,
             exact_patience,
+            exact_solve_timeout_seconds,
             limit,
             match_tolerance_px,
             strict_vertex_tolerance_px,
@@ -2011,6 +2021,6 @@ fn round6(value: f64) -> f64 {
 
 fn print_usage() {
     println!(
-        "compare_exact_solve_benchmark --out DIR [--dense-manifest PATH] [--candidate-source legacy] [--threshold T] [--legacy-low-threshold T] [--exact-patience N] [--limit N] [--match-tolerance-px PX] [--strict-vertex-tolerance-px PX] [--skip-flat-folder]"
+        "compare_exact_solve_benchmark --out DIR [--dense-manifest PATH] [--candidate-source legacy] [--threshold T] [--legacy-low-threshold T] [--exact-patience N] [--exact-solve-timeout-seconds S] [--limit N] [--match-tolerance-px PX] [--strict-vertex-tolerance-px PX] [--skip-flat-folder]"
     );
 }

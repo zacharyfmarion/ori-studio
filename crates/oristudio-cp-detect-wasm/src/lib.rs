@@ -155,6 +155,7 @@ pub fn cp_detect_decode_dense_output_bundle(
     threshold: f32,
     decoder_backend: &str,
     junction_offset_radius_px: Option<f32>,
+    exact_solve_timeout_seconds: Option<f64>,
 ) -> Result<JsValue, JsValue> {
     install_panic_hook();
     let backend = parse_decoder_backend(decoder_backend)?;
@@ -168,6 +169,9 @@ pub fn cp_detect_decode_dense_output_bundle(
             // radius-trained offset heads decode junctions via offset-vote
             // clustering; 0/undefined keeps legacy local-maxima decoding.
             junction_offset_cluster_radius_px: junction_offset_radius_px.unwrap_or(0.0),
+            exact_solve_timeout_seconds: exact_solve_timeout_seconds.unwrap_or(
+                oristudio_cp_detect::decode::DecodeConfig::default().exact_solve_timeout_seconds,
+            ),
             ..oristudio_cp_detect::decode::DecodeConfig::default()
         },
         backend,

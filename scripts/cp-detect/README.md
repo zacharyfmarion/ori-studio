@@ -16,10 +16,12 @@ build artifacts. All three failure modes used to present as a silent hang;
    runner re-bootstraps once when it detects this, but a clean restart is
    saner).
 2. **Model assets.** `apps/web/public/models/cp-detector-*/{model.onnx,
-   manifest.json}` are gitignored. Copy them from a checkout that has them, or
-   re-export from a `create-pattern-detector` checkout with
+   manifest.json}` are gitignored. Copy the current V3 tess15 weighted export
+   from the canonical `tree-maker-rust` checkout, or re-export from a
+   `create-pattern-detector` checkout with
    `scripts/cp-detect/export-cpline-onnx.py`. Verify with
-   `node scripts/cp-detect/check-local-model-assets.mjs`.
+   `node scripts/cp-detect/check-local-model-assets.mjs`; it intentionally
+   fails if the stable `cp-detector-v3` directory contains an older model.
 3. **Generated wasm modules.** `apps/web/src/generated/` is produced by
    wasm-pack. Either run the full `npm run dev:web` once (its `predev` builds
    everything) or build the missing crate directly, e.g.
@@ -45,6 +47,19 @@ The source checkpoint and Python oracle currently live in the
 `create-pattern-detector` repository. The current stable local model is the V3
 tess15 weighted export registered in the ML repo as
 `artifacts/checkpoints/runpod-v3-no-guide-grid-close-pair-dense-edges-tess15-weighted-4090.json`.
+On Zachary's machine, the ignored checkpoint is mirrored in the canonical
+checkout at:
+
+```text
+/Users/zacharymarion/Documents/code/create-pattern-detector/checkpoints/runpod_v3_no_guide_grid_close_pair_dense_edges_tess15_weighted_probe_20260619/full/latest.pt
+```
+
+and the ONNX export is mirrored in:
+
+```text
+/Users/zacharymarion/Documents/code/tree-maker-rust/apps/web/public/models/cp-detector-v3/
+/Users/zacharymarion/Documents/code/tree-maker-rust/apps/web/public/models/cp-detector-v3-tess15-weighted-20260619/
+```
 
 Run the local asset checker before app testing:
 
@@ -52,11 +67,12 @@ Run the local asset checker before app testing:
 node scripts/cp-detect/check-local-model-assets.mjs
 ```
 
-Export the current V2 checkpoint from a local `create-pattern-detector` checkout:
+Export the current V3 tess15 weighted checkpoint from a local
+`create-pattern-detector` checkout:
 
 ```bash
 python scripts/cp-detect/export-cpline-onnx.py \
-  --detector-repo /path/to/create-pattern-detector
+  --detector-repo /Users/zacharymarion/Documents/code/create-pattern-detector
 ```
 
 The exporter writes both `model.onnx` and `manifest.json`, validates the ONNX
@@ -93,9 +109,9 @@ modifying the Python implementation:
 
 ```bash
 python scripts/cp-detect/export-python-oracle-evidence.py \
-  --detector-repo /Users/zacharymarion/.codex/worktrees/a00b/create-pattern-detector \
-  --checkpoint checkpoints/runpod_v2_replay_correction_full_4000ada/full/latest.pt \
-  --checkpoint-manifest artifacts/checkpoints/runpod-v2-replay-correction-full-4000ada.json \
+  --detector-repo /Users/zacharymarion/Documents/code/create-pattern-detector \
+  --checkpoint checkpoints/runpod_v3_no_guide_grid_close_pair_dense_edges_tess15_weighted_probe_20260619/full/latest.pt \
+  --checkpoint-manifest artifacts/checkpoints/runpod-v3-no-guide-grid-close-pair-dense-edges-tess15-weighted-4090.json \
   --output-dir artifacts/cp-detect-oracle/evidence-real-smoke-v2 \
   /path/to/cp-image.png
 ```
@@ -210,7 +226,7 @@ python scripts/cp-detect/build-correctness-benchmark-pack.py \
 Run the frozen Python baseline:
 
 ```bash
-/Users/zacharymarion/.codex/worktrees/a00b/create-pattern-detector/.venv/bin/python \
+/Users/zacharymarion/Documents/code/create-pattern-detector/.venv/bin/python \
   scripts/cp-detect/run-python-correctness-baseline.py \
   --pack artifacts/cp-detect-correctness/packs/smoke-1024-s3/manifest.json \
   --out artifacts/cp-detect-correctness/runs/smoke-1024-s3/python \
@@ -242,7 +258,7 @@ node scripts/cp-detect/run-browser-dense-cache.mjs \
 Score both runs against GT:
 
 ```bash
-/Users/zacharymarion/.codex/worktrees/a00b/create-pattern-detector/.venv/bin/python \
+/Users/zacharymarion/Documents/code/create-pattern-detector/.venv/bin/python \
   scripts/cp-detect/evaluate-correctness-pair.py \
   --pack artifacts/cp-detect-correctness/packs/smoke-1024-s3/manifest.json \
   --python-run artifacts/cp-detect-correctness/runs/smoke-1024-s3/python/run_manifest.json \
@@ -306,6 +322,10 @@ cargo run -p oristudio-cp-detect --bin compare_exact_solve_benchmark -- \
   --skip-exact-solve \
   --strict-vertex-tolerance-px 4
 ```
+
+When exact solve is enabled, it defaults to a 10 second timeout in the product
+and benchmark paths. Use `--exact-solve-timeout-seconds N` to change it;
+negative values disable the cap for deliberate debugging runs.
 
 All generated packs, dense caches, and reports belong under ignored
 `artifacts/`. Commit only the deterministic ML eval spec/fingerprints and the

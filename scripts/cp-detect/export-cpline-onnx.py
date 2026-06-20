@@ -13,9 +13,13 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_CHECKPOINT = "checkpoints/runpod_v2_replay_correction_full_4000ada/full/latest.pt"
-DEFAULT_MODEL_ID = "runpod-v2-replay-correction-full-4000ada"
+DEFAULT_CHECKPOINT = (
+    "checkpoints/runpod_v3_no_guide_grid_close_pair_dense_edges_tess15_weighted_probe_20260619/"
+    "full/latest.pt"
+)
+DEFAULT_MODEL_ID = "runpod-v3-no-guide-grid-close-pair-dense-edges-tess15-weighted-probe-20260619"
 DEFAULT_OUTPUT_DIR = "apps/web/public/models/cp-detector-v3"
+DEFAULT_CREATED_AT = "2026-06-19"
 OUTPUT_NAMES = [
     "line_logits",
     "angle",
@@ -54,7 +58,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--model-filename", default="model.onnx")
     parser.add_argument("--model-id", default=DEFAULT_MODEL_ID)
-    parser.add_argument("--created-at", default="2026-05-22")
+    parser.add_argument("--created-at", default=DEFAULT_CREATED_AT)
     parser.add_argument("--image-size", type=int, default=1024)
     parser.add_argument("--threshold", type=float, default=0.65)
     parser.add_argument(

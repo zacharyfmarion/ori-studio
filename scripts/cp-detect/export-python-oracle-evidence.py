@@ -20,8 +20,13 @@ import numpy as np
 from PIL import Image
 
 
-DEFAULT_CHECKPOINT = "checkpoints/runpod_v2_replay_correction_full_4000ada/full/latest.pt"
-DEFAULT_CHECKPOINT_MANIFEST = "artifacts/checkpoints/runpod-v2-replay-correction-full-4000ada.json"
+DEFAULT_CHECKPOINT = (
+    "checkpoints/runpod_v3_no_guide_grid_close_pair_dense_edges_tess15_weighted_probe_20260619/"
+    "full/latest.pt"
+)
+DEFAULT_CHECKPOINT_MANIFEST = (
+    "artifacts/checkpoints/runpod-v3-no-guide-grid-close-pair-dense-edges-tess15-weighted-4090.json"
+)
 
 
 def parse_args() -> argparse.Namespace:

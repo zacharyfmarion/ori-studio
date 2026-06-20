@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -131,7 +132,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--detector-repo",
         type=Path,
-        default=Path("/Users/zacharymarion/.codex/worktrees/a00b/create-pattern-detector"),
+        default=Path(
+            os.environ.get(
+                "CP_DETECTOR_REPO",
+                "/Users/zacharymarion/Documents/code/create-pattern-detector",
+            )
+        ),
     )
     parser.add_argument(
         "--manifest",

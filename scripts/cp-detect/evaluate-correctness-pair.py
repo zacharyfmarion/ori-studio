@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import sys
 from collections import defaultdict
 from datetime import datetime, timezone
@@ -17,7 +18,12 @@ from PIL import Image, ImageDraw, ImageFont
 
 
 SCHEMA = "oristudio/cp-detect-correctness-report/v1"
-DEFAULT_DETECTOR_REPO = Path("/Users/zacharymarion/.codex/worktrees/a00b/create-pattern-detector")
+DEFAULT_DETECTOR_REPO = Path(
+    os.environ.get(
+        "CP_DETECTOR_REPO",
+        "/Users/zacharymarion/Documents/code/create-pattern-detector",
+    )
+)
 ASSIGNMENT_MAP = {"M": 0, "V": 1, "B": 2, "U": 3, "F": 3}
 ASSIGNMENT_COLORS = {
     "M": (230, 57, 70),

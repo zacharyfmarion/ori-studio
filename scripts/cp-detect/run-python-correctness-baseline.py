@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import traceback
@@ -18,9 +19,14 @@ from PIL import Image
 
 
 SCHEMA = "oristudio/cp-detect-correctness-run/v1"
-DEFAULT_DETECTOR_REPO = Path("/Users/zacharymarion/.codex/worktrees/a00b/create-pattern-detector")
-DEFAULT_CHECKPOINT = Path("checkpoints/runpod_v2_replay_correction_full_4000ada/full/latest.pt")
-DEFAULT_CHECKPOINT_MANIFEST = Path("artifacts/checkpoints/runpod-v2-replay-correction-full-4000ada.json")
+DEFAULT_DETECTOR_REPO = Path("/Users/zacharymarion/Documents/code/create-pattern-detector")
+DEFAULT_CHECKPOINT = Path(
+    "checkpoints/runpod_v3_no_guide_grid_close_pair_dense_edges_tess15_weighted_probe_20260619/"
+    "full/latest.pt"
+)
+DEFAULT_CHECKPOINT_MANIFEST = Path(
+    "artifacts/checkpoints/runpod-v3-no-guide-grid-close-pair-dense-edges-tess15-weighted-4090.json"
+)
 
 
 def main() -> int:
@@ -264,7 +270,7 @@ def relpath(path: Path, root: Path) -> str:
 
 
 def resolve_detector_repo(path: Path) -> Path:
-    repo = path.expanduser().resolve()
+    repo = Path(os.environ.get("CP_DETECTOR_REPO", str(path))).expanduser().resolve()
     if not (repo / "src/inference/pipeline.py").exists():
         raise SystemExit(f"Not a create-pattern-detector checkout: {repo}")
     return repo

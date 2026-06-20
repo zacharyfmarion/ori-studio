@@ -144,6 +144,7 @@ type QueryControls = {
   strategy: CandidateGenerationStrategy;
   legacyLowThreshold: number;
   legacySnapRadiusPx: number;
+  exactSolveTimeoutSeconds: number;
 };
 
 interface UploadPoint {
@@ -196,12 +197,14 @@ export function App() {
   const [candidateStrategy, setCandidateStrategy] = useState<CandidateGenerationStrategy>('junction-first-v1');
   const [legacyLowThreshold, setLegacyLowThreshold] = useState(0.35);
   const [legacySnapRadiusPx, setLegacySnapRadiusPx] = useState(12);
+  const [exactSolveTimeoutSeconds, setExactSolveTimeoutSeconds] = useState(10);
   const [queryControls, setQueryControls] = useState<QueryControls>({
     threshold: 0.65,
     mapSize: 192,
     strategy: 'junction-first-v1',
     legacyLowThreshold: 0.35,
     legacySnapRadiusPx: 12,
+    exactSolveTimeoutSeconds: 10,
   });
   const [stage, setStage] = useState<AnyStageResponse | null>(null);
   const [loadingStage, setLoadingStage] = useState(false);
@@ -474,6 +477,7 @@ export function App() {
       strategy: candidateStrategy,
       legacyLowThreshold,
       legacySnapRadiusPx,
+      exactSolveTimeoutSeconds,
     });
     setReloadToken((value) => value + 1);
   };
@@ -586,6 +590,7 @@ export function App() {
         candidateStrategy,
         legacyLowThreshold,
         legacySnapRadiusPx,
+        exactSolveTimeoutSeconds,
         rectificationReport: uploadRectified.report,
       });
       setUploadRun(run);
@@ -596,7 +601,7 @@ export function App() {
     } finally {
       setUploadBusy(null);
     }
-  }, [candidateStrategy, legacyLowThreshold, legacySnapRadiusPx, threshold, uploadRectified, uploadSource?.name]);
+  }, [candidateStrategy, exactSolveTimeoutSeconds, legacyLowThreshold, legacySnapRadiusPx, threshold, uploadRectified, uploadSource?.name]);
 
   const onUploadDrop = useCallback(
     (event: ReactDragEvent<HTMLDivElement>) => {
@@ -816,6 +821,18 @@ export function App() {
                   step={1}
                   type="number"
                   value={legacySnapRadiusPx}
+                />
+              </label>
+            ) : null}
+            {activeStage === 'stage6' ? (
+              <label>
+                Exact timeout s
+                <input
+                  min={-1}
+                  onChange={(event) => setExactSolveTimeoutSeconds(Number(event.target.value))}
+                  step={1}
+                  type="number"
+                  value={exactSolveTimeoutSeconds}
                 />
               </label>
             ) : null}
