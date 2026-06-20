@@ -164,16 +164,13 @@ box-pleat detector behavior, read
 reports.
 
 CP detector model assets under `apps/web/public/models/cp-detector-*` are
-intentionally gitignored. The current stable product model is the V3 tess15
-weighted export in the local `cp-detector-v3` directory, with ONNX SHA-256
-`b425cfd6caecde93caa92f0e8952040f5bada0345c5387a222d1fb915e283742`, and the
-versioned local copy is `cp-detector-v3-tess15-weighted-20260619`. For a fresh
-worktree, copy those ignored directories from the canonical checkout at
-`/Users/zacharymarion/Documents/code/tree-maker-rust` or re-export from the
-canonical ML checkpoint documented in
-`create-pattern-detector/artifacts/checkpoints/runpod-v3-no-guide-grid-close-pair-dense-edges-tess15-weighted-4090.json`.
-Then run `node scripts/cp-detect/check-local-model-assets.mjs`; it fails if the
-stable local model is missing or stale.
+intentionally gitignored. The tracked source of truth for the current product
+model is `scripts/cp-detect/current-model.json`; do not duplicate the model ID,
+SHA, checkpoint path, or versioned asset directory in new docs or scripts. For a
+fresh worktree, copy the ignored directories named there from the canonical
+checkout or re-export from the ML checkpoint named there. Then run
+`node scripts/cp-detect/check-local-model-assets.mjs`; it reads the pointer file
+and fails if the stable local model is missing or stale.
 
 ### Release work
 

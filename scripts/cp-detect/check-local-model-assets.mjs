@@ -4,10 +4,12 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const root = resolve(import.meta.dirname, '../..');
-const modelDir = resolve(root, 'apps/web/public/models/cp-detector-v3');
+const currentModelPath = resolve(import.meta.dirname, 'current-model.json');
+const currentModel = JSON.parse(readFileSync(currentModelPath, 'utf8'));
+const modelDir = resolve(root, currentModel.stable_model_asset_dir);
 const manifestPath = resolve(modelDir, 'manifest.json');
-const expectedModelId = 'runpod-v3-no-guide-grid-close-pair-dense-edges-tess15-weighted-probe-20260619';
-const expectedModelSha256 = 'b425cfd6caecde93caa92f0e8952040f5bada0345c5387a222d1fb915e283742';
+const expectedModelId = currentModel.model_id;
+const expectedModelSha256 = currentModel.model_sha256;
 
 function fail(message) {
   console.error(`cp-detect assets: ${message}`);

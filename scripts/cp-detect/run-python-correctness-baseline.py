@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import subprocess
 import sys
 import traceback
@@ -17,16 +16,15 @@ import numpy as np
 import torch
 from PIL import Image
 
+from current_model import (
+    current_checkpoint,
+    current_checkpoint_manifest,
+    default_detector_repo,
+    load_current_model,
+)
 
 SCHEMA = "oristudio/cp-detect-correctness-run/v1"
-DEFAULT_DETECTOR_REPO = Path("/Users/zacharymarion/Documents/code/create-pattern-detector")
-DEFAULT_CHECKPOINT = Path(
-    "checkpoints/runpod_v3_no_guide_grid_close_pair_dense_edges_tess15_weighted_probe_20260619/"
-    "full/latest.pt"
-)
-DEFAULT_CHECKPOINT_MANIFEST = Path(
-    "artifacts/checkpoints/runpod-v3-no-guide-grid-close-pair-dense-edges-tess15-weighted-4090.json"
-)
+CURRENT_MODEL = load_current_model()
 
 
 def main() -> int:
@@ -133,13 +131,21 @@ def main() -> int:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--detector-repo", type=Path, default=DEFAULT_DETECTOR_REPO)
+    parser.add_argument("--detector-repo", type=Path, default=default_detector_repo(CURRENT_MODEL))
     parser.add_argument("--pack", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
-    parser.add_argument("--checkpoint", type=Path, default=DEFAULT_CHECKPOINT)
-    parser.add_argument("--checkpoint-manifest", type=Path, default=DEFAULT_CHECKPOINT_MANIFEST)
+    parser.add_argument("--checkpoint", type=Path, default=current_checkpoint(CURRENT_MODEL))
+    parser.add_argument(
+        "--checkpoint-manifest",
+        type=Path,
+        default=current_checkpoint_manifest(CURRENT_MODEL),
+    )
     parser.add_argument("--device", choices=["auto", "cpu", "mps", "cuda"], default="auto")
-    parser.add_argument("--batchnorm-mode", choices=["batch-stats", "eval"], default="batch-stats")
+    parser.add_argument(
+        "--batchnorm-mode",
+        choices=["batch-stats", "eval"],
+        default=CURRENT_MODEL["inference"]["python_batchnorm_mode"],
+    )
     parser.add_argument("--threshold", type=float)
     parser.add_argument("--image-size", type=int)
     parser.add_argument("--infer-assignments", action="store_true")
@@ -270,7 +276,7 @@ def relpath(path: Path, root: Path) -> str:
 
 
 def resolve_detector_repo(path: Path) -> Path:
-    repo = Path(os.environ.get("CP_DETECTOR_REPO", str(path))).expanduser().resolve()
+    repo = path.expanduser().resolve()
     if not (repo / "src/inference/pipeline.py").exists():
         raise SystemExit(f"Not a create-pattern-detector checkout: {repo}")
     return repo

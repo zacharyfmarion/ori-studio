@@ -7,19 +7,13 @@ import argparse
 import hashlib
 import inspect
 import json
-import os
 import sys
 from pathlib import Path
 
+from current_model import current_checkpoint, default_detector_repo, load_current_model
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_CHECKPOINT = (
-    "checkpoints/runpod_v3_no_guide_grid_close_pair_dense_edges_tess15_weighted_probe_20260619/"
-    "full/latest.pt"
-)
-DEFAULT_MODEL_ID = "runpod-v3-no-guide-grid-close-pair-dense-edges-tess15-weighted-probe-20260619"
-DEFAULT_OUTPUT_DIR = "apps/web/public/models/cp-detector-v3"
-DEFAULT_CREATED_AT = "2026-06-19"
+CURRENT_MODEL = load_current_model()
 OUTPUT_NAMES = [
     "line_logits",
     "angle",
@@ -41,30 +35,33 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--detector-repo",
         type=Path,
-        default=None,
-        help="Path to the create-pattern-detector checkout. Defaults to CP_DETECTOR_REPO.",
+        default=default_detector_repo(CURRENT_MODEL),
+        help=(
+            "Path to the create-pattern-detector checkout. Defaults to CP_DETECTOR_REPO "
+            "or scripts/cp-detect/current-model.json."
+        ),
     )
     parser.add_argument(
         "--checkpoint",
         type=Path,
-        default=Path(DEFAULT_CHECKPOINT),
+        default=current_checkpoint(CURRENT_MODEL),
         help="Checkpoint path, absolute or relative to --detector-repo.",
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=REPO_ROOT / DEFAULT_OUTPUT_DIR,
+        default=REPO_ROOT / CURRENT_MODEL["stable_model_asset_dir"],
         help="Browser model asset directory.",
     )
     parser.add_argument("--model-filename", default="model.onnx")
-    parser.add_argument("--model-id", default=DEFAULT_MODEL_ID)
-    parser.add_argument("--created-at", default=DEFAULT_CREATED_AT)
-    parser.add_argument("--image-size", type=int, default=1024)
-    parser.add_argument("--threshold", type=float, default=0.65)
+    parser.add_argument("--model-id", default=CURRENT_MODEL["model_id"])
+    parser.add_argument("--created-at", default=CURRENT_MODEL["created_at"])
+    parser.add_argument("--image-size", type=int, default=int(CURRENT_MODEL["inference"]["image_size"]))
+    parser.add_argument("--threshold", type=float, default=float(CURRENT_MODEL["inference"]["threshold"]))
     parser.add_argument(
         "--batchnorm-mode",
         choices=["eval", "batch-stats", "explicit-batch-stats"],
-        default="explicit-batch-stats",
+        default=CURRENT_MODEL["inference"]["onnx_batchnorm_mode"],
         help=(
             "BatchNorm export strategy. explicit-batch-stats rewrites BatchNorm2d "
             "to explicit per-image mean/variance ops so ONNX Runtime does not need "
@@ -76,14 +73,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def resolve_detector_repo(arg: Path | None) -> Path:
-    if arg is None:
-        env_value = os.environ.get("CP_DETECTOR_REPO")
-        if not env_value:
-            raise SystemExit(
-                "Missing --detector-repo. Set CP_DETECTOR_REPO or pass the detector checkout path."
-            )
-        arg = Path(env_value)
-    repo = arg.expanduser().resolve()
+    repo = (arg or default_detector_repo(CURRENT_MODEL)).expanduser().resolve()
     if not (repo / "src/models/cpline_net.py").exists():
         raise SystemExit(f"Not a create-pattern-detector repo: {repo}")
     return repo

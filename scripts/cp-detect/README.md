@@ -16,12 +16,13 @@ build artifacts. All three failure modes used to present as a silent hang;
    runner re-bootstraps once when it detects this, but a clean restart is
    saner).
 2. **Model assets.** `apps/web/public/models/cp-detector-*/{model.onnx,
-   manifest.json}` are gitignored. Copy the current V3 tess15 weighted export
-   from the canonical `tree-maker-rust` checkout, or re-export from a
-   `create-pattern-detector` checkout with
-   `scripts/cp-detect/export-cpline-onnx.py`. Verify with
-   `node scripts/cp-detect/check-local-model-assets.mjs`; it intentionally
-   fails if the stable `cp-detector-v3` directory contains an older model.
+   manifest.json}` are gitignored. The tracked source of truth for the current
+   model is `scripts/cp-detect/current-model.json`. Copy the stable and
+   versioned asset directories named there from a checkout that has them, or
+   re-export with `scripts/cp-detect/export-cpline-onnx.py`. Verify with
+   `node scripts/cp-detect/check-local-model-assets.mjs`; it reads the pointer
+   file and intentionally fails if the stable `cp-detector-v3` directory
+   contains an older model.
 3. **Generated wasm modules.** `apps/web/src/generated/` is produced by
    wasm-pack. Either run the full `npm run dev:web` once (its `predev` builds
    everything) or build the missing crate directly, e.g.
@@ -44,22 +45,11 @@ apps/web/public/models/cp-detector-v3/manifest.json
 ```
 
 The source checkpoint and Python oracle currently live in the
-`create-pattern-detector` repository. The current stable local model is the V3
-tess15 weighted export registered in the ML repo as
-`artifacts/checkpoints/runpod-v3-no-guide-grid-close-pair-dense-edges-tess15-weighted-4090.json`.
-On Zachary's machine, the ignored checkpoint is mirrored in the canonical
-checkout at:
-
-```text
-/Users/zacharymarion/Documents/code/create-pattern-detector/checkpoints/runpod_v3_no_guide_grid_close_pair_dense_edges_tess15_weighted_probe_20260619/full/latest.pt
-```
-
-and the ONNX export is mirrored in:
-
-```text
-/Users/zacharymarion/Documents/code/tree-maker-rust/apps/web/public/models/cp-detector-v3/
-/Users/zacharymarion/Documents/code/tree-maker-rust/apps/web/public/models/cp-detector-v3-tess15-weighted-20260619/
-```
+`create-pattern-detector` repository. Read
+`scripts/cp-detect/current-model.json` for the current model ID, expected ONNX
+SHA, stable and versioned local asset directories, and ML checkpoint manifest.
+When promoting a new detector, update that pointer once instead of repeating the
+new model in this README or helper scripts.
 
 Run the local asset checker before app testing:
 
@@ -67,12 +57,11 @@ Run the local asset checker before app testing:
 node scripts/cp-detect/check-local-model-assets.mjs
 ```
 
-Export the current V3 tess15 weighted checkpoint from a local
-`create-pattern-detector` checkout:
+Export the current checkpoint from a local `create-pattern-detector` checkout.
+By default the exporter reads `scripts/cp-detect/current-model.json`:
 
 ```bash
-python scripts/cp-detect/export-cpline-onnx.py \
-  --detector-repo /Users/zacharymarion/Documents/code/create-pattern-detector
+python scripts/cp-detect/export-cpline-onnx.py
 ```
 
 The exporter writes both `model.onnx` and `manifest.json`, validates the ONNX
@@ -109,9 +98,6 @@ modifying the Python implementation:
 
 ```bash
 python scripts/cp-detect/export-python-oracle-evidence.py \
-  --detector-repo /Users/zacharymarion/Documents/code/create-pattern-detector \
-  --checkpoint checkpoints/runpod_v3_no_guide_grid_close_pair_dense_edges_tess15_weighted_probe_20260619/full/latest.pt \
-  --checkpoint-manifest artifacts/checkpoints/runpod-v3-no-guide-grid-close-pair-dense-edges-tess15-weighted-4090.json \
   --output-dir artifacts/cp-detect-oracle/evidence-real-smoke-v2 \
   /path/to/cp-image.png
 ```
