@@ -168,7 +168,7 @@ The current benchmark runner is:
 ```bash
 cargo run --release -p oristudio-cp-detect --bin compare_candidate_coverage -- \
   --strategy legacy-threshold \
-  --manifest artifacts/cp-detect-correctness/dense-cache/clean-1024-s15-browser-onnx/manifest.json \
+  --manifest artifacts/cp-detect-correctness/dense-cache/clean-1024-s15-browser-onnx-v3-tess15-weighted-probe-20260619/manifest.json \
   --out artifacts/cp-detect-correctness/reports/clean-1024-s15-candidate-coverage-YYYY-MM-DD
 ```
 
@@ -182,3 +182,7 @@ It writes:
 Candidate coverage intentionally ignores boundary GT edges by default because
 paper borders are handled by a deterministic border path. Pass
 `--include-boundary-edges` when debugging border-specific regressions.
+
+Exact-solve benchmarks use the product default 10 second timeout unless
+overridden with `--exact-solve-timeout-seconds N`. Use a negative value only
+when intentionally investigating slow or degenerate solves.

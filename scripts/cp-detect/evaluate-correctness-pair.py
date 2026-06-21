@@ -15,9 +15,11 @@ from typing import Any
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
+from current_model import default_detector_repo, load_current_model
 
 SCHEMA = "oristudio/cp-detect-correctness-report/v1"
-DEFAULT_DETECTOR_REPO = Path("/Users/zacharymarion/.codex/worktrees/a00b/create-pattern-detector")
+CURRENT_MODEL = load_current_model()
+DEFAULT_DETECTOR_REPO = default_detector_repo(CURRENT_MODEL)
 ASSIGNMENT_MAP = {"M": 0, "V": 1, "B": 2, "U": 3, "F": 3}
 ASSIGNMENT_COLORS = {
     "M": (230, 57, 70),

@@ -15,8 +15,10 @@ from typing import Any
 import numpy as np
 from PIL import Image
 
+from current_model import default_detector_repo, load_current_model
 
 SCHEMA = "oristudio/cp-detect-correctness-pack/v1"
+CURRENT_MODEL = load_current_model()
 ASSIGNMENT_LABELS = {0: "M", 1: "V", 2: "B", 3: "U"}
 TIER_PROFILES = {
     "clean": ["clean"],
@@ -131,7 +133,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--detector-repo",
         type=Path,
-        default=Path("/Users/zacharymarion/.codex/worktrees/a00b/create-pattern-detector"),
+        default=default_detector_repo(CURRENT_MODEL),
     )
     parser.add_argument(
         "--manifest",

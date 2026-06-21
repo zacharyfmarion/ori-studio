@@ -13,7 +13,7 @@ use oristudio_cp_compiler::selection::{
 };
 use oristudio_cp_compiler::{
     AssignmentCandidate, AssignmentLabel, CandidateGraph, EvidenceSource, ExactSolveInput,
-    ExactSolvedGraph, Point2, SelectedGraph, solve_exact,
+    ExactSolveOptions, ExactSolvedGraph, Point2, SelectedGraph, solve_exact,
 };
 use oristudio_cp_detect::candidate_generation::{
     CandidateGenerationContext, CandidateGenerationOptions, CandidateGenerationStrategyName,
@@ -36,10 +36,11 @@ use std::thread;
 
 const DEFAULT_HOST: &str = "127.0.0.1";
 const DEFAULT_PORT: u16 = 8788;
-const DEFAULT_DENSE_MANIFEST: &str =
-    "artifacts/cp-detect-correctness/dense-cache/clean-1024-s15-browser-onnx/manifest.json";
+const DEFAULT_DENSE_MANIFEST: &str = "artifacts/cp-detect-correctness/dense-cache/clean-1024-s15-browser-onnx-v3-tess15-weighted-probe-20260619/manifest.json";
 const DEFAULT_DIST: &str = "apps/cp-detect-architecture-inspector/dist";
 const DEFAULT_PUBLIC: &str = "apps/web/public";
+const DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS: f64 =
+    oristudio_cp_compiler::DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS;
 const MAX_MAP_SIZE: usize = 512;
 
 #[derive(Debug, Clone)]
@@ -49,6 +50,7 @@ struct Args {
     dense_manifest: PathBuf,
     dist: PathBuf,
     public: PathBuf,
+    exact_solve_timeout_seconds: f64,
 }
 
 #[derive(Debug, Clone)]
@@ -59,6 +61,7 @@ struct AppState {
     dist: PathBuf,
     public: PathBuf,
     manifest: DenseCacheManifest,
+    exact_solve_timeout_seconds: f64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -380,6 +383,7 @@ pub struct UploadInspectorOptions {
     pub legacy_low_threshold: Option<f32>,
     pub legacy_snap_radius_px: Option<f64>,
     pub offset_cluster_radius_px: Option<f64>,
+    pub exact_solve_timeout_seconds: Option<f64>,
 }
 
 fn main() -> Result<()> {
@@ -415,6 +419,7 @@ fn parse_args(args: impl Iterator<Item = String>) -> Result<Args> {
         dense_manifest: PathBuf::from(DEFAULT_DENSE_MANIFEST),
         dist: PathBuf::from(DEFAULT_DIST),
         public: PathBuf::from(DEFAULT_PUBLIC),
+        exact_solve_timeout_seconds: DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS,
     };
     let mut args = args.peekable();
     while let Some(arg) = args.next() {
@@ -434,6 +439,14 @@ fn parse_args(args: impl Iterator<Item = String>) -> Result<Args> {
             "--dense-manifest" => &mut result.dense_manifest,
             "--dist" => &mut result.dist,
             "--public" => &mut result.public,
+            "--exact-solve-timeout-seconds" => {
+                result.exact_solve_timeout_seconds = args
+                    .next()
+                    .context("--exact-solve-timeout-seconds requires a value")?
+                    .parse()
+                    .context("invalid --exact-solve-timeout-seconds")?;
+                continue;
+            }
             "--help" | "-h" => {
                 print_help();
                 std::process::exit(0);
@@ -449,7 +462,7 @@ fn print_help() {
     println!(
         "Usage: oristudio-cp-detect-inspector [--host 127.0.0.1] [--port 8788] \\
          [--dense-manifest artifacts/.../manifest.json] [--dist apps/.../dist] \\
-         [--public apps/web/public]"
+         [--public apps/web/public] [--exact-solve-timeout-seconds 10]"
     );
 }
 
@@ -494,6 +507,7 @@ fn load_state(args: &Args) -> Result<AppState> {
         dist: args.dist.clone(),
         public: args.public.clone(),
         manifest,
+        exact_solve_timeout_seconds: args.exact_solve_timeout_seconds,
     })
 }
 
@@ -1034,6 +1048,7 @@ fn stage6_example(
     sample_id: &str,
     query: BTreeMap<String, String>,
 ) -> Result<Stage6Response> {
+    let exact_solve_timeout_seconds = exact_solve_timeout_from_query(state, &query);
     let stage5 = stage5_example(state, sample_id, query)?;
     let selected_graph = SelectedGraph::from_selected_span_ids(
         &stage5.candidate_graph,
@@ -1047,7 +1062,10 @@ fn stage6_example(
     let exact_input =
         ExactSolveInput::from_candidate_selection(&stage5.candidate_graph, &selected_graph);
     let selection = selection_with_exact_roles(stage5.selection, &exact_input);
-    let exact_solve = solve_exact(&exact_input, Default::default());
+    let exact_solve = solve_exact(
+        &exact_input,
+        exact_solve_options(exact_solve_timeout_seconds),
+    );
     Ok(Stage6Response {
         schema: "oristudio/cp-detect-architecture-inspector/stage6/v1",
         sample: stage5.sample,
@@ -1274,7 +1292,14 @@ pub fn build_uploaded_stage_bundle(
     );
     let exact_input = ExactSolveInput::from_candidate_selection(&candidate_graph, &selected_graph);
     let selection = selection_with_exact_roles(selection, &exact_input);
-    let exact_solve = solve_exact(&exact_input, Default::default());
+    let exact_solve = solve_exact(
+        &exact_input,
+        exact_solve_options(
+            options
+                .exact_solve_timeout_seconds
+                .unwrap_or(DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS),
+        ),
+    );
     let stage6 = json!({
         "schema": "oristudio/cp-detect-architecture-inspector/stage6/v1",
         "sample": &sample,
@@ -1687,6 +1712,20 @@ fn selection_with_exact_roles(
         }
     }
     selection
+}
+
+fn exact_solve_timeout_from_query(state: &AppState, query: &BTreeMap<String, String>) -> f64 {
+    query
+        .get("exact_solve_timeout_seconds")
+        .and_then(|value| value.parse::<f64>().ok())
+        .unwrap_or(state.exact_solve_timeout_seconds)
+}
+
+fn exact_solve_options(timeout_seconds: f64) -> ExactSolveOptions {
+    ExactSolveOptions {
+        timeout_seconds,
+        ..ExactSolveOptions::default()
+    }
 }
 
 fn read_legacy_graph(

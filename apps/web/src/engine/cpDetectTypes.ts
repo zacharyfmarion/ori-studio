@@ -85,6 +85,7 @@ export interface CpDetectWorkerRunOptions {
   threshold?: number;
   executionProvider?: CpDetectExecutionProvider;
   decoderBackend?: 'legacy_v2_decoder' | 'constraint_compiler_v1' | 'legacy_candidate_exact_solve_v1';
+  exactSolveTimeoutSeconds?: number;
 }
 
 export interface CpDetectPoint {

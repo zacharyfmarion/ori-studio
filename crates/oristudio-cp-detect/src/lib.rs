@@ -19,8 +19,8 @@ use serde::{Deserialize, Serialize};
 
 pub const MODEL_MANIFEST_SCHEMA: &str = "oristudio/cp-detect-model-manifest/v1";
 pub const ORACLE_FIXTURE_SCHEMA: &str = "oristudio/cp-detect-oracle-fixtures/v1";
-pub const LOCAL_MODEL_ASSET_DIR: &str = "models/cp-detector-v2";
-pub const DEFAULT_MODEL_MANIFEST_URL: &str = "models/cp-detector-v2/manifest.json";
+pub const LOCAL_MODEL_ASSET_DIR: &str = "models/cp-detector-v3";
+pub const DEFAULT_MODEL_MANIFEST_URL: &str = "models/cp-detector-v3/manifest.json";
 pub const DEFAULT_IMAGE_SIZE: u32 = 1024;
 pub const DEFAULT_THRESHOLD: f32 = 0.65;
 
@@ -263,7 +263,11 @@ mod tests {
     #[test]
     fn package_info_names_browser_asset_contract() {
         let info = package_info();
-        assert_eq!(info.model_asset_dir, "models/cp-detector-v2");
+        assert_eq!(info.model_asset_dir, "models/cp-detector-v3");
+        assert_eq!(
+            info.default_model_manifest_url,
+            "models/cp-detector-v3/manifest.json"
+        );
         assert_eq!(info.default_image_size, 1024);
     }
 

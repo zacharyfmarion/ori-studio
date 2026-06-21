@@ -2639,6 +2639,7 @@ dependencies = [
 name = "oristudio-cp-compiler"
 version = "0.1.2"
 dependencies = [
+ "js-sys",
  "levenberg-marquardt",
  "nalgebra 0.34.2",
  "oristudio-cp",

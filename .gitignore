@@ -14,6 +14,7 @@ apps/web/public/models/cp-detector-v2/*
 !apps/web/public/models/cp-detector-v2/manifest.example.json
 apps/web/public/models/cp-detector-v3/*
 !apps/web/public/models/cp-detector-v3/.gitkeep
+apps/web/public/models/cp-detector-v3-*
 tools/oracle/build/
 tools/oriedita-oracle/build/
 .env.release.local

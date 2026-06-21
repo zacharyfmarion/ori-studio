@@ -19,9 +19,14 @@ from typing import Any
 import numpy as np
 from PIL import Image
 
+from current_model import (
+    current_checkpoint,
+    current_checkpoint_manifest,
+    default_detector_repo,
+    load_current_model,
+)
 
-DEFAULT_CHECKPOINT = "checkpoints/runpod_v2_replay_correction_full_4000ada/full/latest.pt"
-DEFAULT_CHECKPOINT_MANIFEST = "artifacts/checkpoints/runpod-v2-replay-correction-full-4000ada.json"
+CURRENT_MODEL = load_current_model()
 
 
 def parse_args() -> argparse.Namespace:
@@ -30,18 +35,25 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--detector-repo",
         type=Path,
-        default=None,
-        help="create-pattern-detector checkout. Defaults to CP_DETECTOR_REPO.",
+        default=default_detector_repo(CURRENT_MODEL),
+        help=(
+            "create-pattern-detector checkout. Defaults to CP_DETECTOR_REPO "
+            "or scripts/cp-detect/current-model.json."
+        ),
     )
-    parser.add_argument("--checkpoint", type=Path, default=Path(DEFAULT_CHECKPOINT))
+    parser.add_argument("--checkpoint", type=Path, default=current_checkpoint(CURRENT_MODEL))
     parser.add_argument(
         "--checkpoint-manifest",
         type=Path,
-        default=Path(DEFAULT_CHECKPOINT_MANIFEST),
+        default=current_checkpoint_manifest(CURRENT_MODEL),
     )
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--device", choices=["auto", "cpu", "mps", "cuda"], default="auto")
-    parser.add_argument("--batchnorm-mode", choices=["batch-stats", "eval"], default="batch-stats")
+    parser.add_argument(
+        "--batchnorm-mode",
+        choices=["batch-stats", "eval"],
+        default=CURRENT_MODEL["inference"]["python_batchnorm_mode"],
+    )
     parser.add_argument("--threshold", type=float, default=None)
     parser.add_argument("--alpha-matte", choices=["auto", "white", "black"], default="auto")
     parser.add_argument("--image-size", type=int, default=1024)
@@ -579,10 +591,7 @@ def write_f32(path: Path, array: np.ndarray | None) -> None:
 
 
 def resolve_detector_repo(arg: Path | None) -> Path:
-    value = arg or (Path(os.environ["CP_DETECTOR_REPO"]) if "CP_DETECTOR_REPO" in os.environ else None)
-    if value is None:
-        raise SystemExit("Pass --detector-repo or set CP_DETECTOR_REPO")
-    repo = value.expanduser().resolve()
+    repo = (arg or default_detector_repo(CURRENT_MODEL)).expanduser().resolve()
     if not (repo / "src/inference/pipeline.py").exists():
         raise SystemExit(f"Not a create-pattern-detector checkout: {repo}")
     return repo

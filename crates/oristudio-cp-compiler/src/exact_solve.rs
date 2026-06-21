@@ -18,8 +18,11 @@ use serde_json::{Value, json};
 use std::cell::Cell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;
+#[cfg(not(target_arch = "wasm32"))]
+use std::time::Instant;
 
 const SCHEMA: &str = "oristudio/cp-compiler/exact-solved-graph-v1";
+pub const DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS: f64 = 10.0;
 const TAU: f64 = std::f64::consts::TAU;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -40,6 +43,12 @@ pub struct ExactSolveOptions {
     pub solved_carrier_epsilon: f64,
     pub degenerate_edge_epsilon: f64,
     pub crossing_epsilon: f64,
+    /// Wall-clock budget for the full exact solve in seconds. The solver checks
+    /// the deadline between residual/Jacobian evaluations and returns a failed
+    /// exact graph when the budget is exhausted. Negative values disable the
+    /// timeout; zero times out immediately.
+    #[serde(default = "default_timeout_seconds")]
+    pub timeout_seconds: f64,
     /// Run a second LM pass after an accepted solve, re-anchored to the
     /// stage-1 solution with tightened theorem sigmas. The stage-1 priors
     /// anchor to the noisy detected positions, so the first pass equilibrates
@@ -62,6 +71,10 @@ pub struct ExactSolveOptions {
 
 const fn default_polish() -> bool {
     true
+}
+
+const fn default_timeout_seconds() -> f64 {
+    DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS
 }
 
 fn default_polish_kawasaki_sigma_radians() -> f64 {
@@ -99,6 +112,7 @@ impl Default for ExactSolveOptions {
             solved_carrier_epsilon: 5e-4,
             degenerate_edge_epsilon: 1e-6,
             crossing_epsilon: 1e-7,
+            timeout_seconds: default_timeout_seconds(),
             polish: default_polish(),
             polish_kawasaki_sigma_radians: default_polish_kawasaki_sigma_radians(),
             polish_carrier_incidence_sigma: default_polish_carrier_incidence_sigma(),
@@ -108,7 +122,46 @@ impl Default for ExactSolveOptions {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+struct ExactSolveDeadline {
+    timeout_seconds: f64,
+    #[cfg(not(target_arch = "wasm32"))]
+    started_at: Instant,
+    #[cfg(target_arch = "wasm32")]
+    started_at_ms: f64,
+}
+
+impl ExactSolveDeadline {
+    fn start(timeout_seconds: f64) -> Self {
+        Self {
+            timeout_seconds,
+            #[cfg(not(target_arch = "wasm32"))]
+            started_at: Instant::now(),
+            #[cfg(target_arch = "wasm32")]
+            started_at_ms: js_sys::Date::now(),
+        }
+    }
+
+    fn elapsed_seconds(&self) -> f64 {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            self.started_at.elapsed().as_secs_f64()
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            (js_sys::Date::now() - self.started_at_ms) / 1000.0
+        }
+    }
+
+    fn expired(&self) -> bool {
+        self.timeout_seconds.is_finite()
+            && self.timeout_seconds >= 0.0
+            && self.elapsed_seconds() >= self.timeout_seconds
+    }
+}
+
 pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> ExactSolvedGraph {
+    let deadline = ExactSolveDeadline::start(options.timeout_seconds);
     let validation = validate_input(input);
     if !validation.is_empty() {
         return failed_graph(
@@ -125,7 +178,7 @@ pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> Exact
         );
     }
 
-    let model = SolveModel::new(input, options);
+    let model = SolveModel::new(input, options, deadline);
     let initial_params = model.initial_params.clone();
     let before_points = model.points_from_params(&initial_params);
     let before = analyze_graph(input, &before_points, &model, &initial_params, options);
@@ -220,7 +273,7 @@ pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> Exact
     // solution and re-solve with tightened theorem sigmas. Runs only when the
     // stage-1 candidate would be accepted, so failure paths are untouched.
     let (final_params, termination, evaluations, objective, polish_adopted) = 'polish: {
-        if !options.polish || final_params.is_empty() {
+        if !options.polish || final_params.is_empty() || model.timeout_reached() {
             break 'polish (final_params, termination, evaluations, objective, false);
         }
         let stage1_points = model.points_from_params(&final_params);
@@ -243,6 +296,9 @@ pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> Exact
         let mut polish_evaluations = 0usize;
         let mut rounds_adopted = 0usize;
         for _round in 0..options.polish_rounds {
+            if model.timeout_reached() {
+                break;
+            }
             if current_kawasaki <= options.polish_target_kawasaki_degrees {
                 break;
             }
@@ -307,10 +363,18 @@ pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> Exact
     let candidate_points = model.points_from_params(&final_params);
     let candidate_after = analyze_graph(input, &candidate_points, &model, &final_params, options);
     let candidate_status = classify_status(&before, &candidate_after, options);
+    let timed_out = model.timeout_reached();
+    let termination = if timed_out {
+        timeout_termination(&termination, options)
+    } else {
+        termination
+    };
     // A polish-adopted candidate already passed the full acceptance gate (in
     // polish-model objective units); re-judging it against the original noisy
     // anchors would re-reject every successful polish.
-    let rejection_reasons = if polish_adopted {
+    let rejection_reasons = if timed_out {
+        vec![timeout_rejection_reason(options)]
+    } else if polish_adopted {
         Vec::new()
     } else {
         exact_solution_rejection_reasons(
@@ -322,7 +386,7 @@ pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> Exact
             options,
         )
     };
-    let accepted = rejection_reasons.is_empty();
+    let accepted = !timed_out && rejection_reasons.is_empty();
     let (vertices_exact, after, accepted_objective, status) = if accepted {
         (
             candidate_points.clone(),
@@ -343,7 +407,11 @@ pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> Exact
     } else {
         (initial_residuals.clone(), initial_breakdown)
     };
-    let (_, candidate_breakdown) = model.residuals_with_breakdown(&final_params);
+    let (_, candidate_breakdown) = if timed_out {
+        (initial_residuals.clone(), initial_breakdown)
+    } else {
+        model.residuals_with_breakdown(&final_params)
+    };
     let movement_report = movement_report(
         input,
         &before_points,
@@ -396,11 +464,17 @@ struct SolveModel {
     vertices: Vec<CandidateVertex>,
     cost_model: CostModel,
     options: ExactSolveOptions,
+    deadline: ExactSolveDeadline,
+    timed_out: Rc<Cell<bool>>,
     provenance: CandidateGraphProvenance,
 }
 
 impl SolveModel {
-    fn new(input: &ExactSolveInput, options: ExactSolveOptions) -> Self {
+    fn new(
+        input: &ExactSolveInput,
+        options: ExactSolveOptions,
+        deadline: ExactSolveDeadline,
+    ) -> Self {
         let mut params = Vec::new();
         let corner_points = corner_points(&input.boundary);
         let corner_ids = input
@@ -478,8 +552,21 @@ impl SolveModel {
             vertices: input.vertices.clone(),
             cost_model: input.cost_model.clone(),
             options,
+            deadline,
+            timed_out: Rc::new(Cell::new(false)),
             provenance: input.provenance.clone(),
         }
+    }
+
+    fn timeout_reached(&self) -> bool {
+        if self.timed_out.get() {
+            return true;
+        }
+        if self.deadline.expired() {
+            self.timed_out.set(true);
+            return true;
+        }
+        false
     }
 
     fn points_from_params(&self, params: &OVector<f64, Dyn>) -> Vec<Point2> {
@@ -949,6 +1036,9 @@ impl LeastSquaresProblem<f64, Dyn, Dyn> for ExactLeastSquaresProblem {
     }
 
     fn residuals(&self) -> Option<OVector<f64, Dyn>> {
+        if self.model.timeout_reached() {
+            return None;
+        }
         self.counters
             .residual_calls
             .set(self.counters.residual_calls.get() + 1);
@@ -961,6 +1051,9 @@ impl LeastSquaresProblem<f64, Dyn, Dyn> for ExactLeastSquaresProblem {
     }
 
     fn jacobian(&self) -> Option<OMatrix<f64, Dyn, Dyn>> {
+        if self.model.timeout_reached() {
+            return None;
+        }
         self.counters
             .jacobian_calls
             .set(self.counters.jacobian_calls.get() + 1);
@@ -1403,6 +1496,9 @@ fn movement_report(
     json!({
         "schema": "oristudio/cp-compiler/exact-solve-movement-report-v1",
         "termination": termination,
+        "timed_out": model.timed_out.get(),
+        "timeout_seconds": options.timeout_seconds,
+        "elapsed_seconds": round6(model.deadline.elapsed_seconds()),
         "accepted": accepted,
         "rejection_reasons": rejection_reasons,
         "evaluations": evaluations,
@@ -1423,6 +1519,20 @@ fn movement_report(
             counters,
         ),
     })
+}
+
+fn timeout_rejection_reason(options: ExactSolveOptions) -> String {
+    format!(
+        "exact solve timed out after {:.3}s",
+        options.timeout_seconds.max(0.0)
+    )
+}
+
+fn timeout_termination(previous: &str, options: ExactSolveOptions) -> String {
+    format!(
+        "timeout({:.3}s; previous={previous})",
+        options.timeout_seconds.max(0.0)
+    )
 }
 
 fn theorem_report(
@@ -1772,7 +1882,7 @@ mod tests {
     #[test]
     fn noisy_kawasaki_vertex_exactizes_without_changing_topology() {
         let input = four_ray_input(Point2::new(0.53, 0.50));
-        let before_model = SolveModel::new(&input, ExactSolveOptions::default());
+        let before_model = test_model(&input, ExactSolveOptions::default());
         let before = analyze_graph(
             &input,
             &input
@@ -1872,7 +1982,7 @@ mod tests {
             &input.vertices,
         ));
 
-        let before_model = SolveModel::new(&input, ExactSolveOptions::default());
+        let before_model = test_model(&input, ExactSolveOptions::default());
         let before = analyze_graph(
             &input,
             &input
@@ -2146,7 +2256,7 @@ mod tests {
     }
 
     fn assert_analytic_jacobian_matches_finite_difference(input: &ExactSolveInput) {
-        let model = SolveModel::new(input, ExactSolveOptions::default());
+        let model = test_model(input, ExactSolveOptions::default());
         let params = model.initial_params.clone();
         let analytic = model.analytic_jacobian(&params);
         let finite_difference = central_finite_difference_jacobian(&model, &params);
@@ -2162,6 +2272,38 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn exact_solve_timeout_returns_failed_graph() {
+        let input = four_ray_input(Point2::new(0.53, 0.50));
+        let solved = solve_exact(
+            &input,
+            ExactSolveOptions {
+                timeout_seconds: 0.0,
+                ..ExactSolveOptions::default()
+            },
+        );
+        assert_eq!(solved.status, ExactSolvedGraphStatus::Failed);
+        assert_eq!(solved.vertices_exact[4], Point2::new(0.53, 0.50));
+        assert_eq!(solved.movement_report["timed_out"], true);
+        assert_eq!(solved.movement_report["accepted"], false);
+        assert!(
+            solved.movement_report["termination"]
+                .as_str()
+                .unwrap()
+                .contains("timeout")
+        );
+        assert!(
+            solved.movement_report["rejection_reasons"][0]
+                .as_str()
+                .unwrap()
+                .contains("timed out")
+        );
+    }
+
+    fn test_model(input: &ExactSolveInput, options: ExactSolveOptions) -> SolveModel {
+        SolveModel::new(input, options, ExactSolveDeadline::start(-1.0))
     }
 
     fn central_finite_difference_jacobian(

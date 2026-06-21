@@ -16,10 +16,13 @@ build artifacts. All three failure modes used to present as a silent hang;
    runner re-bootstraps once when it detects this, but a clean restart is
    saner).
 2. **Model assets.** `apps/web/public/models/cp-detector-*/{model.onnx,
-   manifest.json}` are gitignored. Copy them from a checkout that has them, or
-   re-export from a `create-pattern-detector` checkout with
-   `scripts/cp-detect/export-cpline-onnx.py`. Verify with
-   `node scripts/cp-detect/check-local-model-assets.mjs`.
+   manifest.json}` are gitignored. The tracked source of truth for the current
+   model is `scripts/cp-detect/current-model.json`. Copy the stable and
+   versioned asset directories named there from a checkout that has them, or
+   re-export with `scripts/cp-detect/export-cpline-onnx.py`. Verify with
+   `node scripts/cp-detect/check-local-model-assets.mjs`; it reads the pointer
+   file and intentionally fails if the stable `cp-detector-v3` directory
+   contains an older model.
 3. **Generated wasm modules.** `apps/web/src/generated/` is produced by
    wasm-pack. Either run the full `npm run dev:web` once (its `predev` builds
    everything) or build the missing crate directly, e.g.
@@ -42,9 +45,11 @@ apps/web/public/models/cp-detector-v3/manifest.json
 ```
 
 The source checkpoint and Python oracle currently live in the
-`create-pattern-detector` repository. The local model manifest should use the
-schema in `apps/web/public/models/cp-detector-v2/manifest.example.json` until a
-v3 example manifest is checked in.
+`create-pattern-detector` repository. Read
+`scripts/cp-detect/current-model.json` for the current model ID, expected ONNX
+SHA, stable and versioned local asset directories, and ML checkpoint manifest.
+When promoting a new detector, update that pointer once instead of repeating the
+new model in this README or helper scripts.
 
 Run the local asset checker before app testing:
 
@@ -52,11 +57,11 @@ Run the local asset checker before app testing:
 node scripts/cp-detect/check-local-model-assets.mjs
 ```
 
-Export the current V2 checkpoint from a local `create-pattern-detector` checkout:
+Export the current checkpoint from a local `create-pattern-detector` checkout.
+By default the exporter reads `scripts/cp-detect/current-model.json`:
 
 ```bash
-python scripts/cp-detect/export-cpline-onnx.py \
-  --detector-repo /path/to/create-pattern-detector
+python scripts/cp-detect/export-cpline-onnx.py
 ```
 
 The exporter writes both `model.onnx` and `manifest.json`, validates the ONNX
@@ -93,9 +98,6 @@ modifying the Python implementation:
 
 ```bash
 python scripts/cp-detect/export-python-oracle-evidence.py \
-  --detector-repo /Users/zacharymarion/.codex/worktrees/a00b/create-pattern-detector \
-  --checkpoint checkpoints/runpod_v2_replay_correction_full_4000ada/full/latest.pt \
-  --checkpoint-manifest artifacts/checkpoints/runpod-v2-replay-correction-full-4000ada.json \
   --output-dir artifacts/cp-detect-oracle/evidence-real-smoke-v2 \
   /path/to/cp-image.png
 ```
@@ -210,7 +212,7 @@ python scripts/cp-detect/build-correctness-benchmark-pack.py \
 Run the frozen Python baseline:
 
 ```bash
-/Users/zacharymarion/.codex/worktrees/a00b/create-pattern-detector/.venv/bin/python \
+/Users/zacharymarion/Documents/code/create-pattern-detector/.venv/bin/python \
   scripts/cp-detect/run-python-correctness-baseline.py \
   --pack artifacts/cp-detect-correctness/packs/smoke-1024-s3/manifest.json \
   --out artifacts/cp-detect-correctness/runs/smoke-1024-s3/python \
@@ -242,7 +244,7 @@ node scripts/cp-detect/run-browser-dense-cache.mjs \
 Score both runs against GT:
 
 ```bash
-/Users/zacharymarion/.codex/worktrees/a00b/create-pattern-detector/.venv/bin/python \
+/Users/zacharymarion/Documents/code/create-pattern-detector/.venv/bin/python \
   scripts/cp-detect/evaluate-correctness-pair.py \
   --pack artifacts/cp-detect-correctness/packs/smoke-1024-s3/manifest.json \
   --python-run artifacts/cp-detect-correctness/runs/smoke-1024-s3/python/run_manifest.json \
@@ -252,3 +254,65 @@ Score both runs against GT:
 
 The report directory contains `summary.json`, `summary.md`,
 `per_sample.jsonl`, `regressions.jsonl`, and `contact_sheet.png`.
+
+## Box-Pleat Native Eval
+
+Box-pleated real-world CPs are selected by the `create-pattern-detector` repo,
+not by a committed path list in this repo. The ML repo owns the deterministic
+candidate recipe, canonical FOLD hashing, and expected fingerprints in
+`eval_specs/box_pleat_native_v1.json`. This repo owns the product-side eval:
+turning those selected FOLDs into a correctness pack, running the shipped ONNX
+model in the browser, and measuring the Rust/WASM post-processing behavior.
+
+Build a full product correctness pack from the ML repo's BP eval spec:
+
+```bash
+/path/to/create-pattern-detector/.venv/bin/python \
+  scripts/cp-detect/build-box-pleat-native-pack.py \
+  --detector-repo /path/to/create-pattern-detector \
+  --fold-root /path/to/scraped/native/converted_fold \
+  --out artifacts/cp-detect-correctness/packs/box-pleat-native-v1
+```
+
+Add `--limit 3` and use a distinct output directory for a fast smoke pack. The
+builder always verifies the full BP eval fingerprints before applying the
+limit, so a smoke pack still catches dataset drift.
+
+With the web app running locally, cache the browser ONNX dense heads:
+
+```bash
+node scripts/cp-detect/run-browser-dense-cache.mjs \
+  --url http://127.0.0.1:5175/ \
+  --pack artifacts/cp-detect-correctness/packs/box-pleat-native-v1/manifest.json \
+  --out artifacts/cp-detect-correctness/dense-cache/box-pleat-native-v1-browser-onnx-v3 \
+  --manifest-url /models/cp-detector-v3/manifest.json
+```
+
+Measure whether orthogonal BP crease pixels are missing from the line head, or
+are being removed by product non-crease suppression:
+
+```bash
+python3 scripts/cp-detect/evaluate-box-pleat-dense-cache.py \
+  --dense-manifest artifacts/cp-detect-correctness/dense-cache/box-pleat-native-v1-browser-onnx-v3/manifest.json \
+  --out artifacts/cp-detect-correctness/reports/box-pleat-native-v1-dense-heads
+```
+
+Then run the normal Rust topology benchmark against the same dense cache:
+
+```bash
+cargo run -p oristudio-cp-detect --bin compare_exact_solve_benchmark -- \
+  --dense-manifest artifacts/cp-detect-correctness/dense-cache/box-pleat-native-v1-browser-onnx-v3/manifest.json \
+  --out artifacts/cp-detect-correctness/reports/box-pleat-native-v1-strict-v3 \
+  --candidate-source junction-first-v1 \
+  --junction-first-offset-cluster-radius-px 3 \
+  --skip-exact-solve \
+  --strict-vertex-tolerance-px 4
+```
+
+When exact solve is enabled, it defaults to a 10 second timeout in the product
+and benchmark paths. Use `--exact-solve-timeout-seconds N` to change it;
+negative values disable the cap for deliberate debugging runs.
+
+All generated packs, dense caches, and reports belong under ignored
+`artifacts/`. Commit only the deterministic ML eval spec/fingerprints and the
+small scripts/docs that make this product-side flow reproducible.

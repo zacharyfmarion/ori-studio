@@ -65,6 +65,10 @@ pub struct DecodeConfig {
     /// sub-pixel offset head and keeps local-maxima junction decoding.
     #[serde(default)]
     pub junction_offset_cluster_radius_px: f32,
+    /// Wall-clock budget for the product exact-solve backend. A negative value
+    /// disables the timeout; zero times out immediately.
+    #[serde(default = "default_exact_solve_timeout_seconds")]
+    pub exact_solve_timeout_seconds: f64,
 }
 
 impl Default for DecodeConfig {
@@ -99,8 +103,13 @@ impl Default for DecodeConfig {
             planar_split_vertex_distance_px: default_planar_split_vertex_distance_px(),
             planar_crossing_support_tie: default_planar_crossing_support_tie(),
             junction_offset_cluster_radius_px: 0.0,
+            exact_solve_timeout_seconds: default_exact_solve_timeout_seconds(),
         }
     }
+}
+
+fn default_exact_solve_timeout_seconds() -> f64 {
+    oristudio_cp_compiler::DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS
 }
 
 #[derive(Debug, Clone, Copy)]

@@ -340,7 +340,10 @@ fn legacy_candidate_exact_solve(
     let exact_started = StageTimer::start();
     let exact_solve = oristudio_cp_compiler::solve_exact(
         &exact_input,
-        oristudio_cp_compiler::ExactSolveOptions::default(),
+        oristudio_cp_compiler::ExactSolveOptions {
+            timeout_seconds: config.exact_solve_timeout_seconds,
+            ..oristudio_cp_compiler::ExactSolveOptions::default()
+        },
     );
     let exact_seconds = exact_started.elapsed_seconds();
     let mut fold_document =

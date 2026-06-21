@@ -8,7 +8,11 @@ fn package_info_serializes_browser_detector_contract() {
         serde_wasm_bindgen::from_value(info).expect("package info should deserialize");
 
     assert_eq!(info["crate_name"], "oristudio-cp-detect");
-    assert_eq!(info["model_asset_dir"], "models/cp-detector-v2");
+    assert_eq!(info["model_asset_dir"], "models/cp-detector-v3");
+    assert_eq!(
+        info["default_model_manifest_url"],
+        "models/cp-detector-v3/manifest.json"
+    );
     assert_eq!(info["default_image_size"], 1024);
 }
 

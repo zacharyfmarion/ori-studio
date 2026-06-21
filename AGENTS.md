@@ -153,6 +153,25 @@ Match local validation to the affected CI surface before opening a pull request.
 4. Avoid pushing product behavior into the Tauri shell unless it is truly native
    shell behavior.
 
+### CP detector eval work
+
+The `create-pattern-detector` ML repo owns deterministic dataset selection for
+the native box-pleat eval. This repo owns product-side browser ONNX,
+Rust/WASM, and post-processing evals over that selected set. Before changing
+box-pleat detector behavior, read
+`scripts/cp-detect/README.md#box-pleat-native-eval` and use the ignored
+`artifacts/cp-detect-correctness/` tree for generated packs, dense caches, and
+reports.
+
+CP detector model assets under `apps/web/public/models/cp-detector-*` are
+intentionally gitignored. The tracked source of truth for the current product
+model is `scripts/cp-detect/current-model.json`; do not duplicate the model ID,
+SHA, checkpoint path, or versioned asset directory in new docs or scripts. For a
+fresh worktree, copy the ignored directories named there from the canonical
+checkout or re-export from the ML checkpoint named there. Then run
+`node scripts/cp-detect/check-local-model-assets.mjs`; it reads the pointer file
+and fails if the stable local model is missing or stale.
+
 ### Release work
 
 Release notes and package workflow details live in `RELEASE.md`. Keep release
