@@ -401,6 +401,18 @@ impl WorkerOverlapEnumerator {
         current_priority(self.valid_count, &self.entries, &self.order)
     }
 
+    pub fn current_ordered_subfaces(&self, count: usize) -> Vec<(usize, Vec<usize>)> {
+        self.order
+            .iter()
+            .take(count.min(self.order.len()))
+            .filter_map(|entry_index| {
+                self.entries
+                    .get(*entry_index)
+                    .map(|entry| (entry.subface_index, entry.search.current_ordering()))
+            })
+            .collect()
+    }
+
     pub fn next(&mut self, subface_count: usize) -> Result<usize, PermutationError> {
         advance_subface_permutations(
             &mut self.entries,

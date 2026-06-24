@@ -635,7 +635,7 @@ checkpoint and keep the checklist current.
 - [x] Define stable folded render primitive schema in Rust.
 - [x] Add paper-front render oracle fixture.
 - [x] Add paper-front render oracle smoke test.
-- [ ] Add paper-front render oracle comparison test.
+- [x] Add paper-front render oracle comparison test.
 - [ ] Port paper-view subface fill, front/back parity, edge visibility, and
       shadow primitive generation.
 - [ ] Add paper back/both and shadow oracle fixtures.

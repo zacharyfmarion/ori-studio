@@ -1538,6 +1538,54 @@ pub fn folded_figure_snapshot_from_segments(
     Ok(folded_figure_snapshot_from_session(&session, model))
 }
 
+pub fn folded_figure_paper_front_render_snapshot_from_segments(
+    segments: &[LineSegment],
+    starting_face_id: i32,
+    model: FoldedFigureModel,
+) -> Result<Option<FoldedFigureRenderSnapshot>, FoldingEstimateError> {
+    if segments.is_empty() {
+        return Ok(None);
+    }
+
+    let graph = FoldGraph::from_segments(segments, true);
+    if graph.faces.is_empty() {
+        return Ok(None);
+    }
+
+    let positions = graph.face_positions(starting_face_id);
+    let folded = wireframe_from_graph(&graph, &positions, graph.folded_points(&positions));
+    let folded_segments = folded_wireframe_segments(&folded);
+    let prepared_segments = prepare_subface_segments(&folded_segments);
+    let subface_graph = FoldGraph::from_segments(&prepared_segments, true);
+    if subface_graph.faces.is_empty() {
+        return Ok(None);
+    }
+    let subfaces = configure_subfaces(&folded, &subface_graph);
+
+    let Some(mut enumerator) = overlap_enumerator_from_segments(segments, starting_face_id)? else {
+        return Ok(None);
+    };
+    let overlap = enumerator.possible_overlapping_search(true)?;
+    if !overlap.found {
+        return Ok(None);
+    }
+    let ordered_subfaces = enumerator.current_ordered_subfaces(overlap.priority.valid_count);
+
+    Ok(Some(FoldedFigureRenderSnapshot {
+        schema_version: 1,
+        fixture: None,
+        pass: Some("paper-front".to_string()),
+        primitives: paper_front_render_primitives(
+            &graph,
+            &folded,
+            &subface_graph,
+            &subfaces,
+            &ordered_subfaces,
+            &model,
+        ),
+    }))
+}
+
 /// Oriedita `FoldedFigure_Worker.possible_overlapping_search(false)` after
 /// folding stages 01-04 have prepared subfaces, hierarchy relations, and
 /// equivalence conditions. This is the no-swap/no-realtime-AEA worker search
@@ -1654,6 +1702,279 @@ fn two_colored_overlap_enumerator_from_segments(
         Some(&conditions),
     )
     .map(Some)
+}
+
+#[derive(Debug, Clone, Copy)]
+struct OrieditaRenderCamera {
+    camera_position: Point,
+    angle_degrees: f64,
+    mirror: f64,
+    zoom_x: f64,
+    zoom_y: f64,
+    display_position: Point,
+}
+
+impl OrieditaRenderCamera {
+    fn folded_front(model: &FoldedFigureModel) -> Self {
+        Self {
+            camera_position: Point::origin(),
+            angle_degrees: model.rotation,
+            mirror: 1.0,
+            zoom_x: model.scale,
+            zoom_y: model.scale,
+            display_position: Point::new(20.0, 20.0),
+        }
+    }
+
+    fn object_to_tv(self, point: Point) -> Point {
+        let radians = self.angle_degrees * (3.14159265 / 180.0);
+        let sin = radians.sin();
+        let cos = radians.cos();
+        let x1 = point.x - self.camera_position.x;
+        let y1 = point.y - self.camera_position.y;
+        let mut x2 = cos * x1 + sin * y1;
+        let mut y2 = -sin * x1 + cos * y1;
+        x2 *= self.mirror;
+        x2 *= self.zoom_x;
+        y2 *= self.zoom_y;
+        Point::new(x2 + self.display_position.x, y2 + self.display_position.y)
+    }
+
+    fn fix_to_flat_bounds(
+        mut self,
+        flat_points: &[Point],
+        folded_points: &[Point],
+        offset: Point,
+    ) -> Self {
+        let Some(min_flat) = min_tv_point(flat_points, |point| point) else {
+            return self;
+        };
+        let Some(min_folded) = min_tv_point(folded_points, |point| self.object_to_tv(point)) else {
+            return self;
+        };
+
+        self.display_position = self
+            .display_position
+            .move_by(min_folded.delta(min_flat).move_by(offset));
+        self
+    }
+}
+
+fn min_tv_point(points: &[Point], transform: impl Fn(Point) -> Point) -> Option<Point> {
+    // Oriedita's one-based loop uses i < getNumPoints(), so the last point is
+    // intentionally excluded here.
+    let mut iter = points
+        .iter()
+        .take(points.len().saturating_sub(1))
+        .copied()
+        .map(transform);
+    let first = iter.next()?;
+    Some(iter.fold(first, |min, point| {
+        Point::new(min.x.min(point.x), min.y.min(point.y))
+    }))
+}
+
+fn paper_front_render_primitives(
+    flat_graph: &FoldGraph,
+    folded: &FoldedWireframe,
+    subface_graph: &FoldGraph,
+    subfaces: &SubFaceConfiguration,
+    ordered_subfaces: &[(usize, Vec<usize>)],
+    model: &FoldedFigureModel,
+) -> Vec<FoldedFigureRenderPrimitive> {
+    let camera = OrieditaRenderCamera::folded_front(model).fix_to_flat_bounds(
+        &flat_graph.points,
+        &folded.points,
+        Point::new(20.0, 20.0),
+    );
+    let ordered_faces = ordered_subfaces
+        .iter()
+        .cloned()
+        .collect::<HashMap<usize, Vec<usize>>>();
+    let mut primitives = Vec::new();
+
+    for (subface_index, face) in subface_graph.faces.iter().enumerate() {
+        let Some(visible_face) =
+            visible_subface_face(subface_index, subfaces, &ordered_faces, false)
+        else {
+            continue;
+        };
+        let color = visible_face_color(visible_face, folded, model, false);
+        let points = face
+            .iter()
+            .filter_map(|point_index| subface_graph.points.get(*point_index).copied())
+            .map(|point| camera.object_to_tv(point))
+            .collect::<Vec<_>>();
+        if points.len() < 3 {
+            continue;
+        }
+        primitives.push(FoldedFigureRenderPrimitive {
+            sequence: primitives.len(),
+            kind: FoldedFigureRenderPrimitiveKind::FillPath,
+            style: FoldedFigureRenderStyle {
+                paint: FoldedFigureRenderPaint::Color { color },
+                stroke: default_java2d_stroke(),
+                antialias: FoldedFigureRenderAntialias::Off,
+            },
+            geometry: FoldedFigureRenderGeometry::Path {
+                commands: closed_path_commands(&points),
+            },
+        });
+    }
+
+    for line_index in 0..subface_graph.lines.len() {
+        if !should_draw_paper_edge(line_index, subface_graph, subfaces, &ordered_faces, false) {
+            continue;
+        }
+        let line = subface_graph.lines[line_index];
+        let Some(begin) = subface_graph.points.get(line.begin).copied() else {
+            continue;
+        };
+        let Some(end) = subface_graph.points.get(line.end).copied() else {
+            continue;
+        };
+        let points = [camera.object_to_tv(begin), camera.object_to_tv(end)];
+        primitives.push(FoldedFigureRenderPrimitive {
+            sequence: primitives.len(),
+            kind: FoldedFigureRenderPrimitiveKind::StrokePath,
+            style: FoldedFigureRenderStyle {
+                paint: FoldedFigureRenderPaint::Color {
+                    color: RgbaColor::from_rgb(model.line_color),
+                },
+                stroke: folded_line_stroke(model),
+                antialias: if model.anti_alias {
+                    FoldedFigureRenderAntialias::On
+                } else {
+                    FoldedFigureRenderAntialias::Off
+                },
+            },
+            geometry: FoldedFigureRenderGeometry::Path {
+                commands: open_path_commands(&points),
+            },
+        });
+    }
+
+    primitives
+}
+
+fn visible_subface_face(
+    subface_index: usize,
+    subfaces: &SubFaceConfiguration,
+    ordered_faces: &HashMap<usize, Vec<usize>>,
+    flipped: bool,
+) -> Option<usize> {
+    let ordered = ordered_faces
+        .get(&subface_index)
+        .filter(|faces| !faces.is_empty());
+    if flipped {
+        ordered.and_then(|faces| faces.last().copied()).or_else(|| {
+            subfaces
+                .subfaces
+                .get(subface_index)?
+                .face_ids
+                .last()
+                .copied()
+        })
+    } else {
+        ordered
+            .and_then(|faces| faces.first().copied())
+            .or_else(|| {
+                subfaces
+                    .subfaces
+                    .get(subface_index)?
+                    .face_ids
+                    .first()
+                    .copied()
+            })
+    }
+}
+
+fn visible_face_color(
+    face: usize,
+    folded: &FoldedWireframe,
+    model: &FoldedFigureModel,
+    flipped: bool,
+) -> RgbaColor {
+    let position = folded.face_positions.get(face).copied().unwrap_or(1);
+    let front = if flipped {
+        position % 2 == 0
+    } else {
+        position % 2 == 1
+    };
+    RgbaColor::from_rgb(if front {
+        model.front_color
+    } else {
+        model.back_color
+    })
+}
+
+fn should_draw_paper_edge(
+    line_index: usize,
+    subface_graph: &FoldGraph,
+    subfaces: &SubFaceConfiguration,
+    ordered_faces: &HashMap<usize, Vec<usize>>,
+    flipped: bool,
+) -> bool {
+    let Some((first, second)) = subface_graph.line_face_border(line_index) else {
+        return true;
+    };
+    let first_count = subfaces
+        .subfaces
+        .get(first)
+        .map(|subface| subface.face_ids.len())
+        .unwrap_or(0);
+    let second_count = subfaces
+        .subfaces
+        .get(second)
+        .map(|subface| subface.face_ids.len())
+        .unwrap_or(0);
+    if first_count == 0 || second_count == 0 || first == second {
+        return true;
+    }
+
+    visible_subface_face(first, subfaces, ordered_faces, flipped)
+        != visible_subface_face(second, subfaces, ordered_faces, flipped)
+}
+
+fn default_java2d_stroke() -> FoldedFigureRenderStroke {
+    FoldedFigureRenderStroke::Basic {
+        width: 1.0,
+        end_cap: 2,
+        line_join: 0,
+        miter_limit: 10.0,
+    }
+}
+
+fn folded_line_stroke(model: &FoldedFigureModel) -> FoldedFigureRenderStroke {
+    FoldedFigureRenderStroke::Basic {
+        width: if model.anti_alias { 1.200000048 } else { 1.0 },
+        end_cap: 0,
+        line_join: 0,
+        miter_limit: 10.0,
+    }
+}
+
+fn closed_path_commands(points: &[Point]) -> Vec<RenderPathCommand> {
+    let mut commands = open_path_commands(points);
+    if !commands.is_empty() {
+        commands.push(RenderPathCommand::Close);
+    }
+    commands
+}
+
+fn open_path_commands(points: &[Point]) -> Vec<RenderPathCommand> {
+    let Some(first) = points.first().copied() else {
+        return Vec::new();
+    };
+    let mut commands = vec![RenderPathCommand::MoveTo { point: first }];
+    commands.extend(
+        points
+            .iter()
+            .skip(1)
+            .copied()
+            .map(|point| RenderPathCommand::LineTo { point }),
+    );
+    commands
 }
 
 fn initial_hierarchy_from_graph(
