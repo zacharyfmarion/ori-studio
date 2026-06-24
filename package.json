@@ -18,6 +18,7 @@
     "lint:web": "npm --workspace @treemaker/web run lint",
     "test:simulator": "npm --workspace @treemaker/origami-simulator run test",
     "test:web": "npm --workspace @treemaker/web run test",
+    "test:web:folded-screenshot": "node scripts/folded-grid-screenshot.mjs",
     "typecheck:web": "npm --workspace @treemaker/web run typecheck",
     "check:desktop": "npm --workspace @treemaker/tauri run check"
   }

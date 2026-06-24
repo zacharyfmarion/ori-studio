@@ -658,6 +658,6 @@ checkpoint and keep the checklist current.
       transparency, duplicate, delete, and active folded-figure UI.
 - [x] Persist folded figure cameras, model state, primitive snapshots, and
       invalidation metadata in `.osf`.
-- [ ] Add Playwright screenshot coverage for the grid-area folded figure.
+- [x] Add Playwright screenshot coverage for the grid-area folded figure.
 - [ ] Run folded-document corpus validation and document unsupported cases.
 - [ ] Run Rust, WASM, oracle, and web validation appropriate to each stage.
