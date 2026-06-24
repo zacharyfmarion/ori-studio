@@ -556,6 +556,20 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     }
   };
 
+  const sourceFoldWithCurrentProjection = (
+    sourceFold: FoldDocument | null | undefined,
+    foldProjection: FoldDocument | null
+  ): FoldDocument | null => {
+    if (!sourceFold) return null;
+    if (!foldProjection) return sourceFold;
+    return {
+      ...sourceFold,
+      ...foldProjection,
+      file_title: sourceFold.file_title ?? foldProjection.file_title,
+      file_frames: sourceFold.file_frames ?? [],
+    };
+  };
+
   const loadNativeCreasePattern = async (
     nativeDocument: Extract<ReturnType<typeof activeNativeDocument>, { kind: 'crease-pattern' }>,
     nativeText: string,
@@ -579,7 +593,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     const checked = await refreshAlwaysOnCamvDiagnostics(restoredDocument);
     const documentState = checked.documentState;
     const fold =
-      nativeDocument.creasePattern.foldProjection ?? (await exportedEditableFoldProjection());
+      nativeDocument.creasePattern.sourceFold ??
+      nativeDocument.creasePattern.foldProjection ??
+      (await exportedEditableFoldProjection());
     if (!fold) throw new Error('Native crease-pattern project does not contain a FOLD projection');
 
     const parsed = parseImportedCreasePattern(JSON.stringify(fold), {
@@ -778,6 +794,10 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     const documentState = get().oristudioCpDocument;
     if (!documentState) return null;
     const foldProjection = await exportedEditableFoldProjection();
+    const sourceFold = sourceFoldWithCurrentProjection(
+      get().importedCreasePattern?.sourceFold,
+      foldProjection
+    );
     return {
       title:
         documentState.summary.title ||
@@ -788,6 +808,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       document: documentState.document,
       source: get().importedCreasePattern?.source ?? documentState.source,
       foldProjection,
+      sourceFold,
       foldArtifacts: get().foldArtifacts,
       creaseColorMode: get().creaseColorMode,
       selection: get().oristudioCpSelection,

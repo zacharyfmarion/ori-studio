@@ -400,9 +400,9 @@ Normal tests should not require Java:
 - [x] Add preserving multi-frame FOLD model in Rust.
 - [x] Add preserving multi-frame FOLD import/export tests, including
       `foldedForm` frames.
-- [ ] Replace web FOLD import flattening with frame inventory plus active-frame
+- [x] Replace web FOLD import flattening with frame inventory plus active-frame
       selection.
-- [ ] Extend `.osf` to preserve imported FOLD frame graphs.
+- [x] Extend `.osf` to preserve imported FOLD frame graphs.
 - [ ] Add serializable Oriedita folded-figure snapshot types in `oristudio-cp`.
 - [ ] Expose Fold/FoldAnother/FoldToCase folded-figure commands from
       `oristudio-cp-wasm`.

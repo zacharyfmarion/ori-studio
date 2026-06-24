@@ -15,6 +15,11 @@ export interface ImportedFoldFrameInfo {
   title: string | null;
   classes: string[];
   inherited: boolean;
+  parentIndex: number | null;
+  foldedForm: boolean;
+  vertices: number;
+  edges: number;
+  faces: number;
 }
 
 export interface ImportedCreasePatternDiagnostics {
@@ -37,6 +42,9 @@ export interface ImportedCreasePatternDocument {
   source: ImportedCreasePatternSource;
   title: string;
   selectedFrame: ImportedFoldFrameInfo | null;
+  foldFrames: ImportedFoldFrameInfo[];
+  foldedFormFrames: ImportedFoldFrameInfo[];
+  sourceFold: FoldDocument | null;
   fold: FoldDocument;
   lineOnly: boolean;
   simulationModelError: string | null;
@@ -100,6 +108,9 @@ export function parseImportedCreasePattern(
     source,
     title: parsed.title,
     selectedFrame: parsed.selectedFrame,
+    foldFrames: parsed.foldFrames,
+    foldedFormFrames: parsed.foldedFormFrames,
+    sourceFold: parsed.sourceFold,
     fold: withTopology,
     lineOnly,
     simulationModelError: simulation.error,
@@ -176,7 +187,14 @@ function parseCpText(
   text: string,
   filename: string,
   diagnostics: ImportedCreasePatternDiagnostics
-): { title: string; selectedFrame: null; fold: FoldDocument } {
+): {
+  title: string;
+  selectedFrame: null;
+  foldFrames: ImportedFoldFrameInfo[];
+  foldedFormFrames: ImportedFoldFrameInfo[];
+  sourceFold: null;
+  fold: FoldDocument;
+} {
   const segments: RawSegment[] = [];
   text.split(/\r?\n/u).forEach((line, index) => {
     const trimmed = line.trim();
@@ -207,6 +225,9 @@ function parseCpText(
   return {
     title: basenameWithoutExtension(filename),
     selectedFrame: null,
+    foldFrames: [],
+    foldedFormFrames: [],
+    sourceFold: null,
     fold: foldFromSegments(segments, basenameWithoutExtension(filename)),
   };
 }
@@ -215,7 +236,14 @@ function parseFoldText(
   text: string,
   filename: string,
   diagnostics: ImportedCreasePatternDiagnostics
-): { title: string; selectedFrame: ImportedFoldFrameInfo | null; fold: FoldDocument } {
+): {
+  title: string;
+  selectedFrame: ImportedFoldFrameInfo | null;
+  foldFrames: ImportedFoldFrameInfo[];
+  foldedFormFrames: ImportedFoldFrameInfo[];
+  sourceFold: FoldDocument;
+  fold: FoldDocument;
+} {
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
@@ -226,7 +254,9 @@ function parseFoldText(
   }
   if (!isRecord(parsed)) throw new Error('FOLD file must contain a JSON object');
 
-  const chosen = chooseFoldFrame(parsed);
+  const frames = resolveFoldFrames(parsed);
+  const frameInfos = frames.map(foldFrameInfo);
+  const chosen = chooseFoldFrame(frames);
   if (!chosen) throw new Error('FOLD file does not contain a usable frame with vertices and edges');
   const title =
     stringField(chosen.frame.frame_title) ??
@@ -237,44 +267,73 @@ function parseFoldText(
   const fold = normalizeFoldObject(chosen.frame, title, diagnostics);
   return {
     title,
-    selectedFrame: {
-      index: chosen.index,
-      title: stringField(chosen.frame.frame_title),
-      classes: stringArrayField(chosen.frame.frame_classes),
-      inherited: chosen.inherited,
-    },
+    selectedFrame: foldFrameInfo(chosen),
+    foldFrames: frameInfos,
+    foldedFormFrames: frameInfos.filter((frame) => frame.foldedForm),
+    sourceFold: parsed as FoldDocument,
     fold,
   };
 }
 
-function chooseFoldFrame(root: Record<string, unknown>):
-  | { frame: Record<string, unknown>; index: number; inherited: boolean }
-  | null {
+interface ResolvedFoldFrame {
+  frame: Record<string, unknown>;
+  index: number;
+  inherited: boolean;
+  parentIndex: number | null;
+}
+
+function resolveFoldFrames(root: Record<string, unknown>): ResolvedFoldFrame[] {
   const fileFrames = Array.isArray(root.file_frames) ? root.file_frames.filter(isRecord) : [];
   const rawFrames = [root, ...fileFrames];
-  const cache = new Map<number, { frame: Record<string, unknown>; inherited: boolean }>();
+  const cache = new Map<number, ResolvedFoldFrame>();
 
-  const build = (index: number): { frame: Record<string, unknown>; inherited: boolean } => {
+  const build = (index: number): ResolvedFoldFrame => {
     const cached = cache.get(index);
     if (cached) return cached;
     const raw = rawFrames[index] ?? {};
     let frame = withoutFileFrames(raw);
     let inherited = false;
-    const parent = numberField(raw.frame_parent);
-    if (index > 0 && raw.frame_inherit === true && parent !== null && parent >= 0 && parent < rawFrames.length) {
+    const rawParent = numberField(raw.frame_parent);
+    const parent =
+      rawParent !== null && Number.isInteger(rawParent) ? rawParent : null;
+    if (
+      index > 0 &&
+      raw.frame_inherit === true &&
+      parent !== null &&
+      parent >= 0 &&
+      parent < rawFrames.length
+    ) {
       const parentFrame = build(parent);
       frame = { ...parentFrame.frame, ...frame };
       inherited = true;
     }
-    const result = { frame, inherited };
+    const result = { frame, index, inherited, parentIndex: parent };
     cache.set(index, result);
     return result;
   };
 
-  return rawFrames
-    .map((_, index) => ({ ...build(index), index }))
+  return rawFrames.map((_, index) => build(index));
+}
+
+function chooseFoldFrame(frames: ResolvedFoldFrame[]): ResolvedFoldFrame | null {
+  return frames
     .filter(({ frame }) => hasUsableFoldGeometry(frame))
     .sort((a, b) => frameScore(b.frame) - frameScore(a.frame) || a.index - b.index)[0] ?? null;
+}
+
+function foldFrameInfo(frame: ResolvedFoldFrame): ImportedFoldFrameInfo {
+  const classes = stringArrayField(frame.frame.frame_classes);
+  return {
+    index: frame.index,
+    title: stringField(frame.frame.frame_title),
+    classes,
+    inherited: frame.inherited,
+    parentIndex: frame.parentIndex,
+    foldedForm: classes.includes('foldedForm'),
+    vertices: arrayField(frame.frame.vertices_coords).length,
+    edges: arrayField(frame.frame.edges_vertices).length,
+    faces: arrayField(frame.frame.faces_vertices).length,
+  };
 }
 
 function frameScore(frame: Record<string, unknown>): number {
@@ -319,7 +378,10 @@ function normalizeFoldObject(
     file_spec: numberField(frame.file_spec) ?? 1.2,
     file_creator: stringField(frame.file_creator) ?? undefined,
     file_author: stringField(frame.file_author) ?? undefined,
+    file_title: stringField(frame.file_title) ?? undefined,
     frame_title: title,
+    frame_parent: numberField(frame.frame_parent) ?? undefined,
+    frame_inherit: typeof frame.frame_inherit === 'boolean' ? frame.frame_inherit : undefined,
     frame_classes: stringArrayField(frame.frame_classes),
     vertices_coords: coords.map((point) => [point.x, point.y]),
     edges_vertices: edges,

@@ -56,6 +56,7 @@ export interface NativeCreasePatternDocumentV1 extends NativeProjectBaseDocument
     document: OristudioCpDocumentSnapshot;
     source: ImportedCreasePatternSource | NativeProjectSource | null;
     foldProjection: FoldDocument | null;
+    sourceFold: FoldDocument | null;
     lineage: OristudioCpLineage;
   };
   viewState: {
@@ -113,6 +114,7 @@ export interface NativeCreasePatternProjectInput {
   document: OristudioCpDocumentSnapshot;
   source: ImportedCreasePatternSource | NativeProjectSource | null;
   foldProjection: FoldDocument | null;
+  sourceFold?: FoldDocument | null;
   foldArtifacts: FoldArtifacts | null;
   creaseColorMode: CreaseColorMode;
   selection: OristudioCpSelection;
@@ -262,6 +264,7 @@ function createNativeCreasePatternDocument(
       document: input.document,
       source: input.source,
       foldProjection: input.foldProjection,
+      sourceFold: input.sourceFold ?? null,
       lineage: input.lineage,
     },
     viewState: {
@@ -392,6 +395,9 @@ function validateDocumentV1(value: unknown): NativeProjectDocumentV1 {
         source: validateSource(creasePattern.source) ?? validateImportedSource(creasePattern.source),
         foldProjection: isRecord(creasePattern.foldProjection)
           ? (creasePattern.foldProjection as unknown as FoldDocument)
+          : null,
+        sourceFold: isRecord(creasePattern.sourceFold)
+          ? (creasePattern.sourceFold as unknown as FoldDocument)
           : null,
         lineage: isRecord(creasePattern.lineage)
           ? normalizeCpLineage(creasePattern.lineage)

@@ -160,6 +160,9 @@ function importedCpDocument(): ImportedCreasePatternDocument {
     source: { format: 'cp', filename: 'editable.cp', path: null },
     title: 'editable',
     selectedFrame: null,
+    foldFrames: [],
+    foldedFormFrames: [],
+    sourceFold: null,
     fold: {
       file_spec: 1.2,
       file_creator: 'test',

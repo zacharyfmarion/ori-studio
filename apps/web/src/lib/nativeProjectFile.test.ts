@@ -108,6 +108,37 @@ describe('native project file', () => {
         edges_foldAngle: [null],
         faces_vertices: [],
       },
+      sourceFold: {
+        file_spec: 1.2,
+        file_title: 'imported multi-frame',
+        frame_classes: ['creasePattern'],
+        vertices_coords: [
+          [0, 0],
+          [1, 0],
+        ],
+        edges_vertices: [[0, 1]],
+        edges_assignment: ['B'],
+        faces_vertices: [],
+        file_frames: [
+          {
+            frame_title: 'embedded folded',
+            frame_classes: ['foldedForm'],
+            frame_parent: 0,
+            frame_inherit: true,
+            vertices_coords: [
+              [0, 0],
+              [0.5, 0],
+              [0, 0.5],
+            ],
+            edges_vertices: [
+              [0, 1],
+              [1, 2],
+              [2, 0],
+            ],
+            faces_vertices: [[0, 1, 2]],
+          },
+        ],
+      },
       foldArtifacts: null,
       creaseColorMode: 'agrh',
       selection,
@@ -127,6 +158,10 @@ describe('native project file', () => {
     expect(document.creasePattern.document.crease_pattern.line_segments).toHaveLength(1);
     expect(document.creasePattern.document.crease_pattern.line_segments[0].color).toBe('Purple8');
     expect(document.creasePattern.foldProjection?.edges_vertices).toEqual([[0, 1]]);
+    expect(document.creasePattern.sourceFold?.file_title).toBe('imported multi-frame');
+    expect(document.creasePattern.sourceFold?.file_frames?.[0]?.frame_classes).toEqual([
+      'foldedForm',
+    ]);
     expect(document.viewState).toMatchObject({
       creaseColorMode: 'agrh',
       selection: { lines: [1] },
