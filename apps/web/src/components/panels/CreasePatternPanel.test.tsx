@@ -22,6 +22,7 @@ import type {
   OristudioCpCommandPayload,
   OristudioCpCommandResult,
   OristudioCpDocumentState,
+  OristudioCpFoldedFigureEntry,
 } from '../../engine/oristudioCpTypes';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
@@ -259,6 +260,57 @@ function editableCpState(): OristudioCpDocumentState {
           horizontal_scale_position: 0,
           draw_diagonal_gridlines: false,
         },
+      },
+    },
+  };
+}
+
+function generatedFoldedFigure(
+  status: OristudioCpFoldedFigureEntry['status'] = 'ready'
+): OristudioCpFoldedFigureEntry {
+  return {
+    id: 'generated-1',
+    title: 'Folded model 1',
+    handle: 7,
+    sourceKind: 'generated-from-current-cp',
+    sourceCpRevision: 0,
+    status,
+    error: null,
+    snapshot: {
+      model: {
+        front_color: { red: 255, green: 255, blue: 50 },
+        back_color: { red: 233, green: 233, blue: 233 },
+        line_color: { red: 0, green: 0, blue: 0 },
+        scale: 1,
+        rotation: 0,
+        anti_alias: true,
+        display_shadows: false,
+        state: 'Front0',
+        folded_cases: 1,
+        transparent_transparency: 16,
+        transparency_color: false,
+      },
+      estimation_step: 'Step5',
+      display_style: 'Paper5',
+      discovered_fold_cases: 1,
+      find_another_overlap_valid: false,
+      text_result: 'Number of found solutions = 1  ',
+      wireframe: {
+        points: [
+          { x: 0, y: 0 },
+          { x: 1, y: 0 },
+          { x: 0, y: 1 },
+        ],
+        lines: [
+          { begin: 0, end: 1, color: 'Black0' },
+          { begin: 1, end: 2, color: 'Red1' },
+          { begin: 2, end: 0, color: 'Blue2' },
+        ],
+        faces: [[0, 1, 2]],
+        starting_face: 0,
+        face_positions: [1],
+        next_faces: [null],
+        associated_lines: [null],
       },
     },
   };
@@ -961,6 +1013,22 @@ describe('CreasePatternPanel', () => {
     expect(container.querySelector('[data-folded-form-title="embedded folded"]')).not.toBeNull();
     expect(container.querySelectorAll('.cp-folded-form-face')).toHaveLength(1);
     expect(container.querySelectorAll('.cp-folded-form-edge')).toHaveLength(3);
+  });
+
+  it('renders generated folded figure snapshots in the editable CP grid', () => {
+    const figure = generatedFoldedFigure();
+    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
+      documentMode: 'crease-pattern',
+      importedCreasePattern: importedCpDocument(),
+      oristudioCpDocument: editableCpState(),
+      oristudioCpFoldedFigures: [figure],
+      oristudioCpActiveFoldedFigureId: figure.id,
+    });
+
+    expect(container.querySelector('[data-folded-figure-id="generated-1"]')).not.toBeNull();
+    expect(container.querySelector('[data-folded-figure-status="ready"]')).not.toBeNull();
+    expect(container.querySelectorAll('.cp-generated-folded-figure-face')).toHaveLength(1);
+    expect(container.querySelectorAll('.cp-generated-folded-figure-edge')).toHaveLength(3);
   });
 
   it('applies the active palette color to selected editable CP lines', async () => {

@@ -43,6 +43,7 @@ import type {
   OristudioCpCustomLineType,
   OristudioCpDiagnosticEntry,
   OristudioCpDocumentSnapshot,
+  OristudioCpFoldedFigureEntry,
   OristudioCpLineColor,
   OristudioCpLineSegment,
   OristudioCpRgbColor,
@@ -1240,6 +1241,10 @@ export function CreasePatternPanel() {
   const oristudioCpError = useWorkspaceStore((state) => state.oristudioCpError);
   const oristudioCpSelection = useWorkspaceStore((state) => state.oristudioCpSelection);
   const oristudioCpActionRequest = useWorkspaceStore((state) => state.oristudioCpActionRequest);
+  const oristudioCpFoldedFigures = useWorkspaceStore((state) => state.oristudioCpFoldedFigures);
+  const oristudioCpActiveFoldedFigureId = useWorkspaceStore(
+    (state) => state.oristudioCpActiveFoldedFigureId
+  );
   const oristudioCpActiveDiagnosticId = useWorkspaceStore(
     (state) => state.oristudioCpActiveDiagnosticId
   );
@@ -1319,6 +1324,15 @@ export function CreasePatternPanel() {
         ? getOrieditaGridBasis(visibleOrieditaGridMetadata(editableCp.crease_pattern.grid)).gridWidth
         : undefined,
     [editableCp]
+  );
+  const activeFoldedFigure = useMemo(
+    () =>
+      oristudioCpFoldedFigures.find((figure) => figure.id === oristudioCpActiveFoldedFigureId) ??
+      oristudioCpFoldedFigures.find(
+        (figure) => figure.sourceKind === 'generated-from-current-cp' && figure.snapshot?.wireframe
+      ) ??
+      null,
+    [oristudioCpActiveFoldedFigureId, oristudioCpFoldedFigures]
   );
   const editableCpGridSize = editableCp
     ? normalizeOrieditaGridSize(editableCp.crease_pattern.grid.grid_size)
@@ -3666,6 +3680,7 @@ export function CreasePatternPanel() {
                         bounds={editableCpBounds}
                         clearSelectionOnBackgroundPointerDown={clearSelectionOnBackgroundPointerDown}
                         document={editableCp}
+                        generatedFoldedFigure={activeFoldedFigure}
                         gridLines={editableCpGridLines}
                         gridVisible={oristudioCpViewport.gridVisible}
                         importedFoldedForms={importedFoldedForms}
@@ -3874,6 +3889,7 @@ interface EditableCreasePatternProps {
   bounds: CpModelBounds;
   clearSelectionOnBackgroundPointerDown: (event: PointerEvent<SVGElement>) => void;
   document: OristudioCpDocumentSnapshot;
+  generatedFoldedFigure: OristudioCpFoldedFigureEntry | null;
   gridLines: ReturnType<typeof getCpGridLines>;
   gridVisible: boolean;
   importedFoldedForms: FoldDocument[];
@@ -3915,6 +3931,7 @@ function EditableCreasePattern({
   bounds,
   clearSelectionOnBackgroundPointerDown,
   document,
+  generatedFoldedFigure,
   gridLines,
   gridVisible,
   importedFoldedForms,
@@ -4155,7 +4172,11 @@ function EditableCreasePattern({
           </text>
         );
       })}
-      <ImportedFoldedFormsLayer frames={importedFoldedForms} />
+      <GeneratedFoldedFigureLayer figure={generatedFoldedFigure} />
+      <ImportedFoldedFormsLayer
+        frames={importedFoldedForms}
+        startIndex={generatedFoldedFigure?.snapshot?.wireframe ? 1 : 0}
+      />
       {vertices.map((vertex) => {
         const svgPoint = modelPointToCpSvg(vertex.point, bounds);
         const selected = selection.vertices?.includes(vertex.id) ?? false;
@@ -4311,7 +4332,71 @@ const IMPORTED_FOLDED_FORM_VIEW = {
   height: 136,
 };
 
-function ImportedFoldedFormsLayer({ frames }: { frames: FoldDocument[] }) {
+function GeneratedFoldedFigureLayer({ figure }: { figure: OristudioCpFoldedFigureEntry | null }) {
+  const wireframe = figure?.snapshot?.wireframe;
+  if (!figure || !wireframe) return null;
+  const bounds = foldFrameBounds(wireframe.points);
+  if (!bounds) return null;
+
+  const toSvg = (point: Point) => foldedFormPointToSvg(point, bounds, 0);
+  const fill = rgbColorCss(figure.snapshot?.model.front_color);
+  const stroke = rgbColorCss(figure.snapshot?.model.line_color);
+  return (
+    <g
+      className={[
+        'cp-generated-folded-figure',
+        figure.status === 'stale' ? 'cp-generated-folded-figure--stale' : '',
+      ].join(' ')}
+      data-folded-figure-id={figure.id}
+      data-folded-figure-status={figure.status}
+      aria-hidden="true"
+    >
+      {wireframe.faces.map((face, faceIndex) => {
+        const points = face
+          .map((pointIndex) => wireframe.points[pointIndex])
+          .filter((point): point is Point => !!point);
+        if (points.length < 3 || points.length !== face.length) return null;
+        return (
+          <polygon
+            key={`face-${faceIndex}`}
+            className="cp-generated-folded-figure-face"
+            points={points
+              .map(toSvg)
+              .map((point) => `${point.x},${point.y}`)
+              .join(' ')}
+            style={{ fill }}
+          />
+        );
+      })}
+      {wireframe.lines.map((line, lineIndex) => {
+        const start = wireframe.points[line.begin];
+        const end = wireframe.points[line.end];
+        if (!start || !end) return null;
+        const a = toSvg(start);
+        const b = toSvg(end);
+        return (
+          <line
+            key={`line-${lineIndex}`}
+            className="cp-generated-folded-figure-edge"
+            x1={a.x}
+            y1={a.y}
+            x2={b.x}
+            y2={b.y}
+            style={{ stroke }}
+          />
+        );
+      })}
+    </g>
+  );
+}
+
+function ImportedFoldedFormsLayer({
+  frames,
+  startIndex = 0,
+}: {
+  frames: FoldDocument[];
+  startIndex?: number;
+}) {
   if (frames.length === 0) return null;
   return (
     <g className="cp-folded-form-layer" aria-hidden="true">
@@ -4319,7 +4404,7 @@ function ImportedFoldedFormsLayer({ frames }: { frames: FoldDocument[] }) {
         <ImportedFoldedFormFigure
           key={`${index}-${frame.frame_title ?? 'folded-form'}`}
           frame={frame}
-          index={index}
+          index={startIndex + index}
         />
       ))}
     </g>
@@ -4438,6 +4523,11 @@ function foldedFormPointToSvg(point: Point, bounds: CpModelBounds, index: number
     x: view.x + offsetX + (point.x - bounds.minX) * scale,
     y: view.y + offsetY + (point.y - bounds.minY) * scale,
   };
+}
+
+function rgbColorCss(color: OristudioCpRgbColor | undefined): string {
+  if (!color) return 'currentColor';
+  return `rgb(${color.red} ${color.green} ${color.blue})`;
 }
 
 function SelectionTransformBox({
