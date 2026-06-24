@@ -65,6 +65,51 @@ The rough migration order should therefore be: source-map and status inventory,
 preserving document model, kernel folded snapshots, oracle comparison, WASM
 bindings, grid renderer, then interactive UI affordances.
 
+### Current Checkpoint
+
+The first implementation pass has established the data path, but not exact
+visual parity:
+
+- multi-frame FOLD documents and embedded `foldedForm` frames are preserved in
+  Rust, web import, and native `.osf` project persistence,
+- Oriedita folding sessions can be created, advanced, snapshotted, and released
+  through `oristudio-cp-wasm`,
+- generated folded figures are tracked in workspace state with revision-based
+  stale marking,
+- imported folded-form frames and generated folded wireframe snapshots render in
+  the CP grid area,
+- compact Fold and Another controls exist for the active generated folded
+  figure.
+
+That renderer is intentionally only a checkpoint. It fits folded geometry into a
+small SVG view and draws a wireframe-style preview. It does not yet reproduce
+Oriedita's exact `FoldedFigure_Drawer` / `FoldedFigure_Worker_Drawer` Java2D
+output for paper, transparent, wire, front/back, shadow, constraint, and marker
+modes. Do not promote the current overlay as exact folded rendering.
+
+### Remaining Lift
+
+Exact folded-grid parity is a medium-large follow-up, roughly 8-15 focused
+development days. The work is bounded because folding, subface setup, hierarchy
+search, and solution enumeration are already partially ported. The remaining
+hard part is making Oriedita's drawing decisions observable, porting those
+decisions into Rust render primitives, and replacing the temporary SVG overlay
+with a primitive-driven renderer.
+
+Do not slice this by accepting approximate visuals. If a smaller milestone is
+needed, slice by Oriedita display mode while keeping oracle parity for that
+mode:
+
+- paper front view,
+- paper back and both views,
+- transparent grayscale and colored-alpha views,
+- wire view,
+- shadows, constraints, crosshair, selected markers, and point-id overlays,
+- multi-figure list interactions and camera manipulation.
+
+Each slice must have oracle render-primitive fixtures before UI wiring is
+treated as complete.
+
 ### Parity Baseline
 
 The first implementation step should reconcile the Oriedita source baseline.
@@ -193,6 +238,45 @@ Fold commands should mirror Oriedita service intent:
 Any Oriedita folded operation not yet ported should return typed unsupported
 results. Do not silently fall back to `treemaker-flatfold`.
 
+### Render Primitive Model
+
+Exact rendering should be expressed as data in `oristudio-cp`, not as React
+logic that reinterprets folded-state internals. Add a render primitive surface
+that can be produced by both the Oriedita oracle and the Rust port:
+
+- `FoldedFigureRenderPrimitive`
+- `FoldedFigureRenderPrimitiveKind`
+- `FoldedFigureRenderPass`
+- `FoldedFigureRenderCamera`
+- `FoldedFigureRenderStyle`
+- `FoldedFigureRenderSnapshot`
+
+The primitive list should be stable and explicit:
+
+- `fill_polygon`: ordered display-space points, source subface id, visible face
+  id, front/back decision, fill color, alpha,
+- `stroke_path` or `stroke_segment`: display-space geometry, source line id,
+  line color, stroke width, antialias setting,
+- `fill_ellipse` and `stroke_ellipse`: crosshair, selected marker, constraint,
+  and point-id marker geometry,
+- `gradient_fill_polygon`: shadow rectangle/path, gradient endpoints, colors,
+  alpha,
+- `text`: folded figure index labels or point-id labels when Oriedita display
+  settings request them,
+- `camera`: named camera state for folded, front, rear, transparent front, and
+  transparent rear views.
+
+Primitive ordering is part of the contract. A renderer may choose SVG or Canvas,
+but it must draw the primitives in oracle order. React should not recompute
+visibility, top faces, shadow target subfaces, mirrored parity, or transparency
+density.
+
+Coordinate space should be named per primitive. The oracle should emit the same
+display-space coordinates Oriedita passes to Java2D after camera transforms. The
+Rust renderer should also keep enough object-space metadata for debugging and
+future hit testing, but comparisons should primarily use display-space
+primitives because that is the actual Oriedita drawing surface.
+
 ### Grid-Area Rendering
 
 Render folded figures inside `CreasePatternPanel`'s existing SVG viewport,
@@ -242,6 +326,19 @@ The renderer should reproduce Oriedita drawing semantics:
 Pixel-perfect Java2D parity is a later hardening pass. The first acceptance gate
 is exact geometry/state parity plus stable visual regression screenshots for the
 SVG renderer.
+
+When render primitives land, replace the current generated wireframe mini-view
+with an `OrieditaFoldedFigurePrimitiveLayer`. That layer should:
+
+- consume the active folded figure's primitive snapshot from workspace state,
+- draw primitive passes in emitted order,
+- preserve Oriedita camera offsets instead of independently fitting the figure,
+- mark stale generated figures without changing their stored camera or solution
+  case,
+- render imported `foldedForm` frames separately until they can be converted
+  into equivalent primitive snapshots,
+- keep pointer interaction routing separate from drawing so later folded-model
+  edit tools can reuse the same camera hit testing.
 
 ### UX Shape
 
@@ -343,6 +440,37 @@ Add oracle commands for:
 - `.ori` folded model metadata summary,
 - `.orh` folded model metadata summary.
 
+The render primitive commands should run Oriedita's real drawer path rather than
+copying drawer logic inside the oracle harness. Implement a small
+`RecordingGraphics2D`/recording Java2D adapter that captures the subset used by
+the drawer classes:
+
+- `setColor`, `setPaint`, `setStroke`, `setRenderingHint`, and `setFont`,
+- `drawLine`,
+- `draw(Path2D)`,
+- `fill(Path2D)`,
+- `fillOval` / `drawOval` / `fill(Ellipse2D)`,
+- `drawString`,
+- `GradientPaint` endpoints and colors.
+
+The oracle should instantiate the real folded-figure objects, apply the same
+model/camera/display settings as Oriedita, call `foldUp_draw`, and emit the
+recorded primitives in a deterministic text or JSONL form. This avoids creating
+a second hand-written Java implementation that could drift from Oriedita.
+
+Add explicit commands for scoped render fixtures:
+
+- `folded-render-paper-front <fixture>`,
+- `folded-render-paper-back <fixture>`,
+- `folded-render-paper-both <fixture>`,
+- `folded-render-paper-transparent-state <fixture>`,
+- `folded-render-transparent-grayscale <fixture>`,
+- `folded-render-transparent-color <fixture>`,
+- `folded-render-wire <fixture>`,
+- `folded-render-shadow <fixture>`,
+- `folded-render-constraints <fixture>`,
+- `folded-render-cameras <fixture>`.
+
 Prefer structured primitive comparisons over raw pixels for kernel parity:
 
 - points, lines, faces, subfaces,
@@ -366,15 +494,103 @@ Normal tests should not require Java:
   `ORIEDITA_GEOMETRY_ORACLE=tools/oriedita-oracle/build/oriedita-geometry-oracle cargo test -p oristudio-cp --test oriedita_folding_oracle`
 - Web tests: `npm run test:web -- CreasePatternPanel`
 
+Oracle-enabled render tests should live next to the existing folding oracle
+coverage and should skip cleanly when `ORIEDITA_GEOMETRY_ORACLE` or a future
+`ORIEDITA_RENDER_ORACLE` is unset:
+
+- `cargo test -p oristudio-cp --test oriedita_folding_oracle`
+- `cargo test -p oristudio-cp --test oriedita_render_oracle`
+
+### Exact Renderer Checkpoints
+
+Use these checkpoints for the remaining exact-parity work. Commit after each
+checkpoint and keep the checklist current.
+
+1. Oracle recorder and schema.
+   Add recording Java2D support, primitive DTOs, command-line fixture routing,
+   README documentation, and one simple paper-front fixture. Acceptance: the
+   oracle builds, emits deterministic primitive output, and existing oracle
+   tests still pass.
+
+2. Rust primitive types and canonical comparison.
+   Add serializable primitive types in `oristudio-cp`, canonicalization helpers,
+   and failing oracle tests for paper-front output. Acceptance: tests compare
+   the same schema and fail only on unported primitive generation, not parser or
+   fixture plumbing.
+
+3. Paper-view primitive generation.
+   Port visible subface fill order, front/back color choice, mirrored camera
+   parity, edge visibility, and optional shadow target selection from
+   `FoldedFigure_Worker_Drawer`. Acceptance: paper front/back/both fixtures
+   match oracle primitives without UI changes.
+
+4. Transparent and wire primitives.
+   Port grayscale density, colored alpha transparency, transparent-front/rear
+   cameras, and folded-not-subdivided wire drawing. Acceptance: transparent and
+   wire fixtures match oracle primitives.
+
+5. Markers, constraints, and camera state.
+   Port crosshair, selection marker, custom constraint markers, display-number
+   labels, selected point markers, and all folded camera initialization/update
+   rules. Acceptance: marker/constraint/camera fixtures match oracle output.
+
+6. WASM and workspace integration.
+   Expose primitive render snapshots through `oristudio-cp-wasm`, worker
+   methods, TypeScript types, and workspace folded-figure state. Acceptance:
+   Node WASM tests and web store tests verify primitive snapshot creation,
+   stale preservation, and handle cleanup.
+
+7. Grid primitive renderer.
+   Replace the temporary generated wireframe overlay with primitive-driven SVG
+   drawing in `CreasePatternPanel`. Acceptance: web tests confirm paper,
+   transparent, wire, stale, and imported-frame coexistence cases.
+
+8. Complete folded controls.
+   Add display style, front/back/both/transparent state, starting face, solution
+   case selector, shadow toggle, transparent color/alpha controls, duplicate,
+   delete, and active folded figure selection. Acceptance: controls dispatch
+   Oriedita-shaped commands and unsupported actions surface typed status.
+
+9. Persistence and import/export hardening.
+   Persist folded figure models, cameras, display states, generated snapshots,
+   invalidation metadata, and preserved source FOLD frame graphs in `.osf`.
+   Extend `.ori`/`.orh` metadata parity only for fields Oriedita actually
+   stores. Acceptance: save/load tests round-trip folded state without
+   inventing unsupported geometry persistence.
+
+10. Screenshot and corpus validation.
+    Add Playwright screenshots for representative display modes, then run the
+    external corpus harness for folded-document cases. Acceptance: screenshot
+    diffs are stable, corpus results are documented, and unsupported cases are
+    reported before claiming arbitrary Oriedita document compatibility.
+
+### Risk Register
+
+- `RecordingGraphics2D` is mechanical but broad. Keep its first version limited
+  to methods exercised by folded drawing, and fail loudly when an unrecorded
+  method is called.
+- Camera parity is subtle because Oriedita aligns folded and flat minimum bounds
+  using parent camera transforms and screen-space offsets. Treat camera
+  primitive tests as a prerequisite for UI placement changes.
+- Shadow parity depends on subface adjacency, top visible faces, hierarchy
+  relations, and mirrored camera state. Do not port shadows directly in the UI.
+- Imported FOLD `foldedForm` frames may not contain enough Oriedita-specific
+  state to reproduce paper/transparent views. Preserve and render them as
+  imported detached geometry unless they can be mapped to a full render
+  snapshot.
+- Pixel tests are useful only after primitive parity. A pixel-only acceptance
+  gate would hide ordering or geometry mismatches behind raster tolerance.
+
 ## Affected Areas
 
 - `crates/treemaker-fold`: multi-frame FOLD file wrapper and preserving
   serialization.
 - `crates/oristudio-cp`: folded-figure snapshot/runtime APIs, command surface,
-  import/export preservation hooks, oracle canonicalization.
+  render primitive generation, import/export preservation hooks, oracle
+  canonicalization.
 - `crates/oristudio-cp-wasm`: exported folded-figure commands and snapshots.
 - `tools/oriedita-oracle`: folded snapshot, render primitive, and multi-frame
-  import/export oracle commands.
+  import/export oracle commands, including the recording Java2D adapter.
 - `apps/web/src/engine`: TypeScript folded-figure and multi-frame FOLD types.
 - `apps/web/src/store/workspaceStore`: folded-figure list, revision/invalidation,
   OSF persistence, command dispatch.
@@ -415,5 +631,27 @@ Normal tests should not require Java:
 - [ ] Add Oriedita oracle commands for folded snapshot parity.
 - [ ] Add Oriedita oracle commands for render primitive parity.
 - [x] Add focused web tests for rendering, stale state, and controls.
+- [ ] Implement Oriedita recording Java2D adapter in `tools/oriedita-oracle`.
+- [ ] Define stable folded render primitive schema in oracle and Rust.
+- [ ] Add paper-front render oracle fixture and comparison test.
+- [ ] Port paper-view subface fill, front/back parity, edge visibility, and
+      shadow primitive generation.
+- [ ] Add paper back/both and shadow oracle fixtures.
+- [ ] Port transparent grayscale, transparent color, and wire-view primitive
+      generation.
+- [ ] Add transparent and wire oracle fixtures.
+- [ ] Port folded camera initialization, minimum-bound alignment, and camera
+      mutation snapshot parity.
+- [ ] Port crosshair, selected marker, display number, selected point, and
+      custom constraint primitives.
+- [ ] Expose primitive render snapshots through WASM, worker APIs, and
+      TypeScript types.
+- [ ] Replace generated folded wireframe mini-view with primitive-driven grid
+      renderer.
+- [ ] Add display style, front/back state, starting face, case selector, shadow,
+      transparency, duplicate, delete, and active folded-figure UI.
+- [ ] Persist folded figure cameras, model state, primitive snapshots, and
+      invalidation metadata in `.osf`.
 - [ ] Add Playwright screenshot coverage for the grid-area folded figure.
+- [ ] Run folded-document corpus validation and document unsupported cases.
 - [ ] Run Rust, WASM, oracle, and web validation appropriate to each stage.
