@@ -8,7 +8,7 @@ use crate::geometry::{
 use crate::model::CreasePatternModel;
 use crate::operations::arrangement::divide_intersections;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt};
 
 pub use permutation::{
     ChainPermutationGenerator, PermutationError, PermutationSnapshot, SubFacePermutationSearch,
@@ -231,6 +231,682 @@ pub struct FoldedFigureSnapshot {
     pub find_another_overlap_valid: bool,
     pub text_result: String,
     pub wireframe: Option<FoldedWireframe>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FoldedFigureRenderSnapshot {
+    pub schema_version: u32,
+    pub fixture: Option<String>,
+    pub pass: Option<String>,
+    pub primitives: Vec<FoldedFigureRenderPrimitive>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FoldedFigureRenderPrimitive {
+    pub sequence: usize,
+    pub kind: FoldedFigureRenderPrimitiveKind,
+    pub style: FoldedFigureRenderStyle,
+    pub geometry: FoldedFigureRenderGeometry,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FoldedFigureRenderPrimitiveKind {
+    FillPath,
+    StrokePath,
+    StrokeSegment,
+    FillPolygon,
+    StrokePolygon,
+    FillRect,
+    StrokeRect,
+    FillEllipse,
+    StrokeEllipse,
+    Text,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FoldedFigureRenderStyle {
+    pub paint: FoldedFigureRenderPaint,
+    pub stroke: FoldedFigureRenderStroke,
+    pub antialias: FoldedFigureRenderAntialias,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum FoldedFigureRenderPaint {
+    None,
+    Color {
+        color: RgbaColor,
+    },
+    Gradient {
+        from: Point,
+        from_color: RgbaColor,
+        to: Point,
+        to_color: RgbaColor,
+        cyclic: bool,
+    },
+    Texture,
+    Other {
+        class_name: String,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum FoldedFigureRenderStroke {
+    None,
+    Basic {
+        width: f64,
+        end_cap: i32,
+        line_join: i32,
+        miter_limit: f64,
+    },
+    Other {
+        class_name: String,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FoldedFigureRenderAntialias {
+    On,
+    Off,
+    Default,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum FoldedFigureRenderGeometry {
+    Path {
+        commands: Vec<RenderPathCommand>,
+    },
+    Segment {
+        from: Point,
+        to: Point,
+    },
+    Polygon {
+        points: Vec<Point>,
+    },
+    Rect {
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    },
+    Ellipse {
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    },
+    Text {
+        value: String,
+        position: Point,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "command", rename_all = "snake_case")]
+pub enum RenderPathCommand {
+    MoveTo {
+        point: Point,
+    },
+    LineTo {
+        point: Point,
+    },
+    QuadTo {
+        control: Point,
+        point: Point,
+    },
+    CubicTo {
+        control_1: Point,
+        control_2: Point,
+        point: Point,
+    },
+    Close,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RgbaColor {
+    pub red: u8,
+    pub green: u8,
+    pub blue: u8,
+    pub alpha: u8,
+}
+
+impl RgbaColor {
+    pub const fn new(red: u8, green: u8, blue: u8, alpha: u8) -> Self {
+        Self {
+            red,
+            green,
+            blue,
+            alpha,
+        }
+    }
+
+    pub const fn from_rgb(color: RgbColor) -> Self {
+        Self::new(color.red, color.green, color.blue, 255)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FoldedFigureRenderParseError {
+    pub line: usize,
+    pub message: String,
+}
+
+impl fmt::Display for FoldedFigureRenderParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "invalid folded render primitive output at line {}: {}",
+            self.line, self.message
+        )
+    }
+}
+
+impl std::error::Error for FoldedFigureRenderParseError {}
+
+pub fn parse_oriedita_render_primitives(
+    input: &str,
+) -> Result<FoldedFigureRenderSnapshot, FoldedFigureRenderParseError> {
+    let mut schema_version = None;
+    let mut fixture = None;
+    let mut pass = None;
+    let mut primitives = Vec::new();
+
+    for (index, line) in input.lines().enumerate() {
+        let line_number = index + 1;
+        if line.is_empty() {
+            continue;
+        }
+
+        let fields = line.split('|').collect::<Vec<_>>();
+        match fields.first().copied() {
+            Some("schema") => {
+                if fields.len() != 3 || fields[1] != "folded-render-primitives" {
+                    return Err(render_parse_error(line_number, "unknown schema line"));
+                }
+                schema_version = Some(parse_u32(fields[2], line_number, "schema version")?);
+            }
+            Some("fixture") => {
+                if fields.len() != 3 {
+                    return Err(render_parse_error(
+                        line_number,
+                        "fixture line must have name and pass",
+                    ));
+                }
+                fixture = Some(fields[1].to_string());
+                pass = Some(fields[2].to_string());
+            }
+            Some("primitive") => {
+                primitives.push(parse_render_primitive(&fields, line_number)?);
+            }
+            Some(other) => {
+                return Err(render_parse_error(
+                    line_number,
+                    format!("unknown record type {other:?}"),
+                ));
+            }
+            None => {}
+        }
+    }
+
+    let schema_version = schema_version
+        .ok_or_else(|| render_parse_error(1, "missing folded-render-primitives schema line"))?;
+
+    Ok(FoldedFigureRenderSnapshot {
+        schema_version,
+        fixture,
+        pass,
+        primitives,
+    })
+}
+
+fn parse_render_primitive(
+    fields: &[&str],
+    line: usize,
+) -> Result<FoldedFigureRenderPrimitive, FoldedFigureRenderParseError> {
+    if fields.len() < 7 {
+        return Err(render_parse_error(line, "primitive record is too short"));
+    }
+
+    let sequence = parse_usize(fields[1], line, "primitive sequence")?;
+    let kind = parse_render_kind(fields[2], line)?;
+    let mut offset = 3;
+    let (paint, next) = parse_render_paint(fields, offset, line)?;
+    offset = next;
+    let (stroke, next) = parse_render_stroke(fields, offset, line)?;
+    offset = next;
+    let antialias = parse_render_antialias(
+        fields
+            .get(offset)
+            .copied()
+            .ok_or_else(|| render_parse_error(line, "missing antialias field"))?,
+        line,
+    )?;
+    offset += 1;
+    let payload = fields
+        .get(offset..)
+        .ok_or_else(|| render_parse_error(line, "missing primitive payload"))?
+        .join("|");
+    let geometry = parse_render_geometry(kind, &payload, line)?;
+
+    Ok(FoldedFigureRenderPrimitive {
+        sequence,
+        kind,
+        style: FoldedFigureRenderStyle {
+            paint,
+            stroke,
+            antialias,
+        },
+        geometry,
+    })
+}
+
+fn parse_render_kind(
+    value: &str,
+    line: usize,
+) -> Result<FoldedFigureRenderPrimitiveKind, FoldedFigureRenderParseError> {
+    match value {
+        "fill_path" => Ok(FoldedFigureRenderPrimitiveKind::FillPath),
+        "stroke_path" => Ok(FoldedFigureRenderPrimitiveKind::StrokePath),
+        "stroke_segment" => Ok(FoldedFigureRenderPrimitiveKind::StrokeSegment),
+        "fill_polygon" => Ok(FoldedFigureRenderPrimitiveKind::FillPolygon),
+        "stroke_polygon" => Ok(FoldedFigureRenderPrimitiveKind::StrokePolygon),
+        "fill_rect" => Ok(FoldedFigureRenderPrimitiveKind::FillRect),
+        "stroke_rect" => Ok(FoldedFigureRenderPrimitiveKind::StrokeRect),
+        "fill_ellipse" => Ok(FoldedFigureRenderPrimitiveKind::FillEllipse),
+        "stroke_ellipse" => Ok(FoldedFigureRenderPrimitiveKind::StrokeEllipse),
+        "text" => Ok(FoldedFigureRenderPrimitiveKind::Text),
+        _ => Err(render_parse_error(
+            line,
+            format!("unknown primitive kind {value:?}"),
+        )),
+    }
+}
+
+fn parse_render_paint(
+    fields: &[&str],
+    offset: usize,
+    line: usize,
+) -> Result<(FoldedFigureRenderPaint, usize), FoldedFigureRenderParseError> {
+    match fields.get(offset).copied() {
+        Some("none") => Ok((FoldedFigureRenderPaint::None, offset + 1)),
+        Some("texture") => Ok((FoldedFigureRenderPaint::Texture, offset + 1)),
+        Some("paint") => Ok((
+            FoldedFigureRenderPaint::Other {
+                class_name: field(fields, offset + 1, line, "paint class")?.to_string(),
+            },
+            offset + 2,
+        )),
+        Some("color") => Ok((
+            FoldedFigureRenderPaint::Color {
+                color: parse_rgba(fields, offset + 1, line)?,
+            },
+            offset + 5,
+        )),
+        Some("gradient") => Ok((
+            FoldedFigureRenderPaint::Gradient {
+                from: Point::new(
+                    parse_f64(
+                        field(fields, offset + 1, line, "gradient x1")?,
+                        line,
+                        "gradient x1",
+                    )?,
+                    parse_f64(
+                        field(fields, offset + 2, line, "gradient y1")?,
+                        line,
+                        "gradient y1",
+                    )?,
+                ),
+                from_color: parse_rgba(fields, offset + 3, line)?,
+                to: Point::new(
+                    parse_f64(
+                        field(fields, offset + 7, line, "gradient x2")?,
+                        line,
+                        "gradient x2",
+                    )?,
+                    parse_f64(
+                        field(fields, offset + 8, line, "gradient y2")?,
+                        line,
+                        "gradient y2",
+                    )?,
+                ),
+                to_color: parse_rgba(fields, offset + 9, line)?,
+                cyclic: parse_bool(field(fields, offset + 13, line, "gradient cyclic")?, line)?,
+            },
+            offset + 14,
+        )),
+        Some(value) => Err(render_parse_error(
+            line,
+            format!("unknown paint kind {value:?}"),
+        )),
+        None => Err(render_parse_error(line, "missing paint kind")),
+    }
+}
+
+fn parse_render_stroke(
+    fields: &[&str],
+    offset: usize,
+    line: usize,
+) -> Result<(FoldedFigureRenderStroke, usize), FoldedFigureRenderParseError> {
+    match fields.get(offset).copied() {
+        Some("none") => Ok((FoldedFigureRenderStroke::None, offset + 1)),
+        Some("stroke") => Ok((
+            FoldedFigureRenderStroke::Other {
+                class_name: field(fields, offset + 1, line, "stroke class")?.to_string(),
+            },
+            offset + 2,
+        )),
+        Some("basic") => Ok((
+            FoldedFigureRenderStroke::Basic {
+                width: parse_f64(
+                    field(fields, offset + 1, line, "stroke width")?,
+                    line,
+                    "stroke width",
+                )?,
+                end_cap: parse_i32(
+                    field(fields, offset + 2, line, "stroke cap")?,
+                    line,
+                    "stroke cap",
+                )?,
+                line_join: parse_i32(
+                    field(fields, offset + 3, line, "stroke join")?,
+                    line,
+                    "stroke join",
+                )?,
+                miter_limit: parse_f64(
+                    field(fields, offset + 4, line, "stroke miter")?,
+                    line,
+                    "stroke miter",
+                )?,
+            },
+            offset + 5,
+        )),
+        Some(value) => Err(render_parse_error(
+            line,
+            format!("unknown stroke kind {value:?}"),
+        )),
+        None => Err(render_parse_error(line, "missing stroke kind")),
+    }
+}
+
+fn parse_render_antialias(
+    value: &str,
+    line: usize,
+) -> Result<FoldedFigureRenderAntialias, FoldedFigureRenderParseError> {
+    match value {
+        "aa_on" => Ok(FoldedFigureRenderAntialias::On),
+        "aa_off" => Ok(FoldedFigureRenderAntialias::Off),
+        "aa_default" => Ok(FoldedFigureRenderAntialias::Default),
+        _ => Err(render_parse_error(
+            line,
+            format!("unknown antialias value {value:?}"),
+        )),
+    }
+}
+
+fn parse_render_geometry(
+    kind: FoldedFigureRenderPrimitiveKind,
+    payload: &str,
+    line: usize,
+) -> Result<FoldedFigureRenderGeometry, FoldedFigureRenderParseError> {
+    match kind {
+        FoldedFigureRenderPrimitiveKind::FillPath | FoldedFigureRenderPrimitiveKind::StrokePath => {
+            Ok(FoldedFigureRenderGeometry::Path {
+                commands: parse_path_commands(payload, line)?,
+            })
+        }
+        FoldedFigureRenderPrimitiveKind::StrokeSegment => {
+            let values = payload_fields(payload);
+            Ok(FoldedFigureRenderGeometry::Segment {
+                from: Point::new(
+                    parse_payload_f64(&values, 0, line, "segment x1")?,
+                    parse_payload_f64(&values, 1, line, "segment y1")?,
+                ),
+                to: Point::new(
+                    parse_payload_f64(&values, 2, line, "segment x2")?,
+                    parse_payload_f64(&values, 3, line, "segment y2")?,
+                ),
+            })
+        }
+        FoldedFigureRenderPrimitiveKind::FillPolygon
+        | FoldedFigureRenderPrimitiveKind::StrokePolygon => {
+            Ok(FoldedFigureRenderGeometry::Polygon {
+                points: parse_polygon_points(payload, line)?,
+            })
+        }
+        FoldedFigureRenderPrimitiveKind::FillRect | FoldedFigureRenderPrimitiveKind::StrokeRect => {
+            let (x, y, width, height) = parse_rect(payload, line)?;
+            Ok(FoldedFigureRenderGeometry::Rect {
+                x,
+                y,
+                width,
+                height,
+            })
+        }
+        FoldedFigureRenderPrimitiveKind::FillEllipse
+        | FoldedFigureRenderPrimitiveKind::StrokeEllipse => {
+            let (x, y, width, height) = parse_rect(payload, line)?;
+            Ok(FoldedFigureRenderGeometry::Ellipse {
+                x,
+                y,
+                width,
+                height,
+            })
+        }
+        FoldedFigureRenderPrimitiveKind::Text => {
+            let values = payload_fields(payload);
+            Ok(FoldedFigureRenderGeometry::Text {
+                value: unescape_text(
+                    values
+                        .first()
+                        .ok_or_else(|| render_parse_error(line, "missing text value"))?,
+                ),
+                position: Point::new(
+                    parse_payload_f64(&values, 1, line, "text x")?,
+                    parse_payload_f64(&values, 2, line, "text y")?,
+                ),
+            })
+        }
+    }
+}
+
+fn parse_path_commands(
+    payload: &str,
+    line: usize,
+) -> Result<Vec<RenderPathCommand>, FoldedFigureRenderParseError> {
+    if payload.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    payload
+        .split(';')
+        .map(|command| {
+            let fields = payload_fields(command);
+            match fields.first().copied() {
+                Some("M") => Ok(RenderPathCommand::MoveTo {
+                    point: payload_point(&fields, 1, line, "move")?,
+                }),
+                Some("L") => Ok(RenderPathCommand::LineTo {
+                    point: payload_point(&fields, 1, line, "line")?,
+                }),
+                Some("Q") => Ok(RenderPathCommand::QuadTo {
+                    control: payload_point(&fields, 1, line, "quad control")?,
+                    point: payload_point(&fields, 3, line, "quad point")?,
+                }),
+                Some("C") => Ok(RenderPathCommand::CubicTo {
+                    control_1: payload_point(&fields, 1, line, "cubic control 1")?,
+                    control_2: payload_point(&fields, 3, line, "cubic control 2")?,
+                    point: payload_point(&fields, 5, line, "cubic point")?,
+                }),
+                Some("Z") => Ok(RenderPathCommand::Close),
+                Some(value) => Err(render_parse_error(
+                    line,
+                    format!("unknown path command {value:?}"),
+                )),
+                None => Err(render_parse_error(line, "empty path command")),
+            }
+        })
+        .collect()
+}
+
+fn parse_polygon_points(
+    payload: &str,
+    line: usize,
+) -> Result<Vec<Point>, FoldedFigureRenderParseError> {
+    if payload.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    payload
+        .split(';')
+        .map(|point| {
+            let fields = payload_fields(point);
+            payload_point(&fields, 0, line, "polygon point")
+        })
+        .collect()
+}
+
+fn parse_rect(
+    payload: &str,
+    line: usize,
+) -> Result<(f64, f64, f64, f64), FoldedFigureRenderParseError> {
+    let values = payload_fields(payload);
+    Ok((
+        parse_payload_f64(&values, 0, line, "rect x")?,
+        parse_payload_f64(&values, 1, line, "rect y")?,
+        parse_payload_f64(&values, 2, line, "rect width")?,
+        parse_payload_f64(&values, 3, line, "rect height")?,
+    ))
+}
+
+fn payload_fields(payload: &str) -> Vec<&str> {
+    payload.split('|').collect()
+}
+
+fn payload_point(
+    fields: &[&str],
+    offset: usize,
+    line: usize,
+    label: &str,
+) -> Result<Point, FoldedFigureRenderParseError> {
+    Ok(Point::new(
+        parse_payload_f64(fields, offset, line, label)?,
+        parse_payload_f64(fields, offset + 1, line, label)?,
+    ))
+}
+
+fn parse_payload_f64(
+    fields: &[&str],
+    offset: usize,
+    line: usize,
+    label: &str,
+) -> Result<f64, FoldedFigureRenderParseError> {
+    parse_f64(
+        fields
+            .get(offset)
+            .copied()
+            .ok_or_else(|| render_parse_error(line, format!("missing {label} field")))?,
+        line,
+        label,
+    )
+}
+
+fn parse_rgba(
+    fields: &[&str],
+    offset: usize,
+    line: usize,
+) -> Result<RgbaColor, FoldedFigureRenderParseError> {
+    Ok(RgbaColor::new(
+        parse_u8(field(fields, offset, line, "red")?, line, "red")?,
+        parse_u8(field(fields, offset + 1, line, "green")?, line, "green")?,
+        parse_u8(field(fields, offset + 2, line, "blue")?, line, "blue")?,
+        parse_u8(field(fields, offset + 3, line, "alpha")?, line, "alpha")?,
+    ))
+}
+
+fn field<'a>(
+    fields: &'a [&str],
+    offset: usize,
+    line: usize,
+    label: &str,
+) -> Result<&'a str, FoldedFigureRenderParseError> {
+    fields
+        .get(offset)
+        .copied()
+        .ok_or_else(|| render_parse_error(line, format!("missing {label} field")))
+}
+
+fn parse_usize(
+    value: &str,
+    line: usize,
+    label: &str,
+) -> Result<usize, FoldedFigureRenderParseError> {
+    value
+        .parse()
+        .map_err(|_| render_parse_error(line, format!("invalid {label} {value:?}")))
+}
+
+fn parse_u32(value: &str, line: usize, label: &str) -> Result<u32, FoldedFigureRenderParseError> {
+    value
+        .parse()
+        .map_err(|_| render_parse_error(line, format!("invalid {label} {value:?}")))
+}
+
+fn parse_u8(value: &str, line: usize, label: &str) -> Result<u8, FoldedFigureRenderParseError> {
+    value
+        .parse()
+        .map_err(|_| render_parse_error(line, format!("invalid {label} {value:?}")))
+}
+
+fn parse_i32(value: &str, line: usize, label: &str) -> Result<i32, FoldedFigureRenderParseError> {
+    value
+        .parse()
+        .map_err(|_| render_parse_error(line, format!("invalid {label} {value:?}")))
+}
+
+fn parse_f64(value: &str, line: usize, label: &str) -> Result<f64, FoldedFigureRenderParseError> {
+    value
+        .parse()
+        .map_err(|_| render_parse_error(line, format!("invalid {label} {value:?}")))
+}
+
+fn parse_bool(value: &str, line: usize) -> Result<bool, FoldedFigureRenderParseError> {
+    value
+        .parse()
+        .map_err(|_| render_parse_error(line, format!("invalid bool {value:?}")))
+}
+
+fn unescape_text(value: &str) -> String {
+    let mut output = String::new();
+    let mut escaped = false;
+    for ch in value.chars() {
+        if escaped {
+            match ch {
+                'n' => output.push('\n'),
+                'r' => output.push('\r'),
+                other => output.push(other),
+            }
+            escaped = false;
+        } else if ch == '\\' {
+            escaped = true;
+        } else {
+            output.push(ch);
+        }
+    }
+    if escaped {
+        output.push('\\');
+    }
+    output
+}
+
+fn render_parse_error(line: usize, message: impl Into<String>) -> FoldedFigureRenderParseError {
+    FoldedFigureRenderParseError {
+        line,
+        message: message.into(),
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -1,16 +1,18 @@
 use oristudio_cp::folding::{
     ChainPermutationGenerator, DisplayStyle, EstimationOrder, EstimationStep, FoldedFigureModel,
-    FoldedFigureState, FoldingEstimateSession, HierarchyRelation, InitialHierarchy,
+    FoldedFigureRenderAntialias, FoldedFigureRenderGeometry, FoldedFigureRenderPaint,
+    FoldedFigureRenderPrimitiveKind, FoldedFigureRenderStroke, FoldedFigureState,
+    FoldingEstimateSession, HierarchyRelation, InitialHierarchy, RenderPathCommand, RgbaColor,
     SubFacePermutationSearch, SubFaceSwapper, WorkerOverlapEnumerator,
     additional_estimation_from_segments, configure_subfaces_from_segments,
     duplicate_estimation_order_for_display, equivalence_condition_candidates_from_segments,
     estimate_wireframe_from_segments, fold_another, folded_figure_snapshot_from_segments,
     folding_estimate_case_filename, folding_estimate_from_segments, folding_estimate_save_batch,
     folding_estimate_to_case, initial_hierarchy_from_segments, overlap_search_from_segments,
-    overlap_search_from_segments_with_swap, possible_overlap_search_for_ordered_subfaces,
-    possible_overlap_search_for_subfaces, possible_overlap_search_for_subfaces_with_swap,
-    prepare_subface_segments, prioritize_subfaces, two_colored_folding_estimate_from_segments,
-    two_colored_subface_segments_from_segments,
+    overlap_search_from_segments_with_swap, parse_oriedita_render_primitives,
+    possible_overlap_search_for_ordered_subfaces, possible_overlap_search_for_subfaces,
+    possible_overlap_search_for_subfaces_with_swap, prepare_subface_segments, prioritize_subfaces,
+    two_colored_folding_estimate_from_segments, two_colored_subface_segments_from_segments,
 };
 use oristudio_cp::geometry::{LineColor, LineSegment, Point, RgbColor};
 use oristudio_cp::io::cp;
@@ -70,6 +72,61 @@ fn folded_figure_snapshot_leaves_wireframe_empty_before_order_2() {
     assert_eq!(snapshot.estimation_step, EstimationStep::Step1);
     assert_eq!(snapshot.display_style, DisplayStyle::Development1);
     assert!(snapshot.wireframe.is_none());
+}
+
+#[test]
+fn folded_render_primitive_parser_reads_oriedita_recorder_output() {
+    let output = "\
+schema|folded-render-primitives|1
+fixture|simple-square|paper-front
+primitive|0|fill_path|color|255|255|50|255|basic|1.000000000|2|0|10.000000000|aa_off|M|-30.000000000|-30.000000000;L|70.000000000|70.000000000;L|70.000000000|-30.000000000;Z
+primitive|1|stroke_path|color|0|0|0|255|basic|1.200000048|0|0|10.000000000|aa_on|M|-30.000000000|-30.000000000;L|70.000000000|-30.000000000
+";
+
+    let snapshot = parse_oriedita_render_primitives(output).expect("parse render primitives");
+
+    assert_eq!(snapshot.schema_version, 1);
+    assert_eq!(snapshot.fixture.as_deref(), Some("simple-square"));
+    assert_eq!(snapshot.pass.as_deref(), Some("paper-front"));
+    assert_eq!(snapshot.primitives.len(), 2);
+    assert_eq!(
+        snapshot.primitives[0].kind,
+        FoldedFigureRenderPrimitiveKind::FillPath
+    );
+    assert_eq!(
+        snapshot.primitives[0].style.paint,
+        FoldedFigureRenderPaint::Color {
+            color: RgbaColor::new(255, 255, 50, 255)
+        }
+    );
+    assert_eq!(
+        snapshot.primitives[0].style.stroke,
+        FoldedFigureRenderStroke::Basic {
+            width: 1.0,
+            end_cap: 2,
+            line_join: 0,
+            miter_limit: 10.0
+        }
+    );
+    assert_eq!(
+        snapshot.primitives[0].style.antialias,
+        FoldedFigureRenderAntialias::Off
+    );
+
+    let FoldedFigureRenderGeometry::Path { commands } = &snapshot.primitives[0].geometry else {
+        panic!("first primitive should be a path");
+    };
+    assert_eq!(
+        commands.first(),
+        Some(&RenderPathCommand::MoveTo {
+            point: Point::new(-30.0, -30.0)
+        })
+    );
+    assert_eq!(commands.last(), Some(&RenderPathCommand::Close));
+
+    let value = serde_json::to_value(&snapshot).expect("serialized render snapshot");
+    assert_eq!(value["primitives"][0]["kind"], "fill_path");
+    assert_eq!(value["primitives"][0]["style"]["paint"]["kind"], "color");
 }
 
 #[test]
