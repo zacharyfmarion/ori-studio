@@ -2,7 +2,8 @@ use oristudio_cp::folding::{
     FoldedFigureModel, FoldedFigureRenderGeometry, FoldedFigureRenderPaint,
     FoldedFigureRenderPrimitive, FoldedFigureRenderPrimitiveKind, FoldedFigureRenderSnapshot,
     FoldedFigureRenderStroke, FoldedFigureRenderStyle, FoldedFigureState, FoldedSubfaceFigure,
-    RenderPathCommand, folded_figure_paper_render_snapshot_from_segments,
+    OrieditaFoldedFigureCamera, OrieditaFoldedFigureCameraSet, RenderPathCommand,
+    folded_figure_camera_set_from_segments, folded_figure_paper_render_snapshot_from_segments,
     folded_figure_transparent_render_snapshot_from_segments,
     folded_figure_wire_render_snapshot_from_segments, folded_subface_figure_from_segments,
     parse_oriedita_render_primitives,
@@ -108,6 +109,25 @@ fn kabuto_folded_subface_figure_matches_oriedita_oracle() {
         &folded_subface_figure_summary(&figure),
         &output,
     );
+}
+
+#[test]
+fn kabuto_folded_camera_set_matches_oriedita_oracle() {
+    let Some(oracle) = render_oracle() else {
+        eprintln!("skipping Oriedita render oracle test: ORIEDITA_RENDER_ORACLE is not set");
+        return;
+    };
+
+    let segments = kabuto_segments();
+    let output = run_oracle_owned(
+        &oracle,
+        &segment_oracle_args("folded-render-cameras-segments", &segments),
+    );
+    let oracle_cameras = parse_oriedita_camera_set(&output).expect("parse Oriedita cameras");
+    let rust_cameras =
+        folded_figure_camera_set_from_segments(&segments, 1, FoldedFigureModel::default())
+            .expect("Rust camera set");
+    assert_camera_set_close("kabuto cameras", &rust_cameras, &oracle_cameras);
 }
 
 #[test]
@@ -748,6 +768,78 @@ fn assert_f64_close(
     );
 }
 
+fn assert_camera_set_close(
+    pass: &str,
+    rust: &OrieditaFoldedFigureCameraSet,
+    oracle: &OrieditaFoldedFigureCameraSet,
+) {
+    assert_camera_close(pass, "folded", &rust.folded, &oracle.folded);
+    assert_camera_close(pass, "front", &rust.front, &oracle.front);
+    assert_camera_close(pass, "rear", &rust.rear, &oracle.rear);
+    assert_camera_close(
+        pass,
+        "transparent_front",
+        &rust.transparent_front,
+        &oracle.transparent_front,
+    );
+    assert_camera_close(
+        pass,
+        "transparent_rear",
+        &rust.transparent_rear,
+        &oracle.transparent_rear,
+    );
+}
+
+fn assert_camera_close(
+    pass: &str,
+    name: &str,
+    rust: &OrieditaFoldedFigureCamera,
+    oracle: &OrieditaFoldedFigureCamera,
+) {
+    assert_point_close(
+        pass,
+        0,
+        format!("{name} camera position"),
+        rust.camera_position,
+        oracle.camera_position,
+    );
+    assert_f64_close(
+        pass,
+        0,
+        format!("{name} angle"),
+        rust.angle_degrees,
+        oracle.angle_degrees,
+    );
+    assert_f64_close(
+        pass,
+        0,
+        format!("{name} mirror"),
+        rust.mirror,
+        oracle.mirror,
+    );
+    assert_f64_close(
+        pass,
+        0,
+        format!("{name} zoom x"),
+        rust.zoom_x,
+        oracle.zoom_x,
+    );
+    assert_f64_close(
+        pass,
+        0,
+        format!("{name} zoom y"),
+        rust.zoom_y,
+        oracle.zoom_y,
+    );
+    assert_point_close(
+        pass,
+        0,
+        format!("{name} display position"),
+        rust.display_position,
+        oracle.display_position,
+    );
+}
+
 struct PaperRenderCase {
     command: &'static str,
     pass: &'static str,
@@ -984,6 +1076,83 @@ fn render_oracle() -> Option<PathBuf> {
         .or_else(|_| std::env::var("ORIEDITA_GEOMETRY_ORACLE"))
         .ok()
         .map(|oracle| resolve_oracle_path(&oracle))
+}
+
+fn parse_oriedita_camera_set(output: &str) -> Result<OrieditaFoldedFigureCameraSet, String> {
+    let mut folded = None;
+    let mut front = None;
+    let mut rear = None;
+    let mut transparent_front = None;
+    let mut transparent_rear = None;
+
+    for (index, line) in output.lines().enumerate() {
+        let fields = line.split('|').collect::<Vec<_>>();
+        match fields.first().copied() {
+            Some("schema") => {
+                if fields.as_slice() != ["schema", "folded-render-cameras", "1"] {
+                    return Err(format!("invalid camera schema line {index}: {line}"));
+                }
+            }
+            Some("fixture") => {
+                if fields.as_slice() != ["fixture", "segments", "cameras"] {
+                    return Err(format!("invalid camera fixture line {index}: {line}"));
+                }
+            }
+            Some("camera") => {
+                let camera = parse_oriedita_camera_row(&fields, index)?;
+                match fields.get(1).copied() {
+                    Some("folded") => folded = Some(camera),
+                    Some("front") => front = Some(camera),
+                    Some("rear") => rear = Some(camera),
+                    Some("transparent-front") => transparent_front = Some(camera),
+                    Some("transparent-rear") => transparent_rear = Some(camera),
+                    Some(name) => return Err(format!("unknown camera name {name:?}")),
+                    None => return Err(format!("missing camera name at line {index}")),
+                }
+            }
+            Some(other) => return Err(format!("unknown camera record {other:?} at line {index}")),
+            None => {}
+        }
+    }
+
+    Ok(OrieditaFoldedFigureCameraSet {
+        folded: folded.ok_or_else(|| "missing folded camera".to_string())?,
+        front: front.ok_or_else(|| "missing front camera".to_string())?,
+        rear: rear.ok_or_else(|| "missing rear camera".to_string())?,
+        transparent_front: transparent_front
+            .ok_or_else(|| "missing transparent front camera".to_string())?,
+        transparent_rear: transparent_rear
+            .ok_or_else(|| "missing transparent rear camera".to_string())?,
+    })
+}
+
+fn parse_oriedita_camera_row(
+    fields: &[&str],
+    line: usize,
+) -> Result<OrieditaFoldedFigureCamera, String> {
+    if fields.len() != 10 {
+        return Err(format!("camera row {line} must have 10 fields"));
+    }
+    Ok(OrieditaFoldedFigureCamera {
+        camera_position: Point::new(
+            parse_camera_f64(fields[2], line, "camera position x")?,
+            parse_camera_f64(fields[3], line, "camera position y")?,
+        ),
+        angle_degrees: parse_camera_f64(fields[4], line, "angle")?,
+        mirror: parse_camera_f64(fields[5], line, "mirror")?,
+        zoom_x: parse_camera_f64(fields[6], line, "zoom x")?,
+        zoom_y: parse_camera_f64(fields[7], line, "zoom y")?,
+        display_position: Point::new(
+            parse_camera_f64(fields[8], line, "display position x")?,
+            parse_camera_f64(fields[9], line, "display position y")?,
+        ),
+    })
+}
+
+fn parse_camera_f64(value: &str, line: usize, label: &str) -> Result<f64, String> {
+    value
+        .parse::<f64>()
+        .map_err(|err| format!("invalid {label} at camera line {line}: {err}"))
 }
 
 fn resolve_oracle_path(oracle: &str) -> PathBuf {

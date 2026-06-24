@@ -385,6 +385,7 @@ public class OrieditaGeometryOracle {
             case "folded-render-transparent-color-back-segments" -> foldedRenderStyleSegments(args, FoldedFigure.State.BACK_1, FoldedFigure.DisplayStyle.TRANSPARENT_3, true, "transparent-color-back");
             case "folded-render-transparent-color-both-segments" -> foldedRenderStyleSegments(args, FoldedFigure.State.BOTH_2, FoldedFigure.DisplayStyle.TRANSPARENT_3, true, "transparent-color-both");
             case "folded-render-transparent-color-transparent-state-segments" -> foldedRenderStyleSegments(args, FoldedFigure.State.TRANSPARENT_3, FoldedFigure.DisplayStyle.TRANSPARENT_3, true, "transparent-color-transparent-state");
+            case "folded-render-cameras-segments" -> foldedRenderCamerasSegments(args);
             default -> usage("unknown command: " + args[0]);
         }
     }
@@ -422,6 +423,16 @@ public class OrieditaGeometryOracle {
         int count = Integer.parseInt(args[1]);
         LineSegmentSet set = lineSegmentSet(args, 2, count);
         printFoldedRender("segments", set, state, false, displayStyle, transparencyColor, pass);
+    }
+
+    private static void foldedRenderCamerasSegments(String[] args) throws Exception {
+        if (args.length < 2) {
+            usage(args[0] + " expects count and line segment payload");
+        }
+
+        int count = Integer.parseInt(args[1]);
+        LineSegmentSet set = lineSegmentSet(args, 2, count);
+        printFoldedRenderCameras("segments", set);
     }
 
     private static void foldedRenderPaperVisibleSegments(String[] args, FoldedFigure.State state, String pass) throws Exception {
@@ -477,6 +488,32 @@ public class OrieditaGeometryOracle {
         if (state == FoldedFigure.State.BACK_1 || state == FoldedFigure.State.BOTH_2) {
             printFoldedRenderVisiblePass("back", true, worker, flat, subFaceFigure);
         }
+    }
+
+    private static void printFoldedRenderCameras(String fixture, LineSegmentSet set) throws Exception {
+        FoldedFigure_Drawer drawer =
+                foldedRenderContext(set, FoldedFigure.State.FRONT_0, false, FoldedFigure.DisplayStyle.PAPER_5, false).drawer;
+
+        System.out.println("schema|folded-render-cameras|1");
+        System.out.println("fixture|" + fixture + "|cameras");
+        printFoldedRenderCamera("folded", drawer.getFoldedFigureCamera());
+        printFoldedRenderCamera("front", drawer.getFoldedFigureFrontCamera());
+        printFoldedRenderCamera("rear", drawer.getFoldedFigureRearCamera());
+        printFoldedRenderCamera("transparent-front", drawer.getTransparentFrontCamera());
+        printFoldedRenderCamera("transparent-rear", drawer.getTransparentRearCamera());
+    }
+
+    private static void printFoldedRenderCamera(String name, Camera camera) {
+        System.out.println("camera|"
+                + name + "|"
+                + camera.getCameraPositionX() + "|"
+                + camera.getCameraPositionY() + "|"
+                + camera.getCameraAngle() + "|"
+                + camera.getCameraMirror() + "|"
+                + camera.getCameraZoomX() + "|"
+                + camera.getCameraZoomY() + "|"
+                + camera.getDisplayPositionX() + "|"
+                + camera.getDisplayPositionY());
     }
 
     private static void printFoldedRenderVisiblePass(
@@ -6977,6 +7014,7 @@ public class OrieditaGeometryOracle {
         System.err.println("   or: OrieditaGeometryOracle folded-render-transparent-color-back-segments <count> [ax ay bx by color]...");
         System.err.println("   or: OrieditaGeometryOracle folded-render-transparent-color-both-segments <count> [ax ay bx by color]...");
         System.err.println("   or: OrieditaGeometryOracle folded-render-transparent-color-transparent-state-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-cameras-segments <count> [ax ay bx by color]...");
         System.exit(2);
     }
 }

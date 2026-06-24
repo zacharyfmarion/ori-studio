@@ -241,6 +241,25 @@ pub struct FoldedFigureSnapshot {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OrieditaFoldedFigureCameraSet {
+    pub folded: OrieditaFoldedFigureCamera,
+    pub front: OrieditaFoldedFigureCamera,
+    pub rear: OrieditaFoldedFigureCamera,
+    pub transparent_front: OrieditaFoldedFigureCamera,
+    pub transparent_rear: OrieditaFoldedFigureCamera,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OrieditaFoldedFigureCamera {
+    pub camera_position: Point,
+    pub angle_degrees: f64,
+    pub mirror: f64,
+    pub zoom_x: f64,
+    pub zoom_y: f64,
+    pub display_position: Point,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FoldedFigureRenderSnapshot {
     pub schema_version: u32,
     pub fixture: Option<String>,
@@ -1693,6 +1712,19 @@ pub fn folded_figure_transparent_render_snapshot_from_segments(
     }))
 }
 
+pub fn folded_figure_camera_set_from_segments(
+    segments: &[LineSegment],
+    starting_face_id: i32,
+    model: FoldedFigureModel,
+) -> Option<OrieditaFoldedFigureCameraSet> {
+    let (graph, folded) = folded_graph_and_wireframe_from_segments(segments, starting_face_id)?;
+    Some(folded_figure_camera_set(
+        &graph.points,
+        &folded.points,
+        &model,
+    ))
+}
+
 /// Oriedita `FoldedFigure_Worker.possible_overlapping_search(false)` after
 /// folding stages 01-04 have prepared subfaces, hierarchy relations, and
 /// equivalence conditions. This is the no-swap/no-realtime-AEA worker search
@@ -1840,25 +1872,38 @@ struct OrieditaRenderCamera {
 }
 
 impl OrieditaRenderCamera {
+    fn folded(model: &FoldedFigureModel) -> Self {
+        Self::from_oriedita_parts(model, 1.0, Point::new(20.0, 20.0))
+    }
+
     fn folded_front(model: &FoldedFigureModel) -> Self {
-        Self {
-            camera_position: Point::origin(),
-            angle_degrees: model.rotation,
-            mirror: 1.0,
-            zoom_x: model.scale,
-            zoom_y: model.scale,
-            display_position: Point::new(20.0, 20.0),
-        }
+        Self::from_oriedita_parts(model, 1.0, Point::new(20.0, 20.0))
     }
 
     fn folded_rear(model: &FoldedFigureModel) -> Self {
+        Self::from_oriedita_parts(model, -1.0, Point::new(40.0, 20.0))
+    }
+
+    fn transparent_front(model: &FoldedFigureModel) -> Self {
+        Self::from_oriedita_parts(model, 1.0, Point::new(20.0, 0.0))
+    }
+
+    fn transparent_rear(model: &FoldedFigureModel) -> Self {
+        Self::from_oriedita_parts(model, -1.0, Point::new(40.0, 0.0))
+    }
+
+    fn from_oriedita_parts(
+        model: &FoldedFigureModel,
+        mirror: f64,
+        display_position: Point,
+    ) -> Self {
         Self {
             camera_position: Point::origin(),
             angle_degrees: model.rotation,
-            mirror: -1.0,
+            mirror,
             zoom_x: model.scale,
             zoom_y: model.scale,
-            display_position: Point::new(40.0, 20.0),
+            display_position,
         }
     }
 
@@ -1901,6 +1946,17 @@ impl OrieditaRenderCamera {
             .display_position
             .move_by(min_folded.delta(min_flat).move_by(offset));
         self
+    }
+
+    fn snapshot(self) -> OrieditaFoldedFigureCamera {
+        OrieditaFoldedFigureCamera {
+            camera_position: recorded_point(self.camera_position),
+            angle_degrees: recorded_f64(self.angle_degrees),
+            mirror: recorded_f64(self.mirror),
+            zoom_x: recorded_f64(self.zoom_x),
+            zoom_y: recorded_f64(self.zoom_y),
+            display_position: recorded_point(self.display_position),
+        }
     }
 }
 
@@ -2024,6 +2080,30 @@ fn folded_front_rear_passes(
     };
 
     (front, rear)
+}
+
+fn folded_figure_camera_set(
+    flat_points: &[Point],
+    folded_points: &[Point],
+    model: &FoldedFigureModel,
+) -> OrieditaFoldedFigureCameraSet {
+    OrieditaFoldedFigureCameraSet {
+        folded: OrieditaRenderCamera::folded(model)
+            .fix_to_flat_bounds(flat_points, folded_points, Point::new(20.0, 20.0))
+            .snapshot(),
+        front: OrieditaRenderCamera::folded_front(model)
+            .fix_to_flat_bounds(flat_points, folded_points, Point::new(20.0, 20.0))
+            .snapshot(),
+        rear: OrieditaRenderCamera::folded_rear(model)
+            .fix_to_flat_bounds(flat_points, folded_points, Point::new(40.0, 20.0))
+            .snapshot(),
+        transparent_front: OrieditaRenderCamera::transparent_front(model)
+            .fix_to_flat_bounds(flat_points, folded_points, Point::new(20.0, 0.0))
+            .snapshot(),
+        transparent_rear: OrieditaRenderCamera::transparent_rear(model)
+            .fix_to_flat_bounds(flat_points, folded_points, Point::new(40.0, 0.0))
+            .snapshot(),
+    }
 }
 
 fn paper_render_primitives(
