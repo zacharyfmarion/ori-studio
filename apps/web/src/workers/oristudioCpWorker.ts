@@ -6,6 +6,11 @@ import init, {
   execute_cp_command,
   export_cp,
   export_fold,
+  folded_figure_fold,
+  folded_figure_fold_another,
+  folded_figure_fold_to_case,
+  folded_figure_snapshot,
+  free_folded_figure,
   free_document,
   load_cp,
   load_document,
@@ -20,6 +25,11 @@ import type {
   OristudioCpCommandResult,
   OristudioCpDocumentSnapshot,
   OristudioCpDocumentSummary,
+  OristudioCpEstimationOrder,
+  OristudioCpFoldedFigureBatchResult,
+  OristudioCpFoldedFigureModel,
+  OristudioCpFoldedFigureResult,
+  OristudioCpFoldedFigureSnapshot,
   OristudioCpLineSegment,
   OristudioCpOperationDescriptor,
 } from '../engine/oristudioCpTypes';
@@ -103,6 +113,45 @@ const api = {
     segments: OristudioCpLineSegment[]
   ): Promise<number> {
     return call(() => replace_line_segments(handle, lineIds, segments));
+  },
+  async foldFigure(
+    handle: number,
+    startingFaceId = 1,
+    order: OristudioCpEstimationOrder = 'Order5',
+    model?: OristudioCpFoldedFigureModel
+  ): Promise<OristudioCpFoldedFigureResult> {
+    return call(
+      () =>
+        folded_figure_fold(
+          handle,
+          startingFaceId,
+          order,
+          model ?? null
+        ) as OristudioCpFoldedFigureResult
+    );
+  },
+  async foldedFigureSnapshot(handle: number): Promise<OristudioCpFoldedFigureSnapshot> {
+    return call(() => folded_figure_snapshot(handle) as OristudioCpFoldedFigureSnapshot);
+  },
+  async foldFigureAnother(handle: number): Promise<OristudioCpFoldedFigureSnapshot> {
+    return call(() => folded_figure_fold_another(handle) as OristudioCpFoldedFigureSnapshot);
+  },
+  async foldFigureToCase(
+    handle: number,
+    objective: number,
+    initialOrder: OristudioCpEstimationOrder = 'Order5'
+  ): Promise<OristudioCpFoldedFigureBatchResult> {
+    return call(
+      () =>
+        folded_figure_fold_to_case(
+          handle,
+          objective,
+          initialOrder
+        ) as OristudioCpFoldedFigureBatchResult
+    );
+  },
+  async freeFoldedFigure(handle: number): Promise<void> {
+    return call(() => free_folded_figure(handle));
   },
   async exportCp(handle: number): Promise<string> {
     return call(() => export_cp(handle));

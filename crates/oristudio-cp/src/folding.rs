@@ -153,6 +153,24 @@ pub enum EstimationStep {
     Step10,
 }
 
+impl EstimationStep {
+    fn value(self) -> i32 {
+        match self {
+            Self::Step0 => 0,
+            Self::Step1 => 1,
+            Self::Step2 => 2,
+            Self::Step3 => 3,
+            Self::Step4 => 4,
+            Self::Step5 => 5,
+            Self::Step10 => 10,
+        }
+    }
+
+    fn is_at_least(self, other: Self) -> bool {
+        self.value() >= other.value()
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DisplayStyle {
     None0,
@@ -812,27 +830,36 @@ pub fn folding_estimate_from_segments(
     session.folding_estimated(order)
 }
 
+pub fn folded_figure_snapshot_from_session(
+    session: &FoldingEstimateSession,
+    model: FoldedFigureModel,
+) -> FoldedFigureSnapshot {
+    let estimate = session.estimate();
+    let wireframe = if estimate.estimation_step.is_at_least(EstimationStep::Step2) {
+        estimate_wireframe_from_segments(&session.segments, session.starting_face_id)
+    } else {
+        None
+    };
+    FoldedFigureSnapshot {
+        model,
+        estimation_step: estimate.estimation_step,
+        display_style: estimate.display_style,
+        discovered_fold_cases: estimate.discovered_fold_cases,
+        find_another_overlap_valid: estimate.find_another_overlap_valid,
+        text_result: estimate.text_result.clone(),
+        wireframe,
+    }
+}
+
 pub fn folded_figure_snapshot_from_segments(
     segments: &[LineSegment],
     starting_face_id: i32,
     order: EstimationOrder,
     model: FoldedFigureModel,
 ) -> Result<FoldedFigureSnapshot, FoldingEstimateError> {
-    let estimate = folding_estimate_from_segments(segments, starting_face_id, order)?;
-    let wireframe = if order.normalized().is_at_least(EstimationOrder::Order2) {
-        estimate_wireframe_from_segments(segments, starting_face_id)
-    } else {
-        None
-    };
-    Ok(FoldedFigureSnapshot {
-        model,
-        estimation_step: estimate.estimation_step,
-        display_style: estimate.display_style,
-        discovered_fold_cases: estimate.discovered_fold_cases,
-        find_another_overlap_valid: estimate.find_another_overlap_valid,
-        text_result: estimate.text_result,
-        wireframe,
-    })
+    let mut session = FoldingEstimateSession::new(segments, starting_face_id);
+    session.folding_estimated(order)?;
+    Ok(folded_figure_snapshot_from_session(&session, model))
 }
 
 /// Oriedita `FoldedFigure_Worker.possible_overlapping_search(false)` after

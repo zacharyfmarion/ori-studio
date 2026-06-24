@@ -3,6 +3,11 @@
 //! The wasm API stores editable crease-pattern documents behind integer
 //! handles so the web worker can keep command calls cheap and explicit.
 
+use oristudio_cp::folding::{
+    EstimationOrder, FoldedFigureModel, FoldedFigureSnapshot, FoldingEstimateError,
+    FoldingEstimateSession, fold_another, folded_figure_snapshot_from_session,
+    folding_estimate_to_case,
+};
 use oristudio_cp::{
     CommandError, CreasePatternCommand, CreasePatternCommandPayload, CreasePatternDocument,
     OperationCategory, OperationDescriptor, OperationId, OperationStatus, execute_command, io,
@@ -14,6 +19,7 @@ use wasm_bindgen::prelude::*;
 
 thread_local! {
     static DOCUMENTS: RefCell<Vec<Option<CreasePatternDocument>>> = const { RefCell::new(Vec::new()) };
+    static FOLDED_FIGURES: RefCell<Vec<Option<WasmFoldedFigure>>> = const { RefCell::new(Vec::new()) };
 }
 
 #[derive(Serialize)]
@@ -55,6 +61,23 @@ struct DocumentSummary {
     texts: usize,
     can_save_as_cp: bool,
     is_empty: bool,
+}
+
+struct WasmFoldedFigure {
+    session: FoldingEstimateSession,
+    model: FoldedFigureModel,
+}
+
+#[derive(Serialize)]
+struct JsFoldedFigureResult {
+    handle: u32,
+    snapshot: FoldedFigureSnapshot,
+}
+
+#[derive(Serialize)]
+struct JsFoldedFigureBatchResult {
+    snapshot: FoldedFigureSnapshot,
+    discovered_case_numbers: Vec<usize>,
 }
 
 #[wasm_bindgen]
@@ -208,6 +231,81 @@ pub fn export_fold(handle: u32) -> Result<String, JsValue> {
 }
 
 #[wasm_bindgen]
+pub fn folded_figure_fold(
+    document_handle: u32,
+    starting_face_id: i32,
+    order: JsValue,
+    model: JsValue,
+) -> Result<JsValue, JsValue> {
+    let order: EstimationOrder =
+        serde_wasm_bindgen::from_value(order).map_err(to_js_value_error)?;
+    let model = folded_figure_model_from_js(model)?;
+    with_document(document_handle, |document| {
+        let mut session =
+            FoldingEstimateSession::new(&document.crease_pattern.line_segments, starting_face_id);
+        session
+            .folding_estimated(order)
+            .map_err(to_js_folding_error)?;
+        let snapshot = folded_figure_snapshot_from_session(&session, model.clone());
+        let handle = store_folded_figure(WasmFoldedFigure { session, model })?;
+        to_js_value(&JsFoldedFigureResult { handle, snapshot })
+    })
+}
+
+#[wasm_bindgen]
+pub fn folded_figure_snapshot(handle: u32) -> Result<JsValue, JsValue> {
+    with_folded_figure(handle, |folded| {
+        to_js_value(&folded_figure_snapshot_from_session(
+            &folded.session,
+            folded.model.clone(),
+        ))
+    })
+}
+
+#[wasm_bindgen]
+pub fn folded_figure_fold_another(handle: u32) -> Result<JsValue, JsValue> {
+    with_folded_figure_mut(handle, |folded| {
+        fold_another(&mut folded.session).map_err(to_js_folding_error)?;
+        to_js_value(&folded_figure_snapshot_from_session(
+            &folded.session,
+            folded.model.clone(),
+        ))
+    })
+}
+
+#[wasm_bindgen]
+pub fn folded_figure_fold_to_case(
+    handle: u32,
+    objective: u32,
+    initial_order: JsValue,
+) -> Result<JsValue, JsValue> {
+    let initial_order: EstimationOrder =
+        serde_wasm_bindgen::from_value(initial_order).map_err(to_js_value_error)?;
+    with_folded_figure_mut(handle, |folded| {
+        let batch =
+            folding_estimate_to_case(&mut folded.session, objective as usize, initial_order)
+                .map_err(to_js_folding_error)?;
+        let snapshot = folded_figure_snapshot_from_session(&folded.session, folded.model.clone());
+        to_js_value(&JsFoldedFigureBatchResult {
+            snapshot,
+            discovered_case_numbers: batch.discovered_case_numbers,
+        })
+    })
+}
+
+#[wasm_bindgen]
+pub fn free_folded_figure(handle: u32) -> Result<(), JsValue> {
+    FOLDED_FIGURES.with(|folded_figures| {
+        let mut folded_figures = folded_figures.borrow_mut();
+        let slot = folded_figures
+            .get_mut(handle as usize)
+            .ok_or_else(|| js_error("invalid_handle", "invalid folded figure handle"))?;
+        *slot = None;
+        Ok(())
+    })
+}
+
+#[wasm_bindgen]
 pub fn free_document(handle: u32) -> Result<(), JsValue> {
     DOCUMENTS.with(|documents| {
         let mut documents = documents.borrow_mut();
@@ -217,6 +315,14 @@ pub fn free_document(handle: u32) -> Result<(), JsValue> {
         *slot = None;
         Ok(())
     })
+}
+
+fn folded_figure_model_from_js(model: JsValue) -> Result<FoldedFigureModel, JsValue> {
+    if model.is_undefined() || model.is_null() {
+        Ok(FoldedFigureModel::default())
+    } else {
+        serde_wasm_bindgen::from_value(model).map_err(to_js_value_error)
+    }
 }
 
 fn store_document(document: CreasePatternDocument) -> Result<u32, JsValue> {
@@ -232,6 +338,23 @@ fn store_document(document: CreasePatternDocument) -> Result<u32, JsValue> {
         } else {
             documents.push(Some(document));
             Ok((documents.len() - 1) as u32)
+        }
+    })
+}
+
+fn store_folded_figure(folded_figure: WasmFoldedFigure) -> Result<u32, JsValue> {
+    FOLDED_FIGURES.with(|folded_figures| {
+        let mut folded_figures = folded_figures.borrow_mut();
+        if let Some((index, slot)) = folded_figures
+            .iter_mut()
+            .enumerate()
+            .find(|(_, slot)| slot.is_none())
+        {
+            *slot = Some(folded_figure);
+            Ok(index as u32)
+        } else {
+            folded_figures.push(Some(folded_figure));
+            Ok((folded_figures.len() - 1) as u32)
         }
     })
 }
@@ -261,6 +384,34 @@ fn with_document_mut<T>(
             .and_then(Option::as_mut)
             .ok_or_else(|| js_error("invalid_handle", "invalid CreasePatternDocument handle"))?;
         f(document)
+    })
+}
+
+fn with_folded_figure<T>(
+    handle: u32,
+    f: impl FnOnce(&WasmFoldedFigure) -> Result<T, JsValue>,
+) -> Result<T, JsValue> {
+    FOLDED_FIGURES.with(|folded_figures| {
+        let folded_figures = folded_figures.borrow();
+        let folded_figure = folded_figures
+            .get(handle as usize)
+            .and_then(Option::as_ref)
+            .ok_or_else(|| js_error("invalid_handle", "invalid folded figure handle"))?;
+        f(folded_figure)
+    })
+}
+
+fn with_folded_figure_mut<T>(
+    handle: u32,
+    f: impl FnOnce(&mut WasmFoldedFigure) -> Result<T, JsValue>,
+) -> Result<T, JsValue> {
+    FOLDED_FIGURES.with(|folded_figures| {
+        let mut folded_figures = folded_figures.borrow_mut();
+        let folded_figure = folded_figures
+            .get_mut(handle as usize)
+            .and_then(Option::as_mut)
+            .ok_or_else(|| js_error("invalid_handle", "invalid folded figure handle"))?;
+        f(folded_figure)
     })
 }
 
@@ -309,6 +460,10 @@ fn to_js_command_error(error: CommandError) -> JsValue {
 
 fn to_js_io_error(error: io::IoError) -> JsValue {
     js_error("invalid_input", error.to_string())
+}
+
+fn to_js_folding_error(error: FoldingEstimateError) -> JsValue {
+    js_error("folding_error", format!("{error:?}"))
 }
 
 fn to_js_value_error(error: impl std::fmt::Display) -> JsValue {

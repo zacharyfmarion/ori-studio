@@ -13,7 +13,17 @@ export function export_cp(handle: number): string;
 
 export function export_fold(handle: number): string;
 
+export function folded_figure_fold(document_handle: number, starting_face_id: number, order: any, model: any): any;
+
+export function folded_figure_fold_another(handle: number): any;
+
+export function folded_figure_fold_to_case(handle: number, objective: number, initial_order: any): any;
+
+export function folded_figure_snapshot(handle: number): any;
+
 export function free_document(handle: number): void;
+
+export function free_folded_figure(handle: number): void;
 
 export function insert_line_segments(handle: number, segments: any): number;
 
@@ -37,7 +47,12 @@ export interface InitOutput {
     readonly execute_cp_command: (a: number, b: any, c: any) => [number, number, number];
     readonly export_cp: (a: number) => [number, number, number, number];
     readonly export_fold: (a: number) => [number, number, number, number];
+    readonly folded_figure_fold: (a: number, b: number, c: any, d: any) => [number, number, number];
+    readonly folded_figure_fold_another: (a: number) => [number, number, number];
+    readonly folded_figure_fold_to_case: (a: number, b: number, c: any) => [number, number, number];
+    readonly folded_figure_snapshot: (a: number) => [number, number, number];
     readonly free_document: (a: number) => [number, number];
+    readonly free_folded_figure: (a: number) => [number, number];
     readonly insert_line_segments: (a: number, b: any) => [number, number, number];
     readonly load_cp: (a: number, b: number, c: number, d: number) => [number, number, number];
     readonly load_document: (a: any) => [number, number, number];

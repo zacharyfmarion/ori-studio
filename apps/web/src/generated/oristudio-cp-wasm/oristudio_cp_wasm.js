@@ -96,10 +96,73 @@ export function export_fold(handle) {
 }
 
 /**
+ * @param {number} document_handle
+ * @param {number} starting_face_id
+ * @param {any} order
+ * @param {any} model
+ * @returns {any}
+ */
+export function folded_figure_fold(document_handle, starting_face_id, order, model) {
+    const ret = wasm.folded_figure_fold(document_handle, starting_face_id, order, model);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {number} handle
+ * @returns {any}
+ */
+export function folded_figure_fold_another(handle) {
+    const ret = wasm.folded_figure_fold_another(handle);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {number} handle
+ * @param {number} objective
+ * @param {any} initial_order
+ * @returns {any}
+ */
+export function folded_figure_fold_to_case(handle, objective, initial_order) {
+    const ret = wasm.folded_figure_fold_to_case(handle, objective, initial_order);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {number} handle
+ * @returns {any}
+ */
+export function folded_figure_snapshot(handle) {
+    const ret = wasm.folded_figure_snapshot(handle);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
  * @param {number} handle
  */
 export function free_document(handle) {
     const ret = wasm.free_document(handle);
+    if (ret[1]) {
+        throw takeFromExternrefTable0(ret[0]);
+    }
+}
+
+/**
+ * @param {number} handle
+ */
+export function free_folded_figure(handle) {
+    const ret = wasm.free_folded_figure(handle);
     if (ret[1]) {
         throw takeFromExternrefTable0(ret[0]);
     }
@@ -237,6 +300,10 @@ function __wbg_get_imports() {
         },
         __wbg___wbindgen_is_function_5cd60d5cf78b4eef: function(arg0) {
             const ret = typeof(arg0) === 'function';
+            return ret;
+        },
+        __wbg___wbindgen_is_null_2042690d351e14f0: function(arg0) {
+            const ret = arg0 === null;
             return ret;
         },
         __wbg___wbindgen_is_object_b4593df85baada48: function(arg0) {

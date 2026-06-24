@@ -404,7 +404,7 @@ Normal tests should not require Java:
       selection.
 - [x] Extend `.osf` to preserve imported FOLD frame graphs.
 - [x] Add serializable Oriedita folded-figure snapshot types in `oristudio-cp`.
-- [ ] Expose Fold/FoldAnother/FoldToCase folded-figure commands from
+- [x] Expose Fold/FoldAnother/FoldToCase folded-figure commands from
       `oristudio-cp-wasm`.
 - [ ] Add folded-figure list/revision state to the workspace store.
 - [x] Render one active folded figure in the CP grid area.

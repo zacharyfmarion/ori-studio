@@ -124,6 +124,85 @@ export interface OristudioCpCommandPreview {
   diagnostics: string[];
 }
 
+export type OristudioCpEstimationOrder =
+  | 'Order0'
+  | 'Order1'
+  | 'Order2'
+  | 'Order3'
+  | 'Order4'
+  | 'Order5'
+  | 'Order6'
+  | 'Order51';
+
+export type OristudioCpEstimationStep =
+  | 'Step0'
+  | 'Step1'
+  | 'Step2'
+  | 'Step3'
+  | 'Step4'
+  | 'Step5'
+  | 'Step10';
+
+export type OristudioCpFoldedFigureDisplayStyle =
+  | 'None0'
+  | 'Development1'
+  | 'Wire2'
+  | 'Transparent3'
+  | 'Development4'
+  | 'Paper5';
+
+export type OristudioCpFoldedFigureState = 'Front0' | 'Back1' | 'Both2' | 'Transparent3';
+
+export interface OristudioCpFoldedFigureModel {
+  front_color: OristudioCpRgbColor;
+  back_color: OristudioCpRgbColor;
+  line_color: OristudioCpRgbColor;
+  scale: number;
+  rotation: number;
+  anti_alias: boolean;
+  display_shadows: boolean;
+  state: OristudioCpFoldedFigureState;
+  folded_cases: number;
+  transparent_transparency: number;
+  transparency_color: boolean;
+}
+
+export interface OristudioCpFoldedWireframeLine {
+  begin: number;
+  end: number;
+  color: OristudioCpLineColor;
+}
+
+export interface OristudioCpFoldedWireframe {
+  points: Point[];
+  lines: OristudioCpFoldedWireframeLine[];
+  faces: number[][];
+  starting_face: number;
+  face_positions: number[];
+  next_faces: Array<number | null>;
+  associated_lines: Array<number | null>;
+}
+
+export interface OristudioCpFoldedFigureSnapshot {
+  model: OristudioCpFoldedFigureModel;
+  estimation_step: OristudioCpEstimationStep;
+  display_style: OristudioCpFoldedFigureDisplayStyle;
+  discovered_fold_cases: number;
+  find_another_overlap_valid: boolean;
+  text_result: string;
+  wireframe: OristudioCpFoldedWireframe | null;
+}
+
+export interface OristudioCpFoldedFigureResult {
+  handle: number;
+  snapshot: OristudioCpFoldedFigureSnapshot;
+}
+
+export interface OristudioCpFoldedFigureBatchResult {
+  snapshot: OristudioCpFoldedFigureSnapshot;
+  discovered_case_numbers: number[];
+}
+
 export interface OristudioCpCommandPayload {
   line_ids?: number[];
   line_segments?: OristudioCpLineSegment[];

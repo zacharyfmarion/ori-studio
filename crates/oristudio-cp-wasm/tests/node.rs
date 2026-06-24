@@ -1,3 +1,4 @@
+use wasm_bindgen::JsValue;
 use wasm_bindgen_test::*;
 
 #[wasm_bindgen_test]
@@ -40,6 +41,61 @@ fn command_dispatch_returns_typed_not_implemented_error() {
 }
 
 #[wasm_bindgen_test]
+fn folded_figure_session_exports_fold_and_followup_commands() {
+    let handle = oristudio_cp_wasm::load_document(
+        serde_wasm_bindgen::to_value(&foldable_square_document()).expect("document serializes"),
+    )
+    .expect("document load should succeed");
+
+    let result = oristudio_cp_wasm::folded_figure_fold(
+        handle,
+        1,
+        serde_wasm_bindgen::to_value("Order5").expect("order serializes"),
+        JsValue::UNDEFINED,
+    )
+    .expect("folded figure should fold");
+    let result: serde_json::Value =
+        serde_wasm_bindgen::from_value(result).expect("fold result deserializes");
+    let folded_handle = result["handle"].as_u64().expect("folded figure handle") as u32;
+
+    assert_eq!(result["snapshot"]["display_style"], "Paper5");
+    assert_eq!(result["snapshot"]["model"]["front_color"]["red"], 255);
+    assert_eq!(
+        result["snapshot"]["wireframe"]["faces"]
+            .as_array()
+            .expect("wireframe faces")
+            .len(),
+        2
+    );
+
+    let snapshot = oristudio_cp_wasm::folded_figure_snapshot(folded_handle)
+        .expect("folded figure snapshot should serialize");
+    let snapshot: serde_json::Value =
+        serde_wasm_bindgen::from_value(snapshot).expect("snapshot deserializes");
+    assert_eq!(snapshot["display_style"], "Paper5");
+
+    let specific = oristudio_cp_wasm::folded_figure_fold_to_case(
+        folded_handle,
+        3,
+        serde_wasm_bindgen::to_value("Order5").expect("order serializes"),
+    )
+    .expect("fold-to-case should run");
+    let specific: serde_json::Value =
+        serde_wasm_bindgen::from_value(specific).expect("fold-to-case deserializes");
+    assert_eq!(specific["snapshot"]["display_style"], "Paper5");
+    assert_eq!(specific["discovered_case_numbers"], serde_json::json!([1]));
+
+    let another = oristudio_cp_wasm::folded_figure_fold_another(folded_handle)
+        .expect("fold another should run");
+    let another: serde_json::Value =
+        serde_wasm_bindgen::from_value(another).expect("fold another deserializes");
+    assert_eq!(another["display_style"], "Paper5");
+
+    oristudio_cp_wasm::free_folded_figure(folded_handle).expect("folded handle should free");
+    oristudio_cp_wasm::free_document(handle).expect("document handle should free");
+}
+
+#[wasm_bindgen_test]
 fn command_dispatch_accepts_resolved_line_payloads() {
     let handle = oristudio_cp_wasm::load_cp("2 0 0 1 0\n3 0 0 0 1\n", "sample")
         .expect("cp import should succeed");
@@ -60,6 +116,62 @@ fn command_dispatch_accepts_resolved_line_payloads() {
     assert_eq!(result["operation"], "CreaseMakeMountain");
     assert!(exported.lines().all(|line| line.starts_with("3 ")));
     oristudio_cp_wasm::free_document(handle).expect("document handle should free");
+}
+
+fn foldable_square_document() -> oristudio_cp::CreasePatternDocument {
+    oristudio_cp::CreasePatternDocument {
+        title: Some("foldable square".to_owned()),
+        crease_pattern: oristudio_cp::CreasePatternModel {
+            line_segments: vec![
+                segment(
+                    0.0,
+                    0.0,
+                    1.0,
+                    0.0,
+                    oristudio_cp::geometry::LineColor::Black0,
+                ),
+                segment(
+                    1.0,
+                    0.0,
+                    1.0,
+                    1.0,
+                    oristudio_cp::geometry::LineColor::Black0,
+                ),
+                segment(
+                    1.0,
+                    1.0,
+                    0.0,
+                    1.0,
+                    oristudio_cp::geometry::LineColor::Black0,
+                ),
+                segment(
+                    0.0,
+                    1.0,
+                    0.0,
+                    0.0,
+                    oristudio_cp::geometry::LineColor::Black0,
+                ),
+                segment(0.0, 0.0, 1.0, 1.0, oristudio_cp::geometry::LineColor::Red1),
+            ],
+            ..oristudio_cp::CreasePatternModel::default()
+        },
+        operation_frame: Default::default(),
+        metadata: Default::default(),
+    }
+}
+
+fn segment(
+    ax: f64,
+    ay: f64,
+    bx: f64,
+    by: f64,
+    color: oristudio_cp::geometry::LineColor,
+) -> oristudio_cp::geometry::LineSegment {
+    oristudio_cp::geometry::LineSegment::with_color(
+        oristudio_cp::geometry::Point::new(ax, ay),
+        oristudio_cp::geometry::Point::new(bx, by),
+        color,
+    )
 }
 
 #[wasm_bindgen_test]
