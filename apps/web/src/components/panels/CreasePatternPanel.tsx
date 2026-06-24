@@ -1282,6 +1282,10 @@ export function CreasePatternPanel() {
   const setOristudioCpActiveDiagnostic = useWorkspaceStore(
     (state) => state.setOristudioCpActiveDiagnostic
   );
+  const foldOristudioCpDocument = useWorkspaceStore((state) => state.foldOristudioCpDocument);
+  const foldAnotherOristudioCpFigure = useWorkspaceStore(
+    (state) => state.foldAnotherOristudioCpFigure
+  );
   const clearOristudioCpSelection = useWorkspaceStore((state) => state.clearOristudioCpSelection);
   const executeOristudioCpCommand = useWorkspaceStore(
     (state) => state.executeOristudioCpCommand
@@ -1334,6 +1338,26 @@ export function CreasePatternPanel() {
       null,
     [oristudioCpActiveFoldedFigureId, oristudioCpFoldedFigures]
   );
+  const foldedFigureStatusLabel = activeFoldedFigure
+    ? activeFoldedFigure.status === 'ready' || activeFoldedFigure.status === 'stale'
+      ? `Case ${activeFoldedFigure.snapshot?.discovered_fold_cases ?? 0}`
+      : activeFoldedFigure.status === 'loading'
+        ? 'Folding'
+        : activeFoldedFigure.status === 'error'
+          ? 'Fold error'
+          : 'Unsupported'
+    : 'No fold';
+  const canFoldAnother =
+    activeFoldedFigure?.status === 'ready' &&
+    activeFoldedFigure.handle !== null &&
+    activeFoldedFigure.snapshot?.find_another_overlap_valid === true;
+  const handleFoldModel = useCallback(() => {
+    void foldOristudioCpDocument();
+  }, [foldOristudioCpDocument]);
+  const handleFoldAnother = useCallback(() => {
+    if (!activeFoldedFigure) return;
+    void foldAnotherOristudioCpFigure(activeFoldedFigure.id);
+  }, [activeFoldedFigure, foldAnotherOristudioCpFigure]);
   const editableCpGridSize = editableCp
     ? normalizeOrieditaGridSize(editableCp.crease_pattern.grid.grid_size)
     : 8;
@@ -3808,6 +3832,30 @@ export function CreasePatternPanel() {
                       onSelectLineColor={setActiveCpLineColor}
                       shortcutOverrides={shortcutOverrides}
                     />
+                    <ViewportToolbarSeparator />
+                    <IconButton
+                      size="sm"
+                      variant="toolbar"
+                      title="Fold"
+                      onClick={handleFoldModel}
+                    >
+                      <GitBranch size={14} />
+                    </IconButton>
+                    <IconButton
+                      size="sm"
+                      variant="toolbar"
+                      title="Another solution"
+                      disabled={!canFoldAnother}
+                      onClick={handleFoldAnother}
+                    >
+                      <ChevronRight size={14} />
+                    </IconButton>
+                    <span
+                      className="viewport-toolbar__meta cp-folded-model-status"
+                      data-folded-model-status={activeFoldedFigure?.status ?? 'none'}
+                    >
+                      {foldedFigureStatusLabel}
+                    </span>
                   </>
                 )}
               </ViewportToolbar>

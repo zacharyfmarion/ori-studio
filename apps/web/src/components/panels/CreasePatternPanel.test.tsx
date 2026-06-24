@@ -1031,6 +1031,47 @@ describe('CreasePatternPanel', () => {
     expect(container.querySelectorAll('.cp-generated-folded-figure-edge')).toHaveLength(3);
   });
 
+  it('exposes generated folded model toolbar controls', () => {
+    const baseFigure = generatedFoldedFigure();
+    const figure = {
+      ...baseFigure,
+      snapshot: {
+        ...baseFigure.snapshot!,
+        find_another_overlap_valid: true,
+      },
+    };
+    const foldOristudioCpDocument = vi.fn(async () => true);
+    const foldAnotherOristudioCpFigure = vi.fn(async () => true);
+    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
+      documentMode: 'crease-pattern',
+      importedCreasePattern: importedCpDocument(),
+      oristudioCpDocument: editableCpState(),
+      oristudioCpFoldedFigures: [figure],
+      oristudioCpActiveFoldedFigureId: figure.id,
+      foldOristudioCpDocument,
+      foldAnotherOristudioCpFigure,
+    });
+
+    expect(container.textContent).toContain('Case 1');
+    const foldButton = container.querySelector<HTMLButtonElement>(
+      '.viewport-toolbar button[aria-label="Fold"]'
+    );
+    const anotherButton = container.querySelector<HTMLButtonElement>(
+      '.viewport-toolbar button[aria-label="Another solution"]'
+    );
+    expect(foldButton).not.toBeNull();
+    expect(anotherButton).not.toBeNull();
+    act(() => {
+      foldButton?.click();
+    });
+    act(() => {
+      anotherButton?.click();
+    });
+
+    expect(foldOristudioCpDocument).toHaveBeenCalledOnce();
+    expect(foldAnotherOristudioCpFigure).toHaveBeenCalledWith('generated-1');
+  });
+
   it('applies the active palette color to selected editable CP lines', async () => {
     const executeOristudioCpCommand = vi.fn(async () => true);
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
