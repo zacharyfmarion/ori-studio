@@ -347,20 +347,49 @@ public class OrieditaGeometryOracle {
             case "worker-overlap-from-segments-summary" -> workerOverlapFromSegmentsSummary(args, false);
             case "worker-overlap-from-segments-swap-summary" -> workerOverlapFromSegmentsSummary(args, true);
             case "subface-swapper-summary" -> subfaceSwapperSummary(args);
-            case "folded-render-paper-front" -> foldedRenderPaper(args, FoldedFigure.State.FRONT_0, "paper-front");
-            case "folded-render-paper-back" -> foldedRenderPaper(args, FoldedFigure.State.BACK_1, "paper-back");
-            case "folded-render-paper-both" -> foldedRenderPaper(args, FoldedFigure.State.BOTH_2, "paper-both");
+            case "folded-render-paper-front" -> foldedRenderPaper(args, FoldedFigure.State.FRONT_0, false, "paper-front");
+            case "folded-render-paper-back" -> foldedRenderPaper(args, FoldedFigure.State.BACK_1, false, "paper-back");
+            case "folded-render-paper-both" -> foldedRenderPaper(args, FoldedFigure.State.BOTH_2, false, "paper-both");
+            case "folded-render-paper-front-shadows" -> foldedRenderPaper(args, FoldedFigure.State.FRONT_0, true, "paper-front-shadows");
+            case "folded-render-paper-back-shadows" -> foldedRenderPaper(args, FoldedFigure.State.BACK_1, true, "paper-back-shadows");
+            case "folded-render-paper-both-shadows" -> foldedRenderPaper(args, FoldedFigure.State.BOTH_2, true, "paper-both-shadows");
+            case "folded-render-paper-front-segments" -> foldedRenderPaperSegments(args, FoldedFigure.State.FRONT_0, false, "paper-front");
+            case "folded-render-paper-back-segments" -> foldedRenderPaperSegments(args, FoldedFigure.State.BACK_1, false, "paper-back");
+            case "folded-render-paper-both-segments" -> foldedRenderPaperSegments(args, FoldedFigure.State.BOTH_2, false, "paper-both");
+            case "folded-render-paper-front-shadows-segments" -> foldedRenderPaperSegments(args, FoldedFigure.State.FRONT_0, true, "paper-front-shadows");
+            case "folded-render-paper-back-shadows-segments" -> foldedRenderPaperSegments(args, FoldedFigure.State.BACK_1, true, "paper-back-shadows");
+            case "folded-render-paper-both-shadows-segments" -> foldedRenderPaperSegments(args, FoldedFigure.State.BOTH_2, true, "paper-both-shadows");
             default -> usage("unknown command: " + args[0]);
         }
     }
 
-    private static void foldedRenderPaper(String[] args, FoldedFigure.State state, String pass) throws Exception {
+    private static void foldedRenderPaper(String[] args, FoldedFigure.State state, boolean shadows, String pass) throws Exception {
         if (args.length != 2) {
             usage(args[0] + " expects a fixture name");
         }
 
         String fixture = args[1];
-        FoldedFigure_Drawer drawer = foldedRenderDrawer(fixture, state);
+        LineSegmentSet set = foldedRenderFixture(fixture);
+        printFoldedRender(fixture, set, state, shadows, pass);
+    }
+
+    private static void foldedRenderPaperSegments(String[] args, FoldedFigure.State state, boolean shadows, String pass) throws Exception {
+        if (args.length < 2) {
+            usage(args[0] + " expects count and line segment payload");
+        }
+
+        int count = Integer.parseInt(args[1]);
+        LineSegmentSet set = lineSegmentSet(args, 2, count);
+        printFoldedRender("segments", set, state, shadows, pass);
+    }
+
+    private static void printFoldedRender(
+            String fixture,
+            LineSegmentSet set,
+            FoldedFigure.State state,
+            boolean shadows,
+            String pass) throws Exception {
+        FoldedFigure_Drawer drawer = foldedRenderDrawer(set, state, shadows);
         RecordingGraphics2D graphics = new RecordingGraphics2D(800, 600);
         drawer.foldUp_draw(graphics, false, 1, true);
 
@@ -373,14 +402,16 @@ public class OrieditaGeometryOracle {
     }
 
     private static FoldedFigure_Drawer foldedRenderDrawer(
-            String fixture,
-            FoldedFigure.State state) throws Exception {
-        LineSegmentSet set = foldedRenderFixture(fixture);
+            LineSegmentSet set,
+            FoldedFigure.State state,
+            boolean shadows) throws Exception {
         FoldedFigure_01 foldedFigure = new FoldedFigure_01(new NoopBulletinBoard());
         FoldedFigure_Drawer drawer = new FoldedFigure_Drawer(foldedFigure);
         FoldedFigureModel model = new FoldedFigureModel();
         model.setState(state);
+        model.setDisplayShadows(shadows);
         drawer.setData(model);
+        drawer.setStartingFaceId(1);
         drawer.setEstimationOrder(FoldedFigure.EstimationOrder.ORDER_5);
         drawer.folding_estimated(new Camera(), set);
         return drawer;
@@ -391,12 +422,17 @@ public class OrieditaGeometryOracle {
             throw new IllegalArgumentException("unknown folded render fixture: " + fixture);
         }
 
-        LineSegmentSet set = new LineSegmentSet();
-        set.addLine(new Point(-50.0, -50.0), new Point(50.0, -50.0), LineColor.BLACK_0);
-        set.addLine(new Point(50.0, -50.0), new Point(50.0, 50.0), LineColor.BLACK_0);
-        set.addLine(new Point(50.0, 50.0), new Point(-50.0, 50.0), LineColor.BLACK_0);
-        set.addLine(new Point(-50.0, 50.0), new Point(-50.0, -50.0), LineColor.BLACK_0);
+        LineSegmentSet set = renderSquareBoundary(-50.0, -50.0, 50.0, 50.0);
         set.addLine(new Point(-50.0, -50.0), new Point(50.0, 50.0), LineColor.RED_1);
+        return set;
+    }
+
+    private static LineSegmentSet renderSquareBoundary(double minX, double minY, double maxX, double maxY) {
+        LineSegmentSet set = new LineSegmentSet();
+        set.addLine(new Point(minX, minY), new Point(maxX, minY), LineColor.BLACK_0);
+        set.addLine(new Point(maxX, minY), new Point(maxX, maxY), LineColor.BLACK_0);
+        set.addLine(new Point(maxX, maxY), new Point(minX, maxY), LineColor.BLACK_0);
+        set.addLine(new Point(minX, maxY), new Point(minX, minY), LineColor.BLACK_0);
         return set;
     }
 
@@ -6726,6 +6762,15 @@ public class OrieditaGeometryOracle {
         System.err.println("   or: OrieditaGeometryOracle folded-render-paper-front simple-square");
         System.err.println("   or: OrieditaGeometryOracle folded-render-paper-back simple-square");
         System.err.println("   or: OrieditaGeometryOracle folded-render-paper-both simple-square");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-paper-front-shadows simple-square");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-paper-back-shadows simple-square");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-paper-both-shadows simple-square");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-paper-front-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-paper-back-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-paper-both-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-paper-front-shadows-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-paper-back-shadows-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-paper-both-shadows-segments <count> [ax ay bx by color]...");
         System.exit(2);
     }
 }
