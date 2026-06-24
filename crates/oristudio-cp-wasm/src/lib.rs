@@ -290,6 +290,31 @@ pub fn folded_figure_render_snapshot(
 }
 
 #[wasm_bindgen]
+pub fn folded_figure_set_model(handle: u32, model: JsValue) -> Result<JsValue, JsValue> {
+    let model = folded_figure_model_from_js(model)?;
+    with_folded_figure_mut(handle, |folded| {
+        folded.model = model;
+        to_js_value(&folded_figure_snapshot_from_session(
+            &folded.session,
+            folded.model.clone(),
+        ))
+    })
+}
+
+#[wasm_bindgen]
+pub fn folded_figure_duplicate(handle: u32) -> Result<JsValue, JsValue> {
+    let duplicate = with_folded_figure(handle, |folded| {
+        Ok(WasmFoldedFigure {
+            session: folded.session.clone(),
+            model: folded.model.clone(),
+        })
+    })?;
+    let snapshot = folded_figure_snapshot_from_session(&duplicate.session, duplicate.model.clone());
+    let handle = store_folded_figure(duplicate)?;
+    to_js_value(&JsFoldedFigureResult { handle, snapshot })
+}
+
+#[wasm_bindgen]
 pub fn folded_figure_fold_another(handle: u32) -> Result<JsValue, JsValue> {
     with_folded_figure_mut(handle, |folded| {
         fold_another(&mut folded.session).map_err(to_js_folding_error)?;

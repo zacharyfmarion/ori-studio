@@ -275,6 +275,8 @@ function generatedFoldedFigure(
     handle: 7,
     sourceKind: 'generated-from-current-cp',
     sourceCpRevision: 0,
+    startingFaceId: 1,
+    displayStyle: 'Paper5',
     status,
     error: null,
     snapshot: {
@@ -1098,6 +1100,11 @@ describe('CreasePatternPanel', () => {
     };
     const foldOristudioCpDocument = vi.fn(async () => true);
     const foldAnotherOristudioCpFigure = vi.fn(async () => true);
+    const foldOristudioCpFigureToCase = vi.fn(async () => true);
+    const setOristudioCpFoldedFigureDisplayStyle = vi.fn(async () => true);
+    const updateOristudioCpFoldedFigureModel = vi.fn(async () => true);
+    const duplicateOristudioCpFoldedFigure = vi.fn(async () => true);
+    const deleteOristudioCpFoldedFigure = vi.fn(async () => undefined);
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
       documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
@@ -1106,6 +1113,11 @@ describe('CreasePatternPanel', () => {
       oristudioCpActiveFoldedFigureId: figure.id,
       foldOristudioCpDocument,
       foldAnotherOristudioCpFigure,
+      foldOristudioCpFigureToCase,
+      setOristudioCpFoldedFigureDisplayStyle,
+      updateOristudioCpFoldedFigureModel,
+      duplicateOristudioCpFoldedFigure,
+      deleteOristudioCpFoldedFigure,
     });
 
     expect(container.textContent).toContain('Case 1');
@@ -1126,6 +1138,42 @@ describe('CreasePatternPanel', () => {
 
     expect(foldOristudioCpDocument).toHaveBeenCalledOnce();
     expect(foldAnotherOristudioCpFigure).toHaveBeenCalledWith('generated-1');
+
+    act(() => {
+      container
+        .querySelector<HTMLButtonElement>('.viewport-toolbar button[aria-label="Folded models"]')
+        ?.click();
+    });
+    expect(container.textContent).toContain('Folded models');
+    const displaySelect = container.querySelector<HTMLSelectElement>(
+      'select[aria-label="Folded display style"]'
+    );
+    expect(displaySelect).not.toBeNull();
+    act(() => {
+      if (!displaySelect) throw new Error('Display style select did not render');
+      displaySelect.value = 'Transparent3';
+      displaySelect.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    act(() => {
+      container.querySelector<HTMLButtonElement>('button[title="Back"]')?.click();
+    });
+    const duplicateButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Duplicate folded model"]'
+    );
+    expect(duplicateButton).not.toBeNull();
+    expect(duplicateButton?.disabled).toBe(false);
+    act(() => {
+      container.querySelector<HTMLButtonElement>('button[aria-label="Go to folded case"]')?.click();
+    });
+
+    expect(setOristudioCpFoldedFigureDisplayStyle).toHaveBeenCalledWith(
+      'generated-1',
+      'Transparent3'
+    );
+    expect(updateOristudioCpFoldedFigureModel).toHaveBeenCalledWith('generated-1', {
+      state: 'Back1',
+    });
+    expect(foldOristudioCpFigureToCase).toHaveBeenCalledWith('generated-1', 1);
   });
 
   it('applies the active palette color to selected editable CP lines', async () => {

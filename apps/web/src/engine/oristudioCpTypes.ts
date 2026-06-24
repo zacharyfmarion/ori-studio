@@ -310,6 +310,8 @@ export interface OristudioCpFoldedFigureEntry {
   handle: number | null;
   sourceKind: OristudioCpFoldedFigureSourceKind;
   sourceCpRevision: number | null;
+  startingFaceId: number | null;
+  displayStyle: OristudioCpFoldedFigureDisplayStyle;
   status: OristudioCpFoldedFigureStatus;
   snapshot: OristudioCpFoldedFigureSnapshot | null;
   renderSnapshot: OristudioCpFoldedRenderSnapshot | null;

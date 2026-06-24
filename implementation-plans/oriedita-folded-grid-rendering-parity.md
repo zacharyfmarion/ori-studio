@@ -654,7 +654,7 @@ checkpoint and keep the checklist current.
       TypeScript types.
 - [x] Replace generated folded wireframe mini-view with primitive-driven grid
       renderer.
-- [ ] Add display style, front/back state, starting face, case selector, shadow,
+- [x] Add display style, front/back state, starting face, case selector, shadow,
       transparency, duplicate, delete, and active folded-figure UI.
 - [ ] Persist folded figure cameras, model state, primitive snapshots, and
       invalidation metadata in `.osf`.

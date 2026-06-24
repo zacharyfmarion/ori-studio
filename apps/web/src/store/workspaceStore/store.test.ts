@@ -53,6 +53,7 @@ const engineMocks = vi.hoisted(() => ({
 
 const oristudioCpMocks = vi.hoisted(() => ({
   createBlankOristudioCpDocument: vi.fn(),
+  duplicateOristudioCpFoldedFigure: vi.fn(),
   executeOristudioCpCommand: vi.fn(),
   exportOristudioCpDocumentAsCp: vi.fn(),
   exportOristudioCpDocumentAsFold: vi.fn(),
@@ -69,6 +70,7 @@ const oristudioCpMocks = vi.hoisted(() => ({
   replaceOristudioCpLineSegments: vi.fn(),
   restoreOristudioCpDocument: vi.fn(),
   setOristudioCpDocumentSource: vi.fn(),
+  setOristudioCpFoldedFigureModel: vi.fn(),
 }));
 
 const exportMocks = vi.hoisted(() => ({
@@ -96,6 +98,7 @@ vi.mock('./oristudioCpRuntime', async (importOriginal) => {
   return {
     ...actual,
     createBlankOristudioCpDocument: oristudioCpMocks.createBlankOristudioCpDocument,
+    duplicateOristudioCpFoldedFigure: oristudioCpMocks.duplicateOristudioCpFoldedFigure,
     executeOristudioCpCommand: oristudioCpMocks.executeOristudioCpCommand,
     exportOristudioCpDocumentAsCp: oristudioCpMocks.exportOristudioCpDocumentAsCp,
     exportOristudioCpDocumentAsFold: oristudioCpMocks.exportOristudioCpDocumentAsFold,
@@ -113,6 +116,7 @@ vi.mock('./oristudioCpRuntime', async (importOriginal) => {
     replaceOristudioCpLineSegments: oristudioCpMocks.replaceOristudioCpLineSegments,
     restoreOristudioCpDocument: oristudioCpMocks.restoreOristudioCpDocument,
     setOristudioCpDocumentSource: oristudioCpMocks.setOristudioCpDocumentSource,
+    setOristudioCpFoldedFigureModel: oristudioCpMocks.setOristudioCpFoldedFigureModel,
   };
 });
 
@@ -1082,6 +1086,15 @@ function resetStores(snapshot = makeSnapshot()) {
   oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot
     .mockReset()
     .mockResolvedValue(foldedRenderSnapshot());
+  oristudioCpMocks.setOristudioCpFoldedFigureModel
+    .mockReset()
+    .mockImplementation(async (_handle: number, model: OristudioCpFoldedFigureSnapshot['model']) => ({
+      ...foldedFigureSnapshot(),
+      model,
+    }));
+  oristudioCpMocks.duplicateOristudioCpFoldedFigure
+    .mockReset()
+    .mockResolvedValue({ handle: 8, snapshot: foldedFigureSnapshot() });
   oristudioCpMocks.freeOristudioCpFoldedFigure.mockReset().mockResolvedValue(undefined);
   oristudioCpMocks.setOristudioCpDocumentSource.mockReset();
   oristudioCpMocks.loadOristudioCpDocumentFromText
@@ -1741,7 +1754,7 @@ describe('workspace store slices', () => {
     await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
 
     const foldedFigure = useWorkspaceStore.getState().oristudioCpFoldedFigures[0];
-    expect(oristudioCpMocks.foldOristudioCpDocument).toHaveBeenCalledWith(1, 'Order5');
+    expect(oristudioCpMocks.foldOristudioCpDocument).toHaveBeenCalledWith(1, 'Order5', undefined);
     expect(oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot).toHaveBeenCalledWith(
       7,
       'Paper5',
@@ -1755,6 +1768,8 @@ describe('workspace store slices', () => {
       handle: 7,
       sourceKind: 'generated-from-current-cp',
       sourceCpRevision: 0,
+      startingFaceId: 1,
+      displayStyle: 'Paper5',
       status: 'ready',
       renderSnapshot: foldedRenderSnapshot(),
     });
@@ -1776,6 +1791,72 @@ describe('workspace store slices', () => {
     await expect(useWorkspaceStore.getState().foldAnotherOristudioCpFigure()).resolves.toBe(false);
     expect(oristudioCpMocks.foldOristudioCpFigureAnother).not.toHaveBeenCalled();
     expect(useWorkspaceStore.getState().oristudioCpError).toContain('Refold');
+  });
+
+  it('updates folded figure view state and manages duplicates', async () => {
+    resetStores(seedSnapshot());
+    await useWorkspaceStore.getState().loadCreasePatternText('1 0 0 1 0', {
+      filename: 'line.cp',
+      path: '/tmp/line.cp',
+    });
+    await useWorkspaceStore.getState().foldOristudioCpDocument({ startingFaceId: 2 });
+    const foldedFigure = useWorkspaceStore.getState().oristudioCpFoldedFigures[0];
+    if (!foldedFigure) throw new Error('Folded figure was not created');
+    oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot.mockClear();
+
+    await expect(
+      useWorkspaceStore
+        .getState()
+        .setOristudioCpFoldedFigureDisplayStyle(foldedFigure.id, 'Transparent3')
+    ).resolves.toBe(true);
+
+    expect(oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot).toHaveBeenCalledWith(
+      7,
+      'Transparent3',
+      {
+        display_mark: true,
+        selected: true,
+        index: 1,
+      }
+    );
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]).toMatchObject({
+      startingFaceId: 2,
+      displayStyle: 'Transparent3',
+    });
+
+    await expect(
+      useWorkspaceStore
+        .getState()
+        .updateOristudioCpFoldedFigureModel(foldedFigure.id, { state: 'Back1' })
+    ).resolves.toBe(true);
+
+    expect(oristudioCpMocks.setOristudioCpFoldedFigureModel).toHaveBeenCalledWith(
+      7,
+      expect.objectContaining({ state: 'Back1' })
+    );
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]?.snapshot?.model.state).toBe(
+      'Back1'
+    );
+
+    await expect(
+      useWorkspaceStore.getState().duplicateOristudioCpFoldedFigure(foldedFigure.id)
+    ).resolves.toBe(true);
+
+    expect(oristudioCpMocks.duplicateOristudioCpFoldedFigure).toHaveBeenCalledWith(7);
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures).toHaveLength(2);
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[1]).toMatchObject({
+      handle: 8,
+      displayStyle: 'Transparent3',
+      startingFaceId: 2,
+    });
+
+    const duplicateId = useWorkspaceStore.getState().oristudioCpFoldedFigures[1]?.id;
+    if (!duplicateId) throw new Error('Duplicate folded figure was not created');
+    await useWorkspaceStore.getState().deleteOristudioCpFoldedFigure(duplicateId);
+
+    expect(oristudioCpMocks.freeOristudioCpFoldedFigure).toHaveBeenCalledWith(8);
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures).toHaveLength(1);
+    expect(useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId).toBe(foldedFigure.id);
   });
 
   it('releases folded figure handles when clearing the editable CP document', async () => {

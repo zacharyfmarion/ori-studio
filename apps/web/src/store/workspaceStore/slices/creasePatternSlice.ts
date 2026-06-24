@@ -33,6 +33,7 @@ import {
   type EngineClient,
 } from '../engineRuntime';
 import {
+  duplicateOristudioCpFoldedFigure as duplicateRuntimeOristudioCpFoldedFigure,
   exportOristudioCpDocumentAsFold,
   foldOristudioCpDocument as foldRuntimeOristudioCpDocument,
   foldOristudioCpFigureAnother as foldRuntimeOristudioCpFigureAnother,
@@ -41,11 +42,13 @@ import {
   getOristudioCpFoldedFigureRenderSnapshot as getRuntimeOristudioCpFoldedFigureRenderSnapshot,
   loadOristudioCpDocumentFromText,
   releaseOristudioCpDocument,
+  setOristudioCpFoldedFigureModel as setRuntimeOristudioCpFoldedFigureModel,
 } from '../oristudioCpRuntime';
 import type { CreasePatternSlice, WorkspaceSliceCreator } from '../types';
 import type {
+  OristudioCpFoldedFigureDisplayStyle,
   OristudioCpFoldedFigureEntry,
-  OristudioCpFoldedFigureSnapshot,
+  OristudioCpFoldedFigureModel,
 } from '../../../engine/oristudioCpTypes';
 import type { WorkspaceCapabilityId } from '../../../lib/workspaceCapabilities';
 
@@ -112,14 +115,27 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
 
   async function renderSnapshotForFoldedFigure(
     handle: number,
-    snapshot: OristudioCpFoldedFigureSnapshot,
+    displayStyle: OristudioCpFoldedFigureDisplayStyle,
     index: number
   ) {
-    return getRuntimeOristudioCpFoldedFigureRenderSnapshot(handle, snapshot.display_style, {
+    return getRuntimeOristudioCpFoldedFigureRenderSnapshot(handle, displayStyle, {
       display_mark: true,
       selected: true,
       index,
     });
+  }
+
+  function foldedFigureIndex(id: string): number {
+    const index = get().oristudioCpFoldedFigures.findIndex((candidate) => candidate.id === id);
+    return Math.max(index + 1, 1);
+  }
+
+  function nextGeneratedFoldedFigureId(): string {
+    let figureId = '';
+    do {
+      figureId = `generated-${++foldedFigureRequestSequence}`;
+    } while (get().oristudioCpFoldedFigures.some((figure) => figure.id === figureId));
+    return figureId;
   }
 
   function clearFoldArtifactSource() {
@@ -550,8 +566,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         return false;
       }
 
-      const requestId = ++foldedFigureRequestSequence;
-      const figureId = `generated-${requestId}`;
+      const figureId = nextGeneratedFoldedFigureId();
       const sourceCpRevision = get().oristudioCpRevision;
       const figureIndex = get().oristudioCpFoldedFigures.length + 1;
       const loadingEntry: OristudioCpFoldedFigureEntry = {
@@ -560,6 +575,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         handle: null,
         sourceKind: 'generated-from-current-cp',
         sourceCpRevision,
+        startingFaceId: options.startingFaceId ?? 1,
+        displayStyle: 'Paper5',
         status: 'loading',
         snapshot: null,
         renderSnapshot: null,
@@ -575,11 +592,13 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       try {
         const result = await foldRuntimeOristudioCpDocument(
           options.startingFaceId ?? 1,
-          options.order ?? 'Order5'
+          options.order ?? 'Order5',
+          options.model
         );
+        const displayStyle = result.snapshot.display_style;
         const renderSnapshot = await renderSnapshotForFoldedFigure(
           result.handle,
-          result.snapshot,
+          displayStyle,
           figureIndex
         );
         set({
@@ -589,6 +608,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                   ...figure,
                   handle: result.handle,
                   status: 'ready',
+                  displayStyle,
                   snapshot: result.snapshot,
                   renderSnapshot,
                   error: null,
@@ -647,12 +667,10 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
 
       try {
         const snapshot = await foldRuntimeOristudioCpFigureAnother(figure.handle);
-        const figureIndex =
-          get().oristudioCpFoldedFigures.findIndex((candidate) => candidate.id === figure.id) + 1;
         const renderSnapshot = await renderSnapshotForFoldedFigure(
           figure.handle,
-          snapshot,
-          Math.max(figureIndex, 1)
+          figure.displayStyle,
+          foldedFigureIndex(figure.id)
         );
         set({
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
@@ -705,12 +723,10 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
 
       try {
         const result = await foldRuntimeOristudioCpFigureToCase(figure.handle, objective, 'Order5');
-        const figureIndex =
-          get().oristudioCpFoldedFigures.findIndex((candidate) => candidate.id === figure.id) + 1;
         const renderSnapshot = await renderSnapshotForFoldedFigure(
           figure.handle,
-          result.snapshot,
-          Math.max(figureIndex, 1)
+          figure.displayStyle,
+          foldedFigureIndex(figure.id)
         );
         set({
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
@@ -742,6 +758,188 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         });
         return false;
       }
+    },
+
+    setOristudioCpFoldedFigureDisplayStyle: async (id, displayStyle) => {
+      const figure = get().oristudioCpFoldedFigures.find((candidate) => candidate.id === id);
+      if (!figure?.handle) {
+        const message = 'No folded model is ready';
+        set({
+          oristudioCpError: message,
+          error: { code: 'invalid_operation', message },
+        });
+        return false;
+      }
+
+      try {
+        const renderSnapshot = await renderSnapshotForFoldedFigure(
+          figure.handle,
+          displayStyle,
+          foldedFigureIndex(figure.id)
+        );
+        set({
+          oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
+            candidate.id === figure.id ? { ...candidate, displayStyle, renderSnapshot } : candidate
+          ),
+          oristudioCpActiveFoldedFigureId: figure.id,
+          oristudioCpError: null,
+        });
+        return true;
+      } catch (error) {
+        const normalized = engineError(error);
+        set({
+          oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
+            candidate.id === figure.id
+              ? { ...candidate, status: 'error', error: normalized.message }
+              : candidate
+          ),
+          oristudioCpError: normalized.message,
+          error: normalized,
+        });
+        return false;
+      }
+    },
+
+    updateOristudioCpFoldedFigureModel: async (id, update) => {
+      const figure = get().oristudioCpFoldedFigures.find((candidate) => candidate.id === id);
+      if (!figure?.handle || !figure.snapshot) {
+        const message = 'No folded model is ready';
+        set({
+          oristudioCpError: message,
+          error: { code: 'invalid_operation', message },
+        });
+        return false;
+      }
+
+      const model: OristudioCpFoldedFigureModel = {
+        ...figure.snapshot.model,
+        ...update,
+      };
+      try {
+        const snapshot = await setRuntimeOristudioCpFoldedFigureModel(figure.handle, model);
+        const renderSnapshot = await renderSnapshotForFoldedFigure(
+          figure.handle,
+          figure.displayStyle,
+          foldedFigureIndex(figure.id)
+        );
+        set({
+          oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
+            candidate.id === figure.id
+              ? { ...candidate, snapshot, renderSnapshot, error: null }
+              : candidate
+          ),
+          oristudioCpActiveFoldedFigureId: figure.id,
+          oristudioCpError: null,
+        });
+        return true;
+      } catch (error) {
+        const normalized = engineError(error);
+        set({
+          oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
+            candidate.id === figure.id
+              ? { ...candidate, status: 'error', error: normalized.message }
+              : candidate
+          ),
+          oristudioCpError: normalized.message,
+          error: normalized,
+        });
+        return false;
+      }
+    },
+
+    duplicateOristudioCpFoldedFigure: async (id) => {
+      const source =
+        (id
+          ? get().oristudioCpFoldedFigures.find((candidate) => candidate.id === id)
+          : activeGeneratedFoldedFigure()) ?? null;
+      if (!source?.handle) {
+        const message = 'No folded model is ready';
+        set({
+          oristudioCpError: message,
+          error: { code: 'invalid_operation', message },
+        });
+        return false;
+      }
+
+      const figureId = nextGeneratedFoldedFigureId();
+      const figureIndex = get().oristudioCpFoldedFigures.length + 1;
+      const loadingEntry: OristudioCpFoldedFigureEntry = {
+        id: figureId,
+        title: `Folded model ${figureIndex}`,
+        handle: null,
+        sourceKind: source.sourceKind,
+        sourceCpRevision: source.sourceCpRevision,
+        startingFaceId: source.startingFaceId,
+        displayStyle: source.displayStyle,
+        status: 'loading',
+        snapshot: null,
+        renderSnapshot: null,
+        error: null,
+      };
+
+      set({
+        oristudioCpFoldedFigures: [...get().oristudioCpFoldedFigures, loadingEntry],
+        oristudioCpActiveFoldedFigureId: figureId,
+        oristudioCpError: null,
+      });
+
+      try {
+        const result = await duplicateRuntimeOristudioCpFoldedFigure(source.handle);
+        const renderSnapshot = await renderSnapshotForFoldedFigure(
+          result.handle,
+          source.displayStyle,
+          figureIndex
+        );
+        set({
+          oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((figure) =>
+            figure.id === figureId
+              ? {
+                  ...figure,
+                  handle: result.handle,
+                  status: 'ready',
+                  snapshot: result.snapshot,
+                  renderSnapshot,
+                  error: null,
+                }
+              : figure
+          ),
+          oristudioCpActiveFoldedFigureId: figureId,
+          oristudioCpError: null,
+          projectMessage: 'Duplicated folded model',
+        });
+        return true;
+      } catch (error) {
+        const normalized = engineError(error);
+        set({
+          oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((figure) =>
+            figure.id === figureId
+              ? { ...figure, status: 'error', error: normalized.message }
+              : figure
+          ),
+          oristudioCpError: normalized.message,
+          error: normalized,
+        });
+        return false;
+      }
+    },
+
+    deleteOristudioCpFoldedFigure: async (id) => {
+      const figures = get().oristudioCpFoldedFigures;
+      const figure = figures.find((candidate) => candidate.id === id);
+      if (!figure) return;
+
+      if (figure.handle !== null) {
+        await freeOristudioCpFoldedFigure(figure.handle);
+      }
+      const remaining = get().oristudioCpFoldedFigures.filter((candidate) => candidate.id !== id);
+      const activeId =
+        get().oristudioCpActiveFoldedFigureId === id
+          ? remaining[0]?.id ?? null
+          : get().oristudioCpActiveFoldedFigureId;
+      set({
+        oristudioCpFoldedFigures: remaining,
+        oristudioCpActiveFoldedFigureId: activeId,
+      });
     },
 
     clearOristudioCpFoldedFigures: async () => {

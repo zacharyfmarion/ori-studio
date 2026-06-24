@@ -35,7 +35,9 @@ import type {
   OristudioCpDocumentSnapshot,
   OristudioCpDocumentState,
   OristudioCpEstimationOrder,
+  OristudioCpFoldedFigureDisplayStyle,
   OristudioCpFoldedFigureEntry,
+  OristudioCpFoldedFigureModel,
   OristudioCpLineSegment,
   OristudioCpOperationDescriptor,
 } from '../../engine/oristudioCpTypes';
@@ -314,9 +316,20 @@ export interface CreasePatternSliceActions {
   foldOristudioCpDocument: (options?: {
     startingFaceId?: number;
     order?: OristudioCpEstimationOrder;
+    model?: OristudioCpFoldedFigureModel;
   }) => Promise<boolean>;
   foldAnotherOristudioCpFigure: (id?: string) => Promise<boolean>;
   foldOristudioCpFigureToCase: (id: string, objective: number) => Promise<boolean>;
+  setOristudioCpFoldedFigureDisplayStyle: (
+    id: string,
+    displayStyle: OristudioCpFoldedFigureDisplayStyle
+  ) => Promise<boolean>;
+  updateOristudioCpFoldedFigureModel: (
+    id: string,
+    update: Partial<OristudioCpFoldedFigureModel>
+  ) => Promise<boolean>;
+  duplicateOristudioCpFoldedFigure: (id?: string) => Promise<boolean>;
+  deleteOristudioCpFoldedFigure: (id: string) => Promise<void>;
   setOristudioCpActiveFoldedFigure: (id: string | null) => void;
   clearOristudioCpFoldedFigures: () => Promise<void>;
   clearOristudioCpSelection: () => void;

@@ -6,10 +6,12 @@ import init, {
   execute_cp_command,
   export_cp,
   export_fold,
+  folded_figure_duplicate,
   folded_figure_fold,
   folded_figure_fold_another,
   folded_figure_fold_to_case,
   folded_figure_render_snapshot,
+  folded_figure_set_model,
   folded_figure_snapshot,
   free_folded_figure,
   free_document,
@@ -149,6 +151,15 @@ const api = {
           options ?? null
         ) as OristudioCpFoldedRenderSnapshot | null
     );
+  },
+  async setFoldedFigureModel(
+    handle: number,
+    model: OristudioCpFoldedFigureModel
+  ): Promise<OristudioCpFoldedFigureSnapshot> {
+    return call(() => folded_figure_set_model(handle, model) as OristudioCpFoldedFigureSnapshot);
+  },
+  async duplicateFoldedFigure(handle: number): Promise<OristudioCpFoldedFigureResult> {
+    return call(() => folded_figure_duplicate(handle) as OristudioCpFoldedFigureResult);
   },
   async foldFigureAnother(handle: number): Promise<OristudioCpFoldedFigureSnapshot> {
     return call(() => folded_figure_fold_another(handle) as OristudioCpFoldedFigureSnapshot);

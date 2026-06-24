@@ -96,6 +96,18 @@ export function export_fold(handle) {
 }
 
 /**
+ * @param {number} handle
+ * @returns {any}
+ */
+export function folded_figure_duplicate(handle) {
+    const ret = wasm.folded_figure_duplicate(handle);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
  * @param {number} document_handle
  * @param {number} starting_face_id
  * @param {any} order
@@ -144,6 +156,19 @@ export function folded_figure_fold_to_case(handle, objective, initial_order) {
  */
 export function folded_figure_render_snapshot(handle, display_style, options) {
     const ret = wasm.folded_figure_render_snapshot(handle, display_style, options);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {number} handle
+ * @param {any} model
+ * @returns {any}
+ */
+export function folded_figure_set_model(handle, model) {
+    const ret = wasm.folded_figure_set_model(handle, model);
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }

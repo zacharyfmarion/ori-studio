@@ -98,6 +98,42 @@ fn folded_figure_session_exports_fold_and_followup_commands() {
             .any(|primitive| primitive["kind"] == "fill_polygon")
     );
 
+    let updated_model = oristudio_cp::folding::FoldedFigureModel {
+        state: oristudio_cp::folding::FoldedFigureState::Back1,
+        display_shadows: true,
+        transparent_transparency: 64,
+        transparency_color: true,
+        ..oristudio_cp::folding::FoldedFigureModel::default()
+    };
+    let updated = oristudio_cp_wasm::folded_figure_set_model(
+        folded_handle,
+        serde_wasm_bindgen::to_value(&updated_model).expect("model serializes"),
+    )
+    .expect("folded figure model should update");
+    let updated: serde_json::Value =
+        serde_wasm_bindgen::from_value(updated).expect("updated snapshot deserializes");
+    assert_eq!(updated["model"]["state"], "Back1");
+    assert_eq!(updated["model"]["display_shadows"], true);
+    assert_eq!(updated["model"]["transparent_transparency"], 64);
+
+    let back_render = oristudio_cp_wasm::folded_figure_render_snapshot(
+        folded_handle,
+        serde_wasm_bindgen::to_value("Paper5").expect("display style serializes"),
+        JsValue::UNDEFINED,
+    )
+    .expect("updated folded render snapshot should serialize");
+    let back_render: serde_json::Value =
+        serde_wasm_bindgen::from_value(back_render).expect("back render snapshot deserializes");
+    assert_eq!(back_render["pass"], "paper-back-full");
+
+    let duplicate = oristudio_cp_wasm::folded_figure_duplicate(folded_handle)
+        .expect("folded figure should duplicate");
+    let duplicate: serde_json::Value =
+        serde_wasm_bindgen::from_value(duplicate).expect("duplicate deserializes");
+    let duplicate_handle = duplicate["handle"].as_u64().expect("duplicate handle") as u32;
+    assert_ne!(duplicate_handle, folded_handle);
+    assert_eq!(duplicate["snapshot"]["model"]["state"], "Back1");
+
     let specific = oristudio_cp_wasm::folded_figure_fold_to_case(
         folded_handle,
         3,
@@ -116,6 +152,8 @@ fn folded_figure_session_exports_fold_and_followup_commands() {
     assert_eq!(another["display_style"], "Paper5");
 
     oristudio_cp_wasm::free_folded_figure(folded_handle).expect("folded handle should free");
+    oristudio_cp_wasm::free_folded_figure(duplicate_handle)
+        .expect("duplicate folded handle should free");
     oristudio_cp_wasm::free_document(handle).expect("document handle should free");
 }
 

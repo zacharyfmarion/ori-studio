@@ -12,6 +12,7 @@ import { TransformComponent, TransformWrapper, type ReactZoomPanPinchRef } from 
 import {
   ChevronDown,
   ChevronRight,
+  Copy,
   Eye,
   EyeOff,
   FlipHorizontal,
@@ -19,11 +20,13 @@ import {
   FlipVertical,
   GitBranch,
   Grid2X2,
+  ListChecks,
   Magnet,
   Palette,
   RotateCcw,
   RotateCw,
   ScanLine,
+  Trash2,
 } from 'lucide-react';
 import {
   registerCpActionShortcutExecutor,
@@ -43,7 +46,10 @@ import type {
   OristudioCpCustomLineType,
   OristudioCpDiagnosticEntry,
   OristudioCpDocumentSnapshot,
+  OristudioCpFoldedFigureDisplayStyle,
   OristudioCpFoldedFigureEntry,
+  OristudioCpFoldedFigureModel,
+  OristudioCpFoldedFigureState,
   OristudioCpFoldedRenderGeometry,
   OristudioCpFoldedRenderPaint,
   OristudioCpFoldedRenderPathCommand,
@@ -187,6 +193,29 @@ function formatZoom(scale: number): string {
 }
 
 const EMPTY_DIAGNOSTIC_ENTRIES: OristudioCpDiagnosticEntry[] = [];
+
+const FOLDED_DISPLAY_STYLE_OPTIONS: Array<{
+  value: OristudioCpFoldedFigureDisplayStyle;
+  label: string;
+}> = [
+  { value: 'Paper5', label: 'Paper' },
+  { value: 'Transparent3', label: 'Transparent' },
+  { value: 'Wire2', label: 'Wire' },
+  { value: 'Development1', label: 'Dev 1' },
+  { value: 'Development4', label: 'Dev 4' },
+  { value: 'None0', label: 'None' },
+];
+
+const FOLDED_STATE_OPTIONS: Array<{
+  value: OristudioCpFoldedFigureState;
+  label: string;
+  title: string;
+}> = [
+  { value: 'Front0', label: 'F', title: 'Front' },
+  { value: 'Back1', label: 'B', title: 'Back' },
+  { value: 'Both2', label: 'Both', title: 'Both' },
+  { value: 'Transparent3', label: 'T', title: 'Transparent state' },
+];
 
 interface CpDiagnosticHudStatus {
   label: string;
@@ -855,6 +884,227 @@ function CpSymmetryMenuButton({
   );
 }
 
+function FoldedFigureMenuButton({
+  figures,
+  activeFigure,
+  startingFaceId,
+  caseDraft,
+  onStartingFaceIdChange,
+  onCaseDraftChange,
+  onSelectFigure,
+  onDisplayStyle,
+  onModelUpdate,
+  onFoldToCase,
+  onDuplicate,
+  onDelete,
+}: {
+  figures: OristudioCpFoldedFigureEntry[];
+  activeFigure: OristudioCpFoldedFigureEntry | null;
+  startingFaceId: number;
+  caseDraft: string;
+  onStartingFaceIdChange: (startingFaceId: number) => void;
+  onCaseDraftChange: (draft: string) => void;
+  onSelectFigure: (id: string) => void;
+  onDisplayStyle: (displayStyle: OristudioCpFoldedFigureDisplayStyle) => void;
+  onModelUpdate: (update: Partial<OristudioCpFoldedFigureModel>) => void;
+  onFoldToCase: () => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const model = activeFigure?.snapshot?.model ?? null;
+  const activeReady =
+    activeFigure?.status === 'ready' && activeFigure.handle !== null && activeFigure.snapshot !== null;
+  const currentCase = Math.max(activeFigure?.snapshot?.discovered_fold_cases ?? 1, 1);
+  const canJumpCase = activeReady && Number.isFinite(Number(caseDraft));
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onPointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (menuRef.current?.contains(target)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, [open]);
+
+  const changeStartingFace = (value: string) => {
+    const parsed = Number(value);
+    onStartingFaceIdChange(Number.isFinite(parsed) ? Math.max(1, Math.round(parsed)) : 1);
+  };
+
+  return (
+    <div className="viewport-toolbar__menu-anchor folded-figure-menu" ref={menuRef}>
+      <IconButton
+        size="sm"
+        variant="toolbar"
+        title="Folded models"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        isActive={open}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <ListChecks size={14} />
+      </IconButton>
+      {open && (
+        <div
+          className="viewport-toolbar__dropdown folded-figure-menu__panel"
+          role="menu"
+          aria-label="Folded model controls"
+        >
+          <div className="folded-figure-menu__header">
+            <span>Folded models</span>
+            <span>{activeFigure ? activeFigure.title : 'None'}</span>
+          </div>
+          {figures.length > 0 && (
+            <div className="folded-figure-menu__list">
+              {figures.map((figure) => (
+                <button
+                  key={figure.id}
+                  type="button"
+                  className="folded-figure-menu__figure"
+                  data-active={figure.id === activeFigure?.id ? true : undefined}
+                  data-status={figure.status}
+                  role="menuitemradio"
+                  aria-checked={figure.id === activeFigure?.id}
+                  onClick={() => onSelectFigure(figure.id)}
+                >
+                  <span>{figure.title}</span>
+                  <small>{figure.status === 'ready' ? `Case ${figure.snapshot?.discovered_fold_cases ?? 0}` : figure.status}</small>
+                </button>
+              ))}
+            </div>
+          )}
+          <label className="folded-figure-menu__field">
+            <span>Start</span>
+            <input
+              aria-label="Starting face"
+              type="number"
+              min={1}
+              step={1}
+              value={startingFaceId}
+              onChange={(event) => changeStartingFace(event.currentTarget.value)}
+            />
+          </label>
+          <label className="folded-figure-menu__field">
+            <span>Display</span>
+            <select
+              aria-label="Folded display style"
+              value={activeFigure?.displayStyle ?? 'Paper5'}
+              disabled={!activeReady}
+              onChange={(event) =>
+                onDisplayStyle(event.currentTarget.value as OristudioCpFoldedFigureDisplayStyle)
+              }
+            >
+              {FOLDED_DISPLAY_STYLE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="folded-figure-menu__field folded-figure-menu__field--segmented">
+            <span>Side</span>
+            <SegmentedControl
+              aria-label="Folded model side"
+              options={FOLDED_STATE_OPTIONS}
+              value={model?.state ?? 'Front0'}
+              onChange={(state) => onModelUpdate({ state })}
+            />
+          </div>
+          <label className="folded-figure-menu__field">
+            <span>Case</span>
+            <div className="folded-figure-menu__case">
+              <input
+                aria-label="Fold case"
+                type="number"
+                min={1}
+                step={1}
+                value={caseDraft}
+                disabled={!activeReady}
+                onChange={(event) => onCaseDraftChange(event.currentTarget.value)}
+                onBlur={() => {
+                  if (canJumpCase) onFoldToCase();
+                }}
+              />
+              <IconButton
+                size="sm"
+                variant="toolbar"
+                title="Go to folded case"
+                disabled={!canJumpCase}
+                onClick={onFoldToCase}
+              >
+                <ChevronRight size={14} />
+              </IconButton>
+            </div>
+          </label>
+          <div className="folded-figure-menu__hint">Current {currentCase}</div>
+          <div className="folded-figure-menu__toggle-row">
+            <span>Shadow</span>
+            <Toggle
+              checked={model?.display_shadows ?? false}
+              disabled={!activeReady}
+              onChange={(display_shadows) => onModelUpdate({ display_shadows })}
+              aria-label="Show folded model shadow"
+            />
+          </div>
+          <div className="folded-figure-menu__toggle-row">
+            <span>Color alpha</span>
+            <Toggle
+              checked={model?.transparency_color ?? false}
+              disabled={!activeReady}
+              onChange={(transparency_color) => onModelUpdate({ transparency_color })}
+              aria-label="Use colored folded transparency"
+            />
+          </div>
+          <label className="folded-figure-menu__field folded-figure-menu__field--range">
+            <span>Alpha</span>
+            <input
+              aria-label="Folded transparency"
+              type="range"
+              min={0}
+              max={255}
+              step={1}
+              value={model?.transparent_transparency ?? 16}
+              disabled={!activeReady}
+              onChange={(event) =>
+                onModelUpdate({
+                  transparent_transparency: Math.max(
+                    0,
+                    Math.min(255, Math.round(Number(event.currentTarget.value)))
+                  ),
+                })
+              }
+            />
+          </label>
+          <div className="folded-figure-menu__actions">
+            <IconButton
+              size="sm"
+              variant="toolbar"
+              title="Duplicate folded model"
+              disabled={!activeFigure?.handle}
+              onClick={() => onDuplicate()}
+            >
+              <Copy size={14} />
+            </IconButton>
+            <IconButton
+              size="sm"
+              variant="toolbar"
+              title="Delete folded model"
+              disabled={!activeFigure}
+              onClick={() => onDelete()}
+            >
+              <Trash2 size={14} />
+            </IconButton>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function activeActionInputMode(
   action: OristudioCpActionDefinition | undefined,
   command: OristudioCpCommandDefinition | undefined
@@ -1204,6 +1454,8 @@ export function CreasePatternPanel() {
   const [snapTarget, setSnapTarget] = useState<CpSnapTarget | null>(null);
   const [cpToolState, setCpToolState] = useState(IDLE_ORISTUDIO_CP_TOOL_STATE);
   const [activeCpLineColor, setActiveCpLineColor] = useState<OristudioCpLineColor>('Red1');
+  const [foldStartingFaceId, setFoldStartingFaceId] = useState(1);
+  const [foldCaseDraft, setFoldCaseDraft] = useState('1');
   const [cpToolOptions, setCpToolOptions] = useState<OristudioCpToolOptions>(
     DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS
   );
@@ -1293,6 +1545,24 @@ export function CreasePatternPanel() {
   const foldAnotherOristudioCpFigure = useWorkspaceStore(
     (state) => state.foldAnotherOristudioCpFigure
   );
+  const foldOristudioCpFigureToCase = useWorkspaceStore(
+    (state) => state.foldOristudioCpFigureToCase
+  );
+  const setOristudioCpActiveFoldedFigure = useWorkspaceStore(
+    (state) => state.setOristudioCpActiveFoldedFigure
+  );
+  const setOristudioCpFoldedFigureDisplayStyle = useWorkspaceStore(
+    (state) => state.setOristudioCpFoldedFigureDisplayStyle
+  );
+  const updateOristudioCpFoldedFigureModel = useWorkspaceStore(
+    (state) => state.updateOristudioCpFoldedFigureModel
+  );
+  const duplicateOristudioCpFoldedFigure = useWorkspaceStore(
+    (state) => state.duplicateOristudioCpFoldedFigure
+  );
+  const deleteOristudioCpFoldedFigure = useWorkspaceStore(
+    (state) => state.deleteOristudioCpFoldedFigure
+  );
   const clearOristudioCpSelection = useWorkspaceStore((state) => state.clearOristudioCpSelection);
   const executeOristudioCpCommand = useWorkspaceStore(
     (state) => state.executeOristudioCpCommand
@@ -1358,13 +1628,50 @@ export function CreasePatternPanel() {
     activeFoldedFigure?.status === 'ready' &&
     activeFoldedFigure.handle !== null &&
     activeFoldedFigure.snapshot?.find_another_overlap_valid === true;
+
+  useEffect(() => {
+    setFoldCaseDraft(String(Math.max(activeFoldedFigure?.snapshot?.discovered_fold_cases ?? 1, 1)));
+  }, [activeFoldedFigure?.id, activeFoldedFigure?.snapshot?.discovered_fold_cases]);
+
   const handleFoldModel = useCallback(() => {
-    void foldOristudioCpDocument();
-  }, [foldOristudioCpDocument]);
+    void foldOristudioCpDocument({ startingFaceId: foldStartingFaceId });
+  }, [foldOristudioCpDocument, foldStartingFaceId]);
   const handleFoldAnother = useCallback(() => {
     if (!activeFoldedFigure) return;
     void foldAnotherOristudioCpFigure(activeFoldedFigure.id);
   }, [activeFoldedFigure, foldAnotherOristudioCpFigure]);
+  const handleFoldToCase = useCallback(() => {
+    if (!activeFoldedFigure || activeFoldedFigure.status !== 'ready') return;
+    const objective = Math.max(1, Math.round(Number(foldCaseDraft)));
+    if (!Number.isFinite(objective)) {
+      setFoldCaseDraft(String(Math.max(activeFoldedFigure.snapshot?.discovered_fold_cases ?? 1, 1)));
+      return;
+    }
+    setFoldCaseDraft(String(objective));
+    void foldOristudioCpFigureToCase(activeFoldedFigure.id, objective);
+  }, [activeFoldedFigure, foldCaseDraft, foldOristudioCpFigureToCase]);
+  const handleFoldedDisplayStyle = useCallback(
+    (displayStyle: OristudioCpFoldedFigureDisplayStyle) => {
+      if (!activeFoldedFigure) return;
+      void setOristudioCpFoldedFigureDisplayStyle(activeFoldedFigure.id, displayStyle);
+    },
+    [activeFoldedFigure, setOristudioCpFoldedFigureDisplayStyle]
+  );
+  const handleFoldedModelUpdate = useCallback(
+    (update: Partial<OristudioCpFoldedFigureModel>) => {
+      if (!activeFoldedFigure) return;
+      void updateOristudioCpFoldedFigureModel(activeFoldedFigure.id, update);
+    },
+    [activeFoldedFigure, updateOristudioCpFoldedFigureModel]
+  );
+  const handleDuplicateFoldedFigure = useCallback(() => {
+    if (!activeFoldedFigure) return;
+    void duplicateOristudioCpFoldedFigure(activeFoldedFigure.id);
+  }, [activeFoldedFigure, duplicateOristudioCpFoldedFigure]);
+  const handleDeleteFoldedFigure = useCallback(() => {
+    if (!activeFoldedFigure) return;
+    void deleteOristudioCpFoldedFigure(activeFoldedFigure.id);
+  }, [activeFoldedFigure, deleteOristudioCpFoldedFigure]);
   const editableCpGridSize = editableCp
     ? normalizeOrieditaGridSize(editableCp.crease_pattern.grid.grid_size)
     : 8;
@@ -3857,6 +4164,20 @@ export function CreasePatternPanel() {
                     >
                       <ChevronRight size={14} />
                     </IconButton>
+                    <FoldedFigureMenuButton
+                      figures={oristudioCpFoldedFigures}
+                      activeFigure={activeFoldedFigure}
+                      startingFaceId={foldStartingFaceId}
+                      caseDraft={foldCaseDraft}
+                      onStartingFaceIdChange={setFoldStartingFaceId}
+                      onCaseDraftChange={setFoldCaseDraft}
+                      onSelectFigure={setOristudioCpActiveFoldedFigure}
+                      onDisplayStyle={handleFoldedDisplayStyle}
+                      onModelUpdate={handleFoldedModelUpdate}
+                      onFoldToCase={handleFoldToCase}
+                      onDuplicate={handleDuplicateFoldedFigure}
+                      onDelete={handleDeleteFoldedFigure}
+                    />
                     <span
                       className="viewport-toolbar__meta cp-folded-model-status"
                       data-folded-model-status={activeFoldedFigure?.status ?? 'none'}

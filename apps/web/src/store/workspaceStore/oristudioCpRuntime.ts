@@ -253,6 +253,21 @@ export async function getOristudioCpFoldedFigureRenderSnapshot(
   return api.foldedFigureRenderSnapshot(foldedFigureHandle, displayStyle, options);
 }
 
+export async function setOristudioCpFoldedFigureModel(
+  foldedFigureHandle: number,
+  model: OristudioCpFoldedFigureModel
+): Promise<OristudioCpFoldedFigureSnapshot> {
+  const api = await getOristudioCpClient();
+  return api.setFoldedFigureModel(foldedFigureHandle, model);
+}
+
+export async function duplicateOristudioCpFoldedFigure(
+  foldedFigureHandle: number
+): Promise<OristudioCpFoldedFigureResult> {
+  const api = await getOristudioCpClient();
+  return api.duplicateFoldedFigure(foldedFigureHandle);
+}
+
 export async function foldOristudioCpFigureAnother(
   foldedFigureHandle: number
 ): Promise<OristudioCpFoldedFigureSnapshot> {
