@@ -670,8 +670,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       oristudioCpSelection: nativeDocument.viewState.selection ?? emptyOristudioCpSelection(),
       oristudioCpActiveDiagnosticId: null,
       oristudioCpRevision: 0,
-      oristudioCpFoldedFigures: [],
-      oristudioCpActiveFoldedFigureId: null,
+      oristudioCpFoldedFigures: nativeDocument.viewState.foldedFigures ?? [],
+      oristudioCpActiveFoldedFigureId: nativeDocument.viewState.activeFoldedFigureId ?? null,
       oristudioCpSymmetry: nativeDocument.viewState.symmetry ?? defaultOristudioCpSymmetry(),
       toolMode: 'select',
       creaseColorMode: nativeDocument.viewState.creaseColorMode ?? DEFAULT_CREASE_COLOR_MODE,
@@ -729,8 +729,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       oristudioCpSelection: nativeDocument.viewState.selection ?? emptyOristudioCpSelection(),
       oristudioCpActiveDiagnosticId: null,
       oristudioCpRevision: 0,
-      oristudioCpFoldedFigures: [],
-      oristudioCpActiveFoldedFigureId: null,
+      oristudioCpFoldedFigures: nativeDocument.viewState.foldedFigures ?? [],
+      oristudioCpActiveFoldedFigureId: nativeDocument.viewState.activeFoldedFigureId ?? null,
       oristudioCpSymmetry: nativeDocument.viewState.symmetry ?? defaultOristudioCpSymmetry(),
     });
   };
@@ -845,6 +845,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       selection: get().oristudioCpSelection,
       viewport: get().oristudioCpViewport,
       symmetry: get().oristudioCpSymmetry,
+      foldedFigures: get().oristudioCpFoldedFigures,
+      activeFoldedFigureId: get().oristudioCpActiveFoldedFigureId,
       lineage: get().oristudioCpLineage ?? importedCpLineage(),
       appVersion: APP_VERSION,
     };

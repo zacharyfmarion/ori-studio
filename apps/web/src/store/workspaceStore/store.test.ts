@@ -1498,6 +1498,22 @@ describe('workspace store slices', () => {
         selection: { ...emptyOristudioCpSelection(), lines: [1] },
         viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
         symmetry: defaultOristudioCpSymmetry(),
+        foldedFigures: [
+          {
+            id: 'generated-1',
+            title: 'Folded model 1',
+            handle: 99,
+            sourceKind: 'generated-from-current-cp',
+            sourceCpRevision: 0,
+            startingFaceId: 1,
+            displayStyle: 'Paper5',
+            status: 'ready',
+            snapshot: foldedFigureSnapshot(),
+            renderSnapshot: foldedRenderSnapshot(),
+            error: null,
+          },
+        ],
+        activeFoldedFigureId: 'generated-1',
         lineage: importedCpLineage(),
         appVersion: '0.1.1',
         now: new Date('2026-05-26T12:00:00.000Z'),
@@ -1527,6 +1543,15 @@ describe('workspace store slices', () => {
       dirty: false,
     });
     expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual([1]);
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures).toMatchObject([
+      {
+        id: 'generated-1',
+        handle: null,
+        displayStyle: 'Paper5',
+        renderSnapshot: foldedRenderSnapshot(),
+      },
+    ]);
+    expect(useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId).toBe('generated-1');
     expect(useWorkspaceStore.getState().foldArtifacts?.simulation_model).not.toBeNull();
   });
 
@@ -1589,7 +1614,25 @@ describe('workspace store slices', () => {
     expect(api.flatFoldArtifacts).toHaveBeenCalledOnce();
     expect(activatePanel).toHaveBeenCalledWith('crease-pattern');
 
-    useWorkspaceStore.setState({ dirty: true });
+    useWorkspaceStore.setState({
+      dirty: true,
+      oristudioCpFoldedFigures: [
+        {
+          id: 'generated-save',
+          title: 'Folded model saved',
+          handle: 7,
+          sourceKind: 'generated-from-current-cp',
+          sourceCpRevision: 0,
+          startingFaceId: 1,
+          displayStyle: 'Transparent3',
+          status: 'ready',
+          snapshot: foldedFigureSnapshot(),
+          renderSnapshot: foldedRenderSnapshot(),
+          error: null,
+        },
+      ],
+      oristudioCpActiveFoldedFigureId: 'generated-save',
+    });
     await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
     expect(oristudioCpMocks.exportOristudioCpDocumentAsCp).not.toHaveBeenCalled();
     expect(fileService.saveTextFile).toHaveBeenLastCalledWith(
@@ -1609,6 +1652,17 @@ describe('workspace store slices', () => {
       creasePattern: {
         engine: 'oristudio-cp',
         foldProjection: expect.objectContaining({ frame_classes: ['creasePattern'] }),
+      },
+      viewState: {
+        foldedFigures: [
+          expect.objectContaining({
+            id: 'generated-save',
+            handle: null,
+            displayStyle: 'Transparent3',
+            renderSnapshot: foldedRenderSnapshot(),
+          }),
+        ],
+        activeFoldedFigureId: 'generated-save',
       },
     });
     expect(oristudioCpMocks.setOristudioCpDocumentSource).toHaveBeenCalledWith({

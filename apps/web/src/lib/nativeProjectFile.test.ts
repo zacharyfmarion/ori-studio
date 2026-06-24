@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { OristudioCpDocumentSnapshot } from '../engine/oristudioCpTypes';
+import type {
+  OristudioCpDocumentSnapshot,
+  OristudioCpFoldedFigureEntry,
+} from '../engine/oristudioCpTypes';
 import {
   activeNativeDocument,
   createNativeCreasePatternProjectFile,
@@ -62,6 +65,47 @@ function cpDocument(): OristudioCpDocumentSnapshot {
   };
 }
 
+function foldedFigure(): OristudioCpFoldedFigureEntry {
+  return {
+    id: 'generated-1',
+    title: 'Folded model 1',
+    handle: 12,
+    sourceKind: 'generated-from-current-cp',
+    sourceCpRevision: 2,
+    startingFaceId: 3,
+    displayStyle: 'Transparent3',
+    status: 'ready',
+    snapshot: {
+      model: {
+        front_color: { red: 255, green: 255, blue: 50 },
+        back_color: { red: 233, green: 233, blue: 233 },
+        line_color: { red: 0, green: 0, blue: 0 },
+        scale: 1,
+        rotation: 0,
+        anti_alias: true,
+        display_shadows: true,
+        state: 'Back1',
+        folded_cases: 1,
+        transparent_transparency: 64,
+        transparency_color: true,
+      },
+      estimation_step: 'Step5',
+      display_style: 'Paper5',
+      discovered_fold_cases: 2,
+      find_another_overlap_valid: false,
+      text_result: 'Number of found solutions = 2',
+      wireframe: null,
+    },
+    renderSnapshot: {
+      schema_version: 1,
+      fixture: null,
+      pass: 'transparent-color-back-full',
+      primitives: [],
+    },
+    error: null,
+  };
+}
+
 describe('native project file', () => {
   it('serializes and parses tree documents as an Ori Studio project', () => {
     const file = createNativeTreeProjectFile({
@@ -89,6 +133,7 @@ describe('native project file', () => {
   it('preserves editable CP snapshots, fold projection, and view state', () => {
     const selection = { ...emptyOristudioCpSelection(), lines: [1] };
     const documentSnapshot = cpDocument();
+    const persistedFoldedFigure = foldedFigure();
     documentSnapshot.crease_pattern.line_segments[0].color = 'Purple8';
     const file = createNativeCreasePatternProjectFile({
       title: 'Square CP',
@@ -144,6 +189,8 @@ describe('native project file', () => {
       selection,
       viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
       symmetry: defaultOristudioCpSymmetry(),
+      foldedFigures: [persistedFoldedFigure],
+      activeFoldedFigureId: persistedFoldedFigure.id,
       lineage: importedCpLineage(),
       appVersion: '0.1.1',
       now,
@@ -165,6 +212,15 @@ describe('native project file', () => {
     expect(document.viewState).toMatchObject({
       creaseColorMode: 'agrh',
       selection: { lines: [1] },
+      foldedFigures: [
+        expect.objectContaining({
+          id: 'generated-1',
+          handle: null,
+          displayStyle: 'Transparent3',
+          renderSnapshot: expect.objectContaining({ pass: 'transparent-color-back-full' }),
+        }),
+      ],
+      activeFoldedFigureId: 'generated-1',
     });
   });
 
@@ -184,6 +240,8 @@ describe('native project file', () => {
         selection: emptyOristudioCpSelection(),
         viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
         symmetry: defaultOristudioCpSymmetry(),
+        foldedFigures: [],
+        activeFoldedFigureId: null,
         lineage: importedCpLineage(),
       },
       appVersion: '0.1.1',
@@ -218,6 +276,8 @@ describe('native project file', () => {
         mirrorSelection: true,
         preset: 'book',
       },
+      foldedFigures: [],
+      activeFoldedFigureId: null,
       lineage: importedCpLineage(),
       appVersion: '0.1.1',
       now,
@@ -248,6 +308,8 @@ describe('native project file', () => {
       selection: emptyOristudioCpSelection(),
       viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
       symmetry: defaultOristudioCpSymmetry(),
+      foldedFigures: [],
+      activeFoldedFigureId: null,
       lineage: importedCpLineage(),
       appVersion: '0.1.1',
       now,

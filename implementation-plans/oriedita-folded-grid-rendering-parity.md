@@ -656,7 +656,7 @@ checkpoint and keep the checklist current.
       renderer.
 - [x] Add display style, front/back state, starting face, case selector, shadow,
       transparency, duplicate, delete, and active folded-figure UI.
-- [ ] Persist folded figure cameras, model state, primitive snapshots, and
+- [x] Persist folded figure cameras, model state, primitive snapshots, and
       invalidation metadata in `.osf`.
 - [ ] Add Playwright screenshot coverage for the grid-area folded figure.
 - [ ] Run folded-document corpus validation and document unsupported cases.

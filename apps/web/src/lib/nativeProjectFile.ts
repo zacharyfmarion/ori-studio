@@ -1,5 +1,10 @@
 import type { FoldArtifacts, FoldDocument } from '../engine/types';
-import type { OristudioCpDocumentSnapshot } from '../engine/oristudioCpTypes';
+import type {
+  OristudioCpDocumentSnapshot,
+  OristudioCpFoldedFigureDisplayStyle,
+  OristudioCpFoldedFigureEntry,
+  OristudioCpFoldedFigureStatus,
+} from '../engine/oristudioCpTypes';
 import type { ImportedCreasePatternSource } from './creasePatternImport';
 import type { CreaseColorMode, DocumentMode } from './sampleProject';
 import type { OristudioCpSelection, OristudioCpViewportOptions } from './creasePatternViewport';
@@ -64,6 +69,8 @@ export interface NativeCreasePatternDocumentV1 extends NativeProjectBaseDocument
     selection: OristudioCpSelection;
     viewport: OristudioCpViewportOptions;
     symmetry: OristudioCpSymmetryState;
+    foldedFigures: OristudioCpFoldedFigureEntry[];
+    activeFoldedFigureId: string | null;
   };
 }
 
@@ -120,6 +127,8 @@ export interface NativeCreasePatternProjectInput {
   selection: OristudioCpSelection;
   viewport: OristudioCpViewportOptions;
   symmetry: OristudioCpSymmetryState;
+  foldedFigures: OristudioCpFoldedFigureEntry[];
+  activeFoldedFigureId: string | null;
   lineage: OristudioCpLineage;
   appVersion: string;
   now?: Date;
@@ -272,9 +281,99 @@ function createNativeCreasePatternDocument(
       selection: input.selection,
       viewport: input.viewport,
       symmetry: normalizeOristudioCpSymmetry(input.symmetry),
+      foldedFigures: nativeFoldedFigures(input.foldedFigures),
+      activeFoldedFigureId: activeFoldedFigureId(
+        input.foldedFigures,
+        input.activeFoldedFigureId
+      ),
     },
     extensions: {},
   };
+}
+
+function nativeFoldedFigures(entries: OristudioCpFoldedFigureEntry[]): OristudioCpFoldedFigureEntry[] {
+  return entries.map((entry) => ({
+    ...entry,
+    handle: null,
+    status: entry.status === 'loading' ? 'stale' : entry.status,
+  }));
+}
+
+function activeFoldedFigureId(
+  entries: OristudioCpFoldedFigureEntry[],
+  activeId: string | null
+): string | null {
+  return activeId && entries.some((entry) => entry.id === activeId) ? activeId : null;
+}
+
+function validateFoldedFigures(value: unknown): OristudioCpFoldedFigureEntry[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((entry, index) => validateFoldedFigure(entry, index));
+}
+
+function validateFoldedFigure(value: unknown, index: number): OristudioCpFoldedFigureEntry {
+  const entry = recordField(value, `document.viewState.foldedFigures[${index}]`);
+  const snapshot = isRecord(entry.snapshot)
+    ? (entry.snapshot as unknown as OristudioCpFoldedFigureEntry['snapshot'])
+    : null;
+  return {
+    id: stringField(entry.id, `document.viewState.foldedFigures[${index}].id`),
+    title: stringField(entry.title, `document.viewState.foldedFigures[${index}].title`),
+    handle: null,
+    sourceKind: foldedFigureSourceKind(entry.sourceKind),
+    sourceCpRevision: numberField(entry.sourceCpRevision),
+    startingFaceId: numberField(entry.startingFaceId),
+    displayStyle:
+      foldedFigureDisplayStyle(entry.displayStyle) ??
+      foldedFigureDisplayStyle(snapshot?.display_style) ??
+      'Paper5',
+    status: foldedFigureStatus(entry.status),
+    snapshot,
+    renderSnapshot: isRecord(entry.renderSnapshot)
+      ? (entry.renderSnapshot as unknown as OristudioCpFoldedFigureEntry['renderSnapshot'])
+      : null,
+    error: typeof entry.error === 'string' ? entry.error : null,
+  };
+}
+
+function foldedFigureStatus(value: unknown): OristudioCpFoldedFigureStatus {
+  if (
+    value === 'ready' ||
+    value === 'stale' ||
+    value === 'loading' ||
+    value === 'error' ||
+    value === 'unsupported'
+  ) {
+    return value === 'loading' ? 'stale' : value;
+  }
+  return 'stale';
+}
+
+function foldedFigureSourceKind(value: unknown): OristudioCpFoldedFigureEntry['sourceKind'] {
+  if (
+    value === 'generated-from-current-cp' ||
+    value === 'imported-folded-form' ||
+    value === 'imported-preserved-frame'
+  ) {
+    return value;
+  }
+  return 'generated-from-current-cp';
+}
+
+function foldedFigureDisplayStyle(
+  value: unknown
+): OristudioCpFoldedFigureDisplayStyle | null {
+  if (
+    value === 'None0' ||
+    value === 'Development1' ||
+    value === 'Wire2' ||
+    value === 'Transparent3' ||
+    value === 'Development4' ||
+    value === 'Paper5'
+  ) {
+    return value;
+  }
+  return null;
 }
 
 export function activeNativeDocument(file: NativeProjectFile): NativeProjectDocumentV1 {
@@ -381,6 +480,7 @@ function validateDocumentV1(value: unknown): NativeProjectDocumentV1 {
       throw new Error(`Unsupported crease-pattern engine ${JSON.stringify(engine)}`);
     }
     const viewState = isRecord(document.viewState) ? document.viewState : {};
+    const foldedFigures = validateFoldedFigures(viewState.foldedFigures);
     return {
       id,
       kind,
@@ -424,6 +524,13 @@ function validateDocumentV1(value: unknown): NativeProjectDocumentV1 {
         symmetry: isRecord(viewState.symmetry)
           ? normalizeOristudioCpSymmetry(viewState.symmetry)
           : defaultOristudioCpSymmetry(),
+        foldedFigures,
+        activeFoldedFigureId: activeFoldedFigureId(
+          foldedFigures,
+          typeof viewState.activeFoldedFigureId === 'string'
+            ? viewState.activeFoldedFigureId
+            : null
+        ),
       },
       extensions,
     };
