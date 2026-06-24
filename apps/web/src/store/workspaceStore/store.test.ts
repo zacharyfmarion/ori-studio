@@ -19,6 +19,7 @@ import type {
   OristudioCpDocumentSnapshot,
   OristudioCpDocumentState,
   OristudioCpFoldedFigureSnapshot,
+  OristudioCpFoldedRenderSnapshot,
   OristudioCpLineSegment,
   OristudioCpOperationDescriptor,
 } from '../../engine/oristudioCpTypes';
@@ -59,6 +60,7 @@ const oristudioCpMocks = vi.hoisted(() => ({
   foldOristudioCpFigureAnother: vi.fn(),
   foldOristudioCpFigureToCase: vi.fn(),
   freeOristudioCpFoldedFigure: vi.fn(),
+  getOristudioCpFoldedFigureRenderSnapshot: vi.fn(),
   getOristudioCpOperationDescriptors: vi.fn(),
   insertOristudioCpLineSegments: vi.fn(),
   loadOristudioCpDocumentFromText: vi.fn(),
@@ -101,6 +103,8 @@ vi.mock('./oristudioCpRuntime', async (importOriginal) => {
     foldOristudioCpFigureAnother: oristudioCpMocks.foldOristudioCpFigureAnother,
     foldOristudioCpFigureToCase: oristudioCpMocks.foldOristudioCpFigureToCase,
     freeOristudioCpFoldedFigure: oristudioCpMocks.freeOristudioCpFoldedFigure,
+    getOristudioCpFoldedFigureRenderSnapshot:
+      oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot,
     getOristudioCpOperationDescriptors: oristudioCpMocks.getOristudioCpOperationDescriptors,
     insertOristudioCpLineSegments: oristudioCpMocks.insertOristudioCpLineSegments,
     loadOristudioCpDocumentFromText: oristudioCpMocks.loadOristudioCpDocumentFromText,
@@ -1015,6 +1019,34 @@ function foldedFigureSnapshot(): OristudioCpFoldedFigureSnapshot {
   };
 }
 
+function foldedRenderSnapshot(): OristudioCpFoldedRenderSnapshot {
+  return {
+    schema_version: 1,
+    fixture: null,
+    pass: 'paper-front-full',
+    primitives: [
+      {
+        sequence: 0,
+        kind: 'fill_path',
+        style: {
+          paint: { kind: 'color', color: { red: 255, green: 255, blue: 50, alpha: 255 } },
+          stroke: { kind: 'basic', width: 1, end_cap: 2, line_join: 0, miter_limit: 10 },
+          antialias: 'off',
+        },
+        geometry: {
+          kind: 'path',
+          commands: [
+            { command: 'move_to', point: { x: 20, y: 20 } },
+            { command: 'line_to', point: { x: 40, y: 20 } },
+            { command: 'line_to', point: { x: 20, y: 40 } },
+            { command: 'close' },
+          ],
+        },
+      },
+    ],
+  };
+}
+
 function resetStores(snapshot = makeSnapshot()) {
   localStorage.clear();
   savedSnapshots.clear();
@@ -1047,6 +1079,9 @@ function resetStores(snapshot = makeSnapshot()) {
       snapshot: { ...foldedFigureSnapshot(), discovered_fold_cases: 3 },
       discovered_case_numbers: [1, 2, 3],
     });
+  oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot
+    .mockReset()
+    .mockResolvedValue(foldedRenderSnapshot());
   oristudioCpMocks.freeOristudioCpFoldedFigure.mockReset().mockResolvedValue(undefined);
   oristudioCpMocks.setOristudioCpDocumentSource.mockReset();
   oristudioCpMocks.loadOristudioCpDocumentFromText
@@ -1707,11 +1742,21 @@ describe('workspace store slices', () => {
 
     const foldedFigure = useWorkspaceStore.getState().oristudioCpFoldedFigures[0];
     expect(oristudioCpMocks.foldOristudioCpDocument).toHaveBeenCalledWith(1, 'Order5');
+    expect(oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot).toHaveBeenCalledWith(
+      7,
+      'Paper5',
+      {
+        display_mark: true,
+        selected: true,
+        index: 1,
+      }
+    );
     expect(foldedFigure).toMatchObject({
       handle: 7,
       sourceKind: 'generated-from-current-cp',
       sourceCpRevision: 0,
       status: 'ready',
+      renderSnapshot: foldedRenderSnapshot(),
     });
     expect(useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId).toBe(foldedFigure.id);
 

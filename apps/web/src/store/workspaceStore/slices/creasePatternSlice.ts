@@ -38,11 +38,15 @@ import {
   foldOristudioCpFigureAnother as foldRuntimeOristudioCpFigureAnother,
   foldOristudioCpFigureToCase as foldRuntimeOristudioCpFigureToCase,
   freeOristudioCpFoldedFigure,
+  getOristudioCpFoldedFigureRenderSnapshot as getRuntimeOristudioCpFoldedFigureRenderSnapshot,
   loadOristudioCpDocumentFromText,
   releaseOristudioCpDocument,
 } from '../oristudioCpRuntime';
 import type { CreasePatternSlice, WorkspaceSliceCreator } from '../types';
-import type { OristudioCpFoldedFigureEntry } from '../../../engine/oristudioCpTypes';
+import type {
+  OristudioCpFoldedFigureEntry,
+  OristudioCpFoldedFigureSnapshot,
+} from '../../../engine/oristudioCpTypes';
 import type { WorkspaceCapabilityId } from '../../../lib/workspaceCapabilities';
 
 export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice> = (
@@ -104,6 +108,18 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       figures.find((figure) => figure.sourceKind === 'generated-from-current-cp') ??
       null
     );
+  }
+
+  async function renderSnapshotForFoldedFigure(
+    handle: number,
+    snapshot: OristudioCpFoldedFigureSnapshot,
+    index: number
+  ) {
+    return getRuntimeOristudioCpFoldedFigureRenderSnapshot(handle, snapshot.display_style, {
+      display_mark: true,
+      selected: true,
+      index,
+    });
   }
 
   function clearFoldArtifactSource() {
@@ -537,14 +553,16 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       const requestId = ++foldedFigureRequestSequence;
       const figureId = `generated-${requestId}`;
       const sourceCpRevision = get().oristudioCpRevision;
+      const figureIndex = get().oristudioCpFoldedFigures.length + 1;
       const loadingEntry: OristudioCpFoldedFigureEntry = {
         id: figureId,
-        title: `Folded model ${get().oristudioCpFoldedFigures.length + 1}`,
+        title: `Folded model ${figureIndex}`,
         handle: null,
         sourceKind: 'generated-from-current-cp',
         sourceCpRevision,
         status: 'loading',
         snapshot: null,
+        renderSnapshot: null,
         error: null,
       };
 
@@ -559,6 +577,11 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           options.startingFaceId ?? 1,
           options.order ?? 'Order5'
         );
+        const renderSnapshot = await renderSnapshotForFoldedFigure(
+          result.handle,
+          result.snapshot,
+          figureIndex
+        );
         set({
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((figure) =>
             figure.id === figureId
@@ -567,6 +590,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                   handle: result.handle,
                   status: 'ready',
                   snapshot: result.snapshot,
+                  renderSnapshot,
                   error: null,
                 }
               : figure
@@ -623,10 +647,17 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
 
       try {
         const snapshot = await foldRuntimeOristudioCpFigureAnother(figure.handle);
+        const figureIndex =
+          get().oristudioCpFoldedFigures.findIndex((candidate) => candidate.id === figure.id) + 1;
+        const renderSnapshot = await renderSnapshotForFoldedFigure(
+          figure.handle,
+          snapshot,
+          Math.max(figureIndex, 1)
+        );
         set({
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
             candidate.id === figure.id
-              ? { ...candidate, status: 'ready', snapshot, error: null }
+              ? { ...candidate, status: 'ready', snapshot, renderSnapshot, error: null }
               : candidate
           ),
           oristudioCpActiveFoldedFigureId: figure.id,
@@ -674,10 +705,23 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
 
       try {
         const result = await foldRuntimeOristudioCpFigureToCase(figure.handle, objective, 'Order5');
+        const figureIndex =
+          get().oristudioCpFoldedFigures.findIndex((candidate) => candidate.id === figure.id) + 1;
+        const renderSnapshot = await renderSnapshotForFoldedFigure(
+          figure.handle,
+          result.snapshot,
+          Math.max(figureIndex, 1)
+        );
         set({
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
             candidate.id === figure.id
-              ? { ...candidate, status: 'ready', snapshot: result.snapshot, error: null }
+              ? {
+                  ...candidate,
+                  status: 'ready',
+                  snapshot: result.snapshot,
+                  renderSnapshot,
+                  error: null,
+                }
               : candidate
           ),
           oristudioCpActiveFoldedFigureId: figure.id,

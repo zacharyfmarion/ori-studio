@@ -44,9 +44,16 @@ import type {
   OristudioCpDiagnosticEntry,
   OristudioCpDocumentSnapshot,
   OristudioCpFoldedFigureEntry,
+  OristudioCpFoldedRenderGeometry,
+  OristudioCpFoldedRenderPaint,
+  OristudioCpFoldedRenderPathCommand,
+  OristudioCpFoldedRenderPrimitive,
+  OristudioCpFoldedRenderSnapshot,
+  OristudioCpFoldedRenderStroke,
   OristudioCpLineColor,
   OristudioCpLineSegment,
   OristudioCpRgbColor,
+  OristudioCpRgbaColor,
 } from '../../engine/oristudioCpTypes';
 import { formatNumber, paperToSvg, type Point } from '../../lib/geometry';
 import { getViewportFitScale, type ViewportSize } from '../../lib/designViewport';
@@ -4381,8 +4388,15 @@ const IMPORTED_FOLDED_FORM_VIEW = {
 };
 
 function GeneratedFoldedFigureLayer({ figure }: { figure: OristudioCpFoldedFigureEntry | null }) {
+  if (!figure) return null;
+  if (figure.renderSnapshot?.primitives.length) {
+    return (
+      <GeneratedFoldedFigurePrimitiveLayer figure={figure} snapshot={figure.renderSnapshot} />
+    );
+  }
+
   const wireframe = figure?.snapshot?.wireframe;
-  if (!figure || !wireframe) return null;
+  if (!wireframe) return null;
   const bounds = foldFrameBounds(wireframe.points);
   if (!bounds) return null;
 
@@ -4436,6 +4450,242 @@ function GeneratedFoldedFigureLayer({ figure }: { figure: OristudioCpFoldedFigur
       })}
     </g>
   );
+}
+
+function GeneratedFoldedFigurePrimitiveLayer({
+  figure,
+  snapshot,
+}: {
+  figure: OristudioCpFoldedFigureEntry;
+  snapshot: OristudioCpFoldedRenderSnapshot;
+}) {
+  const bounds = foldedRenderSnapshotBounds(snapshot);
+  if (!bounds) return null;
+  const toSvg = (point: Point) => foldedFormPointToSvg(point, bounds, 0);
+  const gradientIds = new Map<number, string>();
+  const gradients = snapshot.primitives.flatMap((primitive) => {
+    const paint = primitive.style.paint;
+    if (paint.kind !== 'gradient') return [];
+    const id = `cp-folded-gradient-${figure.id}-${primitive.sequence}`;
+    gradientIds.set(primitive.sequence, id);
+    const from = toSvg(paint.from);
+    const to = toSvg(paint.to);
+    return [{ id, from, to, paint }];
+  });
+
+  return (
+    <g
+      className={[
+        'cp-generated-folded-figure',
+        'cp-generated-folded-figure--primitive',
+        figure.status === 'stale' ? 'cp-generated-folded-figure--stale' : '',
+      ].join(' ')}
+      data-folded-figure-id={figure.id}
+      data-folded-figure-status={figure.status}
+      data-folded-render-pass={snapshot.pass ?? undefined}
+      aria-hidden="true"
+    >
+      {gradients.length > 0 && (
+        <defs>
+          {gradients.map(({ id, from, to, paint }) => (
+            <linearGradient
+              key={id}
+              id={id}
+              gradientUnits="userSpaceOnUse"
+              x1={from.x}
+              y1={from.y}
+              x2={to.x}
+              y2={to.y}
+            >
+              <stop offset="0%" stopColor={rgbaColorCss(paint.from_color)} />
+              <stop offset="100%" stopColor={rgbaColorCss(paint.to_color)} />
+            </linearGradient>
+          ))}
+        </defs>
+      )}
+      {snapshot.primitives.map((primitive) =>
+        renderFoldedRenderPrimitive(primitive, toSvg, gradientIds.get(primitive.sequence))
+      )}
+    </g>
+  );
+}
+
+function renderFoldedRenderPrimitive(
+  primitive: OristudioCpFoldedRenderPrimitive,
+  toSvg: (point: Point) => Point,
+  gradientId: string | undefined
+) {
+  const key = `primitive-${primitive.sequence}`;
+  const paint = foldedRenderPaintCss(primitive.style.paint, gradientId);
+  const stroke = foldedRenderStrokeAttrs(primitive.style.stroke);
+  const isFill = primitive.kind.startsWith('fill_');
+  const isStroke = primitive.kind.startsWith('stroke_');
+  const common = {
+    key,
+    className: 'cp-generated-folded-figure-primitive',
+    vectorEffect: 'non-scaling-stroke' as const,
+  };
+  const paintAttrs = isFill
+    ? { fill: paint, stroke: 'none' }
+    : isStroke
+      ? { fill: 'none', stroke: paint, ...stroke }
+      : { fill: paint, stroke: 'none' };
+
+  switch (primitive.geometry.kind) {
+    case 'path':
+      return (
+        <path
+          {...common}
+          {...paintAttrs}
+          d={foldedRenderPathD(primitive.geometry.commands, toSvg)}
+        />
+      );
+    case 'segment': {
+      const from = toSvg(primitive.geometry.from);
+      const to = toSvg(primitive.geometry.to);
+      return (
+        <line
+          {...common}
+          {...paintAttrs}
+          x1={from.x}
+          y1={from.y}
+          x2={to.x}
+          y2={to.y}
+        />
+      );
+    }
+    case 'polygon':
+      return (
+        <polygon
+          {...common}
+          {...paintAttrs}
+          points={primitive.geometry.points
+            .map(toSvg)
+            .map((point) => `${point.x},${point.y}`)
+            .join(' ')}
+        />
+      );
+    case 'rect': {
+      const rect = foldedRenderRectToSvg(primitive.geometry, toSvg);
+      return <rect {...common} {...paintAttrs} {...rect} />;
+    }
+    case 'ellipse': {
+      const rect = foldedRenderRectToSvg(primitive.geometry, toSvg);
+      return (
+        <ellipse
+          {...common}
+          {...paintAttrs}
+          cx={rect.x + rect.width / 2}
+          cy={rect.y + rect.height / 2}
+          rx={rect.width / 2}
+          ry={rect.height / 2}
+        />
+      );
+    }
+    case 'text': {
+      const position = toSvg(primitive.geometry.position);
+      return (
+        <text
+          {...common}
+          {...paintAttrs}
+          x={position.x}
+          y={position.y}
+          fontSize={12}
+          fontWeight={700}
+        >
+          {primitive.geometry.value}
+        </text>
+      );
+    }
+    default:
+      return null;
+  }
+}
+
+function foldedRenderPathD(
+  commands: OristudioCpFoldedRenderPathCommand[],
+  toSvg: (point: Point) => Point
+): string {
+  return commands
+    .map((command) => {
+      switch (command.command) {
+        case 'move_to': {
+          const point = toSvg(command.point);
+          return `M ${point.x} ${point.y}`;
+        }
+        case 'line_to': {
+          const point = toSvg(command.point);
+          return `L ${point.x} ${point.y}`;
+        }
+        case 'quad_to': {
+          const control = toSvg(command.control);
+          const point = toSvg(command.point);
+          return `Q ${control.x} ${control.y} ${point.x} ${point.y}`;
+        }
+        case 'cubic_to': {
+          const control1 = toSvg(command.control_1);
+          const control2 = toSvg(command.control_2);
+          const point = toSvg(command.point);
+          return `C ${control1.x} ${control1.y} ${control2.x} ${control2.y} ${point.x} ${point.y}`;
+        }
+        case 'close':
+          return 'Z';
+      }
+    })
+    .join(' ');
+}
+
+function foldedRenderRectToSvg(
+  rect: Extract<OristudioCpFoldedRenderGeometry, { kind: 'rect' | 'ellipse' }>,
+  toSvg: (point: Point) => Point
+) {
+  const first = toSvg({ x: rect.x, y: rect.y });
+  const second = toSvg({ x: rect.x + rect.width, y: rect.y + rect.height });
+  return {
+    x: Math.min(first.x, second.x),
+    y: Math.min(first.y, second.y),
+    width: Math.abs(second.x - first.x),
+    height: Math.abs(second.y - first.y),
+  };
+}
+
+function foldedRenderPaintCss(
+  paint: OristudioCpFoldedRenderPaint,
+  gradientId: string | undefined
+): string {
+  switch (paint.kind) {
+    case 'none':
+      return 'none';
+    case 'color':
+      return rgbaColorCss(paint.color);
+    case 'gradient':
+      return gradientId ? `url(#${gradientId})` : rgbaColorCss(paint.from_color);
+    case 'texture':
+    case 'other':
+      return 'currentColor';
+  }
+}
+
+function foldedRenderStrokeAttrs(stroke: OristudioCpFoldedRenderStroke) {
+  if (stroke.kind !== 'basic') return {};
+  return {
+    strokeWidth: stroke.width,
+    strokeLinecap: foldedRenderLineCap(stroke.end_cap),
+    strokeLinejoin: foldedRenderLineJoin(stroke.line_join),
+    strokeMiterlimit: stroke.miter_limit,
+  };
+}
+
+function foldedRenderLineCap(cap: number): 'butt' | 'round' | 'square' {
+  if (cap === 1) return 'round';
+  if (cap === 2) return 'square';
+  return 'butt';
+}
+
+function foldedRenderLineJoin(join: number): 'miter' | 'round' | 'bevel' {
+  if (join === 1) return 'round';
+  if (join === 2) return 'bevel';
+  return 'miter';
 }
 
 function ImportedFoldedFormsLayer({
@@ -4558,6 +4808,47 @@ function foldFrameBounds(vertices: Point[]): CpModelBounds | null {
   return { minX, minY, maxX, maxY, spanX, spanY };
 }
 
+function foldedRenderSnapshotBounds(snapshot: OristudioCpFoldedRenderSnapshot): CpModelBounds | null {
+  const points = snapshot.primitives.flatMap(foldedRenderPrimitiveBoundsPoints);
+  return foldFrameBounds(points);
+}
+
+function foldedRenderPrimitiveBoundsPoints(primitive: OristudioCpFoldedRenderPrimitive): Point[] {
+  switch (primitive.geometry.kind) {
+    case 'path':
+      return primitive.geometry.commands.flatMap(foldedRenderPathCommandPoints);
+    case 'segment':
+      return [primitive.geometry.from, primitive.geometry.to];
+    case 'polygon':
+      return primitive.geometry.points;
+    case 'rect':
+    case 'ellipse':
+      return [
+        { x: primitive.geometry.x, y: primitive.geometry.y },
+        {
+          x: primitive.geometry.x + primitive.geometry.width,
+          y: primitive.geometry.y + primitive.geometry.height,
+        },
+      ];
+    case 'text':
+      return [primitive.geometry.position];
+  }
+}
+
+function foldedRenderPathCommandPoints(command: OristudioCpFoldedRenderPathCommand): Point[] {
+  switch (command.command) {
+    case 'move_to':
+    case 'line_to':
+      return [command.point];
+    case 'quad_to':
+      return [command.control, command.point];
+    case 'cubic_to':
+      return [command.control_1, command.control_2, command.point];
+    case 'close':
+      return [];
+  }
+}
+
 function foldedFormPointToSvg(point: Point, bounds: CpModelBounds, index: number): Point {
   const gap = 16;
   const view = {
@@ -4576,6 +4867,10 @@ function foldedFormPointToSvg(point: Point, bounds: CpModelBounds, index: number
 function rgbColorCss(color: OristudioCpRgbColor | undefined): string {
   if (!color) return 'currentColor';
   return `rgb(${color.red} ${color.green} ${color.blue})`;
+}
+
+function rgbaColorCss(color: OristudioCpRgbaColor): string {
+  return `rgb(${color.red} ${color.green} ${color.blue} / ${color.alpha / 255})`;
 }
 
 function SelectionTransformBox({

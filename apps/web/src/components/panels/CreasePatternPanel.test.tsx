@@ -23,6 +23,7 @@ import type {
   OristudioCpCommandResult,
   OristudioCpDocumentState,
   OristudioCpFoldedFigureEntry,
+  OristudioCpFoldedRenderSnapshot,
 } from '../../engine/oristudioCpTypes';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
@@ -313,6 +314,45 @@ function generatedFoldedFigure(
         associated_lines: [null],
       },
     },
+    renderSnapshot: status === 'loading' ? null : foldedRenderSnapshot(),
+  };
+}
+
+function foldedRenderSnapshot(): OristudioCpFoldedRenderSnapshot {
+  return {
+    schema_version: 1,
+    fixture: null,
+    pass: 'paper-front-full',
+    primitives: [
+      {
+        sequence: 0,
+        kind: 'fill_path',
+        style: {
+          paint: { kind: 'color', color: { red: 255, green: 255, blue: 50, alpha: 255 } },
+          stroke: { kind: 'none' },
+          antialias: 'off',
+        },
+        geometry: {
+          kind: 'path',
+          commands: [
+            { command: 'move_to', point: { x: 0, y: 0 } },
+            { command: 'line_to', point: { x: 1, y: 0 } },
+            { command: 'line_to', point: { x: 0, y: 1 } },
+            { command: 'close' },
+          ],
+        },
+      },
+      {
+        sequence: 1,
+        kind: 'stroke_segment',
+        style: {
+          paint: { kind: 'color', color: { red: 0, green: 0, blue: 0, alpha: 255 } },
+          stroke: { kind: 'basic', width: 1, end_cap: 1, line_join: 1, miter_limit: 10 },
+          antialias: 'on',
+        },
+        geometry: { kind: 'segment', from: { x: 0, y: 0 }, to: { x: 1, y: 0 } },
+      },
+    ],
   };
 }
 
@@ -1027,6 +1067,22 @@ describe('CreasePatternPanel', () => {
 
     expect(container.querySelector('[data-folded-figure-id="generated-1"]')).not.toBeNull();
     expect(container.querySelector('[data-folded-figure-status="ready"]')).not.toBeNull();
+    expect(container.querySelector('[data-folded-render-pass="paper-front-full"]')).not.toBeNull();
+    expect(container.querySelectorAll('.cp-generated-folded-figure-primitive')).toHaveLength(2);
+    expect(container.querySelectorAll('.cp-generated-folded-figure-face')).toHaveLength(0);
+  });
+
+  it('falls back to generated folded wireframes when render primitives are unavailable', () => {
+    const figure = { ...generatedFoldedFigure(), renderSnapshot: null };
+    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
+      documentMode: 'crease-pattern',
+      importedCreasePattern: importedCpDocument(),
+      oristudioCpDocument: editableCpState(),
+      oristudioCpFoldedFigures: [figure],
+      oristudioCpActiveFoldedFigureId: figure.id,
+    });
+
+    expect(container.querySelector('[data-folded-figure-id="generated-1"]')).not.toBeNull();
     expect(container.querySelectorAll('.cp-generated-folded-figure-face')).toHaveLength(1);
     expect(container.querySelectorAll('.cp-generated-folded-figure-edge')).toHaveLength(3);
   });

@@ -652,7 +652,7 @@ checkpoint and keep the checklist current.
       custom constraint primitives.
 - [x] Expose primitive render snapshots through WASM, worker APIs, and
       TypeScript types.
-- [ ] Replace generated folded wireframe mini-view with primitive-driven grid
+- [x] Replace generated folded wireframe mini-view with primitive-driven grid
       renderer.
 - [ ] Add display style, front/back state, starting face, case selector, shadow,
       transparency, duplicate, delete, and active folded-figure UI.

@@ -2342,6 +2342,10 @@
   pointer-events: none;
 }
 
+.cp-generated-folded-figure-primitive {
+  pointer-events: none;
+}
+
 .cp-generated-folded-figure-face {
   fill-opacity: 0.7;
   stroke: none;

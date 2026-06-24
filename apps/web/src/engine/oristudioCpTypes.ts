@@ -312,6 +312,7 @@ export interface OristudioCpFoldedFigureEntry {
   sourceCpRevision: number | null;
   status: OristudioCpFoldedFigureStatus;
   snapshot: OristudioCpFoldedFigureSnapshot | null;
+  renderSnapshot: OristudioCpFoldedRenderSnapshot | null;
   error: string | null;
 }
 
