@@ -55,8 +55,10 @@ fn paper_render_primitives_match_oriedita_oracle() {
         let output = run_oracle(&oracle, &[case.command, "simple-square"]);
         let oracle_snapshot =
             parse_oriedita_render_primitives(&output).expect("parse Oriedita render primitives");
-        let mut model = FoldedFigureModel::default();
-        model.state = case.state;
+        let model = FoldedFigureModel {
+            state: case.state,
+            ..FoldedFigureModel::default()
+        };
         let rust_snapshot =
             folded_figure_paper_render_snapshot_from_segments(&simple_square(), 1, model)
                 .expect("Rust paper render")
@@ -79,8 +81,10 @@ fn kabuto_paper_render_primitives_match_oriedita_oracle() {
         let output = run_oracle_owned(&oracle, &segment_oracle_args(case.command, &segments));
         let oracle_snapshot =
             parse_oriedita_render_primitives(&output).expect("parse Oriedita render primitives");
-        let mut model = FoldedFigureModel::default();
-        model.state = case.state;
+        let model = FoldedFigureModel {
+            state: case.state,
+            ..FoldedFigureModel::default()
+        };
         let rust_snapshot = folded_figure_paper_render_snapshot_from_segments(&segments, 1, model)
             .expect("Rust paper render")
             .expect("paper primitives");
@@ -237,9 +241,11 @@ fn kabuto_paper_shadow_render_primitives_match_oriedita_oracle() {
         let output = run_oracle_owned(&oracle, &segment_oracle_args(case.command, &segments));
         let oracle_snapshot =
             parse_oriedita_render_primitives(&output).expect("parse Oriedita render primitives");
-        let mut model = FoldedFigureModel::default();
-        model.state = case.state;
-        model.display_shadows = true;
+        let model = FoldedFigureModel {
+            state: case.state,
+            display_shadows: true,
+            ..FoldedFigureModel::default()
+        };
         let rust_snapshot = folded_figure_paper_render_snapshot_from_segments(&segments, 1, model)
             .expect("Rust paper shadow render")
             .expect("paper shadow primitives");
@@ -337,8 +343,10 @@ fn kabuto_wire_render_primitives_match_oriedita_oracle() {
         let output = run_oracle_owned(&oracle, &segment_oracle_args(case.command, &segments));
         let oracle_snapshot =
             parse_oriedita_render_primitives(&output).expect("parse Oriedita render primitives");
-        let mut model = FoldedFigureModel::default();
-        model.state = case.state;
+        let model = FoldedFigureModel {
+            state: case.state,
+            ..FoldedFigureModel::default()
+        };
         let rust_snapshot = folded_figure_wire_render_snapshot_from_segments(&segments, 1, model)
             .expect("Rust wire render")
             .expect("wire primitives");
@@ -368,9 +376,11 @@ fn kabuto_transparent_render_primitives_match_oriedita_oracle() {
             let output = run_oracle_owned(&oracle, &segment_oracle_args(case.command, &segments));
             let oracle_snapshot = parse_oriedita_render_primitives(&output)
                 .expect("parse Oriedita render primitives");
-            let mut model = FoldedFigureModel::default();
-            model.state = case.state;
-            model.transparency_color = color;
+            let model = FoldedFigureModel {
+                state: case.state,
+                transparency_color: color,
+                ..FoldedFigureModel::default()
+            };
             let rust_snapshot =
                 folded_figure_transparent_render_snapshot_from_segments(&segments, 1, model)
                     .expect("Rust transparent render")
@@ -480,8 +490,10 @@ fn kabuto_folded_overlay_primitives_match_oriedita_oracle() {
         );
         let oracle_snapshot =
             parse_oriedita_render_primitives(&output).expect("parse Oriedita render primitives");
-        let mut model = FoldedFigureModel::default();
-        model.state = state;
+        let model = FoldedFigureModel {
+            state,
+            ..FoldedFigureModel::default()
+        };
         let rust_snapshot = folded_figure_render_snapshot_from_segments(
             &segments,
             1,
@@ -763,7 +775,7 @@ fn assert_geometry_approximately_matches(
                 assert_point_close(
                     pass,
                     index,
-                    &format!("polygon point {point_index}"),
+                    format!("polygon point {point_index}"),
                     *rust,
                     *oracle,
                 );
@@ -857,14 +869,14 @@ fn assert_path_command_close(
             assert_point_close(
                 pass,
                 primitive_index,
-                &format!("path command {command_index} quad control"),
+                format!("path command {command_index} quad control"),
                 *rust_control,
                 *oracle_control,
             );
             assert_point_close(
                 pass,
                 primitive_index,
-                &format!("path command {command_index} quad point"),
+                format!("path command {command_index} quad point"),
                 *rust_point,
                 *oracle_point,
             );
@@ -884,21 +896,21 @@ fn assert_path_command_close(
             assert_point_close(
                 pass,
                 primitive_index,
-                &format!("path command {command_index} cubic control 1"),
+                format!("path command {command_index} cubic control 1"),
                 *rust_control_1,
                 *oracle_control_1,
             );
             assert_point_close(
                 pass,
                 primitive_index,
-                &format!("path command {command_index} cubic control 2"),
+                format!("path command {command_index} cubic control 2"),
                 *rust_control_2,
                 *oracle_control_2,
             );
             assert_point_close(
                 pass,
                 primitive_index,
-                &format!("path command {command_index} cubic point"),
+                format!("path command {command_index} cubic point"),
                 *rust_point,
                 *oracle_point,
             );

@@ -660,4 +660,4 @@ checkpoint and keep the checklist current.
       invalidation metadata in `.osf`.
 - [x] Add Playwright screenshot coverage for the grid-area folded figure.
 - [x] Run folded-document corpus validation and document unsupported cases.
-- [ ] Run Rust, WASM, oracle, and web validation appropriate to each stage.
+- [x] Run Rust, WASM, oracle, and web validation appropriate to each stage.

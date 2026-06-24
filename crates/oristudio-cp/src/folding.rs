@@ -10,6 +10,9 @@ use crate::operations::arrangement::divide_intersections;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt};
 
+#[allow(clippy::approx_constant)]
+const ORIEDITA_DEGREES_TO_RADIANS: f64 = 3.14159265 / 180.0;
+
 pub use permutation::{
     ChainPermutationGenerator, PermutationError, PermutationSnapshot, SubFacePermutationSearch,
     SubFacePriority, SubFaceSearchError, SubFaceSwapper, WorkerOverlapEnumerator,
@@ -2210,7 +2213,7 @@ impl OrieditaFoldedFigureCamera {
     }
 
     fn tv_to_object(&self, point_tv: Point) -> Point {
-        let radians = self.angle_degrees * (3.14159265 / 180.0);
+        let radians = self.angle_degrees * ORIEDITA_DEGREES_TO_RADIANS;
         let sin = radians.sin();
         let cos = radians.cos();
         let mut x1 = point_tv.x - self.display_position.x;
@@ -2290,7 +2293,7 @@ impl OrieditaRenderCamera {
     }
 
     fn object_to_tv_raw(self, point: Point) -> Point {
-        let radians = self.angle_degrees * (3.14159265 / 180.0);
+        let radians = self.angle_degrees * ORIEDITA_DEGREES_TO_RADIANS;
         let sin = radians.sin();
         let cos = radians.cos();
         let x1 = point.x - self.camera_position.x;
@@ -2695,6 +2698,7 @@ fn transparent_render_primitives(
     primitives
 }
 
+#[allow(clippy::too_many_arguments)]
 fn push_folded_display_style_pass_primitives(
     display_style: DisplayStyle,
     folded: &FoldedWireframe,
@@ -3060,6 +3064,7 @@ fn push_cross_width_line_polygon(
     });
 }
 
+#[allow(clippy::too_many_arguments)]
 fn push_selected_point_primitives(
     flat_graph: &FoldGraph,
     folded: &FoldedWireframe,
@@ -3205,6 +3210,7 @@ fn push_stroke_ellipse_rect(
     });
 }
 
+#[allow(clippy::too_many_arguments)]
 fn push_paper_render_pass_primitives(
     subface_graph: &FoldGraph,
     folded: &FoldedWireframe,
@@ -3424,6 +3430,7 @@ fn shadow_offset_inside(
     )) != PolygonIntersection::Outside
 }
 
+#[allow(clippy::too_many_arguments)]
 fn push_shadow_rectangle(
     begin: Point,
     end: Point,
