@@ -407,10 +407,10 @@ Normal tests should not require Java:
 - [ ] Expose Fold/FoldAnother/FoldToCase folded-figure commands from
       `oristudio-cp-wasm`.
 - [ ] Add folded-figure list/revision state to the workspace store.
-- [ ] Render one active folded figure in the CP grid area.
+- [x] Render one active folded figure in the CP grid area.
 - [ ] Add display style, front/back state, starting face, and next-solution UI.
 - [ ] Add multi-figure duplicate/delete support.
-- [ ] Preserve imported folded-form frames and render them as detached imported
+- [x] Preserve imported folded-form frames and render them as detached imported
       folded figures.
 - [ ] Add Oriedita oracle commands for folded snapshot parity.
 - [ ] Add Oriedita oracle commands for render primitive parity.

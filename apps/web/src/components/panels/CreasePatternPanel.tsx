@@ -167,6 +167,7 @@ import {
   ViewportToolbar,
   ViewportToolbarSeparator,
 } from './ViewportToolbar';
+import type { FoldDocument } from '../../engine/types';
 
 function creaseClass(fold: string, kind: string, mode: 'mvf' | 'agrh'): string {
   if (mode === 'agrh') return `crease crease--kind-${kind}`;
@@ -1323,6 +1324,13 @@ export function CreasePatternPanel() {
     ? normalizeOrieditaGridSize(editableCp.crease_pattern.grid.grid_size)
     : 8;
   const editableCpVertices = useMemo(() => getCpVertices(editableCp), [editableCp]);
+  const importedFoldedForms = useMemo(
+    () =>
+      (importedCreasePattern?.sourceFold?.file_frames ?? [])
+        .filter(isRenderableFoldedFormFrame)
+        .slice(0, 1),
+    [importedCreasePattern?.sourceFold]
+  );
   const camvIssuesVisible = oristudioCpViewport.camvIssuesVisible !== false;
   const hasEditableCreasePattern = !!editableCp;
   const hasCreasePattern =
@@ -3660,6 +3668,7 @@ export function CreasePatternPanel() {
                         document={editableCp}
                         gridLines={editableCpGridLines}
                         gridVisible={oristudioCpViewport.gridVisible}
+                        importedFoldedForms={importedFoldedForms}
                         mode={mode}
                         symmetryActive={oristudioCpSymmetry.enabled}
                         symmetryAxisLine={visibleCpSymmetryAxisLine}
@@ -3867,6 +3876,7 @@ interface EditableCreasePatternProps {
   document: OristudioCpDocumentSnapshot;
   gridLines: ReturnType<typeof getCpGridLines>;
   gridVisible: boolean;
+  importedFoldedForms: FoldDocument[];
   mode: 'mvf' | 'agrh';
   symmetryActive: boolean;
   symmetryAxisLine: readonly [Point, Point] | null;
@@ -3907,6 +3917,7 @@ function EditableCreasePattern({
   document,
   gridLines,
   gridVisible,
+  importedFoldedForms,
   mode,
   symmetryActive,
   symmetryAxisLine,
@@ -4144,6 +4155,7 @@ function EditableCreasePattern({
           </text>
         );
       })}
+      <ImportedFoldedFormsLayer frames={importedFoldedForms} />
       {vertices.map((vertex) => {
         const svgPoint = modelPointToCpSvg(vertex.point, bounds);
         const selected = selection.vertices?.includes(vertex.id) ?? false;
@@ -4290,6 +4302,142 @@ function EditableCreasePattern({
       />
     </>
   );
+}
+
+const IMPORTED_FOLDED_FORM_VIEW = {
+  x: CP_PAPER_RECT.x + 20,
+  y: CP_PAPER_RECT.y + 20,
+  width: 136,
+  height: 136,
+};
+
+function ImportedFoldedFormsLayer({ frames }: { frames: FoldDocument[] }) {
+  if (frames.length === 0) return null;
+  return (
+    <g className="cp-folded-form-layer" aria-hidden="true">
+      {frames.map((frame, index) => (
+        <ImportedFoldedFormFigure
+          key={`${index}-${frame.frame_title ?? 'folded-form'}`}
+          frame={frame}
+          index={index}
+        />
+      ))}
+    </g>
+  );
+}
+
+function ImportedFoldedFormFigure({
+  frame,
+  index,
+}: {
+  frame: FoldDocument;
+  index: number;
+}) {
+  const vertices = foldFrameVertices(frame);
+  const bounds = foldFrameBounds(vertices);
+  if (!bounds) return null;
+
+  const toSvg = (point: Point) => foldedFormPointToSvg(point, bounds, index);
+  return (
+    <g
+      className="cp-folded-form"
+      data-folded-form-index={index}
+      data-folded-form-title={frame.frame_title || undefined}
+    >
+      {foldFrameFaces(frame, vertices).map((face, faceIndex) => (
+        <polygon
+          key={`face-${faceIndex}`}
+          className="cp-folded-form-face"
+          points={face
+            .map(toSvg)
+            .map((point) => `${point.x},${point.y}`)
+            .join(' ')}
+        />
+      ))}
+      {foldFrameEdges(frame, vertices).map(([a, b], edgeIndex) => {
+        const start = toSvg(a);
+        const end = toSvg(b);
+        return (
+          <line
+            key={`edge-${edgeIndex}`}
+            className="cp-folded-form-edge"
+            x1={start.x}
+            y1={start.y}
+            x2={end.x}
+            y2={end.y}
+          />
+        );
+      })}
+    </g>
+  );
+}
+
+function isRenderableFoldedFormFrame(frame: FoldDocument): boolean {
+  return (
+    frame.frame_classes?.includes('foldedForm') === true &&
+    foldFrameVertices(frame).length > 0 &&
+    foldFrameEdges(frame, foldFrameVertices(frame)).length > 0
+  );
+}
+
+function foldFrameVertices(frame: FoldDocument): Point[] {
+  const coords = Array.isArray(frame.vertices_coords) ? frame.vertices_coords : [];
+  return coords.flatMap((coord) => {
+    if (!Array.isArray(coord)) return [];
+    const x = Number(coord[0]);
+    const y = Number(coord[1]);
+    return Number.isFinite(x) && Number.isFinite(y) ? [{ x, y }] : [];
+  });
+}
+
+function foldFrameEdges(frame: FoldDocument, vertices: Point[]): Array<readonly [Point, Point]> {
+  const edges = Array.isArray(frame.edges_vertices) ? frame.edges_vertices : [];
+  return edges.flatMap((edge) => {
+    if (!Array.isArray(edge)) return [];
+    const a = Number(edge[0]);
+    const b = Number(edge[1]);
+    if (!Number.isInteger(a) || !Number.isInteger(b)) return [];
+    const start = vertices[a];
+    const end = vertices[b];
+    return start && end ? ([[start, end]] as Array<readonly [Point, Point]>) : [];
+  });
+}
+
+function foldFrameFaces(frame: FoldDocument, vertices: Point[]): Point[][] {
+  const faces = Array.isArray(frame.faces_vertices) ? frame.faces_vertices : [];
+  return faces.flatMap((face) => {
+    if (!Array.isArray(face) || face.length < 3) return [];
+    const points = face
+      .map((vertex) => (Number.isInteger(Number(vertex)) ? vertices[Number(vertex)] : null))
+      .filter((point): point is Point => !!point);
+    return points.length === face.length ? [points] : [];
+  });
+}
+
+function foldFrameBounds(vertices: Point[]): CpModelBounds | null {
+  if (vertices.length === 0) return null;
+  const minX = Math.min(...vertices.map((point) => point.x));
+  const maxX = Math.max(...vertices.map((point) => point.x));
+  const minY = Math.min(...vertices.map((point) => point.y));
+  const maxY = Math.max(...vertices.map((point) => point.y));
+  const spanX = Math.max(maxX - minX, 1e-6);
+  const spanY = Math.max(maxY - minY, 1e-6);
+  return { minX, minY, maxX, maxY, spanX, spanY };
+}
+
+function foldedFormPointToSvg(point: Point, bounds: CpModelBounds, index: number): Point {
+  const gap = 16;
+  const view = {
+    ...IMPORTED_FOLDED_FORM_VIEW,
+    x: IMPORTED_FOLDED_FORM_VIEW.x + index * (IMPORTED_FOLDED_FORM_VIEW.width + gap),
+  };
+  const scale = Math.min(view.width / bounds.spanX, view.height / bounds.spanY);
+  const offsetX = (view.width - bounds.spanX * scale) / 2;
+  const offsetY = (view.height - bounds.spanY * scale) / 2;
+  return {
+    x: view.x + offsetX + (point.x - bounds.minX) * scale,
+    y: view.y + offsetY + (point.y - bounds.minY) * scale,
+  };
 }
 
 function SelectionTransformBox({

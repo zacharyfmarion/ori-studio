@@ -920,6 +920,49 @@ describe('CreasePatternPanel', () => {
     expect(useWorkspaceStore.getState().oristudioCpViewport.snapToLines).toBe(false);
   });
 
+  it('renders preserved embedded folded-form frames in the editable CP grid', () => {
+    const imported = {
+      ...importedCpDocument(),
+      sourceFold: {
+        file_spec: 1.2,
+        frame_classes: ['creasePattern'],
+        vertices_coords: [
+          [0, 0],
+          [1, 0],
+        ],
+        edges_vertices: [[0, 1] as [number, number]],
+        faces_vertices: [],
+        file_frames: [
+          {
+            frame_title: 'embedded folded',
+            frame_classes: ['foldedForm'],
+            vertices_coords: [
+              [0, 0],
+              [1, 0],
+              [0, 1],
+            ],
+            edges_vertices: [
+              [0, 1],
+              [1, 2],
+              [2, 0],
+            ] as [number, number][],
+            faces_vertices: [[0, 1, 2]],
+          },
+        ],
+      },
+    };
+
+    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
+      documentMode: 'crease-pattern',
+      importedCreasePattern: imported,
+      oristudioCpDocument: editableCpState(),
+    });
+
+    expect(container.querySelector('[data-folded-form-title="embedded folded"]')).not.toBeNull();
+    expect(container.querySelectorAll('.cp-folded-form-face')).toHaveLength(1);
+    expect(container.querySelectorAll('.cp-folded-form-edge')).toHaveLength(3);
+  });
+
   it('applies the active palette color to selected editable CP lines', async () => {
     const executeOristudioCpCommand = vi.fn(async () => true);
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {

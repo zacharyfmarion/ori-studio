@@ -2334,6 +2334,25 @@
   user-select: none;
 }
 
+.cp-folded-form-layer {
+  pointer-events: none;
+}
+
+.cp-folded-form-face {
+  fill: #ffff32;
+  fill-opacity: 0.58;
+  stroke: none;
+}
+
+.cp-folded-form-edge {
+  stroke: color-mix(in srgb, var(--text-primary) 84%, #111111);
+  stroke-width: 1.15;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.86;
+  vector-effect: non-scaling-stroke;
+}
+
 .cp-snap-target {
   fill: transparent;
   stroke: var(--accent-primary);
