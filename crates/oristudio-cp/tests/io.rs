@@ -83,6 +83,55 @@ fn fold_import_reads_edges_and_oriedita_extensions() {
 }
 
 #[test]
+fn fold_file_import_export_preserves_embedded_folded_form_frames() {
+    let input = r#"{
+      "file_spec": 1.2,
+      "file_title": "embedded folded form",
+      "frame_title": "crease pattern",
+      "frame_classes": ["creasePattern"],
+      "vertices_coords": [[0, 0], [1, 0]],
+      "edges_vertices": [[0, 1]],
+      "file_frames": [{
+        "frame_title": "folded result",
+        "frame_classes": ["foldedForm"],
+        "frame_parent": 0,
+        "frame_inherit": true,
+        "vertices_coords": [[0, 0], [0.5, 0], [0, 0.5]],
+        "edges_vertices": [[0, 1], [1, 2], [2, 0]],
+        "faces_vertices": [[0, 1, 2]],
+        "faceOrders": [[0, 0, -1]],
+        "oriedita:folded_view": {"state": "FRONT_0"}
+      }]
+    }"#;
+
+    let document = fold::import_fold_file_json(input).expect("valid fold file");
+    let frames = fold::import_folded_frames(&document);
+    assert_eq!(frames.len(), 1);
+    assert_eq!(frames[0].frame_title.as_deref(), Some("folded result"));
+    assert_eq!(frames[0].frame_classes, vec!["foldedForm"]);
+    assert_eq!(frames[0].frame_parent, Some(0));
+    assert_eq!(frames[0].frame_inherit, Some(true));
+
+    let mut replaced = document.clone();
+    fold::export_folded_frames(&mut replaced, document.file_frames.clone());
+    let json = fold::export_fold_file_json(&replaced).expect("serializes");
+    let exported: serde_json::Value = serde_json::from_str(&json).expect("json");
+
+    assert_eq!(
+        exported["file_frames"][0]["frame_classes"],
+        serde_json::json!(["foldedForm"])
+    );
+    assert_eq!(
+        exported["file_frames"][0]["faceOrders"],
+        serde_json::json!([[0, 0, -1]])
+    );
+    assert_eq!(
+        exported["file_frames"][0]["oriedita:folded_view"],
+        serde_json::json!({"state": "FRONT_0"})
+    );
+}
+
+#[test]
 fn fold_import_prefers_oristudio_line_color_extension_over_assignment() {
     let input = r##"{
       "file_spec": 1.1,

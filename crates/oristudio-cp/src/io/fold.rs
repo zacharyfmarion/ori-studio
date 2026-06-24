@@ -11,6 +11,26 @@ use treemaker_fold::FoldDocument;
 const ORIEDITA_VERSION: &str = "dev";
 const ORISTUDIO_EDGES_LINE_COLORS: &str = "oristudio:edges_line_colors";
 
+/// Parse a full FOLD file document without flattening embedded frames.
+pub fn import_fold_file_json(input: &str) -> Result<FoldDocument> {
+    Ok(serde_json::from_str::<FoldDocument>(input)?)
+}
+
+/// Serialize a full FOLD file document without dropping embedded frames.
+pub fn export_fold_file_json(fold: &FoldDocument) -> Result<String> {
+    Ok(serde_json::to_string_pretty(fold)?)
+}
+
+/// Return embedded FOLD frames preserved on the root document.
+pub fn import_folded_frames(fold: &FoldDocument) -> &[FoldDocument] {
+    &fold.file_frames
+}
+
+/// Replace the root document's embedded FOLD frames before lossless export.
+pub fn export_folded_frames(fold: &mut FoldDocument, frames: Vec<FoldDocument>) {
+    fold.file_frames = frames;
+}
+
 /// Import a FOLD JSON document with Oriedita extension fields.
 pub fn import_fold_json(input: &str) -> Result<CreasePatternModel> {
     let fold = serde_json::from_str::<FoldDocument>(input)?;

@@ -240,8 +240,8 @@ mutation.
 | `CpExporter.java` | `.cp` export and lossy-format warning. | `io::cp::export` | 4 | Unit-tested |
 | `FoldImporter.java` | `.fold` import and coordinate normalization. | `io::fold::import` | 4 | Unit-tested |
 | `FoldExporter.java` | `.fold` export, face reconstruction, Oriedita extras. | `io::fold::export` | 4 | Unit-tested; topology oracle |
-| `FoldImporter.java` `file_frames` | Preserve and select embedded FOLD frames, including `foldedForm` frames. | `io::fold::import_folded_frames`, web FOLD frame inventory | 4, 11 | Unsupported; current import selects one frame and drops the full frame graph |
-| `FoldExporter.java` `file_frames` | Export embedded folded-form frame graphs when present. | `io::fold::export_folded_frames`, web FOLD frame inventory | 4, 11 | Unsupported |
+| `FoldImporter.java` `file_frames` | Preserve and select embedded FOLD frames, including `foldedForm` frames. | `io::fold::import_fold_file_json`, `io::fold::import_folded_frames`, web FOLD frame inventory | 4, 11 | Unit-tested for lossless Rust parse; current web import still selects one frame and drops the full frame graph |
+| `FoldExporter.java` `file_frames` | Export embedded folded-form frame graphs when present. | `io::fold::export_fold_file_json`, `io::fold::export_folded_frames`, web FOLD frame inventory | 4, 11 | Unit-tested for lossless Rust export |
 | `OriImporter.java` | `.ori` import. | `io::ori::import` | 4 | Unit-tested |
 | `OriExporter.java` | `.ori` export. | `io::ori::export` | 4 | Unit-tested |
 | `OrhImporter.java` | `.orh` import. | `io::orh::import` | 4 | Oracle-tested |

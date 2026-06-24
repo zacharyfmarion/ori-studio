@@ -397,8 +397,8 @@ Normal tests should not require Java:
 - [x] Add explicit unsupported/status entries for each folded-figure command,
       display mode, save/import path, and render primitive.
 - [x] Source-map remaining folded-figure drawing, camera, and save-model fields.
-- [ ] Add preserving multi-frame FOLD model in Rust.
-- [ ] Add preserving multi-frame FOLD import/export tests, including
+- [x] Add preserving multi-frame FOLD model in Rust.
+- [x] Add preserving multi-frame FOLD import/export tests, including
       `foldedForm` frames.
 - [ ] Replace web FOLD import flattening with frame inventory plus active-frame
       selection.
