@@ -3,7 +3,9 @@ use oristudio_cp::folding::{
     FoldedFigureRenderPrimitive, FoldedFigureRenderPrimitiveKind, FoldedFigureRenderSnapshot,
     FoldedFigureRenderStroke, FoldedFigureRenderStyle, FoldedFigureState, FoldedSubfaceFigure,
     RenderPathCommand, folded_figure_paper_render_snapshot_from_segments,
-    folded_subface_figure_from_segments, parse_oriedita_render_primitives,
+    folded_figure_transparent_render_snapshot_from_segments,
+    folded_figure_wire_render_snapshot_from_segments, folded_subface_figure_from_segments,
+    parse_oriedita_render_primitives,
 };
 use oristudio_cp::geometry::{LineColor, LineSegment, Point};
 use std::path::{Path, PathBuf};
@@ -202,6 +204,95 @@ fn paper_visible_face_oracle_outputs_are_parseable() {
                 11,
                 "{case_pass} row should have stable columns: {row}",
                 case_pass = case.pass
+            );
+        }
+    }
+}
+
+#[test]
+fn transparent_and_wire_render_oracle_outputs_are_parseable() {
+    let Some(oracle) = render_oracle() else {
+        eprintln!("skipping Oriedita render oracle test: ORIEDITA_RENDER_ORACLE is not set");
+        return;
+    };
+
+    let segments = kabuto_segments();
+    for case in wire_render_cases()
+        .into_iter()
+        .chain(transparent_grayscale_render_cases())
+        .chain(transparent_color_render_cases())
+    {
+        let output = run_oracle_owned(&oracle, &segment_oracle_args(case.command, &segments));
+        let snapshot =
+            parse_oriedita_render_primitives(&output).expect("parse Oriedita render primitives");
+
+        assert_eq!(snapshot.schema_version, 1);
+        assert_eq!(snapshot.fixture.as_deref(), Some("segments"));
+        assert_eq!(snapshot.pass.as_deref(), Some(case.pass));
+        assert!(
+            !snapshot.primitives.is_empty(),
+            "{} should include render primitives",
+            case.pass
+        );
+    }
+}
+
+#[test]
+fn kabuto_wire_render_primitives_match_oriedita_oracle() {
+    let Some(oracle) = render_oracle() else {
+        eprintln!("skipping Oriedita render oracle test: ORIEDITA_RENDER_ORACLE is not set");
+        return;
+    };
+
+    let segments = kabuto_segments();
+    for case in wire_render_cases() {
+        let output = run_oracle_owned(&oracle, &segment_oracle_args(case.command, &segments));
+        let oracle_snapshot =
+            parse_oriedita_render_primitives(&output).expect("parse Oriedita render primitives");
+        let mut model = FoldedFigureModel::default();
+        model.state = case.state;
+        let rust_snapshot = folded_figure_wire_render_snapshot_from_segments(&segments, 1, model)
+            .expect("Rust wire render")
+            .expect("wire primitives");
+
+        assert_eq!(rust_snapshot.pass.as_deref(), Some(case.pass));
+        assert_primitives_match_with_coordinate_tolerance(
+            case.pass,
+            &rust_snapshot,
+            &oracle_snapshot,
+        );
+    }
+}
+
+#[test]
+fn kabuto_transparent_render_primitives_match_oriedita_oracle() {
+    let Some(oracle) = render_oracle() else {
+        eprintln!("skipping Oriedita render oracle test: ORIEDITA_RENDER_ORACLE is not set");
+        return;
+    };
+
+    let segments = kabuto_segments();
+    for (cases, color) in [
+        (transparent_grayscale_render_cases(), false),
+        (transparent_color_render_cases(), true),
+    ] {
+        for case in cases {
+            let output = run_oracle_owned(&oracle, &segment_oracle_args(case.command, &segments));
+            let oracle_snapshot = parse_oriedita_render_primitives(&output)
+                .expect("parse Oriedita render primitives");
+            let mut model = FoldedFigureModel::default();
+            model.state = case.state;
+            model.transparency_color = color;
+            let rust_snapshot =
+                folded_figure_transparent_render_snapshot_from_segments(&segments, 1, model)
+                    .expect("Rust transparent render")
+                    .expect("transparent primitives");
+
+            assert_eq!(rust_snapshot.pass.as_deref(), Some(case.pass));
+            assert_primitives_match_with_coordinate_tolerance(
+                case.pass,
+                &rust_snapshot,
+                &oracle_snapshot,
             );
         }
     }
@@ -739,6 +830,81 @@ fn paper_visible_face_cases() -> [PaperRenderCase; 3] {
             command: "folded-render-paper-visible-both-segments",
             pass: "paper-visible-both",
             state: FoldedFigureState::Both2,
+        },
+    ]
+}
+
+fn wire_render_cases() -> [PaperRenderCase; 4] {
+    [
+        PaperRenderCase {
+            command: "folded-render-wire-front-segments",
+            pass: "wire-front",
+            state: FoldedFigureState::Front0,
+        },
+        PaperRenderCase {
+            command: "folded-render-wire-back-segments",
+            pass: "wire-back",
+            state: FoldedFigureState::Back1,
+        },
+        PaperRenderCase {
+            command: "folded-render-wire-both-segments",
+            pass: "wire-both",
+            state: FoldedFigureState::Both2,
+        },
+        PaperRenderCase {
+            command: "folded-render-wire-transparent-state-segments",
+            pass: "wire-transparent-state",
+            state: FoldedFigureState::Transparent3,
+        },
+    ]
+}
+
+fn transparent_grayscale_render_cases() -> [PaperRenderCase; 4] {
+    [
+        PaperRenderCase {
+            command: "folded-render-transparent-grayscale-front-segments",
+            pass: "transparent-grayscale-front",
+            state: FoldedFigureState::Front0,
+        },
+        PaperRenderCase {
+            command: "folded-render-transparent-grayscale-back-segments",
+            pass: "transparent-grayscale-back",
+            state: FoldedFigureState::Back1,
+        },
+        PaperRenderCase {
+            command: "folded-render-transparent-grayscale-both-segments",
+            pass: "transparent-grayscale-both",
+            state: FoldedFigureState::Both2,
+        },
+        PaperRenderCase {
+            command: "folded-render-transparent-grayscale-transparent-state-segments",
+            pass: "transparent-grayscale-transparent-state",
+            state: FoldedFigureState::Transparent3,
+        },
+    ]
+}
+
+fn transparent_color_render_cases() -> [PaperRenderCase; 4] {
+    [
+        PaperRenderCase {
+            command: "folded-render-transparent-color-front-segments",
+            pass: "transparent-color-front",
+            state: FoldedFigureState::Front0,
+        },
+        PaperRenderCase {
+            command: "folded-render-transparent-color-back-segments",
+            pass: "transparent-color-back",
+            state: FoldedFigureState::Back1,
+        },
+        PaperRenderCase {
+            command: "folded-render-transparent-color-both-segments",
+            pass: "transparent-color-both",
+            state: FoldedFigureState::Both2,
+        },
+        PaperRenderCase {
+            command: "folded-render-transparent-color-transparent-state-segments",
+            pass: "transparent-color-transparent-state",
+            state: FoldedFigureState::Transparent3,
         },
     ]
 }

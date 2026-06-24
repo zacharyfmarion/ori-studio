@@ -1642,6 +1642,57 @@ pub fn folded_figure_paper_render_snapshot_from_segments(
     }))
 }
 
+pub fn folded_figure_wire_render_snapshot_from_segments(
+    segments: &[LineSegment],
+    starting_face_id: i32,
+    model: FoldedFigureModel,
+) -> Result<Option<FoldedFigureRenderSnapshot>, FoldingEstimateError> {
+    let Some((graph, folded)) =
+        folded_graph_and_wireframe_from_segments(segments, starting_face_id)
+    else {
+        return Ok(None);
+    };
+
+    Ok(Some(FoldedFigureRenderSnapshot {
+        schema_version: 1,
+        fixture: None,
+        pass: Some(wire_render_pass_name(model.state).to_string()),
+        primitives: wire_render_primitives(&graph, &folded, &model),
+    }))
+}
+
+pub fn folded_figure_transparent_render_snapshot_from_segments(
+    segments: &[LineSegment],
+    starting_face_id: i32,
+    model: FoldedFigureModel,
+) -> Result<Option<FoldedFigureRenderSnapshot>, FoldingEstimateError> {
+    let Some((graph, folded)) =
+        folded_graph_and_wireframe_from_segments(segments, starting_face_id)
+    else {
+        return Ok(None);
+    };
+    let folded_segments = folded_wireframe_segments(&folded);
+    let prepared_segments = prepare_subface_segments(&folded_segments);
+    let subface_graph = FoldGraph::from_segments(&prepared_segments, true);
+    if subface_graph.faces.is_empty() {
+        return Ok(None);
+    }
+    let subfaces = configure_subfaces(&folded, &subface_graph);
+
+    Ok(Some(FoldedFigureRenderSnapshot {
+        schema_version: 1,
+        fixture: None,
+        pass: Some(transparent_render_pass_name(model.state, model.transparency_color).to_string()),
+        primitives: transparent_render_primitives(
+            &graph,
+            &folded,
+            &subface_graph,
+            &subfaces,
+            &model,
+        ),
+    }))
+}
+
 /// Oriedita `FoldedFigure_Worker.possible_overlapping_search(false)` after
 /// folding stages 01-04 have prepared subfaces, hierarchy relations, and
 /// equivalence conditions. This is the no-swap/no-realtime-AEA worker search
@@ -1758,6 +1809,24 @@ fn two_colored_overlap_enumerator_from_segments(
         Some(&conditions),
     )
     .map(Some)
+}
+
+fn folded_graph_and_wireframe_from_segments(
+    segments: &[LineSegment],
+    starting_face_id: i32,
+) -> Option<(FoldGraph, FoldedWireframe)> {
+    if segments.is_empty() {
+        return None;
+    }
+
+    let graph = FoldGraph::from_segments(segments, true);
+    if graph.faces.is_empty() {
+        return None;
+    }
+
+    let positions = graph.face_positions(starting_face_id);
+    let folded = wireframe_from_graph(&graph, &positions, graph.folded_points(&positions));
+    Some((graph, folded))
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1877,12 +1946,14 @@ struct OrieditaPaperRenderPass {
 #[derive(Debug, Clone)]
 struct OrieditaRenderState {
     stroke: FoldedFigureRenderStroke,
+    antialias: FoldedFigureRenderAntialias,
 }
 
 impl Default for OrieditaRenderState {
     fn default() -> Self {
         Self {
             stroke: default_java2d_stroke(),
+            antialias: FoldedFigureRenderAntialias::Off,
         }
     }
 }
@@ -1905,6 +1976,36 @@ fn paper_render_passes(
     flat_points: &[Point],
     folded_points: &[Point],
 ) -> Option<Vec<OrieditaPaperRenderPass>> {
+    let (front, rear) = folded_front_rear_passes(model, flat_points, folded_points);
+
+    match state {
+        FoldedFigureState::Front0 => Some(vec![front]),
+        FoldedFigureState::Back1 => Some(vec![rear]),
+        FoldedFigureState::Both2 => Some(vec![front, rear]),
+        FoldedFigureState::Transparent3 => None,
+    }
+}
+
+fn transparent_or_wire_render_passes(
+    state: FoldedFigureState,
+    model: &FoldedFigureModel,
+    flat_points: &[Point],
+    folded_points: &[Point],
+) -> Vec<OrieditaPaperRenderPass> {
+    let (front, rear) = folded_front_rear_passes(model, flat_points, folded_points);
+
+    match state {
+        FoldedFigureState::Front0 => vec![front],
+        FoldedFigureState::Back1 => vec![rear],
+        FoldedFigureState::Both2 | FoldedFigureState::Transparent3 => vec![front, rear],
+    }
+}
+
+fn folded_front_rear_passes(
+    model: &FoldedFigureModel,
+    flat_points: &[Point],
+    folded_points: &[Point],
+) -> (OrieditaPaperRenderPass, OrieditaPaperRenderPass) {
     let front = OrieditaPaperRenderPass {
         camera: OrieditaRenderCamera::folded_front(model).fix_to_flat_bounds(
             flat_points,
@@ -1922,12 +2023,7 @@ fn paper_render_passes(
         flipped: true,
     };
 
-    match state {
-        FoldedFigureState::Front0 => Some(vec![front]),
-        FoldedFigureState::Back1 => Some(vec![rear]),
-        FoldedFigureState::Both2 => Some(vec![front, rear]),
-        FoldedFigureState::Transparent3 => None,
-    }
+    (front, rear)
 }
 
 fn paper_render_primitives(
@@ -1960,6 +2056,301 @@ fn paper_render_primitives(
     }
 
     primitives
+}
+
+fn wire_render_pass_name(state: FoldedFigureState) -> &'static str {
+    match state {
+        FoldedFigureState::Front0 => "wire-front",
+        FoldedFigureState::Back1 => "wire-back",
+        FoldedFigureState::Both2 => "wire-both",
+        FoldedFigureState::Transparent3 => "wire-transparent-state",
+    }
+}
+
+fn wire_render_primitives(
+    flat_graph: &FoldGraph,
+    folded: &FoldedWireframe,
+    model: &FoldedFigureModel,
+) -> Vec<FoldedFigureRenderPrimitive> {
+    let mut primitives = Vec::new();
+    let (front, rear) = folded_front_rear_passes(model, &flat_graph.points, &folded.points);
+    match model.state {
+        FoldedFigureState::Front0 => {
+            push_wire_render_pass_primitives(folded, front, &mut primitives)
+        }
+        FoldedFigureState::Back1 => push_wire_render_pass_primitives(folded, rear, &mut primitives),
+        FoldedFigureState::Both2 | FoldedFigureState::Transparent3 => {
+            push_wire_render_interleaved_primitives(folded, front, rear, &mut primitives);
+        }
+    }
+    primitives
+}
+
+fn push_wire_render_pass_primitives(
+    folded: &FoldedWireframe,
+    pass: OrieditaPaperRenderPass,
+    primitives: &mut Vec<FoldedFigureRenderPrimitive>,
+) {
+    let mut color = RgbaColor::new(0, 0, 0, 255);
+    for line in &folded.lines {
+        color = wire_line_color(color, line.color);
+        push_wire_line_primitive(folded, line, pass, color, primitives);
+    }
+}
+
+fn push_wire_render_interleaved_primitives(
+    folded: &FoldedWireframe,
+    front: OrieditaPaperRenderPass,
+    rear: OrieditaPaperRenderPass,
+    primitives: &mut Vec<FoldedFigureRenderPrimitive>,
+) {
+    let mut color = RgbaColor::new(0, 0, 0, 255);
+    for line in &folded.lines {
+        color = wire_line_color(color, line.color);
+        push_wire_line_primitive(folded, line, front, color, primitives);
+        push_wire_line_primitive(folded, line, rear, color, primitives);
+    }
+}
+
+fn push_wire_line_primitive(
+    folded: &FoldedWireframe,
+    line: &FoldedWireframeLine,
+    pass: OrieditaPaperRenderPass,
+    color: RgbaColor,
+    primitives: &mut Vec<FoldedFigureRenderPrimitive>,
+) {
+    let Some(begin) = folded.points.get(line.begin).copied() else {
+        return;
+    };
+    let Some(end) = folded.points.get(line.end).copied() else {
+        return;
+    };
+    primitives.push(FoldedFigureRenderPrimitive {
+        sequence: primitives.len(),
+        kind: FoldedFigureRenderPrimitiveKind::StrokeSegment,
+        style: FoldedFigureRenderStyle {
+            paint: FoldedFigureRenderPaint::Color { color },
+            stroke: default_java2d_stroke(),
+            antialias: FoldedFigureRenderAntialias::Off,
+        },
+        geometry: FoldedFigureRenderGeometry::Segment {
+            from: java_draw_line_point(pass.camera.object_to_tv_raw(begin)),
+            to: java_draw_line_point(pass.camera.object_to_tv_raw(end)),
+        },
+    });
+}
+
+fn wire_line_color(current: RgbaColor, color: LineColor) -> RgbaColor {
+    match color {
+        LineColor::Black0 => RgbaColor::new(0, 0, 0, 255),
+        LineColor::Red1 => RgbaColor::new(255, 0, 0, 255),
+        LineColor::Blue2 => RgbaColor::new(0, 0, 255, 255),
+        _ => current,
+    }
+}
+
+fn java_draw_line_point(point: Point) -> Point {
+    Point::new(point.x.trunc(), point.y.trunc())
+}
+
+fn transparent_render_pass_name(state: FoldedFigureState, color: bool) -> &'static str {
+    match (state, color) {
+        (FoldedFigureState::Front0, false) => "transparent-grayscale-front",
+        (FoldedFigureState::Back1, false) => "transparent-grayscale-back",
+        (FoldedFigureState::Both2, false) => "transparent-grayscale-both",
+        (FoldedFigureState::Transparent3, false) => "transparent-grayscale-transparent-state",
+        (FoldedFigureState::Front0, true) => "transparent-color-front",
+        (FoldedFigureState::Back1, true) => "transparent-color-back",
+        (FoldedFigureState::Both2, true) => "transparent-color-both",
+        (FoldedFigureState::Transparent3, true) => "transparent-color-transparent-state",
+    }
+}
+
+fn transparent_render_primitives(
+    flat_graph: &FoldGraph,
+    folded: &FoldedWireframe,
+    subface_graph: &FoldGraph,
+    subfaces: &SubFaceConfiguration,
+    model: &FoldedFigureModel,
+) -> Vec<FoldedFigureRenderPrimitive> {
+    let passes =
+        transparent_or_wire_render_passes(model.state, model, &flat_graph.points, &folded.points);
+    let mut primitives = Vec::new();
+    let mut render_state = OrieditaRenderState::default();
+    for pass in passes {
+        if model.transparency_color {
+            push_color_transparent_render_pass_primitives(
+                folded,
+                subface_graph,
+                model,
+                pass,
+                &mut render_state,
+                &mut primitives,
+            );
+        } else {
+            push_grayscale_transparent_render_pass_primitives(
+                subface_graph,
+                subfaces,
+                model,
+                pass,
+                &mut render_state,
+                &mut primitives,
+            );
+        }
+    }
+    primitives
+}
+
+fn push_color_transparent_render_pass_primitives(
+    folded: &FoldedWireframe,
+    subface_graph: &FoldGraph,
+    model: &FoldedFigureModel,
+    pass: OrieditaPaperRenderPass,
+    render_state: &mut OrieditaRenderState,
+    primitives: &mut Vec<FoldedFigureRenderPrimitive>,
+) {
+    let fill_color = RgbaColor::new(
+        model.front_color.red,
+        model.front_color.green,
+        model.front_color.blue,
+        model.transparent_transparency,
+    );
+    for face in &folded.faces {
+        push_transparent_fill(
+            face,
+            &folded.points,
+            pass,
+            fill_color,
+            render_state,
+            primitives,
+        );
+    }
+
+    let line_color = RgbaColor::new(
+        model.front_color.red,
+        model.front_color.green,
+        model.front_color.blue,
+        model.transparent_transparency.saturating_mul(2),
+    );
+    push_transparent_lines(
+        subface_graph,
+        model,
+        pass,
+        line_color,
+        render_state,
+        primitives,
+    );
+}
+
+fn push_grayscale_transparent_render_pass_primitives(
+    subface_graph: &FoldGraph,
+    subfaces: &SubFaceConfiguration,
+    model: &FoldedFigureModel,
+    pass: OrieditaPaperRenderPass,
+    render_state: &mut OrieditaRenderState,
+    primitives: &mut Vec<FoldedFigureRenderPrimitive>,
+) {
+    let step = if subfaces.face_id_count_max > 0 {
+        225 / subfaces.face_id_count_max
+    } else {
+        0
+    };
+
+    for (subface_index, face) in subface_graph.faces.iter().enumerate() {
+        let face_count = subfaces
+            .subfaces
+            .get(subface_index)
+            .map(|subface| subface.face_ids.len())
+            .unwrap_or(0);
+        let gray = (255i32 - (step * face_count) as i32).clamp(0, 255) as u8;
+        push_transparent_fill(
+            face,
+            &subface_graph.points,
+            pass,
+            RgbaColor::new(gray, gray, gray, 255),
+            render_state,
+            primitives,
+        );
+    }
+
+    push_transparent_lines(
+        subface_graph,
+        model,
+        pass,
+        RgbaColor::new(0, 0, 0, 255),
+        render_state,
+        primitives,
+    );
+}
+
+fn push_transparent_fill(
+    face: &[usize],
+    points: &[Point],
+    pass: OrieditaPaperRenderPass,
+    color: RgbaColor,
+    render_state: &OrieditaRenderState,
+    primitives: &mut Vec<FoldedFigureRenderPrimitive>,
+) {
+    let points = face
+        .iter()
+        .filter_map(|point_index| points.get(*point_index).copied())
+        .map(|point| pass.camera.object_to_tv(point))
+        .collect::<Vec<_>>();
+    if points.len() < 3 {
+        return;
+    }
+    primitives.push(FoldedFigureRenderPrimitive {
+        sequence: primitives.len(),
+        kind: FoldedFigureRenderPrimitiveKind::FillPath,
+        style: FoldedFigureRenderStyle {
+            paint: FoldedFigureRenderPaint::Color { color },
+            stroke: render_state.stroke.clone(),
+            antialias: render_state.antialias,
+        },
+        geometry: FoldedFigureRenderGeometry::Path {
+            commands: closed_path_commands(&points),
+        },
+    });
+}
+
+fn push_transparent_lines(
+    subface_graph: &FoldGraph,
+    model: &FoldedFigureModel,
+    pass: OrieditaPaperRenderPass,
+    color: RgbaColor,
+    render_state: &mut OrieditaRenderState,
+    primitives: &mut Vec<FoldedFigureRenderPrimitive>,
+) {
+    render_state.stroke = folded_line_stroke(model);
+    render_state.antialias = if model.anti_alias {
+        FoldedFigureRenderAntialias::On
+    } else {
+        FoldedFigureRenderAntialias::Off
+    };
+    for line in &subface_graph.lines {
+        let Some(begin) = subface_graph.points.get(line.begin).copied() else {
+            continue;
+        };
+        let Some(end) = subface_graph.points.get(line.end).copied() else {
+            continue;
+        };
+        let points = [
+            pass.camera.object_to_tv(begin),
+            pass.camera.object_to_tv(end),
+        ];
+        primitives.push(FoldedFigureRenderPrimitive {
+            sequence: primitives.len(),
+            kind: FoldedFigureRenderPrimitiveKind::StrokePath,
+            style: FoldedFigureRenderStyle {
+                paint: FoldedFigureRenderPaint::Color { color },
+                stroke: render_state.stroke.clone(),
+                antialias: render_state.antialias,
+            },
+            geometry: FoldedFigureRenderGeometry::Path {
+                commands: open_path_commands(&points),
+            },
+        });
+    }
 }
 
 fn push_paper_render_pass_primitives(

@@ -642,9 +642,9 @@ checkpoint and keep the checklist current.
 - [x] Add paper shadow render oracle fixtures.
 - [x] Resolve kabuto paper face-side parity before enabling exact Rust shadow
       primitive comparison.
-- [ ] Port transparent grayscale, transparent color, and wire-view primitive
+- [x] Port transparent grayscale, transparent color, and wire-view primitive
       generation.
-- [ ] Add transparent and wire oracle fixtures.
+- [x] Add transparent and wire oracle fixtures.
 - [ ] Port folded camera initialization, minimum-bound alignment, and camera
       mutation snapshot parity.
 - [ ] Port crosshair, selected marker, display number, selected point, and

@@ -373,6 +373,18 @@ public class OrieditaGeometryOracle {
             case "folded-render-paper-visible-front-segments" -> foldedRenderPaperVisibleSegments(args, FoldedFigure.State.FRONT_0, "paper-visible-front");
             case "folded-render-paper-visible-back-segments" -> foldedRenderPaperVisibleSegments(args, FoldedFigure.State.BACK_1, "paper-visible-back");
             case "folded-render-paper-visible-both-segments" -> foldedRenderPaperVisibleSegments(args, FoldedFigure.State.BOTH_2, "paper-visible-both");
+            case "folded-render-wire-front-segments" -> foldedRenderStyleSegments(args, FoldedFigure.State.FRONT_0, FoldedFigure.DisplayStyle.WIRE_2, false, "wire-front");
+            case "folded-render-wire-back-segments" -> foldedRenderStyleSegments(args, FoldedFigure.State.BACK_1, FoldedFigure.DisplayStyle.WIRE_2, false, "wire-back");
+            case "folded-render-wire-both-segments" -> foldedRenderStyleSegments(args, FoldedFigure.State.BOTH_2, FoldedFigure.DisplayStyle.WIRE_2, false, "wire-both");
+            case "folded-render-wire-transparent-state-segments" -> foldedRenderStyleSegments(args, FoldedFigure.State.TRANSPARENT_3, FoldedFigure.DisplayStyle.WIRE_2, false, "wire-transparent-state");
+            case "folded-render-transparent-grayscale-front-segments" -> foldedRenderStyleSegments(args, FoldedFigure.State.FRONT_0, FoldedFigure.DisplayStyle.TRANSPARENT_3, false, "transparent-grayscale-front");
+            case "folded-render-transparent-grayscale-back-segments" -> foldedRenderStyleSegments(args, FoldedFigure.State.BACK_1, FoldedFigure.DisplayStyle.TRANSPARENT_3, false, "transparent-grayscale-back");
+            case "folded-render-transparent-grayscale-both-segments" -> foldedRenderStyleSegments(args, FoldedFigure.State.BOTH_2, FoldedFigure.DisplayStyle.TRANSPARENT_3, false, "transparent-grayscale-both");
+            case "folded-render-transparent-grayscale-transparent-state-segments" -> foldedRenderStyleSegments(args, FoldedFigure.State.TRANSPARENT_3, FoldedFigure.DisplayStyle.TRANSPARENT_3, false, "transparent-grayscale-transparent-state");
+            case "folded-render-transparent-color-front-segments" -> foldedRenderStyleSegments(args, FoldedFigure.State.FRONT_0, FoldedFigure.DisplayStyle.TRANSPARENT_3, true, "transparent-color-front");
+            case "folded-render-transparent-color-back-segments" -> foldedRenderStyleSegments(args, FoldedFigure.State.BACK_1, FoldedFigure.DisplayStyle.TRANSPARENT_3, true, "transparent-color-back");
+            case "folded-render-transparent-color-both-segments" -> foldedRenderStyleSegments(args, FoldedFigure.State.BOTH_2, FoldedFigure.DisplayStyle.TRANSPARENT_3, true, "transparent-color-both");
+            case "folded-render-transparent-color-transparent-state-segments" -> foldedRenderStyleSegments(args, FoldedFigure.State.TRANSPARENT_3, FoldedFigure.DisplayStyle.TRANSPARENT_3, true, "transparent-color-transparent-state");
             default -> usage("unknown command: " + args[0]);
         }
     }
@@ -384,7 +396,7 @@ public class OrieditaGeometryOracle {
 
         String fixture = args[1];
         LineSegmentSet set = foldedRenderFixture(fixture);
-        printFoldedRender(fixture, set, state, shadows, pass);
+        printFoldedRender(fixture, set, state, shadows, FoldedFigure.DisplayStyle.PAPER_5, false, pass);
     }
 
     private static void foldedRenderPaperSegments(String[] args, FoldedFigure.State state, boolean shadows, String pass) throws Exception {
@@ -394,7 +406,22 @@ public class OrieditaGeometryOracle {
 
         int count = Integer.parseInt(args[1]);
         LineSegmentSet set = lineSegmentSet(args, 2, count);
-        printFoldedRender("segments", set, state, shadows, pass);
+        printFoldedRender("segments", set, state, shadows, FoldedFigure.DisplayStyle.PAPER_5, false, pass);
+    }
+
+    private static void foldedRenderStyleSegments(
+            String[] args,
+            FoldedFigure.State state,
+            FoldedFigure.DisplayStyle displayStyle,
+            boolean transparencyColor,
+            String pass) throws Exception {
+        if (args.length < 2) {
+            usage(args[0] + " expects count and line segment payload");
+        }
+
+        int count = Integer.parseInt(args[1]);
+        LineSegmentSet set = lineSegmentSet(args, 2, count);
+        printFoldedRender("segments", set, state, false, displayStyle, transparencyColor, pass);
     }
 
     private static void foldedRenderPaperVisibleSegments(String[] args, FoldedFigure.State state, String pass) throws Exception {
@@ -412,8 +439,11 @@ public class OrieditaGeometryOracle {
             LineSegmentSet set,
             FoldedFigure.State state,
             boolean shadows,
+            FoldedFigure.DisplayStyle displayStyle,
+            boolean transparencyColor,
             String pass) throws Exception {
-        FoldedFigure_Drawer drawer = foldedRenderContext(set, state, shadows).drawer;
+        FoldedFigure_Drawer drawer =
+                foldedRenderContext(set, state, shadows, displayStyle, transparencyColor).drawer;
         RecordingGraphics2D graphics = new RecordingGraphics2D(800, 600);
         drawer.foldUp_draw(graphics, false, 1, true);
 
@@ -430,7 +460,8 @@ public class OrieditaGeometryOracle {
             LineSegmentSet set,
             FoldedFigure.State state,
             String pass) throws Exception {
-        FoldedRenderContext context = foldedRenderContext(set, state, false);
+        FoldedRenderContext context =
+                foldedRenderContext(set, state, false, FoldedFigure.DisplayStyle.PAPER_5, false);
         FoldedFigure_Worker worker = context.foldedFigure.foldedFigure_worker;
         WireFrame_Worker flat = context.foldedFigure.wireFrameWorker_flatCp;
         PointSet subFaceFigure = context.foldedFigure.wireFrameWorker_foldedSubdivided.get();
@@ -482,22 +513,26 @@ public class OrieditaGeometryOracle {
             LineSegmentSet set,
             FoldedFigure.State state,
             boolean shadows) throws Exception {
-        return foldedRenderContext(set, state, shadows).drawer;
+        return foldedRenderContext(set, state, shadows, FoldedFigure.DisplayStyle.PAPER_5, false).drawer;
     }
 
     private static FoldedRenderContext foldedRenderContext(
             LineSegmentSet set,
             FoldedFigure.State state,
-            boolean shadows) throws Exception {
+            boolean shadows,
+            FoldedFigure.DisplayStyle displayStyle,
+            boolean transparencyColor) throws Exception {
         FoldedFigure_01 foldedFigure = new FoldedFigure_01(new NoopBulletinBoard());
         FoldedFigure_Drawer drawer = new FoldedFigure_Drawer(foldedFigure);
         FoldedFigureModel model = new FoldedFigureModel();
         model.setState(state);
         model.setDisplayShadows(shadows);
+        model.setTransparencyColor(transparencyColor);
         drawer.setData(model);
         drawer.setStartingFaceId(1);
         drawer.setEstimationOrder(FoldedFigure.EstimationOrder.ORDER_5);
         drawer.folding_estimated(new Camera(), set);
+        foldedFigure.displayStyle = displayStyle;
         return new FoldedRenderContext(foldedFigure, drawer);
     }
 
@@ -6930,6 +6965,18 @@ public class OrieditaGeometryOracle {
         System.err.println("   or: OrieditaGeometryOracle folded-render-paper-visible-front-segments <count> [ax ay bx by color]...");
         System.err.println("   or: OrieditaGeometryOracle folded-render-paper-visible-back-segments <count> [ax ay bx by color]...");
         System.err.println("   or: OrieditaGeometryOracle folded-render-paper-visible-both-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-wire-front-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-wire-back-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-wire-both-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-wire-transparent-state-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-transparent-grayscale-front-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-transparent-grayscale-back-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-transparent-grayscale-both-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-transparent-grayscale-transparent-state-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-transparent-color-front-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-transparent-color-back-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-transparent-color-both-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-transparent-color-transparent-state-segments <count> [ax ay bx by color]...");
         System.exit(2);
     }
 }
