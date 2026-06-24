@@ -631,9 +631,10 @@ checkpoint and keep the checklist current.
 - [ ] Add Oriedita oracle commands for folded snapshot parity.
 - [ ] Add Oriedita oracle commands for render primitive parity.
 - [x] Add focused web tests for rendering, stale state, and controls.
-- [ ] Implement Oriedita recording Java2D adapter in `tools/oriedita-oracle`.
-- [ ] Define stable folded render primitive schema in oracle and Rust.
-- [ ] Add paper-front render oracle fixture and comparison test.
+- [x] Implement Oriedita recording Java2D adapter in `tools/oriedita-oracle`.
+- [ ] Define stable folded render primitive schema in Rust.
+- [x] Add paper-front render oracle fixture.
+- [ ] Add paper-front render oracle comparison test.
 - [ ] Port paper-view subface fill, front/back parity, edge visibility, and
       shadow primitive generation.
 - [ ] Add paper back/both and shadow oracle fixtures.

@@ -39,6 +39,11 @@ selected move/copy. The lengthen groundwork includes
 `OritaCalc.extendToIntersectionPoint_2`. Point-tool commands cover the
 line-only portions of count-based and ratio-based segment division, including
 the worker-style line insertion splitting used by the handlers.
+Folded-render oracle coverage has started with a recording Java2D adapter that
+captures the real `FoldedFigure_Drawer` output as deterministic primitive
+records. The first scoped command is `folded-render-paper-front simple-square`;
+later render commands should extend the same primitive schema instead of
+reimplementing Oriedita drawing logic inside the oracle harness.
 
 The oracle intentionally compiles against a pinned Oriedita source checkout
 instead of reimplementing the behavior in Rust.

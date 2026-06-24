@@ -7,6 +7,9 @@ public final class Logger {
     public static void info(String message) {
     }
 
+    public static void info(Object value) {
+    }
+
     public static void info(String message, Object arg) {
     }
 

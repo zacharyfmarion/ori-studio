@@ -39,10 +39,14 @@ import origami.folding.util.IBulletinBoard;
 import origami.folding.util.SortingBox;
 
 import oriedita.editor.databinding.GridModel;
+import oriedita.editor.databinding.FoldedFigureModel;
+import oriedita.editor.drawing.FoldedFigure_Drawer;
+import oriedita.editor.drawing.tools.Camera;
 import oriedita.editor.export.DxfExporter;
 import oriedita.editor.export.ObjImporter;
 import oriedita.editor.export.OrhExporter;
 import oriedita.editor.export.OrhImporter;
+import oriedita.editor.folded_figure.FoldedFigure_01;
 import oriedita.editor.canvas.OperationFrame;
 import oriedita.editor.save.Save;
 import oriedita.editor.save.SaveProvider;
@@ -343,8 +347,55 @@ public class OrieditaGeometryOracle {
             case "worker-overlap-from-segments-summary" -> workerOverlapFromSegmentsSummary(args, false);
             case "worker-overlap-from-segments-swap-summary" -> workerOverlapFromSegmentsSummary(args, true);
             case "subface-swapper-summary" -> subfaceSwapperSummary(args);
+            case "folded-render-paper-front" -> foldedRenderPaperFront(args);
             default -> usage("unknown command: " + args[0]);
         }
+    }
+
+    private static void foldedRenderPaperFront(String[] args) throws Exception {
+        if (args.length != 2) {
+            usage("folded-render-paper-front expects a fixture name");
+        }
+
+        String fixture = args[1];
+        FoldedFigure_Drawer drawer = foldedRenderDrawer(fixture, FoldedFigure.State.FRONT_0);
+        RecordingGraphics2D graphics = new RecordingGraphics2D(800, 600);
+        drawer.foldUp_draw(graphics, false, 1, true);
+
+        System.out.println("schema|folded-render-primitives|1");
+        System.out.println("fixture|" + fixture + "|paper-front");
+        for (String record : graphics.records()) {
+            System.out.println(record);
+        }
+        graphics.dispose();
+    }
+
+    private static FoldedFigure_Drawer foldedRenderDrawer(
+            String fixture,
+            FoldedFigure.State state) throws Exception {
+        LineSegmentSet set = foldedRenderFixture(fixture);
+        FoldedFigure_01 foldedFigure = new FoldedFigure_01(new NoopBulletinBoard());
+        FoldedFigure_Drawer drawer = new FoldedFigure_Drawer(foldedFigure);
+        FoldedFigureModel model = new FoldedFigureModel();
+        model.setState(state);
+        drawer.setData(model);
+        drawer.setEstimationOrder(FoldedFigure.EstimationOrder.ORDER_5);
+        drawer.folding_estimated(new Camera(), set);
+        return drawer;
+    }
+
+    private static LineSegmentSet foldedRenderFixture(String fixture) {
+        if (!fixture.equals("simple-square")) {
+            throw new IllegalArgumentException("unknown folded render fixture: " + fixture);
+        }
+
+        LineSegmentSet set = new LineSegmentSet();
+        set.addLine(new Point(-50.0, -50.0), new Point(50.0, -50.0), LineColor.BLACK_0);
+        set.addLine(new Point(50.0, -50.0), new Point(50.0, 50.0), LineColor.BLACK_0);
+        set.addLine(new Point(50.0, 50.0), new Point(-50.0, 50.0), LineColor.BLACK_0);
+        set.addLine(new Point(-50.0, 50.0), new Point(-50.0, -50.0), LineColor.BLACK_0);
+        set.addLine(new Point(-50.0, -50.0), new Point(50.0, 50.0), LineColor.RED_1);
+        return set;
     }
 
     private static void customLineType(String[] args) {
@@ -6670,6 +6721,7 @@ public class OrieditaGeometryOracle {
         System.err.println("   or: OrieditaGeometryOracle worker-overlap-from-segments-summary <startingFace> <count> [ax ay bx by color]...");
         System.err.println("   or: OrieditaGeometryOracle worker-overlap-from-segments-swap-summary <startingFace> <count> [ax ay bx by color]...");
         System.err.println("   or: OrieditaGeometryOracle subface-swapper-summary <subfaceCount> [swapCounter]... <actionCount> [visit|record|process|estimate value]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-paper-front simple-square");
         System.exit(2);
     }
 }
