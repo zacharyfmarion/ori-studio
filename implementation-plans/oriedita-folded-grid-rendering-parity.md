@@ -414,6 +414,6 @@ Normal tests should not require Java:
       folded figures.
 - [ ] Add Oriedita oracle commands for folded snapshot parity.
 - [ ] Add Oriedita oracle commands for render primitive parity.
-- [ ] Add focused web tests for rendering, stale state, and controls.
+- [x] Add focused web tests for rendering, stale state, and controls.
 - [ ] Add Playwright screenshot coverage for the grid-area folded figure.
 - [ ] Run Rust, WASM, oracle, and web validation appropriate to each stage.
