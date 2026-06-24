@@ -1543,6 +1543,16 @@ pub fn folded_figure_paper_front_render_snapshot_from_segments(
     starting_face_id: i32,
     model: FoldedFigureModel,
 ) -> Result<Option<FoldedFigureRenderSnapshot>, FoldingEstimateError> {
+    let mut model = model;
+    model.state = FoldedFigureState::Front0;
+    folded_figure_paper_render_snapshot_from_segments(segments, starting_face_id, model)
+}
+
+pub fn folded_figure_paper_render_snapshot_from_segments(
+    segments: &[LineSegment],
+    starting_face_id: i32,
+    model: FoldedFigureModel,
+) -> Result<Option<FoldedFigureRenderSnapshot>, FoldingEstimateError> {
     if segments.is_empty() {
         return Ok(None);
     }
@@ -1570,12 +1580,15 @@ pub fn folded_figure_paper_front_render_snapshot_from_segments(
         return Ok(None);
     }
     let ordered_subfaces = enumerator.current_ordered_subfaces(overlap.priority.valid_count);
+    let Some(pass_name) = paper_render_pass_name(model.state) else {
+        return Ok(None);
+    };
 
     Ok(Some(FoldedFigureRenderSnapshot {
         schema_version: 1,
         fixture: None,
-        pass: Some("paper-front".to_string()),
-        primitives: paper_front_render_primitives(
+        pass: Some(pass_name.to_string()),
+        primitives: paper_render_primitives(
             &graph,
             &folded,
             &subface_graph,
@@ -1726,6 +1739,17 @@ impl OrieditaRenderCamera {
         }
     }
 
+    fn folded_rear(model: &FoldedFigureModel) -> Self {
+        Self {
+            camera_position: Point::origin(),
+            angle_degrees: model.rotation,
+            mirror: -1.0,
+            zoom_x: model.scale,
+            zoom_y: model.scale,
+            display_position: Point::new(40.0, 20.0),
+        }
+    }
+
     fn object_to_tv(self, point: Point) -> Point {
         let radians = self.angle_degrees * (3.14159265 / 180.0);
         let sin = radians.sin();
@@ -1774,7 +1798,66 @@ fn min_tv_point(points: &[Point], transform: impl Fn(Point) -> Point) -> Option<
     }))
 }
 
-fn paper_front_render_primitives(
+#[derive(Debug, Clone, Copy)]
+struct OrieditaPaperRenderPass {
+    camera: OrieditaRenderCamera,
+    flipped: bool,
+}
+
+#[derive(Debug, Clone)]
+struct OrieditaRenderState {
+    stroke: FoldedFigureRenderStroke,
+}
+
+impl Default for OrieditaRenderState {
+    fn default() -> Self {
+        Self {
+            stroke: default_java2d_stroke(),
+        }
+    }
+}
+
+fn paper_render_pass_name(state: FoldedFigureState) -> Option<&'static str> {
+    match state {
+        FoldedFigureState::Front0 => Some("paper-front"),
+        FoldedFigureState::Back1 => Some("paper-back"),
+        FoldedFigureState::Both2 => Some("paper-both"),
+        FoldedFigureState::Transparent3 => None,
+    }
+}
+
+fn paper_render_passes(
+    state: FoldedFigureState,
+    model: &FoldedFigureModel,
+    flat_points: &[Point],
+    folded_points: &[Point],
+) -> Option<Vec<OrieditaPaperRenderPass>> {
+    let front = OrieditaPaperRenderPass {
+        camera: OrieditaRenderCamera::folded_front(model).fix_to_flat_bounds(
+            flat_points,
+            folded_points,
+            Point::new(20.0, 20.0),
+        ),
+        flipped: false,
+    };
+    let rear = OrieditaPaperRenderPass {
+        camera: OrieditaRenderCamera::folded_rear(model).fix_to_flat_bounds(
+            flat_points,
+            folded_points,
+            Point::new(40.0, 20.0),
+        ),
+        flipped: true,
+    };
+
+    match state {
+        FoldedFigureState::Front0 => Some(vec![front]),
+        FoldedFigureState::Back1 => Some(vec![rear]),
+        FoldedFigureState::Both2 => Some(vec![front, rear]),
+        FoldedFigureState::Transparent3 => None,
+    }
+}
+
+fn paper_render_primitives(
     flat_graph: &FoldGraph,
     folded: &FoldedWireframe,
     subface_graph: &FoldGraph,
@@ -1782,28 +1865,54 @@ fn paper_front_render_primitives(
     ordered_subfaces: &[(usize, Vec<usize>)],
     model: &FoldedFigureModel,
 ) -> Vec<FoldedFigureRenderPrimitive> {
-    let camera = OrieditaRenderCamera::folded_front(model).fix_to_flat_bounds(
-        &flat_graph.points,
-        &folded.points,
-        Point::new(20.0, 20.0),
-    );
     let ordered_faces = ordered_subfaces
         .iter()
         .cloned()
         .collect::<HashMap<usize, Vec<usize>>>();
     let mut primitives = Vec::new();
+    let mut render_state = OrieditaRenderState::default();
+    let Some(passes) = paper_render_passes(model.state, model, &flat_graph.points, &folded.points)
+    else {
+        return primitives;
+    };
 
+    for pass in passes {
+        push_paper_render_pass_primitives(
+            subface_graph,
+            folded,
+            subfaces,
+            &ordered_faces,
+            model,
+            pass,
+            &mut render_state,
+            &mut primitives,
+        );
+    }
+
+    primitives
+}
+
+fn push_paper_render_pass_primitives(
+    subface_graph: &FoldGraph,
+    folded: &FoldedWireframe,
+    subfaces: &SubFaceConfiguration,
+    ordered_faces: &HashMap<usize, Vec<usize>>,
+    model: &FoldedFigureModel,
+    pass: OrieditaPaperRenderPass,
+    render_state: &mut OrieditaRenderState,
+    primitives: &mut Vec<FoldedFigureRenderPrimitive>,
+) {
     for (subface_index, face) in subface_graph.faces.iter().enumerate() {
         let Some(visible_face) =
-            visible_subface_face(subface_index, subfaces, &ordered_faces, false)
+            visible_subface_face(subface_index, subfaces, ordered_faces, pass.flipped)
         else {
             continue;
         };
-        let color = visible_face_color(visible_face, folded, model, false);
+        let color = visible_face_color(visible_face, folded, model, pass.flipped);
         let points = face
             .iter()
             .filter_map(|point_index| subface_graph.points.get(*point_index).copied())
-            .map(|point| camera.object_to_tv(point))
+            .map(|point| pass.camera.object_to_tv(point))
             .collect::<Vec<_>>();
         if points.len() < 3 {
             continue;
@@ -1813,7 +1922,7 @@ fn paper_front_render_primitives(
             kind: FoldedFigureRenderPrimitiveKind::FillPath,
             style: FoldedFigureRenderStyle {
                 paint: FoldedFigureRenderPaint::Color { color },
-                stroke: default_java2d_stroke(),
+                stroke: render_state.stroke.clone(),
                 antialias: FoldedFigureRenderAntialias::Off,
             },
             geometry: FoldedFigureRenderGeometry::Path {
@@ -1823,7 +1932,13 @@ fn paper_front_render_primitives(
     }
 
     for line_index in 0..subface_graph.lines.len() {
-        if !should_draw_paper_edge(line_index, subface_graph, subfaces, &ordered_faces, false) {
+        if !should_draw_paper_edge(
+            line_index,
+            subface_graph,
+            subfaces,
+            ordered_faces,
+            pass.flipped,
+        ) {
             continue;
         }
         let line = subface_graph.lines[line_index];
@@ -1833,7 +1948,11 @@ fn paper_front_render_primitives(
         let Some(end) = subface_graph.points.get(line.end).copied() else {
             continue;
         };
-        let points = [camera.object_to_tv(begin), camera.object_to_tv(end)];
+        let points = [
+            pass.camera.object_to_tv(begin),
+            pass.camera.object_to_tv(end),
+        ];
+        render_state.stroke = folded_line_stroke(model);
         primitives.push(FoldedFigureRenderPrimitive {
             sequence: primitives.len(),
             kind: FoldedFigureRenderPrimitiveKind::StrokePath,
@@ -1841,7 +1960,7 @@ fn paper_front_render_primitives(
                 paint: FoldedFigureRenderPaint::Color {
                     color: RgbaColor::from_rgb(model.line_color),
                 },
-                stroke: folded_line_stroke(model),
+                stroke: render_state.stroke.clone(),
                 antialias: if model.anti_alias {
                     FoldedFigureRenderAntialias::On
                 } else {
@@ -1853,8 +1972,6 @@ fn paper_front_render_primitives(
             },
         });
     }
-
-    primitives
 }
 
 fn visible_subface_face(

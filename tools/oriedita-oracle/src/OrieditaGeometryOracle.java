@@ -347,23 +347,25 @@ public class OrieditaGeometryOracle {
             case "worker-overlap-from-segments-summary" -> workerOverlapFromSegmentsSummary(args, false);
             case "worker-overlap-from-segments-swap-summary" -> workerOverlapFromSegmentsSummary(args, true);
             case "subface-swapper-summary" -> subfaceSwapperSummary(args);
-            case "folded-render-paper-front" -> foldedRenderPaperFront(args);
+            case "folded-render-paper-front" -> foldedRenderPaper(args, FoldedFigure.State.FRONT_0, "paper-front");
+            case "folded-render-paper-back" -> foldedRenderPaper(args, FoldedFigure.State.BACK_1, "paper-back");
+            case "folded-render-paper-both" -> foldedRenderPaper(args, FoldedFigure.State.BOTH_2, "paper-both");
             default -> usage("unknown command: " + args[0]);
         }
     }
 
-    private static void foldedRenderPaperFront(String[] args) throws Exception {
+    private static void foldedRenderPaper(String[] args, FoldedFigure.State state, String pass) throws Exception {
         if (args.length != 2) {
-            usage("folded-render-paper-front expects a fixture name");
+            usage(args[0] + " expects a fixture name");
         }
 
         String fixture = args[1];
-        FoldedFigure_Drawer drawer = foldedRenderDrawer(fixture, FoldedFigure.State.FRONT_0);
+        FoldedFigure_Drawer drawer = foldedRenderDrawer(fixture, state);
         RecordingGraphics2D graphics = new RecordingGraphics2D(800, 600);
         drawer.foldUp_draw(graphics, false, 1, true);
 
         System.out.println("schema|folded-render-primitives|1");
-        System.out.println("fixture|" + fixture + "|paper-front");
+        System.out.println("fixture|" + fixture + "|" + pass);
         for (String record : graphics.records()) {
             System.out.println(record);
         }
@@ -6722,6 +6724,8 @@ public class OrieditaGeometryOracle {
         System.err.println("   or: OrieditaGeometryOracle worker-overlap-from-segments-swap-summary <startingFace> <count> [ax ay bx by color]...");
         System.err.println("   or: OrieditaGeometryOracle subface-swapper-summary <subfaceCount> [swapCounter]... <actionCount> [visit|record|process|estimate value]...");
         System.err.println("   or: OrieditaGeometryOracle folded-render-paper-front simple-square");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-paper-back simple-square");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-paper-both simple-square");
         System.exit(2);
     }
 }

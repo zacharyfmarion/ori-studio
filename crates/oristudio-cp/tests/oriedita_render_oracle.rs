@@ -1,56 +1,90 @@
 use oristudio_cp::folding::{
     FoldedFigureModel, FoldedFigureRenderGeometry, FoldedFigureRenderPrimitiveKind,
-    folded_figure_paper_front_render_snapshot_from_segments, parse_oriedita_render_primitives,
+    FoldedFigureState, folded_figure_paper_render_snapshot_from_segments,
+    parse_oriedita_render_primitives,
 };
 use oristudio_cp::geometry::{LineColor, LineSegment, Point};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 #[test]
-fn paper_front_render_oracle_output_is_parseable() {
+fn paper_render_oracle_outputs_are_parseable() {
     let Some(oracle) = render_oracle() else {
         eprintln!("skipping Oriedita render oracle test: ORIEDITA_RENDER_ORACLE is not set");
         return;
     };
 
-    let output = run_oracle(&oracle, &["folded-render-paper-front", "simple-square"]);
-    let snapshot =
-        parse_oriedita_render_primitives(&output).expect("parse Oriedita render primitives");
+    for case in paper_render_cases() {
+        let output = run_oracle(&oracle, &[case.command, "simple-square"]);
+        let snapshot =
+            parse_oriedita_render_primitives(&output).expect("parse Oriedita render primitives");
 
-    assert_eq!(snapshot.schema_version, 1);
-    assert_eq!(snapshot.fixture.as_deref(), Some("simple-square"));
-    assert_eq!(snapshot.pass.as_deref(), Some("paper-front"));
-    assert!(!snapshot.primitives.is_empty());
-    assert_eq!(
-        snapshot.primitives[0].kind,
-        FoldedFigureRenderPrimitiveKind::FillPath
-    );
-    assert!(matches!(
-        snapshot.primitives[0].geometry,
-        FoldedFigureRenderGeometry::Path { .. }
-    ));
+        assert_eq!(snapshot.schema_version, 1);
+        assert_eq!(snapshot.fixture.as_deref(), Some("simple-square"));
+        assert_eq!(snapshot.pass.as_deref(), Some(case.pass));
+        assert!(!snapshot.primitives.is_empty());
+        assert_eq!(
+            snapshot.primitives[0].kind,
+            FoldedFigureRenderPrimitiveKind::FillPath
+        );
+        assert!(matches!(
+            snapshot.primitives[0].geometry,
+            FoldedFigureRenderGeometry::Path { .. }
+        ));
+    }
 }
 
 #[test]
-fn paper_front_render_primitives_match_oriedita_oracle() {
+fn paper_render_primitives_match_oriedita_oracle() {
     let Some(oracle) = render_oracle() else {
         eprintln!("skipping Oriedita render oracle test: ORIEDITA_RENDER_ORACLE is not set");
         return;
     };
 
-    let output = run_oracle(&oracle, &["folded-render-paper-front", "simple-square"]);
-    let oracle_snapshot =
-        parse_oriedita_render_primitives(&output).expect("parse Oriedita render primitives");
-    let rust_snapshot = folded_figure_paper_front_render_snapshot_from_segments(
-        &simple_square(),
-        1,
-        FoldedFigureModel::default(),
-    )
-    .expect("Rust paper-front render")
-    .expect("paper-front primitives");
+    for case in paper_render_cases() {
+        let output = run_oracle(&oracle, &[case.command, "simple-square"]);
+        let oracle_snapshot =
+            parse_oriedita_render_primitives(&output).expect("parse Oriedita render primitives");
+        let mut model = FoldedFigureModel::default();
+        model.state = case.state;
+        let rust_snapshot =
+            folded_figure_paper_render_snapshot_from_segments(&simple_square(), 1, model)
+                .expect("Rust paper render")
+                .expect("paper primitives");
 
-    assert_eq!(rust_snapshot.pass.as_deref(), Some("paper-front"));
-    assert_eq!(rust_snapshot.primitives, oracle_snapshot.primitives);
+        assert_eq!(rust_snapshot.pass.as_deref(), Some(case.pass));
+        assert_eq!(
+            rust_snapshot.primitives, oracle_snapshot.primitives,
+            "{} primitives should match",
+            case.pass
+        );
+    }
+}
+
+struct PaperRenderCase {
+    command: &'static str,
+    pass: &'static str,
+    state: FoldedFigureState,
+}
+
+fn paper_render_cases() -> [PaperRenderCase; 3] {
+    [
+        PaperRenderCase {
+            command: "folded-render-paper-front",
+            pass: "paper-front",
+            state: FoldedFigureState::Front0,
+        },
+        PaperRenderCase {
+            command: "folded-render-paper-back",
+            pass: "paper-back",
+            state: FoldedFigureState::Back1,
+        },
+        PaperRenderCase {
+            command: "folded-render-paper-both",
+            pass: "paper-both",
+            state: FoldedFigureState::Both2,
+        },
+    ]
 }
 
 fn render_oracle() -> Option<PathBuf> {
