@@ -108,6 +108,16 @@ public class OrieditaGeometryOracle {
         }
     }
 
+    private static class FoldedRenderContext {
+        final FoldedFigure_01 foldedFigure;
+        final FoldedFigure_Drawer drawer;
+
+        FoldedRenderContext(FoldedFigure_01 foldedFigure, FoldedFigure_Drawer drawer) {
+            this.foldedFigure = foldedFigure;
+            this.drawer = drawer;
+        }
+    }
+
     private enum OperationFrameOracleMode {
         NONE_0,
         CREATE_1,
@@ -359,6 +369,9 @@ public class OrieditaGeometryOracle {
             case "folded-render-paper-front-shadows-segments" -> foldedRenderPaperSegments(args, FoldedFigure.State.FRONT_0, true, "paper-front-shadows");
             case "folded-render-paper-back-shadows-segments" -> foldedRenderPaperSegments(args, FoldedFigure.State.BACK_1, true, "paper-back-shadows");
             case "folded-render-paper-both-shadows-segments" -> foldedRenderPaperSegments(args, FoldedFigure.State.BOTH_2, true, "paper-both-shadows");
+            case "folded-render-paper-visible-front-segments" -> foldedRenderPaperVisibleSegments(args, FoldedFigure.State.FRONT_0, "paper-visible-front");
+            case "folded-render-paper-visible-back-segments" -> foldedRenderPaperVisibleSegments(args, FoldedFigure.State.BACK_1, "paper-visible-back");
+            case "folded-render-paper-visible-both-segments" -> foldedRenderPaperVisibleSegments(args, FoldedFigure.State.BOTH_2, "paper-visible-both");
             default -> usage("unknown command: " + args[0]);
         }
     }
@@ -383,13 +396,23 @@ public class OrieditaGeometryOracle {
         printFoldedRender("segments", set, state, shadows, pass);
     }
 
+    private static void foldedRenderPaperVisibleSegments(String[] args, FoldedFigure.State state, String pass) throws Exception {
+        if (args.length < 2) {
+            usage(args[0] + " expects count and line segment payload");
+        }
+
+        int count = Integer.parseInt(args[1]);
+        LineSegmentSet set = lineSegmentSet(args, 2, count);
+        printFoldedRenderVisible("segments", set, state, pass);
+    }
+
     private static void printFoldedRender(
             String fixture,
             LineSegmentSet set,
             FoldedFigure.State state,
             boolean shadows,
             String pass) throws Exception {
-        FoldedFigure_Drawer drawer = foldedRenderDrawer(set, state, shadows);
+        FoldedFigure_Drawer drawer = foldedRenderContext(set, state, shadows).drawer;
         RecordingGraphics2D graphics = new RecordingGraphics2D(800, 600);
         drawer.foldUp_draw(graphics, false, 1, true);
 
@@ -401,7 +424,67 @@ public class OrieditaGeometryOracle {
         graphics.dispose();
     }
 
+    private static void printFoldedRenderVisible(
+            String fixture,
+            LineSegmentSet set,
+            FoldedFigure.State state,
+            String pass) throws Exception {
+        FoldedRenderContext context = foldedRenderContext(set, state, false);
+        FoldedFigure_Worker worker = context.foldedFigure.foldedFigure_worker;
+        WireFrame_Worker flat = context.foldedFigure.wireFrameWorker_flatCp;
+        PointSet subFaceFigure = context.foldedFigure.wireFrameWorker_foldedSubdivided.get();
+
+        System.out.println("schema|folded-render-visible-faces|1");
+        System.out.println("fixture|" + fixture + "|" + pass);
+        System.out.println("subfaces|" + worker.SubFaceTotal
+                + "|" + subFaceFigure.getNumFaces()
+                + "|" + subFaceFigure.getNumLines());
+        if (state == FoldedFigure.State.FRONT_0 || state == FoldedFigure.State.BOTH_2) {
+            printFoldedRenderVisiblePass("front", false, worker, flat, subFaceFigure);
+        }
+        if (state == FoldedFigure.State.BACK_1 || state == FoldedFigure.State.BOTH_2) {
+            printFoldedRenderVisiblePass("back", true, worker, flat, subFaceFigure);
+        }
+    }
+
+    private static void printFoldedRenderVisiblePass(
+            String view,
+            boolean flipped,
+            FoldedFigure_Worker worker,
+            WireFrame_Worker flat,
+            PointSet subFaceFigure) {
+        for (int im = 1; im <= worker.SubFaceTotal; im++) {
+            int faceCount = worker.s0[im].getFaceIdCount();
+            if (faceCount == 0) {
+                continue;
+            }
+
+            int faceOrder = flipped ? faceCount : 1;
+            int faceId = worker.s0[im].fromTop_count_FaceId(faceOrder);
+            int facePosition = flat.getIFacePosition(faceId);
+            boolean frontSide = flipped ? facePosition % 2 == 0 : facePosition % 2 == 1;
+
+            System.out.println("visible|" + view
+                    + "|" + (im - 1)
+                    + "|" + faceCount
+                    + "|" + faceOrder
+                    + "|" + (faceId - 1)
+                    + "|" + facePosition
+                    + "|" + (frontSide ? "front" : "back")
+                    + "|" + oracleSubfaceFaceIds(worker.s0[im])
+                    + "|" + oracleSubfaceTopStack(worker.s0[im])
+                    + "|" + oraclePointSetFacePoints(subFaceFigure, im));
+        }
+    }
+
     private static FoldedFigure_Drawer foldedRenderDrawer(
+            LineSegmentSet set,
+            FoldedFigure.State state,
+            boolean shadows) throws Exception {
+        return foldedRenderContext(set, state, shadows).drawer;
+    }
+
+    private static FoldedRenderContext foldedRenderContext(
             LineSegmentSet set,
             FoldedFigure.State state,
             boolean shadows) throws Exception {
@@ -414,7 +497,7 @@ public class OrieditaGeometryOracle {
         drawer.setStartingFaceId(1);
         drawer.setEstimationOrder(FoldedFigure.EstimationOrder.ORDER_5);
         drawer.folding_estimated(new Camera(), set);
-        return drawer;
+        return new FoldedRenderContext(foldedFigure, drawer);
     }
 
     private static LineSegmentSet foldedRenderFixture(String fixture) {
@@ -5913,6 +5996,28 @@ public class OrieditaGeometryOracle {
         return output.toString();
     }
 
+    private static String oracleSubfaceTopStack(SubFace subface) {
+        StringBuilder output = new StringBuilder();
+        for (int i = 1; i <= subface.getFaceIdCount(); i++) {
+            if (i > 1) {
+                output.append(",");
+            }
+            output.append(subface.fromTop_count_FaceId(i) - 1);
+        }
+        return output.toString();
+    }
+
+    private static String oraclePointSetFacePoints(PointSet pointSet, int faceId) {
+        StringBuilder output = new StringBuilder();
+        for (int i = 1; i <= pointSet.getPointsCount(faceId); i++) {
+            if (i > 1) {
+                output.append(",");
+            }
+            output.append(pointSet.getPointId(faceId, i) - 1);
+        }
+        return output.toString();
+    }
+
     private static String oracleFacePoints(origami.folding.element.Face face) {
         StringBuilder output = new StringBuilder();
         for (int i = 1; i <= face.getNumPoints(); i++) {
@@ -6771,6 +6876,9 @@ public class OrieditaGeometryOracle {
         System.err.println("   or: OrieditaGeometryOracle folded-render-paper-front-shadows-segments <count> [ax ay bx by color]...");
         System.err.println("   or: OrieditaGeometryOracle folded-render-paper-back-shadows-segments <count> [ax ay bx by color]...");
         System.err.println("   or: OrieditaGeometryOracle folded-render-paper-both-shadows-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-paper-visible-front-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-paper-visible-back-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-paper-visible-both-segments <count> [ax ay bx by color]...");
         System.exit(2);
     }
 }

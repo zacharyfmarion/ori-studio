@@ -85,6 +85,50 @@ fn paper_shadow_render_oracle_outputs_are_parseable() {
     }
 }
 
+#[test]
+fn paper_visible_face_oracle_outputs_are_parseable() {
+    let Some(oracle) = render_oracle() else {
+        eprintln!("skipping Oriedita render oracle test: ORIEDITA_RENDER_ORACLE is not set");
+        return;
+    };
+
+    let segments = kabuto_segments();
+    for case in paper_visible_face_cases() {
+        let output = run_oracle_owned(&oracle, &segment_oracle_args(case.command, &segments));
+        let lines = output.lines().collect::<Vec<_>>();
+        assert_eq!(
+            lines.first().copied(),
+            Some("schema|folded-render-visible-faces|1")
+        );
+        let expected_fixture = format!("fixture|segments|{}", case.pass);
+        assert_eq!(lines.get(1).copied(), Some(expected_fixture.as_str()));
+        assert!(
+            lines
+                .get(2)
+                .is_some_and(|line| line.starts_with("subfaces|"))
+        );
+
+        let visible = lines
+            .iter()
+            .filter(|line| line.starts_with("visible|"))
+            .copied()
+            .collect::<Vec<_>>();
+        assert!(
+            !visible.is_empty(),
+            "{} should list visible subfaces",
+            case.pass
+        );
+        for row in visible {
+            assert_eq!(
+                row.split('|').count(),
+                11,
+                "{case_pass} row should have stable columns: {row}",
+                case_pass = case.pass
+            );
+        }
+    }
+}
+
 fn assert_primitives_match(
     pass: &str,
     rust_snapshot: &oristudio_cp::folding::FoldedFigureRenderSnapshot,
@@ -149,6 +193,26 @@ fn paper_shadow_render_cases() -> [PaperRenderCase; 3] {
         PaperRenderCase {
             command: "folded-render-paper-both-shadows-segments",
             pass: "paper-both-shadows",
+            state: FoldedFigureState::Both2,
+        },
+    ]
+}
+
+fn paper_visible_face_cases() -> [PaperRenderCase; 3] {
+    [
+        PaperRenderCase {
+            command: "folded-render-paper-visible-front-segments",
+            pass: "paper-visible-front",
+            state: FoldedFigureState::Front0,
+        },
+        PaperRenderCase {
+            command: "folded-render-paper-visible-back-segments",
+            pass: "paper-visible-back",
+            state: FoldedFigureState::Back1,
+        },
+        PaperRenderCase {
+            command: "folded-render-paper-visible-both-segments",
+            pass: "paper-visible-both",
             state: FoldedFigureState::Both2,
         },
     ]
