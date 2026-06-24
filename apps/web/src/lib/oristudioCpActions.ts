@@ -479,6 +479,35 @@ const ORIEDITA_RAIL_ACTION_OVERRIDES: Partial<
   DuplicateFoldedModel: {
     upstreamAction: 'duplicateFoldedModelAction',
   },
+  FoldedFigureSetModel: {
+    upstreamAction: 'foldedFigureModel',
+  },
+  FoldedFigureSetDisplayStyle: {
+    upstreamAction: 'FoldedFigureModel.setDisplayStyle',
+  },
+  FoldedFigureSetState: {
+    upstreamAction: 'FoldedFigureModel.setState',
+  },
+  FoldedFigureSetStartingFace: {
+    upstreamAction: 'koteimen_siteiAction',
+    upstreamMouseMode: 'CHANGE_STANDARD_FACE_103',
+  },
+  FoldedFigureMoveCamera: {
+    upstreamAction: 'foldedFigureMoveAction',
+    upstreamMouseMode: 'MOVE_CALCULATED_SHAPE_102',
+  },
+  FoldedFigureSelectCanvasPoint: {
+    upstreamAction: 'foldedFigureCanvasSelectService',
+  },
+  FoldedFigureRenderSnapshot: {
+    upstreamAction: 'FoldedFigure_Drawer.foldUp_draw',
+  },
+  FoldedFigureImportFoldFrame: {
+    upstreamAction: 'FoldImporter.file_frames',
+  },
+  FoldedFigureExportFoldFrames: {
+    upstreamAction: 'FoldExporter.file_frames',
+  },
   DeletePoint: {
     label: 'Delete Point',
     group: 'edit',

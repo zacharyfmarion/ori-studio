@@ -592,6 +592,68 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
   notImplemented('Fold', 'Fold', 'folding', 'origami', 'FoldingServiceImpl.fold'),
   porting('FoldAnother', 'Another solution', 'folding', 'skip-forward', 'FoldingServiceImpl.foldAnother'),
   porting('DuplicateFoldedModel', 'Duplicate folded model', 'folding', 'copy', 'FoldingServiceImpl.duplicate'),
+  notImplemented('FoldedFigureSetModel', 'Folded figure model', 'folding', 'palette', 'FoldedFigureModel', {
+    placement: 'hidden-ui-only',
+  }),
+  notImplemented(
+    'FoldedFigureSetDisplayStyle',
+    'Folded display style',
+    'folding',
+    'layers',
+    'FoldedFigureModel.setDisplayStyle',
+    { placement: 'hidden-ui-only' }
+  ),
+  notImplemented('FoldedFigureSetState', 'Folded front/back state', 'folding', 'flip-horizontal', 'FoldedFigureModel.setState', {
+    placement: 'hidden-ui-only',
+  }),
+  notImplemented(
+    'FoldedFigureSetStartingFace',
+    'Folded starting face',
+    'folding',
+    'badge-check',
+    'MouseHandlerChangeStandardFace',
+    { placement: 'hidden-ui-only' }
+  ),
+  outOfScopeUi(
+    'FoldedFigureMoveCamera',
+    'Move folded figure camera',
+    'folding',
+    'move',
+    'MouseHandlerMoveCalculatedShape',
+    'Handled by the grid viewport camera layer'
+  ),
+  notImplemented(
+    'FoldedFigureSelectCanvasPoint',
+    'Folded point selection',
+    'folding',
+    'circle-dot',
+    'FoldedFigureCanvasSelectService',
+    { placement: 'hidden-ui-only' }
+  ),
+  notImplemented(
+    'FoldedFigureRenderSnapshot',
+    'Folded render snapshot',
+    'folding',
+    'image',
+    'FoldedFigure_Drawer.foldUp_draw',
+    { placement: 'hidden-ui-only' }
+  ),
+  notImplemented(
+    'FoldedFigureImportFoldFrame',
+    'Import folded FOLD frame',
+    'file',
+    'file-input',
+    'FoldImporter.file_frames',
+    { placement: 'hidden-ui-only' }
+  ),
+  notImplemented(
+    'FoldedFigureExportFoldFrames',
+    'Export folded FOLD frames',
+    'file',
+    'file-output',
+    'FoldExporter.file_frames',
+    { placement: 'hidden-ui-only' }
+  ),
   ready('Check1', 'Check overlaps', 'check-fix', 'badge-alert', 'Check1', {
     placement: 'menu',
     tooltip: 'Find overlapping or contained non-auxiliary crease pairs',
@@ -730,6 +792,15 @@ export const ORISTUDIO_CP_SOURCE_MAP_OPERATION_IDS = [
   'Fold',
   'FoldAnother',
   'DuplicateFoldedModel',
+  'FoldedFigureSetModel',
+  'FoldedFigureSetDisplayStyle',
+  'FoldedFigureSetState',
+  'FoldedFigureSetStartingFace',
+  'FoldedFigureMoveCamera',
+  'FoldedFigureSelectCanvasPoint',
+  'FoldedFigureRenderSnapshot',
+  'FoldedFigureImportFoldFrame',
+  'FoldedFigureExportFoldFrames',
   'Check1',
   'Check2',
   'Check3',

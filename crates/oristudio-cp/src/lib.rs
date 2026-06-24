@@ -392,6 +392,15 @@ pub enum OperationId {
     Fold,
     FoldAnother,
     DuplicateFoldedModel,
+    FoldedFigureSetModel,
+    FoldedFigureSetDisplayStyle,
+    FoldedFigureSetState,
+    FoldedFigureSetStartingFace,
+    FoldedFigureMoveCamera,
+    FoldedFigureSelectCanvasPoint,
+    FoldedFigureRenderSnapshot,
+    FoldedFigureImportFoldFrame,
+    FoldedFigureExportFoldFrames,
     Check1,
     Check2,
     Check3,
@@ -1273,6 +1282,78 @@ const OPERATION_DESCRIPTORS: &[OperationDescriptor] = &[
         KernelIntent,
         10,
         Porting
+    ),
+    descriptor!(
+        FoldedFigureSetModel,
+        "FoldedFigureModel",
+        "folding::FoldedFigureModel",
+        KernelIntent,
+        10,
+        Unsupported
+    ),
+    descriptor!(
+        FoldedFigureSetDisplayStyle,
+        "FoldedFigureModel.setDisplayStyle",
+        "folding::FoldedFigureDisplayStyle",
+        KernelIntent,
+        10,
+        Unsupported
+    ),
+    descriptor!(
+        FoldedFigureSetState,
+        "FoldedFigureModel.setState",
+        "folding::FoldedFigureState",
+        KernelIntent,
+        10,
+        Unsupported
+    ),
+    descriptor!(
+        FoldedFigureSetStartingFace,
+        "MouseHandlerChangeStandardFace",
+        "folding::change_standard_face",
+        KernelIntent,
+        10,
+        Unsupported
+    ),
+    descriptor!(
+        FoldedFigureMoveCamera,
+        "MouseHandlerMoveCalculatedShape",
+        "folding::FoldedFigureCamera",
+        UiPreviewOnly,
+        10,
+        OutOfScopeUi
+    ),
+    descriptor!(
+        FoldedFigureSelectCanvasPoint,
+        "FoldedFigureCanvasSelectService",
+        "folding::FoldedFigureCanvasSelection",
+        KernelIntent,
+        10,
+        Unsupported
+    ),
+    descriptor!(
+        FoldedFigureRenderSnapshot,
+        "FoldedFigure_Drawer.foldUp_draw",
+        "folding::FoldedFigureRenderSnapshot",
+        KernelPreview,
+        10,
+        Unsupported
+    ),
+    descriptor!(
+        FoldedFigureImportFoldFrame,
+        "FoldImporter.file_frames",
+        "io::fold::import_folded_frames",
+        Io,
+        4,
+        Unsupported
+    ),
+    descriptor!(
+        FoldedFigureExportFoldFrames,
+        "FoldExporter.file_frames",
+        "io::fold::export_folded_frames",
+        Io,
+        4,
+        Unsupported
     ),
     descriptor!(Check1, "Check1", "checks::check1", Kernel, 9, OracleTested),
     descriptor!(Check2, "Check2", "checks::check2", Kernel, 9, OracleTested),

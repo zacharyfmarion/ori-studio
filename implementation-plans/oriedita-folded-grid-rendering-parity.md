@@ -391,12 +391,12 @@ Normal tests should not require Java:
 
 ## Checklist
 
-- [ ] Reconcile and record the exact Oriedita source baseline.
-- [ ] Extend the original Oriedita source map and parity matrix for folded-grid
+- [x] Reconcile and record the exact Oriedita source baseline.
+- [x] Extend the original Oriedita source map and parity matrix for folded-grid
       rendering instead of starting an untracked feature inventory.
-- [ ] Add explicit unsupported/status entries for each folded-figure command,
+- [x] Add explicit unsupported/status entries for each folded-figure command,
       display mode, save/import path, and render primitive.
-- [ ] Source-map remaining folded-figure drawing, camera, and save-model fields.
+- [x] Source-map remaining folded-figure drawing, camera, and save-model fields.
 - [ ] Add preserving multi-frame FOLD model in Rust.
 - [ ] Add preserving multi-frame FOLD import/export tests, including
       `foldedForm` frames.
