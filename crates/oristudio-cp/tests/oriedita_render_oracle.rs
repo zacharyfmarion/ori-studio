@@ -1,11 +1,13 @@
 use oristudio_cp::folding::{
-    FoldedFigureModel, FoldedFigureRenderGeometry, FoldedFigureRenderPaint,
-    FoldedFigureRenderPrimitive, FoldedFigureRenderPrimitiveKind, FoldedFigureRenderSnapshot,
-    FoldedFigureRenderStroke, FoldedFigureRenderStyle, FoldedFigureState, FoldedSubfaceFigure,
-    OrieditaFoldedFigureCamera, OrieditaFoldedFigureCameraSet, OrieditaFoldedFigureCameraTarget,
-    RenderPathCommand, folded_figure_camera_set_display_position_moved,
-    folded_figure_camera_set_from_segments, folded_figure_camera_set_position_specified_from_tv,
-    folded_figure_camera_set_scaled, folded_figure_paper_render_snapshot_from_segments,
+    DisplayStyle, FoldedFigureModel, FoldedFigureRenderGeometry, FoldedFigureRenderOptions,
+    FoldedFigureRenderPaint, FoldedFigureRenderPrimitive, FoldedFigureRenderPrimitiveKind,
+    FoldedFigureRenderSnapshot, FoldedFigureRenderStroke, FoldedFigureRenderStyle,
+    FoldedFigureState, FoldedSubfaceFigure, OrieditaCustomConstraint,
+    OrieditaCustomConstraintFaceOrder, OrieditaCustomConstraintType, OrieditaFoldedFigureCamera,
+    OrieditaFoldedFigureCameraSet, OrieditaFoldedFigureCameraTarget, RenderPathCommand,
+    folded_figure_camera_set_display_position_moved, folded_figure_camera_set_from_segments,
+    folded_figure_camera_set_position_specified_from_tv, folded_figure_camera_set_scaled,
+    folded_figure_paper_render_snapshot_from_segments, folded_figure_render_snapshot_from_segments,
     folded_figure_transparent_render_snapshot_from_segments,
     folded_figure_wire_render_snapshot_from_segments, folded_subface_figure_from_segments,
     parse_oriedita_render_primitives,
@@ -381,6 +383,117 @@ fn kabuto_transparent_render_primitives_match_oriedita_oracle() {
                 &oracle_snapshot,
             );
         }
+    }
+}
+
+#[test]
+fn kabuto_folded_overlay_primitives_match_oriedita_oracle() {
+    let Some(oracle) = render_oracle() else {
+        eprintln!("skipping Oriedita render oracle test: ORIEDITA_RENDER_ORACLE is not set");
+        return;
+    };
+
+    let segments = kabuto_segments();
+    let constraints = vec![
+        OrieditaCustomConstraint {
+            face_order: OrieditaCustomConstraintFaceOrder::Normal,
+            constraint_type: OrieditaCustomConstraintType::ColorBack,
+            position: Point::new(10.0, 10.0),
+        },
+        OrieditaCustomConstraint {
+            face_order: OrieditaCustomConstraintFaceOrder::Flipped,
+            constraint_type: OrieditaCustomConstraintType::ColorFront,
+            position: Point::new(20.0, 20.0),
+        },
+    ];
+
+    let cases = [
+        (
+            "paper-both-full",
+            DisplayStyle::Paper5,
+            FoldedFigureState::Both2,
+            vec![
+                "paper",
+                "both",
+                "false",
+                "true",
+                "true",
+                "true",
+                "7",
+                "0,2",
+                "1,3",
+                "2",
+                "normal",
+                "color-back",
+                "10.0",
+                "10.0",
+                "flipped",
+                "color-front",
+                "20.0",
+                "20.0",
+            ],
+            FoldedFigureRenderOptions {
+                display_mark: true,
+                selected: true,
+                index: 7,
+                display_numbers: true,
+                selected_flat_point_indices: vec![0, 2],
+                selected_folded_point_indices: vec![1, 3],
+                custom_constraints: constraints.clone(),
+            },
+        ),
+        (
+            "transparent-grayscale-both-full",
+            DisplayStyle::Transparent3,
+            FoldedFigureState::Both2,
+            vec![
+                "transparent",
+                "both",
+                "false",
+                "false",
+                "false",
+                "false",
+                "7",
+                "-",
+                "-",
+                "2",
+                "normal",
+                "color-back",
+                "10.0",
+                "10.0",
+                "flipped",
+                "color-front",
+                "20.0",
+                "20.0",
+            ],
+            FoldedFigureRenderOptions {
+                custom_constraints: constraints.clone(),
+                ..FoldedFigureRenderOptions::default()
+            },
+        ),
+    ];
+
+    for (pass, display_style, state, prefix, options) in cases {
+        let output = run_oracle_owned(
+            &oracle,
+            &segment_oracle_args_with_prefix("folded-render-overlays-segments", &prefix, &segments),
+        );
+        let oracle_snapshot =
+            parse_oriedita_render_primitives(&output).expect("parse Oriedita render primitives");
+        let mut model = FoldedFigureModel::default();
+        model.state = state;
+        let rust_snapshot = folded_figure_render_snapshot_from_segments(
+            &segments,
+            1,
+            display_style,
+            model,
+            options,
+        )
+        .expect("Rust full folded render")
+        .expect("full folded primitives");
+
+        assert_eq!(rust_snapshot.pass.as_deref(), Some(pass));
+        assert_primitives_match_with_coordinate_tolerance(pass, &rust_snapshot, &oracle_snapshot);
     }
 }
 

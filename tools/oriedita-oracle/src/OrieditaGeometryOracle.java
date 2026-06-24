@@ -33,11 +33,13 @@ import origami.folding.HierarchyList;
 import origami.folding.FoldedFigure;
 import origami.folding.algorithm.SubFacePriority;
 import origami.folding.algorithm.swapping.SubFaceSwappingAlgorithm;
+import origami.folding.constraint.CustomConstraint;
 import origami.folding.element.SubFace;
 import origami.folding.permutation.ChainPermutationGenerator;
 import origami.folding.util.IBulletinBoard;
 import origami.folding.util.SortingBox;
 
+import oriedita.editor.databinding.ApplicationModel;
 import oriedita.editor.databinding.GridModel;
 import oriedita.editor.databinding.FoldedFigureModel;
 import oriedita.editor.drawing.FoldedFigure_Drawer;
@@ -115,6 +117,21 @@ public class OrieditaGeometryOracle {
         FoldedRenderContext(FoldedFigure_01 foldedFigure, FoldedFigure_Drawer drawer) {
             this.foldedFigure = foldedFigure;
             this.drawer = drawer;
+        }
+    }
+
+    private static class FoldedRenderConstraintPayload {
+        final CustomConstraint.FaceOrder faceOrder;
+        final CustomConstraint.Type type;
+        final Point position;
+
+        FoldedRenderConstraintPayload(
+                CustomConstraint.FaceOrder faceOrder,
+                CustomConstraint.Type type,
+                Point position) {
+            this.faceOrder = faceOrder;
+            this.type = type;
+            this.position = position;
         }
     }
 
@@ -385,6 +402,7 @@ public class OrieditaGeometryOracle {
             case "folded-render-transparent-color-back-segments" -> foldedRenderStyleSegments(args, FoldedFigure.State.BACK_1, FoldedFigure.DisplayStyle.TRANSPARENT_3, true, "transparent-color-back");
             case "folded-render-transparent-color-both-segments" -> foldedRenderStyleSegments(args, FoldedFigure.State.BOTH_2, FoldedFigure.DisplayStyle.TRANSPARENT_3, true, "transparent-color-both");
             case "folded-render-transparent-color-transparent-state-segments" -> foldedRenderStyleSegments(args, FoldedFigure.State.TRANSPARENT_3, FoldedFigure.DisplayStyle.TRANSPARENT_3, true, "transparent-color-transparent-state");
+            case "folded-render-overlays-segments" -> foldedRenderOverlaysSegments(args);
             case "folded-render-cameras-segments" -> foldedRenderCamerasSegments(args);
             case "folded-render-cameras-scale-segments" -> foldedRenderCamerasScaleSegments(args);
             case "folded-render-cameras-move-segments" -> foldedRenderCamerasMoveSegments(args);
@@ -426,6 +444,71 @@ public class OrieditaGeometryOracle {
         int count = Integer.parseInt(args[1]);
         LineSegmentSet set = lineSegmentSet(args, 2, count);
         printFoldedRender("segments", set, state, false, displayStyle, transparencyColor, pass);
+    }
+
+    private static void foldedRenderOverlaysSegments(String[] args) throws Exception {
+        if (args.length < 11) {
+            usage(args[0] + " expects display style, state, transparency color, display mark, selected, display numbers, index, flat point indices, folded point indices, custom constraint count, constraints, count, and line segment payload");
+        }
+
+        int offset = 1;
+        FoldedFigure.DisplayStyle displayStyle = foldedRenderDisplayStyle(args[offset++]);
+        FoldedFigure.State state = foldedRenderState(args[offset++]);
+        boolean transparencyColor = Boolean.parseBoolean(args[offset++]);
+        boolean displayMark = Boolean.parseBoolean(args[offset++]);
+        boolean selected = Boolean.parseBoolean(args[offset++]);
+        boolean displayNumbers = Boolean.parseBoolean(args[offset++]);
+        int index = Integer.parseInt(args[offset++]);
+        List<Integer> flatPointIndices = parseIndices(args[offset++]);
+        List<Integer> foldedPointIndices = parseIndices(args[offset++]);
+        int constraintCount = Integer.parseInt(args[offset++]);
+
+        List<FoldedRenderConstraintPayload> constraints = new ArrayList<>();
+        for (int i = 0; i < constraintCount; i++) {
+            CustomConstraint.FaceOrder faceOrder = foldedRenderConstraintFaceOrder(args[offset++]);
+            CustomConstraint.Type type = foldedRenderConstraintType(args[offset++]);
+            Point position = new Point(Double.parseDouble(args[offset++]), Double.parseDouble(args[offset++]));
+            constraints.add(new FoldedRenderConstraintPayload(faceOrder, type, position));
+        }
+
+        int count = Integer.parseInt(args[offset++]);
+        LineSegmentSet set = lineSegmentSet(args, offset, count);
+        FoldedRenderContext context =
+                foldedRenderContext(set, state, false, displayStyle, transparencyColor);
+
+        ApplicationModel applicationModel = new ApplicationModel();
+        applicationModel.setDisplayNumbers(displayNumbers);
+        context.drawer.setData(applicationModel);
+
+        for (FoldedRenderConstraintPayload payload : constraints) {
+            Set<Integer> top = new HashSet<>();
+            top.add(1);
+            Set<Integer> bottom = new HashSet<>();
+            bottom.add(2);
+            context.foldedFigure.foldedFigure_worker.hierarchyList.addCustomConstraint(
+                    new CustomConstraint(payload.faceOrder, top, bottom, payload.position, payload.type));
+        }
+
+        for (int pointIndex : flatPointIndices) {
+            if (pointIndex >= 0 && pointIndex < context.foldedFigure.wireFrameWorker_flatCp.getPointsTotal()) {
+                context.foldedFigure.wireFrameWorker_flatCp.changePointState(pointIndex + 1);
+            }
+        }
+        for (int pointIndex : foldedPointIndices) {
+            if (pointIndex >= 0 && pointIndex < context.foldedFigure.wireFrameWorker_foldedNotSubdivided.getPointsTotal()) {
+                context.foldedFigure.wireFrameWorker_foldedNotSubdivided.changePointState(pointIndex + 1);
+            }
+        }
+
+        RecordingGraphics2D graphics = new RecordingGraphics2D(800, 600);
+        context.drawer.foldUp_draw(graphics, displayMark, index, selected);
+
+        System.out.println("schema|folded-render-primitives|1");
+        System.out.println("fixture|segments|" + foldedRenderFullPassName(displayStyle, state, transparencyColor));
+        for (String record : graphics.records()) {
+            System.out.println(record);
+        }
+        graphics.dispose();
     }
 
     private static void foldedRenderCamerasSegments(String[] args) throws Exception {
@@ -580,6 +663,90 @@ public class OrieditaGeometryOracle {
             case "transparent-rear" -> drawer.getTransparentRearCamera();
             default -> throw new IllegalArgumentException("unknown camera target: " + target);
         };
+    }
+
+    private static FoldedFigure.DisplayStyle foldedRenderDisplayStyle(String value) {
+        return switch (value) {
+            case "none" -> FoldedFigure.DisplayStyle.NONE_0;
+            case "development" -> FoldedFigure.DisplayStyle.DEVELOPMENT_1;
+            case "wire" -> FoldedFigure.DisplayStyle.WIRE_2;
+            case "transparent" -> FoldedFigure.DisplayStyle.TRANSPARENT_3;
+            case "development4" -> FoldedFigure.DisplayStyle.DEVELOPMENT_4;
+            case "paper" -> FoldedFigure.DisplayStyle.PAPER_5;
+            default -> throw new IllegalArgumentException("unknown folded render display style: " + value);
+        };
+    }
+
+    private static FoldedFigure.State foldedRenderState(String value) {
+        return switch (value) {
+            case "front" -> FoldedFigure.State.FRONT_0;
+            case "back" -> FoldedFigure.State.BACK_1;
+            case "both" -> FoldedFigure.State.BOTH_2;
+            case "transparent" -> FoldedFigure.State.TRANSPARENT_3;
+            default -> throw new IllegalArgumentException("unknown folded render state: " + value);
+        };
+    }
+
+    private static CustomConstraint.FaceOrder foldedRenderConstraintFaceOrder(String value) {
+        return switch (value) {
+            case "normal" -> CustomConstraint.FaceOrder.NORMAL;
+            case "flipped" -> CustomConstraint.FaceOrder.FLIPPED;
+            default -> throw new IllegalArgumentException("unknown custom constraint face order: " + value);
+        };
+    }
+
+    private static CustomConstraint.Type foldedRenderConstraintType(String value) {
+        return switch (value) {
+            case "color-back" -> CustomConstraint.Type.COLOR_BACK;
+            case "color-front" -> CustomConstraint.Type.COLOR_FRONT;
+            case "custom" -> CustomConstraint.Type.CUSTOM;
+            default -> throw new IllegalArgumentException("unknown custom constraint type: " + value);
+        };
+    }
+
+    private static String foldedRenderFullPassName(
+            FoldedFigure.DisplayStyle displayStyle,
+            FoldedFigure.State state,
+            boolean transparencyColor) {
+        String base = switch (displayStyle) {
+            case WIRE_2 -> switch (state) {
+                case FRONT_0 -> "wire-front";
+                case BACK_1 -> "wire-back";
+                case BOTH_2 -> "wire-both";
+                case TRANSPARENT_3 -> "wire-transparent-state";
+            };
+            case TRANSPARENT_3 -> switch (state) {
+                case FRONT_0 -> transparencyColor ? "transparent-color-front" : "transparent-grayscale-front";
+                case BACK_1 -> transparencyColor ? "transparent-color-back" : "transparent-grayscale-back";
+                case BOTH_2 -> transparencyColor ? "transparent-color-both" : "transparent-grayscale-both";
+                case TRANSPARENT_3 -> transparencyColor ? "transparent-color-transparent-state" : "transparent-grayscale-transparent-state";
+            };
+            case PAPER_5 -> switch (state) {
+                case FRONT_0 -> "paper-front";
+                case BACK_1 -> "paper-back";
+                case BOTH_2 -> "paper-both";
+                case TRANSPARENT_3 -> "paper-transparent-state";
+            };
+            case NONE_0 -> switch (state) {
+                case FRONT_0 -> "none-front";
+                case BACK_1 -> "none-back";
+                case BOTH_2 -> "none-both";
+                case TRANSPARENT_3 -> "none-transparent-state";
+            };
+            case DEVELOPMENT_1 -> switch (state) {
+                case FRONT_0 -> "development-front";
+                case BACK_1 -> "development-back";
+                case BOTH_2 -> "development-both";
+                case TRANSPARENT_3 -> "development-transparent-state";
+            };
+            case DEVELOPMENT_4 -> switch (state) {
+                case FRONT_0 -> "development4-front";
+                case BACK_1 -> "development4-back";
+                case BOTH_2 -> "development4-both";
+                case TRANSPARENT_3 -> "development4-transparent-state";
+            };
+        };
+        return base + "-full";
     }
 
     private static void printFoldedRenderVisiblePass(
@@ -7080,6 +7247,7 @@ public class OrieditaGeometryOracle {
         System.err.println("   or: OrieditaGeometryOracle folded-render-transparent-color-back-segments <count> [ax ay bx by color]...");
         System.err.println("   or: OrieditaGeometryOracle folded-render-transparent-color-both-segments <count> [ax ay bx by color]...");
         System.err.println("   or: OrieditaGeometryOracle folded-render-transparent-color-transparent-state-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-overlays-segments <paper|transparent|wire> <front|back|both|transparent> <transparencyColor> <displayMark> <selected> <displayNumbers> <index> <flatPointIndices|-> <foldedPointIndices|-> <constraintCount> [normal|flipped color-back|color-front|custom x y]... <count> [ax ay bx by color]...");
         System.err.println("   or: OrieditaGeometryOracle folded-render-cameras-segments <count> [ax ay bx by color]...");
         System.err.println("   or: OrieditaGeometryOracle folded-render-cameras-scale-segments <magnification> <anchor x> <anchor y> <count> [ax ay bx by color]...");
         System.err.println("   or: OrieditaGeometryOracle folded-render-cameras-move-segments <target> <delta x> <delta y> <count> [ax ay bx by color]...");

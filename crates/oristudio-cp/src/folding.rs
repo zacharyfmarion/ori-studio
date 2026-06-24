@@ -3,7 +3,7 @@ mod permutation;
 use crate::fold_graph::{FacePositions, FoldGraph};
 use crate::geometry::{
     Epsilon, LineColor, LineSegment, Point, Polygon, PolygonIntersection, RgbColor,
-    determine_line_segment_intersection, equal, equal_with_radius,
+    determine_line_segment_intersection, equal, equal_with_radius, move_parallel,
 };
 use crate::model::CreasePatternModel;
 use crate::operations::arrangement::divide_intersections;
@@ -196,6 +196,16 @@ pub enum FoldedFigureState {
     Transparent3,
 }
 
+impl FoldedFigureState {
+    fn draws_front(self) -> bool {
+        matches!(self, Self::Front0 | Self::Both2 | Self::Transparent3)
+    }
+
+    fn draws_back(self) -> bool {
+        matches!(self, Self::Back1 | Self::Both2 | Self::Transparent3)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FoldedFigureModel {
     pub front_color: RgbColor,
@@ -267,6 +277,53 @@ pub enum OrieditaFoldedFigureCameraTarget {
     Rear,
     TransparentFront,
     TransparentRear,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FoldedFigureRenderOptions {
+    pub display_mark: bool,
+    pub selected: bool,
+    pub index: usize,
+    pub display_numbers: bool,
+    pub selected_flat_point_indices: Vec<usize>,
+    pub selected_folded_point_indices: Vec<usize>,
+    pub custom_constraints: Vec<OrieditaCustomConstraint>,
+}
+
+impl Default for FoldedFigureRenderOptions {
+    fn default() -> Self {
+        Self {
+            display_mark: false,
+            selected: false,
+            index: 1,
+            display_numbers: false,
+            selected_flat_point_indices: Vec::new(),
+            selected_folded_point_indices: Vec::new(),
+            custom_constraints: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OrieditaCustomConstraint {
+    pub face_order: OrieditaCustomConstraintFaceOrder,
+    pub constraint_type: OrieditaCustomConstraintType,
+    pub position: Point,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OrieditaCustomConstraintFaceOrder {
+    Normal,
+    Flipped,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OrieditaCustomConstraintType {
+    ColorBack,
+    ColorFront,
+    Custom,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1626,24 +1683,14 @@ pub fn folded_figure_paper_render_snapshot_from_segments(
     starting_face_id: i32,
     model: FoldedFigureModel,
 ) -> Result<Option<FoldedFigureRenderSnapshot>, FoldingEstimateError> {
-    if segments.is_empty() {
+    let Some((graph, folded)) =
+        folded_graph_and_wireframe_from_segments(segments, starting_face_id)
+    else {
         return Ok(None);
-    }
-
-    let graph = FoldGraph::from_segments(segments, true);
-    if graph.faces.is_empty() {
+    };
+    let Some((subface_graph, subfaces)) = folded_subface_graph_and_config(&folded) else {
         return Ok(None);
-    }
-
-    let positions = graph.face_positions(starting_face_id);
-    let folded = wireframe_from_graph(&graph, &positions, graph.folded_points(&positions));
-    let folded_segments = folded_wireframe_segments(&folded);
-    let prepared_segments = prepare_subface_segments(&folded_segments);
-    let subface_graph = FoldGraph::from_segments(&prepared_segments, true);
-    if subface_graph.faces.is_empty() {
-        return Ok(None);
-    }
-    let subfaces = configure_subfaces(&folded, &subface_graph);
+    };
 
     let Some(mut enumerator) = overlap_enumerator_from_segments(segments, starting_face_id)? else {
         return Ok(None);
@@ -1667,6 +1714,7 @@ pub fn folded_figure_paper_render_snapshot_from_segments(
             &subfaces,
             &overlap.hierarchy,
             &model,
+            &[],
         ),
     }))
 }
@@ -1700,13 +1748,9 @@ pub fn folded_figure_transparent_render_snapshot_from_segments(
     else {
         return Ok(None);
     };
-    let folded_segments = folded_wireframe_segments(&folded);
-    let prepared_segments = prepare_subface_segments(&folded_segments);
-    let subface_graph = FoldGraph::from_segments(&prepared_segments, true);
-    if subface_graph.faces.is_empty() {
+    let Some((subface_graph, subfaces)) = folded_subface_graph_and_config(&folded) else {
         return Ok(None);
-    }
-    let subfaces = configure_subfaces(&folded, &subface_graph);
+    };
 
     Ok(Some(FoldedFigureRenderSnapshot {
         schema_version: 1,
@@ -1718,7 +1762,195 @@ pub fn folded_figure_transparent_render_snapshot_from_segments(
             &subface_graph,
             &subfaces,
             &model,
+            &[],
         ),
+    }))
+}
+
+pub fn folded_figure_render_snapshot_from_segments(
+    segments: &[LineSegment],
+    starting_face_id: i32,
+    display_style: DisplayStyle,
+    model: FoldedFigureModel,
+    options: FoldedFigureRenderOptions,
+) -> Result<Option<FoldedFigureRenderSnapshot>, FoldingEstimateError> {
+    let Some((graph, folded)) =
+        folded_graph_and_wireframe_from_segments(segments, starting_face_id)
+    else {
+        return Ok(None);
+    };
+
+    let needs_subfaces = matches!(
+        display_style,
+        DisplayStyle::Transparent3 | DisplayStyle::Paper5
+    );
+    let subface_data = if needs_subfaces {
+        let Some(data) = folded_subface_graph_and_config(&folded) else {
+            return Ok(None);
+        };
+        Some(data)
+    } else {
+        None
+    };
+
+    let hierarchy = if display_style == DisplayStyle::Paper5 {
+        let Some(mut enumerator) = overlap_enumerator_from_segments(segments, starting_face_id)?
+        else {
+            return Ok(None);
+        };
+        let overlap = enumerator.possible_overlapping_search(true)?;
+        if !overlap.found {
+            return Ok(None);
+        }
+        Some(HierarchyTable::from_initial(&overlap.hierarchy))
+    } else {
+        None
+    };
+
+    let mut primitives = Vec::new();
+    let mut render_state = OrieditaRenderState::default();
+    let (front, rear) = folded_front_rear_passes(&model, &graph.points, &folded.points);
+    let transparent_front = OrieditaPaperRenderPass {
+        camera: OrieditaRenderCamera::transparent_front(&model).fix_to_flat_bounds(
+            &graph.points,
+            &folded.points,
+            Point::new(20.0, 0.0),
+        ),
+        flipped: false,
+    };
+    let transparent_rear = OrieditaPaperRenderPass {
+        camera: OrieditaRenderCamera::transparent_rear(&model).fix_to_flat_bounds(
+            &graph.points,
+            &folded.points,
+            Point::new(40.0, 0.0),
+        ),
+        flipped: true,
+    };
+
+    if display_style == DisplayStyle::Wire2 {
+        match model.state {
+            FoldedFigureState::Front0 => {
+                push_wire_render_pass_primitives(&folded, front, &mut primitives)
+            }
+            FoldedFigureState::Back1 => {
+                push_wire_render_pass_primitives(&folded, rear, &mut primitives)
+            }
+            FoldedFigureState::Both2 | FoldedFigureState::Transparent3 => {
+                push_wire_render_interleaved_primitives(&folded, front, rear, &mut primitives);
+            }
+        }
+    }
+
+    if model.state.draws_front() {
+        push_folded_display_style_pass_primitives(
+            display_style,
+            &folded,
+            subface_data.as_ref(),
+            hierarchy.as_ref(),
+            &model,
+            &options.custom_constraints,
+            front,
+            &mut render_state,
+            &mut primitives,
+        );
+        if options.display_mark {
+            push_cross_with_camera_primitives(
+                front.camera,
+                options.selected,
+                options.index,
+                options.display_numbers,
+                &render_state,
+                &mut primitives,
+            );
+        }
+    }
+
+    if model.state.draws_back() {
+        push_folded_display_style_pass_primitives(
+            display_style,
+            &folded,
+            subface_data.as_ref(),
+            hierarchy.as_ref(),
+            &model,
+            &options.custom_constraints,
+            rear,
+            &mut render_state,
+            &mut primitives,
+        );
+        if options.display_mark {
+            push_cross_with_camera_primitives(
+                rear.camera,
+                options.selected,
+                options.index,
+                options.display_numbers,
+                &render_state,
+                &mut primitives,
+            );
+        }
+    }
+
+    if model.state == FoldedFigureState::Transparent3 && display_style == DisplayStyle::Paper5 {
+        push_folded_transparency_pass_primitives(
+            &folded,
+            subface_data.as_ref(),
+            &model,
+            &options.custom_constraints,
+            transparent_front,
+            &mut render_state,
+            &mut primitives,
+        );
+        if options.display_mark {
+            push_cross_with_camera_primitives(
+                transparent_front.camera,
+                options.selected,
+                options.index,
+                options.display_numbers,
+                &render_state,
+                &mut primitives,
+            );
+        }
+
+        push_folded_transparency_pass_primitives(
+            &folded,
+            subface_data.as_ref(),
+            &model,
+            &options.custom_constraints,
+            transparent_rear,
+            &mut render_state,
+            &mut primitives,
+        );
+        if options.display_mark {
+            push_cross_with_camera_primitives(
+                transparent_rear.camera,
+                options.selected,
+                options.index,
+                options.display_numbers,
+                &render_state,
+                &mut primitives,
+            );
+        }
+    }
+
+    push_selected_point_primitives(
+        &graph,
+        &folded,
+        model.state,
+        front,
+        rear,
+        &options,
+        &render_state,
+        &mut primitives,
+    );
+
+    Ok(Some(FoldedFigureRenderSnapshot {
+        schema_version: 1,
+        fixture: None,
+        pass: Some(full_render_pass_name(
+            display_style,
+            model.state,
+            model.transparency_color,
+        )),
+        primitives,
     }))
 }
 
@@ -1910,6 +2142,19 @@ fn folded_graph_and_wireframe_from_segments(
     Some((graph, folded))
 }
 
+fn folded_subface_graph_and_config(
+    folded: &FoldedWireframe,
+) -> Option<(FoldGraph, SubFaceConfiguration)> {
+    let folded_segments = folded_wireframe_segments(folded);
+    let prepared_segments = prepare_subface_segments(&folded_segments);
+    let subface_graph = FoldGraph::from_segments(&prepared_segments, true);
+    if subface_graph.faces.is_empty() {
+        return None;
+    }
+    let subfaces = configure_subfaces(folded, &subface_graph);
+    Some((subface_graph, subfaces))
+}
+
 impl OrieditaFoldedFigureCameraSet {
     fn iter_mut(&mut self) -> [&mut OrieditaFoldedFigureCamera; 5] {
         [
@@ -1974,6 +2219,17 @@ struct OrieditaRenderCamera {
 }
 
 impl OrieditaRenderCamera {
+    fn identity() -> Self {
+        Self {
+            camera_position: Point::origin(),
+            angle_degrees: 0.0,
+            mirror: 1.0,
+            zoom_x: 1.0,
+            zoom_y: 1.0,
+            display_position: Point::origin(),
+        }
+    }
+
     fn folded(model: &FoldedFigureModel) -> Self {
         Self::from_oriedita_parts(model, 1.0, Point::new(20.0, 20.0))
     }
@@ -2215,6 +2471,7 @@ fn paper_render_primitives(
     subfaces: &SubFaceConfiguration,
     hierarchy: &InitialHierarchy,
     model: &FoldedFigureModel,
+    custom_constraints: &[OrieditaCustomConstraint],
 ) -> Vec<FoldedFigureRenderPrimitive> {
     let hierarchy = HierarchyTable::from_initial(hierarchy);
     let mut primitives = Vec::new();
@@ -2231,6 +2488,7 @@ fn paper_render_primitives(
             subfaces,
             &hierarchy,
             model,
+            custom_constraints,
             pass,
             &mut render_state,
             &mut primitives,
@@ -2348,12 +2606,49 @@ fn transparent_render_pass_name(state: FoldedFigureState, color: bool) -> &'stat
     }
 }
 
+fn full_render_pass_name(
+    display_style: DisplayStyle,
+    state: FoldedFigureState,
+    transparency_color: bool,
+) -> String {
+    let base = match display_style {
+        DisplayStyle::Wire2 => wire_render_pass_name(state),
+        DisplayStyle::Transparent3 => transparent_render_pass_name(state, transparency_color),
+        DisplayStyle::Paper5 => match state {
+            FoldedFigureState::Front0 => "paper-front",
+            FoldedFigureState::Back1 => "paper-back",
+            FoldedFigureState::Both2 => "paper-both",
+            FoldedFigureState::Transparent3 => "paper-transparent-state",
+        },
+        DisplayStyle::None0 => match state {
+            FoldedFigureState::Front0 => "none-front",
+            FoldedFigureState::Back1 => "none-back",
+            FoldedFigureState::Both2 => "none-both",
+            FoldedFigureState::Transparent3 => "none-transparent-state",
+        },
+        DisplayStyle::Development1 => match state {
+            FoldedFigureState::Front0 => "development-front",
+            FoldedFigureState::Back1 => "development-back",
+            FoldedFigureState::Both2 => "development-both",
+            FoldedFigureState::Transparent3 => "development-transparent-state",
+        },
+        DisplayStyle::Development4 => match state {
+            FoldedFigureState::Front0 => "development4-front",
+            FoldedFigureState::Back1 => "development4-back",
+            FoldedFigureState::Both2 => "development4-both",
+            FoldedFigureState::Transparent3 => "development4-transparent-state",
+        },
+    };
+    format!("{base}-full")
+}
+
 fn transparent_render_primitives(
     flat_graph: &FoldGraph,
     folded: &FoldedWireframe,
     subface_graph: &FoldGraph,
     subfaces: &SubFaceConfiguration,
     model: &FoldedFigureModel,
+    custom_constraints: &[OrieditaCustomConstraint],
 ) -> Vec<FoldedFigureRenderPrimitive> {
     let passes =
         transparent_or_wire_render_passes(model.state, model, &flat_graph.points, &folded.points);
@@ -2374,6 +2669,7 @@ fn transparent_render_primitives(
                 subface_graph,
                 subfaces,
                 model,
+                custom_constraints,
                 pass,
                 &mut render_state,
                 &mut primitives,
@@ -2381,6 +2677,84 @@ fn transparent_render_primitives(
         }
     }
     primitives
+}
+
+fn push_folded_display_style_pass_primitives(
+    display_style: DisplayStyle,
+    folded: &FoldedWireframe,
+    subface_data: Option<&(FoldGraph, SubFaceConfiguration)>,
+    hierarchy: Option<&HierarchyTable>,
+    model: &FoldedFigureModel,
+    custom_constraints: &[OrieditaCustomConstraint],
+    pass: OrieditaPaperRenderPass,
+    render_state: &mut OrieditaRenderState,
+    primitives: &mut Vec<FoldedFigureRenderPrimitive>,
+) {
+    match display_style {
+        DisplayStyle::Transparent3 => push_folded_transparency_pass_primitives(
+            folded,
+            subface_data,
+            model,
+            custom_constraints,
+            pass,
+            render_state,
+            primitives,
+        ),
+        DisplayStyle::Paper5 => {
+            let Some((subface_graph, subfaces)) = subface_data else {
+                return;
+            };
+            let Some(hierarchy) = hierarchy else {
+                return;
+            };
+            push_paper_render_pass_primitives(
+                subface_graph,
+                folded,
+                subfaces,
+                hierarchy,
+                model,
+                custom_constraints,
+                pass,
+                render_state,
+                primitives,
+            );
+        }
+        _ => {}
+    }
+}
+
+fn push_folded_transparency_pass_primitives(
+    folded: &FoldedWireframe,
+    subface_data: Option<&(FoldGraph, SubFaceConfiguration)>,
+    model: &FoldedFigureModel,
+    custom_constraints: &[OrieditaCustomConstraint],
+    pass: OrieditaPaperRenderPass,
+    render_state: &mut OrieditaRenderState,
+    primitives: &mut Vec<FoldedFigureRenderPrimitive>,
+) {
+    let Some((subface_graph, subfaces)) = subface_data else {
+        return;
+    };
+    if model.transparency_color {
+        push_color_transparent_render_pass_primitives(
+            folded,
+            subface_graph,
+            model,
+            pass,
+            render_state,
+            primitives,
+        );
+    } else {
+        push_grayscale_transparent_render_pass_primitives(
+            subface_graph,
+            subfaces,
+            model,
+            custom_constraints,
+            pass,
+            render_state,
+            primitives,
+        );
+    }
 }
 
 fn push_color_transparent_render_pass_primitives(
@@ -2428,6 +2802,7 @@ fn push_grayscale_transparent_render_pass_primitives(
     subface_graph: &FoldGraph,
     subfaces: &SubFaceConfiguration,
     model: &FoldedFigureModel,
+    custom_constraints: &[OrieditaCustomConstraint],
     pass: OrieditaPaperRenderPass,
     render_state: &mut OrieditaRenderState,
     primitives: &mut Vec<FoldedFigureRenderPrimitive>,
@@ -2454,6 +2829,8 @@ fn push_grayscale_transparent_render_pass_primitives(
             primitives,
         );
     }
+
+    push_custom_constraint_primitives(custom_constraints, pass, render_state, primitives);
 
     push_transparent_lines(
         subface_graph,
@@ -2535,12 +2912,290 @@ fn push_transparent_lines(
     }
 }
 
+fn push_custom_constraint_primitives(
+    custom_constraints: &[OrieditaCustomConstraint],
+    pass: OrieditaPaperRenderPass,
+    render_state: &mut OrieditaRenderState,
+    primitives: &mut Vec<FoldedFigureRenderPrimitive>,
+) {
+    for constraint in custom_constraints {
+        if pass.flipped {
+            if constraint.face_order == OrieditaCustomConstraintFaceOrder::Normal {
+                continue;
+            }
+        } else if constraint.face_order == OrieditaCustomConstraintFaceOrder::Flipped {
+            continue;
+        }
+
+        let (fill, border) =
+            if constraint.constraint_type == OrieditaCustomConstraintType::ColorBack {
+                (
+                    RgbaColor::new(255, 255, 255, 255),
+                    RgbaColor::new(0, 0, 0, 255),
+                )
+            } else {
+                (
+                    RgbaColor::new(0, 0, 0, 255),
+                    RgbaColor::new(255, 255, 255, 255),
+                )
+            };
+
+        render_state.stroke = default_java2d_stroke();
+        let pos = pass.camera.object_to_tv_raw(constraint.position);
+        let x = pos.x.trunc();
+        let y = pos.y.trunc();
+        push_fill_ellipse_rect(x - 4.0, y - 4.0, 8.0, 8.0, fill, render_state, primitives);
+        push_stroke_ellipse_rect(x - 4.0, y - 4.0, 8.0, 8.0, border, render_state, primitives);
+    }
+}
+
+fn push_cross_with_camera_primitives(
+    camera: OrieditaRenderCamera,
+    selected: bool,
+    index: usize,
+    display_numbers: bool,
+    render_state: &OrieditaRenderState,
+    primitives: &mut Vec<FoldedFigureRenderPrimitive>,
+) {
+    let point = camera.object_to_tv_raw(camera.camera_position);
+    let orange = RgbaColor::new(255, 200, 0, 255);
+    push_cross_width_line_polygon(
+        LineSegment::new(
+            Point::new(point.x - 5.0, point.y),
+            Point::new(point.x + 5.0, point.y),
+        ),
+        orange,
+        render_state,
+        primitives,
+    );
+    push_cross_width_line_polygon(
+        LineSegment::new(
+            Point::new(point.x, point.y - 5.0),
+            Point::new(point.x, point.y + 5.0),
+        ),
+        orange,
+        render_state,
+        primitives,
+    );
+
+    if selected {
+        primitives.push(FoldedFigureRenderPrimitive {
+            sequence: primitives.len(),
+            kind: FoldedFigureRenderPrimitiveKind::FillEllipse,
+            style: FoldedFigureRenderStyle {
+                paint: FoldedFigureRenderPaint::Color {
+                    color: RgbaColor::new(200, 50, 255, 90),
+                },
+                stroke: render_state.stroke.clone(),
+                antialias: render_state.antialias,
+            },
+            geometry: FoldedFigureRenderGeometry::Ellipse {
+                x: recorded_f64(point.x - 25.0),
+                y: recorded_f64(point.y - 25.0),
+                width: 50.0,
+                height: 50.0,
+            },
+        });
+    }
+
+    if display_numbers {
+        primitives.push(FoldedFigureRenderPrimitive {
+            sequence: primitives.len(),
+            kind: FoldedFigureRenderPrimitiveKind::Text,
+            style: FoldedFigureRenderStyle {
+                paint: FoldedFigureRenderPaint::Color { color: orange },
+                stroke: render_state.stroke.clone(),
+                antialias: render_state.antialias,
+            },
+            geometry: FoldedFigureRenderGeometry::Text {
+                value: index.to_string(),
+                position: Point::new(
+                    recorded_f64((point.x as f32 + 25.0_f32) as f64),
+                    recorded_f64((point.y as f32 + 25.0_f32) as f64),
+                ),
+            },
+        });
+    }
+}
+
+fn push_cross_width_line_polygon(
+    segment: LineSegment,
+    color: RgbaColor,
+    render_state: &OrieditaRenderState,
+    primitives: &mut Vec<FoldedFigureRenderPrimitive>,
+) {
+    let sp = move_parallel(&segment, 2.0);
+    let sm = move_parallel(&segment, -2.0);
+    let points = vec![
+        java_draw_line_point(sp.a),
+        java_draw_line_point(sp.b),
+        java_draw_line_point(sm.b),
+        java_draw_line_point(sm.a),
+    ];
+    primitives.push(FoldedFigureRenderPrimitive {
+        sequence: primitives.len(),
+        kind: FoldedFigureRenderPrimitiveKind::FillPolygon,
+        style: FoldedFigureRenderStyle {
+            paint: FoldedFigureRenderPaint::Color { color },
+            stroke: render_state.stroke.clone(),
+            antialias: render_state.antialias,
+        },
+        geometry: FoldedFigureRenderGeometry::Polygon { points },
+    });
+}
+
+fn push_selected_point_primitives(
+    flat_graph: &FoldGraph,
+    folded: &FoldedWireframe,
+    state: FoldedFigureState,
+    front: OrieditaPaperRenderPass,
+    rear: OrieditaPaperRenderPass,
+    options: &FoldedFigureRenderOptions,
+    render_state: &OrieditaRenderState,
+    primitives: &mut Vec<FoldedFigureRenderPrimitive>,
+) {
+    let flat_camera = OrieditaRenderCamera::identity();
+    for index in &options.selected_flat_point_indices {
+        let Some(point) = flat_graph.points.get(*index).copied() else {
+            continue;
+        };
+        push_fill_ellipse_center_int(
+            flat_camera.object_to_tv_raw(point),
+            7.0,
+            RgbaColor::new(0, 255, 255, 100),
+            render_state,
+            primitives,
+        );
+    }
+
+    for index in &options.selected_folded_point_indices {
+        if let Some(point) = flat_graph.points.get(*index).copied() {
+            push_fill_ellipse_center_int(
+                flat_camera.object_to_tv_raw(point),
+                15.0,
+                RgbaColor::new(0, 255, 0, 100),
+                render_state,
+                primitives,
+            );
+        }
+
+        let Some(point) = folded.points.get(*index).copied() else {
+            continue;
+        };
+        match state {
+            FoldedFigureState::Front0 => push_fill_ellipse_center_int(
+                front.camera.object_to_tv_raw(point),
+                10.0,
+                RgbaColor::new(0, 255, 0, 50),
+                render_state,
+                primitives,
+            ),
+            FoldedFigureState::Back1 => push_fill_ellipse_center_int(
+                rear.camera.object_to_tv_raw(point),
+                10.0,
+                RgbaColor::new(0, 255, 0, 50),
+                render_state,
+                primitives,
+            ),
+            FoldedFigureState::Both2 | FoldedFigureState::Transparent3 => {
+                push_fill_ellipse_center_int(
+                    front.camera.object_to_tv_raw(point),
+                    10.0,
+                    RgbaColor::new(0, 255, 0, 50),
+                    render_state,
+                    primitives,
+                );
+                push_fill_ellipse_center_int(
+                    rear.camera.object_to_tv_raw(point),
+                    10.0,
+                    RgbaColor::new(0, 255, 0, 50),
+                    render_state,
+                    primitives,
+                );
+            }
+        }
+    }
+}
+
+fn push_fill_ellipse_center_int(
+    center: Point,
+    radius: f64,
+    color: RgbaColor,
+    render_state: &OrieditaRenderState,
+    primitives: &mut Vec<FoldedFigureRenderPrimitive>,
+) {
+    let x = center.x.trunc() - radius;
+    let y = center.y.trunc() - radius;
+    push_fill_ellipse_rect(
+        x,
+        y,
+        2.0 * radius,
+        2.0 * radius,
+        color,
+        render_state,
+        primitives,
+    );
+}
+
+fn push_fill_ellipse_rect(
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    color: RgbaColor,
+    render_state: &OrieditaRenderState,
+    primitives: &mut Vec<FoldedFigureRenderPrimitive>,
+) {
+    primitives.push(FoldedFigureRenderPrimitive {
+        sequence: primitives.len(),
+        kind: FoldedFigureRenderPrimitiveKind::FillEllipse,
+        style: FoldedFigureRenderStyle {
+            paint: FoldedFigureRenderPaint::Color { color },
+            stroke: render_state.stroke.clone(),
+            antialias: render_state.antialias,
+        },
+        geometry: FoldedFigureRenderGeometry::Ellipse {
+            x: recorded_f64(x),
+            y: recorded_f64(y),
+            width: recorded_f64(width),
+            height: recorded_f64(height),
+        },
+    });
+}
+
+fn push_stroke_ellipse_rect(
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    color: RgbaColor,
+    render_state: &OrieditaRenderState,
+    primitives: &mut Vec<FoldedFigureRenderPrimitive>,
+) {
+    primitives.push(FoldedFigureRenderPrimitive {
+        sequence: primitives.len(),
+        kind: FoldedFigureRenderPrimitiveKind::StrokeEllipse,
+        style: FoldedFigureRenderStyle {
+            paint: FoldedFigureRenderPaint::Color { color },
+            stroke: render_state.stroke.clone(),
+            antialias: render_state.antialias,
+        },
+        geometry: FoldedFigureRenderGeometry::Ellipse {
+            x: recorded_f64(x),
+            y: recorded_f64(y),
+            width: recorded_f64(width),
+            height: recorded_f64(height),
+        },
+    });
+}
+
 fn push_paper_render_pass_primitives(
     subface_graph: &FoldGraph,
     folded: &FoldedWireframe,
     subfaces: &SubFaceConfiguration,
     hierarchy: &HierarchyTable,
     model: &FoldedFigureModel,
+    custom_constraints: &[OrieditaCustomConstraint],
     pass: OrieditaPaperRenderPass,
     render_state: &mut OrieditaRenderState,
     primitives: &mut Vec<FoldedFigureRenderPrimitive>,
@@ -2585,6 +3240,13 @@ fn push_paper_render_pass_primitives(
         );
     }
 
+    render_state.stroke = folded_line_stroke(model);
+    render_state.antialias = if model.anti_alias {
+        FoldedFigureRenderAntialias::On
+    } else {
+        FoldedFigureRenderAntialias::Off
+    };
+
     for line_index in 0..subface_graph.lines.len() {
         if !should_draw_paper_edge(line_index, subface_graph, subfaces, hierarchy, pass.flipped) {
             continue;
@@ -2600,7 +3262,6 @@ fn push_paper_render_pass_primitives(
             pass.camera.object_to_tv(begin),
             pass.camera.object_to_tv(end),
         ];
-        render_state.stroke = folded_line_stroke(model);
         primitives.push(FoldedFigureRenderPrimitive {
             sequence: primitives.len(),
             kind: FoldedFigureRenderPrimitiveKind::StrokePath,
@@ -2609,17 +3270,15 @@ fn push_paper_render_pass_primitives(
                     color: RgbaColor::from_rgb(model.line_color),
                 },
                 stroke: render_state.stroke.clone(),
-                antialias: if model.anti_alias {
-                    FoldedFigureRenderAntialias::On
-                } else {
-                    FoldedFigureRenderAntialias::Off
-                },
+                antialias: render_state.antialias,
             },
             geometry: FoldedFigureRenderGeometry::Path {
                 commands: open_path_commands(&points),
             },
         });
     }
+
+    push_custom_constraint_primitives(custom_constraints, pass, render_state, primitives);
 }
 
 fn push_paper_shadow_primitives(
