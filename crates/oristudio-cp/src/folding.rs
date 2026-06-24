@@ -1623,7 +1623,7 @@ pub fn folded_figure_paper_render_snapshot_from_segments(
     if !overlap.found {
         return Ok(None);
     }
-    let Some(pass_name) = paper_render_pass_name(model.state) else {
+    let Some(pass_name) = paper_render_pass_name(model.state, model.display_shadows) else {
         return Ok(None);
     };
 
@@ -1794,6 +1794,14 @@ impl OrieditaRenderCamera {
     }
 
     fn object_to_tv(self, point: Point) -> Point {
+        recorded_point(self.object_to_tv_raw(point))
+    }
+
+    fn object_to_tv_gradient(self, point: Point) -> Point {
+        recorded_float_point(self.object_to_tv_raw(point))
+    }
+
+    fn object_to_tv_raw(self, point: Point) -> Point {
         let radians = self.angle_degrees * (3.14159265 / 180.0);
         let sin = radians.sin();
         let cos = radians.cos();
@@ -1804,10 +1812,7 @@ impl OrieditaRenderCamera {
         x2 *= self.mirror;
         x2 *= self.zoom_x;
         y2 *= self.zoom_y;
-        recorded_point(Point::new(
-            x2 + self.display_position.x,
-            y2 + self.display_position.y,
-        ))
+        Point::new(x2 + self.display_position.x, y2 + self.display_position.y)
     }
 
     fn fix_to_flat_bounds(
@@ -1832,6 +1837,13 @@ impl OrieditaRenderCamera {
 
 fn recorded_point(point: Point) -> Point {
     Point::new(recorded_f64(point.x), recorded_f64(point.y))
+}
+
+fn recorded_float_point(point: Point) -> Point {
+    Point::new(
+        recorded_f64(point.x as f32 as f64),
+        recorded_f64(point.y as f32 as f64),
+    )
 }
 
 fn recorded_f64(value: f64) -> f64 {
@@ -1875,12 +1887,15 @@ impl Default for OrieditaRenderState {
     }
 }
 
-fn paper_render_pass_name(state: FoldedFigureState) -> Option<&'static str> {
-    match state {
-        FoldedFigureState::Front0 => Some("paper-front"),
-        FoldedFigureState::Back1 => Some("paper-back"),
-        FoldedFigureState::Both2 => Some("paper-both"),
-        FoldedFigureState::Transparent3 => None,
+fn paper_render_pass_name(state: FoldedFigureState, shadows: bool) -> Option<&'static str> {
+    match (state, shadows) {
+        (FoldedFigureState::Front0, false) => Some("paper-front"),
+        (FoldedFigureState::Back1, false) => Some("paper-back"),
+        (FoldedFigureState::Both2, false) => Some("paper-both"),
+        (FoldedFigureState::Front0, true) => Some("paper-front-shadows"),
+        (FoldedFigureState::Back1, true) => Some("paper-back-shadows"),
+        (FoldedFigureState::Both2, true) => Some("paper-both-shadows"),
+        (FoldedFigureState::Transparent3, _) => None,
     }
 }
 
@@ -1986,6 +2001,17 @@ fn push_paper_render_pass_primitives(
         });
     }
 
+    if model.display_shadows {
+        push_paper_shadow_primitives(
+            subface_graph,
+            subfaces,
+            hierarchy,
+            pass,
+            render_state,
+            primitives,
+        );
+    }
+
     for line_index in 0..subface_graph.lines.len() {
         if !should_draw_paper_edge(line_index, subface_graph, subfaces, hierarchy, pass.flipped) {
             continue;
@@ -2021,6 +2047,169 @@ fn push_paper_render_pass_primitives(
             },
         });
     }
+}
+
+fn push_paper_shadow_primitives(
+    subface_graph: &FoldGraph,
+    subfaces: &SubFaceConfiguration,
+    hierarchy: &HierarchyTable,
+    pass: OrieditaPaperRenderPass,
+    render_state: &OrieditaRenderState,
+    primitives: &mut Vec<FoldedFigureRenderPrimitive>,
+) {
+    for line_index in 0..subface_graph.lines.len() {
+        let Some(shadow_subface) =
+            shadow_subface_for_line(line_index, subface_graph, subfaces, hierarchy, pass.flipped)
+        else {
+            continue;
+        };
+        let Some(line) = subface_graph.lines.get(line_index).copied() else {
+            continue;
+        };
+        let Some(begin) = subface_graph.points.get(line.begin).copied() else {
+            continue;
+        };
+        let Some(end) = subface_graph.points.get(line.end).copied() else {
+            continue;
+        };
+        // Oriedita's Java2D drawer accidentally uses getBegin(lineId), the
+        // 1-based point id, as the x-coordinate when computing shadow length.
+        // The rectangle coordinates still use the real point coordinates.
+        let shadow_length_origin = Point::new((line.begin + 1) as f64, begin.y);
+        let length = shadow_length_origin.distance(end);
+        if length == 0.0 {
+            continue;
+        }
+
+        let offset = Point::new(
+            -(begin.y - end.y) * 10.0 / length,
+            (begin.x - end.x) * 10.0 / length,
+        );
+        let reverse_offset = Point::new(-offset.x, -offset.y);
+        let midpoint = Point::new((begin.x + end.x) / 2.0, (begin.y + end.y) / 2.0);
+
+        if shadow_offset_inside(subface_graph, shadow_subface, midpoint, offset) {
+            push_shadow_rectangle(
+                begin,
+                end,
+                offset,
+                midpoint,
+                midpoint.move_by(offset),
+                pass,
+                render_state,
+                primitives,
+            );
+        }
+
+        if shadow_offset_inside(subface_graph, shadow_subface, midpoint, reverse_offset) {
+            push_shadow_rectangle(
+                begin,
+                end,
+                reverse_offset,
+                begin,
+                begin.move_by(reverse_offset),
+                pass,
+                render_state,
+                primitives,
+            );
+        }
+    }
+}
+
+fn shadow_subface_for_line(
+    line_index: usize,
+    subface_graph: &FoldGraph,
+    subfaces: &SubFaceConfiguration,
+    hierarchy: &HierarchyTable,
+    flipped: bool,
+) -> Option<usize> {
+    let (first, second) = subface_graph.line_face_border(line_index)?;
+    let first_count = subfaces
+        .subfaces
+        .get(first)
+        .map(|subface| subface.face_ids.len())
+        .unwrap_or(0);
+    let second_count = subfaces
+        .subfaces
+        .get(second)
+        .map(|subface| subface.face_ids.len())
+        .unwrap_or(0);
+    if first_count == 0 || second_count == 0 || first == second {
+        return None;
+    }
+
+    let first_visible = visible_subface_face(first, subfaces, hierarchy, flipped)?;
+    let second_visible = visible_subface_face(second, subfaces, hierarchy, flipped)?;
+    if first_visible == second_visible {
+        return None;
+    }
+
+    let mut target = first;
+    match hierarchy.get(first_visible, second_visible)? {
+        FaceOrder::Above => target = second,
+        FaceOrder::Below => {}
+    }
+
+    if flipped {
+        if target == first {
+            Some(second)
+        } else {
+            Some(first)
+        }
+    } else {
+        Some(target)
+    }
+}
+
+fn shadow_offset_inside(
+    subface_graph: &FoldGraph,
+    subface_index: usize,
+    midpoint: Point,
+    offset: Point,
+) -> bool {
+    let Some(face) = subface_graph.faces.get(subface_index) else {
+        return false;
+    };
+    subface_polygon(subface_graph, face).inside(Point::new(
+        midpoint.x + Epsilon::UNKNOWN_001 * offset.x,
+        midpoint.y + Epsilon::UNKNOWN_001 * offset.y,
+    )) != PolygonIntersection::Outside
+}
+
+fn push_shadow_rectangle(
+    begin: Point,
+    end: Point,
+    offset: Point,
+    gradient_from: Point,
+    gradient_to: Point,
+    pass: OrieditaPaperRenderPass,
+    render_state: &OrieditaRenderState,
+    primitives: &mut Vec<FoldedFigureRenderPrimitive>,
+) {
+    let points = [
+        pass.camera.object_to_tv(begin),
+        pass.camera.object_to_tv(begin.move_by(offset)),
+        pass.camera.object_to_tv(end.move_by(offset)),
+        pass.camera.object_to_tv(end),
+    ];
+    primitives.push(FoldedFigureRenderPrimitive {
+        sequence: primitives.len(),
+        kind: FoldedFigureRenderPrimitiveKind::FillPath,
+        style: FoldedFigureRenderStyle {
+            paint: FoldedFigureRenderPaint::Gradient {
+                from: pass.camera.object_to_tv_gradient(gradient_from),
+                from_color: RgbaColor::new(0, 0, 0, 50),
+                to: pass.camera.object_to_tv_gradient(gradient_to),
+                to_color: RgbaColor::new(0, 0, 0, 0),
+                cyclic: false,
+            },
+            stroke: render_state.stroke.clone(),
+            antialias: FoldedFigureRenderAntialias::Off,
+        },
+        geometry: FoldedFigureRenderGeometry::Path {
+            commands: closed_path_commands(&points),
+        },
+    });
 }
 
 fn visible_subface_face(

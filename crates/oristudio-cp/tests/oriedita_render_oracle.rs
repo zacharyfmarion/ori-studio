@@ -136,6 +136,34 @@ fn paper_shadow_render_oracle_outputs_are_parseable() {
 }
 
 #[test]
+fn kabuto_paper_shadow_render_primitives_match_oriedita_oracle() {
+    let Some(oracle) = render_oracle() else {
+        eprintln!("skipping Oriedita render oracle test: ORIEDITA_RENDER_ORACLE is not set");
+        return;
+    };
+
+    let segments = kabuto_segments();
+    for case in paper_shadow_render_cases() {
+        let output = run_oracle_owned(&oracle, &segment_oracle_args(case.command, &segments));
+        let oracle_snapshot =
+            parse_oriedita_render_primitives(&output).expect("parse Oriedita render primitives");
+        let mut model = FoldedFigureModel::default();
+        model.state = case.state;
+        model.display_shadows = true;
+        let rust_snapshot = folded_figure_paper_render_snapshot_from_segments(&segments, 1, model)
+            .expect("Rust paper shadow render")
+            .expect("paper shadow primitives");
+
+        assert_eq!(rust_snapshot.pass.as_deref(), Some(case.pass));
+        assert_primitives_match_with_coordinate_tolerance(
+            case.pass,
+            &rust_snapshot,
+            &oracle_snapshot,
+        );
+    }
+}
+
+#[test]
 fn paper_visible_face_oracle_outputs_are_parseable() {
     let Some(oracle) = render_oracle() else {
         eprintln!("skipping Oriedita render oracle test: ORIEDITA_RENDER_ORACLE is not set");

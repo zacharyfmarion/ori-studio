@@ -636,7 +636,7 @@ checkpoint and keep the checklist current.
 - [x] Add paper-front render oracle fixture.
 - [x] Add paper-front render oracle smoke test.
 - [x] Add paper-front render oracle comparison test.
-- [ ] Port paper-view subface fill, front/back parity, edge visibility, and
+- [x] Port paper-view subface fill, front/back parity, edge visibility, and
       shadow primitive generation.
 - [x] Add paper back/both render oracle fixtures.
 - [x] Add paper shadow render oracle fixtures.
