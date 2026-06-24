@@ -576,3 +576,47 @@ fn orh_export_writes_oriedita_sections_and_imports_back_with_quirks() {
     assert_eq!(imported.crease_pattern.circles.len(), 2);
     assert!(imported.crease_pattern.aux_line_segments.is_empty());
 }
+
+#[test]
+fn orh_import_export_preserves_folded_figure_color_metadata() {
+    let input = "\
+<タイトル>
+タイトル,folded colors
+<線分集合>
+<円集合>
+<oriagarizu>
+<oriagarizu_F_color_R>12</oriagarizu_F_color_R>
+<oriagarizu_F_color_G>34</oriagarizu_F_color_G>
+<oriagarizu_F_color_B>56</oriagarizu_F_color_B>
+<oriagarizu_B_color_R>78</oriagarizu_B_color_R>
+<oriagarizu_B_color_G>90</oriagarizu_B_color_G>
+<oriagarizu_B_color_B>123</oriagarizu_B_color_B>
+<oriagarizu_L_color_R>5</oriagarizu_L_color_R>
+<oriagarizu_L_color_G>6</oriagarizu_L_color_G>
+<oriagarizu_L_color_B>7</oriagarizu_L_color_B>
+</oriagarizu>
+";
+
+    let document = orh::import_orh_str(input).expect("valid orh folded colors");
+
+    assert_eq!(
+        document.metadata.get("oriedita:orh:oriagarizu_front_color"),
+        Some(&serde_json::json!([12, 34, 56]))
+    );
+    assert_eq!(
+        document.metadata.get("oriedita:orh:oriagarizu_back_color"),
+        Some(&serde_json::json!([78, 90, 123]))
+    );
+    assert_eq!(
+        document.metadata.get("oriedita:orh:oriagarizu_line_color"),
+        Some(&serde_json::json!([5, 6, 7]))
+    );
+
+    let output = orh::export_orh_string(&document);
+    assert!(output.contains("<oriagarizu_F_color_R>12</oriagarizu_F_color_R>"));
+    assert!(output.contains("<oriagarizu_B_color_G>90</oriagarizu_B_color_G>"));
+    assert!(output.contains("<oriagarizu_L_color_B>7</oriagarizu_L_color_B>"));
+
+    let imported = orh::import_orh_str(&output).expect("reimports exported orh");
+    assert_eq!(imported.metadata, document.metadata);
+}

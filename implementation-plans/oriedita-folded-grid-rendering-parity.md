@@ -624,12 +624,12 @@ checkpoint and keep the checklist current.
       `oristudio-cp-wasm`.
 - [x] Add folded-figure list/revision state to the workspace store.
 - [x] Render one active folded figure in the CP grid area.
-- [ ] Add display style, front/back state, starting face, and next-solution UI.
-- [ ] Add multi-figure duplicate/delete support.
+- [x] Add display style, front/back state, starting face, and next-solution UI.
+- [x] Add multi-figure duplicate/delete support.
 - [x] Preserve imported folded-form frames and render them as detached imported
       folded figures.
-- [ ] Add Oriedita oracle commands for folded snapshot parity.
-- [ ] Add Oriedita oracle commands for render primitive parity.
+- [x] Add Oriedita oracle commands for folded snapshot parity.
+- [x] Add Oriedita oracle commands for render primitive parity.
 - [x] Add focused web tests for rendering, stale state, and controls.
 - [x] Implement Oriedita recording Java2D adapter in `tools/oriedita-oracle`.
 - [x] Define stable folded render primitive schema in Rust.
@@ -659,5 +659,5 @@ checkpoint and keep the checklist current.
 - [x] Persist folded figure cameras, model state, primitive snapshots, and
       invalidation metadata in `.osf`.
 - [x] Add Playwright screenshot coverage for the grid-area folded figure.
-- [ ] Run folded-document corpus validation and document unsupported cases.
+- [x] Run folded-document corpus validation and document unsupported cases.
 - [ ] Run Rust, WASM, oracle, and web validation appropriate to each stage.

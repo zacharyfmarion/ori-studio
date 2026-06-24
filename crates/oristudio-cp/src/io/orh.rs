@@ -3,8 +3,12 @@ use crate::CreasePatternDocument;
 use crate::geometry::{ActiveState, Circle, LineColor, LineSegment, Point, RgbColor};
 use crate::model::CreasePatternModel;
 use encoding_rs::{EUC_JP, Encoding, GBK, SHIFT_JIS, UTF_8};
+use serde_json::{Value, json};
 
 const ORH_CHARSETS: &[&Encoding] = &[UTF_8, EUC_JP, GBK, SHIFT_JIS];
+const ORH_FOLDED_FRONT_COLOR: &str = "oriedita:orh:oriagarizu_front_color";
+const ORH_FOLDED_BACK_COLOR: &str = "oriedita:orh:oriagarizu_back_color";
+const ORH_FOLDED_LINE_COLOR: &str = "oriedita:orh:oriagarizu_line_color";
 
 /// Import an Oriedita/Orihime `.orh` file from bytes, trying Oriedita's
 /// charset order.
@@ -40,6 +44,7 @@ pub fn import_orh_str(input: &str) -> Result<CreasePatternDocument> {
     let mut number = 0usize;
     let mut color = RgbColor::new(0, 0, 0);
     let mut circle_template = Circle::default();
+    let mut folded_colors = OrhFoldedFigureColors::default();
 
     for (line_index, line) in lines.iter().enumerate() {
         let tokens = csv_tokens(line);
@@ -176,7 +181,13 @@ pub fn import_orh_str(input: &str) -> Result<CreasePatternDocument> {
             }
             circle_template = *circle;
         }
+
+        if let Some((tag, value)) = tag_value(line) {
+            folded_colors.apply_tag(tag, value, line_index + 1)?;
+        }
     }
+
+    folded_colors.write_metadata(&mut document);
 
     Ok(document)
 }
@@ -243,9 +254,89 @@ pub fn export_orh_string(document: &CreasePatternDocument) -> String {
     push_default_settings(&mut output);
     push_grid(&mut output, document.crease_pattern.grid);
     push_default_grid_colors(&mut output);
-    push_default_folded_figure(&mut output);
+    push_folded_figure(&mut output, document);
 
     output
+}
+
+#[derive(Debug, Clone, Copy)]
+struct OrhFoldedFigureColors {
+    section_seen: bool,
+    front: RgbColor,
+    back: RgbColor,
+    line: RgbColor,
+}
+
+impl Default for OrhFoldedFigureColors {
+    fn default() -> Self {
+        Self {
+            section_seen: false,
+            front: RgbColor::new(0, 0, 0),
+            back: RgbColor::new(0, 0, 0),
+            line: RgbColor::new(0, 0, 0),
+        }
+    }
+}
+
+impl OrhFoldedFigureColors {
+    fn apply_tag(&mut self, tag: &str, value: &str, line: usize) -> Result<()> {
+        match tag {
+            "oriagarizu_F_color_R" => {
+                self.section_seen = true;
+                self.front.red = parse_u8(value, line)?;
+            }
+            "oriagarizu_F_color_G" => {
+                self.section_seen = true;
+                self.front.green = parse_u8(value, line)?;
+            }
+            "oriagarizu_F_color_B" => {
+                self.section_seen = true;
+                self.front.blue = parse_u8(value, line)?;
+            }
+            "oriagarizu_B_color_R" => {
+                self.section_seen = true;
+                self.back.red = parse_u8(value, line)?;
+            }
+            "oriagarizu_B_color_G" => {
+                self.section_seen = true;
+                self.back.green = parse_u8(value, line)?;
+            }
+            "oriagarizu_B_color_B" => {
+                self.section_seen = true;
+                self.back.blue = parse_u8(value, line)?;
+            }
+            "oriagarizu_L_color_R" => {
+                self.section_seen = true;
+                self.line.red = parse_u8(value, line)?;
+            }
+            "oriagarizu_L_color_G" => {
+                self.section_seen = true;
+                self.line.green = parse_u8(value, line)?;
+            }
+            "oriagarizu_L_color_B" => {
+                self.section_seen = true;
+                self.line.blue = parse_u8(value, line)?;
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn write_metadata(self, document: &mut CreasePatternDocument) {
+        if !self.section_seen {
+            return;
+        }
+        document.metadata.insert(
+            ORH_FOLDED_FRONT_COLOR.to_string(),
+            color_metadata(self.front),
+        );
+        document
+            .metadata
+            .insert(ORH_FOLDED_BACK_COLOR.to_string(), color_metadata(self.back));
+        document
+            .metadata
+            .insert(ORH_FOLDED_LINE_COLOR.to_string(), color_metadata(self.line));
+    }
 }
 
 fn count_orh_lines(lines: &[&str]) -> Result<usize> {
@@ -517,18 +608,93 @@ fn push_default_grid_colors(output: &mut String) {
     push_line(output, "</Kousi_iro>");
 }
 
-fn push_default_folded_figure(output: &mut String) {
+fn push_folded_figure(output: &mut String, document: &CreasePatternDocument) {
+    let front = metadata_color(
+        document.metadata.get(ORH_FOLDED_FRONT_COLOR),
+        RgbColor::new(255, 255, 50),
+    );
+    let back = metadata_color(
+        document.metadata.get(ORH_FOLDED_BACK_COLOR),
+        RgbColor::new(233, 233, 233),
+    );
+    let line = metadata_color(
+        document.metadata.get(ORH_FOLDED_LINE_COLOR),
+        RgbColor::new(0, 0, 0),
+    );
+
     push_line(output, "<oriagarizu>");
-    push_line(output, "<oriagarizu_F_color_R>255</oriagarizu_F_color_R>");
-    push_line(output, "<oriagarizu_F_color_G>255</oriagarizu_F_color_G>");
-    push_line(output, "<oriagarizu_F_color_B>50</oriagarizu_F_color_B>");
-    push_line(output, "<oriagarizu_B_color_R>233</oriagarizu_B_color_R>");
-    push_line(output, "<oriagarizu_B_color_G>233</oriagarizu_B_color_G>");
-    push_line(output, "<oriagarizu_B_color_B>233</oriagarizu_B_color_B>");
-    push_line(output, "<oriagarizu_L_color_R>0</oriagarizu_L_color_R>");
-    push_line(output, "<oriagarizu_L_color_G>0</oriagarizu_L_color_G>");
-    push_line(output, "<oriagarizu_L_color_B>0</oriagarizu_L_color_B>");
+    push_line(
+        output,
+        &format!("<oriagarizu_F_color_R>{}</oriagarizu_F_color_R>", front.red),
+    );
+    push_line(
+        output,
+        &format!(
+            "<oriagarizu_F_color_G>{}</oriagarizu_F_color_G>",
+            front.green
+        ),
+    );
+    push_line(
+        output,
+        &format!(
+            "<oriagarizu_F_color_B>{}</oriagarizu_F_color_B>",
+            front.blue
+        ),
+    );
+    push_line(
+        output,
+        &format!("<oriagarizu_B_color_R>{}</oriagarizu_B_color_R>", back.red),
+    );
+    push_line(
+        output,
+        &format!(
+            "<oriagarizu_B_color_G>{}</oriagarizu_B_color_G>",
+            back.green
+        ),
+    );
+    push_line(
+        output,
+        &format!("<oriagarizu_B_color_B>{}</oriagarizu_B_color_B>", back.blue),
+    );
+    push_line(
+        output,
+        &format!("<oriagarizu_L_color_R>{}</oriagarizu_L_color_R>", line.red),
+    );
+    push_line(
+        output,
+        &format!(
+            "<oriagarizu_L_color_G>{}</oriagarizu_L_color_G>",
+            line.green
+        ),
+    );
+    push_line(
+        output,
+        &format!("<oriagarizu_L_color_B>{}</oriagarizu_L_color_B>", line.blue),
+    );
     push_line(output, "</oriagarizu>");
+}
+
+fn color_metadata(color: RgbColor) -> Value {
+    json!([color.red, color.green, color.blue])
+}
+
+fn metadata_color(value: Option<&Value>, default: RgbColor) -> RgbColor {
+    let Some(values) = value.and_then(Value::as_array) else {
+        return default;
+    };
+    let [red, green, blue] = values.as_slice() else {
+        return default;
+    };
+    let Some(red) = red.as_u64().and_then(|value| u8::try_from(value).ok()) else {
+        return default;
+    };
+    let Some(green) = green.as_u64().and_then(|value| u8::try_from(value).ok()) else {
+        return default;
+    };
+    let Some(blue) = blue.as_u64().and_then(|value| u8::try_from(value).ok()) else {
+        return default;
+    };
+    RgbColor::new(red, green, blue)
 }
 
 fn push_line(output: &mut String, line: &str) {

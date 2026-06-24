@@ -16,6 +16,42 @@ The corpus command recursively scans `.tmd`, `.tmd4`, and `.tmd5` files,
 deduplicates them by SHA-256, parses with the Rust engine, round-trips through
 canonical v5 output, and optionally compares C++ oracle summaries.
 
+## Oriedita Folded-Document Corpus Testing
+
+The Oriedita folded-document harness scans `.cp`, `.fold`, `.ori`, and `.orh`
+files. It always runs the checked-in public micro-corpus under
+`tests/fixtures/oriedita`, and it can also scan a private corpus path.
+
+Useful commands:
+
+```sh
+cargo test -p oristudio-cp --test oriedita_folded_document_corpus -- --nocapture
+ORIEDITA_FOLDED_CORPUS_DIR=/path/to/private/oriedita-corpus \
+  cargo test -p oristudio-cp --test oriedita_folded_document_corpus -- --nocapture
+```
+
+The harness validates the supported folded-document surface:
+
+- `.fold` files parse and reserialize without dropping `file_frames`,
+  `foldedForm` frames, `faceOrders`, frame parent/inherit metadata, or unknown
+  extension fields represented by the preserving FOLD model.
+- `.ori` files parse with Oriedita's open-anyway version behavior, reserialize
+  as the supported save version, and preserve unknown Oriedita metadata such as
+  folded model preference objects.
+- `.orh` files parse, reserialize, and preserve Oriedita's legacy
+  `<oriagarizu>` folded-view front/back/line color metadata.
+
+The harness intentionally does not claim solved folded-geometry persistence for
+`.ori` or `.orh`, because the Oriedita save formats preserve folded model
+preferences, not the full solved folded figure list. Generated solved snapshots
+are covered by the `.osf` project tests and Oriedita folded render oracle tests.
+
+Last public micro-corpus run on June 24, 2026:
+
+```text
+scanned=4 cp=1 fold=1 ori=1 orh=1 folded_form_frames=1 fold_files_with_frames=1 ori_metadata_keys=1 orh_folded_color_sections=1
+```
+
 ## Flat-Folder Corpus Testing
 
 The Flat-Folder port uses Jason Ku's JavaScript implementation vendored at
