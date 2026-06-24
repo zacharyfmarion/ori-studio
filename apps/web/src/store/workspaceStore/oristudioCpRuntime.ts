@@ -6,6 +6,11 @@ import type {
   OristudioCpDocumentSnapshot,
   OristudioCpDocumentState,
   OristudioCpDocumentSummary,
+  OristudioCpEstimationOrder,
+  OristudioCpFoldedFigureBatchResult,
+  OristudioCpFoldedFigureModel,
+  OristudioCpFoldedFigureResult,
+  OristudioCpFoldedFigureSnapshot,
   OristudioCpLineSegment,
   OristudioCpOperationDescriptor,
 } from '../../engine/oristudioCpTypes';
@@ -216,6 +221,46 @@ export async function replaceOristudioCpLineSegments(
   const refreshed = await refreshOristudioCpDocument(null);
   if (!refreshed) throw new Error('Editable crease-pattern document was released');
   return refreshed;
+}
+
+export async function foldOristudioCpDocument(
+  startingFaceId = 1,
+  order: OristudioCpEstimationOrder = 'Order5',
+  model?: OristudioCpFoldedFigureModel
+): Promise<OristudioCpFoldedFigureResult> {
+  if (handle === null) {
+    throw new Error('No editable crease-pattern document is loaded');
+  }
+  const api = await getOristudioCpClient();
+  return api.foldFigure(handle, startingFaceId, order, model);
+}
+
+export async function getOristudioCpFoldedFigureSnapshot(
+  foldedFigureHandle: number
+): Promise<OristudioCpFoldedFigureSnapshot> {
+  const api = await getOristudioCpClient();
+  return api.foldedFigureSnapshot(foldedFigureHandle);
+}
+
+export async function foldOristudioCpFigureAnother(
+  foldedFigureHandle: number
+): Promise<OristudioCpFoldedFigureSnapshot> {
+  const api = await getOristudioCpClient();
+  return api.foldFigureAnother(foldedFigureHandle);
+}
+
+export async function foldOristudioCpFigureToCase(
+  foldedFigureHandle: number,
+  objective: number,
+  initialOrder: OristudioCpEstimationOrder = 'Order5'
+): Promise<OristudioCpFoldedFigureBatchResult> {
+  const api = await getOristudioCpClient();
+  return api.foldFigureToCase(foldedFigureHandle, objective, initialOrder);
+}
+
+export async function freeOristudioCpFoldedFigure(foldedFigureHandle: number): Promise<void> {
+  const api = await getOristudioCpClient();
+  await api.freeFoldedFigure(foldedFigureHandle);
 }
 
 export async function exportOristudioCpDocumentAsCp(): Promise<string> {

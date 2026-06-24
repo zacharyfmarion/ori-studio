@@ -34,10 +34,15 @@ import {
 } from '../engineRuntime';
 import {
   exportOristudioCpDocumentAsFold,
+  foldOristudioCpDocument as foldRuntimeOristudioCpDocument,
+  foldOristudioCpFigureAnother as foldRuntimeOristudioCpFigureAnother,
+  foldOristudioCpFigureToCase as foldRuntimeOristudioCpFigureToCase,
+  freeOristudioCpFoldedFigure,
   loadOristudioCpDocumentFromText,
   releaseOristudioCpDocument,
 } from '../oristudioCpRuntime';
 import type { CreasePatternSlice, WorkspaceSliceCreator } from '../types';
+import type { OristudioCpFoldedFigureEntry } from '../../../engine/oristudioCpTypes';
 import type { WorkspaceCapabilityId } from '../../../lib/workspaceCapabilities';
 
 export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice> = (
@@ -47,6 +52,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
   const wholeSimulationFocus = { kind: 'whole' as const };
   let foldArtifactPromise: Promise<FoldArtifacts | null> | null = null;
   let foldArtifactPromiseRevision: number | null = null;
+  let foldedFigureRequestSequence = 0;
 
   async function requireActiveTree() {
     const result = await ensureTreeHandle();
@@ -88,6 +94,16 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       cancelLabel: 'Keep Current CP',
       tone: 'danger',
     });
+  }
+
+  function activeGeneratedFoldedFigure(): OristudioCpFoldedFigureEntry | null {
+    const activeId = get().oristudioCpActiveFoldedFigureId;
+    const figures = get().oristudioCpFoldedFigures;
+    return (
+      figures.find((figure) => figure.id === activeId) ??
+      figures.find((figure) => figure.sourceKind === 'generated-from-current-cp') ??
+      null
+    );
   }
 
   function clearFoldArtifactSource() {
@@ -263,6 +279,9 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     oristudioCpSelection: emptyOristudioCpSelection(),
     oristudioCpActionRequest: null,
     oristudioCpActiveDiagnosticId: null,
+    oristudioCpRevision: 0,
+    oristudioCpFoldedFigures: [],
+    oristudioCpActiveFoldedFigureId: null,
     oristudioCpViewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
     oristudioCpSymmetry: defaultOristudioCpSymmetry(),
     ...emptyFoldArtifactResourceState(),
@@ -304,6 +323,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       }
       if (!(await confirmReplaceCustomizedGeneratedCp())) return;
 
+      await get().clearOristudioCpFoldedFigures();
       set({ status: 'building_crease_pattern', error: null });
       const checkpoint = await get().beginHistoryCheckpoint();
       try {
@@ -334,6 +354,9 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
             oristudioCpDocument: null,
             oristudioCpLineage: null,
             oristudioCpSelection: emptyOristudioCpSelection(),
+            oristudioCpRevision: 0,
+            oristudioCpFoldedFigures: [],
+            oristudioCpActiveFoldedFigureId: null,
             oristudioCpSymmetry: defaultOristudioCpSymmetry(),
             projectMessage: null,
           });
@@ -369,6 +392,9 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           oristudioCpHistoryPast: [],
           oristudioCpHistoryFuture: [],
           oristudioCpSelection: emptyOristudioCpSelection(),
+          oristudioCpRevision: 0,
+          oristudioCpFoldedFigures: [],
+          oristudioCpActiveFoldedFigureId: null,
           status: 'crease_pattern_ready',
           error: null,
           ...(foldArtifacts
@@ -492,6 +518,198 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
 
     setOristudioCpActiveDiagnostic: (oristudioCpActiveDiagnosticId) =>
       set({ oristudioCpActiveDiagnosticId }),
+
+    setOristudioCpActiveFoldedFigure: (oristudioCpActiveFoldedFigureId) =>
+      set({ oristudioCpActiveFoldedFigureId }),
+
+    foldOristudioCpDocument: async (options = {}) => {
+      if (!get().oristudioCpDocument) {
+        set({
+          oristudioCpError: 'No editable crease-pattern document is loaded',
+          error: {
+            code: 'invalid_operation',
+            message: 'No editable crease-pattern document is loaded',
+          },
+        });
+        return false;
+      }
+
+      const requestId = ++foldedFigureRequestSequence;
+      const figureId = `generated-${requestId}`;
+      const sourceCpRevision = get().oristudioCpRevision;
+      const loadingEntry: OristudioCpFoldedFigureEntry = {
+        id: figureId,
+        title: `Folded model ${get().oristudioCpFoldedFigures.length + 1}`,
+        handle: null,
+        sourceKind: 'generated-from-current-cp',
+        sourceCpRevision,
+        status: 'loading',
+        snapshot: null,
+        error: null,
+      };
+
+      set({
+        oristudioCpFoldedFigures: [...get().oristudioCpFoldedFigures, loadingEntry],
+        oristudioCpActiveFoldedFigureId: figureId,
+        oristudioCpError: null,
+      });
+
+      try {
+        const result = await foldRuntimeOristudioCpDocument(
+          options.startingFaceId ?? 1,
+          options.order ?? 'Order5'
+        );
+        set({
+          oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((figure) =>
+            figure.id === figureId
+              ? {
+                  ...figure,
+                  handle: result.handle,
+                  status: 'ready',
+                  snapshot: result.snapshot,
+                  error: null,
+                }
+              : figure
+          ),
+          oristudioCpActiveFoldedFigureId: figureId,
+          oristudioCpError: null,
+          projectMessage: 'Folded model',
+        });
+        return true;
+      } catch (error) {
+        const normalized = engineError(error);
+        set({
+          oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((figure) =>
+            figure.id === figureId
+              ? {
+                  ...figure,
+                  status: 'error',
+                  error: normalized.message,
+                }
+              : figure
+          ),
+          oristudioCpError: normalized.message,
+          error: normalized,
+        });
+        return false;
+      }
+    },
+
+    foldAnotherOristudioCpFigure: async (id) => {
+      const figure =
+        (id
+          ? get().oristudioCpFoldedFigures.find((candidate) => candidate.id === id)
+          : activeGeneratedFoldedFigure()) ?? null;
+      if (!figure?.handle || figure.status !== 'ready') {
+        const message =
+          figure?.status === 'stale'
+            ? 'Refold the stale folded model first'
+            : 'No folded model is ready';
+        set({
+          oristudioCpError: message,
+          error: {
+            code: 'invalid_operation',
+            message,
+          },
+        });
+        return false;
+      }
+
+      set({
+        oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
+          candidate.id === figure.id ? { ...candidate, status: 'loading' } : candidate
+        ),
+      });
+
+      try {
+        const snapshot = await foldRuntimeOristudioCpFigureAnother(figure.handle);
+        set({
+          oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
+            candidate.id === figure.id
+              ? { ...candidate, status: 'ready', snapshot, error: null }
+              : candidate
+          ),
+          oristudioCpActiveFoldedFigureId: figure.id,
+          oristudioCpError: null,
+          projectMessage: 'Advanced folded model',
+        });
+        return true;
+      } catch (error) {
+        const normalized = engineError(error);
+        set({
+          oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
+            candidate.id === figure.id
+              ? { ...candidate, status: 'error', error: normalized.message }
+              : candidate
+          ),
+          oristudioCpError: normalized.message,
+          error: normalized,
+        });
+        return false;
+      }
+    },
+
+    foldOristudioCpFigureToCase: async (id, objective) => {
+      const figure = get().oristudioCpFoldedFigures.find((candidate) => candidate.id === id);
+      if (!figure?.handle || figure.status !== 'ready') {
+        const message =
+          figure?.status === 'stale'
+            ? 'Refold the stale folded model first'
+            : 'No folded model is ready';
+        set({
+          oristudioCpError: message,
+          error: {
+            code: 'invalid_operation',
+            message,
+          },
+        });
+        return false;
+      }
+
+      set({
+        oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
+          candidate.id === figure.id ? { ...candidate, status: 'loading' } : candidate
+        ),
+      });
+
+      try {
+        const result = await foldRuntimeOristudioCpFigureToCase(figure.handle, objective, 'Order5');
+        set({
+          oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
+            candidate.id === figure.id
+              ? { ...candidate, status: 'ready', snapshot: result.snapshot, error: null }
+              : candidate
+          ),
+          oristudioCpActiveFoldedFigureId: figure.id,
+          oristudioCpError: null,
+          projectMessage: 'Folded model case updated',
+        });
+        return true;
+      } catch (error) {
+        const normalized = engineError(error);
+        set({
+          oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
+            candidate.id === figure.id
+              ? { ...candidate, status: 'error', error: normalized.message }
+              : candidate
+          ),
+          oristudioCpError: normalized.message,
+          error: normalized,
+        });
+        return false;
+      }
+    },
+
+    clearOristudioCpFoldedFigures: async () => {
+      const handles = get().oristudioCpFoldedFigures
+        .map((figure) => figure.handle)
+        .filter((handle): handle is number => handle !== null);
+      await Promise.allSettled(handles.map((handle) => freeOristudioCpFoldedFigure(handle)));
+      set({
+        oristudioCpFoldedFigures: [],
+        oristudioCpActiveFoldedFigureId: null,
+      });
+    },
 
     clearOristudioCpSelection: () =>
       set({ oristudioCpSelection: emptyOristudioCpSelection() }),

@@ -85,6 +85,7 @@ import type {
   OristudioCpCommandResult,
   OristudioCpDocumentSnapshot,
   OristudioCpDocumentState,
+  OristudioCpFoldedFigureEntry,
 } from '../../../engine/oristudioCpTypes';
 
 const RECENTS_STORAGE_KEY = 'treemaker.recentProjects.v1';
@@ -106,6 +107,16 @@ function cpHistoryEntry(
     label,
     timestamp: nowIso(),
   };
+}
+
+function staleGeneratedFoldedFigures(
+  entries: OristudioCpFoldedFigureEntry[]
+): OristudioCpFoldedFigureEntry[] {
+  return entries.map((entry) =>
+    entry.sourceKind === 'generated-from-current-cp' && entry.status === 'ready'
+      ? { ...entry, status: 'stale' as const }
+      : entry
+  );
 }
 
 async function refreshAlwaysOnCamvDiagnostics(
@@ -310,6 +321,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     return true;
   };
 
+  const releaseEditableCreasePattern = async () => {
+    await get().clearOristudioCpFoldedFigures();
+    await releaseOristudioCpDocument();
+  };
+
   const resolveCreaseExportOptions = (
     format: CreaseExportFormat,
     options?: CreaseExportOptions
@@ -346,6 +362,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       const commandDocument = await mutate();
       const checked = await refreshAlwaysOnCamvDiagnostics(commandDocument);
       const nextDocument = checked.documentState;
+      const nextRevision = get().oristudioCpRevision + 1;
       set({
         oristudioCpDocument: nextDocument,
         oristudioCpCamvResult: checked.camvResult,
@@ -353,6 +370,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         oristudioCpError: null,
         oristudioCpActiveDiagnosticId: null,
         oristudioCpSelection: selectedLineSelectionFromDocument(nextDocument.document),
+        oristudioCpRevision: nextRevision,
+        oristudioCpFoldedFigures: staleGeneratedFoldedFigures(get().oristudioCpFoldedFigures),
         oristudioCpHistoryPast: previousDocument
           ? [
               ...get().oristudioCpHistoryPast,
@@ -387,7 +406,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     } = {}
   ) => {
     set({ status: 'loading_engine', error: null, projectMessage: null });
-    await releaseOristudioCpDocument();
+    await releaseEditableCreasePattern();
     const api = await getEngine();
     const snapshot = await loadTreeFromText(api, text);
     const filename = source.filename ?? defaultNativeFilename('Untitled');
@@ -410,6 +429,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       selection: { kind: 'tree' },
       oristudioCpSelection: emptyOristudioCpSelection(),
       oristudioCpActiveDiagnosticId: null,
+      oristudioCpRevision: 0,
+      oristudioCpFoldedFigures: [],
+      oristudioCpActiveFoldedFigureId: null,
       toolMode: 'select',
       symmetryAuthoringPairs: [],
       creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
@@ -450,7 +472,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       filename,
       path: source.path ?? null,
     });
-    await releaseOristudioCpDocument();
+    await releaseEditableCreasePattern();
     let oristudioCpDocument: Awaited<
       ReturnType<typeof loadOristudioCpDocumentFromText>
     > | null = null;
@@ -512,6 +534,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       selection: { kind: 'tree' },
       oristudioCpSelection: emptyOristudioCpSelection(),
       oristudioCpActiveDiagnosticId: null,
+      oristudioCpRevision: 0,
+      oristudioCpFoldedFigures: [],
+      oristudioCpActiveFoldedFigureId: null,
       oristudioCpSymmetry: defaultOristudioCpSymmetry(),
       toolMode: 'select',
       creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
@@ -644,6 +669,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       selection: { kind: 'tree' },
       oristudioCpSelection: nativeDocument.viewState.selection ?? emptyOristudioCpSelection(),
       oristudioCpActiveDiagnosticId: null,
+      oristudioCpRevision: 0,
+      oristudioCpFoldedFigures: [],
+      oristudioCpActiveFoldedFigureId: null,
       oristudioCpSymmetry: nativeDocument.viewState.symmetry ?? defaultOristudioCpSymmetry(),
       toolMode: 'select',
       creaseColorMode: nativeDocument.viewState.creaseColorMode ?? DEFAULT_CREASE_COLOR_MODE,
@@ -700,6 +728,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       oristudioCpHistoryFuture: [],
       oristudioCpSelection: nativeDocument.viewState.selection ?? emptyOristudioCpSelection(),
       oristudioCpActiveDiagnosticId: null,
+      oristudioCpRevision: 0,
+      oristudioCpFoldedFigures: [],
+      oristudioCpActiveFoldedFigureId: null,
       oristudioCpSymmetry: nativeDocument.viewState.symmetry ?? defaultOristudioCpSymmetry(),
     });
   };
@@ -914,7 +945,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           set({ engineReady: true, oristudioCpOperationDescriptors: operationDescriptors });
           return;
         }
-        await releaseOristudioCpDocument();
+        await releaseEditableCreasePattern();
         set({
           ...projectStateFromSnapshot(snapshot, get().project.title),
           documentMode: 'tree',
@@ -931,6 +962,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           selection: { kind: 'tree' },
           oristudioCpSelection: emptyOristudioCpSelection(),
           oristudioCpActiveDiagnosticId: null,
+          oristudioCpRevision: 0,
+          oristudioCpFoldedFigures: [],
+          oristudioCpActiveFoldedFigureId: null,
           symmetryAuthoringPairs: [],
           dirty: false,
           lastOptimization: null,
@@ -948,7 +982,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       if (!(await confirmDiscardDirty(get().dirty))) return;
       set({ status: 'loading_engine', error: null, projectMessage: null });
       try {
-        await releaseOristudioCpDocument();
+        await releaseEditableCreasePattern();
         const api = await getEngine();
         const snapshot = await createBlankTree(api);
         set({
@@ -969,6 +1003,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           selection: { kind: 'tree' },
           oristudioCpSelection: emptyOristudioCpSelection(),
           oristudioCpActiveDiagnosticId: null,
+          oristudioCpRevision: 0,
+          oristudioCpFoldedFigures: [],
+          oristudioCpActiveFoldedFigureId: null,
           toolMode: 'select',
           symmetryAuthoringPairs: [],
           creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
@@ -989,7 +1026,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       if (!(await confirmDiscardDirty(get().dirty))) return;
       set({ status: 'loading_engine', error: null, projectMessage: null });
       try {
-        await releaseOristudioCpDocument();
+        await releaseEditableCreasePattern();
         const api = await getEngine();
         const snapshot = await createStarterTree(api);
         set({
@@ -1010,6 +1047,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           selection: { kind: 'tree' },
           oristudioCpSelection: emptyOristudioCpSelection(),
           oristudioCpActiveDiagnosticId: null,
+          oristudioCpRevision: 0,
+          oristudioCpFoldedFigures: [],
+          oristudioCpActiveFoldedFigureId: null,
           toolMode: 'select',
           symmetryAuthoringPairs: [],
           creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
@@ -1031,7 +1071,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       if (!(await confirmDiscardDirty(get().dirty))) return;
       set({ status: 'loading_engine', error: null, projectMessage: null });
       try {
-        await releaseOristudioCpDocument();
+        await releaseEditableCreasePattern();
         const documentState = await createBlankOristudioCpDocument();
         set({
           project: { ...createEmptyProject(), title: documentState.summary.title ?? 'Untitled CP' },
@@ -1052,6 +1092,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           selection: { kind: 'tree' },
           oristudioCpSelection: emptyOristudioCpSelection(),
           oristudioCpActiveDiagnosticId: null,
+          oristudioCpRevision: 0,
+          oristudioCpFoldedFigures: [],
+          oristudioCpActiveFoldedFigureId: null,
           oristudioCpSymmetry: defaultOristudioCpSymmetry(),
           toolMode: 'select',
           symmetryAuthoringPairs: [],
@@ -1149,6 +1192,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
               };
         const nextDocument = checked.documentState;
         const diagnosticEntries = nextDocument.lastCommandResult?.diagnostic_entries ?? [];
+        const nextRevision = editsCreasePattern
+          ? get().oristudioCpRevision + 1
+          : get().oristudioCpRevision;
         set({
           oristudioCpDocument: nextDocument,
           activeEditingSurface: 'crease-pattern',
@@ -1166,6 +1212,10 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
             previousSelection,
             nextDocument.document
           ),
+          oristudioCpRevision: nextRevision,
+          oristudioCpFoldedFigures: editsCreasePattern
+            ? staleGeneratedFoldedFigures(get().oristudioCpFoldedFigures)
+            : get().oristudioCpFoldedFigures,
           oristudioCpHistoryPast: previousDocument
             ? mutatesDocument
               ? [
@@ -1303,7 +1353,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     },
 
     clearOristudioCpDocument: async () => {
-      await releaseOristudioCpDocument();
+      await releaseEditableCreasePattern();
       set({
         oristudioCpDocument: null,
         oristudioCpLineage: null,
@@ -1311,6 +1361,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         oristudioCpHistoryPast: [],
         oristudioCpHistoryFuture: [],
         oristudioCpActiveDiagnosticId: null,
+        oristudioCpRevision: 0,
+        oristudioCpFoldedFigures: [],
+        oristudioCpActiveFoldedFigureId: null,
         oristudioCpCamvResult: null,
         oristudioCpSymmetry: defaultOristudioCpSymmetry(),
       });

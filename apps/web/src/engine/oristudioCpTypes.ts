@@ -203,6 +203,24 @@ export interface OristudioCpFoldedFigureBatchResult {
   discovered_case_numbers: number[];
 }
 
+export type OristudioCpFoldedFigureStatus = 'ready' | 'stale' | 'loading' | 'error' | 'unsupported';
+
+export type OristudioCpFoldedFigureSourceKind =
+  | 'generated-from-current-cp'
+  | 'imported-folded-form'
+  | 'imported-preserved-frame';
+
+export interface OristudioCpFoldedFigureEntry {
+  id: string;
+  title: string;
+  handle: number | null;
+  sourceKind: OristudioCpFoldedFigureSourceKind;
+  sourceCpRevision: number | null;
+  status: OristudioCpFoldedFigureStatus;
+  snapshot: OristudioCpFoldedFigureSnapshot | null;
+  error: string | null;
+}
+
 export interface OristudioCpCommandPayload {
   line_ids?: number[];
   line_segments?: OristudioCpLineSegment[];

@@ -406,7 +406,7 @@ Normal tests should not require Java:
 - [x] Add serializable Oriedita folded-figure snapshot types in `oristudio-cp`.
 - [x] Expose Fold/FoldAnother/FoldToCase folded-figure commands from
       `oristudio-cp-wasm`.
-- [ ] Add folded-figure list/revision state to the workspace store.
+- [x] Add folded-figure list/revision state to the workspace store.
 - [x] Render one active folded figure in the CP grid area.
 - [ ] Add display style, front/back state, starting face, and next-solution UI.
 - [ ] Add multi-figure duplicate/delete support.

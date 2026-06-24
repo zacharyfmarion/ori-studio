@@ -34,6 +34,8 @@ import type {
   OristudioCpCommandResult,
   OristudioCpDocumentSnapshot,
   OristudioCpDocumentState,
+  OristudioCpEstimationOrder,
+  OristudioCpFoldedFigureEntry,
   OristudioCpLineSegment,
   OristudioCpOperationDescriptor,
 } from '../../engine/oristudioCpTypes';
@@ -266,6 +268,9 @@ export interface CreasePatternSliceState {
   oristudioCpSelection: OristudioCpSelection;
   oristudioCpActionRequest: OristudioCpActionRequest | null;
   oristudioCpActiveDiagnosticId: string | null;
+  oristudioCpRevision: number;
+  oristudioCpFoldedFigures: OristudioCpFoldedFigureEntry[];
+  oristudioCpActiveFoldedFigureId: string | null;
   oristudioCpViewport: OristudioCpViewportOptions;
   oristudioCpSymmetry: OristudioCpSymmetryState;
   foldArtifacts: FoldArtifacts | null;
@@ -306,6 +311,14 @@ export interface CreasePatternSliceActions {
   requestOristudioCpAction: (operationId: OristudioCpOperationId) => void;
   clearOristudioCpActionRequest: (id: number) => void;
   setOristudioCpActiveDiagnostic: (id: string | null) => void;
+  foldOristudioCpDocument: (options?: {
+    startingFaceId?: number;
+    order?: OristudioCpEstimationOrder;
+  }) => Promise<boolean>;
+  foldAnotherOristudioCpFigure: (id?: string) => Promise<boolean>;
+  foldOristudioCpFigureToCase: (id: string, objective: number) => Promise<boolean>;
+  setOristudioCpActiveFoldedFigure: (id: string | null) => void;
+  clearOristudioCpFoldedFigures: () => Promise<void>;
   clearOristudioCpSelection: () => void;
   toggleOristudioCpLineSelection: (id: number, additive?: boolean) => void;
   toggleOristudioCpVertexSelection: (id: string, additive?: boolean) => void;
