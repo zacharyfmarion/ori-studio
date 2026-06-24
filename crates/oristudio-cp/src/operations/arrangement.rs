@@ -25,7 +25,10 @@ pub fn divide_intersections(model: &mut CreasePatternModel) {
     let mut i = 0;
     while i < model.line_segments.len() {
         let scan_len = model.line_segments.len();
-        for j in 0..scan_len {
+        // Oriedita's QuadTree collision collector only yields candidates with
+        // an index greater than `i`; overlap colors and inserted-line order
+        // depend on preserving that traversal.
+        for j in (i + 1)..scan_len {
             let _ = intersect_divide_pair(model, i, j);
         }
         i += 1;

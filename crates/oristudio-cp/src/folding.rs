@@ -29,6 +29,13 @@ pub struct FoldedWireframe {
     pub associated_lines: Vec<Option<usize>>,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FoldedSubfaceFigure {
+    pub points: Vec<Point>,
+    pub lines: Vec<FoldedWireframeLine>,
+    pub faces: Vec<Vec<usize>>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct FoldedWireframeLine {
     pub begin: usize,
@@ -1043,6 +1050,43 @@ pub fn prepare_subface_segments(segments: &[LineSegment]) -> Vec<LineSegment> {
     model.line_segments
 }
 
+pub fn folded_subface_figure_from_segments(
+    segments: &[LineSegment],
+    starting_face_id: i32,
+) -> Option<FoldedSubfaceFigure> {
+    if segments.is_empty() {
+        return None;
+    }
+
+    let graph = FoldGraph::from_segments(segments, true);
+    if graph.faces.is_empty() {
+        return None;
+    }
+
+    let positions = graph.face_positions(starting_face_id);
+    let folded = wireframe_from_graph(&graph, &positions, graph.folded_points(&positions));
+    let folded_segments = folded_wireframe_segments(&folded);
+    let prepared_segments = prepare_subface_segments(&folded_segments);
+    let subface_graph = FoldGraph::from_segments(&prepared_segments, true);
+    if subface_graph.faces.is_empty() {
+        return None;
+    }
+
+    Some(FoldedSubfaceFigure {
+        points: subface_graph.points,
+        lines: subface_graph
+            .lines
+            .into_iter()
+            .map(|line| FoldedWireframeLine {
+                begin: line.begin,
+                end: line.end,
+                color: line.color,
+            })
+            .collect(),
+        faces: subface_graph.faces,
+    })
+}
+
 /// Oriedita two-color CP preparation through
 /// `FoldedFigure.folding_estimated_02col()` and stage 03. Unlike normal folding
 /// estimation, this keeps the original development-view coordinates and uses
@@ -1579,7 +1623,6 @@ pub fn folded_figure_paper_render_snapshot_from_segments(
     if !overlap.found {
         return Ok(None);
     }
-    let ordered_subfaces = enumerator.current_ordered_subfaces(overlap.priority.valid_count);
     let Some(pass_name) = paper_render_pass_name(model.state) else {
         return Ok(None);
     };
@@ -1593,7 +1636,7 @@ pub fn folded_figure_paper_render_snapshot_from_segments(
             &folded,
             &subface_graph,
             &subfaces,
-            &ordered_subfaces,
+            &overlap.hierarchy,
             &model,
         ),
     }))
@@ -1761,7 +1804,10 @@ impl OrieditaRenderCamera {
         x2 *= self.mirror;
         x2 *= self.zoom_x;
         y2 *= self.zoom_y;
-        Point::new(x2 + self.display_position.x, y2 + self.display_position.y)
+        recorded_point(Point::new(
+            x2 + self.display_position.x,
+            y2 + self.display_position.y,
+        ))
     }
 
     fn fix_to_flat_bounds(
@@ -1781,6 +1827,18 @@ impl OrieditaRenderCamera {
             .display_position
             .move_by(min_folded.delta(min_flat).move_by(offset));
         self
+    }
+}
+
+fn recorded_point(point: Point) -> Point {
+    Point::new(recorded_f64(point.x), recorded_f64(point.y))
+}
+
+fn recorded_f64(value: f64) -> f64 {
+    if value.is_finite() {
+        (value * 1_000_000_000.0).round() / 1_000_000_000.0
+    } else {
+        value
     }
 }
 
@@ -1862,13 +1920,10 @@ fn paper_render_primitives(
     folded: &FoldedWireframe,
     subface_graph: &FoldGraph,
     subfaces: &SubFaceConfiguration,
-    ordered_subfaces: &[(usize, Vec<usize>)],
+    hierarchy: &InitialHierarchy,
     model: &FoldedFigureModel,
 ) -> Vec<FoldedFigureRenderPrimitive> {
-    let ordered_faces = ordered_subfaces
-        .iter()
-        .cloned()
-        .collect::<HashMap<usize, Vec<usize>>>();
+    let hierarchy = HierarchyTable::from_initial(hierarchy);
     let mut primitives = Vec::new();
     let mut render_state = OrieditaRenderState::default();
     let Some(passes) = paper_render_passes(model.state, model, &flat_graph.points, &folded.points)
@@ -1881,7 +1936,7 @@ fn paper_render_primitives(
             subface_graph,
             folded,
             subfaces,
-            &ordered_faces,
+            &hierarchy,
             model,
             pass,
             &mut render_state,
@@ -1896,7 +1951,7 @@ fn push_paper_render_pass_primitives(
     subface_graph: &FoldGraph,
     folded: &FoldedWireframe,
     subfaces: &SubFaceConfiguration,
-    ordered_faces: &HashMap<usize, Vec<usize>>,
+    hierarchy: &HierarchyTable,
     model: &FoldedFigureModel,
     pass: OrieditaPaperRenderPass,
     render_state: &mut OrieditaRenderState,
@@ -1904,7 +1959,7 @@ fn push_paper_render_pass_primitives(
 ) {
     for (subface_index, face) in subface_graph.faces.iter().enumerate() {
         let Some(visible_face) =
-            visible_subface_face(subface_index, subfaces, ordered_faces, pass.flipped)
+            visible_subface_face(subface_index, subfaces, hierarchy, pass.flipped)
         else {
             continue;
         };
@@ -1932,13 +1987,7 @@ fn push_paper_render_pass_primitives(
     }
 
     for line_index in 0..subface_graph.lines.len() {
-        if !should_draw_paper_edge(
-            line_index,
-            subface_graph,
-            subfaces,
-            ordered_faces,
-            pass.flipped,
-        ) {
+        if !should_draw_paper_edge(line_index, subface_graph, subfaces, hierarchy, pass.flipped) {
             continue;
         }
         let line = subface_graph.lines[line_index];
@@ -1977,33 +2026,44 @@ fn push_paper_render_pass_primitives(
 fn visible_subface_face(
     subface_index: usize,
     subfaces: &SubFaceConfiguration,
-    ordered_faces: &HashMap<usize, Vec<usize>>,
+    hierarchy: &HierarchyTable,
     flipped: bool,
 ) -> Option<usize> {
-    let ordered = ordered_faces
-        .get(&subface_index)
-        .filter(|faces| !faces.is_empty());
+    let subface = subfaces.subfaces.get(subface_index)?;
+    let ordered = subface_top_stack(subface, hierarchy);
     if flipped {
-        ordered.and_then(|faces| faces.last().copied()).or_else(|| {
-            subfaces
-                .subfaces
-                .get(subface_index)?
-                .face_ids
-                .last()
-                .copied()
-        })
+        ordered
+            .last()
+            .copied()
+            .or_else(|| subface.face_ids.last().copied())
     } else {
         ordered
-            .and_then(|faces| faces.first().copied())
-            .or_else(|| {
-                subfaces
-                    .subfaces
-                    .get(subface_index)?
-                    .face_ids
-                    .first()
-                    .copied()
-            })
+            .first()
+            .copied()
+            .or_else(|| subface.face_ids.first().copied())
     }
+}
+
+fn subface_top_stack(subface: &SubFace, hierarchy: &HierarchyTable) -> Vec<usize> {
+    let face_count = subface.face_ids.len();
+    let mut from_top_indices = vec![None; face_count];
+    for (local_index, face) in subface.face_ids.iter().copied().enumerate() {
+        let above_count = subface
+            .face_ids
+            .iter()
+            .copied()
+            .filter(|other| hierarchy.get(face, *other) == Some(FaceOrder::Above))
+            .count();
+        let position = face_count.saturating_sub(above_count);
+        if (1..=face_count).contains(&position) {
+            from_top_indices[position - 1] = Some(local_index);
+        }
+    }
+
+    from_top_indices
+        .into_iter()
+        .filter_map(|index| index.and_then(|index| subface.face_ids.get(index).copied()))
+        .collect()
 }
 
 fn visible_face_color(
@@ -2029,7 +2089,7 @@ fn should_draw_paper_edge(
     line_index: usize,
     subface_graph: &FoldGraph,
     subfaces: &SubFaceConfiguration,
-    ordered_faces: &HashMap<usize, Vec<usize>>,
+    hierarchy: &HierarchyTable,
     flipped: bool,
 ) -> bool {
     let Some((first, second)) = subface_graph.line_face_border(line_index) else {
@@ -2049,8 +2109,8 @@ fn should_draw_paper_edge(
         return true;
     }
 
-    visible_subface_face(first, subfaces, ordered_faces, flipped)
-        != visible_subface_face(second, subfaces, ordered_faces, flipped)
+    visible_subface_face(first, subfaces, hierarchy, flipped)
+        != visible_subface_face(second, subfaces, hierarchy, flipped)
 }
 
 fn default_java2d_stroke() -> FoldedFigureRenderStroke {

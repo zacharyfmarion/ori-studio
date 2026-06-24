@@ -640,7 +640,7 @@ checkpoint and keep the checklist current.
       shadow primitive generation.
 - [x] Add paper back/both render oracle fixtures.
 - [x] Add paper shadow render oracle fixtures.
-- [ ] Resolve kabuto paper face-side parity before enabling exact Rust shadow
+- [x] Resolve kabuto paper face-side parity before enabling exact Rust shadow
       primitive comparison.
 - [ ] Port transparent grayscale, transparent color, and wire-view primitive
       generation.
