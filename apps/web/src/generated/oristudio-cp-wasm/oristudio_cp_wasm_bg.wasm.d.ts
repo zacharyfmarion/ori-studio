@@ -10,6 +10,7 @@ export const export_fold: (a: number) => [number, number, number, number];
 export const folded_figure_fold: (a: number, b: number, c: any, d: any) => [number, number, number];
 export const folded_figure_fold_another: (a: number) => [number, number, number];
 export const folded_figure_fold_to_case: (a: number, b: number, c: any) => [number, number, number];
+export const folded_figure_render_snapshot: (a: number, b: any, c: any) => [number, number, number];
 export const folded_figure_snapshot: (a: number) => [number, number, number];
 export const free_document: (a: number) => [number, number];
 export const free_folded_figure: (a: number) => [number, number];

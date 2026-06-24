@@ -9,6 +9,7 @@ import init, {
   folded_figure_fold,
   folded_figure_fold_another,
   folded_figure_fold_to_case,
+  folded_figure_render_snapshot,
   folded_figure_snapshot,
   free_folded_figure,
   free_document,
@@ -28,7 +29,9 @@ import type {
   OristudioCpEstimationOrder,
   OristudioCpFoldedFigureBatchResult,
   OristudioCpFoldedFigureModel,
+  OristudioCpFoldedFigureRenderOptions,
   OristudioCpFoldedFigureResult,
+  OristudioCpFoldedRenderSnapshot,
   OristudioCpFoldedFigureSnapshot,
   OristudioCpLineSegment,
   OristudioCpOperationDescriptor,
@@ -132,6 +135,20 @@ const api = {
   },
   async foldedFigureSnapshot(handle: number): Promise<OristudioCpFoldedFigureSnapshot> {
     return call(() => folded_figure_snapshot(handle) as OristudioCpFoldedFigureSnapshot);
+  },
+  async foldedFigureRenderSnapshot(
+    handle: number,
+    displayStyle?: OristudioCpFoldedFigureSnapshot['display_style'],
+    options?: OristudioCpFoldedFigureRenderOptions
+  ): Promise<OristudioCpFoldedRenderSnapshot | null> {
+    return call(
+      () =>
+        folded_figure_render_snapshot(
+          handle,
+          displayStyle ?? null,
+          options ?? null
+        ) as OristudioCpFoldedRenderSnapshot | null
+    );
   },
   async foldFigureAnother(handle: number): Promise<OristudioCpFoldedFigureSnapshot> {
     return call(() => folded_figure_fold_another(handle) as OristudioCpFoldedFigureSnapshot);

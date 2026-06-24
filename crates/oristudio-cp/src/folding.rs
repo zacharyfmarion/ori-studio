@@ -280,6 +280,7 @@ pub enum OrieditaFoldedFigureCameraTarget {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct FoldedFigureRenderOptions {
     pub display_mark: bool,
     pub selected: bool,
@@ -1655,6 +1656,21 @@ pub fn folded_figure_snapshot_from_session(
         text_result: estimate.text_result.clone(),
         wireframe,
     }
+}
+
+pub fn folded_figure_render_snapshot_from_session(
+    session: &FoldingEstimateSession,
+    display_style: DisplayStyle,
+    model: FoldedFigureModel,
+    options: FoldedFigureRenderOptions,
+) -> Result<Option<FoldedFigureRenderSnapshot>, FoldingEstimateError> {
+    folded_figure_render_snapshot_from_segments(
+        &session.segments,
+        session.starting_face_id,
+        display_style,
+        model,
+        options,
+    )
 }
 
 pub fn folded_figure_snapshot_from_segments(

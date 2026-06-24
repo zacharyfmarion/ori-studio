@@ -74,6 +74,30 @@ fn folded_figure_session_exports_fold_and_followup_commands() {
         serde_wasm_bindgen::from_value(snapshot).expect("snapshot deserializes");
     assert_eq!(snapshot["display_style"], "Paper5");
 
+    let render_snapshot = oristudio_cp_wasm::folded_figure_render_snapshot(
+        folded_handle,
+        serde_wasm_bindgen::to_value("Paper5").expect("display style serializes"),
+        serde_wasm_bindgen::to_value(&oristudio_cp::folding::FoldedFigureRenderOptions {
+            display_mark: true,
+            selected: true,
+            display_numbers: true,
+            index: 2,
+            ..oristudio_cp::folding::FoldedFigureRenderOptions::default()
+        })
+        .expect("render options serialize"),
+    )
+    .expect("folded render snapshot should serialize");
+    let render_snapshot: serde_json::Value =
+        serde_wasm_bindgen::from_value(render_snapshot).expect("render snapshot deserializes");
+    assert_eq!(render_snapshot["pass"], "paper-front-full");
+    assert!(
+        render_snapshot["primitives"]
+            .as_array()
+            .expect("render primitives")
+            .iter()
+            .any(|primitive| primitive["kind"] == "fill_polygon")
+    );
+
     let specific = oristudio_cp_wasm::folded_figure_fold_to_case(
         folded_handle,
         3,

@@ -4,8 +4,9 @@
 //! handles so the web worker can keep command calls cheap and explicit.
 
 use oristudio_cp::folding::{
-    EstimationOrder, FoldedFigureModel, FoldedFigureSnapshot, FoldingEstimateError,
-    FoldingEstimateSession, fold_another, folded_figure_snapshot_from_session,
+    DisplayStyle, EstimationOrder, FoldedFigureModel, FoldedFigureRenderOptions,
+    FoldedFigureSnapshot, FoldingEstimateError, FoldingEstimateSession, fold_another,
+    folded_figure_render_snapshot_from_session, folded_figure_snapshot_from_session,
     folding_estimate_to_case,
 };
 use oristudio_cp::{
@@ -263,6 +264,32 @@ pub fn folded_figure_snapshot(handle: u32) -> Result<JsValue, JsValue> {
 }
 
 #[wasm_bindgen]
+pub fn folded_figure_render_snapshot(
+    handle: u32,
+    display_style: JsValue,
+    options: JsValue,
+) -> Result<JsValue, JsValue> {
+    let display_style: Option<DisplayStyle> =
+        if display_style.is_undefined() || display_style.is_null() {
+            None
+        } else {
+            Some(serde_wasm_bindgen::from_value(display_style).map_err(to_js_value_error)?)
+        };
+    let options = folded_figure_render_options_from_js(options)?;
+    with_folded_figure(handle, |folded| {
+        let display_style = display_style.unwrap_or(folded.session.estimate().display_style);
+        let snapshot = folded_figure_render_snapshot_from_session(
+            &folded.session,
+            display_style,
+            folded.model.clone(),
+            options,
+        )
+        .map_err(to_js_folding_error)?;
+        to_js_value(&snapshot)
+    })
+}
+
+#[wasm_bindgen]
 pub fn folded_figure_fold_another(handle: u32) -> Result<JsValue, JsValue> {
     with_folded_figure_mut(handle, |folded| {
         fold_another(&mut folded.session).map_err(to_js_folding_error)?;
@@ -322,6 +349,16 @@ fn folded_figure_model_from_js(model: JsValue) -> Result<FoldedFigureModel, JsVa
         Ok(FoldedFigureModel::default())
     } else {
         serde_wasm_bindgen::from_value(model).map_err(to_js_value_error)
+    }
+}
+
+fn folded_figure_render_options_from_js(
+    options: JsValue,
+) -> Result<FoldedFigureRenderOptions, JsValue> {
+    if options.is_undefined() || options.is_null() {
+        Ok(FoldedFigureRenderOptions::default())
+    } else {
+        serde_wasm_bindgen::from_value(options).map_err(to_js_value_error)
     }
 }
 

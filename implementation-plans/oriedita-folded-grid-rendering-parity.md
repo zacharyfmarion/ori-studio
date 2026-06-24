@@ -650,7 +650,7 @@ checkpoint and keep the checklist current.
 - [x] Port folded camera mutation snapshot parity.
 - [x] Port crosshair, selected marker, display number, selected point, and
       custom constraint primitives.
-- [ ] Expose primitive render snapshots through WASM, worker APIs, and
+- [x] Expose primitive render snapshots through WASM, worker APIs, and
       TypeScript types.
 - [ ] Replace generated folded wireframe mini-view with primitive-driven grid
       renderer.

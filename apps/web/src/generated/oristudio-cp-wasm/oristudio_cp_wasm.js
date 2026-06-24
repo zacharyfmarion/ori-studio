@@ -138,6 +138,20 @@ export function folded_figure_fold_to_case(handle, objective, initial_order) {
 
 /**
  * @param {number} handle
+ * @param {any} display_style
+ * @param {any} options
+ * @returns {any}
+ */
+export function folded_figure_render_snapshot(handle, display_style, options) {
+    const ret = wasm.folded_figure_render_snapshot(handle, display_style, options);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {number} handle
  * @returns {any}
  */
 export function folded_figure_snapshot(handle) {

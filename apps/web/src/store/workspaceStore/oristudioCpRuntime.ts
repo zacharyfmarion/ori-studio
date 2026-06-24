@@ -9,7 +9,9 @@ import type {
   OristudioCpEstimationOrder,
   OristudioCpFoldedFigureBatchResult,
   OristudioCpFoldedFigureModel,
+  OristudioCpFoldedFigureRenderOptions,
   OristudioCpFoldedFigureResult,
+  OristudioCpFoldedRenderSnapshot,
   OristudioCpFoldedFigureSnapshot,
   OristudioCpLineSegment,
   OristudioCpOperationDescriptor,
@@ -240,6 +242,15 @@ export async function getOristudioCpFoldedFigureSnapshot(
 ): Promise<OristudioCpFoldedFigureSnapshot> {
   const api = await getOristudioCpClient();
   return api.foldedFigureSnapshot(foldedFigureHandle);
+}
+
+export async function getOristudioCpFoldedFigureRenderSnapshot(
+  foldedFigureHandle: number,
+  displayStyle?: OristudioCpFoldedFigureSnapshot['display_style'],
+  options?: OristudioCpFoldedFigureRenderOptions
+): Promise<OristudioCpFoldedRenderSnapshot | null> {
+  const api = await getOristudioCpClient();
+  return api.foldedFigureRenderSnapshot(foldedFigureHandle, displayStyle, options);
 }
 
 export async function foldOristudioCpFigureAnother(
