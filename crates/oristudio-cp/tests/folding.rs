@@ -1,18 +1,76 @@
 use oristudio_cp::folding::{
-    ChainPermutationGenerator, FoldingEstimateSession, HierarchyRelation, InitialHierarchy,
+    ChainPermutationGenerator, DisplayStyle, EstimationOrder, EstimationStep, FoldedFigureModel,
+    FoldedFigureState, FoldingEstimateSession, HierarchyRelation, InitialHierarchy,
     SubFacePermutationSearch, SubFaceSwapper, WorkerOverlapEnumerator,
     additional_estimation_from_segments, configure_subfaces_from_segments,
     duplicate_estimation_order_for_display, equivalence_condition_candidates_from_segments,
-    estimate_wireframe_from_segments, fold_another, folding_estimate_case_filename,
-    folding_estimate_from_segments, folding_estimate_save_batch, folding_estimate_to_case,
-    initial_hierarchy_from_segments, overlap_search_from_segments,
+    estimate_wireframe_from_segments, fold_another, folded_figure_snapshot_from_segments,
+    folding_estimate_case_filename, folding_estimate_from_segments, folding_estimate_save_batch,
+    folding_estimate_to_case, initial_hierarchy_from_segments, overlap_search_from_segments,
     overlap_search_from_segments_with_swap, possible_overlap_search_for_ordered_subfaces,
     possible_overlap_search_for_subfaces, possible_overlap_search_for_subfaces_with_swap,
     prepare_subface_segments, prioritize_subfaces, two_colored_folding_estimate_from_segments,
     two_colored_subface_segments_from_segments,
 };
-use oristudio_cp::geometry::{LineColor, LineSegment, Point};
+use oristudio_cp::geometry::{LineColor, LineSegment, Point, RgbColor};
 use oristudio_cp::io::cp;
+
+#[test]
+fn folded_figure_model_defaults_match_oriedita() {
+    let model = FoldedFigureModel::default();
+
+    assert_eq!(model.front_color, RgbColor::new(255, 255, 50));
+    assert_eq!(model.back_color, RgbColor::new(233, 233, 233));
+    assert_eq!(model.line_color, RgbColor::new(0, 0, 0));
+    assert_eq!(model.scale, 1.0);
+    assert_eq!(model.rotation, 0.0);
+    assert!(model.anti_alias);
+    assert!(!model.display_shadows);
+    assert_eq!(model.state, FoldedFigureState::Front0);
+    assert_eq!(model.folded_cases, 1);
+    assert_eq!(model.transparent_transparency, 16);
+    assert!(!model.transparency_color);
+}
+
+#[test]
+fn folded_figure_snapshot_serializes_wireframe_state_after_order_2() {
+    let snapshot = folded_figure_snapshot_from_segments(
+        &square_with_diagonal(),
+        1,
+        EstimationOrder::Order2,
+        FoldedFigureModel::default(),
+    )
+    .expect("folded figure snapshot");
+
+    assert_eq!(snapshot.estimation_step, EstimationStep::Step2);
+    assert_eq!(snapshot.display_style, DisplayStyle::Wire2);
+    assert_eq!(snapshot.discovered_fold_cases, 0);
+    let wireframe = snapshot.wireframe.as_ref().expect("order 2 wireframe");
+    assert_eq!(wireframe.lines.len(), 5);
+    assert_eq!(wireframe.faces.len(), 2);
+
+    let value = serde_json::to_value(&snapshot).expect("serialized snapshot");
+    assert_eq!(value["model"]["front_color"]["red"], 255);
+    assert_eq!(value["model"]["state"], "Front0");
+    assert_eq!(value["estimation_step"], "Step2");
+    assert_eq!(value["display_style"], "Wire2");
+    assert_eq!(value["wireframe"]["faces"].as_array().unwrap().len(), 2);
+}
+
+#[test]
+fn folded_figure_snapshot_leaves_wireframe_empty_before_order_2() {
+    let snapshot = folded_figure_snapshot_from_segments(
+        &square_with_diagonal(),
+        1,
+        EstimationOrder::Order1,
+        FoldedFigureModel::default(),
+    )
+    .expect("folded figure snapshot");
+
+    assert_eq!(snapshot.estimation_step, EstimationStep::Step1);
+    assert_eq!(snapshot.display_style, DisplayStyle::Development1);
+    assert!(snapshot.wireframe.is_none());
+}
 
 #[test]
 fn wireframe_fold_builds_faces_and_face_positions() {

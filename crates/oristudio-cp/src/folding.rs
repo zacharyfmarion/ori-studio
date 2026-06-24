@@ -2,11 +2,12 @@ mod permutation;
 
 use crate::fold_graph::{FacePositions, FoldGraph};
 use crate::geometry::{
-    Epsilon, LineColor, LineSegment, Point, Polygon, PolygonIntersection,
+    Epsilon, LineColor, LineSegment, Point, Polygon, PolygonIntersection, RgbColor,
     determine_line_segment_intersection, equal, equal_with_radius,
 };
 use crate::model::CreasePatternModel;
 use crate::operations::arrangement::divide_intersections;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 pub use permutation::{
@@ -17,7 +18,7 @@ pub use permutation::{
     prioritize_subfaces,
 };
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FoldedWireframe {
     pub points: Vec<Point>,
     pub lines: Vec<FoldedWireframeLine>,
@@ -28,7 +29,7 @@ pub struct FoldedWireframe {
     pub associated_lines: Vec<Option<usize>>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct FoldedWireframeLine {
     pub begin: usize,
     pub end: usize,
@@ -89,7 +90,7 @@ pub struct AdditionalEstimation {
     pub quadruple_conditions: Vec<EquivalenceCondition>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EstimationOrder {
     Order0,
     Order1,
@@ -141,7 +142,7 @@ impl EstimationOrder {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EstimationStep {
     Step0,
     Step1,
@@ -152,7 +153,7 @@ pub enum EstimationStep {
     Step10,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DisplayStyle {
     None0,
     Development1,
@@ -160,6 +161,58 @@ pub enum DisplayStyle {
     Transparent3,
     Development4,
     Paper5,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum FoldedFigureState {
+    Front0,
+    Back1,
+    Both2,
+    Transparent3,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FoldedFigureModel {
+    pub front_color: RgbColor,
+    pub back_color: RgbColor,
+    pub line_color: RgbColor,
+    pub scale: f64,
+    pub rotation: f64,
+    pub anti_alias: bool,
+    pub display_shadows: bool,
+    pub state: FoldedFigureState,
+    pub folded_cases: usize,
+    pub transparent_transparency: u8,
+    pub transparency_color: bool,
+}
+
+impl Default for FoldedFigureModel {
+    fn default() -> Self {
+        Self {
+            front_color: RgbColor::new(255, 255, 50),
+            back_color: RgbColor::new(233, 233, 233),
+            line_color: RgbColor::new(0, 0, 0),
+            scale: 1.0,
+            rotation: 0.0,
+            anti_alias: true,
+            display_shadows: false,
+            state: FoldedFigureState::Front0,
+            folded_cases: 1,
+            transparent_transparency: 16,
+            transparency_color: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FoldedFigureSnapshot {
+    pub model: FoldedFigureModel,
+    pub estimation_step: EstimationStep,
+    pub display_style: DisplayStyle,
+    pub discovered_fold_cases: usize,
+    pub find_another_overlap_valid: bool,
+    pub text_result: String,
+    pub wireframe: Option<FoldedWireframe>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -757,6 +810,29 @@ pub fn folding_estimate_from_segments(
 ) -> Result<FoldingEstimate, FoldingEstimateError> {
     let mut session = FoldingEstimateSession::new(segments, starting_face_id);
     session.folding_estimated(order)
+}
+
+pub fn folded_figure_snapshot_from_segments(
+    segments: &[LineSegment],
+    starting_face_id: i32,
+    order: EstimationOrder,
+    model: FoldedFigureModel,
+) -> Result<FoldedFigureSnapshot, FoldingEstimateError> {
+    let estimate = folding_estimate_from_segments(segments, starting_face_id, order)?;
+    let wireframe = if order.normalized().is_at_least(EstimationOrder::Order2) {
+        estimate_wireframe_from_segments(segments, starting_face_id)
+    } else {
+        None
+    };
+    Ok(FoldedFigureSnapshot {
+        model,
+        estimation_step: estimate.estimation_step,
+        display_style: estimate.display_style,
+        discovered_fold_cases: estimate.discovered_fold_cases,
+        find_another_overlap_valid: estimate.find_another_overlap_valid,
+        text_result: estimate.text_result,
+        wireframe,
+    })
 }
 
 /// Oriedita `FoldedFigure_Worker.possible_overlapping_search(false)` after

@@ -403,7 +403,7 @@ Normal tests should not require Java:
 - [x] Replace web FOLD import flattening with frame inventory plus active-frame
       selection.
 - [x] Extend `.osf` to preserve imported FOLD frame graphs.
-- [ ] Add serializable Oriedita folded-figure snapshot types in `oristudio-cp`.
+- [x] Add serializable Oriedita folded-figure snapshot types in `oristudio-cp`.
 - [ ] Expose Fold/FoldAnother/FoldToCase folded-figure commands from
       `oristudio-cp-wasm`.
 - [ ] Add folded-figure list/revision state to the workspace store.

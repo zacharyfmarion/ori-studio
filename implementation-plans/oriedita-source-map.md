@@ -87,8 +87,8 @@ stage explicitly changes it.
 | `oriedita-ui/src/main/java/oriedita/editor/drawing/FoldedFigure_Worker_Drawer.java` | Wire, paper, transparent, front/back, and constraint drawing primitives. | `folding::FoldedFigureRenderSnapshot`, web grid renderer | kernel/ui | 10 | Unsupported; no approximate renderer accepted before primitive parity oracle |
 | `oriedita-ui/src/main/java/oriedita/editor/drawing/WireFrame_Worker_Drawer.java` | Development-view folded wireframe drawing. | `folding::FoldedWireframeRenderSnapshot`, web grid renderer | kernel/ui | 10 | Unsupported |
 | `oriedita-ui/src/main/java/oriedita/editor/CanvasUI.java` | CP canvas layer order including folded figures in the grid area. | web `CreasePatternPanel` render stack | ui | 12 | Unsupported; folded figures render after diagnostics/previews and before optional CP-on-top pass |
-| `oriedita-data/src/main/java/oriedita/editor/databinding/FoldedFigureModel.java` | Folded-figure colors, scale, rotation, anti-aliasing, shadows, state, transparency, and case selection. | `folding::FoldedFigureModel`, workspace folded-figure state | kernel/ui | 10 | Unsupported; defaults are parity-critical |
-| `oriedita-data/src/main/java/oriedita/editor/folded_figure/FoldedFigure_01.java` | Oriedita editor wrapper that bridges `FoldedFigure` and `FoldedFigureModel`. | `folding::FoldedFigureDocument` | kernel | 10 | Unsupported |
+| `oriedita-data/src/main/java/oriedita/editor/databinding/FoldedFigureModel.java` | Folded-figure colors, scale, rotation, anti-aliasing, shadows, state, transparency, and case selection. | `folding::FoldedFigureModel`, workspace folded-figure state | kernel/ui | 10 | Unit-tested defaults; workspace mutation wiring unsupported |
+| `oriedita-data/src/main/java/oriedita/editor/folded_figure/FoldedFigure_01.java` | Oriedita editor wrapper that bridges `FoldedFigure` and `FoldedFigureModel`. | `folding::FoldedFigureSnapshot` | kernel | 10 | Unit-tested snapshot carrier; editor wrapper/list wiring unsupported |
 | `origami/crease_pattern/worker/SelectMode.java` | Select/unselect mode enum. | `operations::selection` | kernel | 6 | Unsupported |
 | `origami/crease_pattern/worker/foldlineset/BranchTrim.java` | Branch trimming cleanup. | `operations::arrangement` | kernel | 5 | Oracle-tested |
 | `origami/crease_pattern/worker/foldlineset/Check1.java` | Diagnostic check. | `checks` | kernel | 9 | Oracle-tested |
@@ -272,7 +272,7 @@ mutation.
 | `FoldingServiceImpl.createTwoColoredCp` | Generate two-colored CP from selected lines. | `folding::two_colored_folding_estimate_from_segments` | 10 | Porting; pure folded estimate ported, UI selection/list wiring unsupported |
 | `FoldingServiceImpl.foldAnother` | Request another overlap solution. | `folding::fold_another`, `folding::WorkerOverlapEnumerator` | 10 | Porting; pure session action ported, command wiring unsupported |
 | `FoldingServiceImpl.duplicate` | Duplicate folded model and replay estimate order. | `folding::duplicate_estimation_order_for_display` | 10 | Porting; replay-order mapping oracle, folded-list/task wiring unsupported |
-| `FoldedFigureModel` | Apply folded-figure display, color, scale, rotation, anti-alias, shadow, transparency, state, and case properties. | `folding::FoldedFigureModel` | 10 | Unsupported |
+| `FoldedFigureModel` | Apply folded-figure display, color, scale, rotation, anti-alias, shadow, transparency, state, and case properties. | `folding::FoldedFigureModel` | 10 | Unit-tested defaults; command and workspace mutation wiring unsupported |
 | `FoldedFigureCanvasSelectService` | Select folded-figure vertices/faces in the grid canvas. | `folding::FoldedFigureCanvasSelection` | 10 | Unsupported |
 | `FoldedFigure_Drawer.foldUp_draw` | Build exact render primitives for Oriedita folded views. | `folding::FoldedFigureRenderSnapshot` | 10 | Unsupported |
 
