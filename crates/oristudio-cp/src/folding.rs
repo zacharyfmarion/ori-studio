@@ -259,6 +259,16 @@ pub struct OrieditaFoldedFigureCamera {
     pub display_position: Point,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum OrieditaFoldedFigureCameraTarget {
+    All,
+    Folded,
+    Front,
+    Rear,
+    TransparentFront,
+    TransparentRear,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FoldedFigureRenderSnapshot {
     pub schema_version: u32,
@@ -1725,6 +1735,45 @@ pub fn folded_figure_camera_set_from_segments(
     ))
 }
 
+pub fn folded_figure_camera_set_scaled(
+    mut cameras: OrieditaFoldedFigureCameraSet,
+    magnification: f64,
+    anchor_tv: Option<Point>,
+) -> OrieditaFoldedFigureCameraSet {
+    if let Some(anchor) = anchor_tv {
+        for camera in cameras.iter_mut() {
+            camera.camera_position_specify_from_tv(anchor);
+        }
+    }
+    for camera in cameras.iter_mut() {
+        camera.zoom_x *= magnification;
+        camera.zoom_y *= magnification;
+    }
+    cameras
+}
+
+pub fn folded_figure_camera_set_display_position_moved(
+    mut cameras: OrieditaFoldedFigureCameraSet,
+    target: OrieditaFoldedFigureCameraTarget,
+    delta_tv: Point,
+) -> OrieditaFoldedFigureCameraSet {
+    for camera in cameras.iter_target_mut(target) {
+        camera.display_position_move(delta_tv);
+    }
+    cameras
+}
+
+pub fn folded_figure_camera_set_position_specified_from_tv(
+    mut cameras: OrieditaFoldedFigureCameraSet,
+    target: OrieditaFoldedFigureCameraTarget,
+    point_tv: Point,
+) -> OrieditaFoldedFigureCameraSet {
+    for camera in cameras.iter_target_mut(target) {
+        camera.camera_position_specify_from_tv(point_tv);
+    }
+    cameras
+}
+
 /// Oriedita `FoldedFigure_Worker.possible_overlapping_search(false)` after
 /// folding stages 01-04 have prepared subfaces, hierarchy relations, and
 /// equivalence conditions. This is the no-swap/no-realtime-AEA worker search
@@ -1859,6 +1908,59 @@ fn folded_graph_and_wireframe_from_segments(
     let positions = graph.face_positions(starting_face_id);
     let folded = wireframe_from_graph(&graph, &positions, graph.folded_points(&positions));
     Some((graph, folded))
+}
+
+impl OrieditaFoldedFigureCameraSet {
+    fn iter_mut(&mut self) -> [&mut OrieditaFoldedFigureCamera; 5] {
+        [
+            &mut self.folded,
+            &mut self.front,
+            &mut self.rear,
+            &mut self.transparent_front,
+            &mut self.transparent_rear,
+        ]
+    }
+
+    fn iter_target_mut(
+        &mut self,
+        target: OrieditaFoldedFigureCameraTarget,
+    ) -> Vec<&mut OrieditaFoldedFigureCamera> {
+        match target {
+            OrieditaFoldedFigureCameraTarget::All => self.iter_mut().into_iter().collect(),
+            OrieditaFoldedFigureCameraTarget::Folded => vec![&mut self.folded],
+            OrieditaFoldedFigureCameraTarget::Front => vec![&mut self.front],
+            OrieditaFoldedFigureCameraTarget::Rear => vec![&mut self.rear],
+            OrieditaFoldedFigureCameraTarget::TransparentFront => {
+                vec![&mut self.transparent_front]
+            }
+            OrieditaFoldedFigureCameraTarget::TransparentRear => vec![&mut self.transparent_rear],
+        }
+    }
+}
+
+impl OrieditaFoldedFigureCamera {
+    fn display_position_move(&mut self, delta_tv: Point) {
+        self.display_position = self.display_position.move_by(delta_tv);
+    }
+
+    fn camera_position_specify_from_tv(&mut self, point_tv: Point) {
+        self.camera_position = self.tv_to_object(point_tv);
+        self.display_position = point_tv;
+    }
+
+    fn tv_to_object(&self, point_tv: Point) -> Point {
+        let radians = self.angle_degrees * (3.14159265 / 180.0);
+        let sin = radians.sin();
+        let cos = radians.cos();
+        let mut x1 = point_tv.x - self.display_position.x;
+        let mut y1 = point_tv.y - self.display_position.y;
+        x1 /= self.zoom_x;
+        y1 /= self.zoom_y;
+        x1 *= self.mirror;
+        let x2 = cos * x1 - sin * y1;
+        let y2 = sin * x1 + cos * y1;
+        Point::new(x2 + self.camera_position.x, y2 + self.camera_position.y)
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

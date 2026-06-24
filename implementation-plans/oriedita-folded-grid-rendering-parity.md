@@ -647,7 +647,7 @@ checkpoint and keep the checklist current.
 - [x] Add transparent and wire oracle fixtures.
 - [x] Port folded camera initialization and minimum-bound alignment snapshot
       parity.
-- [ ] Port folded camera mutation snapshot parity.
+- [x] Port folded camera mutation snapshot parity.
 - [ ] Port crosshair, selected marker, display number, selected point, and
       custom constraint primitives.
 - [ ] Expose primitive render snapshots through WASM, worker APIs, and

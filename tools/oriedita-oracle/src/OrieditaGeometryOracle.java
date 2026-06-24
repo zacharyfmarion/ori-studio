@@ -386,6 +386,9 @@ public class OrieditaGeometryOracle {
             case "folded-render-transparent-color-both-segments" -> foldedRenderStyleSegments(args, FoldedFigure.State.BOTH_2, FoldedFigure.DisplayStyle.TRANSPARENT_3, true, "transparent-color-both");
             case "folded-render-transparent-color-transparent-state-segments" -> foldedRenderStyleSegments(args, FoldedFigure.State.TRANSPARENT_3, FoldedFigure.DisplayStyle.TRANSPARENT_3, true, "transparent-color-transparent-state");
             case "folded-render-cameras-segments" -> foldedRenderCamerasSegments(args);
+            case "folded-render-cameras-scale-segments" -> foldedRenderCamerasScaleSegments(args);
+            case "folded-render-cameras-move-segments" -> foldedRenderCamerasMoveSegments(args);
+            case "folded-render-cameras-specify-segments" -> foldedRenderCamerasSpecifySegments(args);
             default -> usage("unknown command: " + args[0]);
         }
     }
@@ -433,6 +436,48 @@ public class OrieditaGeometryOracle {
         int count = Integer.parseInt(args[1]);
         LineSegmentSet set = lineSegmentSet(args, 2, count);
         printFoldedRenderCameras("segments", set);
+    }
+
+    private static void foldedRenderCamerasScaleSegments(String[] args) throws Exception {
+        if (args.length < 5) {
+            usage(args[0] + " expects magnification, anchor x, anchor y, count, and line segment payload");
+        }
+
+        double magnification = Double.parseDouble(args[1]);
+        Point anchor = new Point(Double.parseDouble(args[2]), Double.parseDouble(args[3]));
+        int count = Integer.parseInt(args[4]);
+        LineSegmentSet set = lineSegmentSet(args, 5, count);
+        FoldedFigure_Drawer drawer = foldedRenderCameraDrawer(set);
+        drawer.scale(magnification, anchor);
+        printFoldedRenderCameras("segments", drawer);
+    }
+
+    private static void foldedRenderCamerasMoveSegments(String[] args) throws Exception {
+        if (args.length < 5) {
+            usage(args[0] + " expects target, delta x, delta y, count, and line segment payload");
+        }
+
+        String target = args[1];
+        Point delta = new Point(Double.parseDouble(args[2]), Double.parseDouble(args[3]));
+        int count = Integer.parseInt(args[4]);
+        LineSegmentSet set = lineSegmentSet(args, 5, count);
+        FoldedFigure_Drawer drawer = foldedRenderCameraDrawer(set);
+        foldedRenderCameraTarget(drawer, target).displayPositionMove(delta);
+        printFoldedRenderCameras("segments", drawer);
+    }
+
+    private static void foldedRenderCamerasSpecifySegments(String[] args) throws Exception {
+        if (args.length < 5) {
+            usage(args[0] + " expects target, tv x, tv y, count, and line segment payload");
+        }
+
+        String target = args[1];
+        Point point = new Point(Double.parseDouble(args[2]), Double.parseDouble(args[3]));
+        int count = Integer.parseInt(args[4]);
+        LineSegmentSet set = lineSegmentSet(args, 5, count);
+        FoldedFigure_Drawer drawer = foldedRenderCameraDrawer(set);
+        foldedRenderCameraTarget(drawer, target).camera_position_specify_from_TV(point);
+        printFoldedRenderCameras("segments", drawer);
     }
 
     private static void foldedRenderPaperVisibleSegments(String[] args, FoldedFigure.State state, String pass) throws Exception {
@@ -491,9 +536,10 @@ public class OrieditaGeometryOracle {
     }
 
     private static void printFoldedRenderCameras(String fixture, LineSegmentSet set) throws Exception {
-        FoldedFigure_Drawer drawer =
-                foldedRenderContext(set, FoldedFigure.State.FRONT_0, false, FoldedFigure.DisplayStyle.PAPER_5, false).drawer;
+        printFoldedRenderCameras(fixture, foldedRenderCameraDrawer(set));
+    }
 
+    private static void printFoldedRenderCameras(String fixture, FoldedFigure_Drawer drawer) {
         System.out.println("schema|folded-render-cameras|1");
         System.out.println("fixture|" + fixture + "|cameras");
         printFoldedRenderCamera("folded", drawer.getFoldedFigureCamera());
@@ -514,6 +560,26 @@ public class OrieditaGeometryOracle {
                 + camera.getCameraZoomY() + "|"
                 + camera.getDisplayPositionX() + "|"
                 + camera.getDisplayPositionY());
+    }
+
+    private static FoldedFigure_Drawer foldedRenderCameraDrawer(LineSegmentSet set) throws Exception {
+        return foldedRenderContext(
+                set,
+                FoldedFigure.State.FRONT_0,
+                false,
+                FoldedFigure.DisplayStyle.PAPER_5,
+                false).drawer;
+    }
+
+    private static Camera foldedRenderCameraTarget(FoldedFigure_Drawer drawer, String target) {
+        return switch (target) {
+            case "folded" -> drawer.getFoldedFigureCamera();
+            case "front" -> drawer.getFoldedFigureFrontCamera();
+            case "rear" -> drawer.getFoldedFigureRearCamera();
+            case "transparent-front" -> drawer.getTransparentFrontCamera();
+            case "transparent-rear" -> drawer.getTransparentRearCamera();
+            default -> throw new IllegalArgumentException("unknown camera target: " + target);
+        };
     }
 
     private static void printFoldedRenderVisiblePass(
@@ -7015,6 +7081,9 @@ public class OrieditaGeometryOracle {
         System.err.println("   or: OrieditaGeometryOracle folded-render-transparent-color-both-segments <count> [ax ay bx by color]...");
         System.err.println("   or: OrieditaGeometryOracle folded-render-transparent-color-transparent-state-segments <count> [ax ay bx by color]...");
         System.err.println("   or: OrieditaGeometryOracle folded-render-cameras-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-cameras-scale-segments <magnification> <anchor x> <anchor y> <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-cameras-move-segments <target> <delta x> <delta y> <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-cameras-specify-segments <target> <tv x> <tv y> <count> [ax ay bx by color]...");
         System.exit(2);
     }
 }

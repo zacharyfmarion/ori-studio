@@ -2,8 +2,10 @@ use oristudio_cp::folding::{
     FoldedFigureModel, FoldedFigureRenderGeometry, FoldedFigureRenderPaint,
     FoldedFigureRenderPrimitive, FoldedFigureRenderPrimitiveKind, FoldedFigureRenderSnapshot,
     FoldedFigureRenderStroke, FoldedFigureRenderStyle, FoldedFigureState, FoldedSubfaceFigure,
-    OrieditaFoldedFigureCamera, OrieditaFoldedFigureCameraSet, RenderPathCommand,
-    folded_figure_camera_set_from_segments, folded_figure_paper_render_snapshot_from_segments,
+    OrieditaFoldedFigureCamera, OrieditaFoldedFigureCameraSet, OrieditaFoldedFigureCameraTarget,
+    RenderPathCommand, folded_figure_camera_set_display_position_moved,
+    folded_figure_camera_set_from_segments, folded_figure_camera_set_position_specified_from_tv,
+    folded_figure_camera_set_scaled, folded_figure_paper_render_snapshot_from_segments,
     folded_figure_transparent_render_snapshot_from_segments,
     folded_figure_wire_render_snapshot_from_segments, folded_subface_figure_from_segments,
     parse_oriedita_render_primitives,
@@ -128,6 +130,70 @@ fn kabuto_folded_camera_set_matches_oriedita_oracle() {
         folded_figure_camera_set_from_segments(&segments, 1, FoldedFigureModel::default())
             .expect("Rust camera set");
     assert_camera_set_close("kabuto cameras", &rust_cameras, &oracle_cameras);
+}
+
+#[test]
+fn kabuto_folded_camera_mutations_match_oriedita_oracle() {
+    let Some(oracle) = render_oracle() else {
+        eprintln!("skipping Oriedita render oracle test: ORIEDITA_RENDER_ORACLE is not set");
+        return;
+    };
+
+    let segments = kabuto_segments();
+    let base = folded_figure_camera_set_from_segments(&segments, 1, FoldedFigureModel::default())
+        .expect("Rust camera set");
+
+    let scale_output = run_oracle_owned(
+        &oracle,
+        &segment_oracle_args_with_prefix(
+            "folded-render-cameras-scale-segments",
+            &["1.75", "25.0", "30.0"],
+            &segments,
+        ),
+    );
+    let oracle_scaled =
+        parse_oriedita_camera_set(&scale_output).expect("parse scaled Oriedita cameras");
+    let rust_scaled =
+        folded_figure_camera_set_scaled(base.clone(), 1.75, Some(Point::new(25.0, 30.0)));
+    assert_camera_set_close("kabuto cameras scaled", &rust_scaled, &oracle_scaled);
+
+    let move_output = run_oracle_owned(
+        &oracle,
+        &segment_oracle_args_with_prefix(
+            "folded-render-cameras-move-segments",
+            &["front", "7.5", "-3.25"],
+            &segments,
+        ),
+    );
+    let oracle_moved =
+        parse_oriedita_camera_set(&move_output).expect("parse moved Oriedita cameras");
+    let rust_moved = folded_figure_camera_set_display_position_moved(
+        base.clone(),
+        OrieditaFoldedFigureCameraTarget::Front,
+        Point::new(7.5, -3.25),
+    );
+    assert_camera_set_close("kabuto cameras moved", &rust_moved, &oracle_moved);
+
+    let specify_output = run_oracle_owned(
+        &oracle,
+        &segment_oracle_args_with_prefix(
+            "folded-render-cameras-specify-segments",
+            &["transparent-rear", "33.0", "12.0"],
+            &segments,
+        ),
+    );
+    let oracle_specified =
+        parse_oriedita_camera_set(&specify_output).expect("parse specified Oriedita cameras");
+    let rust_specified = folded_figure_camera_set_position_specified_from_tv(
+        base,
+        OrieditaFoldedFigureCameraTarget::TransparentRear,
+        Point::new(33.0, 12.0),
+    );
+    assert_camera_set_close(
+        "kabuto cameras specified",
+        &rust_specified,
+        &oracle_specified,
+    );
 }
 
 #[test]
@@ -1003,6 +1069,24 @@ fn transparent_color_render_cases() -> [PaperRenderCase; 4] {
 
 fn segment_oracle_args(command: &str, segments: &[LineSegment]) -> Vec<String> {
     let mut args = vec![command.to_string(), segments.len().to_string()];
+    for segment in segments {
+        args.push(java_double_string(segment.a.x));
+        args.push(java_double_string(segment.a.y));
+        args.push(java_double_string(segment.b.x));
+        args.push(java_double_string(segment.b.y));
+        args.push(segment.color.number().to_string());
+    }
+    args
+}
+
+fn segment_oracle_args_with_prefix(
+    command: &str,
+    prefix: &[&str],
+    segments: &[LineSegment],
+) -> Vec<String> {
+    let mut args = vec![command.to_string()];
+    args.extend(prefix.iter().map(|value| (*value).to_string()));
+    args.push(segments.len().to_string());
     for segment in segments {
         args.push(java_double_string(segment.a.x));
         args.push(java_double_string(segment.a.y));
