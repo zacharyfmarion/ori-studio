@@ -332,6 +332,7 @@ export interface CreasePatternSliceActions {
   duplicateOristudioCpFoldedFigure: (id?: string) => Promise<boolean>;
   deleteOristudioCpFoldedFigure: (id: string) => Promise<void>;
   setOristudioCpActiveFoldedFigure: (id: string | null) => void;
+  moveOristudioCpFoldedFigure: (id: string, delta: Point) => void;
   clearOristudioCpFoldedFigures: () => Promise<void>;
   clearOristudioCpSelection: () => void;
   toggleOristudioCpLineSelection: (id: number, additive?: boolean) => void;

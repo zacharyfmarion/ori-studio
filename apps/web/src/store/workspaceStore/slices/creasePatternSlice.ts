@@ -555,8 +555,26 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     setOristudioCpActiveFoldedFigure: (oristudioCpActiveFoldedFigureId) =>
       set({ oristudioCpActiveFoldedFigureId }),
 
+    moveOristudioCpFoldedFigure: (id, delta) => {
+      if (Math.abs(delta.x) < 1e-9 && Math.abs(delta.y) < 1e-9) return;
+      set({
+        oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((figure) => {
+          if (figure.id !== id) return figure;
+          const displayOffset = figure.displayOffset ?? { x: 0, y: 0 };
+          return {
+            ...figure,
+            displayOffset: {
+              x: displayOffset.x + delta.x,
+              y: displayOffset.y + delta.y,
+            },
+          };
+        }),
+      });
+    },
+
     foldOristudioCpDocument: async (options = {}) => {
-      if (!get().oristudioCpDocument) {
+      const oristudioCpDocument = get().oristudioCpDocument;
+      if (!oristudioCpDocument) {
         set({
           oristudioCpError: 'No editable crease-pattern document is loaded',
           error: {
@@ -567,7 +585,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         return false;
       }
 
-      const selectedLineIds = selectedFoldableCpLineIds(get().oristudioCpDocument.document, {
+      const selectedLineIds = selectedFoldableCpLineIds(oristudioCpDocument.document, {
         ...emptyOristudioCpSelection(),
         lines: options.lineIds ?? get().oristudioCpSelection.lines,
       });
@@ -597,6 +615,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         status: 'loading',
         snapshot: null,
         renderSnapshot: null,
+        displayOffset: { x: 0, y: 0 },
         error: null,
       };
 
@@ -892,6 +911,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         status: 'loading',
         snapshot: null,
         renderSnapshot: null,
+        displayOffset: source.displayOffset ?? { x: 0, y: 0 },
         error: null,
       };
 

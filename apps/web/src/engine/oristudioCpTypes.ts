@@ -315,6 +315,7 @@ export interface OristudioCpFoldedFigureEntry {
   status: OristudioCpFoldedFigureStatus;
   snapshot: OristudioCpFoldedFigureSnapshot | null;
   renderSnapshot: OristudioCpFoldedRenderSnapshot | null;
+  displayOffset?: Point;
   error: string | null;
 }
 

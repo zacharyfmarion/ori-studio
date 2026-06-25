@@ -1236,6 +1236,11 @@ function cpTextIdFromEventTarget(target: EventTarget | null): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function foldedFigureIdFromEventTarget(target: EventTarget | null): string | null {
+  if (!(target instanceof Element)) return null;
+  return target.closest('[data-folded-figure-id]')?.getAttribute('data-folded-figure-id') ?? null;
+}
+
 type CpMeasurementSlotId = 'length1' | 'length2' | 'angle1' | 'angle2' | 'angle3';
 type CpMeasurementSlots = Record<CpMeasurementSlotId, number | null>;
 
@@ -1270,6 +1275,12 @@ interface CpSelectionResizeDrag {
   handle: CpSelectionResizeHandle;
   sourceLines: OristudioCpLineSegment[];
   currentTransform: Extract<CpSelectionTransform, { kind: 'scale' }> | null;
+}
+
+interface FoldedFigureMoveDrag {
+  pointerId: number;
+  figureId: string;
+  lastPoint: Point;
 }
 
 interface CpSelectionTransformPreview {
@@ -1479,6 +1490,7 @@ export function CreasePatternPanel() {
   const selectionRotateDragRef = useRef<CpSelectionRotationDrag | null>(null);
   const selectionMoveDragRef = useRef<CpSelectionMoveDrag | null>(null);
   const selectionResizeDragRef = useRef<CpSelectionResizeDrag | null>(null);
+  const foldedFigureMoveDragRef = useRef<FoldedFigureMoveDrag | null>(null);
   const cpToolDragRef = useRef<{
     operationId: OristudioCpCommandDefinition['operationId'];
     actionId: OristudioCpCommandActionDefinition['id'] | null;
@@ -1551,6 +1563,9 @@ export function CreasePatternPanel() {
   );
   const setOristudioCpActiveFoldedFigure = useWorkspaceStore(
     (state) => state.setOristudioCpActiveFoldedFigure
+  );
+  const moveOristudioCpFoldedFigure = useWorkspaceStore(
+    (state) => state.moveOristudioCpFoldedFigure
   );
   const setOristudioCpFoldedFigureDisplayStyle = useWorkspaceStore(
     (state) => state.setOristudioCpFoldedFigureDisplayStyle
@@ -2597,6 +2612,33 @@ export function CreasePatternPanel() {
     ]
   );
 
+  const handleFoldedFigurePointerDown = useCallback(
+    (figureId: string, event: PointerEvent<Element>) => {
+      if (event.button !== 0 || spacePressed || !editableCp) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setActiveEditingSurface('crease-pattern');
+      setOristudioCpActiveFoldedFigure(figureId);
+
+      if (!event.metaKey && !event.ctrlKey) return;
+      const point = eventToEditableModelPoint(event);
+      if (!point) return;
+      foldedFigureMoveDragRef.current = {
+        pointerId: event.pointerId,
+        figureId,
+        lastPoint: point,
+      };
+      svgRef.current?.setPointerCapture?.(event.pointerId);
+    },
+    [
+      editableCp,
+      eventToEditableModelPoint,
+      setActiveEditingSurface,
+      setOristudioCpActiveFoldedFigure,
+      spacePressed,
+    ]
+  );
+
   const updateEditablePointerStatus = useCallback(
     (event: PointerEvent<SVGElement>) => {
       if (!editableCp) return;
@@ -2650,6 +2692,12 @@ export function CreasePatternPanel() {
 
   const handleEditableToolPointerDown = useCallback(
     (event: PointerEvent<SVGElement>) => {
+      const foldedFigureId = foldedFigureIdFromEventTarget(event.target);
+      if (foldedFigureId) {
+        handleFoldedFigurePointerDown(foldedFigureId, event);
+        return;
+      }
+
       if (event.button === 0 && !spacePressed && editableCp && cpSymmetryAxisPickPoints) {
         const point = resolveEditableToolPoint(event, true);
         if (!point) return;
@@ -2979,6 +3027,7 @@ export function CreasePatternPanel() {
       editableCp,
       eventToEditableModelPoint,
       executeOristudioCpCommand,
+      handleFoldedFigurePointerDown,
       oristudioCpSelection.circles,
       oristudioCpSelection.lines,
       pendingSquareBisectorLineIds.length,
@@ -2993,6 +3042,20 @@ export function CreasePatternPanel() {
 
   const handleEditablePointerMove = useCallback(
     (event: PointerEvent<SVGElement>) => {
+      const foldedFigureMoveDrag = foldedFigureMoveDragRef.current;
+      if (foldedFigureMoveDrag && foldedFigureMoveDrag.pointerId === event.pointerId) {
+        const point = eventToEditableModelPoint(event);
+        if (!point) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const delta = {
+          x: point.x - foldedFigureMoveDrag.lastPoint.x,
+          y: point.y - foldedFigureMoveDrag.lastPoint.y,
+        };
+        foldedFigureMoveDrag.lastPoint = point;
+        moveOristudioCpFoldedFigure(foldedFigureMoveDrag.figureId, delta);
+        return;
+      }
       const selectionRotateDrag = selectionRotateDragRef.current;
       if (selectionRotateDrag && selectionRotateDrag.pointerId === event.pointerId) {
         const point = eventToEditableModelPoint(event);
@@ -3063,6 +3126,7 @@ export function CreasePatternPanel() {
     [
       editableCpBounds,
       eventToEditableModelPoint,
+      moveOristudioCpFoldedFigure,
       resolveEditableDrawPoint,
       updateSelectionMovePreview,
       updateSelectionResizePreview,
@@ -3074,6 +3138,14 @@ export function CreasePatternPanel() {
 
   const finishEditableDragPath = useCallback(
     (event: PointerEvent<SVGElement>) => {
+      const foldedFigureMoveDrag = foldedFigureMoveDragRef.current;
+      if (foldedFigureMoveDrag && foldedFigureMoveDrag.pointerId === event.pointerId) {
+        event.preventDefault();
+        event.stopPropagation();
+        foldedFigureMoveDragRef.current = null;
+        svgRef.current?.releasePointerCapture?.(event.pointerId);
+        return;
+      }
       const selectionRotateDrag = selectionRotateDragRef.current;
       if (selectionRotateDrag && selectionRotateDrag.pointerId === event.pointerId) {
         event.preventDefault();
@@ -3268,6 +3340,12 @@ export function CreasePatternPanel() {
   );
 
   const cancelEditableDragPath = useCallback((event: PointerEvent<SVGElement>) => {
+    const foldedFigureMoveDrag = foldedFigureMoveDragRef.current;
+    if (foldedFigureMoveDrag && foldedFigureMoveDrag.pointerId === event.pointerId) {
+      foldedFigureMoveDragRef.current = null;
+      svgRef.current?.releasePointerCapture?.(event.pointerId);
+      return;
+    }
     const selectionRotateDrag = selectionRotateDragRef.current;
     if (selectionRotateDrag && selectionRotateDrag.pointerId === event.pointerId) {
       selectionRotateDragRef.current = null;
@@ -3762,12 +3840,14 @@ export function CreasePatternPanel() {
           selectionRotateDragRef.current ||
           selectionMoveDragRef.current ||
           selectionResizeDragRef.current ||
+          foldedFigureMoveDragRef.current ||
           selectionRotationPreview
         ) {
           event.preventDefault();
           selectionRotateDragRef.current = null;
           selectionMoveDragRef.current = null;
           selectionResizeDragRef.current = null;
+          foldedFigureMoveDragRef.current = null;
           setSelectionRotationPreview(null);
           setSnapTarget(null);
           return;
@@ -3844,6 +3924,7 @@ export function CreasePatternPanel() {
       selectionRotateDragRef.current = null;
       selectionMoveDragRef.current = null;
       selectionResizeDragRef.current = null;
+      foldedFigureMoveDragRef.current = null;
       setSelectionRotationPreview(null);
       setCpToolState(IDLE_ORISTUDIO_CP_TOOL_STATE);
     }
@@ -4053,7 +4134,9 @@ export function CreasePatternPanel() {
                         selectionTransformPreview={selectionRotationPreview}
                         selectionTransformUiScale={cpUiScale}
                         activeDiagnosticId={oristudioCpActiveDiagnosticId}
+                        activeFoldedFigureId={oristudioCpActiveFoldedFigureId}
                         diagnostics={latestDiagnosticEntries}
+                        onFoldedFigurePointerDown={handleFoldedFigurePointerDown}
                         onSelectionMovePointerDown={handleSelectionMovePointerDown}
                         onSelectionResizePointerDown={handleSelectionResizePointerDown}
                         onSelectionRotatePointerDown={handleSelectionRotatePointerDown}
@@ -4280,6 +4363,7 @@ export function CreasePatternPanel() {
 
 interface EditableCreasePatternProps {
   activeDiagnosticId: string | null;
+  activeFoldedFigureId: string | null;
   bounds: CpModelBounds;
   clearSelectionOnBackgroundPointerDown: (event: PointerEvent<SVGElement>) => void;
   document: OristudioCpDocumentSnapshot;
@@ -4298,6 +4382,7 @@ interface EditableCreasePatternProps {
   commandPreviewSegments: OristudioCpLineSegment[];
   diagnostics: OristudioCpDiagnosticEntry[];
   highlightedLineIds: number[];
+  onFoldedFigurePointerDown: (id: string, event: PointerEvent<Element>) => void;
   onSelectionMovePointerDown: (event: PointerEvent<Element>) => void;
   onSelectionResizePointerDown: (
     handle: CpSelectionResizeHandle,
@@ -4322,6 +4407,7 @@ interface EditableCreasePatternProps {
 
 function EditableCreasePattern({
   activeDiagnosticId,
+  activeFoldedFigureId,
   bounds,
   clearSelectionOnBackgroundPointerDown,
   document,
@@ -4340,6 +4426,7 @@ function EditableCreasePattern({
   commandPreviewSegments,
   diagnostics,
   highlightedLineIds,
+  onFoldedFigurePointerDown,
   onSelectionMovePointerDown,
   onSelectionResizePointerDown,
   onSelectionRotatePointerDown,
@@ -4566,7 +4653,11 @@ function EditableCreasePattern({
           </text>
         );
       })}
-      <GeneratedFoldedFiguresLayer figures={generatedFoldedFigures} />
+      <GeneratedFoldedFiguresLayer
+        activeFigureId={activeFoldedFigureId}
+        figures={generatedFoldedFigures}
+        onFigurePointerDown={onFoldedFigurePointerDown}
+      />
       <ImportedFoldedFormsLayer
         frames={importedFoldedForms}
         startIndex={generatedFoldedFigures.filter(isRenderableGeneratedFoldedFigure).length}
@@ -4726,13 +4817,26 @@ const IMPORTED_FOLDED_FORM_VIEW = {
   height: 136,
 };
 
-function GeneratedFoldedFiguresLayer({ figures }: { figures: OristudioCpFoldedFigureEntry[] }) {
+function GeneratedFoldedFiguresLayer({
+  activeFigureId,
+  figures,
+  onFigurePointerDown,
+}: {
+  activeFigureId: string | null;
+  figures: OristudioCpFoldedFigureEntry[];
+  onFigurePointerDown: (id: string, event: PointerEvent<Element>) => void;
+}) {
   const renderableFigures = figures.filter(isRenderableGeneratedFoldedFigure);
   if (renderableFigures.length === 0) return null;
   return (
-    <g className="cp-generated-folded-figures-layer" aria-hidden="true">
+    <g className="cp-generated-folded-figures-layer">
       {renderableFigures.map((figure) => (
-        <GeneratedFoldedFigure key={figure.id} figure={figure} />
+        <GeneratedFoldedFigure
+          key={figure.id}
+          active={figure.id === activeFigureId}
+          figure={figure}
+          onPointerDown={onFigurePointerDown}
+        />
       ))}
     </g>
   );
@@ -4742,10 +4846,39 @@ function isRenderableGeneratedFoldedFigure(figure: OristudioCpFoldedFigureEntry)
   return Boolean(figure.renderSnapshot?.primitives.length || figure.snapshot?.wireframe);
 }
 
-function GeneratedFoldedFigure({ figure }: { figure: OristudioCpFoldedFigureEntry }) {
+function foldedFigureDisplayTransform(figure: OristudioCpFoldedFigureEntry): string | undefined {
+  const offset = figure.displayOffset;
+  if (!offset || (Math.abs(offset.x) < 1e-9 && Math.abs(offset.y) < 1e-9)) return undefined;
+  const delta = cpModelDeltaToSvgDelta(offset);
+  return `translate(${delta.x} ${delta.y})`;
+}
+
+function cpModelDeltaToSvgDelta(delta: Point): Point {
+  const origin = modelPointToCpSvg({ x: 0, y: 0 }, ORIEDITA_PAPER_BOUNDS);
+  const moved = modelPointToCpSvg(delta, ORIEDITA_PAPER_BOUNDS);
+  return {
+    x: moved.x - origin.x,
+    y: moved.y - origin.y,
+  };
+}
+
+function GeneratedFoldedFigure({
+  active,
+  figure,
+  onPointerDown,
+}: {
+  active: boolean;
+  figure: OristudioCpFoldedFigureEntry;
+  onPointerDown: (id: string, event: PointerEvent<Element>) => void;
+}) {
   if (figure.renderSnapshot?.primitives.length) {
     return (
-      <GeneratedFoldedFigurePrimitiveLayer figure={figure} snapshot={figure.renderSnapshot} />
+      <GeneratedFoldedFigurePrimitiveLayer
+        active={active}
+        figure={figure}
+        onPointerDown={onPointerDown}
+        snapshot={figure.renderSnapshot}
+      />
     );
   }
 
@@ -4764,8 +4897,10 @@ function GeneratedFoldedFigure({ figure }: { figure: OristudioCpFoldedFigureEntr
         figure.status === 'stale' ? 'cp-generated-folded-figure--stale' : '',
       ].join(' ')}
       data-folded-figure-id={figure.id}
+      data-folded-figure-active={active || undefined}
       data-folded-figure-status={figure.status}
-      aria-hidden="true"
+      transform={foldedFigureDisplayTransform(figure)}
+      onPointerDown={(event) => onPointerDown(figure.id, event)}
     >
       {wireframe.faces.map((face, faceIndex) => {
         const points = face
@@ -4807,15 +4942,20 @@ function GeneratedFoldedFigure({ figure }: { figure: OristudioCpFoldedFigureEntr
 }
 
 function GeneratedFoldedFigurePrimitiveLayer({
+  active,
   figure,
+  onPointerDown,
   snapshot,
 }: {
+  active: boolean;
   figure: OristudioCpFoldedFigureEntry;
+  onPointerDown: (id: string, event: PointerEvent<Element>) => void;
   snapshot: OristudioCpFoldedRenderSnapshot;
 }) {
   const bounds = foldedRenderSnapshotBounds(snapshot);
   if (!bounds) return null;
-  const toSvg = (point: Point) => foldedFormPointToSvg(point, bounds, 0);
+  const toSvg = (point: Point) => modelPointToCpSvg(point, ORIEDITA_PAPER_BOUNDS);
+  const hitRect = foldedRenderBoundsRect(bounds, toSvg);
   const gradientIds = new Map<number, string>();
   const gradients = snapshot.primitives.flatMap((primitive) => {
     const paint = primitive.style.paint;
@@ -4835,10 +4975,13 @@ function GeneratedFoldedFigurePrimitiveLayer({
         figure.status === 'stale' ? 'cp-generated-folded-figure--stale' : '',
       ].join(' ')}
       data-folded-figure-id={figure.id}
+      data-folded-figure-active={active || undefined}
       data-folded-figure-status={figure.status}
       data-folded-render-pass={snapshot.pass ?? undefined}
-      aria-hidden="true"
+      transform={foldedFigureDisplayTransform(figure)}
+      onPointerDown={(event) => onPointerDown(figure.id, event)}
     >
+      <rect className="cp-generated-folded-figure-hit-target" {...hitRect} />
       {gradients.length > 0 && (
         <defs>
           {gradients.map(({ id, from, to, paint }) => (
@@ -5000,6 +5143,17 @@ function foldedRenderRectToSvg(
     y: Math.min(first.y, second.y),
     width: Math.abs(second.x - first.x),
     height: Math.abs(second.y - first.y),
+  };
+}
+
+function foldedRenderBoundsRect(bounds: CpModelBounds, toSvg: (point: Point) => Point) {
+  const first = toSvg({ x: bounds.minX, y: bounds.minY });
+  const second = toSvg({ x: bounds.maxX, y: bounds.maxY });
+  return {
+    x: Math.min(first.x, second.x),
+    y: Math.min(first.y, second.y),
+    width: Math.max(Math.abs(second.x - first.x), 1e-6),
+    height: Math.max(Math.abs(second.y - first.y), 1e-6),
   };
 }
 

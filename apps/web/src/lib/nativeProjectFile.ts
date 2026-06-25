@@ -6,6 +6,7 @@ import type {
   OristudioCpFoldedFigureStatus,
 } from '../engine/oristudioCpTypes';
 import type { ImportedCreasePatternSource } from './creasePatternImport';
+import type { Point } from './geometry';
 import type { CreaseColorMode, DocumentMode } from './sampleProject';
 import type { OristudioCpSelection, OristudioCpViewportOptions } from './creasePatternViewport';
 import {
@@ -316,6 +317,7 @@ function validateFoldedFigure(value: unknown, index: number): OristudioCpFoldedF
   const snapshot = isRecord(entry.snapshot)
     ? (entry.snapshot as unknown as OristudioCpFoldedFigureEntry['snapshot'])
     : null;
+  const displayOffset = pointField(entry.displayOffset);
   return {
     id: stringField(entry.id, `document.viewState.foldedFigures[${index}].id`),
     title: stringField(entry.title, `document.viewState.foldedFigures[${index}].title`),
@@ -332,6 +334,7 @@ function validateFoldedFigure(value: unknown, index: number): OristudioCpFoldedF
     renderSnapshot: isRecord(entry.renderSnapshot)
       ? (entry.renderSnapshot as unknown as OristudioCpFoldedFigureEntry['renderSnapshot'])
       : null,
+    ...(displayOffset ? { displayOffset } : {}),
     error: typeof entry.error === 'string' ? entry.error : null,
   };
 }
@@ -607,6 +610,13 @@ function stringField(value: unknown, field: string): string {
 
 function numberField(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function pointField(value: unknown): Point | null {
+  if (!isRecord(value)) return null;
+  const x = numberField(value.x);
+  const y = numberField(value.y);
+  return x === null || y === null ? null : { x, y };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

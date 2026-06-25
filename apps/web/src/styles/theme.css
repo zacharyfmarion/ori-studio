@@ -2339,11 +2339,22 @@
 }
 
 .cp-generated-folded-figure {
-  pointer-events: none;
+  cursor: grab;
+  pointer-events: all;
 }
 
 .cp-generated-folded-figure-primitive {
-  pointer-events: none;
+  pointer-events: all;
+}
+
+.cp-generated-folded-figure-hit-target {
+  fill: transparent;
+  pointer-events: all;
+  stroke: none;
+}
+
+.cp-generated-folded-figure[data-folded-figure-active='true'] {
+  filter: drop-shadow(0 0 5px rgb(37 99 235 / 0.45));
 }
 
 .cp-generated-folded-figure-face {

@@ -1935,6 +1935,13 @@ describe('workspace store slices', () => {
       startingFaceId: 2,
       displayStyle: 'Transparent3',
     });
+    useWorkspaceStore
+      .getState()
+      .moveOristudioCpFoldedFigure(foldedFigure.id, { x: 12, y: -8 });
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]?.displayOffset).toEqual({
+      x: 12,
+      y: -8,
+    });
 
     await expect(
       useWorkspaceStore
@@ -1960,6 +1967,7 @@ describe('workspace store slices', () => {
       handle: 8,
       displayStyle: 'Transparent3',
       startingFaceId: 2,
+      displayOffset: { x: 12, y: -8 },
     });
 
     const duplicateId = useWorkspaceStore.getState().oristudioCpFoldedFigures[1]?.id;

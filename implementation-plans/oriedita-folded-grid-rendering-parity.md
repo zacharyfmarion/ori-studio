@@ -667,7 +667,9 @@ checkpoint and keep the checklist current.
       so empty or non-foldable selections do not create folded figures.
 - [x] Render every generated folded figure in the editable CP grid, not only
       the active figure.
-- [ ] Add Oriedita-style folded-figure active selection and command-drag
+- [x] Render primitive snapshots in CP-grid coordinates instead of fitting
+      them into imported folded-form thumbnail bounds.
+- [x] Add Oriedita-style folded-figure active selection and command-drag
       movement in the grid.
-- [ ] Persist detached folded-figure grid placement through `.osf` save/load.
-- [ ] Validate multi-fold rendering and movement with focused store/UI tests.
+- [x] Persist detached folded-figure grid placement through `.osf` save/load.
+- [x] Validate multi-fold rendering and movement with focused store/UI tests.

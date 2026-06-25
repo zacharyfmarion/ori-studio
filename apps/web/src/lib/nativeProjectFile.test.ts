@@ -75,6 +75,7 @@ function foldedFigure(): OristudioCpFoldedFigureEntry {
     startingFaceId: 3,
     displayStyle: 'Transparent3',
     status: 'ready',
+    displayOffset: { x: 12, y: -8 },
     snapshot: {
       model: {
         front_color: { red: 255, green: 255, blue: 50 },
@@ -217,6 +218,7 @@ describe('native project file', () => {
           id: 'generated-1',
           handle: null,
           displayStyle: 'Transparent3',
+          displayOffset: { x: 12, y: -8 },
           renderSnapshot: expect.objectContaining({ pass: 'transparent-color-back-full' }),
         }),
       ],

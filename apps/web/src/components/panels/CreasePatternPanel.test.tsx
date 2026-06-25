@@ -1093,8 +1093,89 @@ describe('CreasePatternPanel', () => {
 
     expect(container.querySelector('[data-folded-figure-id="generated-1"]')).not.toBeNull();
     expect(container.querySelector('[data-folded-figure-id="generated-2"]')).not.toBeNull();
+    expect(
+      container
+        .querySelector('[data-folded-figure-id="generated-2"]')
+        ?.getAttribute('data-folded-figure-active')
+    ).toBe('true');
     expect(container.querySelectorAll('.cp-generated-folded-figure')).toHaveLength(2);
     expect(container.querySelectorAll('.cp-generated-folded-figure-primitive')).toHaveLength(4);
+  });
+
+  it('activates and command-drags generated folded figures in the editable CP grid', () => {
+    const first = generatedFoldedFigure();
+    const second: OristudioCpFoldedFigureEntry = {
+      ...generatedFoldedFigure(),
+      id: 'generated-2',
+      title: 'Folded model 2',
+      handle: 8,
+    };
+    const setOristudioCpActiveFoldedFigure = vi.fn();
+    const moveOristudioCpFoldedFigure = vi.fn();
+    const editableCp = editableCpState();
+    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
+      documentMode: 'crease-pattern',
+      importedCreasePattern: importedCpDocument(),
+      oristudioCpDocument: editableCp,
+      oristudioCpFoldedFigures: [first, second],
+      oristudioCpActiveFoldedFigureId: first.id,
+      setOristudioCpActiveFoldedFigure,
+      moveOristudioCpFoldedFigure,
+    });
+    const canvas = setCanvasClientRect(container);
+    const bounds = getEditableCpModelBounds(editableCp.document);
+    const start = modelPointToCpSvg({ x: 0, y: 0 }, bounds);
+    const end = modelPointToCpSvg({ x: 10, y: -5 }, bounds);
+    const secondFigure = container.querySelector<SVGGElement>(
+      '[data-folded-figure-id="generated-2"]'
+    );
+    expect(secondFigure).not.toBeNull();
+
+    act(() => {
+      secondFigure?.dispatchEvent(
+        new MouseEvent('pointerdown', {
+          bubbles: true,
+          button: 0,
+          clientX: start.x,
+          clientY: start.y,
+        })
+      );
+    });
+    expect(setOristudioCpActiveFoldedFigure).toHaveBeenCalledWith('generated-2');
+    expect(moveOristudioCpFoldedFigure).not.toHaveBeenCalled();
+
+    act(() => {
+      secondFigure?.dispatchEvent(
+        new MouseEvent('pointerdown', {
+          bubbles: true,
+          button: 0,
+          metaKey: true,
+          clientX: start.x,
+          clientY: start.y,
+        })
+      );
+      canvas.dispatchEvent(
+        new MouseEvent('pointermove', {
+          bubbles: true,
+          button: 0,
+          clientX: end.x,
+          clientY: end.y,
+        })
+      );
+      canvas.dispatchEvent(
+        new MouseEvent('pointerup', {
+          bubbles: true,
+          button: 0,
+          clientX: end.x,
+          clientY: end.y,
+        })
+      );
+    });
+
+    expect(moveOristudioCpFoldedFigure).toHaveBeenCalledWith('generated-2', {
+      x: expect.closeTo(10, 6),
+      y: expect.closeTo(-5, 6),
+    });
   });
 
   it('falls back to generated folded wireframes when render primitives are unavailable', () => {
