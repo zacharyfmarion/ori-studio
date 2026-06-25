@@ -1804,6 +1804,10 @@ describe('workspace store slices', () => {
       filename: 'line.cp',
       path: '/tmp/line.cp',
     });
+    useWorkspaceStore.setState({
+      oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+      oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
+    });
 
     await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
 
@@ -1812,7 +1816,7 @@ describe('workspace store slices', () => {
       1,
       'Order5',
       undefined,
-      []
+      [1]
     );
     expect(oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot).toHaveBeenCalledWith(
       7,
@@ -1858,6 +1862,12 @@ describe('workspace store slices', () => {
       filename: 'selected-lines.cp',
       path: '/tmp/selected-lines.cp',
     });
+    useWorkspaceStore.setState({
+      oristudioCpDocument: editableCpState([
+        cpLine({ x: 0, y: 0 }, { x: 1, y: 0 }, { color: 'Black0' }),
+        cpLine({ x: 0, y: 0 }, { x: 0, y: 1 }, { color: 'Red1' }),
+      ]),
+    });
     useWorkspaceStore.getState().setOristudioCpSelection({
       ...emptyOristudioCpSelection(),
       lines: [2, 1],
@@ -1873,11 +1883,33 @@ describe('workspace store slices', () => {
     );
   });
 
+  it('does not fold editable CP documents without selected foldable lines', async () => {
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpDocument: editableCpState([
+        cpLine({ x: 0, y: 0 }, { x: 1, y: 0 }, { color: 'Red1' }),
+      ]),
+      oristudioCpSelection: emptyOristudioCpSelection(),
+    });
+
+    await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(false);
+
+    expect(oristudioCpMocks.foldOristudioCpDocument).not.toHaveBeenCalled();
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures).toEqual([]);
+    expect(useWorkspaceStore.getState().oristudioCpError).toBe(
+      'Select one or more foldable crease-pattern lines first'
+    );
+  });
+
   it('updates folded figure view state and manages duplicates', async () => {
     resetStores(seedSnapshot());
     await useWorkspaceStore.getState().loadCreasePatternText('1 0 0 1 0', {
       filename: 'line.cp',
       path: '/tmp/line.cp',
+    });
+    useWorkspaceStore.setState({
+      oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+      oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
     });
     await useWorkspaceStore.getState().foldOristudioCpDocument({ startingFaceId: 2 });
     const foldedFigure = useWorkspaceStore.getState().oristudioCpFoldedFigures[0];
@@ -1944,6 +1976,10 @@ describe('workspace store slices', () => {
     await useWorkspaceStore.getState().loadCreasePatternText('1 0 0 1 0', {
       filename: 'line.cp',
       path: '/tmp/line.cp',
+    });
+    useWorkspaceStore.setState({
+      oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+      oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
     });
     await useWorkspaceStore.getState().foldOristudioCpDocument();
 

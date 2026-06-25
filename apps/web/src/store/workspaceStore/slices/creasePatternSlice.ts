@@ -7,6 +7,7 @@ import {
 } from '../../../lib/creasePatternViewport';
 import {
   cpSelectionTransformLabel,
+  selectedFoldableCpLineIds,
   selectedCpLineSegments,
   transformCpLineSegments,
 } from '../../../lib/creasePatternClipboard';
@@ -566,10 +567,25 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         return false;
       }
 
+      const selectedLineIds = selectedFoldableCpLineIds(get().oristudioCpDocument.document, {
+        ...emptyOristudioCpSelection(),
+        lines: options.lineIds ?? get().oristudioCpSelection.lines,
+      });
+      if (selectedLineIds.length === 0) {
+        const message = 'Select one or more foldable crease-pattern lines first';
+        set({
+          oristudioCpError: message,
+          error: {
+            code: 'invalid_operation',
+            message,
+          },
+        });
+        return false;
+      }
+
       const figureId = nextGeneratedFoldedFigureId();
       const sourceCpRevision = get().oristudioCpRevision;
       const figureIndex = get().oristudioCpFoldedFigures.length + 1;
-      const selectedLineIds = options.lineIds ?? get().oristudioCpSelection.lines;
       const loadingEntry: OristudioCpFoldedFigureEntry = {
         id: figureId,
         title: `Folded model ${figureIndex}`,

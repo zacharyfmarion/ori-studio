@@ -154,6 +154,7 @@ import {
   cpLineSelectionMoveAnchorPoints,
   rotationAngleFromCenter,
   scaleCpLineSegments,
+  selectedFoldableCpLineIds,
   selectedCpLineSegments,
   snapRotationDegrees,
   translateCpLineSegments,
@@ -1628,17 +1629,23 @@ export function CreasePatternPanel() {
     activeFoldedFigure?.status === 'ready' &&
     activeFoldedFigure.handle !== null &&
     activeFoldedFigure.snapshot?.find_another_overlap_valid === true;
+  const selectedEditableFoldLineIds = useMemo(
+    () => selectedFoldableCpLineIds(editableCp, oristudioCpSelection),
+    [editableCp, oristudioCpSelection]
+  );
+  const canFoldSelectedModel = selectedEditableFoldLineIds.length > 0;
 
   useEffect(() => {
     setFoldCaseDraft(String(Math.max(activeFoldedFigure?.snapshot?.discovered_fold_cases ?? 1, 1)));
   }, [activeFoldedFigure?.id, activeFoldedFigure?.snapshot?.discovered_fold_cases]);
 
   const handleFoldModel = useCallback(() => {
+    if (!canFoldSelectedModel) return;
     void foldOristudioCpDocument({
       startingFaceId: foldStartingFaceId,
-      lineIds: oristudioCpSelection.lines,
+      lineIds: selectedEditableFoldLineIds,
     });
-  }, [foldOristudioCpDocument, foldStartingFaceId, oristudioCpSelection.lines]);
+  }, [canFoldSelectedModel, foldOristudioCpDocument, foldStartingFaceId, selectedEditableFoldLineIds]);
   const handleFoldAnother = useCallback(() => {
     if (!activeFoldedFigure) return;
     void foldAnotherOristudioCpFigure(activeFoldedFigure.id);
@@ -4154,6 +4161,7 @@ export function CreasePatternPanel() {
                       size="sm"
                       variant="toolbar"
                       title="Fold"
+                      disabled={!canFoldSelectedModel}
                       onClick={handleFoldModel}
                     >
                       <GitBranch size={14} />

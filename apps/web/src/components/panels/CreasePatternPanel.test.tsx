@@ -1090,6 +1090,27 @@ describe('CreasePatternPanel', () => {
     expect(container.querySelectorAll('.cp-generated-folded-figure-edge')).toHaveLength(3);
   });
 
+  it('disables the fold command when no foldable CP line is selected', () => {
+    const foldOristudioCpDocument = vi.fn(async () => true);
+    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
+      documentMode: 'crease-pattern',
+      importedCreasePattern: importedCpDocument(),
+      oristudioCpDocument: editableCpState(),
+      oristudioCpSelection: emptyOristudioCpSelection(),
+      foldOristudioCpDocument,
+    });
+
+    const foldButton = container.querySelector<HTMLButtonElement>(
+      '.viewport-toolbar button[aria-label="Fold"]'
+    );
+    expect(foldButton).not.toBeNull();
+    expect(foldButton?.disabled).toBe(true);
+    act(() => {
+      foldButton?.click();
+    });
+    expect(foldOristudioCpDocument).not.toHaveBeenCalled();
+  });
+
   it('exposes generated folded model toolbar controls', () => {
     const baseFigure = generatedFoldedFigure();
     const figure = {
