@@ -1634,8 +1634,11 @@ export function CreasePatternPanel() {
   }, [activeFoldedFigure?.id, activeFoldedFigure?.snapshot?.discovered_fold_cases]);
 
   const handleFoldModel = useCallback(() => {
-    void foldOristudioCpDocument({ startingFaceId: foldStartingFaceId });
-  }, [foldOristudioCpDocument, foldStartingFaceId]);
+    void foldOristudioCpDocument({
+      startingFaceId: foldStartingFaceId,
+      lineIds: oristudioCpSelection.lines,
+    });
+  }, [foldOristudioCpDocument, foldStartingFaceId, oristudioCpSelection.lines]);
   const handleFoldAnother = useCallback(() => {
     if (!activeFoldedFigure) return;
     void foldAnotherOristudioCpFigure(activeFoldedFigure.id);

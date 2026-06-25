@@ -8,6 +8,7 @@ import init, {
   export_fold,
   folded_figure_duplicate,
   folded_figure_fold,
+  folded_figure_fold_selected,
   folded_figure_fold_another,
   folded_figure_fold_to_case,
   folded_figure_render_snapshot,
@@ -123,16 +124,25 @@ const api = {
     handle: number,
     startingFaceId = 1,
     order: OristudioCpEstimationOrder = 'Order5',
-    model?: OristudioCpFoldedFigureModel
+    model?: OristudioCpFoldedFigureModel,
+    selectedLineIds: number[] = []
   ): Promise<OristudioCpFoldedFigureResult> {
     return call(
       () =>
-        folded_figure_fold(
-          handle,
-          startingFaceId,
-          order,
-          model ?? null
-        ) as OristudioCpFoldedFigureResult
+        selectedLineIds.length > 0
+          ? (folded_figure_fold_selected(
+              handle,
+              selectedLineIds,
+              startingFaceId,
+              order,
+              model ?? null
+            ) as OristudioCpFoldedFigureResult)
+          : (folded_figure_fold(
+              handle,
+              startingFaceId,
+              order,
+              model ?? null
+            ) as OristudioCpFoldedFigureResult)
     );
   },
   async foldedFigureSnapshot(handle: number): Promise<OristudioCpFoldedFigureSnapshot> {

@@ -254,6 +254,37 @@ pub fn folded_figure_fold(
 }
 
 #[wasm_bindgen]
+pub fn folded_figure_fold_selected(
+    document_handle: u32,
+    selected_line_ids: JsValue,
+    starting_face_id: i32,
+    order: JsValue,
+    model: JsValue,
+) -> Result<JsValue, JsValue> {
+    let selected_line_ids: Vec<usize> =
+        serde_wasm_bindgen::from_value(selected_line_ids).map_err(to_js_value_error)?;
+    let order: EstimationOrder =
+        serde_wasm_bindgen::from_value(order).map_err(to_js_value_error)?;
+    let model = folded_figure_model_from_js(model)?;
+    with_document(document_handle, |document| {
+        let selected_segments =
+            selected_folding_segments(&document.crease_pattern.line_segments, &selected_line_ids);
+        let segments = if selected_segments.is_empty() {
+            document.crease_pattern.line_segments.as_slice()
+        } else {
+            selected_segments.as_slice()
+        };
+        let mut session = FoldingEstimateSession::new(segments, starting_face_id);
+        session
+            .folding_estimated(order)
+            .map_err(to_js_folding_error)?;
+        let snapshot = folded_figure_snapshot_from_session(&session, model.clone());
+        let handle = store_folded_figure(WasmFoldedFigure { session, model })?;
+        to_js_value(&JsFoldedFigureResult { handle, snapshot })
+    })
+}
+
+#[wasm_bindgen]
 pub fn folded_figure_snapshot(handle: u32) -> Result<JsValue, JsValue> {
     with_folded_figure(handle, |folded| {
         to_js_value(&folded_figure_snapshot_from_session(
@@ -367,6 +398,24 @@ pub fn free_document(handle: u32) -> Result<(), JsValue> {
         *slot = None;
         Ok(())
     })
+}
+
+fn selected_folding_segments(
+    segments: &[oristudio_cp::geometry::LineSegment],
+    selected_line_ids: &[usize],
+) -> Vec<oristudio_cp::geometry::LineSegment> {
+    if selected_line_ids.is_empty() {
+        return Vec::new();
+    }
+
+    segments
+        .iter()
+        .enumerate()
+        .filter(|(index, segment)| {
+            segment.color.is_folding_line() && selected_line_ids.contains(&(index + 1))
+        })
+        .map(|(_, segment)| segment.clone())
+        .collect()
 }
 
 fn folded_figure_model_from_js(model: JsValue) -> Result<FoldedFigureModel, JsValue> {

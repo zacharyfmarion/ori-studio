@@ -11,6 +11,7 @@ import {
   CP_EDITABLE_CANVAS_RECT,
   CP_PAPER_RECT,
   CP_WORLD_RECT,
+  emptyOristudioCpSelection,
   getEditableCpModelBounds,
   modelPointToCpSvg,
 } from '../../lib/creasePatternViewport';
@@ -1109,6 +1110,7 @@ describe('CreasePatternPanel', () => {
       documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
+      oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [2] },
       oristudioCpFoldedFigures: [figure],
       oristudioCpActiveFoldedFigureId: figure.id,
       foldOristudioCpDocument,
@@ -1136,7 +1138,10 @@ describe('CreasePatternPanel', () => {
       anotherButton?.click();
     });
 
-    expect(foldOristudioCpDocument).toHaveBeenCalledOnce();
+    expect(foldOristudioCpDocument).toHaveBeenCalledWith({
+      startingFaceId: 1,
+      lineIds: [2],
+    });
     expect(foldAnotherOristudioCpFigure).toHaveBeenCalledWith('generated-1');
 
     act(() => {

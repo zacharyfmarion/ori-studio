@@ -569,6 +569,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       const figureId = nextGeneratedFoldedFigureId();
       const sourceCpRevision = get().oristudioCpRevision;
       const figureIndex = get().oristudioCpFoldedFigures.length + 1;
+      const selectedLineIds = options.lineIds ?? get().oristudioCpSelection.lines;
       const loadingEntry: OristudioCpFoldedFigureEntry = {
         id: figureId,
         title: `Folded model ${figureIndex}`,
@@ -593,7 +594,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         const result = await foldRuntimeOristudioCpDocument(
           options.startingFaceId ?? 1,
           options.order ?? 'Order5',
-          options.model
+          options.model,
+          selectedLineIds
         );
         const displayStyle = result.snapshot.display_style;
         const renderSnapshot = await renderSnapshotForFoldedFigure(

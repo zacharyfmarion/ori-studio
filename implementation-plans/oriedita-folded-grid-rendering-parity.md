@@ -626,6 +626,8 @@ checkpoint and keep the checklist current.
 - [x] Render one active folded figure in the CP grid area.
 - [x] Add display style, front/back state, starting face, and next-solution UI.
 - [x] Add multi-figure duplicate/delete support.
+- [x] Route Fold through Oriedita's selected-line fold set semantics instead
+      of always folding the full editable CP.
 - [x] Preserve imported folded-form frames and render them as detached imported
       folded figures.
 - [x] Add Oriedita oracle commands for folded snapshot parity.

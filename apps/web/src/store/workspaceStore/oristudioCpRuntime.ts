@@ -228,13 +228,14 @@ export async function replaceOristudioCpLineSegments(
 export async function foldOristudioCpDocument(
   startingFaceId = 1,
   order: OristudioCpEstimationOrder = 'Order5',
-  model?: OristudioCpFoldedFigureModel
+  model?: OristudioCpFoldedFigureModel,
+  selectedLineIds: number[] = []
 ): Promise<OristudioCpFoldedFigureResult> {
   if (handle === null) {
     throw new Error('No editable crease-pattern document is loaded');
   }
   const api = await getOristudioCpClient();
-  return api.foldFigure(handle, startingFaceId, order, model);
+  return api.foldFigure(handle, startingFaceId, order, model, selectedLineIds);
 }
 
 export async function getOristudioCpFoldedFigureSnapshot(

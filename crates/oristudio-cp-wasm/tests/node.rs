@@ -158,6 +158,45 @@ fn folded_figure_session_exports_fold_and_followup_commands() {
 }
 
 #[wasm_bindgen_test]
+fn folded_figure_selected_fold_uses_selected_folding_line_subset() {
+    let handle = oristudio_cp_wasm::load_document(
+        serde_wasm_bindgen::to_value(&foldable_square_document()).expect("document serializes"),
+    )
+    .expect("document load should succeed");
+
+    let result = oristudio_cp_wasm::folded_figure_fold_selected(
+        handle,
+        serde_wasm_bindgen::to_value(&vec![1usize, 2, 3, 4]).expect("selected line IDs serialize"),
+        1,
+        serde_wasm_bindgen::to_value("Order5").expect("order serializes"),
+        JsValue::UNDEFINED,
+    )
+    .expect("selected folded figure should fold");
+    let result: serde_json::Value =
+        serde_wasm_bindgen::from_value(result).expect("fold result deserializes");
+    let folded_handle = result["handle"].as_u64().expect("folded figure handle") as u32;
+
+    assert_eq!(
+        result["snapshot"]["wireframe"]["lines"]
+            .as_array()
+            .expect("wireframe lines")
+            .len(),
+        4
+    );
+    assert_eq!(
+        result["snapshot"]["wireframe"]["faces"]
+            .as_array()
+            .expect("wireframe faces")
+            .len(),
+        1
+    );
+
+    oristudio_cp_wasm::free_folded_figure(folded_handle)
+        .expect("selected folded figure handle should free");
+    oristudio_cp_wasm::free_document(handle).expect("document handle should free");
+}
+
+#[wasm_bindgen_test]
 fn command_dispatch_accepts_resolved_line_payloads() {
     let handle = oristudio_cp_wasm::load_cp("2 0 0 1 0\n3 0 0 0 1\n", "sample")
         .expect("cp import should succeed");

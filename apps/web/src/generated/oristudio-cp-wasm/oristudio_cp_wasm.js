@@ -135,6 +135,22 @@ export function folded_figure_fold_another(handle) {
 }
 
 /**
+ * @param {number} document_handle
+ * @param {any} selected_line_ids
+ * @param {number} starting_face_id
+ * @param {any} order
+ * @param {any} model
+ * @returns {any}
+ */
+export function folded_figure_fold_selected(document_handle, selected_line_ids, starting_face_id, order, model) {
+    const ret = wasm.folded_figure_fold_selected(document_handle, selected_line_ids, starting_face_id, order, model);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
  * @param {number} handle
  * @param {number} objective
  * @param {any} initial_order

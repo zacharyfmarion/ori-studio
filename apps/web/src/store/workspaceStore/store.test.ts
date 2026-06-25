@@ -1808,7 +1808,12 @@ describe('workspace store slices', () => {
     await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
 
     const foldedFigure = useWorkspaceStore.getState().oristudioCpFoldedFigures[0];
-    expect(oristudioCpMocks.foldOristudioCpDocument).toHaveBeenCalledWith(1, 'Order5', undefined);
+    expect(oristudioCpMocks.foldOristudioCpDocument).toHaveBeenCalledWith(
+      1,
+      'Order5',
+      undefined,
+      []
+    );
     expect(oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot).toHaveBeenCalledWith(
       7,
       'Paper5',
@@ -1845,6 +1850,27 @@ describe('workspace store slices', () => {
     await expect(useWorkspaceStore.getState().foldAnotherOristudioCpFigure()).resolves.toBe(false);
     expect(oristudioCpMocks.foldOristudioCpFigureAnother).not.toHaveBeenCalled();
     expect(useWorkspaceStore.getState().oristudioCpError).toContain('Refold');
+  });
+
+  it('passes active editable CP line selection into folded figure folding', async () => {
+    resetStores(seedSnapshot());
+    await useWorkspaceStore.getState().loadCreasePatternText('1 0 0 1 0\n2 0 0 0 1', {
+      filename: 'selected-lines.cp',
+      path: '/tmp/selected-lines.cp',
+    });
+    useWorkspaceStore.getState().setOristudioCpSelection({
+      ...emptyOristudioCpSelection(),
+      lines: [2, 1],
+    });
+
+    await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
+
+    expect(oristudioCpMocks.foldOristudioCpDocument).toHaveBeenCalledWith(
+      1,
+      'Order5',
+      undefined,
+      [2, 1]
+    );
   });
 
   it('updates folded figure view state and manages duplicates', async () => {

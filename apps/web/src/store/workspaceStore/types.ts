@@ -317,6 +317,7 @@ export interface CreasePatternSliceActions {
     startingFaceId?: number;
     order?: OristudioCpEstimationOrder;
     model?: OristudioCpFoldedFigureModel;
+    lineIds?: number[];
   }) => Promise<boolean>;
   foldAnotherOristudioCpFigure: (id?: string) => Promise<boolean>;
   foldOristudioCpFigureToCase: (id: string, objective: number) => Promise<boolean>;
