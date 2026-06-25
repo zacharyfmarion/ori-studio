@@ -117,13 +117,42 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
   async function renderSnapshotForFoldedFigure(
     handle: number,
     displayStyle: OristudioCpFoldedFigureDisplayStyle,
-    index: number
+    index: number,
+    selected: boolean
   ) {
     return getRuntimeOristudioCpFoldedFigureRenderSnapshot(handle, displayStyle, {
       display_mark: true,
-      selected: true,
+      selected,
       index,
     });
+  }
+
+  async function refreshFoldedFigureSelectionMarker(id: string | null | undefined) {
+    if (!id) return;
+    const figure = get().oristudioCpFoldedFigures.find((candidate) => candidate.id === id);
+    if (!figure?.handle) return;
+    const selected = get().oristudioCpActiveFoldedFigureId === id;
+    try {
+      const renderSnapshot = await renderSnapshotForFoldedFigure(
+        figure.handle,
+        figure.displayStyle,
+        foldedFigureIndex(id),
+        selected
+      );
+      if ((get().oristudioCpActiveFoldedFigureId === id) !== selected) return;
+      set({
+        oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
+          candidate.id === id ? { ...candidate, renderSnapshot } : candidate
+        ),
+      });
+    } catch {
+      // Selection marker refreshes are view-state updates; folding operations surface render errors.
+    }
+  }
+
+  function refreshFoldedFigureSelectionMarkers(...ids: Array<string | null | undefined>) {
+    const uniqueIds = [...new Set(ids.filter((id): id is string => Boolean(id)))];
+    void Promise.all(uniqueIds.map((id) => refreshFoldedFigureSelectionMarker(id)));
   }
 
   function foldedFigureIndex(id: string): number {
@@ -552,8 +581,11 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     setOristudioCpActiveDiagnostic: (oristudioCpActiveDiagnosticId) =>
       set({ oristudioCpActiveDiagnosticId }),
 
-    setOristudioCpActiveFoldedFigure: (oristudioCpActiveFoldedFigureId) =>
-      set({ oristudioCpActiveFoldedFigureId }),
+    setOristudioCpActiveFoldedFigure: (oristudioCpActiveFoldedFigureId) => {
+      const previousActiveId = get().oristudioCpActiveFoldedFigureId;
+      set({ oristudioCpActiveFoldedFigureId });
+      refreshFoldedFigureSelectionMarkers(previousActiveId, oristudioCpActiveFoldedFigureId);
+    },
 
     moveOristudioCpFoldedFigure: (id, delta) => {
       if (Math.abs(delta.x) < 1e-9 && Math.abs(delta.y) < 1e-9) return;
@@ -601,6 +633,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         return false;
       }
 
+      const previousActiveId = get().oristudioCpActiveFoldedFigureId;
       const figureId = nextGeneratedFoldedFigureId();
       const sourceCpRevision = get().oristudioCpRevision;
       const figureIndex = get().oristudioCpFoldedFigures.length + 1;
@@ -636,7 +669,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         const renderSnapshot = await renderSnapshotForFoldedFigure(
           result.handle,
           displayStyle,
-          figureIndex
+          figureIndex,
+          true
         );
         set({
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((figure) =>
@@ -656,6 +690,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           oristudioCpError: null,
           projectMessage: 'Folded model',
         });
+        refreshFoldedFigureSelectionMarkers(previousActiveId);
         return true;
       } catch (error) {
         const normalized = engineError(error);
@@ -707,7 +742,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         const renderSnapshot = await renderSnapshotForFoldedFigure(
           figure.handle,
           figure.displayStyle,
-          foldedFigureIndex(figure.id)
+          foldedFigureIndex(figure.id),
+          true
         );
         set({
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
@@ -763,7 +799,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         const renderSnapshot = await renderSnapshotForFoldedFigure(
           figure.handle,
           figure.displayStyle,
-          foldedFigureIndex(figure.id)
+          foldedFigureIndex(figure.id),
+          true
         );
         set({
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
@@ -812,7 +849,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         const renderSnapshot = await renderSnapshotForFoldedFigure(
           figure.handle,
           displayStyle,
-          foldedFigureIndex(figure.id)
+          foldedFigureIndex(figure.id),
+          true
         );
         set({
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
@@ -857,7 +895,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         const renderSnapshot = await renderSnapshotForFoldedFigure(
           figure.handle,
           figure.displayStyle,
-          foldedFigureIndex(figure.id)
+          foldedFigureIndex(figure.id),
+          true
         );
         set({
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
@@ -898,6 +937,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         return false;
       }
 
+      const previousActiveId = get().oristudioCpActiveFoldedFigureId;
       const figureId = nextGeneratedFoldedFigureId();
       const figureIndex = get().oristudioCpFoldedFigures.length + 1;
       const loadingEntry: OristudioCpFoldedFigureEntry = {
@@ -926,7 +966,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         const renderSnapshot = await renderSnapshotForFoldedFigure(
           result.handle,
           source.displayStyle,
-          figureIndex
+          figureIndex,
+          true
         );
         set({
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((figure) =>
@@ -945,6 +986,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           oristudioCpError: null,
           projectMessage: 'Duplicated folded model',
         });
+        refreshFoldedFigureSelectionMarkers(previousActiveId);
         return true;
       } catch (error) {
         const normalized = engineError(error);
@@ -978,6 +1020,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         oristudioCpFoldedFigures: remaining,
         oristudioCpActiveFoldedFigureId: activeId,
       });
+      refreshFoldedFigureSelectionMarkers(activeId);
     },
 
     clearOristudioCpFoldedFigures: async () => {

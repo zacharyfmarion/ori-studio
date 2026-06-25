@@ -671,5 +671,7 @@ checkpoint and keep the checklist current.
       them into imported folded-form thumbnail bounds.
 - [x] Add Oriedita-style folded-figure active selection and command-drag
       movement in the grid.
+- [x] Re-render folded render snapshots on active figure changes so only the
+      active figure carries Oriedita's selected marker.
 - [x] Persist detached folded-figure grid placement through `.osf` save/load.
 - [x] Validate multi-fold rendering and movement with focused store/UI tests.

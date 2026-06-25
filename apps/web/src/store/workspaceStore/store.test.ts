@@ -18,6 +18,7 @@ import type {
   OristudioCpCommandResult,
   OristudioCpDocumentSnapshot,
   OristudioCpDocumentState,
+  OristudioCpFoldedFigureEntry,
   OristudioCpFoldedFigureSnapshot,
   OristudioCpFoldedRenderSnapshot,
   OristudioCpLineSegment,
@@ -1977,6 +1978,57 @@ describe('workspace store slices', () => {
     expect(oristudioCpMocks.freeOristudioCpFoldedFigure).toHaveBeenCalledWith(8);
     expect(useWorkspaceStore.getState().oristudioCpFoldedFigures).toHaveLength(1);
     expect(useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId).toBe(foldedFigure.id);
+  });
+
+  it('rerenders folded figure selected markers when the active figure changes', async () => {
+    resetStores(seedSnapshot());
+    const first: OristudioCpFoldedFigureEntry = {
+      id: 'generated-1',
+      title: 'Folded model 1',
+      handle: 7,
+      sourceKind: 'generated-from-current-cp',
+      sourceCpRevision: 0,
+      startingFaceId: 1,
+      displayStyle: 'Paper5',
+      status: 'ready',
+      snapshot: foldedFigureSnapshot(),
+      renderSnapshot: foldedRenderSnapshot(),
+      error: null,
+    };
+    const second: OristudioCpFoldedFigureEntry = {
+      ...first,
+      id: 'generated-2',
+      title: 'Folded model 2',
+      handle: 8,
+    };
+    useWorkspaceStore.setState({
+      oristudioCpFoldedFigures: [first, second],
+      oristudioCpActiveFoldedFigureId: first.id,
+    });
+    oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot.mockClear();
+
+    useWorkspaceStore.getState().setOristudioCpActiveFoldedFigure(second.id);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot).toHaveBeenCalledWith(
+      7,
+      'Paper5',
+      {
+        display_mark: true,
+        selected: false,
+        index: 1,
+      }
+    );
+    expect(oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot).toHaveBeenCalledWith(
+      8,
+      'Paper5',
+      {
+        display_mark: true,
+        selected: true,
+        index: 2,
+      }
+    );
   });
 
   it('releases folded figure handles when clearing the editable CP document', async () => {
