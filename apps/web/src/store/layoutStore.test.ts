@@ -55,7 +55,7 @@ describe('layout store', () => {
 
     applyDefaultLayout(api);
 
-    expect(api.addPanel).toHaveBeenCalledTimes(9);
+    expect(api.addPanel).toHaveBeenCalledTimes(8);
     expect(api.addPanel.mock.calls.map(([options]) => options.id)).toEqual([
       'design',
       'crease-pattern',
@@ -63,7 +63,6 @@ describe('layout store', () => {
       'inspector',
       'diagnostics',
       'folded-base',
-      'sequence',
       'conditions',
       'files',
     ]);
@@ -88,11 +87,6 @@ describe('layout store', () => {
       position: { referencePanel: 'inspector', direction: 'below' },
     });
     expect(api.addPanel.mock.calls[6][0]).toMatchObject({
-      id: 'sequence',
-      inactive: true,
-      position: { referenceGroup: 'inspector-group' },
-    });
-    expect(api.addPanel.mock.calls[7][0]).toMatchObject({
       id: 'conditions',
       inactive: true,
       position: { referenceGroup: 'inspector-group' },
@@ -127,7 +121,7 @@ describe('layout store', () => {
     expect(useLayoutStore.getState().loadLayout()).toBeNull();
     expect(localStorage.getItem('treemaker-web-layout')).toBeNull();
 
-    localStorage.setItem('treemaker-web-layout-version', '7');
+    localStorage.setItem('treemaker-web-layout-version', '8');
     localStorage.setItem('treemaker-web-layout', '{broken');
 
     expect(useLayoutStore.getState().loadLayout()).toBeNull();
@@ -137,13 +131,13 @@ describe('layout store', () => {
   it('resets to the default layout and persists the replacement', () => {
     const api = createDockviewApi(dockviewLayout('reset'));
     useLayoutStore.getState().setDockviewApi(api);
-    localStorage.setItem('treemaker-web-layout-version', '7');
+    localStorage.setItem('treemaker-web-layout-version', '8');
     localStorage.setItem('treemaker-web-layout', '{"old":true}');
 
     useLayoutStore.getState().resetLayout();
 
     expect(api.clear).toHaveBeenCalledOnce();
-    expect(api.addPanel).toHaveBeenCalledTimes(9);
+    expect(api.addPanel).toHaveBeenCalledTimes(8);
     expect(localStorage.getItem('treemaker-web-layout')).toContain('reset');
   });
 });

@@ -2953,8 +2953,6 @@ describe('workspace store slices', () => {
   it('plans a folding sequence from loaded fold artifacts', async () => {
     const api = resetStores(seedSnapshot());
     loadSnapshotIntoStore(seedSnapshot());
-    const activatePanel = vi.fn();
-    useLayoutStore.setState({ activatePanel });
     await useWorkspaceStore.getState().buildCreasePattern();
     useWorkspaceStore
       .getState()
@@ -2969,7 +2967,6 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().sequencePlan?.status).toBe('complete');
     expect(useWorkspaceStore.getState().sequenceSimulationFocus).toEqual({ kind: 'whole' });
     expect(useWorkspaceStore.getState().sequenceError).toBeNull();
-    expect(activatePanel).toHaveBeenCalledWith('sequence');
   });
 
   it('does not mark CP ready when build returns no drawable crease pattern', async () => {
