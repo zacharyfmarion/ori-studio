@@ -1075,6 +1075,28 @@ describe('CreasePatternPanel', () => {
     expect(container.querySelectorAll('.cp-generated-folded-figure-face')).toHaveLength(0);
   });
 
+  it('renders all generated folded figures in the editable CP grid', () => {
+    const first = generatedFoldedFigure();
+    const second: OristudioCpFoldedFigureEntry = {
+      ...generatedFoldedFigure(),
+      id: 'generated-2',
+      title: 'Folded model 2',
+      handle: 8,
+    };
+    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
+      documentMode: 'crease-pattern',
+      importedCreasePattern: importedCpDocument(),
+      oristudioCpDocument: editableCpState(),
+      oristudioCpFoldedFigures: [first, second],
+      oristudioCpActiveFoldedFigureId: second.id,
+    });
+
+    expect(container.querySelector('[data-folded-figure-id="generated-1"]')).not.toBeNull();
+    expect(container.querySelector('[data-folded-figure-id="generated-2"]')).not.toBeNull();
+    expect(container.querySelectorAll('.cp-generated-folded-figure')).toHaveLength(2);
+    expect(container.querySelectorAll('.cp-generated-folded-figure-primitive')).toHaveLength(4);
+  });
+
   it('falls back to generated folded wireframes when render primitives are unavailable', () => {
     const figure = { ...generatedFoldedFigure(), renderSnapshot: null };
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {

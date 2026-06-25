@@ -1616,6 +1616,13 @@ export function CreasePatternPanel() {
       null,
     [oristudioCpActiveFoldedFigureId, oristudioCpFoldedFigures]
   );
+  const generatedFoldedFigures = useMemo(
+    () =>
+      oristudioCpFoldedFigures.filter(
+        (figure) => figure.sourceKind === 'generated-from-current-cp'
+      ),
+    [oristudioCpFoldedFigures]
+  );
   const foldedFigureStatusLabel = activeFoldedFigure
     ? activeFoldedFigure.status === 'ready' || activeFoldedFigure.status === 'stale'
       ? `Case ${activeFoldedFigure.snapshot?.discovered_fold_cases ?? 0}`
@@ -4028,7 +4035,7 @@ export function CreasePatternPanel() {
                         bounds={editableCpBounds}
                         clearSelectionOnBackgroundPointerDown={clearSelectionOnBackgroundPointerDown}
                         document={editableCp}
-                        generatedFoldedFigure={activeFoldedFigure}
+                        generatedFoldedFigures={generatedFoldedFigures}
                         gridLines={editableCpGridLines}
                         gridVisible={oristudioCpViewport.gridVisible}
                         importedFoldedForms={importedFoldedForms}
@@ -4276,7 +4283,7 @@ interface EditableCreasePatternProps {
   bounds: CpModelBounds;
   clearSelectionOnBackgroundPointerDown: (event: PointerEvent<SVGElement>) => void;
   document: OristudioCpDocumentSnapshot;
-  generatedFoldedFigure: OristudioCpFoldedFigureEntry | null;
+  generatedFoldedFigures: OristudioCpFoldedFigureEntry[];
   gridLines: ReturnType<typeof getCpGridLines>;
   gridVisible: boolean;
   importedFoldedForms: FoldDocument[];
@@ -4318,7 +4325,7 @@ function EditableCreasePattern({
   bounds,
   clearSelectionOnBackgroundPointerDown,
   document,
-  generatedFoldedFigure,
+  generatedFoldedFigures,
   gridLines,
   gridVisible,
   importedFoldedForms,
@@ -4559,10 +4566,10 @@ function EditableCreasePattern({
           </text>
         );
       })}
-      <GeneratedFoldedFigureLayer figure={generatedFoldedFigure} />
+      <GeneratedFoldedFiguresLayer figures={generatedFoldedFigures} />
       <ImportedFoldedFormsLayer
         frames={importedFoldedForms}
-        startIndex={generatedFoldedFigure?.snapshot?.wireframe ? 1 : 0}
+        startIndex={generatedFoldedFigures.filter(isRenderableGeneratedFoldedFigure).length}
       />
       {vertices.map((vertex) => {
         const svgPoint = modelPointToCpSvg(vertex.point, bounds);
@@ -4719,8 +4726,23 @@ const IMPORTED_FOLDED_FORM_VIEW = {
   height: 136,
 };
 
-function GeneratedFoldedFigureLayer({ figure }: { figure: OristudioCpFoldedFigureEntry | null }) {
-  if (!figure) return null;
+function GeneratedFoldedFiguresLayer({ figures }: { figures: OristudioCpFoldedFigureEntry[] }) {
+  const renderableFigures = figures.filter(isRenderableGeneratedFoldedFigure);
+  if (renderableFigures.length === 0) return null;
+  return (
+    <g className="cp-generated-folded-figures-layer" aria-hidden="true">
+      {renderableFigures.map((figure) => (
+        <GeneratedFoldedFigure key={figure.id} figure={figure} />
+      ))}
+    </g>
+  );
+}
+
+function isRenderableGeneratedFoldedFigure(figure: OristudioCpFoldedFigureEntry): boolean {
+  return Boolean(figure.renderSnapshot?.primitives.length || figure.snapshot?.wireframe);
+}
+
+function GeneratedFoldedFigure({ figure }: { figure: OristudioCpFoldedFigureEntry }) {
   if (figure.renderSnapshot?.primitives.length) {
     return (
       <GeneratedFoldedFigurePrimitiveLayer figure={figure} snapshot={figure.renderSnapshot} />

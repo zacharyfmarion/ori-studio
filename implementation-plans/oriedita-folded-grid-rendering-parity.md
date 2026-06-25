@@ -665,7 +665,7 @@ checkpoint and keep the checklist current.
 - [x] Run Rust, WASM, oracle, and web validation appropriate to each stage.
 - [x] Derive Fold enablement and payload from the selected foldable-line set
       so empty or non-foldable selections do not create folded figures.
-- [ ] Render every generated folded figure in the editable CP grid, not only
+- [x] Render every generated folded figure in the editable CP grid, not only
       the active figure.
 - [ ] Add Oriedita-style folded-figure active selection and command-drag
       movement in the grid.
