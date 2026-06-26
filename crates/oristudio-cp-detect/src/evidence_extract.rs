@@ -15,6 +15,7 @@ const VERTEX_TYPE_BACKGROUND_SUPPRESSION_FLOOR: f32 = 0.05;
 #[derive(Debug, Clone, Copy)]
 pub struct DenseOutputRefs<'a> {
     pub line_logits: &'a [f32],
+    pub line_probability_override: Option<&'a [f32]>,
     pub angle: Option<&'a [f32]>,
     pub junction_logits: &'a [f32],
     pub junction_offset: Option<&'a [f32]>,
@@ -39,6 +40,7 @@ impl<'a> DenseOutputRefs<'a> {
     ) -> Self {
         Self {
             line_logits,
+            line_probability_override: None,
             angle: None,
             junction_logits,
             junction_offset: None,
@@ -55,6 +57,14 @@ impl<'a> DenseOutputRefs<'a> {
 
     pub const fn with_angle(mut self, angle: Option<&'a [f32]>) -> Self {
         self.angle = angle;
+        self
+    }
+
+    pub const fn with_line_probability_override(
+        mut self,
+        line_probability_override: Option<&'a [f32]>,
+    ) -> Self {
+        self.line_probability_override = line_probability_override;
         self
     }
 
@@ -108,6 +118,15 @@ pub struct EvidenceExtractionConfig {
     /// extraction to offset-vote clustering, which can split a fused heatmap
     /// blob covering two close vertices into two primitives.
     pub junction_offset_cluster_radius_px: f32,
+    pub junction_evidence_source: JunctionEvidenceSource,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum JunctionEvidenceSource {
+    #[default]
+    Model,
+    LineArrangement,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -228,6 +247,11 @@ pub fn extract_compiler_evidence(
     }
     let pixels = size * size;
     require_len("line_logits", outputs.line_logits, pixels)?;
+    require_optional_len(
+        "line_probability_override",
+        outputs.line_probability_override,
+        pixels,
+    )?;
     require_len("junction_logits", outputs.junction_logits, pixels)?;
     require_len("non_crease_logits", outputs.non_crease_logits, pixels)?;
     require_len(
@@ -248,10 +272,15 @@ pub fn extract_compiler_evidence(
     require_optional_len("boundary_coord", outputs.boundary_coord, pixels)?;
 
     let non_crease_probability = sigmoid_map(outputs.non_crease_logits);
-    let line_probability = effective_line_probability(
-        outputs.line_logits,
-        &non_crease_probability,
-        config.line_threshold,
+    let line_probability = outputs.line_probability_override.map_or_else(
+        || {
+            effective_line_probability(
+                outputs.line_logits,
+                &non_crease_probability,
+                config.line_threshold,
+            )
+        },
+        |values| values.iter().map(|value| value.clamp(0.0, 1.0)).collect(),
     );
     let junction_probability = sigmoid_map(outputs.junction_logits);
     let junction_peak_probability =
@@ -295,42 +324,17 @@ pub fn extract_compiler_evidence(
     });
     line_primitives.truncate(config.max_line_primitives);
 
-    let cluster_offset = (config.junction_offset_cluster_radius_px > 0.0)
-        .then_some(outputs.junction_offset)
-        .flatten();
-    let junction_primitives = if let Some(junction_offset) = cluster_offset {
-        offset_cluster_primitives(
+    let junction_primitives = match config.junction_evidence_source {
+        JunctionEvidenceSource::Model => model_junction_primitives(
             &junction_peak_probability,
-            junction_offset,
+            outputs.junction_offset,
             size,
-            config.line_threshold.max(0.50),
-            config.junction_offset_cluster_radius_px,
-            config.max_junction_primitives,
-        )
-    } else {
-        local_maxima_primitives(
-            &junction_peak_probability,
-            size,
-            config.line_threshold.max(0.50),
-            config.primitive_nms_radius_px,
-            config.max_junction_primitives,
-        )
-        .into_iter()
-        .map(|(point, support)| {
-            (
-                offset_refined_point(point, outputs.junction_offset, size),
-                support,
-            )
-        })
-        .collect()
-    }
-    .into_iter()
-    .map(|(point, support)| JunctionPrimitive {
-        point,
-        support,
-        source: primitive_source(support, config.strong_line_support),
-    })
-    .collect::<Vec<_>>();
+            config,
+        ),
+        JunctionEvidenceSource::LineArrangement => {
+            line_arrangement_junction_primitives(&line_primitives, &line_probability, size, config)
+        }
+    };
     let boundary_contact_primitives = local_maxima_primitives(
         &boundary_contact_probability,
         size,
@@ -688,6 +692,235 @@ fn local_maxima_primitives(
     candidates
 }
 
+fn model_junction_primitives(
+    junction_peak_probability: &[f32],
+    junction_offset: Option<&[f32]>,
+    size: usize,
+    config: EvidenceExtractionConfig,
+) -> Vec<JunctionPrimitive> {
+    let cluster_offset = (config.junction_offset_cluster_radius_px > 0.0)
+        .then_some(junction_offset)
+        .flatten();
+    let points = if let Some(junction_offset) = cluster_offset {
+        offset_cluster_primitives(
+            junction_peak_probability,
+            junction_offset,
+            size,
+            config.line_threshold.max(0.50),
+            config.junction_offset_cluster_radius_px,
+            config.max_junction_primitives,
+        )
+    } else {
+        local_maxima_primitives(
+            junction_peak_probability,
+            size,
+            config.line_threshold.max(0.50),
+            config.primitive_nms_radius_px,
+            config.max_junction_primitives,
+        )
+        .into_iter()
+        .map(|(point, support)| (offset_refined_point(point, junction_offset, size), support))
+        .collect()
+    };
+    points
+        .into_iter()
+        .map(|(point, support)| JunctionPrimitive {
+            point,
+            support,
+            source: primitive_source(support, config.strong_line_support),
+        })
+        .collect()
+}
+
+const LINE_ARRANGEMENT_LOCAL_SUPPORT_RADIUS_PX: isize = 1;
+const LINE_ARRANGEMENT_MIN_SKELETON_SUPPORT: f32 = 0.50;
+const LINE_ARRANGEMENT_MAX_THINNING_PASSES: usize = 64;
+
+fn line_arrangement_junction_primitives(
+    _line_primitives: &[LinePrimitive],
+    line_probability: &[f32],
+    size: usize,
+    config: EvidenceExtractionConfig,
+) -> Vec<JunctionPrimitive> {
+    let mut candidates = Vec::<([f32; 2], f32)>::new();
+    let min_support = config
+        .line_threshold
+        .max(LINE_ARRANGEMENT_MIN_SKELETON_SUPPORT);
+    let skeleton = skeletonized_line_mask(line_probability, size, min_support);
+    for y in 1..size.saturating_sub(1) {
+        for x in 1..size.saturating_sub(1) {
+            let idx = y * size + x;
+            if skeleton[idx] == 0 {
+                continue;
+            }
+            let point = [x as f32, y as f32];
+            let neighbor_runs = skeleton_neighbor_run_count(&skeleton, x, y, size);
+            if neighbor_runs < 3 {
+                continue;
+            }
+            let support = local_max_scalar(
+                point,
+                line_probability,
+                size,
+                LINE_ARRANGEMENT_LOCAL_SUPPORT_RADIUS_PX,
+            );
+            if support < min_support {
+                continue;
+            }
+            let cluster_bonus = (neighbor_runs as f32 / 4.0).clamp(0.75, 1.0);
+            candidates.push((point, support * cluster_bonus));
+        }
+    }
+    cluster_point_candidates(
+        candidates,
+        config.primitive_nms_radius_px,
+        config.max_junction_primitives,
+    )
+    .into_iter()
+    .map(|(point, support)| JunctionPrimitive {
+        point,
+        support,
+        source: primitive_source(support, config.strong_line_support),
+    })
+    .collect()
+}
+
+fn skeletonized_line_mask(line_probability: &[f32], size: usize, threshold: f32) -> Vec<u8> {
+    let mut mask = line_probability
+        .iter()
+        .map(|value| u8::from(*value >= threshold))
+        .collect::<Vec<_>>();
+    if size < 3 {
+        return mask;
+    }
+    let mut to_remove = Vec::<usize>::new();
+    for _ in 0..LINE_ARRANGEMENT_MAX_THINNING_PASSES {
+        let mut changed = false;
+        for sub_iteration in 0..2 {
+            to_remove.clear();
+            for y in 1..(size - 1) {
+                for x in 1..(size - 1) {
+                    let idx = y * size + x;
+                    if mask[idx] == 0 {
+                        continue;
+                    }
+                    let neighbors = zhang_suen_neighbors(&mask, x, y, size);
+                    let neighbor_count: usize = neighbors.iter().map(|value| *value as usize).sum();
+                    if !(2..=6).contains(&neighbor_count) {
+                        continue;
+                    }
+                    if binary_transition_count(&neighbors) != 1 {
+                        continue;
+                    }
+                    let [p2, _p3, p4, _p5, p6, _p7, p8, _p9] = neighbors;
+                    let removes = if sub_iteration == 0 {
+                        p2 * p4 * p6 == 0 && p4 * p6 * p8 == 0
+                    } else {
+                        p2 * p4 * p8 == 0 && p2 * p6 * p8 == 0
+                    };
+                    if removes {
+                        to_remove.push(idx);
+                    }
+                }
+            }
+            if !to_remove.is_empty() {
+                changed = true;
+            }
+            for idx in &to_remove {
+                mask[*idx] = 0;
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+    mask
+}
+
+fn circular_true_run_count(values: &[bool]) -> usize {
+    if values.is_empty() || values.iter().all(|value| !*value) {
+        return 0;
+    }
+    let mut runs = 0usize;
+    for index in 0..values.len() {
+        let previous = values[(index + values.len() - 1) % values.len()];
+        if values[index] && !previous {
+            runs += 1;
+        }
+    }
+    runs
+}
+
+fn skeleton_neighbor_run_count(mask: &[u8], x: usize, y: usize, size: usize) -> usize {
+    let neighbors = zhang_suen_neighbors(mask, x, y, size);
+    let values = neighbors.map(|value| value != 0);
+    circular_true_run_count(&values)
+}
+
+fn zhang_suen_neighbors(mask: &[u8], x: usize, y: usize, size: usize) -> [u8; 8] {
+    [
+        mask[(y - 1) * size + x],
+        mask[(y - 1) * size + (x + 1)],
+        mask[y * size + (x + 1)],
+        mask[(y + 1) * size + (x + 1)],
+        mask[(y + 1) * size + x],
+        mask[(y + 1) * size + (x - 1)],
+        mask[y * size + (x - 1)],
+        mask[(y - 1) * size + (x - 1)],
+    ]
+}
+
+fn binary_transition_count(values: &[u8; 8]) -> usize {
+    let mut transitions = 0usize;
+    for index in 0..values.len() {
+        if values[index] == 0 && values[(index + 1) % values.len()] != 0 {
+            transitions += 1;
+        }
+    }
+    transitions
+}
+
+fn local_max_scalar(point: [f32; 2], values: &[f32], size: usize, radius: isize) -> f32 {
+    let x = point[0].round() as isize;
+    let y = point[1].round() as isize;
+    let mut best = 0.0_f32;
+    for dy in -radius..=radius {
+        for dx in -radius..=radius {
+            let nx = x + dx;
+            let ny = y + dy;
+            if nx < 0 || ny < 0 || nx >= size as isize || ny >= size as isize {
+                continue;
+            }
+            best = best.max(values[ny as usize * size + nx as usize]);
+        }
+    }
+    best
+}
+
+fn cluster_point_candidates(
+    mut candidates: Vec<([f32; 2], f32)>,
+    radius_px: f32,
+    max_count: usize,
+) -> Vec<([f32; 2], f32)> {
+    let radius_sq = radius_px.max(1.0).powi(2);
+    candidates.sort_by(|left, right| right.1.total_cmp(&left.1));
+    let mut clusters = Vec::<([f32; 2], f32)>::new();
+    for (point, support) in candidates {
+        if clusters.iter().any(|(existing, _)| {
+            let dx = point[0] - existing[0];
+            let dy = point[1] - existing[1];
+            dx * dx + dy * dy <= radius_sq
+        }) {
+            continue;
+        }
+        clusters.push((point, support));
+        if clusters.len() >= max_count {
+            break;
+        }
+    }
+    clusters
+}
+
 fn boundary_contact_primitive(
     point: [f32; 2],
     support: f32,
@@ -966,6 +1199,7 @@ mod tests {
             max_boundary_contact_primitives: 32,
             primitive_nms_radius_px: 3.0,
             junction_offset_cluster_radius_px: 0.0,
+            junction_evidence_source: JunctionEvidenceSource::Model,
         }
     }
 
@@ -1031,6 +1265,60 @@ mod tests {
             peaks.len() <= 1,
             "legacy local-maxima decode cannot split the blob (documents the gap)"
         );
+    }
+
+    #[test]
+    fn line_arrangement_junctions_use_supported_segment_intersections() {
+        let size = 64usize;
+        let mut line_probability = vec![0.0_f32; size * size];
+        for idx in 8..=56 {
+            line_probability[32 * size + idx] = 0.95;
+            line_probability[idx * size + 32] = 0.95;
+        }
+        let assignment = AssignmentEvidence {
+            label: 3,
+            confidence: 0.0,
+            margin: 0.0,
+            probabilities: [0.25; 4],
+        };
+        let style = LineStyleEvidence {
+            probabilities: [0.25; 4],
+            dashed_or_gapped_support: 0.25,
+        };
+        let line_primitives = vec![
+            LinePrimitive {
+                p0: [8.0, 32.0],
+                p1: [56.0, 32.0],
+                theta: 0.0,
+                rho: 32.0,
+                support: 0.95,
+                votes: 49,
+                assignment: assignment.clone(),
+                style: style.clone(),
+                source: PrimitiveSource::ObservedStrong,
+            },
+            LinePrimitive {
+                p0: [32.0, 8.0],
+                p1: [32.0, 56.0],
+                theta: std::f32::consts::FRAC_PI_2,
+                rho: -32.0,
+                support: 0.95,
+                votes: 49,
+                assignment,
+                style,
+                source: PrimitiveSource::ObservedStrong,
+            },
+        ];
+        let mut config = test_config(size);
+        config.junction_evidence_source = JunctionEvidenceSource::LineArrangement;
+
+        let junctions =
+            line_arrangement_junction_primitives(&line_primitives, &line_probability, size, config);
+
+        assert_eq!(junctions.len(), 1);
+        let point = junctions[0].point;
+        assert!((point[0] - 32.0).abs() <= 1.0, "{point:?}");
+        assert!((point[1] - 32.0).abs() <= 1.0, "{point:?}");
     }
 
     #[test]

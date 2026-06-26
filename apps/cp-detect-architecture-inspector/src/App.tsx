@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DragEvent as ReactDragEvent, FormEvent, PointerEvent as ReactPointerEvent } from 'react';
-import { Activity, CircleDot, GitBranch, ImagePlus, Layers3, ListFilter, Loader2, Play, RefreshCw, SlidersHorizontal } from 'lucide-react';
+import { Activity, CheckCircle2, CircleDot, GitBranch, ImagePlus, Layers3, ListFilter, Loader2, Play, RefreshCw, SlidersHorizontal } from 'lucide-react';
 import {
   fetchStage1Example,
   fetchStage1Examples,
@@ -136,7 +136,7 @@ type CandidateGenerationStrategy =
   | 'junction-carrier-v1'
   | 'junction-first-v1';
 type DataMode = 'samples' | 'upload';
-type UploadBusy = 'opening' | 'rectifying' | 'building' | null;
+type UploadBusy = 'opening' | 'rectifying' | 'checking-refiner' | 'building' | null;
 type UploadQuadHandle = 'top_left' | 'top_right' | 'bottom_right' | 'bottom_left';
 type QueryControls = {
   threshold: number;
@@ -252,6 +252,9 @@ export function App() {
   const [uploadBusy, setUploadBusy] = useState<UploadBusy>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadDropActive, setUploadDropActive] = useState(false);
+  const [vertexRefinerEnabled, setVertexRefinerEnabled] = useState(false);
+  const [vertexRefinerStatus, setVertexRefinerStatus] = useState<string | null>(null);
+  const [vertexRefinerError, setVertexRefinerError] = useState<string | null>(null);
   const uploadFileInputRef = useRef<HTMLInputElement>(null);
   const uploadSourceImageRef = useRef<HTMLImageElement>(null);
 
@@ -543,6 +546,8 @@ export function App() {
           return null;
         });
         setUploadRun(null);
+        setVertexRefinerStatus(null);
+        setVertexRefinerError(null);
         setUploadBusy('rectifying');
         const client = getInspectorUploadClient();
         const rectified = await client.autoRectifyImage(source.image, DEFAULT_UPLOAD_IMAGE_SIZE);
@@ -569,6 +574,8 @@ export function App() {
       const client = getInspectorUploadClient();
       const rectified = await client.manualRectifyImage(uploadSource.image, uploadQuad, DEFAULT_UPLOAD_IMAGE_SIZE);
       await setNextRectified(rectified);
+      setVertexRefinerStatus(null);
+      setVertexRefinerError(null);
     } catch (error) {
       setUploadError(inspectorUploadError(error));
     } finally {
@@ -576,17 +583,36 @@ export function App() {
     }
   }, [setNextRectified, uploadQuad, uploadSource]);
 
+  const verifyVertexRefiner = useCallback(async () => {
+    setUploadBusy('checking-refiner');
+    setVertexRefinerError(null);
+    try {
+      const client = getInspectorUploadClient();
+      const manifest = await client.verifyVertexRefinerAssets();
+      setVertexRefinerStatus(`V3 ready: ${manifest.id}`);
+      return manifest;
+    } catch (error) {
+      setVertexRefinerStatus(null);
+      setVertexRefinerError(inspectorUploadError(error));
+      throw error;
+    } finally {
+      setUploadBusy(null);
+    }
+  }, []);
+
   const runUploadedInspector = useCallback(async () => {
     if (!uploadRectified) return;
     setDataMode('upload');
     setUploadBusy('building');
     setUploadError(null);
+    setVertexRefinerError(null);
     try {
       const client = getInspectorUploadClient();
       const run = await client.runUploadedInspector(uploadRectified.image, {
         filename: uploadSource?.name ?? 'uploaded image',
         inputImageUrl: uploadRectified.url,
         threshold,
+        junctionSource: vertexRefinerEnabled ? 'vertex-refiner-v3' : 'dense-model',
         candidateStrategy,
         legacyLowThreshold,
         legacySnapRadiusPx,
@@ -594,6 +620,14 @@ export function App() {
         rectificationReport: uploadRectified.report,
       });
       setUploadRun(run);
+      if (vertexRefinerEnabled) {
+        const refiner = run.stages.stage0.vertex_refiner;
+        setVertexRefinerStatus(
+          refiner
+            ? `V3 ${refiner.merged_vertex_count} merged / ${refiner.raw_prediction_count} raw`
+            : 'V3 ready',
+        );
+      }
       setActiveStage('stage6');
       setSelectedMapId(run.stages.stage6.maps[0]?.id ?? 'line_probability');
     } catch (error) {
@@ -601,7 +635,7 @@ export function App() {
     } finally {
       setUploadBusy(null);
     }
-  }, [candidateStrategy, exactSolveTimeoutSeconds, legacyLowThreshold, legacySnapRadiusPx, threshold, uploadRectified, uploadSource?.name]);
+  }, [candidateStrategy, exactSolveTimeoutSeconds, legacyLowThreshold, legacySnapRadiusPx, threshold, uploadRectified, uploadSource?.name, vertexRefinerEnabled]);
 
   const onUploadDrop = useCallback(
     (event: ReactDragEvent<HTMLDivElement>) => {
@@ -690,6 +724,22 @@ export function App() {
                 <ImagePlus size={15} />
                 Choose Image
               </button>
+              <div className="upload-refiner-box">
+                <label className="upload-toggle">
+                  <input
+                    checked={vertexRefinerEnabled}
+                    onChange={(event) => setVertexRefinerEnabled(event.currentTarget.checked)}
+                    type="checkbox"
+                  />
+                  <span>V3 refiner</span>
+                </label>
+                <button className="upload-action" disabled={uploadBusy !== null} onClick={() => void verifyVertexRefiner()}>
+                  <CheckCircle2 size={14} />
+                  Check V3
+                </button>
+                {vertexRefinerStatus ? <div className="upload-status">{vertexRefinerStatus}</div> : null}
+                {vertexRefinerError ? <div className="upload-error">{vertexRefinerError}</div> : null}
+              </div>
               <div className="upload-drop-hint">Drop image here</div>
               {uploadBusy ? (
                 <div className="upload-status">
@@ -1014,6 +1064,8 @@ export function App() {
               <Metric label="provider" value={currentStage.runtime?.active_execution_provider ?? 'unknown'} />
               <Metric label="model run ms" value={formatMetricNumber(currentStage.runtime?.model_run_ms, 1)} />
               <Metric label="outputs" value={currentStage.dense_outputs.length} />
+              <Metric label="junction source" value={currentStage.junction_source ?? 'dense-model'} />
+              <Metric label="V3 merged" value={currentStage.vertex_refiner?.merged_vertex_count ?? 'off'} />
               <Metric label="image size" value={currentStage.config.image_size} />
             </section>
           ) : (
@@ -1497,6 +1549,22 @@ function RawDenseViewer({ selectedMap, stage }: { selectedMap: MapPayload | null
       )}
       <svg className="primitive-overlay" viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Raw dense model outputs">
         <rect className="raw-dense-frame" x={1} y={1} width={size - 2} height={size - 2} />
+        {stage.vertex_refiner?.proposals.map((proposal, index) => (
+          <circle
+            className="v3-refiner-proposal"
+            cx={proposal.x}
+            cy={proposal.y}
+            key={`v3-proposal-${index}`}
+            r={3.5}
+          />
+        ))}
+        {stage.vertex_refiner?.merged_vertices.map((vertex, index) => (
+          <g className="v3-refiner-vertex" key={`v3-vertex-${index}`}>
+            <circle cx={vertex.x} cy={vertex.y} r={6} />
+            <line x1={vertex.x - 7} x2={vertex.x + 7} y1={vertex.y} y2={vertex.y} />
+            <line x1={vertex.x} x2={vertex.x} y1={vertex.y - 7} y2={vertex.y + 7} />
+          </g>
+        ))}
       </svg>
     </div>
   );
@@ -1511,6 +1579,16 @@ function RawDenseSummary({ stage }: { stage: Stage0Response }) {
         <strong>{stage.model_manifest_id ?? 'unknown'}</strong>
         <span>provider</span>
         <strong>{stage.runtime?.active_execution_provider ?? 'unknown'}</strong>
+        <span>junction source</span>
+        <strong>{stage.junction_source ?? 'dense-model'}</strong>
+        {stage.vertex_refiner ? (
+          <>
+            <span>V3 refiner</span>
+            <strong>
+              {stage.vertex_refiner.merged_vertex_count} merged / {stage.vertex_refiner.raw_prediction_count} raw
+            </strong>
+          </>
+        ) : null}
       </div>
       <div className="raw-tensor-list">
         {stage.dense_outputs.map((tensor) => (
@@ -1641,6 +1719,7 @@ function uploadBusyLabel(busy: Exclude<UploadBusy, null>): string {
   return {
     opening: 'Opening image',
     rectifying: 'Rectifying crop',
+    'checking-refiner': 'Checking V3 refiner',
     building: 'Running dense model and stages',
   }[busy];
 }

@@ -80,6 +80,9 @@ export interface Stage0Response {
   config: EvidenceConfigSummary;
   maps: MapPayload[];
   model_manifest_id?: string | null;
+  junction_source?: 'dense-model' | 'vertex-refiner-v3' | string | null;
+  vertex_refiner_manifest_id?: string | null;
+  vertex_refiner?: VertexRefinerStageDebug | null;
   rectification_report?: unknown;
   runtime?: {
     requested_execution_provider?: string;
@@ -95,6 +98,50 @@ export interface Stage0Response {
   } | null;
   input_image_url: string;
   dense_outputs: DenseTensorSummary[];
+}
+
+export interface VertexRefinerStageDebug {
+  model_manifest_id: string;
+  frame: {
+    x_min: number;
+    y_min: number;
+    x_max: number;
+    y_max: number;
+  };
+  proposal_count: number;
+  raw_prediction_count: number;
+  merged_vertex_count: number;
+  proposals: Array<{
+    x: number;
+    y: number;
+    score: number;
+    provenance: string[];
+  }>;
+  raw_vertices: VertexRefinerStageVertex[];
+  merged_vertices: Array<
+    Omit<VertexRefinerStageVertex, 'crop_index'> & {
+      support_count: number;
+      possible_support_count: number;
+      support_fraction: number;
+      mean_member_distance_px: number;
+      max_member_distance_px: number;
+    }
+  >;
+  runtime?: Record<string, unknown> | null;
+}
+
+export interface VertexRefinerStageVertex {
+  x: number;
+  y: number;
+  score: number;
+  kind_id: number;
+  kind: string;
+  degree_class: number;
+  degree: number;
+  ray_bins: number[];
+  boundary_side_id: number | null;
+  boundary_side: string | null;
+  crop_index: number;
 }
 
 export interface AssignmentEvidence {

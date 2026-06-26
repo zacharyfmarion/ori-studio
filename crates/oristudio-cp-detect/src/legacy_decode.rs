@@ -115,6 +115,7 @@ fn default_exact_solve_timeout_seconds() -> f64 {
 #[derive(Debug, Clone, Copy)]
 pub struct DenseOutputs<'a> {
     pub line_logits: &'a [f32],
+    pub line_probability_override: Option<&'a [f32]>,
     pub angle: Option<&'a [f32]>,
     pub junction_logits: &'a [f32],
     pub junction_offset: Option<&'a [f32]>,
@@ -139,6 +140,7 @@ impl<'a> DenseOutputs<'a> {
     ) -> Self {
         Self {
             line_logits,
+            line_probability_override: None,
             angle: None,
             junction_logits,
             junction_offset: None,
@@ -155,6 +157,14 @@ impl<'a> DenseOutputs<'a> {
 
     pub const fn with_angle(mut self, angle: Option<&'a [f32]>) -> Self {
         self.angle = angle;
+        self
+    }
+
+    pub const fn with_line_probability_override(
+        mut self,
+        line_probability_override: Option<&'a [f32]>,
+    ) -> Self {
+        self.line_probability_override = line_probability_override;
         self
     }
 
@@ -729,6 +739,13 @@ pub fn decode_dense_outputs(
     }
     let pixels = size * size;
     require_len("line_logits", outputs.line_logits, pixels)?;
+    if let Some(line_probability_override) = outputs.line_probability_override {
+        require_len(
+            "line_probability_override",
+            line_probability_override,
+            pixels,
+        )?;
+    }
     require_len("junction_logits", outputs.junction_logits, pixels)?;
     if let Some(junction_offset) = outputs.junction_offset {
         require_len("junction_offset", junction_offset, pixels * 2)?;
@@ -920,6 +937,9 @@ fn require_byte_len(name: &'static str, values: &[u8], expected: usize) -> Resul
 }
 
 fn effective_line_prob(outputs: DenseOutputs<'_>, config: &DecodeConfig) -> Vec<f32> {
+    if let Some(values) = outputs.line_probability_override {
+        return values.iter().map(|value| value.clamp(0.0, 1.0)).collect();
+    }
     outputs
         .line_logits
         .iter()

@@ -17,12 +17,17 @@ use oristudio_cp_compiler::{
 };
 use oristudio_cp_detect::candidate_generation::{
     CandidateGenerationContext, CandidateGenerationOptions, CandidateGenerationStrategyName,
-    LegacyThresholdStrategyOptions, default_low_threshold, generate_candidate_graph,
+    JunctionFirstV1Strategy, LegacyThresholdStrategyOptions, default_low_threshold,
+    generate_candidate_graph,
 };
 use oristudio_cp_detect::decode::{DecodeConfig, DenseOutputs, decode_dense_outputs};
 use oristudio_cp_detect::evidence_extract::{
-    AssignmentEvidence, BoundarySide, CompilerEvidence, DenseOutputRefs, EvidenceExtractionConfig,
-    PrimitiveSource, extract_compiler_evidence,
+    AssignmentEvidence, BoundaryContactPrimitive, BoundarySide, CompilerEvidence, DenseOutputRefs,
+    EvidenceExtractionConfig, JunctionEvidenceSource, JunctionPrimitive, PrimitiveSource,
+    extract_compiler_evidence,
+};
+use oristudio_cp_detect::source_image_evidence::{
+    SourceImageLineEvidenceOptions, line_probability_from_rgba,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -379,11 +384,30 @@ pub struct UploadInspectorOptions {
     pub model_manifest_id: Option<String>,
     pub rectification_report: Option<Value>,
     pub runtime: Option<Value>,
+    pub junction_source: Option<String>,
+    pub vertex_refiner_manifest_id: Option<String>,
+    pub vertex_refiner: Option<Value>,
     pub candidate_strategy: Option<String>,
     pub legacy_low_threshold: Option<f32>,
     pub legacy_snap_radius_px: Option<f64>,
     pub offset_cluster_radius_px: Option<f64>,
     pub exact_solve_timeout_seconds: Option<f64>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct VertexRefinerStageDebugPayload {
+    #[serde(default)]
+    merged_vertices: Vec<VertexRefinerMergedVertexPayload>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct VertexRefinerMergedVertexPayload {
+    x: f64,
+    y: f64,
+    score: f64,
+    kind: Option<String>,
+    boundary_side: Option<String>,
+    side_coordinate: Option<f64>,
 }
 
 fn main() -> Result<()> {
@@ -1086,6 +1110,149 @@ fn stage6_example(
     })
 }
 
+fn apply_vertex_refiner_evidence_override(
+    evidence: &mut CompilerEvidence,
+    options: &UploadInspectorOptions,
+) -> Result<bool> {
+    const REFINED_BOUNDARY_SNAP_TOLERANCE_PX: f64 = 3.0;
+    if options.junction_source.as_deref() != Some("vertex-refiner-v3") {
+        return Ok(false);
+    }
+    let Some(payload) = options.vertex_refiner.clone() else {
+        return Ok(false);
+    };
+    let debug: VertexRefinerStageDebugPayload =
+        serde_json::from_value(payload).context("parse vertex refiner stage debug payload")?;
+    let image_max = evidence.image_size.saturating_sub(1).max(1) as f64;
+    let mut junctions = Vec::new();
+    let mut contacts = Vec::new();
+    for vertex in debug.merged_vertices {
+        let score = finite_score(vertex.score);
+        let kind = vertex.kind.as_deref().unwrap_or("interior_junction");
+        if kind == "background" || kind == "corner" {
+            continue;
+        }
+        let point = [
+            vertex.x.clamp(0.0, image_max) as f32,
+            vertex.y.clamp(0.0, image_max) as f32,
+        ];
+        let explicit_side = vertex
+            .boundary_side
+            .as_deref()
+            .and_then(boundary_side_from_refiner);
+        if let Some(side) = refiner_boundary_contact_side(
+            kind,
+            explicit_side,
+            point,
+            image_max,
+            REFINED_BOUNDARY_SNAP_TOLERANCE_PX,
+        ) {
+            contacts.push(BoundaryContactPrimitive {
+                point,
+                side,
+                side_coordinate: refiner_side_coordinate(vertex.side_coordinate)
+                    .unwrap_or_else(|| boundary_side_coordinate(point, side, image_max)),
+                support: score,
+                source: primitive_source_from_refiner_score(score),
+            });
+        } else {
+            junctions.push(JunctionPrimitive {
+                point,
+                support: score,
+                source: primitive_source_from_refiner_score(score),
+            });
+        }
+    }
+    evidence.junction_primitives = junctions;
+    evidence.boundary_contact_primitives = contacts;
+    evidence.report.junction_primitives = evidence.junction_primitives.len();
+    evidence.report.boundary_contact_primitives = evidence.boundary_contact_primitives.len();
+    Ok(true)
+}
+
+fn refiner_boundary_contact_side(
+    kind: &str,
+    explicit_side: Option<BoundarySide>,
+    point: [f32; 2],
+    image_max: f64,
+    tolerance_px: f64,
+) -> Option<BoundarySide> {
+    if kind == "boundary_contact" {
+        return Some(explicit_side.unwrap_or_else(|| nearest_boundary_side(point, image_max)));
+    }
+    let side = explicit_side?;
+    if boundary_side_distance(point, side, image_max) <= tolerance_px {
+        return Some(side);
+    }
+    let nearest = nearest_boundary_side(point, image_max);
+    (boundary_side_distance(point, nearest, image_max) <= tolerance_px).then_some(nearest)
+}
+
+fn finite_score(score: f64) -> f32 {
+    if score.is_finite() {
+        score.clamp(0.0, 1.0) as f32
+    } else {
+        0.0
+    }
+}
+
+fn refiner_side_coordinate(side_coordinate: Option<f64>) -> Option<f32> {
+    side_coordinate
+        .filter(|value| value.is_finite())
+        .map(|value| value.clamp(0.0, 1.0) as f32)
+}
+
+fn primitive_source_from_refiner_score(score: f32) -> PrimitiveSource {
+    if score >= 0.62 {
+        PrimitiveSource::ObservedStrong
+    } else {
+        PrimitiveSource::ObservedWeak
+    }
+}
+
+fn boundary_side_from_refiner(side: &str) -> Option<BoundarySide> {
+    match side {
+        "top" => Some(BoundarySide::Top),
+        "right" => Some(BoundarySide::Right),
+        "bottom" => Some(BoundarySide::Bottom),
+        "left" => Some(BoundarySide::Left),
+        _ => None,
+    }
+}
+
+fn nearest_boundary_side(point: [f32; 2], image_max: f64) -> BoundarySide {
+    let x = point[0] as f64;
+    let y = point[1] as f64;
+    [
+        (BoundarySide::Top, y.abs()),
+        (BoundarySide::Right, (image_max - x).abs()),
+        (BoundarySide::Bottom, (image_max - y).abs()),
+        (BoundarySide::Left, x.abs()),
+    ]
+    .into_iter()
+    .min_by(|left, right| left.1.total_cmp(&right.1))
+    .map(|(side, _)| side)
+    .unwrap_or(BoundarySide::Top)
+}
+
+fn boundary_side_coordinate(point: [f32; 2], side: BoundarySide, image_max: f64) -> f32 {
+    let denom = image_max.max(1.0);
+    match side {
+        BoundarySide::Top | BoundarySide::Bottom => point[0] as f64 / denom,
+        BoundarySide::Right | BoundarySide::Left => point[1] as f64 / denom,
+    }
+    .clamp(0.0, 1.0) as f32
+}
+
+fn boundary_side_distance(point: [f32; 2], side: BoundarySide, image_max: f64) -> f64 {
+    match side {
+        BoundarySide::Top => point[1].abs() as f64,
+        BoundarySide::Right => (image_max - point[0] as f64).abs(),
+        BoundarySide::Bottom => (image_max - point[1] as f64).abs(),
+        BoundarySide::Left => point[0].abs() as f64,
+    }
+}
+
 pub fn build_uploaded_stage_bundle(
     outputs: DenseOutputsOwned,
     options: UploadInspectorOptions,
@@ -1101,7 +1268,9 @@ pub fn build_uploaded_stage_bundle(
         ..DecodeConfig::default()
     };
     let evidence_config = evidence_config_from_decode(&decode_config);
-    let evidence = extract_compiler_evidence(outputs.as_dense_refs(), evidence_config)?;
+    let mut evidence = extract_compiler_evidence(outputs.as_dense_refs(), evidence_config)?;
+    let vertex_refiner_evidence_applied =
+        apply_vertex_refiner_evidence_override(&mut evidence, &options)?;
     let maps = evidence_maps(&evidence, map_size)?;
     let overlay_frame_px = default_overlay_frame(image_size);
     let sample = ExampleRow {
@@ -1141,6 +1310,9 @@ pub fn build_uploaded_stage_bundle(
         "model_manifest_id": options.model_manifest_id,
         "rectification_report": options.rectification_report,
         "runtime": options.runtime,
+        "junction_source": options.junction_source,
+        "vertex_refiner_manifest_id": options.vertex_refiner_manifest_id,
+        "vertex_refiner": options.vertex_refiner,
         "input_image_url": &sample.input_image_url,
         "dense_outputs": dense_tensor_summaries(&outputs, image_size),
         "maps": &maps
@@ -1211,32 +1383,42 @@ pub fn build_uploaded_stage_bundle(
         .legacy_snap_radius_px
         .unwrap_or(DEFAULT_WEAK_ENDPOINT_SNAP_RADIUS_PX)
         .clamp(0.0, 128.0);
-    let generation = generate_candidate_graph(
-        CandidateGenerationContext {
-            outputs: outputs.as_dense_outputs(),
-            config: decode_config,
-        },
-        {
-            let mut generation_options = CandidateGenerationOptions {
-                strategy: candidate_strategy,
-                legacy_threshold: LegacyThresholdStrategyOptions {
-                    low_threshold: Some(legacy_low_threshold),
-                    weak_endpoint_snap_radius_px: Some(legacy_snap_radius_px),
-                    weak_boundary_endpoint_snap_radius_px: Some(10.0),
-                    weak_carrier_incidence_tolerance_px: Some(6.0),
-                    weak_span_split_tolerance_px: Some(4.0),
-                    weak_min_split_length_px: Some(3.0),
-                    ..LegacyThresholdStrategyOptions::default()
-                },
-                ..CandidateGenerationOptions::default()
-            };
-            generation_options
-                .junction_first_v1
-                .junction_offset_cluster_radius_px = offset_cluster_radius_px;
-            generation_options
-        },
-    )
-    .with_context(|| format!("generate {candidate_strategy} candidate graph for uploaded image"))?;
+    let generation_options = {
+        let mut generation_options = CandidateGenerationOptions {
+            strategy: candidate_strategy,
+            legacy_threshold: LegacyThresholdStrategyOptions {
+                low_threshold: Some(legacy_low_threshold),
+                weak_endpoint_snap_radius_px: Some(legacy_snap_radius_px),
+                weak_boundary_endpoint_snap_radius_px: Some(10.0),
+                weak_carrier_incidence_tolerance_px: Some(6.0),
+                weak_span_split_tolerance_px: Some(4.0),
+                weak_min_split_length_px: Some(3.0),
+                ..LegacyThresholdStrategyOptions::default()
+            },
+            ..CandidateGenerationOptions::default()
+        };
+        generation_options
+            .junction_first_v1
+            .junction_offset_cluster_radius_px = offset_cluster_radius_px;
+        generation_options
+    };
+    let generation = if vertex_refiner_evidence_applied
+        && candidate_strategy == CandidateGenerationStrategyName::JunctionFirstV1
+    {
+        JunctionFirstV1Strategy::new(generation_options.junction_first_v1)
+            .generate_from_evidence(&evidence, &decode_config)
+    } else {
+        generate_candidate_graph(
+            CandidateGenerationContext {
+                outputs: outputs.as_dense_outputs(),
+                config: decode_config,
+            },
+            generation_options,
+        )
+        .with_context(|| {
+            format!("generate {candidate_strategy} candidate graph for uploaded image")
+        })?
+    };
     let candidate_graph = generation.candidate_graph;
     let selection = select_candidate_graph_beam_from_ir(
         &candidate_graph,
@@ -1335,6 +1517,34 @@ pub fn build_uploaded_stage_bundle(
             "stage6": stage6
         }
     }))
+}
+
+pub fn build_uploaded_stage_bundle_with_source_image(
+    mut outputs: DenseOutputsOwned,
+    options: UploadInspectorOptions,
+    rgba: &[u8],
+    width: u32,
+    height: u32,
+) -> Result<Value> {
+    if width != options.image_size || height != options.image_size {
+        bail!(
+            "source image line evidence requires a rectified {}x{} image, got {}x{}",
+            options.image_size,
+            options.image_size,
+            width,
+            height
+        );
+    }
+    outputs.line_probability_override = Some(
+        line_probability_from_rgba(
+            rgba,
+            width,
+            height,
+            SourceImageLineEvidenceOptions::default(),
+        )
+        .context("build source image line evidence")?,
+    );
+    build_uploaded_stage_bundle(outputs, options)
 }
 
 fn candidate_decision_audit(
@@ -1970,6 +2180,7 @@ fn evidence_config_from_decode(config: &DecodeConfig) -> EvidenceExtractionConfi
         max_boundary_contact_primitives: config.max_intersection_lines.max(240),
         primitive_nms_radius_px: config.junction_snap_px.max(2.0),
         junction_offset_cluster_radius_px: config.junction_offset_cluster_radius_px,
+        junction_evidence_source: JunctionEvidenceSource::Model,
     }
 }
 
@@ -2148,6 +2359,7 @@ fn side_from_boundary(side: BoundarySide) -> ArrangementBoundarySide {
 
 pub struct DenseOutputsOwned {
     pub line_logits: Vec<f32>,
+    pub line_probability_override: Option<Vec<f32>>,
     pub angle: Option<Vec<f32>>,
     pub junction_logits: Vec<f32>,
     pub junction_offset: Option<Vec<f32>>,
@@ -2164,6 +2376,7 @@ pub struct DenseOutputsOwned {
 fn read_dense_outputs(state: &AppState, sample: &DenseCacheSample) -> Result<DenseOutputsOwned> {
     Ok(DenseOutputsOwned {
         line_logits: read_f32_file(&state.manifest_root.join(&sample.line_logits_f32_path))?,
+        line_probability_override: None,
         angle: read_optional_f32_file(&state.manifest_root, sample.angle_f32_path.as_deref())?,
         junction_logits: read_f32_file(
             &state.manifest_root.join(&sample.junction_logits_f32_path),
@@ -2215,6 +2428,7 @@ impl DenseOutputsOwned {
             &self.line_style_logits,
             &self.boundary_contact_logits,
         )
+        .with_line_probability_override(self.line_probability_override.as_deref())
         .with_angle(self.angle.as_deref())
         .with_junction_offset(self.junction_offset.as_deref())
         .with_vertex_type_logits(self.vertex_type_logits.as_deref())
@@ -2232,6 +2446,7 @@ impl DenseOutputsOwned {
             &self.line_style_logits,
             &self.boundary_contact_logits,
         )
+        .with_line_probability_override(self.line_probability_override.as_deref())
         .with_angle(self.angle.as_deref())
         .with_junction_offset(self.junction_offset.as_deref())
         .with_vertex_type_logits(self.vertex_type_logits.as_deref())
@@ -2248,6 +2463,13 @@ fn dense_tensor_summaries(outputs: &DenseOutputsOwned, image_size: u32) -> Vec<V
         &mut summaries,
         "line_logits",
         &outputs.line_logits,
+        pixel_count,
+        image_size,
+    );
+    push_optional_tensor_summary(
+        &mut summaries,
+        "line_probability_override",
+        outputs.line_probability_override.as_deref(),
         pixel_count,
         image_size,
     );
@@ -2686,5 +2908,86 @@ mod tests {
         assert_eq!(path, "/api/stage1/examples/a%20b");
         assert_eq!(query.get("threshold"), Some(&"0.4".to_owned()));
         assert_eq!(query.get("map_size"), Some(&"64".to_owned()));
+    }
+
+    #[test]
+    fn vertex_refiner_override_replaces_junction_primitives() {
+        let mut evidence = CompilerEvidence {
+            image_size: 100,
+            dense: oristudio_cp_detect::evidence_extract::DenseEvidence {
+                line_probability: Vec::new(),
+                non_crease_probability: Vec::new(),
+                junction_probability: Vec::new(),
+                boundary_contact_probability: Vec::new(),
+                assignment_probability: Vec::new(),
+                line_style_probability: Vec::new(),
+            },
+            line_primitives: Vec::new(),
+            junction_primitives: vec![JunctionPrimitive {
+                point: [1.0, 1.0],
+                support: 0.1,
+                source: PrimitiveSource::ObservedWeak,
+            }],
+            boundary_contact_primitives: Vec::new(),
+            report: oristudio_cp_detect::evidence_extract::EvidenceExtractionReport {
+                schema: "test".to_owned(),
+                legacy_dependency: false,
+                image_size: 100,
+                extraction_seconds: 0.0,
+                line_pixels_above_threshold: 0,
+                hough_segments: 0,
+                line_primitives: 0,
+                strong_line_primitives: 0,
+                weak_line_primitives: 0,
+                junction_primitives: 1,
+                boundary_contact_primitives: 0,
+            },
+        };
+        let options = UploadInspectorOptions {
+            id: None,
+            source_id: None,
+            filename: None,
+            image_size: 100,
+            threshold: 0.65,
+            map_size: None,
+            input_image_url: None,
+            model_manifest_id: None,
+            rectification_report: None,
+            runtime: None,
+            junction_source: Some("vertex-refiner-v3".to_owned()),
+            vertex_refiner_manifest_id: Some("v3-test".to_owned()),
+            vertex_refiner: Some(json!({
+                "merged_vertices": [
+                    { "x": 40.0, "y": 50.0, "score": 0.9, "kind": "interior_junction" },
+                    { "x": 99.0, "y": 20.0, "score": 0.8, "kind": "boundary_contact", "boundary_side": "right", "side_coordinate": 0.25 },
+                    { "x": 20.0, "y": 0.0, "score": 0.8, "kind": "interior_junction", "boundary_side": "top" },
+                    { "x": 0.0, "y": 0.0, "score": 0.7, "kind": "corner" }
+                ]
+            })),
+            candidate_strategy: None,
+            legacy_low_threshold: None,
+            legacy_snap_radius_px: None,
+            offset_cluster_radius_px: None,
+            exact_solve_timeout_seconds: None,
+        };
+
+        let applied =
+            apply_vertex_refiner_evidence_override(&mut evidence, &options).expect("override");
+
+        assert!(applied);
+        assert_eq!(evidence.junction_primitives.len(), 1);
+        assert_eq!(evidence.junction_primitives[0].point, [40.0, 50.0]);
+        assert_eq!(evidence.boundary_contact_primitives.len(), 2);
+        assert_eq!(
+            evidence.boundary_contact_primitives[0].side,
+            BoundarySide::Right
+        );
+        assert!((evidence.boundary_contact_primitives[0].side_coordinate - 0.25).abs() < 1e-6);
+        assert_eq!(
+            evidence.boundary_contact_primitives[1].side,
+            BoundarySide::Top
+        );
+        assert_eq!(evidence.report.junction_primitives, 1);
+        assert_eq!(evidence.report.boundary_contact_primitives, 2);
     }
 }

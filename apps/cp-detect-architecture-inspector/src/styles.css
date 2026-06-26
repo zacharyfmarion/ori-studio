@@ -260,6 +260,27 @@ button {
   color: #b91c1c;
 }
 
+.upload-refiner-box {
+  background: #f8fafc;
+  border: 1px solid #d7dee8;
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  padding: 9px;
+}
+
+.upload-toggle {
+  align-items: center;
+  color: #334155;
+  display: flex;
+  font-size: 13px;
+  gap: 8px;
+}
+
+.upload-toggle input {
+  accent-color: #0f766e;
+}
+
 .spinner {
   animation: spin 1s linear infinite;
 }
@@ -487,6 +508,26 @@ select {
   stroke: #0f766e;
   stroke-dasharray: 10 8;
   stroke-width: 2;
+}
+
+.v3-refiner-proposal {
+  fill: #f59e0b;
+  fill-opacity: 0.46;
+  stroke: #92400e;
+  stroke-width: 1.5;
+}
+
+.v3-refiner-vertex circle {
+  fill: #06b6d4;
+  fill-opacity: 0.26;
+  stroke: #0e7490;
+  stroke-width: 2.5;
+}
+
+.v3-refiner-vertex line {
+  stroke: #0e7490;
+  stroke-linecap: round;
+  stroke-width: 2.5;
 }
 
 .raw-dense-summary {

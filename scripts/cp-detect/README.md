@@ -23,6 +23,9 @@ build artifacts. All three failure modes used to present as a silent hang;
    `node scripts/cp-detect/check-local-model-assets.mjs`; it reads the pointer
    file and intentionally fails if the stable `cp-detector-v3` directory
    contains an older model.
+   The V3 vertex-refiner assets are separate and also gitignored. Their
+   pointer is `scripts/cp-detect/current-vertex-refiner.json`; verify them with
+   `node scripts/cp-detect/check-local-vertex-refiner-assets.mjs`.
 3. **Generated wasm modules.** `apps/web/src/generated/` is produced by
    wasm-pack. Either run the full `npm run dev:web` once (its `predev` builds
    everything) or build the missing crate directly, e.g.
@@ -73,6 +76,50 @@ Then verify the local assets:
 ```bash
 node scripts/cp-detect/check-local-model-assets.mjs
 ```
+
+## Vertex Refiner V3 Assets
+
+The source-only vertex refiner is a second ONNX model used for opt-in junction
+refinement after rectification. It does not replace the dense CPLineNet model:
+the dense model still provides line, assignment, style, and fallback evidence.
+
+The tracked pointer file is:
+
+```text
+scripts/cp-detect/current-vertex-refiner.json
+```
+
+The stable ignored browser asset directory is:
+
+```text
+apps/web/public/models/cp-vertex-refiner-v3/model.onnx
+apps/web/public/models/cp-vertex-refiner-v3/manifest.json
+```
+
+Export the current V3 checkpoint from a local `create-pattern-detector`
+checkout:
+
+```bash
+/Users/zacharymarion/Documents/code/create-pattern-detector/.venv/bin/python \
+  scripts/cp-detect/export-vertex-refiner-onnx.py
+```
+
+Then verify the local assets:
+
+```bash
+node scripts/cp-detect/check-local-vertex-refiner-assets.mjs
+```
+
+The product worker exposes V3 behind `junctionSource:
+'vertex-refiner-v3'`. The visible import modal still uses the dense junction
+path by default; use the architecture inspector or browser benchmark runner to
+exercise V3 until benchmark results justify promotion.
+
+In the architecture inspector upload flow, enable **V3 refiner** and use
+**Check V3** to verify the local V3 ONNX asset/session before running an
+upload. Stage 0 records V3 proposal centers, raw crop predictions, merged
+vertices, model id, and runtime; Stage 1 and the `junction-first-v1` Stage 5
+candidate graph use those merged vertices as the junction/contact evidence.
 
 ## Browser-vs-Oracle Benchmark
 
@@ -226,6 +273,41 @@ node scripts/cp-detect/run-browser-correctness-fast.mjs \
   --url http://127.0.0.1:5175/ \
   --pack artifacts/cp-detect-correctness/packs/smoke-1024-s3/manifest.json \
   --out artifacts/cp-detect-correctness/runs/smoke-1024-s3/browser-fast
+```
+
+Run the same product path with V3 refined junctions:
+
+```bash
+node scripts/cp-detect/run-browser-correctness-fast.mjs \
+  --url http://127.0.0.1:5175/ \
+  --pack artifacts/cp-detect-correctness/packs/smoke-1024-s3/manifest.json \
+  --out artifacts/cp-detect-correctness/runs/smoke-1024-s3/browser-fast-v3 \
+  --decoder-backend legacy_candidate_exact_solve_v1 \
+  --junction-source vertex-refiner-v3 \
+  --vertex-refiner-fallback error
+```
+
+Run the deterministic line-arrangement junction comparison mode:
+
+```bash
+node scripts/cp-detect/run-browser-correctness-fast.mjs \
+  --url http://127.0.0.1:5175/ \
+  --pack artifacts/cp-detect-correctness/packs/smoke-1024-s3/manifest.json \
+  --out artifacts/cp-detect-correctness/runs/smoke-1024-s3/browser-fast-line-arrangement \
+  --decoder-backend legacy_candidate_exact_solve_v1 \
+  --junction-source line-arrangement
+```
+
+Compare dense-model and V3-refiner product runs by scoring each against the
+same Python baseline and ground-truth pack:
+
+```bash
+/Users/zacharymarion/Documents/code/create-pattern-detector/.venv/bin/python \
+  scripts/cp-detect/evaluate-correctness-pair.py \
+  --pack artifacts/cp-detect-correctness/packs/smoke-1024-s3/manifest.json \
+  --python-run artifacts/cp-detect-correctness/runs/smoke-1024-s3/python/run_manifest.json \
+  --browser-run artifacts/cp-detect-correctness/runs/smoke-1024-s3/browser-fast-v3/run_manifest.json \
+  --out artifacts/cp-detect-correctness/reports/smoke-1024-s3-v3
 ```
 
 For post-inference Rust/compiler iteration, cache browser ONNX dense outputs

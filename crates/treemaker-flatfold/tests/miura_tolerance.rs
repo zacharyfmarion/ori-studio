@@ -1,7 +1,7 @@
 //! Guardrail: the flat-folder must handle large exactly-constructed patterns
 //! and tolerate small coordinate noise. Pins the precision cliff measured at
 //! ~1e-4 relative noise (2026-06-10) so folder changes cannot silently
-//! tighten it. See implementation-plans/cp-detect-exact-solve-polish.md.
+//! tighten it; this protects exact-solve polish output from regressing.
 
 use treemaker_flatfold::{SolutionLimit, SolveOptions, solve_flat_fold};
 use treemaker_fold::FoldDocument;

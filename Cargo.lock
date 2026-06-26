@@ -1767,6 +1767,7 @@ dependencies = [
  "byteorder-lite",
  "moxcms",
  "num-traits",
+ "png 0.18.1",
 ]
 
 [[package]]

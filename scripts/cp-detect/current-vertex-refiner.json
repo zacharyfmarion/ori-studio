@@ -1,0 +1,29 @@
+{
+  "schema": "oristudio/cp-vertex-refiner-current-model/v1",
+  "model_id": "runpod-vertex-refiner-v3-light-rendered-ft-20260626",
+  "created_at": "2026-06-26",
+  "stable_model_asset_dir": "apps/web/public/models/cp-vertex-refiner-v3",
+  "versioned_model_asset_dir": "apps/web/public/models/cp-vertex-refiner-v3-light-rendered-ft-20260626",
+  "model_filename": "model.onnx",
+  "model_sha256": "641605bde6fe5b6cb518bb6f77287e71e4505d6ac4861542fdec08e00b82cfca",
+  "inference": {
+    "model_version": "v3",
+    "input_version": "v3",
+    "crop_size": 96,
+    "input_channels": 11,
+    "heatmap_threshold": 0.25,
+    "boundary_heatmap_threshold": 0.25,
+    "nms_radius_px": 2,
+    "merge_radius_px": 3.0,
+    "boundary_merge_radius_px": 2.0,
+    "proposal_cap": 256,
+    "batch_size": 256,
+    "augment_profile": "vertex-light-rendered"
+  },
+  "detector_repo": {
+    "env": "CP_DETECTOR_REPO",
+    "canonical_path": "~/Documents/code/create-pattern-detector",
+    "checkpoint": "checkpoints/runpod_vertex_refiner_v3_light_rendered_ft_20260626_4090/full/best.pt",
+    "checkpoint_metrics": "checkpoints/runpod_vertex_refiner_v3_light_rendered_ft_20260626_4090/full/eval-best.json"
+  }
+}

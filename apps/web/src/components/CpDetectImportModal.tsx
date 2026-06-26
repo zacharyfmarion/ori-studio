@@ -183,6 +183,9 @@ export function CpDetectImportModal() {
       const client = await getCpDetectClient();
       const nextDetection = await client.detectRectifiedFold(rectified.image, {
         decoderBackend: DETECT_DECODER_BACKEND,
+        junctionSource: 'vertex-refiner-v3',
+        vertexRefinerFallback: 'error',
+        vertexRefinerFrame: paperFrameFromQuad(rectified.report.target_quad),
       });
       setDetection(nextDetection);
       publishDetectionResult(source, nextDetection);
@@ -672,6 +675,18 @@ function quadPolygon(quad: CpDetectQuad): string {
   return [quad.top_left, quad.top_right, quad.bottom_right, quad.bottom_left]
     .map((point) => `${point.x},${point.y}`)
     .join(' ');
+}
+
+function paperFrameFromQuad(quad: CpDetectQuad | undefined) {
+  if (!quad) return undefined;
+  const xs = [quad.top_left.x, quad.top_right.x, quad.bottom_right.x, quad.bottom_left.x];
+  const ys = [quad.top_left.y, quad.top_right.y, quad.bottom_right.y, quad.bottom_left.y];
+  return {
+    x_min: Math.min(...xs),
+    y_min: Math.min(...ys),
+    x_max: Math.max(...xs),
+    y_max: Math.max(...ys),
+  };
 }
 
 function busyLabel(busy: Exclude<BusyState, null>): string {

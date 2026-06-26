@@ -14,6 +14,7 @@ mod legacy_decode;
 pub mod opencv_hough_lines_p;
 pub mod rectify;
 pub mod segments;
+pub mod source_image_evidence;
 
 use serde::{Deserialize, Serialize};
 
