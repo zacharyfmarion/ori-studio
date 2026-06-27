@@ -31,6 +31,7 @@ nearby vertices.
 - `scripts/cp-detect/remerge-vertex-refiner-debug.ts`
 - `scripts/cp-detect/simulate-perfect-vertex-refiner-merge.ts`
 - `scripts/cp-detect/current-vertex-refiner.json`
+- `scripts/cp-detect/evaluate-correctness-pair.py`
 - `scripts/cp-detect/README.md`
 
 ## Checklist
@@ -50,7 +51,7 @@ nearby vertices.
 - [x] Add a perfect-local merge simulation that feeds GT vertices through the
       real crop layout to isolate merge behavior from model recall.
 - [x] Try same-crop conflict splitting as an opt-in merge strategy.
-- [ ] Re-run product-path clean-15 metrics after the direct merged-vertex
+- [x] Re-run product-path clean-15 metrics after the direct merged-vertex
       metrics are close to saturated.
 
 ## Iteration Log
@@ -197,3 +198,25 @@ nearby vertices.
     positives faster than it restores true near-coincident vertices.
   - Product defaults remain iteration 3: interior radius `5`, boundary radius
     `5`, min support fraction `0.25`, conflict splitting off.
+
+### Iteration 6: Product-Path Confirmation
+
+- Code change:
+  - Make `evaluate-correctness-pair.py` map normalized product FOLD
+    coordinates through each sample's paper frame from `render_metadata`.
+  - Before this fix, the evaluator multiplied product coordinates by the full
+    image extent and shifted clean renders by the `32px` paper margin.
+- Product run:
+  - `artifacts/cp-detect-correctness/runs/clean-1024-s15/product-v3-merge-default-confirm`.
+  - V3 product vertex counts match the direct merged-vertex counts, except for
+    a couple of one-vertex graph repair differences.
+- Frame-aware product comparison against the existing dense product run:
+  - Dense product vertex F1: `0.9885`
+  - Dense product edge F1: `0.9634`
+  - V3 product vertex F1: `0.9501`
+  - V3 product edge F1: `0.8868`
+- Interpretation:
+  - The merge duplicate problem is largely fixed in direct vertex space.
+  - End-to-end V3 is now limited by local missed/off-target vertex predictions
+    and by downstream graph construction sensitivity to those misses, not by
+    overlap-window duplicate merging.
