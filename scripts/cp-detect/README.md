@@ -312,6 +312,15 @@ The analyzer writes `summary.json`, `summary.md`, `gt_vertices.csv`,
 artifacts to separate “V3 missed the junction” from “V3 found the junction but
 graph construction later damaged the topology.”
 
+For merge-only iteration, replay saved raw crop predictions through the current
+merge code instead of rerunning browser/WebGPU inference:
+
+```bash
+npx tsx scripts/cp-detect/remerge-vertex-refiner-debug.ts \
+  --debug-run artifacts/cp-detect-correctness/runs/clean-1024-s15/vertex-refiner-v3-fullcoverage-debug/run_manifest.json \
+  --out artifacts/cp-detect-correctness/runs/clean-1024-s15/vertex-refiner-v3-remerge
+```
+
 Run the deterministic line-arrangement junction comparison mode:
 
 ```bash

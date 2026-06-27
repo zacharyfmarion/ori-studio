@@ -1029,6 +1029,9 @@ function clusterDistance(vertex: VertexRefinerDecodedVertex, cluster: VertexRefi
   const clusterSide = cluster.find((member) => isBoundaryVertex(member))?.boundary_side ?? null;
   if (isBoundaryVertex(vertex) || clusterSide !== null) {
     if (!isBoundaryVertex(vertex) || clusterSide === null || vertex.boundary_side !== clusterSide) {
+      if (isBoundaryVertex(vertex) && clusterSide !== null && vertex.boundary_side !== clusterSide) {
+        return Math.hypot(vertex.x - centerX, vertex.y - centerY);
+      }
       return Infinity;
     }
     return vertex.boundary_side === 'top' || vertex.boundary_side === 'bottom'

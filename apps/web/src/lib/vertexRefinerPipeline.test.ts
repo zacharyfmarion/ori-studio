@@ -185,6 +185,60 @@ describe('vertexRefinerPipeline', () => {
     });
   });
 
+  it('merges side-split paper-corner boundary contacts', () => {
+    const cropSize = 96;
+    const proposals: VertexRefinerProposal[] = [
+      { x: 0, y: 0, score: 1, provenance: ['square_frame_corner'] },
+      { x: 32, y: 0, score: 0.85, provenance: ['boundary_contact_top'] },
+      { x: 0, y: 32, score: 0.85, provenance: ['boundary_contact_left'] },
+    ];
+    const decoded = [
+      {
+        x: 0.1,
+        y: 0,
+        score: 0.76,
+        kind_id: 2,
+        kind: 'boundary_contact',
+        degree_class: 2,
+        degree: 2,
+        ray_bins: [],
+        boundary_side_id: 0,
+        boundary_side: 'top',
+        side_coordinate: 0.001,
+        crop_index: 1,
+      },
+      {
+        x: 0,
+        y: 0,
+        score: 0.68,
+        kind_id: 2,
+        kind: 'boundary_contact',
+        degree_class: 2,
+        degree: 2,
+        ray_bins: [],
+        boundary_side_id: 3,
+        boundary_side: 'left',
+        side_coordinate: 0,
+        crop_index: 2,
+      },
+    ] as const;
+
+    const merged = mergeDecodedVertexRefinerVertices(decoded, proposals, {
+      cropSize,
+      radiusPx: 3,
+      boundaryRadiusPx: 2,
+      minSupport: 1,
+    });
+
+    expect(merged).toHaveLength(1);
+    expect(merged[0]).toMatchObject({
+      kind: 'boundary_contact',
+      support_count: 2,
+    });
+    expect(merged[0].x).toBeCloseTo(0.05, 1);
+    expect(merged[0].y).toBeCloseTo(0, 3);
+  });
+
   it('keeps near-frame interior predictions as interior vertices', () => {
     const cropSize = 96;
     const proposals: VertexRefinerProposal[] = [
