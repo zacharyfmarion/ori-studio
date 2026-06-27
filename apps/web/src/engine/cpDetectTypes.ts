@@ -161,6 +161,14 @@ export interface CpDetectWorkerRunOptions {
   vertexRefinerFrame?: CpDetectPaperFrame;
   junctionSource?: CpDetectJunctionSource;
   vertexRefinerFallback?: 'dense-model' | 'error';
+  vertexRefinerProposalCap?: number;
+  vertexRefinerGridStridePx?: number;
+  vertexRefinerHeatmapThreshold?: number;
+  vertexRefinerBoundaryHeatmapThreshold?: number;
+  vertexRefinerNmsRadiusPx?: number;
+  vertexRefinerMergeRadiusPx?: number;
+  vertexRefinerBoundaryMergeRadiusPx?: number;
+  vertexRefinerMinSupport?: number;
   threshold?: number;
   executionProvider?: CpDetectExecutionProvider;
   decoderBackend?: 'legacy_v2_decoder' | 'constraint_compiler_v1' | 'legacy_candidate_exact_solve_v1';

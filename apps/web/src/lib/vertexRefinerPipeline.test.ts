@@ -89,6 +89,7 @@ describe('vertexRefinerPipeline', () => {
 
   it('generates and selects boundary-aware proposals plus square corners', () => {
     const proposals = generateSlidingWindowVertexRefinerProposals(256, 256, {
+      proposalCap: 64,
       stridePx: 64,
     });
     const selected = selectVertexRefinerProposals(proposals, {
@@ -105,6 +106,44 @@ describe('vertexRefinerPipeline', () => {
     expect(selected.some((proposal) => proposal.provenance.includes('sliding_window'))).toBe(true);
     expect(selected.some((proposal) => proposal.provenance.includes('boundary_contact_top') && proposal.y === 0)).toBe(true);
     expect(selected.some((proposal) => proposal.provenance.includes('boundary_contact_bottom') && proposal.y === 255)).toBe(true);
+  });
+
+  it('uses the proposal cap for deterministic full-coverage interior crops', () => {
+    const frame = {
+      x_min: 32,
+      y_min: 32,
+      x_max: 992,
+      y_max: 992,
+    };
+    const proposals = generateSlidingWindowVertexRefinerProposals(1024, 1024, {
+      cropSize: 96,
+      frame,
+      proposalCap: 256,
+      stridePx: 64,
+    });
+    const selected = selectVertexRefinerProposals(proposals, {
+      cropSize: 96,
+      maxCount: 256,
+      imageWidth: 1024,
+      imageHeight: 1024,
+    });
+    const boundaryCount = proposals.filter((proposal) =>
+      proposal.provenance.some((source) => source.startsWith('boundary_contact_') || source === 'square_frame_corner')
+    ).length;
+    const interior = proposals.filter((proposal) => proposal.provenance.includes('sliding_window'));
+    const interiorXs = new Set(interior.map((proposal) => proposal.x));
+    const interiorYs = new Set(interior.map((proposal) => proposal.y));
+
+    expect(proposals).toHaveLength(241);
+    expect(selected).toHaveLength(proposals.length);
+    expect(boundaryCount).toBe(120);
+    expect(interior).toHaveLength(121);
+    expect(interiorXs.size).toBe(11);
+    expect(interiorYs.size).toBe(11);
+    expect(Math.min(...interior.map((proposal) => proposal.x))).toBe(80);
+    expect(Math.max(...interior.map((proposal) => proposal.x))).toBe(944);
+    expect(Math.min(...interior.map((proposal) => proposal.y))).toBe(80);
+    expect(Math.max(...interior.map((proposal) => proposal.y))).toBe(944);
   });
 
   it('snaps explicit boundary-contact predictions onto the frame', () => {

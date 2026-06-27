@@ -528,7 +528,18 @@ async function vertexRefinerForImage(
     },
     image,
     manifest,
-    { frame: options.vertexRefinerFrame, runtime: sessionRuntime.runtime }
+    {
+      frame: options.vertexRefinerFrame,
+      proposalCap: options.vertexRefinerProposalCap,
+      gridStridePx: options.vertexRefinerGridStridePx,
+      heatmapThreshold: options.vertexRefinerHeatmapThreshold,
+      boundaryHeatmapThreshold: options.vertexRefinerBoundaryHeatmapThreshold,
+      nmsRadiusPx: options.vertexRefinerNmsRadiusPx,
+      mergeRadiusPx: options.vertexRefinerMergeRadiusPx,
+      boundaryMergeRadiusPx: options.vertexRefinerBoundaryMergeRadiusPx,
+      minSupport: options.vertexRefinerMinSupport,
+      runtime: sessionRuntime.runtime,
+    }
   );
 }
 

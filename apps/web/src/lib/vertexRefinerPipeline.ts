@@ -117,6 +117,7 @@ export async function runVertexRefinerOnImage(
       generateSlidingWindowVertexRefinerProposals(image.width, image.height, {
         cropSize,
         frame,
+        proposalCap: options.proposalCap ?? manifest.inference.proposal_cap ?? 256,
         stridePx: options.gridStridePx ?? DEFAULT_GRID_STRIDE_PX,
       }),
       {
@@ -312,33 +313,38 @@ export function generateSlidingWindowVertexRefinerProposals(
   options: {
     cropSize?: number;
     frame?: VertexRefinerFrame;
+    proposalCap?: number;
     stridePx?: number;
   } = {},
 ): VertexRefinerProposal[] {
   const cropSize = options.cropSize ?? 96;
   const frame = options.frame ?? fullImageFrame(width, height);
+  const proposalCap = Math.max(1, Math.floor(options.proposalCap ?? 256));
   const stride = Math.max(8, options.stridePx ?? DEFAULT_GRID_STRIDE_PX);
   const boundaryStride = Math.max(8, Math.min(stride / 2, cropSize / 3));
-  const half = cropSize / 2;
-  const proposals: VertexRefinerProposal[] = [];
+  const boundaryProposals: VertexRefinerProposal[] = [];
   for (const [x, y] of [
     [frame.x_min, frame.y_min],
     [frame.x_max, frame.y_min],
     [frame.x_max, frame.y_max],
     [frame.x_min, frame.y_max],
   ]) {
-    proposals.push({ x, y, score: 1, provenance: ['square_frame_corner'] });
+    boundaryProposals.push({ x, y, score: 1, provenance: ['square_frame_corner'] });
   }
   for (const x of gridCenters(frame.x_min, frame.x_max, boundaryStride)) {
-    proposals.push({ x, y: frame.y_min, score: 0.85, provenance: ['boundary_contact_top'] });
-    proposals.push({ x, y: frame.y_max, score: 0.85, provenance: ['boundary_contact_bottom'] });
+    boundaryProposals.push({ x, y: frame.y_min, score: 0.85, provenance: ['boundary_contact_top'] });
+    boundaryProposals.push({ x, y: frame.y_max, score: 0.85, provenance: ['boundary_contact_bottom'] });
   }
   for (const y of gridCenters(frame.y_min, frame.y_max, boundaryStride)) {
-    proposals.push({ x: frame.x_min, y, score: 0.85, provenance: ['boundary_contact_left'] });
-    proposals.push({ x: frame.x_max, y, score: 0.85, provenance: ['boundary_contact_right'] });
+    boundaryProposals.push({ x: frame.x_min, y, score: 0.85, provenance: ['boundary_contact_left'] });
+    boundaryProposals.push({ x: frame.x_max, y, score: 0.85, provenance: ['boundary_contact_right'] });
   }
-  const xCenters = gridCenters(frame.x_min + half, frame.x_max - half, stride);
-  const yCenters = gridCenters(frame.y_min + half, frame.y_max - half, stride);
+  const mergedBoundaryProposals = mergeVertexRefinerProposals(boundaryProposals, 1e-3);
+  const interiorBudget = Math.max(0, proposalCap - mergedBoundaryProposals.length);
+  const [xCount, yCount] = interiorGridCounts(frame, cropSize, interiorBudget);
+  const xCenters = evenlySpacedInteriorCenters(frame.x_min, frame.x_max, cropSize, xCount);
+  const yCenters = evenlySpacedInteriorCenters(frame.y_min, frame.y_max, cropSize, yCount);
+  const proposals: VertexRefinerProposal[] = [...mergedBoundaryProposals];
   for (const y of yCenters) {
     for (const x of xCenters) {
       proposals.push({ x, y, score: 0.35, provenance: ['sliding_window'] });
@@ -697,6 +703,58 @@ function gridCenters(start: number, end: number, stride: number): number[] {
     centers.push(end);
   }
   return centers;
+}
+
+function interiorGridCounts(
+  frame: VertexRefinerFrame,
+  cropSize: number,
+  budget: number,
+): [number, number] {
+  if (budget <= 0) return [0, 0];
+  const width = Math.max(1, frame.x_max - frame.x_min);
+  const height = Math.max(1, frame.y_max - frame.y_min);
+  const minX = Math.max(1, Math.ceil(width / cropSize));
+  const minY = Math.max(1, Math.ceil(height / cropSize));
+  const aspect = clamp(width / height, 0.25, 4);
+  if (minX * minY > budget) {
+    let xCount = Math.max(1, Math.floor(Math.sqrt(budget * aspect)));
+    let yCount = Math.max(1, Math.floor(budget / Math.max(xCount, 1)));
+    while (xCount * yCount > budget && yCount > 1) yCount -= 1;
+    while (xCount * yCount > budget && xCount > 1) xCount -= 1;
+    return [xCount, yCount];
+  }
+
+  let xCount = Math.max(minX, Math.floor(Math.sqrt(budget * aspect)));
+  let yCount = Math.max(minY, Math.floor(Math.sqrt(budget / aspect)));
+  while (xCount * yCount > budget) {
+    const xSurplus = xCount / minX;
+    const ySurplus = yCount / minY;
+    if (xSurplus >= ySurplus && xCount > minX) {
+      xCount -= 1;
+    } else if (yCount > minY) {
+      yCount -= 1;
+    } else {
+      break;
+    }
+  }
+  return [xCount, yCount];
+}
+
+function evenlySpacedInteriorCenters(
+  frameMin: number,
+  frameMax: number,
+  cropSize: number,
+  count: number,
+): number[] {
+  if (count <= 0) return [];
+  const half = cropSize / 2;
+  const start = frameMin + half;
+  const end = frameMax - half;
+  if (count === 1 || end <= start) return [(frameMin + frameMax) / 2];
+  return Array.from(
+    { length: count },
+    (_, index) => start + ((end - start) * index) / Math.max(count - 1, 1),
+  );
 }
 
 function mergeVertexRefinerProposals(

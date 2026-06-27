@@ -287,6 +287,31 @@ node scripts/cp-detect/run-browser-correctness-fast.mjs \
   --vertex-refiner-fallback error
 ```
 
+For V3 junction-detection analysis, save the actual proposal/raw/merged
+refiner debug payloads separately from the product FOLD output. This avoids
+conflating crop-level junction detection with downstream graph construction:
+
+```bash
+node scripts/cp-detect/run-vertex-refiner-debug-pack.mjs \
+  --url http://127.0.0.1:5175/ \
+  --pack artifacts/cp-detect-correctness/packs/clean-1024-s15/manifest.json \
+  --out artifacts/cp-detect-correctness/runs/clean-1024-s15/vertex-refiner-v3-fullcoverage-debug
+```
+
+Then analyze GT misses and false positives against the crop layout:
+
+```bash
+python3 scripts/cp-detect/analyze-vertex-refiner-crop-geometry.py \
+  --pack artifacts/cp-detect-correctness/packs/clean-1024-s15/manifest.json \
+  --debug-run artifacts/cp-detect-correctness/runs/clean-1024-s15/vertex-refiner-v3-fullcoverage-debug/run_manifest.json \
+  --out artifacts/cp-detect-correctness/reports/clean-1024-s15/vertex-refiner-v3-crop-geometry
+```
+
+The analyzer writes `summary.json`, `summary.md`, `gt_vertices.csv`,
+`pred_vertices.csv`, per-sample overlays, and a contact sheet. Use those
+artifacts to separate “V3 missed the junction” from “V3 found the junction but
+graph construction later damaged the topology.”
+
 Run the deterministic line-arrangement junction comparison mode:
 
 ```bash

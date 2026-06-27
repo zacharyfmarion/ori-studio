@@ -332,6 +332,12 @@ Progress:
   product path. The current measured proposal policy is again source/frame crop
   channels plus frame corners, regular boundary proposals, and interior sliding
   windows.
+- Replaced the greedy interior proposal thinning with deterministic
+  full-coverage interior layout. Boundary/corner crops are emitted first, then
+  the remaining proposal budget is used for an evenly spaced interior grid. On
+  the clean 1024 benchmark frame `{32,32,992,992}`, this produces `120`
+  boundary/corner proposals plus an `11 x 11` interior grid, for `241` total
+  crops under the `256` proposal cap.
 
 - Ran clean-1024-s15 through the product browser/WASM path with
   `legacy_candidate_exact_solve_v1` for:
@@ -380,6 +386,40 @@ Progress:
     only `4` as boundary contacts and `1208` as interior junctions. This means
     the remaining blocker is not the paper-frame handoff; it is the
     full-pattern boundary-contact proposal/decode/model behavior.
+- Deterministic full-coverage rerun:
+  - Run:
+    `artifacts/cp-detect-correctness/runs/clean-1024-s15/product-v3-fullcoverage-layout`
+  - Comparison report:
+    `artifacts/cp-detect-correctness/reports/clean-1024-s15-dense-vs-v3-fullcoverage-layout`
+  - Product FOLD output succeeded for all 15 samples.
+  - Relative to the previous V3 layout, vertex F1 improved from `0.0175` to
+    `0.0179`, edge F1 improved from `0.0043` to `0.0050`, assignment accuracy
+    improved from `0.8182` to `0.9231`, and structural-validity rate improved
+    from `0.2667` to `0.3333`.
+  - Relative to the dense baseline, deterministic-coverage V3 still trails:
+    dense vertex F1 `0.0201` vs V3 `0.0179`, dense edge F1 `0.0072` vs V3
+    `0.0050`, dense assignment accuracy `0.9474` vs V3 `0.9231`, and dense
+    structural-validity rate `0.6667` vs V3 `0.3333`.
+  - Interpretation: crop coverage was a real weakness in the previous V3
+    proposal layout, but fixing coverage alone is not enough for promotion.
+    The next blocker is likely merge/selection/graph integration quality and
+    boundary-contact treatment, not missing interior crop coverage by itself.
+- Added reusable V3 debug-analysis tooling:
+  - `scripts/cp-detect/run-vertex-refiner-debug-pack.mjs` saves the actual
+    proposal, raw crop prediction, and merged-vertex payloads for a correctness
+    pack without running downstream graph construction.
+  - `scripts/cp-detect/analyze-vertex-refiner-crop-geometry.py` matches GT
+    vertices directly against V3 merged vertices and reports misses/false
+    positives by crop coverage, best crop margin, crop-edge intersections,
+    boundary/interior location, degree, and sample.
+  - First clean-15 direct merged-vertex result:
+    precision `0.9269`, recall `0.9310`, F1 `0.9289`.
+  - Crop-edge intersections do not explain missed GT vertices: at 4px from a
+    crop-edge intersection, near miss rate was `0.0637` vs far miss rate
+    `0.0709`. They do explain false positives better: near false-positive rate
+    was `0.1587` vs far false-positive rate `0.0381`.
+  - Current analysis artifacts:
+    `artifacts/cp-detect-correctness/reports/clean-1024-s15/vertex-refiner-v3-crop-geometry`.
 
 ### Phase 8: Documentation, Tests, And Handoff
 
