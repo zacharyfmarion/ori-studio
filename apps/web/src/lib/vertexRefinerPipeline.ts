@@ -84,6 +84,7 @@ export interface VertexRefinerImageOptions {
   mergeRadiusPx?: number;
   boundaryMergeRadiusPx?: number;
   minSupport?: number;
+  minSupportFraction?: number;
   rayThreshold?: number;
   runtime?: CpDetectRuntimeInfo;
 }
@@ -149,10 +150,12 @@ export async function runVertexRefinerOnImage(
   });
   const mergedVertices = mergeDecodedVertexRefinerVertices(rawVertices, proposals, {
     cropSize,
-    radiusPx: options.mergeRadiusPx ?? manifest.inference.merge_radius_px ?? 3,
+    radiusPx: options.mergeRadiusPx ?? Math.max(manifest.inference.merge_radius_px ?? 5, 5),
     boundaryRadiusPx:
-      options.boundaryMergeRadiusPx ?? manifest.inference.boundary_merge_radius_px ?? 2,
+      options.boundaryMergeRadiusPx ?? Math.max(manifest.inference.boundary_merge_radius_px ?? 5, 5),
     minSupport: options.minSupport ?? 1,
+    minSupportFraction:
+      options.minSupportFraction ?? manifest.inference.min_support_fraction ?? 0.25,
   });
   const finishedAt = performance.now();
   return {
@@ -506,6 +509,7 @@ export function mergeDecodedVertexRefinerVertices(
     radiusPx: number;
     boundaryRadiusPx?: number;
     minSupport?: number;
+    minSupportFraction?: number;
   },
 ): VertexRefinerMergedVertex[] {
   const clusters: VertexRefinerDecodedVertex[][] = [];
@@ -525,6 +529,7 @@ export function mergeDecodedVertexRefinerVertices(
   return clusters
     .filter((cluster) => cluster.length >= (options.minSupport ?? 1))
     .map((cluster) => mergeVertexCluster(cluster, proposals, options.cropSize))
+    .filter((vertex) => vertex.support_fraction >= (options.minSupportFraction ?? 0))
     .sort((left, right) => right.support_count - left.support_count || right.score - left.score || left.y - right.y || left.x - right.x);
 }
 

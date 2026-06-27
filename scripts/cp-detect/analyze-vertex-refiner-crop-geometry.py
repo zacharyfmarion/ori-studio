@@ -36,7 +36,8 @@ def main() -> int:
     out_dir = args.out.resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     overlay_dir = out_dir / "sample_overlays"
-    overlay_dir.mkdir(parents=True, exist_ok=True)
+    if not args.skip_overlays:
+        overlay_dir.mkdir(parents=True, exist_ok=True)
 
     pack = json.loads(pack_path.read_text(encoding="utf-8"))
     pack_root = pack_path.parent
@@ -110,23 +111,25 @@ def main() -> int:
             "precision": safe_div(sum(1 for pred_id in range(len(merged_vertices)) if pred_id in pred_matches), len(merged_vertices)),
             "proposal_count": len(proposals),
         })
-        overlay_path = overlay_dir / f"{sample['id']}.png"
-        draw_overlay(
-            image_path=pack_root / sample["input_png"],
-            out_path=overlay_path,
-            proposals=debug["proposals"],
-            crop_size=args.crop_size,
-            gt_rows=sample_rows,
-            pred_points=merged_vertices,
-            pred_matches=pred_matches,
-        )
-        overlay_paths.append(overlay_path)
+        if not args.skip_overlays:
+            overlay_path = overlay_dir / f"{sample['id']}.png"
+            draw_overlay(
+                image_path=pack_root / sample["input_png"],
+                out_path=overlay_path,
+                proposals=debug["proposals"],
+                crop_size=args.crop_size,
+                gt_rows=sample_rows,
+                pred_points=merged_vertices,
+                pred_matches=pred_matches,
+            )
+            overlay_paths.append(overlay_path)
 
     write_csv(out_dir / "gt_vertices.csv", gt_rows)
     write_csv(out_dir / "pred_vertices.csv", pred_rows)
     write_csv(out_dir / "samples.csv", sample_summaries)
-    contact_sheet_path = out_dir / "crop_geometry_contact_sheet.png"
-    write_contact_sheet(overlay_paths, contact_sheet_path)
+    if not args.skip_overlays:
+        contact_sheet_path = out_dir / "crop_geometry_contact_sheet.png"
+        write_contact_sheet(overlay_paths, contact_sheet_path)
 
     summary = build_summary(
         gt_rows=gt_rows,
@@ -152,6 +155,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--crop-size", type=float, default=96.0)
     parser.add_argument("--match-tolerance-px", type=float, default=5.0)
     parser.add_argument("--boundary-tolerance-px", type=float, default=3.0)
+    parser.add_argument("--skip-overlays", action="store_true")
     return parser.parse_args()
 
 

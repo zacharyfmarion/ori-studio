@@ -24,9 +24,12 @@ nearby vertices.
 
 - `apps/web/src/lib/vertexRefinerPipeline.ts`
 - `apps/web/src/lib/vertexRefinerPipeline.test.ts`
+- `apps/web/src/engine/cpDetectTypes.ts`
 - `apps/web/src/workers/cpDetectWorker.ts`
 - `scripts/cp-detect/run-vertex-refiner-debug-pack.mjs`
 - `scripts/cp-detect/analyze-vertex-refiner-crop-geometry.py`
+- `scripts/cp-detect/remerge-vertex-refiner-debug.ts`
+- `scripts/cp-detect/current-vertex-refiner.json`
 - `scripts/cp-detect/README.md`
 
 ## Checklist
@@ -38,9 +41,11 @@ nearby vertices.
       side-strict boundary merging.
 - [x] Add corner-aware boundary merge behavior.
 - [x] Re-run direct merged-vertex metrics and record the delta.
-- [ ] Analyze remaining false positives after corner-aware merge.
-- [ ] Iterate on support/overlap filtering if false positives remain clustered
+- [x] Analyze remaining false positives after corner-aware merge.
+- [x] Iterate on support/overlap filtering if false positives remain clustered
       in high-overlap regions.
+- [x] Add metrics-only analysis mode so merge sweeps do not spend time
+      rendering overlays.
 - [ ] Re-run product-path clean-15 metrics after the direct merged-vertex
       metrics are close to saturated.
 
@@ -90,3 +95,58 @@ nearby vertices.
     boundary `0.8986`, interior `0.9709`.
   - Near crop-edge-intersection false-positive rate fell from `0.1587` to
     `0.0929`, but remains above far false-positive rate `0.0381`.
+
+### Iteration 2: Boundary Merge Radius Sweep
+
+- Code path:
+  - Replayed the saved raw window predictions through product merging with
+    boundary merge radii `3`, `4`, `5`, `6`, and `8`.
+  - Interior merge radius stayed at `3`.
+- Best tradeoff in this pass:
+  - Boundary radius `5`.
+  - Precision: `0.9700`
+  - Recall: `0.9266`
+  - F1: `0.9478`
+  - Pred vertices: `1301`
+  - Matched GT vertices: `1262`
+- Finding:
+  - The extra boundary radius removes side-split and near-duplicate boundary
+    predictions that survived corner-aware merging.
+  - Pushing beyond `5` starts to lose more boundary recall without improving F1.
+
+### Iteration 3: Support Fraction + Full Radius Sweep
+
+- Code change:
+  - Add `min_support_fraction` to the product manifest, worker options, debug
+    runner, ONNX export manifest, and merge function.
+  - The default is `0.25`, meaning a merged vertex must be detected by at least
+    one quarter of the crops that cover its merged position.
+  - Add `--skip-overlays` to the crop-geometry analyzer so broad merge sweeps
+    can run without rasterizing full visual reports.
+- Grid:
+  - Interior radius: `3`, `4`, `5`, `6`.
+  - Boundary radius: `2`, `3`, `4`, `5`, `6`, `8`.
+  - Support fraction: `0`, `0.15`, `0.2`, `0.25`, `0.33`, `0.5`.
+- Best F1 setting:
+  - Interior merge radius: `5`
+  - Boundary merge radius: `5`
+  - Min support fraction: `0.25`
+- Metrics:
+  - Precision: `0.9821`
+  - Recall: `0.9258`
+  - F1: `0.9531`
+  - Pred vertices: `1284`
+  - Matched GT vertices: `1261`
+- Compared with iteration 1:
+  - False positives drop from `71` to `23`.
+  - Matched GT vertices drop from `1266` to `1261`.
+  - Crop-edge-intersection false-positive rate is no longer elevated:
+    near-4px `0.0179`, far `0.0179`.
+- Recall caveat:
+  - Of the seven baseline-matched GT vertices that iteration 3 no longer
+    matches, six are boundary/corner or near-boundary cases with another GT
+    vertex within roughly `0.02px` to `3.4px`; the remaining one is an interior
+    point near the paper edge.
+  - Among all iteration-3 GT misses, `50 / 101` are within `8px` of another GT
+    vertex. This means direct GT recall is partly measuring near-coincident
+    graph topology rather than only physical rendered junction recovery.

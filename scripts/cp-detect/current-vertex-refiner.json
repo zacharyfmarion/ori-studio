@@ -14,8 +14,9 @@
     "heatmap_threshold": 0.25,
     "boundary_heatmap_threshold": 0.25,
     "nms_radius_px": 2,
-    "merge_radius_px": 3.0,
-    "boundary_merge_radius_px": 2.0,
+    "merge_radius_px": 5.0,
+    "boundary_merge_radius_px": 5.0,
+    "min_support_fraction": 0.25,
     "proposal_cap": 256,
     "batch_size": 256,
     "augment_profile": "vertex-light-rendered"

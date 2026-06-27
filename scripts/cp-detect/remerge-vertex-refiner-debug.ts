@@ -33,9 +33,10 @@ async function main() {
       sample.proposals as VertexRefinerProposal[],
       {
         cropSize,
-        radiusPx: numberOption(options.mergeRadiusPx, 3),
-        boundaryRadiusPx: numberOption(options.boundaryMergeRadiusPx, 2),
+        radiusPx: numberOption(options.mergeRadiusPx, 5),
+        boundaryRadiusPx: numberOption(options.boundaryMergeRadiusPx, 5),
         minSupport: numberOption(options.minSupport, 1),
+        minSupportFraction: numberOption(options.minSupportFraction, 0.25),
       },
     );
     const outSample = {
@@ -44,9 +45,10 @@ async function main() {
       source_debug: sourcePath,
       remerge_options: {
         crop_size: cropSize,
-        merge_radius_px: numberOption(options.mergeRadiusPx, 3),
-        boundary_merge_radius_px: numberOption(options.boundaryMergeRadiusPx, 2),
+        merge_radius_px: numberOption(options.mergeRadiusPx, 5),
+        boundary_merge_radius_px: numberOption(options.boundaryMergeRadiusPx, 5),
         min_support: numberOption(options.minSupport, 1),
+        min_support_fraction: numberOption(options.minSupportFraction, 0.25),
       },
       mergedVertices,
     };

@@ -122,6 +122,7 @@ export interface CpVertexRefinerModelManifest {
     nms_radius_px?: number;
     merge_radius_px?: number;
     boundary_merge_radius_px?: number;
+    min_support_fraction?: number;
     proposal_cap?: number;
     batch_size?: number;
   };
@@ -169,6 +170,7 @@ export interface CpDetectWorkerRunOptions {
   vertexRefinerMergeRadiusPx?: number;
   vertexRefinerBoundaryMergeRadiusPx?: number;
   vertexRefinerMinSupport?: number;
+  vertexRefinerMinSupportFraction?: number;
   threshold?: number;
   executionProvider?: CpDetectExecutionProvider;
   decoderBackend?: 'legacy_v2_decoder' | 'constraint_compiler_v1' | 'legacy_candidate_exact_solve_v1';

@@ -9,6 +9,7 @@ import {
   mergeDecodedVertexRefinerVertices,
   runVertexRefinerOnImage,
   selectVertexRefinerProposals,
+  type VertexRefinerDecodedVertex,
   type VertexRefinerProposal,
 } from './vertexRefinerPipeline';
 
@@ -192,7 +193,7 @@ describe('vertexRefinerPipeline', () => {
       { x: 32, y: 0, score: 0.85, provenance: ['boundary_contact_top'] },
       { x: 0, y: 32, score: 0.85, provenance: ['boundary_contact_left'] },
     ];
-    const decoded = [
+    const decoded: VertexRefinerDecodedVertex[] = [
       {
         x: 0.1,
         y: 0,
@@ -221,7 +222,7 @@ describe('vertexRefinerPipeline', () => {
         side_coordinate: 0,
         crop_index: 2,
       },
-    ] as const;
+    ];
 
     const merged = mergeDecodedVertexRefinerVertices(decoded, proposals, {
       cropSize,
@@ -237,6 +238,46 @@ describe('vertexRefinerPipeline', () => {
     });
     expect(merged[0].x).toBeCloseTo(0.05, 1);
     expect(merged[0].y).toBeCloseTo(0, 3);
+  });
+
+  it('filters weak one-of-many overlap clusters by support fraction', () => {
+    const cropSize = 96;
+    const proposals: VertexRefinerProposal[] = [
+      { x: 48, y: 48, score: 1, provenance: ['test'] },
+      { x: 50, y: 48, score: 1, provenance: ['test'] },
+      { x: 48, y: 50, score: 1, provenance: ['test'] },
+      { x: 50, y: 50, score: 1, provenance: ['test'] },
+      { x: 46, y: 46, score: 1, provenance: ['test'] },
+    ];
+    const decoded: VertexRefinerDecodedVertex[] = [
+      {
+        x: 48,
+        y: 48,
+        score: 0.4,
+        kind_id: 1,
+        kind: 'interior_junction',
+        degree_class: 4,
+        degree: 4,
+        ray_bins: [],
+        boundary_side_id: null,
+        boundary_side: null,
+        side_coordinate: null,
+        crop_index: 0,
+      },
+    ];
+
+    expect(mergeDecodedVertexRefinerVertices(decoded, proposals, {
+      cropSize,
+      radiusPx: 3,
+      minSupport: 1,
+      minSupportFraction: 0.25,
+    })).toHaveLength(0);
+    expect(mergeDecodedVertexRefinerVertices(decoded, proposals, {
+      cropSize,
+      radiusPx: 3,
+      minSupport: 1,
+      minSupportFraction: 0.2,
+    })).toHaveLength(1);
   });
 
   it('keeps near-frame interior predictions as interior vertices', () => {

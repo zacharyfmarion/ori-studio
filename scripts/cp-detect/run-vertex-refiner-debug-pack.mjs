@@ -223,6 +223,7 @@ function refinerOptions(options) {
       ['vertexRefinerMergeRadiusPx', numberOption(options.vertexRefinerMergeRadiusPx)],
       ['vertexRefinerBoundaryMergeRadiusPx', numberOption(options.vertexRefinerBoundaryMergeRadiusPx)],
       ['vertexRefinerMinSupport', numberOption(options.vertexRefinerMinSupport)],
+      ['vertexRefinerMinSupportFraction', numberOption(options.vertexRefinerMinSupportFraction)],
       ['executionProvider', options.executionProvider],
     ].filter(([, value]) => value !== undefined && value !== null)
   );

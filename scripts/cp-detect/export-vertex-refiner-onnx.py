@@ -241,6 +241,9 @@ def write_manifest(
             "boundary_merge_radius_px": float(
                 CURRENT_REFINER["inference"]["boundary_merge_radius_px"]
             ),
+            "min_support_fraction": float(
+                CURRENT_REFINER["inference"].get("min_support_fraction", 0.0)
+            ),
             "proposal_cap": int(CURRENT_REFINER["inference"]["proposal_cap"]),
             "batch_size": int(CURRENT_REFINER["inference"]["proposal_cap"]),
         },

@@ -538,6 +538,7 @@ async function vertexRefinerForImage(
       mergeRadiusPx: options.vertexRefinerMergeRadiusPx,
       boundaryMergeRadiusPx: options.vertexRefinerBoundaryMergeRadiusPx,
       minSupport: options.vertexRefinerMinSupport,
+      minSupportFraction: options.vertexRefinerMinSupportFraction,
       runtime: sessionRuntime.runtime,
     }
   );
