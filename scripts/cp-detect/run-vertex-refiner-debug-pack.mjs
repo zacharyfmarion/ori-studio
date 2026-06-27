@@ -224,6 +224,8 @@ function refinerOptions(options) {
       ['vertexRefinerBoundaryMergeRadiusPx', numberOption(options.vertexRefinerBoundaryMergeRadiusPx)],
       ['vertexRefinerMinSupport', numberOption(options.vertexRefinerMinSupport)],
       ['vertexRefinerMinSupportFraction', numberOption(options.vertexRefinerMinSupportFraction)],
+      ['vertexRefinerSplitSameCropConflicts', booleanOption(options.vertexRefinerSplitSameCropConflicts)],
+      ['vertexRefinerSplitMinSupportFraction', numberOption(options.vertexRefinerSplitMinSupportFraction)],
       ['executionProvider', options.executionProvider],
     ].filter(([, value]) => value !== undefined && value !== null)
   );
@@ -240,6 +242,13 @@ function numberOption(value) {
   if (value === undefined || value === null) return undefined;
   const number = Number(value);
   return Number.isFinite(number) ? number : undefined;
+}
+
+function booleanOption(value) {
+  if (value === undefined || value === null) return undefined;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return undefined;
 }
 
 function limitedSamples(samples, limit) {

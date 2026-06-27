@@ -37,6 +37,8 @@ async function main() {
         boundaryRadiusPx: numberOption(options.boundaryMergeRadiusPx, 5),
         minSupport: numberOption(options.minSupport, 1),
         minSupportFraction: numberOption(options.minSupportFraction, 0.25),
+        splitSameCropConflicts: booleanOption(options.splitSameCropConflicts, false),
+        splitMinSupportFraction: numberOption(options.splitMinSupportFraction, 0.5),
       },
     );
     const outSample = {
@@ -49,6 +51,8 @@ async function main() {
         boundary_merge_radius_px: numberOption(options.boundaryMergeRadiusPx, 5),
         min_support: numberOption(options.minSupport, 1),
         min_support_fraction: numberOption(options.minSupportFraction, 0.25),
+        split_same_crop_conflicts: booleanOption(options.splitSameCropConflicts, false),
+        split_min_support_fraction: numberOption(options.splitMinSupportFraction, 0.5),
       },
       mergedVertices,
     };
@@ -85,6 +89,13 @@ function numberOption(value: string | undefined, fallback: number): number {
   if (value === undefined || value === null) return fallback;
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
+}
+
+function booleanOption(value: string | undefined, fallback: boolean): boolean {
+  if (value === undefined || value === null) return fallback;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return fallback;
 }
 
 function parseArgs(args: string[]): Record<string, string> {

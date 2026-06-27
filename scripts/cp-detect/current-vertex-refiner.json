@@ -17,6 +17,8 @@
     "merge_radius_px": 5.0,
     "boundary_merge_radius_px": 5.0,
     "min_support_fraction": 0.25,
+    "split_same_crop_conflicts": false,
+    "split_min_support_fraction": 0.5,
     "proposal_cap": 256,
     "batch_size": 256,
     "augment_profile": "vertex-light-rendered"

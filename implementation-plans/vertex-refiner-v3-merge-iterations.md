@@ -29,6 +29,7 @@ nearby vertices.
 - `scripts/cp-detect/run-vertex-refiner-debug-pack.mjs`
 - `scripts/cp-detect/analyze-vertex-refiner-crop-geometry.py`
 - `scripts/cp-detect/remerge-vertex-refiner-debug.ts`
+- `scripts/cp-detect/simulate-perfect-vertex-refiner-merge.ts`
 - `scripts/cp-detect/current-vertex-refiner.json`
 - `scripts/cp-detect/README.md`
 
@@ -46,6 +47,9 @@ nearby vertices.
       in high-overlap regions.
 - [x] Add metrics-only analysis mode so merge sweeps do not spend time
       rendering overlays.
+- [x] Add a perfect-local merge simulation that feeds GT vertices through the
+      real crop layout to isolate merge behavior from model recall.
+- [x] Try same-crop conflict splitting as an opt-in merge strategy.
 - [ ] Re-run product-path clean-15 metrics after the direct merged-vertex
       metrics are close to saturated.
 
@@ -150,3 +154,46 @@ nearby vertices.
   - Among all iteration-3 GT misses, `50 / 101` are within `8px` of another GT
     vertex. This means direct GT recall is partly measuring near-coincident
     graph topology rather than only physical rendered junction recovery.
+
+### Iteration 4: Perfect-Local Merge Simulation
+
+- Code change:
+  - Add `simulate-perfect-vertex-refiner-merge.ts`, which synthesizes one raw
+    vertex prediction for every GT vertex in every crop that contains it, then
+    runs the product merge.
+- Current product merge defaults on perfect-local inputs:
+  - Precision: `1.0000`
+  - Recall: `0.9780`
+  - F1: `0.9889`
+  - Pred vertices: `1332`
+- Interpretation:
+  - The merge is duplicate-free under perfect local evidence.
+  - The remaining recall loss is caused by near-coincident GT vertices being
+    intentionally collapsed by the `5px` radius, not by missing crop coverage.
+  - Smaller radii recover more GT duplicates in the perfect simulation
+    (`r=3`, `b=2` gives `0.9952` F1), but actual model precision is worse
+    because real window predictions have several-pixel jitter and duplicate
+    peaks.
+
+### Iteration 5: Same-Crop Conflict Split
+
+- Hypothesis:
+  - If one crop emits two nearby peaks, that is evidence for two distinct local
+    vertices. Split merged clusters that contain same-crop conflicts, and only
+    keep split children with stronger overlap support.
+- Perfect-local result:
+  - Precision: `1.0000`
+  - Recall: `1.0000`
+  - F1: `1.0000`
+- Actual model replay result with split enabled:
+  - Precision: `0.9627`
+  - Recall: `0.9273`
+  - F1: `0.9447`
+  - Pred vertices: `1312`
+- Decision:
+  - Keep same-crop conflict splitting as an explicit experimental option.
+  - Do not enable it by default yet. The current model sometimes emits duplicate
+    same-crop peaks for one physical junction, so the splitter restores false
+    positives faster than it restores true near-coincident vertices.
+  - Product defaults remain iteration 3: interior radius `5`, boundary radius
+    `5`, min support fraction `0.25`, conflict splitting off.

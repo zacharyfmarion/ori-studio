@@ -244,6 +244,12 @@ def write_manifest(
             "min_support_fraction": float(
                 CURRENT_REFINER["inference"].get("min_support_fraction", 0.0)
             ),
+            "split_same_crop_conflicts": bool(
+                CURRENT_REFINER["inference"].get("split_same_crop_conflicts", False)
+            ),
+            "split_min_support_fraction": float(
+                CURRENT_REFINER["inference"].get("split_min_support_fraction", 0.0)
+            ),
             "proposal_cap": int(CURRENT_REFINER["inference"]["proposal_cap"]),
             "batch_size": int(CURRENT_REFINER["inference"]["proposal_cap"]),
         },

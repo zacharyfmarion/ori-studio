@@ -280,6 +280,50 @@ describe('vertexRefinerPipeline', () => {
     })).toHaveLength(1);
   });
 
+  it('keeps close vertices separate when the same crop detects both peaks', () => {
+    const cropSize = 96;
+    const proposals: VertexRefinerProposal[] = [
+      { x: 48, y: 48, score: 1, provenance: ['test'] },
+    ];
+    const decoded: VertexRefinerDecodedVertex[] = [
+      {
+        x: 48,
+        y: 48,
+        score: 0.8,
+        kind_id: 1,
+        kind: 'interior_junction',
+        degree_class: 4,
+        degree: 4,
+        ray_bins: [],
+        boundary_side_id: null,
+        boundary_side: null,
+        side_coordinate: null,
+        crop_index: 0,
+      },
+      {
+        x: 51,
+        y: 48,
+        score: 0.7,
+        kind_id: 1,
+        kind: 'interior_junction',
+        degree_class: 4,
+        degree: 4,
+        ray_bins: [],
+        boundary_side_id: null,
+        boundary_side: null,
+        side_coordinate: null,
+        crop_index: 0,
+      },
+    ];
+
+    expect(mergeDecodedVertexRefinerVertices(decoded, proposals, {
+      cropSize,
+      radiusPx: 5,
+      minSupport: 1,
+      splitSameCropConflicts: true,
+    })).toHaveLength(2);
+  });
+
   it('keeps near-frame interior predictions as interior vertices', () => {
     const cropSize = 96;
     const proposals: VertexRefinerProposal[] = [

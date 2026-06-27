@@ -85,6 +85,8 @@ export interface VertexRefinerImageOptions {
   boundaryMergeRadiusPx?: number;
   minSupport?: number;
   minSupportFraction?: number;
+  splitSameCropConflicts?: boolean;
+  splitMinSupportFraction?: number;
   rayThreshold?: number;
   runtime?: CpDetectRuntimeInfo;
 }
@@ -156,6 +158,10 @@ export async function runVertexRefinerOnImage(
     minSupport: options.minSupport ?? 1,
     minSupportFraction:
       options.minSupportFraction ?? manifest.inference.min_support_fraction ?? 0.25,
+    splitSameCropConflicts:
+      options.splitSameCropConflicts ?? manifest.inference.split_same_crop_conflicts ?? false,
+    splitMinSupportFraction:
+      options.splitMinSupportFraction ?? manifest.inference.split_min_support_fraction ?? 0.5,
   });
   const finishedAt = performance.now();
   return {
@@ -510,6 +516,8 @@ export function mergeDecodedVertexRefinerVertices(
     boundaryRadiusPx?: number;
     minSupport?: number;
     minSupportFraction?: number;
+    splitSameCropConflicts?: boolean;
+    splitMinSupportFraction?: number;
   },
 ): VertexRefinerMergedVertex[] {
   const clusters: VertexRefinerDecodedVertex[][] = [];
@@ -527,9 +535,17 @@ export function mergeDecodedVertexRefinerVertices(
     else clusters[matchIndex].push(vertex);
   }
   return clusters
-    .filter((cluster) => cluster.length >= (options.minSupport ?? 1))
-    .map((cluster) => mergeVertexCluster(cluster, proposals, options.cropSize))
-    .filter((vertex) => vertex.support_fraction >= (options.minSupportFraction ?? 0))
+    .flatMap((cluster) => splitSameCropConflictClusters(cluster, options))
+    .filter(({ cluster }) => cluster.length >= (options.minSupport ?? 1))
+    .map(({ cluster, fromConflictSplit }) => ({
+      vertex: mergeVertexCluster(cluster, proposals, options.cropSize),
+      fromConflictSplit,
+    }))
+    .filter(({ vertex }) => vertex.support_fraction >= (options.minSupportFraction ?? 0))
+    .filter(({ vertex, fromConflictSplit }) => (
+      !fromConflictSplit || vertex.support_fraction >= (options.splitMinSupportFraction ?? options.minSupportFraction ?? 0)
+    ))
+    .map(({ vertex }) => vertex)
     .sort((left, right) => right.support_count - left.support_count || right.score - left.score || left.y - right.y || left.x - right.x);
 }
 
@@ -1029,7 +1045,49 @@ function isBoundaryVertex(vertex: VertexRefinerDecodedVertex): boolean {
   return vertex.kind === 'boundary_contact' && vertex.boundary_side !== null;
 }
 
-function clusterDistance(vertex: VertexRefinerDecodedVertex, cluster: VertexRefinerDecodedVertex[]): number {
+function splitSameCropConflictClusters(
+  cluster: VertexRefinerDecodedVertex[],
+  options: {
+    radiusPx: number;
+    boundaryRadiusPx?: number;
+    splitSameCropConflicts?: boolean;
+  },
+): Array<{ cluster: VertexRefinerDecodedVertex[]; fromConflictSplit: boolean }> {
+  if (!options.splitSameCropConflicts || !hasSameCropConflict(cluster)) {
+    return [{ cluster, fromConflictSplit: false }];
+  }
+  const subclusters: VertexRefinerDecodedVertex[][] = [];
+  for (const vertex of [...cluster].sort((left, right) => right.score - left.score || left.y - right.y || left.x - right.x)) {
+    let matchIndex = -1;
+    let bestDistance = isBoundaryVertex(vertex) ? options.boundaryRadiusPx ?? options.radiusPx : options.radiusPx;
+    for (let index = 0; index < subclusters.length; index += 1) {
+      const distance = clusterDistance(vertex, subclusters[index], true);
+      if (distance <= bestDistance) {
+        bestDistance = distance;
+        matchIndex = index;
+      }
+    }
+    if (matchIndex < 0) subclusters.push([vertex]);
+    else subclusters[matchIndex].push(vertex);
+  }
+  return subclusters.map((subcluster) => ({ cluster: subcluster, fromConflictSplit: true }));
+}
+
+function hasSameCropConflict(cluster: VertexRefinerDecodedVertex[]): boolean {
+  const seen = new Set<number>();
+  for (const vertex of cluster) {
+    if (seen.has(vertex.crop_index)) return true;
+    seen.add(vertex.crop_index);
+  }
+  return false;
+}
+
+function clusterDistance(
+  vertex: VertexRefinerDecodedVertex,
+  cluster: VertexRefinerDecodedVertex[],
+  preventSameCrop = false,
+): number {
+  if (preventSameCrop && cluster.some((member) => member.crop_index === vertex.crop_index)) return Infinity;
   const [centerX, centerY] = weightedCenter(cluster);
   const clusterSide = cluster.find((member) => isBoundaryVertex(member))?.boundary_side ?? null;
   if (isBoundaryVertex(vertex) || clusterSide !== null) {
