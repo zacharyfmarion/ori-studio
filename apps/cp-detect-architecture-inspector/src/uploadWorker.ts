@@ -23,6 +23,12 @@ import type {
   CpVertexRefinerModelManifest,
 } from '../../web/src/engine/cpDetectTypes';
 import {
+  CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_JUNCTION_THRESHOLD,
+  CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_MAX_OVERLAP_FRACTION,
+  CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_MIN_PEAKS,
+  CP_DETECT_DEFAULT_VERTEX_REFINER_PROPOSAL_MODE,
+} from '../../web/src/engine/cpDetectTypes';
+import {
   CP_DETECT_OUTPUT_KEYS,
   DEFAULT_CP_DETECT_MODEL_MANIFEST_URL,
   fetchCpDetectModelManifest,
@@ -378,12 +384,12 @@ async function vertexRefinerForImage(
     manifest,
     {
       frame: options.vertexRefinerFrame,
-      proposalMode: options.vertexRefinerProposalMode,
+      proposalMode: effectiveVertexRefinerProposalMode(options),
       proposalCap: options.vertexRefinerProposalCap,
       denseJunctionLogits: denseOutputs?.junction_logits,
-      denseRegionJunctionThreshold: options.vertexRefinerDenseRegionJunctionThreshold,
-      denseRegionMinPeaks: options.vertexRefinerDenseRegionMinPeaks,
-      denseRegionMaxOverlapFraction: options.vertexRefinerDenseRegionMaxOverlapFraction,
+      denseRegionJunctionThreshold: effectiveDenseRegionJunctionThreshold(options),
+      denseRegionMinPeaks: effectiveDenseRegionMinPeaks(options),
+      denseRegionMaxOverlapFraction: effectiveDenseRegionMaxOverlapFraction(options),
       gridStridePx: options.vertexRefinerGridStridePx,
       heatmapThreshold: options.vertexRefinerHeatmapThreshold,
       boundaryHeatmapThreshold: options.vertexRefinerBoundaryHeatmapThreshold,
@@ -533,9 +539,10 @@ const api = {
     const junctionSource = options.junctionSource ?? 'dense-model';
     const vertexRefinerFrame =
       options.vertexRefinerFrame ?? paperFrameFromRectificationReport(options.rectificationReport);
+    const proposalMode = effectiveVertexRefinerProposalMode(options);
     const needsDenseForVertexRefiner =
       junctionSource === 'vertex-refiner-v3' &&
-      options.vertexRefinerProposalMode === 'dense-junction-regions';
+      proposalMode === 'dense-junction-regions';
     const [inference, vertexRefiner] = needsDenseForVertexRefiner
       ? await (async () => {
           const dense = await denseInferenceForImage(image, options);
@@ -566,7 +573,7 @@ const api = {
           input_channel_names: vertexRefinerInputChannelNames(vertexRefiner.manifest),
           output_head_names: Array.from(CP_VERTEX_REFINER_OUTPUT_KEYS),
           proposal_count: vertexRefiner.proposals.length,
-          proposal_mode: options.vertexRefinerProposalMode ?? 'full-coverage',
+          proposal_mode: proposalMode,
           refinement_regions: vertexRefiner.refinement_regions ?? null,
           raw_prediction_count: vertexRefiner.raw_vertices.length,
           merged_vertex_count: vertexRefiner.merged_vertices.length,
@@ -915,6 +922,33 @@ function mapPayloadFromValues(
 
 function sigmoid(value: number): number {
   return 1 / (1 + Math.exp(-value));
+}
+
+function effectiveVertexRefinerProposalMode(
+  options: CpDetectWorkerRunOptions,
+): NonNullable<CpDetectWorkerRunOptions['vertexRefinerProposalMode']> {
+  return options.vertexRefinerProposalMode ?? CP_DETECT_DEFAULT_VERTEX_REFINER_PROPOSAL_MODE;
+}
+
+function effectiveDenseRegionJunctionThreshold(options: CpDetectWorkerRunOptions): number {
+  return (
+    options.vertexRefinerDenseRegionJunctionThreshold ??
+    CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_JUNCTION_THRESHOLD
+  );
+}
+
+function effectiveDenseRegionMinPeaks(options: CpDetectWorkerRunOptions): number {
+  return (
+    options.vertexRefinerDenseRegionMinPeaks ??
+    CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_MIN_PEAKS
+  );
+}
+
+function effectiveDenseRegionMaxOverlapFraction(options: CpDetectWorkerRunOptions): number {
+  return (
+    options.vertexRefinerDenseRegionMaxOverlapFraction ??
+    CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_MAX_OVERLAP_FRACTION
+  );
 }
 
 function paperFrameFromRectificationReport(report: unknown): CpDetectPaperFrame | undefined {

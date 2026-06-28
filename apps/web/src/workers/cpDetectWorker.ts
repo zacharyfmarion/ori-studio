@@ -28,6 +28,14 @@ import type {
   CpDetectWorkerRunOptions,
   CpVertexRefinerModelManifest,
 } from '../engine/cpDetectTypes';
+import {
+  CP_DETECT_DEFAULT_JUNCTION_SOURCE,
+  CP_DETECT_DEFAULT_LINE_EVIDENCE_SOURCE,
+  CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_JUNCTION_THRESHOLD,
+  CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_MAX_OVERLAP_FRACTION,
+  CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_MIN_PEAKS,
+  CP_DETECT_DEFAULT_VERTEX_REFINER_PROPOSAL_MODE,
+} from '../engine/cpDetectTypes';
 import type { WasmErrorEnvelope } from '../engine/types';
 import {
   DEFAULT_CP_DETECT_MODEL_MANIFEST_URL,
@@ -404,7 +412,7 @@ const api = {
       return {
         manifestId: result.manifest.id,
         frame: result.frame,
-        proposalMode: options.vertexRefinerProposalMode ?? 'full-coverage',
+        proposalMode: effectiveVertexRefinerProposalMode(options),
         proposals: result.proposals,
         refinementRegions: result.refinement_regions,
         rawVertices: result.raw_vertices,
@@ -418,11 +426,12 @@ const api = {
     options: CpDetectWorkerRunOptions = {}
   ): Promise<CpDetectFoldResult> {
     return call(async () => {
-      const requestedJunctionSource = options.junctionSource ?? 'vertex-refiner-v3';
+      const requestedJunctionSource = options.junctionSource ?? CP_DETECT_DEFAULT_JUNCTION_SOURCE;
       const lineEvidenceSource = resolveLineEvidenceSource(options.lineEvidenceSource);
+      const proposalMode = effectiveVertexRefinerProposalMode(options);
       const needsDenseForVertexRefiner =
         requestedJunctionSource === 'vertex-refiner-v3' &&
-        options.vertexRefinerProposalMode === 'dense-junction-regions';
+        proposalMode === 'dense-junction-regions';
       const [inference, vertexRefinerOutcome] = needsDenseForVertexRefiner
         ? await (async () => {
             const dense = await denseInferenceForImage(image, options);
@@ -470,7 +479,7 @@ const api = {
               manifestId: vertexRefiner.manifest.id,
               frame: vertexRefiner.frame,
               proposalCount: vertexRefiner.proposals.length,
-              proposalMode: options.vertexRefinerProposalMode ?? 'full-coverage',
+              proposalMode,
               rawPredictionCount: vertexRefiner.raw_vertices.length,
               mergedVertexCount: vertexRefiner.merged_vertices.length,
               runtime: vertexRefiner.runtime,
@@ -558,12 +567,12 @@ async function vertexRefinerForImage(
     manifest,
     {
       frame: options.vertexRefinerFrame,
-      proposalMode: options.vertexRefinerProposalMode,
+      proposalMode: effectiveVertexRefinerProposalMode(options),
       proposalCap: options.vertexRefinerProposalCap,
       denseJunctionLogits: denseOutputs?.junction_logits,
-      denseRegionJunctionThreshold: options.vertexRefinerDenseRegionJunctionThreshold,
-      denseRegionMinPeaks: options.vertexRefinerDenseRegionMinPeaks,
-      denseRegionMaxOverlapFraction: options.vertexRefinerDenseRegionMaxOverlapFraction,
+      denseRegionJunctionThreshold: effectiveDenseRegionJunctionThreshold(options),
+      denseRegionMinPeaks: effectiveDenseRegionMinPeaks(options),
+      denseRegionMaxOverlapFraction: effectiveDenseRegionMaxOverlapFraction(options),
       gridStridePx: options.vertexRefinerGridStridePx,
       heatmapThreshold: options.vertexRefinerHeatmapThreshold,
       boundaryHeatmapThreshold: options.vertexRefinerBoundaryHeatmapThreshold,
@@ -584,7 +593,7 @@ async function denseOutputsForVertexRefinerProposalMode(
   image: ImageData,
   options: CpDetectWorkerRunOptions
 ): Promise<CpDetectDenseOutputs | undefined> {
-  if (options.vertexRefinerProposalMode !== 'dense-junction-regions') {
+  if (effectiveVertexRefinerProposalMode(options) !== 'dense-junction-regions') {
     return undefined;
   }
   return (await denseInferenceForImage(image, options)).outputs;
@@ -670,13 +679,40 @@ function refinedVertexDecodePayload(vertexRefiner: VertexRefinerImageResult | nu
 function resolveLineEvidenceSource(
   value: CpDetectWorkerRunOptions['lineEvidenceSource']
 ): CpDetectLineEvidenceSource {
-  if (value === undefined || value === null || value === 'source-image') {
-    return 'source-image';
+  if (value === undefined || value === null || value === CP_DETECT_DEFAULT_LINE_EVIDENCE_SOURCE) {
+    return CP_DETECT_DEFAULT_LINE_EVIDENCE_SOURCE;
   }
   if (value === 'dense-model') {
     return 'dense-model';
   }
   throw new Error(`Unsupported CP detector line evidence source: ${String(value)}`);
+}
+
+function effectiveVertexRefinerProposalMode(
+  options: CpDetectWorkerRunOptions
+): NonNullable<CpDetectWorkerRunOptions['vertexRefinerProposalMode']> {
+  return options.vertexRefinerProposalMode ?? CP_DETECT_DEFAULT_VERTEX_REFINER_PROPOSAL_MODE;
+}
+
+function effectiveDenseRegionJunctionThreshold(options: CpDetectWorkerRunOptions): number {
+  return (
+    options.vertexRefinerDenseRegionJunctionThreshold ??
+    CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_JUNCTION_THRESHOLD
+  );
+}
+
+function effectiveDenseRegionMinPeaks(options: CpDetectWorkerRunOptions): number {
+  return (
+    options.vertexRefinerDenseRegionMinPeaks ??
+    CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_MIN_PEAKS
+  );
+}
+
+function effectiveDenseRegionMaxOverlapFraction(options: CpDetectWorkerRunOptions): number {
+  return (
+    options.vertexRefinerDenseRegionMaxOverlapFraction ??
+    CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_MAX_OVERLAP_FRACTION
+  );
 }
 
 function withLineEvidenceSource(

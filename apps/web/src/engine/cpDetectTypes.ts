@@ -11,6 +11,14 @@ export type CpDetectJunctionSource = 'dense-model' | 'line-arrangement' | 'verte
 export type CpDetectLineEvidenceSource = 'source-image' | 'dense-model';
 export type CpDetectVertexRefinerProposalMode = 'full-coverage' | 'dense-junction-regions';
 
+export const CP_DETECT_DEFAULT_JUNCTION_SOURCE: CpDetectJunctionSource = 'vertex-refiner-v3';
+export const CP_DETECT_DEFAULT_LINE_EVIDENCE_SOURCE: CpDetectLineEvidenceSource = 'source-image';
+export const CP_DETECT_DEFAULT_VERTEX_REFINER_PROPOSAL_MODE: CpDetectVertexRefinerProposalMode =
+  'dense-junction-regions';
+export const CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_JUNCTION_THRESHOLD = 0.35;
+export const CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_MIN_PEAKS = 3;
+export const CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_MAX_OVERLAP_FRACTION = 0;
+
 export interface CpDetectPaperFrame {
   x_min: number;
   y_min: number;

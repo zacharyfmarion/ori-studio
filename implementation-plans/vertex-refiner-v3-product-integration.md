@@ -24,6 +24,22 @@ This branch should behave like a real product promotion candidate: the visible
 import flow uses V3 by default, and we either merge that default after
 end-to-end metrics and visual failure review, or keep the branch unmerged.
 
+Promoted V3 default as of the dense-region experiment:
+
+```text
+junctionSource = 'vertex-refiner-v3'
+lineEvidenceSource = 'source-image'
+vertexRefinerProposalMode = 'dense-junction-regions'
+vertexRefinerDenseRegionJunctionThreshold = 0.35
+vertexRefinerDenseRegionMinPeaks = 3
+vertexRefinerDenseRegionMaxOverlapFraction = 0
+```
+
+Dense-region V3 crops that touch the paper frame are intentionally excluded for
+now because border-region V3 replacement regressed boundary-contact metrics.
+The hybrid decode preserves dense HRNet junction/boundary evidence outside the
+selected interior refinement regions.
+
 ## Approach
 
 - Treat the trained V3 checkpoint as a second model that runs after

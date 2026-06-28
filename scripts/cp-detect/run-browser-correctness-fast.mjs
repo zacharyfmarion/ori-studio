@@ -5,6 +5,12 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+const DEFAULT_JUNCTION_SOURCE = 'vertex-refiner-v3';
+const DEFAULT_LINE_EVIDENCE_SOURCE = 'source-image';
+const DEFAULT_VERTEX_REFINER_PROPOSAL_MODE = 'dense-junction-regions';
+const DEFAULT_VERTEX_REFINER_DENSE_REGION_JUNCTION_THRESHOLD = 0.35;
+const DEFAULT_VERTEX_REFINER_DENSE_REGION_MIN_PEAKS = 3;
+const DEFAULT_VERTEX_REFINER_DENSE_REGION_MAX_OVERLAP_FRACTION = 0;
 
 async function main() {
   const options = parseArgs(process.argv.slice(2));
@@ -52,10 +58,12 @@ async function main() {
         vertices: result.report.vertex_count ?? 0,
         edges: result.report.edge_count ?? 0,
         border_edges: result.report.border_edge_count ?? 0,
-        junction_source: result.report.junction_source ?? 'vertex-refiner-v3',
-        line_evidence_source: result.report.line_evidence_source ?? 'source-image',
+        junction_source: result.report.junction_source ?? DEFAULT_JUNCTION_SOURCE,
+        line_evidence_source: result.report.line_evidence_source ?? DEFAULT_LINE_EVIDENCE_SOURCE,
         vertex_refiner_proposal_mode:
-          result.report.vertex_refiner?.proposalMode ?? options.vertexRefinerProposalMode ?? 'full-coverage',
+          result.report.vertex_refiner?.proposalMode ??
+          options.vertexRefinerProposalMode ??
+          DEFAULT_VERTEX_REFINER_PROPOSAL_MODE,
         vertex_refiner_merged_vertices:
           result.report.vertex_refiner?.mergedVertexCount ?? undefined,
         error: result.error ?? undefined,
@@ -76,25 +84,26 @@ async function main() {
     browser_url: url,
     manifest_url: options.manifestUrl ?? '/models/cp-detector-v3/manifest.json',
     model_url: options.modelUrl ?? null,
-    junction_source: options.junctionSource ?? 'vertex-refiner-v3',
-    line_evidence_source: options.lineEvidenceSource ?? 'source-image',
+    junction_source: options.junctionSource ?? DEFAULT_JUNCTION_SOURCE,
+    line_evidence_source: options.lineEvidenceSource ?? DEFAULT_LINE_EVIDENCE_SOURCE,
     vertex_refiner_manifest_url:
       options.vertexRefinerManifestUrl ?? '/models/cp-vertex-refiner-v3/manifest.json',
     vertex_refiner_model_url: options.vertexRefinerModelUrl ?? null,
-    vertex_refiner_proposal_mode: options.vertexRefinerProposalMode ?? 'full-coverage',
+    vertex_refiner_proposal_mode:
+      options.vertexRefinerProposalMode ?? DEFAULT_VERTEX_REFINER_PROPOSAL_MODE,
     vertex_refiner_proposal_cap:
       options.vertexRefinerProposalCap === undefined ? null : Number(options.vertexRefinerProposalCap),
     vertex_refiner_dense_region_junction_threshold:
       options.vertexRefinerDenseRegionJunctionThreshold === undefined
-        ? null
+        ? DEFAULT_VERTEX_REFINER_DENSE_REGION_JUNCTION_THRESHOLD
         : Number(options.vertexRefinerDenseRegionJunctionThreshold),
     vertex_refiner_dense_region_min_peaks:
       options.vertexRefinerDenseRegionMinPeaks === undefined
-        ? null
+        ? DEFAULT_VERTEX_REFINER_DENSE_REGION_MIN_PEAKS
         : Number(options.vertexRefinerDenseRegionMinPeaks),
     vertex_refiner_dense_region_max_overlap_fraction:
       options.vertexRefinerDenseRegionMaxOverlapFraction === undefined
-        ? null
+        ? DEFAULT_VERTEX_REFINER_DENSE_REGION_MAX_OVERLAP_FRACTION
         : Number(options.vertexRefinerDenseRegionMaxOverlapFraction),
     vertex_refiner_frame_source: 'sample render_metadata v2_boundary.frame when available',
     threshold: options.threshold === undefined ? null : Number(options.threshold),
@@ -248,25 +257,26 @@ async function runSampleOnce(page, sample, imageBase64, options, vertexRefinerFr
         modelUrl: options.modelUrl ?? null,
         threshold: options.threshold === undefined ? null : Number(options.threshold),
         decoderBackend: options.decoderBackend ?? null,
-        junctionSource: options.junctionSource ?? null,
-        lineEvidenceSource: options.lineEvidenceSource ?? null,
+        junctionSource: options.junctionSource ?? DEFAULT_JUNCTION_SOURCE,
+        lineEvidenceSource: options.lineEvidenceSource ?? DEFAULT_LINE_EVIDENCE_SOURCE,
         vertexRefinerManifestUrl: options.vertexRefinerManifestUrl ?? null,
         vertexRefinerModelUrl: options.vertexRefinerModelUrl ?? null,
         vertexRefinerFallback: options.vertexRefinerFallback ?? null,
-        vertexRefinerProposalMode: options.vertexRefinerProposalMode ?? null,
+        vertexRefinerProposalMode:
+          options.vertexRefinerProposalMode ?? DEFAULT_VERTEX_REFINER_PROPOSAL_MODE,
         vertexRefinerProposalCap:
           options.vertexRefinerProposalCap === undefined ? null : Number(options.vertexRefinerProposalCap),
         vertexRefinerDenseRegionJunctionThreshold:
           options.vertexRefinerDenseRegionJunctionThreshold === undefined
-            ? null
+            ? DEFAULT_VERTEX_REFINER_DENSE_REGION_JUNCTION_THRESHOLD
             : Number(options.vertexRefinerDenseRegionJunctionThreshold),
         vertexRefinerDenseRegionMinPeaks:
           options.vertexRefinerDenseRegionMinPeaks === undefined
-            ? null
+            ? DEFAULT_VERTEX_REFINER_DENSE_REGION_MIN_PEAKS
             : Number(options.vertexRefinerDenseRegionMinPeaks),
         vertexRefinerDenseRegionMaxOverlapFraction:
           options.vertexRefinerDenseRegionMaxOverlapFraction === undefined
-            ? null
+            ? DEFAULT_VERTEX_REFINER_DENSE_REGION_MAX_OVERLAP_FRACTION
             : Number(options.vertexRefinerDenseRegionMaxOverlapFraction),
         vertexRefinerFrame,
         exactSolveTimeoutSeconds:

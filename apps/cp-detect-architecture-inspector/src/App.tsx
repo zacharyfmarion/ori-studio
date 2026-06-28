@@ -12,6 +12,12 @@ import {
   fetchStage6Example,
   fetchStages,
 } from './api';
+import {
+  CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_JUNCTION_THRESHOLD,
+  CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_MAX_OVERLAP_FRACTION,
+  CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_MIN_PEAKS,
+  CP_DETECT_DEFAULT_VERTEX_REFINER_PROPOSAL_MODE,
+} from '../../web/src/engine/cpDetectTypes';
 import type {
   ArrangementAtomicEdge,
   ArrangementCarrier,
@@ -691,6 +697,18 @@ export function App() {
         inputImageUrl: uploadRectified.url,
         threshold,
         junctionSource: vertexRefinerEnabled ? 'vertex-refiner-v3' : 'dense-model',
+        vertexRefinerProposalMode: vertexRefinerEnabled
+          ? CP_DETECT_DEFAULT_VERTEX_REFINER_PROPOSAL_MODE
+          : undefined,
+        vertexRefinerDenseRegionJunctionThreshold: vertexRefinerEnabled
+          ? CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_JUNCTION_THRESHOLD
+          : undefined,
+        vertexRefinerDenseRegionMinPeaks: vertexRefinerEnabled
+          ? CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_MIN_PEAKS
+          : undefined,
+        vertexRefinerDenseRegionMaxOverlapFraction: vertexRefinerEnabled
+          ? CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_MAX_OVERLAP_FRACTION
+          : undefined,
         candidateStrategy,
         legacyLowThreshold,
         legacySnapRadiusPx,
@@ -1140,7 +1158,10 @@ export function App() {
           ) : activeStage === 'stage0b' && stage0b ? (
             <section className="summary-grid">
               <Metric label="V3 model" value={stage0b.vertex_refiner.model_manifest_id} />
-              <Metric label="proposal mode" value={stage0b.vertex_refiner.proposal_mode ?? 'full-coverage'} />
+              <Metric
+                label="proposal mode"
+                value={stage0b.vertex_refiner.proposal_mode ?? CP_DETECT_DEFAULT_VERTEX_REFINER_PROPOSAL_MODE}
+              />
               <Metric label="crops" value={stage0b.vertex_refiner.proposal_count} />
               <Metric label="regions" value={stage0b.vertex_refiner.refinement_regions?.length ?? 0} />
               <Metric label="selected crop" value={`${selectedV3CropIndex + 1} / ${stage0b.vertex_refiner.proposal_count}`} />

@@ -16,6 +16,12 @@ import type {
   CpDetectQuad,
   CpDetectRectifiedImage,
 } from '../engine/cpDetectTypes';
+import {
+  CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_JUNCTION_THRESHOLD,
+  CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_MAX_OVERLAP_FRACTION,
+  CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_MIN_PEAKS,
+  CP_DETECT_DEFAULT_VERTEX_REFINER_PROPOSAL_MODE,
+} from '../engine/cpDetectTypes';
 import { getFileService, type OpenBinaryFileResult } from '../platform/fileService';
 import { getCpDetectClient, cpDetectError } from '../store/workspaceStore/cpDetectRuntime';
 import { useWorkspaceStore } from '../store/workspaceStore';
@@ -185,6 +191,12 @@ export function CpDetectImportModal() {
         decoderBackend: DETECT_DECODER_BACKEND,
         junctionSource: 'vertex-refiner-v3',
         vertexRefinerFallback: 'error',
+        vertexRefinerProposalMode: CP_DETECT_DEFAULT_VERTEX_REFINER_PROPOSAL_MODE,
+        vertexRefinerDenseRegionJunctionThreshold:
+          CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_JUNCTION_THRESHOLD,
+        vertexRefinerDenseRegionMinPeaks: CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_MIN_PEAKS,
+        vertexRefinerDenseRegionMaxOverlapFraction:
+          CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_MAX_OVERLAP_FRACTION,
         vertexRefinerFrame: paperFrameFromQuad(rectified.report.target_quad),
       });
       setDetection(nextDetection);

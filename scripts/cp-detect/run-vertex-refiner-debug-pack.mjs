@@ -5,6 +5,10 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+const DEFAULT_VERTEX_REFINER_PROPOSAL_MODE = 'dense-junction-regions';
+const DEFAULT_VERTEX_REFINER_DENSE_REGION_JUNCTION_THRESHOLD = 0.35;
+const DEFAULT_VERTEX_REFINER_DENSE_REGION_MIN_PEAKS = 3;
+const DEFAULT_VERTEX_REFINER_DENSE_REGION_MAX_OVERLAP_FRACTION = 0;
 
 async function main() {
   const options = parseArgs(process.argv.slice(2));
@@ -87,7 +91,8 @@ async function main() {
     vertex_refiner_manifest_url:
       options.vertexRefinerManifestUrl ?? '/models/cp-vertex-refiner-v3/manifest.json',
     vertex_refiner_model_url: options.vertexRefinerModelUrl ?? null,
-    vertex_refiner_proposal_mode: options.vertexRefinerProposalMode ?? 'full-coverage',
+    vertex_refiner_proposal_mode:
+      options.vertexRefinerProposalMode ?? DEFAULT_VERTEX_REFINER_PROPOSAL_MODE,
     sample_count: rows.length,
     ok_count: rows.filter((row) => row.ok).length,
     samples: rows,
@@ -217,10 +222,22 @@ function refinerOptions(options) {
   return Object.fromEntries(
     [
       ['vertexRefinerProposalCap', numberOption(options.vertexRefinerProposalCap)],
-      ['vertexRefinerProposalMode', options.vertexRefinerProposalMode],
-      ['vertexRefinerDenseRegionJunctionThreshold', numberOption(options.vertexRefinerDenseRegionJunctionThreshold)],
-      ['vertexRefinerDenseRegionMinPeaks', numberOption(options.vertexRefinerDenseRegionMinPeaks)],
-      ['vertexRefinerDenseRegionMaxOverlapFraction', numberOption(options.vertexRefinerDenseRegionMaxOverlapFraction)],
+      ['vertexRefinerProposalMode', options.vertexRefinerProposalMode ?? DEFAULT_VERTEX_REFINER_PROPOSAL_MODE],
+      [
+        'vertexRefinerDenseRegionJunctionThreshold',
+        numberOption(options.vertexRefinerDenseRegionJunctionThreshold) ??
+          DEFAULT_VERTEX_REFINER_DENSE_REGION_JUNCTION_THRESHOLD,
+      ],
+      [
+        'vertexRefinerDenseRegionMinPeaks',
+        numberOption(options.vertexRefinerDenseRegionMinPeaks) ??
+          DEFAULT_VERTEX_REFINER_DENSE_REGION_MIN_PEAKS,
+      ],
+      [
+        'vertexRefinerDenseRegionMaxOverlapFraction',
+        numberOption(options.vertexRefinerDenseRegionMaxOverlapFraction) ??
+          DEFAULT_VERTEX_REFINER_DENSE_REGION_MAX_OVERLAP_FRACTION,
+      ],
       ['vertexRefinerGridStridePx', numberOption(options.vertexRefinerGridStridePx)],
       ['vertexRefinerHeatmapThreshold', numberOption(options.vertexRefinerHeatmapThreshold)],
       ['vertexRefinerBoundaryHeatmapThreshold', numberOption(options.vertexRefinerBoundaryHeatmapThreshold)],

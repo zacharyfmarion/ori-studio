@@ -14,7 +14,7 @@ reduce duplicate/merge errors while preserving or improving product metrics.
   logits.
 - Select crop centers around dense clusters of HRNet junction peaks, with
   optional low-overlap / no-overlap behavior.
-- Keep the existing full-coverage proposal mode as the default comparison
+- Keep the existing full-coverage proposal mode as an explicit comparison
   baseline.
 - Decode selective V3 as a hybrid evidence source: retain HRNet junction and
   boundary-contact evidence outside selected crop boxes, and replace evidence
@@ -26,6 +26,8 @@ reduce duplicate/merge errors while preserving or improving product metrics.
 - Exclude border-touching dense-region crops for now; they made metrics worse,
   especially border F1. TODO: investigate why V3 border-region refinement
   regresses boundary contacts before re-enabling it.
+- Promote the no-border dense-region mode as the product/inspector default:
+  `threshold=0.35`, `minPeaks=3`, and `maxOverlapFraction=0`.
 
 ## Affected Areas
 
@@ -49,3 +51,5 @@ reduce duplicate/merge errors while preserving or improving product metrics.
 - [x] Run clean-15 metrics comparing full coverage and dense-region mode.
 - [x] Generate crop-layout visualizations for representative samples.
 - [x] Exclude border-touching dense-region crops and rerun clean-15 metrics.
+- [x] Wire product, architecture inspector, and benchmark/debug defaults to the
+      no-border dense-region path.
