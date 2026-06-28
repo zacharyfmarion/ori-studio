@@ -16,7 +16,7 @@ use oristudio_cp_compiler::{
 };
 use oristudio_cp_detect::candidate_generation::{
     CandidateGenerationContext, CandidateGenerationOptions, CandidateGenerationStrategyName,
-    generate_candidate_graph,
+    generate_candidate_graph, generate_junction_first_with_vertex_pixels,
 };
 use oristudio_cp_detect::decode::{DecodeConfig, DenseOutputs, decode_dense_outputs};
 use oristudio_cp_detect::evidence_extract::JunctionEvidenceSource;
@@ -95,6 +95,7 @@ struct Args {
     line_evidence_source: String,
     junction_evidence_source: JunctionEvidenceSource,
     gt_junction_labels: bool,
+    gt_vertices: bool,
     threshold: Option<f32>,
     legacy_low_threshold: Option<f32>,
     exact_patience: Option<usize>,
@@ -109,6 +110,7 @@ struct Args {
     junction_first_endpoint_margin_px: Option<f64>,
     junction_first_min_span_px: Option<f64>,
     junction_first_offset_cluster_radius_px: Option<f64>,
+    junction_first_short_span_bypass_px: Option<f64>,
     parity_repair: Option<bool>,
     dump_folds: bool,
 }
@@ -610,18 +612,35 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         .junction_first_v1
                         .junction_offset_cluster_radius_px = value;
                 }
-                let generation = generate_candidate_graph(
-                    CandidateGenerationContext {
-                        outputs: logits.as_dense_outputs(),
-                        config: DecodeConfig {
-                            image_size: sample.image_size,
-                            threshold,
-                            ..DecodeConfig::default()
-                        },
+                if let Some(value) = args.junction_first_short_span_bypass_px {
+                    generation_options.junction_first_v1.short_span_bypass_px = value;
+                }
+                let ctx = CandidateGenerationContext {
+                    outputs: logits.as_dense_outputs(),
+                    config: DecodeConfig {
+                        image_size: sample.image_size,
+                        threshold,
+                        ..DecodeConfig::default()
                     },
-                    generation_options,
-                )?;
-                generation.candidate_graph
+                };
+                if args.gt_vertices {
+                    if name != CandidateGenerationStrategyName::JunctionFirstV1 {
+                        return Err(format!(
+                            "--gt-vertices requires --candidate-source junction-first-v1 (got {name})"
+                        )
+                        .into());
+                    }
+                    // Perfect-junction oracle: replace decoded junctions with the
+                    // exact GT vertices (no merge), keeping line evidence (model
+                    // or source-image override) and the rest of junction-first.
+                    generate_junction_first_with_vertex_pixels(
+                        ctx,
+                        generation_options.junction_first_v1,
+                        &gt.vertices_px,
+                    )?
+                } else {
+                    generate_candidate_graph(ctx, generation_options)?.candidate_graph
+                }
             }
         };
         let legacy_decode_seconds = legacy_decode_started.elapsed().as_secs_f64();
@@ -874,6 +893,7 @@ impl Args {
         let mut line_evidence_source = "model".to_owned();
         let mut junction_evidence_source = JunctionEvidenceSource::Model;
         let mut gt_junction_labels = false;
+        let mut gt_vertices = false;
         let mut threshold = None;
         let mut legacy_low_threshold = None;
         let mut exact_patience = None;
@@ -888,6 +908,7 @@ impl Args {
         let mut junction_first_endpoint_margin_px = None;
         let mut junction_first_min_span_px = None;
         let mut junction_first_offset_cluster_radius_px = None;
+        let mut junction_first_short_span_bypass_px = None;
         let mut parity_repair = None;
         let mut dump_folds = false;
         let mut iter = env::args().skip(1);
@@ -921,6 +942,7 @@ impl Args {
                     }
                 }
                 "--gt-junction-labels" => gt_junction_labels = true,
+                "--gt-vertices" => gt_vertices = true,
                 "--threshold" => {
                     threshold = Some(required_value(&mut iter, "--threshold")?.parse()?)
                 }
@@ -963,6 +985,10 @@ impl Args {
                     junction_first_offset_cluster_radius_px =
                         Some(required_value(&mut iter, &arg)?.parse()?);
                 }
+                "--junction-first-short-span-bypass-px" => {
+                    junction_first_short_span_bypass_px =
+                        Some(required_value(&mut iter, &arg)?.parse()?);
+                }
                 "--parity-repair" => parity_repair = Some(true),
                 "--no-parity-repair" => parity_repair = Some(false),
                 "--dump-folds" => dump_folds = true,
@@ -983,6 +1009,7 @@ impl Args {
             line_evidence_source,
             junction_evidence_source,
             gt_junction_labels,
+            gt_vertices,
             threshold,
             legacy_low_threshold,
             exact_patience,
@@ -997,6 +1024,7 @@ impl Args {
             junction_first_endpoint_margin_px,
             junction_first_min_span_px,
             junction_first_offset_cluster_radius_px,
+            junction_first_short_span_bypass_px,
             parity_repair,
             dump_folds,
         })

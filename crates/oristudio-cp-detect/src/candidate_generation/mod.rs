@@ -193,6 +193,13 @@ pub struct JunctionFirstV1StrategyOptions {
     pub strong_span_line_support: f64,
     pub min_span_line_min_support: f64,
     pub max_non_crease_support: f64,
+    /// Spans at or below this length (px) bypass the line-support gate and are
+    /// proposed on the adjacency constraint alone. Between accurate, unmerged
+    /// junctions a very short adjacent pair with no intermediate vertex is
+    /// almost always a real crease, but its faint line evidence (especially from
+    /// the source image) often falls under the gate. 0 disables. No-op for the
+    /// production model, whose junction head merges sub-merge-radius pairs.
+    pub short_span_bypass_px: f64,
     /// Near-collinear overlap conflict thresholds.
     pub collinear_conflict_angle_degrees: f64,
     pub collinear_conflict_distance_px: f64,
@@ -210,7 +217,11 @@ impl Default for JunctionFirstV1StrategyOptions {
         // pairs and tiny creases that the previous 6/8/4 defaults destroyed.
         Self {
             vertex_merge_radius_px: 3.0,
-            min_span_length_px: 3.0,
+            // 1px (not the old 3px) so genuine sub-3px creases between close
+            // junction pairs are proposable once junction detection resolves
+            // them; harmless with the production model (its junction head merges
+            // such pairs, so no sub-3px spans exist either way).
+            min_span_length_px: 1.0,
             intermediate_corridor_px: 3.0,
             endpoint_margin_px: 2.0,
             preflight_min_line_support: 0.25,
@@ -218,6 +229,7 @@ impl Default for JunctionFirstV1StrategyOptions {
             strong_span_line_support: 0.62,
             min_span_line_min_support: 0.08,
             max_non_crease_support: 0.72,
+            short_span_bypass_px: 8.0,
             collinear_conflict_angle_degrees: 2.0,
             collinear_conflict_distance_px: 3.0,
             junction_offset_cluster_radius_px: 0.0,
@@ -486,6 +498,24 @@ pub fn generate_candidate_graph(
             JunctionFirstV1Strategy::new(options.junction_first_v1).generate(ctx)
         }
     }
+}
+
+/// Run the junction-first-v1 strategy with an externally supplied set of
+/// unit-square vertices instead of the model's decoded junction heatmap. This
+/// powers the "perfect junctions" oracle benchmark: edge proposal, gating,
+/// border spans, and conflicts are identical to the production strategy, only
+/// the vertex set is replaced (e.g. with ground-truth junctions).
+pub fn generate_junction_first_with_vertex_pixels(
+    ctx: CandidateGenerationContext<'_>,
+    options: JunctionFirstV1StrategyOptions,
+    vertex_pixels: &[[f64; 2]],
+) -> Result<CandidateGraph, DecodeError> {
+    junction_first_v1::generate_candidate_graph_with_vertex_pixels(
+        ctx.outputs,
+        &ctx.config,
+        options,
+        vertex_pixels,
+    )
 }
 
 pub fn default_low_threshold(threshold: f32) -> f32 {
