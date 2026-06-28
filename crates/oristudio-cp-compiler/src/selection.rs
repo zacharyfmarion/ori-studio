@@ -321,7 +321,12 @@ pub fn select_candidate_graph_beam_from_ir(
         .filter(|span| span.selection_policy == CandidateSelectionPolicy::Locked)
         .map(|span| span.id)
         .collect::<BTreeSet<_>>();
-    let seed_ids = graph
+    // Build the seed set greedily, honoring hard conflicts so two mutually
+    // exclusive spans (e.g. duplicate fan spans to a close vertex pair, or
+    // crossing spans) are never co-seeded. Locked spans always seed; optional
+    // seeds are considered in descending score so the better-supported member
+    // of a conflicting pair wins, and the beam can still revisit the choice.
+    let mut seed_candidates = graph
         .crease_candidates
         .iter()
         .filter(|span| {
@@ -329,8 +334,29 @@ pub fn select_candidate_graph_beam_from_ir(
                 || (span.selection_policy == CandidateSelectionPolicy::StrongOptional
                     && span.selection_score(graph) >= options.min_selected_score)
         })
-        .map(|span| span.id)
-        .collect::<BTreeSet<_>>();
+        .collect::<Vec<_>>();
+    seed_candidates.sort_by(|left, right| {
+        let left_locked = left.selection_policy == CandidateSelectionPolicy::Locked;
+        let right_locked = right.selection_policy == CandidateSelectionPolicy::Locked;
+        right_locked
+            .cmp(&left_locked)
+            .then_with(|| {
+                right
+                    .selection_score(graph)
+                    .total_cmp(&left.selection_score(graph))
+            })
+            .then_with(|| left.id.cmp(&right.id))
+    });
+    let mut seed_ids = BTreeSet::<usize>::new();
+    for span in seed_candidates {
+        if span.selection_policy != CandidateSelectionPolicy::Locked
+            && let Some(conflicts) = conflict_map.get(&span.id)
+            && !conflicts.is_disjoint(&seed_ids)
+        {
+            continue;
+        }
+        seed_ids.insert(span.id);
+    }
     let seed_state = score_ir_beam_state(graph, &seed_ids, &options);
     let mut candidate_ids = graph
         .crease_candidates

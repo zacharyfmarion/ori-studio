@@ -16,7 +16,7 @@ use oristudio_cp_compiler::{
 };
 use oristudio_cp_detect::candidate_generation::{
     CandidateGenerationContext, CandidateGenerationOptions, CandidateGenerationStrategyName,
-    generate_candidate_graph,
+    generate_candidate_graph, generate_junction_first_with_vertex_pixels,
 };
 use oristudio_cp_detect::decode::{DecodeConfig, DenseOutputs, decode_dense_outputs};
 use oristudio_cp_detect::evidence_extract::JunctionEvidenceSource;
@@ -95,6 +95,7 @@ struct Args {
     line_evidence_source: String,
     junction_evidence_source: JunctionEvidenceSource,
     gt_junction_labels: bool,
+    gt_vertices: bool,
     threshold: Option<f32>,
     legacy_low_threshold: Option<f32>,
     exact_patience: Option<usize>,
@@ -104,11 +105,13 @@ struct Args {
     strict_vertex_tolerance_px: f64,
     skip_flat_folder: bool,
     skip_exact_solve: bool,
+    exact_solve_any_topology: bool,
     junction_first_merge_radius_px: Option<f64>,
     junction_first_corridor_px: Option<f64>,
     junction_first_endpoint_margin_px: Option<f64>,
     junction_first_min_span_px: Option<f64>,
     junction_first_offset_cluster_radius_px: Option<f64>,
+    junction_first_short_span_bypass_px: Option<f64>,
     parity_repair: Option<bool>,
     dump_folds: bool,
 }
@@ -610,18 +613,35 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         .junction_first_v1
                         .junction_offset_cluster_radius_px = value;
                 }
-                let generation = generate_candidate_graph(
-                    CandidateGenerationContext {
-                        outputs: logits.as_dense_outputs(),
-                        config: DecodeConfig {
-                            image_size: sample.image_size,
-                            threshold,
-                            ..DecodeConfig::default()
-                        },
+                if let Some(value) = args.junction_first_short_span_bypass_px {
+                    generation_options.junction_first_v1.short_span_bypass_px = value;
+                }
+                let ctx = CandidateGenerationContext {
+                    outputs: logits.as_dense_outputs(),
+                    config: DecodeConfig {
+                        image_size: sample.image_size,
+                        threshold,
+                        ..DecodeConfig::default()
                     },
-                    generation_options,
-                )?;
-                generation.candidate_graph
+                };
+                if args.gt_vertices {
+                    if name != CandidateGenerationStrategyName::JunctionFirstV1 {
+                        return Err(format!(
+                            "--gt-vertices requires --candidate-source junction-first-v1 (got {name})"
+                        )
+                        .into());
+                    }
+                    // Perfect-junction oracle: replace decoded junctions with the
+                    // exact GT vertices (no merge), keeping line evidence (model
+                    // or source-image override) and the rest of junction-first.
+                    generate_junction_first_with_vertex_pixels(
+                        ctx,
+                        generation_options.junction_first_v1,
+                        &gt.vertices_px,
+                    )?
+                } else {
+                    generate_candidate_graph(ctx, generation_options)?.candidate_graph
+                }
             }
         };
         let legacy_decode_seconds = legacy_decode_started.elapsed().as_secs_f64();
@@ -649,6 +669,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             SelectedGraph::from_selected_span_ids(&candidate_graph, selected_span_ids);
         let exact_input =
             ExactSolveInput::from_candidate_selection(&candidate_graph, &selected_graph);
+        let gt_eval_graph = gt.eval_graph();
+        // Topology gate: a wrong-topology graph cannot reconstruct the right CP,
+        // so by default skip exact solve and mark it failed rather than letting
+        // the solver flail toward (and sometimes "accept") a wrong reconstruction.
+        // Pass --exact-solve-any-topology to attempt it regardless.
+        let selected_topology = strict_topology_metrics(
+            &GraphDoc::from_exact_input(&exact_input).eval_graph_px(sample.image_size),
+            &gt_eval_graph,
+            StrictTopologyOptions {
+                vertex_tolerance: args.strict_vertex_tolerance_px,
+                split_merge_tolerance: args.strict_vertex_tolerance_px,
+                compare_assignments: true,
+            },
+        );
+        let skip_for_bad_topology = !args.skip_exact_solve
+            && !args.exact_solve_any_topology
+            && !selected_topology.exact_topology;
         eprintln!(
             "{}",
             serde_json::to_string(&json!({
@@ -659,7 +696,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }))?
         );
         let exact_started = Instant::now();
-        let exact_solved = if args.skip_exact_solve {
+        let exact_solved = if args.skip_exact_solve || skip_for_bad_topology {
             None
         } else {
             let mut exact_options = ExactSolveOptions::default();
@@ -711,7 +748,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .with_flat_folder_boundary_hint(flat_folder_boundary_hint.clone())
         });
         let gt_segments = gt.segments();
-        let gt_eval_graph = gt.eval_graph();
 
         let legacy = output_metrics(
             &legacy_doc,
@@ -743,9 +779,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             )?,
             None => selected.clone(),
         };
-        let exact_summary = match &exact_solved {
-            Some(exact) => exact_solve_summary(exact, exact_seconds),
-            None => skipped_exact_solve_summary(),
+        let exact_summary = if skip_for_bad_topology {
+            bad_topology_exact_solve_summary()
+        } else {
+            match &exact_solved {
+                Some(exact) => exact_solve_summary(exact, exact_seconds),
+                None => skipped_exact_solve_summary(),
+            }
         };
         if args.dump_folds {
             if let Some(doc) = &exact_doc {
@@ -874,6 +914,7 @@ impl Args {
         let mut line_evidence_source = "model".to_owned();
         let mut junction_evidence_source = JunctionEvidenceSource::Model;
         let mut gt_junction_labels = false;
+        let mut gt_vertices = false;
         let mut threshold = None;
         let mut legacy_low_threshold = None;
         let mut exact_patience = None;
@@ -883,11 +924,13 @@ impl Args {
         let mut strict_vertex_tolerance_px = 2.0;
         let mut skip_flat_folder = false;
         let mut skip_exact_solve = false;
+        let mut exact_solve_any_topology = false;
         let mut junction_first_merge_radius_px = None;
         let mut junction_first_corridor_px = None;
         let mut junction_first_endpoint_margin_px = None;
         let mut junction_first_min_span_px = None;
         let mut junction_first_offset_cluster_radius_px = None;
+        let mut junction_first_short_span_bypass_px = None;
         let mut parity_repair = None;
         let mut dump_folds = false;
         let mut iter = env::args().skip(1);
@@ -921,6 +964,7 @@ impl Args {
                     }
                 }
                 "--gt-junction-labels" => gt_junction_labels = true,
+                "--gt-vertices" => gt_vertices = true,
                 "--threshold" => {
                     threshold = Some(required_value(&mut iter, "--threshold")?.parse()?)
                 }
@@ -945,6 +989,7 @@ impl Args {
                 }
                 "--skip-flat-folder" => skip_flat_folder = true,
                 "--skip-exact-solve" => skip_exact_solve = true,
+                "--exact-solve-any-topology" => exact_solve_any_topology = true,
                 "--junction-first-merge-radius-px" => {
                     junction_first_merge_radius_px =
                         Some(required_value(&mut iter, &arg)?.parse()?);
@@ -961,6 +1006,10 @@ impl Args {
                 }
                 "--junction-first-offset-cluster-radius-px" => {
                     junction_first_offset_cluster_radius_px =
+                        Some(required_value(&mut iter, &arg)?.parse()?);
+                }
+                "--junction-first-short-span-bypass-px" => {
+                    junction_first_short_span_bypass_px =
                         Some(required_value(&mut iter, &arg)?.parse()?);
                 }
                 "--parity-repair" => parity_repair = Some(true),
@@ -983,6 +1032,7 @@ impl Args {
             line_evidence_source,
             junction_evidence_source,
             gt_junction_labels,
+            gt_vertices,
             threshold,
             legacy_low_threshold,
             exact_patience,
@@ -992,11 +1042,13 @@ impl Args {
             strict_vertex_tolerance_px,
             skip_flat_folder,
             skip_exact_solve,
+            exact_solve_any_topology,
             junction_first_merge_radius_px,
             junction_first_corridor_px,
             junction_first_endpoint_margin_px,
             junction_first_min_span_px,
             junction_first_offset_cluster_radius_px,
+            junction_first_short_span_bypass_px,
             parity_repair,
             dump_folds,
         })
@@ -1612,6 +1664,26 @@ fn skipped_exact_solve_summary() -> ExactSolveSummary {
         seconds: 0.0,
         accepted: None,
         rejection_reasons: Vec::new(),
+        initial_objective: None,
+        final_objective: None,
+        candidate_objective: None,
+        max_vertex_movement: None,
+        attempted_max_vertex_movement: None,
+        moved_vertices: 0,
+        attempted_moved_vertices: 0,
+        evaluations: None,
+        trace: ExactSolveTraceSummary::default(),
+    }
+}
+
+/// Exact-solve result for a sample whose selected topology does not match GT:
+/// not attempted, reported as a failure (the reconstruction cannot be correct).
+fn bad_topology_exact_solve_summary() -> ExactSolveSummary {
+    ExactSolveSummary {
+        status: "failed".to_owned(),
+        seconds: 0.0,
+        accepted: Some(false),
+        rejection_reasons: vec!["topology_mismatch".to_owned()],
         initial_objective: None,
         final_objective: None,
         candidate_objective: None,
@@ -2380,7 +2452,10 @@ fn round6(value: f64) -> f64 {
 
 fn print_usage() {
     println!(
-        "compare_exact_solve_benchmark --out DIR [--dense-manifest PATH] [--candidate-source legacy] [--line-evidence-source model|source-image] [--junction-evidence-source model|line-arrangement|ground-truth] [--gt-junction-labels] [--threshold T] [--legacy-low-threshold T] [--exact-patience N] [--exact-solve-timeout-seconds S] [--limit N] [--match-tolerance-px PX] [--strict-vertex-tolerance-px PX] [--skip-flat-folder] [--skip-exact-solve]"
+        "compare_exact_solve_benchmark --out DIR [--dense-manifest PATH] [--candidate-source legacy] [--line-evidence-source model|source-image] [--junction-evidence-source model|line-arrangement|ground-truth] [--gt-junction-labels] [--threshold T] [--legacy-low-threshold T] [--exact-patience N] [--exact-solve-timeout-seconds S] [--limit N] [--match-tolerance-px PX] [--strict-vertex-tolerance-px PX] [--skip-flat-folder] [--skip-exact-solve] [--exact-solve-any-topology]"
+    );
+    println!(
+        "  exact solve is gated on correct topology by default (wrong topology cannot reconstruct the right CP, so it is skipped and marked failed); --exact-solve-any-topology attempts it regardless."
     );
     println!(
         "Samples run in parallel across the rayon thread pool. Exact-solve timeout defaults to {BENCHMARK_DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS}s (benchmark-only; product uses {}s). For fast topology iteration pass --skip-exact-solve.",

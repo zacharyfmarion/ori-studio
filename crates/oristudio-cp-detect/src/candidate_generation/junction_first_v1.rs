@@ -14,7 +14,7 @@ use super::junction_carrier_v1::{
     SpanStats, add_locked_border_spans, assign_span_ids, assign_vertex_ids, boundary_model,
     build_vertices, dense_output_refs, distance, evidence_config, evidence_error_to_decode_error,
     graph_report, normalized, pixel_index, project, px_from_unit, sample_span_stats,
-    span_endpoint_key, unit_scale,
+    span_endpoint_key, unit_from_px, unit_scale, vertices_from_unit_points,
 };
 use super::{CandidateGenerationStrategyName, JunctionCarrierV1StrategyOptions};
 use crate::evidence_extract::{CompilerEvidence, extract_compiler_evidence};
@@ -35,6 +35,31 @@ pub(super) fn generate_candidate_graph(
 ) -> Result<CandidateGraph, DecodeError> {
     let evidence = extract_evidence(outputs, config, options)?;
     Ok(graph_from_evidence(&evidence, config, options))
+}
+
+/// Generate the junction-first candidate graph using an externally supplied set
+/// of vertices in image-pixel space (e.g. ground-truth junctions) instead of
+/// the model's decoded junction heatmap. Pixels are mapped to the unit square
+/// with the same render-inset convention as the rest of the pipeline. Edge
+/// proposal, line-evidence gating (including any source-image line override),
+/// border spans, and conflicts are otherwise identical to the production path,
+/// so this isolates "what if junction detection were perfect" from the rest of
+/// the strategy.
+pub fn generate_candidate_graph_with_vertex_pixels(
+    outputs: DenseOutputs<'_>,
+    config: &DecodeConfig,
+    options: JunctionFirstV1StrategyOptions,
+    vertex_pixels: &[[f64; 2]],
+) -> Result<CandidateGraph, DecodeError> {
+    let evidence = extract_evidence(outputs, config, options)?;
+    let points = vertex_pixels
+        .iter()
+        .map(|px| unit_from_px([px[0] as f32, px[1] as f32], config.image_size))
+        .collect::<Vec<_>>();
+    let vertices = vertices_from_unit_points(&points);
+    Ok(graph_from_evidence_with_vertices(
+        &evidence, config, options, vertices,
+    ))
 }
 
 pub(super) fn extract_evidence(
@@ -71,7 +96,16 @@ pub(super) fn graph_from_evidence(
     options: JunctionFirstV1StrategyOptions,
 ) -> CandidateGraph {
     let carrier_options = carrier_equivalent_options(options);
-    let mut vertices = build_vertices(evidence, config.image_size, carrier_options);
+    let vertices = build_vertices(evidence, config.image_size, carrier_options);
+    graph_from_evidence_with_vertices(evidence, config, options, vertices)
+}
+
+fn graph_from_evidence_with_vertices(
+    evidence: &CompilerEvidence,
+    config: &DecodeConfig,
+    options: JunctionFirstV1StrategyOptions,
+    mut vertices: Vec<CandidateVertex>,
+) -> CandidateGraph {
     assign_vertex_ids(&mut vertices);
     let boundary = boundary_model(&vertices, [0, 1, 2, 3]);
     let mut spans = Vec::new();
@@ -124,17 +158,22 @@ fn add_adjacent_pair_spans(
     let min_length = options.min_span_length_px / scale;
     let corridor = options.intermediate_corridor_px / scale;
     let endpoint_margin = options.endpoint_margin_px / scale;
+    let short_bypass = options.short_span_bypass_px / scale;
     for i in 0..vertices.len() {
         for j in (i + 1)..vertices.len() {
             let a = vertices[i].point;
             let b = vertices[j].point;
-            if distance(a, b) < min_length {
+            let length = distance(a, b);
+            if length < min_length {
                 continue;
             }
             if border_aligned_pair(a, b) {
                 continue;
             }
-            if !preflight_line_support(a, b, evidence, image_size, options) {
+            // Very short adjacent pairs between accurate junctions are proposed
+            // on adjacency alone; their faint line evidence often misses the gate.
+            let short = options.short_span_bypass_px > 0.0 && length <= short_bypass;
+            if !short && !preflight_line_support(a, b, evidence, image_size, options) {
                 continue;
             }
             if has_intermediate_vertex(vertices, i, j, corridor, endpoint_margin) {
@@ -147,7 +186,7 @@ fn add_adjacent_pair_spans(
                 image_size,
                 carrier_equivalent_options(options),
             );
-            if !pair_supported(stats, options) {
+            if !short && !pair_supported(stats, options) {
                 continue;
             }
             spans.push(span_from_adjacent_pair(
@@ -157,6 +196,7 @@ fn add_adjacent_pair_spans(
                 b,
                 stats,
                 options,
+                short,
             ));
         }
     }
@@ -240,6 +280,7 @@ fn span_from_adjacent_pair(
     b: Point2,
     stats: SpanStats,
     options: JunctionFirstV1StrategyOptions,
+    force_strong: bool,
 ) -> CandidateCreaseSpan {
     let direction = normalized(Point2::new(b.x - a.x, b.y - a.y)).unwrap_or(Point2::new(1.0, 0.0));
     let mut normal = Point2::new(-direction.y, direction.x);
@@ -250,7 +291,9 @@ fn span_from_adjacent_pair(
     }
     let t0 = project(a, direction);
     let t1 = project(b, direction);
-    let strong = stats.line_mean >= options.strong_span_line_support;
+    // Short-bypass spans are carried on the adjacency constraint, so they are
+    // treated as strong regardless of (often faint) line evidence.
+    let strong = force_strong || stats.line_mean >= options.strong_span_line_support;
     CandidateCreaseSpan {
         id,
         kind: CandidateCreaseSpanKind::ObservedCarrierSpan,
@@ -262,7 +305,11 @@ fn span_from_adjacent_pair(
         },
         t_interval: [t0.min(t1), t0.max(t1)],
         assignment_evidence: stats.assignment,
-        presence_probability: stats.line_mean.clamp(0.05, 0.97),
+        presence_probability: if force_strong {
+            stats.line_mean.max(0.9).clamp(0.05, 0.97)
+        } else {
+            stats.line_mean.clamp(0.05, 0.97)
+        },
         line_support_min: stats.line_min,
         line_support_mean: stats.line_mean,
         line_support_max: stats.line_max,
@@ -547,6 +594,59 @@ mod tests {
     }
 
     #[test]
+    fn short_span_bypasses_line_gate() {
+        // A short adjacent pair with no line evidence is still proposed because
+        // it falls under the short-span bypass length (adjacency is the signal).
+        let evidence = empty_evidence();
+        let vertices = vec![
+            test_vertex(0, unit_from_px([62.0, 64.0], SIZE)),
+            test_vertex(1, unit_from_px([67.0, 64.0], SIZE)),
+        ];
+        let mut spans = Vec::new();
+        add_adjacent_pair_spans(
+            &vertices,
+            &evidence,
+            SIZE,
+            JunctionFirstV1StrategyOptions::default(),
+            &mut spans,
+        );
+        assert_eq!(
+            spans.len(),
+            1,
+            "short dark pair must be proposed via bypass"
+        );
+        assert_eq!(
+            spans[0].selection_policy,
+            CandidateSelectionPolicy::StrongOptional,
+            "bypassed short span must be strong so selection keeps it"
+        );
+    }
+
+    #[test]
+    fn short_span_bypass_disabled_rejects_dark_pair() {
+        let evidence = empty_evidence();
+        let vertices = vec![
+            test_vertex(0, unit_from_px([62.0, 64.0], SIZE)),
+            test_vertex(1, unit_from_px([67.0, 64.0], SIZE)),
+        ];
+        let mut spans = Vec::new();
+        add_adjacent_pair_spans(
+            &vertices,
+            &evidence,
+            SIZE,
+            JunctionFirstV1StrategyOptions {
+                short_span_bypass_px: 0.0,
+                ..JunctionFirstV1StrategyOptions::default()
+            },
+            &mut spans,
+        );
+        assert!(
+            spans.is_empty(),
+            "with bypass disabled the dark pair is rejected"
+        );
+    }
+
+    #[test]
     fn high_non_crease_rejects_pair() {
         let mut evidence = empty_evidence();
         paint_horizontal_line(&mut evidence, 64, 40, 88);
@@ -631,6 +731,7 @@ mod tests {
             b,
             stats,
             JunctionFirstV1StrategyOptions::default(),
+            false,
         )
     }
 

@@ -322,6 +322,100 @@ pub(super) fn build_vertices(
     vertices
 }
 
+/// Build the candidate vertex set from an explicit list of unit-square points
+/// (e.g. ground-truth junctions for a perfect-junction oracle benchmark). The
+/// four paper corners are always emitted as locked corner vertices at indices
+/// 0..4; supplied points that coincide with a corner are dropped, points on a
+/// single border side become locked-to-side boundary contacts, and the rest
+/// become movable interior junctions. Unlike [`build_vertices`], supplied
+/// interior points are never merged together, so genuinely close vertex pairs
+/// are preserved verbatim.
+pub(super) fn vertices_from_unit_points(points: &[Point2]) -> Vec<CandidateVertex> {
+    const BOUNDARY_EPS: f64 = 1e-6;
+    let mut vertices = vec![
+        vertex(
+            0,
+            Point2::new(0.0, 0.0),
+            CandidateVertexKind::Corner,
+            1.0,
+            CandidateVertexMovementPolicy::Locked,
+            Some(BoundarySide::Top),
+        ),
+        vertex(
+            1,
+            Point2::new(1.0, 0.0),
+            CandidateVertexKind::Corner,
+            1.0,
+            CandidateVertexMovementPolicy::Locked,
+            Some(BoundarySide::Top),
+        ),
+        vertex(
+            2,
+            Point2::new(1.0, 1.0),
+            CandidateVertexKind::Corner,
+            1.0,
+            CandidateVertexMovementPolicy::Locked,
+            Some(BoundarySide::Bottom),
+        ),
+        vertex(
+            3,
+            Point2::new(0.0, 1.0),
+            CandidateVertexKind::Corner,
+            1.0,
+            CandidateVertexMovementPolicy::Locked,
+            Some(BoundarySide::Bottom),
+        ),
+    ];
+    for &point in points {
+        let on_left = point.x <= BOUNDARY_EPS;
+        let on_right = point.x >= 1.0 - BOUNDARY_EPS;
+        let on_top = point.y <= BOUNDARY_EPS;
+        let on_bottom = point.y >= 1.0 - BOUNDARY_EPS;
+        let horizontal_border = on_left || on_right;
+        let vertical_border = on_top || on_bottom;
+        if horizontal_border && vertical_border {
+            // Paper corner: already emitted as a locked corner vertex.
+            continue;
+        }
+        let id = vertices.len();
+        if horizontal_border || vertical_border {
+            let side = if on_top {
+                BoundarySide::Top
+            } else if on_bottom {
+                BoundarySide::Bottom
+            } else if on_left {
+                BoundarySide::Left
+            } else {
+                BoundarySide::Right
+            };
+            let snapped = match side {
+                BoundarySide::Top => Point2::new(point.x, 0.0),
+                BoundarySide::Bottom => Point2::new(point.x, 1.0),
+                BoundarySide::Left => Point2::new(0.0, point.y),
+                BoundarySide::Right => Point2::new(1.0, point.y),
+            };
+            vertices.push(vertex(
+                id,
+                snapped,
+                CandidateVertexKind::BoundaryContact,
+                1.0,
+                CandidateVertexMovementPolicy::BoundaryOnly,
+                Some(side),
+            ));
+        } else {
+            vertices.push(vertex(
+                id,
+                point,
+                CandidateVertexKind::InteriorJunction,
+                1.0,
+                CandidateVertexMovementPolicy::Movable,
+                None,
+            ));
+        }
+    }
+    vertices
+}
+
 fn vertex(
     id: usize,
     point: Point2,
