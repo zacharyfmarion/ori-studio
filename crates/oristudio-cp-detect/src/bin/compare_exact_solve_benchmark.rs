@@ -105,6 +105,7 @@ struct Args {
     strict_vertex_tolerance_px: f64,
     skip_flat_folder: bool,
     skip_exact_solve: bool,
+    exact_solve_any_topology: bool,
     junction_first_merge_radius_px: Option<f64>,
     junction_first_corridor_px: Option<f64>,
     junction_first_endpoint_margin_px: Option<f64>,
@@ -668,6 +669,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             SelectedGraph::from_selected_span_ids(&candidate_graph, selected_span_ids);
         let exact_input =
             ExactSolveInput::from_candidate_selection(&candidate_graph, &selected_graph);
+        let gt_eval_graph = gt.eval_graph();
+        // Topology gate: a wrong-topology graph cannot reconstruct the right CP,
+        // so by default skip exact solve and mark it failed rather than letting
+        // the solver flail toward (and sometimes "accept") a wrong reconstruction.
+        // Pass --exact-solve-any-topology to attempt it regardless.
+        let selected_topology = strict_topology_metrics(
+            &GraphDoc::from_exact_input(&exact_input).eval_graph_px(sample.image_size),
+            &gt_eval_graph,
+            StrictTopologyOptions {
+                vertex_tolerance: args.strict_vertex_tolerance_px,
+                split_merge_tolerance: args.strict_vertex_tolerance_px,
+                compare_assignments: true,
+            },
+        );
+        let skip_for_bad_topology = !args.skip_exact_solve
+            && !args.exact_solve_any_topology
+            && !selected_topology.exact_topology;
         eprintln!(
             "{}",
             serde_json::to_string(&json!({
@@ -678,7 +696,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }))?
         );
         let exact_started = Instant::now();
-        let exact_solved = if args.skip_exact_solve {
+        let exact_solved = if args.skip_exact_solve || skip_for_bad_topology {
             None
         } else {
             let mut exact_options = ExactSolveOptions::default();
@@ -730,7 +748,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .with_flat_folder_boundary_hint(flat_folder_boundary_hint.clone())
         });
         let gt_segments = gt.segments();
-        let gt_eval_graph = gt.eval_graph();
 
         let legacy = output_metrics(
             &legacy_doc,
@@ -762,9 +779,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             )?,
             None => selected.clone(),
         };
-        let exact_summary = match &exact_solved {
-            Some(exact) => exact_solve_summary(exact, exact_seconds),
-            None => skipped_exact_solve_summary(),
+        let exact_summary = if skip_for_bad_topology {
+            bad_topology_exact_solve_summary()
+        } else {
+            match &exact_solved {
+                Some(exact) => exact_solve_summary(exact, exact_seconds),
+                None => skipped_exact_solve_summary(),
+            }
         };
         if args.dump_folds {
             if let Some(doc) = &exact_doc {
@@ -903,6 +924,7 @@ impl Args {
         let mut strict_vertex_tolerance_px = 2.0;
         let mut skip_flat_folder = false;
         let mut skip_exact_solve = false;
+        let mut exact_solve_any_topology = false;
         let mut junction_first_merge_radius_px = None;
         let mut junction_first_corridor_px = None;
         let mut junction_first_endpoint_margin_px = None;
@@ -967,6 +989,7 @@ impl Args {
                 }
                 "--skip-flat-folder" => skip_flat_folder = true,
                 "--skip-exact-solve" => skip_exact_solve = true,
+                "--exact-solve-any-topology" => exact_solve_any_topology = true,
                 "--junction-first-merge-radius-px" => {
                     junction_first_merge_radius_px =
                         Some(required_value(&mut iter, &arg)?.parse()?);
@@ -1019,6 +1042,7 @@ impl Args {
             strict_vertex_tolerance_px,
             skip_flat_folder,
             skip_exact_solve,
+            exact_solve_any_topology,
             junction_first_merge_radius_px,
             junction_first_corridor_px,
             junction_first_endpoint_margin_px,
@@ -1640,6 +1664,26 @@ fn skipped_exact_solve_summary() -> ExactSolveSummary {
         seconds: 0.0,
         accepted: None,
         rejection_reasons: Vec::new(),
+        initial_objective: None,
+        final_objective: None,
+        candidate_objective: None,
+        max_vertex_movement: None,
+        attempted_max_vertex_movement: None,
+        moved_vertices: 0,
+        attempted_moved_vertices: 0,
+        evaluations: None,
+        trace: ExactSolveTraceSummary::default(),
+    }
+}
+
+/// Exact-solve result for a sample whose selected topology does not match GT:
+/// not attempted, reported as a failure (the reconstruction cannot be correct).
+fn bad_topology_exact_solve_summary() -> ExactSolveSummary {
+    ExactSolveSummary {
+        status: "failed".to_owned(),
+        seconds: 0.0,
+        accepted: Some(false),
+        rejection_reasons: vec!["topology_mismatch".to_owned()],
         initial_objective: None,
         final_objective: None,
         candidate_objective: None,
@@ -2408,7 +2452,10 @@ fn round6(value: f64) -> f64 {
 
 fn print_usage() {
     println!(
-        "compare_exact_solve_benchmark --out DIR [--dense-manifest PATH] [--candidate-source legacy] [--line-evidence-source model|source-image] [--junction-evidence-source model|line-arrangement|ground-truth] [--gt-junction-labels] [--threshold T] [--legacy-low-threshold T] [--exact-patience N] [--exact-solve-timeout-seconds S] [--limit N] [--match-tolerance-px PX] [--strict-vertex-tolerance-px PX] [--skip-flat-folder] [--skip-exact-solve]"
+        "compare_exact_solve_benchmark --out DIR [--dense-manifest PATH] [--candidate-source legacy] [--line-evidence-source model|source-image] [--junction-evidence-source model|line-arrangement|ground-truth] [--gt-junction-labels] [--threshold T] [--legacy-low-threshold T] [--exact-patience N] [--exact-solve-timeout-seconds S] [--limit N] [--match-tolerance-px PX] [--strict-vertex-tolerance-px PX] [--skip-flat-folder] [--skip-exact-solve] [--exact-solve-any-topology]"
+    );
+    println!(
+        "  exact solve is gated on correct topology by default (wrong topology cannot reconstruct the right CP, so it is skipped and marked failed); --exact-solve-any-topology attempts it regardless."
     );
     println!(
         "Samples run in parallel across the rayon thread pool. Exact-solve timeout defaults to {BENCHMARK_DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS}s (benchmark-only; product uses {}s). For fast topology iteration pass --skip-exact-solve.",
