@@ -19,5 +19,11 @@ serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 
+# Native-only: drives the data-parallel sample loop in the
+# compare_exact_solve_benchmark binary. Excluded from wasm32 builds so the
+# browser detector crate stays wasm-safe.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+rayon.workspace = true
+
 [dev-dependencies]
 serde_json.workspace = true

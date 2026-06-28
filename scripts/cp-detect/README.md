@@ -448,9 +448,30 @@ cargo run -p oristudio-cp-detect --bin compare_exact_solve_benchmark -- \
   --strict-vertex-tolerance-px 4
 ```
 
-When exact solve is enabled, it defaults to a 10 second timeout in the product
-and benchmark paths. Use `--exact-solve-timeout-seconds N` to change it;
-negative values disable the cap for deliberate debugging runs.
+When exact solve is enabled, the product path defaults to a 10 second timeout.
+The `compare_exact_solve_benchmark` binary defaults to a lower **3 second**
+timeout because failed solves on wrong topologies dominated benchmark wall-clock
+and never flip to "solved" by grinding longer. Use `--exact-solve-timeout-seconds N`
+to change it; negative values disable the cap for deliberate debugging runs.
+
+### Fast iteration
+
+`compare_exact_solve_benchmark` processes samples in parallel across the rayon
+thread pool, so wall-clock scales with cores rather than sample count (the
+15-sample clean pack drops from ~120s serial to ~20s on a 10-core machine at the
+same flags). Results and report ordering are deterministic regardless of
+completion order. To iterate even faster:
+
+- Always build/run with `--release`. Dev builds are also far less crippled now
+  (`treemaker-flatfold` and `oristudio-cp-detect` are opt-level 2 in
+  `[profile.dev]`), but release is still fastest.
+- When tuning candidate generation / the carrier gate (not the solver itself),
+  pass `--skip-exact-solve` — it removes the dominant cost and the ~15s clean
+  pack finishes in single-digit seconds.
+- Pass `--skip-flat-folder` to drop the flat-folder verification stage when you
+  only care about graph/topology metrics.
+- The dense cache (built once via `run-browser-dense-cache.mjs`) is reused across
+  every Rust iteration, so model inference is never on the iteration path.
 
 All generated packs, dense caches, and reports belong under ignored
 `artifacts/`. Commit only the deterministic ML eval spec/fingerprints and the

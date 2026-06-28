@@ -445,7 +445,6 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           sequencePlanning: false,
           sequenceError: null,
         });
-        useLayoutStore.getState().activatePanel('sequence');
         return plan;
       } catch (error) {
         const message = engineError(error).message;
