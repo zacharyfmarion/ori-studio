@@ -34,6 +34,7 @@ imageproc = { version = "0.25", default-features = false }
 levenberg-marquardt = "0.15.0"
 nalgebra = "0.34.2"
 proptest = "1.6"
+rayon = "1.10"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde-wasm-bindgen = "0.6"
@@ -63,3 +64,12 @@ opt-level = 3
 
 [profile.dev.package.nalgebra]
 opt-level = 3
+
+# The flat-folder solver and the detector core (candidate generation, decode,
+# the O(n^2) crossing check in the benchmark) are hot in the CP-detect benchmark.
+# Optimize them in dev so non-release benchmark/inspector runs are not crippled.
+[profile.dev.package.treemaker-flatfold]
+opt-level = 2
+
+[profile.dev.package.oristudio-cp-detect]
+opt-level = 2

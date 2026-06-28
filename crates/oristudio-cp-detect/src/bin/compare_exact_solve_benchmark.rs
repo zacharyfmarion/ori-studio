@@ -23,10 +23,17 @@ use oristudio_cp_eval::{
     EvalAssignment, EvalBoundaryRole, EvalEdge, EvalGraph, EvalPoint, StrictTopologyAggregate,
     StrictTopologyMetrics, StrictTopologyOptions, strict_topology_metrics,
 };
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 const SCHEMA: &str = "oristudio/cp-detect-exact-solve-comparison/v1";
+/// Iteration-friendly exact-solve timeout for the benchmark binary. The product
+/// path keeps `oristudio_cp_compiler::DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS`; here
+/// we cap lower because a solve that has not converged in a few seconds on a
+/// wrong topology essentially never flips to "solved", and the failed solves are
+/// what dominated benchmark wall-clock.
+const BENCHMARK_DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS: f64 = 3.0;
 const DEFAULT_DENSE_MANIFEST: &str = "artifacts/cp-detect-correctness/dense-cache/clean-1024-s15-browser-onnx-v3-tess15-weighted-probe-20260619/manifest.json";
 
 #[derive(Debug, Deserialize)]
@@ -480,14 +487,47 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         flat_folder_solution_limit: 1,
         ..GlobalVerificationOptions::default()
     };
-    let mut rows = Vec::new();
-    let mut aggregates = BTreeMap::<String, ImplementationAggregate>::new();
+    // Samples are independent, so process them across the rayon thread pool and
+    // fold the (sequential) aggregates afterward. `collect` into a Vec preserves
+    // input order, so reports stay deterministic regardless of completion order.
+    let limit = args.limit.unwrap_or(usize::MAX);
+    let samples: Vec<&DenseCacheSample> = manifest.samples.iter().take(limit).collect();
+    let rows = samples
+        .par_iter()
+        .map(|sample| {
+            process_sample(
+                sample,
+                &args,
+                strategy,
+                manifest_root,
+                manifest.pack.as_deref(),
+                verify_options,
+            )
+            .map_err(|error| error.to_string())
+        })
+        .collect::<Result<Vec<BenchmarkSample>, String>>()?;
 
-    for sample in manifest
-        .samples
-        .iter()
-        .take(args.limit.unwrap_or(usize::MAX))
-    {
+    let mut aggregates = BTreeMap::<String, ImplementationAggregate>::new();
+    for row in &rows {
+        add_output(&mut aggregates, "legacy", &row.legacy, None);
+        add_output(&mut aggregates, "selected", &row.selected, None);
+        add_output(
+            &mut aggregates,
+            "exact_solved",
+            &row.exact_solved,
+            Some(&row.exact_solve),
+        );
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn process_sample(
+        sample: &DenseCacheSample,
+        args: &Args,
+        strategy: Option<CandidateGenerationStrategyName>,
+        manifest_root: &Path,
+        pack: Option<&str>,
+        verify_options: GlobalVerificationOptions,
+    ) -> Result<BenchmarkSample, Box<dyn std::error::Error>> {
         let sample_started = Instant::now();
         let threshold = args.threshold.unwrap_or(sample.threshold);
         let low_threshold = args
@@ -609,7 +649,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
 
         let metrics_started = Instant::now();
-        let gt = read_ground_truth(manifest_root, manifest.pack.as_deref(), sample)?;
+        let gt = read_ground_truth(manifest_root, pack, sample)?;
         let legacy_span_set = candidate_graph
             .crease_candidates
             .iter()
@@ -736,14 +776,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             seconds: round3(sample_seconds),
         };
 
-        add_output(&mut aggregates, "legacy", &row.legacy, None);
-        add_output(&mut aggregates, "selected", &row.selected, None);
-        add_output(
-            &mut aggregates,
-            "exact_solved",
-            &row.exact_solved,
-            Some(&row.exact_solve),
-        );
         eprintln!(
             "{}",
             serde_json::to_string(&json!({
@@ -755,7 +787,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "exact_status": row.exact_solve.status,
             }))?
         );
-        rows.push(row);
+        Ok(row)
     }
 
     for aggregate in aggregates.values_mut() {
@@ -802,8 +834,7 @@ impl Args {
         let mut threshold = None;
         let mut legacy_low_threshold = None;
         let mut exact_patience = None;
-        let mut exact_solve_timeout_seconds =
-            oristudio_cp_compiler::DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS;
+        let mut exact_solve_timeout_seconds = BENCHMARK_DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS;
         let mut limit = None;
         let mut match_tolerance_px = 12.0;
         let mut strict_vertex_tolerance_px = 2.0;
@@ -2021,6 +2052,10 @@ fn round6(value: f64) -> f64 {
 
 fn print_usage() {
     println!(
-        "compare_exact_solve_benchmark --out DIR [--dense-manifest PATH] [--candidate-source legacy] [--threshold T] [--legacy-low-threshold T] [--exact-patience N] [--exact-solve-timeout-seconds S] [--limit N] [--match-tolerance-px PX] [--strict-vertex-tolerance-px PX] [--skip-flat-folder]"
+        "compare_exact_solve_benchmark --out DIR [--dense-manifest PATH] [--candidate-source legacy] [--threshold T] [--legacy-low-threshold T] [--exact-patience N] [--exact-solve-timeout-seconds S] [--limit N] [--match-tolerance-px PX] [--strict-vertex-tolerance-px PX] [--skip-flat-folder] [--skip-exact-solve]"
+    );
+    println!(
+        "Samples run in parallel across the rayon thread pool. Exact-solve timeout defaults to {BENCHMARK_DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS}s (benchmark-only; product uses {}s). For fast topology iteration pass --skip-exact-solve.",
+        oristudio_cp_compiler::DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS
     );
 }
