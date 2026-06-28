@@ -476,3 +476,72 @@ completion order. To iterate even faster:
 All generated packs, dense caches, and reports belong under ignored
 `artifacts/`. Commit only the deterministic ML eval spec/fingerprints and the
 small scripts/docs that make this product-side flow reproducible.
+
+## GPU-native dense cache (MPS/CUDA, no browser)
+
+`run-browser-dense-cache.mjs` exists for product parity (it runs the same
+`onnxruntime-web` the app ships). When you just need a representative cache for
+Rust-side benchmarking, `infer-native-cp-dense-cache.py` is the faster path: it
+loads the source PyTorch checkpoint directly and dumps the same per-head `*.f32`
+tensors with the channel-major `[C, H, W]` layout the Rust reader expects.
+
+```bash
+PYTHONPATH=scripts/cp-detect \
+  ~/Documents/code/create-pattern-detector/.venv/bin/python \
+  scripts/cp-detect/infer-native-cp-dense-cache.py \
+  --pack artifacts/cp-detect-correctness/packs/<pack>/manifest.json \
+  --out  artifacts/cp-detect-correctness/dense-cache/<cache> \
+  --device mps   # ~110ms/forward; 563 samples in ~2.5 min
+```
+
+It writes a lean head set by default (`line/junction/junction_offset/assignment/
+non_crease/line_style/boundary_contact`, ~56MB/sample; `--heads all` for the full
+twelve). Caveat: oracle logits are a *different numeric path* than the
+`browser-onnx` caches, so they are not apples-to-apples with browser-cached
+results — fine for research benchmarks, not for product-parity claims. The
+checkpoints require batch-statistics BatchNorm at inference (the script handles
+this; `model.eval()` running stats collapse junction recall).
+
+## Native scraped-CP benchmark (`native-cp-v1`)
+
+A "real distribution" correctness set built from scraped origami CPs (vs the
+synthetic clean pack). `build-native-cp-pack.py` rebuilds the pack from the
+dataset under
+`~/Documents/datasets/create-pattern-detector/scraped/native/`:
+
+```bash
+~/Documents/code/create-pattern-detector/.venv/bin/python \
+  scripts/cp-detect/build-native-cp-pack.py \
+  --out artifacts/cp-detect-correctness/packs/native-cp-v1 --bucket-edges 200 600
+```
+
+It takes the clean `.fold` geometry and **recovers mountain/valley/border from
+the matched ORIPA `.cp`** (the FOLD conversion strips assignments to `U`; the
+`.cp` keeps them in the line-type code) by geometric label transfer, renders the
+M/V/B-coloured input image (the model predicts assignment from colour, so the
+recovered labels are required for a meaningful input), writes `gt.graph.json`,
+and buckets samples easy/medium/hard by edge count (`manifest.{easy,medium,
+hard}.json` + `manifest.json`). Then build the dense cache with
+`infer-native-cp-dense-cache.py` (above) and run per bucket:
+
+```bash
+compare_exact_solve_benchmark \
+  --manifest artifacts/.../dense-cache/native-cp-v1-.../manifest.medium.json \
+  --candidate-source junction-first-v1 --parity-repair --skip-flat-folder \
+  --exact-solve-timeout-seconds 2 --out <dir>
+# add --gt-vertices --line-evidence-source source-image for the perfect-junction oracle
+```
+
+Exact solve is **gated on correct topology by default**: a selection whose
+topology does not match GT cannot reconstruct the right CP, so the solve is
+skipped and marked `failed` (`reason: topology_mismatch`) instead of letting the
+tolerant solver flail toward — and sometimes "accept" — a wrong reconstruction.
+This makes `accepted` mean "correctly reconstructed" and removes the dominant
+failure-time cost. Pass `--exact-solve-any-topology` to attempt it regardless.
+
+Because the cache stores `pack` as an absolute path (with `gt_graph`/`input_png`
+relative to the pack and `*.f32` relative to the cache dir), any worktree can run
+the benchmark by pointing `--manifest` at the absolute cache path — no copy or
+symlink needed. The pack and cache are ignored `artifacts/` build outputs; only
+these scripts/docs are committed, so a fresh checkout rebuilds them from the
+dataset + detector checkpoint.
