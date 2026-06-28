@@ -215,6 +215,7 @@ pub fn cp_detect_decode_dense_output_bundle_with_refined_vertices(
 }
 
 #[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
 pub fn cp_detect_decode_dense_output_bundle_with_junction_source(
     outputs: JsValue,
     image_size: u32,
