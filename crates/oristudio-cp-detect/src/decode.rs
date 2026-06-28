@@ -4,7 +4,7 @@
 //! constraint-aware compiler can be introduced as an explicit alternative
 //! instead of growing inside the old threshold/cleanup implementation.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
@@ -59,6 +59,70 @@ pub fn decode_dense_outputs_with_backend(
         DecoderBackend::LegacyCandidateExactSolveV1 => {
             legacy_candidate_exact_solve(outputs, config)
         }
+    }
+}
+
+pub fn decode_dense_outputs_with_backend_and_refined_vertices(
+    outputs: DenseOutputs<'_>,
+    config: DecodeConfig,
+    backend: DecoderBackend,
+    refined_vertices: Option<&[RefinedVertexPrimitive]>,
+) -> Result<DecodedFold, DecodeError> {
+    decode_dense_outputs_with_backend_junction_source_and_refined_vertices(
+        outputs,
+        config,
+        backend,
+        crate::evidence_extract::JunctionEvidenceSource::Model,
+        refined_vertices,
+    )
+}
+
+pub fn decode_dense_outputs_with_backend_junction_source_and_refined_vertices(
+    outputs: DenseOutputs<'_>,
+    config: DecodeConfig,
+    backend: DecoderBackend,
+    junction_evidence_source: crate::evidence_extract::JunctionEvidenceSource,
+    refined_vertices: Option<&[RefinedVertexPrimitive]>,
+) -> Result<DecodedFold, DecodeError> {
+    decode_dense_outputs_with_backend_junction_source_and_refined_vertices_in_regions(
+        outputs,
+        config,
+        backend,
+        junction_evidence_source,
+        refined_vertices,
+        None,
+    )
+}
+
+pub fn decode_dense_outputs_with_backend_junction_source_and_refined_vertices_in_regions(
+    outputs: DenseOutputs<'_>,
+    config: DecodeConfig,
+    backend: DecoderBackend,
+    junction_evidence_source: crate::evidence_extract::JunctionEvidenceSource,
+    refined_vertices: Option<&[RefinedVertexPrimitive]>,
+    refined_regions: Option<&[RefinedVertexRegion]>,
+) -> Result<DecodedFold, DecodeError> {
+    match (backend, refined_vertices) {
+        (DecoderBackend::LegacyCandidateExactSolveV1, Some(vertices)) => {
+            legacy_candidate_exact_solve_with_refined_vertices_in_regions(
+                outputs,
+                config,
+                vertices,
+                refined_regions,
+            )
+        }
+        (DecoderBackend::LegacyCandidateExactSolveV1, None)
+            if junction_evidence_source
+                == crate::evidence_extract::JunctionEvidenceSource::LineArrangement =>
+        {
+            legacy_candidate_exact_solve_with_junction_evidence_source(
+                outputs,
+                config,
+                junction_evidence_source,
+                "line-arrangement",
+            )
+        }
+        _ => decode_dense_outputs_with_backend(outputs, config, backend),
     }
 }
 
@@ -118,6 +182,57 @@ impl Default for CompilerAblationOptions {
         Self {
             include_topology: true,
             include_assignments: true,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RefinedVertexPrimitive {
+    pub x: f64,
+    pub y: f64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub score: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kind: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub boundary_side: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub side_coordinate: Option<f64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RefinedVertexRegion {
+    pub x_min: f64,
+    pub y_min: f64,
+    pub x_max: f64,
+    pub y_max: f64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+struct RefinedVertexEvidenceReport {
+    source: &'static str,
+    input_vertices: usize,
+    refinement_regions: usize,
+    preserved_junction_primitives: usize,
+    preserved_boundary_contact_primitives: usize,
+    accepted_junction_primitives: usize,
+    accepted_boundary_contact_primitives: usize,
+    skipped_vertices: usize,
+}
+
+#[derive(Debug, Clone)]
+struct CandidateExactSolveContext {
+    junction_source: &'static str,
+    evidence_report: Option<serde_json::Value>,
+    refined_vertex_report: Option<RefinedVertexEvidenceReport>,
+}
+
+impl CandidateExactSolveContext {
+    fn dense_model() -> Self {
+        Self {
+            junction_source: "dense-model",
+            evidence_report: None,
+            refined_vertex_report: None,
         }
     }
 }
@@ -301,13 +416,10 @@ fn legacy_candidate_exact_solve(
     outputs: DenseOutputs<'_>,
     config: DecodeConfig,
 ) -> Result<DecodedFold, DecodeError> {
-    let compiler_started = StageTimer::start();
-    let mut generation_options = crate::candidate_generation::CandidateGenerationOptions::default();
-    // The model manifest declares the offset head's normalization radius;
-    // radius-trained models decode junctions via offset-vote clustering.
-    generation_options
-        .junction_first_v1
-        .junction_offset_cluster_radius_px = config.junction_offset_cluster_radius_px as f64;
+    let generation_options = default_candidate_generation_options(
+        &config,
+        crate::evidence_extract::JunctionEvidenceSource::Model,
+    );
     let generation = crate::candidate_generation::generate_candidate_graph(
         crate::candidate_generation::CandidateGenerationContext {
             outputs,
@@ -315,6 +427,96 @@ fn legacy_candidate_exact_solve(
         },
         generation_options,
     )?;
+    legacy_candidate_exact_solve_from_generation(
+        config,
+        generation,
+        CandidateExactSolveContext::dense_model(),
+    )
+}
+
+fn legacy_candidate_exact_solve_with_refined_vertices_in_regions(
+    outputs: DenseOutputs<'_>,
+    config: DecodeConfig,
+    refined_vertices: &[RefinedVertexPrimitive],
+    refined_regions: Option<&[RefinedVertexRegion]>,
+) -> Result<DecodedFold, DecodeError> {
+    let generation_options = default_candidate_generation_options(
+        &config,
+        crate::evidence_extract::JunctionEvidenceSource::Model,
+    );
+    let strategy = crate::candidate_generation::JunctionFirstV1Strategy::new(
+        generation_options.junction_first_v1,
+    );
+    let mut evidence = strategy.extract_evidence(outputs, &config)?;
+    let refined_vertex_report = apply_refined_vertex_evidence_override(
+        &mut evidence,
+        refined_vertices,
+        config.image_size,
+        refined_regions,
+    );
+    let evidence_report = Some(serde_json::to_value(&evidence.report)?);
+    let generation = strategy.generate_from_evidence(&evidence, &config);
+    legacy_candidate_exact_solve_from_generation(
+        config,
+        generation,
+        CandidateExactSolveContext {
+            junction_source: "vertex-refiner-v3",
+            evidence_report,
+            refined_vertex_report: Some(refined_vertex_report),
+        },
+    )
+}
+
+fn legacy_candidate_exact_solve_with_junction_evidence_source(
+    outputs: DenseOutputs<'_>,
+    config: DecodeConfig,
+    junction_evidence_source: crate::evidence_extract::JunctionEvidenceSource,
+    junction_source_label: &'static str,
+) -> Result<DecodedFold, DecodeError> {
+    let generation_options =
+        default_candidate_generation_options(&config, junction_evidence_source);
+    let strategy = crate::candidate_generation::JunctionFirstV1Strategy::new(
+        generation_options.junction_first_v1,
+    );
+    let evidence = strategy.extract_evidence(outputs, &config)?;
+    let evidence_report = Some(serde_json::to_value(&evidence.report)?);
+    let generation = strategy.generate_from_evidence(&evidence, &config);
+    legacy_candidate_exact_solve_from_generation(
+        config,
+        generation,
+        CandidateExactSolveContext {
+            junction_source: junction_source_label,
+            evidence_report,
+            refined_vertex_report: None,
+        },
+    )
+}
+
+fn default_candidate_generation_options(
+    config: &DecodeConfig,
+    junction_evidence_source: crate::evidence_extract::JunctionEvidenceSource,
+) -> crate::candidate_generation::CandidateGenerationOptions {
+    let mut generation_options = crate::candidate_generation::CandidateGenerationOptions::default();
+    // The model manifest declares the offset head's normalization radius;
+    // radius-trained models decode junctions via offset-vote clustering.
+    generation_options
+        .junction_first_v1
+        .junction_offset_cluster_radius_px = config.junction_offset_cluster_radius_px as f64;
+    generation_options
+        .junction_first_v1
+        .junction_evidence_source = junction_evidence_source;
+    generation_options
+        .junction_carrier_v1
+        .junction_evidence_source = junction_evidence_source;
+    generation_options
+}
+
+fn legacy_candidate_exact_solve_from_generation(
+    config: DecodeConfig,
+    generation: crate::candidate_generation::CandidateGenerationOutput,
+    context: CandidateExactSolveContext,
+) -> Result<DecodedFold, DecodeError> {
+    let compiler_started = StageTimer::start();
     let weak_threshold = generation.low_threshold;
     let candidate_strategy = generation.strategy.id();
     let candidate_graph = generation.candidate_graph;
@@ -380,6 +582,7 @@ fn legacy_candidate_exact_solve(
         // (junction-first-v1 by default since PR #55), not the legacy adapter.
         "backend": "legacy_candidate_exact_solve_v1",
         "candidate_strategy": candidate_strategy,
+        "junction_source": context.junction_source,
         "compiler_architecture": "v2",
         "mode": "candidate_generation_beam_selection_exact_solve",
         "legacy_dependency": false,
@@ -409,6 +612,8 @@ fn legacy_candidate_exact_solve(
             "provenance": candidate_graph.provenance,
             "legacy_low_threshold": weak_threshold
         },
+        "evidence": context.evidence_report,
+        "refined_vertices": context.refined_vertex_report,
         "selection": {
             "report": selection.report,
             "weak_selected_spans": weak_selected_spans,
@@ -458,7 +663,9 @@ fn legacy_candidate_exact_solve(
     let repair_actions = compiler_repair_actions(&compiler_report);
     let quality_report = serde_json::json!({
         "decoder_backend": DecoderBackend::LegacyCandidateExactSolveV1.id(),
+        "junction_source": context.junction_source,
         "candidate_strategy": candidate_strategy,
+        "refined_vertices": context.refined_vertex_report,
         "compiler_report": compiler_report
     });
     Ok(DecodedFold {
@@ -479,6 +686,172 @@ fn legacy_candidate_exact_solve(
             quality_report,
         },
     })
+}
+
+fn apply_refined_vertex_evidence_override(
+    evidence: &mut crate::evidence_extract::CompilerEvidence,
+    refined_vertices: &[RefinedVertexPrimitive],
+    image_size: u32,
+    refined_regions: Option<&[RefinedVertexRegion]>,
+) -> RefinedVertexEvidenceReport {
+    let image_max = image_size.saturating_sub(1).max(1) as f64;
+    let mut junctions = refined_regions.map_or_else(Vec::new, |regions| {
+        evidence
+            .junction_primitives
+            .iter()
+            .filter(|primitive| !point_in_any_refined_region(primitive.point, regions))
+            .cloned()
+            .collect()
+    });
+    let mut contacts = refined_regions.map_or_else(Vec::new, |regions| {
+        evidence
+            .boundary_contact_primitives
+            .iter()
+            .filter(|primitive| !point_in_any_refined_region(primitive.point, regions))
+            .cloned()
+            .collect()
+    });
+    let preserved_junction_primitives = junctions.len();
+    let preserved_boundary_contact_primitives = contacts.len();
+    let mut skipped_vertices = 0usize;
+    for vertex in refined_vertices {
+        let score = finite_refined_score(vertex.score);
+        let kind = vertex.kind.as_deref().unwrap_or("interior_junction");
+        if kind == "background" || kind == "corner" {
+            skipped_vertices += 1;
+            continue;
+        }
+        let point = [
+            vertex.x.clamp(0.0, image_max) as f32,
+            vertex.y.clamp(0.0, image_max) as f32,
+        ];
+        let explicit_side = vertex
+            .boundary_side
+            .as_deref()
+            .and_then(refined_boundary_side);
+        if let Some(side) = refined_boundary_contact_side(kind, explicit_side, point, image_max) {
+            contacts.push(crate::evidence_extract::BoundaryContactPrimitive {
+                point,
+                side,
+                side_coordinate: refined_side_coordinate(vertex.side_coordinate)
+                    .unwrap_or_else(|| boundary_side_coordinate(point, side, image_max)),
+                support: score,
+                source: refined_primitive_source(score),
+            });
+        } else {
+            junctions.push(crate::evidence_extract::JunctionPrimitive {
+                point,
+                support: score,
+                source: refined_primitive_source(score),
+            });
+        }
+    }
+    evidence.junction_primitives = junctions;
+    evidence.boundary_contact_primitives = contacts;
+    evidence.report.junction_primitives = evidence.junction_primitives.len();
+    evidence.report.boundary_contact_primitives = evidence.boundary_contact_primitives.len();
+    RefinedVertexEvidenceReport {
+        source: "vertex-refiner-v3",
+        input_vertices: refined_vertices.len(),
+        refinement_regions: refined_regions.map_or(0, |regions| regions.len()),
+        preserved_junction_primitives,
+        preserved_boundary_contact_primitives,
+        accepted_junction_primitives: evidence.junction_primitives.len(),
+        accepted_boundary_contact_primitives: evidence.boundary_contact_primitives.len(),
+        skipped_vertices,
+    }
+}
+
+fn point_in_any_refined_region(point: [f32; 2], regions: &[RefinedVertexRegion]) -> bool {
+    regions.iter().any(|region| {
+        let x_min = region.x_min.min(region.x_max);
+        let x_max = region.x_min.max(region.x_max);
+        let y_min = region.y_min.min(region.y_max);
+        let y_max = region.y_min.max(region.y_max);
+        (point[0] as f64) >= x_min
+            && (point[0] as f64) <= x_max
+            && (point[1] as f64) >= y_min
+            && (point[1] as f64) <= y_max
+    })
+}
+
+fn refined_boundary_contact_side(
+    kind: &str,
+    explicit_side: Option<crate::evidence_extract::BoundarySide>,
+    point: [f32; 2],
+    image_max: f64,
+) -> Option<crate::evidence_extract::BoundarySide> {
+    if kind == "boundary_contact" {
+        return Some(explicit_side.unwrap_or_else(|| nearest_boundary_side(point, image_max)));
+    }
+    None
+}
+
+fn finite_refined_score(score: Option<f64>) -> f32 {
+    score
+        .filter(|value| value.is_finite())
+        .unwrap_or(1.0)
+        .clamp(0.0, 1.0) as f32
+}
+
+fn refined_side_coordinate(side_coordinate: Option<f64>) -> Option<f32> {
+    side_coordinate
+        .filter(|value| value.is_finite())
+        .map(|value| value.clamp(0.0, 1.0) as f32)
+}
+
+fn refined_primitive_source(score: f32) -> crate::evidence_extract::PrimitiveSource {
+    if score >= 0.62 {
+        crate::evidence_extract::PrimitiveSource::ObservedStrong
+    } else {
+        crate::evidence_extract::PrimitiveSource::ObservedWeak
+    }
+}
+
+fn refined_boundary_side(side: &str) -> Option<crate::evidence_extract::BoundarySide> {
+    match side {
+        "top" => Some(crate::evidence_extract::BoundarySide::Top),
+        "right" => Some(crate::evidence_extract::BoundarySide::Right),
+        "bottom" => Some(crate::evidence_extract::BoundarySide::Bottom),
+        "left" => Some(crate::evidence_extract::BoundarySide::Left),
+        _ => None,
+    }
+}
+
+fn nearest_boundary_side(point: [f32; 2], image_max: f64) -> crate::evidence_extract::BoundarySide {
+    let x = point[0] as f64;
+    let y = point[1] as f64;
+    [
+        (crate::evidence_extract::BoundarySide::Top, y.abs()),
+        (
+            crate::evidence_extract::BoundarySide::Right,
+            (image_max - x).abs(),
+        ),
+        (
+            crate::evidence_extract::BoundarySide::Bottom,
+            (image_max - y).abs(),
+        ),
+        (crate::evidence_extract::BoundarySide::Left, x.abs()),
+    ]
+    .into_iter()
+    .min_by(|left, right| left.1.total_cmp(&right.1))
+    .map(|(side, _)| side)
+    .unwrap_or(crate::evidence_extract::BoundarySide::Top)
+}
+
+fn boundary_side_coordinate(
+    point: [f32; 2],
+    side: crate::evidence_extract::BoundarySide,
+    image_max: f64,
+) -> f32 {
+    let denom = image_max.max(1.0);
+    match side {
+        crate::evidence_extract::BoundarySide::Top
+        | crate::evidence_extract::BoundarySide::Bottom => point[0] as f64 / denom,
+        crate::evidence_extract::BoundarySide::Right
+        | crate::evidence_extract::BoundarySide::Left => point[1] as f64 / denom,
+    }
+    .clamp(0.0, 1.0) as f32
 }
 
 struct CompilerBackendContext {
@@ -1105,6 +1478,25 @@ mod tests {
     use serde_json::Value;
 
     #[test]
+    fn refined_vertex_boundary_contacts_require_explicit_kind() {
+        let top = crate::evidence_extract::BoundarySide::Top;
+        let right = crate::evidence_extract::BoundarySide::Right;
+
+        assert_eq!(
+            refined_boundary_contact_side("interior_junction", Some(top), [42.0, 1.5], 99.0),
+            None
+        );
+        assert_eq!(
+            refined_boundary_contact_side("interior_junction", Some(top), [42.0, 8.0], 99.0),
+            None
+        );
+        assert_eq!(
+            refined_boundary_contact_side("boundary_contact", None, [99.0, 42.0], 99.0),
+            Some(right)
+        );
+    }
+
+    #[test]
     fn legacy_backend_router_preserves_existing_output() {
         let size = 64usize;
         let pixels = size * size;
@@ -1344,6 +1736,119 @@ mod tests {
                 .expect("edges")
                 .len()
         );
+    }
+
+    #[test]
+    fn legacy_candidate_exact_solve_accepts_refined_vertex_junction_source() {
+        let (outputs, config) = square_cross_fixture();
+        let refined_vertices = vec![
+            RefinedVertexPrimitive {
+                x: 32.0,
+                y: 32.0,
+                score: Some(0.93),
+                kind: Some("interior_junction".to_owned()),
+                boundary_side: None,
+                side_coordinate: None,
+            },
+            RefinedVertexPrimitive {
+                x: 32.0,
+                y: 0.0,
+                score: Some(0.91),
+                kind: Some("boundary_contact".to_owned()),
+                boundary_side: Some("top".to_owned()),
+                side_coordinate: Some(32.0 / 63.0),
+            },
+            RefinedVertexPrimitive {
+                x: 63.0,
+                y: 32.0,
+                score: Some(0.91),
+                kind: Some("boundary_contact".to_owned()),
+                boundary_side: Some("right".to_owned()),
+                side_coordinate: Some(32.0 / 63.0),
+            },
+            RefinedVertexPrimitive {
+                x: 32.0,
+                y: 63.0,
+                score: Some(0.91),
+                kind: Some("boundary_contact".to_owned()),
+                boundary_side: Some("bottom".to_owned()),
+                side_coordinate: Some(32.0 / 63.0),
+            },
+            RefinedVertexPrimitive {
+                x: 0.0,
+                y: 32.0,
+                score: Some(0.91),
+                kind: Some("boundary_contact".to_owned()),
+                boundary_side: Some("left".to_owned()),
+                side_coordinate: Some(32.0 / 63.0),
+            },
+        ];
+        let compiler = decode_dense_outputs_with_backend_and_refined_vertices(
+            outputs,
+            config,
+            DecoderBackend::LegacyCandidateExactSolveV1,
+            Some(&refined_vertices),
+        )
+        .expect("refined vertex candidate exact solve decode");
+        let compiler_fold: Value =
+            serde_json::from_str(&compiler.fold_json).expect("compiler fold");
+
+        assert_eq!(
+            compiler.report.quality_report["junction_source"],
+            "vertex-refiner-v3"
+        );
+        assert_eq!(
+            compiler.report.quality_report["refined_vertices"]["accepted_junction_primitives"],
+            1
+        );
+        assert_eq!(
+            compiler.report.quality_report["refined_vertices"]["accepted_boundary_contact_primitives"],
+            4
+        );
+        assert_eq!(
+            compiler_fold["cp_detector"]["compiler_report"]["junction_source"],
+            "vertex-refiner-v3"
+        );
+    }
+
+    #[test]
+    fn refined_vertex_regions_preserve_dense_evidence_outside_region() {
+        let (outputs, config) = square_cross_fixture();
+        let refined_vertices = vec![RefinedVertexPrimitive {
+            x: 32.0,
+            y: 32.0,
+            score: Some(0.93),
+            kind: Some("interior_junction".to_owned()),
+            boundary_side: None,
+            side_coordinate: None,
+        }];
+        let refined_regions = vec![RefinedVertexRegion {
+            x_min: 24.0,
+            y_min: 24.0,
+            x_max: 40.0,
+            y_max: 40.0,
+        }];
+
+        let compiler =
+            decode_dense_outputs_with_backend_junction_source_and_refined_vertices_in_regions(
+                outputs,
+                config,
+                DecoderBackend::LegacyCandidateExactSolveV1,
+                crate::evidence_extract::JunctionEvidenceSource::Model,
+                Some(&refined_vertices),
+                Some(&refined_regions),
+            )
+            .expect("selective refined vertex decode");
+        let report = &compiler.report.quality_report["refined_vertices"];
+
+        assert_eq!(report["refinement_regions"], 1);
+        assert!(
+            report["preserved_boundary_contact_primitives"]
+                .as_u64()
+                .expect("preserved boundary contacts")
+                > 0
+        );
+        assert_eq!(report["input_vertices"], 1);
     }
 
     fn assert_compiler_output_contract(compiler: &DecodedFold, compiler_fold: &Value) {

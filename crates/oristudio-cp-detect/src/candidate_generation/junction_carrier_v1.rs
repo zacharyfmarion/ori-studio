@@ -42,6 +42,7 @@ pub(super) fn dense_output_refs(outputs: DenseOutputs<'_>) -> DenseOutputRefs<'_
         outputs.line_style_logits,
         outputs.boundary_contact_logits,
     )
+    .with_line_probability_override(outputs.line_probability_override)
     .with_angle(outputs.angle)
     .with_junction_offset(outputs.junction_offset)
     .with_vertex_type_logits(outputs.vertex_type_logits)
@@ -71,6 +72,7 @@ pub(super) fn evidence_config(
         max_boundary_contact_primitives: config.max_intersection_lines.max(500),
         primitive_nms_radius_px: (options.vertex_merge_radius_px * 0.55).max(2.0) as f32,
         junction_offset_cluster_radius_px: options.junction_offset_cluster_radius_px as f32,
+        junction_evidence_source: options.junction_evidence_source,
     }
 }
 

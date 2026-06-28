@@ -287,6 +287,9 @@ fn compiler_evidence_config(config: &DecodeConfig) -> DecodeConfig {
 }
 
 fn effective_line_prob(outputs: DenseOutputs<'_>, config: &DecodeConfig) -> Vec<f32> {
+    if let Some(values) = outputs.line_probability_override {
+        return values.iter().map(|value| value.clamp(0.0, 1.0)).collect();
+    }
     outputs
         .line_logits
         .iter()

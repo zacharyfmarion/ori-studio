@@ -19,6 +19,10 @@ use oristudio_cp_detect::candidate_generation::{
     generate_candidate_graph,
 };
 use oristudio_cp_detect::decode::{DecodeConfig, DenseOutputs, decode_dense_outputs};
+use oristudio_cp_detect::evidence_extract::JunctionEvidenceSource;
+use oristudio_cp_detect::source_image_evidence::{
+    SourceImageLineEvidenceOptions, line_probability_from_rgba,
+};
 use oristudio_cp_eval::{
     EvalAssignment, EvalBoundaryRole, EvalEdge, EvalGraph, EvalPoint, StrictTopologyAggregate,
     StrictTopologyMetrics, StrictTopologyOptions, strict_topology_metrics,
@@ -35,6 +39,11 @@ const SCHEMA: &str = "oristudio/cp-detect-exact-solve-comparison/v1";
 /// what dominated benchmark wall-clock.
 const BENCHMARK_DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS: f64 = 3.0;
 const DEFAULT_DENSE_MANIFEST: &str = "artifacts/cp-detect-correctness/dense-cache/clean-1024-s15-browser-onnx-v3-tess15-weighted-probe-20260619/manifest.json";
+const GT_JUNCTION_SIGMA_PX: f64 = 1.5;
+const GT_JUNCTION_OFFSET_RADIUS_PX: f64 = 3.0;
+const GT_BOUNDARY_CONTACT_SIGMA_PX: f64 = 1.0;
+const GT_BACKGROUND_PROBABILITY: f32 = 0.0001;
+const GT_PEAK_PROBABILITY: f32 = 0.9999;
 
 #[derive(Debug, Deserialize)]
 struct DenseCacheManifest {
@@ -54,6 +63,8 @@ struct DenseCacheSample {
     profile: Option<String>,
     image_size: u32,
     threshold: f32,
+    #[serde(default)]
+    input_png: Option<String>,
     #[serde(default)]
     angle_f32_path: Option<String>,
     #[serde(default)]
@@ -81,6 +92,9 @@ struct Args {
     dense_manifest: PathBuf,
     out: PathBuf,
     candidate_source: String,
+    line_evidence_source: String,
+    junction_evidence_source: JunctionEvidenceSource,
+    gt_junction_labels: bool,
     threshold: Option<f32>,
     legacy_low_threshold: Option<f32>,
     exact_patience: Option<usize>,
@@ -118,6 +132,9 @@ struct BenchmarkSummary {
 #[derive(Debug, Serialize)]
 struct BenchmarkConfig {
     candidate_source: String,
+    line_evidence_source: String,
+    junction_evidence_source: String,
+    gt_junction_labels: bool,
     threshold: Option<f32>,
     legacy_low_threshold: Option<f32>,
     exact_patience: Option<usize>,
@@ -529,12 +546,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         verify_options: GlobalVerificationOptions,
     ) -> Result<BenchmarkSample, Box<dyn std::error::Error>> {
         let sample_started = Instant::now();
+        let gt = read_ground_truth(manifest_root, pack, sample)?;
         let threshold = args.threshold.unwrap_or(sample.threshold);
         let low_threshold = args
             .legacy_low_threshold
             .unwrap_or_else(|| default_low_threshold(threshold));
         let read_logits_started = Instant::now();
-        let logits = read_sample_logits(manifest_root, sample)?;
+        let mut logits = read_sample_logits(manifest_root, sample)?;
+        if args.line_evidence_source == "source-image" {
+            logits.line_probability_override = Some(read_source_image_line_probability(
+                manifest_root,
+                pack,
+                sample,
+            )?);
+        }
+        if args.gt_junction_labels {
+            apply_gt_junction_labels(&mut logits, &gt, sample.image_size)?;
+        }
         let read_logits_seconds = read_logits_started.elapsed().as_secs_f64();
 
         let legacy_decode_started = Instant::now();
@@ -557,6 +585,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     strategy: name,
                     ..CandidateGenerationOptions::default()
                 };
+                generation_options
+                    .junction_carrier_v1
+                    .junction_evidence_source = args.junction_evidence_source;
+                generation_options
+                    .junction_first_v1
+                    .junction_evidence_source = args.junction_evidence_source;
                 if let Some(value) = args.junction_first_merge_radius_px {
                     generation_options.junction_first_v1.vertex_merge_radius_px = value;
                 }
@@ -649,7 +683,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
 
         let metrics_started = Instant::now();
-        let gt = read_ground_truth(manifest_root, pack, sample)?;
         let legacy_span_set = candidate_graph
             .crease_candidates
             .iter()
@@ -807,6 +840,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         pack: manifest.pack,
         config: BenchmarkConfig {
             candidate_source: args.candidate_source,
+            line_evidence_source: args.line_evidence_source,
+            junction_evidence_source: junction_evidence_source_label(
+                args.junction_evidence_source,
+                args.gt_junction_labels,
+            )
+            .to_owned(),
+            gt_junction_labels: args.gt_junction_labels,
             threshold: args.threshold,
             legacy_low_threshold: args.legacy_low_threshold,
             exact_patience: args.exact_patience,
@@ -831,6 +871,9 @@ impl Args {
         let mut dense_manifest = None;
         let mut out = None;
         let mut candidate_source = "legacy".to_owned();
+        let mut line_evidence_source = "model".to_owned();
+        let mut junction_evidence_source = JunctionEvidenceSource::Model;
+        let mut gt_junction_labels = false;
         let mut threshold = None;
         let mut legacy_low_threshold = None;
         let mut exact_patience = None;
@@ -857,6 +900,27 @@ impl Args {
                 "--candidate-source" => {
                     candidate_source = required_value(&mut iter, "--candidate-source")?
                 }
+                "--line-evidence-source" => {
+                    line_evidence_source = required_value(&mut iter, "--line-evidence-source")?;
+                    if !matches!(line_evidence_source.as_str(), "model" | "source-image") {
+                        return Err(
+                            "--line-evidence-source must be 'model' or 'source-image'".into()
+                        );
+                    }
+                }
+                "--junction-evidence-source" => {
+                    let value = required_value(&mut iter, &arg)?;
+                    if matches!(
+                        value.as_str(),
+                        "ground-truth" | "ground_truth" | "gt" | "gt-labels" | "gt_labels"
+                    ) {
+                        junction_evidence_source = JunctionEvidenceSource::Model;
+                        gt_junction_labels = true;
+                    } else {
+                        junction_evidence_source = parse_junction_evidence_source(&value)?;
+                    }
+                }
+                "--gt-junction-labels" => gt_junction_labels = true,
                 "--threshold" => {
                     threshold = Some(required_value(&mut iter, "--threshold")?.parse()?)
                 }
@@ -916,6 +980,9 @@ impl Args {
             dense_manifest,
             out,
             candidate_source,
+            line_evidence_source,
+            junction_evidence_source,
+            gt_junction_labels,
             threshold,
             legacy_low_threshold,
             exact_patience,
@@ -938,6 +1005,7 @@ impl Args {
 
 struct SampleLogits {
     line_logits: Vec<f32>,
+    line_probability_override: Option<Vec<f32>>,
     angle: Option<Vec<f32>>,
     junction_logits: Vec<f32>,
     junction_offset: Option<Vec<f32>>,
@@ -961,6 +1029,7 @@ impl SampleLogits {
             &self.line_style_logits,
             &self.boundary_contact_logits,
         )
+        .with_line_probability_override(self.line_probability_override.as_deref())
         .with_angle(self.angle.as_deref())
         .with_junction_offset(self.junction_offset.as_deref())
         .with_vertex_type_logits(self.vertex_type_logits.as_deref())
@@ -976,6 +1045,7 @@ fn read_sample_logits(
 ) -> Result<SampleLogits, Box<dyn std::error::Error>> {
     Ok(SampleLogits {
         line_logits: read_f32_file(&resolve_path(root, &sample.line_logits_f32_path))?,
+        line_probability_override: None,
         angle: read_optional_f32_file(root, sample.angle_f32_path.as_deref())?,
         junction_logits: read_f32_file(&resolve_path(root, &sample.junction_logits_f32_path))?,
         junction_offset: read_optional_f32_file(root, sample.junction_offset_f32_path.as_deref())?,
@@ -997,6 +1067,238 @@ fn read_sample_logits(
         boundary_offset: read_optional_f32_file(root, sample.boundary_offset_f32_path.as_deref())?,
         boundary_coord: read_optional_f32_file(root, sample.boundary_coord_f32_path.as_deref())?,
     })
+}
+
+fn read_source_image_line_probability(
+    manifest_root: &Path,
+    pack: Option<&str>,
+    sample: &DenseCacheSample,
+) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
+    let Some(input_png) = sample.input_png.as_deref() else {
+        return Err(format!(
+            "sample {} has no input_png; source-image line evidence is unavailable",
+            sample.id
+        )
+        .into());
+    };
+    let path = resolve_pack_path(manifest_root, pack, input_png);
+    let image = image::ImageReader::open(&path)?.decode()?.into_rgba8();
+    let (width, height) = image.dimensions();
+    if width != sample.image_size || height != sample.image_size {
+        return Err(format!(
+            "sample {} input_png must be {}x{} for source-image line evidence, got {}x{} ({})",
+            sample.id,
+            sample.image_size,
+            sample.image_size,
+            width,
+            height,
+            path.display()
+        )
+        .into());
+    }
+    Ok(line_probability_from_rgba(
+        image.as_raw(),
+        width,
+        height,
+        SourceImageLineEvidenceOptions::default(),
+    )?)
+}
+
+fn apply_gt_junction_labels(
+    logits: &mut SampleLogits,
+    gt: &GroundTruthGraph,
+    image_size: u32,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let size = image_size as usize;
+    let pixels = size
+        .checked_mul(size)
+        .ok_or("image size overflow while rendering GT junction labels")?;
+    let mut junction_probability = vec![GT_BACKGROUND_PROBABILITY; pixels];
+    let mut junction_offset = vec![0.0_f32; pixels * 2];
+    let mut nearest_junction_distance_sq = vec![f64::INFINITY; pixels];
+    let mut boundary_contact_probability = vec![GT_BACKGROUND_PROBABILITY; pixels];
+    let mut boundary_offset = vec![0.0_f32; pixels * 2];
+
+    for vertex in &gt.vertices_px {
+        render_gaussian_probability(
+            &mut junction_probability,
+            size,
+            *vertex,
+            GT_JUNCTION_SIGMA_PX,
+            GT_PEAK_PROBABILITY,
+        );
+        render_radius_normalized_offset(
+            &mut junction_offset,
+            &mut nearest_junction_distance_sq,
+            size,
+            *vertex,
+            GT_JUNCTION_OFFSET_RADIUS_PX,
+        );
+        if gt_boundary_side_coordinate(*vertex, image_size).is_some() {
+            render_gaussian_probability(
+                &mut boundary_contact_probability,
+                size,
+                *vertex,
+                GT_BOUNDARY_CONTACT_SIGMA_PX,
+                GT_PEAK_PROBABILITY,
+            );
+            render_subpixel_offset(&mut boundary_offset, size, *vertex);
+        }
+    }
+
+    logits.junction_logits = junction_probability
+        .into_iter()
+        .map(probability_to_logit)
+        .collect();
+    logits.junction_offset = Some(junction_offset);
+    logits.boundary_contact_logits = boundary_contact_probability
+        .into_iter()
+        .map(probability_to_logit)
+        .collect();
+    logits.boundary_offset = Some(boundary_offset);
+    logits.vertex_type_logits = None;
+    Ok(())
+}
+
+fn render_gaussian_probability(
+    probability: &mut [f32],
+    size: usize,
+    point: [f64; 2],
+    sigma_px: f64,
+    peak_probability: f32,
+) {
+    if size == 0 || sigma_px <= 0.0 {
+        return;
+    }
+    let radius = (sigma_px * 3.0).ceil() as isize;
+    let center_x = point[0].round() as isize;
+    let center_y = point[1].round() as isize;
+    let sigma_sq = sigma_px * sigma_px;
+    for y in (center_y - radius)..=(center_y + radius) {
+        if y < 0 || y >= size as isize {
+            continue;
+        }
+        for x in (center_x - radius)..=(center_x + radius) {
+            if x < 0 || x >= size as isize {
+                continue;
+            }
+            let dx = x as f64 - point[0];
+            let dy = y as f64 - point[1];
+            let value =
+                f64::from(peak_probability) * (-(dx * dx + dy * dy) / (2.0 * sigma_sq)).exp();
+            let idx = y as usize * size + x as usize;
+            probability[idx] = probability[idx].max(value as f32);
+        }
+    }
+}
+
+fn render_radius_normalized_offset(
+    offset: &mut [f32],
+    nearest_distance_sq: &mut [f64],
+    size: usize,
+    point: [f64; 2],
+    radius_px: f64,
+) {
+    if size == 0 || radius_px <= 0.0 {
+        return;
+    }
+    let pixels = size * size;
+    if offset.len() < pixels * 2 || nearest_distance_sq.len() < pixels {
+        return;
+    }
+    let radius = radius_px.ceil() as isize;
+    let center_x = point[0].round() as isize;
+    let center_y = point[1].round() as isize;
+    let radius_sq = radius_px * radius_px;
+    for y in (center_y - radius)..=(center_y + radius) {
+        if y < 0 || y >= size as isize {
+            continue;
+        }
+        for x in (center_x - radius)..=(center_x + radius) {
+            if x < 0 || x >= size as isize {
+                continue;
+            }
+            let dx = point[0] - x as f64;
+            let dy = point[1] - y as f64;
+            let distance_sq = dx * dx + dy * dy;
+            if distance_sq > radius_sq {
+                continue;
+            }
+            let idx = y as usize * size + x as usize;
+            if distance_sq >= nearest_distance_sq[idx] {
+                continue;
+            }
+            nearest_distance_sq[idx] = distance_sq;
+            offset[idx] = (dx / radius_px).clamp(-1.0, 1.0) as f32;
+            offset[pixels + idx] = (dy / radius_px).clamp(-1.0, 1.0) as f32;
+        }
+    }
+}
+
+fn render_subpixel_offset(offset: &mut [f32], size: usize, point: [f64; 2]) {
+    if size == 0 {
+        return;
+    }
+    let pixels = size * size;
+    if offset.len() < pixels * 2 {
+        return;
+    }
+    let x = point[0].round().clamp(0.0, size.saturating_sub(1) as f64) as usize;
+    let y = point[1].round().clamp(0.0, size.saturating_sub(1) as f64) as usize;
+    let idx = y * size + x;
+    offset[idx] = (point[0] - x as f64).clamp(-0.5, 0.5) as f32;
+    offset[pixels + idx] = (point[1] - y as f64).clamp(-0.5, 0.5) as f32;
+}
+
+fn gt_boundary_side_coordinate(point: [f64; 2], image_size: u32) -> Option<(usize, f64)> {
+    let (frame_min, frame_max) = rendered_square_frame_px(image_size);
+    let span = (frame_max - frame_min).max(1.0);
+    let candidates = [
+        (
+            0usize,
+            (point[1] - frame_min).abs(),
+            (point[0] - frame_min) / span,
+        ),
+        (
+            1usize,
+            (point[0] - frame_max).abs(),
+            (point[1] - frame_min) / span,
+        ),
+        (
+            2usize,
+            (point[1] - frame_max).abs(),
+            (point[0] - frame_min) / span,
+        ),
+        (
+            3usize,
+            (point[0] - frame_min).abs(),
+            (point[1] - frame_min) / span,
+        ),
+    ];
+    let (side, distance, coordinate) = candidates
+        .into_iter()
+        .min_by(|left, right| left.1.total_cmp(&right.1))?;
+    if distance <= 2.5 {
+        Some((side, coordinate.clamp(0.0, 1.0)))
+    } else {
+        None
+    }
+}
+
+fn rendered_square_frame_px(image_size: u32) -> (f64, f64) {
+    let raw_max = image_size.saturating_sub(1) as f64;
+    let inset = if image_size as f64 > 64.0 {
+        32.0
+    } else {
+        raw_max * 0.25
+    };
+    let frame_max = (image_size as f64 - inset).clamp(inset, raw_max);
+    (inset, frame_max)
+}
+
+fn probability_to_logit(probability: f32) -> f32 {
+    let probability = probability.clamp(0.0001, 0.9999);
+    (probability / (1.0 - probability)).ln()
 }
 
 fn decode_program(
@@ -1024,7 +1326,7 @@ fn read_ground_truth(
     let Some(path) = sample.gt_graph.as_deref() else {
         return Err(format!("sample {} has no gt_graph", sample.id).into());
     };
-    let path = resolve_gt_path(manifest_root, pack, path);
+    let path = resolve_pack_path(manifest_root, pack, path);
     let mut gt: GroundTruthGraph = serde_json::from_str(&fs::read_to_string(&path)?)?;
     if gt.edges_assignment_labels.is_empty() && !gt.edges_assignment.is_empty() {
         gt.edges_assignment_labels = gt.edges_assignment.clone();
@@ -1867,6 +2169,32 @@ fn required_value(
         .ok_or_else(|| format!("{name} requires a value").into())
 }
 
+fn parse_junction_evidence_source(
+    value: &str,
+) -> Result<JunctionEvidenceSource, Box<dyn std::error::Error>> {
+    match value {
+        "model" => Ok(JunctionEvidenceSource::Model),
+        "line-arrangement" | "line_arrangement" => Ok(JunctionEvidenceSource::LineArrangement),
+        _ => Err(
+            "--junction-evidence-source must be 'model', 'line-arrangement', or 'ground-truth'"
+                .into(),
+        ),
+    }
+}
+
+fn junction_evidence_source_label(
+    source: JunctionEvidenceSource,
+    gt_junction_labels: bool,
+) -> &'static str {
+    if gt_junction_labels {
+        return "ground-truth";
+    }
+    match source {
+        JunctionEvidenceSource::Model => "model",
+        JunctionEvidenceSource::LineArrangement => "line-arrangement",
+    }
+}
+
 fn read_f32_file(path: &Path) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
     let bytes = fs::read(path)?;
     if bytes.len() % 4 != 0 {
@@ -1895,7 +2223,7 @@ fn resolve_path(root: &Path, value: &str) -> PathBuf {
     }
 }
 
-fn resolve_gt_path(manifest_root: &Path, pack: Option<&str>, value: &str) -> PathBuf {
+fn resolve_pack_path(manifest_root: &Path, pack: Option<&str>, value: &str) -> PathBuf {
     let path = PathBuf::from(value);
     if path.is_absolute() {
         return path;
@@ -2052,7 +2380,7 @@ fn round6(value: f64) -> f64 {
 
 fn print_usage() {
     println!(
-        "compare_exact_solve_benchmark --out DIR [--dense-manifest PATH] [--candidate-source legacy] [--threshold T] [--legacy-low-threshold T] [--exact-patience N] [--exact-solve-timeout-seconds S] [--limit N] [--match-tolerance-px PX] [--strict-vertex-tolerance-px PX] [--skip-flat-folder] [--skip-exact-solve]"
+        "compare_exact_solve_benchmark --out DIR [--dense-manifest PATH] [--candidate-source legacy] [--line-evidence-source model|source-image] [--junction-evidence-source model|line-arrangement|ground-truth] [--gt-junction-labels] [--threshold T] [--legacy-low-threshold T] [--exact-patience N] [--exact-solve-timeout-seconds S] [--limit N] [--match-tolerance-px PX] [--strict-vertex-tolerance-px PX] [--skip-flat-folder] [--skip-exact-solve]"
     );
     println!(
         "Samples run in parallel across the rayon thread pool. Exact-solve timeout defaults to {BENCHMARK_DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS}s (benchmark-only; product uses {}s). For fast topology iteration pass --skip-exact-solve.",

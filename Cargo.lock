@@ -1786,6 +1786,7 @@ dependencies = [
  "byteorder-lite",
  "moxcms",
  "num-traits",
+ "png 0.18.1",
 ]
 
 [[package]]
@@ -2688,6 +2689,7 @@ name = "oristudio-cp-detect-inspector"
 version = "0.1.2"
 dependencies = [
  "anyhow",
+ "image",
  "oristudio-cp-compiler",
  "oristudio-cp-detect",
  "serde",

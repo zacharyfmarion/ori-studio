@@ -23,6 +23,9 @@ build artifacts. All three failure modes used to present as a silent hang;
    `node scripts/cp-detect/check-local-model-assets.mjs`; it reads the pointer
    file and intentionally fails if the stable `cp-detector-v3` directory
    contains an older model.
+   The V3 vertex-refiner assets are separate and also gitignored. Their
+   pointer is `scripts/cp-detect/current-vertex-refiner.json`; verify them with
+   `node scripts/cp-detect/check-local-vertex-refiner-assets.mjs`.
 3. **Generated wasm modules.** `apps/web/src/generated/` is produced by
    wasm-pack. Either run the full `npm run dev:web` once (its `predev` builds
    everything) or build the missing crate directly, e.g.
@@ -73,6 +76,69 @@ Then verify the local assets:
 ```bash
 node scripts/cp-detect/check-local-model-assets.mjs
 ```
+
+## Vertex Refiner V3 Assets
+
+The source-only vertex refiner is a second ONNX model used for junction
+refinement after rectification. It does not replace the dense CPLineNet model:
+the dense model still provides assignment, style, and fallback evidence. The
+product decode path uses source-image line evidence by default, with
+`lineEvidenceSource: 'dense-model'` available for ablations.
+
+The tracked pointer file is:
+
+```text
+scripts/cp-detect/current-vertex-refiner.json
+```
+
+The stable ignored browser asset directory is:
+
+```text
+apps/web/public/models/cp-vertex-refiner-v3/model.onnx
+apps/web/public/models/cp-vertex-refiner-v3/manifest.json
+```
+
+Export the current V3 checkpoint from a local `create-pattern-detector`
+checkout:
+
+```bash
+/Users/zacharymarion/Documents/code/create-pattern-detector/.venv/bin/python \
+  scripts/cp-detect/export-vertex-refiner-onnx.py
+```
+
+Then verify the local assets. These files are intentionally gitignored, so a
+fresh worktree must either copy them from the canonical checkout or re-export
+them before CP import/V3 inspector runs will work:
+
+```bash
+node scripts/cp-detect/check-local-vertex-refiner-assets.mjs
+```
+
+The product worker uses V3 by default behind `junctionSource:
+'vertex-refiner-v3'`. The promoted proposal path is dense-region refinement
+with border-touching V3 crops excluded:
+
+```text
+vertexRefinerProposalMode = 'dense-junction-regions'
+vertexRefinerDenseRegionJunctionThreshold = 0.35
+vertexRefinerDenseRegionMinPeaks = 3
+vertexRefinerDenseRegionMaxOverlapFraction = 0
+```
+
+Border-touching crops are intentionally skipped for now because they regressed
+boundary-contact metrics. Boundary and non-selected regions are preserved from
+the dense HRNet junction/boundary evidence in the hybrid decode. Use the
+architecture inspector or browser benchmark runner with explicit
+`--junction-source`, `--line-evidence-source`, and
+`--vertex-refiner-proposal-mode` values when comparing against older paths.
+
+In the architecture inspector upload flow, enable **V3 refiner** and use
+**Check V3** to verify the local V3 ONNX asset/session before running an
+upload. Stage 0 records V3 proposal centers, raw crop predictions, merged
+vertices, model id, proposal mode, refinement regions, and runtime; Stage 1
+and the `junction-first-v1` Stage 5 candidate graph use those merged vertices as
+the selected-region junction/contact evidence while preserving dense evidence
+outside the refinement regions.
 
 ## Browser-vs-Oracle Benchmark
 
@@ -226,6 +292,79 @@ node scripts/cp-detect/run-browser-correctness-fast.mjs \
   --url http://127.0.0.1:5175/ \
   --pack artifacts/cp-detect-correctness/packs/smoke-1024-s3/manifest.json \
   --out artifacts/cp-detect-correctness/runs/smoke-1024-s3/browser-fast
+```
+
+Run the same promoted product path with V3 refined junctions:
+
+```bash
+node scripts/cp-detect/run-browser-correctness-fast.mjs \
+  --url http://127.0.0.1:5175/ \
+  --pack artifacts/cp-detect-correctness/packs/smoke-1024-s3/manifest.json \
+  --out artifacts/cp-detect-correctness/runs/smoke-1024-s3/browser-fast-v3 \
+  --decoder-backend legacy_candidate_exact_solve_v1 \
+  --junction-source vertex-refiner-v3 \
+  --vertex-refiner-fallback error \
+  --vertex-refiner-proposal-mode dense-junction-regions \
+  --vertex-refiner-dense-region-junction-threshold 0.35 \
+  --vertex-refiner-dense-region-min-peaks 3 \
+  --vertex-refiner-dense-region-max-overlap-fraction 0
+```
+
+For V3 junction-detection analysis, save the actual proposal/raw/merged
+refiner debug payloads separately from the product FOLD output. This avoids
+conflating crop-level junction detection with downstream graph construction:
+
+```bash
+node scripts/cp-detect/run-vertex-refiner-debug-pack.mjs \
+  --url http://127.0.0.1:5175/ \
+  --pack artifacts/cp-detect-correctness/packs/clean-1024-s15/manifest.json \
+  --out artifacts/cp-detect-correctness/runs/clean-1024-s15/vertex-refiner-v3-dense-region-debug
+```
+
+Then analyze GT misses and false positives against the crop layout:
+
+```bash
+python3 scripts/cp-detect/analyze-vertex-refiner-crop-geometry.py \
+  --pack artifacts/cp-detect-correctness/packs/clean-1024-s15/manifest.json \
+  --debug-run artifacts/cp-detect-correctness/runs/clean-1024-s15/vertex-refiner-v3-dense-region-debug/run_manifest.json \
+  --out artifacts/cp-detect-correctness/reports/clean-1024-s15/vertex-refiner-v3-crop-geometry
+```
+
+The analyzer writes `summary.json`, `summary.md`, `gt_vertices.csv`,
+`pred_vertices.csv`, per-sample overlays, and a contact sheet. Use those
+artifacts to separate “V3 missed the junction” from “V3 found the junction but
+graph construction later damaged the topology.”
+
+For merge-only iteration, replay saved raw crop predictions through the current
+merge code instead of rerunning browser/WebGPU inference:
+
+```bash
+npx tsx scripts/cp-detect/remerge-vertex-refiner-debug.ts \
+  --debug-run artifacts/cp-detect-correctness/runs/clean-1024-s15/vertex-refiner-v3-dense-region-debug/run_manifest.json \
+  --out artifacts/cp-detect-correctness/runs/clean-1024-s15/vertex-refiner-v3-remerge
+```
+
+Run the deterministic line-arrangement junction comparison mode:
+
+```bash
+node scripts/cp-detect/run-browser-correctness-fast.mjs \
+  --url http://127.0.0.1:5175/ \
+  --pack artifacts/cp-detect-correctness/packs/smoke-1024-s3/manifest.json \
+  --out artifacts/cp-detect-correctness/runs/smoke-1024-s3/browser-fast-line-arrangement \
+  --decoder-backend legacy_candidate_exact_solve_v1 \
+  --junction-source line-arrangement
+```
+
+Compare dense-model and V3-refiner product runs by scoring each against the
+same Python baseline and ground-truth pack:
+
+```bash
+/Users/zacharymarion/Documents/code/create-pattern-detector/.venv/bin/python \
+  scripts/cp-detect/evaluate-correctness-pair.py \
+  --pack artifacts/cp-detect-correctness/packs/smoke-1024-s3/manifest.json \
+  --python-run artifacts/cp-detect-correctness/runs/smoke-1024-s3/python/run_manifest.json \
+  --browser-run artifacts/cp-detect-correctness/runs/smoke-1024-s3/browser-fast-v3/run_manifest.json \
+  --out artifacts/cp-detect-correctness/reports/smoke-1024-s3-v3
 ```
 
 For post-inference Rust/compiler iteration, cache browser ONNX dense outputs

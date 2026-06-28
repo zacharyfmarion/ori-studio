@@ -5,6 +5,8 @@ mod junction_carrier_v1;
 mod junction_first_v1;
 mod legacy_topology_v2;
 
+use crate::evidence_extract::CompilerEvidence;
+use crate::evidence_extract::JunctionEvidenceSource;
 use crate::legacy_decode::{DecodeConfig, DecodeError, DenseOutputs};
 use oristudio_cp_compiler::{
     CandidateGraph, CandidateProgram, LegacyCandidateAdapter, LegacyCandidateAdapterOptions, Point2,
@@ -146,6 +148,7 @@ pub struct JunctionCarrierV1StrategyOptions {
     /// Offset normalization radius for offset-vote junction decoding.
     /// 0 keeps legacy local-maxima extraction (see EvidenceExtractionConfig).
     pub junction_offset_cluster_radius_px: f64,
+    pub junction_evidence_source: JunctionEvidenceSource,
 }
 
 impl Default for JunctionCarrierV1StrategyOptions {
@@ -166,6 +169,7 @@ impl Default for JunctionCarrierV1StrategyOptions {
             max_spans_per_carrier: 360,
             max_total_spans: 8000,
             junction_offset_cluster_radius_px: 0.0,
+            junction_evidence_source: JunctionEvidenceSource::Model,
         }
     }
 }
@@ -196,6 +200,7 @@ pub struct JunctionFirstV1StrategyOptions {
     /// radius the model's junction_offset head was trained with). 0 keeps the
     /// legacy local-maxima vertex extraction.
     pub junction_offset_cluster_radius_px: f64,
+    pub junction_evidence_source: JunctionEvidenceSource,
 }
 
 impl Default for JunctionFirstV1StrategyOptions {
@@ -216,6 +221,7 @@ impl Default for JunctionFirstV1StrategyOptions {
             collinear_conflict_angle_degrees: 2.0,
             collinear_conflict_distance_px: 3.0,
             junction_offset_cluster_radius_px: 0.0,
+            junction_evidence_source: JunctionEvidenceSource::Model,
         }
     }
 }
@@ -404,6 +410,33 @@ pub struct JunctionFirstV1Strategy {
 impl JunctionFirstV1Strategy {
     pub const fn new(options: JunctionFirstV1StrategyOptions) -> Self {
         Self { options }
+    }
+
+    pub fn generate_from_evidence(
+        &self,
+        evidence: &CompilerEvidence,
+        config: &DecodeConfig,
+    ) -> CandidateGenerationOutput {
+        let threshold = config.threshold;
+        let candidate_graph =
+            junction_first_v1::graph_from_evidence(evidence, config, self.options);
+        CandidateGenerationOutput {
+            strategy: self.name(),
+            threshold,
+            low_threshold: threshold,
+            primary_program: empty_program(config.image_size),
+            weak_program: None,
+            candidate_graph,
+            diagnostics: CandidateGenerationDiagnostics::default(),
+        }
+    }
+
+    pub fn extract_evidence(
+        &self,
+        outputs: DenseOutputs<'_>,
+        config: &DecodeConfig,
+    ) -> Result<CompilerEvidence, DecodeError> {
+        junction_first_v1::extract_evidence(outputs, config, self.options)
     }
 }
 

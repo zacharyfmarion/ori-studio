@@ -7,6 +7,24 @@ export type CpDetectStatus =
   | 'failed';
 
 export type CpDetectExecutionProvider = 'auto' | 'webgpu' | 'wasm';
+export type CpDetectJunctionSource = 'dense-model' | 'line-arrangement' | 'vertex-refiner-v3';
+export type CpDetectLineEvidenceSource = 'source-image' | 'dense-model';
+export type CpDetectVertexRefinerProposalMode = 'full-coverage' | 'dense-junction-regions';
+
+export const CP_DETECT_DEFAULT_JUNCTION_SOURCE: CpDetectJunctionSource = 'vertex-refiner-v3';
+export const CP_DETECT_DEFAULT_LINE_EVIDENCE_SOURCE: CpDetectLineEvidenceSource = 'source-image';
+export const CP_DETECT_DEFAULT_VERTEX_REFINER_PROPOSAL_MODE: CpDetectVertexRefinerProposalMode =
+  'dense-junction-regions';
+export const CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_JUNCTION_THRESHOLD = 0.35;
+export const CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_MIN_PEAKS = 3;
+export const CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_MAX_OVERLAP_FRACTION = 0;
+
+export interface CpDetectPaperFrame {
+  x_min: number;
+  y_min: number;
+  x_max: number;
+  y_max: number;
+}
 
 export interface CpDetectRuntimeInfo {
   requested_execution_provider?: CpDetectExecutionProvider;
@@ -79,9 +97,100 @@ export interface CpDetectInferenceResult {
   runtime?: CpDetectRuntimeInfo;
 }
 
+export interface CpVertexRefinerModelManifest {
+  schema: 'oristudio/cp-vertex-refiner-model-manifest/v1';
+  id: string;
+  created_at?: string;
+  model: {
+    url: string;
+    sha256?: string;
+    size_bytes?: number;
+    format?: 'onnx' | string;
+  };
+  architecture?: {
+    class?: 'VertexRefinerV3' | string;
+    model_version?: 'v3' | string;
+    base_channels?: number;
+    crop_size?: number;
+    input_channels?: readonly string[];
+    output_names?: readonly string[];
+    ray_bins?: number;
+    vertex_kind_names?: readonly string[];
+    boundary_side_names?: readonly string[];
+  };
+  inference: {
+    model_version: 'v3' | string;
+    input_version?: 'v3' | string;
+    onnx_input_name?: string;
+    onnx_output_names?: readonly string[];
+    crop_size: number;
+    input_channels: number;
+    input_channel_names?: readonly string[];
+    preprocessing?: 'v3_source_frame_channels_chw_float32' | string;
+    heatmap_threshold: number;
+    boundary_heatmap_threshold?: number;
+    nms_radius_px?: number;
+    merge_radius_px?: number;
+    boundary_merge_radius_px?: number;
+    min_support_fraction?: number;
+    split_same_crop_conflicts?: boolean;
+    split_min_support_fraction?: number;
+    proposal_cap?: number;
+    batch_size?: number;
+  };
+  outputs: CpVertexRefinerOutputTensorNames;
+}
+
+export interface CpVertexRefinerOutputTensorNames {
+  vertex_heatmap: string;
+  vertex_offset: string;
+  vertex_kind: string;
+  degree: string;
+  incident_rays: string;
+  boundary_contact_heatmap: string;
+  boundary_side: string;
+}
+
+export type CpVertexRefinerOutputKey = keyof CpVertexRefinerOutputTensorNames;
+
+export type CpVertexRefinerOutputs = Record<CpVertexRefinerOutputKey, CpDetectTensorData>;
+
+export interface CpVertexRefinerInferenceResult {
+  manifest: CpVertexRefinerModelManifest;
+  input: {
+    crop_size: number;
+    crop_count: number;
+    input_name: string;
+  };
+  outputs: CpVertexRefinerOutputs;
+  runtime?: CpDetectRuntimeInfo;
+}
+
 export interface CpDetectWorkerRunOptions {
   manifestUrl?: string;
   modelUrl?: string;
+  vertexRefinerManifestUrl?: string;
+  vertexRefinerModelUrl?: string;
+  vertexRefinerFrame?: CpDetectPaperFrame;
+  junctionSource?: CpDetectJunctionSource;
+  lineEvidenceSource?: CpDetectLineEvidenceSource;
+  vertexRefinerProposalMode?: CpDetectVertexRefinerProposalMode;
+  vertexRefinerFallback?: 'dense-model' | 'error';
+  vertexRefinerProposalCap?: number;
+  vertexRefinerDenseRegionJunctionThreshold?: number;
+  vertexRefinerDenseRegionMinPeaks?: number;
+  vertexRefinerDenseRegionMaxOverlapFraction?: number;
+  vertexRefinerGridStridePx?: number;
+  vertexRefinerHeatmapThreshold?: number;
+  vertexRefinerBoundaryHeatmapThreshold?: number;
+  vertexRefinerNmsRadiusPx?: number;
+  vertexRefinerMergeRadiusPx?: number;
+  vertexRefinerBoundaryMergeRadiusPx?: number;
+  vertexRefinerMinSupport?: number;
+  vertexRefinerMinSupportFraction?: number;
+  vertexRefinerSplitSameCropConflicts?: boolean;
+  vertexRefinerSplitMinSupportFraction?: number;
+  vertexRefinerBatchSize?: number;
   threshold?: number;
   executionProvider?: CpDetectExecutionProvider;
   decoderBackend?: 'legacy_v2_decoder' | 'constraint_compiler_v1' | 'legacy_candidate_exact_solve_v1';
@@ -157,7 +266,21 @@ export interface CpDetectFoldResult {
   foldJson: string;
   detectorReport: CpDetectDecodeReport;
   manifest: CpDetectModelManifest;
+  junctionSource?: CpDetectJunctionSource;
+  lineEvidenceSource?: CpDetectLineEvidenceSource;
+  vertexRefiner?: CpDetectVertexRefinerRunSummary | null;
   runtime?: CpDetectRuntimeInfo;
+}
+
+export interface CpDetectVertexRefinerRunSummary {
+  manifestId?: string;
+  frame?: CpDetectPaperFrame;
+  proposalCount?: number;
+  proposalMode?: CpDetectVertexRefinerProposalMode;
+  rawPredictionCount?: number;
+  mergedVertexCount?: number;
+  runtime?: CpDetectRuntimeInfo;
+  error?: string;
 }
 
 export interface CpDetectAblationStage {

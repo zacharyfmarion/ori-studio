@@ -62,6 +62,7 @@ def main() -> int:
         gt_vertices = np.asarray(gt_graph["vertices_px"], dtype=np.float32)
         gt_edges = np.asarray(gt_graph["edges_vertices"], dtype=np.int64)
         gt_assignments = np.asarray(gt_graph["edges_assignment"], dtype=np.int8)
+        frame = load_sample_frame(pack_root, sample, int(gt_graph["image_size"]))
         row: dict[str, Any] = {
             "id": sample["id"],
             "profile": sample["profile"],
@@ -86,7 +87,12 @@ def main() -> int:
                 sample_metrics[name] = metric_payload
                 continue
             fold = json.loads((run_root / run_sample["fold"]).read_text(encoding="utf-8"))
-            pred = fold_to_graph_result(fold, image_size=int(gt_graph["image_size"]), result_cls=PlanarGraphResult)
+            pred = fold_to_graph_result(
+                fold,
+                image_size=int(gt_graph["image_size"]),
+                frame=frame,
+                result_cls=PlanarGraphResult,
+            )
             metrics = evaluate_graph(
                 pred,
                 gt_vertices,
@@ -180,11 +186,46 @@ def load_gt_graph(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def fold_to_graph_result(fold: dict[str, Any], *, image_size: int, result_cls: Any) -> Any:
-    vertices_unit = np.asarray(fold.get("vertices_coords", []), dtype=np.float32)
-    if vertices_unit.size == 0:
-        vertices_unit = np.empty((0, 2), dtype=np.float32)
-    pixel_vertices = vertices_unit * max(1.0, float(image_size - 1))
+def load_sample_frame(pack_root: Path, sample: dict[str, Any], image_size: int) -> dict[str, float]:
+    metadata_path = sample.get("render_metadata")
+    if metadata_path:
+        metadata = json.loads((pack_root / metadata_path).read_text(encoding="utf-8"))
+        frame = metadata.get("v2_boundary", {}).get("frame")
+        if frame:
+            return {
+                "x_min": float(frame["x_min"]),
+                "y_min": float(frame["y_min"]),
+                "x_max": float(frame["x_max"]),
+                "y_max": float(frame["y_max"]),
+            }
+    return {
+        "x_min": 0.0,
+        "y_min": 0.0,
+        "x_max": float(image_size - 1),
+        "y_max": float(image_size - 1),
+    }
+
+
+def fold_to_graph_result(
+    fold: dict[str, Any],
+    *,
+    image_size: int,
+    frame: dict[str, float],
+    result_cls: Any,
+) -> Any:
+    vertices_raw = np.asarray(fold.get("vertices_coords", []), dtype=np.float32)
+    if vertices_raw.size == 0:
+        vertices_raw = np.empty((0, 2), dtype=np.float32)
+    if len(vertices_raw) > 0 and float(np.max(np.abs(vertices_raw))) <= 2.0:
+        span_x = max(1.0, frame["x_max"] - frame["x_min"])
+        span_y = max(1.0, frame["y_max"] - frame["y_min"])
+        pixel_vertices = np.empty_like(vertices_raw, dtype=np.float32)
+        pixel_vertices[:, 0] = frame["x_min"] + vertices_raw[:, 0] * span_x
+        pixel_vertices[:, 1] = frame["y_min"] + vertices_raw[:, 1] * span_y
+        vertices_unit = pixel_vertices / max(1.0, float(image_size - 1))
+    else:
+        pixel_vertices = vertices_raw
+        vertices_unit = pixel_vertices / max(1.0, float(image_size - 1))
     edges = np.asarray(fold.get("edges_vertices", []), dtype=np.int64)
     if edges.size == 0:
         edges = np.empty((0, 2), dtype=np.int64)

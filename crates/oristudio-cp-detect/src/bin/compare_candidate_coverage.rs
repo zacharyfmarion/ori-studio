@@ -20,6 +20,10 @@ use oristudio_cp_detect::candidate_generation::{
     LegacyTopologyV2StrategyOptions, generate_candidate_graph,
 };
 use oristudio_cp_detect::decode::{DecodeConfig, DenseOutputs};
+use oristudio_cp_detect::evidence_extract::JunctionEvidenceSource;
+use oristudio_cp_detect::source_image_evidence::{
+    SourceImageLineEvidenceOptions, line_probability_from_rgba,
+};
 use oristudio_cp_eval::{
     CandidateCoverageAggregate, CandidateCoverageOptions, CandidateCoverageReport,
     CoverageCandidate, CoverageCandidateSet, CoverageCarrier, CoverageDenseEvidence,
@@ -49,6 +53,8 @@ struct DenseCacheSample {
     profile: Option<String>,
     image_size: u32,
     threshold: f32,
+    #[serde(default)]
+    input_png: Option<String>,
     #[serde(default)]
     angle_f32_path: Option<String>,
     #[serde(default)]
@@ -118,6 +124,8 @@ struct Args {
     dense_manifest: PathBuf,
     out: PathBuf,
     strategy: CandidateGenerationStrategyName,
+    line_evidence_source: String,
+    junction_evidence_source: JunctionEvidenceSource,
     threshold: Option<f32>,
     legacy_low_threshold: Option<f32>,
     limit: Option<usize>,
@@ -145,6 +153,8 @@ struct BenchmarkSummary {
 #[derive(Debug, Serialize)]
 struct BenchmarkConfig {
     strategy: String,
+    line_evidence_source: String,
+    junction_evidence_source: String,
     threshold: Option<f32>,
     legacy_low_threshold: Option<f32>,
     legacy_threshold_options: LegacyThresholdBenchmarkOptions,
@@ -326,6 +336,7 @@ struct SampleTimings {
 
 struct SampleLogits {
     line_logits: Vec<f32>,
+    line_probability_override: Option<Vec<f32>>,
     angle: Option<Vec<f32>>,
     junction_logits: Vec<f32>,
     junction_offset: Option<Vec<f32>>,
@@ -349,6 +360,7 @@ impl SampleLogits {
             &self.line_style_logits,
             &self.boundary_contact_logits,
         )
+        .with_line_probability_override(self.line_probability_override.as_deref())
         .with_angle(self.angle.as_deref())
         .with_junction_offset(self.junction_offset.as_deref())
         .with_vertex_type_logits(self.vertex_type_logits.as_deref())
@@ -381,11 +393,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         let sample_started = Instant::now();
         let threshold = args.threshold.unwrap_or(sample.threshold);
-        let strategy_options =
-            candidate_generation_options(args.strategy, args.legacy_low_threshold);
+        let strategy_options = candidate_generation_options(
+            args.strategy,
+            args.legacy_low_threshold,
+            args.junction_evidence_source,
+        );
 
         let read_logits_started = Instant::now();
-        let logits = read_sample_logits(manifest_root, sample)?;
+        let mut logits = read_sample_logits(manifest_root, sample)?;
+        if args.line_evidence_source == "source-image" {
+            logits.line_probability_override = Some(read_source_image_line_probability(
+                manifest_root,
+                manifest.pack.as_deref(),
+                sample,
+            )?);
+        }
         let read_logits_seconds = read_logits_started.elapsed().as_secs_f64();
 
         let generation_started = Instant::now();
@@ -518,6 +540,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         pack: manifest.pack,
         config: BenchmarkConfig {
             strategy: args.strategy.to_string(),
+            line_evidence_source: args.line_evidence_source,
+            junction_evidence_source: junction_evidence_source_label(args.junction_evidence_source)
+                .to_owned(),
             threshold: args.threshold,
             legacy_low_threshold: args.legacy_low_threshold,
             legacy_threshold_options: legacy_threshold_benchmark_options(
@@ -739,13 +764,8 @@ fn dense_evidence_for_segment(
         let Some(idx) = pixel_index(point, image_size) else {
             continue;
         };
-        let line = sigmoid(logits.line_logits[idx]);
+        let effective = effective_line_at_index(logits, idx);
         let non_crease = sigmoid(logits.non_crease_logits[idx]);
-        let effective = if non_crease >= 0.65 && line < 0.85 {
-            line * 0.15
-        } else {
-            line
-        };
         line_min = line_min.min(effective);
         line_max = line_max.max(effective);
         line_sum += effective;
@@ -768,12 +788,26 @@ fn dense_evidence_for_segment(
     }
 }
 
+fn effective_line_at_index(logits: &SampleLogits, idx: usize) -> f64 {
+    if let Some(values) = &logits.line_probability_override {
+        return f64::from(values[idx].clamp(0.0, 1.0));
+    }
+    let line = sigmoid(logits.line_logits[idx]);
+    let non_crease = sigmoid(logits.non_crease_logits[idx]);
+    if non_crease >= 0.65 && line < 0.85 {
+        line * 0.15
+    } else {
+        line
+    }
+}
+
 fn read_sample_logits(
     root: &Path,
     sample: &DenseCacheSample,
 ) -> Result<SampleLogits, Box<dyn std::error::Error>> {
     Ok(SampleLogits {
         line_logits: read_f32_file(&resolve_path(root, &sample.line_logits_f32_path))?,
+        line_probability_override: None,
         angle: read_optional_f32_file(root, sample.angle_f32_path.as_deref())?,
         junction_logits: read_f32_file(&resolve_path(root, &sample.junction_logits_f32_path))?,
         junction_offset: read_optional_f32_file(root, sample.junction_offset_f32_path.as_deref())?,
@@ -795,6 +829,41 @@ fn read_sample_logits(
         boundary_offset: read_optional_f32_file(root, sample.boundary_offset_f32_path.as_deref())?,
         boundary_coord: read_optional_f32_file(root, sample.boundary_coord_f32_path.as_deref())?,
     })
+}
+
+fn read_source_image_line_probability(
+    manifest_root: &Path,
+    pack: Option<&str>,
+    sample: &DenseCacheSample,
+) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
+    let Some(input_png) = sample.input_png.as_deref() else {
+        return Err(format!(
+            "sample {} has no input_png; source-image line evidence is unavailable",
+            sample.id
+        )
+        .into());
+    };
+    let path = resolve_gt_path(manifest_root, pack, input_png);
+    let image = image::ImageReader::open(&path)?.decode()?.into_rgba8();
+    let (width, height) = image.dimensions();
+    if width != sample.image_size || height != sample.image_size {
+        return Err(format!(
+            "sample {} input_png must be {}x{} for source-image line evidence, got {}x{} ({})",
+            sample.id,
+            sample.image_size,
+            sample.image_size,
+            width,
+            height,
+            path.display()
+        )
+        .into());
+    }
+    Ok(line_probability_from_rgba(
+        image.as_raw(),
+        width,
+        height,
+        SourceImageLineEvidenceOptions::default(),
+    )?)
 }
 
 fn read_ground_truth(
@@ -1082,6 +1151,8 @@ impl Args {
         let mut dense_manifest = None;
         let mut out = None;
         let mut strategy = CandidateGenerationStrategyName::default();
+        let mut line_evidence_source = "model".to_owned();
+        let mut junction_evidence_source = JunctionEvidenceSource::Model;
         let mut threshold = None;
         let mut legacy_low_threshold = None;
         let mut limit = None;
@@ -1095,6 +1166,18 @@ impl Args {
                 "--out" => out = Some(PathBuf::from(required_value(&mut iter, "--out")?)),
                 "--strategy" => {
                     strategy = required_value(&mut iter, "--strategy")?.parse()?;
+                }
+                "--line-evidence-source" => {
+                    line_evidence_source = required_value(&mut iter, "--line-evidence-source")?;
+                    if !matches!(line_evidence_source.as_str(), "model" | "source-image") {
+                        return Err(
+                            "--line-evidence-source must be 'model' or 'source-image'".into()
+                        );
+                    }
+                }
+                "--junction-evidence-source" => {
+                    junction_evidence_source =
+                        parse_junction_evidence_source(&required_value(&mut iter, &arg)?)?;
                 }
                 "--threshold" => {
                     threshold = Some(required_value(&mut iter, "--threshold")?.parse()?)
@@ -1144,6 +1227,8 @@ impl Args {
             dense_manifest: dense_manifest.unwrap_or_else(|| PathBuf::from(DEFAULT_DENSE_MANIFEST)),
             out: out.ok_or("--out is required")?,
             strategy,
+            line_evidence_source,
+            junction_evidence_source,
             threshold,
             legacy_low_threshold,
             limit,
@@ -1160,9 +1245,26 @@ fn required_value(
         .ok_or_else(|| format!("{name} requires a value").into())
 }
 
+fn parse_junction_evidence_source(
+    value: &str,
+) -> Result<JunctionEvidenceSource, Box<dyn std::error::Error>> {
+    match value {
+        "model" => Ok(JunctionEvidenceSource::Model),
+        "line-arrangement" | "line_arrangement" => Ok(JunctionEvidenceSource::LineArrangement),
+        _ => Err("--junction-evidence-source must be 'model' or 'line-arrangement'".into()),
+    }
+}
+
+fn junction_evidence_source_label(source: JunctionEvidenceSource) -> &'static str {
+    match source {
+        JunctionEvidenceSource::Model => "model",
+        JunctionEvidenceSource::LineArrangement => "line-arrangement",
+    }
+}
+
 fn print_usage() {
     eprintln!(
-        "compare_candidate_coverage --out PATH [--strategy legacy-threshold] [--manifest PATH] [--limit N] [--threshold P] [--legacy-low-threshold P]"
+        "compare_candidate_coverage --out PATH [--strategy legacy-threshold] [--line-evidence-source model|source-image] [--junction-evidence-source model|line-arrangement] [--manifest PATH] [--limit N] [--threshold P] [--legacy-low-threshold P]"
     );
 }
 
@@ -1210,12 +1312,16 @@ fn resolve_gt_path(manifest_root: &Path, pack: Option<&str>, value: &str) -> Pat
 fn candidate_generation_options(
     strategy: CandidateGenerationStrategyName,
     legacy_low_threshold: Option<f32>,
+    junction_evidence_source: JunctionEvidenceSource,
 ) -> CandidateGenerationOptions {
-    CandidateGenerationOptions {
+    let mut options = CandidateGenerationOptions {
         strategy,
         legacy_threshold: legacy_threshold_strategy_options(legacy_low_threshold),
         ..CandidateGenerationOptions::default()
-    }
+    };
+    options.junction_carrier_v1.junction_evidence_source = junction_evidence_source;
+    options.junction_first_v1.junction_evidence_source = junction_evidence_source;
+    options
 }
 
 fn legacy_threshold_strategy_options(low_threshold: Option<f32>) -> LegacyThresholdStrategyOptions {

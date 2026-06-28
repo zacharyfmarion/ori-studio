@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { DragEvent as ReactDragEvent, FormEvent, PointerEvent as ReactPointerEvent } from 'react';
-import { Activity, CircleDot, GitBranch, ImagePlus, Layers3, ListFilter, Loader2, Play, RefreshCw, SlidersHorizontal } from 'lucide-react';
+import type { DragEvent as ReactDragEvent, FormEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
+import { Activity, CheckCircle2, CircleDot, GitBranch, ImagePlus, Layers3, ListFilter, Loader2, Play, RefreshCw, SlidersHorizontal } from 'lucide-react';
 import {
   fetchStage1Example,
   fetchStage1Examples,
@@ -12,6 +12,12 @@ import {
   fetchStage6Example,
   fetchStages,
 } from './api';
+import {
+  CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_JUNCTION_THRESHOLD,
+  CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_MAX_OVERLAP_FRACTION,
+  CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_MIN_PEAKS,
+  CP_DETECT_DEFAULT_VERTEX_REFINER_PROPOSAL_MODE,
+} from '../../web/src/engine/cpDetectTypes';
 import type {
   ArrangementAtomicEdge,
   ArrangementCarrier,
@@ -26,6 +32,7 @@ import type {
   JunctionPrimitive,
   LinePrimitive,
   MapPayload,
+  Stage0bResponse,
   Stage0Response,
   Stage1Response,
   Stage2Response,
@@ -35,6 +42,7 @@ import type {
   Stage5bResponse,
   Stage6Response,
   UploadedInspectorRunBundle,
+  VertexRefinerCropDebugResponse,
   VertexExactizabilityProbe,
 } from './types';
 import { getInspectorUploadClient, inspectorUploadError } from './uploadRuntime';
@@ -127,8 +135,8 @@ const ISSUE_LIST_LIMIT_PER_TYPE = 10;
 const UPLOAD_QUAD_HANDLES: UploadQuadHandle[] = ['top_left', 'top_right', 'bottom_right', 'bottom_left'];
 const DEFAULT_UPLOAD_IMAGE_SIZE = 1024;
 
-type ActiveStage = 'stage0' | 'stage1' | 'stage2' | 'stage3' | 'stage4' | 'stage5' | 'stage5b' | 'stage6';
-type AnyStageResponse = Stage0Response | Stage1Response | Stage2Response | Stage3Response | Stage4Response | Stage5Response | Stage5bResponse | Stage6Response;
+type ActiveStage = 'stage0' | 'stage0b' | 'stage1' | 'stage2' | 'stage3' | 'stage4' | 'stage5' | 'stage5b' | 'stage6';
+type AnyStageResponse = Stage0Response | Stage0bResponse | Stage1Response | Stage2Response | Stage3Response | Stage4Response | Stage5Response | Stage5bResponse | Stage6Response;
 type AuditCategoryId = 'selected' | 'locked' | 'available' | 'conflict' | 'dominated' | 'rejected';
 type CandidateGenerationStrategy =
   | 'legacy-threshold'
@@ -136,7 +144,7 @@ type CandidateGenerationStrategy =
   | 'junction-carrier-v1'
   | 'junction-first-v1';
 type DataMode = 'samples' | 'upload';
-type UploadBusy = 'opening' | 'rectifying' | 'building' | null;
+type UploadBusy = 'opening' | 'rectifying' | 'checking-refiner' | 'building' | null;
 type UploadQuadHandle = 'top_left' | 'top_right' | 'bottom_right' | 'bottom_left';
 type QueryControls = {
   threshold: number;
@@ -242,6 +250,16 @@ export function App() {
   const [stage4IssueFilter, setStage4IssueFilter] = useState<Stage4IssueFilter>('all');
   const [selectedStage4IssueId, setSelectedStage4IssueId] = useState<string | null>(null);
   const [selectedMapId, setSelectedMapId] = useState('line_probability');
+  const [selectedV3CropIndex, setSelectedV3CropIndex] = useState(0);
+  const [v3CropDebug, setV3CropDebug] = useState<VertexRefinerCropDebugResponse | null>(null);
+  const [v3CropBusy, setV3CropBusy] = useState(false);
+  const [v3CropError, setV3CropError] = useState<string | null>(null);
+  const [showV3CropBoxes, setShowV3CropBoxes] = useState(true);
+  const [showV3CropRawVertices, setShowV3CropRawVertices] = useState(true);
+  const [showV3CropMergedVertices, setShowV3CropMergedVertices] = useState(true);
+  const [showV3CropFrame, setShowV3CropFrame] = useState(true);
+  const [highlightedV3RawId, setHighlightedV3RawId] = useState<number | null>(null);
+  const [highlightedV3MergedId, setHighlightedV3MergedId] = useState<number | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const [dataMode, setDataMode] = useState<DataMode>('samples');
   const [uploadSource, setUploadSource] = useState<UploadSourceImage | null>(null);
@@ -252,6 +270,9 @@ export function App() {
   const [uploadBusy, setUploadBusy] = useState<UploadBusy>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadDropActive, setUploadDropActive] = useState(false);
+  const [vertexRefinerEnabled, setVertexRefinerEnabled] = useState(false);
+  const [vertexRefinerStatus, setVertexRefinerStatus] = useState<string | null>(null);
+  const [vertexRefinerError, setVertexRefinerError] = useState<string | null>(null);
   const uploadFileInputRef = useRef<HTMLInputElement>(null);
   const uploadSourceImageRef = useRef<HTMLImageElement>(null);
 
@@ -274,6 +295,23 @@ export function App() {
       setShowExactAfter(true);
       setShowExactMovement(true);
       setShowExactFailures(true);
+    } else if (activeStage === 'stage0b') {
+      setShowV3CropBoxes(true);
+      setShowV3CropRawVertices(true);
+      setShowV3CropMergedVertices(true);
+      setShowV3CropFrame(true);
+      setShowLines(false);
+      setShowSharedCarriers(false);
+      setShowAtomicEdges(false);
+      setShowSelectedEdges(false);
+      setShowUndecidedEdges(false);
+      setShowRejectedEdges(false);
+      setShowJunctions(false);
+      setShowContacts(false);
+      setShowLineEndpoints(false);
+      setShowInferredCrossings(false);
+      setShowCarrierGeometry(false);
+      setShowGroundTruth(false);
     } else if (activeStage === 'stage5b') {
       setShowLines(false);
       setShowSharedCarriers(false);
@@ -369,10 +407,23 @@ export function App() {
   }, [activeStage]);
 
   useEffect(() => {
-    if (dataMode === 'samples' && activeStage === 'stage0') {
+    if (dataMode === 'samples' && (activeStage === 'stage0' || activeStage === 'stage0b')) {
       setActiveStage('stage1');
     }
   }, [activeStage, dataMode]);
+
+  useEffect(() => {
+    setSelectedV3CropIndex(0);
+    setV3CropDebug(null);
+    setV3CropError(null);
+    setHighlightedV3RawId(null);
+    setHighlightedV3MergedId(null);
+  }, [uploadRun?.stages.stage0b?.crop_debug_run_id]);
+
+  useEffect(() => {
+    setHighlightedV3RawId(null);
+    setHighlightedV3MergedId(null);
+  }, [selectedV3CropIndex]);
 
   useEffect(() => {
     return () => {
@@ -400,6 +451,7 @@ export function App() {
         if (cancelled) return;
         setServerOk(false);
         setServerError(error instanceof Error ? error.message : String(error));
+        setDataMode((current) => (current === 'samples' ? 'upload' : current));
       });
     return () => {
       cancelled = true;
@@ -407,7 +459,7 @@ export function App() {
   }, [activeStage]);
 
   useEffect(() => {
-    if (dataMode === 'upload' || !selectedId || activeStage === 'stage0') return;
+    if (dataMode === 'upload' || !selectedId || activeStage === 'stage0' || activeStage === 'stage0b') return;
     let cancelled = false;
     setStage(null);
     setLoadingStage(true);
@@ -444,6 +496,41 @@ export function App() {
   }, [selectedId, activeStage, dataMode, queryControls, reloadToken]);
 
   const currentStage = dataMode === 'upload' ? uploadRun?.stages[activeStage as keyof UploadedInspectorRunBundle['stages']] ?? null : stage;
+  const stage0b = activeStage === 'stage0b' && isStage0b(currentStage) ? currentStage : null;
+
+  useEffect(() => {
+    if (!stage0b) {
+      setV3CropBusy(false);
+      setV3CropError(null);
+      return;
+    }
+    const cropCount = stage0b.vertex_refiner.proposal_count;
+    if (selectedV3CropIndex >= cropCount) {
+      setSelectedV3CropIndex(Math.max(0, cropCount - 1));
+      return;
+    }
+    let cancelled = false;
+    setV3CropBusy(true);
+    setV3CropError(null);
+    const client = getInspectorUploadClient();
+    client
+      .getVertexRefinerCropDebug(stage0b.crop_debug_run_id, selectedV3CropIndex)
+      .then((payload) => {
+        if (!cancelled) setV3CropDebug(payload);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setV3CropDebug(null);
+          setV3CropError(inspectorUploadError(error));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setV3CropBusy(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedV3CropIndex, stage0b]);
 
   const selectedMap = useMemo(
     () => currentStage?.maps.find((map) => map.id === selectedMapId) ?? currentStage?.maps[0] ?? null,
@@ -543,6 +630,8 @@ export function App() {
           return null;
         });
         setUploadRun(null);
+        setVertexRefinerStatus(null);
+        setVertexRefinerError(null);
         setUploadBusy('rectifying');
         const client = getInspectorUploadClient();
         const rectified = await client.autoRectifyImage(source.image, DEFAULT_UPLOAD_IMAGE_SIZE);
@@ -569,6 +658,8 @@ export function App() {
       const client = getInspectorUploadClient();
       const rectified = await client.manualRectifyImage(uploadSource.image, uploadQuad, DEFAULT_UPLOAD_IMAGE_SIZE);
       await setNextRectified(rectified);
+      setVertexRefinerStatus(null);
+      setVertexRefinerError(null);
     } catch (error) {
       setUploadError(inspectorUploadError(error));
     } finally {
@@ -576,17 +667,48 @@ export function App() {
     }
   }, [setNextRectified, uploadQuad, uploadSource]);
 
+  const verifyVertexRefiner = useCallback(async () => {
+    setUploadBusy('checking-refiner');
+    setVertexRefinerError(null);
+    try {
+      const client = getInspectorUploadClient();
+      const manifest = await client.verifyVertexRefinerAssets();
+      setVertexRefinerStatus(`V3 ready: ${manifest.id}`);
+      return manifest;
+    } catch (error) {
+      setVertexRefinerStatus(null);
+      setVertexRefinerError(inspectorUploadError(error));
+      throw error;
+    } finally {
+      setUploadBusy(null);
+    }
+  }, []);
+
   const runUploadedInspector = useCallback(async () => {
     if (!uploadRectified) return;
     setDataMode('upload');
     setUploadBusy('building');
     setUploadError(null);
+    setVertexRefinerError(null);
     try {
       const client = getInspectorUploadClient();
       const run = await client.runUploadedInspector(uploadRectified.image, {
         filename: uploadSource?.name ?? 'uploaded image',
         inputImageUrl: uploadRectified.url,
         threshold,
+        junctionSource: vertexRefinerEnabled ? 'vertex-refiner-v3' : 'dense-model',
+        vertexRefinerProposalMode: vertexRefinerEnabled
+          ? CP_DETECT_DEFAULT_VERTEX_REFINER_PROPOSAL_MODE
+          : undefined,
+        vertexRefinerDenseRegionJunctionThreshold: vertexRefinerEnabled
+          ? CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_JUNCTION_THRESHOLD
+          : undefined,
+        vertexRefinerDenseRegionMinPeaks: vertexRefinerEnabled
+          ? CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_MIN_PEAKS
+          : undefined,
+        vertexRefinerDenseRegionMaxOverlapFraction: vertexRefinerEnabled
+          ? CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_MAX_OVERLAP_FRACTION
+          : undefined,
         candidateStrategy,
         legacyLowThreshold,
         legacySnapRadiusPx,
@@ -594,14 +716,22 @@ export function App() {
         rectificationReport: uploadRectified.report,
       });
       setUploadRun(run);
-      setActiveStage('stage6');
+      if (vertexRefinerEnabled) {
+        const refiner = run.stages.stage0.vertex_refiner;
+        setVertexRefinerStatus(
+          refiner
+            ? `V3 ${refiner.merged_vertex_count} merged / ${refiner.raw_prediction_count} raw`
+            : 'V3 ready',
+        );
+      }
+      setActiveStage(run.stages.stage0b ? 'stage0b' : 'stage6');
       setSelectedMapId(run.stages.stage6.maps[0]?.id ?? 'line_probability');
     } catch (error) {
       setUploadError(inspectorUploadError(error));
     } finally {
       setUploadBusy(null);
     }
-  }, [candidateStrategy, exactSolveTimeoutSeconds, legacyLowThreshold, legacySnapRadiusPx, threshold, uploadRectified, uploadSource?.name]);
+  }, [candidateStrategy, exactSolveTimeoutSeconds, legacyLowThreshold, legacySnapRadiusPx, threshold, uploadRectified, uploadSource?.name, vertexRefinerEnabled]);
 
   const onUploadDrop = useCallback(
     (event: ReactDragEvent<HTMLDivElement>) => {
@@ -690,6 +820,22 @@ export function App() {
                 <ImagePlus size={15} />
                 Choose Image
               </button>
+              <div className="upload-refiner-box">
+                <label className="upload-toggle">
+                  <input
+                    checked={vertexRefinerEnabled}
+                    onChange={(event) => setVertexRefinerEnabled(event.currentTarget.checked)}
+                    type="checkbox"
+                  />
+                  <span>V3 refiner</span>
+                </label>
+                <button className="upload-action" disabled={uploadBusy !== null} onClick={() => void verifyVertexRefiner()}>
+                  <CheckCircle2 size={14} />
+                  Check V3
+                </button>
+                {vertexRefinerStatus ? <div className="upload-status">{vertexRefinerStatus}</div> : null}
+                {vertexRefinerError ? <div className="upload-error">{vertexRefinerError}</div> : null}
+              </div>
               <div className="upload-drop-hint">Drop image here</div>
               {uploadBusy ? (
                 <div className="upload-status">
@@ -742,6 +888,7 @@ export function App() {
               Stage
               <select value={activeStage} onChange={(event) => setActiveStage(event.target.value as ActiveStage)}>
                 {dataMode === 'upload' ? <option value="stage0">Stage 0: raw dense outputs</option> : null}
+                {dataMode === 'upload' && uploadRun?.stages.stage0b ? <option value="stage0b">Stage 0b: V3 crop refiner</option> : null}
                 <option value="stage1">Stage 1: dense evidence</option>
                 <option value="stage2">Stage 2: candidate arrangement</option>
                 <option value="stage3">Stage 3: weighted selection</option>
@@ -846,7 +993,7 @@ export function App() {
             </button>
           </div>
 
-          {serverError ? <div className="error-panel">{serverError}</div> : null}
+          {serverError && dataMode === 'samples' ? <div className="error-panel">{serverError}</div> : null}
 
           {activeStage === 'stage6' ? (
             <section className="summary-grid">
@@ -1008,12 +1155,30 @@ export function App() {
                 value={hasArrangement(currentStage) ? currentStage.arrangement.report.suppressed_carrier_intersections : '...'}
               />
             </section>
+          ) : activeStage === 'stage0b' && stage0b ? (
+            <section className="summary-grid">
+              <Metric label="V3 model" value={stage0b.vertex_refiner.model_manifest_id} />
+              <Metric
+                label="proposal mode"
+                value={stage0b.vertex_refiner.proposal_mode ?? CP_DETECT_DEFAULT_VERTEX_REFINER_PROPOSAL_MODE}
+              />
+              <Metric label="crops" value={stage0b.vertex_refiner.proposal_count} />
+              <Metric label="regions" value={stage0b.vertex_refiner.refinement_regions?.length ?? 0} />
+              <Metric label="selected crop" value={`${selectedV3CropIndex + 1} / ${stage0b.vertex_refiner.proposal_count}`} />
+              <Metric label="raw in crop" value={v3CropDebug?.raw_vertices.length ?? '...'} />
+              <Metric label="merged from crop" value={v3CropDebug?.merged_vertices.length ?? '...'} />
+              <Metric label="all raw" value={stage0b.vertex_refiner.raw_prediction_count} />
+              <Metric label="all merged" value={stage0b.vertex_refiner.merged_vertex_count} />
+              <Metric label="crop size" value={stage0b.vertex_refiner.crop_size ?? 96} />
+            </section>
           ) : activeStage === 'stage0' && isStage0(currentStage) ? (
             <section className="summary-grid">
               <Metric label="model" value={currentStage.model_manifest_id ?? 'unknown'} />
               <Metric label="provider" value={currentStage.runtime?.active_execution_provider ?? 'unknown'} />
               <Metric label="model run ms" value={formatMetricNumber(currentStage.runtime?.model_run_ms, 1)} />
               <Metric label="outputs" value={currentStage.dense_outputs.length} />
+              <Metric label="junction source" value={currentStage.junction_source ?? 'dense-model'} />
+              <Metric label="V3 merged" value={currentStage.vertex_refiner?.merged_vertex_count ?? 'off'} />
               <Metric label="image size" value={currentStage.config.image_size} />
             </section>
           ) : (
@@ -1030,6 +1195,8 @@ export function App() {
             className={
               activeStage === 'stage4'
                 ? 'viewer-and-maps stage4-viewer-layout'
+                : activeStage === 'stage0b'
+                  ? 'viewer-and-maps stage0b-viewer-layout'
                 : activeStage === 'stage5'
                   ? 'viewer-and-maps stage5-viewer-layout'
                   : activeStage === 'stage5b'
@@ -1055,13 +1222,34 @@ export function App() {
                       : activeStage === 'stage3'
                       ? 'Input + Weighted Selection'
                       : activeStage === 'stage2'
-                        ? 'Input + Candidate Arrangement'
+                      ? 'Input + Candidate Arrangement'
+                      : activeStage === 'stage0b'
+                        ? 'V3 Crop Refiner'
                         : activeStage === 'stage0'
                           ? 'Raw Dense Outputs'
                         : 'Input + Stage 1 Primitives'
                   }
                 />
-                {activeStage === 'stage6' ? (
+                {activeStage === 'stage0b' ? (
+                  <div className="toggle-row">
+                    <label>
+                      <input checked={showV3CropBoxes} onChange={(event) => setShowV3CropBoxes(event.target.checked)} type="checkbox" />
+                      crop boxes
+                    </label>
+                    <label>
+                      <input checked={showV3CropRawVertices} onChange={(event) => setShowV3CropRawVertices(event.target.checked)} type="checkbox" />
+                      raw crop vertices
+                    </label>
+                    <label>
+                      <input checked={showV3CropMergedVertices} onChange={(event) => setShowV3CropMergedVertices(event.target.checked)} type="checkbox" />
+                      merged vertices
+                    </label>
+                    <label>
+                      <input checked={showV3CropFrame} onChange={(event) => setShowV3CropFrame(event.target.checked)} type="checkbox" />
+                      frame
+                    </label>
+                  </div>
+                ) : activeStage === 'stage6' ? (
                   <div className="toggle-row stage6-toggle-row">
                     <label>
                       <input
@@ -1281,7 +1469,20 @@ export function App() {
                 </div>
                 ) : null}
               </div>
-              {isStage6(currentStage) ? (
+              {stage0b ? (
+                <VertexRefinerCropViewer
+                  cropDebug={v3CropDebug}
+                  highlightedMergedId={highlightedV3MergedId}
+                  highlightedRawId={highlightedV3RawId}
+                  selectedCropIndex={selectedV3CropIndex}
+                  showCropBoxes={showV3CropBoxes}
+                  showFrame={showV3CropFrame}
+                  showMergedVertices={showV3CropMergedVertices}
+                  showRawVertices={showV3CropRawVertices}
+                  stage={stage0b}
+                  onSelectCrop={setSelectedV3CropIndex}
+                />
+              ) : isStage6(currentStage) ? (
                 <ExactSolveViewer
                   showAfter={showExactAfter}
                   showBefore={showExactBefore}
@@ -1348,7 +1549,22 @@ export function App() {
               )}
             </div>
 
-            {isStage6(currentStage) ? (
+            {stage0b ? (
+              <aside className="map-panel v3-crop-debug-panel">
+                <VertexRefinerCropDebugPanel
+                  busy={v3CropBusy}
+                  cropDebug={v3CropDebug}
+                  error={v3CropError}
+                  highlightedMergedId={highlightedV3MergedId}
+                  highlightedRawId={highlightedV3RawId}
+                  selectedCropIndex={selectedV3CropIndex}
+                  stage={stage0b}
+                  onHighlightMerged={setHighlightedV3MergedId}
+                  onHighlightRaw={setHighlightedV3RawId}
+                  onSelectCrop={setSelectedV3CropIndex}
+                />
+              </aside>
+            ) : isStage6(currentStage) ? (
               <aside className="map-panel stage6-diagnostics-panel">
                 <Stage6LayerSummary stage={currentStage} />
               </aside>
@@ -1412,6 +1628,10 @@ export function App() {
 
 function isStage0(stage: AnyStageResponse | null): stage is Stage0Response {
   return Boolean(stage && 'dense_outputs' in stage);
+}
+
+function isStage0b(stage: AnyStageResponse | null): stage is Stage0bResponse {
+  return Boolean(stage && 'crop_debug_run_id' in stage && 'vertex_refiner' in stage);
 }
 
 function isStage1(stage: AnyStageResponse | null): stage is Stage1Response {
@@ -1497,6 +1717,22 @@ function RawDenseViewer({ selectedMap, stage }: { selectedMap: MapPayload | null
       )}
       <svg className="primitive-overlay" viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Raw dense model outputs">
         <rect className="raw-dense-frame" x={1} y={1} width={size - 2} height={size - 2} />
+        {stage.vertex_refiner?.proposals.map((proposal, index) => (
+          <circle
+            className="v3-refiner-proposal"
+            cx={proposal.x}
+            cy={proposal.y}
+            key={`v3-proposal-${index}`}
+            r={3.5}
+          />
+        ))}
+        {stage.vertex_refiner?.merged_vertices.map((vertex, index) => (
+          <g className="v3-refiner-vertex" key={`v3-vertex-${index}`}>
+            <circle cx={vertex.x} cy={vertex.y} r={6} />
+            <line x1={vertex.x - 7} x2={vertex.x + 7} y1={vertex.y} y2={vertex.y} />
+            <line x1={vertex.x} x2={vertex.x} y1={vertex.y - 7} y2={vertex.y + 7} />
+          </g>
+        ))}
       </svg>
     </div>
   );
@@ -1511,6 +1747,16 @@ function RawDenseSummary({ stage }: { stage: Stage0Response }) {
         <strong>{stage.model_manifest_id ?? 'unknown'}</strong>
         <span>provider</span>
         <strong>{stage.runtime?.active_execution_provider ?? 'unknown'}</strong>
+        <span>junction source</span>
+        <strong>{stage.junction_source ?? 'dense-model'}</strong>
+        {stage.vertex_refiner ? (
+          <>
+            <span>V3 refiner</span>
+            <strong>
+              {stage.vertex_refiner.merged_vertex_count} merged / {stage.vertex_refiner.raw_prediction_count} raw
+            </strong>
+          </>
+        ) : null}
       </div>
       <div className="raw-tensor-list">
         {stage.dense_outputs.map((tensor) => (
@@ -1527,6 +1773,402 @@ function RawDenseSummary({ stage }: { stage: Stage0Response }) {
       </div>
     </div>
   );
+}
+
+function VertexRefinerCropViewer({
+  cropDebug,
+  highlightedMergedId,
+  highlightedRawId,
+  onSelectCrop,
+  selectedCropIndex,
+  showCropBoxes,
+  showFrame,
+  showMergedVertices,
+  showRawVertices,
+  stage,
+}: {
+  cropDebug: VertexRefinerCropDebugResponse | null;
+  highlightedMergedId: number | null;
+  highlightedRawId: number | null;
+  onSelectCrop: (cropIndex: number) => void;
+  selectedCropIndex: number;
+  showCropBoxes: boolean;
+  showFrame: boolean;
+  showMergedVertices: boolean;
+  showRawVertices: boolean;
+  stage: Stage0bResponse;
+}) {
+  const size = stage.config.image_size;
+  const cropSize = stage.vertex_refiner.crop_size ?? 96;
+  const selectedMergedIds = new Set(cropDebug?.merged_vertices.map((vertex) => vertex.merged_vertex_id) ?? []);
+  const rawVertices = cropDebug?.raw_vertices ?? stage.vertex_refiner.raw_vertices.filter((vertex) => vertex.crop_index === selectedCropIndex);
+  const selectFromClick = (event: ReactMouseEvent<SVGSVGElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * size;
+    const y = ((event.clientY - rect.top) / rect.height) * size;
+    const nextIndex = selectV3CropAtPoint(stage.vertex_refiner.proposals, cropSize, x, y);
+    if (nextIndex !== null) onSelectCrop(nextIndex);
+  };
+  return (
+    <div className="viewer-canvas v3-crop-canvas">
+      <img alt="" className="input-image" src={stage.input_image_url || stage.sample.input_image_url} />
+      <svg
+        className="primitive-overlay arrangement-overlay v3-crop-overlay"
+        onClick={selectFromClick}
+        role="img"
+        viewBox={`0 0 ${size} ${size}`}
+        aria-label="V3 crop refiner debug view"
+      >
+        {showFrame ? (
+          <rect
+            className="v3-crop-frame"
+            height={stage.vertex_refiner.frame.y_max - stage.vertex_refiner.frame.y_min}
+            width={stage.vertex_refiner.frame.x_max - stage.vertex_refiner.frame.x_min}
+            x={stage.vertex_refiner.frame.x_min}
+            y={stage.vertex_refiner.frame.y_min}
+          />
+        ) : null}
+        {showCropBoxes
+          ? stage.vertex_refiner.proposals.map((proposal, index) => {
+              const box = v3CropBox(proposal, cropSize);
+              return (
+                <rect
+                  className={index === selectedCropIndex ? 'v3-crop-box selected' : 'v3-crop-box'}
+                  height={cropSize}
+                  key={`crop-${index}`}
+                  width={cropSize}
+                  x={box.x_min}
+                  y={box.y_min}
+                >
+                  <title>
+                    crop {index} {proposal.provenance.join(', ')}
+                  </title>
+                </rect>
+              );
+            })
+          : null}
+        {showMergedVertices
+          ? stage.vertex_refiner.merged_vertices.map((vertex, index) => {
+              const mergedVertexId = vertex.merged_vertex_id ?? index;
+              const selected = selectedMergedIds.has(mergedVertexId);
+              const highlighted = highlightedMergedId === mergedVertexId;
+              return (
+                <g className={highlighted ? 'v3-global-merged highlighted' : selected ? 'v3-global-merged selected' : 'v3-global-merged'} key={`merged-${mergedVertexId}`}>
+                  <circle cx={vertex.x} cy={vertex.y} r={highlighted ? 6 : selected ? 4.2 : 2.8} />
+                  <title>
+                    merged {mergedVertexId}; {vertex.kind}; score {vertex.score.toFixed(3)}; support {vertex.support_count}/
+                    {vertex.possible_support_count}
+                  </title>
+                </g>
+              );
+            })
+          : null}
+        {showRawVertices
+          ? rawVertices.map((vertex, index) => {
+              const rawVertexId = vertex.raw_vertex_id ?? index;
+              return (
+                <circle
+                  className={highlightedV3Class('v3-raw-vertex', highlightedRawId === rawVertexId, vertex.merge_status === 'filtered')}
+                  cx={vertex.x}
+                  cy={vertex.y}
+                  key={`raw-${rawVertexId}`}
+                  r={highlightedRawId === rawVertexId ? 5 : 3}
+                >
+                  <title>
+                    raw {rawVertexId}; crop {vertex.crop_index}; {vertex.kind}; score {vertex.score.toFixed(3)}; {vertex.merge_reason ?? 'merged'}
+                  </title>
+                </circle>
+              );
+            })
+          : null}
+      </svg>
+    </div>
+  );
+}
+
+function VertexRefinerCropDebugPanel({
+  busy,
+  cropDebug,
+  error,
+  highlightedMergedId,
+  highlightedRawId,
+  onHighlightMerged,
+  onHighlightRaw,
+  onSelectCrop,
+  selectedCropIndex,
+  stage,
+}: {
+  busy: boolean;
+  cropDebug: VertexRefinerCropDebugResponse | null;
+  error: string | null;
+  highlightedMergedId: number | null;
+  highlightedRawId: number | null;
+  onHighlightMerged: (mergedVertexId: number | null) => void;
+  onHighlightRaw: (rawVertexId: number | null) => void;
+  onSelectCrop: (cropIndex: number) => void;
+  selectedCropIndex: number;
+  stage: Stage0bResponse;
+}) {
+  const proposal = stage.vertex_refiner.proposals[selectedCropIndex];
+  return (
+    <>
+      <PanelTitle icon={<Layers3 size={17} />} title="V3 Crop Signals" />
+      <label className="v3-crop-select">
+        Crop
+        <select value={selectedCropIndex} onChange={(event) => onSelectCrop(Number(event.target.value))}>
+          {stage.vertex_refiner.proposals.map((candidate, index) => (
+            <option key={index} value={index}>
+              #{index} · {candidate.provenance.join('+') || 'proposal'} · {candidate.x.toFixed(1)},{candidate.y.toFixed(1)}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="v3-crop-meta">
+        <span>center</span>
+        <strong>{proposal ? `${proposal.x.toFixed(2)}, ${proposal.y.toFixed(2)}` : 'n/a'}</strong>
+        <span>provenance</span>
+        <strong>{proposal?.provenance.join(', ') ?? 'n/a'}</strong>
+        <span>score</span>
+        <strong>{formatMetricNumber(proposal?.score, 3)}</strong>
+        <span>raw / merged</span>
+        <strong>{cropDebug ? `${cropDebug.raw_vertices.length} / ${cropDebug.merged_vertices.length}` : '...'}</strong>
+      </div>
+      {busy ? <div className="loading-panel compact">Loading crop debug...</div> : null}
+      {error ? <div className="error-panel compact">{error}</div> : null}
+      {cropDebug ? (
+        <>
+          <CropSignalGrid
+            cropDebug={cropDebug}
+            highlightedMergedId={highlightedMergedId}
+            highlightedRawId={highlightedRawId}
+            maps={cropDebug.input_maps}
+            title="Input Channels"
+          />
+          <CropSignalGrid
+            cropDebug={cropDebug}
+            highlightedMergedId={highlightedMergedId}
+            highlightedRawId={highlightedRawId}
+            maps={cropDebug.output_maps}
+            title="Output Heads"
+          />
+          <CropVertexTables
+            cropDebug={cropDebug}
+            onHighlightMerged={onHighlightMerged}
+            onHighlightRaw={onHighlightRaw}
+          />
+        </>
+      ) : !busy ? (
+        <div className="loading-panel compact">No crop selected.</div>
+      ) : null}
+    </>
+  );
+}
+
+function CropSignalGrid({
+  cropDebug,
+  highlightedMergedId,
+  highlightedRawId,
+  maps,
+  title,
+}: {
+  cropDebug: VertexRefinerCropDebugResponse;
+  highlightedMergedId: number | null;
+  highlightedRawId: number | null;
+  maps: MapPayload[];
+  title: string;
+}) {
+  return (
+    <section className="v3-crop-signal-section">
+      <h3>{title}</h3>
+      <div className="v3-crop-map-grid">
+        {maps.map((map) => (
+          <div className="v3-crop-map-card" key={map.id}>
+            <div className="v3-crop-map-image">
+              <Heatmap map={map} mode="thumb" />
+              <svg viewBox={`0 0 ${cropDebug.crop_size} ${cropDebug.crop_size}`} aria-hidden="true">
+                {cropDebug.merged_vertices.map((vertex) => (
+                  <circle
+                    className={highlightedMergedId === vertex.merged_vertex_id ? 'v3-crop-map-merged highlighted' : 'v3-crop-map-merged'}
+                    cx={vertex.local_x}
+                    cy={vertex.local_y}
+                    key={`merged-${vertex.merged_vertex_id}`}
+                    r={highlightedMergedId === vertex.merged_vertex_id ? 5 : 3.6}
+                  />
+                ))}
+                {cropDebug.raw_vertices.map((vertex) => (
+                  <circle
+                    className={highlightedV3Class('v3-crop-map-raw', highlightedRawId === vertex.raw_vertex_id, vertex.merge_status === 'filtered')}
+                    cx={vertex.local_x}
+                    cy={vertex.local_y}
+                    key={`raw-${vertex.raw_vertex_id}`}
+                    r={highlightedRawId === vertex.raw_vertex_id ? 4 : 2.2}
+                  />
+                ))}
+              </svg>
+            </div>
+            <strong>{map.label}</strong>
+            <span>
+              {formatMetricNumber(map.min, 3)} / {formatMetricNumber(map.max, 3)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function CropVertexTables({
+  cropDebug,
+  onHighlightMerged,
+  onHighlightRaw,
+}: {
+  cropDebug: VertexRefinerCropDebugResponse;
+  onHighlightMerged: (mergedVertexId: number | null) => void;
+  onHighlightRaw: (rawVertexId: number | null) => void;
+}) {
+  return (
+    <section className="v3-crop-vertex-section">
+      <h3>Prediction Vertices</h3>
+      <div className="v3-crop-table">
+        <div className="v3-crop-table-head">
+          <span>raw</span>
+          <span>kind</span>
+          <span>score</span>
+          <span>local</span>
+          <span>merge</span>
+        </div>
+        {cropDebug.raw_vertices.length > 0 ? (
+          cropDebug.raw_vertices.map((vertex) => (
+            <div
+              className="v3-crop-table-row"
+              key={vertex.raw_vertex_id}
+              onMouseEnter={() => {
+                onHighlightRaw(vertex.raw_vertex_id ?? null);
+                onHighlightMerged(vertex.merged_vertex_id ?? null);
+              }}
+              onMouseLeave={() => {
+                onHighlightRaw(null);
+                onHighlightMerged(null);
+              }}
+            >
+              <span>#{vertex.raw_vertex_id}</span>
+              <span>{vertex.kind}</span>
+              <span>{vertex.score.toFixed(3)}</span>
+              <span>{formatPoint(vertex.local_x, vertex.local_y)}</span>
+              <span>{vertex.merged_vertex_id === null ? vertex.merge_reason ?? 'filtered' : `m${vertex.merged_vertex_id}`}</span>
+            </div>
+          ))
+        ) : (
+          <div className="v3-crop-empty-row">No raw predictions in this crop.</div>
+        )}
+      </div>
+      <div className="v3-crop-table">
+        <div className="v3-crop-table-head merged">
+          <span>merged</span>
+          <span>kind</span>
+          <span>support</span>
+          <span>local</span>
+          <span>raw ids</span>
+        </div>
+        {cropDebug.merged_vertices.length > 0 ? (
+          cropDebug.merged_vertices.map((vertex) => (
+            <div
+              className="v3-crop-table-row"
+              key={vertex.merged_vertex_id}
+              onMouseEnter={() => onHighlightMerged(vertex.merged_vertex_id)}
+              onMouseLeave={() => onHighlightMerged(null)}
+            >
+              <span>m{vertex.merged_vertex_id}</span>
+              <span>{vertex.kind}</span>
+              <span>{vertex.support_count}/{vertex.possible_support_count}</span>
+              <span>{formatPoint(vertex.local_x, vertex.local_y)}</span>
+              <span>{vertex.raw_vertex_ids.join(', ')}</span>
+            </div>
+          ))
+        ) : (
+          <div className="v3-crop-empty-row">No merged vertices supported by this crop.</div>
+        )}
+      </div>
+      <div className="v3-crop-table">
+        <div className="v3-crop-table-head clusters">
+          <span>cluster</span>
+          <span>status</span>
+          <span>support</span>
+          <span>center</span>
+          <span>raw ids</span>
+        </div>
+        {cropDebug.merge_clusters.length > 0 ? (
+          cropDebug.merge_clusters.map((cluster) => (
+            <div
+              className="v3-crop-table-row"
+              key={cluster.cluster_id}
+              onMouseEnter={() => onHighlightMerged(cluster.merged_vertex_id)}
+              onMouseLeave={() => onHighlightMerged(null)}
+            >
+              <span>c{cluster.cluster_id}</span>
+              <span>{cluster.reason}</span>
+              <span>{cluster.support_count}/{cluster.possible_support_count}</span>
+              <span>{formatPoint(cluster.center.x - cropDebug.crop_box.x_min, cluster.center.y - cropDebug.crop_box.y_min)}</span>
+              <span>{cluster.raw_vertex_ids.join(', ')}</span>
+            </div>
+          ))
+        ) : (
+          <div className="v3-crop-empty-row">No merge clusters touch this crop.</div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function highlightedV3Class(base: string, highlighted: boolean, filtered: boolean): string {
+  return `${base}${filtered ? ' filtered' : ''}${highlighted ? ' highlighted' : ''}`;
+}
+
+function v3CropBox(proposal: { x: number; y: number }, cropSize: number) {
+  const xMin = Math.round(proposal.x - cropSize / 2);
+  const yMin = Math.round(proposal.y - cropSize / 2);
+  return {
+    x_min: xMin,
+    y_min: yMin,
+    x_max: xMin + cropSize,
+    y_max: yMin + cropSize,
+  };
+}
+
+function selectV3CropAtPoint(
+  proposals: readonly { x: number; y: number }[],
+  cropSize: number,
+  x: number,
+  y: number,
+): number | null {
+  let bestIndex: number | null = null;
+  let bestDistance = Infinity;
+  for (let index = 0; index < proposals.length; index += 1) {
+    const proposal = proposals[index];
+    const box = v3CropBox(proposal, cropSize);
+    const contains = x >= box.x_min && x <= box.x_max && y >= box.y_min && y <= box.y_max;
+    const distance = Math.hypot(x - proposal.x, y - proposal.y);
+    if (contains && distance < bestDistance) {
+      bestDistance = distance;
+      bestIndex = index;
+    }
+  }
+  if (bestIndex !== null) return bestIndex;
+  const tolerance = cropSize * 0.7;
+  for (let index = 0; index < proposals.length; index += 1) {
+    const proposal = proposals[index];
+    const distance = Math.hypot(x - proposal.x, y - proposal.y);
+    if (distance < bestDistance && distance <= tolerance) {
+      bestDistance = distance;
+      bestIndex = index;
+    }
+  }
+  return bestIndex;
+}
+
+function formatPoint(x: number | undefined | null, y: number | undefined | null): string {
+  if (typeof x !== 'number' || typeof y !== 'number') return 'n/a';
+  return `${x.toFixed(1)},${y.toFixed(1)}`;
 }
 
 function CanvasImage({ image }: { image: ImageData }) {
@@ -1641,6 +2283,7 @@ function uploadBusyLabel(busy: Exclude<UploadBusy, null>): string {
   return {
     opening: 'Opening image',
     rectifying: 'Rectifying crop',
+    'checking-refiner': 'Checking V3 refiner',
     building: 'Running dense model and stages',
   }[busy];
 }
@@ -3313,7 +3956,7 @@ function Stage2LayerSummary({ stage }: { stage: Stage2Response }) {
   return (
     <div className="hypothesis-panel">
       <PanelTitle icon={<GitBranch size={17} />} title="Stage 2 Layers" />
-      <LayerRow color="#e11d48" label="Observed carriers" value={report.observed_carriers} note="line evidence from the dense model" />
+      <LayerRow color="#e11d48" label="Observed carriers" value={report.observed_carriers} note="source-image line evidence" />
       <LayerRow color="#9333ea" label="Shared alternatives" value={report.shared_carrier_alternatives} note="optional collinear carrier interpretations" />
       <LayerRow color="#facc15" label="Observed junctions" value={report.observed_junctions} note="model junction peaks" />
       <LayerRow color="#94a3b8" label="Line endpoints" value={report.line_endpoints} note="ends of observed line primitives" />

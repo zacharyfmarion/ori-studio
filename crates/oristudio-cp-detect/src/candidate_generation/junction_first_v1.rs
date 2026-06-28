@@ -33,13 +33,21 @@ pub(super) fn generate_candidate_graph(
     config: &DecodeConfig,
     options: JunctionFirstV1StrategyOptions,
 ) -> Result<CandidateGraph, DecodeError> {
+    let evidence = extract_evidence(outputs, config, options)?;
+    Ok(graph_from_evidence(&evidence, config, options))
+}
+
+pub(super) fn extract_evidence(
+    outputs: DenseOutputs<'_>,
+    config: &DecodeConfig,
+    options: JunctionFirstV1StrategyOptions,
+) -> Result<CompilerEvidence, DecodeError> {
     let carrier_options = carrier_equivalent_options(options);
-    let evidence = extract_compiler_evidence(
+    extract_compiler_evidence(
         dense_output_refs(outputs),
         evidence_config(config, carrier_options),
     )
-    .map_err(evidence_error_to_decode_error)?;
-    Ok(graph_from_evidence(&evidence, config, options))
+    .map_err(evidence_error_to_decode_error)
 }
 
 /// The vertex builder and segment sampler are shared with `junction-carrier-v1`
@@ -52,11 +60,12 @@ fn carrier_equivalent_options(
         strong_span_line_support: options.strong_span_line_support,
         max_line_endpoint_vertices: 0,
         junction_offset_cluster_radius_px: options.junction_offset_cluster_radius_px,
+        junction_evidence_source: options.junction_evidence_source,
         ..JunctionCarrierV1StrategyOptions::default()
     }
 }
 
-fn graph_from_evidence(
+pub(super) fn graph_from_evidence(
     evidence: &CompilerEvidence,
     config: &DecodeConfig,
     options: JunctionFirstV1StrategyOptions,

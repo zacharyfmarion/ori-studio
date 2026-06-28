@@ -1,6 +1,6 @@
 //! `wasm-bindgen` wrapper around `oristudio-cp-detect`.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::sync::Once;
 use wasm_bindgen::prelude::*;
 
@@ -181,6 +181,139 @@ pub fn cp_detect_decode_dense_output_bundle(
 }
 
 #[wasm_bindgen]
+pub fn cp_detect_decode_dense_output_bundle_with_refined_vertices(
+    outputs: JsValue,
+    image_size: u32,
+    threshold: f32,
+    decoder_backend: &str,
+    junction_offset_radius_px: Option<f32>,
+    exact_solve_timeout_seconds: Option<f64>,
+    refined_vertices_json: &str,
+) -> Result<JsValue, JsValue> {
+    install_panic_hook();
+    let backend = parse_decoder_backend(decoder_backend)?;
+    let outputs = JsDenseOutputBundle::from_js(&outputs)?;
+    let refined_payload = parse_refined_vertices_json(refined_vertices_json)?;
+    let decoded =
+        oristudio_cp_detect::decode::decode_dense_outputs_with_backend_and_refined_vertices(
+            outputs.as_dense_outputs(),
+            oristudio_cp_detect::decode::DecodeConfig {
+                image_size,
+                threshold,
+                junction_offset_cluster_radius_px: junction_offset_radius_px.unwrap_or(0.0),
+                exact_solve_timeout_seconds: exact_solve_timeout_seconds.unwrap_or(
+                    oristudio_cp_detect::decode::DecodeConfig::default()
+                        .exact_solve_timeout_seconds,
+                ),
+                ..oristudio_cp_detect::decode::DecodeConfig::default()
+            },
+            backend,
+            refined_payload.vertices.as_deref(),
+        )
+        .map_err(to_js_decode_error)?;
+    to_js_value_via_json(&decoded)
+}
+
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn cp_detect_decode_dense_output_bundle_with_junction_source(
+    outputs: JsValue,
+    image_size: u32,
+    threshold: f32,
+    decoder_backend: &str,
+    junction_offset_radius_px: Option<f32>,
+    exact_solve_timeout_seconds: Option<f64>,
+    junction_source: &str,
+    refined_vertices_json: &str,
+) -> Result<JsValue, JsValue> {
+    install_panic_hook();
+    let backend = parse_decoder_backend(decoder_backend)?;
+    let junction_evidence_source = parse_junction_evidence_source(junction_source)?;
+    let outputs = JsDenseOutputBundle::from_js(&outputs)?;
+    let refined_payload = parse_refined_vertices_json(refined_vertices_json)?;
+    let decoded =
+        oristudio_cp_detect::decode::decode_dense_outputs_with_backend_junction_source_and_refined_vertices_in_regions(
+            outputs.as_dense_outputs(),
+            oristudio_cp_detect::decode::DecodeConfig {
+                image_size,
+                threshold,
+                junction_offset_cluster_radius_px: junction_offset_radius_px.unwrap_or(0.0),
+                exact_solve_timeout_seconds: exact_solve_timeout_seconds.unwrap_or(
+                    oristudio_cp_detect::decode::DecodeConfig::default()
+                        .exact_solve_timeout_seconds,
+                ),
+                ..oristudio_cp_detect::decode::DecodeConfig::default()
+            },
+            backend,
+            junction_evidence_source,
+            refined_payload.vertices.as_deref(),
+            refined_payload.regions.as_deref(),
+        )
+        .map_err(to_js_decode_error)?;
+    to_js_value_via_json(&decoded)
+}
+
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn cp_detect_decode_dense_output_bundle_with_source_image_line_evidence(
+    outputs: JsValue,
+    image_size: u32,
+    threshold: f32,
+    decoder_backend: &str,
+    junction_offset_radius_px: Option<f32>,
+    exact_solve_timeout_seconds: Option<f64>,
+    junction_source: &str,
+    refined_vertices_json: &str,
+    rgba: &[u8],
+    width: u32,
+    height: u32,
+) -> Result<JsValue, JsValue> {
+    install_panic_hook();
+    if width != image_size || height != image_size {
+        return Err(js_error(
+            "source_image_line_evidence",
+            format!(
+                "source image line evidence requires a rectified {image_size}x{image_size} image, got {width}x{height}"
+            ),
+        ));
+    }
+    let backend = parse_decoder_backend(decoder_backend)?;
+    let junction_evidence_source = parse_junction_evidence_source(junction_source)?;
+    let outputs = JsDenseOutputBundle::from_js(&outputs)?;
+    let refined_payload = parse_refined_vertices_json(refined_vertices_json)?;
+    let line_probability_override =
+        oristudio_cp_detect::source_image_evidence::line_probability_from_rgba(
+            rgba,
+            width,
+            height,
+            oristudio_cp_detect::source_image_evidence::SourceImageLineEvidenceOptions::default(),
+        )
+        .map_err(|error| js_error("source_image_line_evidence", error.to_string()))?;
+    let decoded =
+        oristudio_cp_detect::decode::decode_dense_outputs_with_backend_junction_source_and_refined_vertices_in_regions(
+            outputs
+                .as_dense_outputs()
+                .with_line_probability_override(Some(&line_probability_override)),
+            oristudio_cp_detect::decode::DecodeConfig {
+                image_size,
+                threshold,
+                junction_offset_cluster_radius_px: junction_offset_radius_px.unwrap_or(0.0),
+                exact_solve_timeout_seconds: exact_solve_timeout_seconds.unwrap_or(
+                    oristudio_cp_detect::decode::DecodeConfig::default()
+                        .exact_solve_timeout_seconds,
+                ),
+                ..oristudio_cp_detect::decode::DecodeConfig::default()
+            },
+            backend,
+            junction_evidence_source,
+            refined_payload.vertices.as_deref(),
+            refined_payload.regions.as_deref(),
+        )
+        .map_err(to_js_decode_error)?;
+    to_js_value_via_json(&decoded)
+}
+
+#[wasm_bindgen]
 #[allow(clippy::too_many_arguments)]
 pub fn cp_detect_ablate_dense_outputs(
     line_logits: &[f32],
@@ -225,6 +358,7 @@ pub fn cp_detect_build_inspector_stage_bundle(
     let bundle = oristudio_cp_detect_inspector::build_uploaded_stage_bundle(
         oristudio_cp_detect_inspector::DenseOutputsOwned {
             line_logits: outputs.line_logits,
+            line_probability_override: None,
             angle: outputs.angle,
             junction_logits: outputs.junction_logits,
             junction_offset: outputs.junction_offset,
@@ -238,6 +372,44 @@ pub fn cp_detect_build_inspector_stage_bundle(
             boundary_coord: outputs.boundary_coord,
         },
         options,
+    )
+    .map_err(|error| js_error("inspector_stage_build", format!("{error:#}")))?;
+    to_js_value_via_json(&bundle)
+}
+
+#[wasm_bindgen]
+pub fn cp_detect_build_inspector_stage_bundle_with_source_image(
+    outputs: JsValue,
+    options_json: &str,
+    rgba: &[u8],
+    width: u32,
+    height: u32,
+) -> Result<JsValue, JsValue> {
+    install_panic_hook();
+    let outputs = JsDenseOutputBundle::from_js(&outputs)?;
+    let options: oristudio_cp_detect_inspector::UploadInspectorOptions =
+        serde_json::from_str(options_json)
+            .map_err(|error| js_error("invalid_json", error.to_string()))?;
+    let bundle = oristudio_cp_detect_inspector::build_uploaded_stage_bundle_with_source_image(
+        oristudio_cp_detect_inspector::DenseOutputsOwned {
+            line_logits: outputs.line_logits,
+            line_probability_override: None,
+            angle: outputs.angle,
+            junction_logits: outputs.junction_logits,
+            junction_offset: outputs.junction_offset,
+            assignment_logits: outputs.assignment_logits,
+            non_crease_logits: outputs.non_crease_logits,
+            line_style_logits: outputs.line_style_logits,
+            vertex_type_logits: outputs.vertex_type_logits,
+            boundary_contact_logits: outputs.boundary_contact_logits,
+            boundary_side_logits: outputs.boundary_side_logits,
+            boundary_offset: outputs.boundary_offset,
+            boundary_coord: outputs.boundary_coord,
+        },
+        options,
+        rgba,
+        width,
+        height,
     )
     .map_err(|error| js_error("inspector_stage_build", format!("{error:#}")))?;
     to_js_value_via_json(&bundle)
@@ -292,6 +464,47 @@ impl JsDenseOutputBundle {
         .with_boundary_offset(self.boundary_offset.as_deref())
         .with_boundary_coord(self.boundary_coord.as_deref())
     }
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum JsRefinedVertexPayload {
+    Vertices(Vec<oristudio_cp_detect::decode::RefinedVertexPrimitive>),
+    DebugPayload {
+        merged_vertices: Vec<oristudio_cp_detect::decode::RefinedVertexPrimitive>,
+        #[serde(default)]
+        refinement_regions: Option<Vec<oristudio_cp_detect::decode::RefinedVertexRegion>>,
+    },
+}
+
+struct JsParsedRefinedVertexPayload {
+    vertices: Option<Vec<oristudio_cp_detect::decode::RefinedVertexPrimitive>>,
+    regions: Option<Vec<oristudio_cp_detect::decode::RefinedVertexRegion>>,
+}
+
+fn parse_refined_vertices_json(text: &str) -> Result<JsParsedRefinedVertexPayload, JsValue> {
+    let trimmed = text.trim();
+    if trimmed.is_empty() || trimmed == "null" {
+        return Ok(JsParsedRefinedVertexPayload {
+            vertices: None,
+            regions: None,
+        });
+    }
+    let payload: JsRefinedVertexPayload = serde_json::from_str(trimmed)
+        .map_err(|error| js_error("invalid_json", error.to_string()))?;
+    Ok(match payload {
+        JsRefinedVertexPayload::Vertices(vertices) => JsParsedRefinedVertexPayload {
+            vertices: Some(vertices),
+            regions: None,
+        },
+        JsRefinedVertexPayload::DebugPayload {
+            merged_vertices,
+            refinement_regions,
+        } => JsParsedRefinedVertexPayload {
+            vertices: Some(merged_vertices),
+            regions: refinement_regions,
+        },
+    })
 }
 
 fn required_f32_array(object: &JsValue, name: &'static str) -> Result<Vec<f32>, JsValue> {
@@ -377,6 +590,26 @@ fn parse_decoder_backend(
         other => Err(js_error(
             "invalid_decoder_backend",
             format!("unsupported decoder backend {other:?}"),
+        )),
+    }
+}
+
+fn parse_junction_evidence_source(
+    value: &str,
+) -> Result<oristudio_cp_detect::evidence_extract::JunctionEvidenceSource, JsValue> {
+    match value {
+        "dense-model" | "model" | "dense_model" => {
+            Ok(oristudio_cp_detect::evidence_extract::JunctionEvidenceSource::Model)
+        }
+        "line-arrangement" | "line_arrangement" => {
+            Ok(oristudio_cp_detect::evidence_extract::JunctionEvidenceSource::LineArrangement)
+        }
+        "vertex-refiner-v3" | "vertex_refiner_v3" => {
+            Ok(oristudio_cp_detect::evidence_extract::JunctionEvidenceSource::Model)
+        }
+        other => Err(js_error(
+            "invalid_junction_source",
+            format!("unsupported junction source {other:?}"),
         )),
     }
 }

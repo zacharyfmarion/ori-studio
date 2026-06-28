@@ -15,6 +15,9 @@ apps/web/public/models/cp-detector-v2/*
 apps/web/public/models/cp-detector-v3/*
 !apps/web/public/models/cp-detector-v3/.gitkeep
 apps/web/public/models/cp-detector-v3-*
+apps/web/public/models/cp-vertex-refiner-v3/*
+!apps/web/public/models/cp-vertex-refiner-v3/.gitkeep
+apps/web/public/models/cp-vertex-refiner-v3-*
 tools/oracle/build/
 tools/oriedita-oracle/build/
 .env.release.local

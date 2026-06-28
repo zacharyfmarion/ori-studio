@@ -7,7 +7,7 @@
 use crate::decode::{DecodeConfig, DecodeError, DenseOutputs};
 use crate::evidence_extract::{
     CompilerEvidence, DenseOutputRefs, EvidenceExtractionConfig, EvidenceExtractionError,
-    LinePrimitive, PrimitiveSource, extract_compiler_evidence,
+    JunctionEvidenceSource, LinePrimitive, PrimitiveSource, extract_compiler_evidence,
 };
 use oristudio_cp_compiler::{
     AssignmentCandidate, AssignmentLabel, CandidateCarrier, CandidateEdge, CandidateProgram,
@@ -67,6 +67,7 @@ pub(crate) fn candidate_program_from_dense_outputs_v2(
             outputs.line_style_logits,
             outputs.boundary_contact_logits,
         )
+        .with_line_probability_override(outputs.line_probability_override)
         .with_angle(outputs.angle)
         .with_junction_offset(outputs.junction_offset)
         .with_vertex_type_logits(outputs.vertex_type_logits)
@@ -100,6 +101,7 @@ fn compiler_v2_evidence_config(config: &DecodeConfig) -> EvidenceExtractionConfi
         max_boundary_contact_primitives: config.max_intersection_lines.max(240),
         primitive_nms_radius_px: config.junction_snap_px.max(2.0),
         junction_offset_cluster_radius_px: 0.0,
+        junction_evidence_source: JunctionEvidenceSource::Model,
     }
 }
 

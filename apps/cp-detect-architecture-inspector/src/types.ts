@@ -80,6 +80,9 @@ export interface Stage0Response {
   config: EvidenceConfigSummary;
   maps: MapPayload[];
   model_manifest_id?: string | null;
+  junction_source?: 'dense-model' | 'vertex-refiner-v3' | string | null;
+  vertex_refiner_manifest_id?: string | null;
+  vertex_refiner?: VertexRefinerStageDebug | null;
   rectification_report?: unknown;
   runtime?: {
     requested_execution_provider?: string;
@@ -95,6 +98,137 @@ export interface Stage0Response {
   } | null;
   input_image_url: string;
   dense_outputs: DenseTensorSummary[];
+}
+
+export interface Stage0bResponse extends Stage0Response {
+  crop_debug_run_id: string;
+  vertex_refiner: VertexRefinerStageDebug;
+}
+
+export interface VertexRefinerStageDebug {
+  debug_run_id?: string | null;
+  model_manifest_id: string;
+  frame: {
+    x_min: number;
+    y_min: number;
+    x_max: number;
+    y_max: number;
+  };
+  crop_size?: number;
+  input_channel_names?: string[];
+  output_head_names?: string[];
+  proposal_count: number;
+  proposal_mode?: string;
+  refinement_regions?: Array<{
+    x_min: number;
+    y_min: number;
+    x_max: number;
+    y_max: number;
+  }> | null;
+  raw_prediction_count: number;
+  merged_vertex_count: number;
+  proposals: Array<{
+    x: number;
+    y: number;
+    score: number;
+    provenance: string[];
+  }>;
+  raw_vertices: VertexRefinerStageVertex[];
+  merged_vertices: Array<
+    Omit<VertexRefinerStageVertex, 'crop_index'> & {
+      merged_vertex_id?: number;
+      raw_vertex_ids?: number[];
+      support_count: number;
+      possible_support_count: number;
+      support_fraction: number;
+      mean_member_distance_px: number;
+      max_member_distance_px: number;
+    }
+  >;
+  raw_to_merged?: VertexRefinerRawMergeAssignment[];
+  merge_clusters?: VertexRefinerMergeClusterDebug[];
+  runtime?: Record<string, unknown> | null;
+}
+
+export interface VertexRefinerStageVertex {
+  raw_vertex_id?: number;
+  merged_vertex_id?: number | null;
+  cluster_id?: number | null;
+  merge_status?: string | null;
+  merge_reason?: string | null;
+  local_x?: number;
+  local_y?: number;
+  x: number;
+  y: number;
+  score: number;
+  kind_id: number;
+  kind: string;
+  degree_class: number;
+  degree: number;
+  ray_bins: number[];
+  boundary_side_id: number | null;
+  boundary_side: string | null;
+  crop_index: number;
+}
+
+export interface VertexRefinerRawMergeAssignment {
+  raw_vertex_id: number;
+  merged_vertex_id: number | null;
+  cluster_id: number;
+  status: 'merged' | 'filtered' | string;
+  reason: string;
+  distance_to_merged_px: number | null;
+}
+
+export interface VertexRefinerMergeClusterDebug {
+  cluster_id: number;
+  merged_vertex_id: number | null;
+  raw_vertex_ids: number[];
+  crop_indices: number[];
+  support_count: number;
+  possible_support_count: number;
+  support_fraction: number;
+  mean_member_distance_px: number | null;
+  max_member_distance_px: number | null;
+  center: { x: number; y: number };
+  retained: boolean;
+  reason: string;
+  from_conflict_split: boolean;
+}
+
+export interface VertexRefinerCropDebugResponse {
+  schema: string;
+  run_id: string;
+  crop_index: number;
+  crop_size: number;
+  crop_box: {
+    x_min: number;
+    y_min: number;
+    x_max: number;
+    y_max: number;
+  };
+  proposal: {
+    x: number;
+    y: number;
+    score: number;
+    provenance: string[];
+  };
+  input_maps: MapPayload[];
+  output_maps: MapPayload[];
+  raw_vertices: VertexRefinerStageVertex[];
+  merged_vertices: Array<
+    Omit<VertexRefinerStageVertex, 'crop_index'> & {
+      merged_vertex_id: number;
+      raw_vertex_ids: number[];
+      support_count: number;
+      possible_support_count: number;
+      support_fraction: number;
+      mean_member_distance_px: number;
+      max_member_distance_px: number;
+    }
+  >;
+  raw_to_merged: VertexRefinerRawMergeAssignment[];
+  merge_clusters: VertexRefinerMergeClusterDebug[];
 }
 
 export interface AssignmentEvidence {
@@ -692,6 +826,7 @@ export interface UploadedInspectorRunBundle {
   stage_order: string[];
   stages: {
     stage0: Stage0Response;
+    stage0b?: Stage0bResponse;
     stage1: Stage1Response;
     stage2: Stage2Response;
     stage3: Stage3Response;
