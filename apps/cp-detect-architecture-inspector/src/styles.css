@@ -421,6 +421,10 @@ select {
   grid-template-columns: minmax(620px, 1fr) 430px;
 }
 
+.stage0b-viewer-layout {
+  grid-template-columns: minmax(600px, 1fr) 520px;
+}
+
 .stage5-viewer-layout {
   grid-template-columns: minmax(620px, 1fr);
 }
@@ -530,6 +534,70 @@ select {
   stroke-width: 2.5;
 }
 
+.v3-crop-overlay {
+  cursor: crosshair;
+  pointer-events: auto;
+}
+
+.v3-crop-frame {
+  fill: none;
+  stroke: #10b981;
+  stroke-dasharray: 10 7;
+  stroke-width: 2.2;
+  vector-effect: non-scaling-stroke;
+}
+
+.v3-crop-box {
+  fill: rgb(20 184 166 / 0.025);
+  pointer-events: all;
+  stroke: rgb(15 23 42 / 0.34);
+  stroke-width: 0.9;
+  vector-effect: non-scaling-stroke;
+}
+
+.v3-crop-box.selected {
+  fill: rgb(245 158 11 / 0.16);
+  stroke: #f59e0b;
+  stroke-width: 2.4;
+}
+
+.v3-global-merged circle {
+  fill: rgb(6 182 212 / 0.48);
+  stroke: #0e7490;
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+}
+
+.v3-global-merged.selected circle {
+  fill: rgb(20 184 166 / 0.72);
+  stroke: #052e2b;
+  stroke-width: 2.2;
+}
+
+.v3-global-merged.highlighted circle {
+  fill: #fef08a;
+  stroke: #020617;
+  stroke-width: 2.8;
+}
+
+.v3-raw-vertex {
+  fill: #facc15;
+  stroke: #422006;
+  stroke-width: 1.1;
+  vector-effect: non-scaling-stroke;
+}
+
+.v3-raw-vertex.filtered {
+  fill: #fb7185;
+  stroke: #7f1d1d;
+}
+
+.v3-raw-vertex.highlighted {
+  fill: #fef08a;
+  stroke: #020617;
+  stroke-width: 2.2;
+}
+
 .raw-dense-summary {
   margin-top: 14px;
 }
@@ -619,6 +687,186 @@ select {
 
 .stage5b-audit-panel {
   grid-template-rows: 1fr;
+}
+
+.v3-crop-debug-panel {
+  grid-template-rows: auto auto auto auto 1fr;
+  overflow: auto;
+}
+
+.v3-crop-select {
+  color: #475569;
+  display: grid;
+  font-size: 11px;
+  gap: 4px;
+  text-transform: uppercase;
+}
+
+.v3-crop-meta {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  display: grid;
+  gap: 4px 8px;
+  grid-template-columns: auto 1fr;
+  padding: 9px;
+}
+
+.v3-crop-meta span,
+.v3-crop-map-card span {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.v3-crop-meta strong {
+  color: #172033;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.loading-panel.compact,
+.error-panel.compact {
+  min-height: auto;
+  padding: 10px;
+}
+
+.v3-crop-signal-section,
+.v3-crop-vertex-section {
+  display: grid;
+  gap: 8px;
+}
+
+.v3-crop-signal-section h3,
+.v3-crop-vertex-section h3 {
+  color: #172033;
+  font-size: 13px;
+  margin: 8px 0 0;
+}
+
+.v3-crop-map-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.v3-crop-map-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 7px;
+}
+
+.v3-crop-map-card strong {
+  color: #172033;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.v3-crop-map-image {
+  aspect-ratio: 1;
+  background: #0f172a;
+  border-radius: 5px;
+  overflow: hidden;
+  position: relative;
+}
+
+.v3-crop-map-image .heatmap.thumb {
+  height: 100%;
+  image-rendering: pixelated;
+  width: 100%;
+}
+
+.v3-crop-map-image svg {
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+}
+
+.v3-crop-map-merged {
+  fill: none;
+  stroke: #22c55e;
+  stroke-width: 1.7;
+  vector-effect: non-scaling-stroke;
+}
+
+.v3-crop-map-merged.highlighted {
+  stroke: #fef08a;
+  stroke-width: 2.6;
+}
+
+.v3-crop-map-raw {
+  fill: #facc15;
+  stroke: #422006;
+  stroke-width: 0.9;
+  vector-effect: non-scaling-stroke;
+}
+
+.v3-crop-map-raw.filtered {
+  fill: #fb7185;
+  stroke: #7f1d1d;
+}
+
+.v3-crop-map-raw.highlighted {
+  fill: #fef08a;
+  stroke: #020617;
+  stroke-width: 1.8;
+}
+
+.v3-crop-table {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.v3-crop-table-head,
+.v3-crop-table-row {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: 48px minmax(70px, 1fr) 54px 70px 80px;
+  padding: 6px 8px;
+}
+
+.v3-crop-table-head {
+  background: #eef2f7;
+  color: #475569;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.v3-crop-table-head.merged,
+.v3-crop-table-head.clusters {
+  grid-template-columns: 58px minmax(70px, 1fr) 62px 70px 96px;
+}
+
+.v3-crop-table-row {
+  border-top: 1px solid #edf2f7;
+  color: #334155;
+  font-size: 11px;
+}
+
+.v3-crop-table-row:hover {
+  background: #fff7ed;
+}
+
+.v3-crop-table-row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.v3-crop-empty-row {
+  color: #64748b;
+  font-size: 12px;
+  padding: 8px;
 }
 
 .stage5b-audit-panel .stage5b-audit-summary {

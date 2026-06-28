@@ -2374,7 +2374,7 @@ pub struct DenseOutputsOwned {
 }
 
 fn read_dense_outputs(state: &AppState, sample: &DenseCacheSample) -> Result<DenseOutputsOwned> {
-    Ok(DenseOutputsOwned {
+    let mut outputs = DenseOutputsOwned {
         line_logits: read_f32_file(&state.manifest_root.join(&sample.line_logits_f32_path))?,
         line_probability_override: None,
         angle: read_optional_f32_file(&state.manifest_root, sample.angle_f32_path.as_deref())?,
@@ -2415,7 +2415,40 @@ fn read_dense_outputs(state: &AppState, sample: &DenseCacheSample) -> Result<Den
             &state.manifest_root,
             sample.boundary_coord_f32_path.as_deref(),
         )?,
-    })
+    };
+    outputs.line_probability_override = Some(read_source_image_line_probability(state, sample)?);
+    Ok(outputs)
+}
+
+fn read_source_image_line_probability(
+    state: &AppState,
+    sample: &DenseCacheSample,
+) -> Result<Vec<f32>> {
+    let path = resolve_pack_path(state, &sample.input_png);
+    let image = image::ImageReader::open(&path)
+        .with_context(|| format!("open source image {}", path.display()))?
+        .decode()
+        .with_context(|| format!("decode source image {}", path.display()))?
+        .into_rgba8();
+    let (width, height) = image.dimensions();
+    if width != sample.image_size || height != sample.image_size {
+        bail!(
+            "sample {} input_png must be {}x{} for source-image line evidence, got {}x{} ({})",
+            sample.id,
+            sample.image_size,
+            sample.image_size,
+            width,
+            height,
+            path.display()
+        );
+    }
+    line_probability_from_rgba(
+        image.as_raw(),
+        width,
+        height,
+        SourceImageLineEvidenceOptions::default(),
+    )
+    .with_context(|| format!("build source-image line evidence for {}", sample.id))
 }
 
 impl DenseOutputsOwned {

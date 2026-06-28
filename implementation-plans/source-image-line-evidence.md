@@ -12,6 +12,9 @@ line evidence computed directly from the rectified source image.
   evidence extraction.
 - Use the override for `junction-first-v1` candidate generation and inspector
   stage bundles.
+- Make source-image line evidence the default in the browser/product decode
+  path while keeping dense-model line evidence available as an explicit
+  ablation.
 - Add benchmark flags so dense-cache runs can compare model-line and
   source-image-line evidence.
 - Calibrate source-image probabilities so faint gray creases clear the
@@ -36,3 +39,7 @@ line evidence computed directly from the rectified source image.
 - [x] Run focused Rust checks/tests.
 - [x] Add source-image line evidence to candidate coverage diagnostics.
 - [x] Iterate source-image calibration against clean-15 metrics.
+- [x] Make product/browser decode use source-image line evidence by default.
+- [x] Make cached architecture-inspector examples use source-image line
+      evidence by default.
+- [x] Document the default and benchmark escape hatch.

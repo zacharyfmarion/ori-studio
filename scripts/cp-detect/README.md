@@ -81,7 +81,9 @@ node scripts/cp-detect/check-local-model-assets.mjs
 
 The source-only vertex refiner is a second ONNX model used for opt-in junction
 refinement after rectification. It does not replace the dense CPLineNet model:
-the dense model still provides line, assignment, style, and fallback evidence.
+the dense model still provides assignment, style, and fallback evidence. The
+product decode path uses source-image line evidence by default, with
+`lineEvidenceSource: 'dense-model'` available for ablations.
 
 The tracked pointer file is:
 
@@ -110,10 +112,10 @@ Then verify the local assets:
 node scripts/cp-detect/check-local-vertex-refiner-assets.mjs
 ```
 
-The product worker exposes V3 behind `junctionSource:
-'vertex-refiner-v3'`. The visible import modal still uses the dense junction
-path by default; use the architecture inspector or browser benchmark runner to
-exercise V3 until benchmark results justify promotion.
+The product worker uses V3 by default behind `junctionSource:
+'vertex-refiner-v3'`. Use the architecture inspector or browser benchmark
+runner with explicit `--junction-source` and `--line-evidence-source` values
+when comparing against older dense-evidence paths.
 
 In the architecture inspector upload flow, enable **V3 refiner** and use
 **Check V3** to verify the local V3 ONNX asset/session before running an

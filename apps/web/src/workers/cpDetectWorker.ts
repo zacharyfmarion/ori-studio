@@ -6,6 +6,7 @@ import init, {
   cp_detect_ablate_dense_outputs,
   cp_detect_auto_rectify_rgba,
   cp_detect_decode_dense_output_bundle,
+  cp_detect_decode_dense_output_bundle_with_source_image_line_evidence,
   cp_detect_decode_dense_output_bundle_with_junction_source,
   cp_detect_manual_rectify_rgba,
   cp_detect_package_info,
@@ -18,6 +19,7 @@ import type {
   CpDetectFoldResult,
   CpDetectInferenceResult,
   CpDetectJunctionSource,
+  CpDetectLineEvidenceSource,
   CpDetectRuntimeInfo,
   CpDetectModelManifest,
   CpDetectQuad,
@@ -60,6 +62,8 @@ let vertexRefinerSessionPromise: Promise<CpDetectSessionRuntime> | null = null;
 let vertexRefinerSessionKey: string | null = null;
 let ortRuntimeConfigured = false;
 let ortWasmThreads = 1;
+// ORT WebGPU is not reliable when sessions compile or dispatch concurrently in one worker.
+let ortOperationQueue: Promise<void> = Promise.resolve();
 
 type ActiveExecutionProvider = 'webgpu' | 'wasm';
 
@@ -182,7 +186,9 @@ async function createSessionRuntime(
   for (const provider of providerCandidates(requestedProvider, webgpuAvailable)) {
     const startedAt = performance.now();
     try {
-      const session = await ort.InferenceSession.create(modelUrl, sessionOptions(provider));
+      const session = await enqueueOrtOperation(() =>
+        ort.InferenceSession.create(modelUrl, sessionOptions(provider))
+      );
       return {
         session,
         runtime: {
@@ -385,17 +391,22 @@ const api = {
   ): Promise<{
     manifestId: string;
     frame: VertexRefinerImageResult['frame'];
+    proposalMode: NonNullable<CpDetectWorkerRunOptions['vertexRefinerProposalMode']>;
     proposals: VertexRefinerImageResult['proposals'];
+    refinementRegions?: VertexRefinerImageResult['refinement_regions'];
     rawVertices: VertexRefinerImageResult['raw_vertices'];
     mergedVertices: VertexRefinerImageResult['merged_vertices'];
     runtime?: CpDetectRuntimeInfo;
   }> {
     return call(async () => {
-      const result = await vertexRefinerForImage(image, options);
+      const denseOutputs = await denseOutputsForVertexRefinerProposalMode(image, options);
+      const result = await vertexRefinerForImage(image, options, denseOutputs);
       return {
         manifestId: result.manifest.id,
         frame: result.frame,
+        proposalMode: options.vertexRefinerProposalMode ?? 'full-coverage',
         proposals: result.proposals,
+        refinementRegions: result.refinement_regions,
         rawVertices: result.raw_vertices,
         mergedVertices: result.merged_vertices,
         runtime: result.runtime,
@@ -408,14 +419,26 @@ const api = {
   ): Promise<CpDetectFoldResult> {
     return call(async () => {
       const requestedJunctionSource = options.junctionSource ?? 'vertex-refiner-v3';
-      const [inference, vertexRefinerOutcome] = await Promise.all([
-        denseInferenceForImage(image, options),
-        requestedJunctionSource === 'vertex-refiner-v3'
-          ? vertexRefinerForImage(image, options)
+      const lineEvidenceSource = resolveLineEvidenceSource(options.lineEvidenceSource);
+      const needsDenseForVertexRefiner =
+        requestedJunctionSource === 'vertex-refiner-v3' &&
+        options.vertexRefinerProposalMode === 'dense-junction-regions';
+      const [inference, vertexRefinerOutcome] = needsDenseForVertexRefiner
+        ? await (async () => {
+            const dense = await denseInferenceForImage(image, options);
+            const refined = await vertexRefinerForImage(image, options, dense.outputs)
               .then((result) => ({ result, error: null }))
-              .catch((error) => ({ result: null, error }))
-          : Promise.resolve({ result: null, error: null }),
-      ]);
+              .catch((error) => ({ result: null, error }));
+            return [dense, refined] as const;
+          })()
+        : await Promise.all([
+            denseInferenceForImage(image, options),
+            requestedJunctionSource === 'vertex-refiner-v3'
+              ? vertexRefinerForImage(image, options)
+                  .then((result) => ({ result, error: null }))
+                  .catch((error) => ({ result: null, error }))
+              : Promise.resolve({ result: null, error: null }),
+          ]);
       if (vertexRefinerOutcome.error && (options.vertexRefinerFallback ?? 'error') === 'error') {
         throw vertexRefinerOutcome.error;
       }
@@ -426,10 +449,12 @@ const api = {
           ? 'line-arrangement'
           : 'dense-model';
       const decoded = decodeFoldFromDenseOutputs(
+        image,
         inference.outputs,
         inference.manifest,
         options,
         requestedDecodeJunctionSource,
+        lineEvidenceSource,
         vertexRefiner
       );
       const junctionSource = detectedJunctionSource(decoded.report, requestedDecodeJunctionSource);
@@ -439,11 +464,13 @@ const api = {
         detectorReport: decoded.report,
         manifest: inference.manifest,
         junctionSource,
+        lineEvidenceSource,
         vertexRefiner: vertexRefiner
           ? {
               manifestId: vertexRefiner.manifest.id,
               frame: vertexRefiner.frame,
               proposalCount: vertexRefiner.proposals.length,
+              proposalMode: options.vertexRefinerProposalMode ?? 'full-coverage',
               rawPredictionCount: vertexRefiner.raw_vertices.length,
               mergedVertexCount: vertexRefiner.merged_vertices.length,
               runtime: vertexRefiner.runtime,
@@ -514,7 +541,8 @@ async function denseInferenceForImage(
 
 async function vertexRefinerForImage(
   image: ImageData,
-  options: CpDetectWorkerRunOptions
+  options: CpDetectWorkerRunOptions,
+  denseOutputs?: CpDetectDenseOutputs
 ): Promise<VertexRefinerImageResult> {
   const manifestUrl = options.vertexRefinerManifestUrl ?? DEFAULT_CP_VERTEX_REFINER_MANIFEST_URL;
   const manifest = await ensureVertexRefinerManifest(manifestUrl);
@@ -530,7 +558,12 @@ async function vertexRefinerForImage(
     manifest,
     {
       frame: options.vertexRefinerFrame,
+      proposalMode: options.vertexRefinerProposalMode,
       proposalCap: options.vertexRefinerProposalCap,
+      denseJunctionLogits: denseOutputs?.junction_logits,
+      denseRegionJunctionThreshold: options.vertexRefinerDenseRegionJunctionThreshold,
+      denseRegionMinPeaks: options.vertexRefinerDenseRegionMinPeaks,
+      denseRegionMaxOverlapFraction: options.vertexRefinerDenseRegionMaxOverlapFraction,
       gridStridePx: options.vertexRefinerGridStridePx,
       heatmapThreshold: options.vertexRefinerHeatmapThreshold,
       boundaryHeatmapThreshold: options.vertexRefinerBoundaryHeatmapThreshold,
@@ -541,9 +574,20 @@ async function vertexRefinerForImage(
       minSupportFraction: options.vertexRefinerMinSupportFraction,
       splitSameCropConflicts: options.vertexRefinerSplitSameCropConflicts,
       splitMinSupportFraction: options.vertexRefinerSplitMinSupportFraction,
+      batchSize: options.vertexRefinerBatchSize,
       runtime: sessionRuntime.runtime,
     }
   );
+}
+
+async function denseOutputsForVertexRefinerProposalMode(
+  image: ImageData,
+  options: CpDetectWorkerRunOptions
+): Promise<CpDetectDenseOutputs | undefined> {
+  if (options.vertexRefinerProposalMode !== 'dense-junction-regions') {
+    return undefined;
+  }
+  return (await denseInferenceForImage(image, options)).outputs;
 }
 
 type WasmDecodedFold = {
@@ -552,10 +596,12 @@ type WasmDecodedFold = {
 };
 
 function decodeFoldFromDenseOutputs(
+  image: ImageData,
   outputs: CpDetectDenseOutputs,
   manifest: CpDetectModelManifest,
   options: CpDetectWorkerRunOptions = {},
   junctionSource: CpDetectJunctionSource = 'dense-model',
+  lineEvidenceSource: CpDetectLineEvidenceSource = 'source-image',
   vertexRefiner: VertexRefinerImageResult | null = null
 ): WasmDecodedFold {
   const decoderBackend = options.decoderBackend ?? 'legacy_v2_decoder';
@@ -564,26 +610,89 @@ function decodeFoldFromDenseOutputs(
       .filter((key) => outputs[key])
       .map((key) => [key, outputs[key].data])
   );
+  if (lineEvidenceSource === 'source-image') {
+    return withLineEvidenceSource(
+      cp_detect_decode_dense_output_bundle_with_source_image_line_evidence(
+        outputBundle,
+        manifest.inference.image_size,
+        manifest.inference.threshold,
+        decoderBackend,
+        manifest.inference.junction_offset_radius_px,
+        options.exactSolveTimeoutSeconds ?? null,
+        junctionSource,
+        JSON.stringify(refinedVertexDecodePayload(vertexRefiner)),
+        imageDataBytes(image),
+        image.width,
+        image.height
+      ) as WasmDecodedFold,
+      lineEvidenceSource
+    );
+  }
   if (vertexRefiner || junctionSource === 'line-arrangement') {
-    return cp_detect_decode_dense_output_bundle_with_junction_source(
+    return withLineEvidenceSource(
+      cp_detect_decode_dense_output_bundle_with_junction_source(
+        outputBundle,
+        manifest.inference.image_size,
+        manifest.inference.threshold,
+        decoderBackend,
+        manifest.inference.junction_offset_radius_px,
+        options.exactSolveTimeoutSeconds ?? null,
+        junctionSource,
+        JSON.stringify(refinedVertexDecodePayload(vertexRefiner))
+      ) as WasmDecodedFold,
+      lineEvidenceSource
+    );
+  }
+  return withLineEvidenceSource(
+    cp_detect_decode_dense_output_bundle(
       outputBundle,
       manifest.inference.image_size,
       manifest.inference.threshold,
       decoderBackend,
       manifest.inference.junction_offset_radius_px,
-      options.exactSolveTimeoutSeconds ?? null,
-      junctionSource,
-      JSON.stringify(vertexRefiner?.merged_vertices ?? null)
-    ) as WasmDecodedFold;
+      options.exactSolveTimeoutSeconds ?? null
+    ) as WasmDecodedFold,
+    lineEvidenceSource
+  );
+}
+
+function refinedVertexDecodePayload(vertexRefiner: VertexRefinerImageResult | null): unknown {
+  if (!vertexRefiner) return null;
+  if (vertexRefiner.refinement_regions) {
+    return {
+      merged_vertices: vertexRefiner.merged_vertices,
+      refinement_regions: vertexRefiner.refinement_regions,
+    };
   }
-  return cp_detect_decode_dense_output_bundle(
-    outputBundle,
-    manifest.inference.image_size,
-    manifest.inference.threshold,
-    decoderBackend,
-    manifest.inference.junction_offset_radius_px,
-    options.exactSolveTimeoutSeconds ?? null
-  ) as WasmDecodedFold;
+  return vertexRefiner.merged_vertices;
+}
+
+function resolveLineEvidenceSource(
+  value: CpDetectWorkerRunOptions['lineEvidenceSource']
+): CpDetectLineEvidenceSource {
+  if (value === undefined || value === null || value === 'source-image') {
+    return 'source-image';
+  }
+  if (value === 'dense-model') {
+    return 'dense-model';
+  }
+  throw new Error(`Unsupported CP detector line evidence source: ${String(value)}`);
+}
+
+function withLineEvidenceSource(
+  decoded: WasmDecodedFold,
+  lineEvidenceSource: CpDetectLineEvidenceSource
+): WasmDecodedFold {
+  return {
+    ...decoded,
+    report: {
+      ...decoded.report,
+      quality_report: {
+        ...(decoded.report.quality_report ?? {}),
+        line_evidence_source: lineEvidenceSource,
+      },
+    },
+  };
 }
 
 type WasmRectifiedImage = {
@@ -615,9 +724,11 @@ function cpDetectSessionFromOrt(session: ort.InferenceSession): CpDetectOnnxSess
   return {
     inputNames: session.inputNames,
     async run(feeds) {
-      return session.run(feeds as Parameters<ort.InferenceSession['run']>[0]) as Promise<
-        Record<string, unknown>
-      >;
+      return enqueueOrtOperation(() =>
+        session.run(feeds as Parameters<ort.InferenceSession['run']>[0]) as Promise<
+          Record<string, unknown>
+        >,
+      );
     },
   };
 }
@@ -626,11 +737,22 @@ function vertexRefinerSessionFromOrt(session: ort.InferenceSession): VertexRefin
   return {
     inputNames: session.inputNames,
     async run(feeds) {
-      return session.run(feeds as Parameters<ort.InferenceSession['run']>[0]) as Promise<
-        Record<string, unknown>
-      >;
+      return enqueueOrtOperation(() =>
+        session.run(feeds as Parameters<ort.InferenceSession['run']>[0]) as Promise<
+          Record<string, unknown>
+        >,
+      );
     },
   };
+}
+
+function enqueueOrtOperation<T>(operation: () => Promise<T>): Promise<T> {
+  const run = ortOperationQueue.then(operation, operation);
+  ortOperationQueue = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
 }
 
 function errorMessage(error: unknown): string {

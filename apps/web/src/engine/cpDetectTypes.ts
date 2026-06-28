@@ -8,6 +8,8 @@ export type CpDetectStatus =
 
 export type CpDetectExecutionProvider = 'auto' | 'webgpu' | 'wasm';
 export type CpDetectJunctionSource = 'dense-model' | 'line-arrangement' | 'vertex-refiner-v3';
+export type CpDetectLineEvidenceSource = 'source-image' | 'dense-model';
+export type CpDetectVertexRefinerProposalMode = 'full-coverage' | 'dense-junction-regions';
 
 export interface CpDetectPaperFrame {
   x_min: number;
@@ -163,8 +165,13 @@ export interface CpDetectWorkerRunOptions {
   vertexRefinerModelUrl?: string;
   vertexRefinerFrame?: CpDetectPaperFrame;
   junctionSource?: CpDetectJunctionSource;
+  lineEvidenceSource?: CpDetectLineEvidenceSource;
+  vertexRefinerProposalMode?: CpDetectVertexRefinerProposalMode;
   vertexRefinerFallback?: 'dense-model' | 'error';
   vertexRefinerProposalCap?: number;
+  vertexRefinerDenseRegionJunctionThreshold?: number;
+  vertexRefinerDenseRegionMinPeaks?: number;
+  vertexRefinerDenseRegionMaxOverlapFraction?: number;
   vertexRefinerGridStridePx?: number;
   vertexRefinerHeatmapThreshold?: number;
   vertexRefinerBoundaryHeatmapThreshold?: number;
@@ -175,6 +182,7 @@ export interface CpDetectWorkerRunOptions {
   vertexRefinerMinSupportFraction?: number;
   vertexRefinerSplitSameCropConflicts?: boolean;
   vertexRefinerSplitMinSupportFraction?: number;
+  vertexRefinerBatchSize?: number;
   threshold?: number;
   executionProvider?: CpDetectExecutionProvider;
   decoderBackend?: 'legacy_v2_decoder' | 'constraint_compiler_v1' | 'legacy_candidate_exact_solve_v1';
@@ -251,6 +259,7 @@ export interface CpDetectFoldResult {
   detectorReport: CpDetectDecodeReport;
   manifest: CpDetectModelManifest;
   junctionSource?: CpDetectJunctionSource;
+  lineEvidenceSource?: CpDetectLineEvidenceSource;
   vertexRefiner?: CpDetectVertexRefinerRunSummary | null;
   runtime?: CpDetectRuntimeInfo;
 }
@@ -259,6 +268,7 @@ export interface CpDetectVertexRefinerRunSummary {
   manifestId?: string;
   frame?: CpDetectPaperFrame;
   proposalCount?: number;
+  proposalMode?: CpDetectVertexRefinerProposalMode;
   rawPredictionCount?: number;
   mergedVertexCount?: number;
   runtime?: CpDetectRuntimeInfo;

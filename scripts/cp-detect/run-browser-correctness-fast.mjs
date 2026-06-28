@@ -52,7 +52,10 @@ async function main() {
         vertices: result.report.vertex_count ?? 0,
         edges: result.report.edge_count ?? 0,
         border_edges: result.report.border_edge_count ?? 0,
-        junction_source: result.report.junction_source ?? 'dense-model',
+        junction_source: result.report.junction_source ?? 'vertex-refiner-v3',
+        line_evidence_source: result.report.line_evidence_source ?? 'source-image',
+        vertex_refiner_proposal_mode:
+          result.report.vertex_refiner?.proposalMode ?? options.vertexRefinerProposalMode ?? 'full-coverage',
         vertex_refiner_merged_vertices:
           result.report.vertex_refiner?.mergedVertexCount ?? undefined,
         error: result.error ?? undefined,
@@ -73,10 +76,26 @@ async function main() {
     browser_url: url,
     manifest_url: options.manifestUrl ?? '/models/cp-detector-v3/manifest.json',
     model_url: options.modelUrl ?? null,
-    junction_source: options.junctionSource ?? 'dense-model',
+    junction_source: options.junctionSource ?? 'vertex-refiner-v3',
+    line_evidence_source: options.lineEvidenceSource ?? 'source-image',
     vertex_refiner_manifest_url:
       options.vertexRefinerManifestUrl ?? '/models/cp-vertex-refiner-v3/manifest.json',
     vertex_refiner_model_url: options.vertexRefinerModelUrl ?? null,
+    vertex_refiner_proposal_mode: options.vertexRefinerProposalMode ?? 'full-coverage',
+    vertex_refiner_proposal_cap:
+      options.vertexRefinerProposalCap === undefined ? null : Number(options.vertexRefinerProposalCap),
+    vertex_refiner_dense_region_junction_threshold:
+      options.vertexRefinerDenseRegionJunctionThreshold === undefined
+        ? null
+        : Number(options.vertexRefinerDenseRegionJunctionThreshold),
+    vertex_refiner_dense_region_min_peaks:
+      options.vertexRefinerDenseRegionMinPeaks === undefined
+        ? null
+        : Number(options.vertexRefinerDenseRegionMinPeaks),
+    vertex_refiner_dense_region_max_overlap_fraction:
+      options.vertexRefinerDenseRegionMaxOverlapFraction === undefined
+        ? null
+        : Number(options.vertexRefinerDenseRegionMaxOverlapFraction),
     vertex_refiner_frame_source: 'sample render_metadata v2_boundary.frame when available',
     threshold: options.threshold === undefined ? null : Number(options.threshold),
     decoder_backend: options.decoderBackend ?? null,
@@ -150,9 +169,15 @@ async function runSampleOnce(page, sample, imageBase64, options, vertexRefinerFr
         threshold,
         decoderBackend,
         junctionSource,
+        lineEvidenceSource,
         vertexRefinerManifestUrl,
         vertexRefinerModelUrl,
         vertexRefinerFallback,
+        vertexRefinerProposalMode,
+        vertexRefinerProposalCap,
+        vertexRefinerDenseRegionJunctionThreshold,
+        vertexRefinerDenseRegionMinPeaks,
+        vertexRefinerDenseRegionMaxOverlapFraction,
         vertexRefinerFrame,
         exactSolveTimeoutSeconds,
       }) => {
@@ -174,9 +199,23 @@ async function runSampleOnce(page, sample, imageBase64, options, vertexRefinerFr
         if (threshold !== null && threshold !== undefined) options.threshold = threshold;
         if (decoderBackend) options.decoderBackend = decoderBackend;
         if (junctionSource) options.junctionSource = junctionSource;
+        if (lineEvidenceSource) options.lineEvidenceSource = lineEvidenceSource;
         if (vertexRefinerManifestUrl) options.vertexRefinerManifestUrl = vertexRefinerManifestUrl;
         if (vertexRefinerModelUrl) options.vertexRefinerModelUrl = vertexRefinerModelUrl;
         if (vertexRefinerFallback) options.vertexRefinerFallback = vertexRefinerFallback;
+        if (vertexRefinerProposalMode) options.vertexRefinerProposalMode = vertexRefinerProposalMode;
+        if (vertexRefinerProposalCap !== null && vertexRefinerProposalCap !== undefined) {
+          options.vertexRefinerProposalCap = vertexRefinerProposalCap;
+        }
+        if (vertexRefinerDenseRegionJunctionThreshold !== null && vertexRefinerDenseRegionJunctionThreshold !== undefined) {
+          options.vertexRefinerDenseRegionJunctionThreshold = vertexRefinerDenseRegionJunctionThreshold;
+        }
+        if (vertexRefinerDenseRegionMinPeaks !== null && vertexRefinerDenseRegionMinPeaks !== undefined) {
+          options.vertexRefinerDenseRegionMinPeaks = vertexRefinerDenseRegionMinPeaks;
+        }
+        if (vertexRefinerDenseRegionMaxOverlapFraction !== null && vertexRefinerDenseRegionMaxOverlapFraction !== undefined) {
+          options.vertexRefinerDenseRegionMaxOverlapFraction = vertexRefinerDenseRegionMaxOverlapFraction;
+        }
         if (vertexRefinerFrame) options.vertexRefinerFrame = vertexRefinerFrame;
         if (exactSolveTimeoutSeconds !== null && exactSolveTimeoutSeconds !== undefined) {
           options.exactSolveTimeoutSeconds = exactSolveTimeoutSeconds;
@@ -210,9 +249,25 @@ async function runSampleOnce(page, sample, imageBase64, options, vertexRefinerFr
         threshold: options.threshold === undefined ? null : Number(options.threshold),
         decoderBackend: options.decoderBackend ?? null,
         junctionSource: options.junctionSource ?? null,
+        lineEvidenceSource: options.lineEvidenceSource ?? null,
         vertexRefinerManifestUrl: options.vertexRefinerManifestUrl ?? null,
         vertexRefinerModelUrl: options.vertexRefinerModelUrl ?? null,
         vertexRefinerFallback: options.vertexRefinerFallback ?? null,
+        vertexRefinerProposalMode: options.vertexRefinerProposalMode ?? null,
+        vertexRefinerProposalCap:
+          options.vertexRefinerProposalCap === undefined ? null : Number(options.vertexRefinerProposalCap),
+        vertexRefinerDenseRegionJunctionThreshold:
+          options.vertexRefinerDenseRegionJunctionThreshold === undefined
+            ? null
+            : Number(options.vertexRefinerDenseRegionJunctionThreshold),
+        vertexRefinerDenseRegionMinPeaks:
+          options.vertexRefinerDenseRegionMinPeaks === undefined
+            ? null
+            : Number(options.vertexRefinerDenseRegionMinPeaks),
+        vertexRefinerDenseRegionMaxOverlapFraction:
+          options.vertexRefinerDenseRegionMaxOverlapFraction === undefined
+            ? null
+            : Number(options.vertexRefinerDenseRegionMaxOverlapFraction),
         vertexRefinerFrame,
         exactSolveTimeoutSeconds:
           options.exactSolveTimeoutSeconds === undefined
@@ -230,6 +285,8 @@ async function runSampleOnce(page, sample, imageBase64, options, vertexRefinerFr
         ...detection.detectorReport,
         manifest_id: detection.manifest?.id ?? null,
         junction_source: detection.junctionSource ?? detection.detectorReport?.quality_report?.junction_source ?? null,
+        line_evidence_source:
+          detection.lineEvidenceSource ?? detection.detectorReport?.quality_report?.line_evidence_source ?? null,
         vertex_refiner: detection.vertexRefiner ?? null,
       },
     };
@@ -319,6 +376,18 @@ function parseArgs(args) {
   }
   if (!options.pack) throw new Error('Missing --pack');
   if (!options.out) throw new Error('Missing --out');
+  if (
+    options.lineEvidenceSource !== undefined &&
+    !['source-image', 'dense-model'].includes(options.lineEvidenceSource)
+  ) {
+    throw new Error("--line-evidence-source must be 'source-image' or 'dense-model'");
+  }
+  if (
+    options.vertexRefinerProposalMode !== undefined &&
+    !['full-coverage', 'dense-junction-regions'].includes(options.vertexRefinerProposalMode)
+  ) {
+    throw new Error("--vertex-refiner-proposal-mode must be 'full-coverage' or 'dense-junction-regions'");
+  }
   return options;
 }
 

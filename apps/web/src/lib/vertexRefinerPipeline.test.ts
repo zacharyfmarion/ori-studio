@@ -5,8 +5,11 @@ import {
   buildVertexRefinerSourceFeatures,
   decodeVertexRefinerOutputTensors,
   fullImageFrame,
+  generateDenseJunctionRegionVertexRefinerProposals,
   generateSlidingWindowVertexRefinerProposals,
+  generateVertexRefinerProposals,
   mergeDecodedVertexRefinerVertices,
+  mergeDecodedVertexRefinerVerticesWithDebug,
   runVertexRefinerOnImage,
   selectVertexRefinerProposals,
   type VertexRefinerDecodedVertex,
@@ -88,6 +91,64 @@ describe('vertexRefinerPipeline', () => {
     expect(merged[0].support_count).toBe(2);
   });
 
+  it('reports raw-to-merged cluster membership for V3 merge debugging', () => {
+    const cropSize = 96;
+    const proposals: VertexRefinerProposal[] = [
+      { x: 48, y: 48, score: 1, provenance: ['test'] },
+      { x: 50, y: 48, score: 1, provenance: ['test'] },
+    ];
+    const decoded: VertexRefinerDecodedVertex[] = [
+      {
+        x: 48,
+        y: 48,
+        score: 0.8,
+        kind_id: 1,
+        kind: 'interior_junction',
+        degree_class: 4,
+        degree: 4,
+        ray_bins: [],
+        boundary_side_id: null,
+        boundary_side: null,
+        side_coordinate: null,
+        crop_index: 0,
+      },
+      {
+        x: 49,
+        y: 48,
+        score: 0.7,
+        kind_id: 1,
+        kind: 'interior_junction',
+        degree_class: 4,
+        degree: 4,
+        ray_bins: [],
+        boundary_side_id: null,
+        boundary_side: null,
+        side_coordinate: null,
+        crop_index: 1,
+      },
+    ];
+
+    const result = mergeDecodedVertexRefinerVerticesWithDebug(decoded, proposals, {
+      cropSize,
+      radiusPx: 3,
+      minSupport: 1,
+    });
+
+    expect(result.merged_vertices).toHaveLength(1);
+    expect(result.debug.raw_to_merged).toEqual([
+      expect.objectContaining({ raw_vertex_id: 0, merged_vertex_id: 0, status: 'merged' }),
+      expect.objectContaining({ raw_vertex_id: 1, merged_vertex_id: 0, status: 'merged' }),
+    ]);
+    expect(result.debug.clusters).toEqual([
+      expect.objectContaining({
+        merged_vertex_id: 0,
+        raw_vertex_ids: [0, 1],
+        retained: true,
+        reason: 'merged',
+      }),
+    ]);
+  });
+
   it('generates and selects boundary-aware proposals plus square corners', () => {
     const proposals = generateSlidingWindowVertexRefinerProposals(256, 256, {
       proposalCap: 64,
@@ -145,6 +206,83 @@ describe('vertexRefinerPipeline', () => {
     expect(Math.max(...interior.map((proposal) => proposal.x))).toBe(944);
     expect(Math.min(...interior.map((proposal) => proposal.y))).toBe(80);
     expect(Math.max(...interior.map((proposal) => proposal.y))).toBe(944);
+  });
+
+  it('selects non-overlapping V3 crops around dense HRNet junction regions', () => {
+    const logits = fakeDenseJunctionLogits(128, 128, [
+      [30, 30],
+      [34, 32],
+      [37, 36],
+      [92, 92],
+      [96, 94],
+      [100, 96],
+      [12, 100],
+    ]);
+
+    const proposals = generateDenseJunctionRegionVertexRefinerProposals(logits, {
+      imageWidth: 128,
+      imageHeight: 128,
+      cropSize: 32,
+      frame: fullImageFrame(128, 128),
+      proposalCap: 8,
+      junctionThreshold: 0.5,
+      minPeaksPerCrop: 3,
+      maxOverlapFraction: 0,
+    });
+
+    expect(proposals).toHaveLength(2);
+    expect(proposals.every((proposal) => proposal.provenance[0]?.startsWith('dense_junction_region:3'))).toBe(true);
+    expect(proposals.some((proposal) => Math.hypot(proposal.x - 34, proposal.y - 32) < 12)).toBe(true);
+    expect(proposals.some((proposal) => Math.hypot(proposal.x - 96, proposal.y - 94) < 12)).toBe(true);
+  });
+
+  it('does not select dense-region crops that touch the paper border', () => {
+    const logits = fakeDenseJunctionLogits(128, 128, [
+      [3, 40],
+      [4, 44],
+      [7, 47],
+      [64, 64],
+      [68, 64],
+      [64, 68],
+    ]);
+
+    const proposals = generateDenseJunctionRegionVertexRefinerProposals(logits, {
+      imageWidth: 128,
+      imageHeight: 128,
+      cropSize: 32,
+      frame: fullImageFrame(128, 128),
+      proposalCap: 8,
+      junctionThreshold: 0.5,
+      minPeaksPerCrop: 3,
+      maxOverlapFraction: 0,
+    });
+
+    expect(proposals).toHaveLength(1);
+    expect(proposals[0].x).toBeGreaterThan(32);
+    expect(proposals[0].y).toBeGreaterThan(32);
+    expect(proposals[0].provenance).toContain('dense_junction_region:3');
+  });
+
+  it('uses dense-junction proposal mode instead of full coverage when dense logits are provided', () => {
+    const logits = fakeDenseJunctionLogits(128, 128, [
+      [64, 64],
+      [68, 64],
+      [64, 68],
+      [96, 96],
+    ]);
+
+    const proposals = generateVertexRefinerProposals(128, 128, {
+      mode: 'dense-junction-regions',
+      denseJunctionLogits: logits,
+      cropSize: 32,
+      proposalCap: 16,
+      denseRegionJunctionThreshold: 0.5,
+      denseRegionMinPeaks: 3,
+      denseRegionMaxOverlapFraction: 0,
+    });
+
+    expect(proposals).toHaveLength(1);
+    expect(proposals[0].provenance).toContain('dense_junction_region:3');
   });
 
   it('snaps explicit boundary-contact predictions onto the frame', () => {
@@ -387,6 +525,42 @@ describe('vertexRefinerPipeline', () => {
     expect(result.inference.input.crop_count).toBe(3);
     expect(result.inference.outputs.vertex_heatmap.dims[0]).toBe(3);
   });
+
+  it('caps large manifest V3 batches to browser-safe chunks by default', async () => {
+    const cropSize = 96;
+    const calls: number[] = [];
+    const image = whiteImage(128, 128);
+    const proposals = Array.from({ length: 33 }, (_, index): VertexRefinerProposal => ({
+      x: 48 + (index % 3),
+      y: 48 + Math.floor(index / 3),
+      score: 1,
+      provenance: ['test'],
+    }));
+
+    await runVertexRefinerOnImage(
+      {
+        inputNames: ['refiner_input'],
+        async run(feeds) {
+          const input = feeds.refiner_input as { dims: number[] };
+          calls.push(input.dims[0] ?? 0);
+          return fakeOutputs(input.dims[0] ?? 1, cropSize);
+        },
+      },
+      {
+        float32(data, dims) {
+          return { data, dims: Array.from(dims) };
+        },
+      },
+      image,
+      testManifest(256),
+      {
+        proposals,
+        proposalCap: proposals.length,
+      },
+    );
+
+    expect(calls).toEqual([16, 16, 1]);
+  });
 });
 
 function whiteImage(width: number, height: number): ImageData {
@@ -424,7 +598,18 @@ function fakeOutputs(batch: number, cropSize: number): CpVertexRefinerOutputs {
   };
 }
 
-function testManifest() {
+function fakeDenseJunctionLogits(width: number, height: number, peaks: Array<[number, number]>) {
+  const data = new Float32Array(width * height).fill(-8);
+  for (const [x, y] of peaks) {
+    data[y * width + x] = 8;
+  }
+  return {
+    data,
+    dims: [1, 1, height, width],
+  };
+}
+
+function testManifest(batchSize = 1) {
   return {
     schema: 'oristudio/cp-vertex-refiner-model-manifest/v1',
     id: 'test-v3',
@@ -439,7 +624,7 @@ function testManifest() {
       input_channels: 11,
       heatmap_threshold: 0.25,
       proposal_cap: 3,
-      batch_size: 1,
+      batch_size: batchSize,
     },
     outputs: {
       vertex_heatmap: 'vertex_heatmap',

@@ -193,7 +193,7 @@ pub fn cp_detect_decode_dense_output_bundle_with_refined_vertices(
     install_panic_hook();
     let backend = parse_decoder_backend(decoder_backend)?;
     let outputs = JsDenseOutputBundle::from_js(&outputs)?;
-    let refined_vertices = parse_refined_vertices_json(refined_vertices_json)?;
+    let refined_payload = parse_refined_vertices_json(refined_vertices_json)?;
     let decoded =
         oristudio_cp_detect::decode::decode_dense_outputs_with_backend_and_refined_vertices(
             outputs.as_dense_outputs(),
@@ -208,7 +208,7 @@ pub fn cp_detect_decode_dense_output_bundle_with_refined_vertices(
                 ..oristudio_cp_detect::decode::DecodeConfig::default()
             },
             backend,
-            refined_vertices.as_deref(),
+            refined_payload.vertices.as_deref(),
         )
         .map_err(to_js_decode_error)?;
     to_js_value_via_json(&decoded)
@@ -229,9 +229,9 @@ pub fn cp_detect_decode_dense_output_bundle_with_junction_source(
     let backend = parse_decoder_backend(decoder_backend)?;
     let junction_evidence_source = parse_junction_evidence_source(junction_source)?;
     let outputs = JsDenseOutputBundle::from_js(&outputs)?;
-    let refined_vertices = parse_refined_vertices_json(refined_vertices_json)?;
+    let refined_payload = parse_refined_vertices_json(refined_vertices_json)?;
     let decoded =
-        oristudio_cp_detect::decode::decode_dense_outputs_with_backend_junction_source_and_refined_vertices(
+        oristudio_cp_detect::decode::decode_dense_outputs_with_backend_junction_source_and_refined_vertices_in_regions(
             outputs.as_dense_outputs(),
             oristudio_cp_detect::decode::DecodeConfig {
                 image_size,
@@ -245,7 +245,68 @@ pub fn cp_detect_decode_dense_output_bundle_with_junction_source(
             },
             backend,
             junction_evidence_source,
-            refined_vertices.as_deref(),
+            refined_payload.vertices.as_deref(),
+            refined_payload.regions.as_deref(),
+        )
+        .map_err(to_js_decode_error)?;
+    to_js_value_via_json(&decoded)
+}
+
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn cp_detect_decode_dense_output_bundle_with_source_image_line_evidence(
+    outputs: JsValue,
+    image_size: u32,
+    threshold: f32,
+    decoder_backend: &str,
+    junction_offset_radius_px: Option<f32>,
+    exact_solve_timeout_seconds: Option<f64>,
+    junction_source: &str,
+    refined_vertices_json: &str,
+    rgba: &[u8],
+    width: u32,
+    height: u32,
+) -> Result<JsValue, JsValue> {
+    install_panic_hook();
+    if width != image_size || height != image_size {
+        return Err(js_error(
+            "source_image_line_evidence",
+            format!(
+                "source image line evidence requires a rectified {image_size}x{image_size} image, got {width}x{height}"
+            ),
+        ));
+    }
+    let backend = parse_decoder_backend(decoder_backend)?;
+    let junction_evidence_source = parse_junction_evidence_source(junction_source)?;
+    let outputs = JsDenseOutputBundle::from_js(&outputs)?;
+    let refined_payload = parse_refined_vertices_json(refined_vertices_json)?;
+    let line_probability_override =
+        oristudio_cp_detect::source_image_evidence::line_probability_from_rgba(
+            rgba,
+            width,
+            height,
+            oristudio_cp_detect::source_image_evidence::SourceImageLineEvidenceOptions::default(),
+        )
+        .map_err(|error| js_error("source_image_line_evidence", error.to_string()))?;
+    let decoded =
+        oristudio_cp_detect::decode::decode_dense_outputs_with_backend_junction_source_and_refined_vertices_in_regions(
+            outputs
+                .as_dense_outputs()
+                .with_line_probability_override(Some(&line_probability_override)),
+            oristudio_cp_detect::decode::DecodeConfig {
+                image_size,
+                threshold,
+                junction_offset_cluster_radius_px: junction_offset_radius_px.unwrap_or(0.0),
+                exact_solve_timeout_seconds: exact_solve_timeout_seconds.unwrap_or(
+                    oristudio_cp_detect::decode::DecodeConfig::default()
+                        .exact_solve_timeout_seconds,
+                ),
+                ..oristudio_cp_detect::decode::DecodeConfig::default()
+            },
+            backend,
+            junction_evidence_source,
+            refined_payload.vertices.as_deref(),
+            refined_payload.regions.as_deref(),
         )
         .map_err(to_js_decode_error)?;
     to_js_value_via_json(&decoded)
@@ -410,22 +471,39 @@ enum JsRefinedVertexPayload {
     Vertices(Vec<oristudio_cp_detect::decode::RefinedVertexPrimitive>),
     DebugPayload {
         merged_vertices: Vec<oristudio_cp_detect::decode::RefinedVertexPrimitive>,
+        #[serde(default)]
+        refinement_regions: Option<Vec<oristudio_cp_detect::decode::RefinedVertexRegion>>,
     },
 }
 
-fn parse_refined_vertices_json(
-    text: &str,
-) -> Result<Option<Vec<oristudio_cp_detect::decode::RefinedVertexPrimitive>>, JsValue> {
+struct JsParsedRefinedVertexPayload {
+    vertices: Option<Vec<oristudio_cp_detect::decode::RefinedVertexPrimitive>>,
+    regions: Option<Vec<oristudio_cp_detect::decode::RefinedVertexRegion>>,
+}
+
+fn parse_refined_vertices_json(text: &str) -> Result<JsParsedRefinedVertexPayload, JsValue> {
     let trimmed = text.trim();
     if trimmed.is_empty() || trimmed == "null" {
-        return Ok(None);
+        return Ok(JsParsedRefinedVertexPayload {
+            vertices: None,
+            regions: None,
+        });
     }
     let payload: JsRefinedVertexPayload = serde_json::from_str(trimmed)
         .map_err(|error| js_error("invalid_json", error.to_string()))?;
-    Ok(Some(match payload {
-        JsRefinedVertexPayload::Vertices(vertices) => vertices,
-        JsRefinedVertexPayload::DebugPayload { merged_vertices } => merged_vertices,
-    }))
+    Ok(match payload {
+        JsRefinedVertexPayload::Vertices(vertices) => JsParsedRefinedVertexPayload {
+            vertices: Some(vertices),
+            regions: None,
+        },
+        JsRefinedVertexPayload::DebugPayload {
+            merged_vertices,
+            refinement_regions,
+        } => JsParsedRefinedVertexPayload {
+            vertices: Some(merged_vertices),
+            regions: refinement_regions,
+        },
+    })
 }
 
 fn required_f32_array(object: &JsValue, name: &'static str) -> Result<Vec<f32>, JsValue> {

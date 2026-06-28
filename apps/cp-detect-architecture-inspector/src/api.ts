@@ -13,11 +13,23 @@ import type {
 async function requestJson<T>(url: string): Promise<T> {
   const response = await fetch(url);
   const body = await response.text();
-  const payload = body ? JSON.parse(body) : {};
+  const payload = body ? parseJsonOrNull(body) : null;
   if (!response.ok) {
-    throw new Error(payload.error ?? `Request failed: ${response.status}`);
+    const error =
+      payload && typeof payload === 'object' && 'error' in payload
+        ? String((payload as { error: unknown }).error)
+        : body.trim() || `Request failed: ${response.status}`;
+    throw new Error(error);
   }
   return payload as T;
+}
+
+function parseJsonOrNull(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
 }
 
 type StageQueryOptions = { threshold: number; mapSize: number };

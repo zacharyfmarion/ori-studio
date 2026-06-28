@@ -87,6 +87,7 @@ async function main() {
     vertex_refiner_manifest_url:
       options.vertexRefinerManifestUrl ?? '/models/cp-vertex-refiner-v3/manifest.json',
     vertex_refiner_model_url: options.vertexRefinerModelUrl ?? null,
+    vertex_refiner_proposal_mode: options.vertexRefinerProposalMode ?? 'full-coverage',
     sample_count: rows.length,
     ok_count: rows.filter((row) => row.ok).length,
     samples: rows,
@@ -216,6 +217,10 @@ function refinerOptions(options) {
   return Object.fromEntries(
     [
       ['vertexRefinerProposalCap', numberOption(options.vertexRefinerProposalCap)],
+      ['vertexRefinerProposalMode', options.vertexRefinerProposalMode],
+      ['vertexRefinerDenseRegionJunctionThreshold', numberOption(options.vertexRefinerDenseRegionJunctionThreshold)],
+      ['vertexRefinerDenseRegionMinPeaks', numberOption(options.vertexRefinerDenseRegionMinPeaks)],
+      ['vertexRefinerDenseRegionMaxOverlapFraction', numberOption(options.vertexRefinerDenseRegionMaxOverlapFraction)],
       ['vertexRefinerGridStridePx', numberOption(options.vertexRefinerGridStridePx)],
       ['vertexRefinerHeatmapThreshold', numberOption(options.vertexRefinerHeatmapThreshold)],
       ['vertexRefinerBoundaryHeatmapThreshold', numberOption(options.vertexRefinerBoundaryHeatmapThreshold)],

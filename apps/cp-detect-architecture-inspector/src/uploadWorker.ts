@@ -10,6 +10,7 @@ import init, {
   cp_detect_parse_model_manifest,
 } from '../../web/src/generated/oristudio-cp-detect-wasm/oristudio_cp_detect_wasm';
 import type {
+  CpDetectDenseOutputs,
   CpDetectExecutionProvider,
   CpDetectModelManifest,
   CpDetectPaperFrame,
@@ -17,6 +18,7 @@ import type {
   CpDetectRectifiedImage,
   CpDetectRectificationReport,
   CpDetectRuntimeInfo,
+  CpDetectTensorData,
   CpDetectWorkerRunOptions,
   CpVertexRefinerModelManifest,
 } from '../../web/src/engine/cpDetectTypes';
@@ -29,12 +31,23 @@ import {
 } from '../../web/src/lib/cpDetectInference';
 import {
   DEFAULT_CP_VERTEX_REFINER_MANIFEST_URL,
+  CP_VERTEX_REFINER_OUTPUT_KEYS,
   fetchVertexRefinerModelManifest,
   runVertexRefinerInference,
   type VertexRefinerOnnxSession,
 } from '../../web/src/lib/vertexRefinerInference';
-import { runVertexRefinerOnImage } from '../../web/src/lib/vertexRefinerPipeline';
-import type { UploadedInspectorRunBundle } from './types';
+import {
+  runVertexRefinerOnImage,
+  vertexRefinerCropOriginForCenter,
+  type VertexRefinerImageResult,
+  type VertexRefinerMergedVertex,
+} from '../../web/src/lib/vertexRefinerPipeline';
+import type {
+  MapPayload,
+  UploadedInspectorRunBundle,
+  VertexRefinerCropDebugResponse,
+  VertexRefinerRawMergeAssignment,
+} from './types';
 
 let wasmReady: Promise<void> | null = null;
 let manifestPromise: Promise<CpDetectModelManifest> | null = null;
@@ -51,6 +64,9 @@ let vertexRefinerSessionPromise: Promise<CpDetectSessionRuntime> | null = null;
 let vertexRefinerSessionKey: string | null = null;
 let ortRuntimeConfigured = false;
 let ortWasmThreads = 1;
+// ORT WebGPU is not reliable when sessions compile or dispatch concurrently in one worker.
+let ortOperationQueue: Promise<void> = Promise.resolve();
+const vertexRefinerDebugRuns = new Map<string, VertexRefinerImageResult>();
 
 type ActiveExecutionProvider = 'webgpu' | 'wasm';
 
@@ -58,6 +74,29 @@ interface CpDetectSessionRuntime {
   session: ort.InferenceSession;
   runtime: CpDetectRuntimeInfo;
 }
+
+const VERTEX_REFINER_INPUT_CHANNEL_NAMES = [
+  'image_gray',
+  'source_ink_probability',
+  'source_distance_to_ink',
+  'source_orientation_cos2',
+  'source_orientation_sin2',
+  'signed_distance_to_frame',
+  'frame_edge_mask',
+  'inside_paper_mask',
+  'boundary_contact_prior',
+  'crop_x_normalized',
+  'crop_y_normalized',
+] as const;
+
+const VERTEX_KIND_NAMES = [
+  'background',
+  'interior_junction',
+  'boundary_contact',
+  'corner',
+  'endpoint_or_dangling',
+] as const;
+const BOUNDARY_SIDE_NAMES = ['top', 'right', 'bottom', 'left'] as const;
 
 export interface UploadedInspectorRunOptions extends CpDetectWorkerRunOptions {
   filename?: string | null;
@@ -188,7 +227,9 @@ async function createSessionRuntime(
   for (const provider of providerCandidates(requestedProvider, webgpuAvailable)) {
     const startedAt = performance.now();
     try {
-      const session = await ort.InferenceSession.create(modelUrl, sessionOptions(provider));
+      const session = await enqueueOrtOperation(() =>
+        ort.InferenceSession.create(modelUrl, sessionOptions(provider)),
+      );
       return {
         session,
         runtime: {
@@ -317,7 +358,11 @@ async function denseInferenceForImage(image: ImageData, options: CpDetectWorkerR
   };
 }
 
-async function vertexRefinerForImage(image: ImageData, options: CpDetectWorkerRunOptions) {
+async function vertexRefinerForImage(
+  image: ImageData,
+  options: CpDetectWorkerRunOptions,
+  denseOutputs?: CpDetectDenseOutputs,
+) {
   const manifestUrl =
     options.vertexRefinerManifestUrl ?? DEFAULT_CP_VERTEX_REFINER_MANIFEST_URL;
   const manifest = await ensureVertexRefinerManifest(manifestUrl);
@@ -331,7 +376,28 @@ async function vertexRefinerForImage(image: ImageData, options: CpDetectWorkerRu
     },
     image,
     manifest,
-    { frame: options.vertexRefinerFrame, runtime: sessionRuntime.runtime },
+    {
+      frame: options.vertexRefinerFrame,
+      proposalMode: options.vertexRefinerProposalMode,
+      proposalCap: options.vertexRefinerProposalCap,
+      denseJunctionLogits: denseOutputs?.junction_logits,
+      denseRegionJunctionThreshold: options.vertexRefinerDenseRegionJunctionThreshold,
+      denseRegionMinPeaks: options.vertexRefinerDenseRegionMinPeaks,
+      denseRegionMaxOverlapFraction: options.vertexRefinerDenseRegionMaxOverlapFraction,
+      gridStridePx: options.vertexRefinerGridStridePx,
+      heatmapThreshold: options.vertexRefinerHeatmapThreshold,
+      boundaryHeatmapThreshold: options.vertexRefinerBoundaryHeatmapThreshold,
+      nmsRadiusPx: options.vertexRefinerNmsRadiusPx,
+      mergeRadiusPx: options.vertexRefinerMergeRadiusPx,
+      boundaryMergeRadiusPx: options.vertexRefinerBoundaryMergeRadiusPx,
+      minSupport: options.vertexRefinerMinSupport,
+      minSupportFraction: options.vertexRefinerMinSupportFraction,
+      splitSameCropConflicts: options.vertexRefinerSplitSameCropConflicts,
+      splitMinSupportFraction: options.vertexRefinerSplitMinSupportFraction,
+      batchSize: options.vertexRefinerBatchSize,
+      debug: true,
+      runtime: sessionRuntime.runtime,
+    },
   );
 }
 
@@ -339,9 +405,11 @@ function cpDetectSessionFromOrt(session: ort.InferenceSession): CpDetectOnnxSess
   return {
     inputNames: session.inputNames,
     async run(feeds) {
-      return session.run(feeds as Parameters<ort.InferenceSession['run']>[0]) as Promise<
-        Record<string, unknown>
-      >;
+      return enqueueOrtOperation(() =>
+        session.run(feeds as Parameters<ort.InferenceSession['run']>[0]) as Promise<
+          Record<string, unknown>
+        >,
+      );
     },
   };
 }
@@ -350,11 +418,22 @@ function vertexRefinerSessionFromOrt(session: ort.InferenceSession): VertexRefin
   return {
     inputNames: session.inputNames,
     async run(feeds) {
-      return session.run(feeds as Parameters<ort.InferenceSession['run']>[0]) as Promise<
-        Record<string, unknown>
-      >;
+      return enqueueOrtOperation(() =>
+        session.run(feeds as Parameters<ort.InferenceSession['run']>[0]) as Promise<
+          Record<string, unknown>
+        >,
+      );
     },
   };
+}
+
+function enqueueOrtOperation<T>(operation: () => Promise<T>): Promise<T> {
+  const run = ortOperationQueue.then(operation, operation);
+  ortOperationQueue = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
 }
 
 type WasmRectifiedImage = {
@@ -449,15 +528,30 @@ const api = {
     options: UploadedInspectorRunOptions = {},
   ): Promise<UploadedInspectorRunBundle> {
     await ensureWasmReady();
+    const runId = `upload-${Date.now()}`;
+    vertexRefinerDebugRuns.clear();
     const junctionSource = options.junctionSource ?? 'dense-model';
     const vertexRefinerFrame =
       options.vertexRefinerFrame ?? paperFrameFromRectificationReport(options.rectificationReport);
-    const [inference, vertexRefiner] = await Promise.all([
-      denseInferenceForImage(image, options),
-      junctionSource === 'vertex-refiner-v3'
-        ? vertexRefinerForImage(image, { ...options, vertexRefinerFrame })
-        : null,
-    ]);
+    const needsDenseForVertexRefiner =
+      junctionSource === 'vertex-refiner-v3' &&
+      options.vertexRefinerProposalMode === 'dense-junction-regions';
+    const [inference, vertexRefiner] = needsDenseForVertexRefiner
+      ? await (async () => {
+          const dense = await denseInferenceForImage(image, options);
+          const refined = await vertexRefinerForImage(
+            image,
+            { ...options, vertexRefinerFrame },
+            dense.outputs,
+          );
+          return [dense, refined] as const;
+        })()
+      : await Promise.all([
+          denseInferenceForImage(image, options),
+          junctionSource === 'vertex-refiner-v3'
+            ? vertexRefinerForImage(image, { ...options, vertexRefinerFrame })
+            : null,
+        ]);
     const outputBundle = Object.fromEntries(
       CP_DETECT_OUTPUT_KEYS
         .filter((key) => inference.outputs[key])
@@ -465,21 +559,36 @@ const api = {
     );
     const vertexRefinerDebug = vertexRefiner
       ? {
+          debug_run_id: runId,
           model_manifest_id: vertexRefiner.manifest.id,
           frame: vertexRefiner.frame,
+          crop_size: vertexRefiner.inference.input.crop_size,
+          input_channel_names: vertexRefinerInputChannelNames(vertexRefiner.manifest),
+          output_head_names: Array.from(CP_VERTEX_REFINER_OUTPUT_KEYS),
           proposal_count: vertexRefiner.proposals.length,
+          proposal_mode: options.vertexRefinerProposalMode ?? 'full-coverage',
+          refinement_regions: vertexRefiner.refinement_regions ?? null,
           raw_prediction_count: vertexRefiner.raw_vertices.length,
           merged_vertex_count: vertexRefiner.merged_vertices.length,
           proposals: vertexRefiner.proposals,
-          raw_vertices: vertexRefiner.raw_vertices,
-          merged_vertices: vertexRefiner.merged_vertices,
-          runtime: vertexRefiner.runtime ?? null,
+          raw_vertices: vertexRefiner.raw_vertices.map((vertex, rawVertexId) =>
+            decorateRawVertex(vertex, rawVertexId, vertexRefiner.merge_debug.raw_to_merged),
+          ),
+          merged_vertices: vertexRefiner.merged_vertices.map((vertex, mergedVertexId) =>
+            decorateMergedVertex(vertex, mergedVertexId, vertexRefiner.merge_debug.raw_to_merged),
+          ),
+          raw_to_merged: vertexRefiner.merge_debug.raw_to_merged,
+          merge_clusters: vertexRefiner.merge_debug.clusters,
+          runtime: vertexRefiner.runtime ? { ...vertexRefiner.runtime } : null,
         }
       : null;
-    return cp_detect_build_inspector_stage_bundle_with_source_image(
+    if (vertexRefiner) {
+      vertexRefinerDebugRuns.set(runId, vertexRefiner);
+    }
+    const bundle = cp_detect_build_inspector_stage_bundle_with_source_image(
       outputBundle,
       JSON.stringify({
-        id: `upload-${Date.now()}`,
+        id: runId,
         source_id: options.filename ?? 'uploaded image',
         filename: options.filename ?? null,
         image_size: inference.manifest.inference.image_size,
@@ -503,12 +612,310 @@ const api = {
       image.width,
       image.height,
     ) as UploadedInspectorRunBundle;
+    if (vertexRefinerDebug) {
+      bundle.stages.stage0.vertex_refiner = vertexRefinerDebug;
+      bundle.stages.stage0.vertex_refiner_manifest_id = vertexRefinerDebug.model_manifest_id;
+      bundle.stages.stage0b = {
+        ...bundle.stages.stage0,
+        schema: 'oristudio/cp-detect-inspector-stage0b/v1',
+        crop_debug_run_id: runId,
+        vertex_refiner: vertexRefinerDebug,
+      };
+      bundle.stage_order = [
+        'stage0',
+        'stage0b',
+        ...bundle.stage_order.filter((stageId) => stageId !== 'stage0' && stageId !== 'stage0b'),
+      ];
+    }
+    return bundle;
+  },
+
+  async getVertexRefinerCropDebug(
+    runId: string,
+    cropIndex: number,
+  ): Promise<VertexRefinerCropDebugResponse> {
+    const result = vertexRefinerDebugRuns.get(runId);
+    if (!result?.debug) {
+      throw new Error(`No V3 crop debug run is available for ${runId}`);
+    }
+    if (!Number.isInteger(cropIndex) || cropIndex < 0 || cropIndex >= result.proposals.length) {
+      throw new Error(`V3 crop index ${cropIndex} is out of range`);
+    }
+    return buildVertexRefinerCropDebug(runId, result, cropIndex);
   },
 };
 
 export type InspectorUploadWorkerApi = typeof api;
 
 expose(api);
+
+function decorateRawVertex(
+  vertex: VertexRefinerImageResult['raw_vertices'][number],
+  rawVertexId: number,
+  assignments: readonly VertexRefinerRawMergeAssignment[],
+) {
+  const assignment = assignments.find((entry) => entry.raw_vertex_id === rawVertexId);
+  return {
+    ...vertex,
+    raw_vertex_id: rawVertexId,
+    merged_vertex_id: assignment?.merged_vertex_id ?? null,
+    cluster_id: assignment?.cluster_id ?? null,
+    merge_status: assignment?.status ?? null,
+    merge_reason: assignment?.reason ?? null,
+  };
+}
+
+function decorateMergedVertex(
+  vertex: VertexRefinerMergedVertex,
+  mergedVertexId: number,
+  assignments: readonly VertexRefinerRawMergeAssignment[],
+) {
+  return {
+    ...vertex,
+    merged_vertex_id: mergedVertexId,
+    raw_vertex_ids: assignments
+      .filter((entry) => entry.merged_vertex_id === mergedVertexId)
+      .map((entry) => entry.raw_vertex_id),
+  };
+}
+
+function buildVertexRefinerCropDebug(
+  runId: string,
+  result: VertexRefinerImageResult,
+  cropIndex: number,
+): VertexRefinerCropDebugResponse {
+  const cropSize = result.inference.input.crop_size;
+  const proposal = result.proposals[cropIndex];
+  if (!proposal || !result.debug) {
+    throw new Error(`V3 crop index ${cropIndex} is unavailable`);
+  }
+  const [originX, originY] = vertexRefinerCropOriginForCenter(proposal, cropSize);
+  const cropBox = {
+    x_min: originX,
+    y_min: originY,
+    x_max: originX + cropSize,
+    y_max: originY + cropSize,
+  };
+  const assignmentsByRawId = new Map(
+    result.merge_debug.raw_to_merged.map((assignment) => [assignment.raw_vertex_id, assignment]),
+  );
+  const rawVertices = result.raw_vertices
+    .map((vertex, rawVertexId) => ({ vertex, rawVertexId }))
+    .filter(({ vertex }) => vertex.crop_index === cropIndex)
+    .map(({ vertex, rawVertexId }) => {
+      const assignment = assignmentsByRawId.get(rawVertexId);
+      return {
+        ...vertex,
+        raw_vertex_id: rawVertexId,
+        merged_vertex_id: assignment?.merged_vertex_id ?? null,
+        cluster_id: assignment?.cluster_id ?? null,
+        merge_status: assignment?.status ?? null,
+        merge_reason: assignment?.reason ?? null,
+        local_x: vertex.x - originX,
+        local_y: vertex.y - originY,
+      };
+    });
+  const supportedMergedIds = new Set(
+    rawVertices
+      .map((vertex) => vertex.merged_vertex_id)
+      .filter((mergedVertexId): mergedVertexId is number => typeof mergedVertexId === 'number'),
+  );
+  const mergedVertices = result.merged_vertices
+    .map((vertex, mergedVertexId) => ({ vertex, mergedVertexId }))
+    .filter(({ mergedVertexId }) => supportedMergedIds.has(mergedVertexId))
+    .map(({ vertex, mergedVertexId }) => {
+      const rawVertexIds = result.merge_debug.raw_to_merged
+        .filter((assignment) => assignment.merged_vertex_id === mergedVertexId)
+        .map((assignment) => assignment.raw_vertex_id);
+      return {
+        ...vertex,
+        merged_vertex_id: mergedVertexId,
+        raw_vertex_ids: rawVertexIds,
+        local_x: vertex.x - originX,
+        local_y: vertex.y - originY,
+      };
+    });
+  const clusterIds = new Set(rawVertices.map((vertex) => vertex.cluster_id).filter((clusterId): clusterId is number => typeof clusterId === 'number'));
+  const mergeClusters = result.merge_debug.clusters.filter((cluster) => clusterIds.has(cluster.cluster_id));
+  return {
+    schema: 'oristudio/cp-detect-v3-crop-debug/v1',
+    run_id: runId,
+    crop_index: cropIndex,
+    crop_size: cropSize,
+    crop_box: cropBox,
+    proposal,
+    input_maps: vertexRefinerInputMaps(result, cropIndex),
+    output_maps: vertexRefinerOutputMaps(result, cropIndex),
+    raw_vertices: rawVertices,
+    merged_vertices: mergedVertices,
+    raw_to_merged: result.merge_debug.raw_to_merged.filter((assignment) =>
+      rawVertices.some((vertex) => vertex.raw_vertex_id === assignment.raw_vertex_id),
+    ),
+    merge_clusters: mergeClusters,
+  };
+}
+
+function vertexRefinerInputMaps(
+  result: VertexRefinerImageResult,
+  cropIndex: number,
+): MapPayload[] {
+  if (!result.debug) return [];
+  const cropSize = result.inference.input.crop_size;
+  const inputChannels = result.manifest.inference.input_channels;
+  const cropArea = cropSize * cropSize;
+  const cropOffset = cropIndex * inputChannels * cropArea;
+  const names = vertexRefinerInputChannelNames(result.manifest);
+  return names.map((name, channel) =>
+    mapPayloadFromValues(
+      `input:${name}`,
+      name.replaceAll('_', ' '),
+      cropSize,
+      cropSize,
+      result.debug?.crop_tensor.subarray(cropOffset + channel * cropArea, cropOffset + (channel + 1) * cropArea) ?? new Float32Array(cropArea),
+    ),
+  );
+}
+
+function vertexRefinerInputChannelNames(manifest: CpVertexRefinerModelManifest): string[] {
+  const names = Array.from(manifest.inference.input_channel_names ?? VERTEX_REFINER_INPUT_CHANNEL_NAMES);
+  while (names.length < manifest.inference.input_channels) {
+    names.push(`input_channel_${names.length}`);
+  }
+  return names.slice(0, manifest.inference.input_channels);
+}
+
+function vertexRefinerOutputMaps(
+  result: VertexRefinerImageResult,
+  cropIndex: number,
+): MapPayload[] {
+  const cropSize = result.inference.input.crop_size;
+  const maps: MapPayload[] = [];
+  maps.push(
+    tensorChannelMap('output:vertex_heatmap', 'vertex heatmap', result.inference.outputs.vertex_heatmap, cropIndex, 0, cropSize, sigmoid),
+    tensorChannelMap(
+      'output:boundary_contact_heatmap',
+      'boundary contact heatmap',
+      result.inference.outputs.boundary_contact_heatmap,
+      cropIndex,
+      0,
+      cropSize,
+      sigmoid,
+    ),
+    tensorChannelMap('output:offset_dx', 'offset dx', result.inference.outputs.vertex_offset, cropIndex, 0, cropSize),
+    tensorChannelMap('output:offset_dy', 'offset dy', result.inference.outputs.vertex_offset, cropIndex, 1, cropSize),
+    offsetMagnitudeMap(result.inference.outputs.vertex_offset, cropIndex, cropSize),
+  );
+  VERTEX_KIND_NAMES.forEach((name, channel) => {
+    maps.push(softmaxChannelMap(`output:vertex_kind:${name}`, `kind ${name}`, result.inference.outputs.vertex_kind, cropIndex, channel, cropSize));
+  });
+  for (let channel = 0; channel < (result.inference.outputs.degree.dims[1] ?? 0); channel += 1) {
+    maps.push(softmaxChannelMap(`output:degree:${channel}`, `degree ${channel}`, result.inference.outputs.degree, cropIndex, channel, cropSize));
+  }
+  BOUNDARY_SIDE_NAMES.forEach((name, channel) => {
+    maps.push(softmaxChannelMap(`output:boundary_side:${name}`, `side ${name}`, result.inference.outputs.boundary_side, cropIndex, channel, cropSize));
+  });
+  for (let channel = 0; channel < (result.inference.outputs.incident_rays.dims[1] ?? 0); channel += 1) {
+    maps.push(tensorChannelMap(`output:incident_ray:${channel}`, `ray bin ${channel}`, result.inference.outputs.incident_rays, cropIndex, channel, cropSize, sigmoid));
+  }
+  return maps;
+}
+
+function tensorChannelMap(
+  id: string,
+  label: string,
+  tensor: CpDetectTensorData,
+  cropIndex: number,
+  channel: number,
+  cropSize: number,
+  transform: (value: number) => number = (value) => value,
+): MapPayload {
+  const area = cropSize * cropSize;
+  const values = new Float32Array(area);
+  const channels = tensor.dims[1] ?? 1;
+  const offset = cropIndex * channels * area + channel * area;
+  for (let index = 0; index < area; index += 1) {
+    values[index] = transform(tensor.data[offset + index] ?? 0);
+  }
+  return mapPayloadFromValues(id, label, cropSize, cropSize, values);
+}
+
+function softmaxChannelMap(
+  id: string,
+  label: string,
+  tensor: CpDetectTensorData,
+  cropIndex: number,
+  channel: number,
+  cropSize: number,
+): MapPayload {
+  const area = cropSize * cropSize;
+  const channels = tensor.dims[1] ?? 1;
+  const values = new Float32Array(area);
+  for (let index = 0; index < area; index += 1) {
+    let maxLogit = -Infinity;
+    for (let nextChannel = 0; nextChannel < channels; nextChannel += 1) {
+      maxLogit = Math.max(maxLogit, tensor.data[cropIndex * channels * area + nextChannel * area + index] ?? 0);
+    }
+    let sum = 0;
+    for (let nextChannel = 0; nextChannel < channels; nextChannel += 1) {
+      sum += Math.exp((tensor.data[cropIndex * channels * area + nextChannel * area + index] ?? 0) - maxLogit);
+    }
+    values[index] = Math.exp((tensor.data[cropIndex * channels * area + channel * area + index] ?? 0) - maxLogit) / Math.max(sum, 1e-9);
+  }
+  return mapPayloadFromValues(id, label, cropSize, cropSize, values);
+}
+
+function offsetMagnitudeMap(
+  tensor: CpDetectTensorData,
+  cropIndex: number,
+  cropSize: number,
+): MapPayload {
+  const area = cropSize * cropSize;
+  const channels = tensor.dims[1] ?? 2;
+  const offset = cropIndex * channels * area;
+  const values = new Float32Array(area);
+  for (let index = 0; index < area; index += 1) {
+    const dx = tensor.data[offset + index] ?? 0;
+    const dy = tensor.data[offset + area + index] ?? 0;
+    values[index] = Math.hypot(dx, dy);
+  }
+  return mapPayloadFromValues('output:offset_magnitude', 'offset magnitude', cropSize, cropSize, values);
+}
+
+function mapPayloadFromValues(
+  id: string,
+  label: string,
+  width: number,
+  height: number,
+  values: Float32Array,
+): MapPayload {
+  let min = Infinity;
+  let max = -Infinity;
+  for (const value of values) {
+    if (Number.isFinite(value)) {
+      min = Math.min(min, value);
+      max = Math.max(max, value);
+    }
+  }
+  if (!Number.isFinite(min) || !Number.isFinite(max)) {
+    min = 0;
+    max = 0;
+  }
+  const span = Math.max(max - min, 1e-9);
+  const scaled = Array.from(values, (value) => Math.round(255 * ((Number.isFinite(value) ? value : min) - min) / span));
+  return {
+    id,
+    label,
+    width,
+    height,
+    min,
+    max,
+    values: scaled,
+  };
+}
+
+function sigmoid(value: number): number {
+  return 1 / (1 + Math.exp(-value));
+}
 
 function paperFrameFromRectificationReport(report: unknown): CpDetectPaperFrame | undefined {
   if (!report || typeof report !== 'object') return undefined;

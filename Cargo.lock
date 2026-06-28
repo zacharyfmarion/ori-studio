@@ -2669,6 +2669,7 @@ name = "oristudio-cp-detect-inspector"
 version = "0.1.2"
 dependencies = [
  "anyhow",
+ "image",
  "oristudio-cp-compiler",
  "oristudio-cp-detect",
  "serde",
