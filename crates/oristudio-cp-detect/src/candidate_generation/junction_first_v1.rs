@@ -57,7 +57,9 @@ pub fn generate_candidate_graph_with_vertex_pixels(
         .map(|px| unit_from_px([px[0] as f32, px[1] as f32], config.image_size))
         .collect::<Vec<_>>();
     let vertices = vertices_from_unit_points(&points);
-    Ok(graph_from_evidence_with_vertices(&evidence, config, options, vertices))
+    Ok(graph_from_evidence_with_vertices(
+        &evidence, config, options, vertices,
+    ))
 }
 
 pub(super) fn extract_evidence(
@@ -608,7 +610,11 @@ mod tests {
             JunctionFirstV1StrategyOptions::default(),
             &mut spans,
         );
-        assert_eq!(spans.len(), 1, "short dark pair must be proposed via bypass");
+        assert_eq!(
+            spans.len(),
+            1,
+            "short dark pair must be proposed via bypass"
+        );
         assert_eq!(
             spans[0].selection_policy,
             CandidateSelectionPolicy::StrongOptional,
@@ -634,7 +640,10 @@ mod tests {
             },
             &mut spans,
         );
-        assert!(spans.is_empty(), "with bypass disabled the dark pair is rejected");
+        assert!(
+            spans.is_empty(),
+            "with bypass disabled the dark pair is rejected"
+        );
     }
 
     #[test]
