@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 const DEFAULT_BORDER_MARGIN_RATIO: f32 = 32.0 / 1024.0;
-const DEFAULT_SOURCE_PADDING_RATIO: f32 = 0.025;
 const MIN_PANEL_CONFIDENCE: f32 = 0.72;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -97,34 +96,6 @@ impl Quad {
             })
             .sum::<f32>())
         .abs()
-    }
-
-    fn expanded(self, padding_px: f32) -> Quad {
-        let points = self.points();
-        let center = Point {
-            x: points.iter().map(|point| point.x).sum::<f32>() / 4.0,
-            y: points.iter().map(|point| point.y).sum::<f32>() / 4.0,
-        };
-        let expand = |point: Point| {
-            let dx = point.x - center.x;
-            let dy = point.y - center.y;
-            let len = (dx * dx + dy * dy).sqrt();
-            if len <= 1e-6 {
-                point
-            } else {
-                let amount = padding_px * 2.0_f32.sqrt();
-                Point {
-                    x: point.x + dx / len * amount,
-                    y: point.y + dy / len * amount,
-                }
-            }
-        };
-        Quad {
-            top_left: expand(self.top_left),
-            top_right: expand(self.top_right),
-            bottom_right: expand(self.bottom_right),
-            bottom_left: expand(self.bottom_left),
-        }
     }
 }
 
@@ -902,21 +873,11 @@ fn warp_source_quad(
     warnings: Vec<RectificationWarning>,
 ) -> Result<RectifiedRgbaImage, RectificationError> {
     let source_quad = source_quad.clipped(analysis.width as u32, analysis.height as u32);
-    let source_padding = (source_quad.mean_side() * DEFAULT_SOURCE_PADDING_RATIO).clamp(2.0, 48.0);
-    let expanded_source = source_quad
-        .expanded(source_padding)
-        .clipped(analysis.width as u32, analysis.height as u32);
     let margin = (image_size as f32 * DEFAULT_BORDER_MARGIN_RATIO)
         .round()
         .clamp(2.0, (image_size.saturating_sub(2) / 2) as f32);
     let target_quad = Quad::square(margin, image_size.saturating_sub(1) as f32 - margin);
-    let target_padding = (source_padding * target_quad.mean_side()
-        / source_quad.mean_side().max(1.0))
-    .clamp(1.0, 64.0);
-    let expanded_target = target_quad
-        .expanded(target_padding)
-        .clipped(image_size, image_size);
-    let homography = homography_from_quad_to_quad(expanded_target, expanded_source)?;
+    let homography = homography_from_quad_to_quad(target_quad, source_quad)?;
     let mut rgba = vec![255; image_size as usize * image_size as usize * 4];
     for chunk in rgba.chunks_exact_mut(4) {
         chunk[0] = analysis.padding_rgb[0];
@@ -930,7 +891,7 @@ fn warp_source_quad(
                 x: x as f32,
                 y: y as f32,
             };
-            if !point_in_convex_quad(point, expanded_target) {
+            if !point_in_convex_quad(point, target_quad) {
                 continue;
             }
             let src = apply_homography(&homography, point);
@@ -955,14 +916,14 @@ fn warp_source_quad(
             image_size,
             mode: mode.to_owned(),
             confidence,
-            source_quad: expanded_source,
+            source_quad,
             detected_source_quad: Some(source_quad),
             target_quad: Some(target_quad),
             padding_rgb: analysis.padding_rgb,
             warnings,
             metrics: json!({
-                "source_crop_padding_px": source_padding,
-                "target_crop_padding_px": target_padding,
+                "source_crop_padding_px": 0.0,
+                "target_crop_padding_px": 0.0,
                 "raw": metrics,
             }),
         },
@@ -1324,6 +1285,31 @@ mod tests {
     }
 
     #[test]
+    fn manual_rectifier_does_not_sample_source_pixels_outside_crop() {
+        let mut image = white_rgba(160, 120);
+        draw_line(&mut image, 160, 30, 16, 130, 16, [0, 0, 0], 3);
+        draw_rect(&mut image, 160, 30, 20, 130, 100, [0, 0, 0], 3);
+        let quad = Quad {
+            top_left: Point { x: 30.0, y: 20.0 },
+            top_right: Point { x: 130.0, y: 20.0 },
+            bottom_right: Point { x: 130.0, y: 100.0 },
+            bottom_left: Point { x: 30.0, y: 100.0 },
+        };
+
+        let result = manual_rectify_rgba(&image, 160, 120, 128, quad).expect("rectify");
+
+        assert_eq!(rgb_at(&result.rgba, 128, 64, 2), [255, 255, 255]);
+        assert_eq!(
+            result.report.metrics["source_crop_padding_px"].as_f64(),
+            Some(0.0)
+        );
+        assert_eq!(
+            result.report.metrics["target_crop_padding_px"].as_f64(),
+            Some(0.0)
+        );
+    }
+
+    #[test]
     fn dense_rectified_input_gets_warning() {
         let mut image = white_rgba(128, 128);
         draw_rect(&mut image, 128, 0, 0, 127, 127, [0, 0, 0], 2);
@@ -1366,6 +1352,11 @@ mod tests {
             pixel[3] = 255;
         }
         image
+    }
+
+    fn rgb_at(image: &[u8], width: usize, x: usize, y: usize) -> [u8; 3] {
+        let idx = (y * width + x) * 4;
+        [image[idx], image[idx + 1], image[idx + 2]]
     }
 
     #[allow(clippy::too_many_arguments)]
