@@ -151,7 +151,7 @@ mod tests {
             provenance: vec![],
         }];
         let tensor = build_crop_tensor(&features, &proposals, crop_size);
-        assert_eq!(tensor.len(), 1 * 11 * cs * cs);
+        assert_eq!(tensor.len(), proposals.len() * 11 * cs * cs);
         // Channel 9 (xGrid) first row is [-1, -1/3, 1/3, 1].
         let ch9 = &tensor[9 * cs * cs..10 * cs * cs];
         assert!((ch9[0] - (-1.0)).abs() < 1e-6);
