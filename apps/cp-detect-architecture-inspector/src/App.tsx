@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DragEvent as ReactDragEvent, FormEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
-import { Activity, CheckCircle2, CircleDot, GitBranch, ImagePlus, Layers3, ListFilter, Loader2, Play, RefreshCw, SlidersHorizontal } from 'lucide-react';
+import { Activity, CheckCircle2, CircleDot, GitBranch, Grid3x3, ImagePlus, Layers3, ListFilter, Loader2, Play, RefreshCw, SlidersHorizontal } from 'lucide-react';
+import { GalleryView } from './GalleryView';
 import {
   fetchStage1Example,
   fetchStage1Examples,
   fetchStage2Example,
-  fetchStage3Example,
   fetchStage4Example,
   fetchStage5Example,
   fetchStage5bExample,
@@ -25,6 +25,7 @@ import type {
   BoundaryExactizabilityProbe,
   BoundaryContactPrimitive,
   CandidateDecisionRecord,
+  CandidateGraphCreaseCandidate,
   CarrierExactizabilityProbe,
   ExampleRow,
   GtEdgeAuditRecord,
@@ -41,6 +42,7 @@ import type {
   Stage5Response,
   Stage5bResponse,
   Stage6Response,
+  TopologyDiff,
   UploadedInspectorRunBundle,
   VertexRefinerCropDebugResponse,
   VertexExactizabilityProbe,
@@ -135,7 +137,7 @@ const ISSUE_LIST_LIMIT_PER_TYPE = 10;
 const UPLOAD_QUAD_HANDLES: UploadQuadHandle[] = ['top_left', 'top_right', 'bottom_right', 'bottom_left'];
 const DEFAULT_UPLOAD_IMAGE_SIZE = 1024;
 
-type ActiveStage = 'stage0' | 'stage0b' | 'stage1' | 'stage2' | 'stage3' | 'stage4' | 'stage5' | 'stage5b' | 'stage6';
+type ActiveStage = 'stage0' | 'stage0b' | 'stage1' | 'stage2' | 'stage4' | 'stage5' | 'stage5b' | 'stage6';
 type AnyStageResponse = Stage0Response | Stage0bResponse | Stage1Response | Stage2Response | Stage3Response | Stage4Response | Stage5Response | Stage5bResponse | Stage6Response;
 type AuditCategoryId = 'selected' | 'locked' | 'available' | 'conflict' | 'dominated' | 'rejected';
 type CandidateGenerationStrategy =
@@ -194,12 +196,32 @@ function defaultProbeVisibility(): ProbeVisibility {
   };
 }
 
+const URL_SYNC_STAGES: ActiveStage[] = [
+  'stage0',
+  'stage0b',
+  'stage1',
+  'stage2',
+  'stage4',
+  'stage5',
+  'stage5b',
+  'stage6',
+];
+
+function readUrlSample(): string | null {
+  return new URLSearchParams(window.location.search).get('sample');
+}
+
+function readUrlStage(): ActiveStage | null {
+  const stage = new URLSearchParams(window.location.search).get('stage');
+  return stage && (URL_SYNC_STAGES as string[]).includes(stage) ? (stage as ActiveStage) : null;
+}
+
 export function App() {
   const [serverOk, setServerOk] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [examples, setExamples] = useState<ExampleRow[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [activeStage, setActiveStage] = useState<ActiveStage>('stage6');
+  const [selectedId, setSelectedId] = useState<string | null>(() => readUrlSample());
+  const [activeStage, setActiveStage] = useState<ActiveStage>(() => readUrlStage() ?? 'stage6');
   const [threshold, setThreshold] = useState(0.65);
   const [mapSize, setMapSize] = useState(192);
   const [candidateStrategy, setCandidateStrategy] = useState<CandidateGenerationStrategy>('junction-first-v1');
@@ -230,12 +252,16 @@ export function App() {
   const [showCarrierGeometry, setShowCarrierGeometry] = useState(true);
   const [showGroundTruth, setShowGroundTruth] = useState(false);
   const [showLegacyGraph, setShowLegacyGraph] = useState(false);
-  const [showWeakSelected, setShowWeakSelected] = useState(true);
-  const [showStrongSelected, setShowStrongSelected] = useState(true);
   const [showExactBefore, setShowExactBefore] = useState(true);
   const [showExactAfter, setShowExactAfter] = useState(true);
   const [showExactMovement, setShowExactMovement] = useState(true);
   const [showExactFailures, setShowExactFailures] = useState(true);
+  const [showTopologyIssues, setShowTopologyIssues] = useState(true);
+  // Stage 2 candidate-graph controls.
+  const [candidateColorBy, setCandidateColorBy] = useState<'assignment' | 'policy' | 'confidence'>('assignment');
+  const [showCandidateConflicts, setShowCandidateConflicts] = useState(false);
+  const [minCandidateConfidence, setMinCandidateConfidence] = useState(0);
+  const [selectedCandidateId, setSelectedCandidateId] = useState<number | null>(null);
   const [auditVisibility, setAuditVisibility] = useState<Record<AuditCategoryId, boolean>>({
     selected: true,
     locked: true,
@@ -261,6 +287,9 @@ export function App() {
   const [highlightedV3RawId, setHighlightedV3RawId] = useState<number | null>(null);
   const [highlightedV3MergedId, setHighlightedV3MergedId] = useState<number | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
+  // The gallery grid is the default landing view; opening a sample (or starting
+  // an upload) switches to the per-stage inspector.
+  const [view, setView] = useState<'gallery' | 'inspector'>(() => (readUrlSample() ? 'inspector' : 'gallery'));
   const [dataMode, setDataMode] = useState<DataMode>('samples');
   const [uploadSource, setUploadSource] = useState<UploadSourceImage | null>(null);
   const [uploadQuad, setUploadQuad] = useState<UploadQuad | null>(null);
@@ -326,8 +355,6 @@ export function App() {
       setShowCarrierGeometry(true);
       setShowGroundTruth(true);
       setShowLegacyGraph(false);
-      setShowWeakSelected(true);
-      setShowStrongSelected(true);
       setAuditVisibility({
         selected: true,
         locked: true,
@@ -364,19 +391,6 @@ export function App() {
       setShowCarrierGeometry(true);
       setShowGroundTruth(false);
       setProbeVisibility(defaultProbeVisibility());
-    } else if (activeStage === 'stage3') {
-      setShowLines(false);
-      setShowSharedCarriers(false);
-      setShowAtomicEdges(false);
-      setShowSelectedEdges(true);
-      setShowUndecidedEdges(false);
-      setShowRejectedEdges(false);
-      setShowJunctions(true);
-      setShowContacts(true);
-      setShowLineEndpoints(false);
-      setShowInferredCrossings(false);
-      setShowCarrierGeometry(true);
-      setShowGroundTruth(false);
     } else if (activeStage === 'stage2') {
       setShowLines(true);
       setShowSharedCarriers(true);
@@ -411,6 +425,30 @@ export function App() {
       setActiveStage('stage1');
     }
   }, [activeStage, dataMode]);
+
+  // Clear the Stage 2 candidate drill-down when the sample or stage changes.
+  useEffect(() => {
+    setSelectedCandidateId(null);
+  }, [selectedId, activeStage]);
+
+  // Keep the URL in sync with the selected sample + stage so it can be copied
+  // and reopened (e.g. to point at a specific example).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (view === 'inspector' && dataMode === 'samples' && selectedId) {
+      params.set('sample', selectedId);
+      params.set('stage', activeStage);
+    } else {
+      params.delete('sample');
+      params.delete('stage');
+    }
+    const query = params.toString();
+    window.history.replaceState(
+      null,
+      '',
+      `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`,
+    );
+  }, [view, dataMode, selectedId, activeStage]);
 
   useEffect(() => {
     setSelectedV3CropIndex(0);
@@ -472,8 +510,6 @@ export function App() {
         ? fetchStage5Example(selectedId, queryControls)
         : activeStage === 'stage4'
         ? fetchStage4Example(selectedId, queryControls)
-        : activeStage === 'stage3'
-        ? fetchStage3Example(selectedId, queryControls)
         : activeStage === 'stage2'
           ? fetchStage2Example(selectedId, queryControls)
           : fetchStage1Example(selectedId, queryControls);
@@ -496,6 +532,8 @@ export function App() {
   }, [selectedId, activeStage, dataMode, queryControls, reloadToken]);
 
   const currentStage = dataMode === 'upload' ? uploadRun?.stages[activeStage as keyof UploadedInspectorRunBundle['stages']] ?? null : stage;
+  const currentTopology = stageTopology(currentStage);
+  const topologyOverlay = showTopologyIssues ? currentTopology : null;
   const stage0b = activeStage === 'stage0b' && isStage0b(currentStage) ? currentStage : null;
 
   useEffect(() => {
@@ -750,12 +788,35 @@ export function App() {
           <p className="eyebrow">Ori Studio</p>
           <h1>CP Detection Architecture Inspector</h1>
         </div>
-        <div className={serverOk ? 'server-pill ok' : 'server-pill error'}>
-          <Activity size={16} />
-          <span>{serverOk ? 'Rust backend connected' : 'Backend unavailable'}</span>
+        <div className="app-header-actions">
+          {view === 'inspector' ? (
+            <button className="gallery-back" onClick={() => setView('gallery')}>
+              <Grid3x3 size={15} />
+              Gallery
+            </button>
+          ) : null}
+          <div className={serverOk ? 'server-pill ok' : 'server-pill error'}>
+            <Activity size={16} />
+            <span>{serverOk ? 'Rust backend connected' : 'Backend unavailable'}</span>
+          </div>
         </div>
       </header>
 
+      {view === 'gallery' ? (
+        <GalleryView
+          examples={examples}
+          selectedId={selectedId}
+          onOpen={(id) => {
+            setSelectedId(id);
+            setDataMode('samples');
+            setView('inspector');
+          }}
+          onUpload={() => {
+            setDataMode('upload');
+            setView('inspector');
+          }}
+        />
+      ) : (
       <main className="workspace">
         <aside className="sample-panel">
           <div className="sample-panel-header">
@@ -890,10 +951,9 @@ export function App() {
                 {dataMode === 'upload' ? <option value="stage0">Stage 0: raw dense outputs</option> : null}
                 {dataMode === 'upload' && uploadRun?.stages.stage0b ? <option value="stage0b">Stage 0b: V3 crop refiner</option> : null}
                 <option value="stage1">Stage 1: dense evidence</option>
-                <option value="stage2">Stage 2: candidate arrangement</option>
-                <option value="stage3">Stage 3: weighted selection</option>
+                <option value="stage2">Stage 2: candidate generation</option>
                 <option value="stage4">Stage 4: exactizability probes</option>
-                <option value="stage5">Stage 5: beam selection</option>
+                <option value="stage5">Stage 5: beam vs ground truth</option>
                 <option value="stage5b">Stage 5b: decision audit</option>
                 <option value="stage6">Stage 6: exact solve</option>
               </select>
@@ -1109,7 +1169,7 @@ export function App() {
                 value={stage5?.ground_truth ? `${stage5.ground_truth.vertices_px.length} V / ${stage5.ground_truth.edges_vertices.length} E` : 'none'}
               />
               <Metric
-                label="legacy graph"
+                label="product decode"
                 value={stage5?.legacy_graph ? `${stage5.legacy_graph.vertices_px.length} V / ${stage5.legacy_graph.edges_vertices.length} E` : 'none'}
               />
             </section>
@@ -1130,30 +1190,13 @@ export function App() {
                 value={isStage4(currentStage) ? currentStage.exactizability.summary.max_carrier_endpoint_move.toFixed(4) : '...'}
               />
             </section>
-          ) : activeStage === 'stage3' ? (
-            <section className="summary-grid">
-              <Metric label="selected edges" value={isStage3(currentStage) ? currentStage.selection.report.selected_edges : '...'} />
-              <Metric label="undecided edges" value={isStage3(currentStage) ? currentStage.selection.report.undecided_edges : '...'} />
-              <Metric label="weak promoted" value={isStage3(currentStage) ? currentStage.selection.report.weak_edges_promoted : '...'} />
-              <Metric label="odd vertices" value={isStage3(currentStage) ? currentStage.selection.report.odd_degree_vertices : '...'} />
-              <Metric
-                label="total score"
-                value={isStage3(currentStage) ? currentStage.selection.report.total_score.toFixed(1) : '...'}
-              />
-            </section>
           ) : activeStage === 'stage2' ? (
             <section className="summary-grid">
-              <Metric label="observed carriers" value={hasArrangement(currentStage) ? currentStage.arrangement.report.observed_carriers : '...'} />
-              <Metric
-                label="shared alternatives"
-                value={hasArrangement(currentStage) ? currentStage.arrangement.report.shared_carrier_alternatives : '...'}
-              />
-              <Metric label="observed junctions" value={hasArrangement(currentStage) ? currentStage.arrangement.report.observed_junctions : '...'} />
-              <Metric label="inferred crossings" value={hasArrangement(currentStage) ? currentStage.arrangement.report.carrier_intersections : '...'} />
-              <Metric
-                label="suppressed crossings"
-                value={hasArrangement(currentStage) ? currentStage.arrangement.report.suppressed_carrier_intersections : '...'}
-              />
+              <Metric label="crease candidates" value={isStage2(currentStage) ? currentStage.candidate_graph.report.crease_candidates : '...'} />
+              <Metric label="graph vertices" value={isStage2(currentStage) ? currentStage.candidate_graph.report.vertices : '...'} />
+              <Metric label="locked border spans" value={isStage2(currentStage) ? currentStage.candidate_graph.report.locked_border_spans : '...'} />
+              <Metric label="conflicts" value={isStage2(currentStage) ? currentStage.candidate_graph.report.conflicts : '...'} />
+              <Metric label="strategy" value={isStage2(currentStage) ? currentStage.candidate_strategy : '...'} />
             </section>
           ) : activeStage === 'stage0b' && stage0b ? (
             <section className="summary-grid">
@@ -1219,10 +1262,8 @@ export function App() {
                         ? 'Exact Solve Before / After'
                       : activeStage === 'stage4'
                       ? 'Input + Exactizability Probes'
-                      : activeStage === 'stage3'
-                      ? 'Input + Weighted Selection'
                       : activeStage === 'stage2'
-                      ? 'Input + Candidate Arrangement'
+                      ? 'Predicted vs Ground Truth'
                       : activeStage === 'stage0b'
                         ? 'V3 Crop Refiner'
                         : activeStage === 'stage0'
@@ -1230,6 +1271,22 @@ export function App() {
                         : 'Input + Stage 1 Primitives'
                   }
                 />
+                {currentTopology ? (
+                  <TopologyBadge
+                    topology={currentTopology}
+                    exactLabel={activeStage === 'stage2' ? 'all creases covered' : 'exact topology'}
+                  />
+                ) : null}
+                {currentTopology ? (
+                  <label className="topology-toggle">
+                    <input
+                      type="checkbox"
+                      checked={showTopologyIssues}
+                      onChange={(event) => setShowTopologyIssues(event.target.checked)}
+                    />
+                    topology issues
+                  </label>
+                ) : null}
                 {activeStage === 'stage0b' ? (
                   <div className="toggle-row">
                     <label>
@@ -1316,15 +1373,7 @@ export function App() {
                     ) : null}
                     <label>
                       <input checked={showLegacyGraph} onChange={(event) => setShowLegacyGraph(event.target.checked)} type="checkbox" />
-                      legacy graph
-                    </label>
-                    <label>
-                      <input checked={showWeakSelected} onChange={(event) => setShowWeakSelected(event.target.checked)} type="checkbox" />
-                      weak selected{stage5b ? ` (${stage5b.decision_audit.candidates.filter(isWeakSelectedCandidate).length})` : ''}
-                    </label>
-                    <label>
-                      <input checked={showStrongSelected} onChange={(event) => setShowStrongSelected(event.target.checked)} type="checkbox" />
-                      strong selected{stage5b ? ` (${stage5b.decision_audit.candidates.filter(isStrongSelectedCandidate).length})` : ''}
+                      product decode
                     </label>
                   </div>
                 ) : activeStage === 'stage5' ? (
@@ -1353,7 +1402,7 @@ export function App() {
                         checked={showLegacyGraph}
                         onChange={(event) => setShowLegacyGraph(event.target.checked)}
                       />
-                      legacy graph
+                      product decode
                     </label>
                     <label>
                       <input
@@ -1364,109 +1413,55 @@ export function App() {
                       atomic provenance
                     </label>
                   </div>
-                ) : activeStage !== 'stage4' ? (
+                ) : activeStage === 'stage2' ? (
                   <div className="toggle-row">
-                  <label>
-                    <input type="checkbox" checked={showLines} onChange={(event) => setShowLines(event.target.checked)} />
-                    {activeStage !== 'stage1' ? 'observed carriers' : 'lines'}
-                  </label>
-                  {activeStage !== 'stage1' ? (
                     <label>
-                      <input
-                        type="checkbox"
-                        checked={showSharedCarriers}
-                        onChange={(event) => setShowSharedCarriers(event.target.checked)}
-                      />
-                      shared alternatives
+                      <input type="checkbox" checked={showLines} onChange={(event) => setShowLines(event.target.checked)} />
+                      candidates
                     </label>
-                  ) : null}
-                  {activeStage === 'stage2' ? (
                     <label>
-                      <input
-                        type="checkbox"
-                        checked={showAtomicEdges}
-                        onChange={(event) => setShowAtomicEdges(event.target.checked)}
-                      />
-                      atomic intervals
+                      <input type="checkbox" checked={showJunctions} onChange={(event) => setShowJunctions(event.target.checked)} />
+                      junctions
                     </label>
-                  ) : null}
-                  {activeStage === 'stage3' ? (
                     <label>
-                      <input
-                        type="checkbox"
-                        checked={showCarrierGeometry}
-                        onChange={(event) => setShowCarrierGeometry(event.target.checked)}
-                      />
-                      carrier geometry
+                      <input type="checkbox" checked={showCandidateConflicts} onChange={(event) => setShowCandidateConflicts(event.target.checked)} />
+                      conflicts
                     </label>
-                  ) : null}
-                  {activeStage === 'stage3' ? (
+                    <label className="control-inline">
+                      color by
+                      <select value={candidateColorBy} onChange={(event) => setCandidateColorBy(event.target.value as CandidateColorBy)}>
+                        <option value="assignment">assignment</option>
+                        <option value="policy">selection policy</option>
+                        <option value="confidence">confidence</option>
+                      </select>
+                    </label>
+                    <label className="control-inline">
+                      min conf {minCandidateConfidence.toFixed(2)}
+                      <input
+                        type="range"
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        value={minCandidateConfidence}
+                        onChange={(event) => setMinCandidateConfidence(Number(event.target.value))}
+                      />
+                    </label>
+                  </div>
+                ) : activeStage === 'stage1' ? (
+                  <div className="toggle-row">
                     <label>
-                      <input
-                        type="checkbox"
-                        checked={showSelectedEdges}
-                        onChange={(event) => setShowSelectedEdges(event.target.checked)}
-                      />
-                      selected
+                      <input type="checkbox" checked={showLines} onChange={(event) => setShowLines(event.target.checked)} />
+                      lines
                     </label>
-                  ) : null}
-                  {activeStage === 'stage3' ? (
                     <label>
-                      <input
-                        type="checkbox"
-                        checked={showUndecidedEdges}
-                        onChange={(event) => setShowUndecidedEdges(event.target.checked)}
-                      />
-                      undecided
+                      <input type="checkbox" checked={showJunctions} onChange={(event) => setShowJunctions(event.target.checked)} />
+                      junctions
                     </label>
-                  ) : null}
-                  {activeStage === 'stage3' ? (
                     <label>
-                      <input
-                        type="checkbox"
-                        checked={showRejectedEdges}
-                        onChange={(event) => setShowRejectedEdges(event.target.checked)}
-                      />
-                      rejected
+                      <input type="checkbox" checked={showContacts} onChange={(event) => setShowContacts(event.target.checked)} />
+                      contacts
                     </label>
-                  ) : null}
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={showJunctions}
-                      onChange={(event) => setShowJunctions(event.target.checked)}
-                    />
-                    {activeStage !== 'stage1' ? 'observed junctions' : 'junctions'}
-                  </label>
-                  {activeStage !== 'stage1' ? (
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={showLineEndpoints}
-                        onChange={(event) => setShowLineEndpoints(event.target.checked)}
-                      />
-                      endpoints
-                    </label>
-                  ) : null}
-                  {activeStage === 'stage2' ? (
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={showInferredCrossings}
-                        onChange={(event) => setShowInferredCrossings(event.target.checked)}
-                      />
-                      inferred crossings
-                    </label>
-                  ) : null}
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={showContacts}
-                      onChange={(event) => setShowContacts(event.target.checked)}
-                    />
-                    contacts
-                  </label>
-                </div>
+                  </div>
                 ) : null}
               </div>
               {stage0b ? (
@@ -1489,6 +1484,7 @@ export function App() {
                   showFailures={showExactFailures}
                   showGroundTruth={showGroundTruth}
                   showMovement={showExactMovement}
+                  topology={topologyOverlay}
                   stage={currentStage}
                 />
               ) : isStage5b(currentStage) ? (
@@ -1497,8 +1493,7 @@ export function App() {
                   selectedTarget={selectedAuditTarget}
                   showGroundTruth={showGroundTruth}
                   showLegacyGraph={showLegacyGraph}
-                  showStrongSelected={showStrongSelected}
-                  showWeakSelected={showWeakSelected}
+                  topology={topologyOverlay}
                   stage={currentStage}
                   onSelectTarget={setSelectedAuditTarget}
                 />
@@ -1520,8 +1515,37 @@ export function App() {
                   showUndecidedEdges={showUndecidedEdges}
                   probeVisibility={probeVisibility}
                   selectedStage4Issue={selectedStage4Issue}
+                  topology={topologyOverlay}
                   stage={currentStage}
                 />
+              ) : isStage2(currentStage) ? (
+                <div className="viewer-compare">
+                  <div className="viewer-compare-cell">
+                    <span className="viewer-compare-label">Predicted candidates</span>
+                    <CandidateGraphViewer
+                      backgroundMap={backgroundMap}
+                      showJunctions={showJunctions}
+                      showLines={showLines}
+                      showConflicts={showCandidateConflicts}
+                      colorBy={candidateColorBy}
+                      minConfidence={minCandidateConfidence}
+                      selectedCandidateId={selectedCandidateId}
+                      onSelectCandidate={setSelectedCandidateId}
+                      topology={null}
+                      stage={currentStage}
+                    />
+                  </div>
+                  {currentStage.ground_truth ? (
+                    <div className="viewer-compare-cell">
+                      <span className="viewer-compare-label">Ground truth</span>
+                      <Stage2GroundTruthPanel
+                        graph={currentStage.ground_truth}
+                        imageSize={currentStage.config.image_size}
+                        inputImageUrl={currentStage.sample.input_image_url}
+                      />
+                    </div>
+                  ) : null}
+                </div>
               ) : hasArrangement(currentStage) ? (
                 <ArrangementViewer
                   backgroundMap={backgroundMap}
@@ -1616,12 +1640,13 @@ export function App() {
                   </button>
                 ))}
               </div>
-              {isStage3(currentStage) ? <Stage3LayerSummary stage={currentStage} /> : hasArrangement(currentStage) ? <Stage2LayerSummary stage={currentStage} /> : isStage0(currentStage) ? <RawDenseSummary stage={currentStage} /> : null}
+              {isStage3(currentStage) ? <Stage3LayerSummary stage={currentStage} /> : isStage2(currentStage) ? (selectedCandidateId !== null ? <CandidateDetailPanel stage={currentStage} candidateId={selectedCandidateId} onClose={() => setSelectedCandidateId(null)} /> : <Stage2CandidateSummary stage={currentStage} />) : hasArrangement(currentStage) ? <Stage2LayerSummary stage={currentStage} /> : isStage0(currentStage) ? <RawDenseSummary stage={currentStage} /> : null}
             </aside>
             )}
           </section>
         </section>
       </main>
+      )}
     </div>
   );
 }
@@ -1640,6 +1665,11 @@ function isStage1(stage: AnyStageResponse | null): stage is Stage1Response {
 
 function hasArrangement(stage: AnyStageResponse | null): stage is Stage2Response | Stage3Response | Stage4Response | Stage5Response | Stage6Response {
   return Boolean(stage && 'arrangement' in stage);
+}
+
+// Stage 2 only: the candidate graph is present but selection has not run yet.
+function isStage2(stage: AnyStageResponse | null): stage is Stage2Response {
+  return Boolean(stage && 'candidate_graph' in stage && !('selection' in stage));
 }
 
 function isStage3(stage: AnyStageResponse | null): stage is Stage3Response | Stage4Response | Stage5Response | Stage6Response {
@@ -2507,6 +2537,412 @@ function ArrangementViewer({
   );
 }
 
+// Active stage's topology diff vs GT: candidate recall on stage 2, selected-graph
+// diff on stages 3-6. Null when the sample has no ground truth (uploads).
+function stageTopology(stage: AnyStageResponse | null): TopologyDiff | null {
+  if (!stage) return null;
+  if (isStage2(stage)) return stage.candidate_topology ?? null;
+  if ('topology' in stage) return (stage as { topology?: TopologyDiff | null }).topology ?? null;
+  return null;
+}
+
+const TOPOLOGY_OVERLAY_EDGE_CAP = 4000;
+
+// SVG group (pixel coordinates, embedded in a viewer's image-size viewBox) that
+// makes topology problems visible at a glance: missing GT creases, spurious
+// predictions, and wrong assignments.
+function TopologyIssuesLayer({ topology }: { topology: TopologyDiff }) {
+  const missing = topology.missing_edges.slice(0, TOPOLOGY_OVERLAY_EDGE_CAP);
+  const extra = topology.extra_edges.slice(0, TOPOLOGY_OVERLAY_EDGE_CAP);
+  return (
+    <g className="topology-issues-layer">
+      {missing.map((edge, index) => (
+        <line className="topology-missing" key={`miss-${index}`} x1={edge.a[0]} y1={edge.a[1]} x2={edge.b[0]} y2={edge.b[1]} />
+      ))}
+      {extra.map((edge, index) => (
+        <line className="topology-extra" key={`extra-${index}`} x1={edge.a[0]} y1={edge.a[1]} x2={edge.b[0]} y2={edge.b[1]} />
+      ))}
+      {topology.wrong_assignment_edges.map((edge, index) => (
+        <line className="topology-wrong" key={`wrong-${index}`} x1={edge.a[0]} y1={edge.a[1]} x2={edge.b[0]} y2={edge.b[1]} />
+      ))}
+    </g>
+  );
+}
+
+function TopologyBadge({ topology, exactLabel }: { topology: TopologyDiff; exactLabel: string }) {
+  const { missing, extra, wrong_assignment } = topology.counts;
+  const clean = missing === 0 && extra === 0 && wrong_assignment === 0;
+  if (clean) {
+    return <span className="topology-badge ok">✓ {exactLabel}</span>;
+  }
+  return (
+    <span className="topology-badge issues">
+      {missing > 0 ? <span>{missing} missing</span> : null}
+      {extra > 0 ? <span>{extra} extra</span> : null}
+      {wrong_assignment > 0 ? <span>{wrong_assignment} wrong</span> : null}
+    </span>
+  );
+}
+
+function candidateLabelColor(label: string): string {
+  switch (label) {
+    case 'mountain':
+      return '#dc2626';
+    case 'valley':
+      return '#2563eb';
+    case 'boundary':
+      return '#1f2937';
+    case 'flat':
+      return '#0f766e';
+    default:
+      return '#94a3b8';
+  }
+}
+
+function gtAssignmentColor(label: string): string {
+  switch (label.toUpperCase()) {
+    case 'M':
+      return '#dc2626';
+    case 'V':
+      return '#2563eb';
+    case 'B':
+      return '#1f2937';
+    default:
+      return '#94a3b8';
+  }
+}
+
+// Ground-truth crease pattern (pixel coordinates) for the Stage 2 side-by-side.
+function Stage2GroundTruthPanel({
+  graph,
+  imageSize,
+  inputImageUrl,
+}: {
+  graph: GroundTruthGraph;
+  imageSize: number;
+  inputImageUrl: string;
+}) {
+  return (
+    <div className="viewer-canvas">
+      <img alt="" className="input-image" src={inputImageUrl} />
+      <svg
+        className="primitive-overlay arrangement-overlay"
+        viewBox={`0 0 ${imageSize} ${imageSize}`}
+        role="img"
+        aria-label="Ground truth crease pattern"
+      >
+        {graph.edges_vertices.map((edge, index) => {
+          const a = graph.vertices_px[edge[0]];
+          const b = graph.vertices_px[edge[1]];
+          if (!a || !b) return null;
+          const label = graph.edges_assignment_labels?.[index] ?? 'U';
+          return (
+            <line
+              key={index}
+              x1={a[0]}
+              y1={a[1]}
+              x2={b[0]}
+              y2={b[1]}
+              stroke={gtAssignmentColor(label)}
+              strokeWidth={2}
+            />
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+type CandidateColorBy = 'assignment' | 'policy' | 'confidence';
+
+// green (1.0) -> amber -> red (0.0) by presence probability.
+function confidenceColor(probability: number): string {
+  const p = Math.max(0, Math.min(1, probability));
+  if (p >= 0.66) return '#16a34a';
+  if (p >= 0.33) return '#f59e0b';
+  return '#dc2626';
+}
+
+function candidateStroke(
+  candidate: CandidateGraphCreaseCandidate,
+  colorBy: CandidateColorBy,
+): string {
+  if (colorBy === 'assignment') return candidateLabelColor(candidate.assignment_evidence.observed_label);
+  if (colorBy === 'policy') return candidate.selection_policy.toLowerCase() === 'locked' ? '#1f2937' : '#7c3aed';
+  return confidenceColor(candidate.presence_probability);
+}
+
+// Stage 2 renders the production junction-first candidate graph (IR) — the
+// crease candidates `generate_candidate_graph` emits and that beam selection
+// consumes — not the legacy arrangement. Candidates can be coloured by
+// assignment / selection policy / confidence, filtered by a confidence floor,
+// and clicked to inspect their evidence; conflicts between mutually-exclusive
+// candidates can be overlaid.
+function CandidateGraphViewer({
+  backgroundMap,
+  showLines,
+  showJunctions,
+  showConflicts,
+  colorBy,
+  minConfidence,
+  selectedCandidateId,
+  onSelectCandidate,
+  topology,
+  stage,
+}: {
+  backgroundMap: MapPayload | null;
+  showLines: boolean;
+  showJunctions: boolean;
+  showConflicts: boolean;
+  colorBy: CandidateColorBy;
+  minConfidence: number;
+  selectedCandidateId: number | null;
+  onSelectCandidate: (id: number | null) => void;
+  topology: TopologyDiff | null;
+  stage: Stage2Response;
+}) {
+  const size = stage.config.image_size;
+  const frame = stage.overlay_frame_px;
+  const graph = stage.candidate_graph;
+  const vertexById = useMemo(() => {
+    const values = new Map<number, (typeof graph.vertices)[number]>();
+    for (const vertex of graph.vertices) values.set(vertex.id, vertex);
+    return values;
+  }, [graph.vertices]);
+  const candidateById = useMemo(() => {
+    const values = new Map<number, CandidateGraphCreaseCandidate>();
+    for (const candidate of graph.crease_candidates) values.set(candidate.id, candidate);
+    return values;
+  }, [graph.crease_candidates]);
+  const toPx = (point: { x: number; y: number }) => ({
+    x: frame.x_min + point.x * (frame.x_max - frame.x_min),
+    y: frame.y_min + point.y * (frame.y_max - frame.y_min),
+  });
+  const candidateMidpoint = (candidate: CandidateGraphCreaseCandidate) => {
+    const a = vertexById.get(candidate.vertices[0]);
+    const b = vertexById.get(candidate.vertices[1]);
+    if (!a || !b) return null;
+    const pa = toPx(a.point);
+    const pb = toPx(b.point);
+    return { x: (pa.x + pb.x) / 2, y: (pa.y + pb.y) / 2 };
+  };
+  return (
+    <div className="viewer-canvas">
+      {backgroundMap ? (
+        <Heatmap map={backgroundMap} mode="background" />
+      ) : (
+        <img alt="" className="input-image" src={stage.sample.input_image_url} />
+      )}
+      <svg
+        className="primitive-overlay arrangement-overlay"
+        viewBox={`0 0 ${size} ${size}`}
+        role="img"
+        aria-label="Stage 2 candidate generation"
+      >
+        {showConflicts
+          ? graph.conflicts.flatMap((conflict) => {
+              const points = conflict.candidate_ids
+                .map((id) => candidateById.get(id))
+                .filter((candidate): candidate is CandidateGraphCreaseCandidate => Boolean(candidate))
+                .map(candidateMidpoint)
+                .filter((point): point is { x: number; y: number } => Boolean(point));
+              const links = [];
+              for (let index = 1; index < points.length; index += 1) {
+                links.push(
+                  <line
+                    className="candidate-conflict-link"
+                    key={`conflict-${conflict.id}-${index}`}
+                    x1={points[0].x}
+                    y1={points[0].y}
+                    x2={points[index].x}
+                    y2={points[index].y}
+                  />,
+                );
+              }
+              return links;
+            })
+          : null}
+        {showLines
+          ? graph.crease_candidates
+              .filter((candidate) => candidate.presence_probability >= minConfidence)
+              .map((candidate) => {
+                const a = vertexById.get(candidate.vertices[0]);
+                const b = vertexById.get(candidate.vertices[1]);
+                if (!a || !b) return null;
+                const pa = toPx(a.point);
+                const pb = toPx(b.point);
+                const locked = candidate.selection_policy.toLowerCase() === 'locked';
+                const selected = candidate.id === selectedCandidateId;
+                return (
+                  <line
+                    key={candidate.id}
+                    x1={pa.x}
+                    y1={pa.y}
+                    x2={pb.x}
+                    y2={pb.y}
+                    stroke={selected ? '#0ea5e9' : candidateStroke(candidate, colorBy)}
+                    strokeWidth={selected ? 5 : locked ? 3 : 2}
+                    strokeDasharray={colorBy === 'policy' && !locked ? '7 5' : undefined}
+                    strokeOpacity={
+                      colorBy === 'confidence'
+                        ? 1
+                        : Math.max(0.3, Math.min(1, candidate.presence_probability))
+                    }
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => onSelectCandidate(selected ? null : candidate.id)}
+                  />
+                );
+              })
+          : null}
+        {showJunctions
+          ? graph.vertices
+              .filter((vertex) => vertex.kind.includes('junction'))
+              .map((vertex) => {
+                const point = toPx(vertex.point);
+                return (
+                  <circle
+                    key={vertex.id}
+                    cx={point.x}
+                    cy={point.y}
+                    r={4}
+                    fill="#0f766e"
+                    stroke="#ffffff"
+                    strokeWidth={1}
+                  />
+                );
+              })
+          : null}
+        {topology ? <TopologyIssuesLayer topology={topology} /> : null}
+      </svg>
+    </div>
+  );
+}
+
+function Stage2CandidateSummary({ stage }: { stage: Stage2Response }) {
+  const graph = stage.candidate_graph;
+  const report = graph.report;
+  const locked = graph.crease_candidates.filter(
+    (candidate) => candidate.selection_policy.toLowerCase() === 'locked',
+  ).length;
+  const optional = graph.crease_candidates.length - locked;
+  const labelCounts = graph.crease_candidates.reduce<Record<string, number>>((acc, candidate) => {
+    const label = candidate.assignment_evidence.observed_label;
+    acc[label] = (acc[label] ?? 0) + 1;
+    return acc;
+  }, {});
+  return (
+    <div className="hypothesis-panel">
+      <PanelTitle icon={<GitBranch size={17} />} title="Stage 2 Candidate Generation" />
+      <LayerRow color="#0f766e" label="Crease candidates" value={report.crease_candidates} note="junction-first IR spans fed to beam selection" />
+      <LayerRow color="#1f2937" label="Locked (border)" value={locked} note="always selected (paper boundary / locked spans)" />
+      <LayerRow color="#7c3aed" label="Optional" value={optional} note="beam decides these by score and conflicts" />
+      <LayerRow color="#9333ea" label="Graph vertices" value={report.vertices} note="junctions + paper corners in the IR" />
+      <LayerRow color="#ef4444" label="Conflicts" value={report.conflicts} note="mutually-exclusive candidate pairs" />
+      <div className="hypothesis-divider" />
+      <PanelTitle icon={<GitBranch size={17} />} title="Assignment" />
+      {Object.entries(labelCounts).map(([label, count]) => (
+        <div className="hypothesis-row" key={label}>
+          <span>{label}</span>
+          <strong>{count}</strong>
+        </div>
+      ))}
+      <p>
+        Stage 2 is the production junction-first candidate graph ({graph.provenance.source_adapter}).
+        Stage 3 runs exactizability-aware beam selection over these candidates.
+      </p>
+    </div>
+  );
+}
+
+// Per-candidate evidence drill-down (click a candidate in the Stage 2 viewer).
+function CandidateDetailPanel({
+  stage,
+  candidateId,
+  onClose,
+}: {
+  stage: Stage2Response;
+  candidateId: number;
+  onClose: () => void;
+}) {
+  const candidate = stage.candidate_graph.crease_candidates.find((item) => item.id === candidateId);
+  if (!candidate) {
+    return (
+      <div className="hypothesis-panel">
+        <PanelTitle icon={<GitBranch size={17} />} title="Candidate" />
+        <p>Candidate {candidateId} is no longer present.</p>
+        <button className="candidate-detail-close" onClick={onClose}>
+          Back to summary
+        </button>
+      </div>
+    );
+  }
+  const evidence = candidate.assignment_evidence;
+  const conflicts = stage.candidate_graph.conflicts.filter((conflict) => conflict.candidate_ids.includes(candidateId));
+  const votes: [string, number][] = [
+    ['mountain', evidence.mountain],
+    ['valley', evidence.valley],
+    ['boundary', evidence.boundary],
+    ['auxiliary', evidence.auxiliary],
+    ['unknown', evidence.unknown],
+  ];
+  return (
+    <div className="hypothesis-panel">
+      <div className="candidate-detail-header">
+        <PanelTitle icon={<GitBranch size={17} />} title={`Candidate #${candidate.id}`} />
+        <button className="candidate-detail-close" onClick={onClose}>
+          ✕
+        </button>
+      </div>
+      <div className="selection-status-row">
+        <span>
+          <span className="layer-swatch" style={{ background: candidateLabelColor(evidence.observed_label) }} /> assignment
+        </span>
+        <strong>{evidence.observed_label}</strong>
+      </div>
+      <div className="candidate-detail-note">
+        confidence {evidence.confidence.toFixed(2)} · margin {evidence.margin.toFixed(2)} · {evidence.source}
+      </div>
+      <div className="selection-status-row">
+        <span>selection policy</span>
+        <strong>{candidate.selection_policy}</strong>
+      </div>
+      <div className="candidate-detail-note">source: {candidate.source_kind}</div>
+      <div className="hypothesis-divider" />
+      <div className="selection-status-row">
+        <span>presence probability</span>
+        <strong>{candidate.presence_probability.toFixed(3)}</strong>
+      </div>
+      <div className="selection-status-row">
+        <span>line support (min/mean/max)</span>
+        <strong>
+          {candidate.line_support_min.toFixed(2)} / {candidate.line_support_mean.toFixed(2)} / {candidate.line_support_max.toFixed(2)}
+        </strong>
+      </div>
+      <div className="selection-status-row">
+        <span>style support</span>
+        <strong>{candidate.style_support.toFixed(2)}</strong>
+      </div>
+      <div className="selection-status-row">
+        <span>non-crease support</span>
+        <strong>{candidate.non_crease_support.toFixed(2)}</strong>
+      </div>
+      <div className="hypothesis-divider" />
+      <PanelTitle icon={<GitBranch size={17} />} title="Assignment votes" />
+      {votes.map(([label, value]) => (
+        <div className="hypothesis-row" key={label}>
+          <span>{label}</span>
+          <strong>{value.toFixed(2)}</strong>
+        </div>
+      ))}
+      <div className="hypothesis-divider" />
+      <div className="selection-status-row">
+        <span>conflicts</span>
+        <strong>{conflicts.length}</strong>
+      </div>
+    </div>
+  );
+}
+
 function SelectionViewer({
   backgroundMap,
   showCarrierGeometry,
@@ -2524,6 +2960,7 @@ function SelectionViewer({
   showSharedCarriers,
   showUndecidedEdges,
   selectedStage4Issue,
+  topology,
   stage,
 }: {
   backgroundMap: MapPayload | null;
@@ -2542,6 +2979,7 @@ function SelectionViewer({
   showSharedCarriers: boolean;
   showUndecidedEdges: boolean;
   selectedStage4Issue: Stage4Issue | null;
+  topology: TopologyDiff | null;
   stage: Stage3Response | Stage4Response | Stage5Response;
 }) {
   const verticesById = useMemo(() => {
@@ -2615,7 +3053,7 @@ function SelectionViewer({
         className="primitive-overlay arrangement-overlay"
         viewBox={`0 0 ${size} ${size}`}
         role="img"
-        aria-label={stage4Active ? 'Stage 4 exactizability probes' : isStage5(stage) ? 'Stage 5 selected graph' : 'Stage 3 weighted selection'}
+        aria-label={stage4Active ? 'Stage 4 exactizability probes' : isStage5(stage) ? 'Stage 5 selected graph' : 'Beam selection'}
       >
         {showGroundTruth && isStage5(stage) && stage.ground_truth ? (
           <GroundTruthGraphView graph={stage.ground_truth} />
@@ -2710,6 +3148,7 @@ function SelectionViewer({
             verticesById={verticesById}
           />
         ) : null}
+        {topology ? <TopologyIssuesLayer topology={topology} /> : null}
       </svg>
     </div>
   );
@@ -2721,8 +3160,7 @@ function Stage5bAuditViewer({
   selectedTarget,
   showGroundTruth,
   showLegacyGraph,
-  showStrongSelected,
-  showWeakSelected,
+  topology,
   stage,
 }: {
   auditVisibility: Record<AuditCategoryId, boolean>;
@@ -2730,8 +3168,7 @@ function Stage5bAuditViewer({
   selectedTarget: string | null;
   showGroundTruth: boolean;
   showLegacyGraph: boolean;
-  showStrongSelected: boolean;
-  showWeakSelected: boolean;
+  topology: TopologyDiff | null;
   stage: Stage5bResponse;
 }) {
   const size = stage.config.image_size;
@@ -2739,8 +3176,6 @@ function Stage5bAuditViewer({
   const selectedCandidateId = parsedTarget?.kind === 'span' ? parsedTarget.id : null;
   const selectedGtId = parsedTarget?.kind === 'gt' ? parsedTarget.id : null;
   const visibleCandidates = stage.decision_audit.candidates.filter((candidate) => auditVisibility[auditCategory(candidate)]);
-  const strongSelectedCandidates = showStrongSelected ? stage.decision_audit.candidates.filter(isStrongSelectedCandidate) : [];
-  const weakSelectedCandidates = showWeakSelected ? stage.decision_audit.candidates.filter(isWeakSelectedCandidate) : [];
 
   return (
     <div className="viewer-canvas stage5b-canvas">
@@ -2757,21 +3192,8 @@ function Stage5bAuditViewer({
             onSelect={() => onSelectTarget(`span:${candidate.id}`)}
           />
         ))}
-        {strongSelectedCandidates.map((candidate) => (
-          <Stage5bStrongSelectedHighlight
-            candidate={candidate}
-            frame={stage.overlay_frame_px}
-            key={`strong-selected-${candidate.id}`}
-          />
-        ))}
-        {weakSelectedCandidates.map((candidate) => (
-          <Stage5bWeakSelectedHighlight
-            candidate={candidate}
-            frame={stage.overlay_frame_px}
-            key={`weak-selected-${candidate.id}`}
-          />
-        ))}
         {selectedGtId !== null && stage.ground_truth ? <Stage5bGtEdgeHighlight graph={stage.ground_truth} gtEdgeId={selectedGtId} /> : null}
+        {topology ? <TopologyIssuesLayer topology={topology} /> : null}
       </svg>
     </div>
   );
@@ -2831,83 +3253,6 @@ function Stage5bCandidateView({
           {candidate.score.toFixed(3)}; {candidate.reasons.join('; ')}
         </title>
       </line>
-    </g>
-  );
-}
-
-function Stage5bStrongSelectedHighlight({
-  candidate,
-  frame,
-}: {
-  candidate: CandidateDecisionRecord;
-  frame: Stage2Response['overlay_frame_px'];
-}) {
-  if (!candidate.endpoint_points) return null;
-  const p0 = imagePoint(candidate.endpoint_points[0], frame);
-  const p1 = imagePoint(candidate.endpoint_points[1], frame);
-  return (
-    <g className="audit-strong-selected-highlight" pointerEvents="none">
-      <line
-        stroke="#06b6d4"
-        strokeLinecap="round"
-        strokeOpacity={0.62}
-        strokeWidth={7.5}
-        vectorEffect="non-scaling-stroke"
-        x1={p0.x}
-        x2={p1.x}
-        y1={p0.y}
-        y2={p1.y}
-      />
-      <line
-        stroke="#e0f2fe"
-        strokeLinecap="round"
-        strokeOpacity={0.9}
-        strokeWidth={1.2}
-        vectorEffect="non-scaling-stroke"
-        x1={p0.x}
-        x2={p1.x}
-        y1={p0.y}
-        y2={p1.y}
-      />
-    </g>
-  );
-}
-
-function Stage5bWeakSelectedHighlight({
-  candidate,
-  frame,
-}: {
-  candidate: CandidateDecisionRecord;
-  frame: Stage2Response['overlay_frame_px'];
-}) {
-  if (!candidate.endpoint_points) return null;
-  const p0 = imagePoint(candidate.endpoint_points[0], frame);
-  const p1 = imagePoint(candidate.endpoint_points[1], frame);
-  return (
-    <g className="audit-weak-selected-highlight" pointerEvents="none">
-      <line
-        stroke="#111827"
-        strokeLinecap="round"
-        strokeOpacity={0.78}
-        strokeWidth={5.8}
-        vectorEffect="non-scaling-stroke"
-        x1={p0.x}
-        x2={p1.x}
-        y1={p0.y}
-        y2={p1.y}
-      />
-      <line
-        stroke="#fb923c"
-        strokeDasharray="8 4"
-        strokeLinecap="round"
-        strokeOpacity={0.98}
-        strokeWidth={3.1}
-        vectorEffect="non-scaling-stroke"
-        x1={p0.x}
-        x2={p1.x}
-        y1={p0.y}
-        y2={p1.y}
-      />
     </g>
   );
 }
@@ -3211,6 +3556,7 @@ function ExactSolveViewer({
   showFailures,
   showGroundTruth,
   showMovement,
+  topology,
   stage,
 }: {
   showAfter: boolean;
@@ -3218,6 +3564,7 @@ function ExactSolveViewer({
   showFailures: boolean;
   showGroundTruth: boolean;
   showMovement: boolean;
+  topology: TopologyDiff | null;
   stage: Stage6Response;
 }) {
   const verticesById = useMemo(() => {
@@ -3250,6 +3597,7 @@ function ExactSolveViewer({
         {showAfter ? <ExactSolvedGraphView stage={stage} /> : null}
         {showMovement ? <ExactMovementView stage={stage} /> : null}
         {showFailures ? <ExactFailureVertexView stage={stage} /> : null}
+        {topology ? <TopologyIssuesLayer topology={topology} /> : null}
       </svg>
     </div>
   );
@@ -4183,7 +4531,9 @@ function AuditScoreBreakdown({ breakdown }: { breakdown: NonNullable<CandidateDe
 
 function Stage3LayerSummary({ stage }: { stage: Stage3Response }) {
   const report = stage.selection.report;
-  const isBeamSelection = report.exactizability_evaluated;
+  // Stages 3 and 5 both run the production exactizability-aware beam selection
+  // (select_candidate_graph_beam_from_ir); stage 5 adds the ground-truth overlays.
+  const isStage5 = 'ground_truth' in stage;
   const carriersById = new Map(stage.arrangement.carriers.map((carrier) => [carrier.id, carrier]));
   const selectedScores = stage.selection.edge_scores.filter((score) => score.decision === 'selected');
   const selectedCarrierIds = new Set(selectedScores.map((score) => score.carrier_id));
@@ -4202,7 +4552,7 @@ function Stage3LayerSummary({ stage }: { stage: Stage3Response }) {
     .slice(0, 10);
   return (
     <div className="hypothesis-panel">
-      <PanelTitle icon={<GitBranch size={17} />} title={isBeamSelection ? 'Stage 5 Beam Selection' : 'Stage 3 Selection'} />
+      <PanelTitle icon={<GitBranch size={17} />} title={isStage5 ? 'Stage 5 Beam Selection' : 'Beam Selection'} />
       <LayerRow color="#16a34a" label="Selected edges" value={report.selected_edges} note="atomic intervals chosen for the graph" />
       <LayerRow color="#9333ea" label="Shared selected" value={selectedSharedEdges} note="selected intervals from shared straight carriers" />
       <LayerRow color="#475569" label="Observed selected" value={selectedObservedEdges} note="selected intervals from local observed carriers" />
@@ -4212,37 +4562,29 @@ function Stage3LayerSummary({ stage }: { stage: Stage3Response }) {
       <LayerRow color="#2563eb" label="Weak promoted" value={report.weak_edges_promoted} note="weak evidence selected by topology benefit" />
       <LayerRow color="#9333ea" label="Hypotheses" value={report.selected_hypotheses} note="arrangement hypotheses referenced by selection" />
       <LayerRow color="#ef4444" label="Odd vertices" value={report.odd_degree_vertices} note="remaining local topology warnings" />
-      {isBeamSelection ? (
-        <>
-          <div className="hypothesis-divider" />
-          <PanelTitle icon={<GitBranch size={17} />} title="Structural Edits" />
-          <LayerRow color="#7c3aed" label="Shared replacements" value={report.shared_replacements} note="straight carriers replacing local fragments" />
-          <LayerRow color="#7c3aed" label="Fragments replaced" value={report.local_fragments_replaced} note="local intervals explained by shared carriers" />
-          <LayerRow color="#f59e0b" label="Fragments retained" value={report.local_fragments_retained} note="local intervals kept despite shared alternatives" />
-          <LayerRow color="#0f766e" label="Pass-through vertices" value={report.collapsible_degree_two_vertices} note="degree-2 collinear vertices to collapse later" />
-          <LayerRow color="#dc2626" label="Bad degree-2 vertices" value={report.non_collinear_degree_two_vertices} note="degree-2 pseudo-junction penalties" />
-        </>
-      ) : null}
+      <div className="hypothesis-divider" />
+      <PanelTitle icon={<GitBranch size={17} />} title="Structural Edits" />
+      <LayerRow color="#7c3aed" label="Shared replacements" value={report.shared_replacements} note="straight carriers replacing local fragments" />
+      <LayerRow color="#7c3aed" label="Fragments replaced" value={report.local_fragments_replaced} note="local intervals explained by shared carriers" />
+      <LayerRow color="#f59e0b" label="Fragments retained" value={report.local_fragments_retained} note="local intervals kept despite shared alternatives" />
+      <LayerRow color="#0f766e" label="Pass-through vertices" value={report.collapsible_degree_two_vertices} note="degree-2 collinear vertices to collapse later" />
+      <LayerRow color="#dc2626" label="Bad degree-2 vertices" value={report.non_collinear_degree_two_vertices} note="degree-2 pseudo-junction penalties" />
       <div className="hypothesis-divider" />
       <div className="selection-status-row">
         <span>Total selected score</span>
         <strong>{report.total_score.toFixed(2)}</strong>
       </div>
-      {isBeamSelection ? (
-        <>
-          <div className="selection-status-row">
-            <span>Continuity reward</span>
-            <strong>{report.continuity_reward.toFixed(2)}</strong>
-          </div>
-          <div className="selection-status-row">
-            <span>Structural penalty</span>
-            <strong>{report.structural_penalty.toFixed(2)}</strong>
-          </div>
-        </>
-      ) : null}
+      <div className="selection-status-row">
+        <span>Continuity reward</span>
+        <strong>{report.continuity_reward.toFixed(2)}</strong>
+      </div>
+      <div className="selection-status-row">
+        <span>Structural penalty</span>
+        <strong>{report.structural_penalty.toFixed(2)}</strong>
+      </div>
       <div className="selection-status-row">
         <span>Exactizability probes</span>
-        <strong>{report.exactizability_evaluated ? 'evaluated' : 'phase 4'}</strong>
+        <strong>{report.exactizability_evaluated ? 'evaluated inline' : 'see stage 4'}</strong>
       </div>
       <div className="selection-status-row">
         <span>Emits FOLD graph</span>
@@ -4258,9 +4600,9 @@ function Stage3LayerSummary({ stage }: { stage: Stage3Response }) {
         </div>
       ))}
       <p>
-        {isBeamSelection
-          ? 'Stage 5 shows the exactizability-aware selected graph candidate. Toggle GT graph to compare the selected topology against the known fold file.'
-          : 'Stage 3 shows the selected graph candidate by default. Turn on observed carriers or shared alternatives only when comparing the choice against Stage 2 evidence. Exact geometric theorem costs arrive in Phase 4.'}
+        {isStage5
+          ? 'Stage 5 shows the exactizability-aware beam-selected graph. Toggle GT graph to compare the selected topology against the known fold file.'
+          : 'The production exactizability-aware beam selection over the junction-first candidate graph. Stage 4 runs the local exactizability probes; stage 5 adds the ground-truth comparison.'}
       </p>
     </div>
   );
@@ -4591,29 +4933,6 @@ function auditCategory(candidate: CandidateDecisionRecord): AuditCategoryId {
 
 function auditCategoryColor(category: AuditCategoryId): string {
   return AUDIT_CATEGORIES.find((entry) => entry.id === category)?.color ?? '#94a3b8';
-}
-
-function isWeakSelectedCandidate(candidate: CandidateDecisionRecord): boolean {
-  if (auditCategory(candidate) !== 'selected') return false;
-  const weakFields = [
-    candidate.source_kind,
-    candidate.selection_policy,
-    candidate.kind,
-    ...candidate.reasons,
-  ]
-    .join(' ')
-    .toLowerCase();
-  return weakFields.includes('legacy_low_threshold') || weakFields.includes('weak_optional') || /\bweak\b/.test(weakFields);
-}
-
-function isStrongSelectedCandidate(candidate: CandidateDecisionRecord): boolean {
-  if (auditCategory(candidate) !== 'selected') return false;
-  if (isWeakSelectedCandidate(candidate)) return false;
-  const policy = candidate.selection_policy.toLowerCase();
-  const source = candidate.source_kind.toLowerCase();
-  const boundaryRole = candidate.boundary_role.toLowerCase();
-  if (policy === 'locked' || source === 'border_generated' || boundaryRole !== 'none') return false;
-  return true;
 }
 
 function parseAuditTarget(value: string | null): { kind: 'span' | 'gt'; id: number } | null {

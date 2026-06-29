@@ -8,8 +8,7 @@ use oristudio_cp_compiler::exact_probe::{
     ExactProbeOptions, ExactizabilityReport, probe_exactizability,
 };
 use oristudio_cp_compiler::selection::{
-    CandidateSelection, SelectionDecision, SelectionOptions, select_candidate_graph,
-    select_candidate_graph_beam_from_ir,
+    CandidateSelection, SelectionDecision, SelectionOptions, select_candidate_graph_beam_from_ir,
 };
 use oristudio_cp_compiler::{
     AssignmentCandidate, AssignmentLabel, CandidateGraph, EvidenceSource, ExactSolveInput,
@@ -29,6 +28,9 @@ use oristudio_cp_detect::evidence_extract::{
 use oristudio_cp_detect::source_image_evidence::{
     SourceImageLineEvidenceOptions, line_probability_from_rgba,
 };
+use oristudio_cp_eval::{
+    EvalAssignment, EvalEdge, EvalGraph, EvalPoint, StrictTopologyOptions, strict_topology_metrics,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
@@ -41,7 +43,7 @@ use std::thread;
 
 const DEFAULT_HOST: &str = "127.0.0.1";
 const DEFAULT_PORT: u16 = 8788;
-const DEFAULT_DENSE_MANIFEST: &str = "artifacts/cp-detect-correctness/dense-cache/clean-1024-s15-browser-onnx-v3-tess15-weighted-probe-20260619/manifest.json";
+const DEFAULT_DENSE_MANIFEST: &str = "artifacts/cp-detect-correctness/dense-cache/native-cp-v1-pytorch-mps-v3-tess15-weighted/manifest.json";
 const DEFAULT_DIST: &str = "apps/cp-detect-architecture-inspector/dist";
 const DEFAULT_PUBLIC: &str = "apps/web/public";
 const DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS: f64 =
@@ -89,6 +91,11 @@ struct DenseCacheSample {
     input_png: String,
     gt_fold: Option<String>,
     gt_graph: Option<String>,
+    // Declared per-head tensor shapes, present in browser-onnx caches but not the
+    // GPU-native PyTorch caches. Never read (tensors are reshaped from the flat
+    // f32 length + image_size), so it is optional for cross-cache compatibility.
+    #[serde(default)]
+    #[allow(dead_code)]
     dims: BTreeMap<String, Vec<usize>>,
     angle_f32_path: Option<String>,
     junction_offset_f32_path: Option<String>,
@@ -156,6 +163,16 @@ struct Stage2Response {
     maps: Vec<MapPayload>,
     primitives: PrimitivePayload,
     arrangement: CandidateArrangement,
+    // The junction-first candidate graph (IR) is what production generates and
+    // feeds to beam selection; the arrangement is retained for geometry context
+    // and the exactizability probes.
+    candidate_strategy: String,
+    candidate_graph: CandidateGraph,
+    // Candidate recall vs ground truth: missing edges are GT creases that no
+    // candidate covers. None when the sample has no ground truth.
+    candidate_topology: Option<TopologyDiffPayload>,
+    // Ground-truth graph for the Stage 2 side-by-side comparison.
+    ground_truth: Option<GroundTruthGraphPayload>,
 }
 
 #[derive(Debug, Serialize)]
@@ -169,7 +186,13 @@ struct Stage3Response {
     maps: Vec<MapPayload>,
     primitives: PrimitivePayload,
     arrangement: CandidateArrangement,
+    candidate_strategy: String,
+    candidate_graph: CandidateGraph,
+    // Production beam selection over the IR (select_candidate_graph_beam_from_ir),
+    // replacing the legacy arrangement selector.
     selection: CandidateSelection,
+    // Selected-graph topology diff vs ground truth (None for uploads).
+    topology: Option<TopologyDiffPayload>,
 }
 
 #[derive(Debug, Serialize)]
@@ -183,8 +206,11 @@ struct Stage4Response {
     maps: Vec<MapPayload>,
     primitives: PrimitivePayload,
     arrangement: CandidateArrangement,
+    candidate_strategy: String,
+    candidate_graph: CandidateGraph,
     selection: CandidateSelection,
     exactizability: ExactizabilityReport,
+    topology: Option<TopologyDiffPayload>,
 }
 
 #[derive(Debug, Serialize)]
@@ -202,6 +228,7 @@ struct Stage5Response {
     candidate_graph: CandidateGraph,
     selection: CandidateSelection,
     exactizability: ExactizabilityReport,
+    topology: Option<TopologyDiffPayload>,
     ground_truth: Option<GroundTruthGraphPayload>,
     legacy_graph: Option<GroundTruthGraphPayload>,
 }
@@ -221,6 +248,7 @@ struct Stage5bResponse {
     candidate_graph: CandidateGraph,
     selection: CandidateSelection,
     exactizability: ExactizabilityReport,
+    topology: Option<TopologyDiffPayload>,
     ground_truth: Option<GroundTruthGraphPayload>,
     legacy_graph: Option<GroundTruthGraphPayload>,
     decision_audit: CandidateDecisionAudit,
@@ -241,6 +269,7 @@ struct Stage6Response {
     candidate_graph: CandidateGraph,
     selection: CandidateSelection,
     exactizability: ExactizabilityReport,
+    topology: Option<TopologyDiffPayload>,
     exact_solve: ExactSolvedGraph,
     ground_truth: Option<GroundTruthGraphPayload>,
     legacy_graph: Option<GroundTruthGraphPayload>,
@@ -340,6 +369,46 @@ struct OverlayFramePx {
     y_min: f64,
     x_max: f64,
     y_max: f64,
+}
+
+/// Strict-topology diff against ground truth (canonicalized; matches the
+/// `compare_exact_solve_benchmark` exact-topology verdict). Edge coordinates are
+/// pixel-space so the frontend can overlay them directly in the image viewbox.
+#[derive(Debug, Clone, Serialize)]
+struct TopologyDiffPayload {
+    exact_topology: bool,
+    exact_topology_and_assignment: bool,
+    counts: TopologyDiffCounts,
+    missing_edges: Vec<TopologyEdge>,
+    extra_edges: Vec<TopologyEdge>,
+    wrong_assignment_edges: Vec<TopologyWrongEdge>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct TopologyDiffCounts {
+    gt_edges: usize,
+    predicted_edges: usize,
+    matched_edges: usize,
+    missing: usize,
+    extra: usize,
+    wrong_assignment: usize,
+    unmatched_gt_vertices: usize,
+    unmatched_predicted_vertices: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct TopologyEdge {
+    a: [f64; 2],
+    b: [f64; 2],
+    assignment: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct TopologyWrongEdge {
+    a: [f64; 2],
+    b: [f64; 2],
+    predicted: String,
+    ground_truth: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -586,13 +655,7 @@ fn route_request(request: &HttpRequest, state: &AppState) -> HttpResponse {
                 StageInfo {
                     id: "stage2",
                     label: "Stage 2",
-                    title: "Candidate planar graph arrangement",
-                    status: "implemented"
-                },
-                StageInfo {
-                    id: "stage3",
-                    label: "Stage 3",
-                    title: "Weighted candidate selection",
+                    title: "Candidate generation (junction-first-v1)",
                     status: "implemented"
                 },
                 StageInfo {
@@ -604,7 +667,7 @@ fn route_request(request: &HttpRequest, state: &AppState) -> HttpResponse {
                 StageInfo {
                     id: "stage5",
                     label: "Stage 5",
-                    title: "Exactizability-aware beam selection",
+                    title: "Beam selection vs ground truth",
                     status: "implemented"
                 },
                 StageInfo {
@@ -631,11 +694,6 @@ fn route_request(request: &HttpRequest, state: &AppState) -> HttpResponse {
     } else if let Some(encoded_id) = path.strip_prefix("/api/stage2/examples/") {
         let sample_id = percent_decode(encoded_id);
         stage2_example(state, &sample_id, query).and_then(|payload| json_response(&payload))
-    } else if path == "/api/stage3/examples" {
-        stage3_examples(state).and_then(|payload| json_response(&payload))
-    } else if let Some(encoded_id) = path.strip_prefix("/api/stage3/examples/") {
-        let sample_id = percent_decode(encoded_id);
-        stage3_example(state, &sample_id, query).and_then(|payload| json_response(&payload))
     } else if path == "/api/stage4/examples" {
         stage4_examples(state).and_then(|payload| json_response(&payload))
     } else if let Some(encoded_id) = path.strip_prefix("/api/stage4/examples/") {
@@ -703,13 +761,6 @@ fn stage2_examples(state: &AppState) -> Result<ExamplesResponse> {
     examples_response(
         state,
         "oristudio/cp-detect-architecture-inspector/stage2-index/v1",
-    )
-}
-
-fn stage3_examples(state: &AppState) -> Result<ExamplesResponse> {
-    examples_response(
-        state,
-        "oristudio/cp-detect-architecture-inspector/stage3-index/v1",
     )
 }
 
@@ -827,6 +878,70 @@ fn stage1_example(
     })
 }
 
+/// Junction-first candidate generation matching the production decode path
+/// (`generate_candidate_graph` with `CandidateGenerationOptions`, mirroring
+/// `oristudio_cp_detect::decode`). Shared by stages 2-6 so every stage works on
+/// the same IR candidate graph that beam selection and exact solve consume.
+fn sample_candidate_generation(
+    outputs: &DenseOutputsOwned,
+    sample: &DenseCacheSample,
+    query: &BTreeMap<String, String>,
+    threshold: f32,
+) -> Result<(CandidateGenerationStrategyName, CandidateGraph)> {
+    let candidate_strategy = candidate_strategy_from_query(query)?;
+    let legacy_low_threshold = query
+        .get("legacy_low_threshold")
+        .and_then(|value| value.parse::<f32>().ok())
+        .unwrap_or_else(|| default_low_threshold(threshold));
+    let legacy_snap_radius_px = query
+        .get("legacy_snap_radius_px")
+        .and_then(|value| value.parse::<f64>().ok())
+        .unwrap_or(DEFAULT_WEAK_ENDPOINT_SNAP_RADIUS_PX)
+        .clamp(0.0, 128.0);
+    // Offset-vote junction decoding for radius-trained models, e.g.
+    // ?offset_cluster_radius_px=3 with the close-pair dense caches.
+    let offset_cluster_radius_px = query
+        .get("offset_cluster_radius_px")
+        .and_then(|value| value.parse::<f64>().ok())
+        .unwrap_or(0.0);
+    let generation = generate_candidate_graph(
+        CandidateGenerationContext {
+            outputs: outputs.as_dense_outputs(),
+            config: DecodeConfig {
+                image_size: sample.image_size,
+                threshold,
+                ..DecodeConfig::default()
+            },
+        },
+        {
+            let mut generation_options = CandidateGenerationOptions {
+                strategy: candidate_strategy,
+                legacy_threshold: LegacyThresholdStrategyOptions {
+                    low_threshold: Some(legacy_low_threshold),
+                    weak_endpoint_snap_radius_px: Some(legacy_snap_radius_px),
+                    weak_boundary_endpoint_snap_radius_px: Some(10.0),
+                    weak_carrier_incidence_tolerance_px: Some(6.0),
+                    weak_span_split_tolerance_px: Some(4.0),
+                    weak_min_split_length_px: Some(3.0),
+                    ..LegacyThresholdStrategyOptions::default()
+                },
+                ..CandidateGenerationOptions::default()
+            };
+            generation_options
+                .junction_first_v1
+                .junction_offset_cluster_radius_px = offset_cluster_radius_px;
+            generation_options
+        },
+    )
+    .with_context(|| {
+        format!(
+            "generate {} candidate graph for {}",
+            candidate_strategy, sample.id
+        )
+    })?;
+    Ok((candidate_strategy, generation.candidate_graph))
+}
+
 fn stage2_example(
     state: &AppState,
     sample_id: &str,
@@ -860,6 +975,11 @@ fn stage2_example(
     let arrangement_input = arrangement_input_from_evidence(&evidence, Some(overlay_frame_px));
     let arrangement =
         build_candidate_arrangement(&arrangement_input, ArrangementV2Options::default());
+    let (candidate_strategy, candidate_graph) =
+        sample_candidate_generation(&outputs, sample, &query, threshold)?;
+    let ground_truth = read_ground_truth_graph(state, sample)?;
+    let candidate_topology =
+        candidate_topology_diff(&candidate_graph, ground_truth.as_ref(), overlay_frame_px);
     Ok(Stage2Response {
         schema: "oristudio/cp-detect-architecture-inspector/stage2/v1",
         sample: example_row(sample),
@@ -885,16 +1005,41 @@ fn stage2_example(
             )?,
         },
         arrangement,
+        candidate_strategy: candidate_strategy.to_string(),
+        candidate_graph,
+        candidate_topology,
+        ground_truth,
     })
 }
 
+// Internal step shared by stages 4-6 (beam selection + selected-graph topology).
+// Stage 3 is no longer a standalone UI stage; this is not routed directly.
 fn stage3_example(
     state: &AppState,
     sample_id: &str,
     query: BTreeMap<String, String>,
 ) -> Result<Stage3Response> {
     let stage2 = stage2_example(state, sample_id, query)?;
-    let selection = select_candidate_graph(&stage2.arrangement, SelectionOptions::default());
+    // Production selection is exactizability-aware beam search over the IR
+    // candidate graph, not the legacy arrangement selector.
+    let selection = select_candidate_graph_beam_from_ir(
+        &stage2.candidate_graph,
+        SelectionOptions::default(),
+        ExactProbeOptions::default(),
+    );
+    let sample = state
+        .manifest
+        .samples
+        .iter()
+        .find(|sample| sample.id == sample_id)
+        .ok_or_else(|| anyhow!("unknown sample {sample_id:?}"))?;
+    let ground_truth = read_ground_truth_graph(state, sample)?;
+    let topology = selected_topology_diff(
+        &stage2.candidate_graph,
+        &selection,
+        ground_truth.as_ref(),
+        stage2.overlay_frame_px,
+    );
     Ok(Stage3Response {
         schema: "oristudio/cp-detect-architecture-inspector/stage3/v1",
         sample: stage2.sample,
@@ -905,7 +1050,10 @@ fn stage3_example(
         maps: stage2.maps,
         primitives: stage2.primitives,
         arrangement: stage2.arrangement,
+        candidate_strategy: stage2.candidate_strategy,
+        candidate_graph: stage2.candidate_graph,
         selection,
+        topology,
     })
 }
 
@@ -930,8 +1078,11 @@ fn stage4_example(
         maps: stage3.maps,
         primitives: stage3.primitives,
         arrangement: stage3.arrangement,
+        candidate_strategy: stage3.candidate_strategy,
+        candidate_graph: stage3.candidate_graph,
         selection: stage3.selection,
         exactizability,
+        topology: stage3.topology,
     })
 }
 
@@ -946,90 +1097,31 @@ fn stage5_example(
         .iter()
         .find(|sample| sample.id == sample_id)
         .ok_or_else(|| anyhow!("unknown sample {sample_id:?}"))?;
-    let candidate_strategy = candidate_strategy_from_query(&query)?;
-    let legacy_low_threshold = query
-        .get("legacy_low_threshold")
-        .and_then(|value| value.parse::<f32>().ok())
-        .unwrap_or_else(|| {
-            default_low_threshold(stage_threshold_from_query_or_sample(&query, sample))
-        });
-    let legacy_snap_radius_px = query
-        .get("legacy_snap_radius_px")
-        .and_then(|value| value.parse::<f64>().ok())
-        .unwrap_or(DEFAULT_WEAK_ENDPOINT_SNAP_RADIUS_PX)
-        .clamp(0.0, 128.0);
-    // Offset-vote junction decoding for radius-trained models, e.g.
-    // ?offset_cluster_radius_px=3 with the close-pair dense caches.
-    let offset_cluster_radius_px = query
-        .get("offset_cluster_radius_px")
-        .and_then(|value| value.parse::<f64>().ok())
-        .unwrap_or(0.0);
-    let stage2 = stage2_example(state, sample_id, query)?;
-    let exact_options = ExactProbeOptions::default();
-    let outputs = read_dense_outputs(state, sample)?;
-    let generation = generate_candidate_graph(
-        CandidateGenerationContext {
-            outputs: outputs.as_dense_outputs(),
-            config: DecodeConfig {
-                image_size: sample.image_size,
-                threshold: stage2.config.threshold,
-                ..DecodeConfig::default()
-            },
-        },
-        {
-            let mut generation_options = CandidateGenerationOptions {
-                strategy: candidate_strategy,
-                legacy_threshold: LegacyThresholdStrategyOptions {
-                    low_threshold: Some(legacy_low_threshold),
-                    weak_endpoint_snap_radius_px: Some(legacy_snap_radius_px),
-                    weak_boundary_endpoint_snap_radius_px: Some(10.0),
-                    weak_carrier_incidence_tolerance_px: Some(6.0),
-                    weak_span_split_tolerance_px: Some(4.0),
-                    weak_min_split_length_px: Some(3.0),
-                    ..LegacyThresholdStrategyOptions::default()
-                },
-                ..CandidateGenerationOptions::default()
-            };
-            generation_options
-                .junction_first_v1
-                .junction_offset_cluster_radius_px = offset_cluster_radius_px;
-            generation_options
-        },
-    )
-    .with_context(|| {
-        format!(
-            "generate {} candidate graph for {}",
-            candidate_strategy, sample.id
-        )
-    })?;
-    let candidate_graph = generation.candidate_graph;
-    let selection = select_candidate_graph_beam_from_ir(
-        &candidate_graph,
-        SelectionOptions::default(),
-        exact_options,
-    );
-    let exactizability = probe_exactizability(&stage2.arrangement, &selection, exact_options);
+    // Stage 5 is stage 4 (junction-first generation + beam selection + probes)
+    // plus the ground-truth / legacy-graph comparison overlays.
+    let stage4 = stage4_example(state, sample_id, query)?;
     let ground_truth = read_ground_truth_graph(state, sample)?;
     let legacy_graph = read_legacy_graph(
         state,
         sample,
-        stage2.config.threshold,
-        stage2.overlay_frame_px,
+        stage4.config.threshold,
+        stage4.overlay_frame_px,
     )?;
     Ok(Stage5Response {
         schema: "oristudio/cp-detect-architecture-inspector/stage5/v1",
-        sample: stage2.sample,
-        map_size: stage2.map_size,
-        config: stage2.config,
-        overlay_frame_px: stage2.overlay_frame_px,
-        report: stage2.report,
-        maps: stage2.maps,
-        primitives: stage2.primitives,
-        arrangement: stage2.arrangement,
-        candidate_strategy: candidate_strategy.to_string(),
-        candidate_graph,
-        selection,
-        exactizability,
+        sample: stage4.sample,
+        map_size: stage4.map_size,
+        config: stage4.config,
+        overlay_frame_px: stage4.overlay_frame_px,
+        report: stage4.report,
+        maps: stage4.maps,
+        primitives: stage4.primitives,
+        arrangement: stage4.arrangement,
+        candidate_strategy: stage4.candidate_strategy,
+        candidate_graph: stage4.candidate_graph,
+        selection: stage4.selection,
+        exactizability: stage4.exactizability,
+        topology: stage4.topology,
         ground_truth,
         legacy_graph,
     })
@@ -1061,6 +1153,7 @@ fn stage5b_example(
         candidate_graph: stage5.candidate_graph,
         selection: stage5.selection,
         exactizability: stage5.exactizability,
+        topology: stage5.topology,
         ground_truth: stage5.ground_truth,
         legacy_graph: stage5.legacy_graph,
         decision_audit,
@@ -1104,6 +1197,7 @@ fn stage6_example(
         candidate_graph: stage5.candidate_graph,
         selection,
         exactizability: stage5.exactizability,
+        topology: stage5.topology,
         exact_solve,
         ground_truth: stage5.ground_truth,
         legacy_graph: stage5.legacy_graph,
@@ -1329,45 +1423,12 @@ pub fn build_uploaded_stage_bundle(
     let arrangement_input = arrangement_input_from_evidence(&evidence, Some(overlay_frame_px));
     let arrangement =
         build_candidate_arrangement(&arrangement_input, ArrangementV2Options::default());
-    let stage2 = json!({
-        "schema": "oristudio/cp-detect-architecture-inspector/stage2/v1",
-        "sample": &sample,
-        "map_size": map_size,
-        "config": &config,
-        "overlay_frame_px": overlay_frame_px,
-        "report": &report,
-        "maps": &maps,
-        "primitives": &primitives,
-        "arrangement": &arrangement
-    });
-    let selection = select_candidate_graph(&arrangement, SelectionOptions::default());
-    let stage3 = json!({
-        "schema": "oristudio/cp-detect-architecture-inspector/stage3/v1",
-        "sample": &sample,
-        "map_size": map_size,
-        "config": &config,
-        "overlay_frame_px": overlay_frame_px,
-        "report": &report,
-        "maps": &maps,
-        "primitives": &primitives,
-        "arrangement": &arrangement,
-        "selection": &selection
-    });
+    // Junction-first candidate generation + exactizability-aware beam selection,
+    // matching the production decode path. Stages 2-6 all reference this single IR
+    // candidate graph and selection (the arrangement is kept for geometry context
+    // and the exactizability probes), so the upload inspector mirrors production
+    // rather than the legacy arrangement selector.
     let exact_options = ExactProbeOptions::default();
-    let exactizability = probe_exactizability(&arrangement, &selection, exact_options);
-    let stage4 = json!({
-        "schema": "oristudio/cp-detect-architecture-inspector/stage4/v1",
-        "sample": &sample,
-        "map_size": map_size,
-        "config": &config,
-        "overlay_frame_px": overlay_frame_px,
-        "report": &report,
-        "maps": &maps,
-        "primitives": &primitives,
-        "arrangement": &arrangement,
-        "selection": &selection,
-        "exactizability": &exactizability
-    });
     let default_strategy = CandidateGenerationStrategyName::default();
     let strategy_text = options
         .candidate_strategy
@@ -1426,6 +1487,48 @@ pub fn build_uploaded_stage_bundle(
         exact_options,
     );
     let exactizability = probe_exactizability(&arrangement, &selection, exact_options);
+    let stage2 = json!({
+        "schema": "oristudio/cp-detect-architecture-inspector/stage2/v1",
+        "sample": &sample,
+        "map_size": map_size,
+        "config": &config,
+        "overlay_frame_px": overlay_frame_px,
+        "report": &report,
+        "maps": &maps,
+        "primitives": &primitives,
+        "arrangement": &arrangement,
+        "candidate_strategy": candidate_strategy.to_string(),
+        "candidate_graph": &candidate_graph
+    });
+    let stage3 = json!({
+        "schema": "oristudio/cp-detect-architecture-inspector/stage3/v1",
+        "sample": &sample,
+        "map_size": map_size,
+        "config": &config,
+        "overlay_frame_px": overlay_frame_px,
+        "report": &report,
+        "maps": &maps,
+        "primitives": &primitives,
+        "arrangement": &arrangement,
+        "candidate_strategy": candidate_strategy.to_string(),
+        "candidate_graph": &candidate_graph,
+        "selection": &selection
+    });
+    let stage4 = json!({
+        "schema": "oristudio/cp-detect-architecture-inspector/stage4/v1",
+        "sample": &sample,
+        "map_size": map_size,
+        "config": &config,
+        "overlay_frame_px": overlay_frame_px,
+        "report": &report,
+        "maps": &maps,
+        "primitives": &primitives,
+        "arrangement": &arrangement,
+        "candidate_strategy": candidate_strategy.to_string(),
+        "candidate_graph": &candidate_graph,
+        "selection": &selection,
+        "exactizability": &exactizability
+    });
     let legacy_graph = legacy_graph_from_dense_outputs(&outputs, image_size, threshold)?;
     let stage5 = json!({
         "schema": "oristudio/cp-detect-architecture-inspector/stage5/v1",
@@ -2048,6 +2151,177 @@ fn legacy_graph_from_dense_outputs(
     }))
 }
 
+fn overlay_unit_to_px(point: Point2, frame: OverlayFramePx) -> [f64; 2] {
+    [
+        frame.x_min + point.x * (frame.x_max - frame.x_min),
+        frame.y_min + point.y * (frame.y_max - frame.y_min),
+    ]
+}
+
+fn assignment_label_to_eval(label: AssignmentLabel) -> EvalAssignment {
+    match label {
+        AssignmentLabel::Mountain => EvalAssignment::Mountain,
+        AssignmentLabel::Valley => EvalAssignment::Valley,
+        AssignmentLabel::Boundary => EvalAssignment::Boundary,
+        AssignmentLabel::Flat => EvalAssignment::Auxiliary,
+        AssignmentLabel::Unknown => EvalAssignment::Unknown,
+    }
+}
+
+fn eval_assignment_code(assignment: EvalAssignment) -> &'static str {
+    match assignment {
+        EvalAssignment::Mountain => "M",
+        EvalAssignment::Valley => "V",
+        EvalAssignment::Boundary => "B",
+        EvalAssignment::Auxiliary => "F",
+        EvalAssignment::Unknown => "U",
+    }
+}
+
+fn gt_eval_graph(gt: &GroundTruthGraphPayload) -> EvalGraph {
+    let vertices = gt
+        .vertices_px
+        .iter()
+        .map(|point| EvalPoint::new(point[0], point[1]))
+        .collect::<Vec<_>>();
+    let edges = gt
+        .edges_vertices
+        .iter()
+        .enumerate()
+        .map(|(index, vertices)| {
+            let label = gt
+                .edges_assignment_labels
+                .get(index)
+                .map(|code| EvalAssignment::from_fold_code(code))
+                .unwrap_or(EvalAssignment::Unknown);
+            EvalEdge::new(*vertices, label)
+        })
+        .collect::<Vec<_>>();
+    EvalGraph::new(vertices, edges)
+}
+
+/// Build a pixel-space `EvalGraph` from candidate-graph spans. `span_ids = None`
+/// uses every crease candidate (Stage 2 recall view); `Some(set)` keeps only the
+/// selected spans.
+fn candidate_eval_graph(
+    candidate_graph: &CandidateGraph,
+    span_ids: Option<&BTreeSet<usize>>,
+    frame: OverlayFramePx,
+) -> EvalGraph {
+    let vertices = candidate_graph
+        .vertices
+        .iter()
+        .map(|vertex| EvalPoint::from(overlay_unit_to_px(vertex.point, frame)))
+        .collect::<Vec<_>>();
+    let edges = candidate_graph
+        .crease_candidates
+        .iter()
+        .filter(|span| span_ids.is_none_or(|ids| ids.contains(&span.id)))
+        .map(|span| {
+            EvalEdge::new(
+                span.vertices,
+                assignment_label_to_eval(span.assignment_evidence.observed_label),
+            )
+        })
+        .collect::<Vec<_>>();
+    EvalGraph::new(vertices, edges)
+}
+
+fn topology_diff(predicted: &EvalGraph, ground_truth: &EvalGraph) -> TopologyDiffPayload {
+    let metrics = strict_topology_metrics(
+        predicted,
+        ground_truth,
+        StrictTopologyOptions {
+            vertex_tolerance: 2.0,
+            split_merge_tolerance: 2.0,
+            compare_assignments: true,
+        },
+    );
+    let gt_point = |index: usize| ground_truth.vertices.get(index).map(|p| [p.x, p.y]);
+    let pred_point = |index: usize| predicted.vertices.get(index).map(|p| [p.x, p.y]);
+    let missing_edges = metrics
+        .missing_edges
+        .iter()
+        .filter_map(|edge| {
+            Some(TopologyEdge {
+                a: gt_point(edge.vertices[0])?,
+                b: gt_point(edge.vertices[1])?,
+                assignment: eval_assignment_code(edge.assignment).to_owned(),
+            })
+        })
+        .collect::<Vec<_>>();
+    let extra_edges = metrics
+        .extra_edges
+        .iter()
+        .filter_map(|edge| {
+            Some(TopologyEdge {
+                a: pred_point(edge.vertices[0])?,
+                b: pred_point(edge.vertices[1])?,
+                assignment: eval_assignment_code(edge.assignment).to_owned(),
+            })
+        })
+        .collect::<Vec<_>>();
+    let wrong_assignment_edges = metrics
+        .wrong_assignments
+        .iter()
+        .filter_map(|edge| {
+            Some(TopologyWrongEdge {
+                a: gt_point(edge.vertices[0])?,
+                b: gt_point(edge.vertices[1])?,
+                predicted: eval_assignment_code(edge.predicted_assignment).to_owned(),
+                ground_truth: eval_assignment_code(edge.gt_assignment).to_owned(),
+            })
+        })
+        .collect::<Vec<_>>();
+    TopologyDiffPayload {
+        exact_topology: metrics.exact_topology,
+        exact_topology_and_assignment: metrics.exact_topology_and_assignment,
+        counts: TopologyDiffCounts {
+            gt_edges: metrics.edges.gt_edges,
+            predicted_edges: metrics.edges.predicted_edges,
+            matched_edges: metrics.edges.matched_edges,
+            missing: metrics.edges.missing_edges,
+            extra: metrics.edges.extra_edges,
+            wrong_assignment: metrics.assignments.wrong_edges,
+            unmatched_gt_vertices: metrics.vertices.unmatched_gt_vertices,
+            unmatched_predicted_vertices: metrics.vertices.unmatched_predicted_vertices,
+        },
+        missing_edges,
+        extra_edges,
+        wrong_assignment_edges,
+    }
+}
+
+/// Selected-graph topology diff vs GT (stages 3-6). Returns `None` when the
+/// sample has no ground truth (e.g. uploads).
+fn selected_topology_diff(
+    candidate_graph: &CandidateGraph,
+    selection: &CandidateSelection,
+    ground_truth: Option<&GroundTruthGraphPayload>,
+    frame: OverlayFramePx,
+) -> Option<TopologyDiffPayload> {
+    let gt = ground_truth?;
+    let selected_ids = selection
+        .selected_spans
+        .iter()
+        .map(|span| span.id)
+        .collect::<BTreeSet<_>>();
+    let predicted = candidate_eval_graph(candidate_graph, Some(&selected_ids), frame);
+    Some(topology_diff(&predicted, &gt_eval_graph(gt)))
+}
+
+/// Candidate-recall topology diff vs GT (Stage 2): every crease candidate against
+/// the ground-truth creases, so missing edges are GT creases with no candidate.
+fn candidate_topology_diff(
+    candidate_graph: &CandidateGraph,
+    ground_truth: Option<&GroundTruthGraphPayload>,
+    frame: OverlayFramePx,
+) -> Option<TopologyDiffPayload> {
+    let gt = ground_truth?;
+    let predicted = candidate_eval_graph(candidate_graph, None, frame);
+    Some(topology_diff(&predicted, &gt_eval_graph(gt)))
+}
+
 fn read_ground_truth_graph(
     state: &AppState,
     sample: &DenseCacheSample,
@@ -2199,16 +2473,6 @@ fn candidate_strategy_from_query(
         .with_context(|| format!("parse candidate generation strategy {value:?}"))
 }
 
-fn stage_threshold_from_query_or_sample(
-    query: &BTreeMap<String, String>,
-    sample: &DenseCacheSample,
-) -> f32 {
-    query
-        .get("threshold")
-        .and_then(|value| value.parse::<f32>().ok())
-        .unwrap_or(sample.threshold)
-}
-
 const DEFAULT_WEAK_ENDPOINT_SNAP_RADIUS_PX: f64 = 12.0;
 
 fn arrangement_input_from_evidence(
@@ -2266,18 +2530,23 @@ fn arrangement_input_from_evidence(
 }
 
 fn overlay_frame_for_sample(state: &AppState, sample: &DenseCacheSample) -> Result<OverlayFramePx> {
-    let default = default_overlay_frame(sample.image_size);
+    // Packs without render_metadata.json (e.g. the native-cp pack, which insets
+    // the paper by 32px) would otherwise fall back to the full image frame and
+    // mis-align the GT overlay / decision audit. The paper corners are always in
+    // the GT graph, so its bounding box recovers the true paper frame.
+    let fallback = gt_bounding_box_frame(state, sample)
+        .unwrap_or_else(|| default_overlay_frame(sample.image_size));
     let Some(input_parent) = state
         .pack_root
         .join(&sample.input_png)
         .parent()
         .map(Path::to_path_buf)
     else {
-        return Ok(default);
+        return Ok(fallback);
     };
     let metadata_path = input_parent.join("render_metadata.json");
     if !metadata_path.exists() {
-        return Ok(default);
+        return Ok(fallback);
     }
     let metadata: Value = serde_json::from_str(
         &fs::read_to_string(&metadata_path)
@@ -2288,8 +2557,9 @@ fn overlay_frame_for_sample(state: &AppState, sample: &DenseCacheSample) -> Resu
         .get("v2_boundary")
         .and_then(|value| value.get("frame"))
     else {
-        return Ok(default);
+        return Ok(fallback);
     };
+    let default = default_overlay_frame(sample.image_size);
     let parsed = OverlayFramePx {
         x_min: frame
             .get("x_min")
@@ -2322,6 +2592,44 @@ fn default_overlay_frame(image_size: u32) -> OverlayFramePx {
         x_max: max,
         y_max: max,
     }
+}
+
+/// Paper frame recovered from the ground-truth vertex bounding box. The four
+/// paper corners are always present in the GT graph, so this is the true paper
+/// extent in image pixels — used to align predictions (unit-square) with the GT
+/// for packs that render an inset paper but ship no render_metadata.json.
+fn gt_bounding_box_frame(state: &AppState, sample: &DenseCacheSample) -> Option<OverlayFramePx> {
+    let relative_path = sample.gt_graph.as_deref()?;
+    let path = resolve_pack_path(state, relative_path);
+    if !path.exists() {
+        return None;
+    }
+    let value: Value = serde_json::from_str(&fs::read_to_string(&path).ok()?).ok()?;
+    let vertices = value.get("vertices_px").and_then(Value::as_array)?;
+    let (mut x_min, mut y_min, mut x_max, mut y_max) = (
+        f64::INFINITY,
+        f64::INFINITY,
+        f64::NEG_INFINITY,
+        f64::NEG_INFINITY,
+    );
+    for vertex in vertices {
+        let coords = vertex.as_array()?;
+        let x = coords.first().and_then(Value::as_f64)?;
+        let y = coords.get(1).and_then(Value::as_f64)?;
+        x_min = x_min.min(x);
+        y_min = y_min.min(y);
+        x_max = x_max.max(x);
+        y_max = y_max.max(y);
+    }
+    if x_max <= x_min || y_max <= y_min {
+        return None;
+    }
+    Some(OverlayFramePx {
+        x_min,
+        y_min,
+        x_max,
+        y_max,
+    })
 }
 
 fn point_from_array(point: [f32; 2]) -> Point2 {

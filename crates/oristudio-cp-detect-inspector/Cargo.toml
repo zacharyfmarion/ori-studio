@@ -17,5 +17,6 @@ anyhow.workspace = true
 image.workspace = true
 oristudio-cp-compiler.workspace = true
 oristudio-cp-detect.workspace = true
+oristudio-cp-eval.workspace = true
 serde.workspace = true
 serde_json.workspace = true

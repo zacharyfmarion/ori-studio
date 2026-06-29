@@ -11,6 +11,7 @@
     "preview": "vite preview --host 127.0.0.1 --port 4176"
   },
   "dependencies": {
+    "@tanstack/react-virtual": "^3.13.12",
     "@vitejs/plugin-react": "^5.1.1",
     "comlink": "^4.4.2",
     "lucide-react": "^0.563.0",

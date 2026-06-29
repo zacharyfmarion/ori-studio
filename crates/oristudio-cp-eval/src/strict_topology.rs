@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
@@ -179,6 +179,14 @@ pub fn strict_topology_metrics(
     ground_truth: &EvalGraph,
     options: StrictTopologyOptions,
 ) -> StrictTopologyMetrics {
+    // Compare planar-normalized graphs so a straight crease split at a shared
+    // junction (most visibly the paper border, which ground truth keeps
+    // corner-to-corner while the detector splits it at every boundary-contact
+    // point) is not counted as a topology difference. A split point present in
+    // only one graph is not shared, so it still surfaces as a genuine vertex/edge
+    // difference.
+    let predicted = &canonicalize_segmentation(predicted, options.split_merge_tolerance);
+    let ground_truth = &canonicalize_segmentation(ground_truth, options.split_merge_tolerance);
     let matching = match_vertices(
         &predicted.vertices,
         &ground_truth.vertices,
@@ -614,6 +622,92 @@ fn point_distance(left: EvalPoint, right: EvalPoint) -> f64 {
     (dx * dx + dy * dy).sqrt()
 }
 
+/// If `point` lies on the interior of segment `a`->`b` (within `tolerance`
+/// perpendicular distance and strictly between the endpoints, leaving a
+/// tolerance-sized margin), return its parameter `t` in (0, 1) along the segment.
+fn interior_param_on_segment(
+    point: EvalPoint,
+    a: EvalPoint,
+    b: EvalPoint,
+    tolerance: f64,
+) -> Option<f64> {
+    let ab = [b.x - a.x, b.y - a.y];
+    let length_sq = ab[0] * ab[0] + ab[1] * ab[1];
+    if length_sq <= f64::EPSILON {
+        return None;
+    }
+    let length = length_sq.sqrt();
+    let ap = [point.x - a.x, point.y - a.y];
+    let t = (ap[0] * ab[0] + ap[1] * ab[1]) / length_sq;
+    let margin = (tolerance / length).min(0.5);
+    if t <= margin || t >= 1.0 - margin {
+        return None;
+    }
+    let projected = EvalPoint {
+        x: a.x + t * ab[0],
+        y: a.y + t * ab[1],
+    };
+    if point_distance(point, projected) <= tolerance {
+        Some(t)
+    } else {
+        None
+    }
+}
+
+/// Normalize a graph to its planar segmentation: every edge is subdivided at any
+/// vertex of the *same* graph lying on its interior. Crease-pattern producers
+/// disagree on whether a straight crease that passes through a junction is stored
+/// as one edge or as the collinear segments either side of it; canonicalizing
+/// both graphs the same way before matching makes the topology comparison reflect
+/// real structural differences instead of this representation choice.
+fn canonicalize_segmentation(graph: &EvalGraph, tolerance: f64) -> EvalGraph {
+    let mut edges: Vec<EvalEdge> = Vec::with_capacity(graph.edges.len());
+    let mut seen: BTreeSet<[usize; 2]> = BTreeSet::new();
+    for edge in &graph.edges {
+        let [start, end] = edge.vertices;
+        let (Some(a), Some(b)) = (
+            graph.vertices.get(start).copied(),
+            graph.vertices.get(end).copied(),
+        ) else {
+            push_unique_edge(&mut edges, &mut seen, edge.clone());
+            continue;
+        };
+        let mut interior: Vec<(usize, f64)> = Vec::new();
+        for (index, vertex) in graph.vertices.iter().enumerate() {
+            if index == start || index == end {
+                continue;
+            }
+            if let Some(t) = interior_param_on_segment(*vertex, a, b, tolerance) {
+                interior.push((index, t));
+            }
+        }
+        if interior.is_empty() {
+            push_unique_edge(&mut edges, &mut seen, edge.clone());
+            continue;
+        }
+        interior.sort_by(|left, right| left.1.total_cmp(&right.1));
+        let mut chain = Vec::with_capacity(interior.len() + 2);
+        chain.push(start);
+        chain.extend(interior.iter().map(|(index, _)| *index));
+        chain.push(end);
+        for window in chain.windows(2) {
+            let mut segment = edge.clone();
+            segment.vertices = [window[0], window[1]];
+            push_unique_edge(&mut edges, &mut seen, segment);
+        }
+    }
+    EvalGraph::new(graph.vertices.clone(), edges)
+}
+
+fn push_unique_edge(edges: &mut Vec<EvalEdge>, seen: &mut BTreeSet<[usize; 2]>, edge: EvalEdge) {
+    if edge.vertices[0] == edge.vertices[1] {
+        return;
+    }
+    if seen.insert(canonical_edge(edge.vertices)) {
+        edges.push(edge);
+    }
+}
+
 fn ratio(numerator: usize, denominator: usize) -> f64 {
     if denominator == 0 {
         0.0
@@ -713,8 +807,11 @@ mod tests {
 
     #[test]
     fn extra_and_missing_edges_are_counted_after_vertex_mapping() {
+        // Pixel-scale triangle so the 2px default tolerance cannot treat the
+        // right-angle corner as collinear with the hypotenuse (a genuine
+        // topology difference: GT has the hypotenuse, pred has the left side).
         let gt = EvalGraph::new(
-            vec![p(0.0, 0.0), p(1.0, 0.0), p(0.0, 1.0)],
+            vec![p(0.0, 0.0), p(100.0, 0.0), p(0.0, 100.0)],
             vec![
                 edge(0, 1, EvalAssignment::Mountain),
                 edge(1, 2, EvalAssignment::Valley),
@@ -759,6 +856,43 @@ mod tests {
             metrics.wrong_assignments[0].gt_assignment,
             EvalAssignment::Mountain
         );
+    }
+
+    #[test]
+    fn collinear_split_at_shared_vertex_is_exact() {
+        // A straight crease (0,0)->(100,0) that ground truth keeps whole but the
+        // prediction splits at the shared junction (50,0) where a perpendicular
+        // crease meets it — the paper-border representation case. Both graphs hold
+        // the junction, so after planar canonicalization the topology is identical.
+        let gt = EvalGraph::new(
+            vec![p(0.0, 0.0), p(100.0, 0.0), p(50.0, 0.0), p(50.0, 50.0)],
+            vec![
+                edge(0, 1, EvalAssignment::Boundary),
+                edge(2, 3, EvalAssignment::Mountain),
+            ],
+        );
+        let pred = EvalGraph::new(
+            gt.vertices.clone(),
+            vec![
+                edge(0, 2, EvalAssignment::Boundary),
+                edge(2, 1, EvalAssignment::Boundary),
+                edge(2, 3, EvalAssignment::Mountain),
+            ],
+        );
+
+        let metrics = strict_topology_metrics(
+            &pred,
+            &gt,
+            StrictTopologyOptions {
+                vertex_tolerance: 0.5,
+                split_merge_tolerance: 1.0,
+                compare_assignments: true,
+            },
+        );
+
+        assert!(metrics.exact_topology_and_assignment);
+        assert_eq!(metrics.missing_edges.len(), 0);
+        assert_eq!(metrics.extra_edges.len(), 0);
     }
 
     #[test]

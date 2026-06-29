@@ -466,6 +466,41 @@ export interface CandidateGraphConflict {
   reason: string;
 }
 
+export interface TopologyDiffEdge {
+  a: [number, number];
+  b: [number, number];
+  assignment: string;
+}
+
+export interface TopologyWrongEdge {
+  a: [number, number];
+  b: [number, number];
+  predicted: string;
+  ground_truth: string;
+}
+
+export interface TopologyDiffCounts {
+  gt_edges: number;
+  predicted_edges: number;
+  matched_edges: number;
+  missing: number;
+  extra: number;
+  wrong_assignment: number;
+  unmatched_gt_vertices: number;
+  unmatched_predicted_vertices: number;
+}
+
+// Strict-topology diff vs ground truth (canonicalized; matches the benchmark).
+// Edge coordinates are pixel-space, ready to overlay in the image viewbox.
+export interface TopologyDiff {
+  exact_topology: boolean;
+  exact_topology_and_assignment: boolean;
+  counts: TopologyDiffCounts;
+  missing_edges: TopologyDiffEdge[];
+  extra_edges: TopologyDiffEdge[];
+  wrong_assignment_edges: TopologyWrongEdge[];
+}
+
 export interface Stage2Response extends Stage1Response {
   overlay_frame_px: {
     x_min: number;
@@ -474,6 +509,14 @@ export interface Stage2Response extends Stage1Response {
     y_max: number;
   };
   arrangement: CandidateArrangement;
+  // Junction-first candidate graph (production IR) generated from the evidence;
+  // the arrangement is retained for geometry context and exactizability probes.
+  candidate_strategy: string;
+  candidate_graph: CandidateGraph;
+  // Candidate recall vs GT: missing edges are GT creases no candidate covers.
+  candidate_topology?: TopologyDiff | null;
+  // Ground-truth graph for the Stage 2 side-by-side comparison.
+  ground_truth?: GroundTruthGraph | null;
 }
 
 export interface SelectionScoreBreakdown {
@@ -576,6 +619,8 @@ export interface SelectionStructuralEdit {
 
 export interface Stage3Response extends Stage2Response {
   selection: CandidateSelection;
+  // Selected-graph topology diff vs GT (propagates to stages 4-6 via extends).
+  topology?: TopologyDiff | null;
 }
 
 export type ExactProbeStatus = 'feasible' | 'low_cost' | 'high_cost' | 'infeasible' | string;
@@ -661,8 +706,7 @@ export interface GroundTruthGraph {
 }
 
 export interface Stage5Response extends Stage4Response {
-  candidate_strategy?: string;
-  candidate_graph?: CandidateGraph | null;
+  // candidate_strategy / candidate_graph are inherited (required) from Stage2Response.
   ground_truth?: GroundTruthGraph | null;
   legacy_graph?: GroundTruthGraph | null;
 }
