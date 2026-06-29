@@ -208,8 +208,19 @@ pub struct RefinedVertexRegion {
     pub y_max: f64,
 }
 
+/// One sample's refiner output for the benchmark's `--refined-vertices` cache:
+/// merged vertices (pixel space) plus the refinement regions they cover. Fed
+/// through the same in-regions evidence override the product uses.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct RefinedVertexCacheEntry {
+    #[serde(default)]
+    pub vertices: Vec<RefinedVertexPrimitive>,
+    #[serde(default)]
+    pub regions: Vec<RefinedVertexRegion>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
-struct RefinedVertexEvidenceReport {
+pub(crate) struct RefinedVertexEvidenceReport {
     source: &'static str,
     input_vertices: usize,
     refinement_regions: usize,
@@ -688,7 +699,7 @@ fn legacy_candidate_exact_solve_from_generation(
     })
 }
 
-fn apply_refined_vertex_evidence_override(
+pub(crate) fn apply_refined_vertex_evidence_override(
     evidence: &mut crate::evidence_extract::CompilerEvidence,
     refined_vertices: &[RefinedVertexPrimitive],
     image_size: u32,

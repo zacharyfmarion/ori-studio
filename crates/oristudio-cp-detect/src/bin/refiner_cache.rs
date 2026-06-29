@@ -16,11 +16,22 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use oristudio_cp_detect::decode::{
+    RefinedVertexCacheEntry, RefinedVertexPrimitive, RefinedVertexRegion,
+};
 use oristudio_cp_detect::refinement::{
     Frame, ProposalMode, RefinerOutputs, Tensor, VertexRefinerParams, decode_merge_vertex_refiner,
     plan_vertex_refiner,
 };
 use serde::{Deserialize, Serialize};
+
+const VERTEX_KIND_NAMES: [&str; 5] = [
+    "background",
+    "interior_junction",
+    "boundary_contact",
+    "corner",
+    "endpoint_or_dangling",
+];
 
 const REFINER_CROP_SIZE: f64 = 96.0;
 const HEAD_NAMES: [&str; 7] = [
@@ -59,6 +70,9 @@ struct CropMeta {
     frame: [f64; 4],
     /// `[x, y, score]` per proposal (provenance is irrelevant to the merge).
     proposals: Vec<[f64; 3]>,
+    /// `[x_min, y_min, x_max, y_max]` refinement region per proposal (pixels).
+    #[serde(default)]
+    regions: Vec<[f64; 4]>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -104,10 +118,12 @@ fn run_plan(args: &[String]) -> Result<(), DynError> {
 
     let manifest: DenseManifest = serde_json::from_str(&fs::read_to_string(&manifest_path)?)?;
     let manifest_root = manifest_path.parent().unwrap_or(Path::new("."));
-    let pack_root = manifest
-        .pack
-        .as_deref()
-        .map(|p| Path::new(p).parent().unwrap_or(Path::new(".")).to_path_buf());
+    let pack_root = manifest.pack.as_deref().map(|p| {
+        Path::new(p)
+            .parent()
+            .unwrap_or(Path::new("."))
+            .to_path_buf()
+    });
 
     let mut index = CropsIndex {
         crop_size: REFINER_CROP_SIZE,
@@ -150,7 +166,10 @@ fn run_plan(args: &[String]) -> Result<(), DynError> {
         let params = plan_params(frame);
         let plan = plan_vertex_refiner(image.as_raw(), width, height, Some(&junction), &params);
 
-        write_f32(&out_dir.join(format!("{}.crops.f32", sample.id)), &plan.crop_tensor)?;
+        write_f32(
+            &out_dir.join(format!("{}.crops.f32", sample.id)),
+            &plan.crop_tensor,
+        )?;
         index.samples.insert(
             sample.id.clone(),
             CropMeta {
@@ -158,10 +177,13 @@ fn run_plan(args: &[String]) -> Result<(), DynError> {
                 crop_size: REFINER_CROP_SIZE,
                 image_size,
                 frame: [frame.x_min, frame.y_min, frame.x_max, frame.y_max],
-                proposals: plan
-                    .proposals
+                proposals: plan.proposals.iter().map(|p| [p.x, p.y, p.score]).collect(),
+                regions: plan
+                    .refinement_regions
+                    .as_deref()
+                    .unwrap_or_default()
                     .iter()
-                    .map(|p| [p.x, p.y, p.score])
+                    .map(|r| [r.x_min, r.y_min, r.x_max, r.y_max])
                     .collect(),
             },
         );
@@ -181,10 +203,22 @@ fn run_merge(args: &[String]) -> Result<(), DynError> {
 
     let index: CropsIndex =
         serde_json::from_str(&fs::read_to_string(crops_dir.join("crops_index.json"))?)?;
-    let mut cache: BTreeMap<String, Vec<[f64; 2]>> = BTreeMap::new();
+    let mut cache: BTreeMap<String, RefinedVertexCacheEntry> = BTreeMap::new();
     for (id, meta) in &index.samples {
+        let regions: Vec<RefinedVertexRegion> = meta
+            .regions
+            .iter()
+            .map(|r| RefinedVertexRegion {
+                x_min: r[0],
+                y_min: r[1],
+                x_max: r[2],
+                y_max: r[3],
+            })
+            .collect();
         if meta.crop_count == 0 {
-            cache.insert(id.clone(), Vec::new());
+            // No crops -> no refined vertices and no regions: dense-head junctions
+            // are kept everywhere (== baseline) by the in-regions override.
+            cache.insert(id.clone(), RefinedVertexCacheEntry::default());
             continue;
         }
         let frame = Frame {
@@ -206,8 +240,19 @@ fn run_merge(args: &[String]) -> Result<(), DynError> {
         let outputs = read_refiner_outputs(&outputs_dir, id)?;
         let params = plan_params(frame);
         let merged = decode_merge_vertex_refiner(&outputs, &proposals, &params);
-        cache.insert(id.clone(), merged.iter().map(|v| [v.x, v.y]).collect());
-        println!("merged {} -> {} refined vertices", id, merged.len());
+        let vertices = merged
+            .iter()
+            .map(|v| RefinedVertexPrimitive {
+                x: v.x,
+                y: v.y,
+                score: Some(v.score),
+                kind: VERTEX_KIND_NAMES.get(v.kind_id).map(|k| k.to_string()),
+                boundary_side: v.boundary_side.map(|s| s.name().to_string()),
+                side_coordinate: v.side_coordinate,
+            })
+            .collect::<Vec<_>>();
+        println!("merged {} -> {} refined vertices", id, vertices.len());
+        cache.insert(id.clone(), RefinedVertexCacheEntry { vertices, regions });
     }
     if let Some(parent) = out_path.parent() {
         fs::create_dir_all(parent)?;
@@ -245,15 +290,22 @@ fn square_frame(image_size: u32) -> Frame {
 }
 
 fn read_refiner_outputs(outputs_dir: &Path, id: &str) -> Result<RefinerOutputs, DynError> {
-    let descriptor: BTreeMap<String, HeadFile> =
-        serde_json::from_str(&fs::read_to_string(outputs_dir.join(format!("{id}.outputs.json")))?)?;
+    let descriptor: BTreeMap<String, HeadFile> = serde_json::from_str(&fs::read_to_string(
+        outputs_dir.join(format!("{id}.outputs.json")),
+    )?)?;
     let mut heads: BTreeMap<&str, Tensor> = BTreeMap::new();
     for name in HEAD_NAMES {
         let head = descriptor
             .get(name)
             .ok_or_else(|| format!("sample {id} outputs missing head {name}"))?;
         let data = read_f32(&outputs_dir.join(&head.file))?;
-        heads.insert(name, Tensor { data, dims: head.dims.clone() });
+        heads.insert(
+            name,
+            Tensor {
+                data,
+                dims: head.dims.clone(),
+            },
+        );
     }
     let mut take = |name: &str| heads.remove(name).expect("head present");
     Ok(RefinerOutputs {

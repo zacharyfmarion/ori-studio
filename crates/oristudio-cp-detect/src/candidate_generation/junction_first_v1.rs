@@ -62,6 +62,27 @@ pub fn generate_candidate_graph_with_vertex_pixels(
     ))
 }
 
+/// Product-faithful refiner junctions: dense-head junction evidence with the
+/// refined vertices merged in *within their regions* (dense junctions outside
+/// the regions are preserved). Mirrors
+/// `decode::legacy_candidate_exact_solve_with_refined_vertices_in_regions`.
+pub fn generate_candidate_graph_with_refined_vertices_in_regions(
+    outputs: DenseOutputs<'_>,
+    config: &DecodeConfig,
+    options: JunctionFirstV1StrategyOptions,
+    refined_vertices: &[crate::decode::RefinedVertexPrimitive],
+    refined_regions: Option<&[crate::decode::RefinedVertexRegion]>,
+) -> Result<CandidateGraph, DecodeError> {
+    let mut evidence = extract_evidence(outputs, config, options)?;
+    crate::decode::apply_refined_vertex_evidence_override(
+        &mut evidence,
+        refined_vertices,
+        config.image_size,
+        refined_regions,
+    );
+    Ok(graph_from_evidence(&evidence, config, options))
+}
+
 pub(super) fn extract_evidence(
     outputs: DenseOutputs<'_>,
     config: &DecodeConfig,

@@ -16,9 +16,12 @@ use oristudio_cp_compiler::{
 };
 use oristudio_cp_detect::candidate_generation::{
     CandidateGenerationContext, CandidateGenerationOptions, CandidateGenerationStrategyName,
-    generate_candidate_graph, generate_junction_first_with_vertex_pixels,
+    generate_candidate_graph, generate_junction_first_with_refined_vertices_in_regions,
+    generate_junction_first_with_vertex_pixels,
 };
-use oristudio_cp_detect::decode::{DecodeConfig, DenseOutputs, decode_dense_outputs};
+use oristudio_cp_detect::decode::{
+    DecodeConfig, DenseOutputs, RefinedVertexCacheEntry, decode_dense_outputs,
+};
 use oristudio_cp_detect::evidence_extract::JunctionEvidenceSource;
 use oristudio_cp_detect::source_image_evidence::{
     SourceImageLineEvidenceOptions, line_probability_from_rgba,
@@ -96,10 +99,10 @@ struct Args {
     junction_evidence_source: JunctionEvidenceSource,
     gt_junction_labels: bool,
     gt_vertices: bool,
-    /// Per-sample refined vertex pixels (from the Torch refiner), keyed by sample id.
-    /// Fed into junction-first exactly like `--oracle-vertices`, but with the
-    /// product refiner's vertices instead of GT — the product-faithful junction source.
-    refined_vertices: Option<std::collections::BTreeMap<String, Vec<[f64; 2]>>>,
+    /// Per-sample refiner output (vertices + regions, pixel space) from the Torch
+    /// refiner, keyed by sample id. Merged into dense-head evidence within the
+    /// regions exactly like the product — the product-faithful junction source.
+    refined_vertices: Option<std::collections::BTreeMap<String, RefinedVertexCacheEntry>>,
     threshold: Option<f32>,
     legacy_low_threshold: Option<f32>,
     exact_patience: Option<usize>,
@@ -681,13 +684,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         )
                         .into());
                     }
-                    // Product-faithful junctions: replace decoded junctions with the
-                    // Torch refiner's vertices (same injection path as --oracle-vertices,
-                    // but the shipped refiner instead of GT).
-                    generate_junction_first_with_vertex_pixels(
+                    // Product-faithful junctions: merge the Torch refiner's vertices
+                    // into dense-head evidence within their regions (dense junctions
+                    // outside the regions are preserved) — the in-regions semantics the
+                    // product uses, not a replace-all of every junction.
+                    generate_junction_first_with_refined_vertices_in_regions(
                         ctx,
                         generation_options.junction_first_v1,
-                        refined,
+                        &refined.vertices,
+                        Some(&refined.regions),
                     )?
                 } else {
                     generate_candidate_graph(ctx, generation_options)?.candidate_graph
@@ -1100,7 +1105,7 @@ impl Args {
             Some(path) => {
                 let text = std::fs::read_to_string(&path)
                     .map_err(|err| format!("failed to read --refined-vertices {path}: {err}"))?;
-                let map: std::collections::BTreeMap<String, Vec<[f64; 2]>> =
+                let map: std::collections::BTreeMap<String, RefinedVertexCacheEntry> =
                     serde_json::from_str(&text).map_err(|err| {
                         format!("failed to parse --refined-vertices {path}: {err}")
                     })?;
