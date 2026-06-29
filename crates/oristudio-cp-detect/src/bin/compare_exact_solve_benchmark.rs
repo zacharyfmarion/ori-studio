@@ -10,9 +10,9 @@ use oristudio_cp_compiler::candidate_graph::CandidateCreaseBoundaryRole;
 use oristudio_cp_compiler::selection::{SelectionOptions, select_candidate_graph_beam_from_ir};
 use oristudio_cp_compiler::verify::{GlobalVerificationOptions, verify_fold_json};
 use oristudio_cp_compiler::{
-    AssignmentLabel, CandidateProgram, ExactSolveInput, ExactSolveOptions, ExactSolvedGraph,
-    ExactSolvedGraphStatus, LegacyCandidateAdapter, LegacyCandidateAdapterOptions, Point2,
-    SelectedGraph, solve_exact,
+    AssignmentLabel, CandidateGraph, CandidateProgram, ExactSolveInput, ExactSolveOptions,
+    ExactSolvedGraph, ExactSolvedGraphStatus, LegacyCandidateAdapter,
+    LegacyCandidateAdapterOptions, Point2, SelectedGraph, solve_exact,
 };
 use oristudio_cp_detect::candidate_generation::{
     CandidateGenerationContext, CandidateGenerationOptions, CandidateGenerationStrategyName,
@@ -159,8 +159,34 @@ struct BenchmarkSample {
     exact_solved: OutputMetrics,
     selection: SelectionSummary,
     exact_solve: ExactSolveSummary,
+    attribution: FailureAttribution,
     timing: BenchmarkSampleTiming,
     seconds: f64,
+}
+
+/// Per-sample failure attribution against canonicalized GT. Splits the lost GT
+/// creases into where they were lost in the pipeline so the aggregate ranks
+/// levers (detector recall vs selection vs assignment), plus spurious output.
+/// All counts are at the canonicalized strict-topology edge level.
+#[derive(Debug, Clone, Copy, Serialize)]
+struct FailureAttribution {
+    gt_edges: usize,
+    candidate_pool: usize,
+    recovered: usize,
+    /// GT creases with no candidate at all (candidate-generation / detector recall).
+    detector_miss: usize,
+    /// GT creases a candidate covered but beam selection dropped (selection scoring).
+    selection_miss: usize,
+    /// Selected edges matched to a GT crease but with the wrong M/V/B (assignment).
+    assignment_wrong: usize,
+    /// Selected edges with no GT match (spurious / hallucination).
+    spurious: usize,
+    /// Predicted vertices unmatched to any GT vertex (junction localization residue).
+    unmatched_pred_vertices: usize,
+    /// GT vertices unmatched by any prediction.
+    unmatched_gt_vertices: usize,
+    exact_topology: bool,
+    exact_topology_and_assignment: bool,
 }
 
 #[derive(Debug, Default, Clone, Copy, Serialize)]
@@ -627,7 +653,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if args.gt_vertices {
                     if name != CandidateGenerationStrategyName::JunctionFirstV1 {
                         return Err(format!(
-                            "--gt-vertices requires --candidate-source junction-first-v1 (got {name})"
+                            "--oracle-vertices requires --candidate-source junction-first-v1 (got {name})"
                         )
                         .into());
                     }
@@ -682,6 +708,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 split_merge_tolerance: args.strict_vertex_tolerance_px,
                 compare_assignments: true,
             },
+        );
+        let attribution = failure_attribution(
+            &candidate_graph,
+            &selected_topology,
+            &gt_eval_graph,
+            sample.image_size,
+            args.strict_vertex_tolerance_px,
         );
         let skip_for_bad_topology = !args.skip_exact_solve
             && !args.exact_solve_any_topology
@@ -836,6 +869,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 total_score: round6(selection.report.total_score),
             },
             exact_solve: exact_summary,
+            attribution,
             timing: BenchmarkSampleTiming {
                 read_logits_seconds: round3(read_logits_seconds),
                 legacy_decode_seconds: round3(legacy_decode_seconds),
@@ -963,8 +997,8 @@ impl Args {
                         junction_evidence_source = parse_junction_evidence_source(&value)?;
                     }
                 }
-                "--gt-junction-labels" => gt_junction_labels = true,
-                "--gt-vertices" => gt_vertices = true,
+                "--oracle-junction-labels" => gt_junction_labels = true,
+                "--oracle-vertices" => gt_vertices = true,
                 "--threshold" => {
                     threshold = Some(required_value(&mut iter, "--threshold")?.parse()?)
                 }
@@ -2395,6 +2429,68 @@ fn eval_boundary_role(role: CandidateCreaseBoundaryRole) -> EvalBoundaryRole {
     }
 }
 
+/// Pixel-space `EvalGraph` over the whole candidate pool (every crease
+/// candidate), for the candidate-recall diff: GT creases the pool does not cover
+/// are detector misses, independent of what selection later keeps.
+fn candidate_eval_graph(candidate_graph: &CandidateGraph, image_size: u32) -> EvalGraph {
+    let vertices = candidate_graph
+        .vertices
+        .iter()
+        .map(|vertex| EvalPoint::from(normalized_to_px(vertex.point, image_size)))
+        .collect::<Vec<_>>();
+    let edges = candidate_graph
+        .crease_candidates
+        .iter()
+        .map(|span| {
+            EvalEdge::new(
+                span.vertices,
+                eval_assignment(span.assignment_evidence.observed_label),
+            )
+            .with_boundary_role(eval_boundary_role(span.boundary_role))
+        })
+        .collect::<Vec<_>>();
+    EvalGraph::new(vertices, edges)
+}
+
+/// Attribute lost GT creases to a pipeline stage by comparing the canonicalized
+/// candidate-pool and selected-graph topologies against GT.
+fn failure_attribution(
+    candidate_graph: &CandidateGraph,
+    selected_topology: &StrictTopologyMetrics,
+    gt_eval_graph: &EvalGraph,
+    image_size: u32,
+    strict_vertex_tolerance_px: f64,
+) -> FailureAttribution {
+    let candidate_topology = strict_topology_metrics(
+        &candidate_eval_graph(candidate_graph, image_size),
+        gt_eval_graph,
+        StrictTopologyOptions {
+            vertex_tolerance: strict_vertex_tolerance_px,
+            split_merge_tolerance: strict_vertex_tolerance_px,
+            compare_assignments: true,
+        },
+    );
+    let gt_edges = selected_topology.edges.gt_edges;
+    let detector_miss = candidate_topology.edges.missing_edges;
+    let selected_missing = selected_topology.edges.missing_edges;
+    // A subset selection can only miss at least as many GT creases as the full
+    // pool; the extra missing are creases the pool had but selection dropped.
+    let selection_miss = selected_missing.saturating_sub(detector_miss);
+    FailureAttribution {
+        gt_edges,
+        candidate_pool: candidate_graph.crease_candidates.len(),
+        recovered: gt_edges.saturating_sub(selected_missing),
+        detector_miss,
+        selection_miss,
+        assignment_wrong: selected_topology.assignments.wrong_edges,
+        spurious: selected_topology.edges.extra_edges,
+        unmatched_pred_vertices: selected_topology.vertices.unmatched_predicted_vertices,
+        unmatched_gt_vertices: selected_topology.vertices.unmatched_gt_vertices,
+        exact_topology: selected_topology.exact_topology,
+        exact_topology_and_assignment: selected_topology.exact_topology_and_assignment,
+    }
+}
+
 fn assignment_code(label: AssignmentLabel) -> &'static str {
     match label {
         AssignmentLabel::Mountain => "M",
@@ -2452,7 +2548,7 @@ fn round6(value: f64) -> f64 {
 
 fn print_usage() {
     println!(
-        "compare_exact_solve_benchmark --out DIR [--dense-manifest PATH] [--candidate-source legacy] [--line-evidence-source model|source-image] [--junction-evidence-source model|line-arrangement|ground-truth] [--gt-junction-labels] [--threshold T] [--legacy-low-threshold T] [--exact-patience N] [--exact-solve-timeout-seconds S] [--limit N] [--match-tolerance-px PX] [--strict-vertex-tolerance-px PX] [--skip-flat-folder] [--skip-exact-solve] [--exact-solve-any-topology]"
+        "compare_exact_solve_benchmark --out DIR [--dense-manifest PATH] [--candidate-source legacy] [--line-evidence-source model|source-image] [--junction-evidence-source model|line-arrangement|ground-truth] [--oracle-junction-labels] [--oracle-vertices] [--threshold T] [--legacy-low-threshold T] [--exact-patience N] [--exact-solve-timeout-seconds S] [--limit N] [--match-tolerance-px PX] [--strict-vertex-tolerance-px PX] [--skip-flat-folder] [--skip-exact-solve] [--exact-solve-any-topology]"
     );
     println!(
         "  exact solve is gated on correct topology by default (wrong topology cannot reconstruct the right CP, so it is skipped and marked failed); --exact-solve-any-topology attempts it regardless."

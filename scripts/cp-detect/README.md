@@ -529,7 +529,7 @@ compare_exact_solve_benchmark \
   --manifest artifacts/.../dense-cache/native-cp-v1-.../manifest.medium.json \
   --candidate-source junction-first-v1 --parity-repair --skip-flat-folder \
   --exact-solve-timeout-seconds 2 --out <dir>
-# add --gt-vertices --line-evidence-source source-image for the perfect-junction oracle
+# add --oracle-vertices --line-evidence-source source-image for the perfect-junction oracle
 ```
 
 Exact solve is **gated on correct topology by default**: a selection whose
