@@ -157,6 +157,42 @@ runs so the solver does not confound selection.
 - **Harness validity** — the ALL-oracles run must reach ≈100% exact; a shortfall means a
   representation/metric bug, fix before trusting the ranking.
 
+## Findings (easy + medium; hard pending)
+
+Oracle-matrix exact-topology %, topology ceiling (`--skip-exact-solve`), native-cp:
+
+| bucket | P0 | +J (GT junctions) | +S (oracle sel) | J+S |
+|--------|----|----|----|----|
+| easy   | 34% | 70% | 34% | 98% |
+| medium | 11% | 24% | 10% | 84% |
+
+**Two levers in series (clean oracles only):**
+1. **Junction recall — the gate.** Model junctions miss junctions, so the candidate pool is
+   missing creases. P0 detector_miss/sample = 6.1 (easy) / 17.8 (medium); GT junction
+   positions (`--oracle-vertices`) drop it to ~0, lifting exact 34→70 / 11→24. This is what
+   the vertex refiner targets; its ceiling is the `+J` column.
+2. **Beam drops real candidates.** Even with a complete pool (GT junctions), the beam drops
+   real creases — under `J`, `selection_miss` = 218 (easy) / **1576** (medium), dwarfing
+   spurious/assignment. An oracle that just keeps the real candidates lifts 70→98 / 24→**84**.
+   Bigger than the junction lever on medium; the refiner does nothing for it.
+
+`detector_miss == 0 ⟺ exact at P0` (64/64 easy, 25/25 medium) — pool completeness is the
+P0 gate; the beam only starts dropping real candidates once a *denser* pool is forced
+complete (lever 2 is masked at P0 by lever 1).
+
+**Caveat — oracle leakage:** `--oracle-junction-labels` is NOT a clean assignment oracle; it
+paints GT into the junction heatmap and thereby fixes junction *recall* (det_miss/sample
+17.8→1.2 on medium). Its column and any leave-one-out using it are discarded. A clean
+assignment lever would need a real assignment-only oracle (deferred).
+
+**Open / next:** the vertex refiner is **unmeasured** — the benchmark runs the dense head
+only. The decisive experiment is to cache refined vertices over the 563 samples and add a
+`--vertices-from <cache>` benchmark input (reuses `generate_junction_first_with_vertex_pixels`,
+same path as `--oracle-vertices`), then compare **P0 → refined → GT(J)** per density: the
+refined point's position in [P0, J] is exactly how much of lever 1 the refiner captures.
+Lever 2 (beam dropping valid creases on dense pools) is a separate beam-scoring
+investigation.
+
 ## Done Criteria
 
 - `--oracle-selection` and `--oracle-candidate-recall` modes implemented with targeted
