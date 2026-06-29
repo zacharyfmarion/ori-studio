@@ -20,8 +20,8 @@ use oristudio_cp_detect::decode::{
     RefinedVertexCacheEntry, RefinedVertexPrimitive, RefinedVertexRegion,
 };
 use oristudio_cp_detect::refinement::{
-    Frame, ProposalMode, RefinerOutputs, Tensor, VertexRefinerParams, decode_merge_vertex_refiner,
-    plan_vertex_refiner,
+    Frame, ProposalMode, RefinerOutputs, Tensor, VertexRefinerParams, build_source_features,
+    decode_merge_vertex_refiner, plan_vertex_refiner,
 };
 use serde::{Deserialize, Serialize};
 
@@ -95,8 +95,73 @@ fn main() -> Result<(), DynError> {
     match command.as_str() {
         "plan" => run_plan(&rest),
         "merge" => run_merge(&rest),
-        other => Err(format!("unknown subcommand {other:?}; expected plan|merge").into()),
+        "dump-features" => run_dump_features(&rest),
+        other => {
+            Err(format!("unknown subcommand {other:?}; expected plan|merge|dump-features").into())
+        }
     }
+}
+
+/// Dump the decoded RGBA + the 9 Rust source-feature channels for the first sample,
+/// so a Node harness can run the TS `buildVertexRefinerSourceFeatures` on the same
+/// RGBA and diff the channels (model-independent faithfulness check of the port).
+fn run_dump_features(args: &[String]) -> Result<(), DynError> {
+    let manifest_path = PathBuf::from(required(args, "--manifest")?);
+    let out_dir = PathBuf::from(required(args, "--out")?);
+    fs::create_dir_all(&out_dir)?;
+    let manifest: DenseManifest = serde_json::from_str(&fs::read_to_string(&manifest_path)?)?;
+    let pack_root = manifest
+        .pack
+        .as_deref()
+        .map(|p| {
+            Path::new(p)
+                .parent()
+                .unwrap_or(Path::new("."))
+                .to_path_buf()
+        })
+        .ok_or("dense manifest has no pack")?;
+    let sample = manifest.samples.first().ok_or("empty manifest")?;
+    let frame = square_frame(sample.image_size);
+    let input_png = sample
+        .input_png
+        .as_deref()
+        .ok_or("sample has no input_png")?;
+    let image = image::ImageReader::open(resolve(&pack_root, input_png))?
+        .decode()?
+        .into_rgba8();
+    let (width, height) = (image.width() as usize, image.height() as usize);
+    fs::write(out_dir.join("rgba.bin"), image.as_raw())?;
+    let features = build_source_features(image.as_raw(), width, height, REFINER_CROP_SIZE, frame);
+    let channels: [(&str, &Vec<f32>); 9] = [
+        ("image_gray", &features.image_gray),
+        ("source_ink_probability", &features.source_ink_probability),
+        ("source_distance_to_ink", &features.source_distance_to_ink),
+        ("source_orientation_cos2", &features.source_orientation_cos2),
+        ("source_orientation_sin2", &features.source_orientation_sin2),
+        (
+            "signed_distance_to_frame",
+            &features.signed_distance_to_frame,
+        ),
+        ("frame_edge_mask", &features.frame_edge_mask),
+        ("inside_paper_mask", &features.inside_paper_mask),
+        ("boundary_contact_prior", &features.boundary_contact_prior),
+    ];
+    for (name, data) in channels {
+        write_f32(&out_dir.join(format!("rust-{name}.f32")), data)?;
+    }
+    let meta = serde_json::json!({
+        "id": sample.id,
+        "width": width,
+        "height": height,
+        "frame": [frame.x_min, frame.y_min, frame.x_max, frame.y_max],
+        "channels": channels.iter().map(|(n, _)| *n).collect::<Vec<_>>(),
+    });
+    fs::write(
+        out_dir.join("features_meta.json"),
+        serde_json::to_string_pretty(&meta)?,
+    )?;
+    println!("dumped features for {}", sample.id);
+    Ok(())
 }
 
 fn flag<'a>(args: &'a [String], name: &str) -> Option<&'a str> {
