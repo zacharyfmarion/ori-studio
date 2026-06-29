@@ -180,7 +180,13 @@ runs so the solver does not confound selection.
       but **sample-level exact unchanged (63/191)** — perfect selection flips *zero* samples,
       because the failing samples are blocked by missing candidates (detector recall), not
       selection. Selection is a near-non-lever; candidate recall is the wall.
-- [ ] Add `--oracle-candidate-recall` (inject missing GT creases as candidates).
+- [~] `--oracle-candidate-recall` — **not built (superseded by data).** With
+      `--oracle-vertices --oracle-selection` on easy, the residual detector_miss is **1**
+      across 191 samples: given GT junctions, candidate generation already has ~full recall,
+      so "candidate recall" is junction-bound, not a separate generation-logic lever. The
+      `--oracle-vertices` + `--oracle-selection` combination IS the perfect-upstream oracle,
+      so the invasive per-crease injection (constructing valid `CandidateCreaseSpan`s) buys
+      nothing and is skipped.
 - [ ] Add unit tests for both oracle modes.
 - [ ] Write the leave-one-out runner + aggregation script (4 tables, stratified).
 - [ ] Run the full matrix over easy/medium/hard; validate ALL-oracles ≈100%.
