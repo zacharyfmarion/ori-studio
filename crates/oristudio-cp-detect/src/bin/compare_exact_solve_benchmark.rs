@@ -96,6 +96,10 @@ struct Args {
     junction_evidence_source: JunctionEvidenceSource,
     gt_junction_labels: bool,
     gt_vertices: bool,
+    /// Per-sample refined vertex pixels (from the Torch refiner), keyed by sample id.
+    /// Fed into junction-first exactly like `--oracle-vertices`, but with the
+    /// product refiner's vertices instead of GT — the product-faithful junction source.
+    refined_vertices: Option<std::collections::BTreeMap<String, Vec<[f64; 2]>>>,
     threshold: Option<f32>,
     legacy_low_threshold: Option<f32>,
     exact_patience: Option<usize>,
@@ -666,6 +670,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         generation_options.junction_first_v1,
                         &gt.vertices_px,
                     )?
+                } else if let Some(refined) = args
+                    .refined_vertices
+                    .as_ref()
+                    .and_then(|map| map.get(&sample.id))
+                {
+                    if name != CandidateGenerationStrategyName::JunctionFirstV1 {
+                        return Err(format!(
+                            "--refined-vertices requires --candidate-source junction-first-v1 (got {name})"
+                        )
+                        .into());
+                    }
+                    // Product-faithful junctions: replace decoded junctions with the
+                    // Torch refiner's vertices (same injection path as --oracle-vertices,
+                    // but the shipped refiner instead of GT).
+                    generate_junction_first_with_vertex_pixels(
+                        ctx,
+                        generation_options.junction_first_v1,
+                        refined,
+                    )?
                 } else {
                     generate_candidate_graph(ctx, generation_options)?.candidate_graph
                 }
@@ -957,6 +980,7 @@ impl Args {
         let mut junction_evidence_source = JunctionEvidenceSource::Model;
         let mut gt_junction_labels = false;
         let mut gt_vertices = false;
+        let mut refined_vertices_path: Option<String> = None;
         let mut threshold = None;
         let mut legacy_low_threshold = None;
         let mut exact_patience = None;
@@ -1008,6 +1032,9 @@ impl Args {
                 }
                 "--oracle-junction-labels" => gt_junction_labels = true,
                 "--oracle-vertices" => gt_vertices = true,
+                "--refined-vertices" => {
+                    refined_vertices_path = Some(required_value(&mut iter, &arg)?);
+                }
                 "--threshold" => {
                     threshold = Some(required_value(&mut iter, "--threshold")?.parse()?)
                 }
@@ -1069,6 +1096,18 @@ impl Args {
         let dense_manifest =
             dense_manifest.unwrap_or_else(|| PathBuf::from(DEFAULT_DENSE_MANIFEST));
         let out = out.ok_or("--out is required")?;
+        let refined_vertices = match refined_vertices_path {
+            Some(path) => {
+                let text = std::fs::read_to_string(&path)
+                    .map_err(|err| format!("failed to read --refined-vertices {path}: {err}"))?;
+                let map: std::collections::BTreeMap<String, Vec<[f64; 2]>> =
+                    serde_json::from_str(&text).map_err(|err| {
+                        format!("failed to parse --refined-vertices {path}: {err}")
+                    })?;
+                Some(map)
+            }
+            None => None,
+        };
         Ok(Self {
             dense_manifest,
             out,
@@ -1077,6 +1116,7 @@ impl Args {
             junction_evidence_source,
             gt_junction_labels,
             gt_vertices,
+            refined_vertices,
             threshold,
             legacy_low_threshold,
             exact_patience,
