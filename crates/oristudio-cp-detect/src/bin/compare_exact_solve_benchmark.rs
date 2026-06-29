@@ -106,6 +106,7 @@ struct Args {
     skip_flat_folder: bool,
     skip_exact_solve: bool,
     exact_solve_any_topology: bool,
+    oracle_selection: bool,
     junction_first_merge_radius_px: Option<f64>,
     junction_first_corridor_px: Option<f64>,
     junction_first_endpoint_margin_px: Option<f64>,
@@ -685,11 +686,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Default::default(),
         );
         let selection_seconds = selection_started.elapsed().as_secs_f64();
-        let selected_span_ids = selection
-            .selected_spans
-            .iter()
-            .map(|span| span.id)
-            .collect::<Vec<_>>();
+        let gt_segments = gt.segments();
+        // Oracle selection replaces beam with the GT-optimal subset of the pool,
+        // isolating beam scoring as a lever; beam still runs for its report.
+        let selected_span_ids = if args.oracle_selection {
+            oracle_selected_span_ids(
+                &candidate_graph,
+                &gt_segments,
+                sample.image_size,
+                args.strict_vertex_tolerance_px,
+            )
+        } else {
+            selection
+                .selected_spans
+                .iter()
+                .map(|span| span.id)
+                .collect::<Vec<_>>()
+        };
         let selected_span_set = selected_span_ids.iter().copied().collect::<BTreeSet<_>>();
         let selected_graph =
             SelectedGraph::from_selected_span_ids(&candidate_graph, selected_span_ids);
@@ -780,7 +793,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             GraphDoc::from_exact_solve(&exact_input, exact)
                 .with_flat_folder_boundary_hint(flat_folder_boundary_hint.clone())
         });
-        let gt_segments = gt.segments();
 
         let legacy = output_metrics(
             &legacy_doc,
@@ -829,17 +841,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             fs::write(&path, selected_doc.to_fold_json()?)?;
         }
         let metrics_seconds = metrics_started.elapsed().as_secs_f64();
-        let selected_weak_spans = selection
-            .selected_spans
+        let selected_weak_spans = candidate_graph
+            .crease_candidates
             .iter()
-            .filter(|span| {
-                candidate_graph
-                    .crease_candidates
-                    .get(span.id)
-                    .is_some_and(|candidate| {
-                        candidate.source_kind
-                            == oristudio_cp_compiler::CandidateCreaseSourceKind::LegacyLowThreshold
-                    })
+            .filter(|candidate| {
+                selected_span_set.contains(&candidate.id)
+                    && candidate.source_kind
+                        == oristudio_cp_compiler::CandidateCreaseSourceKind::LegacyLowThreshold
             })
             .count();
         let dropped_legacy_spans = candidate_graph
@@ -863,7 +871,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             exact_solved: exact_output,
             selection: SelectionSummary {
                 candidate_spans: candidate_graph.crease_candidates.len(),
-                selected_spans: selection.selected_spans.len(),
+                selected_spans: selected_span_set.len(),
                 selected_weak_spans,
                 dropped_legacy_spans,
                 total_score: round6(selection.report.total_score),
@@ -959,6 +967,7 @@ impl Args {
         let mut skip_flat_folder = false;
         let mut skip_exact_solve = false;
         let mut exact_solve_any_topology = false;
+        let mut oracle_selection = false;
         let mut junction_first_merge_radius_px = None;
         let mut junction_first_corridor_px = None;
         let mut junction_first_endpoint_margin_px = None;
@@ -1024,6 +1033,7 @@ impl Args {
                 "--skip-flat-folder" => skip_flat_folder = true,
                 "--skip-exact-solve" => skip_exact_solve = true,
                 "--exact-solve-any-topology" => exact_solve_any_topology = true,
+                "--oracle-selection" => oracle_selection = true,
                 "--junction-first-merge-radius-px" => {
                     junction_first_merge_radius_px =
                         Some(required_value(&mut iter, &arg)?.parse()?);
@@ -1077,6 +1087,7 @@ impl Args {
             skip_flat_folder,
             skip_exact_solve,
             exact_solve_any_topology,
+            oracle_selection,
             junction_first_merge_radius_px,
             junction_first_corridor_px,
             junction_first_endpoint_margin_px,
@@ -2371,6 +2382,50 @@ fn point_distance(left: [f64; 2], right: [f64; 2]) -> f64 {
     (dx * dx + dy * dy).sqrt()
 }
 
+fn point_segment_distance(point: [f64; 2], a: [f64; 2], b: [f64; 2]) -> f64 {
+    let ab = [b[0] - a[0], b[1] - a[1]];
+    let length_sq = ab[0] * ab[0] + ab[1] * ab[1];
+    if length_sq <= f64::EPSILON {
+        return point_distance(point, a);
+    }
+    let ap = [point[0] - a[0], point[1] - a[1]];
+    let t = ((ap[0] * ab[0] + ap[1] * ab[1]) / length_sq).clamp(0.0, 1.0);
+    point_distance(point, [a[0] + t * ab[0], a[1] + t * ab[1]])
+}
+
+/// Oracle selection: the GT-optimal subset of the *generated* candidate pool.
+/// A candidate is kept iff its whole pixel span lies on GT creases (every sampled
+/// point within `tolerance` of some GT segment), so it can contribute to exact
+/// topology; spurious / off-line candidates are dropped. This isolates beam
+/// scoring — residual failures are then missing candidates (recall) or geometry,
+/// not selection. The exact solver / canonicalizing metric handle merge/split.
+fn oracle_selected_span_ids(
+    candidate_graph: &CandidateGraph,
+    gt_segments: &[SegmentPx],
+    image_size: u32,
+    tolerance: f64,
+) -> Vec<usize> {
+    const SAMPLES: usize = 9;
+    candidate_graph
+        .crease_candidates
+        .iter()
+        .filter_map(|span| {
+            let a = candidate_graph.vertices.get(span.vertices[0])?;
+            let b = candidate_graph.vertices.get(span.vertices[1])?;
+            let pa = normalized_to_px(a.point, image_size);
+            let pb = normalized_to_px(b.point, image_size);
+            let supported = (0..=SAMPLES).all(|i| {
+                let t = i as f64 / SAMPLES as f64;
+                let p = [pa[0] + t * (pb[0] - pa[0]), pa[1] + t * (pb[1] - pa[1])];
+                gt_segments
+                    .iter()
+                    .any(|seg| point_segment_distance(p, seg.a, seg.b) <= tolerance)
+            });
+            supported.then_some(span.id)
+        })
+        .collect()
+}
+
 fn distance(left: Point2, right: Point2) -> f64 {
     let dx = left.x - right.x;
     let dy = left.y - right.y;
@@ -2548,7 +2603,7 @@ fn round6(value: f64) -> f64 {
 
 fn print_usage() {
     println!(
-        "compare_exact_solve_benchmark --out DIR [--dense-manifest PATH] [--candidate-source legacy] [--line-evidence-source model|source-image] [--junction-evidence-source model|line-arrangement|ground-truth] [--oracle-junction-labels] [--oracle-vertices] [--threshold T] [--legacy-low-threshold T] [--exact-patience N] [--exact-solve-timeout-seconds S] [--limit N] [--match-tolerance-px PX] [--strict-vertex-tolerance-px PX] [--skip-flat-folder] [--skip-exact-solve] [--exact-solve-any-topology]"
+        "compare_exact_solve_benchmark --out DIR [--dense-manifest PATH] [--candidate-source legacy] [--line-evidence-source model|source-image] [--junction-evidence-source model|line-arrangement|ground-truth] [--oracle-junction-labels] [--oracle-vertices] [--threshold T] [--legacy-low-threshold T] [--exact-patience N] [--exact-solve-timeout-seconds S] [--limit N] [--match-tolerance-px PX] [--strict-vertex-tolerance-px PX] [--skip-flat-folder] [--skip-exact-solve] [--exact-solve-any-topology] [--oracle-selection]"
     );
     println!(
         "  exact solve is gated on correct topology by default (wrong topology cannot reconstruct the right CP, so it is skipped and marked failed); --exact-solve-any-topology attempts it regardless."
@@ -2557,4 +2612,22 @@ fn print_usage() {
         "Samples run in parallel across the rayon thread pool. Exact-solve timeout defaults to {BENCHMARK_DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS}s (benchmark-only; product uses {}s). For fast topology iteration pass --skip-exact-solve.",
         oristudio_cp_compiler::DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn point_segment_distance_projects_and_clamps() {
+        // Perpendicular foot inside the segment.
+        let d = point_segment_distance([5.0, 3.0], [0.0, 0.0], [10.0, 0.0]);
+        assert!((d - 3.0).abs() < 1e-9);
+        // Beyond an endpoint clamps to that endpoint.
+        let d = point_segment_distance([-4.0, 0.0], [0.0, 0.0], [10.0, 0.0]);
+        assert!((d - 4.0).abs() < 1e-9);
+        // Degenerate (zero-length) segment falls back to point distance.
+        let d = point_segment_distance([3.0, 4.0], [0.0, 0.0], [0.0, 0.0]);
+        assert!((d - 5.0).abs() < 1e-9);
+    }
 }

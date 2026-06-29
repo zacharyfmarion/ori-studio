@@ -175,7 +175,11 @@ runs so the solver does not confound selection.
       recovered / unmatched vertices; identity recovered+detector+selection == gt_edges
       verified). Early read on easy bucket: of lost creases, detector_miss ≫ selection_miss
       (1158 vs 16) — candidate recall, not selection, is the dominant lever.
-- [ ] Add `--oracle-selection` (GT-optimal pick over generated candidates).
+- [x] Add `--oracle-selection` (GT-optimal pick over generated candidates: keep candidates
+      whose whole pixel span lies on GT creases). Validated: on easy, selection_miss 16 → 0
+      but **sample-level exact unchanged (63/191)** — perfect selection flips *zero* samples,
+      because the failing samples are blocked by missing candidates (detector recall), not
+      selection. Selection is a near-non-lever; candidate recall is the wall.
 - [ ] Add `--oracle-candidate-recall` (inject missing GT creases as candidates).
 - [ ] Add unit tests for both oracle modes.
 - [ ] Write the leave-one-out runner + aggregation script (4 tables, stratified).
