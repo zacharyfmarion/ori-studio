@@ -268,6 +268,9 @@ fn plan_params(frame: Frame) -> VertexRefinerParams {
         crop_size: REFINER_CROP_SIZE,
         frame: Some(frame),
         proposal_mode: ProposalMode::DenseJunctionRegions,
+        // From the cp-vertex-refiner-v3 manifest (current-vertex-refiner.json).
+        heatmap_threshold: 0.25,
+        boundary_heatmap_threshold: 0.25,
         ..Default::default()
     }
 }
