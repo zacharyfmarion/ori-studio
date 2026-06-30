@@ -2059,6 +2059,48 @@ describe('workspace store slices', () => {
     );
   });
 
+  it('uses imported Oriedita folded model metadata when folding selected CP lines', async () => {
+    resetStores(seedSnapshot());
+    const documentState = editableCpState([
+      cpLine({ x: 0, y: 0 }, { x: 1, y: 0 }, { color: 'Red1' }),
+    ]);
+    useWorkspaceStore.setState({
+      oristudioCpDocument: {
+        ...documentState,
+        document: {
+          ...documentState.document,
+          metadata: {
+            'oriedita:ori:foldedFigureModel': {
+              frontColor: 'ff010203',
+              backColor: 'ff040506',
+              lineColor: 'ff070809',
+              state: 'TRANSPARENT_3',
+              scale: 2,
+              rotation: 90,
+            },
+          },
+        },
+      },
+      oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
+    });
+
+    await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
+
+    expect(oristudioCpMocks.foldOristudioCpDocument).toHaveBeenCalledWith(
+      1,
+      'Order5',
+      expect.objectContaining({
+        front_color: { red: 1, green: 2, blue: 3 },
+        back_color: { red: 4, green: 5, blue: 6 },
+        line_color: { red: 7, green: 8, blue: 9 },
+        scale: 2,
+        rotation: 90,
+        state: 'Transparent3',
+      }),
+      [1]
+    );
+  });
+
   it('does not fold editable CP documents without selected foldable lines', async () => {
     resetStores(seedSnapshot());
     useWorkspaceStore.setState({

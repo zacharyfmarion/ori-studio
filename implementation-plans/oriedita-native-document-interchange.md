@@ -141,7 +141,7 @@ even when the editable CP view operates on one active crease-pattern frame.
 | `gridModel` | `GridModel` | `model::grid`, web viewport/grid state | First-class grid data. |
 | `creasePatternCamera` | `Camera` | preserved metadata, later web viewport restore | Preserved now; Phase 6 promotes supported fields. |
 | `canvasModel` | `CanvasModel` | preserved metadata, later tool/input state restore | Preserved now; Phase 6 promotes supported fields. |
-| `foldedFigureModel` | `FoldedFigureModel` | preserved metadata, `folding::FoldedFigureModel` defaults | Preserved now; Phase 6 promotes colors/defaults. |
+| `foldedFigureModel` | `FoldedFigureModel` | preserved metadata, `folding::FoldedFigureModel` defaults | Preserved and used to seed newly generated folded figures; explicit UI controls remain planned. |
 | `applicationModel` | `ApplicationModel` | preserved metadata | Preserve-only unless a field maps to shared app settings. |
 | unknown top-level fields | Jackson `FAIL_ON_UNKNOWN_PROPERTIES=false` behavior | `document.metadata` with `oriedita:ori:` prefix | Preserve exactly as structured JSON. |
 
@@ -514,7 +514,9 @@ Done when:
 - [x] Phase 5: Add `.orh` open/export routing where supported.
 - [x] Phase 5: Add `Export ORI...` menu, capability, file panel, and tests.
 - [x] Phase 5: Add save-back semantics for current `.ori` sources.
-- [ ] Phase 6: Restore Oriedita grid, camera, canvas, and folded color state.
+- [x] Phase 6: Seed newly generated folded figures from Oriedita `.ori` and
+      `.orh` folded model metadata.
+- [ ] Phase 6: Restore Oriedita grid, camera, and canvas state in the web UI.
 - [ ] Phase 6: Preserve unsupported editor-state fields with clear status.
 - [x] Phase 7: Update `.osf` source typing and Oriedita metadata preservation.
 - [ ] Phase 7: Add export-from-`.osf` tests for `.ori` and `.fold`.

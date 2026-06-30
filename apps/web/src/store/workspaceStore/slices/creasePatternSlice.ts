@@ -17,6 +17,7 @@ import {
   markGeneratedCpLineageStale,
   stableTextDigest,
 } from '../../../lib/oristudioCpLineage';
+import { foldedFigureModelFromOrieditaMetadata } from '../../../lib/orieditaNativeMetadata';
 import { defaultOristudioCpSymmetry } from '../../../lib/oristudioCpSymmetry';
 import { requestConfirmation } from '../../commandDialogStore';
 import { useLayoutStore } from '../../layoutStore';
@@ -659,10 +660,14 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       });
 
       try {
+        const model =
+          options.model ??
+          foldedFigureModelFromOrieditaMetadata(oristudioCpDocument.document.metadata) ??
+          undefined;
         const result = await foldRuntimeOristudioCpDocument(
           options.startingFaceId ?? 1,
           options.order ?? 'Order5',
-          options.model,
+          model,
           selectedLineIds
         );
         const displayStyle = result.snapshot.display_style;
