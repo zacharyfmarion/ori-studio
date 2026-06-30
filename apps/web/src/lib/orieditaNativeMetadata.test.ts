@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   activeLineColorFromOrieditaMetadata,
+  activeMouseModeFromOrieditaMetadata,
   foldedFigureModelFromOrieditaMetadata,
   orieditaNativeMetadataStatus,
 } from './orieditaNativeMetadata';
@@ -88,18 +89,50 @@ describe('oriedita native metadata', () => {
     ).toBeNull();
   });
 
+  it('restores the active Oriedita canvas mouse mode when present', () => {
+    expect(
+      activeMouseModeFromOrieditaMetadata({
+        'oriedita:ori:canvasModel': {
+          mouseMode: 'DRAW_CREASE_FREE_1',
+        },
+      })
+    ).toBe('DRAW_CREASE_FREE_1');
+  });
+
+  it('returns null when canvas model mouse mode is absent or empty', () => {
+    expect(activeMouseModeFromOrieditaMetadata({})).toBeNull();
+    expect(
+      activeMouseModeFromOrieditaMetadata({
+        'oriedita:ori:canvasModel': {
+          mouseMode: '   ',
+        },
+      })
+    ).toBeNull();
+  });
+
   it('summarizes restored and preserved native metadata fields', () => {
     expect(
       orieditaNativeMetadataStatus({
         'oriedita:ori:foldedFigureModel': {},
         'oriedita:ori:creasePatternCamera': {},
-        'oriedita:ori:canvasModel': { lineColor: 'BLUE_2' },
+        'oriedita:ori:canvasModel': { lineColor: 'BLUE_2', mouseMode: 'DRAW_CREASE_FREE_1' },
         'oriedita:ori:unknownFutureField': {},
         'oriedita:orh:oriagarizu_front_color': [1, 2, 3],
       })
     ).toEqual({
-      restored: ['Canvas line color', 'Folded colors', 'Folded model'],
+      restored: ['Canvas line color', 'Canvas tool', 'Folded colors', 'Folded model'],
       preserved: ['Camera', 'Canvas', 'unknownFutureField'],
+    });
+  });
+
+  it('does not report unsupported future mouse modes as restored', () => {
+    expect(
+      orieditaNativeMetadataStatus({
+        'oriedita:ori:canvasModel': { mouseMode: 'FUTURE_MOUSE_MODE_999' },
+      })
+    ).toEqual({
+      restored: [],
+      preserved: ['Canvas'],
     });
   });
 

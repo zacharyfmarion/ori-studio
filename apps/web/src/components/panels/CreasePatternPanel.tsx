@@ -72,6 +72,7 @@ import {
   ORISTUDIO_CP_LINE_TYPE_ACTIONS,
   cpActionByOperation,
   cpActionById,
+  cpActionByUpstreamMouseMode,
   type OristudioCpActionDefinition,
   type OristudioCpActionId,
   type OristudioCpActionInputMode,
@@ -111,7 +112,10 @@ import {
   ORISTUDIO_CP_EXTRA_LINE_COLOR_PALETTE,
   cpPaletteEntryForColor,
 } from '../../lib/oristudioCpPalette';
-import { activeLineColorFromOrieditaMetadata } from '../../lib/orieditaNativeMetadata';
+import {
+  activeLineColorFromOrieditaMetadata,
+  activeMouseModeFromOrieditaMetadata,
+} from '../../lib/orieditaNativeMetadata';
 import {
   axisFromTwoPoints,
   cpSymmetryAxisLine,
@@ -1600,6 +1604,10 @@ export function CreasePatternPanel() {
     () => activeLineColorFromOrieditaMetadata(editableCp?.metadata),
     [editableCp?.metadata]
   );
+  const nativeActiveMouseMode = useMemo(
+    () => activeMouseModeFromOrieditaMetadata(editableCp?.metadata),
+    [editableCp?.metadata]
+  );
   const cpCanvasRect = editableCp ? CP_EDITABLE_CANVAS_RECT : CP_WORLD_RECT;
   const cpFitRect = editableCp ? CP_EDITABLE_FIT_RECT : CP_WORLD_RECT;
   const cpCanvasViewBox = `${cpCanvasRect.x} ${cpCanvasRect.y} ${cpCanvasRect.width} ${cpCanvasRect.height}`;
@@ -2010,7 +2018,9 @@ export function CreasePatternPanel() {
     }
     const isNewDocument = defaultCpToolDocumentRef.current !== documentKey;
     defaultCpToolDocumentRef.current = documentKey;
-    const defaultAction = cpActionById(DEFAULT_ORISTUDIO_CP_ACTION_ID);
+    const defaultAction =
+      (nativeActiveMouseMode ? cpActionByUpstreamMouseMode(nativeActiveMouseMode) : undefined) ??
+      cpActionById(DEFAULT_ORISTUDIO_CP_ACTION_ID);
     if (!defaultAction) return;
     setCpToolState((state) =>
       isNewDocument || state.phase === 'idle'
@@ -2021,7 +2031,7 @@ export function CreasePatternPanel() {
           })
         : state
     );
-  }, [cpToolState.phase, editableCp, editableCpHandle, projectLoadId]);
+  }, [cpToolState.phase, editableCp, editableCpHandle, nativeActiveMouseMode, projectLoadId]);
 
   useEffect(() => {
     if (

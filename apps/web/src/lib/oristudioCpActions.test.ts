@@ -5,6 +5,7 @@ import {
   ORISTUDIO_CP_LINE_TYPE_ACTIONS,
   cpActionById,
   cpActionByOperation,
+  cpActionByUpstreamMouseMode,
   cpRailActions,
 } from './oristudioCpActions';
 import { ORISTUDIO_CP_COMMANDS } from './oristudioCpCommands';
@@ -160,5 +161,18 @@ describe('oristudio CP action registry', () => {
       group: 'transform',
       toolSteps: ['Select 2 points or select a line', 'Pick reflection line end'],
     });
+  });
+
+  it('resolves persisted Oriedita mouse modes to the matching command action', () => {
+    expect(cpActionByUpstreamMouseMode('DRAW_CREASE_FREE_1')).toMatchObject({
+      id: 'cp.action.draw-crease',
+      operationId: 'DrawCreaseFree',
+      lineInputMode: 'fold-line',
+    });
+    expect(cpActionByUpstreamMouseMode('CREASE_SELECT_19')).toMatchObject({
+      id: DEFAULT_ORISTUDIO_CP_ACTION_ID,
+      operationId: 'CreaseSelect',
+    });
+    expect(cpActionByUpstreamMouseMode('FUTURE_MOUSE_MODE_999')).toBeUndefined();
   });
 });

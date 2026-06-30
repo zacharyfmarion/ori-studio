@@ -666,6 +666,15 @@ export function cpActionByOperation(
   );
 }
 
+export function cpActionByUpstreamMouseMode(
+  mouseMode: string
+): OristudioCpCommandActionDefinition | undefined {
+  return ORISTUDIO_CP_ACTIONS.find(
+    (action): action is OristudioCpCommandActionDefinition =>
+      action.kind === 'command' && action.upstreamMouseMode === mouseMode
+  );
+}
+
 export function cpRailActions(): OristudioCpActionDefinition[] {
   return sortActionsForRail(
     ORISTUDIO_CP_ACTIONS.filter(

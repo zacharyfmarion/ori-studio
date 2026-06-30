@@ -4,6 +4,7 @@ import type {
   OristudioCpLineColor,
   OristudioCpRgbColor,
 } from '../engine/oristudioCpTypes';
+import { cpActionByUpstreamMouseMode } from './oristudioCpActions';
 
 const DEFAULT_FOLDED_MODEL: OristudioCpFoldedFigureModel = {
   front_color: { red: 255, green: 255, blue: 50 },
@@ -83,6 +84,16 @@ export function activeLineColorFromOrieditaMetadata(
   return booleanValue(canvasModel?.toggleLineColor) ? toggledLineColor(lineColor) : lineColor;
 }
 
+export function activeMouseModeFromOrieditaMetadata(
+  metadata: Record<string, unknown> | null | undefined
+): string | null {
+  const canvasModel = recordValue(metadata?.[ORI_CANVAS_MODEL_KEY]);
+  const mouseMode = canvasModel?.mouseMode;
+  if (typeof mouseMode !== 'string') return null;
+  const trimmed = mouseMode.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 export function orieditaNativeMetadataStatus(
   metadata: Record<string, unknown> | null | undefined
 ): OrieditaNativeMetadataStatus | null {
@@ -96,8 +107,10 @@ export function orieditaNativeMetadataStatus(
       const restoredLabel = RESTORED_ORI_FIELDS.get(field);
       if (restoredLabel) {
         restored.add(restoredLabel);
-      } else if (field === 'canvasModel' && activeLineColorFromOrieditaMetadata(metadata)) {
-        restored.add('Canvas line color');
+      } else if (field === 'canvasModel') {
+        if (activeLineColorFromOrieditaMetadata(metadata)) restored.add('Canvas line color');
+        const mouseMode = activeMouseModeFromOrieditaMetadata(metadata);
+        if (mouseMode && cpActionByUpstreamMouseMode(mouseMode)) restored.add('Canvas tool');
         preserved.add(PRESERVED_ORI_FIELD_LABELS.get(field) ?? field);
       } else {
         preserved.add(PRESERVED_ORI_FIELD_LABELS.get(field) ?? field);
