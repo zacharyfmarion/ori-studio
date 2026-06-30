@@ -13,6 +13,8 @@ export function export_cp(handle: number): string;
 
 export function export_fold(handle: number): string;
 
+export function export_ori(handle: number): string;
+
 export function folded_figure_duplicate(handle: number): any;
 
 export function folded_figure_fold(document_handle: number, starting_face_id: number, order: any, model: any): any;
@@ -41,6 +43,8 @@ export function load_document(document: any): number;
 
 export function load_fold(text: string, title: string): number;
 
+export function load_ori(text: string, accept_unknown_version: boolean): number;
+
 export function preview_cp_command(handle: number, operation: any, payload: any): any;
 
 export function replace_line_segments(handle: number, line_ids: any, segments: any): number;
@@ -55,6 +59,7 @@ export interface InitOutput {
     readonly execute_cp_command: (a: number, b: any, c: any) => [number, number, number];
     readonly export_cp: (a: number) => [number, number, number, number];
     readonly export_fold: (a: number) => [number, number, number, number];
+    readonly export_ori: (a: number) => [number, number, number, number];
     readonly folded_figure_duplicate: (a: number) => [number, number, number];
     readonly folded_figure_fold: (a: number, b: number, c: any, d: any) => [number, number, number];
     readonly folded_figure_fold_another: (a: number) => [number, number, number];
@@ -69,6 +74,7 @@ export interface InitOutput {
     readonly load_cp: (a: number, b: number, c: number, d: number) => [number, number, number];
     readonly load_document: (a: any) => [number, number, number];
     readonly load_fold: (a: number, b: number, c: number, d: number) => [number, number, number];
+    readonly load_ori: (a: number, b: number, c: number) => [number, number, number];
     readonly preview_cp_command: (a: number, b: any, c: any) => [number, number, number];
     readonly replace_line_segments: (a: number, b: any, c: any) => [number, number, number];
     readonly __wbindgen_malloc: (a: number, b: number) => number;

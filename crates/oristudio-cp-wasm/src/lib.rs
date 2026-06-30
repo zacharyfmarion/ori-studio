@@ -113,6 +113,13 @@ pub fn load_fold(text: &str, title: &str) -> Result<u32, JsValue> {
 }
 
 #[wasm_bindgen]
+pub fn load_ori(text: &str, accept_unknown_version: bool) -> Result<u32, JsValue> {
+    let document = io::ori::import_ori_json_with_unknown_version(text, accept_unknown_version)
+        .map_err(to_js_io_error)?;
+    store_document(document)
+}
+
+#[wasm_bindgen]
 pub fn load_document(document: JsValue) -> Result<u32, JsValue> {
     let document: CreasePatternDocument =
         serde_wasm_bindgen::from_value(document).map_err(to_js_value_error)?;
@@ -228,6 +235,13 @@ pub fn export_fold(handle: u32) -> Result<String, JsValue> {
     with_document(handle, |document| {
         io::fold::export_fold_json(&document.crease_pattern, document.title.clone())
             .map_err(to_js_io_error)
+    })
+}
+
+#[wasm_bindgen]
+pub fn export_ori(handle: u32) -> Result<String, JsValue> {
+    with_document(handle, |document| {
+        io::ori::export_ori_json(document).map_err(to_js_io_error)
     })
 }
 

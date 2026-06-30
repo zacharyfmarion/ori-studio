@@ -19,6 +19,55 @@ fn loads_cp_and_exports_document() {
 }
 
 #[wasm_bindgen_test]
+fn loads_ori_and_exports_native_editor_metadata() {
+    let input = r#"{
+      "@version": "v1.1",
+      "title": "native ori",
+      "lineSegments": [{
+        "a": "0.0,0.0",
+        "b": "1.0,0.0",
+        "active": "ACTIVE_BOTH_3",
+        "color": "RED_1",
+        "customized": 0,
+        "customizedColor": "ff64c8c8",
+        "selected": 0
+      }],
+      "foldedFigureModel": {
+        "frontColor": "ffcc0000",
+        "unknownNestedModel": {"kept": true}
+      }
+    }"#;
+
+    let handle = oristudio_cp_wasm::load_ori(input, false).expect("ori import should succeed");
+    let summary = oristudio_cp_wasm::document_summary(handle).expect("summary should serialize");
+    let summary: serde_json::Value =
+        serde_wasm_bindgen::from_value(summary).expect("summary should deserialize");
+
+    assert_eq!(summary["title"], "native ori");
+    assert_eq!(summary["line_segments"], 1);
+
+    let exported = oristudio_cp_wasm::export_ori(handle).expect("ori export should succeed");
+    let exported: serde_json::Value = serde_json::from_str(&exported).expect("ori json");
+    assert_eq!(exported["@version"], "v1.1");
+    assert_eq!(exported["foldedFigureModel"]["frontColor"], "ffcc0000");
+    assert_eq!(
+        exported["foldedFigureModel"]["unknownNestedModel"],
+        serde_json::json!({"kept": true})
+    );
+    oristudio_cp_wasm::free_document(handle).expect("document handle should free");
+}
+
+#[wasm_bindgen_test]
+fn load_ori_supports_explicit_open_anyway_version_policy() {
+    let input = r#"{"@version":"v99","lineSegments":[]}"#;
+
+    assert!(oristudio_cp_wasm::load_ori(input, false).is_err());
+    let handle =
+        oristudio_cp_wasm::load_ori(input, true).expect("permissive ori import should succeed");
+    oristudio_cp_wasm::free_document(handle).expect("document handle should free");
+}
+
+#[wasm_bindgen_test]
 fn command_dispatch_returns_typed_not_implemented_error() {
     let handle =
         oristudio_cp_wasm::load_cp("1 0 0 1 0\n", "sample").expect("cp import should succeed");

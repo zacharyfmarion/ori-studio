@@ -505,7 +505,7 @@ Done when:
 - [ ] Phase 2: Add FOLD frame graph preservation and oracle tests.
 - [ ] Phase 3: Expose `.orh` through the runtime with legacy charset behavior.
 - [ ] Phase 3: Add `.orh` lossy-warning and oracle coverage.
-- [ ] Phase 4: Add explicit WASM load/export APIs for `.ori`.
+- [x] Phase 4: Add explicit WASM load/export APIs for `.ori`.
 - [ ] Phase 4: Add explicit WASM load/export APIs for full FOLD documents.
 - [ ] Phase 4: Add `.orh` WASM APIs if legacy support is in the implementation
       slice.
