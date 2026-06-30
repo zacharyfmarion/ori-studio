@@ -118,6 +118,16 @@ export function FilesPanel() {
           <Button
             size="sm"
             variant="secondary"
+            disabled={!capabilities['file.exportOri'].enabled}
+            title={capabilities['file.exportOri'].reason}
+            onClick={() => void handleMenuAction('file.exportOri')}
+          >
+            <Download size={14} />
+            ORI
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
             disabled={!capabilities['file.exportSvg'].enabled}
             title={capabilities['file.exportSvg'].reason}
             onClick={() => void handleMenuAction('file.exportSvg')}

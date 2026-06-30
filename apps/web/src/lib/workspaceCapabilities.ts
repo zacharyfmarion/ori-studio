@@ -10,6 +10,7 @@ export type WorkspaceCapabilityId =
   | 'file.exportV4'
   | 'file.exportCp'
   | 'file.exportFold'
+  | 'file.exportOri'
   | 'file.exportSvg'
   | 'file.exportPng'
   | 'edit.undo'
@@ -203,6 +204,13 @@ export function getWorkspaceCapabilities(input: WorkspaceCapabilityInput): Works
         : treeMode
           ? 'Build a crease pattern before exporting FOLD'
           : 'Open a crease pattern before exporting FOLD'
+    ),
+    'file.exportOri': capability(
+      canExportEditableCp && !isBusy,
+      'Export ORI...',
+      canExportEditableCp
+        ? busyOr('Export editable crease pattern as an Oriedita ORI document', input.status)
+        : 'Open an editable crease pattern before exporting ORI'
     ),
     'file.exportSvg': capability(
       canExportCreasePattern,

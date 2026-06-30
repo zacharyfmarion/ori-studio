@@ -2,7 +2,7 @@ import { prepareFoldModel, type FoldDocument as SimulatorFoldDocument } from '@t
 import type { FoldAssignment, FoldArtifacts, FoldDocument } from '../engine/types';
 import type { CreaseLine, FacetShape, TreeProject } from './sampleProject';
 
-export type ImportedCreasePatternFormat = 'fold' | 'cp';
+export type ImportedCreasePatternFormat = 'fold' | 'cp' | 'ori';
 
 export interface ImportedCreasePatternSource {
   format: ImportedCreasePatternFormat;
@@ -78,17 +78,22 @@ interface NormalizedSegment {
 const EPSILON = 1e-8;
 
 export function isCreasePatternFilename(filename: string): boolean {
-  return /\.(fold|cp)$/i.test(filename);
+  return /\.(fold|cp|ori)$/i.test(filename);
 }
 
 export function importedCreasePatternFormat(filename: string): ImportedCreasePatternFormat {
-  return /\.cp$/i.test(filename) ? 'cp' : 'fold';
+  if (/\.cp$/i.test(filename)) return 'cp';
+  if (/\.ori$/i.test(filename)) return 'ori';
+  return 'fold';
 }
 
 export function parseImportedCreasePattern(
   text: string,
   source: ImportedCreasePatternSource
 ): ImportedCreasePatternResult {
+  if (source.format === 'ori') {
+    throw new Error('Oriedita .ori files must be imported through the native Oriedita runtime');
+  }
   const diagnostics: ImportedCreasePatternDiagnostics = { warnings: [], errors: [] };
   const parsed =
     source.format === 'cp'

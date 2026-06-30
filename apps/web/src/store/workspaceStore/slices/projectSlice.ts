@@ -10,6 +10,7 @@ import {
   importedCreasePatternFormat,
   isCreasePatternFilename,
   parseImportedCreasePattern,
+  type ImportedCreasePatternResult,
   withFlatFoldArtifacts,
   withFlatFoldError,
 } from '../../../lib/creasePatternImport';
@@ -68,6 +69,7 @@ import {
   executeOristudioCpCommand as executeRuntimeOristudioCpCommand,
   exportOristudioCpDocumentAsCp,
   exportOristudioCpDocumentAsFold,
+  exportOristudioCpDocumentAsOri,
   createBlankOristudioCpDocument,
   getOristudioCpOperationDescriptors,
   loadOristudioCpDocumentFromText,
@@ -220,7 +222,11 @@ function selectedLineSelectionFromDocument(
 }
 
 function basenameWithoutProjectExtension(filename: string): string {
-  return filename.replace(/\.(osf|tmd5?|tmd4)$/i, '') || 'Untitled';
+  return filename.replace(/\.(osf|tmd5?|tmd4|cp|fold|ori)$/i, '') || 'Untitled';
+}
+
+function isOrieditaOriFilename(filename: string): boolean {
+  return /\.ori$/i.test(filename);
 }
 
 function defaultFilename(title: string, extension: string): string {
@@ -466,30 +472,69 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       oristudioCpCamvResult: null,
     });
     const filename = source.filename;
+    const path = source.path ?? null;
     const format = importedCreasePatternFormat(filename);
-    const parsed = parseImportedCreasePattern(text, {
-      format,
-      filename,
-      path: source.path ?? null,
-    });
     await releaseEditableCreasePattern();
+    let parsed: ImportedCreasePatternResult;
     let oristudioCpDocument: Awaited<
       ReturnType<typeof loadOristudioCpDocumentFromText>
     > | null = null;
     let oristudioCpCamvResult: OristudioCpCommandResult | null = null;
     let oristudioCpRuntimeError: string | null = null;
-    try {
-      oristudioCpDocument = await loadOristudioCpDocumentFromText(text, {
+
+    if (format === 'ori') {
+      try {
+        oristudioCpDocument = await loadOristudioCpDocumentFromText(text, {
+          format,
+          filename,
+          path,
+        });
+        const checked = await refreshAlwaysOnCamvDiagnostics(oristudioCpDocument);
+        oristudioCpDocument = checked.documentState;
+        oristudioCpCamvResult = checked.camvResult;
+        const foldProjection = await exportOristudioCpDocumentAsFold();
+        const projectionTitle =
+          oristudioCpDocument.summary.title || basenameWithoutProjectExtension(filename);
+        const projected = parseImportedCreasePattern(foldProjection, {
+          format: 'fold',
+          filename: defaultFilename(projectionTitle, 'fold'),
+          path: null,
+        });
+        parsed = {
+          ...projected,
+          project: {
+            ...projected.project,
+            title: projectionTitle,
+          },
+          document: {
+            ...projected.document,
+            source: { format, filename, path },
+            title: projectionTitle,
+          },
+        };
+      } catch (error) {
+        await releaseEditableCreasePattern();
+        throw error;
+      }
+    } else {
+      parsed = parseImportedCreasePattern(text, {
         format,
         filename,
-        path: source.path ?? null,
-        title: parsed.document.title,
+        path,
       });
-      const checked = await refreshAlwaysOnCamvDiagnostics(oristudioCpDocument);
-      oristudioCpDocument = checked.documentState;
-      oristudioCpCamvResult = checked.camvResult;
-    } catch (error) {
-      oristudioCpRuntimeError = oristudioCpError(error).message;
+      try {
+        oristudioCpDocument = await loadOristudioCpDocumentFromText(text, {
+          format,
+          filename,
+          path,
+          title: parsed.document.title,
+        });
+        const checked = await refreshAlwaysOnCamvDiagnostics(oristudioCpDocument);
+        oristudioCpDocument = checked.documentState;
+        oristudioCpCamvResult = checked.camvResult;
+      } catch (error) {
+        oristudioCpRuntimeError = oristudioCpError(error).message;
+      }
     }
     const result = await (async () => {
       try {
@@ -852,6 +897,52 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     };
   };
 
+  const saveEditableCreasePatternAsOri = async (fileService: FileService) => {
+    const documentState = get().oristudioCpDocument;
+    if (!documentState) return false;
+    const contents = await exportOristudioCpDocumentAsOri();
+    const importedCreasePattern = get().importedCreasePattern;
+    const result = await fileService.saveTextFile({
+      title: 'Save Oriedita ORI Document',
+      contents,
+      suggestedName: ensureExtension(get().currentFileName, 'ori'),
+      path: get().currentFilePath,
+      extensions: ['ori'],
+    });
+    if (!result) return false;
+
+    const source = {
+      format: 'ori' as const,
+      filename: result.name,
+      path: result.path,
+    };
+    setOristudioCpDocumentSource(source);
+    set({
+      currentFileName: result.name,
+      currentFilePath: result.path,
+      dirty: false,
+      projectMessage: `Saved ${result.name}`,
+      importedCreasePattern: importedCreasePattern
+        ? {
+            ...importedCreasePattern,
+            source,
+          }
+        : null,
+      oristudioCpDocument: {
+        ...documentState,
+        source,
+      },
+    });
+    rememberRecent({
+      id: result.path ?? result.name,
+      title: documentState.summary.title || get().project.title,
+      filename: result.name,
+      savedAt: nowIso(),
+      text: contents,
+    });
+    return true;
+  };
+
   const saveEditableCreasePattern = async (
     fileService: FileService,
     forceSaveAs: boolean
@@ -866,6 +957,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         projectMessage: null,
       });
       return false;
+    }
+    if (!forceSaveAs && isOrieditaOriFilename(get().currentFileName)) {
+      return saveEditableCreasePatternAsOri(fileService);
     }
 
     const input = await currentEditableCreasePatternProjectInput(
@@ -1377,7 +1471,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       try {
         const file = await fileService.openTextFile({
           title: 'Open Ori Studio Project or Crease Pattern',
-          extensions: [NATIVE_PROJECT_EXTENSION, 'tmd', 'tmd4', 'tmd5', 'fold', 'cp'],
+          extensions: [NATIVE_PROJECT_EXTENSION, 'tmd', 'tmd4', 'tmd5', 'fold', 'cp', 'ori'],
         });
         if (!file) return false;
         if (isNativeProjectFilename(file.name)) {
@@ -1502,6 +1596,29 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           suggestedName: defaultFilename(get().project.title, 'fold'),
           path: null,
           extensions: ['fold'],
+        });
+        if (!result) return false;
+        set({ projectMessage: `Exported ${result.name}` });
+        return true;
+      } catch (error) {
+        set({ status: 'error', error: engineError(error) });
+        return false;
+      }
+    },
+
+    exportOri: async (fileService = getFileService()) => {
+      try {
+        if (rejectDisabled('file.exportOri')) return false;
+        const contents = await exportOristudioCpDocumentAsOri();
+        const result = await fileService.saveTextFile({
+          title: 'Export Oriedita ORI Document',
+          contents,
+          suggestedName: defaultFilename(
+            get().oristudioCpDocument?.summary.title || get().project.title,
+            'ori'
+          ),
+          path: null,
+          extensions: ['ori'],
         });
         if (!result) return false;
         set({ projectMessage: `Exported ${result.name}` });

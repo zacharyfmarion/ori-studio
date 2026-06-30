@@ -509,14 +509,14 @@ Done when:
 - [ ] Phase 4: Add explicit WASM load/export APIs for full FOLD documents.
 - [ ] Phase 4: Add `.orh` WASM APIs if legacy support is in the implementation
       slice.
-- [ ] Phase 4: Regenerate and test the wasm package.
-- [ ] Phase 5: Add `.ori` open/save/export routing in the web app.
+- [x] Phase 4: Regenerate and test the wasm package.
+- [x] Phase 5: Add `.ori` open/save/export routing in the web app.
 - [ ] Phase 5: Add `.orh` open/export routing where supported.
-- [ ] Phase 5: Add `Export ORI...` menu, capability, file panel, and tests.
-- [ ] Phase 5: Add save-back semantics for current `.ori` sources.
+- [x] Phase 5: Add `Export ORI...` menu, capability, file panel, and tests.
+- [x] Phase 5: Add save-back semantics for current `.ori` sources.
 - [ ] Phase 6: Restore Oriedita grid, camera, canvas, and folded color state.
 - [ ] Phase 6: Preserve unsupported editor-state fields with clear status.
-- [ ] Phase 7: Update `.osf` source typing and Oriedita metadata preservation.
+- [x] Phase 7: Update `.osf` source typing and Oriedita metadata preservation.
 - [ ] Phase 7: Add export-from-`.osf` tests for `.ori` and `.fold`.
 - [ ] Phase 8: Extend corpus reporting for native Oriedita document interchange.
 - [ ] Phase 8: Run public fixture, oracle, and external corpus validation before

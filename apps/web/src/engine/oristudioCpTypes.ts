@@ -384,7 +384,7 @@ export interface OristudioCpDocumentState {
   document: OristudioCpDocumentSnapshot;
   summary: OristudioCpDocumentSummary;
   source: {
-    format: 'cp' | 'fold' | 'osf';
+    format: 'cp' | 'fold' | 'ori' | 'osf';
     filename: string;
     path: string | null;
   };

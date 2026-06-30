@@ -32,6 +32,7 @@ export const MENU_ACTION_IDS = [
   'file.exportV4',
   'file.exportCp',
   'file.exportFold',
+  'file.exportOri',
   'file.exportSvg',
   'file.exportPng',
   'edit.undo',
@@ -113,6 +114,7 @@ export interface WorkspaceCommands {
   exportV4(fileService?: FileService): Promise<boolean>;
   exportCp(fileService?: FileService): Promise<boolean>;
   exportFold(fileService?: FileService): Promise<boolean>;
+  exportOri(fileService?: FileService): Promise<boolean>;
   exportSvg(fileService?: FileService, options?: CreaseExportOptions): Promise<boolean>;
   exportPng(fileService?: FileService, options?: CreaseExportOptions): Promise<boolean>;
   undo(): Promise<void>;
@@ -218,6 +220,7 @@ const FILE_ACTIONS: Partial<Record<MenuActionId, FileCommand>> = {
   'file.exportV4': 'exportV4',
   'file.exportCp': 'exportCp',
   'file.exportFold': 'exportFold',
+  'file.exportOri': 'exportOri',
   'file.exportSvg': 'exportSvg',
   'file.exportPng': 'exportPng',
 };
@@ -290,6 +293,8 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
           return deps.workspace.exportCp(deps.fileService);
         case 'exportFold':
           return deps.workspace.exportFold(deps.fileService);
+        case 'exportOri':
+          return deps.workspace.exportOri(deps.fileService);
         case 'exportSvg':
           return deps.workspace.exportSvg(deps.fileService);
         case 'exportPng':

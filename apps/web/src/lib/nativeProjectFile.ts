@@ -34,7 +34,7 @@ export interface NativeProjectActor {
 }
 
 export interface NativeProjectSource {
-  format: 'osf' | 'tmd' | 'tmd4' | 'tmd5' | 'cp' | 'fold';
+  format: 'osf' | 'tmd' | 'tmd4' | 'tmd5' | 'cp' | 'fold' | 'ori';
   filename: string;
   path: string | null;
 }
@@ -413,7 +413,8 @@ function extensionFormat(filename: string): NativeProjectSource['format'] | null
     extension === 'tmd4' ||
     extension === 'tmd5' ||
     extension === 'cp' ||
-    extension === 'fold'
+    extension === 'fold' ||
+    extension === 'ori'
   ) {
     return extension;
   }
@@ -559,7 +560,8 @@ function validateSource(value: unknown): NativeProjectSource | null {
     format !== 'tmd4' &&
     format !== 'tmd5' &&
     format !== 'cp' &&
-    format !== 'fold'
+    format !== 'fold' &&
+    format !== 'ori'
   ) {
     return null;
   }
@@ -573,7 +575,7 @@ function validateSource(value: unknown): NativeProjectSource | null {
 function validateImportedSource(value: unknown): ImportedCreasePatternSource | null {
   if (value === null || value === undefined || !isRecord(value)) return null;
   const format = value.format;
-  if (format !== 'cp' && format !== 'fold') return null;
+  if (format !== 'cp' && format !== 'fold' && format !== 'ori') return null;
   return {
     format,
     filename: stringField(value.filename, 'source.filename'),

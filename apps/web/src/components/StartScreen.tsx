@@ -64,7 +64,7 @@ export function StartScreen({
           />
           <StartAction
             title="Open a file"
-            description="Open .osf projects or import .cp, .fold, .tmd, .tmd4, and .tmd5 files through the shared file workflow."
+            description="Open .osf projects or import .cp, .fold, .ori, .tmd, .tmd4, and .tmd5 files through the shared file workflow."
             icon={<FolderOpen size={20} />}
             disabled={disabled}
             onClick={onOpenFile}

@@ -150,6 +150,7 @@ describe('workspace capabilities', () => {
     expect(state['file.save'].enabled).toBe(false);
     expect(state['file.exportCp'].enabled).toBe(false);
     expect(state['file.exportFold'].enabled).toBe(true);
+    expect(state['file.exportOri'].enabled).toBe(false);
     expect(state['file.exportSvg'].enabled).toBe(true);
     expect(state['view.foldedBase'].enabled).toBe(true);
     expect(state['cp.foldedPreview'].enabled).toBe(true);
@@ -183,6 +184,10 @@ describe('workspace capabilities', () => {
       enabled: true,
       reason: 'Export FOLD document',
     });
+    expect(state['file.exportOri']).toMatchObject({
+      enabled: true,
+      reason: 'Export editable crease pattern as an Oriedita ORI document',
+    });
     expect(state['cp.checkCamv'].enabled).toBe(true);
     expect(state['cp.deleteSelectedLines'].enabled).toBe(false);
     expect(state['cp.fixInaccurate'].enabled).toBe(false);
@@ -201,6 +206,10 @@ describe('workspace capabilities', () => {
     expect(state['file.exportFold']).toMatchObject({
       enabled: true,
       reason: 'Export FOLD document',
+    });
+    expect(state['file.exportOri']).toMatchObject({
+      enabled: true,
+      reason: 'Export editable crease pattern as an Oriedita ORI document',
     });
   });
 
