@@ -17,9 +17,9 @@
   "points": [],
   "auxLineSegments": [],
   "foldedFigureModel": {
-    "frontColor": [255, 255, 50],
-    "backColor": [233, 233, 233],
-    "lineColor": [0, 0, 0],
+    "frontColor": "ffffff32",
+    "backColor": "ffe9e9e9",
+    "lineColor": "ff000000",
     "state": "FRONT_0",
     "displayShadows": true
   }

@@ -28,6 +28,9 @@ Useful commands:
 cargo test -p oristudio-cp --test oriedita_folded_document_corpus -- --nocapture
 ORIEDITA_FOLDED_CORPUS_DIR=/path/to/private/oriedita-corpus \
   cargo test -p oristudio-cp --test oriedita_folded_document_corpus -- --nocapture
+ORIEDITA_NATIVE_IO_ORACLE=tools/oriedita-oracle/build/oriedita-native-io-oracle \
+  ORIEDITA_IO_ORACLE=tools/oriedita-oracle/build/oriedita-geometry-oracle \
+  cargo test -p oristudio-cp --test oriedita_folded_document_corpus -- --nocapture
 ```
 
 The harness validates the supported folded-document surface:
@@ -40,16 +43,30 @@ The harness validates the supported folded-document surface:
   folded model preference objects.
 - `.orh` files parse, reserialize, and preserve Oriedita's legacy
   `<oriagarizu>` folded-view front/back/line color metadata.
+- When the relevant oracle env vars are set, `.ori` and `.orh` imports are
+  checked against Oriedita summaries. FOLD files with embedded `file_frames` are
+  counted as oracle-unsupported because the pinned Oriedita `fold` dependency
+  rejects `file_frames`; Rust preservation remains covered by the round-trip
+  check.
 
 The harness intentionally does not claim solved folded-geometry persistence for
 `.ori` or `.orh`, because the Oriedita save formats preserve folded model
 preferences, not the full solved folded figure list. Generated solved snapshots
 are covered by the `.osf` project tests and Oriedita folded render oracle tests.
 
-Last public micro-corpus run on June 24, 2026:
+Last public micro-corpus run on June 30, 2026 with native and legacy Oriedita
+IO oracles enabled:
 
 ```text
-scanned=4 cp=1 fold=1 ori=1 orh=1 folded_form_frames=1 fold_files_with_frames=1 ori_metadata_keys=1 orh_folded_color_sections=1
+Oriedita folded-document corpus: scanned=4 imported=4 exported=4 roundtripped=4 failures=0
+  cp: scanned=1 imported=1 exported=1 roundtripped=1 failed=0
+  fold: scanned=1 imported=1 exported=1 roundtripped=1 failed=0
+  ori: scanned=1 imported=1 exported=1 roundtripped=1 failed=0
+  orh: scanned=1 imported=1 exported=1 roundtripped=1 failed=0
+  fold_frames total=2 foldedForm=1 files_with_frames=1 max_depth=2 extra_keys=1 oriedita_extension_keys=1 frame_parent=1 frame_inherit=1 faceOrders=1
+  ori_metadata keys=1 camera=0 canvas=0 foldedFigure=1 application=0 unknown=0 preserved_only=0 nested_model_keys=5 missing_versions_opened=0 unknown_versions_opened=0
+  orh folded_color_files=1 folded_color_sections=3
+  oracle checked=2 mismatches=0 unavailable=0 unsupported=1
 ```
 
 ## Flat-Folder Corpus Testing
