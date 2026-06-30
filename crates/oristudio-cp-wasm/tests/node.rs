@@ -107,6 +107,45 @@ fn load_ori_supports_explicit_open_anyway_version_policy() {
 }
 
 #[wasm_bindgen_test]
+fn loads_orh_and_exports_legacy_sections() {
+    let input = "\
+<タイトル>
+タイトル,orh model
+<線分集合>
+番号,1
+色,1
+<tpp>0</tpp>
+<tpp_color_R>10</tpp_color_R>
+<tpp_color_G>20</tpp_color_G>
+<tpp_color_B>30</tpp_color_B>
+iactive,ACTIVE_BOTH_3
+選択,0
+座標,0.0,0.0,10.0,0.0
+<円集合>
+番号,1
+中心と半径と色,5.0,5.0,2.0,3
+<oriagarizu_F_color_R>1</oriagarizu_F_color_R>
+<oriagarizu_F_color_G>2</oriagarizu_F_color_G>
+<oriagarizu_F_color_B>3</oriagarizu_F_color_B>
+";
+
+    let handle = oristudio_cp_wasm::load_orh(input).expect("orh import should succeed");
+    let summary = oristudio_cp_wasm::document_summary(handle).expect("summary should serialize");
+    let summary: serde_json::Value =
+        serde_wasm_bindgen::from_value(summary).expect("summary should deserialize");
+
+    assert_eq!(summary["title"], "orh model");
+    assert_eq!(summary["line_segments"], 2);
+    assert_eq!(summary["circles"], 2);
+
+    let exported = oristudio_cp_wasm::export_orh(handle).expect("orh export should succeed");
+    assert!(exported.contains("<タイトル>"));
+    assert!(exported.contains("タイトル,orh model"));
+    assert!(exported.contains("<oriagarizu_F_color_R>1</oriagarizu_F_color_R>"));
+    oristudio_cp_wasm::free_document(handle).expect("document handle should free");
+}
+
+#[wasm_bindgen_test]
 fn command_dispatch_returns_typed_not_implemented_error() {
     let handle =
         oristudio_cp_wasm::load_cp("1 0 0 1 0\n", "sample").expect("cp import should succeed");

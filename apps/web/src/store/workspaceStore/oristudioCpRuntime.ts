@@ -90,7 +90,9 @@ export async function loadOristudioCpDocumentFromText(
       ? await api.loadCp(text, source.title ?? titleFromFilename(source.filename))
       : source.format === 'ori'
         ? await api.loadOri(text, source.acceptUnknownVersion ?? false)
-        : await api.loadFoldFile(text);
+        : source.format === 'orh'
+          ? await api.loadOrh(text)
+          : await api.loadFoldFile(text);
 
   try {
     const nextSource = {
@@ -317,6 +319,14 @@ export async function exportOristudioCpDocumentAsOri(): Promise<string> {
   return api.exportOri(handle);
 }
 
+export async function exportOristudioCpDocumentAsOrh(): Promise<string> {
+  if (handle === null) {
+    throw new Error('No editable crease-pattern document is loaded');
+  }
+  const api = await getOristudioCpClient();
+  return api.exportOrh(handle);
+}
+
 export function setOristudioCpDocumentSource(source: OristudioCpDocumentState['source']): void {
   currentSource = source;
 }
@@ -354,7 +364,7 @@ async function buildDocumentState(
 }
 
 function titleFromFilename(filename: string): string {
-  return filename.replace(/\.(cp|fold|ori|osf)$/i, '') || 'Untitled';
+  return filename.replace(/\.(cp|fold|ori|orh|osf)$/i, '') || 'Untitled';
 }
 
 export type { OristudioCpDocumentSnapshot, OristudioCpDocumentSummary };

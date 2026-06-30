@@ -42,6 +42,11 @@ import { importedCpLineage } from '../../lib/oristudioCpLineage';
 import { defaultOristudioCpSymmetry } from '../../lib/oristudioCpSymmetry';
 import { createStarterOristudioCpDocument } from '../../lib/oristudioCpStarterDocument';
 import { useLayoutStore } from '../layoutStore';
+import {
+  registerCommandDialogHost,
+  resolveCommandDialog,
+  useCommandDialogStore,
+} from '../commandDialogStore';
 
 const engineMocks = vi.hoisted(() => ({
   createBlankTree: vi.fn(),
@@ -59,6 +64,7 @@ const oristudioCpMocks = vi.hoisted(() => ({
   exportOristudioCpDocumentAsCp: vi.fn(),
   exportOristudioCpDocumentAsFold: vi.fn(),
   exportOristudioCpDocumentAsOri: vi.fn(),
+  exportOristudioCpDocumentAsOrh: vi.fn(),
   foldOristudioCpDocument: vi.fn(),
   foldOristudioCpFigureAnother: vi.fn(),
   foldOristudioCpFigureToCase: vi.fn(),
@@ -105,6 +111,7 @@ vi.mock('./oristudioCpRuntime', async (importOriginal) => {
     exportOristudioCpDocumentAsCp: oristudioCpMocks.exportOristudioCpDocumentAsCp,
     exportOristudioCpDocumentAsFold: oristudioCpMocks.exportOristudioCpDocumentAsFold,
     exportOristudioCpDocumentAsOri: oristudioCpMocks.exportOristudioCpDocumentAsOri,
+    exportOristudioCpDocumentAsOrh: oristudioCpMocks.exportOristudioCpDocumentAsOrh,
     foldOristudioCpDocument: oristudioCpMocks.foldOristudioCpDocument,
     foldOristudioCpFigureAnother: oristudioCpMocks.foldOristudioCpFigureAnother,
     foldOristudioCpFigureToCase: oristudioCpMocks.foldOristudioCpFigureToCase,
@@ -1077,6 +1084,9 @@ function resetStores(snapshot = makeSnapshot()) {
   oristudioCpMocks.exportOristudioCpDocumentAsOri
     .mockReset()
     .mockResolvedValue('{"@version":"v1.1","title":"square"}\n');
+  oristudioCpMocks.exportOristudioCpDocumentAsOrh
+    .mockReset()
+    .mockResolvedValue('<タイトル>\nタイトル,square\n');
   oristudioCpMocks.foldOristudioCpDocument
     .mockReset()
     .mockResolvedValue({ handle: 7, snapshot: foldedFigureSnapshot() });
@@ -1105,10 +1115,10 @@ function resetStores(snapshot = makeSnapshot()) {
   oristudioCpMocks.setOristudioCpDocumentSource.mockReset();
   oristudioCpMocks.loadOristudioCpDocumentFromText
     .mockReset()
-    .mockImplementation(async (_text: string, source: { format: 'cp' | 'fold' | 'ori'; filename: string; path?: string | null; title?: string }) => ({
+    .mockImplementation(async (_text: string, source: { format: 'cp' | 'fold' | 'ori' | 'orh'; filename: string; path?: string | null; title?: string }) => ({
       handle: 2,
       document: {
-        title: source.title ?? (source.format === 'ori' ? 'native ori' : 'square'),
+        title: source.title ?? (source.format === 'ori' ? 'native ori' : source.format === 'orh' ? 'orh model' : 'square'),
         crease_pattern: {
           line_segments: [],
           circles: [],
@@ -1134,7 +1144,7 @@ function resetStores(snapshot = makeSnapshot()) {
         metadata: {},
       },
       summary: {
-        title: source.title ?? (source.format === 'ori' ? 'native ori' : 'square'),
+        title: source.title ?? (source.format === 'ori' ? 'native ori' : source.format === 'orh' ? 'orh model' : 'square'),
         line_segments: 5,
         circles: 0,
         points: 0,
@@ -1290,6 +1300,7 @@ describe('workspace store slices', () => {
     expect(state.exportCp).toBeTypeOf('function');
     expect(state.exportFold).toBeTypeOf('function');
     expect(state.exportOri).toBeTypeOf('function');
+    expect(state.exportOrh).toBeTypeOf('function');
     expect(state.undo).toBeTypeOf('function');
     expect(state.copySelection).toBeTypeOf('function');
     expect(state.updatePaper).toBeTypeOf('function');
@@ -1337,7 +1348,7 @@ describe('workspace store slices', () => {
     await expect(useWorkspaceStore.getState().openProject(fileService)).resolves.toBe(true);
     expect(fileService.openTextFile).toHaveBeenCalledWith({
       title: 'Open Ori Studio Project or Crease Pattern',
-      extensions: ['osf', 'tmd', 'tmd4', 'tmd5', 'fold', 'cp', 'ori'],
+      extensions: ['osf', 'tmd', 'tmd4', 'tmd5', 'fold', 'cp', 'ori', 'orh'],
     });
 
     await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
@@ -1714,6 +1725,30 @@ describe('workspace store slices', () => {
         extensions: ['ori'],
       })
     );
+
+    const unregisterDialogHost = registerCommandDialogHost();
+    try {
+      const exportOrh = useWorkspaceStore.getState().exportOrh(fileService);
+      const dialog = useCommandDialogStore.getState().dialog;
+      expect(dialog).toMatchObject({
+        type: 'confirm',
+        title: 'Export legacy ORH?',
+        confirmLabel: 'Export ORH',
+      });
+      if (!dialog) throw new Error('expected ORH export confirmation');
+      resolveCommandDialog(dialog.id, true);
+      await expect(exportOrh).resolves.toBe(true);
+    } finally {
+      unregisterDialogHost();
+    }
+    expect(oristudioCpMocks.exportOristudioCpDocumentAsOrh).toHaveBeenCalledOnce();
+    expect(fileService.saveTextFile).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        title: 'Export Oriedita ORH Document',
+        contents: '<タイトル>\nタイトル,square\n',
+        extensions: ['orh'],
+      })
+    );
   });
 
   it('opens native Oriedita ORI documents and saves back as ORI', async () => {
@@ -1777,6 +1812,66 @@ describe('workspace store slices', () => {
       currentFileName: 'native.ori',
       currentFilePath: '/tmp/native.ori',
       dirty: false,
+    });
+  });
+
+  it('opens legacy ORH documents and warns before saving back as ORH', async () => {
+    resetStores(seedSnapshot());
+    loadSnapshotIntoStore(seedSnapshot());
+    const orhText = '<タイトル>\nタイトル,orh model\n<線分集合>\n番号,1\n色,1\n座標,0,0,1,0\n';
+    const fileService = createFileService({
+      text: orhText,
+      name: 'legacy.orh',
+      path: '/tmp/legacy.orh',
+    });
+
+    await expect(useWorkspaceStore.getState().openProject(fileService)).resolves.toBe(true);
+
+    expect(oristudioCpMocks.loadOristudioCpDocumentFromText).toHaveBeenCalledWith(
+      orhText,
+      expect.objectContaining({
+        format: 'orh',
+        filename: 'legacy.orh',
+        path: '/tmp/legacy.orh',
+      })
+    );
+    expect(useWorkspaceStore.getState().importedCreasePattern?.source).toMatchObject({
+      format: 'orh',
+      filename: 'legacy.orh',
+      path: '/tmp/legacy.orh',
+    });
+
+    useWorkspaceStore.setState({ dirty: true });
+    const unregisterDialogHost = registerCommandDialogHost();
+    try {
+      const saveOrh = useWorkspaceStore.getState().saveProject(fileService);
+      const dialog = useCommandDialogStore.getState().dialog;
+      expect(dialog).toMatchObject({
+        type: 'confirm',
+        title: 'Export legacy ORH?',
+        confirmLabel: 'Export ORH',
+      });
+      if (!dialog) throw new Error('expected ORH save confirmation');
+      resolveCommandDialog(dialog.id, true);
+      await expect(saveOrh).resolves.toBe(true);
+    } finally {
+      unregisterDialogHost();
+    }
+
+    expect(oristudioCpMocks.exportOristudioCpDocumentAsOrh).toHaveBeenCalledOnce();
+    expect(fileService.saveTextFile).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        title: 'Save Oriedita ORH Document',
+        contents: '<タイトル>\nタイトル,square\n',
+        suggestedName: 'legacy.orh',
+        path: '/tmp/legacy.orh',
+        extensions: ['orh'],
+      })
+    );
+    expect(oristudioCpMocks.setOristudioCpDocumentSource).toHaveBeenCalledWith({
+      format: 'orh',
+      filename: 'legacy.orh',
+      path: '/tmp/legacy.orh',
     });
   });
 

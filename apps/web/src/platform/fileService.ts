@@ -10,6 +10,7 @@ export type FileCommand =
   | 'exportCp'
   | 'exportFold'
   | 'exportOri'
+  | 'exportOrh'
   | 'exportSvg'
   | 'exportPng';
 

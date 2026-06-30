@@ -17,6 +17,7 @@ function createDeps() {
       exportCp: vi.fn().mockResolvedValue(true),
       exportFold: vi.fn().mockResolvedValue(true),
       exportOri: vi.fn().mockResolvedValue(true),
+      exportOrh: vi.fn().mockResolvedValue(true),
       exportSvg: vi.fn().mockResolvedValue(true),
       exportPng: vi.fn().mockResolvedValue(true),
       undo: vi.fn().mockResolvedValue(undefined),
@@ -474,10 +475,12 @@ describe('menu actions', () => {
 
     await expect(createMenuActionHandler(deps)('file.exportFold')).resolves.toBe(true);
     await expect(createMenuActionHandler(deps)('file.exportOri')).resolves.toBe(true);
+    await expect(createMenuActionHandler(deps)('file.exportOrh')).resolves.toBe(true);
     await expect(createMenuActionHandler(deps)('file.exportV5')).resolves.toBe(true);
     await expect(createMenuActionHandler(deps)('file.exportCp')).resolves.toBe(true);
     expect(deps.workspace.exportFold).toHaveBeenCalledWith(deps.fileService);
     expect(deps.workspace.exportOri).toHaveBeenCalledWith(deps.fileService);
+    expect(deps.workspace.exportOrh).toHaveBeenCalledWith(deps.fileService);
     expect(deps.workspace.exportV5).toHaveBeenCalledWith(deps.fileService);
     expect(deps.workspace.exportCp).toHaveBeenCalledWith(deps.fileService);
   });

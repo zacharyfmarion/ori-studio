@@ -503,15 +503,15 @@ Done when:
 - [ ] Phase 2: Preserve and render all renderable `foldedForm` frames.
 - [x] Phase 2: Export edited FOLD files without dropping unrelated frames.
 - [ ] Phase 2: Add FOLD frame graph preservation and oracle tests.
-- [ ] Phase 3: Expose `.orh` through the runtime with legacy charset behavior.
-- [ ] Phase 3: Add `.orh` lossy-warning and oracle coverage.
+- [x] Phase 3: Expose `.orh` through the runtime with legacy charset behavior.
+- [x] Phase 3: Add `.orh` lossy-warning and oracle coverage.
 - [x] Phase 4: Add explicit WASM load/export APIs for `.ori`.
 - [x] Phase 4: Add explicit WASM load/export APIs for full FOLD documents.
-- [ ] Phase 4: Add `.orh` WASM APIs if legacy support is in the implementation
+- [x] Phase 4: Add `.orh` WASM APIs if legacy support is in the implementation
       slice.
 - [x] Phase 4: Regenerate and test the wasm package.
 - [x] Phase 5: Add `.ori` open/save/export routing in the web app.
-- [ ] Phase 5: Add `.orh` open/export routing where supported.
+- [x] Phase 5: Add `.orh` open/export routing where supported.
 - [x] Phase 5: Add `Export ORI...` menu, capability, file panel, and tests.
 - [x] Phase 5: Add save-back semantics for current `.ori` sources.
 - [ ] Phase 6: Restore Oriedita grid, camera, canvas, and folded color state.

@@ -7,6 +7,7 @@ import init, {
   export_cp,
   export_fold,
   export_fold_file,
+  export_orh,
   export_ori,
   folded_figure_duplicate,
   folded_figure_fold,
@@ -22,6 +23,7 @@ import init, {
   load_document,
   load_fold,
   load_fold_file,
+  load_orh,
   load_ori,
   insert_line_segments,
   preview_cp_command,
@@ -93,6 +95,9 @@ const api = {
   },
   async loadOri(text: string, acceptUnknownVersion = false): Promise<number> {
     return call(() => load_ori(text, acceptUnknownVersion));
+  },
+  async loadOrh(text: string): Promise<number> {
+    return call(() => load_orh(text));
   },
   async loadDocument(document: OristudioCpDocumentSnapshot): Promise<number> {
     return call(() => load_document(document));
@@ -212,6 +217,9 @@ const api = {
   },
   async exportOri(handle: number): Promise<string> {
     return call(() => export_ori(handle));
+  },
+  async exportOrh(handle: number): Promise<string> {
+    return call(() => export_orh(handle));
   },
   async freeDocument(handle: number): Promise<void> {
     return call(() => free_document(handle));

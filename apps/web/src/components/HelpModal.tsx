@@ -39,7 +39,7 @@ const HELP_TOPICS: HelpTopic[] = [
     imageAlt: 'Files pane showing New, Open, Save, export buttons, example projects, and file status',
     caption: 'The Files pane keeps project actions, exports, examples, and recent work in one compact place.',
     steps: [
-      'New returns to the start screen; Open accepts .osf, .tmd, .tmd4, .tmd5, .fold, .cp, and .ori files.',
+      'New returns to the start screen; Open accepts .osf, .tmd, .tmd4, .tmd5, .fold, .cp, .ori, and .orh files.',
       'Save and Save As write Ori Studio project files; use Export for TreeMaker, CP, FOLD, SVG, and PNG formats.',
       'Exports become available when the current document has the data each format needs.',
       'Examples load checked-in starter designs that are useful for exploring optimization and crease generation.',

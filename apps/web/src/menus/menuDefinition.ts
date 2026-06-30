@@ -46,6 +46,7 @@ export function getMenuBarDef(overrides?: ShortcutOverrides): MenuDef[] {
         { type: 'action', id: 'file.exportCp', label: 'Export CP...' },
         { type: 'action', id: 'file.exportFold', label: 'Export FOLD...' },
         { type: 'action', id: 'file.exportOri', label: 'Export ORI...' },
+        { type: 'action', id: 'file.exportOrh', label: 'Export ORH...' },
         { type: 'action', id: 'file.exportSvg', label: 'Export SVG...' },
         { type: 'action', id: 'file.exportPng', label: 'Export PNG...' },
         { type: 'separator' },

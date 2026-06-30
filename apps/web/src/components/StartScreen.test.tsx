@@ -54,7 +54,7 @@ describe('StartScreen', () => {
     expect(rendered.textContent).toContain('Create a CP');
     expect(rendered.textContent).toContain('Open a file');
     expect(rendered.textContent).toContain('.osf projects');
-    expect(rendered.textContent).toContain('.cp, .fold, .ori, .tmd, .tmd4, and .tmd5');
+    expect(rendered.textContent).toContain('.cp, .fold, .ori, .orh, .tmd, .tmd4, and .tmd5');
     expect(rendered.textContent).toContain('Create a design');
   });
 

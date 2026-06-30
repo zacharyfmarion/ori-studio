@@ -11,6 +11,7 @@ export type WorkspaceCapabilityId =
   | 'file.exportCp'
   | 'file.exportFold'
   | 'file.exportOri'
+  | 'file.exportOrh'
   | 'file.exportSvg'
   | 'file.exportPng'
   | 'edit.undo'
@@ -211,6 +212,13 @@ export function getWorkspaceCapabilities(input: WorkspaceCapabilityInput): Works
       canExportEditableCp
         ? busyOr('Export editable crease pattern as an Oriedita ORI document', input.status)
         : 'Open an editable crease pattern before exporting ORI'
+    ),
+    'file.exportOrh': capability(
+      canExportEditableCp && !isBusy,
+      'Export ORH...',
+      canExportEditableCp
+        ? busyOr('Export editable crease pattern as a legacy Oriedita/Orihime ORH document', input.status)
+        : 'Open an editable crease pattern before exporting ORH'
     ),
     'file.exportSvg': capability(
       canExportCreasePattern,

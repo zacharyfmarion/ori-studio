@@ -126,6 +126,12 @@ pub fn load_ori(text: &str, accept_unknown_version: bool) -> Result<u32, JsValue
 }
 
 #[wasm_bindgen]
+pub fn load_orh(text: &str) -> Result<u32, JsValue> {
+    let document = io::orh::import_orh_str(text).map_err(to_js_io_error)?;
+    store_document(document)
+}
+
+#[wasm_bindgen]
 pub fn load_document(document: JsValue) -> Result<u32, JsValue> {
     let document: CreasePatternDocument =
         serde_wasm_bindgen::from_value(document).map_err(to_js_value_error)?;
@@ -256,6 +262,11 @@ pub fn export_ori(handle: u32) -> Result<String, JsValue> {
     with_document(handle, |document| {
         io::ori::export_ori_json(document).map_err(to_js_io_error)
     })
+}
+
+#[wasm_bindgen]
+pub fn export_orh(handle: u32) -> Result<String, JsValue> {
+    with_document(handle, |document| Ok(io::orh::export_orh_string(document)))
 }
 
 #[wasm_bindgen]

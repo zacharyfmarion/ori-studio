@@ -70,6 +70,7 @@ import {
   exportOristudioCpDocumentAsCp,
   exportOristudioCpDocumentAsFold,
   exportOristudioCpDocumentAsOri,
+  exportOristudioCpDocumentAsOrh,
   createBlankOristudioCpDocument,
   getOristudioCpOperationDescriptors,
   loadOristudioCpDocumentFromText,
@@ -222,11 +223,15 @@ function selectedLineSelectionFromDocument(
 }
 
 function basenameWithoutProjectExtension(filename: string): string {
-  return filename.replace(/\.(osf|tmd5?|tmd4|cp|fold|ori)$/i, '') || 'Untitled';
+  return filename.replace(/\.(osf|tmd5?|tmd4|cp|fold|ori|orh)$/i, '') || 'Untitled';
 }
 
 function isOrieditaOriFilename(filename: string): boolean {
   return /\.ori$/i.test(filename);
+}
+
+function isOrieditaOrhFilename(filename: string): boolean {
+  return /\.orh$/i.test(filename);
 }
 
 function defaultFilename(title: string, extension: string): string {
@@ -346,6 +351,15 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       confirmLabel: `Export ${label}`,
     });
   };
+
+  const confirmLossyOrhWrite = () =>
+    requestConfirmation({
+      title: 'Export legacy ORH?',
+      message:
+        'ORH is a legacy Oriedita/Orihime format and cannot preserve Ori Studio workspace state, embedded FOLD frames, or all modern editor metadata.',
+      confirmLabel: 'Export ORH',
+      tone: 'danger',
+    });
 
   const applyOristudioCpLineMutation = async (
     label: string,
@@ -482,7 +496,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     let oristudioCpCamvResult: OristudioCpCommandResult | null = null;
     let oristudioCpRuntimeError: string | null = null;
 
-    if (format === 'ori') {
+    if (format === 'ori' || format === 'orh') {
       try {
         oristudioCpDocument = await loadOristudioCpDocumentFromText(text, {
           format,
@@ -943,6 +957,53 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     return true;
   };
 
+  const saveEditableCreasePatternAsOrh = async (fileService: FileService) => {
+    const documentState = get().oristudioCpDocument;
+    if (!documentState) return false;
+    if (!(await confirmLossyOrhWrite())) return false;
+    const contents = await exportOristudioCpDocumentAsOrh();
+    const importedCreasePattern = get().importedCreasePattern;
+    const result = await fileService.saveTextFile({
+      title: 'Save Oriedita ORH Document',
+      contents,
+      suggestedName: ensureExtension(get().currentFileName, 'orh'),
+      path: get().currentFilePath,
+      extensions: ['orh'],
+    });
+    if (!result) return false;
+
+    const source = {
+      format: 'orh' as const,
+      filename: result.name,
+      path: result.path,
+    };
+    setOristudioCpDocumentSource(source);
+    set({
+      currentFileName: result.name,
+      currentFilePath: result.path,
+      dirty: false,
+      projectMessage: `Saved ${result.name}`,
+      importedCreasePattern: importedCreasePattern
+        ? {
+            ...importedCreasePattern,
+            source,
+          }
+        : null,
+      oristudioCpDocument: {
+        ...documentState,
+        source,
+      },
+    });
+    rememberRecent({
+      id: result.path ?? result.name,
+      title: documentState.summary.title || get().project.title,
+      filename: result.name,
+      savedAt: nowIso(),
+      text: contents,
+    });
+    return true;
+  };
+
   const saveEditableCreasePattern = async (
     fileService: FileService,
     forceSaveAs: boolean
@@ -960,6 +1021,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     }
     if (!forceSaveAs && isOrieditaOriFilename(get().currentFileName)) {
       return saveEditableCreasePatternAsOri(fileService);
+    }
+    if (!forceSaveAs && isOrieditaOrhFilename(get().currentFileName)) {
+      return saveEditableCreasePatternAsOrh(fileService);
     }
 
     const input = await currentEditableCreasePatternProjectInput(
@@ -1471,7 +1535,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       try {
         const file = await fileService.openTextFile({
           title: 'Open Ori Studio Project or Crease Pattern',
-          extensions: [NATIVE_PROJECT_EXTENSION, 'tmd', 'tmd4', 'tmd5', 'fold', 'cp', 'ori'],
+          extensions: [NATIVE_PROJECT_EXTENSION, 'tmd', 'tmd4', 'tmd5', 'fold', 'cp', 'ori', 'orh'],
         });
         if (!file) return false;
         if (isNativeProjectFilename(file.name)) {
@@ -1619,6 +1683,30 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           ),
           path: null,
           extensions: ['ori'],
+        });
+        if (!result) return false;
+        set({ projectMessage: `Exported ${result.name}` });
+        return true;
+      } catch (error) {
+        set({ status: 'error', error: engineError(error) });
+        return false;
+      }
+    },
+
+    exportOrh: async (fileService = getFileService()) => {
+      try {
+        if (rejectDisabled('file.exportOrh')) return false;
+        if (!(await confirmLossyOrhWrite())) return false;
+        const contents = await exportOristudioCpDocumentAsOrh();
+        const result = await fileService.saveTextFile({
+          title: 'Export Oriedita ORH Document',
+          contents,
+          suggestedName: defaultFilename(
+            get().oristudioCpDocument?.summary.title || get().project.title,
+            'orh'
+          ),
+          path: null,
+          extensions: ['orh'],
         });
         if (!result) return false;
         set({ projectMessage: `Exported ${result.name}` });
