@@ -11,7 +11,11 @@ export type CpDetectJunctionSource = 'dense-model' | 'line-arrangement' | 'verte
 export type CpDetectLineEvidenceSource = 'source-image' | 'dense-model';
 export type CpDetectVertexRefinerProposalMode = 'full-coverage' | 'dense-junction-regions';
 
-export const CP_DETECT_DEFAULT_JUNCTION_SOURCE: CpDetectJunctionSource = 'vertex-refiner-v3';
+// The V3 vertex refiner is deprecated: benchmarking showed it never improves exact
+// recovery over the dense head and is worse at close pairs, while adding a model
+// download + forward pass. Default to the dense head everywhere.
+// See research/2026-06-30-native-cp-junction-and-exact-solve-bottlenecks.md.
+export const CP_DETECT_DEFAULT_JUNCTION_SOURCE: CpDetectJunctionSource = 'dense-model';
 export const CP_DETECT_DEFAULT_LINE_EVIDENCE_SOURCE: CpDetectLineEvidenceSource = 'source-image';
 export const CP_DETECT_DEFAULT_VERTEX_REFINER_PROPOSAL_MODE: CpDetectVertexRefinerProposalMode =
   'dense-junction-regions';
