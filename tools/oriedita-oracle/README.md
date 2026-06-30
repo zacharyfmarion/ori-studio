@@ -48,6 +48,14 @@ reimplementing Oriedita drawing logic inside the oracle harness.
 The oracle intentionally compiles against a pinned Oriedita source checkout
 instead of reimplementing the behavior in Rust.
 
+## Baseline
+
+The native document interchange plan targets Oriedita commit
+`9d39135ae232cc03be4ffaf74baa7ae2df970507`. Build oracle fixtures against that
+checkout unless `implementation-plans/oriedita-source-map.md` and
+`implementation-plans/oriedita-native-document-interchange.md` are updated in
+the same change.
+
 ```bash
 ORIEDITA_SOURCE=/private/tmp/oriedita-research tools/oriedita-oracle/build_geometry_oracle.sh
 ORIEDITA_GEOMETRY_ORACLE=tools/oriedita-oracle/build/oriedita-geometry-oracle \

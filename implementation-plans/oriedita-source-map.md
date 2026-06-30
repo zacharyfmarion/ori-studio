@@ -118,7 +118,7 @@ stage explicitly changes it.
 | `origami/folding/permutation/*` | Permutation and constraint combinatorics. | `folding::solver` | kernel | 10 | Porting; ChainPermutationGenerator oracle |
 | `origami/folding/util/*` | Folding utility data structures. | `folding::EquivalenceCondition` | kernel | 10 | Porting; equivalence condition candidates oracle |
 | `oriedita-data/export/*` | Import/export implementations. | `io` | io | 4 | Unsupported |
-| `oriedita-data/save/*` | Oriedita save models and version conversion. | `io::save` | io | 4 | Unsupported |
+| `oriedita-data/save/*` | Oriedita save models and version conversion. | `io::ori` plus preserved metadata | io | 4 | Porting; core `.ori` fields unit-tested, full editor model promotion and web exposure pending |
 | `oriedita/src/main/java/oriedita/editor/task/*` | Non-UI task semantics. | `checks`, `folding` | kernel | 9-10 | Unsupported |
 | `oriedita/src/main/java/oriedita/editor/service/impl/FoldingServiceImpl.java` | Folding command routing. | `folding::commands` | kernel | 10 | Unsupported |
 | `oriedita/src/main/java/oriedita/editor/handler/*` | Mouse/tool command intent. | `operations::*`, `folding` | kernel-intent | 5-10 | Unsupported |
@@ -240,23 +240,33 @@ mutation.
 | `CpExporter.java` | `.cp` export and lossy-format warning. | `io::cp::export` | 4 | Unit-tested |
 | `FoldImporter.java` | `.fold` import and coordinate normalization. | `io::fold::import` | 4 | Unit-tested |
 | `FoldExporter.java` | `.fold` export, face reconstruction, Oriedita extras. | `io::fold::export` | 4 | Unit-tested; topology oracle |
-| `FoldImporter.java` `file_frames` | Preserve and select embedded FOLD frames, including `foldedForm` frames. | `io::fold::import_fold_file_json`, `io::fold::import_folded_frames`, web FOLD frame inventory | 4, 11 | Unit-tested for lossless Rust parse; web import preserves source frame graph plus selected active frame |
-| `FoldExporter.java` `file_frames` | Export embedded folded-form frame graphs when present. | `io::fold::export_fold_file_json`, `io::fold::export_folded_frames`, web FOLD frame inventory | 4, 11 | Unit-tested for lossless Rust export and `.osf` source-frame preservation |
-| `OriImporter.java` | `.ori` import. | `io::ori::import` | 4 | Unit-tested |
-| `OriExporter.java` | `.ori` export. | `io::ori::export` | 4 | Unit-tested |
-| `OrhImporter.java` | `.orh` import. | `io::orh::import` | 4 | Oracle-tested |
-| `OrhExporter.java` | `.orh` export. | `io::orh::export` | 4 | Oracle-tested |
+| `FoldImporter.java` `file_frames` | Preserve and select embedded FOLD frames, including `foldedForm` frames. | `io::fold::import_fold_file_json`, `io::fold::import_folded_frames`, web FOLD frame inventory | 4, 11 | Porting; Rust lossless parse/export and `.osf` preservation exist, full web render/export of every frame remains planned |
+| `FoldExporter.java` `file_frames` | Export embedded folded-form frame graphs when present. | `io::fold::export_fold_file_json`, `io::fold::export_folded_frames`, web FOLD frame inventory | 4, 11 | Porting; Rust lossless parse/export and `.osf` preservation exist, active-frame update semantics remain planned |
+| `OriImporter.java` | `.ori` import. | `io::ori::import`, `oristudio-cp-wasm`, web file routing | 4 | Porting; Rust unit-tested, WASM/web exposure and editor-state restoration pending |
+| `OriExporter.java` | `.ori` export. | `io::ori::export`, `oristudio-cp-wasm`, web export routing | 4 | Porting; Rust unit-tested, WASM/web exposure and editor-state synthesis pending |
+| `OrhImporter.java` | `.orh` import. | `io::orh::import`, `oristudio-cp-wasm`, web file routing | 4 | Oracle-tested in Rust; WASM/web exposure pending |
+| `OrhExporter.java` | `.orh` export. | `io::orh::export`, `oristudio-cp-wasm`, web export routing | 4 | Oracle-tested in Rust; WASM/web exposure and lossy-warning UI pending |
 | `ObjImporter.java` | `.obj` import. | `io::obj::import` | 4 | Oracle-tested |
 | `DxfExporter.java` | `.dxf` export. | `io::dxf::export` | 4 | Oracle-tested |
 | `OrieditaFoldFile.java` | FOLD extension fields. | `io::fold::oriedita_extensions` | 4 | Unit-tested |
-| `Save.java` | Main save model. | `io::save` | 4 | Unit-tested |
-| `BaseSave.java` | Shared save payload. | `io::save` | 4 | Unit-tested |
-| `SaveV1_0.java` | Legacy save payload. | `io::save::legacy` | 4 | Unit-tested |
-| `SaveV1_1.java` | Legacy save payload. | `io::save::legacy` | 4 | Unit-tested |
-| `SaveConverter.java` | Save-version conversion. | `io::save::convert` | 4 | Unit-tested |
+| `Save.java` | Main save model. | `io::ori` | 4 | Unit-tested for core fields; typed editor-model helpers pending |
+| `BaseSave.java` | Shared save payload. | `io::ori` | 4 | Unit-tested for core fields; typed editor-model helpers pending |
+| `SaveV1_0.java` | Legacy save payload. | `io::ori::version` | 4 | Unit-tested |
+| `SaveV1_1.java` | Current save payload. | `io::ori::version` | 4 | Unit-tested |
+| `SaveConverter.java` | Save-version conversion. | `io::ori::version` and oracle canonicalization | 4 | Unit-tested strict/permissive policy; Oriedita oracle conversion command pending |
 | `SaveProvider.java` | Save instance factory. | `io::save` | 4 | Unsupported |
 | `FileVersionTester.java` | Save-version detection. | `io::save::version` | 4 | Unit-tested |
 | `TextSave.java` | Text persistence. | `model::text`, `io::save` | 3-4 | Unit-tested |
+
+## Native Document Interchange Responsibility Matrix
+
+| Format/state | Native responsibility | Ori Studio responsibility | Status |
+| --- | --- | --- | --- |
+| `.ori` | Oriedita editor-save JSON for CP primitives and editor models. | Preserve and export Oriedita fields, restore supported grid/camera/canvas/folded settings, expose through WASM/web. | Rust core unit-tested; WASM/web and typed editor-state restoration pending. |
+| `.fold` | FOLD geometry plus Oriedita extension fields and embedded `file_frames`. | Preserve the full frame graph, edit only the active CP frame, render preserved folded forms. | Rust preservation exists; all-frame web rendering and active-frame export update pending. |
+| `.orh` | Legacy Oriedita/Orihime text format, charset quirks, folded colors. | Import/export with explicit lossy warnings and folded color preservation. | Rust oracle-tested; WASM/web exposure pending. |
+| `.cp` | Plain line-only crease-pattern exchange. | Treat as lossy exchange format. | Web/Rust path exists; lossy-warning polish remains tied to export UI. |
+| `.osf` | Ori Studio workspace, not an Oriedita format. | Persist Ori Studio-only state such as multiple folded overlays while preserving imported Oriedita source metadata. | Exists for current workspace state; source typing must include `.ori`/`.orh`. |
 
 ## Task and Service Matrix
 
