@@ -860,6 +860,10 @@ export interface ExactSolvedGraph {
 
 export interface Stage6Response extends Stage5Response {
   exact_solve: ExactSolvedGraph;
+  /** Topology diff of the solved fold (exact-solve output) vs ground truth. */
+  solved_topology?: TopologyDiff | null;
+  /** True when the solve succeeded and its fold recovered the ground-truth CP. */
+  solve_recovered: boolean;
 }
 
 export interface UploadedInspectorRunBundle {

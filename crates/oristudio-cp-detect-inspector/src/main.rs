@@ -12,7 +12,8 @@ use oristudio_cp_compiler::selection::{
 };
 use oristudio_cp_compiler::{
     AssignmentCandidate, AssignmentLabel, CandidateGraph, EvidenceSource, ExactSolveInput,
-    ExactSolveOptions, ExactSolvedGraph, Point2, SelectedGraph, solve_exact,
+    ExactSolveOptions, ExactSolvedGraph, ExactSolvedGraphStatus, Point2, SelectedGraph,
+    solve_exact,
 };
 use oristudio_cp_detect::candidate_generation::{
     CandidateGenerationContext, CandidateGenerationOptions, CandidateGenerationStrategyName,
@@ -271,6 +272,13 @@ struct Stage6Response {
     exactizability: ExactizabilityReport,
     topology: Option<TopologyDiffPayload>,
     exact_solve: ExactSolvedGraph,
+    /// Topology diff of the *solved fold* (exact-solve output) vs ground truth.
+    /// Distinct from `topology`, which compares the selected graph before solving.
+    solved_topology: Option<TopologyDiffPayload>,
+    /// True when the solve succeeded AND its fold recovered the ground-truth CP
+    /// (exact topology + assignments within strict tolerance). The benchmark's
+    /// `solve_recovered_original` metric uses the same definition.
+    solve_recovered: bool,
     ground_truth: Option<GroundTruthGraphPayload>,
     legacy_graph: Option<GroundTruthGraphPayload>,
 }
@@ -1183,6 +1191,16 @@ fn stage6_example(
         &exact_input,
         exact_solve_options(exact_solve_timeout_seconds),
     );
+    let solved_topology = exact_solved_topology_diff(
+        &exact_solve,
+        &exact_input,
+        stage5.ground_truth.as_ref(),
+        stage5.overlay_frame_px,
+    );
+    let solve_recovered = matches!(exact_solve.status, ExactSolvedGraphStatus::Solved)
+        && solved_topology
+            .as_ref()
+            .is_some_and(|topology| topology.exact_topology_and_assignment);
     Ok(Stage6Response {
         schema: "oristudio/cp-detect-architecture-inspector/stage6/v1",
         sample: stage5.sample,
@@ -1199,6 +1217,8 @@ fn stage6_example(
         exactizability: stage5.exactizability,
         topology: stage5.topology,
         exact_solve,
+        solved_topology,
+        solve_recovered,
         ground_truth: stage5.ground_truth,
         legacy_graph: stage5.legacy_graph,
     })
@@ -2307,6 +2327,54 @@ fn selected_topology_diff(
         .map(|span| span.id)
         .collect::<BTreeSet<_>>();
     let predicted = candidate_eval_graph(candidate_graph, Some(&selected_ids), frame);
+    Some(topology_diff(&predicted, &gt_eval_graph(gt)))
+}
+
+/// Build a pixel-space `EvalGraph` from the exact-solve output (the solved fold).
+/// Vertices are the solved positions (unit → px via the overlay frame); edges come
+/// from `edges_exact`, with assignments index-aligned to the selected spans — the
+/// same contract the benchmark's `GraphDoc::from_exact_solve` uses.
+fn exact_solved_eval_graph(
+    exact_solve: &ExactSolvedGraph,
+    exact_input: &ExactSolveInput,
+    frame: OverlayFramePx,
+) -> EvalGraph {
+    let vertex_count = exact_solve.vertices_exact.len();
+    let vertices = exact_solve
+        .vertices_exact
+        .iter()
+        .map(|point| EvalPoint::from(overlay_unit_to_px(*point, frame)))
+        .collect::<Vec<_>>();
+    let edges = exact_solve
+        .edges_exact
+        .iter()
+        .enumerate()
+        .filter_map(|(index, edge)| {
+            if edge[0] >= vertex_count || edge[1] >= vertex_count {
+                return None;
+            }
+            let assignment = exact_input
+                .selected_spans
+                .get(index)
+                .map(|span| assignment_label_to_eval(span.assignment_label()))
+                .unwrap_or(EvalAssignment::Unknown);
+            Some(EvalEdge::new(*edge, assignment))
+        })
+        .collect::<Vec<_>>();
+    EvalGraph::new(vertices, edges)
+}
+
+/// Solved-fold topology diff vs GT (Stage 6): does the exact-solve output recover
+/// the ground-truth CP, and if not, what is off? `None` when the sample has no
+/// ground truth (e.g. uploads).
+fn exact_solved_topology_diff(
+    exact_solve: &ExactSolvedGraph,
+    exact_input: &ExactSolveInput,
+    ground_truth: Option<&GroundTruthGraphPayload>,
+    frame: OverlayFramePx,
+) -> Option<TopologyDiffPayload> {
+    let gt = ground_truth?;
+    let predicted = exact_solved_eval_graph(exact_solve, exact_input, frame);
     Some(topology_diff(&predicted, &gt_eval_graph(gt)))
 }
 

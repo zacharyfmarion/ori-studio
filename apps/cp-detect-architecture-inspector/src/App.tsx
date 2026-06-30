@@ -1058,6 +1058,7 @@ export function App() {
           {activeStage === 'stage6' ? (
             <section className="summary-grid">
               <Metric label="exact status" value={stage6?.exact_solve.status ?? '...'} />
+              <Metric label="recovered GT" value={stage6 ? solveRecoveryLabel(stage6) : '...'} />
               <Metric
                 label="Kawasaki"
                 value={
@@ -1274,7 +1275,13 @@ export function App() {
                 {currentTopology ? (
                   <TopologyBadge
                     topology={currentTopology}
-                    exactLabel={activeStage === 'stage2' ? 'all creases covered' : 'exact topology'}
+                    exactLabel={
+                      activeStage === 'stage2'
+                        ? 'all creases covered'
+                        : activeStage === 'stage6'
+                          ? 'recovered GT'
+                          : 'exact topology'
+                    }
                   />
                 ) : null}
                 {currentTopology ? (
@@ -2537,11 +2544,30 @@ function ArrangementViewer({
   );
 }
 
-// Active stage's topology diff vs GT: candidate recall on stage 2, selected-graph
-// diff on stages 3-6. Null when the sample has no ground truth (uploads).
+// One-line recovery verdict for the Stage 6 summary: did the exact solve recover
+// the ground-truth CP, and if not, what is off. Mirrors the benchmark's
+// `solve_recovered_original` (solve succeeded AND the solved fold matches GT
+// topology + assignments within strict tolerance).
+function solveRecoveryLabel(stage: Stage6Response): string {
+  if (stage.exact_solve.status !== 'solved') return `✗ solve ${stage.exact_solve.status}`;
+  if (stage.solve_recovered) return '✓ recovered';
+  const topology = stage.solved_topology;
+  if (!topology) return 'no ground truth';
+  const { missing, extra, wrong_assignment } = topology.counts;
+  const parts: string[] = [];
+  if (missing) parts.push(`${missing} missing`);
+  if (extra) parts.push(`${extra} extra`);
+  if (wrong_assignment) parts.push(`${wrong_assignment} wrong`);
+  return parts.length ? `✗ ${parts.join(' · ')}` : '✗ off';
+}
+
+// Active stage's topology diff vs GT: candidate recall on stage 2, the solved-fold
+// diff on stage 6 (did the exact solve recover GT), and the selected-graph diff on
+// stages 3-5. Null when the sample has no ground truth (uploads).
 function stageTopology(stage: AnyStageResponse | null): TopologyDiff | null {
   if (!stage) return null;
   if (isStage2(stage)) return stage.candidate_topology ?? null;
+  if (isStage6(stage)) return stage.solved_topology ?? stage.topology ?? null;
   if ('topology' in stage) return (stage as { topology?: TopologyDiff | null }).topology ?? null;
   return null;
 }
