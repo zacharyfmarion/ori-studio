@@ -1,6 +1,6 @@
 # Native-CP reconstruction: where it actually fails (junctions vs exact-solve)
 
-**Date:** 2026-06-30
+**Date:** 2026-06-30 (numbers re-verified same day — see §0)
 **Scope:** Diagnosing why native scraped crease patterns (`native-cp-v1`, 563 CPs:
 easy 191 / medium 232 / hard 140) rarely reconstruct exactly, by porting the
 shipped vertex refiner into a product-faithful benchmark and measuring each stage.
@@ -9,9 +9,45 @@ shipped vertex refiner into a product-faithful benchmark and measuring each stag
 > A note on confidence: this session repeatedly produced confident claims that the
 > evidence later refuted (distribution shift; "statistically hopeless"; "8px is
 > unresolvable"; "5px tolerance is sane"; "the gate is bypassed"; an "eval bug" that
-> was a units error). Each was caught by *looking/measuring*, not reasoning from
-> summary stats. Confidence levels below are deliberate; treat **inferred** items as
-> hypotheses pending the named experiment.
+> was a units error; and — see §0 — a `solve_recovered = 0/563` that came from a
+> **stale benchmark binary**). Each was caught by *looking/measuring*, not reasoning
+> from summary stats. Confidence levels below are deliberate; treat **inferred** items
+> as hypotheses pending the named experiment.
+
+---
+
+## 0. Verification status (re-run with a provenance-guarded binary)
+
+Several numbers in the first draft of this report were produced by a **stale benchmark
+binary** built in a different git worktree (each worktree has its own `target/`; a
+hand-built `$MAIN/target/...` path ran old code). That binary predated the
+GT-border **canonicalization** in `strict_topology_metrics`, so it counted the paper
+border's redundant collinear segments as missing edges and **under-counted**
+exact-topology and recovery. All benchmark-derived numbers below were re-run with the
+current binary (`compare_exact_solve_benchmark` @ commit `5ca7c7f8`, which now embeds
+its build commit and refuses to run if it ≠ working-tree HEAD — `--allow-stale` to
+override). Config unless noted: `--candidate-source junction-first-v1
+--line-evidence-source source-image --parity-repair`, strict 2px.
+
+**What changed vs the original draft:**
+- Candidate/exact-topology counts were **under-counts**; the real numbers are **higher**
+  (e.g. easy P0 33.5%→**39.3%**, medium 10.8%→**14.2%**, hard 2.1%→**3.6%**). The bug
+  made the system look *worse*, not better.
+- **Oracle (GT-vertex) exact-topology reproduces exactly** (easy/med/hard = 134/56/16) —
+  a clean consistency anchor.
+- **Every TL;DR conclusion holds** (often more strongly): the refiner still loses to the
+  dense head in every bucket; the exact-solve is still a real second bottleneck; the
+  gate tolerance is still not a lever; `solve_recovered@25s` for medium still = **6**.
+- **One number could not be reproduced:** the original hard-bucket P0 *edge-F1* of 0.743.
+  No current config (model/source-image × parity) gives more than ~0.606 — that figure
+  was likely from a different/older binary or a mis-record. The refiner's hard-bucket
+  *improvement* is unchanged (≈+0.15, ≈47% of the GT-vertex ceiling).
+
+**Not affected by the bug:** everything in §3 (junction recall, close-pair detection
+rates, heatmap sharpness, threshold sweep) was computed in numpy/Torch **directly on the
+dense cache**, never through `compare_exact_solve_benchmark` — so the stale binary cannot
+have touched it. Those figures are carried over unchanged (independently re-deriving them
+from the cache is a separate task, not done here).
 
 ---
 
@@ -61,17 +97,21 @@ the shared decode/compile.
 
 ## 2. The vertex refiner doesn't help on native CPs *(High confidence)*
 
-Full 563-sample matrix (topology ceiling, `--skip-exact-solve`, strict 2px):
+Full 563-sample matrix (topology ceiling, `--skip-exact-solve`, strict 2px),
+**re-verified** with binary `5ca7c7f8`:
 
-| bucket | P0 (dense head) exact-topology | refiner | oracle (GT verts) | edge-F1 P0→refiner |
-|---|---|---|---|---|
-| easy (191) | 64 (33.5%) | 59 (30.9%) | 134 (70.2%) | 0.958 → 0.955 |
-| medium (232) | 25 (10.8%) | 10 (4.3%) | 56 (24.1%) | 0.971 → 0.966 |
-| hard (140) | 3 (2.1%) | 2 (1.4%) | 16 (11.4%) | **0.743 → 0.845** |
+| bucket | P0 (dense head) exact-topo | refiner | oracle (GT verts) | edge-F1 P0→refiner (12px) | oracle edge-F1 |
+|---|---|---|---|---|---|
+| easy (191) | **75 (39.3%)** | 70 (36.6%) | 134 (70.2%) | 0.962 → 0.959 | 0.979 |
+| medium (232) | **33 (14.2%)** | 14 (6.0%) | 56 (24.1%) | 0.970 → 0.965 | 0.982 |
+| hard (140) | **5 (3.6%)** | 2 (1.4%) | 16 (11.4%) | **0.606 → 0.764** | 0.943 |
 
-- By exact-topology, the refiner is flat-to-worse everywhere.
-- By edge-F1 (partial credit) it *helps on hard* (0.743→0.845, ~47% of the way to the
-  GT-vertex ceiling of 0.959) — so it does real work in dense regions — but neutral on
+*(First-draft numbers were easy 64/59, medium 25/10, hard 3/2 — under-counts from the
+stale binary; oracle 134/56/16 reproduces exactly.)*
+
+- By exact-topology, the refiner is flat-to-worse **everywhere** (70<75, 14<33, 2<5).
+- By edge-F1 (partial credit) it *helps on hard* (0.606→0.764, ~47% of the way to the
+  GT-vertex ceiling of 0.943) — so it does real work in dense regions — but neutral on
   easy/medium where the dense head is already ~0.96.
 - It is **not** an out-of-distribution failure (the native renders are crisp and
   in-distribution; the model fires cleanly on them — verified on contact sheets) and
@@ -81,9 +121,17 @@ Full 563-sample matrix (topology ceiling, `--skip-exact-solve`, strict 2px):
   resolution with no super-resolution and **dropped** the dense-junction input channels
   that V1/V2 fed it — so it has no structural way to beat the head.
 
+> Caveat on the hard edge-F1 baseline: the original draft reported hard P0 edge-F1 = 0.743;
+> it does **not** reproduce (all current configs give ~0.60). The relative refiner gain
+> (+~0.15, ~47% of ceiling) is unchanged, but treat the absolute hard-P0 edge-F1 as 0.606.
+
 ---
 
 ## 3. The dominant junction failure: close pairs *(close-pair High; mechanism Medium-High)*
+
+> Source note: the figures in §3 are from numpy/Torch analysis **directly on the dense
+> cache** (local-maxima vs GT, heatmap profiles), not the benchmark binary — so they are
+> independent of the stale-binary issue in §0 and are carried over unchanged.
 
 Dense-head per-junction recall is **high** (raw local-maxima vs GT):
 
@@ -129,16 +177,18 @@ Two independent problems:
    ~0% on hard (0.95^375 ≈ 0). It makes a good system look broken.
 2. **It scores the candidate graph, not the reconstruction.** With the exact-solve run
    and "recovered the original CP" measured strictly (solve accepted **and** solved fold
-   matches GT topology+assignment within 2px):
+   matches GT topology+assignment within 2px), **re-verified** (binary `5ca7c7f8`):
 
    | | candidate exact-topology@2px | **solve-recovered@2px** |
    |---|---|---|
-   | easy | 34% | ~30% |
-   | medium | 11% | ~3–6% (timeout-dependent) |
+   | easy | 39.3% | 31.4% (60/191) |
+   | medium | 14.2% | 2.6% (6/232) @25s · 1.3% @10s |
 
-   So exact-topology **over-counts** real success on medium (11% candidate → ~3–6%
+   So exact-topology **over-counts** real success on medium (14% candidate → ~3%
    recovered). The honest metric is "did the exact-solve recover the original CP,"
-   implemented as `solve_recovered_original` (per-sample bool + summary count).
+   implemented as `solve_recovered_original` (per-sample bool + summary count). Full set,
+   model line-evidence, 3s cap: **61/563** recovered (was 55 before the canonicalization
+   change — the dissolve of degree-2 collinear nodes adds +6).
 
 A looser **recovery** tolerance (5px) is *not* the fix: at 5px the "recovered" folds have
 individual vertices 2–4px off GT — genuinely different CPs, not a uniform convention
@@ -149,13 +199,14 @@ native GT) is already absorbed by 2px, so 2px is the right strict bar.
 
 ## 5. The exact-solve is a real second bottleneck *(Medium-High confidence)*
 
-Of the 25 medium candidates that reach exact topology (gate working correctly), at a 25s
-solve cap: **6 recover, 5 time out, 14 solve-but-drift.** Two distinct failure modes,
-both verified by dumping folds and comparing in **pixel** space:
+Of the **33** medium candidates that reach exact topology (gate working correctly), at a
+25s solve cap (re-verified): **6 recover, 6 time out, 21 solve-but-drift.** Two distinct
+failure modes, both verified by dumping folds and comparing in **pixel** space:
 
-1. **Timeouts.** The solve takes a median ~9s, up to 25s, on 98-junction native CPs — it
-   is *not* "instant on exact topology" (that was the clean-benchmark behaviour). A real
-   slice never finishes in budget.
+1. **Timeouts.** The solve takes up to the 25s cap on 98-junction native CPs — it is
+   *not* "instant on exact topology" (that was the clean-benchmark behaviour). A real
+   slice never finishes in budget (and at a 10s cap, timeouts rise to 17/33 — recovery is
+   cap-sensitive).
 2. **Convergence drift.** Even from a perfect candidate (all vertices <2px, edge set
    identical to the solved fold), the solve **repositions vertices by ~1–2.6px** (mean
    ~0.6px) to satisfy flat-foldability, pushing 1–3 vertices from <2px to **2.0–2.8px**
@@ -166,7 +217,11 @@ both verified by dumping folds and comparing in **pixel** space:
 
 So even perfect junction detection within 2px does not guarantee recovery: the foldability
 solve can land on a nearby valid configuration a few px off GT. This is why
-`solve_recovered_original` sits below candidate-exact-topology.
+`solve_recovered_original` sits well below candidate-exact-topology (medium: 6 recovered
+of 33 exact candidates).
+
+*(First-draft §5 read "25 candidates → 6 recover, 5 timeout, 14 drift" — the 25 was the
+stale-binary under-count; the recovered count `6` reproduces exactly.)*
 
 ---
 
@@ -176,9 +231,11 @@ solve can land on a nearby valid configuration a few px off GT. This is why
 - **Junction threshold** — recall plateaus (~97% on hard even at 0.10); the misses are
   absent, not dim. A drop to ~0.2 on hard is a small (~+1% recall / −0.5% precision)
   side win, not the fix. Default kept at 0.3.
-- **Topology-gate tolerance** — loosening the solve gate from 2→4→6px runs more solves
-  (25→42→44) but recovers the **same** 4 at strict 2px: the admitted near-miss
-  candidates (junctions detected >2px off) don't solve back to GT. Default kept at 2px.
+- **Topology-gate tolerance** — re-verified (medium, 25s cap): loosening the solve gate
+  from 2→6px admits **more solves (33→52)** but recovers **~the same (6→7)**: the
+  admitted near-miss candidates (junctions detected >2px off) don't solve back to GT.
+  Default kept at 2px. *(First-draft "25→44 solves, recovers 4" — same pattern, stale
+  under-counts.)*
 
 ---
 
@@ -208,9 +265,16 @@ solve can land on a nearby valid configuration a few px off GT. This is why
 - `crates/oristudio-cp-detect/src/bin/refiner_cache.rs` — `plan` (crop tensors) / `merge`
   (decode→refined-vertex cache) / `dump-features` (TS-parity check).
 - `scripts/cp-detect/infer-native-cp-refined-vertices.py` — Torch-MPS refiner sidecar.
-- `scripts/cp-detect/run-native-cp-refiner-matrix.sh` — reproducible P0/refined/J matrix.
+- `scripts/cp-detect/run-native-cp-refiner-matrix.sh` — reproducible P0/refined/J matrix
+  (now `cargo build`s from its own worktree first — see the provenance guard below).
 - `compare_exact_solve_benchmark`: `--refined-vertices`, `--topology-gate-tolerance-px`
-  (default = strict), and the `solve_recovered_original` metric.
+  (default = strict), the `solve_recovered_original` metric, and a **build-provenance
+  guard** (`build.rs` embeds the build commit; refuses to run when it ≠ working-tree HEAD,
+  `--allow-stale` to override) that exists specifically because of the §0 stale-binary
+  incident.
+- `strict_topology_metrics` now **dissolves degree-2 collinear same-assignment vertices**
+  (the merge counterpart to its split pass) so redundant border representations don't
+  count as topology differences (+6 `solve_recovered` on the full set).
 - Implementation plan: `implementation-plans/cp-detect-benchmark-product-parity.md`.
 
 ---
@@ -222,11 +286,15 @@ solve can land on a nearby valid configuration a few px off GT. This is why
 - **Exact-solve drift** — whether it's the optimizer not finding the truly-nearest
   foldable config, or multiple foldable configs near the detected positions, is not
   pinned down. Worth a focused look before optimizing the solver.
-- **Hard-bucket recovery is unmeasured** (solve too slow at a sane cap); expect timeouts
-  to dominate there.
+- **Hard-bucket recovery is ~0 at a sane cap** — all 5 hard exact-topology candidates time
+  out (25s); timeouts dominate there as expected.
+- **§3 not independently re-derived.** It is binary-independent (numpy on the dense cache)
+  so the §0 issue does not touch it, but it was not re-run from scratch in this pass.
+- **Hard P0 edge-F1 = 0.743 (first draft) is unreproducible** — see §0/§2; treat 0.606 as
+  the verified value.
 - **Coordinate-convention offset** (~0.45px diagonal) between native GT `vertices_px` and
   where both models place junctions is real (shared by dense head + refiner) but small;
-  absorbed by the 2px tolerance. Worth understanding but not a lever.
+  absorbed by the 2px tolerance.
 - **Phase 2 (wire the product onto the shared Rust refiner via wasm) is unstarted.** The
   benchmark goal was met via the Torch path, and given §2 there's little product urgency.
 
@@ -234,11 +302,19 @@ solve can land on a nearby valid configuration a few px off GT. This is why
 
 ## Appendix — key measurements
 
-- Feature port parity: 9/9 channels `maxAbsDiff = 0.0` (real 1024px CP).
-- Heatmap peak: half-max radius ~1px (FWHM ~2px); value/peak at r=2px ≈ 0.05.
+- Benchmark binary for all re-verified numbers: `compare_exact_solve_benchmark` @
+  `5ca7c7f8` (provenance-checked); config `junction-first-v1 + source-image lines +
+  parity`, strict 2px, unless noted.
+- §2 matrix (re-verified): easy P0/refiner/oracle = 75/70/134; medium = 33/14/56; hard =
+  5/2/16. Oracle reproduces the first-draft exactly.
+- §5 cross-tab (medium, 25s): 33 exact candidates → 6 recovered, 6 timeout, 21 drift.
+- §6 gate sweep (medium, 25s): gate 2px → 33 solves / 6 recovered; gate 6px → 52 solves /
+  7 recovered.
+- `solve_recovered_original` full set (model lines, 3s): 55 (pre-dissolve) → **61** (with
+  the degree-2 collinear dissolve).
+- Feature port parity: 9/9 channels `maxAbsDiff = 0.0` (real 1024px CP). *(numpy/Node)*
+- Heatmap peak: half-max radius ~1px (FWHM ~2px); value/peak at r=2px ≈ 0.05. *(numpy)*
 - Refiner vs GT in regions (medium): precision 98.7% / recall 96.7% @5px; @2px 94/92;
-  @1px 66/65. Over-production ×0.98 (not over-producing).
+  @1px 66/65. Over-production ×0.98. *(numpy)*
 - Dense vs refiner residual vs GT: both share ~−0.45px diagonal bias (convention);
-  refiner scatter ≈ dense scatter (no sharpening).
-- Solve-recovery cross-tab (medium, 25s): 25 exact candidates → 6 recovered, 5 timeout,
-  14 drift (solver moves 1–2.6px, flips isolated vertices to 2.0–2.8px off GT).
+  refiner scatter ≈ dense scatter (no sharpening). *(numpy)*
