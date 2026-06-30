@@ -11,6 +11,7 @@ import {
   isCreasePatternFilename,
   parseImportedCreasePattern,
   type ImportedCreasePatternResult,
+  type ImportedCreasePatternSource,
   withFlatFoldArtifacts,
   withFlatFoldError,
 } from '../../../lib/creasePatternImport';
@@ -120,6 +121,25 @@ function staleGeneratedFoldedFigures(
       ? { ...entry, status: 'stale' as const }
       : entry
   );
+}
+
+function importedSourceFromNativeSource(
+  source: { format: string; filename: string; path: string | null } | null | undefined
+): ImportedCreasePatternSource | null {
+  if (
+    !source ||
+    (source.format !== 'cp' &&
+      source.format !== 'fold' &&
+      source.format !== 'ori' &&
+      source.format !== 'orh')
+  ) {
+    return null;
+  }
+  return {
+    format: source.format,
+    filename: source.filename,
+    path: source.path,
+  };
 }
 
 async function refreshAlwaysOnCamvDiagnostics(
@@ -709,11 +729,15 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
             foldArtifactResolvedRevision: artifactRevision,
           }
         : readyFoldArtifactResourceState(result.foldArtifacts, artifactRevision);
+    const originalSource = importedSourceFromNativeSource(nativeDocument.creasePattern.source);
+    const importedDocument = originalSource
+      ? { ...result.document, source: originalSource }
+      : result.document;
     set({
       project: { ...result.project, title: nativeDocument.title || result.project.title },
       documentMode: 'crease-pattern',
       activeEditingSurface: 'crease-pattern',
-      importedCreasePattern: result.document,
+      importedCreasePattern: importedDocument,
       oristudioCpDocument: documentState,
       oristudioCpLineage: nativeDocument.creasePattern.lineage,
       oristudioCpCamvResult: checked.camvResult,

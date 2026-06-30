@@ -522,7 +522,7 @@ Done when:
       state in the web UI.
 - [x] Phase 6: Preserve unsupported editor-state fields with clear status.
 - [x] Phase 7: Update `.osf` source typing and Oriedita metadata preservation.
-- [ ] Phase 7: Add export-from-`.osf` tests for `.ori` and `.fold`.
+- [x] Phase 7: Add export-from-`.osf` tests for `.ori` and `.fold`.
 - [ ] Phase 8: Extend corpus reporting for native Oriedita document interchange.
 - [ ] Phase 8: Run public fixture, oracle, and external corpus validation before
       claiming arbitrary Oriedita compatibility.

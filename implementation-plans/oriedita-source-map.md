@@ -266,7 +266,7 @@ mutation.
 | `.fold` | FOLD geometry plus Oriedita extension fields and embedded `file_frames`. | Preserve the full frame graph, edit only the active CP frame, render preserved folded forms. | Rust/WASM preservation exists; all-frame web rendering and active-frame export update pending. |
 | `.orh` | Legacy Oriedita/Orihime text format, charset quirks, folded colors. | Import/export with explicit lossy warnings and folded color preservation. | Rust oracle-tested; WASM/web UTF-8 routing added, byte charset import remains Rust-only. |
 | `.cp` | Plain line-only crease-pattern exchange. | Treat as lossy exchange format. | Web/Rust path exists; lossy-warning polish remains tied to export UI. |
-| `.osf` | Ori Studio workspace, not an Oriedita format. | Persist Ori Studio-only state such as multiple folded overlays while preserving imported Oriedita source metadata. | Exists for current workspace state; source typing includes `.ori`/`.orh`. |
+| `.osf` | Ori Studio workspace, not an Oriedita format. | Persist Ori Studio-only state such as multiple folded overlays while preserving imported Oriedita source metadata. | Source typing includes `.ori`/`.orh`; reopen/resave preserves original Oriedita source identity and export `.ori`/`.fold` paths are store-tested. |
 
 ## Task and Service Matrix
 

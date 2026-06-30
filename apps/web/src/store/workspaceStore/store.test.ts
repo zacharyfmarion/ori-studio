@@ -1815,6 +1815,81 @@ describe('workspace store slices', () => {
     });
   });
 
+  it('preserves original Oriedita source identity when reopening and resaving OSF', async () => {
+    resetStores(seedSnapshot());
+    loadSnapshotIntoStore(seedSnapshot());
+    const sourceDocument = editableCpState([
+      cpLine({ x: 0, y: 0 }, { x: 1, y: 0 }, { color: 'Red1' }),
+    ]).document;
+    sourceDocument.metadata = {
+      'oriedita:ori:canvasModel': { lineColor: 'BLUE_2' },
+    };
+    const nativeProject = createNativeCreasePatternProjectFile({
+      title: 'Native ORI project',
+      filename: 'native.osf',
+      path: '/tmp/native.osf',
+      document: sourceDocument,
+      source: { format: 'ori', filename: 'native.ori', path: '/tmp/native.ori' },
+      foldProjection: JSON.parse(editableCpFoldText),
+      sourceFold: null,
+      foldArtifacts: null,
+      creaseColorMode: 'mvf',
+      selection: emptyOristudioCpSelection(),
+      viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+      symmetry: defaultOristudioCpSymmetry(),
+      foldedFigures: [],
+      activeFoldedFigureId: null,
+      lineage: importedCpLineage(),
+      appVersion: '0.1.2',
+    });
+    const fileService = createFileService({
+      text: serializeNativeProjectFile(nativeProject),
+      name: 'native.osf',
+      path: '/tmp/native.osf',
+    });
+
+    await expect(useWorkspaceStore.getState().openProject(fileService)).resolves.toBe(true);
+
+    expect(useWorkspaceStore.getState().importedCreasePattern?.source).toEqual({
+      format: 'ori',
+      filename: 'native.ori',
+      path: '/tmp/native.ori',
+    });
+    expect(useWorkspaceStore.getState().oristudioCpDocument?.source).toEqual({
+      format: 'osf',
+      filename: 'native.osf',
+      path: '/tmp/native.osf',
+    });
+
+    useWorkspaceStore.setState({ dirty: true });
+    await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
+
+    const savedOptions = fileService.saveTextFile.mock.calls.at(-1)?.[0] as
+      | SaveTextFileOptions
+      | undefined;
+    const savedProject = parseNativeProjectFile(savedOptions?.contents ?? '');
+    expect(activeNativeDocument(savedProject)).toMatchObject({
+      kind: 'crease-pattern',
+      creasePattern: {
+        source: {
+          format: 'ori',
+          filename: 'native.ori',
+          path: '/tmp/native.ori',
+        },
+        document: {
+          metadata: {
+            'oriedita:ori:canvasModel': { lineColor: 'BLUE_2' },
+          },
+        },
+      },
+    });
+
+    await expect(useWorkspaceStore.getState().exportOri(fileService)).resolves.toBe(true);
+    expect(oristudioCpMocks.exportOristudioCpDocumentAsOri).toHaveBeenCalledOnce();
+    await expect(useWorkspaceStore.getState().exportFold(fileService)).resolves.toBe(true);
+    expect(oristudioCpMocks.exportOristudioCpDocumentAsFold).toHaveBeenCalledTimes(2);
+  });
+
   it('opens legacy ORH documents and warns before saving back as ORH', async () => {
     resetStores(seedSnapshot());
     loadSnapshotIntoStore(seedSnapshot());
