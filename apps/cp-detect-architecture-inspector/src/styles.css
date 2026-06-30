@@ -1548,3 +1548,314 @@ select {
   grid-template-columns: 12px 42px minmax(0, 1fr);
   padding: 6px 7px;
 }
+
+/* ----- Gallery landing view ----- */
+.app-header-actions {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+
+.gallery-back {
+  align-items: center;
+  background: #1f2937;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  color: #e2e8f0;
+  cursor: pointer;
+  display: flex;
+  font-size: 13px;
+  gap: 7px;
+  padding: 8px 12px;
+}
+
+.gallery-back:hover {
+  background: #273449;
+}
+
+.gallery {
+  display: grid;
+  gap: 12px;
+  grid-template-rows: auto 1fr;
+  height: calc(100vh - 73px);
+  min-height: 0;
+  padding: 14px;
+}
+
+.gallery-toolbar {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+}
+
+.gallery-heading {
+  align-items: baseline;
+  display: flex;
+  gap: 6px;
+}
+
+.gallery-heading strong {
+  color: #0f172a;
+  font-size: 18px;
+}
+
+.gallery-heading span {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.gallery-search {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #d7dee8;
+  border-radius: 7px;
+  color: #94a3b8;
+  display: flex;
+  flex: 1;
+  gap: 8px;
+  max-width: 420px;
+  padding: 8px 12px;
+}
+
+.gallery-search input {
+  background: transparent;
+  border: 0;
+  color: #0f172a;
+  flex: 1;
+  font-size: 14px;
+  outline: none;
+}
+
+.gallery-upload {
+  align-items: center;
+  background: #0f766e;
+  border: 0;
+  border-radius: 7px;
+  color: #ffffff;
+  cursor: pointer;
+  display: flex;
+  font-size: 13px;
+  gap: 7px;
+  margin-left: auto;
+  padding: 9px 14px;
+}
+
+.gallery-upload:hover {
+  background: #0d655e;
+}
+
+.gallery-scroll {
+  background: #ffffff;
+  border: 1px solid #d7dee8;
+  border-radius: 8px;
+  min-height: 0;
+  overflow: auto;
+  padding: 14px;
+  position: relative;
+}
+
+.gallery-rows {
+  position: relative;
+  width: 100%;
+}
+
+.gallery-row {
+  align-items: stretch;
+  display: flex;
+  left: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+
+.gallery-cell {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  overflow: hidden;
+  padding: 6px;
+  text-align: left;
+}
+
+.gallery-cell:hover {
+  border-color: #0f766e;
+  box-shadow: 0 2px 8px rgb(15 118 110 / 0.15);
+}
+
+.gallery-cell.selected {
+  border-color: #0f766e;
+  box-shadow: 0 0 0 2px rgb(15 118 110 / 0.35);
+}
+
+.gallery-thumb {
+  align-items: center;
+  background: #ffffff;
+  border-radius: 5px;
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+  width: 100%;
+}
+
+.gallery-thumb img {
+  height: 100%;
+  object-fit: contain;
+  width: 100%;
+}
+
+.gallery-caption {
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gallery-meta {
+  color: #64748b;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gallery-empty {
+  color: #64748b;
+  display: grid;
+  gap: 6px;
+  padding: 40px;
+  text-align: center;
+}
+
+.gallery-empty strong {
+  color: #0f172a;
+}
+
+/* ----- Topology issues overlay + badge ----- */
+.topology-issues-layer .topology-missing {
+  stroke: #dc2626;
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  opacity: 0.95;
+}
+
+.topology-issues-layer .topology-extra {
+  stroke: #f97316;
+  stroke-width: 2.5;
+  stroke-dasharray: 6 5;
+  opacity: 0.9;
+}
+
+.topology-issues-layer .topology-wrong {
+  stroke: #f59e0b;
+  stroke-width: 3;
+  opacity: 0.9;
+}
+
+.topology-badge {
+  align-items: center;
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 600;
+  gap: 8px;
+  padding: 4px 11px;
+}
+
+.topology-badge.ok {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.topology-badge.issues {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.topology-badge.issues span {
+  white-space: nowrap;
+}
+
+.topology-toggle {
+  align-items: center;
+  color: #b91c1c;
+  display: inline-flex;
+  font-size: 13px;
+  gap: 6px;
+}
+
+/* ----- Stage 2 candidate controls + drill-down ----- */
+.control-inline {
+  align-items: center;
+  color: #475569;
+  display: inline-flex;
+  font-size: 13px;
+  gap: 6px;
+}
+
+.control-inline select,
+.control-inline input[type='range'] {
+  margin-left: 2px;
+}
+
+.candidate-conflict-link {
+  stroke: #a855f7;
+  stroke-width: 1.5;
+  stroke-dasharray: 3 4;
+  opacity: 0.7;
+}
+
+.candidate-detail-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.candidate-detail-close {
+  background: #eef2f7;
+  border: 1px solid #d7dee8;
+  border-radius: 6px;
+  color: #475569;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 4px 9px;
+}
+
+.candidate-detail-close:hover {
+  background: #e2e8f0;
+}
+
+.candidate-detail-note {
+  color: #64748b;
+  font-size: 12px;
+  margin: -2px 0 4px 18px;
+}
+
+/* ----- Stage 2 side-by-side comparison ----- */
+.viewer-compare {
+  display: flex;
+  gap: 14px;
+  min-height: 0;
+  width: 100%;
+}
+
+.viewer-compare-cell {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.viewer-compare-label {
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}

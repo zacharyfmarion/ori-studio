@@ -518,6 +518,23 @@ pub fn generate_junction_first_with_vertex_pixels(
     )
 }
 
+/// Refiner junctions merged into dense-head evidence within their regions (the
+/// product's in-regions semantics). Dense junctions outside the regions are kept.
+pub fn generate_junction_first_with_refined_vertices_in_regions(
+    ctx: CandidateGenerationContext<'_>,
+    options: JunctionFirstV1StrategyOptions,
+    refined_vertices: &[crate::decode::RefinedVertexPrimitive],
+    refined_regions: Option<&[crate::decode::RefinedVertexRegion]>,
+) -> Result<CandidateGraph, DecodeError> {
+    junction_first_v1::generate_candidate_graph_with_refined_vertices_in_regions(
+        ctx.outputs,
+        &ctx.config,
+        options,
+        refined_vertices,
+        refined_regions,
+    )
+}
+
 pub fn default_low_threshold(threshold: f32) -> f32 {
     (threshold * 0.55).max(0.10).min(threshold)
 }

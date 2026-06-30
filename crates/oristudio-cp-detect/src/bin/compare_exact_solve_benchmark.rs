@@ -10,15 +10,18 @@ use oristudio_cp_compiler::candidate_graph::CandidateCreaseBoundaryRole;
 use oristudio_cp_compiler::selection::{SelectionOptions, select_candidate_graph_beam_from_ir};
 use oristudio_cp_compiler::verify::{GlobalVerificationOptions, verify_fold_json};
 use oristudio_cp_compiler::{
-    AssignmentLabel, CandidateProgram, ExactSolveInput, ExactSolveOptions, ExactSolvedGraph,
-    ExactSolvedGraphStatus, LegacyCandidateAdapter, LegacyCandidateAdapterOptions, Point2,
-    SelectedGraph, solve_exact,
+    AssignmentLabel, CandidateGraph, CandidateProgram, ExactSolveInput, ExactSolveOptions,
+    ExactSolvedGraph, ExactSolvedGraphStatus, LegacyCandidateAdapter,
+    LegacyCandidateAdapterOptions, Point2, SelectedGraph, solve_exact,
 };
 use oristudio_cp_detect::candidate_generation::{
     CandidateGenerationContext, CandidateGenerationOptions, CandidateGenerationStrategyName,
-    generate_candidate_graph, generate_junction_first_with_vertex_pixels,
+    generate_candidate_graph, generate_junction_first_with_refined_vertices_in_regions,
+    generate_junction_first_with_vertex_pixels,
 };
-use oristudio_cp_detect::decode::{DecodeConfig, DenseOutputs, decode_dense_outputs};
+use oristudio_cp_detect::decode::{
+    DecodeConfig, DenseOutputs, RefinedVertexCacheEntry, decode_dense_outputs,
+};
 use oristudio_cp_detect::evidence_extract::JunctionEvidenceSource;
 use oristudio_cp_detect::source_image_evidence::{
     SourceImageLineEvidenceOptions, line_probability_from_rgba,
@@ -96,6 +99,10 @@ struct Args {
     junction_evidence_source: JunctionEvidenceSource,
     gt_junction_labels: bool,
     gt_vertices: bool,
+    /// Per-sample refiner output (vertices + regions, pixel space) from the Torch
+    /// refiner, keyed by sample id. Merged into dense-head evidence within the
+    /// regions exactly like the product — the product-faithful junction source.
+    refined_vertices: Option<std::collections::BTreeMap<String, RefinedVertexCacheEntry>>,
     threshold: Option<f32>,
     legacy_low_threshold: Option<f32>,
     exact_patience: Option<usize>,
@@ -103,9 +110,15 @@ struct Args {
     limit: Option<usize>,
     match_tolerance_px: f64,
     strict_vertex_tolerance_px: f64,
+    /// Vertex tolerance used ONLY for the exact-solve gate (does the candidate
+    /// recover GT topology *structurally*, allowing positions to be a bit off, so
+    /// the solver can snap them). Recovery is still scored at the strict tolerance.
+    /// Defaults to `strict_vertex_tolerance_px` (gate == eval) when unset.
+    topology_gate_tolerance_px: Option<f64>,
     skip_flat_folder: bool,
     skip_exact_solve: bool,
     exact_solve_any_topology: bool,
+    oracle_selection: bool,
     junction_first_merge_radius_px: Option<f64>,
     junction_first_corridor_px: Option<f64>,
     junction_first_endpoint_margin_px: Option<f64>,
@@ -114,6 +127,7 @@ struct Args {
     junction_first_short_span_bypass_px: Option<f64>,
     parity_repair: Option<bool>,
     dump_folds: bool,
+    allow_stale: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -127,6 +141,11 @@ struct BenchmarkSummary {
     pack: Option<String>,
     config: BenchmarkConfig,
     sample_count: usize,
+    /// Number of samples where the exact-solve recovered the original crease pattern
+    /// (accepted + solved fold matches GT topology AND assignment, strict). The
+    /// honest end-to-end success count, vs `implementations.selected.strict_topology`
+    /// which only scores the candidate graph.
+    solve_recovered_original: usize,
     total_seconds: f64,
     timing: BenchmarkTimingAggregate,
     implementations: BTreeMap<String, ImplementationAggregate>,
@@ -159,8 +178,39 @@ struct BenchmarkSample {
     exact_solved: OutputMetrics,
     selection: SelectionSummary,
     exact_solve: ExactSolveSummary,
+    /// The honest end-to-end success: the exact-solve was accepted AND its fold
+    /// reproduces GT topology AND assignment at `strict_vertex_tolerance_px` — i.e.
+    /// it recovered the original crease pattern. (`selected.strict_topology` only
+    /// scores the candidate graph; this scores the solved fold.)
+    solve_recovered_original: bool,
+    attribution: FailureAttribution,
     timing: BenchmarkSampleTiming,
     seconds: f64,
+}
+
+/// Per-sample failure attribution against canonicalized GT. Splits the lost GT
+/// creases into where they were lost in the pipeline so the aggregate ranks
+/// levers (detector recall vs selection vs assignment), plus spurious output.
+/// All counts are at the canonicalized strict-topology edge level.
+#[derive(Debug, Clone, Copy, Serialize)]
+struct FailureAttribution {
+    gt_edges: usize,
+    candidate_pool: usize,
+    recovered: usize,
+    /// GT creases with no candidate at all (candidate-generation / detector recall).
+    detector_miss: usize,
+    /// GT creases a candidate covered but beam selection dropped (selection scoring).
+    selection_miss: usize,
+    /// Selected edges matched to a GT crease but with the wrong M/V/B (assignment).
+    assignment_wrong: usize,
+    /// Selected edges with no GT match (spurious / hallucination).
+    spurious: usize,
+    /// Predicted vertices unmatched to any GT vertex (junction localization residue).
+    unmatched_pred_vertices: usize,
+    /// GT vertices unmatched by any prediction.
+    unmatched_gt_vertices: usize,
+    exact_topology: bool,
+    exact_topology_and_assignment: bool,
 }
 
 #[derive(Debug, Default, Clone, Copy, Serialize)]
@@ -486,6 +536,7 @@ struct SegmentPx {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse()?;
+    assert_fresh_binary(args.allow_stale);
     let strategy = if args.candidate_source == "legacy" {
         None
     } else {
@@ -627,7 +678,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if args.gt_vertices {
                     if name != CandidateGenerationStrategyName::JunctionFirstV1 {
                         return Err(format!(
-                            "--gt-vertices requires --candidate-source junction-first-v1 (got {name})"
+                            "--oracle-vertices requires --candidate-source junction-first-v1 (got {name})"
                         )
                         .into());
                     }
@@ -638,6 +689,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         ctx,
                         generation_options.junction_first_v1,
                         &gt.vertices_px,
+                    )?
+                } else if let Some(refined) = args
+                    .refined_vertices
+                    .as_ref()
+                    .and_then(|map| map.get(&sample.id))
+                {
+                    if name != CandidateGenerationStrategyName::JunctionFirstV1 {
+                        return Err(format!(
+                            "--refined-vertices requires --candidate-source junction-first-v1 (got {name})"
+                        )
+                        .into());
+                    }
+                    // Product-faithful junctions: merge the Torch refiner's vertices
+                    // into dense-head evidence within their regions (dense junctions
+                    // outside the regions are preserved) — the in-regions semantics the
+                    // product uses, not a replace-all of every junction.
+                    generate_junction_first_with_refined_vertices_in_regions(
+                        ctx,
+                        generation_options.junction_first_v1,
+                        &refined.vertices,
+                        Some(&refined.regions),
                     )?
                 } else {
                     generate_candidate_graph(ctx, generation_options)?.candidate_graph
@@ -659,11 +731,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Default::default(),
         );
         let selection_seconds = selection_started.elapsed().as_secs_f64();
-        let selected_span_ids = selection
-            .selected_spans
-            .iter()
-            .map(|span| span.id)
-            .collect::<Vec<_>>();
+        let gt_segments = gt.segments();
+        // Oracle selection replaces beam with the GT-optimal subset of the pool,
+        // isolating beam scoring as a lever; beam still runs for its report.
+        let selected_span_ids = if args.oracle_selection {
+            oracle_selected_span_ids(
+                &candidate_graph,
+                &gt_segments,
+                sample.image_size,
+                args.strict_vertex_tolerance_px,
+            )
+        } else {
+            selection
+                .selected_spans
+                .iter()
+                .map(|span| span.id)
+                .collect::<Vec<_>>()
+        };
         let selected_span_set = selected_span_ids.iter().copied().collect::<BTreeSet<_>>();
         let selected_graph =
             SelectedGraph::from_selected_span_ids(&candidate_graph, selected_span_ids);
@@ -674,8 +758,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // so by default skip exact solve and mark it failed rather than letting
         // the solver flail toward (and sometimes "accept") a wrong reconstruction.
         // Pass --exact-solve-any-topology to attempt it regardless.
+        let selected_eval_graph =
+            GraphDoc::from_exact_input(&exact_input).eval_graph_px(sample.image_size);
         let selected_topology = strict_topology_metrics(
-            &GraphDoc::from_exact_input(&exact_input).eval_graph_px(sample.image_size),
+            &selected_eval_graph,
             &gt_eval_graph,
             StrictTopologyOptions {
                 vertex_tolerance: args.strict_vertex_tolerance_px,
@@ -683,9 +769,39 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 compare_assignments: true,
             },
         );
-        let skip_for_bad_topology = !args.skip_exact_solve
-            && !args.exact_solve_any_topology
-            && !selected_topology.exact_topology;
+        let attribution = failure_attribution(
+            &candidate_graph,
+            &selected_topology,
+            &gt_eval_graph,
+            sample.image_size,
+            args.strict_vertex_tolerance_px,
+        );
+        // Gate the solve on STRUCTURAL topology recovery at a (typically looser)
+        // gate tolerance: all GT junctions present and edges correct, allowing the
+        // small position error the solver can fix. A candidate with genuinely
+        // missing/extra structure stays non-exact at any tolerance, so it is still
+        // correctly skipped (no point solving a hopeless hard CP). Recovery itself
+        // is still scored strictly via `exact_solved` at strict_vertex_tolerance_px.
+        let gate_tolerance = args
+            .topology_gate_tolerance_px
+            .unwrap_or(args.strict_vertex_tolerance_px);
+        let gate_exact_topology = if (gate_tolerance - args.strict_vertex_tolerance_px).abs() < 1e-9
+        {
+            selected_topology.exact_topology
+        } else {
+            strict_topology_metrics(
+                &selected_eval_graph,
+                &gt_eval_graph,
+                StrictTopologyOptions {
+                    vertex_tolerance: gate_tolerance,
+                    split_merge_tolerance: gate_tolerance,
+                    compare_assignments: true,
+                },
+            )
+            .exact_topology
+        };
+        let skip_for_bad_topology =
+            !args.skip_exact_solve && !args.exact_solve_any_topology && !gate_exact_topology;
         eprintln!(
             "{}",
             serde_json::to_string(&json!({
@@ -747,7 +863,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             GraphDoc::from_exact_solve(&exact_input, exact)
                 .with_flat_folder_boundary_hint(flat_folder_boundary_hint.clone())
         });
-        let gt_segments = gt.segments();
 
         let legacy = output_metrics(
             &legacy_doc,
@@ -796,17 +911,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             fs::write(&path, selected_doc.to_fold_json()?)?;
         }
         let metrics_seconds = metrics_started.elapsed().as_secs_f64();
-        let selected_weak_spans = selection
-            .selected_spans
+        let selected_weak_spans = candidate_graph
+            .crease_candidates
             .iter()
-            .filter(|span| {
-                candidate_graph
-                    .crease_candidates
-                    .get(span.id)
-                    .is_some_and(|candidate| {
-                        candidate.source_kind
-                            == oristudio_cp_compiler::CandidateCreaseSourceKind::LegacyLowThreshold
-                    })
+            .filter(|candidate| {
+                selected_span_set.contains(&candidate.id)
+                    && candidate.source_kind
+                        == oristudio_cp_compiler::CandidateCreaseSourceKind::LegacyLowThreshold
             })
             .count();
         let dropped_legacy_spans = candidate_graph
@@ -819,6 +930,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .count();
 
         let sample_seconds = sample_started.elapsed().as_secs_f64();
+        let solve_recovered_original = exact_summary.accepted == Some(true)
+            && exact_output.strict_topology.exact_topology_and_assignment;
         let row = BenchmarkSample {
             id: sample.id.clone(),
             source_id: sample.source_id.clone(),
@@ -830,12 +943,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             exact_solved: exact_output,
             selection: SelectionSummary {
                 candidate_spans: candidate_graph.crease_candidates.len(),
-                selected_spans: selection.selected_spans.len(),
+                selected_spans: selected_span_set.len(),
                 selected_weak_spans,
                 dropped_legacy_spans,
                 total_score: round6(selection.report.total_score),
             },
             exact_solve: exact_summary,
+            solve_recovered_original,
+            attribution,
             timing: BenchmarkSampleTiming {
                 read_logits_seconds: round3(read_logits_seconds),
                 legacy_decode_seconds: round3(legacy_decode_seconds),
@@ -896,6 +1011,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             flat_folder_enabled: !args.skip_flat_folder,
         },
         sample_count: rows.len(),
+        solve_recovered_original: rows
+            .iter()
+            .filter(|row| row.solve_recovered_original)
+            .count(),
         total_seconds: round3(started.elapsed().as_secs_f64()),
         timing: aggregate_timing(&rows),
         implementations: aggregates,
@@ -915,6 +1034,7 @@ impl Args {
         let mut junction_evidence_source = JunctionEvidenceSource::Model;
         let mut gt_junction_labels = false;
         let mut gt_vertices = false;
+        let mut refined_vertices_path: Option<String> = None;
         let mut threshold = None;
         let mut legacy_low_threshold = None;
         let mut exact_patience = None;
@@ -922,9 +1042,11 @@ impl Args {
         let mut limit = None;
         let mut match_tolerance_px = 12.0;
         let mut strict_vertex_tolerance_px = 2.0;
+        let mut topology_gate_tolerance_px: Option<f64> = None;
         let mut skip_flat_folder = false;
         let mut skip_exact_solve = false;
         let mut exact_solve_any_topology = false;
+        let mut oracle_selection = false;
         let mut junction_first_merge_radius_px = None;
         let mut junction_first_corridor_px = None;
         let mut junction_first_endpoint_margin_px = None;
@@ -933,6 +1055,7 @@ impl Args {
         let mut junction_first_short_span_bypass_px = None;
         let mut parity_repair = None;
         let mut dump_folds = false;
+        let mut allow_stale = false;
         let mut iter = env::args().skip(1);
         while let Some(arg) = iter.next() {
             match arg.as_str() {
@@ -963,8 +1086,11 @@ impl Args {
                         junction_evidence_source = parse_junction_evidence_source(&value)?;
                     }
                 }
-                "--gt-junction-labels" => gt_junction_labels = true,
-                "--gt-vertices" => gt_vertices = true,
+                "--oracle-junction-labels" => gt_junction_labels = true,
+                "--oracle-vertices" => gt_vertices = true,
+                "--refined-vertices" => {
+                    refined_vertices_path = Some(required_value(&mut iter, &arg)?);
+                }
                 "--threshold" => {
                     threshold = Some(required_value(&mut iter, "--threshold")?.parse()?)
                 }
@@ -987,9 +1113,14 @@ impl Args {
                     strict_vertex_tolerance_px =
                         required_value(&mut iter, "--strict-vertex-tolerance-px")?.parse()?;
                 }
+                "--topology-gate-tolerance-px" => {
+                    topology_gate_tolerance_px =
+                        Some(required_value(&mut iter, "--topology-gate-tolerance-px")?.parse()?);
+                }
                 "--skip-flat-folder" => skip_flat_folder = true,
                 "--skip-exact-solve" => skip_exact_solve = true,
                 "--exact-solve-any-topology" => exact_solve_any_topology = true,
+                "--oracle-selection" => oracle_selection = true,
                 "--junction-first-merge-radius-px" => {
                     junction_first_merge_radius_px =
                         Some(required_value(&mut iter, &arg)?.parse()?);
@@ -1015,6 +1146,7 @@ impl Args {
                 "--parity-repair" => parity_repair = Some(true),
                 "--no-parity-repair" => parity_repair = Some(false),
                 "--dump-folds" => dump_folds = true,
+                "--allow-stale" => allow_stale = true,
                 "--help" | "-h" => {
                     print_usage();
                     std::process::exit(0);
@@ -1025,6 +1157,18 @@ impl Args {
         let dense_manifest =
             dense_manifest.unwrap_or_else(|| PathBuf::from(DEFAULT_DENSE_MANIFEST));
         let out = out.ok_or("--out is required")?;
+        let refined_vertices = match refined_vertices_path {
+            Some(path) => {
+                let text = std::fs::read_to_string(&path)
+                    .map_err(|err| format!("failed to read --refined-vertices {path}: {err}"))?;
+                let map: std::collections::BTreeMap<String, RefinedVertexCacheEntry> =
+                    serde_json::from_str(&text).map_err(|err| {
+                        format!("failed to parse --refined-vertices {path}: {err}")
+                    })?;
+                Some(map)
+            }
+            None => None,
+        };
         Ok(Self {
             dense_manifest,
             out,
@@ -1033,6 +1177,7 @@ impl Args {
             junction_evidence_source,
             gt_junction_labels,
             gt_vertices,
+            refined_vertices,
             threshold,
             legacy_low_threshold,
             exact_patience,
@@ -1040,9 +1185,11 @@ impl Args {
             limit,
             match_tolerance_px,
             strict_vertex_tolerance_px,
+            topology_gate_tolerance_px,
             skip_flat_folder,
             skip_exact_solve,
             exact_solve_any_topology,
+            oracle_selection,
             junction_first_merge_radius_px,
             junction_first_corridor_px,
             junction_first_endpoint_margin_px,
@@ -1051,6 +1198,7 @@ impl Args {
             junction_first_short_span_bypass_px,
             parity_repair,
             dump_folds,
+            allow_stale,
         })
     }
 }
@@ -2337,6 +2485,50 @@ fn point_distance(left: [f64; 2], right: [f64; 2]) -> f64 {
     (dx * dx + dy * dy).sqrt()
 }
 
+fn point_segment_distance(point: [f64; 2], a: [f64; 2], b: [f64; 2]) -> f64 {
+    let ab = [b[0] - a[0], b[1] - a[1]];
+    let length_sq = ab[0] * ab[0] + ab[1] * ab[1];
+    if length_sq <= f64::EPSILON {
+        return point_distance(point, a);
+    }
+    let ap = [point[0] - a[0], point[1] - a[1]];
+    let t = ((ap[0] * ab[0] + ap[1] * ab[1]) / length_sq).clamp(0.0, 1.0);
+    point_distance(point, [a[0] + t * ab[0], a[1] + t * ab[1]])
+}
+
+/// Oracle selection: the GT-optimal subset of the *generated* candidate pool.
+/// A candidate is kept iff its whole pixel span lies on GT creases (every sampled
+/// point within `tolerance` of some GT segment), so it can contribute to exact
+/// topology; spurious / off-line candidates are dropped. This isolates beam
+/// scoring — residual failures are then missing candidates (recall) or geometry,
+/// not selection. The exact solver / canonicalizing metric handle merge/split.
+fn oracle_selected_span_ids(
+    candidate_graph: &CandidateGraph,
+    gt_segments: &[SegmentPx],
+    image_size: u32,
+    tolerance: f64,
+) -> Vec<usize> {
+    const SAMPLES: usize = 9;
+    candidate_graph
+        .crease_candidates
+        .iter()
+        .filter_map(|span| {
+            let a = candidate_graph.vertices.get(span.vertices[0])?;
+            let b = candidate_graph.vertices.get(span.vertices[1])?;
+            let pa = normalized_to_px(a.point, image_size);
+            let pb = normalized_to_px(b.point, image_size);
+            let supported = (0..=SAMPLES).all(|i| {
+                let t = i as f64 / SAMPLES as f64;
+                let p = [pa[0] + t * (pb[0] - pa[0]), pa[1] + t * (pb[1] - pa[1])];
+                gt_segments
+                    .iter()
+                    .any(|seg| point_segment_distance(p, seg.a, seg.b) <= tolerance)
+            });
+            supported.then_some(span.id)
+        })
+        .collect()
+}
+
 fn distance(left: Point2, right: Point2) -> f64 {
     let dx = left.x - right.x;
     let dy = left.y - right.y;
@@ -2395,6 +2587,68 @@ fn eval_boundary_role(role: CandidateCreaseBoundaryRole) -> EvalBoundaryRole {
     }
 }
 
+/// Pixel-space `EvalGraph` over the whole candidate pool (every crease
+/// candidate), for the candidate-recall diff: GT creases the pool does not cover
+/// are detector misses, independent of what selection later keeps.
+fn candidate_eval_graph(candidate_graph: &CandidateGraph, image_size: u32) -> EvalGraph {
+    let vertices = candidate_graph
+        .vertices
+        .iter()
+        .map(|vertex| EvalPoint::from(normalized_to_px(vertex.point, image_size)))
+        .collect::<Vec<_>>();
+    let edges = candidate_graph
+        .crease_candidates
+        .iter()
+        .map(|span| {
+            EvalEdge::new(
+                span.vertices,
+                eval_assignment(span.assignment_evidence.observed_label),
+            )
+            .with_boundary_role(eval_boundary_role(span.boundary_role))
+        })
+        .collect::<Vec<_>>();
+    EvalGraph::new(vertices, edges)
+}
+
+/// Attribute lost GT creases to a pipeline stage by comparing the canonicalized
+/// candidate-pool and selected-graph topologies against GT.
+fn failure_attribution(
+    candidate_graph: &CandidateGraph,
+    selected_topology: &StrictTopologyMetrics,
+    gt_eval_graph: &EvalGraph,
+    image_size: u32,
+    strict_vertex_tolerance_px: f64,
+) -> FailureAttribution {
+    let candidate_topology = strict_topology_metrics(
+        &candidate_eval_graph(candidate_graph, image_size),
+        gt_eval_graph,
+        StrictTopologyOptions {
+            vertex_tolerance: strict_vertex_tolerance_px,
+            split_merge_tolerance: strict_vertex_tolerance_px,
+            compare_assignments: true,
+        },
+    );
+    let gt_edges = selected_topology.edges.gt_edges;
+    let detector_miss = candidate_topology.edges.missing_edges;
+    let selected_missing = selected_topology.edges.missing_edges;
+    // A subset selection can only miss at least as many GT creases as the full
+    // pool; the extra missing are creases the pool had but selection dropped.
+    let selection_miss = selected_missing.saturating_sub(detector_miss);
+    FailureAttribution {
+        gt_edges,
+        candidate_pool: candidate_graph.crease_candidates.len(),
+        recovered: gt_edges.saturating_sub(selected_missing),
+        detector_miss,
+        selection_miss,
+        assignment_wrong: selected_topology.assignments.wrong_edges,
+        spurious: selected_topology.edges.extra_edges,
+        unmatched_pred_vertices: selected_topology.vertices.unmatched_predicted_vertices,
+        unmatched_gt_vertices: selected_topology.vertices.unmatched_gt_vertices,
+        exact_topology: selected_topology.exact_topology,
+        exact_topology_and_assignment: selected_topology.exact_topology_and_assignment,
+    }
+}
+
 fn assignment_code(label: AssignmentLabel) -> &'static str {
     match label {
         AssignmentLabel::Mountain => "M",
@@ -2442,6 +2696,53 @@ fn git_commit() -> Option<String> {
         .then(|| String::from_utf8_lossy(&output.stdout).trim().to_owned())
 }
 
+fn short_commit(commit: &str) -> &str {
+    commit.get(..12).unwrap_or(commit)
+}
+
+/// Print build provenance and guard against the worktree/`target` footgun: each git
+/// worktree has its own `target/`, so it is easy to rebuild in one worktree but run
+/// a stale binary from another (silently producing wrong numbers). The commit the
+/// binary was built from is embedded by `build.rs`; if it disagrees with the working
+/// tree HEAD at the run cwd, the binary is stale — refuse unless `--allow-stale`.
+fn assert_fresh_binary(allow_stale: bool) {
+    let build_commit = option_env!("BUILD_GIT_COMMIT").unwrap_or("");
+    let build_dirty = option_env!("BUILD_GIT_DIRTY") == Some("true");
+    let runtime_head = git_commit().unwrap_or_default();
+    eprintln!(
+        "[provenance] compare_exact_solve_benchmark built from {}{} | cwd HEAD {}",
+        if build_commit.is_empty() {
+            "unknown"
+        } else {
+            short_commit(build_commit)
+        },
+        if build_dirty { " (dirty)" } else { "" },
+        if runtime_head.is_empty() {
+            "unknown".to_owned()
+        } else {
+            short_commit(&runtime_head).to_owned()
+        },
+    );
+    if build_commit.is_empty() || runtime_head.is_empty() || build_commit == runtime_head {
+        return;
+    }
+    let message = format!(
+        "STALE BINARY: built from {} but the working tree at this path is on {}.\n\
+         Each git worktree has its own target/, so this is almost certainly a binary\n\
+         from a different worktree/checkout. Rebuild from THIS worktree\n\
+         (cargo build/run -p oristudio-cp-detect --bin compare_exact_solve_benchmark)\n\
+         or pass --allow-stale to override.",
+        short_commit(build_commit),
+        short_commit(&runtime_head),
+    );
+    if allow_stale {
+        eprintln!("[provenance] WARNING: {message}");
+    } else {
+        eprintln!("[provenance] ERROR: {message}");
+        std::process::exit(2);
+    }
+}
+
 fn round3(value: f64) -> f64 {
     (value * 1000.0).round() / 1000.0
 }
@@ -2452,7 +2753,7 @@ fn round6(value: f64) -> f64 {
 
 fn print_usage() {
     println!(
-        "compare_exact_solve_benchmark --out DIR [--dense-manifest PATH] [--candidate-source legacy] [--line-evidence-source model|source-image] [--junction-evidence-source model|line-arrangement|ground-truth] [--gt-junction-labels] [--threshold T] [--legacy-low-threshold T] [--exact-patience N] [--exact-solve-timeout-seconds S] [--limit N] [--match-tolerance-px PX] [--strict-vertex-tolerance-px PX] [--skip-flat-folder] [--skip-exact-solve] [--exact-solve-any-topology]"
+        "compare_exact_solve_benchmark --out DIR [--dense-manifest PATH] [--candidate-source legacy] [--line-evidence-source model|source-image] [--junction-evidence-source model|line-arrangement|ground-truth] [--oracle-junction-labels] [--oracle-vertices] [--threshold T] [--legacy-low-threshold T] [--exact-patience N] [--exact-solve-timeout-seconds S] [--limit N] [--match-tolerance-px PX] [--strict-vertex-tolerance-px PX] [--skip-flat-folder] [--skip-exact-solve] [--exact-solve-any-topology] [--oracle-selection] [--allow-stale]"
     );
     println!(
         "  exact solve is gated on correct topology by default (wrong topology cannot reconstruct the right CP, so it is skipped and marked failed); --exact-solve-any-topology attempts it regardless."
@@ -2461,4 +2762,22 @@ fn print_usage() {
         "Samples run in parallel across the rayon thread pool. Exact-solve timeout defaults to {BENCHMARK_DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS}s (benchmark-only; product uses {}s). For fast topology iteration pass --skip-exact-solve.",
         oristudio_cp_compiler::DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn point_segment_distance_projects_and_clamps() {
+        // Perpendicular foot inside the segment.
+        let d = point_segment_distance([5.0, 3.0], [0.0, 0.0], [10.0, 0.0]);
+        assert!((d - 3.0).abs() < 1e-9);
+        // Beyond an endpoint clamps to that endpoint.
+        let d = point_segment_distance([-4.0, 0.0], [0.0, 0.0], [10.0, 0.0]);
+        assert!((d - 4.0).abs() < 1e-9);
+        // Degenerate (zero-length) segment falls back to point distance.
+        let d = point_segment_distance([3.0, 4.0], [0.0, 0.0], [0.0, 0.0]);
+        assert!((d - 5.0).abs() < 1e-9);
+    }
 }

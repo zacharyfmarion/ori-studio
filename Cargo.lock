@@ -2692,6 +2692,7 @@ dependencies = [
  "image",
  "oristudio-cp-compiler",
  "oristudio-cp-detect",
+ "oristudio-cp-eval",
  "serde",
  "serde_json",
 ]

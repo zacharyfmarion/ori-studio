@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
@@ -179,6 +179,14 @@ pub fn strict_topology_metrics(
     ground_truth: &EvalGraph,
     options: StrictTopologyOptions,
 ) -> StrictTopologyMetrics {
+    // Compare planar-normalized graphs so a straight crease split at a shared
+    // junction (most visibly the paper border, which ground truth keeps
+    // corner-to-corner while the detector splits it at every boundary-contact
+    // point) is not counted as a topology difference. A split point present in
+    // only one graph is not shared, so it still surfaces as a genuine vertex/edge
+    // difference.
+    let predicted = &canonicalize_segmentation(predicted, options.split_merge_tolerance);
+    let ground_truth = &canonicalize_segmentation(ground_truth, options.split_merge_tolerance);
     let matching = match_vertices(
         &predicted.vertices,
         &ground_truth.vertices,
@@ -614,6 +622,210 @@ fn point_distance(left: EvalPoint, right: EvalPoint) -> f64 {
     (dx * dx + dy * dy).sqrt()
 }
 
+/// If `point` lies on the interior of segment `a`->`b` (within `tolerance`
+/// perpendicular distance and strictly between the endpoints, leaving a
+/// tolerance-sized margin), return its parameter `t` in (0, 1) along the segment.
+fn interior_param_on_segment(
+    point: EvalPoint,
+    a: EvalPoint,
+    b: EvalPoint,
+    tolerance: f64,
+) -> Option<f64> {
+    let ab = [b.x - a.x, b.y - a.y];
+    let length_sq = ab[0] * ab[0] + ab[1] * ab[1];
+    if length_sq <= f64::EPSILON {
+        return None;
+    }
+    let length = length_sq.sqrt();
+    let ap = [point.x - a.x, point.y - a.y];
+    let t = (ap[0] * ab[0] + ap[1] * ab[1]) / length_sq;
+    let margin = (tolerance / length).min(0.5);
+    if t <= margin || t >= 1.0 - margin {
+        return None;
+    }
+    let projected = EvalPoint {
+        x: a.x + t * ab[0],
+        y: a.y + t * ab[1],
+    };
+    if point_distance(point, projected) <= tolerance {
+        Some(t)
+    } else {
+        None
+    }
+}
+
+/// Normalize a graph to its planar segmentation: every edge is subdivided at any
+/// vertex of the *same* graph lying on its interior. Crease-pattern producers
+/// disagree on whether a straight crease that passes through a junction is stored
+/// as one edge or as the collinear segments either side of it; canonicalizing
+/// both graphs the same way before matching makes the topology comparison reflect
+/// real structural differences instead of this representation choice.
+fn canonicalize_segmentation(graph: &EvalGraph, tolerance: f64) -> EvalGraph {
+    let mut edges: Vec<EvalEdge> = Vec::with_capacity(graph.edges.len());
+    let mut seen: BTreeSet<[usize; 2]> = BTreeSet::new();
+    for edge in &graph.edges {
+        let [start, end] = edge.vertices;
+        let (Some(a), Some(b)) = (
+            graph.vertices.get(start).copied(),
+            graph.vertices.get(end).copied(),
+        ) else {
+            push_unique_edge(&mut edges, &mut seen, edge.clone());
+            continue;
+        };
+        let mut interior: Vec<(usize, f64)> = Vec::new();
+        for (index, vertex) in graph.vertices.iter().enumerate() {
+            if index == start || index == end {
+                continue;
+            }
+            if let Some(t) = interior_param_on_segment(*vertex, a, b, tolerance) {
+                interior.push((index, t));
+            }
+        }
+        if interior.is_empty() {
+            push_unique_edge(&mut edges, &mut seen, edge.clone());
+            continue;
+        }
+        interior.sort_by(|left, right| left.1.total_cmp(&right.1));
+        let mut chain = Vec::with_capacity(interior.len() + 2);
+        chain.push(start);
+        chain.extend(interior.iter().map(|(index, _)| *index));
+        chain.push(end);
+        for window in chain.windows(2) {
+            let mut segment = edge.clone();
+            segment.vertices = [window[0], window[1]];
+            push_unique_edge(&mut edges, &mut seen, segment);
+        }
+    }
+    let split = EvalGraph::new(graph.vertices.clone(), edges);
+    dissolve_collinear_degree_two(&split, tolerance)
+}
+
+/// The merge counterpart to the split pass in [`canonicalize_segmentation`]:
+/// collapse a degree-2 vertex whose two incident edges are collinear and share an
+/// assignment and boundary role. Such a vertex is a redundant split point on an
+/// otherwise straight crease — most often an interior node one producer leaves on
+/// the paper border that the other dissolves — and carries no foldability meaning,
+/// so removing it lets the two halves merge into the single segment the other graph
+/// stores. Iterating collapses whole collinear chains; genuine junctions
+/// (degree != 2) and assignment changes are left intact, so real structural
+/// differences still surface as vertex/edge mismatches.
+fn dissolve_collinear_degree_two(graph: &EvalGraph, tolerance: f64) -> EvalGraph {
+    let vertices = graph.vertices.clone();
+    let mut edges = graph.edges.clone();
+    let mut dissolved = vec![false; vertices.len()];
+    loop {
+        let mut incident: Vec<Vec<usize>> = vec![Vec::new(); vertices.len()];
+        for (edge_index, edge) in edges.iter().enumerate() {
+            incident[edge.vertices[0]].push(edge_index);
+            incident[edge.vertices[1]].push(edge_index);
+        }
+        let mut collapse: Option<(usize, usize, Option<EvalEdge>)> = None;
+        for (vertex, inc) in incident.iter().enumerate() {
+            if inc.len() != 2 {
+                continue;
+            }
+            let (first, second) = (inc[0], inc[1]);
+            let edge_a = &edges[first];
+            let edge_b = &edges[second];
+            if edge_a.assignment != edge_b.assignment
+                || edge_a.boundary_role != edge_b.boundary_role
+            {
+                continue;
+            }
+            let left = other_endpoint(edge_a, vertex);
+            let right = other_endpoint(edge_b, vertex);
+            if left == right {
+                // The two edges share both endpoints; collapsing would self-loop.
+                continue;
+            }
+            if interior_param_on_segment(
+                vertices[vertex],
+                vertices[left],
+                vertices[right],
+                tolerance,
+            )
+            .is_none()
+            {
+                // Not collinear within tolerance: a genuine corner, keep it.
+                continue;
+            }
+            let already_present = edges.iter().enumerate().any(|(edge_index, edge)| {
+                edge_index != first
+                    && edge_index != second
+                    && canonical_edge(edge.vertices) == canonical_edge([left, right])
+            });
+            let merged = if already_present {
+                None
+            } else {
+                let mut merged = edge_a.clone();
+                merged.vertices = [left, right];
+                merged.source_id = None;
+                Some(merged)
+            };
+            collapse = Some((first, second, merged));
+            dissolved[vertex] = true;
+            break;
+        }
+        let Some((first, second, merged)) = collapse else {
+            break;
+        };
+        let mut next = Vec::with_capacity(edges.len());
+        for (edge_index, edge) in edges.iter().enumerate() {
+            if edge_index == first || edge_index == second {
+                continue;
+            }
+            next.push(edge.clone());
+        }
+        if let Some(edge) = merged {
+            next.push(edge);
+        }
+        edges = next;
+    }
+    if !dissolved.iter().any(|&flag| flag) {
+        return EvalGraph::new(vertices, edges);
+    }
+    // Drop the dissolved (now edge-less) vertices and remap surviving edge indices.
+    let mut remap = vec![usize::MAX; vertices.len()];
+    let mut compact_vertices = Vec::with_capacity(vertices.len());
+    for (index, point) in vertices.iter().enumerate() {
+        if dissolved[index] {
+            continue;
+        }
+        remap[index] = compact_vertices.len();
+        compact_vertices.push(*point);
+    }
+    let compact_edges = edges
+        .into_iter()
+        .filter_map(|mut edge| {
+            let a = remap[edge.vertices[0]];
+            let b = remap[edge.vertices[1]];
+            if a == usize::MAX || b == usize::MAX || a == b {
+                return None;
+            }
+            edge.vertices = [a, b];
+            Some(edge)
+        })
+        .collect();
+    EvalGraph::new(compact_vertices, compact_edges)
+}
+
+fn other_endpoint(edge: &EvalEdge, vertex: usize) -> usize {
+    if edge.vertices[0] == vertex {
+        edge.vertices[1]
+    } else {
+        edge.vertices[0]
+    }
+}
+
+fn push_unique_edge(edges: &mut Vec<EvalEdge>, seen: &mut BTreeSet<[usize; 2]>, edge: EvalEdge) {
+    if edge.vertices[0] == edge.vertices[1] {
+        return;
+    }
+    if seen.insert(canonical_edge(edge.vertices)) {
+        edges.push(edge);
+    }
+}
+
 fn ratio(numerator: usize, denominator: usize) -> f64 {
     if denominator == 0 {
         0.0
@@ -713,8 +925,11 @@ mod tests {
 
     #[test]
     fn extra_and_missing_edges_are_counted_after_vertex_mapping() {
+        // Pixel-scale triangle so the 2px default tolerance cannot treat the
+        // right-angle corner as collinear with the hypotenuse (a genuine
+        // topology difference: GT has the hypotenuse, pred has the left side).
         let gt = EvalGraph::new(
-            vec![p(0.0, 0.0), p(1.0, 0.0), p(0.0, 1.0)],
+            vec![p(0.0, 0.0), p(100.0, 0.0), p(0.0, 100.0)],
             vec![
                 edge(0, 1, EvalAssignment::Mountain),
                 edge(1, 2, EvalAssignment::Valley),
@@ -762,7 +977,47 @@ mod tests {
     }
 
     #[test]
-    fn split_gt_edge_diagnostic_identifies_degree_two_fragmentation() {
+    fn collinear_split_at_shared_vertex_is_exact() {
+        // A straight crease (0,0)->(100,0) that ground truth keeps whole but the
+        // prediction splits at the shared junction (50,0) where a perpendicular
+        // crease meets it — the paper-border representation case. Both graphs hold
+        // the junction, so after planar canonicalization the topology is identical.
+        let gt = EvalGraph::new(
+            vec![p(0.0, 0.0), p(100.0, 0.0), p(50.0, 0.0), p(50.0, 50.0)],
+            vec![
+                edge(0, 1, EvalAssignment::Boundary),
+                edge(2, 3, EvalAssignment::Mountain),
+            ],
+        );
+        let pred = EvalGraph::new(
+            gt.vertices.clone(),
+            vec![
+                edge(0, 2, EvalAssignment::Boundary),
+                edge(2, 1, EvalAssignment::Boundary),
+                edge(2, 3, EvalAssignment::Mountain),
+            ],
+        );
+
+        let metrics = strict_topology_metrics(
+            &pred,
+            &gt,
+            StrictTopologyOptions {
+                vertex_tolerance: 0.5,
+                split_merge_tolerance: 1.0,
+                compare_assignments: true,
+            },
+        );
+
+        assert!(metrics.exact_topology_and_assignment);
+        assert_eq!(metrics.missing_edges.len(), 0);
+        assert_eq!(metrics.extra_edges.len(), 0);
+    }
+
+    #[test]
+    fn degree_two_collinear_same_assignment_fragmentation_is_exact() {
+        // A straight Valley crease that the prediction splits at a degree-2
+        // collinear point with the same assignment on both halves. The split point
+        // is foldably meaningless, so dissolving it makes the two graphs identical.
         let gt = EvalGraph::new(
             vec![p(0.0, 0.0), p(10.0, 0.0)],
             vec![edge(0, 1, EvalAssignment::Valley)],
@@ -772,6 +1027,39 @@ mod tests {
             vec![
                 edge(0, 1, EvalAssignment::Valley),
                 edge(1, 2, EvalAssignment::Valley),
+            ],
+        );
+
+        let metrics = strict_topology_metrics(
+            &pred,
+            &gt,
+            StrictTopologyOptions {
+                vertex_tolerance: 0.1,
+                split_merge_tolerance: 0.1,
+                compare_assignments: true,
+            },
+        );
+
+        assert!(metrics.exact_topology_and_assignment);
+        assert_eq!(metrics.missing_edges.len(), 0);
+        assert_eq!(metrics.extra_edges.len(), 0);
+        assert_eq!(metrics.vertices.unmatched_predicted_vertices, 0);
+    }
+
+    #[test]
+    fn split_gt_edge_diagnostic_identifies_degree_two_fragmentation() {
+        // The split point carries a different assignment on each half, so it is a
+        // genuine difference (an assignment change mid-crease) that is NOT dissolved
+        // and still surfaces via the split-edge diagnostic.
+        let gt = EvalGraph::new(
+            vec![p(0.0, 0.0), p(10.0, 0.0)],
+            vec![edge(0, 1, EvalAssignment::Valley)],
+        );
+        let pred = EvalGraph::new(
+            vec![p(0.0, 0.0), p(5.0, 0.0), p(10.0, 0.0)],
+            vec![
+                edge(0, 1, EvalAssignment::Valley),
+                edge(1, 2, EvalAssignment::Mountain),
             ],
         );
 
@@ -797,11 +1085,14 @@ mod tests {
 
     #[test]
     fn merged_pred_edge_diagnostic_identifies_skipped_gt_junction() {
+        // Ground truth changes assignment at the intermediate vertex (Valley then
+        // Mountain), so the vertex is a real junction that is not dissolved and the
+        // prediction genuinely skips it.
         let gt = EvalGraph::new(
             vec![p(0.0, 0.0), p(5.0, 0.0), p(10.0, 0.0)],
             vec![
                 edge(0, 1, EvalAssignment::Valley),
-                edge(1, 2, EvalAssignment::Valley),
+                edge(1, 2, EvalAssignment::Mountain),
             ],
         );
         let pred = EvalGraph::new(
