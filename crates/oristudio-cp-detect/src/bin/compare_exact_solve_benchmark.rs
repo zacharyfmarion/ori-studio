@@ -110,6 +110,11 @@ struct Args {
     limit: Option<usize>,
     match_tolerance_px: f64,
     strict_vertex_tolerance_px: f64,
+    /// Vertex tolerance used ONLY for the exact-solve gate (does the candidate
+    /// recover GT topology *structurally*, allowing positions to be a bit off, so
+    /// the solver can snap them). Recovery is still scored at the strict tolerance.
+    /// Defaults to `strict_vertex_tolerance_px` (gate == eval) when unset.
+    topology_gate_tolerance_px: Option<f64>,
     skip_flat_folder: bool,
     skip_exact_solve: bool,
     exact_solve_any_topology: bool,
@@ -135,6 +140,11 @@ struct BenchmarkSummary {
     pack: Option<String>,
     config: BenchmarkConfig,
     sample_count: usize,
+    /// Number of samples where the exact-solve recovered the original crease pattern
+    /// (accepted + solved fold matches GT topology AND assignment, strict). The
+    /// honest end-to-end success count, vs `implementations.selected.strict_topology`
+    /// which only scores the candidate graph.
+    solve_recovered_original: usize,
     total_seconds: f64,
     timing: BenchmarkTimingAggregate,
     implementations: BTreeMap<String, ImplementationAggregate>,
@@ -167,6 +177,11 @@ struct BenchmarkSample {
     exact_solved: OutputMetrics,
     selection: SelectionSummary,
     exact_solve: ExactSolveSummary,
+    /// The honest end-to-end success: the exact-solve was accepted AND its fold
+    /// reproduces GT topology AND assignment at `strict_vertex_tolerance_px` — i.e.
+    /// it recovered the original crease pattern. (`selected.strict_topology` only
+    /// scores the candidate graph; this scores the solved fold.)
+    solve_recovered_original: bool,
     attribution: FailureAttribution,
     timing: BenchmarkSampleTiming,
     seconds: f64,
@@ -741,8 +756,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // so by default skip exact solve and mark it failed rather than letting
         // the solver flail toward (and sometimes "accept") a wrong reconstruction.
         // Pass --exact-solve-any-topology to attempt it regardless.
+        let selected_eval_graph =
+            GraphDoc::from_exact_input(&exact_input).eval_graph_px(sample.image_size);
         let selected_topology = strict_topology_metrics(
-            &GraphDoc::from_exact_input(&exact_input).eval_graph_px(sample.image_size),
+            &selected_eval_graph,
             &gt_eval_graph,
             StrictTopologyOptions {
                 vertex_tolerance: args.strict_vertex_tolerance_px,
@@ -757,9 +774,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             sample.image_size,
             args.strict_vertex_tolerance_px,
         );
-        let skip_for_bad_topology = !args.skip_exact_solve
-            && !args.exact_solve_any_topology
-            && !selected_topology.exact_topology;
+        // Gate the solve on STRUCTURAL topology recovery at a (typically looser)
+        // gate tolerance: all GT junctions present and edges correct, allowing the
+        // small position error the solver can fix. A candidate with genuinely
+        // missing/extra structure stays non-exact at any tolerance, so it is still
+        // correctly skipped (no point solving a hopeless hard CP). Recovery itself
+        // is still scored strictly via `exact_solved` at strict_vertex_tolerance_px.
+        let gate_tolerance = args
+            .topology_gate_tolerance_px
+            .unwrap_or(args.strict_vertex_tolerance_px);
+        let gate_exact_topology = if (gate_tolerance - args.strict_vertex_tolerance_px).abs() < 1e-9
+        {
+            selected_topology.exact_topology
+        } else {
+            strict_topology_metrics(
+                &selected_eval_graph,
+                &gt_eval_graph,
+                StrictTopologyOptions {
+                    vertex_tolerance: gate_tolerance,
+                    split_merge_tolerance: gate_tolerance,
+                    compare_assignments: true,
+                },
+            )
+            .exact_topology
+        };
+        let skip_for_bad_topology =
+            !args.skip_exact_solve && !args.exact_solve_any_topology && !gate_exact_topology;
         eprintln!(
             "{}",
             serde_json::to_string(&json!({
@@ -888,6 +928,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .count();
 
         let sample_seconds = sample_started.elapsed().as_secs_f64();
+        let solve_recovered_original = exact_summary.accepted == Some(true)
+            && exact_output.strict_topology.exact_topology_and_assignment;
         let row = BenchmarkSample {
             id: sample.id.clone(),
             source_id: sample.source_id.clone(),
@@ -905,6 +947,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 total_score: round6(selection.report.total_score),
             },
             exact_solve: exact_summary,
+            solve_recovered_original,
             attribution,
             timing: BenchmarkSampleTiming {
                 read_logits_seconds: round3(read_logits_seconds),
@@ -966,6 +1009,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             flat_folder_enabled: !args.skip_flat_folder,
         },
         sample_count: rows.len(),
+        solve_recovered_original: rows
+            .iter()
+            .filter(|row| row.solve_recovered_original)
+            .count(),
         total_seconds: round3(started.elapsed().as_secs_f64()),
         timing: aggregate_timing(&rows),
         implementations: aggregates,
@@ -993,6 +1040,7 @@ impl Args {
         let mut limit = None;
         let mut match_tolerance_px = 12.0;
         let mut strict_vertex_tolerance_px = 2.0;
+        let mut topology_gate_tolerance_px: Option<f64> = None;
         let mut skip_flat_folder = false;
         let mut skip_exact_solve = false;
         let mut exact_solve_any_topology = false;
@@ -1062,6 +1110,10 @@ impl Args {
                     strict_vertex_tolerance_px =
                         required_value(&mut iter, "--strict-vertex-tolerance-px")?.parse()?;
                 }
+                "--topology-gate-tolerance-px" => {
+                    topology_gate_tolerance_px =
+                        Some(required_value(&mut iter, "--topology-gate-tolerance-px")?.parse()?);
+                }
                 "--skip-flat-folder" => skip_flat_folder = true,
                 "--skip-exact-solve" => skip_exact_solve = true,
                 "--exact-solve-any-topology" => exact_solve_any_topology = true,
@@ -1129,6 +1181,7 @@ impl Args {
             limit,
             match_tolerance_px,
             strict_vertex_tolerance_px,
+            topology_gate_tolerance_px,
             skip_flat_folder,
             skip_exact_solve,
             exact_solve_any_topology,
