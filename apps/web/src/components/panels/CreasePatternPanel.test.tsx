@@ -1015,6 +1015,26 @@ describe('CreasePatternPanel', () => {
     expect(useWorkspaceStore.getState().oristudioCpViewport.snapToLines).toBe(false);
   });
 
+  it('restores active line color from Oriedita canvas metadata', () => {
+    const documentState = editableCpState();
+    documentState.document.metadata = {
+      'oriedita:ori:canvasModel': {
+        lineColor: 'RED_1',
+        toggleLineColor: true,
+      },
+    };
+    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
+      documentMode: 'crease-pattern',
+      importedCreasePattern: importedCpDocument(),
+      oristudioCpDocument: documentState,
+    });
+
+    expect(container.textContent).toContain('Line V');
+    expect(container.querySelector('button[aria-label="Valley"]')?.getAttribute('data-active')).toBe(
+      'true'
+    );
+  });
+
   it('renders preserved embedded folded-form frames in the editable CP grid', () => {
     const imported = {
       ...importedCpDocument(),

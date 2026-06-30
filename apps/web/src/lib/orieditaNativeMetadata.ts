@@ -1,6 +1,7 @@
 import type {
   OristudioCpFoldedFigureModel,
   OristudioCpFoldedFigureState,
+  OristudioCpLineColor,
   OristudioCpRgbColor,
 } from '../engine/oristudioCpTypes';
 
@@ -19,6 +20,7 @@ const DEFAULT_FOLDED_MODEL: OristudioCpFoldedFigureModel = {
 };
 
 const ORI_FOLDED_MODEL_KEY = 'oriedita:ori:foldedFigureModel';
+const ORI_CANVAS_MODEL_KEY = 'oriedita:ori:canvasModel';
 const ORH_FRONT_COLOR_KEY = 'oriedita:orh:oriagarizu_front_color';
 const ORH_BACK_COLOR_KEY = 'oriedita:orh:oriagarizu_back_color';
 const ORH_LINE_COLOR_KEY = 'oriedita:orh:oriagarizu_line_color';
@@ -72,6 +74,15 @@ export function foldedFigureModelFromOrieditaMetadata(
   };
 }
 
+export function activeLineColorFromOrieditaMetadata(
+  metadata: Record<string, unknown> | null | undefined
+): OristudioCpLineColor | null {
+  const canvasModel = recordValue(metadata?.[ORI_CANVAS_MODEL_KEY]);
+  const lineColor = lineColorValue(canvasModel?.lineColor);
+  if (!lineColor) return null;
+  return booleanValue(canvasModel?.toggleLineColor) ? toggledLineColor(lineColor) : lineColor;
+}
+
 export function orieditaNativeMetadataStatus(
   metadata: Record<string, unknown> | null | undefined
 ): OrieditaNativeMetadataStatus | null {
@@ -85,6 +96,9 @@ export function orieditaNativeMetadataStatus(
       const restoredLabel = RESTORED_ORI_FIELDS.get(field);
       if (restoredLabel) {
         restored.add(restoredLabel);
+      } else if (field === 'canvasModel' && activeLineColorFromOrieditaMetadata(metadata)) {
+        restored.add('Canvas line color');
+        preserved.add(PRESERVED_ORI_FIELD_LABELS.get(field) ?? field);
       } else {
         preserved.add(PRESERVED_ORI_FIELD_LABELS.get(field) ?? field);
       }
@@ -148,6 +162,63 @@ function integerValue(value: unknown): number | null {
 
 function booleanValue(value: unknown): boolean | null {
   return typeof value === 'boolean' ? value : null;
+}
+
+function lineColorValue(value: unknown): OristudioCpLineColor | null {
+  switch (value) {
+    case 'ANGLE':
+    case 'Angle':
+      return 'Angle';
+    case 'NONE':
+    case 'None':
+      return 'None';
+    case 'BLACK_0':
+    case 'Black0':
+      return 'Black0';
+    case 'RED_1':
+    case 'Red1':
+      return 'Red1';
+    case 'BLUE_2':
+    case 'Blue2':
+      return 'Blue2';
+    case 'CYAN_3':
+    case 'Cyan3':
+      return 'Cyan3';
+    case 'ORANGE_4':
+    case 'Orange4':
+      return 'Orange4';
+    case 'MAGENTA_5':
+    case 'Magenta5':
+      return 'Magenta5';
+    case 'GREEN_6':
+    case 'Green6':
+      return 'Green6';
+    case 'YELLOW_7':
+    case 'Yellow7':
+      return 'Yellow7';
+    case 'PURPLE_8':
+    case 'Purple8':
+      return 'Purple8';
+    case 'OTHER_9':
+    case 'Other9':
+      return 'Other9';
+    case 'GREY_10':
+    case 'Grey10':
+      return 'Grey10';
+    default:
+      return null;
+  }
+}
+
+function toggledLineColor(lineColor: OristudioCpLineColor): OristudioCpLineColor {
+  switch (lineColor) {
+    case 'Red1':
+      return 'Blue2';
+    case 'Blue2':
+      return 'Red1';
+    default:
+      return lineColor;
+  }
 }
 
 function foldedState(value: unknown): OristudioCpFoldedFigureState | null {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  activeLineColorFromOrieditaMetadata,
   foldedFigureModelFromOrieditaMetadata,
   orieditaNativeMetadataStatus,
 } from './orieditaNativeMetadata';
@@ -57,17 +58,47 @@ describe('oriedita native metadata', () => {
     expect(foldedFigureModelFromOrieditaMetadata({})).toBeNull();
   });
 
+  it('restores the active canvas line color with Oriedita toggle semantics', () => {
+    expect(
+      activeLineColorFromOrieditaMetadata({
+        'oriedita:ori:canvasModel': {
+          lineColor: 'RED_1',
+          toggleLineColor: true,
+        },
+      })
+    ).toBe('Blue2');
+    expect(
+      activeLineColorFromOrieditaMetadata({
+        'oriedita:ori:canvasModel': {
+          lineColor: 'YELLOW_7',
+          toggleLineColor: true,
+        },
+      })
+    ).toBe('Yellow7');
+  });
+
+  it('returns null when canvas model line color is absent or unknown', () => {
+    expect(activeLineColorFromOrieditaMetadata({})).toBeNull();
+    expect(
+      activeLineColorFromOrieditaMetadata({
+        'oriedita:ori:canvasModel': {
+          lineColor: 'FUTURE_COLOR_99',
+        },
+      })
+    ).toBeNull();
+  });
+
   it('summarizes restored and preserved native metadata fields', () => {
     expect(
       orieditaNativeMetadataStatus({
         'oriedita:ori:foldedFigureModel': {},
         'oriedita:ori:creasePatternCamera': {},
-        'oriedita:ori:canvasModel': {},
+        'oriedita:ori:canvasModel': { lineColor: 'BLUE_2' },
         'oriedita:ori:unknownFutureField': {},
         'oriedita:orh:oriagarizu_front_color': [1, 2, 3],
       })
     ).toEqual({
-      restored: ['Folded colors', 'Folded model'],
+      restored: ['Canvas line color', 'Folded colors', 'Folded model'],
       preserved: ['Camera', 'Canvas', 'unknownFutureField'],
     });
   });

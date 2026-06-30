@@ -111,6 +111,7 @@ import {
   ORISTUDIO_CP_EXTRA_LINE_COLOR_PALETTE,
   cpPaletteEntryForColor,
 } from '../../lib/oristudioCpPalette';
+import { activeLineColorFromOrieditaMetadata } from '../../lib/orieditaNativeMetadata';
 import {
   axisFromTwoPoints,
   cpSymmetryAxisLine,
@@ -1491,6 +1492,7 @@ export function CreasePatternPanel() {
   const selectionMoveDragRef = useRef<CpSelectionMoveDrag | null>(null);
   const selectionResizeDragRef = useRef<CpSelectionResizeDrag | null>(null);
   const foldedFigureMoveDragRef = useRef<FoldedFigureMoveDrag | null>(null);
+  const restoredNativeCanvasModelRef = useRef<string | null>(null);
   const cpToolDragRef = useRef<{
     operationId: OristudioCpCommandDefinition['operationId'];
     actionId: OristudioCpCommandActionDefinition['id'] | null;
@@ -1594,6 +1596,10 @@ export function CreasePatternPanel() {
   const editableCp = oristudioCpDocument?.document ?? null;
   const editableCpHandle = oristudioCpDocument?.handle ?? null;
   const editableCpSummary = oristudioCpDocument?.summary ?? null;
+  const nativeActiveLineColor = useMemo(
+    () => activeLineColorFromOrieditaMetadata(editableCp?.metadata),
+    [editableCp?.metadata]
+  );
   const cpCanvasRect = editableCp ? CP_EDITABLE_CANVAS_RECT : CP_WORLD_RECT;
   const cpFitRect = editableCp ? CP_EDITABLE_FIT_RECT : CP_WORLD_RECT;
   const cpCanvasViewBox = `${cpCanvasRect.x} ${cpCanvasRect.y} ${cpCanvasRect.width} ${cpCanvasRect.height}`;
@@ -1622,6 +1628,17 @@ export function CreasePatternPanel() {
         : undefined,
     [editableCp]
   );
+  useEffect(() => {
+    if (!editableCp) {
+      restoredNativeCanvasModelRef.current = null;
+      return;
+    }
+
+    const restoreKey = `${projectLoadId}:${editableCpHandle ?? 'none'}`;
+    if (restoredNativeCanvasModelRef.current === restoreKey) return;
+    restoredNativeCanvasModelRef.current = restoreKey;
+    if (nativeActiveLineColor) setActiveCpLineColor(nativeActiveLineColor);
+  }, [editableCp, editableCpHandle, nativeActiveLineColor, projectLoadId]);
   const activeFoldedFigure = useMemo(
     () =>
       oristudioCpFoldedFigures.find((figure) => figure.id === oristudioCpActiveFoldedFigureId) ??
