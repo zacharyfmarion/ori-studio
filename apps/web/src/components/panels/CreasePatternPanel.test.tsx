@@ -1063,6 +1063,21 @@ describe('CreasePatternPanel', () => {
             ] as [number, number][],
             faces_vertices: [[0, 1, 2]],
           },
+          {
+            frame_title: 'second embedded folded',
+            frame_classes: ['foldedForm'],
+            vertices_coords: [
+              [0, 0],
+              [2, 0],
+              [2, 2],
+            ],
+            edges_vertices: [
+              [0, 1],
+              [1, 2],
+              [2, 0],
+            ] as [number, number][],
+            faces_vertices: [[0, 1, 2]],
+          },
         ],
       },
     };
@@ -1074,8 +1089,12 @@ describe('CreasePatternPanel', () => {
     });
 
     expect(container.querySelector('[data-folded-form-title="embedded folded"]')).not.toBeNull();
-    expect(container.querySelectorAll('.cp-folded-form-face')).toHaveLength(1);
-    expect(container.querySelectorAll('.cp-folded-form-edge')).toHaveLength(3);
+    expect(
+      container.querySelector('[data-folded-form-title="second embedded folded"]')
+    ).not.toBeNull();
+    expect(container.querySelectorAll('.cp-folded-form')).toHaveLength(2);
+    expect(container.querySelectorAll('.cp-folded-form-face')).toHaveLength(2);
+    expect(container.querySelectorAll('.cp-folded-form-edge')).toHaveLength(6);
   });
 
   it('renders generated folded figure snapshots in the editable CP grid', () => {

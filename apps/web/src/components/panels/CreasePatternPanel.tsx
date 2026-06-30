@@ -1728,8 +1728,7 @@ export function CreasePatternPanel() {
   const importedFoldedForms = useMemo(
     () =>
       (importedCreasePattern?.sourceFold?.file_frames ?? [])
-        .filter(isRenderableFoldedFormFrame)
-        .slice(0, 1),
+        .filter(isRenderableFoldedFormFrame),
     [importedCreasePattern?.sourceFold]
   );
   const camvIssuesVisible = oristudioCpViewport.camvIssuesVisible !== false;

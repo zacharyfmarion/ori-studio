@@ -240,7 +240,7 @@ mutation.
 | `CpExporter.java` | `.cp` export and lossy-format warning. | `io::cp::export` | 4 | Unit-tested |
 | `FoldImporter.java` | `.fold` import and coordinate normalization. | `io::fold::import` | 4 | Unit-tested |
 | `FoldExporter.java` | `.fold` export, face reconstruction, Oriedita extras. | `io::fold::export` | 4 | Unit-tested; topology oracle |
-| `FoldImporter.java` `file_frames` | Preserve and select embedded FOLD frames, including `foldedForm` frames. | `io::fold::import_fold_file_json`, `io::fold::import_fold_file_document_json`, web FOLD frame inventory | 4, 11 | Porting; Rust/WASM lossless parse/export and `.osf` preservation exist, full web render/export of every frame remains planned |
+| `FoldImporter.java` `file_frames` | Preserve and select embedded FOLD frames, including `foldedForm` frames. | `io::fold::import_fold_file_json`, `io::fold::import_fold_file_document_json`, web FOLD frame inventory | 4, 11 | Porting; Rust/WASM lossless parse/export, `.osf` preservation, and all-renderable foldedForm web rendering exist |
 | `FoldExporter.java` `file_frames` | Export embedded folded-form frame graphs when present. | `io::fold::export_fold_file_json`, `io::fold::export_fold_file_document_json`, web FOLD frame inventory | 4, 11 | Porting; Rust/WASM frame-preserving export exists, active-frame update semantics remain planned |
 | `OriImporter.java` | `.ori` import. | `io::ori::import`, `oristudio-cp-wasm`, web file routing | 4 | Porting; Rust/WASM/web unit-tested, editor-state restoration pending |
 | `OriExporter.java` | `.ori` export. | `io::ori::export`, `oristudio-cp-wasm`, web export routing | 4 | Porting; Rust/WASM/web unit-tested, editor-state synthesis pending |
