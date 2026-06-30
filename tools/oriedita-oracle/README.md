@@ -77,5 +77,11 @@ built separately so the geometry oracle can remain dependency-light:
 ```bash
 tools/oriedita-oracle/build_native_io_oracle.sh
 ORIEDITA_NATIVE_IO_ORACLE=tools/oriedita-oracle/build/oriedita-native-io-oracle \
-  cargo test -p oristudio-cp --test oriedita_io_oracle ori_import_and_export
+  cargo test -p oristudio-cp --test oriedita_io_oracle \
+    ori_import_and_export fold_root_import
 ```
+
+This wrapper also resolves the Java `fold` dependency used by Oriedita's
+`FoldImporter`. That importer rejects FOLD `file_frames` in the pinned
+dependency, so embedded-frame preservation is covered by Rust round-trip tests
+while the native oracle covers root FOLD import semantics.

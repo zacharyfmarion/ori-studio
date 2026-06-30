@@ -24,16 +24,32 @@ find_cached_jar() {
   local group_path="${group//.//}"
   local jar=""
 
-  if [[ -d "$HOME/.m2/repository/$group_path/$artifact" ]]; then
-    jar="$(find "$HOME/.m2/repository/$group_path/$artifact" -name "$artifact-*.jar" -type f | sort -V | tail -n 1)"
+  if [[ -f "$HOME/.m2/repository/$group_path/$artifact/$version/$artifact-$version.jar" ]]; then
+    jar="$HOME/.m2/repository/$group_path/$artifact/$version/$artifact-$version.jar"
   fi
-  if [[ -z "$jar" && -d "$HOME/.gradle/caches/modules-2/files-2.1/$group/$artifact" ]]; then
-    jar="$(find "$HOME/.gradle/caches/modules-2/files-2.1/$group/$artifact" -name "$artifact-*.jar" -type f | sort -V | tail -n 1)"
+  if [[ -z "$jar" && -d "$HOME/.gradle/caches/modules-2/files-2.1/$group/$artifact/$version" ]]; then
+    jar="$(find "$HOME/.gradle/caches/modules-2/files-2.1/$group/$artifact/$version" -name "$artifact-$version.jar" -type f | sort -V | tail -n 1)"
   fi
   if [[ -z "$jar" && "$(command -v mvn)" != "" ]]; then
     mvn -q dependency:get -Dartifact="$group:$artifact:$version" -Dtransitive=false
+    if [[ -f "$HOME/.m2/repository/$group_path/$artifact/$version/$artifact-$version.jar" ]]; then
+      jar="$HOME/.m2/repository/$group_path/$artifact/$version/$artifact-$version.jar"
+    fi
+  fi
+  if [[ -z "$jar" && "$(command -v curl)" != "" ]]; then
+    local target="$HOME/.m2/repository/$group_path/$artifact/$version/$artifact-$version.jar"
+    local tmp="$target.tmp"
+    mkdir -p "$(dirname "$target")"
+    curl -fsSL "https://repo1.maven.org/maven2/$group_path/$artifact/$version/$artifact-$version.jar" -o "$tmp"
+    mv "$tmp" "$target"
+    jar="$target"
+  fi
+  if [[ -z "$jar" ]]; then
     if [[ -d "$HOME/.m2/repository/$group_path/$artifact" ]]; then
       jar="$(find "$HOME/.m2/repository/$group_path/$artifact" -name "$artifact-*.jar" -type f | sort -V | tail -n 1)"
+    fi
+    if [[ -z "$jar" && -d "$HOME/.gradle/caches/modules-2/files-2.1/$group/$artifact" ]]; then
+      jar="$(find "$HOME/.gradle/caches/modules-2/files-2.1/$group/$artifact" -name "$artifact-*.jar" -type f | sort -V | tail -n 1)"
     fi
   fi
 
@@ -45,11 +61,14 @@ find_cached_jar() {
   echo "$jar"
 }
 
-jackson_version="2.13.3"
+jackson_version="2.13.4"
 jackson_annotations="$(find_cached_jar com.fasterxml.jackson.core jackson-annotations "$jackson_version")"
 jackson_core="$(find_cached_jar com.fasterxml.jackson.core jackson-core "$jackson_version")"
 jackson_databind="$(find_cached_jar com.fasterxml.jackson.core jackson-databind "$jackson_version")"
-classpath="$jackson_annotations:$jackson_core:$jackson_databind"
+jackson_jr_objects="$(find_cached_jar com.fasterxml.jackson.jr jackson-jr-objects "$jackson_version")"
+jackson_jr_stree="$(find_cached_jar com.fasterxml.jackson.jr jackson-jr-stree "$jackson_version")"
+fold_jar="$(find_cached_jar io.github.oriedita fold 1.1.0)"
+classpath="$jackson_annotations:$jackson_core:$jackson_databind:$jackson_jr_objects:$jackson_jr_stree:$fold_jar"
 
 rm -rf "$classes_root"
 mkdir -p "$classes_root"

@@ -175,6 +175,72 @@ fn fold_file_document_import_export_preserves_frames_while_updating_root_cp() {
 }
 
 #[test]
+fn fold_file_document_import_export_preserves_multiple_nested_frames_exactly() {
+    let input = r#"{
+      "file_spec": 1.2,
+      "file_title": "nested source fold",
+      "frame_title": "crease pattern",
+      "frame_classes": ["creasePattern", "orieditaRoot"],
+      "vertices_coords": [[0, 0], [0, 10], [10, 10]],
+      "edges_vertices": [[0, 1], [1, 2]],
+      "edges_assignment": ["M", "V"],
+      "rootCustom": {"kept": true},
+      "file_frames": [{
+        "frame_title": "folded result front",
+        "frame_classes": ["foldedForm"],
+        "frame_parent": 0,
+        "frame_inherit": true,
+        "vertices_coords": [[0, 0], [1, 0], [0, 1]],
+        "edges_vertices": [[0, 1], [1, 2], [2, 0]],
+        "faces_vertices": [[0, 1, 2]],
+        "faceOrders": [[0, 0, -1]],
+        "oriedita:folded_view": {"state": "FRONT_0"},
+        "file_frames": [{
+          "frame_title": "nested annotation",
+          "frame_classes": ["metadata"],
+          "frame_parent": 1,
+          "vertices_coords": [[2, 2], [3, 2]],
+          "edges_vertices": [[0, 1]],
+          "customNested": [{"keep": "me"}]
+        }]
+      }, {
+        "frame_title": "folded result back",
+        "frame_classes": ["foldedForm"],
+        "frame_parent": 0,
+        "frame_inherit": false,
+        "vertices_coords": [[5, 5], [6, 5], [5, 6]],
+        "edges_vertices": [[0, 1], [1, 2], [2, 0]],
+        "faces_vertices": [[0, 1, 2]],
+        "faceOrders": [[0, 0, 1]],
+        "unknownArray": [1, {"two": 2}]
+      }]
+    }"#;
+    let original = fold::import_fold_file_json(input).expect("valid fold file");
+
+    let mut document = fold::import_fold_file_document_json(input).expect("valid fold file");
+    document.crease_pattern.line_segments[0].color = LineColor::Blue2;
+    document.crease_pattern.line_segments[1].color = LineColor::Red1;
+
+    let json = fold::export_fold_file_document_json(&document).expect("serializes");
+    let exported = fold::import_fold_file_json(&json).expect("exported fold file");
+    let exported_value: serde_json::Value = serde_json::from_str(&json).expect("json");
+
+    assert_eq!(exported.file_frames, original.file_frames);
+    assert_eq!(
+        exported.frame_classes,
+        vec!["creasePattern".to_string(), "orieditaRoot".to_string()]
+    );
+    assert_eq!(
+        exported_value["rootCustom"],
+        serde_json::json!({"kept": true})
+    );
+    assert_eq!(
+        exported_value["edges_assignment"],
+        serde_json::json!(["V", "M"])
+    );
+}
+
+#[test]
 fn fold_import_prefers_oristudio_line_color_extension_over_assignment() {
     let input = r##"{
       "file_spec": 1.1,

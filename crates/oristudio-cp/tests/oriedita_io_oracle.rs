@@ -180,6 +180,42 @@ fn ori_import_and_export_match_oriedita_native_io_oracle() {
 }
 
 #[test]
+fn fold_root_import_matches_oriedita_native_io_oracle() {
+    let Some(oracle) = native_io_oracle() else {
+        eprintln!("skipping Oriedita native IO oracle test: ORIEDITA_NATIVE_IO_ORACLE is not set");
+        return;
+    };
+    let input = r#"{
+      "file_spec": 1.2,
+      "file_creator": "oriedita",
+      "frame_title": "crease pattern",
+      "frame_classes": ["creasePattern"],
+      "vertices_coords": [[0, 0], [0, 10], [10, 10]],
+      "edges_vertices": [[0, 1], [1, 2]],
+      "edges_assignment": ["M", "V"],
+      "edges_foldAngle": [-180.0, 180.0],
+      "oriedita:grid_size": 16,
+      "oriedita:grid_style": 2,
+      "oriedita:edges_colors": ["", ""]
+    }"#;
+    let path = write_temp("fold-native-oracle", ".fold", input.as_bytes());
+
+    let oracle_summary = run_oracle(&oracle, &["fold-import-summary", path.to_str().unwrap()]);
+    let document =
+        fold::import_fold_file_document_json(input).expect("Rust FOLD import should succeed");
+    // Oriedita's FoldImporter goes through FoldLineSet::getSave, which gives
+    // imported FOLD saves the legacy "_" title even when frame_title is present.
+    let rust_summary = model_summary(
+        Some("_"),
+        &document.crease_pattern,
+        Some(&document.crease_pattern.grid),
+    );
+
+    let _ = std::fs::remove_file(path);
+    assert_eq!(rust_summary, oracle_summary);
+}
+
+#[test]
 fn fold_topology_matches_oriedita_wireframe_oracle() {
     let Some(oracle) = io_oracle() else {
         eprintln!("skipping Oriedita IO oracle test: ORIEDITA_IO_ORACLE is not set");

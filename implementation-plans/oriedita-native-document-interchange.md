@@ -276,7 +276,9 @@ Validation:
 - Web render tests for multiple imported folded-form frames.
 - Export tests proving edited active CP geometry does not drop unrelated frames.
 - Oriedita oracle tests for the parts Oriedita's `FoldImporter` and
-  `FoldExporter` can canonicalize.
+  `FoldExporter` can canonicalize. The pinned Java `fold` dependency rejects
+  `file_frames`, so embedded-frame preservation is covered by Rust/WASM
+  round-trip tests rather than a native Oriedita import oracle.
 - Rust-only preservation tests for FOLD fields that Oriedita does not expose
   through its editor save object.
 
@@ -502,7 +504,7 @@ Done when:
 - [x] Phase 2: Promote FOLD frame graphs to first-class imported document state.
 - [x] Phase 2: Preserve and render all renderable `foldedForm` frames.
 - [x] Phase 2: Export edited FOLD files without dropping unrelated frames.
-- [ ] Phase 2: Add FOLD frame graph preservation and oracle tests.
+- [x] Phase 2: Add FOLD frame graph preservation tests and root FOLD oracle coverage.
 - [x] Phase 3: Expose `.orh` through the runtime with legacy charset behavior.
 - [x] Phase 3: Add `.orh` lossy-warning and oracle coverage.
 - [x] Phase 4: Add explicit WASM load/export APIs for `.ori`.

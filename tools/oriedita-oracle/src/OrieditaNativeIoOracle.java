@@ -1,5 +1,6 @@
 import oriedita.editor.FrameProvider;
 import oriedita.editor.databinding.GridModel;
+import oriedita.editor.export.FoldImporter;
 import oriedita.editor.export.OriImporter;
 import oriedita.editor.save.Save;
 import origami.crease_pattern.element.Circle;
@@ -17,6 +18,7 @@ public class OrieditaNativeIoOracle {
 
         switch (args[0]) {
             case "ori-import-summary" -> oriImportSummary(args);
+            case "fold-import-summary" -> foldImportSummary(args);
             default -> usage("unknown command: " + args[0]);
         }
     }
@@ -31,6 +33,14 @@ public class OrieditaNativeIoOracle {
             usage("ori-import-summary refused to import file");
         }
         printSaveSummary(save);
+    }
+
+    private static void foldImportSummary(String[] args) throws Exception {
+        if (args.length != 2) {
+            usage("fold-import-summary expects a file path");
+        }
+
+        printSaveSummary(new FoldImporter().doImport(new File(args[1])));
     }
 
     private static void printSaveSummary(Save save) {
@@ -105,6 +115,7 @@ public class OrieditaNativeIoOracle {
     private static void usage(String message) {
         System.err.println(message);
         System.err.println("usage: OrieditaNativeIoOracle ori-import-summary <path>");
+        System.err.println("   or: OrieditaNativeIoOracle fold-import-summary <path>");
         System.exit(2);
     }
 }
