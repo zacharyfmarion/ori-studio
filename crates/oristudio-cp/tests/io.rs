@@ -389,9 +389,68 @@ fn ori_import_reads_oriedita_save_json() {
     assert_eq!(model.grid.grid_angle, 45.0);
     assert_eq!(model.grid.base_state, GridState::Full);
     assert_eq!(
-        document.metadata.get("oriedita:ori:canvasModel"),
+        ori::ori_metadata_field(&document, ori::ORI_CANVAS_MODEL_FIELD),
         Some(&serde_json::json!({"mouseMode": "DRAW_CREASE_FREE_1"}))
     );
+}
+
+#[test]
+fn ori_import_preserves_editor_models_for_native_interchange() {
+    let input = r##"{
+      "@version": "v1.1",
+      "lineSegments": [],
+      "creasePatternCamera": {
+        "cameraPositionX": 12.5,
+        "cameraPositionY": -3.25,
+        "cameraZoomX": 1.5,
+        "extraCameraField": {"nested": true}
+      },
+      "canvasModel": {"mouseMode": "MOVE_CREASE_PATTERN_2"},
+      "foldedFigureModel": {
+        "frontColor": "ffcc0000",
+        "backColor": "ff3366ff",
+        "displayStyle": "PAPER_5",
+        "foldedCases": 4,
+        "foldedFigure": {
+          "vertices": [[0, 0], [1, 0], [0, 1]],
+          "faces": [[0, 1, 2]]
+        },
+        "unknownNestedModel": {"kept": ["yes"]}
+      },
+      "applicationModel": {"displayCpLines": true},
+      "futureSaveModel": {"still": "lossless"}
+    }"##;
+
+    let document = ori::import_ori_json(input).expect("valid ori");
+    let editor_models = ori::OrieditaEditorModels::from_document(&document);
+
+    assert_eq!(
+        editor_models.crease_pattern_camera,
+        Some(serde_json::json!({
+          "cameraPositionX": 12.5,
+          "cameraPositionY": -3.25,
+          "cameraZoomX": 1.5,
+          "extraCameraField": {"nested": true}
+        }))
+    );
+    assert_eq!(
+        editor_models
+            .folded_figure_model
+            .as_ref()
+            .and_then(|value| {
+                value
+                    .get("unknownNestedModel")
+                    .and_then(|nested| nested.get("kept"))
+            }),
+        Some(&serde_json::json!(["yes"]))
+    );
+    assert_eq!(
+        ori::ori_metadata_field(&document, "futureSaveModel"),
+        Some(&serde_json::json!({"still": "lossless"}))
+    );
+    assert!(ori::is_ori_editor_model_field(
+        ori::ORI_FOLDED_FIGURE_MODEL_FIELD
+    ));
 }
 
 #[test]
@@ -420,8 +479,9 @@ fn ori_export_round_trips_canonical_model_data_and_metadata() {
         .add_text(TextElement::new(3.0, 4.0, "hello"));
     document.crease_pattern.add_point(Point::new(-1.0, -2.0));
     document.crease_pattern.grid.base_state = GridState::Hidden;
-    document.metadata.insert(
-        "oriedita:ori:applicationModel".to_string(),
+    ori::set_ori_metadata_field(
+        &mut document,
+        ori::ORI_APPLICATION_MODEL_FIELD,
         serde_json::Value::Null,
     );
 
@@ -436,8 +496,49 @@ fn ori_export_round_trips_canonical_model_data_and_metadata() {
     let imported = ori::import_ori_json(&json).expect("imports exported ori");
     assert_eq!(document.canonical(1.0e-9), imported.canonical(1.0e-9));
     assert_eq!(
-        imported.metadata.get("oriedita:ori:applicationModel"),
+        ori::ori_metadata_field(&imported, ori::ORI_APPLICATION_MODEL_FIELD),
         Some(&serde_json::Value::Null)
+    );
+}
+
+#[test]
+fn ori_editor_models_apply_replaces_only_known_editor_model_fields() {
+    let mut document = CreasePatternDocument::default();
+    ori::set_ori_metadata_field(
+        &mut document,
+        ori::ORI_CANVAS_MODEL_FIELD,
+        serde_json::json!({"stale": true}),
+    );
+    ori::set_ori_metadata_field(
+        &mut document,
+        "futureSaveModel",
+        serde_json::json!({"keep": true}),
+    );
+
+    ori::OrieditaEditorModels {
+        crease_pattern_camera: Some(serde_json::json!({"cameraZoomX": 2.0})),
+        canvas_model: None,
+        folded_figure_model: Some(serde_json::json!({"foldedCases": 2})),
+        application_model: Some(serde_json::Value::Null),
+    }
+    .apply_to_document(&mut document);
+
+    assert_eq!(
+        ori::ori_metadata_field(&document, ori::ORI_CREASE_PATTERN_CAMERA_FIELD),
+        Some(&serde_json::json!({"cameraZoomX": 2.0}))
+    );
+    assert_eq!(
+        ori::ori_metadata_field(&document, ori::ORI_FOLDED_FIGURE_MODEL_FIELD),
+        Some(&serde_json::json!({"foldedCases": 2}))
+    );
+    assert_eq!(
+        ori::ori_metadata_field(&document, ori::ORI_APPLICATION_MODEL_FIELD),
+        Some(&serde_json::Value::Null)
+    );
+    assert!(ori::ori_metadata_field(&document, ori::ORI_CANVAS_MODEL_FIELD).is_none());
+    assert_eq!(
+        ori::ori_metadata_field(&document, "futureSaveModel"),
+        Some(&serde_json::json!({"keep": true}))
     );
 }
 

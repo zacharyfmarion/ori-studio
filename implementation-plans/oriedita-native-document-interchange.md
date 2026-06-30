@@ -495,9 +495,9 @@ Done when:
 - [x] Phase 0: Pick and record the pinned Oriedita baseline.
 - [x] Phase 0: Update the Oriedita source map for native document interchange.
 - [x] Phase 0: Add the `.ori` / `.fold` / `.orh` / `.osf` responsibility matrix.
-- [ ] Phase 1: Add typed `.ori` helpers for Oriedita editor model fields.
-- [ ] Phase 1: Preserve unknown nested Oriedita model fields.
-- [ ] Phase 1: Match Oriedita strict and permissive version handling.
+- [x] Phase 1: Add typed `.ori` helpers for Oriedita editor model fields.
+- [x] Phase 1: Preserve unknown nested Oriedita model fields.
+- [x] Phase 1: Match Oriedita strict and permissive version handling.
 - [ ] Phase 1: Add `.ori` Rust unit and oracle round-trip tests.
 - [ ] Phase 2: Promote FOLD frame graphs to first-class imported document state.
 - [ ] Phase 2: Preserve and render all renderable `foldedForm` frames.
