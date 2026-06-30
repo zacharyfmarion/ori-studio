@@ -3,6 +3,7 @@ import { Activity, Circle, GitBranch, MousePointer2, Square, Waypoints } from 'l
 import { handleMenuAction } from '../../commands/menuActions';
 import { formatNumber } from '../../lib/geometry';
 import { conditionDetail, conditionTitle } from '../../lib/conditionLabels';
+import { orieditaNativeMetadataStatus } from '../../lib/orieditaNativeMetadata';
 import { selectedNodeIds, selectionSummary } from '../../lib/selection';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 
@@ -48,6 +49,21 @@ export function InspectorPanel() {
     oristudioCpSelection.circles.length +
     oristudioCpSelection.texts.length +
     oristudioCpSelection.faces.length;
+  const nativeMetadataStatus = orieditaNativeMetadataStatus(
+    oristudioCpDocument?.document.metadata
+  );
+  const nativeStateSummary = nativeMetadataStatus
+    ? [
+        nativeMetadataStatus.restored.length > 0
+          ? `${nativeMetadataStatus.restored.join(', ')} restored`
+          : null,
+        nativeMetadataStatus.preserved.length > 0
+          ? `${nativeMetadataStatus.preserved.length} preserved`
+          : null,
+      ]
+        .filter(Boolean)
+        .join('; ')
+    : null;
 
   return (
     <section className="panel-shell inspector-panel">
@@ -224,6 +240,10 @@ export function InspectorPanel() {
             <Row label="Vertices" value={String(importedCreasePattern?.stats.vertices ?? 0)} />
             <Row label="Edges" value={String(importedCreasePattern?.stats.edges ?? project.creases.length)} />
             <Row label="Faces" value={String(importedCreasePattern?.stats.faces ?? project.facets.length)} />
+            {nativeStateSummary && <Row label="Native state" value={nativeStateSummary} />}
+            {nativeMetadataStatus?.preserved.length ? (
+              <Row label="Preserved" value={nativeMetadataStatus.preserved.join(', ')} />
+            ) : null}
             <Row
               label="Simulation"
               value={importedCreasePattern?.simulationModelError ? 'Unavailable' : 'Ready'}

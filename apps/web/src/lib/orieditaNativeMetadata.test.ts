@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { foldedFigureModelFromOrieditaMetadata } from './orieditaNativeMetadata';
+import {
+  foldedFigureModelFromOrieditaMetadata,
+  orieditaNativeMetadataStatus,
+} from './orieditaNativeMetadata';
 
 describe('oriedita native metadata', () => {
   it('maps Oriedita ORI foldedFigureModel fields to the runtime model shape', () => {
@@ -52,5 +55,24 @@ describe('oriedita native metadata', () => {
 
   it('returns null when no folded model metadata is present', () => {
     expect(foldedFigureModelFromOrieditaMetadata({})).toBeNull();
+  });
+
+  it('summarizes restored and preserved native metadata fields', () => {
+    expect(
+      orieditaNativeMetadataStatus({
+        'oriedita:ori:foldedFigureModel': {},
+        'oriedita:ori:creasePatternCamera': {},
+        'oriedita:ori:canvasModel': {},
+        'oriedita:ori:unknownFutureField': {},
+        'oriedita:orh:oriagarizu_front_color': [1, 2, 3],
+      })
+    ).toEqual({
+      restored: ['Folded colors', 'Folded model'],
+      preserved: ['Camera', 'Canvas', 'unknownFutureField'],
+    });
+  });
+
+  it('returns null when metadata does not contain Oriedita-native fields', () => {
+    expect(orieditaNativeMetadataStatus({ author: 'Ori Studio' })).toBeNull();
   });
 });

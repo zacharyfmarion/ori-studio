@@ -22,6 +22,25 @@ const ORI_FOLDED_MODEL_KEY = 'oriedita:ori:foldedFigureModel';
 const ORH_FRONT_COLOR_KEY = 'oriedita:orh:oriagarizu_front_color';
 const ORH_BACK_COLOR_KEY = 'oriedita:orh:oriagarizu_back_color';
 const ORH_LINE_COLOR_KEY = 'oriedita:orh:oriagarizu_line_color';
+const ORI_METADATA_PREFIX = 'oriedita:ori:';
+const ORH_METADATA_PREFIX = 'oriedita:orh:';
+
+const RESTORED_ORI_FIELDS = new Map<string, string>([['foldedFigureModel', 'Folded model']]);
+const RESTORED_ORH_FIELDS = new Map<string, string>([
+  ['oriagarizu_front_color', 'Folded colors'],
+  ['oriagarizu_back_color', 'Folded colors'],
+  ['oriagarizu_line_color', 'Folded colors'],
+]);
+const PRESERVED_ORI_FIELD_LABELS = new Map<string, string>([
+  ['creasePatternCamera', 'Camera'],
+  ['canvasModel', 'Canvas'],
+  ['applicationModel', 'Application'],
+]);
+
+export interface OrieditaNativeMetadataStatus {
+  restored: string[];
+  preserved: string[];
+}
 
 export function foldedFigureModelFromOrieditaMetadata(
   metadata: Record<string, unknown> | null | undefined
@@ -50,6 +69,43 @@ export function foldedFigureModelFromOrieditaMetadata(
       DEFAULT_FOLDED_MODEL.transparent_transparency,
     transparency_color:
       booleanValue(oriModel?.transparencyColor) ?? DEFAULT_FOLDED_MODEL.transparency_color,
+  };
+}
+
+export function orieditaNativeMetadataStatus(
+  metadata: Record<string, unknown> | null | undefined
+): OrieditaNativeMetadataStatus | null {
+  if (!metadata) return null;
+  const restored = new Set<string>();
+  const preserved = new Set<string>();
+
+  for (const key of Object.keys(metadata)) {
+    if (key.startsWith(ORI_METADATA_PREFIX)) {
+      const field = key.slice(ORI_METADATA_PREFIX.length);
+      const restoredLabel = RESTORED_ORI_FIELDS.get(field);
+      if (restoredLabel) {
+        restored.add(restoredLabel);
+      } else {
+        preserved.add(PRESERVED_ORI_FIELD_LABELS.get(field) ?? field);
+      }
+      continue;
+    }
+
+    if (key.startsWith(ORH_METADATA_PREFIX)) {
+      const field = key.slice(ORH_METADATA_PREFIX.length);
+      const restoredLabel = RESTORED_ORH_FIELDS.get(field);
+      if (restoredLabel) {
+        restored.add(restoredLabel);
+      } else {
+        preserved.add(field);
+      }
+    }
+  }
+
+  if (restored.size === 0 && preserved.size === 0) return null;
+  return {
+    restored: [...restored].sort(),
+    preserved: [...preserved].sort(),
   };
 }
 
