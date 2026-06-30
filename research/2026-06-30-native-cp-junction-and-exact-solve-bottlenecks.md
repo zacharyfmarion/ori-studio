@@ -35,19 +35,25 @@ override). Config unless noted: `--candidate-source junction-first-v1
   made the system look *worse*, not better.
 - **Oracle (GT-vertex) exact-topology reproduces exactly** (easy/med/hard = 134/56/16) —
   a clean consistency anchor.
-- **Every TL;DR conclusion holds** (often more strongly): the refiner still loses to the
-  dense head in every bucket; the exact-solve is still a real second bottleneck; the
-  gate tolerance is still not a lever; `solve_recovered@25s` for medium still = **6**.
+- **The benchmark-derived conclusions hold** (often more strongly): the refiner still loses
+  to the dense head in every bucket; the exact-solve is still a real second bottleneck; the
+  gate tolerance is still not a lever; `solve_recovered@25s` for medium still = **6**. (One
+  framing did change — see §3: "the detector is good per-junction even on hard" is wrong;
+  hard recall is ~55%.)
 - **One number could not be reproduced:** the original hard-bucket P0 *edge-F1* of 0.743.
   No current config (model/source-image × parity) gives more than ~0.606 — that figure
   was likely from a different/older binary or a mis-record. The refiner's hard-bucket
   *improvement* is unchanged (≈+0.15, ≈47% of the GT-vertex ceiling).
 
-**Not affected by the bug:** everything in §3 (junction recall, close-pair detection
-rates, heatmap sharpness, threshold sweep) was computed in numpy/Torch **directly on the
-dense cache**, never through `compare_exact_solve_benchmark` — so the stale binary cannot
-have touched it. Those figures are carried over unchanged (independently re-deriving them
-from the cache is a separate task, not done here).
+**§3 is binary-independent — but its numbers were independently re-derived and several did
+NOT hold.** The §3 junction-recall / close-pair figures were computed in numpy **directly
+on the dense cache**, never through `compare_exact_solve_benchmark`, so the stale binary
+cannot have touched them. They were nonetheless re-derived from scratch (detector-faithful
+peak extraction; see §3), and the absolute numbers turned out **optimistic**: hard
+per-junction recall is ~**55%** at the operating threshold (0.65), not the first draft's
+94–96%, and hard CPs are denser than stated (~691 degree-3 junctions/CP, not 375). The
+close-pair *direction* (detection collapses as junctions get closer) is confirmed and is
+**stronger**, but the absolute recall/detection numbers in §3 are corrected there.
 
 ---
 
@@ -55,11 +61,13 @@ from the cache is a separate task, not done here).
 
 1. **The V3 vertex refiner does not help on native CPs** (and slightly hurts on the
    strict metric). It's competent but redundant with the full-res dense head. *(High)*
-2. **The dominant junction failure is close pairs** (junctions within ~8px): detection
-   drops from ~98% to ~55%. It is **not** resolution, threshold, or code — the dense
-   heatmap is sharp; the model simply **under-fires on the second junction of a pair**.
-   Most consistent with a **training/data gap** (no close-pair augmentation in the dense
-   model). *(close-pair = High; "training gap" = Medium-High, inferred)*
+2. **The dominant junction failure is close pairs.** Detection falls off sharply as
+   junctions get closer: at the detector's operating threshold (0.65, re-derived) an
+   isolated junction (≥25px) is detected ~86% of the time, a <4px pair only ~4%. The model
+   under-fires on the second junction of a pair. Whether this is a **training/data gap**
+   (no close-pair augmentation in the dense model) or a **resolution limit** at 1024px is
+   **not settled** — hard per-junction recall is only ~55%, low enough to be consistent
+   with either. *(close-pair gap = High; mechanism = open)*
 3. **`exact-topology@2px` is the wrong headline metric.** It's all-or-nothing over
    hundreds of junctions (so even 96% recall → ~0% on hard), and it scores the *candidate
    graph*, ignoring whether the exact-solve actually reproduces the CP. *(High)*
@@ -117,7 +125,8 @@ stale binary; oracle 134/56/16 reproduces exactly.)*
   in-distribution; the model fires cleanly on them — verified on contact sheets) and
   **not** a port bug (features bit-exact). It's that the refiner's junctions are **no
   more precise than the dense head's**, and at close pairs it's actually *worse*
-  (4–6px gap: refiner 42% vs dense 67% detected). V3 re-detects at native crop
+  (first-draft: 4–6px gap refiner 42% vs dense 67% — a numpy in-regions comparison not
+  re-derived in this pass; the dense close-pair rates in §3 are the re-verified ones). V3 re-detects at native crop
   resolution with no super-resolution and **dropped** the dense-junction input channels
   that V1/V2 fed it — so it has no structural way to beat the head.
 
@@ -127,54 +136,76 @@ stale binary; oracle 134/56/16 reproduces exactly.)*
 
 ---
 
-## 3. The dominant junction failure: close pairs *(close-pair High; mechanism Medium-High)*
+## 3. The dominant junction failure: close pairs *(close-pair gap High; absolute numbers corrected)*
 
-> Source note: the figures in §3 are from numpy/Torch analysis **directly on the dense
-> cache** (local-maxima vs GT, heatmap profiles), not the benchmark binary — so they are
-> independent of the stale-binary issue in §0 and are carried over unchanged.
+> **Re-derived independently (and the original §3 numbers did NOT reproduce).** This
+> section was recomputed in numpy directly on the dense cache (`scripts/cp-detect/rederive-junction-recall.py`),
+> replicating the detector's junction extraction exactly: `prob = sigmoid(junction_logits)`;
+> local maxima with NMS radius 3px at the operating threshold **0.65**
+> (`line_threshold.max(0.50)`); sub-pixel offset added; match to GT within 2px. GT
+> "junctions" = interior (off the paper border) vertices of **degree ≥ 3** (degree-1
+> endpoints and degree-2 collinear points are not junctions the head targets). The
+> close-pair *direction* is confirmed and is **stronger** than the first draft; the
+> *absolute* recall and detection numbers in the first draft were **optimistic** and are
+> replaced below.
 
-Dense-head per-junction recall is **high** (raw local-maxima vs GT):
+Dense-head per-junction recall, re-derived, at the detector's operating threshold (0.65):
 
-| bucket | junc/CP | recall@2px | recall@5px | P(all junctions hit)=recall^N @2px |
-|---|---|---|---|---|
-| easy | 37 | 96–97% | 98% | 23–36% |
-| medium | 98 | 97–98% | 99% | 5–15% |
-| hard | 375 | 94–96% | 98% | **~0%** |
+| bucket | junc/CP (re-derived / 1st draft) | recall@2px @0.65 (re-derived / 1st draft) | recall @ lower thr |
+|---|---|---|---|
+| easy | 37 / 37 | **91.8%** / 96–97% | 98.6% @0.10 |
+| medium | 115 / 98 | **90.5%** / 97–98% | — |
+| hard | **691** / 375 | **55.0%** / 94–96% | 69.6% @0.30 |
 
-So junctions look "terrible in the benchmark" only because exact-topology multiplies a
-96%-recall detector by itself hundreds of times. **The detector is good; the metric is
-unforgiving.**
+Two corrections to the first draft:
+1. **Recall was overstated, especially on hard.** At the operating threshold it is ~91%
+   on easy/medium (not 96–98%) and **~55% on hard** (not 94–96%). Recall is
+   threshold-dependent (easy 91.8% @0.65 → 98.6% @0.10), so the first draft's 96–97%
+   reflected a *lower* threshold than the detector actually uses.
+2. **Hard CPs are far denser than stated** — ~**691** degree-3 junctions/CP, not 375. Most
+   hard junctions are *not* isolated (only ~23% have nearest neighbour ≥25px; ~43% are
+   12–25px; ~34% are <12px), so close pairs are the *majority* on hard and recall collapses
+   accordingly. The "detector is good per-junction even on hard, the metric is just
+   unforgiving" framing holds for easy/medium but **not** for hard.
 
-Where the misses concentrate — **close pairs** (hard bucket, detection rate vs distance
-to nearest neighbouring GT junction, @2px):
+Where the misses concentrate — **close pairs** (detection rate vs distance to nearest
+neighbouring GT junction, @2px), re-derived:
 
-| nearest-neighbour gap | 0–4px | 4–6px | 6–8px | 10–12px | 25+px |
-|---|---|---|---|---|---|
-| dense detection | 53% | 59% | 82% | 89% | 98% |
+| nearest-neighbour gap | 0–4px | 4–6px | 6–8px | 8–10px | 10–12px | 12–25px | 25+px |
+|---|---|---|---|---|---|---|---|
+| hard @0.65 | **4.3%** | 6.8% | 15.7% | 19.7% | 46.1% | 65.2% | 85.7% |
+| hard @0.30 | 13.6% | 22.9% | 39.6% | 35.2% | 67.0% | 79.5% | 96.0% |
+| medium @0.65 | 38.3% | 29.9% | 62.4% | 84.4% | 87.5% | 91.9% | 91.1% |
 
-**Mechanism (this is the important part):** it is *not* resolution, threshold, or merging.
-- The dense junction heatmap is **sharp** (sigmoid FWHM ≈ 2px; value drops to 5% of peak
-  by 2px), and it renders two clean peaks when it fires (bimodal: 0% @<4px, 39% @4–6px,
-  76% @6–8px).
-- Of the missed close-pair junctions: **44% "absent"** (heatmap ≈ 0.06 at the junction —
-  no evidence at all), 36% suppressed (a local max below 0.3, mostly <0.1), 19% merged.
-- Lowering the junction threshold barely helps (hard recall plateaus at ~97% even at
-  0.10) — so the misses are *absent*, not dim-below-threshold.
-- Corroboration: the dense (cpline) model has **no close-pair augmentation** (only the
-  refiner does); junction targets are σ≈1.5–3.3px Gaussians but outputs are sharp.
+*(First draft claimed hard 53/59/82/89/98% by gap — those do not reproduce; the gap
+direction is the same but the close bins are far lower, and the isolated 25+px bin matches
+the first draft only at the lower 0.30 threshold, 96% vs 98%.)*
 
-**Read:** the dense head is *capable* (sharp, two clean peaks when it commits) but
-under-fires on the second junction of a close pair — best explained as a training/data
-gap, fixable by close-pair-augmented retraining. **Inferred, not proven** — needs the
-retraining experiment to quantify recoverable recall.
+**Mechanism — partly carried over, partly re-derivable.** The close-pair gap (detection
+collapsing as junctions get closer) is robust and independently confirmed above. The
+*finer* mechanism claims from the first draft — heatmap sharpness (FWHM ≈ 2px), and the
+missed-junction breakdown (44% "absent" @≈0.06, 36% suppressed, 19% merged) — were from a
+separate heatmap-profile analysis not re-run in this pass; treat them as **first-draft,
+not re-verified**. The dense (cpline) model having **no close-pair augmentation** (only
+the refiner does) is a fact about the training config, unchanged.
+
+**Read:** close pairs are where junction detection fails, and the effect is large
+(<4px pairs detected ~4% at the operating threshold). Whether this is a *capability* limit
+(1024px can't resolve sub-4px pairs) or a *training* gap (no close-pair augmentation) is
+**not settled** by these numbers — the first draft leaned "training gap (the head is sharp
+and capable)", but the corrected, much-lower hard recall is also consistent with a partial
+resolution limit at this image size. Needs the close-pair-augmented retraining experiment
+(and/or a higher-resolution test) to separate the two.
 
 ---
 
 ## 4. `exact-topology@2px` is the wrong yardstick *(High confidence)*
 
 Two independent problems:
-1. **All-or-nothing over hundreds of junctions.** Even a near-perfect detector scores
-   ~0% on hard (0.95^375 ≈ 0). It makes a good system look broken.
+1. **All-or-nothing over hundreds of junctions.** With ~691 junctions/CP on hard, even a
+   95%-recall detector would score ~0% (0.95^691 ≈ 0) — and the actual hard recall is only
+   ~55% (§3), so exact-topology is hopeless on hard regardless. It collapses a graded
+   detector into a near-zero binary.
 2. **It scores the candidate graph, not the reconstruction.** With the exact-solve run
    and "recovered the original CP" measured strictly (solve accepted **and** solved fold
    matches GT topology+assignment within 2px), **re-verified** (binary `5ca7c7f8`):
@@ -241,13 +272,15 @@ stale-binary under-count; the recovered count `6` reproduces exactly.)*
 
 ## 7. Recommended levers (prioritized)
 
-1. **Retrain the dense junction head with close-pair emphasis** *(High that it's the
-   lever; Medium on magnitude).* Oversample/augment close-pair configs and up-weight
-   close-pair recall in the loss. The head is already sharp; it needs to learn to fire on
-   *both* junctions. This is detector-repo (`create-pattern-detector`) training work, not
-   this Rust port. Matches the existing "close-pair junction fix" plan.
+1. **Attack close-pair junction recall** *(High that it's the lever; mechanism open).*
+   Close pairs are where detection collapses (§3). The first-draft framing was "the head is
+   sharp and capable, so it's a training gap — oversample/augment close pairs"; that's still
+   the cheapest thing to try (detector-repo `create-pattern-detector` work, matching the
+   existing "close-pair junction fix" plan), **but** the corrected ~55% hard recall leaves
+   open that part of it is a resolution limit at 1024px. Worth a quick higher-resolution
+   probe alongside the close-pair-augmented retrain to see which dominates.
 2. **Improve the exact-solve on native CPs** *(Medium-High).* Two sub-levers: cut the
-   timeout rate (the solve is slow on 98–375-junction CPs), and reduce convergence drift
+   timeout rate (the solve is slow on 98–691-junction CPs), and reduce convergence drift
    so it lands on GT's foldable config rather than a nearby one. Profile why it's slow /
    why it drifts before committing to an approach.
 3. **Adopt `solve_recovered_original@strict` as the headline metric** *(done)*, and
@@ -281,15 +314,17 @@ stale-binary under-count; the recovered count `6` reproduces exactly.)*
 
 ## 9. Open questions & caveats
 
-- **Close-pair retrain magnitude is inferred** — needs the detector-repo experiment to
-  quantify how much of the 44%-absent is recoverable.
+- **Close-pair mechanism is open** (§3) — training gap vs 1024px resolution limit is not
+  separated; needs the close-pair-augmented retrain and/or a higher-res probe. The
+  first-draft heatmap-profile sub-numbers (FWHM ≈ 2px; missed = 44% absent / 36% suppressed
+  / 19% merged) were **not** re-derived in this pass — treat as first-draft.
 - **Exact-solve drift** — whether it's the optimizer not finding the truly-nearest
   foldable config, or multiple foldable configs near the detected positions, is not
   pinned down. Worth a focused look before optimizing the solver.
 - **Hard-bucket recovery is ~0 at a sane cap** — all 5 hard exact-topology candidates time
   out (25s); timeouts dominate there as expected.
-- **§3 not independently re-derived.** It is binary-independent (numpy on the dense cache)
-  so the §0 issue does not touch it, but it was not re-run from scratch in this pass.
+- **§3 re-derived; absolute numbers were optimistic.** Hard recall ~55% (not 94–96%), hard
+  junctions ~691/CP (not 375); close-pair direction confirmed and stronger. See §0/§3.
 - **Hard P0 edge-F1 = 0.743 (first draft) is unreproducible** — see §0/§2; treat 0.606 as
   the verified value.
 - **Coordinate-convention offset** (~0.45px diagonal) between native GT `vertices_px` and
