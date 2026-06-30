@@ -545,3 +545,24 @@ the benchmark by pointing `--manifest` at the absolute cache path — no copy or
 symlink needed. The pack and cache are ignored `artifacts/` build outputs; only
 these scripts/docs are committed, so a fresh checkout rebuilds them from the
 dataset + detector checkpoint.
+
+### ⚠️ Worktree/`target` footgun — build and run from the SAME worktree
+
+The data (`--manifest`, the pack) lives wherever you built the cache — often the
+main checkout — but **each git worktree has its own `target/`**. It is easy to
+edit + `cargo build` in worktree A while executing a stale binary out of worktree
+B's `target/` (e.g. `MAIN=/path/to/main-checkout; "$MAIN/target/release/compare_exact_solve_benchmark"`),
+which silently produces wrong numbers from old code. Always build and run from
+the worktree you are editing — prefer `cargo run` so cargo rebuilds first:
+
+```bash
+cargo run --release -p oristudio-cp-detect --bin compare_exact_solve_benchmark -- \
+  --manifest /abs/path/to/dense-cache/native-cp-v1-.../manifest.json \
+  --candidate-source junction-first-v1 --out <dir>
+```
+
+As a backstop the binary embeds its build commit (via `build.rs`) and prints a
+provenance banner at startup; if that commit ≠ the working-tree `HEAD` at the run
+cwd it refuses to run (`STALE BINARY`) unless you pass `--allow-stale`. Note the
+benchmark default line evidence is `model`; the product/inspector path uses
+`--line-evidence-source source-image`, so pass that for product-faithful runs.

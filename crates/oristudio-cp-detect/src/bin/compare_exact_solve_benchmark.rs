@@ -127,6 +127,7 @@ struct Args {
     junction_first_short_span_bypass_px: Option<f64>,
     parity_repair: Option<bool>,
     dump_folds: bool,
+    allow_stale: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -535,6 +536,7 @@ struct SegmentPx {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse()?;
+    assert_fresh_binary(args.allow_stale);
     let strategy = if args.candidate_source == "legacy" {
         None
     } else {
@@ -1053,6 +1055,7 @@ impl Args {
         let mut junction_first_short_span_bypass_px = None;
         let mut parity_repair = None;
         let mut dump_folds = false;
+        let mut allow_stale = false;
         let mut iter = env::args().skip(1);
         while let Some(arg) = iter.next() {
             match arg.as_str() {
@@ -1143,6 +1146,7 @@ impl Args {
                 "--parity-repair" => parity_repair = Some(true),
                 "--no-parity-repair" => parity_repair = Some(false),
                 "--dump-folds" => dump_folds = true,
+                "--allow-stale" => allow_stale = true,
                 "--help" | "-h" => {
                     print_usage();
                     std::process::exit(0);
@@ -1194,6 +1198,7 @@ impl Args {
             junction_first_short_span_bypass_px,
             parity_repair,
             dump_folds,
+            allow_stale,
         })
     }
 }
@@ -2691,6 +2696,53 @@ fn git_commit() -> Option<String> {
         .then(|| String::from_utf8_lossy(&output.stdout).trim().to_owned())
 }
 
+fn short_commit(commit: &str) -> &str {
+    commit.get(..12).unwrap_or(commit)
+}
+
+/// Print build provenance and guard against the worktree/`target` footgun: each git
+/// worktree has its own `target/`, so it is easy to rebuild in one worktree but run
+/// a stale binary from another (silently producing wrong numbers). The commit the
+/// binary was built from is embedded by `build.rs`; if it disagrees with the working
+/// tree HEAD at the run cwd, the binary is stale — refuse unless `--allow-stale`.
+fn assert_fresh_binary(allow_stale: bool) {
+    let build_commit = option_env!("BUILD_GIT_COMMIT").unwrap_or("");
+    let build_dirty = option_env!("BUILD_GIT_DIRTY") == Some("true");
+    let runtime_head = git_commit().unwrap_or_default();
+    eprintln!(
+        "[provenance] compare_exact_solve_benchmark built from {}{} | cwd HEAD {}",
+        if build_commit.is_empty() {
+            "unknown"
+        } else {
+            short_commit(build_commit)
+        },
+        if build_dirty { " (dirty)" } else { "" },
+        if runtime_head.is_empty() {
+            "unknown".to_owned()
+        } else {
+            short_commit(&runtime_head).to_owned()
+        },
+    );
+    if build_commit.is_empty() || runtime_head.is_empty() || build_commit == runtime_head {
+        return;
+    }
+    let message = format!(
+        "STALE BINARY: built from {} but the working tree at this path is on {}.\n\
+         Each git worktree has its own target/, so this is almost certainly a binary\n\
+         from a different worktree/checkout. Rebuild from THIS worktree\n\
+         (cargo build/run -p oristudio-cp-detect --bin compare_exact_solve_benchmark)\n\
+         or pass --allow-stale to override.",
+        short_commit(build_commit),
+        short_commit(&runtime_head),
+    );
+    if allow_stale {
+        eprintln!("[provenance] WARNING: {message}");
+    } else {
+        eprintln!("[provenance] ERROR: {message}");
+        std::process::exit(2);
+    }
+}
+
 fn round3(value: f64) -> f64 {
     (value * 1000.0).round() / 1000.0
 }
@@ -2701,7 +2753,7 @@ fn round6(value: f64) -> f64 {
 
 fn print_usage() {
     println!(
-        "compare_exact_solve_benchmark --out DIR [--dense-manifest PATH] [--candidate-source legacy] [--line-evidence-source model|source-image] [--junction-evidence-source model|line-arrangement|ground-truth] [--oracle-junction-labels] [--oracle-vertices] [--threshold T] [--legacy-low-threshold T] [--exact-patience N] [--exact-solve-timeout-seconds S] [--limit N] [--match-tolerance-px PX] [--strict-vertex-tolerance-px PX] [--skip-flat-folder] [--skip-exact-solve] [--exact-solve-any-topology] [--oracle-selection]"
+        "compare_exact_solve_benchmark --out DIR [--dense-manifest PATH] [--candidate-source legacy] [--line-evidence-source model|source-image] [--junction-evidence-source model|line-arrangement|ground-truth] [--oracle-junction-labels] [--oracle-vertices] [--threshold T] [--legacy-low-threshold T] [--exact-patience N] [--exact-solve-timeout-seconds S] [--limit N] [--match-tolerance-px PX] [--strict-vertex-tolerance-px PX] [--skip-flat-folder] [--skip-exact-solve] [--exact-solve-any-topology] [--oracle-selection] [--allow-stale]"
     );
     println!(
         "  exact solve is gated on correct topology by default (wrong topology cannot reconstruct the right CP, so it is skipped and marked failed); --exact-solve-any-topology attempts it regardless."

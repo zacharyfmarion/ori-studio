@@ -24,10 +24,18 @@ DETECTOR_PY=${DETECTOR_PY:-$HOME/Documents/code/create-pattern-detector/.venv/bi
 OUT_DIR=${OUT_DIR:-$ROOT/artifacts/cp-detect-correctness/refiner-matrix}
 PROFILE=${PROFILE:-release}
 
+cd "$ROOT"
+# Build the binaries from THIS checkout before running them. Each git worktree has
+# its own target/, so referencing a prebuilt path risks executing a stale binary
+# from a different worktree (silently wrong numbers). Building here guarantees the
+# binaries under $ROOT/target match $ROOT's source; the benchmark also self-checks
+# its build commit against HEAD at startup (pass --allow-stale to override).
+PROFILE_FLAG=""
+if [ "$PROFILE" = "release" ]; then PROFILE_FLAG="--release"; fi
+cargo build $PROFILE_FLAG -p oristudio-cp-detect --bin compare_exact_solve_benchmark --bin refiner_cache
 RC=$ROOT/target/$PROFILE/refiner_cache
 BM=$ROOT/target/$PROFILE/compare_exact_solve_benchmark
 mkdir -p "$OUT_DIR"
-cd "$ROOT"
 
 # Product config (junction-first + source-image lines + parity); --skip-exact-solve
 # measures the topology ceiling (the solver is not a confound).
