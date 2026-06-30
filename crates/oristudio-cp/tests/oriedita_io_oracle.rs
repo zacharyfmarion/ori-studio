@@ -1,6 +1,6 @@
 use oristudio_cp::CreasePatternDocument;
 use oristudio_cp::geometry::{ActiveState, Circle, LineColor, LineSegment, Point, RgbColor};
-use oristudio_cp::io::{dxf, fold, obj, orh};
+use oristudio_cp::io::{dxf, fold, obj, orh, ori};
 use oristudio_cp::model::{CreasePatternModel, GridMetadata, GridState};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -98,6 +98,88 @@ f 1 2 3
 }
 
 #[test]
+fn ori_import_and_export_match_oriedita_native_io_oracle() {
+    let Some(oracle) = native_io_oracle() else {
+        eprintln!("skipping Oriedita native IO oracle test: ORIEDITA_NATIVE_IO_ORACLE is not set");
+        return;
+    };
+    let input = r##"{
+      "@version": "v1.1",
+      "lineSegments": [{
+        "a": "-200.0,-200.0",
+        "b": "200.0,-200.0",
+        "active": "ACTIVE_A_1",
+        "color": "RED_1",
+        "customized": 1,
+        "customizedColor": "ff010203",
+        "selected": 2
+      }],
+      "circles": [{
+        "x": 25.0,
+        "y": -50.0,
+        "r": 12.5,
+        "color": "CYAN_3",
+        "customized": 1,
+        "customizedColor": "ff64c8c8"
+      }],
+      "texts": [{"x": 1.0, "y": 2.0, "text": "note"}],
+      "title": "_",
+      "points": ["3.0,4.0"],
+      "auxLineSegments": [{
+        "a": "0.0,0.0",
+        "b": "1.0,1.0",
+        "active": "ACTIVE_BOTH_3",
+        "color": "YELLOW_7",
+        "customized": 0,
+        "customizedColor": "ff64c8c8",
+        "selected": 0
+      }],
+      "gridModel": {
+        "intervalGridSize": 5,
+        "gridSize": 16,
+        "gridXA": 2.0,
+        "gridXB": 1.0,
+        "gridXC": 4.0,
+        "gridYA": 1.0,
+        "gridYB": 0.0,
+        "gridYC": 1.0,
+        "gridAngle": 45.0,
+        "baseState": "FULL",
+        "verticalScalePosition": 3,
+        "horizontalScalePosition": 2,
+        "drawDiagonalGridlines": true
+      },
+      "canvasModel": {"mouseMode": "DRAW_CREASE_FREE_1"}
+    }"##;
+    let input_path = write_temp("ori-native-oracle", ".ori", input.as_bytes());
+
+    let oracle_summary = run_oracle(
+        &oracle,
+        &["ori-import-summary", input_path.to_str().unwrap()],
+    );
+    let document = ori::import_ori_json(input).expect("Rust ORI import should succeed");
+    let rust_summary = document_summary(&document, Some(&document.crease_pattern.grid));
+    assert_eq!(rust_summary, oracle_summary);
+
+    let exported_document = oracle_fixture_document();
+    let exported =
+        ori::export_ori_json(&exported_document).expect("Rust ORI export should succeed");
+    let export_path = write_temp("ori-native-export-oracle", ".ori", exported.as_bytes());
+    let oracle_summary = run_oracle(
+        &oracle,
+        &["ori-import-summary", export_path.to_str().unwrap()],
+    );
+    let rust_summary = document_summary(
+        &exported_document,
+        Some(&exported_document.crease_pattern.grid),
+    );
+
+    let _ = std::fs::remove_file(input_path);
+    let _ = std::fs::remove_file(export_path);
+    assert_eq!(rust_summary, oracle_summary);
+}
+
+#[test]
 fn fold_topology_matches_oriedita_wireframe_oracle() {
     let Some(oracle) = io_oracle() else {
         eprintln!("skipping Oriedita IO oracle test: ORIEDITA_IO_ORACLE is not set");
@@ -178,6 +260,12 @@ fn fold_topology_matches_oriedita_wireframe_oracle() {
 
         assert_eq!(rust_summary, oracle_summary);
     }
+}
+
+fn native_io_oracle() -> Option<PathBuf> {
+    std::env::var("ORIEDITA_NATIVE_IO_ORACLE")
+        .ok()
+        .map(|oracle| resolve_oracle_path(&oracle))
 }
 
 fn io_oracle() -> Option<PathBuf> {

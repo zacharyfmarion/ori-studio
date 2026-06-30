@@ -132,7 +132,7 @@ even when the editable CP view operates on one active crease-pattern frame.
 | `.ori` field | Upstream owner | Local owner | Handling |
 | --- | --- | --- | --- |
 | `@version` | `Save.java`, `SaveV1_0.java`, `SaveV1_1.java`, `FileVersionTester.java` | `io::ori` | First-class strict/permissive version policy. |
-| `lineSegments` | `LineSegmentSave`, `FoldLineSet` | `model::line`, `io::ori` | First-class editable data. |
+| `lineSegments` | `LineSegmentSave`, `FoldLineSet` | `model::line`, `io::ori` | First-class editable data; `.ori` import preserves Oriedita's quirk that serialized `active` values are ignored and imported segments become inactive. |
 | `circles` | `PointSave`, `FoldLineSet` | `model::circle`, `io::ori` | First-class editable data. |
 | `texts` | `TextSave` | `model::text`, `io::ori` | First-class editable data. |
 | `title` | `BaseSave` | `CreasePatternDocument` | First-class document data. |
@@ -166,7 +166,7 @@ Add or extend an Oriedita oracle CLI with commands for:
 Canonical comparisons must include:
 
 - coordinates with Oriedita-compatible precision,
-- line color enum names and active-state enum names,
+- line color enum names and Oriedita's `.ori` active-state import quirk,
 - selected/customized flags,
 - custom RGB colors using Oriedita's ARGB hex convention,
 - circles by center, radius, color, and custom color,
@@ -498,7 +498,7 @@ Done when:
 - [x] Phase 1: Add typed `.ori` helpers for Oriedita editor model fields.
 - [x] Phase 1: Preserve unknown nested Oriedita model fields.
 - [x] Phase 1: Match Oriedita strict and permissive version handling.
-- [ ] Phase 1: Add `.ori` Rust unit and oracle round-trip tests.
+- [x] Phase 1: Add `.ori` Rust unit and oracle round-trip tests.
 - [x] Phase 2: Promote FOLD frame graphs to first-class imported document state.
 - [x] Phase 2: Preserve and render all renderable `foldedForm` frames.
 - [x] Phase 2: Export edited FOLD files without dropping unrelated frames.

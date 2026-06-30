@@ -118,7 +118,7 @@ stage explicitly changes it.
 | `origami/folding/permutation/*` | Permutation and constraint combinatorics. | `folding::solver` | kernel | 10 | Porting; ChainPermutationGenerator oracle |
 | `origami/folding/util/*` | Folding utility data structures. | `folding::EquivalenceCondition` | kernel | 10 | Porting; equivalence condition candidates oracle |
 | `oriedita-data/export/*` | Import/export implementations. | `io` | io | 4 | Unsupported |
-| `oriedita-data/save/*` | Oriedita save models and version conversion. | `io::ori` plus preserved metadata | io | 4 | Porting; core `.ori` fields, folded model seed, and canvas active line-color restore unit-tested; camera and remaining application/canvas promotion pending |
+| `oriedita-data/save/*` | Oriedita save models and version conversion. | `io::ori` plus preserved metadata | io | 4 | Porting; core `.ori` import/export oracle-tested, folded model seed and canvas active line-color restore unit-tested; camera and remaining application/canvas promotion pending |
 | `oriedita/src/main/java/oriedita/editor/task/*` | Non-UI task semantics. | `checks`, `folding` | kernel | 9-10 | Unsupported |
 | `oriedita/src/main/java/oriedita/editor/service/impl/FoldingServiceImpl.java` | Folding command routing. | `folding::commands` | kernel | 10 | Unsupported |
 | `oriedita/src/main/java/oriedita/editor/handler/*` | Mouse/tool command intent. | `operations::*`, `folding` | kernel-intent | 5-10 | Unsupported |
@@ -242,8 +242,8 @@ mutation.
 | `FoldExporter.java` | `.fold` export, face reconstruction, Oriedita extras. | `io::fold::export` | 4 | Unit-tested; topology oracle |
 | `FoldImporter.java` `file_frames` | Preserve and select embedded FOLD frames, including `foldedForm` frames. | `io::fold::import_fold_file_json`, `io::fold::import_fold_file_document_json`, web FOLD frame inventory | 4, 11 | Porting; Rust/WASM lossless parse/export, `.osf` preservation, and all-renderable foldedForm web rendering exist |
 | `FoldExporter.java` `file_frames` | Export embedded folded-form frame graphs when present. | `io::fold::export_fold_file_json`, `io::fold::export_fold_file_document_json`, web FOLD frame inventory | 4, 11 | Porting; Rust/WASM frame-preserving export exists, active-frame update semantics remain planned |
-| `OriImporter.java` | `.ori` import. | `io::ori::import`, `oristudio-cp-wasm`, web file routing | 4 | Porting; Rust/WASM/web unit-tested, editor-state restoration pending |
-| `OriExporter.java` | `.ori` export. | `io::ori::export`, `oristudio-cp-wasm`, web export routing | 4 | Porting; Rust/WASM/web unit-tested, editor-state synthesis pending |
+| `OriImporter.java` | `.ori` import. | `io::ori::import`, `oristudio-cp-wasm`, web file routing | 4 | Oracle-tested for CP/grid/native-save summary; preserves Oriedita's ignored line-active quirk; editor-state restoration still staged separately |
+| `OriExporter.java` | `.ori` export. | `io::ori::export`, `oristudio-cp-wasm`, web export routing | 4 | Oracle-tested by importing Rust-exported `.ori` through Oriedita; editor-state synthesis still staged separately |
 | `OrhImporter.java` | `.orh` import. | `io::orh::import`, `oristudio-cp-wasm`, web file routing | 4 | Oracle-tested in Rust; WASM/web UTF-8 routing added, byte charset import remains Rust-only |
 | `OrhExporter.java` | `.orh` export. | `io::orh::export`, `oristudio-cp-wasm`, web export routing | 4 | Oracle-tested in Rust; WASM/web export added with lossy-warning UI |
 | `ObjImporter.java` | `.obj` import. | `io::obj::import` | 4 | Oracle-tested |
@@ -262,7 +262,7 @@ mutation.
 
 | Format/state | Native responsibility | Ori Studio responsibility | Status |
 | --- | --- | --- | --- |
-| `.ori` | Oriedita editor-save JSON for CP primitives and editor models. | Preserve and export Oriedita fields, restore supported grid/camera/canvas/folded settings, expose through WASM/web. | Rust/WASM/web routing unit-tested; folded model metadata and canvas active line color restore in web, camera and remaining canvas restoration pending. |
+| `.ori` | Oriedita editor-save JSON for CP primitives and editor models. | Preserve and export Oriedita fields, restore supported grid/camera/canvas/folded settings, expose through WASM/web. | Rust/WASM/web routing unit-tested; native Oriedita import/export oracle covers CP/grid summary; folded model metadata and canvas active line color restore in web, camera and remaining canvas restoration pending. |
 | `.fold` | FOLD geometry plus Oriedita extension fields and embedded `file_frames`. | Preserve the full frame graph, edit only the active CP frame, render preserved folded forms. | Rust/WASM preservation exists; all-frame web rendering and active-frame export update pending. |
 | `.orh` | Legacy Oriedita/Orihime text format, charset quirks, folded colors. | Import/export with explicit lossy warnings and folded color preservation. | Rust oracle-tested; WASM/web UTF-8 routing added, byte charset import remains Rust-only. |
 | `.cp` | Plain line-only crease-pattern exchange. | Treat as lossy exchange format. | Web/Rust path exists; lossy-warning polish remains tied to export UI. |

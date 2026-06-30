@@ -70,3 +70,12 @@ ORIEDITA_GEOMETRY_ORACLE=tools/oriedita-oracle/build/oriedita-geometry-oracle \
 same built wrapper for scoped parity runs. If the oracle environment variables
 are unset, the Rust oracle tests exit early so normal `cargo test -p
 oristudio-cp` does not require Java.
+
+The native `.ori` oracle uses Oriedita's real Jackson save-file path and is
+built separately so the geometry oracle can remain dependency-light:
+
+```bash
+tools/oriedita-oracle/build_native_io_oracle.sh
+ORIEDITA_NATIVE_IO_ORACLE=tools/oriedita-oracle/build/oriedita-native-io-oracle \
+  cargo test -p oristudio-cp --test oriedita_io_oracle ori_import_and_export
+```

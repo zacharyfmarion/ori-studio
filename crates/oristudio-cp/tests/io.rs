@@ -416,7 +416,7 @@ fn ori_import_reads_oriedita_save_json() {
     assert_eq!(model.line_segments[0].color, LineColor::Red1);
     assert_eq!(
         model.line_segments[0].active,
-        oristudio_cp::geometry::ActiveState::ActiveA1
+        oristudio_cp::geometry::ActiveState::Inactive0
     );
     assert_eq!(model.line_segments[0].selected, 2);
     assert_eq!(

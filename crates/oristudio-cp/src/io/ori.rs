@@ -285,11 +285,12 @@ fn parse_line_segment(value: &Value) -> Result<LineSegment> {
         message: "expected line segment object".to_string(),
     })?;
 
-    let mut segment = LineSegment::with_color_and_active(
+    // Oriedita's Jackson importer ignores LineSegment.active in .ori files:
+    // the Java setter is deprecated/no-op, so imported segments stay inactive.
+    let mut segment = LineSegment::with_color(
         parse_point_string(required_string(object, "a")?, "a")?,
         parse_point_string(required_string(object, "b")?, "b")?,
         parse_line_color(required_string(object, "color")?)?,
-        parse_active_state(required_string(object, "active")?)?,
     );
     segment.selected = integer_field(object, "selected")?.unwrap_or_default();
     segment.customized = integer_field(object, "customized")?.unwrap_or_default();
@@ -644,19 +645,6 @@ fn line_color_name(color: LineColor) -> &'static str {
         LineColor::Purple8 => "PURPLE_8",
         LineColor::Other9 => "OTHER_9",
         LineColor::Grey10 => "GREY_10",
-    }
-}
-
-fn parse_active_state(value: &str) -> Result<ActiveState> {
-    match value {
-        "INACTIVE_0" => Ok(ActiveState::Inactive0),
-        "ACTIVE_A_1" => Ok(ActiveState::ActiveA1),
-        "ACTIVE_B_2" => Ok(ActiveState::ActiveB2),
-        "ACTIVE_BOTH_3" => Ok(ActiveState::ActiveBoth3),
-        _ => Err(IoError::InvalidField {
-            field: "active",
-            message: format!("unknown active state {value:?}"),
-        }),
     }
 }
 
