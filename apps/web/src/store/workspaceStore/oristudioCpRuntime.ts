@@ -90,7 +90,7 @@ export async function loadOristudioCpDocumentFromText(
       ? await api.loadCp(text, source.title ?? titleFromFilename(source.filename))
       : source.format === 'ori'
         ? await api.loadOri(text, source.acceptUnknownVersion ?? false)
-        : await api.loadFold(text, source.title ?? titleFromFilename(source.filename));
+        : await api.loadFoldFile(text);
 
   try {
     const nextSource = {
@@ -306,7 +306,7 @@ export async function exportOristudioCpDocumentAsFold(): Promise<string> {
     throw new Error('No editable crease-pattern document is loaded');
   }
   const api = await getOristudioCpClient();
-  return api.exportFold(handle);
+  return api.exportFoldFile(handle);
 }
 
 export async function exportOristudioCpDocumentAsOri(): Promise<string> {

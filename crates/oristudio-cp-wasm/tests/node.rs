@@ -58,6 +58,45 @@ fn loads_ori_and_exports_native_editor_metadata() {
 }
 
 #[wasm_bindgen_test]
+fn loads_fold_file_and_exports_preserved_frames() {
+    let input = r#"{
+      "file_spec": 1.2,
+      "file_title": "source fold",
+      "frame_title": "crease pattern",
+      "frame_classes": ["creasePattern"],
+      "vertices_coords": [[0, 0], [1, 0]],
+      "edges_vertices": [[0, 1]],
+      "edges_assignment": ["M"],
+      "file_frames": [{
+        "frame_title": "folded result",
+        "frame_classes": ["foldedForm"],
+        "vertices_coords": [[0, 0], [1, 0], [0, 1]],
+        "edges_vertices": [[0, 1], [1, 2], [2, 0]],
+        "faces_vertices": [[0, 1, 2]],
+        "faceOrders": [[0, 0, -1]]
+      }]
+    }"#;
+
+    let handle = oristudio_cp_wasm::load_fold_file(input).expect("fold file import should succeed");
+    let summary = oristudio_cp_wasm::document_summary(handle).expect("summary should serialize");
+    let summary: serde_json::Value =
+        serde_wasm_bindgen::from_value(summary).expect("summary should deserialize");
+
+    assert_eq!(summary["title"], "crease pattern");
+    assert_eq!(summary["line_segments"], 1);
+
+    let exported =
+        oristudio_cp_wasm::export_fold_file(handle).expect("fold file export should succeed");
+    let exported: serde_json::Value = serde_json::from_str(&exported).expect("fold json");
+    assert_eq!(exported["file_frames"][0]["frame_title"], "folded result");
+    assert_eq!(
+        exported["file_frames"][0]["faceOrders"],
+        serde_json::json!([[0, 0, -1]])
+    );
+    oristudio_cp_wasm::free_document(handle).expect("document handle should free");
+}
+
+#[wasm_bindgen_test]
 fn load_ori_supports_explicit_open_anyway_version_policy() {
     let input = r#"{"@version":"v99","lineSegments":[]}"#;
 

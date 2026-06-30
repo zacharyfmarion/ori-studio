@@ -99,6 +99,29 @@ export function export_fold(handle) {
  * @param {number} handle
  * @returns {string}
  */
+export function export_fold_file(handle) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ret = wasm.export_fold_file(handle);
+        var ptr1 = ret[0];
+        var len1 = ret[1];
+        if (ret[3]) {
+            ptr1 = 0; len1 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred2_0 = ptr1;
+        deferred2_1 = len1;
+        return getStringFromWasm0(ptr1, len1);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
+ * @param {number} handle
+ * @returns {string}
+ */
 export function export_ori(handle) {
     let deferred2_0;
     let deferred2_1;
@@ -299,6 +322,20 @@ export function load_fold(text, title) {
     const ptr1 = passStringToWasm0(title, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len1 = WASM_VECTOR_LEN;
     const ret = wasm.load_fold(ptr0, len0, ptr1, len1);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return ret[0] >>> 0;
+}
+
+/**
+ * @param {string} text
+ * @returns {number}
+ */
+export function load_fold_file(text) {
+    const ptr0 = passStringToWasm0(text, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.load_fold_file(ptr0, len0);
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }

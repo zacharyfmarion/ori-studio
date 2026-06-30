@@ -113,6 +113,12 @@ pub fn load_fold(text: &str, title: &str) -> Result<u32, JsValue> {
 }
 
 #[wasm_bindgen]
+pub fn load_fold_file(text: &str) -> Result<u32, JsValue> {
+    let document = io::fold::import_fold_file_document_json(text).map_err(to_js_io_error)?;
+    store_document(document)
+}
+
+#[wasm_bindgen]
 pub fn load_ori(text: &str, accept_unknown_version: bool) -> Result<u32, JsValue> {
     let document = io::ori::import_ori_json_with_unknown_version(text, accept_unknown_version)
         .map_err(to_js_io_error)?;
@@ -235,6 +241,13 @@ pub fn export_fold(handle: u32) -> Result<String, JsValue> {
     with_document(handle, |document| {
         io::fold::export_fold_json(&document.crease_pattern, document.title.clone())
             .map_err(to_js_io_error)
+    })
+}
+
+#[wasm_bindgen]
+pub fn export_fold_file(handle: u32) -> Result<String, JsValue> {
+    with_document(handle, |document| {
+        io::fold::export_fold_file_document_json(document).map_err(to_js_io_error)
     })
 }
 

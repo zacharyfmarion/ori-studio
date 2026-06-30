@@ -132,6 +132,49 @@ fn fold_file_import_export_preserves_embedded_folded_form_frames() {
 }
 
 #[test]
+fn fold_file_document_import_export_preserves_frames_while_updating_root_cp() {
+    let input = r#"{
+      "file_spec": 1.2,
+      "file_title": "source fold",
+      "file_author": "folder",
+      "frame_title": "crease pattern",
+      "frame_classes": ["creasePattern"],
+      "vertices_coords": [[0, 0], [1, 0]],
+      "edges_vertices": [[0, 1]],
+      "edges_assignment": ["M"],
+      "rootCustom": {"kept": true},
+      "file_frames": [{
+        "frame_title": "folded result",
+        "frame_classes": ["foldedForm"],
+        "vertices_coords": [[0, 0], [1, 0], [0, 1]],
+        "edges_vertices": [[0, 1], [1, 2], [2, 0]],
+        "faces_vertices": [[0, 1, 2]],
+        "faceOrders": [[0, 0, -1]]
+      }]
+    }"#;
+
+    let mut document = fold::import_fold_file_document_json(input).expect("valid fold file");
+    assert_eq!(document.title.as_deref(), Some("crease pattern"));
+    assert!(document.metadata.contains_key(fold::FOLD_FILE_METADATA_KEY));
+    document.crease_pattern.line_segments[0].color = LineColor::Blue2;
+
+    let json = fold::export_fold_file_document_json(&document).expect("serializes");
+    let exported: serde_json::Value = serde_json::from_str(&json).expect("json");
+
+    assert_eq!(exported["file_author"], "folder");
+    assert_eq!(exported["rootCustom"], serde_json::json!({"kept": true}));
+    assert_eq!(exported["edges_assignment"][0], "V");
+    assert_eq!(
+        exported["file_frames"][0]["frame_classes"],
+        serde_json::json!(["foldedForm"])
+    );
+    assert_eq!(
+        exported["file_frames"][0]["faceOrders"],
+        serde_json::json!([[0, 0, -1]])
+    );
+}
+
+#[test]
 fn fold_import_prefers_oristudio_line_color_extension_over_assignment() {
     let input = r##"{
       "file_spec": 1.1,

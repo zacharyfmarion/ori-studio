@@ -6,6 +6,7 @@ import init, {
   execute_cp_command,
   export_cp,
   export_fold,
+  export_fold_file,
   export_ori,
   folded_figure_duplicate,
   folded_figure_fold,
@@ -20,6 +21,7 @@ import init, {
   load_cp,
   load_document,
   load_fold,
+  load_fold_file,
   load_ori,
   insert_line_segments,
   preview_cp_command,
@@ -85,6 +87,9 @@ const api = {
   },
   async loadFold(text: string, title = ''): Promise<number> {
     return call(() => load_fold(text, title));
+  },
+  async loadFoldFile(text: string): Promise<number> {
+    return call(() => load_fold_file(text));
   },
   async loadOri(text: string, acceptUnknownVersion = false): Promise<number> {
     return call(() => load_ori(text, acceptUnknownVersion));
@@ -201,6 +206,9 @@ const api = {
   },
   async exportFold(handle: number): Promise<string> {
     return call(() => export_fold(handle));
+  },
+  async exportFoldFile(handle: number): Promise<string> {
+    return call(() => export_fold_file(handle));
   },
   async exportOri(handle: number): Promise<string> {
     return call(() => export_ori(handle));

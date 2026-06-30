@@ -499,14 +499,14 @@ Done when:
 - [x] Phase 1: Preserve unknown nested Oriedita model fields.
 - [x] Phase 1: Match Oriedita strict and permissive version handling.
 - [ ] Phase 1: Add `.ori` Rust unit and oracle round-trip tests.
-- [ ] Phase 2: Promote FOLD frame graphs to first-class imported document state.
+- [x] Phase 2: Promote FOLD frame graphs to first-class imported document state.
 - [ ] Phase 2: Preserve and render all renderable `foldedForm` frames.
-- [ ] Phase 2: Export edited FOLD files without dropping unrelated frames.
+- [x] Phase 2: Export edited FOLD files without dropping unrelated frames.
 - [ ] Phase 2: Add FOLD frame graph preservation and oracle tests.
 - [ ] Phase 3: Expose `.orh` through the runtime with legacy charset behavior.
 - [ ] Phase 3: Add `.orh` lossy-warning and oracle coverage.
 - [x] Phase 4: Add explicit WASM load/export APIs for `.ori`.
-- [ ] Phase 4: Add explicit WASM load/export APIs for full FOLD documents.
+- [x] Phase 4: Add explicit WASM load/export APIs for full FOLD documents.
 - [ ] Phase 4: Add `.orh` WASM APIs if legacy support is in the implementation
       slice.
 - [x] Phase 4: Regenerate and test the wasm package.
