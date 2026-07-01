@@ -155,7 +155,8 @@ type QueryControls = {
   strategy: CandidateGenerationStrategy;
   legacyLowThreshold: number;
   legacySnapRadiusPx: number;
-  exactSolveTimeoutSeconds: number;
+  // null = use the backend's shared default (no override sent).
+  exactSolveTimeoutSeconds: number | null;
 };
 
 interface UploadPoint {
@@ -228,14 +229,14 @@ export function App() {
   const [candidateStrategy, setCandidateStrategy] = useState<CandidateGenerationStrategy>('junction-first-v1');
   const [legacyLowThreshold, setLegacyLowThreshold] = useState(0.35);
   const [legacySnapRadiusPx, setLegacySnapRadiusPx] = useState(12);
-  const [exactSolveTimeoutSeconds, setExactSolveTimeoutSeconds] = useState(10);
+  const [exactSolveTimeoutSeconds, setExactSolveTimeoutSeconds] = useState<number | null>(null);
   const [queryControls, setQueryControls] = useState<QueryControls>({
     threshold: 0.65,
     mapSize: 192,
     strategy: 'junction-first-v1',
     legacyLowThreshold: 0.35,
     legacySnapRadiusPx: 12,
-    exactSolveTimeoutSeconds: 10,
+    exactSolveTimeoutSeconds: null,
   });
   const [stage, setStage] = useState<AnyStageResponse | null>(null);
   const [loadingStage, setLoadingStage] = useState(false);
@@ -1080,10 +1081,13 @@ export function App() {
                 Exact timeout s
                 <input
                   min={-1}
-                  onChange={(event) => setExactSolveTimeoutSeconds(Number(event.target.value))}
+                  onChange={(event) =>
+                    setExactSolveTimeoutSeconds(event.target.value === '' ? null : Number(event.target.value))
+                  }
+                  placeholder="default"
                   step={1}
                   type="number"
-                  value={exactSolveTimeoutSeconds}
+                  value={exactSolveTimeoutSeconds ?? ''}
                 />
               </label>
             ) : null}

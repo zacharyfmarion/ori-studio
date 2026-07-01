@@ -69,6 +69,10 @@ pub struct DecodeConfig {
     /// disables the timeout; zero times out immediately.
     #[serde(default = "default_exact_solve_timeout_seconds")]
     pub exact_solve_timeout_seconds: f64,
+    /// Optional override for the junction peak-extraction threshold (for sweeps).
+    /// `None` keeps the production default (`line_threshold.max(0.50)`).
+    #[serde(default)]
+    pub junction_peak_threshold: Option<f32>,
 }
 
 impl Default for DecodeConfig {
@@ -104,6 +108,7 @@ impl Default for DecodeConfig {
             planar_crossing_support_tie: default_planar_crossing_support_tie(),
             junction_offset_cluster_radius_px: 0.0,
             exact_solve_timeout_seconds: default_exact_solve_timeout_seconds(),
+            junction_peak_threshold: None,
         }
     }
 }

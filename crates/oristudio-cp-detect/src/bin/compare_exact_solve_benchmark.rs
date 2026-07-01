@@ -35,12 +35,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 const SCHEMA: &str = "oristudio/cp-detect-exact-solve-comparison/v1";
-/// Iteration-friendly exact-solve timeout for the benchmark binary. The product
-/// path keeps `oristudio_cp_compiler::DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS`; here
-/// we cap lower because a solve that has not converged in a few seconds on a
-/// wrong topology essentially never flips to "solved", and the failed solves are
-/// what dominated benchmark wall-clock.
-const BENCHMARK_DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS: f64 = 3.0;
+/// The benchmark defaults to the shared exact-solve budget (single source of
+/// truth in `oristudio_cp_compiler`); pass `--exact-solve-timeout-seconds` to
+/// override (e.g. a smaller value for fast topology iteration).
+const BENCHMARK_DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS: f64 =
+    oristudio_cp_compiler::DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS;
 const DEFAULT_DENSE_MANIFEST: &str = "artifacts/cp-detect-correctness/dense-cache/clean-1024-s15-browser-onnx-v3-tess15-weighted-probe-20260619/manifest.json";
 const GT_JUNCTION_SIGMA_PX: f64 = 1.5;
 const GT_JUNCTION_OFFSET_RADIUS_PX: f64 = 3.0;
@@ -104,6 +103,8 @@ struct Args {
     /// regions exactly like the product — the product-faithful junction source.
     refined_vertices: Option<std::collections::BTreeMap<String, RefinedVertexCacheEntry>>,
     threshold: Option<f32>,
+    /// Override for the junction peak-extraction threshold (sweeps). None = default.
+    junction_peak_threshold: Option<f32>,
     legacy_low_threshold: Option<f32>,
     exact_patience: Option<usize>,
     exact_solve_timeout_seconds: f64,
@@ -672,6 +673,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     config: DecodeConfig {
                         image_size: sample.image_size,
                         threshold,
+                        junction_peak_threshold: args.junction_peak_threshold,
                         ..DecodeConfig::default()
                     },
                 };
@@ -1036,6 +1038,7 @@ impl Args {
         let mut gt_vertices = false;
         let mut refined_vertices_path: Option<String> = None;
         let mut threshold = None;
+        let mut junction_peak_threshold = None;
         let mut legacy_low_threshold = None;
         let mut exact_patience = None;
         let mut exact_solve_timeout_seconds = BENCHMARK_DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS;
@@ -1093,6 +1096,10 @@ impl Args {
                 }
                 "--threshold" => {
                     threshold = Some(required_value(&mut iter, "--threshold")?.parse()?)
+                }
+                "--junction-peak-threshold" => {
+                    junction_peak_threshold =
+                        Some(required_value(&mut iter, "--junction-peak-threshold")?.parse()?);
                 }
                 "--legacy-low-threshold" => {
                     legacy_low_threshold =
@@ -1179,6 +1186,7 @@ impl Args {
             gt_vertices,
             refined_vertices,
             threshold,
+            junction_peak_threshold,
             legacy_low_threshold,
             exact_patience,
             exact_solve_timeout_seconds,
@@ -2753,14 +2761,14 @@ fn round6(value: f64) -> f64 {
 
 fn print_usage() {
     println!(
-        "compare_exact_solve_benchmark --out DIR [--dense-manifest PATH] [--candidate-source legacy] [--line-evidence-source model|source-image] [--junction-evidence-source model|line-arrangement|ground-truth] [--oracle-junction-labels] [--oracle-vertices] [--threshold T] [--legacy-low-threshold T] [--exact-patience N] [--exact-solve-timeout-seconds S] [--limit N] [--match-tolerance-px PX] [--strict-vertex-tolerance-px PX] [--skip-flat-folder] [--skip-exact-solve] [--exact-solve-any-topology] [--oracle-selection] [--allow-stale]"
+        "compare_exact_solve_benchmark --out DIR [--dense-manifest PATH] [--candidate-source legacy] [--line-evidence-source model|source-image] [--junction-evidence-source model|line-arrangement|ground-truth] [--oracle-junction-labels] [--oracle-vertices] [--threshold T] [--junction-peak-threshold T] [--legacy-low-threshold T] [--exact-patience N] [--exact-solve-timeout-seconds S] [--limit N] [--match-tolerance-px PX] [--strict-vertex-tolerance-px PX] [--skip-flat-folder] [--skip-exact-solve] [--exact-solve-any-topology] [--oracle-selection] [--allow-stale]"
     );
     println!(
         "  exact solve is gated on correct topology by default (wrong topology cannot reconstruct the right CP, so it is skipped and marked failed); --exact-solve-any-topology attempts it regardless."
     );
     println!(
-        "Samples run in parallel across the rayon thread pool. Exact-solve timeout defaults to {BENCHMARK_DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS}s (benchmark-only; product uses {}s). For fast topology iteration pass --skip-exact-solve.",
-        oristudio_cp_compiler::DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS
+        "Samples run in parallel across the rayon thread pool. Exact-solve timeout defaults to the shared {DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS}s budget; pass --exact-solve-timeout-seconds to override (or --skip-exact-solve for fast topology iteration).",
+        DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS = oristudio_cp_compiler::DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS
     );
 }
 

@@ -2566,6 +2566,7 @@ fn evidence_config_from_decode(config: &DecodeConfig) -> EvidenceExtractionConfi
         primitive_nms_radius_px: config.junction_snap_px.max(2.0),
         junction_offset_cluster_radius_px: config.junction_offset_cluster_radius_px,
         junction_evidence_source: JunctionEvidenceSource::Model,
+        junction_peak_threshold: None,
     }
 }
 
