@@ -318,6 +318,25 @@ override). Verified: the benchmark at default (no flags) reproduces the 0.40/25s
 (easy 63/81, medium 22/60), and the product wasm rebuilds clean. **Caveat:** 25s means the
 browser product can block up to 25s per CP import.
 
+**Net effect of all landed changes (before/after, same tool/flags/data).** Benchmark at
+each commit's shipping defaults — `d516cfb0` (session start: 0.50 floor / 3s cap / 500
+primitive cap) vs current (0.40 / 25s / uncapped), the before-binary built in an isolated
+worktree so its provenance guard is clean:
+
+| bucket | before | after | Δ |
+|---|---|---|---|
+| easy | 60 | 63 | +3 |
+| medium | 3 | 20 | +17 |
+| hard | 0 | 0 | 0 |
+| **TOTAL** | **63/563** | **83/563** | **+20 (+32%)** |
+
+Candidate-topology moved in step (easy 75→81, medium 33→60, hard 5→11). The easy gain is
+the 0.40 floor (cap-insensitive); the medium gain needs *both* the floor (≈2× more
+candidates reach correct topology) and the 25s budget (time to converge them). The uncap
+contributes **~0** to recovery here (hard-only; hard stays 0) — a correctness/ceiling fix,
+not a recovery mover on this set. Run-to-run variance on medium is ±2–3 (the sweep put the
+0.40/25s point at 85 / medium 22), so read the delta as **≈ +20 (±3, ~+32%)**.
+
 ---
 
 ## 10. Open questions & caveats (explicitly not concluded)
