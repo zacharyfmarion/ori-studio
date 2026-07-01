@@ -5,8 +5,9 @@
 the dominant lever, this quantifies *which part* of junction detection matters
 end-to-end on the native scraped set (`native-cp-v1`, 563 CPs: easy 191 / medium 232
 / hard 140), via a perfect-junction oracle ladder; rules out close pairs as the
-system-level lever; identifies a top-N primitive **cap** that silently drops real
-detections; and tests whether box-pleating is an independent failure mode.
+system-level lever; finds (and removes) a top-N primitive **cap** that was silently
+dropping real detections; tests whether box-pleating is an independent failure mode;
+and lands a junction-threshold + solve-budget change worth +27% recovery.
 **Branch:** `claude/stupefied-williams-df1c8c`.
 
 > A note on confidence, continuing the prior report's discipline: every headline
@@ -30,12 +31,13 @@ detections; and tests whether box-pleating is an independent failure mode.
    On medium, 72% of the dense head's misses are isolated (nearest-neighbour ≥12px);
    only ~2.5% of all misses lie within 12px of the paper border (vs 1.2% of all
    junctions — mild, ~2×, but negligible in absolute terms). *(High)*
-4. **Junction primitives are truncated top-N by probability** — a hard cap unrelated
-   to model quality. The inspector's Stage 1 **display** cap is 240 (exceeded by 95%
-   of hard CPs); the **production** candidate pipeline cap is 500 (exceeded by 45% of
-   hard). This is the mechanism behind "the heatmap looks great but junctions aren't
-   shown." *(High — code-verified.)* Its effect on **recovery** is bounded: neither
-   cap touches easy/medium (0% exceed), where the headroom is. *(Medium)*
+4. **Junction primitives were truncated top-N by probability** — a hard cap unrelated
+   to model quality, and the mechanism behind "the heatmap looks great but junctions
+   aren't shown." It only ever bit dense hard CPs (production 500 cap exceeded by 45%
+   of hard, the inspector's 240 display cap by 95%; **0% of easy/medium exceed either**).
+   **Both caps were removed this session.** Since easy/medium never hit them — and that's
+   where the recoverable headroom is — removal leaves those numbers unchanged. *(High —
+   code-verified.)*
 5. **Box-pleating is not an independent detection failure.** It is heavily
    concentrated in hard (56% of hard CPs vs 6–9% of easy/medium), but *within* hard
    it does not correlate with recall (Spearman +0.02); it correlates with **density**
@@ -45,7 +47,7 @@ detections; and tests whether box-pleating is an independent failure mode.
    unrecovered at a 3s cap; hard recovers only 2/140 even with perfect junctions.
    *(Medium-High — consistent with the prior report; the oracle-ladder decomposition
    was only run at 3s — §10.)*
-7. **The junction-peak floor (0.50) is set too high; 0.40 is the sweet spot — and it
+7. **The junction-peak floor was set too high (0.50); 0.40 is the sweet spot — and it
    shipped.** Lowering the floor to 0.40 lifts end-to-end recovery 67→85 (+27%) at a 25s
    solve cap (62→71, +15% at 3s), precision-neutral; below ~0.40 recovery *falls* as
    spurious peaks break topology. The medium share is exact-solve-bound (candidates reach
@@ -67,7 +69,9 @@ topology identical while removing a 15–20s/sample cost.
 
 Three rungs, all on the same 563 samples:
 
-- **Rung 0 — baseline:** the dense head's detections (production path, 500 cap).
+- **Rung 0 — baseline:** the dense head's detections (production path; ran with the
+  then-current 500 primitive cap, since removed — §5; easy/medium never hit it, so the
+  baseline is unaffected).
 - **Rung 1 — close-pair oracle:** the model's real detections everywhere, except that
   inside small boxes around close-pair GT junctions (nearest-neighbour gap < T) the
   detections are replaced by the exact GT junctions. Implemented via the product's
@@ -160,9 +164,10 @@ matched to interior degree-≥3 GT junctions within 2px):
 | medium | 90.5% | **97.3%** |
 | hard | 55.0% | **62.9%** |
 
-This does **not** affect the oracle ladder (§2), which ran the real pipeline at its 0.50
-operating point; only the standalone recall figures were off. Partitioning the misses (at
-0.50 unless noted):
+This does **not** affect the oracle ladder (§2), which ran the real pipeline at its
+then-current 0.50 floor; only the standalone recall figures were off. (That 0.50 floor was
+the operating point when these numbers were measured; it has since been lowered to **0.40**
+— §9.) Partitioning the misses (at 0.50 unless noted):
 
 - **Isolated vs close (medium):** **72% of misses are isolated** (nearest-neighbour
   ≥12px), 28% close — unchanged from the 0.65 set. This is why the full oracle helps
@@ -178,31 +183,28 @@ wherever they are), not position on the paper.
 
 ---
 
-## 5. A top-N primitive cap silently drops real detections *(High mechanism; Medium recovery impact)*
+## 5. A top-N primitive cap was silently dropping real detections — now removed *(High — code-verified)*
 
-The junction (and boundary-contact) primitive extractor sorts peaks by probability and
-**truncates to a fixed count** (`local_maxima_primitives`:
-`sort_by(support desc); truncate(max_count)` in `evidence_extract.rs`). The count
-differs by path:
+The junction (and boundary-contact) primitive extractor sorted peaks by probability and
+**truncated to a fixed count** (`local_maxima_primitives`:
+`sort_by(support desc); truncate(max_count)` in `evidence_extract.rs`). The caps:
 
 | path | cap | CPs exceeding it |
 |---|---|---|
 | Inspector Stage 1 **display** (`evidence_config_from_decode`) | **240** | **95% of hard** (133/140), 1% medium, 0% easy |
 | **Production** candidate pipeline (`junction_carrier_v1::evidence_config`) | **500** | **45% of hard** (63/140), 0% easy/medium |
 
-Median junctions/CP: easy 36, medium 102, **hard 466**. So on nearly every hard CP the
-inspector renders only the top-240 junctions and drops the rest — this is the mechanism
-behind "the heatmap looks great but junctions aren't displayed." The uncapped raw-peak
-recall is therefore higher than what either the inspector or the production pipeline
-surfaces.
+Median junctions/CP: easy 36, medium 102, **hard 466** — so on nearly every hard CP the
+inspector rendered only the top-240 junctions and dropped the rest, the mechanism behind
+"the heatmap looks great but junctions aren't displayed." The uncapped raw-peak recall is
+higher than what either surface was showing.
 
-**Confidence on the recovery impact is deliberately lower than on the mechanism.** The
-500 production cap is exceeded by 0% of easy/medium, i.e. it cannot explain the
-easy/medium gap where the headroom lives; on hard it is a genuine ceiling but hard
-recovery is ~0 for other reasons (solve timeouts; ~63% raw hard recall at 0.50). **Both caps were
-removed** this session (set to `usize::MAX`); the measured cost is candidate generation
-~1.4× slower on hard (99.4s→140.9s over the bucket; O(V³) span generation), ~1.06× on
-medium, none on easy. Whether uncapping *changes recovery* was **not measured** (§10).
+**Both caps were removed this session** (set to `usize::MAX`). Because 0% of easy/medium
+CPs exceed either cap, removal changes nothing on easy/medium (where the recoverable
+headroom is); it only lifts an arbitrary ceiling on dense hard CPs, at a measured ~1.4×
+hard candidate-gen cost (99.4s→140.9s over the bucket; O(V³) span generation), ~1.06×
+medium, none easy. Whether uncapping changes hard *recovery* was not separately measured
+(hard recovery is ~0 for other reasons — §2).
 
 ---
 
@@ -234,8 +236,9 @@ scored as partly off-grid by the 45°-only definition; not separately analysed.)
 
 ## 7. On hard, most misses are "heatmap-absent," not "detected-but-dropped" *(Medium)*
 
-At the 0.50 operating point, classifying hard misses by the local-max heatmap activation
-near the GT junction: **~80% are genuinely weak** (local-max prob < 0.35, i.e. the model
+At the 0.50 floor (the operating point when this was measured; now 0.40 — §9), classifying
+hard misses by the local-max heatmap activation near the GT junction: **~80% are genuinely
+weak** (local-max prob < 0.35, i.e. the model
 did not fire), **~17% are just below threshold** (activation 0.35–0.50 — visible but
 under the 0.50 floor), and **~2% are localization** (a strong peak within ~2–3px, just
 outside the strict 2px match). So on the hard CPs that dominate the miss count, the
@@ -256,8 +259,8 @@ separate NMS-suppression from sub-threshold beyond the activation bands given.)*
 2. **The exact-solve** *(Medium-High).* The 174 perfect-junction ceiling means ~69% of
    the set is unrecoverable even with perfect junctions; carried from the prior report
    as timeouts + convergence drift. Unchanged here.
-3. **Uncap the primitive lists** *(done for correctness; recovery effect untested).*
-   Removes an arbitrary ceiling on dense CPs at ~1.4× hard candidate-gen cost.
+3. **Uncap the primitive lists** *(done — §5).* Removed an arbitrary ceiling on dense CPs
+   at ~1.4× hard candidate-gen cost; leaves easy/medium unchanged (they never hit the cap).
 4. **Lower the junction-peak floor to 0.40** *(measured; landed — see §9).* Sweeping the
    floor shows 0.40 is the end-to-end optimum: recovery 67→85 (+27%) at a 25s solve cap,
    precision-neutral. Done.
@@ -271,7 +274,7 @@ separate NMS-suppression from sub-threshold beyond the activation bands given.)*
 
 ## 9. Junction-threshold sweep: the 0.50 floor is too high — 0.40 wins *(High; landed)*
 
-The pipeline extracts junction peaks at a fixed floor of 0.50 (§4). Sweeping that floor —
+The pipeline extracted junction peaks at a fixed floor of 0.50 (§4). Sweeping that floor —
 through `compare_exact_solve_benchmark` (the same binary and `solve_recovered` metric as
 every recovery number here; recall/precision from its own `strict_topology.vertices`, **no
 numpy**) — shows 0.50 is too strict. A default-inert `--junction-peak-threshold` override
@@ -325,9 +328,9 @@ browser product can block up to 25s per CP import.
   medium/hard ladder numbers likely understate the perfect-junction ceiling at a generous
   cap. Re-running the ladder at 25s would sharpen the junction-vs-solve split.)
 - **Sub-3px close pairs untestable** via this oracle (merge radius 3px) — §3.
-- **Uncap → recovery is unmeasured.** §5 measured the candidate-gen slowdown, not
-  whether uncapping the 500 production cap changes `solve_recovered`. Do not assume
-  either direction.
+- **Uncap → recovery is unmeasured.** §5 measured the candidate-gen slowdown, not whether
+  removing the (now-removed) 500 production cap changes hard `solve_recovered`. Don't
+  assume either direction. (Easy/medium are unaffected — they never hit it.)
 - **"Detected-but-dropped" attribution is coarse** — a per-pixel probability proxy, not
   traced to a specific extraction stage (§7).
 - **Box-pleat definition is 45°-only** (3° tolerance); 22.5° systems not separated (§6).
@@ -344,17 +347,17 @@ browser product can block up to 25s per CP import.
   junctions in boxes 81%→98%, medium recovery 2/232.
 - §4: medium misses 72% isolated (≥12px); border-distance (ALL) misses/all within
   12/32/64px = 2.5/1.2, 10.1/8.6, 24.2/21.2 %. Raw-peak recall (rederive method): easy
-  at the 0.65 analysis bar 91.8/90.5/55.0%; at the **0.50 operating point** (correct)
+  at the 0.65 analysis bar 91.8/90.5/55.0%; at the **0.50 floor then in effect** (correct)
   **97.9/97.3/62.9%** (easy/medium/hard).
-- §5: caps 240 (display) / 500 (production), top-N-by-probability truncate; median
-  junc/CP 36/102/466; >240 exceeded by 95% of hard, >500 by 45% of hard, 0% easy/medium;
-  uncap slowdown hard candidate-gen 99.4s→140.9s (1.42×), medium 1.06×.
+- §5: caps 240 (display) / 500 (production), top-N-by-probability truncate — **both removed
+  this session**; median junc/CP 36/102/466; >240 exceeded by 95% of hard, >500 by 45% of
+  hard, 0% easy/medium; uncap slowdown hard candidate-gen 99.4s→140.9s (1.42×), medium 1.06×.
 - §6: box-pleat ≥0.90 = easy 18/medium 14/hard 79; within-hard Spearman(recall)=+0.02,
   (junc/CP)=+0.41, (close-frac)=−0.47.
 - §7 (0.50 operating point): hard misses = ~80% weak (local-max <0.35) / ~17%
-  just-below-threshold (0.35–0.50) / ~2% localization. Operating junction-peak threshold
-  is 0.50 (`line_threshold.max(0.50)`), not 0.65 — a correction to this report's earlier
-  draft and the prior report's §3.
+  just-below-threshold (0.35–0.50) / ~2% localization. Operating junction-peak floor when
+  measured was 0.50 (`line_threshold.max(0.50)`), not 0.65 — a correction to this report's
+  earlier draft and the prior report's §3; the floor was since lowered to 0.40 (§9).
 - §9 sweep (via `compare_exact_solve_benchmark`, `--junction-peak-threshold` override,
   provenance-guarded; recall/precision from `strict_topology.vertices`). 25s cap unless
   noted: floor 0.50/0.45/0.40/0.35/0.30/0.25 → TOTAL 67/73/85/82/73/59; precision stays
