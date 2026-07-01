@@ -68,8 +68,11 @@ pub(super) fn evidence_config(
         hough_min_segment_length_px: config.hough_min_segment_length_px.max(12.0),
         hough_max_segment_gap_px: config.hough_max_segment_gap_px.max(4.0),
         max_line_primitives: config.max_line_hypotheses.max(1200),
-        max_junction_primitives: config.max_intersection_lines.max(500),
-        max_boundary_contact_primitives: config.max_intersection_lines.max(500),
+        // Uncapped: keep every above-threshold junction/contact peak. The old
+        // top-500-by-probability truncation dropped real detections on dense CPs
+        // (correctness over performance; span-generation cost is the tradeoff).
+        max_junction_primitives: usize::MAX,
+        max_boundary_contact_primitives: usize::MAX,
         primitive_nms_radius_px: (options.vertex_merge_radius_px * 0.55).max(2.0) as f32,
         junction_offset_cluster_radius_px: options.junction_offset_cluster_radius_px as f32,
         junction_evidence_source: options.junction_evidence_source,
