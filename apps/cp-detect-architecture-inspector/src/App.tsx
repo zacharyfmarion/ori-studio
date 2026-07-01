@@ -5,6 +5,7 @@ import { GalleryView } from './GalleryView';
 import {
   fetchStage1Example,
   fetchStage1Examples,
+  fetchStage1FullMap,
   fetchStage2Example,
   fetchStage4Example,
   fetchStage5Example,
@@ -242,6 +243,14 @@ export function App() {
   const [showLines, setShowLines] = useState(true);
   const [showJunctions, setShowJunctions] = useState(true);
   const [showContacts, setShowContacts] = useState(true);
+  // Stage 1 "dense" hijack: replace the main square with the selected dense map,
+  // rendered at native resolution. denseFullMap holds the full-res fetch.
+  const [showDense, setShowDense] = useState(false);
+  const [denseFullMap, setDenseFullMap] = useState<MapPayload | null>(null);
+  const [denseFullMapLoading, setDenseFullMapLoading] = useState(false);
+  // Cache full-res maps by (sample|map|threshold) so toggling dense on/off — or
+  // re-selecting a map — is instant instead of re-fetching and re-showing fuzzy.
+  const denseFullMapCache = useRef<Map<string, MapPayload>>(new Map());
   const [showLineEndpoints, setShowLineEndpoints] = useState(false);
   const [showInferredCrossings, setShowInferredCrossings] = useState(false);
   const [showSharedCarriers, setShowSharedCarriers] = useState(true);
@@ -579,6 +588,41 @@ export function App() {
     () => currentStage?.maps.find((map) => map.id === background) ?? null,
     [background, currentStage?.maps],
   );
+
+  // When the Stage 1 "dense" hijack is on, fetch the selected map at native
+  // resolution so the main square shows full-detail dense evidence.
+  useEffect(() => {
+    const stage1 = currentStage && isStage1(currentStage) ? currentStage : null;
+    // Don't clear denseFullMap when dense is off — keep it cached so re-enabling
+    // is instant (no fuzzy fallback, no refetch).
+    if (!showDense || !stage1 || !selectedMapId) {
+      return;
+    }
+    const key = `${stage1.sample.id}|${selectedMapId}|${stage1.config.threshold}`;
+    const cached = denseFullMapCache.current.get(key);
+    if (cached) {
+      setDenseFullMap(cached);
+      setDenseFullMapLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setDenseFullMap(null);
+    setDenseFullMapLoading(true);
+    fetchStage1FullMap(stage1.sample.id, selectedMapId, { threshold: stage1.config.threshold })
+      .then((map) => {
+        denseFullMapCache.current.set(key, map);
+        if (!cancelled) setDenseFullMap(map);
+      })
+      .catch(() => {
+        if (!cancelled) setDenseFullMap(null);
+      })
+      .finally(() => {
+        if (!cancelled) setDenseFullMapLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [showDense, currentStage, selectedMapId]);
 
   const stage4Issues = useMemo(() => (activeStage === 'stage4' && isStage4(currentStage) ? buildStage4Issues(currentStage) : []), [activeStage, currentStage]);
   const filteredStage4Issues = useMemo(
@@ -974,7 +1018,7 @@ export function App() {
                 Map size
                 <input
                   min="64"
-                  max="512"
+                  max="1024"
                   step="32"
                   type="number"
                   value={mapSize}
@@ -1457,16 +1501,20 @@ export function App() {
                 ) : activeStage === 'stage1' ? (
                   <div className="toggle-row">
                     <label>
-                      <input type="checkbox" checked={showLines} onChange={(event) => setShowLines(event.target.checked)} />
+                      <input type="checkbox" checked={showLines} disabled={showDense} onChange={(event) => setShowLines(event.target.checked)} />
                       lines
                     </label>
                     <label>
-                      <input type="checkbox" checked={showJunctions} onChange={(event) => setShowJunctions(event.target.checked)} />
+                      <input type="checkbox" checked={showJunctions} disabled={showDense} onChange={(event) => setShowJunctions(event.target.checked)} />
                       junctions
                     </label>
                     <label>
-                      <input type="checkbox" checked={showContacts} onChange={(event) => setShowContacts(event.target.checked)} />
+                      <input type="checkbox" checked={showContacts} disabled={showDense} onChange={(event) => setShowContacts(event.target.checked)} />
                       contacts
+                    </label>
+                    <label title="Replace the main square with the selected dense map at full resolution">
+                      <input type="checkbox" checked={showDense} onChange={(event) => setShowDense(event.target.checked)} />
+                      dense
                     </label>
                   </div>
                 ) : null}
@@ -1571,6 +1619,9 @@ export function App() {
                   showContacts={showContacts}
                   showJunctions={showJunctions}
                   showLines={showLines}
+                  showDense={showDense}
+                  denseMap={denseFullMap && denseFullMap.id === selectedMap?.id ? denseFullMap : selectedMap}
+                  denseLoading={denseFullMapLoading}
                   stage={currentStage}
                 />
               ) : isStage0(currentStage) ? (
@@ -2382,15 +2433,35 @@ function PrimitiveViewer({
   showContacts,
   showJunctions,
   showLines,
+  showDense,
+  denseMap,
+  denseLoading,
   stage,
 }: {
   backgroundMap: MapPayload | null;
   showContacts: boolean;
   showJunctions: boolean;
   showLines: boolean;
+  showDense: boolean;
+  denseMap: MapPayload | null;
+  denseLoading: boolean;
   stage: Stage1Response;
 }) {
   const size = stage.config.image_size;
+  // Dense hijack: cover the whole square with the selected dense map at native
+  // resolution and hide everything else (input image, primitives, GT).
+  if (showDense) {
+    return (
+      <div className="viewer-canvas">
+        {denseMap ? (
+          <Heatmap map={denseMap} mode="dense" />
+        ) : (
+          <div className="loading-panel">{denseLoading ? 'Loading full-resolution map…' : 'No dense map selected.'}</div>
+        )}
+        {denseLoading && denseMap ? <span className="dense-loading-badge">upscaling…</span> : null}
+      </div>
+    );
+  }
   return (
     <div className="viewer-canvas">
       {backgroundMap ? (
@@ -5300,7 +5371,7 @@ function exactStatusColor(status: string) {
   return '#64748b';
 }
 
-function Heatmap({ map, mode }: { map: MapPayload; mode: 'thumb' | 'large' | 'background' }) {
+function Heatmap({ map, mode }: { map: MapPayload; mode: 'thumb' | 'large' | 'background' | 'dense' }) {
   const [dataUrl, setDataUrl] = useState('');
 
   useEffect(() => {
@@ -5323,13 +5394,15 @@ function Heatmap({ map, mode }: { map: MapPayload; mode: 'thumb' | 'large' | 'ba
     setDataUrl(canvas.toDataURL('image/png'));
   }, [map, mode]);
 
-  return (
-    <img
-      alt=""
-      className={mode === 'thumb' ? 'heatmap thumb' : mode === 'background' ? 'heatmap background' : 'heatmap large'}
-      src={dataUrl || undefined}
-    />
-  );
+  const className =
+    mode === 'thumb'
+      ? 'heatmap thumb'
+      : mode === 'background'
+        ? 'heatmap background'
+        : mode === 'dense'
+          ? 'heatmap dense'
+          : 'heatmap large';
+  return <img alt="" className={className} src={dataUrl || undefined} />;
 }
 
 function heatColor(value: number): [number, number, number] {

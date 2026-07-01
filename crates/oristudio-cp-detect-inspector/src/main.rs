@@ -49,7 +49,7 @@ const DEFAULT_DIST: &str = "apps/cp-detect-architecture-inspector/dist";
 const DEFAULT_PUBLIC: &str = "apps/web/public";
 const DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS: f64 =
     oristudio_cp_compiler::DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS;
-const MAX_MAP_SIZE: usize = 512;
+const MAX_MAP_SIZE: usize = 1024;
 
 #[derive(Debug, Clone)]
 struct Args {
@@ -697,6 +697,9 @@ fn route_request(request: &HttpRequest, state: &AppState) -> HttpResponse {
     } else if let Some(encoded_id) = path.strip_prefix("/api/stage1/examples/") {
         let sample_id = percent_decode(encoded_id);
         stage1_example(state, &sample_id, query).and_then(|payload| json_response(&payload))
+    } else if let Some(encoded_id) = path.strip_prefix("/api/stage1/fullmap/") {
+        let sample_id = percent_decode(encoded_id);
+        stage1_full_map(state, &sample_id, query).and_then(|payload| json_response(&payload))
     } else if path == "/api/stage2/examples" {
         stage2_examples(state).and_then(|payload| json_response(&payload))
     } else if let Some(encoded_id) = path.strip_prefix("/api/stage2/examples/") {
@@ -884,6 +887,43 @@ fn stage1_example(
             )?,
         },
     })
+}
+
+/// A single Stage 1 dense evidence map rendered at the sample's *native*
+/// resolution (image_size), for the inspector's full-resolution "dense" overlay.
+/// Query: `map` = map id (e.g. junction_probability), `threshold`.
+fn stage1_full_map(
+    state: &AppState,
+    sample_id: &str,
+    query: BTreeMap<String, String>,
+) -> Result<MapPayload> {
+    let sample = state
+        .manifest
+        .samples
+        .iter()
+        .find(|sample| sample.id == sample_id)
+        .ok_or_else(|| anyhow!("unknown sample {sample_id:?}"))?;
+    let threshold = query
+        .get("threshold")
+        .and_then(|value| value.parse::<f32>().ok())
+        .unwrap_or(sample.threshold);
+    let map_id = query
+        .get("map")
+        .cloned()
+        .ok_or_else(|| anyhow!("missing map query parameter"))?;
+    let outputs = read_dense_outputs(state, sample)?;
+    let decode_config = DecodeConfig {
+        image_size: sample.image_size,
+        threshold,
+        ..DecodeConfig::default()
+    };
+    let evidence_config = evidence_config_from_decode(&decode_config);
+    let evidence = extract_compiler_evidence(outputs.as_dense_refs(), evidence_config)?;
+    // Native-resolution maps (no downsampling) — this is the "full resolution".
+    let maps = evidence_maps(&evidence, sample.image_size as usize)?;
+    maps.into_iter()
+        .find(|map| map.id == map_id.as_str())
+        .ok_or_else(|| anyhow!("unknown map {map_id:?}"))
 }
 
 /// Junction-first candidate generation matching the production decode path
@@ -2518,8 +2558,11 @@ fn evidence_config_from_decode(config: &DecodeConfig) -> EvidenceExtractionConfi
         hough_min_segment_length_px: config.hough_min_segment_length_px,
         hough_max_segment_gap_px: config.hough_max_segment_gap_px,
         max_line_primitives: config.max_line_hypotheses.max(360),
-        max_junction_primitives: config.max_intersection_lines.max(240),
-        max_boundary_contact_primitives: config.max_intersection_lines.max(240),
+        // Uncapped: display every above-threshold junction/contact peak. The old
+        // top-240-by-probability truncation silently dropped real detections on
+        // dense CPs (correctness over performance).
+        max_junction_primitives: usize::MAX,
+        max_boundary_contact_primitives: usize::MAX,
         primitive_nms_radius_px: config.junction_snap_px.max(2.0),
         junction_offset_cluster_radius_px: config.junction_offset_cluster_radius_px,
         junction_evidence_source: JunctionEvidenceSource::Model,

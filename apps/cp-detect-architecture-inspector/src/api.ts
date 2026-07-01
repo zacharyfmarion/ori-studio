@@ -1,5 +1,6 @@
 import type {
   ExamplesResponse,
+  MapPayload,
   Stage1Response,
   Stage2Response,
   Stage4Response,
@@ -56,6 +57,18 @@ export function fetchStage1Example(
     map_size: String(options.mapSize),
   });
   return requestJson(`/api/stage1/examples/${encodeURIComponent(sampleId)}?${params}`);
+}
+
+export function fetchStage1FullMap(
+  sampleId: string,
+  mapId: string,
+  options: { threshold: number },
+): Promise<MapPayload> {
+  const params = new URLSearchParams({
+    map: mapId,
+    threshold: String(options.threshold),
+  });
+  return requestJson(`/api/stage1/fullmap/${encodeURIComponent(sampleId)}?${params}`);
 }
 
 export function fetchStage2Examples(): Promise<ExamplesResponse> {
