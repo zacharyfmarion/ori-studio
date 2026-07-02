@@ -12,10 +12,10 @@ use std::time::Instant;
 pub use crate::backend::DecoderBackend;
 pub use crate::legacy_decode::{
     DecodeConfig, DecodeEdgeStageSnapshot, DecodeError, DecodeReport, DecodeStageSnapshot,
-    DecodeVertexStageSnapshot, DecodeWarning, DecodedFold, DenseOutputs, RepairAction,
-    StageCarrier, StageEdge, StageHoughSegment, StageLine, StageVertex,
-    decode_edge_stage_snapshot_from_maps, decode_stage_snapshot_from_line_mask,
-    decode_vertex_stage_snapshot_from_maps,
+    DecodeVertexStageSnapshot, DecodeWarning, DecodedFold, DenseOutputs,
+    PRODUCT_JUNCTION_OFFSET_CLUSTER_RADIUS_PX, RepairAction, StageCarrier, StageEdge,
+    StageHoughSegment, StageLine, StageVertex, decode_edge_stage_snapshot_from_maps,
+    decode_stage_snapshot_from_line_mask, decode_vertex_stage_snapshot_from_maps,
 };
 
 pub fn decode_dense_outputs(
@@ -513,6 +513,12 @@ fn default_candidate_generation_options(
     generation_options
         .junction_first_v1
         .junction_offset_cluster_radius_px = config.junction_offset_cluster_radius_px as f64;
+    generation_options
+        .junction_first_v1
+        .junction_cluster_keep_rule = config.junction_cluster_keep_rule;
+    generation_options
+        .junction_carrier_v1
+        .junction_cluster_keep_rule = config.junction_cluster_keep_rule;
     generation_options
         .junction_first_v1
         .junction_evidence_source = junction_evidence_source;

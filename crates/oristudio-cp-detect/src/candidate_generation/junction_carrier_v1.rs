@@ -75,6 +75,7 @@ pub(super) fn evidence_config(
         max_boundary_contact_primitives: usize::MAX,
         primitive_nms_radius_px: (options.vertex_merge_radius_px * 0.55).max(2.0) as f32,
         junction_offset_cluster_radius_px: options.junction_offset_cluster_radius_px as f32,
+        junction_cluster_keep_rule: options.junction_cluster_keep_rule,
         junction_evidence_source: options.junction_evidence_source,
         junction_peak_threshold: config.junction_peak_threshold,
     }

@@ -20,7 +20,9 @@ use oristudio_cp_detect::candidate_generation::{
     JunctionFirstV1Strategy, LegacyThresholdStrategyOptions, default_low_threshold,
     generate_candidate_graph,
 };
-use oristudio_cp_detect::decode::{DecodeConfig, DenseOutputs, decode_dense_outputs};
+use oristudio_cp_detect::decode::{
+    DecodeConfig, DenseOutputs, PRODUCT_JUNCTION_OFFSET_CLUSTER_RADIUS_PX, decode_dense_outputs,
+};
 use oristudio_cp_detect::evidence_extract::{
     AssignmentEvidence, BoundaryContactPrimitive, BoundarySide, CompilerEvidence, DenseOutputRefs,
     EvidenceExtractionConfig, JunctionEvidenceSource, JunctionPrimitive, PrimitiveSource,
@@ -946,12 +948,13 @@ fn sample_candidate_generation(
         .and_then(|value| value.parse::<f64>().ok())
         .unwrap_or(DEFAULT_WEAK_ENDPOINT_SNAP_RADIUS_PX)
         .clamp(0.0, 128.0);
-    // Offset-vote junction decoding for radius-trained models, e.g.
-    // ?offset_cluster_radius_px=3 with the close-pair dense caches.
+    // Offset-vote junction decoding for radius-trained models. Defaults to the
+    // shipping product radius so the inspector mirrors production decode; pass
+    // ?offset_cluster_radius_px=0 to force legacy local-maxima extraction.
     let offset_cluster_radius_px = query
         .get("offset_cluster_radius_px")
         .and_then(|value| value.parse::<f64>().ok())
-        .unwrap_or(0.0);
+        .unwrap_or(PRODUCT_JUNCTION_OFFSET_CLUSTER_RADIUS_PX as f64);
     let generation = generate_candidate_graph(
         CandidateGenerationContext {
             outputs: outputs.as_dense_outputs(),
@@ -1414,7 +1417,11 @@ pub fn build_uploaded_stage_bundle(
     let image_size = options.image_size;
     let threshold = options.threshold;
     let map_size = options.map_size.unwrap_or(192).clamp(16, MAX_MAP_SIZE);
-    let offset_cluster_radius_px = options.offset_cluster_radius_px.unwrap_or(0.0);
+    // Default to the shipping product radius so the uploaded-sample inspector
+    // mirrors production decode; callers pass 0 to force local-maxima.
+    let offset_cluster_radius_px = options
+        .offset_cluster_radius_px
+        .unwrap_or(PRODUCT_JUNCTION_OFFSET_CLUSTER_RADIUS_PX as f64);
     let decode_config = DecodeConfig {
         image_size,
         threshold,
@@ -2565,6 +2572,7 @@ fn evidence_config_from_decode(config: &DecodeConfig) -> EvidenceExtractionConfi
         max_boundary_contact_primitives: usize::MAX,
         primitive_nms_radius_px: config.junction_snap_px.max(2.0),
         junction_offset_cluster_radius_px: config.junction_offset_cluster_radius_px,
+        junction_cluster_keep_rule: config.junction_cluster_keep_rule,
         junction_evidence_source: JunctionEvidenceSource::Model,
         junction_peak_threshold: None,
     }

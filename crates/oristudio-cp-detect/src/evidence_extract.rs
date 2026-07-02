@@ -118,6 +118,11 @@ pub struct EvidenceExtractionConfig {
     /// extraction to offset-vote clustering, which can split a fused heatmap
     /// blob covering two close vertices into two primitives.
     pub junction_offset_cluster_radius_px: f32,
+    /// Which clusters offset-vote decoding keeps. Only consulted when
+    /// `junction_offset_cluster_radius_px > 0`. The legacy mass-only rule drops
+    /// isolated junctions the sharp sigma-1.5 model fires with only one pixel
+    /// above the vote floor; peak-gated rules rescue them.
+    pub junction_cluster_keep_rule: JunctionClusterKeepRule,
     pub junction_evidence_source: JunctionEvidenceSource,
     /// Override for the junction peak-extraction threshold. `None` uses the
     /// shared default floor (`line_threshold.max(JUNCTION_PEAK_THRESHOLD_FLOOR)`,
@@ -132,6 +137,30 @@ pub enum JunctionEvidenceSource {
     #[default]
     Model,
     LineArrangement,
+}
+
+/// Keep-rule for offset-vote junction clusters (see `offset_cluster_primitives`).
+///
+/// A cluster carries both a probability `mass` (sum of vote weights) and a
+/// `peak` (strongest single vote). The legacy rule kept clusters purely on mass,
+/// which discarded isolated junctions the sharp model fires with a single strong
+/// pixel and little surrounding support. Peak-gated rules keep a cluster when its
+/// strongest vote reaches the junction peak threshold, regardless of mass.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum JunctionClusterKeepRule {
+    /// Legacy: keep iff `mass >= JUNCTION_CLUSTER_MIN_SUPPORT`. Drops isolated
+    /// junctions the sharp model fires with a single strong pixel; shipped by
+    /// mistake and recovered only 55/563 on native-cp-v1 (see PeakGate).
+    MassOnly,
+    /// Keep iff `mass >= JUNCTION_CLUSTER_MIN_SUPPORT` OR `peak >= peak threshold`.
+    Rescue,
+    /// Keep iff `peak >= peak threshold` (mass ignored). Production default:
+    /// on native-cp-v1 (junction-first + source-image line evidence, exact solve
+    /// 25s) this recovered 94/563 vs 55 for MassOnly and 86 for local-maxima
+    /// decoding — the best `solve_recovered_original` of the measured variants.
+    #[default]
+    PeakGate,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -724,6 +753,7 @@ fn model_junction_primitives(
             junction_threshold,
             config.junction_offset_cluster_radius_px,
             config.max_junction_primitives,
+            config.junction_cluster_keep_rule,
         )
     } else {
         local_maxima_primitives(
@@ -989,6 +1019,7 @@ fn offset_cluster_primitives(
     threshold: f32,
     radius_px: f32,
     max_count: usize,
+    keep_rule: JunctionClusterKeepRule,
 ) -> Vec<([f32; 2], f32)> {
     let pixels = size * size;
     if offset.len() < pixels * 2 {
@@ -1074,9 +1105,19 @@ fn offset_cluster_primitives(
             merged.push((center, peak, mass));
         }
     }
+    // Peak gate reuses the junction peak threshold (0.40 default): a cluster
+    // whose strongest single vote clears it holds a genuine junction firing even
+    // when the sharp model leaves too little surrounding mass to pass min-support.
+    let peak_gate = threshold;
     let mut kept = merged
         .into_iter()
-        .filter(|(_, _, mass)| *mass >= JUNCTION_CLUSTER_MIN_SUPPORT)
+        .filter(|(_, peak, mass)| match keep_rule {
+            JunctionClusterKeepRule::MassOnly => *mass >= JUNCTION_CLUSTER_MIN_SUPPORT,
+            JunctionClusterKeepRule::Rescue => {
+                *mass >= JUNCTION_CLUSTER_MIN_SUPPORT || *peak >= peak_gate
+            }
+            JunctionClusterKeepRule::PeakGate => *peak >= peak_gate,
+        })
         .collect::<Vec<_>>();
     kept.sort_by(|left, right| right.2.total_cmp(&left.2));
     kept.truncate(max_count);
@@ -1214,6 +1255,7 @@ mod tests {
             max_boundary_contact_primitives: 32,
             primitive_nms_radius_px: 3.0,
             junction_offset_cluster_radius_px: 0.0,
+            junction_cluster_keep_rule: JunctionClusterKeepRule::default(),
             junction_evidence_source: JunctionEvidenceSource::Model,
             junction_peak_threshold: None,
         }
@@ -1265,7 +1307,15 @@ mod tests {
                 }
             }
         }
-        let clusters = offset_cluster_primitives(&probability, &offset, size, 0.5, radius, 32);
+        let clusters = offset_cluster_primitives(
+            &probability,
+            &offset,
+            size,
+            0.5,
+            radius,
+            32,
+            JunctionClusterKeepRule::MassOnly,
+        );
         assert_eq!(clusters.len(), 2, "fused blob must split into two vertices");
         let near = |target: [f32; 2]| {
             clusters
@@ -1281,6 +1331,43 @@ mod tests {
             peaks.len() <= 1,
             "legacy local-maxima decode cannot split the blob (documents the gap)"
         );
+    }
+
+    #[test]
+    fn keep_rule_rescues_isolated_low_mass_junction() {
+        // Isolated junction the sharp sigma-1.5 model fires with a single strong
+        // pixel: mass (0.5) < JUNCTION_CLUSTER_MIN_SUPPORT (0.8) but the peak
+        // clears the 0.4 junction threshold. MassOnly drops it (the shipped bug);
+        // PeakGate and Rescue keep it.
+        let size = 32usize;
+        let radius = 3.0_f32;
+        let pixels = size * size;
+        let mut probability = vec![0.0_f32; pixels];
+        let offset = vec![0.0_f32; pixels * 2]; // votes land on their own pixel
+        let idx = 10 * size + 10;
+        probability[idx] = 0.5;
+        let threshold = 0.4;
+
+        let mass_only = offset_cluster_primitives(
+            &probability,
+            &offset,
+            size,
+            threshold,
+            radius,
+            32,
+            JunctionClusterKeepRule::MassOnly,
+        );
+        assert_eq!(mass_only.len(), 0, "mass-only drops the low-mass firing");
+
+        for rule in [
+            JunctionClusterKeepRule::PeakGate,
+            JunctionClusterKeepRule::Rescue,
+        ] {
+            let kept =
+                offset_cluster_primitives(&probability, &offset, size, threshold, radius, 32, rule);
+            assert_eq!(kept.len(), 1, "{rule:?} keeps the peak-only firing");
+            assert!(distance(kept[0].0, [10.0, 10.0]) < 0.5);
+        }
     }
 
     #[test]

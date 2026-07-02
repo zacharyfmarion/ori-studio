@@ -3,6 +3,16 @@ use crate::opencv_hough_lines_p::{HoughLinesPConfig, HoughSegment, hough_lines_p
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
+/// Offset-vote cluster radius the production model ships with — mirrors
+/// `scripts/cp-detect/current-model.json` `inference.junction_offset_radius_px`,
+/// which the browser passes into decoding. The benchmark and stage inspector
+/// default to this same value so all three decode identically; a test
+/// (`product_junction_offset_cluster_radius_matches_manifest`) asserts the const
+/// and the manifest stay equal, so they cannot silently diverge. Change both
+/// together. Paired with the `PeakGate` keep-rule default (see
+/// `JunctionClusterKeepRule`), this is the shipping junction decode.
+pub const PRODUCT_JUNCTION_OFFSET_CLUSTER_RADIUS_PX: f32 = 3.0;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DecodeConfig {
     pub image_size: u32,
@@ -65,6 +75,11 @@ pub struct DecodeConfig {
     /// sub-pixel offset head and keeps local-maxima junction decoding.
     #[serde(default)]
     pub junction_offset_cluster_radius_px: f32,
+    /// Keep-rule for offset-vote junction clustering (only consulted when
+    /// `junction_offset_cluster_radius_px > 0`). Defaults to the production
+    /// rule; the benchmark and inspector can override it for A/B sweeps.
+    #[serde(default)]
+    pub junction_cluster_keep_rule: crate::evidence_extract::JunctionClusterKeepRule,
     /// Wall-clock budget for the product exact-solve backend. A negative value
     /// disables the timeout; zero times out immediately.
     #[serde(default = "default_exact_solve_timeout_seconds")]
@@ -107,6 +122,7 @@ impl Default for DecodeConfig {
             planar_split_vertex_distance_px: default_planar_split_vertex_distance_px(),
             planar_crossing_support_tie: default_planar_crossing_support_tie(),
             junction_offset_cluster_radius_px: 0.0,
+            junction_cluster_keep_rule: crate::evidence_extract::JunctionClusterKeepRule::default(),
             exact_solve_timeout_seconds: default_exact_solve_timeout_seconds(),
             junction_peak_threshold: None,
         }
@@ -4537,6 +4553,27 @@ fn default_planar_crossing_support_tie() -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn product_junction_offset_cluster_radius_matches_manifest() {
+        // The const is a compile-time mirror of the radius the browser ships
+        // (from the model manifest). If they drift, the benchmark/inspector
+        // decode diverges from the product — fail loudly instead.
+        let manifest_path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../scripts/cp-detect/current-model.json"
+        );
+        let text = std::fs::read_to_string(manifest_path)
+            .unwrap_or_else(|err| panic!("read {manifest_path}: {err}"));
+        let manifest: Value = serde_json::from_str(&text).unwrap();
+        let radius = manifest["inference"]["junction_offset_radius_px"]
+            .as_f64()
+            .expect("manifest inference.junction_offset_radius_px is a number");
+        assert_eq!(
+            radius as f32, PRODUCT_JUNCTION_OFFSET_CLUSTER_RADIUS_PX,
+            "PRODUCT_JUNCTION_OFFSET_CLUSTER_RADIUS_PX ({PRODUCT_JUNCTION_OFFSET_CLUSTER_RADIUS_PX}) must equal current-model.json inference.junction_offset_radius_px ({radius}); update both together"
+        );
+    }
 
     #[test]
     fn junction_points_apply_subpixel_offset_channels() {

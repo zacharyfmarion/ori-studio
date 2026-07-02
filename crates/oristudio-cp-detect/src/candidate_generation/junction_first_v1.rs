@@ -106,6 +106,7 @@ fn carrier_equivalent_options(
         strong_span_line_support: options.strong_span_line_support,
         max_line_endpoint_vertices: 0,
         junction_offset_cluster_radius_px: options.junction_offset_cluster_radius_px,
+        junction_cluster_keep_rule: options.junction_cluster_keep_rule,
         junction_evidence_source: options.junction_evidence_source,
         ..JunctionCarrierV1StrategyOptions::default()
     }
