@@ -23,13 +23,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut golden: Option<PathBuf> = None;
     let mut min_reps = 5usize;
     let mut no_polish = false;
-    let mut sparse = false;
+    let mut dense = false;
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--golden" => golden = Some(PathBuf::from(args.next().expect("--golden needs a dir"))),
             "--reps" => min_reps = args.next().expect("--reps needs N").parse()?,
             "--no-polish" => no_polish = true,
-            "--sparse" => sparse = true,
+            "--dense" => dense = true,
             other => return Err(format!("unknown arg {other}").into()),
         }
     }
@@ -72,10 +72,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let input: ExactSolveInput = serde_json::from_slice(&bytes)?;
         let options = ExactSolveOptions {
             polish: !no_polish,
-            linear_solver: if sparse {
-                LinearSolver::Sparse
-            } else {
+            linear_solver: if dense {
                 LinearSolver::Dense
+            } else {
+                LinearSolver::Sparse
             },
             ..ExactSolveOptions::default()
         };

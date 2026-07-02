@@ -33,13 +33,15 @@ const TAU: f64 = std::f64::consts::TAU;
 
 /// Linear-algebra backend for the LM step. The dense path factors `JᵀJ`
 /// densely (O(params³) per iteration); the sparse path exploits the graph-local
-/// sparsity of the constraint system. Sparse is opt-in until parity + perf are
-/// proven against the dense baseline.
+/// sparsity of the constraint system for a ~1.7× (larger at high param counts)
+/// speedup. Sparse is the default after parity + perf were verified against the
+/// dense baseline (native pack: 0 accept regressions, +2 recoveries / 563,
+/// exact-solve stage 72.9s → 42.7s); `Dense` remains selectable for A/B.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum LinearSolver {
-    #[default]
     Dense,
+    #[default]
     Sparse,
 }
 
@@ -68,7 +70,7 @@ pub struct ExactSolveOptions {
     #[serde(default = "default_timeout_seconds")]
     pub timeout_seconds: f64,
     /// Linear-algebra backend for the LM step (dense vs sparse). Defaults to
-    /// dense; sparse is opt-in behind parity/perf verification.
+    /// sparse (verified parity + ~1.7× faster); `Dense` is selectable for A/B.
     #[serde(default)]
     pub linear_solver: LinearSolver,
     /// Run a second LM pass after an accepted solve, re-anchored to the
@@ -135,7 +137,7 @@ impl Default for ExactSolveOptions {
             degenerate_edge_epsilon: 1e-6,
             crossing_epsilon: 1e-7,
             timeout_seconds: default_timeout_seconds(),
-            linear_solver: LinearSolver::Dense,
+            linear_solver: LinearSolver::Sparse,
             polish: default_polish(),
             polish_kawasaki_sigma_radians: default_polish_kawasaki_sigma_radians(),
             polish_carrier_incidence_sigma: default_polish_carrier_incidence_sigma(),
