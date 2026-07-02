@@ -12,7 +12,9 @@ use crate::{
     ExactSolvedGraphStatus, Point2,
 };
 use levenberg_marquardt::{LeastSquaresProblem, LevenbergMarquardt};
-use nalgebra::{Dyn, OMatrix, OVector, storage::Owned};
+use nalgebra::{DMatrix, Dyn, OMatrix, OVector, storage::Owned};
+use nalgebra_sparse::factorization::CscCholesky;
+use nalgebra_sparse::{CooMatrix, CscMatrix};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::cell::Cell;
@@ -28,6 +30,18 @@ const SCHEMA: &str = "oristudio/cp-compiler/exact-solved-graph-v1";
 /// >3-10s to converge; individual surfaces may still override it.
 pub const DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS: f64 = 25.0;
 const TAU: f64 = std::f64::consts::TAU;
+
+/// Linear-algebra backend for the LM step. The dense path factors `JᵀJ`
+/// densely (O(params³) per iteration); the sparse path exploits the graph-local
+/// sparsity of the constraint system. Sparse is opt-in until parity + perf are
+/// proven against the dense baseline.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LinearSolver {
+    #[default]
+    Dense,
+    Sparse,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct ExactSolveOptions {
@@ -53,6 +67,10 @@ pub struct ExactSolveOptions {
     /// timeout; zero times out immediately.
     #[serde(default = "default_timeout_seconds")]
     pub timeout_seconds: f64,
+    /// Linear-algebra backend for the LM step (dense vs sparse). Defaults to
+    /// dense; sparse is opt-in behind parity/perf verification.
+    #[serde(default)]
+    pub linear_solver: LinearSolver,
     /// Run a second LM pass after an accepted solve, re-anchored to the
     /// stage-1 solution with tightened theorem sigmas. The stage-1 priors
     /// anchor to the noisy detected positions, so the first pass equilibrates
@@ -117,6 +135,7 @@ impl Default for ExactSolveOptions {
             degenerate_edge_epsilon: 1e-6,
             crossing_epsilon: 1e-7,
             timeout_seconds: default_timeout_seconds(),
+            linear_solver: LinearSolver::Dense,
             polish: default_polish(),
             polish_kawasaki_sigma_radians: default_polish_kawasaki_sigma_radians(),
             polish_carrier_incidence_sigma: default_polish_carrier_incidence_sigma(),
@@ -250,25 +269,7 @@ pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> Exact
             SolveCounterSnapshot::default(),
         )
     } else {
-        let counters = Rc::new(SolveCounters::default());
-        let solver = ExactLeastSquaresProblem {
-            model: model.clone(),
-            params: initial_params.clone(),
-            counters: counters.clone(),
-        };
-        let lm = LevenbergMarquardt::new()
-            .with_patience(options.patience)
-            .with_ftol(options.ftol)
-            .with_xtol(options.xtol)
-            .with_gtol(options.gtol);
-        let (solved, report) = lm.minimize(solver);
-        (
-            solved.params,
-            format!("{:?}", report.termination),
-            report.number_of_evaluations,
-            report.objective_function,
-            counters.snapshot(),
-        )
+        run_lm_minimize(&model, &initial_params, options)
     };
 
     // Polish: the stage-1 priors anchor to noisy detected positions, so LM
@@ -308,23 +309,13 @@ pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> Exact
             }
             let polish_model = model.reanchored_for_polish(&current_params);
             let polish_start_energy = residual_energy(&polish_model.residuals_for(&current_params));
-            let polish_counters = Rc::new(SolveCounters::default());
-            let solver = ExactLeastSquaresProblem {
-                model: polish_model.clone(),
-                params: current_params.clone(),
-                counters: polish_counters,
-            };
-            let lm = LevenbergMarquardt::new()
-                .with_patience(options.patience)
-                .with_ftol(options.ftol)
-                .with_xtol(options.xtol)
-                .with_gtol(options.gtol);
-            let (polished, polish_report) = lm.minimize(solver);
+            let (polished_params, _polish_termination, polish_round_evaluations, _obj, _counters) =
+                run_lm_minimize(&polish_model, &current_params, options);
             let polish_final_energy =
-                residual_energy(&polish_model.residuals_for(&polished.params));
-            let polished_points = model.points_from_params(&polished.params);
+                residual_energy(&polish_model.residuals_for(&polished_params));
+            let polished_points = model.points_from_params(&polished_params);
             let polished_after =
-                analyze_graph(input, &polished_points, &model, &polished.params, options);
+                analyze_graph(input, &polished_points, &model, &polished_params, options);
             let polished_status = classify_status(&before, &polished_after, options);
             // Judge the polish candidate's objective progress in the POLISH
             // model's units: the original objective anchors to the noisy
@@ -346,9 +337,9 @@ pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> Exact
             if !improved {
                 break;
             }
-            current_params = polished.params;
+            current_params = polished_params;
             current_kawasaki = polished_after.max_kawasaki_residual_degrees;
-            polish_evaluations += polish_report.number_of_evaluations;
+            polish_evaluations += polish_round_evaluations;
             rounds_adopted += 1;
         }
         if rounds_adopted == 0 {
@@ -711,7 +702,24 @@ impl SolveModel {
         if rows == 0 || cols == 0 {
             return matrix;
         }
+        self.emit_jacobian(params, &points, &kawasaki_entries, &mut |r, c, v| {
+            matrix[(r, c)] += v;
+        });
+        matrix
+    }
 
+    /// Emit every nonzero Jacobian entry as `(row, col, value)` through `add`.
+    /// This is the single source of the derivative math, shared by the dense
+    /// path (`analytic_jacobian`) and the sparse normal-equations builder. A
+    /// given `(row, col)` may be emitted more than once, so the sink must sum
+    /// (the dense path uses `+=`); this preserves the original accumulation.
+    fn emit_jacobian(
+        &self,
+        params: &OVector<f64, Dyn>,
+        points: &[Point2],
+        kawasaki_entries: &[KawasakiResidualEntry],
+        add: &mut dyn FnMut(usize, usize, f64),
+    ) {
         let source_weight = if self.provenance.source_adapter == CandidateSourceAdapter::Legacy {
             1.0
         } else {
@@ -724,15 +732,15 @@ impl SolveModel {
                 VertexParameterization::Fixed { .. } => {}
                 VertexParameterization::Boundary { index, .. } => {
                     let weight = movement_weight(vertex.support, source_weight);
-                    matrix[(row, index)] = weight / self.options.boundary_movement_sigma;
+                    add(row, index, weight / self.options.boundary_movement_sigma);
                     row += 1;
                 }
                 VertexParameterization::Free { x_index, y_index } => {
                     let sigma = movement_sigma(&self.cost_model, self.options, vertex.support);
                     let weight = movement_weight(vertex.support, source_weight);
-                    matrix[(row, x_index)] = weight / sigma;
+                    add(row, x_index, weight / sigma);
                     row += 1;
-                    matrix[(row, y_index)] = weight / sigma;
+                    add(row, y_index, weight / sigma);
                     row += 1;
                 }
             }
@@ -741,9 +749,13 @@ impl SolveModel {
         for group in &self.carrier_groups {
             let theta = params[group.theta_index];
             let normal = Point2::new(theta.cos(), theta.sin());
-            matrix[(row, group.theta_index)] = 1.0 / self.options.carrier_angle_sigma_radians;
+            add(
+                row,
+                group.theta_index,
+                1.0 / self.options.carrier_angle_sigma_radians,
+            );
             row += 1;
-            matrix[(row, group.rho_index)] = 1.0 / self.options.carrier_rho_sigma;
+            add(row, group.rho_index, 1.0 / self.options.carrier_rho_sigma);
             row += 1;
 
             for span_index in &group.span_indices {
@@ -751,11 +763,14 @@ impl SolveModel {
                 for vertex_id in span.vertices {
                     let point = points[vertex_id];
                     let scale = 1.0 / self.options.carrier_incidence_sigma;
-                    matrix[(row, group.theta_index)] +=
-                        (-theta.sin() * point.x + theta.cos() * point.y) * scale;
-                    matrix[(row, group.rho_index)] -= scale;
+                    add(
+                        row,
+                        group.theta_index,
+                        (-theta.sin() * point.x + theta.cos() * point.y) * scale,
+                    );
+                    add(row, group.rho_index, -scale);
                     self.add_point_derivative(
-                        &mut matrix,
+                        add,
                         row,
                         vertex_id,
                         normal.x * scale,
@@ -767,24 +782,22 @@ impl SolveModel {
             }
         }
 
-        for entry in &kawasaki_entries {
+        for entry in kawasaki_entries {
             for (index, ray) in entry.rays.iter().enumerate() {
                 let angle_weight = if index % 2 == 0 { -2.0 } else { 2.0 };
                 let scale = angle_weight / self.options.kawasaki_sigma_radians;
                 self.add_angle_derivative(
-                    &mut matrix,
+                    add,
                     row,
                     entry.vertex_id,
                     ray.target_vertex_id,
                     scale,
-                    &points,
+                    points,
                     params,
                 );
             }
             row += 1;
         }
-
-        matrix
     }
 
     fn analytic_residual_count(&self, kawasaki_residual_count: usize) -> usize {
@@ -808,7 +821,7 @@ impl SolveModel {
     #[allow(clippy::too_many_arguments)]
     fn add_angle_derivative(
         &self,
-        matrix: &mut OMatrix<f64, Dyn, Dyn>,
+        add: &mut dyn FnMut(usize, usize, f64),
         row: usize,
         origin_id: usize,
         target_id: usize,
@@ -826,7 +839,7 @@ impl SolveModel {
         }
 
         self.add_point_derivative(
-            matrix,
+            add,
             row,
             origin_id,
             scale * dy / radius_squared,
@@ -834,7 +847,7 @@ impl SolveModel {
             params,
         );
         self.add_point_derivative(
-            matrix,
+            add,
             row,
             target_id,
             scale * -dy / radius_squared,
@@ -845,7 +858,7 @@ impl SolveModel {
 
     fn add_point_derivative(
         &self,
-        matrix: &mut OMatrix<f64, Dyn, Dyn>,
+        add: &mut dyn FnMut(usize, usize, f64),
         row: usize,
         vertex_id: usize,
         dx: f64,
@@ -855,20 +868,294 @@ impl SolveModel {
         match self.vertex_params[vertex_id] {
             VertexParameterization::Fixed { .. } => {}
             VertexParameterization::Boundary { index, side } => {
-                matrix[(row, index)] += match side {
-                    BoundarySide::Top | BoundarySide::Bottom => dx,
-                    BoundarySide::Right | BoundarySide::Left => dy,
-                };
+                add(
+                    row,
+                    index,
+                    match side {
+                        BoundarySide::Top | BoundarySide::Bottom => dx,
+                        BoundarySide::Right | BoundarySide::Left => dy,
+                    },
+                );
             }
             VertexParameterization::Free { x_index, y_index } => {
                 if params[x_index] > -0.25 && params[x_index] < 1.25 {
-                    matrix[(row, x_index)] += dx;
+                    add(row, x_index, dx);
                 }
                 if params[y_index] > -0.25 && params[y_index] < 1.25 {
-                    matrix[(row, y_index)] += dy;
+                    add(row, y_index, dy);
                 }
             }
         }
+    }
+
+    /// Assemble the Gauss-Newton normal-equations pieces at `params`: the upper
+    /// triangle of `JᵀJ`, its diagonal, and the gradient `Jᵀr`. The Jacobian is
+    /// only produced implicitly (row-outer-products), never materialized dense.
+    fn build_normal_equations(&self, params: &OVector<f64, Dyn>, residuals: &[f64]) -> GaussNewton {
+        let n = params.len();
+        let points = self.points_from_params(params);
+        let kawasaki_entries =
+            kawasaki_residual_entries(&points, &self.vertices, &self.selected_spans);
+
+        // Jacobian entries, row-monotonic (emit order).
+        let mut flat: Vec<(usize, usize, f64)> = Vec::new();
+        self.emit_jacobian(params, &points, &kawasaki_entries, &mut |r, c, v| {
+            flat.push((r, c, v))
+        });
+
+        // gradient = Jᵀr.
+        let mut gradient = vec![0.0; n];
+        for &(r, c, v) in &flat {
+            gradient[c] += v * residuals[r];
+        }
+        let gradient_norm = gradient.iter().fold(0.0_f64, |m, g| m.max(g.abs()));
+
+        // JᵀJ upper triangle via per-row outer products. Duplicate (row, col)
+        // emissions are summed first so each row contributes once per column.
+        let mut jtj_map: BTreeMap<(usize, usize), f64> = BTreeMap::new();
+        let mut diagonal = vec![0.0; n];
+        let mut i = 0;
+        while i < flat.len() {
+            let row = flat[i].0;
+            let mut cols: BTreeMap<usize, f64> = BTreeMap::new();
+            while i < flat.len() && flat[i].0 == row {
+                *cols.entry(flat[i].1).or_insert(0.0) += flat[i].2;
+                i += 1;
+            }
+            let entries: Vec<(usize, f64)> = cols.into_iter().collect();
+            for a in 0..entries.len() {
+                let (ca, va) = entries[a];
+                diagonal[ca] += va * va;
+                for &(cb, vb) in entries.iter().skip(a) {
+                    *jtj_map.entry((ca, cb)).or_insert(0.0) += va * vb;
+                }
+            }
+        }
+        let jtj = jtj_map
+            .into_iter()
+            .map(|((i, j), v)| (i, j, v))
+            .collect::<Vec<_>>();
+        GaussNewton {
+            jtj,
+            diagonal,
+            gradient,
+            gradient_norm,
+        }
+    }
+
+    /// Solve the damped LM step `(JᵀJ + lambda·diag(JᵀJ)) δ = -Jᵀr` via sparse
+    /// Cholesky. Returns `None` if the (damped) system is not positive definite,
+    /// signalling the caller to increase damping.
+    fn solve_lm_step(&self, gn: &GaussNewton, lambda: f64, n: usize) -> Option<OVector<f64, Dyn>> {
+        let mut rows = Vec::with_capacity(gn.jtj.len() * 2 + n);
+        let mut cols = Vec::with_capacity(gn.jtj.len() * 2 + n);
+        let mut vals = Vec::with_capacity(gn.jtj.len() * 2 + n);
+        for &(i, j, v) in &gn.jtj {
+            rows.push(i);
+            cols.push(j);
+            vals.push(v);
+            if i != j {
+                rows.push(j);
+                cols.push(i);
+                vals.push(v);
+            }
+        }
+        for k in 0..n {
+            rows.push(k);
+            cols.push(k);
+            vals.push(lambda * gn.diagonal[k].max(1e-12));
+        }
+        let coo = CooMatrix::try_from_triplets(n, n, rows, cols, vals).ok()?;
+        let csc = CscMatrix::from(&coo);
+        let chol = CscCholesky::factor(&csc).ok()?;
+        let rhs = DMatrix::from_fn(n, 1, |i, _| -gn.gradient[i]);
+        let sol = chol.solve(&rhs);
+        Some(OVector::<f64, Dyn>::from_iterator(
+            n,
+            (0..n).map(|i| sol[(i, 0)]),
+        ))
+    }
+
+    /// Sparse Levenberg-Marquardt minimize. Mirrors the dense crate's role
+    /// (returns final params, a termination string, evaluation count, final
+    /// objective, and solve counters) but factors the sparse normal equations
+    /// each iteration instead of a dense `JᵀJ`. Uses the standard Nielsen
+    /// damping update; the golden parity gate verifies the accepted solution
+    /// matches the dense path.
+    fn minimize_sparse(
+        &self,
+        initial: &OVector<f64, Dyn>,
+    ) -> (OVector<f64, Dyn>, String, usize, f64, SolveCounterSnapshot) {
+        let n = initial.len();
+        let mut params = initial.clone();
+        let mut residuals = self.residuals_for(&params);
+        let mut residual_calls = 1usize;
+        let mut jacobian_calls = 0usize;
+        let mut cost = residual_energy(&residuals);
+
+        let snapshot = |residual_calls: usize, jacobian_calls: usize| SolveCounterSnapshot {
+            residual_calls,
+            jacobian_calls,
+            finite_difference_columns: 0,
+            residual_vector_evaluations: residual_calls,
+        };
+
+        if n == 0 || residuals.is_empty() {
+            return (
+                params,
+                "sparse_no_op".to_owned(),
+                residual_calls,
+                cost,
+                snapshot(residual_calls, jacobian_calls),
+            );
+        }
+
+        let mut lambda = -1.0_f64; // sentinel: initialize from the first JᵀJ diagonal
+        let mut nu = 2.0_f64;
+        let mut stall = 0usize;
+        const MAX_OUTER: usize = 200;
+        let mut termination = "sparse_max_iterations".to_owned();
+
+        'outer: for _iter in 0..MAX_OUTER {
+            if self.timeout_reached() {
+                termination = "sparse_timeout".to_owned();
+                break;
+            }
+            let gn = self.build_normal_equations(&params, &residuals);
+            jacobian_calls += 1;
+            if gn.gradient_norm <= self.options.gtol {
+                termination = "sparse_gtol".to_owned();
+                break;
+            }
+            if lambda < 0.0 {
+                // Damping is applied with Marquardt per-column scaling
+                // (`lambda·diag[k]`), so `lambda` is a dimensionless multiplier
+                // and starts small (near pure Gauss-Newton). Scaling it by
+                // max diag(JᵀJ) would over-damp catastrophically here, because
+                // the tiny carrier/Kawasaki sigmas (especially in polish) span a
+                // huge diagonal dynamic range.
+                lambda = 1e-3;
+            }
+
+            loop {
+                if self.timeout_reached() {
+                    termination = "sparse_timeout".to_owned();
+                    break 'outer;
+                }
+                let Some(delta) = self.solve_lm_step(&gn, lambda, n) else {
+                    lambda *= nu;
+                    nu *= 2.0;
+                    stall += 1;
+                    if stall > self.options.patience {
+                        termination = "sparse_stalled".to_owned();
+                        break 'outer;
+                    }
+                    continue;
+                };
+
+                let delta_norm = delta.norm();
+                if delta_norm <= self.options.xtol * (params.norm() + self.options.xtol) {
+                    termination = "sparse_xtol".to_owned();
+                    break 'outer;
+                }
+
+                let trial = &params + &delta;
+                let trial_residuals = self.residuals_for(&trial);
+                residual_calls += 1;
+                let trial_cost = residual_energy(&trial_residuals);
+
+                // Predicted reduction of 0.5‖r‖²: 0.5·(lambda·Σ diag·δ² − δ·g).
+                let mut predicted = 0.0;
+                for k in 0..n {
+                    predicted += lambda * gn.diagonal[k] * delta[k] * delta[k];
+                    predicted -= delta[k] * gn.gradient[k];
+                }
+                predicted *= 0.5;
+                let actual = cost - trial_cost;
+                let rho = if predicted > 0.0 {
+                    actual / predicted
+                } else {
+                    -1.0
+                };
+
+                if rho > 0.0 {
+                    let improvement = cost - trial_cost;
+                    params = trial;
+                    residuals = trial_residuals;
+                    cost = trial_cost;
+                    let factor = 1.0 - (2.0 * rho - 1.0).powi(3);
+                    lambda *= factor.max(1.0 / 3.0);
+                    nu = 2.0;
+                    stall = 0;
+                    if improvement.abs() <= self.options.ftol * cost.max(1e-30) {
+                        termination = "sparse_ftol".to_owned();
+                        break 'outer;
+                    }
+                    continue 'outer;
+                } else {
+                    lambda *= nu;
+                    nu *= 2.0;
+                    stall += 1;
+                    if stall > self.options.patience {
+                        termination = "sparse_stalled".to_owned();
+                        break 'outer;
+                    }
+                }
+            }
+        }
+
+        (
+            params,
+            termination,
+            residual_calls,
+            cost,
+            snapshot(residual_calls, jacobian_calls),
+        )
+    }
+}
+
+/// Gauss-Newton normal-equations pieces at a fixed parameter point. `jtj` holds
+/// only the upper triangle (`i <= j`); the full symmetric matrix is expanded
+/// when the damped system is assembled for factorization.
+struct GaussNewton {
+    jtj: Vec<(usize, usize, f64)>,
+    diagonal: Vec<f64>,
+    gradient: Vec<f64>,
+    gradient_norm: f64,
+}
+
+/// Run one LM minimize with the configured linear-solver backend, returning the
+/// fields `solve_exact` needs (params, termination, evaluations, objective,
+/// counters). Dense uses the `levenberg-marquardt` crate; sparse uses the
+/// in-crate sparse-Cholesky LM.
+fn run_lm_minimize(
+    model: &SolveModel,
+    initial: &OVector<f64, Dyn>,
+    options: ExactSolveOptions,
+) -> (OVector<f64, Dyn>, String, usize, f64, SolveCounterSnapshot) {
+    match options.linear_solver {
+        LinearSolver::Dense => {
+            let counters = Rc::new(SolveCounters::default());
+            let solver = ExactLeastSquaresProblem {
+                model: model.clone(),
+                params: initial.clone(),
+                counters: counters.clone(),
+            };
+            let lm = LevenbergMarquardt::new()
+                .with_patience(options.patience)
+                .with_ftol(options.ftol)
+                .with_xtol(options.xtol)
+                .with_gtol(options.gtol);
+            let (solved, report) = lm.minimize(solver);
+            (
+                solved.params,
+                format!("{:?}", report.termination),
+                report.number_of_evaluations,
+                report.objective_function,
+                counters.snapshot(),
+            )
+        }
+        LinearSolver::Sparse => model.minimize_sparse(initial),
     }
 }
 

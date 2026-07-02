@@ -11,7 +11,7 @@
 //!   UPDATE_GOLDEN=1 cargo test -p oristudio-cp-compiler --test exact_solve_parity -- --include-ignored
 
 use oristudio_cp_compiler::{
-    ExactSolveInput, ExactSolveOptions, ExactSolvedGraphStatus, solve_exact,
+    ExactSolveInput, ExactSolveOptions, ExactSolvedGraphStatus, LinearSolver, solve_exact,
 };
 use std::path::{Path, PathBuf};
 
@@ -53,9 +53,16 @@ struct Golden {
     vertices: Vec<[f64; 2]>,
 }
 
-fn solve_to_golden(name: &str) -> Golden {
+fn options_for(solver: LinearSolver) -> ExactSolveOptions {
+    ExactSolveOptions {
+        linear_solver: solver,
+        ..ExactSolveOptions::default()
+    }
+}
+
+fn solve_to_golden(name: &str, solver: LinearSolver) -> Golden {
     let input = load_input(name);
-    let solved = solve_exact(&input, ExactSolveOptions::default());
+    let solved = solve_exact(&input, options_for(solver));
     Golden {
         status: format!("{:?}", solved.status),
         accepted: solved.movement_report["accepted"]
@@ -72,15 +79,7 @@ fn golden_path(name: &str) -> PathBuf {
     fixture_dir().join(format!("{name}.golden.json"))
 }
 
-fn check_fixture(name: &str) {
-    let got = solve_to_golden(name);
-
-    if std::env::var("UPDATE_GOLDEN").is_ok() {
-        std::fs::write(golden_path(name), serde_json::to_vec_pretty(&got).unwrap()).unwrap();
-        eprintln!("updated golden for {name}");
-        return;
-    }
-
+fn load_golden(name: &str) -> Golden {
     let path = golden_path(name);
     let bytes = std::fs::read(&path).unwrap_or_else(|e| {
         panic!(
@@ -88,8 +87,13 @@ fn check_fixture(name: &str) {
             path.display()
         )
     });
-    let want: Golden = serde_json::from_slice(&bytes).unwrap();
+    serde_json::from_slice(&bytes).unwrap()
+}
 
+/// Compare a solve result against a golden. `status`/`accepted` must match
+/// exactly (the effectiveness-critical fields); numeric fields use the given
+/// tolerances so an equivalent solve on a different backend still passes.
+fn compare_to_golden(name: &str, got: &Golden, want: &Golden, vertex_tol: f64) {
     assert_eq!(got.status, want.status, "[{name}] status changed");
     assert_eq!(
         got.accepted, want.accepted,
@@ -113,10 +117,22 @@ fn check_fixture(name: &str) {
         let dx = (g[0] - w[0]).abs();
         let dy = (g[1] - w[1]).abs();
         assert!(
-            dx <= VERTEX_ABS_TOL && dy <= VERTEX_ABS_TOL,
+            dx <= vertex_tol && dy <= vertex_tol,
             "[{name}] vertex {i} moved: got {g:?} want {w:?} (dx {dx}, dy {dy})",
         );
     }
+}
+
+fn check_fixture(name: &str) {
+    let got = solve_to_golden(name, LinearSolver::Dense);
+
+    if std::env::var("UPDATE_GOLDEN").is_ok() {
+        std::fs::write(golden_path(name), serde_json::to_vec_pretty(&got).unwrap()).unwrap();
+        eprintln!("updated golden for {name}");
+        return;
+    }
+
+    compare_to_golden(name, &got, &load_golden(name), VERTEX_ABS_TOL);
 }
 
 #[test]
@@ -131,6 +147,35 @@ fn fast_right_topology_fixtures_match_golden() {
 fn slow_right_topology_fixtures_match_golden() {
     for name in SLOW_FIXTURES {
         check_fixture(name);
+    }
+}
+
+// The sparse LM uses a different damping schedule than the dense crate, so it
+// reaches the (unique, prior-regularized) minimum along a different path and
+// stops within its own tolerances. Allow a looser vertex agreement than the
+// dense self-comparison while still requiring identical status/accept and a
+// non-regressed Kawasaki residual.
+const SPARSE_VERTEX_TOL: f64 = 1e-4;
+
+fn check_sparse_matches_dense_golden(name: &str) {
+    let got = solve_to_golden(name, LinearSolver::Sparse);
+    compare_to_golden(name, &got, &load_golden(name), SPARSE_VERTEX_TOL);
+}
+
+/// Parity gate: the sparse LM backend must reproduce the dense golden
+/// (status, accept, Kawasaki, vertices within tolerance).
+#[test]
+fn sparse_matches_dense_golden_fast() {
+    for name in FAST_FIXTURES {
+        check_sparse_matches_dense_golden(name);
+    }
+}
+
+#[test]
+#[ignore = "slow (~seconds); run with --include-ignored"]
+fn sparse_matches_dense_golden_slow() {
+    for name in SLOW_FIXTURES {
+        check_sparse_matches_dense_golden(name);
     }
 }
 

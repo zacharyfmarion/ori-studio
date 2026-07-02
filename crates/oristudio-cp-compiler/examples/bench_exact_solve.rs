@@ -10,7 +10,7 @@
 //!   cargo run --release -p oristudio-cp-compiler --example bench_exact_solve -- \
 //!       <fixtures_dir> [--golden <out_dir>] [--reps N]
 
-use oristudio_cp_compiler::{ExactSolveInput, ExactSolveOptions, solve_exact};
+use oristudio_cp_compiler::{ExactSolveInput, ExactSolveOptions, LinearSolver, solve_exact};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
@@ -23,11 +23,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut golden: Option<PathBuf> = None;
     let mut min_reps = 5usize;
     let mut no_polish = false;
+    let mut sparse = false;
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--golden" => golden = Some(PathBuf::from(args.next().expect("--golden needs a dir"))),
             "--reps" => min_reps = args.next().expect("--reps needs N").parse()?,
             "--no-polish" => no_polish = true,
+            "--sparse" => sparse = true,
             other => return Err(format!("unknown arg {other}").into()),
         }
     }
@@ -38,11 +40,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut paths: Vec<PathBuf> = std::fs::read_dir(&dir)?
         .filter_map(|e| e.ok().map(|e| e.path()))
         .filter(|p| p.extension().map(|x| x == "json").unwrap_or(false))
+        // Skip sibling golden files (…​.golden.json) which are not inputs.
+        .filter(|p| {
+            !p.file_name()
+                .and_then(|n| n.to_str())
+                .map(|n| n.ends_with(".golden.json"))
+                .unwrap_or(false)
+        })
         .collect();
     paths.sort();
 
     println!(
-        "{:<26} {:>6} {:>6} {:>7} {:>8} {:>9} {:>9} {:>10} {:>10} {:>12} {:>12}",
+        "{:<26} {:>6} {:>6} {:>7} {:>8} {:>9} {:>9} {:>10} {:>10} {:>12} {:>12} {:>12}",
         "fixture",
         "verts",
         "spans",
@@ -52,6 +61,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "res_call",
         "jac_call",
         "status",
+        "kawasaki",
         "wall_ms",
         "us_per_eval",
     );
@@ -62,6 +72,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let input: ExactSolveInput = serde_json::from_slice(&bytes)?;
         let options = ExactSolveOptions {
             polish: !no_polish,
+            linear_solver: if sparse {
+                LinearSolver::Sparse
+            } else {
+                LinearSolver::Dense
+            },
             ..ExactSolveOptions::default()
         };
 
@@ -75,6 +90,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let res_call = counters["residual_calls"].as_u64().unwrap_or(0);
         let jac_call = counters["jacobian_calls"].as_u64().unwrap_or(0);
         let status = format!("{:?}", solved.status);
+        let kawasaki = solved.theorem_residual_report["after"]["max_kawasaki_residual_degrees"]
+            .as_f64()
+            .unwrap_or(f64::NAN);
 
         // Timed reps: exactly min_reps, but stop early once total exceeds ~3s so
         // slow (multi-second) fixtures don't dominate the run.
@@ -98,7 +116,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
 
         println!(
-            "{:<26} {:>6} {:>6} {:>7} {:>8} {:>9} {:>9} {:>10} {:>10} {:>12.2} {:>12.2}",
+            "{:<26} {:>6} {:>6} {:>7} {:>8} {:>9} {:>9} {:>10} {:>10} {:>12.2e} {:>12.2} {:>12.2}",
             truncate(&name, 26),
             input.vertices.len(),
             input.selected_spans.len(),
@@ -108,6 +126,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             res_call,
             jac_call,
             status,
+            kawasaki,
             median_ms,
             us_per_eval,
         );

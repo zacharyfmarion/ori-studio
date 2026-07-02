@@ -40,7 +40,9 @@ pub use candidates::{
 };
 pub use constraints::{ConstraintDiagnostics, ConstraintSeverity, VertexConstraintDiagnostic};
 pub use evidence::{EvidenceSource, Provenance};
-pub use exact_solve::{DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS, ExactSolveOptions, solve_exact};
+pub use exact_solve::{
+    DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS, ExactSolveOptions, LinearSolver, solve_exact,
+};
 pub use report::{CompilerReport, CompilerSummary};
 
 pub const COMPILER_BACKEND_ID: &str = "constraint_compiler_v1";

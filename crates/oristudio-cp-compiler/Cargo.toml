@@ -13,6 +13,7 @@ include = ["Cargo.toml", "src/**", "tests/**"]
 [dependencies]
 levenberg-marquardt.workspace = true
 nalgebra.workspace = true
+nalgebra-sparse = "0.11"
 oristudio-cp.workspace = true
 serde.workspace = true
 serde_json.workspace = true
