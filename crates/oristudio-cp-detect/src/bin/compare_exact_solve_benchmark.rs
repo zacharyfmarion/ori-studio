@@ -2768,7 +2768,8 @@ fn print_usage() {
     );
     println!(
         "Samples run in parallel across the rayon thread pool. Exact-solve timeout defaults to the shared {DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS}s budget; pass --exact-solve-timeout-seconds to override (or --skip-exact-solve for fast topology iteration).",
-        DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS = oristudio_cp_compiler::DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS
+        DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS =
+            oristudio_cp_compiler::DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS
     );
 }
 
