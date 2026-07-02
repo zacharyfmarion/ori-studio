@@ -129,6 +129,9 @@ struct Args {
     parity_repair: Option<bool>,
     dump_folds: bool,
     allow_stale: bool,
+    /// Use the sparse-Cholesky LM backend for exact solve (A/B vs the dense
+    /// default). Effectiveness must match; this measures the perf delta.
+    sparse_exact_solve: bool,
     /// When set, serialize each sample's `ExactSolveInput` to
     /// `<dir>/<id>.json` (before the topology gate / solve) for isolated
     /// exact-solve replay benchmarking. Additive; does not affect the sweep.
@@ -842,6 +845,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 exact_options.patience = patience;
             }
             exact_options.timeout_seconds = args.exact_solve_timeout_seconds;
+            if args.sparse_exact_solve {
+                exact_options.linear_solver = oristudio_cp_compiler::LinearSolver::Sparse;
+            }
             Some(solve_exact(&exact_input, exact_options))
         };
         let exact_seconds = exact_started.elapsed().as_secs_f64();
@@ -1080,6 +1086,7 @@ impl Args {
         let mut dump_folds = false;
         let mut allow_stale = false;
         let mut dump_exact_inputs = None;
+        let mut sparse_exact_solve = false;
         let mut iter = env::args().skip(1);
         while let Some(arg) = iter.next() {
             match arg.as_str() {
@@ -1178,6 +1185,7 @@ impl Args {
                 "--dump-exact-inputs" => {
                     dump_exact_inputs = Some(PathBuf::from(required_value(&mut iter, &arg)?));
                 }
+                "--sparse-exact-solve" | "--sparse" => sparse_exact_solve = true,
                 "--help" | "-h" => {
                     print_usage();
                     std::process::exit(0);
@@ -1232,6 +1240,7 @@ impl Args {
             dump_folds,
             allow_stale,
             dump_exact_inputs,
+            sparse_exact_solve,
         })
     }
 }
