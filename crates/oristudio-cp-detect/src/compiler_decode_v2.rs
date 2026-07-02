@@ -7,7 +7,8 @@
 use crate::decode::{DecodeConfig, DecodeError, DenseOutputs};
 use crate::evidence_extract::{
     CompilerEvidence, DenseOutputRefs, EvidenceExtractionConfig, EvidenceExtractionError,
-    JunctionEvidenceSource, LinePrimitive, PrimitiveSource, extract_compiler_evidence,
+    JunctionClusterKeepRule, JunctionEvidenceSource, LinePrimitive, PrimitiveSource,
+    extract_compiler_evidence,
 };
 use oristudio_cp_compiler::{
     AssignmentCandidate, AssignmentLabel, CandidateCarrier, CandidateEdge, CandidateProgram,
@@ -101,6 +102,7 @@ fn compiler_v2_evidence_config(config: &DecodeConfig) -> EvidenceExtractionConfi
         max_boundary_contact_primitives: config.max_intersection_lines.max(240),
         primitive_nms_radius_px: config.junction_snap_px.max(2.0),
         junction_offset_cluster_radius_px: 0.0,
+        junction_cluster_keep_rule: JunctionClusterKeepRule::default(),
         junction_evidence_source: JunctionEvidenceSource::Model,
         junction_peak_threshold: None,
     }

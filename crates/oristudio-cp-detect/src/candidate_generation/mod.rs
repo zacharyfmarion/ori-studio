@@ -6,6 +6,7 @@ mod junction_first_v1;
 mod legacy_topology_v2;
 
 use crate::evidence_extract::CompilerEvidence;
+use crate::evidence_extract::JunctionClusterKeepRule;
 use crate::evidence_extract::JunctionEvidenceSource;
 use crate::legacy_decode::{DecodeConfig, DecodeError, DenseOutputs};
 use oristudio_cp_compiler::{
@@ -148,6 +149,8 @@ pub struct JunctionCarrierV1StrategyOptions {
     /// Offset normalization radius for offset-vote junction decoding.
     /// 0 keeps legacy local-maxima extraction (see EvidenceExtractionConfig).
     pub junction_offset_cluster_radius_px: f64,
+    /// Which offset-vote clusters to keep (see JunctionClusterKeepRule).
+    pub junction_cluster_keep_rule: JunctionClusterKeepRule,
     pub junction_evidence_source: JunctionEvidenceSource,
 }
 
@@ -169,6 +172,7 @@ impl Default for JunctionCarrierV1StrategyOptions {
             max_spans_per_carrier: 360,
             max_total_spans: 8000,
             junction_offset_cluster_radius_px: 0.0,
+            junction_cluster_keep_rule: JunctionClusterKeepRule::default(),
             junction_evidence_source: JunctionEvidenceSource::Model,
         }
     }
@@ -207,6 +211,8 @@ pub struct JunctionFirstV1StrategyOptions {
     /// radius the model's junction_offset head was trained with). 0 keeps the
     /// legacy local-maxima vertex extraction.
     pub junction_offset_cluster_radius_px: f64,
+    /// Which offset-vote clusters to keep (see JunctionClusterKeepRule).
+    pub junction_cluster_keep_rule: JunctionClusterKeepRule,
     pub junction_evidence_source: JunctionEvidenceSource,
 }
 
@@ -233,6 +239,7 @@ impl Default for JunctionFirstV1StrategyOptions {
             collinear_conflict_angle_degrees: 2.0,
             collinear_conflict_distance_px: 3.0,
             junction_offset_cluster_radius_px: 0.0,
+            junction_cluster_keep_rule: JunctionClusterKeepRule::default(),
             junction_evidence_source: JunctionEvidenceSource::Model,
         }
     }

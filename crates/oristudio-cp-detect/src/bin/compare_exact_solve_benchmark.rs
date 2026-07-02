@@ -20,9 +20,10 @@ use oristudio_cp_detect::candidate_generation::{
     generate_junction_first_with_vertex_pixels,
 };
 use oristudio_cp_detect::decode::{
-    DecodeConfig, DenseOutputs, RefinedVertexCacheEntry, decode_dense_outputs,
+    DecodeConfig, DenseOutputs, PRODUCT_JUNCTION_OFFSET_CLUSTER_RADIUS_PX, RefinedVertexCacheEntry,
+    decode_dense_outputs,
 };
-use oristudio_cp_detect::evidence_extract::JunctionEvidenceSource;
+use oristudio_cp_detect::evidence_extract::{JunctionClusterKeepRule, JunctionEvidenceSource};
 use oristudio_cp_detect::source_image_evidence::{
     SourceImageLineEvidenceOptions, line_probability_from_rgba,
 };
@@ -125,6 +126,9 @@ struct Args {
     junction_first_endpoint_margin_px: Option<f64>,
     junction_first_min_span_px: Option<f64>,
     junction_first_offset_cluster_radius_px: Option<f64>,
+    /// Offset-vote cluster keep-rule override (mass-only|rescue|peak-gate).
+    /// None keeps the production default. Only meaningful with cluster decode on.
+    junction_cluster_keep_rule: Option<JunctionClusterKeepRule>,
     junction_first_short_span_bypass_px: Option<f64>,
     parity_repair: Option<bool>,
     dump_folds: bool,
@@ -171,6 +175,11 @@ struct BenchmarkConfig {
     match_tolerance_px: f64,
     strict_vertex_tolerance_px: f64,
     flat_folder_enabled: bool,
+    /// Offset-vote cluster radius actually used by junction decoding (None when
+    /// the default applies / not junction-first). Echoed so runs are auditable.
+    junction_offset_cluster_radius_px: Option<f64>,
+    /// Offset-vote cluster keep-rule override, if any (None = production default).
+    junction_cluster_keep_rule: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -671,6 +680,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         .junction_first_v1
                         .junction_offset_cluster_radius_px = value;
                 }
+                if let Some(keep_rule) = args.junction_cluster_keep_rule {
+                    generation_options
+                        .junction_first_v1
+                        .junction_cluster_keep_rule = keep_rule;
+                    generation_options
+                        .junction_carrier_v1
+                        .junction_cluster_keep_rule = keep_rule;
+                }
                 if let Some(value) = args.junction_first_short_span_bypass_px {
                     generation_options.junction_first_v1.short_span_bypass_px = value;
                 }
@@ -1036,6 +1053,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             match_tolerance_px: args.match_tolerance_px,
             strict_vertex_tolerance_px: args.strict_vertex_tolerance_px,
             flat_folder_enabled: !args.skip_flat_folder,
+            junction_offset_cluster_radius_px: args.junction_first_offset_cluster_radius_px,
+            junction_cluster_keep_rule: args.junction_cluster_keep_rule.map(|rule| {
+                match rule {
+                    JunctionClusterKeepRule::MassOnly => "mass-only",
+                    JunctionClusterKeepRule::Rescue => "rescue",
+                    JunctionClusterKeepRule::PeakGate => "peak-gate",
+                }
+                .to_owned()
+            }),
         },
         sample_count: rows.len(),
         solve_recovered_original: rows
@@ -1080,6 +1106,7 @@ impl Args {
         let mut junction_first_endpoint_margin_px = None;
         let mut junction_first_min_span_px = None;
         let mut junction_first_offset_cluster_radius_px = None;
+        let mut junction_cluster_keep_rule = None;
         let mut junction_first_short_span_bypass_px = None;
         let mut parity_repair = None;
         let mut dump_folds = false;
@@ -1177,6 +1204,20 @@ impl Args {
                     junction_first_short_span_bypass_px =
                         Some(required_value(&mut iter, &arg)?.parse()?);
                 }
+                "--junction-cluster-keep-rule" => {
+                    let value = required_value(&mut iter, &arg)?;
+                    junction_cluster_keep_rule = Some(match value.as_str() {
+                        "mass-only" | "mass_only" => JunctionClusterKeepRule::MassOnly,
+                        "rescue" => JunctionClusterKeepRule::Rescue,
+                        "peak-gate" | "peak_gate" => JunctionClusterKeepRule::PeakGate,
+                        other => {
+                            return Err(format!(
+                                "--junction-cluster-keep-rule must be mass-only|rescue|peak-gate (got {other})"
+                            )
+                            .into());
+                        }
+                    });
+                }
                 "--parity-repair" => parity_repair = Some(true),
                 "--no-parity-repair" => parity_repair = Some(false),
                 "--dump-folds" => dump_folds = true,
@@ -1194,6 +1235,15 @@ impl Args {
         }
         let dense_manifest =
             dense_manifest.unwrap_or_else(|| PathBuf::from(DEFAULT_DENSE_MANIFEST));
+        // Default junction-first offset-cluster decoding to the radius the product
+        // ships, so the benchmark and product cannot diverge on decode. Explicit
+        // --junction-first-offset-cluster-radius-px still wins; other candidate
+        // sources ignore the radius. (A lib test pins the const to the manifest.)
+        let junction_first_offset_cluster_radius_px = junction_first_offset_cluster_radius_px
+            .or_else(|| {
+                (candidate_source == "junction-first-v1")
+                    .then_some(PRODUCT_JUNCTION_OFFSET_CLUSTER_RADIUS_PX as f64)
+            });
         let out = out.ok_or("--out is required")?;
         let refined_vertices = match refined_vertices_path {
             Some(path) => {
@@ -1234,6 +1284,7 @@ impl Args {
             junction_first_endpoint_margin_px,
             junction_first_min_span_px,
             junction_first_offset_cluster_radius_px,
+            junction_cluster_keep_rule,
             junction_first_short_span_bypass_px,
             parity_repair,
             dump_folds,
@@ -2794,7 +2845,7 @@ fn round6(value: f64) -> f64 {
 
 fn print_usage() {
     println!(
-        "compare_exact_solve_benchmark --out DIR [--dense-manifest PATH] [--candidate-source legacy] [--line-evidence-source model|source-image] [--junction-evidence-source model|line-arrangement|ground-truth] [--oracle-junction-labels] [--oracle-vertices] [--threshold T] [--junction-peak-threshold T] [--legacy-low-threshold T] [--exact-patience N] [--exact-solve-timeout-seconds S] [--limit N] [--match-tolerance-px PX] [--strict-vertex-tolerance-px PX] [--skip-flat-folder] [--skip-exact-solve] [--exact-solve-any-topology] [--oracle-selection] [--allow-stale]"
+        "compare_exact_solve_benchmark --out DIR [--dense-manifest PATH] [--candidate-source legacy] [--line-evidence-source model|source-image] [--junction-evidence-source model|line-arrangement|ground-truth] [--oracle-junction-labels] [--oracle-vertices] [--threshold T] [--junction-peak-threshold T] [--legacy-low-threshold T] [--exact-patience N] [--exact-solve-timeout-seconds S] [--limit N] [--match-tolerance-px PX] [--strict-vertex-tolerance-px PX] [--junction-first-offset-cluster-radius-px PX] [--junction-cluster-keep-rule mass-only|rescue|peak-gate] [--skip-flat-folder] [--skip-exact-solve] [--exact-solve-any-topology] [--oracle-selection] [--allow-stale]"
     );
     println!(
         "  exact solve is gated on correct topology by default (wrong topology cannot reconstruct the right CP, so it is skipped and marked failed); --exact-solve-any-topology attempts it regardless."
