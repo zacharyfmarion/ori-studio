@@ -515,10 +515,6 @@ function enqueueOrtOperation<T>(operation: () => Promise<T>): Promise<T> {
   return run;
 }
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
 function detectedJunctionSource(
   report: CpDetectFoldResult['detectorReport'],
   fallback: CpDetectJunctionSource

@@ -119,6 +119,11 @@ pub struct EvidenceExtractionConfig {
     /// blob covering two close vertices into two primitives.
     pub junction_offset_cluster_radius_px: f32,
     pub junction_evidence_source: JunctionEvidenceSource,
+    /// Override for the junction peak-extraction threshold. `None` uses the
+    /// shared default floor (`line_threshold.max(JUNCTION_PEAK_THRESHOLD_FLOOR)`,
+    /// currently 0.40). Set only for threshold sweeps; does not affect line or
+    /// boundary-contact thresholds.
+    pub junction_peak_threshold: Option<f32>,
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -692,6 +697,12 @@ fn local_maxima_primitives(
     candidates
 }
 
+/// Default floor for the junction peak-extraction threshold, shared by every
+/// surface (product wasm, benchmark, inspector). Lowered 0.50 -> 0.40 after a
+/// threshold sweep showed 0.40 recovers more CPs end-to-end (easy/medium) with
+/// no precision loss; below ~0.40 spurious peaks start breaking exact topology.
+const JUNCTION_PEAK_THRESHOLD_FLOOR: f32 = 0.40;
+
 fn model_junction_primitives(
     junction_peak_probability: &[f32],
     junction_offset: Option<&[f32]>,
@@ -701,12 +712,16 @@ fn model_junction_primitives(
     let cluster_offset = (config.junction_offset_cluster_radius_px > 0.0)
         .then_some(junction_offset)
         .flatten();
+    // Junction peak threshold: sweep override if set, else the shared floor.
+    let junction_threshold = config
+        .junction_peak_threshold
+        .unwrap_or_else(|| config.line_threshold.max(JUNCTION_PEAK_THRESHOLD_FLOOR));
     let points = if let Some(junction_offset) = cluster_offset {
         offset_cluster_primitives(
             junction_peak_probability,
             junction_offset,
             size,
-            config.line_threshold.max(0.50),
+            junction_threshold,
             config.junction_offset_cluster_radius_px,
             config.max_junction_primitives,
         )
@@ -714,7 +729,7 @@ fn model_junction_primitives(
         local_maxima_primitives(
             junction_peak_probability,
             size,
-            config.line_threshold.max(0.50),
+            junction_threshold,
             config.primitive_nms_radius_px,
             config.max_junction_primitives,
         )
@@ -1200,6 +1215,7 @@ mod tests {
             primitive_nms_radius_px: 3.0,
             junction_offset_cluster_radius_px: 0.0,
             junction_evidence_source: JunctionEvidenceSource::Model,
+            junction_peak_threshold: None,
         }
     }
 

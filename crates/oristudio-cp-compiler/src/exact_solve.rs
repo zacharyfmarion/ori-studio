@@ -22,7 +22,11 @@ use std::rc::Rc;
 use std::time::Instant;
 
 const SCHEMA: &str = "oristudio/cp-compiler/exact-solved-graph-v1";
-pub const DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS: f64 = 10.0;
+/// The single source of truth for the exact-solve wall-clock budget, shared by
+/// the product decode path, the inspector, and the benchmark. Raised 10 -> 25s
+/// after a threshold sweep showed many medium CPs reach correct topology but need
+/// >3-10s to converge; individual surfaces may still override it.
+pub const DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS: f64 = 25.0;
 const TAU: f64 = std::f64::consts::TAU;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]

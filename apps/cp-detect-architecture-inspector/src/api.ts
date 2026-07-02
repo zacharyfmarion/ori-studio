@@ -1,5 +1,6 @@
 import type {
   ExamplesResponse,
+  MapPayload,
   Stage1Response,
   Stage2Response,
   Stage4Response,
@@ -36,7 +37,8 @@ type CandidateStageQueryOptions = StageQueryOptions & {
   strategy: string;
   legacyLowThreshold: number;
   legacySnapRadiusPx: number;
-  exactSolveTimeoutSeconds: number;
+  // null = don't send an override; the backend uses its shared default.
+  exactSolveTimeoutSeconds: number | null;
 };
 
 export function fetchStages(): Promise<{ stages: StageInfo[] }> {
@@ -56,6 +58,18 @@ export function fetchStage1Example(
     map_size: String(options.mapSize),
   });
   return requestJson(`/api/stage1/examples/${encodeURIComponent(sampleId)}?${params}`);
+}
+
+export function fetchStage1FullMap(
+  sampleId: string,
+  mapId: string,
+  options: { threshold: number },
+): Promise<MapPayload> {
+  const params = new URLSearchParams({
+    map: mapId,
+    threshold: String(options.threshold),
+  });
+  return requestJson(`/api/stage1/fullmap/${encodeURIComponent(sampleId)}?${params}`);
 }
 
 export function fetchStage2Examples(): Promise<ExamplesResponse> {
@@ -102,8 +116,10 @@ export function fetchStage5Example(
     strategy: options.strategy,
     legacy_low_threshold: String(options.legacyLowThreshold),
     legacy_snap_radius_px: String(options.legacySnapRadiusPx),
-    exact_solve_timeout_seconds: String(options.exactSolveTimeoutSeconds),
   });
+  if (options.exactSolveTimeoutSeconds != null) {
+    params.set('exact_solve_timeout_seconds', String(options.exactSolveTimeoutSeconds));
+  }
   return requestJson(`/api/stage5/examples/${encodeURIComponent(sampleId)}?${params}`);
 }
 
@@ -121,8 +137,10 @@ export function fetchStage5bExample(
     strategy: options.strategy,
     legacy_low_threshold: String(options.legacyLowThreshold),
     legacy_snap_radius_px: String(options.legacySnapRadiusPx),
-    exact_solve_timeout_seconds: String(options.exactSolveTimeoutSeconds),
   });
+  if (options.exactSolveTimeoutSeconds != null) {
+    params.set('exact_solve_timeout_seconds', String(options.exactSolveTimeoutSeconds));
+  }
   return requestJson(`/api/stage5b/examples/${encodeURIComponent(sampleId)}?${params}`);
 }
 
@@ -140,7 +158,9 @@ export function fetchStage6Example(
     strategy: options.strategy,
     legacy_low_threshold: String(options.legacyLowThreshold),
     legacy_snap_radius_px: String(options.legacySnapRadiusPx),
-    exact_solve_timeout_seconds: String(options.exactSolveTimeoutSeconds),
   });
+  if (options.exactSolveTimeoutSeconds != null) {
+    params.set('exact_solve_timeout_seconds', String(options.exactSolveTimeoutSeconds));
+  }
   return requestJson(`/api/stage6/examples/${encodeURIComponent(sampleId)}?${params}`);
 }
