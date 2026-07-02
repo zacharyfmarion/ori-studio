@@ -129,6 +129,12 @@ struct Args {
     parity_repair: Option<bool>,
     dump_folds: bool,
     allow_stale: bool,
+    /// Force the dense LM backend for exact solve (A/B vs the sparse default).
+    dense_exact_solve: bool,
+    /// When set, serialize each sample's `ExactSolveInput` to
+    /// `<dir>/<id>.json` (before the topology gate / solve) for isolated
+    /// exact-solve replay benchmarking. Additive; does not affect the sweep.
+    dump_exact_inputs: Option<PathBuf>,
 }
 
 #[derive(Debug, Serialize)]
@@ -804,6 +810,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
         let skip_for_bad_topology =
             !args.skip_exact_solve && !args.exact_solve_any_topology && !gate_exact_topology;
+        // Dump the ExactSolveInput split by whether the selected graph recovers GT
+        // topology, so the isolated replay bench can target right- vs wrong-topology
+        // inputs. `gate_exact_topology` is the same signal the solve gate uses.
+        if let Some(dir) = &args.dump_exact_inputs {
+            let bucket = if gate_exact_topology {
+                "right"
+            } else {
+                "wrong"
+            };
+            let sub = dir.join(bucket);
+            fs::create_dir_all(&sub)?;
+            fs::write(
+                sub.join(format!("{}.json", sample.id)),
+                serde_json::to_vec_pretty(&exact_input)?,
+            )?;
+        }
         eprintln!(
             "{}",
             serde_json::to_string(&json!({
@@ -822,6 +844,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 exact_options.patience = patience;
             }
             exact_options.timeout_seconds = args.exact_solve_timeout_seconds;
+            if args.dense_exact_solve {
+                exact_options.linear_solver = oristudio_cp_compiler::LinearSolver::Dense;
+            }
             Some(solve_exact(&exact_input, exact_options))
         };
         let exact_seconds = exact_started.elapsed().as_secs_f64();
@@ -1059,6 +1084,8 @@ impl Args {
         let mut parity_repair = None;
         let mut dump_folds = false;
         let mut allow_stale = false;
+        let mut dump_exact_inputs = None;
+        let mut dense_exact_solve = false;
         let mut iter = env::args().skip(1);
         while let Some(arg) = iter.next() {
             match arg.as_str() {
@@ -1154,6 +1181,10 @@ impl Args {
                 "--no-parity-repair" => parity_repair = Some(false),
                 "--dump-folds" => dump_folds = true,
                 "--allow-stale" => allow_stale = true,
+                "--dump-exact-inputs" => {
+                    dump_exact_inputs = Some(PathBuf::from(required_value(&mut iter, &arg)?));
+                }
+                "--dense-exact-solve" | "--dense" => dense_exact_solve = true,
                 "--help" | "-h" => {
                     print_usage();
                     std::process::exit(0);
@@ -1207,6 +1238,8 @@ impl Args {
             parity_repair,
             dump_folds,
             allow_stale,
+            dump_exact_inputs,
+            dense_exact_solve,
         })
     }
 }
