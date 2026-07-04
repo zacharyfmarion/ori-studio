@@ -448,11 +448,11 @@ cargo run -p oristudio-cp-detect --bin compare_exact_solve_benchmark -- \
   --strict-vertex-tolerance-px 4
 ```
 
-When exact solve is enabled, the product path defaults to a 10 second timeout.
-The `compare_exact_solve_benchmark` binary defaults to a lower **3 second**
-timeout because failed solves on wrong topologies dominated benchmark wall-clock
-and never flip to "solved" by grinding longer. Use `--exact-solve-timeout-seconds N`
-to change it; negative values disable the cap for deliberate debugging runs.
+When exact solve is enabled, both the product path and the benchmark share one
+wall-clock budget, `oristudio_cp_compiler::DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS`
+(currently 25s; raised from 10/3 after a sweep showed medium native CPs need
+>3-10s to converge on correct topology). Use `--exact-solve-timeout-seconds N`
+to override; negative values disable the cap for deliberate debugging runs.
 
 ### Fast iteration
 
@@ -476,6 +476,68 @@ completion order. To iterate even faster:
 All generated packs, dense caches, and reports belong under ignored
 `artifacts/`. Commit only the deterministic ML eval spec/fingerprints and the
 small scripts/docs that make this product-side flow reproducible.
+
+### Isolated exact-solve iteration (capture + replay)
+
+Solver-option experiments do not need the full benchmark loop: decode /
+selection / metrics dominate its wall-clock (native pack: ~4,050s CPU of 4,370s
+total), while the exact solve itself is ~325s. `replay_exact_solve_experiments`
+captures the solver inputs once and then scores any `ExactSolveOptions`
+configuration against ground truth in solve time only (~75s per config on the
+native pack at `--threads 4`, vs ~20 min for the full benchmark).
+
+```bash
+# 1. Capture ExactSolveInput fixtures (once per decode/selection change; no
+#    solves run, so this is a fast pass). Gate-passing samples land in right/.
+cargo run --release -p oristudio-cp-detect --bin compare_exact_solve_benchmark -- \
+  --dense-manifest "$ABS/dense-cache/native-cp-v1-pytorch-mps-v3-tess15-weighted/manifest.json" \
+  --candidate-source junction-first-v1 \
+  --skip-exact-solve \
+  --dump-exact-inputs /tmp/exact-inputs \
+  --out /tmp/exact-inputs-report
+
+# 2. Baseline replay with production defaults.
+cargo run --release -p oristudio-cp-detect --bin replay_exact_solve_experiments -- \
+  --inputs /tmp/exact-inputs/right \
+  --manifest "$ABS/dense-cache/native-cp-v1-pytorch-mps-v3-tess15-weighted/manifest.json" \
+  --out /tmp/replay-baseline.jsonl
+
+# 3. Iterate: override solver options, diff per-sample outcome flips vs baseline.
+cargo run --release -p oristudio-cp-detect --bin replay_exact_solve_experiments -- \
+  --inputs /tmp/exact-inputs/right \
+  --manifest "$ABS/dense-cache/native-cp-v1-pytorch-mps-v3-tess15-weighted/manifest.json" \
+  --movement-sigma 0.004 --compare /tmp/replay-baseline.jsonl --out /tmp/replay-candidate.jsonl
+```
+
+The summary line reports `recovered` (solve accepted AND the solved fold
+reproduces GT topology+assignment at `--strict-px`, default 2px — the same
+honest metric as the benchmark's `solve_recovered_original`), `accepted_wrong`
+(solver converged to a valid-but-not-GT solution), and `not_accepted`
+(timeout / acceptance-gate rejections). `--compare` prints which samples
+flipped bucket, so regressions can't hide inside a net win.
+
+Gotchas baked into the tool, worth knowing anyway:
+
+- **Thread parity**: solves race the wall-clock timeout, so over-subscription
+  flips borderline samples run-to-run. `--threads` defaults to 4, which
+  reproduced the sequential full-benchmark accept/timeout split exactly on the
+  native pack; `--threads 0` = all cores (faster, noisier near the cap).
+- **Absolute manifest paths**: worktrees do not contain the shared dense cache;
+  relative `artifacts/...` paths resolve against the worktree and fail (or
+  worse, hit a different pack).
+- **Same provenance guard as the benchmark**: refuses to run a binary built
+  from another commit (`--allow-stale` to override).
+- The dumped fixtures are decode+selection outputs: re-dump after any change
+  upstream of the solver, and validate a replay winner end-to-end with the full
+  benchmark before shipping (both directions have matched exactly so far).
+
+This flow is how the 2026-07-04 position-prior tightening was found
+(`movement_sigma` 0.012→0.003, `boundary_movement_sigma` 0.004→0.001,
+`max_vertex_movement` 0.050→0.010: native `solve_recovered_original` 94→121,
+accepted-but-wrong 46→17). The committed parity fixtures in
+`crates/oristudio-cp-compiler/tests/fixtures/exact_solve/` remain the CI-side
+guardrail; regenerate goldens after intentional solver changes with
+`UPDATE_GOLDEN=1 cargo test -p oristudio-cp-compiler --test exact_solve_parity -- --include-ignored`.
 
 ## GPU-native dense cache (MPS/CUDA, no browser)
 

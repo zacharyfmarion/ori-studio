@@ -125,13 +125,22 @@ impl Default for ExactSolveOptions {
             xtol: 1e-10,
             gtol: 1e-10,
             finite_difference_epsilon: 1e-6,
-            movement_sigma: 0.012,
-            boundary_movement_sigma: 0.004,
+            // Position-prior sigmas tightened 0.012/0.004 -> 0.003/0.001 and the
+            // movement budget 0.050 -> 0.010 after a native-pack replay sweep
+            // (2026-07-04): the loose priors let LM drift vertices 2-5px off the
+            // detected positions to buy negligible theorem-residual improvements,
+            // converging to a nearby valid-but-wrong CP. Tightened:
+            // solve-recovered 94 -> 121 / 563, accepted-but-wrong 46 -> 17, zero
+            // recovery regressions. 0.003 beat 0.002/0.004 and both flanking
+            // boundary sigmas; the budget change only rejects two large-drift
+            // wrong solutions (movement caps stay far above real recoveries).
+            movement_sigma: 0.003,
+            boundary_movement_sigma: 0.001,
             carrier_angle_sigma_radians: 2.0_f64.to_radians(),
             carrier_rho_sigma: 0.010,
             carrier_incidence_sigma: 0.0008,
             kawasaki_sigma_radians: 0.10_f64.to_radians(),
-            max_vertex_movement: 0.050,
+            max_vertex_movement: 0.010,
             solved_kawasaki_epsilon_degrees: 1e-3,
             solved_carrier_epsilon: 5e-4,
             degenerate_edge_epsilon: 1e-6,
@@ -2207,7 +2216,10 @@ mod tests {
 
     #[test]
     fn polish_tightens_kawasaki_beyond_stage_one() {
-        let input = four_ray_input(Point2::new(0.53, 0.50));
+        // Displacement sits inside the position-prior trust region (~0.003
+        // sigma / 0.010 budget): the solver is tuned to correct detector-scale
+        // noise (a few px), not to chase distant exact configurations.
+        let input = four_ray_input(Point2::new(0.505, 0.50));
         let unpolished = solve_exact(
             &input,
             ExactSolveOptions {
@@ -2440,6 +2452,10 @@ mod tests {
             0.5,
             &input.vertices,
         ));
+        // Noise scaled to the position-prior trust region (sigma 0.003): the
+        // solver corrects detector-scale offsets, it no longer chases vertices
+        // placed far off their detected positions.
+        input.vertices[b].point = Point2::new(0.5, 0.504);
         let solved = solve_exact(&input, ExactSolveOptions::default());
         assert!(
             (solved.vertices_exact[b].y - 0.5).abs() < 0.002,
