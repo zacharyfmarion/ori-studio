@@ -78,6 +78,12 @@ pub struct EdgeDiagnostic {
     pub assignment: EvalAssignment,
     pub boundary_role: EvalBoundaryRole,
     pub mapped_gt_vertices: Option<[usize; 2]>,
+    /// Endpoint coordinates in the owning canonicalized graph (ground truth for
+    /// missing edges, prediction for extra edges). The `vertices` indices refer
+    /// to the canonicalized graph, which callers cannot reconstruct, so the
+    /// coordinates are the only way to locate the edge geometrically.
+    #[serde(default)]
+    pub endpoints: Option<[[f64; 2]; 2]>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -383,16 +389,31 @@ fn match_edges(
     for (pred_index, pred_edge) in predicted.edges.iter().enumerate() {
         let mapped_gt_vertices = mapped_predicted_edge(pred_edge, matching);
         let Some(mapped_vertices) = mapped_gt_vertices else {
-            extra_edges.push(edge_diagnostic(pred_index, pred_edge, None));
+            extra_edges.push(edge_diagnostic(
+                pred_index,
+                pred_edge,
+                &predicted.vertices,
+                None,
+            ));
             continue;
         };
         let key = canonical_edge(mapped_vertices);
         let Some(gt_indices) = gt_by_key.get(&key) else {
-            extra_edges.push(edge_diagnostic(pred_index, pred_edge, Some(key)));
+            extra_edges.push(edge_diagnostic(
+                pred_index,
+                pred_edge,
+                &predicted.vertices,
+                Some(key),
+            ));
             continue;
         };
         let Some(gt_index) = gt_indices.iter().copied().find(|index| !matched_gt[*index]) else {
-            extra_edges.push(edge_diagnostic(pred_index, pred_edge, Some(key)));
+            extra_edges.push(edge_diagnostic(
+                pred_index,
+                pred_edge,
+                &predicted.vertices,
+                Some(key),
+            ));
             continue;
         };
         matched_gt[gt_index] = true;
@@ -420,7 +441,7 @@ fn match_edges(
         .iter()
         .enumerate()
         .filter(|(index, _)| !matched_gt[*index])
-        .map(|(index, edge)| edge_diagnostic(index, edge, None))
+        .map(|(index, edge)| edge_diagnostic(index, edge, &ground_truth.vertices, None))
         .collect::<Vec<_>>();
     let precision = ratio(matched_edges, predicted.edges.len());
     let recall = ratio(matched_edges, ground_truth.edges.len());
@@ -460,14 +481,23 @@ fn mapped_predicted_edge(edge: &EvalEdge, matching: &VertexMatching) -> Option<[
 fn edge_diagnostic(
     edge_index: usize,
     edge: &EvalEdge,
+    owning_vertices: &[EvalPoint],
     mapped_gt_vertices: Option<[usize; 2]>,
 ) -> EdgeDiagnostic {
+    let endpoints = match (
+        owning_vertices.get(edge.vertices[0]),
+        owning_vertices.get(edge.vertices[1]),
+    ) {
+        (Some(a), Some(b)) => Some([[a.x, a.y], [b.x, b.y]]),
+        _ => None,
+    };
     EdgeDiagnostic {
         edge_index,
         vertices: edge.vertices,
         assignment: edge.assignment,
         boundary_role: edge.boundary_role,
         mapped_gt_vertices: mapped_gt_vertices.map(canonical_edge),
+        endpoints,
     }
 }
 

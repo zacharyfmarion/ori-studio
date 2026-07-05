@@ -56,6 +56,17 @@ pub struct SelectionOptions {
     /// Maximum total-score regression a parity-fixing flip may cost.
     #[serde(default = "default_parity_repair_max_cost")]
     pub parity_repair_max_cost: f64,
+    /// Post-selection completion pass that greedily adds any unselected
+    /// optional span whose score plus local residual relief improves the
+    /// total. The beam only explores the top `max_beam_candidates` candidates,
+    /// so on dense junction-first graphs most true-but-faint spans are never
+    /// considered at all; this pass sweeps the whole pool (see
+    /// `completion_repair_ir_state`).
+    #[serde(default = "default_completion_repair")]
+    pub completion_repair: bool,
+    /// Maximum number of spans the completion pass may add.
+    #[serde(default = "default_completion_repair_budget")]
+    pub completion_repair_budget: usize,
 }
 
 const fn default_parity_repair_budget() -> usize {
@@ -64,6 +75,14 @@ const fn default_parity_repair_budget() -> usize {
 
 const fn default_parity_repair_max_cost() -> f64 {
     0.35
+}
+
+const fn default_completion_repair() -> bool {
+    true
+}
+
+const fn default_completion_repair_budget() -> usize {
+    8192
 }
 
 impl Default for SelectionOptions {
@@ -93,6 +112,8 @@ impl Default for SelectionOptions {
             parity_repair: true,
             parity_repair_budget: default_parity_repair_budget(),
             parity_repair_max_cost: default_parity_repair_max_cost(),
+            completion_repair: default_completion_repair(),
+            completion_repair_budget: default_completion_repair_budget(),
         }
     }
 }
@@ -415,6 +436,7 @@ pub fn select_candidate_graph_beam_from_ir(
         .next()
         .unwrap_or_else(|| score_ir_beam_state(graph, &seed_ids, &options));
     let best = rescue_ir_weak_candidates(graph, best, &conflict_map, &locked_ids, &options);
+    let best = completion_repair_ir_state(graph, best, &conflict_map, &options);
     let best = parity_repair_ir_state(graph, best, &conflict_map, &locked_ids, &options);
     candidate_selection_from_ir_state(graph, &best, &options)
 }
@@ -969,6 +991,330 @@ fn rescue_ir_weak_candidates(
     best
 }
 
+/// Post-selection completion pass over the entire optional pool.
+///
+/// The beam only explores the top `max_beam_candidates` (56) candidates by
+/// seed-relative priority, and the weak rescue only considers legacy
+/// low-threshold spans (which junction-first graphs never produce). On dense
+/// junction-first graphs with hundreds to tens of thousands of candidates,
+/// most true-but-faint spans are therefore never *considered* by selection at
+/// all: the 2026-07-05 oracle missing-edge census measured 63-69% of all
+/// missing GT edges as proposed-then-dropped, the bulk of them in no conflict
+/// with anything selected.
+///
+/// This pass greedily adds unselected optional spans whose standalone
+/// selection score plus the residual-penalty relief at their endpoints
+/// improves the total score by at least `IR_RESCUE_MIN_IMPROVEMENT`. Two move
+/// shapes are interleaved until neither applies:
+///
+/// - **single moves** via a lazily revalidated max-heap, and
+/// - **pair moves**: two eligible spans sharing an endpoint added atomically.
+///   Missing true edges overwhelmingly come in adjacent pairs/chains (census:
+///   74 of 110 missing components on the medium pure-addition failures are
+///   exactly 2 edges), where adding either edge alone strands an odd/dangling
+///   vertex at the shared endpoint and single-move greedy stalls; the pair
+///   move evaluates the two additions jointly, and longer chains then resolve
+///   inductively (the chain remainder becomes a parity-fixing single move).
+///
+/// Additions are pure (spans in hard conflict with the current selection or
+/// with each other are skipped), so the local delta at the touched endpoint
+/// vertices is exact.
+fn completion_repair_ir_state(
+    graph: &CandidateGraph,
+    best: IrBeamState,
+    conflict_map: &BTreeMap<usize, BTreeSet<usize>>,
+    options: &SelectionOptions,
+) -> IrBeamState {
+    if !options.completion_repair {
+        return best;
+    }
+    let mut selected = best.selected_span_ids.clone();
+    // Incident rays per vertex for the current selection (theorem spans only).
+    let mut incident = BTreeMap::<usize, Vec<IrIncidentRay>>::new();
+    for span_id in &selected {
+        if let Some(span) = graph.crease_candidates.get(*span_id) {
+            push_incident_rays(graph, span, &mut incident);
+        }
+    }
+    // Score + penalty delta of adding `span`, with `pending` treated as
+    // already selected (pending = the partner span of a pair move).
+    let delta_for = |span: &CandidateCreaseSpan,
+                     incident: &BTreeMap<usize, Vec<IrIncidentRay>>,
+                     pending: Option<&CandidateCreaseSpan>|
+     -> f64 {
+        let mut delta = span.selection_score(graph);
+        if !span_counts_for_local_theorems(span) {
+            return delta;
+        }
+        for (endpoint, other) in [
+            (span.vertices[0], span.vertices[1]),
+            (span.vertices[1], span.vertices[0]),
+        ] {
+            let (Some(vertex), Some(other_vertex)) =
+                (graph.vertices.get(endpoint), graph.vertices.get(other))
+            else {
+                continue;
+            };
+            if !ir_vertex_is_interior_fold_vertex(vertex) {
+                continue;
+            }
+            let mut rays = incident.get(&endpoint).cloned().unwrap_or_default();
+            if let Some(pending) = pending
+                && span_counts_for_local_theorems(pending)
+            {
+                let pending_other = if pending.vertices[0] == endpoint {
+                    Some(pending.vertices[1])
+                } else if pending.vertices[1] == endpoint {
+                    Some(pending.vertices[0])
+                } else {
+                    None
+                };
+                if let Some(target) = pending_other.and_then(|id| graph.vertices.get(id)) {
+                    rays.push(IrIncidentRay {
+                        angle_degrees: angle_degrees(vertex.point, target.point),
+                        assignment: pending.assignment_label(),
+                    });
+                }
+            }
+            let before = ir_vertex_penalty(&mut rays, options);
+            rays.push(IrIncidentRay {
+                angle_degrees: angle_degrees(vertex.point, other_vertex.point),
+                assignment: span.assignment_label(),
+            });
+            let after = ir_vertex_penalty(&mut rays, options);
+            delta += before - after;
+        }
+        delta
+    };
+
+    let eligible = |span: &CandidateCreaseSpan, selected: &BTreeSet<usize>| -> bool {
+        !selected.contains(&span.id)
+            && !matches!(
+                span.selection_policy,
+                CandidateSelectionPolicy::Locked | CandidateSelectionPolicy::Discouraged
+            )
+            && conflict_map
+                .get(&span.id)
+                .is_none_or(|conflicts| conflicts.is_disjoint(selected))
+    };
+
+    #[derive(PartialEq)]
+    struct HeapEntry {
+        delta: f64,
+        span_id: usize,
+    }
+    impl Eq for HeapEntry {}
+    impl PartialOrd for HeapEntry {
+        fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+            Some(self.cmp(other))
+        }
+    }
+    impl Ord for HeapEntry {
+        fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+            self.delta
+                .total_cmp(&other.delta)
+                .then_with(|| other.span_id.cmp(&self.span_id))
+        }
+    }
+
+    // Vertex -> candidate span ids, to refresh only the deltas an addition can
+    // actually change (rays only change at the added span's two endpoints).
+    let mut by_vertex = BTreeMap::<usize, Vec<usize>>::new();
+    let mut heap = std::collections::BinaryHeap::new();
+    for span in &graph.crease_candidates {
+        if !eligible(span, &selected) {
+            continue;
+        }
+        let delta = delta_for(span, &incident, None);
+        heap.push(HeapEntry {
+            delta,
+            span_id: span.id,
+        });
+        by_vertex.entry(span.vertices[0]).or_default().push(span.id);
+        by_vertex.entry(span.vertices[1]).or_default().push(span.id);
+    }
+
+    let mut additions = 0usize;
+    // Lazy revalidation can re-push entries; bound total pops for safety.
+    let mut pops = 0usize;
+    let pop_budget = graph.crease_candidates.len().saturating_mul(8) + 1024;
+    // Vertices whose penalties changed since the last pair scan; the first
+    // scan covers everything.
+    let mut pair_scan_vertices: Option<BTreeSet<usize>> = None;
+    let mut pair_dirty = BTreeSet::<usize>::new();
+
+    'outer: while additions < options.completion_repair_budget {
+        // Phase 1: exhaust single moves.
+        while additions < options.completion_repair_budget && pops < pop_budget {
+            let Some(entry) = heap.pop() else {
+                break;
+            };
+            pops += 1;
+            if entry.delta < IR_RESCUE_MIN_IMPROVEMENT {
+                break;
+            }
+            let Some(span) = graph.crease_candidates.get(entry.span_id) else {
+                continue;
+            };
+            if !eligible(span, &selected) {
+                continue;
+            }
+            let fresh = delta_for(span, &incident, None);
+            if fresh < entry.delta - 1e-9 {
+                // Stale (a neighbor addition changed the local penalties);
+                // re-queue with the fresh value so the true maximum pops first.
+                if fresh >= IR_RESCUE_MIN_IMPROVEMENT {
+                    heap.push(HeapEntry {
+                        delta: fresh,
+                        span_id: entry.span_id,
+                    });
+                }
+                continue;
+            }
+            selected.insert(span.id);
+            push_incident_rays(graph, span, &mut incident);
+            additions += 1;
+            // Refresh candidates whose local penalties this addition changed:
+            // deltas elsewhere are unaffected, so entries can only go stale at
+            // the two touched endpoints (stale-high entries are lazily
+            // revalidated on pop; stale-low ones would be missed without this
+            // re-push).
+            for endpoint in span.vertices {
+                pair_dirty.insert(endpoint);
+                let Some(candidates) = by_vertex.get(&endpoint) else {
+                    continue;
+                };
+                for candidate_id in candidates {
+                    let Some(candidate) = graph.crease_candidates.get(*candidate_id) else {
+                        continue;
+                    };
+                    if !eligible(candidate, &selected) {
+                        continue;
+                    }
+                    let delta = delta_for(candidate, &incident, None);
+                    if delta >= IR_RESCUE_MIN_IMPROVEMENT {
+                        heap.push(HeapEntry {
+                            delta,
+                            span_id: *candidate_id,
+                        });
+                    }
+                }
+            }
+        }
+        if additions >= options.completion_repair_budget || pops >= pop_budget {
+            break;
+        }
+
+        // Phase 2: best pair move over the (dirty) scan region.
+        let scan: Vec<usize> = match pair_scan_vertices.take() {
+            None => by_vertex.keys().copied().collect(),
+            Some(_) => std::mem::take(&mut pair_dirty).into_iter().collect(),
+        };
+        pair_scan_vertices = Some(BTreeSet::new());
+        let mut best_pair: Option<(f64, usize, usize)> = None;
+        for vertex in scan {
+            let Some(candidates) = by_vertex.get(&vertex) else {
+                continue;
+            };
+            for first_id in candidates {
+                let Some(first) = graph.crease_candidates.get(*first_id) else {
+                    continue;
+                };
+                if !eligible(first, &selected) {
+                    continue;
+                }
+                let first_delta = delta_for(first, &incident, None);
+                for endpoint in first.vertices {
+                    let Some(partners) = by_vertex.get(&endpoint) else {
+                        continue;
+                    };
+                    for second_id in partners {
+                        if second_id == first_id {
+                            continue;
+                        }
+                        let Some(second) = graph.crease_candidates.get(*second_id) else {
+                            continue;
+                        };
+                        if !eligible(second, &selected)
+                            || conflict_map
+                                .get(first_id)
+                                .is_some_and(|conflicts| conflicts.contains(second_id))
+                        {
+                            continue;
+                        }
+                        let combined = first_delta + delta_for(second, &incident, Some(first));
+                        if combined >= IR_RESCUE_MIN_IMPROVEMENT
+                            && best_pair.is_none_or(|(best_delta, _, _)| combined > best_delta)
+                        {
+                            best_pair = Some((combined, *first_id, *second_id));
+                        }
+                    }
+                }
+            }
+        }
+        let Some((_, first_id, second_id)) = best_pair else {
+            break 'outer;
+        };
+        for span_id in [first_id, second_id] {
+            let Some(span) = graph.crease_candidates.get(span_id) else {
+                continue;
+            };
+            selected.insert(span.id);
+            push_incident_rays(graph, span, &mut incident);
+            additions += 1;
+            for endpoint in span.vertices {
+                pair_dirty.insert(endpoint);
+                let Some(candidates) = by_vertex.get(&endpoint) else {
+                    continue;
+                };
+                for candidate_id in candidates {
+                    let Some(candidate) = graph.crease_candidates.get(*candidate_id) else {
+                        continue;
+                    };
+                    if !eligible(candidate, &selected) {
+                        continue;
+                    }
+                    let delta = delta_for(candidate, &incident, None);
+                    if delta >= IR_RESCUE_MIN_IMPROVEMENT {
+                        heap.push(HeapEntry {
+                            delta,
+                            span_id: *candidate_id,
+                        });
+                    }
+                }
+            }
+        }
+    }
+    if additions == 0 {
+        return best;
+    }
+    score_ir_beam_state(graph, &selected, options)
+}
+
+/// Add `span`'s two incident rays to the per-vertex map (no-op for spans that
+/// do not count toward local fold theorems).
+fn push_incident_rays(
+    graph: &CandidateGraph,
+    span: &CandidateCreaseSpan,
+    incident: &mut BTreeMap<usize, Vec<IrIncidentRay>>,
+) {
+    if !span_counts_for_local_theorems(span) {
+        return;
+    }
+    let [a, b] = span.vertices;
+    let (Some(vertex_a), Some(vertex_b)) = (graph.vertices.get(a), graph.vertices.get(b)) else {
+        return;
+    };
+    incident.entry(a).or_default().push(IrIncidentRay {
+        angle_degrees: angle_degrees(vertex_a.point, vertex_b.point),
+        assignment: span.assignment_label(),
+    });
+    incident.entry(b).or_default().push(IrIncidentRay {
+        angle_degrees: angle_degrees(vertex_b.point, vertex_a.point),
+        assignment: span.assignment_label(),
+    });
+}
+
 fn ir_selected_with_candidate(
     graph: &CandidateGraph,
     selected_span_ids: &BTreeSet<usize>,
@@ -1063,24 +1409,7 @@ fn ir_state_residuals(
         let Some(span) = graph.crease_candidates.get(*span_id) else {
             continue;
         };
-        if !span_counts_for_local_theorems(span) {
-            continue;
-        }
-        let [a, b] = span.vertices;
-        let Some(vertex_a) = graph.vertices.get(a) else {
-            continue;
-        };
-        let Some(vertex_b) = graph.vertices.get(b) else {
-            continue;
-        };
-        incident.entry(a).or_default().push(IrIncidentRay {
-            angle_degrees: angle_degrees(vertex_a.point, vertex_b.point),
-            assignment: span.assignment_label(),
-        });
-        incident.entry(b).or_default().push(IrIncidentRay {
-            angle_degrees: angle_degrees(vertex_b.point, vertex_a.point),
-            assignment: span.assignment_label(),
-        });
+        push_incident_rays(graph, span, &mut incident);
     }
 
     let mut residuals = IrStateResiduals::default();
@@ -1092,40 +1421,60 @@ fn ir_state_residuals(
             continue;
         }
         rays.sort_by(|left, right| left.angle_degrees.total_cmp(&right.angle_degrees));
-        let degree = rays.len();
-        if degree == 0 {
-            continue;
-        }
-        if degree % 2 == 1 {
-            residuals.odd_degree_vertices += 1;
-            residuals.topology_penalty += options.odd_degree_bonus;
-        }
-        if degree == 1 {
-            residuals.dangling_interior_vertices += 1;
-            residuals.topology_penalty += options.odd_degree_bonus * 1.25;
-        } else if degree == 2 && !degree_two_is_collinear(&rays) {
-            residuals.non_collinear_degree_two_vertices += 1;
-            residuals.topology_penalty += options.non_collinear_degree_two_cost;
-        }
-        if let Some(kawasaki) = kawasaki_residual_degrees(&rays) {
-            let normalized = (kawasaki / 12.0).min(3.0);
-            residuals.local_theorem_penalty +=
-                normalized * normalized * options.exact_hard_kawasaki_cost;
-            if kawasaki > 12.0 {
-                residuals.hard_kawasaki_vertices += 1;
-            }
-        }
-        if degree >= 4 {
-            let (maekawa_cost, ambiguous) = maekawa_cost(&rays, options);
-            residuals.local_theorem_penalty += maekawa_cost;
-            if maekawa_cost > 0.0 && !ambiguous {
-                residuals.maekawa_impossible_vertices += 1;
-            } else if ambiguous {
-                residuals.maekawa_ambiguous_vertices += 1;
-            }
-        }
+        accumulate_ir_vertex_residuals(&rays, options, &mut residuals);
     }
     residuals
+}
+
+/// Residual contribution of one interior fold vertex given its incident rays,
+/// which must already be sorted by angle. Shared by the full-state residual
+/// scan and the completion pass's local delta evaluation so the two can never
+/// disagree.
+fn accumulate_ir_vertex_residuals(
+    rays: &[IrIncidentRay],
+    options: &SelectionOptions,
+    residuals: &mut IrStateResiduals,
+) {
+    let degree = rays.len();
+    if degree == 0 {
+        return;
+    }
+    if degree % 2 == 1 {
+        residuals.odd_degree_vertices += 1;
+        residuals.topology_penalty += options.odd_degree_bonus;
+    }
+    if degree == 1 {
+        residuals.dangling_interior_vertices += 1;
+        residuals.topology_penalty += options.odd_degree_bonus * 1.25;
+    } else if degree == 2 && !degree_two_is_collinear(rays) {
+        residuals.non_collinear_degree_two_vertices += 1;
+        residuals.topology_penalty += options.non_collinear_degree_two_cost;
+    }
+    if let Some(kawasaki) = kawasaki_residual_degrees(rays) {
+        let normalized = (kawasaki / 12.0).min(3.0);
+        residuals.local_theorem_penalty +=
+            normalized * normalized * options.exact_hard_kawasaki_cost;
+        if kawasaki > 12.0 {
+            residuals.hard_kawasaki_vertices += 1;
+        }
+    }
+    if degree >= 4 {
+        let (maekawa_cost, ambiguous) = maekawa_cost(rays, options);
+        residuals.local_theorem_penalty += maekawa_cost;
+        if maekawa_cost > 0.0 && !ambiguous {
+            residuals.maekawa_impossible_vertices += 1;
+        } else if ambiguous {
+            residuals.maekawa_ambiguous_vertices += 1;
+        }
+    }
+}
+
+/// Total penalty of one interior fold vertex; sorts the rays in place.
+fn ir_vertex_penalty(rays: &mut [IrIncidentRay], options: &SelectionOptions) -> f64 {
+    rays.sort_by(|left, right| left.angle_degrees.total_cmp(&right.angle_degrees));
+    let mut residuals = IrStateResiduals::default();
+    accumulate_ir_vertex_residuals(rays, options, &mut residuals);
+    residuals.total_penalty()
 }
 
 fn span_counts_for_local_theorems(span: &CandidateCreaseSpan) -> bool {
@@ -5284,5 +5633,225 @@ mod tests {
             max_beam_candidates: 16,
             ..SelectionOptions::default()
         }
+    }
+
+    fn completion_fixture_spans() -> Vec<CandidateCreaseSpan> {
+        vec![
+            candidate_span_with_evidence(
+                0,
+                [0, 1],
+                CandidateCreaseSpanKind::AtomicInterval,
+                CandidateCreaseSourceKind::ArrangementObserved,
+                CandidateSelectionPolicy::StrongOptional,
+                0.94,
+                0.94,
+                AssignmentLabel::Mountain,
+            ),
+            candidate_span_with_evidence(
+                1,
+                [2, 3],
+                CandidateCreaseSpanKind::AtomicInterval,
+                CandidateCreaseSourceKind::ArrangementObserved,
+                CandidateSelectionPolicy::StrongOptional,
+                0.94,
+                0.94,
+                AssignmentLabel::Valley,
+            ),
+            // Junction-first faint bridge: WeakOptional ArrangementObserved,
+            // standalone score below zero, ineligible for the legacy-only
+            // weak rescue.
+            candidate_span_with_evidence(
+                2,
+                [1, 2],
+                CandidateCreaseSpanKind::ObservedCarrierSpan,
+                CandidateCreaseSourceKind::ArrangementObserved,
+                CandidateSelectionPolicy::WeakOptional,
+                0.50,
+                0.50,
+                AssignmentLabel::Mountain,
+            ),
+        ]
+    }
+
+    fn completion_fixture_points() -> Vec<Point2> {
+        vec![
+            Point2::new(0.0, 0.5),
+            Point2::new(0.33, 0.5),
+            Point2::new(0.66, 0.5),
+            Point2::new(1.0, 0.5),
+        ]
+    }
+
+    fn completion_test_options(completion_repair: bool) -> SelectionOptions {
+        SelectionOptions {
+            beam_width: 8,
+            // Stands in for a dense graph whose top-56 beam prefix never
+            // includes the faint bridge: the beam explores nothing.
+            max_beam_candidates: 0,
+            parity_repair: false,
+            completion_repair,
+            ..SelectionOptions::default()
+        }
+    }
+
+    /// The completion pass must pick up a true-but-faint junction-first span
+    /// no other stage can reach: the beam prefix is exhausted, the weak
+    /// rescue only considers legacy low-threshold spans, and parity repair is
+    /// disabled. The bridge's standalone score is negative, but connecting
+    /// the two dangling interior endpoints relieves more penalty than it
+    /// costs.
+    #[test]
+    fn completion_repair_adds_faint_bridge_beyond_beam_reach() {
+        let graph = || {
+            interior_candidate_graph(
+                completion_fixture_points(),
+                completion_fixture_spans(),
+                Vec::new(),
+            )
+        };
+
+        let without = select_candidate_graph_beam_from_ir(
+            &graph(),
+            completion_test_options(false),
+            ExactProbeOptions::default(),
+        );
+        assert!(
+            !selected_span_ids(&without).contains(&2),
+            "without completion repair the faint bridge is unreachable"
+        );
+
+        let with = select_candidate_graph_beam_from_ir(
+            &graph(),
+            completion_test_options(true),
+            ExactProbeOptions::default(),
+        );
+        assert!(
+            selected_span_ids(&with).contains(&2),
+            "completion repair should add the faint bridge"
+        );
+        assert!(
+            with.report.total_score > without.report.total_score,
+            "completion repair must strictly improve the total score"
+        );
+    }
+
+    /// Missing true edges mostly come in adjacent pairs (census), where adding
+    /// either edge alone strands a dangling vertex at the shared endpoint and
+    /// the single-move greedy stalls. The pair move must add both atomically.
+    #[test]
+    fn completion_repair_adds_adjacent_pair_atomically() {
+        let graph = || {
+            interior_candidate_graph(
+                vec![
+                    Point2::new(0.0, 0.5),
+                    Point2::new(0.25, 0.5),
+                    Point2::new(0.5, 0.5),
+                    Point2::new(0.75, 0.5),
+                    Point2::new(1.0, 0.5),
+                ],
+                vec![
+                    candidate_span_with_evidence(
+                        0,
+                        [0, 1],
+                        CandidateCreaseSpanKind::AtomicInterval,
+                        CandidateCreaseSourceKind::ArrangementObserved,
+                        CandidateSelectionPolicy::StrongOptional,
+                        0.94,
+                        0.94,
+                        AssignmentLabel::Mountain,
+                    ),
+                    candidate_span_with_evidence(
+                        1,
+                        [3, 4],
+                        CandidateCreaseSpanKind::AtomicInterval,
+                        CandidateCreaseSourceKind::ArrangementObserved,
+                        CandidateSelectionPolicy::StrongOptional,
+                        0.94,
+                        0.94,
+                        AssignmentLabel::Valley,
+                    ),
+                    // The two-edge faint chain 1-2-3. Each edge alone has a
+                    // negative delta (its far endpoint relief is cancelled by
+                    // stranding vertex 2); together they clear the bar.
+                    candidate_span_with_evidence(
+                        2,
+                        [1, 2],
+                        CandidateCreaseSpanKind::ObservedCarrierSpan,
+                        CandidateCreaseSourceKind::ArrangementObserved,
+                        CandidateSelectionPolicy::WeakOptional,
+                        0.50,
+                        0.50,
+                        AssignmentLabel::Mountain,
+                    ),
+                    candidate_span_with_evidence(
+                        3,
+                        [2, 3],
+                        CandidateCreaseSpanKind::ObservedCarrierSpan,
+                        CandidateCreaseSourceKind::ArrangementObserved,
+                        CandidateSelectionPolicy::WeakOptional,
+                        0.50,
+                        0.50,
+                        AssignmentLabel::Mountain,
+                    ),
+                ],
+                Vec::new(),
+            )
+        };
+
+        let without = select_candidate_graph_beam_from_ir(
+            &graph(),
+            completion_test_options(false),
+            ExactProbeOptions::default(),
+        );
+        let selected_without = selected_span_ids(&without);
+        assert!(
+            !selected_without.contains(&2) && !selected_without.contains(&3),
+            "without completion repair the faint chain is unreachable"
+        );
+
+        let with = select_candidate_graph_beam_from_ir(
+            &graph(),
+            completion_test_options(true),
+            ExactProbeOptions::default(),
+        );
+        let selected_with = selected_span_ids(&with);
+        assert!(
+            selected_with.contains(&2) && selected_with.contains(&3),
+            "pair move should add both chain edges atomically (got {selected_with:?})"
+        );
+    }
+
+    /// Completion repair must not add a span that hard-conflicts with the
+    /// current selection, no matter how much local penalty it would relieve.
+    #[test]
+    fn completion_repair_skips_hard_conflicted_spans() {
+        let mut graph = interior_candidate_graph(
+            completion_fixture_points(),
+            completion_fixture_spans(),
+            Vec::new(),
+        );
+        graph.conflicts.push(CandidateConflict {
+            id: 0,
+            kind: CandidateConflictKind::SharedCarrierAlternative,
+            candidate_ids: vec![0, 2],
+            hard: true,
+            reason: "test conflict".to_owned(),
+        });
+        graph.alternatives = graph.conflicts.clone();
+
+        let selection = select_candidate_graph_beam_from_ir(
+            &graph,
+            completion_test_options(true),
+            ExactProbeOptions::default(),
+        );
+        let selected = selected_span_ids(&selection);
+        assert!(
+            selected.contains(&0),
+            "seeded strong span must stay selected"
+        );
+        assert!(
+            !selected.contains(&2),
+            "hard-conflicted bridge must not be added by completion repair"
+        );
     }
 }

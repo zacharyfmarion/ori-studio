@@ -5,6 +5,8 @@ mod junction_carrier_v1;
 mod junction_first_v1;
 mod legacy_topology_v2;
 
+pub use junction_first_v1::{OracleSpanProber, SpanGateProbe};
+
 use crate::evidence_extract::CompilerEvidence;
 use crate::evidence_extract::JunctionClusterKeepRule;
 use crate::evidence_extract::JunctionEvidenceSource;
@@ -518,6 +520,22 @@ pub fn generate_junction_first_with_vertex_pixels(
     vertex_pixels: &[[f64; 2]],
 ) -> Result<CandidateGraph, DecodeError> {
     junction_first_v1::generate_candidate_graph_with_vertex_pixels(
+        ctx.outputs,
+        &ctx.config,
+        options,
+        vertex_pixels,
+    )
+}
+
+/// [`generate_junction_first_with_vertex_pixels`] plus an [`OracleSpanProber`]
+/// that can replay the span-proposal gates for arbitrary pixel-space segments
+/// after generation (missing-edge census tooling).
+pub fn generate_junction_first_with_vertex_pixels_probed(
+    ctx: CandidateGenerationContext<'_>,
+    options: JunctionFirstV1StrategyOptions,
+    vertex_pixels: &[[f64; 2]],
+) -> Result<(CandidateGraph, OracleSpanProber), DecodeError> {
+    junction_first_v1::generate_candidate_graph_with_vertex_pixels_probed(
         ctx.outputs,
         &ctx.config,
         options,

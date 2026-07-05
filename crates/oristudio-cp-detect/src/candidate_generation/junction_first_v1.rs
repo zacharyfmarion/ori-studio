@@ -62,6 +62,213 @@ pub fn generate_candidate_graph_with_vertex_pixels(
     ))
 }
 
+/// Same as [`generate_candidate_graph_with_vertex_pixels`] but additionally
+/// returns an [`OracleSpanProber`] holding the evidence and vertex set the
+/// generation used, so callers can afterwards replay the span-proposal gates
+/// for arbitrary pixel-space segments (e.g. ground-truth edges missing from
+/// the selected graph) and record which gate rejected each one.
+pub fn generate_candidate_graph_with_vertex_pixels_probed(
+    outputs: DenseOutputs<'_>,
+    config: &DecodeConfig,
+    options: JunctionFirstV1StrategyOptions,
+    vertex_pixels: &[[f64; 2]],
+) -> Result<(CandidateGraph, OracleSpanProber), DecodeError> {
+    let evidence = extract_evidence(outputs, config, options)?;
+    let points = vertex_pixels
+        .iter()
+        .map(|px| unit_from_px([px[0] as f32, px[1] as f32], config.image_size))
+        .collect::<Vec<_>>();
+    let vertices = vertices_from_unit_points(&points);
+    let graph = graph_from_evidence_with_vertices(&evidence, config, options, vertices);
+    let prober = OracleSpanProber {
+        vertices: graph.vertices.clone(),
+        evidence,
+        image_size: config.image_size,
+        options,
+    };
+    Ok((graph, prober))
+}
+
+/// Replays the `add_adjacent_pair_spans` gate sequence for one candidate span.
+/// All gate inputs are recorded (not just the first failure) so a census can
+/// ask both "why was this rejected" and "how far from passing was it".
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct SpanGateProbe {
+    /// Whether both query endpoints matched a generation vertex (within 1.5px).
+    pub endpoints_matched: bool,
+    pub length_px: f64,
+    /// First failing gate in production order, or "proposed" if the span would
+    /// have been proposed: min_length | border_aligned | preflight | corridor |
+    /// support_mean | support_min | non_crease | proposed.
+    pub stage: String,
+    pub short_bypass: bool,
+    pub preflight_best: f64,
+    pub line_min: f64,
+    pub line_mean: f64,
+    pub line_max: f64,
+    pub non_crease_mean: f64,
+    /// Vertices inside the corridor test window (projection strictly interior,
+    /// perpendicular distance <= corridor).
+    pub corridor_blockers: usize,
+    /// Perpendicular distance (px) of the nearest vertex whose projection falls
+    /// strictly inside the span (whether or not it is within the corridor).
+    pub corridor_min_perp_px: Option<f64>,
+}
+
+pub struct OracleSpanProber {
+    evidence: CompilerEvidence,
+    vertices: Vec<CandidateVertex>,
+    image_size: u32,
+    options: JunctionFirstV1StrategyOptions,
+}
+
+impl OracleSpanProber {
+    pub fn probe_px(&self, a_px: [f64; 2], b_px: [f64; 2]) -> SpanGateProbe {
+        let options = self.options;
+        let scale = unit_scale(self.image_size);
+        let a_query = unit_from_px([a_px[0] as f32, a_px[1] as f32], self.image_size);
+        let b_query = unit_from_px([b_px[0] as f32, b_px[1] as f32], self.image_size);
+        let match_tol = 1.5 / scale;
+        let a_vertex = self.nearest_vertex(a_query, match_tol);
+        let b_vertex = self.nearest_vertex(b_query, match_tol);
+        let endpoints_matched = match (a_vertex, b_vertex) {
+            (Some(a), Some(b)) => a != b,
+            _ => false,
+        };
+        // Probe the snapped vertices when both matched (exactly what the
+        // production loop saw); otherwise fall back to the raw query segment.
+        let (a, b, exclude) = match (a_vertex, b_vertex) {
+            (Some(ai), Some(bi)) if ai != bi => {
+                (self.vertices[ai].point, self.vertices[bi].point, [ai, bi])
+            }
+            _ => (a_query, b_query, [usize::MAX, usize::MAX]),
+        };
+        let length = distance(a, b);
+        let length_px = length * scale;
+        let short =
+            options.short_span_bypass_px > 0.0 && length <= options.short_span_bypass_px / scale;
+
+        let mut stage: Option<&'static str> = None;
+        let fail = |gate: &'static str, stage: &mut Option<&'static str>| {
+            if stage.is_none() {
+                *stage = Some(gate);
+            }
+        };
+        if length < options.min_span_length_px / scale {
+            fail("min_length", &mut stage);
+        }
+        if border_aligned_pair(a, b) {
+            fail("border_aligned", &mut stage);
+        }
+        let preflight_best = self.preflight_best(a, b);
+        if !short && preflight_best < options.preflight_min_line_support {
+            fail("preflight", &mut stage);
+        }
+        let corridor = options.intermediate_corridor_px / scale;
+        let endpoint_margin = options.endpoint_margin_px / scale;
+        let (corridor_blockers, corridor_min_perp) =
+            self.corridor_scan(a, b, exclude, corridor, endpoint_margin);
+        if corridor_blockers > 0 {
+            fail("corridor", &mut stage);
+        }
+        let stats = sample_span_stats(
+            a,
+            b,
+            &self.evidence,
+            self.image_size,
+            carrier_equivalent_options(options),
+        );
+        if !short {
+            if stats.line_mean < options.min_span_line_support {
+                fail("support_mean", &mut stage);
+            } else if stats.line_min < options.min_span_line_min_support
+                && stats.line_mean < options.strong_span_line_support
+            {
+                fail("support_min", &mut stage);
+            }
+            if stats.non_crease_mean > options.max_non_crease_support {
+                fail("non_crease", &mut stage);
+            }
+        }
+        SpanGateProbe {
+            endpoints_matched,
+            length_px,
+            stage: stage.unwrap_or("proposed").to_owned(),
+            short_bypass: short,
+            preflight_best,
+            line_min: stats.line_min,
+            line_mean: stats.line_mean,
+            line_max: stats.line_max,
+            non_crease_mean: stats.non_crease_mean,
+            corridor_blockers,
+            corridor_min_perp_px: corridor_min_perp.map(|value| value * scale),
+        }
+    }
+
+    fn nearest_vertex(&self, point: Point2, tolerance: f64) -> Option<usize> {
+        let mut best: Option<(usize, f64)> = None;
+        for (index, vertex) in self.vertices.iter().enumerate() {
+            let d = distance(vertex.point, point);
+            if d <= tolerance && best.is_none_or(|(_, best_d)| d < best_d) {
+                best = Some((index, d));
+            }
+        }
+        best.map(|(index, _)| index)
+    }
+
+    fn preflight_best(&self, a: Point2, b: Point2) -> f64 {
+        let size = self.image_size as usize;
+        let a_px = px_from_unit(a, self.image_size);
+        let b_px = px_from_unit(b, self.image_size);
+        let mut best = 0.0_f64;
+        for t in [0.25_f32, 0.5, 0.75] {
+            let point = [
+                a_px[0] + (b_px[0] - a_px[0]) * t,
+                a_px[1] + (b_px[1] - a_px[1]) * t,
+            ];
+            if let Some(idx) = pixel_index(point, size) {
+                best = best.max(self.evidence.dense.line_probability[idx] as f64);
+            }
+        }
+        best
+    }
+
+    fn corridor_scan(
+        &self,
+        a: Point2,
+        b: Point2,
+        exclude: [usize; 2],
+        corridor: f64,
+        endpoint_margin: f64,
+    ) -> (usize, Option<f64>) {
+        let length = distance(a, b);
+        let Some(direction) = normalized(Point2::new(b.x - a.x, b.y - a.y)) else {
+            return (0, None);
+        };
+        let t_a = project(a, direction);
+        let mut blockers = 0usize;
+        let mut min_perp: Option<f64> = None;
+        for (id, vertex) in self.vertices.iter().enumerate() {
+            if exclude.contains(&id) {
+                continue;
+            }
+            let t = project(vertex.point, direction) - t_a;
+            if t <= endpoint_margin || t >= length - endpoint_margin {
+                continue;
+            }
+            let on_line = Point2::new(a.x + direction.x * t, a.y + direction.y * t);
+            let perp = distance(vertex.point, on_line);
+            if min_perp.is_none_or(|current| perp < current) {
+                min_perp = Some(perp);
+            }
+            if perp <= corridor {
+                blockers += 1;
+            }
+        }
+        (blockers, min_perp)
+    }
+}
+
 /// Product-faithful refiner junctions: dense-head junction evidence with the
 /// refined vertices merged in *within their regions* (dense junctions outside
 /// the regions are preserved). Mirrors

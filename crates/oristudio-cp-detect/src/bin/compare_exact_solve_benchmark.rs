@@ -16,8 +16,9 @@ use oristudio_cp_compiler::{
 };
 use oristudio_cp_detect::candidate_generation::{
     CandidateGenerationContext, CandidateGenerationOptions, CandidateGenerationStrategyName,
-    generate_candidate_graph, generate_junction_first_with_refined_vertices_in_regions,
-    generate_junction_first_with_vertex_pixels,
+    OracleSpanProber, SpanGateProbe, generate_candidate_graph,
+    generate_junction_first_with_refined_vertices_in_regions,
+    generate_junction_first_with_vertex_pixels, generate_junction_first_with_vertex_pixels_probed,
 };
 use oristudio_cp_detect::decode::{
     DecodeConfig, DenseOutputs, PRODUCT_JUNCTION_OFFSET_CLUSTER_RADIUS_PX, RefinedVertexCacheEntry,
@@ -64,6 +65,8 @@ struct DenseCacheSample {
     family: Option<String>,
     #[serde(default)]
     profile: Option<String>,
+    #[serde(default)]
+    bucket: Option<String>,
     image_size: u32,
     threshold: f32,
     #[serde(default)]
@@ -131,6 +134,7 @@ struct Args {
     junction_cluster_keep_rule: Option<JunctionClusterKeepRule>,
     junction_first_short_span_bypass_px: Option<f64>,
     parity_repair: Option<bool>,
+    completion_repair: Option<bool>,
     dump_folds: bool,
     allow_stale: bool,
     /// Force the dense LM backend for exact solve (A/B vs the sparse default).
@@ -139,6 +143,11 @@ struct Args {
     /// `<dir>/<id>.json` (before the topology gate / solve) for isolated
     /// exact-solve replay benchmarking. Additive; does not affect the sweep.
     dump_exact_inputs: Option<PathBuf>,
+    /// When set, write one row per missing/extra selected-graph edge (vs
+    /// canonicalized GT) to `edge_census.jsonl` in the out dir, with candidate-
+    /// pool attribution and (with --oracle-vertices) a replay of the
+    /// junction-first proposal gates for each missing edge. Additive.
+    dump_edge_census: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -188,6 +197,7 @@ struct BenchmarkSample {
     source_id: Option<String>,
     family: Option<String>,
     profile: Option<String>,
+    bucket: Option<String>,
     gt_edges: usize,
     legacy: OutputMetrics,
     selected: OutputMetrics,
@@ -202,6 +212,50 @@ struct BenchmarkSample {
     attribution: FailureAttribution,
     timing: BenchmarkSampleTiming,
     seconds: f64,
+    /// Missing/extra edge census rows (only populated with --dump-edge-census).
+    /// Written to `edge_census.jsonl` by main, not to `per_sample.jsonl`.
+    #[serde(skip_serializing)]
+    edge_census: Vec<EdgeCensusRow>,
+}
+
+/// One selected-graph topology defect (vs canonicalized GT) with enough context
+/// to attribute it to a pipeline stage and to classify whether the edge is
+/// recoverable from the available line evidence.
+#[derive(Debug, Clone, Serialize)]
+struct EdgeCensusRow {
+    id: String,
+    bucket: Option<String>,
+    /// "missing" (GT edge absent from selection) or "extra" (selected edge with
+    /// no GT match).
+    kind: &'static str,
+    /// Endpoints px in the owning canonicalized graph (GT for missing,
+    /// prediction for extra).
+    a: [f64; 2],
+    b: [f64; 2],
+    length_px: f64,
+    assignment: String,
+    /// Candidate-pool attribution: "not_in_pool" (proposal gates rejected it),
+    /// "dropped" (proposed but beam selection left it out), "selected"
+    /// (selected yet still unmatched — canonicalization/vertex-matching effects).
+    pool: &'static str,
+    pool_policy: Option<String>,
+    pool_line_support_mean: Option<f64>,
+    pool_presence_probability: Option<f64>,
+    /// Hard conflicts the pool span participates in / whether a partner won.
+    pool_hard_conflicts: usize,
+    pool_conflict_partner_selected: bool,
+    /// Gate replay for this segment (oracle-vertices runs only).
+    probe: Option<SpanGateProbe>,
+    /// Distance (px, from the segment midpoint) to the nearest GT segment that
+    /// is near-parallel (<=10 deg) but on a distinct carrier (>0.75px line
+    /// distance): the stroke-blending proxy.
+    nearest_parallel_gt_px: Option<f64>,
+    /// Same, without the angle constraint: local crowding proxy.
+    nearest_other_gt_px: Option<f64>,
+    /// Sample-level context for near-miss banding.
+    sample_missing_edges: usize,
+    sample_extra_edges: usize,
+    gt_edges: usize,
 }
 
 /// Per-sample failure attribution against canonicalized GT. Splits the lost GT
@@ -636,6 +690,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let read_logits_seconds = read_logits_started.elapsed().as_secs_f64();
 
         let legacy_decode_started = Instant::now();
+        let mut span_prober: Option<OracleSpanProber> = None;
         let candidate_graph = match strategy {
             None => {
                 let legacy_program = decode_program(sample, &logits, threshold)?;
@@ -710,11 +765,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     // Perfect-junction oracle: replace decoded junctions with the
                     // exact GT vertices (no merge), keeping line evidence (model
                     // or source-image override) and the rest of junction-first.
-                    generate_junction_first_with_vertex_pixels(
-                        ctx,
-                        generation_options.junction_first_v1,
-                        &gt.vertices_px,
-                    )?
+                    if args.dump_edge_census {
+                        let (graph, prober) = generate_junction_first_with_vertex_pixels_probed(
+                            ctx,
+                            generation_options.junction_first_v1,
+                            &gt.vertices_px,
+                        )?;
+                        span_prober = Some(prober);
+                        graph
+                    } else {
+                        generate_junction_first_with_vertex_pixels(
+                            ctx,
+                            generation_options.junction_first_v1,
+                            &gt.vertices_px,
+                        )?
+                    }
                 } else if let Some(refined) = args
                     .refined_vertices
                     .as_ref()
@@ -749,6 +814,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut selection_options = SelectionOptions::default();
         if let Some(parity_repair) = args.parity_repair {
             selection_options.parity_repair = parity_repair;
+        }
+        if let Some(completion_repair) = args.completion_repair {
+            selection_options.completion_repair = completion_repair;
         }
         let selection = select_candidate_graph_beam_from_ir(
             &candidate_graph,
@@ -801,6 +869,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             sample.image_size,
             args.strict_vertex_tolerance_px,
         );
+        let edge_census = if args.dump_edge_census {
+            edge_census_rows(
+                sample,
+                &selected_topology,
+                &candidate_graph,
+                &selected_span_set,
+                &gt_segments,
+                span_prober.as_ref(),
+            )
+        } else {
+            Vec::new()
+        };
         // Gate the solve on STRUCTURAL topology recovery at a (typically looser)
         // gate tolerance: all GT junctions present and edges correct, allowing the
         // small position error the solver can fix. A candidate with genuinely
@@ -981,6 +1061,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             source_id: sample.source_id.clone(),
             family: sample.family.clone(),
             profile: sample.profile.clone(),
+            bucket: sample.bucket.clone(),
             gt_edges: gt_segments.len(),
             legacy,
             selected,
@@ -1006,6 +1087,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 total_seconds: round3(sample_seconds),
             },
             seconds: round3(sample_seconds),
+            edge_census,
         };
 
         eprintln!(
@@ -1109,10 +1191,12 @@ impl Args {
         let mut junction_cluster_keep_rule = None;
         let mut junction_first_short_span_bypass_px = None;
         let mut parity_repair = None;
+        let mut completion_repair = None;
         let mut dump_folds = false;
         let mut allow_stale = false;
         let mut dump_exact_inputs = None;
         let mut dense_exact_solve = false;
+        let mut dump_edge_census = false;
         let mut iter = env::args().skip(1);
         while let Some(arg) = iter.next() {
             match arg.as_str() {
@@ -1220,11 +1304,14 @@ impl Args {
                 }
                 "--parity-repair" => parity_repair = Some(true),
                 "--no-parity-repair" => parity_repair = Some(false),
+                "--completion-repair" => completion_repair = Some(true),
+                "--no-completion-repair" => completion_repair = Some(false),
                 "--dump-folds" => dump_folds = true,
                 "--allow-stale" => allow_stale = true,
                 "--dump-exact-inputs" => {
                     dump_exact_inputs = Some(PathBuf::from(required_value(&mut iter, &arg)?));
                 }
+                "--dump-edge-census" => dump_edge_census = true,
                 "--dense-exact-solve" | "--dense" => dense_exact_solve = true,
                 "--help" | "-h" => {
                     print_usage();
@@ -1287,10 +1374,12 @@ impl Args {
             junction_cluster_keep_rule,
             junction_first_short_span_bypass_px,
             parity_repair,
+            completion_repair,
             dump_folds,
             allow_stale,
             dump_exact_inputs,
             dense_exact_solve,
+            dump_edge_census,
         })
     }
 }
@@ -2343,6 +2432,16 @@ fn write_reports(
         per_sample.push('\n');
     }
     fs::write(out.join("per_sample.jsonl"), per_sample)?;
+    if rows.iter().any(|row| !row.edge_census.is_empty()) {
+        let mut census = String::new();
+        for row in rows {
+            for entry in &row.edge_census {
+                census.push_str(&serde_json::to_string(entry)?);
+                census.push('\n');
+            }
+        }
+        fs::write(out.join("edge_census.jsonl"), census)?;
+    }
     let regressions = regression_lines(rows)?;
     fs::write(out.join("regressions.jsonl"), regressions)?;
     fs::write(out.join("summary.md"), summary_markdown(summary))?;
@@ -2741,6 +2840,161 @@ fn failure_attribution(
     }
 }
 
+/// Build the per-defect census rows for one sample: every missing/extra edge of
+/// the selected graph vs canonicalized GT, with candidate-pool attribution,
+/// GT-context distances, and (oracle runs) a replay of the proposal gates.
+fn edge_census_rows(
+    sample: &DenseCacheSample,
+    selected_topology: &StrictTopologyMetrics,
+    candidate_graph: &CandidateGraph,
+    selected_span_set: &BTreeSet<usize>,
+    gt_segments: &[SegmentPx],
+    prober: Option<&OracleSpanProber>,
+) -> Vec<EdgeCensusRow> {
+    let sample_missing = selected_topology.edges.missing_edges;
+    let sample_extra = selected_topology.edges.extra_edges;
+    let gt_edges = selected_topology.edges.gt_edges;
+    let mut rows = Vec::new();
+    let diagnostics = selected_topology
+        .missing_edges
+        .iter()
+        .map(|diag| ("missing", diag))
+        .chain(
+            selected_topology
+                .extra_edges
+                .iter()
+                .map(|diag| ("extra", diag)),
+        );
+    for (kind, diag) in diagnostics {
+        let Some([a, b]) = diag.endpoints else {
+            continue;
+        };
+        let length_px = point_distance(a, b);
+        let pool_span = find_pool_span(candidate_graph, a, b, sample.image_size, 1.5);
+        let (pool, pool_policy, pool_line_support_mean, pool_presence_probability) = match pool_span
+        {
+            None => ("not_in_pool", None, None, None),
+            Some(span) => (
+                if selected_span_set.contains(&span.id) {
+                    "selected"
+                } else {
+                    "dropped"
+                },
+                Some(format!("{:?}", span.selection_policy)),
+                Some(span.line_support_mean),
+                Some(span.presence_probability),
+            ),
+        };
+        let (pool_hard_conflicts, pool_conflict_partner_selected) = match pool_span {
+            None => (0, false),
+            Some(span) => {
+                let mut hard = 0usize;
+                let mut partner_selected = false;
+                for conflict in &candidate_graph.conflicts {
+                    if !conflict.hard || !conflict.candidate_ids.contains(&span.id) {
+                        continue;
+                    }
+                    hard += 1;
+                    partner_selected |= conflict
+                        .candidate_ids
+                        .iter()
+                        .any(|id| *id != span.id && selected_span_set.contains(id));
+                }
+                (hard, partner_selected)
+            }
+        };
+        let probe = (kind == "missing")
+            .then(|| prober.map(|prober| prober.probe_px(a, b)))
+            .flatten();
+        let (nearest_parallel_gt_px, nearest_other_gt_px) = gt_context_distances(a, b, gt_segments);
+        rows.push(EdgeCensusRow {
+            id: sample.id.clone(),
+            bucket: sample.bucket.clone(),
+            kind,
+            a,
+            b,
+            length_px: round3(length_px),
+            assignment: format!("{:?}", diag.assignment),
+            pool,
+            pool_policy,
+            pool_line_support_mean,
+            pool_presence_probability,
+            pool_hard_conflicts,
+            pool_conflict_partner_selected,
+            probe,
+            nearest_parallel_gt_px: nearest_parallel_gt_px.map(round3),
+            nearest_other_gt_px: nearest_other_gt_px.map(round3),
+            sample_missing_edges: sample_missing,
+            sample_extra_edges: sample_extra,
+            gt_edges,
+        });
+    }
+    rows
+}
+
+/// Find a candidate span whose endpoints coincide with the query segment
+/// (within `tolerance_px`, either orientation).
+fn find_pool_span(
+    candidate_graph: &CandidateGraph,
+    a: [f64; 2],
+    b: [f64; 2],
+    image_size: u32,
+    tolerance_px: f64,
+) -> Option<&oristudio_cp_compiler::candidate_graph::CandidateCreaseSpan> {
+    candidate_graph.crease_candidates.iter().find(|span| {
+        let Some(pa) = candidate_graph.vertices.get(span.vertices[0]) else {
+            return false;
+        };
+        let Some(pb) = candidate_graph.vertices.get(span.vertices[1]) else {
+            return false;
+        };
+        let pa = normalized_to_px(pa.point, image_size);
+        let pb = normalized_to_px(pb.point, image_size);
+        let same = point_distance(pa, a).max(point_distance(pb, b));
+        let flipped = point_distance(pa, b).max(point_distance(pb, a));
+        same.min(flipped) <= tolerance_px
+    })
+}
+
+/// Distances (px, measured from the query midpoint) to the nearest GT segment
+/// on a distinct carrier: near-parallel only (blending proxy) and any-angle
+/// (crowding proxy). Segments whose carrier line passes within 0.75px of the
+/// midpoint on a near-parallel heading are collinear pieces of the same crease
+/// and are excluded from both.
+fn gt_context_distances(
+    a: [f64; 2],
+    b: [f64; 2],
+    gt_segments: &[SegmentPx],
+) -> (Option<f64>, Option<f64>) {
+    const PARALLEL_ANGLE_RADIANS: f64 = 10.0 * std::f64::consts::PI / 180.0;
+    const SAME_CARRIER_PX: f64 = 0.75;
+    let mid = [(a[0] + b[0]) / 2.0, (a[1] + b[1]) / 2.0];
+    let query_angle = (b[1] - a[1]).atan2(b[0] - a[0]);
+    let mut parallel: Option<f64> = None;
+    let mut other: Option<f64> = None;
+    for segment in gt_segments {
+        let seg_angle = (segment.b[1] - segment.a[1]).atan2(segment.b[0] - segment.a[0]);
+        let diff = (query_angle - seg_angle)
+            .abs()
+            .rem_euclid(std::f64::consts::PI);
+        let angle_delta = diff.min(std::f64::consts::PI - diff);
+        let distance = point_segment_distance(mid, segment.a, segment.b);
+        let near_parallel = angle_delta <= PARALLEL_ANGLE_RADIANS;
+        if near_parallel && distance <= SAME_CARRIER_PX {
+            // Collinear continuation of the same crease (including the query
+            // edge itself): same ink, not a blending source.
+            continue;
+        }
+        if distance < other.unwrap_or(f64::INFINITY) {
+            other = Some(distance);
+        }
+        if near_parallel && distance < parallel.unwrap_or(f64::INFINITY) {
+            parallel = Some(distance);
+        }
+    }
+    (parallel, other)
+}
+
 fn assignment_code(label: AssignmentLabel) -> &'static str {
     match label {
         AssignmentLabel::Mountain => "M",
@@ -2845,7 +3099,7 @@ fn round6(value: f64) -> f64 {
 
 fn print_usage() {
     println!(
-        "compare_exact_solve_benchmark --out DIR [--dense-manifest PATH] [--candidate-source legacy] [--line-evidence-source model|source-image] [--junction-evidence-source model|line-arrangement|ground-truth] [--oracle-junction-labels] [--oracle-vertices] [--threshold T] [--junction-peak-threshold T] [--legacy-low-threshold T] [--exact-patience N] [--exact-solve-timeout-seconds S] [--limit N] [--match-tolerance-px PX] [--strict-vertex-tolerance-px PX] [--junction-first-offset-cluster-radius-px PX] [--junction-cluster-keep-rule mass-only|rescue|peak-gate] [--skip-flat-folder] [--skip-exact-solve] [--exact-solve-any-topology] [--oracle-selection] [--allow-stale]"
+        "compare_exact_solve_benchmark --out DIR [--dense-manifest PATH] [--candidate-source legacy] [--line-evidence-source model|source-image] [--junction-evidence-source model|line-arrangement|ground-truth] [--oracle-junction-labels] [--oracle-vertices] [--threshold T] [--junction-peak-threshold T] [--legacy-low-threshold T] [--exact-patience N] [--exact-solve-timeout-seconds S] [--limit N] [--match-tolerance-px PX] [--strict-vertex-tolerance-px PX] [--junction-first-offset-cluster-radius-px PX] [--junction-cluster-keep-rule mass-only|rescue|peak-gate] [--skip-flat-folder] [--skip-exact-solve] [--exact-solve-any-topology] [--oracle-selection] [--dump-edge-census] [--allow-stale]"
     );
     println!(
         "  exact solve is gated on correct topology by default (wrong topology cannot reconstruct the right CP, so it is skipped and marked failed); --exact-solve-any-topology attempts it regardless."
