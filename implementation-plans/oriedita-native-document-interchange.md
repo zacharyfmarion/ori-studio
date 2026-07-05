@@ -113,6 +113,22 @@ multiple movable folded models. Ori Studio's own `.osf` remains the format for
 persisting the app's richer local workspace state, including multiple generated
 folded overlays.
 
+### Current State
+
+Last updated: July 5, 2026.
+
+Implemented and committed checkpoints now cover native `.ori`, `.fold`, `.orh`,
+and `.cp` interchange through Rust, WASM, and the shared web file workflow. The
+app preserves Oriedita editor metadata, restores grid state, active line color,
+supported `canvasModel.mouseMode` tools, folded-model defaults, embedded
+`foldedForm` frames, and `.osf` source identity. Public fixture corpus reporting
+and available Oriedita oracle checks are in place.
+
+The remaining exact-parity implementation checkpoint is the
+Oriedita-compatible affine viewport layer for `creasePatternCamera`. Private
+external corpus validation remains the release gate before claiming arbitrary
+Oriedita compatibility.
+
 Embedded folded geometry belongs to FOLD `file_frames`, usually through
 `foldedForm` frames. Preserve those frame graphs during `.fold` import/export
 even when the editable CP view operates on one active crease-pattern frame.
@@ -139,7 +155,7 @@ even when the editable CP view operates on one active crease-pattern frame.
 | `points` | `PointSave` | `model::point`, `io::ori` | First-class editable data. |
 | `auxLineSegments` | `BaseSave`, auxiliary line service | `model::line`, `io::ori` | First-class editable data kept separate from fold lines. |
 | `gridModel` | `GridModel` | `model::grid`, web viewport/grid state | First-class grid data. |
-| `creasePatternCamera` | `Camera` | preserved metadata, later web viewport restore | Preserved with user-visible status; viewport restoration remains planned. |
+| `creasePatternCamera` | `Camera` | preserved metadata, next affine viewport layer | Preserve exactly, then restore through a composed Oriedita `object2TV` / inverse `TV2object` matrix rather than reducing it to pan/zoom. |
 | `canvasModel` | `CanvasModel` | preserved metadata, active line-color restore, supported mouse tool restore, later input-state restore | Active line color is restored with Oriedita toggle semantics; supported `mouseMode` values restore the matching CP tool; remaining input fields are preserved with user-visible status. |
 | `foldedFigureModel` | `FoldedFigureModel` | preserved metadata, `folding::FoldedFigureModel` defaults | Preserved and used to seed newly generated folded figures; explicit UI controls remain planned. |
 | `applicationModel` | `ApplicationModel` | preserved metadata | Preserve-only unless a field maps to shared app settings. |
@@ -387,7 +403,8 @@ that `.ori` stores Ori Studio-only workspace state.
 Work:
 
 - Map `gridModel` to the existing editable CP grid state.
-- Map `creasePatternCamera` to the CP viewport where coordinate systems align.
+- Map `creasePatternCamera` through an Oriedita-compatible affine viewport layer
+  instead of approximating it as current pan/zoom state.
 - Map useful `canvasModel` fields such as active line color, aux line color,
   selection mode, toggle-line-color state, and input mode defaults.
 - Map `foldedFigureModel` colors to the default model for newly generated folded
@@ -398,17 +415,49 @@ Work:
   not serialize them there.
 - Add user-visible metadata status for preserved-only fields.
 
+Next checkpoint: Oriedita-compatible affine viewport layer.
+
+- Add typed web helpers for Oriedita camera metadata with defaults matching
+  `oriedita.editor.drawing.tools.Camera`.
+- Implement the exact `object2TV` transform and inverse `TV2object` transform:
+  translate by camera position, rotate by camera angle, mirror X when
+  `cameraMirror == -1.0`, apply independent X/Y zoom, then apply display
+  position.
+- Keep the browser's outer responsive pan/zoom as a view transform after the
+  Oriedita camera transform. Do not collapse Oriedita rotation, mirror, or
+  non-uniform zoom into the outer viewport controls.
+- Render the editable crease-pattern layer, grid, points, circles, text,
+  diagnostics, selection affordances, command previews, snap target, and imported
+  folded-form overlays through the same camera-aware model-to-screen helper.
+- Route pointer hit-testing, snapping, drag previews, diagnostic focus, and
+  selection transform handles through the inverse helper so editing coordinates
+  remain Oriedita model coordinates.
+- Define the Oriedita TV-to-SVG normalization explicitly. Default Oriedita saves
+  use `displayPositionX/Y = 350` on the Swing canvas; the local mapping must keep
+  that default centered without changing the saved camera data.
+- Keep unsupported or unmapped `canvasModel` submodes preserved-only until the
+  relevant tool option has a first-class local equivalent.
+
 Validation:
 
 - Rust tests for model parsing and synthesis.
 - Web store tests for viewport, grid, active color, and folded color restoration.
 - Visual tests for restored grid/camera where deterministic.
 - Oracle tests for `.ori` import/export model values.
+- Unit tests for Oriedita camera matrix and inverse matrix against hand-checked
+  `Camera.object2TV` / `Camera.TV2object` cases.
+- CP panel tests proving imported camera rotation, mirror, non-uniform zoom, and
+  display position affect rendering and pointer conversion consistently.
+- Regression tests proving default Oriedita camera metadata renders identically
+  to the current untransformed editable CP view.
 
 Done when:
 
 - Opening an Oriedita `.ori` restores the same Oriedita editor-state fields that
   Oriedita itself applies on open, and preserves the rest for export.
+- Imported Oriedita camera state changes the visible crease pattern and editing
+  hit tests exactly through a shared affine transform, with no hidden lossy
+  conversion into pan/zoom.
 
 ### Phase 7: Native Project Interop Boundaries
 
@@ -480,9 +529,11 @@ Done when:
 - `apps/web/src/store/workspaceStore`: open/save/export routing, source typing,
   dirty state, recent files, restored Oriedita state, folded-form inventory.
 - `apps/web/src/lib`: crease-pattern import typing, native project schema,
-  command capabilities, menu actions, file warnings.
+  command capabilities, menu actions, file warnings, Oriedita camera affine
+  helpers.
 - `apps/web/src/components`: file panel controls, CP grid imported folded-form
-  rendering, metadata/lossy-warning UI.
+  rendering, metadata/lossy-warning UI, affine camera-aware CP viewport
+  rendering and hit testing.
 - `apps/tauri`: native menu and file-dialog filters if desktop menus expose the
   new actions.
 - `tools/oriedita-oracle`: import/export oracle commands and canonical JSON
@@ -521,8 +572,15 @@ Done when:
 - [x] Phase 6: Restore Oriedita grid state and canvas active line color in the
       web UI.
 - [x] Phase 6: Restore supported Oriedita canvas mouse tool state in the web UI.
-- [ ] Phase 6: Restore exact Oriedita camera affine transform and remaining
-      canvas input submodes in the web UI.
+- [ ] Phase 6: Add Oriedita camera affine helper and inverse-matrix tests.
+- [ ] Phase 6: Apply imported Oriedita camera transforms to editable CP
+      rendering.
+- [ ] Phase 6: Route editable CP pointer conversion, snapping, diagnostics, and
+      selection UI through the inverse Oriedita camera transform.
+- [ ] Phase 6: Add camera viewport tests for default, rotated, mirrored, and
+      non-uniformly zoomed Oriedita saves.
+- [ ] Phase 6: Restore remaining canvas input submodes once matching first-class
+      UI state exists.
 - [x] Phase 6: Preserve unsupported editor-state fields with clear status.
 - [x] Phase 7: Update `.osf` source typing and Oriedita metadata preservation.
 - [x] Phase 7: Add export-from-`.osf` tests for `.ori` and `.fold`.
