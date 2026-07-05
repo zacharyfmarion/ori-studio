@@ -573,11 +573,11 @@ Done when:
       web UI.
 - [x] Phase 6: Restore supported Oriedita canvas mouse tool state in the web UI.
 - [x] Phase 6: Add Oriedita camera affine helper and inverse-matrix tests.
-- [ ] Phase 6: Apply imported Oriedita camera transforms to editable CP
+- [x] Phase 6: Apply imported Oriedita camera transforms to editable CP
       rendering.
-- [ ] Phase 6: Route editable CP pointer conversion, snapping, diagnostics, and
+- [x] Phase 6: Route editable CP pointer conversion, snapping, diagnostics, and
       selection UI through the inverse Oriedita camera transform.
-- [ ] Phase 6: Add camera viewport tests for default, rotated, mirrored, and
+- [x] Phase 6: Add camera viewport tests for default, rotated, mirrored, and
       non-uniformly zoomed Oriedita saves.
 - [ ] Phase 6: Restore remaining canvas input submodes once matching first-class
       UI state exists.

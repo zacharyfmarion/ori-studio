@@ -120,7 +120,7 @@ describe('oriedita native metadata', () => {
         'oriedita:orh:oriagarizu_front_color': [1, 2, 3],
       })
     ).toEqual({
-      restored: ['Canvas line color', 'Canvas tool', 'Folded colors', 'Folded model'],
+      restored: ['Camera', 'Canvas line color', 'Canvas tool', 'Folded colors', 'Folded model'],
       preserved: ['Camera', 'Canvas', 'unknownFutureField'],
     });
   });

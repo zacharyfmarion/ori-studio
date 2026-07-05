@@ -117,6 +117,12 @@ import {
   activeMouseModeFromOrieditaMetadata,
 } from '../../lib/orieditaNativeMetadata';
 import {
+  orieditaCameraFromMetadata,
+  orieditaCameraSvgScale,
+  orieditaObjectToSvg,
+  orieditaSvgToObject,
+} from '../../lib/orieditaCamera';
+import {
   axisFromTwoPoints,
   cpSymmetryAxisLine,
   cpSymmetryPresetAxis,
@@ -146,6 +152,8 @@ import {
   nearestOrieditaDrawPointTarget,
   normalizeOrieditaGridSize,
   ORIEDITA_PAPER_BOUNDS,
+  ORIEDITA_PAPER_MAX,
+  ORIEDITA_PAPER_MIN,
   textCoordinate,
   visibleOrieditaGridMetadata,
   type CpModelBounds,
@@ -1608,10 +1616,41 @@ export function CreasePatternPanel() {
     () => activeMouseModeFromOrieditaMetadata(editableCp?.metadata),
     [editableCp?.metadata]
   );
+  const nativeCreasePatternCamera = useMemo(
+    () => orieditaCameraFromMetadata(editableCp?.metadata),
+    [editableCp?.metadata]
+  );
   const cpCanvasRect = editableCp ? CP_EDITABLE_CANVAS_RECT : CP_WORLD_RECT;
   const cpFitRect = editableCp ? CP_EDITABLE_FIT_RECT : CP_WORLD_RECT;
   const cpCanvasViewBox = `${cpCanvasRect.x} ${cpCanvasRect.y} ${cpCanvasRect.width} ${cpCanvasRect.height}`;
   const editableCpBounds = ORIEDITA_PAPER_BOUNDS;
+  const editableModelToSvg = useCallback(
+    (point: Point) =>
+      nativeCreasePatternCamera
+        ? orieditaObjectToSvg(point, nativeCreasePatternCamera)
+        : modelPointToCpSvg(point, editableCpBounds),
+    [editableCpBounds, nativeCreasePatternCamera]
+  );
+  const editableSvgToModel = useCallback(
+    (point: Point) =>
+      nativeCreasePatternCamera
+        ? orieditaSvgToObject(point, nativeCreasePatternCamera)
+        : cpSvgPointToModel(point, editableCpBounds),
+    [editableCpBounds, nativeCreasePatternCamera]
+  );
+  const editableCircleRadiusToSvg = useCallback(
+    (radius: number) => {
+      if (nativeCreasePatternCamera) {
+        return Math.max(1, radius * orieditaCameraSvgScale(nativeCreasePatternCamera).x);
+      }
+      return Math.max(
+        1,
+        (radius / Math.max(editableCpBounds.spanX, editableCpBounds.spanY)) *
+          Math.min(CP_PAPER_RECT.width, CP_PAPER_RECT.height)
+      );
+    },
+    [editableCpBounds, nativeCreasePatternCamera]
+  );
   const editableCpVisibleGrid = useMemo(
     () =>
       editableCp && oristudioCpViewport.gridVisible
@@ -2308,9 +2347,9 @@ export function CreasePatternPanel() {
         x: cpCanvasRect.x + ((event.clientX - bounds.left) / bounds.width) * cpCanvasRect.width,
         y: cpCanvasRect.y + ((event.clientY - bounds.top) / bounds.height) * cpCanvasRect.height,
       };
-      return cpSvgPointToModel(svgPoint, editableCpBounds);
+      return editableSvgToModel(svgPoint);
     },
-    [cpCanvasRect, editableCp, editableCpBounds]
+    [cpCanvasRect, editableCp, editableSvgToModel]
   );
 
   const resolveEditableToolPoint = useCallback(
@@ -3830,7 +3869,7 @@ export function CreasePatternPanel() {
     if (!container || !transform || container.clientWidth <= 0 || container.clientHeight <= 0) {
       return;
     }
-    const svgPoint = modelPointToCpSvg(focusPoint, editableCpBounds);
+    const svgPoint = editableModelToSvg(focusPoint);
     const fitScale = computeFitScale();
     const currentScale = Math.max(zoomPercent / 100, 0.05);
     const focusScale = Math.min(30, Math.max(currentScale, Math.min(3, fitScale * 2)));
@@ -3845,8 +3884,8 @@ export function CreasePatternPanel() {
     activeDiagnosticEntry,
     computeFitScale,
     editableCp,
-    editableCpBounds,
     editableCpHandle,
+    editableModelToSvg,
     zoomPercent,
   ]);
 
@@ -4121,25 +4160,29 @@ export function CreasePatternPanel() {
                       if (event.target === event.currentTarget) clearSelectionOnBackgroundPointerDown(event);
                     }}
                   >
-                    <rect
-                      className="paper-shadow"
-                      x={CP_PAPER_SHADOW_RECT.x}
-                      y={CP_PAPER_SHADOW_RECT.y}
-                      width={CP_PAPER_SHADOW_RECT.width}
-                      height={CP_PAPER_SHADOW_RECT.height}
-                      rx="6"
-                    />
-                    <rect
-                      className={editableCp ? 'paper paper--editable-cp-guide' : 'paper'}
-                      x={CP_PAPER_RECT.x}
-                      y={CP_PAPER_RECT.y}
-                      width={CP_PAPER_RECT.width}
-                      height={CP_PAPER_RECT.height}
-                      onPointerDown={clearSelectionOnBackgroundPointerDown}
-                    />
+                    {!editableCp && (
+                      <>
+                        <rect
+                          className="paper-shadow"
+                          x={CP_PAPER_SHADOW_RECT.x}
+                          y={CP_PAPER_SHADOW_RECT.y}
+                          width={CP_PAPER_SHADOW_RECT.width}
+                          height={CP_PAPER_SHADOW_RECT.height}
+                          rx="6"
+                        />
+                        <rect
+                          className="paper"
+                          x={CP_PAPER_RECT.x}
+                          y={CP_PAPER_RECT.y}
+                          width={CP_PAPER_RECT.width}
+                          height={CP_PAPER_RECT.height}
+                          onPointerDown={clearSelectionOnBackgroundPointerDown}
+                        />
+                      </>
+                    )}
                     {editableCp ? (
                       <EditableCreasePattern
-                        bounds={editableCpBounds}
+                        circleRadiusToSvg={editableCircleRadiusToSvg}
                         clearSelectionOnBackgroundPointerDown={clearSelectionOnBackgroundPointerDown}
                         document={editableCp}
                         generatedFoldedFigures={generatedFoldedFigures}
@@ -4147,6 +4190,7 @@ export function CreasePatternPanel() {
                         gridVisible={oristudioCpViewport.gridVisible}
                         importedFoldedForms={importedFoldedForms}
                         mode={mode}
+                        modelToSvg={editableModelToSvg}
                         symmetryActive={oristudioCpSymmetry.enabled}
                         symmetryAxisLine={visibleCpSymmetryAxisLine}
                         symmetryDraftLine={draftCpSymmetryAxisLine}
@@ -4390,7 +4434,7 @@ export function CreasePatternPanel() {
 interface EditableCreasePatternProps {
   activeDiagnosticId: string | null;
   activeFoldedFigureId: string | null;
-  bounds: CpModelBounds;
+  circleRadiusToSvg: (radius: number) => number;
   clearSelectionOnBackgroundPointerDown: (event: PointerEvent<SVGElement>) => void;
   document: OristudioCpDocumentSnapshot;
   generatedFoldedFigures: OristudioCpFoldedFigureEntry[];
@@ -4398,6 +4442,7 @@ interface EditableCreasePatternProps {
   gridVisible: boolean;
   importedFoldedForms: FoldDocument[];
   mode: 'mvf' | 'agrh';
+  modelToSvg: (point: Point) => Point;
   symmetryActive: boolean;
   symmetryAxisLine: readonly [Point, Point] | null;
   symmetryDraftLine: readonly [Point, Point] | null;
@@ -4434,7 +4479,7 @@ interface EditableCreasePatternProps {
 function EditableCreasePattern({
   activeDiagnosticId,
   activeFoldedFigureId,
-  bounds,
+  circleRadiusToSvg,
   clearSelectionOnBackgroundPointerDown,
   document,
   generatedFoldedFigures,
@@ -4442,6 +4487,7 @@ function EditableCreasePattern({
   gridVisible,
   importedFoldedForms,
   mode,
+  modelToSvg,
   symmetryActive,
   symmetryAxisLine,
   symmetryDraftLine,
@@ -4471,12 +4517,27 @@ function EditableCreasePattern({
   toggleVertex,
   vertices,
 }: EditableCreasePatternProps) {
+  const paperPointList = [
+    { x: ORIEDITA_PAPER_MIN, y: ORIEDITA_PAPER_MIN },
+    { x: ORIEDITA_PAPER_MAX, y: ORIEDITA_PAPER_MIN },
+    { x: ORIEDITA_PAPER_MAX, y: ORIEDITA_PAPER_MAX },
+    { x: ORIEDITA_PAPER_MIN, y: ORIEDITA_PAPER_MAX },
+  ]
+    .map(modelToSvg)
+    .map((point) => `${point.x},${point.y}`)
+    .join(' ');
+
   return (
     <>
+      <polygon
+        className="paper paper--editable-cp-guide"
+        points={paperPointList}
+        onPointerDown={clearSelectionOnBackgroundPointerDown}
+      />
       {gridVisible &&
         gridLines.map((line) => {
-          const a = modelPointToCpSvg(line.a, bounds);
-          const b = modelPointToCpSvg(line.b, bounds);
+          const a = modelToSvg(line.a);
+          const b = modelToSvg(line.b);
           return (
             <line
               key={line.id}
@@ -4490,18 +4551,18 @@ function EditableCreasePattern({
         })}
       {symmetryAxisLine && (
         <SymmetryAxisGuide
-          bounds={bounds}
+          modelToSvg={modelToSvg}
           points={symmetryAxisLine}
           active={symmetryActive}
         />
       )}
       {symmetryDraftLine && (
-        <SymmetryAxisGuide bounds={bounds} points={symmetryDraftLine} draft />
+        <SymmetryAxisGuide modelToSvg={modelToSvg} points={symmetryDraftLine} draft />
       )}
       {document.crease_pattern.line_segments.map((line, index) => {
         const id = index + 1;
-        const a = modelPointToCpSvg(line.a, bounds);
-        const b = modelPointToCpSvg(line.b, bounds);
+        const a = modelToSvg(line.a);
+        const b = modelToSvg(line.b);
         return (
           <g key={id}>
             <line
@@ -4541,8 +4602,8 @@ function EditableCreasePattern({
         );
       })}
       {selectionTransformPreview?.segments.map((segment, index) => {
-        const a = modelPointToCpSvg(segment.a, bounds);
-        const b = modelPointToCpSvg(segment.b, bounds);
+        const a = modelToSvg(segment.a);
+        const b = modelToSvg(segment.b);
         return (
           <line
             key={`selection-transform-preview-${index}-${segment.a.x}-${segment.a.y}-${segment.b.x}-${segment.b.y}`}
@@ -4559,7 +4620,7 @@ function EditableCreasePattern({
       })}
       {document.crease_pattern.points.map((point, index) => {
         const id = index + 1;
-        const svgPoint = modelPointToCpSvg(point, bounds);
+        const svgPoint = modelToSvg(point);
         return (
           <circle
             key={id}
@@ -4581,10 +4642,8 @@ function EditableCreasePattern({
       })}
       {document.crease_pattern.circles.map((circle, index) => {
         const id = index + 1;
-        const center = modelPointToCpSvg({ x: circle.x, y: circle.y }, bounds);
-        const radius =
-          (circle.r / Math.max(bounds.spanX, bounds.spanY)) *
-          Math.min(CP_PAPER_RECT.width, CP_PAPER_RECT.height);
+        const center = modelToSvg({ x: circle.x, y: circle.y });
+        const radius = circleRadiusToSvg(circle.r);
         return (
           <circle
             key={id}
@@ -4605,10 +4664,8 @@ function EditableCreasePattern({
         );
       })}
       {commandPreviewCircles.map((circle, index) => {
-        const center = modelPointToCpSvg({ x: circle.x, y: circle.y }, bounds);
-        const radius =
-          (circle.r / Math.max(bounds.spanX, bounds.spanY)) *
-          Math.min(CP_PAPER_RECT.width, CP_PAPER_RECT.height);
+        const center = modelToSvg({ x: circle.x, y: circle.y });
+        const radius = circleRadiusToSvg(circle.r);
         return (
           <circle
             key={`${index}-${circle.x}-${circle.y}-${circle.r}`}
@@ -4622,14 +4679,14 @@ function EditableCreasePattern({
       {commandPreviewBoxes.map((box, index) => (
         <SelectionBoxPreview
           key={`${index}-${box[0].x}-${box[0].y}`}
-          bounds={bounds}
+          modelToSvg={modelToSvg}
           points={box}
         />
       ))}
       {diagnostics.flatMap((diagnostic) =>
         (diagnostic.segments ?? []).map((segment, index) => {
-          const a = modelPointToCpSvg(segment.a, bounds);
-          const b = modelPointToCpSvg(segment.b, bounds);
+          const a = modelToSvg(segment.a);
+          const b = modelToSvg(segment.b);
           const active = diagnostic.id === activeDiagnosticId;
           return (
             <line
@@ -4656,10 +4713,7 @@ function EditableCreasePattern({
       )}
       {document.crease_pattern.texts.map((text, index) => {
         const id = index + 1;
-        const position = modelPointToCpSvg(
-          { x: textCoordinate(text.x), y: textCoordinate(text.y) },
-          bounds
-        );
+        const position = modelToSvg({ x: textCoordinate(text.x), y: textCoordinate(text.y) });
         return (
           <text
             key={id}
@@ -4689,7 +4743,7 @@ function EditableCreasePattern({
         startIndex={generatedFoldedFigures.filter(isRenderableGeneratedFoldedFigure).length}
       />
       {vertices.map((vertex) => {
-        const svgPoint = modelPointToCpSvg(vertex.point, bounds);
+        const svgPoint = modelToSvg(vertex.point);
         const selected = selection.vertices?.includes(vertex.id) ?? false;
         return (
           <g
@@ -4721,7 +4775,7 @@ function EditableCreasePattern({
       {diagnostics
         .filter((diagnostic) => diagnostic.point)
         .map((diagnostic) => {
-          const point = modelPointToCpSvg(diagnostic.point as Point, bounds);
+          const point = modelToSvg(diagnostic.point as Point);
           const active = diagnostic.id === activeDiagnosticId;
           return (
             <g
@@ -4762,14 +4816,14 @@ function EditableCreasePattern({
         <polygon
           className="cp-operation-frame"
           points={document.operation_frame.points
-            .map((point) => modelPointToCpSvg(point, bounds))
+            .map(modelToSvg)
             .map((point) => `${point.x},${point.y}`)
           .join(' ')}
         />
       )}
       {commandPreviewSegments.map((segment, index) => {
-        const a = modelPointToCpSvg(segment.a, bounds);
-        const b = modelPointToCpSvg(segment.b, bounds);
+        const a = modelToSvg(segment.a);
+        const b = modelToSvg(segment.b);
         return (
           <line
             key={`${index}-${segment.a.x}-${segment.a.y}-${segment.b.x}-${segment.b.y}`}
@@ -4788,13 +4842,13 @@ function EditableCreasePattern({
         <polyline
           className="cp-command-preview"
           points={commandPreviewPoints
-            .map((point) => modelPointToCpSvg(point, bounds))
+            .map(modelToSvg)
             .map((point) => `${point.x},${point.y}`)
             .join(' ')}
         />
       )}
       {commandCandidatePoints.map((point, index) => {
-        const svgPoint = modelPointToCpSvg(point, bounds);
+        const svgPoint = modelToSvg(point);
         return (
           <circle
             key={`${index}-${point.x}-${point.y}`}
@@ -4807,7 +4861,7 @@ function EditableCreasePattern({
       })}
       {selectionTransformFrame && (
         <SelectionTransformBox
-          bounds={bounds}
+          modelToSvg={modelToSvg}
           selectionFrame={selectionTransformFrame}
           uiScale={selectionTransformUiScale}
           onMovePointerDown={onSelectionMovePointerDown}
@@ -4819,17 +4873,14 @@ function EditableCreasePattern({
       {snapTarget && (
         <circle
           className="cp-snap-target"
-          cx={modelPointToCpSvg(snapTarget.point, bounds).x}
-          cy={modelPointToCpSvg(snapTarget.point, bounds).y}
+          cx={modelToSvg(snapTarget.point).x}
+          cy={modelToSvg(snapTarget.point).y}
           r="5"
         />
       )}
-      <rect
+      <polygon
         className="paper-border"
-        x={CP_PAPER_RECT.x}
-        y={CP_PAPER_RECT.y}
-        width={CP_PAPER_RECT.width}
-        height={CP_PAPER_RECT.height}
+        points={paperPointList}
         onPointerDown={clearSelectionOnBackgroundPointerDown}
       />
     </>
@@ -5408,7 +5459,7 @@ function rgbaColorCss(color: OristudioCpRgbaColor): string {
 }
 
 function SelectionTransformBox({
-  bounds,
+  modelToSvg,
   selectionFrame,
   uiScale,
   onMovePointerDown,
@@ -5416,7 +5467,7 @@ function SelectionTransformBox({
   onRotatePointerDown,
   onTransform,
 }: {
-  bounds: CpModelBounds;
+  modelToSvg: (point: Point) => Point;
   selectionFrame: CpLineSelectionFrame;
   uiScale: number;
   onMovePointerDown: (event: PointerEvent<Element>) => void;
@@ -5427,21 +5478,15 @@ function SelectionTransformBox({
   onRotatePointerDown: (event: PointerEvent<Element>) => void;
   onTransform: (transform: CpSelectionTransform) => void;
 }) {
-  const center = modelPointToCpSvg(selectionFrame.center, bounds);
-  const axisXEnd = modelPointToCpSvg(
-    {
-      x: selectionFrame.center.x + selectionFrame.axisX.x,
-      y: selectionFrame.center.y + selectionFrame.axisX.y,
-    },
-    bounds
-  );
-  const axisYEnd = modelPointToCpSvg(
-    {
-      x: selectionFrame.center.x + selectionFrame.axisY.x,
-      y: selectionFrame.center.y + selectionFrame.axisY.y,
-    },
-    bounds
-  );
+  const center = modelToSvg(selectionFrame.center);
+  const axisXEnd = modelToSvg({
+    x: selectionFrame.center.x + selectionFrame.axisX.x,
+    y: selectionFrame.center.y + selectionFrame.axisX.y,
+  });
+  const axisYEnd = modelToSvg({
+    x: selectionFrame.center.x + selectionFrame.axisY.x,
+    y: selectionFrame.center.y + selectionFrame.axisY.y,
+  });
   const axisXVector = { x: axisXEnd.x - center.x, y: axisXEnd.y - center.y };
   const axisYVector = { x: axisYEnd.x - center.x, y: axisYEnd.y - center.y };
   const axisXLength = Math.max(1e-9, Math.hypot(axisXVector.x, axisXVector.y));
@@ -5599,14 +5644,14 @@ function SelectionTransformBox({
 }
 
 function SelectionBoxPreview({
-  bounds,
+  modelToSvg,
   points,
 }: {
-  bounds: CpModelBounds;
+  modelToSvg: (point: Point) => Point;
   points: readonly [Point, Point];
 }) {
-  const first = modelPointToCpSvg(points[0], bounds);
-  const second = modelPointToCpSvg(points[1], bounds);
+  const first = modelToSvg(points[0]);
+  const second = modelToSvg(points[1]);
   const x = Math.min(first.x, second.x);
   const y = Math.min(first.y, second.y);
   const width = Math.abs(first.x - second.x);
@@ -5624,18 +5669,18 @@ function SelectionBoxPreview({
 }
 
 function SymmetryAxisGuide({
-  bounds,
+  modelToSvg,
   points,
   active = false,
   draft = false,
 }: {
-  bounds: CpModelBounds;
+  modelToSvg: (point: Point) => Point;
   points: readonly [Point, Point];
   active?: boolean;
   draft?: boolean;
 }) {
-  const a = modelPointToCpSvg(points[0], bounds);
-  const b = modelPointToCpSvg(points[1], bounds);
+  const a = modelToSvg(points[0]);
+  const b = modelToSvg(points[1]);
   return (
     <line
       className={[

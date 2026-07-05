@@ -5,6 +5,7 @@ import type {
   OristudioCpRgbColor,
 } from '../engine/oristudioCpTypes';
 import { cpActionByUpstreamMouseMode } from './oristudioCpActions';
+import { orieditaCameraFromMetadata } from './orieditaCamera';
 
 const DEFAULT_FOLDED_MODEL: OristudioCpFoldedFigureModel = {
   front_color: { red: 255, green: 255, blue: 50 },
@@ -107,6 +108,9 @@ export function orieditaNativeMetadataStatus(
       const restoredLabel = RESTORED_ORI_FIELDS.get(field);
       if (restoredLabel) {
         restored.add(restoredLabel);
+      } else if (field === 'creasePatternCamera') {
+        if (orieditaCameraFromMetadata(metadata)) restored.add('Camera');
+        preserved.add(PRESERVED_ORI_FIELD_LABELS.get(field) ?? field);
       } else if (field === 'canvasModel') {
         if (activeLineColorFromOrieditaMetadata(metadata)) restored.add('Canvas line color');
         const mouseMode = activeMouseModeFromOrieditaMetadata(metadata);

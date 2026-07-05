@@ -19,6 +19,11 @@ import { handleShortcutRuntimeKeyDown } from '../../keyboard/shortcutRuntime';
 import type { ImportedCreasePatternDocument } from '../../lib/creasePatternImport';
 import { generatedCpLineage } from '../../lib/oristudioCpLineage';
 import { createStarterOristudioCpDocument } from '../../lib/oristudioCpStarterDocument';
+import {
+  orieditaCameraSvgScale,
+  orieditaObjectToSvg,
+  type OrieditaCamera,
+} from '../../lib/orieditaCamera';
 import type {
   OristudioCpCommandPayload,
   OristudioCpCommandResult,
@@ -515,6 +520,20 @@ function setCanvasClientRect(container: HTMLElement): SVGSVGElement {
       }) as DOMRect,
   });
   return canvas;
+}
+
+function numericSvgAttribute(element: Element, name: string): number {
+  const value = element.getAttribute(name);
+  if (value === null) throw new Error(`missing SVG attribute ${name}`);
+  return Number.parseFloat(value);
+}
+
+function defaultPaperPolygonPoints(): string {
+  const left = CP_PAPER_RECT.x;
+  const top = CP_PAPER_RECT.y;
+  const right = CP_PAPER_RECT.x + CP_PAPER_RECT.width;
+  const bottom = CP_PAPER_RECT.y + CP_PAPER_RECT.height;
+  return `${left},${top} ${right},${top} ${right},${bottom} ${left},${bottom}`;
 }
 
 function setNumberInputValue(input: HTMLInputElement, value: string) {
@@ -1035,6 +1054,139 @@ describe('CreasePatternPanel', () => {
     );
   });
 
+  it('applies imported Oriedita crease pattern camera metadata to editable CP geometry', () => {
+    const camera: OrieditaCamera = {
+      cameraPositionX: 12,
+      cameraPositionY: -8,
+      cameraAngle: 45,
+      cameraMirror: -1,
+      cameraZoomX: 2.25,
+      cameraZoomY: 0.75,
+      displayPositionX: 390,
+      displayPositionY: 325,
+    };
+    const documentState = editableCpState();
+    documentState.document.metadata = {
+      'oriedita:ori:creasePatternCamera': camera,
+    };
+    documentState.document.crease_pattern.circles[0].r = 20;
+
+    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
+      documentMode: 'crease-pattern',
+      importedCreasePattern: importedCpDocument(),
+      oristudioCpDocument: documentState,
+    });
+
+    const line = container.querySelector<SVGLineElement>('[data-cp-line-id="1"]');
+    const circle = container.querySelector<SVGCircleElement>('.cp-circle');
+    const paperBorder = container.querySelector<SVGPolygonElement>('.paper-border');
+    expect(line).not.toBeNull();
+    expect(circle).not.toBeNull();
+    expect(paperBorder).not.toBeNull();
+
+    const lineStart = orieditaObjectToSvg({ x: 0, y: 0 }, camera);
+    const lineEnd = orieditaObjectToSvg({ x: 1, y: 0 }, camera);
+    expect(numericSvgAttribute(line as SVGLineElement, 'x1')).toBeCloseTo(lineStart.x);
+    expect(numericSvgAttribute(line as SVGLineElement, 'y1')).toBeCloseTo(lineStart.y);
+    expect(numericSvgAttribute(line as SVGLineElement, 'x2')).toBeCloseTo(lineEnd.x);
+    expect(numericSvgAttribute(line as SVGLineElement, 'y2')).toBeCloseTo(lineEnd.y);
+
+    const circleCenter = orieditaObjectToSvg({ x: 0.5, y: 0.5 }, camera);
+    expect(numericSvgAttribute(circle as SVGCircleElement, 'cx')).toBeCloseTo(circleCenter.x);
+    expect(numericSvgAttribute(circle as SVGCircleElement, 'cy')).toBeCloseTo(circleCenter.y);
+    expect(numericSvgAttribute(circle as SVGCircleElement, 'r')).toBeCloseTo(
+      documentState.document.crease_pattern.circles[0].r * orieditaCameraSvgScale(camera).x
+    );
+
+    expect(paperBorder?.getAttribute('points')).toBe(
+      [
+        { x: -200, y: -200 },
+        { x: 200, y: -200 },
+        { x: 200, y: 200 },
+        { x: -200, y: 200 },
+      ]
+        .map((point) => orieditaObjectToSvg(point, camera))
+        .map((point) => `${point.x},${point.y}`)
+        .join(' ')
+    );
+  });
+
+  it('routes editable CP pointer input through the inverse Oriedita camera transform', async () => {
+    const camera: OrieditaCamera = {
+      cameraPositionX: -20,
+      cameraPositionY: 18,
+      cameraAngle: -30,
+      cameraMirror: -1,
+      cameraZoomX: 1.5,
+      cameraZoomY: 2,
+      displayPositionX: 330,
+      displayPositionY: 365,
+    };
+    const documentState = editableCpState();
+    documentState.document.metadata = {
+      'oriedita:ori:creasePatternCamera': camera,
+    };
+    const executeOristudioCpCommand = vi.fn(
+      async (_operationId: string, _payload?: OristudioCpCommandPayload) => true
+    );
+    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
+      documentMode: 'crease-pattern',
+      importedCreasePattern: importedCpDocument(),
+      oristudioCpDocument: documentState,
+      oristudioCpViewport: {
+        gridVisible: false,
+        snapToGrid: false,
+        snapToVertices: false,
+        snapToLines: false,
+      },
+      executeOristudioCpCommand,
+    });
+    const canvas = setCanvasClientRect(container);
+    const firstPoint = { x: 14, y: -11 };
+    const secondPoint = { x: -7.5, y: 23 };
+    const firstSvgPoint = orieditaObjectToSvg(firstPoint, camera);
+    const secondSvgPoint = orieditaObjectToSvg(secondPoint, camera);
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('button[aria-label="Line"]')?.click();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      canvas.dispatchEvent(
+        new MouseEvent('pointerdown', {
+          bubbles: true,
+          button: 0,
+          clientX: firstSvgPoint.x,
+          clientY: firstSvgPoint.y,
+        })
+      );
+      canvas.dispatchEvent(
+        new MouseEvent('pointermove', {
+          bubbles: true,
+          button: 0,
+          clientX: secondSvgPoint.x,
+          clientY: secondSvgPoint.y,
+        })
+      );
+      canvas.dispatchEvent(
+        new MouseEvent('pointerup', {
+          bubbles: true,
+          button: 0,
+          clientX: secondSvgPoint.x,
+          clientY: secondSvgPoint.y,
+        })
+      );
+      await Promise.resolve();
+    });
+
+    const [, payload] = executeOristudioCpCommand.mock.calls[0] ?? [];
+    expect(payload?.points?.[0]?.x).toBeCloseTo(firstPoint.x);
+    expect(payload?.points?.[0]?.y).toBeCloseTo(firstPoint.y);
+    expect(payload?.points?.[1]?.x).toBeCloseTo(secondPoint.x);
+    expect(payload?.points?.[1]?.y).toBeCloseTo(secondPoint.y);
+  });
+
   it('renders preserved embedded folded-form frames in the editable CP grid', () => {
     const imported = {
       ...importedCpDocument(),
@@ -1539,8 +1691,8 @@ describe('CreasePatternPanel', () => {
       `${CP_EDITABLE_CANVAS_RECT.x} ${CP_EDITABLE_CANVAS_RECT.y} ${CP_EDITABLE_CANVAS_RECT.width} ${CP_EDITABLE_CANVAS_RECT.height}`
     );
     expect(Number(canvas?.getAttribute('width'))).toBeGreaterThan(CP_WORLD_RECT.width);
-    const paper = container.querySelector<SVGRectElement>('.paper');
-    expect(paper?.getAttribute('x')).toBe('66');
+    const paper = container.querySelector<SVGPolygonElement>('.paper');
+    expect(paper?.getAttribute('points')).toBe(defaultPaperPolygonPoints());
     expect(paper?.classList.contains('paper--editable-cp-guide')).toBe(true);
 
     act(() => {
@@ -1629,11 +1781,10 @@ describe('CreasePatternPanel', () => {
       oristudioCpDocument: state,
     });
 
-    const paper = container.querySelector<SVGRectElement>('.paper');
+    const paper = container.querySelector<SVGPolygonElement>('.paper');
     const outsideLine = container.querySelector<SVGLineElement>('[data-cp-line-id="3"]');
 
-    expect(paper?.getAttribute('x')).toBe(String(CP_PAPER_RECT.x));
-    expect(paper?.getAttribute('width')).toBe(String(CP_PAPER_RECT.width));
+    expect(paper?.getAttribute('points')).toBe(defaultPaperPolygonPoints());
     expect(Number(outsideLine?.getAttribute('x1'))).toBeLessThan(CP_PAPER_RECT.x);
     expect(Number(outsideLine?.getAttribute('x2'))).toBeLessThan(CP_PAPER_RECT.x);
   });
