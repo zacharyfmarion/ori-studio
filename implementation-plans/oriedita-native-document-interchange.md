@@ -115,7 +115,7 @@ folded overlays.
 
 ### Current State
 
-Last updated: July 5, 2026.
+Last updated: July 6, 2026.
 
 Implemented and committed checkpoints now cover native `.ori`, `.fold`, `.orh`,
 and `.cp` interchange through Rust, WASM, and the shared web file workflow. The
@@ -124,14 +124,20 @@ supported `canvasModel.mouseMode` tools, supported `canvasModel` line-type
 filters, the `creasePatternCamera` affine viewport, folded-model defaults,
 embedded `foldedForm` frames, and `.osf` source identity. Public fixture corpus
 reporting and available Oriedita oracle checks are in place.
+External `origami-designer` corpus validation passed on July 6, 2026 for 30
+available `.cp`, `.fold`, `.ori`, and `.orh` files with the available Oriedita
+native and legacy IO oracles enabled: 25 oracle-checked files, 0 mismatches, and
+1 embedded-`file_frames` FOLD case counted as oracle-unsupported because the
+pinned Java `fold` dependency rejects `file_frames`.
 
 The remaining local canvas restore work is limited to fields that still lack
 matching first-class Ori Studio UI state, such as auxiliary-line insertion color,
 `foldLineAdditionalInputMode`, `mouseModeAfterColorSelection`, folded-figure
 operation mode, mouse-wheel target, cursor, and tool-panel geometry. Those
 fields remain preserved-only until the corresponding product state exists.
-Private external corpus validation remains the release gate before claiming
-arbitrary Oriedita compatibility.
+The available private external corpus gate is now satisfied; compatibility
+claims should continue to name the tested corpus size and should grow as more
+real Oriedita documents become available.
 
 Embedded folded geometry belongs to FOLD `file_frames`, usually through
 `foldedForm` frames. Preserve those frame graphs during `.fold` import/export
@@ -595,5 +601,5 @@ Done when:
 - [x] Phase 8: Extend corpus reporting for native Oriedita document interchange.
 - [x] Phase 8: Run public fixture and available Oriedita oracle corpus
       validation.
-- [ ] Phase 8: Run private external corpus validation before claiming arbitrary
+- [x] Phase 8: Run private external corpus validation before claiming arbitrary
       Oriedita compatibility.

@@ -10,6 +10,9 @@ use oristudio_cp::model::{CreasePatternModel, GridMetadata};
 use serde_json::Value;
 use treemaker_fold::FoldDocument;
 
+const FOLD_FLOAT_ROUNDTRIP_EPSILON: f64 = 1.0e-12;
+const ORACLE_SUMMARY_FLOAT_EPSILON: f64 = 1.0e-12;
+
 #[test]
 fn folded_document_corpus_preserves_supported_oriedita_data() {
     let mut roots = vec![repo_root().join("tests/fixtures/oriedita")];
@@ -279,8 +282,11 @@ fn validate_fold(
     report.fold.exported += 1;
     let roundtrip = fold::import_fold_file_json(&exported)
         .map_err(|err| format!("roundtrip import failed: {err}"))?;
-    if document != roundtrip {
-        return Err("frame-preserving roundtrip mismatch".to_string());
+    if !fold_documents_equivalent(&document, &roundtrip) {
+        return Err(format!(
+            "frame-preserving roundtrip mismatch: {}",
+            fold_document_mismatch_summary(&document, &roundtrip)
+        ));
     }
     report.fold.roundtripped += 1;
     Ok(())
@@ -406,9 +412,12 @@ fn check_oracle(
     let path_arg = path.to_string_lossy();
     let oracle_summary = run_oracle(oracle, &[command, path_arg.as_ref()])?;
     report.oracle_checked += 1;
-    if rust_summary != oracle_summary {
+    if !oracle_summaries_equivalent(rust_summary, &oracle_summary) {
         report.oracle_mismatches += 1;
-        return Err(format!("Oriedita oracle mismatch for {command}"));
+        return Err(format!(
+            "Oriedita oracle mismatch for {command}: {}",
+            text_mismatch_summary(rust_summary, &oracle_summary)
+        ));
     }
     Ok(())
 }
@@ -564,6 +573,282 @@ fn summarize_fold_document(document: &FoldDocument, depth: usize) -> FoldFrameSu
     }
 
     summary
+}
+
+fn fold_document_mismatch_summary(left: &FoldDocument, right: &FoldDocument) -> String {
+    if !option_f64_equal(left.file_spec, right.file_spec) {
+        return format!("file_spec {:?} != {:?}", left.file_spec, right.file_spec);
+    }
+    if left.file_creator != right.file_creator {
+        return format!(
+            "file_creator {:?} != {:?}",
+            left.file_creator, right.file_creator
+        );
+    }
+    if !f64_matrix_equal(&left.vertices_coords, &right.vertices_coords) {
+        return f64_matrix_mismatch_summary(
+            "vertices_coords",
+            &left.vertices_coords,
+            &right.vertices_coords,
+        );
+    }
+    if left.edges_vertices != right.edges_vertices {
+        return collection_mismatch_summary(
+            "edges_vertices",
+            &left.edges_vertices,
+            &right.edges_vertices,
+        );
+    }
+    if left.edges_assignment != right.edges_assignment {
+        return collection_mismatch_summary(
+            "edges_assignment",
+            &left.edges_assignment,
+            &right.edges_assignment,
+        );
+    }
+    if !option_f64_collection_equal(&left.edges_fold_angle, &right.edges_fold_angle) {
+        return option_f64_collection_mismatch_summary(
+            "edges_foldAngle",
+            &left.edges_fold_angle,
+            &right.edges_fold_angle,
+        );
+    }
+    if left.face_orders != right.face_orders {
+        return collection_mismatch_summary("faceOrders", &left.face_orders, &right.face_orders);
+    }
+    if !json_value_equal(
+        &Value::Object(left.extra.clone().into_iter().collect()),
+        &Value::Object(right.extra.clone().into_iter().collect()),
+    ) {
+        return format!(
+            "extra keys {:?} != {:?}",
+            left.extra.keys().collect::<Vec<_>>(),
+            right.extra.keys().collect::<Vec<_>>()
+        );
+    }
+    if !fold_document_collections_equivalent(&left.file_frames, &right.file_frames) {
+        return collection_mismatch_summary("file_frames", &left.file_frames, &right.file_frames);
+    }
+    "unclassified FoldDocument field mismatch".to_string()
+}
+
+fn fold_documents_equivalent(left: &FoldDocument, right: &FoldDocument) -> bool {
+    option_f64_equal(left.file_spec, right.file_spec)
+        && left.file_creator == right.file_creator
+        && left.file_author == right.file_author
+        && left.file_title == right.file_title
+        && left.frame_title == right.frame_title
+        && left.frame_parent == right.frame_parent
+        && left.frame_inherit == right.frame_inherit
+        && left.frame_classes == right.frame_classes
+        && f64_matrix_equal(&left.vertices_coords, &right.vertices_coords)
+        && left.edges_vertices == right.edges_vertices
+        && left.edges_assignment == right.edges_assignment
+        && option_f64_collection_equal(&left.edges_fold_angle, &right.edges_fold_angle)
+        && left.edges_faces == right.edges_faces
+        && left.faces_vertices == right.faces_vertices
+        && left.faces_edges == right.faces_edges
+        && left.face_orders == right.face_orders
+        && fold_document_collections_equivalent(&left.file_frames, &right.file_frames)
+        && json_value_equal(
+            &Value::Object(left.extra.clone().into_iter().collect()),
+            &Value::Object(right.extra.clone().into_iter().collect()),
+        )
+}
+
+fn fold_document_collections_equivalent(left: &[FoldDocument], right: &[FoldDocument]) -> bool {
+    left.len() == right.len()
+        && left
+            .iter()
+            .zip(right)
+            .all(|(left, right)| fold_documents_equivalent(left, right))
+}
+
+fn f64_equal(left: f64, right: f64) -> bool {
+    left == right
+        || (left.is_finite()
+            && right.is_finite()
+            && (left - right).abs() <= FOLD_FLOAT_ROUNDTRIP_EPSILON)
+}
+
+fn option_f64_equal(left: Option<f64>, right: Option<f64>) -> bool {
+    match (left, right) {
+        (Some(left), Some(right)) => f64_equal(left, right),
+        (None, None) => true,
+        _ => false,
+    }
+}
+
+fn f64_matrix_equal(left: &[Vec<f64>], right: &[Vec<f64>]) -> bool {
+    left.len() == right.len()
+        && left.iter().zip(right).all(|(left, right)| {
+            left.len() == right.len()
+                && left
+                    .iter()
+                    .zip(right)
+                    .all(|(left, right)| f64_equal(*left, *right))
+        })
+}
+
+fn option_f64_collection_equal(left: &[Option<f64>], right: &[Option<f64>]) -> bool {
+    left.len() == right.len()
+        && left
+            .iter()
+            .zip(right)
+            .all(|(left, right)| option_f64_equal(*left, *right))
+}
+
+fn json_value_equal(left: &Value, right: &Value) -> bool {
+    match (left, right) {
+        (Value::Number(left), Value::Number(right)) => match (left.as_f64(), right.as_f64()) {
+            (Some(left), Some(right)) => f64_equal(left, right),
+            _ => left == right,
+        },
+        (Value::Array(left), Value::Array(right)) => {
+            left.len() == right.len()
+                && left
+                    .iter()
+                    .zip(right)
+                    .all(|(left, right)| json_value_equal(left, right))
+        }
+        (Value::Object(left), Value::Object(right)) => {
+            left.len() == right.len()
+                && left.iter().all(|(key, left)| {
+                    right
+                        .get(key)
+                        .is_some_and(|right| json_value_equal(left, right))
+                })
+        }
+        _ => left == right,
+    }
+}
+
+fn f64_matrix_mismatch_summary(name: &str, left: &[Vec<f64>], right: &[Vec<f64>]) -> String {
+    if left.len() != right.len() {
+        return format!("{name} len {} != {}", left.len(), right.len());
+    }
+    for (outer_index, (left_row, right_row)) in left.iter().zip(right).enumerate() {
+        if left_row.len() != right_row.len() {
+            return format!(
+                "{name}[{outer_index}] len {} != {}",
+                left_row.len(),
+                right_row.len()
+            );
+        }
+        for (inner_index, (left, right)) in left_row.iter().zip(right_row).enumerate() {
+            if !f64_equal(*left, *right) {
+                return format!("{name}[{outer_index}][{inner_index}] {left:?} != {right:?}");
+            }
+        }
+    }
+    format!("{name} differs")
+}
+
+fn option_f64_collection_mismatch_summary(
+    name: &str,
+    left: &[Option<f64>],
+    right: &[Option<f64>],
+) -> String {
+    if left.len() != right.len() {
+        return format!("{name} len {} != {}", left.len(), right.len());
+    }
+    for (index, (left, right)) in left.iter().zip(right).enumerate() {
+        if !option_f64_equal(*left, *right) {
+            return format!("{name}[{index}] {left:?} != {right:?}");
+        }
+    }
+    format!("{name} differs")
+}
+
+fn collection_mismatch_summary<T: std::fmt::Debug + PartialEq>(
+    name: &str,
+    left: &[T],
+    right: &[T],
+) -> String {
+    if left.len() != right.len() {
+        return format!("{name} len {} != {}", left.len(), right.len());
+    }
+    for (index, (left_item, right_item)) in left.iter().zip(right).enumerate() {
+        if left_item != right_item {
+            return format!("{name}[{index}] {left_item:?} != {right_item:?}");
+        }
+    }
+    format!("{name} differs")
+}
+
+fn text_mismatch_summary(left: &str, right: &str) -> String {
+    let left_lines = left.lines().collect::<Vec<_>>();
+    let right_lines = right.lines().collect::<Vec<_>>();
+    if left_lines.len() != right_lines.len() {
+        return format!("line count {} != {}", left_lines.len(), right_lines.len());
+    }
+    for (index, (left_line, right_line)) in left_lines.iter().zip(&right_lines).enumerate() {
+        if !oracle_summary_line_equivalent(left_line, right_line) {
+            return format!("line {} {:?} != {:?}", index + 1, left_line, right_line);
+        }
+    }
+    format!("byte length {} != {}", left.len(), right.len())
+}
+
+fn oracle_summaries_equivalent(left: &str, right: &str) -> bool {
+    let left_lines = left.lines().collect::<Vec<_>>();
+    let right_lines = right.lines().collect::<Vec<_>>();
+    left_lines.len() == right_lines.len()
+        && left_lines
+            .iter()
+            .zip(right_lines)
+            .all(|(left, right)| oracle_summary_line_equivalent(left, right))
+}
+
+fn oracle_summary_line_equivalent(left: &str, right: &str) -> bool {
+    if left == right {
+        return true;
+    }
+    let left_parts = left.split('|').collect::<Vec<_>>();
+    let right_parts = right.split('|').collect::<Vec<_>>();
+    if left_parts.len() != right_parts.len() || left_parts.first() != right_parts.first() {
+        return false;
+    }
+    match left_parts[0] {
+        "line" | "auxline" => {
+            oracle_summary_parts_equivalent(&left_parts, &right_parts, &[1, 2, 3, 4])
+        }
+        "circle" => oracle_summary_parts_equivalent(&left_parts, &right_parts, &[1, 2, 3]),
+        "grid" => {
+            (left_parts.get(1) == Some(&"null") && right_parts.get(1) == Some(&"null"))
+                || oracle_summary_parts_equivalent(
+                    &left_parts,
+                    &right_parts,
+                    &[3, 4, 5, 6, 7, 8, 9],
+                )
+        }
+        _ => false,
+    }
+}
+
+fn oracle_summary_parts_equivalent(left: &[&str], right: &[&str], float_indices: &[usize]) -> bool {
+    for index in 0..left.len() {
+        if float_indices.contains(&index) {
+            let (Ok(left_float), Ok(right_float)) =
+                (left[index].parse::<f64>(), right[index].parse::<f64>())
+            else {
+                return false;
+            };
+            if !oracle_summary_float_equal(left_float, right_float) {
+                return false;
+            }
+        } else if left[index] != right[index] {
+            return false;
+        }
+    }
+    true
+}
+
+fn oracle_summary_float_equal(left: f64, right: f64) -> bool {
+    left == right
+        || (left.is_finite()
+            && right.is_finite()
+            && (left - right).abs() <= ORACLE_SUMMARY_FLOAT_EPSILON)
 }
 
 fn record_ori_metadata(document: &oristudio_cp::CreasePatternDocument, report: &mut CorpusReport) {

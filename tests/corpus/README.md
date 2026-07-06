@@ -69,6 +69,21 @@ Oriedita folded-document corpus: scanned=4 imported=4 exported=4 roundtripped=4 
   oracle checked=2 mismatches=0 unavailable=0 unsupported=1
 ```
 
+Last external `origami-designer` corpus run on July 6, 2026 with native and
+legacy Oriedita IO oracles enabled:
+
+```text
+Oriedita folded-document corpus: scanned=30 imported=30 exported=30 roundtripped=30 failures=0
+  cp: scanned=4 imported=4 exported=4 roundtripped=4 failed=0
+  fold: scanned=14 imported=14 exported=14 roundtripped=14 failed=0
+  ori: scanned=11 imported=11 exported=11 roundtripped=11 failed=0
+  orh: scanned=1 imported=1 exported=1 roundtripped=1 failed=0
+  fold_frames total=15 foldedForm=1 files_with_frames=1 max_depth=2 extra_keys=18 oriedita_extension_keys=8 frame_parent=1 frame_inherit=1 faceOrders=2
+  ori_metadata keys=41 camera=10 canvas=10 foldedFigure=11 application=10 unknown=0 preserved_only=30 nested_model_keys=345 missing_versions_opened=0 unknown_versions_opened=0
+  orh folded_color_files=1 folded_color_sections=3
+  oracle checked=25 mismatches=0 unavailable=0 unsupported=1
+```
+
 ## Flat-Folder Corpus Testing
 
 The Flat-Folder port uses Jason Ku's JavaScript implementation vendored at
