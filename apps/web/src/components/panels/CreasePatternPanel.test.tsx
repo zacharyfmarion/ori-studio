@@ -528,14 +528,6 @@ function numericSvgAttribute(element: Element, name: string): number {
   return Number.parseFloat(value);
 }
 
-function defaultPaperPolygonPoints(): string {
-  const left = CP_PAPER_RECT.x;
-  const top = CP_PAPER_RECT.y;
-  const right = CP_PAPER_RECT.x + CP_PAPER_RECT.width;
-  const bottom = CP_PAPER_RECT.y + CP_PAPER_RECT.height;
-  return `${left},${top} ${right},${top} ${right},${bottom} ${left},${bottom}`;
-}
-
 function setNumberInputValue(input: HTMLInputElement, value: string) {
   const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
   valueSetter?.call(input, value);
@@ -1079,10 +1071,10 @@ describe('CreasePatternPanel', () => {
 
     const line = container.querySelector<SVGLineElement>('[data-cp-line-id="1"]');
     const circle = container.querySelector<SVGCircleElement>('.cp-circle');
-    const paperBorder = container.querySelector<SVGPolygonElement>('.paper-border');
     expect(line).not.toBeNull();
     expect(circle).not.toBeNull();
-    expect(paperBorder).not.toBeNull();
+    expect(container.querySelector('.paper--editable-cp-guide')).toBeNull();
+    expect(container.querySelector('.paper-border')).toBeNull();
 
     const lineStart = orieditaObjectToSvg({ x: 0, y: 0 }, camera);
     const lineEnd = orieditaObjectToSvg({ x: 1, y: 0 }, camera);
@@ -1098,17 +1090,6 @@ describe('CreasePatternPanel', () => {
       documentState.document.crease_pattern.circles[0].r * orieditaCameraSvgScale(camera).x
     );
 
-    expect(paperBorder?.getAttribute('points')).toBe(
-      [
-        { x: -200, y: -200 },
-        { x: 200, y: -200 },
-        { x: 200, y: 200 },
-        { x: -200, y: 200 },
-      ]
-        .map((point) => orieditaObjectToSvg(point, camera))
-        .map((point) => `${point.x},${point.y}`)
-        .join(' ')
-    );
   });
 
   it('routes editable CP pointer input through the inverse Oriedita camera transform', async () => {
@@ -1775,9 +1756,7 @@ describe('CreasePatternPanel', () => {
       `${CP_EDITABLE_CANVAS_RECT.x} ${CP_EDITABLE_CANVAS_RECT.y} ${CP_EDITABLE_CANVAS_RECT.width} ${CP_EDITABLE_CANVAS_RECT.height}`
     );
     expect(Number(canvas?.getAttribute('width'))).toBeGreaterThan(CP_WORLD_RECT.width);
-    const paper = container.querySelector<SVGPolygonElement>('.paper');
-    expect(paper?.getAttribute('points')).toBe(defaultPaperPolygonPoints());
-    expect(paper?.classList.contains('paper--editable-cp-guide')).toBe(true);
+    expect(container.querySelector('.paper--editable-cp-guide')).toBeNull();
 
     act(() => {
       container.querySelector<HTMLButtonElement>('button[aria-label="Fit"]')?.click();
@@ -1837,16 +1816,15 @@ describe('CreasePatternPanel', () => {
     });
 
     const canvas = container.querySelector<SVGSVGElement>('.cp-canvas');
-    const paper = container.querySelector<SVGRectElement>('.paper');
 
     expect(canvas?.getAttribute('data-canvas-mode')).toBe('editable');
     expect(container.querySelector('.cp-panel__empty')).toBeNull();
     expect(container.textContent).not.toContain('No imported crease pattern');
-    expect(paper?.classList.contains('paper--editable-cp-guide')).toBe(true);
+    expect(container.querySelector('.paper--editable-cp-guide')).toBeNull();
     expect(container.querySelectorAll<SVGLineElement>('[data-cp-line-id]')).toHaveLength(4);
   });
 
-  it('does not resize the editable CP paper when geometry extends outside it', () => {
+  it('keeps an expanded editable CP viewport when geometry extends outside the paper bounds', () => {
     const state = editableCpState();
     state.summary.line_segments = 3;
     state.document.crease_pattern.line_segments.push({
@@ -1865,10 +1843,13 @@ describe('CreasePatternPanel', () => {
       oristudioCpDocument: state,
     });
 
-    const paper = container.querySelector<SVGPolygonElement>('.paper');
+    const canvas = container.querySelector<SVGSVGElement>('.cp-canvas');
     const outsideLine = container.querySelector<SVGLineElement>('[data-cp-line-id="3"]');
 
-    expect(paper?.getAttribute('points')).toBe(defaultPaperPolygonPoints());
+    expect(canvas?.getAttribute('viewBox')).toBe(
+      `${CP_EDITABLE_CANVAS_RECT.x} ${CP_EDITABLE_CANVAS_RECT.y} ${CP_EDITABLE_CANVAS_RECT.width} ${CP_EDITABLE_CANVAS_RECT.height}`
+    );
+    expect(container.querySelector('.paper--editable-cp-guide')).toBeNull();
     expect(Number(outsideLine?.getAttribute('x1'))).toBeLessThan(CP_PAPER_RECT.x);
     expect(Number(outsideLine?.getAttribute('x2'))).toBeLessThan(CP_PAPER_RECT.x);
   });

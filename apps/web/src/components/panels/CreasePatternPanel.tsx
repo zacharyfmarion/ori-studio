@@ -153,8 +153,6 @@ import {
   nearestOrieditaDrawPointTarget,
   normalizeOrieditaGridSize,
   ORIEDITA_PAPER_BOUNDS,
-  ORIEDITA_PAPER_MAX,
-  ORIEDITA_PAPER_MIN,
   textCoordinate,
   visibleOrieditaGridMetadata,
   type CpModelBounds,
@@ -4206,7 +4204,6 @@ export function CreasePatternPanel() {
                     {editableCp ? (
                       <EditableCreasePattern
                         circleRadiusToSvg={editableCircleRadiusToSvg}
-                        clearSelectionOnBackgroundPointerDown={clearSelectionOnBackgroundPointerDown}
                         document={editableCp}
                         generatedFoldedFigures={generatedFoldedFigures}
                         gridLines={editableCpGridLines}
@@ -4458,7 +4455,6 @@ interface EditableCreasePatternProps {
   activeDiagnosticId: string | null;
   activeFoldedFigureId: string | null;
   circleRadiusToSvg: (radius: number) => number;
-  clearSelectionOnBackgroundPointerDown: (event: PointerEvent<SVGElement>) => void;
   document: OristudioCpDocumentSnapshot;
   generatedFoldedFigures: OristudioCpFoldedFigureEntry[];
   gridLines: ReturnType<typeof getCpGridLines>;
@@ -4503,7 +4499,6 @@ function EditableCreasePattern({
   activeDiagnosticId,
   activeFoldedFigureId,
   circleRadiusToSvg,
-  clearSelectionOnBackgroundPointerDown,
   document,
   generatedFoldedFigures,
   gridLines,
@@ -4540,23 +4535,8 @@ function EditableCreasePattern({
   toggleVertex,
   vertices,
 }: EditableCreasePatternProps) {
-  const paperPointList = [
-    { x: ORIEDITA_PAPER_MIN, y: ORIEDITA_PAPER_MIN },
-    { x: ORIEDITA_PAPER_MAX, y: ORIEDITA_PAPER_MIN },
-    { x: ORIEDITA_PAPER_MAX, y: ORIEDITA_PAPER_MAX },
-    { x: ORIEDITA_PAPER_MIN, y: ORIEDITA_PAPER_MAX },
-  ]
-    .map(modelToSvg)
-    .map((point) => `${point.x},${point.y}`)
-    .join(' ');
-
   return (
     <>
-      <polygon
-        className="paper paper--editable-cp-guide"
-        points={paperPointList}
-        onPointerDown={clearSelectionOnBackgroundPointerDown}
-      />
       {gridVisible &&
         gridLines.map((line) => {
           const a = modelToSvg(line.a);
@@ -4901,11 +4881,6 @@ function EditableCreasePattern({
           r="5"
         />
       )}
-      <polygon
-        className="paper-border"
-        points={paperPointList}
-        onPointerDown={clearSelectionOnBackgroundPointerDown}
-      />
     </>
   );
 }
