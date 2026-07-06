@@ -9,6 +9,8 @@ function createDeps() {
   return {
     workspace: {
       createNewProject: vi.fn().mockResolvedValue(undefined),
+      loadExampleProject: vi.fn().mockResolvedValue(undefined),
+      loadRecentProject: vi.fn().mockResolvedValue(undefined),
       openProject: vi.fn().mockResolvedValue(true),
       saveProject: vi.fn().mockResolvedValue(true),
       saveProjectAs: vi.fn().mockResolvedValue(true),
@@ -101,25 +103,36 @@ describe('menu actions', () => {
     await expect(handle('file.new')).resolves.toBe(true);
     await expect(handle('view.creasePattern')).resolves.toBe(true);
     await expect(handle('view.simulator')).resolves.toBe(true);
-    await expect(handle('view.foldedBase')).resolves.toBe(true);
     await expect(handle('file.settings')).resolves.toBe(true);
     await expect(handle('help.documentation')).resolves.toBe(true);
     await expect(handle('help.about')).resolves.toBe(true);
     await expect(handle('app.about')).resolves.toBe(true);
     await expect(handle('cp.build')).resolves.toBe(true);
-    await expect(handle('cp.foldedPreview')).resolves.toBe(true);
     await expect(handle('optimize.edges')).resolves.toBe(true);
 
     expect(deps.showStartScreen).toHaveBeenCalledOnce();
     expect(deps.workspace.createNewProject).not.toHaveBeenCalled();
     expect(deps.layout.activatePanel).toHaveBeenCalledWith('crease-pattern');
     expect(deps.layout.activatePanel).toHaveBeenCalledWith('simulator');
-    expect(deps.layout.activatePanel).toHaveBeenCalledWith('folded-base');
     expect(deps.settings).toHaveBeenCalledOnce();
     expect(deps.help).toHaveBeenCalledOnce();
     expect(deps.about).toHaveBeenCalledTimes(2);
     expect(deps.workspace.buildCreasePattern).toHaveBeenCalledOnce();
     expect(deps.workspace.optimizeEdges).toHaveBeenCalledOnce();
+  });
+
+  it('dispatches data-driven Open Recent and Examples entries by id prefix', async () => {
+    const deps = createDeps();
+    const handle = createMenuActionHandler(deps);
+
+    await expect(handle('file.openExample:triad')).resolves.toBe(true);
+    await expect(handle('file.openRecent:proj-42')).resolves.toBe(true);
+    // An empty payload (e.g. the disabled "No recent files" placeholder) is a no-op.
+    await expect(handle('file.openRecent:')).resolves.toBe(false);
+
+    expect(deps.workspace.loadExampleProject).toHaveBeenCalledWith('triad');
+    expect(deps.workspace.loadRecentProject).toHaveBeenCalledWith('proj-42');
+    expect(deps.workspace.loadRecentProject).toHaveBeenCalledTimes(1);
   });
 
   it('dispatches CP diagnostics and selected-line commands through the shared CP runtime', async () => {
@@ -267,6 +280,7 @@ describe('menu actions', () => {
     deps.workspace.activeEditingSurface = 'crease-pattern';
     deps.workspace.oristudioCpDocument = {
       handle: 1,
+      loadSerial: 1,
       source: { format: 'cp', filename: 'lines.cp', path: null },
       operationDescriptors: [],
       lastCommandResult: null,
@@ -364,6 +378,7 @@ describe('menu actions', () => {
     };
     deps.workspace.oristudioCpDocument = {
       handle: 1,
+      loadSerial: 1,
       source: { format: 'cp', filename: 'points.cp', path: null },
       operationDescriptors: [],
       lastCommandResult: null,

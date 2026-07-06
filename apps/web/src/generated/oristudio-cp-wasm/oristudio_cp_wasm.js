@@ -421,6 +421,24 @@ export function replace_line_segments(handle, line_ids, segments) {
     }
     return ret[0] >>> 0;
 }
+
+/**
+ * Replace the document behind an existing handle in place.
+ *
+ * Unlike [`load_document`], which allocates a fresh handle, this mutates the
+ * document already stored at `handle`. Undo/redo and whole-document edits use
+ * this so the handle stays stable (mirroring Oriedita's in-place
+ * `foldLineSet.setSave` restore), which keeps the editor's viewport from being
+ * treated as a brand-new document load.
+ * @param {number} handle
+ * @param {any} document
+ */
+export function restore_document(handle, document) {
+    const ret = wasm.restore_document(handle, document);
+    if (ret[1]) {
+        throw takeFromExternrefTable0(ret[0]);
+    }
+}
 function __wbg_get_imports() {
     const import0 = {
         __proto__: null,

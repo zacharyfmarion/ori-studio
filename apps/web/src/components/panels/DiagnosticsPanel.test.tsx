@@ -44,6 +44,7 @@ function renderDiagnosticsPanel(state: Partial<ReturnType<typeof useWorkspaceSto
 function cpDocumentWithDiagnostics(): OristudioCpDocumentState {
   return {
     handle: 1,
+    loadSerial: 1,
     source: { format: 'cp', filename: 'diagnostic.cp', path: null },
     operationDescriptors: [],
     summary: {

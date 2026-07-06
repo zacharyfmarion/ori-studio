@@ -50,12 +50,11 @@ describe('web menu definition', () => {
     expect(actionIds).toEqual(['help.documentation', 'help.about']);
   });
 
-  it('exposes CP diagnostics, repair, and folded preview commands', () => {
+  it('exposes CP diagnostics, repair, and line commands', () => {
     const cpMenu = getMenuBarDef().find((menu) => menu.label === 'Crease Pattern');
     const actionIds = cpMenu ? actionIdsFor(cpMenu.items) : undefined;
 
     expect(actionIds).toEqual([
-      'cp.foldedPreview',
       'cp.deleteSelectedLines',
       'cp.changeCreaseType',
       'cp.advanceCreaseType',

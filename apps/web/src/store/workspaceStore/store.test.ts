@@ -77,6 +77,7 @@ const oristudioCpMocks = vi.hoisted(() => ({
   releaseOristudioCpDocument: vi.fn(),
   replaceOristudioCpLineSegments: vi.fn(),
   restoreOristudioCpDocument: vi.fn(),
+  restoreOristudioCpDocumentInPlace: vi.fn(),
   setOristudioCpDocumentSource: vi.fn(),
   setOristudioCpFoldedFigureModel: vi.fn(),
 }));
@@ -125,6 +126,7 @@ vi.mock('./oristudioCpRuntime', async (importOriginal) => {
     releaseOristudioCpDocument: oristudioCpMocks.releaseOristudioCpDocument,
     replaceOristudioCpLineSegments: oristudioCpMocks.replaceOristudioCpLineSegments,
     restoreOristudioCpDocument: oristudioCpMocks.restoreOristudioCpDocument,
+    restoreOristudioCpDocumentInPlace: oristudioCpMocks.restoreOristudioCpDocumentInPlace,
     setOristudioCpDocumentSource: oristudioCpMocks.setOristudioCpDocumentSource,
     setOristudioCpFoldedFigureModel: oristudioCpMocks.setOristudioCpFoldedFigureModel,
   };
@@ -937,6 +939,7 @@ function blankCpDocumentState(): OristudioCpDocumentState {
   const document = createStarterOristudioCpDocument();
   return {
     handle: 4,
+    loadSerial: 1,
     document,
     summary: {
       title: 'Untitled CP',
@@ -1117,6 +1120,7 @@ function resetStores(snapshot = makeSnapshot()) {
     .mockReset()
     .mockImplementation(async (_text: string, source: { format: 'cp' | 'fold' | 'ori' | 'orh'; filename: string; path?: string | null; title?: string }) => ({
       handle: 2,
+      loadSerial: 1,
       document: {
         title: source.title ?? (source.format === 'ori' ? 'native ori' : source.format === 'orh' ? 'orh model' : 'square'),
         crease_pattern: {
@@ -1169,6 +1173,7 @@ function resetStores(snapshot = makeSnapshot()) {
         source: OristudioCpDocumentState['source']
       ) => ({
         handle: 3,
+        loadSerial: 2,
         document,
         summary: {
           title: document.title ?? 'square',
@@ -1190,6 +1195,43 @@ function resetStores(snapshot = makeSnapshot()) {
         operationDescriptors: cpOperationDescriptors,
         lastCommandResult: null,
       })
+    );
+  oristudioCpMocks.restoreOristudioCpDocumentInPlace
+    .mockReset()
+    .mockImplementation(
+      async (
+        document: OristudioCpDocumentSnapshot,
+        source?: OristudioCpDocumentState['source'],
+        lastCommandResult: OristudioCpCommandResult | null = null
+      ) => {
+        // In-place restore keeps the current handle and load serial: only the
+        // document content changes.
+        const current = useWorkspaceStore.getState().oristudioCpDocument;
+        return {
+          handle: current?.handle ?? 3,
+          loadSerial: current?.loadSerial ?? 1,
+          document,
+          summary: {
+            title: document.title ?? 'square',
+            line_segments: document.crease_pattern.line_segments.length,
+            circles: document.crease_pattern.circles.length,
+            points: document.crease_pattern.points.length,
+            aux_line_segments: document.crease_pattern.aux_line_segments.length,
+            texts: document.crease_pattern.texts.length,
+            can_save_as_cp: true,
+            is_empty:
+              document.crease_pattern.line_segments.length +
+                document.crease_pattern.circles.length +
+                document.crease_pattern.points.length +
+                document.crease_pattern.aux_line_segments.length +
+                document.crease_pattern.texts.length ===
+              0,
+          },
+          source: source ?? current?.source ?? { format: 'cp', filename: 'Untitled.cp', path: null },
+          operationDescriptors: cpOperationDescriptors,
+          lastCommandResult,
+        };
+      }
     );
   oristudioCpMocks.executeOristudioCpCommand.mockReset().mockRejectedValue({
     code: 'not_implemented',
@@ -2879,10 +2921,16 @@ describe('workspace store slices', () => {
       lastCommandResult: undoCamvResult,
     });
     await useWorkspaceStore.getState().undo();
-    expect(oristudioCpMocks.restoreOristudioCpDocument).toHaveBeenLastCalledWith(
+    expect(oristudioCpMocks.restoreOristudioCpDocumentInPlace).toHaveBeenLastCalledWith(
       loadedDocument.document,
       loadedDocument.source,
       null
+    );
+    // Undo restores in place: the handle and load serial are unchanged, so the
+    // editor viewport is not re-fit (regression for the undo canvas jump).
+    expect(useWorkspaceStore.getState().oristudioCpDocument?.handle).toBe(loadedDocument.handle);
+    expect(useWorkspaceStore.getState().oristudioCpDocument?.loadSerial).toBe(
+      loadedDocument.loadSerial
     );
     expect(useWorkspaceStore.getState().oristudioCpDocument?.document).toEqual(
       loadedDocument.document
@@ -2910,7 +2958,7 @@ describe('workspace store slices', () => {
       lastCommandResult: redoCamvResult,
     });
     await useWorkspaceStore.getState().redo();
-    expect(oristudioCpMocks.restoreOristudioCpDocument).toHaveBeenLastCalledWith(
+    expect(oristudioCpMocks.restoreOristudioCpDocumentInPlace).toHaveBeenLastCalledWith(
       changedDocument,
       loadedDocument.source,
       null
@@ -3022,7 +3070,7 @@ describe('workspace store slices', () => {
       true
     );
 
-    expect(oristudioCpMocks.restoreOristudioCpDocument).toHaveBeenLastCalledWith(
+    expect(oristudioCpMocks.restoreOristudioCpDocumentInPlace).toHaveBeenLastCalledWith(
       expect.objectContaining({
         crease_pattern: expect.objectContaining({
           grid: expect.objectContaining({ grid_size: 32 }),

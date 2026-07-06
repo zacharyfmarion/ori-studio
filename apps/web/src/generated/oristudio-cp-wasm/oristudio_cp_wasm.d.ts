@@ -57,6 +57,17 @@ export function preview_cp_command(handle: number, operation: any, payload: any)
 
 export function replace_line_segments(handle: number, line_ids: any, segments: any): number;
 
+/**
+ * Replace the document behind an existing handle in place.
+ *
+ * Unlike [`load_document`], which allocates a fresh handle, this mutates the
+ * document already stored at `handle`. Undo/redo and whole-document edits use
+ * this so the handle stays stable (mirroring Oriedita's in-place
+ * `foldLineSet.setSave` restore), which keeps the editor's viewport from being
+ * treated as a brand-new document load.
+ */
+export function restore_document(handle: number, document: any): void;
+
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
@@ -89,6 +100,7 @@ export interface InitOutput {
     readonly load_ori: (a: number, b: number, c: number) => [number, number, number];
     readonly preview_cp_command: (a: number, b: any, c: any) => [number, number, number];
     readonly replace_line_segments: (a: number, b: any, c: any) => [number, number, number];
+    readonly restore_document: (a: number, b: any) => [number, number];
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_exn_store: (a: number) => void;

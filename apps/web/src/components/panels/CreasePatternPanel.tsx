@@ -5,7 +5,9 @@ import {
   useRef,
   useState,
   type Dispatch,
+  type MutableRefObject,
   type PointerEvent,
+  type RefObject,
   type SetStateAction,
 } from 'react';
 import { TransformComponent, TransformWrapper, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
@@ -25,7 +27,6 @@ import {
   Palette,
   RotateCcw,
   RotateCw,
-  ScanLine,
   Trash2,
 } from 'lucide-react';
 import {
@@ -56,6 +57,7 @@ import type {
   OristudioCpFoldedRenderPrimitive,
   OristudioCpFoldedRenderSnapshot,
   OristudioCpFoldedRenderStroke,
+  OristudioCpGridMetadata,
   OristudioCpLineColor,
   OristudioCpLineSegment,
   OristudioCpRgbColor,
@@ -107,7 +109,6 @@ import {
   instructionsForCpTool,
   type OristudioCpToolInstructions,
 } from '../../lib/oristudioCpToolInstructions';
-import { cpLineageStatusLabel } from '../../lib/oristudioCpLineage';
 import {
   ORISTUDIO_CP_EXTRA_LINE_COLOR_PALETTE,
   cpPaletteEntryForColor,
@@ -145,16 +146,18 @@ import {
   cpSelectionSize,
   cpSvgPointToModel,
   emptyOristudioCpSelection,
-  getCpGridLines,
+  expandedModelBoundsFromPoints,
   getCpVertices,
   getOrieditaGridBasis,
   modelPointToCpSvg,
   nearestCpSnapTarget,
   nearestOrieditaDrawPointTarget,
   normalizeOrieditaGridSize,
+  orieditaGridLinesForModelBounds,
   ORIEDITA_PAPER_BOUNDS,
   textCoordinate,
   visibleOrieditaGridMetadata,
+  type CpGridLine,
   type CpModelBounds,
   type CpSnapTarget,
   type CpVertex,
@@ -1471,7 +1474,11 @@ function normalizeSelectionTransformAngle(angleDegrees: number): number {
 export function CreasePatternPanel() {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const cpViewportRef = useRef<HTMLDivElement | null>(null);
   const transformRef = useRef<ReactZoomPanPinchRef | null>(null);
+  // Registered by the infinite grid layer so viewport transforms can trigger a
+  // grid recompute without re-rendering the whole panel on every pan frame.
+  const gridSyncRef = useRef<(() => void) | null>(null);
   const zoomPercentRef = useRef(100);
   const viewportPanningRef = useRef(false);
   const [zoomPercent, setZoomPercent] = useState(100);
@@ -1522,10 +1529,8 @@ export function CreasePatternPanel() {
   const documentMode = useWorkspaceStore((state) => state.documentMode);
   const importedCreasePattern = useWorkspaceStore((state) => state.importedCreasePattern);
   const oristudioCpDocument = useWorkspaceStore((state) => state.oristudioCpDocument);
-  const oristudioCpLineage = useWorkspaceStore((state) => state.oristudioCpLineage);
   const oristudioCpSymmetry = useWorkspaceStore((state) => state.oristudioCpSymmetry);
   const oristudioCpCamvResult = useWorkspaceStore((state) => state.oristudioCpCamvResult);
-  const oristudioCpError = useWorkspaceStore((state) => state.oristudioCpError);
   const oristudioCpSelection = useWorkspaceStore((state) => state.oristudioCpSelection);
   const oristudioCpActionRequest = useWorkspaceStore((state) => state.oristudioCpActionRequest);
   const oristudioCpFoldedFigures = useWorkspaceStore((state) => state.oristudioCpFoldedFigures);
@@ -1537,9 +1542,10 @@ export function CreasePatternPanel() {
   );
   const oristudioCpViewport = useWorkspaceStore((state) => state.oristudioCpViewport);
   const projectLoadId = useWorkspaceStore((state) => state.projectLoadId);
-  const mode = useWorkspaceStore((state) => state.creaseColorMode);
+  // Crease lines always use Oriedita's default M/V/flat/border coloring; the
+  // color-by toggle has been removed from the CP panel header.
+  const mode = 'mvf' as const;
   const selection = useWorkspaceStore((state) => state.selection);
-  const setMode = useWorkspaceStore((state) => state.setCreaseColorMode);
   const select = useWorkspaceStore((state) => state.select);
   const setOristudioCpViewportOption = useWorkspaceStore(
     (state) => state.setOristudioCpViewportOption
@@ -1608,6 +1614,9 @@ export function CreasePatternPanel() {
 
   const editableCp = oristudioCpDocument?.document ?? null;
   const editableCpHandle = oristudioCpDocument?.handle ?? null;
+  // Identifies a genuine document load; stable across edits and undo/redo so the
+  // viewport auto-fit does not re-run when history is restored in place.
+  const editableCpLoadSerial = oristudioCpDocument?.loadSerial ?? null;
   const editableCpSummary = oristudioCpDocument?.summary ?? null;
   const nativeActiveLineColor = useMemo(
     () => activeLineColorFromOrieditaMetadata(editableCp?.metadata),
@@ -1663,16 +1672,19 @@ export function CreasePatternPanel() {
         : null,
     [editableCp, oristudioCpViewport.gridVisible]
   );
-  const editableCpGridLines = useMemo(
-    () =>
-      editableCpVisibleGrid
-        ? getCpGridLines(editableCpBounds, editableCpVisibleGrid, 1, {
-            canvasRect: cpCanvasRect,
-            paperRect: CP_PAPER_RECT,
-          })
-        : [],
-    [cpCanvasRect, editableCpBounds, editableCpVisibleGrid]
-  );
+  // Fallback grid extent for environments where the live viewport transform is
+  // unavailable (initial paint before fit, jsdom tests). Mirrors the previous
+  // fixed-world extent so a grid is always present; the live layer widens this
+  // to the visible viewport once a screen CTM is available.
+  const editableCpFallbackGridBounds = useMemo(() => {
+    const corners = [
+      { x: cpCanvasRect.x, y: cpCanvasRect.y },
+      { x: cpCanvasRect.x + cpCanvasRect.width, y: cpCanvasRect.y },
+      { x: cpCanvasRect.x, y: cpCanvasRect.y + cpCanvasRect.height },
+      { x: cpCanvasRect.x + cpCanvasRect.width, y: cpCanvasRect.y + cpCanvasRect.height },
+    ].map((point) => editableSvgToModel(point));
+    return expandedModelBoundsFromPoints(corners, 0);
+  }, [cpCanvasRect, editableSvgToModel]);
   const editableCpGridWidth = useMemo(
     () =>
       editableCp
@@ -2787,6 +2799,9 @@ export function CreasePatternPanel() {
 
   const handleViewportTransformed = useCallback(
     (_ref: ReactZoomPanPinchRef, state: { scale: number }) => {
+      // Keep the infinite grid aligned with the visible viewport on every
+      // transform (pan, zoom, pinch, programmatic fit).
+      gridSyncRef.current?.();
       const nextZoomPercent = Math.round(state.scale * 100);
       if (zoomPercentRef.current === nextZoomPercent) return;
       zoomPercentRef.current = nextZoomPercent;
@@ -2794,6 +2809,10 @@ export function CreasePatternPanel() {
     },
     []
   );
+
+  const handleViewportPanning = useCallback(() => {
+    gridSyncRef.current?.();
+  }, []);
 
   const handleViewportPanStart = useCallback(() => {
     viewportPanningRef.current = true;
@@ -3757,27 +3776,6 @@ export function CreasePatternPanel() {
           : documentMode === 'crease-pattern'
             ? 'No imported crease pattern'
             : 'No crease pattern';
-  const sourceLabel =
-    editableCp && oristudioCpLineage?.kind === 'generated-from-tree'
-      ? [
-          cpLineageStatusLabel(oristudioCpLineage),
-          editableCpSummary ? `${editableCpSummary.line_segments} lines` : null,
-          oristudioCpLineage.stale ? 'Rebuild CP to resync with design' : null,
-        ]
-          .filter(Boolean)
-          .join(' | ')
-      : documentMode === 'crease-pattern' && importedCreasePattern
-      ? [
-          importedCreasePattern.source.filename,
-          importedCreasePattern.lineOnly ? 'View only' : 'Simulatable',
-          oristudioCpDocument
-            ? `Editable kernel: ${oristudioCpDocument.summary.line_segments} lines`
-            : oristudioCpError
-              ? `Kernel unavailable: ${shortStatus(oristudioCpError)}`
-              : 'Editable kernel pending',
-        ].join(' | ')
-      : null;
-
   const getViewportSize = useCallback((): ViewportSize | null => {
     const viewport = containerRef.current;
     if (!viewport) return null;
@@ -3841,9 +3839,9 @@ export function CreasePatternPanel() {
   const creasePatternFitKey = useMemo(
     () =>
       editableCp
-        ? `editable:${projectLoadId}:${editableCpHandle ?? 'unhandled'}`
+        ? `editable:${projectLoadId}:${editableCpLoadSerial ?? 'unloaded'}`
         : `generated:${projectLoadId}:${project.creases.length}:${project.facets.length}`,
-    [editableCp, editableCpHandle, project.creases.length, project.facets.length, projectLoadId]
+    [editableCp, editableCpLoadSerial, project.creases.length, project.facets.length, projectLoadId]
   );
   const lastFittedCreasePatternRef = useRef<string | null>(null);
 
@@ -4064,38 +4062,6 @@ export function CreasePatternPanel() {
 
   return (
     <section className="panel-shell cp-panel">
-      <div className="panel-toolbar">
-        <div className="panel-toolbar__group">
-          <span className="panel-title">Crease Pattern</span>
-        </div>
-        {hasCreasePattern ? (
-          <div className="cp-panel__mode">
-            <span className="cp-panel__mode-label">Color by</span>
-            <SegmentedControl
-              aria-label="Choose how crease lines are colored"
-              value={mode}
-              onChange={setMode}
-              options={[
-                {
-                  value: 'mvf',
-                  label: 'M/V assignment',
-                  icon: <GitBranch size={13} />,
-                  title: 'Color by mountain, valley, flat, and border folds',
-                },
-                {
-                  value: 'agrh',
-                  label: 'Crease roles',
-                  icon: <ScanLine size={13} />,
-                  title: 'Color by axial, gusset, ridge, hinge, and pseudohinge roles',
-                },
-              ]}
-            />
-          </div>
-        ) : (
-          <span className="panel-toolbar__meta">{emptyStatusLabel}</span>
-        )}
-      </div>
-      {sourceLabel && <div className="panel-subtitle">{sourceLabel}</div>}
       <div
         ref={containerRef}
         className={[
@@ -4120,7 +4086,7 @@ export function CreasePatternPanel() {
                 onSelectAction={handleCpToolAction}
               />
             )}
-            <div className="cp-panel__viewport">
+            <div className="cp-panel__viewport" ref={cpViewportRef}>
               {diagnosticStatus && (
                 <div
                   className="cp-diagnostic-hud"
@@ -4187,6 +4153,7 @@ export function CreasePatternPanel() {
                   requestAnimationFrame(() => fitLoadedCreasePatternRef.current(0));
                 }}
                 onPanningStart={handleViewportPanStart}
+                onPanning={handleViewportPanning}
                 onPanningStop={handleViewportPanStop}
                 onTransformed={handleViewportTransformed}
               >
@@ -4238,11 +4205,16 @@ export function CreasePatternPanel() {
                         circleRadiusToSvg={editableCircleRadiusToSvg}
                         document={editableCp}
                         generatedFoldedFigures={generatedFoldedFigures}
-                        gridLines={editableCpGridLines}
+                        grid={editableCpVisibleGrid}
+                        gridFallbackBounds={editableCpFallbackGridBounds}
+                        gridSyncRef={gridSyncRef}
                         gridVisible={oristudioCpViewport.gridVisible}
                         importedFoldedForms={importedFoldedForms}
                         mode={mode}
                         modelToSvg={editableModelToSvg}
+                        svgRef={svgRef}
+                        svgToModel={editableSvgToModel}
+                        viewportRef={cpViewportRef}
                         symmetryActive={oristudioCpSymmetry.enabled}
                         symmetryAxisLine={visibleCpSymmetryAxisLine}
                         symmetryDraftLine={draftCpSymmetryAxisLine}
@@ -4483,17 +4455,188 @@ export function CreasePatternPanel() {
   );
 }
 
+// Extra viewport shown around the visible region so short pans reuse the cached
+// grid instead of revealing an ungridded edge before the next recompute.
+const GRID_VIEWPORT_MARGIN_RATIO = 0.35;
+// Snap the generation region outward to this fraction of its span so small pans
+// resolve to the same coverage key and skip regeneration.
+const GRID_SNAP_STEP_RATIO = 0.2;
+const GRID_SNAP_MIN_STEP = 1e-3;
+
+/**
+ * Map the visible viewport rectangle into model space using the SVG's live
+ * screen CTM (which already folds in the pan/zoom CSS transform). Returns null
+ * when no transform is available yet (initial paint, jsdom), so callers can fall
+ * back to a fixed extent.
+ */
+function visibleModelGridBounds(
+  svg: SVGSVGElement | null,
+  viewport: HTMLElement | null,
+  svgToModel: (point: Point) => Point
+): CpModelBounds | null {
+  if (!svg || !viewport || typeof svg.getScreenCTM !== 'function') return null;
+  const ctm = svg.getScreenCTM();
+  if (!ctm) return null;
+  const rect = viewport.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return null;
+  let inverse: DOMMatrix;
+  try {
+    inverse = ctm.inverse();
+  } catch {
+    return null;
+  }
+  const screenCorners: Point[] = [
+    { x: rect.left, y: rect.top },
+    { x: rect.right, y: rect.top },
+    { x: rect.left, y: rect.bottom },
+    { x: rect.right, y: rect.bottom },
+  ];
+  const modelCorners = screenCorners.map((corner) => {
+    const svgX = inverse.a * corner.x + inverse.c * corner.y + inverse.e;
+    const svgY = inverse.b * corner.x + inverse.d * corner.y + inverse.f;
+    return svgToModel({ x: svgX, y: svgY });
+  });
+  return expandedModelBoundsFromPoints(modelCorners, GRID_VIEWPORT_MARGIN_RATIO);
+}
+
+function snapModelGridBounds(bounds: CpModelBounds): CpModelBounds {
+  const step = Math.max(
+    GRID_SNAP_MIN_STEP,
+    Math.max(bounds.spanX, bounds.spanY) * GRID_SNAP_STEP_RATIO
+  );
+  const minX = Math.floor(bounds.minX / step) * step;
+  const minY = Math.floor(bounds.minY / step) * step;
+  const maxX = Math.ceil(bounds.maxX / step) * step;
+  const maxY = Math.ceil(bounds.maxY / step) * step;
+  return {
+    minX,
+    minY,
+    maxX,
+    maxY,
+    spanX: Math.max(step, maxX - minX),
+    spanY: Math.max(step, maxY - minY),
+  };
+}
+
+interface OrieditaInfiniteGridProps {
+  grid: OristudioCpGridMetadata;
+  fallbackBounds: CpModelBounds;
+  modelToSvg: (point: Point) => Point;
+  svgToModel: (point: Point) => Point;
+  svgRef: RefObject<SVGSVGElement | null>;
+  viewportRef: RefObject<HTMLElement | null>;
+  syncRef: MutableRefObject<(() => void) | null>;
+}
+
+/**
+ * Grid layer that follows the visible viewport, matching Oriedita's behavior of
+ * repainting the grid across the whole visible canvas each frame. Lines are
+ * generated over the currently visible model region (widened by a margin) rather
+ * than a fixed world rect, so the grid never terminates at a world edge. The
+ * lines render inside the pan/zoom-transformed SVG and its `overflow: visible`
+ * surface, so they move with the content and are not clipped to the CP viewBox.
+ */
+function OrieditaInfiniteGrid({
+  grid,
+  fallbackBounds,
+  modelToSvg,
+  svgToModel,
+  svgRef,
+  viewportRef,
+  syncRef,
+}: OrieditaInfiniteGridProps) {
+  const [lines, setLines] = useState<CpGridLine[]>([]);
+  const coverageKeyRef = useRef<string | null>(null);
+  const frameRef = useRef<number | null>(null);
+
+  const recompute = useCallback(() => {
+    const visible = visibleModelGridBounds(svgRef.current, viewportRef.current, svgToModel);
+    const snapped = snapModelGridBounds(visible ?? fallbackBounds);
+    const key = [
+      grid.grid_size,
+      grid.grid_angle,
+      grid.grid_xa,
+      grid.grid_ya,
+      grid.interval_grid_size,
+      grid.draw_diagonal_gridlines ? 1 : 0,
+      snapped.minX.toFixed(3),
+      snapped.minY.toFixed(3),
+      snapped.maxX.toFixed(3),
+      snapped.maxY.toFixed(3),
+    ].join(':');
+    if (key === coverageKeyRef.current) return;
+    coverageKeyRef.current = key;
+    setLines(orieditaGridLinesForModelBounds(snapped, grid));
+  }, [fallbackBounds, grid, svgRef, svgToModel, viewportRef]);
+
+  const scheduleRecompute = useCallback(() => {
+    if (frameRef.current != null) return;
+    if (typeof requestAnimationFrame !== 'function') {
+      recompute();
+      return;
+    }
+    frameRef.current = requestAnimationFrame(() => {
+      frameRef.current = null;
+      recompute();
+    });
+  }, [recompute]);
+
+  // Let viewport transforms drive a recompute without re-rendering the panel.
+  useEffect(() => {
+    syncRef.current = scheduleRecompute;
+    return () => {
+      if (syncRef.current === scheduleRecompute) syncRef.current = null;
+    };
+  }, [scheduleRecompute, syncRef]);
+
+  // Recompute immediately when grid params or coordinate mapping change, and keep
+  // the grid aligned when the viewport element resizes.
+  useEffect(() => {
+    coverageKeyRef.current = null;
+    recompute();
+    const viewport = viewportRef.current;
+    if (!viewport || typeof ResizeObserver === 'undefined') return undefined;
+    const observer = new ResizeObserver(() => scheduleRecompute());
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, [recompute, scheduleRecompute, viewportRef]);
+
+  useEffect(
+    () => () => {
+      if (frameRef.current != null && typeof cancelAnimationFrame === 'function') {
+        cancelAnimationFrame(frameRef.current);
+      }
+    },
+    []
+  );
+
+  return (
+    <>
+      {lines.map((line) => {
+        const a = modelToSvg(line.a);
+        const b = modelToSvg(line.b);
+        return <line key={line.id} className="cp-grid-line" x1={a.x} y1={a.y} x2={b.x} y2={b.y} />;
+      })}
+    </>
+  );
+}
+
 interface EditableCreasePatternProps {
   activeDiagnosticId: string | null;
   activeFoldedFigureId: string | null;
   circleRadiusToSvg: (radius: number) => number;
   document: OristudioCpDocumentSnapshot;
   generatedFoldedFigures: OristudioCpFoldedFigureEntry[];
-  gridLines: ReturnType<typeof getCpGridLines>;
+  grid: OristudioCpGridMetadata | null;
+  gridFallbackBounds: CpModelBounds;
+  gridSyncRef: MutableRefObject<(() => void) | null>;
   gridVisible: boolean;
   importedFoldedForms: FoldDocument[];
   mode: 'mvf' | 'agrh';
   modelToSvg: (point: Point) => Point;
+  svgRef: RefObject<SVGSVGElement | null>;
+  svgToModel: (point: Point) => Point;
+  viewportRef: RefObject<HTMLElement | null>;
   symmetryActive: boolean;
   symmetryAxisLine: readonly [Point, Point] | null;
   symmetryDraftLine: readonly [Point, Point] | null;
@@ -4533,11 +4676,16 @@ function EditableCreasePattern({
   circleRadiusToSvg,
   document,
   generatedFoldedFigures,
-  gridLines,
+  grid,
+  gridFallbackBounds,
+  gridSyncRef,
   gridVisible,
   importedFoldedForms,
   mode,
   modelToSvg,
+  svgRef,
+  svgToModel,
+  viewportRef,
   symmetryActive,
   symmetryAxisLine,
   symmetryDraftLine,
@@ -4569,21 +4717,17 @@ function EditableCreasePattern({
 }: EditableCreasePatternProps) {
   return (
     <>
-      {gridVisible &&
-        gridLines.map((line) => {
-          const a = modelToSvg(line.a);
-          const b = modelToSvg(line.b);
-          return (
-            <line
-              key={line.id}
-              className="cp-grid-line"
-              x1={a.x}
-              y1={a.y}
-              x2={b.x}
-              y2={b.y}
-            />
-          );
-        })}
+      {gridVisible && grid && (
+        <OrieditaInfiniteGrid
+          grid={grid}
+          fallbackBounds={gridFallbackBounds}
+          modelToSvg={modelToSvg}
+          svgToModel={svgToModel}
+          svgRef={svgRef}
+          viewportRef={viewportRef}
+          syncRef={gridSyncRef}
+        />
+      )}
       {symmetryAxisLine && (
         <SymmetryAxisGuide
           modelToSvg={modelToSvg}

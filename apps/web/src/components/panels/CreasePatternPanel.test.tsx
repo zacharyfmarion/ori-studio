@@ -3,7 +3,6 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createSampleProject,
-  DEFAULT_CREASE_COLOR_MODE,
   type AppStatus,
   type TreeProject,
 } from '../../lib/sampleProject';
@@ -235,6 +234,7 @@ function importedCpDocument(): ImportedCreasePatternDocument {
 function editableCpState(): OristudioCpDocumentState {
   return {
     handle: 1,
+    loadSerial: 1,
     source: { format: 'cp', filename: 'editable.cp', path: null },
     operationDescriptors: [],
     lastCommandResult: null,
@@ -675,18 +675,18 @@ describe('CreasePatternPanel', () => {
     expect(optimizeScale).not.toHaveBeenCalled();
   });
 
-  it('labels crease color controls without abbreviations when CP geometry exists', () => {
+  it('renders CP geometry with default M/V coloring and no color-by control', () => {
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready');
 
-    expect(useWorkspaceStore.getState().creaseColorMode).toBe(DEFAULT_CREASE_COLOR_MODE);
     expect(container.querySelector('[aria-label="Crease pattern"]')).not.toBeNull();
     expect(container.querySelector('.cp-tool-rail')).toBeNull();
-    expect(container.textContent).toContain('Color by');
-    expect(container.textContent).toContain('Crease roles');
-    expect(container.textContent).toContain('M/V assignment');
-    expect(container.innerHTML).toContain('Color by mountain, valley, flat, and border folds');
-    expect(container.textContent).not.toContain('MVF');
-    expect(container.textContent).not.toContain('AGRH');
+    // The color-by toggle and source-label rows were removed; crease lines
+    // always use the M/V (Oriedita default) coloring.
+    expect(container.textContent).not.toContain('Color by');
+    expect(container.textContent).not.toContain('Crease roles');
+    expect(container.querySelector('.crease--fold-mountain')).not.toBeNull();
+    expect(container.querySelector('.crease--fold-valley')).not.toBeNull();
+    expect(container.querySelector('.crease--kind-hinge')).toBeNull();
     expect(container.textContent).not.toContain('No crease pattern');
   });
 
@@ -841,25 +841,14 @@ describe('CreasePatternPanel', () => {
     expect(body?.hasAttribute('data-space-pan')).toBe(false);
   });
 
-  it('maps the M/V assignment option to mountain and valley fold classes', () => {
+  it('colors crease lines by M/V assignment with no crease-roles option', () => {
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready');
-    const buttons = Array.from(container.querySelectorAll('button'));
-    const rolesButton = buttons.find((button) => button.textContent?.includes('Crease roles'));
-    const mvButton = buttons.find((button) => button.textContent?.includes('M/V assignment'));
 
-    expect(mvButton?.getAttribute('aria-pressed')).toBe('true');
-    expect(rolesButton?.getAttribute('aria-pressed')).toBe('false');
     expect(container.querySelector('.crease--fold-mountain')).not.toBeNull();
     expect(container.querySelector('.crease--fold-valley')).not.toBeNull();
+    // Crease-roles (agrh) coloring is no longer selectable from the CP panel.
     expect(container.querySelector('.crease--kind-hinge')).toBeNull();
-
-    act(() => {
-      rolesButton?.click();
-    });
-
-    expect(useWorkspaceStore.getState().creaseColorMode).toBe('agrh');
-    expect(container.querySelector('.crease--kind-hinge')).not.toBeNull();
-    expect(container.querySelector('.crease--fold-valley')).toBeNull();
+    expect(container.textContent).not.toContain('Crease roles');
   });
 
   it('clears crease-pattern selection when the user clicks the canvas background', () => {
@@ -897,6 +886,36 @@ describe('CreasePatternPanel', () => {
     expect(container.textContent).not.toContain('Build CP');
   });
 
+  it('re-fits the viewport only on a genuine load, not on in-place history restore', () => {
+    const base = editableCpState();
+    renderPanel(createSampleProject(), 'crease_pattern_ready', {
+      documentMode: 'crease-pattern',
+      importedCreasePattern: importedCpDocument(),
+      oristudioCpDocument: base,
+    });
+
+    // Undo / in-place edit: a new document object with the SAME load serial must
+    // not re-fit the viewport (regression for the undo canvas jump).
+    act(() => {
+      useWorkspaceStore.setState({
+        oristudioCpDocument: { ...base, document: { ...base.document, title: 'edited' } },
+      });
+    });
+    expect(transformMocks.centerView).not.toHaveBeenCalled();
+
+    // A genuine new load advances the load serial and re-fits.
+    act(() => {
+      useWorkspaceStore.setState({
+        oristudioCpDocument: {
+          ...base,
+          loadSerial: base.loadSerial + 1,
+          document: { ...base.document, title: 'reloaded' },
+        },
+      });
+    });
+    expect(transformMocks.centerView).toHaveBeenCalledTimes(1);
+  });
+
   it('renders editable CP kernel geometry with grid, selection, and viewport toggles', async () => {
     const { container, setOristudioCpGridSize } = renderPanel(
       createSampleProject(),
@@ -908,7 +927,6 @@ describe('CreasePatternPanel', () => {
       }
     );
 
-    expect(container.textContent).toContain('Editable kernel: 2 lines');
     expect(container.querySelectorAll('[data-cp-line-id]')).toHaveLength(2);
     expect(container.querySelectorAll('[data-cp-line-hit-id]')).toHaveLength(2);
     expect(container.querySelectorAll('[data-cp-vertex-id]')).toHaveLength(3);
@@ -1696,7 +1714,6 @@ describe('CreasePatternPanel', () => {
       }),
     });
 
-    expect(container.textContent).toContain('Generated from design');
     expect(container.querySelector('.cp-tool-rail')).not.toBeNull();
     expect(container.querySelector('.cp-symmetry-controls')).toBeNull();
     expect(container.querySelector('.cp-symmetry-menu')).not.toBeNull();

@@ -153,9 +153,6 @@ describe('workspace capabilities', () => {
     expect(state['file.exportOri'].enabled).toBe(false);
     expect(state['file.exportOrh'].enabled).toBe(false);
     expect(state['file.exportSvg'].enabled).toBe(true);
-    expect(state['view.foldedBase'].enabled).toBe(true);
-    expect(state['cp.foldedPreview'].enabled).toBe(true);
-    expect(state['foldedBase.refresh'].enabled).toBe(false);
     expect(getNextDocumentAction(state)).toBe(null);
   });
 

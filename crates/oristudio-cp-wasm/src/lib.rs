@@ -138,6 +138,23 @@ pub fn load_document(document: JsValue) -> Result<u32, JsValue> {
     store_document(document)
 }
 
+/// Replace the document behind an existing handle in place.
+///
+/// Unlike [`load_document`], which allocates a fresh handle, this mutates the
+/// document already stored at `handle`. Undo/redo and whole-document edits use
+/// this so the handle stays stable (mirroring Oriedita's in-place
+/// `foldLineSet.setSave` restore), which keeps the editor's viewport from being
+/// treated as a brand-new document load.
+#[wasm_bindgen]
+pub fn restore_document(handle: u32, document: JsValue) -> Result<(), JsValue> {
+    let document: CreasePatternDocument =
+        serde_wasm_bindgen::from_value(document).map_err(to_js_value_error)?;
+    with_document_mut(handle, |slot| {
+        *slot = document;
+        Ok(())
+    })
+}
+
 #[wasm_bindgen]
 pub fn document_snapshot(handle: u32) -> Result<JsValue, JsValue> {
     with_document(handle, to_js_value)

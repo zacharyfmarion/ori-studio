@@ -381,6 +381,13 @@ export type OristudioCpCustomLineType =
 
 export interface OristudioCpDocumentState {
   handle: number;
+  /**
+   * Monotonic identifier for the genuine document load that produced this
+   * state. Stable across edits, undo/redo, and in-place restores; only advances
+   * when a fresh kernel handle is allocated for a new load. The CP panel keys
+   * its viewport auto-fit on this rather than the kernel handle.
+   */
+  loadSerial: number;
   document: OristudioCpDocumentSnapshot;
   summary: OristudioCpDocumentSummary;
   source: {

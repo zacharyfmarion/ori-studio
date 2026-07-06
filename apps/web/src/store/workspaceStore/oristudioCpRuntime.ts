@@ -29,6 +29,12 @@ let client: OristudioCpClient | null = null;
 let handle: number | null = null;
 let descriptorsPromise: Promise<OristudioCpOperationDescriptor[]> | null = null;
 let currentSource: OristudioCpDocumentState['source'] | null = null;
+// Monotonic identifier for a genuine document load (open/new/import/native/
+// generate-from-tree). It advances only when a fresh kernel handle is
+// allocated, never for edits, undo/redo, or in-place restores. The CP panel
+// keys its auto-fit on this so restoring history does not read as "a new
+// document was opened" and reset the viewport.
+let documentLoadSerial = 0;
 
 export function oristudioCpError(error: unknown): WasmErrorEnvelope {
   if (
@@ -94,6 +100,7 @@ export async function loadOristudioCpDocumentFromText(
           ? await api.loadOrh(text)
           : await api.loadFoldFile(text);
 
+  documentLoadSerial += 1;
   try {
     const nextSource = {
       format: source.format,
@@ -124,6 +131,7 @@ export async function createBlankOristudioCpDocument(
     ...createStarterOristudioCpDocument(title),
   });
 
+  documentLoadSerial += 1;
   try {
     const nextState = await buildDocumentState(api, nextHandle, source, null);
     await replaceHandle(api, nextHandle);
@@ -145,6 +153,7 @@ export async function refreshOristudioCpDocument(
   const operationDescriptors = await getOristudioCpOperationDescriptors();
   return {
     handle,
+    loadSerial: documentLoadSerial,
     document,
     summary,
     source:
@@ -167,6 +176,7 @@ export async function restoreOristudioCpDocument(
   const api = await getOristudioCpClient();
   const nextHandle = await api.loadDocument(document);
 
+  documentLoadSerial += 1;
   try {
     const nextState = await buildDocumentState(api, nextHandle, source, lastCommandResult);
     await replaceHandle(api, nextHandle);
@@ -176,6 +186,39 @@ export async function restoreOristudioCpDocument(
     await api.freeDocument(nextHandle).catch(() => undefined);
     throw error;
   }
+}
+
+/**
+ * Restore a document snapshot into the current handle in place, mirroring
+ * Oriedita's in-place `foldLineSet.setSave`. Used by undo/redo and
+ * whole-document edits so the handle (and thus the editor viewport) is
+ * preserved. The load serial is intentionally not advanced, so the CP panel
+ * does not treat the restore as a new document load. Falls back to a fresh
+ * handle only if no document is currently loaded.
+ */
+export async function restoreOristudioCpDocumentInPlace(
+  document: OristudioCpDocumentSnapshot,
+  source?: OristudioCpDocumentState['source'],
+  lastCommandResult: OristudioCpCommandResult | null = null
+): Promise<OristudioCpDocumentState> {
+  if (handle === null) {
+    return restoreOristudioCpDocument(
+      document,
+      source ??
+        currentSource ?? {
+          format: 'cp',
+          filename: document.title ? `${document.title}.cp` : 'Untitled.cp',
+          path: null,
+        },
+      lastCommandResult
+    );
+  }
+  const api = await getOristudioCpClient();
+  await api.restoreDocument(handle, document);
+  const nextSource = source ?? currentSource ?? { format: 'cp', filename: 'Untitled.cp', path: null };
+  const nextState = await buildDocumentState(api, handle, nextSource, lastCommandResult);
+  currentSource = nextState.source;
+  return nextState;
 }
 
 export async function executeOristudioCpCommand(
@@ -351,6 +394,7 @@ async function buildDocumentState(
   ]);
   return {
     handle: documentHandle,
+    loadSerial: documentLoadSerial,
     document,
     summary,
     source: {

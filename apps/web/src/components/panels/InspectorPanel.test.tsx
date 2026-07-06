@@ -71,6 +71,7 @@ function importedCpDocument(): ImportedCreasePatternDocument {
 function editableCpState(): OristudioCpDocumentState {
   return {
     handle: 1,
+    loadSerial: 1,
     source: { format: 'ori', filename: 'native.ori', path: null },
     operationDescriptors: [],
     lastCommandResult: null,

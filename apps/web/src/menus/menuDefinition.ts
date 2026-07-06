@@ -1,11 +1,26 @@
 import type { MenuActionId } from '../commands/menuActions';
 import { shortcutLabelForAction, type ShortcutOverrides } from '../keyboard/shortcuts';
+import { EXAMPLE_PROJECTS } from '../examples/catalog';
+import type { RecentProject } from '../store/workspaceStore/types';
 
 export type MenuActionItem = {
   type: 'action';
   id: MenuActionId;
   label: string;
   shortcut?: string;
+};
+
+/**
+ * A menu entry whose id is not part of the static {@link MenuActionId} union —
+ * used for data-driven items such as recent files and examples, where the id
+ * carries a payload (e.g. `file.openRecent:<id>`). The shared dispatcher handles
+ * these by prefix. No capability lookup is performed.
+ */
+export type MenuCommandItem = {
+  type: 'command';
+  actionId: string;
+  label: string;
+  disabled?: boolean;
 };
 
 export type MenuSeparator = {
@@ -18,7 +33,7 @@ export type MenuSubmenu = {
   items: MenuItemDef[];
 };
 
-export type MenuItemDef = MenuActionItem | MenuSeparator | MenuSubmenu;
+export type MenuItemDef = MenuActionItem | MenuCommandItem | MenuSeparator | MenuSubmenu;
 
 export type MenuDef = {
   label: string;
@@ -29,7 +44,31 @@ function shortcut(id: MenuActionId, overrides?: ShortcutOverrides): string | und
   return shortcutLabelForAction(id, overrides);
 }
 
-export function getMenuBarDef(overrides?: ShortcutOverrides): MenuDef[] {
+/** Build the `Open Recent ▸` submenu items from stored recent projects. */
+function recentProjectItems(recentProjects: RecentProject[]): MenuItemDef[] {
+  if (recentProjects.length === 0) {
+    return [{ type: 'command', actionId: '', label: 'No recent files', disabled: true }];
+  }
+  return recentProjects.map((project) => ({
+    type: 'command',
+    actionId: `file.openRecent:${project.id}`,
+    label: project.title || project.filename,
+  }));
+}
+
+/** Build the `Examples ▸` submenu items from the checked-in example catalog. */
+function exampleProjectItems(): MenuItemDef[] {
+  return EXAMPLE_PROJECTS.map((example) => ({
+    type: 'command',
+    actionId: `file.openExample:${example.id}`,
+    label: example.title,
+  }));
+}
+
+export function getMenuBarDef(
+  overrides?: ShortcutOverrides,
+  recentProjects: RecentProject[] = []
+): MenuDef[] {
   return [
     {
       label: 'File',
@@ -37,6 +76,8 @@ export function getMenuBarDef(overrides?: ShortcutOverrides): MenuDef[] {
         { type: 'action', id: 'file.new', label: 'New', shortcut: shortcut('file.new', overrides) },
         { type: 'action', id: 'file.open', label: 'Open...', shortcut: shortcut('file.open', overrides) },
         { type: 'action', id: 'file.detectCpImage', label: 'Detect CP from Image...' },
+        { type: 'submenu', label: 'Open Recent', items: recentProjectItems(recentProjects) },
+        { type: 'submenu', label: 'Examples', items: exampleProjectItems() },
         { type: 'separator' },
         { type: 'action', id: 'file.save', label: 'Save', shortcut: shortcut('file.save', overrides) },
         { type: 'action', id: 'file.saveAs', label: 'Save As...', shortcut: shortcut('file.saveAs', overrides) },
@@ -130,7 +171,6 @@ export function getMenuBarDef(overrides?: ShortcutOverrides): MenuDef[] {
         { type: 'action', id: 'view.design', label: 'Design' },
         { type: 'action', id: 'view.creasePattern', label: 'Crease Pattern' },
         { type: 'action', id: 'view.simulator', label: 'Simulator' },
-        { type: 'action', id: 'view.foldedBase', label: 'Folded Base' },
         { type: 'action', id: 'view.conditions', label: 'Conditions' },
         { type: 'separator' },
         { type: 'action', id: 'view.resetLayout', label: 'Reset Layout' },
@@ -149,8 +189,6 @@ export function getMenuBarDef(overrides?: ShortcutOverrides): MenuDef[] {
     {
       label: 'Crease Pattern',
       items: [
-        { type: 'action', id: 'cp.foldedPreview', label: 'Show Folded Preview', shortcut: shortcut('cp.foldedPreview', overrides) },
-        { type: 'separator' },
         {
           type: 'submenu',
           label: 'Selected Lines',

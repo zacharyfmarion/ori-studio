@@ -68,14 +68,12 @@ export const MENU_ACTION_IDS = [
   'view.design',
   'view.creasePattern',
   'view.simulator',
-  'view.foldedBase',
   'view.conditions',
   'view.resetLayout',
   'optimize.scale',
   'optimize.edges',
   'optimize.strain',
   'cp.build',
-  'cp.foldedPreview',
   'cp.deleteSelectedLines',
   'cp.changeCreaseType',
   'cp.advanceCreaseType',
@@ -108,6 +106,8 @@ export type MenuActionId = (typeof MENU_ACTION_IDS)[number];
 
 export interface WorkspaceCommands {
   createNewProject(): Promise<void>;
+  loadExampleProject(id: string): Promise<void>;
+  loadRecentProject(id: string): Promise<void>;
   openProject(fileService?: FileService): Promise<boolean>;
   saveProject(fileService?: FileService): Promise<boolean>;
   saveProjectAs(fileService?: FileService): Promise<boolean>;
@@ -266,8 +266,26 @@ export function isMenuActionId(id: string): id is MenuActionId {
   return (MENU_ACTION_IDS as readonly string[]).includes(id);
 }
 
+const OPEN_EXAMPLE_PREFIX = 'file.openExample:';
+const OPEN_RECENT_PREFIX = 'file.openRecent:';
+
 export function createMenuActionHandler(deps: MenuActionDependencies) {
   return async (id: string): Promise<boolean> => {
+    // Data-driven File menu entries (recent files, examples) carry their target
+    // in the id; they are dispatched by prefix rather than the static id union.
+    if (id.startsWith(OPEN_EXAMPLE_PREFIX)) {
+      const exampleId = id.slice(OPEN_EXAMPLE_PREFIX.length);
+      if (!exampleId) return false;
+      await deps.workspace.loadExampleProject(exampleId);
+      return true;
+    }
+    if (id.startsWith(OPEN_RECENT_PREFIX)) {
+      const recentId = id.slice(OPEN_RECENT_PREFIX.length);
+      if (!recentId) return false;
+      await deps.workspace.loadRecentProject(recentId);
+      return true;
+    }
+
     if (!isMenuActionId(id)) {
       console.warn(`Unknown menu action: ${id}`);
       return false;
@@ -540,9 +558,6 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
       case 'view.simulator':
         deps.layout.activatePanel('simulator');
         return true;
-      case 'view.foldedBase':
-        deps.layout.activatePanel('folded-base');
-        return true;
       case 'view.conditions':
         deps.layout.activatePanel('conditions');
         return true;
@@ -560,9 +575,6 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
         return true;
       case 'cp.build':
         await deps.workspace.buildCreasePattern();
-        return true;
-      case 'cp.foldedPreview':
-        deps.layout.activatePanel('folded-base');
         return true;
       case 'cp.deleteSelectedLines': {
         const lineIds = deps.workspace.oristudioCpSelection.lines;

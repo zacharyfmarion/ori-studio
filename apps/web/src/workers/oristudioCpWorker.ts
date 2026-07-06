@@ -28,6 +28,7 @@ import init, {
   insert_line_segments,
   preview_cp_command,
   replace_line_segments,
+  restore_document,
 } from '../generated/oristudio-cp-wasm/oristudio_cp_wasm';
 import type {
   OristudioCpCommandPayload,
@@ -101,6 +102,9 @@ const api = {
   },
   async loadDocument(document: OristudioCpDocumentSnapshot): Promise<number> {
     return call(() => load_document(document));
+  },
+  async restoreDocument(handle: number, document: OristudioCpDocumentSnapshot): Promise<void> {
+    return call(() => restore_document(handle, document));
   },
   async snapshot(handle: number): Promise<OristudioCpDocumentSnapshot> {
     return call(() => document_snapshot(handle) as OristudioCpDocumentSnapshot);

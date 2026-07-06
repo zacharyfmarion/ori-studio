@@ -10,7 +10,7 @@ import { staleFoldArtifactResourceState } from '../foldArtifactResource';
 import {
   executeOristudioCpCommand as executeRuntimeOristudioCpCommand,
   oristudioCpError,
-  restoreOristudioCpDocument,
+  restoreOristudioCpDocumentInPlace,
 } from '../oristudioCpRuntime';
 import type {
   HistoryEntry,
@@ -137,7 +137,11 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
       const currentSelection = get().oristudioCpSelection;
       set({ historyBusy: true, error: null, oristudioCpError: null });
       try {
-        const restored = await restoreOristudioCpDocument(previous.document, current.source, null);
+        const restored = await restoreOristudioCpDocumentInPlace(
+          previous.document,
+          current.source,
+          null
+        );
         const checked = await refreshAlwaysOnCamvDiagnostics(restored);
         set({
           ...setRestoredCreasePatternState(
@@ -221,7 +225,11 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
       const currentSelection = get().oristudioCpSelection;
       set({ historyBusy: true, error: null, oristudioCpError: null });
       try {
-        const restored = await restoreOristudioCpDocument(next.document, current.source, null);
+        const restored = await restoreOristudioCpDocumentInPlace(
+          next.document,
+          current.source,
+          null
+        );
         const checked = await refreshAlwaysOnCamvDiagnostics(restored);
         set({
           ...setRestoredCreasePatternState(checked.restored, next.selection, checked.camvResult),

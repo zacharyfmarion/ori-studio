@@ -19,6 +19,38 @@ fn loads_cp_and_exports_document() {
 }
 
 #[wasm_bindgen_test]
+fn restore_document_replaces_in_place_and_keeps_handle() {
+    // Two independent documents with distinct geometry.
+    let handle = oristudio_cp_wasm::load_cp("1 0 0 1 0\n3 0 0 0 1\n", "target")
+        .expect("cp import should succeed");
+    let replacement =
+        oristudio_cp_wasm::load_cp("1 0 0 1 0\n", "replacement").expect("cp import should succeed");
+    let replacement_snapshot =
+        oristudio_cp_wasm::document_snapshot(replacement).expect("snapshot should serialize");
+
+    // Restoring into `handle` must mutate the existing slot, not allocate a new
+    // one: the handle value is unchanged and the summary reflects the new doc.
+    oristudio_cp_wasm::restore_document(handle, replacement_snapshot)
+        .expect("in-place restore should succeed");
+
+    let summary = oristudio_cp_wasm::document_summary(handle).expect("summary should serialize");
+    let summary: serde_json::Value =
+        serde_wasm_bindgen::from_value(summary).expect("summary should deserialize");
+    assert_eq!(summary["title"], "replacement");
+    assert_eq!(summary["line_segments"], 1);
+
+    // Restoring into a freed handle is a typed error, never a silent no-op. Grab
+    // a snapshot first, then free `handle` without allocating anything else (a
+    // new document would reclaim the freed slot), so the handle is genuinely
+    // dangling when we attempt the restore.
+    let dangling_snapshot =
+        oristudio_cp_wasm::document_snapshot(replacement).expect("snapshot should serialize");
+    oristudio_cp_wasm::free_document(handle).expect("document handle should free");
+    assert!(oristudio_cp_wasm::restore_document(handle, dangling_snapshot).is_err());
+    oristudio_cp_wasm::free_document(replacement).expect("document handle should free");
+}
+
+#[wasm_bindgen_test]
 fn loads_ori_and_exports_native_editor_metadata() {
     let input = r#"{
       "@version": "v1.1",

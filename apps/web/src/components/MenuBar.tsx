@@ -3,12 +3,14 @@ import { ChevronRight } from 'lucide-react';
 import { handleMenuAction } from '../commands/menuActions';
 import { getMenuBarDef, type MenuItemDef } from '../menus/menuDefinition';
 import { useShortcutStore } from '../store/shortcutStore';
+import { useWorkspaceStore } from '../store/workspaceStore';
 import { useWorkspaceCapabilities } from '../store/workspaceStore/useWorkspaceCapabilities';
 import type { WorkspaceCapabilities, WorkspaceCapabilityId } from '../lib/workspaceCapabilities';
 import './MenuBar.css';
 
 function isMenuItemVisible(item: MenuItemDef, capabilities: WorkspaceCapabilities): boolean {
   if (item.type === 'separator') return true;
+  if (item.type === 'command') return true;
   if (item.type === 'submenu') {
     return item.items.some((child) => child.type !== 'separator' && isMenuItemVisible(child, capabilities));
   }
@@ -35,6 +37,25 @@ function MenuDropdown({
       {items.map((item, index) => {
         if (item.type === 'separator') {
           return <div key={`separator-${index}`} className="menu-dropdown__separator" />;
+        }
+
+        if (item.type === 'command') {
+          return (
+            <button
+              key={`command-${index}-${item.actionId}`}
+              type="button"
+              className="menu-dropdown__item"
+              role="menuitem"
+              disabled={item.disabled}
+              onClick={() => {
+                if (item.disabled) return;
+                onAction(item.actionId);
+                onClose();
+              }}
+            >
+              <span className="menu-dropdown__item-label">{item.label}</span>
+            </button>
+          );
         }
 
         if (item.type === 'submenu') {
@@ -97,7 +118,11 @@ export function MenuBar() {
   const [openMenu, setOpenMenu] = useState<number | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const shortcutOverrides = useShortcutStore((state) => state.overrides);
-  const menuDef = useMemo(() => getMenuBarDef(shortcutOverrides), [shortcutOverrides]);
+  const recentProjects = useWorkspaceStore((state) => state.recentProjects);
+  const menuDef = useMemo(
+    () => getMenuBarDef(shortcutOverrides, recentProjects),
+    [shortcutOverrides, recentProjects]
+  );
   const capabilities = useWorkspaceCapabilities();
 
   const closeMenu = useCallback(() => {

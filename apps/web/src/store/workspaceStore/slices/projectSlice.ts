@@ -81,6 +81,7 @@ import {
   releaseOristudioCpDocument,
   replaceOristudioCpLineSegments as replaceRuntimeOristudioCpLineSegments,
   restoreOristudioCpDocument,
+  restoreOristudioCpDocumentInPlace,
   setOristudioCpDocumentSource,
 } from '../oristudioCpRuntime';
 import type { ProjectSlice, RecentProject, WorkspaceSliceCreator } from '../types';
@@ -1486,7 +1487,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       };
 
       try {
-        const nextDocument = await restoreOristudioCpDocument(
+        const nextDocument = await restoreOristudioCpDocumentInPlace(
           nextSnapshot,
           currentDocumentState.source,
           currentDocumentState.lastCommandResult

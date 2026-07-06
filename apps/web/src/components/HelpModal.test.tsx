@@ -54,7 +54,7 @@ describe('HelpModal', () => {
     expect(rendered.querySelector('[role="dialog"]')).not.toBeNull();
     expect(rendered.textContent).toContain('Ori Studio Help');
     expect(rendered.textContent).toContain('Start, Open, Save, Export');
-    expect(rendered.textContent).toContain('Simulate And View The Folded Base');
+    expect(rendered.textContent).toContain('Simulate The Folded Model');
 
     const screenshots = Array.from(rendered.querySelectorAll('img')).map((image) =>
       image.getAttribute('src')

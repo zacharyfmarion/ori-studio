@@ -46,14 +46,12 @@ export type WorkspaceCapabilityId =
   | 'view.design'
   | 'view.creasePattern'
   | 'view.simulator'
-  | 'view.foldedBase'
   | 'view.conditions'
   | 'view.resetLayout'
   | 'optimize.scale'
   | 'optimize.edges'
   | 'optimize.strain'
   | 'cp.build'
-  | 'cp.foldedPreview'
   | 'cp.deleteSelectedLines'
   | 'cp.changeCreaseType'
   | 'cp.advanceCreaseType'
@@ -78,8 +76,7 @@ export type WorkspaceCapabilityId =
   | 'cp.fixInaccurate'
   | 'cp.changeCircleColor'
   | 'cp.organizeCircles'
-  | 'simulator.refresh'
-  | 'foldedBase.refresh';
+  | 'simulator.refresh';
 
 export interface WorkspaceCapability {
   enabled: boolean;
@@ -398,11 +395,6 @@ export function getWorkspaceCapabilities(input: WorkspaceCapabilityInput): Works
       'Simulator',
       hasCreasePattern ? 'Show the simulator pane' : 'Build or import a crease pattern before simulating'
     ),
-    'view.foldedBase': capability(
-      hasCreasePattern,
-      'Folded Base',
-      hasCreasePattern ? 'Show the folded base pane' : 'Build or import a crease pattern before viewing the folded base'
-    ),
     'view.conditions': capability(true, 'Conditions', 'Show the conditions pane'),
     'view.resetLayout': capability(true, 'Reset Layout', 'Reset pane layout'),
     'optimize.scale': commandCapability(
@@ -428,13 +420,6 @@ export function getWorkspaceCapabilities(input: WorkspaceCapabilityInput): Works
       treeMode,
       buildLabel,
       canBuild ? buildReason : disabledBuildReason(input, isBusy, hasTreeEdges)
-    ),
-    'cp.foldedPreview': capability(
-      hasCreasePattern,
-      'Folded Preview',
-      hasCreasePattern
-        ? 'Show the existing folded-base preview'
-        : 'Build or import a crease pattern before viewing the folded preview'
     ),
     'cp.deleteSelectedLines': capability(
       canEditCp && hasSelectedCpLines,
@@ -591,13 +576,6 @@ export function getWorkspaceCapabilities(input: WorkspaceCapabilityInput): Works
       canRefreshFoldArtifacts
         ? busyOr('Refresh simulator model', input.status)
         : 'Build or edit a crease pattern before refreshing the simulator'
-    ),
-    'foldedBase.refresh': capability(
-      canRefreshFoldArtifacts,
-      'Refresh',
-      canRefreshFoldArtifacts
-        ? busyOr('Refresh folded base', input.status)
-        : 'Build or edit a crease pattern before refreshing the folded base'
     ),
   };
 }

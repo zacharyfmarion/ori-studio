@@ -209,7 +209,6 @@ export function InspectorPanel() {
               </>
             )}
             <ActionRow label="Check CAMV" onClick={() => void handleMenuAction('cp.checkCamv')} />
-            <ActionRow label="Folded preview" onClick={() => void handleMenuAction('cp.foldedPreview')} />
           </>
         )}
         {selection.kind === 'tree' &&
@@ -248,7 +247,6 @@ export function InspectorPanel() {
               label="Simulation"
               value={importedCreasePattern?.simulationModelError ? 'Unavailable' : 'Ready'}
             />
-            <ActionRow label="Folded preview" onClick={() => void handleMenuAction('cp.foldedPreview')} />
             <ActionRow label="Check CAMV" onClick={() => void handleMenuAction('cp.checkCamv')} />
           </>
         )}
