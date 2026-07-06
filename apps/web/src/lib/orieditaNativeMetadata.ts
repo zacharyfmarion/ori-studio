@@ -1,6 +1,7 @@
 import type {
   OristudioCpFoldedFigureModel,
   OristudioCpFoldedFigureState,
+  OristudioCpCustomLineType,
   OristudioCpLineColor,
   OristudioCpRgbColor,
 } from '../engine/oristudioCpTypes';
@@ -44,6 +45,12 @@ const PRESERVED_ORI_FIELD_LABELS = new Map<string, string>([
 export interface OrieditaNativeMetadataStatus {
   restored: string[];
   preserved: string[];
+}
+
+export interface OrieditaCanvasToolOptions {
+  customFromLineType?: OristudioCpCustomLineType;
+  customToLineType?: OristudioCpCustomLineType;
+  customLineType?: OristudioCpCustomLineType;
 }
 
 export function foldedFigureModelFromOrieditaMetadata(
@@ -95,6 +102,22 @@ export function activeMouseModeFromOrieditaMetadata(
   return trimmed.length > 0 ? trimmed : null;
 }
 
+export function canvasToolOptionsFromOrieditaMetadata(
+  metadata: Record<string, unknown> | null | undefined
+): OrieditaCanvasToolOptions | null {
+  const canvasModel = recordValue(metadata?.[ORI_CANVAS_MODEL_KEY]);
+  if (!canvasModel) return null;
+  const customFromLineType = customLineTypeValue(canvasModel.customFromLineType);
+  const customToLineType = customLineTypeValue(canvasModel.customToLineType);
+  const customLineType = customLineTypeValue(canvasModel.delLineType);
+  if (!customFromLineType && !customToLineType && !customLineType) return null;
+  return {
+    ...(customFromLineType ? { customFromLineType } : {}),
+    ...(customToLineType ? { customToLineType } : {}),
+    ...(customLineType ? { customLineType } : {}),
+  };
+}
+
 export function orieditaNativeMetadataStatus(
   metadata: Record<string, unknown> | null | undefined
 ): OrieditaNativeMetadataStatus | null {
@@ -115,6 +138,7 @@ export function orieditaNativeMetadataStatus(
         if (activeLineColorFromOrieditaMetadata(metadata)) restored.add('Canvas line color');
         const mouseMode = activeMouseModeFromOrieditaMetadata(metadata);
         if (mouseMode && cpActionByUpstreamMouseMode(mouseMode)) restored.add('Canvas tool');
+        if (canvasToolOptionsFromOrieditaMetadata(metadata)) restored.add('Canvas line filters');
         preserved.add(PRESERVED_ORI_FIELD_LABELS.get(field) ?? field);
       } else {
         preserved.add(PRESERVED_ORI_FIELD_LABELS.get(field) ?? field);
@@ -222,6 +246,48 @@ function lineColorValue(value: unknown): OristudioCpLineColor | null {
     case 'GREY_10':
     case 'Grey10':
       return 'Grey10';
+    default:
+      return null;
+  }
+}
+
+function customLineTypeValue(value: unknown): OristudioCpCustomLineType | null {
+  if (typeof value === 'number' && Number.isInteger(value)) {
+    switch (value) {
+      case -1:
+        return 'Any';
+      case 0:
+        return 'Edge';
+      case 1:
+        return 'MountainAndValley';
+      case 2:
+        return 'Mountain';
+      case 3:
+        return 'Valley';
+      case 4:
+        return 'Aux';
+      default:
+        return null;
+    }
+  }
+
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().replace(/[-_\s]/gu, '').toUpperCase();
+  switch (normalized) {
+    case 'ANY':
+      return 'Any';
+    case 'EDGE':
+      return 'Edge';
+    case 'MANDV':
+    case 'MOUNTAINANDVALLEY':
+      return 'MountainAndValley';
+    case 'MOUNTAIN':
+      return 'Mountain';
+    case 'VALLEY':
+      return 'Valley';
+    case 'AUX':
+    case 'AUXILIARY':
+      return 'Aux';
     default:
       return null;
   }

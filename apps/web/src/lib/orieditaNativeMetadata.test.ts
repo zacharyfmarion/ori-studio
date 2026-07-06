@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   activeLineColorFromOrieditaMetadata,
   activeMouseModeFromOrieditaMetadata,
+  canvasToolOptionsFromOrieditaMetadata,
   foldedFigureModelFromOrieditaMetadata,
   orieditaNativeMetadataStatus,
 } from './orieditaNativeMetadata';
@@ -108,6 +109,36 @@ describe('oriedita native metadata', () => {
         },
       })
     ).toBeNull();
+  });
+
+  it('restores supported canvas custom line-type filters from Oriedita metadata', () => {
+    expect(
+      canvasToolOptionsFromOrieditaMetadata({
+        'oriedita:ori:canvasModel': {
+          customFromLineType: 'MANDV',
+          customToLineType: 'VALLEY',
+          delLineType: 'AUX',
+        },
+      })
+    ).toEqual({
+      customFromLineType: 'MountainAndValley',
+      customToLineType: 'Valley',
+      customLineType: 'Aux',
+    });
+
+    expect(
+      canvasToolOptionsFromOrieditaMetadata({
+        'oriedita:ori:canvasModel': {
+          customFromLineType: -1,
+          customToLineType: 0,
+          delLineType: 2,
+        },
+      })
+    ).toEqual({
+      customFromLineType: 'Any',
+      customToLineType: 'Edge',
+      customLineType: 'Mountain',
+    });
   });
 
   it('summarizes restored and preserved native metadata fields', () => {

@@ -115,6 +115,7 @@ import {
 import {
   activeLineColorFromOrieditaMetadata,
   activeMouseModeFromOrieditaMetadata,
+  canvasToolOptionsFromOrieditaMetadata,
 } from '../../lib/orieditaNativeMetadata';
 import {
   orieditaCameraFromMetadata,
@@ -1616,6 +1617,10 @@ export function CreasePatternPanel() {
     () => activeMouseModeFromOrieditaMetadata(editableCp?.metadata),
     [editableCp?.metadata]
   );
+  const nativeCanvasToolOptions = useMemo(
+    () => canvasToolOptionsFromOrieditaMetadata(editableCp?.metadata),
+    [editableCp?.metadata]
+  );
   const nativeCreasePatternCamera = useMemo(
     () => orieditaCameraFromMetadata(editableCp?.metadata),
     [editableCp?.metadata]
@@ -1685,7 +1690,16 @@ export function CreasePatternPanel() {
     if (restoredNativeCanvasModelRef.current === restoreKey) return;
     restoredNativeCanvasModelRef.current = restoreKey;
     if (nativeActiveLineColor) setActiveCpLineColor(nativeActiveLineColor);
-  }, [editableCp, editableCpHandle, nativeActiveLineColor, projectLoadId]);
+    if (nativeCanvasToolOptions) {
+      setCpToolOptions((current) => ({ ...current, ...nativeCanvasToolOptions }));
+    }
+  }, [
+    editableCp,
+    editableCpHandle,
+    nativeActiveLineColor,
+    nativeCanvasToolOptions,
+    projectLoadId,
+  ]);
   const activeFoldedFigure = useMemo(
     () =>
       oristudioCpFoldedFigures.find((figure) => figure.id === oristudioCpActiveFoldedFigureId) ??

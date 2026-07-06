@@ -572,6 +572,8 @@ Done when:
 - [x] Phase 6: Restore Oriedita grid state and canvas active line color in the
       web UI.
 - [x] Phase 6: Restore supported Oriedita canvas mouse tool state in the web UI.
+- [x] Phase 6: Restore Oriedita canvas custom line-type filters in the web CP
+      tool options.
 - [x] Phase 6: Add Oriedita camera affine helper and inverse-matrix tests.
 - [x] Phase 6: Apply imported Oriedita camera transforms to editable CP
       rendering.

@@ -2224,6 +2224,75 @@ describe('CreasePatternPanel', () => {
     });
   });
 
+  it('restores Oriedita canvas custom line filters into contextual line-type commands', async () => {
+    const executeOristudioCpCommand = vi.fn(async () => true);
+    const documentState = editableCpState();
+    documentState.document.metadata = {
+      'oriedita:ori:canvasModel': {
+        customFromLineType: 'MANDV',
+        customToLineType: 'VALLEY',
+        delLineType: 'AUX',
+      },
+    };
+    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
+      documentMode: 'crease-pattern',
+      importedCreasePattern: importedCpDocument(),
+      oristudioCpDocument: documentState,
+      executeOristudioCpCommand,
+    });
+
+    act(() => {
+      useWorkspaceStore.getState().setOristudioCpSelection({
+        ...useWorkspaceStore.getState().oristudioCpSelection,
+        lines: [1],
+      });
+    });
+
+    await act(async () => {
+      useWorkspaceStore.getState().requestOristudioCpAction('ReplaceLineTypeSelect');
+      await Promise.resolve();
+    });
+
+    expect(
+      container.querySelector<HTMLSelectElement>('select[aria-label="Replace from line type"]')
+        ?.value
+    ).toBe('MountainAndValley');
+    expect(
+      container.querySelector<HTMLSelectElement>('select[aria-label="Replace to line type"]')
+        ?.value
+    ).toBe('Valley');
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('button.cp-context-panel__apply')?.click();
+      await Promise.resolve();
+    });
+
+    expect(executeOristudioCpCommand).toHaveBeenLastCalledWith('ReplaceLineTypeSelect', {
+      line_ids: [1],
+      custom_from_line_type: 'MountainAndValley',
+      custom_to_line_type: 'Valley',
+    });
+
+    await act(async () => {
+      useWorkspaceStore.getState().requestOristudioCpAction('DeleteLineTypeSelect');
+      await Promise.resolve();
+    });
+
+    expect(
+      container.querySelector<HTMLSelectElement>('select[aria-label="Delete line type"]')?.value
+    ).toBe('Aux');
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('button.cp-context-panel__apply')?.click();
+      await Promise.resolve();
+    });
+
+    expect(executeOristudioCpCommand).toHaveBeenLastCalledWith('DeleteLineTypeSelect', {
+      line_ids: [1],
+      custom_line_type: 'Aux',
+    });
+  });
+
   it('passes contextual fix-inaccurate options only after apply', async () => {
     const executeOristudioCpCommand = vi.fn(async () => true);
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
