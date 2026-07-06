@@ -279,4 +279,103 @@ missing edges are 100% recoverable-selection on easy/medium.
   is the obvious next increment.
 - Medium's next wall after topology is **assignment**: 125 exact-topology but
   only 98 exact-topology-and-assignment under oracle+completion (hard: 21 vs
-  6). Wrong M/V on strict-matched edges is 13% pack-wide; no lever attempted.
+  6). Wrong M/V on strict-matched edges is 13% pack-wide. **(Addressed in the
+  2026-07-06 addendum, §8: Maekawa propagation takes topo+assign 265→293.)**
+
+---
+
+## 8. Addendum (2026-07-06): removal/swap is a dead end; assignment completion is not
+
+Follow-up session on the two §7 levers, same benchmark discipline.
+
+### 8a. Removal/swap moves: three iterations, closed as a dead end
+
+The completion pass got opt-in destructive phases (`SelectionOptions::
+completion_removal_moves`, default **off**): pure removals and
+conflict-partner swaps, targeting the extras and the wrong-twin selected
+anomaly. Three acceptance rules were measured (oracle, topology-only, vs the
+311 adds/pairs baseline):
+
+| variant | oracle exact topology | regressions |
+|---|---|---|
+| score-improvement only | 297 (−14) | 15 (exact samples → up to 12 missing/4 extra) |
+| + total penalty-relief > 0 required | 297 (−14) | 15 (identical) |
+| + STRUCTURAL relief only (odd/dangling/degree) | 310 (−1) | 1, and **0 gains** |
+
+Mechanism of the failures, in order of discovery: (1) near-collinear twins
+share the same ink, so selection score cannot distinguish the true span from
+the spurious one — swaps "improve" healthy regions into broken ones;
+(2) penalty relief cannot be trusted either, because **exact-topology samples
+are not penalty-free**: Unknown assignment labels make Maekawa nonzero and
+rectified-angle error makes Kawasaki nonzero on perfectly correct topology,
+so destructive moves score-shop through label noise; (3) even restricted to
+structural terms (which ARE zero on correct topology), the moves gain
+nothing — the swap-shaped misses the census counted (medium 16, hard 1,711)
+sit on samples that are too broken for one swap to flip. Additional guards
+implemented along the way (isolated-segment erasure ban, new-dangling /
+chain-nibbling ban) are necessary but not sufficient. The code stays in tree
+flag-gated for future work; it does not ship. *(High — three A/Bs.)*
+
+### 8b. Assignment: the errors are Unknown-shaped, and constraints fix them
+
+Confusion matrix on strict-matched edges (oracle+completion): genuine M↔V
+swaps are rare (443 edges); the mass is labels collapsing to **Unknown**
+(39.2k edges; 18.9% of hard checked edges), because `assignment_from_sums`
+needs confidence ≥0.60 and margin ≥0.12 and the head is genuinely uncertain
+on real strokes. 46 samples (easy 4 / medium 27 / hard 15) had exact
+topology but were blocked purely by assignment, ~92% of their wrong edges
+being `X → unknown`.
+
+Two topology-preserving post-selection fixes (both cannot touch a
+non-Unknown label, so they cannot un-fix anything):
+
+1. **Ink-weighted relabel** (`AssignmentEvidence::ink_label`, promoted over
+   Unknown post-selection; benchmark `--relabel-unknown-assignments`): safe
+   (topology exactly 311=311) but weak — wrong edges only 40,032→39,342.
+   The ink-weighted label is also Unknown ~98% of the time: the low
+   confidence is model-bound on-stroke, not sampling dilution. (Making the
+   weighted evidence PRIMARY — `ink_weighted_assignment` — was also measured:
+   −11 oracle topology through score/Maekawa coupling; kept off.)
+2. **Maekawa / pass-through constraint propagation**
+   (`selection::propagate_forced_assignments`; benchmark
+   `--propagate-forced-assignments`): at an even-degree interior vertex with
+   exactly one Unknown crease, M−V=±2 pins the label when the known
+   difference is ±1 or ±3; a degree-2 pass-through copies its partner's
+   label; iterate to fixpoint. Result: **topo+assign 265 → 293 (+28)** —
+   medium 98→115, hard 6→16 — wrong edges 40,032→26,536 (−34%), zero
+   topology losses (one gain via label-dependent canonicalization). *(High.)*
+
+Production has 10 assignment-blocked samples (easy 3 / medium 1 / hard 6 of
+the 150 exact topologies), so the propagation lever also applies there —
+solver-on numbers below.
+
+### 8c. Final end-to-end numbers (25s solver, completion + relabel + propagation)
+
+| config | oracle `solve_recovered` (easy/med/hard) | production |
+|---|---|---|
+| baseline (pre-session) | 178 (129/43/6) | 121 (70/49/2) |
+| + completion pass | 260 (159/95/6) | 121 |
+| + assignment stack | **288 (160/112/16)** | 121 |
+
+**Zero recovery regressions at every step, both modes.** Oracle end-to-end is
+up **+110 (+62%)** across the session; medium 2.6×, hard 2.7×. The
+assignment stack converts 28 of the 46 assignment-blocked oracle samples.
+Production stays exactly 121: its 10 assignment-blocked samples did not
+convert (their Unknowns sit at vertices with multiple unknowns or alongside
+genuinely wrong labels, where single-unknown forcing does not apply) — the
+production numbers remain junction-bound on every axis measured.
+
+### 8d. Revised residual picture
+
+- Oracle selection residual: 107 medium failures (median 6 missing + 2
+  extra), substantially **cycle-shaped** — a missing closed cycle produces no
+  parity/dangling signal at any vertex, so local repair driven by structural
+  residuals is blind to it; only evidence-score or global reasoning can find
+  it. This, not pairs, is the next selection frontier.
+- Assignment residual after propagation: 26.5k wrong edges, still
+  Unknown-dominated on hard — vertices with 2+ unknowns or non-flat-foldable
+  label neighborhoods; a full per-vertex 2-coloring/CSP (or line-style/color
+  evidence) is the next assignment increment.
+- Production remains junction-bound (§5b) for topology; the assignment stack
+  is the first pipeline lever in this line of work that should move
+  production recovery (via its 10 blocked samples).
