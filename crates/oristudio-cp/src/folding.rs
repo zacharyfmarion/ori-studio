@@ -2827,11 +2827,9 @@ fn push_grayscale_transparent_render_pass_primitives(
     render_state: &mut OrieditaRenderState,
     primitives: &mut Vec<FoldedFigureRenderPrimitive>,
 ) {
-    let step = if subfaces.face_id_count_max > 0 {
-        225 / subfaces.face_id_count_max
-    } else {
-        0
-    };
+    let step = 225usize
+        .checked_div(subfaces.face_id_count_max)
+        .unwrap_or(0);
 
     for (subface_index, face) in subface_graph.faces.iter().enumerate() {
         let face_count = subfaces
