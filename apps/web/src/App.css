@@ -251,12 +251,44 @@
 }
 
 .workspace-rail__button {
+  position: relative;
+  background: transparent;
+  border-color: transparent;
   color: var(--text-tertiary);
 }
 
+.workspace-rail__button:hover:not(:disabled) {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-secondary);
+}
+
 .workspace-rail__button[data-active] {
-  color: var(--text-primary);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-primary) 52%, transparent);
+  background: transparent;
+  border-color: transparent;
+  color: var(--accent-primary);
+  box-shadow: none;
+}
+
+.workspace-rail__button[data-active]:hover:not(:disabled) {
+  background: transparent;
+  border-color: transparent;
+  color: var(--accent-primary);
+}
+
+.workspace-rail__button[data-active]:focus-visible {
+  box-shadow: 0 0 0 2px var(--accent-primary);
+}
+
+.workspace-rail__button[data-active]::before {
+  content: '';
+  position: absolute;
+  left: -7px;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  border-radius: var(--radius-full);
+  background: var(--accent-primary);
 }
 
 .workspace-shell__dockview {
@@ -316,6 +348,10 @@
 
   .workspace-rail {
     padding: var(--space-2) 0;
+  }
+
+  .workspace-rail__button[data-active]::before {
+    left: -4px;
   }
 }
 
