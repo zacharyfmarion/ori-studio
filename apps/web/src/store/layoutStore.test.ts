@@ -4,12 +4,19 @@ import { applyDefaultLayout, useLayoutStore } from './layoutStore';
 
 interface MockPanel {
   id: string;
-  group: { id: string };
+  group: MockGroup;
   api: { setActive: ReturnType<typeof vi.fn> };
 }
 
+interface MockGroup {
+  id: string;
+  hideHeader?: boolean;
+}
+
 type MockDockviewApi = DockviewApi & {
+  groupMap: Map<string, MockGroup>;
   panelMap: Map<string, MockPanel>;
+  addGroup: ReturnType<typeof vi.fn>;
   addPanel: ReturnType<typeof vi.fn>;
   clear: ReturnType<typeof vi.fn>;
   fromJSON: ReturnType<typeof vi.fn>;
@@ -24,15 +31,31 @@ function dockviewLayout(label = 'branch'): SerializedDockview {
 }
 
 function createDockviewApi(layout: SerializedDockview = dockviewLayout()) {
+  const groups = new Map<string, MockGroup>();
   const panels = new Map<string, MockPanel>();
+  let groupSequence = 0;
   const api = {
+    groupMap: groups,
     panelMap: panels,
+    addGroup: vi.fn((options?: { id?: string; hideHeader?: boolean }) => {
+      const id = options?.id ?? `group-${++groupSequence}`;
+      const group: MockGroup = { id, hideHeader: options?.hideHeader };
+      groups.set(id, group);
+      return group;
+    }),
     addPanel: vi.fn(
-      (options: { id: string; position?: { referenceGroup?: string; referencePanel?: string } }) => {
+      (options: {
+        id: string;
+        position?: { referenceGroup?: string | MockGroup; referencePanel?: string };
+      }) => {
         const referenceGroup = options.position?.referenceGroup;
+        const group =
+          typeof referenceGroup === 'string'
+            ? (groups.get(referenceGroup) ?? { id: referenceGroup })
+            : (referenceGroup ?? { id: `${options.id}-group` });
         const panel: MockPanel = {
           id: options.id,
-          group: { id: referenceGroup ?? `${options.id}-group` },
+          group,
           api: { setActive: vi.fn() },
         };
         panels.set(options.id, panel);
@@ -66,6 +89,8 @@ describe('layout store', () => {
       'diagnostics',
       'conditions',
     ]);
+    expect(api.addGroup).toHaveBeenCalledWith({ direction: 'right', hideHeader: true });
+    expect(api.panelMap.get('design')?.group.hideHeader).toBe(true);
     expect(api.addPanel.mock.calls[1][0]).toMatchObject({
       id: 'inspector',
       initialWidth: 320,
@@ -88,10 +113,15 @@ describe('layout store', () => {
     expect(editApi.addPanel.mock.calls.map(([options]) => options.id)).toEqual([
       'crease-pattern',
     ]);
+    expect(editApi.addGroup).toHaveBeenCalledWith({ direction: 'right', hideHeader: true });
+    expect(editApi.panelMap.get('crease-pattern')?.group.hideHeader).toBe(true);
     expect(simulateApi.addPanel.mock.calls.map(([options]) => options.id)).toEqual([
       'simulator',
       'sequence',
     ]);
+    expect(simulateApi.addGroup).toHaveBeenCalledWith({ direction: 'right', hideHeader: true });
+    expect(simulateApi.panelMap.get('simulator')?.group.hideHeader).toBe(true);
+    expect(simulateApi.panelMap.get('sequence')?.group.hideHeader).toBeUndefined();
     expect(simulateApi.addPanel.mock.calls[1][0]).toMatchObject({
       id: 'sequence',
       position: { referencePanel: 'simulator', direction: 'right' },
@@ -147,7 +177,7 @@ describe('layout store', () => {
     expect(useLayoutStore.getState().loadLayout()).toBeNull();
     expect(localStorage.getItem('treemaker-web-layout:design')).toBeNull();
 
-    localStorage.setItem('treemaker-web-layout-version:design', '9');
+    localStorage.setItem('treemaker-web-layout-version:design', '10');
     localStorage.setItem('treemaker-web-layout:design', '{broken');
 
     expect(useLayoutStore.getState().loadLayout()).toBeNull();
@@ -157,7 +187,7 @@ describe('layout store', () => {
   it('resets to the default layout and persists the replacement', () => {
     const api = createDockviewApi(dockviewLayout('reset'));
     useLayoutStore.getState().setDockviewApi(api);
-    localStorage.setItem('treemaker-web-layout-version:design', '9');
+    localStorage.setItem('treemaker-web-layout-version:design', '10');
     localStorage.setItem('treemaker-web-layout:design', '{"old":true}');
 
     useLayoutStore.getState().resetLayout();

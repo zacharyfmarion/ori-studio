@@ -1,11 +1,11 @@
 import { create } from 'zustand';
-import type { DockviewApi, SerializedDockview } from 'dockview';
+import type { DockviewApi, IDockviewPanel, SerializedDockview } from 'dockview';
 import type { WorkspaceId } from '../workspaces/workspaces';
 import { workspaceForPanelId } from '../workspaces/workspaces';
 
 const LAYOUT_STORAGE_KEY = 'treemaker-web-layout';
 const LAYOUT_VERSION_KEY = 'treemaker-web-layout-version';
-const LAYOUT_VERSION = 9;
+const LAYOUT_VERSION = 10;
 
 function layoutStorageKey(workspace: WorkspaceId): string {
   return `${LAYOUT_STORAGE_KEY}:${workspace}`;
@@ -13,6 +13,12 @@ function layoutStorageKey(workspace: WorkspaceId): string {
 
 function layoutVersionKey(workspace: WorkspaceId): string {
   return `${LAYOUT_VERSION_KEY}:${workspace}`;
+}
+
+interface PrimaryPanelOptions {
+  id: string;
+  component: string;
+  title: string;
 }
 
 export function applyDefaultLayout(api: DockviewApi, workspace: WorkspaceId = 'design'): void {
@@ -29,8 +35,13 @@ export function applyDefaultLayout(api: DockviewApi, workspace: WorkspaceId = 'd
   }
 }
 
+function addHeaderlessPanel(api: DockviewApi, options: PrimaryPanelOptions): IDockviewPanel {
+  const group = api.addGroup({ direction: 'right', hideHeader: true });
+  return api.addPanel({ ...options, position: { referenceGroup: group } });
+}
+
 function applyDesignLayout(api: DockviewApi): void {
-  api.addPanel({ id: 'design', component: 'design', title: 'Design' });
+  addHeaderlessPanel(api, { id: 'design', component: 'design', title: 'Design' });
   api.addPanel({
     id: 'inspector',
     component: 'inspector',
@@ -58,11 +69,19 @@ function applyDesignLayout(api: DockviewApi): void {
 }
 
 function applyEditLayout(api: DockviewApi): void {
-  api.addPanel({ id: 'crease-pattern', component: 'crease-pattern', title: 'Crease Pattern' });
+  addHeaderlessPanel(api, {
+    id: 'crease-pattern',
+    component: 'crease-pattern',
+    title: 'Crease Pattern',
+  });
 }
 
 function applySimulateLayout(api: DockviewApi): void {
-  const simulator = api.addPanel({ id: 'simulator', component: 'simulator', title: 'Simulator' });
+  const simulator = addHeaderlessPanel(api, {
+    id: 'simulator',
+    component: 'simulator',
+    title: 'Simulator',
+  });
   api.addPanel({
     id: 'sequence',
     component: 'sequence',
