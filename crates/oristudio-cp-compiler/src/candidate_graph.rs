@@ -105,6 +105,14 @@ pub struct AssignmentEvidence {
     pub source: AssignmentEvidenceSource,
     pub confidence: f64,
     pub margin: f64,
+    /// Assignment label re-derived with ink-weighted sampling (assignment-head
+    /// samples weighted by per-pixel line probability, so background pixels
+    /// cannot dilute the channel means). Kept SEPARATE from `observed_label`
+    /// so selection scoring and local-theorem residuals are untouched; a
+    /// post-selection pass may promote it over an Unknown `observed_label`
+    /// for the final output.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ink_label: Option<AssignmentLabel>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -134,6 +142,7 @@ impl AssignmentEvidence {
             source,
             confidence,
             margin: candidate.margin.clamp(0.0, 1.0),
+            ink_label: None,
         };
         match candidate.label {
             AssignmentLabel::Mountain => evidence.mountain = confidence.max(0.01),
