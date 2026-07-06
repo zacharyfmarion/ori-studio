@@ -1,4 +1,5 @@
 use super::{IoError, Result};
+use crate::CreasePatternDocument;
 use crate::fold_graph::FoldGraph;
 use crate::geometry::{Circle, LineColor, LineSegment, Point, angle, point_rotate_scaled};
 use crate::model::{
@@ -10,6 +11,64 @@ use treemaker_fold::FoldDocument;
 
 const ORIEDITA_VERSION: &str = "dev";
 const ORISTUDIO_EDGES_LINE_COLORS: &str = "oristudio:edges_line_colors";
+pub const FOLD_FILE_METADATA_KEY: &str = "oristudio:fold:file";
+
+/// Parse a full FOLD file document without flattening embedded frames.
+pub fn import_fold_file_json(input: &str) -> Result<FoldDocument> {
+    Ok(serde_json::from_str::<FoldDocument>(input)?)
+}
+
+/// Serialize a full FOLD file document without dropping embedded frames.
+pub fn export_fold_file_json(fold: &FoldDocument) -> Result<String> {
+    Ok(serde_json::to_string_pretty(fold)?)
+}
+
+/// Return embedded FOLD frames preserved on the root document.
+pub fn import_folded_frames(fold: &FoldDocument) -> &[FoldDocument] {
+    &fold.file_frames
+}
+
+/// Replace the root document's embedded FOLD frames before lossless export.
+pub fn export_folded_frames(fold: &mut FoldDocument, frames: Vec<FoldDocument>) {
+    fold.file_frames = frames;
+}
+
+/// Import a full FOLD file as an editable crease-pattern document while
+/// carrying the original file document for frame-preserving export.
+pub fn import_fold_file_document_json(input: &str) -> Result<CreasePatternDocument> {
+    let fold = import_fold_file_json(input)?;
+    import_fold_file_document(&fold)
+}
+
+pub fn import_fold_file_document(fold: &FoldDocument) -> Result<CreasePatternDocument> {
+    let model = import_fold_document(fold)?;
+    let mut document = CreasePatternDocument {
+        title: fold.frame_title.clone().or_else(|| fold.file_title.clone()),
+        crease_pattern: model,
+        operation_frame: Default::default(),
+        metadata: Default::default(),
+    };
+    document.metadata.insert(
+        FOLD_FILE_METADATA_KEY.to_string(),
+        serde_json::to_value(fold)?,
+    );
+    Ok(document)
+}
+
+/// Export an editable document as a full FOLD file, preserving embedded frames
+/// from the source FOLD document when one was imported.
+pub fn export_fold_file_document(document: &CreasePatternDocument) -> Result<FoldDocument> {
+    let current = export_fold_document(&document.crease_pattern, document.title.clone());
+    let Some(original) = document.metadata.get(FOLD_FILE_METADATA_KEY) else {
+        return Ok(current);
+    };
+    let original = serde_json::from_value::<FoldDocument>(original.clone())?;
+    Ok(merge_fold_file_document(original, current))
+}
+
+pub fn export_fold_file_document_json(document: &CreasePatternDocument) -> Result<String> {
+    export_fold_file_json(&export_fold_file_document(document)?)
+}
 
 /// Import a FOLD JSON document with Oriedita extension fields.
 pub fn import_fold_json(input: &str) -> Result<CreasePatternModel> {
@@ -118,6 +177,26 @@ pub fn export_fold_json(model: &CreasePatternModel, title: Option<String>) -> Re
     Ok(serde_json::to_string_pretty(&export_fold_document(
         model, title,
     ))?)
+}
+
+fn merge_fold_file_document(original: FoldDocument, current: FoldDocument) -> FoldDocument {
+    let mut merged = current;
+    let mut extra = original.extra;
+    extra.extend(merged.extra);
+
+    merged.file_spec = original.file_spec.or(merged.file_spec);
+    merged.file_creator = original.file_creator.or(merged.file_creator);
+    merged.file_author = original.file_author.or(merged.file_author);
+    merged.file_title = original.file_title.or(merged.file_title);
+    merged.frame_title = merged.frame_title.or(original.frame_title);
+    merged.frame_parent = original.frame_parent.or(merged.frame_parent);
+    merged.frame_inherit = original.frame_inherit.or(merged.frame_inherit);
+    if !original.frame_classes.is_empty() {
+        merged.frame_classes = original.frame_classes;
+    }
+    merged.file_frames = original.file_frames;
+    merged.extra = extra;
+    merged
 }
 
 fn vertex_point(fold: &FoldDocument, index: usize) -> Result<Point> {

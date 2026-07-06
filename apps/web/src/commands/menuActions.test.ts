@@ -9,6 +9,8 @@ function createDeps() {
   return {
     workspace: {
       createNewProject: vi.fn().mockResolvedValue(undefined),
+      loadExampleProject: vi.fn().mockResolvedValue(undefined),
+      loadRecentProject: vi.fn().mockResolvedValue(undefined),
       openProject: vi.fn().mockResolvedValue(true),
       saveProject: vi.fn().mockResolvedValue(true),
       saveProjectAs: vi.fn().mockResolvedValue(true),
@@ -16,6 +18,8 @@ function createDeps() {
       exportV4: vi.fn().mockResolvedValue(true),
       exportCp: vi.fn().mockResolvedValue(true),
       exportFold: vi.fn().mockResolvedValue(true),
+      exportOri: vi.fn().mockResolvedValue(true),
+      exportOrh: vi.fn().mockResolvedValue(true),
       exportSvg: vi.fn().mockResolvedValue(true),
       exportPng: vi.fn().mockResolvedValue(true),
       undo: vi.fn().mockResolvedValue(undefined),
@@ -99,25 +103,36 @@ describe('menu actions', () => {
     await expect(handle('file.new')).resolves.toBe(true);
     await expect(handle('view.creasePattern')).resolves.toBe(true);
     await expect(handle('view.simulator')).resolves.toBe(true);
-    await expect(handle('view.foldedBase')).resolves.toBe(true);
     await expect(handle('file.settings')).resolves.toBe(true);
     await expect(handle('help.documentation')).resolves.toBe(true);
     await expect(handle('help.about')).resolves.toBe(true);
     await expect(handle('app.about')).resolves.toBe(true);
     await expect(handle('cp.build')).resolves.toBe(true);
-    await expect(handle('cp.foldedPreview')).resolves.toBe(true);
     await expect(handle('optimize.edges')).resolves.toBe(true);
 
     expect(deps.showStartScreen).toHaveBeenCalledOnce();
     expect(deps.workspace.createNewProject).not.toHaveBeenCalled();
     expect(deps.layout.activatePanel).toHaveBeenCalledWith('crease-pattern');
     expect(deps.layout.activatePanel).toHaveBeenCalledWith('simulator');
-    expect(deps.layout.activatePanel).toHaveBeenCalledWith('folded-base');
     expect(deps.settings).toHaveBeenCalledOnce();
     expect(deps.help).toHaveBeenCalledOnce();
     expect(deps.about).toHaveBeenCalledTimes(2);
     expect(deps.workspace.buildCreasePattern).toHaveBeenCalledOnce();
     expect(deps.workspace.optimizeEdges).toHaveBeenCalledOnce();
+  });
+
+  it('dispatches data-driven Open Recent and Examples entries by id prefix', async () => {
+    const deps = createDeps();
+    const handle = createMenuActionHandler(deps);
+
+    await expect(handle('file.openExample:triad')).resolves.toBe(true);
+    await expect(handle('file.openRecent:proj-42')).resolves.toBe(true);
+    // An empty payload (e.g. the disabled "No recent files" placeholder) is a no-op.
+    await expect(handle('file.openRecent:')).resolves.toBe(false);
+
+    expect(deps.workspace.loadExampleProject).toHaveBeenCalledWith('triad');
+    expect(deps.workspace.loadRecentProject).toHaveBeenCalledWith('proj-42');
+    expect(deps.workspace.loadRecentProject).toHaveBeenCalledTimes(1);
   });
 
   it('dispatches CP diagnostics and selected-line commands through the shared CP runtime', async () => {
@@ -265,6 +280,7 @@ describe('menu actions', () => {
     deps.workspace.activeEditingSurface = 'crease-pattern';
     deps.workspace.oristudioCpDocument = {
       handle: 1,
+      loadSerial: 1,
       source: { format: 'cp', filename: 'lines.cp', path: null },
       operationDescriptors: [],
       lastCommandResult: null,
@@ -362,6 +378,7 @@ describe('menu actions', () => {
     };
     deps.workspace.oristudioCpDocument = {
       handle: 1,
+      loadSerial: 1,
       source: { format: 'cp', filename: 'points.cp', path: null },
       operationDescriptors: [],
       lastCommandResult: null,
@@ -472,9 +489,13 @@ describe('menu actions', () => {
     expect(deps.workspace.saveProjectAs).toHaveBeenCalledWith(deps.fileService);
 
     await expect(createMenuActionHandler(deps)('file.exportFold')).resolves.toBe(true);
+    await expect(createMenuActionHandler(deps)('file.exportOri')).resolves.toBe(true);
+    await expect(createMenuActionHandler(deps)('file.exportOrh')).resolves.toBe(true);
     await expect(createMenuActionHandler(deps)('file.exportV5')).resolves.toBe(true);
     await expect(createMenuActionHandler(deps)('file.exportCp')).resolves.toBe(true);
     expect(deps.workspace.exportFold).toHaveBeenCalledWith(deps.fileService);
+    expect(deps.workspace.exportOri).toHaveBeenCalledWith(deps.fileService);
+    expect(deps.workspace.exportOrh).toHaveBeenCalledWith(deps.fileService);
     expect(deps.workspace.exportV5).toHaveBeenCalledWith(deps.fileService);
     expect(deps.workspace.exportCp).toHaveBeenCalledWith(deps.fileService);
   });

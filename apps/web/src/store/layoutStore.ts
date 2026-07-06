@@ -38,23 +38,9 @@ export function applyDefaultLayout(api: DockviewApi): void {
       inactive: true,
     });
     api.addPanel({
-      id: 'folded-base',
-      component: 'folded-base',
-      title: 'Folded Base',
-      position: { referencePanel: 'inspector', direction: 'below' },
-      initialHeight: 320,
-    });
-    api.addPanel({
       id: 'conditions',
       component: 'conditions',
       title: 'Conditions',
-      position: { referenceGroup: inspector.group.id },
-      inactive: true,
-    });
-    api.addPanel({
-      id: 'files',
-      component: 'files',
-      title: 'Files',
       position: { referenceGroup: inspector.group.id },
       inactive: true,
     });

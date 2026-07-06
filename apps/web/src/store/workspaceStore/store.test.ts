@@ -18,6 +18,9 @@ import type {
   OristudioCpCommandResult,
   OristudioCpDocumentSnapshot,
   OristudioCpDocumentState,
+  OristudioCpFoldedFigureEntry,
+  OristudioCpFoldedFigureSnapshot,
+  OristudioCpFoldedRenderSnapshot,
   OristudioCpLineSegment,
   OristudioCpOperationDescriptor,
 } from '../../engine/oristudioCpTypes';
@@ -39,6 +42,11 @@ import { importedCpLineage } from '../../lib/oristudioCpLineage';
 import { defaultOristudioCpSymmetry } from '../../lib/oristudioCpSymmetry';
 import { createStarterOristudioCpDocument } from '../../lib/oristudioCpStarterDocument';
 import { useLayoutStore } from '../layoutStore';
+import {
+  registerCommandDialogHost,
+  resolveCommandDialog,
+  useCommandDialogStore,
+} from '../commandDialogStore';
 
 const engineMocks = vi.hoisted(() => ({
   createBlankTree: vi.fn(),
@@ -51,9 +59,17 @@ const engineMocks = vi.hoisted(() => ({
 
 const oristudioCpMocks = vi.hoisted(() => ({
   createBlankOristudioCpDocument: vi.fn(),
+  duplicateOristudioCpFoldedFigure: vi.fn(),
   executeOristudioCpCommand: vi.fn(),
   exportOristudioCpDocumentAsCp: vi.fn(),
   exportOristudioCpDocumentAsFold: vi.fn(),
+  exportOristudioCpDocumentAsOri: vi.fn(),
+  exportOristudioCpDocumentAsOrh: vi.fn(),
+  foldOristudioCpDocument: vi.fn(),
+  foldOristudioCpFigureAnother: vi.fn(),
+  foldOristudioCpFigureToCase: vi.fn(),
+  freeOristudioCpFoldedFigure: vi.fn(),
+  getOristudioCpFoldedFigureRenderSnapshot: vi.fn(),
   getOristudioCpOperationDescriptors: vi.fn(),
   insertOristudioCpLineSegments: vi.fn(),
   loadOristudioCpDocumentFromText: vi.fn(),
@@ -61,7 +77,9 @@ const oristudioCpMocks = vi.hoisted(() => ({
   releaseOristudioCpDocument: vi.fn(),
   replaceOristudioCpLineSegments: vi.fn(),
   restoreOristudioCpDocument: vi.fn(),
+  restoreOristudioCpDocumentInPlace: vi.fn(),
   setOristudioCpDocumentSource: vi.fn(),
+  setOristudioCpFoldedFigureModel: vi.fn(),
 }));
 
 const exportMocks = vi.hoisted(() => ({
@@ -89,9 +107,18 @@ vi.mock('./oristudioCpRuntime', async (importOriginal) => {
   return {
     ...actual,
     createBlankOristudioCpDocument: oristudioCpMocks.createBlankOristudioCpDocument,
+    duplicateOristudioCpFoldedFigure: oristudioCpMocks.duplicateOristudioCpFoldedFigure,
     executeOristudioCpCommand: oristudioCpMocks.executeOristudioCpCommand,
     exportOristudioCpDocumentAsCp: oristudioCpMocks.exportOristudioCpDocumentAsCp,
     exportOristudioCpDocumentAsFold: oristudioCpMocks.exportOristudioCpDocumentAsFold,
+    exportOristudioCpDocumentAsOri: oristudioCpMocks.exportOristudioCpDocumentAsOri,
+    exportOristudioCpDocumentAsOrh: oristudioCpMocks.exportOristudioCpDocumentAsOrh,
+    foldOristudioCpDocument: oristudioCpMocks.foldOristudioCpDocument,
+    foldOristudioCpFigureAnother: oristudioCpMocks.foldOristudioCpFigureAnother,
+    foldOristudioCpFigureToCase: oristudioCpMocks.foldOristudioCpFigureToCase,
+    freeOristudioCpFoldedFigure: oristudioCpMocks.freeOristudioCpFoldedFigure,
+    getOristudioCpFoldedFigureRenderSnapshot:
+      oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot,
     getOristudioCpOperationDescriptors: oristudioCpMocks.getOristudioCpOperationDescriptors,
     insertOristudioCpLineSegments: oristudioCpMocks.insertOristudioCpLineSegments,
     loadOristudioCpDocumentFromText: oristudioCpMocks.loadOristudioCpDocumentFromText,
@@ -99,7 +126,9 @@ vi.mock('./oristudioCpRuntime', async (importOriginal) => {
     releaseOristudioCpDocument: oristudioCpMocks.releaseOristudioCpDocument,
     replaceOristudioCpLineSegments: oristudioCpMocks.replaceOristudioCpLineSegments,
     restoreOristudioCpDocument: oristudioCpMocks.restoreOristudioCpDocument,
+    restoreOristudioCpDocumentInPlace: oristudioCpMocks.restoreOristudioCpDocumentInPlace,
     setOristudioCpDocumentSource: oristudioCpMocks.setOristudioCpDocumentSource,
+    setOristudioCpFoldedFigureModel: oristudioCpMocks.setOristudioCpFoldedFigureModel,
   };
 });
 
@@ -910,6 +939,7 @@ function blankCpDocumentState(): OristudioCpDocumentState {
   const document = createStarterOristudioCpDocument();
   return {
     handle: 4,
+    loadSerial: 1,
     document,
     summary: {
       title: 'Untitled CP',
@@ -967,6 +997,73 @@ function editableCpState(lines: OristudioCpLineSegment[]): OristudioCpDocumentSt
   };
 }
 
+function foldedFigureSnapshot(): OristudioCpFoldedFigureSnapshot {
+  return {
+    model: {
+      front_color: { red: 255, green: 255, blue: 50 },
+      back_color: { red: 233, green: 233, blue: 233 },
+      line_color: { red: 0, green: 0, blue: 0 },
+      scale: 1,
+      rotation: 0,
+      anti_alias: true,
+      display_shadows: false,
+      state: 'Front0',
+      folded_cases: 1,
+      transparent_transparency: 16,
+      transparency_color: false,
+    },
+    estimation_step: 'Step5',
+    display_style: 'Paper5',
+    discovered_fold_cases: 1,
+    find_another_overlap_valid: false,
+    text_result: 'Number of found solutions = 1  ',
+    wireframe: {
+      points: [
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+        { x: 1, y: 1 },
+      ],
+      lines: [
+        { begin: 0, end: 1, color: 'Black0' },
+        { begin: 1, end: 2, color: 'Red1' },
+      ],
+      faces: [[0, 1, 2]],
+      starting_face: 0,
+      face_positions: [1],
+      next_faces: [null],
+      associated_lines: [null],
+    },
+  };
+}
+
+function foldedRenderSnapshot(): OristudioCpFoldedRenderSnapshot {
+  return {
+    schema_version: 1,
+    fixture: null,
+    pass: 'paper-front-full',
+    primitives: [
+      {
+        sequence: 0,
+        kind: 'fill_path',
+        style: {
+          paint: { kind: 'color', color: { red: 255, green: 255, blue: 50, alpha: 255 } },
+          stroke: { kind: 'basic', width: 1, end_cap: 2, line_join: 0, miter_limit: 10 },
+          antialias: 'off',
+        },
+        geometry: {
+          kind: 'path',
+          commands: [
+            { command: 'move_to', point: { x: 20, y: 20 } },
+            { command: 'line_to', point: { x: 40, y: 20 } },
+            { command: 'line_to', point: { x: 20, y: 40 } },
+            { command: 'close' },
+          ],
+        },
+      },
+    ],
+  };
+}
+
 function resetStores(snapshot = makeSnapshot()) {
   localStorage.clear();
   savedSnapshots.clear();
@@ -987,13 +1084,45 @@ function resetStores(snapshot = makeSnapshot()) {
   oristudioCpMocks.exportOristudioCpDocumentAsFold
     .mockReset()
     .mockResolvedValue(editableCpFoldText);
+  oristudioCpMocks.exportOristudioCpDocumentAsOri
+    .mockReset()
+    .mockResolvedValue('{"@version":"v1.1","title":"square"}\n');
+  oristudioCpMocks.exportOristudioCpDocumentAsOrh
+    .mockReset()
+    .mockResolvedValue('<タイトル>\nタイトル,square\n');
+  oristudioCpMocks.foldOristudioCpDocument
+    .mockReset()
+    .mockResolvedValue({ handle: 7, snapshot: foldedFigureSnapshot() });
+  oristudioCpMocks.foldOristudioCpFigureAnother
+    .mockReset()
+    .mockResolvedValue({ ...foldedFigureSnapshot(), discovered_fold_cases: 2 });
+  oristudioCpMocks.foldOristudioCpFigureToCase
+    .mockReset()
+    .mockResolvedValue({
+      snapshot: { ...foldedFigureSnapshot(), discovered_fold_cases: 3 },
+      discovered_case_numbers: [1, 2, 3],
+    });
+  oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot
+    .mockReset()
+    .mockResolvedValue(foldedRenderSnapshot());
+  oristudioCpMocks.setOristudioCpFoldedFigureModel
+    .mockReset()
+    .mockImplementation(async (_handle: number, model: OristudioCpFoldedFigureSnapshot['model']) => ({
+      ...foldedFigureSnapshot(),
+      model,
+    }));
+  oristudioCpMocks.duplicateOristudioCpFoldedFigure
+    .mockReset()
+    .mockResolvedValue({ handle: 8, snapshot: foldedFigureSnapshot() });
+  oristudioCpMocks.freeOristudioCpFoldedFigure.mockReset().mockResolvedValue(undefined);
   oristudioCpMocks.setOristudioCpDocumentSource.mockReset();
   oristudioCpMocks.loadOristudioCpDocumentFromText
     .mockReset()
-    .mockImplementation(async (_text: string, source: { format: 'cp' | 'fold'; filename: string; path?: string | null; title?: string }) => ({
+    .mockImplementation(async (_text: string, source: { format: 'cp' | 'fold' | 'ori' | 'orh'; filename: string; path?: string | null; title?: string }) => ({
       handle: 2,
+      loadSerial: 1,
       document: {
-        title: source.title ?? 'square',
+        title: source.title ?? (source.format === 'ori' ? 'native ori' : source.format === 'orh' ? 'orh model' : 'square'),
         crease_pattern: {
           line_segments: [],
           circles: [],
@@ -1019,7 +1148,7 @@ function resetStores(snapshot = makeSnapshot()) {
         metadata: {},
       },
       summary: {
-        title: source.title ?? 'square',
+        title: source.title ?? (source.format === 'ori' ? 'native ori' : source.format === 'orh' ? 'orh model' : 'square'),
         line_segments: 5,
         circles: 0,
         points: 0,
@@ -1044,6 +1173,7 @@ function resetStores(snapshot = makeSnapshot()) {
         source: OristudioCpDocumentState['source']
       ) => ({
         handle: 3,
+        loadSerial: 2,
         document,
         summary: {
           title: document.title ?? 'square',
@@ -1065,6 +1195,43 @@ function resetStores(snapshot = makeSnapshot()) {
         operationDescriptors: cpOperationDescriptors,
         lastCommandResult: null,
       })
+    );
+  oristudioCpMocks.restoreOristudioCpDocumentInPlace
+    .mockReset()
+    .mockImplementation(
+      async (
+        document: OristudioCpDocumentSnapshot,
+        source?: OristudioCpDocumentState['source'],
+        lastCommandResult: OristudioCpCommandResult | null = null
+      ) => {
+        // In-place restore keeps the current handle and load serial: only the
+        // document content changes.
+        const current = useWorkspaceStore.getState().oristudioCpDocument;
+        return {
+          handle: current?.handle ?? 3,
+          loadSerial: current?.loadSerial ?? 1,
+          document,
+          summary: {
+            title: document.title ?? 'square',
+            line_segments: document.crease_pattern.line_segments.length,
+            circles: document.crease_pattern.circles.length,
+            points: document.crease_pattern.points.length,
+            aux_line_segments: document.crease_pattern.aux_line_segments.length,
+            texts: document.crease_pattern.texts.length,
+            can_save_as_cp: true,
+            is_empty:
+              document.crease_pattern.line_segments.length +
+                document.crease_pattern.circles.length +
+                document.crease_pattern.points.length +
+                document.crease_pattern.aux_line_segments.length +
+                document.crease_pattern.texts.length ===
+              0,
+          },
+          source: source ?? current?.source ?? { format: 'cp', filename: 'Untitled.cp', path: null },
+          operationDescriptors: cpOperationDescriptors,
+          lastCommandResult,
+        };
+      }
     );
   oristudioCpMocks.executeOristudioCpCommand.mockReset().mockRejectedValue({
     code: 'not_implemented',
@@ -1174,6 +1341,8 @@ describe('workspace store slices', () => {
     expect(state.saveProject).toBeTypeOf('function');
     expect(state.exportCp).toBeTypeOf('function');
     expect(state.exportFold).toBeTypeOf('function');
+    expect(state.exportOri).toBeTypeOf('function');
+    expect(state.exportOrh).toBeTypeOf('function');
     expect(state.undo).toBeTypeOf('function');
     expect(state.copySelection).toBeTypeOf('function');
     expect(state.updatePaper).toBeTypeOf('function');
@@ -1221,7 +1390,7 @@ describe('workspace store slices', () => {
     await expect(useWorkspaceStore.getState().openProject(fileService)).resolves.toBe(true);
     expect(fileService.openTextFile).toHaveBeenCalledWith({
       title: 'Open Ori Studio Project or Crease Pattern',
-      extensions: ['osf', 'tmd', 'tmd4', 'tmd5', 'fold', 'cp'],
+      extensions: ['osf', 'tmd', 'tmd4', 'tmd5', 'fold', 'cp', 'ori', 'orh'],
     });
 
     await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
@@ -1389,6 +1558,22 @@ describe('workspace store slices', () => {
         selection: { ...emptyOristudioCpSelection(), lines: [1] },
         viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
         symmetry: defaultOristudioCpSymmetry(),
+        foldedFigures: [
+          {
+            id: 'generated-1',
+            title: 'Folded model 1',
+            handle: 99,
+            sourceKind: 'generated-from-current-cp',
+            sourceCpRevision: 0,
+            startingFaceId: 1,
+            displayStyle: 'Paper5',
+            status: 'ready',
+            snapshot: foldedFigureSnapshot(),
+            renderSnapshot: foldedRenderSnapshot(),
+            error: null,
+          },
+        ],
+        activeFoldedFigureId: 'generated-1',
         lineage: importedCpLineage(),
         appVersion: '0.1.1',
         now: new Date('2026-05-26T12:00:00.000Z'),
@@ -1418,6 +1603,15 @@ describe('workspace store slices', () => {
       dirty: false,
     });
     expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual([1]);
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures).toMatchObject([
+      {
+        id: 'generated-1',
+        handle: null,
+        displayStyle: 'Paper5',
+        renderSnapshot: foldedRenderSnapshot(),
+      },
+    ]);
+    expect(useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId).toBe('generated-1');
     expect(useWorkspaceStore.getState().foldArtifacts?.simulation_model).not.toBeNull();
   });
 
@@ -1480,7 +1674,25 @@ describe('workspace store slices', () => {
     expect(api.flatFoldArtifacts).toHaveBeenCalledOnce();
     expect(activatePanel).toHaveBeenCalledWith('crease-pattern');
 
-    useWorkspaceStore.setState({ dirty: true });
+    useWorkspaceStore.setState({
+      dirty: true,
+      oristudioCpFoldedFigures: [
+        {
+          id: 'generated-save',
+          title: 'Folded model saved',
+          handle: 7,
+          sourceKind: 'generated-from-current-cp',
+          sourceCpRevision: 0,
+          startingFaceId: 1,
+          displayStyle: 'Transparent3',
+          status: 'ready',
+          snapshot: foldedFigureSnapshot(),
+          renderSnapshot: foldedRenderSnapshot(),
+          error: null,
+        },
+      ],
+      oristudioCpActiveFoldedFigureId: 'generated-save',
+    });
     await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
     expect(oristudioCpMocks.exportOristudioCpDocumentAsCp).not.toHaveBeenCalled();
     expect(fileService.saveTextFile).toHaveBeenLastCalledWith(
@@ -1500,6 +1712,17 @@ describe('workspace store slices', () => {
       creasePattern: {
         engine: 'oristudio-cp',
         foldProjection: expect.objectContaining({ frame_classes: ['creasePattern'] }),
+      },
+      viewState: {
+        foldedFigures: [
+          expect.objectContaining({
+            id: 'generated-save',
+            handle: null,
+            displayStyle: 'Transparent3',
+            renderSnapshot: foldedRenderSnapshot(),
+          }),
+        ],
+        activeFoldedFigureId: 'generated-save',
       },
     });
     expect(oristudioCpMocks.setOristudioCpDocumentSource).toHaveBeenCalledWith({
@@ -1534,6 +1757,239 @@ describe('workspace store slices', () => {
         extensions: ['fold'],
       })
     );
+
+    await expect(useWorkspaceStore.getState().exportOri(fileService)).resolves.toBe(true);
+    expect(oristudioCpMocks.exportOristudioCpDocumentAsOri).toHaveBeenCalledOnce();
+    expect(fileService.saveTextFile).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        title: 'Export Oriedita ORI Document',
+        contents: '{"@version":"v1.1","title":"square"}\n',
+        extensions: ['ori'],
+      })
+    );
+
+    const unregisterDialogHost = registerCommandDialogHost();
+    try {
+      const exportOrh = useWorkspaceStore.getState().exportOrh(fileService);
+      const dialog = useCommandDialogStore.getState().dialog;
+      expect(dialog).toMatchObject({
+        type: 'confirm',
+        title: 'Export legacy ORH?',
+        confirmLabel: 'Export ORH',
+      });
+      if (!dialog) throw new Error('expected ORH export confirmation');
+      resolveCommandDialog(dialog.id, true);
+      await expect(exportOrh).resolves.toBe(true);
+    } finally {
+      unregisterDialogHost();
+    }
+    expect(oristudioCpMocks.exportOristudioCpDocumentAsOrh).toHaveBeenCalledOnce();
+    expect(fileService.saveTextFile).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        title: 'Export Oriedita ORH Document',
+        contents: '<タイトル>\nタイトル,square\n',
+        extensions: ['orh'],
+      })
+    );
+  });
+
+  it('opens native Oriedita ORI documents and saves back as ORI', async () => {
+    resetStores(seedSnapshot());
+    loadSnapshotIntoStore(seedSnapshot());
+    const oriText = '{"@version":"v1.1","title":"native ori","lineSegments":[]}';
+    const fileService = createFileService({
+      text: oriText,
+      name: 'native.ori',
+      path: '/tmp/native.ori',
+    });
+
+    await expect(useWorkspaceStore.getState().openProject(fileService)).resolves.toBe(true);
+
+    expect(oristudioCpMocks.loadOristudioCpDocumentFromText).toHaveBeenCalledWith(
+      oriText,
+      expect.objectContaining({
+        format: 'ori',
+        filename: 'native.ori',
+        path: '/tmp/native.ori',
+      })
+    );
+    expect(oristudioCpMocks.exportOristudioCpDocumentAsFold).toHaveBeenCalledOnce();
+    expect(useWorkspaceStore.getState()).toMatchObject({
+      documentMode: 'crease-pattern',
+      currentFileName: 'native.ori',
+      currentFilePath: '/tmp/native.ori',
+      dirty: false,
+      status: 'crease_pattern_ready',
+    });
+    expect(useWorkspaceStore.getState().importedCreasePattern?.source).toMatchObject({
+      format: 'ori',
+      filename: 'native.ori',
+      path: '/tmp/native.ori',
+    });
+    expect(useWorkspaceStore.getState().oristudioCpDocument?.source).toMatchObject({
+      format: 'ori',
+      filename: 'native.ori',
+      path: '/tmp/native.ori',
+    });
+
+    useWorkspaceStore.setState({ dirty: true });
+    await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
+
+    expect(oristudioCpMocks.exportOristudioCpDocumentAsOri).toHaveBeenCalledOnce();
+    expect(fileService.saveTextFile).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        title: 'Save Oriedita ORI Document',
+        contents: '{"@version":"v1.1","title":"square"}\n',
+        suggestedName: 'native.ori',
+        path: '/tmp/native.ori',
+        extensions: ['ori'],
+      })
+    );
+    expect(oristudioCpMocks.setOristudioCpDocumentSource).toHaveBeenCalledWith({
+      format: 'ori',
+      filename: 'native.ori',
+      path: '/tmp/native.ori',
+    });
+    expect(useWorkspaceStore.getState()).toMatchObject({
+      currentFileName: 'native.ori',
+      currentFilePath: '/tmp/native.ori',
+      dirty: false,
+    });
+  });
+
+  it('preserves original Oriedita source identity when reopening and resaving OSF', async () => {
+    resetStores(seedSnapshot());
+    loadSnapshotIntoStore(seedSnapshot());
+    const sourceDocument = editableCpState([
+      cpLine({ x: 0, y: 0 }, { x: 1, y: 0 }, { color: 'Red1' }),
+    ]).document;
+    sourceDocument.metadata = {
+      'oriedita:ori:canvasModel': { lineColor: 'BLUE_2' },
+    };
+    const nativeProject = createNativeCreasePatternProjectFile({
+      title: 'Native ORI project',
+      filename: 'native.osf',
+      path: '/tmp/native.osf',
+      document: sourceDocument,
+      source: { format: 'ori', filename: 'native.ori', path: '/tmp/native.ori' },
+      foldProjection: JSON.parse(editableCpFoldText),
+      sourceFold: null,
+      foldArtifacts: null,
+      creaseColorMode: 'mvf',
+      selection: emptyOristudioCpSelection(),
+      viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+      symmetry: defaultOristudioCpSymmetry(),
+      foldedFigures: [],
+      activeFoldedFigureId: null,
+      lineage: importedCpLineage(),
+      appVersion: '0.1.2',
+    });
+    const fileService = createFileService({
+      text: serializeNativeProjectFile(nativeProject),
+      name: 'native.osf',
+      path: '/tmp/native.osf',
+    });
+
+    await expect(useWorkspaceStore.getState().openProject(fileService)).resolves.toBe(true);
+
+    expect(useWorkspaceStore.getState().importedCreasePattern?.source).toEqual({
+      format: 'ori',
+      filename: 'native.ori',
+      path: '/tmp/native.ori',
+    });
+    expect(useWorkspaceStore.getState().oristudioCpDocument?.source).toEqual({
+      format: 'osf',
+      filename: 'native.osf',
+      path: '/tmp/native.osf',
+    });
+
+    useWorkspaceStore.setState({ dirty: true });
+    await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
+
+    const savedOptions = fileService.saveTextFile.mock.calls.at(-1)?.[0] as
+      | SaveTextFileOptions
+      | undefined;
+    const savedProject = parseNativeProjectFile(savedOptions?.contents ?? '');
+    expect(activeNativeDocument(savedProject)).toMatchObject({
+      kind: 'crease-pattern',
+      creasePattern: {
+        source: {
+          format: 'ori',
+          filename: 'native.ori',
+          path: '/tmp/native.ori',
+        },
+        document: {
+          metadata: {
+            'oriedita:ori:canvasModel': { lineColor: 'BLUE_2' },
+          },
+        },
+      },
+    });
+
+    await expect(useWorkspaceStore.getState().exportOri(fileService)).resolves.toBe(true);
+    expect(oristudioCpMocks.exportOristudioCpDocumentAsOri).toHaveBeenCalledOnce();
+    await expect(useWorkspaceStore.getState().exportFold(fileService)).resolves.toBe(true);
+    expect(oristudioCpMocks.exportOristudioCpDocumentAsFold).toHaveBeenCalledTimes(2);
+  });
+
+  it('opens legacy ORH documents and warns before saving back as ORH', async () => {
+    resetStores(seedSnapshot());
+    loadSnapshotIntoStore(seedSnapshot());
+    const orhText = '<タイトル>\nタイトル,orh model\n<線分集合>\n番号,1\n色,1\n座標,0,0,1,0\n';
+    const fileService = createFileService({
+      text: orhText,
+      name: 'legacy.orh',
+      path: '/tmp/legacy.orh',
+    });
+
+    await expect(useWorkspaceStore.getState().openProject(fileService)).resolves.toBe(true);
+
+    expect(oristudioCpMocks.loadOristudioCpDocumentFromText).toHaveBeenCalledWith(
+      orhText,
+      expect.objectContaining({
+        format: 'orh',
+        filename: 'legacy.orh',
+        path: '/tmp/legacy.orh',
+      })
+    );
+    expect(useWorkspaceStore.getState().importedCreasePattern?.source).toMatchObject({
+      format: 'orh',
+      filename: 'legacy.orh',
+      path: '/tmp/legacy.orh',
+    });
+
+    useWorkspaceStore.setState({ dirty: true });
+    const unregisterDialogHost = registerCommandDialogHost();
+    try {
+      const saveOrh = useWorkspaceStore.getState().saveProject(fileService);
+      const dialog = useCommandDialogStore.getState().dialog;
+      expect(dialog).toMatchObject({
+        type: 'confirm',
+        title: 'Export legacy ORH?',
+        confirmLabel: 'Export ORH',
+      });
+      if (!dialog) throw new Error('expected ORH save confirmation');
+      resolveCommandDialog(dialog.id, true);
+      await expect(saveOrh).resolves.toBe(true);
+    } finally {
+      unregisterDialogHost();
+    }
+
+    expect(oristudioCpMocks.exportOristudioCpDocumentAsOrh).toHaveBeenCalledOnce();
+    expect(fileService.saveTextFile).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        title: 'Save Oriedita ORH Document',
+        contents: '<タイトル>\nタイトル,square\n',
+        suggestedName: 'legacy.orh',
+        path: '/tmp/legacy.orh',
+        extensions: ['orh'],
+      })
+    );
+    expect(oristudioCpMocks.setOristudioCpDocumentSource).toHaveBeenCalledWith({
+      format: 'orh',
+      filename: 'legacy.orh',
+      path: '/tmp/legacy.orh',
+    });
   });
 
   it('surfaces typed Oristudio CP command errors without mutating the imported document', async () => {
@@ -1633,6 +2089,299 @@ describe('workspace store slices', () => {
     });
     expect(useWorkspaceStore.getState().foldArtifactStatus).toBe('ready');
     expect(useWorkspaceStore.getState().foldArtifacts?.folded_base?.facets).toHaveLength(2);
+  });
+
+  it('tracks generated folded figures and marks them stale after CP geometry edits', async () => {
+    resetStores(seedSnapshot());
+    await useWorkspaceStore.getState().loadCreasePatternText('1 0 0 1 0', {
+      filename: 'line.cp',
+      path: '/tmp/line.cp',
+    });
+    useWorkspaceStore.setState({
+      oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+      oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
+    });
+
+    await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
+
+    const foldedFigure = useWorkspaceStore.getState().oristudioCpFoldedFigures[0];
+    expect(oristudioCpMocks.foldOristudioCpDocument).toHaveBeenCalledWith(
+      1,
+      'Order5',
+      undefined,
+      [1]
+    );
+    expect(oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot).toHaveBeenCalledWith(
+      7,
+      'Paper5',
+      {
+        display_mark: true,
+        selected: true,
+        index: 1,
+      }
+    );
+    expect(foldedFigure).toMatchObject({
+      handle: 7,
+      sourceKind: 'generated-from-current-cp',
+      sourceCpRevision: 0,
+      startingFaceId: 1,
+      displayStyle: 'Paper5',
+      status: 'ready',
+      renderSnapshot: foldedRenderSnapshot(),
+    });
+    expect(useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId).toBe(foldedFigure.id);
+
+    await expect(
+      useWorkspaceStore.getState().insertOristudioCpLineSegments([
+        cpLine({ x: 0, y: 0 }, { x: 1, y: 1 }),
+      ])
+    ).resolves.toBe(true);
+
+    expect(useWorkspaceStore.getState().oristudioCpRevision).toBe(1);
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]).toMatchObject({
+      id: foldedFigure.id,
+      handle: 7,
+      status: 'stale',
+    });
+
+    await expect(useWorkspaceStore.getState().foldAnotherOristudioCpFigure()).resolves.toBe(false);
+    expect(oristudioCpMocks.foldOristudioCpFigureAnother).not.toHaveBeenCalled();
+    expect(useWorkspaceStore.getState().oristudioCpError).toContain('Refold');
+  });
+
+  it('passes active editable CP line selection into folded figure folding', async () => {
+    resetStores(seedSnapshot());
+    await useWorkspaceStore.getState().loadCreasePatternText('1 0 0 1 0\n2 0 0 0 1', {
+      filename: 'selected-lines.cp',
+      path: '/tmp/selected-lines.cp',
+    });
+    useWorkspaceStore.setState({
+      oristudioCpDocument: editableCpState([
+        cpLine({ x: 0, y: 0 }, { x: 1, y: 0 }, { color: 'Black0' }),
+        cpLine({ x: 0, y: 0 }, { x: 0, y: 1 }, { color: 'Red1' }),
+      ]),
+    });
+    useWorkspaceStore.getState().setOristudioCpSelection({
+      ...emptyOristudioCpSelection(),
+      lines: [2, 1],
+    });
+
+    await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
+
+    expect(oristudioCpMocks.foldOristudioCpDocument).toHaveBeenCalledWith(
+      1,
+      'Order5',
+      undefined,
+      [2, 1]
+    );
+  });
+
+  it('uses imported Oriedita folded model metadata when folding selected CP lines', async () => {
+    resetStores(seedSnapshot());
+    const documentState = editableCpState([
+      cpLine({ x: 0, y: 0 }, { x: 1, y: 0 }, { color: 'Red1' }),
+    ]);
+    useWorkspaceStore.setState({
+      oristudioCpDocument: {
+        ...documentState,
+        document: {
+          ...documentState.document,
+          metadata: {
+            'oriedita:ori:foldedFigureModel': {
+              frontColor: 'ff010203',
+              backColor: 'ff040506',
+              lineColor: 'ff070809',
+              state: 'TRANSPARENT_3',
+              scale: 2,
+              rotation: 90,
+            },
+          },
+        },
+      },
+      oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
+    });
+
+    await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
+
+    expect(oristudioCpMocks.foldOristudioCpDocument).toHaveBeenCalledWith(
+      1,
+      'Order5',
+      expect.objectContaining({
+        front_color: { red: 1, green: 2, blue: 3 },
+        back_color: { red: 4, green: 5, blue: 6 },
+        line_color: { red: 7, green: 8, blue: 9 },
+        scale: 2,
+        rotation: 90,
+        state: 'Transparent3',
+      }),
+      [1]
+    );
+  });
+
+  it('does not fold editable CP documents without selected foldable lines', async () => {
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpDocument: editableCpState([
+        cpLine({ x: 0, y: 0 }, { x: 1, y: 0 }, { color: 'Red1' }),
+      ]),
+      oristudioCpSelection: emptyOristudioCpSelection(),
+    });
+
+    await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(false);
+
+    expect(oristudioCpMocks.foldOristudioCpDocument).not.toHaveBeenCalled();
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures).toEqual([]);
+    expect(useWorkspaceStore.getState().oristudioCpError).toBe(
+      'Select one or more foldable crease-pattern lines first'
+    );
+  });
+
+  it('updates folded figure view state and manages duplicates', async () => {
+    resetStores(seedSnapshot());
+    await useWorkspaceStore.getState().loadCreasePatternText('1 0 0 1 0', {
+      filename: 'line.cp',
+      path: '/tmp/line.cp',
+    });
+    useWorkspaceStore.setState({
+      oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+      oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
+    });
+    await useWorkspaceStore.getState().foldOristudioCpDocument({ startingFaceId: 2 });
+    const foldedFigure = useWorkspaceStore.getState().oristudioCpFoldedFigures[0];
+    if (!foldedFigure) throw new Error('Folded figure was not created');
+    oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot.mockClear();
+
+    await expect(
+      useWorkspaceStore
+        .getState()
+        .setOristudioCpFoldedFigureDisplayStyle(foldedFigure.id, 'Transparent3')
+    ).resolves.toBe(true);
+
+    expect(oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot).toHaveBeenCalledWith(
+      7,
+      'Transparent3',
+      {
+        display_mark: true,
+        selected: true,
+        index: 1,
+      }
+    );
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]).toMatchObject({
+      startingFaceId: 2,
+      displayStyle: 'Transparent3',
+    });
+    useWorkspaceStore
+      .getState()
+      .moveOristudioCpFoldedFigure(foldedFigure.id, { x: 12, y: -8 });
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]?.displayOffset).toEqual({
+      x: 12,
+      y: -8,
+    });
+
+    await expect(
+      useWorkspaceStore
+        .getState()
+        .updateOristudioCpFoldedFigureModel(foldedFigure.id, { state: 'Back1' })
+    ).resolves.toBe(true);
+
+    expect(oristudioCpMocks.setOristudioCpFoldedFigureModel).toHaveBeenCalledWith(
+      7,
+      expect.objectContaining({ state: 'Back1' })
+    );
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]?.snapshot?.model.state).toBe(
+      'Back1'
+    );
+
+    await expect(
+      useWorkspaceStore.getState().duplicateOristudioCpFoldedFigure(foldedFigure.id)
+    ).resolves.toBe(true);
+
+    expect(oristudioCpMocks.duplicateOristudioCpFoldedFigure).toHaveBeenCalledWith(7);
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures).toHaveLength(2);
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[1]).toMatchObject({
+      handle: 8,
+      displayStyle: 'Transparent3',
+      startingFaceId: 2,
+      displayOffset: { x: 12, y: -8 },
+    });
+
+    const duplicateId = useWorkspaceStore.getState().oristudioCpFoldedFigures[1]?.id;
+    if (!duplicateId) throw new Error('Duplicate folded figure was not created');
+    await useWorkspaceStore.getState().deleteOristudioCpFoldedFigure(duplicateId);
+
+    expect(oristudioCpMocks.freeOristudioCpFoldedFigure).toHaveBeenCalledWith(8);
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures).toHaveLength(1);
+    expect(useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId).toBe(foldedFigure.id);
+  });
+
+  it('rerenders folded figure selected markers when the active figure changes', async () => {
+    resetStores(seedSnapshot());
+    const first: OristudioCpFoldedFigureEntry = {
+      id: 'generated-1',
+      title: 'Folded model 1',
+      handle: 7,
+      sourceKind: 'generated-from-current-cp',
+      sourceCpRevision: 0,
+      startingFaceId: 1,
+      displayStyle: 'Paper5',
+      status: 'ready',
+      snapshot: foldedFigureSnapshot(),
+      renderSnapshot: foldedRenderSnapshot(),
+      error: null,
+    };
+    const second: OristudioCpFoldedFigureEntry = {
+      ...first,
+      id: 'generated-2',
+      title: 'Folded model 2',
+      handle: 8,
+    };
+    useWorkspaceStore.setState({
+      oristudioCpFoldedFigures: [first, second],
+      oristudioCpActiveFoldedFigureId: first.id,
+    });
+    oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot.mockClear();
+
+    useWorkspaceStore.getState().setOristudioCpActiveFoldedFigure(second.id);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot).toHaveBeenCalledWith(
+      7,
+      'Paper5',
+      {
+        display_mark: true,
+        selected: false,
+        index: 1,
+      }
+    );
+    expect(oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot).toHaveBeenCalledWith(
+      8,
+      'Paper5',
+      {
+        display_mark: true,
+        selected: true,
+        index: 2,
+      }
+    );
+  });
+
+  it('releases folded figure handles when clearing the editable CP document', async () => {
+    resetStores(seedSnapshot());
+    await useWorkspaceStore.getState().loadCreasePatternText('1 0 0 1 0', {
+      filename: 'line.cp',
+      path: '/tmp/line.cp',
+    });
+    useWorkspaceStore.setState({
+      oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+      oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
+    });
+    await useWorkspaceStore.getState().foldOristudioCpDocument();
+
+    await useWorkspaceStore.getState().clearOristudioCpDocument();
+
+    expect(oristudioCpMocks.freeOristudioCpFoldedFigure).toHaveBeenCalledWith(7);
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures).toEqual([]);
+    expect(useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId).toBeNull();
   });
 
   it('preserves fixed-arity CP command operands when mirroring through the store', async () => {
@@ -2172,10 +2921,16 @@ describe('workspace store slices', () => {
       lastCommandResult: undoCamvResult,
     });
     await useWorkspaceStore.getState().undo();
-    expect(oristudioCpMocks.restoreOristudioCpDocument).toHaveBeenLastCalledWith(
+    expect(oristudioCpMocks.restoreOristudioCpDocumentInPlace).toHaveBeenLastCalledWith(
       loadedDocument.document,
       loadedDocument.source,
       null
+    );
+    // Undo restores in place: the handle and load serial are unchanged, so the
+    // editor viewport is not re-fit (regression for the undo canvas jump).
+    expect(useWorkspaceStore.getState().oristudioCpDocument?.handle).toBe(loadedDocument.handle);
+    expect(useWorkspaceStore.getState().oristudioCpDocument?.loadSerial).toBe(
+      loadedDocument.loadSerial
     );
     expect(useWorkspaceStore.getState().oristudioCpDocument?.document).toEqual(
       loadedDocument.document
@@ -2203,7 +2958,7 @@ describe('workspace store slices', () => {
       lastCommandResult: redoCamvResult,
     });
     await useWorkspaceStore.getState().redo();
-    expect(oristudioCpMocks.restoreOristudioCpDocument).toHaveBeenLastCalledWith(
+    expect(oristudioCpMocks.restoreOristudioCpDocumentInPlace).toHaveBeenLastCalledWith(
       changedDocument,
       loadedDocument.source,
       null
@@ -2315,7 +3070,7 @@ describe('workspace store slices', () => {
       true
     );
 
-    expect(oristudioCpMocks.restoreOristudioCpDocument).toHaveBeenLastCalledWith(
+    expect(oristudioCpMocks.restoreOristudioCpDocumentInPlace).toHaveBeenLastCalledWith(
       expect.objectContaining({
         crease_pattern: expect.objectContaining({
           grid: expect.objectContaining({ grid_size: 32 }),

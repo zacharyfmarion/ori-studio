@@ -63,6 +63,21 @@ export function selectedCpLineSegments(
     .map(cloneCpLineSegment);
 }
 
+export function isOrieditaFoldableLineColor(color: OristudioCpLineSegment['color']): boolean {
+  return color === 'Black0' || color === 'Red1' || color === 'Blue2';
+}
+
+export function selectedFoldableCpLineIds(
+  document: OristudioCpDocumentSnapshot | null | undefined,
+  selection: OristudioCpSelection
+): number[] {
+  if (!document || selection.lines.length === 0) return [];
+  return selection.lines.filter((id) => {
+    const line = document.crease_pattern.line_segments[id - 1];
+    return Boolean(line && isOrieditaFoldableLineColor(line.color));
+  });
+}
+
 export function buildCpLineClipboardPayload(
   document: OristudioCpDocumentSnapshot | null | undefined,
   selection: OristudioCpSelection

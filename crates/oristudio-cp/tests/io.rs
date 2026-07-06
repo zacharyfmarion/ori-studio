@@ -83,6 +83,164 @@ fn fold_import_reads_edges_and_oriedita_extensions() {
 }
 
 #[test]
+fn fold_file_import_export_preserves_embedded_folded_form_frames() {
+    let input = r#"{
+      "file_spec": 1.2,
+      "file_title": "embedded folded form",
+      "frame_title": "crease pattern",
+      "frame_classes": ["creasePattern"],
+      "vertices_coords": [[0, 0], [1, 0]],
+      "edges_vertices": [[0, 1]],
+      "file_frames": [{
+        "frame_title": "folded result",
+        "frame_classes": ["foldedForm"],
+        "frame_parent": 0,
+        "frame_inherit": true,
+        "vertices_coords": [[0, 0], [0.5, 0], [0, 0.5]],
+        "edges_vertices": [[0, 1], [1, 2], [2, 0]],
+        "faces_vertices": [[0, 1, 2]],
+        "faceOrders": [[0, 0, -1]],
+        "oriedita:folded_view": {"state": "FRONT_0"}
+      }]
+    }"#;
+
+    let document = fold::import_fold_file_json(input).expect("valid fold file");
+    let frames = fold::import_folded_frames(&document);
+    assert_eq!(frames.len(), 1);
+    assert_eq!(frames[0].frame_title.as_deref(), Some("folded result"));
+    assert_eq!(frames[0].frame_classes, vec!["foldedForm"]);
+    assert_eq!(frames[0].frame_parent, Some(0));
+    assert_eq!(frames[0].frame_inherit, Some(true));
+
+    let mut replaced = document.clone();
+    fold::export_folded_frames(&mut replaced, document.file_frames.clone());
+    let json = fold::export_fold_file_json(&replaced).expect("serializes");
+    let exported: serde_json::Value = serde_json::from_str(&json).expect("json");
+
+    assert_eq!(
+        exported["file_frames"][0]["frame_classes"],
+        serde_json::json!(["foldedForm"])
+    );
+    assert_eq!(
+        exported["file_frames"][0]["faceOrders"],
+        serde_json::json!([[0, 0, -1]])
+    );
+    assert_eq!(
+        exported["file_frames"][0]["oriedita:folded_view"],
+        serde_json::json!({"state": "FRONT_0"})
+    );
+}
+
+#[test]
+fn fold_file_document_import_export_preserves_frames_while_updating_root_cp() {
+    let input = r#"{
+      "file_spec": 1.2,
+      "file_title": "source fold",
+      "file_author": "folder",
+      "frame_title": "crease pattern",
+      "frame_classes": ["creasePattern"],
+      "vertices_coords": [[0, 0], [1, 0]],
+      "edges_vertices": [[0, 1]],
+      "edges_assignment": ["M"],
+      "rootCustom": {"kept": true},
+      "file_frames": [{
+        "frame_title": "folded result",
+        "frame_classes": ["foldedForm"],
+        "vertices_coords": [[0, 0], [1, 0], [0, 1]],
+        "edges_vertices": [[0, 1], [1, 2], [2, 0]],
+        "faces_vertices": [[0, 1, 2]],
+        "faceOrders": [[0, 0, -1]]
+      }]
+    }"#;
+
+    let mut document = fold::import_fold_file_document_json(input).expect("valid fold file");
+    assert_eq!(document.title.as_deref(), Some("crease pattern"));
+    assert!(document.metadata.contains_key(fold::FOLD_FILE_METADATA_KEY));
+    document.crease_pattern.line_segments[0].color = LineColor::Blue2;
+
+    let json = fold::export_fold_file_document_json(&document).expect("serializes");
+    let exported: serde_json::Value = serde_json::from_str(&json).expect("json");
+
+    assert_eq!(exported["file_author"], "folder");
+    assert_eq!(exported["rootCustom"], serde_json::json!({"kept": true}));
+    assert_eq!(exported["edges_assignment"][0], "V");
+    assert_eq!(
+        exported["file_frames"][0]["frame_classes"],
+        serde_json::json!(["foldedForm"])
+    );
+    assert_eq!(
+        exported["file_frames"][0]["faceOrders"],
+        serde_json::json!([[0, 0, -1]])
+    );
+}
+
+#[test]
+fn fold_file_document_import_export_preserves_multiple_nested_frames_exactly() {
+    let input = r#"{
+      "file_spec": 1.2,
+      "file_title": "nested source fold",
+      "frame_title": "crease pattern",
+      "frame_classes": ["creasePattern", "orieditaRoot"],
+      "vertices_coords": [[0, 0], [0, 10], [10, 10]],
+      "edges_vertices": [[0, 1], [1, 2]],
+      "edges_assignment": ["M", "V"],
+      "rootCustom": {"kept": true},
+      "file_frames": [{
+        "frame_title": "folded result front",
+        "frame_classes": ["foldedForm"],
+        "frame_parent": 0,
+        "frame_inherit": true,
+        "vertices_coords": [[0, 0], [1, 0], [0, 1]],
+        "edges_vertices": [[0, 1], [1, 2], [2, 0]],
+        "faces_vertices": [[0, 1, 2]],
+        "faceOrders": [[0, 0, -1]],
+        "oriedita:folded_view": {"state": "FRONT_0"},
+        "file_frames": [{
+          "frame_title": "nested annotation",
+          "frame_classes": ["metadata"],
+          "frame_parent": 1,
+          "vertices_coords": [[2, 2], [3, 2]],
+          "edges_vertices": [[0, 1]],
+          "customNested": [{"keep": "me"}]
+        }]
+      }, {
+        "frame_title": "folded result back",
+        "frame_classes": ["foldedForm"],
+        "frame_parent": 0,
+        "frame_inherit": false,
+        "vertices_coords": [[5, 5], [6, 5], [5, 6]],
+        "edges_vertices": [[0, 1], [1, 2], [2, 0]],
+        "faces_vertices": [[0, 1, 2]],
+        "faceOrders": [[0, 0, 1]],
+        "unknownArray": [1, {"two": 2}]
+      }]
+    }"#;
+    let original = fold::import_fold_file_json(input).expect("valid fold file");
+
+    let mut document = fold::import_fold_file_document_json(input).expect("valid fold file");
+    document.crease_pattern.line_segments[0].color = LineColor::Blue2;
+    document.crease_pattern.line_segments[1].color = LineColor::Red1;
+
+    let json = fold::export_fold_file_document_json(&document).expect("serializes");
+    let exported = fold::import_fold_file_json(&json).expect("exported fold file");
+    let exported_value: serde_json::Value = serde_json::from_str(&json).expect("json");
+
+    assert_eq!(exported.file_frames, original.file_frames);
+    assert_eq!(
+        exported.frame_classes,
+        vec!["creasePattern".to_string(), "orieditaRoot".to_string()]
+    );
+    assert_eq!(
+        exported_value["rootCustom"],
+        serde_json::json!({"kept": true})
+    );
+    assert_eq!(
+        exported_value["edges_assignment"],
+        serde_json::json!(["V", "M"])
+    );
+}
+
+#[test]
 fn fold_import_prefers_oristudio_line_color_extension_over_assignment() {
     let input = r##"{
       "file_spec": 1.1,
@@ -324,7 +482,7 @@ fn ori_import_reads_oriedita_save_json() {
     assert_eq!(model.line_segments[0].color, LineColor::Red1);
     assert_eq!(
         model.line_segments[0].active,
-        oristudio_cp::geometry::ActiveState::ActiveA1
+        oristudio_cp::geometry::ActiveState::Inactive0
     );
     assert_eq!(model.line_segments[0].selected, 2);
     assert_eq!(
@@ -340,9 +498,68 @@ fn ori_import_reads_oriedita_save_json() {
     assert_eq!(model.grid.grid_angle, 45.0);
     assert_eq!(model.grid.base_state, GridState::Full);
     assert_eq!(
-        document.metadata.get("oriedita:ori:canvasModel"),
+        ori::ori_metadata_field(&document, ori::ORI_CANVAS_MODEL_FIELD),
         Some(&serde_json::json!({"mouseMode": "DRAW_CREASE_FREE_1"}))
     );
+}
+
+#[test]
+fn ori_import_preserves_editor_models_for_native_interchange() {
+    let input = r##"{
+      "@version": "v1.1",
+      "lineSegments": [],
+      "creasePatternCamera": {
+        "cameraPositionX": 12.5,
+        "cameraPositionY": -3.25,
+        "cameraZoomX": 1.5,
+        "extraCameraField": {"nested": true}
+      },
+      "canvasModel": {"mouseMode": "MOVE_CREASE_PATTERN_2"},
+      "foldedFigureModel": {
+        "frontColor": "ffcc0000",
+        "backColor": "ff3366ff",
+        "displayStyle": "PAPER_5",
+        "foldedCases": 4,
+        "foldedFigure": {
+          "vertices": [[0, 0], [1, 0], [0, 1]],
+          "faces": [[0, 1, 2]]
+        },
+        "unknownNestedModel": {"kept": ["yes"]}
+      },
+      "applicationModel": {"displayCpLines": true},
+      "futureSaveModel": {"still": "lossless"}
+    }"##;
+
+    let document = ori::import_ori_json(input).expect("valid ori");
+    let editor_models = ori::OrieditaEditorModels::from_document(&document);
+
+    assert_eq!(
+        editor_models.crease_pattern_camera,
+        Some(serde_json::json!({
+          "cameraPositionX": 12.5,
+          "cameraPositionY": -3.25,
+          "cameraZoomX": 1.5,
+          "extraCameraField": {"nested": true}
+        }))
+    );
+    assert_eq!(
+        editor_models
+            .folded_figure_model
+            .as_ref()
+            .and_then(|value| {
+                value
+                    .get("unknownNestedModel")
+                    .and_then(|nested| nested.get("kept"))
+            }),
+        Some(&serde_json::json!(["yes"]))
+    );
+    assert_eq!(
+        ori::ori_metadata_field(&document, "futureSaveModel"),
+        Some(&serde_json::json!({"still": "lossless"}))
+    );
+    assert!(ori::is_ori_editor_model_field(
+        ori::ORI_FOLDED_FIGURE_MODEL_FIELD
+    ));
 }
 
 #[test]
@@ -371,8 +588,9 @@ fn ori_export_round_trips_canonical_model_data_and_metadata() {
         .add_text(TextElement::new(3.0, 4.0, "hello"));
     document.crease_pattern.add_point(Point::new(-1.0, -2.0));
     document.crease_pattern.grid.base_state = GridState::Hidden;
-    document.metadata.insert(
-        "oriedita:ori:applicationModel".to_string(),
+    ori::set_ori_metadata_field(
+        &mut document,
+        ori::ORI_APPLICATION_MODEL_FIELD,
         serde_json::Value::Null,
     );
 
@@ -387,8 +605,49 @@ fn ori_export_round_trips_canonical_model_data_and_metadata() {
     let imported = ori::import_ori_json(&json).expect("imports exported ori");
     assert_eq!(document.canonical(1.0e-9), imported.canonical(1.0e-9));
     assert_eq!(
-        imported.metadata.get("oriedita:ori:applicationModel"),
+        ori::ori_metadata_field(&imported, ori::ORI_APPLICATION_MODEL_FIELD),
         Some(&serde_json::Value::Null)
+    );
+}
+
+#[test]
+fn ori_editor_models_apply_replaces_only_known_editor_model_fields() {
+    let mut document = CreasePatternDocument::default();
+    ori::set_ori_metadata_field(
+        &mut document,
+        ori::ORI_CANVAS_MODEL_FIELD,
+        serde_json::json!({"stale": true}),
+    );
+    ori::set_ori_metadata_field(
+        &mut document,
+        "futureSaveModel",
+        serde_json::json!({"keep": true}),
+    );
+
+    ori::OrieditaEditorModels {
+        crease_pattern_camera: Some(serde_json::json!({"cameraZoomX": 2.0})),
+        canvas_model: None,
+        folded_figure_model: Some(serde_json::json!({"foldedCases": 2})),
+        application_model: Some(serde_json::Value::Null),
+    }
+    .apply_to_document(&mut document);
+
+    assert_eq!(
+        ori::ori_metadata_field(&document, ori::ORI_CREASE_PATTERN_CAMERA_FIELD),
+        Some(&serde_json::json!({"cameraZoomX": 2.0}))
+    );
+    assert_eq!(
+        ori::ori_metadata_field(&document, ori::ORI_FOLDED_FIGURE_MODEL_FIELD),
+        Some(&serde_json::json!({"foldedCases": 2}))
+    );
+    assert_eq!(
+        ori::ori_metadata_field(&document, ori::ORI_APPLICATION_MODEL_FIELD),
+        Some(&serde_json::Value::Null)
+    );
+    assert!(ori::ori_metadata_field(&document, ori::ORI_CANVAS_MODEL_FIELD).is_none());
+    assert_eq!(
+        ori::ori_metadata_field(&document, "futureSaveModel"),
+        Some(&serde_json::json!({"keep": true}))
     );
 }
 
@@ -526,4 +785,48 @@ fn orh_export_writes_oriedita_sections_and_imports_back_with_quirks() {
     assert_eq!(imported.crease_pattern.line_segments[0].customized, 1);
     assert_eq!(imported.crease_pattern.circles.len(), 2);
     assert!(imported.crease_pattern.aux_line_segments.is_empty());
+}
+
+#[test]
+fn orh_import_export_preserves_folded_figure_color_metadata() {
+    let input = "\
+<タイトル>
+タイトル,folded colors
+<線分集合>
+<円集合>
+<oriagarizu>
+<oriagarizu_F_color_R>12</oriagarizu_F_color_R>
+<oriagarizu_F_color_G>34</oriagarizu_F_color_G>
+<oriagarizu_F_color_B>56</oriagarizu_F_color_B>
+<oriagarizu_B_color_R>78</oriagarizu_B_color_R>
+<oriagarizu_B_color_G>90</oriagarizu_B_color_G>
+<oriagarizu_B_color_B>123</oriagarizu_B_color_B>
+<oriagarizu_L_color_R>5</oriagarizu_L_color_R>
+<oriagarizu_L_color_G>6</oriagarizu_L_color_G>
+<oriagarizu_L_color_B>7</oriagarizu_L_color_B>
+</oriagarizu>
+";
+
+    let document = orh::import_orh_str(input).expect("valid orh folded colors");
+
+    assert_eq!(
+        document.metadata.get("oriedita:orh:oriagarizu_front_color"),
+        Some(&serde_json::json!([12, 34, 56]))
+    );
+    assert_eq!(
+        document.metadata.get("oriedita:orh:oriagarizu_back_color"),
+        Some(&serde_json::json!([78, 90, 123]))
+    );
+    assert_eq!(
+        document.metadata.get("oriedita:orh:oriagarizu_line_color"),
+        Some(&serde_json::json!([5, 6, 7]))
+    );
+
+    let output = orh::export_orh_string(&document);
+    assert!(output.contains("<oriagarizu_F_color_R>12</oriagarizu_F_color_R>"));
+    assert!(output.contains("<oriagarizu_B_color_G>90</oriagarizu_B_color_G>"));
+    assert!(output.contains("<oriagarizu_L_color_B>7</oriagarizu_L_color_B>"));
+
+    let imported = orh::import_orh_str(&output).expect("reimports exported orh");
+    assert_eq!(imported.metadata, document.metadata);
 }

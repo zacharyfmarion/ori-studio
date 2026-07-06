@@ -27,6 +27,10 @@ export interface OristudioCpRgbColor {
   blue: number;
 }
 
+export interface OristudioCpRgbaColor extends OristudioCpRgbColor {
+  alpha: number;
+}
+
 export interface OristudioCpLineSegment {
   a: Point;
   b: Point;
@@ -124,6 +128,197 @@ export interface OristudioCpCommandPreview {
   diagnostics: string[];
 }
 
+export type OristudioCpEstimationOrder =
+  | 'Order0'
+  | 'Order1'
+  | 'Order2'
+  | 'Order3'
+  | 'Order4'
+  | 'Order5'
+  | 'Order6'
+  | 'Order51';
+
+export type OristudioCpEstimationStep =
+  | 'Step0'
+  | 'Step1'
+  | 'Step2'
+  | 'Step3'
+  | 'Step4'
+  | 'Step5'
+  | 'Step10';
+
+export type OristudioCpFoldedFigureDisplayStyle =
+  | 'None0'
+  | 'Development1'
+  | 'Wire2'
+  | 'Transparent3'
+  | 'Development4'
+  | 'Paper5';
+
+export type OristudioCpFoldedFigureState = 'Front0' | 'Back1' | 'Both2' | 'Transparent3';
+
+export interface OristudioCpFoldedFigureModel {
+  front_color: OristudioCpRgbColor;
+  back_color: OristudioCpRgbColor;
+  line_color: OristudioCpRgbColor;
+  scale: number;
+  rotation: number;
+  anti_alias: boolean;
+  display_shadows: boolean;
+  state: OristudioCpFoldedFigureState;
+  folded_cases: number;
+  transparent_transparency: number;
+  transparency_color: boolean;
+}
+
+export interface OristudioCpFoldedWireframeLine {
+  begin: number;
+  end: number;
+  color: OristudioCpLineColor;
+}
+
+export interface OristudioCpFoldedWireframe {
+  points: Point[];
+  lines: OristudioCpFoldedWireframeLine[];
+  faces: number[][];
+  starting_face: number;
+  face_positions: number[];
+  next_faces: Array<number | null>;
+  associated_lines: Array<number | null>;
+}
+
+export interface OristudioCpFoldedFigureRenderOptions {
+  display_mark?: boolean;
+  selected?: boolean;
+  index?: number;
+  display_numbers?: boolean;
+  selected_flat_point_indices?: number[];
+  selected_folded_point_indices?: number[];
+  custom_constraints?: OristudioCpCustomConstraint[];
+}
+
+export interface OristudioCpCustomConstraint {
+  face_order: 'normal' | 'flipped';
+  constraint_type: 'color_back' | 'color_front' | 'custom';
+  position: Point;
+}
+
+export type OristudioCpFoldedRenderPrimitiveKind =
+  | 'fill_path'
+  | 'stroke_path'
+  | 'stroke_segment'
+  | 'fill_polygon'
+  | 'stroke_polygon'
+  | 'fill_rect'
+  | 'stroke_rect'
+  | 'fill_ellipse'
+  | 'stroke_ellipse'
+  | 'text';
+
+export type OristudioCpFoldedRenderAntialias = 'on' | 'off' | 'default';
+
+export type OristudioCpFoldedRenderPaint =
+  | { kind: 'none' }
+  | { kind: 'color'; color: OristudioCpRgbaColor }
+  | {
+      kind: 'gradient';
+      from: Point;
+      from_color: OristudioCpRgbaColor;
+      to: Point;
+      to_color: OristudioCpRgbaColor;
+      cyclic: boolean;
+    }
+  | { kind: 'texture' }
+  | { kind: 'other'; class_name: string };
+
+export type OristudioCpFoldedRenderStroke =
+  | { kind: 'none' }
+  | {
+      kind: 'basic';
+      width: number;
+      end_cap: number;
+      line_join: number;
+      miter_limit: number;
+    }
+  | { kind: 'other'; class_name: string };
+
+export interface OristudioCpFoldedRenderStyle {
+  paint: OristudioCpFoldedRenderPaint;
+  stroke: OristudioCpFoldedRenderStroke;
+  antialias: OristudioCpFoldedRenderAntialias;
+}
+
+export type OristudioCpFoldedRenderPathCommand =
+  | { command: 'move_to'; point: Point }
+  | { command: 'line_to'; point: Point }
+  | { command: 'quad_to'; control: Point; point: Point }
+  | { command: 'cubic_to'; control_1: Point; control_2: Point; point: Point }
+  | { command: 'close' };
+
+export type OristudioCpFoldedRenderGeometry =
+  | { kind: 'path'; commands: OristudioCpFoldedRenderPathCommand[] }
+  | { kind: 'segment'; from: Point; to: Point }
+  | { kind: 'polygon'; points: Point[] }
+  | { kind: 'rect'; x: number; y: number; width: number; height: number }
+  | { kind: 'ellipse'; x: number; y: number; width: number; height: number }
+  | { kind: 'text'; value: string; position: Point };
+
+export interface OristudioCpFoldedRenderPrimitive {
+  sequence: number;
+  kind: OristudioCpFoldedRenderPrimitiveKind;
+  style: OristudioCpFoldedRenderStyle;
+  geometry: OristudioCpFoldedRenderGeometry;
+}
+
+export interface OristudioCpFoldedRenderSnapshot {
+  schema_version: number;
+  fixture: string | null;
+  pass: string | null;
+  primitives: OristudioCpFoldedRenderPrimitive[];
+}
+
+export interface OristudioCpFoldedFigureSnapshot {
+  model: OristudioCpFoldedFigureModel;
+  estimation_step: OristudioCpEstimationStep;
+  display_style: OristudioCpFoldedFigureDisplayStyle;
+  discovered_fold_cases: number;
+  find_another_overlap_valid: boolean;
+  text_result: string;
+  wireframe: OristudioCpFoldedWireframe | null;
+}
+
+export interface OristudioCpFoldedFigureResult {
+  handle: number;
+  snapshot: OristudioCpFoldedFigureSnapshot;
+}
+
+export interface OristudioCpFoldedFigureBatchResult {
+  snapshot: OristudioCpFoldedFigureSnapshot;
+  discovered_case_numbers: number[];
+}
+
+export type OristudioCpFoldedFigureStatus = 'ready' | 'stale' | 'loading' | 'error' | 'unsupported';
+
+export type OristudioCpFoldedFigureSourceKind =
+  | 'generated-from-current-cp'
+  | 'imported-folded-form'
+  | 'imported-preserved-frame';
+
+export interface OristudioCpFoldedFigureEntry {
+  id: string;
+  title: string;
+  handle: number | null;
+  sourceKind: OristudioCpFoldedFigureSourceKind;
+  sourceCpRevision: number | null;
+  startingFaceId: number | null;
+  displayStyle: OristudioCpFoldedFigureDisplayStyle;
+  status: OristudioCpFoldedFigureStatus;
+  snapshot: OristudioCpFoldedFigureSnapshot | null;
+  renderSnapshot: OristudioCpFoldedRenderSnapshot | null;
+  displayOffset?: Point;
+  error: string | null;
+}
+
 export interface OristudioCpCommandPayload {
   line_ids?: number[];
   line_segments?: OristudioCpLineSegment[];
@@ -186,10 +381,17 @@ export type OristudioCpCustomLineType =
 
 export interface OristudioCpDocumentState {
   handle: number;
+  /**
+   * Monotonic identifier for the genuine document load that produced this
+   * state. Stable across edits, undo/redo, and in-place restores; only advances
+   * when a fresh kernel handle is allocated for a new load. The CP panel keys
+   * its viewport auto-fit on this rather than the kernel handle.
+   */
+  loadSerial: number;
   document: OristudioCpDocumentSnapshot;
   summary: OristudioCpDocumentSummary;
   source: {
-    format: 'cp' | 'fold' | 'osf';
+    format: 'cp' | 'fold' | 'ori' | 'orh' | 'osf';
     filename: string;
     path: string | null;
   };

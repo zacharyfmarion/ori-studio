@@ -118,15 +118,6 @@ describe('app keyboard shortcuts', () => {
       [new KeyboardEvent('keydown', { key: 'b', metaKey: true, cancelable: true }), 'cp.build'],
       [
         new KeyboardEvent('keydown', {
-          key: 'f',
-          metaKey: true,
-          shiftKey: true,
-          cancelable: true,
-        }),
-        'cp.foldedPreview',
-      ],
-      [
-        new KeyboardEvent('keydown', {
           key: 'm',
           metaKey: true,
           shiftKey: true,

@@ -33,16 +33,22 @@ import origami.folding.HierarchyList;
 import origami.folding.FoldedFigure;
 import origami.folding.algorithm.SubFacePriority;
 import origami.folding.algorithm.swapping.SubFaceSwappingAlgorithm;
+import origami.folding.constraint.CustomConstraint;
 import origami.folding.element.SubFace;
 import origami.folding.permutation.ChainPermutationGenerator;
 import origami.folding.util.IBulletinBoard;
 import origami.folding.util.SortingBox;
 
+import oriedita.editor.databinding.ApplicationModel;
 import oriedita.editor.databinding.GridModel;
+import oriedita.editor.databinding.FoldedFigureModel;
+import oriedita.editor.drawing.FoldedFigure_Drawer;
+import oriedita.editor.drawing.tools.Camera;
 import oriedita.editor.export.DxfExporter;
 import oriedita.editor.export.ObjImporter;
 import oriedita.editor.export.OrhExporter;
 import oriedita.editor.export.OrhImporter;
+import oriedita.editor.folded_figure.FoldedFigure_01;
 import oriedita.editor.canvas.OperationFrame;
 import oriedita.editor.save.Save;
 import oriedita.editor.save.SaveProvider;
@@ -101,6 +107,31 @@ public class OrieditaGeometryOracle {
 
         @Override
         public void clear() {
+        }
+    }
+
+    private static class FoldedRenderContext {
+        final FoldedFigure_01 foldedFigure;
+        final FoldedFigure_Drawer drawer;
+
+        FoldedRenderContext(FoldedFigure_01 foldedFigure, FoldedFigure_Drawer drawer) {
+            this.foldedFigure = foldedFigure;
+            this.drawer = drawer;
+        }
+    }
+
+    private static class FoldedRenderConstraintPayload {
+        final CustomConstraint.FaceOrder faceOrder;
+        final CustomConstraint.Type type;
+        final Point position;
+
+        FoldedRenderConstraintPayload(
+                CustomConstraint.FaceOrder faceOrder,
+                CustomConstraint.Type type,
+                Point position) {
+            this.faceOrder = faceOrder;
+            this.type = type;
+            this.position = position;
         }
     }
 
@@ -321,6 +352,7 @@ public class OrieditaGeometryOracle {
             case "split-subface-arrangement" -> splitSubfaceArrangement(args);
             case "two-colored-subface-arrangement" -> twoColoredSubfaceArrangement(args);
             case "two-colored-estimate-summary" -> twoColoredEstimateSummary(args);
+            case "folded-subface-figure-summary" -> foldedSubfaceFigureSummary(args);
             case "subface-configuration-summary" -> subfaceConfigurationSummary(args);
             case "initial-hierarchy-summary" -> initialHierarchySummary(args);
             case "equivalence-candidates-summary" -> equivalenceCandidatesSummary(args);
@@ -343,8 +375,454 @@ public class OrieditaGeometryOracle {
             case "worker-overlap-from-segments-summary" -> workerOverlapFromSegmentsSummary(args, false);
             case "worker-overlap-from-segments-swap-summary" -> workerOverlapFromSegmentsSummary(args, true);
             case "subface-swapper-summary" -> subfaceSwapperSummary(args);
+            case "folded-render-paper-front" -> foldedRenderPaper(args, FoldedFigure.State.FRONT_0, false, "paper-front");
+            case "folded-render-paper-back" -> foldedRenderPaper(args, FoldedFigure.State.BACK_1, false, "paper-back");
+            case "folded-render-paper-both" -> foldedRenderPaper(args, FoldedFigure.State.BOTH_2, false, "paper-both");
+            case "folded-render-paper-front-shadows" -> foldedRenderPaper(args, FoldedFigure.State.FRONT_0, true, "paper-front-shadows");
+            case "folded-render-paper-back-shadows" -> foldedRenderPaper(args, FoldedFigure.State.BACK_1, true, "paper-back-shadows");
+            case "folded-render-paper-both-shadows" -> foldedRenderPaper(args, FoldedFigure.State.BOTH_2, true, "paper-both-shadows");
+            case "folded-render-paper-front-segments" -> foldedRenderPaperSegments(args, FoldedFigure.State.FRONT_0, false, "paper-front");
+            case "folded-render-paper-back-segments" -> foldedRenderPaperSegments(args, FoldedFigure.State.BACK_1, false, "paper-back");
+            case "folded-render-paper-both-segments" -> foldedRenderPaperSegments(args, FoldedFigure.State.BOTH_2, false, "paper-both");
+            case "folded-render-paper-front-shadows-segments" -> foldedRenderPaperSegments(args, FoldedFigure.State.FRONT_0, true, "paper-front-shadows");
+            case "folded-render-paper-back-shadows-segments" -> foldedRenderPaperSegments(args, FoldedFigure.State.BACK_1, true, "paper-back-shadows");
+            case "folded-render-paper-both-shadows-segments" -> foldedRenderPaperSegments(args, FoldedFigure.State.BOTH_2, true, "paper-both-shadows");
+            case "folded-render-paper-visible-front-segments" -> foldedRenderPaperVisibleSegments(args, FoldedFigure.State.FRONT_0, "paper-visible-front");
+            case "folded-render-paper-visible-back-segments" -> foldedRenderPaperVisibleSegments(args, FoldedFigure.State.BACK_1, "paper-visible-back");
+            case "folded-render-paper-visible-both-segments" -> foldedRenderPaperVisibleSegments(args, FoldedFigure.State.BOTH_2, "paper-visible-both");
+            case "folded-render-wire-front-segments" -> foldedRenderStyleSegments(args, FoldedFigure.State.FRONT_0, FoldedFigure.DisplayStyle.WIRE_2, false, "wire-front");
+            case "folded-render-wire-back-segments" -> foldedRenderStyleSegments(args, FoldedFigure.State.BACK_1, FoldedFigure.DisplayStyle.WIRE_2, false, "wire-back");
+            case "folded-render-wire-both-segments" -> foldedRenderStyleSegments(args, FoldedFigure.State.BOTH_2, FoldedFigure.DisplayStyle.WIRE_2, false, "wire-both");
+            case "folded-render-wire-transparent-state-segments" -> foldedRenderStyleSegments(args, FoldedFigure.State.TRANSPARENT_3, FoldedFigure.DisplayStyle.WIRE_2, false, "wire-transparent-state");
+            case "folded-render-transparent-grayscale-front-segments" -> foldedRenderStyleSegments(args, FoldedFigure.State.FRONT_0, FoldedFigure.DisplayStyle.TRANSPARENT_3, false, "transparent-grayscale-front");
+            case "folded-render-transparent-grayscale-back-segments" -> foldedRenderStyleSegments(args, FoldedFigure.State.BACK_1, FoldedFigure.DisplayStyle.TRANSPARENT_3, false, "transparent-grayscale-back");
+            case "folded-render-transparent-grayscale-both-segments" -> foldedRenderStyleSegments(args, FoldedFigure.State.BOTH_2, FoldedFigure.DisplayStyle.TRANSPARENT_3, false, "transparent-grayscale-both");
+            case "folded-render-transparent-grayscale-transparent-state-segments" -> foldedRenderStyleSegments(args, FoldedFigure.State.TRANSPARENT_3, FoldedFigure.DisplayStyle.TRANSPARENT_3, false, "transparent-grayscale-transparent-state");
+            case "folded-render-transparent-color-front-segments" -> foldedRenderStyleSegments(args, FoldedFigure.State.FRONT_0, FoldedFigure.DisplayStyle.TRANSPARENT_3, true, "transparent-color-front");
+            case "folded-render-transparent-color-back-segments" -> foldedRenderStyleSegments(args, FoldedFigure.State.BACK_1, FoldedFigure.DisplayStyle.TRANSPARENT_3, true, "transparent-color-back");
+            case "folded-render-transparent-color-both-segments" -> foldedRenderStyleSegments(args, FoldedFigure.State.BOTH_2, FoldedFigure.DisplayStyle.TRANSPARENT_3, true, "transparent-color-both");
+            case "folded-render-transparent-color-transparent-state-segments" -> foldedRenderStyleSegments(args, FoldedFigure.State.TRANSPARENT_3, FoldedFigure.DisplayStyle.TRANSPARENT_3, true, "transparent-color-transparent-state");
+            case "folded-render-overlays-segments" -> foldedRenderOverlaysSegments(args);
+            case "folded-render-cameras-segments" -> foldedRenderCamerasSegments(args);
+            case "folded-render-cameras-scale-segments" -> foldedRenderCamerasScaleSegments(args);
+            case "folded-render-cameras-move-segments" -> foldedRenderCamerasMoveSegments(args);
+            case "folded-render-cameras-specify-segments" -> foldedRenderCamerasSpecifySegments(args);
             default -> usage("unknown command: " + args[0]);
         }
+    }
+
+    private static void foldedRenderPaper(String[] args, FoldedFigure.State state, boolean shadows, String pass) throws Exception {
+        if (args.length != 2) {
+            usage(args[0] + " expects a fixture name");
+        }
+
+        String fixture = args[1];
+        LineSegmentSet set = foldedRenderFixture(fixture);
+        printFoldedRender(fixture, set, state, shadows, FoldedFigure.DisplayStyle.PAPER_5, false, pass);
+    }
+
+    private static void foldedRenderPaperSegments(String[] args, FoldedFigure.State state, boolean shadows, String pass) throws Exception {
+        if (args.length < 2) {
+            usage(args[0] + " expects count and line segment payload");
+        }
+
+        int count = Integer.parseInt(args[1]);
+        LineSegmentSet set = lineSegmentSet(args, 2, count);
+        printFoldedRender("segments", set, state, shadows, FoldedFigure.DisplayStyle.PAPER_5, false, pass);
+    }
+
+    private static void foldedRenderStyleSegments(
+            String[] args,
+            FoldedFigure.State state,
+            FoldedFigure.DisplayStyle displayStyle,
+            boolean transparencyColor,
+            String pass) throws Exception {
+        if (args.length < 2) {
+            usage(args[0] + " expects count and line segment payload");
+        }
+
+        int count = Integer.parseInt(args[1]);
+        LineSegmentSet set = lineSegmentSet(args, 2, count);
+        printFoldedRender("segments", set, state, false, displayStyle, transparencyColor, pass);
+    }
+
+    private static void foldedRenderOverlaysSegments(String[] args) throws Exception {
+        if (args.length < 11) {
+            usage(args[0] + " expects display style, state, transparency color, display mark, selected, display numbers, index, flat point indices, folded point indices, custom constraint count, constraints, count, and line segment payload");
+        }
+
+        int offset = 1;
+        FoldedFigure.DisplayStyle displayStyle = foldedRenderDisplayStyle(args[offset++]);
+        FoldedFigure.State state = foldedRenderState(args[offset++]);
+        boolean transparencyColor = Boolean.parseBoolean(args[offset++]);
+        boolean displayMark = Boolean.parseBoolean(args[offset++]);
+        boolean selected = Boolean.parseBoolean(args[offset++]);
+        boolean displayNumbers = Boolean.parseBoolean(args[offset++]);
+        int index = Integer.parseInt(args[offset++]);
+        List<Integer> flatPointIndices = parseIndices(args[offset++]);
+        List<Integer> foldedPointIndices = parseIndices(args[offset++]);
+        int constraintCount = Integer.parseInt(args[offset++]);
+
+        List<FoldedRenderConstraintPayload> constraints = new ArrayList<>();
+        for (int i = 0; i < constraintCount; i++) {
+            CustomConstraint.FaceOrder faceOrder = foldedRenderConstraintFaceOrder(args[offset++]);
+            CustomConstraint.Type type = foldedRenderConstraintType(args[offset++]);
+            Point position = new Point(Double.parseDouble(args[offset++]), Double.parseDouble(args[offset++]));
+            constraints.add(new FoldedRenderConstraintPayload(faceOrder, type, position));
+        }
+
+        int count = Integer.parseInt(args[offset++]);
+        LineSegmentSet set = lineSegmentSet(args, offset, count);
+        FoldedRenderContext context =
+                foldedRenderContext(set, state, false, displayStyle, transparencyColor);
+
+        ApplicationModel applicationModel = new ApplicationModel();
+        applicationModel.setDisplayNumbers(displayNumbers);
+        context.drawer.setData(applicationModel);
+
+        for (FoldedRenderConstraintPayload payload : constraints) {
+            Set<Integer> top = new HashSet<>();
+            top.add(1);
+            Set<Integer> bottom = new HashSet<>();
+            bottom.add(2);
+            context.foldedFigure.foldedFigure_worker.hierarchyList.addCustomConstraint(
+                    new CustomConstraint(payload.faceOrder, top, bottom, payload.position, payload.type));
+        }
+
+        for (int pointIndex : flatPointIndices) {
+            if (pointIndex >= 0 && pointIndex < context.foldedFigure.wireFrameWorker_flatCp.getPointsTotal()) {
+                context.foldedFigure.wireFrameWorker_flatCp.changePointState(pointIndex + 1);
+            }
+        }
+        for (int pointIndex : foldedPointIndices) {
+            if (pointIndex >= 0 && pointIndex < context.foldedFigure.wireFrameWorker_foldedNotSubdivided.getPointsTotal()) {
+                context.foldedFigure.wireFrameWorker_foldedNotSubdivided.changePointState(pointIndex + 1);
+            }
+        }
+
+        RecordingGraphics2D graphics = new RecordingGraphics2D(800, 600);
+        context.drawer.foldUp_draw(graphics, displayMark, index, selected);
+
+        System.out.println("schema|folded-render-primitives|1");
+        System.out.println("fixture|segments|" + foldedRenderFullPassName(displayStyle, state, transparencyColor));
+        for (String record : graphics.records()) {
+            System.out.println(record);
+        }
+        graphics.dispose();
+    }
+
+    private static void foldedRenderCamerasSegments(String[] args) throws Exception {
+        if (args.length < 2) {
+            usage(args[0] + " expects count and line segment payload");
+        }
+
+        int count = Integer.parseInt(args[1]);
+        LineSegmentSet set = lineSegmentSet(args, 2, count);
+        printFoldedRenderCameras("segments", set);
+    }
+
+    private static void foldedRenderCamerasScaleSegments(String[] args) throws Exception {
+        if (args.length < 5) {
+            usage(args[0] + " expects magnification, anchor x, anchor y, count, and line segment payload");
+        }
+
+        double magnification = Double.parseDouble(args[1]);
+        Point anchor = new Point(Double.parseDouble(args[2]), Double.parseDouble(args[3]));
+        int count = Integer.parseInt(args[4]);
+        LineSegmentSet set = lineSegmentSet(args, 5, count);
+        FoldedFigure_Drawer drawer = foldedRenderCameraDrawer(set);
+        drawer.scale(magnification, anchor);
+        printFoldedRenderCameras("segments", drawer);
+    }
+
+    private static void foldedRenderCamerasMoveSegments(String[] args) throws Exception {
+        if (args.length < 5) {
+            usage(args[0] + " expects target, delta x, delta y, count, and line segment payload");
+        }
+
+        String target = args[1];
+        Point delta = new Point(Double.parseDouble(args[2]), Double.parseDouble(args[3]));
+        int count = Integer.parseInt(args[4]);
+        LineSegmentSet set = lineSegmentSet(args, 5, count);
+        FoldedFigure_Drawer drawer = foldedRenderCameraDrawer(set);
+        foldedRenderCameraTarget(drawer, target).displayPositionMove(delta);
+        printFoldedRenderCameras("segments", drawer);
+    }
+
+    private static void foldedRenderCamerasSpecifySegments(String[] args) throws Exception {
+        if (args.length < 5) {
+            usage(args[0] + " expects target, tv x, tv y, count, and line segment payload");
+        }
+
+        String target = args[1];
+        Point point = new Point(Double.parseDouble(args[2]), Double.parseDouble(args[3]));
+        int count = Integer.parseInt(args[4]);
+        LineSegmentSet set = lineSegmentSet(args, 5, count);
+        FoldedFigure_Drawer drawer = foldedRenderCameraDrawer(set);
+        foldedRenderCameraTarget(drawer, target).camera_position_specify_from_TV(point);
+        printFoldedRenderCameras("segments", drawer);
+    }
+
+    private static void foldedRenderPaperVisibleSegments(String[] args, FoldedFigure.State state, String pass) throws Exception {
+        if (args.length < 2) {
+            usage(args[0] + " expects count and line segment payload");
+        }
+
+        int count = Integer.parseInt(args[1]);
+        LineSegmentSet set = lineSegmentSet(args, 2, count);
+        printFoldedRenderVisible("segments", set, state, pass);
+    }
+
+    private static void printFoldedRender(
+            String fixture,
+            LineSegmentSet set,
+            FoldedFigure.State state,
+            boolean shadows,
+            FoldedFigure.DisplayStyle displayStyle,
+            boolean transparencyColor,
+            String pass) throws Exception {
+        FoldedFigure_Drawer drawer =
+                foldedRenderContext(set, state, shadows, displayStyle, transparencyColor).drawer;
+        RecordingGraphics2D graphics = new RecordingGraphics2D(800, 600);
+        drawer.foldUp_draw(graphics, false, 1, true);
+
+        System.out.println("schema|folded-render-primitives|1");
+        System.out.println("fixture|" + fixture + "|" + pass);
+        for (String record : graphics.records()) {
+            System.out.println(record);
+        }
+        graphics.dispose();
+    }
+
+    private static void printFoldedRenderVisible(
+            String fixture,
+            LineSegmentSet set,
+            FoldedFigure.State state,
+            String pass) throws Exception {
+        FoldedRenderContext context =
+                foldedRenderContext(set, state, false, FoldedFigure.DisplayStyle.PAPER_5, false);
+        FoldedFigure_Worker worker = context.foldedFigure.foldedFigure_worker;
+        WireFrame_Worker flat = context.foldedFigure.wireFrameWorker_flatCp;
+        PointSet subFaceFigure = context.foldedFigure.wireFrameWorker_foldedSubdivided.get();
+
+        System.out.println("schema|folded-render-visible-faces|1");
+        System.out.println("fixture|" + fixture + "|" + pass);
+        System.out.println("subfaces|" + worker.SubFaceTotal
+                + "|" + subFaceFigure.getNumFaces()
+                + "|" + subFaceFigure.getNumLines());
+        if (state == FoldedFigure.State.FRONT_0 || state == FoldedFigure.State.BOTH_2) {
+            printFoldedRenderVisiblePass("front", false, worker, flat, subFaceFigure);
+        }
+        if (state == FoldedFigure.State.BACK_1 || state == FoldedFigure.State.BOTH_2) {
+            printFoldedRenderVisiblePass("back", true, worker, flat, subFaceFigure);
+        }
+    }
+
+    private static void printFoldedRenderCameras(String fixture, LineSegmentSet set) throws Exception {
+        printFoldedRenderCameras(fixture, foldedRenderCameraDrawer(set));
+    }
+
+    private static void printFoldedRenderCameras(String fixture, FoldedFigure_Drawer drawer) {
+        System.out.println("schema|folded-render-cameras|1");
+        System.out.println("fixture|" + fixture + "|cameras");
+        printFoldedRenderCamera("folded", drawer.getFoldedFigureCamera());
+        printFoldedRenderCamera("front", drawer.getFoldedFigureFrontCamera());
+        printFoldedRenderCamera("rear", drawer.getFoldedFigureRearCamera());
+        printFoldedRenderCamera("transparent-front", drawer.getTransparentFrontCamera());
+        printFoldedRenderCamera("transparent-rear", drawer.getTransparentRearCamera());
+    }
+
+    private static void printFoldedRenderCamera(String name, Camera camera) {
+        System.out.println("camera|"
+                + name + "|"
+                + camera.getCameraPositionX() + "|"
+                + camera.getCameraPositionY() + "|"
+                + camera.getCameraAngle() + "|"
+                + camera.getCameraMirror() + "|"
+                + camera.getCameraZoomX() + "|"
+                + camera.getCameraZoomY() + "|"
+                + camera.getDisplayPositionX() + "|"
+                + camera.getDisplayPositionY());
+    }
+
+    private static FoldedFigure_Drawer foldedRenderCameraDrawer(LineSegmentSet set) throws Exception {
+        return foldedRenderContext(
+                set,
+                FoldedFigure.State.FRONT_0,
+                false,
+                FoldedFigure.DisplayStyle.PAPER_5,
+                false).drawer;
+    }
+
+    private static Camera foldedRenderCameraTarget(FoldedFigure_Drawer drawer, String target) {
+        return switch (target) {
+            case "folded" -> drawer.getFoldedFigureCamera();
+            case "front" -> drawer.getFoldedFigureFrontCamera();
+            case "rear" -> drawer.getFoldedFigureRearCamera();
+            case "transparent-front" -> drawer.getTransparentFrontCamera();
+            case "transparent-rear" -> drawer.getTransparentRearCamera();
+            default -> throw new IllegalArgumentException("unknown camera target: " + target);
+        };
+    }
+
+    private static FoldedFigure.DisplayStyle foldedRenderDisplayStyle(String value) {
+        return switch (value) {
+            case "none" -> FoldedFigure.DisplayStyle.NONE_0;
+            case "development" -> FoldedFigure.DisplayStyle.DEVELOPMENT_1;
+            case "wire" -> FoldedFigure.DisplayStyle.WIRE_2;
+            case "transparent" -> FoldedFigure.DisplayStyle.TRANSPARENT_3;
+            case "development4" -> FoldedFigure.DisplayStyle.DEVELOPMENT_4;
+            case "paper" -> FoldedFigure.DisplayStyle.PAPER_5;
+            default -> throw new IllegalArgumentException("unknown folded render display style: " + value);
+        };
+    }
+
+    private static FoldedFigure.State foldedRenderState(String value) {
+        return switch (value) {
+            case "front" -> FoldedFigure.State.FRONT_0;
+            case "back" -> FoldedFigure.State.BACK_1;
+            case "both" -> FoldedFigure.State.BOTH_2;
+            case "transparent" -> FoldedFigure.State.TRANSPARENT_3;
+            default -> throw new IllegalArgumentException("unknown folded render state: " + value);
+        };
+    }
+
+    private static CustomConstraint.FaceOrder foldedRenderConstraintFaceOrder(String value) {
+        return switch (value) {
+            case "normal" -> CustomConstraint.FaceOrder.NORMAL;
+            case "flipped" -> CustomConstraint.FaceOrder.FLIPPED;
+            default -> throw new IllegalArgumentException("unknown custom constraint face order: " + value);
+        };
+    }
+
+    private static CustomConstraint.Type foldedRenderConstraintType(String value) {
+        return switch (value) {
+            case "color-back" -> CustomConstraint.Type.COLOR_BACK;
+            case "color-front" -> CustomConstraint.Type.COLOR_FRONT;
+            case "custom" -> CustomConstraint.Type.CUSTOM;
+            default -> throw new IllegalArgumentException("unknown custom constraint type: " + value);
+        };
+    }
+
+    private static String foldedRenderFullPassName(
+            FoldedFigure.DisplayStyle displayStyle,
+            FoldedFigure.State state,
+            boolean transparencyColor) {
+        String base = switch (displayStyle) {
+            case WIRE_2 -> switch (state) {
+                case FRONT_0 -> "wire-front";
+                case BACK_1 -> "wire-back";
+                case BOTH_2 -> "wire-both";
+                case TRANSPARENT_3 -> "wire-transparent-state";
+            };
+            case TRANSPARENT_3 -> switch (state) {
+                case FRONT_0 -> transparencyColor ? "transparent-color-front" : "transparent-grayscale-front";
+                case BACK_1 -> transparencyColor ? "transparent-color-back" : "transparent-grayscale-back";
+                case BOTH_2 -> transparencyColor ? "transparent-color-both" : "transparent-grayscale-both";
+                case TRANSPARENT_3 -> transparencyColor ? "transparent-color-transparent-state" : "transparent-grayscale-transparent-state";
+            };
+            case PAPER_5 -> switch (state) {
+                case FRONT_0 -> "paper-front";
+                case BACK_1 -> "paper-back";
+                case BOTH_2 -> "paper-both";
+                case TRANSPARENT_3 -> "paper-transparent-state";
+            };
+            case NONE_0 -> switch (state) {
+                case FRONT_0 -> "none-front";
+                case BACK_1 -> "none-back";
+                case BOTH_2 -> "none-both";
+                case TRANSPARENT_3 -> "none-transparent-state";
+            };
+            case DEVELOPMENT_1 -> switch (state) {
+                case FRONT_0 -> "development-front";
+                case BACK_1 -> "development-back";
+                case BOTH_2 -> "development-both";
+                case TRANSPARENT_3 -> "development-transparent-state";
+            };
+            case DEVELOPMENT_4 -> switch (state) {
+                case FRONT_0 -> "development4-front";
+                case BACK_1 -> "development4-back";
+                case BOTH_2 -> "development4-both";
+                case TRANSPARENT_3 -> "development4-transparent-state";
+            };
+        };
+        return base + "-full";
+    }
+
+    private static void printFoldedRenderVisiblePass(
+            String view,
+            boolean flipped,
+            FoldedFigure_Worker worker,
+            WireFrame_Worker flat,
+            PointSet subFaceFigure) {
+        for (int im = 1; im <= worker.SubFaceTotal; im++) {
+            int faceCount = worker.s0[im].getFaceIdCount();
+            if (faceCount == 0) {
+                continue;
+            }
+
+            int faceOrder = flipped ? faceCount : 1;
+            int faceId = worker.s0[im].fromTop_count_FaceId(faceOrder);
+            int facePosition = flat.getIFacePosition(faceId);
+            boolean frontSide = flipped ? facePosition % 2 == 0 : facePosition % 2 == 1;
+
+            System.out.println("visible|" + view
+                    + "|" + (im - 1)
+                    + "|" + faceCount
+                    + "|" + faceOrder
+                    + "|" + (faceId - 1)
+                    + "|" + facePosition
+                    + "|" + (frontSide ? "front" : "back")
+                    + "|" + oracleSubfaceFaceIds(worker.s0[im])
+                    + "|" + oracleSubfaceTopStack(worker.s0[im])
+                    + "|" + oraclePointSetFacePoints(subFaceFigure, im));
+        }
+    }
+
+    private static FoldedFigure_Drawer foldedRenderDrawer(
+            LineSegmentSet set,
+            FoldedFigure.State state,
+            boolean shadows) throws Exception {
+        return foldedRenderContext(set, state, shadows, FoldedFigure.DisplayStyle.PAPER_5, false).drawer;
+    }
+
+    private static FoldedRenderContext foldedRenderContext(
+            LineSegmentSet set,
+            FoldedFigure.State state,
+            boolean shadows,
+            FoldedFigure.DisplayStyle displayStyle,
+            boolean transparencyColor) throws Exception {
+        FoldedFigure_01 foldedFigure = new FoldedFigure_01(new NoopBulletinBoard());
+        FoldedFigure_Drawer drawer = new FoldedFigure_Drawer(foldedFigure);
+        FoldedFigureModel model = new FoldedFigureModel();
+        model.setState(state);
+        model.setDisplayShadows(shadows);
+        model.setTransparencyColor(transparencyColor);
+        drawer.setData(model);
+        drawer.setStartingFaceId(1);
+        drawer.setEstimationOrder(FoldedFigure.EstimationOrder.ORDER_5);
+        drawer.folding_estimated(new Camera(), set);
+        foldedFigure.displayStyle = displayStyle;
+        return new FoldedRenderContext(foldedFigure, drawer);
+    }
+
+    private static LineSegmentSet foldedRenderFixture(String fixture) {
+        if (!fixture.equals("simple-square")) {
+            throw new IllegalArgumentException("unknown folded render fixture: " + fixture);
+        }
+
+        LineSegmentSet set = renderSquareBoundary(-50.0, -50.0, 50.0, 50.0);
+        set.addLine(new Point(-50.0, -50.0), new Point(50.0, 50.0), LineColor.RED_1);
+        return set;
+    }
+
+    private static LineSegmentSet renderSquareBoundary(double minX, double minY, double maxX, double maxY) {
+        LineSegmentSet set = new LineSegmentSet();
+        set.addLine(new Point(minX, minY), new Point(maxX, minY), LineColor.BLACK_0);
+        set.addLine(new Point(maxX, minY), new Point(maxX, maxY), LineColor.BLACK_0);
+        set.addLine(new Point(maxX, maxY), new Point(minX, maxY), LineColor.BLACK_0);
+        set.addLine(new Point(minX, maxY), new Point(minX, minY), LineColor.BLACK_0);
+        return set;
     }
 
     private static void customLineType(String[] args) {
@@ -484,6 +962,29 @@ public class OrieditaGeometryOracle {
                 new FoldedFigure_Configurator(bulletinBoard, foldedWorker);
         configurator.configureSubFaces(foldedNotSubdivided, subdivided.get());
         printSubfaceConfiguration(foldedWorker);
+    }
+
+    private static void foldedSubfaceFigureSummary(String[] args) throws Exception {
+        if (args.length < 3) {
+            usage("folded-subface-figure-summary expects starting face, count, and segment payload");
+        }
+
+        int startingFace = Integer.parseInt(args[1]);
+        int count = Integer.parseInt(args[2]);
+        LineSegmentSet set = lineSegmentSet(args, 3, count);
+
+        WireFrame_Worker flat = new WireFrame_Worker(3.0);
+        flat.setLineSegmentSet(set);
+        flat.setStartingFaceId(startingFace);
+        PointSet foldedNotSubdivided = flat.folding();
+
+        LineSegmentSetWorker lineWorker = new LineSegmentSetWorker();
+        lineWorker.set(new LineSegmentSet(foldedNotSubdivided));
+        lineWorker.split_arrangement_for_SubFace_generation();
+
+        WireFrame_Worker subdivided = new WireFrame_Worker(3.0);
+        subdivided.setLineSegmentSet(lineWorker.get());
+        printPointSetFigure(subdivided.get());
     }
 
     private static void initialHierarchySummary(String[] args) throws Exception {
@@ -5824,6 +6325,28 @@ public class OrieditaGeometryOracle {
         return output.toString();
     }
 
+    private static String oracleSubfaceTopStack(SubFace subface) {
+        StringBuilder output = new StringBuilder();
+        for (int i = 1; i <= subface.getFaceIdCount(); i++) {
+            if (i > 1) {
+                output.append(",");
+            }
+            output.append(subface.fromTop_count_FaceId(i) - 1);
+        }
+        return output.toString();
+    }
+
+    private static String oraclePointSetFacePoints(PointSet pointSet, int faceId) {
+        StringBuilder output = new StringBuilder();
+        for (int i = 1; i <= pointSet.getPointsCount(faceId); i++) {
+            if (i > 1) {
+                output.append(",");
+            }
+            output.append(pointSet.getPointId(faceId, i) - 1);
+        }
+        return output.toString();
+    }
+
     private static String oracleFacePoints(origami.folding.element.Face face) {
         StringBuilder output = new StringBuilder();
         for (int i = 1; i <= face.getNumPoints(); i++) {
@@ -6058,6 +6581,32 @@ public class OrieditaGeometryOracle {
                     + segment.determineBX() + "|"
                     + segment.determineBY() + "|"
                     + segment.getColor().getNumber());
+        }
+    }
+
+    private static void printPointSetFigure(PointSet pointSet) {
+        System.out.println("pointset|"
+                + pointSet.getNumPoints() + "|"
+                + pointSet.getNumLines() + "|"
+                + pointSet.getNumFaces());
+        for (int index = 1; index <= pointSet.getNumPoints(); index++) {
+            Point point = pointSet.getPoint(index);
+            System.out.println("point|"
+                    + (index - 1) + "|"
+                    + point.getX() + "|"
+                    + point.getY());
+        }
+        for (int index = 1; index <= pointSet.getNumLines(); index++) {
+            System.out.println("line|"
+                    + (index - 1) + "|"
+                    + (pointSet.getBegin(index) - 1) + "|"
+                    + (pointSet.getEnd(index) - 1) + "|"
+                    + pointSet.getColor(index).getNumber());
+        }
+        for (int index = 1; index <= pointSet.getNumFaces(); index++) {
+            System.out.println("face|"
+                    + (index - 1) + "|"
+                    + oraclePointSetFacePoints(pointSet, index));
         }
     }
 
@@ -6648,6 +7197,7 @@ public class OrieditaGeometryOracle {
         System.err.println("   or: OrieditaGeometryOracle split-subface-arrangement <count> [ax ay bx by color]...");
         System.err.println("   or: OrieditaGeometryOracle two-colored-subface-arrangement <startingFace> <count> [ax ay bx by color]...");
         System.err.println("   or: OrieditaGeometryOracle two-colored-estimate-summary <startingFace> <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-subface-figure-summary <startingFace> <count> [ax ay bx by color]...");
         System.err.println("   or: OrieditaGeometryOracle subface-configuration-summary <startingFace> <count> [ax ay bx by color]...");
         System.err.println("   or: OrieditaGeometryOracle initial-hierarchy-summary <startingFace> <count> [ax ay bx by color]...");
         System.err.println("   or: OrieditaGeometryOracle equivalence-candidates-summary <startingFace> <count> [ax ay bx by color]...");
@@ -6670,6 +7220,38 @@ public class OrieditaGeometryOracle {
         System.err.println("   or: OrieditaGeometryOracle worker-overlap-from-segments-summary <startingFace> <count> [ax ay bx by color]...");
         System.err.println("   or: OrieditaGeometryOracle worker-overlap-from-segments-swap-summary <startingFace> <count> [ax ay bx by color]...");
         System.err.println("   or: OrieditaGeometryOracle subface-swapper-summary <subfaceCount> [swapCounter]... <actionCount> [visit|record|process|estimate value]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-paper-front simple-square");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-paper-back simple-square");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-paper-both simple-square");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-paper-front-shadows simple-square");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-paper-back-shadows simple-square");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-paper-both-shadows simple-square");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-paper-front-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-paper-back-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-paper-both-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-paper-front-shadows-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-paper-back-shadows-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-paper-both-shadows-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-paper-visible-front-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-paper-visible-back-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-paper-visible-both-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-wire-front-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-wire-back-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-wire-both-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-wire-transparent-state-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-transparent-grayscale-front-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-transparent-grayscale-back-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-transparent-grayscale-both-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-transparent-grayscale-transparent-state-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-transparent-color-front-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-transparent-color-back-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-transparent-color-both-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-transparent-color-transparent-state-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-overlays-segments <paper|transparent|wire> <front|back|both|transparent> <transparencyColor> <displayMark> <selected> <displayNumbers> <index> <flatPointIndices|-> <foldedPointIndices|-> <constraintCount> [normal|flipped color-back|color-front|custom x y]... <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-cameras-segments <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-cameras-scale-segments <magnification> <anchor x> <anchor y> <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-cameras-move-segments <target> <delta x> <delta y> <count> [ax ay bx by color]...");
+        System.err.println("   or: OrieditaGeometryOracle folded-render-cameras-specify-segments <target> <tv x> <tv y> <count> [ax ay bx by color]...");
         System.exit(2);
     }
 }

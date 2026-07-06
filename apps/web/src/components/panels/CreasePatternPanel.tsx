@@ -5,13 +5,16 @@ import {
   useRef,
   useState,
   type Dispatch,
+  type MutableRefObject,
   type PointerEvent,
+  type RefObject,
   type SetStateAction,
 } from 'react';
 import { TransformComponent, TransformWrapper, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import {
   ChevronDown,
   ChevronRight,
+  Copy,
   Eye,
   EyeOff,
   FlipHorizontal,
@@ -19,11 +22,12 @@ import {
   FlipVertical,
   GitBranch,
   Grid2X2,
+  ListChecks,
   Magnet,
   Palette,
   RotateCcw,
   RotateCw,
-  ScanLine,
+  Trash2,
 } from 'lucide-react';
 import {
   registerCpActionShortcutExecutor,
@@ -43,9 +47,21 @@ import type {
   OristudioCpCustomLineType,
   OristudioCpDiagnosticEntry,
   OristudioCpDocumentSnapshot,
+  OristudioCpFoldedFigureDisplayStyle,
+  OristudioCpFoldedFigureEntry,
+  OristudioCpFoldedFigureModel,
+  OristudioCpFoldedFigureState,
+  OristudioCpFoldedRenderGeometry,
+  OristudioCpFoldedRenderPaint,
+  OristudioCpFoldedRenderPathCommand,
+  OristudioCpFoldedRenderPrimitive,
+  OristudioCpFoldedRenderSnapshot,
+  OristudioCpFoldedRenderStroke,
+  OristudioCpGridMetadata,
   OristudioCpLineColor,
   OristudioCpLineSegment,
   OristudioCpRgbColor,
+  OristudioCpRgbaColor,
 } from '../../engine/oristudioCpTypes';
 import { formatNumber, paperToSvg, type Point } from '../../lib/geometry';
 import { getViewportFitScale, type ViewportSize } from '../../lib/designViewport';
@@ -58,6 +74,7 @@ import {
   ORISTUDIO_CP_LINE_TYPE_ACTIONS,
   cpActionByOperation,
   cpActionById,
+  cpActionByUpstreamMouseMode,
   type OristudioCpActionDefinition,
   type OristudioCpActionId,
   type OristudioCpActionInputMode,
@@ -92,11 +109,21 @@ import {
   instructionsForCpTool,
   type OristudioCpToolInstructions,
 } from '../../lib/oristudioCpToolInstructions';
-import { cpLineageStatusLabel } from '../../lib/oristudioCpLineage';
 import {
   ORISTUDIO_CP_EXTRA_LINE_COLOR_PALETTE,
   cpPaletteEntryForColor,
 } from '../../lib/oristudioCpPalette';
+import {
+  activeLineColorFromOrieditaMetadata,
+  activeMouseModeFromOrieditaMetadata,
+  canvasToolOptionsFromOrieditaMetadata,
+} from '../../lib/orieditaNativeMetadata';
+import {
+  orieditaCameraFromMetadata,
+  orieditaCameraSvgScale,
+  orieditaObjectToSvg,
+  orieditaSvgToObject,
+} from '../../lib/orieditaCamera';
 import {
   axisFromTwoPoints,
   cpSymmetryAxisLine,
@@ -119,16 +146,18 @@ import {
   cpSelectionSize,
   cpSvgPointToModel,
   emptyOristudioCpSelection,
-  getCpGridLines,
+  expandedModelBoundsFromPoints,
   getCpVertices,
   getOrieditaGridBasis,
   modelPointToCpSvg,
   nearestCpSnapTarget,
   nearestOrieditaDrawPointTarget,
   normalizeOrieditaGridSize,
+  orieditaGridLinesForModelBounds,
   ORIEDITA_PAPER_BOUNDS,
   textCoordinate,
   visibleOrieditaGridMetadata,
+  type CpGridLine,
   type CpModelBounds,
   type CpSnapTarget,
   type CpVertex,
@@ -140,6 +169,7 @@ import {
   cpLineSelectionMoveAnchorPoints,
   rotationAngleFromCenter,
   scaleCpLineSegments,
+  selectedFoldableCpLineIds,
   selectedCpLineSegments,
   snapRotationDegrees,
   translateCpLineSegments,
@@ -167,6 +197,7 @@ import {
   ViewportToolbar,
   ViewportToolbarSeparator,
 } from './ViewportToolbar';
+import type { FoldDocument } from '../../engine/types';
 
 function creaseClass(fold: string, kind: string, mode: 'mvf' | 'agrh'): string {
   if (mode === 'agrh') return `crease crease--kind-${kind}`;
@@ -178,6 +209,29 @@ function formatZoom(scale: number): string {
 }
 
 const EMPTY_DIAGNOSTIC_ENTRIES: OristudioCpDiagnosticEntry[] = [];
+
+const FOLDED_DISPLAY_STYLE_OPTIONS: Array<{
+  value: OristudioCpFoldedFigureDisplayStyle;
+  label: string;
+}> = [
+  { value: 'Paper5', label: 'Paper' },
+  { value: 'Transparent3', label: 'Transparent' },
+  { value: 'Wire2', label: 'Wire' },
+  { value: 'Development1', label: 'Dev 1' },
+  { value: 'Development4', label: 'Dev 4' },
+  { value: 'None0', label: 'None' },
+];
+
+const FOLDED_STATE_OPTIONS: Array<{
+  value: OristudioCpFoldedFigureState;
+  label: string;
+  title: string;
+}> = [
+  { value: 'Front0', label: 'F', title: 'Front' },
+  { value: 'Back1', label: 'B', title: 'Back' },
+  { value: 'Both2', label: 'Both', title: 'Both' },
+  { value: 'Transparent3', label: 'T', title: 'Transparent state' },
+];
 
 interface CpDiagnosticHudStatus {
   label: string;
@@ -846,6 +900,227 @@ function CpSymmetryMenuButton({
   );
 }
 
+function FoldedFigureMenuButton({
+  figures,
+  activeFigure,
+  startingFaceId,
+  caseDraft,
+  onStartingFaceIdChange,
+  onCaseDraftChange,
+  onSelectFigure,
+  onDisplayStyle,
+  onModelUpdate,
+  onFoldToCase,
+  onDuplicate,
+  onDelete,
+}: {
+  figures: OristudioCpFoldedFigureEntry[];
+  activeFigure: OristudioCpFoldedFigureEntry | null;
+  startingFaceId: number;
+  caseDraft: string;
+  onStartingFaceIdChange: (startingFaceId: number) => void;
+  onCaseDraftChange: (draft: string) => void;
+  onSelectFigure: (id: string) => void;
+  onDisplayStyle: (displayStyle: OristudioCpFoldedFigureDisplayStyle) => void;
+  onModelUpdate: (update: Partial<OristudioCpFoldedFigureModel>) => void;
+  onFoldToCase: () => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const model = activeFigure?.snapshot?.model ?? null;
+  const activeReady =
+    activeFigure?.status === 'ready' && activeFigure.handle !== null && activeFigure.snapshot !== null;
+  const currentCase = Math.max(activeFigure?.snapshot?.discovered_fold_cases ?? 1, 1);
+  const canJumpCase = activeReady && Number.isFinite(Number(caseDraft));
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onPointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (menuRef.current?.contains(target)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, [open]);
+
+  const changeStartingFace = (value: string) => {
+    const parsed = Number(value);
+    onStartingFaceIdChange(Number.isFinite(parsed) ? Math.max(1, Math.round(parsed)) : 1);
+  };
+
+  return (
+    <div className="viewport-toolbar__menu-anchor folded-figure-menu" ref={menuRef}>
+      <IconButton
+        size="sm"
+        variant="toolbar"
+        title="Folded models"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        isActive={open}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <ListChecks size={14} />
+      </IconButton>
+      {open && (
+        <div
+          className="viewport-toolbar__dropdown folded-figure-menu__panel"
+          role="menu"
+          aria-label="Folded model controls"
+        >
+          <div className="folded-figure-menu__header">
+            <span>Folded models</span>
+            <span>{activeFigure ? activeFigure.title : 'None'}</span>
+          </div>
+          {figures.length > 0 && (
+            <div className="folded-figure-menu__list">
+              {figures.map((figure) => (
+                <button
+                  key={figure.id}
+                  type="button"
+                  className="folded-figure-menu__figure"
+                  data-active={figure.id === activeFigure?.id ? true : undefined}
+                  data-status={figure.status}
+                  role="menuitemradio"
+                  aria-checked={figure.id === activeFigure?.id}
+                  onClick={() => onSelectFigure(figure.id)}
+                >
+                  <span>{figure.title}</span>
+                  <small>{figure.status === 'ready' ? `Case ${figure.snapshot?.discovered_fold_cases ?? 0}` : figure.status}</small>
+                </button>
+              ))}
+            </div>
+          )}
+          <label className="folded-figure-menu__field">
+            <span>Start</span>
+            <input
+              aria-label="Starting face"
+              type="number"
+              min={1}
+              step={1}
+              value={startingFaceId}
+              onChange={(event) => changeStartingFace(event.currentTarget.value)}
+            />
+          </label>
+          <label className="folded-figure-menu__field">
+            <span>Display</span>
+            <select
+              aria-label="Folded display style"
+              value={activeFigure?.displayStyle ?? 'Paper5'}
+              disabled={!activeReady}
+              onChange={(event) =>
+                onDisplayStyle(event.currentTarget.value as OristudioCpFoldedFigureDisplayStyle)
+              }
+            >
+              {FOLDED_DISPLAY_STYLE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="folded-figure-menu__field folded-figure-menu__field--segmented">
+            <span>Side</span>
+            <SegmentedControl
+              aria-label="Folded model side"
+              options={FOLDED_STATE_OPTIONS}
+              value={model?.state ?? 'Front0'}
+              onChange={(state) => onModelUpdate({ state })}
+            />
+          </div>
+          <label className="folded-figure-menu__field">
+            <span>Case</span>
+            <div className="folded-figure-menu__case">
+              <input
+                aria-label="Fold case"
+                type="number"
+                min={1}
+                step={1}
+                value={caseDraft}
+                disabled={!activeReady}
+                onChange={(event) => onCaseDraftChange(event.currentTarget.value)}
+                onBlur={() => {
+                  if (canJumpCase) onFoldToCase();
+                }}
+              />
+              <IconButton
+                size="sm"
+                variant="toolbar"
+                title="Go to folded case"
+                disabled={!canJumpCase}
+                onClick={onFoldToCase}
+              >
+                <ChevronRight size={14} />
+              </IconButton>
+            </div>
+          </label>
+          <div className="folded-figure-menu__hint">Current {currentCase}</div>
+          <div className="folded-figure-menu__toggle-row">
+            <span>Shadow</span>
+            <Toggle
+              checked={model?.display_shadows ?? false}
+              disabled={!activeReady}
+              onChange={(display_shadows) => onModelUpdate({ display_shadows })}
+              aria-label="Show folded model shadow"
+            />
+          </div>
+          <div className="folded-figure-menu__toggle-row">
+            <span>Color alpha</span>
+            <Toggle
+              checked={model?.transparency_color ?? false}
+              disabled={!activeReady}
+              onChange={(transparency_color) => onModelUpdate({ transparency_color })}
+              aria-label="Use colored folded transparency"
+            />
+          </div>
+          <label className="folded-figure-menu__field folded-figure-menu__field--range">
+            <span>Alpha</span>
+            <input
+              aria-label="Folded transparency"
+              type="range"
+              min={0}
+              max={255}
+              step={1}
+              value={model?.transparent_transparency ?? 16}
+              disabled={!activeReady}
+              onChange={(event) =>
+                onModelUpdate({
+                  transparent_transparency: Math.max(
+                    0,
+                    Math.min(255, Math.round(Number(event.currentTarget.value)))
+                  ),
+                })
+              }
+            />
+          </label>
+          <div className="folded-figure-menu__actions">
+            <IconButton
+              size="sm"
+              variant="toolbar"
+              title="Duplicate folded model"
+              disabled={!activeFigure?.handle}
+              onClick={() => onDuplicate()}
+            >
+              <Copy size={14} />
+            </IconButton>
+            <IconButton
+              size="sm"
+              variant="toolbar"
+              title="Delete folded model"
+              disabled={!activeFigure}
+              onClick={() => onDelete()}
+            >
+              <Trash2 size={14} />
+            </IconButton>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function activeActionInputMode(
   action: OristudioCpActionDefinition | undefined,
   command: OristudioCpCommandDefinition | undefined
@@ -976,6 +1251,11 @@ function cpTextIdFromEventTarget(target: EventTarget | null): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function foldedFigureIdFromEventTarget(target: EventTarget | null): string | null {
+  if (!(target instanceof Element)) return null;
+  return target.closest('[data-folded-figure-id]')?.getAttribute('data-folded-figure-id') ?? null;
+}
+
 type CpMeasurementSlotId = 'length1' | 'length2' | 'angle1' | 'angle2' | 'angle3';
 type CpMeasurementSlots = Record<CpMeasurementSlotId, number | null>;
 
@@ -1010,6 +1290,12 @@ interface CpSelectionResizeDrag {
   handle: CpSelectionResizeHandle;
   sourceLines: OristudioCpLineSegment[];
   currentTransform: Extract<CpSelectionTransform, { kind: 'scale' }> | null;
+}
+
+interface FoldedFigureMoveDrag {
+  pointerId: number;
+  figureId: string;
+  lastSvgPoint: Point;
 }
 
 interface CpSelectionTransformPreview {
@@ -1188,13 +1474,21 @@ function normalizeSelectionTransformAngle(angleDegrees: number): number {
 export function CreasePatternPanel() {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const cpViewportRef = useRef<HTMLDivElement | null>(null);
   const transformRef = useRef<ReactZoomPanPinchRef | null>(null);
+  // Registered by the infinite grid layer so viewport transforms can trigger a
+  // grid recompute without re-rendering the whole panel on every pan frame.
+  const gridSyncRef = useRef<(() => void) | null>(null);
+  const zoomPercentRef = useRef(100);
+  const viewportPanningRef = useRef(false);
   const [zoomPercent, setZoomPercent] = useState(100);
   const [spacePressed, setSpacePressed] = useState(false);
   const [cursorModelPoint, setCursorModelPoint] = useState<Point | null>(null);
   const [snapTarget, setSnapTarget] = useState<CpSnapTarget | null>(null);
   const [cpToolState, setCpToolState] = useState(IDLE_ORISTUDIO_CP_TOOL_STATE);
   const [activeCpLineColor, setActiveCpLineColor] = useState<OristudioCpLineColor>('Red1');
+  const [foldStartingFaceId, setFoldStartingFaceId] = useState(1);
+  const [foldCaseDraft, setFoldCaseDraft] = useState('1');
   const [cpToolOptions, setCpToolOptions] = useState<OristudioCpToolOptions>(
     DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS
   );
@@ -1217,6 +1511,8 @@ export function CreasePatternPanel() {
   const selectionRotateDragRef = useRef<CpSelectionRotationDrag | null>(null);
   const selectionMoveDragRef = useRef<CpSelectionMoveDrag | null>(null);
   const selectionResizeDragRef = useRef<CpSelectionResizeDrag | null>(null);
+  const foldedFigureMoveDragRef = useRef<FoldedFigureMoveDrag | null>(null);
+  const restoredNativeCanvasModelRef = useRef<string | null>(null);
   const cpToolDragRef = useRef<{
     operationId: OristudioCpCommandDefinition['operationId'];
     actionId: OristudioCpCommandActionDefinition['id'] | null;
@@ -1233,20 +1529,23 @@ export function CreasePatternPanel() {
   const documentMode = useWorkspaceStore((state) => state.documentMode);
   const importedCreasePattern = useWorkspaceStore((state) => state.importedCreasePattern);
   const oristudioCpDocument = useWorkspaceStore((state) => state.oristudioCpDocument);
-  const oristudioCpLineage = useWorkspaceStore((state) => state.oristudioCpLineage);
   const oristudioCpSymmetry = useWorkspaceStore((state) => state.oristudioCpSymmetry);
   const oristudioCpCamvResult = useWorkspaceStore((state) => state.oristudioCpCamvResult);
-  const oristudioCpError = useWorkspaceStore((state) => state.oristudioCpError);
   const oristudioCpSelection = useWorkspaceStore((state) => state.oristudioCpSelection);
   const oristudioCpActionRequest = useWorkspaceStore((state) => state.oristudioCpActionRequest);
+  const oristudioCpFoldedFigures = useWorkspaceStore((state) => state.oristudioCpFoldedFigures);
+  const oristudioCpActiveFoldedFigureId = useWorkspaceStore(
+    (state) => state.oristudioCpActiveFoldedFigureId
+  );
   const oristudioCpActiveDiagnosticId = useWorkspaceStore(
     (state) => state.oristudioCpActiveDiagnosticId
   );
   const oristudioCpViewport = useWorkspaceStore((state) => state.oristudioCpViewport);
   const projectLoadId = useWorkspaceStore((state) => state.projectLoadId);
-  const mode = useWorkspaceStore((state) => state.creaseColorMode);
+  // Crease lines always use Oriedita's default M/V/flat/border coloring; the
+  // color-by toggle has been removed from the CP panel header.
+  const mode = 'mvf' as const;
   const selection = useWorkspaceStore((state) => state.selection);
-  const setMode = useWorkspaceStore((state) => state.setCreaseColorMode);
   const select = useWorkspaceStore((state) => state.select);
   const setOristudioCpViewportOption = useWorkspaceStore(
     (state) => state.setOristudioCpViewportOption
@@ -1276,6 +1575,31 @@ export function CreasePatternPanel() {
   const setOristudioCpActiveDiagnostic = useWorkspaceStore(
     (state) => state.setOristudioCpActiveDiagnostic
   );
+  const foldOristudioCpDocument = useWorkspaceStore((state) => state.foldOristudioCpDocument);
+  const foldAnotherOristudioCpFigure = useWorkspaceStore(
+    (state) => state.foldAnotherOristudioCpFigure
+  );
+  const foldOristudioCpFigureToCase = useWorkspaceStore(
+    (state) => state.foldOristudioCpFigureToCase
+  );
+  const setOristudioCpActiveFoldedFigure = useWorkspaceStore(
+    (state) => state.setOristudioCpActiveFoldedFigure
+  );
+  const moveOristudioCpFoldedFigure = useWorkspaceStore(
+    (state) => state.moveOristudioCpFoldedFigure
+  );
+  const setOristudioCpFoldedFigureDisplayStyle = useWorkspaceStore(
+    (state) => state.setOristudioCpFoldedFigureDisplayStyle
+  );
+  const updateOristudioCpFoldedFigureModel = useWorkspaceStore(
+    (state) => state.updateOristudioCpFoldedFigureModel
+  );
+  const duplicateOristudioCpFoldedFigure = useWorkspaceStore(
+    (state) => state.duplicateOristudioCpFoldedFigure
+  );
+  const deleteOristudioCpFoldedFigure = useWorkspaceStore(
+    (state) => state.deleteOristudioCpFoldedFigure
+  );
   const clearOristudioCpSelection = useWorkspaceStore((state) => state.clearOristudioCpSelection);
   const executeOristudioCpCommand = useWorkspaceStore(
     (state) => state.executeOristudioCpCommand
@@ -1290,11 +1614,57 @@ export function CreasePatternPanel() {
 
   const editableCp = oristudioCpDocument?.document ?? null;
   const editableCpHandle = oristudioCpDocument?.handle ?? null;
+  // Identifies a genuine document load; stable across edits and undo/redo so the
+  // viewport auto-fit does not re-run when history is restored in place.
+  const editableCpLoadSerial = oristudioCpDocument?.loadSerial ?? null;
   const editableCpSummary = oristudioCpDocument?.summary ?? null;
+  const nativeActiveLineColor = useMemo(
+    () => activeLineColorFromOrieditaMetadata(editableCp?.metadata),
+    [editableCp?.metadata]
+  );
+  const nativeActiveMouseMode = useMemo(
+    () => activeMouseModeFromOrieditaMetadata(editableCp?.metadata),
+    [editableCp?.metadata]
+  );
+  const nativeCanvasToolOptions = useMemo(
+    () => canvasToolOptionsFromOrieditaMetadata(editableCp?.metadata),
+    [editableCp?.metadata]
+  );
+  const nativeCreasePatternCamera = useMemo(
+    () => orieditaCameraFromMetadata(editableCp?.metadata),
+    [editableCp?.metadata]
+  );
   const cpCanvasRect = editableCp ? CP_EDITABLE_CANVAS_RECT : CP_WORLD_RECT;
   const cpFitRect = editableCp ? CP_EDITABLE_FIT_RECT : CP_WORLD_RECT;
   const cpCanvasViewBox = `${cpCanvasRect.x} ${cpCanvasRect.y} ${cpCanvasRect.width} ${cpCanvasRect.height}`;
   const editableCpBounds = ORIEDITA_PAPER_BOUNDS;
+  const editableModelToSvg = useCallback(
+    (point: Point) =>
+      nativeCreasePatternCamera
+        ? orieditaObjectToSvg(point, nativeCreasePatternCamera)
+        : modelPointToCpSvg(point, editableCpBounds),
+    [editableCpBounds, nativeCreasePatternCamera]
+  );
+  const editableSvgToModel = useCallback(
+    (point: Point) =>
+      nativeCreasePatternCamera
+        ? orieditaSvgToObject(point, nativeCreasePatternCamera)
+        : cpSvgPointToModel(point, editableCpBounds),
+    [editableCpBounds, nativeCreasePatternCamera]
+  );
+  const editableCircleRadiusToSvg = useCallback(
+    (radius: number) => {
+      if (nativeCreasePatternCamera) {
+        return Math.max(1, radius * orieditaCameraSvgScale(nativeCreasePatternCamera).x);
+      }
+      return Math.max(
+        1,
+        (radius / Math.max(editableCpBounds.spanX, editableCpBounds.spanY)) *
+          Math.min(CP_PAPER_RECT.width, CP_PAPER_RECT.height)
+      );
+    },
+    [editableCpBounds, nativeCreasePatternCamera]
+  );
   const editableCpVisibleGrid = useMemo(
     () =>
       editableCp && oristudioCpViewport.gridVisible
@@ -1302,16 +1672,19 @@ export function CreasePatternPanel() {
         : null,
     [editableCp, oristudioCpViewport.gridVisible]
   );
-  const editableCpGridLines = useMemo(
-    () =>
-      editableCpVisibleGrid
-        ? getCpGridLines(editableCpBounds, editableCpVisibleGrid, 1, {
-            canvasRect: cpCanvasRect,
-            paperRect: CP_PAPER_RECT,
-          })
-        : [],
-    [cpCanvasRect, editableCpBounds, editableCpVisibleGrid]
-  );
+  // Fallback grid extent for environments where the live viewport transform is
+  // unavailable (initial paint before fit, jsdom tests). Mirrors the previous
+  // fixed-world extent so a grid is always present; the live layer widens this
+  // to the visible viewport once a screen CTM is available.
+  const editableCpFallbackGridBounds = useMemo(() => {
+    const corners = [
+      { x: cpCanvasRect.x, y: cpCanvasRect.y },
+      { x: cpCanvasRect.x + cpCanvasRect.width, y: cpCanvasRect.y },
+      { x: cpCanvasRect.x, y: cpCanvasRect.y + cpCanvasRect.height },
+      { x: cpCanvasRect.x + cpCanvasRect.width, y: cpCanvasRect.y + cpCanvasRect.height },
+    ].map((point) => editableSvgToModel(point));
+    return expandedModelBoundsFromPoints(corners, 0);
+  }, [cpCanvasRect, editableSvgToModel]);
   const editableCpGridWidth = useMemo(
     () =>
       editableCp
@@ -1319,10 +1692,118 @@ export function CreasePatternPanel() {
         : undefined,
     [editableCp]
   );
+  useEffect(() => {
+    if (!editableCp) {
+      restoredNativeCanvasModelRef.current = null;
+      return;
+    }
+
+    const restoreKey = `${projectLoadId}:${editableCpHandle ?? 'none'}`;
+    if (restoredNativeCanvasModelRef.current === restoreKey) return;
+    restoredNativeCanvasModelRef.current = restoreKey;
+    if (nativeActiveLineColor) setActiveCpLineColor(nativeActiveLineColor);
+    if (nativeCanvasToolOptions) {
+      setCpToolOptions((current) => ({ ...current, ...nativeCanvasToolOptions }));
+    }
+  }, [
+    editableCp,
+    editableCpHandle,
+    nativeActiveLineColor,
+    nativeCanvasToolOptions,
+    projectLoadId,
+  ]);
+  const activeFoldedFigure = useMemo(
+    () =>
+      oristudioCpFoldedFigures.find((figure) => figure.id === oristudioCpActiveFoldedFigureId) ??
+      oristudioCpFoldedFigures.find(
+        (figure) => figure.sourceKind === 'generated-from-current-cp' && figure.snapshot?.wireframe
+      ) ??
+      null,
+    [oristudioCpActiveFoldedFigureId, oristudioCpFoldedFigures]
+  );
+  const generatedFoldedFigures = useMemo(
+    () =>
+      oristudioCpFoldedFigures.filter(
+        (figure) => figure.sourceKind === 'generated-from-current-cp'
+      ),
+    [oristudioCpFoldedFigures]
+  );
+  const foldedFigureStatusLabel = activeFoldedFigure
+    ? activeFoldedFigure.status === 'ready' || activeFoldedFigure.status === 'stale'
+      ? `Case ${activeFoldedFigure.snapshot?.discovered_fold_cases ?? 0}`
+      : activeFoldedFigure.status === 'loading'
+        ? 'Folding'
+        : activeFoldedFigure.status === 'error'
+          ? 'Fold error'
+          : 'Unsupported'
+    : 'No fold';
+  const canFoldAnother =
+    activeFoldedFigure?.status === 'ready' &&
+    activeFoldedFigure.handle !== null &&
+    activeFoldedFigure.snapshot?.find_another_overlap_valid === true;
+  const selectedEditableFoldLineIds = useMemo(
+    () => selectedFoldableCpLineIds(editableCp, oristudioCpSelection),
+    [editableCp, oristudioCpSelection]
+  );
+  const canFoldSelectedModel = selectedEditableFoldLineIds.length > 0;
+
+  useEffect(() => {
+    setFoldCaseDraft(String(Math.max(activeFoldedFigure?.snapshot?.discovered_fold_cases ?? 1, 1)));
+  }, [activeFoldedFigure?.id, activeFoldedFigure?.snapshot?.discovered_fold_cases]);
+
+  const handleFoldModel = useCallback(() => {
+    if (!canFoldSelectedModel) return;
+    void foldOristudioCpDocument({
+      startingFaceId: foldStartingFaceId,
+      lineIds: selectedEditableFoldLineIds,
+    });
+  }, [canFoldSelectedModel, foldOristudioCpDocument, foldStartingFaceId, selectedEditableFoldLineIds]);
+  const handleFoldAnother = useCallback(() => {
+    if (!activeFoldedFigure) return;
+    void foldAnotherOristudioCpFigure(activeFoldedFigure.id);
+  }, [activeFoldedFigure, foldAnotherOristudioCpFigure]);
+  const handleFoldToCase = useCallback(() => {
+    if (!activeFoldedFigure || activeFoldedFigure.status !== 'ready') return;
+    const objective = Math.max(1, Math.round(Number(foldCaseDraft)));
+    if (!Number.isFinite(objective)) {
+      setFoldCaseDraft(String(Math.max(activeFoldedFigure.snapshot?.discovered_fold_cases ?? 1, 1)));
+      return;
+    }
+    setFoldCaseDraft(String(objective));
+    void foldOristudioCpFigureToCase(activeFoldedFigure.id, objective);
+  }, [activeFoldedFigure, foldCaseDraft, foldOristudioCpFigureToCase]);
+  const handleFoldedDisplayStyle = useCallback(
+    (displayStyle: OristudioCpFoldedFigureDisplayStyle) => {
+      if (!activeFoldedFigure) return;
+      void setOristudioCpFoldedFigureDisplayStyle(activeFoldedFigure.id, displayStyle);
+    },
+    [activeFoldedFigure, setOristudioCpFoldedFigureDisplayStyle]
+  );
+  const handleFoldedModelUpdate = useCallback(
+    (update: Partial<OristudioCpFoldedFigureModel>) => {
+      if (!activeFoldedFigure) return;
+      void updateOristudioCpFoldedFigureModel(activeFoldedFigure.id, update);
+    },
+    [activeFoldedFigure, updateOristudioCpFoldedFigureModel]
+  );
+  const handleDuplicateFoldedFigure = useCallback(() => {
+    if (!activeFoldedFigure) return;
+    void duplicateOristudioCpFoldedFigure(activeFoldedFigure.id);
+  }, [activeFoldedFigure, duplicateOristudioCpFoldedFigure]);
+  const handleDeleteFoldedFigure = useCallback(() => {
+    if (!activeFoldedFigure) return;
+    void deleteOristudioCpFoldedFigure(activeFoldedFigure.id);
+  }, [activeFoldedFigure, deleteOristudioCpFoldedFigure]);
   const editableCpGridSize = editableCp
     ? normalizeOrieditaGridSize(editableCp.crease_pattern.grid.grid_size)
     : 8;
   const editableCpVertices = useMemo(() => getCpVertices(editableCp), [editableCp]);
+  const importedFoldedForms = useMemo(
+    () =>
+      (importedCreasePattern?.sourceFold?.file_frames ?? [])
+        .filter(isRenderableFoldedFormFrame),
+    [importedCreasePattern?.sourceFold]
+  );
   const camvIssuesVisible = oristudioCpViewport.camvIssuesVisible !== false;
   const hasEditableCreasePattern = !!editableCp;
   const hasCreasePattern =
@@ -1603,17 +2084,21 @@ export function CreasePatternPanel() {
     const isNewDocument = defaultCpToolDocumentRef.current !== documentKey;
     defaultCpToolDocumentRef.current = documentKey;
     const defaultAction = cpActionById(DEFAULT_ORISTUDIO_CP_ACTION_ID);
-    if (!defaultAction) return;
+    const restoredAction = nativeActiveMouseMode
+      ? cpActionByUpstreamMouseMode(nativeActiveMouseMode)
+      : undefined;
+    const nextAction = isNewDocument ? restoredAction ?? defaultAction : defaultAction;
+    if (!nextAction) return;
     setCpToolState((state) =>
       isNewDocument || state.phase === 'idle'
         ? transitionOristudioCpToolState(state, {
             type: 'selectAction',
-            action: defaultAction,
+            action: nextAction,
             editable: true,
           })
         : state
     );
-  }, [cpToolState.phase, editableCp, editableCpHandle, projectLoadId]);
+  }, [cpToolState.phase, editableCp, editableCpHandle, nativeActiveMouseMode, projectLoadId]);
 
   useEffect(() => {
     if (
@@ -1880,19 +2365,27 @@ export function CreasePatternPanel() {
     setOristudioCpSelection,
   ]);
 
-  const eventToEditableModelPoint = useCallback(
+  const eventToEditableSvgPoint = useCallback(
     (event: Pick<PointerEvent<Element>, 'clientX' | 'clientY'>): Point | null => {
       const svg = svgRef.current;
       if (!svg || !editableCp) return null;
       const bounds = svg.getBoundingClientRect();
       if (bounds.width <= 0 || bounds.height <= 0) return null;
-      const svgPoint = {
+      return {
         x: cpCanvasRect.x + ((event.clientX - bounds.left) / bounds.width) * cpCanvasRect.width,
         y: cpCanvasRect.y + ((event.clientY - bounds.top) / bounds.height) * cpCanvasRect.height,
       };
-      return cpSvgPointToModel(svgPoint, editableCpBounds);
     },
-    [cpCanvasRect, editableCp, editableCpBounds]
+    [cpCanvasRect, editableCp]
+  );
+
+  const eventToEditableModelPoint = useCallback(
+    (event: Pick<PointerEvent<Element>, 'clientX' | 'clientY'>): Point | null => {
+      const svgPoint = eventToEditableSvgPoint(event);
+      if (!svgPoint) return null;
+      return editableSvgToModel(svgPoint);
+    },
+    [editableSvgToModel, eventToEditableSvgPoint]
   );
 
   const resolveEditableToolPoint = useCallback(
@@ -2220,9 +2713,41 @@ export function CreasePatternPanel() {
     ]
   );
 
+  const handleFoldedFigurePointerDown = useCallback(
+    (figureId: string, event: PointerEvent<Element>) => {
+      if (event.button !== 0 || spacePressed || !editableCp) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setActiveEditingSurface('crease-pattern');
+      setOristudioCpActiveFoldedFigure(figureId);
+
+      if (!event.metaKey && !event.ctrlKey) return;
+      const svgPoint = eventToEditableSvgPoint(event);
+      if (!svgPoint) return;
+      foldedFigureMoveDragRef.current = {
+        pointerId: event.pointerId,
+        figureId,
+        lastSvgPoint: svgPoint,
+      };
+      svgRef.current?.setPointerCapture?.(event.pointerId);
+    },
+    [
+      editableCp,
+      eventToEditableSvgPoint,
+      setActiveEditingSurface,
+      setOristudioCpActiveFoldedFigure,
+      spacePressed,
+    ]
+  );
+
   const updateEditablePointerStatus = useCallback(
     (event: PointerEvent<SVGElement>) => {
       if (!editableCp) return;
+      if (viewportPanningRef.current || spacePressed || (event.buttons & 4) !== 0) {
+        setCursorModelPoint(null);
+        setSnapTarget(null);
+        return;
+      }
       const modelPoint = eventToEditableModelPoint(event);
       setCursorModelPoint(modelPoint);
       if (modelPoint && activeCpInputMode === 'drag-line') {
@@ -2267,12 +2792,46 @@ export function CreasePatternPanel() {
       editableCpBounds,
       eventToEditableModelPoint,
       oristudioCpViewport,
+      spacePressed,
       zoomPercent,
     ]
   );
 
+  const handleViewportTransformed = useCallback(
+    (_ref: ReactZoomPanPinchRef, state: { scale: number }) => {
+      // Keep the infinite grid aligned with the visible viewport on every
+      // transform (pan, zoom, pinch, programmatic fit).
+      gridSyncRef.current?.();
+      const nextZoomPercent = Math.round(state.scale * 100);
+      if (zoomPercentRef.current === nextZoomPercent) return;
+      zoomPercentRef.current = nextZoomPercent;
+      setZoomPercent(nextZoomPercent);
+    },
+    []
+  );
+
+  const handleViewportPanning = useCallback(() => {
+    gridSyncRef.current?.();
+  }, []);
+
+  const handleViewportPanStart = useCallback(() => {
+    viewportPanningRef.current = true;
+    setCursorModelPoint(null);
+    setSnapTarget(null);
+  }, []);
+
+  const handleViewportPanStop = useCallback(() => {
+    viewportPanningRef.current = false;
+  }, []);
+
   const handleEditableToolPointerDown = useCallback(
     (event: PointerEvent<SVGElement>) => {
+      const foldedFigureId = foldedFigureIdFromEventTarget(event.target);
+      if (foldedFigureId) {
+        handleFoldedFigurePointerDown(foldedFigureId, event);
+        return;
+      }
+
       if (event.button === 0 && !spacePressed && editableCp && cpSymmetryAxisPickPoints) {
         const point = resolveEditableToolPoint(event, true);
         if (!point) return;
@@ -2602,6 +3161,7 @@ export function CreasePatternPanel() {
       editableCp,
       eventToEditableModelPoint,
       executeOristudioCpCommand,
+      handleFoldedFigurePointerDown,
       oristudioCpSelection.circles,
       oristudioCpSelection.lines,
       pendingSquareBisectorLineIds.length,
@@ -2616,6 +3176,20 @@ export function CreasePatternPanel() {
 
   const handleEditablePointerMove = useCallback(
     (event: PointerEvent<SVGElement>) => {
+      const foldedFigureMoveDrag = foldedFigureMoveDragRef.current;
+      if (foldedFigureMoveDrag && foldedFigureMoveDrag.pointerId === event.pointerId) {
+        const svgPoint = eventToEditableSvgPoint(event);
+        if (!svgPoint) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const delta = {
+          x: svgPoint.x - foldedFigureMoveDrag.lastSvgPoint.x,
+          y: svgPoint.y - foldedFigureMoveDrag.lastSvgPoint.y,
+        };
+        foldedFigureMoveDrag.lastSvgPoint = svgPoint;
+        moveOristudioCpFoldedFigure(foldedFigureMoveDrag.figureId, delta);
+        return;
+      }
       const selectionRotateDrag = selectionRotateDragRef.current;
       if (selectionRotateDrag && selectionRotateDrag.pointerId === event.pointerId) {
         const point = eventToEditableModelPoint(event);
@@ -2686,6 +3260,8 @@ export function CreasePatternPanel() {
     [
       editableCpBounds,
       eventToEditableModelPoint,
+      eventToEditableSvgPoint,
+      moveOristudioCpFoldedFigure,
       resolveEditableDrawPoint,
       updateSelectionMovePreview,
       updateSelectionResizePreview,
@@ -2697,6 +3273,14 @@ export function CreasePatternPanel() {
 
   const finishEditableDragPath = useCallback(
     (event: PointerEvent<SVGElement>) => {
+      const foldedFigureMoveDrag = foldedFigureMoveDragRef.current;
+      if (foldedFigureMoveDrag && foldedFigureMoveDrag.pointerId === event.pointerId) {
+        event.preventDefault();
+        event.stopPropagation();
+        foldedFigureMoveDragRef.current = null;
+        svgRef.current?.releasePointerCapture?.(event.pointerId);
+        return;
+      }
       const selectionRotateDrag = selectionRotateDragRef.current;
       if (selectionRotateDrag && selectionRotateDrag.pointerId === event.pointerId) {
         event.preventDefault();
@@ -2891,6 +3475,12 @@ export function CreasePatternPanel() {
   );
 
   const cancelEditableDragPath = useCallback((event: PointerEvent<SVGElement>) => {
+    const foldedFigureMoveDrag = foldedFigureMoveDragRef.current;
+    if (foldedFigureMoveDrag && foldedFigureMoveDrag.pointerId === event.pointerId) {
+      foldedFigureMoveDragRef.current = null;
+      svgRef.current?.releasePointerCapture?.(event.pointerId);
+      return;
+    }
     const selectionRotateDrag = selectionRotateDragRef.current;
     if (selectionRotateDrag && selectionRotateDrag.pointerId === event.pointerId) {
       selectionRotateDragRef.current = null;
@@ -3186,27 +3776,6 @@ export function CreasePatternPanel() {
           : documentMode === 'crease-pattern'
             ? 'No imported crease pattern'
             : 'No crease pattern';
-  const sourceLabel =
-    editableCp && oristudioCpLineage?.kind === 'generated-from-tree'
-      ? [
-          cpLineageStatusLabel(oristudioCpLineage),
-          editableCpSummary ? `${editableCpSummary.line_segments} lines` : null,
-          oristudioCpLineage.stale ? 'Rebuild CP to resync with design' : null,
-        ]
-          .filter(Boolean)
-          .join(' | ')
-      : documentMode === 'crease-pattern' && importedCreasePattern
-      ? [
-          importedCreasePattern.source.filename,
-          importedCreasePattern.lineOnly ? 'View only' : 'Simulatable',
-          oristudioCpDocument
-            ? `Editable kernel: ${oristudioCpDocument.summary.line_segments} lines`
-            : oristudioCpError
-              ? `Kernel unavailable: ${shortStatus(oristudioCpError)}`
-              : 'Editable kernel pending',
-        ].join(' | ')
-      : null;
-
   const getViewportSize = useCallback((): ViewportSize | null => {
     const viewport = containerRef.current;
     if (!viewport) return null;
@@ -3270,9 +3839,9 @@ export function CreasePatternPanel() {
   const creasePatternFitKey = useMemo(
     () =>
       editableCp
-        ? `editable:${projectLoadId}:${editableCpHandle ?? 'unhandled'}`
+        ? `editable:${projectLoadId}:${editableCpLoadSerial ?? 'unloaded'}`
         : `generated:${projectLoadId}:${project.creases.length}:${project.facets.length}`,
-    [editableCp, editableCpHandle, project.creases.length, project.facets.length, projectLoadId]
+    [editableCp, editableCpLoadSerial, project.creases.length, project.facets.length, projectLoadId]
   );
   const lastFittedCreasePatternRef = useRef<string | null>(null);
 
@@ -3349,7 +3918,7 @@ export function CreasePatternPanel() {
     if (!container || !transform || container.clientWidth <= 0 || container.clientHeight <= 0) {
       return;
     }
-    const svgPoint = modelPointToCpSvg(focusPoint, editableCpBounds);
+    const svgPoint = editableModelToSvg(focusPoint);
     const fitScale = computeFitScale();
     const currentScale = Math.max(zoomPercent / 100, 0.05);
     const focusScale = Math.min(30, Math.max(currentScale, Math.min(3, fitScale * 2)));
@@ -3364,8 +3933,8 @@ export function CreasePatternPanel() {
     activeDiagnosticEntry,
     computeFitScale,
     editableCp,
-    editableCpBounds,
     editableCpHandle,
+    editableModelToSvg,
     zoomPercent,
   ]);
 
@@ -3385,12 +3954,14 @@ export function CreasePatternPanel() {
           selectionRotateDragRef.current ||
           selectionMoveDragRef.current ||
           selectionResizeDragRef.current ||
+          foldedFigureMoveDragRef.current ||
           selectionRotationPreview
         ) {
           event.preventDefault();
           selectionRotateDragRef.current = null;
           selectionMoveDragRef.current = null;
           selectionResizeDragRef.current = null;
+          foldedFigureMoveDragRef.current = null;
           setSelectionRotationPreview(null);
           setSnapTarget(null);
           return;
@@ -3467,6 +4038,7 @@ export function CreasePatternPanel() {
       selectionRotateDragRef.current = null;
       selectionMoveDragRef.current = null;
       selectionResizeDragRef.current = null;
+      foldedFigureMoveDragRef.current = null;
       setSelectionRotationPreview(null);
       setCpToolState(IDLE_ORISTUDIO_CP_TOOL_STATE);
     }
@@ -3490,38 +4062,6 @@ export function CreasePatternPanel() {
 
   return (
     <section className="panel-shell cp-panel">
-      <div className="panel-toolbar">
-        <div className="panel-toolbar__group">
-          <span className="panel-title">Crease Pattern</span>
-        </div>
-        {hasCreasePattern ? (
-          <div className="cp-panel__mode">
-            <span className="cp-panel__mode-label">Color by</span>
-            <SegmentedControl
-              aria-label="Choose how crease lines are colored"
-              value={mode}
-              onChange={setMode}
-              options={[
-                {
-                  value: 'mvf',
-                  label: 'M/V assignment',
-                  icon: <GitBranch size={13} />,
-                  title: 'Color by mountain, valley, flat, and border folds',
-                },
-                {
-                  value: 'agrh',
-                  label: 'Crease roles',
-                  icon: <ScanLine size={13} />,
-                  title: 'Color by axial, gusset, ridge, hinge, and pseudohinge roles',
-                },
-              ]}
-            />
-          </div>
-        ) : (
-          <span className="panel-toolbar__meta">{emptyStatusLabel}</span>
-        )}
-      </div>
-      {sourceLabel && <div className="panel-subtitle">{sourceLabel}</div>}
       <div
         ref={containerRef}
         className={[
@@ -3546,7 +4086,7 @@ export function CreasePatternPanel() {
                 onSelectAction={handleCpToolAction}
               />
             )}
-            <div className="cp-panel__viewport">
+            <div className="cp-panel__viewport" ref={cpViewportRef}>
               {diagnosticStatus && (
                 <div
                   className="cp-diagnostic-hud"
@@ -3612,7 +4152,10 @@ export function CreasePatternPanel() {
                   transformRef.current = ref;
                   requestAnimationFrame(() => fitLoadedCreasePatternRef.current(0));
                 }}
-                onTransformed={(_ref, state) => setZoomPercent(Math.round(state.scale * 100))}
+                onPanningStart={handleViewportPanStart}
+                onPanning={handleViewportPanning}
+                onPanningStop={handleViewportPanStop}
+                onTransformed={handleViewportTransformed}
               >
                 <TransformComponent
                   wrapperStyle={{ width: '100%', height: '100%' }}
@@ -3637,30 +4180,41 @@ export function CreasePatternPanel() {
                       if (event.target === event.currentTarget) clearSelectionOnBackgroundPointerDown(event);
                     }}
                   >
-                    <rect
-                      className="paper-shadow"
-                      x={CP_PAPER_SHADOW_RECT.x}
-                      y={CP_PAPER_SHADOW_RECT.y}
-                      width={CP_PAPER_SHADOW_RECT.width}
-                      height={CP_PAPER_SHADOW_RECT.height}
-                      rx="6"
-                    />
-                    <rect
-                      className={editableCp ? 'paper paper--editable-cp-guide' : 'paper'}
-                      x={CP_PAPER_RECT.x}
-                      y={CP_PAPER_RECT.y}
-                      width={CP_PAPER_RECT.width}
-                      height={CP_PAPER_RECT.height}
-                      onPointerDown={clearSelectionOnBackgroundPointerDown}
-                    />
+                    {!editableCp && (
+                      <>
+                        <rect
+                          className="paper-shadow"
+                          x={CP_PAPER_SHADOW_RECT.x}
+                          y={CP_PAPER_SHADOW_RECT.y}
+                          width={CP_PAPER_SHADOW_RECT.width}
+                          height={CP_PAPER_SHADOW_RECT.height}
+                          rx="6"
+                        />
+                        <rect
+                          className="paper"
+                          x={CP_PAPER_RECT.x}
+                          y={CP_PAPER_RECT.y}
+                          width={CP_PAPER_RECT.width}
+                          height={CP_PAPER_RECT.height}
+                          onPointerDown={clearSelectionOnBackgroundPointerDown}
+                        />
+                      </>
+                    )}
                     {editableCp ? (
                       <EditableCreasePattern
-                        bounds={editableCpBounds}
-                        clearSelectionOnBackgroundPointerDown={clearSelectionOnBackgroundPointerDown}
+                        circleRadiusToSvg={editableCircleRadiusToSvg}
                         document={editableCp}
-                        gridLines={editableCpGridLines}
+                        generatedFoldedFigures={generatedFoldedFigures}
+                        grid={editableCpVisibleGrid}
+                        gridFallbackBounds={editableCpFallbackGridBounds}
+                        gridSyncRef={gridSyncRef}
                         gridVisible={oristudioCpViewport.gridVisible}
+                        importedFoldedForms={importedFoldedForms}
                         mode={mode}
+                        modelToSvg={editableModelToSvg}
+                        svgRef={svgRef}
+                        svgToModel={editableSvgToModel}
+                        viewportRef={cpViewportRef}
                         symmetryActive={oristudioCpSymmetry.enabled}
                         symmetryAxisLine={visibleCpSymmetryAxisLine}
                         symmetryDraftLine={draftCpSymmetryAxisLine}
@@ -3674,7 +4228,9 @@ export function CreasePatternPanel() {
                         selectionTransformPreview={selectionRotationPreview}
                         selectionTransformUiScale={cpUiScale}
                         activeDiagnosticId={oristudioCpActiveDiagnosticId}
+                        activeFoldedFigureId={oristudioCpActiveFoldedFigureId}
                         diagnostics={latestDiagnosticEntries}
+                        onFoldedFigurePointerDown={handleFoldedFigurePointerDown}
                         onSelectionMovePointerDown={handleSelectionMovePointerDown}
                         onSelectionResizePointerDown={handleSelectionResizePointerDown}
                         onSelectionRotatePointerDown={handleSelectionRotatePointerDown}
@@ -3784,6 +4340,45 @@ export function CreasePatternPanel() {
                       onSelectLineColor={setActiveCpLineColor}
                       shortcutOverrides={shortcutOverrides}
                     />
+                    <ViewportToolbarSeparator />
+                    <IconButton
+                      size="sm"
+                      variant="toolbar"
+                      title="Fold"
+                      disabled={!canFoldSelectedModel}
+                      onClick={handleFoldModel}
+                    >
+                      <GitBranch size={14} />
+                    </IconButton>
+                    <IconButton
+                      size="sm"
+                      variant="toolbar"
+                      title="Another solution"
+                      disabled={!canFoldAnother}
+                      onClick={handleFoldAnother}
+                    >
+                      <ChevronRight size={14} />
+                    </IconButton>
+                    <FoldedFigureMenuButton
+                      figures={oristudioCpFoldedFigures}
+                      activeFigure={activeFoldedFigure}
+                      startingFaceId={foldStartingFaceId}
+                      caseDraft={foldCaseDraft}
+                      onStartingFaceIdChange={setFoldStartingFaceId}
+                      onCaseDraftChange={setFoldCaseDraft}
+                      onSelectFigure={setOristudioCpActiveFoldedFigure}
+                      onDisplayStyle={handleFoldedDisplayStyle}
+                      onModelUpdate={handleFoldedModelUpdate}
+                      onFoldToCase={handleFoldToCase}
+                      onDuplicate={handleDuplicateFoldedFigure}
+                      onDelete={handleDeleteFoldedFigure}
+                    />
+                    <span
+                      className="viewport-toolbar__meta cp-folded-model-status"
+                      data-folded-model-status={activeFoldedFigure?.status ?? 'none'}
+                    >
+                      {foldedFigureStatusLabel}
+                    </span>
                   </>
                 )}
               </ViewportToolbar>
@@ -3860,14 +4455,188 @@ export function CreasePatternPanel() {
   );
 }
 
+// Extra viewport shown around the visible region so short pans reuse the cached
+// grid instead of revealing an ungridded edge before the next recompute.
+const GRID_VIEWPORT_MARGIN_RATIO = 0.35;
+// Snap the generation region outward to this fraction of its span so small pans
+// resolve to the same coverage key and skip regeneration.
+const GRID_SNAP_STEP_RATIO = 0.2;
+const GRID_SNAP_MIN_STEP = 1e-3;
+
+/**
+ * Map the visible viewport rectangle into model space using the SVG's live
+ * screen CTM (which already folds in the pan/zoom CSS transform). Returns null
+ * when no transform is available yet (initial paint, jsdom), so callers can fall
+ * back to a fixed extent.
+ */
+function visibleModelGridBounds(
+  svg: SVGSVGElement | null,
+  viewport: HTMLElement | null,
+  svgToModel: (point: Point) => Point
+): CpModelBounds | null {
+  if (!svg || !viewport || typeof svg.getScreenCTM !== 'function') return null;
+  const ctm = svg.getScreenCTM();
+  if (!ctm) return null;
+  const rect = viewport.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return null;
+  let inverse: DOMMatrix;
+  try {
+    inverse = ctm.inverse();
+  } catch {
+    return null;
+  }
+  const screenCorners: Point[] = [
+    { x: rect.left, y: rect.top },
+    { x: rect.right, y: rect.top },
+    { x: rect.left, y: rect.bottom },
+    { x: rect.right, y: rect.bottom },
+  ];
+  const modelCorners = screenCorners.map((corner) => {
+    const svgX = inverse.a * corner.x + inverse.c * corner.y + inverse.e;
+    const svgY = inverse.b * corner.x + inverse.d * corner.y + inverse.f;
+    return svgToModel({ x: svgX, y: svgY });
+  });
+  return expandedModelBoundsFromPoints(modelCorners, GRID_VIEWPORT_MARGIN_RATIO);
+}
+
+function snapModelGridBounds(bounds: CpModelBounds): CpModelBounds {
+  const step = Math.max(
+    GRID_SNAP_MIN_STEP,
+    Math.max(bounds.spanX, bounds.spanY) * GRID_SNAP_STEP_RATIO
+  );
+  const minX = Math.floor(bounds.minX / step) * step;
+  const minY = Math.floor(bounds.minY / step) * step;
+  const maxX = Math.ceil(bounds.maxX / step) * step;
+  const maxY = Math.ceil(bounds.maxY / step) * step;
+  return {
+    minX,
+    minY,
+    maxX,
+    maxY,
+    spanX: Math.max(step, maxX - minX),
+    spanY: Math.max(step, maxY - minY),
+  };
+}
+
+interface OrieditaInfiniteGridProps {
+  grid: OristudioCpGridMetadata;
+  fallbackBounds: CpModelBounds;
+  modelToSvg: (point: Point) => Point;
+  svgToModel: (point: Point) => Point;
+  svgRef: RefObject<SVGSVGElement | null>;
+  viewportRef: RefObject<HTMLElement | null>;
+  syncRef: MutableRefObject<(() => void) | null>;
+}
+
+/**
+ * Grid layer that follows the visible viewport, matching Oriedita's behavior of
+ * repainting the grid across the whole visible canvas each frame. Lines are
+ * generated over the currently visible model region (widened by a margin) rather
+ * than a fixed world rect, so the grid never terminates at a world edge. The
+ * lines render inside the pan/zoom-transformed SVG and its `overflow: visible`
+ * surface, so they move with the content and are not clipped to the CP viewBox.
+ */
+function OrieditaInfiniteGrid({
+  grid,
+  fallbackBounds,
+  modelToSvg,
+  svgToModel,
+  svgRef,
+  viewportRef,
+  syncRef,
+}: OrieditaInfiniteGridProps) {
+  const [lines, setLines] = useState<CpGridLine[]>([]);
+  const coverageKeyRef = useRef<string | null>(null);
+  const frameRef = useRef<number | null>(null);
+
+  const recompute = useCallback(() => {
+    const visible = visibleModelGridBounds(svgRef.current, viewportRef.current, svgToModel);
+    const snapped = snapModelGridBounds(visible ?? fallbackBounds);
+    const key = [
+      grid.grid_size,
+      grid.grid_angle,
+      grid.grid_xa,
+      grid.grid_ya,
+      grid.interval_grid_size,
+      grid.draw_diagonal_gridlines ? 1 : 0,
+      snapped.minX.toFixed(3),
+      snapped.minY.toFixed(3),
+      snapped.maxX.toFixed(3),
+      snapped.maxY.toFixed(3),
+    ].join(':');
+    if (key === coverageKeyRef.current) return;
+    coverageKeyRef.current = key;
+    setLines(orieditaGridLinesForModelBounds(snapped, grid));
+  }, [fallbackBounds, grid, svgRef, svgToModel, viewportRef]);
+
+  const scheduleRecompute = useCallback(() => {
+    if (frameRef.current != null) return;
+    if (typeof requestAnimationFrame !== 'function') {
+      recompute();
+      return;
+    }
+    frameRef.current = requestAnimationFrame(() => {
+      frameRef.current = null;
+      recompute();
+    });
+  }, [recompute]);
+
+  // Let viewport transforms drive a recompute without re-rendering the panel.
+  useEffect(() => {
+    syncRef.current = scheduleRecompute;
+    return () => {
+      if (syncRef.current === scheduleRecompute) syncRef.current = null;
+    };
+  }, [scheduleRecompute, syncRef]);
+
+  // Recompute immediately when grid params or coordinate mapping change, and keep
+  // the grid aligned when the viewport element resizes.
+  useEffect(() => {
+    coverageKeyRef.current = null;
+    recompute();
+    const viewport = viewportRef.current;
+    if (!viewport || typeof ResizeObserver === 'undefined') return undefined;
+    const observer = new ResizeObserver(() => scheduleRecompute());
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, [recompute, scheduleRecompute, viewportRef]);
+
+  useEffect(
+    () => () => {
+      if (frameRef.current != null && typeof cancelAnimationFrame === 'function') {
+        cancelAnimationFrame(frameRef.current);
+      }
+    },
+    []
+  );
+
+  return (
+    <>
+      {lines.map((line) => {
+        const a = modelToSvg(line.a);
+        const b = modelToSvg(line.b);
+        return <line key={line.id} className="cp-grid-line" x1={a.x} y1={a.y} x2={b.x} y2={b.y} />;
+      })}
+    </>
+  );
+}
+
 interface EditableCreasePatternProps {
   activeDiagnosticId: string | null;
-  bounds: CpModelBounds;
-  clearSelectionOnBackgroundPointerDown: (event: PointerEvent<SVGElement>) => void;
+  activeFoldedFigureId: string | null;
+  circleRadiusToSvg: (radius: number) => number;
   document: OristudioCpDocumentSnapshot;
-  gridLines: ReturnType<typeof getCpGridLines>;
+  generatedFoldedFigures: OristudioCpFoldedFigureEntry[];
+  grid: OristudioCpGridMetadata | null;
+  gridFallbackBounds: CpModelBounds;
+  gridSyncRef: MutableRefObject<(() => void) | null>;
   gridVisible: boolean;
+  importedFoldedForms: FoldDocument[];
   mode: 'mvf' | 'agrh';
+  modelToSvg: (point: Point) => Point;
+  svgRef: RefObject<SVGSVGElement | null>;
+  svgToModel: (point: Point) => Point;
+  viewportRef: RefObject<HTMLElement | null>;
   symmetryActive: boolean;
   symmetryAxisLine: readonly [Point, Point] | null;
   symmetryDraftLine: readonly [Point, Point] | null;
@@ -3878,6 +4647,7 @@ interface EditableCreasePatternProps {
   commandPreviewSegments: OristudioCpLineSegment[];
   diagnostics: OristudioCpDiagnosticEntry[];
   highlightedLineIds: number[];
+  onFoldedFigurePointerDown: (id: string, event: PointerEvent<Element>) => void;
   onSelectionMovePointerDown: (event: PointerEvent<Element>) => void;
   onSelectionResizePointerDown: (
     handle: CpSelectionResizeHandle,
@@ -3902,12 +4672,20 @@ interface EditableCreasePatternProps {
 
 function EditableCreasePattern({
   activeDiagnosticId,
-  bounds,
-  clearSelectionOnBackgroundPointerDown,
+  activeFoldedFigureId,
+  circleRadiusToSvg,
   document,
-  gridLines,
+  generatedFoldedFigures,
+  grid,
+  gridFallbackBounds,
+  gridSyncRef,
   gridVisible,
+  importedFoldedForms,
   mode,
+  modelToSvg,
+  svgRef,
+  svgToModel,
+  viewportRef,
   symmetryActive,
   symmetryAxisLine,
   symmetryDraftLine,
@@ -3918,6 +4696,7 @@ function EditableCreasePattern({
   commandPreviewSegments,
   diagnostics,
   highlightedLineIds,
+  onFoldedFigurePointerDown,
   onSelectionMovePointerDown,
   onSelectionResizePointerDown,
   onSelectionRotatePointerDown,
@@ -3938,35 +4717,31 @@ function EditableCreasePattern({
 }: EditableCreasePatternProps) {
   return (
     <>
-      {gridVisible &&
-        gridLines.map((line) => {
-          const a = modelPointToCpSvg(line.a, bounds);
-          const b = modelPointToCpSvg(line.b, bounds);
-          return (
-            <line
-              key={line.id}
-              className="cp-grid-line"
-              x1={a.x}
-              y1={a.y}
-              x2={b.x}
-              y2={b.y}
-            />
-          );
-        })}
+      {gridVisible && grid && (
+        <OrieditaInfiniteGrid
+          grid={grid}
+          fallbackBounds={gridFallbackBounds}
+          modelToSvg={modelToSvg}
+          svgToModel={svgToModel}
+          svgRef={svgRef}
+          viewportRef={viewportRef}
+          syncRef={gridSyncRef}
+        />
+      )}
       {symmetryAxisLine && (
         <SymmetryAxisGuide
-          bounds={bounds}
+          modelToSvg={modelToSvg}
           points={symmetryAxisLine}
           active={symmetryActive}
         />
       )}
       {symmetryDraftLine && (
-        <SymmetryAxisGuide bounds={bounds} points={symmetryDraftLine} draft />
+        <SymmetryAxisGuide modelToSvg={modelToSvg} points={symmetryDraftLine} draft />
       )}
       {document.crease_pattern.line_segments.map((line, index) => {
         const id = index + 1;
-        const a = modelPointToCpSvg(line.a, bounds);
-        const b = modelPointToCpSvg(line.b, bounds);
+        const a = modelToSvg(line.a);
+        const b = modelToSvg(line.b);
         return (
           <g key={id}>
             <line
@@ -4006,8 +4781,8 @@ function EditableCreasePattern({
         );
       })}
       {selectionTransformPreview?.segments.map((segment, index) => {
-        const a = modelPointToCpSvg(segment.a, bounds);
-        const b = modelPointToCpSvg(segment.b, bounds);
+        const a = modelToSvg(segment.a);
+        const b = modelToSvg(segment.b);
         return (
           <line
             key={`selection-transform-preview-${index}-${segment.a.x}-${segment.a.y}-${segment.b.x}-${segment.b.y}`}
@@ -4024,7 +4799,7 @@ function EditableCreasePattern({
       })}
       {document.crease_pattern.points.map((point, index) => {
         const id = index + 1;
-        const svgPoint = modelPointToCpSvg(point, bounds);
+        const svgPoint = modelToSvg(point);
         return (
           <circle
             key={id}
@@ -4046,10 +4821,8 @@ function EditableCreasePattern({
       })}
       {document.crease_pattern.circles.map((circle, index) => {
         const id = index + 1;
-        const center = modelPointToCpSvg({ x: circle.x, y: circle.y }, bounds);
-        const radius =
-          (circle.r / Math.max(bounds.spanX, bounds.spanY)) *
-          Math.min(CP_PAPER_RECT.width, CP_PAPER_RECT.height);
+        const center = modelToSvg({ x: circle.x, y: circle.y });
+        const radius = circleRadiusToSvg(circle.r);
         return (
           <circle
             key={id}
@@ -4070,10 +4843,8 @@ function EditableCreasePattern({
         );
       })}
       {commandPreviewCircles.map((circle, index) => {
-        const center = modelPointToCpSvg({ x: circle.x, y: circle.y }, bounds);
-        const radius =
-          (circle.r / Math.max(bounds.spanX, bounds.spanY)) *
-          Math.min(CP_PAPER_RECT.width, CP_PAPER_RECT.height);
+        const center = modelToSvg({ x: circle.x, y: circle.y });
+        const radius = circleRadiusToSvg(circle.r);
         return (
           <circle
             key={`${index}-${circle.x}-${circle.y}-${circle.r}`}
@@ -4087,14 +4858,14 @@ function EditableCreasePattern({
       {commandPreviewBoxes.map((box, index) => (
         <SelectionBoxPreview
           key={`${index}-${box[0].x}-${box[0].y}`}
-          bounds={bounds}
+          modelToSvg={modelToSvg}
           points={box}
         />
       ))}
       {diagnostics.flatMap((diagnostic) =>
         (diagnostic.segments ?? []).map((segment, index) => {
-          const a = modelPointToCpSvg(segment.a, bounds);
-          const b = modelPointToCpSvg(segment.b, bounds);
+          const a = modelToSvg(segment.a);
+          const b = modelToSvg(segment.b);
           const active = diagnostic.id === activeDiagnosticId;
           return (
             <line
@@ -4121,10 +4892,7 @@ function EditableCreasePattern({
       )}
       {document.crease_pattern.texts.map((text, index) => {
         const id = index + 1;
-        const position = modelPointToCpSvg(
-          { x: textCoordinate(text.x), y: textCoordinate(text.y) },
-          bounds
-        );
+        const position = modelToSvg({ x: textCoordinate(text.x), y: textCoordinate(text.y) });
         return (
           <text
             key={id}
@@ -4144,8 +4912,17 @@ function EditableCreasePattern({
           </text>
         );
       })}
+      <GeneratedFoldedFiguresLayer
+        activeFigureId={activeFoldedFigureId}
+        figures={generatedFoldedFigures}
+        onFigurePointerDown={onFoldedFigurePointerDown}
+      />
+      <ImportedFoldedFormsLayer
+        frames={importedFoldedForms}
+        startIndex={generatedFoldedFigures.filter(isRenderableGeneratedFoldedFigure).length}
+      />
       {vertices.map((vertex) => {
-        const svgPoint = modelPointToCpSvg(vertex.point, bounds);
+        const svgPoint = modelToSvg(vertex.point);
         const selected = selection.vertices?.includes(vertex.id) ?? false;
         return (
           <g
@@ -4177,7 +4954,7 @@ function EditableCreasePattern({
       {diagnostics
         .filter((diagnostic) => diagnostic.point)
         .map((diagnostic) => {
-          const point = modelPointToCpSvg(diagnostic.point as Point, bounds);
+          const point = modelToSvg(diagnostic.point as Point);
           const active = diagnostic.id === activeDiagnosticId;
           return (
             <g
@@ -4218,14 +4995,14 @@ function EditableCreasePattern({
         <polygon
           className="cp-operation-frame"
           points={document.operation_frame.points
-            .map((point) => modelPointToCpSvg(point, bounds))
+            .map(modelToSvg)
             .map((point) => `${point.x},${point.y}`)
           .join(' ')}
         />
       )}
       {commandPreviewSegments.map((segment, index) => {
-        const a = modelPointToCpSvg(segment.a, bounds);
-        const b = modelPointToCpSvg(segment.b, bounds);
+        const a = modelToSvg(segment.a);
+        const b = modelToSvg(segment.b);
         return (
           <line
             key={`${index}-${segment.a.x}-${segment.a.y}-${segment.b.x}-${segment.b.y}`}
@@ -4244,13 +5021,13 @@ function EditableCreasePattern({
         <polyline
           className="cp-command-preview"
           points={commandPreviewPoints
-            .map((point) => modelPointToCpSvg(point, bounds))
+            .map(modelToSvg)
             .map((point) => `${point.x},${point.y}`)
             .join(' ')}
         />
       )}
       {commandCandidatePoints.map((point, index) => {
-        const svgPoint = modelPointToCpSvg(point, bounds);
+        const svgPoint = modelToSvg(point);
         return (
           <circle
             key={`${index}-${point.x}-${point.y}`}
@@ -4263,7 +5040,7 @@ function EditableCreasePattern({
       })}
       {selectionTransformFrame && (
         <SelectionTransformBox
-          bounds={bounds}
+          modelToSvg={modelToSvg}
           selectionFrame={selectionTransformFrame}
           uiScale={selectionTransformUiScale}
           onMovePointerDown={onSelectionMovePointerDown}
@@ -4275,25 +5052,578 @@ function EditableCreasePattern({
       {snapTarget && (
         <circle
           className="cp-snap-target"
-          cx={modelPointToCpSvg(snapTarget.point, bounds).x}
-          cy={modelPointToCpSvg(snapTarget.point, bounds).y}
+          cx={modelToSvg(snapTarget.point).x}
+          cy={modelToSvg(snapTarget.point).y}
           r="5"
         />
       )}
-      <rect
-        className="paper-border"
-        x={CP_PAPER_RECT.x}
-        y={CP_PAPER_RECT.y}
-        width={CP_PAPER_RECT.width}
-        height={CP_PAPER_RECT.height}
-        onPointerDown={clearSelectionOnBackgroundPointerDown}
-      />
     </>
   );
 }
 
+const IMPORTED_FOLDED_FORM_VIEW = {
+  x: CP_PAPER_RECT.x + 20,
+  y: CP_PAPER_RECT.y + 20,
+  width: 136,
+  height: 136,
+};
+
+function GeneratedFoldedFiguresLayer({
+  activeFigureId,
+  figures,
+  onFigurePointerDown,
+}: {
+  activeFigureId: string | null;
+  figures: OristudioCpFoldedFigureEntry[];
+  onFigurePointerDown: (id: string, event: PointerEvent<Element>) => void;
+}) {
+  const renderableFigures = figures.filter(isRenderableGeneratedFoldedFigure);
+  if (renderableFigures.length === 0) return null;
+  return (
+    <g className="cp-generated-folded-figures-layer">
+      {renderableFigures.map((figure) => (
+        <GeneratedFoldedFigure
+          key={figure.id}
+          active={figure.id === activeFigureId}
+          figure={figure}
+          onPointerDown={onFigurePointerDown}
+        />
+      ))}
+    </g>
+  );
+}
+
+function isRenderableGeneratedFoldedFigure(figure: OristudioCpFoldedFigureEntry): boolean {
+  return Boolean(figure.renderSnapshot?.primitives.length || figure.snapshot?.wireframe);
+}
+
+function foldedFigureDisplayTransform(figure: OristudioCpFoldedFigureEntry): string | undefined {
+  const offset = figure.displayOffset;
+  if (!offset || (Math.abs(offset.x) < 1e-9 && Math.abs(offset.y) < 1e-9)) return undefined;
+  return `translate(${offset.x} ${offset.y})`;
+}
+
+function GeneratedFoldedFigure({
+  active,
+  figure,
+  onPointerDown,
+}: {
+  active: boolean;
+  figure: OristudioCpFoldedFigureEntry;
+  onPointerDown: (id: string, event: PointerEvent<Element>) => void;
+}) {
+  if (figure.renderSnapshot?.primitives.length) {
+    return (
+      <GeneratedFoldedFigurePrimitiveLayer
+        active={active}
+        figure={figure}
+        onPointerDown={onPointerDown}
+        snapshot={figure.renderSnapshot}
+      />
+    );
+  }
+
+  const wireframe = figure?.snapshot?.wireframe;
+  if (!wireframe) return null;
+  const bounds = foldFrameBounds(wireframe.points);
+  if (!bounds) return null;
+
+  const toSvg = (point: Point) => foldedFormPointToSvg(point, bounds, 0);
+  const fill = rgbColorCss(figure.snapshot?.model.front_color);
+  const stroke = rgbColorCss(figure.snapshot?.model.line_color);
+  return (
+    <g
+      className={[
+        'cp-generated-folded-figure',
+        figure.status === 'stale' ? 'cp-generated-folded-figure--stale' : '',
+      ].join(' ')}
+      data-folded-figure-id={figure.id}
+      data-folded-figure-active={active || undefined}
+      data-folded-figure-status={figure.status}
+      transform={foldedFigureDisplayTransform(figure)}
+      onPointerDown={(event) => onPointerDown(figure.id, event)}
+    >
+      {wireframe.faces.map((face, faceIndex) => {
+        const points = face
+          .map((pointIndex) => wireframe.points[pointIndex])
+          .filter((point): point is Point => !!point);
+        if (points.length < 3 || points.length !== face.length) return null;
+        return (
+          <polygon
+            key={`face-${faceIndex}`}
+            className="cp-generated-folded-figure-face"
+            points={points
+              .map(toSvg)
+              .map((point) => `${point.x},${point.y}`)
+              .join(' ')}
+            style={{ fill }}
+          />
+        );
+      })}
+      {wireframe.lines.map((line, lineIndex) => {
+        const start = wireframe.points[line.begin];
+        const end = wireframe.points[line.end];
+        if (!start || !end) return null;
+        const a = toSvg(start);
+        const b = toSvg(end);
+        return (
+          <line
+            key={`line-${lineIndex}`}
+            className="cp-generated-folded-figure-edge"
+            x1={a.x}
+            y1={a.y}
+            x2={b.x}
+            y2={b.y}
+            style={{ stroke }}
+          />
+        );
+      })}
+    </g>
+  );
+}
+
+function GeneratedFoldedFigurePrimitiveLayer({
+  active,
+  figure,
+  onPointerDown,
+  snapshot,
+}: {
+  active: boolean;
+  figure: OristudioCpFoldedFigureEntry;
+  onPointerDown: (id: string, event: PointerEvent<Element>) => void;
+  snapshot: OristudioCpFoldedRenderSnapshot;
+}) {
+  const bounds = foldedRenderSnapshotBounds(snapshot);
+  if (!bounds) return null;
+  const toSvg = (point: Point) => modelPointToCpSvg(point, ORIEDITA_PAPER_BOUNDS);
+  const hitRect = foldedRenderBoundsRect(bounds, toSvg);
+  const gradientIds = new Map<number, string>();
+  const gradients = snapshot.primitives.flatMap((primitive) => {
+    const paint = primitive.style.paint;
+    if (paint.kind !== 'gradient') return [];
+    const id = `cp-folded-gradient-${figure.id}-${primitive.sequence}`;
+    gradientIds.set(primitive.sequence, id);
+    const from = toSvg(paint.from);
+    const to = toSvg(paint.to);
+    return [{ id, from, to, paint }];
+  });
+
+  return (
+    <g
+      className={[
+        'cp-generated-folded-figure',
+        'cp-generated-folded-figure--primitive',
+        figure.status === 'stale' ? 'cp-generated-folded-figure--stale' : '',
+      ].join(' ')}
+      data-folded-figure-id={figure.id}
+      data-folded-figure-active={active || undefined}
+      data-folded-figure-status={figure.status}
+      data-folded-render-pass={snapshot.pass ?? undefined}
+      transform={foldedFigureDisplayTransform(figure)}
+      onPointerDown={(event) => onPointerDown(figure.id, event)}
+    >
+      <rect className="cp-generated-folded-figure-hit-target" {...hitRect} />
+      {gradients.length > 0 && (
+        <defs>
+          {gradients.map(({ id, from, to, paint }) => (
+            <linearGradient
+              key={id}
+              id={id}
+              gradientUnits="userSpaceOnUse"
+              x1={from.x}
+              y1={from.y}
+              x2={to.x}
+              y2={to.y}
+            >
+              <stop offset="0%" stopColor={rgbaColorCss(paint.from_color)} />
+              <stop offset="100%" stopColor={rgbaColorCss(paint.to_color)} />
+            </linearGradient>
+          ))}
+        </defs>
+      )}
+      {snapshot.primitives.map((primitive) =>
+        renderFoldedRenderPrimitive(primitive, toSvg, gradientIds.get(primitive.sequence))
+      )}
+    </g>
+  );
+}
+
+function renderFoldedRenderPrimitive(
+  primitive: OristudioCpFoldedRenderPrimitive,
+  toSvg: (point: Point) => Point,
+  gradientId: string | undefined
+) {
+  const key = `primitive-${primitive.sequence}`;
+  const paint = foldedRenderPaintCss(primitive.style.paint, gradientId);
+  const stroke = foldedRenderStrokeAttrs(primitive.style.stroke);
+  const isFill = primitive.kind.startsWith('fill_');
+  const isStroke = primitive.kind.startsWith('stroke_');
+  const common = {
+    key,
+    className: 'cp-generated-folded-figure-primitive',
+    vectorEffect: 'non-scaling-stroke' as const,
+  };
+  const paintAttrs = isFill
+    ? { fill: paint, stroke: 'none' }
+    : isStroke
+      ? { fill: 'none', stroke: paint, ...stroke }
+      : { fill: paint, stroke: 'none' };
+
+  switch (primitive.geometry.kind) {
+    case 'path':
+      return (
+        <path
+          {...common}
+          {...paintAttrs}
+          d={foldedRenderPathD(primitive.geometry.commands, toSvg)}
+        />
+      );
+    case 'segment': {
+      const from = toSvg(primitive.geometry.from);
+      const to = toSvg(primitive.geometry.to);
+      return (
+        <line
+          {...common}
+          {...paintAttrs}
+          x1={from.x}
+          y1={from.y}
+          x2={to.x}
+          y2={to.y}
+        />
+      );
+    }
+    case 'polygon':
+      return (
+        <polygon
+          {...common}
+          {...paintAttrs}
+          points={primitive.geometry.points
+            .map(toSvg)
+            .map((point) => `${point.x},${point.y}`)
+            .join(' ')}
+        />
+      );
+    case 'rect': {
+      const rect = foldedRenderRectToSvg(primitive.geometry, toSvg);
+      return <rect {...common} {...paintAttrs} {...rect} />;
+    }
+    case 'ellipse': {
+      const rect = foldedRenderRectToSvg(primitive.geometry, toSvg);
+      return (
+        <ellipse
+          {...common}
+          {...paintAttrs}
+          cx={rect.x + rect.width / 2}
+          cy={rect.y + rect.height / 2}
+          rx={rect.width / 2}
+          ry={rect.height / 2}
+        />
+      );
+    }
+    case 'text': {
+      const position = toSvg(primitive.geometry.position);
+      return (
+        <text
+          {...common}
+          {...paintAttrs}
+          x={position.x}
+          y={position.y}
+          fontSize={12}
+          fontWeight={700}
+        >
+          {primitive.geometry.value}
+        </text>
+      );
+    }
+    default:
+      return null;
+  }
+}
+
+function foldedRenderPathD(
+  commands: OristudioCpFoldedRenderPathCommand[],
+  toSvg: (point: Point) => Point
+): string {
+  return commands
+    .map((command) => {
+      switch (command.command) {
+        case 'move_to': {
+          const point = toSvg(command.point);
+          return `M ${point.x} ${point.y}`;
+        }
+        case 'line_to': {
+          const point = toSvg(command.point);
+          return `L ${point.x} ${point.y}`;
+        }
+        case 'quad_to': {
+          const control = toSvg(command.control);
+          const point = toSvg(command.point);
+          return `Q ${control.x} ${control.y} ${point.x} ${point.y}`;
+        }
+        case 'cubic_to': {
+          const control1 = toSvg(command.control_1);
+          const control2 = toSvg(command.control_2);
+          const point = toSvg(command.point);
+          return `C ${control1.x} ${control1.y} ${control2.x} ${control2.y} ${point.x} ${point.y}`;
+        }
+        case 'close':
+          return 'Z';
+      }
+    })
+    .join(' ');
+}
+
+function foldedRenderRectToSvg(
+  rect: Extract<OristudioCpFoldedRenderGeometry, { kind: 'rect' | 'ellipse' }>,
+  toSvg: (point: Point) => Point
+) {
+  const first = toSvg({ x: rect.x, y: rect.y });
+  const second = toSvg({ x: rect.x + rect.width, y: rect.y + rect.height });
+  return {
+    x: Math.min(first.x, second.x),
+    y: Math.min(first.y, second.y),
+    width: Math.abs(second.x - first.x),
+    height: Math.abs(second.y - first.y),
+  };
+}
+
+function foldedRenderBoundsRect(bounds: CpModelBounds, toSvg: (point: Point) => Point) {
+  const first = toSvg({ x: bounds.minX, y: bounds.minY });
+  const second = toSvg({ x: bounds.maxX, y: bounds.maxY });
+  return {
+    x: Math.min(first.x, second.x),
+    y: Math.min(first.y, second.y),
+    width: Math.max(Math.abs(second.x - first.x), 1e-6),
+    height: Math.max(Math.abs(second.y - first.y), 1e-6),
+  };
+}
+
+function foldedRenderPaintCss(
+  paint: OristudioCpFoldedRenderPaint,
+  gradientId: string | undefined
+): string {
+  switch (paint.kind) {
+    case 'none':
+      return 'none';
+    case 'color':
+      return rgbaColorCss(paint.color);
+    case 'gradient':
+      return gradientId ? `url(#${gradientId})` : rgbaColorCss(paint.from_color);
+    case 'texture':
+    case 'other':
+      return 'currentColor';
+  }
+}
+
+function foldedRenderStrokeAttrs(stroke: OristudioCpFoldedRenderStroke) {
+  if (stroke.kind !== 'basic') return {};
+  return {
+    strokeWidth: stroke.width,
+    strokeLinecap: foldedRenderLineCap(stroke.end_cap),
+    strokeLinejoin: foldedRenderLineJoin(stroke.line_join),
+    strokeMiterlimit: stroke.miter_limit,
+  };
+}
+
+function foldedRenderLineCap(cap: number): 'butt' | 'round' | 'square' {
+  if (cap === 1) return 'round';
+  if (cap === 2) return 'square';
+  return 'butt';
+}
+
+function foldedRenderLineJoin(join: number): 'miter' | 'round' | 'bevel' {
+  if (join === 1) return 'round';
+  if (join === 2) return 'bevel';
+  return 'miter';
+}
+
+function ImportedFoldedFormsLayer({
+  frames,
+  startIndex = 0,
+}: {
+  frames: FoldDocument[];
+  startIndex?: number;
+}) {
+  if (frames.length === 0) return null;
+  return (
+    <g className="cp-folded-form-layer" aria-hidden="true">
+      {frames.map((frame, index) => (
+        <ImportedFoldedFormFigure
+          key={`${index}-${frame.frame_title ?? 'folded-form'}`}
+          frame={frame}
+          index={startIndex + index}
+        />
+      ))}
+    </g>
+  );
+}
+
+function ImportedFoldedFormFigure({
+  frame,
+  index,
+}: {
+  frame: FoldDocument;
+  index: number;
+}) {
+  const vertices = foldFrameVertices(frame);
+  const bounds = foldFrameBounds(vertices);
+  if (!bounds) return null;
+
+  const toSvg = (point: Point) => foldedFormPointToSvg(point, bounds, index);
+  return (
+    <g
+      className="cp-folded-form"
+      data-folded-form-index={index}
+      data-folded-form-title={frame.frame_title || undefined}
+    >
+      {foldFrameFaces(frame, vertices).map((face, faceIndex) => (
+        <polygon
+          key={`face-${faceIndex}`}
+          className="cp-folded-form-face"
+          points={face
+            .map(toSvg)
+            .map((point) => `${point.x},${point.y}`)
+            .join(' ')}
+        />
+      ))}
+      {foldFrameEdges(frame, vertices).map(([a, b], edgeIndex) => {
+        const start = toSvg(a);
+        const end = toSvg(b);
+        return (
+          <line
+            key={`edge-${edgeIndex}`}
+            className="cp-folded-form-edge"
+            x1={start.x}
+            y1={start.y}
+            x2={end.x}
+            y2={end.y}
+          />
+        );
+      })}
+    </g>
+  );
+}
+
+function isRenderableFoldedFormFrame(frame: FoldDocument): boolean {
+  return (
+    frame.frame_classes?.includes('foldedForm') === true &&
+    foldFrameVertices(frame).length > 0 &&
+    foldFrameEdges(frame, foldFrameVertices(frame)).length > 0
+  );
+}
+
+function foldFrameVertices(frame: FoldDocument): Point[] {
+  const coords = Array.isArray(frame.vertices_coords) ? frame.vertices_coords : [];
+  return coords.flatMap((coord) => {
+    if (!Array.isArray(coord)) return [];
+    const x = Number(coord[0]);
+    const y = Number(coord[1]);
+    return Number.isFinite(x) && Number.isFinite(y) ? [{ x, y }] : [];
+  });
+}
+
+function foldFrameEdges(frame: FoldDocument, vertices: Point[]): Array<readonly [Point, Point]> {
+  const edges = Array.isArray(frame.edges_vertices) ? frame.edges_vertices : [];
+  return edges.flatMap((edge) => {
+    if (!Array.isArray(edge)) return [];
+    const a = Number(edge[0]);
+    const b = Number(edge[1]);
+    if (!Number.isInteger(a) || !Number.isInteger(b)) return [];
+    const start = vertices[a];
+    const end = vertices[b];
+    return start && end ? ([[start, end]] as Array<readonly [Point, Point]>) : [];
+  });
+}
+
+function foldFrameFaces(frame: FoldDocument, vertices: Point[]): Point[][] {
+  const faces = Array.isArray(frame.faces_vertices) ? frame.faces_vertices : [];
+  return faces.flatMap((face) => {
+    if (!Array.isArray(face) || face.length < 3) return [];
+    const points = face
+      .map((vertex) => (Number.isInteger(Number(vertex)) ? vertices[Number(vertex)] : null))
+      .filter((point): point is Point => !!point);
+    return points.length === face.length ? [points] : [];
+  });
+}
+
+function foldFrameBounds(vertices: Point[]): CpModelBounds | null {
+  if (vertices.length === 0) return null;
+  const minX = Math.min(...vertices.map((point) => point.x));
+  const maxX = Math.max(...vertices.map((point) => point.x));
+  const minY = Math.min(...vertices.map((point) => point.y));
+  const maxY = Math.max(...vertices.map((point) => point.y));
+  const spanX = Math.max(maxX - minX, 1e-6);
+  const spanY = Math.max(maxY - minY, 1e-6);
+  return { minX, minY, maxX, maxY, spanX, spanY };
+}
+
+function foldedRenderSnapshotBounds(snapshot: OristudioCpFoldedRenderSnapshot): CpModelBounds | null {
+  const points = snapshot.primitives.flatMap(foldedRenderPrimitiveBoundsPoints);
+  return foldFrameBounds(points);
+}
+
+function foldedRenderPrimitiveBoundsPoints(primitive: OristudioCpFoldedRenderPrimitive): Point[] {
+  switch (primitive.geometry.kind) {
+    case 'path':
+      return primitive.geometry.commands.flatMap(foldedRenderPathCommandPoints);
+    case 'segment':
+      return [primitive.geometry.from, primitive.geometry.to];
+    case 'polygon':
+      return primitive.geometry.points;
+    case 'rect':
+    case 'ellipse':
+      return [
+        { x: primitive.geometry.x, y: primitive.geometry.y },
+        {
+          x: primitive.geometry.x + primitive.geometry.width,
+          y: primitive.geometry.y + primitive.geometry.height,
+        },
+      ];
+    case 'text':
+      return [primitive.geometry.position];
+  }
+}
+
+function foldedRenderPathCommandPoints(command: OristudioCpFoldedRenderPathCommand): Point[] {
+  switch (command.command) {
+    case 'move_to':
+    case 'line_to':
+      return [command.point];
+    case 'quad_to':
+      return [command.control, command.point];
+    case 'cubic_to':
+      return [command.control_1, command.control_2, command.point];
+    case 'close':
+      return [];
+  }
+}
+
+function foldedFormPointToSvg(point: Point, bounds: CpModelBounds, index: number): Point {
+  const gap = 16;
+  const view = {
+    ...IMPORTED_FOLDED_FORM_VIEW,
+    x: IMPORTED_FOLDED_FORM_VIEW.x + index * (IMPORTED_FOLDED_FORM_VIEW.width + gap),
+  };
+  const scale = Math.min(view.width / bounds.spanX, view.height / bounds.spanY);
+  const offsetX = (view.width - bounds.spanX * scale) / 2;
+  const offsetY = (view.height - bounds.spanY * scale) / 2;
+  return {
+    x: view.x + offsetX + (point.x - bounds.minX) * scale,
+    y: view.y + offsetY + (point.y - bounds.minY) * scale,
+  };
+}
+
+function rgbColorCss(color: OristudioCpRgbColor | undefined): string {
+  if (!color) return 'currentColor';
+  return `rgb(${color.red} ${color.green} ${color.blue})`;
+}
+
+function rgbaColorCss(color: OristudioCpRgbaColor): string {
+  return `rgb(${color.red} ${color.green} ${color.blue} / ${color.alpha / 255})`;
+}
+
 function SelectionTransformBox({
-  bounds,
+  modelToSvg,
   selectionFrame,
   uiScale,
   onMovePointerDown,
@@ -4301,7 +5631,7 @@ function SelectionTransformBox({
   onRotatePointerDown,
   onTransform,
 }: {
-  bounds: CpModelBounds;
+  modelToSvg: (point: Point) => Point;
   selectionFrame: CpLineSelectionFrame;
   uiScale: number;
   onMovePointerDown: (event: PointerEvent<Element>) => void;
@@ -4312,21 +5642,15 @@ function SelectionTransformBox({
   onRotatePointerDown: (event: PointerEvent<Element>) => void;
   onTransform: (transform: CpSelectionTransform) => void;
 }) {
-  const center = modelPointToCpSvg(selectionFrame.center, bounds);
-  const axisXEnd = modelPointToCpSvg(
-    {
-      x: selectionFrame.center.x + selectionFrame.axisX.x,
-      y: selectionFrame.center.y + selectionFrame.axisX.y,
-    },
-    bounds
-  );
-  const axisYEnd = modelPointToCpSvg(
-    {
-      x: selectionFrame.center.x + selectionFrame.axisY.x,
-      y: selectionFrame.center.y + selectionFrame.axisY.y,
-    },
-    bounds
-  );
+  const center = modelToSvg(selectionFrame.center);
+  const axisXEnd = modelToSvg({
+    x: selectionFrame.center.x + selectionFrame.axisX.x,
+    y: selectionFrame.center.y + selectionFrame.axisX.y,
+  });
+  const axisYEnd = modelToSvg({
+    x: selectionFrame.center.x + selectionFrame.axisY.x,
+    y: selectionFrame.center.y + selectionFrame.axisY.y,
+  });
   const axisXVector = { x: axisXEnd.x - center.x, y: axisXEnd.y - center.y };
   const axisYVector = { x: axisYEnd.x - center.x, y: axisYEnd.y - center.y };
   const axisXLength = Math.max(1e-9, Math.hypot(axisXVector.x, axisXVector.y));
@@ -4484,14 +5808,14 @@ function SelectionTransformBox({
 }
 
 function SelectionBoxPreview({
-  bounds,
+  modelToSvg,
   points,
 }: {
-  bounds: CpModelBounds;
+  modelToSvg: (point: Point) => Point;
   points: readonly [Point, Point];
 }) {
-  const first = modelPointToCpSvg(points[0], bounds);
-  const second = modelPointToCpSvg(points[1], bounds);
+  const first = modelToSvg(points[0]);
+  const second = modelToSvg(points[1]);
   const x = Math.min(first.x, second.x);
   const y = Math.min(first.y, second.y);
   const width = Math.abs(first.x - second.x);
@@ -4509,18 +5833,18 @@ function SelectionBoxPreview({
 }
 
 function SymmetryAxisGuide({
-  bounds,
+  modelToSvg,
   points,
   active = false,
   draft = false,
 }: {
-  bounds: CpModelBounds;
+  modelToSvg: (point: Point) => Point;
   points: readonly [Point, Point];
   active?: boolean;
   draft?: boolean;
 }) {
-  const a = modelPointToCpSvg(points[0], bounds);
-  const b = modelPointToCpSvg(points[1], bounds);
+  const a = modelToSvg(points[0]);
+  const b = modelToSvg(points[1]);
   return (
     <line
       className={[

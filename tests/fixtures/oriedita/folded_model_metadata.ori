@@ -1,0 +1,26 @@
+{
+  "@version": "v1.1",
+  "lineSegments": [
+    {
+      "a": "0.0,0.0",
+      "b": "10.0,0.0",
+      "active": "ACTIVE_BOTH_3",
+      "color": "BLACK_0",
+      "customized": 0,
+      "customizedColor": "ff000000",
+      "selected": 0
+    }
+  ],
+  "circles": [],
+  "texts": [],
+  "title": "folded model metadata",
+  "points": [],
+  "auxLineSegments": [],
+  "foldedFigureModel": {
+    "frontColor": "ffffff32",
+    "backColor": "ffe9e9e9",
+    "lineColor": "ff000000",
+    "state": "FRONT_0",
+    "displayShadows": true
+  }
+}

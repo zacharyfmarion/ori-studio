@@ -1,0 +1,20 @@
+<タイトル>
+タイトル,folded view colors
+<線分集合>
+番号,1
+色,1
+iactive,ACTIVE_BOTH_3
+選択,0
+座標,0.0,0.0,10.0,0.0
+<円集合>
+<oriagarizu>
+<oriagarizu_F_color_R>12</oriagarizu_F_color_R>
+<oriagarizu_F_color_G>34</oriagarizu_F_color_G>
+<oriagarizu_F_color_B>56</oriagarizu_F_color_B>
+<oriagarizu_B_color_R>78</oriagarizu_B_color_R>
+<oriagarizu_B_color_G>90</oriagarizu_B_color_G>
+<oriagarizu_B_color_B>123</oriagarizu_B_color_B>
+<oriagarizu_L_color_R>5</oriagarizu_L_color_R>
+<oriagarizu_L_color_G>6</oriagarizu_L_color_G>
+<oriagarizu_L_color_B>7</oriagarizu_L_color_B>
+</oriagarizu>

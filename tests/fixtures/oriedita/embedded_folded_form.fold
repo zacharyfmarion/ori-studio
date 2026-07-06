@@ -1,0 +1,50 @@
+{
+  "file_spec": 1.2,
+  "file_creator": "oriedita",
+  "file_title": "embedded folded form",
+  "frame_title": "crease pattern",
+  "frame_classes": ["creasePattern"],
+  "vertices_coords": [
+    [0, 0],
+    [1, 0],
+    [1, 1],
+    [0, 1]
+  ],
+  "edges_vertices": [
+    [0, 1],
+    [1, 2],
+    [2, 3],
+    [3, 0],
+    [0, 2]
+  ],
+  "edges_assignment": ["B", "B", "B", "B", "M"],
+  "faces_vertices": [
+    [0, 1, 2],
+    [0, 2, 3]
+  ],
+  "file_frames": [
+    {
+      "frame_title": "folded result",
+      "frame_classes": ["foldedForm"],
+      "frame_parent": 0,
+      "frame_inherit": true,
+      "vertices_coords": [
+        [0, 0],
+        [0.5, 0],
+        [0, 0.5]
+      ],
+      "edges_vertices": [
+        [0, 1],
+        [1, 2],
+        [2, 0]
+      ],
+      "edges_assignment": ["B", "B", "B"],
+      "faces_vertices": [[0, 1, 2]],
+      "faceOrders": [[0, 0, -1]],
+      "oriedita:folded_view": {
+        "displayStyle": "paper",
+        "state": "FRONT_0"
+      }
+    }
+  ]
+}

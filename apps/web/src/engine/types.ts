@@ -19,7 +19,10 @@ export interface FoldDocument {
   file_spec?: number;
   file_creator?: string;
   file_author?: string;
+  file_title?: string;
   frame_title?: string;
+  frame_parent?: number;
+  frame_inherit?: boolean;
   frame_classes?: string[];
   vertices_coords: number[][];
   edges_vertices: [number, number][];
@@ -29,6 +32,7 @@ export interface FoldDocument {
   faces_vertices: number[][];
   faces_edges?: number[][];
   face_orders?: [number, number, number][];
+  file_frames?: FoldDocument[];
   [key: string]: unknown;
 }
 

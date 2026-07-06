@@ -2,10 +2,22 @@ use super::{IoError, Result};
 use crate::CreasePatternDocument;
 use crate::geometry::{ActiveState, Circle, LineColor, LineSegment, Point, RgbColor};
 use crate::model::{CreasePatternModel, GridState, TextElement, custom_color_hex};
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 
-const ORI_VERSION: &str = "v1.1";
-const METADATA_PREFIX: &str = "oriedita:ori:";
+pub const ORI_VERSION: &str = "v1.1";
+pub const ORI_METADATA_PREFIX: &str = "oriedita:ori:";
+pub const ORI_CREASE_PATTERN_CAMERA_FIELD: &str = "creasePatternCamera";
+pub const ORI_CANVAS_MODEL_FIELD: &str = "canvasModel";
+pub const ORI_FOLDED_FIGURE_MODEL_FIELD: &str = "foldedFigureModel";
+pub const ORI_APPLICATION_MODEL_FIELD: &str = "applicationModel";
+
+const ORI_EDITOR_MODEL_FIELDS: &[&str] = &[
+    ORI_CREASE_PATTERN_CAMERA_FIELD,
+    ORI_CANVAS_MODEL_FIELD,
+    ORI_FOLDED_FIGURE_MODEL_FIELD,
+    ORI_APPLICATION_MODEL_FIELD,
+];
 const KNOWN_TOP_LEVEL_FIELDS: &[&str] = &[
     "@version",
     "lineSegments",
@@ -16,6 +28,93 @@ const KNOWN_TOP_LEVEL_FIELDS: &[&str] = &[
     "auxLineSegments",
     "gridModel",
 ];
+
+/// Oriedita editor save-model fields carried losslessly alongside editable CP
+/// geometry until each model gets a native Rust representation.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct OrieditaEditorModels {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub crease_pattern_camera: Option<Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub canvas_model: Option<Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub folded_figure_model: Option<Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub application_model: Option<Value>,
+}
+
+impl OrieditaEditorModels {
+    pub fn from_document(document: &CreasePatternDocument) -> Self {
+        Self {
+            crease_pattern_camera: ori_metadata_field(document, ORI_CREASE_PATTERN_CAMERA_FIELD)
+                .cloned(),
+            canvas_model: ori_metadata_field(document, ORI_CANVAS_MODEL_FIELD).cloned(),
+            folded_figure_model: ori_metadata_field(document, ORI_FOLDED_FIGURE_MODEL_FIELD)
+                .cloned(),
+            application_model: ori_metadata_field(document, ORI_APPLICATION_MODEL_FIELD).cloned(),
+        }
+    }
+
+    pub fn apply_to_document(self, document: &mut CreasePatternDocument) {
+        replace_ori_metadata_field(
+            document,
+            ORI_CREASE_PATTERN_CAMERA_FIELD,
+            self.crease_pattern_camera,
+        );
+        replace_ori_metadata_field(document, ORI_CANVAS_MODEL_FIELD, self.canvas_model);
+        replace_ori_metadata_field(
+            document,
+            ORI_FOLDED_FIGURE_MODEL_FIELD,
+            self.folded_figure_model,
+        );
+        replace_ori_metadata_field(
+            document,
+            ORI_APPLICATION_MODEL_FIELD,
+            self.application_model,
+        );
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.crease_pattern_camera.is_none()
+            && self.canvas_model.is_none()
+            && self.folded_figure_model.is_none()
+            && self.application_model.is_none()
+    }
+}
+
+pub fn ori_metadata_key(field: &str) -> String {
+    format!("{ORI_METADATA_PREFIX}{field}")
+}
+
+pub fn ori_metadata_field<'a>(
+    document: &'a CreasePatternDocument,
+    field: &str,
+) -> Option<&'a Value> {
+    document.metadata.get(&ori_metadata_key(field))
+}
+
+pub fn set_ori_metadata_field(document: &mut CreasePatternDocument, field: &str, value: Value) {
+    document.metadata.insert(ori_metadata_key(field), value);
+}
+
+pub fn clear_ori_metadata_field(document: &mut CreasePatternDocument, field: &str) {
+    document.metadata.remove(&ori_metadata_key(field));
+}
+
+pub fn replace_ori_metadata_field(
+    document: &mut CreasePatternDocument,
+    field: &str,
+    value: Option<Value>,
+) {
+    match value {
+        Some(value) => set_ori_metadata_field(document, field, value),
+        None => clear_ori_metadata_field(document, field),
+    }
+}
+
+pub fn is_ori_editor_model_field(field: &str) -> bool {
+    ORI_EDITOR_MODEL_FIELDS.contains(&field)
+}
 
 /// Import an Oriedita `.ori` JSON save file.
 ///
@@ -61,7 +160,7 @@ pub fn import_ori_json_with_unknown_version(
         if !KNOWN_TOP_LEVEL_FIELDS.contains(&key.as_str()) {
             document
                 .metadata
-                .insert(format!("{METADATA_PREFIX}{key}"), value.clone());
+                .insert(format!("{ORI_METADATA_PREFIX}{key}"), value.clone());
         }
     }
 
@@ -73,7 +172,7 @@ pub fn export_ori_json(document: &CreasePatternDocument) -> Result<String> {
     let mut object = Map::new();
 
     for (key, value) in &document.metadata {
-        if let Some(ori_key) = key.strip_prefix(METADATA_PREFIX)
+        if let Some(ori_key) = key.strip_prefix(ORI_METADATA_PREFIX)
             && !KNOWN_TOP_LEVEL_FIELDS.contains(&ori_key)
         {
             object.insert(ori_key.to_string(), value.clone());
@@ -186,11 +285,12 @@ fn parse_line_segment(value: &Value) -> Result<LineSegment> {
         message: "expected line segment object".to_string(),
     })?;
 
-    let mut segment = LineSegment::with_color_and_active(
+    // Oriedita's Jackson importer ignores LineSegment.active in .ori files:
+    // the Java setter is deprecated/no-op, so imported segments stay inactive.
+    let mut segment = LineSegment::with_color(
         parse_point_string(required_string(object, "a")?, "a")?,
         parse_point_string(required_string(object, "b")?, "b")?,
         parse_line_color(required_string(object, "color")?)?,
-        parse_active_state(required_string(object, "active")?)?,
     );
     segment.selected = integer_field(object, "selected")?.unwrap_or_default();
     segment.customized = integer_field(object, "customized")?.unwrap_or_default();
@@ -545,19 +645,6 @@ fn line_color_name(color: LineColor) -> &'static str {
         LineColor::Purple8 => "PURPLE_8",
         LineColor::Other9 => "OTHER_9",
         LineColor::Grey10 => "GREY_10",
-    }
-}
-
-fn parse_active_state(value: &str) -> Result<ActiveState> {
-    match value {
-        "INACTIVE_0" => Ok(ActiveState::Inactive0),
-        "ACTIVE_A_1" => Ok(ActiveState::ActiveA1),
-        "ACTIVE_B_2" => Ok(ActiveState::ActiveB2),
-        "ACTIVE_BOTH_3" => Ok(ActiveState::ActiveBoth3),
-        _ => Err(IoError::InvalidField {
-            field: "active",
-            message: format!("unknown active state {value:?}"),
-        }),
     }
 }
 

@@ -434,11 +434,57 @@ export function getOrieditaGridLines(
 ): CpGridLine[] {
   const basis = getOrieditaGridBasis(grid);
   if (basis.baseState === 'hidden' || !hasValidGridBasis(basis)) return [];
-
-  let { minA, maxA, minB, maxB } = gridIndexRange(
+  return orieditaGridLinesForDrawingBounds(
     gridDrawingBounds(bounds, basis, renderOptions),
+    grid,
     basis
   );
+}
+
+/**
+ * Generate Oriedita grid lines over an explicit model-space region.
+ *
+ * Unlike {@link getOrieditaGridLines}, this does not derive the drawing bounds
+ * from a fixed canvas rect. The caller supplies the currently visible model
+ * region (e.g. from the live pan/zoom transform), which lets the grid follow
+ * the viewport and appear effectively infinite, matching Oriedita's behavior of
+ * repainting the grid across the visible canvas on every frame.
+ */
+export function orieditaGridLinesForModelBounds(
+  drawingBounds: CpModelBounds,
+  grid: OristudioCpGridMetadata
+): CpGridLine[] {
+  const basis = getOrieditaGridBasis(grid);
+  if (basis.baseState === 'hidden' || !hasValidGridBasis(basis)) return [];
+  return orieditaGridLinesForDrawingBounds(drawingBounds, grid, basis);
+}
+
+/**
+ * Build a model-space bounding box from viewport corner points, padded by a
+ * margin so small pans do not immediately reveal an ungridded edge before the
+ * grid is regenerated.
+ */
+export function expandedModelBoundsFromPoints(
+  points: Point[],
+  marginRatio = 0.5
+): CpModelBounds {
+  const bounds = boundsFromPoints(points);
+  const marginX = bounds.spanX * marginRatio;
+  const marginY = bounds.spanY * marginRatio;
+  return boundsFromMinMax(
+    bounds.minX - marginX,
+    bounds.minY - marginY,
+    bounds.maxX + marginX,
+    bounds.maxY + marginY
+  );
+}
+
+function orieditaGridLinesForDrawingBounds(
+  drawingBounds: CpModelBounds,
+  grid: OristudioCpGridMetadata,
+  basis: OrieditaGridBasis
+): CpGridLine[] {
+  let { minA, maxA, minB, maxB } = gridIndexRange(drawingBounds, basis);
   if (basis.baseState === 'within-paper') {
     minA = Math.max(0, minA);
     maxA = Math.min(basis.gridSize, maxA);

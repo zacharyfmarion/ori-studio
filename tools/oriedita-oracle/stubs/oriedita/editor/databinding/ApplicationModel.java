@@ -17,6 +17,8 @@ public class ApplicationModel implements Serializable {
     private boolean displayMarkings = true;
     private boolean displayCreasePatternOnTop = false;
     private boolean displayFoldingProgress = false;
+    private boolean displaySelfIntersection = false;
+    private boolean displayNumbers = false;
     private int lineWidth = 1;
     private int pointSize = 1;
     private LineStyle lineStyle = LineStyle.COLOR;
@@ -38,6 +40,8 @@ public class ApplicationModel implements Serializable {
         this.displayMarkings = applicationModel.displayMarkings;
         this.displayCreasePatternOnTop = applicationModel.displayCreasePatternOnTop;
         this.displayFoldingProgress = applicationModel.displayFoldingProgress;
+        this.displaySelfIntersection = applicationModel.displaySelfIntersection;
+        this.displayNumbers = applicationModel.displayNumbers;
         this.lineWidth = applicationModel.lineWidth;
         this.pointSize = applicationModel.pointSize;
         this.lineStyle = applicationModel.lineStyle;
@@ -70,6 +74,10 @@ public class ApplicationModel implements Serializable {
     public void setDisplayCreasePatternOnTop(boolean value) { displayCreasePatternOnTop = value; }
     public boolean getDisplayFoldingProgress() { return displayFoldingProgress; }
     public void setDisplayFoldingProgress(boolean value) { displayFoldingProgress = value; }
+    public boolean getDisplaySelfIntersection() { return displaySelfIntersection; }
+    public void setDisplaySelfIntersection(boolean value) { displaySelfIntersection = value; }
+    public boolean getDisplayNumbers() { return displayNumbers; }
+    public void setDisplayNumbers(boolean value) { displayNumbers = value; }
     public int getLineWidth() { return lineWidth; }
     public void setLineWidth(int value) { lineWidth = value; }
     public int getPointSize() { return pointSize; }

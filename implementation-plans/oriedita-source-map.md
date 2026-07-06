@@ -83,6 +83,12 @@ stage explicitly changes it.
 | `origami/crease_pattern/worker/LineSegmentSetWorker.java` | Arrangement cleanup for folded subfaces. | `folding::prepare_subface_segments`, `operations::arrangement` | kernel | 5, 10 | Oracle-tested for split-arrangement preprocessing |
 | `origami/crease_pattern/worker/FoldedFigure_Worker.java` | Folded-model hierarchy and overlap solving. | `folding::possible_overlap_search_for_subfaces`, `folding::possible_overlap_search_for_subfaces_with_swap`, `folding::overlap_search_from_segments` | kernel | 10 | Porting; worker no-swap, swap, and final-recovery overlap-search oracle |
 | `origami/crease_pattern/worker/FoldedFigure_Configurator.java` | Subface and hierarchy setup. | `folding::configure_subfaces_from_segments` | kernel | 10 | Porting; configureSubFaces oracle |
+| `oriedita-ui/src/main/java/oriedita/editor/drawing/FoldedFigure_Drawer.java` | Folded-figure grid-area camera setup and draw orchestration. | `folding::FoldedFigureRenderSnapshot`, web grid renderer | kernel/ui | 10 | Unsupported; must preserve Oriedita camera offsets, scale, rotation, mirror, and display-style routing |
+| `oriedita-ui/src/main/java/oriedita/editor/drawing/FoldedFigure_Worker_Drawer.java` | Wire, paper, transparent, front/back, and constraint drawing primitives. | `folding::FoldedFigureRenderSnapshot`, web grid renderer | kernel/ui | 10 | Unsupported; no approximate renderer accepted before primitive parity oracle |
+| `oriedita-ui/src/main/java/oriedita/editor/drawing/WireFrame_Worker_Drawer.java` | Development-view folded wireframe drawing. | `folding::FoldedWireframeRenderSnapshot`, web grid renderer | kernel/ui | 10 | Unsupported |
+| `oriedita-ui/src/main/java/oriedita/editor/CanvasUI.java` | CP canvas layer order including folded figures in the grid area. | web `CreasePatternPanel` render stack | ui | 12 | Generated/imported folded snapshots render in the editable grid overlay; exact Oriedita drawer primitive parity still unsupported |
+| `oriedita-data/src/main/java/oriedita/editor/databinding/FoldedFigureModel.java` | Folded-figure colors, scale, rotation, anti-aliasing, shadows, state, transparency, and case selection. | `folding::FoldedFigureModel`, workspace folded-figure state | kernel/ui | 10 | Unit-tested defaults; imported `.ori`/`.orh` metadata seeds new folded figures in web, explicit controls and mutation wiring unsupported |
+| `oriedita-data/src/main/java/oriedita/editor/folded_figure/FoldedFigure_01.java` | Oriedita editor wrapper that bridges `FoldedFigure` and `FoldedFigureModel`. | `folding::FoldedFigureSnapshot`, `oristudio-cp-wasm` folded-figure handles | kernel | 10 | Unit-tested snapshot carrier and WASM session handle; editor wrapper/list wiring unsupported |
 | `origami/crease_pattern/worker/SelectMode.java` | Select/unselect mode enum. | `operations::selection` | kernel | 6 | Unsupported |
 | `origami/crease_pattern/worker/foldlineset/BranchTrim.java` | Branch trimming cleanup. | `operations::arrangement` | kernel | 5 | Oracle-tested |
 | `origami/crease_pattern/worker/foldlineset/Check1.java` | Diagnostic check. | `checks` | kernel | 9 | Oracle-tested |
@@ -112,7 +118,7 @@ stage explicitly changes it.
 | `origami/folding/permutation/*` | Permutation and constraint combinatorics. | `folding::solver` | kernel | 10 | Porting; ChainPermutationGenerator oracle |
 | `origami/folding/util/*` | Folding utility data structures. | `folding::EquivalenceCondition` | kernel | 10 | Porting; equivalence condition candidates oracle |
 | `oriedita-data/export/*` | Import/export implementations. | `io` | io | 4 | Unsupported |
-| `oriedita-data/save/*` | Oriedita save models and version conversion. | `io::save` | io | 4 | Unsupported |
+| `oriedita-data/save/*` | Oriedita save models and version conversion. | `io::ori` plus preserved metadata | io | 4 | Porting; core `.ori` import/export oracle-tested, folded model seed and canvas active line-color restore unit-tested; camera and remaining application/canvas promotion pending |
 | `oriedita/src/main/java/oriedita/editor/task/*` | Non-UI task semantics. | `checks`, `folding` | kernel | 9-10 | Unsupported |
 | `oriedita/src/main/java/oriedita/editor/service/impl/FoldingServiceImpl.java` | Folding command routing. | `folding::commands` | kernel | 10 | Unsupported |
 | `oriedita/src/main/java/oriedita/editor/handler/*` | Mouse/tool command intent. | `operations::*`, `folding` | kernel-intent | 5-10 | Unsupported |
@@ -234,21 +240,33 @@ mutation.
 | `CpExporter.java` | `.cp` export and lossy-format warning. | `io::cp::export` | 4 | Unit-tested |
 | `FoldImporter.java` | `.fold` import and coordinate normalization. | `io::fold::import` | 4 | Unit-tested |
 | `FoldExporter.java` | `.fold` export, face reconstruction, Oriedita extras. | `io::fold::export` | 4 | Unit-tested; topology oracle |
-| `OriImporter.java` | `.ori` import. | `io::ori::import` | 4 | Unit-tested |
-| `OriExporter.java` | `.ori` export. | `io::ori::export` | 4 | Unit-tested |
-| `OrhImporter.java` | `.orh` import. | `io::orh::import` | 4 | Oracle-tested |
-| `OrhExporter.java` | `.orh` export. | `io::orh::export` | 4 | Oracle-tested |
+| `FoldImporter.java` `file_frames` | Preserve and select embedded FOLD frames, including `foldedForm` frames. | `io::fold::import_fold_file_json`, `io::fold::import_fold_file_document_json`, web FOLD frame inventory | 4, 11 | Porting; Rust/WASM lossless parse/export, `.osf` preservation, and all-renderable foldedForm web rendering exist |
+| `FoldExporter.java` `file_frames` | Export embedded folded-form frame graphs when present. | `io::fold::export_fold_file_json`, `io::fold::export_fold_file_document_json`, web FOLD frame inventory | 4, 11 | Rust-tested multiple and nested frame preservation; pinned Oriedita `FoldImporter` rejects `file_frames`, so native oracle coverage is limited to root FOLD import/topology |
+| `OriImporter.java` | `.ori` import. | `io::ori::import`, `oristudio-cp-wasm`, web file routing | 4 | Oracle-tested for CP/grid/native-save summary; preserves Oriedita's ignored line-active quirk; editor-state restoration still staged separately |
+| `OriExporter.java` | `.ori` export. | `io::ori::export`, `oristudio-cp-wasm`, web export routing | 4 | Oracle-tested by importing Rust-exported `.ori` through Oriedita; editor-state synthesis still staged separately |
+| `OrhImporter.java` | `.orh` import. | `io::orh::import`, `oristudio-cp-wasm`, web file routing | 4 | Oracle-tested in Rust; WASM/web UTF-8 routing added, byte charset import remains Rust-only |
+| `OrhExporter.java` | `.orh` export. | `io::orh::export`, `oristudio-cp-wasm`, web export routing | 4 | Oracle-tested in Rust; WASM/web export added with lossy-warning UI |
 | `ObjImporter.java` | `.obj` import. | `io::obj::import` | 4 | Oracle-tested |
 | `DxfExporter.java` | `.dxf` export. | `io::dxf::export` | 4 | Oracle-tested |
 | `OrieditaFoldFile.java` | FOLD extension fields. | `io::fold::oriedita_extensions` | 4 | Unit-tested |
-| `Save.java` | Main save model. | `io::save` | 4 | Unit-tested |
-| `BaseSave.java` | Shared save payload. | `io::save` | 4 | Unit-tested |
-| `SaveV1_0.java` | Legacy save payload. | `io::save::legacy` | 4 | Unit-tested |
-| `SaveV1_1.java` | Legacy save payload. | `io::save::legacy` | 4 | Unit-tested |
-| `SaveConverter.java` | Save-version conversion. | `io::save::convert` | 4 | Unit-tested |
+| `Save.java` | Main save model. | `io::ori` | 4 | Unit-tested for core fields; typed editor-model helpers pending |
+| `BaseSave.java` | Shared save payload. | `io::ori` | 4 | Unit-tested for core fields; typed editor-model helpers pending |
+| `SaveV1_0.java` | Legacy save payload. | `io::ori::version` | 4 | Unit-tested |
+| `SaveV1_1.java` | Current save payload. | `io::ori::version` | 4 | Unit-tested |
+| `SaveConverter.java` | Save-version conversion. | `io::ori::version` and oracle canonicalization | 4 | Unit-tested strict/permissive policy; Oriedita oracle conversion command pending |
 | `SaveProvider.java` | Save instance factory. | `io::save` | 4 | Unsupported |
 | `FileVersionTester.java` | Save-version detection. | `io::save::version` | 4 | Unit-tested |
 | `TextSave.java` | Text persistence. | `model::text`, `io::save` | 3-4 | Unit-tested |
+
+## Native Document Interchange Responsibility Matrix
+
+| Format/state | Native responsibility | Ori Studio responsibility | Status |
+| --- | --- | --- | --- |
+| `.ori` | Oriedita editor-save JSON for CP primitives and editor models. | Preserve and export Oriedita fields, restore supported grid/camera/canvas/folded settings, expose through WASM/web. | Rust/WASM/web routing unit-tested; native Oriedita import/export oracle covers CP/grid summary; folded model metadata and canvas active line color restore in web, camera and remaining canvas restoration pending. |
+| `.fold` | FOLD geometry plus Oriedita extension fields and embedded `file_frames`. | Preserve the full frame graph, edit only the active CP frame, render preserved folded forms. | Rust/WASM preservation exists; root import/topology oracle-tested against Oriedita; pinned Oriedita `FoldImporter` rejects `file_frames`, so embedded-frame preservation is Rust-tested. |
+| `.orh` | Legacy Oriedita/Orihime text format, charset quirks, folded colors. | Import/export with explicit lossy warnings and folded color preservation. | Rust oracle-tested; WASM/web UTF-8 routing added, byte charset import remains Rust-only. |
+| `.cp` | Plain line-only crease-pattern exchange. | Treat as lossy exchange format. | Web/Rust path exists; lossy-warning polish remains tied to export UI. |
+| `.osf` | Ori Studio workspace, not an Oriedita format. | Persist Ori Studio-only state such as multiple folded overlays while preserving imported Oriedita source metadata. | Source typing includes `.ori`/`.orh`; reopen/resave preserves original Oriedita source identity and export `.ori`/`.fold` paths are store-tested. |
 
 ## Task and Service Matrix
 
@@ -256,14 +274,17 @@ mutation.
 | --- | --- | --- | --- | --- |
 | `CheckCAMVTask.java` | Combined angle and MV diagnostics. | `checks::check_camv_task` | 9 | Oracle-tested |
 | `FoldingEstimateTask.java` | Folding estimate execution. | `folding::FoldingEstimateSession`, `folding::folding_estimate_from_segments`, `folding::WorkerOverlapEnumerator` | 10 | Porting; first-solution, fresh order-6, and order-5/order-6 sequence oracles |
-| `FoldingEstimateSpecificTask.java` | Refold with selected starting face/state. | `folding::folding_estimate_to_case` | 10 | Porting; pure enumeration loop oracle, UI timing/dirty-state out of scope |
+| `FoldingEstimateSpecificTask.java` | Refold with selected starting face/state. | `folding::folding_estimate_to_case`, `oristudio-cp-wasm::folded_figure_fold_to_case` | 10 | Porting; pure enumeration loop oracle and WASM session export, UI timing/dirty-state out of scope |
 | `FoldingEstimateSave100Task.java` | Batch/export folding estimates. | `folding::folding_estimate_save_batch`, `folding::folding_estimate_case_filename` | 10 | Porting; batch case-number and filename oracle, image writing out of scope |
 | `TwoColoredTask.java` | Two-colored CP generation. | `folding::two_colored_subface_segments_from_segments`, `folding::two_colored_folding_estimate_from_segments` | 10 | Porting; stage 02col/03 arrangement and full estimate summary oracles |
-| `FoldingServiceImpl.fold` | Determine fold scope and start folding. | `folding::commands::fold` | 10 | Unsupported; selection scope, folded-list replacement, and async task dispatch are UI/service wiring |
+| `FoldingServiceImpl.fold` | Determine fold scope and start folding. | `oristudio-cp-wasm::folded_figure_fold`, workspace folded-figure state, CP toolbar Fold control | 10 | WASM session entrypoint, stale-aware workspace list, and toolbar trigger; selection scope, Oriedita folded-list replacement semantics, and async task dispatch are incomplete |
 | `FoldingServiceImpl.folding_estimated` | Reuse existing fold input for selected figure. | `folding::FoldingEstimateSession::folding_estimated` | 10 | Porting; pure session estimate ported, selected figure/camera wrapper unsupported |
 | `FoldingServiceImpl.createTwoColoredCp` | Generate two-colored CP from selected lines. | `folding::two_colored_folding_estimate_from_segments` | 10 | Porting; pure folded estimate ported, UI selection/list wiring unsupported |
-| `FoldingServiceImpl.foldAnother` | Request another overlap solution. | `folding::fold_another`, `folding::WorkerOverlapEnumerator` | 10 | Porting; pure session action ported, command wiring unsupported |
+| `FoldingServiceImpl.foldAnother` | Request another overlap solution. | `folding::fold_another`, `folding::WorkerOverlapEnumerator`, `oristudio-cp-wasm::folded_figure_fold_another`, workspace folded-figure state, CP toolbar next-solution control | 10 | Porting; pure session action, WASM session export, workspace state update path, and toolbar trigger; full Oriedita control wiring unsupported |
 | `FoldingServiceImpl.duplicate` | Duplicate folded model and replay estimate order. | `folding::duplicate_estimation_order_for_display` | 10 | Porting; replay-order mapping oracle, folded-list/task wiring unsupported |
+| `FoldedFigureModel` | Apply folded-figure display, color, scale, rotation, anti-alias, shadow, transparency, state, and case properties. | `folding::FoldedFigureModel` | 10 | Unit-tested defaults; imported native metadata seeds the web fold command, explicit command and workspace mutation wiring unsupported |
+| `FoldedFigureCanvasSelectService` | Select folded-figure vertices/faces in the grid canvas. | `folding::FoldedFigureCanvasSelection` | 10 | Unsupported |
+| `FoldedFigure_Drawer.foldUp_draw` | Build exact render primitives for Oriedita folded views. | `folding::FoldedFigureRenderSnapshot` | 10 | Unsupported |
 
 ## Diagnostic Matrix
 

@@ -3,7 +3,6 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createSampleProject,
-  DEFAULT_CREASE_COLOR_MODE,
   type AppStatus,
   type TreeProject,
 } from '../../lib/sampleProject';
@@ -11,6 +10,7 @@ import {
   CP_EDITABLE_CANVAS_RECT,
   CP_PAPER_RECT,
   CP_WORLD_RECT,
+  emptyOristudioCpSelection,
   getEditableCpModelBounds,
   modelPointToCpSvg,
 } from '../../lib/creasePatternViewport';
@@ -18,10 +18,17 @@ import { handleShortcutRuntimeKeyDown } from '../../keyboard/shortcutRuntime';
 import type { ImportedCreasePatternDocument } from '../../lib/creasePatternImport';
 import { generatedCpLineage } from '../../lib/oristudioCpLineage';
 import { createStarterOristudioCpDocument } from '../../lib/oristudioCpStarterDocument';
+import {
+  orieditaCameraSvgScale,
+  orieditaObjectToSvg,
+  type OrieditaCamera,
+} from '../../lib/orieditaCamera';
 import type {
   OristudioCpCommandPayload,
   OristudioCpCommandResult,
   OristudioCpDocumentState,
+  OristudioCpFoldedFigureEntry,
+  OristudioCpFoldedRenderSnapshot,
 } from '../../engine/oristudioCpTypes';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
@@ -32,6 +39,15 @@ const transformMocks = vi.hoisted(() => ({
   setTransform: vi.fn(),
   zoomIn: vi.fn(),
   zoomOut: vi.fn(),
+  onPanningStart: undefined as
+    | undefined
+    | ((ref: unknown, event: MouseEvent | TouchEvent) => void),
+  onPanningStop: undefined as
+    | undefined
+    | ((ref: unknown, event: MouseEvent | TouchEvent) => void),
+  onTransformed: undefined as
+    | undefined
+    | ((ref: unknown, state: { scale: number; positionX: number; positionY: number }) => void),
 }));
 
 vi.mock('react-zoom-pan-pinch', async () => {
@@ -39,7 +55,12 @@ vi.mock('react-zoom-pan-pinch', async () => {
   type MockTransformWrapperProps = {
     children: React.ReactNode;
     onInit?: (ref: unknown) => void;
-    onTransformed?: (ref: unknown, state: { scale: number }) => void;
+    onPanningStart?: (ref: unknown, event: MouseEvent | TouchEvent) => void;
+    onPanningStop?: (ref: unknown, event: MouseEvent | TouchEvent) => void;
+    onTransformed?: (
+      ref: unknown,
+      state: { scale: number; positionX: number; positionY: number }
+    ) => void;
   };
   const api = {
     centerView: transformMocks.centerView,
@@ -50,14 +71,33 @@ vi.mock('react-zoom-pan-pinch', async () => {
 
   return {
     TransformWrapper: React.forwardRef<unknown, MockTransformWrapperProps>(
-      function MockTransformWrapper({ children, onInit, onTransformed }, ref) {
+      function MockTransformWrapper(
+        { children, onInit, onPanningStart, onPanningStop, onTransformed },
+        ref
+      ) {
         const didInitRef = React.useRef(false);
         React.useImperativeHandle(ref, () => api, []);
+        React.useEffect(() => {
+          transformMocks.onPanningStart = onPanningStart;
+          transformMocks.onPanningStop = onPanningStop;
+          transformMocks.onTransformed = onTransformed;
+          return () => {
+            if (transformMocks.onPanningStart === onPanningStart) {
+              transformMocks.onPanningStart = undefined;
+            }
+            if (transformMocks.onPanningStop === onPanningStop) {
+              transformMocks.onPanningStop = undefined;
+            }
+            if (transformMocks.onTransformed === onTransformed) {
+              transformMocks.onTransformed = undefined;
+            }
+          };
+        }, [onPanningStart, onPanningStop, onTransformed]);
         React.useEffect(() => {
           if (didInitRef.current) return;
           didInitRef.current = true;
           onInit?.(api);
-          onTransformed?.(api, { scale: 1 });
+          onTransformed?.(api, { scale: 1, positionX: 0, positionY: 0 });
         }, [onInit, onTransformed]);
         return React.createElement('div', { 'data-testid': 'transform-wrapper' }, children);
       }
@@ -160,6 +200,9 @@ function importedCpDocument(): ImportedCreasePatternDocument {
     source: { format: 'cp', filename: 'editable.cp', path: null },
     title: 'editable',
     selectedFrame: null,
+    foldFrames: [],
+    foldedFormFrames: [],
+    sourceFold: null,
     fold: {
       file_spec: 1.2,
       file_creator: 'test',
@@ -191,6 +234,7 @@ function importedCpDocument(): ImportedCreasePatternDocument {
 function editableCpState(): OristudioCpDocumentState {
   return {
     handle: 1,
+    loadSerial: 1,
     source: { format: 'cp', filename: 'editable.cp', path: null },
     operationDescriptors: [],
     lastCommandResult: null,
@@ -258,6 +302,98 @@ function editableCpState(): OristudioCpDocumentState {
         },
       },
     },
+  };
+}
+
+function generatedFoldedFigure(
+  status: OristudioCpFoldedFigureEntry['status'] = 'ready'
+): OristudioCpFoldedFigureEntry {
+  return {
+    id: 'generated-1',
+    title: 'Folded model 1',
+    handle: 7,
+    sourceKind: 'generated-from-current-cp',
+    sourceCpRevision: 0,
+    startingFaceId: 1,
+    displayStyle: 'Paper5',
+    status,
+    error: null,
+    snapshot: {
+      model: {
+        front_color: { red: 255, green: 255, blue: 50 },
+        back_color: { red: 233, green: 233, blue: 233 },
+        line_color: { red: 0, green: 0, blue: 0 },
+        scale: 1,
+        rotation: 0,
+        anti_alias: true,
+        display_shadows: false,
+        state: 'Front0',
+        folded_cases: 1,
+        transparent_transparency: 16,
+        transparency_color: false,
+      },
+      estimation_step: 'Step5',
+      display_style: 'Paper5',
+      discovered_fold_cases: 1,
+      find_another_overlap_valid: false,
+      text_result: 'Number of found solutions = 1  ',
+      wireframe: {
+        points: [
+          { x: 0, y: 0 },
+          { x: 1, y: 0 },
+          { x: 0, y: 1 },
+        ],
+        lines: [
+          { begin: 0, end: 1, color: 'Black0' },
+          { begin: 1, end: 2, color: 'Red1' },
+          { begin: 2, end: 0, color: 'Blue2' },
+        ],
+        faces: [[0, 1, 2]],
+        starting_face: 0,
+        face_positions: [1],
+        next_faces: [null],
+        associated_lines: [null],
+      },
+    },
+    renderSnapshot: status === 'loading' ? null : foldedRenderSnapshot(),
+  };
+}
+
+function foldedRenderSnapshot(): OristudioCpFoldedRenderSnapshot {
+  return {
+    schema_version: 1,
+    fixture: null,
+    pass: 'paper-front-full',
+    primitives: [
+      {
+        sequence: 0,
+        kind: 'fill_path',
+        style: {
+          paint: { kind: 'color', color: { red: 255, green: 255, blue: 50, alpha: 255 } },
+          stroke: { kind: 'none' },
+          antialias: 'off',
+        },
+        geometry: {
+          kind: 'path',
+          commands: [
+            { command: 'move_to', point: { x: 0, y: 0 } },
+            { command: 'line_to', point: { x: 1, y: 0 } },
+            { command: 'line_to', point: { x: 0, y: 1 } },
+            { command: 'close' },
+          ],
+        },
+      },
+      {
+        sequence: 1,
+        kind: 'stroke_segment',
+        style: {
+          paint: { kind: 'color', color: { red: 0, green: 0, blue: 0, alpha: 255 } },
+          stroke: { kind: 'basic', width: 1, end_cap: 1, line_join: 1, miter_limit: 10 },
+          antialias: 'on',
+        },
+        geometry: { kind: 'segment', from: { x: 0, y: 0 }, to: { x: 1, y: 0 } },
+      },
+    ],
   };
 }
 
@@ -419,6 +555,12 @@ function setCanvasClientRect(container: HTMLElement): SVGSVGElement {
   return canvas;
 }
 
+function numericSvgAttribute(element: Element, name: string): number {
+  const value = element.getAttribute(name);
+  if (value === null) throw new Error(`missing SVG attribute ${name}`);
+  return Number.parseFloat(value);
+}
+
 function setNumberInputValue(input: HTMLInputElement, value: string) {
   const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
   valueSetter?.call(input, value);
@@ -450,6 +592,9 @@ afterEach(() => {
   transformMocks.setTransform.mockClear();
   transformMocks.zoomIn.mockClear();
   transformMocks.zoomOut.mockClear();
+  transformMocks.onPanningStart = undefined;
+  transformMocks.onPanningStop = undefined;
+  transformMocks.onTransformed = undefined;
   vi.unstubAllGlobals();
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
 });
@@ -530,18 +675,18 @@ describe('CreasePatternPanel', () => {
     expect(optimizeScale).not.toHaveBeenCalled();
   });
 
-  it('labels crease color controls without abbreviations when CP geometry exists', () => {
+  it('renders CP geometry with default M/V coloring and no color-by control', () => {
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready');
 
-    expect(useWorkspaceStore.getState().creaseColorMode).toBe(DEFAULT_CREASE_COLOR_MODE);
     expect(container.querySelector('[aria-label="Crease pattern"]')).not.toBeNull();
     expect(container.querySelector('.cp-tool-rail')).toBeNull();
-    expect(container.textContent).toContain('Color by');
-    expect(container.textContent).toContain('Crease roles');
-    expect(container.textContent).toContain('M/V assignment');
-    expect(container.innerHTML).toContain('Color by mountain, valley, flat, and border folds');
-    expect(container.textContent).not.toContain('MVF');
-    expect(container.textContent).not.toContain('AGRH');
+    // The color-by toggle and source-label rows were removed; crease lines
+    // always use the M/V (Oriedita default) coloring.
+    expect(container.textContent).not.toContain('Color by');
+    expect(container.textContent).not.toContain('Crease roles');
+    expect(container.querySelector('.crease--fold-mountain')).not.toBeNull();
+    expect(container.querySelector('.crease--fold-valley')).not.toBeNull();
+    expect(container.querySelector('.crease--kind-hinge')).toBeNull();
     expect(container.textContent).not.toContain('No crease pattern');
   });
 
@@ -549,6 +694,7 @@ describe('CreasePatternPanel', () => {
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready');
 
     expect(container.querySelector('[aria-label="Crease pattern viewport controls"]')).not.toBeNull();
+    expect(container.querySelector('.viewport-toolbar__zoom-button')?.textContent).toContain('100%');
 
     act(() => {
       container.querySelector<HTMLButtonElement>('button[aria-label="Zoom In"]')?.click();
@@ -581,6 +727,58 @@ describe('CreasePatternPanel', () => {
         ?.click();
     });
     expect(transformMocks.centerView).toHaveBeenLastCalledWith(2, 160);
+
+    act(() => {
+      transformMocks.onTransformed?.({}, { scale: 2, positionX: 30, positionY: 40 });
+    });
+    expect(container.querySelector('.viewport-toolbar__zoom-button')?.textContent).toContain('200%');
+
+    act(() => {
+      transformMocks.onTransformed?.({}, { scale: 2, positionX: 60, positionY: 80 });
+    });
+    expect(container.querySelector('.viewport-toolbar__zoom-button')?.textContent).toContain('200%');
+  });
+
+  it('does not update editable cursor status while space-panning the CP viewport', () => {
+    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
+      documentMode: 'crease-pattern',
+      importedCreasePattern: importedCpDocument(),
+      oristudioCpDocument: editableCpState(),
+    });
+    const body = container.querySelector<HTMLElement>('.cp-panel__body');
+    const canvas = setCanvasClientRect(container);
+    const statusText = () => container.querySelector('.viewport-status-readout')?.textContent ?? '';
+
+    act(() => {
+      canvas.dispatchEvent(
+        new MouseEvent('pointermove', {
+          bubbles: true,
+          clientX: 360,
+          clientY: 348,
+        })
+      );
+    });
+    expect(statusText()).toContain('Snap');
+
+    act(() => {
+      body?.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    });
+    expect(body?.getAttribute('data-space-pan')).toBe('true');
+
+    act(() => {
+      canvas.dispatchEvent(
+        new MouseEvent('pointermove', {
+          bubbles: true,
+          clientX: 380,
+          clientY: 368,
+        })
+      );
+    });
+    expect(statusText()).not.toContain('Snap');
+
+    act(() => {
+      body?.dispatchEvent(new KeyboardEvent('keyup', { key: ' ', bubbles: true }));
+    });
   });
 
   it('supports the same CP viewport keyboard shortcuts and space-pan marker', () => {
@@ -643,25 +841,14 @@ describe('CreasePatternPanel', () => {
     expect(body?.hasAttribute('data-space-pan')).toBe(false);
   });
 
-  it('maps the M/V assignment option to mountain and valley fold classes', () => {
+  it('colors crease lines by M/V assignment with no crease-roles option', () => {
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready');
-    const buttons = Array.from(container.querySelectorAll('button'));
-    const rolesButton = buttons.find((button) => button.textContent?.includes('Crease roles'));
-    const mvButton = buttons.find((button) => button.textContent?.includes('M/V assignment'));
 
-    expect(mvButton?.getAttribute('aria-pressed')).toBe('true');
-    expect(rolesButton?.getAttribute('aria-pressed')).toBe('false');
     expect(container.querySelector('.crease--fold-mountain')).not.toBeNull();
     expect(container.querySelector('.crease--fold-valley')).not.toBeNull();
+    // Crease-roles (agrh) coloring is no longer selectable from the CP panel.
     expect(container.querySelector('.crease--kind-hinge')).toBeNull();
-
-    act(() => {
-      rolesButton?.click();
-    });
-
-    expect(useWorkspaceStore.getState().creaseColorMode).toBe('agrh');
-    expect(container.querySelector('.crease--kind-hinge')).not.toBeNull();
-    expect(container.querySelector('.crease--fold-valley')).toBeNull();
+    expect(container.textContent).not.toContain('Crease roles');
   });
 
   it('clears crease-pattern selection when the user clicks the canvas background', () => {
@@ -699,6 +886,36 @@ describe('CreasePatternPanel', () => {
     expect(container.textContent).not.toContain('Build CP');
   });
 
+  it('re-fits the viewport only on a genuine load, not on in-place history restore', () => {
+    const base = editableCpState();
+    renderPanel(createSampleProject(), 'crease_pattern_ready', {
+      documentMode: 'crease-pattern',
+      importedCreasePattern: importedCpDocument(),
+      oristudioCpDocument: base,
+    });
+
+    // Undo / in-place edit: a new document object with the SAME load serial must
+    // not re-fit the viewport (regression for the undo canvas jump).
+    act(() => {
+      useWorkspaceStore.setState({
+        oristudioCpDocument: { ...base, document: { ...base.document, title: 'edited' } },
+      });
+    });
+    expect(transformMocks.centerView).not.toHaveBeenCalled();
+
+    // A genuine new load advances the load serial and re-fits.
+    act(() => {
+      useWorkspaceStore.setState({
+        oristudioCpDocument: {
+          ...base,
+          loadSerial: base.loadSerial + 1,
+          document: { ...base.document, title: 'reloaded' },
+        },
+      });
+    });
+    expect(transformMocks.centerView).toHaveBeenCalledTimes(1);
+  });
+
   it('renders editable CP kernel geometry with grid, selection, and viewport toggles', async () => {
     const { container, setOristudioCpGridSize } = renderPanel(
       createSampleProject(),
@@ -710,7 +927,6 @@ describe('CreasePatternPanel', () => {
       }
     );
 
-    expect(container.textContent).toContain('Editable kernel: 2 lines');
     expect(container.querySelectorAll('[data-cp-line-id]')).toHaveLength(2);
     expect(container.querySelectorAll('[data-cp-line-hit-id]')).toHaveLength(2);
     expect(container.querySelectorAll('[data-cp-vertex-id]')).toHaveLength(3);
@@ -917,6 +1133,541 @@ describe('CreasePatternPanel', () => {
     expect(useWorkspaceStore.getState().oristudioCpViewport.snapToLines).toBe(false);
   });
 
+  it('restores active line color from Oriedita canvas metadata', () => {
+    const documentState = editableCpState();
+    documentState.document.metadata = {
+      'oriedita:ori:canvasModel': {
+        lineColor: 'RED_1',
+        toggleLineColor: true,
+      },
+    };
+    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
+      documentMode: 'crease-pattern',
+      importedCreasePattern: importedCpDocument(),
+      oristudioCpDocument: documentState,
+    });
+
+    expect(container.textContent).toContain('Line V');
+    expect(container.querySelector('button[aria-label="Valley"]')?.getAttribute('data-active')).toBe(
+      'true'
+    );
+  });
+
+  it('applies imported Oriedita crease pattern camera metadata to editable CP geometry', () => {
+    const camera: OrieditaCamera = {
+      cameraPositionX: 12,
+      cameraPositionY: -8,
+      cameraAngle: 45,
+      cameraMirror: -1,
+      cameraZoomX: 2.25,
+      cameraZoomY: 0.75,
+      displayPositionX: 390,
+      displayPositionY: 325,
+    };
+    const documentState = editableCpState();
+    documentState.document.metadata = {
+      'oriedita:ori:creasePatternCamera': camera,
+    };
+    documentState.document.crease_pattern.circles[0].r = 20;
+
+    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
+      documentMode: 'crease-pattern',
+      importedCreasePattern: importedCpDocument(),
+      oristudioCpDocument: documentState,
+    });
+
+    const line = container.querySelector<SVGLineElement>('[data-cp-line-id="1"]');
+    const circle = container.querySelector<SVGCircleElement>('.cp-circle');
+    expect(line).not.toBeNull();
+    expect(circle).not.toBeNull();
+    expect(container.querySelector('.paper--editable-cp-guide')).toBeNull();
+    expect(container.querySelector('.paper-border')).toBeNull();
+
+    const lineStart = orieditaObjectToSvg({ x: 0, y: 0 }, camera);
+    const lineEnd = orieditaObjectToSvg({ x: 1, y: 0 }, camera);
+    expect(numericSvgAttribute(line as SVGLineElement, 'x1')).toBeCloseTo(lineStart.x);
+    expect(numericSvgAttribute(line as SVGLineElement, 'y1')).toBeCloseTo(lineStart.y);
+    expect(numericSvgAttribute(line as SVGLineElement, 'x2')).toBeCloseTo(lineEnd.x);
+    expect(numericSvgAttribute(line as SVGLineElement, 'y2')).toBeCloseTo(lineEnd.y);
+
+    const circleCenter = orieditaObjectToSvg({ x: 0.5, y: 0.5 }, camera);
+    expect(numericSvgAttribute(circle as SVGCircleElement, 'cx')).toBeCloseTo(circleCenter.x);
+    expect(numericSvgAttribute(circle as SVGCircleElement, 'cy')).toBeCloseTo(circleCenter.y);
+    expect(numericSvgAttribute(circle as SVGCircleElement, 'r')).toBeCloseTo(
+      documentState.document.crease_pattern.circles[0].r * orieditaCameraSvgScale(camera).x
+    );
+
+  });
+
+  it('routes editable CP pointer input through the inverse Oriedita camera transform', async () => {
+    const camera: OrieditaCamera = {
+      cameraPositionX: -20,
+      cameraPositionY: 18,
+      cameraAngle: -30,
+      cameraMirror: -1,
+      cameraZoomX: 1.5,
+      cameraZoomY: 2,
+      displayPositionX: 330,
+      displayPositionY: 365,
+    };
+    const documentState = editableCpState();
+    documentState.document.metadata = {
+      'oriedita:ori:creasePatternCamera': camera,
+    };
+    const executeOristudioCpCommand = vi.fn(
+      async (_operationId: string, _payload?: OristudioCpCommandPayload) => true
+    );
+    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
+      documentMode: 'crease-pattern',
+      importedCreasePattern: importedCpDocument(),
+      oristudioCpDocument: documentState,
+      oristudioCpViewport: {
+        gridVisible: false,
+        snapToGrid: false,
+        snapToVertices: false,
+        snapToLines: false,
+      },
+      executeOristudioCpCommand,
+    });
+    const canvas = setCanvasClientRect(container);
+    const firstPoint = { x: 14, y: -11 };
+    const secondPoint = { x: -7.5, y: 23 };
+    const firstSvgPoint = orieditaObjectToSvg(firstPoint, camera);
+    const secondSvgPoint = orieditaObjectToSvg(secondPoint, camera);
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('button[aria-label="Line"]')?.click();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      canvas.dispatchEvent(
+        new MouseEvent('pointerdown', {
+          bubbles: true,
+          button: 0,
+          clientX: firstSvgPoint.x,
+          clientY: firstSvgPoint.y,
+        })
+      );
+      canvas.dispatchEvent(
+        new MouseEvent('pointermove', {
+          bubbles: true,
+          button: 0,
+          clientX: secondSvgPoint.x,
+          clientY: secondSvgPoint.y,
+        })
+      );
+      canvas.dispatchEvent(
+        new MouseEvent('pointerup', {
+          bubbles: true,
+          button: 0,
+          clientX: secondSvgPoint.x,
+          clientY: secondSvgPoint.y,
+        })
+      );
+      await Promise.resolve();
+    });
+
+    const [, payload] = executeOristudioCpCommand.mock.calls[0] ?? [];
+    expect(payload?.points?.[0]?.x).toBeCloseTo(firstPoint.x);
+    expect(payload?.points?.[0]?.y).toBeCloseTo(firstPoint.y);
+    expect(payload?.points?.[1]?.x).toBeCloseTo(secondPoint.x);
+    expect(payload?.points?.[1]?.y).toBeCloseTo(secondPoint.y);
+  });
+
+  it('renders preserved embedded folded-form frames in the editable CP grid', () => {
+    const imported = {
+      ...importedCpDocument(),
+      sourceFold: {
+        file_spec: 1.2,
+        frame_classes: ['creasePattern'],
+        vertices_coords: [
+          [0, 0],
+          [1, 0],
+        ],
+        edges_vertices: [[0, 1] as [number, number]],
+        faces_vertices: [],
+        file_frames: [
+          {
+            frame_title: 'embedded folded',
+            frame_classes: ['foldedForm'],
+            vertices_coords: [
+              [0, 0],
+              [1, 0],
+              [0, 1],
+            ],
+            edges_vertices: [
+              [0, 1],
+              [1, 2],
+              [2, 0],
+            ] as [number, number][],
+            faces_vertices: [[0, 1, 2]],
+          },
+          {
+            frame_title: 'second embedded folded',
+            frame_classes: ['foldedForm'],
+            vertices_coords: [
+              [0, 0],
+              [2, 0],
+              [2, 2],
+            ],
+            edges_vertices: [
+              [0, 1],
+              [1, 2],
+              [2, 0],
+            ] as [number, number][],
+            faces_vertices: [[0, 1, 2]],
+          },
+        ],
+      },
+    };
+
+    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
+      documentMode: 'crease-pattern',
+      importedCreasePattern: imported,
+      oristudioCpDocument: editableCpState(),
+    });
+
+    expect(container.querySelector('[data-folded-form-title="embedded folded"]')).not.toBeNull();
+    expect(
+      container.querySelector('[data-folded-form-title="second embedded folded"]')
+    ).not.toBeNull();
+    expect(container.querySelectorAll('.cp-folded-form')).toHaveLength(2);
+    expect(container.querySelectorAll('.cp-folded-form-face')).toHaveLength(2);
+    expect(container.querySelectorAll('.cp-folded-form-edge')).toHaveLength(6);
+  });
+
+  it('renders generated folded figure snapshots in the editable CP grid', () => {
+    const figure = generatedFoldedFigure();
+    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
+      documentMode: 'crease-pattern',
+      importedCreasePattern: importedCpDocument(),
+      oristudioCpDocument: editableCpState(),
+      oristudioCpFoldedFigures: [figure],
+      oristudioCpActiveFoldedFigureId: figure.id,
+    });
+
+    expect(container.querySelector('[data-folded-figure-id="generated-1"]')).not.toBeNull();
+    expect(container.querySelector('[data-folded-figure-status="ready"]')).not.toBeNull();
+    expect(container.querySelector('[data-folded-render-pass="paper-front-full"]')).not.toBeNull();
+    expect(container.querySelectorAll('.cp-generated-folded-figure-primitive')).toHaveLength(2);
+    expect(container.querySelectorAll('.cp-generated-folded-figure-face')).toHaveLength(0);
+  });
+
+  it('renders all generated folded figures in the editable CP grid', () => {
+    const first = generatedFoldedFigure();
+    const second: OristudioCpFoldedFigureEntry = {
+      ...generatedFoldedFigure(),
+      id: 'generated-2',
+      title: 'Folded model 2',
+      handle: 8,
+    };
+    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
+      documentMode: 'crease-pattern',
+      importedCreasePattern: importedCpDocument(),
+      oristudioCpDocument: editableCpState(),
+      oristudioCpFoldedFigures: [first, second],
+      oristudioCpActiveFoldedFigureId: second.id,
+    });
+
+    expect(container.querySelector('[data-folded-figure-id="generated-1"]')).not.toBeNull();
+    expect(container.querySelector('[data-folded-figure-id="generated-2"]')).not.toBeNull();
+    expect(
+      container
+        .querySelector('[data-folded-figure-id="generated-2"]')
+        ?.getAttribute('data-folded-figure-active')
+    ).toBe('true');
+    expect(container.querySelectorAll('.cp-generated-folded-figure')).toHaveLength(2);
+    expect(container.querySelectorAll('.cp-generated-folded-figure-primitive')).toHaveLength(4);
+  });
+
+  it('renders generated folded figure display offsets as display-space translations', () => {
+    const figure: OristudioCpFoldedFigureEntry = {
+      ...generatedFoldedFigure(),
+      displayOffset: { x: 12, y: -8 },
+    };
+    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
+      documentMode: 'crease-pattern',
+      importedCreasePattern: importedCpDocument(),
+      oristudioCpDocument: editableCpState(),
+      oristudioCpFoldedFigures: [figure],
+      oristudioCpActiveFoldedFigureId: figure.id,
+    });
+
+    expect(
+      container.querySelector('[data-folded-figure-id="generated-1"]')?.getAttribute('transform')
+    ).toBe('translate(12 -8)');
+  });
+
+  it('activates and command-drags generated folded figures in the editable CP grid', () => {
+    const first = generatedFoldedFigure();
+    const second: OristudioCpFoldedFigureEntry = {
+      ...generatedFoldedFigure(),
+      id: 'generated-2',
+      title: 'Folded model 2',
+      handle: 8,
+    };
+    const setOristudioCpActiveFoldedFigure = vi.fn();
+    const moveOristudioCpFoldedFigure = vi.fn();
+    const editableCp = editableCpState();
+    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
+      documentMode: 'crease-pattern',
+      importedCreasePattern: importedCpDocument(),
+      oristudioCpDocument: editableCp,
+      oristudioCpFoldedFigures: [first, second],
+      oristudioCpActiveFoldedFigureId: first.id,
+      setOristudioCpActiveFoldedFigure,
+      moveOristudioCpFoldedFigure,
+    });
+    const canvas = setCanvasClientRect(container);
+    const start = { x: CP_PAPER_RECT.x + 120, y: CP_PAPER_RECT.y + 140 };
+    const end = { x: start.x + 30, y: start.y + 18 };
+    const secondFigure = container.querySelector<SVGGElement>(
+      '[data-folded-figure-id="generated-2"]'
+    );
+    expect(secondFigure).not.toBeNull();
+
+    act(() => {
+      secondFigure?.dispatchEvent(
+        new MouseEvent('pointerdown', {
+          bubbles: true,
+          button: 0,
+          clientX: start.x,
+          clientY: start.y,
+        })
+      );
+    });
+    expect(setOristudioCpActiveFoldedFigure).toHaveBeenCalledWith('generated-2');
+    expect(moveOristudioCpFoldedFigure).not.toHaveBeenCalled();
+
+    act(() => {
+      secondFigure?.dispatchEvent(
+        new MouseEvent('pointerdown', {
+          bubbles: true,
+          button: 0,
+          metaKey: true,
+          clientX: start.x,
+          clientY: start.y,
+        })
+      );
+      canvas.dispatchEvent(
+        new MouseEvent('pointermove', {
+          bubbles: true,
+          button: 0,
+          clientX: end.x,
+          clientY: end.y,
+        })
+      );
+      canvas.dispatchEvent(
+        new MouseEvent('pointerup', {
+          bubbles: true,
+          button: 0,
+          clientX: end.x,
+          clientY: end.y,
+        })
+      );
+    });
+
+    expect(moveOristudioCpFoldedFigure).toHaveBeenCalledWith('generated-2', {
+      x: expect.closeTo(30, 6),
+      y: expect.closeTo(18, 6),
+    });
+  });
+
+  it('command-drags generated folded figures in display space with an imported Oriedita camera', () => {
+    const camera: OrieditaCamera = {
+      cameraPositionX: -20,
+      cameraPositionY: 18,
+      cameraAngle: -30,
+      cameraMirror: -1,
+      cameraZoomX: 1.5,
+      cameraZoomY: 2,
+      displayPositionX: 330,
+      displayPositionY: 365,
+    };
+    const figure = generatedFoldedFigure();
+    const moveOristudioCpFoldedFigure = vi.fn();
+    const editableCp = editableCpState();
+    editableCp.document.metadata = {
+      'oriedita:ori:creasePatternCamera': camera,
+    };
+    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
+      documentMode: 'crease-pattern',
+      importedCreasePattern: importedCpDocument(),
+      oristudioCpDocument: editableCp,
+      oristudioCpFoldedFigures: [figure],
+      oristudioCpActiveFoldedFigureId: figure.id,
+      moveOristudioCpFoldedFigure,
+    });
+    const canvas = setCanvasClientRect(container);
+    const start = orieditaObjectToSvg({ x: 0, y: 0 }, camera);
+    const end = { x: start.x + 36, y: start.y + 24 };
+    const foldedFigure = container.querySelector<SVGGElement>(
+      '[data-folded-figure-id="generated-1"]'
+    );
+    expect(foldedFigure).not.toBeNull();
+
+    act(() => {
+      foldedFigure?.dispatchEvent(
+        new MouseEvent('pointerdown', {
+          bubbles: true,
+          button: 0,
+          metaKey: true,
+          clientX: start.x,
+          clientY: start.y,
+        })
+      );
+      canvas.dispatchEvent(
+        new MouseEvent('pointermove', {
+          bubbles: true,
+          button: 0,
+          clientX: end.x,
+          clientY: end.y,
+        })
+      );
+      canvas.dispatchEvent(
+        new MouseEvent('pointerup', {
+          bubbles: true,
+          button: 0,
+          clientX: end.x,
+          clientY: end.y,
+        })
+      );
+    });
+
+    expect(moveOristudioCpFoldedFigure).toHaveBeenCalledWith('generated-1', {
+      x: expect.closeTo(36, 6),
+      y: expect.closeTo(24, 6),
+    });
+  });
+
+  it('falls back to generated folded wireframes when render primitives are unavailable', () => {
+    const figure = { ...generatedFoldedFigure(), renderSnapshot: null };
+    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
+      documentMode: 'crease-pattern',
+      importedCreasePattern: importedCpDocument(),
+      oristudioCpDocument: editableCpState(),
+      oristudioCpFoldedFigures: [figure],
+      oristudioCpActiveFoldedFigureId: figure.id,
+    });
+
+    expect(container.querySelector('[data-folded-figure-id="generated-1"]')).not.toBeNull();
+    expect(container.querySelectorAll('.cp-generated-folded-figure-face')).toHaveLength(1);
+    expect(container.querySelectorAll('.cp-generated-folded-figure-edge')).toHaveLength(3);
+  });
+
+  it('disables the fold command when no foldable CP line is selected', () => {
+    const foldOristudioCpDocument = vi.fn(async () => true);
+    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
+      documentMode: 'crease-pattern',
+      importedCreasePattern: importedCpDocument(),
+      oristudioCpDocument: editableCpState(),
+      oristudioCpSelection: emptyOristudioCpSelection(),
+      foldOristudioCpDocument,
+    });
+
+    const foldButton = container.querySelector<HTMLButtonElement>(
+      '.viewport-toolbar button[aria-label="Fold"]'
+    );
+    expect(foldButton).not.toBeNull();
+    expect(foldButton?.disabled).toBe(true);
+    act(() => {
+      foldButton?.click();
+    });
+    expect(foldOristudioCpDocument).not.toHaveBeenCalled();
+  });
+
+  it('exposes generated folded model toolbar controls', () => {
+    const baseFigure = generatedFoldedFigure();
+    const figure = {
+      ...baseFigure,
+      snapshot: {
+        ...baseFigure.snapshot!,
+        find_another_overlap_valid: true,
+      },
+    };
+    const foldOristudioCpDocument = vi.fn(async () => true);
+    const foldAnotherOristudioCpFigure = vi.fn(async () => true);
+    const foldOristudioCpFigureToCase = vi.fn(async () => true);
+    const setOristudioCpFoldedFigureDisplayStyle = vi.fn(async () => true);
+    const updateOristudioCpFoldedFigureModel = vi.fn(async () => true);
+    const duplicateOristudioCpFoldedFigure = vi.fn(async () => true);
+    const deleteOristudioCpFoldedFigure = vi.fn(async () => undefined);
+    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
+      documentMode: 'crease-pattern',
+      importedCreasePattern: importedCpDocument(),
+      oristudioCpDocument: editableCpState(),
+      oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [2] },
+      oristudioCpFoldedFigures: [figure],
+      oristudioCpActiveFoldedFigureId: figure.id,
+      foldOristudioCpDocument,
+      foldAnotherOristudioCpFigure,
+      foldOristudioCpFigureToCase,
+      setOristudioCpFoldedFigureDisplayStyle,
+      updateOristudioCpFoldedFigureModel,
+      duplicateOristudioCpFoldedFigure,
+      deleteOristudioCpFoldedFigure,
+    });
+
+    expect(container.textContent).toContain('Case 1');
+    const foldButton = container.querySelector<HTMLButtonElement>(
+      '.viewport-toolbar button[aria-label="Fold"]'
+    );
+    const anotherButton = container.querySelector<HTMLButtonElement>(
+      '.viewport-toolbar button[aria-label="Another solution"]'
+    );
+    expect(foldButton).not.toBeNull();
+    expect(anotherButton).not.toBeNull();
+    act(() => {
+      foldButton?.click();
+    });
+    act(() => {
+      anotherButton?.click();
+    });
+
+    expect(foldOristudioCpDocument).toHaveBeenCalledWith({
+      startingFaceId: 1,
+      lineIds: [2],
+    });
+    expect(foldAnotherOristudioCpFigure).toHaveBeenCalledWith('generated-1');
+
+    act(() => {
+      container
+        .querySelector<HTMLButtonElement>('.viewport-toolbar button[aria-label="Folded models"]')
+        ?.click();
+    });
+    expect(container.textContent).toContain('Folded models');
+    const displaySelect = container.querySelector<HTMLSelectElement>(
+      'select[aria-label="Folded display style"]'
+    );
+    expect(displaySelect).not.toBeNull();
+    act(() => {
+      if (!displaySelect) throw new Error('Display style select did not render');
+      displaySelect.value = 'Transparent3';
+      displaySelect.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    act(() => {
+      container.querySelector<HTMLButtonElement>('button[title="Back"]')?.click();
+    });
+    const duplicateButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Duplicate folded model"]'
+    );
+    expect(duplicateButton).not.toBeNull();
+    expect(duplicateButton?.disabled).toBe(false);
+    act(() => {
+      container.querySelector<HTMLButtonElement>('button[aria-label="Go to folded case"]')?.click();
+    });
+
+    expect(setOristudioCpFoldedFigureDisplayStyle).toHaveBeenCalledWith(
+      'generated-1',
+      'Transparent3'
+    );
+    expect(updateOristudioCpFoldedFigureModel).toHaveBeenCalledWith('generated-1', {
+      state: 'Back1',
+    });
+    expect(foldOristudioCpFigureToCase).toHaveBeenCalledWith('generated-1', 1);
+  });
+
   it('applies the active palette color to selected editable CP lines', async () => {
     const executeOristudioCpCommand = vi.fn(async () => true);
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
@@ -963,7 +1714,6 @@ describe('CreasePatternPanel', () => {
       }),
     });
 
-    expect(container.textContent).toContain('Generated from design');
     expect(container.querySelector('.cp-tool-rail')).not.toBeNull();
     expect(container.querySelector('.cp-symmetry-controls')).toBeNull();
     expect(container.querySelector('.cp-symmetry-menu')).not.toBeNull();
@@ -1112,9 +1862,7 @@ describe('CreasePatternPanel', () => {
       `${CP_EDITABLE_CANVAS_RECT.x} ${CP_EDITABLE_CANVAS_RECT.y} ${CP_EDITABLE_CANVAS_RECT.width} ${CP_EDITABLE_CANVAS_RECT.height}`
     );
     expect(Number(canvas?.getAttribute('width'))).toBeGreaterThan(CP_WORLD_RECT.width);
-    const paper = container.querySelector<SVGRectElement>('.paper');
-    expect(paper?.getAttribute('x')).toBe('66');
-    expect(paper?.classList.contains('paper--editable-cp-guide')).toBe(true);
+    expect(container.querySelector('.paper--editable-cp-guide')).toBeNull();
 
     act(() => {
       container.querySelector<HTMLButtonElement>('button[aria-label="Fit"]')?.click();
@@ -1174,16 +1922,15 @@ describe('CreasePatternPanel', () => {
     });
 
     const canvas = container.querySelector<SVGSVGElement>('.cp-canvas');
-    const paper = container.querySelector<SVGRectElement>('.paper');
 
     expect(canvas?.getAttribute('data-canvas-mode')).toBe('editable');
     expect(container.querySelector('.cp-panel__empty')).toBeNull();
     expect(container.textContent).not.toContain('No imported crease pattern');
-    expect(paper?.classList.contains('paper--editable-cp-guide')).toBe(true);
+    expect(container.querySelector('.paper--editable-cp-guide')).toBeNull();
     expect(container.querySelectorAll<SVGLineElement>('[data-cp-line-id]')).toHaveLength(4);
   });
 
-  it('does not resize the editable CP paper when geometry extends outside it', () => {
+  it('keeps an expanded editable CP viewport when geometry extends outside the paper bounds', () => {
     const state = editableCpState();
     state.summary.line_segments = 3;
     state.document.crease_pattern.line_segments.push({
@@ -1202,11 +1949,13 @@ describe('CreasePatternPanel', () => {
       oristudioCpDocument: state,
     });
 
-    const paper = container.querySelector<SVGRectElement>('.paper');
+    const canvas = container.querySelector<SVGSVGElement>('.cp-canvas');
     const outsideLine = container.querySelector<SVGLineElement>('[data-cp-line-id="3"]');
 
-    expect(paper?.getAttribute('x')).toBe(String(CP_PAPER_RECT.x));
-    expect(paper?.getAttribute('width')).toBe(String(CP_PAPER_RECT.width));
+    expect(canvas?.getAttribute('viewBox')).toBe(
+      `${CP_EDITABLE_CANVAS_RECT.x} ${CP_EDITABLE_CANVAS_RECT.y} ${CP_EDITABLE_CANVAS_RECT.width} ${CP_EDITABLE_CANVAS_RECT.height}`
+    );
+    expect(container.querySelector('.paper--editable-cp-guide')).toBeNull();
     expect(Number(outsideLine?.getAttribute('x1'))).toBeLessThan(CP_PAPER_RECT.x);
     expect(Number(outsideLine?.getAttribute('x2'))).toBeLessThan(CP_PAPER_RECT.x);
   });
@@ -1379,6 +2128,42 @@ describe('CreasePatternPanel', () => {
       await Promise.resolve();
     });
     expect(container.textContent).toContain('Angle Bisector: Select 2 segments or 3 points');
+
+    await act(async () => {
+      body?.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+      );
+      await Promise.resolve();
+    });
+
+    expect(
+      container
+        .querySelector<HTMLButtonElement>('button[aria-label="Box Select"]')
+        ?.hasAttribute('data-active')
+    ).toBe(true);
+    expect(container.textContent).toContain('Box Select: Drag selection box');
+  });
+
+  it('returns to box select after Escape even when an imported Oriedita file restores line mode', async () => {
+    const documentState = editableCpState();
+    documentState.document.metadata = {
+      'oriedita:ori:canvasModel': {
+        mouseMode: 'DRAW_CREASE_FREE_1',
+      },
+    };
+    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
+      documentMode: 'crease-pattern',
+      importedCreasePattern: importedCpDocument(),
+      oristudioCpDocument: documentState,
+    });
+    const body = container.querySelector<HTMLElement>('.cp-panel__body');
+
+    expect(
+      container.querySelector<HTMLButtonElement>('button[aria-label="Line"]')?.hasAttribute(
+        'data-active'
+      )
+    ).toBe(true);
+    expect(container.textContent).toContain('Line: Drag crease endpoint');
 
     await act(async () => {
       body?.dispatchEvent(
@@ -1643,6 +2428,75 @@ describe('CreasePatternPanel', () => {
       line_ids: [1],
       custom_from_line_type: 'Valley',
       custom_to_line_type: 'Aux',
+    });
+  });
+
+  it('restores Oriedita canvas custom line filters into contextual line-type commands', async () => {
+    const executeOristudioCpCommand = vi.fn(async () => true);
+    const documentState = editableCpState();
+    documentState.document.metadata = {
+      'oriedita:ori:canvasModel': {
+        customFromLineType: 'MANDV',
+        customToLineType: 'VALLEY',
+        delLineType: 'AUX',
+      },
+    };
+    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
+      documentMode: 'crease-pattern',
+      importedCreasePattern: importedCpDocument(),
+      oristudioCpDocument: documentState,
+      executeOristudioCpCommand,
+    });
+
+    act(() => {
+      useWorkspaceStore.getState().setOristudioCpSelection({
+        ...useWorkspaceStore.getState().oristudioCpSelection,
+        lines: [1],
+      });
+    });
+
+    await act(async () => {
+      useWorkspaceStore.getState().requestOristudioCpAction('ReplaceLineTypeSelect');
+      await Promise.resolve();
+    });
+
+    expect(
+      container.querySelector<HTMLSelectElement>('select[aria-label="Replace from line type"]')
+        ?.value
+    ).toBe('MountainAndValley');
+    expect(
+      container.querySelector<HTMLSelectElement>('select[aria-label="Replace to line type"]')
+        ?.value
+    ).toBe('Valley');
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('button.cp-context-panel__apply')?.click();
+      await Promise.resolve();
+    });
+
+    expect(executeOristudioCpCommand).toHaveBeenLastCalledWith('ReplaceLineTypeSelect', {
+      line_ids: [1],
+      custom_from_line_type: 'MountainAndValley',
+      custom_to_line_type: 'Valley',
+    });
+
+    await act(async () => {
+      useWorkspaceStore.getState().requestOristudioCpAction('DeleteLineTypeSelect');
+      await Promise.resolve();
+    });
+
+    expect(
+      container.querySelector<HTMLSelectElement>('select[aria-label="Delete line type"]')?.value
+    ).toBe('Aux');
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('button.cp-context-panel__apply')?.click();
+      await Promise.resolve();
+    });
+
+    expect(executeOristudioCpCommand).toHaveBeenLastCalledWith('DeleteLineTypeSelect', {
+      line_ids: [1],
+      custom_line_type: 'Aux',
     });
   });
 

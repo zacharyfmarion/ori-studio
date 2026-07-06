@@ -4,9 +4,7 @@ import { DesignPanel } from './DesignPanel';
 import { InspectorPanel } from './InspectorPanel';
 import { CreasePatternPanel } from './CreasePatternPanel';
 import { SimulatorPanel } from './SimulatorPanel';
-import { FoldedBasePanel } from './FoldedBasePanel';
 import { DiagnosticsPanel } from './DiagnosticsPanel';
-import { FilesPanel } from './FilesPanel';
 import { ConditionsPanel } from './ConditionsPanel';
 import { SequencePanel } from './SequencePanel';
 
@@ -15,9 +13,7 @@ export const panelComponents: Record<string, FC<IDockviewPanelProps>> = {
   inspector: InspectorPanel,
   'crease-pattern': CreasePatternPanel,
   simulator: SimulatorPanel,
-  'folded-base': FoldedBasePanel,
   diagnostics: DiagnosticsPanel,
   sequence: SequencePanel,
-  files: FilesPanel,
   conditions: ConditionsPanel,
 };

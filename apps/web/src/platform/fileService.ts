@@ -9,6 +9,8 @@ export type FileCommand =
   | 'exportV4'
   | 'exportCp'
   | 'exportFold'
+  | 'exportOri'
+  | 'exportOrh'
   | 'exportSvg'
   | 'exportPng';
 

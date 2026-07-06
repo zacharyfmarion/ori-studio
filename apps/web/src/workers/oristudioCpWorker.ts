@@ -6,13 +6,29 @@ import init, {
   execute_cp_command,
   export_cp,
   export_fold,
+  export_fold_file,
+  export_orh,
+  export_ori,
+  folded_figure_duplicate,
+  folded_figure_fold,
+  folded_figure_fold_selected,
+  folded_figure_fold_another,
+  folded_figure_fold_to_case,
+  folded_figure_render_snapshot,
+  folded_figure_set_model,
+  folded_figure_snapshot,
+  free_folded_figure,
   free_document,
   load_cp,
   load_document,
   load_fold,
+  load_fold_file,
+  load_orh,
+  load_ori,
   insert_line_segments,
   preview_cp_command,
   replace_line_segments,
+  restore_document,
 } from '../generated/oristudio-cp-wasm/oristudio_cp_wasm';
 import type {
   OristudioCpCommandPayload,
@@ -20,6 +36,13 @@ import type {
   OristudioCpCommandResult,
   OristudioCpDocumentSnapshot,
   OristudioCpDocumentSummary,
+  OristudioCpEstimationOrder,
+  OristudioCpFoldedFigureBatchResult,
+  OristudioCpFoldedFigureModel,
+  OristudioCpFoldedFigureRenderOptions,
+  OristudioCpFoldedFigureResult,
+  OristudioCpFoldedRenderSnapshot,
+  OristudioCpFoldedFigureSnapshot,
   OristudioCpLineSegment,
   OristudioCpOperationDescriptor,
 } from '../engine/oristudioCpTypes';
@@ -68,8 +91,20 @@ const api = {
   async loadFold(text: string, title = ''): Promise<number> {
     return call(() => load_fold(text, title));
   },
+  async loadFoldFile(text: string): Promise<number> {
+    return call(() => load_fold_file(text));
+  },
+  async loadOri(text: string, acceptUnknownVersion = false): Promise<number> {
+    return call(() => load_ori(text, acceptUnknownVersion));
+  },
+  async loadOrh(text: string): Promise<number> {
+    return call(() => load_orh(text));
+  },
   async loadDocument(document: OristudioCpDocumentSnapshot): Promise<number> {
     return call(() => load_document(document));
+  },
+  async restoreDocument(handle: number, document: OristudioCpDocumentSnapshot): Promise<void> {
+    return call(() => restore_document(handle, document));
   },
   async snapshot(handle: number): Promise<OristudioCpDocumentSnapshot> {
     return call(() => document_snapshot(handle) as OristudioCpDocumentSnapshot);
@@ -104,11 +139,91 @@ const api = {
   ): Promise<number> {
     return call(() => replace_line_segments(handle, lineIds, segments));
   },
+  async foldFigure(
+    handle: number,
+    startingFaceId = 1,
+    order: OristudioCpEstimationOrder = 'Order5',
+    model?: OristudioCpFoldedFigureModel,
+    selectedLineIds: number[] = []
+  ): Promise<OristudioCpFoldedFigureResult> {
+    return call(
+      () =>
+        selectedLineIds.length > 0
+          ? (folded_figure_fold_selected(
+              handle,
+              selectedLineIds,
+              startingFaceId,
+              order,
+              model ?? null
+            ) as OristudioCpFoldedFigureResult)
+          : (folded_figure_fold(
+              handle,
+              startingFaceId,
+              order,
+              model ?? null
+            ) as OristudioCpFoldedFigureResult)
+    );
+  },
+  async foldedFigureSnapshot(handle: number): Promise<OristudioCpFoldedFigureSnapshot> {
+    return call(() => folded_figure_snapshot(handle) as OristudioCpFoldedFigureSnapshot);
+  },
+  async foldedFigureRenderSnapshot(
+    handle: number,
+    displayStyle?: OristudioCpFoldedFigureSnapshot['display_style'],
+    options?: OristudioCpFoldedFigureRenderOptions
+  ): Promise<OristudioCpFoldedRenderSnapshot | null> {
+    return call(
+      () =>
+        folded_figure_render_snapshot(
+          handle,
+          displayStyle ?? null,
+          options ?? null
+        ) as OristudioCpFoldedRenderSnapshot | null
+    );
+  },
+  async setFoldedFigureModel(
+    handle: number,
+    model: OristudioCpFoldedFigureModel
+  ): Promise<OristudioCpFoldedFigureSnapshot> {
+    return call(() => folded_figure_set_model(handle, model) as OristudioCpFoldedFigureSnapshot);
+  },
+  async duplicateFoldedFigure(handle: number): Promise<OristudioCpFoldedFigureResult> {
+    return call(() => folded_figure_duplicate(handle) as OristudioCpFoldedFigureResult);
+  },
+  async foldFigureAnother(handle: number): Promise<OristudioCpFoldedFigureSnapshot> {
+    return call(() => folded_figure_fold_another(handle) as OristudioCpFoldedFigureSnapshot);
+  },
+  async foldFigureToCase(
+    handle: number,
+    objective: number,
+    initialOrder: OristudioCpEstimationOrder = 'Order5'
+  ): Promise<OristudioCpFoldedFigureBatchResult> {
+    return call(
+      () =>
+        folded_figure_fold_to_case(
+          handle,
+          objective,
+          initialOrder
+        ) as OristudioCpFoldedFigureBatchResult
+    );
+  },
+  async freeFoldedFigure(handle: number): Promise<void> {
+    return call(() => free_folded_figure(handle));
+  },
   async exportCp(handle: number): Promise<string> {
     return call(() => export_cp(handle));
   },
   async exportFold(handle: number): Promise<string> {
     return call(() => export_fold(handle));
+  },
+  async exportFoldFile(handle: number): Promise<string> {
+    return call(() => export_fold_file(handle));
+  },
+  async exportOri(handle: number): Promise<string> {
+    return call(() => export_ori(handle));
+  },
+  async exportOrh(handle: number): Promise<string> {
+    return call(() => export_orh(handle));
   },
   async freeDocument(handle: number): Promise<void> {
     return call(() => free_document(handle));

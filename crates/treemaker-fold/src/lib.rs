@@ -145,7 +145,13 @@ pub struct FoldDocument {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub file_author: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub file_title: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub frame_title: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub frame_parent: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub frame_inherit: Option<bool>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub frame_classes: Vec<String>,
     pub vertices_coords: Vec<Vec<f64>>,
@@ -171,6 +177,8 @@ pub struct FoldDocument {
         skip_serializing_if = "Vec::is_empty"
     )]
     pub face_orders: Vec<[i64; 3]>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub file_frames: Vec<FoldDocument>,
     #[serde(flatten)]
     pub extra: BTreeMap<String, Value>,
 }
@@ -181,7 +189,10 @@ impl FoldDocument {
             file_spec: Some(1.2),
             file_creator: None,
             file_author: None,
+            file_title: None,
             frame_title: None,
+            frame_parent: None,
+            frame_inherit: None,
             frame_classes: Vec::new(),
             vertices_coords,
             edges_vertices,
@@ -191,6 +202,7 @@ impl FoldDocument {
             faces_vertices: Vec::new(),
             faces_edges: Vec::new(),
             face_orders: Vec::new(),
+            file_frames: Vec::new(),
             extra: BTreeMap::new(),
         }
     }
@@ -616,6 +628,81 @@ mod tests {
         .unwrap();
 
         assert_eq!(doc.face_orders, vec![[0, 1, -1]]);
+    }
+
+    #[test]
+    fn fold_document_preserves_embedded_file_frames() {
+        let doc: FoldDocument = serde_json::from_value(serde_json::json!({
+            "file_spec": 1.2,
+            "file_title": "multi-frame sample",
+            "file_classes": ["multiModel"],
+            "frame_title": "root cp",
+            "frame_classes": ["creasePattern"],
+            "vertices_coords": [[0.0, 0.0], [1.0, 0.0]],
+            "edges_vertices": [[0, 1]],
+            "file_frames": [
+                {
+                    "frame_title": "working cp",
+                    "frame_classes": ["creasePattern"],
+                    "vertices_coords": [[0.0, 0.0], [2.0, 0.0]],
+                    "edges_vertices": [[0, 1]]
+                },
+                {
+                    "frame_title": "folded result",
+                    "frame_classes": ["foldedForm"],
+                    "frame_parent": 1,
+                    "frame_inherit": true,
+                    "vertices_coords": [[0.0, 0.0], [0.5, 0.0], [0.0, 0.5]],
+                    "edges_vertices": [[0, 1], [1, 2], [2, 0]],
+                    "faces_vertices": [[0, 1, 2]],
+                    "faceOrders": [[0, 0, -1]],
+                    "oriedita:folded_view": {"displayStyle": "paper"}
+                }
+            ]
+        }))
+        .unwrap();
+
+        assert_eq!(doc.file_title.as_deref(), Some("multi-frame sample"));
+        assert_eq!(doc.frame_classes, vec!["creasePattern"]);
+        assert!(!doc.extra.contains_key("file_frames"));
+        assert_eq!(doc.extra["file_classes"], serde_json::json!(["multiModel"]));
+        assert_eq!(doc.file_frames.len(), 2);
+        assert_eq!(
+            doc.file_frames[1].frame_title.as_deref(),
+            Some("folded result")
+        );
+        assert_eq!(doc.file_frames[1].frame_classes, vec!["foldedForm"]);
+        assert_eq!(doc.file_frames[1].frame_parent, Some(1));
+        assert_eq!(doc.file_frames[1].frame_inherit, Some(true));
+        assert_eq!(doc.file_frames[1].face_orders, vec![[0, 0, -1]]);
+        assert_eq!(
+            doc.file_frames[1].extra["oriedita:folded_view"],
+            serde_json::json!({"displayStyle": "paper"})
+        );
+
+        let value = serde_json::to_value(&doc).unwrap();
+        assert_eq!(value["file_title"], "multi-frame sample");
+        assert_eq!(value["file_frames"][1]["frame_parent"], 1);
+        assert_eq!(value["file_frames"][1]["frame_inherit"], true);
+        assert_eq!(
+            value["file_frames"][1]["frame_classes"],
+            serde_json::json!(["foldedForm"])
+        );
+        assert_eq!(
+            value["file_frames"][1]["faceOrders"],
+            serde_json::json!([[0, 0, -1]])
+        );
+        assert_eq!(
+            value["file_frames"][1]["oriedita:folded_view"],
+            serde_json::json!({"displayStyle": "paper"})
+        );
+    }
+
+    #[test]
+    fn fold_document_skips_empty_embedded_file_frames() {
+        let value = serde_json::to_value(square_doc()).unwrap();
+
+        assert!(value.get("file_frames").is_none());
     }
 
     #[test]

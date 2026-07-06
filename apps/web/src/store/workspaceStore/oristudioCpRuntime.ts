@@ -6,6 +6,13 @@ import type {
   OristudioCpDocumentSnapshot,
   OristudioCpDocumentState,
   OristudioCpDocumentSummary,
+  OristudioCpEstimationOrder,
+  OristudioCpFoldedFigureBatchResult,
+  OristudioCpFoldedFigureModel,
+  OristudioCpFoldedFigureRenderOptions,
+  OristudioCpFoldedFigureResult,
+  OristudioCpFoldedRenderSnapshot,
+  OristudioCpFoldedFigureSnapshot,
   OristudioCpLineSegment,
   OristudioCpOperationDescriptor,
 } from '../../engine/oristudioCpTypes';
@@ -22,6 +29,12 @@ let client: OristudioCpClient | null = null;
 let handle: number | null = null;
 let descriptorsPromise: Promise<OristudioCpOperationDescriptor[]> | null = null;
 let currentSource: OristudioCpDocumentState['source'] | null = null;
+// Monotonic identifier for a genuine document load (open/new/import/native/
+// generate-from-tree). It advances only when a fresh kernel handle is
+// allocated, never for edits, undo/redo, or in-place restores. The CP panel
+// keys its auto-fit on this so restoring history does not read as "a new
+// document was opened" and reset the viewport.
+let documentLoadSerial = 0;
 
 export function oristudioCpError(error: unknown): WasmErrorEnvelope {
   if (
@@ -74,14 +87,20 @@ export async function loadOristudioCpDocumentFromText(
     filename: string;
     path?: string | null;
     title?: string;
+    acceptUnknownVersion?: boolean;
   }
 ): Promise<OristudioCpDocumentState> {
   const api = await getOristudioCpClient();
   const nextHandle =
     source.format === 'cp'
       ? await api.loadCp(text, source.title ?? titleFromFilename(source.filename))
-      : await api.loadFold(text, source.title ?? titleFromFilename(source.filename));
+      : source.format === 'ori'
+        ? await api.loadOri(text, source.acceptUnknownVersion ?? false)
+        : source.format === 'orh'
+          ? await api.loadOrh(text)
+          : await api.loadFoldFile(text);
 
+  documentLoadSerial += 1;
   try {
     const nextSource = {
       format: source.format,
@@ -112,6 +131,7 @@ export async function createBlankOristudioCpDocument(
     ...createStarterOristudioCpDocument(title),
   });
 
+  documentLoadSerial += 1;
   try {
     const nextState = await buildDocumentState(api, nextHandle, source, null);
     await replaceHandle(api, nextHandle);
@@ -133,6 +153,7 @@ export async function refreshOristudioCpDocument(
   const operationDescriptors = await getOristudioCpOperationDescriptors();
   return {
     handle,
+    loadSerial: documentLoadSerial,
     document,
     summary,
     source:
@@ -155,6 +176,7 @@ export async function restoreOristudioCpDocument(
   const api = await getOristudioCpClient();
   const nextHandle = await api.loadDocument(document);
 
+  documentLoadSerial += 1;
   try {
     const nextState = await buildDocumentState(api, nextHandle, source, lastCommandResult);
     await replaceHandle(api, nextHandle);
@@ -164,6 +186,39 @@ export async function restoreOristudioCpDocument(
     await api.freeDocument(nextHandle).catch(() => undefined);
     throw error;
   }
+}
+
+/**
+ * Restore a document snapshot into the current handle in place, mirroring
+ * Oriedita's in-place `foldLineSet.setSave`. Used by undo/redo and
+ * whole-document edits so the handle (and thus the editor viewport) is
+ * preserved. The load serial is intentionally not advanced, so the CP panel
+ * does not treat the restore as a new document load. Falls back to a fresh
+ * handle only if no document is currently loaded.
+ */
+export async function restoreOristudioCpDocumentInPlace(
+  document: OristudioCpDocumentSnapshot,
+  source?: OristudioCpDocumentState['source'],
+  lastCommandResult: OristudioCpCommandResult | null = null
+): Promise<OristudioCpDocumentState> {
+  if (handle === null) {
+    return restoreOristudioCpDocument(
+      document,
+      source ??
+        currentSource ?? {
+          format: 'cp',
+          filename: document.title ? `${document.title}.cp` : 'Untitled.cp',
+          path: null,
+        },
+      lastCommandResult
+    );
+  }
+  const api = await getOristudioCpClient();
+  await api.restoreDocument(handle, document);
+  const nextSource = source ?? currentSource ?? { format: 'cp', filename: 'Untitled.cp', path: null };
+  const nextState = await buildDocumentState(api, handle, nextSource, lastCommandResult);
+  currentSource = nextState.source;
+  return nextState;
 }
 
 export async function executeOristudioCpCommand(
@@ -218,6 +273,71 @@ export async function replaceOristudioCpLineSegments(
   return refreshed;
 }
 
+export async function foldOristudioCpDocument(
+  startingFaceId = 1,
+  order: OristudioCpEstimationOrder = 'Order5',
+  model?: OristudioCpFoldedFigureModel,
+  selectedLineIds: number[] = []
+): Promise<OristudioCpFoldedFigureResult> {
+  if (handle === null) {
+    throw new Error('No editable crease-pattern document is loaded');
+  }
+  const api = await getOristudioCpClient();
+  return api.foldFigure(handle, startingFaceId, order, model, selectedLineIds);
+}
+
+export async function getOristudioCpFoldedFigureSnapshot(
+  foldedFigureHandle: number
+): Promise<OristudioCpFoldedFigureSnapshot> {
+  const api = await getOristudioCpClient();
+  return api.foldedFigureSnapshot(foldedFigureHandle);
+}
+
+export async function getOristudioCpFoldedFigureRenderSnapshot(
+  foldedFigureHandle: number,
+  displayStyle?: OristudioCpFoldedFigureSnapshot['display_style'],
+  options?: OristudioCpFoldedFigureRenderOptions
+): Promise<OristudioCpFoldedRenderSnapshot | null> {
+  const api = await getOristudioCpClient();
+  return api.foldedFigureRenderSnapshot(foldedFigureHandle, displayStyle, options);
+}
+
+export async function setOristudioCpFoldedFigureModel(
+  foldedFigureHandle: number,
+  model: OristudioCpFoldedFigureModel
+): Promise<OristudioCpFoldedFigureSnapshot> {
+  const api = await getOristudioCpClient();
+  return api.setFoldedFigureModel(foldedFigureHandle, model);
+}
+
+export async function duplicateOristudioCpFoldedFigure(
+  foldedFigureHandle: number
+): Promise<OristudioCpFoldedFigureResult> {
+  const api = await getOristudioCpClient();
+  return api.duplicateFoldedFigure(foldedFigureHandle);
+}
+
+export async function foldOristudioCpFigureAnother(
+  foldedFigureHandle: number
+): Promise<OristudioCpFoldedFigureSnapshot> {
+  const api = await getOristudioCpClient();
+  return api.foldFigureAnother(foldedFigureHandle);
+}
+
+export async function foldOristudioCpFigureToCase(
+  foldedFigureHandle: number,
+  objective: number,
+  initialOrder: OristudioCpEstimationOrder = 'Order5'
+): Promise<OristudioCpFoldedFigureBatchResult> {
+  const api = await getOristudioCpClient();
+  return api.foldFigureToCase(foldedFigureHandle, objective, initialOrder);
+}
+
+export async function freeOristudioCpFoldedFigure(foldedFigureHandle: number): Promise<void> {
+  const api = await getOristudioCpClient();
+  await api.freeFoldedFigure(foldedFigureHandle);
+}
+
 export async function exportOristudioCpDocumentAsCp(): Promise<string> {
   if (handle === null) {
     throw new Error('No editable crease-pattern document is loaded');
@@ -231,7 +351,23 @@ export async function exportOristudioCpDocumentAsFold(): Promise<string> {
     throw new Error('No editable crease-pattern document is loaded');
   }
   const api = await getOristudioCpClient();
-  return api.exportFold(handle);
+  return api.exportFoldFile(handle);
+}
+
+export async function exportOristudioCpDocumentAsOri(): Promise<string> {
+  if (handle === null) {
+    throw new Error('No editable crease-pattern document is loaded');
+  }
+  const api = await getOristudioCpClient();
+  return api.exportOri(handle);
+}
+
+export async function exportOristudioCpDocumentAsOrh(): Promise<string> {
+  if (handle === null) {
+    throw new Error('No editable crease-pattern document is loaded');
+  }
+  const api = await getOristudioCpClient();
+  return api.exportOrh(handle);
 }
 
 export function setOristudioCpDocumentSource(source: OristudioCpDocumentState['source']): void {
@@ -258,6 +394,7 @@ async function buildDocumentState(
   ]);
   return {
     handle: documentHandle,
+    loadSerial: documentLoadSerial,
     document,
     summary,
     source: {
@@ -271,7 +408,7 @@ async function buildDocumentState(
 }
 
 function titleFromFilename(filename: string): string {
-  return filename.replace(/\.(cp|fold|osf)$/i, '') || 'Untitled';
+  return filename.replace(/\.(cp|fold|ori|orh|osf)$/i, '') || 'Untitled';
 }
 
 export type { OristudioCpDocumentSnapshot, OristudioCpDocumentSummary };

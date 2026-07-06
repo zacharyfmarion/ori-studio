@@ -10,6 +10,8 @@ import {
   importedCreasePatternFormat,
   isCreasePatternFilename,
   parseImportedCreasePattern,
+  type ImportedCreasePatternResult,
+  type ImportedCreasePatternSource,
   withFlatFoldArtifacts,
   withFlatFoldError,
 } from '../../../lib/creasePatternImport';
@@ -68,6 +70,8 @@ import {
   executeOristudioCpCommand as executeRuntimeOristudioCpCommand,
   exportOristudioCpDocumentAsCp,
   exportOristudioCpDocumentAsFold,
+  exportOristudioCpDocumentAsOri,
+  exportOristudioCpDocumentAsOrh,
   createBlankOristudioCpDocument,
   getOristudioCpOperationDescriptors,
   loadOristudioCpDocumentFromText,
@@ -77,6 +81,7 @@ import {
   releaseOristudioCpDocument,
   replaceOristudioCpLineSegments as replaceRuntimeOristudioCpLineSegments,
   restoreOristudioCpDocument,
+  restoreOristudioCpDocumentInPlace,
   setOristudioCpDocumentSource,
 } from '../oristudioCpRuntime';
 import type { ProjectSlice, RecentProject, WorkspaceSliceCreator } from '../types';
@@ -85,6 +90,7 @@ import type {
   OristudioCpCommandResult,
   OristudioCpDocumentSnapshot,
   OristudioCpDocumentState,
+  OristudioCpFoldedFigureEntry,
 } from '../../../engine/oristudioCpTypes';
 
 const RECENTS_STORAGE_KEY = 'treemaker.recentProjects.v1';
@@ -105,6 +111,35 @@ function cpHistoryEntry(
     selection,
     label,
     timestamp: nowIso(),
+  };
+}
+
+function staleGeneratedFoldedFigures(
+  entries: OristudioCpFoldedFigureEntry[]
+): OristudioCpFoldedFigureEntry[] {
+  return entries.map((entry) =>
+    entry.sourceKind === 'generated-from-current-cp' && entry.status === 'ready'
+      ? { ...entry, status: 'stale' as const }
+      : entry
+  );
+}
+
+function importedSourceFromNativeSource(
+  source: { format: string; filename: string; path: string | null } | null | undefined
+): ImportedCreasePatternSource | null {
+  if (
+    !source ||
+    (source.format !== 'cp' &&
+      source.format !== 'fold' &&
+      source.format !== 'ori' &&
+      source.format !== 'orh')
+  ) {
+    return null;
+  }
+  return {
+    format: source.format,
+    filename: source.filename,
+    path: source.path,
   };
 }
 
@@ -209,7 +244,15 @@ function selectedLineSelectionFromDocument(
 }
 
 function basenameWithoutProjectExtension(filename: string): string {
-  return filename.replace(/\.(osf|tmd5?|tmd4)$/i, '') || 'Untitled';
+  return filename.replace(/\.(osf|tmd5?|tmd4|cp|fold|ori|orh)$/i, '') || 'Untitled';
+}
+
+function isOrieditaOriFilename(filename: string): boolean {
+  return /\.ori$/i.test(filename);
+}
+
+function isOrieditaOrhFilename(filename: string): boolean {
+  return /\.orh$/i.test(filename);
 }
 
 function defaultFilename(title: string, extension: string): string {
@@ -310,6 +353,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     return true;
   };
 
+  const releaseEditableCreasePattern = async () => {
+    await get().clearOristudioCpFoldedFigures();
+    await releaseOristudioCpDocument();
+  };
+
   const resolveCreaseExportOptions = (
     format: CreaseExportFormat,
     options?: CreaseExportOptions
@@ -324,6 +372,15 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       confirmLabel: `Export ${label}`,
     });
   };
+
+  const confirmLossyOrhWrite = () =>
+    requestConfirmation({
+      title: 'Export legacy ORH?',
+      message:
+        'ORH is a legacy Oriedita/Orihime format and cannot preserve Ori Studio workspace state, embedded FOLD frames, or all modern editor metadata.',
+      confirmLabel: 'Export ORH',
+      tone: 'danger',
+    });
 
   const applyOristudioCpLineMutation = async (
     label: string,
@@ -346,6 +403,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       const commandDocument = await mutate();
       const checked = await refreshAlwaysOnCamvDiagnostics(commandDocument);
       const nextDocument = checked.documentState;
+      const nextRevision = get().oristudioCpRevision + 1;
       set({
         oristudioCpDocument: nextDocument,
         oristudioCpCamvResult: checked.camvResult,
@@ -353,6 +411,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         oristudioCpError: null,
         oristudioCpActiveDiagnosticId: null,
         oristudioCpSelection: selectedLineSelectionFromDocument(nextDocument.document),
+        oristudioCpRevision: nextRevision,
+        oristudioCpFoldedFigures: staleGeneratedFoldedFigures(get().oristudioCpFoldedFigures),
         oristudioCpHistoryPast: previousDocument
           ? [
               ...get().oristudioCpHistoryPast,
@@ -387,7 +447,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     } = {}
   ) => {
     set({ status: 'loading_engine', error: null, projectMessage: null });
-    await releaseOristudioCpDocument();
+    await releaseEditableCreasePattern();
     const api = await getEngine();
     const snapshot = await loadTreeFromText(api, text);
     const filename = source.filename ?? defaultNativeFilename('Untitled');
@@ -410,6 +470,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       selection: { kind: 'tree' },
       oristudioCpSelection: emptyOristudioCpSelection(),
       oristudioCpActiveDiagnosticId: null,
+      oristudioCpRevision: 0,
+      oristudioCpFoldedFigures: [],
+      oristudioCpActiveFoldedFigureId: null,
       toolMode: 'select',
       symmetryAuthoringPairs: [],
       creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
@@ -444,30 +507,69 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       oristudioCpCamvResult: null,
     });
     const filename = source.filename;
+    const path = source.path ?? null;
     const format = importedCreasePatternFormat(filename);
-    const parsed = parseImportedCreasePattern(text, {
-      format,
-      filename,
-      path: source.path ?? null,
-    });
-    await releaseOristudioCpDocument();
+    await releaseEditableCreasePattern();
+    let parsed: ImportedCreasePatternResult;
     let oristudioCpDocument: Awaited<
       ReturnType<typeof loadOristudioCpDocumentFromText>
     > | null = null;
     let oristudioCpCamvResult: OristudioCpCommandResult | null = null;
     let oristudioCpRuntimeError: string | null = null;
-    try {
-      oristudioCpDocument = await loadOristudioCpDocumentFromText(text, {
+
+    if (format === 'ori' || format === 'orh') {
+      try {
+        oristudioCpDocument = await loadOristudioCpDocumentFromText(text, {
+          format,
+          filename,
+          path,
+        });
+        const checked = await refreshAlwaysOnCamvDiagnostics(oristudioCpDocument);
+        oristudioCpDocument = checked.documentState;
+        oristudioCpCamvResult = checked.camvResult;
+        const foldProjection = await exportOristudioCpDocumentAsFold();
+        const projectionTitle =
+          oristudioCpDocument.summary.title || basenameWithoutProjectExtension(filename);
+        const projected = parseImportedCreasePattern(foldProjection, {
+          format: 'fold',
+          filename: defaultFilename(projectionTitle, 'fold'),
+          path: null,
+        });
+        parsed = {
+          ...projected,
+          project: {
+            ...projected.project,
+            title: projectionTitle,
+          },
+          document: {
+            ...projected.document,
+            source: { format, filename, path },
+            title: projectionTitle,
+          },
+        };
+      } catch (error) {
+        await releaseEditableCreasePattern();
+        throw error;
+      }
+    } else {
+      parsed = parseImportedCreasePattern(text, {
         format,
         filename,
-        path: source.path ?? null,
-        title: parsed.document.title,
+        path,
       });
-      const checked = await refreshAlwaysOnCamvDiagnostics(oristudioCpDocument);
-      oristudioCpDocument = checked.documentState;
-      oristudioCpCamvResult = checked.camvResult;
-    } catch (error) {
-      oristudioCpRuntimeError = oristudioCpError(error).message;
+      try {
+        oristudioCpDocument = await loadOristudioCpDocumentFromText(text, {
+          format,
+          filename,
+          path,
+          title: parsed.document.title,
+        });
+        const checked = await refreshAlwaysOnCamvDiagnostics(oristudioCpDocument);
+        oristudioCpDocument = checked.documentState;
+        oristudioCpCamvResult = checked.camvResult;
+      } catch (error) {
+        oristudioCpRuntimeError = oristudioCpError(error).message;
+      }
     }
     const result = await (async () => {
       try {
@@ -512,6 +614,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       selection: { kind: 'tree' },
       oristudioCpSelection: emptyOristudioCpSelection(),
       oristudioCpActiveDiagnosticId: null,
+      oristudioCpRevision: 0,
+      oristudioCpFoldedFigures: [],
+      oristudioCpActiveFoldedFigureId: null,
       oristudioCpSymmetry: defaultOristudioCpSymmetry(),
       toolMode: 'select',
       creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
@@ -556,6 +661,20 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     }
   };
 
+  const sourceFoldWithCurrentProjection = (
+    sourceFold: FoldDocument | null | undefined,
+    foldProjection: FoldDocument | null
+  ): FoldDocument | null => {
+    if (!sourceFold) return null;
+    if (!foldProjection) return sourceFold;
+    return {
+      ...sourceFold,
+      ...foldProjection,
+      file_title: sourceFold.file_title ?? foldProjection.file_title,
+      file_frames: sourceFold.file_frames ?? [],
+    };
+  };
+
   const loadNativeCreasePattern = async (
     nativeDocument: Extract<ReturnType<typeof activeNativeDocument>, { kind: 'crease-pattern' }>,
     nativeText: string,
@@ -579,7 +698,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     const checked = await refreshAlwaysOnCamvDiagnostics(restoredDocument);
     const documentState = checked.documentState;
     const fold =
-      nativeDocument.creasePattern.foldProjection ?? (await exportedEditableFoldProjection());
+      nativeDocument.creasePattern.sourceFold ??
+      nativeDocument.creasePattern.foldProjection ??
+      (await exportedEditableFoldProjection());
     if (!fold) throw new Error('Native crease-pattern project does not contain a FOLD projection');
 
     const parsed = parseImportedCreasePattern(JSON.stringify(fold), {
@@ -609,11 +730,15 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
             foldArtifactResolvedRevision: artifactRevision,
           }
         : readyFoldArtifactResourceState(result.foldArtifacts, artifactRevision);
+    const originalSource = importedSourceFromNativeSource(nativeDocument.creasePattern.source);
+    const importedDocument = originalSource
+      ? { ...result.document, source: originalSource }
+      : result.document;
     set({
       project: { ...result.project, title: nativeDocument.title || result.project.title },
       documentMode: 'crease-pattern',
       activeEditingSurface: 'crease-pattern',
-      importedCreasePattern: result.document,
+      importedCreasePattern: importedDocument,
       oristudioCpDocument: documentState,
       oristudioCpLineage: nativeDocument.creasePattern.lineage,
       oristudioCpCamvResult: checked.camvResult,
@@ -628,6 +753,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       selection: { kind: 'tree' },
       oristudioCpSelection: nativeDocument.viewState.selection ?? emptyOristudioCpSelection(),
       oristudioCpActiveDiagnosticId: null,
+      oristudioCpRevision: 0,
+      oristudioCpFoldedFigures: nativeDocument.viewState.foldedFigures ?? [],
+      oristudioCpActiveFoldedFigureId: nativeDocument.viewState.activeFoldedFigureId ?? null,
       oristudioCpSymmetry: nativeDocument.viewState.symmetry ?? defaultOristudioCpSymmetry(),
       toolMode: 'select',
       creaseColorMode: nativeDocument.viewState.creaseColorMode ?? DEFAULT_CREASE_COLOR_MODE,
@@ -684,6 +812,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       oristudioCpHistoryFuture: [],
       oristudioCpSelection: nativeDocument.viewState.selection ?? emptyOristudioCpSelection(),
       oristudioCpActiveDiagnosticId: null,
+      oristudioCpRevision: 0,
+      oristudioCpFoldedFigures: nativeDocument.viewState.foldedFigures ?? [],
+      oristudioCpActiveFoldedFigureId: nativeDocument.viewState.activeFoldedFigureId ?? null,
       oristudioCpSymmetry: nativeDocument.viewState.symmetry ?? defaultOristudioCpSymmetry(),
     });
   };
@@ -778,6 +909,10 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     const documentState = get().oristudioCpDocument;
     if (!documentState) return null;
     const foldProjection = await exportedEditableFoldProjection();
+    const sourceFold = sourceFoldWithCurrentProjection(
+      get().importedCreasePattern?.sourceFold,
+      foldProjection
+    );
     return {
       title:
         documentState.summary.title ||
@@ -788,14 +923,110 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       document: documentState.document,
       source: get().importedCreasePattern?.source ?? documentState.source,
       foldProjection,
+      sourceFold,
       foldArtifacts: get().foldArtifacts,
       creaseColorMode: get().creaseColorMode,
       selection: get().oristudioCpSelection,
       viewport: get().oristudioCpViewport,
       symmetry: get().oristudioCpSymmetry,
+      foldedFigures: get().oristudioCpFoldedFigures,
+      activeFoldedFigureId: get().oristudioCpActiveFoldedFigureId,
       lineage: get().oristudioCpLineage ?? importedCpLineage(),
       appVersion: APP_VERSION,
     };
+  };
+
+  const saveEditableCreasePatternAsOri = async (fileService: FileService) => {
+    const documentState = get().oristudioCpDocument;
+    if (!documentState) return false;
+    const contents = await exportOristudioCpDocumentAsOri();
+    const importedCreasePattern = get().importedCreasePattern;
+    const result = await fileService.saveTextFile({
+      title: 'Save Oriedita ORI Document',
+      contents,
+      suggestedName: ensureExtension(get().currentFileName, 'ori'),
+      path: get().currentFilePath,
+      extensions: ['ori'],
+    });
+    if (!result) return false;
+
+    const source = {
+      format: 'ori' as const,
+      filename: result.name,
+      path: result.path,
+    };
+    setOristudioCpDocumentSource(source);
+    set({
+      currentFileName: result.name,
+      currentFilePath: result.path,
+      dirty: false,
+      projectMessage: `Saved ${result.name}`,
+      importedCreasePattern: importedCreasePattern
+        ? {
+            ...importedCreasePattern,
+            source,
+          }
+        : null,
+      oristudioCpDocument: {
+        ...documentState,
+        source,
+      },
+    });
+    rememberRecent({
+      id: result.path ?? result.name,
+      title: documentState.summary.title || get().project.title,
+      filename: result.name,
+      savedAt: nowIso(),
+      text: contents,
+    });
+    return true;
+  };
+
+  const saveEditableCreasePatternAsOrh = async (fileService: FileService) => {
+    const documentState = get().oristudioCpDocument;
+    if (!documentState) return false;
+    if (!(await confirmLossyOrhWrite())) return false;
+    const contents = await exportOristudioCpDocumentAsOrh();
+    const importedCreasePattern = get().importedCreasePattern;
+    const result = await fileService.saveTextFile({
+      title: 'Save Oriedita ORH Document',
+      contents,
+      suggestedName: ensureExtension(get().currentFileName, 'orh'),
+      path: get().currentFilePath,
+      extensions: ['orh'],
+    });
+    if (!result) return false;
+
+    const source = {
+      format: 'orh' as const,
+      filename: result.name,
+      path: result.path,
+    };
+    setOristudioCpDocumentSource(source);
+    set({
+      currentFileName: result.name,
+      currentFilePath: result.path,
+      dirty: false,
+      projectMessage: `Saved ${result.name}`,
+      importedCreasePattern: importedCreasePattern
+        ? {
+            ...importedCreasePattern,
+            source,
+          }
+        : null,
+      oristudioCpDocument: {
+        ...documentState,
+        source,
+      },
+    });
+    rememberRecent({
+      id: result.path ?? result.name,
+      title: documentState.summary.title || get().project.title,
+      filename: result.name,
+      savedAt: nowIso(),
+      text: contents,
+    });
+    return true;
   };
 
   const saveEditableCreasePattern = async (
@@ -812,6 +1043,12 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         projectMessage: null,
       });
       return false;
+    }
+    if (!forceSaveAs && isOrieditaOriFilename(get().currentFileName)) {
+      return saveEditableCreasePatternAsOri(fileService);
+    }
+    if (!forceSaveAs && isOrieditaOrhFilename(get().currentFileName)) {
+      return saveEditableCreasePatternAsOrh(fileService);
     }
 
     const input = await currentEditableCreasePatternProjectInput(
@@ -893,7 +1130,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           set({ engineReady: true, oristudioCpOperationDescriptors: operationDescriptors });
           return;
         }
-        await releaseOristudioCpDocument();
+        await releaseEditableCreasePattern();
         set({
           ...projectStateFromSnapshot(snapshot, get().project.title),
           documentMode: 'tree',
@@ -910,6 +1147,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           selection: { kind: 'tree' },
           oristudioCpSelection: emptyOristudioCpSelection(),
           oristudioCpActiveDiagnosticId: null,
+          oristudioCpRevision: 0,
+          oristudioCpFoldedFigures: [],
+          oristudioCpActiveFoldedFigureId: null,
           symmetryAuthoringPairs: [],
           dirty: false,
           lastOptimization: null,
@@ -927,7 +1167,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       if (!(await confirmDiscardDirty(get().dirty))) return;
       set({ status: 'loading_engine', error: null, projectMessage: null });
       try {
-        await releaseOristudioCpDocument();
+        await releaseEditableCreasePattern();
         const api = await getEngine();
         const snapshot = await createBlankTree(api);
         set({
@@ -948,6 +1188,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           selection: { kind: 'tree' },
           oristudioCpSelection: emptyOristudioCpSelection(),
           oristudioCpActiveDiagnosticId: null,
+          oristudioCpRevision: 0,
+          oristudioCpFoldedFigures: [],
+          oristudioCpActiveFoldedFigureId: null,
           toolMode: 'select',
           symmetryAuthoringPairs: [],
           creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
@@ -968,7 +1211,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       if (!(await confirmDiscardDirty(get().dirty))) return;
       set({ status: 'loading_engine', error: null, projectMessage: null });
       try {
-        await releaseOristudioCpDocument();
+        await releaseEditableCreasePattern();
         const api = await getEngine();
         const snapshot = await createStarterTree(api);
         set({
@@ -989,6 +1232,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           selection: { kind: 'tree' },
           oristudioCpSelection: emptyOristudioCpSelection(),
           oristudioCpActiveDiagnosticId: null,
+          oristudioCpRevision: 0,
+          oristudioCpFoldedFigures: [],
+          oristudioCpActiveFoldedFigureId: null,
           toolMode: 'select',
           symmetryAuthoringPairs: [],
           creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
@@ -1010,7 +1256,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       if (!(await confirmDiscardDirty(get().dirty))) return;
       set({ status: 'loading_engine', error: null, projectMessage: null });
       try {
-        await releaseOristudioCpDocument();
+        await releaseEditableCreasePattern();
         const documentState = await createBlankOristudioCpDocument();
         set({
           project: { ...createEmptyProject(), title: documentState.summary.title ?? 'Untitled CP' },
@@ -1031,6 +1277,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           selection: { kind: 'tree' },
           oristudioCpSelection: emptyOristudioCpSelection(),
           oristudioCpActiveDiagnosticId: null,
+          oristudioCpRevision: 0,
+          oristudioCpFoldedFigures: [],
+          oristudioCpActiveFoldedFigureId: null,
           oristudioCpSymmetry: defaultOristudioCpSymmetry(),
           toolMode: 'select',
           symmetryAuthoringPairs: [],
@@ -1128,6 +1377,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
               };
         const nextDocument = checked.documentState;
         const diagnosticEntries = nextDocument.lastCommandResult?.diagnostic_entries ?? [];
+        const nextRevision = editsCreasePattern
+          ? get().oristudioCpRevision + 1
+          : get().oristudioCpRevision;
         set({
           oristudioCpDocument: nextDocument,
           activeEditingSurface: 'crease-pattern',
@@ -1145,6 +1397,10 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
             previousSelection,
             nextDocument.document
           ),
+          oristudioCpRevision: nextRevision,
+          oristudioCpFoldedFigures: editsCreasePattern
+            ? staleGeneratedFoldedFigures(get().oristudioCpFoldedFigures)
+            : get().oristudioCpFoldedFigures,
           oristudioCpHistoryPast: previousDocument
             ? mutatesDocument
               ? [
@@ -1231,7 +1487,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       };
 
       try {
-        const nextDocument = await restoreOristudioCpDocument(
+        const nextDocument = await restoreOristudioCpDocumentInPlace(
           nextSnapshot,
           currentDocumentState.source,
           currentDocumentState.lastCommandResult
@@ -1282,7 +1538,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     },
 
     clearOristudioCpDocument: async () => {
-      await releaseOristudioCpDocument();
+      await releaseEditableCreasePattern();
       set({
         oristudioCpDocument: null,
         oristudioCpLineage: null,
@@ -1290,6 +1546,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         oristudioCpHistoryPast: [],
         oristudioCpHistoryFuture: [],
         oristudioCpActiveDiagnosticId: null,
+        oristudioCpRevision: 0,
+        oristudioCpFoldedFigures: [],
+        oristudioCpActiveFoldedFigureId: null,
         oristudioCpCamvResult: null,
         oristudioCpSymmetry: defaultOristudioCpSymmetry(),
       });
@@ -1301,7 +1560,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       try {
         const file = await fileService.openTextFile({
           title: 'Open Ori Studio Project or Crease Pattern',
-          extensions: [NATIVE_PROJECT_EXTENSION, 'tmd', 'tmd4', 'tmd5', 'fold', 'cp'],
+          extensions: [NATIVE_PROJECT_EXTENSION, 'tmd', 'tmd4', 'tmd5', 'fold', 'cp', 'ori', 'orh'],
         });
         if (!file) return false;
         if (isNativeProjectFilename(file.name)) {
@@ -1426,6 +1685,53 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           suggestedName: defaultFilename(get().project.title, 'fold'),
           path: null,
           extensions: ['fold'],
+        });
+        if (!result) return false;
+        set({ projectMessage: `Exported ${result.name}` });
+        return true;
+      } catch (error) {
+        set({ status: 'error', error: engineError(error) });
+        return false;
+      }
+    },
+
+    exportOri: async (fileService = getFileService()) => {
+      try {
+        if (rejectDisabled('file.exportOri')) return false;
+        const contents = await exportOristudioCpDocumentAsOri();
+        const result = await fileService.saveTextFile({
+          title: 'Export Oriedita ORI Document',
+          contents,
+          suggestedName: defaultFilename(
+            get().oristudioCpDocument?.summary.title || get().project.title,
+            'ori'
+          ),
+          path: null,
+          extensions: ['ori'],
+        });
+        if (!result) return false;
+        set({ projectMessage: `Exported ${result.name}` });
+        return true;
+      } catch (error) {
+        set({ status: 'error', error: engineError(error) });
+        return false;
+      }
+    },
+
+    exportOrh: async (fileService = getFileService()) => {
+      try {
+        if (rejectDisabled('file.exportOrh')) return false;
+        if (!(await confirmLossyOrhWrite())) return false;
+        const contents = await exportOristudioCpDocumentAsOrh();
+        const result = await fileService.saveTextFile({
+          title: 'Export Oriedita ORH Document',
+          contents,
+          suggestedName: defaultFilename(
+            get().oristudioCpDocument?.summary.title || get().project.title,
+            'orh'
+          ),
+          path: null,
+          extensions: ['orh'],
         });
         if (!result) return false;
         set({ projectMessage: `Exported ${result.name}` });

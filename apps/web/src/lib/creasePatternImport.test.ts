@@ -63,6 +63,25 @@ describe('crease pattern import', () => {
           edges_assignment: ['B', 'B', 'B', 'B'],
           faces_vertices: [[0, 1, 2, 3]],
         },
+        {
+          frame_title: 'embedded folded',
+          frame_classes: ['foldedForm'],
+          frame_parent: 1,
+          frame_inherit: true,
+          vertices_coords: [
+            [0, 0],
+            [0.5, 0],
+            [0, 0.5],
+          ],
+          edges_vertices: [
+            [0, 1],
+            [1, 2],
+            [2, 0],
+          ],
+          edges_assignment: ['B', 'B', 'B'],
+          faces_vertices: [[0, 1, 2]],
+          faceOrders: [[0, 0, -1]],
+        },
       ],
     };
 
@@ -74,6 +93,17 @@ describe('crease pattern import', () => {
 
     expect(result.document.selectedFrame?.index).toBe(1);
     expect(result.document.selectedFrame?.title).toBe('usable cp');
+    expect(result.document.foldFrames).toHaveLength(3);
+    expect(result.document.foldedFormFrames).toHaveLength(1);
+    expect(result.document.foldedFormFrames[0]).toMatchObject({
+      index: 2,
+      title: 'embedded folded',
+      parentIndex: 1,
+      inherited: true,
+      foldedForm: true,
+      faces: 1,
+    });
+    expect(result.document.sourceFold?.file_frames?.[1]?.frame_title).toBe('embedded folded');
     expect(result.document.stats.faces).toBe(1);
     expect(result.project.title).toBe('usable cp');
   });

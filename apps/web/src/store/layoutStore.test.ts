@@ -55,16 +55,14 @@ describe('layout store', () => {
 
     applyDefaultLayout(api);
 
-    expect(api.addPanel).toHaveBeenCalledTimes(8);
+    expect(api.addPanel).toHaveBeenCalledTimes(6);
     expect(api.addPanel.mock.calls.map(([options]) => options.id)).toEqual([
       'design',
       'crease-pattern',
       'simulator',
       'inspector',
       'diagnostics',
-      'folded-base',
       'conditions',
-      'files',
     ]);
     expect(api.addPanel.mock.calls[1][0]).toMatchObject({
       id: 'crease-pattern',
@@ -82,11 +80,6 @@ describe('layout store', () => {
       position: { referencePanel: 'design', direction: 'right' },
     });
     expect(api.addPanel.mock.calls[5][0]).toMatchObject({
-      id: 'folded-base',
-      initialHeight: 320,
-      position: { referencePanel: 'inspector', direction: 'below' },
-    });
-    expect(api.addPanel.mock.calls[6][0]).toMatchObject({
       id: 'conditions',
       inactive: true,
       position: { referenceGroup: 'inspector-group' },
@@ -137,7 +130,7 @@ describe('layout store', () => {
     useLayoutStore.getState().resetLayout();
 
     expect(api.clear).toHaveBeenCalledOnce();
-    expect(api.addPanel).toHaveBeenCalledTimes(8);
+    expect(api.addPanel).toHaveBeenCalledTimes(6);
     expect(localStorage.getItem('treemaker-web-layout')).toContain('reset');
   });
 });

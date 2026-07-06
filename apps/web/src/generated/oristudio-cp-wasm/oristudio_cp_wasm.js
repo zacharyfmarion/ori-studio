@@ -97,9 +97,196 @@ export function export_fold(handle) {
 
 /**
  * @param {number} handle
+ * @returns {string}
+ */
+export function export_fold_file(handle) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ret = wasm.export_fold_file(handle);
+        var ptr1 = ret[0];
+        var len1 = ret[1];
+        if (ret[3]) {
+            ptr1 = 0; len1 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred2_0 = ptr1;
+        deferred2_1 = len1;
+        return getStringFromWasm0(ptr1, len1);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
+ * @param {number} handle
+ * @returns {string}
+ */
+export function export_orh(handle) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ret = wasm.export_orh(handle);
+        var ptr1 = ret[0];
+        var len1 = ret[1];
+        if (ret[3]) {
+            ptr1 = 0; len1 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred2_0 = ptr1;
+        deferred2_1 = len1;
+        return getStringFromWasm0(ptr1, len1);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
+ * @param {number} handle
+ * @returns {string}
+ */
+export function export_ori(handle) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ret = wasm.export_ori(handle);
+        var ptr1 = ret[0];
+        var len1 = ret[1];
+        if (ret[3]) {
+            ptr1 = 0; len1 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred2_0 = ptr1;
+        deferred2_1 = len1;
+        return getStringFromWasm0(ptr1, len1);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
+ * @param {number} handle
+ * @returns {any}
+ */
+export function folded_figure_duplicate(handle) {
+    const ret = wasm.folded_figure_duplicate(handle);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {number} document_handle
+ * @param {number} starting_face_id
+ * @param {any} order
+ * @param {any} model
+ * @returns {any}
+ */
+export function folded_figure_fold(document_handle, starting_face_id, order, model) {
+    const ret = wasm.folded_figure_fold(document_handle, starting_face_id, order, model);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {number} handle
+ * @returns {any}
+ */
+export function folded_figure_fold_another(handle) {
+    const ret = wasm.folded_figure_fold_another(handle);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {number} document_handle
+ * @param {any} selected_line_ids
+ * @param {number} starting_face_id
+ * @param {any} order
+ * @param {any} model
+ * @returns {any}
+ */
+export function folded_figure_fold_selected(document_handle, selected_line_ids, starting_face_id, order, model) {
+    const ret = wasm.folded_figure_fold_selected(document_handle, selected_line_ids, starting_face_id, order, model);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {number} handle
+ * @param {number} objective
+ * @param {any} initial_order
+ * @returns {any}
+ */
+export function folded_figure_fold_to_case(handle, objective, initial_order) {
+    const ret = wasm.folded_figure_fold_to_case(handle, objective, initial_order);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {number} handle
+ * @param {any} display_style
+ * @param {any} options
+ * @returns {any}
+ */
+export function folded_figure_render_snapshot(handle, display_style, options) {
+    const ret = wasm.folded_figure_render_snapshot(handle, display_style, options);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {number} handle
+ * @param {any} model
+ * @returns {any}
+ */
+export function folded_figure_set_model(handle, model) {
+    const ret = wasm.folded_figure_set_model(handle, model);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {number} handle
+ * @returns {any}
+ */
+export function folded_figure_snapshot(handle) {
+    const ret = wasm.folded_figure_snapshot(handle);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {number} handle
  */
 export function free_document(handle) {
     const ret = wasm.free_document(handle);
+    if (ret[1]) {
+        throw takeFromExternrefTable0(ret[0]);
+    }
+}
+
+/**
+ * @param {number} handle
+ */
+export function free_folded_figure(handle) {
+    const ret = wasm.free_folded_figure(handle);
     if (ret[1]) {
         throw takeFromExternrefTable0(ret[0]);
     }
@@ -165,6 +352,49 @@ export function load_fold(text, title) {
 }
 
 /**
+ * @param {string} text
+ * @returns {number}
+ */
+export function load_fold_file(text) {
+    const ptr0 = passStringToWasm0(text, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.load_fold_file(ptr0, len0);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return ret[0] >>> 0;
+}
+
+/**
+ * @param {string} text
+ * @returns {number}
+ */
+export function load_orh(text) {
+    const ptr0 = passStringToWasm0(text, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.load_orh(ptr0, len0);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return ret[0] >>> 0;
+}
+
+/**
+ * @param {string} text
+ * @param {boolean} accept_unknown_version
+ * @returns {number}
+ */
+export function load_ori(text, accept_unknown_version) {
+    const ptr0 = passStringToWasm0(text, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.load_ori(ptr0, len0, accept_unknown_version);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return ret[0] >>> 0;
+}
+
+/**
  * @param {number} handle
  * @param {any} operation
  * @param {any} payload
@@ -190,6 +420,24 @@ export function replace_line_segments(handle, line_ids, segments) {
         throw takeFromExternrefTable0(ret[1]);
     }
     return ret[0] >>> 0;
+}
+
+/**
+ * Replace the document behind an existing handle in place.
+ *
+ * Unlike [`load_document`], which allocates a fresh handle, this mutates the
+ * document already stored at `handle`. Undo/redo and whole-document edits use
+ * this so the handle stays stable (mirroring Oriedita's in-place
+ * `foldLineSet.setSave` restore), which keeps the editor's viewport from being
+ * treated as a brand-new document load.
+ * @param {number} handle
+ * @param {any} document
+ */
+export function restore_document(handle, document) {
+    const ret = wasm.restore_document(handle, document);
+    if (ret[1]) {
+        throw takeFromExternrefTable0(ret[0]);
+    }
 }
 function __wbg_get_imports() {
     const import0 = {
@@ -237,6 +485,10 @@ function __wbg_get_imports() {
         },
         __wbg___wbindgen_is_function_5cd60d5cf78b4eef: function(arg0) {
             const ret = typeof(arg0) === 'function';
+            return ret;
+        },
+        __wbg___wbindgen_is_null_2042690d351e14f0: function(arg0) {
+            const ret = arg0 === null;
             return ret;
         },
         __wbg___wbindgen_is_object_b4593df85baada48: function(arg0) {

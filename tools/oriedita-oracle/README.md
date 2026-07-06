@@ -39,9 +39,22 @@ selected move/copy. The lengthen groundwork includes
 `OritaCalc.extendToIntersectionPoint_2`. Point-tool commands cover the
 line-only portions of count-based and ratio-based segment division, including
 the worker-style line insertion splitting used by the handlers.
+Folded-render oracle coverage has started with a recording Java2D adapter that
+captures the real `FoldedFigure_Drawer` output as deterministic primitive
+records. The first scoped command is `folded-render-paper-front simple-square`;
+later render commands should extend the same primitive schema instead of
+reimplementing Oriedita drawing logic inside the oracle harness.
 
 The oracle intentionally compiles against a pinned Oriedita source checkout
 instead of reimplementing the behavior in Rust.
+
+## Baseline
+
+The native document interchange plan targets Oriedita commit
+`9d39135ae232cc03be4ffaf74baa7ae2df970507`. Build oracle fixtures against that
+checkout unless `implementation-plans/oriedita-source-map.md` and
+`implementation-plans/oriedita-native-document-interchange.md` are updated in
+the same change.
 
 ```bash
 ORIEDITA_SOURCE=/private/tmp/oriedita-research tools/oriedita-oracle/build_geometry_oracle.sh
@@ -57,3 +70,18 @@ ORIEDITA_GEOMETRY_ORACLE=tools/oriedita-oracle/build/oriedita-geometry-oracle \
 same built wrapper for scoped parity runs. If the oracle environment variables
 are unset, the Rust oracle tests exit early so normal `cargo test -p
 oristudio-cp` does not require Java.
+
+The native `.ori` oracle uses Oriedita's real Jackson save-file path and is
+built separately so the geometry oracle can remain dependency-light:
+
+```bash
+tools/oriedita-oracle/build_native_io_oracle.sh
+ORIEDITA_NATIVE_IO_ORACLE=tools/oriedita-oracle/build/oriedita-native-io-oracle \
+  cargo test -p oristudio-cp --test oriedita_io_oracle \
+    ori_import_and_export fold_root_import
+```
+
+This wrapper also resolves the Java `fold` dependency used by Oriedita's
+`FoldImporter`. That importer rejects FOLD `file_frames` in the pinned
+dependency, so embedded-frame preservation is covered by Rust round-trip tests
+while the native oracle covers root FOLD import semantics.

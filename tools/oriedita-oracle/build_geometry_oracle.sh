@@ -7,6 +7,7 @@ source_root="${ORIEDITA_SOURCE:-$repo_root/third_party/oriedita}"
 origami_source="$source_root/origami/src/main/java"
 common_source="$source_root/oriedita-common/src/main/java"
 data_source="$source_root/oriedita-data/src/main/java"
+ui_source="$source_root/oriedita-ui/src/main/java"
 build_root="$oracle_root/build"
 classes_root="$build_root/classes"
 
@@ -20,13 +21,18 @@ if [[ ! -d "$common_source" || ! -d "$data_source" ]]; then
   echo "Set ORIEDITA_SOURCE to the pinned Oriedita checkout." >&2
   exit 1
 fi
+if [[ ! -d "$ui_source" ]]; then
+  echo "Oriedita UI source not found under $source_root" >&2
+  echo "Set ORIEDITA_SOURCE to the pinned Oriedita checkout." >&2
+  exit 1
+fi
 
 rm -rf "$classes_root"
 mkdir -p "$classes_root"
 
 javac \
   -d "$classes_root" \
-  -sourcepath "$oracle_root/stubs:$oracle_root/src:$origami_source:$common_source:$data_source" \
+  -sourcepath "$oracle_root/stubs:$oracle_root/src:$origami_source:$common_source:$data_source:$ui_source" \
   "$origami_source/origami/Epsilon.java" \
   "$origami_source/origami/crease_pattern/CustomLineTypes.java" \
   "$origami_source/origami/crease_pattern/element/Point.java" \
@@ -58,11 +64,14 @@ javac \
   "$origami_source/origami/folding/element/Face.java" \
   "$origami_source/origami/folding/util/AverageCoordinates.java" \
   "$common_source/oriedita/editor/AbstractModel.java" \
+  "$common_source/oriedita/editor/Foldable.java" \
   "$common_source/oriedita/editor/canvas/LineStyle.java" \
   "$common_source/oriedita/editor/drawing/tools/Camera.java" \
   "$common_source/oriedita/editor/text/Text.java" \
   "$common_source/oriedita/editor/tools/StringOp.java" \
+  "$data_source/oriedita/editor/Colors.java" \
   "$data_source/oriedita/editor/databinding/GridModel.java" \
+  "$data_source/oriedita/editor/folded_figure/FoldedFigure_01.java" \
   "$data_source/oriedita/editor/canvas/OperationFrame.java" \
   "$data_source/oriedita/editor/save/TextSave.java" \
   "$data_source/oriedita/editor/save/Save.java" \
@@ -76,6 +85,11 @@ javac \
   "$data_source/oriedita/editor/export/OrhExporter.java" \
   "$data_source/oriedita/editor/export/ObjImporter.java" \
   "$data_source/oriedita/editor/export/DxfExporter.java" \
+  "$ui_source/oriedita/editor/drawing/tools/DrawingUtil.java" \
+  "$ui_source/oriedita/editor/drawing/WireFrame_Worker_Drawer.java" \
+  "$ui_source/oriedita/editor/drawing/FoldedFigure_Worker_Drawer.java" \
+  "$ui_source/oriedita/editor/drawing/FoldedFigure_Drawer.java" \
+  "$oracle_root/src/RecordingGraphics2D.java" \
   "$oracle_root/src/OrieditaGeometryOracle.java"
 
 cp "$source_root/oriedita/src/main/resources/fixData_22_5.bin" "$classes_root/fixData_22_5.bin"

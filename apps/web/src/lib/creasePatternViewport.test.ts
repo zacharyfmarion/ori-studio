@@ -9,6 +9,7 @@ import {
   cpLineColorClass,
   cpSelectionSize,
   cpSvgPointToModel,
+  expandedModelBoundsFromPoints,
   getCpGridLines,
   getCpVertices,
   getEditableCpModelBounds,
@@ -19,6 +20,7 @@ import {
   normalizeOrieditaGridSize,
   ORIEDITA_PAPER_BOUNDS,
   orieditaGridBaseState,
+  orieditaGridLinesForModelBounds,
   toggleCpSelectionList,
   visibleOrieditaGridMetadata,
 } from './creasePatternViewport';
@@ -427,5 +429,65 @@ describe('crease pattern viewport helpers', () => {
     expect(cpLineColorClass('Red1', 'agrh')).toBe('crease crease--kind-axial');
     expect(cpLineAssignmentLabel('Black0')).toBe('edge');
     expect(cpLineAssignmentLabel('Purple8')).toBe('purple');
+  });
+});
+
+describe('viewport-following (infinite) grid generation', () => {
+  const visibleGrid = visibleOrieditaGridMetadata(document.crease_pattern.grid);
+
+  it('tracks the visible region so the grid extends past the paper as it grows', () => {
+    // A region larger than the paper (which spans [-200, 200]) must produce grid
+    // lines well outside the paper, unlike a fixed paper-bounded grid.
+    const wide = orieditaGridLinesForModelBounds(
+      { minX: -1000, minY: -1000, maxX: 1000, maxY: 1000, spanX: 2000, spanY: 2000 },
+      visibleGrid
+    );
+    const maxCoordinate = Math.max(
+      ...wide.flatMap((line) => [line.a.x, line.a.y, line.b.x, line.b.y])
+    );
+    const minCoordinate = Math.min(
+      ...wide.flatMap((line) => [line.a.x, line.a.y, line.b.x, line.b.y])
+    );
+    expect(maxCoordinate).toBeGreaterThan(400);
+    expect(minCoordinate).toBeLessThan(-400);
+
+    // A smaller visible region generates a grid confined to that region, proving
+    // the extent follows the viewport rather than a fixed world.
+    const narrow = orieditaGridLinesForModelBounds(
+      { minX: -50, minY: -50, maxX: 50, maxY: 50, spanX: 100, spanY: 100 },
+      visibleGrid
+    );
+    const narrowMax = Math.max(
+      ...narrow.flatMap((line) => [line.a.x, line.a.y, line.b.x, line.b.y])
+    );
+    expect(narrowMax).toBeLessThan(400);
+    expect(wide.length).toBeGreaterThan(narrow.length);
+  });
+
+  it('caps line count for very large visible regions like Oriedita', () => {
+    const huge = orieditaGridLinesForModelBounds(
+      { minX: -100000, minY: -100000, maxX: 100000, maxY: 100000, spanX: 200000, spanY: 200000 },
+      visibleGrid
+    );
+    expect(huge.length).toBeGreaterThan(0);
+    expect(huge.length).toBeLessThan(1000);
+  });
+
+  it('pads viewport corners into a model region by the requested margin', () => {
+    const bounds = expandedModelBoundsFromPoints(
+      [
+        { x: 0, y: 0 },
+        { x: 100, y: 0 },
+        { x: 0, y: 40 },
+        { x: 100, y: 40 },
+      ],
+      0.5
+    );
+    expect(bounds.minX).toBeCloseTo(-50);
+    expect(bounds.maxX).toBeCloseTo(150);
+    expect(bounds.minY).toBeCloseTo(-20);
+    expect(bounds.maxY).toBeCloseTo(60);
+    expect(bounds.spanX).toBeCloseTo(200);
+    expect(bounds.spanY).toBeCloseTo(80);
   });
 });

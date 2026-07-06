@@ -13,7 +13,31 @@ export function export_cp(handle: number): string;
 
 export function export_fold(handle: number): string;
 
+export function export_fold_file(handle: number): string;
+
+export function export_orh(handle: number): string;
+
+export function export_ori(handle: number): string;
+
+export function folded_figure_duplicate(handle: number): any;
+
+export function folded_figure_fold(document_handle: number, starting_face_id: number, order: any, model: any): any;
+
+export function folded_figure_fold_another(handle: number): any;
+
+export function folded_figure_fold_selected(document_handle: number, selected_line_ids: any, starting_face_id: number, order: any, model: any): any;
+
+export function folded_figure_fold_to_case(handle: number, objective: number, initial_order: any): any;
+
+export function folded_figure_render_snapshot(handle: number, display_style: any, options: any): any;
+
+export function folded_figure_set_model(handle: number, model: any): any;
+
+export function folded_figure_snapshot(handle: number): any;
+
 export function free_document(handle: number): void;
+
+export function free_folded_figure(handle: number): void;
 
 export function insert_line_segments(handle: number, segments: any): number;
 
@@ -23,9 +47,26 @@ export function load_document(document: any): number;
 
 export function load_fold(text: string, title: string): number;
 
+export function load_fold_file(text: string): number;
+
+export function load_orh(text: string): number;
+
+export function load_ori(text: string, accept_unknown_version: boolean): number;
+
 export function preview_cp_command(handle: number, operation: any, payload: any): any;
 
 export function replace_line_segments(handle: number, line_ids: any, segments: any): number;
+
+/**
+ * Replace the document behind an existing handle in place.
+ *
+ * Unlike [`load_document`], which allocates a fresh handle, this mutates the
+ * document already stored at `handle`. Undo/redo and whole-document edits use
+ * this so the handle stays stable (mirroring Oriedita's in-place
+ * `foldLineSet.setSave` restore), which keeps the editor's viewport from being
+ * treated as a brand-new document load.
+ */
+export function restore_document(handle: number, document: any): void;
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
@@ -37,13 +78,29 @@ export interface InitOutput {
     readonly execute_cp_command: (a: number, b: any, c: any) => [number, number, number];
     readonly export_cp: (a: number) => [number, number, number, number];
     readonly export_fold: (a: number) => [number, number, number, number];
+    readonly export_fold_file: (a: number) => [number, number, number, number];
+    readonly export_orh: (a: number) => [number, number, number, number];
+    readonly export_ori: (a: number) => [number, number, number, number];
+    readonly folded_figure_duplicate: (a: number) => [number, number, number];
+    readonly folded_figure_fold: (a: number, b: number, c: any, d: any) => [number, number, number];
+    readonly folded_figure_fold_another: (a: number) => [number, number, number];
+    readonly folded_figure_fold_selected: (a: number, b: any, c: number, d: any, e: any) => [number, number, number];
+    readonly folded_figure_fold_to_case: (a: number, b: number, c: any) => [number, number, number];
+    readonly folded_figure_render_snapshot: (a: number, b: any, c: any) => [number, number, number];
+    readonly folded_figure_set_model: (a: number, b: any) => [number, number, number];
+    readonly folded_figure_snapshot: (a: number) => [number, number, number];
     readonly free_document: (a: number) => [number, number];
+    readonly free_folded_figure: (a: number) => [number, number];
     readonly insert_line_segments: (a: number, b: any) => [number, number, number];
     readonly load_cp: (a: number, b: number, c: number, d: number) => [number, number, number];
     readonly load_document: (a: any) => [number, number, number];
     readonly load_fold: (a: number, b: number, c: number, d: number) => [number, number, number];
+    readonly load_fold_file: (a: number, b: number) => [number, number, number];
+    readonly load_orh: (a: number, b: number) => [number, number, number];
+    readonly load_ori: (a: number, b: number, c: number) => [number, number, number];
     readonly preview_cp_command: (a: number, b: any, c: any) => [number, number, number];
     readonly replace_line_segments: (a: number, b: any, c: any) => [number, number, number];
+    readonly restore_document: (a: number, b: any) => [number, number];
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_exn_store: (a: number) => void;
