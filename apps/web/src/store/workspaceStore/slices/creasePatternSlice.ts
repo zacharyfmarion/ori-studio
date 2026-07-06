@@ -588,8 +588,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       refreshFoldedFigureSelectionMarkers(previousActiveId, oristudioCpActiveFoldedFigureId);
     },
 
-    moveOristudioCpFoldedFigure: (id, delta) => {
-      if (Math.abs(delta.x) < 1e-9 && Math.abs(delta.y) < 1e-9) return;
+    moveOristudioCpFoldedFigure: (id, displayDelta) => {
+      if (Math.abs(displayDelta.x) < 1e-9 && Math.abs(displayDelta.y) < 1e-9) return;
       set({
         oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((figure) => {
           if (figure.id !== id) return figure;
@@ -597,8 +597,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           return {
             ...figure,
             displayOffset: {
-              x: displayOffset.x + delta.x,
-              y: displayOffset.y + delta.y,
+              x: displayOffset.x + displayDelta.x,
+              y: displayOffset.y + displayDelta.y,
             },
           };
         }),

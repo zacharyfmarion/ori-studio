@@ -1293,6 +1293,24 @@ describe('CreasePatternPanel', () => {
     expect(container.querySelectorAll('.cp-generated-folded-figure-primitive')).toHaveLength(4);
   });
 
+  it('renders generated folded figure display offsets as display-space translations', () => {
+    const figure: OristudioCpFoldedFigureEntry = {
+      ...generatedFoldedFigure(),
+      displayOffset: { x: 12, y: -8 },
+    };
+    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
+      documentMode: 'crease-pattern',
+      importedCreasePattern: importedCpDocument(),
+      oristudioCpDocument: editableCpState(),
+      oristudioCpFoldedFigures: [figure],
+      oristudioCpActiveFoldedFigureId: figure.id,
+    });
+
+    expect(
+      container.querySelector('[data-folded-figure-id="generated-1"]')?.getAttribute('transform')
+    ).toBe('translate(12 -8)');
+  });
+
   it('activates and command-drags generated folded figures in the editable CP grid', () => {
     const first = generatedFoldedFigure();
     const second: OristudioCpFoldedFigureEntry = {
@@ -1314,9 +1332,8 @@ describe('CreasePatternPanel', () => {
       moveOristudioCpFoldedFigure,
     });
     const canvas = setCanvasClientRect(container);
-    const bounds = getEditableCpModelBounds(editableCp.document);
-    const start = modelPointToCpSvg({ x: 0, y: 0 }, bounds);
-    const end = modelPointToCpSvg({ x: 10, y: -5 }, bounds);
+    const start = { x: CP_PAPER_RECT.x + 120, y: CP_PAPER_RECT.y + 140 };
+    const end = { x: start.x + 30, y: start.y + 18 };
     const secondFigure = container.querySelector<SVGGElement>(
       '[data-folded-figure-id="generated-2"]'
     );
@@ -1364,8 +1381,75 @@ describe('CreasePatternPanel', () => {
     });
 
     expect(moveOristudioCpFoldedFigure).toHaveBeenCalledWith('generated-2', {
-      x: expect.closeTo(10, 6),
-      y: expect.closeTo(-5, 6),
+      x: expect.closeTo(30, 6),
+      y: expect.closeTo(18, 6),
+    });
+  });
+
+  it('command-drags generated folded figures in display space with an imported Oriedita camera', () => {
+    const camera: OrieditaCamera = {
+      cameraPositionX: -20,
+      cameraPositionY: 18,
+      cameraAngle: -30,
+      cameraMirror: -1,
+      cameraZoomX: 1.5,
+      cameraZoomY: 2,
+      displayPositionX: 330,
+      displayPositionY: 365,
+    };
+    const figure = generatedFoldedFigure();
+    const moveOristudioCpFoldedFigure = vi.fn();
+    const editableCp = editableCpState();
+    editableCp.document.metadata = {
+      'oriedita:ori:creasePatternCamera': camera,
+    };
+    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
+      documentMode: 'crease-pattern',
+      importedCreasePattern: importedCpDocument(),
+      oristudioCpDocument: editableCp,
+      oristudioCpFoldedFigures: [figure],
+      oristudioCpActiveFoldedFigureId: figure.id,
+      moveOristudioCpFoldedFigure,
+    });
+    const canvas = setCanvasClientRect(container);
+    const start = orieditaObjectToSvg({ x: 0, y: 0 }, camera);
+    const end = { x: start.x + 36, y: start.y + 24 };
+    const foldedFigure = container.querySelector<SVGGElement>(
+      '[data-folded-figure-id="generated-1"]'
+    );
+    expect(foldedFigure).not.toBeNull();
+
+    act(() => {
+      foldedFigure?.dispatchEvent(
+        new MouseEvent('pointerdown', {
+          bubbles: true,
+          button: 0,
+          metaKey: true,
+          clientX: start.x,
+          clientY: start.y,
+        })
+      );
+      canvas.dispatchEvent(
+        new MouseEvent('pointermove', {
+          bubbles: true,
+          button: 0,
+          clientX: end.x,
+          clientY: end.y,
+        })
+      );
+      canvas.dispatchEvent(
+        new MouseEvent('pointerup', {
+          bubbles: true,
+          button: 0,
+          clientX: end.x,
+          clientY: end.y,
+        })
+      );
+    });
+
+    expect(moveOristudioCpFoldedFigure).toHaveBeenCalledWith('generated-1', {
+      x: expect.closeTo(36, 6),
+      y: expect.closeTo(24, 6),
     });
   });
 

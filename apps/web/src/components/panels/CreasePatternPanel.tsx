@@ -1294,7 +1294,7 @@ interface CpSelectionResizeDrag {
 interface FoldedFigureMoveDrag {
   pointerId: number;
   figureId: string;
-  lastPoint: Point;
+  lastSvgPoint: Point;
 }
 
 interface CpSelectionTransformPreview {
@@ -2351,19 +2351,27 @@ export function CreasePatternPanel() {
     setOristudioCpSelection,
   ]);
 
-  const eventToEditableModelPoint = useCallback(
+  const eventToEditableSvgPoint = useCallback(
     (event: Pick<PointerEvent<Element>, 'clientX' | 'clientY'>): Point | null => {
       const svg = svgRef.current;
       if (!svg || !editableCp) return null;
       const bounds = svg.getBoundingClientRect();
       if (bounds.width <= 0 || bounds.height <= 0) return null;
-      const svgPoint = {
+      return {
         x: cpCanvasRect.x + ((event.clientX - bounds.left) / bounds.width) * cpCanvasRect.width,
         y: cpCanvasRect.y + ((event.clientY - bounds.top) / bounds.height) * cpCanvasRect.height,
       };
+    },
+    [cpCanvasRect, editableCp]
+  );
+
+  const eventToEditableModelPoint = useCallback(
+    (event: Pick<PointerEvent<Element>, 'clientX' | 'clientY'>): Point | null => {
+      const svgPoint = eventToEditableSvgPoint(event);
+      if (!svgPoint) return null;
       return editableSvgToModel(svgPoint);
     },
-    [cpCanvasRect, editableCp, editableSvgToModel]
+    [editableSvgToModel, eventToEditableSvgPoint]
   );
 
   const resolveEditableToolPoint = useCallback(
@@ -2700,18 +2708,18 @@ export function CreasePatternPanel() {
       setOristudioCpActiveFoldedFigure(figureId);
 
       if (!event.metaKey && !event.ctrlKey) return;
-      const point = eventToEditableModelPoint(event);
-      if (!point) return;
+      const svgPoint = eventToEditableSvgPoint(event);
+      if (!svgPoint) return;
       foldedFigureMoveDragRef.current = {
         pointerId: event.pointerId,
         figureId,
-        lastPoint: point,
+        lastSvgPoint: svgPoint,
       };
       svgRef.current?.setPointerCapture?.(event.pointerId);
     },
     [
       editableCp,
-      eventToEditableModelPoint,
+      eventToEditableSvgPoint,
       setActiveEditingSurface,
       setOristudioCpActiveFoldedFigure,
       spacePressed,
@@ -3123,15 +3131,15 @@ export function CreasePatternPanel() {
     (event: PointerEvent<SVGElement>) => {
       const foldedFigureMoveDrag = foldedFigureMoveDragRef.current;
       if (foldedFigureMoveDrag && foldedFigureMoveDrag.pointerId === event.pointerId) {
-        const point = eventToEditableModelPoint(event);
-        if (!point) return;
+        const svgPoint = eventToEditableSvgPoint(event);
+        if (!svgPoint) return;
         event.preventDefault();
         event.stopPropagation();
         const delta = {
-          x: point.x - foldedFigureMoveDrag.lastPoint.x,
-          y: point.y - foldedFigureMoveDrag.lastPoint.y,
+          x: svgPoint.x - foldedFigureMoveDrag.lastSvgPoint.x,
+          y: svgPoint.y - foldedFigureMoveDrag.lastSvgPoint.y,
         };
-        foldedFigureMoveDrag.lastPoint = point;
+        foldedFigureMoveDrag.lastSvgPoint = svgPoint;
         moveOristudioCpFoldedFigure(foldedFigureMoveDrag.figureId, delta);
         return;
       }
@@ -3205,6 +3213,7 @@ export function CreasePatternPanel() {
     [
       editableCpBounds,
       eventToEditableModelPoint,
+      eventToEditableSvgPoint,
       moveOristudioCpFoldedFigure,
       resolveEditableDrawPoint,
       updateSelectionMovePreview,
@@ -4940,17 +4949,7 @@ function isRenderableGeneratedFoldedFigure(figure: OristudioCpFoldedFigureEntry)
 function foldedFigureDisplayTransform(figure: OristudioCpFoldedFigureEntry): string | undefined {
   const offset = figure.displayOffset;
   if (!offset || (Math.abs(offset.x) < 1e-9 && Math.abs(offset.y) < 1e-9)) return undefined;
-  const delta = cpModelDeltaToSvgDelta(offset);
-  return `translate(${delta.x} ${delta.y})`;
-}
-
-function cpModelDeltaToSvgDelta(delta: Point): Point {
-  const origin = modelPointToCpSvg({ x: 0, y: 0 }, ORIEDITA_PAPER_BOUNDS);
-  const moved = modelPointToCpSvg(delta, ORIEDITA_PAPER_BOUNDS);
-  return {
-    x: moved.x - origin.x,
-    y: moved.y - origin.y,
-  };
+  return `translate(${offset.x} ${offset.y})`;
 }
 
 function GeneratedFoldedFigure({
