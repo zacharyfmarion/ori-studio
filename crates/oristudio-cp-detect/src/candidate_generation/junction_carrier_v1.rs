@@ -766,6 +766,8 @@ pub(super) fn sample_span_stats(
     let mut non_crease_sum = 0.0;
     let mut style_sums = [0.0_f64; 4];
     let mut assignment_sums = [0.0_f64; 4];
+    let mut weighted_assignment_sums = [0.0_f64; 4];
+    let mut weight_sum = 0.0_f64;
     let mut count = 0usize;
     let size = image_size as usize;
     for point in points {
@@ -778,10 +780,12 @@ pub(super) fn sample_span_stats(
         line_sum += line;
         non_crease_sum += evidence.dense.non_crease_probability[idx] as f64;
         for channel in 0..4 {
-            assignment_sums[channel] +=
-                evidence.dense.assignment_probability[idx * 4 + channel] as f64;
+            let probability = evidence.dense.assignment_probability[idx * 4 + channel] as f64;
+            assignment_sums[channel] += probability;
+            weighted_assignment_sums[channel] += line * probability;
             style_sums[channel] += evidence.dense.line_style_probability[idx * 4 + channel] as f64;
         }
+        weight_sum += line;
         count += 1;
     }
     if count == 0 {
@@ -795,7 +799,30 @@ pub(super) fn sample_span_stats(
         };
     }
     let inv = 1.0 / count as f64;
-    let assignment = assignment_from_sums(assignment_sums, options);
+    // Weight the assignment-head samples by ink presence: the head is only
+    // meaningful on strokes, and uniform sampling every 4px dilutes the
+    // channel means with background pixels until the label collapses to
+    // Unknown (measured at 18.9% of strict-matched hard edges). Requires at
+    // least half a pixel's worth of accumulated ink; darker spans (e.g.
+    // short-bypass proposals) keep the unweighted mean.
+    //
+    // `ink_weighted_assignment` makes the weighted sums the PRIMARY evidence
+    // (this changes selection scores and local-theorem rays, measured as a
+    // topology regression, so it defaults off). Independently, the weighted
+    // label is always stashed in `ink_label` so a post-selection pass can
+    // promote it over an Unknown primary label without touching selection.
+    let assignment_input = if options.ink_weighted_assignment && weight_sum >= 0.5 {
+        weighted_assignment_sums
+    } else {
+        assignment_sums
+    };
+    let mut assignment = assignment_from_sums(assignment_input, options);
+    if weight_sum >= 0.5 {
+        let ink = label_from_sums(weighted_assignment_sums);
+        if ink != AssignmentLabel::Unknown {
+            assignment.ink_label = Some(ink);
+        }
+    }
     SpanStats {
         line_min: line_min.min(line_sum * inv).clamp(0.0, 1.0),
         line_mean: (line_sum * inv).clamp(0.0, 1.0),
@@ -870,6 +897,31 @@ fn span_from_pair(
     }
 }
 
+/// Threshold rule shared by the primary (unweighted) label and the
+/// ink-weighted label so the two can only differ through their input sums.
+fn label_from_sums(sums: [f64; 4]) -> AssignmentLabel {
+    let total = sums.iter().sum::<f64>();
+    if total <= 1e-9 {
+        return AssignmentLabel::Unknown;
+    }
+    let probabilities = sums.map(|value| value / total);
+    let mut order = [0usize, 1, 2, 3];
+    order.sort_by(|left, right| probabilities[*right].total_cmp(&probabilities[*left]));
+    let best = order[0];
+    let confidence = probabilities[best];
+    let margin = confidence - probabilities[order[1]];
+    if confidence >= 0.60 && margin >= 0.12 {
+        match best {
+            0 => AssignmentLabel::Mountain,
+            1 => AssignmentLabel::Valley,
+            2 => AssignmentLabel::Boundary,
+            _ => AssignmentLabel::Unknown,
+        }
+    } else {
+        AssignmentLabel::Unknown
+    }
+}
+
 fn assignment_from_sums(
     sums: [f64; 4],
     _options: JunctionCarrierV1StrategyOptions,
@@ -885,16 +937,7 @@ fn assignment_from_sums(
     let second = order[1];
     let confidence = probabilities[best];
     let margin = confidence - probabilities[second];
-    let label = if confidence >= 0.60 && margin >= 0.12 {
-        match best {
-            0 => AssignmentLabel::Mountain,
-            1 => AssignmentLabel::Valley,
-            2 => AssignmentLabel::Boundary,
-            _ => AssignmentLabel::Unknown,
-        }
-    } else {
-        AssignmentLabel::Unknown
-    };
+    let label = label_from_sums(sums);
     AssignmentEvidence {
         mountain: probabilities[0].max(0.01),
         valley: probabilities[1].max(0.01),
@@ -909,6 +952,7 @@ fn assignment_from_sums(
         source: AssignmentEvidenceSource::ModelAssignmentHead,
         confidence,
         margin,
+        ink_label: None,
     }
 }
 
@@ -923,6 +967,7 @@ fn unknown_assignment() -> AssignmentEvidence {
         source: AssignmentEvidenceSource::Unknown,
         confidence: 0.0,
         margin: 0.0,
+        ink_label: None,
     }
 }
 
@@ -972,6 +1017,7 @@ pub(super) fn add_locked_border_spans(
                     source: AssignmentEvidenceSource::Inferred,
                     confidence: 1.0,
                     margin: 1.0,
+                    ink_label: None,
                 },
                 presence_probability: 0.99,
                 line_support_min: 1.0,

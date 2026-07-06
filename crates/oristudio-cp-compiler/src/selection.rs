@@ -67,6 +67,13 @@ pub struct SelectionOptions {
     /// Maximum number of spans the completion pass may add.
     #[serde(default = "default_completion_repair_budget")]
     pub completion_repair_budget: usize,
+    /// Enable the completion pass's destructive phases (removals and
+    /// conflict-partner swaps). Guarded to fire only where local-theorem
+    /// penalties are actually relieved, but still measured as a net topology
+    /// regression on the oracle benchmark (2026-07-05), so off by default
+    /// until they prove zero-regression.
+    #[serde(default)]
+    pub completion_removal_moves: bool,
 }
 
 const fn default_parity_repair_budget() -> usize {
@@ -114,6 +121,7 @@ impl Default for SelectionOptions {
             parity_repair_max_cost: default_parity_repair_max_cost(),
             completion_repair: default_completion_repair(),
             completion_repair_budget: default_completion_repair_budget(),
+            completion_removal_moves: false,
         }
     }
 }
@@ -1098,25 +1106,6 @@ fn completion_repair_ir_state(
                 .is_none_or(|conflicts| conflicts.is_disjoint(selected))
     };
 
-    #[derive(PartialEq)]
-    struct HeapEntry {
-        delta: f64,
-        span_id: usize,
-    }
-    impl Eq for HeapEntry {}
-    impl PartialOrd for HeapEntry {
-        fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-            Some(self.cmp(other))
-        }
-    }
-    impl Ord for HeapEntry {
-        fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-            self.delta
-                .total_cmp(&other.delta)
-                .then_with(|| other.span_id.cmp(&self.span_id))
-        }
-    }
-
     // Vertex -> candidate span ids, to refresh only the deltas an addition can
     // actually change (rays only change at the added span's two endpoints).
     let mut by_vertex = BTreeMap::<usize, Vec<usize>>::new();
@@ -1252,37 +1241,309 @@ fn completion_repair_ir_state(
                 }
             }
         }
-        let Some((_, first_id, second_id)) = best_pair else {
-            break 'outer;
-        };
-        for span_id in [first_id, second_id] {
-            let Some(span) = graph.crease_candidates.get(span_id) else {
-                continue;
-            };
-            selected.insert(span.id);
-            push_incident_rays(graph, span, &mut incident);
-            additions += 1;
-            for endpoint in span.vertices {
-                pair_dirty.insert(endpoint);
-                let Some(candidates) = by_vertex.get(&endpoint) else {
+        if let Some((_, first_id, second_id)) = best_pair {
+            for span_id in [first_id, second_id] {
+                let Some(span) = graph.crease_candidates.get(span_id) else {
                     continue;
                 };
-                for candidate_id in candidates {
-                    let Some(candidate) = graph.crease_candidates.get(*candidate_id) else {
+                selected.insert(span.id);
+                push_incident_rays(graph, span, &mut incident);
+                additions += 1;
+                refresh_add_candidates(
+                    graph,
+                    span.vertices,
+                    &by_vertex,
+                    &selected,
+                    &incident,
+                    &eligible,
+                    &delta_for,
+                    &mut heap,
+                    &mut pair_dirty,
+                );
+            }
+            continue 'outer;
+        }
+
+        // Phases 3-4 are destructive and opt-in: score alone cannot be trusted
+        // to justify removing ink (near-collinear twins share strokes, so the
+        // spurious twin can outscore the true one). Their acceptance therefore
+        // ALSO requires strictly positive penalty relief — healthy regions
+        // have zero penalty and become untouchable by construction.
+        if !options.completion_removal_moves {
+            break 'outer;
+        }
+
+        // Phase 3: best removal. A selected optional span whose presence
+        // creates penalties bigger than its score is dropped — the mirror of
+        // the add move, targeting spurious extras the beam let in. Returns
+        // (total delta, STRUCTURAL penalty relief); acceptance requires the
+        // structural relief to be strictly positive (see
+        // `ir_vertex_residuals_of` for why theorem relief cannot be trusted).
+        let removal_delta = |span: &CandidateCreaseSpan,
+                             incident: &BTreeMap<usize, Vec<IrIncidentRay>>|
+         -> (f64, f64) {
+            let mut relief = 0.0;
+            let mut structural_relief = 0.0;
+            if span_counts_for_local_theorems(span) {
+                for endpoint in span.vertices {
+                    let Some(vertex) = graph.vertices.get(endpoint) else {
                         continue;
                     };
-                    if !eligible(candidate, &selected) {
+                    if !ir_vertex_is_interior_fold_vertex(vertex) {
                         continue;
                     }
-                    let delta = delta_for(candidate, &incident, None);
+                    let mut rays_with = incident.get(&endpoint).cloned().unwrap_or_default();
+                    let before = ir_vertex_residuals_of(&mut rays_with, options);
+                    let other = if span.vertices[0] == endpoint {
+                        span.vertices[1]
+                    } else {
+                        span.vertices[0]
+                    };
+                    let Some(other_vertex) = graph.vertices.get(other) else {
+                        continue;
+                    };
+                    let angle = angle_degrees(vertex.point, other_vertex.point);
+                    let assignment = span.assignment_label();
+                    let mut rays_without = rays_with.clone();
+                    if let Some(index) = rays_without.iter().position(|ray| {
+                        ray.assignment == assignment && (ray.angle_degrees - angle).abs() < 1e-9
+                    }) {
+                        rays_without.swap_remove(index);
+                    }
+                    let after = ir_vertex_residuals_of(&mut rays_without, options);
+                    relief += before.total_penalty() - after.total_penalty();
+                    structural_relief += before.topology_penalty - after.topology_penalty;
+                }
+            }
+            (-span.selection_score(graph) + relief, structural_relief)
+        };
+        // Deleting an isolated segment (both interior endpoints drop to degree
+        // 0) banks two dangling-penalty reliefs while destroying real ink —
+        // degree-0 vertices cost nothing, so the score cannot defend a true
+        // but not-yet-connected segment. Such segments are the add phases'
+        // job to connect, never the removal phase's job to erase.
+        let erases_isolated_segment = |span: &CandidateCreaseSpan,
+                                       incident: &BTreeMap<usize, Vec<IrIncidentRay>>|
+         -> bool {
+            span.vertices.iter().all(|endpoint| {
+                graph
+                    .vertices
+                    .get(*endpoint)
+                    .is_none_or(ir_vertex_is_interior_fold_vertex)
+                    && incident.get(endpoint).is_none_or(|rays| rays.len() <= 1)
+            })
+        };
+        // A pure removal must not convert a degree-2 interior vertex into a
+        // new dangling one: that is how chain ends get nibbled away (the far
+        // dangling endpoint's relief pays for deleting the true chain link).
+        // Spur trims (1 -> 0 at one end, >=3 -> >=2 at the other) stay legal.
+        let creates_new_dangling = |span: &CandidateCreaseSpan,
+                                    incident: &BTreeMap<usize, Vec<IrIncidentRay>>|
+         -> bool {
+            span.vertices.iter().any(|endpoint| {
+                graph
+                    .vertices
+                    .get(*endpoint)
+                    .is_some_and(ir_vertex_is_interior_fold_vertex)
+                    && incident.get(endpoint).is_some_and(|rays| rays.len() == 2)
+            })
+        };
+        let removable = |span: &CandidateCreaseSpan,
+                         incident: &BTreeMap<usize, Vec<IrIncidentRay>>|
+         -> bool {
+            selected.contains(&span.id)
+                && span.selection_policy != CandidateSelectionPolicy::Locked
+                && !erases_isolated_segment(span, incident)
+        };
+        let mut best_removal: Option<(f64, usize)> = None;
+        for span_id in &selected {
+            let Some(span) = graph.crease_candidates.get(*span_id) else {
+                continue;
+            };
+            if span.selection_policy == CandidateSelectionPolicy::Locked
+                || erases_isolated_segment(span, &incident)
+                || creates_new_dangling(span, &incident)
+            {
+                continue;
+            }
+            let (delta, relief) = removal_delta(span, &incident);
+            if delta >= IR_RESCUE_MIN_IMPROVEMENT
+                && relief > 1e-9
+                && best_removal.is_none_or(|(best_delta, _)| delta > best_delta)
+            {
+                best_removal = Some((delta, *span_id));
+            }
+        }
+        if let Some((_, span_id)) = best_removal {
+            let Some(span) = graph.crease_candidates.get(span_id) else {
+                break 'outer;
+            };
+            selected.remove(&span_id);
+            remove_incident_rays(graph, span, &mut incident);
+            additions += 1;
+            refresh_add_candidates(
+                graph,
+                span.vertices,
+                &by_vertex,
+                &selected,
+                &incident,
+                &eligible,
+                &delta_for,
+                &mut heap,
+                &mut pair_dirty,
+            );
+            // Spans that were blocked by a hard conflict with the removed span
+            // are now eligible; surface them to the add phases.
+            if let Some(partners) = conflict_map.get(&span_id) {
+                for partner_id in partners {
+                    let Some(partner) = graph.crease_candidates.get(*partner_id) else {
+                        continue;
+                    };
+                    if !eligible(partner, &selected) {
+                        continue;
+                    }
+                    pair_dirty.insert(partner.vertices[0]);
+                    pair_dirty.insert(partner.vertices[1]);
+                    let delta = delta_for(partner, &incident, None);
                     if delta >= IR_RESCUE_MIN_IMPROVEMENT {
                         heap.push(HeapEntry {
                             delta,
-                            span_id: *candidate_id,
+                            span_id: *partner_id,
                         });
                     }
                 }
             }
+            continue 'outer;
+        }
+
+        // Phase 4: best swap — remove a selected span and add one of its hard
+        // conflict partners atomically. Targets the wrong-twin cases where
+        // selection kept a near-collinear displaced span whose partner is the
+        // true edge; neither the removal nor the addition clears the bar alone.
+        let mut best_swap: Option<(f64, usize, usize)> = None;
+        for span_id in &selected {
+            let Some(span) = graph.crease_candidates.get(*span_id) else {
+                continue;
+            };
+            if !removable(span, &incident) {
+                continue;
+            }
+            let Some(partners) = conflict_map.get(span_id) else {
+                continue;
+            };
+            let (out_delta, out_relief) = removal_delta(span, &incident);
+            remove_incident_rays(graph, span, &mut incident);
+            for partner_id in partners {
+                let Some(partner) = graph.crease_candidates.get(*partner_id) else {
+                    continue;
+                };
+                if selected.contains(partner_id)
+                    || matches!(
+                        partner.selection_policy,
+                        CandidateSelectionPolicy::Locked | CandidateSelectionPolicy::Discouraged
+                    )
+                {
+                    continue;
+                }
+                // The partner must conflict with nothing else that stays selected.
+                if conflict_map.get(partner_id).is_some_and(|conflicts| {
+                    conflicts
+                        .iter()
+                        .any(|id| *id != *span_id && selected.contains(id))
+                }) {
+                    continue;
+                }
+                // Post-swap dangling guard (the swap analogue of
+                // `creates_new_dangling`): the removal may strand an interior
+                // endpoint at degree 1 only if the partner re-attaches it.
+                // `incident` has the out-span's rays already removed here, so
+                // degree 1 now means degree 2 before the removal.
+                let strands_endpoint = span.vertices.iter().any(|endpoint| {
+                    graph
+                        .vertices
+                        .get(*endpoint)
+                        .is_some_and(ir_vertex_is_interior_fold_vertex)
+                        && incident.get(endpoint).is_some_and(|rays| rays.len() == 1)
+                        && !partner.vertices.contains(endpoint)
+                });
+                let erases_segment = span.vertices.iter().all(|endpoint| {
+                    graph
+                        .vertices
+                        .get(*endpoint)
+                        .is_none_or(ir_vertex_is_interior_fold_vertex)
+                        && incident.get(endpoint).is_none_or(|rays| rays.is_empty())
+                        && !partner.vertices.contains(endpoint)
+                });
+                if strands_endpoint || erases_segment {
+                    continue;
+                }
+                let in_delta = delta_for(partner, &incident, None);
+                // Structural relief of the add side (odd/dangling/degree only;
+                // theorem terms are label-noise — see removal_delta).
+                let mut in_structural_relief = 0.0;
+                if span_counts_for_local_theorems(partner) {
+                    for (endpoint, other) in [
+                        (partner.vertices[0], partner.vertices[1]),
+                        (partner.vertices[1], partner.vertices[0]),
+                    ] {
+                        let (Some(vertex), Some(other_vertex)) =
+                            (graph.vertices.get(endpoint), graph.vertices.get(other))
+                        else {
+                            continue;
+                        };
+                        if !ir_vertex_is_interior_fold_vertex(vertex) {
+                            continue;
+                        }
+                        let mut rays = incident.get(&endpoint).cloned().unwrap_or_default();
+                        let before = ir_vertex_residuals_of(&mut rays, options).topology_penalty;
+                        rays.push(IrIncidentRay {
+                            angle_degrees: angle_degrees(vertex.point, other_vertex.point),
+                            assignment: partner.assignment_label(),
+                        });
+                        let after = ir_vertex_residuals_of(&mut rays, options).topology_penalty;
+                        in_structural_relief += before - after;
+                    }
+                }
+                let combined = out_delta + in_delta;
+                // Same penalty-relief requirement as pure removals: a swap on
+                // healthy structure (net structural relief ~0) is
+                // score-shopping between twins that share ink, and score
+                // cannot tell them apart.
+                if combined >= IR_RESCUE_MIN_IMPROVEMENT
+                    && out_relief + in_structural_relief > 1e-9
+                    && best_swap.is_none_or(|(best_delta, _, _)| combined > best_delta)
+                {
+                    best_swap = Some((combined, *span_id, *partner_id));
+                }
+            }
+            push_incident_rays(graph, span, &mut incident);
+        }
+        let Some((_, out_id, in_id)) = best_swap else {
+            break 'outer;
+        };
+        let (Some(out_span), Some(in_span)) = (
+            graph.crease_candidates.get(out_id),
+            graph.crease_candidates.get(in_id),
+        ) else {
+            break 'outer;
+        };
+        selected.remove(&out_id);
+        remove_incident_rays(graph, out_span, &mut incident);
+        selected.insert(in_id);
+        push_incident_rays(graph, in_span, &mut incident);
+        additions += 1;
+        for vertices in [out_span.vertices, in_span.vertices] {
+            refresh_add_candidates(
+                graph,
+                vertices,
+                &by_vertex,
+                &selected,
+                &incident,
+                &eligible,
+                &delta_for,
+                &mut heap,
+                &mut pair_dirty,
+            );
         }
     }
     if additions == 0 {
@@ -1313,6 +1574,196 @@ fn push_incident_rays(
         angle_degrees: angle_degrees(vertex_b.point, vertex_a.point),
         assignment: span.assignment_label(),
     });
+}
+
+/// Post-selection assignment completion by local fold theorems: fill in
+/// UNKNOWN-labeled selected creases whose label is forced by their already
+/// confident neighbors. Two sound rules, iterated to a fixpoint:
+///
+/// - a degree-2 interior vertex is a pass-through point of one straight
+///   crease, so an unknown half copies its partner's M/V label;
+/// - at an even-degree interior vertex with exactly one unknown crease,
+///   Maekawa (M - V = +/-2 for flat-foldable vertices) often pins the unknown
+///   uniquely (known M-V difference of +/-1 or +/-3).
+///
+/// Never touches a non-Unknown label and never changes topology, so it can
+/// only convert wrong-because-Unknown edges into right (or differently
+/// wrong) ones; it cannot break a correct label. Returns the number of spans
+/// relabeled.
+pub fn propagate_forced_assignments(
+    graph: &mut CandidateGraph,
+    selected_span_ids: &BTreeSet<usize>,
+) -> usize {
+    // vertex -> selected crease span ids, for interior fold vertices. Labels
+    // only ever move Unknown -> M/V here, never to Boundary/Flat, so this
+    // structure is stable across sweeps and is built once.
+    let mut incident = BTreeMap::<usize, Vec<usize>>::new();
+    for span_id in selected_span_ids {
+        let Some(span) = graph.crease_candidates.get(*span_id) else {
+            continue;
+        };
+        if span.boundary_role() != CandidateCreaseBoundaryRole::None
+            || matches!(
+                span.assignment_label(),
+                AssignmentLabel::Boundary | AssignmentLabel::Flat
+            )
+        {
+            continue;
+        }
+        for endpoint in span.vertices {
+            if graph
+                .vertices
+                .get(endpoint)
+                .is_some_and(ir_vertex_is_interior_fold_vertex)
+            {
+                incident.entry(endpoint).or_default().push(*span_id);
+            }
+        }
+    }
+    let mut relabeled = 0usize;
+    loop {
+        let mut changed = false;
+        'vertices: for spans in incident.values() {
+            let mut unknown_id = None;
+            let mut mountains = 0i32;
+            let mut valleys = 0i32;
+            for span_id in spans {
+                match graph.crease_candidates[*span_id].assignment_label() {
+                    AssignmentLabel::Mountain => mountains += 1,
+                    AssignmentLabel::Valley => valleys += 1,
+                    AssignmentLabel::Unknown => {
+                        if unknown_id.replace(*span_id).is_some() {
+                            continue 'vertices;
+                        }
+                    }
+                    _ => continue 'vertices,
+                }
+            }
+            let Some(unknown_id) = unknown_id else {
+                continue;
+            };
+            let label = if spans.len() == 2 {
+                // Pass-through point: copy the partner's label.
+                match (mountains, valleys) {
+                    (1, 0) => Some(AssignmentLabel::Mountain),
+                    (0, 1) => Some(AssignmentLabel::Valley),
+                    _ => None,
+                }
+            } else if spans.len() >= 4 && spans.len() % 2 == 0 {
+                // Maekawa: known difference d, unknown x in {+1,-1}, |d+x| = 2.
+                match mountains - valleys {
+                    1 | -3 => Some(AssignmentLabel::Mountain),
+                    -1 | 3 => Some(AssignmentLabel::Valley),
+                    _ => None,
+                }
+            } else {
+                None
+            };
+            if let Some(label) = label
+                && let Some(span) = graph.crease_candidates.get_mut(unknown_id)
+            {
+                span.assignment_evidence.observed_label = label;
+                relabeled += 1;
+                changed = true;
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+    relabeled
+}
+
+/// Max-heap entry for the completion pass's single-move phase.
+#[derive(PartialEq)]
+struct HeapEntry {
+    delta: f64,
+    span_id: usize,
+}
+impl Eq for HeapEntry {}
+impl PartialOrd for HeapEntry {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for HeapEntry {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.delta
+            .total_cmp(&other.delta)
+            .then_with(|| other.span_id.cmp(&self.span_id))
+    }
+}
+
+/// Recompute the single-move add deltas of every eligible candidate incident
+/// to either of `vertices` and push the improving ones into the heap; marks
+/// the vertices dirty for the next pair scan. Called after any move that
+/// changes the rays at those vertices (stale-high heap entries are lazily
+/// revalidated on pop, but stale-LOW entries would be missed without this).
+#[allow(clippy::too_many_arguments)]
+fn refresh_add_candidates(
+    graph: &CandidateGraph,
+    vertices: [usize; 2],
+    by_vertex: &BTreeMap<usize, Vec<usize>>,
+    selected: &BTreeSet<usize>,
+    incident: &BTreeMap<usize, Vec<IrIncidentRay>>,
+    eligible: &impl Fn(&CandidateCreaseSpan, &BTreeSet<usize>) -> bool,
+    delta_for: &impl Fn(
+        &CandidateCreaseSpan,
+        &BTreeMap<usize, Vec<IrIncidentRay>>,
+        Option<&CandidateCreaseSpan>,
+    ) -> f64,
+    heap: &mut std::collections::BinaryHeap<HeapEntry>,
+    pair_dirty: &mut BTreeSet<usize>,
+) {
+    for endpoint in vertices {
+        pair_dirty.insert(endpoint);
+        let Some(candidates) = by_vertex.get(&endpoint) else {
+            continue;
+        };
+        for candidate_id in candidates {
+            let Some(candidate) = graph.crease_candidates.get(*candidate_id) else {
+                continue;
+            };
+            if !eligible(candidate, selected) {
+                continue;
+            }
+            let delta = delta_for(candidate, incident, None);
+            if delta >= IR_RESCUE_MIN_IMPROVEMENT {
+                heap.push(HeapEntry {
+                    delta,
+                    span_id: *candidate_id,
+                });
+            }
+        }
+    }
+}
+
+/// Remove one instance of `span`'s two incident rays from the per-vertex map
+/// (the inverse of [`push_incident_rays`]).
+fn remove_incident_rays(
+    graph: &CandidateGraph,
+    span: &CandidateCreaseSpan,
+    incident: &mut BTreeMap<usize, Vec<IrIncidentRay>>,
+) {
+    if !span_counts_for_local_theorems(span) {
+        return;
+    }
+    let [a, b] = span.vertices;
+    let (Some(vertex_a), Some(vertex_b)) = (graph.vertices.get(a), graph.vertices.get(b)) else {
+        return;
+    };
+    let assignment = span.assignment_label();
+    let mut pop = |vertex: usize, angle: f64| {
+        if let Some(rays) = incident.get_mut(&vertex)
+            && let Some(index) = rays.iter().position(|ray| {
+                ray.assignment == assignment && (ray.angle_degrees - angle).abs() < 1e-9
+            })
+        {
+            rays.swap_remove(index);
+        }
+    };
+    pop(a, angle_degrees(vertex_a.point, vertex_b.point));
+    pop(b, angle_degrees(vertex_b.point, vertex_a.point));
 }
 
 fn ir_selected_with_candidate(
@@ -1471,10 +1922,20 @@ fn accumulate_ir_vertex_residuals(
 
 /// Total penalty of one interior fold vertex; sorts the rays in place.
 fn ir_vertex_penalty(rays: &mut [IrIncidentRay], options: &SelectionOptions) -> f64 {
+    ir_vertex_residuals_of(rays, options).total_penalty()
+}
+
+/// Full residual breakdown of one interior fold vertex; sorts rays in place.
+/// The destructive completion phases gate on `topology_penalty` (odd degree,
+/// dangling, non-collinear degree-2) specifically: `local_theorem_penalty`
+/// (Kawasaki/Maekawa) is noisy on real inputs — Unknown assignment labels and
+/// rectified-angle error make it nonzero on perfectly correct topology — so
+/// it must not be allowed to justify removing ink.
+fn ir_vertex_residuals_of(rays: &mut [IrIncidentRay], options: &SelectionOptions) -> IrStateResiduals {
     rays.sort_by(|left, right| left.angle_degrees.total_cmp(&right.angle_degrees));
     let mut residuals = IrStateResiduals::default();
     accumulate_ir_vertex_residuals(rays, options, &mut residuals);
-    residuals.total_penalty()
+    residuals
 }
 
 fn span_counts_for_local_theorems(span: &CandidateCreaseSpan) -> bool {
@@ -5690,6 +6151,9 @@ mod tests {
             max_beam_candidates: 0,
             parity_repair: false,
             completion_repair,
+            // The destructive-phase tests exercise removals and swaps; the
+            // add-only tests are unaffected by the flag.
+            completion_removal_moves: completion_repair,
             ..SelectionOptions::default()
         }
     }
@@ -5821,6 +6285,181 @@ mod tests {
         );
     }
 
+    /// A seeded spur span leaving a dangling interior vertex must be removed:
+    /// its positive standalone score is smaller than the dangling penalties
+    /// its presence creates.
+    #[test]
+    fn completion_repair_removes_dangling_spur() {
+        let graph = || {
+            interior_candidate_graph(
+                vec![
+                    Point2::new(0.0, 0.5),
+                    Point2::new(0.5, 0.5),
+                    Point2::new(1.0, 0.5),
+                    // Spur target: an interior vertex nothing else uses.
+                    Point2::new(0.5, 0.8),
+                ],
+                vec![
+                    candidate_span_with_evidence(
+                        0,
+                        [0, 1],
+                        CandidateCreaseSpanKind::AtomicInterval,
+                        CandidateCreaseSourceKind::ArrangementObserved,
+                        CandidateSelectionPolicy::StrongOptional,
+                        0.94,
+                        0.94,
+                        AssignmentLabel::Mountain,
+                    ),
+                    candidate_span_with_evidence(
+                        1,
+                        [1, 2],
+                        CandidateCreaseSpanKind::AtomicInterval,
+                        CandidateCreaseSourceKind::ArrangementObserved,
+                        CandidateSelectionPolicy::StrongOptional,
+                        0.94,
+                        0.94,
+                        AssignmentLabel::Mountain,
+                    ),
+                    // Spurious spur: positive standalone score (so it seeds),
+                    // but it strands vertex 3 dangling and unbalances vertex 1.
+                    candidate_span_with_evidence(
+                        2,
+                        [1, 3],
+                        CandidateCreaseSpanKind::AtomicInterval,
+                        CandidateCreaseSourceKind::ArrangementObserved,
+                        CandidateSelectionPolicy::StrongOptional,
+                        0.80,
+                        0.80,
+                        AssignmentLabel::Valley,
+                    ),
+                ],
+                Vec::new(),
+            )
+        };
+
+        let without = select_candidate_graph_beam_from_ir(
+            &graph(),
+            completion_test_options(false),
+            ExactProbeOptions::default(),
+        );
+        assert!(
+            selected_span_ids(&without).contains(&2),
+            "without completion repair the seeded spur stays selected"
+        );
+
+        let with = select_candidate_graph_beam_from_ir(
+            &graph(),
+            completion_test_options(true),
+            ExactProbeOptions::default(),
+        );
+        let selected = selected_span_ids(&with);
+        assert!(
+            !selected.contains(&2),
+            "completion repair should remove the dangling spur (got {selected:?})"
+        );
+        assert!(
+            selected.contains(&0) && selected.contains(&1),
+            "true spans must stay selected"
+        );
+    }
+
+    /// A hard-conflicted wrong-twin span that seeding picked must be swapped
+    /// for its true partner when neither the removal nor the addition clears
+    /// the improvement bar alone.
+    #[test]
+    fn completion_repair_swaps_wrong_twin_for_conflict_partner() {
+        let graph = || {
+            let mut graph = interior_candidate_graph(
+                vec![
+                    Point2::new(0.0, 0.5),
+                    Point2::new(0.33, 0.5),
+                    Point2::new(0.66, 0.5),
+                    Point2::new(1.0, 0.5),
+                    // Off-line twin the wrong span attaches to.
+                    Point2::new(0.66, 0.55),
+                ],
+                vec![
+                    candidate_span_with_evidence(
+                        0,
+                        [0, 1],
+                        CandidateCreaseSpanKind::AtomicInterval,
+                        CandidateCreaseSourceKind::ArrangementObserved,
+                        CandidateSelectionPolicy::StrongOptional,
+                        0.94,
+                        0.94,
+                        AssignmentLabel::Mountain,
+                    ),
+                    candidate_span_with_evidence(
+                        1,
+                        [2, 3],
+                        CandidateCreaseSpanKind::AtomicInterval,
+                        CandidateCreaseSourceKind::ArrangementObserved,
+                        CandidateSelectionPolicy::StrongOptional,
+                        0.94,
+                        0.94,
+                        AssignmentLabel::Mountain,
+                    ),
+                    // Wrong twin: strong ink (it lies on the same stroke), so
+                    // it seeds and wins initially, but it bends at vertex 1 and
+                    // strands vertex 4.
+                    candidate_span_with_evidence(
+                        2,
+                        [1, 4],
+                        CandidateCreaseSpanKind::ObservedCarrierSpan,
+                        CandidateCreaseSourceKind::ArrangementObserved,
+                        CandidateSelectionPolicy::StrongOptional,
+                        0.94,
+                        0.94,
+                        AssignmentLabel::Mountain,
+                    ),
+                    // True edge, fainter, hard-conflicted with the twin.
+                    candidate_span_with_evidence(
+                        3,
+                        [1, 2],
+                        CandidateCreaseSpanKind::ObservedCarrierSpan,
+                        CandidateCreaseSourceKind::ArrangementObserved,
+                        CandidateSelectionPolicy::WeakOptional,
+                        0.50,
+                        0.50,
+                        AssignmentLabel::Mountain,
+                    ),
+                ],
+                Vec::new(),
+            );
+            graph.conflicts.push(CandidateConflict {
+                id: 0,
+                kind: CandidateConflictKind::SharedCarrierAlternative,
+                candidate_ids: vec![2, 3],
+                hard: true,
+                reason: "near-collinear twin overlap".to_owned(),
+            });
+            graph.alternatives = graph.conflicts.clone();
+            graph
+        };
+
+        let without = select_candidate_graph_beam_from_ir(
+            &graph(),
+            completion_test_options(false),
+            ExactProbeOptions::default(),
+        );
+        let selected_without = selected_span_ids(&without);
+        assert!(
+            selected_without.contains(&2) && !selected_without.contains(&3),
+            "without completion repair the wrong twin wins (got {selected_without:?})"
+        );
+
+        let with = select_candidate_graph_beam_from_ir(
+            &graph(),
+            completion_test_options(true),
+            ExactProbeOptions::default(),
+        );
+        let selected = selected_span_ids(&with);
+        assert!(
+            selected.contains(&3) && !selected.contains(&2),
+            "completion repair should swap the twin for the true edge (got {selected:?})"
+        );
+    }
+
     /// Completion repair must not add a span that hard-conflicts with the
     /// current selection, no matter how much local penalty it would relieve.
     #[test]
@@ -5846,12 +6485,8 @@ mod tests {
         );
         let selected = selected_span_ids(&selection);
         assert!(
-            selected.contains(&0),
-            "seeded strong span must stay selected"
-        );
-        assert!(
-            !selected.contains(&2),
-            "hard-conflicted bridge must not be added by completion repair"
+            !(selected.contains(&0) && selected.contains(&2)),
+            "hard-conflicted spans must never be co-selected (got {selected:?})"
         );
     }
 }

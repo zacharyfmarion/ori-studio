@@ -154,6 +154,10 @@ pub struct JunctionCarrierV1StrategyOptions {
     /// Which offset-vote clusters to keep (see JunctionClusterKeepRule).
     pub junction_cluster_keep_rule: JunctionClusterKeepRule,
     pub junction_evidence_source: JunctionEvidenceSource,
+    /// Weight assignment-head samples by per-pixel line probability so
+    /// background pixels between the 4px sample steps cannot dilute the M/V/B
+    /// channel means into an Unknown label (see `sample_span_stats`).
+    pub ink_weighted_assignment: bool,
 }
 
 impl Default for JunctionCarrierV1StrategyOptions {
@@ -176,6 +180,7 @@ impl Default for JunctionCarrierV1StrategyOptions {
             junction_offset_cluster_radius_px: 0.0,
             junction_cluster_keep_rule: JunctionClusterKeepRule::default(),
             junction_evidence_source: JunctionEvidenceSource::Model,
+            ink_weighted_assignment: false,
         }
     }
 }
@@ -216,6 +221,8 @@ pub struct JunctionFirstV1StrategyOptions {
     /// Which offset-vote clusters to keep (see JunctionClusterKeepRule).
     pub junction_cluster_keep_rule: JunctionClusterKeepRule,
     pub junction_evidence_source: JunctionEvidenceSource,
+    /// See [`JunctionCarrierV1StrategyOptions::ink_weighted_assignment`].
+    pub ink_weighted_assignment: bool,
 }
 
 impl Default for JunctionFirstV1StrategyOptions {
@@ -243,6 +250,7 @@ impl Default for JunctionFirstV1StrategyOptions {
             junction_offset_cluster_radius_px: 0.0,
             junction_cluster_keep_rule: JunctionClusterKeepRule::default(),
             junction_evidence_source: JunctionEvidenceSource::Model,
+            ink_weighted_assignment: false,
         }
     }
 }

@@ -135,6 +135,14 @@ struct Args {
     junction_first_short_span_bypass_px: Option<f64>,
     parity_repair: Option<bool>,
     completion_repair: Option<bool>,
+    completion_removal_moves: Option<bool>,
+    ink_weighted_assignment: Option<bool>,
+    /// Post-selection: promote the ink-weighted assignment label over an
+    /// Unknown primary label on selected spans (cannot change topology).
+    relabel_unknown_assignments: bool,
+    /// Post-selection: fill Unknown labels forced by Maekawa / pass-through
+    /// constraints from confident neighbors (cannot change topology).
+    propagate_forced_assignments: bool,
     dump_folds: bool,
     allow_stale: bool,
     /// Force the dense LM backend for exact solve (A/B vs the sparse default).
@@ -691,7 +699,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let legacy_decode_started = Instant::now();
         let mut span_prober: Option<OracleSpanProber> = None;
-        let candidate_graph = match strategy {
+        let mut candidate_graph = match strategy {
             None => {
                 let legacy_program = decode_program(sample, &logits, threshold)?;
                 let weak_program = if low_threshold < threshold {
@@ -745,6 +753,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 if let Some(value) = args.junction_first_short_span_bypass_px {
                     generation_options.junction_first_v1.short_span_bypass_px = value;
+                }
+                if let Some(value) = args.ink_weighted_assignment {
+                    generation_options.junction_first_v1.ink_weighted_assignment = value;
+                    generation_options.junction_carrier_v1.ink_weighted_assignment = value;
                 }
                 let ctx = CandidateGenerationContext {
                     outputs: logits.as_dense_outputs(),
@@ -818,6 +830,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if let Some(completion_repair) = args.completion_repair {
             selection_options.completion_repair = completion_repair;
         }
+        if let Some(completion_removal_moves) = args.completion_removal_moves {
+            selection_options.completion_removal_moves = completion_removal_moves;
+        }
         let selection = select_candidate_graph_beam_from_ir(
             &candidate_graph,
             selection_options,
@@ -842,6 +857,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .collect::<Vec<_>>()
         };
         let selected_span_set = selected_span_ids.iter().copied().collect::<BTreeSet<_>>();
+        // Post-selection assignment relabel: promote the ink-weighted label
+        // over an Unknown primary label on SELECTED spans only. Runs after
+        // selection so it cannot change topology, only the M/V/B labels the
+        // solve output carries.
+        if args.relabel_unknown_assignments {
+            for span in &mut candidate_graph.crease_candidates {
+                if !selected_span_set.contains(&span.id) {
+                    continue;
+                }
+                let evidence = &mut span.assignment_evidence;
+                if evidence.observed_label == AssignmentLabel::Unknown
+                    && let Some(ink) = evidence.ink_label
+                {
+                    evidence.observed_label = ink;
+                }
+            }
+        }
+        // Post-selection assignment completion: fill Unknown labels forced by
+        // Maekawa / pass-through constraints from confident neighbors. Also
+        // topology-preserving by construction.
+        if args.propagate_forced_assignments {
+            oristudio_cp_compiler::selection::propagate_forced_assignments(
+                &mut candidate_graph,
+                &selected_span_set,
+            );
+        }
         let selected_graph =
             SelectedGraph::from_selected_span_ids(&candidate_graph, selected_span_ids);
         let exact_input =
@@ -1192,6 +1233,10 @@ impl Args {
         let mut junction_first_short_span_bypass_px = None;
         let mut parity_repair = None;
         let mut completion_repair = None;
+        let mut completion_removal_moves = None;
+        let mut ink_weighted_assignment = None;
+        let mut relabel_unknown_assignments = false;
+        let mut propagate_forced_assignments = false;
         let mut dump_folds = false;
         let mut allow_stale = false;
         let mut dump_exact_inputs = None;
@@ -1306,6 +1351,12 @@ impl Args {
                 "--no-parity-repair" => parity_repair = Some(false),
                 "--completion-repair" => completion_repair = Some(true),
                 "--no-completion-repair" => completion_repair = Some(false),
+                "--completion-removal-moves" => completion_removal_moves = Some(true),
+                "--no-completion-removal-moves" => completion_removal_moves = Some(false),
+                "--ink-weighted-assignment" => ink_weighted_assignment = Some(true),
+                "--no-ink-weighted-assignment" => ink_weighted_assignment = Some(false),
+                "--relabel-unknown-assignments" => relabel_unknown_assignments = true,
+                "--propagate-forced-assignments" => propagate_forced_assignments = true,
                 "--dump-folds" => dump_folds = true,
                 "--allow-stale" => allow_stale = true,
                 "--dump-exact-inputs" => {
@@ -1375,6 +1426,10 @@ impl Args {
             junction_first_short_span_bypass_px,
             parity_repair,
             completion_repair,
+            completion_removal_moves,
+            ink_weighted_assignment,
+            relabel_unknown_assignments,
+            propagate_forced_assignments,
             dump_folds,
             allow_stale,
             dump_exact_inputs,

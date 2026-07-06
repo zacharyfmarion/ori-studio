@@ -446,6 +446,7 @@ fn aggregate_assignment(spans: &[&CandidateCreaseSpan]) -> AssignmentEvidence {
             source: AssignmentEvidenceSource::SpanAggregate,
             confidence: 0.0,
             margin: 0.0,
+            ink_label: None,
         });
     for span in spans {
         let label = span.assignment_evidence.observed_label;
@@ -755,6 +756,7 @@ mod tests {
                 source: AssignmentEvidenceSource::LegacyColor,
                 confidence: 0.9,
                 margin: 0.7,
+                ink_label: None,
             },
             presence_probability: 0.94,
             line_support_min: 0.85,

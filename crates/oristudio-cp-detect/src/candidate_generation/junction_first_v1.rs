@@ -315,6 +315,7 @@ fn carrier_equivalent_options(
         junction_offset_cluster_radius_px: options.junction_offset_cluster_radius_px,
         junction_cluster_keep_rule: options.junction_cluster_keep_rule,
         junction_evidence_source: options.junction_evidence_source,
+        ink_weighted_assignment: options.ink_weighted_assignment,
         ..JunctionCarrierV1StrategyOptions::default()
     }
 }
@@ -951,6 +952,7 @@ mod tests {
                 source: oristudio_cp_compiler::AssignmentEvidenceSource::Unknown,
                 confidence: 0.0,
                 margin: 0.0,
+                ink_label: None,
             },
         };
         span_from_adjacent_pair(
