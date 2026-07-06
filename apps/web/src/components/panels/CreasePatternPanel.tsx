@@ -1472,6 +1472,8 @@ export function CreasePatternPanel() {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const transformRef = useRef<ReactZoomPanPinchRef | null>(null);
+  const zoomPercentRef = useRef(100);
+  const viewportPanningRef = useRef(false);
   const [zoomPercent, setZoomPercent] = useState(100);
   const [spacePressed, setSpacePressed] = useState(false);
   const [cursorModelPoint, setCursorModelPoint] = useState<Point | null>(null);
@@ -2729,6 +2731,11 @@ export function CreasePatternPanel() {
   const updateEditablePointerStatus = useCallback(
     (event: PointerEvent<SVGElement>) => {
       if (!editableCp) return;
+      if (viewportPanningRef.current || spacePressed || (event.buttons & 4) !== 0) {
+        setCursorModelPoint(null);
+        setSnapTarget(null);
+        return;
+      }
       const modelPoint = eventToEditableModelPoint(event);
       setCursorModelPoint(modelPoint);
       if (modelPoint && activeCpInputMode === 'drag-line') {
@@ -2773,9 +2780,30 @@ export function CreasePatternPanel() {
       editableCpBounds,
       eventToEditableModelPoint,
       oristudioCpViewport,
+      spacePressed,
       zoomPercent,
     ]
   );
+
+  const handleViewportTransformed = useCallback(
+    (_ref: ReactZoomPanPinchRef, state: { scale: number }) => {
+      const nextZoomPercent = Math.round(state.scale * 100);
+      if (zoomPercentRef.current === nextZoomPercent) return;
+      zoomPercentRef.current = nextZoomPercent;
+      setZoomPercent(nextZoomPercent);
+    },
+    []
+  );
+
+  const handleViewportPanStart = useCallback(() => {
+    viewportPanningRef.current = true;
+    setCursorModelPoint(null);
+    setSnapTarget(null);
+  }, []);
+
+  const handleViewportPanStop = useCallback(() => {
+    viewportPanningRef.current = false;
+  }, []);
 
   const handleEditableToolPointerDown = useCallback(
     (event: PointerEvent<SVGElement>) => {
@@ -4158,7 +4186,9 @@ export function CreasePatternPanel() {
                   transformRef.current = ref;
                   requestAnimationFrame(() => fitLoadedCreasePatternRef.current(0));
                 }}
-                onTransformed={(_ref, state) => setZoomPercent(Math.round(state.scale * 100))}
+                onPanningStart={handleViewportPanStart}
+                onPanningStop={handleViewportPanStop}
+                onTransformed={handleViewportTransformed}
               >
                 <TransformComponent
                   wrapperStyle={{ width: '100%', height: '100%' }}

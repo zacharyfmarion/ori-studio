@@ -40,6 +40,15 @@ const transformMocks = vi.hoisted(() => ({
   setTransform: vi.fn(),
   zoomIn: vi.fn(),
   zoomOut: vi.fn(),
+  onPanningStart: undefined as
+    | undefined
+    | ((ref: unknown, event: MouseEvent | TouchEvent) => void),
+  onPanningStop: undefined as
+    | undefined
+    | ((ref: unknown, event: MouseEvent | TouchEvent) => void),
+  onTransformed: undefined as
+    | undefined
+    | ((ref: unknown, state: { scale: number; positionX: number; positionY: number }) => void),
 }));
 
 vi.mock('react-zoom-pan-pinch', async () => {
@@ -47,7 +56,12 @@ vi.mock('react-zoom-pan-pinch', async () => {
   type MockTransformWrapperProps = {
     children: React.ReactNode;
     onInit?: (ref: unknown) => void;
-    onTransformed?: (ref: unknown, state: { scale: number }) => void;
+    onPanningStart?: (ref: unknown, event: MouseEvent | TouchEvent) => void;
+    onPanningStop?: (ref: unknown, event: MouseEvent | TouchEvent) => void;
+    onTransformed?: (
+      ref: unknown,
+      state: { scale: number; positionX: number; positionY: number }
+    ) => void;
   };
   const api = {
     centerView: transformMocks.centerView,
@@ -58,14 +72,33 @@ vi.mock('react-zoom-pan-pinch', async () => {
 
   return {
     TransformWrapper: React.forwardRef<unknown, MockTransformWrapperProps>(
-      function MockTransformWrapper({ children, onInit, onTransformed }, ref) {
+      function MockTransformWrapper(
+        { children, onInit, onPanningStart, onPanningStop, onTransformed },
+        ref
+      ) {
         const didInitRef = React.useRef(false);
         React.useImperativeHandle(ref, () => api, []);
+        React.useEffect(() => {
+          transformMocks.onPanningStart = onPanningStart;
+          transformMocks.onPanningStop = onPanningStop;
+          transformMocks.onTransformed = onTransformed;
+          return () => {
+            if (transformMocks.onPanningStart === onPanningStart) {
+              transformMocks.onPanningStart = undefined;
+            }
+            if (transformMocks.onPanningStop === onPanningStop) {
+              transformMocks.onPanningStop = undefined;
+            }
+            if (transformMocks.onTransformed === onTransformed) {
+              transformMocks.onTransformed = undefined;
+            }
+          };
+        }, [onPanningStart, onPanningStop, onTransformed]);
         React.useEffect(() => {
           if (didInitRef.current) return;
           didInitRef.current = true;
           onInit?.(api);
-          onTransformed?.(api, { scale: 1 });
+          onTransformed?.(api, { scale: 1, positionX: 0, positionY: 0 });
         }, [onInit, onTransformed]);
         return React.createElement('div', { 'data-testid': 'transform-wrapper' }, children);
       }
@@ -559,6 +592,9 @@ afterEach(() => {
   transformMocks.setTransform.mockClear();
   transformMocks.zoomIn.mockClear();
   transformMocks.zoomOut.mockClear();
+  transformMocks.onPanningStart = undefined;
+  transformMocks.onPanningStop = undefined;
+  transformMocks.onTransformed = undefined;
   vi.unstubAllGlobals();
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
 });
@@ -658,6 +694,7 @@ describe('CreasePatternPanel', () => {
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready');
 
     expect(container.querySelector('[aria-label="Crease pattern viewport controls"]')).not.toBeNull();
+    expect(container.querySelector('.viewport-toolbar__zoom-button')?.textContent).toContain('100%');
 
     act(() => {
       container.querySelector<HTMLButtonElement>('button[aria-label="Zoom In"]')?.click();
@@ -690,6 +727,58 @@ describe('CreasePatternPanel', () => {
         ?.click();
     });
     expect(transformMocks.centerView).toHaveBeenLastCalledWith(2, 160);
+
+    act(() => {
+      transformMocks.onTransformed?.({}, { scale: 2, positionX: 30, positionY: 40 });
+    });
+    expect(container.querySelector('.viewport-toolbar__zoom-button')?.textContent).toContain('200%');
+
+    act(() => {
+      transformMocks.onTransformed?.({}, { scale: 2, positionX: 60, positionY: 80 });
+    });
+    expect(container.querySelector('.viewport-toolbar__zoom-button')?.textContent).toContain('200%');
+  });
+
+  it('does not update editable cursor status while space-panning the CP viewport', () => {
+    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
+      documentMode: 'crease-pattern',
+      importedCreasePattern: importedCpDocument(),
+      oristudioCpDocument: editableCpState(),
+    });
+    const body = container.querySelector<HTMLElement>('.cp-panel__body');
+    const canvas = setCanvasClientRect(container);
+    const statusText = () => container.querySelector('.viewport-status-readout')?.textContent ?? '';
+
+    act(() => {
+      canvas.dispatchEvent(
+        new MouseEvent('pointermove', {
+          bubbles: true,
+          clientX: 360,
+          clientY: 348,
+        })
+      );
+    });
+    expect(statusText()).toContain('Snap');
+
+    act(() => {
+      body?.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    });
+    expect(body?.getAttribute('data-space-pan')).toBe('true');
+
+    act(() => {
+      canvas.dispatchEvent(
+        new MouseEvent('pointermove', {
+          bubbles: true,
+          clientX: 380,
+          clientY: 368,
+        })
+      );
+    });
+    expect(statusText()).not.toContain('Snap');
+
+    act(() => {
+      body?.dispatchEvent(new KeyboardEvent('keyup', { key: ' ', bubbles: true }));
+    });
   });
 
   it('supports the same CP viewport keyboard shortcuts and space-pan marker', () => {
