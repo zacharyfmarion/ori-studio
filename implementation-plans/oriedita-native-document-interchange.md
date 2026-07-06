@@ -120,14 +120,18 @@ Last updated: July 5, 2026.
 Implemented and committed checkpoints now cover native `.ori`, `.fold`, `.orh`,
 and `.cp` interchange through Rust, WASM, and the shared web file workflow. The
 app preserves Oriedita editor metadata, restores grid state, active line color,
-supported `canvasModel.mouseMode` tools, folded-model defaults, embedded
-`foldedForm` frames, and `.osf` source identity. Public fixture corpus reporting
-and available Oriedita oracle checks are in place.
+supported `canvasModel.mouseMode` tools, supported `canvasModel` line-type
+filters, the `creasePatternCamera` affine viewport, folded-model defaults,
+embedded `foldedForm` frames, and `.osf` source identity. Public fixture corpus
+reporting and available Oriedita oracle checks are in place.
 
-The remaining exact-parity implementation checkpoint is the
-Oriedita-compatible affine viewport layer for `creasePatternCamera`. Private
-external corpus validation remains the release gate before claiming arbitrary
-Oriedita compatibility.
+The remaining local canvas restore work is limited to fields that still lack
+matching first-class Ori Studio UI state, such as auxiliary-line insertion color,
+`foldLineAdditionalInputMode`, `mouseModeAfterColorSelection`, folded-figure
+operation mode, mouse-wheel target, cursor, and tool-panel geometry. Those
+fields remain preserved-only until the corresponding product state exists.
+Private external corpus validation remains the release gate before claiming
+arbitrary Oriedita compatibility.
 
 Embedded folded geometry belongs to FOLD `file_frames`, usually through
 `foldedForm` frames. Preserve those frame graphs during `.fold` import/export
@@ -155,8 +159,8 @@ even when the editable CP view operates on one active crease-pattern frame.
 | `points` | `PointSave` | `model::point`, `io::ori` | First-class editable data. |
 | `auxLineSegments` | `BaseSave`, auxiliary line service | `model::line`, `io::ori` | First-class editable data kept separate from fold lines. |
 | `gridModel` | `GridModel` | `model::grid`, web viewport/grid state | First-class grid data. |
-| `creasePatternCamera` | `Camera` | preserved metadata, next affine viewport layer | Preserve exactly, then restore through a composed Oriedita `object2TV` / inverse `TV2object` matrix rather than reducing it to pan/zoom. |
-| `canvasModel` | `CanvasModel` | preserved metadata, active line-color restore, supported mouse tool restore, later input-state restore | Active line color is restored with Oriedita toggle semantics; supported `mouseMode` values restore the matching CP tool; remaining input fields are preserved with user-visible status. |
+| `creasePatternCamera` | `Camera` | preserved metadata, affine editable CP viewport | Preserve exactly, then restore through a composed Oriedita `object2TV` / inverse `TV2object` matrix rather than reducing it to pan/zoom. |
+| `canvasModel` | `CanvasModel` | preserved metadata, active line-color restore, supported mouse tool restore, supported custom line filters, later input-state restore | Active line color is restored with Oriedita toggle semantics; supported `mouseMode` values restore the matching CP tool; custom replace/delete line filters restore to existing CP tool options; remaining input fields are preserved with user-visible status. |
 | `foldedFigureModel` | `FoldedFigureModel` | preserved metadata, `folding::FoldedFigureModel` defaults | Preserved and used to seed newly generated folded figures; explicit UI controls remain planned. |
 | `applicationModel` | `ApplicationModel` | preserved metadata | Preserve-only unless a field maps to shared app settings. |
 | unknown top-level fields | Jackson `FAIL_ON_UNKNOWN_PROPERTIES=false` behavior | `document.metadata` with `oriedita:ori:` prefix | Preserve exactly as structured JSON. |
@@ -405,8 +409,8 @@ Work:
 - Map `gridModel` to the existing editable CP grid state.
 - Map `creasePatternCamera` through an Oriedita-compatible affine viewport layer
   instead of approximating it as current pan/zoom state.
-- Map useful `canvasModel` fields such as active line color, aux line color,
-  selection mode, toggle-line-color state, and input mode defaults.
+- Map useful `canvasModel` fields such as active line color, selection mode,
+  toggle-line-color state, and line-type filter defaults.
 - Map `foldedFigureModel` colors to the default model for newly generated folded
   figures.
 - Preserve folded figure scale, rotation, state, anti-alias, shadow, and
@@ -415,7 +419,7 @@ Work:
   not serialize them there.
 - Add user-visible metadata status for preserved-only fields.
 
-Next checkpoint: Oriedita-compatible affine viewport layer.
+Completed checkpoint: Oriedita-compatible affine viewport layer.
 
 - Add typed web helpers for Oriedita camera metadata with defaults matching
   `oriedita.editor.drawing.tools.Camera`.
@@ -427,8 +431,10 @@ Next checkpoint: Oriedita-compatible affine viewport layer.
   Oriedita camera transform. Do not collapse Oriedita rotation, mirror, or
   non-uniform zoom into the outer viewport controls.
 - Render the editable crease-pattern layer, grid, points, circles, text,
-  diagnostics, selection affordances, command previews, snap target, and imported
-  folded-form overlays through the same camera-aware model-to-screen helper.
+  diagnostics, selection affordances, command previews, and snap target through
+  the same camera-aware model-to-screen helper. Generated folded overlays and
+  imported folded-form thumbnails keep their own display mapping until their own
+  native camera/state data is modeled.
 - Route pointer hit-testing, snapping, drag previews, diagnostic focus, and
   selection transform handles through the inverse helper so editing coordinates
   remain Oriedita model coordinates.
