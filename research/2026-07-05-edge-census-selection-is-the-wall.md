@@ -379,3 +379,26 @@ production numbers remain junction-bound on every axis measured.
 - Production remains junction-bound (§5b) for topology; the assignment stack
   is the first pipeline lever in this line of work that should move
   production recovery (via its 10 blocked samples).
+
+### 8e. Product wiring: one shared codepath
+
+The full stack now ships through a single entry point:
+`selection::select_and_finalize_candidate_graph` = beam + completion pass +
+parity repair + `finalize_selected_assignments` (ink-label promotion +
+Maekawa propagation, both `SelectionOptions` fields, default on). Callers:
+
+- **product**: `decode.rs::legacy_candidate_exact_solve_from_generation`
+  (all `decode_dense_outputs*` variants funnel here; the wasm crate rebuilds
+  automatically via the web app's `predev`/`prebuild`);
+- **stage inspector**: both selection sites (stage-3 example flow and the
+  uploaded-image flow) use the same wrapper;
+- **benchmark**: same options + the shared `finalize_selected_assignments`
+  (applied after the optional `--oracle-selection` override, which is why it
+  cannot use the wrapper verbatim); `--no-relabel-unknown-assignments` /
+  `--no-propagate-forced-assignments` / `--no-completion-repair` disable for
+  A/B.
+
+Parity verified: a full-pack run of the new default path is per-sample
+identical (topology, edge counts, wrong-assignment counts) to the measured
+explicit-flag config. Production pre-solve topo+assign rises 140 → 146 from
+the assignment stack; recovery stays 121 (§8c).

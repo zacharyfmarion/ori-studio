@@ -8,7 +8,7 @@ use oristudio_cp_compiler::exact_probe::{
     ExactProbeOptions, ExactizabilityReport, probe_exactizability,
 };
 use oristudio_cp_compiler::selection::{
-    CandidateSelection, SelectionDecision, SelectionOptions, select_candidate_graph_beam_from_ir,
+    CandidateSelection, SelectionDecision, SelectionOptions, select_and_finalize_candidate_graph,
 };
 use oristudio_cp_compiler::{
     AssignmentCandidate, AssignmentLabel, CandidateGraph, EvidenceSource, ExactSolveInput,
@@ -191,8 +191,9 @@ struct Stage3Response {
     arrangement: CandidateArrangement,
     candidate_strategy: String,
     candidate_graph: CandidateGraph,
-    // Production beam selection over the IR (select_candidate_graph_beam_from_ir),
-    // replacing the legacy arrangement selector.
+    // Production selection + assignment finalization over the IR
+    // (select_and_finalize_candidate_graph), replacing the legacy
+    // arrangement selector.
     selection: CandidateSelection,
     // Selected-graph topology diff vs ground truth (None for uploads).
     topology: Option<TopologyDiffPayload>,
@@ -1070,11 +1071,12 @@ fn stage3_example(
     sample_id: &str,
     query: BTreeMap<String, String>,
 ) -> Result<Stage3Response> {
-    let stage2 = stage2_example(state, sample_id, query)?;
-    // Production selection is exactizability-aware beam search over the IR
-    // candidate graph, not the legacy arrangement selector.
-    let selection = select_candidate_graph_beam_from_ir(
-        &stage2.candidate_graph,
+    let mut stage2 = stage2_example(state, sample_id, query)?;
+    // Production selection + assignment finalization: the exact codepath the
+    // product decode and the benchmark use (select_and_finalize), so the
+    // inspector cannot diverge from what ships.
+    let selection = select_and_finalize_candidate_graph(
+        &mut stage2.candidate_graph,
         SelectionOptions::default(),
         ExactProbeOptions::default(),
     );
@@ -1547,9 +1549,11 @@ pub fn build_uploaded_stage_bundle(
             format!("generate {candidate_strategy} candidate graph for uploaded image")
         })?
     };
-    let candidate_graph = generation.candidate_graph;
-    let selection = select_candidate_graph_beam_from_ir(
-        &candidate_graph,
+    let mut candidate_graph = generation.candidate_graph;
+    // Same shared selection + assignment-finalization codepath as the product
+    // decode (select_and_finalize) so uploaded-image stages match what ships.
+    let selection = select_and_finalize_candidate_graph(
+        &mut candidate_graph,
         SelectionOptions::default(),
         exact_options,
     );

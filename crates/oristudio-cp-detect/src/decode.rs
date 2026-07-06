@@ -536,9 +536,11 @@ fn legacy_candidate_exact_solve_from_generation(
     let compiler_started = StageTimer::start();
     let weak_threshold = generation.low_threshold;
     let candidate_strategy = generation.strategy.id();
-    let candidate_graph = generation.candidate_graph;
-    let selection = oristudio_cp_compiler::selection::select_candidate_graph_beam_from_ir(
-        &candidate_graph,
+    let mut candidate_graph = generation.candidate_graph;
+    // Shared production selection + post-selection assignment finalization —
+    // the same single codepath the stage inspector and the benchmark use.
+    let selection = oristudio_cp_compiler::selection::select_and_finalize_candidate_graph(
+        &mut candidate_graph,
         oristudio_cp_compiler::selection::SelectionOptions::default(),
         oristudio_cp_compiler::exact_probe::ExactProbeOptions::default(),
     );

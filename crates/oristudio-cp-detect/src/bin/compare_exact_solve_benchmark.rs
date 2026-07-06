@@ -137,12 +137,12 @@ struct Args {
     completion_repair: Option<bool>,
     completion_removal_moves: Option<bool>,
     ink_weighted_assignment: Option<bool>,
-    /// Post-selection: promote the ink-weighted assignment label over an
-    /// Unknown primary label on selected spans (cannot change topology).
-    relabel_unknown_assignments: bool,
-    /// Post-selection: fill Unknown labels forced by Maekawa / pass-through
-    /// constraints from confident neighbors (cannot change topology).
-    propagate_forced_assignments: bool,
+    /// Override for `SelectionOptions::promote_ink_assignment_labels`
+    /// (post-selection ink relabel; on by default like the product).
+    relabel_unknown_assignments: Option<bool>,
+    /// Override for `SelectionOptions::propagate_forced_assignments`
+    /// (post-selection Maekawa completion; on by default like the product).
+    propagate_forced_assignments: Option<bool>,
     dump_folds: bool,
     allow_stale: bool,
     /// Force the dense LM backend for exact solve (A/B vs the sparse default).
@@ -756,7 +756,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 if let Some(value) = args.ink_weighted_assignment {
                     generation_options.junction_first_v1.ink_weighted_assignment = value;
-                    generation_options.junction_carrier_v1.ink_weighted_assignment = value;
+                    generation_options
+                        .junction_carrier_v1
+                        .ink_weighted_assignment = value;
                 }
                 let ctx = CandidateGenerationContext {
                     outputs: logits.as_dense_outputs(),
@@ -833,6 +835,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if let Some(completion_removal_moves) = args.completion_removal_moves {
             selection_options.completion_removal_moves = completion_removal_moves;
         }
+        if let Some(relabel) = args.relabel_unknown_assignments {
+            selection_options.promote_ink_assignment_labels = relabel;
+        }
+        if let Some(propagate) = args.propagate_forced_assignments {
+            selection_options.propagate_forced_assignments = propagate;
+        }
+        // Selection runs unfinalized here (unlike the product's
+        // `select_and_finalize_candidate_graph`) because --oracle-selection may
+        // replace the selected set below; the SAME shared
+        // `finalize_selected_assignments` then runs on the final set, so the
+        // default path is behavior-identical to the product codepath.
         let selection = select_candidate_graph_beam_from_ir(
             &candidate_graph,
             selection_options,
@@ -857,32 +870,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .collect::<Vec<_>>()
         };
         let selected_span_set = selected_span_ids.iter().copied().collect::<BTreeSet<_>>();
-        // Post-selection assignment relabel: promote the ink-weighted label
-        // over an Unknown primary label on SELECTED spans only. Runs after
-        // selection so it cannot change topology, only the M/V/B labels the
-        // solve output carries.
-        if args.relabel_unknown_assignments {
-            for span in &mut candidate_graph.crease_candidates {
-                if !selected_span_set.contains(&span.id) {
-                    continue;
-                }
-                let evidence = &mut span.assignment_evidence;
-                if evidence.observed_label == AssignmentLabel::Unknown
-                    && let Some(ink) = evidence.ink_label
-                {
-                    evidence.observed_label = ink;
-                }
-            }
-        }
-        // Post-selection assignment completion: fill Unknown labels forced by
-        // Maekawa / pass-through constraints from confident neighbors. Also
-        // topology-preserving by construction.
-        if args.propagate_forced_assignments {
-            oristudio_cp_compiler::selection::propagate_forced_assignments(
-                &mut candidate_graph,
-                &selected_span_set,
-            );
-        }
+        oristudio_cp_compiler::selection::finalize_selected_assignments(
+            &mut candidate_graph,
+            &selected_span_set,
+            &selection_options,
+        );
         let selected_graph =
             SelectedGraph::from_selected_span_ids(&candidate_graph, selected_span_ids);
         let exact_input =
@@ -1235,8 +1227,8 @@ impl Args {
         let mut completion_repair = None;
         let mut completion_removal_moves = None;
         let mut ink_weighted_assignment = None;
-        let mut relabel_unknown_assignments = false;
-        let mut propagate_forced_assignments = false;
+        let mut relabel_unknown_assignments = None;
+        let mut propagate_forced_assignments = None;
         let mut dump_folds = false;
         let mut allow_stale = false;
         let mut dump_exact_inputs = None;
@@ -1355,8 +1347,10 @@ impl Args {
                 "--no-completion-removal-moves" => completion_removal_moves = Some(false),
                 "--ink-weighted-assignment" => ink_weighted_assignment = Some(true),
                 "--no-ink-weighted-assignment" => ink_weighted_assignment = Some(false),
-                "--relabel-unknown-assignments" => relabel_unknown_assignments = true,
-                "--propagate-forced-assignments" => propagate_forced_assignments = true,
+                "--relabel-unknown-assignments" => relabel_unknown_assignments = Some(true),
+                "--no-relabel-unknown-assignments" => relabel_unknown_assignments = Some(false),
+                "--propagate-forced-assignments" => propagate_forced_assignments = Some(true),
+                "--no-propagate-forced-assignments" => propagate_forced_assignments = Some(false),
                 "--dump-folds" => dump_folds = true,
                 "--allow-stale" => allow_stale = true,
                 "--dump-exact-inputs" => {

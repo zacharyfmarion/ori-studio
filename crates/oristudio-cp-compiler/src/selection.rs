@@ -74,6 +74,24 @@ pub struct SelectionOptions {
     /// until they prove zero-regression.
     #[serde(default)]
     pub completion_removal_moves: bool,
+    /// Post-selection assignment finalization step 1: promote the
+    /// ink-weighted assignment label (`AssignmentEvidence::ink_label`) over an
+    /// Unknown primary label on selected spans. Topology-preserving by
+    /// construction (runs after all selection decisions); see
+    /// `finalize_selected_assignments`.
+    #[serde(default = "default_true")]
+    pub promote_ink_assignment_labels: bool,
+    /// Post-selection assignment finalization step 2: fill Unknown labels
+    /// forced by Maekawa / pass-through constraints from confident neighbors
+    /// (`propagate_forced_assignments`). Also topology-preserving. Measured
+    /// 2026-07-06: oracle exact topology+assignment 265 -> 293, end-to-end
+    /// recovery 260 -> 288, zero regressions.
+    #[serde(default = "default_true")]
+    pub propagate_forced_assignments: bool,
+}
+
+const fn default_true() -> bool {
+    true
 }
 
 const fn default_parity_repair_budget() -> usize {
@@ -122,6 +140,8 @@ impl Default for SelectionOptions {
             completion_repair: default_completion_repair(),
             completion_repair_budget: default_completion_repair_budget(),
             completion_removal_moves: false,
+            promote_ink_assignment_labels: true,
+            propagate_forced_assignments: true,
         }
     }
 }
@@ -1322,39 +1342,36 @@ fn completion_repair_ir_state(
         // degree-0 vertices cost nothing, so the score cannot defend a true
         // but not-yet-connected segment. Such segments are the add phases'
         // job to connect, never the removal phase's job to erase.
-        let erases_isolated_segment = |span: &CandidateCreaseSpan,
-                                       incident: &BTreeMap<usize, Vec<IrIncidentRay>>|
-         -> bool {
-            span.vertices.iter().all(|endpoint| {
-                graph
-                    .vertices
-                    .get(*endpoint)
-                    .is_none_or(ir_vertex_is_interior_fold_vertex)
-                    && incident.get(endpoint).is_none_or(|rays| rays.len() <= 1)
-            })
-        };
+        let erases_isolated_segment =
+            |span: &CandidateCreaseSpan, incident: &BTreeMap<usize, Vec<IrIncidentRay>>| -> bool {
+                span.vertices.iter().all(|endpoint| {
+                    graph
+                        .vertices
+                        .get(*endpoint)
+                        .is_none_or(ir_vertex_is_interior_fold_vertex)
+                        && incident.get(endpoint).is_none_or(|rays| rays.len() <= 1)
+                })
+            };
         // A pure removal must not convert a degree-2 interior vertex into a
         // new dangling one: that is how chain ends get nibbled away (the far
         // dangling endpoint's relief pays for deleting the true chain link).
         // Spur trims (1 -> 0 at one end, >=3 -> >=2 at the other) stay legal.
-        let creates_new_dangling = |span: &CandidateCreaseSpan,
-                                    incident: &BTreeMap<usize, Vec<IrIncidentRay>>|
-         -> bool {
-            span.vertices.iter().any(|endpoint| {
-                graph
-                    .vertices
-                    .get(*endpoint)
-                    .is_some_and(ir_vertex_is_interior_fold_vertex)
-                    && incident.get(endpoint).is_some_and(|rays| rays.len() == 2)
-            })
-        };
-        let removable = |span: &CandidateCreaseSpan,
-                         incident: &BTreeMap<usize, Vec<IrIncidentRay>>|
-         -> bool {
-            selected.contains(&span.id)
-                && span.selection_policy != CandidateSelectionPolicy::Locked
-                && !erases_isolated_segment(span, incident)
-        };
+        let creates_new_dangling =
+            |span: &CandidateCreaseSpan, incident: &BTreeMap<usize, Vec<IrIncidentRay>>| -> bool {
+                span.vertices.iter().any(|endpoint| {
+                    graph
+                        .vertices
+                        .get(*endpoint)
+                        .is_some_and(ir_vertex_is_interior_fold_vertex)
+                        && incident.get(endpoint).is_some_and(|rays| rays.len() == 2)
+                })
+            };
+        let removable =
+            |span: &CandidateCreaseSpan, incident: &BTreeMap<usize, Vec<IrIncidentRay>>| -> bool {
+                selected.contains(&span.id)
+                    && span.selection_policy != CandidateSelectionPolicy::Locked
+                    && !erases_isolated_segment(span, incident)
+            };
         let mut best_removal: Option<(f64, usize)> = None;
         for span_id in &selected {
             let Some(span) = graph.crease_candidates.get(*span_id) else {
@@ -1574,6 +1591,66 @@ fn push_incident_rays(
         angle_degrees: angle_degrees(vertex_b.point, vertex_a.point),
         assignment: span.assignment_label(),
     });
+}
+
+/// Production selection plus post-selection assignment finalization, as one
+/// entry point. This is the codepath the product decode, the stage inspector,
+/// and the benchmark all share; use it instead of calling
+/// [`select_candidate_graph_beam_from_ir`] directly unless you need to alter
+/// the selected set before finalization (the benchmark's oracle-selection
+/// mode does, and then calls [`finalize_selected_assignments`] itself on the
+/// final set).
+pub fn select_and_finalize_candidate_graph(
+    graph: &mut CandidateGraph,
+    options: SelectionOptions,
+    exact_options: ExactProbeOptions,
+) -> CandidateSelection {
+    let selection = select_candidate_graph_beam_from_ir(graph, options, exact_options);
+    let selected = selection
+        .selected_spans
+        .iter()
+        .map(|span| span.id)
+        .collect::<BTreeSet<_>>();
+    finalize_selected_assignments(graph, &selected, &options);
+    selection
+}
+
+/// Post-selection assignment finalization on the selected spans, in two
+/// topology-preserving steps (both only ever touch Unknown labels, so they
+/// cannot un-fix a correct one, and they run after all selection decisions,
+/// so they cannot change which spans are selected):
+///
+/// 1. promote the ink-weighted label (`AssignmentEvidence::ink_label`) over
+///    an Unknown primary label;
+/// 2. fill remaining Unknowns forced by Maekawa / pass-through constraints
+///    ([`propagate_forced_assignments`]).
+///
+/// Returns the number of spans relabeled.
+pub fn finalize_selected_assignments(
+    graph: &mut CandidateGraph,
+    selected_span_ids: &BTreeSet<usize>,
+    options: &SelectionOptions,
+) -> usize {
+    let mut relabeled = 0usize;
+    if options.promote_ink_assignment_labels {
+        for span_id in selected_span_ids {
+            let Some(span) = graph.crease_candidates.get_mut(*span_id) else {
+                continue;
+            };
+            let evidence = &mut span.assignment_evidence;
+            if evidence.observed_label == AssignmentLabel::Unknown
+                && let Some(ink) = evidence.ink_label
+                && ink != AssignmentLabel::Unknown
+            {
+                evidence.observed_label = ink;
+                relabeled += 1;
+            }
+        }
+    }
+    if options.propagate_forced_assignments {
+        relabeled += propagate_forced_assignments(graph, selected_span_ids);
+    }
+    relabeled
 }
 
 /// Post-selection assignment completion by local fold theorems: fill in
@@ -1931,7 +2008,10 @@ fn ir_vertex_penalty(rays: &mut [IrIncidentRay], options: &SelectionOptions) -> 
 /// (Kawasaki/Maekawa) is noisy on real inputs — Unknown assignment labels and
 /// rectified-angle error make it nonzero on perfectly correct topology — so
 /// it must not be allowed to justify removing ink.
-fn ir_vertex_residuals_of(rays: &mut [IrIncidentRay], options: &SelectionOptions) -> IrStateResiduals {
+fn ir_vertex_residuals_of(
+    rays: &mut [IrIncidentRay],
+    options: &SelectionOptions,
+) -> IrStateResiduals {
     rays.sort_by(|left, right| left.angle_degrees.total_cmp(&right.angle_degrees));
     let mut residuals = IrStateResiduals::default();
     accumulate_ir_vertex_residuals(rays, options, &mut residuals);
@@ -6457,6 +6537,107 @@ mod tests {
         assert!(
             selected.contains(&3) && !selected.contains(&2),
             "completion repair should swap the twin for the true edge (got {selected:?})"
+        );
+    }
+
+    /// The shared post-selection finalization: an Unknown label with a
+    /// confident ink label gets promoted (step 1), and a remaining Unknown
+    /// forced by Maekawa at an even-degree vertex gets filled (step 2). A
+    /// confident label is never touched, and unselected spans are ignored.
+    #[test]
+    fn finalize_selected_assignments_promotes_ink_and_forces_maekawa() {
+        // Degree-4 interior hub at the center: three confident creases
+        // (2 mountain, 1 valley) plus one Unknown whose label Maekawa forces
+        // to mountain (d = 1). A fifth Unknown span with an ink label tests
+        // step-1 promotion at a pass-through vertex.
+        let mut spans = vec![
+            candidate_span_with_evidence(
+                0,
+                [0, 1],
+                CandidateCreaseSpanKind::AtomicInterval,
+                CandidateCreaseSourceKind::ArrangementObserved,
+                CandidateSelectionPolicy::StrongOptional,
+                0.9,
+                0.9,
+                AssignmentLabel::Mountain,
+            ),
+            candidate_span_with_evidence(
+                1,
+                [0, 2],
+                CandidateCreaseSpanKind::AtomicInterval,
+                CandidateCreaseSourceKind::ArrangementObserved,
+                CandidateSelectionPolicy::StrongOptional,
+                0.9,
+                0.9,
+                AssignmentLabel::Mountain,
+            ),
+            candidate_span_with_evidence(
+                2,
+                [0, 3],
+                CandidateCreaseSpanKind::AtomicInterval,
+                CandidateCreaseSourceKind::ArrangementObserved,
+                CandidateSelectionPolicy::StrongOptional,
+                0.9,
+                0.9,
+                AssignmentLabel::Valley,
+            ),
+            // Maekawa-forced: the only Unknown at the degree-4 hub.
+            candidate_span_with_evidence(
+                3,
+                [0, 4],
+                CandidateCreaseSpanKind::AtomicInterval,
+                CandidateCreaseSourceKind::ArrangementObserved,
+                CandidateSelectionPolicy::StrongOptional,
+                0.9,
+                0.9,
+                AssignmentLabel::Unknown,
+            ),
+            // Ink-promoted: Unknown primary label, confident ink label,
+            // attached beyond vertex 1 so the hub stays degree 4.
+            candidate_span_with_evidence(
+                4,
+                [1, 5],
+                CandidateCreaseSpanKind::AtomicInterval,
+                CandidateCreaseSourceKind::ArrangementObserved,
+                CandidateSelectionPolicy::StrongOptional,
+                0.9,
+                0.9,
+                AssignmentLabel::Unknown,
+            ),
+        ];
+        spans[4].assignment_evidence.ink_label = Some(AssignmentLabel::Valley);
+        let mut graph = interior_candidate_graph(
+            vec![
+                Point2::new(0.5, 0.5),
+                Point2::new(0.9, 0.5),
+                Point2::new(0.5, 0.9),
+                Point2::new(0.1, 0.5),
+                Point2::new(0.5, 0.1),
+                Point2::new(0.95, 0.5),
+            ],
+            spans,
+            Vec::new(),
+        );
+        let selected: BTreeSet<usize> = [0usize, 1, 2, 3, 4].into_iter().collect();
+
+        let relabeled =
+            finalize_selected_assignments(&mut graph, &selected, &SelectionOptions::default());
+
+        assert_eq!(relabeled, 2, "one ink promotion + one Maekawa force");
+        assert_eq!(
+            graph.crease_candidates[4].assignment_label(),
+            AssignmentLabel::Valley,
+            "ink label promoted over Unknown"
+        );
+        assert_eq!(
+            graph.crease_candidates[3].assignment_label(),
+            AssignmentLabel::Mountain,
+            "Maekawa (2M+1V+x at degree 4) forces mountain"
+        );
+        assert_eq!(
+            graph.crease_candidates[2].assignment_label(),
+            AssignmentLabel::Valley,
+            "confident labels are never touched"
         );
     }
 
