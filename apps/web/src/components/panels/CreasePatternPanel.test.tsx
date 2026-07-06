@@ -2038,6 +2038,42 @@ describe('CreasePatternPanel', () => {
     expect(container.textContent).toContain('Box Select: Drag selection box');
   });
 
+  it('returns to box select after Escape even when an imported Oriedita file restores line mode', async () => {
+    const documentState = editableCpState();
+    documentState.document.metadata = {
+      'oriedita:ori:canvasModel': {
+        mouseMode: 'DRAW_CREASE_FREE_1',
+      },
+    };
+    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
+      documentMode: 'crease-pattern',
+      importedCreasePattern: importedCpDocument(),
+      oristudioCpDocument: documentState,
+    });
+    const body = container.querySelector<HTMLElement>('.cp-panel__body');
+
+    expect(
+      container.querySelector<HTMLButtonElement>('button[aria-label="Line"]')?.hasAttribute(
+        'data-active'
+      )
+    ).toBe(true);
+    expect(container.textContent).toContain('Line: Drag crease endpoint');
+
+    await act(async () => {
+      body?.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+      );
+      await Promise.resolve();
+    });
+
+    expect(
+      container
+        .querySelector<HTMLButtonElement>('button[aria-label="Box Select"]')
+        ?.hasAttribute('data-active')
+    ).toBe(true);
+    expect(container.textContent).toContain('Box Select: Drag selection box');
+  });
+
   it('runs ready multi-step CP transform commands with resolved model points', async () => {
     const executeOristudioCpCommand = vi.fn(
       async (_operationId: string, _payload?: OristudioCpCommandPayload) => true

@@ -2069,15 +2069,17 @@ export function CreasePatternPanel() {
     }
     const isNewDocument = defaultCpToolDocumentRef.current !== documentKey;
     defaultCpToolDocumentRef.current = documentKey;
-    const defaultAction =
-      (nativeActiveMouseMode ? cpActionByUpstreamMouseMode(nativeActiveMouseMode) : undefined) ??
-      cpActionById(DEFAULT_ORISTUDIO_CP_ACTION_ID);
-    if (!defaultAction) return;
+    const defaultAction = cpActionById(DEFAULT_ORISTUDIO_CP_ACTION_ID);
+    const restoredAction = nativeActiveMouseMode
+      ? cpActionByUpstreamMouseMode(nativeActiveMouseMode)
+      : undefined;
+    const nextAction = isNewDocument ? restoredAction ?? defaultAction : defaultAction;
+    if (!nextAction) return;
     setCpToolState((state) =>
       isNewDocument || state.phase === 'idle'
         ? transitionOristudioCpToolState(state, {
             type: 'selectAction',
-            action: defaultAction,
+            action: nextAction,
             editable: true,
           })
         : state
