@@ -1462,8 +1462,8 @@ describe('workspace store slices', () => {
 
   it('creates a blank editable CP document', async () => {
     resetStores(seedSnapshot());
-    const activatePanel = vi.fn();
-    useLayoutStore.setState({ activatePanel });
+    const activateWorkspace = vi.fn();
+    useLayoutStore.setState({ activateWorkspace });
     useWorkspaceStore.setState({ engineReady: true, status: 'ready' });
 
     await useWorkspaceStore.getState().createNewCreasePattern();
@@ -1493,7 +1493,7 @@ describe('workspace store slices', () => {
     ).toBe(true);
     expect(useWorkspaceStore.getState().importedCreasePattern).toBeNull();
     expect(useWorkspaceStore.getState().oristudioCpSelection).toEqual(emptyOristudioCpSelection());
-    expect(activatePanel).toHaveBeenCalledWith('crease-pattern');
+    expect(activateWorkspace).toHaveBeenCalledWith('edit');
   });
 
   it('opens native tree projects and keeps Save on the native file path', async () => {
@@ -1618,8 +1618,8 @@ describe('workspace store slices', () => {
   it('loads CP-only documents and gates tree-only persistence', async () => {
     const api = resetStores(seedSnapshot());
     loadSnapshotIntoStore(seedSnapshot());
-    const activatePanel = vi.fn();
-    useLayoutStore.setState({ activatePanel });
+    const activateWorkspace = vi.fn();
+    useLayoutStore.setState({ activateWorkspace });
     const cpText = [
       '1 0 0 1 0',
       '1 1 0 1 1',
@@ -1672,7 +1672,7 @@ describe('workspace store slices', () => {
       0
     );
     expect(api.flatFoldArtifacts).toHaveBeenCalledOnce();
-    expect(activatePanel).toHaveBeenCalledWith('crease-pattern');
+    expect(activateWorkspace).toHaveBeenCalledWith('edit');
 
     useWorkspaceStore.setState({
       dirty: true,
@@ -3634,11 +3634,11 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().historyFuture).toEqual([]);
   });
 
-  it('optimizes, builds crease patterns, toggles color mode, and foregrounds the CP pane', async () => {
+  it('optimizes, builds crease patterns, toggles color mode, and foregrounds Edit', async () => {
     const api = resetStores(seedSnapshot());
     loadSnapshotIntoStore(seedSnapshot());
-    const activatePanel = vi.fn();
-    useLayoutStore.setState({ activatePanel });
+    const activateWorkspace = vi.fn();
+    useLayoutStore.setState({ activateWorkspace });
 
     const initialFitRequestId = useWorkspaceStore.getState().designViewportFitRequestId;
     await useWorkspaceStore.getState().optimizeScale();
@@ -3666,7 +3666,7 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().foldArtifacts?.fold.vertices_coords).toHaveLength(3);
     expect(useWorkspaceStore.getState().refreshFoldArtifacts).toBeTypeOf('function');
     expect(api.foldArtifacts).toHaveBeenCalledWith(1);
-    expect(activatePanel).toHaveBeenCalledWith('crease-pattern');
+    expect(activateWorkspace).toHaveBeenCalledWith('edit');
 
     useWorkspaceStore.getState().setCreaseColorMode('mvf');
     expect(useWorkspaceStore.getState().creaseColorMode).toBe('mvf');

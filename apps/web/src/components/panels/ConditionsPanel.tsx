@@ -82,9 +82,9 @@ export function ConditionsPanel() {
             Imported crease patterns do not have editable tree conditions.
           </span>
           <div className="document-mode-empty__actions">
-            <Button size="sm" variant="primary" onClick={() => void handleMenuAction('view.creasePattern')}>
+            <Button size="sm" variant="primary" onClick={() => void handleMenuAction('view.edit')}>
               <ScanLine size={14} />
-              View CP
+              Edit CP
             </Button>
             <Button size="sm" variant="secondary" onClick={() => void handleMenuAction('file.new')}>
               <FileText size={14} />

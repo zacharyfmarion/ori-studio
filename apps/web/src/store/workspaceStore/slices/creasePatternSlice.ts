@@ -479,7 +479,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         });
         get().commitHistoryCheckpoint(checkpoint, 'Build crease pattern');
         void get().autosaveProject();
-        useLayoutStore.getState().activatePanel('crease-pattern');
+        useLayoutStore.getState().activateWorkspace('edit');
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
       }

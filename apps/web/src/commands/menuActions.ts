@@ -66,7 +66,9 @@ export const MENU_ACTION_IDS = [
   'edit.addLargestStubForPoly',
   'edit.triangulateTree',
   'view.design',
+  'view.edit',
   'view.creasePattern',
+  'view.simulate',
   'view.simulator',
   'view.conditions',
   'view.resetLayout',
@@ -551,10 +553,12 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
         deps.workspace.setActiveEditingSurface('tree');
         deps.layout.activatePanel('design');
         return true;
+      case 'view.edit':
       case 'view.creasePattern':
         if (deps.workspace.oristudioCpDocument) deps.workspace.setActiveEditingSurface('crease-pattern');
         deps.layout.activatePanel('crease-pattern');
         return true;
+      case 'view.simulate':
       case 'view.simulator':
         deps.layout.activatePanel('simulator');
         return true;

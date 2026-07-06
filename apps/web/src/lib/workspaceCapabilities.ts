@@ -44,7 +44,9 @@ export type WorkspaceCapabilityId =
   | 'edit.addLargestStubForPoly'
   | 'edit.triangulateTree'
   | 'view.design'
+  | 'view.edit'
   | 'view.creasePattern'
+  | 'view.simulate'
   | 'view.simulator'
   | 'view.conditions'
   | 'view.resetLayout'
@@ -388,13 +390,11 @@ export function getWorkspaceCapabilities(input: WorkspaceCapabilityInput): Works
       'Stub finder port is pending'
     ),
     'edit.triangulateTree': capability(false, 'Triangulate Tree', 'Stub finder triangulation port is pending'),
-    'view.design': capability(true, 'Design', 'Show the design pane'),
-    'view.creasePattern': capability(true, 'Crease Pattern', 'Show the crease pattern pane'),
-    'view.simulator': capability(
-      hasCreasePattern,
-      'Simulator',
-      hasCreasePattern ? 'Show the simulator pane' : 'Build or import a crease pattern before simulating'
-    ),
+    'view.design': capability(true, 'Design', 'Show the design workspace'),
+    'view.edit': capability(true, 'Edit', 'Show the edit workspace'),
+    'view.creasePattern': capability(true, 'Edit', 'Show the edit workspace'),
+    'view.simulate': capability(true, 'Simulate', 'Show the simulate workspace'),
+    'view.simulator': capability(true, 'Simulate', 'Show the simulate workspace'),
     'view.conditions': capability(true, 'Conditions', 'Show the conditions pane'),
     'view.resetLayout': capability(true, 'Reset Layout', 'Reset pane layout'),
     'optimize.scale': commandCapability(

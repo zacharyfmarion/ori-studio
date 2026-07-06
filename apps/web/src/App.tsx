@@ -5,9 +5,12 @@ import 'dockview/dist/styles/dockview.css';
 import { Toaster } from 'sonner';
 import {
   Download,
+  Box,
+  DraftingCompass,
   FilePlus,
   FolderOpen,
   CircleHelp,
+  PenTool,
   Save,
   Settings,
   Sparkles,
@@ -43,7 +46,47 @@ import { useShortcutStore } from './store/shortcutStore';
 import { useThemeStore } from './store/themeStore';
 import { useWorkspaceStore } from './store/workspaceStore';
 import { useWorkspaceCapabilities } from './store/workspaceStore/useWorkspaceCapabilities';
+import {
+  WORKSPACE_DEFINITIONS,
+  workspaceForPanelId,
+  type WorkspaceId,
+} from './workspaces/workspaces';
 import './styles/sonner.css';
+
+const workspaceIcons: Record<WorkspaceId, typeof DraftingCompass> = {
+  design: DraftingCompass,
+  edit: PenTool,
+  simulate: Box,
+};
+
+function WorkspaceRail() {
+  const activeWorkspace = useLayoutStore((state) => state.activeWorkspace);
+
+  return (
+    <aside className="workspace-rail" aria-label="Workspaces">
+      <div className="workspace-rail__items">
+        {WORKSPACE_DEFINITIONS.map((workspace) => {
+          const Icon = workspaceIcons[workspace.id];
+          return (
+            <IconButton
+              key={workspace.id}
+              size="lg"
+              variant="toolbar"
+              className="workspace-rail__button"
+              isActive={activeWorkspace === workspace.id}
+              title={workspace.tooltip}
+              tooltipSide="right"
+              aria-label={workspace.tooltip}
+              onClick={() => void handleMenuAction(workspace.commandId)}
+            >
+              <Icon size={19} />
+            </IconButton>
+          );
+        })}
+      </div>
+    </aside>
+  );
+}
 
 function Toolbar() {
   const openSettings = useSettingsStore((state) => state.openSettings);
@@ -157,6 +200,7 @@ export default function App() {
   const error = useWorkspaceStore((state) => state.error);
   const toasterTheme = useThemeStore((state) => state.currentTheme.type);
   const setDockviewApi = useLayoutStore((state) => state.setDockviewApi);
+  const activeWorkspace = useLayoutStore((state) => state.activeWorkspace);
   const loadLayout = useLayoutStore((state) => state.loadLayout);
   const saveLayout = useLayoutStore((state) => state.saveLayout);
   const [workspaceStarted, setWorkspaceStarted] = useState(false);
@@ -180,6 +224,7 @@ export default function App() {
       projectMessage: null,
       status: state.engineReady ? 'ready' : 'loading_engine',
     });
+    useLayoutStore.getState().setActiveWorkspace('design');
     setWorkspaceInitialPanel(null);
     setWorkspaceStarted(false);
     return true;
@@ -262,20 +307,20 @@ export default function App() {
       setDockviewApi(api);
 
       let loaded = false;
-      const saved = loadLayout();
+      const saved = loadLayout(activeWorkspace);
       if (saved) {
         try {
           api.fromJSON(saved);
           loaded = true;
         } catch (error) {
           console.warn('Failed to restore layout', error);
-          localStorage.removeItem('treemaker-web-layout');
-          localStorage.removeItem('treemaker-web-layout-version');
+          localStorage.removeItem(`treemaker-web-layout:${activeWorkspace}`);
+          localStorage.removeItem(`treemaker-web-layout-version:${activeWorkspace}`);
         }
       }
 
       if (!loaded) {
-        applyDefaultLayout(api);
+        applyDefaultLayout(api, activeWorkspace);
       }
 
       if (workspaceInitialPanel) {
@@ -291,10 +336,11 @@ export default function App() {
         timer = setTimeout(() => saveLayout(), 250);
       });
     },
-    [loadLayout, saveLayout, setDockviewApi, workspaceInitialPanel]
+    [activeWorkspace, loadLayout, saveLayout, setDockviewApi, workspaceInitialPanel]
   );
 
   const enterWorkspace = useCallback((panelId: string) => {
+    useLayoutStore.getState().setActiveWorkspace(workspaceForPanelId(panelId) ?? 'design');
     setWorkspaceInitialPanel(panelId);
     setWorkspaceStarted(true);
   }, []);
@@ -342,13 +388,16 @@ export default function App() {
         {workspaceStarted ? (
           <>
             <Toolbar />
-            <DockviewReact
-              components={panelComponents}
-              defaultTabComponent={FixedDockTab}
-              onReady={onReady}
-              className="dockview-theme-treemaker"
-              disableFloatingGroups
-            />
+            <div className="workspace-shell">
+              <WorkspaceRail />
+              <DockviewReact
+                components={panelComponents}
+                defaultTabComponent={FixedDockTab}
+                onReady={onReady}
+                className="dockview-theme-treemaker workspace-shell__dockview"
+                disableFloatingGroups
+              />
+            </div>
           </>
         ) : (
           <StartScreen

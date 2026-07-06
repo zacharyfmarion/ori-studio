@@ -79,8 +79,8 @@ describe('SequencePanel', () => {
   });
 
   it('focuses the simulator on a step when the step simulate action is clicked', () => {
-    const activatePanel = vi.fn();
-    useLayoutStore.setState({ activatePanel });
+    const activateWorkspace = vi.fn();
+    useLayoutStore.setState({ activateWorkspace });
     const rendered = renderPanel(simplePlan());
     const button = rendered.querySelector<HTMLButtonElement>('[aria-label="Simulate step"]');
 
@@ -92,7 +92,7 @@ describe('SequencePanel', () => {
       kind: 'sequence_step',
       stepId: 'step-1',
     });
-    expect(activatePanel).toHaveBeenCalledWith('simulator');
+    expect(activateWorkspace).toHaveBeenCalledWith('simulate');
   });
 
   it('shows an indeterminate planning indicator while sequence planning is running', () => {

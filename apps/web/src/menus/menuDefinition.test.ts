@@ -43,6 +43,29 @@ describe('web menu definition', () => {
     expect(submenuLabels).toEqual(['Select', 'Node', 'Edge', 'Strain', 'Stubs']);
   });
 
+  it('exposes the three workspace entries from the View menu', () => {
+    const viewMenu = getMenuBarDef().find((menu) => menu.label === 'View');
+    const actionItems =
+      viewMenu?.items.flatMap((item) =>
+        item.type === 'action' ? [{ id: item.id, label: item.label }] : []
+      ) ?? [];
+
+    expect(actionItems.map((item) => item.label)).toEqual([
+      'Design',
+      'Edit',
+      'Simulate',
+      'Conditions',
+      'Reset Layout',
+    ]);
+    expect(actionItems.map((item) => item.id)).toEqual([
+      'view.design',
+      'view.edit',
+      'view.simulate',
+      'view.conditions',
+      'view.resetLayout',
+    ]);
+  });
+
   it('exposes documentation and about from the Help menu', () => {
     const helpMenu = getMenuBarDef().find((menu) => menu.label === 'Help');
     const actionIds = helpMenu ? actionIdsFor(helpMenu.items) : undefined;

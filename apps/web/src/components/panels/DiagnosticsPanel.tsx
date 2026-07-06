@@ -1,24 +1,8 @@
 import { AlertTriangle, CheckCircle2, CircleDashed } from 'lucide-react';
-import {
-  cpDiagnosticEntryMessage,
-  semanticCpDiagnosticKind,
-  semanticCpDiagnosticSummary,
-} from '../../lib/oristudioCpDiagnostics';
-import { useLayoutStore } from '../../store/layoutStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 
 export function DiagnosticsPanel() {
   const project = useWorkspaceStore((state) => state.project);
-  const documentMode = useWorkspaceStore((state) => state.documentMode);
-  const importedCreasePattern = useWorkspaceStore((state) => state.importedCreasePattern);
-  const oristudioCpDocument = useWorkspaceStore((state) => state.oristudioCpDocument);
-  const oristudioCpCamvResult = useWorkspaceStore((state) => state.oristudioCpCamvResult);
-  const oristudioCpActiveDiagnosticId = useWorkspaceStore(
-    (state) => state.oristudioCpActiveDiagnosticId
-  );
-  const setOristudioCpActiveDiagnostic = useWorkspaceStore(
-    (state) => state.setOristudioCpActiveDiagnostic
-  );
   const status = useWorkspaceStore((state) => state.status);
   const engineReady = useWorkspaceStore((state) => state.engineReady);
   const error = useWorkspaceStore((state) => state.error);
@@ -41,128 +25,6 @@ export function DiagnosticsPanel() {
   ) : (
     <CircleDashed size={15} />
   );
-
-  if (documentMode === 'crease-pattern') {
-    const diagnostics = importedCreasePattern?.diagnostics;
-    const lastCommandResult = oristudioCpDocument?.lastCommandResult ?? null;
-    const camvDiagnosticEntries = oristudioCpCamvResult?.diagnostic_entries ?? [];
-    const commandDiagnosticEntries =
-      lastCommandResult?.operation === 'CheckCamv'
-        ? []
-        : (lastCommandResult?.diagnostic_entries ?? []);
-    const cpDiagnosticEntries = [...camvDiagnosticEntries, ...commandDiagnosticEntries];
-    const cpDiagnosticSummary = semanticCpDiagnosticSummary(
-      (camvDiagnosticEntries.length > 0 ? oristudioCpCamvResult?.diagnostics[0] : null) ??
-      (commandDiagnosticEntries.length > 0 ? lastCommandResult?.diagnostics[0] : null) ??
-      oristudioCpCamvResult?.diagnostics[0] ??
-      lastCommandResult?.diagnostics[0] ??
-      null
-    );
-    const cpDiagnosticTone = cpDiagnosticEntries.some((entry) => entry.severity === 'error')
-      ? 'bad'
-      : cpDiagnosticEntries.some((entry) => entry.severity === 'warning')
-        ? 'warn'
-        : cpDiagnosticSummary
-          ? 'good'
-          : 'warn';
-    const hasErrors = Boolean(diagnostics?.errors.length);
-    const hasWarnings = Boolean(diagnostics?.warnings.length);
-    return (
-      <section className="panel-shell">
-        <div className="panel-toolbar">
-          <span className="panel-title">Diagnostics</span>
-        </div>
-        <div className="panel-body">
-          <div className="metric-grid">
-            <Metric
-              label="Vertices"
-              value={
-                importedCreasePattern?.stats.vertices ??
-                oristudioCpDocument?.summary.points ??
-                0
-              }
-            />
-            <Metric
-              label="Edges"
-              value={
-                importedCreasePattern?.stats.edges ??
-                oristudioCpDocument?.summary.line_segments ??
-                0
-              }
-            />
-            <Metric label="Faces" value={importedCreasePattern?.stats.faces ?? 0} />
-            <Metric label="Mode" value="CP-only" />
-          </div>
-          <div
-            className="status-row"
-            data-tone={cpDiagnosticTone}
-          >
-            {cpDiagnosticTone === 'bad' || cpDiagnosticTone === 'warn' ? (
-              <AlertTriangle size={15} />
-            ) : (
-              <CheckCircle2 size={15} />
-            )}
-            <span>{cpDiagnosticSummary ?? 'No Oriedita check has been run'}</span>
-          </div>
-          {cpDiagnosticEntries.length > 0 && (
-            <div className="diagnostic-list" aria-label="Oriedita check results">
-              {cpDiagnosticEntries.slice(0, 12).map((entry) => (
-                <button
-                  type="button"
-                  className="diagnostic-list__item"
-                  data-active={entry.id === oristudioCpActiveDiagnosticId || undefined}
-                  data-severity={entry.severity}
-                  key={entry.id}
-                  onClick={() => {
-                    setOristudioCpActiveDiagnostic(entry.id);
-                    useLayoutStore.getState().activatePanel('crease-pattern');
-                  }}
-                >
-                  <span>{semanticCpDiagnosticKind(entry.kind)}</span>
-                  <span>{cpDiagnosticEntryMessage(entry)}</span>
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="status-row" data-tone={hasErrors ? 'bad' : hasWarnings ? 'warn' : 'good'}>
-            {hasErrors ? <AlertTriangle size={15} /> : <CheckCircle2 size={15} />}
-            <span>
-              {hasErrors
-                ? diagnostics?.errors[0]
-                : hasWarnings
-                  ? diagnostics?.warnings[0]
-                  : 'Imported crease pattern ready'}
-            </span>
-          </div>
-          {importedCreasePattern?.selectedFrame && (
-            <div className="status-row" data-tone="good">
-              <CheckCircle2 size={15} />
-              <span>
-                FOLD frame {importedCreasePattern.selectedFrame.index}
-                {importedCreasePattern.selectedFrame.title
-                  ? `: ${importedCreasePattern.selectedFrame.title}`
-                  : ''}
-              </span>
-            </div>
-          )}
-          <div
-            className="status-row"
-            data-tone={importedCreasePattern?.simulationModelError ? 'warn' : 'good'}
-          >
-            {importedCreasePattern?.simulationModelError ? (
-              <CircleDashed size={15} />
-            ) : (
-              <CheckCircle2 size={15} />
-            )}
-            <span>
-              {importedCreasePattern?.simulationModelError ??
-                'Simulator-ready topology available'}
-            </span>
-          </div>
-        </div>
-      </section>
-    );
-  }
 
   return (
     <section className="panel-shell">

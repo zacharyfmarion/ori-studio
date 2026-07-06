@@ -493,7 +493,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         text: source.recentText ?? text,
       });
     }
-    useLayoutStore.getState().activatePanel('design');
+    useLayoutStore.getState().activateWorkspace('design');
   };
 
   const loadCreasePattern = async (
@@ -642,7 +642,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       savedAt: nowIso(),
       text,
     });
-    useLayoutStore.getState().activatePanel('crease-pattern');
+    useLayoutStore.getState().activateWorkspace('edit');
   };
 
   const parseFoldProjection = (text: string): FoldDocument | null => {
@@ -785,7 +785,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       savedAt: nowIso(),
       text: nativeText,
     });
-    useLayoutStore.getState().activatePanel('crease-pattern');
+    useLayoutStore.getState().activateWorkspace('edit');
   };
 
   const restoreNativeCreasePatternCompanion = async (
@@ -1201,7 +1201,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           historyFuture: [],
           clipboardPasteCount: 0,
         });
-        useLayoutStore.getState().activatePanel('design');
+        useLayoutStore.getState().activateWorkspace('design');
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
       }
@@ -1245,7 +1245,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           historyFuture: [],
           clipboardPasteCount: 0,
         });
-        useLayoutStore.getState().activatePanel('design');
+        useLayoutStore.getState().activateWorkspace('design');
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
       }
@@ -1298,7 +1298,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           historyFuture: [],
           clipboardPasteCount: 0,
         });
-        useLayoutStore.getState().activatePanel('crease-pattern');
+        useLayoutStore.getState().activateWorkspace('edit');
       } catch (error) {
         set({ status: 'error', error: oristudioCpError(error) });
       }
