@@ -19,6 +19,7 @@ import {
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
 import { Toggle } from '../ui/Toggle';
+import { CP_TOOL_OPTIONS_PANE_SLOT_ID } from './cpToolOptionsPortal';
 
 export function CpViewControlsPanel() {
   const editableCp = useWorkspaceStore((state) => state.oristudioCpDocument?.document ?? null);
@@ -45,56 +46,62 @@ export function CpViewControlsPanel() {
 
   return (
     <section className="panel-shell cp-view-controls-panel">
-      <div className="panel-body">
-        <ToggleRow
-          label="Grid"
-          checked={viewport.gridVisible}
-          onChange={(checked) => setViewportOption('gridVisible', checked)}
-        />
-        <NumberRow
-          label="Grid size"
-          value={gridSize}
-          min={1}
-          step={1}
-          normalize={normalizeOrieditaGridSize}
-          onCommit={(value) => void setGridSize(value)}
-        />
-        <GridSettingsSection grid={grid} onUpdate={updateGrid} />
-        <ToggleRow
-          label="CAMV issues"
-          checked={camvVisible}
-          onChange={(checked) => setViewportOption('camvIssuesVisible', checked)}
-        />
-        <ToggleRow
-          label="Snapping"
-          checked={snapEnabled}
-          onChange={(checked) => {
-            setViewportOption('snapToGrid', checked);
-            setViewportOption('snapToVertices', checked);
-            setViewportOption('snapToLines', checked);
-          }}
-        />
-        <LineStyleRow
-          value={viewport.lineStyle ?? 'color'}
-          onChange={(lineStyle) => setViewportOption('lineStyle', lineStyle)}
-        />
-        <NumberRow
-          label="Line width"
-          value={viewport.lineWidth ?? 1}
-          min={ORISTUDIO_CP_MIN_LINE_WIDTH}
-          max={ORISTUDIO_CP_MAX_LINE_WIDTH}
-          step={1}
-          normalize={clampOristudioCpLineWidth}
-          onCommit={(value) => setViewportOption('lineWidth', value)}
-        />
-        <NumberRow
-          label="Point size"
-          value={viewport.pointSize ?? 1}
-          min={ORISTUDIO_CP_MIN_POINT_SIZE}
-          max={ORISTUDIO_CP_MAX_POINT_SIZE}
-          step={1}
-          normalize={clampOristudioCpPointSize}
-          onCommit={(value) => setViewportOption('pointSize', value)}
+      <div className="panel-body cp-view-controls-panel__body">
+        <div className="cp-view-controls-panel__view-options">
+          <ToggleRow
+            label="Grid"
+            checked={viewport.gridVisible}
+            onChange={(checked) => setViewportOption('gridVisible', checked)}
+          />
+          <NumberRow
+            label="Grid size"
+            value={gridSize}
+            min={1}
+            step={1}
+            normalize={normalizeOrieditaGridSize}
+            onCommit={(value) => void setGridSize(value)}
+          />
+          <GridSettingsSection grid={grid} onUpdate={updateGrid} />
+          <ToggleRow
+            label="CAMV issues"
+            checked={camvVisible}
+            onChange={(checked) => setViewportOption('camvIssuesVisible', checked)}
+          />
+          <ToggleRow
+            label="Snapping"
+            checked={snapEnabled}
+            onChange={(checked) => {
+              setViewportOption('snapToGrid', checked);
+              setViewportOption('snapToVertices', checked);
+              setViewportOption('snapToLines', checked);
+            }}
+          />
+          <LineStyleRow
+            value={viewport.lineStyle ?? 'color'}
+            onChange={(lineStyle) => setViewportOption('lineStyle', lineStyle)}
+          />
+          <NumberRow
+            label="Line width"
+            value={viewport.lineWidth ?? 1}
+            min={ORISTUDIO_CP_MIN_LINE_WIDTH}
+            max={ORISTUDIO_CP_MAX_LINE_WIDTH}
+            step={1}
+            normalize={clampOristudioCpLineWidth}
+            onCommit={(value) => setViewportOption('lineWidth', value)}
+          />
+          <NumberRow
+            label="Point size"
+            value={viewport.pointSize ?? 1}
+            min={ORISTUDIO_CP_MIN_POINT_SIZE}
+            max={ORISTUDIO_CP_MAX_POINT_SIZE}
+            step={1}
+            normalize={clampOristudioCpPointSize}
+            onCommit={(value) => setViewportOption('pointSize', value)}
+          />
+        </div>
+        <div
+          id={CP_TOOL_OPTIONS_PANE_SLOT_ID}
+          className="cp-view-controls-panel__tool-options-slot"
         />
       </div>
     </section>

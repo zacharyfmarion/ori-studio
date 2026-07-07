@@ -32,6 +32,7 @@ import type {
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
 import { CreasePatternPanel } from './CreasePatternPanel';
+import { CP_TOOL_OPTIONS_PANE_SLOT_ID } from './cpToolOptionsPortal';
 
 const transformMocks = vi.hoisted(() => ({
   centerView: vi.fn(),
@@ -169,7 +170,12 @@ function renderPanel(
 
   container = document.createElement('div');
   document.body.append(container);
-  root = createRoot(container);
+  const appRoot = document.createElement('div');
+  const toolOptionsSlot = document.createElement('div');
+  toolOptionsSlot.id = CP_TOOL_OPTIONS_PANE_SLOT_ID;
+  toolOptionsSlot.className = 'cp-view-controls-panel__tool-options-slot';
+  container.append(appRoot, toolOptionsSlot);
+  root = createRoot(appRoot);
   act(() => {
     root?.render(
       <TooltipProvider delayDuration={0}>
