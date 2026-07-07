@@ -101,6 +101,8 @@ describe('menu actions', () => {
     const handle = createMenuActionHandler(deps);
 
     await expect(handle('file.new')).resolves.toBe(true);
+    await expect(handle('view.edit')).resolves.toBe(true);
+    await expect(handle('view.simulate')).resolves.toBe(true);
     await expect(handle('view.creasePattern')).resolves.toBe(true);
     await expect(handle('view.simulator')).resolves.toBe(true);
     await expect(handle('file.settings')).resolves.toBe(true);
@@ -114,6 +116,7 @@ describe('menu actions', () => {
     expect(deps.workspace.createNewProject).not.toHaveBeenCalled();
     expect(deps.layout.activatePanel).toHaveBeenCalledWith('crease-pattern');
     expect(deps.layout.activatePanel).toHaveBeenCalledWith('simulator');
+    expect(deps.layout.activatePanel).toHaveBeenCalledTimes(4);
     expect(deps.settings).toHaveBeenCalledOnce();
     expect(deps.help).toHaveBeenCalledOnce();
     expect(deps.about).toHaveBeenCalledTimes(2);

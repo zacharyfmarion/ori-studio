@@ -3,22 +3,11 @@ import { Activity, Circle, GitBranch, MousePointer2, Square, Waypoints } from 'l
 import { handleMenuAction } from '../../commands/menuActions';
 import { formatNumber } from '../../lib/geometry';
 import { conditionDetail, conditionTitle } from '../../lib/conditionLabels';
-import { orieditaNativeMetadataStatus } from '../../lib/orieditaNativeMetadata';
 import { selectedNodeIds, selectionSummary } from '../../lib/selection';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 
 export function InspectorPanel() {
   const project = useWorkspaceStore((state) => state.project);
-  const documentMode = useWorkspaceStore((state) => state.documentMode);
-  const importedCreasePattern = useWorkspaceStore((state) => state.importedCreasePattern);
-  const oristudioCpDocument = useWorkspaceStore((state) => state.oristudioCpDocument);
-  const oristudioCpSelection = useWorkspaceStore((state) => state.oristudioCpSelection);
-  const oristudioCpActiveDiagnosticId = useWorkspaceStore(
-    (state) => state.oristudioCpActiveDiagnosticId
-  );
-  const setOristudioCpActiveDiagnostic = useWorkspaceStore(
-    (state) => state.setOristudioCpActiveDiagnostic
-  );
   const selection = useWorkspaceStore((state) => state.selection);
   const moveNode = useWorkspaceStore((state) => state.moveNode);
   const updateNodeLabel = useWorkspaceStore((state) => state.updateNodeLabel);
@@ -31,10 +20,6 @@ export function InspectorPanel() {
     selection.kind === 'node' ? project.nodes.find((node) => node.id === selection.id) : null;
   const selectedEdge =
     selection.kind === 'edge' ? project.edges.find((edge) => edge.id === selection.id) : null;
-  const selectedCrease =
-    selection.kind === 'crease' ? project.creases.find((crease) => crease.id === selection.id) : null;
-  const selectedFacet =
-    selection.kind === 'facet' ? project.facets.find((facet) => facet.id === selection.id) : null;
   const selectedCondition =
     selection.kind === 'condition'
       ? project.conditions.find((condition) => condition.id === selection.id)
@@ -42,34 +27,9 @@ export function InspectorPanel() {
   const selectedPath =
     selection.kind === 'path' ? project.paths.find((path) => path.id === selection.id) : null;
   const selectedNodes = selectedNodeIds(selection);
-  const editableCpSelectionSize =
-    oristudioCpSelection.lines.length +
-    (oristudioCpSelection.vertices?.length ?? 0) +
-    oristudioCpSelection.points.length +
-    oristudioCpSelection.circles.length +
-    oristudioCpSelection.texts.length +
-    oristudioCpSelection.faces.length;
-  const nativeMetadataStatus = orieditaNativeMetadataStatus(
-    oristudioCpDocument?.document.metadata
-  );
-  const nativeStateSummary = nativeMetadataStatus
-    ? [
-        nativeMetadataStatus.restored.length > 0
-          ? `${nativeMetadataStatus.restored.join(', ')} restored`
-          : null,
-        nativeMetadataStatus.preserved.length > 0
-          ? `${nativeMetadataStatus.preserved.length} preserved`
-          : null,
-      ]
-        .filter(Boolean)
-        .join('; ')
-    : null;
 
   return (
     <section className="panel-shell inspector-panel">
-      <div className="panel-toolbar">
-        <span className="panel-title">Inspector</span>
-      </div>
       <div className="panel-body">
         {selectedNode && (
           <>
@@ -133,13 +93,6 @@ export function InspectorPanel() {
             <ActionRow label="Relieve strain" onClick={() => void handleMenuAction('edit.relieveStrain')} />
           </>
         )}
-        {selectedCrease && (
-          <>
-            <div className="inspector-heading"><Activity size={15} /> Crease {selectedCrease.id}</div>
-            <Row label="Fold" value={selectedCrease.fold} />
-            <Row label="Kind" value={selectedCrease.kind} />
-          </>
-        )}
         {selectedPath && (
           <>
             <div className="inspector-heading"><Waypoints size={15} /> Path {selectedPath.id}</div>
@@ -150,13 +103,6 @@ export function InspectorPanel() {
             <Row label="Border" value={selectedPath.isBorder ? 'Yes' : 'No'} />
             <Row label="Polygon" value={selectedPath.isPolygon ? 'Yes' : 'No'} />
             <Row label="Conditioned" value={selectedPath.isConditioned ? 'Yes' : 'No'} />
-          </>
-        )}
-        {selectedFacet && (
-          <>
-            <div className="inspector-heading"><Activity size={15} /> Facet {selectedFacet.id}</div>
-            <Row label="Vertices" value={String(selectedFacet.vertices.length)} />
-            <Row label="Color" value={selectedFacet.color} />
           </>
         )}
         {selectedCondition && (
@@ -185,72 +131,7 @@ export function InspectorPanel() {
             <ActionRow label="Perturb nodes" onClick={() => void handleMenuAction('edit.perturbNodes')} />
           </>
         )}
-        {selection.kind === 'tree' &&
-          documentMode === 'crease-pattern' &&
-          oristudioCpDocument &&
-          editableCpSelectionSize > 0 && (
-          <>
-            <div className="inspector-heading"><MousePointer2 size={15} /> CP Selection</div>
-            <Row label="Lines" value={String(oristudioCpSelection.lines.length)} />
-            <Row label="Vertices" value={String(oristudioCpSelection.vertices?.length ?? 0)} />
-            <Row label="Points" value={String(oristudioCpSelection.points.length)} />
-            <Row label="Circles" value={String(oristudioCpSelection.circles.length)} />
-            <Row label="Text" value={String(oristudioCpSelection.texts.length)} />
-            {oristudioCpSelection.lines.length > 0 && (
-              <>
-                <ActionRow
-                  label="Delete selected lines"
-                  onClick={() => void handleMenuAction('cp.deleteSelectedLines')}
-                />
-                <ActionRow
-                  label="Fix inaccurate creases"
-                  onClick={() => void handleMenuAction('cp.fixInaccurate')}
-                />
-              </>
-            )}
-            <ActionRow label="Check CAMV" onClick={() => void handleMenuAction('cp.checkCamv')} />
-          </>
-        )}
-        {selection.kind === 'tree' &&
-          documentMode === 'crease-pattern' &&
-          oristudioCpActiveDiagnosticId && (
-          <>
-            <div className="inspector-heading"><Activity size={15} /> Diagnostic</div>
-            <Row label="Issue" value={oristudioCpActiveDiagnosticId} />
-            <ActionRow label="Check CAMV" onClick={() => void handleMenuAction('cp.checkCamv')} />
-            <button
-              className="control-row control-row--button"
-              type="button"
-              onClick={() => setOristudioCpActiveDiagnostic(null)}
-            >
-              <span className="control-row__label">Action</span>
-              <span className="control-row__value">Clear diagnostic focus</span>
-            </button>
-          </>
-        )}
-        {selection.kind === 'tree' &&
-          documentMode === 'crease-pattern' &&
-          editableCpSelectionSize === 0 && (
-          <>
-            <div className="inspector-heading"><Square size={15} /> Imported CP</div>
-            <Row label="Title" value={project.title} />
-            <Row label="Source" value={importedCreasePattern?.source.filename ?? 'Unknown'} />
-            <Row label="Format" value={importedCreasePattern?.source.format.toUpperCase() ?? 'CP'} />
-            <Row label="Vertices" value={String(importedCreasePattern?.stats.vertices ?? 0)} />
-            <Row label="Edges" value={String(importedCreasePattern?.stats.edges ?? project.creases.length)} />
-            <Row label="Faces" value={String(importedCreasePattern?.stats.faces ?? project.facets.length)} />
-            {nativeStateSummary && <Row label="Native state" value={nativeStateSummary} />}
-            {nativeMetadataStatus?.preserved.length ? (
-              <Row label="Preserved" value={nativeMetadataStatus.preserved.join(', ')} />
-            ) : null}
-            <Row
-              label="Simulation"
-              value={importedCreasePattern?.simulationModelError ? 'Unavailable' : 'Ready'}
-            />
-            <ActionRow label="Check CAMV" onClick={() => void handleMenuAction('cp.checkCamv')} />
-          </>
-        )}
-        {selection.kind === 'tree' && documentMode === 'tree' && (
+        {selection.kind === 'tree' && (
           <>
             <div className="inspector-heading"><Square size={15} /> Tree</div>
             <Row label="Title" value={project.title} />

@@ -55,7 +55,8 @@
   --tree-label-stroke: rgba(246, 240, 223, 0.8);
   --fold-mountain: #ff4d5d;
   --fold-valley: #60a5fa;
-  --fold-flat: #85919a;
+  /* Oriedita CYAN_3 auxiliary/flat crease color. */
+  --fold-flat: #64c8c8;
   --fold-border: #111417;
   --fold-unassigned: #9aa4ad;
   --cp-color-orange: #f97316;
@@ -310,6 +311,10 @@
   padding: 0 var(--space-2);
   border-bottom: 1px solid var(--border-subtle);
   background: var(--bg-primary);
+}
+
+.panel-toolbar--actions-only {
+  justify-content: flex-end;
 }
 
 .panel-toolbar__group {
@@ -2914,26 +2919,6 @@
   pointer-events: none;
 }
 
-.cp-symmetry-line {
-  stroke: var(--accent-tertiary);
-  stroke-width: 1.7;
-  stroke-dasharray: 12 8;
-  opacity: 0.7;
-  pointer-events: none;
-  vector-effect: non-scaling-stroke;
-}
-
-.cp-symmetry-line--active {
-  opacity: 0.95;
-  stroke-width: 2.1;
-}
-
-.cp-symmetry-line--draft {
-  stroke: var(--accent-primary);
-  stroke-dasharray: 4 6;
-  opacity: 0.86;
-}
-
 .symmetry-snap-lane {
   stroke: color-mix(in srgb, var(--accent-tertiary) 28%, transparent);
   stroke-width: 18;
@@ -3704,10 +3689,6 @@
   font-weight: 800;
 }
 
-.cp-line-type-toolbar__apply {
-  min-width: 28px;
-}
-
 .cp-folded-model-status {
   display: inline-flex;
   align-items: center;
@@ -3769,29 +3750,132 @@
   color: var(--fold-unassigned);
 }
 
-.cp-grid-size-control {
-  width: 42px;
-  height: 28px;
+.cp-view-controls-panel__empty {
+  display: flex;
+  align-items: flex-start;
+  padding: var(--space-3);
+}
+
+.control-row__value--toggle {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.control-row__value--input {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.control-row__value--select {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.cp-view-controls-panel__select {
+  width: 100%;
   min-width: 0;
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-primary);
-  font: inherit;
+  height: 26px;
+}
+
+.control-row__suffix {
+  color: var(--text-tertiary);
   font-size: 0.72rem;
-  font-variant-numeric: tabular-nums;
-  font-weight: 760;
+}
+
+.grid-settings {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.grid-settings__toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px var(--space-3);
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.grid-settings__toggle:hover {
+  color: var(--text-primary);
+}
+
+.grid-settings__chevron {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+  transition: transform 0.12s ease;
+}
+
+.grid-settings[data-open] .grid-settings__chevron {
+  transform: rotate(90deg);
+}
+
+.grid-settings__body {
+  padding-bottom: var(--space-2);
+  background: color-mix(in srgb, var(--bg-primary) 45%, transparent);
+}
+
+.grid-scale-row {
+  display: grid;
+  grid-template-columns: minmax(56px, auto) 1fr;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 7px var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.grid-scale-row__label {
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+}
+
+.grid-scale-row__formula {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.grid-scale-row__op {
+  color: var(--text-tertiary);
+  font-size: 0.78rem;
+}
+
+.grid-scale-row__input.control-row__input {
+  width: 48px;
+  min-width: 0;
+  padding: 0 5px;
   text-align: center;
 }
 
-.cp-grid-size-control:hover {
-  background: color-mix(in srgb, var(--bg-secondary) 82%, transparent);
+.grid-settings__reset {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 30px;
+  margin: 8px var(--space-3) 2px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
 }
 
-.cp-grid-size-control:focus-visible {
-  background: var(--bg-secondary);
-  outline: 1px solid var(--accent-primary);
-  outline-offset: -1px;
+.grid-settings__reset:hover {
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
 }
 
 .viewport-toolbar__menu-anchor {
@@ -3801,8 +3885,6 @@
 }
 
 .viewport-toolbar__zoom-button,
-.viewport-toolbar__actual,
-.viewport-toolbar__symmetry-button,
 .viewport-toolbar__dropdown-item {
   border: 0;
   border-radius: var(--radius-sm);
@@ -3813,42 +3895,17 @@
   font-size: 0.72rem;
 }
 
-.viewport-toolbar__zoom-button,
-.viewport-toolbar__symmetry-button,
-.viewport-toolbar__actual {
+.viewport-toolbar__zoom-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   height: 28px;
-}
-
-.viewport-toolbar__zoom-button {
   min-width: 52px;
   padding: 0 8px;
   color: var(--text-primary);
 }
 
-.viewport-toolbar__actual {
-  min-width: 34px;
-  padding: 0 7px;
-  font-weight: 700;
-}
-
-.viewport-toolbar__symmetry-button {
-  gap: 5px;
-  min-width: 54px;
-  padding: 0 8px;
-  font-weight: 760;
-}
-
-.viewport-toolbar__symmetry-button[data-active] {
-  background: color-mix(in srgb, var(--accent-primary) 20%, transparent);
-  color: var(--text-primary);
-}
-
 .viewport-toolbar__zoom-button:hover,
-.viewport-toolbar__actual:hover,
-.viewport-toolbar__symmetry-button:hover,
 .viewport-toolbar__dropdown-item:hover {
   background: var(--bg-surface);
   color: var(--text-primary);
@@ -3974,154 +4031,6 @@
   min-height: 26px;
   padding: 0 10px;
   text-align: center;
-}
-
-.symmetry-menu__panel {
-  width: min(260px, calc(100vw - var(--space-6)));
-  max-width: calc(100vw - var(--space-6));
-  padding: 8px;
-  gap: 5px;
-  color: var(--text-secondary);
-  white-space: normal;
-}
-
-.symmetry-menu__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  padding: 0 2px 4px;
-  border-bottom: 1px solid var(--border-subtle);
-  color: var(--text-primary);
-  font-size: 0.75rem;
-  font-weight: 760;
-}
-
-.symmetry-menu__header span:last-child {
-  color: var(--text-tertiary);
-  font-size: 0.68rem;
-  font-weight: 700;
-}
-
-.symmetry-menu__toggle-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  min-height: 42px;
-  padding: 6px 2px;
-}
-
-.symmetry-menu__toggle-copy {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-
-.symmetry-menu__toggle-copy span {
-  color: var(--text-primary);
-  font-size: 0.74rem;
-  font-weight: 740;
-}
-
-.symmetry-menu__toggle-copy small {
-  color: var(--text-tertiary);
-  font-size: 0.66rem;
-  font-weight: 650;
-  line-height: 1.25;
-  overflow-wrap: anywhere;
-}
-
-.symmetry-menu__item,
-.symmetry-menu__preset {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 7px;
-  min-height: 28px;
-  padding: 0 8px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.72rem;
-  font-weight: 700;
-}
-
-.symmetry-menu__item {
-  width: 100%;
-}
-
-.symmetry-menu__item:hover,
-.symmetry-menu__preset:hover {
-  background: var(--bg-surface);
-  color: var(--text-primary);
-}
-
-.symmetry-menu__item[data-active],
-.symmetry-menu__preset[data-active] {
-  border-color: color-mix(in srgb, var(--accent-primary) 42%, transparent);
-  background: color-mix(in srgb, var(--accent-primary) 18%, transparent);
-  color: var(--text-primary);
-}
-
-.symmetry-menu__item:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-
-.symmetry-menu__item:disabled:hover {
-  background: transparent;
-  color: var(--text-secondary);
-}
-
-.symmetry-menu__section-label {
-  margin-top: 3px;
-  padding: 0 2px;
-  color: var(--text-tertiary);
-  font-size: 0.65rem;
-  font-weight: 760;
-  text-transform: uppercase;
-}
-
-.symmetry-menu__preset-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px;
-}
-
-.symmetry-menu__preset {
-  justify-content: center;
-}
-
-.symmetry-menu__field {
-  display: grid;
-  grid-template-columns: 58px minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-  min-height: 28px;
-  color: var(--text-secondary);
-  font-size: 0.72rem;
-  font-weight: 700;
-}
-
-.symmetry-menu__field input {
-  min-width: 0;
-  height: 26px;
-  padding: 0 7px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  font: inherit;
-  font-size: 0.72rem;
-}
-
-.symmetry-menu__field input:focus-visible {
-  border-color: var(--accent-primary);
-  outline: none;
 }
 
 .folded-figure-menu__panel {
@@ -4371,6 +4280,60 @@
 
 .crease:hover {
   filter: brightness(1.35);
+}
+
+/* Oriedita line styles for the editable crease pattern. The base crease color
+   classes provide the default COLOR style; --cp-line-width sets a uniform width
+   and data-cp-line-style layers Oriedita's black/white and chain-line dashes.
+   Selected creases keep their highlight treatment. */
+.cp-canvas[data-canvas-mode='editable'] .crease {
+  stroke-dasharray: none;
+}
+
+.cp-canvas[data-canvas-mode='editable'] .crease:not(.crease--selected) {
+  stroke-width: calc(var(--cp-line-width, 1) * 1.5px);
+}
+
+/* Mountain: one-dot chain (color+shape / black one-dot), two-dot chain (black two-dot). */
+.cp-canvas[data-cp-line-style='color-and-shape'] .crease[data-cp-line-color='mountain']:not(.crease--selected),
+.cp-canvas[data-cp-line-style='black-one-dot'] .crease[data-cp-line-color='mountain']:not(.crease--selected) {
+  stroke-dasharray: 10 3 3 3;
+}
+.cp-canvas[data-cp-line-style='black-two-dot'] .crease[data-cp-line-color='mountain']:not(.crease--selected) {
+  stroke-dasharray: 10 3 3 3 3 3;
+}
+
+/* Valley: dashed for every shape/black style. */
+.cp-canvas[data-cp-line-style='color-and-shape'] .crease[data-cp-line-color='valley']:not(.crease--selected),
+.cp-canvas[data-cp-line-style='black-one-dot'] .crease[data-cp-line-color='valley']:not(.crease--selected),
+.cp-canvas[data-cp-line-style='black-two-dot'] .crease[data-cp-line-color='valley']:not(.crease--selected) {
+  stroke-dasharray: 8 8;
+}
+
+/* Black chain-line styles draw every crease black. */
+.cp-canvas[data-cp-line-style='black-one-dot'] .crease:not(.crease--selected),
+.cp-canvas[data-cp-line-style='black-two-dot'] .crease:not(.crease--selected) {
+  stroke: #000;
+}
+
+/* Black & white: edge + mountain black, valley grey. */
+.cp-canvas[data-cp-line-style='black-white'] .crease[data-cp-line-color='edge']:not(.crease--selected),
+.cp-canvas[data-cp-line-style='black-white'] .crease[data-cp-line-color='mountain']:not(.crease--selected) {
+  stroke: #000;
+}
+.cp-canvas[data-cp-line-style='black-white'] .crease[data-cp-line-color='valley']:not(.crease--selected) {
+  stroke: #a2a2a2;
+}
+
+/* Point size for the editable crease pattern (Oriedita pointSize): scales the
+   vertex markers drawn at every line endpoint plus explicit CP points. A size of
+   0 hides them, matching Oriedita. */
+.cp-canvas[data-canvas-mode='editable'] .cp-vertex {
+  r: calc(var(--cp-point-size, 1) * 1.6px);
+}
+
+.cp-canvas[data-canvas-mode='editable'] .cp-point {
+  r: calc(var(--cp-point-size, 1) * 2px);
 }
 
 .crease--fold-mountain {

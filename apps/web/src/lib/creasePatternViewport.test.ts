@@ -5,8 +5,12 @@ import {
   CP_EDITABLE_CANVAS_RECT,
   CP_EDITABLE_FIT_RECT,
   CP_PAPER_RECT,
+  advanceOristudioCpLineStyle,
+  clampOristudioCpLineWidth,
+  clampOristudioCpPointSize,
   cpLineAssignmentLabel,
   cpLineColorClass,
+  cpLineStyleColorKind,
   cpSelectionSize,
   cpSvgPointToModel,
   expandedModelBoundsFromPoints,
@@ -429,6 +433,33 @@ describe('crease pattern viewport helpers', () => {
     expect(cpLineColorClass('Red1', 'agrh')).toBe('crease crease--kind-axial');
     expect(cpLineAssignmentLabel('Black0')).toBe('edge');
     expect(cpLineAssignmentLabel('Purple8')).toBe('purple');
+  });
+});
+
+describe('Oriedita line-style helpers', () => {
+  it('maps line colors to crease kinds for dash targeting', () => {
+    expect(cpLineStyleColorKind('Red1')).toBe('mountain');
+    expect(cpLineStyleColorKind('Blue2')).toBe('valley');
+    expect(cpLineStyleColorKind('Black0')).toBe('edge');
+    expect(cpLineStyleColorKind('Cyan3')).toBe('aux');
+    expect(cpLineStyleColorKind('Purple8')).toBe('other');
+  });
+
+  it('cycles through the five Oriedita line styles', () => {
+    expect(advanceOristudioCpLineStyle('color')).toBe('black-white');
+    expect(advanceOristudioCpLineStyle('black-white')).toBe('color-and-shape');
+    expect(advanceOristudioCpLineStyle('color-and-shape')).toBe('black-one-dot');
+    expect(advanceOristudioCpLineStyle('black-one-dot')).toBe('black-two-dot');
+    expect(advanceOristudioCpLineStyle('black-two-dot')).toBe('color');
+  });
+
+  it('clamps line width and point size to Oriedita ranges', () => {
+    expect(clampOristudioCpLineWidth(0)).toBe(1);
+    expect(clampOristudioCpLineWidth(3.4)).toBe(3);
+    expect(clampOristudioCpLineWidth(99)).toBe(8);
+    expect(clampOristudioCpPointSize(-2)).toBe(0);
+    expect(clampOristudioCpPointSize(4)).toBe(4);
+    expect(clampOristudioCpPointSize(50)).toBe(10);
   });
 });
 

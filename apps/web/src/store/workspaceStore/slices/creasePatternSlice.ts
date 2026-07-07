@@ -18,7 +18,6 @@ import {
   stableTextDigest,
 } from '../../../lib/oristudioCpLineage';
 import { foldedFigureModelFromOrieditaMetadata } from '../../../lib/orieditaNativeMetadata';
-import { defaultOristudioCpSymmetry } from '../../../lib/oristudioCpSymmetry';
 import { requestConfirmation } from '../../commandDialogStore';
 import { useLayoutStore } from '../../layoutStore';
 import { selectWorkspaceCapabilities } from '../capabilities';
@@ -346,7 +345,6 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     oristudioCpFoldedFigures: [],
     oristudioCpActiveFoldedFigureId: null,
     oristudioCpViewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
-    oristudioCpSymmetry: defaultOristudioCpSymmetry(),
     ...emptyFoldArtifactResourceState(),
     sequenceTarget: null,
     sequencePlan: null,
@@ -420,7 +418,6 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
             oristudioCpRevision: 0,
             oristudioCpFoldedFigures: [],
             oristudioCpActiveFoldedFigureId: null,
-            oristudioCpSymmetry: defaultOristudioCpSymmetry(),
             projectMessage: null,
           });
           await releaseOristudioCpDocument();
@@ -479,7 +476,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         });
         get().commitHistoryCheckpoint(checkpoint, 'Build crease pattern');
         void get().autosaveProject();
-        useLayoutStore.getState().activatePanel('crease-pattern');
+        useLayoutStore.getState().activateWorkspace('edit');
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
       }
@@ -553,18 +550,6 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
 
     setOristudioCpViewportOption: (key, value) =>
       set({ oristudioCpViewport: { ...get().oristudioCpViewport, [key]: value } }),
-
-    setOristudioCpSymmetry: (update) =>
-      set({
-        oristudioCpSymmetry: {
-          ...get().oristudioCpSymmetry,
-          ...update,
-          axis: update.axis
-            ? { ...update.axis, loc: { ...update.axis.loc } }
-            : get().oristudioCpSymmetry.axis,
-        },
-        dirty: get().oristudioCpDocument ? true : get().dirty,
-      }),
 
     setOristudioCpSelection: (oristudioCpSelection) => set({ oristudioCpSelection }),
 

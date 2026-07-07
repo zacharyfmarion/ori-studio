@@ -71,9 +71,6 @@ export function ConditionsPanel() {
   if (documentMode === 'crease-pattern') {
     return (
       <section className="panel-shell conditions-panel">
-        <div className="panel-toolbar">
-          <span className="panel-title">Conditions</span>
-        </div>
         <div className="panel-body document-mode-empty">
           <div className="document-mode-empty__icon" aria-hidden="true">
             <FileQuestionMark size={30} />
@@ -82,9 +79,9 @@ export function ConditionsPanel() {
             Imported crease patterns do not have editable tree conditions.
           </span>
           <div className="document-mode-empty__actions">
-            <Button size="sm" variant="primary" onClick={() => void handleMenuAction('view.creasePattern')}>
+            <Button size="sm" variant="primary" onClick={() => void handleMenuAction('view.edit')}>
               <ScanLine size={14} />
-              View CP
+              Edit CP
             </Button>
             <Button size="sm" variant="secondary" onClick={() => void handleMenuAction('file.new')}>
               <FileText size={14} />
@@ -102,8 +99,7 @@ export function ConditionsPanel() {
 
   return (
     <section className="panel-shell conditions-panel">
-      <div className="panel-toolbar">
-        <span className="panel-title">Conditions</span>
+      <div className="panel-toolbar panel-toolbar--actions-only">
         <button
           className="toolbar-text-button"
           type="button"

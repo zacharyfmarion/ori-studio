@@ -41,6 +41,19 @@ pub fn select_box(model: &mut CreasePatternModel, polygon: &Polygon) -> usize {
     select_by_boundary_or_inside(model, polygon, SELECTED)
 }
 
+/// Line indices collected by Oriedita's box-select predicate
+/// (`Polygon.totu_boundary_inside_line_segment`), without mutating selection.
+/// Used by box tools that act on the boxed lines directly (e.g. flip M/V).
+pub fn line_indices_in_box(model: &CreasePatternModel, polygon: &Polygon) -> Vec<usize> {
+    model
+        .line_segments
+        .iter()
+        .enumerate()
+        .filter(|(_, segment)| polygon.totu_boundary_inside_line_segment(segment))
+        .map(|(index, _)| index)
+        .collect()
+}
+
 /// Box-line unselection using Oriedita's `lineSegmentsInside` predicate.
 pub fn unselect_box(model: &mut CreasePatternModel, polygon: &Polygon) -> usize {
     select_by_boundary_or_inside(model, polygon, UNSELECTED)

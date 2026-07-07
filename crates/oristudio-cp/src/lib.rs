@@ -1527,7 +1527,16 @@ pub fn execute_command(
             operations::color::make_aux(&mut document.crease_pattern, &line_indices)
         }
         OperationId::CreaseToggleMv => {
-            let line_indices = required_line_indices(&command)?;
+            // Oriedita `CREASE_TOGGLE_MV_58` is a box-select tool: a single crease
+            // click flips that crease, a dragged box flips every mountain/valley
+            // line it encloses. `toggle_mountain_valley` already ignores non-M/V
+            // lines, matching Oriedita's `LineColor::changeMV` filter.
+            let line_indices = if command.payload.line_ids.is_empty() {
+                let polygon = required_selection_polygon(&command)?;
+                operations::selection::line_indices_in_box(&document.crease_pattern, &polygon)
+            } else {
+                required_line_indices(&command)?
+            };
             operations::color::toggle_mountain_valley(&mut document.crease_pattern, &line_indices)
         }
         OperationId::CircleChangeColor => {

@@ -39,7 +39,6 @@ import {
   serializeNativeProjectFile,
 } from '../../lib/nativeProjectFile';
 import { importedCpLineage } from '../../lib/oristudioCpLineage';
-import { defaultOristudioCpSymmetry } from '../../lib/oristudioCpSymmetry';
 import { createStarterOristudioCpDocument } from '../../lib/oristudioCpStarterDocument';
 import { useLayoutStore } from '../layoutStore';
 import {
@@ -1462,8 +1461,8 @@ describe('workspace store slices', () => {
 
   it('creates a blank editable CP document', async () => {
     resetStores(seedSnapshot());
-    const activatePanel = vi.fn();
-    useLayoutStore.setState({ activatePanel });
+    const activateWorkspace = vi.fn();
+    useLayoutStore.setState({ activateWorkspace });
     useWorkspaceStore.setState({ engineReady: true, status: 'ready' });
 
     await useWorkspaceStore.getState().createNewCreasePattern();
@@ -1493,7 +1492,7 @@ describe('workspace store slices', () => {
     ).toBe(true);
     expect(useWorkspaceStore.getState().importedCreasePattern).toBeNull();
     expect(useWorkspaceStore.getState().oristudioCpSelection).toEqual(emptyOristudioCpSelection());
-    expect(activatePanel).toHaveBeenCalledWith('crease-pattern');
+    expect(activateWorkspace).toHaveBeenCalledWith('edit');
   });
 
   it('opens native tree projects and keeps Save on the native file path', async () => {
@@ -1557,7 +1556,6 @@ describe('workspace store slices', () => {
         creaseColorMode: 'agrh',
         selection: { ...emptyOristudioCpSelection(), lines: [1] },
         viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
-        symmetry: defaultOristudioCpSymmetry(),
         foldedFigures: [
           {
             id: 'generated-1',
@@ -1618,8 +1616,8 @@ describe('workspace store slices', () => {
   it('loads CP-only documents and gates tree-only persistence', async () => {
     const api = resetStores(seedSnapshot());
     loadSnapshotIntoStore(seedSnapshot());
-    const activatePanel = vi.fn();
-    useLayoutStore.setState({ activatePanel });
+    const activateWorkspace = vi.fn();
+    useLayoutStore.setState({ activateWorkspace });
     const cpText = [
       '1 0 0 1 0',
       '1 1 0 1 1',
@@ -1672,7 +1670,7 @@ describe('workspace store slices', () => {
       0
     );
     expect(api.flatFoldArtifacts).toHaveBeenCalledOnce();
-    expect(activatePanel).toHaveBeenCalledWith('crease-pattern');
+    expect(activateWorkspace).toHaveBeenCalledWith('edit');
 
     useWorkspaceStore.setState({
       dirty: true,
@@ -1878,7 +1876,6 @@ describe('workspace store slices', () => {
       creaseColorMode: 'mvf',
       selection: emptyOristudioCpSelection(),
       viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
-      symmetry: defaultOristudioCpSymmetry(),
       foldedFigures: [],
       activeFoldedFigureId: null,
       lineage: importedCpLineage(),
@@ -2382,164 +2379,6 @@ describe('workspace store slices', () => {
     expect(oristudioCpMocks.freeOristudioCpFoldedFigure).toHaveBeenCalledWith(7);
     expect(useWorkspaceStore.getState().oristudioCpFoldedFigures).toEqual([]);
     expect(useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId).toBeNull();
-  });
-
-  it('preserves fixed-arity CP command operands when mirroring through the store', async () => {
-    resetStores(seedSnapshot());
-    const line = (ax: number, ay: number, bx: number, by: number) => ({
-      a: { x: ax, y: ay },
-      b: { x: bx, y: by },
-      active: 'Inactive0',
-      color: 'Red1',
-      selected: 0,
-      customized: 0,
-      customized_color: { red: 100, green: 200, blue: 200 },
-    });
-    const documentState: OristudioCpDocumentState = {
-      ...blankCpDocumentState(),
-      document: {
-        title: 'symmetric-lines',
-        metadata: {},
-        crease_pattern: {
-          ...createStarterOristudioCpDocument().crease_pattern,
-          line_segments: [
-            line(1, 0, 1, 2),
-            line(-1, 0, -1, 2),
-            line(1, 0, 2, 1),
-            line(-1, 0, -2, 1),
-            line(1, 3, 2, 3),
-            line(-1, 3, -2, 3),
-          ],
-        },
-      },
-      summary: {
-        ...blankCpDocumentState().summary,
-        title: 'symmetric-lines',
-        line_segments: 6,
-      },
-    };
-    useWorkspaceStore.setState({
-      oristudioCpDocument: documentState,
-      oristudioCpSymmetry: {
-        ...defaultOristudioCpSymmetry(),
-        enabled: true,
-        preset: 'book',
-        axis: { loc: { x: 0, y: 0 }, angle: 90 },
-      },
-    });
-    oristudioCpMocks.executeOristudioCpCommand
-      .mockResolvedValueOnce({
-        ...documentState,
-        lastCommandResult: {
-          operation: 'SquareBisector',
-          status: 'OracleTested',
-          diagnostics: ['Changed 1 line'],
-        },
-      })
-      .mockResolvedValueOnce({
-        ...documentState,
-        lastCommandResult: {
-          operation: 'SquareBisector',
-          status: 'OracleTested',
-          diagnostics: ['Changed 1 line'],
-        },
-      });
-
-    await expect(
-      useWorkspaceStore.getState().executeOristudioCpCommand('SquareBisector', {
-        line_ids: [1, 3, 5],
-        line_color: 'Red1',
-      })
-    ).resolves.toBe(true);
-
-    expect(oristudioCpMocks.executeOristudioCpCommand).toHaveBeenNthCalledWith(
-      1,
-      'SquareBisector',
-      { line_ids: [1, 3, 5], line_color: 'Red1' }
-    );
-    expect(oristudioCpMocks.executeOristudioCpCommand).toHaveBeenNthCalledWith(
-      2,
-      'SquareBisector',
-      { line_ids: [2, 4, 6], line_color: 'Red1' }
-    );
-    const squareBisectorPayloads = oristudioCpMocks.executeOristudioCpCommand.mock.calls
-      .filter(([operation]) => operation === 'SquareBisector')
-      .map(([, payload]) => payload);
-    expect(squareBisectorPayloads.map((payload) => payload?.line_ids)).toEqual([
-      [1, 3, 5],
-      [2, 4, 6],
-    ]);
-  });
-
-  it('expands selected-line CP edit commands through the store symmetry gateway', async () => {
-    resetStores(seedSnapshot());
-    const line = (ax: number, ay: number, bx: number, by: number) => ({
-      a: { x: ax, y: ay },
-      b: { x: bx, y: by },
-      active: 'Inactive0',
-      color: 'Red1',
-      selected: 0,
-      customized: 0,
-      customized_color: { red: 100, green: 200, blue: 200 },
-    });
-    const documentState: OristudioCpDocumentState = {
-      ...blankCpDocumentState(),
-      document: {
-        title: 'symmetric-selected-lines',
-        metadata: {},
-        crease_pattern: {
-          ...createStarterOristudioCpDocument().crease_pattern,
-          line_segments: [line(1, 0, 1, 2), line(-1, 0, -1, 2)],
-        },
-      },
-      summary: {
-        ...blankCpDocumentState().summary,
-        title: 'symmetric-selected-lines',
-        line_segments: 2,
-      },
-    };
-    useWorkspaceStore.setState({
-      oristudioCpDocument: documentState,
-      oristudioCpSelection: {
-        ...emptyOristudioCpSelection(),
-        lines: [1],
-      },
-      oristudioCpSymmetry: {
-        ...defaultOristudioCpSymmetry(),
-        enabled: true,
-        preset: 'book',
-        axis: { loc: { x: 0, y: 0 }, angle: 90 },
-      },
-    });
-    oristudioCpMocks.executeOristudioCpCommand.mockImplementation(
-      async (operation: string) => ({
-        ...documentState,
-        lastCommandResult: {
-          operation,
-          status: 'OracleTested',
-          diagnostics: ['Changed line(s)'],
-        },
-      })
-    );
-
-    await expect(
-      useWorkspaceStore.getState().executeOristudioCpCommand('ChangeCreaseType', {
-        line_ids: [1],
-      })
-    ).resolves.toBe(true);
-    await expect(
-      useWorkspaceStore.getState().executeOristudioCpCommand('LineSegmentDelete', {
-        line_ids: [1],
-      })
-    ).resolves.toBe(true);
-
-    const selectedLinePayloads = oristudioCpMocks.executeOristudioCpCommand.mock.calls
-      .filter(([operation]) => operation === 'ChangeCreaseType' || operation === 'LineSegmentDelete')
-      .map(([operation, payload]) => [operation, payload]);
-    expect(selectedLinePayloads).toEqual([
-      ['ChangeCreaseType', { line_ids: [1, 2] }],
-      ['LineSegmentDelete', { line_ids: [1, 2] }],
-    ]);
   });
 
   it('normalizes nullable CP command payloads and rejects invalid payload shapes before runtime', async () => {
@@ -3104,6 +2943,54 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().projectMessage).toBe('Redid Set grid size to 32');
   });
 
+  it('normalizes advanced grid metadata using Oriedita validation rules', async () => {
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      documentMode: 'crease-pattern',
+      activeEditingSurface: 'crease-pattern',
+      oristudioCpDocument: blankCpDocumentState(),
+      status: 'crease_pattern_ready',
+      dirty: false,
+    });
+
+    await expect(
+      useWorkspaceStore.getState().updateOristudioCpGrid(
+        {
+          grid_angle: 400,
+          interval_grid_size: 0,
+          grid_xa: 0,
+          grid_xb: 0,
+          grid_xc: 1,
+          draw_diagonal_gridlines: true,
+        },
+        'Configure grid'
+      )
+    ).resolves.toBe(true);
+
+    const grid = useWorkspaceStore.getState().oristudioCpDocument?.document.crease_pattern.grid;
+    // Angle clamps to [1, 179]; interval floors to 1; the degenerate X axis
+    // (length 0) resets to 1 + 0*sqrt(1); the diagonal flag is applied.
+    expect(grid).toMatchObject({
+      grid_angle: 179,
+      interval_grid_size: 1,
+      grid_xa: 1,
+      grid_xb: 0,
+      grid_xc: 1,
+      draw_diagonal_gridlines: true,
+    });
+    expect(useWorkspaceStore.getState().projectMessage).toBe('Configure grid');
+
+    // Re-applying identical metadata is a no-op that neither reloads the kernel
+    // nor pushes another undo entry.
+    oristudioCpMocks.restoreOristudioCpDocumentInPlace.mockClear();
+    const historyDepth = useWorkspaceStore.getState().oristudioCpHistoryPast.length;
+    await expect(
+      useWorkspaceStore.getState().updateOristudioCpGrid({ grid_angle: 400 })
+    ).resolves.toBe(true);
+    expect(oristudioCpMocks.restoreOristudioCpDocumentInPlace).not.toHaveBeenCalled();
+    expect(useWorkspaceStore.getState().oristudioCpHistoryPast.length).toBe(historyDepth);
+  });
+
   it('applies editing and condition actions through the engine', async () => {
     const api = resetStores(
       makeSnapshot({
@@ -3634,11 +3521,11 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().historyFuture).toEqual([]);
   });
 
-  it('optimizes, builds crease patterns, toggles color mode, and foregrounds the CP pane', async () => {
+  it('optimizes, builds crease patterns, toggles color mode, and foregrounds Edit', async () => {
     const api = resetStores(seedSnapshot());
     loadSnapshotIntoStore(seedSnapshot());
-    const activatePanel = vi.fn();
-    useLayoutStore.setState({ activatePanel });
+    const activateWorkspace = vi.fn();
+    useLayoutStore.setState({ activateWorkspace });
 
     const initialFitRequestId = useWorkspaceStore.getState().designViewportFitRequestId;
     await useWorkspaceStore.getState().optimizeScale();
@@ -3666,7 +3553,7 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().foldArtifacts?.fold.vertices_coords).toHaveLength(3);
     expect(useWorkspaceStore.getState().refreshFoldArtifacts).toBeTypeOf('function');
     expect(api.foldArtifacts).toHaveBeenCalledWith(1);
-    expect(activatePanel).toHaveBeenCalledWith('crease-pattern');
+    expect(activateWorkspace).toHaveBeenCalledWith('edit');
 
     useWorkspaceStore.getState().setCreaseColorMode('mvf');
     expect(useWorkspaceStore.getState().creaseColorMode).toBe('mvf');

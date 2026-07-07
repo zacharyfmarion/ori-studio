@@ -181,7 +181,7 @@ function SequencePlanningProgress({ elapsedSeconds }: { elapsedSeconds: number }
 
 function SequenceDiagramList({ plan }: { plan: SequencePlan }) {
   const setSequenceSimulationFocus = useWorkspaceStore((state) => state.setSequenceSimulationFocus);
-  const activatePanel = useLayoutStore((state) => state.activatePanel);
+  const activateWorkspace = useLayoutStore((state) => state.activateWorkspace);
   const stateById = useMemo(
     () => new Map(plan.states.map((state) => [state.id, state])),
     [plan.states]
@@ -217,7 +217,7 @@ function SequenceDiagramList({ plan }: { plan: SequencePlan }) {
                   aria-label="Simulate step"
                   onClick={() => {
                     setSequenceSimulationFocus({ kind: 'sequence_step', stepId: step.id });
-                    activatePanel('simulator');
+                    activateWorkspace('simulate');
                   }}
                 >
                   <Waves size={13} />

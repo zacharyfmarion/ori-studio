@@ -169,8 +169,8 @@ export function getMenuBarDef(
       label: 'View',
       items: [
         { type: 'action', id: 'view.design', label: 'Design' },
-        { type: 'action', id: 'view.creasePattern', label: 'Crease Pattern' },
-        { type: 'action', id: 'view.simulator', label: 'Simulator' },
+        { type: 'action', id: 'view.edit', label: 'Edit' },
+        { type: 'action', id: 'view.simulate', label: 'Simulate' },
         { type: 'action', id: 'view.conditions', label: 'Conditions' },
         { type: 'separator' },
         { type: 'action', id: 'view.resetLayout', label: 'Reset Layout' },

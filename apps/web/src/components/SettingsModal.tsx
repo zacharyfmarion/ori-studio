@@ -120,8 +120,8 @@ function WorkspaceTab() {
           className="settings-full-width"
           onClick={() => {
             void requestConfirmation({
-              title: 'Reset Layout',
-              message: 'Restore the default panel layout?',
+              title: 'Reset Workspace Layout',
+              message: 'Restore the default layout for the current workspace?',
               confirmLabel: 'Reset',
               tone: 'danger',
             }).then((confirmed) => {
@@ -131,7 +131,7 @@ function WorkspaceTab() {
           }}
         >
           <RotateCcw size={14} />
-          Reset Layout
+          Reset Workspace Layout
         </Button>
       </section>
     </div>

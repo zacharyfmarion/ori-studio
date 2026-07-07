@@ -38,10 +38,11 @@ describe('shortcut registry', () => {
     expect(getResolvedShortcut('cp.action.line-type.valley')).toEqual({
       key: 'v',
     });
-    expect(getResolvedShortcut('cp.action.line-type.edge')).toEqual({
+    // L is bound to the default Line tool rather than the edge line type.
+    expect(getResolvedShortcut('cp.action.line-type.edge')).toBeNull();
+    expect(getResolvedShortcut('cp.action.draw-crease')).toEqual({
       key: 'l',
     });
-    expect(getResolvedShortcut('cp.action.draw-crease')).toBeNull();
     expect(getResolvedShortcuts('edit.delete')).toEqual([
       { key: 'delete' },
       { key: 'backspace' },

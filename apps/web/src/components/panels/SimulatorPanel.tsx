@@ -543,7 +543,8 @@ export function SimulatorPanel() {
           <Waves size={14} />
           <span className="panel-title">Simulator</span>
         </div>
-        <div className="panel-toolbar__group simulator-scope-controls">
+        {/* Scope controls hidden while the Sequence panel is hidden (always "whole"). */}
+        <div className="panel-toolbar__group simulator-scope-controls" style={{ display: 'none' }}>
           <SegmentedControl
             aria-label="Simulator scope"
             value={simulatorMode}

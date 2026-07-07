@@ -122,10 +122,10 @@ describe('SettingsModal', () => {
     expect(rendered.textContent).toContain('Workspace');
 
     act(() => {
-      findButton('Reset Layout').click();
+      findButton('Reset Workspace Layout').click();
     });
 
-    expect(rendered.textContent).toContain('Restore the default panel layout?');
+    expect(rendered.textContent).toContain('Restore the default layout for the current workspace?');
 
     await act(async () => {
       findExactButton('Reset').click();

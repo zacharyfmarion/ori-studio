@@ -206,7 +206,6 @@ function commandId(operationId: string): `cp.${string}` {
 
 export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
   ready('DrawCreaseFree', 'Draw crease', 'draw', 'pen-line', 'MouseHandlerDrawCreaseFree', {
-    shortcut: 'L',
     toolSteps: ['Drag crease endpoint'],
     inputMode: 'drag-line',
     tooltip: 'Drag a crease using the current line type',
@@ -445,9 +444,11 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     toolSteps: ['Pick first point', 'Pick vertex point', 'Pick second point'],
   }),
   ready('CreaseToggleMv', 'Toggle mountain/valley', 'color', 'repeat-2', 'MouseHandlerCreaseToggleMV', {
-    placement: 'menu',
+    placement: 'left-rail',
     selectionRequirement: 'selected mountain or valley lines',
-    tooltip: 'Toggle selected mountain and valley lines',
+    toolSteps: ['Click a crease or drag a box to flip'],
+    inputMode: 'drag-box',
+    tooltip: 'Click a crease or drag a box to flip mountain/valley assignments',
   }),
   ready('CircleChangeColor', 'Change circle color', 'annotations', 'palette', 'MouseHandlerCircleChangeColor', {
     placement: 'menu',
