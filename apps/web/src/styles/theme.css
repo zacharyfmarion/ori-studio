@@ -2567,7 +2567,9 @@
 
 .cp-diagnostic-point {
   --cp-diagnostic-color: var(--status-danger);
-  --cp-diagnostic-fill: color-mix(in srgb, var(--cp-diagnostic-color) 34%, transparent);
+  --cp-diagnostic-fill-opacity: 0.16;
+  --cp-diagnostic-lbl-fill-opacity: 0.2;
+  --cp-diagnostic-stroke-opacity: 0.46;
   cursor: pointer;
   pointer-events: all;
   vector-effect: non-scaling-stroke;
@@ -2616,8 +2618,10 @@
 
 .cp-diagnostic-point__oriedita-shape,
 .cp-diagnostic-lbl-sector {
-  fill: var(--cp-diagnostic-fill);
+  fill: var(--cp-diagnostic-color);
+  fill-opacity: var(--cp-diagnostic-fill-opacity);
   stroke: var(--cp-diagnostic-color);
+  stroke-opacity: var(--cp-diagnostic-stroke-opacity);
   stroke-width: 1.8;
   stroke-linejoin: bevel;
   vector-effect: non-scaling-stroke;
@@ -2629,10 +2633,12 @@
 
 .cp-diagnostic-lbl-sector {
   fill: transparent;
+  fill-opacity: 0;
 }
 
 .cp-diagnostic-lbl-sector[data-violating='true'] {
-  fill: color-mix(in srgb, var(--cp-diagnostic-color) 28%, transparent);
+  fill: var(--cp-diagnostic-color);
+  fill-opacity: var(--cp-diagnostic-lbl-fill-opacity);
 }
 
 .cp-diagnostic-point--active {
