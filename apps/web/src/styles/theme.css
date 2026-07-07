@@ -2101,6 +2101,8 @@
 .cp-tool-rail__groups {
   display: grid;
   align-content: start;
+  min-width: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   padding: 6px 5px 10px;
 }
@@ -2129,9 +2131,12 @@
 
 .cp-tool-rail__buttons {
   display: grid;
-  grid-template-columns: repeat(4, 40px);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   justify-content: center;
+  justify-self: center;
   gap: 4px;
+  width: min(100%, 172px);
+  min-width: 0;
 }
 
 .cp-tool-rail__button {
@@ -2139,7 +2144,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
+  width: 100%;
+  min-width: 0;
   height: 38px;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
@@ -2560,51 +2566,87 @@
 }
 
 .cp-diagnostic-point {
+  --cp-diagnostic-color: var(--status-danger);
+  --cp-diagnostic-fill-opacity: 0.16;
+  --cp-diagnostic-lbl-fill-opacity: 0.2;
+  --cp-diagnostic-stroke-opacity: 0.46;
   cursor: pointer;
   pointer-events: all;
   vector-effect: non-scaling-stroke;
 }
 
+.cp-diagnostic-point[data-diagnostic-tone='mountain'] {
+  --cp-diagnostic-color: var(--fold-mountain);
+}
+
+.cp-diagnostic-point[data-diagnostic-tone='valley'] {
+  --cp-diagnostic-color: var(--fold-valley);
+}
+
+.cp-diagnostic-point[data-diagnostic-tone='neutral'] {
+  --cp-diagnostic-color: var(--fold-unassigned);
+}
+
+.cp-diagnostic-point[data-diagnostic-tone='unknown'] {
+  --cp-diagnostic-color: #ff0093;
+}
+
+.cp-diagnostic-point[data-diagnostic-tone='warning'] {
+  --cp-diagnostic-color: var(--status-warning);
+}
+
 .cp-diagnostic-point__halo {
-  fill: color-mix(in srgb, var(--status-danger) 16%, transparent);
-  stroke: var(--status-danger);
+  fill: color-mix(in srgb, var(--cp-diagnostic-color) 16%, transparent);
+  stroke: var(--cp-diagnostic-color);
   stroke-width: 2.4;
   vector-effect: non-scaling-stroke;
 }
 
 .cp-diagnostic-point__core {
-  fill: var(--status-danger);
+  fill: var(--cp-diagnostic-color);
   stroke: var(--bg-paper);
   stroke-width: 1.4;
   vector-effect: non-scaling-stroke;
 }
 
 .cp-diagnostic-point__cross {
-  stroke: var(--status-danger);
+  stroke: var(--cp-diagnostic-color);
   stroke-width: 1.6;
   stroke-linecap: round;
   vector-effect: non-scaling-stroke;
 }
 
+.cp-diagnostic-point__oriedita-shape,
+.cp-diagnostic-lbl-sector {
+  fill: var(--cp-diagnostic-color);
+  fill-opacity: var(--cp-diagnostic-fill-opacity);
+  stroke: var(--cp-diagnostic-color);
+  stroke-opacity: var(--cp-diagnostic-stroke-opacity);
+  stroke-width: 1.8;
+  stroke-linejoin: bevel;
+  vector-effect: non-scaling-stroke;
+}
+
+.cp-diagnostic-point[data-marker-shape='ring'] .cp-diagnostic-point__oriedita-shape {
+  fill: transparent;
+}
+
+.cp-diagnostic-lbl-sector {
+  fill: transparent;
+  fill-opacity: 0;
+}
+
+.cp-diagnostic-lbl-sector[data-violating='true'] {
+  fill: var(--cp-diagnostic-color);
+  fill-opacity: var(--cp-diagnostic-lbl-fill-opacity);
+}
+
 .cp-diagnostic-point--active {
-  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--status-danger) 45%, transparent));
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--cp-diagnostic-color) 55%, transparent));
 }
 
 .cp-diagnostic-point--active .cp-diagnostic-point__halo {
   stroke-width: 3.2;
-}
-
-.cp-diagnostic-point[data-severity='warning'] .cp-diagnostic-point__halo {
-  fill: color-mix(in srgb, var(--status-warning) 16%, transparent);
-  stroke: var(--status-warning);
-}
-
-.cp-diagnostic-point[data-severity='warning'] .cp-diagnostic-point__core {
-  fill: var(--status-warning);
-}
-
-.cp-diagnostic-point[data-severity='warning'] .cp-diagnostic-point__cross {
-  stroke: var(--status-warning);
 }
 
 .cp-operation-frame {
@@ -3650,10 +3692,10 @@
   z-index: 17;
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   max-width: calc(100% - var(--space-6));
   min-height: 32px;
-  padding: 2px 4px;
+  padding: 2px 6px;
   transform: translateX(-50%);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
@@ -3666,11 +3708,21 @@
 .viewport-toolbar__separator {
   width: 1px;
   height: 18px;
-  margin: 0 3px;
+  margin: 0 5px;
   background: var(--border-default);
 }
 
+.viewport-toolbar .ui-button--icon {
+  margin-inline: 1px;
+}
+
 .cp-line-type-toolbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.cp-folded-figure-actions {
   display: inline-flex;
   align-items: center;
   gap: 2px;
@@ -4253,11 +4305,11 @@
   }
 
   .cp-tool-rail__buttons {
-    grid-template-columns: repeat(4, 34px);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: min(100%, 148px);
   }
 
   .cp-tool-rail__button {
-    width: 34px;
     height: 32px;
   }
 

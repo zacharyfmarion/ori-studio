@@ -119,6 +119,13 @@ export interface OristudioCpDiagnosticEntry {
   point?: Point | null;
   segments?: OristudioCpLineSegment[];
   rule?: string | null;
+  violation_color?: string | null;
+  little_big_little?: OristudioCpDiagnosticLittleBigLittleSegment[];
+}
+
+export interface OristudioCpDiagnosticLittleBigLittleSegment {
+  segment: OristudioCpLineSegment;
+  violating: boolean;
 }
 
 export interface OristudioCpCommandPreview {

@@ -207,6 +207,16 @@ pub struct CommandDiagnostic {
     pub segments: Vec<geometry::LineSegment>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rule: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub violation_color: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub little_big_little: Vec<CommandDiagnosticLittleBigLittleSegment>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CommandDiagnosticLittleBigLittleSegment {
+    pub segment: geometry::LineSegment,
+    pub violating: bool,
 }
 
 /// Transient candidate geometry for active construction tools.
@@ -2521,6 +2531,8 @@ fn line_pair_diagnostics(
             point: None,
             segments: pair.to_vec(),
             rule: Some(format!("{operation:?}")),
+            violation_color: None,
+            little_big_little: Vec::new(),
         })
         .collect()
 }
@@ -2537,6 +2549,8 @@ fn point_marker_diagnostics(kind: &str, markers: Vec<LineSegment>) -> Vec<Comman
             point: Some(marker.a),
             segments: vec![marker],
             rule: Some("VertexFlatFoldability".to_string()),
+            violation_color: None,
+            little_big_little: Vec::new(),
         })
         .collect()
 }
@@ -2550,18 +2564,29 @@ fn flat_foldability_diagnostics(
         .enumerate()
         .map(|(index, violation)| {
             let rule = flat_foldability_rule_label(violation.rule);
+            let violation_color = flat_foldability_color_label(violation.color);
+            let little_big_little = violation
+                .little_big_little
+                .into_iter()
+                .map(|segment| CommandDiagnosticLittleBigLittleSegment {
+                    segment: segment.segment,
+                    violating: segment.violating,
+                })
+                .collect::<Vec<_>>();
+            let segments = little_big_little
+                .iter()
+                .map(|segment| segment.segment.clone())
+                .collect();
             CommandDiagnostic {
                 id: format!("{kind}-{}", index + 1),
                 kind: kind.to_string(),
                 severity: "error".to_string(),
                 message: format!("Flat-foldability violation: {rule}"),
                 point: Some(violation.point),
-                segments: violation
-                    .little_big_little
-                    .into_iter()
-                    .map(|segment| segment.segment)
-                    .collect(),
+                segments,
                 rule: Some(rule.to_string()),
+                violation_color: Some(violation_color.to_string()),
+                little_big_little,
             }
         })
         .collect()
@@ -2574,6 +2599,16 @@ fn flat_foldability_rule_label(rule: checks::FlatFoldabilityRule) -> &'static st
         checks::FlatFoldabilityRule::Maekawa => "Maekawa",
         checks::FlatFoldabilityRule::LittleBigLittle => "LittleBigLittle",
         checks::FlatFoldabilityRule::None => "None",
+    }
+}
+
+fn flat_foldability_color_label(color: checks::FlatFoldabilityColor) -> &'static str {
+    match color {
+        checks::FlatFoldabilityColor::NotEnoughMountain => "NotEnoughMountain",
+        checks::FlatFoldabilityColor::NotEnoughValley => "NotEnoughValley",
+        checks::FlatFoldabilityColor::Equal => "Equal",
+        checks::FlatFoldabilityColor::Correct => "Correct",
+        checks::FlatFoldabilityColor::Unknown => "Unknown",
     }
 }
 
@@ -2636,6 +2671,8 @@ fn flat_foldable_boundary_input_diagnostics(
         point: None,
         segments,
         rule: Some("BoundaryLoop".to_string()),
+        violation_color: None,
+        little_big_little: Vec::new(),
     }]
 }
 
@@ -2662,6 +2699,8 @@ fn flat_foldable_boundary_result_diagnostics(
         point: None,
         segments,
         rule: Some("FlatFoldableBoundary".to_string()),
+        violation_color: None,
+        little_big_little: Vec::new(),
     }]
 }
 
@@ -4909,6 +4948,91 @@ mod tests {
             vec!["Flat-foldable boundary check needs a closed loop"]
         );
         assert_eq!(open_check.diagnostic_entries[0].severity, "warning");
+    }
+
+    #[test]
+    fn flat_foldability_command_diagnostics_include_oriedita_marker_metadata() {
+        let mut document = CreasePatternDocument::default();
+        document.crease_pattern.add_line(
+            Point::new(0.0, 0.0),
+            Point::new(10.0, 0.0),
+            LineColor::Red1,
+        );
+        document.crease_pattern.add_line(
+            Point::new(0.0, 0.0),
+            Point::new(-10.0, 0.0),
+            LineColor::Blue2,
+        );
+
+        let camv = execute_command(
+            &mut document,
+            CreasePatternCommand::new(OperationId::CheckCamv),
+        )
+        .expect("CheckCamv should execute");
+        let maekawa = camv
+            .diagnostic_entries
+            .iter()
+            .find(|entry| entry.rule.as_deref() == Some("Maekawa"))
+            .expect("Maekawa violation should be reported");
+        assert_eq!(maekawa.violation_color.as_deref(), Some("Equal"));
+        assert!(maekawa.little_big_little.is_empty());
+
+        document.crease_pattern.line_segments.clear();
+        document.crease_pattern.add_line(
+            Point::new(0.0, 0.0),
+            Point::new(10.0, 0.0),
+            LineColor::Red1,
+        );
+        document.crease_pattern.add_line(
+            Point::new(0.0, 0.0),
+            Point::new(8.660254037844386, 5.0),
+            LineColor::Red1,
+        );
+        document.crease_pattern.add_line(
+            Point::new(0.0, 0.0),
+            Point::new(0.0, 10.0),
+            LineColor::Blue2,
+        );
+        document.crease_pattern.add_line(
+            Point::new(0.0, 0.0),
+            Point::new(-10.0, 0.0),
+            LineColor::Blue2,
+        );
+        document.crease_pattern.add_line(
+            Point::new(0.0, 0.0),
+            Point::new(-8.660254037844386, -5.0),
+            LineColor::Red1,
+        );
+        document.crease_pattern.add_line(
+            Point::new(0.0, 0.0),
+            Point::new(0.0, -10.0),
+            LineColor::Red1,
+        );
+
+        let check4 = execute_command(
+            &mut document,
+            CreasePatternCommand::new(OperationId::Check4),
+        )
+        .expect("Check4 should execute");
+        let little_big_little = check4
+            .diagnostic_entries
+            .iter()
+            .find(|entry| entry.rule.as_deref() == Some("LittleBigLittle"))
+            .expect("Little-Big-Little violation should be reported");
+        assert_eq!(
+            little_big_little.violation_color.as_deref(),
+            Some("Correct")
+        );
+        assert_eq!(
+            little_big_little.segments.len(),
+            little_big_little.little_big_little.len()
+        );
+        assert!(
+            little_big_little
+                .little_big_little
+                .iter()
+                .any(|sector| sector.violating)
+        );
     }
 
     #[test]
