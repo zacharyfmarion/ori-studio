@@ -32,10 +32,13 @@ const MOUNTAIN_VALLEY_COLORS = {
   dark: {
     mountain: '#ff4d5d',
     valley: '#60a5fa',
+    // Oriedita CYAN_3 auxiliary/flat crease color.
+    aux: '#64c8c8',
   },
   light: {
     mountain: '#d91f3a',
     valley: '#2563eb',
+    aux: '#2f9c9c',
   },
 } as const;
 
@@ -61,7 +64,7 @@ function applyTreeMakerDerivedTokens(theme: TreeMakerTheme, setVar: (name: strin
 
   setVar('--fold-mountain', MOUNTAIN_VALLEY_COLORS[theme.type].mountain);
   setVar('--fold-valley', MOUNTAIN_VALLEY_COLORS[theme.type].valley);
-  setVar('--fold-flat', colorMix(colors['text.primary'], 55));
+  setVar('--fold-flat', MOUNTAIN_VALLEY_COLORS[theme.type].aux);
   setVar('--fold-border', colors['text.primary']);
   setVar('--fold-ridge', colors['status.danger']);
   setVar('--fold-hinge', colors['port.image']);

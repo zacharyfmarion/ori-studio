@@ -55,7 +55,8 @@
   --tree-label-stroke: rgba(246, 240, 223, 0.8);
   --fold-mountain: #ff4d5d;
   --fold-valley: #60a5fa;
-  --fold-flat: #85919a;
+  /* Oriedita CYAN_3 auxiliary/flat crease color. */
+  --fold-flat: #64c8c8;
   --fold-border: #111417;
   --fold-unassigned: #9aa4ad;
   --cp-color-orange: #f97316;

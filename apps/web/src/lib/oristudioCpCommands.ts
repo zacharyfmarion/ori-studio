@@ -445,7 +445,7 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     toolSteps: ['Pick first point', 'Pick vertex point', 'Pick second point'],
   }),
   ready('CreaseToggleMv', 'Toggle mountain/valley', 'color', 'repeat-2', 'MouseHandlerCreaseToggleMV', {
-    placement: 'menu',
+    placement: 'left-rail',
     selectionRequirement: 'selected mountain or valley lines',
     toolSteps: ['Click a crease or drag a box to flip'],
     inputMode: 'drag-box',
