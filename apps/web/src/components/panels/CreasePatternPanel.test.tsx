@@ -28,6 +28,7 @@ import type {
   OristudioCpDocumentState,
   OristudioCpFoldedFigureEntry,
   OristudioCpFoldedRenderSnapshot,
+  OristudioCpLineSegment,
 } from '../../engine/oristudioCpTypes';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
@@ -409,8 +410,25 @@ function camvDiagnosticResult(): OristudioCpCommandResult {
         message: 'Flat-foldability violation: Maekawa',
         point: { x: 0, y: 0 },
         rule: 'Maekawa',
+        violation_color: 'Equal',
       },
     ],
+  };
+}
+
+function diagnosticSegment(
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+  color: OristudioCpLineSegment['color'] = 'Red1'
+): OristudioCpLineSegment {
+  return {
+    a,
+    b,
+    active: 'Inactive0',
+    color,
+    selected: 0,
+    customized: 0,
+    customized_color: { red: 0, green: 0, blue: 0 },
   };
 }
 
@@ -2508,7 +2526,7 @@ describe('CreasePatternPanel', () => {
     expect(executeOristudioCpCommand).not.toHaveBeenCalled();
   });
 
-  it('renders point-only CAMV diagnostics without segment arrays', () => {
+  it('renders point-only CAMV diagnostics with Oriedita marker styling and focus fitting', () => {
     const state = editableCpState();
     state.lastCommandResult = {
       operation: 'DrawCreaseRestricted',
@@ -2525,11 +2543,13 @@ describe('CreasePatternPanel', () => {
     });
 
     expect(container.querySelectorAll('.cp-diagnostic-segment')).toHaveLength(0);
-    expect(container.querySelector('.cp-diagnostic-point')).not.toBeNull();
-    expect(container.querySelector('.cp-diagnostic-point')?.getAttribute('data-severity')).toBe(
-      'error'
-    );
-    expect(container.querySelector('.cp-diagnostic-point__cross')).not.toBeNull();
+    const marker = container.querySelector('.cp-diagnostic-point');
+    expect(marker).not.toBeNull();
+    expect(marker?.getAttribute('data-severity')).toBe('error');
+    expect(marker?.getAttribute('data-marker-shape')).toBe('square');
+    expect(marker?.getAttribute('data-diagnostic-tone')).toBe('neutral');
+    expect(marker?.querySelector('.cp-diagnostic-point__oriedita-shape')).not.toBeNull();
+    expect(marker?.querySelector('.cp-diagnostic-point__cross')).toBeNull();
     expect(container.querySelector('.cp-diagnostic-hud')?.textContent).toContain('1 CAMV Error');
     expect(container.querySelector('.cp-diagnostic-hud')?.textContent).toContain(
       'Flat-foldability violation: Maekawa'
@@ -2556,6 +2576,21 @@ describe('CreasePatternPanel', () => {
     });
 
     expect(useWorkspaceStore.getState().oristudioCpActiveDiagnosticId).toBe('CheckCamv-1');
+    const focusCall = transformMocks.setTransform.mock.calls.at(-1);
+    expect(focusCall).toBeDefined();
+    const expectedSvgPoint = {
+      x: CP_PAPER_RECT.x + CP_PAPER_RECT.width / 2,
+      y: CP_PAPER_RECT.y + CP_PAPER_RECT.height / 2,
+    };
+    const expectedContentPoint = {
+      x: expectedSvgPoint.x - CP_EDITABLE_CANVAS_RECT.x,
+      y: expectedSvgPoint.y - CP_EDITABLE_CANVAS_RECT.y,
+    };
+    const focusScale = focusCall?.[2] ?? 0;
+    expect(focusScale).toBeGreaterThan(1);
+    expect(focusScale).toBeLessThanOrEqual(3);
+    expect(focusCall?.[0]).toBeCloseTo(900 / 2 - expectedContentPoint.x * focusScale);
+    expect(focusCall?.[1]).toBeCloseTo(720 / 2 - expectedContentPoint.y * focusScale);
 
     act(() => {
       useWorkspaceStore.getState().setOristudioCpViewportOption('camvIssuesVisible', false);
@@ -2572,6 +2607,80 @@ describe('CreasePatternPanel', () => {
     expect(useWorkspaceStore.getState().oristudioCpViewport.camvIssuesVisible).toBe(true);
     expect(container.querySelector('.cp-diagnostic-point')).not.toBeNull();
     expect(container.querySelector('.cp-diagnostic-hud')?.textContent).toContain('1 CAMV Error');
+  });
+
+  it('renders Oriedita CAMV marker shapes and Little-Big-Little sectors', () => {
+    const point = { x: 0, y: 0 };
+    const state = editableCpState();
+    const camvResult: OristudioCpCommandResult = {
+      operation: 'CheckCamv',
+      status: 'OracleTested',
+      diagnostics: ['Check CAMV found 3 issue(s)'],
+      diagnostic_entries: [
+        {
+          id: 'CheckCamv-triangle',
+          kind: 'CheckCamv',
+          severity: 'error',
+          message: 'Flat-foldability violation: NumberOfFolds',
+          point: { x: -20, y: 0 },
+          rule: 'NumberOfFolds',
+          violation_color: 'Unknown',
+        },
+        {
+          id: 'CheckCamv-ring',
+          kind: 'CheckCamv',
+          severity: 'error',
+          message: 'Flat-foldability violation: Angles',
+          point: { x: 0, y: 0 },
+          rule: 'Angles',
+          violation_color: 'Correct',
+        },
+        {
+          id: 'CheckCamv-lbl',
+          kind: 'CheckCamv',
+          severity: 'error',
+          message: 'Flat-foldability violation: LittleBigLittle',
+          point,
+          rule: 'LittleBigLittle',
+          violation_color: 'Correct',
+          segments: [
+            diagnosticSegment(point, { x: 10, y: 0 }, 'Red1'),
+            diagnosticSegment(point, { x: 0, y: 10 }, 'Red1'),
+            diagnosticSegment(point, { x: -10, y: 0 }, 'Blue2'),
+          ],
+          little_big_little: [
+            { segment: diagnosticSegment(point, { x: 10, y: 0 }, 'Red1'), violating: false },
+            { segment: diagnosticSegment(point, { x: 0, y: 10 }, 'Red1'), violating: true },
+            { segment: diagnosticSegment(point, { x: -10, y: 0 }, 'Blue2'), violating: false },
+          ],
+        },
+      ],
+    };
+
+    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
+      documentMode: 'crease-pattern',
+      importedCreasePattern: importedCpDocument(),
+      oristudioCpDocument: state,
+      oristudioCpCamvResult: camvResult,
+    });
+
+    const triangle = container.querySelector<SVGGElement>(
+      '.cp-diagnostic-point[data-rule="NumberOfFolds"]'
+    );
+    const ring = container.querySelector<SVGGElement>('.cp-diagnostic-point[data-rule="Angles"]');
+    const littleBigLittle = container.querySelector<SVGGElement>(
+      '.cp-diagnostic-point[data-rule="LittleBigLittle"]'
+    );
+    expect(triangle?.getAttribute('data-marker-shape')).toBe('triangle');
+    expect(triangle?.getAttribute('data-diagnostic-tone')).toBe('unknown');
+    expect(ring?.getAttribute('data-marker-shape')).toBe('ring');
+    expect(ring?.getAttribute('data-diagnostic-tone')).toBe('neutral');
+    expect(littleBigLittle?.getAttribute('data-marker-shape')).toBe('little-big-little');
+    expect(littleBigLittle?.querySelectorAll('.cp-diagnostic-lbl-sector')).toHaveLength(3);
+    expect(
+      littleBigLittle?.querySelectorAll('.cp-diagnostic-lbl-sector[data-violating="true"]')
+    ).toHaveLength(1);
+    expect(container.querySelectorAll('.cp-diagnostic-segment')).toHaveLength(0);
   });
 
   it('does not show the diagnostic HUD for ordinary edit command results', () => {

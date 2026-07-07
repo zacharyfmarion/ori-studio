@@ -223,18 +223,150 @@ interface CpDiagnosticHudStatus {
   tone: 'ok' | 'warn' | 'error';
 }
 
-function diagnosticEntryFocusPoint(entry: OristudioCpDiagnosticEntry): Point | null {
+interface CpDiagnosticBounds {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+  center: Point;
+}
+
+type CpDiagnosticMarkerShape =
+  | 'generic'
+  | 'triangle'
+  | 'square'
+  | 'circle'
+  | 'ring'
+  | 'little-big-little'
+  | 'none';
+
+type CpDiagnosticMarkerTone = 'danger' | 'warning' | 'mountain' | 'valley' | 'neutral' | 'unknown';
+
+interface CpDiagnosticMarkerStyle {
+  shape: CpDiagnosticMarkerShape;
+  tone: CpDiagnosticMarkerTone;
+}
+
+const CP_DIAGNOSTIC_FOCUS_PADDING = 56;
+const CP_DIAGNOSTIC_MARKER_SIZE = 24;
+const CP_DIAGNOSTIC_LBL_RADIUS = 18;
+
+function diagnosticEntryPoints(entry: OristudioCpDiagnosticEntry): Point[] {
   const points: Point[] = [];
   if (entry.point) points.push(entry.point);
   for (const segment of entry.segments ?? []) {
     points.push(segment.a, segment.b);
   }
+  for (const sector of entry.little_big_little ?? []) {
+    points.push(sector.segment.a, sector.segment.b);
+  }
+  return points;
+}
+
+function boundsFromPoints(points: Point[]): CpDiagnosticBounds | null {
   if (points.length === 0) return null;
   const minX = Math.min(...points.map((point) => point.x));
   const maxX = Math.max(...points.map((point) => point.x));
   const minY = Math.min(...points.map((point) => point.y));
   const maxY = Math.max(...points.map((point) => point.y));
-  return { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
+  return {
+    minX,
+    minY,
+    maxX,
+    maxY,
+    center: { x: (minX + maxX) / 2, y: (minY + maxY) / 2 },
+  };
+}
+
+function diagnosticEntryBounds(entry: OristudioCpDiagnosticEntry): CpDiagnosticBounds | null {
+  return boundsFromPoints(diagnosticEntryPoints(entry));
+}
+
+function svgPointToContentPoint(point: Point, viewBox: { x: number; y: number }): Point {
+  return { x: point.x - viewBox.x, y: point.y - viewBox.y };
+}
+
+function isFlatFoldabilityDiagnostic(entry: OristudioCpDiagnosticEntry): boolean {
+  return (
+    entry.kind === 'Check4' ||
+    entry.kind === 'CheckCamv' ||
+    entry.rule === 'NumberOfFolds' ||
+    entry.rule === 'Angles' ||
+    entry.rule === 'Maekawa' ||
+    entry.rule === 'LittleBigLittle'
+  );
+}
+
+function cpDiagnosticMarkerTone(entry: OristudioCpDiagnosticEntry): CpDiagnosticMarkerTone {
+  switch (entry.violation_color) {
+    case 'NotEnoughMountain':
+      return 'mountain';
+    case 'NotEnoughValley':
+      return 'valley';
+    case 'Equal':
+    case 'Correct':
+      return 'neutral';
+    case 'Unknown':
+      return 'unknown';
+    default:
+      return entry.severity === 'warning' ? 'warning' : 'danger';
+  }
+}
+
+function cpDiagnosticMarkerStyle(entry: OristudioCpDiagnosticEntry): CpDiagnosticMarkerStyle {
+  if (!isFlatFoldabilityDiagnostic(entry)) {
+    return {
+      shape: 'generic',
+      tone: cpDiagnosticMarkerTone(entry),
+    };
+  }
+
+  switch (entry.rule) {
+    case 'NumberOfFolds':
+      return { shape: 'triangle', tone: cpDiagnosticMarkerTone(entry) };
+    case 'Angles':
+      return {
+        shape: entry.violation_color === 'Correct' ? 'ring' : 'circle',
+        tone: cpDiagnosticMarkerTone(entry),
+      };
+    case 'Maekawa':
+      return { shape: 'square', tone: cpDiagnosticMarkerTone(entry) };
+    case 'LittleBigLittle':
+      return { shape: 'little-big-little', tone: cpDiagnosticMarkerTone(entry) };
+    case 'None':
+      return { shape: 'none', tone: cpDiagnosticMarkerTone(entry) };
+    default:
+      return { shape: 'generic', tone: cpDiagnosticMarkerTone(entry) };
+  }
+}
+
+function diagnosticSegmentEndpoint(point: Point, segment: OristudioCpLineSegment): Point {
+  const distanceA = squaredDistance(point, segment.a);
+  const distanceB = squaredDistance(point, segment.b);
+  return distanceA > distanceB ? segment.a : segment.b;
+}
+
+function squaredDistance(a: Point, b: Point): number {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return dx * dx + dy * dy;
+}
+
+function diagnosticSectorPoint(
+  center: Point,
+  segment: OristudioCpLineSegment,
+  modelToSvg: (point: Point) => Point
+): Point {
+  const endpoint = modelToSvg(diagnosticSegmentEndpoint(center, segment));
+  const svgCenter = modelToSvg(center);
+  const dx = endpoint.x - svgCenter.x;
+  const dy = endpoint.y - svgCenter.y;
+  const length = Math.hypot(dx, dy);
+  if (length < 1e-9) return svgCenter;
+  return {
+    x: svgCenter.x + (dx / length) * CP_DIAGNOSTIC_LBL_RADIUS,
+    y: svgCenter.y + (dy / length) * CP_DIAGNOSTIC_LBL_RADIUS,
+  };
 }
 
 function diagnosticOperationLabel(operation: string): string {
@@ -3579,22 +3711,45 @@ export function CreasePatternPanel() {
       return;
     }
 
-    const focusPoint = diagnosticEntryFocusPoint(activeDiagnosticEntry);
-    if (!focusPoint) return;
-    const focusKey = `${editableCpHandle ?? 'none'}:${activeDiagnosticEntry.id}:${focusPoint.x}:${focusPoint.y}`;
+    const focusBounds = diagnosticEntryBounds(activeDiagnosticEntry);
+    if (!focusBounds) return;
+    const focusKey = [
+      editableCpHandle ?? 'none',
+      activeDiagnosticEntry.id,
+      focusBounds.minX,
+      focusBounds.minY,
+      focusBounds.maxX,
+      focusBounds.maxY,
+      cpCanvasRect.x,
+      cpCanvasRect.y,
+    ].join(':');
     if (lastFocusedDiagnosticRef.current === focusKey) return;
     const container = containerRef.current;
     const transform = transformRef.current;
     if (!container || !transform || container.clientWidth <= 0 || container.clientHeight <= 0) {
       return;
     }
-    const svgPoint = editableModelToSvg(focusPoint);
-    const fitScale = computeFitScale();
-    const currentScale = Math.max(zoomPercent / 100, 0.05);
-    const focusScale = Math.min(30, Math.max(currentScale, Math.min(3, fitScale * 2)));
+    const contentBounds = boundsFromPoints(
+      diagnosticEntryPoints(activeDiagnosticEntry).map((point) =>
+        svgPointToContentPoint(editableModelToSvg(point), cpCanvasRect)
+      )
+    );
+    if (!contentBounds) return;
+    const paddedWidth = Math.max(container.clientWidth - CP_DIAGNOSTIC_FOCUS_PADDING * 2, 32);
+    const paddedHeight = Math.max(container.clientHeight - CP_DIAGNOSTIC_FOCUS_PADDING * 2, 32);
+    const boundsWidth = Math.max(contentBounds.maxX - contentBounds.minX, CP_DIAGNOSTIC_MARKER_SIZE);
+    const boundsHeight = Math.max(contentBounds.maxY - contentBounds.minY, CP_DIAGNOSTIC_MARKER_SIZE);
+    const issueFitScale = Math.min(
+      30,
+      Math.max(0.05, Math.min(paddedWidth / boundsWidth, paddedHeight / boundsHeight))
+    );
+    const documentFitScale = computeFitScale();
+    const currentScale = Math.max(zoomPercentRef.current / 100, 0.05);
+    const desiredScale = Math.min(3, Math.max(currentScale, documentFitScale * 2));
+    const focusScale = Math.min(30, Math.max(0.05, Math.min(desiredScale, issueFitScale)));
     transform.setTransform(
-      container.clientWidth / 2 - svgPoint.x * focusScale,
-      container.clientHeight / 2 - svgPoint.y * focusScale,
+      container.clientWidth / 2 - contentBounds.center.x * focusScale,
+      container.clientHeight / 2 - contentBounds.center.y * focusScale,
       focusScale,
       180
     );
@@ -3602,10 +3757,10 @@ export function CreasePatternPanel() {
   }, [
     activeDiagnosticEntry,
     computeFitScale,
+    cpCanvasRect,
     editableCp,
     editableCpHandle,
     editableModelToSvg,
-    zoomPercent,
   ]);
 
   useEffect(() => {
@@ -4450,8 +4605,9 @@ function EditableCreasePattern({
           points={box}
         />
       ))}
-      {diagnostics.flatMap((diagnostic) =>
-        (diagnostic.segments ?? []).map((segment, index) => {
+      {diagnostics.flatMap((diagnostic) => {
+        if (cpDiagnosticMarkerStyle(diagnostic).shape === 'little-big-little') return [];
+        return (diagnostic.segments ?? []).map((segment, index) => {
           const a = modelToSvg(segment.a);
           const b = modelToSvg(segment.b);
           const active = diagnostic.id === activeDiagnosticId;
@@ -4476,8 +4632,8 @@ function EditableCreasePattern({
               }}
             />
           );
-        })
-      )}
+        });
+      })}
       {document.crease_pattern.texts.map((text, index) => {
         const id = index + 1;
         const position = modelToSvg({ x: textCoordinate(text.x), y: textCoordinate(text.y) });
@@ -4539,46 +4695,15 @@ function EditableCreasePattern({
           </g>
         );
       })}
-      {diagnostics
-        .filter((diagnostic) => diagnostic.point)
-        .map((diagnostic) => {
-          const point = modelToSvg(diagnostic.point as Point);
-          const active = diagnostic.id === activeDiagnosticId;
-          return (
-            <g
-              key={`${diagnostic.id}-point`}
-              className={[
-                'cp-diagnostic-point',
-                active ? 'cp-diagnostic-point--active' : '',
-              ].join(' ')}
-              data-active={active || undefined}
-              data-cp-diagnostic-id={diagnostic.id}
-              data-severity={diagnostic.severity}
-              onPointerDown={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                selectDiagnostic(diagnostic.id);
-              }}
-            >
-              <circle className="cp-diagnostic-point__halo" cx={point.x} cy={point.y} r="9" />
-              <circle className="cp-diagnostic-point__core" cx={point.x} cy={point.y} r="3.2" />
-              <line
-                className="cp-diagnostic-point__cross"
-                x1={point.x - 6}
-                y1={point.y}
-                x2={point.x + 6}
-                y2={point.y}
-              />
-              <line
-                className="cp-diagnostic-point__cross"
-                x1={point.x}
-                y1={point.y - 6}
-                x2={point.x}
-                y2={point.y + 6}
-              />
-            </g>
-          );
-        })}
+      {diagnostics.map((diagnostic) => (
+        <DiagnosticPointMarker
+          key={`${diagnostic.id}-point`}
+          activeDiagnosticId={activeDiagnosticId}
+          diagnostic={diagnostic}
+          modelToSvg={modelToSvg}
+          selectDiagnostic={selectDiagnostic}
+        />
+      ))}
       {document.operation_frame?.active && (
         <polygon
           className="cp-operation-frame"
@@ -4645,6 +4770,132 @@ function EditableCreasePattern({
           r="5"
         />
       )}
+    </>
+  );
+}
+
+function DiagnosticPointMarker({
+  activeDiagnosticId,
+  diagnostic,
+  modelToSvg,
+  selectDiagnostic,
+}: {
+  activeDiagnosticId: string | null;
+  diagnostic: OristudioCpDiagnosticEntry;
+  modelToSvg: (point: Point) => Point;
+  selectDiagnostic: (id: string) => void;
+}) {
+  if (!diagnostic.point) return null;
+  const point = modelToSvg(diagnostic.point);
+  const active = diagnostic.id === activeDiagnosticId;
+  const marker = cpDiagnosticMarkerStyle(diagnostic);
+  if (marker.shape === 'none') return null;
+
+  return (
+    <g
+      className={[
+        'cp-diagnostic-point',
+        active ? 'cp-diagnostic-point--active' : '',
+      ].join(' ')}
+      data-active={active || undefined}
+      data-cp-diagnostic-id={diagnostic.id}
+      data-diagnostic-tone={marker.tone}
+      data-marker-shape={marker.shape}
+      data-rule={diagnostic.rule ?? undefined}
+      data-severity={diagnostic.severity}
+      data-violation-color={diagnostic.violation_color ?? undefined}
+      onPointerDown={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        selectDiagnostic(diagnostic.id);
+      }}
+    >
+      {marker.shape === 'generic' ? (
+        <>
+          <circle className="cp-diagnostic-point__halo" cx={point.x} cy={point.y} r="9" />
+          <circle className="cp-diagnostic-point__core" cx={point.x} cy={point.y} r="3.2" />
+          <line
+            className="cp-diagnostic-point__cross"
+            x1={point.x - 6}
+            y1={point.y}
+            x2={point.x + 6}
+            y2={point.y}
+          />
+          <line
+            className="cp-diagnostic-point__cross"
+            x1={point.x}
+            y1={point.y - 6}
+            x2={point.x}
+            y2={point.y + 6}
+          />
+        </>
+      ) : marker.shape === 'triangle' ? (
+        <polygon
+          className="cp-diagnostic-point__oriedita-shape"
+          points={`${point.x},${point.y - 10} ${point.x - 10},${point.y + 8} ${point.x + 10},${point.y + 8}`}
+        />
+      ) : marker.shape === 'square' ? (
+        <rect
+          className="cp-diagnostic-point__oriedita-shape"
+          x={point.x - 9}
+          y={point.y - 9}
+          width="18"
+          height="18"
+        />
+      ) : marker.shape === 'circle' || marker.shape === 'ring' ? (
+        <circle className="cp-diagnostic-point__oriedita-shape" cx={point.x} cy={point.y} r="10" />
+      ) : (
+        <DiagnosticLittleBigLittleMarker
+          diagnostic={diagnostic}
+          modelToSvg={modelToSvg}
+          point={diagnostic.point}
+        />
+      )}
+    </g>
+  );
+}
+
+function DiagnosticLittleBigLittleMarker({
+  diagnostic,
+  modelToSvg,
+  point,
+}: {
+  diagnostic: OristudioCpDiagnosticEntry;
+  modelToSvg: (point: Point) => Point;
+  point: Point;
+}) {
+  const sectors =
+    diagnostic.little_big_little && diagnostic.little_big_little.length > 0
+      ? diagnostic.little_big_little
+      : (diagnostic.segments ?? []).map((segment) => ({ segment, violating: false }));
+  const svgPoint = modelToSvg(point);
+
+  if (sectors.length < 2) {
+    return (
+      <polygon
+        className="cp-diagnostic-point__oriedita-shape"
+        points={`${svgPoint.x},${svgPoint.y - 11} ${svgPoint.x + 10},${svgPoint.y - 4} ${svgPoint.x + 6},${svgPoint.y + 9} ${svgPoint.x - 6},${svgPoint.y + 9} ${svgPoint.x - 10},${svgPoint.y - 4}`}
+      />
+    );
+  }
+
+  return (
+    <>
+      {sectors.flatMap((sector, index) => {
+        if (index === sectors.length - 1 && sector.segment.color === 'Black0') return [];
+        const next = sectors[(index + 1) % sectors.length];
+        if (!next) return [];
+        const a = diagnosticSectorPoint(point, sector.segment, modelToSvg);
+        const b = diagnosticSectorPoint(point, next.segment, modelToSvg);
+        return (
+          <polygon
+            key={`${diagnostic.id}-lbl-${index}`}
+            className="cp-diagnostic-lbl-sector"
+            data-violating={sector.violating || undefined}
+            points={`${svgPoint.x},${svgPoint.y} ${a.x},${a.y} ${b.x},${b.y}`}
+          />
+        );
+      })}
     </>
   );
 }
