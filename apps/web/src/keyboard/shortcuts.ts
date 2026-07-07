@@ -61,6 +61,8 @@ const ORIEDITA_DEFAULTS: Record<string, string> = {
   foldableLineDrawAction: 'N',
   fishBoneDrawAction: 'G',
   doubleSymmetricDrawAction: 'ctrl G',
+  // Ori Studio deviation from Oriedita: bind L to the default Line tool.
+  drawCreaseFreeAction: 'L',
   reflectAction: 'ctrl M',
   selectAllAction: 'ctrl A',
   deleteSelectedLineSegmentAction: 'DELETE',
@@ -68,7 +70,6 @@ const ORIEDITA_DEFAULTS: Record<string, string> = {
   v_del_allAction: 'ctrl shift V',
   colRedAction: 'M',
   colBlueAction: 'V',
-  colBlackAction: 'L',
   gridConfigureAction: 'G',
   undoAction: 'ctrl Z',
   redoAction: 'ctrl shift Z',

@@ -206,7 +206,6 @@ function commandId(operationId: string): `cp.${string}` {
 
 export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
   ready('DrawCreaseFree', 'Draw crease', 'draw', 'pen-line', 'MouseHandlerDrawCreaseFree', {
-    shortcut: 'L',
     toolSteps: ['Drag crease endpoint'],
     inputMode: 'drag-line',
     tooltip: 'Drag a crease using the current line type',
