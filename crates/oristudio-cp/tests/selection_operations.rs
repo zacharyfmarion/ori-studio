@@ -2,9 +2,10 @@ use oristudio_cp::geometry::{LineColor, LineSegment, Point, Polygon};
 use oristudio_cp::model::CreasePatternModel;
 use oristudio_cp::operations::color::toggle_mountain_valley;
 use oristudio_cp::operations::selection::{
-    delete_selected_lines, line_indices_in_box, select_all, select_box, select_connected_from_point,
-    select_indices, select_intersecting_line, select_lasso, select_polygon, unselect_all,
-    unselect_box, unselect_indices, unselect_intersecting_line, unselect_lasso, unselect_polygon,
+    delete_selected_lines, line_indices_in_box, select_all, select_box,
+    select_connected_from_point, select_indices, select_intersecting_line, select_lasso,
+    select_polygon, unselect_all, unselect_box, unselect_indices, unselect_intersecting_line,
+    unselect_lasso, unselect_polygon,
 };
 
 #[test]

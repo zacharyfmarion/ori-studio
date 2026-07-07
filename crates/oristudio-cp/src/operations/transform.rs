@@ -446,7 +446,12 @@ pub fn extend_to_intersection_point(
         }
         let intersection =
             find_intersection_straight_lines(straight_line, StraightLine::from_segment(existing));
-        if should_extend_to(add_segment.a, add_segment.b, intersection, intersection_distance) {
+        if should_extend_to(
+            add_segment.a,
+            add_segment.b,
+            intersection,
+            intersection_distance,
+        ) {
             intersection_distance = intersection.distance(add_segment.a);
             add_segment = add_segment.with_b(intersection);
         }
