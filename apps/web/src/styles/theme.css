@@ -2567,7 +2567,7 @@
 
 .cp-diagnostic-point {
   --cp-diagnostic-color: var(--status-danger);
-  --cp-diagnostic-fill: color-mix(in srgb, var(--cp-diagnostic-color) 84%, transparent);
+  --cp-diagnostic-fill: color-mix(in srgb, var(--cp-diagnostic-color) 34%, transparent);
   cursor: pointer;
   pointer-events: all;
   vector-effect: non-scaling-stroke;
@@ -2632,7 +2632,7 @@
 }
 
 .cp-diagnostic-lbl-sector[data-violating='true'] {
-  fill: color-mix(in srgb, var(--cp-diagnostic-color) 46%, transparent);
+  fill: color-mix(in srgb, var(--cp-diagnostic-color) 28%, transparent);
 }
 
 .cp-diagnostic-point--active {
@@ -3718,6 +3718,12 @@
 }
 
 .cp-line-type-toolbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.cp-folded-figure-actions {
   display: inline-flex;
   align-items: center;
   gap: 2px;

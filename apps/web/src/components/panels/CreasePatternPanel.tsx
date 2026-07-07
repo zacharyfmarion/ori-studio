@@ -4099,38 +4099,40 @@ export function CreasePatternPanel() {
                       shortcutOverrides={shortcutOverrides}
                     />
                     <ViewportToolbarSeparator />
-                    <IconButton
-                      size="sm"
-                      variant="toolbar"
-                      title="Fold"
-                      disabled={!canFoldSelectedModel}
-                      onClick={handleFoldModel}
-                    >
-                      <GitBranch size={14} />
-                    </IconButton>
-                    <IconButton
-                      size="sm"
-                      variant="toolbar"
-                      title="Another solution"
-                      disabled={!canFoldAnother}
-                      onClick={handleFoldAnother}
-                    >
-                      <ChevronRight size={14} />
-                    </IconButton>
-                    <FoldedFigureMenuButton
-                      figures={oristudioCpFoldedFigures}
-                      activeFigure={activeFoldedFigure}
-                      startingFaceId={foldStartingFaceId}
-                      caseDraft={foldCaseDraft}
-                      onStartingFaceIdChange={setFoldStartingFaceId}
-                      onCaseDraftChange={setFoldCaseDraft}
-                      onSelectFigure={setOristudioCpActiveFoldedFigure}
-                      onDisplayStyle={handleFoldedDisplayStyle}
-                      onModelUpdate={handleFoldedModelUpdate}
-                      onFoldToCase={handleFoldToCase}
-                      onDuplicate={handleDuplicateFoldedFigure}
-                      onDelete={handleDeleteFoldedFigure}
-                    />
+                    <div className="cp-folded-figure-actions">
+                      <IconButton
+                        size="sm"
+                        variant="toolbar"
+                        title="Fold"
+                        disabled={!canFoldSelectedModel}
+                        onClick={handleFoldModel}
+                      >
+                        <GitBranch size={14} />
+                      </IconButton>
+                      <IconButton
+                        size="sm"
+                        variant="toolbar"
+                        title="Another solution"
+                        disabled={!canFoldAnother}
+                        onClick={handleFoldAnother}
+                      >
+                        <ChevronRight size={14} />
+                      </IconButton>
+                      <FoldedFigureMenuButton
+                        figures={oristudioCpFoldedFigures}
+                        activeFigure={activeFoldedFigure}
+                        startingFaceId={foldStartingFaceId}
+                        caseDraft={foldCaseDraft}
+                        onStartingFaceIdChange={setFoldStartingFaceId}
+                        onCaseDraftChange={setFoldCaseDraft}
+                        onSelectFigure={setOristudioCpActiveFoldedFigure}
+                        onDisplayStyle={handleFoldedDisplayStyle}
+                        onModelUpdate={handleFoldedModelUpdate}
+                        onFoldToCase={handleFoldToCase}
+                        onDuplicate={handleDuplicateFoldedFigure}
+                        onDelete={handleDeleteFoldedFigure}
+                      />
+                    </div>
                     <span
                       className="viewport-toolbar__meta cp-folded-model-status"
                       data-folded-model-status={activeFoldedFigure?.status ?? 'none'}
