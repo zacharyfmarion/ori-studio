@@ -11,6 +11,7 @@ import {
   type RefObject,
   type SetStateAction,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { TransformComponent, TransformWrapper, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import {
   ChevronDown,
@@ -181,6 +182,7 @@ import {
   ViewportToolbar,
   ViewportToolbarSeparator,
 } from './ViewportToolbar';
+import { CP_TOOL_OPTIONS_PANE_SLOT_ID } from './cpToolOptionsPortal';
 import type { FoldDocument } from '../../engine/types';
 
 function creaseClass(fold: string, kind: string, mode: 'mvf' | 'agrh'): string {
@@ -1233,6 +1235,7 @@ export function CreasePatternPanel() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cpViewportRef = useRef<HTMLDivElement | null>(null);
   const transformRef = useRef<ReactZoomPanPinchRef | null>(null);
+  const [toolOptionsPortalTarget, setToolOptionsPortalTarget] = useState<HTMLElement | null>(null);
   // Registered by the infinite grid layer so viewport transforms can trigger a
   // grid recompute without re-rendering the whole panel on every pan frame.
   const gridSyncRef = useRef<(() => void) | null>(null);
@@ -1361,6 +1364,22 @@ export function CreasePatternPanel() {
     (state) => state.transformOristudioCpSelection
   );
   const shortcutOverrides = useShortcutStore((state) => state.overrides);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+
+    const updateTarget = () => {
+      const target = document.getElementById(CP_TOOL_OPTIONS_PANE_SLOT_ID);
+      setToolOptionsPortalTarget((current) => (current === target ? current : target));
+    };
+
+    updateTarget();
+    if (typeof MutationObserver === 'undefined' || !document.body) return undefined;
+
+    const observer = new MutationObserver(updateTarget);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
 
   const editableCp = oristudioCpDocument?.document ?? null;
   const editableCpHandle = oristudioCpDocument?.handle ?? null;
@@ -3985,34 +4004,38 @@ export function CreasePatternPanel() {
                   </>
                 )}
               </ViewportToolbar>
-              {editableCp && activeCpCommand && (
-                <CpContextToolPanel
-                  action={activeCpAction}
-                  command={activeCpCommand}
-                  options={cpToolOptions}
-                  setOptions={setCpToolOptions}
-                  activeLineColor={activeCpLineColor}
-                  measurementSlots={cpMeasurementSlots}
-                  pendingPointCount={cpToolPoints.length}
-                  selection={oristudioCpSelection}
-                  onApply={
-                    cpCommandRequiresContextApply(activeCpCommand)
-                      ? handleApplyActiveContextCommand
-                      : undefined
-                  }
-                  onClearInput={
-                    activeCpCommand.operationId === 'VoronoiCreate' && cpToolPoints.length > 0
-                      ? handleClearActiveContextInput
-                      : undefined
-                  }
-                  onDeleteText={
-                    activeCpCommand.operationId === 'Text' &&
-                    oristudioCpSelection.texts.length > 0
-                      ? handleDeleteSelectedText
-                      : undefined
-                  }
-                />
-              )}
+              {editableCp &&
+                activeCpCommand &&
+                toolOptionsPortalTarget &&
+                createPortal(
+                  <CpContextToolPanel
+                    action={activeCpAction}
+                    command={activeCpCommand}
+                    options={cpToolOptions}
+                    setOptions={setCpToolOptions}
+                    activeLineColor={activeCpLineColor}
+                    measurementSlots={cpMeasurementSlots}
+                    pendingPointCount={cpToolPoints.length}
+                    selection={oristudioCpSelection}
+                    onApply={
+                      cpCommandRequiresContextApply(activeCpCommand)
+                        ? handleApplyActiveContextCommand
+                        : undefined
+                    }
+                    onClearInput={
+                      activeCpCommand.operationId === 'VoronoiCreate' && cpToolPoints.length > 0
+                        ? handleClearActiveContextInput
+                        : undefined
+                    }
+                    onDeleteText={
+                      activeCpCommand.operationId === 'Text' &&
+                      oristudioCpSelection.texts.length > 0
+                        ? handleDeleteSelectedText
+                        : undefined
+                    }
+                  />,
+                  toolOptionsPortalTarget
+                )}
               <div className="viewport-status-readout">
                 <span>{formatZoom(zoomPercent / 100)}</span>
                 {editableCp && <span>{activeCpToolPrompt}</span>}

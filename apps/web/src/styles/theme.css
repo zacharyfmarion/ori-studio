@@ -3297,19 +3297,12 @@
 }
 
 .cp-context-panel {
-  position: absolute;
-  right: var(--space-3);
-  bottom: calc(var(--space-3) + 44px);
-  z-index: 16;
   display: grid;
-  width: min(300px, calc(100% - var(--space-6)));
-  max-height: min(420px, calc(100% - 72px));
+  width: 100%;
   overflow: hidden;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--domain-overlay-bg);
+  border-top: 1px solid var(--border-subtle);
+  background: color-mix(in srgb, var(--bg-secondary) 82%, var(--bg-primary));
   color: var(--text-secondary);
-  box-shadow: 0 8px 24px var(--shadow-overlay);
   font-size: 0.68rem;
 }
 
@@ -3349,7 +3342,7 @@
 .cp-context-panel__body {
   display: grid;
   gap: 8px;
-  overflow-y: auto;
+  overflow: visible;
   padding: 8px;
 }
 
@@ -3754,6 +3747,25 @@
   display: flex;
   align-items: flex-start;
   padding: var(--space-3);
+}
+
+.cp-view-controls-panel__body {
+  display: flex;
+  flex-direction: column;
+}
+
+.cp-view-controls-panel__view-options {
+  flex: 0 0 auto;
+}
+
+.cp-view-controls-panel__tool-options-slot {
+  display: grid;
+  flex: 0 0 auto;
+  margin-top: auto;
+}
+
+.cp-view-controls-panel__tool-options-slot:empty {
+  min-height: 0;
 }
 
 .control-row__value--toggle {
@@ -4455,4 +4467,3 @@
   font-size: 0.8rem;
   font-weight: 750;
 }
-
