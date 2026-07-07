@@ -186,7 +186,6 @@ interface DesignViewportToolbarProps {
   zoomIn: () => void;
   zoomOut: () => void;
   fitToView: () => void;
-  setActualSize: () => void;
   setZoomLevel: (scale: number) => void;
 }
 
@@ -373,7 +372,6 @@ function DesignViewportToolbar({
   zoomIn,
   zoomOut,
   fitToView,
-  setActualSize,
   setZoomLevel,
 }: DesignViewportToolbarProps) {
   const [layersOpen, setLayersOpen] = useState(false);
@@ -397,7 +395,6 @@ function DesignViewportToolbar({
       zoomIn={zoomIn}
       zoomOut={zoomOut}
       fitToView={fitToView}
-      setActualSize={setActualSize}
       setZoomLevel={setZoomLevel}
     >
       <ViewportToolbarSeparator />
@@ -1228,7 +1225,6 @@ export function DesignPanel() {
           zoomIn={() => transformRef.current?.zoomIn(0.35, 120)}
           zoomOut={() => transformRef.current?.zoomOut(0.35, 120)}
           fitToView={() => fitToView()}
-          setActualSize={setActualSize}
           setZoomLevel={setZoomLevel}
         />
         <div className="design-status-readout">

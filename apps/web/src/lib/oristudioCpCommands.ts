@@ -447,7 +447,8 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
   ready('CreaseToggleMv', 'Toggle mountain/valley', 'color', 'repeat-2', 'MouseHandlerCreaseToggleMV', {
     placement: 'menu',
     selectionRequirement: 'selected mountain or valley lines',
-    tooltip: 'Toggle selected mountain and valley lines',
+    toolSteps: ['Select a crease to flip'],
+    tooltip: 'Toggle selected mountain and valley lines, or click a crease to flip it',
   }),
   ready('CircleChangeColor', 'Change circle color', 'annotations', 'palette', 'MouseHandlerCircleChangeColor', {
     placement: 'menu',

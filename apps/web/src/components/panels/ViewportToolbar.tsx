@@ -14,7 +14,6 @@ interface ViewportToolbarProps {
   zoomIn: () => void;
   zoomOut: () => void;
   fitToView: () => void;
-  setActualSize: () => void;
   setZoomLevel: (scale: number) => void;
   children?: ReactNode;
 }
@@ -25,7 +24,6 @@ export function ViewportToolbar({
   zoomIn,
   zoomOut,
   fitToView,
-  setActualSize,
   setZoomLevel,
   children,
 }: ViewportToolbarProps) {
@@ -83,9 +81,6 @@ export function ViewportToolbar({
       <IconButton size="sm" variant="toolbar" title="Fit" onClick={fitToView}>
         <Maximize2 size={14} />
       </IconButton>
-      <button type="button" className="viewport-toolbar__actual" onClick={setActualSize}>
-        1:1
-      </button>
       {children}
     </div>
   );

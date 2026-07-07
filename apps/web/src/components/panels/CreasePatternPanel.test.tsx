@@ -711,13 +711,6 @@ describe('CreasePatternPanel', () => {
     expect(transformMocks.centerView).toHaveBeenLastCalledWith(expect.any(Number), 180);
 
     act(() => {
-      Array.from(container.querySelectorAll<HTMLButtonElement>('button'))
-        .find((button) => button.textContent?.trim() === '1:1')
-        ?.click();
-    });
-    expect(transformMocks.centerView).toHaveBeenLastCalledWith(1, 160);
-
-    act(() => {
       container.querySelector<HTMLButtonElement>('.viewport-toolbar__zoom-button')?.click();
     });
     act(() => {
@@ -1098,6 +1091,38 @@ describe('CreasePatternPanel', () => {
       );
     });
     expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual([]);
+  });
+
+  it('activates the flip mountain/valley tool with C and toggles the clicked crease', async () => {
+    const executeOristudioCpCommand = vi.fn(async () => true);
+    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
+      documentMode: 'crease-pattern',
+      importedCreasePattern: importedCpDocument(),
+      oristudioCpDocument: editableCpState(),
+      executeOristudioCpCommand,
+    });
+
+    // Oriedita binds C to CREASE_TOGGLE_MV_58; pressing it activates the tool.
+    act(() => {
+      handleShortcutRuntimeKeyDown(new KeyboardEvent('keydown', { key: 'c', bubbles: true }), {
+        context: { documentMode: 'crease-pattern', activeEditingSurface: 'crease-pattern' },
+        menu: vi.fn(),
+      });
+    });
+    expect(container.textContent).toContain('Flip Mountain/Valley');
+
+    // Clicking a crease flips just that crease, keeping the tool active.
+    await act(async () => {
+      container
+        .querySelector<SVGElement>('[data-cp-line-hit-id="1"]')
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await Promise.resolve();
+    });
+    expect(executeOristudioCpCommand).toHaveBeenCalledWith(
+      'CreaseToggleMv',
+      expect.objectContaining({ line_ids: [1] })
+    );
+    expect(container.textContent).toContain('Flip Mountain/Valley');
   });
 
   it('restores active line color from Oriedita canvas metadata', () => {

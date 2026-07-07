@@ -350,6 +350,12 @@ const ORIEDITA_RAIL_ACTION_OVERRIDES: Partial<
     upstreamAction: 'lengthenCrease2Action',
     upstreamMouseMode: 'LENGTHEN_CREASE_SAME_COLOR_70',
   },
+  CreaseToggleMv: {
+    label: 'Flip Mountain/Valley',
+    group: 'color',
+    upstreamAction: 'senbun_henkan2Action',
+    upstreamMouseMode: 'CREASE_TOGGLE_MV_58',
+  },
   CreaseMakeMv: {
     upstreamAction: 'in_L_col_changeAction',
     upstreamMouseMode: 'CREASE_MAKE_MV_34',

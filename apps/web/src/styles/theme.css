@@ -3884,7 +3884,6 @@
 }
 
 .viewport-toolbar__zoom-button,
-.viewport-toolbar__actual,
 .viewport-toolbar__dropdown-item {
   border: 0;
   border-radius: var(--radius-sm);
@@ -3895,28 +3894,17 @@
   font-size: 0.72rem;
 }
 
-.viewport-toolbar__zoom-button,
-.viewport-toolbar__actual {
+.viewport-toolbar__zoom-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   height: 28px;
-}
-
-.viewport-toolbar__zoom-button {
   min-width: 52px;
   padding: 0 8px;
   color: var(--text-primary);
 }
 
-.viewport-toolbar__actual {
-  min-width: 34px;
-  padding: 0 7px;
-  font-weight: 700;
-}
-
 .viewport-toolbar__zoom-button:hover,
-.viewport-toolbar__actual:hover,
 .viewport-toolbar__dropdown-item:hover {
   background: var(--bg-surface);
   color: var(--text-primary);
@@ -4337,11 +4325,11 @@
    vertex markers drawn at every line endpoint plus explicit CP points. A size of
    0 hides them, matching Oriedita. */
 .cp-canvas[data-canvas-mode='editable'] .cp-vertex {
-  r: calc(var(--cp-point-size, 1) * 3.2px);
+  r: calc(var(--cp-point-size, 1) * 1.6px);
 }
 
 .cp-canvas[data-canvas-mode='editable'] .cp-point {
-  r: calc(var(--cp-point-size, 1) * 4px);
+  r: calc(var(--cp-point-size, 1) * 2px);
 }
 
 .crease--fold-mountain {

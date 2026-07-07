@@ -491,6 +491,12 @@ function isLengthenCreaseOperation(operationId: string | null | undefined): bool
   return operationId === 'LengthenCrease' || operationId === 'LengthenCreaseSameColor';
 }
 
+// Oriedita `CREASE_TOGGLE_MV_58` (the 'C' tool): clicking a crease flips its
+// mountain/valley assignment in place, keeping the tool active for the next click.
+function isCreaseToggleMvClickTool(operationId: string | null | undefined): boolean {
+  return operationId === 'CreaseToggleMv';
+}
+
 function isSquareBisectorOperation(operationId: string | null | undefined): boolean {
   return operationId === 'SquareBisector';
 }
@@ -3221,6 +3227,35 @@ export function CreasePatternPanel() {
       }
 
       if (
+        activeCpCommand?.uiStatus === 'ready' &&
+        cpToolState.phase === 'active' &&
+        isCreaseToggleMvClickTool(activeCpCommand.operationId)
+      ) {
+        setCpToolPoints([]);
+        setCpToolPath([]);
+        void (async () => {
+          const succeeded = await executeOristudioCpCommand(
+            activeCpCommand.operationId,
+            buildCpCommandPayload(activeCpCommand, { line_ids: [id] })
+          );
+          setCpToolState((state) =>
+            state.activeOperationId === activeCpCommand.operationId
+              ? transitionOristudioCpToolState(
+                  state,
+                  succeeded
+                    ? { type: 'commit', keepActive: true }
+                    : {
+                        type: 'commandError',
+                        message: useWorkspaceStore.getState().oristudioCpError ?? 'Command failed',
+                      }
+                )
+              : state
+          );
+        })();
+        return;
+      }
+
+      if (
         activeCpCommand?.operationId === 'CreaseSelect' &&
         isDefaultSelectionMode(
           {
@@ -3891,7 +3926,6 @@ export function CreasePatternPanel() {
                 zoomIn={() => transformRef.current?.zoomIn(0.35, 120)}
                 zoomOut={() => transformRef.current?.zoomOut(0.35, 120)}
                 fitToView={() => fitToView()}
-                setActualSize={setActualSize}
                 setZoomLevel={setZoomLevel}
               >
                 {editableCp && (
