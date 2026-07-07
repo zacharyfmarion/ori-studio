@@ -4285,9 +4285,12 @@
    classes provide the default COLOR style; --cp-line-width sets a uniform width
    and data-cp-line-style layers Oriedita's black/white and chain-line dashes.
    Selected creases keep their highlight treatment. */
+.cp-canvas[data-canvas-mode='editable'] .crease {
+  stroke-dasharray: none;
+}
+
 .cp-canvas[data-canvas-mode='editable'] .crease:not(.crease--selected) {
   stroke-width: calc(var(--cp-line-width, 1) * 1.5px);
-  stroke-dasharray: none;
 }
 
 /* Mountain: one-dot chain (color+shape / black one-dot), two-dot chain (black two-dot). */

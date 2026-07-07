@@ -1,9 +1,10 @@
 use oristudio_cp::geometry::{LineColor, LineSegment, Point, Polygon};
 use oristudio_cp::model::CreasePatternModel;
+use oristudio_cp::operations::color::toggle_mountain_valley;
 use oristudio_cp::operations::selection::{
-    delete_selected_lines, select_all, select_box, select_connected_from_point, select_indices,
-    select_intersecting_line, select_lasso, select_polygon, unselect_all, unselect_box,
-    unselect_indices, unselect_intersecting_line, unselect_lasso, unselect_polygon,
+    delete_selected_lines, line_indices_in_box, select_all, select_box, select_connected_from_point,
+    select_indices, select_intersecting_line, select_lasso, select_polygon, unselect_all,
+    unselect_box, unselect_indices, unselect_intersecting_line, unselect_lasso, unselect_polygon,
 };
 
 #[test]
@@ -46,6 +47,26 @@ fn box_selection_selects_lines_touching_boundary_or_interior() {
     assert_eq!(selected_flags(&model), vec![2, 2, 0]);
     assert_eq!(unselect_box(&mut model, &polygon), 2);
     assert_eq!(selected_flags(&model), vec![0, 0, 0]);
+}
+
+#[test]
+fn box_flip_toggles_only_mountain_valley_lines_inside_the_box() {
+    // Oriedita CREASE_TOGGLE_MV_58 drag box: flip every enclosed M/V line, skip
+    // non-M/V lines, and leave lines outside the box untouched.
+    let mut model = model_from_segments(&[
+        segment(-1.0, 0.0, 0.0, 0.0, LineColor::Red1), // boundary mountain -> valley
+        segment(0.25, 0.25, 0.75, 0.75, LineColor::Blue2), // inside valley -> mountain
+        segment(0.1, 0.1, 0.2, 0.2, LineColor::Black0), // inside edge, ignored
+        segment(2.0, 2.0, 3.0, 3.0, LineColor::Red1),  // outside mountain, unchanged
+    ]);
+    let polygon = unit_square();
+
+    let indices = line_indices_in_box(&model, &polygon);
+    assert_eq!(toggle_mountain_valley(&mut model, &indices), 2);
+    assert_eq!(model.line_segments[0].color, LineColor::Blue2);
+    assert_eq!(model.line_segments[1].color, LineColor::Red1);
+    assert_eq!(model.line_segments[2].color, LineColor::Black0);
+    assert_eq!(model.line_segments[3].color, LineColor::Red1);
 }
 
 #[test]

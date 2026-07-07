@@ -2541,9 +2541,12 @@ export function CreasePatternPanel() {
       }
       if (stepCount === 0) return;
       if (
-        isLineClickSelectionOperation(activeCpCommand.operationId) &&
+        (isLineClickSelectionOperation(activeCpCommand.operationId) ||
+          isCreaseToggleMvClickTool(activeCpCommand.operationId)) &&
         isCpLineEventTarget(event.target)
       ) {
+        // Clicking a crease should flip it via the line click handler; let the
+        // pointerdown fall through so a box drag only starts on empty canvas.
         return;
       }
       if (
@@ -3067,7 +3070,11 @@ export function CreasePatternPanel() {
         const succeeded = await executeOristudioCpCommand(
           command.operationId,
           buildCpCommandPayload(command, {
-            line_ids: oristudioCpSelection.lines,
+            // The flip tool operates on the boxed lines, never on a prior
+            // selection, so it always resolves the box on the kernel side.
+            line_ids: isCreaseToggleMvClickTool(drag.operationId)
+              ? []
+              : oristudioCpSelection.lines,
             circle_ids: oristudioCpSelection.circles,
             points,
             replace_selection:
