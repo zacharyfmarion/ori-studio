@@ -71,9 +71,6 @@ export function ConditionsPanel() {
   if (documentMode === 'crease-pattern') {
     return (
       <section className="panel-shell conditions-panel">
-        <div className="panel-toolbar">
-          <span className="panel-title">Conditions</span>
-        </div>
         <div className="panel-body document-mode-empty">
           <div className="document-mode-empty__icon" aria-hidden="true">
             <FileQuestionMark size={30} />
@@ -102,8 +99,7 @@ export function ConditionsPanel() {
 
   return (
     <section className="panel-shell conditions-panel">
-      <div className="panel-toolbar">
-        <span className="panel-title">Conditions</span>
+      <div className="panel-toolbar panel-toolbar--actions-only">
         <button
           className="toolbar-text-button"
           type="button"

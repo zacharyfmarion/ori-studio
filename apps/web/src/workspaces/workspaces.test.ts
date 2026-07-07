@@ -24,6 +24,7 @@ describe('workspace definitions', () => {
     expect(workspaceForPanelId('diagnostics')).toBe('design');
     expect(workspaceForPanelId('conditions')).toBe('design');
     expect(workspaceForPanelId('crease-pattern')).toBe('edit');
+    expect(workspaceForPanelId('cp-view-controls')).toBe('edit');
     expect(workspaceForPanelId('simulator')).toBe('simulate');
     expect(workspaceForPanelId('sequence')).toBe('simulate');
 

@@ -38,13 +38,13 @@ import type {
   OristudioCpFoldedFigureDisplayStyle,
   OristudioCpFoldedFigureEntry,
   OristudioCpFoldedFigureModel,
+  OristudioCpGridMetadata,
   OristudioCpLineSegment,
   OristudioCpOperationDescriptor,
 } from '../../engine/oristudioCpTypes';
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
 import type { CpLineClipboardPayload, CpSelectionTransform } from '../../lib/creasePatternClipboard';
 import type { OristudioCpLineage } from '../../lib/oristudioCpLineage';
-import type { OristudioCpSymmetryState } from '../../lib/oristudioCpSymmetry';
 
 export interface RecentProject {
   id: string;
@@ -118,6 +118,10 @@ export interface ProjectSliceActions {
     label?: string
   ) => Promise<boolean>;
   setOristudioCpGridSize: (gridSize: number) => Promise<boolean>;
+  updateOristudioCpGrid: (
+    patch: Partial<OristudioCpGridMetadata>,
+    label?: string
+  ) => Promise<boolean>;
   previewOristudioCpCommand: (
     operationId: OristudioCpOperationId,
     payload?: OristudioCpCommandPayload
@@ -276,7 +280,6 @@ export interface CreasePatternSliceState {
   oristudioCpFoldedFigures: OristudioCpFoldedFigureEntry[];
   oristudioCpActiveFoldedFigureId: string | null;
   oristudioCpViewport: OristudioCpViewportOptions;
-  oristudioCpSymmetry: OristudioCpSymmetryState;
   foldArtifacts: FoldArtifacts | null;
   foldArtifactError: string | null;
   foldArtifactStatus: FoldArtifactStatus;
@@ -306,11 +309,10 @@ export interface CreasePatternSliceActions {
   planFoldingSequence: () => Promise<SequencePlan | null>;
   setCreaseColorMode: (mode: CreaseColorMode) => void;
   setSequenceSimulationFocus: (focus: SequenceSimulationFocus) => void;
-  setOristudioCpViewportOption: (
-    key: OristudioCpViewportOptionKey,
-    value: boolean
+  setOristudioCpViewportOption: <K extends OristudioCpViewportOptionKey>(
+    key: K,
+    value: OristudioCpViewportOptions[K]
   ) => void;
-  setOristudioCpSymmetry: (update: Partial<OristudioCpSymmetryState>) => void;
   setOristudioCpSelection: (selection: OristudioCpSelection) => void;
   requestOristudioCpAction: (operationId: OristudioCpOperationId) => void;
   clearOristudioCpActionRequest: (id: number) => void;

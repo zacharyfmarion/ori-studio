@@ -15,7 +15,7 @@ use crate::operations::arrangement::{
     add_line_segment_like_worker, del_v_at_point, divide_line_segment_with_new_lines,
 };
 use crate::operations::selection::unselect_all;
-use crate::operations::transform::extend_to_intersection_point_2;
+use crate::operations::transform::{extend_to_intersection_point, extend_to_intersection_point_2};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DrawCreaseTarget {
@@ -841,7 +841,7 @@ pub fn symmetric_draw(
         mirror.determine_furthest_endpoint(cross),
         source.determine_furthest_endpoint(cross),
     );
-    let add_segment = extend_to_intersection_point_2(model, &LineSegment::new(cross, reflected))
+    let add_segment = extend_to_intersection_point(model, &LineSegment::new(cross, reflected))
         .with_line_color(color);
     if !Epsilon::HIGH.gt0(add_segment.determine_length()) {
         return false;
@@ -877,7 +877,7 @@ pub fn double_symmetric_draw(model: &mut CreasePatternModel, drag_segment: &Line
         }
 
         let reflected = find_line_symmetry_point(drag_segment.a, drag_segment.b, source_point);
-        let add_segment = extend_to_intersection_point_2(
+        let add_segment = extend_to_intersection_point(
             model,
             &LineSegment::new(
                 find_intersection_segments(&segment, drag_segment),
@@ -1107,7 +1107,7 @@ pub fn fishbone_draw(
         ] {
             if fishbone_has_forward_intersection(model, &seed) {
                 let result =
-                    extend_to_intersection_point_2(model, &seed).with_line_color(current_color);
+                    extend_to_intersection_point(model, &seed).with_line_color(current_color);
                 add_line_segment_like_worker(model, &result);
                 station_added += 1;
                 added += 1;

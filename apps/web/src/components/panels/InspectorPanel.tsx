@@ -30,9 +30,6 @@ export function InspectorPanel() {
 
   return (
     <section className="panel-shell inspector-panel">
-      <div className="panel-toolbar">
-        <span className="panel-title">Inspector</span>
-      </div>
       <div className="panel-body">
         {selectedNode && (
           <>

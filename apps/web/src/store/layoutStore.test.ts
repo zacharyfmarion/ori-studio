@@ -112,21 +112,20 @@ describe('layout store', () => {
 
     expect(editApi.addPanel.mock.calls.map(([options]) => options.id)).toEqual([
       'crease-pattern',
+      'cp-view-controls',
     ]);
     expect(editApi.addGroup).toHaveBeenCalledWith({ direction: 'right', hideHeader: true });
     expect(editApi.panelMap.get('crease-pattern')?.group.hideHeader).toBe(true);
+    expect(editApi.addPanel.mock.calls[1][0]).toMatchObject({
+      id: 'cp-view-controls',
+      position: { referencePanel: 'crease-pattern', direction: 'right' },
+      initialWidth: 260,
+    });
     expect(simulateApi.addPanel.mock.calls.map(([options]) => options.id)).toEqual([
       'simulator',
-      'sequence',
     ]);
     expect(simulateApi.addGroup).toHaveBeenCalledWith({ direction: 'right', hideHeader: true });
     expect(simulateApi.panelMap.get('simulator')?.group.hideHeader).toBe(true);
-    expect(simulateApi.panelMap.get('sequence')?.group.hideHeader).toBeUndefined();
-    expect(simulateApi.addPanel.mock.calls[1][0]).toMatchObject({
-      id: 'sequence',
-      position: { referencePanel: 'simulator', direction: 'right' },
-      initialWidth: 360,
-    });
   });
 
   it('activates existing panels through the dockview api', () => {
@@ -154,6 +153,7 @@ describe('layout store', () => {
       'diagnostics',
       'conditions',
       'crease-pattern',
+      'cp-view-controls',
     ]);
     expect(api.panelMap.get('crease-pattern')?.api.setActive).toHaveBeenCalledOnce();
   });
@@ -177,7 +177,7 @@ describe('layout store', () => {
     expect(useLayoutStore.getState().loadLayout()).toBeNull();
     expect(localStorage.getItem('treemaker-web-layout:design')).toBeNull();
 
-    localStorage.setItem('treemaker-web-layout-version:design', '10');
+    localStorage.setItem('treemaker-web-layout-version:design', '12');
     localStorage.setItem('treemaker-web-layout:design', '{broken');
 
     expect(useLayoutStore.getState().loadLayout()).toBeNull();

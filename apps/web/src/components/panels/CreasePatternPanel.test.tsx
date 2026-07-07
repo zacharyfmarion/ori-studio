@@ -16,7 +16,6 @@ import {
 } from '../../lib/creasePatternViewport';
 import { handleShortcutRuntimeKeyDown } from '../../keyboard/shortcutRuntime';
 import type { ImportedCreasePatternDocument } from '../../lib/creasePatternImport';
-import { generatedCpLineage } from '../../lib/oristudioCpLineage';
 import { createStarterOristudioCpDocument } from '../../lib/oristudioCpStarterDocument';
 import {
   orieditaCameraSvgScale,
@@ -916,8 +915,8 @@ describe('CreasePatternPanel', () => {
     expect(transformMocks.centerView).toHaveBeenCalledTimes(1);
   });
 
-  it('renders editable CP kernel geometry with grid, selection, and viewport toggles', async () => {
-    const { container, setOristudioCpGridSize } = renderPanel(
+  it('renders editable CP kernel geometry and selection', async () => {
+    const { container } = renderPanel(
       createSampleProject(),
       'crease_pattern_ready',
       {
@@ -967,7 +966,6 @@ describe('CreasePatternPanel', () => {
     expect(container.querySelector('button[aria-label="Orange"]')?.textContent).toBe('');
     expect(container.querySelector('button[aria-label="Purple"]')?.textContent).toBe('');
     expect(container.querySelector('button[aria-label="Other"]')?.textContent).toBe('');
-    expect(container.querySelector('button[aria-label="Apply active line color"]')).not.toBeNull();
     const rabbitEarButton = container.querySelector<HTMLButtonElement>(
       'button[aria-label="Rabbit Ear"]'
     );
@@ -1100,37 +1098,6 @@ describe('CreasePatternPanel', () => {
       );
     });
     expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual([]);
-
-    const gridSizeInput = container.querySelector<HTMLInputElement>('input[aria-label="Grid size"]');
-    expect(gridSizeInput?.value).toBe('8');
-    await act(async () => {
-      if (!gridSizeInput) throw new Error('Grid size input did not render');
-      setNumberInputValue(gridSizeInput, '16');
-      await Promise.resolve();
-    });
-    expect(setOristudioCpGridSize).toHaveBeenLastCalledWith(16);
-    expect(
-      useWorkspaceStore.getState().oristudioCpDocument?.document.crease_pattern.grid.grid_size
-    ).toBe(16);
-
-    await act(async () => {
-      if (!gridSizeInput) throw new Error('Grid size input did not render');
-      setNumberInputValue(gridSizeInput, '0');
-      await Promise.resolve();
-    });
-    expect(setOristudioCpGridSize).toHaveBeenLastCalledWith(1);
-
-    act(() => {
-      container.querySelector<HTMLButtonElement>('button[aria-label="Grid"]')?.click();
-    });
-    expect(useWorkspaceStore.getState().oristudioCpViewport.gridVisible).toBe(false);
-
-    act(() => {
-      container.querySelector<HTMLButtonElement>('button[aria-label="Snap"]')?.click();
-    });
-    expect(useWorkspaceStore.getState().oristudioCpViewport.snapToGrid).toBe(false);
-    expect(useWorkspaceStore.getState().oristudioCpViewport.snapToVertices).toBe(false);
-    expect(useWorkspaceStore.getState().oristudioCpViewport.snapToLines).toBe(false);
   });
 
   it('restores active line color from Oriedita canvas metadata', () => {
@@ -1666,77 +1633,6 @@ describe('CreasePatternPanel', () => {
       state: 'Back1',
     });
     expect(foldOristudioCpFigureToCase).toHaveBeenCalledWith('generated-1', 1);
-  });
-
-  it('applies the active palette color to selected editable CP lines', async () => {
-    const executeOristudioCpCommand = vi.fn(async () => true);
-    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
-      importedCreasePattern: importedCpDocument(),
-      oristudioCpDocument: editableCpState(),
-      oristudioCpSelection: {
-        lines: [1, 2],
-        vertices: [],
-        points: [],
-        circles: [],
-        texts: [],
-        faces: [],
-      },
-      executeOristudioCpCommand,
-    });
-
-    await act(async () => {
-      container.querySelector<HTMLButtonElement>('button[aria-label="More line colors"]')?.click();
-      await Promise.resolve();
-    });
-    await act(async () => {
-      container.querySelector<HTMLButtonElement>('button[aria-label="Purple"]')?.click();
-      await Promise.resolve();
-    });
-    await act(async () => {
-      container.querySelector<HTMLButtonElement>('button[aria-label="Apply active line color"]')?.click();
-      await Promise.resolve();
-    });
-
-    expect(executeOristudioCpCommand).toHaveBeenCalledWith('CreaseSetLineColor', {
-      line_ids: [1, 2],
-      line_color: 'Purple8',
-    });
-  });
-
-  it('renders generated CP companions as editable with compact toolbar symmetry controls', () => {
-    const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'tree',
-      oristudioCpDocument: editableCpState(),
-      oristudioCpLineage: generatedCpLineage({
-        sourceTreeDigest: 'test:digest',
-        sourceGeneratedFold: null,
-      }),
-    });
-
-    expect(container.querySelector('.cp-tool-rail')).not.toBeNull();
-    expect(container.querySelector('.cp-symmetry-controls')).toBeNull();
-    expect(container.querySelector('.cp-symmetry-menu')).not.toBeNull();
-
-    act(() => {
-      container.querySelector<HTMLButtonElement>('button[aria-label="Crease pattern symmetry"]')?.click();
-    });
-    expect(useWorkspaceStore.getState().oristudioCpSymmetry.mirrorSelection).toBe(false);
-    act(() => {
-      container
-        .querySelector<HTMLButtonElement>('button[aria-label="Enable crease pattern symmetry"]')
-        ?.click();
-    });
-    act(() => {
-      container
-        .querySelector<HTMLButtonElement>('button[aria-label="Mirror crease pattern selection"]')
-        ?.click();
-    });
-
-    expect(useWorkspaceStore.getState().activeEditingSurface).toBe('crease-pattern');
-    expect(useWorkspaceStore.getState().oristudioCpSymmetry.enabled).toBe(true);
-    expect(useWorkspaceStore.getState().oristudioCpSymmetry.mirrorSelection).toBe(true);
-    expect(container.querySelector('.cp-symmetry-line')).not.toBeNull();
   });
 
   it('renders Oriedita instructions in the CP context tool panel', () => {
@@ -2636,26 +2532,16 @@ describe('CreasePatternPanel', () => {
 
     expect(useWorkspaceStore.getState().oristudioCpActiveDiagnosticId).toBe('CheckCamv-1');
 
-    const hideCamvButton = container.querySelector<HTMLButtonElement>(
-      'button[aria-label="Hide CAMV issues"]'
-    );
-    expect(hideCamvButton?.getAttribute('aria-pressed')).toBe('true');
-
     act(() => {
-      hideCamvButton?.click();
+      useWorkspaceStore.getState().setOristudioCpViewportOption('camvIssuesVisible', false);
     });
 
     expect(useWorkspaceStore.getState().oristudioCpViewport.camvIssuesVisible).toBe(false);
     expect(container.querySelector('.cp-diagnostic-point')).toBeNull();
     expect(container.querySelector('.cp-diagnostic-hud')).toBeNull();
 
-    const showCamvButton = container.querySelector<HTMLButtonElement>(
-      'button[aria-label="Show CAMV issues"]'
-    );
-    expect(showCamvButton?.getAttribute('aria-pressed')).toBe('false');
-
     act(() => {
-      showCamvButton?.click();
+      useWorkspaceStore.getState().setOristudioCpViewportOption('camvIssuesVisible', true);
     });
 
     expect(useWorkspaceStore.getState().oristudioCpViewport.camvIssuesVisible).toBe(true);

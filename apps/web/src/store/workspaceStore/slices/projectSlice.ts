@@ -16,21 +16,21 @@ import {
   withFlatFoldError,
 } from '../../../lib/creasePatternImport';
 import {
+  clampOrieditaGridAngle,
   DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
   emptyOristudioCpSelection,
   getCpVertices,
+  isValidOrieditaGridScale,
   normalizeOrieditaGridSize,
+  normalizeOrieditaIntervalGridSize,
+  ORIEDITA_GRID_SCALE_DEFAULTS,
 } from '../../../lib/creasePatternViewport';
 import {
   blankCpLineage,
   importedCpLineage,
   markCpLineageEdited,
 } from '../../../lib/oristudioCpLineage';
-import {
-  defaultOristudioCpSymmetry,
-  normalizeOristudioCpCommandPayload,
-  prepareOristudioCpCommandPayloads,
-} from '../../../lib/oristudioCpSymmetry';
+import { normalizeOristudioCpCommandPayload } from '../../../lib/oristudioCpCommandPayloads';
 import {
   activeNativeDocument,
   createNativeCreasePatternProjectFile,
@@ -91,6 +91,7 @@ import type {
   OristudioCpDocumentSnapshot,
   OristudioCpDocumentState,
   OristudioCpFoldedFigureEntry,
+  OristudioCpGridMetadata,
 } from '../../../engine/oristudioCpTypes';
 
 const RECENTS_STORAGE_KEY = 'treemaker.recentProjects.v1';
@@ -230,6 +231,59 @@ function oristudioCpSelectionAfterCommand(
     texts: selection.texts.filter((id) => id >= 1 && id <= document.crease_pattern.texts.length),
     faces: selection.faces,
   };
+}
+
+// Applies a partial grid-metadata patch with the same validation Oriedita's
+// GridMetadata setters enforce: size/interval floors, angle clamp, and the
+// axis-scale validity check that resets an axis to `1 + 0*sqrt(1)` when the
+// resolved length is degenerate. Grid X and grid Y are each validated as a
+// group so an invalid trio resets that axis rather than partially applying.
+function normalizeOristudioCpGridPatch(
+  grid: OristudioCpGridMetadata,
+  patch: Partial<OristudioCpGridMetadata>
+): OristudioCpGridMetadata {
+  const merged: OristudioCpGridMetadata = { ...grid, ...patch };
+
+  const next: OristudioCpGridMetadata = {
+    ...merged,
+    grid_size: normalizeOrieditaGridSize(merged.grid_size),
+    interval_grid_size: normalizeOrieditaIntervalGridSize(merged.interval_grid_size),
+    grid_angle: clampOrieditaGridAngle(merged.grid_angle),
+  };
+
+  if (!isValidOrieditaGridScale(next.grid_xa, next.grid_xb, next.grid_xc)) {
+    next.grid_xa = ORIEDITA_GRID_SCALE_DEFAULTS.a;
+    next.grid_xb = ORIEDITA_GRID_SCALE_DEFAULTS.b;
+    next.grid_xc = ORIEDITA_GRID_SCALE_DEFAULTS.c;
+  }
+  if (!isValidOrieditaGridScale(next.grid_ya, next.grid_yb, next.grid_yc)) {
+    next.grid_ya = ORIEDITA_GRID_SCALE_DEFAULTS.a;
+    next.grid_yb = ORIEDITA_GRID_SCALE_DEFAULTS.b;
+    next.grid_yc = ORIEDITA_GRID_SCALE_DEFAULTS.c;
+  }
+
+  return next;
+}
+
+function oristudioCpGridEquals(
+  a: OristudioCpGridMetadata,
+  b: OristudioCpGridMetadata
+): boolean {
+  return (
+    a.grid_size === b.grid_size &&
+    a.interval_grid_size === b.interval_grid_size &&
+    a.grid_xa === b.grid_xa &&
+    a.grid_xb === b.grid_xb &&
+    a.grid_xc === b.grid_xc &&
+    a.grid_ya === b.grid_ya &&
+    a.grid_yb === b.grid_yb &&
+    a.grid_yc === b.grid_yc &&
+    a.grid_angle === b.grid_angle &&
+    a.base_state === b.base_state &&
+    a.vertical_scale_position === b.vertical_scale_position &&
+    a.horizontal_scale_position === b.horizontal_scale_position &&
+    a.draw_diagonal_gridlines === b.draw_diagonal_gridlines
+  );
 }
 
 function selectedLineSelectionFromDocument(
@@ -617,7 +671,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       oristudioCpRevision: 0,
       oristudioCpFoldedFigures: [],
       oristudioCpActiveFoldedFigureId: null,
-      oristudioCpSymmetry: defaultOristudioCpSymmetry(),
       toolMode: 'select',
       creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
       ...artifactState,
@@ -756,7 +809,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       oristudioCpRevision: 0,
       oristudioCpFoldedFigures: nativeDocument.viewState.foldedFigures ?? [],
       oristudioCpActiveFoldedFigureId: nativeDocument.viewState.activeFoldedFigureId ?? null,
-      oristudioCpSymmetry: nativeDocument.viewState.symmetry ?? defaultOristudioCpSymmetry(),
       toolMode: 'select',
       creaseColorMode: nativeDocument.viewState.creaseColorMode ?? DEFAULT_CREASE_COLOR_MODE,
       oristudioCpViewport: {
@@ -815,7 +867,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       oristudioCpRevision: 0,
       oristudioCpFoldedFigures: nativeDocument.viewState.foldedFigures ?? [],
       oristudioCpActiveFoldedFigureId: nativeDocument.viewState.activeFoldedFigureId ?? null,
-      oristudioCpSymmetry: nativeDocument.viewState.symmetry ?? defaultOristudioCpSymmetry(),
     });
   };
 
@@ -928,7 +979,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       creaseColorMode: get().creaseColorMode,
       selection: get().oristudioCpSelection,
       viewport: get().oristudioCpViewport,
-      symmetry: get().oristudioCpSymmetry,
       foldedFigures: get().oristudioCpFoldedFigures,
       activeFoldedFigureId: get().oristudioCpActiveFoldedFigureId,
       lineage: get().oristudioCpLineage ?? importedCpLineage(),
@@ -1280,7 +1330,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           oristudioCpRevision: 0,
           oristudioCpFoldedFigures: [],
           oristudioCpActiveFoldedFigureId: null,
-          oristudioCpSymmetry: defaultOristudioCpSymmetry(),
           toolMode: 'select',
           symmetryAuthoringPairs: [],
           creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
@@ -1337,32 +1386,21 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         const mutatesDocument = !NON_MUTATING_CP_OPERATIONS.has(operationId);
         const editsCreasePattern =
           mutatesDocument && !SYNC_CP_LINE_SELECTION_AFTER_OPERATIONS.has(operationId);
-        const preparedPayloads = previousDocument
-          ? prepareOristudioCpCommandPayloads(
-              operationId,
-              previousDocument,
-              payload,
-              get().oristudioCpSymmetry
-            )
-          : normalizeOristudioCpCommandPayload(payload);
-        if (!preparedPayloads.ok) {
+        const validation = normalizeOristudioCpCommandPayload(payload);
+        if (!validation.ok) {
           set({
-            oristudioCpError: preparedPayloads.error,
+            oristudioCpError: validation.error,
             error: {
               code: 'invalid_operation',
-              message: preparedPayloads.error,
+              message: validation.error,
             },
           });
           return false;
         }
-        const payloads =
-          'payloads' in preparedPayloads
-            ? preparedPayloads.payloads
-            : [preparedPayloads.payload];
-        let commandDocument: OristudioCpDocumentState | null = null;
-        for (const commandPayload of payloads) {
-          commandDocument = await executeRuntimeOristudioCpCommand(operationId, commandPayload);
-        }
+        const commandDocument = await executeRuntimeOristudioCpCommand(
+          operationId,
+          validation.payload
+        );
         if (!commandDocument) throw new Error('Crease-pattern command did not return a document');
         const checked =
           mutatesDocument
@@ -1458,6 +1496,14 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     },
 
     setOristudioCpGridSize: async (gridSize) => {
+      const normalizedGridSize = normalizeOrieditaGridSize(gridSize);
+      return get().updateOristudioCpGrid(
+        { grid_size: normalizedGridSize },
+        `Set grid size to ${normalizedGridSize}`
+      );
+    },
+
+    updateOristudioCpGrid: async (patch, label = 'Update grid') => {
       const currentDocumentState = get().oristudioCpDocument;
       if (!currentDocumentState) {
         set({
@@ -1470,19 +1516,19 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         return false;
       }
 
-      const normalizedGridSize = normalizeOrieditaGridSize(gridSize);
       const previousDocument = currentDocumentState.document;
-      if (previousDocument.crease_pattern.grid.grid_size === normalizedGridSize) return true;
+      const nextGrid = normalizeOristudioCpGridPatch(
+        previousDocument.crease_pattern.grid,
+        patch
+      );
+      if (oristudioCpGridEquals(previousDocument.crease_pattern.grid, nextGrid)) return true;
 
       const previousSelection = get().oristudioCpSelection;
       const nextSnapshot: OristudioCpDocumentSnapshot = {
         ...previousDocument,
         crease_pattern: {
           ...previousDocument.crease_pattern,
-          grid: {
-            ...previousDocument.crease_pattern.grid,
-            grid_size: normalizedGridSize,
-          },
+          grid: nextGrid,
         },
       };
 
@@ -1492,7 +1538,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           currentDocumentState.source,
           currentDocumentState.lastCommandResult
         );
-        const label = `Set grid size to ${normalizedGridSize}`;
         set({
           oristudioCpDocument: nextDocument,
           activeEditingSurface: 'crease-pattern',
@@ -1550,7 +1595,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         oristudioCpFoldedFigures: [],
         oristudioCpActiveFoldedFigureId: null,
         oristudioCpCamvResult: null,
-        oristudioCpSymmetry: defaultOristudioCpSymmetry(),
       });
     },
 

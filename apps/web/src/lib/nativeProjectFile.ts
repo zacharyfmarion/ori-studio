@@ -14,11 +14,6 @@ import {
   normalizeCpLineage,
   type OristudioCpLineage,
 } from './oristudioCpLineage';
-import {
-  defaultOristudioCpSymmetry,
-  normalizeOristudioCpSymmetry,
-  type OristudioCpSymmetryState,
-} from './oristudioCpSymmetry';
 
 export const NATIVE_PROJECT_FORMAT = 'oristudio.project';
 export const NATIVE_PROJECT_EXTENSION = 'osf';
@@ -69,7 +64,6 @@ export interface NativeCreasePatternDocumentV1 extends NativeProjectBaseDocument
     creaseColorMode: CreaseColorMode;
     selection: OristudioCpSelection;
     viewport: OristudioCpViewportOptions;
-    symmetry: OristudioCpSymmetryState;
     foldedFigures: OristudioCpFoldedFigureEntry[];
     activeFoldedFigureId: string | null;
   };
@@ -127,7 +121,6 @@ export interface NativeCreasePatternProjectInput {
   creaseColorMode: CreaseColorMode;
   selection: OristudioCpSelection;
   viewport: OristudioCpViewportOptions;
-  symmetry: OristudioCpSymmetryState;
   foldedFigures: OristudioCpFoldedFigureEntry[];
   activeFoldedFigureId: string | null;
   lineage: OristudioCpLineage;
@@ -281,7 +274,6 @@ function createNativeCreasePatternDocument(
       creaseColorMode: input.creaseColorMode,
       selection: input.selection,
       viewport: input.viewport,
-      symmetry: normalizeOristudioCpSymmetry(input.symmetry),
       foldedFigures: nativeFoldedFigures(input.foldedFigures),
       activeFoldedFigureId: activeFoldedFigureId(
         input.foldedFigures,
@@ -526,9 +518,6 @@ function validateDocumentV1(value: unknown): NativeProjectDocumentV1 {
         viewport: isRecord(viewState.viewport)
           ? (viewState.viewport as unknown as OristudioCpViewportOptions)
           : ({} as OristudioCpViewportOptions),
-        symmetry: isRecord(viewState.symmetry)
-          ? normalizeOristudioCpSymmetry(viewState.symmetry)
-          : defaultOristudioCpSymmetry(),
         foldedFigures,
         activeFoldedFigureId: activeFoldedFigureId(
           foldedFigures,

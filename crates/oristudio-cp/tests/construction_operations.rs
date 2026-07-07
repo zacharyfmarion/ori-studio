@@ -187,13 +187,16 @@ fn symmetric_draw_reflects_source_ray_across_mirror_line() {
         &mirror,
         LineColor::Red1,
     ));
+    // The reflected ray is anchored at the mirror crossing (0, 0) and extends to
+    // the crease at y = 2 (Oriedita `extendToIntersectionPoint` keeps endpoint A),
+    // rather than starting at the reflected point (0, 1).
     assert!(
         model
             .line_segments
             .iter()
             .any(|segment| segment.color == LineColor::Red1
                 && (segment.a.x - 0.0).abs() < 1e-12
-                && (segment.a.y - 1.0).abs() < 1e-12
+                && (segment.a.y - 0.0).abs() < 1e-12
                 && (segment.b.x - 0.0).abs() < 1e-12
                 && (segment.b.y - 2.0).abs() < 1e-12)
     );
@@ -208,9 +211,12 @@ fn double_symmetric_draw_reflects_far_endpoint_across_drag_axis() {
     let drag_axis = segment(0.0, 0.0, 0.0, 2.0, LineColor::Black0);
 
     assert_eq!(double_symmetric_draw(&mut model, &drag_axis), 1);
-    assert!(contains_segment(
+    // The reflected rib is anchored at the drag-axis crossing (0, 1) and runs to
+    // the crease at x = -3, connected across rather than starting at the
+    // reflected point (-2, 1).
+    assert!(contains_segment_close(
         &model.line_segments,
-        Point::new(-2.0, 1.0),
+        Point::new(0.0, 1.0),
         Point::new(-3.0, 1.0),
         LineColor::Red1,
     ));
@@ -373,22 +379,26 @@ fn fishbone_draw_adds_alternating_perpendicular_ribs() {
         fishbone_draw(&mut model, &drag, 1.0, LineColor::Red1, 0.5),
         6
     );
+    // Each rib runs the full distance between the two bounding creases, connected
+    // across the spine (Oriedita `extendToIntersectionPoint` keeps the anchor and
+    // `del_V` fuses the two collinear halves) rather than starting one grid step
+    // away from the spine.
     assert!(contains_segment_close(
         &model.line_segments,
-        Point::new(2.0, -1.0),
         Point::new(2.0, -2.0),
+        Point::new(2.0, 2.0),
         LineColor::Red1,
     ));
     assert!(contains_segment_close(
         &model.line_segments,
-        Point::new(1.0, 1.0),
+        Point::new(1.0, -2.0),
         Point::new(1.0, 2.0),
         LineColor::Blue2,
     ));
     assert!(contains_segment_close(
         &model.line_segments,
-        Point::new(0.0, -1.0),
         Point::new(0.0, -2.0),
+        Point::new(0.0, 2.0),
         LineColor::Red1,
     ));
 }

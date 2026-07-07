@@ -5,7 +5,7 @@ import { workspaceForPanelId } from '../workspaces/workspaces';
 
 const LAYOUT_STORAGE_KEY = 'treemaker-web-layout';
 const LAYOUT_VERSION_KEY = 'treemaker-web-layout-version';
-const LAYOUT_VERSION = 10;
+const LAYOUT_VERSION = 12;
 
 function layoutStorageKey(workspace: WorkspaceId): string {
   return `${LAYOUT_STORAGE_KEY}:${workspace}`;
@@ -74,6 +74,13 @@ function applyEditLayout(api: DockviewApi): void {
     component: 'crease-pattern',
     title: 'Crease Pattern',
   });
+  api.addPanel({
+    id: 'cp-view-controls',
+    component: 'cp-view-controls',
+    title: 'View',
+    position: { referencePanel: 'crease-pattern', direction: 'right' },
+    initialWidth: 260,
+  });
 }
 
 function applySimulateLayout(api: DockviewApi): void {
@@ -81,13 +88,6 @@ function applySimulateLayout(api: DockviewApi): void {
     id: 'simulator',
     component: 'simulator',
     title: 'Simulator',
-  });
-  api.addPanel({
-    id: 'sequence',
-    component: 'sequence',
-    title: 'Sequence',
-    position: { referencePanel: 'simulator', direction: 'right' },
-    initialWidth: 360,
   });
   simulator.api.setActive();
 }

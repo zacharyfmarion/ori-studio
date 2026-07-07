@@ -28,9 +28,6 @@ export function DiagnosticsPanel() {
 
   return (
     <section className="panel-shell">
-      <div className="panel-toolbar">
-        <span className="panel-title">Diagnostics</span>
-      </div>
       <div className="panel-body">
         <div className="metric-grid">
           <Metric label="Nodes" value={project.nodes.length} />

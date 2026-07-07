@@ -421,6 +421,40 @@ pub fn transform_segments_by_points(
     }
 }
 
+/// Oriedita `CreasePattern_Worker.extendToIntersectionPoint`: extends `segment`
+/// from its `A` endpoint toward `B` until it meets the nearest forward polyline,
+/// keeping `A` fixed. Returns the segment unchanged when nothing intersects.
+///
+/// This differs from [`extend_to_intersection_point_2`], which drops the
+/// original `A`→`B` span and returns `B`→intersection. Tools that anchor a line
+/// at a specific point (fishbone ribs, symmetric/double-symmetric construction
+/// lines) need `A` preserved so the drawn line stays connected to that anchor.
+pub fn extend_to_intersection_point(
+    model: &CreasePatternModel,
+    segment: &LineSegment,
+) -> LineSegment {
+    let mut add_segment = segment.clone();
+    let mut intersection_distance = Point::new(1_000_000.0, 1_000_000.0).distance(add_segment.a);
+    let straight_line = StraightLine::from_points(add_segment.a, add_segment.b);
+
+    for existing in &model.line_segments {
+        if !straight_line
+            .line_segment_intersect_reverse_detail(existing)
+            .is_intersecting()
+        {
+            continue;
+        }
+        let intersection =
+            find_intersection_straight_lines(straight_line, StraightLine::from_segment(existing));
+        if should_extend_to(add_segment.a, add_segment.b, intersection, intersection_distance) {
+            intersection_distance = intersection.distance(add_segment.a);
+            add_segment = add_segment.with_b(intersection);
+        }
+    }
+
+    add_segment
+}
+
 /// Oriedita `OritaCalc.extendToIntersectionPoint_2`.
 pub fn extend_to_intersection_point_2(
     model: &CreasePatternModel,

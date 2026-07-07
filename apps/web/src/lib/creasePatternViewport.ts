@@ -56,15 +56,82 @@ export interface OristudioCpSelection {
   faces: number[];
 }
 
+// Oriedita's canvas LineStyle enum (oriedita.editor.canvas.LineStyle).
+export type OristudioCpLineStyle =
+  | 'color'
+  | 'black-white'
+  | 'color-and-shape'
+  | 'black-one-dot'
+  | 'black-two-dot';
+
+export const ORISTUDIO_CP_LINE_STYLES: readonly OristudioCpLineStyle[] = [
+  'color',
+  'black-white',
+  'color-and-shape',
+  'black-one-dot',
+  'black-two-dot',
+];
+
+export const ORISTUDIO_CP_LINE_STYLE_LABELS: Record<OristudioCpLineStyle, string> = {
+  color: 'Color',
+  'black-white': 'Black & white',
+  'color-and-shape': 'Color + shape',
+  'black-one-dot': 'Black one-dot',
+  'black-two-dot': 'Black two-dot',
+};
+
+export const ORISTUDIO_CP_MIN_LINE_WIDTH = 1;
+export const ORISTUDIO_CP_MAX_LINE_WIDTH = 8;
+export const ORISTUDIO_CP_MIN_POINT_SIZE = 0;
+export const ORISTUDIO_CP_MAX_POINT_SIZE = 10;
+
 export interface OristudioCpViewportOptions {
   gridVisible: boolean;
   snapToGrid: boolean;
   snapToVertices: boolean;
   snapToLines: boolean;
   camvIssuesVisible?: boolean;
+  lineStyle?: OristudioCpLineStyle;
+  lineWidth?: number;
+  pointSize?: number;
 }
 
+export const DEFAULT_ORISTUDIO_CP_LINE_STYLE: OristudioCpLineStyle = 'color';
+export const DEFAULT_ORISTUDIO_CP_LINE_WIDTH = 1;
+export const DEFAULT_ORISTUDIO_CP_POINT_SIZE = 1;
+
 export type OristudioCpViewportOptionKey = keyof OristudioCpViewportOptions;
+
+// Maps an Oriedita LineColor to the crease-kind used by line-style dash rules.
+export function cpLineStyleColorKind(color: string): 'mountain' | 'valley' | 'edge' | 'aux' | 'other' {
+  switch (color) {
+    case 'Red1':
+      return 'mountain';
+    case 'Blue2':
+      return 'valley';
+    case 'Black0':
+      return 'edge';
+    case 'Cyan3':
+      return 'aux';
+    default:
+      return 'other';
+  }
+}
+
+export function advanceOristudioCpLineStyle(style: OristudioCpLineStyle): OristudioCpLineStyle {
+  const index = ORISTUDIO_CP_LINE_STYLES.indexOf(style);
+  return ORISTUDIO_CP_LINE_STYLES[(index + 1) % ORISTUDIO_CP_LINE_STYLES.length];
+}
+
+export function clampOristudioCpLineWidth(value: number): number {
+  if (!Number.isFinite(value)) return ORISTUDIO_CP_MIN_LINE_WIDTH;
+  return Math.min(ORISTUDIO_CP_MAX_LINE_WIDTH, Math.max(ORISTUDIO_CP_MIN_LINE_WIDTH, Math.round(value)));
+}
+
+export function clampOristudioCpPointSize(value: number): number {
+  if (!Number.isFinite(value)) return ORISTUDIO_CP_MIN_POINT_SIZE;
+  return Math.min(ORISTUDIO_CP_MAX_POINT_SIZE, Math.max(ORISTUDIO_CP_MIN_POINT_SIZE, Math.round(value)));
+}
 
 export const EMPTY_ORISTUDIO_CP_SELECTION: OristudioCpSelection = {
   lines: [],
@@ -81,6 +148,9 @@ export const DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS: OristudioCpViewportOptions =
   snapToVertices: true,
   snapToLines: true,
   camvIssuesVisible: true,
+  lineStyle: 'color',
+  lineWidth: 1,
+  pointSize: 1,
 };
 
 export interface CpModelBounds {
@@ -232,6 +302,32 @@ export function normalizeOrieditaGridSize(gridSize: number): number {
   if (!Number.isFinite(gridSize)) return 1;
   return Math.max(1, Math.trunc(gridSize));
 }
+
+export function normalizeOrieditaIntervalGridSize(intervalGridSize: number): number {
+  if (!Number.isFinite(intervalGridSize)) return 1;
+  return Math.max(1, Math.trunc(intervalGridSize));
+}
+
+// Mirrors Oriedita's GridMetadata.set_grid_angle clamp
+// (Epsilon.GRID_ANGLE_THRESHOLD = 1.0 degree).
+export const ORIEDITA_GRID_ANGLE_MIN = 1;
+export const ORIEDITA_GRID_ANGLE_MAX = 179;
+
+export function clampOrieditaGridAngle(gridAngle: number): number {
+  if (!Number.isFinite(gridAngle)) return 90;
+  return Math.min(ORIEDITA_GRID_ANGLE_MAX, Math.max(ORIEDITA_GRID_ANGLE_MIN, gridAngle));
+}
+
+// Mirrors Oriedita's GridMetadata.validate_grid: the resolved axis length
+// `a + b * sqrt(c)` must be non-negative and at least Epsilon.UNKNOWN_1EN4 (1e-6).
+const ORIEDITA_GRID_SCALE_EPSILON = 1e-6;
+
+export function isValidOrieditaGridScale(a: number, b: number, c: number): boolean {
+  const gridLength = a + b * Math.sqrt(c);
+  return gridLength >= 0 && Math.abs(gridLength) >= ORIEDITA_GRID_SCALE_EPSILON;
+}
+
+export const ORIEDITA_GRID_SCALE_DEFAULTS = { a: 1, b: 0, c: 1 } as const;
 
 export function visibleOrieditaGridMetadata(
   grid: OristudioCpGridMetadata
