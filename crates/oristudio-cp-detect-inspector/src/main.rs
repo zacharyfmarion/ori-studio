@@ -46,7 +46,7 @@ use std::thread;
 
 const DEFAULT_HOST: &str = "127.0.0.1";
 const DEFAULT_PORT: u16 = 8788;
-const DEFAULT_DENSE_MANIFEST: &str = "artifacts/cp-detect-correctness/dense-cache/native-cp-v1-pytorch-mps-v3-tess15-weighted/manifest.json";
+const DEFAULT_DENSE_MANIFEST: &str = "artifacts/cp-detect-correctness/dense-cache/native-cp-v1-pytorch-mps-v5-bp-search225-step12000-20260708/manifest.json";
 const DEFAULT_DIST: &str = "apps/cp-detect-architecture-inspector/dist";
 const DEFAULT_PUBLIC: &str = "apps/web/public";
 const DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS: f64 =

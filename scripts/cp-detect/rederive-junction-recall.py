@@ -12,7 +12,7 @@ A GT junction is "detected" if some refined peak lies within 2px.
 """
 import json, sys, numpy as np
 
-DENSE = "/Users/zacharymarion/Documents/code/tree-maker-rust/artifacts/cp-detect-correctness/dense-cache/native-cp-v1-pytorch-mps-v3-tess15-weighted"
+DENSE = "/Users/zacharymarion/Documents/code/tree-maker-rust/artifacts/cp-detect-correctness/dense-cache/native-cp-v1-pytorch-mps-v5-bp-search225-step12000-20260708"
 PACK_VERT = None  # gt vertices come from gt.graph.json (pack); resolve per sample
 RADIUS = 3
 MATCH = 2.0
