@@ -308,7 +308,10 @@ stale-binary under-count; the recovered count `6` reproduces exactly.)*
 - `strict_topology_metrics` now **dissolves degree-2 collinear same-assignment vertices**
   (the merge counterpart to its split pass) so redundant border representations don't
   count as topology differences (+6 `solve_recovered` on the full set).
-- Implementation plan: `implementation-plans/cp-detect-benchmark-product-parity.md`.
+- Benchmark↔product parity: the benchmark defaults now match the product decode
+  (`junction-first-v1` + `source-image`); see `crates/oristudio-cp-detect/src/defaults.rs`.
+  (The former `implementation-plans/cp-detect-benchmark-product-parity.md` snapshot
+  was removed as stale — it predated the vertex-refiner deprecation.)
 
 ---
 
