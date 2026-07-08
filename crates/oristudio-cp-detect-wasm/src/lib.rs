@@ -6,6 +6,22 @@ use wasm_bindgen::prelude::*;
 
 static PANIC_HOOK: Once = Once::new();
 
+/// Canonical default junction source, exported so the browser reads the exact
+/// value the Rust pipeline uses. Single source of truth:
+/// `oristudio_cp_detect::defaults`. The generated TS constants
+/// (`cpDetectDefaults.generated.ts`) are emitted from the same source, so the
+/// two cannot silently diverge.
+#[wasm_bindgen]
+pub fn cp_detect_default_junction_source() -> String {
+    oristudio_cp_detect::defaults::DEFAULT_JUNCTION_SOURCE.to_string()
+}
+
+/// Canonical default line-evidence source (see above).
+#[wasm_bindgen]
+pub fn cp_detect_default_line_evidence_source() -> String {
+    oristudio_cp_detect::defaults::DEFAULT_LINE_EVIDENCE_SOURCE.to_string()
+}
+
 #[wasm_bindgen]
 pub struct WasmRectifiedImage {
     rgba: Vec<u8>,
@@ -686,4 +702,24 @@ fn js_error(code: &'static str, message: String) -> JsValue {
     let fallback = message.clone();
     to_js_value(&JsErrorEnvelope { code, message })
         .unwrap_or_else(|_| JsValue::from_str(fallback.as_str()))
+}
+
+#[cfg(test)]
+mod default_export_tests {
+    //! wasm-parity guardrail (Rust side): the values the browser reads from the
+    //! wasm bundle must be the canonical `oristudio_cp_detect::defaults`. Paired
+    //! with the codegen (`emit-cp-detect-defaults-ts`) that emits the generated
+    //! TS from the same source, this proves generated-TS == wasm-export by
+    //! construction.
+    #[test]
+    fn exports_match_canonical_defaults() {
+        assert_eq!(
+            super::cp_detect_default_junction_source(),
+            oristudio_cp_detect::defaults::DEFAULT_JUNCTION_SOURCE
+        );
+        assert_eq!(
+            super::cp_detect_default_line_evidence_source(),
+            oristudio_cp_detect::defaults::DEFAULT_LINE_EVIDENCE_SOURCE
+        );
+    }
 }
