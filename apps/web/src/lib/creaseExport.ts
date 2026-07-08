@@ -1,129 +1,217 @@
-import type { CreaseColorMode, CreaseLine, TreeProject } from './sampleProject';
+import type { FoldDocument } from '../engine/types';
+import {
+  buildSegmentFold,
+  flatPlaneAxes,
+  type CpSegment,
+} from './creasePatternSegmentation';
+import {
+  DEFAULT_ORISTUDIO_CP_LINE_STYLE,
+  DEFAULT_ORISTUDIO_CP_LINE_WIDTH,
+  type OristudioCpLineStyle,
+} from './creasePatternViewport';
 
 const SIZE = 1024;
 const MARGIN = 48;
+// Export viewBox (1024) is larger than the editable canvas viewBox (~720); scale
+// stroke widths / point radii so exports look like the live crease-pattern view.
+const VIEW_SCALE = SIZE / 720;
 
 export type CreaseExportFormat = 'svg' | 'png';
 
+/** Which crease pattern to export: a specific segment, or all of them. */
 export interface CreaseExportOptions {
-  viewMode: CreaseColorMode;
+  /** Segment id to export, or null for the whole document (all patterns). */
+  segmentId: number | null;
+  lineStyle: OristudioCpLineStyle;
+  lineWidth: number;
+  pointSize: number;
   includeUnassigned: boolean;
   showBackgroundColor: boolean;
 }
 
 export const DEFAULT_CREASE_EXPORT_OPTIONS: CreaseExportOptions = {
-  viewMode: 'mvf',
+  segmentId: null,
+  lineStyle: DEFAULT_ORISTUDIO_CP_LINE_STYLE,
+  lineWidth: DEFAULT_ORISTUDIO_CP_LINE_WIDTH,
+  // Points are off by default for exports (they add visual noise to a CP image).
+  pointSize: 0,
   includeUnassigned: true,
   showBackgroundColor: true,
 };
 
-const FOLD_STYLES: Record<CreaseLine['fold'], string> = {
-  mountain: 'stroke:#ff4d5d;stroke-width:3',
-  valley: 'stroke:#60a5fa;stroke-width:3;stroke-dasharray:10 7',
-  flat: 'stroke:#85919a;stroke-width:1.5',
-  border: 'stroke:#111417;stroke-width:4',
-  unassigned: 'stroke:#85919a;stroke-width:1.5',
+// Crease colors, matching the live crease-pattern view (theme --fold-* tokens).
+const ASSIGNMENT_COLOR: Record<string, string> = {
+  M: '#ff4d5d',
+  V: '#60a5fa',
+  B: '#111417',
+  F: '#64c8c8',
+  U: '#9aa4ad',
 };
 
-const KIND_STYLES: Record<CreaseLine['kind'], string> = {
-  axial: 'stroke:#111417;stroke-width:3',
-  gusset: 'stroke:#737f88;stroke-width:2',
-  ridge: 'stroke:#d2545f;stroke-width:2.5',
-  hinge: 'stroke:#4d88e8;stroke-width:2.5',
-  pseudohinge: 'stroke:#3fbec4;stroke-width:2',
-};
-
-function esc(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;');
+function isUnassigned(assignment: string): boolean {
+  return assignment === 'F' || assignment === 'U' || assignment === 'C' || assignment === 'J';
 }
 
-function normalizeExportOptions(
-  options: CreaseColorMode | Partial<CreaseExportOptions> = DEFAULT_CREASE_EXPORT_OPTIONS
-): CreaseExportOptions {
-  if (typeof options === 'string') {
-    return { ...DEFAULT_CREASE_EXPORT_OPTIONS, viewMode: options };
+interface EdgeAppearance {
+  stroke: string;
+  dash: string;
+}
+
+// Line-style rules mirroring the editable crease-pattern view. In the "color"
+// style, mountain and valley are distinguished by color alone (solid red /
+// solid blue); the black/shape styles use dash patterns instead.
+function edgeAppearance(assignment: string, lineStyle: OristudioCpLineStyle): EdgeAppearance {
+  const black = lineStyle === 'black-one-dot' || lineStyle === 'black-two-dot';
+  let stroke: string;
+  if (lineStyle === 'black-white') {
+    stroke = assignment === 'V' ? '#a2a2a2' : '#000000';
+  } else if (black) {
+    stroke = '#000000';
+  } else {
+    stroke = ASSIGNMENT_COLOR[assignment] ?? ASSIGNMENT_COLOR.U!;
   }
-  return {
-    ...DEFAULT_CREASE_EXPORT_OPTIONS,
-    ...options,
-  };
+
+  let dash = '';
+  if (assignment === 'V') {
+    if (lineStyle === 'color') dash = ''; // solid blue
+    else if (lineStyle === 'black-white') dash = scaleDash([10, 7]);
+    else dash = scaleDash([8, 8]); // color-and-shape / dot styles
+  } else if (assignment === 'M') {
+    // 'color' and 'black-white' keep mountains solid; the shape/dot styles use a
+    // dash-dot chain (kept fairly sparse so it doesn't read as dense).
+    if (lineStyle === 'color-and-shape' || lineStyle === 'black-one-dot') dash = scaleDash([16, 6, 4, 6]);
+    else if (lineStyle === 'black-two-dot') dash = scaleDash([16, 6, 4, 6, 4, 6]);
+  }
+  return { stroke, dash };
 }
 
-function isUnassignedCrease(crease: CreaseLine): boolean {
-  return crease.fold === 'flat' || crease.fold === 'unassigned';
+function scaleDash(pattern: number[]): string {
+  return pattern.map((value) => (value * VIEW_SCALE).toFixed(2)).join(' ');
 }
 
-export function serializeCreasePatternSvg(
-  project: TreeProject,
-  options: CreaseColorMode | Partial<CreaseExportOptions> = DEFAULT_CREASE_EXPORT_OPTIONS
-): string {
-  const exportOptions = normalizeExportOptions(options);
-  const paperWidth = project.paper.width || 1;
-  const paperHeight = project.paper.height || 1;
+function foldProjector(fold: FoldDocument): {
+  project: (vertex: number) => { x: number; y: number };
+} {
+  const coords = fold.vertices_coords ?? [];
+  const axes = flatPlaneAxes(fold);
+  let minU = Infinity;
+  let minV = Infinity;
+  let maxU = -Infinity;
+  let maxV = -Infinity;
+  for (const coord of coords) {
+    const u = coord[axes[0]] ?? 0;
+    const v = coord[axes[1]] ?? 0;
+    if (u < minU) minU = u;
+    if (v < minV) minV = v;
+    if (u > maxU) maxU = u;
+    if (v > maxV) maxV = v;
+  }
+  if (!Number.isFinite(minU)) {
+    minU = 0;
+    minV = 0;
+    maxU = 1;
+    maxV = 1;
+  }
+  const spanU = Math.max(maxU - minU, 1e-6);
+  const spanV = Math.max(maxV - minV, 1e-6);
   const span = SIZE - MARGIN * 2;
-  const scale = Math.min(span / paperWidth, span / paperHeight);
-  const width = paperWidth * scale;
-  const height = paperHeight * scale;
+  const scale = Math.min(span / spanU, span / spanV);
+  const width = (maxU - minU) * scale;
+  const height = (maxV - minV) * scale;
   const offsetX = (SIZE - width) / 2;
   const offsetY = (SIZE - height) / 2;
+  const project = (vertex: number) => {
+    const coord = coords[vertex];
+    const u = coord?.[axes[0]] ?? 0;
+    const v = coord?.[axes[1]] ?? 0;
+    return {
+      x: offsetX + (u - minU) * scale,
+      // Flip so paper-up maps to screen-up.
+      y: offsetY + (maxV - v) * scale,
+    };
+  };
+  return { project };
+}
 
-  const point = (p: { x: number; y: number }) => ({
-    x: offsetX + p.x * scale,
-    y: offsetY + (paperHeight - p.y) * scale,
-  });
+/**
+ * Serialize a crease pattern (the whole document, or a single segment) to a
+ * standalone SVG that matches the live editable view: the same line style,
+ * width, and point size options, no M/V "view mode" toggle. `fold` is the
+ * document's simulation fold; `segments` come from `segmentFoldDocument`.
+ */
+export function serializeCreasePatternSvg(
+  fold: FoldDocument,
+  segments: CpSegment[],
+  options: CreaseExportOptions = DEFAULT_CREASE_EXPORT_OPTIONS
+): string {
+  const segment =
+    options.segmentId != null ? segments.find((entry) => entry.id === options.segmentId) : undefined;
+  const targetFold = segment ? buildSegmentFold(fold, segment) : fold;
+  const { project } = foldProjector(targetFold);
 
-  const facets = exportOptions.showBackgroundColor
-    ? project.facets
-        .map((facet) => {
-          const points = facet.vertices
-            .map(point)
-            .map((p) => `${p.x.toFixed(3)},${p.y.toFixed(3)}`)
-            .join(' ');
-          const fill =
-            facet.color === 'white'
-              ? 'rgba(125,183,232,0.18)'
-              : facet.color === 'color'
-                ? 'rgba(215,168,92,0.18)'
-                : 'rgba(95,179,165,0.12)';
-          return `  <polygon points="${points}" fill="${fill}" stroke="none"/>`;
-        })
-        .join('\n')
-    : '';
+  const faces = targetFold.faces_vertices ?? [];
+  const edges = targetFold.edges_vertices ?? [];
+  const assignments = targetFold.edges_assignment ?? [];
+  const strokeWidth = Math.max(0.5, options.lineWidth * 1.5 * VIEW_SCALE);
 
-  const creases = project.creases
-    .filter((crease) => exportOptions.includeUnassigned || !isUnassignedCrease(crease))
-    .map((crease) => {
-      const a = point(crease.vertices[0]);
-      const b = point(crease.vertices[1]);
-      const style =
-        exportOptions.viewMode === 'mvf' ? FOLD_STYLES[crease.fold] : KIND_STYLES[crease.kind];
-      return `  <line x1="${a.x.toFixed(3)}" y1="${a.y.toFixed(3)}" x2="${b.x.toFixed(3)}" y2="${b.y.toFixed(3)}" style="${style};fill:none;stroke-linecap:round"/>`;
+  const backgrounds =
+    options.showBackgroundColor && faces.length
+      ? faces
+          .map((face) => {
+            const points = face
+              .map(project)
+              .map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`)
+              .join(' ');
+            return `  <polygon points="${points}" fill="#f8f5ec" stroke="none"/>`;
+          })
+          .join('\n')
+      : '';
+
+  const lines = edges
+    .map((edge, index) => {
+      const assignment = assignments[index] ?? 'U';
+      if (!options.includeUnassigned && isUnassigned(assignment)) return '';
+      const { stroke, dash } = edgeAppearance(assignment, options.lineStyle);
+      const a = project(edge[0]);
+      const b = project(edge[1]);
+      const dashAttr = dash ? ` stroke-dasharray="${dash}"` : '';
+      return `  <line x1="${a.x.toFixed(2)}" y1="${a.y.toFixed(2)}" x2="${b.x.toFixed(2)}" y2="${b.y.toFixed(2)}" stroke="${stroke}" stroke-width="${strokeWidth.toFixed(2)}"${dashAttr} stroke-linecap="round"/>`;
     })
+    .filter(Boolean)
     .join('\n');
+
+  let points = '';
+  if (options.pointSize > 0) {
+    const radius = options.pointSize * 1.6 * VIEW_SCALE;
+    const drawn = new Set<number>();
+    const dots: string[] = [];
+    for (const edge of edges) {
+      for (const vertex of edge) {
+        if (drawn.has(vertex)) continue;
+        drawn.add(vertex);
+        const point = project(vertex);
+        dots.push(
+          `  <circle cx="${point.x.toFixed(2)}" cy="${point.y.toFixed(2)}" r="${radius.toFixed(2)}" fill="#111417"/>`
+        );
+      }
+    }
+    points = dots.join('\n');
+  }
 
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SIZE} ${SIZE}" role="img" aria-label="${esc(project.title)} crease pattern">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SIZE} ${SIZE}" role="img" aria-label="Crease pattern">`,
     '  <rect width="100%" height="100%" fill="#ffffff"/>',
-    `  <rect x="${offsetX.toFixed(3)}" y="${offsetY.toFixed(3)}" width="${width.toFixed(3)}" height="${height.toFixed(3)}" fill="${exportOptions.showBackgroundColor ? '#f8f5ec' : '#ffffff'}" stroke="#111417" stroke-width="3"/>`,
-    facets,
-    creases,
-    `  <rect x="${offsetX.toFixed(3)}" y="${offsetY.toFixed(3)}" width="${width.toFixed(3)}" height="${height.toFixed(3)}" fill="none" stroke="#111417" stroke-width="4"/>`,
+    backgrounds,
+    lines,
+    points,
     '</svg>',
   ]
     .filter(Boolean)
     .join('\n');
 }
 
-export async function renderCreasePatternPng(
-  project: TreeProject,
-  options: CreaseColorMode | Partial<CreaseExportOptions> = DEFAULT_CREASE_EXPORT_OPTIONS
-): Promise<Uint8Array> {
-  const svg = serializeCreasePatternSvg(project, options);
+async function svgToPng(svg: string): Promise<Uint8Array> {
   const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   try {
@@ -152,4 +240,12 @@ export async function renderCreasePatternPng(
   } finally {
     URL.revokeObjectURL(url);
   }
+}
+
+export function renderCreasePatternPng(
+  fold: FoldDocument,
+  segments: CpSegment[],
+  options: CreaseExportOptions = DEFAULT_CREASE_EXPORT_OPTIONS
+): Promise<Uint8Array> {
+  return svgToPng(serializeCreasePatternSvg(fold, segments, options));
 }

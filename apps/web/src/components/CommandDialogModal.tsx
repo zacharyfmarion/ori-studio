@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CircleAlert, Download, GitBranch, Ruler, ScanLine, X } from 'lucide-react';
+import { CircleAlert, Download, Ruler, X } from 'lucide-react';
 import {
   cancelCommandDialog,
   registerCommandDialogHost,
@@ -7,9 +7,24 @@ import {
   useCommandDialogStore,
 } from '../store/commandDialogStore';
 import { serializeCreasePatternSvg, type CreaseExportOptions } from '../lib/creaseExport';
+import {
+  ORISTUDIO_CP_LINE_STYLES,
+  ORISTUDIO_CP_LINE_STYLE_LABELS,
+  ORISTUDIO_CP_MIN_LINE_WIDTH,
+  ORISTUDIO_CP_MAX_LINE_WIDTH,
+  ORISTUDIO_CP_MIN_POINT_SIZE,
+  ORISTUDIO_CP_MAX_POINT_SIZE,
+} from '../lib/creasePatternViewport';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
-import { SegmentedControl } from './ui/SegmentedControl';
+import { Slider } from './ui/Slider';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from './ui/Select';
 import { Toggle } from './ui/Toggle';
 
 export function CommandDialogModal() {
@@ -48,7 +63,7 @@ export function CommandDialogModal() {
     dialog?.type === 'crease-export' ? (exportOptions ?? dialog.initialOptions) : null;
   const exportPreviewSrc = useMemo(() => {
     if (dialog?.type !== 'crease-export' || !activeExportOptions) return '';
-    const previewSvg = serializeCreasePatternSvg(dialog.project, activeExportOptions);
+    const previewSvg = serializeCreasePatternSvg(dialog.fold, dialog.segments, activeExportOptions);
     return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(previewSvg)}`;
   }, [dialog, activeExportOptions]);
 
@@ -93,32 +108,99 @@ export function CommandDialogModal() {
               <img src={exportPreviewSrc} alt="" />
             </div>
             <div className="export-modal__controls">
+              {dialog.segments.length > 1 && (
+                <div className="export-modal__control-group">
+                  <span className="export-modal__label">Crease pattern</span>
+                  <div className="export-modal__pattern-list" role="listbox" aria-label="Crease pattern to export">
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={options.segmentId === null}
+                      className={`export-modal__pattern${options.segmentId === null ? ' export-modal__pattern--selected' : ''}`}
+                      onClick={() =>
+                        setExportOptions((current) => ({ ...(current ?? options), segmentId: null }))
+                      }
+                    >
+                      All patterns
+                    </button>
+                    {dialog.segments.map((segment, index) => (
+                      <button
+                        key={segment.id}
+                        type="button"
+                        role="option"
+                        aria-selected={options.segmentId === segment.id}
+                        className={`export-modal__pattern${options.segmentId === segment.id ? ' export-modal__pattern--selected' : ''}`}
+                        onClick={() =>
+                          setExportOptions((current) => ({
+                            ...(current ?? options),
+                            segmentId: segment.id,
+                          }))
+                        }
+                      >
+                        Pattern {index + 1}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="export-modal__control-group">
-                <span className="export-modal__label">View</span>
-                <SegmentedControl
-                  aria-label="Export view"
-                  value={options.viewMode}
-                  onChange={(viewMode) =>
+                <span className="export-modal__label">Line style</span>
+                <Select
+                  value={options.lineStyle}
+                  onValueChange={(lineStyle) =>
                     setExportOptions((current) => ({
                       ...(current ?? options),
-                      viewMode,
+                      lineStyle: lineStyle as CreaseExportOptions['lineStyle'],
                     }))
                   }
-                  options={[
-                    {
-                      value: 'mvf',
-                      label: 'M/V assignment',
-                      icon: <GitBranch size={13} />,
-                      title: 'Export mountain, valley, flat, and border fold colors',
-                    },
-                    {
-                      value: 'agrh',
-                      label: 'Crease roles',
-                      icon: <ScanLine size={13} />,
-                      title: 'Export axial, gusset, ridge, hinge, and pseudohinge role colors',
-                    },
-                  ]}
-                />
+                >
+                  <SelectTrigger aria-label="Line style" className="export-modal__select">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ORISTUDIO_CP_LINE_STYLES.map((style) => (
+                      <SelectItem key={style} value={style}>
+                        {ORISTUDIO_CP_LINE_STYLE_LABELS[style]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="export-modal__control-group">
+                <label className="export-modal__label" htmlFor="export-line-width">
+                  Line width
+                </label>
+                <div className="export-modal__slider-row">
+                  <Slider
+                    id="export-line-width"
+                    aria-label="Line width"
+                    min={ORISTUDIO_CP_MIN_LINE_WIDTH}
+                    max={ORISTUDIO_CP_MAX_LINE_WIDTH}
+                    value={options.lineWidth}
+                    onChange={(lineWidth) =>
+                      setExportOptions((current) => ({ ...(current ?? options), lineWidth }))
+                    }
+                  />
+                  <output>{options.lineWidth}</output>
+                </div>
+              </div>
+              <div className="export-modal__control-group">
+                <label className="export-modal__label" htmlFor="export-point-size">
+                  Point size
+                </label>
+                <div className="export-modal__slider-row">
+                  <Slider
+                    id="export-point-size"
+                    aria-label="Point size"
+                    min={ORISTUDIO_CP_MIN_POINT_SIZE}
+                    max={ORISTUDIO_CP_MAX_POINT_SIZE}
+                    value={options.pointSize}
+                    onChange={(pointSize) =>
+                      setExportOptions((current) => ({ ...(current ?? options), pointSize }))
+                    }
+                  />
+                  <output>{options.pointSize}</output>
+                </div>
               </div>
               <div className="export-modal__toggle-row">
                 <div className="export-modal__toggle-copy">

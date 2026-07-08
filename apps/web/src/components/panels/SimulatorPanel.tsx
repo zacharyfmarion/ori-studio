@@ -30,6 +30,9 @@ import {
   type SimulationFrame,
 } from '@treemaker/origami-simulator';
 import { buildSequenceStepSimulation } from '../../lib/sequenceSimulation';
+import { buildSegmentFold, resolveCpSegments } from '../../lib/creasePatternSegmentation';
+import { PreparedModelCache } from '../../lib/preparedModelCache';
+import { SimulatorSegmentsSidebar } from './SimulatorSegmentsPanel';
 import {
   STEP_SIMULATION_ACCURACY_OPTIONS,
   simulatorRunConfig,
@@ -117,8 +120,16 @@ export function SimulatorPanel() {
   const foldPercentRef = useRef(INITIAL_FOLD_PERCENT);
   const sourceKeyRef = useRef<string | null>(null);
 
+  const modelCacheRef = useRef<PreparedModelCache>(new PreparedModelCache(4));
+
   const creaseCount = useWorkspaceStore((state) => state.project.creases.length);
+  // Editable (hand-drawn / imported) crease patterns live in the oristudio CP
+  // document, not `project.creases`, so they are a valid simulation source even
+  // when `creaseCount` is 0.
+  const hasEditableCp = useWorkspaceStore((state) => state.oristudioCpDocument !== null);
   const foldArtifacts = useWorkspaceStore((state) => state.foldArtifacts);
+  const foldArtifactRevision = useWorkspaceStore((state) => state.foldArtifactRevision);
+  const selectedSegmentId = useWorkspaceStore((state) => state.selectedSegmentId);
   const foldArtifactError = useWorkspaceStore((state) => state.foldArtifactError);
   const foldArtifactStatus = useWorkspaceStore((state) => state.foldArtifactStatus);
   const sequencePlan = useWorkspaceStore((state) => state.sequencePlan);
@@ -153,9 +164,26 @@ export function SimulatorPanel() {
     () => simulatorRunConfig(simulatorMode, stepAccuracy),
     [simulatorMode, stepAccuracy]
   );
-  const simulationFold = activeStepSimulation
-    ? activeStepSimulation.fold
-    : (foldArtifacts?.simulation_model?.fold ?? foldArtifacts?.fold ?? null);
+  // Segment the whole document's fold and simulate only the selected pattern.
+  // Memoized so a new sub-fold object is not produced on every render (which
+  // would thrash the prepare/dispose effect). Sequence-step mode is unaffected.
+  const activeSegmentId = useMemo(() => {
+    if (activeStepSimulation || simulatorMode !== 'whole') return null;
+    const segments = resolveCpSegments(foldArtifacts);
+    if (segments.length <= 1) return null;
+    const segment = segments.find((candidate) => candidate.id === selectedSegmentId) ?? segments[0];
+    return segment?.id ?? null;
+  }, [activeStepSimulation, foldArtifacts, selectedSegmentId, simulatorMode]);
+  const simulationFold = useMemo(() => {
+    if (activeStepSimulation) return activeStepSimulation.fold;
+    const wholeFold = foldArtifacts?.simulation_model?.fold ?? foldArtifacts?.fold ?? null;
+    if (!wholeFold) return null;
+    if (activeSegmentId !== null) {
+      const segment = resolveCpSegments(foldArtifacts).find((c) => c.id === activeSegmentId);
+      if (segment) return buildSegmentFold(wholeFold, segment);
+    }
+    return wholeFold;
+  }, [activeStepSimulation, foldArtifacts, activeSegmentId]);
   const simulationFoldProfile = activeStepSimulation?.foldProfile ?? null;
   const simulationModelError =
     stepSimulationError ?? (!activeStepSimulation ? foldArtifacts?.simulation_model_error : null);
@@ -163,7 +191,7 @@ export function SimulatorPanel() {
     ? `step:${activeStepSimulation.step.id}:${activeStepSimulation.beforeState.id}:${activeStepSimulation.afterState.id}`
     : sequenceSimulationFocus.kind === 'sequence_step'
       ? `step-error:${sequenceSimulationFocus.stepId}:${stepSimulationError ?? 'unknown'}`
-      : `whole:${foldArtifacts ? 'loaded' : 'empty'}`;
+      : `whole:${foldArtifacts ? foldArtifactRevision : 'empty'}:${activeSegmentId ?? 'all'}`;
 
   const drawCurrentFrame = useCallback(() => {
     const canvas = canvasRef.current;
@@ -179,6 +207,12 @@ export function SimulatorPanel() {
     viewSettingsRef.current = viewSettings;
     drawCurrentFrame();
   }, [drawCurrentFrame, viewSettings]);
+
+  // Release cached prepared models when a new fold arrives (keys embed the
+  // revision, so stale entries would otherwise linger until evicted).
+  useEffect(() => {
+    modelCacheRef.current.clear();
+  }, [foldArtifactRevision]);
 
   const stepSimulation = useCallback(
     (steps?: number): SimulationFrame | null => {
@@ -261,7 +295,7 @@ export function SimulatorPanel() {
       return;
     }
 
-    if (creaseCount === 0) {
+    if (creaseCount === 0 && !hasEditableCp) {
       clearPlayback();
       clearSettling();
       setPlaying(false);
@@ -291,6 +325,7 @@ export function SimulatorPanel() {
     clearPlayback,
     clearSettling,
     creaseCount,
+    hasEditableCp,
     foldArtifacts,
     foldArtifactError,
     foldArtifactStatus,
@@ -339,9 +374,10 @@ export function SimulatorPanel() {
         setFoldPercent(initialFoldPercent);
         setPlaying(false);
       }
-      const model = prepareFoldModel(
-        simulationFold as SimulatorFoldDocument,
-        { triangulate: foldNeedsTriangulation(simulationFold) }
+      const model = modelCacheRef.current.get(simulationSourceKey, () =>
+        prepareFoldModel(simulationFold as SimulatorFoldDocument, {
+          triangulate: foldNeedsTriangulation(simulationFold),
+        })
       );
       const controller = createOrigamiSimulator({
         model,
@@ -537,7 +573,9 @@ export function SimulatorPanel() {
             : 'Idle';
 
   return (
-    <section className="panel-shell simulator-panel">
+    <div className="simulator-workspace">
+      <SimulatorSegmentsSidebar />
+      <section className="panel-shell simulator-panel">
       <div className="panel-toolbar">
         <div className="panel-toolbar__group">
           <Waves size={14} />
@@ -731,7 +769,8 @@ export function SimulatorPanel() {
           <span>Strain {strain.toFixed(4)}</span>
         </div>
       </div>
-    </section>
+      </section>
+    </div>
   );
 }
 
@@ -840,8 +879,8 @@ function drawFrame(
       ctx.lineTo(c.x, c.y);
       ctx.closePath();
       ctx.fillStyle = triangleColor(
-        frame.colors,
         triangle.vertices,
+        palette,
         faceAlpha,
         projected,
         settings.lighting
@@ -910,30 +949,23 @@ function projectPositions(positions: Float32Array, view: SimulatorView): Project
   return points;
 }
 
+// Centroid (mean of vertex positions) rather than the bounding-box midpoint, so
+// the orbit pivot and framing sit on the object's visual center. For an
+// asymmetric folded shape the bbox midpoint is offset from the mass center,
+// which makes the model swing around an off-center point while orbiting.
 function boundsCenter(positions: Float32Array): { x: number; y: number; z: number } {
-  let minX = Infinity;
-  let minY = Infinity;
-  let minZ = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
-  let maxZ = -Infinity;
+  let sumX = 0;
+  let sumY = 0;
+  let sumZ = 0;
+  let count = 0;
   for (let index = 0; index < positions.length; index += 3) {
-    const x = positions[index] ?? 0;
-    const y = positions[index + 1] ?? 0;
-    const z = positions[index + 2] ?? 0;
-    minX = Math.min(minX, x);
-    minY = Math.min(minY, y);
-    minZ = Math.min(minZ, z);
-    maxX = Math.max(maxX, x);
-    maxY = Math.max(maxY, y);
-    maxZ = Math.max(maxZ, z);
+    sumX += positions[index] ?? 0;
+    sumY += positions[index + 1] ?? 0;
+    sumZ += positions[index + 2] ?? 0;
+    count += 1;
   }
-  if (!Number.isFinite(minX)) return { x: 0, y: 0, z: 0 };
-  return {
-    x: (minX + maxX) / 2,
-    y: (minY + maxY) / 2,
-    z: (minZ + maxZ) / 2,
-  };
+  if (count === 0) return { x: 0, y: 0, z: 0 };
+  return { x: sumX / count, y: sumY / count, z: sumZ / count };
 }
 
 function boundsRadius(positions: Float32Array): number {
@@ -966,6 +998,29 @@ interface SimulatorPalette {
   highlight: string;
   highlightFace: string;
   highlightFaceRgb: [number, number, number];
+  paperFrontRgb: [number, number, number];
+  paperBackRgb: [number, number, number];
+}
+
+function parseCssRgb(value: string, fallback: [number, number, number]): [number, number, number] {
+  const hex = value.trim().replace('#', '');
+  if (hex.length === 6) {
+    const r = Number.parseInt(hex.slice(0, 2), 16);
+    const g = Number.parseInt(hex.slice(2, 4), 16);
+    const b = Number.parseInt(hex.slice(4, 6), 16);
+    if (Number.isFinite(r) && Number.isFinite(g) && Number.isFinite(b)) return [r, g, b];
+  }
+  if (hex.length === 3) {
+    const r = Number.parseInt(hex[0]! + hex[0], 16);
+    const g = Number.parseInt(hex[1]! + hex[1], 16);
+    const b = Number.parseInt(hex[2]! + hex[2], 16);
+    if (Number.isFinite(r) && Number.isFinite(g) && Number.isFinite(b)) return [r, g, b];
+  }
+  const match = value.match(/-?\d+(\.\d+)?/g);
+  if (match && match.length >= 3) {
+    return [Number(match[0]), Number(match[1]), Number(match[2])];
+  }
+  return fallback;
 }
 
 function readSimulatorPalette(canvas: HTMLCanvasElement): SimulatorPalette {
@@ -982,6 +1037,8 @@ function readSimulatorPalette(canvas: HTMLCanvasElement): SimulatorPalette {
     highlight: cssVar('--status-warning', '#f0c674'),
     highlightFace: 'rgb(240 198 116 / 0.3)',
     highlightFaceRgb: [240, 198, 116],
+    paperFrontRgb: parseCssRgb(cssVar('--sim-paper-front', '#4f83d6'), [79, 131, 214]),
+    paperBackRgb: parseCssRgb(cssVar('--sim-paper-back', '#f2f0e7'), [242, 240, 231]),
   };
 }
 
@@ -1068,7 +1125,6 @@ function drawPaperFacesWithDepth(
       };
     }) as [ScreenPoint, ScreenPoint, ScreenPoint];
     const color = triangleRasterColor(
-      frame.colors,
       triangle.vertices,
       highlights.faces.has(triangle.faceIndex),
       palette,
@@ -1137,40 +1193,47 @@ function edgeFunction(
   return (point.sx - a.sx) * (b.sy - a.sy) - (point.sy - a.sy) * (b.sx - a.sx);
 }
 
-function triangleColor(
-  colors: Float32Array,
+// The paper is two-tone: the colored (front) side shows when a face's screen
+// winding matches PAPER_FRONT_WINDING; folded-over faces reveal the light back.
+// Flip this if the flat sheet renders white instead of colored.
+const PAPER_FRONT_WINDING: 1 | -1 = 1;
+
+function triangleFaceRgb(
   triangle: number[],
+  projected: ProjectedPoint[],
+  palette: SimulatorPalette
+): [number, number, number] {
+  const a = projected[triangle[0]];
+  const b = projected[triangle[1]];
+  const c = projected[triangle[2]];
+  if (!a || !b || !c) return palette.paperFrontRgb;
+  const winding = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+  return winding * PAPER_FRONT_WINDING >= 0 ? palette.paperFrontRgb : palette.paperBackRgb;
+}
+
+function triangleColor(
+  triangle: number[],
+  palette: SimulatorPalette,
   alpha = 1,
   projected?: ProjectedPoint[],
   lighting = false
 ): string {
+  const base = projected ? triangleFaceRgb(triangle, projected, palette) : palette.paperFrontRgb;
   const [r, g, b] = lighting && projected
-    ? shadeRgb(triangleRgb(colors, triangle), triangleLightIntensity(triangle, projected))
-    : triangleRgb(colors, triangle);
+    ? shadeRgb(base, triangleLightIntensity(triangle, projected))
+    : base;
   return alpha >= 1 ? `rgb(${r} ${g} ${b})` : `rgb(${r} ${g} ${b} / ${alpha})`;
 }
 
-function triangleRgb(colors: Float32Array, triangle: number[]): [number, number, number] {
-  const channel = (offset: number) =>
-    triangle.reduce((total, vertex) => total + (colors[vertex * 3 + offset] ?? 0.75), 0) / 3;
-  return [
-    Math.round(channel(0) * 255),
-    Math.round(channel(1) * 255),
-    Math.round(channel(2) * 255),
-  ];
-}
-
 function triangleRasterColor(
-  colors: Float32Array,
   triangle: number[],
   highlighted: boolean,
   palette: SimulatorPalette,
   projected: ProjectedPoint[],
   lighting: boolean
 ): [number, number, number, number] {
-  const shaded = lighting
-    ? shadeRgb(triangleRgb(colors, triangle), triangleLightIntensity(triangle, projected))
-    : triangleRgb(colors, triangle);
+  const base = triangleFaceRgb(triangle, projected, palette);
+  const shaded = lighting ? shadeRgb(base, triangleLightIntensity(triangle, projected)) : base;
   const rgb = highlighted ? blendRgb(shaded, palette.highlightFaceRgb, 0.3) : shaded;
   return [rgb[0], rgb[1], rgb[2], 255];
 }

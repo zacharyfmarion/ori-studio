@@ -1,4 +1,5 @@
 import type { Point } from '../lib/geometry';
+import type { CpSegment } from '../lib/creasePatternSegmentation';
 
 export interface TreeSnapshot {
   summary: TreeSummary;
@@ -88,6 +89,12 @@ export interface FoldArtifacts {
   folded_base_error?: string | null;
   simulation_model?: RustPreparedFoldModel | null;
   simulation_model_error?: string | null;
+  /**
+   * Crease-pattern segments computed from `simulationFoldOf(this)`. Populated in
+   * the treemaker worker; absent on artifacts produced before segmentation
+   * existed. See `lib/creasePatternSegmentation`.
+   */
+  segments?: CpSegment[];
 }
 
 export type SequencePlanStatus = 'complete' | 'partial' | 'unsupported' | 'invalid_input';

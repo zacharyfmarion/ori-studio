@@ -107,8 +107,10 @@ export function parseImportedCreasePattern(
       : inferTopology(parsed.fold, diagnostics);
   const lineOnly = withTopology.faces_vertices.length === 0;
   const project = projectFromFold(withTopology, parsed.title);
-  const simulation = prepareSimulationFold(withTopology);
-  if (simulation.error) diagnostics.warnings.push(simulation.error);
+  const foldArtifacts = foldArtifactsFromFold(withTopology);
+  if (foldArtifacts.simulation_model_error) {
+    diagnostics.warnings.push(foldArtifacts.simulation_model_error);
+  }
 
   const document: ImportedCreasePatternDocument = {
     source,
@@ -119,73 +121,34 @@ export function parseImportedCreasePattern(
     sourceFold: parsed.sourceFold,
     fold: withTopology,
     lineOnly,
-    simulationModelError: simulation.error,
+    simulationModelError: foldArtifacts.simulation_model_error ?? null,
     diagnostics,
     stats: statsFromFold(withTopology),
   };
 
-  return {
-    document,
-    project,
-    foldArtifacts: {
-      fold: withTopology,
-      folded_base: null,
-      folded_base_error: 'Folded base view requires an editable tree document',
-      simulation_model: simulation.fold
-        ? {
-            fold: simulation.fold,
-            crease_params: [],
-          }
-        : null,
-      simulation_model_error: simulation.error,
-    },
-  };
+  return { document, project, foldArtifacts };
 }
 
-export function withFlatFoldArtifacts(
-  result: ImportedCreasePatternResult,
-  foldArtifacts: FoldArtifacts
-): ImportedCreasePatternResult {
-  const fold = foldArtifacts.fold;
-  const document: ImportedCreasePatternDocument = {
-    ...result.document,
-    fold,
-    lineOnly: fold.faces_vertices.length === 0,
-    simulationModelError: foldArtifacts.simulation_model_error ?? null,
-    diagnostics: mergeDiagnostics(result.document.diagnostics, {
-      warnings: [
-        ...(foldArtifacts.folded_base_error ? [foldArtifacts.folded_base_error] : []),
-        ...(foldArtifacts.simulation_model_error ? [foldArtifacts.simulation_model_error] : []),
-      ],
-      errors: [],
-    }),
-    stats: statsFromFold(fold),
-  };
+/**
+ * Build simulator-ready fold artifacts from a crease-pattern fold, entirely in
+ * JS: infer planar faces when the fold has none, then prepare the simulation
+ * model. No flat-folding — the interactive simulator folds the flat pattern
+ * itself, so it only needs faces + M/V assignments. Because face inference is
+ * per-region, this naturally supports documents containing several disconnected
+ * crease patterns (which the Rust flat-folder cannot).
+ */
+export function foldArtifactsFromFold(
+  fold: FoldDocument,
+  diagnostics: ImportedCreasePatternDiagnostics = { warnings: [], errors: [] }
+): FoldArtifacts {
+  const withTopology = fold.faces_vertices?.length ? fold : inferTopology(fold, diagnostics);
+  const simulation = prepareSimulationFold(withTopology);
   return {
-    document,
-    project: projectFromFold(fold, document.title),
-    foldArtifacts,
-  };
-}
-
-export function withFlatFoldError(
-  result: ImportedCreasePatternResult,
-  message: string
-): ImportedCreasePatternResult {
-  return {
-    ...result,
-    document: {
-      ...result.document,
-      diagnostics: mergeDiagnostics(result.document.diagnostics, {
-        warnings: [],
-        errors: [`Flat-folder solve failed: ${message}`],
-      }),
-    },
-    foldArtifacts: {
-      ...result.foldArtifacts,
-      folded_base: null,
-      folded_base_error: message,
-    },
+    fold: withTopology,
+    folded_base: null,
+    folded_base_error: null,
+    simulation_model: simulation.fold ? { fold: simulation.fold, crease_params: [] } : null,
+    simulation_model_error: simulation.error,
   };
 }
 
@@ -452,12 +415,48 @@ function inferTopology(
   });
 }
 
+// The simulator derives each face's normal from its winding, and the triangulation
+// step (earcut for polygons, diagonal split for quads) can emit inconsistently
+// wound triangles. Force every triangle to the same winding in the flat paper
+// plane so all normals agree and fold directions are consistent.
+function orientFacesConsistently(fold: FoldDocument): FoldDocument {
+  const coords = fold.vertices_coords ?? [];
+  const faces = (fold.faces_vertices ?? []).map((face) => {
+    let area = 0;
+    for (let i = 0; i < face.length; i += 1) {
+      const a = coords[face[i]!] ?? [];
+      const b = coords[face[(i + 1) % face.length]!] ?? [];
+      // Flat simulator coords are [x, 0, z]; measure winding in the x-z plane.
+      area += (a[0] ?? 0) * (b[2] ?? 0) - (b[0] ?? 0) * (a[2] ?? 0);
+    }
+    return area < 0 ? [...face].reverse() : face;
+  });
+  const next: FoldDocument = { ...fold, faces_vertices: faces };
+  delete next.faces_edges;
+  delete next.edges_faces;
+  return next;
+}
+
+// Global sign relating M/V fold angles to the (now-consistent) face normals.
+// With every face wound the same way there is a single correct value; flip this
+// to -1 if mountains simulate as valleys and vice versa.
+const SIMULATION_FOLD_ANGLE_SIGN = 1;
+
 function prepareSimulationFold(fold: FoldDocument): { fold: FoldDocument | null; error: string | null } {
   if (fold.faces_vertices.length === 0) {
     return { fold: null, error: 'Simulation requires inferred or imported faces' };
   }
   try {
-    const model = prepareFoldModel(fold as SimulatorFoldDocument, { triangulate: true });
+    // Triangulate, normalize all face windings, then rebuild the crease params
+    // from the consistently-oriented triangles.
+    const triangulated = prepareFoldModel(fold as SimulatorFoldDocument, {
+      triangulate: true,
+    }).fold as FoldDocument;
+    const oriented = orientFacesConsistently(triangulated);
+    oriented.edges_foldAngle = (oriented.edges_foldAngle ?? []).map((angle) =>
+      typeof angle === 'number' ? angle * SIMULATION_FOLD_ANGLE_SIGN : angle
+    );
+    const model = prepareFoldModel(oriented as SimulatorFoldDocument, { triangulate: false });
     return { fold: model.fold as FoldDocument, error: null };
   } catch (error) {
     return {
@@ -682,20 +681,6 @@ function statsFromFold(fold: FoldDocument): ImportedCreasePatternStats {
       unassigned: 0,
     }
   );
-}
-
-function mergeDiagnostics(
-  current: ImportedCreasePatternDiagnostics,
-  next: ImportedCreasePatternDiagnostics
-): ImportedCreasePatternDiagnostics {
-  return {
-    warnings: unique([...current.warnings, ...next.warnings]),
-    errors: unique([...current.errors, ...next.errors]),
-  };
-}
-
-function unique(values: string[]): string[] {
-  return [...new Set(values.filter((value) => value.trim().length > 0))];
 }
 
 function completeFold(fold: FoldDocument): FoldDocument {

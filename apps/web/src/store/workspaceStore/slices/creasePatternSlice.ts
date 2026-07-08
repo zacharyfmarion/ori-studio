@@ -12,6 +12,8 @@ import {
   transformCpLineSegments,
 } from '../../../lib/creasePatternClipboard';
 import { DEFAULT_CREASE_COLOR_MODE } from '../../../lib/sampleProject';
+import { resolveCpSegments } from '../../../lib/creasePatternSegmentation';
+import { foldArtifactsFromFold } from '../../../lib/creasePatternImport';
 import {
   generatedCpLineage,
   markGeneratedCpLineageStale,
@@ -181,11 +183,12 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
 
   async function computeFoldArtifacts(): Promise<FoldArtifacts | null> {
     if (get().oristudioCpDocument) {
-      const [api, foldJson] = await Promise.all([
-        getEngine(),
-        exportOristudioCpDocumentAsFold(),
-      ]);
-      return api.flatFoldArtifacts(foldJson, { solution_limit: 10 });
+      // Editable crease patterns build simulation faces in JS (no flat-folding).
+      // This supports documents with multiple disconnected crease patterns,
+      // which the Rust flat-folder rejects.
+      const fold = parseFoldProjection(await exportOristudioCpDocumentAsFold());
+      if (!fold) return null;
+      return foldArtifactsFromFold(fold);
     }
     const { api, treeHandle } = await requireActiveTree();
     return api.foldArtifacts(treeHandle);
@@ -229,6 +232,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       foldArtifactStatus: 'loading',
       foldArtifactResolvedRevision: null,
       foldArtifactRequestId: requestId,
+      selectedSegmentId: null,
       sequenceTarget: null,
       sequencePlan: null,
       sequenceSimulationFocus: wholeSimulationFocus,
@@ -267,6 +271,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
             foldArtifactError: engineError(error).message,
             foldArtifactStatus: 'error',
             foldArtifactResolvedRevision: currentRevision,
+            selectedSegmentId: null,
             sequenceTarget: null,
             sequencePlan: null,
             sequenceSimulationFocus: wholeSimulationFocus,
@@ -340,6 +345,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
     oristudioCpSelection: emptyOristudioCpSelection(),
     oristudioCpActionRequest: null,
+    oristudioCpActiveToolId: null,
     oristudioCpActiveDiagnosticId: null,
     oristudioCpRevision: 0,
     oristudioCpFoldedFigures: [],
@@ -465,6 +471,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                 foldArtifactStatus: 'error' as const,
                 foldArtifactRevision: artifactRevision,
                 foldArtifactResolvedRevision: artifactRevision,
+                selectedSegmentId: null,
               }),
           sequenceTarget: null,
           sequencePlan: null,
@@ -546,6 +553,12 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
 
     setCreaseColorMode: (creaseColorMode) => set({ creaseColorMode }),
 
+    setSelectedSegment: (id) => {
+      const segments = resolveCpSegments(get().foldArtifacts);
+      if (id !== null && !segments.some((segment) => segment.id === id)) return;
+      set({ selectedSegmentId: id });
+    },
+
     setSequenceSimulationFocus: (sequenceSimulationFocus) => set({ sequenceSimulationFocus }),
 
     setOristudioCpViewportOption: (key, value) =>
@@ -557,6 +570,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       const previousId = get().oristudioCpActionRequest?.id ?? 0;
       set({ oristudioCpActionRequest: { id: previousId + 1, operationId } });
     },
+
+    setOristudioCpActiveToolId: (id) => set({ oristudioCpActiveToolId: id }),
 
     clearOristudioCpActionRequest: (id) =>
       set({

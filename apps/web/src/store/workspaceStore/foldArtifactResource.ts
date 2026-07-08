@@ -1,4 +1,5 @@
 import type { FoldArtifacts } from '../../engine/types';
+import { resolveCpSegments } from '../../lib/creasePatternSegmentation';
 import type { SequenceSimulationFocus } from './types';
 
 export type FoldArtifactStatus = 'idle' | 'stale' | 'loading' | 'ready' | 'error';
@@ -10,6 +11,16 @@ export interface FoldArtifactResourceState {
   foldArtifactRevision: number;
   foldArtifactResolvedRevision: number | null;
   foldArtifactRequestId: number;
+  /**
+   * Selected crease-pattern segment (index into `foldArtifacts.segments`), or
+   * null when there are no segments. Lifecycle is tied to the fold resource so
+   * it resets to the first segment whenever new artifacts resolve.
+   */
+  selectedSegmentId: number | null;
+}
+
+function defaultSelectedSegmentId(foldArtifacts: FoldArtifacts | null): number | null {
+  return resolveCpSegments(foldArtifacts)[0]?.id ?? null;
 }
 
 export interface FoldArtifactDependentState {
@@ -30,6 +41,7 @@ export function emptyFoldArtifactResourceState(): FoldArtifactResourceState {
     foldArtifactRevision: 0,
     foldArtifactResolvedRevision: null,
     foldArtifactRequestId: 0,
+    selectedSegmentId: null,
   };
 }
 
@@ -43,6 +55,7 @@ export function staleFoldArtifactResourceState(
     foldArtifactRevision: currentRevision + 1,
     foldArtifactResolvedRevision: null,
     foldArtifactRequestId: 0,
+    selectedSegmentId: null,
     sequenceTarget: null,
     sequencePlan: null,
     sequenceSimulationFocus: wholeSimulationFocus,
@@ -61,5 +74,6 @@ export function readyFoldArtifactResourceState(
     foldArtifactStatus: 'ready',
     foldArtifactRevision: revision,
     foldArtifactResolvedRevision: revision,
+    selectedSegmentId: defaultSelectedSegmentId(foldArtifacts),
   };
 }

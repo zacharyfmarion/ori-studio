@@ -1771,9 +1771,12 @@ export function CreasePatternPanel() {
     const isNewDocument = defaultCpToolDocumentRef.current !== documentKey;
     defaultCpToolDocumentRef.current = documentKey;
     const defaultAction = cpActionById(DEFAULT_ORISTUDIO_CP_ACTION_ID);
-    const restoredAction = nativeActiveMouseMode
-      ? cpActionByUpstreamMouseMode(nativeActiveMouseMode)
-      : undefined;
+    // Prefer the tool the user last selected (persisted across panel remounts),
+    // then the document's native mouse mode, then the default tool.
+    const persistedToolId = useWorkspaceStore.getState().oristudioCpActiveToolId;
+    const restoredAction =
+      (persistedToolId ? cpActionById(persistedToolId) : undefined) ??
+      (nativeActiveMouseMode ? cpActionByUpstreamMouseMode(nativeActiveMouseMode) : undefined);
     const nextAction = isNewDocument ? restoredAction ?? defaultAction : defaultAction;
     if (!nextAction) return;
     setCpToolState((state) =>
@@ -1853,6 +1856,8 @@ export function CreasePatternPanel() {
           editable: !!editableCp,
         })
       );
+      // Persist the selection so the tool survives panel remounts (workspace switches).
+      useWorkspaceStore.getState().setOristudioCpActiveToolId(action.id);
 
       if (!editableCp || command.uiStatus !== 'ready' || (command.toolSteps?.length ?? 0) > 0) {
         return;
