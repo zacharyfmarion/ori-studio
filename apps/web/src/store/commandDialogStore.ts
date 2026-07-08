@@ -4,7 +4,8 @@ import type {
   CreaseExportFormat,
   CreaseExportOptions,
 } from '../lib/creaseExport';
-import type { TreeProject } from '../lib/sampleProject';
+import type { FoldDocument } from '../engine/types';
+import type { CpSegment } from '../lib/creasePatternSegmentation';
 
 export type ConfirmDialogOptions = {
   title: string;
@@ -28,7 +29,8 @@ export type NumberDialogOptions = {
 export type CreasePatternExportDialogOptions = {
   title: string;
   format: CreaseExportFormat;
-  project: TreeProject;
+  fold: FoldDocument;
+  segments: CpSegment[];
   initialOptions: CreaseExportOptions;
   confirmLabel?: string;
   cancelLabel?: string;

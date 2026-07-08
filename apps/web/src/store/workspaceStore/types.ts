@@ -43,6 +43,7 @@ import type {
   OristudioCpOperationDescriptor,
 } from '../../engine/oristudioCpTypes';
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
+import type { OristudioCpActionId } from '../../lib/oristudioCpActions';
 import type { CpLineClipboardPayload, CpSelectionTransform } from '../../lib/creasePatternClipboard';
 import type { OristudioCpLineage } from '../../lib/oristudioCpLineage';
 
@@ -275,6 +276,11 @@ export interface CreasePatternSliceState {
   creaseColorMode: CreaseColorMode;
   oristudioCpSelection: OristudioCpSelection;
   oristudioCpActionRequest: OristudioCpActionRequest | null;
+  /**
+   * The crease-pattern tool the user last selected, persisted so it survives
+   * panel remounts (e.g. switching to the Simulate workspace and back).
+   */
+  oristudioCpActiveToolId: OristudioCpActionId | null;
   oristudioCpActiveDiagnosticId: string | null;
   oristudioCpRevision: number;
   oristudioCpFoldedFigures: OristudioCpFoldedFigureEntry[];
@@ -286,6 +292,7 @@ export interface CreasePatternSliceState {
   foldArtifactRevision: number;
   foldArtifactResolvedRevision: number | null;
   foldArtifactRequestId: number;
+  selectedSegmentId: number | null;
   sequenceTarget: SequenceTargetState | null;
   sequencePlan: SequencePlan | null;
   sequenceSimulationFocus: SequenceSimulationFocus;
@@ -308,6 +315,7 @@ export interface CreasePatternSliceActions {
   analyzeSequenceTarget: () => Promise<SequenceTargetState | null>;
   planFoldingSequence: () => Promise<SequencePlan | null>;
   setCreaseColorMode: (mode: CreaseColorMode) => void;
+  setSelectedSegment: (id: number | null) => void;
   setSequenceSimulationFocus: (focus: SequenceSimulationFocus) => void;
   setOristudioCpViewportOption: <K extends OristudioCpViewportOptionKey>(
     key: K,
@@ -315,6 +323,7 @@ export interface CreasePatternSliceActions {
   ) => void;
   setOristudioCpSelection: (selection: OristudioCpSelection) => void;
   requestOristudioCpAction: (operationId: OristudioCpOperationId) => void;
+  setOristudioCpActiveToolId: (id: OristudioCpActionId | null) => void;
   clearOristudioCpActionRequest: (id: number) => void;
   setOristudioCpActiveDiagnostic: (id: string | null) => void;
   foldOristudioCpDocument: (options?: {

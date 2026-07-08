@@ -7,9 +7,33 @@ import {
   requestPositiveNumber,
   useCommandDialogStore,
 } from '../store/commandDialogStore';
-import type { CreaseExportOptions } from '../lib/creaseExport';
-import { createSampleProject } from '../lib/sampleProject';
+import { DEFAULT_CREASE_EXPORT_OPTIONS, type CreaseExportOptions } from '../lib/creaseExport';
+import { segmentFoldDocument } from '../lib/creasePatternSegmentation';
+import type { FoldDocument } from '../engine/types';
 import { CommandDialogModal } from './CommandDialogModal';
+
+function exportFold(): FoldDocument {
+  return {
+    vertices_coords: [
+      [0, 0],
+      [1, 0],
+      [1, 1],
+      [0, 1],
+    ],
+    edges_vertices: [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [3, 0],
+      [0, 2],
+    ],
+    edges_assignment: ['B', 'B', 'B', 'B', 'M'],
+    faces_vertices: [
+      [0, 1, 2],
+      [0, 2, 3],
+    ],
+  };
+}
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -105,25 +129,23 @@ describe('CommandDialogModal', () => {
 
   it('resolves crease-pattern export options with a live preview', async () => {
     const rendered = renderModalHost();
-    let result = Promise.resolve<CreaseExportOptions | null>({
-      viewMode: 'mvf',
-      includeUnassigned: true,
-      showBackgroundColor: true,
-    });
+    const fold = exportFold();
+    const segments = segmentFoldDocument(fold);
+    let result = Promise.resolve<CreaseExportOptions | null>(null);
 
     act(() => {
       result = requestCreasePatternExportOptions({
         title: 'Export SVG',
         format: 'svg',
-        project: createSampleProject(),
-        initialOptions: { viewMode: 'mvf', includeUnassigned: true, showBackgroundColor: true },
+        fold,
+        segments,
+        initialOptions: { ...DEFAULT_CREASE_EXPORT_OPTIONS },
         confirmLabel: 'Export SVG',
       });
     });
 
     expect(rendered.querySelector('.export-modal__preview img')).not.toBeNull();
     await act(async () => {
-      findButton('Crease roles').click();
       (
         rendered.querySelector(
           '[aria-label="Include flat / unassigned creases"]'
@@ -137,7 +159,7 @@ describe('CommandDialogModal', () => {
     });
 
     await expect(result).resolves.toEqual({
-      viewMode: 'agrh',
+      ...DEFAULT_CREASE_EXPORT_OPTIONS,
       includeUnassigned: false,
       showBackgroundColor: false,
     });

@@ -1435,14 +1435,16 @@ describe('workspace store slices', () => {
 
     await expect(useWorkspaceStore.getState().exportSvg(fileService)).resolves.toBe(true);
     expect(exportMocks.serializeCreasePatternSvg).toHaveBeenCalledWith(
-      useWorkspaceStore.getState().project,
-      { viewMode: DEFAULT_CREASE_COLOR_MODE, includeUnassigned: true, showBackgroundColor: true }
+      expect.objectContaining({ edges_vertices: expect.any(Array) }),
+      expect.any(Array),
+      expect.objectContaining({ segmentId: null, includeUnassigned: true, showBackgroundColor: true })
     );
 
     await expect(useWorkspaceStore.getState().exportPng(fileService)).resolves.toBe(true);
     expect(exportMocks.renderCreasePatternPng).toHaveBeenCalledWith(
-      useWorkspaceStore.getState().project,
-      { viewMode: DEFAULT_CREASE_COLOR_MODE, includeUnassigned: true, showBackgroundColor: true }
+      expect.objectContaining({ edges_vertices: expect.any(Array) }),
+      expect.any(Array),
+      expect.objectContaining({ segmentId: null, includeUnassigned: true, showBackgroundColor: true })
     );
     expect(fileService.saveBinaryFile).toHaveBeenCalledWith(
       expect.objectContaining({ extensions: ['png'], mimeType: 'image/png' })
@@ -1614,7 +1616,7 @@ describe('workspace store slices', () => {
   });
 
   it('loads CP-only documents and gates tree-only persistence', async () => {
-    const api = resetStores(seedSnapshot());
+    resetStores(seedSnapshot());
     loadSnapshotIntoStore(seedSnapshot());
     const activateWorkspace = vi.fn();
     useLayoutStore.setState({ activateWorkspace });
@@ -1666,10 +1668,10 @@ describe('workspace store slices', () => {
     );
     expect(useWorkspaceStore.getState().project.creases.length).toBeGreaterThan(0);
     expect(useWorkspaceStore.getState().project.facets.length).toBeGreaterThan(0);
-    expect(useWorkspaceStore.getState().foldArtifacts?.folded_base?.facets.length).toBeGreaterThan(
-      0
-    );
-    expect(api.flatFoldArtifacts).toHaveBeenCalledOnce();
+    // Simulation faces are inferred in JS (no flat-folding).
+    expect(
+      useWorkspaceStore.getState().foldArtifacts?.simulation_model?.fold.faces_vertices.length
+    ).toBeGreaterThan(0);
     expect(activateWorkspace).toHaveBeenCalledWith('edit');
 
     useWorkspaceStore.setState({
@@ -2009,7 +2011,7 @@ describe('workspace store slices', () => {
   });
 
   it('passes selected editable CP line IDs into kernel commands and keeps stable color selections', async () => {
-    const api = resetStores(seedSnapshot());
+    resetStores(seedSnapshot());
     await useWorkspaceStore.getState().loadCreasePatternText('1 0 0 1 0\n2 0 0 0 1', {
       filename: 'lines.cp',
       path: '/tmp/lines.cp',
@@ -2075,17 +2077,15 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().foldArtifactStatus).toBe('stale');
     expect(useWorkspaceStore.getState().foldArtifacts).toBeNull();
     expect(oristudioCpMocks.exportOristudioCpDocumentAsFold).not.toHaveBeenCalled();
-    expect(api.flatFoldArtifacts).toHaveBeenCalledOnce();
 
     await expect(useWorkspaceStore.getState().ensureFoldArtifacts()).resolves.toBeTruthy();
 
+    // Editable-CP simulation faces are inferred in JS from the exported fold.
     expect(oristudioCpMocks.exportOristudioCpDocumentAsFold).toHaveBeenCalledOnce();
-    expect(api.flatFoldArtifacts).toHaveBeenCalledTimes(2);
-    expect(api.flatFoldArtifacts).toHaveBeenLastCalledWith(editableCpFoldText, {
-      solution_limit: 10,
-    });
     expect(useWorkspaceStore.getState().foldArtifactStatus).toBe('ready');
-    expect(useWorkspaceStore.getState().foldArtifacts?.folded_base?.facets).toHaveLength(2);
+    expect(
+      useWorkspaceStore.getState().foldArtifacts?.simulation_model?.fold.faces_vertices
+    ).toHaveLength(2);
   });
 
   it('tracks generated folded figures and marks them stale after CP geometry edits', async () => {
@@ -2422,8 +2422,8 @@ describe('workspace store slices', () => {
     );
   });
 
-  it('surfaces demand-refresh flat-folder errors without leaving artifacts loading', async () => {
-    const api = resetStores(seedSnapshot());
+  it('surfaces demand-refresh fold export errors without leaving artifacts loading', async () => {
+    resetStores(seedSnapshot());
     await useWorkspaceStore.getState().loadCreasePatternText('1 0 0 1 0\n2 0 0 0 1', {
       filename: 'lines.cp',
       path: '/tmp/lines.cp',
@@ -2442,15 +2442,15 @@ describe('workspace store slices', () => {
     await expect(useWorkspaceStore.getState().executeOristudioCpCommand('CreaseMakeMountain')).resolves.toBe(
       true
     );
-    api.flatFoldArtifacts.mockRejectedValueOnce({
-      code: 'unsatisfied_component',
-      message: 'Layer ordering failed',
+    oristudioCpMocks.exportOristudioCpDocumentAsFold.mockRejectedValueOnce({
+      code: 'export_failed',
+      message: 'Fold export failed',
     });
 
     await expect(useWorkspaceStore.getState().ensureFoldArtifacts()).resolves.toBeNull();
 
     expect(useWorkspaceStore.getState().foldArtifactStatus).toBe('error');
-    expect(useWorkspaceStore.getState().foldArtifactError).toBe('Layer ordering failed');
+    expect(useWorkspaceStore.getState().foldArtifactError).toBe('Fold export failed');
     expect(useWorkspaceStore.getState().foldArtifacts).toBeNull();
   });
 
@@ -2698,7 +2698,7 @@ describe('workspace store slices', () => {
   });
 
   it('restores editable CP snapshots and selections through undo and redo', async () => {
-    const api = resetStores(seedSnapshot());
+    resetStores(seedSnapshot());
     await useWorkspaceStore.getState().loadCreasePatternText('1 0 0 1 0', {
       filename: 'line.cp',
       path: '/tmp/line.cp',
@@ -2782,7 +2782,7 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().projectMessage).toBe('Undid CreaseMakeMountain');
 
     await expect(useWorkspaceStore.getState().ensureFoldArtifacts()).resolves.toBeTruthy();
-    expect(api.flatFoldArtifacts).toHaveBeenCalledTimes(2);
+    expect(oristudioCpMocks.exportOristudioCpDocumentAsFold).toHaveBeenCalled();
     expect(useWorkspaceStore.getState().foldArtifactStatus).toBe('ready');
 
     useWorkspaceStore.setState({ activeEditingSurface: 'tree' });
@@ -2811,7 +2811,7 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().projectMessage).toBe('Redid CreaseMakeMountain');
 
     await expect(useWorkspaceStore.getState().ensureFoldArtifacts()).resolves.toBeTruthy();
-    expect(api.flatFoldArtifacts).toHaveBeenCalledTimes(3);
+    expect(oristudioCpMocks.exportOristudioCpDocumentAsFold).toHaveBeenCalled();
     expect(useWorkspaceStore.getState().foldArtifactStatus).toBe('ready');
   });
 

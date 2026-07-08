@@ -4,7 +4,6 @@ import init, {
   build_crease_pattern,
   export_fold,
   export_v4,
-  flat_fold_artifacts,
   fold_artifacts,
   free_tree,
   load_tmd,
@@ -29,6 +28,10 @@ import type {
   TreeSnapshot,
   WasmErrorEnvelope,
 } from '../engine/types';
+import {
+  segmentFoldDocument,
+  simulationFoldOf,
+} from '../lib/creasePatternSegmentation';
 
 let ready: Promise<void> | null = null;
 
@@ -62,6 +65,21 @@ async function call<T>(fn: () => T): Promise<T> {
   }
 }
 
+/**
+ * Attach crease-pattern segments to fold artifacts. Runs here in the worker so
+ * the O(V+E+F) graph walk never touches the main thread, even for large
+ * documents. Segmentation failures must not break folding, so they are
+ * swallowed (the document simply behaves as a single pattern).
+ */
+function withSegments(artifacts: FoldArtifacts): FoldArtifacts {
+  try {
+    artifacts.segments = segmentFoldDocument(simulationFoldOf(artifacts));
+  } catch {
+    artifacts.segments = [];
+  }
+  return artifacts;
+}
+
 const api = {
   async newDesign(config?: { paper_width?: number; paper_height?: number }): Promise<number> {
     return call(() => new_design(config ?? null));
@@ -91,13 +109,7 @@ const api = {
     });
   },
   async foldArtifacts(handle: number): Promise<FoldArtifacts> {
-    return call(() => fold_artifacts(handle) as FoldArtifacts);
-  },
-  async flatFoldArtifacts(
-    foldJson: string,
-    options?: { solution_limit?: number }
-  ): Promise<FoldArtifacts> {
-    return call(() => flat_fold_artifacts(foldJson, options ?? null) as FoldArtifacts);
+    return call(() => withSegments(fold_artifacts(handle) as FoldArtifacts));
   },
   async sequenceAnalyzeFold(
     foldJson: string,

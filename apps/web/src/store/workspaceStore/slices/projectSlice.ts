@@ -12,11 +12,11 @@ import {
   parseImportedCreasePattern,
   type ImportedCreasePatternResult,
   type ImportedCreasePatternSource,
-  withFlatFoldArtifacts,
-  withFlatFoldError,
 } from '../../../lib/creasePatternImport';
 import {
   clampOrieditaGridAngle,
+  DEFAULT_ORISTUDIO_CP_LINE_STYLE,
+  DEFAULT_ORISTUDIO_CP_LINE_WIDTH,
   DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
   emptyOristudioCpSelection,
   getCpVertices,
@@ -40,7 +40,14 @@ import {
   parseNativeProjectFile,
   serializeNativeProjectFile,
 } from '../../../lib/nativeProjectFile';
-import type { OristudioCpSelection } from '../../../lib/creasePatternViewport';
+import type {
+  OristudioCpSelection,
+  OristudioCpViewportOptions,
+} from '../../../lib/creasePatternViewport';
+import {
+  segmentFoldDocument,
+  type CpSegment,
+} from '../../../lib/creasePatternSegmentation';
 import type { OristudioCpOperationId } from '../../../lib/oristudioCpCommands';
 import { createEmptyProject, DEFAULT_CREASE_COLOR_MODE } from '../../../lib/sampleProject';
 import {
@@ -349,9 +356,13 @@ async function confirmDiscardDirty(dirty: boolean): Promise<boolean> {
   });
 }
 
-function defaultCreaseExportOptions(viewMode: CreaseExportOptions['viewMode']): CreaseExportOptions {
+function defaultCreaseExportOptions(viewport: OristudioCpViewportOptions): CreaseExportOptions {
   return {
-    viewMode,
+    segmentId: null,
+    lineStyle: viewport.lineStyle ?? DEFAULT_ORISTUDIO_CP_LINE_STYLE,
+    lineWidth: viewport.lineWidth ?? DEFAULT_ORISTUDIO_CP_LINE_WIDTH,
+    // Points off by default for exports.
+    pointSize: 0,
     includeUnassigned: true,
     showBackgroundColor: true,
   };
@@ -412,19 +423,27 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     await releaseOristudioCpDocument();
   };
 
-  const resolveCreaseExportOptions = (
+  const resolveCreaseExport = async (
     format: CreaseExportFormat,
     options?: CreaseExportOptions
-  ): Promise<CreaseExportOptions | null> => {
-    if (options) return Promise.resolve(options);
+  ): Promise<{ options: CreaseExportOptions; fold: FoldDocument; segments: CpSegment[] } | null> => {
+    const foldArtifacts = get().foldArtifacts ?? (await get().ensureFoldArtifacts());
+    if (!foldArtifacts) return null;
+    // Export the real (untriangulated) crease pattern, not the simulation mesh
+    // (simulation_model.fold is triangulated, which adds spurious diagonals).
+    const fold = foldArtifacts.fold;
+    const segments = segmentFoldDocument(fold);
+    if (options) return { options, fold, segments };
     const label = format.toUpperCase();
-    return requestCreasePatternExportOptions({
+    const resolved = await requestCreasePatternExportOptions({
       title: `Export ${label}`,
       format,
-      project: get().project,
-      initialOptions: defaultCreaseExportOptions(get().creaseColorMode),
+      fold,
+      segments,
+      initialOptions: defaultCreaseExportOptions(get().oristudioCpViewport),
       confirmLabel: `Export ${label}`,
     });
+    return resolved ? { options: resolved, fold, segments } : null;
   };
 
   const confirmLossyOrhWrite = () =>
@@ -625,28 +644,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         oristudioCpRuntimeError = oristudioCpError(error).message;
       }
     }
-    const result = await (async () => {
-      try {
-        const api = await getEngine();
-        const foldArtifacts = await api.flatFoldArtifacts(JSON.stringify(parsed.document.fold), {
-          solution_limit: 10,
-        });
-        return withFlatFoldArtifacts(parsed, foldArtifacts);
-      } catch (error) {
-        return withFlatFoldError(parsed, engineError(error).message);
-      }
-    })();
+    // Simulation faces are inferred in JS by parseImportedCreasePattern (no
+    // flat-folding), so imports with multiple crease patterns work.
+    const result = parsed;
     const artifactRevision = get().foldArtifactRevision + 1;
-    const artifactState =
-      result.foldArtifacts.folded_base_error && !result.foldArtifacts.folded_base
-        ? {
-            foldArtifacts: result.foldArtifacts,
-            foldArtifactError: result.foldArtifacts.folded_base_error,
-            foldArtifactStatus: 'error' as const,
-            foldArtifactRevision: artifactRevision,
-            foldArtifactResolvedRevision: artifactRevision,
-          }
-        : readyFoldArtifactResourceState(result.foldArtifacts, artifactRevision);
+    const artifactState = readyFoldArtifactResourceState(result.foldArtifacts, artifactRevision);
     set({
       project: result.project,
       documentMode: 'crease-pattern',
@@ -761,28 +763,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       filename: `${nativeDocument.title || source.filename}.fold`,
       path: null,
     });
-    const result = await (async () => {
-      try {
-        const api = await getEngine();
-        const foldArtifacts = await api.flatFoldArtifacts(JSON.stringify(parsed.document.fold), {
-          solution_limit: 10,
-        });
-        return withFlatFoldArtifacts(parsed, foldArtifacts);
-      } catch (error) {
-        return withFlatFoldError(parsed, engineError(error).message);
-      }
-    })();
+    // Simulation faces are inferred in JS (no flat-folding), so multi-pattern
+    // documents work.
+    const result = parsed;
     const artifactRevision = get().foldArtifactRevision + 1;
-    const artifactState =
-      result.foldArtifacts.folded_base_error && !result.foldArtifacts.folded_base
-        ? {
-            foldArtifacts: result.foldArtifacts,
-            foldArtifactError: result.foldArtifacts.folded_base_error,
-            foldArtifactStatus: 'error' as const,
-            foldArtifactRevision: artifactRevision,
-            foldArtifactResolvedRevision: artifactRevision,
-          }
-        : readyFoldArtifactResourceState(result.foldArtifacts, artifactRevision);
+    const artifactState = readyFoldArtifactResourceState(result.foldArtifacts, artifactRevision);
     const originalSource = importedSourceFromNativeSource(nativeDocument.creasePattern.source);
     const importedDocument = originalSource
       ? { ...result.document, source: originalSource }
@@ -1789,9 +1774,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     exportSvg: async (fileService = getFileService(), options) => {
       try {
         if (rejectDisabled('file.exportSvg')) return false;
-        const exportOptions = await resolveCreaseExportOptions('svg', options);
-        if (!exportOptions) return false;
-        const contents = serializeCreasePatternSvg(get().project, exportOptions);
+        const resolved = await resolveCreaseExport('svg', options);
+        if (!resolved) return false;
+        const contents = serializeCreasePatternSvg(resolved.fold, resolved.segments, resolved.options);
         const result = await fileService.saveTextFile({
           title: 'Export Crease Pattern SVG',
           contents,
@@ -1811,9 +1796,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     exportPng: async (fileService = getFileService(), options) => {
       try {
         if (rejectDisabled('file.exportPng')) return false;
-        const exportOptions = await resolveCreaseExportOptions('png', options);
-        if (!exportOptions) return false;
-        const bytes = await renderCreasePatternPng(get().project, exportOptions);
+        const resolved = await resolveCreaseExport('png', options);
+        if (!resolved) return false;
+        const bytes = await renderCreasePatternPng(resolved.fold, resolved.segments, resolved.options);
         const result = await fileService.saveBinaryFile({
           title: 'Export Crease Pattern PNG',
           bytes,
