@@ -105,6 +105,11 @@ describe('oristudio CP action registry', () => {
         }))
     ).toEqual([
       {
+        label: 'Eraser',
+        upstreamAction: 'lineSegmentDeleteAction',
+        upstreamMouseMode: 'LINE_SEGMENT_DELETE_3',
+      },
+      {
         label: 'Delete Point',
         upstreamAction: 'vertexDeleteAction',
         upstreamMouseMode: 'DELETE_POINT_15',

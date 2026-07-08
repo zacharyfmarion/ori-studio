@@ -14,6 +14,7 @@ export type OristudioCpToolSettingGroup =
   | 'division-ratio'
   | 'replace-line-type'
   | 'delete-line-type'
+  | 'erase-line-type'
   | 'fix-precision'
   | 'polygon-corners'
   | 'parallel-width'
@@ -182,6 +183,7 @@ const TOOL_SETTING_GROUPS_BY_OPERATION: Partial<
   ParallelDrawWidth: ['parallel-width'],
   ReplaceLineTypeSelect: ['replace-line-type'],
   DeleteLineTypeSelect: ['delete-line-type'],
+  LineSegmentDelete: ['erase-line-type'],
   FixInaccurate: ['fix-precision'],
   SelectLineIntersecting: ['line-select-help'],
   UnselectLineIntersecting: ['line-select-help'],

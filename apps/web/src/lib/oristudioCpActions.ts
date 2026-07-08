@@ -83,7 +83,7 @@ const AUXILIARY_DRAW_COMMAND = cpCommandByOperation('DrawCreaseFree');
 
 const ORISTUDIO_CP_EXTRA_ACTION_GROUPS = [
   { id: 'line-type', label: 'Line type', railLabel: 'Type', order: 5 },
-  { id: 'edit', label: 'Edit', railLabel: 'Edit', order: 25 },
+  { id: 'edit', label: 'Delete', railLabel: 'Delete', order: 25 },
 ] as const satisfies readonly OristudioCpActionGroupDefinition[];
 
 export const ORISTUDIO_CP_ACTION_GROUPS: OristudioCpActionGroupDefinition[] = [
@@ -514,6 +514,13 @@ const ORIEDITA_RAIL_ACTION_OVERRIDES: Partial<
   FoldedFigureExportFoldFrames: {
     upstreamAction: 'FoldExporter.file_frames',
   },
+  LineSegmentDelete: {
+    label: 'Eraser',
+    group: 'edit',
+    upstreamAction: 'lineSegmentDeleteAction',
+    upstreamMouseMode: 'LINE_SEGMENT_DELETE_3',
+    railOrder: 5,
+  },
   DeletePoint: {
     label: 'Delete Point',
     group: 'edit',
@@ -637,6 +644,7 @@ function commandAction(
     repeatable:
       command.operationId === 'DrawCreaseFree' ||
       command.operationId === 'DrawCreaseRestricted' ||
+      command.operationId === 'LineSegmentDelete' ||
       command.operationId === 'CreaseSelect' ||
       command.operationId === 'CreaseUnselect' ||
       command.operationId === 'SelectPolygon' ||

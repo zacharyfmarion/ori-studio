@@ -220,14 +220,16 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
   ),
   ready(
     'LineSegmentDelete',
-    'Delete line segment',
+    'Erase crease',
     'select-edit',
     'eraser',
     'MouseHandlerLineSegmentDelete',
     {
-      placement: 'menu',
+      placement: 'left-rail',
       selectionRequirement: 'selected line segment',
-      tooltip: 'Delete selected line segments',
+      toolSteps: ['Click a crease or drag a box to erase'],
+      inputMode: 'drag-box',
+      tooltip: 'Click a crease or drag a box to erase creases',
     }
   ),
   ready('ChangeCreaseType', 'Change crease type', 'color', 'paintbrush', 'MouseHandlerChangeCreaseType', {
