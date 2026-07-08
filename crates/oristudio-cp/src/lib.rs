@@ -1444,11 +1444,32 @@ pub fn execute_command(
             ))
         }
         OperationId::LineSegmentDelete => {
-            let line_indices = required_line_indices(&command)?;
-            operations::arrangement::delete_line_segments_for_indices(
-                &mut document.crease_pattern,
-                &line_indices,
-            )
+            // Oriedita `LINE_SEGMENT_DELETE_3` (the eraser): a single crease click
+            // erases that crease, a dragged box erases every crease it encloses.
+            // The tool-options line-type filter restricts which creases are
+            // removed (`Any` erases everything, matching the legacy behavior).
+            let line_type = command
+                .payload
+                .custom_line_type
+                .unwrap_or(model::CustomLineType::Any);
+            let line_indices = if command.payload.line_ids.is_empty() {
+                let polygon = required_selection_polygon(&command)?;
+                operations::selection::line_indices_in_box(&document.crease_pattern, &polygon)
+            } else {
+                required_line_indices(&command)?
+            };
+            if matches!(line_type, model::CustomLineType::Any) {
+                operations::arrangement::delete_line_segments_for_indices(
+                    &mut document.crease_pattern,
+                    &line_indices,
+                )
+            } else {
+                operations::color::delete_line_type_for_indices(
+                    &mut document.crease_pattern,
+                    &line_indices,
+                    line_type,
+                )
+            }
         }
         OperationId::ChangeCreaseType => {
             let line_indices = required_line_indices(&command)?;

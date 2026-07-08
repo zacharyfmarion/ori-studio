@@ -568,6 +568,10 @@ function cpCommandPayloadDefaults(
     payload.custom_line_type = toolOptions.customLineType;
   }
 
+  if (operationId === 'LineSegmentDelete') {
+    payload.custom_line_type = toolOptions.customLineType;
+  }
+
   if (operationId === 'FixInaccurate') {
     payload.fix_precision = toolOptions.fixPrecision;
     payload.fix_precision_use_bp = toolOptions.fixPrecisionUseBp;
@@ -633,6 +637,37 @@ function isCreaseToggleMvClickTool(operationId: string | null | undefined): bool
 
 function isSquareBisectorOperation(operationId: string | null | undefined): boolean {
   return operationId === 'SquareBisector';
+}
+
+// Oriedita `LINE_SEGMENT_DELETE_3` (the eraser tool): clicking a crease deletes
+// it (honoring the tool-options line-type filter), keeping the tool active for
+// the next click.
+function isLineEraseClickTool(operationId: string | null | undefined): boolean {
+  return operationId === 'LineSegmentDelete';
+}
+
+// Mirrors the kernel `CustomLineType::matches`: does a crease's line color pass
+// the eraser's line-type filter? Used to preview which crease a click erases.
+function lineColorMatchesCustomType(
+  color: string,
+  lineType: OristudioCpCustomLineType
+): boolean {
+  switch (lineType) {
+    case 'Any':
+      return true;
+    case 'Edge':
+      return color === 'Black0';
+    case 'MountainAndValley':
+      return color === 'Red1' || color === 'Blue2';
+    case 'Mountain':
+      return color === 'Red1';
+    case 'Valley':
+      return color === 'Blue2';
+    case 'Aux':
+      return color === 'Cyan3';
+    default:
+      return false;
+  }
 }
 
 function allowsDirectEntitySelection(operationId: string | null | undefined): boolean {
@@ -1386,6 +1421,8 @@ export function CreasePatternPanel() {
   );
   const [cpToolPoints, setCpToolPoints] = useState<Point[]>([]);
   const [cpToolPath, setCpToolPath] = useState<Point[]>([]);
+  // Live preview box for the right-button-drag erase gesture.
+  const [rightEraseBox, setRightEraseBox] = useState<readonly [Point, Point] | null>(null);
   const [pendingLengthenLineId, setPendingLengthenLineId] = useState<number | null>(null);
   const [pendingSquareBisectorLineIds, setPendingSquareBisectorLineIds] = useState<number[]>([]);
   const [cpMeasurementSlots, setCpMeasurementSlots] = useState<CpMeasurementSlots>(
@@ -1412,6 +1449,14 @@ export function CreasePatternPanel() {
     points: Point[];
     replaceSelection?: boolean;
     textId?: number;
+  } | null>(null);
+  // Oriedita's universal right-button-drag erase: dragging a box with the right
+  // mouse button deletes every crease in that region (any line type), and a
+  // plain right-click deletes the crease under the cursor. Works with any tool.
+  const rightEraseDragRef = useRef<{
+    pointerId: number;
+    startPoint: Point;
+    currentPoint: Point;
   } | null>(null);
 
   const project = useWorkspaceStore((state) => state.project);
@@ -1743,12 +1788,45 @@ export function CreasePatternPanel() {
   )
     ? selectionTransformFrame
     : null;
+  const eraseHoverLineId = useMemo(() => {
+    if (
+      cpToolState.activeOperationId !== 'LineSegmentDelete' ||
+      cpToolState.phase !== 'active' ||
+      !editableCp ||
+      !cursorModelPoint
+    ) {
+      return null;
+    }
+    const id = nearestEditableCpLineId(
+      editableCp,
+      cursorModelPoint,
+      modelSelectionDistance(editableCpBounds, zoomPercent / 100)
+    );
+    if (id === null) return null;
+    const segment = editableCp.crease_pattern.line_segments[id - 1];
+    if (
+      segment &&
+      !lineColorMatchesCustomType(segment.color, cpToolOptions.customLineType)
+    ) {
+      return null;
+    }
+    return id;
+  }, [
+    cpToolState.activeOperationId,
+    cpToolState.phase,
+    editableCp,
+    cursorModelPoint,
+    editableCpBounds,
+    zoomPercent,
+    cpToolOptions.customLineType,
+  ]);
   const highlightedEditableLineIds = useMemo(
     () => [
       ...pendingSquareBisectorLineIds,
       ...(pendingLengthenLineId === null ? [] : [pendingLengthenLineId]),
+      ...(eraseHoverLineId === null ? [] : [eraseHoverLineId]),
     ],
-    [pendingLengthenLineId, pendingSquareBisectorLineIds]
+    [pendingLengthenLineId, pendingSquareBisectorLineIds, eraseHoverLineId]
   );
   const liveCommandPreviewPoints = useMemo(() => {
     if (cpToolPath.length > 0) return cpToolPath;
@@ -1802,8 +1880,11 @@ export function CreasePatternPanel() {
     [activeCpInputMode, liveCommandPreviewPoints]
   );
   const renderedCommandPreviewBoxes = useMemo(
-    () => (renderedCommandPreviewBox ? [renderedCommandPreviewBox] : []),
-    [renderedCommandPreviewBox]
+    () => [
+      ...(renderedCommandPreviewBox ? [renderedCommandPreviewBox] : []),
+      ...(rightEraseBox ? [rightEraseBox] : []),
+    ],
+    [renderedCommandPreviewBox, rightEraseBox]
   );
   const renderedCommandPreviewPoints = baseRenderedCommandPreviewPoints;
   const renderedCommandPreviewSegments = baseRenderedCommandPreviewSegments;
@@ -2635,11 +2716,50 @@ export function CreasePatternPanel() {
     viewportPanningRef.current = false;
   }, []);
 
+  // Erase the crease nearest a model-space point (Oriedita right-drag delete).
+  // Filter-free: the right-drag gesture removes any crease it sweeps over.
+  const eraseCreaseAtModelPoint = useCallback(
+    (point: Point) => {
+      if (!editableCp) return;
+      const id = nearestEditableCpLineId(
+        editableCp,
+        point,
+        modelSelectionDistance(editableCpBounds, zoomPercent / 100)
+      );
+      if (id === null) return;
+      void executeOristudioCpCommand('LineSegmentDelete', { line_ids: [id] });
+    },
+    [editableCp, editableCpBounds, executeOristudioCpCommand, zoomPercent]
+  );
+
   const handleEditableToolPointerDown = useCallback(
     (event: PointerEvent<SVGElement>) => {
       const foldedFigureId = foldedFigureIdFromEventTarget(event.target);
       if (foldedFigureId) {
         handleFoldedFigurePointerDown(foldedFigureId, event);
+        return;
+      }
+
+      // Oriedita's universal right-button-drag erase (box-select-and-delete a
+      // region, any line type) works with any tool active.
+      if (
+        event.button === 2 &&
+        editableCp &&
+        !spacePressed &&
+        !isViewportInteractiveTarget(event.target) &&
+        !isCpSelectionTransformEventTarget(event.target)
+      ) {
+        const point = eventToEditableModelPoint(event);
+        if (!point) return;
+        event.preventDefault();
+        event.stopPropagation();
+        rightEraseDragRef.current = {
+          pointerId: event.pointerId,
+          startPoint: point,
+          currentPoint: point,
+        };
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+        setRightEraseBox([point, point]);
         return;
       }
 
@@ -2964,6 +3084,16 @@ export function CreasePatternPanel() {
 
   const handleEditablePointerMove = useCallback(
     (event: PointerEvent<SVGElement>) => {
+      const rightEraseDrag = rightEraseDragRef.current;
+      if (rightEraseDrag && rightEraseDrag.pointerId === event.pointerId) {
+        const point = eventToEditableModelPoint(event);
+        if (!point) return;
+        event.preventDefault();
+        event.stopPropagation();
+        rightEraseDrag.currentPoint = point;
+        setRightEraseBox([rightEraseDrag.startPoint, point]);
+        return;
+      }
       const foldedFigureMoveDrag = foldedFigureMoveDragRef.current;
       if (foldedFigureMoveDrag && foldedFigureMoveDrag.pointerId === event.pointerId) {
         const svgPoint = eventToEditableSvgPoint(event);
@@ -3061,6 +3191,30 @@ export function CreasePatternPanel() {
 
   const finishEditableDragPath = useCallback(
     (event: PointerEvent<SVGElement>) => {
+      const rightEraseDrag = rightEraseDragRef.current;
+      if (rightEraseDrag && rightEraseDrag.pointerId === event.pointerId) {
+        event.preventDefault();
+        event.stopPropagation();
+        const { startPoint, currentPoint } = rightEraseDrag;
+        rightEraseDragRef.current = null;
+        setRightEraseBox(null);
+        event.currentTarget.releasePointerCapture?.(event.pointerId);
+        const clickThreshold =
+          modelSelectionDistance(editableCpBounds, zoomPercent / 100) ** 2 / 16;
+        if (pointDistanceSquared(startPoint, currentPoint) < clickThreshold) {
+          // Plain right-click: erase the crease under the cursor (any type).
+          eraseCreaseAtModelPoint(currentPoint);
+        } else {
+          // Right-drag: box-select and delete the region (any line type). The
+          // empty line_ids makes the kernel resolve the box, and omitting
+          // custom_line_type erases every crease inside it.
+          void executeOristudioCpCommand('LineSegmentDelete', {
+            line_ids: [],
+            points: [startPoint, currentPoint],
+          });
+        }
+        return;
+      }
       const foldedFigureMoveDrag = foldedFigureMoveDragRef.current;
       if (foldedFigureMoveDrag && foldedFigureMoveDrag.pointerId === event.pointerId) {
         event.preventDefault();
@@ -3221,11 +3375,13 @@ export function CreasePatternPanel() {
         const succeeded = await executeOristudioCpCommand(
           command.operationId,
           buildCpCommandPayload(command, {
-            // The flip tool operates on the boxed lines, never on a prior
-            // selection, so it always resolves the box on the kernel side.
-            line_ids: isCreaseToggleMvClickTool(drag.operationId)
-              ? []
-              : oristudioCpSelection.lines,
+            // The flip and eraser tools operate on the boxed lines, never on a
+            // prior selection, so they always resolve the box on the kernel side.
+            line_ids:
+              isCreaseToggleMvClickTool(drag.operationId) ||
+              isLineEraseClickTool(drag.operationId)
+                ? []
+                : oristudioCpSelection.lines,
             circle_ids: oristudioCpSelection.circles,
             points,
             replace_selection:
@@ -3253,6 +3409,7 @@ export function CreasePatternPanel() {
     [
       buildCpCommandPayload,
       editableCpBounds,
+      eraseCreaseAtModelPoint,
       eventToEditableModelPoint,
       executeOristudioCpCommand,
       oristudioCpSelection.circles,
@@ -3267,6 +3424,13 @@ export function CreasePatternPanel() {
   );
 
   const cancelEditableDragPath = useCallback((event: PointerEvent<SVGElement>) => {
+    const rightEraseDrag = rightEraseDragRef.current;
+    if (rightEraseDrag && rightEraseDrag.pointerId === event.pointerId) {
+      rightEraseDragRef.current = null;
+      setRightEraseBox(null);
+      svgRef.current?.releasePointerCapture?.(event.pointerId);
+      return;
+    }
     const foldedFigureMoveDrag = foldedFigureMoveDragRef.current;
     if (foldedFigureMoveDrag && foldedFigureMoveDrag.pointerId === event.pointerId) {
       foldedFigureMoveDragRef.current = null;
@@ -3366,6 +3530,35 @@ export function CreasePatternPanel() {
             buildCpCommandPayload(activeCpCommand, {
               line_ids: lineIds,
             })
+          );
+          setCpToolState((state) =>
+            state.activeOperationId === activeCpCommand.operationId
+              ? transitionOristudioCpToolState(
+                  state,
+                  succeeded
+                    ? { type: 'commit', keepActive: true }
+                    : {
+                        type: 'commandError',
+                        message: useWorkspaceStore.getState().oristudioCpError ?? 'Command failed',
+                      }
+                )
+              : state
+          );
+        })();
+        return;
+      }
+
+      if (
+        activeCpCommand?.uiStatus === 'ready' &&
+        cpToolState.phase === 'active' &&
+        isLineEraseClickTool(activeCpCommand.operationId)
+      ) {
+        setCpToolPoints([]);
+        setCpToolPath([]);
+        void (async () => {
+          const succeeded = await executeOristudioCpCommand(
+            activeCpCommand.operationId,
+            buildCpCommandPayload(activeCpCommand, { line_ids: [id] })
           );
           setCpToolState((state) =>
             state.activeOperationId === activeCpCommand.operationId
@@ -4021,6 +4214,7 @@ export function CreasePatternPanel() {
                     onPointerCancel={cancelEditableDragPath}
                     onPointerLeave={clearEditablePointerStatus}
                     onPointerDownCapture={handleEditableToolPointerDown}
+                    onContextMenu={(event) => event.preventDefault()}
                     onPointerDown={(event) => {
                       if (event.target === event.currentTarget) clearSelectionOnBackgroundPointerDown(event);
                     }}
@@ -6031,6 +6225,23 @@ function CpContextToolGroup({
         <SelectToolOption
           label="Filter"
           ariaLabel="Delete line type"
+          value={options.customLineType}
+          options={ORISTUDIO_CP_CUSTOM_LINE_TYPE_OPTIONS}
+          onChange={(customLineType) =>
+            setOptions((current) => ({ ...current, customLineType }))
+          }
+        />
+      </div>
+    );
+  }
+
+  if (group === 'erase-line-type') {
+    return (
+      <div className="cp-context-panel__group">
+        <div className="cp-context-panel__group-title">Erase</div>
+        <SelectToolOption
+          label="Filter"
+          ariaLabel="Erase line type"
           value={options.customLineType}
           options={ORISTUDIO_CP_CUSTOM_LINE_TYPE_OPTIONS}
           onChange={(customLineType) =>
