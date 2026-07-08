@@ -438,9 +438,9 @@ function orientFacesConsistently(fold: FoldDocument): FoldDocument {
 }
 
 // Global sign relating M/V fold angles to the (now-consistent) face normals.
-// With every face wound the same way there is a single correct value; flip this
-// to -1 if mountains simulate as valleys and vice versa.
-const SIMULATION_FOLD_ANGLE_SIGN = 1;
+// With every face wound the same way there is a single correct value: -1, so
+// mountains fold as mountains and valleys as valleys against our winding.
+const SIMULATION_FOLD_ANGLE_SIGN = -1;
 
 function prepareSimulationFold(fold: FoldDocument): { fold: FoldDocument | null; error: string | null } {
   if (fold.faces_vertices.length === 0) {
