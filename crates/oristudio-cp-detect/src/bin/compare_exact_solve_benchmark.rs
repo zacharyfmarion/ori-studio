@@ -42,7 +42,6 @@ const SCHEMA: &str = "oristudio/cp-detect-exact-solve-comparison/v1";
 /// override (e.g. a smaller value for fast topology iteration).
 const BENCHMARK_DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS: f64 =
     oristudio_cp_compiler::DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS;
-const DEFAULT_DENSE_MANIFEST: &str = "artifacts/cp-detect-correctness/dense-cache/clean-1024-s15-browser-onnx-v3-tess15-weighted-probe-20260619/manifest.json";
 const GT_JUNCTION_SIGMA_PX: f64 = 1.5;
 const GT_JUNCTION_OFFSET_RADIUS_PX: f64 = 3.0;
 const GT_BOUNDARY_CONTACT_SIGMA_PX: f64 = 1.0;
@@ -1197,8 +1196,9 @@ impl Args {
     fn parse() -> Result<Self, Box<dyn std::error::Error>> {
         let mut dense_manifest = None;
         let mut out = None;
-        let mut candidate_source = "legacy".to_owned();
-        let mut line_evidence_source = "model".to_owned();
+        let mut candidate_source = oristudio_cp_detect::defaults::DEFAULT_CANDIDATE_SOURCE.to_owned();
+        let mut line_evidence_source =
+            oristudio_cp_detect::defaults::DEFAULT_LINE_EVIDENCE_SOURCE.to_owned();
         let mut junction_evidence_source = JunctionEvidenceSource::Model;
         let mut gt_junction_labels = false;
         let mut gt_vertices = false;
@@ -1365,8 +1365,11 @@ impl Args {
                 other => return Err(format!("unknown argument: {other}").into()),
             }
         }
-        let dense_manifest =
-            dense_manifest.unwrap_or_else(|| PathBuf::from(DEFAULT_DENSE_MANIFEST));
+        let dense_manifest = dense_manifest.ok_or_else(|| {
+            "--dense-manifest <PATH> is required (no silent default: a bare run must \
+             not measure an arbitrary model's cache)"
+                .to_string()
+        })?;
         // Default junction-first offset-cluster decoding to the radius the product
         // ships, so the benchmark and product cannot diverge on decode. Explicit
         // --junction-first-offset-cluster-radius-px still wins; other candidate

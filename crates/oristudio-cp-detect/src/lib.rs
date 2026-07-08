@@ -9,6 +9,7 @@ pub mod candidate_generation;
 mod compiler_decode;
 mod compiler_decode_v2;
 pub mod decode;
+pub mod defaults;
 pub mod evidence_extract;
 mod legacy_decode;
 pub mod opencv_hough_lines_p;
