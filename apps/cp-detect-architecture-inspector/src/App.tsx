@@ -795,7 +795,7 @@ export function App() {
         candidateStrategy,
         legacyLowThreshold,
         legacySnapRadiusPx,
-        exactSolveTimeoutSeconds,
+        exactSolveTimeoutSeconds: exactSolveTimeoutSeconds ?? undefined,
         rectificationReport: uploadRectified.report,
       });
       setUploadRun(run);
