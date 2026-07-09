@@ -39,6 +39,14 @@ export function free_document(handle: number): void;
 
 export function free_folded_figure(handle: number): void;
 
+/**
+ * Oriedita import (add): merge the document behind `imported_handle` into the
+ * document behind `handle`, mirroring `setSave_for_reading_tuika`. The imported
+ * pattern is shifted to sit beside the existing one and divided against it.
+ * Returns the resulting line-segment count.
+ */
+export function import_add(handle: number, imported_handle: number): number;
+
 export function insert_line_segments(handle: number, segments: any): number;
 
 export function load_cp(text: string, title: string): number;
@@ -91,6 +99,7 @@ export interface InitOutput {
     readonly folded_figure_snapshot: (a: number) => [number, number, number];
     readonly free_document: (a: number) => [number, number];
     readonly free_folded_figure: (a: number) => [number, number];
+    readonly import_add: (a: number, b: number) => [number, number, number];
     readonly insert_line_segments: (a: number, b: any) => [number, number, number];
     readonly load_cp: (a: number, b: number, c: number, d: number) => [number, number, number];
     readonly load_document: (a: any) => [number, number, number];

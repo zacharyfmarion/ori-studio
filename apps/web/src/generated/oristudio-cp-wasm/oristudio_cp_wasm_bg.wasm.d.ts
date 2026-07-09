@@ -20,6 +20,7 @@ export const folded_figure_set_model: (a: number, b: any) => [number, number, nu
 export const folded_figure_snapshot: (a: number) => [number, number, number];
 export const free_document: (a: number) => [number, number];
 export const free_folded_figure: (a: number) => [number, number];
+export const import_add: (a: number, b: number) => [number, number, number];
 export const insert_line_segments: (a: number, b: any) => [number, number, number];
 export const load_cp: (a: number, b: number, c: number, d: number) => [number, number, number];
 export const load_document: (a: any) => [number, number, number];

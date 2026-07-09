@@ -24,6 +24,7 @@ export const MENU_ACTION_IDS = [
   'app.quit',
   'file.new',
   'file.open',
+  'file.importAdd',
   'file.detectCpImage',
   'file.save',
   'file.saveAs',
@@ -111,6 +112,7 @@ export interface WorkspaceCommands {
   loadExampleProject(id: string): Promise<void>;
   loadRecentProject(id: string): Promise<void>;
   openProject(fileService?: FileService): Promise<boolean>;
+  importAddCreasePattern(fileService?: FileService): Promise<boolean>;
   saveProject(fileService?: FileService): Promise<boolean>;
   saveProjectAs(fileService?: FileService): Promise<boolean>;
   exportV5(fileService?: FileService): Promise<boolean>;
@@ -218,6 +220,7 @@ export interface MenuActionDependencies {
 
 const FILE_ACTIONS: Partial<Record<MenuActionId, FileCommand>> = {
   'file.open': 'openProject',
+  'file.importAdd': 'importAddCreasePattern',
   'file.save': 'saveProject',
   'file.saveAs': 'saveProjectAs',
   'file.exportV5': 'exportV5',
@@ -304,6 +307,8 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
       switch (fileCommand) {
         case 'openProject':
           return deps.workspace.openProject(deps.fileService);
+        case 'importAddCreasePattern':
+          return deps.workspace.importAddCreasePattern(deps.fileService);
         case 'saveProject':
           return deps.workspace.saveProject(deps.fileService);
         case 'saveProjectAs':

@@ -3,6 +3,7 @@ import type { AppStatus, DocumentMode, Selection } from './sampleProject';
 export type WorkspaceCapabilityId =
   | 'file.new'
   | 'file.open'
+  | 'file.importAdd'
   | 'file.detectCpImage'
   | 'file.save'
   | 'file.saveAs'
@@ -156,6 +157,15 @@ export function getWorkspaceCapabilities(input: WorkspaceCapabilityInput): Works
   return {
     'file.new': capability(!isBusy, 'New', isBusy ? busyReason(input.status) : 'Choose a new Ori Studio workspace'),
     'file.open': capability(!isBusy, 'Open...', isBusy ? busyReason(input.status) : 'Open a project or crease pattern'),
+    'file.importAdd': capability(
+      canEditCp,
+      'Import (Add)...',
+      canEditCp
+        ? 'Import a crease pattern beside the current one'
+        : input.hasEditableCreasePattern
+          ? busyReason(input.status)
+          : 'Open an editable crease pattern before importing'
+    ),
     'file.detectCpImage': capability(
       !isBusy,
       'Detect CP from Image...',

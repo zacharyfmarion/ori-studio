@@ -231,6 +231,24 @@ pub fn insert_line_segments(handle: u32, segments: JsValue) -> Result<u32, JsVal
     })
 }
 
+/// Oriedita import (add): merge the document behind `imported_handle` into the
+/// document behind `handle`, mirroring `setSave_for_reading_tuika`. The imported
+/// pattern is shifted to sit beside the existing one and divided against it.
+/// Returns the resulting line-segment count.
+#[wasm_bindgen]
+pub fn import_add(handle: u32, imported_handle: u32) -> Result<u32, JsValue> {
+    let imported_pattern = with_document(imported_handle, |document| {
+        Ok(document.crease_pattern.clone())
+    })?;
+    with_document_mut(handle, |document| {
+        oristudio_cp::operations::arrangement::import_add(
+            &mut document.crease_pattern,
+            &imported_pattern,
+        );
+        Ok(document.crease_pattern.line_segments.len() as u32)
+    })
+}
+
 #[wasm_bindgen]
 pub fn replace_line_segments(
     handle: u32,

@@ -12,6 +12,7 @@ function createDeps() {
       loadExampleProject: vi.fn().mockResolvedValue(undefined),
       loadRecentProject: vi.fn().mockResolvedValue(undefined),
       openProject: vi.fn().mockResolvedValue(true),
+      importAddCreasePattern: vi.fn().mockResolvedValue(true),
       saveProject: vi.fn().mockResolvedValue(true),
       saveProjectAs: vi.fn().mockResolvedValue(true),
       exportV5: vi.fn().mockResolvedValue(true),
@@ -490,6 +491,9 @@ describe('menu actions', () => {
 
     await expect(createMenuActionHandler(deps)('file.saveAs')).resolves.toBe(true);
     expect(deps.workspace.saveProjectAs).toHaveBeenCalledWith(deps.fileService);
+
+    await expect(createMenuActionHandler(deps)('file.importAdd')).resolves.toBe(true);
+    expect(deps.workspace.importAddCreasePattern).toHaveBeenCalledWith(deps.fileService);
 
     await expect(createMenuActionHandler(deps)('file.exportFold')).resolves.toBe(true);
     await expect(createMenuActionHandler(deps)('file.exportOri')).resolves.toBe(true);
