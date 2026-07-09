@@ -1163,7 +1163,8 @@ impl Args {
     fn parse() -> Result<Self, Box<dyn std::error::Error>> {
         let mut dense_manifest = None;
         let mut out = None;
-        let mut candidate_source = oristudio_cp_detect::defaults::DEFAULT_CANDIDATE_SOURCE.to_owned();
+        let mut candidate_source =
+            oristudio_cp_detect::defaults::DEFAULT_CANDIDATE_SOURCE.to_owned();
         let mut line_evidence_source =
             oristudio_cp_detect::defaults::DEFAULT_LINE_EVIDENCE_SOURCE.to_owned();
         let mut junction_evidence_source = JunctionEvidenceSource::Model;

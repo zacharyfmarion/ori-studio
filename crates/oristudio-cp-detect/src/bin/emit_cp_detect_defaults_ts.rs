@@ -9,9 +9,7 @@
 //!   cargo run -p oristudio-cp-detect --bin emit_cp_detect_defaults_ts \
 //!     > apps/web/src/generated/cpDetectDefaults.generated.ts
 
-use oristudio_cp_detect::defaults::{
-    DEFAULT_JUNCTION_SOURCE, DEFAULT_LINE_EVIDENCE_SOURCE,
-};
+use oristudio_cp_detect::defaults::{DEFAULT_JUNCTION_SOURCE, DEFAULT_LINE_EVIDENCE_SOURCE};
 
 fn main() {
     print!(
