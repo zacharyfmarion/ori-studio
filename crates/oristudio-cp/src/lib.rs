@@ -431,7 +431,7 @@ pub struct OperationDescriptor {
     pub target: &'static str,
     /// Source-map category.
     pub category: OperationCategory,
-    /// Planned port stage from `implementation-plans/oriedita-port.md`.
+    /// Planned Oriedita port stage.
     pub stage: u8,
     /// Current implementation status.
     pub status: OperationStatus,

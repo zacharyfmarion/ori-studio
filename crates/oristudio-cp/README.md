@@ -8,7 +8,6 @@ Oriedita non-UI operation is registered, but operations return typed
 unsupported errors until the behavior is directly ported and validated against
 the pinned Oriedita oracle.
 
-The implementation roadmap lives in:
-
-- `implementation-plans/oriedita-port.md`
-- `implementation-plans/oriedita-source-map.md`
+The Oriedita port is tracked in git history and the Oriedita oracle tests; the
+former point-in-time `implementation-plans/` design snapshots were removed as
+stale.

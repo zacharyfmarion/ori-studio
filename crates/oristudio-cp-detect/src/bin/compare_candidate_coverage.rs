@@ -33,7 +33,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 const SCHEMA: &str = "oristudio/cp-detect-candidate-coverage-benchmark/v1";
-const DEFAULT_DENSE_MANIFEST: &str = "artifacts/cp-detect-correctness/dense-cache/clean-1024-s15-browser-onnx-v3-tess15-weighted-probe-20260619/manifest.json";
 
 #[derive(Debug, Deserialize)]
 struct DenseCacheManifest {
@@ -1151,7 +1150,8 @@ impl Args {
         let mut dense_manifest = None;
         let mut out = None;
         let mut strategy = CandidateGenerationStrategyName::default();
-        let mut line_evidence_source = "model".to_owned();
+        let mut line_evidence_source =
+            oristudio_cp_detect::defaults::DEFAULT_LINE_EVIDENCE_SOURCE.to_owned();
         let mut junction_evidence_source = JunctionEvidenceSource::Model;
         let mut threshold = None;
         let mut legacy_low_threshold = None;
@@ -1224,7 +1224,8 @@ impl Args {
             }
         }
         Ok(Self {
-            dense_manifest: dense_manifest.unwrap_or_else(|| PathBuf::from(DEFAULT_DENSE_MANIFEST)),
+            dense_manifest: dense_manifest
+                .ok_or_else(|| "--dense-manifest <PATH> is required".to_string())?,
             out: out.ok_or("--out is required")?,
             strategy,
             line_evidence_source,

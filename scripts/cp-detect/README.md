@@ -486,6 +486,17 @@ captures the solver inputs once and then scores any `ExactSolveOptions`
 configuration against ground truth in solve time only (~75s per config on the
 native pack at `--threads 4`, vs ~20 min for the full benchmark).
 
+**Headline `solve_recovered_original` numbers should come from the replay harness
+at `--threads 4`, not the full benchmark's own solve.** The exact solve has a
+wall-clock timeout (25s default), so under the full benchmark's all-core rayon
+parallelism a few borderline-hard CPs flip to timeout and the recovered count is
+noisy near that boundary (observed: the same model+cache gave 119 at all cores vs
+121 deterministically at `--threads 4`, which reproduces the PR#74 baseline
+exactly). Use the full benchmark for thread-invariant topology/coverage metrics
+and `--dump-exact-inputs`; use replay (`--threads 4`) for the recovery headline.
+(A follow-up should make the timeout an eval/iteration budget so it is
+thread-invariant.)
+
 ```bash
 # 1. Capture ExactSolveInput fixtures (once per decode/selection change; no
 #    solves run, so this is a fast pass). Gate-passing samples land in right/.

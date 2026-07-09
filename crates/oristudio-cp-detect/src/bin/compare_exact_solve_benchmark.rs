@@ -42,7 +42,6 @@ const SCHEMA: &str = "oristudio/cp-detect-exact-solve-comparison/v1";
 /// override (e.g. a smaller value for fast topology iteration).
 const BENCHMARK_DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS: f64 =
     oristudio_cp_compiler::DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS;
-const DEFAULT_DENSE_MANIFEST: &str = "artifacts/cp-detect-correctness/dense-cache/clean-1024-s15-browser-onnx-v3-tess15-weighted-probe-20260619/manifest.json";
 const GT_JUNCTION_SIGMA_PX: f64 = 1.5;
 const GT_JUNCTION_OFFSET_RADIUS_PX: f64 = 3.0;
 const GT_BOUNDARY_CONTACT_SIGMA_PX: f64 = 1.0;
@@ -207,7 +206,6 @@ struct BenchmarkSample {
     profile: Option<String>,
     bucket: Option<String>,
     gt_edges: usize,
-    legacy: OutputMetrics,
     selected: OutputMetrics,
     exact_solved: OutputMetrics,
     selection: SelectionSummary,
@@ -658,7 +656,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut aggregates = BTreeMap::<String, ImplementationAggregate>::new();
     for row in &rows {
-        add_output(&mut aggregates, "legacy", &row.legacy, None);
         add_output(&mut aggregates, "selected", &row.selected, None);
         add_output(
             &mut aggregates,
@@ -993,27 +990,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
 
         let metrics_started = Instant::now();
-        let legacy_span_set = candidate_graph
-            .crease_candidates
-            .iter()
-            .filter(|span| {
-                matches!(
-                    span.source_kind,
-                    oristudio_cp_compiler::CandidateCreaseSourceKind::LegacySelected
-                        | oristudio_cp_compiler::CandidateCreaseSourceKind::BorderGenerated
-                )
-            })
-            .map(|span| span.id)
-            .collect::<BTreeSet<_>>();
         let flat_folder_boundary_hint = flat_folder_boundary_hint_for_sample(sample);
-        let legacy_graph = SelectedGraph::from_selected_span_ids(
-            &candidate_graph,
-            legacy_span_set.iter().copied().collect(),
-        );
-        let legacy_exact_input =
-            ExactSolveInput::from_candidate_selection(&candidate_graph, &legacy_graph);
-        let legacy_doc = GraphDoc::from_exact_input(&legacy_exact_input)
-            .with_flat_folder_boundary_hint(flat_folder_boundary_hint.clone());
         let selected_doc = GraphDoc::from_exact_input(&exact_input)
             .with_flat_folder_boundary_hint(flat_folder_boundary_hint.clone());
         let exact_doc = exact_solved.as_ref().map(|exact| {
@@ -1021,15 +998,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .with_flat_folder_boundary_hint(flat_folder_boundary_hint.clone())
         });
 
-        let legacy = output_metrics(
-            &legacy_doc,
-            &gt_segments,
-            &gt_eval_graph,
-            sample.image_size,
-            args.match_tolerance_px,
-            args.strict_vertex_tolerance_px,
-            verify_options,
-        )?;
         let selected = output_metrics(
             &selected_doc,
             &gt_segments,
@@ -1096,7 +1064,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             profile: sample.profile.clone(),
             bucket: sample.bucket.clone(),
             gt_edges: gt_segments.len(),
-            legacy,
             selected,
             exact_solved: exact_output,
             selection: SelectionSummary {
@@ -1128,7 +1095,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             serde_json::to_string(&json!({
                 "id": row.id,
                 "seconds": row.seconds,
-                "legacy_f1": row.legacy.edge_metrics.f1,
                 "selected_f1": row.selected.edge_metrics.f1,
                 "exact_f1": row.exact_solved.edge_metrics.f1,
                 "exact_status": row.exact_solve.status,
@@ -1197,8 +1163,10 @@ impl Args {
     fn parse() -> Result<Self, Box<dyn std::error::Error>> {
         let mut dense_manifest = None;
         let mut out = None;
-        let mut candidate_source = "legacy".to_owned();
-        let mut line_evidence_source = "model".to_owned();
+        let mut candidate_source =
+            oristudio_cp_detect::defaults::DEFAULT_CANDIDATE_SOURCE.to_owned();
+        let mut line_evidence_source =
+            oristudio_cp_detect::defaults::DEFAULT_LINE_EVIDENCE_SOURCE.to_owned();
         let mut junction_evidence_source = JunctionEvidenceSource::Model;
         let mut gt_junction_labels = false;
         let mut gt_vertices = false;
@@ -1365,8 +1333,11 @@ impl Args {
                 other => return Err(format!("unknown argument: {other}").into()),
             }
         }
-        let dense_manifest =
-            dense_manifest.unwrap_or_else(|| PathBuf::from(DEFAULT_DENSE_MANIFEST));
+        let dense_manifest = dense_manifest.ok_or_else(|| {
+            "--dense-manifest <PATH> is required (no silent default: a bare run must \
+             not measure an arbitrary model's cache)"
+                .to_string()
+        })?;
         // Default junction-first offset-cluster decoding to the radius the product
         // ships, so the benchmark and product cannot diverge on decode. Explicit
         // --junction-first-offset-cluster-radius-px still wins; other candidate
@@ -2504,13 +2475,6 @@ fn regression_lines(rows: &[BenchmarkSample]) -> Result<String, serde_json::Erro
         push_regression(
             &mut lines,
             &row.id,
-            "selected_vs_legacy_edge_f1",
-            row.legacy.edge_metrics.f1,
-            row.selected.edge_metrics.f1,
-        )?;
-        push_regression(
-            &mut lines,
-            &row.id,
             "exact_vs_selected_edge_f1",
             row.selected.edge_metrics.f1,
             row.exact_solved.edge_metrics.f1,
@@ -2615,7 +2579,7 @@ fn summary_markdown(summary: &BenchmarkSummary) -> String {
 
 fn report_readme(summary: &BenchmarkSummary) -> String {
     format!(
-        "# {}\n\nGenerated by `compare_exact_solve_benchmark`.\n\nThis directory compares frozen legacy decode, Stage 5 selected graph, and Stage 6 exact-solved graph from the same dense cache.\n\nFiles:\n\n- `summary.json`: aggregate machine-readable metrics, including `strict_topology` from `oristudio-cp-eval`.\n- `summary.md`: human-readable aggregate table.\n- `per_sample.jsonl`: one full metrics record per sample.\n- `regressions.jsonl`: metric regressions detected by the benchmark.\n\nStrict topology is the tight graph-isomorphism-style metric: predicted vertices must match GT vertices within `strict_vertex_tolerance_px`, predicted endpoint pairs must exactly correspond to GT edges, and assignments must match on those strict edges.\n\nConfig:\n\n```json\n{}\n```\n",
+        "# {}\n\nGenerated by `compare_exact_solve_benchmark`.\n\nThis directory compares the Stage 5 selected graph and the Stage 6 exact-solved graph from the same dense cache.\n\nFiles:\n\n- `summary.json`: aggregate machine-readable metrics, including `strict_topology` from `oristudio-cp-eval`.\n- `summary.md`: human-readable aggregate table.\n- `per_sample.jsonl`: one full metrics record per sample.\n- `regressions.jsonl`: metric regressions detected by the benchmark.\n\nStrict topology is the tight graph-isomorphism-style metric: predicted vertices must match GT vertices within `strict_vertex_tolerance_px`, predicted endpoint pairs must exactly correspond to GT edges, and assignments must match on those strict edges.\n\nConfig:\n\n```json\n{}\n```\n",
         SCHEMA,
         serde_json::to_string_pretty(&summary.config).unwrap_or_else(|_| "{}".to_owned())
     )

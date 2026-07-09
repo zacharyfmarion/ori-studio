@@ -1,3 +1,8 @@
+import {
+  CP_DETECT_DEFAULT_JUNCTION_SOURCE as GENERATED_DEFAULT_JUNCTION_SOURCE,
+  CP_DETECT_DEFAULT_LINE_EVIDENCE_SOURCE as GENERATED_DEFAULT_LINE_EVIDENCE_SOURCE,
+} from '../generated/cpDetectDefaults.generated';
+
 export type CpDetectStatus =
   | 'valid'
   | 'repaired'
@@ -15,8 +20,18 @@ export type CpDetectVertexRefinerProposalMode = 'full-coverage' | 'dense-junctio
 // recovery over the dense head and is worse at close pairs, while adding a model
 // download + forward pass. Default to the dense head everywhere.
 // See research/2026-06-30-native-cp-junction-and-exact-solve-bottlenecks.md.
-export const CP_DETECT_DEFAULT_JUNCTION_SOURCE: CpDetectJunctionSource = 'dense-model';
-export const CP_DETECT_DEFAULT_LINE_EVIDENCE_SOURCE: CpDetectLineEvidenceSource = 'source-image';
+//
+// These defaults are the SINGLE SOURCE OF TRUTH in Rust
+// (crates/oristudio-cp-detect/src/defaults.rs) and are code-generated into
+// src/generated/cpDetectDefaults.generated.ts on every `build:wasm`
+// (gitignored, so never stale). The typed assignment below also fails
+// typecheck if Rust ever emits a value outside these unions — and the
+// wasm-parity test (cpDetectDefaults.test.ts) asserts the generated values
+// match what the product wasm reports.
+export const CP_DETECT_DEFAULT_JUNCTION_SOURCE: CpDetectJunctionSource =
+  GENERATED_DEFAULT_JUNCTION_SOURCE;
+export const CP_DETECT_DEFAULT_LINE_EVIDENCE_SOURCE: CpDetectLineEvidenceSource =
+  GENERATED_DEFAULT_LINE_EVIDENCE_SOURCE;
 export const CP_DETECT_DEFAULT_VERTEX_REFINER_PROPOSAL_MODE: CpDetectVertexRefinerProposalMode =
   'dense-junction-regions';
 export const CP_DETECT_DEFAULT_VERTEX_REFINER_DENSE_REGION_JUNCTION_THRESHOLD = 0.35;
