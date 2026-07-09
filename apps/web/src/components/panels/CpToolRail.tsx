@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import {
   AlignJustify,
   BadgeAlert,
@@ -294,7 +295,7 @@ const CP_TOOL_ICON_BY_ACTION = Object.fromEntries(
   ORISTUDIO_CP_ACTIONS.map((action) => [action.id, commandIcon(action.icon)])
 ) as Partial<Record<OristudioCpActionId, LucideIcon>>;
 
-export function CpToolRail({
+export const CpToolRail = memo(function CpToolRail({
   activeActionId,
   activeLineColor,
   editable,
@@ -338,9 +339,9 @@ export function CpToolRail({
       </div>
     </aside>
   );
-}
+});
 
-function CpToolButton({
+const CpToolButton = memo(function CpToolButton({
   action,
   editable,
   isActive,
@@ -401,7 +402,7 @@ function CpToolButton({
       <TooltipContent side="right">{title}</TooltipContent>
     </Tooltip>
   );
-}
+});
 
 function commandIcon(icon: string): LucideIcon {
   const aliased = ICON_ALIASES[icon];

@@ -1,4 +1,5 @@
 import {
+  memo,
   useCallback,
   useEffect,
   useMemo,
@@ -6,6 +7,7 @@ import {
   useState,
   type CSSProperties,
   type Dispatch,
+  type MouseEvent as ReactMouseEvent,
   type MutableRefObject,
   type PointerEvent,
   type RefObject,
@@ -2719,6 +2721,9 @@ export function CreasePatternPanel() {
 
   const handleViewportPanStop = useCallback(() => {
     viewportPanningRef.current = false;
+    // Grid regeneration was frozen during the gesture; refill it for the final
+    // viewport now that panning has ended.
+    gridSyncRef.current?.();
   }, []);
 
   // Erase the crease nearest a model-space point (Oriedita right-drag delete).
@@ -4252,6 +4257,7 @@ export function CreasePatternPanel() {
                         grid={editableCpVisibleGrid}
                         gridFallbackBounds={editableCpFallbackGridBounds}
                         gridSyncRef={gridSyncRef}
+                        gridPanningRef={viewportPanningRef}
                         gridVisible={oristudioCpViewport.gridVisible}
                         importedFoldedForms={importedFoldedForms}
                         mode={mode}
@@ -4437,9 +4443,12 @@ export function CreasePatternPanel() {
   );
 }
 
-// Extra viewport shown around the visible region so short pans reuse the cached
-// grid instead of revealing an ungridded edge before the next recompute.
-const GRID_VIEWPORT_MARGIN_RATIO = 0.35;
+// Extra viewport shown around the visible region so pans reuse the cached grid
+// instead of revealing an ungridded edge before the next recompute. Widened
+// because grid regeneration is now frozen during an active pan gesture (it
+// re-rasterizes the layer), so this margin is the buffer the drag pans into
+// before the grid is refilled on pan-stop.
+const GRID_VIEWPORT_MARGIN_RATIO = 0.75;
 // Snap the generation region outward to this fraction of its span so small pans
 // resolve to the same coverage key and skip regeneration.
 const GRID_SNAP_STEP_RATIO = 0.2;
@@ -4508,6 +4517,7 @@ interface OrieditaInfiniteGridProps {
   svgRef: RefObject<SVGSVGElement | null>;
   viewportRef: RefObject<HTMLElement | null>;
   syncRef: MutableRefObject<(() => void) | null>;
+  isPanningRef: MutableRefObject<boolean>;
 }
 
 /**
@@ -4526,12 +4536,18 @@ function OrieditaInfiniteGrid({
   svgRef,
   viewportRef,
   syncRef,
+  isPanningRef,
 }: OrieditaInfiniteGridProps) {
   const [lines, setLines] = useState<CpGridLine[]>([]);
   const coverageKeyRef = useRef<string | null>(null);
   const frameRef = useRef<number | null>(null);
 
   const recompute = useCallback(() => {
+    // Freeze regeneration during an active pan gesture: rebuilding the grid's
+    // DOM re-rasterizes the promoted crease layer and costs a frame. The margin
+    // around the visible region keeps the grid covering the viewport while
+    // dragging, and the parent forces one recompute on pan-stop.
+    if (isPanningRef.current) return;
     const visible = visibleModelGridBounds(svgRef.current, viewportRef.current, svgToModel);
     const snapped = snapModelGridBounds(visible ?? fallbackBounds);
     const key = [
@@ -4549,7 +4565,7 @@ function OrieditaInfiniteGrid({
     if (key === coverageKeyRef.current) return;
     coverageKeyRef.current = key;
     setLines(orieditaGridLinesForModelBounds(snapped, grid));
-  }, [fallbackBounds, grid, svgRef, svgToModel, viewportRef]);
+  }, [fallbackBounds, grid, isPanningRef, svgRef, svgToModel, viewportRef]);
 
   const scheduleRecompute = useCallback(() => {
     if (frameRef.current != null) return;
@@ -4593,13 +4609,13 @@ function OrieditaInfiniteGrid({
   );
 
   return (
-    <>
+    <g className="cp-grid-layer">
       {lines.map((line) => {
         const a = modelToSvg(line.a);
         const b = modelToSvg(line.b);
         return <line key={line.id} className="cp-grid-line" x1={a.x} y1={a.y} x2={b.x} y2={b.y} />;
       })}
-    </>
+    </g>
   );
 }
 
@@ -4612,6 +4628,7 @@ interface EditableCreasePatternProps {
   grid: OristudioCpGridMetadata | null;
   gridFallbackBounds: CpModelBounds;
   gridSyncRef: MutableRefObject<(() => void) | null>;
+  gridPanningRef: MutableRefObject<boolean>;
   gridVisible: boolean;
   importedFoldedForms: FoldDocument[];
   mode: 'mvf' | 'agrh';
@@ -4649,6 +4666,279 @@ interface EditableCreasePatternProps {
   vertices: CpVertex[];
 }
 
+// Static crease geometry is split into memoized layers so panning (which only
+// touches cursor/snap/grid state) never re-reconciles the hundreds of SVG nodes
+// below. Each layer only re-renders when its own geometry or selection changes,
+// uses O(1) Set lookups for the selected/highlighted classes (instead of a
+// per-node Array.includes scan), and delegates click handling to a single group
+// handler (instead of a fresh closure per node).
+const CreaseLines = memo(function CreaseLines({
+  lineSegments,
+  modelToSvg,
+  mode,
+  selectedLineIds,
+  highlightedLineIds,
+  spacePressed,
+  onToggleLine,
+}: {
+  lineSegments: OristudioCpDocumentSnapshot['crease_pattern']['line_segments'];
+  modelToSvg: (point: Point) => Point;
+  mode: 'mvf' | 'agrh';
+  selectedLineIds: readonly number[];
+  highlightedLineIds: readonly number[];
+  spacePressed: boolean;
+  onToggleLine: (id: number, additive?: boolean) => void;
+}) {
+  const selectedSet = useMemo(() => new Set(selectedLineIds), [selectedLineIds]);
+  const highlightedSet = useMemo(() => new Set(highlightedLineIds), [highlightedLineIds]);
+  const handleClick = useCallback(
+    (event: ReactMouseEvent<SVGGElement>) => {
+      if (spacePressed) return;
+      const target = (event.target as Element).closest?.(
+        '[data-cp-line-hit-id],[data-cp-line-id]'
+      );
+      const raw =
+        target?.getAttribute('data-cp-line-hit-id') ?? target?.getAttribute('data-cp-line-id');
+      if (!raw) return;
+      event.stopPropagation();
+      onToggleLine(Number(raw), event.shiftKey || event.metaKey || event.ctrlKey);
+    },
+    [onToggleLine, spacePressed]
+  );
+  return (
+    <g onClick={handleClick}>
+      {lineSegments.map((line, index) => {
+        const id = index + 1;
+        const a = modelToSvg(line.a);
+        const b = modelToSvg(line.b);
+        const selected = selectedSet.has(id) || highlightedSet.has(id);
+        return (
+          <g key={id}>
+            <line
+              className="cp-line-hit-target"
+              data-cp-line-hit-id={id}
+              x1={a.x}
+              y1={a.y}
+              x2={b.x}
+              y2={b.y}
+              aria-label={`Editable ${cpLineAssignmentLabel(line.color)} line ${id} hit target`}
+            />
+            <line
+              className={[
+                cpLineColorClass(line.color, mode),
+                selected ? 'crease--selected' : '',
+              ].join(' ')}
+              data-cp-line-id={id}
+              data-cp-line-color={cpLineStyleColorKind(line.color)}
+              x1={a.x}
+              y1={a.y}
+              x2={b.x}
+              y2={b.y}
+              aria-label={`Editable ${cpLineAssignmentLabel(line.color)} line ${id}`}
+            />
+          </g>
+        );
+      })}
+    </g>
+  );
+});
+
+const CreasePoints = memo(function CreasePoints({
+  points,
+  modelToSvg,
+  selectedPointIds,
+  spacePressed,
+  onTogglePoint,
+}: {
+  points: OristudioCpDocumentSnapshot['crease_pattern']['points'];
+  modelToSvg: (point: Point) => Point;
+  selectedPointIds: readonly number[];
+  spacePressed: boolean;
+  onTogglePoint: (id: number, additive?: boolean) => void;
+}) {
+  const selectedSet = useMemo(() => new Set(selectedPointIds), [selectedPointIds]);
+  const handleClick = useCallback(
+    (event: ReactMouseEvent<SVGGElement>) => {
+      if (spacePressed) return;
+      const raw = (event.target as Element)
+        .closest?.('[data-cp-point-id]')
+        ?.getAttribute('data-cp-point-id');
+      if (!raw) return;
+      event.stopPropagation();
+      onTogglePoint(Number(raw), event.shiftKey || event.metaKey || event.ctrlKey);
+    },
+    [onTogglePoint, spacePressed]
+  );
+  return (
+    <g onClick={handleClick}>
+      {points.map((point, index) => {
+        const id = index + 1;
+        const svgPoint = modelToSvg(point);
+        return (
+          <circle
+            key={id}
+            className={['cp-point', selectedSet.has(id) ? 'cp-point--selected' : ''].join(' ')}
+            data-cp-point-id={id}
+            cx={svgPoint.x}
+            cy={svgPoint.y}
+            r="4"
+          />
+        );
+      })}
+    </g>
+  );
+});
+
+const CreaseCircles = memo(function CreaseCircles({
+  circles,
+  modelToSvg,
+  circleRadiusToSvg,
+  selectedCircleIds,
+  spacePressed,
+  onToggleCircle,
+}: {
+  circles: OristudioCpDocumentSnapshot['crease_pattern']['circles'];
+  modelToSvg: (point: Point) => Point;
+  circleRadiusToSvg: (radius: number) => number;
+  selectedCircleIds: readonly number[];
+  spacePressed: boolean;
+  onToggleCircle: (id: number, additive?: boolean) => void;
+}) {
+  const selectedSet = useMemo(() => new Set(selectedCircleIds), [selectedCircleIds]);
+  const handleClick = useCallback(
+    (event: ReactMouseEvent<SVGGElement>) => {
+      if (spacePressed) return;
+      const raw = (event.target as Element)
+        .closest?.('[data-cp-circle-id]')
+        ?.getAttribute('data-cp-circle-id');
+      if (!raw) return;
+      event.stopPropagation();
+      onToggleCircle(Number(raw), event.shiftKey || event.metaKey || event.ctrlKey);
+    },
+    [onToggleCircle, spacePressed]
+  );
+  return (
+    <g onClick={handleClick}>
+      {circles.map((circle, index) => {
+        const id = index + 1;
+        const center = modelToSvg({ x: circle.x, y: circle.y });
+        const radius = circleRadiusToSvg(circle.r);
+        return (
+          <circle
+            key={id}
+            className={['cp-circle', selectedSet.has(id) ? 'cp-circle--selected' : ''].join(' ')}
+            data-cp-circle-id={id}
+            cx={center.x}
+            cy={center.y}
+            r={Math.max(1, radius)}
+          />
+        );
+      })}
+    </g>
+  );
+});
+
+const CreaseTexts = memo(function CreaseTexts({
+  texts,
+  modelToSvg,
+  selectedTextIds,
+  spacePressed,
+  onToggleText,
+}: {
+  texts: OristudioCpDocumentSnapshot['crease_pattern']['texts'];
+  modelToSvg: (point: Point) => Point;
+  selectedTextIds: readonly number[];
+  spacePressed: boolean;
+  onToggleText: (id: number, additive?: boolean) => void;
+}) {
+  const selectedSet = useMemo(() => new Set(selectedTextIds), [selectedTextIds]);
+  const handleClick = useCallback(
+    (event: ReactMouseEvent<SVGGElement>) => {
+      if (spacePressed) return;
+      const raw = (event.target as Element)
+        .closest?.('[data-cp-text-id]')
+        ?.getAttribute('data-cp-text-id');
+      if (!raw) return;
+      event.stopPropagation();
+      onToggleText(Number(raw), event.shiftKey || event.metaKey || event.ctrlKey);
+    },
+    [onToggleText, spacePressed]
+  );
+  return (
+    <g onClick={handleClick}>
+      {texts.map((text, index) => {
+        const id = index + 1;
+        const position = modelToSvg({ x: textCoordinate(text.x), y: textCoordinate(text.y) });
+        return (
+          <text
+            key={id}
+            className={['cp-text', selectedSet.has(id) ? 'cp-text--selected' : ''].join(' ')}
+            data-cp-text-id={id}
+            x={position.x}
+            y={position.y}
+          >
+            {text.text}
+          </text>
+        );
+      })}
+    </g>
+  );
+});
+
+const CreaseVertices = memo(function CreaseVertices({
+  vertices,
+  modelToSvg,
+  selectedVertexIds,
+  spacePressed,
+  onToggleVertex,
+}: {
+  vertices: CpVertex[];
+  modelToSvg: (point: Point) => Point;
+  selectedVertexIds: readonly string[] | undefined;
+  spacePressed: boolean;
+  onToggleVertex: (id: string, additive?: boolean) => void;
+}) {
+  const selectedSet = useMemo(() => new Set(selectedVertexIds ?? []), [selectedVertexIds]);
+  const handleClick = useCallback(
+    (event: ReactMouseEvent<SVGGElement>) => {
+      if (spacePressed) return;
+      const raw = (event.target as Element)
+        .closest?.('[data-cp-vertex-id]')
+        ?.getAttribute('data-cp-vertex-id');
+      if (!raw) return;
+      event.stopPropagation();
+      onToggleVertex(raw, event.shiftKey || event.metaKey || event.ctrlKey);
+    },
+    [onToggleVertex, spacePressed]
+  );
+  return (
+    <g onClick={handleClick}>
+      {vertices.map((vertex) => {
+        const svgPoint = modelToSvg(vertex.point);
+        const selected = selectedSet.has(vertex.id);
+        return (
+          <g key={vertex.id} data-cp-vertex-id={vertex.id}>
+            <circle
+              className="cp-vertex-hit-target"
+              cx={svgPoint.x}
+              cy={svgPoint.y}
+              r="7"
+              aria-label={`Editable vertex at ${formatNumber(vertex.point.x, 2)}, ${formatNumber(vertex.point.y, 2)}`}
+            />
+            <circle
+              className={['cp-vertex', selected ? 'cp-vertex--selected' : ''].join(' ')}
+              cx={svgPoint.x}
+              cy={svgPoint.y}
+              r="3.2"
+              aria-hidden="true"
+            />
+          </g>
+        );
+      })}
+    </g>
+  );
+});
+
 function EditableCreasePattern({
   activeDiagnosticId,
   activeFoldedFigureId,
@@ -4658,6 +4948,7 @@ function EditableCreasePattern({
   grid,
   gridFallbackBounds,
   gridSyncRef,
+  gridPanningRef,
   gridVisible,
   importedFoldedForms,
   mode,
@@ -4702,51 +4993,18 @@ function EditableCreasePattern({
           svgRef={svgRef}
           viewportRef={viewportRef}
           syncRef={gridSyncRef}
+          isPanningRef={gridPanningRef}
         />
       )}
-      {document.crease_pattern.line_segments.map((line, index) => {
-        const id = index + 1;
-        const a = modelToSvg(line.a);
-        const b = modelToSvg(line.b);
-        return (
-          <g key={id}>
-            <line
-              className="cp-line-hit-target"
-              data-cp-line-hit-id={id}
-              x1={a.x}
-              y1={a.y}
-              x2={b.x}
-              y2={b.y}
-              aria-label={`Editable ${cpLineAssignmentLabel(line.color)} line ${id} hit target`}
-              onClick={(event) => {
-                if (spacePressed) return;
-                event.stopPropagation();
-                toggleLine(id, event.shiftKey || event.metaKey || event.ctrlKey);
-              }}
-            />
-            <line
-              className={[
-                cpLineColorClass(line.color, mode),
-                selection.lines.includes(id) || highlightedLineIds.includes(id)
-                  ? 'crease--selected'
-                  : '',
-              ].join(' ')}
-              data-cp-line-id={id}
-              data-cp-line-color={cpLineStyleColorKind(line.color)}
-              x1={a.x}
-              y1={a.y}
-              x2={b.x}
-              y2={b.y}
-              aria-label={`Editable ${cpLineAssignmentLabel(line.color)} line ${id}`}
-              onClick={(event) => {
-                if (spacePressed) return;
-                event.stopPropagation();
-                toggleLine(id, event.shiftKey || event.metaKey || event.ctrlKey);
-              }}
-            />
-          </g>
-        );
-      })}
+      <CreaseLines
+        lineSegments={document.crease_pattern.line_segments}
+        modelToSvg={modelToSvg}
+        mode={mode}
+        selectedLineIds={selection.lines}
+        highlightedLineIds={highlightedLineIds}
+        spacePressed={spacePressed}
+        onToggleLine={toggleLine}
+      />
       {selectionTransformPreview?.segments.map((segment, index) => {
         const a = modelToSvg(segment.a);
         const b = modelToSvg(segment.b);
@@ -4764,51 +5022,21 @@ function EditableCreasePattern({
           />
         );
       })}
-      {document.crease_pattern.points.map((point, index) => {
-        const id = index + 1;
-        const svgPoint = modelToSvg(point);
-        return (
-          <circle
-            key={id}
-            className={[
-              'cp-point',
-              selection.points.includes(id) ? 'cp-point--selected' : '',
-            ].join(' ')}
-            data-cp-point-id={id}
-            cx={svgPoint.x}
-            cy={svgPoint.y}
-            r="4"
-            onClick={(event) => {
-              if (spacePressed) return;
-              event.stopPropagation();
-              togglePoint(id, event.shiftKey || event.metaKey || event.ctrlKey);
-            }}
-          />
-        );
-      })}
-      {document.crease_pattern.circles.map((circle, index) => {
-        const id = index + 1;
-        const center = modelToSvg({ x: circle.x, y: circle.y });
-        const radius = circleRadiusToSvg(circle.r);
-        return (
-          <circle
-            key={id}
-            className={[
-              'cp-circle',
-              selection.circles.includes(id) ? 'cp-circle--selected' : '',
-            ].join(' ')}
-            data-cp-circle-id={id}
-            cx={center.x}
-            cy={center.y}
-            r={Math.max(1, radius)}
-            onClick={(event) => {
-              if (spacePressed) return;
-              event.stopPropagation();
-              toggleCircle(id, event.shiftKey || event.metaKey || event.ctrlKey);
-            }}
-          />
-        );
-      })}
+      <CreasePoints
+        points={document.crease_pattern.points}
+        modelToSvg={modelToSvg}
+        selectedPointIds={selection.points}
+        spacePressed={spacePressed}
+        onTogglePoint={togglePoint}
+      />
+      <CreaseCircles
+        circles={document.crease_pattern.circles}
+        modelToSvg={modelToSvg}
+        circleRadiusToSvg={circleRadiusToSvg}
+        selectedCircleIds={selection.circles}
+        spacePressed={spacePressed}
+        onToggleCircle={toggleCircle}
+      />
       {commandPreviewCircles.map((circle, index) => {
         const center = modelToSvg({ x: circle.x, y: circle.y });
         const radius = circleRadiusToSvg(circle.r);
@@ -4858,28 +5086,13 @@ function EditableCreasePattern({
           );
         });
       })}
-      {document.crease_pattern.texts.map((text, index) => {
-        const id = index + 1;
-        const position = modelToSvg({ x: textCoordinate(text.x), y: textCoordinate(text.y) });
-        return (
-          <text
-            key={id}
-            className={['cp-text', selection.texts.includes(id) ? 'cp-text--selected' : ''].join(
-              ' '
-            )}
-            data-cp-text-id={id}
-            x={position.x}
-            y={position.y}
-            onClick={(event) => {
-              if (spacePressed) return;
-              event.stopPropagation();
-              toggleText(id, event.shiftKey || event.metaKey || event.ctrlKey);
-            }}
-          >
-            {text.text}
-          </text>
-        );
-      })}
+      <CreaseTexts
+        texts={document.crease_pattern.texts}
+        modelToSvg={modelToSvg}
+        selectedTextIds={selection.texts}
+        spacePressed={spacePressed}
+        onToggleText={toggleText}
+      />
       <GeneratedFoldedFiguresLayer
         activeFigureId={activeFoldedFigureId}
         figures={generatedFoldedFigures}
@@ -4889,36 +5102,13 @@ function EditableCreasePattern({
         frames={importedFoldedForms}
         startIndex={generatedFoldedFigures.filter(isRenderableGeneratedFoldedFigure).length}
       />
-      {vertices.map((vertex) => {
-        const svgPoint = modelToSvg(vertex.point);
-        const selected = selection.vertices?.includes(vertex.id) ?? false;
-        return (
-          <g
-            key={vertex.id}
-            data-cp-vertex-id={vertex.id}
-            onClick={(event) => {
-              if (spacePressed) return;
-              event.stopPropagation();
-              toggleVertex(vertex.id, event.shiftKey || event.metaKey || event.ctrlKey);
-            }}
-          >
-            <circle
-              className="cp-vertex-hit-target"
-              cx={svgPoint.x}
-              cy={svgPoint.y}
-              r="7"
-              aria-label={`Editable vertex at ${formatNumber(vertex.point.x, 2)}, ${formatNumber(vertex.point.y, 2)}`}
-            />
-            <circle
-              className={['cp-vertex', selected ? 'cp-vertex--selected' : ''].join(' ')}
-              cx={svgPoint.x}
-              cy={svgPoint.y}
-              r="3.2"
-              aria-hidden="true"
-            />
-          </g>
-        );
-      })}
+      <CreaseVertices
+        vertices={vertices}
+        modelToSvg={modelToSvg}
+        selectedVertexIds={selection.vertices}
+        spacePressed={spacePressed}
+        onToggleVertex={toggleVertex}
+      />
       {diagnostics.map((diagnostic) => (
         <DiagnosticPointMarker
           key={`${diagnostic.id}-point`}
