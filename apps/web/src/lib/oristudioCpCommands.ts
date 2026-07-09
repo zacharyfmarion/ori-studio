@@ -366,14 +366,16 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     toolSteps: ['Pick spine start point', 'Pick spine end point'],
   }),
   ready('CreaseMakeMv', 'Make alternating M/V', 'color', 'git-branch', 'MouseHandlerCreaseMakeMV', {
-    toolSteps: ['Pick guide start point', 'Pick guide end point'],
+    toolSteps: ['Drag a guide line along the creases'],
+    inputMode: 'drag-line',
     tooltip: 'Assign alternating mountain and valley folds along a guide line',
   }),
   ready('DoubleSymmetricDraw', 'Double symmetric draw', 'construct', 'fold-horizontal', 'MouseHandlerDoubleSymmetricDraw', {
     toolSteps: ['Pick symmetry axis start', 'Pick symmetry axis end'],
   }),
   ready('CreasesAlternateMv', 'Alternate crossing M/V', 'color', 'shuffle', 'MouseHandlerCreasesAlternateMV', {
-    toolSteps: ['Pick guide start point', 'Pick guide end point'],
+    toolSteps: ['Drag a guide line across the crossings'],
+    inputMode: 'drag-line',
     tooltip: 'Assign alternating mountain and valley folds to crossings along a guide line',
   }),
   ready('DrawCreaseAngleRestricted5', 'Angle restricted 5 crease', 'construct', 'chart-pie', 'MouseHandlerDrawCreaseAngleRestricted5', {

@@ -203,6 +203,7 @@ const ORIEDITA_ICON_GLYPHS: Partial<Record<string, string>> = {
   fixInaccurateAction: '\uE089',
   foldableLineDrawAction: '\uE00D',
   foldableLinePlusGridInputAction: '\uE00D',
+  in_L_col_changeAction: '\uE01D',
   lengthenCreaseAction: '\uE004',
   lengthenCrease2Action: '\uE005',
   move2p2pAction: '\uE062',
