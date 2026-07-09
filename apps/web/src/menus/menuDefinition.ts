@@ -1,7 +1,6 @@
 import type { MenuActionId } from '../commands/menuActions';
 import { shortcutLabelForAction, type ShortcutOverrides } from '../keyboard/shortcuts';
 import { EXAMPLE_PROJECTS } from '../examples/catalog';
-import type { RecentProject } from '../store/workspaceStore/types';
 
 export type MenuActionItem = {
   type: 'action';
@@ -12,9 +11,9 @@ export type MenuActionItem = {
 
 /**
  * A menu entry whose id is not part of the static {@link MenuActionId} union —
- * used for data-driven items such as recent files and examples, where the id
- * carries a payload (e.g. `file.openRecent:<id>`). The shared dispatcher handles
- * these by prefix. No capability lookup is performed.
+ * used for data-driven items such as examples, where the id carries a payload
+ * (e.g. `file.openExample:<id>`). The shared dispatcher handles these by prefix.
+ * No capability lookup is performed.
  */
 export type MenuCommandItem = {
   type: 'command';
@@ -44,18 +43,6 @@ function shortcut(id: MenuActionId, overrides?: ShortcutOverrides): string | und
   return shortcutLabelForAction(id, overrides);
 }
 
-/** Build the `Open Recent ▸` submenu items from stored recent projects. */
-function recentProjectItems(recentProjects: RecentProject[]): MenuItemDef[] {
-  if (recentProjects.length === 0) {
-    return [{ type: 'command', actionId: '', label: 'No recent files', disabled: true }];
-  }
-  return recentProjects.map((project) => ({
-    type: 'command',
-    actionId: `file.openRecent:${project.id}`,
-    label: project.title || project.filename,
-  }));
-}
-
 /** Build the `Examples ▸` submenu items from the checked-in example catalog. */
 function exampleProjectItems(): MenuItemDef[] {
   return EXAMPLE_PROJECTS.map((example) => ({
@@ -66,8 +53,7 @@ function exampleProjectItems(): MenuItemDef[] {
 }
 
 export function getMenuBarDef(
-  overrides?: ShortcutOverrides,
-  recentProjects: RecentProject[] = []
+  overrides?: ShortcutOverrides
 ): MenuDef[] {
   return [
     {
@@ -77,7 +63,6 @@ export function getMenuBarDef(
         { type: 'action', id: 'file.open', label: 'Open...', shortcut: shortcut('file.open', overrides) },
         { type: 'action', id: 'file.importAdd', label: 'Import (Add)...' },
         { type: 'action', id: 'file.detectCpImage', label: 'Detect CP from Image...' },
-        { type: 'submenu', label: 'Open Recent', items: recentProjectItems(recentProjects) },
         { type: 'submenu', label: 'Examples', items: exampleProjectItems() },
         { type: 'separator' },
         { type: 'action', id: 'file.save', label: 'Save', shortcut: shortcut('file.save', overrides) },

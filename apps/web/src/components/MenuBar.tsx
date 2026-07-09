@@ -3,7 +3,6 @@ import { ChevronRight } from 'lucide-react';
 import { handleMenuAction } from '../commands/menuActions';
 import { getMenuBarDef, type MenuItemDef } from '../menus/menuDefinition';
 import { useShortcutStore } from '../store/shortcutStore';
-import { useWorkspaceStore } from '../store/workspaceStore';
 import { useWorkspaceCapabilities } from '../store/workspaceStore/useWorkspaceCapabilities';
 import type { WorkspaceCapabilities, WorkspaceCapabilityId } from '../lib/workspaceCapabilities';
 import './MenuBar.css';
@@ -118,10 +117,9 @@ export function MenuBar() {
   const [openMenu, setOpenMenu] = useState<number | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const shortcutOverrides = useShortcutStore((state) => state.overrides);
-  const recentProjects = useWorkspaceStore((state) => state.recentProjects);
   const menuDef = useMemo(
-    () => getMenuBarDef(shortcutOverrides, recentProjects),
-    [shortcutOverrides, recentProjects]
+    () => getMenuBarDef(shortcutOverrides),
+    [shortcutOverrides]
   );
   const capabilities = useWorkspaceCapabilities();
 

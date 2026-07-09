@@ -47,14 +47,6 @@ import type { OristudioCpActionId } from '../../lib/oristudioCpActions';
 import type { CpLineClipboardPayload, CpSelectionTransform } from '../../lib/creasePatternClipboard';
 import type { OristudioCpLineage } from '../../lib/oristudioCpLineage';
 
-export interface RecentProject {
-  id: string;
-  title: string;
-  filename: string;
-  savedAt: string;
-  text: string;
-}
-
 export interface OristudioCpHistoryEntry {
   document: OristudioCpDocumentSnapshot;
   selection: OristudioCpSelection;
@@ -83,7 +75,6 @@ export interface ProjectSliceState {
   currentFilePath: string | null;
   currentFileName: string;
   projectMessage: string | null;
-  recentProjects: RecentProject[];
   status: AppStatus;
   dirty: boolean;
   engineReady: boolean;
@@ -141,8 +132,6 @@ export interface ProjectSliceActions {
   exportSvg: (fileService?: FileService, options?: CreaseExportOptions) => Promise<boolean>;
   exportPng: (fileService?: FileService, options?: CreaseExportOptions) => Promise<boolean>;
   loadExampleProject: (id: string) => Promise<void>;
-  loadRecentProject: (id: string) => Promise<void>;
-  autosaveProject: () => Promise<void>;
   clearProjectMessage: () => void;
   setActiveEditingSurface: (surface: DocumentMode) => void;
 }

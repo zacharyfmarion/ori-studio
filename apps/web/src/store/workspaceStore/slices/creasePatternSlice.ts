@@ -335,7 +335,6 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           : get().designViewportFitRequestId,
       });
       get().commitHistoryCheckpoint(checkpoint, label);
-      void get().autosaveProject();
     } catch (error) {
       set({ status: 'error', error: engineError(error) });
     }
@@ -482,7 +481,6 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           projectMessage: 'Built crease pattern',
         });
         get().commitHistoryCheckpoint(checkpoint, 'Build crease pattern');
-        void get().autosaveProject();
         useLayoutStore.getState().activateWorkspace('edit');
       } catch (error) {
         set({ status: 'error', error: engineError(error) });

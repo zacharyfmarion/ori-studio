@@ -203,6 +203,23 @@ encounter unexpected changes, new files, or errors that you did not introduce,
 ignore unrelated changes and move on. Do not delete, revert, or fix another
 agent's work unless the user explicitly asks you to work in that area.
 
+### Worktree paths
+
+Agents often run inside a git worktree whose working directory is nested under
+`.claude/worktrees/<name>/`. That worktree is the checkout you must edit. The
+main checkout sits at the parent path (`.../tree-maker-rust/`) and is a separate,
+writable checkout on its own branch — so an absolute path anchored to the main
+root points at a real file and edits there succeed silently, landing your work
+on the wrong branch instead of failing loudly.
+
+Before editing in a worktree session, run `git rev-parse --show-toplevel` once
+and treat that as the only path prefix. Build every Read/Edit/Write path from
+it (or pass paths relative to the shell cwd, which already points at the
+worktree). Never assemble an absolute path from a remembered repo root. Watch
+for the tell: if search tools return worktree-relative paths but you feed
+absolute ones, the two roots can diverge — that is exactly where changes leak
+into the main checkout.
+
 ## Pull requests
 
 Unless the user explicitly says otherwise, open pull requests against `main`.

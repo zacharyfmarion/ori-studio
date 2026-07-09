@@ -82,7 +82,6 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
         projectMessage: null,
       });
       get().commitHistoryCheckpoint(checkpoint, label);
-      void get().autosaveProject();
     } catch (error) {
       set({ status: 'error', error: engineError(error) });
     }
@@ -132,7 +131,6 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
           ...staleTreeDerivedArtifacts(),
         });
         get().commitHistoryCheckpoint(checkpoint, 'Add node');
-        void get().autosaveProject();
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
       }
@@ -231,7 +229,6 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
           projectMessage: addedPair ? 'Added mirrored branch' : snapped.snapped ? 'Added axial node' : null,
         });
         get().commitHistoryCheckpoint(checkpoint, addedPair ? 'Add mirrored branch' : 'Add node');
-        void get().autosaveProject();
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
       }
@@ -255,7 +252,6 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
           ...staleTreeDerivedArtifacts(),
         });
         get().commitHistoryCheckpoint(checkpoint, 'Move node');
-        void get().autosaveProject();
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
       }
@@ -293,7 +289,6 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
           ...staleTreeDerivedArtifacts(),
         });
         get().commitHistoryCheckpoint(checkpoint, 'Move mirrored nodes');
-        void get().autosaveProject();
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
       }
@@ -324,7 +319,6 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
           ...staleTreeDerivedArtifacts(),
         });
         get().commitHistoryCheckpoint(checkpoint, 'Add edge');
-        void get().autosaveProject();
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
       }
@@ -346,7 +340,6 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
           ...staleTreeDerivedArtifacts(),
         });
         get().commitHistoryCheckpoint(checkpoint, 'Rename node');
-        void get().autosaveProject();
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
       }
@@ -385,7 +378,6 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
           ...staleTreeDerivedArtifacts(),
         });
         get().commitHistoryCheckpoint(checkpoint, shouldUpdateMirror ? 'Edit mirrored edges' : 'Edit edge');
-        void get().autosaveProject();
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
       }
@@ -522,7 +514,6 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
             projectMessage: 'Cleared design',
           });
           get().commitHistoryCheckpoint(checkpoint, 'Clear design');
-          void get().autosaveProject();
           return;
         }
 
@@ -546,7 +537,6 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
           ...staleTreeDerivedArtifacts(),
         });
         get().commitHistoryCheckpoint(checkpoint, 'Delete selection');
-        void get().autosaveProject();
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
       }

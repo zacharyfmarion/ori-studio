@@ -267,7 +267,6 @@ export const createClipboardSlice: WorkspaceSliceCreator<ClipboardSlice> = (set,
         projectMessage: `Pasted ${pastedNodes.length} nodes`,
       });
       get().commitHistoryCheckpoint(checkpoint, 'Paste');
-      void get().autosaveProject();
     } catch (error) {
       set({ status: 'error', error: engineError(error) });
     }
