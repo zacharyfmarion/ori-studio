@@ -14,9 +14,11 @@ import { useLayoutStore } from '../store/layoutStore';
 import { type SettingsTab, useSettingsStore } from '../store/settingsStore';
 import { useShortcutStore } from '../store/shortcutStore';
 import { useThemeStore } from '../store/themeStore';
+import { useCpRendererStore } from '../store/cpRendererStore';
 import type { TreeMakerTheme } from '../themes';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
+import { Toggle } from './ui/Toggle';
 
 const TABS: Array<{ key: SettingsTab; label: string; icon: typeof Palette }> = [
   { key: 'appearance', label: 'Appearance', icon: Palette },
@@ -109,6 +111,8 @@ function AppearanceTab() {
 
 function WorkspaceTab() {
   const resetLayout = useLayoutStore((state) => state.resetLayout);
+  const cpRendererMode = useCpRendererStore((state) => state.mode);
+  const setCpRendererMode = useCpRendererStore((state) => state.setMode);
 
   return (
     <div className="settings-tab">
@@ -133,6 +137,22 @@ function WorkspaceTab() {
           <RotateCcw size={14} />
           Reset Workspace Layout
         </Button>
+      </section>
+      <section className="settings-section">
+        <h3 className="settings-section__title">Developer</h3>
+        <label className="settings-toggle-row">
+          <span className="settings-toggle-row__copy">
+            <span className="settings-toggle-row__label">WebGL crease-pattern renderer</span>
+            <span className="settings-toggle-row__desc">
+              Experimental GPU edit surface. Falls back to SVG if disabled.
+            </span>
+          </span>
+          <Toggle
+            checked={cpRendererMode === 'webgl'}
+            onChange={(checked) => setCpRendererMode(checked ? 'webgl' : 'svg')}
+            aria-label="WebGL crease-pattern renderer"
+          />
+        </label>
       </section>
     </div>
   );

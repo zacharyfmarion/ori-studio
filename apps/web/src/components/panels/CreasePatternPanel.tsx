@@ -174,6 +174,8 @@ import {
 } from '../../lib/selection';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { useShortcutStore } from '../../store/shortcutStore';
+import { useCpRendererStore } from '../../store/cpRendererStore';
+import { CreasePatternWebglCanvas } from '../../cp-workspace/CreasePatternWebglCanvas';
 import { IconButton } from '../ui/IconButton';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { Toggle } from '../ui/Toggle';
@@ -1478,6 +1480,7 @@ export function CreasePatternPanel() {
     (state) => state.oristudioCpActiveDiagnosticId
   );
   const oristudioCpViewport = useWorkspaceStore((state) => state.oristudioCpViewport);
+  const cpRendererMode = useCpRendererStore((state) => state.mode);
   const projectLoadId = useWorkspaceStore((state) => state.projectLoadId);
   // Crease lines always use Oriedita's default M/V/flat/border coloring; the
   // color-by toggle has been removed from the CP panel header.
@@ -4306,6 +4309,16 @@ export function CreasePatternPanel() {
                   </svg>
                 </TransformComponent>
               </TransformWrapper>
+              {cpRendererMode === 'webgl' && editableCp && (
+                <CreasePatternWebglCanvas
+                  className="cp-webgl-layer"
+                  lineSegments={editableCp.crease_pattern.line_segments}
+                  svgRef={svgRef}
+                  modelToSvg={editableModelToSvg}
+                  mode={mode}
+                  lineWidth={oristudioCpViewport.lineWidth ?? 1}
+                />
+              )}
               <ViewportToolbar
                 ariaLabel="Crease pattern viewport controls"
                 zoomPercent={zoomPercent}

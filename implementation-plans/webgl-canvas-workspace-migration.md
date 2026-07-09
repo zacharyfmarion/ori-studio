@@ -1,0 +1,421 @@
+# WebGL Canvas Workspace Migration
+
+## Goal
+
+Make the crease-pattern edit surface feel instant — no perceived latency — even
+with dense crease patterns and, ultimately, a Figma-class workspace holding on
+the order of **100 crease patterns plus 100 folded figures** on one infinite
+surface. Concretely:
+
+1. Replace the paint-bound **SVG** editable canvas with a single **WebGL2**
+   canvas driven by a small owned 2D camera, with a thin **DOM overlay** for
+   low-count interactive chrome and text.
+2. Preserve every current render layer and interaction at full parity.
+3. Use the migration as the forcing function to **decompose** the ~7,000-line
+   `CreasePatternPanel.tsx` into cohesive, framework-agnostic modules — without
+   over-abstracting.
+
+The endpoint is one unified renderer where a single editable CP is just the
+one-frame case of the multi-CP workspace.
+
+## Why (grounded diagnosis)
+
+The editable canvas is SVG under `react-zoom-pan-pinch`. Each crease renders a
+`<g>` wrapping **two** `<line>` elements (invisible fat hit-target + visible
+stroke) — see [`CreaseLines`](../apps/web/src/components/panels/CreasePatternPanel.tsx:4675).
+A dense box-pleating CP with ~4k segments is ~12k crease nodes alone, before
+points, circles, grid, diagnostics, and folded figures. Prior profiling
+concluded the jank is **paint/compositing-bound, not JS** — the SVG-tier
+mitigations (grid `will-change` layer, grid-freeze-during-pan) are already
+applied and exhausted. SVG couples element count to paint cost; that coupling is
+the ceiling. Canvas breaks it: one composited surface regardless of primitive
+count, plus viewport culling so a dense CP costs the same as a sparse one.
+
+Canvas-2D is **not** the endpoint: a single 2D context re-stroking hundreds of
+thousands of line paths per frame is CPU-bound with no instancing and will choke
+on 100 dense CPs. The target requires a **GPU** geometry layer.
+
+### What the folded figure actually is
+
+The Fold button runs the WASM fold engine and stores an
+`OristudioCpFoldedFigureEntry` carrying a **`renderSnapshot`** — an ordered list
+(`sequence`) of 2D vector primitives (`fill_polygon` / `stroke_polygon` /
+`fill_path` / `stroke_segment` / etc.) with paint (solid color, gradient) and
+stroke styles. Rendered today as one SVG node per primitive in
+[`GeneratedFoldedFigurePrimitiveLayer`](../apps/web/src/components/panels/CreasePatternPanel.tsx:5438).
+It is a **flattened 2D vector drawing** of the folded paper (overlapping facets
+painted back-to-front, front/back fill colors, edge strokes, optional gradients
+and xray transparency) living in the **same 2D world plane** as the CP. It is
+*not* a 3D mesh and needs no depth buffer.
+
+There is **no folded-figure text** in practice: `display_numbers` is only a type
+field and is never enabled, so the engine emits no `text` primitives. The only
+text in the workspace is **user-placed CP annotations** (`crease_pattern.texts`,
+[`CreaseTexts`](../apps/web/src/components/panels/CreasePatternPanel.tsx:4855)) —
+low-count, and handled by the DOM overlay. No GPU text atlas is needed.
+
+Because both the CP and the folded figure are 2D vector in one plane, **one
+renderer with two primitive types (strokes + fills) covers everything.**
+
+### Workspace model (Oriedita-parity)
+
+The workspace is **one Oriedita-style infinite canvas**, not a container of many
+documents. There is a single crease-pattern geometry set (lines / points /
+circles) drawn freely on an unbounded plane; a "crease pattern" is a **closed-
+shape segment** derived from that geometry by the existing segmentation
+([`creasePatternSegmentation.ts`](../apps/web/src/lib/creasePatternSegmentation.ts)),
+not a separate document. Folded figures and imported folded forms are additional
+**placed objects** on the same canvas (each carrying a `displayOffset`).
+
+Consequences:
+
+- The single-CP editor and the "100-CP workspace" are the *same surface* — the
+  latter is just more geometry plus more placed folded objects. There is **no
+  multi-document / frame-container layout system** to build.
+- Segmentation is a **logical partition** used for fold / simulate / select
+  operations, **not** a rendering or data container. Rendering sees one geometry
+  buffer, not 100 sub-scenes.
+- "100 CPs × ~5k segments" is really **one geometry set of ~500k segments** plus
+  ~100 placed folded objects. The spike and culling are framed accordingly.
+- **Where Oriedita's behavior is the reference, match it.** In any ambiguity
+  about interaction or appearance, Oriedita is the source of truth (the
+  `third_party/oriedita` tree is available for reference).
+
+## Current-state census
+
+| File | Lines |
+| --- | --- |
+| `apps/web/src/components/panels/CreasePatternPanel.tsx` | ~7,002 |
+| `apps/web/src/store/workspaceStore/slices/creasePatternSlice.ts` | ~1,115 |
+| `apps/web/src/lib/creasePatternViewport.ts` | ~968 |
+| `apps/web/src/lib/oristudioCpCommands.ts` | ~836 |
+| `apps/web/src/engine/oristudioCpTypes.ts` | ~407 |
+
+## Complete inventory: everything that appears in the canvas → target mapping
+
+This table is also the **per-phase parity checklist**. "Program" = GPU;
+"Overlay" = DOM.
+
+| Layer (current SVG) | Source component | Target | Notes |
+| --- | --- | --- | --- |
+| Infinite grid | `OrieditaInfiniteGrid` (:4531) | Program (fills/strokes) or grid shader | Redraw on pan/zoom; own its layer |
+| Crease lines (hit + visible + selected) | `CreaseLines` (:4675) | Stroke program | Selection = per-instance color/width attr; hit via spatial index |
+| Selection-transform live preview | inline (:5008) | Stroke program | Per-frame during transform drag |
+| Points | `CreasePoints` (:4746) | Point/quad program | Hit via index |
+| Circles (geometry) | `CreaseCircles` (:4792) | Stroke program (tessellated) | Radius maps model→screen |
+| Command-preview circles | inline (:5040) | Stroke program | Live tool preview |
+| Command-preview boxes | `SelectionBoxPreview` (:6063) | Stroke program | Marquee/box preview |
+| Diagnostics segments (CAMV) | inline (:5060) | Stroke program | Hit via index/overlay |
+| Diagnostics point markers | `DiagnosticPointMarker` (:5191) | Overlay (initially) | Composite shapes, bounded count |
+| CP text annotations | `CreaseTexts` (:4855) | Overlay | Low count, world-positioned |
+| Generated folded figures | `GeneratedFoldedFigure*` (:5359/:5438) | Fill + stroke programs | Ordered by `sequence`; alpha blend; bezier flatten; gradient |
+| Imported folded forms | `ImportedFoldedFormsLayer` (:5693) | Fill + stroke programs | Same as above |
+| Vertices | `CreaseVertices` | Point program | Hit via index |
+| Operation frame | inline (:5121) | Stroke program | Single polygon |
+| Command-preview segments/polyline/candidate points | inline (:5130–5167) | Stroke/point programs | Live drawing feedback |
+| Selection transform box (move/resize/rotate handles) | `SelectionTransformBox` (:5878) | **Overlay** | Screen-space UI, needs pointer events, constant handle size |
+| Snap-target indicator | inline (:5179) | Overlay or program | Single element |
+
+### Interaction inventory (must be preserved)
+
+From the panel's handlers:
+
+- **Tool dispatch / draw start** — `handleEditableToolPointerDown` (:2745)
+- **Live drawing preview on move** — `handleEditablePointerMove` (:3095),
+  `localDragLinePreviewSegments`, `liveCommandPreviewPoints` (the "line that
+  updates in real time as you draw")
+- **Commit / cancel drag path** — `finishEditableDragPath` (:3202),
+  `cancelEditableDragPath` (:3436)
+- **Click-select per type** — line/vertex/point/circle/text (:3480–3784),
+  additive with shift/meta; currently DOM delegation via
+  `closest('[data-cp-*-id]')` → must become spatial-index hit-testing
+- **Marquee / background clear** — `clearSelectionOnBackgroundPointerDown` (:3784)
+- **Selection transform** — move/resize/rotate pointer-down + `onSelectionTransform`
+  (:2494–2615)
+- **Folded-figure drag** — `handleFoldedFigurePointerDown` (:2615)
+- **Pan** — space-drag (currently `react-zoom-pan-pinch`)
+
+## Target architecture
+
+- **One WebGL2 context**, one owned **2D world camera** (pan / zoom-to-cursor),
+  per-frame **culling** by frame/primitive bounds.
+- **Two core GPU programs**:
+  - **Stroke program** — instanced/expanded line geometry (crease lines, facet
+    edges, previews, grid, diagnostics). Width/caps in shader; per-instance color.
+  - **Fill program** — triangulated polygons (folded facets), per-vertex color,
+    gradient via vertex interpolation. **No depth buffer**: folded figures draw
+    in `sequence` order with **alpha blending** (xray/transparency).
+- **DOM overlay (React)** for low-count, pointer-interactive, or text chrome:
+  selection transform box, CP text annotations, diagnostics markers, snap
+  indicator, HUD/toolbars. Positioned by the same camera matrix.
+- **`CpRenderer` seam** — a framework-agnostic interface (`resize`, `setScene`,
+  `setCamera`, `draw`, `hitTest`) with a **regl** backend. The seam keeps regl
+  swappable (drop to raw WebGL per-program if ever needed). The single-CP editor
+  and the full workspace are the *same surface* (one geometry buffer + placed
+  folded objects), so no separate multi-document composition exists.
+- **Scene shape** — the scene is **one master geometry set** (strokes / points /
+  circles for the whole canvas) plus a **collection of placed folded objects**
+  (folded figures, imported forms). Culling reuses the hit-testing spatial index
+  for the master geometry, with per-object bbox culling for folded objects.
+  Segmentation is a logical partition layered on top for fold/select — not a
+  render container.
+- **Renderer base decision: regl, spike-validated.** The workload is homogeneous
+  (strokes + fills), so a scene-graph framework (PixiJS) adds bundle weight
+  (~400KB vs ~30KB — relevant to web load) and an abstraction that fights
+  instanced line rendering. regl abstracts WebGL *boilerplate*, not our *domain*,
+  so there's near-zero "the library won't let me" risk.
+
+### Camera & coordinates
+
+Replace the `modelToSvg` + `react-zoom-pan-pinch` CSS-transform pair with a
+single owned camera producing a `world → clip` matrix for the GPU and an
+inverse `screen → world` for pointer mapping. The DOM overlay container is
+transformed by the same camera each frame (in one rAF) so overlay and scene
+never desync. Interactive handles use screen-space sizing (constant on zoom) via
+the existing `uiScale` concept. `react-zoom-pan-pinch` is retired from the
+editable path (kept only if the generated/read-only view still needs it).
+
+### Hit-testing
+
+Replace DOM event delegation with:
+
+1. **Spatial index** (uniform grid keyed by model coords) over lines, points,
+   circles, vertices, rebuilt (memoized) on document change. Pointer → world →
+   candidate cells → precise distance test, honoring the current fat hit-target
+   tolerance. Primary path; no GPU readback stall.
+2. **GPU id-buffer picking** (render ids-as-color to an offscreen FBO, read the
+   pixel under the cursor) as a fallback for pixel-ambiguous dense overlap.
+3. **Folded figures** — bounding-box hit (matches today's hit-target rect).
+
+## Decomposition (engineering organization)
+
+Principles, tuned to "reasonably lengthened components, not over-abstracted":
+
+- **Cohesion by feature, not by type.** A controller that owns one feature's
+  full control flow at ~400–600 lines is good; a constellation of 50-line files
+  is not. Do not introduce a generic abstraction until there is a second real
+  consumer. No god `utils`.
+- **Framework-agnostic core.** The renderer, geometry, camera, and picking are
+  pure TS with no React and no direct DOM — unit-testable by asserting on
+  buffers/matrices/hit results (mock GL calls).
+- **Decompose only what you touch, per phase.** Do not pre-refactor the whole
+  7,000-line panel up front; carve each module out as its phase extracts it.
+
+Proposed layout:
+
+```
+apps/web/src/cp-workspace/
+  renderer/                    (framework-agnostic, no React)
+    CpRenderer.ts              interface + scene/camera types (the seam)
+    reglRenderer.ts            regl backend
+    camera.ts                  2D world camera: pan/zoom, matrices, inverse
+    scene.ts                   Scene model (master geometry + placed objects) + culling
+    programs/
+      strokeProgram.ts         instanced stroke shader + draw
+      fillProgram.ts           triangulated fill shader + draw
+    geometry/
+      strokeGeometry.ts        lines/edges/previews → stroke buffers
+      fillGeometry.ts          folded facets → triangulated fills (earcut,
+                               bezier flatten, gradient params)
+    picking/
+      spatialIndex.ts          uniform grid over primitives
+      hitTest.ts               pointer → world → id, tolerance-aware
+  adapters/                    store snapshot → renderer scene (pure fns)
+    cpSnapshotToScene.ts
+    foldedSnapshotToScene.ts
+  interaction/                 pointer gesture controllers (hooks)
+    useCamera.ts               pan/zoom gestures
+    useCpSelection.ts          click + marquee select
+    useCpDrawTool.ts           draw-path + live preview
+    useCpSelectionTransform.ts move/resize/rotate
+    useFoldedFigureDrag.ts
+  overlay/                     DOM overlay React components (chrome)
+    SelectionTransformBox.tsx
+    CpTextAnnotations.tsx
+    DiagnosticMarkers.tsx
+    SnapIndicator.tsx
+    ViewportHud.tsx
+  CreasePatternCanvas.tsx      thin shell: canvas + overlay + camera + interaction
+  CreasePatternPanel.tsx       slimmed: toolbars, menus, store wiring
+```
+
+Style constants currently living in CSS (MV colors, line widths, selection
+styling, folded front/back tints) get extracted into a shared theme object the
+renderer reads, so SVG and WebGL share one source of truth during the parity
+period.
+
+## Migration structure (incremental, flag-gated, parity-first)
+
+Constraints: no integration tests, **no users**, bugs fixed together before
+committing to launch. Therefore build the WebGL renderer **alongside** SVG behind
+a runtime flag (`cpRenderer: 'svg' | 'webgl'`), reach parity **layer by layer**,
+and keep SVG as an instant fallback until the very end. Every step is
+independently A/B-verifiable on the same document.
+
+**Verification is owned by the author (Zach), not automated or self-certified.**
+Each phase ends at a gate; the author does the hands-on testing against that
+phase's parity checklist and the perf budget, and **explicitly signs off before
+the next phase begins**. Claude's job at each gate is to make the phase testable
+(flag toggle, representative docs, a clear checklist of what changed) and to fix
+bugs the author surfaces — not to declare a phase "done." No phase proceeds on an
+unverified gate.
+
+- **Phase 0 — Spike (throwaway).** regl prototype: **one geometry set of ~500k
+  segments** (the whole-canvas soup) **plus ~100 placed folded objects**
+  (triangulated fills + strokes, alpha-blended in `sequence` order), one 2D
+  camera, spatial-bin culling. Measure pan/zoom FPS and hover latency at DPR 2.
+  **Go/no-go gate** on the perf budget (below). Throwaway code; validates the
+  architecture before any real build.
+
+- **Phase 1 — Renderer core + static parity.** Build `CpRenderer` + regl
+  backend, camera, stroke + fill programs, `adapters/`, culling. Render **one
+  editable CP read-only** into the WebGL canvas behind the flag, toggleable
+  against SVG. No interaction. Manually verify visual parity across
+  representative docs: MV colors, line widths, points, circles, grid, and folded
+  figures (fills + strokes + `sequence` order + gradients + xray). De-risks the
+  entire rendering half before touching interaction.
+
+- **Phase 2 — Camera + pan/zoom.** Owned 2D camera replaces RZPP on the WebGL
+  canvas; pan, zoom-to-cursor; DOM overlay synced to the camera each rAF. Verify
+  smooth pan/zoom on a dense doc; capture the perf delta vs SVG.
+
+  > **Parity-period cost (confirmed step 2):** while both renderers coexist, the
+  > SVG is still in the DOM under the WebGL canvas, so the browser keeps painting
+  > it (and RZPP repaints it on pan), and the step-1/2 camera bridge forces an
+  > `svg.getBoundingClientRect()` layout each frame. So WebGL mode is currently
+  > *slower* than SVG-only on dense docs — it pays both costs. This is expected
+  > and is eliminated here in Phase 2 (own the camera, stop depending on / painting
+  > the live SVG). Cheap stopgap if a real perf demo is needed sooner: stop the
+  > SVG geometry from painting while WebGL is active (`content-visibility` / hide
+  > crease layers), keeping just enough of the element for the bridge.
+
+- **Phase 3 — Hit-testing + selection.** Spatial index + pointer→world; port
+  click-select (line/point/circle/vertex/text), additive select, marquee, and
+  background-clear. Selection highlight via GPU instance attribute. Verify
+  against SVG selection behavior, including dense/close-pair picking.
+
+- **Phase 4 — Selection transform + drag.** `SelectionTransformBox` as DOM
+  overlay (move/resize/rotate, constant handle size); live
+  `selectionTransformPreview` segments on GPU each frame; folded-figure drag.
+  Verify every transform gesture and its live preview.
+
+- **Phase 5 — Draw tools + live previews.** Port tool pointer-down / move /
+  finish / cancel; render all live previews on GPU per-frame (candidate
+  segments, polyline, preview circles, boxes, candidate points, drag-line
+  preview). This is the real-time "line updates as you draw" surface. Verify
+  each tool.
+
+- **Phase 6 — Diagnostics, snap, operation frame, imported forms.** CAMV
+  segment lines on GPU; markers via overlay (revisit if counts get high); snap
+  target; operation frame; imported folded forms. Verify.
+
+- **Phase 7 — Full-canvas scale.** Scale the single editable surface to the
+  whole-canvas geometry set plus many placed folded objects (no new container
+  model — it's the same scene, larger). Spatial-bin culling for the master
+  geometry; per-object cull for folded objects; **lazy + cached** folded
+  generation (below). Verify the ~500k-segment / ~100-folded-object target meets
+  budget.
+
+- **Phase 8 — Decompose + delete SVG.** With WebGL at full parity and signed off,
+  remove the SVG render layers and RZPP from the editable path, finalize the
+  module structure, slim `CreasePatternPanel`, and rebuild tests around the pure
+  modules (geometry, camera, picking, adapters) plus a few pixel-diff smoke
+  tests. Flip the default to `webgl`.
+
+The flag lets you fall back instantly at any point during manual testing.
+
+### Phase 0 result (measured 2026-07-09 — pending author sign-off)
+
+Throwaway regl spike lives in `apps/web/spike/` (run: preview `webgl-spike`
+config, or `npx vite apps/web/spike`, at `localhost:5175`). Headless throughput
+via `window.__bench(frames, deviceW, deviceH, perFrameFinish)` — draws
+synchronously with `readPixels`+`finish()` forcing real GPU work, so it is
+immune to background-tab rAF throttling. A `nonBgPixels` sanity field confirms
+the scene actually rendered. Measured on the dev Mac at 2560×1440 / DPR 2, full
+scene visible (no culling — the worst case):
+
+| Segments (CPs) | Fill tris | ms/frame | fps |
+| --- | --- | --- | --- |
+| 536k (target: 100 CPs × 5k + 100 folded) | 18k | ~2.6 | ~380 |
+| 1.07M | 36k | ~4.0 | ~249 |
+| 2.14M | 72k | ~6.8 | ~148 |
+| 4.29M | 144k | ~12.1 | ~83 |
+
+The target workload runs at **~6× the 58 fps gate**, and the 58 fps crossover is
+only ~6M segments — i.e. ~11× the target — all *before* viewport culling, which
+only helps the zoomed-in case. Hover hit-test via the uniform-grid spatial index
+was sub-millisecond. This validates the architecture (regl, two primitives,
+instanced strokes + alpha-blended fills).
+
+**Gate met — author signed off 2026-07-09.** The spike in `apps/web/spike/` is
+**throwaway reference only**: production phases are written fresh against the
+`cp-workspace/` structure (proper typing — no `regl as any`, real error
+handling, tests on the pure modules) and must **not** import from `spike/`.
+
+## Risks & mitigations
+
+1. **Visual parity drift** (colors, widths, dashes, MV mapping, folded
+   order/transparency, grid). → Side-by-side flag toggle + a small pixel-diff
+   harness on representative docs; extract CSS style values into a shared theme
+   the renderer reads.
+2. **Hit-testing correctness** on dense overlap / close pairs / fat-target
+   tolerance. → Spatial index tuned to current tolerance; id-buffer fallback for
+   ambiguity; isolated tests with synthetic dense cases.
+3. **Zoom crispness & DPR.** → Render at `devicePixelRatio`, real resize
+   handling, never CSS-scale the canvas; owned camera avoids RZPP CSS-blur.
+4. **Overlay/scene desync during pan.** → Drive GL draw and overlay transform
+   from one camera matrix in the same rAF; transform overlay container, avoid
+   layout thrash.
+5. **Folded fill correctness** — bezier flattening, gradients, alpha ordering,
+   self-intersecting facets (fill rule). → earcut for simple polygons, a robust
+   tessellator for paths; verify gradient + xray docs explicitly.
+6. **WASM snapshot round-trip on selection** (known: selection round-trips a full
+   doc snapshot). → **This migration does not fix it**; a fast renderer will
+   still stutter if selection re-serializes the whole doc. Scope a parallel task
+   to read geometry via typed-array views / diffed snapshots. Called out so it
+   isn't mistaken for a rendering bug.
+7. **Big-bang risk** from rewriting a 7,000-line surface. → Phased, flag-gated,
+   parity-first; SVG stays as fallback until Phase 8; each phase independently
+   verifiable.
+8. **Loss of DOM-based tests.** → Acceptable now (no users); rebuild higher-value
+   tests around pure modules post-decomposition.
+9. **regl edges / maintenance.** → The seam allows dropping to raw WebGL
+   per-program; regl is stable and feature-complete.
+10. **Accessibility regression** (per-line aria disappears). → Accepted for a
+    CAD-like editor with no users; keep aria on the canvas element and overlay
+    controls.
+11. **Decomposition scope creep.** → Decompose only what each phase touches; no
+    up-front whole-panel refactor.
+
+## Acceptance gates
+
+- **Phase 0 perf budget (to confirm):** e.g. ≥58 fps sustained pan at 100 CPs ×
+  ~5k segments + 100 folded figures at DPR 2, with hover/selection latency
+  <16 ms. Numbers to be finalized before the spike.
+- **Per-phase:** the render + interaction inventory above serves as the parity
+  checklist. A phase is done only when **the author has personally verified** its
+  rows match SVG under the toggle (and the perf budget where relevant) and has
+  signed off. Claude does not mark a gate met.
+- **Final:** default flips to `webgl`, SVG path removed, module structure landed —
+  after author sign-off on the full workspace.
+
+## Decisions
+
+Resolved (2026-07-09):
+
+1. **Perf budget:** ≥58 fps sustained pan at 100 CPs × ~5k segments + 100 folded
+   figures at DPR 2, hover/selection <16 ms. Confirmed as the Phase 0 gate.
+2. **Diagnostics markers & snap indicator:** start as **DOM overlay**, move to
+   GPU only if counts make the overlay a bottleneck.
+3. **WASM snapshot round-trip:** **out of scope** for this migration — tracked as
+   a separate, parallel task (orthogonal to rendering).
+
+4. **Workspace model:** one Oriedita-style infinite canvas — a single geometry
+   set where a "CP" is a closed-shape **segment** (via existing segmentation),
+   and folded figures are placed objects on the same surface. **No multi-document
+   / frame container.** Oriedita is the reference for ambiguous behavior.
+   - **Folded generation policy:** **lazy + cached** — generate a folded figure
+     on demand (or when its object first becomes visible), cache the
+     `renderSnapshot`, mark `stale` via `sourceCpRevision` on edit, and
+     regenerate stale objects only when visible, throttled through the WASM
+     worker. Never eagerly solve all; never solve offscreen.
