@@ -1361,7 +1361,7 @@ describe('workspace store slices', () => {
     expect(state.transformOristudioCpSelection).toBeTypeOf('function');
   });
 
-  it('initializes projects, loads text, saves, exports, and maintains recents', async () => {
+  it('initializes projects, loads text, saves, and exports', async () => {
     const api = resetStores(seedSnapshot());
     const fileService = createFileService({
       text: 'opened text',
@@ -1385,12 +1385,6 @@ describe('workspace store slices', () => {
       currentFilePath: '/tmp/loaded.tmd5',
       dirty: false,
       projectMessage: 'Loaded loaded.tmd5',
-    });
-    expect(useWorkspaceStore.getState().recentProjects[0]).toMatchObject({
-      id: '/tmp/loaded.tmd5',
-      title: 'Loaded design',
-      filename: 'loaded.tmd5',
-      text: 'loaded text',
     });
 
     await expect(useWorkspaceStore.getState().openProject(fileService)).resolves.toBe(true);
@@ -1456,13 +1450,6 @@ describe('workspace store slices', () => {
     expect(fileService.saveBinaryFile).toHaveBeenCalledWith(
       expect.objectContaining({ extensions: ['png'], mimeType: 'image/png' })
     );
-
-    useWorkspaceStore.setState({ dirty: true });
-    await useWorkspaceStore.getState().autosaveProject();
-    expect(useWorkspaceStore.getState().recentProjects[0]).toMatchObject({
-      id: 'treemaker.autosave.v1',
-      filename: useWorkspaceStore.getState().currentFileName,
-    });
 
     useWorkspaceStore.getState().clearProjectMessage();
     expect(useWorkspaceStore.getState().projectMessage).toBeNull();
@@ -1531,11 +1518,6 @@ describe('workspace store slices', () => {
       currentFileName: 'native-tree.osf',
       currentFilePath: '/tmp/native-tree.osf',
       dirty: false,
-    });
-    expect(useWorkspaceStore.getState().recentProjects[0]).toMatchObject({
-      id: '/tmp/native-tree.osf',
-      filename: 'native-tree.osf',
-      text: nativeText,
     });
 
     await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);

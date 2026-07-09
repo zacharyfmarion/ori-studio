@@ -92,7 +92,7 @@ import {
   restoreOristudioCpDocumentInPlace,
   setOristudioCpDocumentSource,
 } from '../oristudioCpRuntime';
-import type { ProjectSlice, RecentProject, WorkspaceSliceCreator } from '../types';
+import type { ProjectSlice, WorkspaceSliceCreator } from '../types';
 import type { FoldDocument } from '../../../engine/types';
 import type {
   OristudioCpCommandResult,
@@ -101,10 +101,6 @@ import type {
   OristudioCpFoldedFigureEntry,
   OristudioCpGridMetadata,
 } from '../../../engine/oristudioCpTypes';
-
-const RECENTS_STORAGE_KEY = 'treemaker.recentProjects.v1';
-const AUTOSAVE_STORAGE_KEY = 'treemaker.autosave.v1';
-const MAX_RECENTS = 8;
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -327,26 +323,6 @@ function defaultNativeFilename(title: string): string {
   return defaultFilename(title, NATIVE_PROJECT_EXTENSION);
 }
 
-function loadRecentProjects(): RecentProject[] {
-  if (typeof localStorage === 'undefined') return [];
-  try {
-    const parsed = JSON.parse(localStorage.getItem(RECENTS_STORAGE_KEY) ?? '[]') as RecentProject[];
-    return Array.isArray(parsed) ? parsed.slice(0, MAX_RECENTS) : [];
-  } catch {
-    return [];
-  }
-}
-
-function persistRecentProjects(recents: RecentProject[]): void {
-  if (typeof localStorage === 'undefined') return;
-  localStorage.setItem(RECENTS_STORAGE_KEY, JSON.stringify(recents.slice(0, MAX_RECENTS)));
-}
-
-function persistAutosave(recent: RecentProject): void {
-  if (typeof localStorage === 'undefined') return;
-  localStorage.setItem(AUTOSAVE_STORAGE_KEY, JSON.stringify(recent));
-}
-
 async function confirmDiscardDirty(dirty: boolean): Promise<boolean> {
   if (!dirty) return true;
   return requestConfirmation({
@@ -370,17 +346,6 @@ function defaultCreaseExportOptions(viewport: OristudioCpViewportOptions): Creas
 }
 
 export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get) => {
-  const rememberRecent = (recent: RecentProject) => {
-    const existing = get().recentProjects;
-    const next = [
-      recent,
-      ...existing.filter((item) => item.id !== recent.id && item.filename !== recent.filename),
-    ].slice(0, MAX_RECENTS);
-    persistRecentProjects(next);
-    persistAutosave(recent);
-    set({ recentProjects: next });
-  };
-
   const capabilities = () =>
     getWorkspaceCapabilities({
       documentMode: get().documentMode,
@@ -517,7 +482,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       filename?: string;
       path?: string | null;
       dirty?: boolean;
-      recentText?: string | null;
     } = {}
   ) => {
     set({ status: 'loading_engine', error: null, projectMessage: null });
@@ -558,15 +522,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       historyFuture: [],
       clipboardPasteCount: 0,
     });
-    if (source.recentText !== null) {
-      rememberRecent({
-        id: source.path ?? filename,
-        title,
-        filename,
-        savedAt: nowIso(),
-        text: source.recentText ?? text,
-      });
-    }
     useLayoutStore.getState().activateWorkspace('design');
   };
 
@@ -691,13 +646,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       historyFuture: [],
       clipboardPasteCount: 0,
     });
-    rememberRecent({
-      id: source.path ?? filename,
-      title: result.document.title,
-      filename,
-      savedAt: nowIso(),
-      text,
-    });
     useLayoutStore.getState().activateWorkspace('edit');
   };
 
@@ -733,7 +681,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
 
   const loadNativeCreasePattern = async (
     nativeDocument: Extract<ReturnType<typeof activeNativeDocument>, { kind: 'crease-pattern' }>,
-    nativeText: string,
     source: { filename: string; path?: string | null }
   ) => {
     set({
@@ -816,13 +763,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       historyFuture: [],
       clipboardPasteCount: 0,
     });
-    rememberRecent({
-      id: source.path ?? source.filename,
-      title: nativeDocument.title,
-      filename: source.filename,
-      savedAt: nowIso(),
-      text: nativeText,
-    });
     useLayoutStore.getState().activateWorkspace('edit');
   };
 
@@ -867,7 +807,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         title: nativeDocument.title || nativeProject.workspace.title,
         filename: source.filename,
         path: source.path ?? null,
-        recentText: text,
       });
       const companion = nativeProject.workspace.documents.find(
         (document) => document.kind === 'crease-pattern'
@@ -877,7 +816,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       }
       return;
     }
-    await loadNativeCreasePattern(nativeDocument, text, source);
+    await loadNativeCreasePattern(nativeDocument, source);
   };
 
   const currentTreeTmd5Text = async () => {
@@ -928,13 +867,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       currentFilePath: result.path,
       dirty: false,
       projectMessage: `Saved ${result.name}`,
-    });
-    rememberRecent({
-      id: result.path ?? result.name,
-      title: get().project.title,
-      filename: result.name,
-      savedAt: nowIso(),
-      text: contents,
     });
     return true;
   };
@@ -1008,13 +940,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         source,
       },
     });
-    rememberRecent({
-      id: result.path ?? result.name,
-      title: documentState.summary.title || get().project.title,
-      filename: result.name,
-      savedAt: nowIso(),
-      text: contents,
-    });
     return true;
   };
 
@@ -1054,13 +979,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         ...documentState,
         source,
       },
-    });
-    rememberRecent({
-      id: result.path ?? result.name,
-      title: documentState.summary.title || get().project.title,
-      filename: result.name,
-      savedAt: nowIso(),
-      text: contents,
     });
     return true;
   };
@@ -1121,13 +1039,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         source,
       },
     });
-    rememberRecent({
-      id: result.path ?? result.name,
-      title: documentState.summary.title || get().project.title,
-      filename: result.name,
-      savedAt: nowIso(),
-      text: contents,
-    });
     return true;
   };
 
@@ -1147,7 +1058,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     currentFilePath: null,
     currentFileName: defaultNativeFilename('Untitled'),
     projectMessage: null,
-    recentProjects: loadRecentProjects(),
     status: 'loading_engine',
     dirty: false,
     engineReady: false,
@@ -1848,66 +1758,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         title: example.title,
         filename: example.filename,
       });
-    },
-
-    loadRecentProject: async (id) => {
-      if (!(await confirmDiscardDirty(get().dirty))) return;
-      const recent = get().recentProjects.find((item) => item.id === id);
-      if (!recent) return;
-      if (isNativeProjectFilename(recent.filename)) {
-        await loadNativeProject(recent.text, {
-          filename: recent.filename,
-          path: recent.id === AUTOSAVE_STORAGE_KEY ? null : recent.id,
-        });
-      } else if (isCreasePatternFilename(recent.filename)) {
-        await get().loadCreasePatternText(recent.text, {
-          filename: recent.filename,
-          path: recent.id,
-        });
-      } else {
-        await get().loadProjectText(recent.text, {
-          title: recent.title,
-          filename: recent.filename,
-        });
-      }
-    },
-
-    autosaveProject: async () => {
-      if (!get().dirty) return;
-      try {
-        const filename = isNativeProjectFilename(get().currentFileName)
-          ? get().currentFileName
-          : defaultNativeFilename(get().project.title);
-        const text =
-          get().documentMode === 'crease-pattern'
-            ? await (async () => {
-                const input = await currentEditableCreasePatternProjectInput(filename, null);
-                if (!input) return null;
-                return serializeNativeProjectFile(
-                  createNativeCreasePatternProjectFile(input)
-                );
-              })()
-            : serializeNativeProjectFile(
-                createNativeTreeProjectFile({
-                  title: get().project.title,
-                  filename,
-                  path: null,
-                  tmd5Text: await currentTreeTmd5Text(),
-                  creasePatternCompanion: await currentEditableCreasePatternProjectInput(filename, null),
-                  appVersion: APP_VERSION,
-                })
-              );
-        if (!text) return;
-        rememberRecent({
-          id: AUTOSAVE_STORAGE_KEY,
-          title: get().project.title,
-          filename,
-          savedAt: nowIso(),
-          text,
-        });
-      } catch {
-        // Autosave is best-effort and should never interrupt editing.
-      }
     },
 
     clearProjectMessage: () => set({ projectMessage: null }),

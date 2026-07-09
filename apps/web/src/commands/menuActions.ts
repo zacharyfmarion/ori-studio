@@ -110,7 +110,6 @@ export type MenuActionId = (typeof MENU_ACTION_IDS)[number];
 export interface WorkspaceCommands {
   createNewProject(): Promise<void>;
   loadExampleProject(id: string): Promise<void>;
-  loadRecentProject(id: string): Promise<void>;
   openProject(fileService?: FileService): Promise<boolean>;
   importAddCreasePattern(fileService?: FileService): Promise<boolean>;
   saveProject(fileService?: FileService): Promise<boolean>;
@@ -272,25 +271,17 @@ export function isMenuActionId(id: string): id is MenuActionId {
 }
 
 const OPEN_EXAMPLE_PREFIX = 'file.openExample:';
-const OPEN_RECENT_PREFIX = 'file.openRecent:';
 
 export function createMenuActionHandler(deps: MenuActionDependencies) {
   return async (id: string): Promise<boolean> => {
-    // Data-driven File menu entries (recent files, examples) carry their target
-    // in the id; they are dispatched by prefix rather than the static id union.
+    // Data-driven File menu entries (examples) carry their target in the id;
+    // they are dispatched by prefix rather than the static id union.
     if (id.startsWith(OPEN_EXAMPLE_PREFIX)) {
       const exampleId = id.slice(OPEN_EXAMPLE_PREFIX.length);
       if (!exampleId) return false;
       await deps.workspace.loadExampleProject(exampleId);
       return true;
     }
-    if (id.startsWith(OPEN_RECENT_PREFIX)) {
-      const recentId = id.slice(OPEN_RECENT_PREFIX.length);
-      if (!recentId) return false;
-      await deps.workspace.loadRecentProject(recentId);
-      return true;
-    }
-
     if (!isMenuActionId(id)) {
       console.warn(`Unknown menu action: ${id}`);
       return false;

@@ -200,7 +200,6 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
           activeEditingSurface: 'tree',
           oristudioCpLineage: markGeneratedCpLineageStale(get().oristudioCpLineage),
         });
-        void get().autosaveProject();
       } catch (error) {
         set({ status: 'error', error: engineError(error), historyBusy: false });
       }
@@ -281,7 +280,6 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
           activeEditingSurface: 'tree',
           oristudioCpLineage: markGeneratedCpLineageStale(get().oristudioCpLineage),
         });
-        void get().autosaveProject();
       } catch (error) {
         set({ status: 'error', error: engineError(error), historyBusy: false });
       }

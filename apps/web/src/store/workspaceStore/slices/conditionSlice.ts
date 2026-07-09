@@ -68,7 +68,6 @@ export const createConditionSlice: WorkspaceSliceCreator<ConditionSlice> = (set,
         projectMessage: label,
       });
       get().commitHistoryCheckpoint(checkpoint, label);
-      void get().autosaveProject();
     } catch (error) {
       set({ status: 'error', error: engineError(error) });
     }
@@ -102,7 +101,6 @@ export const createConditionSlice: WorkspaceSliceCreator<ConditionSlice> = (set,
         projectMessage: label,
       });
       get().commitHistoryCheckpoint(checkpoint, label);
-      void get().autosaveProject();
     } catch (error) {
       set({ status: 'error', error: engineError(error) });
     }

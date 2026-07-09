@@ -10,7 +10,6 @@ function createDeps() {
     workspace: {
       createNewProject: vi.fn().mockResolvedValue(undefined),
       loadExampleProject: vi.fn().mockResolvedValue(undefined),
-      loadRecentProject: vi.fn().mockResolvedValue(undefined),
       openProject: vi.fn().mockResolvedValue(true),
       importAddCreasePattern: vi.fn().mockResolvedValue(true),
       saveProject: vi.fn().mockResolvedValue(true),
@@ -125,18 +124,14 @@ describe('menu actions', () => {
     expect(deps.workspace.optimizeEdges).toHaveBeenCalledOnce();
   });
 
-  it('dispatches data-driven Open Recent and Examples entries by id prefix', async () => {
+  it('dispatches data-driven Examples entries by id prefix', async () => {
     const deps = createDeps();
     const handle = createMenuActionHandler(deps);
 
     await expect(handle('file.openExample:triad')).resolves.toBe(true);
-    await expect(handle('file.openRecent:proj-42')).resolves.toBe(true);
-    // An empty payload (e.g. the disabled "No recent files" placeholder) is a no-op.
-    await expect(handle('file.openRecent:')).resolves.toBe(false);
 
     expect(deps.workspace.loadExampleProject).toHaveBeenCalledWith('triad');
-    expect(deps.workspace.loadRecentProject).toHaveBeenCalledWith('proj-42');
-    expect(deps.workspace.loadRecentProject).toHaveBeenCalledTimes(1);
+    expect(deps.workspace.loadExampleProject).toHaveBeenCalledTimes(1);
   });
 
   it('dispatches CP diagnostics and selected-line commands through the shared CP runtime', async () => {
