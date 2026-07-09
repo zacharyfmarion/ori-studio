@@ -293,6 +293,23 @@ export function free_folded_figure(handle) {
 }
 
 /**
+ * Oriedita import (add): merge the document behind `imported_handle` into the
+ * document behind `handle`, mirroring `setSave_for_reading_tuika`. The imported
+ * pattern is shifted to sit beside the existing one and divided against it.
+ * Returns the resulting line-segment count.
+ * @param {number} handle
+ * @param {number} imported_handle
+ * @returns {number}
+ */
+export function import_add(handle, imported_handle) {
+    const ret = wasm.import_add(handle, imported_handle);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return ret[0] >>> 0;
+}
+
+/**
  * @param {number} handle
  * @param {any} segments
  * @returns {number}

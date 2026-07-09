@@ -129,6 +129,7 @@ export interface ProjectSliceActions {
   ) => Promise<OristudioCpCommandPreview | null>;
   clearOristudioCpDocument: () => Promise<void>;
   openProject: (fileService?: FileService) => Promise<boolean>;
+  importAddCreasePattern: (fileService?: FileService) => Promise<boolean>;
   saveProject: (fileService?: FileService) => Promise<boolean>;
   saveProjectAs: (fileService?: FileService) => Promise<boolean>;
   exportV5: (fileService?: FileService) => Promise<boolean>;

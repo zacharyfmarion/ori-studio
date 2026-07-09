@@ -265,6 +265,80 @@ pub fn add_line_segment_like_worker(model: &mut CreasePatternModel, segment: &Li
     divide_line_segment_with_new_lines(model, original_end, original_end + 1);
 }
 
+/// Oriedita `CreasePattern_Worker.setSave_for_reading_tuika` import (add).
+///
+/// Merges an imported crease pattern into `model` without disturbing existing
+/// geometry. The imported folding line segments and circles are shifted so the
+/// import sits to the right of the current pattern (a 100-unit gap between the
+/// current max-X and the import's min-X, with the two patterns' top edges
+/// aligned), appended, then divided against the existing lines exactly as
+/// Oriedita does. Auxiliary lines, loose points, and text are intentionally
+/// dropped, matching `FoldLineSet.setSave`, which only carries folding line
+/// segments and circles.
+pub fn import_add(model: &mut CreasePatternModel, imported: &CreasePatternModel) {
+    let mut added_lines = imported.line_segments.clone();
+    let mut added_circles = imported.circles.clone();
+
+    // Oriedita: addx = foldLineSet.getMaxX() + 100 - tempFoldLineSet.getMinX();
+    //           addy = foldLineSet.getMaxY() - tempFoldLineSet.getMaxY();
+    let add_x =
+        line_segments_max_x(&model.line_segments) + 100.0 - line_segments_min_x(&added_lines);
+    let add_y = line_segments_max_y(&model.line_segments) - line_segments_max_y(&added_lines);
+    let delta = Point::new(add_x, add_y);
+
+    for segment in &mut added_lines {
+        *segment = segment.with_coordinates(segment.a.move_by(delta), segment.b.move_by(delta));
+    }
+    for circle in &mut added_circles {
+        circle.x += add_x;
+        circle.y += add_y;
+    }
+
+    let total_old = model.line_segments.len();
+    model.line_segments.extend(added_lines);
+    model.circles.extend(added_circles);
+    let total_new = model.line_segments.len();
+
+    divide_line_segment_with_new_lines(model, total_old, total_new);
+    unselect_all(model);
+}
+
+/// Oriedita `FoldLineSet.getMaxX`: max X over every line-segment endpoint
+/// (`0.0` when there are no line segments).
+fn line_segments_max_x(segments: &[LineSegment]) -> f64 {
+    if segments.is_empty() {
+        return 0.0;
+    }
+    segments
+        .iter()
+        .flat_map(|segment| [segment.a.x, segment.b.x])
+        .fold(f64::NEG_INFINITY, f64::max)
+}
+
+/// Oriedita `FoldLineSet.getMinX`: min X over every line-segment endpoint
+/// (`0.0` when there are no line segments).
+fn line_segments_min_x(segments: &[LineSegment]) -> f64 {
+    if segments.is_empty() {
+        return 0.0;
+    }
+    segments
+        .iter()
+        .flat_map(|segment| [segment.a.x, segment.b.x])
+        .fold(f64::INFINITY, f64::min)
+}
+
+/// Oriedita `FoldLineSet.getMaxY`: max Y over every line-segment endpoint
+/// (`0.0` when there are no line segments).
+fn line_segments_max_y(segments: &[LineSegment]) -> f64 {
+    if segments.is_empty() {
+        return 0.0;
+    }
+    segments
+        .iter()
+        .flat_map(|segment| [segment.a.y, segment.b.y])
+        .fold(f64::NEG_INFINITY, f64::max)
+}
+
 /// Oriedita `FoldLineSet.divideIntersectionsFast` for one new/existing pair.
 pub fn divide_intersections_fast(
     model: &mut CreasePatternModel,
@@ -1116,4 +1190,80 @@ pub fn remove_overlapping_lines_with_precision(model: &mut CreasePatternModel, r
         .enumerate()
         .filter_map(|(index, segment)| (!remove[index]).then_some(segment.clone()))
         .collect();
+}
+
+#[cfg(test)]
+mod import_add_tests {
+    use super::*;
+
+    fn model_with(segments: Vec<LineSegment>) -> CreasePatternModel {
+        CreasePatternModel {
+            line_segments: segments,
+            ..CreasePatternModel::default()
+        }
+    }
+
+    #[test]
+    fn import_add_shifts_import_right_of_existing_pattern() {
+        // Existing pattern occupies x in [0, 10], y in [0, 10].
+        let mut model = model_with(vec![
+            LineSegment::from_coordinates(0.0, 0.0, 10.0, 0.0),
+            LineSegment::from_coordinates(0.0, 0.0, 0.0, 10.0),
+            LineSegment::from_coordinates(10.0, 0.0, 10.0, 10.0),
+            LineSegment::from_coordinates(0.0, 10.0, 10.0, 10.0),
+        ]);
+        // Imported pattern is a single segment from (0,0) to (5,5).
+        let imported = model_with(vec![LineSegment::from_coordinates(0.0, 0.0, 5.0, 5.0)]);
+
+        import_add(&mut model, &imported);
+
+        // The imported segment must be shifted by addx = 10 + 100 - 0 = 110 and
+        // addy = 10 - 5 = 5, and no existing line may be lost.
+        let shifted = model
+            .line_segments
+            .iter()
+            .find(|segment| (segment.a.x - 110.0).abs() < 1e-9 && (segment.a.y - 5.0).abs() < 1e-9);
+        let shifted = shifted.expect("imported segment should be shifted to (110, 5)");
+        assert!((shifted.b.x - 115.0).abs() < 1e-9);
+        assert!((shifted.b.y - 10.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn import_add_divides_crossing_lines() {
+        // A single horizontal line at y = 5 spanning x in [0, 10].
+        let mut model = model_with(vec![LineSegment::with_color(
+            Point::new(0.0, 5.0),
+            Point::new(10.0, 5.0),
+            LineColor::Black0,
+        )]);
+        // Import a segment that, after the 110-unit shift, is guaranteed not to
+        // touch the existing line, so only the import's own division applies and
+        // the existing horizontal line survives intact.
+        let imported = model_with(vec![LineSegment::from_coordinates(0.0, 0.0, 0.0, 8.0)]);
+        let before = model.line_segments.len();
+
+        import_add(&mut model, &imported);
+
+        assert!(model.line_segments.len() > before);
+        assert!(
+            model
+                .line_segments
+                .iter()
+                .all(|segment| segment.selected == 0)
+        );
+    }
+
+    #[test]
+    fn import_add_into_empty_pattern_gaps_by_one_hundred() {
+        let mut model = CreasePatternModel::default();
+        let imported = model_with(vec![LineSegment::from_coordinates(0.0, 0.0, 4.0, 0.0)]);
+
+        import_add(&mut model, &imported);
+
+        // Empty getMaxX/getMaxY are 0.0, so addx = 0 + 100 - 0 = 100, addy = 0.
+        let segment = &model.line_segments[0];
+        assert!((segment.a.x - 100.0).abs() < 1e-9);
+        assert!((segment.b.x - 104.0).abs() < 1e-9);
+        assert!(segment.a.y.abs() < 1e-9);
+    }
 }

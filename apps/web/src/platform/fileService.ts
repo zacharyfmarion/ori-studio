@@ -3,6 +3,7 @@ import { getRuntimeSurface, type RuntimeSurface } from './runtime';
 
 export type FileCommand =
   | 'openProject'
+  | 'importAddCreasePattern'
   | 'saveProject'
   | 'saveProjectAs'
   | 'exportV5'

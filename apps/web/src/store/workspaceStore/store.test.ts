@@ -71,6 +71,7 @@ const oristudioCpMocks = vi.hoisted(() => ({
   getOristudioCpFoldedFigureRenderSnapshot: vi.fn(),
   getOristudioCpOperationDescriptors: vi.fn(),
   insertOristudioCpLineSegments: vi.fn(),
+  importAddOristudioCpDocumentFromText: vi.fn(),
   loadOristudioCpDocumentFromText: vi.fn(),
   previewOristudioCpCommand: vi.fn(),
   releaseOristudioCpDocument: vi.fn(),
@@ -120,6 +121,7 @@ vi.mock('./oristudioCpRuntime', async (importOriginal) => {
       oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot,
     getOristudioCpOperationDescriptors: oristudioCpMocks.getOristudioCpOperationDescriptors,
     insertOristudioCpLineSegments: oristudioCpMocks.insertOristudioCpLineSegments,
+    importAddOristudioCpDocumentFromText: oristudioCpMocks.importAddOristudioCpDocumentFromText,
     loadOristudioCpDocumentFromText: oristudioCpMocks.loadOristudioCpDocumentFromText,
     previewOristudioCpCommand: oristudioCpMocks.previewOristudioCpCommand,
     releaseOristudioCpDocument: oristudioCpMocks.releaseOristudioCpDocument,
@@ -1164,6 +1166,11 @@ function resetStores(snapshot = makeSnapshot()) {
       operationDescriptors: cpOperationDescriptors,
       lastCommandResult: null,
     }));
+  oristudioCpMocks.importAddOristudioCpDocumentFromText
+    .mockReset()
+    .mockImplementation(async () =>
+      editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })])
+    );
   oristudioCpMocks.restoreOristudioCpDocument
     .mockReset()
     .mockImplementation(
@@ -2008,6 +2015,69 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().error).toMatchObject({
       code: 'not_implemented',
     });
+  });
+
+  it('imports (adds) a crease pattern into the loaded editable document', async () => {
+    resetStores(seedSnapshot());
+    await useWorkspaceStore.getState().loadCreasePatternText('1 0 0 1 0', {
+      filename: 'base.cp',
+      path: '/tmp/base.cp',
+    });
+    const historyBefore = useWorkspaceStore.getState().oristudioCpHistoryPast.length;
+    const fileService = createFileService({
+      text: '2 0 0 5 5',
+      name: 'import.cp',
+      path: '/tmp/import.cp',
+    });
+
+    await expect(
+      useWorkspaceStore.getState().importAddCreasePattern(fileService)
+    ).resolves.toBe(true);
+
+    expect(fileService.openTextFile).toHaveBeenCalledWith(
+      expect.objectContaining({ extensions: ['fold', 'cp', 'ori', 'orh'] })
+    );
+    expect(oristudioCpMocks.importAddOristudioCpDocumentFromText).toHaveBeenCalledWith(
+      '2 0 0 5 5',
+      { format: 'cp', filename: 'import.cp' }
+    );
+    // The merge is recorded so undo can revert the import.
+    expect(useWorkspaceStore.getState().oristudioCpHistoryPast.length).toBe(historyBefore + 1);
+    expect(useWorkspaceStore.getState().projectMessage).toBe('Import (add)');
+  });
+
+  it('rejects import (add) when the chosen file is not a crease pattern', async () => {
+    resetStores(seedSnapshot());
+    await useWorkspaceStore.getState().loadCreasePatternText('1 0 0 1 0', {
+      filename: 'base.cp',
+      path: '/tmp/base.cp',
+    });
+    const fileService = createFileService({
+      text: 'not a crease pattern',
+      name: 'notes.txt',
+      path: '/tmp/notes.txt',
+    });
+
+    await expect(
+      useWorkspaceStore.getState().importAddCreasePattern(fileService)
+    ).resolves.toBe(false);
+    expect(oristudioCpMocks.importAddOristudioCpDocumentFromText).not.toHaveBeenCalled();
+    expect(useWorkspaceStore.getState().error).toMatchObject({ code: 'invalid_operation' });
+  });
+
+  it('disables import (add) without an editable crease pattern', async () => {
+    resetStores(seedSnapshot());
+    const fileService = createFileService({
+      text: '2 0 0 5 5',
+      name: 'import.cp',
+      path: '/tmp/import.cp',
+    });
+
+    await expect(
+      useWorkspaceStore.getState().importAddCreasePattern(fileService)
+    ).resolves.toBe(false);
+    expect(fileService.openTextFile).not.toHaveBeenCalled();
+    expect(oristudioCpMocks.importAddOristudioCpDocumentFromText).not.toHaveBeenCalled();
   });
 
   it('passes selected editable CP line IDs into kernel commands and keeps stable color selections', async () => {

@@ -259,6 +259,44 @@ export async function insertOristudioCpLineSegments(
   return refreshed;
 }
 
+/**
+ * Oriedita import (add): parse `text` into a throwaway document, merge it into
+ * the currently loaded crease pattern (shifted beside the existing pattern and
+ * divided against it), then release the throwaway document. Mirrors Oriedita's
+ * `ImportAddAction` → `setSave_for_reading_tuika` flow.
+ */
+export async function importAddOristudioCpDocumentFromText(
+  text: string,
+  source: {
+    format: ImportedCreasePatternFormat;
+    filename: string;
+    acceptUnknownVersion?: boolean;
+  }
+): Promise<OristudioCpDocumentState> {
+  if (handle === null) {
+    throw new Error('No editable crease-pattern document is loaded');
+  }
+  const api = await getOristudioCpClient();
+  const importedHandle =
+    source.format === 'cp'
+      ? await api.loadCp(text, titleFromFilename(source.filename))
+      : source.format === 'ori'
+        ? await api.loadOri(text, source.acceptUnknownVersion ?? false)
+        : source.format === 'orh'
+          ? await api.loadOrh(text)
+          : await api.loadFoldFile(text);
+
+  try {
+    await api.importAdd(handle, importedHandle);
+  } finally {
+    await api.freeDocument(importedHandle).catch(() => undefined);
+  }
+
+  const refreshed = await refreshOristudioCpDocument(null);
+  if (!refreshed) throw new Error('Editable crease-pattern document was released');
+  return refreshed;
+}
+
 export async function replaceOristudioCpLineSegments(
   lineIds: number[],
   segments: OristudioCpLineSegment[]

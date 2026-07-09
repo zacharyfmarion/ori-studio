@@ -82,6 +82,7 @@ import {
   createBlankOristudioCpDocument,
   getOristudioCpOperationDescriptors,
   loadOristudioCpDocumentFromText,
+  importAddOristudioCpDocumentFromText,
   insertOristudioCpLineSegments as insertRuntimeOristudioCpLineSegments,
   oristudioCpError,
   previewOristudioCpCommand as previewRuntimeOristudioCpCommand,
@@ -1466,6 +1467,29 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       if (segments.length === 0) return false;
       return applyOristudioCpLineMutation(label, () =>
         insertRuntimeOristudioCpLineSegments(segments)
+      );
+    },
+
+    importAddCreasePattern: async (fileService = getFileService()) => {
+      if (rejectDisabled('file.importAdd')) return false;
+      const file = await fileService.openTextFile({
+        title: 'Import Into Crease Pattern',
+        extensions: ['fold', 'cp', 'ori', 'orh'],
+      });
+      if (!file) return false;
+      if (!isCreasePatternFilename(file.name)) {
+        set({
+          error: {
+            code: 'invalid_operation',
+            message: 'Import (add) supports FOLD, CP, ORI, and ORH crease patterns',
+          },
+          projectMessage: null,
+        });
+        return false;
+      }
+      const format = importedCreasePatternFormat(file.name);
+      return applyOristudioCpLineMutation('Import (add)', () =>
+        importAddOristudioCpDocumentFromText(file.text, { format, filename: file.name })
       );
     },
 

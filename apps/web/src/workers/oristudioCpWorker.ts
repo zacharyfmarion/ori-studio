@@ -25,6 +25,7 @@ import init, {
   load_fold_file,
   load_orh,
   load_ori,
+  import_add,
   insert_line_segments,
   preview_cp_command,
   replace_line_segments,
@@ -131,6 +132,9 @@ const api = {
     segments: OristudioCpLineSegment[]
   ): Promise<number> {
     return call(() => insert_line_segments(handle, segments));
+  },
+  async importAdd(handle: number, importedHandle: number): Promise<number> {
+    return call(() => import_add(handle, importedHandle));
   },
   async replaceLineSegments(
     handle: number,
