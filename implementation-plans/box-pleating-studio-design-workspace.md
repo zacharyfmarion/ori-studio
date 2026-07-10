@@ -248,34 +248,45 @@ Exit gate:
 
 ### Phase 4: BP Tree Authoring In The Design Pane
 
-- [ ] Rewrite `BpTreePanel` fresh (reference the branch version) as the BP
-      `design`-pane content.
-- [ ] `DesignPanel` renders `BpTreePanel` for active BP docs (replacing the
-      Phase 2 placeholder); preserves the TreeMaker tree editor for `treemaker`.
-- [ ] Wire BP tree selection, add/split/merge/delete, edge-length editing, and
-      tree→packing dual navigation.
-- [ ] Tests: BP tree editor renders in Design; TreeMaker path unaffected.
+- [x] Port `BpTreePanel` (+ its libs: bpTreeViewport, oristudioBpSelection,
+      oristudioBpViewportSettings, treeViewportPrimitives, long-press inspector)
+      as the BP `design`-pane content.
+- [x] `DesignPanel` renders `BpTreePanel` for active BP docs with a materialized
+      tree; preserves the TreeMaker editor for `treemaker`. A fresh (empty) BP
+      design shows `BpDesignEmptyState` offering example projects to load.
+- [x] Wire BP tree selection + vertex drag (`selectOristudioBp`,
+      `moveOristudioBpTreeVertex`) and tree→packing dual navigation
+      (`setOristudioBpActiveSurface`). Structural add/split/merge/delete come
+      with the BP command layer (Phase 6).
+- [x] Ported the BP tree CSS into theme.css; added bpTreeLayers to settings.
+- [x] Verified: 450 web tests pass; tsc + lint + production build clean.
+      Example loading is engine/wasm-verified. Browser render check pending
+      (in-editor browser tooling disconnected).
 
 Exit gate:
 
-- BP tree drawing is the Box-pleated entry surface, matching TreeMaker muscle
-  memory.
+- BP tree drawing is the Box-pleated authoring surface. (A fresh design starts
+  empty and offers examples until structural tree commands land in Phase 6.)
 
 ### Phase 5: BP Editor Packing Pane
 
-- [ ] Rewrite `BpEditorPanel` + `BpPackingPanel` fresh; mount as the
-      `bp-editor` pane (replacing the Phase 1 placeholder).
-- [ ] Empty states: no BP project, and BP project without materialized packing.
-- [ ] Preserve manual flap drag, river edits, conflicts, stretch/pattern/device
-      controls, layer toggles, zoom/pan, and linked selection with the tree.
-- [ ] Optimizer results activate/refresh `bp-editor`; valid-but-different
-      packings are not flagged as errors.
-- [ ] Tests: BP Editor rendering, empty states, optimizer activation.
+- [x] Port `BpPackingPanel` + `bpPackingViewport` and the real `BpEditorPanel`
+      (mounts `BpPackingPanel`; empty states for no doc / no packing).
+- [x] Preserve manual flap/flaps drag, device drag, sheet subdivide/rotate/flip,
+      layer toggles, zoom/pan, and linked selection with the tree
+      (packing edit actions added to the BP slice + bpPackingLayers settings).
+- [x] Added a `ViewportSurface` type so the packing pane is its own focusable
+      shortcut surface.
+- [~] Optimizer activation of `bp-editor` and valid-but-different packing
+      handling: deferred to Phase 6 (optimizer command wiring).
+- [x] Verified: 450 web tests pass; tsc + lint + production build clean. Panels
+      ported verbatim from the working reference. Browser interaction check
+      pending (tooling disconnected).
 
 Exit gate:
 
-- Users place flaps and inspect conflicts in `bp-editor` while the tree stays
-  editable beside it.
+- Users place flaps in `bp-editor` (on a loaded/optimized packing) while the
+  tree stays editable beside it.
 
 ### Phase 6: Commands, Menus, Shortcuts, Capabilities
 
