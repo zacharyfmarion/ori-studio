@@ -10,6 +10,8 @@ import type { ModelPoint, ViewTransform } from './renderer/types';
 export interface SampledView {
   /** model -> device-pixel transform (relative to the canvas top-left). */
   view: ViewTransform;
+  /** SVG user coords -> device-pixel transform (for folded figures). */
+  userView: ViewTransform;
   /** CSS px per SVG user unit — used to size strokes defined in user units. */
   userScale: number;
 }
@@ -40,19 +42,25 @@ export function sampleView(
   const scaleX = box.width / vb.width;
   const scaleY = box.height / vb.height;
 
-  const toDevice = (model: ModelPoint): ModelPoint => {
-    const user = modelToSvg(model);
+  // user (viewBox) coords -> device px, relative to the canvas top-left.
+  const userToDevice = (user: ModelPoint): ModelPoint => {
     const screenX = box.left + (user.x - vb.x) * scaleX;
     const screenY = box.top + (user.y - vb.y) * scaleY;
     return { x: (screenX - canvasRect.left) * dpr, y: (screenY - canvasRect.top) * dpr };
   };
+  const toDevice = (model: ModelPoint): ModelPoint => userToDevice(modelToSvg(model));
 
   const view = viewTransformFromSamples(
     toDevice({ x: 0, y: 0 }),
     toDevice({ x: 1, y: 0 }),
     toDevice({ x: 0, y: 1 })
   );
+  const userView = viewTransformFromSamples(
+    userToDevice({ x: 0, y: 0 }),
+    userToDevice({ x: 1, y: 0 }),
+    userToDevice({ x: 0, y: 1 })
+  );
   // user -> css px scale (drives stroke width, which is defined in user units).
   const userScale = scaleX;
-  return { view, userScale };
+  return { view, userView, userScale };
 }

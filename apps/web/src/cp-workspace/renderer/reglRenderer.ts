@@ -3,6 +3,7 @@ import type { CpRenderFrame, CpRenderer } from './CpRenderer';
 import type { CpSceneData, Viewport } from './types';
 import { createStrokeProgram } from './programs/strokeProgram';
 import { createPointProgram } from './programs/pointProgram';
+import { createFillProgram } from './programs/fillProgram';
 
 // regl ships as a UMD module (`export = REGL`), so its instance type is reached
 // via the factory's return type rather than a named export.
@@ -33,6 +34,8 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
 
   const strokes = createStrokeProgram(regl);
   const gridStrokes = createStrokeProgram(regl);
+  const foldedFills = createFillProgram(regl);
+  const foldedStrokes = createStrokeProgram(regl);
   const points = createPointProgram(regl);
   let viewport: Viewport = { width: 0, height: 0, dpr: 1 };
   let hasGrid = false;
@@ -50,6 +53,8 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
       if (disposed) return;
       strokes.setData(scene.strokes);
       points.setData(scene.points);
+      foldedFills.setData(scene.folded.fills);
+      foldedStrokes.setData(scene.folded.strokes);
     },
 
     setGrid(grid) {
@@ -72,6 +77,11 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
         gridStrokes.draw({ view: frame.view, viewport, widthPx: GRID_WIDTH_CSS * viewport.dpr });
       }
       strokes.draw({ view: frame.view, viewport, widthPx: frame.strokeWidthPx });
+      // Folded figures are placed objects in user space; fills first, then their
+      // edges. Fold stroke widths are in user px (non-scaling): base = 1 css px
+      // (dpr device px) scaled per-segment by the width multiplier.
+      foldedFills.draw({ view: frame.userView, viewport });
+      foldedStrokes.draw({ view: frame.userView, viewport, widthPx: viewport.dpr });
       // Points and vertices sit on top of the crease lines.
       points.draw({
         view: frame.view,
@@ -86,6 +96,8 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
       disposed = true;
       strokes.dispose();
       gridStrokes.dispose();
+      foldedFills.dispose();
+      foldedStrokes.dispose();
       points.dispose();
       regl.destroy();
     },

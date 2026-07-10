@@ -79,8 +79,25 @@ export interface PointGeometry {
   count: number;
 }
 
+/** Triangulated fill geometry (folded-figure facets), in SVG user coordinates. */
+export interface FillGeometry {
+  /** Triangle vertex positions in user coords: [x, y] * vertexCount. */
+  position: Float32Array;
+  /** Per-vertex RGBA colour: [r, g, b, a] * vertexCount. */
+  color: Float32Array;
+  /** Vertex count (a multiple of 3). */
+  count: number;
+}
+
+/** Folded-figure geometry: triangulated fills plus edge strokes (user coords). */
+export interface FoldedGeometry {
+  fills: FillGeometry;
+  strokes: StrokeGeometry;
+}
+
 /** Everything the renderer draws for one document, in GPU-ready form. */
 export interface CpSceneData {
   strokes: StrokeGeometry;
   points: PointGeometry;
+  folded: FoldedGeometry;
 }

@@ -27,6 +27,8 @@ export interface CpRenderFrame {
   clearColor: Rgba;
   /** Model → device-pixel transform for this frame. */
   view: ViewTransform;
+  /** SVG user → device-pixel transform (for folded figures). */
+  userView: ViewTransform;
   /** Stroke width in device pixels. */
   strokeWidthPx: number;
   /** SVG user unit → device px (scales point radii with zoom). */

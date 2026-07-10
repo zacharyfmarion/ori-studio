@@ -8,6 +8,8 @@ import { cpSnapshotToScene, type CpLineSegmentInput } from './adapters/cpSnapsho
 import { cpPointsToScene } from './adapters/cpPointsToScene';
 import { resolveCpLineColor } from './adapters/cpLineColor';
 import { resolveCpPointStyle } from './adapters/cpPointStyle';
+import { cpFoldedToScene } from './adapters/cpFoldedToScene';
+import type { OristudioCpFoldedFigureEntry } from '../engine/oristudioCpTypes';
 import {
   cpGridLinesToStrokes,
   gridBoundsKey,
@@ -66,6 +68,8 @@ export interface CreasePatternWebglCanvasProps {
   circles: readonly { x: number; y: number; r: number }[];
   /** Model radius → SVG user-unit radius (matches the SVG renderer). */
   circleRadiusToSvg: (radius: number) => number;
+  /** Generated folded figures (render-snapshot primitives). */
+  foldedFigures: readonly OristudioCpFoldedFigureEntry[];
   /** Grid parameters, or null when there is no grid. */
   grid: OristudioCpGridMetadata | null;
   /** Whether the grid is shown. */
@@ -98,6 +102,7 @@ export function CreasePatternWebglCanvas({
   pointSize,
   circles,
   circleRadiusToSvg,
+  foldedFigures,
   grid,
   gridVisible,
 }: CreasePatternWebglCanvasProps) {
@@ -136,9 +141,20 @@ export function CreasePatternWebglCanvas({
         circles.map((c) => ({ center: { x: c.x, y: c.y }, radius: circleRadiusToSvg(c.r) })),
         resolveCpPointStyle(document.documentElement, pointSize)
       ),
+      folded: cpFoldedToScene(foldedFigures),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [lineSegments, points, vertices, circles, circleRadiusToSvg, mode, pointSize, currentTheme]
+    [
+      lineSegments,
+      points,
+      vertices,
+      circles,
+      circleRadiusToSvg,
+      foldedFigures,
+      mode,
+      pointSize,
+      currentTheme,
+    ]
   );
 
   // Renderer lifecycle + render loop (once per mount).
@@ -190,6 +206,7 @@ export function CreasePatternWebglCanvas({
       renderer.render({
         clearColor: readCssVarColor(canvas, CANVAS_BG_VAR, FALLBACK_CLEAR),
         view: sampled.view,
+        userView: sampled.userView,
         strokeWidthPx: CREASE_WIDTH_FACTOR * liveRef.current.lineWidth * sampled.userScale * ratio,
         userScalePx: sampled.userScale * ratio,
         pointOutlinePx: POINT_OUTLINE_CSS * ratio,

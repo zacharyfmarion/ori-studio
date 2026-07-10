@@ -4326,6 +4326,7 @@ export function CreasePatternPanel() {
                   pointSize={oristudioCpViewport.pointSize ?? 1}
                   circles={editableCp.crease_pattern.circles}
                   circleRadiusToSvg={editableCircleRadiusToSvg}
+                  foldedFigures={generatedFoldedFigures}
                   grid={editableCpVisibleGrid}
                   gridVisible={oristudioCpViewport.gridVisible}
                 />
