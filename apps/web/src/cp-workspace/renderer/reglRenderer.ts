@@ -2,6 +2,7 @@ import createREGL from 'regl';
 import type { CpRenderFrame, CpRenderer } from './CpRenderer';
 import type { CpSceneData, Viewport } from './types';
 import { createStrokeProgram } from './programs/strokeProgram';
+import { createPointProgram } from './programs/pointProgram';
 
 // regl ships as a UMD module (`export = REGL`), so its instance type is reached
 // via the factory's return type rather than a named export.
@@ -31,8 +32,14 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
   });
 
   const strokes = createStrokeProgram(regl);
+  const gridStrokes = createStrokeProgram(regl);
+  const points = createPointProgram(regl);
   let viewport: Viewport = { width: 0, height: 0, dpr: 1 };
+  let hasGrid = false;
   let disposed = false;
+
+  // SVG `.cp-grid-line` is 0.95px, non-scaling — constant device px per dpr.
+  const GRID_WIDTH_CSS = 0.95;
 
   return {
     resize(next) {
@@ -42,6 +49,13 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
     setScene(scene: CpSceneData) {
       if (disposed) return;
       strokes.setData(scene.strokes);
+      points.setData(scene.points);
+    },
+
+    setGrid(grid) {
+      if (disposed) return;
+      hasGrid = grid !== null && grid.count > 0;
+      if (grid) gridStrokes.setData(grid);
     },
 
     render(frame: CpRenderFrame) {
@@ -53,13 +67,26 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
       regl.poll();
       const [r, g, b, a] = frame.clearColor;
       regl.clear({ color: [r, g, b, a], depth: 1 });
+      // Grid sits behind the crease pattern.
+      if (hasGrid) {
+        gridStrokes.draw({ view: frame.view, viewport, widthPx: GRID_WIDTH_CSS * viewport.dpr });
+      }
       strokes.draw({ view: frame.view, viewport, widthPx: frame.strokeWidthPx });
+      // Points and vertices sit on top of the crease lines.
+      points.draw({
+        view: frame.view,
+        viewport,
+        userScalePx: frame.userScalePx,
+        outlinePx: frame.pointOutlinePx,
+      });
     },
 
     dispose() {
       if (disposed) return;
       disposed = true;
       strokes.dispose();
+      gridStrokes.dispose();
+      points.dispose();
       regl.destroy();
     },
   };

@@ -55,11 +55,32 @@ export interface StrokeGeometry {
   b: Float32Array;
   /** Per-segment RGBA colour: [r, g, b, a] * count. */
   color: Float32Array;
+  /** Per-segment width multiplier applied to the draw's base width: [m] * count. */
+  widthMul: Float32Array;
   /** Number of segments. */
+  count: number;
+}
+
+/**
+ * Instanced point geometry (crease points + vertices). Radii are in SVG user
+ * units (they scale with zoom, matching the SVG); the renderer converts to
+ * device px per frame.
+ */
+export interface PointGeometry {
+  /** Center in model coords: [x, y] * count. */
+  center: Float32Array;
+  /** Radius in user units: [r] * count. */
+  radius: Float32Array;
+  /** Fill RGBA: [r, g, b, a] * count. */
+  fill: Float32Array;
+  /** Outline RGBA: [r, g, b, a] * count. */
+  stroke: Float32Array;
+  /** Number of points. */
   count: number;
 }
 
 /** Everything the renderer draws for one document, in GPU-ready form. */
 export interface CpSceneData {
   strokes: StrokeGeometry;
+  points: PointGeometry;
 }

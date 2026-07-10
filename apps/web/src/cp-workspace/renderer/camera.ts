@@ -27,6 +27,24 @@ export function projectModelPoint(view: ViewTransform, x: number, y: number): Mo
 }
 
 /**
+ * Invert a {@link ViewTransform}: map a device-pixel point back to model coords.
+ * Returns `null` if the transform is degenerate (zero-area basis).
+ */
+export function unprojectDevicePoint(view: ViewTransform, dx: number, dy: number): ModelPoint | null {
+  const [ax, ay] = view.ex;
+  const [bx, by] = view.ey;
+  const det = ax * by - ay * bx;
+  if (Math.abs(det) < 1e-9) return null;
+  const px = dx - view.origin[0];
+  const py = dy - view.origin[1];
+  // solve [ex ey] * [x y]^T = [px py]^T
+  return {
+    x: (px * by - py * bx) / det,
+    y: (ax * py - ay * px) / det,
+  };
+}
+
+/**
  * Uniform scale magnitude (device px per model unit) implied by the transform.
  * For a rotation/flip-free transform this is just |ex|; the geometric mean of the
  * two basis lengths keeps it sensible under mild anisotropy.

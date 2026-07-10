@@ -1,4 +1,4 @@
-import type { CpSceneData, ModelPoint, Rgba } from '../renderer/types';
+import type { ModelPoint, Rgba, StrokeGeometry } from '../renderer/types';
 
 /** Minimal structural shape of a crease-pattern line segment we consume. */
 export interface CpLineSegmentInput {
@@ -14,11 +14,12 @@ export interface CpLineSegmentInput {
 export function cpSnapshotToScene(
   lineSegments: readonly CpLineSegmentInput[],
   colorFor: (color: string) => Rgba
-): CpSceneData {
+): { strokes: StrokeGeometry } {
   const count = lineSegments.length;
   const a = new Float32Array(count * 2);
   const b = new Float32Array(count * 2);
   const color = new Float32Array(count * 4);
+  const widthMul = new Float32Array(count).fill(1);
 
   // Memoise colour lookups — a dense CP has thousands of segments but only a
   // handful of distinct assignments.
@@ -42,5 +43,5 @@ export function cpSnapshotToScene(
     color[i * 4 + 3] = rgba[3];
   }
 
-  return { strokes: { a, b, color, count } };
+  return { strokes: { a, b, color, widthMul, count } };
 }

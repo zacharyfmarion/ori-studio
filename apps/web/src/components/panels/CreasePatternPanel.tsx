@@ -1746,6 +1746,10 @@ export function CreasePatternPanel() {
     void deleteOristudioCpFoldedFigure(activeFoldedFigure.id);
   }, [activeFoldedFigure, deleteOristudioCpFoldedFigure]);
   const editableCpVertices = useMemo(() => getCpVertices(editableCp), [editableCp]);
+  const editableCpVertexPoints = useMemo(
+    () => editableCpVertices.map((vertex) => vertex.point),
+    [editableCpVertices]
+  );
   const importedFoldedForms = useMemo(
     () =>
       (importedCreasePattern?.sourceFold?.file_frames ?? [])
@@ -4317,6 +4321,13 @@ export function CreasePatternPanel() {
                   modelToSvg={editableModelToSvg}
                   mode={mode}
                   lineWidth={oristudioCpViewport.lineWidth ?? 1}
+                  points={editableCp.crease_pattern.points}
+                  vertices={editableCpVertexPoints}
+                  pointSize={oristudioCpViewport.pointSize ?? 1}
+                  circles={editableCp.crease_pattern.circles}
+                  circleRadiusToSvg={editableCircleRadiusToSvg}
+                  grid={editableCpVisibleGrid}
+                  gridVisible={oristudioCpViewport.gridVisible}
                 />
               )}
               <ViewportToolbar

@@ -1,4 +1,4 @@
-import type { CpSceneData, Rgba, ViewTransform, Viewport } from './types';
+import type { CpSceneData, Rgba, StrokeGeometry, ViewTransform, Viewport } from './types';
 
 /**
  * Backend-agnostic seam for the crease-pattern edit surface. A concrete
@@ -13,6 +13,8 @@ export interface CpRenderer {
   resize(viewport: Viewport): void;
   /** Upload (or replace) the geometry to draw. */
   setScene(scene: CpSceneData): void;
+  /** Upload (or clear) the view-dependent grid geometry, drawn behind the scene. */
+  setGrid(strokes: StrokeGeometry | null): void;
   /** Draw a single frame. Safe to call repeatedly. */
   render(frame: CpRenderFrame): void;
   /** Release all GPU resources. The renderer must not be used afterwards. */
@@ -27,4 +29,8 @@ export interface CpRenderFrame {
   view: ViewTransform;
   /** Stroke width in device pixels. */
   strokeWidthPx: number;
+  /** SVG user unit → device px (scales point radii with zoom). */
+  userScalePx: number;
+  /** Point outline width in device px (constant / non-scaling). */
+  pointOutlinePx: number;
 }
