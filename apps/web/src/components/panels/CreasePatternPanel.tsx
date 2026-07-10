@@ -177,6 +177,7 @@ import { useShortcutStore } from '../../store/shortcutStore';
 import { useCpRendererStore } from '../../store/cpRendererStore';
 import { CreasePatternWebglCanvas } from '../../cp-workspace/CreasePatternWebglCanvas';
 import { resolveCpLineColor } from '../../cp-workspace/adapters/cpLineColor';
+import { readCssVarColor } from '../../cp-workspace/renderer/cssColor';
 import { IconButton } from '../ui/IconButton';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { Toggle } from '../ui/Toggle';
@@ -2515,9 +2516,15 @@ export function CreasePatternPanel() {
     ]
   );
 
+  // Only crease-drawing tools preview in the active line colour; select / toggle /
+  // transform box + lasso tools preview in the neutral selection accent so a
+  // "select crease" box doesn't look like a red crease.
   const toolPreviewColor = useMemo(
-    () => resolveCpLineColor(activeCpLineColor, mode, document.documentElement),
-    [activeCpLineColor, mode]
+    () =>
+      activeCpCommand?.group === 'draw'
+        ? resolveCpLineColor(activeCpLineColor, mode, document.documentElement)
+        : readCssVarColor(document.documentElement, '--accent-primary', [0.4, 0.6, 1, 1] as const),
+    [activeCpCommand?.group, activeCpLineColor, mode]
   );
 
   const updateSelectionMovePreview = useCallback(
@@ -4491,6 +4498,15 @@ export function CreasePatternPanel() {
                   resolveDrawPoint={resolveEditableDrawModelPoint}
                   onToolCommit={handleWebglToolCommit}
                   toolPreviewColor={toolPreviewColor}
+                  onEraseBox={(points) => {
+                    void executeOristudioCpCommand('LineSegmentDelete', {
+                      line_ids: [],
+                      points: [...points],
+                    });
+                  }}
+                  onEraseLine={(id) => {
+                    void executeOristudioCpCommand('LineSegmentDelete', { line_ids: [id] });
+                  }}
                   mode={mode}
                   lineWidth={oristudioCpViewport.lineWidth ?? 1}
                   points={editableCp.crease_pattern.points}

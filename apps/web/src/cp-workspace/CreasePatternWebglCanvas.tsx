@@ -101,6 +101,10 @@ const GRID_COLOR_VAR = '--border-default';
 const GRID_COLOR_ALPHA = 0.82;
 const GRID_FALLBACK: Rgba = [0.4, 0.43, 0.48, GRID_COLOR_ALPHA];
 
+/** Erase gesture (right-drag box) preview colour. */
+const ERASE_COLOR_VAR = '--status-danger';
+const ERASE_FALLBACK: Rgba = [0.85, 0.32, 0.32, 0.9];
+
 const dpr = () => Math.min(window.devicePixelRatio || 1, MAX_DPR);
 
 /** Pack a tool preview's candidate segments (model coords) into stroke geometry. */
@@ -194,6 +198,13 @@ export interface CreasePatternWebglCanvasProps {
   onToolCommit: (points: readonly ModelPoint[]) => void;
   /** Colour of the in-progress candidate crease (the resolved active line colour). */
   toolPreviewColor: Rgba;
+  /**
+   * Right-drag box erase (universal, overrides the active tool): delete every
+   * crease inside the box given by its two opposite corners (model coords).
+   */
+  onEraseBox: (points: readonly ModelPoint[]) => void;
+  /** Right-click erase: delete the 1-based crease id under the cursor. */
+  onEraseLine: (id: number) => void;
   /** Assignment colour mode. */
   mode: 'mvf' | 'agrh';
   /** `--cp-line-width` value driving stroke thickness. */
@@ -248,6 +259,8 @@ export function CreasePatternWebglCanvas({
   resolveDrawPoint,
   onToolCommit,
   toolPreviewColor,
+  onEraseBox,
+  onEraseLine,
   mode,
   lineWidth,
   points,
@@ -405,6 +418,8 @@ export function CreasePatternWebglCanvas({
     resolveDrawPoint,
     onToolCommit,
     toolPreviewColor,
+    onEraseBox,
+    onEraseLine,
   };
   const liveRef = useRef(live);
   useEffect(() => {
@@ -673,6 +688,25 @@ export function CreasePatternWebglCanvas({
       renderNow();
       if (out.commit) liveRef.current.onToolCommit(out.commit.points);
     };
+    // Right-button erase gesture: reuses the drag-box engine for its rubber-band
+    // box, but bound to the erase operation and never snapped (matches Oriedita).
+    let erasing = false;
+    let eraseRuntime: ToolRuntime | null = null;
+    const feedErase = (kind: 'down' | 'move', clientX: number, clientY: number) => {
+      if (!eraseRuntime) return;
+      const raw = clientToModel(clientX, clientY);
+      if (!raw) return;
+      const out = eraseRuntime.feed({ kind, point: raw });
+      renderer.setPreview(
+        out.preview && out.preview.segments.length > 0
+          ? previewSegmentsToStrokes(
+              out.preview.segments,
+              readCssVarColor(canvas, ERASE_COLOR_VAR, ERASE_FALLBACK)
+            )
+          : null
+      );
+      renderNow();
+    };
     // Active folded-figure drag: figure id + last cursor position in user coords.
     let movingFigure: string | null = null;
     // Active selection move-drag: press point (model) and running delta (model).
@@ -689,7 +723,13 @@ export function CreasePatternWebglCanvas({
       lastX = pressX = e.clientX;
       lastY = pressY = e.clientY;
       moved = false;
-      if (e.metaKey || e.ctrlKey) {
+      if (e.button === 2) {
+        // Right button: universal erase gesture, overrides any active tool.
+        e.preventDefault();
+        erasing = true;
+        eraseRuntime = createToolRuntime(toolEngineFor('drag-box'));
+        feedErase('down', e.clientX, e.clientY);
+      } else if (e.metaKey || e.ctrlKey) {
         e.preventDefault();
         // cmd/ctrl over a folded figure grabs it to move; otherwise it pans.
         const figureId = figureAt(e.clientX, e.clientY);
@@ -732,7 +772,9 @@ export function CreasePatternWebglCanvas({
       ) {
         moved = true;
       }
-      if (drawing) {
+      if (erasing) {
+        feedErase('move', e.clientX, e.clientY);
+      } else if (drawing) {
         feedTool('move', e.clientX, e.clientY);
       } else if (movingSelection && moveStart) {
         if (moved) {
@@ -777,7 +819,28 @@ export function CreasePatternWebglCanvas({
       }
     };
     const onPointerUp = (e: PointerEvent) => {
-      if (drawing) {
+      if (erasing) {
+        renderer.setPreview(null);
+        const raw = clientToModel(e.clientX, e.clientY);
+        if (eraseRuntime && raw) {
+          if (e.type === 'pointercancel') {
+            eraseRuntime.feed({ kind: 'cancel', point: raw });
+          } else {
+            const out = eraseRuntime.feed({ kind: 'up', point: raw });
+            if (out.commit) {
+              // Right-drag: erase every crease inside the box.
+              liveRef.current.onEraseBox(out.commit.points);
+            } else {
+              // Right-click (degenerate box): erase the crease under the cursor.
+              const hit = hitTest(e.clientX, e.clientY);
+              if (hit && hit.kind === 'line') liveRef.current.onEraseLine(hit.id);
+            }
+          }
+        }
+        renderNow();
+        erasing = false;
+        eraseRuntime = null;
+      } else if (drawing) {
         feedTool(e.type === 'pointercancel' ? 'cancel' : 'up', e.clientX, e.clientY);
         drawing = false;
         toolRuntime = null;
@@ -817,11 +880,14 @@ export function CreasePatternWebglCanvas({
       zoomUserCameraAt(cam, viewportOf(ratio), cx, cy, Math.pow(1.0015, -e.deltaY));
       renderNow();
     };
+    // Suppress the browser menu so the right button is free for the erase gesture.
+    const onContextMenu = (e: Event) => e.preventDefault();
     canvas.addEventListener('pointerdown', onPointerDown);
     canvas.addEventListener('pointermove', onPointerMove);
     canvas.addEventListener('pointerup', onPointerUp);
     canvas.addEventListener('pointercancel', onPointerUp);
     canvas.addEventListener('wheel', onWheel, { passive: false });
+    canvas.addEventListener('contextmenu', onContextMenu);
 
     return () => {
       observer.disconnect();
@@ -830,6 +896,7 @@ export function CreasePatternWebglCanvas({
       canvas.removeEventListener('pointerup', onPointerUp);
       canvas.removeEventListener('pointercancel', onPointerUp);
       canvas.removeEventListener('wheel', onWheel);
+      canvas.removeEventListener('contextmenu', onContextMenu);
       marquee.remove();
       renderNowRef.current = () => {};
       cameraRef.current = null;
