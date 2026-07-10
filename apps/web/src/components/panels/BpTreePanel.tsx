@@ -20,6 +20,7 @@ import {
 import {
   bpTreePaperRect,
   bpTreePointToSvg,
+  bpTreeUnitToSvg,
   bpTreeVertexLabel,
   constrainBpTreePoint,
   getBpTreeWorldRect,
@@ -55,6 +56,14 @@ const LAYER_OPTIONS: { key: BpTreeViewLayerKey; label: string; icon: ReactNode }
 ];
 
 const BP_TREE_DRAG_START_THRESHOLD_PX = 4;
+
+// Default so a unit-length edge is ~this many screen pixels. Node dots and
+// labels are drawn at fixed screen sizes (counter-scaled by the zoom) so they
+// stay small relative to the geometry at any zoom.
+const TARGET_UNIT_PX = 56;
+const NODE_DOT_PX = 5;
+const LEAF_DOT_PX = 4;
+const NODE_LABEL_PX = 12;
 
 function BpTreeViewportToolbar({
   zoomPercent,
@@ -211,6 +220,11 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     () => getBpTreeWorldRect(tree, { contentOnly: true, padding: 12 }),
     [tree]
   );
+
+  // Convert a target screen-pixel size into SVG units at the current zoom, so
+  // dots/labels keep a constant on-screen size regardless of zoom.
+  const svgPerScreenPx = Math.max(0.02, zoomPercent / 100);
+  const chromePx = (px: number) => px / svgPerScreenPx;
   const findVertex = useCallback(
     (id: number) => tree.vertices.find((vertex) => vertex.id === id),
     [tree.vertices]
@@ -239,10 +253,12 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
   const computeFitScale = useCallback(() => {
     const viewport = getViewportSize();
     if (!viewport) return 1;
-    // Allow zooming IN to fit a small tree (the default fit caps at 1x, which
-    // left a unit edge tiny). The content min-extent bounds how far it zooms.
-    return getViewportFitScale(viewport, worldRect, undefined, 16);
-  }, [getViewportSize, worldRect]);
+    // Default to a fixed, readable scale (1 tree unit ≈ TARGET_UNIT_PX on
+    // screen) rather than filling the pane with a tiny tree. Only zoom OUT (via
+    // getViewportFitScale) once the tree is too big to fit at that scale.
+    const targetScale = TARGET_UNIT_PX / bpTreeUnitToSvg(tree.sheet);
+    return getViewportFitScale(viewport, worldRect, undefined, targetScale);
+  }, [getViewportSize, worldRect, tree.sheet]);
 
   const fitToView = useCallback(
     (animationTime = 180) => {
@@ -579,13 +595,19 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
                       edge.isLeafEdge ? 'bp-tree-edge--leaf' : 'bp-tree-edge--river',
                       active ? 'tree-edge--selected' : '',
                     ].join(' ')}
+                    vectorEffect="non-scaling-stroke"
                     x1={p1.x}
                     y1={p1.y}
                     x2={p2.x}
                     y2={p2.y}
                   />
                   {layers.labels && (
-                    <text className="edge-label bp-tree-edge-label" x={(p1.x + p2.x) / 2 + 8} y={(p1.y + p2.y) / 2 - 8}>
+                    <text
+                      className="edge-label bp-tree-edge-label"
+                      x={(p1.x + p2.x) / 2 + chromePx(6)}
+                      y={(p1.y + p2.y) / 2 - chromePx(6)}
+                      style={{ fontSize: chromePx(NODE_LABEL_PX) }}
+                    >
                       {formatNumber(edge.length, 2)}
                     </text>
                   )}
@@ -606,9 +628,10 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
                       active ? 'tree-node--selected' : '',
                     ].join(' ')}
                     data-leaf={vertex.isLeaf || undefined}
+                    vectorEffect="non-scaling-stroke"
                     cx={point.x}
                     cy={point.y}
-                    r={vertex.isLeaf ? 7 : 8}
+                    r={chromePx(vertex.isLeaf ? LEAF_DOT_PX : NODE_DOT_PX)}
                     role="button"
                     tabIndex={0}
                     aria-label={`Select BP ${vertex.isLeaf ? 'leaf ' : ''}vertex ${vertex.id}${
@@ -621,7 +644,12 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
                     onKeyDown={(event) => onVertexKeyDown(event, vertex.id)}
                   />
                   {layers.labels && label && (
-                    <text className="node-label bp-tree-node-label" x={point.x + 11} y={point.y + 4}>
+                    <text
+                      className="node-label bp-tree-node-label"
+                      x={point.x + chromePx(NODE_DOT_PX + 4)}
+                      y={point.y + chromePx(4)}
+                      style={{ fontSize: chromePx(NODE_LABEL_PX) }}
+                    >
                       {label}
                     </text>
                   )}
