@@ -14,14 +14,21 @@ import type {
 type CpActionExecutor = (id: OristudioCpActionId) => unknown;
 type ViewportExecutor = (id: ViewportShortcutId) => unknown;
 
-const viewportExecutors: Partial<Record<DocumentMode, ViewportExecutor>> = {};
+/**
+ * Which viewport currently owns keyboard shortcuts. This is the document modes
+ * plus the Box Pleating packing pane, which is its own focusable viewport
+ * surface distinct from the tree (design) pane.
+ */
+export type ViewportSurface = DocumentMode | 'bp-editor';
+
+const viewportExecutors: Partial<Record<ViewportSurface, ViewportExecutor>> = {};
 let cpActionExecutor: CpActionExecutor | null = null;
-let activeViewportSurface: DocumentMode | null = null;
+let activeViewportSurface: ViewportSurface | null = null;
 
 export interface ShortcutRuntimeContext {
   documentMode: DocumentMode;
   activeEditingSurface: DocumentMode;
-  activeViewportSurface?: DocumentMode | null;
+  activeViewportSurface?: ViewportSurface | null;
 }
 
 export interface ShortcutRuntimeOptions {
@@ -31,7 +38,7 @@ export interface ShortcutRuntimeOptions {
 }
 
 export function registerViewportShortcutExecutor(
-  surface: DocumentMode,
+  surface: ViewportSurface,
   executor: ViewportExecutor
 ): () => void {
   viewportExecutors[surface] = executor;
@@ -51,11 +58,11 @@ export function registerCpActionShortcutExecutor(executor: CpActionExecutor): ()
   };
 }
 
-export function setActiveShortcutViewportSurface(surface: DocumentMode): void {
+export function setActiveShortcutViewportSurface(surface: ViewportSurface): void {
   activeViewportSurface = surface;
 }
 
-function resolvedViewportSurface(context: ShortcutRuntimeContext): DocumentMode {
+function resolvedViewportSurface(context: ShortcutRuntimeContext): ViewportSurface {
   return context.activeViewportSurface ?? activeViewportSurface ?? context.activeEditingSurface;
 }
 

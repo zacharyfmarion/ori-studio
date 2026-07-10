@@ -386,6 +386,23 @@ export interface OristudioBpSliceActions {
   setOristudioBpActiveSurface: (surface: OristudioBpEditingSurface) => void;
   /** Move a BP tree vertex; `dragging` coalesces intermediate drag updates. */
   moveOristudioBpTreeVertex: (id: number, loc: Point, dragging?: boolean) => Promise<boolean>;
+  /** Move a single BP flap in the packing. */
+  moveOristudioBpLayoutFlap: (id: number, loc: Point, dragging?: boolean) => Promise<boolean>;
+  /** Move a group of BP flaps in the packing. */
+  moveOristudioBpLayoutFlaps: (ids: number[], loc: Point, dragging?: boolean) => Promise<boolean>;
+  /** Move a BP device handle in the packing. */
+  moveOristudioBpDevice: (
+    id: string,
+    index: number,
+    loc: Point,
+    dragging?: boolean
+  ) => Promise<boolean>;
+  /** Subdivide the BP sheet grid. */
+  subdivideOristudioBpLayoutSheet: () => Promise<boolean>;
+  /** Rotate the BP sheet clockwise/counter-clockwise. */
+  rotateOristudioBpLayoutSheet: (clockwise: boolean) => Promise<boolean>;
+  /** Flip the BP sheet horizontally/vertically. */
+  flipOristudioBpLayoutSheet: (horizontal: boolean) => Promise<boolean>;
 }
 
 export type OristudioBpSlice = OristudioBpSliceState & OristudioBpSliceActions;

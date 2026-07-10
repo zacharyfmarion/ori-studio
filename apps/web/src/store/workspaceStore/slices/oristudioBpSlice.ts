@@ -4,10 +4,16 @@ import { requestConfirmation } from '../../commandDialogStore';
 import { useLayoutStore } from '../../layoutStore';
 import {
   createSampleOristudioBpProject,
+  flipOristudioBpLayoutSheet as flipRuntimeOristudioBpLayoutSheet,
   getOristudioBpPortDescriptors,
   loadOristudioBpProjectFromText,
+  moveOristudioBpDevice as moveRuntimeOristudioBpDevice,
+  moveOristudioBpLayoutFlap as moveRuntimeOristudioBpLayoutFlap,
+  moveOristudioBpLayoutFlaps as moveRuntimeOristudioBpLayoutFlaps,
   moveOristudioBpTreeVertex as moveRuntimeOristudioBpTreeVertex,
   oristudioBpError,
+  rotateOristudioBpLayoutSheet as rotateRuntimeOristudioBpLayoutSheet,
+  subdivideOristudioBpLayoutSheet as subdivideRuntimeOristudioBpLayoutSheet,
 } from '../oristudioBpRuntime';
 import type { OristudioBpDocumentState } from '../../../engine/oristudioBpTypes';
 import type { OristudioBpSlice, WorkspaceSliceCreator } from '../types';
@@ -176,6 +182,71 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           selection: { kind: 'bp-vertex', id },
           dragging,
         })
+      ),
+
+    moveOristudioBpLayoutFlap: async (id, loc, dragging = false) =>
+      runBpTreeMutation('Moved BP flap', () =>
+        moveRuntimeOristudioBpLayoutFlap(id, loc, {
+          activeSurface: 'packing',
+          selection: { kind: 'bp-flap', id },
+          dragging,
+        })
+      ),
+
+    moveOristudioBpLayoutFlaps: async (ids, loc, dragging = false) =>
+      runBpTreeMutation('Moved BP flaps', () =>
+        moveRuntimeOristudioBpLayoutFlaps(ids, loc, {
+          activeSurface: 'packing',
+          selection:
+            ids.length === 1
+              ? { kind: 'bp-flap', id: ids[0] }
+              : {
+                  kind: 'bp-multi',
+                  vertices: [],
+                  edges: [],
+                  flaps: ids,
+                  rivers: [],
+                  stretches: [],
+                  devices: [],
+                  invalidJunctions: [],
+                },
+          dragging,
+        })
+      ),
+
+    moveOristudioBpDevice: async (id, index, loc, dragging = false) =>
+      runBpTreeMutation('Moved BP device', () =>
+        moveRuntimeOristudioBpDevice(id, index, loc, {
+          activeSurface: 'packing',
+          selection: { kind: 'bp-device', id: `${id}:device:${index}` },
+          dragging,
+        })
+      ),
+
+    subdivideOristudioBpLayoutSheet: async () =>
+      runBpTreeMutation('Subdivided BP sheet', (document) =>
+        subdivideRuntimeOristudioBpLayoutSheet({
+          activeSurface: 'packing',
+          selection: document.selection,
+        })
+      ),
+
+    rotateOristudioBpLayoutSheet: async (clockwise) =>
+      runBpTreeMutation(clockwise ? 'Rotated BP sheet right' : 'Rotated BP sheet left', (document) =>
+        rotateRuntimeOristudioBpLayoutSheet(clockwise, {
+          activeSurface: 'packing',
+          selection: document.selection,
+        })
+      ),
+
+    flipOristudioBpLayoutSheet: async (horizontal) =>
+      runBpTreeMutation(
+        horizontal ? 'Flipped BP sheet horizontal' : 'Flipped BP sheet vertical',
+        (document) =>
+          flipRuntimeOristudioBpLayoutSheet(horizontal, {
+            activeSurface: 'packing',
+            selection: document.selection,
+          })
       ),
   };
 };

@@ -1,28 +1,62 @@
-import { BoxSelect } from 'lucide-react';
+import { BoxSelect, CircleDashed } from 'lucide-react';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { Button } from '../ui/Button';
+import { BpPackingPanel } from './BpPackingPanel';
 
-/**
- * BP Editor pane — the Box Pleating packing/manual-layout surface that sits
- * beside the BP tree editor in the Design workspace.
- *
- * Phase 1 registers the pane and its empty state; the packing editor content
- * is wired up in Phase 4 once the BP store slice exists.
- */
 export function BpEditorPanel() {
   const workflowTarget = useWorkspaceStore((state) => state.workflowTarget);
-
-  return (
-    <section className="panel-shell bp-editor-panel">
-      <div className="panel-body document-mode-empty">
-        <div className="document-mode-empty__icon" aria-hidden="true">
-          <BoxSelect size={24} />
-        </div>
-        <span className="document-mode-empty__message">
-          {workflowTarget === 'box-pleat'
-            ? 'Run Optimize Layout or materialize a packing to edit flaps and rivers here.'
-            : 'The BP Editor is available in Box Pleating designs.'}
-        </span>
-      </div>
-    </section>
+  const document = useWorkspaceStore((state) => state.oristudioBpDocument);
+  const createOristudioBpProject = useWorkspaceStore((state) => state.createOristudioBpProject);
+  const setOristudioBpActiveSurface = useWorkspaceStore(
+    (state) => state.setOristudioBpActiveSurface
   );
+
+  if (workflowTarget !== 'box-pleat' || !document) {
+    return (
+      <section className="panel-shell bp-editor-panel">
+        <div className="panel-toolbar">
+          <span className="panel-title">BP Editor</span>
+        </div>
+        <div className="panel-body document-mode-empty">
+          <div className="document-mode-empty__icon" aria-hidden="true">
+            <BoxSelect size={24} />
+          </div>
+          <span className="document-mode-empty__message">
+            Open a Box Pleat project to edit flaps and rivers.
+          </span>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => void createOristudioBpProject()}
+          >
+            New Box Pleat
+          </Button>
+        </div>
+      </section>
+    );
+  }
+
+  const flapCount = document.snapshot.packing.flaps.length;
+  if (flapCount === 0) {
+    return (
+      <section
+        className="panel-shell bp-editor-panel"
+        onPointerDown={() => setOristudioBpActiveSurface('packing')}
+      >
+        <div className="panel-toolbar">
+          <span className="panel-title">BP Editor</span>
+        </div>
+        <div className="panel-body document-mode-empty">
+          <div className="document-mode-empty__icon" aria-hidden="true">
+            <CircleDashed size={24} />
+          </div>
+          <span className="document-mode-empty__message">
+            Run Optimize Layout or materialize a packing before manual BP editing.
+          </span>
+        </div>
+      </section>
+    );
+  }
+
+  return <BpPackingPanel document={document} />;
 }
