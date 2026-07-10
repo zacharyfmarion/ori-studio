@@ -32,7 +32,7 @@ const BP_STARTER_PROJECT = JSON.stringify({
     tree: {
       sheet: { type: 'rect', width: 20, height: 20 },
       nodes: [
-        { id: 0, x: 10, y: 10, name: 'root' },
+        { id: 0, x: 10, y: 10, name: '' },
         { id: 1, x: 10, y: 9, name: '' },
       ],
       edges: [{ n1: 0, n2: 1, length: 1 }],

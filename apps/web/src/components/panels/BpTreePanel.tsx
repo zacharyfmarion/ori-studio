@@ -206,8 +206,11 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
   const paperRect = useMemo(() => bpTreePaperRect(tree.sheet), [tree.sheet]);
   const vertexLocations = useMemo(() => dragging?.preview, [dragging]);
   // Fit to the committed tree bounds only (not the drag preview) so the camera
-  // stays put while a flap rotates.
-  const worldRect = useMemo(() => getBpTreeWorldRect(tree, { contentOnly: true }), [tree]);
+  // stays put while a flap rotates. Tight padding keeps a unit edge large.
+  const worldRect = useMemo(
+    () => getBpTreeWorldRect(tree, { contentOnly: true, padding: 12 }),
+    [tree]
+  );
   const findVertex = useCallback(
     (id: number) => tree.vertices.find((vertex) => vertex.id === id),
     [tree.vertices]

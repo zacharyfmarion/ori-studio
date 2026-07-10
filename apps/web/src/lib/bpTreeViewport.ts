@@ -39,9 +39,9 @@ export interface BpTreeViewportOptions {
   minExtent?: number;
 }
 
-// ~2.5 sheet units of context (the sheet maps to 588 SVG units ≈ 29/unit), so a
-// unit-length edge renders at a comfortable size instead of tiny.
-const CONTENT_MIN_EXTENT = 74;
+// ~1.5 sheet units of context (the sheet maps to 588 SVG units ≈ 29/unit), so a
+// unit-length edge fills a good part of the view instead of rendering tiny.
+const CONTENT_MIN_EXTENT = 44;
 
 export interface BpTreeGridLine {
   id: string;
