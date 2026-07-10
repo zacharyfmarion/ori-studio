@@ -89,6 +89,7 @@ const exportMocks = vi.hoisted(() => ({
 
 const bpMocks = vi.hoisted(() => ({
   createSampleOristudioBpProject: vi.fn(),
+  loadOristudioBpProjectFromText: vi.fn(),
   getOristudioBpPortDescriptors: vi.fn(),
 }));
 
@@ -112,6 +113,7 @@ vi.mock('./oristudioBpRuntime', async (importOriginal) => {
   return {
     ...actual,
     createSampleOristudioBpProject: bpMocks.createSampleOristudioBpProject,
+    loadOristudioBpProjectFromText: bpMocks.loadOristudioBpProjectFromText,
     getOristudioBpPortDescriptors: bpMocks.getOristudioBpPortDescriptors,
   };
 });
@@ -1100,6 +1102,7 @@ function resetStores(snapshot = makeSnapshot()) {
   const api = createMockEngineApi(snapshot);
   configureEngine(api);
   bpMocks.createSampleOristudioBpProject.mockReset().mockImplementation(async () => sampleBpDocument());
+  bpMocks.loadOristudioBpProjectFromText.mockReset().mockImplementation(async () => sampleBpDocument());
   bpMocks.getOristudioBpPortDescriptors.mockReset().mockResolvedValue([]);
   oristudioCpMocks.getOristudioCpOperationDescriptors
     .mockReset()
@@ -3756,7 +3759,7 @@ describe('workspace store slices', () => {
       expect(state.pendingDesignChoice).toBe(false);
       expect(state.documentMode).toBe('tree');
       expect(state.oristudioBpDocument).not.toBeNull();
-      expect(bpMocks.createSampleOristudioBpProject).toHaveBeenCalledOnce();
+      expect(bpMocks.loadOristudioBpProjectFromText).toHaveBeenCalledOnce();
     });
 
     it('choosing Circle-packed creates a TreeMaker design and clears the chooser', async () => {

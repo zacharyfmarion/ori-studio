@@ -19,7 +19,6 @@ import {
   toggleBpVertexSelection,
 } from '../../lib/oristudioBpSelection';
 import {
-  bpTreeGridLines,
   bpTreeLeafCircleRadius,
   bpTreePaperRect,
   bpTreePointToSvg,
@@ -54,7 +53,6 @@ import {
 } from './ViewportToolbar';
 
 const LAYER_OPTIONS: { key: BpTreeViewLayerKey; label: string; icon: ReactNode }[] = [
-  { key: 'grid', label: 'Grid', icon: <Grid2X2 size={13} /> },
   { key: 'leafCircles', label: 'Leaf radii', icon: <Circle size={13} /> },
   { key: 'labels', label: 'Labels', icon: <Tag size={13} /> },
 ];
@@ -169,7 +167,6 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     () => getBpTreeWorldRect(tree, { vertexLocations }),
     [tree, vertexLocations]
   );
-  const gridLines = useMemo(() => bpTreeGridLines(tree.sheet, paperRect), [paperRect, tree.sheet]);
   const findVertex = useCallback(
     (id: number) => tree.vertices.find((vertex) => vertex.id === id),
     [tree.vertices]
@@ -485,24 +482,6 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
               width={paperRect.width}
               height={paperRect.height}
             />
-            {layers.grid && (
-              <g className="bp-tree-grid" aria-hidden="true">
-                {gridLines.map((line) => (
-                  <line
-                    key={line.id}
-                    className={[
-                      'bp-tree-grid-line',
-                      line.kind === 'major' ? 'bp-tree-grid-line--major' : '',
-                      line.kind === 'diagonal' ? 'bp-tree-grid-line--diagonal' : '',
-                    ].join(' ')}
-                    x1={line.from.x}
-                    y1={line.from.y}
-                    x2={line.to.x}
-                    y2={line.to.y}
-                  />
-                ))}
-              </g>
-            )}
             <rect
               className="paper-hit-area"
               x={paperRect.x}

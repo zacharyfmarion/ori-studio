@@ -3,7 +3,6 @@ import { markGeneratedCpLineageStale } from '../../../lib/oristudioCpLineage';
 import { requestConfirmation } from '../../commandDialogStore';
 import { useLayoutStore } from '../../layoutStore';
 import {
-  createSampleOristudioBpProject,
   flipOristudioBpLayoutSheet as flipRuntimeOristudioBpLayoutSheet,
   getOristudioBpPortDescriptors,
   loadOristudioBpProjectFromText,
@@ -17,6 +16,28 @@ import {
 } from '../oristudioBpRuntime';
 import type { OristudioBpDocumentState } from '../../../engine/oristudioBpTypes';
 import type { OristudioBpSlice, WorkspaceSliceCreator } from '../types';
+
+/**
+ * A new Box Pleating design is scaffolded with a root vertex and a single
+ * unit-length leaf (the engine requires at least one edge for a valid tree).
+ * The user builds outward from here by adding leaves.
+ */
+const BP_STARTER_PROJECT = JSON.stringify({
+  version: '0.7',
+  design: {
+    title: '',
+    mode: 'tree',
+    layout: { sheet: { type: 'rect', width: 16, height: 16 }, flaps: [], stretches: [] },
+    tree: {
+      sheet: { type: 'rect', width: 20, height: 20 },
+      nodes: [
+        { id: 0, x: 10, y: 10, name: 'root' },
+        { id: 1, x: 10, y: 9, name: '' },
+      ],
+      edges: [{ n1: 0, n2: 1, length: 1 }],
+    },
+  },
+});
 
 /**
  * Box Pleating workspace slice. Phase 3 is the runtime foundation: it can create
@@ -111,7 +132,11 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       try {
         await get().clearOristudioCpDocument();
         const [document, portDescriptors] = await Promise.all([
-          createSampleOristudioBpProject(),
+          loadOristudioBpProjectFromText(BP_STARTER_PROJECT, {
+            filename: 'Untitled.bps',
+            format: 'generated',
+            dirty: false,
+          }),
           getOristudioBpPortDescriptors().catch(() => []),
         ]);
         set({ oristudioBpPortDescriptors: portDescriptors });

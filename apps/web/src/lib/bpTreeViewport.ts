@@ -114,8 +114,10 @@ export function svgToBpTreePoint(
 }
 
 export function constrainBpTreePoint(point: Point, sheet: OristudioBpSheet): Point {
-  const x = Math.min(Math.max(0, Math.round(point.x)), Math.max(0, sheet.width));
-  const y = Math.min(Math.max(0, Math.round(point.y)), Math.max(0, sheet.height));
+  // Clamp to the sheet bounds without snapping to the grid — the BP tree editor
+  // uses continuous coordinates so leaves can sit at any angle around a parent.
+  const x = Math.min(Math.max(0, point.x), Math.max(0, sheet.width));
+  const y = Math.min(Math.max(0, point.y), Math.max(0, sheet.height));
   return { x, y };
 }
 
