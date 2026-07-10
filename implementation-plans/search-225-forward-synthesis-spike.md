@@ -30,4 +30,4 @@ the crate README.
 - [x] Add focused unit tests.
 - [x] Document conclusions, falsified assumptions, and the next experiment.
 - [x] Run deterministic Rust validation.
-- [ ] Open a draft pull request against `main`.
+- [x] Open a draft pull request against `main`.
