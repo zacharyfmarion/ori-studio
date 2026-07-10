@@ -4329,6 +4329,12 @@ export function CreasePatternPanel() {
                   lineSegments={editableCp.crease_pattern.line_segments}
                   svgRef={svgRef}
                   modelToSvg={editableModelToSvg}
+                  svgToModel={editableSvgToModel}
+                  selectedLineIds={oristudioCpSelection.lines}
+                  onSelectLine={(id, additive) => {
+                    if (id != null) handleEditableLineClick(id, additive);
+                    else if (!additive) clearOristudioCpSelection();
+                  }}
                   mode={mode}
                   lineWidth={(oristudioCpViewport.lineWidth ?? 1) * cpDecorationScale}
                   points={editableCp.crease_pattern.points}

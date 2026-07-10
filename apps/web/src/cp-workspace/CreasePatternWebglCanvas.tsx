@@ -7,11 +7,14 @@ import {
   modelViewFromCamera,
   panUserCamera,
   seedUserCamera,
+  unprojectDevicePoint,
   userCameraToView,
+  viewTransformScale,
   zoomUserCameraAt,
   type UserBounds,
   type UserCamera,
 } from './renderer/camera';
+import { LineHitIndex } from './picking/lineHitIndex';
 import type { ModelPoint, Rgba, Viewport } from './renderer/types';
 import { cpSnapshotToScene, type CpLineSegmentInput } from './adapters/cpSnapshotToScene';
 import { cpPointsToScene } from './adapters/cpPointsToScene';
@@ -48,6 +51,14 @@ const CREASE_WIDTH_FACTOR = 1.5;
 /** Point/vertex outline width in CSS px (SVG non-scaling stroke ~1.4). */
 const POINT_OUTLINE_CSS = 1.4;
 
+/** Selection highlight: accent colour + a wider stroke. */
+const SELECTION_COLOR_VAR = '--accent-primary';
+const SELECTION_FALLBACK: Rgba = [0.4, 0.6, 1, 1];
+const SELECTION_WIDTH_MUL = 2.6;
+/** Click hit tolerance and click-vs-drag threshold, in CSS px. */
+const HIT_TOLERANCE_CSS = 8;
+const CLICK_MOVE_THRESHOLD = 4;
+
 /** Grid colour: `--border-default` composited at 82% (matches the SVG grid line). */
 const GRID_COLOR_VAR = '--border-default';
 const GRID_COLOR_ALPHA = 0.82;
@@ -63,6 +74,12 @@ export interface CreasePatternWebglCanvasProps {
   svgRef: RefObject<SVGSVGElement | null>;
   /** Model → SVG user-coordinate mapping (matches the SVG renderer). */
   modelToSvg: (point: ModelPoint) => ModelPoint;
+  /** SVG user → model mapping (inverse of {@link modelToSvg}) for hit-testing. */
+  svgToModel: (point: ModelPoint) => ModelPoint;
+  /** Currently selected line ids (1-based, matching the SVG's index+1). */
+  selectedLineIds: readonly number[];
+  /** Click-select callback: a line id, or null for a background click. */
+  onSelectLine: (lineId: number | null, additive: boolean) => void;
   /** Assignment colour mode. */
   mode: 'mvf' | 'agrh';
   /** `--cp-line-width` value driving stroke thickness. */
@@ -104,6 +121,9 @@ export function CreasePatternWebglCanvas({
   lineSegments,
   svgRef,
   modelToSvg,
+  svgToModel,
+  selectedLineIds,
+  onSelectLine,
   mode,
   lineWidth,
   points,
@@ -143,10 +163,34 @@ export function CreasePatternWebglCanvas({
     return { minX, minY, maxX, maxY };
   }, [lineSegments, modelToSvg]);
 
-  // Per-frame inputs the render paths read without re-subscribing.
-  const liveRef = useRef({ modelToSvg, lineWidth, grid, gridVisible, contentBounds });
+  // Spatial index for click hit-testing (rebuilt when the geometry changes).
+  const hitIndex = useMemo(
+    () => new LineHitIndex(lineSegments.map((s, i) => ({ id: i + 1, a: s.a, b: s.b }))),
+    [lineSegments]
+  );
+
+  // Per-frame / per-interaction inputs the effect reads without re-subscribing.
+  const liveRef = useRef({
+    modelToSvg,
+    svgToModel,
+    lineWidth,
+    grid,
+    gridVisible,
+    contentBounds,
+    hitIndex,
+    onSelectLine,
+  });
   useEffect(() => {
-    liveRef.current = { modelToSvg, lineWidth, grid, gridVisible, contentBounds };
+    liveRef.current = {
+      modelToSvg,
+      svgToModel,
+      lineWidth,
+      grid,
+      gridVisible,
+      contentBounds,
+      hitIndex,
+      onSelectLine,
+    };
     // Inputs affecting stroke thickness / mapping changed — redraw.
     renderNowRef.current();
   });
@@ -163,8 +207,14 @@ export function CreasePatternWebglCanvas({
   // not read directly here.
   const scene = useMemo(
     () => ({
-      ...cpSnapshotToScene(lineSegments, (color) =>
-        resolveCpLineColor(color, mode, document.documentElement)
+      ...cpSnapshotToScene(
+        lineSegments,
+        (color) => resolveCpLineColor(color, mode, document.documentElement),
+        {
+          selected: new Set(selectedLineIds),
+          color: readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK),
+          widthMul: SELECTION_WIDTH_MUL,
+        }
       ),
       points: cpPointsToScene(
         points,
@@ -177,6 +227,7 @@ export function CreasePatternWebglCanvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       lineSegments,
+      selectedLineIds,
       points,
       vertices,
       circles,
@@ -288,29 +339,68 @@ export function CreasePatternWebglCanvas({
     observer.observe(canvas);
     applySize();
 
-    // --- Owned pan / zoom on the canvas ---
-    // cmd/ctrl + drag pans; a plain drag is reserved for tools (later phases).
-    let dragging = false;
+    // --- Pointer interaction on the canvas ---
+    // cmd/ctrl + drag pans; a plain click selects the crease under the cursor;
+    // a plain drag is reserved for tools (later phases).
+    const hitTestLine = (clientX: number, clientY: number): number => {
+      const cam = cameraRef.current;
+      if (!cam) return -1;
+      const ratio = dpr();
+      const viewport = viewportOf(ratio);
+      const rect = canvas.getBoundingClientRect();
+      const userPt = unprojectDevicePoint(
+        userCameraToView(cam, viewport),
+        (clientX - rect.left) * ratio,
+        (clientY - rect.top) * ratio
+      );
+      if (!userPt) return -1;
+      const modelPt = liveRef.current.svgToModel(userPt);
+      const scale = viewTransformScale(modelViewFromCamera(cam, viewport, liveRef.current.modelToSvg));
+      const tolModel = (HIT_TOLERANCE_CSS * ratio) / Math.max(1e-6, scale);
+      return liveRef.current.hitIndex.query(modelPt.x, modelPt.y, tolModel);
+    };
+
+    let panning = false;
+    let selecting = false;
+    let moved = false;
     let lastX = 0;
     let lastY = 0;
+    let pressX = 0;
+    let pressY = 0;
     const onPointerDown = (e: PointerEvent) => {
-      if (!e.metaKey && !e.ctrlKey) return;
-      e.preventDefault();
-      dragging = true;
-      lastX = e.clientX;
-      lastY = e.clientY;
+      lastX = pressX = e.clientX;
+      lastY = pressY = e.clientY;
+      moved = false;
+      if (e.metaKey || e.ctrlKey) {
+        e.preventDefault();
+        panning = true;
+      } else {
+        selecting = true;
+      }
       canvas.setPointerCapture(e.pointerId);
     };
     const onPointerMove = (e: PointerEvent) => {
-      if (!dragging || !cameraRef.current) return;
-      const ratio = dpr();
-      panUserCamera(cameraRef.current, (e.clientX - lastX) * ratio, (e.clientY - lastY) * ratio);
-      lastX = e.clientX;
-      lastY = e.clientY;
-      renderNow();
+      if (
+        Math.abs(e.clientX - pressX) > CLICK_MOVE_THRESHOLD ||
+        Math.abs(e.clientY - pressY) > CLICK_MOVE_THRESHOLD
+      ) {
+        moved = true;
+      }
+      if (panning && cameraRef.current) {
+        const ratio = dpr();
+        panUserCamera(cameraRef.current, (e.clientX - lastX) * ratio, (e.clientY - lastY) * ratio);
+        lastX = e.clientX;
+        lastY = e.clientY;
+        renderNow();
+      }
     };
     const onPointerUp = (e: PointerEvent) => {
-      dragging = false;
+      if (selecting && !moved) {
+        const id = hitTestLine(e.clientX, e.clientY);
+        liveRef.current.onSelectLine(id > 0 ? id : null, e.shiftKey);
+      }
+      panning = false;
+      selecting = false;
       if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
     };
     const onWheel = (e: WheelEvent) => {

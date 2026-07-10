@@ -7,13 +7,23 @@ export interface CpLineSegmentInput {
   color: string;
 }
 
+/** Selection highlighting: 1-based line ids, their colour, and width multiplier. */
+export interface CpSelectionStyle {
+  selected: ReadonlySet<number>;
+  color: Rgba;
+  widthMul: number;
+}
+
 /**
  * Convert crease-pattern line segments into GPU-ready stroke geometry. Pure: the
  * per-colour resolution is injected so this stays testable without the DOM/theme.
+ * Selected lines (1-based ids, matching the SVG's index+1) are recoloured and
+ * widened.
  */
 export function cpSnapshotToScene(
   lineSegments: readonly CpLineSegmentInput[],
-  colorFor: (color: string) => Rgba
+  colorFor: (color: string) => Rgba,
+  selection?: CpSelectionStyle
 ): { strokes: StrokeGeometry } {
   const count = lineSegments.length;
   const a = new Float32Array(count * 2);
@@ -31,6 +41,16 @@ export function cpSnapshotToScene(
     a[i * 2 + 1] = seg.a.y;
     b[i * 2] = seg.b.x;
     b[i * 2 + 1] = seg.b.y;
+
+    if (selection && selection.selected.has(i + 1)) {
+      const c = selection.color;
+      color[i * 4] = c[0];
+      color[i * 4 + 1] = c[1];
+      color[i * 4 + 2] = c[2];
+      color[i * 4 + 3] = c[3];
+      widthMul[i] = selection.widthMul;
+      continue;
+    }
 
     let rgba = colorCache.get(seg.color);
     if (!rgba) {
