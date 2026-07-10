@@ -1122,6 +1122,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           ...projectStateFromSnapshot(snapshot, 'Untitled'),
           workflowTarget: 'treemaker',
           pendingDesignChoice: false,
+          oristudioBpDocument: null,
+          oristudioBpWorkspace: null,
           documentMode: 'tree',
           activeEditingSurface: 'tree',
           importedCreasePattern: null,
@@ -1793,10 +1795,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
 
     chooseDesignMethod: async (target) => {
       if (target === 'box-pleat') {
-        // Phase 5 will create the BP project document here; for now switch the
-        // Design workspace into the box-pleat layout (tree + BP Editor split).
-        set({ pendingDesignChoice: false, workflowTarget: 'box-pleat' });
-        useLayoutStore.getState().ensureDesignLayout();
+        // Create a real BP document; it sets workflowTarget/box-pleat, clears
+        // the pending choice, and materializes the box-pleat Design layout.
+        await get().createOristudioBpProject({ confirmDiscard: false });
         return;
       }
       // Circle-packed: the standard TreeMaker blank-tree flow. createNewProject

@@ -221,27 +221,30 @@ Exit gate:
 
 ### Phase 3: BP Store, Runtime, And Workers (foundation)
 
-- [ ] Generate the `oristudio-bp-wasm` package into
-      `apps/web/src/generated/oristudio-bp-wasm` and add its `build:*` script,
-      mirroring `oristudio-cp-wasm`.
-- [ ] Port `oristudioBpRuntime` (+ BP worker and optimizer worker bindings)
-      fresh against the rebased wasm crate; reference the branch version.
-- [ ] Add `oristudioBpTypes` (BP snapshot/document DTOs) and the snapshot
-      mapper; narrow `OristudioBpEditingSurface` to `tree | packing`.
-- [ ] Add a minimal `oristudioBpSlice` that creates/holds a BP document
-      (`createOristudioBpProject`) against workspace navigation
-      (`activateWorkspace`/`activatePanel`) — no recents, no `documentMode`
-      coupling beyond `tree`.
-- [ ] Wire `chooseDesignMethod('box-pleat')` to create a real BP document
-      (replacing the Phase 2 layout-only stub).
-- [ ] Keep BP history separate from CP history; preserve BP undo/redo.
-- [ ] Tests: wasm round-trip, slice create/hold, worker round-trips, undo/redo
-      isolation.
+- [x] Generate the `oristudio-bp-wasm` package into
+      `apps/web/src/generated/oristudio-bp-wasm` and add its `build:*` script
+      (added to `build:wasm`), mirroring `oristudio-cp-wasm` (tracked set).
+- [x] Port `oristudioBpRuntime` (+ BP worker and optimizer worker bindings)
+      against the rebased wasm crate — the wasm-facing files ported verbatim.
+- [x] Add `oristudioBpTypes` (BP snapshot/document DTOs) and the snapshot
+      mapper; `OristudioBpEditingSurface` is already `tree | packing`. Also
+      brought over `oristudioBpCommands` (metadata the types depend on).
+- [x] Add a minimal `oristudioBpSlice` that creates/holds a BP document
+      (`createOristudioBpProject`) against workspace navigation — no recents, no
+      `documentMode` coupling beyond `tree`.
+- [x] Wire `chooseDesignMethod('box-pleat')` to create a real BP document.
+      Creating a TreeMaker/CP project clears the BP document.
+- [~] BP history/undo-redo isolation: deferred to Phase 4/5 with the editing
+      actions (the foundation slice only creates/holds a document).
+- [x] Tests: BP slice create/hold + method reset (store.test.ts, BP runtime
+      mocked); the ported BP type/mapper/command suites pass.
 
 Exit gate:
 
 - Choosing Box-pleated creates a real BP document held in the store, and BP
   state is driven only by BP-owned surfaces and workspace navigation.
+  (Met; browser-verified: box-pleat creates a real document via the worker/wasm
+  with no error. Editing surfaces come in Phases 4–5.)
 
 ### Phase 4: BP Tree Authoring In The Design Pane
 

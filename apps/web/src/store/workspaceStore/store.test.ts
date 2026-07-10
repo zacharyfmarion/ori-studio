@@ -87,6 +87,11 @@ const exportMocks = vi.hoisted(() => ({
   serializeCreasePatternSvg: vi.fn(() => '<svg role="img"></svg>'),
 }));
 
+const bpMocks = vi.hoisted(() => ({
+  createSampleOristudioBpProject: vi.fn(),
+  getOristudioBpPortDescriptors: vi.fn(),
+}));
+
 vi.mock('../../lib/creaseExport', () => exportMocks);
 
 vi.mock('./engineRuntime', async (importOriginal) => {
@@ -99,6 +104,15 @@ vi.mock('./engineRuntime', async (importOriginal) => {
     getEngine: engineMocks.getEngine,
     initializeBlankTree: engineMocks.initializeBlankTree,
     loadTreeFromText: engineMocks.loadTreeFromText,
+  };
+});
+
+vi.mock('./oristudioBpRuntime', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./oristudioBpRuntime')>();
+  return {
+    ...actual,
+    createSampleOristudioBpProject: bpMocks.createSampleOristudioBpProject,
+    getOristudioBpPortDescriptors: bpMocks.getOristudioBpPortDescriptors,
   };
 });
 
@@ -936,6 +950,19 @@ function loadSnapshotIntoStore(snapshot: TreeSnapshot, title = 'Seed project') {
   });
 }
 
+function sampleBpDocument(): import('../../engine/oristudioBpTypes').OristudioBpDocumentState {
+  // Only the fields read by the BP slice are needed; the rest are irrelevant to
+  // these store-level tests, so a minimal cast keeps the fixture small.
+  return {
+    workflowTarget: 'box-pleat',
+    kind: 'box-pleat-project',
+    handle: 9,
+    source: { format: 'generated', filename: 'Untitled.bps', path: null },
+    activeSurface: 'tree',
+    dirty: true,
+  } as import('../../engine/oristudioBpTypes').OristudioBpDocumentState;
+}
+
 function blankCpDocumentState(): OristudioCpDocumentState {
   const document = createStarterOristudioCpDocument();
   return {
@@ -1072,6 +1099,8 @@ function resetStores(snapshot = makeSnapshot()) {
   useLayoutStore.setState(initialLayoutState, true);
   const api = createMockEngineApi(snapshot);
   configureEngine(api);
+  bpMocks.createSampleOristudioBpProject.mockReset().mockImplementation(async () => sampleBpDocument());
+  bpMocks.getOristudioBpPortDescriptors.mockReset().mockResolvedValue([]);
   oristudioCpMocks.getOristudioCpOperationDescriptors
     .mockReset()
     .mockResolvedValue(cpOperationDescriptors);
@@ -3725,6 +3754,9 @@ describe('workspace store slices', () => {
       const state = useWorkspaceStore.getState();
       expect(state.workflowTarget).toBe('box-pleat');
       expect(state.pendingDesignChoice).toBe(false);
+      expect(state.documentMode).toBe('tree');
+      expect(state.oristudioBpDocument).not.toBeNull();
+      expect(bpMocks.createSampleOristudioBpProject).toHaveBeenCalledOnce();
     });
 
     it('choosing Circle-packed creates a TreeMaker design and clears the chooser', async () => {
@@ -3744,11 +3776,15 @@ describe('workspace store slices', () => {
       useWorkspaceStore.getState().startNewDesign();
       await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
       expect(useWorkspaceStore.getState().workflowTarget).toBe('box-pleat');
+      expect(useWorkspaceStore.getState().oristudioBpDocument).not.toBeNull();
 
+      // Skip the discard confirmation this test isn't exercising.
+      useWorkspaceStore.setState({ dirty: false });
       await useWorkspaceStore.getState().createNewProject();
 
       expect(useWorkspaceStore.getState().workflowTarget).toBe('treemaker');
       expect(useWorkspaceStore.getState().pendingDesignChoice).toBe(false);
+      expect(useWorkspaceStore.getState().oristudioBpDocument).toBeNull();
     });
 
     it('opening a file clears a pending design choice', async () => {

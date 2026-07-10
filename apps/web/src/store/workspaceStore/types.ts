@@ -47,6 +47,11 @@ import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
 import type { OristudioCpActionId } from '../../lib/oristudioCpActions';
 import type { CpLineClipboardPayload, CpSelectionTransform } from '../../lib/creasePatternClipboard';
 import type { OristudioCpLineage } from '../../lib/oristudioCpLineage';
+import type {
+  OristudioBpDocumentState,
+  OristudioBpPortDescriptor,
+  OristudioBpWorkspaceState,
+} from '../../engine/oristudioBpTypes';
 
 export interface OristudioCpHistoryEntry {
   document: OristudioCpDocumentSnapshot;
@@ -360,13 +365,29 @@ export interface CreasePatternSliceActions {
 
 export type CreasePatternSlice = CreasePatternSliceState & CreasePatternSliceActions;
 
+export interface OristudioBpSliceState {
+  oristudioBpDocument: OristudioBpDocumentState | null;
+  oristudioBpWorkspace: OristudioBpWorkspaceState | null;
+  oristudioBpPortDescriptors: OristudioBpPortDescriptor[];
+  oristudioBpError: string | null;
+  oristudioBpBusy: boolean;
+}
+
+export interface OristudioBpSliceActions {
+  /** Create a fresh Box Pleating project and hold it in the store. */
+  createOristudioBpProject: (options?: { confirmDiscard?: boolean }) => Promise<boolean>;
+}
+
+export type OristudioBpSlice = OristudioBpSliceState & OristudioBpSliceActions;
+
 export type WorkspaceState =
   ProjectSlice &
   HistorySlice &
   EditingSlice &
   ClipboardSlice &
   ConditionSlice &
-  CreasePatternSlice;
+  CreasePatternSlice &
+  OristudioBpSlice;
 
 export type WorkspaceSliceCreator<T> = StateCreator<
   WorkspaceState,
