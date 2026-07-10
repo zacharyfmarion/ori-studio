@@ -90,6 +90,8 @@ const SELECTION_WIDTH_MUL = 2.6;
 const HIT_TOLERANCE_CSS = 8;
 const POINT_HIT_TOLERANCE_CSS = 6;
 const CLICK_MOVE_THRESHOLD = 4;
+/** Move-drag snap radius (CSS px): how close an anchor must be to a target. */
+const SNAP_TOLERANCE_CSS = 10;
 
 /** Grid colour: `--border-default` composited at 82% (matches the SVG grid line). */
 const GRID_COLOR_VAR = '--border-default';
@@ -144,6 +146,16 @@ export interface CreasePatternWebglCanvasProps {
    * transform.
    */
   onTranslateSelection: (delta: { x: number; y: number }) => void;
+  /**
+   * Snap a move-drag's raw delta to nearby grid/vertices/lines. Given the raw
+   * cursor delta and a snap tolerance in model units (derived from the WebGL
+   * camera so it is a fixed screen distance), returns the adjusted delta and the
+   * snapped target's label (or the raw delta unchanged when nothing snaps).
+   */
+  resolveMoveSnap: (
+    rawDelta: { x: number; y: number },
+    toleranceModel: number
+  ) => { delta: { x: number; y: number }; snapLabel: string | null };
   /** Assignment colour mode. */
   mode: 'mvf' | 'agrh';
   /** `--cp-line-width` value driving stroke thickness. */
@@ -193,6 +205,7 @@ export function CreasePatternWebglCanvas({
   onBoxSelect,
   onMoveFoldedFigure,
   onTranslateSelection,
+  resolveMoveSnap,
   mode,
   lineWidth,
   points,
@@ -345,6 +358,7 @@ export function CreasePatternWebglCanvas({
     onBoxSelect,
     onMoveFoldedFigure,
     onTranslateSelection,
+    resolveMoveSnap,
   };
   const liveRef = useRef(live);
   useEffect(() => {
@@ -652,7 +666,13 @@ export function CreasePatternWebglCanvas({
         if (moved) {
           const m = clientToModel(e.clientX, e.clientY);
           if (m) {
-            moveDelta = { x: m.x - moveStart.x, y: m.y - moveStart.y };
+            const rawDelta = { x: m.x - moveStart.x, y: m.y - moveStart.y };
+            // Snap the translation to nearby grid/vertices/lines (screen-fixed
+            // tolerance from the WebGL camera), matching the SVG move.
+            moveDelta = liveRef.current.resolveMoveSnap(
+              rawDelta,
+              modelToleranceOf(SNAP_TOLERANCE_CSS)
+            ).delta;
             // Redraw the selected lines shifted in place — the real strokes move,
             // no separate copy — and let their derived vertices follow. Only the
             // stroke + point buffers are re-uploaded per frame.

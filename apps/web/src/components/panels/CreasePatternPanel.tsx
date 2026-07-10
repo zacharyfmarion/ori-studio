@@ -1585,13 +1585,10 @@ export function CreasePatternPanel() {
     () => orieditaCameraFromMetadata(editableCp?.metadata),
     [editableCp?.metadata]
   );
-  // Point/vertex/line sizes are authored in SVG user units, which assumes the
-  // default model→user scale. Imported documents can carry a very different
-  // camera zoom (e.g. a large sheet of many small CPs), which would otherwise
-  // make those decorations huge relative to the geometry. Scale them by the
-  // camera zoom so they stay proportional — matching how circle radii already
-  // scale (editableCircleRadiusToSvg). 1 for app-created / default cameras.
-  const cpDecorationScale = nativeCreasePatternCamera
+  // SVG-only: its decorations live in user units, so track an imported camera's
+  // zoom to keep them proportional. The WebGL surface sizes decorations in screen
+  // space and must not use this. (Retired with the SVG render path.)
+  const svgUserSpaceDecorationScale = nativeCreasePatternCamera
     ? Math.abs(nativeCreasePatternCamera.cameraZoomX) || 1
     : 1;
   const cpCanvasRect = editableCp ? CP_EDITABLE_CANVAS_RECT : CP_WORLD_RECT;
@@ -2402,6 +2399,58 @@ export function CreasePatternPanel() {
       },
     };
   }, [editableCp, oristudioCpSelection.lines]);
+
+  // Snap a move-drag delta to grid/vertices/lines for the WebGL surface. The
+  // caller supplies the tolerance in model units (from its own camera) so the
+  // snap radius stays a fixed screen distance. Mirrors the SVG snap in
+  // updateSelectionMovePreview, but returns the adjusted delta instead of
+  // driving SVG preview state.
+  const resolveEditableMoveSnap = useCallback(
+    (
+      rawDelta: Point,
+      toleranceModel: number
+    ): { delta: Point; snapLabel: string | null } => {
+      const snappingEnabled =
+        oristudioCpViewport.snapToGrid ||
+        oristudioCpViewport.snapToVertices ||
+        oristudioCpViewport.snapToLines;
+      if (!snappingEnabled || !selectionMoveSnapDocument) {
+        return { delta: rawDelta, snapLabel: null };
+      }
+      const translated = translateCpLineSegments(selectedEditableCpLines, rawDelta);
+      const anchorPoints = cpLineSelectionMoveAnchorPoints(
+        translated,
+        selectionTransformAngleDegrees
+      );
+      let best: { target: CpSnapTarget; anchorPoint: Point } | null = null;
+      for (const anchorPoint of anchorPoints) {
+        const target = nearestCpSnapTarget(
+          selectionMoveSnapDocument,
+          anchorPoint,
+          editableCpBounds,
+          oristudioCpViewport,
+          toleranceModel
+        );
+        if (!target) continue;
+        if (!best || target.distance < best.target.distance) best = { target, anchorPoint };
+      }
+      if (!best) return { delta: rawDelta, snapLabel: null };
+      return {
+        delta: {
+          x: rawDelta.x + best.target.point.x - best.anchorPoint.x,
+          y: rawDelta.y + best.target.point.y - best.anchorPoint.y,
+        },
+        snapLabel: best.target.label,
+      };
+    },
+    [
+      editableCpBounds,
+      oristudioCpViewport,
+      selectedEditableCpLines,
+      selectionMoveSnapDocument,
+      selectionTransformAngleDegrees,
+    ]
+  );
 
   const updateSelectionMovePreview = useCallback(
     (drag: CpSelectionMoveDrag, point: Point) => {
@@ -4230,8 +4279,10 @@ export function CreasePatternPanel() {
                       {
                         width: cpCanvasRect.width,
                         height: cpCanvasRect.height,
-                        '--cp-line-width': (oristudioCpViewport.lineWidth ?? 1) * cpDecorationScale,
-                        '--cp-point-size': (oristudioCpViewport.pointSize ?? 1) * cpDecorationScale,
+                        '--cp-line-width':
+                          (oristudioCpViewport.lineWidth ?? 1) * svgUserSpaceDecorationScale,
+                        '--cp-point-size':
+                          (oristudioCpViewport.pointSize ?? 1) * svgUserSpaceDecorationScale,
                       } as CSSProperties
                     }
                     role="img"
@@ -4359,11 +4410,12 @@ export function CreasePatternPanel() {
                   onTranslateSelection={(delta) => {
                     void transformOristudioCpSelection({ kind: 'translate', delta });
                   }}
+                  resolveMoveSnap={resolveEditableMoveSnap}
                   mode={mode}
-                  lineWidth={(oristudioCpViewport.lineWidth ?? 1) * cpDecorationScale}
+                  lineWidth={oristudioCpViewport.lineWidth ?? 1}
                   points={editableCp.crease_pattern.points}
                   vertices={editableCpVertexPoints}
-                  pointSize={(oristudioCpViewport.pointSize ?? 1) * cpDecorationScale}
+                  pointSize={oristudioCpViewport.pointSize ?? 1}
                   circles={editableCp.crease_pattern.circles}
                   circleRadiusToSvg={editableCircleRadiusToSvg}
                   foldedFigures={generatedFoldedFigures}
