@@ -141,13 +141,14 @@ Rules:
 
 ### Phase 0: Rebase Engine, Reset Frontend
 
-- [ ] Rebase `crates/oristudio-bp` and `crates/oristudio-bp-wasm` (plus
+- [x] Rebase `crates/oristudio-bp` and `crates/oristudio-bp-wasm` (plus
       `third_party/box-pleating-studio`, `tools/bp-studio-oracle`) onto `main`.
-- [ ] Resolve `Cargo.toml` workspace-member conflicts; keep Rust + wasm tests
-      green.
-- [ ] Take no frontend BP files onto the rebased branch except as reference;
+- [x] Resolve `Cargo.toml` workspace-member conflicts; keep Rust + wasm tests
+      green. (260 oristudio-bp tests pass; `preserve_order` scoped to the BP
+      crate; pre-rehome state preserved on branch `bp-port-reference`.)
+- [x] Take no frontend BP files onto the rebased branch except as reference;
       start the web integration from `main`'s workspace baseline.
-- [ ] Confirm `main`'s web app still builds/lints/tests before adding BP UI.
+- [x] Confirm `main`'s web app still builds/lints/tests before adding BP UI.
 
 Exit gate:
 
@@ -156,22 +157,27 @@ Exit gate:
 
 ### Phase 1: Workspace And Layout Plumbing
 
-- [ ] Keep `workflowTarget: 'treemaker' | 'box-pleat'`; surface user labels
+- [x] Keep `workflowTarget: 'treemaker' | 'box-pleat'`; surface user labels
       "Circle-packed" / "Box-pleated" without renaming the internal ids.
-- [ ] Register `'bp-editor'` in `panelComponents` and in
+      (Added `workflowTarget` to `ProjectSliceState` + `setWorkflowTarget`.)
+- [x] Register `'bp-editor'` in `panelComponents` and in
       `WORKSPACE_BY_PANEL_ID` → `'design'`.
-- [ ] Make `applyDesignLayout` workflow-aware: TreeMaker → current layout; BP →
+- [x] Make `applyDesignLayout` workflow-aware: TreeMaker → current layout; BP →
       `design` + `bp-editor` split, with inspector/diagnostics.
-- [ ] Re-materialize the Design layout when the active design method changes
-      (creation, open, import) without disturbing Edit/Simulate layouts.
-- [ ] Bump `LAYOUT_VERSION` and discard stale Design layouts on load.
-- [ ] Layout-store tests: BP Design default, TreeMaker Design default,
-      method-switch re-materialization, migration.
+- [x] Re-materialize the Design layout when the active design method changes
+      (`setWorkflowTarget` → `rematerializeWorkspace('design')`) without
+      disturbing Edit/Simulate layouts.
+- [x] Bump `LAYOUT_VERSION` (12 → 13); design layout persisted per method via
+      a `design:box-pleat` scope so the two variants don't clobber.
+- [x] Layout-store tests: BP Design default, TreeMaker Design default,
+      method-scoped persistence, re-materialization, inactive no-op.
 
 Exit gate:
 
 - A BP project shows the tree + packing split in Design; a TreeMaker project is
   unchanged; switching methods rebuilds only the Design layout.
+  (Verified at the unit level; visual verification deferred to Phase 2 when the
+  NUX can create a BP project and the panes have real content.)
 
 ### Phase 2: Design NUX Chooser
 

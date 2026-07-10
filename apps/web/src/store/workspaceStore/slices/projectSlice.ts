@@ -1044,6 +1044,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
 
   return {
     project: createEmptyProject(),
+    workflowTarget: 'treemaker',
     documentMode: 'tree',
     activeEditingSurface: 'tree',
     importedCreasePattern: null,
@@ -1762,5 +1763,16 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
 
     clearProjectMessage: () => set({ projectMessage: null }),
     setActiveEditingSurface: (surface) => set({ activeEditingSurface: surface }),
+    setWorkflowTarget: (target) => {
+      if (get().workflowTarget === target) return;
+      set({ workflowTarget: target });
+      // The Design workspace layout differs by method (the box-pleat variant
+      // adds the BP Editor pane), so rebuild it when the method changes while
+      // Design is the active workspace.
+      const layout = useLayoutStore.getState();
+      if (layout.activeWorkspace === 'design') {
+        layout.rematerializeWorkspace('design');
+      }
+    },
   };
 };

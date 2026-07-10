@@ -1,6 +1,11 @@
 import type { DockviewApi, SerializedDockview } from 'dockview';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { applyDefaultLayout, useLayoutStore } from './layoutStore';
+import {
+  applyDefaultLayout,
+  registerWorkflowTargetSource,
+  useLayoutStore,
+} from './layoutStore';
+import type { WorkflowTarget } from '../lib/sampleProject';
 
 interface MockPanel {
   id: string;
@@ -71,10 +76,14 @@ function createDockviewApi(layout: SerializedDockview = dockviewLayout()) {
 }
 
 describe('layout store', () => {
+  let workflowTarget: WorkflowTarget = 'treemaker';
+  registerWorkflowTargetSource(() => workflowTarget);
+
   beforeEach(() => {
     localStorage.clear();
     useLayoutStore.setState(initialLayoutState, true);
     vi.restoreAllMocks();
+    workflowTarget = 'treemaker';
   });
 
   it('builds the default design workspace with design-only side panes', () => {
@@ -177,7 +186,7 @@ describe('layout store', () => {
     expect(useLayoutStore.getState().loadLayout()).toBeNull();
     expect(localStorage.getItem('treemaker-web-layout:design')).toBeNull();
 
-    localStorage.setItem('treemaker-web-layout-version:design', '12');
+    localStorage.setItem('treemaker-web-layout-version:design', '13');
     localStorage.setItem('treemaker-web-layout:design', '{broken');
 
     expect(useLayoutStore.getState().loadLayout()).toBeNull();
@@ -195,5 +204,70 @@ describe('layout store', () => {
     expect(api.clear).toHaveBeenCalledOnce();
     expect(api.addPanel).toHaveBeenCalledTimes(4);
     expect(localStorage.getItem('treemaker-web-layout:design')).toContain('reset');
+  });
+
+  it('adds the BP Editor pane to the box-pleat design layout', () => {
+    workflowTarget = 'box-pleat';
+    const api = createDockviewApi();
+
+    applyDefaultLayout(api, 'design');
+
+    expect(api.addPanel.mock.calls.map(([options]) => options.id)).toEqual([
+      'design',
+      'bp-editor',
+      'inspector',
+      'diagnostics',
+      'conditions',
+    ]);
+    expect(api.addPanel.mock.calls[1][0]).toMatchObject({
+      id: 'bp-editor',
+      position: { referencePanel: 'design', direction: 'right' },
+    });
+    // Inspector docks to the right of the BP Editor, not the design pane.
+    expect(api.addPanel.mock.calls[2][0]).toMatchObject({
+      id: 'inspector',
+      position: { referencePanel: 'bp-editor', direction: 'right' },
+    });
+  });
+
+  it('keeps TreeMaker and box-pleat design layouts in separate storage scopes', () => {
+    const api = createDockviewApi(dockviewLayout('treemaker-design'));
+    useLayoutStore.getState().setDockviewApi(api);
+
+    workflowTarget = 'treemaker';
+    useLayoutStore.getState().saveLayout('design');
+    workflowTarget = 'box-pleat';
+    useLayoutStore.getState().saveLayout('design');
+
+    expect(localStorage.getItem('treemaker-web-layout:design')).toContain('treemaker-design');
+    expect(localStorage.getItem('treemaker-web-layout:design:box-pleat')).toContain(
+      'treemaker-design'
+    );
+    // The two scopes are independent keys.
+    expect(localStorage.getItem('treemaker-web-layout:design')).not.toBeNull();
+    expect(localStorage.getItem('treemaker-web-layout:design:box-pleat')).not.toBeNull();
+  });
+
+  it('rematerializes the active design layout for the current method', () => {
+    const api = createDockviewApi();
+    useLayoutStore.getState().setDockviewApi(api);
+    workflowTarget = 'box-pleat';
+
+    useLayoutStore.getState().rematerializeWorkspace('design');
+
+    expect(api.clear).toHaveBeenCalledOnce();
+    expect(api.addPanel).toHaveBeenCalledTimes(5);
+    expect(api.getPanel('bp-editor')).not.toBeNull();
+    expect(localStorage.getItem('treemaker-web-layout:design:box-pleat')).not.toBeNull();
+  });
+
+  it('does not rematerialize an inactive workspace', () => {
+    const api = createDockviewApi();
+    useLayoutStore.getState().setDockviewApi(api);
+
+    useLayoutStore.getState().rematerializeWorkspace('edit');
+
+    expect(api.clear).not.toHaveBeenCalled();
+    expect(api.addPanel).not.toHaveBeenCalled();
   });
 });

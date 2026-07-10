@@ -16,6 +16,7 @@ import type {
   Selection,
   ToolMode,
   TreeProject,
+  WorkflowTarget,
 } from '../../lib/sampleProject';
 import type {
   OristudioCpSelection,
@@ -61,6 +62,7 @@ export interface OristudioCpActionRequest {
 
 export interface ProjectSliceState {
   project: TreeProject;
+  workflowTarget: WorkflowTarget;
   documentMode: DocumentMode;
   activeEditingSurface: DocumentMode;
   importedCreasePattern: ImportedCreasePatternDocument | null;
@@ -134,6 +136,7 @@ export interface ProjectSliceActions {
   loadExampleProject: (id: string) => Promise<void>;
   clearProjectMessage: () => void;
   setActiveEditingSurface: (surface: DocumentMode) => void;
+  setWorkflowTarget: (target: WorkflowTarget) => void;
 }
 
 export type ProjectSlice = ProjectSliceState & ProjectSliceActions;

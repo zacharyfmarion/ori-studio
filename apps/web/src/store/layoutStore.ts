@@ -2,17 +2,47 @@ import { create } from 'zustand';
 import type { DockviewApi, IDockviewPanel, SerializedDockview } from 'dockview';
 import type { WorkspaceId } from '../workspaces/workspaces';
 import { workspaceForPanelId } from '../workspaces/workspaces';
+import type { WorkflowTarget } from '../lib/sampleProject';
 
 const LAYOUT_STORAGE_KEY = 'treemaker-web-layout';
 const LAYOUT_VERSION_KEY = 'treemaker-web-layout-version';
-const LAYOUT_VERSION = 12;
+const LAYOUT_VERSION = 13;
 
-function layoutStorageKey(workspace: WorkspaceId): string {
-  return `${LAYOUT_STORAGE_KEY}:${workspace}`;
+/**
+ * The Design workspace layout depends on the active design method (the
+ * box-pleat variant adds the BP Editor pane), so the layout store needs to
+ * read the current workflow target. To avoid a hard import cycle with the
+ * workspace store, the source is registered at app init and defaults to the
+ * TreeMaker layout everywhere else (tests, non-design workspaces).
+ */
+let readWorkflowTarget: () => WorkflowTarget = () => 'treemaker';
+
+export function registerWorkflowTargetSource(source: () => WorkflowTarget): void {
+  readWorkflowTarget = source;
 }
 
-function layoutVersionKey(workspace: WorkspaceId): string {
-  return `${LAYOUT_VERSION_KEY}:${workspace}`;
+/**
+ * Persisted-layout scope. Only the Design workspace varies by design method;
+ * TreeMaker keeps the plain `design` scope for backward compatibility, and the
+ * box-pleat variant is stored separately so the two do not clobber each other.
+ */
+function layoutScope(workspace: WorkspaceId, workflowTarget: WorkflowTarget): string {
+  if (workspace === 'design' && workflowTarget === 'box-pleat') {
+    return 'design:box-pleat';
+  }
+  return workspace;
+}
+
+function currentLayoutScope(workspace: WorkspaceId): string {
+  return layoutScope(workspace, readWorkflowTarget());
+}
+
+function layoutStorageKey(scope: string): string {
+  return `${LAYOUT_STORAGE_KEY}:${scope}`;
+}
+
+function layoutVersionKey(scope: string): string {
+  return `${LAYOUT_VERSION_KEY}:${scope}`;
 }
 
 interface PrimaryPanelOptions {
@@ -21,10 +51,14 @@ interface PrimaryPanelOptions {
   title: string;
 }
 
-export function applyDefaultLayout(api: DockviewApi, workspace: WorkspaceId = 'design'): void {
+export function applyDefaultLayout(
+  api: DockviewApi,
+  workspace: WorkspaceId = 'design',
+  workflowTarget: WorkflowTarget = readWorkflowTarget()
+): void {
   switch (workspace) {
     case 'design':
-      applyDesignLayout(api);
+      applyDesignLayout(api, workflowTarget);
       return;
     case 'edit':
       applyEditLayout(api);
@@ -40,13 +74,12 @@ function addHeaderlessPanel(api: DockviewApi, options: PrimaryPanelOptions): IDo
   return api.addPanel({ ...options, position: { referenceGroup: group } });
 }
 
-function applyDesignLayout(api: DockviewApi): void {
-  addHeaderlessPanel(api, { id: 'design', component: 'design', title: 'Design' });
+function addDesignSidePanes(api: DockviewApi, referencePanelId: string): void {
   api.addPanel({
     id: 'inspector',
     component: 'inspector',
     title: 'Inspector',
-    position: { referencePanel: 'design', direction: 'right' },
+    position: { referencePanel: referencePanelId, direction: 'right' },
     initialWidth: 320,
   });
   const inspector = api.getPanel('inspector');
@@ -66,6 +99,25 @@ function applyDesignLayout(api: DockviewApi): void {
       inactive: true,
     });
   }
+}
+
+function applyDesignLayout(api: DockviewApi, workflowTarget: WorkflowTarget): void {
+  const design = addHeaderlessPanel(api, { id: 'design', component: 'design', title: 'Design' });
+  if (workflowTarget === 'box-pleat') {
+    // Box-pleat Design: BP tree editor beside the BP Editor packing pane, with
+    // the shared Design inspector/diagnostics on the right.
+    api.addPanel({
+      id: 'bp-editor',
+      component: 'bp-editor',
+      title: 'BP Editor',
+      position: { referencePanel: 'design', direction: 'right' },
+      initialWidth: 520,
+    });
+    addDesignSidePanes(api, 'bp-editor');
+    design.api.setActive();
+    return;
+  }
+  addDesignSidePanes(api, 'design');
 }
 
 function applyEditLayout(api: DockviewApi): void {
@@ -99,6 +151,7 @@ interface LayoutState {
   setActiveWorkspace: (workspace: WorkspaceId) => void;
   activateWorkspace: (workspace: WorkspaceId) => void;
   activatePanel: (id: string) => void;
+  rematerializeWorkspace: (workspace?: WorkspaceId) => void;
   saveLayout: (workspace?: WorkspaceId) => void;
   loadLayout: (workspace?: WorkspaceId) => SerializedDockview | null;
   resetLayout: (workspace?: WorkspaceId) => void;
@@ -128,8 +181,9 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
         return;
       } catch (error) {
         console.warn('Failed to restore layout', error);
-        localStorage.removeItem(layoutStorageKey(workspace));
-        localStorage.removeItem(layoutVersionKey(workspace));
+        const scope = currentLayoutScope(workspace);
+        localStorage.removeItem(layoutStorageKey(scope));
+        localStorage.removeItem(layoutVersionKey(scope));
       }
     }
 
@@ -141,26 +195,35 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
     const panel = get().dockviewApi?.getPanel(id);
     panel?.api.setActive();
   },
+  rematerializeWorkspace: (workspace = get().activeWorkspace) => {
+    const { dockviewApi } = get();
+    if (!dockviewApi || workspace !== get().activeWorkspace) return;
+    dockviewApi.clear();
+    applyDefaultLayout(dockviewApi, workspace);
+    get().saveLayout(workspace);
+  },
   saveLayout: (workspace = get().activeWorkspace) => {
     const { dockviewApi } = get();
     if (!dockviewApi) return;
+    const scope = currentLayoutScope(workspace);
     try {
-      localStorage.setItem(layoutStorageKey(workspace), JSON.stringify(dockviewApi.toJSON()));
-      localStorage.setItem(layoutVersionKey(workspace), String(LAYOUT_VERSION));
+      localStorage.setItem(layoutStorageKey(scope), JSON.stringify(dockviewApi.toJSON()));
+      localStorage.setItem(layoutVersionKey(scope), String(LAYOUT_VERSION));
     } catch (error) {
       console.warn('Failed to save layout', error);
     }
   },
   loadLayout: (workspace = get().activeWorkspace) => {
-    const version = localStorage.getItem(layoutVersionKey(workspace));
+    const scope = currentLayoutScope(workspace);
+    const version = localStorage.getItem(layoutVersionKey(scope));
     if (version !== String(LAYOUT_VERSION)) {
-      localStorage.removeItem(layoutStorageKey(workspace));
-      localStorage.removeItem(layoutVersionKey(workspace));
+      localStorage.removeItem(layoutStorageKey(scope));
+      localStorage.removeItem(layoutVersionKey(scope));
       localStorage.removeItem(LAYOUT_STORAGE_KEY);
       localStorage.removeItem(LAYOUT_VERSION_KEY);
       return null;
     }
-    const saved = localStorage.getItem(layoutStorageKey(workspace));
+    const saved = localStorage.getItem(layoutStorageKey(scope));
     if (!saved) return null;
     try {
       return JSON.parse(saved) as SerializedDockview;
@@ -170,8 +233,9 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
     }
   },
   resetLayout: (workspace = get().activeWorkspace) => {
-    localStorage.removeItem(layoutStorageKey(workspace));
-    localStorage.removeItem(layoutVersionKey(workspace));
+    const scope = currentLayoutScope(workspace);
+    localStorage.removeItem(layoutStorageKey(scope));
+    localStorage.removeItem(layoutVersionKey(scope));
     const { dockviewApi } = get();
     if (!dockviewApi || workspace !== get().activeWorkspace) return;
     dockviewApi.clear();
