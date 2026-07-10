@@ -1585,6 +1585,15 @@ export function CreasePatternPanel() {
     () => orieditaCameraFromMetadata(editableCp?.metadata),
     [editableCp?.metadata]
   );
+  // Point/vertex/line sizes are authored in SVG user units, which assumes the
+  // default model→user scale. Imported documents can carry a very different
+  // camera zoom (e.g. a large sheet of many small CPs), which would otherwise
+  // make those decorations huge relative to the geometry. Scale them by the
+  // camera zoom so they stay proportional — matching how circle radii already
+  // scale (editableCircleRadiusToSvg). 1 for app-created / default cameras.
+  const cpDecorationScale = nativeCreasePatternCamera
+    ? Math.abs(nativeCreasePatternCamera.cameraZoomX) || 1
+    : 1;
   const cpCanvasRect = editableCp ? CP_EDITABLE_CANVAS_RECT : CP_WORLD_RECT;
   const cpFitRect = editableCp ? CP_EDITABLE_FIT_RECT : CP_WORLD_RECT;
   const cpCanvasViewBox = `${cpCanvasRect.x} ${cpCanvasRect.y} ${cpCanvasRect.width} ${cpCanvasRect.height}`;
@@ -4211,6 +4220,7 @@ export function CreasePatternPanel() {
                   <svg
                     ref={svgRef}
                     className="cp-canvas"
+                    data-webgl-hidden={cpRendererMode === 'webgl' && editableCp ? 'true' : undefined}
                     data-canvas-mode={editableCp ? 'editable' : 'generated'}
                     data-cp-line-style={oristudioCpViewport.lineStyle ?? 'color'}
                     viewBox={cpCanvasViewBox}
@@ -4220,8 +4230,8 @@ export function CreasePatternPanel() {
                       {
                         width: cpCanvasRect.width,
                         height: cpCanvasRect.height,
-                        '--cp-line-width': oristudioCpViewport.lineWidth ?? 1,
-                        '--cp-point-size': oristudioCpViewport.pointSize ?? 1,
+                        '--cp-line-width': (oristudioCpViewport.lineWidth ?? 1) * cpDecorationScale,
+                        '--cp-point-size': (oristudioCpViewport.pointSize ?? 1) * cpDecorationScale,
                       } as CSSProperties
                     }
                     role="img"
@@ -4320,10 +4330,10 @@ export function CreasePatternPanel() {
                   svgRef={svgRef}
                   modelToSvg={editableModelToSvg}
                   mode={mode}
-                  lineWidth={oristudioCpViewport.lineWidth ?? 1}
+                  lineWidth={(oristudioCpViewport.lineWidth ?? 1) * cpDecorationScale}
                   points={editableCp.crease_pattern.points}
                   vertices={editableCpVertexPoints}
-                  pointSize={oristudioCpViewport.pointSize ?? 1}
+                  pointSize={(oristudioCpViewport.pointSize ?? 1) * cpDecorationScale}
                   circles={editableCp.crease_pattern.circles}
                   circleRadiusToSvg={editableCircleRadiusToSvg}
                   foldedFigures={generatedFoldedFigures}

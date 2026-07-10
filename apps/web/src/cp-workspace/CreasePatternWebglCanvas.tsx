@@ -2,8 +2,17 @@ import { useEffect, useMemo, useRef, type RefObject } from 'react';
 import { createReglRenderer } from './renderer/reglRenderer';
 import type { CpRenderer } from './renderer/CpRenderer';
 import { readCssVarColor } from './renderer/cssColor';
-import { viewTransformsEqual } from './renderer/camera';
-import type { ModelPoint, Rgba, ViewTransform } from './renderer/types';
+import {
+  fitUserCamera,
+  modelViewFromCamera,
+  panUserCamera,
+  seedUserCamera,
+  userCameraToView,
+  zoomUserCameraAt,
+  type UserBounds,
+  type UserCamera,
+} from './renderer/camera';
+import type { ModelPoint, Rgba, Viewport } from './renderer/types';
 import { cpSnapshotToScene, type CpLineSegmentInput } from './adapters/cpSnapshotToScene';
 import { cpPointsToScene } from './adapters/cpPointsToScene';
 import { resolveCpLineColor } from './adapters/cpLineColor';
@@ -110,12 +119,34 @@ export function CreasePatternWebglCanvas({
   const rendererRef = useRef<CpRenderer | null>(null);
   const renderNowRef = useRef<() => void>(() => {});
   const gridKeyRef = useRef<string | null>(null);
+  // Owned camera (Phase 2). Null until seeded from the SVG's current fit.
+  const cameraRef = useRef<UserCamera | null>(null);
   const currentTheme = useThemeStore((state) => state.currentTheme);
 
+  // Content bounds in SVG user coords, for the initial camera fit (independent
+  // of the SVG's own fixed-rect fit, which mis-centres imported cameras).
+  const contentBounds = useMemo<UserBounds | null>(() => {
+    if (lineSegments.length === 0) return null;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const seg of lineSegments) {
+      for (const p of [seg.a, seg.b]) {
+        const u = modelToSvg(p);
+        if (u.x < minX) minX = u.x;
+        if (u.y < minY) minY = u.y;
+        if (u.x > maxX) maxX = u.x;
+        if (u.y > maxY) maxY = u.y;
+      }
+    }
+    return { minX, minY, maxX, maxY };
+  }, [lineSegments, modelToSvg]);
+
   // Per-frame inputs the render paths read without re-subscribing.
-  const liveRef = useRef({ modelToSvg, lineWidth, grid, gridVisible });
+  const liveRef = useRef({ modelToSvg, lineWidth, grid, gridVisible, contentBounds });
   useEffect(() => {
-    liveRef.current = { modelToSvg, lineWidth, grid, gridVisible };
+    liveRef.current = { modelToSvg, lineWidth, grid, gridVisible, contentBounds };
     // Inputs affecting stroke thickness / mapping changed — redraw.
     renderNowRef.current();
   });
@@ -171,22 +202,46 @@ export function CreasePatternWebglCanvas({
     }
     rendererRef.current = renderer;
 
-    let rafId = 0;
-    let lastView: ViewTransform | null = null;
+    const viewportOf = (ratio: number): Viewport => ({
+      width: canvas.width,
+      height: canvas.height,
+      dpr: ratio,
+    });
+
+    // Seed the owned camera once. Prefer fitting the actual geometry bounds
+    // (correct for any imported camera); fall back to the SVG's current fit if
+    // there is no geometry yet.
+    const ensureCamera = (viewport: Viewport, ratio: number): UserCamera | null => {
+      if (cameraRef.current) return cameraRef.current;
+      const bounds = liveRef.current.contentBounds;
+      if (bounds) {
+        cameraRef.current = fitUserCamera(bounds, viewport);
+        return cameraRef.current;
+      }
+      const svg = svgRef.current;
+      if (!svg) return null;
+      const sampled = sampleView(svg, canvas, liveRef.current.modelToSvg, ratio);
+      if (!sampled) return null;
+      const seeded = seedUserCamera(sampled.userView, viewport);
+      if (!seeded) return null;
+      cameraRef.current = seeded;
+      return seeded;
+    };
 
     const renderNow = () => {
-      const svg = svgRef.current;
-      if (!svg) return;
       const ratio = dpr();
-      const sampled = sampleView(svg, canvas, liveRef.current.modelToSvg, ratio);
-      if (!sampled) return;
-      lastView = sampled.view;
+      const viewport = viewportOf(ratio);
+      const cam = ensureCamera(viewport, ratio);
+      if (!cam) return;
+
+      const view = modelViewFromCamera(cam, viewport, liveRef.current.modelToSvg);
+      const userView = userCameraToView(cam, viewport);
 
       // Grid is view-dependent: regenerate its lines when the visible region
       // (or params/theme, via gridKeyRef reset) changes.
       const gridMeta = liveRef.current.grid;
       if (gridMeta && liveRef.current.gridVisible) {
-        const bounds = visibleGridBounds(sampled.view, canvas.width, canvas.height);
+        const bounds = visibleGridBounds(view, canvas.width, canvas.height);
         if (bounds) {
           const key = gridBoundsKey(bounds, gridMeta);
           if (key !== gridKeyRef.current) {
@@ -205,10 +260,12 @@ export function CreasePatternWebglCanvas({
 
       renderer.render({
         clearColor: readCssVarColor(canvas, CANVAS_BG_VAR, FALLBACK_CLEAR),
-        view: sampled.view,
-        userView: sampled.userView,
-        strokeWidthPx: CREASE_WIDTH_FACTOR * liveRef.current.lineWidth * sampled.userScale * ratio,
-        userScalePx: sampled.userScale * ratio,
+        view,
+        userView,
+        // Crease width (1.5 * lineWidth user units) and point radii (user units)
+        // scale by device-px-per-user = camera zoom.
+        strokeWidthPx: CREASE_WIDTH_FACTOR * liveRef.current.lineWidth * cam.zoom,
+        userScalePx: cam.zoom,
         pointOutlinePx: POINT_OUTLINE_CSS * ratio,
       });
     };
@@ -231,21 +288,57 @@ export function CreasePatternWebglCanvas({
     observer.observe(canvas);
     applySize();
 
-    // Mirror live pan/zoom: while the SVG transform changes, keep redrawing.
-    const frame = () => {
-      rafId = requestAnimationFrame(frame);
-      const svg = svgRef.current;
-      if (!svg) return;
-      const sampled = sampleView(svg, canvas, liveRef.current.modelToSvg, dpr());
-      if (!sampled || (lastView && viewTransformsEqual(lastView, sampled.view))) return;
+    // --- Owned pan / zoom on the canvas ---
+    // cmd/ctrl + drag pans; a plain drag is reserved for tools (later phases).
+    let dragging = false;
+    let lastX = 0;
+    let lastY = 0;
+    const onPointerDown = (e: PointerEvent) => {
+      if (!e.metaKey && !e.ctrlKey) return;
+      e.preventDefault();
+      dragging = true;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      canvas.setPointerCapture(e.pointerId);
+    };
+    const onPointerMove = (e: PointerEvent) => {
+      if (!dragging || !cameraRef.current) return;
+      const ratio = dpr();
+      panUserCamera(cameraRef.current, (e.clientX - lastX) * ratio, (e.clientY - lastY) * ratio);
+      lastX = e.clientX;
+      lastY = e.clientY;
       renderNow();
     };
-    rafId = requestAnimationFrame(frame);
+    const onPointerUp = (e: PointerEvent) => {
+      dragging = false;
+      if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
+    };
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const cam = cameraRef.current;
+      if (!cam) return;
+      const ratio = dpr();
+      const rect = canvas.getBoundingClientRect();
+      const cx = (e.clientX - rect.left) * ratio;
+      const cy = (e.clientY - rect.top) * ratio;
+      zoomUserCameraAt(cam, viewportOf(ratio), cx, cy, Math.pow(1.0015, -e.deltaY));
+      renderNow();
+    };
+    canvas.addEventListener('pointerdown', onPointerDown);
+    canvas.addEventListener('pointermove', onPointerMove);
+    canvas.addEventListener('pointerup', onPointerUp);
+    canvas.addEventListener('pointercancel', onPointerUp);
+    canvas.addEventListener('wheel', onWheel, { passive: false });
 
     return () => {
-      cancelAnimationFrame(rafId);
       observer.disconnect();
+      canvas.removeEventListener('pointerdown', onPointerDown);
+      canvas.removeEventListener('pointermove', onPointerMove);
+      canvas.removeEventListener('pointerup', onPointerUp);
+      canvas.removeEventListener('pointercancel', onPointerUp);
+      canvas.removeEventListener('wheel', onWheel);
       renderNowRef.current = () => {};
+      cameraRef.current = null;
       renderer.dispose();
       rendererRef.current = null;
     };

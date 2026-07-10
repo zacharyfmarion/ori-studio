@@ -2068,15 +2068,23 @@
   place-items: center;
 }
 
-/* WebGL crease-pattern surface (dev flag). Overlays the SVG viewport; read-only
-   during early migration steps, so it does not intercept pointer events. */
+/* WebGL crease-pattern surface (dev flag). Overlays the SVG viewport and owns
+   pan/zoom (Phase 2), so it takes pointer events. Plain drag is reserved for
+   tools; cmd/ctrl-drag pans. */
 .cp-webgl-layer {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   z-index: 5;
-  pointer-events: none;
+  touch-action: none;
+}
+
+/* In WebGL mode the SVG is covered by the canvas; hide it so the browser stops
+   painting the (large) SVG DOM. visibility:hidden keeps its layout box so the
+   camera can still seed from its fit. */
+.cp-canvas[data-webgl-hidden='true'] {
+  visibility: hidden;
 }
 
 .cp-diagnostic-hud {

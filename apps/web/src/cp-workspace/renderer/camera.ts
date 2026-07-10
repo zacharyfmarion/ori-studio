@@ -1,4 +1,104 @@
-import type { ModelPoint, ViewTransform } from './types';
+import type { ModelPoint, ViewTransform, Viewport } from './types';
+
+/** Zoom clamps (device px per user unit). */
+const MIN_ZOOM = 0.01;
+const MAX_ZOOM = 400;
+
+/**
+ * Owned 2D camera over SVG *user* coordinates (Phase 2 — replaces the SVG /
+ * react-zoom-pan-pinch transform the bridge used to sample). `zoom` is device
+ * pixels per user unit; `center` is the user point at the viewport centre.
+ */
+export interface UserCamera {
+  centerX: number;
+  centerY: number;
+  zoom: number;
+}
+
+/** user -> device transform for the camera (folded figures draw with this). */
+export function userCameraToView(cam: UserCamera, viewport: Viewport): ViewTransform {
+  return {
+    origin: [viewport.width / 2 - cam.centerX * cam.zoom, viewport.height / 2 - cam.centerY * cam.zoom],
+    ex: [cam.zoom, 0],
+    ey: [0, cam.zoom],
+  };
+}
+
+/**
+ * model -> device transform: model → user (via `modelToSvg`) → device (camera).
+ * Sampled at three model points since `modelToSvg` is affine.
+ */
+export function modelViewFromCamera(
+  cam: UserCamera,
+  viewport: Viewport,
+  modelToSvg: (point: ModelPoint) => ModelPoint
+): ViewTransform {
+  const u2d = userCameraToView(cam, viewport);
+  const toDevice = (mx: number, my: number): ModelPoint => {
+    const u = modelToSvg({ x: mx, y: my });
+    return projectModelPoint(u2d, u.x, u.y);
+  };
+  return viewTransformFromSamples(toDevice(0, 0), toDevice(1, 0), toDevice(0, 1));
+}
+
+/** Axis-aligned bounds in SVG user coordinates. */
+export interface UserBounds {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
+/** Fit user-coordinate bounds into the viewport (centered), with padding. */
+export function fitUserCamera(
+  bounds: UserBounds,
+  viewport: Viewport,
+  padding = 0.9
+): UserCamera {
+  const w = Math.max(1e-6, bounds.maxX - bounds.minX);
+  const h = Math.max(1e-6, bounds.maxY - bounds.minY);
+  const zoom = Math.min(viewport.width / w, viewport.height / h) * padding;
+  return {
+    centerX: (bounds.minX + bounds.maxX) / 2,
+    centerY: (bounds.minY + bounds.maxY) / 2,
+    zoom,
+  };
+}
+
+/** Seed a camera from an existing user→device transform (e.g. the SVG's fit). */
+export function seedUserCamera(userView: ViewTransform, viewport: Viewport): UserCamera | null {
+  const ex = userView.ex[0];
+  const ey = userView.ey[1];
+  if (Math.abs(ex) < 1e-9 || Math.abs(ey) < 1e-9) return null;
+  return {
+    centerX: (viewport.width / 2 - userView.origin[0]) / ex,
+    centerY: (viewport.height / 2 - userView.origin[1]) / ey,
+    zoom: Math.hypot(userView.ex[0], userView.ex[1]),
+  };
+}
+
+/** Pan the camera by a device-pixel delta (drag). */
+export function panUserCamera(cam: UserCamera, dxDevice: number, dyDevice: number): void {
+  cam.centerX -= dxDevice / cam.zoom;
+  cam.centerY -= dyDevice / cam.zoom;
+}
+
+/** Zoom the camera by `factor`, keeping the user point under the cursor fixed. */
+export function zoomUserCameraAt(
+  cam: UserCamera,
+  viewport: Viewport,
+  deviceX: number,
+  deviceY: number,
+  factor: number
+): void {
+  const offX = deviceX - viewport.width / 2;
+  const offY = deviceY - viewport.height / 2;
+  const userX = cam.centerX + offX / cam.zoom;
+  const userY = cam.centerY + offY / cam.zoom;
+  cam.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, cam.zoom * factor));
+  cam.centerX = userX - offX / cam.zoom;
+  cam.centerY = userY - offY / cam.zoom;
+}
 
 /**
  * Build a {@link ViewTransform} from three sampled reference points: the device
