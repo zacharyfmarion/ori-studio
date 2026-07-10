@@ -2480,7 +2480,13 @@ export function CreasePatternPanel() {
         const succeeded = await executeOristudioCpCommand(
           command.operationId,
           buildCpCommandPayload(command, {
-            line_ids: oristudioCpSelection.lines,
+            // Flip/erase box tools resolve the boxed lines kernel-side, never a
+            // prior selection (matches the SVG drag commit).
+            line_ids:
+              isCreaseToggleMvClickTool(command.operationId) ||
+              isLineEraseClickTool(command.operationId)
+                ? []
+                : oristudioCpSelection.lines,
             circle_ids: oristudioCpSelection.circles,
             points: [...points],
           })
@@ -4475,9 +4481,11 @@ export function CreasePatternPanel() {
                   resolveMoveSnap={resolveEditableMoveSnap}
                   activeToolInputMode={
                     activeCpCommand?.uiStatus === 'ready' &&
-                    activeCpCommand.inputMode === 'drag-line' &&
-                    cpToolState.phase === 'active'
-                      ? 'drag-line'
+                    cpToolState.phase === 'active' &&
+                    (activeCpCommand.inputMode === 'drag-line' ||
+                      activeCpCommand.inputMode === 'drag-box' ||
+                      activeCpCommand.inputMode === 'drag-path')
+                      ? activeCpCommand.inputMode
                       : null
                   }
                   resolveDrawPoint={resolveEditableDrawModelPoint}

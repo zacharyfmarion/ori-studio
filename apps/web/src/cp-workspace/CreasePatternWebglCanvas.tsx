@@ -41,7 +41,8 @@ import {
 } from './adapters/cpGridToScene';
 import { sampleView } from './svgViewBridge';
 import { cpVertexId, orieditaGridLinesForModelBounds } from '../lib/creasePatternViewport';
-import { dragLineTool, type DragLineState } from './tools/dragLineTool';
+import { toolEngineFor, type ToolInputMode } from './tools/registry';
+import { createToolRuntime, type ToolRuntime } from './tools/runtime';
 import type { ToolPreviewSegment } from './tools/types';
 import type { OristudioCpGridMetadata } from '../engine/oristudioCpTypes';
 import { useThemeStore } from '../store/themeStore';
@@ -186,7 +187,7 @@ export interface CreasePatternWebglCanvasProps {
    * Active draw-tool input mode, or null when no draw tool is active. When set, a
    * plain (button-0, no-modifier) drag draws with the tool instead of selecting.
    */
-  activeToolInputMode: 'drag-line' | null;
+  activeToolInputMode: ToolInputMode | null;
   /** Snap a raw model draw point to nearby geometry (grid/vertices/lines). */
   resolveDrawPoint: (rawPoint: ModelPoint, toleranceModel: number) => ModelPoint;
   /** Commit a tool's collected points; the controller enriches + executes. */
@@ -654,15 +655,16 @@ export function CreasePatternWebglCanvas({
     let panning = false;
     let selecting = false;
     let moved = false;
-    // Active draw-tool drag: the pure engine's state, driven by feedTool.
+    // Active draw-tool drag: a runtime wrapping the active input mode's pure
+    // engine, created on pointer-down and driven by feedTool.
     let drawing = false;
-    let toolState: DragLineState = dragLineTool.initialState;
+    let toolRuntime: ToolRuntime | null = null;
     const feedTool = (kind: 'down' | 'move' | 'up' | 'cancel', clientX: number, clientY: number) => {
+      if (!toolRuntime) return;
       const raw = clientToModel(clientX, clientY);
       if (!raw) return;
       const point = liveRef.current.resolveDrawPoint(raw, modelToleranceOf(SNAP_TOLERANCE_CSS));
-      const out = dragLineTool.reduce(toolState, { kind, point });
-      toolState = out.state;
+      const out = toolRuntime.feed({ kind, point });
       renderer.setPreview(
         out.preview && out.preview.segments.length > 0
           ? previewSegmentsToStrokes(out.preview.segments, liveRef.current.toolPreviewColor)
@@ -699,10 +701,11 @@ export function CreasePatternWebglCanvas({
         } else {
           panning = true;
         }
-      } else if (liveRef.current.activeToolInputMode === 'drag-line') {
+      } else if (liveRef.current.activeToolInputMode) {
         // A draw tool is active: plain drag draws instead of selecting.
         e.preventDefault();
         drawing = true;
+        toolRuntime = createToolRuntime(toolEngineFor(liveRef.current.activeToolInputMode));
         feedTool('down', e.clientX, e.clientY);
       } else {
         // A plain drag that starts on an already-selected crease moves the whole
@@ -777,6 +780,7 @@ export function CreasePatternWebglCanvas({
       if (drawing) {
         feedTool(e.type === 'pointercancel' ? 'cancel' : 'up', e.clientX, e.clientY);
         drawing = false;
+        toolRuntime = null;
       } else if (movingSelection) {
         if (moved && (Math.abs(moveDelta.x) > 1e-9 || Math.abs(moveDelta.y) > 1e-9)) {
           // Commit: the document update re-renders the strokes at their final
