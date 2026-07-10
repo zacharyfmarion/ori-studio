@@ -2527,6 +2527,71 @@ export function CreasePatternPanel() {
     [activeCpCommand?.group, activeCpLineColor, mode]
   );
 
+  // The active tool's WebGL routing mode: a drag mode, click-based point-sequence
+  // (fixed-length only for now), or null. Variable-length / text ops are excluded
+  // until they get dedicated engines.
+  const webglActiveTool = useMemo<{
+    mode: 'drag-line' | 'drag-box' | 'drag-path' | 'point-sequence' | null;
+    stepCount: number;
+  }>(() => {
+    if (!activeCpCommand || activeCpCommand.uiStatus !== 'ready' || cpToolState.phase !== 'active') {
+      return { mode: null, stepCount: 0 };
+    }
+    const im = activeCpCommand.inputMode;
+    if (im === 'drag-line' || im === 'drag-box' || im === 'drag-path') {
+      return { mode: im, stepCount: 0 };
+    }
+    const stepCount = activeCpCommand.toolSteps?.length ?? 0;
+    const isPointSequence =
+      stepCount > 0 &&
+      !isVariablePointSequenceOperation(activeCpCommand.operationId) &&
+      !isTextAnnotationOperation(activeCpCommand.operationId);
+    return isPointSequence ? { mode: 'point-sequence', stepCount } : { mode: null, stepCount: 0 };
+  }, [activeCpCommand, cpToolState.phase]);
+
+  // Point-sequence live preview (kernel-computed) for the WebGL surface.
+  const [webglToolPreviewSegments, setWebglToolPreviewSegments] = useState<
+    readonly { a: Point; b: Point }[]
+  >([]);
+  const webglPreviewRequestRef = useRef(0);
+  const handleWebglToolPreviewPoints = useCallback(
+    (points: readonly Point[]) => {
+      const command = activeCpCommand;
+      if (!command || points.length === 0) {
+        webglPreviewRequestRef.current += 1;
+        setWebglToolPreviewSegments([]);
+        return;
+      }
+      const requestId = ++webglPreviewRequestRef.current;
+      void previewOristudioCpCommand(
+        command.operationId,
+        buildCpCommandPayload(command, {
+          line_ids: oristudioCpSelection.lines,
+          circle_ids: oristudioCpSelection.circles,
+          points: [...points],
+        })
+      ).then((preview) => {
+        if (webglPreviewRequestRef.current !== requestId) return;
+        setWebglToolPreviewSegments((preview?.segments ?? []).map((s) => ({ a: s.a, b: s.b })));
+      });
+    },
+    [
+      activeCpCommand,
+      buildCpCommandPayload,
+      oristudioCpSelection.circles,
+      oristudioCpSelection.lines,
+      previewOristudioCpCommand,
+    ]
+  );
+
+  // Clear the WebGL point-sequence preview when that mode is no longer active.
+  useEffect(() => {
+    if (webglActiveTool.mode !== 'point-sequence') {
+      webglPreviewRequestRef.current += 1;
+      setWebglToolPreviewSegments([]);
+    }
+  }, [webglActiveTool.mode]);
+
   const updateSelectionMovePreview = useCallback(
     (drag: CpSelectionMoveDrag, point: Point) => {
       const rawDelta = {
@@ -4486,17 +4551,12 @@ export function CreasePatternPanel() {
                     void transformOristudioCpSelection({ kind: 'translate', delta });
                   }}
                   resolveMoveSnap={resolveEditableMoveSnap}
-                  activeToolInputMode={
-                    activeCpCommand?.uiStatus === 'ready' &&
-                    cpToolState.phase === 'active' &&
-                    (activeCpCommand.inputMode === 'drag-line' ||
-                      activeCpCommand.inputMode === 'drag-box' ||
-                      activeCpCommand.inputMode === 'drag-path')
-                      ? activeCpCommand.inputMode
-                      : null
-                  }
+                  activeToolInputMode={webglActiveTool.mode}
+                  activeToolStepCount={webglActiveTool.stepCount}
                   resolveDrawPoint={resolveEditableDrawModelPoint}
                   onToolCommit={handleWebglToolCommit}
+                  onToolPreviewPoints={handleWebglToolPreviewPoints}
+                  toolCommandPreviewSegments={webglToolPreviewSegments}
                   toolPreviewColor={toolPreviewColor}
                   onEraseBox={(points) => {
                     void executeOristudioCpCommand('LineSegmentDelete', {

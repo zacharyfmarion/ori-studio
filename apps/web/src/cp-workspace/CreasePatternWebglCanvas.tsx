@@ -43,7 +43,11 @@ import { sampleView } from './svgViewBridge';
 import { cpVertexId, orieditaGridLinesForModelBounds } from '../lib/creasePatternViewport';
 import { toolEngineFor, type ToolInputMode } from './tools/registry';
 import { createToolRuntime, type ToolRuntime } from './tools/runtime';
+import { createPointSequenceTool } from './tools/pointSequenceTool';
 import type { ToolPreviewSegment } from './tools/types';
+
+/** Draw modes the canvas routes: the drag engines plus click-based point-sequence. */
+type ActiveToolMode = ToolInputMode | 'point-sequence';
 import type { OristudioCpGridMetadata } from '../engine/oristudioCpTypes';
 import { useThemeStore } from '../store/themeStore';
 
@@ -188,14 +192,23 @@ export interface CreasePatternWebglCanvasProps {
     toleranceModel: number
   ) => { delta: { x: number; y: number }; snapLabel: string | null };
   /**
-   * Active draw-tool input mode, or null when no draw tool is active. When set, a
-   * plain (button-0, no-modifier) drag draws with the tool instead of selecting.
+   * Active draw-tool mode, or null when no draw tool is active. Drag modes draw on
+   * a plain drag; `point-sequence` places a point per click and previews on hover.
    */
-  activeToolInputMode: ToolInputMode | null;
+  activeToolInputMode: ActiveToolMode | null;
+  /** Number of points a point-sequence tool collects before committing. */
+  activeToolStepCount: number;
   /** Snap a raw model draw point to nearby geometry (grid/vertices/lines). */
   resolveDrawPoint: (rawPoint: ModelPoint, toleranceModel: number) => ModelPoint;
   /** Commit a tool's collected points; the controller enriches + executes. */
   onToolCommit: (points: readonly ModelPoint[]) => void;
+  /**
+   * Report a point-sequence tool's live points (placed + cursor) so the controller
+   * can kernel-preview them; the result comes back via `toolCommandPreviewSegments`.
+   */
+  onToolPreviewPoints: (points: readonly ModelPoint[]) => void;
+  /** Kernel-computed preview segments for the active point-sequence tool. */
+  toolCommandPreviewSegments: readonly ToolPreviewSegment[];
   /** Colour of the in-progress candidate crease (the resolved active line colour). */
   toolPreviewColor: Rgba;
   /**
@@ -256,8 +269,11 @@ export function CreasePatternWebglCanvas({
   onTranslateSelection,
   resolveMoveSnap,
   activeToolInputMode,
+  activeToolStepCount,
   resolveDrawPoint,
   onToolCommit,
+  onToolPreviewPoints,
+  toolCommandPreviewSegments,
   toolPreviewColor,
   onEraseBox,
   onEraseLine,
@@ -278,7 +294,15 @@ export function CreasePatternWebglCanvas({
   const gridKeyRef = useRef<string | null>(null);
   // Owned camera (Phase 2). Null until seeded from the SVG's current fit.
   const cameraRef = useRef<UserCamera | null>(null);
+  // Persistent point-sequence runtime (clicks accumulate across pointer gestures).
+  // Reset whenever the active tool or its step count changes (below).
+  const pointSeqRuntimeRef = useRef<ToolRuntime | null>(null);
   const currentTheme = useThemeStore((state) => state.currentTheme);
+
+  // A tool change abandons any in-progress point sequence.
+  useEffect(() => {
+    pointSeqRuntimeRef.current = null;
+  }, [activeToolInputMode, activeToolStepCount]);
 
   // Content bounds in SVG user coords, for the initial camera fit (independent
   // of the SVG's own fixed-rect fit, which mis-centres imported cameras).
@@ -415,8 +439,10 @@ export function CreasePatternWebglCanvas({
     onTranslateSelection,
     resolveMoveSnap,
     activeToolInputMode,
+    activeToolStepCount,
     resolveDrawPoint,
     onToolCommit,
+    onToolPreviewPoints,
     toolPreviewColor,
     onEraseBox,
     onEraseLine,
@@ -688,6 +714,32 @@ export function CreasePatternWebglCanvas({
       renderNow();
       if (out.commit) liveRef.current.onToolCommit(out.commit.points);
     };
+    // Point-sequence tool: click to place a point, hover to preview. The runtime
+    // persists across gestures (reset on tool change). The preview itself is
+    // kernel-computed by the controller from the reported live points.
+    const feedPointSeq = (kind: 'down' | 'move' | 'cancel', clientX: number, clientY: number) => {
+      if (!pointSeqRuntimeRef.current) {
+        pointSeqRuntimeRef.current = createToolRuntime(
+          createPointSequenceTool(liveRef.current.activeToolStepCount)
+        );
+      }
+      const runtime = pointSeqRuntimeRef.current;
+      if (kind === 'cancel') {
+        runtime.feed({ kind: 'cancel', point: { x: 0, y: 0 } });
+        liveRef.current.onToolPreviewPoints([]);
+        return;
+      }
+      const raw = clientToModel(clientX, clientY);
+      if (!raw) return;
+      const point = liveRef.current.resolveDrawPoint(raw, modelToleranceOf(SNAP_TOLERANCE_CSS));
+      const out = runtime.feed({ kind, point });
+      if (out.commit) {
+        liveRef.current.onToolCommit(out.commit.points);
+        liveRef.current.onToolPreviewPoints([]);
+      } else {
+        liveRef.current.onToolPreviewPoints(out.livePoints ?? []);
+      }
+    };
     // Right-button erase gesture: reuses the drag-box engine for its rubber-band
     // box, but bound to the erase operation and never snapped (matches Oriedita).
     let erasing = false;
@@ -723,6 +775,7 @@ export function CreasePatternWebglCanvas({
       lastX = pressX = e.clientX;
       lastY = pressY = e.clientY;
       moved = false;
+      const toolMode = liveRef.current.activeToolInputMode;
       if (e.button === 2) {
         // Right button: universal erase gesture, overrides any active tool.
         e.preventDefault();
@@ -741,11 +794,15 @@ export function CreasePatternWebglCanvas({
         } else {
           panning = true;
         }
-      } else if (liveRef.current.activeToolInputMode) {
-        // A draw tool is active: plain drag draws instead of selecting.
+      } else if (toolMode === 'point-sequence') {
+        // Click-based tool: place a point (no drag). Hover previews via move.
+        e.preventDefault();
+        feedPointSeq('down', e.clientX, e.clientY);
+      } else if (toolMode) {
+        // A drag draw tool is active: plain drag draws instead of selecting.
         e.preventDefault();
         drawing = true;
-        toolRuntime = createToolRuntime(toolEngineFor(liveRef.current.activeToolInputMode));
+        toolRuntime = createToolRuntime(toolEngineFor(toolMode));
         feedTool('down', e.clientX, e.clientY);
       } else {
         // A plain drag that starts on an already-selected crease moves the whole
@@ -776,6 +833,15 @@ export function CreasePatternWebglCanvas({
         feedErase('move', e.clientX, e.clientY);
       } else if (drawing) {
         feedTool('move', e.clientX, e.clientY);
+      } else if (
+        liveRef.current.activeToolInputMode === 'point-sequence' &&
+        !panning &&
+        !movingFigure &&
+        !movingSelection &&
+        !selecting
+      ) {
+        // Hover with a point-sequence tool active: update the kernel preview.
+        feedPointSeq('move', e.clientX, e.clientY);
       } else if (movingSelection && moveStart) {
         if (moved) {
           const m = clientToModel(e.clientX, e.clientY);
@@ -882,12 +948,19 @@ export function CreasePatternWebglCanvas({
     };
     // Suppress the browser menu so the right button is free for the erase gesture.
     const onContextMenu = (e: Event) => e.preventDefault();
+    // Escape abandons an in-progress point sequence.
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && liveRef.current.activeToolInputMode === 'point-sequence') {
+        feedPointSeq('cancel', 0, 0);
+      }
+    };
     canvas.addEventListener('pointerdown', onPointerDown);
     canvas.addEventListener('pointermove', onPointerMove);
     canvas.addEventListener('pointerup', onPointerUp);
     canvas.addEventListener('pointercancel', onPointerUp);
     canvas.addEventListener('wheel', onWheel, { passive: false });
     canvas.addEventListener('contextmenu', onContextMenu);
+    window.addEventListener('keydown', onKeyDown);
 
     return () => {
       observer.disconnect();
@@ -897,6 +970,7 @@ export function CreasePatternWebglCanvas({
       canvas.removeEventListener('pointercancel', onPointerUp);
       canvas.removeEventListener('wheel', onWheel);
       canvas.removeEventListener('contextmenu', onContextMenu);
+      window.removeEventListener('keydown', onKeyDown);
       marquee.remove();
       renderNowRef.current = () => {};
       cameraRef.current = null;
@@ -912,6 +986,20 @@ export function CreasePatternWebglCanvas({
     renderer.setScene(scene);
     renderNowRef.current();
   }, [scene]);
+
+  // Point-sequence kernel preview: render the controller-supplied candidate
+  // segments on the preview channel (cleared when there are none). Drag tools
+  // drive the preview channel imperatively instead; the two tools are exclusive.
+  useEffect(() => {
+    const renderer = rendererRef.current;
+    if (!renderer) return;
+    renderer.setPreview(
+      toolCommandPreviewSegments.length > 0
+        ? previewSegmentsToStrokes(toolCommandPreviewSegments, toolPreviewColor)
+        : null
+    );
+    renderNowRef.current();
+  }, [toolCommandPreviewSegments, toolPreviewColor]);
 
   return <canvas ref={canvasRef} className={className} aria-hidden="true" />;
 }
