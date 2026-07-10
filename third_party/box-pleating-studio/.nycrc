@@ -1,0 +1,29 @@
+{
+	"check-coverage": true,
+	"exclude": [
+		"lib/**",
+		"test/**"
+	],
+	"branches": 95,
+	"lines": 95,
+	"functions": 95,
+	"statements": 95,
+	"watermarks": {
+		"lines": [
+			80,
+			95
+		],
+		"functions": [
+			80,
+			95
+		],
+		"branches": [
+			80,
+			95
+		],
+		"statements": [
+			80,
+			95
+		]
+	}
+}

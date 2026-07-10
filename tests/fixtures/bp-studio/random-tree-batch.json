@@ -1,0 +1,18 @@
+{
+  "description": "Seed manifest for deterministic BP Studio random-tree packing parity.",
+  "generator": "pending-stage-8",
+  "batches": [
+    {
+      "name": "smoke",
+      "seed": 1898,
+      "count": 10,
+      "max_nodes": 8
+    },
+    {
+      "name": "baseline",
+      "seed": 7141898,
+      "count": 250,
+      "max_nodes": 24
+    }
+  ]
+}

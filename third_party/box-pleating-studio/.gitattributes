@@ -1,0 +1,9 @@
+
+# Set checkout as LF for consistency
+* eof=lf
+
+# Set GitHub linguist exclusion
+lib/**/*.js linguist-vendored
+lib/optimizer/**/*.js linguist-vendored
+lib/nlopt/* linguist-vendored
+src/log/*.md linguist-detectable=true

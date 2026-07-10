@@ -1,0 +1,40 @@
+{
+  "command": "start",
+  "problem": {
+    "type": "rect",
+    "flaps": [
+      { "id": 1, "width": 0, "height": 0 },
+      { "id": 2, "width": 0, "height": 0 },
+      { "id": 4, "width": 0, "height": 0 }
+    ],
+    "hierarchies": [
+      {
+        "leaves": [1, 2, 4],
+        "distMap": [
+          [1, 2, 16],
+          [1, 4, 16],
+          [2, 4, 12]
+        ],
+        "parents": []
+      }
+    ]
+  },
+  "layout": "view",
+  "useBH": false,
+  "random": 0,
+  "seed": 1,
+  "vec": [
+    { "x": 0.3, "y": 0.3 },
+    { "x": 0.4, "y": 0.5 },
+    { "x": 0.5, "y": 0.4 }
+  ],
+  "expected": {
+    "width": 15,
+    "height": 15,
+    "flaps": [
+      { "id": 1, "x": 0, "y": 0 },
+      { "id": 2, "x": 6, "y": 15 },
+      { "id": 4, "x": 15, "y": 6 }
+    ]
+  }
+}

@@ -1,0 +1,322 @@
+{
+	"name": "English",
+	"flag": "usa",
+	"emoji": "🇺🇸",
+	"since": 0,
+	"welcome": {
+		"title": "Welcome to Box Pleating Studio!",
+		"intro": [
+			"This app is made to help origami designers to make complex, crazy designs using box pleating and GOPS gadgets.",
+			"To begin, click on the upper-left menu button to create an empty new project, or read our brief user manual on {0} (in English only)."
+		],
+		"install": {
+			"hint": "You can also install BP Studio as a standalone app to your device, and use it offline!",
+			"ios": "How to install on iOS: Open this website in Safari, tap the \"Share\" icon at the bottom of\tyour screen, and then tap \"Add to home screen\".",
+			"bt": "Install Box Pleating Studio App",
+			"prepare": "Preparing for installation, please wait...",
+			"ing": "Installing app, please wait...",
+			"ed": "BP Studio is already installed on your device.",
+			"open": "Open Box Pleating Studio App"
+		},
+		"copyright": "Copyright © 2020{0} by Mu-Tsun Tsai",
+		"recent": "Recently used",
+		"start": "Start",
+		"website": "BP Studio website",
+		"discord": "Please join our {0}!"
+	},
+	"toolbar": {
+		"file": {
+			"title": "Files",
+			"new": "New project",
+			"open": "Open projects / workspaces",
+			"print": "Print current view",
+			"share": "Share current project",
+			"notFound": "Unable to open file \"{0}\"; file not found.",
+			"recent": {
+				"title": "Open recent file",
+				"empty": "No records",
+				"clear": "Clear records"
+			},
+			"BPF": "BP Studio formats",
+			"BPS": {
+				"name": "BP Studio project",
+				"download": "Download current project",
+				"save": "Save project",
+				"saveAs": "Save project as...",
+				"saveAll": "Save all projects"
+			},
+			"BPZ": {
+				"name": "BP Studio workspace",
+				"download": "Download workspace",
+				"save": "Save workspace as..."
+			},
+			"PNG": {
+				"name": "PNG image",
+				"download": "Download current view as PNG",
+				"save": "Save current view as PNG",
+				"copy": "Copy current view as PNG"
+			},
+			"SVG": {
+				"name": "SVG image",
+				"download": "Download current view as SVG",
+				"save": "Save current view as SVG"
+			}
+		},
+		"edit": {
+			"title": "Edit",
+			"undo": "Undo",
+			"redo": "Redo",
+			"selectAll": "Select all",
+			"unselectAll": "Unselect all",
+			"subdivide": "Subdivide grid",
+			"rotate_right": "Rotate right",
+			"rotate_left": "Rotate left",
+			"horizontal_flip": "Horizontal flip",
+			"vertical_flip": "Vertical flip"
+		},
+		"setting": {
+			"title": "Settings",
+			"fullscreen": "Fullscreen",
+			"fullscreenExit": "Exit fullscreen",
+			"grid": "Show grid lines",
+			"hinge": "Show hinge creases",
+			"ridge": "Show ridge creases",
+			"axial": "Show axial-parallel creases in gadgets",
+			"label": "Show labels",
+			"tip": "Show flap tips",
+			"dPad": "Show D-pad",
+			"status": "Show status bar",
+			"preference": "Preferences"
+		},
+		"tools": {
+			"title": "Tools",
+			"TreeMaker": "Import TreeMaker file"
+		},
+		"help": {
+			"title": "Help",
+			"about": "About",
+			"news": "Version info",
+			"update": "Ready to update",
+			"checkUpdate": "Check for update",
+			"donation": "Donation",
+			"discussions": "Discussions",
+			"issue": "Report issue",
+			"homepage": "Homepage"
+		},
+		"view": {
+			"tree": "Tree structure",
+			"layout": "Layout"
+		},
+		"tab": {
+			"clone": "Clone",
+			"close": "Close",
+			"closeAll": "Close all",
+			"closeOther": "Close others",
+			"closeRight": "Close all to the right",
+			"noTitle": "(no title)"
+		},
+		"panel": "Option panel"
+	},
+	"preference": {
+		"general": "General",
+		"color": {
+			"_": "Colors",
+			"default": "Default",
+			"border": "Border lines",
+			"grid": "Grid lines",
+			"hinge": "Hinge creases",
+			"ridge": "Ridge creases",
+			"axisParallel": "Axis-parallel creases",
+			"overlap": "Overlapping",
+			"tip": "Flap tips",
+			"label": "Text label"
+		},
+		"hotkey": "Hotkeys",
+		"command": "Command",
+		"language": "Language",
+		"theme": {
+			"_": "Theme",
+			"dark": "Dark theme",
+			"light": "Light theme",
+			"system": "Use system settings"
+		},
+		"reset": "Reset all settings to default",
+		"confirmReset": "Are you sure you want to reset all settings to default?",
+		"confirmKey": "Hotkey {0} is already assigned to the command \"{1}\"; would you like to replace it?",
+		"autoSave": "Save workspace automatically",
+		"includeHidden": "Include hidden elements in SVG exports",
+		"loadSessionOnQueue": "Load previous session when directly open a project file",
+		"useFileSystem": "Use file system API"
+	},
+	"panel": {
+		"design": {
+			"type": "Box Pleating Studio Project",
+			"title": "Title",
+			"titlePH": "(Project title)",
+			"descriptionPH": "(Project description)",
+			"tree": "Tree structure view",
+			"layout": "Layout view",
+			"width": "Width",
+			"height": "Height",
+			"size": "Size",
+			"zoom": "Zoom",
+			"grid": {
+				"_": "Type",
+				"rect": "Rectangular grid",
+				"diag": "Diagonal grid"
+			}
+		},
+		"flap": {
+			"type": "Flap",
+			"name": "Name",
+			"radius": "Radius",
+			"width": "Width",
+			"height": "Height",
+			"goto": "Go to vertex"
+		},
+		"flaps": {
+			"type": "Flaps",
+			"goto": "Go to vertices"
+		},
+		"river": {
+			"type": "River",
+			"width": "Width",
+			"goto": "Go to edge"
+		},
+		"rivers": {
+			"type": "Rivers"
+		},
+		"vertex": {
+			"type": "Vertex",
+			"name": "Name",
+			"addLeaf": "Add leaf",
+			"ofLength": "of length",
+			"delJoin": "Delete and join",
+			"goto": "Go to flap"
+		},
+		"vertices": {
+			"type": "Vertices",
+			"goto": "Go to flaps"
+		},
+		"edge": {
+			"type": "Edge",
+			"length": "Length",
+			"split": "Split",
+			"merge": "Merge end vertices",
+			"goto": "Go to river"
+		},
+		"repo": {
+			"type": "Stretch",
+			"config": "Configuration",
+			"pattern": "Pattern",
+			"onlyOne": "Only one pattern is found."
+		}
+	},
+	"status": {
+		"invalid": "Invalid overlaps"
+	},
+	"share": {
+		"title": "Share project",
+		"copy": "Copy",
+		"share": "Share",
+		"message": "Check out my project \"{0}\" designed with Box Pleating Studio!"
+	},
+	"about": {
+		"title": "About Box Pleating Studio",
+		"license": "Released under the MIT license.",
+		"manual": "For user manual, visit the app's {0}.",
+		"feedback": "For feedback, visit the app's {0}.",
+		"repo": "Github repository",
+		"donation": "BP Studio is completely free to use. If you find this app helpful to your designing and are interested in supporting this app, you can donate any amount with {0}.",
+		"visitBlog": "Also visit author's {0} for more info!",
+		"blog": "blog",
+		"sponsor": "BP Studio is proudly sponsored by:"
+	},
+	"donate": {
+		"title": "Supporting Box Pleating Studio",
+		"intro": "Thank you for considering supporting Box Pleating Studio! Please enter any amount you would like to donate. You can buy me a coffee with $1, or a dinner with $10, etc. 😄 (PayPal handling fee will be added during checkout)",
+		"error": "Please enter a number",
+		"then": "Then click the button below and follow the instructions to complete.",
+		"wait": "Please wait until PayPal complete your transaction...",
+		"nextTime": "Maybe next time",
+		"thank": "Thank you very much, {0}, for your kind donation!"
+	},
+	"message": {
+		"connFail": "Internet connection failed; please try again later.",
+		"downloadHint": "Right-click and use \"Save As\" to choose file location.",
+		"filePermission": "For security reason, BP Studio needs your permission to access the file. For each file, you'll only need to grant permission once per session. Do you still wish to access the file?",
+		"fatal": "An internal error occurred, and the project cannot be further operated.",
+		"recover": "The workspace will be recovered automatically, but the error will likely persist. Please download the error log and send it to the author for diagnosing the issue.",
+		"recoverFailed": "Recovery failed.",
+		"invalidFormat": "File \"{0}\" is of invalid format.",
+		"invalidLink": "Unexpected error occurred upon opening the project link; the data might be corrupted.",
+		"latest": "You already have the latest version of BP Studio.",
+		"min3vertex": "The tree needs to have at least 3 vertices.",
+		"oldVersion": "Project \"{0}\" was created with an older version of BP Studio, and part of the design has been modified. It will be updated to the latest format on the next saving.",
+		"patternNotFound": "Some of the overlappings of flaps in this design are valid, but for now BP Studio is unable to find working stretch patterns for them. The author of this app will continue to implement more algorithms to cover more cases.",
+		"unsaved": "Project \"{0}\" contains unsaved changes. Discard the changes?",
+		"updateReady": "A newer version of BP Studio is ready and will update automatically on restart. Would you like to restart now?",
+		"restartFail": "Unable to restart. Please close all instances of BP Studio.",
+		"webGL": {
+			"title": "WebGL initialization failed",
+			"body": "BP Studio requires WebGL to run, but is unable to initialize WebGL context. Please check your browser's settings."
+		},
+		"inApp": "It seems that you are using an in-app browser. Downloading might not work.",
+		"dropzone": "Drop file to open"
+	},
+	"plugin": {
+		"TreeMaker": {
+			"not5": "File \"{0}\" is not of TreeMaker 5 format.",
+			"size8": "BP Studio requires sheet size at least 8.",
+			"invalid": "File \"{0}\" seems corrupted and cannot be loaded successfully."
+		},
+		"optimizer": {
+			"_": "Optimize layout",
+			"unsupported": "Your browser does not support this feature. Please upgrade to the latest version.",
+			"options": {
+				"_": "Options",
+				"openNew": "Show result in a new tab",
+				"useDim": "Keep widths and heights of flaps"
+			},
+			"layout": {
+				"_": "Layout method",
+				"view": "Use current layout as reference",
+				"random": "Try random layouts",
+				"toTry": "Number of layouts to try:",
+				"useBH": "Try variations of the current layouts"
+			},
+			"skip": "Skip",
+			"run": "Run!",
+			"running": "Running...",
+			"mp": "Multiple-processing activated"
+		},
+		"CP": {
+			"_": "Export CP file",
+			"format": "Format",
+			"reorient": "Reorient the sheet if applicable",
+			"useAuxiliary": "Use auxiliary lines (unofficial standard)"
+		}
+	},
+	"keyword": {
+		"yes": "Yes",
+		"no": "No",
+		"ok": "OK",
+		"here": "here",
+		"abort": "Abort",
+		"close": "Close",
+		"cancel": "Cancel",
+		"export": "Export",
+		"delete": "Delete",
+		"discord": "BP Studio Discord server",
+		"version": "Version",
+		"filename": "Filename",
+		"download": "Download",
+		"homepage": "homepage",
+		"untitled": "Untitled",
+		"errorLog": "Download error log",
+		"workspace": "workspace"
+	},
+	"help": {
+		"useFileSystem": "Enabling this allows you to directly save into editing files and keep a record of recently opened files. You can disable this if you encounter any trouble opening files on mobile devices."
+	}
+}
