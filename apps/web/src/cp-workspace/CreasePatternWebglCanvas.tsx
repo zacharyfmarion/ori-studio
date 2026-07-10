@@ -14,13 +14,21 @@ import {
   type UserBounds,
   type UserCamera,
 } from './renderer/camera';
-import { LineHitIndex, segmentIntersectsAabb } from './picking/lineHitIndex';
+import {
+  LineHitIndex,
+  circleRingIntersectsAabb,
+  segmentIntersectsAabb,
+} from './picking/lineHitIndex';
 import type { ModelPoint, Rgba, Viewport } from './renderer/types';
 import { cpSnapshotToScene, type CpLineSegmentInput } from './adapters/cpSnapshotToScene';
 import { cpPointsToScene } from './adapters/cpPointsToScene';
 import { resolveCpLineColor } from './adapters/cpLineColor';
 import { resolveCpPointStyle } from './adapters/cpPointStyle';
-import { cpFoldedToScene } from './adapters/cpFoldedToScene';
+import {
+  cpFoldedToScene,
+  foldedFigureUserBounds,
+  type FoldedFigureBounds,
+} from './adapters/cpFoldedToScene';
 import type { OristudioCpFoldedFigureEntry } from '../engine/oristudioCpTypes';
 import {
   cpGridLinesToStrokes,
@@ -55,8 +63,10 @@ const POINT_OUTLINE_CSS = 1.4;
 const SELECTION_COLOR_VAR = '--accent-primary';
 const SELECTION_FALLBACK: Rgba = [0.4, 0.6, 1, 1];
 const SELECTION_WIDTH_MUL = 2.6;
-/** Click hit tolerance and click-vs-drag threshold, in CSS px. */
+/** Click hit tolerances (CSS px). Points/vertices are small precise targets, so
+    they win only on a tighter radius than the fatter line tolerance. */
 const HIT_TOLERANCE_CSS = 8;
+const POINT_HIT_TOLERANCE_CSS = 6;
 const CLICK_MOVE_THRESHOLD = 4;
 
 /** Grid colour: `--border-default` composited at 82% (matches the SVG grid line). */
@@ -65,6 +75,21 @@ const GRID_COLOR_ALPHA = 0.82;
 const GRID_FALLBACK: Rgba = [0.4, 0.43, 0.48, GRID_COLOR_ALPHA];
 
 const dpr = () => Math.min(window.devicePixelRatio || 1, MAX_DPR);
+
+/** A hit primitive from a click (vertices use their cpVertexId string). */
+export type CpSelectHit =
+  | { kind: 'line'; id: number }
+  | { kind: 'point'; id: number }
+  | { kind: 'vertex'; id: string }
+  | { kind: 'circle'; id: number };
+
+/** Ids touched by a marquee, by primitive type. */
+export interface CpBoxSelection {
+  lines: number[];
+  points: number[];
+  vertices: string[];
+  circles: number[];
+}
 
 export interface CreasePatternWebglCanvasProps {
   className?: string;
@@ -76,12 +101,23 @@ export interface CreasePatternWebglCanvasProps {
   modelToSvg: (point: ModelPoint) => ModelPoint;
   /** SVG user → model mapping (inverse of {@link modelToSvg}) for hit-testing. */
   svgToModel: (point: ModelPoint) => ModelPoint;
-  /** Currently selected line ids (1-based, matching the SVG's index+1). */
+  /** Currently selected ids (lines/points/circles are 1-based; vertices are cpVertexId). */
   selectedLineIds: readonly number[];
-  /** Click-select callback: a line id, or null for a background click. */
-  onSelectLine: (lineId: number | null, additive: boolean) => void;
-  /** Marquee (box) select callback: the fully-enclosed line ids. */
-  onBoxSelect: (lineIds: number[], additive: boolean) => void;
+  selectedPointIds: readonly number[];
+  selectedVertexIds: readonly string[];
+  selectedCircleIds: readonly number[];
+  /** Per-vertex cpVertexId, parallel to `vertices`, for mapping a hit to an id. */
+  vertexIds: readonly string[];
+  /** Click-select callback: the hit primitive, or null for a background click. */
+  onSelect: (hit: CpSelectHit | null, additive: boolean) => void;
+  /** Marquee (box) select callback with the touched ids by type. */
+  onBoxSelect: (sets: CpBoxSelection, additive: boolean) => void;
+  /**
+   * Drag a folded figure by `delta` SVG user units (cmd/ctrl-drag over it,
+   * mirroring Oriedita). Called repeatedly during the drag with incremental
+   * deltas.
+   */
+  onMoveFoldedFigure: (figureId: string, delta: { x: number; y: number }) => void;
   /** Assignment colour mode. */
   mode: 'mvf' | 'agrh';
   /** `--cp-line-width` value driving stroke thickness. */
@@ -125,8 +161,13 @@ export function CreasePatternWebglCanvas({
   modelToSvg,
   svgToModel,
   selectedLineIds,
-  onSelectLine,
+  selectedPointIds,
+  selectedVertexIds,
+  selectedCircleIds,
+  vertexIds,
+  onSelect,
   onBoxSelect,
+  onMoveFoldedFigure,
   mode,
   lineWidth,
   points,
@@ -166,14 +207,28 @@ export function CreasePatternWebglCanvas({
     return { minX, minY, maxX, maxY };
   }, [lineSegments, modelToSvg]);
 
-  // Spatial index for click hit-testing (rebuilt when the geometry changes).
+  // Spatial indices for click hit-testing. Points/vertices are indexed as
+  // zero-length segments so the same distance query applies (id = index + 1).
   const hitIndex = useMemo(
     () => new LineHitIndex(lineSegments.map((s, i) => ({ id: i + 1, a: s.a, b: s.b }))),
     [lineSegments]
   );
+  const vertexIndex = useMemo(
+    () => new LineHitIndex(vertices.map((v, i) => ({ id: i + 1, a: v, b: v }))),
+    [vertices]
+  );
+  const pointIndex = useMemo(
+    () => new LineHitIndex(points.map((p, i) => ({ id: i + 1, a: p, b: p }))),
+    [points]
+  );
+  // Folded-figure pick boxes (SVG user coords) for cmd-drag move, in draw order.
+  const foldedBounds = useMemo<FoldedFigureBounds[]>(
+    () => foldedFigureUserBounds(foldedFigures),
+    [foldedFigures]
+  );
 
   // Per-frame / per-interaction inputs the effect reads without re-subscribing.
-  const liveRef = useRef({
+  const live = {
     modelToSvg,
     svgToModel,
     lineWidth,
@@ -181,23 +236,22 @@ export function CreasePatternWebglCanvas({
     gridVisible,
     contentBounds,
     hitIndex,
+    vertexIndex,
+    pointIndex,
     lineSegments,
-    onSelectLine,
+    points,
+    vertices,
+    vertexIds,
+    circles,
+    circleRadiusToSvg,
+    foldedBounds,
+    onSelect,
     onBoxSelect,
-  });
+    onMoveFoldedFigure,
+  };
+  const liveRef = useRef(live);
   useEffect(() => {
-    liveRef.current = {
-      modelToSvg,
-      svgToModel,
-      lineWidth,
-      grid,
-      gridVisible,
-      contentBounds,
-      hitIndex,
-      lineSegments,
-      onSelectLine,
-      onBoxSelect,
-    };
+    liveRef.current = live;
     // Inputs affecting stroke thickness / mapping changed — redraw.
     renderNowRef.current();
   });
@@ -227,7 +281,18 @@ export function CreasePatternWebglCanvas({
         points,
         vertices,
         circles.map((c) => ({ center: { x: c.x, y: c.y }, radius: circleRadiusToSvg(c.r) })),
-        resolveCpPointStyle(document.documentElement, pointSize)
+        resolveCpPointStyle(document.documentElement, pointSize),
+        {
+          pointIdx: new Set(selectedPointIds.map((id) => id - 1)),
+          vertexIdx: new Set(
+            vertexIds.reduce<number[]>((acc, vid, j) => {
+              if (selectedVertexIds.includes(vid)) acc.push(j);
+              return acc;
+            }, [])
+          ),
+          circleIdx: new Set(selectedCircleIds.map((id) => id - 1)),
+          color: readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK),
+        }
       ),
       folded: cpFoldedToScene(foldedFigures),
     }),
@@ -235,6 +300,10 @@ export function CreasePatternWebglCanvas({
     [
       lineSegments,
       selectedLineIds,
+      selectedPointIds,
+      selectedVertexIds,
+      selectedCircleIds,
+      vertexIds,
       points,
       vertices,
       circles,
@@ -349,28 +418,69 @@ export function CreasePatternWebglCanvas({
     // --- Pointer interaction on the canvas ---
     // cmd/ctrl + drag pans; a plain click selects the crease under the cursor;
     // a plain drag marquee-selects.
-    const clientToModel = (clientX: number, clientY: number): ModelPoint | null => {
+    const clientToUser = (clientX: number, clientY: number): ModelPoint | null => {
       const cam = cameraRef.current;
       if (!cam) return null;
       const ratio = dpr();
       const rect = canvas.getBoundingClientRect();
-      const userPt = unprojectDevicePoint(
+      return unprojectDevicePoint(
         userCameraToView(cam, viewportOf(ratio)),
         (clientX - rect.left) * ratio,
         (clientY - rect.top) * ratio
       );
+    };
+    const clientToModel = (clientX: number, clientY: number): ModelPoint | null => {
+      const userPt = clientToUser(clientX, clientY);
       return userPt ? liveRef.current.svgToModel(userPt) : null;
     };
 
-    const hitTestLine = (clientX: number, clientY: number): number => {
+    // Topmost folded figure whose pick box contains the cursor (draw order:
+    // later figures render on top, so scan back-to-front).
+    const figureAt = (clientX: number, clientY: number): string | null => {
+      const u = clientToUser(clientX, clientY);
+      if (!u) return null;
+      const bounds = liveRef.current.foldedBounds;
+      for (let i = bounds.length - 1; i >= 0; i--) {
+        const b = bounds[i].bounds;
+        if (u.x >= b.minX && u.x <= b.maxX && u.y >= b.minY && u.y <= b.maxY) {
+          return bounds[i].id;
+        }
+      }
+      return null;
+    };
+
+    const modelToleranceOf = (cssTol: number): number => {
       const cam = cameraRef.current;
-      const modelPt = clientToModel(clientX, clientY);
-      if (!cam || !modelPt) return -1;
+      if (!cam) return cssTol;
       const scale = viewTransformScale(
         modelViewFromCamera(cam, viewportOf(dpr()), liveRef.current.modelToSvg)
       );
-      const tolModel = (HIT_TOLERANCE_CSS * dpr()) / Math.max(1e-6, scale);
-      return liveRef.current.hitIndex.query(modelPt.x, modelPt.y, tolModel);
+      return (cssTol * dpr()) / Math.max(1e-6, scale);
+    };
+
+    // Pick the primitive under the cursor. Vertices/points win only on a tight
+    // radius (small precise targets) so a click near a junction still lets you
+    // grab the crease; circles match near their ring.
+    const hitTest = (clientX: number, clientY: number): CpSelectHit | null => {
+      const m = clientToModel(clientX, clientY);
+      if (!m) return null;
+      const l = liveRef.current;
+      const ptTol = modelToleranceOf(POINT_HIT_TOLERANCE_CSS);
+      const lineTol = modelToleranceOf(HIT_TOLERANCE_CSS);
+
+      const v = l.vertexIndex.query(m.x, m.y, ptTol);
+      if (v > 0) return { kind: 'vertex', id: l.vertexIds[v - 1] };
+      const p = l.pointIndex.query(m.x, m.y, ptTol);
+      if (p > 0) return { kind: 'point', id: p };
+      const line = l.hitIndex.query(m.x, m.y, lineTol);
+      if (line > 0) return { kind: 'line', id: line };
+      for (let i = 0; i < l.circles.length; i++) {
+        const c = l.circles[i];
+        if (Math.abs(Math.hypot(m.x - c.x, m.y - c.y) - c.r) <= lineTol) {
+          return { kind: 'circle', id: i + 1 };
+        }
+      }
+      return null;
     };
 
     // Transient marquee rectangle rendered as a plain DOM overlay.
@@ -397,17 +507,33 @@ export function CreasePatternWebglCanvas({
         minY: Math.min(p1.y, p2.y),
         maxY: Math.max(p1.y, p2.y),
       };
-      // Crossing / "touch" marquee: select any crease the box intersects.
-      const ids: number[] = [];
-      liveRef.current.lineSegments.forEach((s, i) => {
-        if (segmentIntersectsAabb(s.a, s.b, box)) ids.push(i + 1);
+      const l = liveRef.current;
+      const inBox = (p: ModelPoint) =>
+        p.x >= box.minX && p.x <= box.maxX && p.y >= box.minY && p.y <= box.maxY;
+      const sets: CpBoxSelection = { lines: [], points: [], vertices: [], circles: [] };
+      // Crossing marquee for lines; enclosed centres for points/vertices/circles.
+      l.lineSegments.forEach((s, i) => {
+        if (segmentIntersectsAabb(s.a, s.b, box)) sets.lines.push(i + 1);
       });
-      liveRef.current.onBoxSelect(ids, additive);
+      l.points.forEach((p, i) => {
+        if (inBox(p)) sets.points.push(i + 1);
+      });
+      l.vertices.forEach((v, j) => {
+        if (inBox(v)) sets.vertices.push(l.vertexIds[j]);
+      });
+      l.circles.forEach((c, i) => {
+        if (circleRingIntersectsAabb(c.x, c.y, c.r, box)) sets.circles.push(i + 1);
+      });
+      l.onBoxSelect(sets, additive);
     };
 
     let panning = false;
     let selecting = false;
     let moved = false;
+    // Active folded-figure drag: figure id + last cursor position in user coords.
+    let movingFigure: string | null = null;
+    let lastUserX = 0;
+    let lastUserY = 0;
     let lastX = 0;
     let lastY = 0;
     let pressX = 0;
@@ -418,7 +544,16 @@ export function CreasePatternWebglCanvas({
       moved = false;
       if (e.metaKey || e.ctrlKey) {
         e.preventDefault();
-        panning = true;
+        // cmd/ctrl over a folded figure grabs it to move; otherwise it pans.
+        const figureId = figureAt(e.clientX, e.clientY);
+        const u = figureId ? clientToUser(e.clientX, e.clientY) : null;
+        if (figureId && u) {
+          movingFigure = figureId;
+          lastUserX = u.x;
+          lastUserY = u.y;
+        } else {
+          panning = true;
+        }
       } else {
         selecting = true;
       }
@@ -431,7 +566,19 @@ export function CreasePatternWebglCanvas({
       ) {
         moved = true;
       }
-      if (panning && cameraRef.current) {
+      if (movingFigure) {
+        const u = clientToUser(e.clientX, e.clientY);
+        if (u) {
+          liveRef.current.onMoveFoldedFigure(movingFigure, {
+            x: u.x - lastUserX,
+            y: u.y - lastUserY,
+          });
+          lastUserX = u.x;
+          lastUserY = u.y;
+          // The store update re-renders via the foldedFigures prop; no manual
+          // draw here (and the camera has not moved, so user coords stay valid).
+        }
+      } else if (panning && cameraRef.current) {
         const ratio = dpr();
         panUserCamera(cameraRef.current, (e.clientX - lastX) * ratio, (e.clientY - lastY) * ratio);
         lastX = e.clientX;
@@ -444,14 +591,12 @@ export function CreasePatternWebglCanvas({
     const onPointerUp = (e: PointerEvent) => {
       if (selecting) {
         if (moved) boxSelect(e.clientX, e.clientY, e.shiftKey);
-        else {
-          const id = hitTestLine(e.clientX, e.clientY);
-          liveRef.current.onSelectLine(id > 0 ? id : null, e.shiftKey);
-        }
+        else liveRef.current.onSelect(hitTest(e.clientX, e.clientY), e.shiftKey);
       }
       marquee.style.display = 'none';
       panning = false;
       selecting = false;
+      movingFigure = null;
       if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
     };
     const onWheel = (e: WheelEvent) => {

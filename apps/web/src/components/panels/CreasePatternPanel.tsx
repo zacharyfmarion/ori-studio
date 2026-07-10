@@ -1759,6 +1759,10 @@ export function CreasePatternPanel() {
     () => editableCpVertices.map((vertex) => vertex.point),
     [editableCpVertices]
   );
+  const editableCpVertexIds = useMemo(
+    () => editableCpVertices.map((vertex) => vertex.id),
+    [editableCpVertices]
+  );
   const importedFoldedForms = useMemo(
     () =>
       (importedCreasePattern?.sourceFold?.file_frames ?? [])
@@ -4331,19 +4335,36 @@ export function CreasePatternPanel() {
                   modelToSvg={editableModelToSvg}
                   svgToModel={editableSvgToModel}
                   selectedLineIds={oristudioCpSelection.lines}
-                  onSelectLine={(id, additive) => {
-                    if (id != null) handleEditableLineClick(id, additive);
-                    else if (!additive) clearOristudioCpSelection();
+                  selectedPointIds={oristudioCpSelection.points}
+                  selectedVertexIds={oristudioCpSelection.vertices ?? []}
+                  selectedCircleIds={oristudioCpSelection.circles}
+                  vertexIds={editableCpVertexIds}
+                  onSelect={(hit, additive) => {
+                    if (!hit) {
+                      if (!additive) clearOristudioCpSelection();
+                      return;
+                    }
+                    if (hit.kind === 'line') handleEditableLineClick(hit.id, additive);
+                    else if (hit.kind === 'point') handleEditablePointClick(hit.id, additive);
+                    else if (hit.kind === 'vertex') handleEditableVertexClick(hit.id, additive);
+                    else handleEditableCircleClick(hit.id, additive);
                   }}
-                  onBoxSelect={(ids, additive) => {
-                    const lines = additive
-                      ? Array.from(new Set([...oristudioCpSelection.lines, ...ids]))
-                      : ids;
-                    setOristudioCpSelection(
-                      additive
-                        ? { ...oristudioCpSelection, lines }
-                        : { ...emptyOristudioCpSelection(), lines }
-                    );
+                  onBoxSelect={(sets, additive) => {
+                    const merge = (prev: number[], next: number[]) =>
+                      Array.from(new Set([...prev, ...next]));
+                    const mergeStr = (prev: string[], next: string[]) =>
+                      Array.from(new Set([...prev, ...next]));
+                    const base = additive ? oristudioCpSelection : emptyOristudioCpSelection();
+                    setOristudioCpSelection({
+                      ...base,
+                      lines: additive ? merge(base.lines, sets.lines) : sets.lines,
+                      points: additive ? merge(base.points, sets.points) : sets.points,
+                      vertices: additive ? mergeStr(base.vertices ?? [], sets.vertices) : sets.vertices,
+                      circles: additive ? merge(base.circles, sets.circles) : sets.circles,
+                    });
+                  }}
+                  onMoveFoldedFigure={(figureId, delta) => {
+                    moveOristudioCpFoldedFigure(figureId, delta);
                   }}
                   mode={mode}
                   lineWidth={(oristudioCpViewport.lineWidth ?? 1) * cpDecorationScale}

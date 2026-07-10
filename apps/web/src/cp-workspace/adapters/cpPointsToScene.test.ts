@@ -61,4 +61,29 @@ describe('cpPointsToScene', () => {
     expect(geo.count).toBe(0);
     expect(geo.center).toHaveLength(0);
   });
+
+  it('recolours selected points, vertices, and circle rings', () => {
+    const SEL: Rgba = [0, 0, 1, 1];
+    const geo = cpPointsToScene(
+      [{ x: 0, y: 0 }, { x: 1, y: 1 }],
+      [{ x: 2, y: 2 }],
+      [{ center: { x: 9, y: 9 }, radius: 40 }],
+      style,
+      {
+        pointIdx: new Set([1]),
+        vertexIdx: new Set([0]),
+        circleIdx: new Set([0]),
+        color: SEL,
+      }
+    );
+    // point 0 unselected keeps its fill; point 1 selected takes the accent
+    closeToAll(geo.fill.slice(0, 4), [...PF]);
+    closeToAll(geo.fill.slice(4, 8), [...SEL]);
+    closeToAll(geo.stroke.slice(4, 8), [...SEL]);
+    // vertex 0 (instance index 2) selected
+    closeToAll(geo.fill.slice(8, 12), [...SEL]);
+    // circle (instance index 3) keeps transparent fill, ring takes accent
+    closeToAll(geo.fill.slice(12, 16), [0, 0, 0, 0]);
+    closeToAll(geo.stroke.slice(12, 16), [...SEL]);
+  });
 });

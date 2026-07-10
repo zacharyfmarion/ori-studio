@@ -23,6 +23,14 @@ export interface CpCircleInput {
 /** Transparent fill for circles — they render as stroked rings only. */
 const TRANSPARENT: Rgba = [0, 0, 0, 0];
 
+/** Selected instances (by their index within each group) are drawn in `color`. */
+export interface CpPointSelection {
+  pointIdx: ReadonlySet<number>;
+  vertexIdx: ReadonlySet<number>;
+  circleIdx: ReadonlySet<number>;
+  color: Rgba;
+}
+
 /**
  * Build instanced point geometry from crease points, vertices, and circles. The
  * point program renders each as a disc + straddling outline, so circles are just
@@ -35,7 +43,8 @@ export function cpPointsToScene(
   points: readonly ModelPoint[],
   vertices: readonly ModelPoint[],
   circles: readonly CpCircleInput[],
-  style: CpPointStyle
+  style: CpPointStyle,
+  selection?: CpPointSelection
 ): PointGeometry {
   const count = points.length + vertices.length + circles.length;
   const center = new Float32Array(count * 2);
@@ -66,16 +75,26 @@ export function cpPointsToScene(
   const pointRadius = style.pointSize * POINT_RADIUS_FACTOR;
   const vertexRadius = style.pointSize * VERTEX_RADIUS_FACTOR;
 
+  const sel = selection?.color;
   for (let i = 0; i < points.length; i++) {
-    write(i, points[i], pointRadius, style.pointFill, style.pointStroke);
+    const on = selection?.pointIdx.has(i);
+    write(i, points[i], pointRadius, on && sel ? sel : style.pointFill, on && sel ? sel : style.pointStroke);
   }
   const vertexOffset = points.length;
   for (let j = 0; j < vertices.length; j++) {
-    write(vertexOffset + j, vertices[j], vertexRadius, style.vertexFill, style.vertexStroke);
+    const on = selection?.vertexIdx.has(j);
+    write(
+      vertexOffset + j,
+      vertices[j],
+      vertexRadius,
+      on && sel ? sel : style.vertexFill,
+      on && sel ? sel : style.vertexStroke
+    );
   }
   const circleOffset = vertexOffset + vertices.length;
   for (let k = 0; k < circles.length; k++) {
-    write(circleOffset + k, circles[k].center, circles[k].radius, TRANSPARENT, style.circleStroke);
+    const on = selection?.circleIdx.has(k);
+    write(circleOffset + k, circles[k].center, circles[k].radius, TRANSPARENT, on && sel ? sel : style.circleStroke);
   }
 
   return { center, radius, fill, stroke, count };

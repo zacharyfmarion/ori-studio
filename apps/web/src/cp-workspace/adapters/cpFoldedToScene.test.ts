@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cpFoldedToScene } from './cpFoldedToScene';
+import { cpFoldedToScene, foldedFigureUserBounds } from './cpFoldedToScene';
 import type {
   OristudioCpFoldedFigureEntry,
   OristudioCpFoldedRenderPrimitive,
@@ -83,5 +83,49 @@ describe('cpFoldedToScene', () => {
     const geo = cpFoldedToScene([{ ...figure([]), renderSnapshot: null }]);
     expect(geo.fills.count).toBe(0);
     expect(geo.strokes.count).toBe(0);
+  });
+});
+
+describe('foldedFigureUserBounds', () => {
+  const polygonFigure = () =>
+    figure([
+      {
+        sequence: 0,
+        kind: 'fill_polygon',
+        style: { paint: solid(255, 0, 0, 255), stroke: { kind: 'none' }, antialias: 'default' },
+        geometry: {
+          kind: 'polygon',
+          points: [
+            { x: 0, y: 0 },
+            { x: 10, y: 0 },
+            { x: 10, y: 10 },
+            { x: 0, y: 10 },
+          ],
+        },
+      },
+    ]);
+
+  it('returns one non-empty bounds per drawable figure', () => {
+    const [entry, ...rest] = foldedFigureUserBounds([polygonFigure()]);
+    expect(rest).toHaveLength(0);
+    expect(entry.id).toBe('f1');
+    expect(entry.bounds.maxX).toBeGreaterThan(entry.bounds.minX);
+    expect(entry.bounds.maxY).toBeGreaterThan(entry.bounds.minY);
+  });
+
+  it('shifts bounds by the display offset', () => {
+    const base = foldedFigureUserBounds([polygonFigure()])[0].bounds;
+    const shifted = foldedFigureUserBounds([
+      { ...polygonFigure(), displayOffset: { x: 100, y: 50 } },
+    ])[0].bounds;
+    expect(shifted.minX - base.minX).toBeCloseTo(100);
+    expect(shifted.maxX - base.maxX).toBeCloseTo(100);
+    expect(shifted.minY - base.minY).toBeCloseTo(50);
+    expect(shifted.maxY - base.maxY).toBeCloseTo(50);
+  });
+
+  it('omits figures with no drawable geometry', () => {
+    expect(foldedFigureUserBounds([figure([])])).toHaveLength(0);
+    expect(foldedFigureUserBounds([{ ...figure([]), renderSnapshot: null }])).toHaveLength(0);
   });
 });

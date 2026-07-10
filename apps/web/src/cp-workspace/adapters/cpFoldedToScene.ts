@@ -10,6 +10,7 @@ import type {
   OristudioCpFoldedRenderStroke,
   OristudioCpRgbaColor,
 } from '../../engine/oristudioCpTypes';
+import type { Aabb } from '../picking/lineHitIndex';
 import type { FoldedGeometry, Rgba } from '../renderer/types';
 
 /** Steps used to flatten quadratic/cubic path curves into polylines. */
@@ -223,4 +224,48 @@ export function cpFoldedToScene(figures: readonly OristudioCpFoldedFigureEntry[]
   }
 
   return builder.build();
+}
+
+/** A folded figure's id paired with its bounding box in SVG user coordinates. */
+export interface FoldedFigureBounds {
+  id: string;
+  bounds: Aabb;
+}
+
+/**
+ * Bounding box (SVG user coords) of each folded figure, using the same
+ * model->user + display-offset mapping as {@link cpFoldedToScene} so the pick
+ * box matches what is drawn. Figures with no drawable geometry are omitted.
+ * Order follows `figures`, i.e. draw order — later entries render on top.
+ */
+export function foldedFigureUserBounds(
+  figures: readonly OristudioCpFoldedFigureEntry[]
+): FoldedFigureBounds[] {
+  const result: FoldedFigureBounds[] = [];
+  for (const figure of figures) {
+    const snapshot = figure.renderSnapshot;
+    if (!snapshot?.primitives.length) continue;
+    const offset = figure.displayOffset ?? { x: 0, y: 0 };
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const primitive of snapshot.primitives) {
+      for (const subpath of geometrySubpaths(primitive.geometry)) {
+        for (const p of subpath) {
+          const u = modelPointToCpSvg(p, ORIEDITA_PAPER_BOUNDS);
+          const x = u.x + offset.x;
+          const y = u.y + offset.y;
+          if (x < minX) minX = x;
+          if (y < minY) minY = y;
+          if (x > maxX) maxX = x;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+    if (Number.isFinite(minX)) {
+      result.push({ id: figure.id, bounds: { minX, minY, maxX, maxY } });
+    }
+  }
+  return result;
 }

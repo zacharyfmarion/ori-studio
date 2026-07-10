@@ -123,7 +123,11 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     selected: boolean
   ) {
     return getRuntimeOristudioCpFoldedFigureRenderSnapshot(handle, displayStyle, {
-      display_mark: true,
+      // The camera/rotation marker (orange cross + purple selection disc) is not
+      // used in this workspace — we always rotate about the origin and it only
+      // inflated the figure's move hit-box. Omit it so the grab area is the
+      // folded form itself.
+      display_mark: false,
       selected,
       index,
     });

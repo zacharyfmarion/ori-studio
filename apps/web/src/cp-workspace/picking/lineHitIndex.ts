@@ -19,8 +19,10 @@ export class LineHitIndex {
   private readonly minX: number;
   private readonly minY: number;
   private readonly cells = new Map<number, IndexedSegment[]>();
+  private readonly all: readonly IndexedSegment[];
 
   constructor(segments: readonly IndexedSegment[], cellSize?: number) {
+    this.all = segments;
     let minX = Infinity;
     let minY = Infinity;
     let maxX = -Infinity;
@@ -34,8 +36,13 @@ export class LineHitIndex {
       lenSum += Math.hypot(s.b.x - s.a.x, s.b.y - s.a.y);
     }
     // Cell ~ the mean segment length keeps buckets small without over-binning.
-    const meanLen = segments.length > 0 ? lenSum / segments.length : 1;
-    this.cellSize = Math.max(1e-6, cellSize ?? meanLen);
+    // For a point cloud (zero-length segments, e.g. the vertex/point index)
+    // meanLen is 0, so fall back to the mean spacing across the bounding box —
+    // otherwise cellSize collapses toward 1e-6 and `query`'s reach explodes.
+    const meanLen = segments.length > 0 ? lenSum / segments.length : 0;
+    const span = Math.max(maxX - minX, maxY - minY);
+    const spacing = span > 0 ? span / Math.max(1, Math.sqrt(segments.length)) : 1;
+    this.cellSize = Math.max(1e-6, cellSize ?? (meanLen > 1e-9 ? meanLen : spacing));
     this.minX = Number.isFinite(minX) ? minX : 0;
     this.minY = Number.isFinite(minY) ? minY : 0;
 
@@ -75,6 +82,11 @@ export class LineHitIndex {
     const { cx, cy } = this.cellOf(x, y);
     // Widen the search by the tolerance so near-cell-boundary hits are found.
     const reach = Math.max(1, Math.ceil(tolerance / this.cellSize));
+    // When the tolerance dwarfs the cell size, the neighbourhood scan would
+    // touch more cells than there are segments; a flat scan is both cheaper and
+    // immune to the reach blowing up (a huge tolerance must never freeze).
+    const cellsToScan = (2 * reach + 1) ** 2;
+    if (cellsToScan > this.all.length) return this.linearQuery(x, y, tolerance);
     let best = -1;
     let bestDist = tolerance;
     const seen = new Set<number>();
@@ -91,6 +103,20 @@ export class LineHitIndex {
             best = s.id;
           }
         }
+      }
+    }
+    return best;
+  }
+
+  /** Fallback nearest-segment scan over every segment (grid-free). */
+  private linearQuery(x: number, y: number, tolerance: number): number {
+    let best = -1;
+    let bestDist = tolerance;
+    for (const s of this.all) {
+      const d = distanceToSegment(x, y, s.a, s.b);
+      if (d < bestDist) {
+        bestDist = d;
+        best = s.id;
       }
     }
     return best;
@@ -132,6 +158,28 @@ export function segmentIntersectsAabb(a: ModelPoint, b: ModelPoint, box: Aabb): 
     }
   }
   return t0 <= t1;
+}
+
+/**
+ * Whether a circle *ring* (outline at radius `r`, the way packing circles are
+ * drawn) intersects the box — the crossing / "touch" marquee semantic. True when
+ * the ring crosses an edge or the box encloses the ring, but not when the box
+ * sits wholly inside the ring without touching it. Holds iff the box's nearest
+ * point to the centre is within `r` and its farthest point is at least `r`.
+ */
+export function circleRingIntersectsAabb(
+  cx: number,
+  cy: number,
+  r: number,
+  box: Aabb
+): boolean {
+  const nearX = Math.max(box.minX - cx, 0, cx - box.maxX);
+  const nearY = Math.max(box.minY - cy, 0, cy - box.maxY);
+  const minDist = Math.hypot(nearX, nearY);
+  const farX = Math.max(cx - box.minX, box.maxX - cx);
+  const farY = Math.max(cy - box.minY, box.maxY - cy);
+  const maxDist = Math.hypot(farX, farY);
+  return minDist <= r && r <= maxDist;
 }
 
 /** Shortest distance from point (px, py) to segment a–b. */
