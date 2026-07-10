@@ -239,7 +239,9 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
   const computeFitScale = useCallback(() => {
     const viewport = getViewportSize();
     if (!viewport) return 1;
-    return getViewportFitScale(viewport, worldRect);
+    // Allow zooming IN to fit a small tree (the default fit caps at 1x, which
+    // left a unit edge tiny). The content min-extent bounds how far it zooms.
+    return getViewportFitScale(viewport, worldRect, undefined, 16);
   }, [getViewportSize, worldRect]);
 
   const fitToView = useCallback(

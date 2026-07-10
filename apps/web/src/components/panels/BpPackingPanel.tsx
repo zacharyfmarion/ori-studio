@@ -568,9 +568,17 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
         svg.getBoundingClientRect(),
         worldRect
       );
+      // Match Box Pleating Studio: the pointer is rounded to the integer grid
+      // (dragController.getCoordinate -> $round) before constraint/movement, so
+      // flaps and devices snap to grid cells.
       return {
-        x: ((worldPoint.x - paperRect.x) / paperRect.width) * Math.max(1, packing.sheet.width),
-        y: ((paperRect.y + paperRect.height - worldPoint.y) / paperRect.height) * Math.max(1, packing.sheet.height),
+        x: Math.round(
+          ((worldPoint.x - paperRect.x) / paperRect.width) * Math.max(1, packing.sheet.width)
+        ),
+        y: Math.round(
+          ((paperRect.y + paperRect.height - worldPoint.y) / paperRect.height) *
+            Math.max(1, packing.sheet.height)
+        ),
       };
     },
     [packing.sheet.height, packing.sheet.width, paperRect, worldRect]
