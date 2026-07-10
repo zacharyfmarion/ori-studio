@@ -4543,6 +4543,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "treemaker-225-spike"
+version = "0.1.2"
+dependencies = [
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "treemaker-cli"
 version = "0.1.2"
 dependencies = [

@@ -10,6 +10,7 @@ members = [
     "crates/treemaker-flatfold",
     "crates/treemaker-fold",
     "crates/treemaker-sequence",
+    "crates/treemaker-225-spike",
     "crates/treemaker-core",
     "crates/treemaker-cli",
     "crates/treemaker-wasm",
