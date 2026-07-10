@@ -39,8 +39,15 @@ export interface ToolCommit {
 /** The result of reducing one input: next state, live preview, optional commit. */
 export interface ToolOutput<S> {
   state: S;
+  /** Locally-drawn preview (drag tools). Null when there is none. */
   preview: ToolPreview | null;
   commit: ToolCommit | null;
+  /**
+   * Collected points plus the live cursor, for tools whose preview is computed by
+   * the kernel (point-sequence): the controller passes these to
+   * `previewOristudioCpCommand`. Omitted by locally-previewed (drag) tools.
+   */
+  livePoints?: readonly ModelPoint[];
 }
 
 /** A pure tool state machine. `S` is the engine's private interaction state. */
