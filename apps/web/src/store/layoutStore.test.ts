@@ -2,10 +2,10 @@ import type { DockviewApi, SerializedDockview } from 'dockview';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   applyDefaultLayout,
-  registerWorkflowTargetSource,
+  registerDesignVariantSource,
   useLayoutStore,
+  type DesignLayoutVariant,
 } from './layoutStore';
-import type { WorkflowTarget } from '../lib/sampleProject';
 
 interface MockPanel {
   id: string;
@@ -76,14 +76,14 @@ function createDockviewApi(layout: SerializedDockview = dockviewLayout()) {
 }
 
 describe('layout store', () => {
-  let workflowTarget: WorkflowTarget = 'treemaker';
-  registerWorkflowTargetSource(() => workflowTarget);
+  let designVariant: DesignLayoutVariant = 'treemaker';
+  registerDesignVariantSource(() => designVariant);
 
   beforeEach(() => {
     localStorage.clear();
     useLayoutStore.setState(initialLayoutState, true);
     vi.restoreAllMocks();
-    workflowTarget = 'treemaker';
+    designVariant = 'treemaker';
   });
 
   it('builds the default design workspace with design-only side panes', () => {
@@ -186,7 +186,7 @@ describe('layout store', () => {
     expect(useLayoutStore.getState().loadLayout()).toBeNull();
     expect(localStorage.getItem('treemaker-web-layout:design')).toBeNull();
 
-    localStorage.setItem('treemaker-web-layout-version:design', '13');
+    localStorage.setItem('treemaker-web-layout-version:design', '14');
     localStorage.setItem('treemaker-web-layout:design', '{broken');
 
     expect(useLayoutStore.getState().loadLayout()).toBeNull();
@@ -206,66 +206,94 @@ describe('layout store', () => {
     expect(localStorage.getItem('treemaker-web-layout:design')).toContain('reset');
   });
 
-  it('adds the BP Editor pane to the box-pleat design layout', () => {
-    workflowTarget = 'box-pleat';
+  it('builds the box-pleat design layout as tree + BP Editor with no TreeMaker panes', () => {
+    designVariant = 'box-pleat';
     const api = createDockviewApi();
 
     applyDefaultLayout(api, 'design');
 
-    expect(api.addPanel.mock.calls.map(([options]) => options.id)).toEqual([
-      'design',
-      'bp-editor',
-      'inspector',
-      'diagnostics',
-      'conditions',
-    ]);
+    expect(api.addPanel.mock.calls.map(([options]) => options.id)).toEqual(['design', 'bp-editor']);
     expect(api.addPanel.mock.calls[1][0]).toMatchObject({
       id: 'bp-editor',
       position: { referencePanel: 'design', direction: 'right' },
     });
-    // Inspector docks to the right of the BP Editor, not the design pane.
-    expect(api.addPanel.mock.calls[2][0]).toMatchObject({
-      id: 'inspector',
-      position: { referencePanel: 'bp-editor', direction: 'right' },
-    });
+    // The TreeMaker side panes must not appear in the box-pleat layout.
+    expect(api.getPanel('inspector')).toBeNull();
+    expect(api.getPanel('diagnostics')).toBeNull();
+    expect(api.getPanel('conditions')).toBeNull();
+  });
+
+  it('builds the NUX design layout as a single pane', () => {
+    designVariant = 'nux';
+    const api = createDockviewApi();
+
+    applyDefaultLayout(api, 'design');
+
+    expect(api.addPanel.mock.calls.map(([options]) => options.id)).toEqual(['design']);
+    expect(api.getPanel('inspector')).toBeNull();
+    expect(api.getPanel('bp-editor')).toBeNull();
   });
 
   it('keeps TreeMaker and box-pleat design layouts in separate storage scopes', () => {
-    const api = createDockviewApi(dockviewLayout('treemaker-design'));
+    const api = createDockviewApi(dockviewLayout('design-layout'));
     useLayoutStore.getState().setDockviewApi(api);
 
-    workflowTarget = 'treemaker';
+    designVariant = 'treemaker';
     useLayoutStore.getState().saveLayout('design');
-    workflowTarget = 'box-pleat';
+    designVariant = 'box-pleat';
     useLayoutStore.getState().saveLayout('design');
 
-    expect(localStorage.getItem('treemaker-web-layout:design')).toContain('treemaker-design');
-    expect(localStorage.getItem('treemaker-web-layout:design:box-pleat')).toContain(
-      'treemaker-design'
-    );
-    // The two scopes are independent keys.
-    expect(localStorage.getItem('treemaker-web-layout:design')).not.toBeNull();
-    expect(localStorage.getItem('treemaker-web-layout:design:box-pleat')).not.toBeNull();
+    expect(localStorage.getItem('treemaker-web-layout:design')).toContain('design-layout');
+    expect(localStorage.getItem('treemaker-web-layout:design:box-pleat')).toContain('design-layout');
   });
 
-  it('rematerializes the active design layout for the current method', () => {
+  it('does not persist the transient NUX layout', () => {
     const api = createDockviewApi();
     useLayoutStore.getState().setDockviewApi(api);
-    workflowTarget = 'box-pleat';
+    designVariant = 'nux';
 
-    useLayoutStore.getState().rematerializeWorkspace('design');
+    useLayoutStore.getState().saveLayout('design');
+
+    expect(localStorage.getItem('treemaker-web-layout:design:nux')).toBeNull();
+    expect(useLayoutStore.getState().loadLayout('design')).toBeNull();
+  });
+
+  it('ensureDesignLayout rebuilds when the mounted variant differs', () => {
+    designVariant = 'treemaker';
+    const api = createDockviewApi();
+    applyDefaultLayout(api, 'design');
+    useLayoutStore.getState().setDockviewApi(api);
+    useLayoutStore.setState({ activeWorkspace: 'design' });
+    api.addPanel.mockClear();
+    api.clear.mockClear();
+
+    designVariant = 'box-pleat';
+    useLayoutStore.getState().ensureDesignLayout();
 
     expect(api.clear).toHaveBeenCalledOnce();
-    expect(api.addPanel).toHaveBeenCalledTimes(5);
     expect(api.getPanel('bp-editor')).not.toBeNull();
-    expect(localStorage.getItem('treemaker-web-layout:design:box-pleat')).not.toBeNull();
+    expect(api.getPanel('inspector')).toBeNull();
   });
 
-  it('does not rematerialize an inactive workspace', () => {
+  it('ensureDesignLayout is a no-op when the mounted variant already matches', () => {
+    designVariant = 'treemaker';
+    const api = createDockviewApi();
+    applyDefaultLayout(api, 'design');
+    useLayoutStore.getState().setDockviewApi(api);
+    useLayoutStore.setState({ activeWorkspace: 'design' });
+    api.clear.mockClear();
+
+    useLayoutStore.getState().ensureDesignLayout();
+
+    expect(api.clear).not.toHaveBeenCalled();
+  });
+
+  it('ensureDesignLayout does nothing outside the Design workspace', () => {
     const api = createDockviewApi();
     useLayoutStore.getState().setDockviewApi(api);
+    useLayoutStore.setState({ activeWorkspace: 'edit' });
 
-    useLayoutStore.getState().rematerializeWorkspace('edit');
+    useLayoutStore.getState().ensureDesignLayout();
 
     expect(api.clear).not.toHaveBeenCalled();
     expect(api.addPanel).not.toHaveBeenCalled();

@@ -6,7 +6,7 @@ import { createConditionSlice } from './slices/conditionSlice';
 import { createEditingSlice } from './slices/editingSlice';
 import { createHistorySlice } from './slices/historySlice';
 import { createProjectSlice } from './slices/projectSlice';
-import { registerWorkflowTargetSource } from '../layoutStore';
+import { registerDesignVariantSource } from '../layoutStore';
 import type { WorkspaceState } from './types';
 
 export const useWorkspaceStore = create<WorkspaceState>()(
@@ -23,9 +23,13 @@ export const useWorkspaceStore = create<WorkspaceState>()(
   )
 );
 
-// Let the layout store read the active design method so the Design workspace
-// can materialize the box-pleat vs TreeMaker layout variant.
-registerWorkflowTargetSource(() => useWorkspaceStore.getState().workflowTarget);
+// Let the layout store read the active Design layout variant so it can
+// materialize the NUX chooser, box-pleat split, or TreeMaker layout.
+registerDesignVariantSource(() => {
+  const state = useWorkspaceStore.getState();
+  if (state.pendingDesignChoice) return 'nux';
+  return state.workflowTarget === 'box-pleat' ? 'box-pleat' : 'treemaker';
+});
 
 if (import.meta.env.DEV && typeof window !== 'undefined') {
   const debugWindow = window as Window & {

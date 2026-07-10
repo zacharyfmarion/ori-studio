@@ -1113,7 +1113,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     createNewProject: async () => {
       if (rejectDisabled('file.new')) return;
       if (!(await confirmDiscardDirty(get().dirty))) return;
-      const methodChanged = get().workflowTarget !== 'treemaker';
       set({ status: 'loading_engine', error: null, projectMessage: null });
       try {
         await releaseEditableCreasePattern();
@@ -1153,13 +1152,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           clipboardPasteCount: 0,
         });
         const layout = useLayoutStore.getState();
-        if (methodChanged && layout.activeWorkspace === 'design') {
-          // Switching method (e.g. box-pleat -> circle-packed) while already on
-          // Design: rebuild the layout so the BP Editor pane doesn't linger.
-          layout.rematerializeWorkspace('design');
-        } else {
-          layout.activateWorkspace('design');
-        }
+        layout.activateWorkspace('design');
+        // Rebuild the Design layout if switching variant (e.g. NUX or box-pleat
+        // -> circle-packed) so the TreeMaker side panes are correct and no BP
+        // Editor pane lingers.
+        layout.ensureDesignLayout();
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
       }
@@ -1782,13 +1779,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     setWorkflowTarget: (target) => {
       if (get().workflowTarget === target) return;
       set({ workflowTarget: target });
-      // The Design workspace layout differs by method (the box-pleat variant
-      // adds the BP Editor pane), so rebuild it when the method changes while
-      // Design is the active workspace.
-      const layout = useLayoutStore.getState();
-      if (layout.activeWorkspace === 'design') {
-        layout.rematerializeWorkspace('design');
-      }
+      // The Design layout variant follows the method, so rebuild it if needed.
+      useLayoutStore.getState().ensureDesignLayout();
     },
 
     startNewDesign: () => {
@@ -1796,15 +1788,15 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // until the user picks Circle-packed or Box-pleated.
       set({ pendingDesignChoice: true, error: null, projectMessage: null });
       useLayoutStore.getState().activateWorkspace('design');
+      useLayoutStore.getState().ensureDesignLayout();
     },
 
     chooseDesignMethod: async (target) => {
       if (target === 'box-pleat') {
         // Phase 5 will create the BP project document here; for now switch the
         // Design workspace into the box-pleat layout (tree + BP Editor split).
-        set({ pendingDesignChoice: false });
-        get().setWorkflowTarget('box-pleat');
-        useLayoutStore.getState().activateWorkspace('design');
+        set({ pendingDesignChoice: false, workflowTarget: 'box-pleat' });
+        useLayoutStore.getState().ensureDesignLayout();
         return;
       }
       // Circle-packed: the standard TreeMaker blank-tree flow. createNewProject
