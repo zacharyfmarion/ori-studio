@@ -95,10 +95,17 @@ Pane ownership after this change:
 
 | Workspace | Circle-packed (TreeMaker) | Box-pleated (BP) |
 | --- | --- | --- |
-| Design (no doc) | Chooser NUX in `design` pane | Chooser NUX in `design` pane |
-| Design (active) | `design` (tree) + inspector/conditions/diagnostics | `design` (BP tree) + `bp-editor` (packing) + BP inspector/diagnostics |
+| Design (no doc) | Full-pane NUX chooser (no side panes) | Full-pane NUX chooser (no side panes) |
+| Design (active) | `design` (tree) + inspector/conditions/diagnostics | `design` (BP tree) + `bp-editor` (packing), split evenly — **no TreeMaker side panes** |
 | Edit | Generated/opened CP | BP-generated CP (same pipeline) |
 | Simulate | Folded simulation | Folded simulation (when artifacts exist) |
+
+The Design layout has three variants (`nux | treemaker | box-pleat`) selected by
+`registerDesignVariantSource`. The TreeMaker inspector/diagnostics/conditions
+panes are TreeMaker-specific and must not appear in the NUX or box-pleat
+layouts. **All BP behavior — tree metadata, packing controls, conflict and
+optimizer diagnostics, and selection — lives inside the `design` (BP tree) and
+`bp-editor` panes, not in separate Design side panes.**
 
 Rules:
 
@@ -124,7 +131,9 @@ Rules:
 - `apps/web/src/store/workspaceStore/slices/oristudioBpSlice.ts` (+ runtime,
   workers, types, snapshot mapper) — rewritten against workspace navigation.
 - `apps/web/src/components/panels/InspectorPanel.tsx`,
-  `DiagnosticsPanel.tsx` — BP sections inside the Design-only panels.
+  `DiagnosticsPanel.tsx` — remain TreeMaker-only; they are not part of the
+  box-pleat layout. BP tree/packing inspection and diagnostics live inside the
+  `design` (BP tree) and `bp-editor` panes instead.
 - `apps/web/src/lib/oristudioBpCommands.ts`,
   `apps/web/src/commands/menuActions.ts`,
   `apps/web/src/menus/menuDefinition.ts`,
@@ -162,8 +171,8 @@ Exit gate:
       (Added `workflowTarget` to `ProjectSliceState` + `setWorkflowTarget`.)
 - [x] Register `'bp-editor'` in `panelComponents` and in
       `WORKSPACE_BY_PANEL_ID` → `'design'`.
-- [x] Make `applyDesignLayout` workflow-aware: TreeMaker → current layout; BP →
-      `design` + `bp-editor` split, with inspector/diagnostics.
+- [x] Make `applyDesignLayout` variant-aware: TreeMaker → current layout; BP →
+      `design` + `bp-editor` split (no TreeMaker side panes); NUX → single pane.
 - [x] Re-materialize the Design layout when the active design method changes
       (`setWorkflowTarget` → `rematerializeWorkspace('design')`) without
       disturbing Edit/Simulate layouts.
@@ -294,14 +303,19 @@ Exit gate:
 
 - BP-generated CPs enter the Edit workspace on the same pipeline as other CPs.
 
-### Phase 8: Inspector And Diagnostics BP Sections
+### Phase 8: BP Inspection And Diagnostics (In-Pane)
 
-- [ ] Add BP tree inspector sections active when Design has BP focus.
-- [ ] Add BP packing inspector sections active when `bp-editor` has focus.
-- [ ] Route BP conflict/optimizer/export diagnostics into the Design-only
-      Diagnostics panel without resurrecting CP content there.
-- [ ] Cross-surface selection highlighting (tree leaf ↔ flap, river ↔ edge).
-- [ ] Tests: inspector sections and diagnostics selection routing.
+The box-pleat layout has no shared Inspector/Diagnostics side panes, so BP
+inspection and diagnostics live inside the two BP panes.
+
+- [ ] Surface BP tree metadata/inspection inside the `design` (BP tree) pane.
+- [ ] Surface BP packing controls, flap/river inspection, and conflict/optimizer
+      diagnostics inside the `bp-editor` pane.
+- [ ] Do not add BP content to the TreeMaker `InspectorPanel`/`DiagnosticsPanel`
+      (they stay TreeMaker-only and are absent from the box-pleat layout).
+- [ ] Cross-pane selection highlighting (tree leaf ↔ flap, river ↔ edge) between
+      the `design` and `bp-editor` panes.
+- [ ] Tests: in-pane inspection/diagnostics and cross-pane selection.
 
 Exit gate:
 
