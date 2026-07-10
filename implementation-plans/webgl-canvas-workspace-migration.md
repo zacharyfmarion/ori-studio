@@ -298,6 +298,31 @@ unverified gate.
   overlay (move/resize/rotate, constant handle size); live
   `selectionTransformPreview` segments on GPU each frame; folded-figure drag.
   Verify every transform gesture and its live preview.
+  - **Landed so far:** folded-figure cmd-drag move; selection move-drag
+    (drag a selected line to translate the whole line-selection, real strokes
+    shifted in place via `CpRenderer.setStrokes` + `cpSnapshotToScene(move)`,
+    committed with `transformOristudioCpSelection`).
+  - **Representation note:** lines, circles, and standalone points are *real*
+    stored geometry; **vertices are derived** (line endpoints, `getCpVertices`).
+    So vertices are not selectable, and a move translates real geometry with the
+    derived vertices following. (They only share a renderer path — `cpPointsToScene`
+    discs — which is what made them look interchangeable.)
+  - **Deferred / TODO in this phase:**
+    - **Move only translates lines for now.** The kernel's selection move is
+      line-only (`move_selected_lines` = Oriedita `CREASE_MOVE_21`); there is no
+      exposed op to translate selected circles/points (`translate_model` is
+      whole-model only). Moving circles+points with the selection needs new
+      kernel ops → wasm export → store action. Deferred. Until then the move-drag
+      grabs only on a selected **line**; derived vertices follow.
+    - **Snapping is not yet applied to the WebGL move-drag.** SVG mode snaps the
+      translation to grid/vertices/lines (`updateSelectionMovePreview` →
+      `nearestCpSnapTarget`, gated on `snapToGrid/Vertices/Lines`); the WebGL
+      move uses the raw cursor delta. Port the snap adjustment (and the snap
+      target indicator) before this phase is signed off.
+    - Resize + rotate handles (the `SelectionTransformBox` overlay proper).
+    - SVG-mode + store still carry vertex selection (`selection.vertices`,
+      `toggleOristudioCpVertexSelection`); remove app-wide once the SVG path is
+      retired.
 
 - **Phase 5 — Draw tools + live previews.** Port tool pointer-down / move /
   finish / cancel; render all live previews on GPU per-frame (candidate

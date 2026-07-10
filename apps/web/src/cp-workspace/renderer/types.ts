@@ -69,8 +69,14 @@ export interface StrokeGeometry {
 export interface PointGeometry {
   /** Center in model coords: [x, y] * count. */
   center: Float32Array;
-  /** Radius in user units: [r] * count. */
+  /** Radius: [r] * count. Units depend on {@link screenSpace} for that instance. */
   radius: Float32Array;
+  /**
+   * Per-instance sizing mode: 1 = constant screen size (markers — crease points
+   * and derived vertices, radius in CSS px), 0 = scales with zoom (real
+   * geometry — circle-packing circles, radius in SVG user units).
+   */
+  screenSpace: Float32Array;
   /** Fill RGBA: [r, g, b, a] * count. */
   fill: Float32Array;
   /** Outline RGBA: [r, g, b, a] * count. */

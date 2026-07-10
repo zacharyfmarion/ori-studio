@@ -23,10 +23,12 @@ export interface CpCircleInput {
 /** Transparent fill for circles — they render as stroked rings only. */
 const TRANSPARENT: Rgba = [0, 0, 0, 0];
 
-/** Selected instances (by their index within each group) are drawn in `color`. */
+/**
+ * Selected instances (by their index within each group) are drawn in `color`.
+ * Vertices have no entry — they are derived line endpoints, not selectable.
+ */
 export interface CpPointSelection {
   pointIdx: ReadonlySet<number>;
-  vertexIdx: ReadonlySet<number>;
   circleIdx: ReadonlySet<number>;
   color: Rgba;
 }
@@ -49,6 +51,9 @@ export function cpPointsToScene(
   const count = points.length + vertices.length + circles.length;
   const center = new Float32Array(count * 2);
   const radius = new Float32Array(count);
+  // 1 = constant screen-size marker, 0 = scales with zoom. Points and vertices
+  // are markers (their radius is a CSS-px size); circles are real geometry.
+  const screenSpace = new Float32Array(count);
   const fill = new Float32Array(count * 4);
   const stroke = new Float32Array(count * 4);
 
@@ -56,12 +61,14 @@ export function cpPointsToScene(
     i: number,
     p: ModelPoint,
     r: number,
+    screen: number,
     f: Rgba,
     s: Rgba
   ): void => {
     center[i * 2] = p.x;
     center[i * 2 + 1] = p.y;
     radius[i] = r;
+    screenSpace[i] = screen;
     fill[i * 4] = f[0];
     fill[i * 4 + 1] = f[1];
     fill[i * 4 + 2] = f[2];
@@ -78,24 +85,18 @@ export function cpPointsToScene(
   const sel = selection?.color;
   for (let i = 0; i < points.length; i++) {
     const on = selection?.pointIdx.has(i);
-    write(i, points[i], pointRadius, on && sel ? sel : style.pointFill, on && sel ? sel : style.pointStroke);
+    write(i, points[i], pointRadius, 1, on && sel ? sel : style.pointFill, on && sel ? sel : style.pointStroke);
   }
   const vertexOffset = points.length;
   for (let j = 0; j < vertices.length; j++) {
-    const on = selection?.vertexIdx.has(j);
-    write(
-      vertexOffset + j,
-      vertices[j],
-      vertexRadius,
-      on && sel ? sel : style.vertexFill,
-      on && sel ? sel : style.vertexStroke
-    );
+    // Vertices are derived line endpoints, never selected — always base style.
+    write(vertexOffset + j, vertices[j], vertexRadius, 1, style.vertexFill, style.vertexStroke);
   }
   const circleOffset = vertexOffset + vertices.length;
   for (let k = 0; k < circles.length; k++) {
     const on = selection?.circleIdx.has(k);
-    write(circleOffset + k, circles[k].center, circles[k].radius, TRANSPARENT, on && sel ? sel : style.circleStroke);
+    write(circleOffset + k, circles[k].center, circles[k].radius, 0, TRANSPARENT, on && sel ? sel : style.circleStroke);
   }
 
-  return { center, radius, fill, stroke, count };
+  return { center, radius, screenSpace, fill, stroke, count };
 }

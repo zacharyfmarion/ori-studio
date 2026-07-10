@@ -62,7 +62,18 @@ describe('cpPointsToScene', () => {
     expect(geo.center).toHaveLength(0);
   });
 
-  it('recolours selected points, vertices, and circle rings', () => {
+  it('flags markers (points, vertices) screen-space and circles world-space', () => {
+    const geo = cpPointsToScene(
+      [{ x: 0, y: 0 }],
+      [{ x: 1, y: 1 }],
+      [{ center: { x: 9, y: 9 }, radius: 40 }],
+      style
+    );
+    // point + vertex are constant-screen markers (1); circle scales with zoom (0)
+    expect(Array.from(geo.screenSpace)).toEqual([1, 1, 0]);
+  });
+
+  it('recolours selected points and circle rings, never vertices', () => {
     const SEL: Rgba = [0, 0, 1, 1];
     const geo = cpPointsToScene(
       [{ x: 0, y: 0 }, { x: 1, y: 1 }],
@@ -71,7 +82,6 @@ describe('cpPointsToScene', () => {
       style,
       {
         pointIdx: new Set([1]),
-        vertexIdx: new Set([0]),
         circleIdx: new Set([0]),
         color: SEL,
       }
@@ -80,8 +90,9 @@ describe('cpPointsToScene', () => {
     closeToAll(geo.fill.slice(0, 4), [...PF]);
     closeToAll(geo.fill.slice(4, 8), [...SEL]);
     closeToAll(geo.stroke.slice(4, 8), [...SEL]);
-    // vertex 0 (instance index 2) selected
-    closeToAll(geo.fill.slice(8, 12), [...SEL]);
+    // vertex (instance index 2) is derived — always base style, never accent
+    closeToAll(geo.fill.slice(8, 12), [...VF]);
+    closeToAll(geo.stroke.slice(8, 12), [...VS]);
     // circle (instance index 3) keeps transparent fill, ring takes accent
     closeToAll(geo.fill.slice(12, 16), [0, 0, 0, 0]);
     closeToAll(geo.stroke.slice(12, 16), [...SEL]);

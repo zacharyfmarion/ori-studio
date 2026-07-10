@@ -57,6 +57,16 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
       foldedStrokes.setData(scene.folded.strokes);
     },
 
+    setStrokes(next) {
+      if (disposed) return;
+      strokes.setData(next);
+    },
+
+    setPoints(next) {
+      if (disposed) return;
+      points.setData(next);
+    },
+
     setGrid(grid) {
       if (disposed) return;
       hasGrid = grid !== null && grid.count > 0;
@@ -87,6 +97,7 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
         view: frame.view,
         viewport,
         userScalePx: frame.userScalePx,
+        markerScalePx: frame.markerScalePx,
         outlinePx: frame.pointOutlinePx,
       });
     },

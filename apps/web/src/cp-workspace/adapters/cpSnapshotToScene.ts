@@ -14,16 +14,24 @@ export interface CpSelectionStyle {
   widthMul: number;
 }
 
+/** A live move-drag: shift these 1-based line ids by `delta` (model coords). */
+export interface CpMovePreview {
+  ids: ReadonlySet<number>;
+  delta: ModelPoint;
+}
+
 /**
  * Convert crease-pattern line segments into GPU-ready stroke geometry. Pure: the
  * per-colour resolution is injected so this stays testable without the DOM/theme.
  * Selected lines (1-based ids, matching the SVG's index+1) are recoloured and
- * widened.
+ * widened. When `move` is given, the named lines are drawn shifted by its delta —
+ * this is how an in-progress selection move-drag translates the real strokes.
  */
 export function cpSnapshotToScene(
   lineSegments: readonly CpLineSegmentInput[],
   colorFor: (color: string) => Rgba,
-  selection?: CpSelectionStyle
+  selection?: CpSelectionStyle,
+  move?: CpMovePreview
 ): { strokes: StrokeGeometry } {
   const count = lineSegments.length;
   const a = new Float32Array(count * 2);
@@ -37,10 +45,13 @@ export function cpSnapshotToScene(
 
   for (let i = 0; i < count; i++) {
     const seg = lineSegments[i];
-    a[i * 2] = seg.a.x;
-    a[i * 2 + 1] = seg.a.y;
-    b[i * 2] = seg.b.x;
-    b[i * 2 + 1] = seg.b.y;
+    const moved = move !== undefined && move.ids.has(i + 1);
+    const dx = moved ? move.delta.x : 0;
+    const dy = moved ? move.delta.y : 0;
+    a[i * 2] = seg.a.x + dx;
+    a[i * 2 + 1] = seg.a.y + dy;
+    b[i * 2] = seg.b.x + dx;
+    b[i * 2 + 1] = seg.b.y + dy;
 
     if (selection && selection.selected.has(i + 1)) {
       const c = selection.color;

@@ -1,4 +1,11 @@
-import type { CpSceneData, Rgba, StrokeGeometry, ViewTransform, Viewport } from './types';
+import type {
+  CpSceneData,
+  PointGeometry,
+  Rgba,
+  StrokeGeometry,
+  ViewTransform,
+  Viewport,
+} from './types';
 
 /**
  * Backend-agnostic seam for the crease-pattern edit surface. A concrete
@@ -13,6 +20,18 @@ export interface CpRenderer {
   resize(viewport: Viewport): void;
   /** Upload (or replace) the geometry to draw. */
   setScene(scene: CpSceneData): void;
+  /**
+   * Replace only the crease-stroke buffer, leaving points and folded figures
+   * untouched. Used to redraw the selected lines shifted during a move-drag
+   * without re-uploading the rest of the scene each frame.
+   */
+  setStrokes(strokes: StrokeGeometry): void;
+  /**
+   * Replace only the point buffer (crease points, derived vertices, circles).
+   * Used alongside {@link setStrokes} during a move-drag so the derived vertices
+   * of the moved lines follow them without a full scene re-upload.
+   */
+  setPoints(points: PointGeometry): void;
   /** Upload (or clear) the view-dependent grid geometry, drawn behind the scene. */
   setGrid(strokes: StrokeGeometry | null): void;
   /** Draw a single frame. Safe to call repeatedly. */
@@ -29,10 +48,12 @@ export interface CpRenderFrame {
   view: ViewTransform;
   /** SVG user → device-pixel transform (for folded figures). */
   userView: ViewTransform;
-  /** Stroke width in device pixels. */
+  /** Crease stroke width in device pixels (constant screen size, zoom-independent). */
   strokeWidthPx: number;
-  /** SVG user unit → device px (scales point radii with zoom). */
+  /** SVG user unit → device px (scales circle radii with zoom). */
   userScalePx: number;
+  /** CSS px → device px (dpr): sizes marker points/vertices independent of zoom. */
+  markerScalePx: number;
   /** Point outline width in device px (constant / non-scaling). */
   pointOutlinePx: number;
 }

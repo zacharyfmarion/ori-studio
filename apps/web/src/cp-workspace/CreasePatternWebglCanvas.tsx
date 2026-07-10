@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type RefObject } from 'react';
+import { useCallback, useEffect, useMemo, useRef, type RefObject } from 'react';
 import { createReglRenderer } from './renderer/reglRenderer';
 import type { CpRenderer } from './renderer/CpRenderer';
 import { readCssVarColor } from './renderer/cssColor';
@@ -19,8 +19,12 @@ import {
   circleRingIntersectsAabb,
   segmentIntersectsAabb,
 } from './picking/lineHitIndex';
-import type { ModelPoint, Rgba, Viewport } from './renderer/types';
-import { cpSnapshotToScene, type CpLineSegmentInput } from './adapters/cpSnapshotToScene';
+import type { ModelPoint, PointGeometry, Rgba, StrokeGeometry, Viewport } from './renderer/types';
+import {
+  cpSnapshotToScene,
+  type CpLineSegmentInput,
+  type CpMovePreview,
+} from './adapters/cpSnapshotToScene';
 import { cpPointsToScene } from './adapters/cpPointsToScene';
 import { resolveCpLineColor } from './adapters/cpLineColor';
 import { resolveCpPointStyle } from './adapters/cpPointStyle';
@@ -36,7 +40,7 @@ import {
   visibleGridBounds,
 } from './adapters/cpGridToScene';
 import { sampleView } from './svgViewBridge';
-import { orieditaGridLinesForModelBounds } from '../lib/creasePatternViewport';
+import { cpVertexId, orieditaGridLinesForModelBounds } from '../lib/creasePatternViewport';
 import type { OristudioCpGridMetadata } from '../engine/oristudioCpTypes';
 import { useThemeStore } from '../store/themeStore';
 
@@ -55,6 +59,24 @@ const FALLBACK_CLEAR: Rgba = [0.157, 0.172, 0.204, 1];
 
 /** SVG editable crease width: `calc(var(--cp-line-width) * 1.5px)` in user units. */
 const CREASE_WIDTH_FACTOR = 1.5;
+
+/**
+ * Crease width + markers are essentially constant screen size, but grow *very*
+ * gently as you zoom in past the fit view so they don't read as thinning against
+ * the expanding content. 0 = fully constant (thins relative to content), 1 =
+ * full world-scaling (the old fattening). ~0.15 is a mild, crisp middle. The
+ * growth is anchored at the fit zoom so it behaves the same for any CP scale.
+ */
+const WIDTH_ZOOM_EXPONENT = 0.15;
+
+/**
+ * How fast point/vertex markers shrink when zoomed *out* past the fit view, so a
+ * dense CP's vertices don't dominate the zoomed-out picture. 0 = constant screen
+ * size (they'd swamp the view), 1 = shrink in lockstep with the content. ~0.7
+ * declutters while keeping them visible. Only markers shrink — crease lines keep
+ * their constant screen width so structure stays legible.
+ */
+const MARKER_SHRINK_EXPONENT = 0.7;
 
 /** Point/vertex outline width in CSS px (SVG non-scaling stroke ~1.4). */
 const POINT_OUTLINE_CSS = 1.4;
@@ -76,18 +98,19 @@ const GRID_FALLBACK: Rgba = [0.4, 0.43, 0.48, GRID_COLOR_ALPHA];
 
 const dpr = () => Math.min(window.devicePixelRatio || 1, MAX_DPR);
 
-/** A hit primitive from a click (vertices use their cpVertexId string). */
+/**
+ * A hit primitive from a click. Only real geometry is selectable — vertices are
+ * derived line endpoints and are not (they merely follow the lines).
+ */
 export type CpSelectHit =
   | { kind: 'line'; id: number }
   | { kind: 'point'; id: number }
-  | { kind: 'vertex'; id: string }
   | { kind: 'circle'; id: number };
 
 /** Ids touched by a marquee, by primitive type. */
 export interface CpBoxSelection {
   lines: number[];
   points: number[];
-  vertices: string[];
   circles: number[];
 }
 
@@ -101,13 +124,10 @@ export interface CreasePatternWebglCanvasProps {
   modelToSvg: (point: ModelPoint) => ModelPoint;
   /** SVG user → model mapping (inverse of {@link modelToSvg}) for hit-testing. */
   svgToModel: (point: ModelPoint) => ModelPoint;
-  /** Currently selected ids (lines/points/circles are 1-based; vertices are cpVertexId). */
+  /** Currently selected ids (lines/points/circles are 1-based). */
   selectedLineIds: readonly number[];
   selectedPointIds: readonly number[];
-  selectedVertexIds: readonly string[];
   selectedCircleIds: readonly number[];
-  /** Per-vertex cpVertexId, parallel to `vertices`, for mapping a hit to an id. */
-  vertexIds: readonly string[];
   /** Click-select callback: the hit primitive, or null for a background click. */
   onSelect: (hit: CpSelectHit | null, additive: boolean) => void;
   /** Marquee (box) select callback with the touched ids by type. */
@@ -118,6 +138,12 @@ export interface CreasePatternWebglCanvasProps {
    * deltas.
    */
   onMoveFoldedFigure: (figureId: string, delta: { x: number; y: number }) => void;
+  /**
+   * Commit a translation of the selected crease lines by `delta` (model coords),
+   * on release of a selection move-drag. Line-based, matching the SVG selection
+   * transform.
+   */
+  onTranslateSelection: (delta: { x: number; y: number }) => void;
   /** Assignment colour mode. */
   mode: 'mvf' | 'agrh';
   /** `--cp-line-width` value driving stroke thickness. */
@@ -162,12 +188,11 @@ export function CreasePatternWebglCanvas({
   svgToModel,
   selectedLineIds,
   selectedPointIds,
-  selectedVertexIds,
   selectedCircleIds,
-  vertexIds,
   onSelect,
   onBoxSelect,
   onMoveFoldedFigure,
+  onTranslateSelection,
   mode,
   lineWidth,
   points,
@@ -207,15 +232,12 @@ export function CreasePatternWebglCanvas({
     return { minX, minY, maxX, maxY };
   }, [lineSegments, modelToSvg]);
 
-  // Spatial indices for click hit-testing. Points/vertices are indexed as
-  // zero-length segments so the same distance query applies (id = index + 1).
+  // Spatial indices for click hit-testing. Points are indexed as zero-length
+  // segments so the same distance query applies (id = index + 1). Vertices are
+  // derived and not selectable, so they get no index.
   const hitIndex = useMemo(
     () => new LineHitIndex(lineSegments.map((s, i) => ({ id: i + 1, a: s.a, b: s.b }))),
     [lineSegments]
-  );
-  const vertexIndex = useMemo(
-    () => new LineHitIndex(vertices.map((v, i) => ({ id: i + 1, a: v, b: v }))),
-    [vertices]
   );
   const pointIndex = useMemo(
     () => new LineHitIndex(points.map((p, i) => ({ id: i + 1, a: p, b: p }))),
@@ -225,6 +247,79 @@ export function CreasePatternWebglCanvas({
   const foldedBounds = useMemo<FoldedFigureBounds[]>(
     () => foldedFigureUserBounds(foldedFigures),
     [foldedFigures]
+  );
+  // Selected line ids as a set, for "is the press on a selected line" (move-drag).
+  const selectedLineSet = useMemo(() => new Set(selectedLineIds), [selectedLineIds]);
+  // Quantized ids of the endpoints of the selected lines. A derived vertex sits
+  // on one of these iff it belongs to a moved line, so it should follow the drag.
+  const selectedEndpointKeys = useMemo(() => {
+    const keys = new Set<string>();
+    lineSegments.forEach((s, i) => {
+      if (selectedLineSet.has(i + 1)) {
+        keys.add(cpVertexId(s.a));
+        keys.add(cpVertexId(s.b));
+      }
+    });
+    return keys;
+  }, [lineSegments, selectedLineSet]);
+
+  // Build the crease-stroke buffer, optionally with the selected lines shifted by
+  // an in-progress move-drag. Shared by the scene memo (no move) and the drag
+  // handler (live delta), so the moved strokes are the real, highlighted lines.
+  const buildStrokes = useCallback(
+    (move?: CpMovePreview): StrokeGeometry =>
+      cpSnapshotToScene(
+        lineSegments,
+        (color) => resolveCpLineColor(color, mode, document.documentElement),
+        {
+          selected: selectedLineSet,
+          color: readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK),
+          widthMul: SELECTION_WIDTH_MUL,
+        },
+        move
+      ).strokes,
+    // currentTheme drives DOM-resolved colours; rebuild callers on theme change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [lineSegments, mode, selectedLineSet, currentTheme]
+  );
+
+  // Build the point buffer (crease points, derived vertices, circles). During a
+  // move-drag the derived vertices of the moved lines follow by `move.delta`;
+  // real points and circles do not move (line-only transform for now).
+  const buildPoints = useCallback(
+    (move?: CpMovePreview): PointGeometry => {
+      const movedVertices =
+        move === undefined
+          ? vertices
+          : vertices.map((v) =>
+              selectedEndpointKeys.has(cpVertexId(v))
+                ? { x: v.x + move.delta.x, y: v.y + move.delta.y }
+                : v
+            );
+      return cpPointsToScene(
+        points,
+        movedVertices,
+        circles.map((c) => ({ center: { x: c.x, y: c.y }, radius: circleRadiusToSvg(c.r) })),
+        resolveCpPointStyle(document.documentElement, pointSize),
+        {
+          pointIdx: new Set(selectedPointIds.map((id) => id - 1)),
+          circleIdx: new Set(selectedCircleIds.map((id) => id - 1)),
+          color: readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK),
+        }
+      );
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      points,
+      vertices,
+      circles,
+      circleRadiusToSvg,
+      pointSize,
+      selectedPointIds,
+      selectedCircleIds,
+      selectedEndpointKeys,
+      currentTheme,
+    ]
   );
 
   // Per-frame / per-interaction inputs the effect reads without re-subscribing.
@@ -236,18 +331,20 @@ export function CreasePatternWebglCanvas({
     gridVisible,
     contentBounds,
     hitIndex,
-    vertexIndex,
     pointIndex,
     lineSegments,
     points,
     vertices,
-    vertexIds,
     circles,
     circleRadiusToSvg,
     foldedBounds,
+    selectedLineSet,
+    buildStrokes,
+    buildPoints,
     onSelect,
     onBoxSelect,
     onMoveFoldedFigure,
+    onTranslateSelection,
   };
   const liveRef = useRef(live);
   useEffect(() => {
@@ -268,51 +365,11 @@ export function CreasePatternWebglCanvas({
   // not read directly here.
   const scene = useMemo(
     () => ({
-      ...cpSnapshotToScene(
-        lineSegments,
-        (color) => resolveCpLineColor(color, mode, document.documentElement),
-        {
-          selected: new Set(selectedLineIds),
-          color: readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK),
-          widthMul: SELECTION_WIDTH_MUL,
-        }
-      ),
-      points: cpPointsToScene(
-        points,
-        vertices,
-        circles.map((c) => ({ center: { x: c.x, y: c.y }, radius: circleRadiusToSvg(c.r) })),
-        resolveCpPointStyle(document.documentElement, pointSize),
-        {
-          pointIdx: new Set(selectedPointIds.map((id) => id - 1)),
-          vertexIdx: new Set(
-            vertexIds.reduce<number[]>((acc, vid, j) => {
-              if (selectedVertexIds.includes(vid)) acc.push(j);
-              return acc;
-            }, [])
-          ),
-          circleIdx: new Set(selectedCircleIds.map((id) => id - 1)),
-          color: readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK),
-        }
-      ),
+      strokes: buildStrokes(),
+      points: buildPoints(),
       folded: cpFoldedToScene(foldedFigures),
     }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [
-      lineSegments,
-      selectedLineIds,
-      selectedPointIds,
-      selectedVertexIds,
-      selectedCircleIds,
-      vertexIds,
-      points,
-      vertices,
-      circles,
-      circleRadiusToSvg,
-      foldedFigures,
-      mode,
-      pointSize,
-      currentTheme,
-    ]
+    [buildStrokes, buildPoints, foldedFigures]
   );
 
   // Renderer lifecycle + render loop (once per mount).
@@ -385,14 +442,26 @@ export function CreasePatternWebglCanvas({
         renderer.setGrid(null);
       }
 
+      // Crease width and markers are ~constant screen size but grow very gently
+      // once zoomed in past the fit view, so they read as crisp (like Oriedita)
+      // without thinning against the expanding content. Markers additionally
+      // shrink when zoomed out past fit so dense vertices don't dominate. Both
+      // anchored at the fit zoom so they are scale-invariant.
+      const bounds = liveRef.current.contentBounds;
+      const fitZoom = bounds ? fitUserCamera(bounds, viewport).zoom : cam.zoom;
+      const zoomRatio = cam.zoom / fitZoom;
+      const widthBoost = Math.pow(Math.max(zoomRatio, 1), WIDTH_ZOOM_EXPONENT);
+      const markerShrink = zoomRatio < 1 ? Math.pow(zoomRatio, MARKER_SHRINK_EXPONENT) : 1;
+
       renderer.render({
         clearColor: readCssVarColor(canvas, CANVAS_BG_VAR, FALLBACK_CLEAR),
         view,
         userView,
-        // Crease width (1.5 * lineWidth user units) and point radii (user units)
-        // scale by device-px-per-user = camera zoom.
-        strokeWidthPx: CREASE_WIDTH_FACTOR * liveRef.current.lineWidth * cam.zoom,
+        // Constant screen size (CSS px * dpr) times the gentle zoom boost. Circle
+        // radii still scale fully with zoom via userScalePx — real geometry.
+        strokeWidthPx: CREASE_WIDTH_FACTOR * liveRef.current.lineWidth * ratio * widthBoost,
         userScalePx: cam.zoom,
+        markerScalePx: ratio * widthBoost * markerShrink,
         pointOutlinePx: POINT_OUTLINE_CSS * ratio,
       });
     };
@@ -458,9 +527,9 @@ export function CreasePatternWebglCanvas({
       return (cssTol * dpr()) / Math.max(1e-6, scale);
     };
 
-    // Pick the primitive under the cursor. Vertices/points win only on a tight
-    // radius (small precise targets) so a click near a junction still lets you
-    // grab the crease; circles match near their ring.
+    // Pick the primitive under the cursor. Points win only on a tight radius
+    // (small precise targets) so a click near one still lets you grab the crease;
+    // circles match near their ring. Vertices are derived and not pickable.
     const hitTest = (clientX: number, clientY: number): CpSelectHit | null => {
       const m = clientToModel(clientX, clientY);
       if (!m) return null;
@@ -468,8 +537,6 @@ export function CreasePatternWebglCanvas({
       const ptTol = modelToleranceOf(POINT_HIT_TOLERANCE_CSS);
       const lineTol = modelToleranceOf(HIT_TOLERANCE_CSS);
 
-      const v = l.vertexIndex.query(m.x, m.y, ptTol);
-      if (v > 0) return { kind: 'vertex', id: l.vertexIds[v - 1] };
       const p = l.pointIndex.query(m.x, m.y, ptTol);
       if (p > 0) return { kind: 'point', id: p };
       const line = l.hitIndex.query(m.x, m.y, lineTol);
@@ -510,16 +577,14 @@ export function CreasePatternWebglCanvas({
       const l = liveRef.current;
       const inBox = (p: ModelPoint) =>
         p.x >= box.minX && p.x <= box.maxX && p.y >= box.minY && p.y <= box.maxY;
-      const sets: CpBoxSelection = { lines: [], points: [], vertices: [], circles: [] };
-      // Crossing marquee for lines; enclosed centres for points/vertices/circles.
+      const sets: CpBoxSelection = { lines: [], points: [], circles: [] };
+      // Crossing marquee for lines/circle-rings; enclosed centres for points.
+      // Vertices are derived, not selectable.
       l.lineSegments.forEach((s, i) => {
         if (segmentIntersectsAabb(s.a, s.b, box)) sets.lines.push(i + 1);
       });
       l.points.forEach((p, i) => {
         if (inBox(p)) sets.points.push(i + 1);
-      });
-      l.vertices.forEach((v, j) => {
-        if (inBox(v)) sets.vertices.push(l.vertexIds[j]);
       });
       l.circles.forEach((c, i) => {
         if (circleRingIntersectsAabb(c.x, c.y, c.r, box)) sets.circles.push(i + 1);
@@ -532,6 +597,10 @@ export function CreasePatternWebglCanvas({
     let moved = false;
     // Active folded-figure drag: figure id + last cursor position in user coords.
     let movingFigure: string | null = null;
+    // Active selection move-drag: press point (model) and running delta (model).
+    let movingSelection = false;
+    let moveStart: ModelPoint | null = null;
+    let moveDelta: ModelPoint = { x: 0, y: 0 };
     let lastUserX = 0;
     let lastUserY = 0;
     let lastX = 0;
@@ -555,7 +624,20 @@ export function CreasePatternWebglCanvas({
           panning = true;
         }
       } else {
-        selecting = true;
+        // A plain drag that starts on an already-selected crease moves the whole
+        // line selection; otherwise it selects (click or marquee).
+        const m = clientToModel(e.clientX, e.clientY);
+        const lineId = m
+          ? liveRef.current.hitIndex.query(m.x, m.y, modelToleranceOf(HIT_TOLERANCE_CSS))
+          : -1;
+        if (m && lineId > 0 && liveRef.current.selectedLineSet.has(lineId)) {
+          e.preventDefault();
+          movingSelection = true;
+          moveStart = m;
+          moveDelta = { x: 0, y: 0 };
+        } else {
+          selecting = true;
+        }
       }
       canvas.setPointerCapture(e.pointerId);
     };
@@ -566,7 +648,21 @@ export function CreasePatternWebglCanvas({
       ) {
         moved = true;
       }
-      if (movingFigure) {
+      if (movingSelection && moveStart) {
+        if (moved) {
+          const m = clientToModel(e.clientX, e.clientY);
+          if (m) {
+            moveDelta = { x: m.x - moveStart.x, y: m.y - moveStart.y };
+            // Redraw the selected lines shifted in place — the real strokes move,
+            // no separate copy — and let their derived vertices follow. Only the
+            // stroke + point buffers are re-uploaded per frame.
+            const move = { ids: liveRef.current.selectedLineSet, delta: moveDelta };
+            renderer.setStrokes(liveRef.current.buildStrokes(move));
+            renderer.setPoints(liveRef.current.buildPoints(move));
+            renderNow();
+          }
+        }
+      } else if (movingFigure) {
         const u = clientToUser(e.clientX, e.clientY);
         if (u) {
           liveRef.current.onMoveFoldedFigure(movingFigure, {
@@ -589,7 +685,20 @@ export function CreasePatternWebglCanvas({
       }
     };
     const onPointerUp = (e: PointerEvent) => {
-      if (selecting) {
+      if (movingSelection) {
+        if (moved && (Math.abs(moveDelta.x) > 1e-9 || Math.abs(moveDelta.y) > 1e-9)) {
+          // Commit: the document update re-renders the strokes at their final
+          // position, so we leave the shifted strokes in place (no snap-back).
+          liveRef.current.onTranslateSelection(moveDelta);
+        } else {
+          // No effective move: restore the un-shifted strokes + points, and if it
+          // was a plain click, run normal selection (lets a point on top win).
+          renderer.setStrokes(liveRef.current.buildStrokes());
+          renderer.setPoints(liveRef.current.buildPoints());
+          renderNow();
+          if (!moved) liveRef.current.onSelect(hitTest(e.clientX, e.clientY), e.shiftKey);
+        }
+      } else if (selecting) {
         if (moved) boxSelect(e.clientX, e.clientY, e.shiftKey);
         else liveRef.current.onSelect(hitTest(e.clientX, e.clientY), e.shiftKey);
       }
@@ -597,6 +706,8 @@ export function CreasePatternWebglCanvas({
       panning = false;
       selecting = false;
       movingFigure = null;
+      movingSelection = false;
+      moveStart = null;
       if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
     };
     const onWheel = (e: WheelEvent) => {
