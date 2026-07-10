@@ -39,9 +39,9 @@ export interface BpTreeViewportOptions {
   minExtent?: number;
 }
 
-// ~6 sheet units of context (the sheet maps to 588 SVG units), so a lone
-// root+leaf isn't over-zoomed and edges stay readable.
-const CONTENT_MIN_EXTENT = 180;
+// ~2.5 sheet units of context (the sheet maps to 588 SVG units ≈ 29/unit), so a
+// unit-length edge renders at a comfortable size instead of tiny.
+const CONTENT_MIN_EXTENT = 74;
 
 export interface BpTreeGridLine {
   id: string;
@@ -211,7 +211,6 @@ export function getBpTreeWorldRect(
   for (const vertex of tree.vertices) {
     const point = bpTreePointToSvg(vertexLoc(vertex, options), tree.sheet, paperRect);
     includeCircle(bounds, point, NODE_RADIUS);
-    if (vertex.isLeaf) includeCircle(bounds, point, bpTreeLeafCircleRadius(tree, vertex.id, paperRect));
     const label = bpTreeVertexLabel(vertex);
     if (label) {
       includeRect(bounds, {

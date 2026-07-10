@@ -14,15 +14,12 @@ import { Circle, Grid2X2, Layers, Tag, Waypoints } from 'lucide-react';
 import type { OristudioBpDocumentState } from '../../engine/oristudioBpTypes';
 import {
   bpLinkedSelection,
-  bpSelectionSize,
   toggleBpEdgeSelection,
   toggleBpVertexSelection,
 } from '../../lib/oristudioBpSelection';
 import {
-  bpTreeLeafCircleRadius,
   bpTreePaperRect,
   bpTreePointToSvg,
-  bpTreeShadowRect,
   bpTreeVertexLabel,
   constrainBpTreePoint,
   getBpTreeWorldRect,
@@ -54,7 +51,6 @@ import {
 } from './ViewportToolbar';
 
 const LAYER_OPTIONS: { key: BpTreeViewLayerKey; label: string; icon: ReactNode }[] = [
-  { key: 'leafCircles', label: 'Leaf radii', icon: <Circle size={13} /> },
   { key: 'labels', label: 'Labels', icon: <Tag size={13} /> },
 ];
 
@@ -208,12 +204,10 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     [document]
   );
   const paperRect = useMemo(() => bpTreePaperRect(tree.sheet), [tree.sheet]);
-  const shadowRect = useMemo(() => bpTreeShadowRect(tree.sheet), [tree.sheet]);
   const vertexLocations = useMemo(() => dragging?.preview, [dragging]);
-  const worldRect = useMemo(
-    () => getBpTreeWorldRect(tree, { vertexLocations, contentOnly: true }),
-    [tree, vertexLocations]
-  );
+  // Fit to the committed tree bounds only (not the drag preview) so the camera
+  // stays put while a flap rotates.
+  const worldRect = useMemo(() => getBpTreeWorldRect(tree, { contentOnly: true }), [tree]);
   const findVertex = useCallback(
     (id: number) => tree.vertices.find((vertex) => vertex.id === id),
     [tree.vertices]
@@ -370,17 +364,8 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     };
   }, []);
 
-  const clearSelection = useCallback(() => {
-    if (bpSelectionSize(document.selection) > 0) selectOristudioBp({ kind: 'bp-tree' });
-  }, [document.selection, selectOristudioBp]);
-
-  const onCanvasPointerDown = (event: PointerEvent<SVGSVGElement>) => {
-    if (event.button !== 0 || event.target !== event.currentTarget || spacePressed) return;
-    clearSelection();
-  };
-
-  const onPaperPointerDown = (event: PointerEvent<SVGRectElement>) => {
-    if (event.button !== 0 || spacePressed) {
+  const onCanvasAddPointerDown = (event: PointerEvent<Element>) => {
+    if (event.button !== 0 || spacePressed || isViewportInteractiveTarget(event.target)) {
       paperDownRef.current = null;
       return;
     }
@@ -391,7 +376,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     };
   };
 
-  const onPaperPointerUp = (event: PointerEvent<SVGRectElement>) => {
+  const onCanvasAddPointerUp = (event: PointerEvent<Element>) => {
     const down = paperDownRef.current;
     paperDownRef.current = null;
     if (!down || event.button !== 0 || spacePressed) return;
@@ -524,7 +509,9 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
         setActiveShortcutViewportSurface('tree');
         setOristudioBpActiveSurface('tree');
         if (!isViewportInteractiveTarget(event.target)) containerRef.current?.focus();
+        onCanvasAddPointerDown(event);
       }}
+      onPointerUp={onCanvasAddPointerUp}
     >
       <TransformWrapper
         ref={transformRef}
@@ -561,34 +548,9 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
             style={{ width: worldRect.width, height: worldRect.height }}
             role="img"
             aria-label="Box Pleat tree canvas"
-            onPointerDown={onCanvasPointerDown}
             onPointerMove={onCanvasPointerMove}
             onPointerLeave={() => setHoverPoint(null)}
           >
-            <rect
-              className="paper-shadow"
-              x={shadowRect.x}
-              y={shadowRect.y}
-              width={shadowRect.width}
-              height={shadowRect.height}
-              rx="6"
-            />
-            <rect
-              className="paper bp-tree-sheet"
-              x={paperRect.x}
-              y={paperRect.y}
-              width={paperRect.width}
-              height={paperRect.height}
-            />
-            <rect
-              className="paper-hit-area"
-              x={paperRect.x}
-              y={paperRect.y}
-              width={paperRect.width}
-              height={paperRect.height}
-              onPointerDown={onPaperPointerDown}
-              onPointerUp={onPaperPointerUp}
-            />
             {tree.edges.map((edge) => {
               const a = findVertex(edge.vertices[0]);
               const b = findVertex(edge.vertices[1]);
@@ -628,13 +590,9 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
             {tree.vertices.map((vertex) => {
               const point = bpTreePointToSvg(displayLoc(vertex.id, vertex.loc), tree.sheet, paperRect);
               const active = linkedSelection.vertices.has(vertex.id);
-              const radius = vertex.isLeaf ? bpTreeLeafCircleRadius(tree, vertex.id, paperRect) : 0;
               const label = bpTreeVertexLabel(vertex);
               return (
                 <g key={vertex.id}>
-                  {vertex.isLeaf && layers.leafCircles && (
-                    <circle className="leaf-radius bp-tree-leaf-radius" cx={point.x} cy={point.y} r={radius} />
-                  )}
                   <circle
                     className={[
                       'tree-node',
