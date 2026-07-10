@@ -97,6 +97,43 @@ export class LineHitIndex {
   }
 }
 
+/** Axis-aligned bounding box in model coordinates. */
+export interface Aabb {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
+/**
+ * Whether segment a–b intersects (touches or crosses) the box — the crossing /
+ * "touch" marquee semantic. Liang–Barsky clip: the segment hits the box iff its
+ * clipped parameter range is non-empty.
+ */
+export function segmentIntersectsAabb(a: ModelPoint, b: ModelPoint, box: Aabb): boolean {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const p = [-dx, dx, -dy, dy];
+  const q = [a.x - box.minX, box.maxX - a.x, a.y - box.minY, box.maxY - a.y];
+  let t0 = 0;
+  let t1 = 1;
+  for (let i = 0; i < 4; i++) {
+    if (p[i] === 0) {
+      if (q[i] < 0) return false; // parallel to this edge and outside it
+    } else {
+      const r = q[i] / p[i];
+      if (p[i] < 0) {
+        if (r > t1) return false;
+        if (r > t0) t0 = r;
+      } else {
+        if (r < t0) return false;
+        if (r < t1) t1 = r;
+      }
+    }
+  }
+  return t0 <= t1;
+}
+
 /** Shortest distance from point (px, py) to segment a–b. */
 export function distanceToSegment(px: number, py: number, a: ModelPoint, b: ModelPoint): number {
   const dx = b.x - a.x;

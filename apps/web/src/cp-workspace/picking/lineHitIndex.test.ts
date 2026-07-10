@@ -1,5 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { distanceToSegment, LineHitIndex } from './lineHitIndex';
+import { distanceToSegment, LineHitIndex, segmentIntersectsAabb } from './lineHitIndex';
+
+describe('segmentIntersectsAabb', () => {
+  const box = { minX: 0, minY: 0, maxX: 10, maxY: 10 };
+  it('is true when an endpoint is inside', () => {
+    expect(segmentIntersectsAabb({ x: 5, y: 5 }, { x: 50, y: 50 }, box)).toBe(true);
+  });
+  it('is true when the segment crosses with both endpoints outside', () => {
+    expect(segmentIntersectsAabb({ x: -5, y: 5 }, { x: 15, y: 5 }, box)).toBe(true);
+  });
+  it('is false when the segment misses the box entirely', () => {
+    expect(segmentIntersectsAabb({ x: -5, y: -5 }, { x: -1, y: 20 }, box)).toBe(false);
+  });
+  it('is true when it clips a corner', () => {
+    expect(segmentIntersectsAabb({ x: -1, y: 2 }, { x: 2, y: -1 }, box)).toBe(true);
+  });
+});
 
 describe('distanceToSegment', () => {
   it('measures perpendicular distance within the segment', () => {

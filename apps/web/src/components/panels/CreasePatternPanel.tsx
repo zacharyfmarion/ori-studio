@@ -4335,6 +4335,16 @@ export function CreasePatternPanel() {
                     if (id != null) handleEditableLineClick(id, additive);
                     else if (!additive) clearOristudioCpSelection();
                   }}
+                  onBoxSelect={(ids, additive) => {
+                    const lines = additive
+                      ? Array.from(new Set([...oristudioCpSelection.lines, ...ids]))
+                      : ids;
+                    setOristudioCpSelection(
+                      additive
+                        ? { ...oristudioCpSelection, lines }
+                        : { ...emptyOristudioCpSelection(), lines }
+                    );
+                  }}
                   mode={mode}
                   lineWidth={(oristudioCpViewport.lineWidth ?? 1) * cpDecorationScale}
                   points={editableCp.crease_pattern.points}

@@ -14,7 +14,7 @@ import {
   type UserBounds,
   type UserCamera,
 } from './renderer/camera';
-import { LineHitIndex } from './picking/lineHitIndex';
+import { LineHitIndex, segmentIntersectsAabb } from './picking/lineHitIndex';
 import type { ModelPoint, Rgba, Viewport } from './renderer/types';
 import { cpSnapshotToScene, type CpLineSegmentInput } from './adapters/cpSnapshotToScene';
 import { cpPointsToScene } from './adapters/cpPointsToScene';
@@ -80,6 +80,8 @@ export interface CreasePatternWebglCanvasProps {
   selectedLineIds: readonly number[];
   /** Click-select callback: a line id, or null for a background click. */
   onSelectLine: (lineId: number | null, additive: boolean) => void;
+  /** Marquee (box) select callback: the fully-enclosed line ids. */
+  onBoxSelect: (lineIds: number[], additive: boolean) => void;
   /** Assignment colour mode. */
   mode: 'mvf' | 'agrh';
   /** `--cp-line-width` value driving stroke thickness. */
@@ -124,6 +126,7 @@ export function CreasePatternWebglCanvas({
   svgToModel,
   selectedLineIds,
   onSelectLine,
+  onBoxSelect,
   mode,
   lineWidth,
   points,
@@ -178,7 +181,9 @@ export function CreasePatternWebglCanvas({
     gridVisible,
     contentBounds,
     hitIndex,
+    lineSegments,
     onSelectLine,
+    onBoxSelect,
   });
   useEffect(() => {
     liveRef.current = {
@@ -189,7 +194,9 @@ export function CreasePatternWebglCanvas({
       gridVisible,
       contentBounds,
       hitIndex,
+      lineSegments,
       onSelectLine,
+      onBoxSelect,
     };
     // Inputs affecting stroke thickness / mapping changed — redraw.
     renderNowRef.current();
@@ -341,23 +348,61 @@ export function CreasePatternWebglCanvas({
 
     // --- Pointer interaction on the canvas ---
     // cmd/ctrl + drag pans; a plain click selects the crease under the cursor;
-    // a plain drag is reserved for tools (later phases).
-    const hitTestLine = (clientX: number, clientY: number): number => {
+    // a plain drag marquee-selects.
+    const clientToModel = (clientX: number, clientY: number): ModelPoint | null => {
       const cam = cameraRef.current;
-      if (!cam) return -1;
+      if (!cam) return null;
       const ratio = dpr();
-      const viewport = viewportOf(ratio);
       const rect = canvas.getBoundingClientRect();
       const userPt = unprojectDevicePoint(
-        userCameraToView(cam, viewport),
+        userCameraToView(cam, viewportOf(ratio)),
         (clientX - rect.left) * ratio,
         (clientY - rect.top) * ratio
       );
-      if (!userPt) return -1;
-      const modelPt = liveRef.current.svgToModel(userPt);
-      const scale = viewTransformScale(modelViewFromCamera(cam, viewport, liveRef.current.modelToSvg));
-      const tolModel = (HIT_TOLERANCE_CSS * ratio) / Math.max(1e-6, scale);
+      return userPt ? liveRef.current.svgToModel(userPt) : null;
+    };
+
+    const hitTestLine = (clientX: number, clientY: number): number => {
+      const cam = cameraRef.current;
+      const modelPt = clientToModel(clientX, clientY);
+      if (!cam || !modelPt) return -1;
+      const scale = viewTransformScale(
+        modelViewFromCamera(cam, viewportOf(dpr()), liveRef.current.modelToSvg)
+      );
+      const tolModel = (HIT_TOLERANCE_CSS * dpr()) / Math.max(1e-6, scale);
       return liveRef.current.hitIndex.query(modelPt.x, modelPt.y, tolModel);
+    };
+
+    // Transient marquee rectangle rendered as a plain DOM overlay.
+    const marquee = document.createElement('div');
+    marquee.className = 'cp-webgl-marquee';
+    marquee.style.display = 'none';
+    canvas.parentElement?.appendChild(marquee);
+    const updateMarquee = (clientX: number, clientY: number) => {
+      const parent = canvas.parentElement?.getBoundingClientRect();
+      if (!parent) return;
+      marquee.style.display = 'block';
+      marquee.style.left = `${Math.min(pressX, clientX) - parent.left}px`;
+      marquee.style.top = `${Math.min(pressY, clientY) - parent.top}px`;
+      marquee.style.width = `${Math.abs(clientX - pressX)}px`;
+      marquee.style.height = `${Math.abs(clientY - pressY)}px`;
+    };
+    const boxSelect = (clientX: number, clientY: number, additive: boolean) => {
+      const p1 = clientToModel(pressX, pressY);
+      const p2 = clientToModel(clientX, clientY);
+      if (!p1 || !p2) return;
+      const box = {
+        minX: Math.min(p1.x, p2.x),
+        maxX: Math.max(p1.x, p2.x),
+        minY: Math.min(p1.y, p2.y),
+        maxY: Math.max(p1.y, p2.y),
+      };
+      // Crossing / "touch" marquee: select any crease the box intersects.
+      const ids: number[] = [];
+      liveRef.current.lineSegments.forEach((s, i) => {
+        if (segmentIntersectsAabb(s.a, s.b, box)) ids.push(i + 1);
+      });
+      liveRef.current.onBoxSelect(ids, additive);
     };
 
     let panning = false;
@@ -392,13 +437,19 @@ export function CreasePatternWebglCanvas({
         lastX = e.clientX;
         lastY = e.clientY;
         renderNow();
+      } else if (selecting && moved) {
+        updateMarquee(e.clientX, e.clientY);
       }
     };
     const onPointerUp = (e: PointerEvent) => {
-      if (selecting && !moved) {
-        const id = hitTestLine(e.clientX, e.clientY);
-        liveRef.current.onSelectLine(id > 0 ? id : null, e.shiftKey);
+      if (selecting) {
+        if (moved) boxSelect(e.clientX, e.clientY, e.shiftKey);
+        else {
+          const id = hitTestLine(e.clientX, e.clientY);
+          liveRef.current.onSelectLine(id > 0 ? id : null, e.shiftKey);
+        }
       }
+      marquee.style.display = 'none';
       panning = false;
       selecting = false;
       if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
@@ -427,6 +478,7 @@ export function CreasePatternWebglCanvas({
       canvas.removeEventListener('pointerup', onPointerUp);
       canvas.removeEventListener('pointercancel', onPointerUp);
       canvas.removeEventListener('wheel', onWheel);
+      marquee.remove();
       renderNowRef.current = () => {};
       cameraRef.current = null;
       renderer.dispose();
