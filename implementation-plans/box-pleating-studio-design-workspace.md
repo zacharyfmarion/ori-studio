@@ -202,12 +202,44 @@ Exit gate:
   and each choice lands in the right layout. (Met; box-pleat lands in the split
   layout with placeholders pending Phases 3–5.)
 
-### Phase 3: BP Tree Authoring In The Design Pane
+> **Build-order note (revised after Phases 0–2):** the BP panels can't render
+> anything until a BP document exists in the store, so the store/runtime/wasm
+> foundation must land before the tree and packing panels. Phases 3–5 were
+> therefore reordered from the original tree → packing → store sequence to
+> **store/runtime → tree → packing**. Phase 2 already left the box-pleat design
+> pane and `bp-editor` pane on placeholders that these phases replace. Phases
+> 6–10 are unchanged.
+
+### Phase 3: BP Store, Runtime, And Workers (foundation)
+
+- [ ] Generate the `oristudio-bp-wasm` package into
+      `apps/web/src/generated/oristudio-bp-wasm` and add its `build:*` script,
+      mirroring `oristudio-cp-wasm`.
+- [ ] Port `oristudioBpRuntime` (+ BP worker and optimizer worker bindings)
+      fresh against the rebased wasm crate; reference the branch version.
+- [ ] Add `oristudioBpTypes` (BP snapshot/document DTOs) and the snapshot
+      mapper; narrow `OristudioBpEditingSurface` to `tree | packing`.
+- [ ] Add a minimal `oristudioBpSlice` that creates/holds a BP document
+      (`createOristudioBpProject`) against workspace navigation
+      (`activateWorkspace`/`activatePanel`) — no recents, no `documentMode`
+      coupling beyond `tree`.
+- [ ] Wire `chooseDesignMethod('box-pleat')` to create a real BP document
+      (replacing the Phase 2 layout-only stub).
+- [ ] Keep BP history separate from CP history; preserve BP undo/redo.
+- [ ] Tests: wasm round-trip, slice create/hold, worker round-trips, undo/redo
+      isolation.
+
+Exit gate:
+
+- Choosing Box-pleated creates a real BP document held in the store, and BP
+  state is driven only by BP-owned surfaces and workspace navigation.
+
+### Phase 4: BP Tree Authoring In The Design Pane
 
 - [ ] Rewrite `BpTreePanel` fresh (reference the branch version) as the BP
       `design`-pane content.
-- [ ] `DesignPanel` renders `BpTreePanel` for active BP docs; preserves the
-      TreeMaker tree editor for `treemaker`.
+- [ ] `DesignPanel` renders `BpTreePanel` for active BP docs (replacing the
+      Phase 2 placeholder); preserves the TreeMaker tree editor for `treemaker`.
 - [ ] Wire BP tree selection, add/split/merge/delete, edge-length editing, and
       tree→packing dual navigation.
 - [ ] Tests: BP tree editor renders in Design; TreeMaker path unaffected.
@@ -217,10 +249,10 @@ Exit gate:
 - BP tree drawing is the Box-pleated entry surface, matching TreeMaker muscle
   memory.
 
-### Phase 4: BP Editor Packing Pane
+### Phase 5: BP Editor Packing Pane
 
 - [ ] Rewrite `BpEditorPanel` + `BpPackingPanel` fresh; mount as the
-      `bp-editor` pane.
+      `bp-editor` pane (replacing the Phase 1 placeholder).
 - [ ] Empty states: no BP project, and BP project without materialized packing.
 - [ ] Preserve manual flap drag, river edits, conflicts, stretch/pattern/device
       controls, layer toggles, zoom/pan, and linked selection with the tree.
@@ -232,21 +264,6 @@ Exit gate:
 
 - Users place flaps and inspect conflicts in `bp-editor` while the tree stays
   editable beside it.
-
-### Phase 5: BP Store, Runtime, And Workers
-
-- [ ] Rewrite `oristudioBpSlice` against workspace navigation
-      (`activateWorkspace`/`activatePanel`), no recents, no `documentMode`
-      coupling beyond `tree`.
-- [ ] Rewrite `oristudioBpRuntime` + BP worker + optimizer worker bindings
-      against the rebased wasm crate.
-- [ ] Narrow `OristudioBpEditingSurface` to `tree | packing`.
-- [ ] Keep BP history separate from CP history; preserve BP undo/redo.
-- [ ] Tests: slice actions, worker round-trips, undo/redo isolation.
-
-Exit gate:
-
-- BP state is driven only by BP-owned surfaces and workspace navigation.
 
 ### Phase 6: Commands, Menus, Shortcuts, Capabilities
 
