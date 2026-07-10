@@ -14,6 +14,11 @@ export interface ToolInput {
   kind: 'down' | 'move' | 'up' | 'cancel';
   /** Cursor position in model coords, already snapped by the surface. */
   point: ModelPoint;
+  /**
+   * The 1-based crease id under the cursor (from the surface's hit-test), or null
+   * when none. Used by entity-pick tools; free-point tools ignore it.
+   */
+  lineId?: number | null;
 }
 
 /** A candidate crease segment shown while a tool is in progress. */
@@ -33,7 +38,10 @@ export interface ToolPreview {
  * (colours/options) — the engine stays free of command identity.
  */
 export interface ToolCommit {
-  points: readonly ModelPoint[];
+  /** Ordered free points the command consumes (free-point / drag tools). */
+  points?: readonly ModelPoint[];
+  /** Picked crease ids the command consumes (entity-pick tools). */
+  lineIds?: readonly number[];
 }
 
 /** The result of reducing one input: next state, live preview, optional commit. */
@@ -48,6 +56,11 @@ export interface ToolOutput<S> {
    * `previewOristudioCpCommand`. Omitted by locally-previewed (drag) tools.
    */
   livePoints?: readonly ModelPoint[];
+  /**
+   * Crease ids to highlight as pick feedback (picked so far plus the one under the
+   * cursor), for entity-pick tools. Omitted by other tools.
+   */
+  highlightLineIds?: readonly number[];
 }
 
 /** A pure tool state machine. `S` is the engine's private interaction state. */

@@ -44,10 +44,14 @@ import { cpVertexId, orieditaGridLinesForModelBounds } from '../lib/creasePatter
 import { toolEngineFor, type ToolInputMode } from './tools/registry';
 import { createToolRuntime, type ToolRuntime } from './tools/runtime';
 import { createPointSequenceTool } from './tools/pointSequenceTool';
-import type { ToolPreviewSegment } from './tools/types';
+import { createLinePickTool } from './tools/linePickTool';
+import type { ToolCommit, ToolPreviewSegment } from './tools/types';
 
-/** Draw modes the canvas routes: the drag engines plus click-based point-sequence. */
-type ActiveToolMode = ToolInputMode | 'point-sequence';
+/**
+ * Draw modes the canvas routes: the drag engines, plus the two click-based
+ * persistent modes — free-point `point-sequence` and entity `line-pick`.
+ */
+type ActiveToolMode = ToolInputMode | 'point-sequence' | 'line-pick';
 import type { OristudioCpGridMetadata } from '../engine/oristudioCpTypes';
 import { useThemeStore } from '../store/themeStore';
 
@@ -196,12 +200,12 @@ export interface CreasePatternWebglCanvasProps {
    * a plain drag; `point-sequence` places a point per click and previews on hover.
    */
   activeToolInputMode: ActiveToolMode | null;
-  /** Number of points a point-sequence tool collects before committing. */
+  /** Number of points/picks a point-sequence or line-pick tool collects to commit. */
   activeToolStepCount: number;
   /** Snap a raw model draw point to nearby geometry (grid/vertices/lines). */
   resolveDrawPoint: (rawPoint: ModelPoint, toleranceModel: number) => ModelPoint;
-  /** Commit a tool's collected points; the controller enriches + executes. */
-  onToolCommit: (points: readonly ModelPoint[]) => void;
+  /** Commit a tool's collected input (free points and/or picked crease ids). */
+  onToolCommit: (commit: ToolCommit) => void;
   /**
    * Report a point-sequence tool's live points (placed + cursor) so the controller
    * can kernel-preview them; the result comes back via `toolCommandPreviewSegments`.
@@ -294,14 +298,14 @@ export function CreasePatternWebglCanvas({
   const gridKeyRef = useRef<string | null>(null);
   // Owned camera (Phase 2). Null until seeded from the SVG's current fit.
   const cameraRef = useRef<UserCamera | null>(null);
-  // Persistent point-sequence runtime (clicks accumulate across pointer gestures).
-  // Reset whenever the active tool or its step count changes (below).
-  const pointSeqRuntimeRef = useRef<ToolRuntime | null>(null);
+  // Persistent runtime for click-based tools (point-sequence / line-pick): picks
+  // accumulate across pointer gestures. Reset when the active tool changes (below).
+  const persistentToolRuntimeRef = useRef<ToolRuntime | null>(null);
   const currentTheme = useThemeStore((state) => state.currentTheme);
 
-  // A tool change abandons any in-progress point sequence.
+  // A tool change abandons any in-progress click sequence.
   useEffect(() => {
-    pointSeqRuntimeRef.current = null;
+    persistentToolRuntimeRef.current = null;
   }, [activeToolInputMode, activeToolStepCount]);
 
   // Content bounds in SVG user coords, for the initial camera fit (independent
@@ -712,32 +716,64 @@ export function CreasePatternWebglCanvas({
           : null
       );
       renderNow();
-      if (out.commit) liveRef.current.onToolCommit(out.commit.points);
+      if (out.commit) liveRef.current.onToolCommit(out.commit);
     };
-    // Point-sequence tool: click to place a point, hover to preview. The runtime
-    // persists across gestures (reset on tool change). The preview itself is
-    // kernel-computed by the controller from the reported live points.
-    const feedPointSeq = (kind: 'down' | 'move' | 'cancel', clientX: number, clientY: number) => {
-      if (!pointSeqRuntimeRef.current) {
-        pointSeqRuntimeRef.current = createToolRuntime(
-          createPointSequenceTool(liveRef.current.activeToolStepCount)
-        );
+    // Accent-colour highlight strokes for a line-pick tool's picked/hovered creases.
+    const lineHighlightStrokes = (ids: readonly number[]) =>
+      previewSegmentsToStrokes(
+        ids
+          .map((id) => liveRef.current.lineSegments[id - 1])
+          .filter((s): s is (typeof liveRef.current.lineSegments)[number] => Boolean(s))
+          .map((s) => ({ a: s.a, b: s.b })),
+        readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK)
+      );
+    // Persistent click-based tools: point-sequence places free points (kernel
+    // preview from live points); line-pick clicks creases (hit-tested, highlighted).
+    // The runtime persists across gestures and resets on tool change.
+    const feedPersistent = (kind: 'down' | 'move' | 'cancel', clientX: number, clientY: number) => {
+      const mode = liveRef.current.activeToolInputMode;
+      if (mode !== 'point-sequence' && mode !== 'line-pick') return;
+      if (!persistentToolRuntimeRef.current) {
+        // Each branch has a concrete engine state; the runtime erases it.
+        persistentToolRuntimeRef.current =
+          mode === 'line-pick'
+            ? createToolRuntime(createLinePickTool(liveRef.current.activeToolStepCount))
+            : createToolRuntime(createPointSequenceTool(liveRef.current.activeToolStepCount));
       }
-      const runtime = pointSeqRuntimeRef.current;
+      const runtime = persistentToolRuntimeRef.current;
       if (kind === 'cancel') {
         runtime.feed({ kind: 'cancel', point: { x: 0, y: 0 } });
         liveRef.current.onToolPreviewPoints([]);
+        renderer.setPreview(null);
+        renderNow();
         return;
       }
       const raw = clientToModel(clientX, clientY);
       if (!raw) return;
-      const point = liveRef.current.resolveDrawPoint(raw, modelToleranceOf(SNAP_TOLERANCE_CSS));
-      const out = runtime.feed({ kind, point });
-      if (out.commit) {
-        liveRef.current.onToolCommit(out.commit.points);
-        liveRef.current.onToolPreviewPoints([]);
+      if (mode === 'line-pick') {
+        const lineId = liveRef.current.hitIndex.query(
+          raw.x,
+          raw.y,
+          modelToleranceOf(HIT_TOLERANCE_CSS)
+        );
+        const out = runtime.feed({ kind, point: raw, lineId: lineId > 0 ? lineId : null });
+        const ids = out.highlightLineIds ?? [];
+        renderer.setPreview(ids.length > 0 ? lineHighlightStrokes(ids) : null);
+        renderNow();
+        if (out.commit) {
+          liveRef.current.onToolCommit(out.commit);
+          renderer.setPreview(null);
+          renderNow();
+        }
       } else {
-        liveRef.current.onToolPreviewPoints(out.livePoints ?? []);
+        const point = liveRef.current.resolveDrawPoint(raw, modelToleranceOf(SNAP_TOLERANCE_CSS));
+        const out = runtime.feed({ kind, point });
+        if (out.commit) {
+          liveRef.current.onToolCommit(out.commit);
+          liveRef.current.onToolPreviewPoints([]);
+        } else {
+          liveRef.current.onToolPreviewPoints(out.livePoints ?? []);
+        }
       }
     };
     // Right-button erase gesture: reuses the drag-box engine for its rubber-band
@@ -794,10 +830,10 @@ export function CreasePatternWebglCanvas({
         } else {
           panning = true;
         }
-      } else if (toolMode === 'point-sequence') {
-        // Click-based tool: place a point (no drag). Hover previews via move.
+      } else if (toolMode === 'point-sequence' || toolMode === 'line-pick') {
+        // Click-based tool: place a point / pick a crease (no drag). Hover previews.
         e.preventDefault();
-        feedPointSeq('down', e.clientX, e.clientY);
+        feedPersistent('down', e.clientX, e.clientY);
       } else if (toolMode) {
         // A drag draw tool is active: plain drag draws instead of selecting.
         e.preventDefault();
@@ -834,14 +870,15 @@ export function CreasePatternWebglCanvas({
       } else if (drawing) {
         feedTool('move', e.clientX, e.clientY);
       } else if (
-        liveRef.current.activeToolInputMode === 'point-sequence' &&
+        (liveRef.current.activeToolInputMode === 'point-sequence' ||
+          liveRef.current.activeToolInputMode === 'line-pick') &&
         !panning &&
         !movingFigure &&
         !movingSelection &&
         !selecting
       ) {
-        // Hover with a point-sequence tool active: update the kernel preview.
-        feedPointSeq('move', e.clientX, e.clientY);
+        // Hover with a click-based tool active: update its preview / highlight.
+        feedPersistent('move', e.clientX, e.clientY);
       } else if (movingSelection && moveStart) {
         if (moved) {
           const m = clientToModel(e.clientX, e.clientY);
@@ -895,7 +932,7 @@ export function CreasePatternWebglCanvas({
             const out = eraseRuntime.feed({ kind: 'up', point: raw });
             if (out.commit) {
               // Right-drag: erase every crease inside the box.
-              liveRef.current.onEraseBox(out.commit.points);
+              liveRef.current.onEraseBox(out.commit.points ?? []);
             } else {
               // Right-click (degenerate box): erase the crease under the cursor.
               const hit = hitTest(e.clientX, e.clientY);
@@ -950,8 +987,9 @@ export function CreasePatternWebglCanvas({
     const onContextMenu = (e: Event) => e.preventDefault();
     // Escape abandons an in-progress point sequence.
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && liveRef.current.activeToolInputMode === 'point-sequence') {
-        feedPointSeq('cancel', 0, 0);
+      const m = liveRef.current.activeToolInputMode;
+      if (e.key === 'Escape' && (m === 'point-sequence' || m === 'line-pick')) {
+        feedPersistent('cancel', 0, 0);
       }
     };
     canvas.addEventListener('pointerdown', onPointerDown);

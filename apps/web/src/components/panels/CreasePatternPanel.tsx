@@ -2471,23 +2471,28 @@ export function CreasePatternPanel() {
     [editableCp, editableCpBounds, oristudioCpViewport]
   );
 
-  // WebGL draw tools: commit a tool's collected points through the kernel command,
-  // then keep the tool active for the next stroke (matches the SVG drag-line path).
+  // WebGL draw tools: commit a tool's collected input (free points and/or picked
+  // crease ids) through the kernel command, then keep the tool active for the next.
   const handleWebglToolCommit = useCallback(
-    (points: readonly Point[]) => {
+    (commit: { points?: readonly Point[]; lineIds?: readonly number[] }) => {
       const command = activeCpCommand;
-      if (!command || command.uiStatus !== 'ready' || points.length < 2) return;
+      if (!command || command.uiStatus !== 'ready') return;
+      const points = commit.points ?? [];
+      const pickedLineIds = commit.lineIds ?? [];
+      if (points.length < 2 && pickedLineIds.length < 1) return;
       void (async () => {
         const succeeded = await executeOristudioCpCommand(
           command.operationId,
           buildCpCommandPayload(command, {
-            // Flip/erase box tools resolve the boxed lines kernel-side, never a
-            // prior selection (matches the SVG drag commit).
+            // Entity-pick tools pass the picked creases; flip/erase box tools
+            // resolve the box kernel-side; other tools use the prior selection.
             line_ids:
-              isCreaseToggleMvClickTool(command.operationId) ||
-              isLineEraseClickTool(command.operationId)
-                ? []
-                : oristudioCpSelection.lines,
+              pickedLineIds.length > 0
+                ? [...pickedLineIds]
+                : isCreaseToggleMvClickTool(command.operationId) ||
+                    isLineEraseClickTool(command.operationId)
+                  ? []
+                  : oristudioCpSelection.lines,
             circle_ids: oristudioCpSelection.circles,
             points: [...points],
           })
@@ -2527,11 +2532,12 @@ export function CreasePatternPanel() {
     [activeCpCommand?.group, activeCpLineColor, mode]
   );
 
-  // The active tool's WebGL routing mode: a drag mode, click-based point-sequence
-  // (fixed-length only for now), or null. Variable-length / text ops are excluded
+  // The active tool's WebGL routing mode from its declarative steps: a drag mode;
+  // an all-line-pick sequence (line-pick); an all-free-point sequence
+  // (point-sequence); or null. Mixed / variable-length / text ops are excluded
   // until they get dedicated engines.
   const webglActiveTool = useMemo<{
-    mode: 'drag-line' | 'drag-box' | 'drag-path' | 'point-sequence' | null;
+    mode: 'drag-line' | 'drag-box' | 'drag-path' | 'point-sequence' | 'line-pick' | null;
     stepCount: number;
   }>(() => {
     if (!activeCpCommand || activeCpCommand.uiStatus !== 'ready' || cpToolState.phase !== 'active') {
@@ -2541,12 +2547,32 @@ export function CreasePatternPanel() {
     if (im === 'drag-line' || im === 'drag-box' || im === 'drag-path') {
       return { mode: im, stepCount: 0 };
     }
-    const stepCount = activeCpCommand.toolSteps?.length ?? 0;
-    const isPointSequence =
-      stepCount > 0 &&
-      !isVariablePointSequenceOperation(activeCpCommand.operationId) &&
-      !isTextAnnotationOperation(activeCpCommand.operationId);
-    return isPointSequence ? { mode: 'point-sequence', stepCount } : { mode: null, stepCount: 0 };
+    const steps = activeCpCommand.toolSteps ?? [];
+    if (
+      steps.length === 0 ||
+      isVariablePointSequenceOperation(activeCpCommand.operationId) ||
+      isTextAnnotationOperation(activeCpCommand.operationId)
+    ) {
+      return { mode: null, stepCount: 0 };
+    }
+    const picksLine = (step: string) => {
+      const t = step.toLowerCase();
+      return (
+        (t.includes('crease') || t.includes('segment') || t.includes('line')) && !t.includes('point')
+      );
+    };
+    const picksPoint = (step: string) => {
+      const t = step.toLowerCase();
+      return (
+        t.includes('point') &&
+        !t.includes('crease') &&
+        !t.includes('segment') &&
+        !t.includes('line')
+      );
+    };
+    if (steps.every(picksLine)) return { mode: 'line-pick', stepCount: steps.length };
+    if (steps.every(picksPoint)) return { mode: 'point-sequence', stepCount: steps.length };
+    return { mode: null, stepCount: 0 };
   }, [activeCpCommand, cpToolState.phase]);
 
   // Point-sequence live preview (kernel-computed) for the WebGL surface.
