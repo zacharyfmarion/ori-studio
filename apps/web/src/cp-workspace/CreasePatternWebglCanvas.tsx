@@ -41,6 +41,8 @@ import {
 } from './adapters/cpGridToScene';
 import { sampleView } from './svgViewBridge';
 import { cpVertexId, orieditaGridLinesForModelBounds } from '../lib/creasePatternViewport';
+import { dragLineTool, type DragLineState } from './tools/dragLineTool';
+import type { ToolPreviewSegment } from './tools/types';
 import type { OristudioCpGridMetadata } from '../engine/oristudioCpTypes';
 import { useThemeStore } from '../store/themeStore';
 
@@ -100,6 +102,30 @@ const GRID_FALLBACK: Rgba = [0.4, 0.43, 0.48, GRID_COLOR_ALPHA];
 
 const dpr = () => Math.min(window.devicePixelRatio || 1, MAX_DPR);
 
+/** Pack a tool preview's candidate segments (model coords) into stroke geometry. */
+function previewSegmentsToStrokes(
+  segments: readonly ToolPreviewSegment[],
+  color: Rgba
+): StrokeGeometry {
+  const count = segments.length;
+  const a = new Float32Array(count * 2);
+  const b = new Float32Array(count * 2);
+  const col = new Float32Array(count * 4);
+  const widthMul = new Float32Array(count).fill(1);
+  for (let i = 0; i < count; i++) {
+    const s = segments[i];
+    a[i * 2] = s.a.x;
+    a[i * 2 + 1] = s.a.y;
+    b[i * 2] = s.b.x;
+    b[i * 2 + 1] = s.b.y;
+    col[i * 4] = color[0];
+    col[i * 4 + 1] = color[1];
+    col[i * 4 + 2] = color[2];
+    col[i * 4 + 3] = color[3];
+  }
+  return { a, b, color: col, widthMul, count };
+}
+
 /**
  * A hit primitive from a click. Only real geometry is selectable — vertices are
  * derived line endpoints and are not (they merely follow the lines).
@@ -156,6 +182,17 @@ export interface CreasePatternWebglCanvasProps {
     rawDelta: { x: number; y: number },
     toleranceModel: number
   ) => { delta: { x: number; y: number }; snapLabel: string | null };
+  /**
+   * Active draw-tool input mode, or null when no draw tool is active. When set, a
+   * plain (button-0, no-modifier) drag draws with the tool instead of selecting.
+   */
+  activeToolInputMode: 'drag-line' | null;
+  /** Snap a raw model draw point to nearby geometry (grid/vertices/lines). */
+  resolveDrawPoint: (rawPoint: ModelPoint, toleranceModel: number) => ModelPoint;
+  /** Commit a tool's collected points; the controller enriches + executes. */
+  onToolCommit: (points: readonly ModelPoint[]) => void;
+  /** Colour of the in-progress candidate crease (the resolved active line colour). */
+  toolPreviewColor: Rgba;
   /** Assignment colour mode. */
   mode: 'mvf' | 'agrh';
   /** `--cp-line-width` value driving stroke thickness. */
@@ -206,6 +243,10 @@ export function CreasePatternWebglCanvas({
   onMoveFoldedFigure,
   onTranslateSelection,
   resolveMoveSnap,
+  activeToolInputMode,
+  resolveDrawPoint,
+  onToolCommit,
+  toolPreviewColor,
   mode,
   lineWidth,
   points,
@@ -359,6 +400,10 @@ export function CreasePatternWebglCanvas({
     onMoveFoldedFigure,
     onTranslateSelection,
     resolveMoveSnap,
+    activeToolInputMode,
+    resolveDrawPoint,
+    onToolCommit,
+    toolPreviewColor,
   };
   const liveRef = useRef(live);
   useEffect(() => {
@@ -609,6 +654,23 @@ export function CreasePatternWebglCanvas({
     let panning = false;
     let selecting = false;
     let moved = false;
+    // Active draw-tool drag: the pure engine's state, driven by feedTool.
+    let drawing = false;
+    let toolState: DragLineState = dragLineTool.initialState;
+    const feedTool = (kind: 'down' | 'move' | 'up' | 'cancel', clientX: number, clientY: number) => {
+      const raw = clientToModel(clientX, clientY);
+      if (!raw) return;
+      const point = liveRef.current.resolveDrawPoint(raw, modelToleranceOf(SNAP_TOLERANCE_CSS));
+      const out = dragLineTool.reduce(toolState, { kind, point });
+      toolState = out.state;
+      renderer.setPreview(
+        out.preview && out.preview.segments.length > 0
+          ? previewSegmentsToStrokes(out.preview.segments, liveRef.current.toolPreviewColor)
+          : null
+      );
+      renderNow();
+      if (out.commit) liveRef.current.onToolCommit(out.commit.points);
+    };
     // Active folded-figure drag: figure id + last cursor position in user coords.
     let movingFigure: string | null = null;
     // Active selection move-drag: press point (model) and running delta (model).
@@ -637,6 +699,11 @@ export function CreasePatternWebglCanvas({
         } else {
           panning = true;
         }
+      } else if (liveRef.current.activeToolInputMode === 'drag-line') {
+        // A draw tool is active: plain drag draws instead of selecting.
+        e.preventDefault();
+        drawing = true;
+        feedTool('down', e.clientX, e.clientY);
       } else {
         // A plain drag that starts on an already-selected crease moves the whole
         // line selection; otherwise it selects (click or marquee).
@@ -662,7 +729,9 @@ export function CreasePatternWebglCanvas({
       ) {
         moved = true;
       }
-      if (movingSelection && moveStart) {
+      if (drawing) {
+        feedTool('move', e.clientX, e.clientY);
+      } else if (movingSelection && moveStart) {
         if (moved) {
           const m = clientToModel(e.clientX, e.clientY);
           if (m) {
@@ -705,7 +774,10 @@ export function CreasePatternWebglCanvas({
       }
     };
     const onPointerUp = (e: PointerEvent) => {
-      if (movingSelection) {
+      if (drawing) {
+        feedTool(e.type === 'pointercancel' ? 'cancel' : 'up', e.clientX, e.clientY);
+        drawing = false;
+      } else if (movingSelection) {
         if (moved && (Math.abs(moveDelta.x) > 1e-9 || Math.abs(moveDelta.y) > 1e-9)) {
           // Commit: the document update re-renders the strokes at their final
           // position, so we leave the shifted strokes in place (no snap-back).

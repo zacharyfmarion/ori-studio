@@ -176,6 +176,7 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import { useShortcutStore } from '../../store/shortcutStore';
 import { useCpRendererStore } from '../../store/cpRendererStore';
 import { CreasePatternWebglCanvas } from '../../cp-workspace/CreasePatternWebglCanvas';
+import { resolveCpLineColor } from '../../cp-workspace/adapters/cpLineColor';
 import { IconButton } from '../ui/IconButton';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { Toggle } from '../ui/Toggle';
@@ -2452,6 +2453,67 @@ export function CreasePatternPanel() {
     ]
   );
 
+  // WebGL draw tools: snap a raw model draw point to nearby geometry (the surface
+  // supplies its camera-derived tolerance), mirroring resolveEditableDrawPoint.
+  const resolveEditableDrawModelPoint = useCallback(
+    (rawPoint: Point, toleranceModel: number): Point => {
+      if (!editableCp) return rawPoint;
+      const target = nearestOrieditaDrawPointTarget(
+        editableCp,
+        rawPoint,
+        editableCpBounds,
+        oristudioCpViewport,
+        toleranceModel
+      );
+      return target?.point ?? rawPoint;
+    },
+    [editableCp, editableCpBounds, oristudioCpViewport]
+  );
+
+  // WebGL draw tools: commit a tool's collected points through the kernel command,
+  // then keep the tool active for the next stroke (matches the SVG drag-line path).
+  const handleWebglToolCommit = useCallback(
+    (points: readonly Point[]) => {
+      const command = activeCpCommand;
+      if (!command || command.uiStatus !== 'ready' || points.length < 2) return;
+      void (async () => {
+        const succeeded = await executeOristudioCpCommand(
+          command.operationId,
+          buildCpCommandPayload(command, {
+            line_ids: oristudioCpSelection.lines,
+            circle_ids: oristudioCpSelection.circles,
+            points: [...points],
+          })
+        );
+        setCpToolState((state) =>
+          state.activeOperationId === command.operationId
+            ? transitionOristudioCpToolState(
+                state,
+                succeeded
+                  ? { type: 'commit', keepActive: true }
+                  : {
+                      type: 'commandError',
+                      message: useWorkspaceStore.getState().oristudioCpError ?? 'Command failed',
+                    }
+              )
+            : state
+        );
+      })();
+    },
+    [
+      activeCpCommand,
+      buildCpCommandPayload,
+      executeOristudioCpCommand,
+      oristudioCpSelection.circles,
+      oristudioCpSelection.lines,
+    ]
+  );
+
+  const toolPreviewColor = useMemo(
+    () => resolveCpLineColor(activeCpLineColor, mode, document.documentElement),
+    [activeCpLineColor, mode]
+  );
+
   const updateSelectionMovePreview = useCallback(
     (drag: CpSelectionMoveDrag, point: Point) => {
       const rawDelta = {
@@ -4411,6 +4473,16 @@ export function CreasePatternPanel() {
                     void transformOristudioCpSelection({ kind: 'translate', delta });
                   }}
                   resolveMoveSnap={resolveEditableMoveSnap}
+                  activeToolInputMode={
+                    activeCpCommand?.uiStatus === 'ready' &&
+                    activeCpCommand.inputMode === 'drag-line' &&
+                    cpToolState.phase === 'active'
+                      ? 'drag-line'
+                      : null
+                  }
+                  resolveDrawPoint={resolveEditableDrawModelPoint}
+                  onToolCommit={handleWebglToolCommit}
+                  toolPreviewColor={toolPreviewColor}
                   mode={mode}
                   lineWidth={oristudioCpViewport.lineWidth ?? 1}
                   points={editableCp.crease_pattern.points}

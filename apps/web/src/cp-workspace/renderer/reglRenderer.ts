@@ -36,9 +36,11 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
   const gridStrokes = createStrokeProgram(regl);
   const foldedFills = createFillProgram(regl);
   const foldedStrokes = createStrokeProgram(regl);
+  const previewStrokes = createStrokeProgram(regl);
   const points = createPointProgram(regl);
   let viewport: Viewport = { width: 0, height: 0, dpr: 1 };
   let hasGrid = false;
+  let hasPreview = false;
   let disposed = false;
 
   // SVG `.cp-grid-line` is 0.95px, non-scaling — constant device px per dpr.
@@ -73,6 +75,12 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
       if (grid) gridStrokes.setData(grid);
     },
 
+    setPreview(preview) {
+      if (disposed) return;
+      hasPreview = preview !== null && preview.count > 0;
+      if (preview) previewStrokes.setData(preview);
+    },
+
     render(frame: CpRenderFrame) {
       if (disposed) return;
       // Nothing to draw into a zero-area buffer (e.g. a collapsed panel).
@@ -100,6 +108,10 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
         markerScalePx: frame.markerScalePx,
         outlinePx: frame.pointOutlinePx,
       });
+      // A tool's in-progress candidate crease draws on top of everything.
+      if (hasPreview) {
+        previewStrokes.draw({ view: frame.view, viewport, widthPx: frame.strokeWidthPx });
+      }
     },
 
     dispose() {
@@ -109,6 +121,7 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
       gridStrokes.dispose();
       foldedFills.dispose();
       foldedStrokes.dispose();
+      previewStrokes.dispose();
       points.dispose();
       regl.destroy();
     },

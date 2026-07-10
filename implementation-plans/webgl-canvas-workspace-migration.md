@@ -324,11 +324,38 @@ unverified gate.
       `toggleOristudioCpVertexSelection`); remove app-wide once the SVG path is
       retired.
 
-- **Phase 5 — Draw tools + live previews.** Port tool pointer-down / move /
-  finish / cancel; render all live previews on GPU per-frame (candidate
-  segments, polyline, preview circles, boxes, candidate points, drag-line
-  preview). This is the real-time "line updates as you draw" surface. Verify
-  each tool.
+- **Phase 5 — Draw tools + live previews (WebGL-native, layered).** The real-time
+  "line updates as you draw" surface. Committed to WebGL: the SVG interaction path
+  is treated as a **read-only spec** to port from and deleted per-tool as it
+  migrates (kept in-tree until then; never rewired). Commands are already
+  declarative (`OristudioCpCommandDefinition`: `operationId` + `toolSteps` +
+  `inputMode` ∈ {point-sequence, drag-path, drag-line, drag-box}); geometry lives
+  in the kernel (`executeOristudioCpCommand` / `previewOristudioCpCommand`), so the
+  frontend "tool logic" is mostly **input collection**. Architecture — four layers,
+  each testable in isolation:
+  - **L1 Tool engines (pure, unit-tested)** in `cp-workspace/tools/`: reducers
+    `(state, input) => { state, preview?, commit? }` keyed by `inputMode`, where
+    `input = { kind: down|move|up|cancel, point: ModelPoint, hit, modifiers }`.
+    No DOM/React/GPU → tested by feeding input sequences and asserting the emitted
+    payload + preview. Special ops (variable-length sequences, tangent-point, text,
+    circle-from-selection) are explicit tested overrides, not engine branches. This
+    is where "each tool independently unit-tested" lives.
+  - **L2 Controller (thin):** runs the active engine over the pointer stream
+    (engine state in a ref), exposes preview geometry, routes commits.
+  - **L3 Surface adapter (`CreasePatternWebglCanvas`):** native pointer events →
+    `ToolInput` (client→model via the owned camera; `hit` via the spatial index;
+    draw-point snapping via a panel-provided resolver); renders preview through a
+    re-introduced additive GPU preview channel (`CpRenderer.setPreview`); calls
+    `onToolCommit` on commit. **Zero tool logic.**
+  - **L4 Store/kernel commands (unchanged):** payload enrichment (colours/options)
+    + `executeOristudioCpCommand`. Geometry stays in Rust.
+  - Separation: geometry = kernel · input-collection = pure engines · glue = L2 ·
+    I/O + rendering = adapter. **Risks:** losing the SVG spec (port deliberately,
+    capture behaviour in tests, delete SVG per-tool only after migration);
+    special-case sprawl (cover the 4 inputModes first, specials as discrete
+    overrides); preview source-of-truth split (prefer kernel preview). Verify each
+    tool. **First vertical slice: the `drag-line` crease tool** end-to-end (types +
+    engine + unit tests + controller + WebGL adapter + preview channel + commit).
 
 - **Phase 6 — Diagnostics, snap, operation frame, imported forms.** CAMV
   segment lines on GPU; markers via overlay (revisit if counts get high); snap
