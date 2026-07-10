@@ -386,6 +386,13 @@ export interface OristudioBpSliceActions {
   setOristudioBpActiveSurface: (surface: OristudioBpEditingSurface) => void;
   /** Move a BP tree vertex; `dragging` coalesces intermediate drag updates. */
   moveOristudioBpTreeVertex: (id: number, loc: Point, dragging?: boolean) => Promise<boolean>;
+  /** Move several BP tree vertices at once (e.g. a rigidly-rotated subtree). */
+  moveOristudioBpTreeVertices: (
+    updates: { id: number; loc: Point }[],
+    dragging?: boolean
+  ) => Promise<boolean>;
+  /** Add a unit-length leaf to a parent vertex, optionally at a target location. */
+  addOristudioBpTreeLeaf: (parentId: number, loc?: Point) => Promise<boolean>;
   /** Move a single BP flap in the packing. */
   moveOristudioBpLayoutFlap: (id: number, loc: Point, dragging?: boolean) => Promise<boolean>;
   /** Move a group of BP flaps in the packing. */

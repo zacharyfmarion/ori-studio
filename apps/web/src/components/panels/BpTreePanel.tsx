@@ -29,6 +29,7 @@ import {
   svgToBpTreePoint,
 } from '../../lib/bpTreeViewport';
 import { formatNumber, type Point } from '../../lib/geometry';
+import { rotatePointsAround, translatePoints, unitLeafLocation } from '../../lib/bpTreeAuthoring';
 import { type BpTreeViewLayerKey, type BpTreeViewLayers } from '../../lib/oristudioBpViewportSettings';
 import {
   clientPointToDesignWorld,
@@ -138,9 +139,10 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     id: number;
     start: Point;
     clientStart: Point;
-    loc: Point;
     moved: boolean;
+    preview: Map<number, Point>;
   } | null>(null);
+  const paperDownRef = useRef<{ clientX: number; clientY: number; point: Point } | null>(null);
   const [zoomPercent, setZoomPercent] = useState(100);
   const [spacePressed, setSpacePressed] = useState(false);
   const [hoverPoint, setHoverPoint] = useState<Point | null>(null);
@@ -148,23 +150,68 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
   const layers = useSettingsStore((state) => state.bpTreeLayers);
   const setLayer = useSettingsStore((state) => state.setBpTreeLayer);
   const selectOristudioBp = useWorkspaceStore((state) => state.selectOristudioBp);
-  const moveOristudioBpTreeVertex = useWorkspaceStore((state) => state.moveOristudioBpTreeVertex);
+  const moveOristudioBpTreeVertices = useWorkspaceStore(
+    (state) => state.moveOristudioBpTreeVertices
+  );
+  const addOristudioBpTreeLeaf = useWorkspaceStore((state) => state.addOristudioBpTreeLeaf);
   const setOristudioBpActiveSurface = useWorkspaceStore(
     (state) => state.setOristudioBpActiveSurface
   );
   const tree = document.snapshot.tree;
+  const selectedVertexId = document.selection.kind === 'bp-vertex' ? document.selection.id : null;
+
+  // Parent/children maps rooted at the tree root, for rotate-around-parent drags.
+  const topology = useMemo(() => {
+    const adjacency = new Map<number, number[]>();
+    for (const vertex of tree.vertices) adjacency.set(vertex.id, []);
+    for (const edge of tree.edges) {
+      const [a, b] = edge.vertices;
+      adjacency.get(a)?.push(b);
+      adjacency.get(b)?.push(a);
+    }
+    const parent = new Map<number, number | null>();
+    const children = new Map<number, number[]>();
+    const root = tree.rootVertexId;
+    if (root !== null) {
+      parent.set(root, null);
+      children.set(root, []);
+      const queue = [root];
+      while (queue.length > 0) {
+        const current = queue.shift() as number;
+        for (const neighbor of adjacency.get(current) ?? []) {
+          if (parent.has(neighbor)) continue;
+          parent.set(neighbor, current);
+          children.set(neighbor, []);
+          children.get(current)?.push(neighbor);
+          queue.push(neighbor);
+        }
+      }
+    }
+    return { parent, children };
+  }, [tree.vertices, tree.edges, tree.rootVertexId]);
+
+  const subtreeOf = useCallback(
+    (id: number): number[] => {
+      const out: number[] = [];
+      const stack = [id];
+      while (stack.length > 0) {
+        const current = stack.pop() as number;
+        out.push(current);
+        for (const child of topology.children.get(current) ?? []) stack.push(child);
+      }
+      return out;
+    },
+    [topology]
+  );
   const linkedSelection = useMemo(
     () => bpLinkedSelection(document.selection, document),
     [document]
   );
   const paperRect = useMemo(() => bpTreePaperRect(tree.sheet), [tree.sheet]);
   const shadowRect = useMemo(() => bpTreeShadowRect(tree.sheet), [tree.sheet]);
-  const vertexLocations = useMemo(() => {
-    if (!dragging) return undefined;
-    return new Map([[dragging.id, dragging.loc]]);
-  }, [dragging]);
+  const vertexLocations = useMemo(() => dragging?.preview, [dragging]);
   const worldRect = useMemo(
-    () => getBpTreeWorldRect(tree, { vertexLocations }),
+    () => getBpTreeWorldRect(tree, { vertexLocations, contentOnly: true }),
     [tree, vertexLocations]
   );
   const findVertex = useCallback(
@@ -263,6 +310,17 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     return () => cancelAnimationFrame(frame);
   }, [fitKey]);
 
+  // Re-fit when the tree grows or shrinks (adding/deleting nodes), but not while
+  // rotating (which keeps the node count the same) so it doesn't fight a drag.
+  const vertexCount = tree.vertices.length;
+  const prevVertexCountRef = useRef(vertexCount);
+  useEffect(() => {
+    if (prevVertexCountRef.current === vertexCount) return undefined;
+    prevVertexCountRef.current = vertexCount;
+    const frame = requestAnimationFrame(() => fitToView());
+    return () => cancelAnimationFrame(frame);
+  }, [vertexCount, fitToView]);
+
   useEffect(() => {
     const container = containerRef.current;
     let frame = requestAnimationFrame(() => fitLoadedDocumentRef.current(0));
@@ -322,8 +380,31 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
   };
 
   const onPaperPointerDown = (event: PointerEvent<SVGRectElement>) => {
-    if (event.button !== 0 || spacePressed) return;
-    clearSelection();
+    if (event.button !== 0 || spacePressed) {
+      paperDownRef.current = null;
+      return;
+    }
+    paperDownRef.current = {
+      clientX: event.clientX,
+      clientY: event.clientY,
+      point: constrainBpTreePoint(eventToTreePoint(event), tree.sheet),
+    };
+  };
+
+  const onPaperPointerUp = (event: PointerEvent<SVGRectElement>) => {
+    const down = paperDownRef.current;
+    paperDownRef.current = null;
+    if (!down || event.button !== 0 || spacePressed) return;
+    const movedPx = Math.hypot(event.clientX - down.clientX, event.clientY - down.clientY);
+    if (movedPx >= BP_TREE_DRAG_START_THRESHOLD_PX) return;
+    // A plain click on the sheet adds a unit-length leaf to the selected vertex
+    // (or the root), pointing toward the click.
+    const parentId = selectedVertexId ?? tree.rootVertexId;
+    if (parentId === null) return;
+    const parent = findVertex(parentId);
+    if (!parent) return;
+    const loc = constrainBpTreePoint(unitLeafLocation(parent.loc, down.point), tree.sheet);
+    void addOristudioBpTreeLeaf(parentId, loc);
   };
 
   const onEdgePointerDown = (event: PointerEvent<SVGGElement>, edgeId: number) => {
@@ -364,8 +445,8 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
       id: vertexId,
       start: vertex.loc,
       clientStart: { x: event.clientX, y: event.clientY },
-      loc: vertex.loc,
       moved: false,
+      preview: new Map(),
     });
   };
 
@@ -383,20 +464,35 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
   const onVertexPointerMove = (event: PointerEvent<SVGCircleElement>, vertexId: number) => {
     if (dragging?.id !== vertexId) return;
     event.stopPropagation();
-    const loc = constrainBpTreePoint(eventToTreePoint(event), tree.sheet);
-    setHoverPoint(loc);
-    const dx = loc.x - dragging.start.x;
-    const dy = loc.y - dragging.start.y;
+    const target = constrainBpTreePoint(eventToTreePoint(event), tree.sheet);
+    setHoverPoint(target);
+    const parentId = topology.parent.get(vertexId) ?? null;
+    let moved: Map<number, Point>;
+    if (parentId === null) {
+      // Root: translate the whole tree rigidly by the drag delta.
+      const points = tree.vertices.map((vertex) => [vertex.id, vertex.loc] as const);
+      moved = translatePoints(dragging.start, target, points);
+    } else {
+      // Rotate this vertex and its subtree rigidly around the parent, so every
+      // edge keeps its length.
+      const pivot = findVertex(parentId)?.loc ?? dragging.start;
+      const points = subtreeOf(vertexId)
+        .map((id) => findVertex(id))
+        .filter((vertex): vertex is NonNullable<typeof vertex> => Boolean(vertex))
+        .map((vertex) => [vertex.id, vertex.loc] as const);
+      moved = rotatePointsAround(pivot, dragging.start, target, points);
+    }
+    const preview = new Map<number, Point>();
+    for (const [id, loc] of moved) preview.set(id, constrainBpTreePoint(loc, tree.sheet));
     const clientDx = event.clientX - dragging.clientStart.x;
     const clientDy = event.clientY - dragging.clientStart.y;
-    const worldMoved = Math.hypot(dx, dy) > 0;
     const clientMoved = Math.hypot(clientDx, clientDy) >= BP_TREE_DRAG_START_THRESHOLD_PX;
     setDragging({
       id: vertexId,
       start: dragging.start,
       clientStart: dragging.clientStart,
-      loc,
-      moved: dragging.moved || (clientMoved && worldMoved),
+      moved: dragging.moved || clientMoved,
+      preview,
     });
   };
 
@@ -406,10 +502,12 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
-    const loc = dragging.loc;
-    const moved = dragging.moved;
+    const { moved, preview } = dragging;
     setDragging(null);
-    if (moved) void moveOristudioBpTreeVertex(vertexId, loc, false);
+    if (moved && preview.size > 0) {
+      const updates = [...preview.entries()].map(([id, loc]) => ({ id, loc }));
+      void moveOristudioBpTreeVertices(updates, false);
+    }
   };
 
   const onCanvasPointerMove = (event: PointerEvent<SVGSVGElement>) => {
@@ -489,6 +587,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
               width={paperRect.width}
               height={paperRect.height}
               onPointerDown={onPaperPointerDown}
+              onPointerUp={onPaperPointerUp}
             />
             {tree.edges.map((edge) => {
               const a = findVertex(edge.vertices[0]);

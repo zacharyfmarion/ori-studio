@@ -3,6 +3,7 @@ import { markGeneratedCpLineageStale } from '../../../lib/oristudioCpLineage';
 import { requestConfirmation } from '../../commandDialogStore';
 import { useLayoutStore } from '../../layoutStore';
 import {
+  addOristudioBpTreeLeaf as addRuntimeOristudioBpTreeLeaf,
   flipOristudioBpLayoutSheet as flipRuntimeOristudioBpLayoutSheet,
   getOristudioBpPortDescriptors,
   loadOristudioBpProjectFromText,
@@ -208,6 +209,39 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           dragging,
         })
       ),
+
+    moveOristudioBpTreeVertices: async (updates, dragging = false) => {
+      if (updates.length === 0) return true;
+      return runBpTreeMutation('Moved BP subtree', async (document) => {
+        let next = document;
+        for (const update of updates) {
+          next = await moveRuntimeOristudioBpTreeVertex(update.id, update.loc, {
+            activeSurface: next.activeSurface,
+            selection: next.selection,
+            dragging,
+          });
+        }
+        return next;
+      });
+    },
+
+    addOristudioBpTreeLeaf: async (parentId, loc) => {
+      return runBpTreeMutation('Added BP leaf', async (document) => {
+        const before = new Set(document.snapshot.tree.vertices.map((vertex) => vertex.id));
+        let next = await addRuntimeOristudioBpTreeLeaf(parentId, 1, {
+          activeSurface: document.activeSurface,
+          selection: { kind: 'bp-vertex', id: parentId },
+        });
+        const created = next.snapshot.tree.vertices.find((vertex) => !before.has(vertex.id));
+        if (created && loc) {
+          next = await moveRuntimeOristudioBpTreeVertex(created.id, loc, {
+            activeSurface: next.activeSurface,
+            selection: { kind: 'bp-vertex', id: created.id },
+          });
+        }
+        return created ? { ...next, selection: { kind: 'bp-vertex', id: created.id } } : next;
+      });
+    },
 
     moveOristudioBpLayoutFlap: async (id, loc, dragging = false) =>
       runBpTreeMutation('Moved BP flap', () =>

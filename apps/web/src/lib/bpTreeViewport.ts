@@ -30,7 +30,18 @@ interface Bounds {
 export interface BpTreeViewportOptions {
   vertexLocations?: ReadonlyMap<number, Point>;
   padding?: number;
+  /**
+   * Fit to the tree nodes only (not the whole paper sheet), so a unit-length
+   * edge renders at a comfortable size. A minimum extent keeps a tiny tree from
+   * zooming in absurdly.
+   */
+  contentOnly?: boolean;
+  minExtent?: number;
 }
+
+// ~6 sheet units of context (the sheet maps to 588 SVG units), so a lone
+// root+leaf isn't over-zoomed and edges stay readable.
+const CONTENT_MIN_EXTENT = 180;
 
 export interface BpTreeGridLine {
   id: string;
@@ -183,15 +194,19 @@ export function getBpTreeWorldRect(
 ): PlotRect {
   const paperRect = bpTreePaperRect(tree.sheet);
   const shadowRect = bpTreeShadowRect(tree.sheet);
-  const bounds: Bounds = {
-    minX: BP_TREE_BASE_WORLD_RECT.x,
-    minY: BP_TREE_BASE_WORLD_RECT.y,
-    maxX: BP_TREE_BASE_WORLD_RECT.x + BP_TREE_BASE_WORLD_RECT.width,
-    maxY: BP_TREE_BASE_WORLD_RECT.y + BP_TREE_BASE_WORLD_RECT.height,
-  };
+  const bounds: Bounds = options.contentOnly
+    ? { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity }
+    : {
+        minX: BP_TREE_BASE_WORLD_RECT.x,
+        minY: BP_TREE_BASE_WORLD_RECT.y,
+        maxX: BP_TREE_BASE_WORLD_RECT.x + BP_TREE_BASE_WORLD_RECT.width,
+        maxY: BP_TREE_BASE_WORLD_RECT.y + BP_TREE_BASE_WORLD_RECT.height,
+      };
 
-  includeRect(bounds, shadowRect);
-  includeRect(bounds, paperRect);
+  if (!options.contentOnly) {
+    includeRect(bounds, shadowRect);
+    includeRect(bounds, paperRect);
+  }
 
   for (const vertex of tree.vertices) {
     const point = bpTreePointToSvg(vertexLoc(vertex, options), tree.sheet, paperRect);
@@ -220,6 +235,22 @@ export function getBpTreeWorldRect(
       width: labelWidth(String(edge.length), 7.2),
       height: LABEL_HEIGHT,
     });
+  }
+
+  if (options.contentOnly && Number.isFinite(bounds.minX)) {
+    // Enforce a minimum span around the node bounds so a tiny tree isn't
+    // over-zoomed; a larger tree keeps its natural bounds.
+    const minExtent = options.minExtent ?? CONTENT_MIN_EXTENT;
+    const centerX = (bounds.minX + bounds.maxX) / 2;
+    const centerY = (bounds.minY + bounds.maxY) / 2;
+    if (bounds.maxX - bounds.minX < minExtent) {
+      bounds.minX = centerX - minExtent / 2;
+      bounds.maxX = centerX + minExtent / 2;
+    }
+    if (bounds.maxY - bounds.minY < minExtent) {
+      bounds.minY = centerY - minExtent / 2;
+      bounds.maxY = centerY + minExtent / 2;
+    }
   }
 
   const padding = options.padding ?? WORLD_PADDING;
