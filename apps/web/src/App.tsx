@@ -190,7 +190,6 @@ function FixedDockTab(props: IDockviewPanelHeaderProps) {
 export default function App() {
   const initEngine = useWorkspaceStore((state) => state.initEngine);
   const createNewCreasePattern = useWorkspaceStore((state) => state.createNewCreasePattern);
-  const createNewProject = useWorkspaceStore((state) => state.createNewProject);
   const openProject = useWorkspaceStore((state) => state.openProject);
   const selectNone = useWorkspaceStore((state) => state.selectNone);
   const project = useWorkspaceStore((state) => state.project);
@@ -367,12 +366,12 @@ export default function App() {
     }
   }, [createNewCreasePattern, enterWorkspace]);
 
-  const handleCreateDesign = useCallback(async () => {
-    await createNewProject();
-    if (useWorkspaceStore.getState().status !== 'error') {
-      enterWorkspace('design');
-    }
-  }, [createNewProject, enterWorkspace]);
+  const handleCreateDesign = useCallback(() => {
+    // Enter the Design workspace on the method chooser (Circle-packed vs
+    // Box-pleated) instead of creating a blank tree up front.
+    useWorkspaceStore.getState().startNewDesign();
+    enterWorkspace('design');
+  }, [enterWorkspace]);
 
   const handleOpenFile = useCallback(async () => {
     const opened = await openProject();

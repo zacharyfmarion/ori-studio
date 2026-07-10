@@ -181,22 +181,26 @@ Exit gate:
 
 ### Phase 2: Design NUX Chooser
 
-- [ ] `DesignPanel` renders the Circle-packed / Box-pleated chooser when the
-      Design workspace has no active design document.
-- [ ] Circle-packed → existing create-design flow (`treemaker`).
-- [ ] Box-pleated → `createOristudioBpProject` (`box-pleat`).
-- [ ] Entering the Design workspace with no document shows the chooser rather
-      than a blank tree.
-- [ ] Decide/keep the global `StartScreen` "Create a design" action routing to
-      the Design workspace chooser (sketch places the chooser in the design
-      pane; StartScreen may keep a single "Create a design" entry).
-- [ ] Tests: chooser renders on empty Design; each option initializes the
-      correct `workflowTarget` and layout.
+- [x] `DesignPanel` renders the Circle-packed / Box-pleated chooser when the
+      Design workspace has no active design document (`pendingDesignChoice`).
+- [x] Circle-packed → existing create-design flow (`treemaker`).
+- [~] Box-pleated → sets `box-pleat` + BP Design layout; the actual
+      `createOristudioBpProject` document lands in Phase 5 (design pane shows a
+      placeholder until then).
+- [x] Entering the Design workspace with no document shows the chooser rather
+      than a blank tree (StartScreen "Create a design" → `startNewDesign`).
+- [x] Kept the global `StartScreen` "Create a design" as a single entry that
+      routes into the Design pane chooser.
+- [x] Tests: chooser renders on empty Design; each option initializes the
+      correct `workflowTarget`; method-change resets layout; open clears the
+      pending choice. Also verified visually in the browser (both cards, the
+      box-pleat split, and the circle-packed editor).
 
 Exit gate:
 
 - Opening the app to an empty Design workspace presents the two-method chooser,
-  and each choice lands in the right layout.
+  and each choice lands in the right layout. (Met; box-pleat lands in the split
+  layout with placeholders pending Phases 3–5.)
 
 ### Phase 3: BP Tree Authoring In The Design Pane
 

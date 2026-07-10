@@ -3708,4 +3708,58 @@ describe('workspace store slices', () => {
       message: 'nope',
     });
   });
+
+  describe('design method chooser', () => {
+    it('startNewDesign enters the Design workspace on the chooser without a document', () => {
+      useWorkspaceStore.getState().startNewDesign();
+
+      expect(useWorkspaceStore.getState().pendingDesignChoice).toBe(true);
+      expect(useLayoutStore.getState().activeWorkspace).toBe('design');
+    });
+
+    it('choosing Box-pleated sets the method and clears the chooser', async () => {
+      useWorkspaceStore.getState().startNewDesign();
+
+      await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
+
+      const state = useWorkspaceStore.getState();
+      expect(state.workflowTarget).toBe('box-pleat');
+      expect(state.pendingDesignChoice).toBe(false);
+    });
+
+    it('choosing Circle-packed creates a TreeMaker design and clears the chooser', async () => {
+      useWorkspaceStore.setState({ engineReady: true, status: 'ready' });
+      useWorkspaceStore.getState().startNewDesign();
+
+      await useWorkspaceStore.getState().chooseDesignMethod('treemaker');
+
+      const state = useWorkspaceStore.getState();
+      expect(state.workflowTarget).toBe('treemaker');
+      expect(state.pendingDesignChoice).toBe(false);
+      expect(state.documentMode).toBe('tree');
+    });
+
+    it('creating a TreeMaker project after a Box-pleat design resets the method', async () => {
+      useWorkspaceStore.setState({ engineReady: true, status: 'ready' });
+      useWorkspaceStore.getState().startNewDesign();
+      await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
+      expect(useWorkspaceStore.getState().workflowTarget).toBe('box-pleat');
+
+      await useWorkspaceStore.getState().createNewProject();
+
+      expect(useWorkspaceStore.getState().workflowTarget).toBe('treemaker');
+      expect(useWorkspaceStore.getState().pendingDesignChoice).toBe(false);
+    });
+
+    it('opening a file clears a pending design choice', async () => {
+      useWorkspaceStore.getState().startNewDesign();
+      expect(useWorkspaceStore.getState().pendingDesignChoice).toBe(true);
+
+      await useWorkspaceStore.getState().loadProjectText('native tree tmd5', {
+        filename: 'sample.osf',
+      });
+
+      expect(useWorkspaceStore.getState().pendingDesignChoice).toBe(false);
+    });
+  });
 });

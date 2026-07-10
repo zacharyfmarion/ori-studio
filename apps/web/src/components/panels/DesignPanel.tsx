@@ -68,6 +68,7 @@ import {
   symmetrySide,
 } from '../../lib/symmetryAuthoring';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { DesignMethodChooser } from './DesignMethodChooser';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { Toggle } from '../ui/Toggle';
@@ -445,7 +446,32 @@ function DesignViewportToolbar({
   );
 }
 
+/**
+ * Design pane router. The Design workspace hosts either the NUX method chooser,
+ * a Box Pleating design, or the TreeMaker (circle-packed) tree editor. Keeping
+ * the branch in a thin wrapper lets each surface own its own hooks.
+ */
 export function DesignPanel() {
+  const pendingDesignChoice = useWorkspaceStore((state) => state.pendingDesignChoice);
+  const workflowTarget = useWorkspaceStore((state) => state.workflowTarget);
+
+  if (pendingDesignChoice) {
+    return <DesignMethodChooser />;
+  }
+  if (workflowTarget === 'box-pleat') {
+    // Phase 3 replaces this with the BP tree authoring surface (BpTreePanel).
+    return (
+      <section className="panel-shell design-panel document-mode-empty">
+        <span className="document-mode-empty__message">
+          Box Pleating tree editor — coming in a later step.
+        </span>
+      </section>
+    );
+  }
+  return <TreeMakerDesignPanel />;
+}
+
+function TreeMakerDesignPanel() {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const transformRef = useRef<ReactZoomPanPinchRef | null>(null);

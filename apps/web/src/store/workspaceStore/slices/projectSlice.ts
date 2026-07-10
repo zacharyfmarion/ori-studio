@@ -1045,6 +1045,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   return {
     project: createEmptyProject(),
     workflowTarget: 'treemaker',
+    pendingDesignChoice: false,
     documentMode: 'tree',
     activeEditingSurface: 'tree',
     importedCreasePattern: null,
@@ -1112,6 +1113,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     createNewProject: async () => {
       if (rejectDisabled('file.new')) return;
       if (!(await confirmDiscardDirty(get().dirty))) return;
+      const methodChanged = get().workflowTarget !== 'treemaker';
       set({ status: 'loading_engine', error: null, projectMessage: null });
       try {
         await releaseEditableCreasePattern();
@@ -1119,6 +1121,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         const snapshot = await createBlankTree(api);
         set({
           ...projectStateFromSnapshot(snapshot, 'Untitled'),
+          workflowTarget: 'treemaker',
+          pendingDesignChoice: false,
           documentMode: 'tree',
           activeEditingSurface: 'tree',
           importedCreasePattern: null,
@@ -1148,7 +1152,14 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           historyFuture: [],
           clipboardPasteCount: 0,
         });
-        useLayoutStore.getState().activateWorkspace('design');
+        const layout = useLayoutStore.getState();
+        if (methodChanged && layout.activeWorkspace === 'design') {
+          // Switching method (e.g. box-pleat -> circle-packed) while already on
+          // Design: rebuild the layout so the BP Editor pane doesn't linger.
+          layout.rematerializeWorkspace('design');
+        } else {
+          layout.activateWorkspace('design');
+        }
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
       }
@@ -1207,6 +1218,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         const documentState = await createBlankOristudioCpDocument();
         set({
           project: { ...createEmptyProject(), title: documentState.summary.title ?? 'Untitled CP' },
+          workflowTarget: 'treemaker',
+          pendingDesignChoice: false,
           documentMode: 'crease-pattern',
           activeEditingSurface: 'crease-pattern',
           importedCreasePattern: null,
@@ -1251,6 +1264,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     },
 
     loadProjectText: async (text, source) => {
+      set({ pendingDesignChoice: false });
       try {
         await loadText(text, source);
       } catch (error) {
@@ -1259,6 +1273,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     },
 
     loadCreasePatternText: async (text, source) => {
+      set({ pendingDesignChoice: false });
       try {
         await loadCreasePattern(text, source);
       } catch (error) {
@@ -1521,6 +1536,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     openProject: async (fileService = getFileService()) => {
       if (rejectDisabled('file.open')) return false;
       if (!(await confirmDiscardDirty(get().dirty))) return false;
+      set({ pendingDesignChoice: false });
       try {
         const file = await fileService.openTextFile({
           title: 'Open Ori Studio Project or Crease Pattern',
@@ -1773,6 +1789,27 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       if (layout.activeWorkspace === 'design') {
         layout.rematerializeWorkspace('design');
       }
+    },
+
+    startNewDesign: () => {
+      // Enter the Design workspace on the NUX chooser; no document is created
+      // until the user picks Circle-packed or Box-pleated.
+      set({ pendingDesignChoice: true, error: null, projectMessage: null });
+      useLayoutStore.getState().activateWorkspace('design');
+    },
+
+    chooseDesignMethod: async (target) => {
+      if (target === 'box-pleat') {
+        // Phase 5 will create the BP project document here; for now switch the
+        // Design workspace into the box-pleat layout (tree + BP Editor split).
+        set({ pendingDesignChoice: false });
+        get().setWorkflowTarget('box-pleat');
+        useLayoutStore.getState().activateWorkspace('design');
+        return;
+      }
+      // Circle-packed: the standard TreeMaker blank-tree flow. createNewProject
+      // resets workflowTarget to 'treemaker' and clears pendingDesignChoice.
+      await get().createNewProject();
     },
   };
 };

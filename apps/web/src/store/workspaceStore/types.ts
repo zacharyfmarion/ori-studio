@@ -63,6 +63,11 @@ export interface OristudioCpActionRequest {
 export interface ProjectSliceState {
   project: TreeProject;
   workflowTarget: WorkflowTarget;
+  /**
+   * True while the Design workspace is waiting for the user to pick a design
+   * method (Circle-packed vs Box-pleated). Drives the Design pane NUX chooser.
+   */
+  pendingDesignChoice: boolean;
   documentMode: DocumentMode;
   activeEditingSurface: DocumentMode;
   importedCreasePattern: ImportedCreasePatternDocument | null;
@@ -137,6 +142,10 @@ export interface ProjectSliceActions {
   clearProjectMessage: () => void;
   setActiveEditingSurface: (surface: DocumentMode) => void;
   setWorkflowTarget: (target: WorkflowTarget) => void;
+  /** Enter the Design workspace on the method chooser without creating a document. */
+  startNewDesign: () => void;
+  /** Resolve the Design pane NUX chooser into a concrete design method. */
+  chooseDesignMethod: (target: WorkflowTarget) => Promise<void>;
 }
 
 export type ProjectSlice = ProjectSliceState & ProjectSliceActions;
