@@ -68,7 +68,9 @@ import {
   symmetrySide,
 } from '../../lib/symmetryAuthoring';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { BOX_PLEAT_EXAMPLE_PROJECTS } from '../../examples/catalog';
 import { DesignMethodChooser } from './DesignMethodChooser';
+import { BpTreePanel } from './BpTreePanel';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { Toggle } from '../ui/Toggle';
@@ -454,21 +456,54 @@ function DesignViewportToolbar({
 export function DesignPanel() {
   const pendingDesignChoice = useWorkspaceStore((state) => state.pendingDesignChoice);
   const workflowTarget = useWorkspaceStore((state) => state.workflowTarget);
+  const oristudioBpDocument = useWorkspaceStore((state) => state.oristudioBpDocument);
 
   if (pendingDesignChoice) {
     return <DesignMethodChooser />;
   }
-  if (workflowTarget === 'box-pleat') {
-    // Phase 3 replaces this with the BP tree authoring surface (BpTreePanel).
+  if (workflowTarget === 'box-pleat' && oristudioBpDocument) {
+    if (oristudioBpDocument.snapshot.tree.vertices.length === 0) {
+      return <BpDesignEmptyState />;
+    }
     return (
-      <section className="panel-shell design-panel document-mode-empty">
-        <span className="document-mode-empty__message">
-          Box Pleating tree editor — coming in a later step.
-        </span>
+      <section className="panel-shell design-panel bp-tree-panel">
+        <BpTreePanel document={oristudioBpDocument} />
       </section>
     );
   }
   return <TreeMakerDesignPanel />;
+}
+
+/**
+ * Empty state for a fresh Box Pleating design. Structural tree authoring lands
+ * with the BP command layer; until then, offer the bundled example projects so
+ * the tree editor and BP Editor have real content to work with.
+ */
+function BpDesignEmptyState() {
+  const loadOristudioBpExample = useWorkspaceStore((state) => state.loadOristudioBpExample);
+  return (
+    <section className="panel-shell design-panel bp-design-empty">
+      <div className="bp-design-empty__body">
+        <h2 className="bp-design-empty__title">Box Pleating design</h2>
+        <p className="bp-design-empty__subtitle">
+          Open an example project to explore the tree and packing editors.
+        </p>
+        <div className="bp-design-empty__examples">
+          {BOX_PLEAT_EXAMPLE_PROJECTS.map((example) => (
+            <button
+              key={example.id}
+              type="button"
+              className="bp-design-empty__example"
+              onClick={() => void loadOristudioBpExample(example.id)}
+            >
+              <span className="bp-design-empty__example-title">{example.title}</span>
+              <span className="bp-design-empty__example-desc">{example.description}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function TreeMakerDesignPanel() {

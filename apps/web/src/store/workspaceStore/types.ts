@@ -49,7 +49,9 @@ import type { CpLineClipboardPayload, CpSelectionTransform } from '../../lib/cre
 import type { OristudioCpLineage } from '../../lib/oristudioCpLineage';
 import type {
   OristudioBpDocumentState,
+  OristudioBpEditingSurface,
   OristudioBpPortDescriptor,
+  OristudioBpSelection,
   OristudioBpWorkspaceState,
 } from '../../engine/oristudioBpTypes';
 
@@ -376,6 +378,14 @@ export interface OristudioBpSliceState {
 export interface OristudioBpSliceActions {
   /** Create a fresh Box Pleating project and hold it in the store. */
   createOristudioBpProject: (options?: { confirmDiscard?: boolean }) => Promise<boolean>;
+  /** Load a bundled Box Pleating example project. */
+  loadOristudioBpExample: (id: string, options?: { confirmDiscard?: boolean }) => Promise<boolean>;
+  /** Replace the active BP selection. */
+  selectOristudioBp: (selection: OristudioBpSelection) => void;
+  /** Switch the BP editing surface intent (tree vs packing) and focus its pane. */
+  setOristudioBpActiveSurface: (surface: OristudioBpEditingSurface) => void;
+  /** Move a BP tree vertex; `dragging` coalesces intermediate drag updates. */
+  moveOristudioBpTreeVertex: (id: number, loc: Point, dragging?: boolean) => Promise<boolean>;
 }
 
 export type OristudioBpSlice = OristudioBpSliceState & OristudioBpSliceActions;

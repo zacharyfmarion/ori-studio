@@ -1,8 +1,12 @@
+import { getBoxPleatExampleProject } from '../../../examples/catalog';
+import { markGeneratedCpLineageStale } from '../../../lib/oristudioCpLineage';
 import { requestConfirmation } from '../../commandDialogStore';
 import { useLayoutStore } from '../../layoutStore';
 import {
   createSampleOristudioBpProject,
   getOristudioBpPortDescriptors,
+  loadOristudioBpProjectFromText,
+  moveOristudioBpTreeVertex as moveRuntimeOristudioBpTreeVertex,
   oristudioBpError,
 } from '../oristudioBpRuntime';
 import type { OristudioBpDocumentState } from '../../../engine/oristudioBpTypes';
@@ -54,6 +58,38 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     layout.ensureDesignLayout();
   };
 
+  // Replace the active BP document after an edit and mark any generated BP
+  // crease pattern stale (tree/packing edits invalidate a prior CP export).
+  const replaceActiveBpDocument = (document: OristudioBpDocumentState, message: string) => {
+    set({
+      oristudioBpDocument: document,
+      oristudioBpBusy: false,
+      oristudioBpError: null,
+      dirty: true,
+      projectMessage: message,
+      error: null,
+      oristudioCpLineage: markGeneratedCpLineageStale(get().oristudioCpLineage),
+    });
+  };
+
+  const runBpTreeMutation = async (
+    message: string,
+    operation: (document: OristudioBpDocumentState) => Promise<OristudioBpDocumentState>
+  ): Promise<boolean> => {
+    const document = get().oristudioBpDocument;
+    if (!document) return false;
+    set({ oristudioBpBusy: true });
+    try {
+      const nextDocument = await operation(document);
+      replaceActiveBpDocument(nextDocument, message);
+      return true;
+    } catch (error) {
+      const normalized = oristudioBpError(error);
+      set({ oristudioBpError: normalized.message, oristudioBpBusy: false, error: normalized });
+      return false;
+    }
+  };
+
   return {
     oristudioBpDocument: null,
     oristudioBpWorkspace: null,
@@ -86,5 +122,60 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         return false;
       }
     },
+
+    loadOristudioBpExample: async (id, options = {}) => {
+      const example = getBoxPleatExampleProject(id);
+      if (!example) return false;
+      if (options.confirmDiscard !== false && !(await confirmDiscardDirty(get().dirty))) {
+        return false;
+      }
+      set({ oristudioBpBusy: true, oristudioBpError: null });
+      try {
+        await get().clearOristudioCpDocument();
+        const [document, portDescriptors] = await Promise.all([
+          loadOristudioBpProjectFromText(example.text, {
+            filename: example.filename,
+            format: 'generated',
+            dirty: false,
+          }),
+          getOristudioBpPortDescriptors().catch(() => []),
+        ]);
+        set({ oristudioBpPortDescriptors: portDescriptors });
+        setLoadedBpProject(document, `Loaded ${example.title}`);
+        return true;
+      } catch (error) {
+        const normalized = oristudioBpError(error);
+        set({
+          oristudioBpError: normalized.message,
+          oristudioBpBusy: false,
+          status: 'error',
+          error: normalized,
+        });
+        return false;
+      }
+    },
+
+    selectOristudioBp: (selection) => {
+      const document = get().oristudioBpDocument;
+      if (!document) return;
+      set({ oristudioBpDocument: { ...document, selection } });
+    },
+
+    setOristudioBpActiveSurface: (surface) => {
+      const document = get().oristudioBpDocument;
+      if (!document) return;
+      set({ oristudioBpDocument: { ...document, activeSurface: surface } });
+      // Packing lives in the BP Editor pane; tree in the design pane.
+      useLayoutStore.getState().activatePanel(surface === 'packing' ? 'bp-editor' : 'design');
+    },
+
+    moveOristudioBpTreeVertex: async (id, loc, dragging = false) =>
+      runBpTreeMutation('Moved BP vertex', (document) =>
+        moveRuntimeOristudioBpTreeVertex(id, loc, {
+          activeSurface: document.activeSurface,
+          selection: { kind: 'bp-vertex', id },
+          dragging,
+        })
+      ),
   };
 };
