@@ -294,11 +294,11 @@ unverified gate.
   background-clear. Selection highlight via GPU instance attribute. Verify
   against SVG selection behavior, including dense/close-pair picking.
 
-- **Phase 4 — Selection transform + drag.** `SelectionTransformBox` as DOM
-  overlay (move/resize/rotate, constant handle size); live
-  `selectionTransformPreview` segments on GPU each frame; folded-figure drag.
-  Verify every transform gesture and its live preview.
-  - **Landed so far:** folded-figure cmd-drag move; selection move-drag
+- **Phase 4 — Selection drag (move).** Move a selected line-set by dragging,
+  with live GPU preview and snapping; folded-figure drag. **Resize + rotate
+  handles are punted to the end** (Phase 9) — they are polish, not on the
+  critical path, so the migration proceeds to draw tools / scale first.
+  - **Landed (Phase 4 core done):** folded-figure cmd-drag move; selection move-drag
     (drag a selected line to translate the whole line-selection, real strokes
     shifted in place via `CpRenderer.setStrokes` + `cpSnapshotToScene(move)`,
     derived vertices following via `setPoints`, committed with
@@ -320,7 +320,6 @@ unverified gate.
     - **Snap target indicator** not yet drawn on the WebGL surface. The delta
       snaps correctly, but SVG also shows the snapped target/label
       (`setSnapTarget` + HUD); port that visual feedback.
-    - Resize + rotate handles (the `SelectionTransformBox` overlay proper).
     - SVG-mode + store still carry vertex selection (`selection.vertices`,
       `toggleOristudioCpVertexSelection`); remove app-wide once the SVG path is
       retired.
@@ -347,6 +346,16 @@ unverified gate.
   module structure, slim `CreasePatternPanel`, and rebuild tests around the pure
   modules (geometry, camera, picking, adapters) plus a few pixel-diff smoke
   tests. Flip the default to `webgl`.
+
+- **Phase 9 (lowest priority, deferred to the end) — Selection resize + rotate
+  handles.** The `SelectionTransformBox` proper: a DOM overlay with constant-size
+  resize/rotate handles (and the flip/reflect menu) positioned by projecting the
+  model-space frame (`cpLineSelectionFrame`) through the owned camera, driving a
+  live GPU preview via a generalized selection transform (the move preview's
+  `{ids, delta}` extended to arbitrary per-point transforms), committed with
+  `transformOristudioCpSelection` (`resizeTransformForPoint` / rotate). Explicitly
+  deprioritized below draw tools, diagnostics, and full-canvas scale — it is
+  polish, and move already covers the common case.
 
 The flag lets you fall back instantly at any point during manual testing.
 
