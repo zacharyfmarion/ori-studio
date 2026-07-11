@@ -680,6 +680,41 @@ function allowsDirectEntitySelection(operationId: string | null | undefined): bo
   return operationId === 'CreaseSelect';
 }
 
+/**
+ * Classify a tool step's prompt as collecting a free `point`, a picked crease
+ * (`line`), or `null` when it can't be told cleanly — a branching "X or Y" step,
+ * or one with no positional keyword. Drives the WebGL sequence tool's per-step
+ * routing. A crease/segment wins; a bare "line" is a crease unless it's the
+ * "line end/start" (a point); otherwise a point synonym (vertex, corner, centre,
+ * radius, candidate, destination, axis, endpoint, position) makes it a point.
+ */
+function cpToolStepKind(step: string): 'point' | 'line' | null {
+  const t = step.toLowerCase();
+  if (/\bor\b/.test(t)) return null; // "2 segments or 3 points" — branching
+  const endpointish = /\b(end|start|endpoint)\b/.test(t);
+  if (t.includes('crease') || t.includes('segment')) return 'line';
+  if (/\blines?\b/.test(t) && !endpointish) return 'line';
+  if (/point|vertex|corner|cent(?:er|re)|radius|candidate|destination|axis|position|endpoint/.test(t)) {
+    return 'point';
+  }
+  if (/\bline\b/.test(t) && endpointish) return 'point';
+  return null;
+}
+
+/** Approximate a circle (model coords) as ring segments, for the WebGL preview. */
+function cpCircleRingSegments(x: number, y: number, r: number, sides = 48): { a: Point; b: Point }[] {
+  const out: { a: Point; b: Point }[] = [];
+  for (let i = 0; i < sides; i++) {
+    const a0 = (i / sides) * Math.PI * 2;
+    const a1 = ((i + 1) / sides) * Math.PI * 2;
+    out.push({
+      a: { x: x + Math.cos(a0) * r, y: y + Math.sin(a0) * r },
+      b: { x: x + Math.cos(a1) * r, y: y + Math.sin(a1) * r },
+    });
+  }
+  return out;
+}
+
 function shouldPreferPointSnapForStep(
   command: OristudioCpCommandDefinition | null | undefined,
   stepIndex: number
@@ -2556,15 +2591,7 @@ export function CreasePatternPanel() {
     ) {
       return { mode: null, stepKinds: [] };
     }
-    const stepKind = (step: string): 'point' | 'line' | null => {
-      const t = step.toLowerCase();
-      const line = t.includes('crease') || t.includes('segment') || t.includes('line');
-      const point = t.includes('point');
-      if (line && !point) return 'line';
-      if (point && !line) return 'point';
-      return null; // ambiguous ("2 segments or 3 points") — unsupported for now
-    };
-    const kinds = steps.map(stepKind);
+    const kinds = steps.map(cpToolStepKind);
     if (kinds.some((k) => k === null)) return { mode: null, stepKinds: [] };
     return { mode: 'sequence', stepKinds: kinds as ('point' | 'line')[] };
   }, [activeCpCommand, cpToolState.phase]);
@@ -2600,7 +2627,8 @@ export function CreasePatternPanel() {
       ).then((preview) => {
         if (webglPreviewRequestRef.current !== requestId) return;
         const kernel = (preview?.segments ?? []).map((s) => ({ a: s.a, b: s.b }));
-        setWebglToolPreviewSegments([...kernel, ...highlight]);
+        const rings = (preview?.circles ?? []).flatMap((c) => cpCircleRingSegments(c.x, c.y, c.r));
+        setWebglToolPreviewSegments([...kernel, ...rings, ...highlight]);
       });
     },
     [
