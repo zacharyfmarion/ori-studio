@@ -113,6 +113,10 @@ const GRID_FALLBACK: Rgba = [0.4, 0.43, 0.48, GRID_COLOR_ALPHA];
 const ERASE_COLOR_VAR = '--status-danger';
 const ERASE_FALLBACK: Rgba = [0.85, 0.32, 0.32, 0.9];
 
+/** Snap-target indicator: a constant-screen-size ring at the snapped draw point. */
+const SNAP_INDICATOR_RADIUS = 5;
+const TRANSPARENT: Rgba = [0, 0, 0, 0];
+
 const dpr = () => Math.min(window.devicePixelRatio || 1, MAX_DPR);
 
 /** Pack a tool preview's candidate segments (model coords) into stroke geometry. */
@@ -137,6 +141,18 @@ function previewSegmentsToStrokes(
     col[i * 4 + 3] = color[3];
   }
   return { a, b, color: col, widthMul, count };
+}
+
+/** A single ring marker (transparent fill + coloured outline) at a snap point. */
+function snapIndicatorPoints(point: ModelPoint, color: Rgba): PointGeometry {
+  return {
+    center: new Float32Array([point.x, point.y]),
+    radius: new Float32Array([SNAP_INDICATOR_RADIUS]),
+    screenSpace: new Float32Array([1]),
+    fill: new Float32Array([TRANSPARENT[0], TRANSPARENT[1], TRANSPARENT[2], TRANSPARENT[3]]),
+    stroke: new Float32Array([color[0], color[1], color[2], color[3]]),
+    count: 1,
+  };
 }
 
 /**
@@ -303,9 +319,11 @@ export function CreasePatternWebglCanvas({
   const persistentToolRuntimeRef = useRef<ToolRuntime | null>(null);
   const currentTheme = useThemeStore((state) => state.currentTheme);
 
-  // A tool change abandons any in-progress click sequence.
+  // A tool change abandons any in-progress click sequence and its snap indicator.
   useEffect(() => {
     persistentToolRuntimeRef.current = null;
+    rendererRef.current?.setOverlayPoints(null);
+    renderNowRef.current();
   }, [activeToolInputMode, activeToolStepCount]);
 
   // Content bounds in SVG user coords, for the initial camera fit (independent
@@ -704,11 +722,25 @@ export function CreasePatternWebglCanvas({
     // engine, created on pointer-down and driven by feedTool.
     let drawing = false;
     let toolRuntime: ToolRuntime | null = null;
+    // Show a ring at the draw point when it snapped to nearby geometry; clear it
+    // when the cursor is free. `raw` is the un-snapped point.
+    const showSnapIndicator = (point: ModelPoint, raw: ModelPoint) => {
+      const snapped = point.x !== raw.x || point.y !== raw.y;
+      renderer.setOverlayPoints(
+        snapped
+          ? snapIndicatorPoints(
+              point,
+              readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK)
+            )
+          : null
+      );
+    };
     const feedTool = (kind: 'down' | 'move' | 'up' | 'cancel', clientX: number, clientY: number) => {
       if (!toolRuntime) return;
       const raw = clientToModel(clientX, clientY);
       if (!raw) return;
       const point = liveRef.current.resolveDrawPoint(raw, modelToleranceOf(SNAP_TOLERANCE_CSS));
+      showSnapIndicator(point, raw);
       const out = toolRuntime.feed({ kind, point });
       renderer.setPreview(
         out.preview && out.preview.segments.length > 0
@@ -745,6 +777,7 @@ export function CreasePatternWebglCanvas({
         runtime.feed({ kind: 'cancel', point: { x: 0, y: 0 } });
         liveRef.current.onToolPreviewPoints([]);
         renderer.setPreview(null);
+        renderer.setOverlayPoints(null);
         renderNow();
         return;
       }
@@ -767,10 +800,12 @@ export function CreasePatternWebglCanvas({
         }
       } else {
         const point = liveRef.current.resolveDrawPoint(raw, modelToleranceOf(SNAP_TOLERANCE_CSS));
+        showSnapIndicator(point, raw);
         const out = runtime.feed({ kind, point });
         if (out.commit) {
           liveRef.current.onToolCommit(out.commit);
           liveRef.current.onToolPreviewPoints([]);
+          renderer.setOverlayPoints(null);
         } else {
           liveRef.current.onToolPreviewPoints(out.livePoints ?? []);
         }
@@ -879,6 +914,24 @@ export function CreasePatternWebglCanvas({
       ) {
         // Hover with a click-based tool active: update its preview / highlight.
         feedPersistent('move', e.clientX, e.clientY);
+      } else if (
+        (liveRef.current.activeToolInputMode === 'drag-line' ||
+          liveRef.current.activeToolInputMode === 'drag-path') &&
+        !panning &&
+        !movingFigure &&
+        !movingSelection &&
+        !selecting
+      ) {
+        // Hover with a crease-draw tool (before pressing): show the snap indicator
+        // at where the endpoint would land.
+        const raw = clientToModel(e.clientX, e.clientY);
+        if (raw) {
+          showSnapIndicator(
+            liveRef.current.resolveDrawPoint(raw, modelToleranceOf(SNAP_TOLERANCE_CSS)),
+            raw
+          );
+          renderNow();
+        }
       } else if (movingSelection && moveStart) {
         if (moved) {
           const m = clientToModel(e.clientX, e.clientY);
@@ -947,6 +1000,7 @@ export function CreasePatternWebglCanvas({
         feedTool(e.type === 'pointercancel' ? 'cancel' : 'up', e.clientX, e.clientY);
         drawing = false;
         toolRuntime = null;
+        renderer.setOverlayPoints(null);
       } else if (movingSelection) {
         if (moved && (Math.abs(moveDelta.x) > 1e-9 || Math.abs(moveDelta.y) > 1e-9)) {
           // Commit: the document update re-renders the strokes at their final
@@ -985,6 +1039,11 @@ export function CreasePatternWebglCanvas({
     };
     // Suppress the browser menu so the right button is free for the erase gesture.
     const onContextMenu = (e: Event) => e.preventDefault();
+    // Drop the hover snap indicator when the cursor leaves the canvas.
+    const onPointerLeave = () => {
+      renderer.setOverlayPoints(null);
+      renderNow();
+    };
     // Escape abandons an in-progress point sequence.
     const onKeyDown = (e: KeyboardEvent) => {
       const m = liveRef.current.activeToolInputMode;
@@ -998,6 +1057,7 @@ export function CreasePatternWebglCanvas({
     canvas.addEventListener('pointercancel', onPointerUp);
     canvas.addEventListener('wheel', onWheel, { passive: false });
     canvas.addEventListener('contextmenu', onContextMenu);
+    canvas.addEventListener('pointerleave', onPointerLeave);
     window.addEventListener('keydown', onKeyDown);
 
     return () => {
@@ -1008,6 +1068,7 @@ export function CreasePatternWebglCanvas({
       canvas.removeEventListener('pointercancel', onPointerUp);
       canvas.removeEventListener('wheel', onWheel);
       canvas.removeEventListener('contextmenu', onContextMenu);
+      canvas.removeEventListener('pointerleave', onPointerLeave);
       window.removeEventListener('keydown', onKeyDown);
       marquee.remove();
       renderNowRef.current = () => {};

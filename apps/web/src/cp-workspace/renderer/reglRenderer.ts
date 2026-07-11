@@ -38,9 +38,11 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
   const foldedStrokes = createStrokeProgram(regl);
   const previewStrokes = createStrokeProgram(regl);
   const points = createPointProgram(regl);
+  const overlayPoints = createPointProgram(regl);
   let viewport: Viewport = { width: 0, height: 0, dpr: 1 };
   let hasGrid = false;
   let hasPreview = false;
+  let hasOverlayPoints = false;
   let disposed = false;
 
   // SVG `.cp-grid-line` is 0.95px, non-scaling — constant device px per dpr.
@@ -81,6 +83,12 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
       if (preview) previewStrokes.setData(preview);
     },
 
+    setOverlayPoints(next) {
+      if (disposed) return;
+      hasOverlayPoints = next !== null && next.count > 0;
+      if (next) overlayPoints.setData(next);
+    },
+
     render(frame: CpRenderFrame) {
       if (disposed) return;
       // Nothing to draw into a zero-area buffer (e.g. a collapsed panel).
@@ -112,6 +120,16 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
       if (hasPreview) {
         previewStrokes.draw({ view: frame.view, viewport, widthPx: frame.strokeWidthPx });
       }
+      // Cursor decorations (snap indicator) sit on the very top.
+      if (hasOverlayPoints) {
+        overlayPoints.draw({
+          view: frame.view,
+          viewport,
+          userScalePx: frame.userScalePx,
+          markerScalePx: frame.markerScalePx,
+          outlinePx: frame.pointOutlinePx,
+        });
+      }
     },
 
     dispose() {
@@ -123,6 +141,7 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
       foldedStrokes.dispose();
       previewStrokes.dispose();
       points.dispose();
+      overlayPoints.dispose();
       regl.destroy();
     },
   };

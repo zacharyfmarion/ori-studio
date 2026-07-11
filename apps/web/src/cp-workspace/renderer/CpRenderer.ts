@@ -40,6 +40,11 @@ export interface CpRenderer {
    * stroke width, like the committed creases.
    */
   setPreview(strokes: StrokeGeometry | null): void;
+  /**
+   * Upload (or clear, with `null`) overlay point markers drawn on top of
+   * everything — cursor decorations such as the snap-target indicator.
+   */
+  setOverlayPoints(points: PointGeometry | null): void;
   /** Draw a single frame. Safe to call repeatedly. */
   render(frame: CpRenderFrame): void;
   /** Release all GPU resources. The renderer must not be used afterwards. */
