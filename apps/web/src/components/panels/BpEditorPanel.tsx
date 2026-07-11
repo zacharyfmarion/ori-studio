@@ -58,5 +58,11 @@ export function BpEditorPanel() {
     );
   }
 
-  return <BpPackingPanel document={document} />;
+  // Wrap in a panel-shell so the packing body (flex: 1) fills the pane height,
+  // matching the empty states above and the design (tree) pane.
+  return (
+    <section className="panel-shell bp-editor-panel">
+      <BpPackingPanel document={document} />
+    </section>
+  );
 }
