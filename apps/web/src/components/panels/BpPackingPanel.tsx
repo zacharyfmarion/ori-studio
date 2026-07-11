@@ -94,6 +94,8 @@ interface BpPackingDragState {
   baseFlaps: OristudioBpFlap[];
   start: Point;
   clientStart: Point;
+  /** Offset from the reference flap's anchor to the grab point, in sheet units. */
+  grabOffset: Point;
   loc: Point;
   vector: Point;
   moved: boolean;
@@ -901,12 +903,17 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     if (dragIds.length === 1) selectOristudioBp({ kind: 'bp-flap', id: flapId });
     scheduleLongPressInspector(event);
     event.currentTarget.setPointerCapture(event.pointerId);
+    // Grab offset = where on the flap you grabbed, relative to its anchor. Kept
+    // fixed during the drag so the flap follows the cursor by the grab point,
+    // matching Box Pleating Studio (dragController $dragStart -> _dragOffset).
+    const grabPoint = eventToPackingPoint(event);
     setFlapDragging({
       id: flapId,
       ids: dragIds,
       baseFlaps,
       start: sourceFlap.anchor,
       clientStart: { x: event.clientX, y: event.clientY },
+      grabOffset: { x: grabPoint.x - sourceFlap.anchor.x, y: grabPoint.y - sourceFlap.anchor.y },
       loc: sourceFlap.anchor,
       vector: { x: 0, y: 0 },
       moved: false,
@@ -918,10 +925,15 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     event.stopPropagation();
     const sourceFlap = flapDragging.baseFlaps.find((candidate) => candidate.id === flap.id) ?? flap;
     const sourceFlaps = flapDragging.baseFlaps.length > 0 ? flapDragging.baseFlaps : [sourceFlap];
+    // Where the anchor should go = cursor minus the grab offset (BP Studio's
+    // $moveTo(pt - _dragOffset)), so the flap tracks the cursor by the grab point
+    // instead of snapping its corner to the cursor.
+    const cursor = eventToPackingPoint(event);
+    const target = { x: cursor.x - flapDragging.grabOffset.x, y: cursor.y - flapDragging.grabOffset.y };
     const { loc, vector } = constrainBpPackingFlapGroupTarget(
       sourceFlaps,
       sourceFlap,
-      eventToPackingPoint(event),
+      target,
       packing.sheet
     );
     setHoverPoint(loc);
@@ -938,6 +950,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
       baseFlaps: flapDragging.baseFlaps,
       start: flapDragging.start,
       clientStart: flapDragging.clientStart,
+      grabOffset: flapDragging.grabOffset,
       loc,
       vector,
       moved,
