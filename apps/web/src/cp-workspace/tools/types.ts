@@ -61,6 +61,11 @@ export interface ToolOutput<S> {
    * cursor), for entity-pick tools. Omitted by other tools.
    */
   highlightLineIds?: readonly number[];
+  /**
+   * True when the step now awaiting input collects a free point — the surface
+   * shows the snap indicator only then (not while picking a crease).
+   */
+  awaitingPoint?: boolean;
 }
 
 /** A pure tool state machine. `S` is the engine's private interaction state. */

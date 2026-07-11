@@ -2532,20 +2532,21 @@ export function CreasePatternPanel() {
     [activeCpCommand?.group, activeCpLineColor, mode]
   );
 
-  // The active tool's WebGL routing mode from its declarative steps: a drag mode;
-  // an all-line-pick sequence (line-pick); an all-free-point sequence
-  // (point-sequence); or null. Mixed / variable-length / text ops are excluded
-  // until they get dedicated engines.
+  // The active tool's WebGL routing from its declarative steps: a drag mode; a
+  // click-based `sequence` with a per-step kind (free point vs picked crease); or
+  // null. A step that is neither cleanly a point nor a crease (e.g. Square
+  // bisector's "2 segments or 3 points"), or variable-length / text ops, is
+  // excluded until it gets dedicated handling.
   const webglActiveTool = useMemo<{
-    mode: 'drag-line' | 'drag-box' | 'drag-path' | 'point-sequence' | 'line-pick' | null;
-    stepCount: number;
+    mode: 'drag-line' | 'drag-box' | 'drag-path' | 'sequence' | null;
+    stepKinds: ('point' | 'line')[];
   }>(() => {
     if (!activeCpCommand || activeCpCommand.uiStatus !== 'ready' || cpToolState.phase !== 'active') {
-      return { mode: null, stepCount: 0 };
+      return { mode: null, stepKinds: [] };
     }
     const im = activeCpCommand.inputMode;
     if (im === 'drag-line' || im === 'drag-box' || im === 'drag-path') {
-      return { mode: im, stepCount: 0 };
+      return { mode: im, stepKinds: [] };
     }
     const steps = activeCpCommand.toolSteps ?? [];
     if (
@@ -2553,66 +2554,67 @@ export function CreasePatternPanel() {
       isVariablePointSequenceOperation(activeCpCommand.operationId) ||
       isTextAnnotationOperation(activeCpCommand.operationId)
     ) {
-      return { mode: null, stepCount: 0 };
+      return { mode: null, stepKinds: [] };
     }
-    const picksLine = (step: string) => {
+    const stepKind = (step: string): 'point' | 'line' | null => {
       const t = step.toLowerCase();
-      return (
-        (t.includes('crease') || t.includes('segment') || t.includes('line')) && !t.includes('point')
-      );
+      const line = t.includes('crease') || t.includes('segment') || t.includes('line');
+      const point = t.includes('point');
+      if (line && !point) return 'line';
+      if (point && !line) return 'point';
+      return null; // ambiguous ("2 segments or 3 points") — unsupported for now
     };
-    const picksPoint = (step: string) => {
-      const t = step.toLowerCase();
-      return (
-        t.includes('point') &&
-        !t.includes('crease') &&
-        !t.includes('segment') &&
-        !t.includes('line')
-      );
-    };
-    if (steps.every(picksLine)) return { mode: 'line-pick', stepCount: steps.length };
-    if (steps.every(picksPoint)) return { mode: 'point-sequence', stepCount: steps.length };
-    return { mode: null, stepCount: 0 };
+    const kinds = steps.map(stepKind);
+    if (kinds.some((k) => k === null)) return { mode: null, stepKinds: [] };
+    return { mode: 'sequence', stepKinds: kinds as ('point' | 'line')[] };
   }, [activeCpCommand, cpToolState.phase]);
 
-  // Point-sequence live preview (kernel-computed) for the WebGL surface.
+  // Sequence-tool live preview for the WebGL surface: kernel-computed candidate
+  // segments from the live points + picked/hovered creases, plus a highlight of
+  // those creases. Picked creases show immediately; the kernel result merges in.
   const [webglToolPreviewSegments, setWebglToolPreviewSegments] = useState<
     readonly { a: Point; b: Point }[]
   >([]);
   const webglPreviewRequestRef = useRef(0);
-  const handleWebglToolPreviewPoints = useCallback(
-    (points: readonly Point[]) => {
+  const handleWebglToolPreviewInput = useCallback(
+    (points: readonly Point[], lineIds: readonly number[]) => {
       const command = activeCpCommand;
-      if (!command || points.length === 0) {
+      const highlight = lineIds
+        .map((id) => editableCp?.crease_pattern.line_segments[id - 1])
+        .filter((s): s is OristudioCpLineSegment => Boolean(s))
+        .map((s) => ({ a: s.a, b: s.b }));
+      if (!command || (points.length === 0 && lineIds.length === 0)) {
         webglPreviewRequestRef.current += 1;
         setWebglToolPreviewSegments([]);
         return;
       }
+      setWebglToolPreviewSegments(highlight);
       const requestId = ++webglPreviewRequestRef.current;
       void previewOristudioCpCommand(
         command.operationId,
         buildCpCommandPayload(command, {
-          line_ids: oristudioCpSelection.lines,
+          line_ids: [...lineIds],
           circle_ids: oristudioCpSelection.circles,
           points: [...points],
         })
       ).then((preview) => {
         if (webglPreviewRequestRef.current !== requestId) return;
-        setWebglToolPreviewSegments((preview?.segments ?? []).map((s) => ({ a: s.a, b: s.b })));
+        const kernel = (preview?.segments ?? []).map((s) => ({ a: s.a, b: s.b }));
+        setWebglToolPreviewSegments([...kernel, ...highlight]);
       });
     },
     [
       activeCpCommand,
       buildCpCommandPayload,
+      editableCp,
       oristudioCpSelection.circles,
-      oristudioCpSelection.lines,
       previewOristudioCpCommand,
     ]
   );
 
   // Clear the WebGL point-sequence preview when that mode is no longer active.
   useEffect(() => {
-    if (webglActiveTool.mode !== 'point-sequence') {
+    if (webglActiveTool.mode !== 'sequence') {
       webglPreviewRequestRef.current += 1;
       setWebglToolPreviewSegments([]);
     }
@@ -4578,10 +4580,10 @@ export function CreasePatternPanel() {
                   }}
                   resolveMoveSnap={resolveEditableMoveSnap}
                   activeToolInputMode={webglActiveTool.mode}
-                  activeToolStepCount={webglActiveTool.stepCount}
+                  activeToolStepKinds={webglActiveTool.stepKinds}
                   resolveDrawPoint={resolveEditableDrawModelPoint}
                   onToolCommit={handleWebglToolCommit}
-                  onToolPreviewPoints={handleWebglToolPreviewPoints}
+                  onToolPreviewInput={handleWebglToolPreviewInput}
                   toolCommandPreviewSegments={webglToolPreviewSegments}
                   toolPreviewColor={toolPreviewColor}
                   onEraseBox={(points) => {
