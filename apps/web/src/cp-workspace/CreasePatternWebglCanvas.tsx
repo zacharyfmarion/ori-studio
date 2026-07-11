@@ -43,14 +43,17 @@ import { sampleView } from './svgViewBridge';
 import { cpVertexId, orieditaGridLinesForModelBounds } from '../lib/creasePatternViewport';
 import { toolEngineFor, type ToolInputMode } from './tools/registry';
 import { createToolRuntime, type ToolRuntime } from './tools/runtime';
-import { createStepSequenceTool, type StepKind } from './tools/stepSequenceTool';
+import { createStepSequenceTool } from './tools/stepSequenceTool';
 import type { ToolCommit, ToolPreviewSegment } from './tools/types';
 
 /**
  * Draw modes the canvas routes: the drag engines, plus the click-based persistent
- * `sequence` mode (per-step free points and/or picked creases).
+ * `sequence` mode. Every sequence step collects a point; its {@link StepKind} only
+ * sets how the surface snaps + gives feedback for that step.
  */
 type ActiveToolMode = ToolInputMode | 'sequence';
+/** Per-step snap/feedback mode: snap to grid/vertices, or onto a crease. */
+export type StepKind = 'point' | 'crease';
 import type { OristudioCpGridMetadata } from '../engine/oristudioCpTypes';
 import { useThemeStore } from '../store/themeStore';
 
@@ -114,6 +117,8 @@ const ERASE_FALLBACK: Rgba = [0.85, 0.32, 0.32, 0.9];
 
 /** Snap-target indicator: a constant-screen-size ring at the snapped draw point. */
 const SNAP_INDICATOR_RADIUS = 5;
+/** Placed sequence points render as small filled dots. */
+const PLACED_POINT_RADIUS = 3;
 const TRANSPARENT: Rgba = [0, 0, 0, 0];
 
 const dpr = () => Math.min(window.devicePixelRatio || 1, MAX_DPR);
@@ -152,6 +157,37 @@ function snapIndicatorPoints(point: ModelPoint, color: Rgba): PointGeometry {
     stroke: new Float32Array([color[0], color[1], color[2], color[3]]),
     count: 1,
   };
+}
+
+/** Overlay markers for a sequence: placed points as dots + a ring at the cursor. */
+function sequenceOverlayPoints(
+  placed: readonly ModelPoint[],
+  ring: ModelPoint | null,
+  color: Rgba
+): PointGeometry | null {
+  const count = placed.length + (ring ? 1 : 0);
+  if (count === 0) return null;
+  const center = new Float32Array(count * 2);
+  const radius = new Float32Array(count);
+  const screenSpace = new Float32Array(count).fill(1);
+  const fill = new Float32Array(count * 4);
+  const stroke = new Float32Array(count * 4);
+  const put = (i: number, p: ModelPoint, r: number, f: Rgba) => {
+    center[i * 2] = p.x;
+    center[i * 2 + 1] = p.y;
+    radius[i] = r;
+    fill[i * 4] = f[0];
+    fill[i * 4 + 1] = f[1];
+    fill[i * 4 + 2] = f[2];
+    fill[i * 4 + 3] = f[3];
+    stroke[i * 4] = color[0];
+    stroke[i * 4 + 1] = color[1];
+    stroke[i * 4 + 2] = color[2];
+    stroke[i * 4 + 3] = color[3];
+  };
+  placed.forEach((p, i) => put(i, p, PLACED_POINT_RADIUS, color));
+  if (ring) put(placed.length, ring, SNAP_INDICATOR_RADIUS, TRANSPARENT);
+  return { center, radius, screenSpace, fill, stroke, count };
 }
 
 /**
@@ -217,8 +253,10 @@ export interface CreasePatternWebglCanvasProps {
   activeToolInputMode: ActiveToolMode | null;
   /** Per-step input kinds for a `sequence` tool (free point vs picked crease). */
   activeToolStepKinds: readonly StepKind[];
-  /** Snap a raw model draw point to nearby geometry (grid/vertices/lines). */
+  /** Snap a raw model draw point to nearby geometry (grid/vertices). */
   resolveDrawPoint: (rawPoint: ModelPoint, toleranceModel: number) => ModelPoint;
+  /** Snap a raw model draw point onto the nearest crease (for crease steps). */
+  resolveDrawPointOnCrease: (rawPoint: ModelPoint, toleranceModel: number) => ModelPoint;
   /** Commit a tool's collected input (free points and/or picked crease ids). */
   onToolCommit: (commit: ToolCommit) => void;
   /**
@@ -291,6 +329,7 @@ export function CreasePatternWebglCanvas({
   activeToolInputMode,
   activeToolStepKinds,
   resolveDrawPoint,
+  resolveDrawPointOnCrease,
   onToolCommit,
   onToolPreviewInput,
   toolCommandPreviewSegments,
@@ -314,14 +353,17 @@ export function CreasePatternWebglCanvas({
   const gridKeyRef = useRef<string | null>(null);
   // Owned camera (Phase 2). Null until seeded from the SVG's current fit.
   const cameraRef = useRef<UserCamera | null>(null);
-  // Persistent runtime for click-based tools (point-sequence / line-pick): picks
-  // accumulate across pointer gestures. Reset when the active tool changes (below).
+  // Persistent runtime for the click-based `sequence` tool: points accumulate
+  // across pointer gestures. Reset when the active tool changes (below).
   const persistentToolRuntimeRef = useRef<ToolRuntime | null>(null);
+  // Index of the sequence step awaiting input, for per-step snapping/feedback.
+  const sequenceStepRef = useRef(0);
   const currentTheme = useThemeStore((state) => state.currentTheme);
 
-  // A tool change abandons any in-progress click sequence and its snap indicator.
+  // A tool change abandons any in-progress click sequence and its overlay.
   useEffect(() => {
     persistentToolRuntimeRef.current = null;
+    sequenceStepRef.current = 0;
     rendererRef.current?.setOverlayPoints(null);
     renderNowRef.current();
   }, [activeToolInputMode, activeToolStepKinds]);
@@ -463,6 +505,7 @@ export function CreasePatternWebglCanvas({
     activeToolInputMode,
     activeToolStepKinds,
     resolveDrawPoint,
+    resolveDrawPointOnCrease,
     onToolCommit,
     onToolPreviewInput,
     toolPreviewColor,
@@ -749,20 +792,23 @@ export function CreasePatternWebglCanvas({
       renderNow();
       if (out.commit) liveRef.current.onToolCommit(out.commit);
     };
-    // Persistent click-based `sequence` tool: each step collects a free point
-    // (snapped) or a picked crease (hit-tested). The controller kernel-previews the
-    // live points + picked creases and renders the preview + pick highlight. The
-    // runtime persists across gestures and resets on tool change.
+    // Persistent click-based `sequence` tool: every step collects a point. A
+    // 'crease' step snaps the point onto the nearest crease and highlights it
+    // (the kernel resolves the crease from the point); a 'point' step snaps to
+    // grid/vertices. Placed points + a snap ring draw as an overlay; the
+    // controller kernel-previews the live points and renders the result.
     const feedPersistent = (kind: 'down' | 'move' | 'cancel', clientX: number, clientY: number) => {
       if (liveRef.current.activeToolInputMode !== 'sequence') return;
+      const stepKinds = liveRef.current.activeToolStepKinds;
       if (!persistentToolRuntimeRef.current) {
-        persistentToolRuntimeRef.current = createToolRuntime(
-          createStepSequenceTool(liveRef.current.activeToolStepKinds)
-        );
+        persistentToolRuntimeRef.current = createToolRuntime(createStepSequenceTool(stepKinds.length));
+        sequenceStepRef.current = 0;
       }
       const runtime = persistentToolRuntimeRef.current;
+      const accent = readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK);
       if (kind === 'cancel') {
         runtime.feed({ kind: 'cancel', point: { x: 0, y: 0 } });
+        sequenceStepRef.current = 0;
         liveRef.current.onToolPreviewInput([], []);
         renderer.setOverlayPoints(null);
         renderNow();
@@ -770,21 +816,31 @@ export function CreasePatternWebglCanvas({
       }
       const raw = clientToModel(clientX, clientY);
       if (!raw) return;
-      // Resolve both a snapped point and the crease under the cursor; the engine
-      // uses whichever its current step needs.
-      const point = liveRef.current.resolveDrawPoint(raw, modelToleranceOf(SNAP_TOLERANCE_CSS));
-      const lineId = liveRef.current.hitIndex.query(raw.x, raw.y, modelToleranceOf(HIT_TOLERANCE_CSS));
-      const out = runtime.feed({ kind, point, lineId: lineId > 0 ? lineId : null });
-      // Snap indicator only while the step is collecting a free point.
-      renderer.setOverlayPoints(out.awaitingPoint ? snapIndicatorForSnap(point, raw) : null);
-      renderNow();
+      const tol = modelToleranceOf(SNAP_TOLERANCE_CSS);
+      const creaseStep = stepKinds[sequenceStepRef.current] === 'crease';
+      const point = creaseStep
+        ? liveRef.current.resolveDrawPointOnCrease(raw, tol)
+        : liveRef.current.resolveDrawPoint(raw, tol);
+      // Highlight the crease under the cursor while a crease step is active.
+      const hoverLine = creaseStep
+        ? liveRef.current.hitIndex.query(raw.x, raw.y, modelToleranceOf(HIT_TOLERANCE_CSS))
+        : -1;
+      const highlight = hoverLine > 0 ? [hoverLine] : [];
+      const out = runtime.feed({ kind, point });
       if (out.commit) {
         liveRef.current.onToolCommit(out.commit);
         liveRef.current.onToolPreviewInput([], []);
         renderer.setOverlayPoints(null);
+        sequenceStepRef.current = 0;
       } else {
-        liveRef.current.onToolPreviewInput(out.livePoints ?? [], out.highlightLineIds ?? []);
+        if (kind === 'down') sequenceStepRef.current += 1;
+        const live = out.livePoints ?? [];
+        const placed = kind === 'move' ? live.slice(0, -1) : live;
+        const ring = kind === 'move' && (point.x !== raw.x || point.y !== raw.y) ? point : null;
+        renderer.setOverlayPoints(sequenceOverlayPoints(placed, ring, accent));
+        liveRef.current.onToolPreviewInput(live, highlight);
       }
+      renderNow();
     };
     // Right-button erase gesture: reuses the drag-box engine for its rubber-band
     // box, but bound to the erase operation and never snapped (matches Oriedita).

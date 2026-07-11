@@ -681,19 +681,20 @@ function allowsDirectEntitySelection(operationId: string | null | undefined): bo
 }
 
 /**
- * Classify a tool step's prompt as collecting a free `point`, a picked crease
- * (`line`), or `null` when it can't be told cleanly — a branching "X or Y" step,
- * or one with no positional keyword. Drives the WebGL sequence tool's per-step
- * routing. A crease/segment wins; a bare "line" is a crease unless it's the
- * "line end/start" (a point); otherwise a point synonym (vertex, corner, centre,
- * radius, candidate, destination, axis, endpoint, position) makes it a point.
+ * Classify a tool step's prompt by how the WebGL sequence tool should snap it:
+ * `crease` (the point is snapped onto a crease, which the kernel then resolves) or
+ * `point` (snapped to grid/vertices). `null` when it can't be told cleanly — a
+ * branching "X or Y" step. Every step still collects a point either way. A
+ * crease/segment wins; a bare "line" is a crease unless it's the "line end/start"
+ * (a point); otherwise a point synonym (vertex, corner, centre, radius, candidate,
+ * destination, axis, endpoint, position) makes it a point.
  */
-function cpToolStepKind(step: string): 'point' | 'line' | null {
+function cpToolStepKind(step: string): 'point' | 'crease' | null {
   const t = step.toLowerCase();
   if (/\bor\b/.test(t)) return null; // "2 segments or 3 points" — branching
   const endpointish = /\b(end|start|endpoint)\b/.test(t);
-  if (t.includes('crease') || t.includes('segment')) return 'line';
-  if (/\blines?\b/.test(t) && !endpointish) return 'line';
+  if (t.includes('crease') || t.includes('segment')) return 'crease';
+  if (/\blines?\b/.test(t) && !endpointish) return 'crease';
   if (/point|vertex|corner|cent(?:er|re)|radius|candidate|destination|axis|position|endpoint/.test(t)) {
     return 'point';
   }
@@ -2506,28 +2507,42 @@ export function CreasePatternPanel() {
     [editableCp, editableCpBounds, oristudioCpViewport]
   );
 
-  // WebGL draw tools: commit a tool's collected input (free points and/or picked
-  // crease ids) through the kernel command, then keep the tool active for the next.
+  // Crease steps: snap the point onto the nearest crease (forcing line/vertex
+  // snapping) so the kernel resolves that crease from the point.
+  const resolveEditableDrawPointOnCrease = useCallback(
+    (rawPoint: Point, toleranceModel: number): Point => {
+      if (!editableCp) return rawPoint;
+      const target = nearestCpSnapTarget(
+        editableCp,
+        rawPoint,
+        editableCpBounds,
+        { ...oristudioCpViewport, snapToLines: true, snapToVertices: true },
+        toleranceModel
+      );
+      return target?.point ?? rawPoint;
+    },
+    [editableCp, editableCpBounds, oristudioCpViewport]
+  );
+
+  // WebGL draw tools: commit a tool's collected points through the kernel command
+  // (creases are resolved kernel-side from the points), then keep it active.
   const handleWebglToolCommit = useCallback(
-    (commit: { points?: readonly Point[]; lineIds?: readonly number[] }) => {
+    (commit: { points?: readonly Point[] }) => {
       const command = activeCpCommand;
       if (!command || command.uiStatus !== 'ready') return;
       const points = commit.points ?? [];
-      const pickedLineIds = commit.lineIds ?? [];
-      if (points.length < 2 && pickedLineIds.length < 1) return;
+      if (points.length < 2) return;
       void (async () => {
         const succeeded = await executeOristudioCpCommand(
           command.operationId,
           buildCpCommandPayload(command, {
-            // Entity-pick tools pass the picked creases; flip/erase box tools
-            // resolve the box kernel-side; other tools use the prior selection.
+            // Flip/erase box tools resolve the box kernel-side; other tools carry
+            // the prior selection.
             line_ids:
-              pickedLineIds.length > 0
-                ? [...pickedLineIds]
-                : isCreaseToggleMvClickTool(command.operationId) ||
-                    isLineEraseClickTool(command.operationId)
-                  ? []
-                  : oristudioCpSelection.lines,
+              isCreaseToggleMvClickTool(command.operationId) ||
+              isLineEraseClickTool(command.operationId)
+                ? []
+                : oristudioCpSelection.lines,
             circle_ids: oristudioCpSelection.circles,
             points: [...points],
           })
@@ -2574,7 +2589,7 @@ export function CreasePatternPanel() {
   // excluded until it gets dedicated handling.
   const webglActiveTool = useMemo<{
     mode: 'drag-line' | 'drag-box' | 'drag-path' | 'sequence' | null;
-    stepKinds: ('point' | 'line')[];
+    stepKinds: ('point' | 'crease')[];
   }>(() => {
     if (!activeCpCommand || activeCpCommand.uiStatus !== 'ready' || cpToolState.phase !== 'active') {
       return { mode: null, stepKinds: [] };
@@ -2593,7 +2608,7 @@ export function CreasePatternPanel() {
     }
     const kinds = steps.map(cpToolStepKind);
     if (kinds.some((k) => k === null)) return { mode: null, stepKinds: [] };
-    return { mode: 'sequence', stepKinds: kinds as ('point' | 'line')[] };
+    return { mode: 'sequence', stepKinds: kinds as ('point' | 'crease')[] };
   }, [activeCpCommand, cpToolState.phase]);
 
   // Sequence-tool live preview for the WebGL surface: kernel-computed candidate
@@ -2604,15 +2619,17 @@ export function CreasePatternPanel() {
   >([]);
   const webglPreviewRequestRef = useRef(0);
   const handleWebglToolPreviewInput = useCallback(
-    (points: readonly Point[], lineIds: readonly number[]) => {
+    (points: readonly Point[], highlightLineIds: readonly number[]) => {
       const command = activeCpCommand;
-      const highlight = lineIds
+      // The passed ids are the hovered crease(s) — highlight only. The kernel
+      // resolves creases from the points, so its payload carries the selection.
+      const highlight = highlightLineIds
         .map((id) => editableCp?.crease_pattern.line_segments[id - 1])
         .filter((s): s is OristudioCpLineSegment => Boolean(s))
         .map((s) => ({ a: s.a, b: s.b }));
-      if (!command || (points.length === 0 && lineIds.length === 0)) {
+      if (!command || points.length === 0) {
         webglPreviewRequestRef.current += 1;
-        setWebglToolPreviewSegments([]);
+        setWebglToolPreviewSegments(highlight);
         return;
       }
       setWebglToolPreviewSegments(highlight);
@@ -2620,7 +2637,7 @@ export function CreasePatternPanel() {
       void previewOristudioCpCommand(
         command.operationId,
         buildCpCommandPayload(command, {
-          line_ids: [...lineIds],
+          line_ids: oristudioCpSelection.lines,
           circle_ids: oristudioCpSelection.circles,
           points: [...points],
         })
@@ -2636,6 +2653,7 @@ export function CreasePatternPanel() {
       buildCpCommandPayload,
       editableCp,
       oristudioCpSelection.circles,
+      oristudioCpSelection.lines,
       previewOristudioCpCommand,
     ]
   );
@@ -4610,6 +4628,7 @@ export function CreasePatternPanel() {
                   activeToolInputMode={webglActiveTool.mode}
                   activeToolStepKinds={webglActiveTool.stepKinds}
                   resolveDrawPoint={resolveEditableDrawModelPoint}
+                  resolveDrawPointOnCrease={resolveEditableDrawPointOnCrease}
                   onToolCommit={handleWebglToolCommit}
                   onToolPreviewInput={handleWebglToolPreviewInput}
                   toolCommandPreviewSegments={webglToolPreviewSegments}

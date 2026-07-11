@@ -1,60 +1,32 @@
 /**
- * `step-sequence` tool engine: a click-based sequence where each step declares
- * whether it collects a free `point` or a picked crease (`line`). Generalizes the
- * point-sequence (all-point) and line-pick (all-line) tools and handles mixed
- * tools (e.g. Perpendicular draw: point then crease; Angle system: point, point,
- * crease). Commits `{ points, lineIds }`; between steps it reports the live points
- * (for the kernel preview) and the highlighted crease ids (picked + hovered). Pure
- * — the surface supplies the snapped point and the crease id under the cursor.
+ * `sequence` tool engine: a click-based sequence that collects `count` points and
+ * commits them. Every step collects a *point* — Oriedita's construction tools
+ * resolve creases from points kernel-side, so a "pick a crease" step is just a
+ * point snapped onto that crease (the surface handles the per-step snap + crease
+ * highlight; the engine only counts points). Between clicks it reports the live
+ * points (placed + cursor) for the kernel preview. Pure.
  */
 import type { ModelPoint } from '../renderer/types';
 import type { ToolEngine, ToolInput, ToolOutput } from './types';
 
-export type StepKind = 'point' | 'line';
-
-export interface StepSequenceState {
+export interface SequenceState {
   points: readonly ModelPoint[];
-  lineIds: readonly number[];
-  /** Index of the step awaiting input. */
-  step: number;
 }
 
-const idle = (): StepSequenceState => ({ points: [], lineIds: [], step: 0 });
+const IDLE: SequenceState = { points: [] };
 
-export function createStepSequenceTool(
-  stepKinds: readonly StepKind[]
-): ToolEngine<StepSequenceState> {
-  const count = stepKinds.length;
+export function createStepSequenceTool(count: number): ToolEngine<SequenceState> {
   return {
-    initialState: idle(),
+    initialState: IDLE,
 
-    reduce(state: StepSequenceState, input: ToolInput): ToolOutput<StepSequenceState> {
-      const kind = stepKinds[state.step];
-      const hovered = input.lineId ?? null;
+    reduce(state: SequenceState, input: ToolInput): ToolOutput<SequenceState> {
       switch (input.kind) {
         case 'down': {
-          let points = state.points;
-          let lineIds = state.lineIds;
-          if (kind === 'point') {
-            points = [...points, input.point];
-          } else if (hovered != null) {
-            lineIds = [...lineIds, hovered];
-          } else {
-            // Line step but no crease under the cursor — ignore the click.
-            return { state, preview: null, commit: null, highlightLineIds: lineIds };
+          const points = [...state.points, input.point];
+          if (points.length >= count) {
+            return { state: IDLE, preview: null, commit: { points } };
           }
-          const step = state.step + 1;
-          if (step >= count) {
-            return { state: idle(), preview: null, commit: { points, lineIds } };
-          }
-          return {
-            state: { points, lineIds, step },
-            preview: null,
-            commit: null,
-            livePoints: points,
-            highlightLineIds: lineIds,
-            awaitingPoint: stepKinds[step] === 'point',
-          };
+          return { state: { points }, preview: null, commit: null, livePoints: points };
         }
 
         case 'move':
@@ -62,19 +34,14 @@ export function createStepSequenceTool(
             state,
             preview: null,
             commit: null,
-            livePoints: kind === 'point' ? [...state.points, input.point] : state.points,
-            highlightLineIds:
-              kind === 'line' && hovered != null
-                ? [...state.lineIds, hovered]
-                : state.lineIds,
-            awaitingPoint: kind === 'point',
+            livePoints: [...state.points, input.point],
           };
 
         case 'up':
           return { state, preview: null, commit: null };
 
         case 'cancel':
-          return { state: idle(), preview: null, commit: null };
+          return { state: IDLE, preview: null, commit: null };
       }
     },
   };
