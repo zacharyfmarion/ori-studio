@@ -4731,55 +4731,34 @@
   font-weight: 750;
 }
 
-/* ===== Box Pleating Studio design styles (ported) ===== */
-:root {
-  --bp-border: var(--paper-stroke);
-  --bp-grid: color-mix(in srgb, var(--border-default) 76%, transparent);
-  --bp-grid-major: color-mix(in srgb, var(--border-strong) 82%, transparent);
-  --bp-grid-diagonal: var(--bp-grid);
-  --bp-hinge: var(--fold-hinge);
-  --bp-ridge: var(--fold-ridge);
-  --bp-axis-parallel: var(--accent-secondary);
-  --bp-invalid-junction: var(--status-danger);
-  --bp-dot: var(--accent-primary);
-  --bp-label: var(--text-primary);
-  --bp-label-stroke: var(--bg-canvas);
-  --bp-hover: var(--accent-hover);
-  --bp-selection: var(--accent-primary);
-  --bp-device: var(--accent-tertiary);
-  --bp-flap: var(--accent-primary);
-  --bp-flap-clearance: var(--accent-tertiary);
-  --bp-river: var(--accent-primary);
-  --bp-tree-leaf-edge: color-mix(in srgb, var(--tree-edge) 86%, var(--accent-tertiary));
-  --bp-tree-root: color-mix(in srgb, var(--accent-secondary) 72%, var(--tree-node));
-}
+/* ===== Box Pleating surfaces: app semantic tokens (no --bp-* palette) ===== */
 
 .bp-tree-grid {
   pointer-events: none;
 }
 
 .bp-tree-grid-line {
-  stroke: var(--bp-grid);
+  stroke: var(--bg-canvas-grid);
   stroke-width: 1;
 }
 
 .bp-tree-grid-line--major {
-  stroke: var(--bp-grid-major);
+  stroke: var(--bg-canvas-grid);
   stroke-width: 1.5;
 }
 
 .bp-tree-grid-line--diagonal {
-  stroke: var(--bp-grid-diagonal);
+  stroke: var(--bg-canvas-grid);
   stroke-dasharray: 4 5;
   opacity: 0.72;
 }
 
 .bp-tree-edge--river {
-  stroke: var(--bp-border);
+  stroke: var(--border-strong);
 }
 
 .bp-tree-edge--leaf {
-  stroke: var(--bp-tree-leaf-edge);
+  stroke: var(--tree-edge);
 }
 
 .bp-tree-canvas g[role='button']:focus-visible {
@@ -4789,12 +4768,17 @@
 .bp-tree-canvas g[role='button']:focus-visible .bp-tree-edge,
 .bp-tree-node:focus-visible {
   outline: none;
-  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--bp-hover) 50%, transparent));
-  stroke: var(--bp-hover);
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent-hover) 50%, transparent));
+  stroke: var(--accent-hover);
 }
 
 .bp-tree-node--root {
-  fill: var(--bp-tree-root);
+  fill: var(--accent-secondary);
+}
+
+.bp-packing-sheet {
+  fill: var(--bg-primary);
+  stroke: var(--border-strong);
 }
 
 .bp-packing-grid {
@@ -4802,46 +4786,46 @@
 }
 
 .bp-packing-grid-line {
-  stroke: var(--bp-grid);
+  stroke: var(--bg-canvas-grid);
   stroke-width: 1;
 }
 
 .bp-packing-grid-line--major {
-  stroke: var(--bp-grid-major);
+  stroke: var(--bg-canvas-grid);
   stroke-width: 1.5;
 }
 
 .bp-packing-grid-line--diagonal {
-  stroke: var(--bp-grid-diagonal);
+  stroke: var(--bg-canvas-grid);
   stroke-dasharray: 4 5;
   opacity: 0.72;
 }
 
 .bp-packing-primitive {
-  color: var(--bp-hinge);
+  color: var(--fold-hinge);
 }
 
 .bp-packing-primitive--ridge {
-  color: var(--bp-ridge);
+  color: var(--fold-ridge);
 }
 
 .bp-packing-primitive--axis-parallel {
-  color: var(--bp-axis-parallel);
+  color: var(--cp-color-green);
 }
 
 .bp-packing-primitive--device {
-  color: var(--bp-device);
+  color: var(--fold-flat);
 }
 
 .bp-packing-primitive--selected {
-  color: var(--bp-selection);
-  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--bp-selection) 42%, transparent));
+  color: var(--accent-primary);
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent-primary) 42%, transparent));
 }
 
 .bp-packing-primitive[role='button']:focus-visible {
-  color: var(--bp-hover);
+  color: var(--accent-hover);
   outline: none;
-  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--bp-hover) 50%, transparent));
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent-hover) 50%, transparent));
 }
 
 .bp-packing-primitive-line,
@@ -4862,7 +4846,7 @@
 
 .bp-packing-primitive-circle {
   fill: currentColor;
-  stroke: var(--bp-label-stroke);
+  stroke: var(--bg-primary);
   stroke-width: 1.5;
 }
 
@@ -4871,26 +4855,26 @@
 }
 
 .bp-packing-device-range {
-  stroke: color-mix(in srgb, var(--bp-device) 72%, transparent);
+  stroke: color-mix(in srgb, var(--fold-flat) 72%, transparent);
   stroke-dasharray: 7 6;
   stroke-linecap: round;
   stroke-width: 1.5;
 }
 
 .bp-packing-device-position {
-  fill: var(--bp-device);
-  stroke: var(--bp-label-stroke);
+  fill: var(--fold-flat);
+  stroke: var(--bg-primary);
   stroke-width: 1.5;
 }
 
 .bp-packing-device-range--selected .bp-packing-device-range {
-  stroke: var(--bp-selection);
+  stroke: var(--accent-primary);
   stroke-width: 2.25;
 }
 
 .bp-packing-device-range--selected .bp-packing-device-position {
-  fill: var(--bp-selection);
-  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--bp-selection) 38%, transparent));
+  fill: var(--accent-primary);
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent-primary) 38%, transparent));
 }
 
 .bp-packing-primitive-hit-line,
@@ -4911,14 +4895,14 @@
 }
 
 .bp-packing-river-shade {
-  fill: color-mix(in srgb, var(--bp-river) 16%, transparent);
-  stroke: color-mix(in srgb, var(--bp-river) 42%, transparent);
+  fill: color-mix(in srgb, var(--fold-hinge) 16%, transparent);
+  stroke: color-mix(in srgb, var(--fold-hinge) 42%, transparent);
   stroke-width: 1.5;
   pointer-events: none;
 }
 
 .bp-packing-river--selected .bp-packing-river-label {
-  fill: var(--bp-selection);
+  fill: var(--accent-primary);
 }
 
 .bp-packing-rivers [role='button']:focus-visible {
@@ -4926,20 +4910,20 @@
 }
 
 .bp-packing-rivers [role='button']:focus-visible .bp-packing-river-hit {
-  stroke: var(--bp-hover);
+  stroke: var(--accent-hover);
   stroke-width: 2;
 }
 
 .bp-packing-conflict {
-  fill: color-mix(in srgb, var(--bp-invalid-junction) 20%, transparent);
-  stroke: var(--bp-invalid-junction);
+  fill: color-mix(in srgb, var(--status-danger) 20%, transparent);
+  stroke: var(--status-danger);
   stroke-linejoin: round;
   stroke-width: 2;
   cursor: pointer;
 }
 
 .bp-packing-conflict--selected .bp-packing-conflict {
-  fill: color-mix(in srgb, var(--bp-invalid-junction) 32%, transparent);
+  fill: color-mix(in srgb, var(--status-danger) 32%, transparent);
   stroke-width: 3;
 }
 
@@ -4948,27 +4932,27 @@
 }
 
 .bp-packing-conflicts [role='button']:focus-visible .bp-packing-conflict {
-  stroke: var(--bp-hover);
+  stroke: var(--accent-hover);
   stroke-width: 3;
 }
 
 .bp-packing-flap-clearance {
-  fill: color-mix(in srgb, var(--bp-flap-clearance) 13%, transparent);
-  stroke: color-mix(in srgb, var(--bp-flap-clearance) 50%, transparent);
+  fill: color-mix(in srgb, var(--fold-unassigned) 13%, transparent);
+  stroke: color-mix(in srgb, var(--fold-unassigned) 50%, transparent);
   stroke-dasharray: 4 5;
   stroke-width: 1.2;
 }
 
 .bp-packing-flap {
-  fill: color-mix(in srgb, var(--bg-canvas) 82%, var(--bp-flap));
-  stroke: var(--bp-flap);
+  fill: color-mix(in srgb, var(--bg-canvas) 82%, var(--text-primary));
+  stroke: var(--text-primary);
   stroke-width: 2.2;
   cursor: pointer;
 }
 
 .bp-packing-flap--selected .bp-packing-flap {
-  fill: color-mix(in srgb, var(--bp-selection) 24%, var(--bg-canvas));
-  stroke: var(--bp-selection);
+  fill: color-mix(in srgb, var(--accent-primary) 24%, var(--bg-canvas));
+  stroke: var(--accent-primary);
   stroke-width: 3;
 }
 
@@ -4977,30 +4961,30 @@
 }
 
 .bp-packing-flaps [role='button']:focus-visible .bp-packing-flap {
-  stroke: var(--bp-hover);
+  stroke: var(--accent-hover);
   stroke-width: 3;
-  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--bp-hover) 48%, transparent));
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent-hover) 48%, transparent));
 }
 
 .bp-packing-selection-shade {
-  fill: color-mix(in srgb, var(--bp-selection) 18%, transparent);
+  fill: color-mix(in srgb, var(--accent-primary) 18%, transparent);
   pointer-events: none;
 }
 
 .bp-packing-flap-dot {
-  fill: var(--bp-dot);
-  stroke: var(--bp-label-stroke);
+  fill: var(--text-primary);
+  stroke: var(--bg-primary);
   stroke-width: 1.5;
   pointer-events: none;
 }
 
 .bp-packing-label {
-  fill: var(--bp-label);
+  fill: var(--text-primary);
   font-size: 13px;
   font-weight: 650;
   paint-order: stroke;
   pointer-events: none;
-  stroke: var(--bp-label-stroke);
+  stroke: var(--bg-primary);
   stroke-width: 3;
 }
 
