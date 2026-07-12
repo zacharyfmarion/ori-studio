@@ -4,6 +4,7 @@ import { requestConfirmation } from '../../commandDialogStore';
 import { useLayoutStore } from '../../layoutStore';
 import {
   addOristudioBpTreeLeaf as addRuntimeOristudioBpTreeLeaf,
+  completeOristudioBpStretch as completeRuntimeOristudioBpStretch,
   flipOristudioBpLayoutSheet as flipRuntimeOristudioBpLayoutSheet,
   getOristudioBpPortDescriptors,
   loadOristudioBpProjectFromText,
@@ -14,6 +15,8 @@ import {
   oristudioBpError,
   rotateOristudioBpLayoutSheet as rotateRuntimeOristudioBpLayoutSheet,
   subdivideOristudioBpLayoutSheet as subdivideRuntimeOristudioBpLayoutSheet,
+  switchOristudioBpStretchConfig as switchRuntimeOristudioBpStretchConfig,
+  switchOristudioBpStretchPattern as switchRuntimeOristudioBpStretchPattern,
 } from '../oristudioBpRuntime';
 import type { OristudioBpDocumentState } from '../../../engine/oristudioBpTypes';
 import type { OristudioBpSlice, WorkspaceSliceCreator } from '../types';
@@ -279,6 +282,30 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           activeSurface: 'packing',
           selection: { kind: 'bp-device', id: `${id}:device:${index}` },
           dragging,
+        })
+      ),
+
+    completeOristudioBpStretch: async (id) =>
+      runBpTreeMutation('Completed BP stretch', (document) =>
+        completeRuntimeOristudioBpStretch(id, {
+          activeSurface: 'packing',
+          selection: document.selection,
+        })
+      ),
+
+    switchOristudioBpStretchConfig: async (id, delta) =>
+      runBpTreeMutation('Switched BP stretch configuration', (document) =>
+        switchRuntimeOristudioBpStretchConfig(id, delta, {
+          activeSurface: 'packing',
+          selection: document.selection,
+        })
+      ),
+
+    switchOristudioBpStretchPattern: async (id, delta) =>
+      runBpTreeMutation('Switched BP stretch pattern', (document) =>
+        switchRuntimeOristudioBpStretchPattern(id, delta, {
+          activeSurface: 'packing',
+          selection: document.selection,
         })
       ),
 

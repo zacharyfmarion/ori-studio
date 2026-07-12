@@ -404,6 +404,12 @@ export interface OristudioBpSliceActions {
     loc: Point,
     dragging?: boolean
   ) => Promise<boolean>;
+  /** Cycle a stretch's GOPS configuration (delta ±1) to pick a valid crease pattern. */
+  switchOristudioBpStretchConfig: (id: string, delta: number) => Promise<boolean>;
+  /** Cycle a stretch's pattern within the current configuration (delta ±1). */
+  switchOristudioBpStretchPattern: (id: string, delta: number) => Promise<boolean>;
+  /** Compute a stretch's configurations/patterns (BP Studio completes on select). */
+  completeOristudioBpStretch: (id: string) => Promise<boolean>;
   /** Subdivide the BP sheet grid. */
   subdivideOristudioBpLayoutSheet: () => Promise<boolean>;
   /** Rotate the BP sheet clockwise/counter-clockwise. */

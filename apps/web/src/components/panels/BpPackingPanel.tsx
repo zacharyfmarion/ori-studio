@@ -15,6 +15,8 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUp,
+  ChevronLeft,
+  ChevronRight,
   CircleDot,
   FlipHorizontal,
   FlipVertical,
@@ -34,6 +36,7 @@ import type {
   OristudioBpFlap,
   OristudioBpGraphicPrimitive,
   OristudioBpRiver,
+  OristudioBpStretch,
 } from '../../engine/oristudioBpTypes';
 import {
   bpFlapSelection,
@@ -360,6 +363,86 @@ function BpPackingViewportToolbar({
   );
 }
 
+function StretchStepper({
+  label,
+  index,
+  count,
+  onStep,
+}: {
+  label: string;
+  index: number;
+  count: number;
+  onStep: (delta: number) => void;
+}) {
+  const disabled = count <= 1;
+  return (
+    <div className="bp-packing-stretch-nav__stepper">
+      <span className="bp-packing-stretch-nav__label">{label}</span>
+      <IconButton
+        size="sm"
+        variant="toolbar"
+        title={`Previous ${label.toLowerCase()}`}
+        disabled={disabled}
+        onClick={() => onStep(-1)}
+      >
+        <ChevronLeft size={14} />
+      </IconButton>
+      <span className="bp-packing-stretch-nav__count">
+        {count > 0 ? `${index + 1}/${count}` : '—'}
+      </span>
+      <IconButton
+        size="sm"
+        variant="toolbar"
+        title={`Next ${label.toLowerCase()}`}
+        disabled={disabled}
+        onClick={() => onStep(1)}
+      >
+        <ChevronRight size={14} />
+      </IconButton>
+    </div>
+  );
+}
+
+/**
+ * Contextual control for cycling a stretch's GOPS configuration and pattern —
+ * the "pick a valid crease pattern by hand" navigation. Mirrors BP Studio's
+ * Stretch.switchConfig/switchPattern (±1 with wraparound).
+ */
+function BpPackingStretchNav({
+  stretch,
+  onSwitchConfig,
+  onSwitchPattern,
+}: {
+  stretch: OristudioBpStretch;
+  onSwitchConfig: (delta: number) => void;
+  onSwitchPattern: (delta: number) => void;
+}) {
+  return (
+    <div
+      className="bp-packing-stretch-nav"
+      role="group"
+      aria-label={`Stretch ${stretch.id} pattern navigation`}
+    >
+      <span className="bp-packing-stretch-nav__title">Stretch {stretch.id}</span>
+      <StretchStepper
+        label="Config"
+        index={stretch.configIndex ?? 0}
+        count={stretch.configCount ?? 0}
+        onStep={onSwitchConfig}
+      />
+      <StretchStepper
+        label="Pattern"
+        index={stretch.patternIndex ?? 0}
+        count={stretch.patternCount ?? 0}
+        onStep={onSwitchPattern}
+      />
+      {stretch.patternFound === false && (
+        <span className="bp-packing-stretch-nav__warning">No valid pattern</span>
+      )}
+    </div>
+  );
+}
+
 function BpPackingDPad({
   enabled,
   onNudge,
@@ -509,6 +592,15 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   const moveOristudioBpLayoutFlap = useWorkspaceStore((state) => state.moveOristudioBpLayoutFlap);
   const moveOristudioBpLayoutFlaps = useWorkspaceStore((state) => state.moveOristudioBpLayoutFlaps);
   const moveOristudioBpDevice = useWorkspaceStore((state) => state.moveOristudioBpDevice);
+  const switchOristudioBpStretchConfig = useWorkspaceStore(
+    (state) => state.switchOristudioBpStretchConfig
+  );
+  const switchOristudioBpStretchPattern = useWorkspaceStore(
+    (state) => state.switchOristudioBpStretchPattern
+  );
+  const completeOristudioBpStretch = useWorkspaceStore(
+    (state) => state.completeOristudioBpStretch
+  );
   const subdivideOristudioBpLayoutSheet = useWorkspaceStore(
     (state) => state.subdivideOristudioBpLayoutSheet
   );
@@ -523,6 +615,28 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     () => bpLinkedSelection(document.selection, document),
     [document]
   );
+  // The stretch whose device/pattern is currently selected. Selecting a device
+  // links its stretch (bpLinkedSelection.addDevice -> addStretch), so a single
+  // linked stretch drives the config/pattern navigation controls.
+  const activeStretch = useMemo(() => {
+    const ids = [...linkedSelection.stretches];
+    if (ids.length !== 1) return null;
+    return packing.stretches.find((stretch) => stretch.id === ids[0]) ?? null;
+  }, [linkedSelection, packing.stretches]);
+  // BP Studio computes a stretch's configurations/patterns lazily, on selection
+  // (Stretch.$complete). Our snapshot leaves patternCount null until then, so
+  // complete the selected stretch once to populate its config/pattern counts and
+  // enable the navigation controls. The ref guards against re-completing (and any
+  // resulting effect loop) when completion yields no pattern.
+  const completedStretchesRef = useRef<Set<string>>(new Set());
+  const activeStretchId = activeStretch?.id ?? null;
+  const activeStretchPatternCount = activeStretch?.patternCount ?? null;
+  useEffect(() => {
+    if (activeStretchId === null || activeStretchPatternCount !== null) return;
+    if (completedStretchesRef.current.has(activeStretchId)) return;
+    completedStretchesRef.current.add(activeStretchId);
+    void completeOristudioBpStretch(activeStretchId);
+  }, [activeStretchId, activeStretchPatternCount, completeOristudioBpStretch]);
   // Render the engine's actual recompute, not a partial optimistic overlay.
   // Each drag step drives the engine (dragging=true) and the returned snapshot
   // re-renders, so flaps, creases, junctions, and stretches always move together
@@ -1586,6 +1700,13 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
         enabled={nudgeableFlaps.length > 0 || nudgeableDevice !== null}
         onNudge={nudgeSelection}
       />
+      {activeStretch && (
+        <BpPackingStretchNav
+          stretch={activeStretch}
+          onSwitchConfig={(delta) => void switchOristudioBpStretchConfig(activeStretch.id, delta)}
+          onSwitchPattern={(delta) => void switchOristudioBpStretchPattern(activeStretch.id, delta)}
+        />
+      )}
       <BpPackingAlerts
         diagnostics={packingAlerts}
         onActivate={(diagnostic) => {
