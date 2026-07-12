@@ -384,6 +384,7 @@ Live results as Zach validates each tool in-app. Fixes made during the sweep are
 | Move selected creases | CreaseMove | ✅ |
 | Copy selected creases | CreaseCopy | ✅ |
 | Move by four points | CreaseMove4p | ✅ |
+| Operation frame | OperationFrameCreate | ⏭️ **Phase-6 deferred** — kernel + SVG render it; WebGL has no operation-frame overlay yet (frame polygon is SVG-only). Explicitly a Phase-6 item, not a sweep regression. |
 | Copy by four points | CreaseCopy4p | ✅ |
 
 Cross-cutting fixes made during the sweep (benefit many tools):
