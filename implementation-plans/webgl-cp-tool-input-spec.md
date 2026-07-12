@@ -395,6 +395,8 @@ Live results as Zach validates each tool in-app. Fixes made during the sweep are
 | Dove base | DrawDoveBase | ✅ |
 | Bird base | DrawBirdBase | ✅ |
 | Frog base | DrawFrogBase | ✅ |
+| Measure length 1/2 | DisplayLengthBetweenPoints1/2 | ❌ **kernel-unimplemented** — no execute match arm → "not implemented yet". Frontend routes fine; needs kernel impl. Keep visible. |
+| Measure angle 1/2/3 | DisplayAngleBetweenThreePoints1/2/3 | ❌ **kernel-unimplemented** — same. Keep visible. |
 | Copy by four points | CreaseCopy4p | ✅ |
 
 Cross-cutting fixes made during the sweep (benefit many tools):
@@ -409,6 +411,7 @@ Cross-cutting fixes made during the sweep (benefit many tools):
 - **selection-state** — Escape should deselect for any select tool (not just CreaseSelect); non-additive select should replace, not merge. Affects the whole Select section (Polygon/Lasso/etc.).
 - **Oriedita-only conveniences the SVG never had** — e.g. lengthen drag-to-select. Expect more across the sweep.
 - **kernel-parity bugs** (separate from the frontend migration — affect SVG + WebGL identically) — `double_symmetric_draw` L-shape endpoint intersections (Reflect Over Line). Need Oriedita source refs.
+- **kernel-unimplemented ops** — the 5 measure ops (`DisplayLength*`, `DisplayAngle*`) have no kernel handler ("not implemented yet"). Keep the buttons; implement in kernel.
 
 <!-- checklist:begin -->
 _(populated below; ⬜ = pending, ✅ = validated + wired, ⚠️ = validated, needs follow-up)_
