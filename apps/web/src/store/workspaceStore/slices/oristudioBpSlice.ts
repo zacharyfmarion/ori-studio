@@ -200,10 +200,17 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
 
     setOristudioBpActiveSurface: (surface) => {
       const document = get().oristudioBpDocument;
-      if (!document) return;
+      if (!document || document.activeSurface === surface) return;
+      // Only when the surface actually changes: mutating the document and
+      // activating the Dockview panel on *every* pointerdown reflows the pane
+      // mid-gesture, which makes toolbar mousedown land on a different element
+      // than pointerdown so the browser never fires the click.
       set({ oristudioBpDocument: { ...document, activeSurface: surface } });
-      // Packing lives in the BP Editor pane; tree in the design pane.
-      useLayoutStore.getState().activatePanel(surface === 'packing' ? 'bp-editor' : 'design');
+      // Defer the Dockview panel activation out of the pointerdown handler so the
+      // reflow it causes can't drop the click that changed the surface. Packing
+      // lives in the BP Editor pane; tree in the design pane.
+      const panel = surface === 'packing' ? 'bp-editor' : 'design';
+      requestAnimationFrame(() => useLayoutStore.getState().activatePanel(panel));
     },
 
     moveOristudioBpTreeVertex: async (id, loc, dragging = false) =>
