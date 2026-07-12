@@ -25,6 +25,7 @@ import {
   RotateCcw,
   RotateCw,
   Route,
+  Ruler,
   Tag,
   TriangleAlert,
   Waypoints,
@@ -36,6 +37,8 @@ import type {
   OristudioBpFlap,
   OristudioBpGraphicPrimitive,
   OristudioBpRiver,
+  OristudioBpSheet,
+  OristudioBpSheetKind,
   OristudioBpStretch,
 } from '../../engine/oristudioBpTypes';
 import {
@@ -246,6 +249,55 @@ function selectedNudgeDevice(
   return null;
 }
 
+function BpSheetSizeInput({
+  label,
+  value,
+  onCommit,
+}: {
+  label: string;
+  value: number;
+  onCommit: (value: number) => void;
+}) {
+  const [draft, setDraft] = useState(() => String(value));
+  useEffect(() => {
+    setDraft(String(value));
+  }, [value]);
+  const commit = () => {
+    const parsed = Number.parseInt(draft, 10);
+    if (!Number.isFinite(parsed)) {
+      setDraft(String(value));
+      return;
+    }
+    const clamped = Math.min(BP_MAX_SHEET_SIZE, Math.max(1, parsed));
+    if (clamped !== value) onCommit(clamped);
+    else setDraft(String(value));
+  };
+  return (
+    <label className="bp-sheet-menu__row">
+      <span className="bp-sheet-menu__label">{label}</span>
+      <input
+        className="bp-sheet-menu__input"
+        type="number"
+        min={1}
+        max={BP_MAX_SHEET_SIZE}
+        step={1}
+        value={draft}
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            commit();
+            event.currentTarget.blur();
+          } else if (event.key === 'Escape') {
+            setDraft(String(value));
+            event.currentTarget.blur();
+          }
+        }}
+      />
+    </label>
+  );
+}
+
 function BpPackingViewportToolbar({
   zoomPercent,
   layers,
@@ -254,6 +306,8 @@ function BpPackingViewportToolbar({
   subdivideSheet,
   rotateSheet,
   flipSheet,
+  sheet,
+  setSheet,
   zoomIn,
   zoomOut,
   fitToView,
@@ -266,6 +320,8 @@ function BpPackingViewportToolbar({
   subdivideSheet: () => void;
   rotateSheet: (clockwise: boolean) => void;
   flipSheet: (horizontal: boolean) => void;
+  sheet: OristudioBpSheet;
+  setSheet: (gridType: OristudioBpSheetKind, width: number, height: number) => void;
   zoomIn: () => void;
   zoomOut: () => void;
   fitToView: () => void;
@@ -273,6 +329,8 @@ function BpPackingViewportToolbar({
 }) {
   const [layersOpen, setLayersOpen] = useState(false);
   const layersMenuRef = useRef<HTMLDivElement | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const sheetMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!layersOpen) return undefined;
@@ -284,6 +342,17 @@ function BpPackingViewportToolbar({
     document.addEventListener('mousedown', onPointerDown);
     return () => document.removeEventListener('mousedown', onPointerDown);
   }, [layersOpen]);
+
+  useEffect(() => {
+    if (!sheetOpen) return undefined;
+    const onPointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (sheetMenuRef.current?.contains(target)) return;
+      setSheetOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, [sheetOpen]);
 
   return (
     <ViewportToolbar
@@ -336,6 +405,50 @@ function BpPackingViewportToolbar({
       >
         <FlipVertical size={14} />
       </IconButton>
+      <div className="viewport-toolbar__menu-anchor" ref={sheetMenuRef}>
+        <IconButton
+          size="sm"
+          variant="toolbar"
+          title="Sheet size & grid"
+          isActive={sheetOpen}
+          onClick={() => setSheetOpen((open) => !open)}
+        >
+          <Ruler size={14} />
+        </IconButton>
+        {sheetOpen && (
+          <div className="design-layer-menu bp-sheet-menu" role="menu">
+            <div className="bp-sheet-menu__row">
+              <span className="bp-sheet-menu__label">Grid</span>
+              <div className="bp-sheet-menu__segment">
+                <button
+                  type="button"
+                  className={sheet.kind === 'rectangular' ? 'is-active' : undefined}
+                  onClick={() => setSheet('rectangular', sheet.width, sheet.height)}
+                >
+                  Rect
+                </button>
+                <button
+                  type="button"
+                  className={sheet.kind === 'diagonal' ? 'is-active' : undefined}
+                  onClick={() => setSheet('diagonal', sheet.width, sheet.height)}
+                >
+                  Diagonal
+                </button>
+              </div>
+            </div>
+            <BpSheetSizeInput
+              label="Width"
+              value={sheet.width}
+              onCommit={(w) => setSheet(sheet.kind, w, sheet.height)}
+            />
+            <BpSheetSizeInput
+              label="Height"
+              value={sheet.height}
+              onCommit={(h) => setSheet(sheet.kind, sheet.width, h)}
+            />
+          </div>
+        )}
+      </div>
       <ViewportToolbarSeparator />
       <div className="viewport-toolbar__menu-anchor" ref={layersMenuRef}>
         <IconButton
@@ -613,6 +726,9 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   );
   const flipOristudioBpLayoutSheet = useWorkspaceStore(
     (state) => state.flipOristudioBpLayoutSheet
+  );
+  const setOristudioBpLayoutSheet = useWorkspaceStore(
+    (state) => state.setOristudioBpLayoutSheet
   );
   const packing = document.snapshot.packing;
   const linkedSelection = useMemo(
@@ -1727,6 +1843,10 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
         subdivideSheet={() => void subdivideOristudioBpLayoutSheet()}
         rotateSheet={(clockwise) => void rotateOristudioBpLayoutSheet(clockwise)}
         flipSheet={(horizontal) => void flipOristudioBpLayoutSheet(horizontal)}
+        sheet={packing.sheet}
+        setSheet={(gridType, width, height) =>
+          void setOristudioBpLayoutSheet(gridType, width, height)
+        }
         zoomIn={() => transformRef.current?.zoomIn(0.35, 120)}
         zoomOut={() => transformRef.current?.zoomOut(0.35, 120)}
         fitToView={() => fitToView()}

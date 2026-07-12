@@ -52,6 +52,7 @@ import type {
   OristudioBpEditingSurface,
   OristudioBpPortDescriptor,
   OristudioBpSelection,
+  OristudioBpSheetKind,
   OristudioBpWorkspaceState,
 } from '../../engine/oristudioBpTypes';
 
@@ -421,6 +422,12 @@ export interface OristudioBpSliceActions {
   rotateOristudioBpLayoutSheet: (clockwise: boolean) => Promise<boolean>;
   /** Flip the BP sheet horizontally/vertically. */
   flipOristudioBpLayoutSheet: (horizontal: boolean) => Promise<boolean>;
+  /** Set the BP sheet grid type and dimensions (flaps re-map to stay in range). */
+  setOristudioBpLayoutSheet: (
+    gridType: OristudioBpSheetKind,
+    width: number,
+    height: number
+  ) => Promise<boolean>;
 }
 
 export type OristudioBpSlice = OristudioBpSliceState & OristudioBpSliceActions;

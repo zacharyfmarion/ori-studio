@@ -138,9 +138,14 @@ root of the breakage (see the assessment in the commit history / memory).
 
 ### Phase 5: Sheet operations
 
-- [ ] Subdivide, rotate (±), flip (h/v), and grid-type (rect/diagonal); resize.
-- [ ] Verify flaps re-map correctly across sheet transforms (BP Studio moves
-      flaps to stay in range on grid changes).
+- [x] Subdivide, rotate (±), flip (h/v), and grid-type (rect/diagonal); resize.
+      Subdivide/rotate/flip were already toolbar buttons; added a "Sheet size &
+      grid" popover (grid-type toggle + width/height inputs) wiring the existing
+      `update_layout_sheet` engine method.
+- [x] Verify flaps re-map correctly across sheet transforms. Verified live:
+      rotate/flip transform the flap anchors, resize keeps them (shrinking below
+      the flap extent is correctly rejected — BP `set_*_checked`), grid-type
+      conversion refits, and flaps stay in range after every op.
 
 ### Phase 6: Rendering fidelity audit (per layer)
 

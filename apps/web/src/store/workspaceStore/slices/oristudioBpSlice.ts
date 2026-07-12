@@ -15,6 +15,7 @@ import {
   oristudioBpError,
   rotateOristudioBpLayoutSheet as rotateRuntimeOristudioBpLayoutSheet,
   subdivideOristudioBpLayoutSheet as subdivideRuntimeOristudioBpLayoutSheet,
+  updateOristudioBpLayoutSheet as updateRuntimeOristudioBpLayoutSheet,
   updateOristudioBpTreeEdgeLength as updateRuntimeOristudioBpTreeEdgeLength,
   switchOristudioBpStretchConfig as switchRuntimeOristudioBpStretchConfig,
   switchOristudioBpStretchPattern as switchRuntimeOristudioBpStretchPattern,
@@ -342,6 +343,14 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
             activeSurface: 'packing',
             selection: document.selection,
           })
+      ),
+
+    setOristudioBpLayoutSheet: async (gridType, width, height) =>
+      runBpTreeMutation('Resized BP sheet', (document) =>
+        updateRuntimeOristudioBpLayoutSheet(gridType, width, height, {
+          activeSurface: 'packing',
+          selection: document.selection,
+        })
       ),
   };
 };
