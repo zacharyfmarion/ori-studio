@@ -233,7 +233,8 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     }
   ),
   ready('ChangeCreaseType', 'Change crease type', 'color', 'paintbrush', 'MouseHandlerChangeCreaseType', {
-    placement: 'menu',
+    // Not in Oriedita's UI — hide entirely (revisit at end).
+    placement: 'hidden-ui-only',
     selectionRequirement: 'selected folding lines',
     tooltip: 'Advance selected folding lines through edge, mountain, and valley',
   }),
@@ -346,7 +347,8 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     toolSteps: ['Pick first corner', 'Pick second corner'],
   }),
   ready('CreaseAdvanceType', 'Advance crease type', 'color', 'list-restart', 'MouseHandlerCreaseAdvanceType', {
-    placement: 'menu',
+    // Not in Oriedita's UI — hide entirely (revisit at end).
+    placement: 'hidden-ui-only',
     selectionRequirement: 'selected folding lines',
     tooltip: 'Advance selected folding lines through edge, mountain, and valley',
   }),
