@@ -43,6 +43,31 @@ describe('CP input-model registry', () => {
     expect(mismatches).toEqual([]);
   });
 
+  it('point-model snapPerStep is present, one entry per point, all valid kinds', () => {
+    const bad: string[] = [];
+    for (const [op, entry] of Object.entries(CP_INPUT_MODELS)) {
+      if (!entry || !POINT_MODELS.includes(entry.model)) continue;
+      const snap = entry.snapPerStep;
+      if (!snap) {
+        bad.push(`${op}: missing snapPerStep`);
+        continue;
+      }
+      if (snap.length !== entry.pointCount) {
+        bad.push(`${op}: snapPerStep.length=${snap.length} pointCount=${entry.pointCount}`);
+      }
+      const invalid = snap.filter((k) => k !== 'point' && k !== 'crease');
+      if (invalid.length) bad.push(`${op}: invalid snap kinds ${JSON.stringify(invalid)}`);
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it('only point/axis models carry snapPerStep', () => {
+    const stray = Object.entries(CP_INPUT_MODELS)
+      .filter(([, e]) => e?.snapPerStep && !POINT_MODELS.includes(e.model))
+      .map(([op]) => op);
+    expect(stray).toEqual([]);
+  });
+
   it('line-entity entries declare a positive lineCount', () => {
     const bad: string[] = [];
     for (const [op, entry] of Object.entries(CP_INPUT_MODELS)) {

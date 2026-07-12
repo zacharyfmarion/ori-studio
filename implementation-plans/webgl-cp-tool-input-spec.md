@@ -340,6 +340,16 @@ _(populated below; ⬜ = pending, ✅ = validated + wired, ⚠️ = validated, n
 
 **point-sequence** (45)
 
+Step 2 status: all wired via the registry's explicit `snapPerStep`, which reproduces
+the SVG's `shouldPreferPointSnapForStep` (`false`→'crease', `true`→'point') — validated
+by the shipping SVG, and it deleted the interim `cpToolStepKind` heuristic. Four tools'
+snap **changed** vs. the old heuristic (the heuristic mis-snapped them; these now match
+the SVG) and are the ones to manually spot-check: **PolygonSetNoCorners** (`crease,crease`),
+**FoldableLineDraw** (`point,crease`), **DrawCreaseAngleRestricted** & **…3**
+(`point,point,crease`). The 10 crease-bearing tools (PerpendicularDraw, AngleSystem,
+Axiom5/7, ParallelDraw(Width), SymmetricDraw, VertexMakeAngularlyFlatFoldable, LineSegment
+Division/RatioSet) already worked and are unchanged.
+
 | ✔ | Operation | steps | SVG ref | notes |
 |---|---|---|---|---|
 | ⬜ | AngleSystem | 3 pts |  |  |

@@ -10,9 +10,16 @@
  * matching. Every entry is validated against its SVG branch in
  * implementation-plans/webgl-cp-tool-input-spec.md (§4 + §8 checklist).
  *
- * Coverage + per-model shape (pointCount/lineCount) are guarded by
- * inputModelRegistry.test.ts, which fails if a UI command is missing an entry or
- * its counts drift from the command's declared `toolSteps`.
+ * `snapPerStep` records, per point step, whether that step snaps to a free point
+ * (grid/vertex — `nearestOrieditaDrawPointTarget`) or onto surrounding geometry
+ * incl. creases (`nearestCpSnapTarget`). These values reproduce the SVG's actual
+ * `shouldPreferPointSnapForStep` decision (its `false` → 'crease', `true` →
+ * 'point'), so they are validated by the shipping SVG rather than re-guessed — and
+ * they intentionally differ from the interim `cpToolStepKind` heuristic, whose
+ * broader keyword list mis-snapped a few tools (e.g. PolygonSetNoCorners).
+ *
+ * Coverage + per-model shape are guarded by inputModelRegistry.test.ts, which fails
+ * if a UI command is missing an entry or its counts drift from `toolSteps`.
  */
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
 
@@ -29,69 +36,74 @@ export type CpInputModel =
   | 'bespoke' // per-tool state machine (SquareBisector, Voronoi, Text)
   | 'select-apply'; // no canvas interaction; operates on the selection via Apply
 
+/** Per-step snap mode for point/axis tools. Mirrors the canvas `StepKind`. */
+export type CpStepSnap = 'point' | 'crease';
+
 export interface CpInputModelEntry {
   model: CpInputModel;
   /** point-sequence / axis-from-line: number of point steps the tool collects. */
   pointCount?: number;
+  /** Per-step snap mode (length === pointCount) for point/axis models. */
+  snapPerStep?: readonly CpStepSnap[];
   /** line-entity: number of crease picks the tool collects. */
   lineCount?: number;
 }
 
 export const CP_INPUT_MODELS: Partial<Record<OristudioCpOperationId, CpInputModelEntry>> = {
   // POINT-SEQUENCE — N points, kernel resolves creases from points (§4.D)
-  AngleSystem: { model: 'point-sequence', pointCount: 3 },
-  Axiom5: { model: 'point-sequence', pointCount: 4 },
-  Axiom7: { model: 'point-sequence', pointCount: 4 },
-  CircleDraw: { model: 'point-sequence', pointCount: 2 },
-  CircleDrawConcentric: { model: 'point-sequence', pointCount: 2 },
-  CircleDrawFree: { model: 'point-sequence', pointCount: 2 },
-  CircleDrawSeparate: { model: 'point-sequence', pointCount: 3 },
-  CircleDrawThreePoint: { model: 'point-sequence', pointCount: 3 },
-  ContinuousSymmetricDraw: { model: 'point-sequence', pointCount: 2 },
-  CreaseCopy: { model: 'point-sequence', pointCount: 2 },
-  CreaseCopy4p: { model: 'point-sequence', pointCount: 4 },
-  CreaseDeleteIntersecting: { model: 'point-sequence', pointCount: 2 },
-  CreaseDeleteOverlapping: { model: 'point-sequence', pointCount: 2 },
-  CreaseMove: { model: 'point-sequence', pointCount: 2 },
-  CreaseMove4p: { model: 'point-sequence', pointCount: 4 },
-  DeletePoint: { model: 'point-sequence', pointCount: 1 },
-  DisplayAngleBetweenThreePoints1: { model: 'point-sequence', pointCount: 3 },
-  DisplayAngleBetweenThreePoints2: { model: 'point-sequence', pointCount: 3 },
-  DisplayAngleBetweenThreePoints3: { model: 'point-sequence', pointCount: 3 },
-  DisplayLengthBetweenPoints1: { model: 'point-sequence', pointCount: 2 },
-  DisplayLengthBetweenPoints2: { model: 'point-sequence', pointCount: 2 },
-  DoubleSymmetricDraw: { model: 'point-sequence', pointCount: 2 },
-  DrawBirdBase: { model: 'point-sequence', pointCount: 2 },
-  DrawBlintz: { model: 'point-sequence', pointCount: 2 },
-  DrawCreaseAngleRestricted: { model: 'point-sequence', pointCount: 3 },
-  DrawCreaseAngleRestricted3: { model: 'point-sequence', pointCount: 3 },
-  DrawCreaseAngleRestricted5: { model: 'point-sequence', pointCount: 2 },
-  DrawDoveBase: { model: 'point-sequence', pointCount: 2 },
-  DrawFishBase: { model: 'point-sequence', pointCount: 2 },
-  DrawFrogBase: { model: 'point-sequence', pointCount: 2 },
-  DrawPoint: { model: 'point-sequence', pointCount: 1 },
-  FishBoneDraw: { model: 'point-sequence', pointCount: 2 },
-  FoldableLineDraw: { model: 'point-sequence', pointCount: 2 },
-  FoldableLineInput: { model: 'point-sequence', pointCount: 2 },
-  Inward: { model: 'point-sequence', pointCount: 3 },
-  LineSegmentDivision: { model: 'point-sequence', pointCount: 1 },
-  LineSegmentRatioSet: { model: 'point-sequence', pointCount: 1 },
-  ParallelDraw: { model: 'point-sequence', pointCount: 3 },
-  ParallelDrawWidth: { model: 'point-sequence', pointCount: 2 },
-  PerpendicularDraw: { model: 'point-sequence', pointCount: 2 },
-  PolygonSetNoCorners: { model: 'point-sequence', pointCount: 2 },
-  SelectLineIntersecting: { model: 'point-sequence', pointCount: 2 },
-  SymmetricDraw: { model: 'point-sequence', pointCount: 2 },
-  UnselectLineIntersecting: { model: 'point-sequence', pointCount: 2 },
-  VertexDeleteOnCrease: { model: 'point-sequence', pointCount: 1 },
-  VertexMakeAngularlyFlatFoldable: { model: 'point-sequence', pointCount: 2 },
+  AngleSystem: { model: 'point-sequence', pointCount: 3, snapPerStep: ['point', 'point', 'crease'] },
+  Axiom5: { model: 'point-sequence', pointCount: 4, snapPerStep: ['point', 'crease', 'point', 'crease'] },
+  Axiom7: { model: 'point-sequence', pointCount: 4, snapPerStep: ['point', 'crease', 'crease', 'crease'] },
+  CircleDraw: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
+  CircleDrawConcentric: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
+  CircleDrawFree: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
+  CircleDrawSeparate: { model: 'point-sequence', pointCount: 3, snapPerStep: ['point', 'point', 'point'] },
+  CircleDrawThreePoint: { model: 'point-sequence', pointCount: 3, snapPerStep: ['point', 'point', 'point'] },
+  ContinuousSymmetricDraw: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
+  CreaseCopy: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
+  CreaseCopy4p: { model: 'point-sequence', pointCount: 4, snapPerStep: ['point', 'point', 'point', 'point'] },
+  CreaseDeleteIntersecting: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
+  CreaseDeleteOverlapping: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
+  CreaseMove: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
+  CreaseMove4p: { model: 'point-sequence', pointCount: 4, snapPerStep: ['point', 'point', 'point', 'point'] },
+  DeletePoint: { model: 'point-sequence', pointCount: 1, snapPerStep: ['point'] },
+  DisplayAngleBetweenThreePoints1: { model: 'point-sequence', pointCount: 3, snapPerStep: ['point', 'point', 'point'] },
+  DisplayAngleBetweenThreePoints2: { model: 'point-sequence', pointCount: 3, snapPerStep: ['point', 'point', 'point'] },
+  DisplayAngleBetweenThreePoints3: { model: 'point-sequence', pointCount: 3, snapPerStep: ['point', 'point', 'point'] },
+  DisplayLengthBetweenPoints1: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
+  DisplayLengthBetweenPoints2: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
+  DoubleSymmetricDraw: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
+  DrawBirdBase: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
+  DrawBlintz: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
+  DrawCreaseAngleRestricted: { model: 'point-sequence', pointCount: 3, snapPerStep: ['point', 'point', 'crease'] },
+  DrawCreaseAngleRestricted3: { model: 'point-sequence', pointCount: 3, snapPerStep: ['point', 'point', 'crease'] },
+  DrawCreaseAngleRestricted5: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
+  DrawDoveBase: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
+  DrawFishBase: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
+  DrawFrogBase: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
+  DrawPoint: { model: 'point-sequence', pointCount: 1, snapPerStep: ['point'] },
+  FishBoneDraw: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
+  FoldableLineDraw: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'crease'] },
+  FoldableLineInput: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
+  Inward: { model: 'point-sequence', pointCount: 3, snapPerStep: ['point', 'point', 'point'] },
+  LineSegmentDivision: { model: 'point-sequence', pointCount: 1, snapPerStep: ['crease'] },
+  LineSegmentRatioSet: { model: 'point-sequence', pointCount: 1, snapPerStep: ['crease'] },
+  ParallelDraw: { model: 'point-sequence', pointCount: 3, snapPerStep: ['point', 'crease', 'crease'] },
+  ParallelDrawWidth: { model: 'point-sequence', pointCount: 2, snapPerStep: ['crease', 'point'] },
+  PerpendicularDraw: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'crease'] },
+  PolygonSetNoCorners: { model: 'point-sequence', pointCount: 2, snapPerStep: ['crease', 'crease'] },
+  SelectLineIntersecting: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
+  SymmetricDraw: { model: 'point-sequence', pointCount: 2, snapPerStep: ['crease', 'crease'] },
+  UnselectLineIntersecting: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
+  VertexDeleteOnCrease: { model: 'point-sequence', pointCount: 1, snapPerStep: ['point'] },
+  VertexMakeAngularlyFlatFoldable: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'crease'] },
 
   // LINE-ENTITY — pick crease ids, commit line_ids, no points (§4.E)
   LengthenCrease: { model: 'line-entity', lineCount: 2 },
   LengthenCreaseSameColor: { model: 'line-entity', lineCount: 2 },
 
   // AXIS-FROM-LINE — line-click shortcut or 2 points, commit points (§4.G)
-  DrawCreaseSymmetric: { model: 'axis-from-line', pointCount: 2 },
+  DrawCreaseSymmetric: { model: 'axis-from-line', pointCount: 2, snapPerStep: ['point', 'point'] },
 
   // LINE-CLICK-MUTATE — click crease toggles/(de)selects; box-drag hybrid (§4.F)
   CreaseSelect: { model: 'line-click-mutate' },
@@ -127,11 +139,11 @@ export const CP_INPUT_MODELS: Partial<Record<OristudioCpOperationId, CpInputMode
   VoronoiCreate: { model: 'bespoke' },
 
   // SELECT-APPLY — no canvas interaction, operates on selection via Apply (§4.I)
+  ChangeCreaseType: { model: 'select-apply' },
   Check1: { model: 'select-apply' },
   Check2: { model: 'select-apply' },
   Check3: { model: 'select-apply' },
   Check4: { model: 'select-apply' },
-  ChangeCreaseType: { model: 'select-apply' },
   CheckCamv: { model: 'select-apply' },
   CircleChangeColor: { model: 'select-apply' },
   CreaseAdvanceType: { model: 'select-apply' },

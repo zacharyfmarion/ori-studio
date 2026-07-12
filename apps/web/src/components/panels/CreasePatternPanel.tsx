@@ -681,27 +681,6 @@ function allowsDirectEntitySelection(operationId: string | null | undefined): bo
   return operationId === 'CreaseSelect';
 }
 
-/**
- * Classify a tool step's prompt by how the WebGL sequence tool should snap it:
- * `crease` (the point is snapped onto a crease, which the kernel then resolves) or
- * `point` (snapped to grid/vertices). `null` when it can't be told cleanly — a
- * branching "X or Y" step. Every step still collects a point either way. A
- * crease/segment wins; a bare "line" is a crease unless it's the "line end/start"
- * (a point); otherwise a point synonym (vertex, corner, centre, radius, candidate,
- * destination, axis, endpoint, position) makes it a point.
- */
-function cpToolStepKind(step: string): 'point' | 'crease' | null {
-  const t = step.toLowerCase();
-  if (/\bor\b/.test(t)) return null; // "2 segments or 3 points" — branching
-  const endpointish = /\b(end|start|endpoint)\b/.test(t);
-  if (t.includes('crease') || t.includes('segment')) return 'crease';
-  if (/\blines?\b/.test(t) && !endpointish) return 'crease';
-  if (/point|vertex|corner|cent(?:er|re)|radius|candidate|destination|axis|position|endpoint/.test(t)) {
-    return 'point';
-  }
-  if (/\bline\b/.test(t) && endpointish) return 'point';
-  return null;
-}
 
 /** Approximate a circle (model coords) as ring segments, for the WebGL preview. */
 function cpCircleRingSegments(x: number, y: number, r: number, sides = 48): { a: Point; b: Point }[] {
@@ -2625,24 +2604,20 @@ export function CreasePatternPanel() {
     if (im === 'drag-line' || im === 'drag-box' || im === 'drag-path') {
       return { mode: im, stepKinds: [], lineCount: 0 };
     }
-    // Line-entity tools (Lengthen) pick existing creases by id and commit
-    // `line_ids` — not points. The registry (not the step text) is what tells
-    // them apart from point-sequence tools whose prompts also say "line".
+    // Everything below is driven by the explicit per-operation registry — never
+    // by the step-prompt text — so a tool's model and per-step snap are validated
+    // data, not a heuristic. Line-entity (Lengthen) picks crease ids; point-
+    // sequence collects points with the registry's per-step snap; other models
+    // (axis, circle, line-click-mutate, bespoke, select-apply) have no dedicated
+    // WebGL engine yet and stay unrouted.
     const inputModel = cpInputModel(activeCpCommand.operationId);
     if (inputModel?.model === 'line-entity') {
       return { mode: 'line-entity', stepKinds: [], lineCount: inputModel.lineCount ?? 2 };
     }
-    const steps = activeCpCommand.toolSteps ?? [];
-    if (
-      steps.length === 0 ||
-      isVariablePointSequenceOperation(activeCpCommand.operationId) ||
-      isTextAnnotationOperation(activeCpCommand.operationId)
-    ) {
-      return { mode: null, stepKinds: [], lineCount: 0 };
+    if (inputModel?.model === 'point-sequence' && inputModel.snapPerStep) {
+      return { mode: 'sequence', stepKinds: [...inputModel.snapPerStep], lineCount: 0 };
     }
-    const kinds = steps.map(cpToolStepKind);
-    if (kinds.some((k) => k === null)) return { mode: null, stepKinds: [], lineCount: 0 };
-    return { mode: 'sequence', stepKinds: kinds as ('point' | 'crease')[], lineCount: 0 };
+    return { mode: null, stepKinds: [], lineCount: 0 };
   }, [activeCpCommand, cpToolState.phase]);
 
   // Sequence-tool live preview for the WebGL surface: kernel-computed candidate
