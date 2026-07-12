@@ -363,6 +363,9 @@ Live results as Zach validates each tool in-app. Fixes made during the sweep are
 | Flat Foldable Line (extend) | FoldableLineInput | ⏭️ **hidden** — not in Oriedita's UI (`placement: 'hidden-ui-only'`). Revisit at end. |
 | Parallel Line | ParallelDraw | ✅ |
 | Mirror Line | SymmetricDraw | ❌ **snap-priority gap** — can't snap to a vertex, only lines. `nearestCpSnapTarget` picks by pure nearest distance, so a crease through a vertex always beats the vertex point. Oriedita gives points/vertices priority within radius. General snap-quality fix (touches all snapping); batch. Model (`'crease'`) is correct. |
+| Parallel Alternating Lines | FishBoneDraw | ✅ |
+| Reflect Through Lines | ContinuousSymmetricDraw | ✅ |
+| Reflect Over Line | DoubleSymmetricDraw | ❌ **KERNEL bug** (not frontend) — `is_double_symmetric_intersection` accepts L-shape endpoint intersections, so endpoint-incident lines get reflected where Oriedita doesn't. Frontend/WebGL faithful; affects SVG identically. Needs Oriedita `DOUBLE_SYMMETRIC_DRAW_35` ref to fix. Separate kernel task. |
 
 Cross-cutting fixes made during the sweep (benefit many tools):
 - `handleWebglToolCommit` no longer rejects <2-point commits → unbreaks every 1-point tool.
@@ -373,6 +376,7 @@ Cross-cutting fixes made during the sweep (benefit many tools):
 - **candidate-preview support** — render kernel preview `points` as dots + snap-pick candidate creases (Flat Foldable Line, Converging Lines; likely other Construct tools). Converging Lines also needs re-modeling (line-select + intersection pick).
 - **snap-priority** — points/vertices should beat lines within their snap radius in `nearestCpSnapTarget` (Mirror Line; general, affects all crease-step tools).
 - **Oriedita-only conveniences the SVG never had** — e.g. lengthen drag-to-select. Expect more across the sweep.
+- **kernel-parity bugs** (separate from the frontend migration — affect SVG + WebGL identically) — `double_symmetric_draw` L-shape endpoint intersections (Reflect Over Line). Need Oriedita source refs.
 
 <!-- checklist:begin -->
 _(populated below; ⬜ = pending, ✅ = validated + wired, ⚠️ = validated, needs follow-up)_
