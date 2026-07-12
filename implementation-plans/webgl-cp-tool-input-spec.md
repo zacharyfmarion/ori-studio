@@ -406,6 +406,8 @@ Live results as Zach validates each tool in-app. Fixes made during the sweep are
 | Circle draw (5) | CircleDraw, CircleDrawFree, CircleDrawConcentric, CircleDrawSeparate, CircleDrawThreePoint | ✅ — fixed faceted preview: ring resolution now scales with radius (128–512 sides) instead of fixed 48. |
 | Circle tangent line | CircleDrawTangentLine | ⏭️ **hidden** — single-point mode (built this session) not working; hidden pending fix. Revisit at end (also clean up the webglActiveTool special-case). |
 | _(fix)_ selection drags no longer snap | drag-box (box select) + drag-path (lasso/polygon) | ✅ **fixed** — only drag-line (crease draw) snaps; selection/erase boxes + freehand paths follow the raw cursor (was snapping to points, felt wrong). |
+| Circle-apply (rest) | CircleDrawInverted, CircleDrawConcentricSelect, CircleDrawConcentricTwoCircleSelect, CircleChangeColor, OrganizeCircles | ⏭️ **deferred** (Zach) — revisit at end. |
+| Text annotation | Text | ⏭️ **build-next** (bespoke DOM overlay). |
 | Copy by four points | CreaseCopy4p | ✅ |
 
 Cross-cutting fixes made during the sweep (benefit many tools):
