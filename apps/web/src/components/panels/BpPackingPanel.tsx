@@ -499,46 +499,12 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     () => bpLinkedSelection(document.selection, document),
     [document]
   );
-  const displayPacking = useMemo(() => {
-    if (!flapDragging && !deviceDragging) return packing;
-    const baseFlapsById = new Map(flapDragging?.baseFlaps.map((flap) => [flap.id, flap]) ?? []);
-    return {
-      ...packing,
-      flaps: packing.flaps.map((flap) => {
-        const baseFlap = baseFlapsById.get(flap.id);
-        if (!baseFlap) return flap;
-        return {
-          ...flap,
-          ...baseFlap,
-          anchor: {
-            x: baseFlap.anchor.x + (flapDragging?.vector.x ?? 0),
-            y: baseFlap.anchor.y + (flapDragging?.vector.y ?? 0),
-          },
-        };
-      }),
-      devices: packing.devices.map((device) =>
-        deviceDragging?.id === device.id
-          ? {
-              ...device,
-              position: deviceDragging.loc,
-              rangeScalar: deviceDragging.rangeScalar,
-              range: deviceRangeFromScalar(
-                deviceDragging.loc,
-                deviceDragging.rangeScalar,
-                deviceDragging.forward
-              ),
-            }
-          : device
-      ),
-      graphics: deviceDragging
-        ? packing.graphics.map((primitive) =>
-            primitive.id.startsWith(deviceDragging.primitivePrefix)
-              ? translatePrimitive(primitive, deviceDragging.vector)
-              : primitive
-          )
-        : packing.graphics,
-    };
-  }, [deviceDragging, flapDragging, packing]);
+  // Render the engine's actual recompute, not a partial optimistic overlay.
+  // Each drag step drives the engine (dragging=true) and the returned snapshot
+  // re-renders, so flaps, creases, junctions, and stretches always move together
+  // — matching Box Pleating Studio's Core-driven update. (Perf can be tuned
+  // later; correctness first.)
+  const displayPacking = packing;
   const paperRect = useMemo(() => bpPackingPaperRect(packing.sheet), [packing.sheet]);
   const shadowRect = useMemo(() => bpPackingShadowRect(packing.sheet), [packing.sheet]);
   const worldRect = useMemo(() => getBpPackingWorldRect(displayPacking), [displayPacking]);
@@ -1752,59 +1718,8 @@ function constrainBpPackingDeviceTarget(
   };
 }
 
-function deviceRangeFromScalar(
-  location: Point,
-  range: [number, number],
-  forward: boolean
-): [Point, Point] | null {
-  if (!Number.isFinite(range[0]) || !Number.isFinite(range[1])) return null;
-  return [
-    { x: location.x + range[0], y: location.y + (forward ? range[0] : -range[0]) },
-    { x: location.x + range[1], y: location.y + (forward ? range[1] : -range[1]) },
-  ];
-}
-
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
-}
-
-function translatePrimitive(
-  primitive: OristudioBpGraphicPrimitive,
-  vector: Point
-): OristudioBpGraphicPrimitive {
-  if (vector.x === 0 && vector.y === 0) return primitive;
-  if (primitive.kind === 'line') {
-    return {
-      ...primitive,
-      points: [
-        translatePoint(primitive.points[0], vector),
-        translatePoint(primitive.points[1], vector),
-      ],
-    };
-  }
-  if (primitive.kind === 'polyline' || primitive.kind === 'polygon') {
-    return {
-      ...primitive,
-      points: primitive.points.map((point) => translatePoint(point, vector)),
-    };
-  }
-  if (primitive.kind === 'circle') {
-    return {
-      ...primitive,
-      center: translatePoint(primitive.center, vector),
-    };
-  }
-  return {
-    ...primitive,
-    loc: translatePoint(primitive.loc, vector),
-  };
-}
-
-function translatePoint(point: Point, vector: Point): Point {
-  return {
-    x: point.x + vector.x,
-    y: point.y + vector.y,
-  };
 }
 
 function selectedFlapDragIds(
