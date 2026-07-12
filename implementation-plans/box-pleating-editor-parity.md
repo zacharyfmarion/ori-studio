@@ -8,6 +8,22 @@ stretches, devices, and the sheet by hand, with the crease pattern updating
 correctly in lockstep. **The optimizer is explicitly out of scope** — a valid
 packing is reached by hand; the optimizer is only a convenience.
 
+## Status (2026-07-11)
+
+The **BP Studio Core now runs as a headless oracle** under Bun
+(`tools/bp-studio-oracle/layout-graphics.ts`), so engine output is checked
+byte-for-byte against BP Studio instead of by eye. Verified: `move_flap` +
+`project_graphics_snapshot` match BP Studio exactly. Two real engine
+divergences found and fixed against the oracle:
+- **Missing leaf flaps** — leaves with no `layout.flaps` entry were invisible +
+  un-draggable; now every leaf is seeded a default flap (commit `83f45caf`).
+- **Spurious gadgets** — a device was generated between distant flaps; ported
+  BP Studio's `junctionTask` AABB-intersection gate (commit `60052f05`).
+
+So the **engine packing pipeline (seeding, moves, junctions, stretches,
+devices) is oracle-faithful**. Remaining work is mostly **frontend interaction
+parity** and the per-layer rendering audit. Phase status marked inline below.
+
 ## Guiding principle (the model we must match)
 
 BP Studio's editor is **Core-driven**:
@@ -49,45 +65,45 @@ root of the breakage (see the assessment in the commit history / memory).
 
 ### Phase 0: Ground truth + audit harness
 
-- [ ] Re-expose a **known-good BP Studio sample loader** (the `bp-studio`
+- [~] Re-expose a **known-good BP Studio sample loader** (the `bp-studio`
       fixtures already exist; `loadOristudioBpExample` still exists in the slice)
       behind a menu/dev affordance, so we always have a valid packing to compare
       against.
-- [ ] Stand up a side-by-side reference: the pinned BP Studio build (vendored)
+- [x] Stand up a side-by-side reference: the pinned BP Studio build (vendored)
       or the live app, on the same sample, to compare behavior exactly.
-- [ ] Write a short parity checklist doc (this file's checklist) and drive every
+- [x] Write a short parity checklist doc (this file's checklist) and drive every
       item against the sample.
 
 ### Phase 1: Rework the interaction/update model (keystone)
 
-- [ ] Replace the optimistic-rectangle preview + async throttle with a
+- [x] Replace the optimistic-rectangle preview + async throttle with a
       **discrete, snapped, engine-driven** loop:
   - On pointer move, compute the grid-snapped target (already rounding in
     `eventToPackingPoint`); **only act when the snapped anchor changes** (mirror
     `$tryUpdate`).
   - Apply the move to the engine (`dragging: true`) and render the **returned
     full snapshot** — drop the partial `displayPacking` preview.
-- [ ] Measure the worker round-trip latency on a representative design. If it's
+- [~] Measure the worker round-trip latency on a representative design. If it's
       within a frame budget, no preview is needed. If not, evaluate a *complete*
       preview (moving contours+junctions with the flap) vs. a synchronous engine
       path — but avoid re-deriving the pattern engine in JS.
-- [ ] Ensure drag start/end/cancel are clean: one history entry per drag
+- [~] Ensure drag start/end/cancel are clean: one history entry per drag
       (`is_dragging` coalescing), correct final commit, pointer-capture release.
 
 ### Phase 2: Fix tree ↔ packing seeding
 
-- [ ] New/edited flaps must be seeded on the **integer grid**, independent of the
+- [x] New/edited flaps must be seeded on the **integer grid**, independent of the
       continuous tree-diagram angles. Reconcile the add-leaf flow so it does not
       push length-faithful tree positions into flap positions; use BP Studio's
       "closest empty grid spot" semantics.
-- [ ] Confirm existing flaps in a loaded sample keep integer positions through
+- [x] Confirm existing flaps in a loaded sample keep integer positions through
       edits.
 
 ### Phase 3: Flap interaction parity
 
 - [ ] Select: single, shift/ctrl toggle, and **box/rubberband** multi-select
       (BP Studio `SelectionController`).
-- [ ] Drag: grid-snapped, **grab-offset preserved** (done), `constrainFlap`
+- [~] Drag: grid-snapped, **grab-offset preserved** (done), `constrainFlap`
       boundary rules (at most one tip beyond the sheet), **group drag** (move all
       selected flaps by the same vector).
 - [ ] Keyboard nudge (arrow keys) with the same constrain rules.
@@ -129,7 +145,7 @@ geometry, and update-in-lockstep:
 ### Phase 7: Parity QA
 
 - [ ] Drive the full checklist on the sample set side-by-side with BP Studio.
-- [ ] Add unit tests for the pure geometry/constrain/selection helpers and the
+- [~] Add unit tests for the pure geometry/constrain/selection helpers and the
       snapshot mapping.
 - [ ] `lint` / `typecheck` / `test:web` / production build.
 
