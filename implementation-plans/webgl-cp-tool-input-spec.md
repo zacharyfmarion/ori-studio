@@ -194,16 +194,22 @@ pass §6.)*
 
 ## 5. WebGL surface — current state vs. spec (gap analysis)
 
-| Model | Today | Gap |
-|---|---|---|
-| A/B/C DRAG-* | `feedTool` handles drag-line/box/path | ✅ mostly parity; verify per-tool |
-| D POINT-SEQUENCE | `createStepSequenceTool(count)` collects N points, per-step snap via `activeToolStepKinds` | ✅ **this is correct** incl. crease-snap steps that still emit a point. Keep. Fix: snap-mode comes from the explicit `snapPerStep` registry array (§6.1), not any text classifier |
-| E LINE-ENTITY-PICK | mis-routed **into** POINT-SEQUENCE (the "E" bug) | ❌ must route to a **line-pick engine** → `{lineIds}`, never points |
-| F LINE-CLICK-MUTATE | line clicks route to `onSelect`→`handleEditableLineClick` | ⚠️ verify toggle + box-drag hybrid both work on WebGL |
-| G AXIS-FROM-LINE | deferred | ❌ needs line-click-shortcut + point fallback |
-| H SELECTION-CIRCLE-APPLY | deferred | ❌ needs circle-selection + point apply |
-| I SELECT-APPLY | no canvas interaction needed | ✅ nothing to do (Apply button) |
-| J BESPOKE | deferred | ❌ three special cases |
+Status legend: **DONE** = built + Zach-validated · **WORKS** = functional, formal
+per-tool verify pending · **TODO** = not yet routed to a WebGL engine.
+
+| Model | Count | Status | Notes |
+|---|---|---|---|
+| D POINT-SEQUENCE | 45 | **DONE** | Explicit `snapPerStep` registry; `cpToolStepKind` deleted; crease-snap highlight follows the snap (vertex + kernel-endpoint rules). Zach-validated on representative + the 4 snap-changed tools. |
+| E LINE-ENTITY-PICK | 2 | **DONE** | `linePickTool` → `{lineIds}`; picked line renders selected + prompt advances. Zach-validated (Lengthen "E"). |
+| A/B/C DRAG-* | 11 | **WORKS** | `feedTool` handles drag-line (4) / drag-box+erase (1) / drag-path (6) from earlier Phase-5 slices. Per-tool verification pass still owed. |
+| I SELECT-APPLY | 18 | **WORKS** | No canvas interaction — operate on the selection via the Apply button, renderer-agnostic. Spot-check owed. |
+| F LINE-CLICK-MUTATE | 3 | **TODO** | CreaseSelect/Unselect/ToggleMv: box-select works; line-click toggle routes via `onSelect`→panel. Needs a dedicated engine (decouple) + verify. |
+| G AXIS-FROM-LINE | 1 | **TODO** | Reflect (DrawCreaseSymmetric): line-click shortcut → axis endpoints, or 2 placed points. Not routed. |
+| H SELECTION-CIRCLE-APPLY | 4 | **TODO** | Circle selection (+ point for tangent). Not routed. |
+| J BESPOKE | 3 | **TODO** | SquareBisector (state machine), VoronoiCreate (variable points), Text (DOM overlay). Not routed. |
+
+**Tally:** 47 done+validated · 29 functional (11 drag + 18 select-apply), verify owed ·
+**11 genuinely remaining** (F 3 · G 1 · H 4 · J 3).
 
 ---
 
