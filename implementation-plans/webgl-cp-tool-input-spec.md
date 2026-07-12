@@ -380,7 +380,11 @@ Live results as Zach validates each tool in-app. Fixes made during the sweep are
 | Delete Overlapping Lines | CreaseDeleteIntersecting | ✅ |
 | Angle restricted 3 crease | DrawCreaseAngleRestricted3 | ⏭️ **hidden** — not in Oriedita UI; empties the Construct section (header auto-drops). |
 | Parallel draw by width | ParallelDrawWidth | ⏭️ **hidden** — not in Oriedita UI. |
-| Reflect selection over line | DrawCreaseSymmetric | ⚠️ re-test — removed the line-click shortcut (was hijacking the 2-point path); now a plain 2-point axis → reflect selection. |
+| Reflect selection over line | DrawCreaseSymmetric | ✅ — plain 2-point axis; line-click shortcut removed. |
+| Move selected creases | CreaseMove | ✅ |
+| Copy selected creases | CreaseCopy | ✅ |
+| Move by four points | CreaseMove4p | ✅ |
+| Copy by four points | CreaseCopy4p | ✅ |
 
 Cross-cutting fixes made during the sweep (benefit many tools):
 - `handleWebglToolCommit` no longer rejects <2-point commits → unbreaks every 1-point tool.
