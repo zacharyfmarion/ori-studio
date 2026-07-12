@@ -369,6 +369,9 @@ Live results as Zach validates each tool in-app. Fixes made during the sweep are
 | Equally Divided Line | LineSegmentDivision | ❌ **wrong model + kernel** — Oriedita: *drag to draw a new line* split into N segments (like Line). Port + kernel only *divide an existing* segment (`required_or_nearest_line_segment` → `divide_segment_by_count`). Needs drag-line model + kernel op accepting 2 drawn points → create+divide. Same for LineSegmentRatioSet. |
 | Divided Line (ratio) | LineSegmentRatioSet | ❌ same as Equally Divided Line (drag-draw + kernel). |
 | Regular Polygon | PolygonSetNoCorners | ✅ |
+| Axiom 5 | Axiom5 | ⏭️ **hidden** — not in Oriedita UI. |
+| Axiom 7 | Axiom7 | ⏭️ **hidden** — not in Oriedita UI. |
+| Draw point | DrawPoint | ✅ |
 
 Cross-cutting fixes made during the sweep (benefit many tools):
 - `handleWebglToolCommit` no longer rejects <2-point commits → unbreaks every 1-point tool.

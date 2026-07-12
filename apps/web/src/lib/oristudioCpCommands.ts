@@ -569,9 +569,13 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
   notImplemented('ChangeStandardFace', 'Change standard face', 'folding', 'layers', 'MouseHandlerChangeStandardFace'),
   notImplemented('AddFoldingConstraint', 'Add folding constraint', 'folding', 'list-plus', 'MouseHandlerAddFoldingConstraints'),
   ready('Axiom5', 'Axiom 5', 'construct', 'compass', 'MouseHandlerAxiom5', {
+    // Not present in Oriedita's UI — hide the rail button (revisit at end).
+    placement: 'hidden-ui-only',
     toolSteps: ['Pick target point', 'Pick target crease', 'Pick pivot point', 'Pick destination crease'],
   }),
   ready('Axiom7', 'Axiom 7', 'construct', 'compass', 'MouseHandlerAxiom7', {
+    // Not present in Oriedita's UI — hide the rail button (revisit at end).
+    placement: 'hidden-ui-only',
     toolSteps: ['Pick target point', 'Pick target crease', 'Pick perpendicular crease', 'Pick destination crease'],
   }),
   ready('FixInaccurate', 'Fix inaccurate creases', 'check-fix', 'wrench', 'MouseHandlerCreaseFixInaccurate', {
