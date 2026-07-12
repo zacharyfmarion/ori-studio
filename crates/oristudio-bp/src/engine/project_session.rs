@@ -472,6 +472,14 @@ impl BpProjectSession {
             return Ok(UpdateModel::default());
         }
 
+        // The user is now arranging flaps directly, which in BP Studio means
+        // entering layout mode. There, `Design._onModeChanged` runs
+        // `layout.$flaps.$sync.clear()`, decoupling every flap from its tree
+        // vertex so that later tree-diagram edits never move a flap again. Mirror
+        // that here: once any flap is placed by hand, stop treating vertices as
+        // "new" (i.e. stop re-seeding their flap position from the tree).
+        self.new_vertices.clear();
+
         let mut next_flaps = Vec::with_capacity(moving_flaps.len());
         for (_, old_flap) in &moving_flaps {
             let mut next_flap = old_flap.clone();
