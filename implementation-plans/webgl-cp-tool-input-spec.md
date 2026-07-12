@@ -389,6 +389,12 @@ Live results as Zach validates each tool in-app. Fixes made during the sweep are
 | Select Overlapping Lines | SelectLineIntersecting | ⏭️ **hidden** — not in Oriedita UI. |
 | Deselect Overlapping Lines | UnselectLineIntersecting | ⏭️ **hidden** — not in Oriedita UI. |
 | Polygon Select | SelectPolygon | ❌ **selection-state** — (1) Escape only deselects for CreaseSelect (`isDefaultSelectionMode` is CreaseSelect-only), not other select tools; (2) select commits merge with the passed selection instead of replacing → "select-all, Escape, select-one ⇒ all selected again". Cross-cutting; own fix. (Lasso + deselect variants likely same.) |
+| Lasso/Deselect variants | SelectLasso/UnselectPolygon/UnselectLasso/CreaseUnselect | ⏭️ folded into selection-state + line-click-mutate batches. |
+| Blintz base | DrawBlintz | ✅ |
+| Fish base | DrawFishBase | ✅ |
+| Dove base | DrawDoveBase | ✅ |
+| Bird base | DrawBirdBase | ✅ |
+| Frog base | DrawFrogBase | ✅ |
 | Copy by four points | CreaseCopy4p | ✅ |
 
 Cross-cutting fixes made during the sweep (benefit many tools):
