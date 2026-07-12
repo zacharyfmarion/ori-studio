@@ -121,18 +121,20 @@ root of the breakage (see the assessment in the commit history / memory).
 
 ### Phase 4: Rivers, stretches, devices, junctions
 
-- [ ] **River**: select, shade highlight, and `goToDual` — selecting a river
-      highlights/【selects】the corresponding tree edge in the Design pane
-      (cross-pane selection).
+- [x] **River**: select, shade highlight, and `goToDual`. In the side-by-side
+      layout the cross-pane link is passive: a selected river links its dual tree
+      edge via `bpLinkedSelection`, so the tree pane highlights it (and a selected
+      edge highlights its river). Verified both directions on micrathena.
 - [x] **Stretch**: select and **cycle configurations/patterns** — the GOPS
       pattern navigation. Contextual BpPackingStretchNav shows config/pattern
       steppers (±1 wraparound); the stretch is completed on select to populate
       counts. Verified live cycling patterns on micrathena-sagittata.
-- [~] **Device**: select, range-constrained diagonal drag (already offset-aware),
-      nudge — implemented; not yet oracle-checked.
-- [ ] **Invalid junction**: render overlap conflict polygons and select them;
-      they must appear/disappear correctly as flaps move (validity feedback is
-      how you know a hand-placed packing is valid).
+- [x] **Device**: select (click the gadget interior), range-constrained diagonal
+      drag (offset-aware), and keyboard nudge. Verified selecting + dragging a
+      device on micrathena; not yet oracle-checked for exact geometry.
+- [x] **Invalid junction**: overlap conflict polygons render and are selectable,
+      and appear/disappear correctly as flaps move (verified on a 2-flap design:
+      overlap → 1 conflict rendered, separated → 0).
 
 ### Phase 5: Sheet operations
 
