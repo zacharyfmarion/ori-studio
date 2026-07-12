@@ -18,12 +18,8 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleDot,
-  FlipHorizontal,
-  FlipVertical,
   Grid2X2,
   Layers,
-  RotateCcw,
-  RotateCw,
   Route,
   Ruler,
   Tag,
@@ -304,8 +300,6 @@ function BpPackingViewportToolbar({
   onLayerChange,
   canSubdivide,
   subdivideSheet,
-  rotateSheet,
-  flipSheet,
   sheet,
   setSheet,
   zoomIn,
@@ -318,8 +312,6 @@ function BpPackingViewportToolbar({
   onLayerChange: (layer: BpPackingViewLayerKey, visible: boolean) => void;
   canSubdivide: boolean;
   subdivideSheet: () => void;
-  rotateSheet: (clockwise: boolean) => void;
-  flipSheet: (horizontal: boolean) => void;
   sheet: OristudioBpSheet;
   setSheet: (gridType: OristudioBpSheetKind, width: number, height: number) => void;
   zoomIn: () => void;
@@ -372,38 +364,6 @@ function BpPackingViewportToolbar({
         disabled={!canSubdivide}
       >
         <Grid2X2 size={14} />
-      </IconButton>
-      <IconButton
-        size="sm"
-        variant="toolbar"
-        title="Rotate Sheet Left"
-        onClick={() => rotateSheet(false)}
-      >
-        <RotateCcw size={14} />
-      </IconButton>
-      <IconButton
-        size="sm"
-        variant="toolbar"
-        title="Rotate Sheet Right"
-        onClick={() => rotateSheet(true)}
-      >
-        <RotateCw size={14} />
-      </IconButton>
-      <IconButton
-        size="sm"
-        variant="toolbar"
-        title="Flip Sheet Horizontal"
-        onClick={() => flipSheet(true)}
-      >
-        <FlipHorizontal size={14} />
-      </IconButton>
-      <IconButton
-        size="sm"
-        variant="toolbar"
-        title="Flip Sheet Vertical"
-        onClick={() => flipSheet(false)}
-      >
-        <FlipVertical size={14} />
       </IconButton>
       <div className="viewport-toolbar__menu-anchor" ref={sheetMenuRef}>
         <IconButton
@@ -720,12 +680,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   );
   const subdivideOristudioBpLayoutSheet = useWorkspaceStore(
     (state) => state.subdivideOristudioBpLayoutSheet
-  );
-  const rotateOristudioBpLayoutSheet = useWorkspaceStore(
-    (state) => state.rotateOristudioBpLayoutSheet
-  );
-  const flipOristudioBpLayoutSheet = useWorkspaceStore(
-    (state) => state.flipOristudioBpLayoutSheet
   );
   const setOristudioBpLayoutSheet = useWorkspaceStore(
     (state) => state.setOristudioBpLayoutSheet
@@ -1841,8 +1795,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
           packing.sheet.height * 2 <= BP_MAX_SHEET_SIZE
         }
         subdivideSheet={() => void subdivideOristudioBpLayoutSheet()}
-        rotateSheet={(clockwise) => void rotateOristudioBpLayoutSheet(clockwise)}
-        flipSheet={(horizontal) => void flipOristudioBpLayoutSheet(horizontal)}
         sheet={packing.sheet}
         setSheet={(gridType, width, height) =>
           void setOristudioBpLayoutSheet(gridType, width, height)
