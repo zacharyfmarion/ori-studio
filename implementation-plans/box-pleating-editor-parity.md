@@ -101,13 +101,14 @@ root of the breakage (see the assessment in the commit history / memory).
 
 ### Phase 3: Flap interaction parity
 
-- [ ] Select: single, shift/ctrl toggle, and **box/rubberband** multi-select
-      (BP Studio `SelectionController`).
-- [~] Drag: grid-snapped, **grab-offset preserved** (done), `constrainFlap`
-      boundary rules (at most one tip beyond the sheet), **group drag** (move all
-      selected flaps by the same vector).
-- [ ] Keyboard nudge (arrow keys) with the same constrain rules.
-- [ ] Hover/long-press inspector.
+- [x] Select: single, shift/ctrl toggle, and **box/rubberband** multi-select
+      (BP Studio `SelectionController.$processDragSelect`: rectangle selects flaps
+      whose center is inside; ctrl/meta preserves the pre-drag selection).
+- [~] Drag: grid-snapped, **grab-offset preserved** (done), **group drag** (done),
+      `constrainFlap` boundary rules (at most one tip beyond the sheet) —
+      implemented, not yet oracle-checked.
+- [x] Keyboard nudge (arrow keys) with the same constrain rules.
+- [x] Hover/long-press inspector.
 
 ### Phase 4: Rivers, stretches, devices, junctions
 
