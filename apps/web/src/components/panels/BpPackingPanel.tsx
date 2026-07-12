@@ -89,6 +89,10 @@ const BP_PACKING_DRAG_START_THRESHOLD_PX = 4;
 // Pointer travel before an empty-space drag becomes a rubberband selection,
 // matching Box Pleating Studio's SelectionController MOUSE_THRESHOLD.
 const BP_PACKING_DRAG_SELECT_THRESHOLD_PX = 5;
+// Minimum flap click-target size, in SVG (viewBox) units, so a zero-size point
+// flap still has a comfortable center hit region (comparable to a crease's hit
+// stroke width).
+const BP_PACKING_FLAP_HIT_MIN_PX = 16;
 
 interface BpRiverVisual {
   river: OristudioBpRiver;
@@ -1560,14 +1564,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                     <g
                       key={flap.id}
                       className={active ? 'bp-packing-flap--selected' : undefined}
-                      role="button"
-                      tabIndex={0}
-                      aria-label={`Select BP flap ${flap.id}${flap.name ? `, ${flap.name}` : ''}`}
-                      onPointerDown={(event) => onFlapPointerDown(event, flap.id)}
-                      onPointerMove={(event) => onFlapPointerMove(event, flap)}
-                      onPointerUp={(event) => finishFlapDrag(event, flap)}
-                      onPointerCancel={(event) => finishFlapDrag(event, flap)}
-                      onKeyDown={(event) => onFlapKeyDown(event, flap.id)}
+                      aria-hidden="true"
                     >
                       {layers.clearance && (
                         <rect
@@ -1665,6 +1662,44 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                     </g>
                   );
                 })}
+              </g>
+            )}
+            {layers.flaps && (
+              // Top-of-stack flap click targets. Smaller flaps (shorter edge)
+              // render last so their center wins the hit test when nested inside
+              // a larger flap; the whole layer sits above device/crease graphics
+              // so a flap is always selectable at its center.
+              <g className="bp-packing-flap-hits">
+                {[...displayPacking.flaps]
+                  .sort((a, b) => b.radius - a.radius)
+                  .map((flap) => {
+                    const rect = bpPackingRectToSvg(
+                      { x: flap.anchor.x, y: flap.anchor.y, width: flap.width, height: flap.height },
+                      packing.sheet,
+                      paperRect
+                    );
+                    const center = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+                    const half = Math.max(rect.width, rect.height, BP_PACKING_FLAP_HIT_MIN_PX) / 2;
+                    return (
+                      <rect
+                        key={flap.id}
+                        className="bp-packing-flap-hit"
+                        x={center.x - half}
+                        y={center.y - half}
+                        width={half * 2}
+                        height={half * 2}
+                        rx={Math.min(6, half)}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`Select BP flap ${flap.id}${flap.name ? `, ${flap.name}` : ''}`}
+                        onPointerDown={(event) => onFlapPointerDown(event, flap.id)}
+                        onPointerMove={(event) => onFlapPointerMove(event, flap)}
+                        onPointerUp={(event) => finishFlapDrag(event, flap)}
+                        onPointerCancel={(event) => finishFlapDrag(event, flap)}
+                        onKeyDown={(event) => onFlapKeyDown(event, flap.id)}
+                      />
+                    );
+                  })}
               </g>
             )}
             {marquee?.active && (
@@ -1846,7 +1881,14 @@ function Primitive({
         onPointerCancel={(event) => onPointerUp(event, primitive)}
       >
         <Element className="bp-packing-primitive-polyline" points={pointsAttr(points)} />
-        <Element className="bp-packing-primitive-hit-polyline" points={pointsAttr(points)} />
+        <Element
+          className={
+            primitive.closed
+              ? 'bp-packing-primitive-hit-area'
+              : 'bp-packing-primitive-hit-polyline'
+          }
+          points={pointsAttr(points)}
+        />
       </g>
     );
   }

@@ -4896,6 +4896,17 @@
   cursor: pointer;
 }
 
+/* Closed device contours are clickable across their whole interior, not just the
+   outline, so the gadget can be selected by clicking anywhere inside it. */
+.bp-packing-primitive-hit-area {
+  fill: transparent;
+  pointer-events: all;
+  stroke: transparent;
+  stroke-linejoin: round;
+  stroke-width: 14;
+  cursor: pointer;
+}
+
 .bp-packing-river-hit {
   fill: transparent;
   cursor: pointer;
@@ -4949,6 +4960,25 @@
   stroke: color-mix(in srgb, var(--fold-unassigned) 50%, transparent);
   stroke-dasharray: 4 5;
   stroke-width: 1.2;
+  /* Visual guide only — the radius must not swallow clicks meant for flaps,
+     devices, or creases that fall inside a large flap's clearance. */
+  pointer-events: none;
+}
+
+/* Invisible, top-of-stack click target for a flap, so a flap (especially a
+   small one overlapping a larger one) is always selectable at its center even
+   when device creases or another flap's graphics are painted over it. */
+.bp-packing-flap-hit {
+  fill: transparent;
+  pointer-events: all;
+  cursor: pointer;
+}
+
+.bp-packing-flap-hit:focus-visible {
+  outline: none;
+  stroke: var(--accent-hover);
+  stroke-width: 2;
+  stroke-dasharray: 3 3;
 }
 
 .bp-packing-flap {
