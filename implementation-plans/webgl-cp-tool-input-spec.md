@@ -194,22 +194,26 @@ pass §6.)*
 
 ## 5. WebGL surface — current state vs. spec (gap analysis)
 
-Status legend: **DONE** = built + Zach-validated · **WORKS** = functional, formal
-per-tool verify pending · **TODO** = not yet routed to a WebGL engine.
+Two independent axes per tool: **Built** (routed to a WebGL engine + unit-tested)
+and **Validated** (Zach personally exercised *that specific tool* in-app vs. SVG).
+Validation is per-tool — never inferred from a sibling in the same model. The §8
+checklist is the per-tool validation tracker; a row is ticked only when Zach
+confirms that exact tool.
 
-| Model | Count | Status | Notes |
+| Model | Count | Built | Validated (Zach) |
 |---|---|---|---|
-| D POINT-SEQUENCE | 45 | **DONE** | Explicit `snapPerStep` registry; `cpToolStepKind` deleted; crease-snap highlight follows the snap (vertex + kernel-endpoint rules). Zach-validated on representative + the 4 snap-changed tools. |
-| E LINE-ENTITY-PICK | 2 | **DONE** | `linePickTool` → `{lineIds}`; picked line renders selected + prompt advances. Zach-validated (Lengthen "E"). |
-| A/B/C DRAG-* | 11 | **WORKS** | `feedTool` handles drag-line (4) / drag-box+erase (1) / drag-path (6) from earlier Phase-5 slices. Per-tool verification pass still owed. |
-| I SELECT-APPLY | 18 | **WORKS** | No canvas interaction — operate on the selection via the Apply button, renderer-agnostic. Spot-check owed. |
-| F LINE-CLICK-MUTATE | 3 | **TODO** | CreaseSelect/Unselect/ToggleMv: box-select works; line-click toggle routes via `onSelect`→panel. Needs a dedicated engine (decouple) + verify. |
-| G AXIS-FROM-LINE | 1 | **TODO** | Reflect (DrawCreaseSymmetric): line-click shortcut → axis endpoints, or 2 placed points. Not routed. |
-| H SELECTION-CIRCLE-APPLY | 4 | **TODO** | Circle selection (+ point for tangent). Not routed. |
-| J BESPOKE | 3 | **TODO** | SquareBisector (state machine), VoronoiCreate (variable points), Text (DOM overlay). Not routed. |
+| D POINT-SEQUENCE | 45 | yes | only a handful (PerpendicularDraw, DrawCreaseAngleRestricted, + snap/highlight behavior) |
+| E LINE-ENTITY-PICK | 2 | yes | LengthenCreaseSameColor ("E") |
+| A/B/C DRAG-* | 11 | yes | none yet |
+| I SELECT-APPLY | 18 | n/a (Apply button, renderer-agnostic) | none yet |
+| F LINE-CLICK-MUTATE | 3 | partial (box works; click via panel) | none yet |
+| G AXIS-FROM-LINE | 1 | no | — |
+| H SELECTION-CIRCLE-APPLY | 4 | no | — |
+| J BESPOKE | 3 | no | — |
 
-**Tally:** 47 done+validated · 29 functional (11 drag + 18 select-apply), verify owed ·
-**11 genuinely remaining** (F 3 · G 1 · H 4 · J 3).
+**Built/functional: ~76** of 89. **Per-tool validated: ~5.** The outstanding work is
+therefore two-fold: (1) build the remaining 11 (F/G/H/J), and (2) a **per-tool
+validation sweep of all 89** — every single tool, tracked in §8.
 
 ---
 

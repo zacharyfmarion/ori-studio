@@ -2641,28 +2641,44 @@ export function CreasePatternPanel() {
     mode: 'drag-line' | 'drag-box' | 'drag-path' | 'sequence' | 'line-entity' | null;
     stepKinds: ('point' | 'crease')[];
     lineCount: number;
+    axisLineShortcut: boolean;
   }>(() => {
+    const idle = {
+      mode: null,
+      stepKinds: [] as ('point' | 'crease')[],
+      lineCount: 0,
+      axisLineShortcut: false,
+    };
     if (!activeCpCommand || activeCpCommand.uiStatus !== 'ready' || cpToolState.phase !== 'active') {
-      return { mode: null, stepKinds: [], lineCount: 0 };
+      return idle;
     }
     const im = activeCpCommand.inputMode;
     if (im === 'drag-line' || im === 'drag-box' || im === 'drag-path') {
-      return { mode: im, stepKinds: [], lineCount: 0 };
+      return { mode: im, stepKinds: [], lineCount: 0, axisLineShortcut: false };
     }
     // Everything below is driven by the explicit per-operation registry — never
     // by the step-prompt text — so a tool's model and per-step snap are validated
     // data, not a heuristic. Line-entity (Lengthen) picks crease ids; point-
-    // sequence collects points with the registry's per-step snap; other models
-    // (axis, circle, line-click-mutate, bespoke, select-apply) have no dedicated
-    // WebGL engine yet and stay unrouted.
+    // sequence collects points with the registry's per-step snap; axis-from-line
+    // (Reflect) is a 2-point sequence that also accepts a line click on step 0
+    // (its two endpoints become the axis); other models (circle-apply,
+    // line-click-mutate, bespoke, select-apply) have no dedicated engine yet.
     const inputModel = cpInputModel(activeCpCommand.operationId);
     if (inputModel?.model === 'line-entity') {
-      return { mode: 'line-entity', stepKinds: [], lineCount: inputModel.lineCount ?? 2 };
+      return { mode: 'line-entity', stepKinds: [], lineCount: inputModel.lineCount ?? 2, axisLineShortcut: false };
+    }
+    if (inputModel?.model === 'axis-from-line' && inputModel.snapPerStep) {
+      return {
+        mode: 'sequence',
+        stepKinds: [...inputModel.snapPerStep],
+        lineCount: 0,
+        axisLineShortcut: true,
+      };
     }
     if (inputModel?.model === 'point-sequence' && inputModel.snapPerStep) {
-      return { mode: 'sequence', stepKinds: [...inputModel.snapPerStep], lineCount: 0 };
+      return { mode: 'sequence', stepKinds: [...inputModel.snapPerStep], lineCount: 0, axisLineShortcut: false };
     }
-    return { mode: null, stepKinds: [], lineCount: 0 };
+    return idle;
   }, [activeCpCommand, cpToolState.phase]);
 
   // Sequence-tool live preview for the WebGL surface: kernel-computed candidate
@@ -4700,6 +4716,7 @@ export function CreasePatternPanel() {
                   activeToolInputMode={webglActiveTool.mode}
                   activeToolStepKinds={webglActiveTool.stepKinds}
                   activeToolLineCount={webglActiveTool.lineCount}
+                  activeToolAxisLineShortcut={webglActiveTool.axisLineShortcut}
                   resolveDrawPoint={resolveEditableDrawModelPoint}
                   resolveDrawPointOnCrease={resolveEditableDrawPointOnCrease}
                   onToolCommit={handleWebglToolCommit}
