@@ -664,10 +664,15 @@ fn sample_tree() -> BpTree {
                 length: 6.0,
             },
         ],
+        // Flap 1 stays at the origin (several tests exercise its quadrant
+        // geometry there). Flaps 2 and 3 overlap each other at a corner (tip
+        // separation s=(13,9), both < tree distance 14) so they form one valid
+        // junction, while sitting far enough from flap 1 that neither pairs with
+        // it — matching BP Studio's junctionTask intersection gate.
         &[
             flap(1, 0.0, 0.0, 2.0, 3.0),
-            flap(2, 20.0, 0.0, 2.0, 2.0),
-            flap(3, 0.0, 20.0, 3.0, 3.0),
+            flap(2, 30.0, 0.0, 0.0, 0.0),
+            flap(3, 43.0, 9.0, 0.0, 0.0),
         ],
     )
     .unwrap()

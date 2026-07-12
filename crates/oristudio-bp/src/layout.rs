@@ -1894,11 +1894,37 @@ pub fn create_layout_junctions(tree: &BpTree) -> BpResult<Vec<LayoutJunction>> {
     let mut result = Vec::new();
     for i in 0..leaves.len() {
         for j in i + 1..leaves.len() {
-            let lca = tree_lca(tree, leaves[i], leaves[j])?;
-            result.push(create_junction(tree, leaves[i], leaves[j], lca)?);
+            let a = leaves[i];
+            let b = leaves[j];
+            let lca = tree_lca(tree, a, b)?;
+            // BP Studio's junctionTask only forms a junction between two flaps
+            // when their AABBs intersect once inflated by the tree distance
+            // between them (context/aabb `$intersects`). Flaps with slack larger
+            // than the tree distance form no junction at all — and therefore no
+            // stretch or gadget device. Without this gate every leaf pair yields
+            // a valid junction, producing spurious devices between distant flaps.
+            let gap = dist_from_lca(tree, a, b, lca)?;
+            let a_aabb = tree_node(tree, a)?.aabb.to_values();
+            let b_aabb = tree_node(tree, b)?.aabb.to_values();
+            if !aabb_intersects_within_gap(a_aabb, b_aabb, gap) {
+                continue;
+            }
+            result.push(create_junction(tree, a, b, lca)?);
         }
     }
     Ok(result)
+}
+
+/// Mirror of BP Studio `AABB.$intersects`: the two AABBs, each inflated by `gap`
+/// (the tree distance between the flaps), overlap on both axes. AABB values are
+/// ordered `[top, right, bottom, left]`.
+fn aabb_intersects_within_gap(a: [f64; 4], b: [f64; 4], gap: f64) -> bool {
+    let [a_top, a_right, a_bottom, a_left] = a;
+    let [b_top, b_right, b_bottom, b_left] = b;
+    a_left - gap < b_right
+        && a_right + gap > b_left
+        && a_top + gap > b_bottom
+        && a_bottom - gap < b_top
 }
 
 fn active_stretch_teams(

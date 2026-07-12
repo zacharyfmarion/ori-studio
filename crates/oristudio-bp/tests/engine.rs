@@ -976,27 +976,32 @@ fn active_three_leaf_project() -> (Project, String) {
             length: 6.0,
         },
     ];
+    // Flaps 2 and 3 overlap at a corner (tip separation s=(13,9), both < tree
+    // distance 14, with s.x²+s.y²=250 ≥ 14²) so BP Studio forms one valid
+    // junction "2,3" and a patternable stretch whose device is movable
+    // (range [-2,2]). Flap 1 is parked far away so it forms no junction.
+    // Verified against the BP Studio oracle (tools/bp-studio-oracle).
     project.design.layout.flaps = vec![
         Flap {
             id: 1,
             x: 0.0,
-            y: 0.0,
+            y: 40.0,
             width: 2.0,
             height: 3.0,
         },
         Flap {
             id: 2,
-            x: 20.0,
+            x: 0.0,
             y: 0.0,
-            width: 2.0,
-            height: 2.0,
+            width: 0.0,
+            height: 0.0,
         },
         Flap {
             id: 3,
-            x: 0.0,
-            y: 20.0,
-            width: 3.0,
-            height: 3.0,
+            x: 13.0,
+            y: 9.0,
+            width: 0.0,
+            height: 0.0,
         },
     ];
     let tree = BpTree::new(&project.design.tree.edges, &project.design.layout.flaps).unwrap();
