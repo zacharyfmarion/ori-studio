@@ -2558,9 +2558,12 @@ export function CreasePatternPanel() {
       const points = commit.points ?? [];
       const pickedLineIds = commit.lineIds ?? [];
       // Line-entity tools (Lengthen) commit the picked crease ids as `line_ids`
-      // and carry no points; the kernel operates on those creases directly.
+      // and carry no points; the kernel operates on those creases directly. Every
+      // other tool's engine only commits once it has its full point count, so any
+      // non-empty point list is valid — including 1-point tools (DrawPoint,
+      // DeletePoint, tangent-through-point, …). Reject only an empty commit.
       const isLineEntityCommit = pickedLineIds.length > 0 && points.length === 0;
-      if (!isLineEntityCommit && points.length < 2) return;
+      if (!isLineEntityCommit && points.length === 0) return;
       void (async () => {
         const succeeded = await executeOristudioCpCommand(
           command.operationId,
@@ -2663,6 +2666,15 @@ export function CreasePatternPanel() {
     // (Reflect) is a 2-point sequence that also accepts a line click on step 0
     // (its two endpoints become the axis); other models (circle-apply,
     // line-click-mutate, bespoke, select-apply) have no dedicated engine yet.
+    // CircleDrawTangentLine with exactly one circle selected: click a point to draw
+    // the tangent from that circle through it (a synthetic 1-point sequence). With
+    // 2+ circles it is an Apply-button op instead, handled off-canvas.
+    if (
+      activeCpCommand.operationId === 'CircleDrawTangentLine' &&
+      oristudioCpSelection.circles.length === 1
+    ) {
+      return { mode: 'sequence', stepKinds: ['point'], lineCount: 0, axisLineShortcut: false };
+    }
     const inputModel = cpInputModel(activeCpCommand.operationId);
     if (inputModel?.model === 'line-entity') {
       return { mode: 'line-entity', stepKinds: [], lineCount: inputModel.lineCount ?? 2, axisLineShortcut: false };
@@ -2679,7 +2691,7 @@ export function CreasePatternPanel() {
       return { mode: 'sequence', stepKinds: [...inputModel.snapPerStep], lineCount: 0, axisLineShortcut: false };
     }
     return idle;
-  }, [activeCpCommand, cpToolState.phase]);
+  }, [activeCpCommand, cpToolState.phase, oristudioCpSelection.circles.length]);
 
   // Sequence-tool live preview for the WebGL surface: kernel-computed candidate
   // segments from the live points + picked/hovered creases, plus a highlight of
