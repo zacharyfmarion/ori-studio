@@ -374,6 +374,10 @@ Live results as Zach validates each tool in-app. Fixes made during the sweep are
 | Draw point | DrawPoint | ✅ |
 | Draw auxiliary line | (aux action) | ⏭️ **hidden** — kernel not implemented; rail button removed. |
 | Eraser | LineSegmentDelete | ✅ (click + box + right-drag) |
+| Delete Point | DeletePoint | ✅ |
+| Delete any Vertex | VertexDeleteOnCrease | ✅ |
+| Delete Coincident Lines | CreaseDeleteOverlapping | ✅ |
+| Delete Overlapping Lines | CreaseDeleteIntersecting | ✅ |
 
 Cross-cutting fixes made during the sweep (benefit many tools):
 - `handleWebglToolCommit` no longer rejects <2-point commits → unbreaks every 1-point tool.
