@@ -414,6 +414,8 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     toolSteps: ['Pick center point', 'Pick radius start', 'Pick radius end'],
   }),
   ready('CircleDrawTangentLine', 'Circle tangent line', 'annotations', 'circle-slash', 'MouseHandlerCircleDrawTangentLine', {
+    // Not working (single-point mode incomplete) — hide for now; revisit at end.
+    placement: 'hidden-ui-only',
     selectionRequirement: 'selected circle(s)',
     tooltip: 'Create tangent lines from two selected circles, or from one selected circle plus a clicked point',
   }),
