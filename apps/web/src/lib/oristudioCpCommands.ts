@@ -388,6 +388,8 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     toolSteps: ['Pick odd vertex', 'Pick destination crease'],
   }),
   ready('FoldableLineInput', 'Foldable line input', 'construct', 'list-plus', 'MouseHandlerFoldableLineInput', {
+    // Not present in Oriedita's UI — hide the rail button (revisit at end).
+    placement: 'hidden-ui-only',
     toolSteps: ['Pick start vertex', 'Pick endpoint'],
   }),
   ready('ParallelDraw', 'Parallel draw', 'construct', 'align-justify', 'MouseHandlerParallelDraw', {
@@ -519,6 +521,8 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     tooltip: 'Extend creases crossed by the guide line while preserving original colors',
   }),
   ready('FoldableLineDraw', 'Foldable line draw', 'construct', 'pen-line', 'MouseHandlerFoldableLineDraw', {
+    // Not present in Oriedita's UI — hide the rail button (revisit at end).
+    placement: 'hidden-ui-only',
     toolSteps: ['Pick start vertex', 'Pick destination'],
   }),
   ready('ReplaceLineTypeSelect', 'Replace selected line type', 'color', 'replace', 'MouseHandlerReplaceTypeSelect', {

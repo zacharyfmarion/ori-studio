@@ -358,6 +358,11 @@ Live results as Zach validates each tool in-app. Fixes made during the sweep are
 | Perpendicular Line | PerpendicularDraw | ✅ |
 | Angle Restricted Line | DrawCreaseAngleRestricted5 | ✅ |
 | Offset Restricted Line | AngleSystem | ⏭️ **hidden** — not in Oriedita's UI; rail button removed (`placement: 'hidden-ui-only'`). Revisit at end. |
+| Converging Lines | DrawCreaseAngleRestricted | ❌ **candidate-preview + wrong model** — Oriedita: *select a crease line → extension lines appear → select intersection*. Port modeled it as a 3-point sequence (`toolSteps` don't even match its own instructions text). Needs re-model to line-select + candidate-intersection pick. Part of the candidate batch. (Earlier "highlight works" was incomplete — model is wrong.) |
+| Flat Foldable Line (free) | FoldableLineDraw | ⏭️ **hidden** — not in Oriedita's UI (`placement: 'hidden-ui-only'`). Revisit at end. |
+| Flat Foldable Line (extend) | FoldableLineInput | ⏭️ **hidden** — not in Oriedita's UI (`placement: 'hidden-ui-only'`). Revisit at end. |
+| Parallel Line | ParallelDraw | ✅ |
+| Mirror Line | SymmetricDraw | ❌ **snap-priority gap** — can't snap to a vertex, only lines. `nearestCpSnapTarget` picks by pure nearest distance, so a crease through a vertex always beats the vertex point. Oriedita gives points/vertices priority within radius. General snap-quality fix (touches all snapping); batch. Model (`'crease'`) is correct. |
 
 Cross-cutting fixes made during the sweep (benefit many tools):
 - `handleWebglToolCommit` no longer rejects <2-point commits → unbreaks every 1-point tool.
@@ -365,7 +370,8 @@ Cross-cutting fixes made during the sweep (benefit many tools):
 
 **Bar = Oriedita parity** (not just SVG parity — the SVG was never verified tool-by-tool).
 ❌ buckets, revisited **after the rest of the migration plan is complete**:
-- **candidate-preview support** — render kernel preview `points` as dots + snap-pick candidate creases (Flat Foldable Line; likely other Construct tools).
+- **candidate-preview support** — render kernel preview `points` as dots + snap-pick candidate creases (Flat Foldable Line, Converging Lines; likely other Construct tools). Converging Lines also needs re-modeling (line-select + intersection pick).
+- **snap-priority** — points/vertices should beat lines within their snap radius in `nearestCpSnapTarget` (Mirror Line; general, affects all crease-step tools).
 - **Oriedita-only conveniences the SVG never had** — e.g. lengthen drag-to-select. Expect more across the sweep.
 
 <!-- checklist:begin -->
