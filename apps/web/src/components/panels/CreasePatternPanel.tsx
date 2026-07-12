@@ -683,8 +683,22 @@ function allowsDirectEntitySelection(operationId: string | null | undefined): bo
 }
 
 
+/**
+ * Segment count for a preview circle of model radius `r`: scales with the
+ * circumference (larger circles get more sides) with a high floor/cap, so the
+ * preview reads as a smooth circle rather than a faceted polygon even zoomed in.
+ */
+function cpCircleRingSideCount(r: number): number {
+  return Math.min(512, Math.max(128, Math.round(Math.abs(r) * 6)));
+}
+
 /** Approximate a circle (model coords) as ring segments, for the WebGL preview. */
-function cpCircleRingSegments(x: number, y: number, r: number, sides = 48): { a: Point; b: Point }[] {
+function cpCircleRingSegments(
+  x: number,
+  y: number,
+  r: number,
+  sides = cpCircleRingSideCount(r)
+): { a: Point; b: Point }[] {
   const out: { a: Point; b: Point }[] = [];
   for (let i = 0; i < sides; i++) {
     const a0 = (i / sides) * Math.PI * 2;

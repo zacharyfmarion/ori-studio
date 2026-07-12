@@ -403,6 +403,7 @@ Live results as Zach validates each tool in-app. Fixes made during the sweep are
 | Color apply tools (rest) | CreaseMakeMountain/Valley/Edge/Aux, CreaseSetLineColor, Replace/DeleteLineTypeSelect | ✅ (Zach: "the rest work fine"). |
 | Change/Advance crease type | ChangeCreaseType, CreaseAdvanceType | ⏭️ **hidden** — menu tools not in Oriedita UI. |
 | Check-fix (all 8) | Check1-4, CheckCamv, Fix1/2, FixInaccurate | ⏭️ **Phase-6 deferred** — need the diagnostics overlay/markers on WebGL to verify; can’t meaningfully test until that’s ported. |
+| Circle draw (5) | CircleDraw, CircleDrawFree, CircleDrawConcentric, CircleDrawSeparate, CircleDrawThreePoint | ✅ — fixed faceted preview: ring resolution now scales with radius (128–512 sides) instead of fixed 48. |
 | Copy by four points | CreaseCopy4p | ✅ |
 
 Cross-cutting fixes made during the sweep (benefit many tools):
