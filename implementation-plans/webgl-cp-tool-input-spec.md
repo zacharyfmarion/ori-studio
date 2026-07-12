@@ -378,6 +378,8 @@ Live results as Zach validates each tool in-app. Fixes made during the sweep are
 | Delete any Vertex | VertexDeleteOnCrease | ✅ |
 | Delete Coincident Lines | CreaseDeleteOverlapping | ✅ |
 | Delete Overlapping Lines | CreaseDeleteIntersecting | ✅ |
+| Angle restricted 3 crease | DrawCreaseAngleRestricted3 | ⏭️ **hidden** — not in Oriedita UI; empties the Construct section (header auto-drops). |
+| Parallel draw by width | ParallelDrawWidth | ⏭️ **hidden** — not in Oriedita UI. |
 
 Cross-cutting fixes made during the sweep (benefit many tools):
 - `handleWebglToolCommit` no longer rejects <2-point commits → unbreaks every 1-point tool.

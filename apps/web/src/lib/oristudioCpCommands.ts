@@ -284,6 +284,9 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     toolSteps: ['Pick angle start point', 'Pick angle end point', 'Pick destination crease'],
   }),
   ready('DrawCreaseAngleRestricted3', 'Angle restricted 3 crease', 'construct', 'between-horizontal-start', 'MouseHandlerDrawCreaseAngleRestricted3_2', {
+    // Not present in Oriedita's UI — hide the rail button (the now-empty Construct
+    // section auto-drops its header). Revisit at end.
+    placement: 'hidden-ui-only',
     toolSteps: ['Pick fan start point', 'Pick fan end point', 'Pick angle candidate'],
   }),
   ready('CreaseSelect', 'Select crease', 'select-edit', 'mouse-pointer-2', 'MouseHandlerCreaseSelect', {
@@ -432,6 +435,8 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     tooltip: 'Create the two Oriedita concentric offset circles from selected circles',
   }),
   ready('ParallelDrawWidth', 'Parallel draw by width', 'construct', 'between-horizontal-end', 'MouseHandlerParallelDrawWidth', {
+    // Not present in Oriedita's UI — hide the rail button (revisit at end).
+    placement: 'hidden-ui-only',
     toolSteps: ['Pick source crease', 'Pick width point'],
   }),
   ready('ContinuousSymmetricDraw', 'Continuous symmetric draw', 'construct', 'repeat', 'MouseHandlerContinuousSymmetricDraw', {
