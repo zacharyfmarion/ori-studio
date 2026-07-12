@@ -514,10 +514,14 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     tooltip: 'Unselect creases contained by a freehand polygon',
   }),
   ready('SelectLineIntersecting', 'Select intersecting line', 'select-edit', 'scan-search', 'MouseHandlerSelectLineIntersecting', {
+    // Not present in Oriedita's UI — hide the rail button (revisit at end).
+    placement: 'hidden-ui-only',
     toolSteps: ['Pick drag start point', 'Pick drag end point'],
     tooltip: 'Select crease segments intersecting or overlapping a dragged line',
   }),
   ready('UnselectLineIntersecting', 'Unselect intersecting line', 'select-edit', 'scan-search', 'MouseHandlerUnselectLineIntersecting', {
+    // Not present in Oriedita's UI — hide the rail button (revisit at end).
+    placement: 'hidden-ui-only',
     toolSteps: ['Pick drag start point', 'Pick drag end point'],
     tooltip: 'Unselect crease segments intersecting or overlapping a dragged line',
   }),
