@@ -366,6 +366,9 @@ Live results as Zach validates each tool in-app. Fixes made during the sweep are
 | Parallel Alternating Lines | FishBoneDraw | ✅ |
 | Reflect Through Lines | ContinuousSymmetricDraw | ✅ |
 | Reflect Over Line | DoubleSymmetricDraw | ❌ **KERNEL bug** (not frontend) — `is_double_symmetric_intersection` accepts L-shape endpoint intersections, so endpoint-incident lines get reflected where Oriedita doesn't. Frontend/WebGL faithful; affects SVG identically. Needs Oriedita `DOUBLE_SYMMETRIC_DRAW_35` ref to fix. Separate kernel task. |
+| Equally Divided Line | LineSegmentDivision | ❌ **wrong model + kernel** — Oriedita: *drag to draw a new line* split into N segments (like Line). Port + kernel only *divide an existing* segment (`required_or_nearest_line_segment` → `divide_segment_by_count`). Needs drag-line model + kernel op accepting 2 drawn points → create+divide. Same for LineSegmentRatioSet. |
+| Divided Line (ratio) | LineSegmentRatioSet | ❌ same as Equally Divided Line (drag-draw + kernel). |
+| Regular Polygon | PolygonSetNoCorners | ✅ |
 
 Cross-cutting fixes made during the sweep (benefit many tools):
 - `handleWebglToolCommit` no longer rejects <2-point commits → unbreaks every 1-point tool.
