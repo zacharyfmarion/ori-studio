@@ -385,7 +385,7 @@ Live results as Zach validates each tool in-app. Fixes made during the sweep are
 | Copy selected creases | CreaseCopy | ✅ |
 | Move by four points | CreaseMove4p | ✅ |
 | Operation frame | OperationFrameCreate | ⏭️ **Phase-6 deferred** — kernel + SVG render it; WebGL has no operation-frame overlay yet (frame polygon is SVG-only). Explicitly a Phase-6 item, not a sweep regression. |
-| Box Select | CreaseSelect | ❌ **line-click-mutate hybrid** — box works; click-to-select, shift-add, empty-deselect broken (routes purely as drag-box; click path bypasses `handleEditableLineClick`). Same for CreaseUnselect + CreaseToggleMv. Build item. |
+| Box Select | CreaseSelect | ❌ **line-click-mutate hybrid** — box works; click-to-select, shift-add, empty-deselect broken (routes purely as drag-box; click path bypasses `handleEditableLineClick`). Same for CreaseUnselect (CreaseToggleMv works). Build item. |
 | Select Overlapping Lines | SelectLineIntersecting | ⏭️ **hidden** — not in Oriedita UI. |
 | Deselect Overlapping Lines | UnselectLineIntersecting | ⏭️ **hidden** — not in Oriedita UI. |
 | Polygon Select | SelectPolygon | ❌ **selection-state** — (1) Escape only deselects for CreaseSelect (`isDefaultSelectionMode` is CreaseSelect-only), not other select tools; (2) select commits merge with the passed selection instead of replacing → "select-all, Escape, select-one ⇒ all selected again". Cross-cutting; own fix. (Lasso + deselect variants likely same.) |
@@ -397,6 +397,11 @@ Live results as Zach validates each tool in-app. Fixes made during the sweep are
 | Frog base | DrawFrogBase | ✅ |
 | Measure length 1/2 | DisplayLengthBetweenPoints1/2 | ❌ **kernel-unimplemented** — no execute match arm → "not implemented yet". Frontend routes fine; needs kernel impl. Keep visible. |
 | Measure angle 1/2/3 | DisplayAngleBetweenThreePoints1/2/3 | ❌ **kernel-unimplemented** — same. Keep visible. |
+| Make alternating M/V | CreaseMakeMv | ✅ |
+| Alternate crossing M/V | CreasesAlternateMv | ✅ |
+| Toggle mountain/valley | CreaseToggleMv | ✅ — box-toggle handles single click; no hybrid needed. |
+| Color apply tools (rest) | CreaseMakeMountain/Valley/Edge/Aux, CreaseSetLineColor, Replace/DeleteLineTypeSelect | ✅ (Zach: "the rest work fine"). |
+| Change/Advance crease type | ChangeCreaseType, CreaseAdvanceType | ⏭️ **hidden** — menu tools not in Oriedita UI. |
 | Copy by four points | CreaseCopy4p | ✅ |
 
 Cross-cutting fixes made during the sweep (benefit many tools):
@@ -407,7 +412,7 @@ Cross-cutting fixes made during the sweep (benefit many tools):
 ❌ buckets, revisited **after the rest of the migration plan is complete**:
 - **candidate-preview support** — render kernel preview `points` as dots + snap-pick candidate creases (Flat Foldable Line, Converging Lines; likely other Construct tools). Converging Lines also needs re-modeling (line-select + intersection pick).
 - **snap-priority** — points/vertices should beat lines within their snap radius in `nearestCpSnapTarget` (Mirror Line; general, affects all crease-step tools).
-- **line-click-mutate hybrid** — click→select/toggle (`handleEditableLineClick`) + shift-add + empty-deselect, drag→box command; for CreaseSelect/Unselect/ToggleMv. Build with the bespoke trio.
+- **line-click-mutate hybrid** — click→select/toggle (`handleEditableLineClick`) + shift-add + empty-deselect, drag→box command; for CreaseSelect + CreaseUnselect only (CreaseToggleMv works via box-toggle). Build with the bespoke trio.
 - **selection-state** — Escape should deselect for any select tool (not just CreaseSelect); non-additive select should replace, not merge. Affects the whole Select section (Polygon/Lasso/etc.).
 - **Oriedita-only conveniences the SVG never had** — e.g. lengthen drag-to-select. Expect more across the sweep.
 - **kernel-parity bugs** (separate from the frontend migration — affect SVG + WebGL identically) — `double_symmetric_draw` L-shape endpoint intersections (Reflect Over Line). Need Oriedita source refs.
