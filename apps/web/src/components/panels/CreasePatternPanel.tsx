@@ -2646,28 +2646,20 @@ export function CreasePatternPanel() {
     mode: 'drag-line' | 'drag-box' | 'drag-path' | 'sequence' | 'line-entity' | null;
     stepKinds: ('point' | 'crease')[];
     lineCount: number;
-    axisLineShortcut: boolean;
   }>(() => {
-    const idle = {
-      mode: null,
-      stepKinds: [] as ('point' | 'crease')[],
-      lineCount: 0,
-      axisLineShortcut: false,
-    };
+    const idle = { mode: null, stepKinds: [] as ('point' | 'crease')[], lineCount: 0 };
     if (!activeCpCommand || activeCpCommand.uiStatus !== 'ready' || cpToolState.phase !== 'active') {
       return idle;
     }
     const im = activeCpCommand.inputMode;
     if (im === 'drag-line' || im === 'drag-box' || im === 'drag-path') {
-      return { mode: im, stepKinds: [], lineCount: 0, axisLineShortcut: false };
+      return { mode: im, stepKinds: [], lineCount: 0 };
     }
     // Everything below is driven by the explicit per-operation registry — never
-    // by the step-prompt text — so a tool's model and per-step snap are validated
-    // data, not a heuristic. Line-entity (Lengthen) picks crease ids; point-
-    // sequence collects points with the registry's per-step snap; axis-from-line
-    // (Reflect) is a 2-point sequence that also accepts a line click on step 0
-    // (its two endpoints become the axis); other models (circle-apply,
-    // line-click-mutate, bespoke, select-apply) have no dedicated engine yet.
+    // by the step-prompt text. Line-entity (Lengthen) picks crease ids; point-
+    // sequence and axis-from-line (Reflect) collect points with the registry's
+    // per-step snap; other models (circle-apply, line-click-mutate, bespoke,
+    // select-apply) have no dedicated engine yet.
     // CircleDrawTangentLine with exactly one circle selected: click a point to draw
     // the tangent from that circle through it (a synthetic 1-point sequence). With
     // 2+ circles it is an Apply-button op instead, handled off-canvas.
@@ -2675,22 +2667,17 @@ export function CreasePatternPanel() {
       activeCpCommand.operationId === 'CircleDrawTangentLine' &&
       oristudioCpSelection.circles.length === 1
     ) {
-      return { mode: 'sequence', stepKinds: ['point'], lineCount: 0, axisLineShortcut: false };
+      return { mode: 'sequence', stepKinds: ['point'], lineCount: 0 };
     }
     const inputModel = cpInputModel(activeCpCommand.operationId);
     if (inputModel?.model === 'line-entity') {
-      return { mode: 'line-entity', stepKinds: [], lineCount: inputModel.lineCount ?? 2, axisLineShortcut: false };
+      return { mode: 'line-entity', stepKinds: [], lineCount: inputModel.lineCount ?? 2 };
     }
-    if (inputModel?.model === 'axis-from-line' && inputModel.snapPerStep) {
-      return {
-        mode: 'sequence',
-        stepKinds: [...inputModel.snapPerStep],
-        lineCount: 0,
-        axisLineShortcut: true,
-      };
-    }
-    if (inputModel?.model === 'point-sequence' && inputModel.snapPerStep) {
-      return { mode: 'sequence', stepKinds: [...inputModel.snapPerStep], lineCount: 0, axisLineShortcut: false };
+    if (
+      (inputModel?.model === 'point-sequence' || inputModel?.model === 'axis-from-line') &&
+      inputModel.snapPerStep
+    ) {
+      return { mode: 'sequence', stepKinds: [...inputModel.snapPerStep], lineCount: 0 };
     }
     return idle;
   }, [activeCpCommand, cpToolState.phase, oristudioCpSelection.circles.length]);
@@ -4730,7 +4717,6 @@ export function CreasePatternPanel() {
                   activeToolInputMode={webglActiveTool.mode}
                   activeToolStepKinds={webglActiveTool.stepKinds}
                   activeToolLineCount={webglActiveTool.lineCount}
-                  activeToolAxisLineShortcut={webglActiveTool.axisLineShortcut}
                   activeToolRequireSnap={isRestrictedDrawOperation(activeCpCommand?.operationId)}
                   resolveDrawPoint={resolveEditableDrawModelPoint}
                   resolveDrawPointOnCrease={resolveEditableDrawPointOnCrease}

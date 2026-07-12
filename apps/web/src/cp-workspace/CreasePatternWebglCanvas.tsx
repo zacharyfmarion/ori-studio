@@ -258,12 +258,6 @@ export interface CreasePatternWebglCanvasProps {
   /** Number of crease picks a `line-entity` tool collects before committing. */
   activeToolLineCount: number;
   /**
-   * When true (axis-from-line tools, e.g. Reflect), a click on an existing crease
-   * during the first sequence step commits that crease's two endpoints as the axis
-   * — the "select a line" shortcut alternative to placing two points.
-   */
-  activeToolAxisLineShortcut: boolean;
-  /**
    * When true (Grid Restricted Line), a drag-line draw only begins from, and only
    * commits to, points that snap to grid/vertices — an unsnapped start or release
    * draws nothing.
@@ -364,7 +358,6 @@ export function CreasePatternWebglCanvas({
   activeToolInputMode,
   activeToolStepKinds,
   activeToolLineCount,
-  activeToolAxisLineShortcut,
   activeToolRequireSnap,
   resolveDrawPoint,
   resolveDrawPointOnCrease,
@@ -568,7 +561,6 @@ export function CreasePatternWebglCanvas({
     activeToolInputMode,
     activeToolStepKinds,
     activeToolLineCount,
-    activeToolAxisLineShortcut,
     activeToolRequireSnap,
     resolveDrawPoint,
     resolveDrawPointOnCrease,
@@ -892,26 +884,6 @@ export function CreasePatternWebglCanvas({
       }
       const raw = clientToModel(clientX, clientY);
       if (!raw) return;
-      // Axis-from-line shortcut (Reflect): a crease click on the first step uses
-      // its two endpoints as the axis and commits — the "select a line" alternative
-      // to placing two points. Only on `down` at step 0.
-      if (kind === 'down' && liveRef.current.activeToolAxisLineShortcut && sequenceStepRef.current === 0) {
-        const lineId = liveRef.current.hitIndex.query(
-          raw.x,
-          raw.y,
-          modelToleranceOf(HIT_TOLERANCE_CSS)
-        );
-        const seg = lineId > 0 ? liveRef.current.lineSegments[lineId - 1] : undefined;
-        if (seg) {
-          liveRef.current.onToolCommit({ points: [seg.a, seg.b] });
-          liveRef.current.onToolPreviewInput([], []);
-          renderer.setOverlayPoints(null);
-          runtime.feed({ kind: 'cancel', point: { x: 0, y: 0 } });
-          sequenceStepRef.current = 0;
-          renderNow();
-          return;
-        }
-      }
       const tol = modelToleranceOf(SNAP_TOLERANCE_CSS);
       const creaseStep = stepKinds[sequenceStepRef.current] === 'crease';
       let point: ModelPoint;
@@ -927,19 +899,10 @@ export function CreasePatternWebglCanvas({
       // crease the point lands on lights up even when it snapped to a grid point on
       // that line. Suppress the highlight only at a vertex where creases meet (the
       // snap ring marks the junction; which crease is meant would be ambiguous).
-      let hoverLine =
+      const hoverLine =
         creaseStep && !snappedToVertex
           ? liveRef.current.hitIndex.query(point.x, point.y, modelToleranceOf(HIT_TOLERANCE_CSS))
           : -1;
-      // Axis shortcut: on the first step, highlight the crease under the cursor so
-      // the "select a line" alternative reads as clickable.
-      if (
-        hoverLine <= 0 &&
-        liveRef.current.activeToolAxisLineShortcut &&
-        sequenceStepRef.current === 0
-      ) {
-        hoverLine = liveRef.current.hitIndex.query(raw.x, raw.y, modelToleranceOf(HIT_TOLERANCE_CSS));
-      }
       const highlight = hoverLine > 0 ? [hoverLine] : [];
       const out = runtime.feed({ kind, point });
       if (out.commit) {
