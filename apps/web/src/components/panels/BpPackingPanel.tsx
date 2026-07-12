@@ -1605,6 +1605,45 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                 })}
               </g>
             )}
+            {layers.flaps && (
+              // Flap click targets, above the flap graphics/creases so a flap is
+              // selectable at its center (smaller flaps last, so an inner flap wins
+              // over an enclosing one). Rendered BELOW the device gadgets that
+              // follow: a stretch gadget sits in the river between flaps, never on
+              // a flap tip, so the gadget interior should win there.
+              <g className="bp-packing-flap-hits">
+                {[...displayPacking.flaps]
+                  .sort((a, b) => b.radius - a.radius)
+                  .map((flap) => {
+                    const rect = bpPackingRectToSvg(
+                      { x: flap.anchor.x, y: flap.anchor.y, width: flap.width, height: flap.height },
+                      packing.sheet,
+                      paperRect
+                    );
+                    const center = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+                    const half = Math.max(rect.width, rect.height, BP_PACKING_FLAP_HIT_MIN_PX) / 2;
+                    return (
+                      <rect
+                        key={flap.id}
+                        className="bp-packing-flap-hit"
+                        x={center.x - half}
+                        y={center.y - half}
+                        width={half * 2}
+                        height={half * 2}
+                        rx={Math.min(6, half)}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`Select BP flap ${flap.id}${flap.name ? `, ${flap.name}` : ''}`}
+                        onPointerDown={(event) => onFlapPointerDown(event, flap.id)}
+                        onPointerMove={(event) => onFlapPointerMove(event, flap)}
+                        onPointerUp={(event) => finishFlapDrag(event, flap)}
+                        onPointerCancel={(event) => finishFlapDrag(event, flap)}
+                        onKeyDown={(event) => onFlapKeyDown(event, flap.id)}
+                      />
+                    );
+                  })}
+              </g>
+            )}
             {displayPacking.graphics.map((primitive) =>
               primitive.layer === 'device' && isBpPackingLayerVisible(layers, primitive.layer) ? (
                 <Primitive
@@ -1662,44 +1701,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                     </g>
                   );
                 })}
-              </g>
-            )}
-            {layers.flaps && (
-              // Top-of-stack flap click targets. Smaller flaps (shorter edge)
-              // render last so their center wins the hit test when nested inside
-              // a larger flap; the whole layer sits above device/crease graphics
-              // so a flap is always selectable at its center.
-              <g className="bp-packing-flap-hits">
-                {[...displayPacking.flaps]
-                  .sort((a, b) => b.radius - a.radius)
-                  .map((flap) => {
-                    const rect = bpPackingRectToSvg(
-                      { x: flap.anchor.x, y: flap.anchor.y, width: flap.width, height: flap.height },
-                      packing.sheet,
-                      paperRect
-                    );
-                    const center = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
-                    const half = Math.max(rect.width, rect.height, BP_PACKING_FLAP_HIT_MIN_PX) / 2;
-                    return (
-                      <rect
-                        key={flap.id}
-                        className="bp-packing-flap-hit"
-                        x={center.x - half}
-                        y={center.y - half}
-                        width={half * 2}
-                        height={half * 2}
-                        rx={Math.min(6, half)}
-                        role="button"
-                        tabIndex={0}
-                        aria-label={`Select BP flap ${flap.id}${flap.name ? `, ${flap.name}` : ''}`}
-                        onPointerDown={(event) => onFlapPointerDown(event, flap.id)}
-                        onPointerMove={(event) => onFlapPointerMove(event, flap)}
-                        onPointerUp={(event) => finishFlapDrag(event, flap)}
-                        onPointerCancel={(event) => finishFlapDrag(event, flap)}
-                        onKeyDown={(event) => onFlapKeyDown(event, flap.id)}
-                      />
-                    );
-                  })}
               </g>
             )}
             {marquee?.active && (
