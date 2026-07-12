@@ -2514,8 +2514,8 @@ export function CreasePatternPanel() {
   // WebGL draw tools: snap a raw model draw point to nearby geometry (the surface
   // supplies its camera-derived tolerance), mirroring resolveEditableDrawPoint.
   const resolveEditableDrawModelPoint = useCallback(
-    (rawPoint: Point, toleranceModel: number): Point => {
-      if (!editableCp) return rawPoint;
+    (rawPoint: Point, toleranceModel: number): { point: Point; snapped: boolean } => {
+      if (!editableCp) return { point: rawPoint, snapped: false };
       const target = nearestOrieditaDrawPointTarget(
         editableCp,
         rawPoint,
@@ -2523,7 +2523,9 @@ export function CreasePatternPanel() {
         oristudioCpViewport,
         toleranceModel
       );
-      return target?.point ?? rawPoint;
+      // Report whether the point locked onto a grid point / vertex, so a restricted
+      // draw can reject a start/end that doesn't snap.
+      return { point: target?.point ?? rawPoint, snapped: target !== null };
     },
     [editableCp, editableCpBounds, oristudioCpViewport]
   );
@@ -4729,6 +4731,7 @@ export function CreasePatternPanel() {
                   activeToolStepKinds={webglActiveTool.stepKinds}
                   activeToolLineCount={webglActiveTool.lineCount}
                   activeToolAxisLineShortcut={webglActiveTool.axisLineShortcut}
+                  activeToolRequireSnap={isRestrictedDrawOperation(activeCpCommand?.operationId)}
                   resolveDrawPoint={resolveEditableDrawModelPoint}
                   resolveDrawPointOnCrease={resolveEditableDrawPointOnCrease}
                   onToolCommit={handleWebglToolCommit}

@@ -263,8 +263,20 @@ export interface CreasePatternWebglCanvasProps {
    * — the "select a line" shortcut alternative to placing two points.
    */
   activeToolAxisLineShortcut: boolean;
-  /** Snap a raw model draw point to nearby geometry (grid/vertices). */
-  resolveDrawPoint: (rawPoint: ModelPoint, toleranceModel: number) => ModelPoint;
+  /**
+   * When true (Grid Restricted Line), a drag-line draw only begins from, and only
+   * commits to, points that snap to grid/vertices — an unsnapped start or release
+   * draws nothing.
+   */
+  activeToolRequireSnap: boolean;
+  /**
+   * Snap a raw model draw point to nearby geometry (grid/vertices), reporting
+   * whether it locked on (for restricted draws that reject unsnapped points).
+   */
+  resolveDrawPoint: (
+    rawPoint: ModelPoint,
+    toleranceModel: number
+  ) => { point: ModelPoint; snapped: boolean };
   /**
    * Snap a raw model draw point onto nearby geometry incl. creases (for crease
    * steps), reporting whether the result landed on a crease *junction* (a vertex
@@ -353,6 +365,7 @@ export function CreasePatternWebglCanvas({
   activeToolStepKinds,
   activeToolLineCount,
   activeToolAxisLineShortcut,
+  activeToolRequireSnap,
   resolveDrawPoint,
   resolveDrawPointOnCrease,
   onToolCommit,
@@ -556,6 +569,7 @@ export function CreasePatternWebglCanvas({
     activeToolStepKinds,
     activeToolLineCount,
     activeToolAxisLineShortcut,
+    activeToolRequireSnap,
     resolveDrawPoint,
     resolveDrawPointOnCrease,
     onToolCommit,
@@ -834,9 +848,18 @@ export function CreasePatternWebglCanvas({
       if (!toolRuntime) return;
       const raw = clientToModel(clientX, clientY);
       if (!raw) return;
-      const point = liveRef.current.resolveDrawPoint(raw, modelToleranceOf(SNAP_TOLERANCE_CSS));
-      showSnapIndicator(point, raw);
-      const out = toolRuntime.feed({ kind, point });
+      const resolved = liveRef.current.resolveDrawPoint(raw, modelToleranceOf(SNAP_TOLERANCE_CSS));
+      showSnapIndicator(resolved.point, raw);
+      // Grid-restricted draw: the release must land on a snapped grid/vertex point,
+      // else the crease is rejected (the start is gated in onPointerDown). The end
+      // follows freely during the drag; only the commit requires a snap.
+      if (liveRef.current.activeToolRequireSnap && kind === 'up' && !resolved.snapped) {
+        toolRuntime.feed({ kind: 'cancel', point: resolved.point });
+        renderer.setPreview(null);
+        renderNow();
+        return;
+      }
+      const out = toolRuntime.feed({ kind, point: resolved.point });
       renderer.setPreview(
         out.preview && out.preview.segments.length > 0
           ? previewSegmentsToStrokes(out.preview.segments, liveRef.current.toolPreviewColor)
@@ -898,7 +921,7 @@ export function CreasePatternWebglCanvas({
         point = resolved.point;
         snappedToVertex = resolved.snappedToVertex;
       } else {
-        point = liveRef.current.resolveDrawPoint(raw, tol);
+        point = liveRef.current.resolveDrawPoint(raw, tol).point;
       }
       // On a crease step, highlight the single line under the snapped point — so a
       // crease the point lands on lights up even when it snapped to a grid point on
@@ -1050,9 +1073,18 @@ export function CreasePatternWebglCanvas({
       } else if (toolMode) {
         // A drag draw tool is active: plain drag draws instead of selecting.
         e.preventDefault();
-        drawing = true;
-        toolRuntime = createToolRuntime(toolEngineFor(toolMode));
-        feedTool('down', e.clientX, e.clientY);
+        // Grid-restricted draw only begins from a point that snaps to grid/vertices.
+        const m = clientToModel(e.clientX, e.clientY);
+        const startSnapped =
+          !m ||
+          toolMode !== 'drag-line' ||
+          !liveRef.current.activeToolRequireSnap ||
+          liveRef.current.resolveDrawPoint(m, modelToleranceOf(SNAP_TOLERANCE_CSS)).snapped;
+        if (startSnapped) {
+          drawing = true;
+          toolRuntime = createToolRuntime(toolEngineFor(toolMode));
+          feedTool('down', e.clientX, e.clientY);
+        }
       } else {
         // A plain drag that starts on an already-selected crease moves the whole
         // line selection; otherwise it selects (click or marquee).
@@ -1113,7 +1145,7 @@ export function CreasePatternWebglCanvas({
         const raw = clientToModel(e.clientX, e.clientY);
         if (raw) {
           showSnapIndicator(
-            liveRef.current.resolveDrawPoint(raw, modelToleranceOf(SNAP_TOLERANCE_CSS)),
+            liveRef.current.resolveDrawPoint(raw, modelToleranceOf(SNAP_TOLERANCE_CSS)).point,
             raw
           );
           renderNow();

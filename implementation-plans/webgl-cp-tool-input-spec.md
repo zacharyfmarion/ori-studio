@@ -344,6 +344,24 @@ Ground rules: work top-to-bottom within each model group. Tick `✔` (⬜→✅)
 row's SVG branch is read, its payload confirmed, and (point/axis models) its `snapPerStep`
 authored from the kernel argument types. Put the SVG line number in `SVG ref`.
 
+### Sweep log (per-tool validation, palette order)
+
+Live results as Zach validates each tool in-app. Fixes made during the sweep are noted.
+
+| Palette name | Op | Result |
+|---|---|---|
+| Line | DrawCreaseFree | ✅ |
+| Grid Restricted Line | DrawCreaseRestricted | ✅ — **fixed**: restricted draw now rejects unsnapped start/release (`resolveDrawPoint` reports `snapped`; was drawing like plain Line) |
+| Rabbit Ear | Inward | ✅ |
+| Flat Foldable Line | VertexMakeAngularlyFlatFoldable | ❌ **candidate-preview gap** — WebGL preview drops kernel `points` (no candidate dots) and can't snap-pick a candidate crease → clicking a candidate errors (`DrawPoint: nearest line outside selection distance`). Shared cause; batch-fix after sweep. |
+
+Cross-cutting fixes made during the sweep (benefit many tools):
+- `handleWebglToolCommit` no longer rejects <2-point commits → unbreaks every 1-point tool.
+- Restricted-draw snap enforcement (above).
+
+Deferred batch item surfaced by the sweep: **candidate-preview support** (render kernel
+preview `points` as dots + snap-pick candidate creases) for candidate-based Construct tools.
+
 <!-- checklist:begin -->
 _(populated below; ⬜ = pending, ✅ = validated + wired, ⚠️ = validated, needs follow-up)_
 
