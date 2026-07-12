@@ -840,8 +840,14 @@ export function CreasePatternWebglCanvas({
       if (!toolRuntime) return;
       const raw = clientToModel(clientX, clientY);
       if (!raw) return;
-      const resolved = liveRef.current.resolveDrawPoint(raw, modelToleranceOf(SNAP_TOLERANCE_CSS));
-      showSnapIndicator(resolved.point, raw);
+      // Only crease-drawing (drag-line) snaps to grid/vertices; selection/erase
+      // boxes (drag-box) and freehand paths (drag-path — lasso/polygon) follow the
+      // raw cursor, so a rubber-band select doesn't jump to nearby points.
+      const snaps = liveRef.current.activeToolInputMode === 'drag-line';
+      const resolved = snaps
+        ? liveRef.current.resolveDrawPoint(raw, modelToleranceOf(SNAP_TOLERANCE_CSS))
+        : { point: raw, snapped: false };
+      if (snaps) showSnapIndicator(resolved.point, raw);
       // Grid-restricted draw: the release must land on a snapped grid/vertex point,
       // else the crease is rejected (the start is gated in onPointerDown). The end
       // follows freely during the drag; only the commit requires a snap.
@@ -1096,15 +1102,15 @@ export function CreasePatternWebglCanvas({
         // Hover with an entity-pick tool active: highlight the crease under cursor.
         feedLinePick('move', e.clientX, e.clientY);
       } else if (
-        (liveRef.current.activeToolInputMode === 'drag-line' ||
-          liveRef.current.activeToolInputMode === 'drag-path') &&
+        liveRef.current.activeToolInputMode === 'drag-line' &&
         !panning &&
         !movingFigure &&
         !movingSelection &&
         !selecting
       ) {
         // Hover with a crease-draw tool (before pressing): show the snap indicator
-        // at where the endpoint would land.
+        // at where the endpoint would land. Only drag-line snaps; drag-path
+        // (lasso/polygon) follows the raw cursor with no snap indicator.
         const raw = clientToModel(e.clientX, e.clientY);
         if (raw) {
           showSnapIndicator(
