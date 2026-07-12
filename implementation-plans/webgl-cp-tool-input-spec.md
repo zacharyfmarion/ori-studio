@@ -402,6 +402,7 @@ Live results as Zach validates each tool in-app. Fixes made during the sweep are
 | Toggle mountain/valley | CreaseToggleMv | ✅ — box-toggle handles single click; no hybrid needed. |
 | Color apply tools (rest) | CreaseMakeMountain/Valley/Edge/Aux, CreaseSetLineColor, Replace/DeleteLineTypeSelect | ✅ (Zach: "the rest work fine"). |
 | Change/Advance crease type | ChangeCreaseType, CreaseAdvanceType | ⏭️ **hidden** — menu tools not in Oriedita UI. |
+| Check-fix (all 8) | Check1-4, CheckCamv, Fix1/2, FixInaccurate | ⏭️ **Phase-6 deferred** — need the diagnostics overlay/markers on WebGL to verify; can’t meaningfully test until that’s ported. |
 | Copy by four points | CreaseCopy4p | ✅ |
 
 Cross-cutting fixes made during the sweep (benefit many tools):
