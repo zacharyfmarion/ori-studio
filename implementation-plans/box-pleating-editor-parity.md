@@ -115,12 +115,12 @@ root of the breakage (see the assessment in the commit history / memory).
 - [ ] **River**: select, shade highlight, and `goToDual` — selecting a river
       highlights/【selects】the corresponding tree edge in the Design pane
       (cross-pane selection).
-- [ ] **Stretch**: select and **cycle configurations/patterns**
-      (`switchStretchConfig` / `switchStretchPattern` already exist in the
-      runtime) — the GOPS pattern navigation that lets you pick a valid crease
-      pattern for a stretched group by hand.
-- [ ] **Device**: select, range-constrained diagonal drag (already offset-aware),
-      nudge.
+- [x] **Stretch**: select and **cycle configurations/patterns** — the GOPS
+      pattern navigation. Contextual BpPackingStretchNav shows config/pattern
+      steppers (±1 wraparound); the stretch is completed on select to populate
+      counts. Verified live cycling patterns on micrathena-sagittata.
+- [~] **Device**: select, range-constrained diagonal drag (already offset-aware),
+      nudge — implemented; not yet oracle-checked.
 - [ ] **Invalid junction**: render overlap conflict polygons and select them;
       they must appear/disappear correctly as flaps move (validity feedback is
       how you know a hand-placed packing is valid).
