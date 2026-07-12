@@ -259,8 +259,16 @@ export interface CreasePatternWebglCanvasProps {
   activeToolLineCount: number;
   /** Snap a raw model draw point to nearby geometry (grid/vertices). */
   resolveDrawPoint: (rawPoint: ModelPoint, toleranceModel: number) => ModelPoint;
-  /** Snap a raw model draw point onto the nearest crease (for crease steps). */
-  resolveDrawPointOnCrease: (rawPoint: ModelPoint, toleranceModel: number) => ModelPoint;
+  /**
+   * Snap a raw model draw point onto nearby geometry incl. creases (for crease
+   * steps), reporting whether the result landed on a crease *junction* (a vertex
+   * where creases meet) — the surface highlights the single line under any other
+   * snap but suppresses the highlight at a junction, where it would be ambiguous.
+   */
+  resolveDrawPointOnCrease: (
+    rawPoint: ModelPoint,
+    toleranceModel: number
+  ) => { point: ModelPoint; snappedToVertex: boolean };
   /** Commit a tool's collected input (free points and/or picked crease ids). */
   onToolCommit: (commit: ToolCommit) => void;
   /**
@@ -855,13 +863,23 @@ export function CreasePatternWebglCanvas({
       if (!raw) return;
       const tol = modelToleranceOf(SNAP_TOLERANCE_CSS);
       const creaseStep = stepKinds[sequenceStepRef.current] === 'crease';
-      const point = creaseStep
-        ? liveRef.current.resolveDrawPointOnCrease(raw, tol)
-        : liveRef.current.resolveDrawPoint(raw, tol);
-      // Highlight the crease under the cursor while a crease step is active.
-      const hoverLine = creaseStep
-        ? liveRef.current.hitIndex.query(raw.x, raw.y, modelToleranceOf(HIT_TOLERANCE_CSS))
-        : -1;
+      let point: ModelPoint;
+      let snappedToVertex = false;
+      if (creaseStep) {
+        const resolved = liveRef.current.resolveDrawPointOnCrease(raw, tol);
+        point = resolved.point;
+        snappedToVertex = resolved.snappedToVertex;
+      } else {
+        point = liveRef.current.resolveDrawPoint(raw, tol);
+      }
+      // On a crease step, highlight the single line under the snapped point — so a
+      // crease the point lands on lights up even when it snapped to a grid point on
+      // that line. Suppress the highlight only at a vertex where creases meet (the
+      // snap ring marks the junction; which crease is meant would be ambiguous).
+      const hoverLine =
+        creaseStep && !snappedToVertex
+          ? liveRef.current.hitIndex.query(point.x, point.y, modelToleranceOf(HIT_TOLERANCE_CSS))
+          : -1;
       const highlight = hoverLine > 0 ? [hoverLine] : [];
       const out = runtime.feed({ kind, point });
       if (out.commit) {

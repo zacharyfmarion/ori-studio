@@ -177,6 +177,7 @@ import { useShortcutStore } from '../../store/shortcutStore';
 import { useCpRendererStore } from '../../store/cpRendererStore';
 import { CreasePatternWebglCanvas } from '../../cp-workspace/CreasePatternWebglCanvas';
 import { cpInputModel } from '../../cp-workspace/tools/inputModelRegistry';
+import { distanceToSegment } from '../../cp-workspace/picking/lineHitIndex';
 import { resolveCpLineColor } from '../../cp-workspace/adapters/cpLineColor';
 import { readCssVarColor } from '../../cp-workspace/renderer/cssColor';
 import { IconButton } from '../ui/IconButton';
@@ -694,6 +695,46 @@ function cpCircleRingSegments(x: number, y: number, r: number, sides = 48): { a:
     });
   }
   return out;
+}
+
+/**
+ * Existing creases the *active* end of a previewed crease lands on: for each
+ * endpoint of the kernel preview geometry that is not one of the already-placed
+ * points (`anchors`), the single crease it lies on (skipping junctions, where more
+ * than one crease meets and which is meant would be ambiguous). This lets the
+ * surface highlight a crease the new line snaps to even when the cursor point is
+ * constrained off it — e.g. angle-restricted draw ending at an intersection, which
+ * the point-under-cursor highlight can't see — without lighting up (and pinning) a
+ * crease that merely happens to pass through a fixed anchor. Matches the vertex
+ * rule of the live snap highlight: a lone crease lights up, a junction does not.
+ */
+function cpCreasesUnderPreviewEndpoints(
+  previewSegments: readonly { a: Point; b: Point }[],
+  anchors: readonly Point[],
+  lineSegments: readonly OristudioCpLineSegment[],
+  eps: number
+): { a: Point; b: Point }[] {
+  const nearAnchor = (p: Point) =>
+    anchors.some((a) => Math.hypot(p.x - a.x, p.y - a.y) <= eps);
+  const endpoints: Point[] = [];
+  for (const s of previewSegments) {
+    if (!nearAnchor(s.a)) endpoints.push(s.a);
+    if (!nearAnchor(s.b)) endpoints.push(s.b);
+  }
+  const found = new Set<number>();
+  for (const p of endpoints) {
+    let onlyHit = -1;
+    let count = 0;
+    for (let i = 0; i < lineSegments.length && count < 2; i += 1) {
+      const seg = lineSegments[i];
+      if (distanceToSegment(p.x, p.y, seg.a, seg.b) <= eps) {
+        count += 1;
+        onlyHit = i;
+      }
+    }
+    if (count === 1) found.add(onlyHit);
+  }
+  return [...found].map((i) => ({ a: lineSegments[i].a, b: lineSegments[i].b }));
 }
 
 function shouldPreferPointSnapForStep(
@@ -2490,8 +2531,8 @@ export function CreasePatternPanel() {
   // Crease steps: snap the point onto the nearest crease (forcing line/vertex
   // snapping) so the kernel resolves that crease from the point.
   const resolveEditableDrawPointOnCrease = useCallback(
-    (rawPoint: Point, toleranceModel: number): Point => {
-      if (!editableCp) return rawPoint;
+    (rawPoint: Point, toleranceModel: number): { point: Point; snappedToVertex: boolean } => {
+      if (!editableCp) return { point: rawPoint, snappedToVertex: false };
       const target = nearestCpSnapTarget(
         editableCp,
         rawPoint,
@@ -2499,7 +2540,11 @@ export function CreasePatternPanel() {
         { ...oristudioCpViewport, snapToLines: true, snapToVertices: true },
         toleranceModel
       );
-      return target?.point ?? rawPoint;
+      // Report whether we snapped to a crease *junction* (a vertex where multiple
+      // creases meet). The surface highlights the single line under any other snap
+      // (line interior, or a grid point that lies on a line) but suppresses the
+      // highlight at a junction, where which crease is meant is ambiguous.
+      return { point: target?.point ?? rawPoint, snappedToVertex: target?.kind === 'vertex' };
     },
     [editableCp, editableCpBounds, oristudioCpViewport]
   );
@@ -2654,13 +2699,31 @@ export function CreasePatternPanel() {
         if (webglPreviewRequestRef.current !== requestId) return;
         const kernel = (preview?.segments ?? []).map((s) => ({ a: s.a, b: s.b }));
         const rings = (preview?.circles ?? []).flatMap((c) => cpCircleRingSegments(c.x, c.y, c.r));
-        setWebglToolPreviewSegments([...kernel, ...rings, ...highlight]);
+        // Also highlight any existing crease the previewed line actually lands on
+        // (its kernel-computed endpoints), so an angle-constrained draw that snaps
+        // to an intersection lights up that crease even though the cursor point is
+        // off it. `highlight` already covers tools whose point snaps onto the line.
+        const onCreaseEps = editableCpBounds.spanX * 1e-3;
+        // Exclude the already-placed points (all but the live cursor) so only the
+        // crease the *active* endpoint snaps to lights up — a crease under a fixed
+        // anchor must not stay pinned.
+        const anchors = points.slice(0, -1);
+        const snapped = editableCp
+          ? cpCreasesUnderPreviewEndpoints(
+              kernel,
+              anchors,
+              editableCp.crease_pattern.line_segments,
+              onCreaseEps
+            )
+          : [];
+        setWebglToolPreviewSegments([...kernel, ...rings, ...highlight, ...snapped]);
       });
     },
     [
       activeCpCommand,
       buildCpCommandPayload,
       editableCp,
+      editableCpBounds,
       oristudioCpSelection.circles,
       oristudioCpSelection.lines,
       previewOristudioCpCommand,
