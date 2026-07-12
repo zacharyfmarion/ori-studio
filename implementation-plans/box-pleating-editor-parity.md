@@ -109,6 +109,15 @@ root of the breakage (see the assessment in the commit history / memory).
       implemented, not yet oracle-checked.
 - [x] Keyboard nudge (arrow keys) with the same constrain rules.
 - [x] Hover/long-press inspector.
+- [ ] **Click-again to cycle stacked objects** (BP Studio
+      `SelectionController.$processNext` / `$hitTestAll`). Selection currently
+      uses a fixed hit-test priority (smaller flap wins over a larger one at its
+      center; a stretch gadget wins over a flap hit-target in the river between
+      flaps). This resolves the common cases, but when a flap tip falls *inside*
+      a gadget contour (dense packings) it can only be reached by an off-center
+      click or box-select. The robust fix is to gather all selectable items at
+      the click point and, on repeated clicks at the same spot, cycle the
+      selection to the next one underneath.
 
 ### Phase 4: Rivers, stretches, devices, junctions
 
