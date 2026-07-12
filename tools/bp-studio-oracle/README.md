@@ -25,6 +25,25 @@ Use Bun for custom oracle commands when possible:
 bun tools/bp-studio-oracle/oracle.mjs version
 ```
 
+## Layout graphics oracle
+
+`layout-graphics.ts` runs the headless BP Studio Core (`DesignController`) to
+emit ground-truth layout graphics — per-flap contours and ridges — for a design
+plus an optional sequence of manual edits. This is the oracle that the Rust
+engine's `project_graphics_snapshot` / `move_flap` output must match (see the
+oracle-parity tests `crates/oristudio-bp/tests/manual_flap_move.rs` and
+`starter_seed.rs`).
+
+```sh
+bun tools/bp-studio-oracle/layout-graphics.ts <design.json> [edits.json]
+```
+
+`<design.json>` is a JDesign (`{ tree, layout }`); `[edits.json]` is an optional
+array of `{ "op": "moveFlap", "id", "x", "y" }` applied in order. Output is
+canonical (sorted-key) JSON so it diffs cleanly against the Rust snapshot. It
+must be run with Bun so the vendored TypeScript Core resolves via the sibling
+`tsconfig.json`.
+
 Keep Node/pnpm available for upstream Mocha and build-tool compatibility.
 Oracle-gated Rust tests should remain optional and skip cleanly when
 `BP_STUDIO_ORACLE` is not configured.

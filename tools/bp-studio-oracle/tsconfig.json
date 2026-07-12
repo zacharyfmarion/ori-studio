@@ -1,0 +1,8 @@
+{
+  "//": "Isolated tsconfig so Bun can resolve Box Pleating Studio's core/shared module aliases (baseUrl) when importing the vendored TS Core directly. Used by layout-graphics.ts.",
+  "compilerOptions": {
+    "baseUrl": "../../third_party/box-pleating-studio/src",
+    "moduleResolution": "bundler",
+    "types": []
+  }
+}

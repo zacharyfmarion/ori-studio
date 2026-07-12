@@ -42,6 +42,12 @@ impl BpProjectSession {
                 }
             })
             .collect();
+        // BP Studio invariant: every leaf node has a flap. A design may arrive
+        // with tree leaves that have no `layout.flaps` entry (e.g. the starter,
+        // or a tree-only import); BP Studio's Core seeds each such leaf a default
+        // flap at the origin (width/height 0). Mirror that so those leaves render
+        // and are draggable instead of being missing + stuck.
+        Self::seed_missing_leaf_flaps(&mut project)?;
         let mut history = match &project.history {
             Some(history) => HistoryManager::from_history(history)?,
             None => HistoryManager::new(),
@@ -280,6 +286,9 @@ impl BpProjectSession {
             name: String::new(),
             is_new: None,
         });
+        // The parent `at` just gained a child, so it is no longer a leaf. Uphold
+        // BP Studio's flap ⟺ leaf invariant by dropping any flap it carried.
+        self.project.design.layout.flaps.retain(|f| f.id != at);
         self.project.design.layout.flaps.push(flap);
         self.new_vertices.insert(id);
         self.apply_tree_update(&update);
@@ -1456,6 +1465,41 @@ impl BpProjectSession {
             }
         }
         Ok(max_plus_one as NodeId)
+    }
+
+    /// Seed a default flap (`{id, 0, 0, 0, 0}`) for every tree leaf that has no
+    /// `layout.flaps` entry, matching BP Studio's per-leaf default AABB. No-op
+    /// when the tree is empty or every leaf already has a flap.
+    fn seed_missing_leaf_flaps(project: &mut Project) -> BpResult<()> {
+        if project.design.tree.edges.is_empty() {
+            return Ok(());
+        }
+        let existing: BTreeSet<NodeId> = project
+            .design
+            .layout
+            .flaps
+            .iter()
+            .map(|flap| flap.id)
+            .collect();
+        let tree = BpTree::new(&project.design.tree.edges, &project.design.layout.flaps)?;
+        let mut missing: Vec<NodeId> = tree
+            .nodes()
+            .iter()
+            .flatten()
+            .filter(|node| node.is_leaf() && !existing.contains(&node.id))
+            .map(|node| node.id)
+            .collect();
+        missing.sort_unstable();
+        for id in missing {
+            project.design.layout.flaps.push(Flap {
+                id,
+                x: 0.0,
+                y: 0.0,
+                width: 0.0,
+                height: 0.0,
+            });
+        }
+        Ok(())
     }
 
     fn closest_empty_spot(&self, at: Point) -> Point {

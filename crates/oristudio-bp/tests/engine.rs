@@ -381,15 +381,27 @@ fn project_session_adds_leaf_at_bp_studio_empty_spot_and_tracks_history() {
             node.id == 3 && node.x == 2.0 && node.y == 1.0 && node.is_new.is_none()
         })
     );
+    // Leaves 1 and 2 are seeded default flaps at the origin on load (BP Studio
+    // parity). Adding a leaf to node 1 makes it internal, so its flap is dropped
+    // and only the sibling leaf 2 plus the new leaf 3 (at the empty spot) remain.
     assert_eq!(
         session.project().design.layout.flaps,
-        vec![Flap {
-            id: 3,
-            x: 2.0,
-            y: 1.0,
-            width: 0.0,
-            height: 0.0
-        }]
+        vec![
+            Flap {
+                id: 2,
+                x: 0.0,
+                y: 0.0,
+                width: 0.0,
+                height: 0.0
+            },
+            Flap {
+                id: 3,
+                x: 2.0,
+                y: 1.0,
+                width: 0.0,
+                height: 0.0
+            }
+        ]
     );
     assert_eq!(session.project().design.tree.edges.len(), 3);
     assert_eq!(session.history().steps().len(), 1);
@@ -627,13 +639,25 @@ fn project_session_transforms_layout_sheet_and_scales_edge_lengths() {
 #[test]
 fn project_session_updates_layout_sheet_with_checked_anchor_shifts() {
     let mut project = sample_project();
-    project.design.layout.flaps = vec![Flap {
-        id: 1,
-        x: 5.0,
-        y: 1.0,
-        width: 2.0,
-        height: 2.0,
-    }];
+    // Both tree leaves (1 and 2) must have flaps for a valid design. Leaf 1 is
+    // the flap under test (right edge at x=7 drives the resize shift); leaf 2 is
+    // placed left of it so it neither drives nor blocks the leftward shift.
+    project.design.layout.flaps = vec![
+        Flap {
+            id: 1,
+            x: 5.0,
+            y: 1.0,
+            width: 2.0,
+            height: 2.0,
+        },
+        Flap {
+            id: 2,
+            x: 2.0,
+            y: 2.0,
+            width: 0.0,
+            height: 0.0,
+        },
+    ];
     let mut session = BpProjectSession::new(project).unwrap();
 
     session
