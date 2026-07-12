@@ -278,6 +278,9 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     tooltip: 'Merge same-color creases meeting at the picked vertex',
   }),
   ready('AngleSystem', 'Angle system', 'construct', 'chart-no-axes-combined', 'MouseHandlerAngleSystem', {
+    // Not present in Oriedita's UI — hide the rail button (revisit during the
+    // Oriedita-parity pass at the end of the migration).
+    placement: 'hidden-ui-only',
     toolSteps: ['Pick angle start point', 'Pick angle end point', 'Pick destination crease'],
   }),
   ready('DrawCreaseAngleRestricted3', 'Angle restricted 3 crease', 'construct', 'between-horizontal-start', 'MouseHandlerDrawCreaseAngleRestricted3_2', {

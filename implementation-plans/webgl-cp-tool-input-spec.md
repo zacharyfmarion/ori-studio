@@ -354,13 +354,19 @@ Live results as Zach validates each tool in-app. Fixes made during the sweep are
 | Grid Restricted Line | DrawCreaseRestricted | ✅ — **fixed**: restricted draw now rejects unsnapped start/release (`resolveDrawPoint` reports `snapped`; was drawing like plain Line) |
 | Rabbit Ear | Inward | ✅ |
 | Flat Foldable Line | VertexMakeAngularlyFlatFoldable | ❌ **candidate-preview gap** — WebGL preview drops kernel `points` (no candidate dots) and can't snap-pick a candidate crease → clicking a candidate errors (`DrawPoint: nearest line outside selection distance`). Shared cause; batch-fix after sweep. |
+| Extend Line | LengthenCrease | ❌ **Oriedita-parity** — click-to-select + extend works, but Oriedita also lets you *drag a line across* a crease to select it; Ori Studio never ported this (missing in SVG too). Net-new feature; deferred to end. |
+| Perpendicular Line | PerpendicularDraw | ✅ |
+| Angle Restricted Line | DrawCreaseAngleRestricted5 | ✅ |
+| Offset Restricted Line | AngleSystem | ⏭️ **hidden** — not in Oriedita's UI; rail button removed (`placement: 'hidden-ui-only'`). Revisit at end. |
 
 Cross-cutting fixes made during the sweep (benefit many tools):
 - `handleWebglToolCommit` no longer rejects <2-point commits → unbreaks every 1-point tool.
 - Restricted-draw snap enforcement (above).
 
-Deferred batch item surfaced by the sweep: **candidate-preview support** (render kernel
-preview `points` as dots + snap-pick candidate creases) for candidate-based Construct tools.
+**Bar = Oriedita parity** (not just SVG parity — the SVG was never verified tool-by-tool).
+❌ buckets, revisited **after the rest of the migration plan is complete**:
+- **candidate-preview support** — render kernel preview `points` as dots + snap-pick candidate creases (Flat Foldable Line; likely other Construct tools).
+- **Oriedita-only conveniences the SVG never had** — e.g. lengthen drag-to-select. Expect more across the sweep.
 
 <!-- checklist:begin -->
 _(populated below; ⬜ = pending, ✅ = validated + wired, ⚠️ = validated, needs follow-up)_
