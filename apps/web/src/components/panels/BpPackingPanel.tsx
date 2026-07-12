@@ -36,8 +36,10 @@ import type {
   OristudioBpRiver,
 } from '../../engine/oristudioBpTypes';
 import {
+  bpFlapSelection,
   bpLinkedSelection,
   type OristudioBpLinkedSelection,
+  bpSelectedFlapIds,
   bpSelectionSize,
   toggleBpDeviceSelection,
   toggleBpFlapSelection,
@@ -81,6 +83,9 @@ type BpPackingNudgeDirection = 'up' | 'down' | 'left' | 'right';
 
 const BP_MAX_SHEET_SIZE = 8192;
 const BP_PACKING_DRAG_START_THRESHOLD_PX = 4;
+// Pointer travel before an empty-space drag becomes a rubberband selection,
+// matching Box Pleating Studio's SelectionController MOUSE_THRESHOLD.
+const BP_PACKING_DRAG_SELECT_THRESHOLD_PX = 5;
 
 interface BpRiverVisual {
   river: OristudioBpRiver;
@@ -104,6 +109,24 @@ interface BpPackingDragState {
 interface BpPackingDragBackendUpdate {
   ids: number[];
   loc: Point;
+}
+
+/**
+ * Rubberband (box) selection drag. Mirrors Box Pleating Studio's
+ * SelectionController.$processDragSelect: after the pointer travels past a
+ * small threshold on empty space, flaps whose center lies inside the rectangle
+ * become selected. With ctrl/meta the flaps selected before the drag are
+ * preserved; otherwise the selection is replaced.
+ */
+interface BpPackingMarqueeState {
+  pointerId: number;
+  clientStart: Point;
+  /** Rectangle corners in world (SVG) coordinates. */
+  startWorld: Point;
+  currentWorld: Point;
+  additive: boolean;
+  baseFlaps: number[];
+  active: boolean;
 }
 
 interface BpPackingDeviceDragState {
@@ -468,6 +491,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   const [spacePressed, setSpacePressed] = useState(false);
   const [hoverPoint, setHoverPoint] = useState<Point | null>(null);
   const [flapDragging, setFlapDragging] = useState<BpPackingDragState | null>(null);
+  const [marquee, setMarquee] = useState<BpPackingMarqueeState | null>(null);
   const dragBackendFrameRef = useRef<number | null>(null);
   const dragBackendPendingRef = useRef<BpPackingDragBackendUpdate | null>(null);
   const dragBackendQueueRef = useRef<Promise<void> | null>(null);
@@ -551,6 +575,22 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     },
     [packing.sheet.height, packing.sheet.width, paperRect, worldRect]
   );
+
+  // Raw pointer position in world (SVG viewBox) coordinates — unrounded, used to
+  // draw the rubberband rectangle and hit-test flap centers.
+  const eventToWorldPoint = useCallback(
+    (event: PointerEvent): Point => {
+      const svg = svgRef.current;
+      if (!svg) return { x: 0, y: 0 };
+      return clientPointToDesignWorld(
+        { x: event.clientX, y: event.clientY },
+        svg.getBoundingClientRect(),
+        worldRect
+      );
+    },
+    [worldRect]
+  );
+
 
   const getViewportSize = useCallback((): ViewportSize | null => {
     const viewport = containerRef.current;
@@ -841,14 +881,79 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     if (bpSelectionSize(document.selection) > 0) selectOristudioBp({ kind: 'bp-tree' });
   }, [document.selection, selectOristudioBp]);
 
+  // Begin a potential rubberband selection on empty space. The selection is not
+  // cleared yet: a plain click (no drag past the threshold) clears on pointer up,
+  // while a drag turns into a marquee. Mirrors BP Studio's flow where clearing
+  // happens in $process/$processDragSelect only once the gesture is classified.
+  const beginMarquee = useCallback(
+    (event: PointerEvent<SVGElement>) => {
+      if (event.button !== 0 || spacePressed) return;
+      const world = eventToWorldPoint(event);
+      const additive = event.shiftKey || event.metaKey || event.ctrlKey;
+      svgRef.current?.setPointerCapture(event.pointerId);
+      setMarquee({
+        pointerId: event.pointerId,
+        clientStart: { x: event.clientX, y: event.clientY },
+        startWorld: world,
+        currentWorld: world,
+        additive,
+        baseFlaps: additive ? bpSelectedFlapIds(document.selection) : [],
+        active: false,
+      });
+    },
+    [spacePressed, eventToWorldPoint, document.selection]
+  );
+
   const onCanvasPointerDown = (event: PointerEvent<SVGSVGElement>) => {
-    if (event.button !== 0 || event.target !== event.currentTarget || spacePressed) return;
-    clearSelection();
+    if (event.target !== event.currentTarget) return;
+    beginMarquee(event);
   };
 
   const onPaperPointerDown = (event: PointerEvent<SVGRectElement>) => {
-    if (event.button !== 0 || spacePressed) return;
-    clearSelection();
+    beginMarquee(event);
+  };
+
+  const updateMarquee = (event: PointerEvent<SVGSVGElement>, current: BpPackingMarqueeState) => {
+    const world = eventToWorldPoint(event);
+    const movedPx = Math.hypot(
+      event.clientX - current.clientStart.x,
+      event.clientY - current.clientStart.y
+    );
+    const active = current.active || movedPx >= BP_PACKING_DRAG_SELECT_THRESHOLD_PX;
+    if (active) {
+      const minX = Math.min(current.startWorld.x, world.x);
+      const maxX = Math.max(current.startWorld.x, world.x);
+      const minY = Math.min(current.startWorld.y, world.y);
+      const maxY = Math.max(current.startWorld.y, world.y);
+      // Select every flap whose CENTER lies in the rectangle (BP Studio hit-tests
+      // Flap.$anchor, which is the flap center). Additive drags keep the flaps
+      // selected before the gesture began.
+      const inRect = packing.flaps
+        .filter((flap) => {
+          const center = bpPackingPointToSvg(
+            {
+              x: flap.anchor.x + flap.width / 2,
+              y: flap.anchor.y + flap.height / 2,
+            },
+            packing.sheet,
+            paperRect
+          );
+          return center.x >= minX && center.x <= maxX && center.y >= minY && center.y <= maxY;
+        })
+        .map((flap) => flap.id);
+      selectOristudioBp(bpFlapSelection([...current.baseFlaps, ...inRect]));
+    }
+    setMarquee({ ...current, currentWorld: world, active });
+  };
+
+  const finishMarquee = (event: PointerEvent<SVGSVGElement>) => {
+    if (!marquee || marquee.pointerId !== event.pointerId) return;
+    if (svgRef.current?.hasPointerCapture(event.pointerId)) {
+      svgRef.current.releasePointerCapture(event.pointerId);
+    }
+    // A press-and-release with no drag is a plain click on empty space → clear.
+    if (!marquee.active) clearSelection();
+    setMarquee(null);
   };
 
   const onFlapPointerDown = (event: PointerEvent<SVGGElement>, flapId: number) => {
@@ -1132,6 +1237,10 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   };
 
   const onCanvasPointerMove = (event: PointerEvent<SVGSVGElement>) => {
+    if (marquee && marquee.pointerId === event.pointerId) {
+      updateMarquee(event, marquee);
+      return;
+    }
     setHoverPoint(eventToPackingPoint(event));
   };
 
@@ -1184,6 +1293,8 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
             aria-label="Box Pleat packing canvas"
             onPointerDown={onCanvasPointerDown}
             onPointerMove={onCanvasPointerMove}
+            onPointerUp={finishMarquee}
+            onPointerCancel={finishMarquee}
             onPointerLeave={() => setHoverPoint(null)}
           >
             <rect
@@ -1441,6 +1552,16 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                   );
                 })}
               </g>
+            )}
+            {marquee?.active && (
+              <rect
+                className="bp-packing-marquee"
+                x={Math.min(marquee.startWorld.x, marquee.currentWorld.x)}
+                y={Math.min(marquee.startWorld.y, marquee.currentWorld.y)}
+                width={Math.abs(marquee.currentWorld.x - marquee.startWorld.x)}
+                height={Math.abs(marquee.currentWorld.y - marquee.startWorld.y)}
+                pointerEvents="none"
+              />
             )}
           </svg>
         </TransformComponent>

@@ -4781,6 +4781,14 @@
   stroke: var(--border-strong);
 }
 
+.bp-packing-marquee {
+  fill: var(--accent-primary);
+  fill-opacity: 0.12;
+  stroke: var(--accent-primary);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
 .bp-packing-grid {
   pointer-events: none;
 }

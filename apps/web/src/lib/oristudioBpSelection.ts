@@ -170,6 +170,25 @@ export function toggleBpEdgeSelection(
   return normalizeBpMultiSelection({ ...multi, edges });
 }
 
+/** The ids of every flap in the current selection (empty when none). */
+export function bpSelectedFlapIds(selection: OristudioBpSelection): number[] {
+  return [...toBpMultiSelection(selection).flaps];
+}
+
+/** A selection of exactly the given flaps (used by rubberband drag-select). */
+export function bpFlapSelection(ids: readonly number[]): OristudioBpSelection {
+  return normalizeBpMultiSelection({
+    kind: 'bp-multi',
+    vertices: [],
+    edges: [],
+    flaps: Array.from(new Set(ids)),
+    rivers: [],
+    stretches: [],
+    devices: [],
+    invalidJunctions: [],
+  });
+}
+
 export function toggleBpFlapSelection(
   selection: OristudioBpSelection,
   id: number
