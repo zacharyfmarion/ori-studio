@@ -176,6 +176,7 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import { useShortcutStore } from '../../store/shortcutStore';
 import { useCpRendererStore } from '../../store/cpRendererStore';
 import { CreasePatternWebglCanvas } from '../../cp-workspace/CreasePatternWebglCanvas';
+import { cpInputModel } from '../../cp-workspace/tools/inputModelRegistry';
 import { resolveCpLineColor } from '../../cp-workspace/adapters/cpLineColor';
 import { readCssVarColor } from '../../cp-workspace/renderer/cssColor';
 import { IconButton } from '../ui/IconButton';
@@ -2527,20 +2528,25 @@ export function CreasePatternPanel() {
   // WebGL draw tools: commit a tool's collected points through the kernel command
   // (creases are resolved kernel-side from the points), then keep it active.
   const handleWebglToolCommit = useCallback(
-    (commit: { points?: readonly Point[] }) => {
+    (commit: { points?: readonly Point[]; lineIds?: readonly number[] }) => {
       const command = activeCpCommand;
       if (!command || command.uiStatus !== 'ready') return;
       const points = commit.points ?? [];
-      if (points.length < 2) return;
+      const pickedLineIds = commit.lineIds ?? [];
+      // Line-entity tools (Lengthen) commit the picked crease ids as `line_ids`
+      // and carry no points; the kernel operates on those creases directly.
+      const isLineEntityCommit = pickedLineIds.length > 0 && points.length === 0;
+      if (!isLineEntityCommit && points.length < 2) return;
       void (async () => {
         const succeeded = await executeOristudioCpCommand(
           command.operationId,
           buildCpCommandPayload(command, {
-            // Flip/erase box tools resolve the box kernel-side; other tools carry
-            // the prior selection.
-            line_ids:
-              isCreaseToggleMvClickTool(command.operationId) ||
-              isLineEraseClickTool(command.operationId)
+            // Line-entity commits send the picked ids. Flip/erase box tools resolve
+            // the box kernel-side; other tools carry the prior selection.
+            line_ids: isLineEntityCommit
+              ? [...pickedLineIds]
+              : isCreaseToggleMvClickTool(command.operationId) ||
+                  isLineEraseClickTool(command.operationId)
                 ? []
                 : oristudioCpSelection.lines,
             circle_ids: oristudioCpSelection.circles,
@@ -2571,6 +2577,26 @@ export function CreasePatternPanel() {
     ]
   );
 
+  // Drive the step prompt for a WebGL line-entity tool (Lengthen) in lock-step
+  // with the creases it has picked: derive the step from the pick count (reset,
+  // then advance once per pick) so the prompt reads "Select target line" after the
+  // first pick — parity with the SVG, whose `pendingLengthenLineId` advances it.
+  const handleWebglToolPickProgress = useCallback(
+    (picked: number) => {
+      const command = activeCpCommand;
+      if (!command || command.uiStatus !== 'ready') return;
+      setCpToolState((state) => {
+        if (state.activeOperationId !== command.operationId) return state;
+        let next = transitionOristudioCpToolState(state, { type: 'cancel', keepActive: true });
+        for (let i = 0; i < picked; i += 1) {
+          next = transitionOristudioCpToolState(next, { type: 'advanceStep' });
+        }
+        return next;
+      });
+    },
+    [activeCpCommand]
+  );
+
   // Only crease-drawing tools preview in the active line colour; select / toggle /
   // transform box + lasso tools preview in the neutral selection accent so a
   // "select crease" box doesn't look like a red crease.
@@ -2588,15 +2614,23 @@ export function CreasePatternPanel() {
   // bisector's "2 segments or 3 points"), or variable-length / text ops, is
   // excluded until it gets dedicated handling.
   const webglActiveTool = useMemo<{
-    mode: 'drag-line' | 'drag-box' | 'drag-path' | 'sequence' | null;
+    mode: 'drag-line' | 'drag-box' | 'drag-path' | 'sequence' | 'line-entity' | null;
     stepKinds: ('point' | 'crease')[];
+    lineCount: number;
   }>(() => {
     if (!activeCpCommand || activeCpCommand.uiStatus !== 'ready' || cpToolState.phase !== 'active') {
-      return { mode: null, stepKinds: [] };
+      return { mode: null, stepKinds: [], lineCount: 0 };
     }
     const im = activeCpCommand.inputMode;
     if (im === 'drag-line' || im === 'drag-box' || im === 'drag-path') {
-      return { mode: im, stepKinds: [] };
+      return { mode: im, stepKinds: [], lineCount: 0 };
+    }
+    // Line-entity tools (Lengthen) pick existing creases by id and commit
+    // `line_ids` — not points. The registry (not the step text) is what tells
+    // them apart from point-sequence tools whose prompts also say "line".
+    const inputModel = cpInputModel(activeCpCommand.operationId);
+    if (inputModel?.model === 'line-entity') {
+      return { mode: 'line-entity', stepKinds: [], lineCount: inputModel.lineCount ?? 2 };
     }
     const steps = activeCpCommand.toolSteps ?? [];
     if (
@@ -2604,11 +2638,11 @@ export function CreasePatternPanel() {
       isVariablePointSequenceOperation(activeCpCommand.operationId) ||
       isTextAnnotationOperation(activeCpCommand.operationId)
     ) {
-      return { mode: null, stepKinds: [] };
+      return { mode: null, stepKinds: [], lineCount: 0 };
     }
     const kinds = steps.map(cpToolStepKind);
-    if (kinds.some((k) => k === null)) return { mode: null, stepKinds: [] };
-    return { mode: 'sequence', stepKinds: kinds as ('point' | 'crease')[] };
+    if (kinds.some((k) => k === null)) return { mode: null, stepKinds: [], lineCount: 0 };
+    return { mode: 'sequence', stepKinds: kinds as ('point' | 'crease')[], lineCount: 0 };
   }, [activeCpCommand, cpToolState.phase]);
 
   // Sequence-tool live preview for the WebGL surface: kernel-computed candidate
@@ -4627,10 +4661,12 @@ export function CreasePatternPanel() {
                   resolveMoveSnap={resolveEditableMoveSnap}
                   activeToolInputMode={webglActiveTool.mode}
                   activeToolStepKinds={webglActiveTool.stepKinds}
+                  activeToolLineCount={webglActiveTool.lineCount}
                   resolveDrawPoint={resolveEditableDrawModelPoint}
                   resolveDrawPointOnCrease={resolveEditableDrawPointOnCrease}
                   onToolCommit={handleWebglToolCommit}
                   onToolPreviewInput={handleWebglToolPreviewInput}
+                  onToolPickProgress={handleWebglToolPickProgress}
                   toolCommandPreviewSegments={webglToolPreviewSegments}
                   toolPreviewColor={toolPreviewColor}
                   onEraseBox={(points) => {
