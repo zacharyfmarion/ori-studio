@@ -385,6 +385,7 @@ Live results as Zach validates each tool in-app. Fixes made during the sweep are
 | Copy selected creases | CreaseCopy | ✅ |
 | Move by four points | CreaseMove4p | ✅ |
 | Operation frame | OperationFrameCreate | ⏭️ **Phase-6 deferred** — kernel + SVG render it; WebGL has no operation-frame overlay yet (frame polygon is SVG-only). Explicitly a Phase-6 item, not a sweep regression. |
+| Box Select | CreaseSelect | ❌ **line-click-mutate hybrid** — box works; click-to-select, shift-add, empty-deselect broken (routes purely as drag-box; click path bypasses `handleEditableLineClick`). Same for CreaseUnselect + CreaseToggleMv. Build item. |
 | Copy by four points | CreaseCopy4p | ✅ |
 
 Cross-cutting fixes made during the sweep (benefit many tools):
@@ -395,6 +396,7 @@ Cross-cutting fixes made during the sweep (benefit many tools):
 ❌ buckets, revisited **after the rest of the migration plan is complete**:
 - **candidate-preview support** — render kernel preview `points` as dots + snap-pick candidate creases (Flat Foldable Line, Converging Lines; likely other Construct tools). Converging Lines also needs re-modeling (line-select + intersection pick).
 - **snap-priority** — points/vertices should beat lines within their snap radius in `nearestCpSnapTarget` (Mirror Line; general, affects all crease-step tools).
+- **line-click-mutate hybrid** — click→select/toggle (`handleEditableLineClick`) + shift-add + empty-deselect, drag→box command; for CreaseSelect/Unselect/ToggleMv. Build with the bespoke trio.
 - **Oriedita-only conveniences the SVG never had** — e.g. lengthen drag-to-select. Expect more across the sweep.
 - **kernel-parity bugs** (separate from the frontend migration — affect SVG + WebGL identically) — `double_symmetric_draw` L-shape endpoint intersections (Reflect Over Line). Need Oriedita source refs.
 
