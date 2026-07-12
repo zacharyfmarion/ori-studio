@@ -10,8 +10,11 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import { TransformComponent, TransformWrapper, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
-import { Circle, Grid2X2, Layers, Tag, Waypoints } from 'lucide-react';
-import type { OristudioBpDocumentState } from '../../engine/oristudioBpTypes';
+import { Circle, Grid2X2, Layers, Minus, Plus, Tag, Waypoints } from 'lucide-react';
+import type {
+  OristudioBpDocumentState,
+  OristudioBpTreeEdge,
+} from '../../engine/oristudioBpTypes';
 import {
   bpLinkedSelection,
   toggleBpEdgeSelection,
@@ -136,6 +139,88 @@ function BpTreeViewportToolbar({
   );
 }
 
+/**
+ * Contextual editor for a selected tree edge's length. BP flap/river lengths are
+ * the tree edge lengths, and the engine enforces a minimum of 1 and a
+ * geometry-derived maximum (`edge.maxLength`).
+ */
+function BpTreeEdgeLengthEditor({
+  edge,
+  onSetLength,
+}: {
+  edge: OristudioBpTreeEdge;
+  onSetLength: (length: number) => void;
+}) {
+  const [draft, setDraft] = useState(() => formatNumber(edge.length, 2));
+  useEffect(() => {
+    setDraft(formatNumber(edge.length, 2));
+  }, [edge.id, edge.length]);
+
+  const max = edge.maxLength;
+  const commit = (value: number) => {
+    if (!Number.isFinite(value)) {
+      setDraft(formatNumber(edge.length, 2));
+      return;
+    }
+    const clamped = Math.min(max ?? value, Math.max(1, value));
+    if (clamped !== edge.length) onSetLength(clamped);
+    else setDraft(formatNumber(edge.length, 2));
+  };
+
+  return (
+    <div
+      className="bp-tree-edge-editor"
+      role="group"
+      aria-label={`Length of edge ${edge.vertices[0]} to ${edge.vertices[1]}`}
+    >
+      <span className="bp-tree-edge-editor__title">
+        Edge {edge.vertices[0]}–{edge.vertices[1]}
+      </span>
+      <span className="bp-tree-edge-editor__label">Length</span>
+      <IconButton
+        size="sm"
+        variant="toolbar"
+        title="Decrease length"
+        disabled={edge.length <= 1}
+        onClick={() => commit(Math.round(edge.length) - 1)}
+      >
+        <Minus size={14} />
+      </IconButton>
+      <input
+        className="bp-tree-edge-editor__input"
+        type="number"
+        min={1}
+        max={max ?? undefined}
+        step={1}
+        value={draft}
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={() => commit(Number.parseFloat(draft))}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            commit(Number.parseFloat(draft));
+            event.currentTarget.blur();
+          } else if (event.key === 'Escape') {
+            setDraft(formatNumber(edge.length, 2));
+            event.currentTarget.blur();
+          }
+        }}
+      />
+      <IconButton
+        size="sm"
+        variant="toolbar"
+        title="Increase length"
+        disabled={max !== null && edge.length >= max}
+        onClick={() => commit(Math.round(edge.length) + 1)}
+      >
+        <Plus size={14} />
+      </IconButton>
+      {max !== null && (
+        <span className="bp-tree-edge-editor__max">max {formatNumber(max, 2)}</span>
+      )}
+    </div>
+  );
+}
+
 export function BpTreePanel({ document }: { document: OristudioBpDocumentState }) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -159,11 +244,20 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     (state) => state.moveOristudioBpTreeVertices
   );
   const addOristudioBpTreeLeaf = useWorkspaceStore((state) => state.addOristudioBpTreeLeaf);
+  const setOristudioBpTreeEdgeLength = useWorkspaceStore(
+    (state) => state.setOristudioBpTreeEdgeLength
+  );
   const setOristudioBpActiveSurface = useWorkspaceStore(
     (state) => state.setOristudioBpActiveSurface
   );
   const tree = document.snapshot.tree;
   const selectedVertexId = document.selection.kind === 'bp-vertex' ? document.selection.id : null;
+  // The edge selected by clicking a tree segment — drives the length editor.
+  const selectedEdge = useMemo(() => {
+    const id = document.selection.kind === 'bp-edge' ? document.selection.id : null;
+    if (id === null) return null;
+    return tree.edges.find((edge) => edge.id === id) ?? null;
+  }, [document.selection, tree.edges]);
 
   // Parent/children maps rooted at the tree root, for rotate-around-parent drags.
   const topology = useMemo(() => {
@@ -416,6 +510,10 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
   const onEdgePointerDown = (event: PointerEvent<SVGGElement>, edgeId: number) => {
     if (event.button !== 0 || spacePressed) return;
     event.stopPropagation();
+    // Clicking an edge selects it — cancel the pending canvas "add leaf" gesture
+    // that the capture-phase handler armed (edges, unlike vertices, don't capture
+    // the pointer, so pointerup would otherwise reach onCanvasAddPointerUp).
+    paperDownRef.current = null;
     selectOristudioBp(
       event.shiftKey || event.metaKey || event.ctrlKey
         ? toggleBpEdgeSelection(document.selection, edgeId)
@@ -668,6 +766,14 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
         fitToView={() => fitToView()}
         setZoomLevel={setZoomLevel}
       />
+      {selectedEdge && (
+        <BpTreeEdgeLengthEditor
+          edge={selectedEdge}
+          onSetLength={(length) =>
+            void setOristudioBpTreeEdgeLength(selectedEdge.vertices, length)
+          }
+        />
+      )}
       <div className="design-status-readout">
         <span>{formatViewportZoom(zoomPercent / 100)}</span>
         {hoverPoint && (

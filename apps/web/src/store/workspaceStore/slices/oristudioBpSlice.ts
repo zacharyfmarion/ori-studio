@@ -15,6 +15,7 @@ import {
   oristudioBpError,
   rotateOristudioBpLayoutSheet as rotateRuntimeOristudioBpLayoutSheet,
   subdivideOristudioBpLayoutSheet as subdivideRuntimeOristudioBpLayoutSheet,
+  updateOristudioBpTreeEdgeLength as updateRuntimeOristudioBpTreeEdgeLength,
   switchOristudioBpStretchConfig as switchRuntimeOristudioBpStretchConfig,
   switchOristudioBpStretchPattern as switchRuntimeOristudioBpStretchPattern,
 } from '../oristudioBpRuntime';
@@ -245,6 +246,14 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         return created ? { ...next, selection: { kind: 'bp-vertex', id: created.id } } : next;
       });
     },
+
+    setOristudioBpTreeEdgeLength: async (vertices, length) =>
+      runBpTreeMutation('Set BP edge length', (document) =>
+        updateRuntimeOristudioBpTreeEdgeLength(vertices, length, {
+          activeSurface: 'tree',
+          selection: document.selection,
+        })
+      ),
 
     moveOristudioBpLayoutFlap: async (id, loc, dragging = false) =>
       runBpTreeMutation('Moved BP flap', () =>

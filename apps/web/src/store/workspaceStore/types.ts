@@ -393,6 +393,11 @@ export interface OristudioBpSliceActions {
   ) => Promise<boolean>;
   /** Add a unit-length leaf to a parent vertex, optionally at a target location. */
   addOristudioBpTreeLeaf: (parentId: number, loc?: Point) => Promise<boolean>;
+  /** Set the length of the tree edge between two vertices (min 1). */
+  setOristudioBpTreeEdgeLength: (
+    vertices: [number, number],
+    length: number
+  ) => Promise<boolean>;
   /** Move a single BP flap in the packing. */
   moveOristudioBpLayoutFlap: (id: number, loc: Point, dragging?: boolean) => Promise<boolean>;
   /** Move a group of BP flaps in the packing. */
