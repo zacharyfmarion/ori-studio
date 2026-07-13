@@ -2584,14 +2584,19 @@ export function CreasePatternPanel() {
         const succeeded = await executeOristudioCpCommand(
           command.operationId,
           buildCpCommandPayload(command, {
-            // Line-entity commits send the picked ids. Flip/erase box tools resolve
-            // the box kernel-side; other tools carry the prior selection.
-            line_ids: isLineEntityCommit
-              ? [...pickedLineIds]
-              : isCreaseToggleMvClickTool(command.operationId) ||
-                  isLineEraseClickTool(command.operationId)
-                ? []
-                : oristudioCpSelection.lines,
+            // Line-entity commits send the picked ids. Box select/unselect, flip,
+            // and erase resolve their region from the box *points* kernel-side and
+            // must send empty line_ids — CreaseSelect prioritises line_ids over the
+            // box, so passing the prior selection would re-select it instead of the
+            // new region. Other tools carry the prior selection as their input.
+            line_ids:
+              isLineEntityCommit
+                ? [...pickedLineIds]
+                : isCreaseToggleMvClickTool(command.operationId) ||
+                    isLineEraseClickTool(command.operationId) ||
+                    isLineClickSelectionOperation(command.operationId)
+                  ? []
+                  : oristudioCpSelection.lines,
             circle_ids: oristudioCpSelection.circles,
             points: [...points],
             // A plain box/lasso/polygon select replaces the selection; holding a
