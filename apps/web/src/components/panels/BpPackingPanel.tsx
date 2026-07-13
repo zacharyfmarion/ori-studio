@@ -5,6 +5,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent,
   type ReactNode,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -33,6 +34,7 @@ import type {
   OristudioBpFlap,
   OristudioBpGraphicPrimitive,
   OristudioBpRiver,
+  OristudioBpSelection,
   OristudioBpSheet,
   OristudioBpSheetKind,
   OristudioBpStretch,
@@ -92,6 +94,9 @@ const BP_PACKING_DRAG_SELECT_THRESHOLD_PX = 5;
 // flap still has a comfortable center hit region (comparable to a crease's hit
 // stroke width).
 const BP_PACKING_FLAP_HIT_MIN_PX = 16;
+// A repeat click within this many screen pixels of the previous one counts as
+// the "same spot" and advances the stacked-object selection cycle.
+const BP_PACKING_CYCLE_THRESHOLD_PX = 4;
 
 interface BpRiverVisual {
   river: OristudioBpRiver;
@@ -1144,6 +1149,36 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     setMarquee(null);
   };
 
+  // Click-again cycling through stacked selectables (BP Studio $processNext).
+  // A plain click's own element already selected the topmost item on pointerdown;
+  // here, a repeat click at the same spot advances to the next item underneath.
+  // A drag suppresses the click, so cycling only happens on genuine clicks.
+  const cycleRef = useRef<{ x: number; y: number; keys: string[]; index: number } | null>(null);
+  const onSelectionCycleClick = (event: ReactMouseEvent<SVGSVGElement>) => {
+    if (event.button !== 0 || spacePressed || event.shiftKey || event.metaKey || event.ctrlKey) {
+      cycleRef.current = null;
+      return;
+    }
+    const stack = bpSelectionStackAt(event.clientX, event.clientY);
+    if (stack.length < 2) {
+      cycleRef.current = null;
+      return;
+    }
+    const previous = cycleRef.current;
+    const sameSpot =
+      previous !== null &&
+      Math.hypot(event.clientX - previous.x, event.clientY - previous.y) <=
+        BP_PACKING_CYCLE_THRESHOLD_PX &&
+      previous.keys.length === stack.length &&
+      previous.keys.every((key, index) => key === stack[index]);
+    const index = sameSpot ? (previous.index + 1) % stack.length : 0;
+    cycleRef.current = { x: event.clientX, y: event.clientY, keys: stack, index };
+    // index 0 is already selected by the clicked element's own pointerdown.
+    if (index === 0) return;
+    const selection = bpSelectionFromToken(stack[index]);
+    if (selection) selectOristudioBp(selection);
+  };
+
   const onFlapPointerDown = (event: PointerEvent<SVGGElement>, flapId: number) => {
     if (event.button !== 0 || spacePressed) return;
     event.stopPropagation();
@@ -1484,6 +1519,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
             onPointerUp={finishMarquee}
             onPointerCancel={finishMarquee}
             onPointerLeave={() => setHoverPoint(null)}
+            onClick={onSelectionCycleClick}
           >
             <rect
               className="paper-shadow"
@@ -1552,6 +1588,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                       className={active ? 'bp-packing-river--selected' : undefined}
                       role="button"
                       tabIndex={0}
+                      data-bp-select={`river:${visual.river.id}`}
                       aria-label={`Select BP river ${visual.river.id}, length ${formatNumber(
                         visual.river.length,
                         2
@@ -1601,6 +1638,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                       className={active ? 'bp-packing-conflict--selected' : undefined}
                       role="button"
                       tabIndex={0}
+                      data-bp-select={`conflict:${junction.id}`}
                       aria-label={`Select BP conflict ${junction.id}: ${junction.message}`}
                       onPointerDown={(event) => onConflictPointerDown(event, junction.id)}
                       onKeyDown={(event) => onConflictKeyDown(event, junction.id)}
@@ -1703,6 +1741,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                         rx={Math.min(6, half)}
                         role="button"
                         tabIndex={0}
+                        data-bp-select={`flap:${flap.id}`}
                         aria-label={`Select BP flap ${flap.id}${flap.name ? `, ${flap.name}` : ''}`}
                         onPointerDown={(event) => onFlapPointerDown(event, flap.id)}
                         onPointerMove={(event) => onFlapPointerMove(event, flap)}
@@ -1922,6 +1961,7 @@ function Primitive({
         role: 'button' as const,
         tabIndex: 0,
         'aria-label': ariaLabel,
+        'data-bp-select': primitiveSelectToken(primitive, document),
         onKeyDown: (event: ReactKeyboardEvent<SVGGElement>) => onKeyDown(event, primitive),
       }
     : {};
@@ -2027,6 +2067,56 @@ function primitiveAriaLabel(
   const riverId = riverIdFromPrimitiveId(primitive.id, document);
   if (riverId !== null) return `Select BP river ${riverId}`;
   return undefined;
+}
+
+/** The `data-bp-select` token for a crease primitive, used by click-cycling. */
+function primitiveSelectToken(
+  primitive: OristudioBpGraphicPrimitive,
+  document: OristudioBpDocumentState
+): string | undefined {
+  const deviceInfo = deviceInfoFromPrimitiveId(primitive.id, document);
+  if (deviceInfo) return `device:${deviceInfo.deviceId}`;
+  const flapId = flapIdFromPrimitiveId(primitive.id);
+  if (flapId !== null) return `flap:${flapId}`;
+  const riverId = riverIdFromPrimitiveId(primitive.id, document);
+  if (riverId !== null) return `river:${riverId}`;
+  return undefined;
+}
+
+/** Parse a `data-bp-select` token (`kind:id`) into a selection. */
+function bpSelectionFromToken(token: string): OristudioBpSelection | null {
+  const separator = token.indexOf(':');
+  if (separator < 0) return null;
+  const kind = token.slice(0, separator);
+  const id = token.slice(separator + 1);
+  switch (kind) {
+    case 'flap':
+      return { kind: 'bp-flap', id: Number(id) };
+    case 'river':
+      return { kind: 'bp-river', id: Number(id) };
+    case 'device':
+      return { kind: 'bp-device', id };
+    case 'conflict':
+      return { kind: 'bp-invalid-junction', id };
+    default:
+      return null;
+  }
+}
+
+/**
+ * The stack of selectable BP entities under a screen point, topmost first and
+ * de-duplicated. Repeated clicks at the same point cycle through this stack,
+ * matching Box Pleating Studio's SelectionController.$processNext so an item
+ * buried under another (a flap tip inside a gadget) can still be reached.
+ */
+function bpSelectionStackAt(clientX: number, clientY: number): string[] {
+  const tokens: string[] = [];
+  for (const element of document.elementsFromPoint(clientX, clientY)) {
+    const owner = element.closest?.('[data-bp-select]');
+    const token = owner?.getAttribute('data-bp-select');
+    if (token && !tokens.includes(token)) tokens.push(token);
+  }
+  return tokens;
 }
 
 function pointsAttr(points: Point[]): string {
