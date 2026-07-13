@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { handleMenuAction } from '../commands/menuActions';
-import { getMenuBarDef, type MenuItemDef } from '../menus/menuDefinition';
+import { getMenuBarDef, type MenuDef, type MenuItemDef } from '../menus/menuDefinition';
 import { useShortcutStore } from '../store/shortcutStore';
 import { useWorkspaceCapabilities } from '../store/workspaceStore/useWorkspaceCapabilities';
 import type { WorkspaceCapabilities, WorkspaceCapabilityId } from '../lib/workspaceCapabilities';
@@ -16,6 +16,17 @@ function isMenuItemVisible(item: MenuItemDef, capabilities: WorkspaceCapabilitie
 
   const capability = capabilities[item.id as WorkspaceCapabilityId];
   return !(capability && !capability.visible);
+}
+
+/**
+ * Whether a top-level menu has any non-separator item that is visible in the
+ * current context. Lets the bar drop menus that are entirely hidden — e.g. the
+ * Design and Crease Pattern menus while authoring a Box-Pleat design.
+ */
+function menuHasVisibleItems(menu: MenuDef, capabilities: WorkspaceCapabilities): boolean {
+  return menu.items.some(
+    (item) => item.type !== 'separator' && isMenuItemVisible(item, capabilities)
+  );
 }
 
 function MenuDropdown({
@@ -122,6 +133,10 @@ export function MenuBar() {
     [shortcutOverrides]
   );
   const capabilities = useWorkspaceCapabilities();
+  const visibleMenus = useMemo<MenuDef[]>(
+    () => menuDef.filter((menu) => menuHasVisibleItems(menu, capabilities)),
+    [menuDef, capabilities]
+  );
 
   const closeMenu = useCallback(() => {
     setOpenMenu(null);
@@ -154,7 +169,7 @@ export function MenuBar() {
   return (
     <div className="menubar" ref={menuRef}>
       <div className="menubar__menus">
-        {menuDef.map((menu, index) => (
+        {visibleMenus.map((menu, index) => (
           <div key={menu.label} className="menubar__menu-wrapper">
             <button
               type="button"

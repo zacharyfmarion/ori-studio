@@ -519,6 +519,7 @@ describe('menu actions', () => {
       ...createDeps(),
       capabilities: () =>
         getWorkspaceCapabilities({
+        activeEditingContext: 'crease-pattern',
         documentMode: 'crease-pattern',
         activeEditingSurface: 'crease-pattern',
         engineReady: true,

@@ -4,6 +4,7 @@ import { activeOrFallbackHistoryCount } from './capabilities';
 import { useWorkspaceStore } from './store';
 
 export function useWorkspaceCapabilities() {
+  const activeEditingContext = useWorkspaceStore((state) => state.activeEditingContext);
   const documentMode = useWorkspaceStore((state) => state.documentMode);
   const activeEditingSurface = useWorkspaceStore((state) => state.activeEditingSurface);
   const engineReady = useWorkspaceStore((state) => state.engineReady);
@@ -30,26 +31,35 @@ export function useWorkspaceCapabilities() {
   const treeHistoryFutureCount = useWorkspaceStore((state) => state.historyFuture.length);
   const cpHistoryPastCount = useWorkspaceStore((state) => state.oristudioCpHistoryPast.length);
   const cpHistoryFutureCount = useWorkspaceStore((state) => state.oristudioCpHistoryFuture.length);
+  const bpHistoryPastCount = useWorkspaceStore((state) => state.oristudioBpHistoryPast.length);
+  const bpHistoryFutureCount = useWorkspaceStore((state) => state.oristudioBpHistoryFuture.length);
   const clipboard = useWorkspaceStore((state) => state.clipboard);
   const selection = useWorkspaceStore((state) => state.selection);
+  const isBpContext =
+    activeEditingContext === 'bp-tree' || activeEditingContext === 'bp-packing';
   const usableTreeHistoryPastCount = documentMode === 'tree' ? treeHistoryPastCount : 0;
   const usableTreeHistoryFutureCount = documentMode === 'tree' ? treeHistoryFutureCount : 0;
   const usableCpHistoryPastCount = hasEditableCreasePattern ? cpHistoryPastCount : 0;
   const usableCpHistoryFutureCount = hasEditableCreasePattern ? cpHistoryFutureCount : 0;
-  const historyPastCount = activeOrFallbackHistoryCount(
-    activeEditingSurface,
-    usableTreeHistoryPastCount,
-    usableCpHistoryPastCount
-  );
-  const historyFutureCount = activeOrFallbackHistoryCount(
-    activeEditingSurface,
-    usableTreeHistoryFutureCount,
-    usableCpHistoryFutureCount
-  );
+  const historyPastCount = isBpContext
+    ? bpHistoryPastCount
+    : activeOrFallbackHistoryCount(
+        activeEditingSurface,
+        usableTreeHistoryPastCount,
+        usableCpHistoryPastCount
+      );
+  const historyFutureCount = isBpContext
+    ? bpHistoryFutureCount
+    : activeOrFallbackHistoryCount(
+        activeEditingSurface,
+        usableTreeHistoryFutureCount,
+        usableCpHistoryFutureCount
+      );
 
   return useMemo(
     () =>
       getWorkspaceCapabilities({
+        activeEditingContext,
         documentMode,
         activeEditingSurface,
         engineReady,
@@ -72,6 +82,7 @@ export function useWorkspaceCapabilities() {
     [
       clipboard,
       creaseCount,
+      activeEditingContext,
       activeEditingSurface,
       documentMode,
       edgeCount,

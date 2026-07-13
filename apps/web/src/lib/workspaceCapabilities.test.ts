@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AppStatus, DocumentMode, Selection } from './sampleProject';
+import type { EditingContext } from '../workspaces/editingContext';
 import { getNextDocumentAction, getWorkspaceCapabilities } from './workspaceCapabilities';
 
 const treeSelection: Selection = { kind: 'tree' };
@@ -7,6 +8,7 @@ const treeSelection: Selection = { kind: 'tree' };
 function capabilities({
   documentMode = 'tree',
   activeEditingSurface = documentMode,
+  activeEditingContext = documentMode === 'crease-pattern' ? 'crease-pattern' : 'treemaker-tree',
   status = 'ready',
   edgeCount = 0,
   creaseCount = 0,
@@ -25,6 +27,7 @@ function capabilities({
 }: {
   documentMode?: DocumentMode;
   activeEditingSurface?: DocumentMode;
+  activeEditingContext?: EditingContext;
   status?: AppStatus;
   edgeCount?: number;
   creaseCount?: number;
@@ -42,6 +45,7 @@ function capabilities({
   selection?: Selection;
 } = {}) {
   return getWorkspaceCapabilities({
+    activeEditingContext,
     documentMode,
     activeEditingSurface,
     engineReady,
@@ -364,5 +368,33 @@ describe('workspace capabilities', () => {
     const errorState = capabilities({ status: 'error', edgeCount: 2 });
     expect(errorState['optimize.scale'].enabled).toBe(false);
     expect(errorState['cp.build'].enabled).toBe(false);
+  });
+
+  it('hides TreeMaker/CP commands in a Box-Pleat context', () => {
+    const bp = capabilities({
+      activeEditingContext: 'bp-tree',
+      documentMode: 'tree',
+      edgeCount: 2,
+      historyPastCount: 1,
+    });
+    // Design menu + toolbar (TreeMaker/CP), tree-edit submenus, and CP exports hide.
+    for (const id of [
+      'optimize.scale',
+      'optimize.edges',
+      'cp.build',
+      'cp.deleteSelectedLines',
+      'edit.triangulateTree',
+      'edit.absorbNodes',
+      'view.conditions',
+      'file.exportV5',
+    ] as const) {
+      expect(bp[id].visible).toBe(false);
+      expect(bp[id].enabled).toBe(false);
+    }
+    // Generic commands stay; undo reads the BP history count.
+    expect(bp['file.new'].visible).toBe(true);
+    expect(bp['file.open'].visible).toBe(true);
+    expect(bp['edit.undo'].visible).toBe(true);
+    expect(bp['edit.undo'].enabled).toBe(true);
   });
 });

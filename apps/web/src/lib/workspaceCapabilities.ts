@@ -1,4 +1,5 @@
 import type { AppStatus, DocumentMode, Selection } from './sampleProject';
+import type { EditingContext } from '../workspaces/editingContext';
 
 export type WorkspaceCapabilityId =
   | 'file.new'
@@ -91,6 +92,7 @@ export interface WorkspaceCapability {
 export type WorkspaceCapabilities = Record<WorkspaceCapabilityId, WorkspaceCapability>;
 
 export interface WorkspaceCapabilityInput {
+  activeEditingContext: EditingContext;
   documentMode: DocumentMode;
   activeEditingSurface: DocumentMode;
   engineReady: boolean;
@@ -154,7 +156,7 @@ export function getWorkspaceCapabilities(input: WorkspaceCapabilityInput): Works
   const buildLabel = hasCreasePattern ? 'Rebuild CP' : 'Build CP';
   const buildReason = hasCreasePattern ? 'Rebuild crease pattern' : 'Build crease pattern';
 
-  return {
+  const capabilities: WorkspaceCapabilities = {
     'file.new': capability(!isBusy, 'New', isBusy ? busyReason(input.status) : 'Choose a new Ori Studio workspace'),
     'file.open': capability(!isBusy, 'Open...', isBusy ? busyReason(input.status) : 'Open a project or crease pattern'),
     'file.importAdd': capability(
@@ -588,6 +590,62 @@ export function getWorkspaceCapabilities(input: WorkspaceCapabilityInput): Works
         : 'Build or edit a crease pattern before refreshing the simulator'
     ),
   };
+
+  return maskCapabilitiesForContext(capabilities, input.activeEditingContext);
+}
+
+/**
+ * TreeMaker/CP-specific commands that make no sense while authoring a Box-Pleat
+ * design. Hidden (and disabled) in a BP context so the Design and Crease Pattern
+ * menus — and the tree-editing Edit submenus — don't surface TreeMaker actions.
+ * File/Edit(undo,redo,clipboard)/View stay available.
+ */
+const BP_HIDDEN_CAPABILITIES = new Set<WorkspaceCapabilityId>([
+  'edit.makeRoot',
+  'edit.splitEdge',
+  'edit.setEdgeLength',
+  'edit.scaleEdgeLengths',
+  'edit.renormalizeToEdge',
+  'edit.renormalizeToUnitScale',
+  'edit.absorbNodes',
+  'edit.absorbRedundantNodes',
+  'edit.absorbEdges',
+  'edit.perturbNodes',
+  'edit.perturbAllNodes',
+  'edit.removeStrain',
+  'edit.removeAllStrain',
+  'edit.relieveStrain',
+  'edit.relieveAllStrain',
+  'edit.addLargestStubForNodes',
+  'edit.addLargestStubForPoly',
+  'edit.triangulateTree',
+  'edit.selectByIndex',
+  'edit.selectMovableParts',
+  'edit.selectCorridorFacets',
+  'view.conditions',
+  'file.exportV5',
+  'file.exportV4',
+  'file.exportCp',
+  'file.exportFold',
+  'file.exportOri',
+  'file.exportOrh',
+  'file.exportSvg',
+  'file.exportPng',
+]);
+
+function maskCapabilitiesForContext(
+  capabilities: WorkspaceCapabilities,
+  context: EditingContext
+): WorkspaceCapabilities {
+  const isBpContext = context === 'bp-tree' || context === 'bp-packing';
+  if (!isBpContext) return capabilities;
+  const masked = { ...capabilities };
+  for (const id of Object.keys(masked) as WorkspaceCapabilityId[]) {
+    if (id.startsWith('optimize.') || id.startsWith('cp.') || BP_HIDDEN_CAPABILITIES.has(id)) {
+      masked[id] = { ...masked[id], visible: false, enabled: false };
+    }
+  }
+  return masked;
 }
 
 export function getNextDocumentAction(

@@ -178,20 +178,26 @@ model and folding it onto the primitive belongs with the documents-registry
 cleanup (a non-goal here). The context dispatch already treats all three
 uniformly, so this is purely an internal convergence left for later.
 
-### Phase 3 — Capabilities, menus, shortcuts by context (fixes Design-menu + toolbar)
-- [ ] Rewrite `WorkspaceCapabilityInput` to key on `activeEditingContext` plus
-      per-document facts (BP doc present, CP doc present, tree edge count, …);
-      add BP inputs.
-- [ ] Make menu definitions context-scoped: the menu bar shows the active
-      context's set. TreeMaker Optimize/Build only in `treemaker-tree`; BP
-      actions in `bp-*`; CP actions in `crease-pattern`; playback in `simulate`.
-- [ ] Gate the `NextDocumentAction` toolbar buttons on context, not
-      `documentMode === 'tree'`.
-- [ ] Migrate the shortcut **scope stack** ([shortcutRuntime.ts](../apps/web/src/keyboard/shortcutRuntime.ts))
-      to derive from context (viewport surface already models `bp-editor`).
-- **Gate (author):** in a BP design the Design menu + toolbar show BP-appropriate
-  actions (no TreeMaker Optimize/Build/CP submenus); TreeMaker and CP menus
-  unchanged; shortcuts route to the focused view.
+### Phase 3 — Capabilities, menus, shortcuts by context (fixes Design-menu + toolbar) ✅
+- [x] Thread `activeEditingContext` into `WorkspaceCapabilityInput`, and make the
+      Edit menu's undo/redo read the **BP** history count in a BP context (the
+      TreeMaker/CP stacks are empty there). Done in both input builders
+      (`capabilities.ts` + `useWorkspaceCapabilities.ts`) and the third inline copy
+      in `projectSlice` was collapsed onto `selectWorkspaceCapabilities`.
+- [x] Context-scope the menus via capability visibility: `maskCapabilitiesForContext`
+      hides all `optimize.*`/`cp.*`, the TreeMaker tree-edit Edit submenus, and CP
+      exports in a BP context; `MenuBar` drops top-level menus with no visible
+      items, so the **Design** and **Crease Pattern** menus disappear in BP.
+- [x] Gate `NextDocumentAction` (Optimize/Build) on capability visibility → hidden
+      in BP.
+- [~] Shortcut routing: TreeMaker shortcuts are **gated via capabilities**
+      (`rejectDisabled` blocks the masked commands), and BP viewport shortcuts route
+      by `activeViewportSurface`. A deeper `shortcutScopeStackForContext` migration
+      wasn't needed for correctness and is deferred.
+- **Gate (author):** verified live — in a BP design the menu bar shows only
+  File/Edit/View/Help and no Optimize/Build toolbar; Edit▸Undo enables after a BP
+  edit; TreeMaker (circle-packed) keeps its Design menu + toolbar; BP mask has a
+  regression test; 465 web tests pass, lint + tsc clean.
 
 ### Phase 4 — Tree-authoring completeness (delete + friends)
 - [ ] Expose `deleteOristudioBpTreeLeaf` (and `join/split/merge`, `rename`) as

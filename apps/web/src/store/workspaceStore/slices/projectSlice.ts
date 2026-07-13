@@ -50,10 +50,8 @@ import {
 } from '../../../lib/creasePatternSegmentation';
 import type { OristudioCpOperationId } from '../../../lib/oristudioCpCommands';
 import { createEmptyProject, DEFAULT_CREASE_COLOR_MODE } from '../../../lib/sampleProject';
-import {
-  getWorkspaceCapabilities,
-  type WorkspaceCapabilityId,
-} from '../../../lib/workspaceCapabilities';
+import { type WorkspaceCapabilityId } from '../../../lib/workspaceCapabilities';
+import { selectWorkspaceCapabilities } from '../capabilities';
 import { ensureExtension, getFileService, type FileService } from '../../../platform/fileService';
 import { requestConfirmation, requestCreasePatternExportOptions } from '../../commandDialogStore';
 import { useLayoutStore } from '../../layoutStore';
@@ -346,33 +344,9 @@ function defaultCreaseExportOptions(viewport: OristudioCpViewportOptions): Creas
 }
 
 export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get) => {
-  const capabilities = () =>
-    getWorkspaceCapabilities({
-      documentMode: get().documentMode,
-      activeEditingSurface: get().activeEditingSurface,
-      engineReady: get().engineReady,
-      status: get().status,
-      edgeCount: get().project.edges.length,
-      creaseCount: get().project.creases.length,
-      facetCount: get().project.facets.length,
-      hasEditableCreasePattern: get().oristudioCpDocument !== null,
-      hasImportedCreasePattern: get().importedCreasePattern !== null,
-      hasSimulationModel: get().foldArtifacts?.simulation_model != null,
-      oristudioCpSelectedLineCount: get().oristudioCpSelection.lines.length,
-      oristudioCpSelectedVertexCount: get().oristudioCpSelection.vertices?.length ?? 0,
-      oristudioCpSelectedPointCount: get().oristudioCpSelection.points.length,
-      oristudioCpSelectedCircleCount: get().oristudioCpSelection.circles.length,
-      historyPastCount:
-        get().activeEditingSurface === 'crease-pattern'
-          ? get().oristudioCpHistoryPast.length
-          : get().historyPast.length,
-      historyFutureCount:
-        get().activeEditingSurface === 'crease-pattern'
-          ? get().oristudioCpHistoryFuture.length
-          : get().historyFuture.length,
-      clipboard: get().clipboard,
-      selection: get().selection,
-    });
+  // Reuse the single capability input builder (which is context/BP-aware) rather
+  // than a divergent inline copy.
+  const capabilities = () => selectWorkspaceCapabilities(get());
 
   const rejectDisabled = (id: WorkspaceCapabilityId) => {
     const capability = capabilities()[id];
