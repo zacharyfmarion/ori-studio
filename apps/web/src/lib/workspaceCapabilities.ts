@@ -107,6 +107,7 @@ export interface WorkspaceCapabilityInput {
   oristudioCpSelectedVertexCount: number;
   oristudioCpSelectedPointCount: number;
   oristudioCpSelectedCircleCount: number;
+  hasDeletableBpSelection: boolean;
   historyPastCount: number;
   historyFutureCount: number;
   clipboard: unknown | null;
@@ -114,6 +115,8 @@ export interface WorkspaceCapabilityInput {
 }
 
 export function getWorkspaceCapabilities(input: WorkspaceCapabilityInput): WorkspaceCapabilities {
+  const isBpContext =
+    input.activeEditingContext === 'bp-tree' || input.activeEditingContext === 'bp-packing';
   const treeMode = input.documentMode === 'tree';
   const creasePatternMode = input.documentMode === 'crease-pattern';
   const activeCpSurface = input.activeEditingSurface === 'crease-pattern' && input.hasEditableCreasePattern;
@@ -286,7 +289,8 @@ export function getWorkspaceCapabilities(input: WorkspaceCapabilityInput): Works
           : 'Open an editable crease pattern first'
     ),
     'edit.delete': capability(
-      (treeMode && !activeCpSurface && hasSelection && !isBusy) ||
+      (isBpContext && input.hasDeletableBpSelection && !isBusy) ||
+        (!isBpContext && treeMode && !activeCpSurface && hasSelection && !isBusy) ||
         (canEditCp && activeCpSurface && (hasSelectedCpLines || hasSelectedCpPoints)),
       'Delete Selected',
       treeMode && !activeCpSurface

@@ -20,6 +20,7 @@ function capabilities({
   oristudioCpSelectedVertexCount = 0,
   oristudioCpSelectedPointCount = 0,
   oristudioCpSelectedCircleCount = 0,
+  hasDeletableBpSelection = false,
   historyPastCount = 0,
   historyFutureCount = 0,
   clipboard = null,
@@ -39,6 +40,7 @@ function capabilities({
   oristudioCpSelectedVertexCount?: number;
   oristudioCpSelectedPointCount?: number;
   oristudioCpSelectedCircleCount?: number;
+  hasDeletableBpSelection?: boolean;
   historyPastCount?: number;
   historyFutureCount?: number;
   clipboard?: unknown | null;
@@ -60,6 +62,7 @@ function capabilities({
     oristudioCpSelectedVertexCount,
     oristudioCpSelectedPointCount,
     oristudioCpSelectedCircleCount,
+    hasDeletableBpSelection,
     historyPastCount,
     historyFutureCount,
     clipboard,

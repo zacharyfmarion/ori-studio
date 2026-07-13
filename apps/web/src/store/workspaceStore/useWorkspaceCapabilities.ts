@@ -33,6 +33,14 @@ export function useWorkspaceCapabilities() {
   const cpHistoryFutureCount = useWorkspaceStore((state) => state.oristudioCpHistoryFuture.length);
   const bpHistoryPastCount = useWorkspaceStore((state) => state.oristudioBpHistoryPast.length);
   const bpHistoryFutureCount = useWorkspaceStore((state) => state.oristudioBpHistoryFuture.length);
+  const hasDeletableBpSelection = useWorkspaceStore((state) => {
+    const selection = state.oristudioBpDocument?.selection;
+    const root = state.oristudioBpDocument?.snapshot?.tree?.rootVertexId;
+    return (
+      (selection?.kind === 'bp-vertex' && selection.id !== root) ||
+      selection?.kind === 'bp-edge'
+    );
+  });
   const clipboard = useWorkspaceStore((state) => state.clipboard);
   const selection = useWorkspaceStore((state) => state.selection);
   const isBpContext =
@@ -74,6 +82,7 @@ export function useWorkspaceCapabilities() {
         oristudioCpSelectedVertexCount,
         oristudioCpSelectedPointCount,
         oristudioCpSelectedCircleCount,
+        hasDeletableBpSelection,
         historyPastCount,
         historyFutureCount,
         clipboard,
@@ -95,6 +104,7 @@ export function useWorkspaceCapabilities() {
       oristudioCpSelectedLineCount,
       oristudioCpSelectedPointCount,
       oristudioCpSelectedVertexCount,
+      hasDeletableBpSelection,
       historyFutureCount,
       historyPastCount,
       selection,

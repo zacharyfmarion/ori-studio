@@ -18,6 +18,11 @@ export function activeOrFallbackHistoryCount(
 export function workspaceCapabilityInput(state: WorkspaceState): WorkspaceCapabilityInput {
   const context = state.activeEditingContext;
   const isBpContext = context === 'bp-tree' || context === 'bp-packing';
+  const bpSelection = state.oristudioBpDocument?.selection;
+  const bpRoot = state.oristudioBpDocument?.snapshot?.tree?.rootVertexId;
+  const hasDeletableBpSelection =
+    (bpSelection?.kind === 'bp-vertex' && bpSelection.id !== bpRoot) ||
+    bpSelection?.kind === 'bp-edge';
   const treeHistoryPastCount = state.documentMode === 'tree' ? state.historyPast.length : 0;
   const treeHistoryFutureCount = state.documentMode === 'tree' ? state.historyFuture.length : 0;
   const cpHistoryPastCount = state.oristudioCpDocument
@@ -60,6 +65,7 @@ export function workspaceCapabilityInput(state: WorkspaceState): WorkspaceCapabi
     oristudioCpSelectedVertexCount: state.oristudioCpSelection.vertices?.length ?? 0,
     oristudioCpSelectedPointCount: state.oristudioCpSelection.points.length,
     oristudioCpSelectedCircleCount: state.oristudioCpSelection.circles.length,
+    hasDeletableBpSelection,
     historyPastCount,
     historyFutureCount,
     clipboard: state.clipboard,

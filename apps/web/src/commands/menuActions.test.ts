@@ -57,7 +57,10 @@ function createDeps() {
       triangulateTree: vi.fn().mockResolvedValue(undefined),
       documentMode: 'tree' as 'tree' | 'crease-pattern',
       activeEditingSurface: 'tree' as 'tree' | 'crease-pattern',
+      activeEditingContext: 'treemaker-tree' as import('../workspaces/editingContext').EditingContext,
       setActiveEditingSurface: vi.fn(),
+      oristudioBpDocument: null,
+      deleteOristudioBpTreeNode: vi.fn().mockResolvedValue(true),
       oristudioCpDocument: null as OristudioCpDocumentState | null,
       oristudioCpSelection: {
         lines: [1, 2],
@@ -534,6 +537,7 @@ describe('menu actions', () => {
         oristudioCpSelectedVertexCount: 0,
         oristudioCpSelectedPointCount: 0,
         oristudioCpSelectedCircleCount: 0,
+        hasDeletableBpSelection: false,
         historyPastCount: 0,
         historyFutureCount: 0,
         clipboard: null,
