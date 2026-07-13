@@ -2568,7 +2568,7 @@ export function CreasePatternPanel() {
   // WebGL draw tools: commit a tool's collected points through the kernel command
   // (creases are resolved kernel-side from the points), then keep it active.
   const handleWebglToolCommit = useCallback(
-    (commit: { points?: readonly Point[]; lineIds?: readonly number[] }) => {
+    (commit: { points?: readonly Point[]; lineIds?: readonly number[]; additive?: boolean }) => {
       const command = activeCpCommand;
       if (!command || command.uiStatus !== 'ready') return;
       const points = commit.points ?? [];
@@ -2594,6 +2594,10 @@ export function CreasePatternPanel() {
                 : oristudioCpSelection.lines,
             circle_ids: oristudioCpSelection.circles,
             points: [...points],
+            // A box-select replaces the selection unless a modifier was held
+            // (additive), matching the SVG. Only CreaseSelect honours this flag.
+            replace_selection:
+              command.operationId === 'CreaseSelect' ? !commit.additive : undefined,
           })
         );
         setCpToolState((state) =>
@@ -4390,10 +4394,17 @@ export function CreasePatternPanel() {
           setSnapTarget(null);
           return;
         }
-        if (
-          editableSelectionSize > 0 &&
-          isDefaultSelectionMode(cpToolState, cpToolPoints.length, cpToolPath.length)
-        ) {
+        // A selection takes priority: Escape deselects for *any* resting tool (not
+        // just CreaseSelect) as long as no gesture is in progress — a second Escape
+        // then cancels/deactivates the tool. Matches Oriedita, and fixes "select-all,
+        // Escape, select-one ⇒ everything selected again" for Polygon/Lasso/etc.
+        const gestureInProgress =
+          cpToolPoints.length > 0 ||
+          cpToolPath.length > 0 ||
+          pendingLengthenLineId !== null ||
+          pendingSquareBisectorLineIds.length > 0 ||
+          cpToolDragRef.current !== null;
+        if (editableSelectionSize > 0 && !gestureInProgress) {
           event.preventDefault();
           clearOristudioCpSelection();
           return;
@@ -4447,6 +4458,8 @@ export function CreasePatternPanel() {
     editableCp,
     editableSelectionSize,
     hasCreasePattern,
+    pendingLengthenLineId,
+    pendingSquareBisectorLineIds.length,
     selectionRotationPreview,
   ]);
 
@@ -4732,6 +4745,7 @@ export function CreasePatternPanel() {
                   activeToolStepKinds={webglActiveTool.stepKinds}
                   activeToolLineCount={webglActiveTool.lineCount}
                   activeToolRequireSnap={isRestrictedDrawOperation(activeCpCommand?.operationId)}
+                  activeToolClickSelects={isLineClickSelectionOperation(activeCpCommand?.operationId)}
                   resolveDrawPoint={resolveEditableDrawModelPoint}
                   resolveDrawPointOnCrease={resolveEditableDrawPointOnCrease}
                   onToolCommit={handleWebglToolCommit}

@@ -42,6 +42,11 @@ export interface ToolCommit {
   points?: readonly ModelPoint[];
   /** Picked crease ids the command consumes (entity-pick tools). */
   lineIds?: readonly number[];
+  /**
+   * True when a modifier (shift/meta/ctrl) was held for a selection drag, so the
+   * controller adds to the selection instead of replacing it. Set by drag tools.
+   */
+  additive?: boolean;
 }
 
 /** The result of reducing one input: next state, live preview, optional commit. */

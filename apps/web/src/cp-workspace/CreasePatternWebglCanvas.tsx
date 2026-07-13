@@ -264,6 +264,13 @@ export interface CreasePatternWebglCanvasProps {
    */
   activeToolRequireSnap: boolean;
   /**
+   * True for click-or-box select tools (CreaseSelect / CreaseUnselect): a click
+   * (no drag) routes to {@link onSelect} — select/unselect the crease under the
+   * cursor, or clear on empty — while a drag runs the box command. Without this a
+   * click would commit a degenerate box that selects nothing.
+   */
+  activeToolClickSelects: boolean;
+  /**
    * Snap a raw model draw point to nearby geometry (grid/vertices), reporting
    * whether it locked on (for restricted draws that reject unsnapped points).
    */
@@ -359,6 +366,7 @@ export function CreasePatternWebglCanvas({
   activeToolStepKinds,
   activeToolLineCount,
   activeToolRequireSnap,
+  activeToolClickSelects,
   resolveDrawPoint,
   resolveDrawPointOnCrease,
   onToolCommit,
@@ -562,6 +570,7 @@ export function CreasePatternWebglCanvas({
     activeToolStepKinds,
     activeToolLineCount,
     activeToolRequireSnap,
+    activeToolClickSelects,
     resolveDrawPoint,
     resolveDrawPointOnCrease,
     onToolCommit,
@@ -823,6 +832,8 @@ export function CreasePatternWebglCanvas({
     // Active draw-tool drag: a runtime wrapping the active input mode's pure
     // engine, created on pointer-down and driven by feedTool.
     let drawing = false;
+    // Modifier held when the current drag began, for additive box selection.
+    let dragShift = false;
     let toolRuntime: ToolRuntime | null = null;
     // A ring at the draw point when it snapped to nearby geometry, else null.
     // `raw` is the un-snapped point.
@@ -864,7 +875,7 @@ export function CreasePatternWebglCanvas({
           : null
       );
       renderNow();
-      if (out.commit) liveRef.current.onToolCommit(out.commit);
+      if (out.commit) liveRef.current.onToolCommit({ ...out.commit, additive: dragShift });
     };
     // Persistent click-based `sequence` tool: every step collects a point. A
     // 'crease' step snaps the point onto the nearest crease and highlights it
@@ -1051,6 +1062,7 @@ export function CreasePatternWebglCanvas({
           liveRef.current.resolveDrawPoint(m, modelToleranceOf(SNAP_TOLERANCE_CSS)).snapped;
         if (startSnapped) {
           drawing = true;
+          dragShift = e.shiftKey || e.metaKey || e.ctrlKey;
           toolRuntime = createToolRuntime(toolEngineFor(toolMode));
           feedTool('down', e.clientX, e.clientY);
         }
@@ -1184,7 +1196,15 @@ export function CreasePatternWebglCanvas({
         erasing = false;
         eraseRuntime = null;
       } else if (drawing) {
-        feedTool(e.type === 'pointercancel' ? 'cancel' : 'up', e.clientX, e.clientY);
+        if (liveRef.current.activeToolClickSelects && !moved && e.type !== 'pointercancel') {
+          // A click (no drag) on a select tool: discard the degenerate box and
+          // route to the click handler (select/unselect the crease, or deselect on
+          // empty), matching the SVG's per-crease click select.
+          feedTool('cancel', e.clientX, e.clientY);
+          liveRef.current.onSelect(hitTest(e.clientX, e.clientY), e.shiftKey);
+        } else {
+          feedTool(e.type === 'pointercancel' ? 'cancel' : 'up', e.clientX, e.clientY);
+        }
         drawing = false;
         toolRuntime = null;
         renderer.setOverlayPoints(null);
