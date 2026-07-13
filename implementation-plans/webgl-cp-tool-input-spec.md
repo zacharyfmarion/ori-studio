@@ -418,8 +418,8 @@ Cross-cutting fixes made during the sweep (benefit many tools):
 ❌ buckets, revisited **after the rest of the migration plan is complete**:
 - **candidate-preview support** — render kernel preview `points` as dots + snap-pick candidate creases (Flat Foldable Line, Converging Lines; likely other Construct tools). Converging Lines also needs re-modeling (line-select + intersection pick).
 - **snap-priority** — points/vertices should beat lines within their snap radius in `nearestCpSnapTarget` (Mirror Line; general, affects all crease-step tools).
-- **line-click-mutate hybrid** — click→select/toggle (`handleEditableLineClick`) + shift-add + empty-deselect, drag→box command; for CreaseSelect + CreaseUnselect only (CreaseToggleMv works via box-toggle). Build with the bespoke trio.
-- **selection-state** — Escape should deselect for any select tool (not just CreaseSelect); non-additive select should replace, not merge. Affects the whole Select section (Polygon/Lasso/etc.).
+- ✅ **DONE — line-click-mutate hybrid** — click→select/toggle (`handleEditableLineClick`) + shift-add + empty-deselect, drag→box command; for CreaseSelect + CreaseUnselect only (CreaseToggleMv works via box-toggle). Build with the bespoke trio.
+- ✅ **DONE — selection-state** (Escape deselects for any tool + clears kernel; plain select replaces, shift adds; box sends empty line_ids; polygon hidden; smoother preview) — Escape should deselect for any select tool (not just CreaseSelect); non-additive select should replace, not merge. Affects the whole Select section (Polygon/Lasso/etc.).
 - **Oriedita-only conveniences the SVG never had** — e.g. lengthen drag-to-select. Expect more across the sweep.
 - **kernel-parity bugs** (separate from the frontend migration — affect SVG + WebGL identically) — `double_symmetric_draw` L-shape endpoint intersections (Reflect Over Line). Need Oriedita source refs.
 - **kernel-unimplemented ops** — the 5 measure ops (`DisplayLength*`, `DisplayAngle*`) have no kernel handler ("not implemented yet"). Keep the buttons; implement in kernel.
