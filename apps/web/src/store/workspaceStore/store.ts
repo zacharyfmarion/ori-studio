@@ -8,6 +8,7 @@ import { createHistorySlice } from './slices/historySlice';
 import { createProjectSlice } from './slices/projectSlice';
 import { createOristudioBpSlice } from './slices/oristudioBpSlice';
 import { registerDesignVariantSource } from '../layoutStore';
+import { resolveEditingContext } from '../../workspaces/editingContext';
 import type { WorkspaceState } from './types';
 
 export const useWorkspaceStore = create<WorkspaceState>()(
@@ -31,6 +32,23 @@ registerDesignVariantSource(() => {
   const state = useWorkspaceStore.getState();
   if (state.pendingDesignChoice) return 'nux';
   return state.workflowTarget === 'box-pleat' ? 'box-pleat' : 'treemaker';
+});
+
+// Keep `activeEditingContext` derived from the active panel + design state. The
+// active panel (`activePanelId`) is the source of truth; every other input
+// (design choice, workflow target, BP document presence) also feeds the
+// resolution, so recompute on any store change and write back only when it
+// actually changes (the equality guard prevents re-entrancy).
+useWorkspaceStore.subscribe((state) => {
+  const next = resolveEditingContext({
+    activePanelId: state.activePanelId,
+    pendingDesignChoice: state.pendingDesignChoice,
+    workflowTarget: state.workflowTarget,
+    hasBpDocument: state.oristudioBpDocument !== null,
+  });
+  if (next !== state.activeEditingContext) {
+    useWorkspaceStore.setState({ activeEditingContext: next });
+  }
 });
 
 if (import.meta.env.DEV && typeof window !== 'undefined') {

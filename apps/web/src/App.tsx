@@ -329,6 +329,14 @@ export default function App() {
         setWorkspaceInitialPanel(null);
       }
 
+      // The active panel drives the active editing context (menus, history,
+      // shortcuts). Seed it and keep it in sync as the user focuses panels.
+      const setActivePanelId = useWorkspaceStore.getState().setActivePanelId;
+      setActivePanelId(api.activePanel?.id ?? null);
+      api.onDidActivePanelChange((panel) => {
+        setActivePanelId(panel?.id ?? null);
+      });
+
       let timer: ReturnType<typeof setTimeout> | null = null;
       api.onDidLayoutChange(() => {
         if (timer) clearTimeout(timer);

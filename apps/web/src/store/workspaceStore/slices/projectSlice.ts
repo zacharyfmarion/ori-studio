@@ -1048,6 +1048,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     pendingDesignChoice: false,
     documentMode: 'tree',
     activeEditingSurface: 'tree',
+    activePanelId: null,
+    activeEditingContext: 'treemaker-tree',
     importedCreasePattern: null,
     oristudioCpDocument: null,
     oristudioCpLineage: null,
@@ -1777,6 +1779,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     },
 
     clearProjectMessage: () => set({ projectMessage: null }),
+    setActivePanelId: (id) => set({ activePanelId: id }),
     setActiveEditingSurface: (surface) => set({ activeEditingSurface: surface }),
     setWorkflowTarget: (target) => {
       if (get().workflowTarget === target) return;

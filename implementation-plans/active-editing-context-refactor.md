@@ -1,0 +1,210 @@
+# Active Editing Context — replace `documentMode` with the active view
+
+## Goal
+
+Make **the currently active view/panel the single source of truth** for which
+menus show, how shortcuts route, which undo/redo stack fires, and which
+toolbar/commands are enabled. Today this is spread across three tangled axes and
+BP is shoehorned into `documentMode: 'tree'`, so BP undo/redo, delete, and the
+menus are all wrong. Collapsing to one derived context fixes those as
+*consequences*, not as separate patches.
+
+This is foundational and there are **no users yet**: we do not preserve
+backwards compatibility, do not keep the old fields "just in case," and rewrite
+tests to the new model rather than adapting them.
+
+## Current state (what we're replacing)
+
+Three overlapping concepts kept in sync by hand:
+
+| Concept | Lives in | Values | Drives |
+|---|---|---|---|
+| `activeWorkspace` | `layoutStore` | `design`/`edit`/`simulate` | Which Dockview panels mount (layout only) |
+| `documentMode` + `activeEditingSurface` | `workspaceStore` | `tree`/`crease-pattern` | Menus, capabilities, history, shortcut scope |
+| `workflowTarget` + `pendingDesignChoice` | `workspaceStore` | `treemaker`/`box-pleat` + nux | Design layout *variant* + which document exists |
+
+Key breakages this causes:
+- **BP == `documentMode: 'tree'`** ([oristudioBpSlice.ts:68](../apps/web/src/store/workspaceStore/slices/oristudioBpSlice.ts)), so every `documentMode === 'tree'` check treats box-pleat as TreeMaker — the Design menu and the "Optimize Scale"/"Build CP" toolbar buttons ([NextDocumentAction.tsx](../apps/web/src/components/panels/NextDocumentAction.tsx)) show TreeMaker actions for BP.
+- **Capabilities are blind to BP** — [workspaceCapabilities.ts](../apps/web/src/lib/workspaceCapabilities.ts) has no BP inputs.
+- **Undo/redo dispatches on `documentMode`/`activeEditingSurface`** ([historySlice.ts](../apps/web/src/store/workspaceStore/slices/historySlice.ts)) and never reaches the BP engine's own history (`undoProject`/`redoProject` in [oristudioBpRuntime.ts](../apps/web/src/store/workspaceStore/oristudioBpRuntime.ts) are dead code).
+- **Workspace↔surface sync is imperative and lossy** — `view.edit` only sets the surface *if a CP already exists* ([menuActions.ts:552](../apps/web/src/commands/menuActions.ts)); otherwise the Edit canvas is empty.
+
+## Resolved decisions (from the author)
+
+1. **No global project-kind mode.** The context is *whatever view is active*. The
+   Design workspace will eventually have **tabs** (a TreeMaker design and a BP
+   design side by side), so the meaningful state is the active panel, not a
+   global mode. `documentMode`/`activeEditingSurface`/`workflowTarget`-as-mode are
+   deleted.
+2. **Designs are producers.** "Build CP" / "Send to Edit" **merges** generated
+   geometry into the always-present Edit CP document via the existing Import(Add)
+   path. **Duplicates on re-run are acceptable for now** (no dedup/replace logic).
+3. **Edit canvas is always live.** A blank editable CP document exists from
+   startup so the Edit workspace is never empty. Optimize perf later only if it
+   actually bites.
+4. **Simulate is a read-only consumer context** (recommendation below).
+5. **No backwards compatibility.** Rewrite tests, drop persisted-layout migration
+   shims, delete legacy fields outright.
+
+### Simulate recommendation
+
+Treat `simulate` as a first-class context in the same model, but with an
+**empty content-editing capability set**: its menu/commands are playback- and
+sequence-oriented (play/step/reset, sequence planning), and content-editing
+commands (delete, build, tree/CP edits) are hidden. Undo/redo is a **no-op** in
+Simulate for now (there is no content mutation to undo; if sequence planning
+later gains meaningful steps, scope an undo stack to *that*, not to the model).
+Simulate consumes the fold artifacts produced by the Edit canvas — it is a
+consumer, not an editor, and the context model should express that rather than
+pretend it edits a document.
+
+## Target model
+
+**`EditingContext`** — derived from the active Dockview panel, the single value
+every shell subsystem reads:
+
+```ts
+type EditingContext =
+  | 'design-nux'      // method chooser, no document
+  | 'treemaker-tree'  // circle-packed tree (legacy `project`, tree engine)
+  | 'bp-tree'         // BP tree authoring (oristudioBpDocument, tree surface)
+  | 'bp-packing'      // BP packing editor (oristudioBpDocument, layout surface)
+  | 'crease-pattern'  // CP editor (oristudioCpDocument)
+  | 'simulate';       // folding simulator (fold artifacts, read-only content)
+```
+
+Each context resolves to a small descriptor:
+
+| Context | Document / engine | Undo domain | Menu set |
+|---|---|---|---|
+| `design-nux` | none | none | File only |
+| `treemaker-tree` | `project` (tree wasm) | tree text checkpoints (`historyPast`) | TreeMaker tree edit + Optimize/Build |
+| `bp-tree` | `oristudioBpDocument` (BP wasm) | BP engine (`undo/redoProject`) | BP tree edit (add/delete/length) + Send-to-Edit |
+| `bp-packing` | `oristudioBpDocument` (BP wasm) | BP engine (`undo/redoProject`) | BP packing (stretch/device/sheet) + Send-to-Edit |
+| `crease-pattern` | `oristudioCpDocument` | `oristudioCpHistory*` | CP edit + Import(Add) |
+| `simulate` | fold artifacts | none | Playback / sequence |
+
+Note `bp-tree` and `bp-packing` **share one document + one undo stack** but have
+different view-scoped commands — this is exactly why the context is finer-grained
+than "which document." Because BP tree and BP packing are already *separate
+Dockview panels* (`design` vs `bp-editor`), the active panel distinguishes them
+for free, and the current internal `setOristudioBpActiveSurface` bookkeeping
+becomes redundant.
+
+**How the active context is tracked:** one subscription to Dockview's
+`onDidActivePanelChange` (in `App.tsx onReady`) maps panel id → context and
+writes `activeEditingContext` into the store. This replaces the scattered
+`setActiveShortcutViewportSurface` calls and the imperative
+`setActiveEditingSurface` in `view.*` menu actions.
+
+**`activeWorkspace` stays, but only as a layout grouping** (the rail's
+Design/Edit/Simulate buttons + Dockview layout persistence scope). It no longer
+drives shell behavior; behavior follows the active panel's context. The rail
+buttons simply activate that workspace's primary panel, and the context follows.
+
+## Phases
+
+Each phase is independently landable and has an author-verifiable gate. Context
+becomes the source of truth first; consumers migrate to it; legacy fields are
+deleted last.
+
+### Phase 1 — Context model + tracking (no behavior change)
+- [ ] Define `EditingContext` + a `contextForPanelId(panelId)` map and a
+      `contextDescriptor(context)` table (document/undo/menu-set metadata).
+- [ ] Add `activeEditingContext` to the store, updated from a single
+      `onDidActivePanelChange` subscription; seed it on layout mount.
+- [ ] Leave `documentMode`/`activeEditingSurface` in place but **derive** them
+      from context via a temporary shim so nothing else changes yet.
+- **Gate:** focusing each panel (and switching rail workspaces) reports the
+  correct `activeEditingContext` (inspect via the store); no visible behavior
+  change.
+
+### Phase 2 — History dispatch by context (fixes BP undo/redo)
+- [ ] Rewrite `undo`/`redo` to switch on `activeEditingContext`:
+      treemaker-tree → tree checkpoints; bp-* → `undo/redoOristudioBpProject`;
+      crease-pattern → CP history; nux/simulate → no-op.
+- [ ] Expose the BP undo/redo through the slice (currently unexposed) and confirm
+      each BP mutation coalesces into one engine history entry (drags already
+      pass `dragging`; verify add-leaf/length/delete each = one entry).
+- **Gate (author):** in a BP design, add node / move node / change length /
+  (after Phase 4) delete node all undo and redo correctly; TreeMaker and CP undo
+  still work; Simulate undo is inert.
+
+### Phase 3 — Capabilities, menus, shortcuts by context (fixes Design-menu + toolbar)
+- [ ] Rewrite `WorkspaceCapabilityInput` to key on `activeEditingContext` plus
+      per-document facts (BP doc present, CP doc present, tree edge count, …);
+      add BP inputs.
+- [ ] Make menu definitions context-scoped: the menu bar shows the active
+      context's set. TreeMaker Optimize/Build only in `treemaker-tree`; BP
+      actions in `bp-*`; CP actions in `crease-pattern`; playback in `simulate`.
+- [ ] Gate the `NextDocumentAction` toolbar buttons on context, not
+      `documentMode === 'tree'`.
+- [ ] Migrate the shortcut **scope stack** ([shortcutRuntime.ts](../apps/web/src/keyboard/shortcutRuntime.ts))
+      to derive from context (viewport surface already models `bp-editor`).
+- **Gate (author):** in a BP design the Design menu + toolbar show BP-appropriate
+  actions (no TreeMaker Optimize/Build/CP submenus); TreeMaker and CP menus
+  unchanged; shortcuts route to the focused view.
+
+### Phase 4 — Tree-authoring completeness (delete + friends)
+- [ ] Expose `deleteOristudioBpTreeLeaf` (and `join/split/merge`, `rename`) as
+      slice actions.
+- [ ] Bind **Delete/Backspace** on a selected BP tree node (and `edit.delete`) to
+      delete, routed through the context command set; same for TreeMaker.
+- **Gate (author):** select a BP tree node, press Delete → node removed;
+  undoable (Phase 2); works via Edit ▸ Delete too.
+
+### Phase 5 — Always-live Edit canvas + Send-to-Canvas
+- [ ] Create a blank editable `oristudioCpDocument` at startup so the Edit
+      workspace is never empty.
+- [ ] Reframe "Build CP" (TreeMaker) and add "Send to Edit" (BP, using
+      `snapshot.creasePattern` — no legacy tree needed) as **producers that merge
+      into the Edit CP** via the Import(Add) path. Duplicates OK.
+- **Gate (author):** Edit workspace shows a live empty canvas before any design;
+  building/sending from a circle-packed *and* a box-pleat design merges CP
+  geometry into that canvas and focuses Edit.
+
+### Phase 6 — Delete the legacy axes + split the polymorphic design panel
+- [ ] Remove `documentMode`, `activeEditingSurface`, and `workflowTarget`-as-mode
+      (keep design-kind only as a per-document attribute where genuinely needed).
+- [ ] Split the polymorphic `design` panel into distinct panel components
+      (`design-nux`, `design-treemaker`, `design-bp-tree`) so each has a static
+      context — this is what makes future Design **tabs** trivial.
+- [ ] Rewrite the ~40 tests keying off `documentMode`/`activeEditingSurface` to
+      the context model. No compatibility shims remain.
+- **Gate (author):** `rg documentMode|activeEditingSurface` returns nothing in
+  `src/`; full suite green (engine, vitest, tsc, production build).
+
+### Phase 7 — Simulate finalization + (optional) BP optimizer surface
+- [ ] Finalize `simulate` as the read-only consumer context (menu set + inert
+      undo).
+- [ ] *(Optional, product-gated)* Surface the already-built
+      `optimizeOristudioBpLayout` runtime behind a BP-context menu/toolbar entry
+      with progress UI. Scope (replace-in-place vs open-new) is a separate
+      decision.
+- **Gate (author):** Simulate shows only playback/sequence commands; optimizer
+  (if included) runs from the BP context and reports progress.
+
+## Affected areas
+
+- `apps/web/src/workspaces/` — `EditingContext`, `contextForPanelId`, descriptors.
+- `apps/web/src/store/layoutStore.ts` + `App.tsx` — active-panel→context tracking;
+  `activeWorkspace` demoted to layout-only.
+- `apps/web/src/store/workspaceStore/**` — delete `documentMode`/
+  `activeEditingSurface`/`workflowTarget`-as-mode; history dispatch; expose BP
+  delete/undo/redo; blank-CP init; producer/merge build path.
+- `apps/web/src/lib/workspaceCapabilities.ts` + `apps/web/src/menus/` +
+  `apps/web/src/commands/menuActions.ts` — context-keyed capabilities/menus.
+- `apps/web/src/keyboard/shortcutRuntime.ts` — context-derived scope stack.
+- `apps/web/src/components/panels/` — split polymorphic `design` panel; toolbar
+  gating; Delete-key binding.
+
+## Non-goals
+
+- Untangling the three parallel document stores (`project`,
+  `oristudioCpDocument`, `oristudioBpDocument`) into a documents registry —
+  separable; the context enum makes it easier later but this refactor doesn't
+  require it.
+- Building the Design-workspace **tabs** UI now — the model must *support* it
+  (Phase 6 split), but the multi-tab UI is future work.
+- Dedup/replace semantics for re-emitted CP geometry (duplicates OK for now).
+- The BP optimizer UX beyond a minimal wiring (Phase 7 optional).

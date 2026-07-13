@@ -9,6 +9,7 @@ import type {
   WasmErrorEnvelope,
 } from '../../engine/types';
 import type { Point } from '../../lib/geometry';
+import type { EditingContext } from '../../workspaces/editingContext';
 import type {
   AppStatus,
   CreaseColorMode,
@@ -78,6 +79,17 @@ export interface ProjectSliceState {
   pendingDesignChoice: boolean;
   documentMode: DocumentMode;
   activeEditingSurface: DocumentMode;
+  /**
+   * The id of the Dockview panel the user last focused. Source of truth for the
+   * active editing context (below); updated from `onDidActivePanelChange`.
+   */
+  activePanelId: string | null;
+  /**
+   * Derived from `activePanelId` + design state (see `resolveEditingContext`).
+   * Kept in sync by a store subscription; the single value the shell reads for
+   * menus, capabilities, history, and shortcut routing.
+   */
+  activeEditingContext: EditingContext;
   importedCreasePattern: ImportedCreasePatternDocument | null;
   oristudioCpDocument: OristudioCpDocumentState | null;
   oristudioCpLineage: OristudioCpLineage | null;
@@ -148,6 +160,7 @@ export interface ProjectSliceActions {
   exportPng: (fileService?: FileService, options?: CreaseExportOptions) => Promise<boolean>;
   loadExampleProject: (id: string) => Promise<void>;
   clearProjectMessage: () => void;
+  setActivePanelId: (id: string | null) => void;
   setActiveEditingSurface: (surface: DocumentMode) => void;
   setWorkflowTarget: (target: WorkflowTarget) => void;
   /** Enter the Design workspace on the method chooser without creating a document. */
