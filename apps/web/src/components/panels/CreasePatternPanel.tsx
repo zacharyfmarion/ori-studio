@@ -2565,22 +2565,24 @@ export function CreasePatternPanel() {
     [editableCp, editableCpBounds, oristudioCpViewport]
   );
 
-  // Mirror Line (SymmetricDraw) is dual-mode and "the first click decides": a first
-  // pick on a vertex/point runs point mode (3 points ABC → mirror AB over BC), a
-  // first pick on a bare crease runs line mode (2 lines AB → mirror A over B).
-  // Vertices/points win the decision (that is the whole point of point mode — Zach
-  // couldn't snap to vertices before); only a crease with no vertex nearby is a line.
-  const resolveEditableMirrorFirstPick = useCallback(
+  // "First click decides" classifier for the dual-mode tools (Mirror Line, Square
+  // Bisector), mirroring Oriedita's `getClosestPoint` vs `getClosestLineSegment`
+  // logic: the nearest snappable *point* — vertices AND grid points (per the snapping
+  // setting) — wins ties, and a line only wins when it is *strictly* closer. Grid
+  // inclusion is what lets a click land as a point even when it sits on a crease (a
+  // grid point on the paper edge), instead of being read as a line selection; the
+  // strict-closer rule keeps a bare mid-crease click a line. Point/vertex ties still
+  // resolve to point mode, so Mirror Line's "click a vertex" path is unchanged.
+  const resolveEditableFirstPickKind = useCallback(
     (rawPoint: Point, toleranceModel: number): 'point' | 'line' => {
       if (!editableCp) return 'point';
-      const vertex = nearestOrieditaDrawPointTarget(
+      const point = nearestOrieditaDrawPointTarget(
         editableCp,
         rawPoint,
         editableCpBounds,
-        { ...oristudioCpViewport, snapToGrid: false, snapToVertices: true },
+        { ...oristudioCpViewport, snapToVertices: true },
         toleranceModel
       );
-      if (vertex && (vertex.kind === 'vertex' || vertex.kind === 'point')) return 'point';
       const line = nearestCpSnapTarget(
         editableCp,
         rawPoint,
@@ -2588,7 +2590,8 @@ export function CreasePatternPanel() {
         { ...oristudioCpViewport, snapToLines: true, snapToVertices: false, snapToGrid: false },
         toleranceModel
       );
-      return line?.kind === 'line' ? 'line' : 'point';
+      if (line?.kind === 'line' && (!point || line.distance < point.distance)) return 'line';
+      return 'point';
     },
     [editableCp, editableCpBounds, oristudioCpViewport]
   );
@@ -2622,7 +2625,11 @@ export function CreasePatternPanel() {
                 ? [...pickedLineIds]
                 : isCreaseToggleMvClickTool(command.operationId) ||
                     isLineEraseClickTool(command.operationId) ||
-                    isLineClickSelectionOperation(command.operationId)
+                    isLineClickSelectionOperation(command.operationId) ||
+                    // Square Bisector's point mode resolves everything from its 4
+                    // points; the kernel routes to line mode when line_ids has ≥3, so
+                    // never leak the ambient selection into it.
+                    command.operationId === 'SquareBisector'
                   ? []
                   : oristudioCpSelection.lines,
             circle_ids: oristudioCpSelection.circles,
@@ -2704,6 +2711,7 @@ export function CreasePatternPanel() {
     lineCount: number;
     dualMirror: boolean;
     converging: boolean;
+    squareBisector: boolean;
   }>(() => {
     const idle = {
       mode: null,
@@ -2711,6 +2719,7 @@ export function CreasePatternPanel() {
       lineCount: 0,
       dualMirror: false,
       converging: false,
+      squareBisector: false,
     };
     if (!activeCpCommand || activeCpCommand.uiStatus !== 'ready' || cpToolState.phase !== 'active') {
       return idle;
@@ -2731,6 +2740,12 @@ export function CreasePatternPanel() {
     // candidate-point converge), so leave stepKinds empty and flag it.
     if (activeCpCommand.operationId === 'DrawCreaseAngleRestricted') {
       return { ...idle, mode: 'sequence', converging: true };
+    }
+    // Square Bisector: dual first pick — a point starts 3-point mode (3 points + a
+    // destination crease), a crease starts 2-line mode (2 source creases + a
+    // destination crease). A bespoke canvas handler drives both (modes A + B).
+    if (activeCpCommand.operationId === 'SquareBisector') {
+      return { ...idle, mode: 'sequence', squareBisector: true };
     }
     // Everything below is driven by the explicit per-operation registry — never
     // by the step-prompt text. Line-entity (Lengthen) picks crease ids; point-
@@ -4811,11 +4826,12 @@ export function CreasePatternPanel() {
                   activeToolLineCount={webglActiveTool.lineCount}
                   activeToolDualMirror={webglActiveTool.dualMirror}
                   activeToolConverging={webglActiveTool.converging}
+                  activeToolSquareBisector={webglActiveTool.squareBisector}
                   activeToolRequireSnap={isRestrictedDrawOperation(activeCpCommand?.operationId)}
                   activeToolClickSelects={isLineClickSelectionOperation(activeCpCommand?.operationId)}
                   resolveDrawPoint={resolveEditableDrawModelPoint}
                   resolveDrawPointOnCrease={resolveEditableDrawPointOnCrease}
-                  resolveMirrorFirstPick={resolveEditableMirrorFirstPick}
+                  resolveFirstPickKind={resolveEditableFirstPickKind}
                   onToolCommit={handleWebglToolCommit}
                   onToolPreviewInput={handleWebglToolPreviewInput}
                   onToolPickProgress={handleWebglToolPickProgress}

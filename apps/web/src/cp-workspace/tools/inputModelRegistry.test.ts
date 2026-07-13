@@ -55,7 +55,7 @@ describe('CP input-model registry', () => {
       if (snap.length !== entry.pointCount) {
         bad.push(`${op}: snapPerStep.length=${snap.length} pointCount=${entry.pointCount}`);
       }
-      const invalid = snap.filter((k) => k !== 'point' && k !== 'crease');
+      const invalid = snap.filter((k) => k !== 'point' && k !== 'crease' && k !== 'candidate');
       if (invalid.length) bad.push(`${op}: invalid snap kinds ${JSON.stringify(invalid)}`);
     }
     expect(bad).toEqual([]);

@@ -2019,17 +2019,21 @@ pub fn execute_command(
             ))
         }
         OperationId::VertexMakeAngularlyFlatFoldable => {
-            let points = required_points(&command, 2)?;
+            let points = required_points_at_least(&command, 2)?;
             let candidates = operations::construction::make_vertex_flat_foldable_candidates(
                 &document.crease_pattern,
                 points[0],
                 grid_width(&command, &document.crease_pattern),
                 active_line_color(&command),
             );
+            // Oriedita's 3 clicks: vertex, candidate ray, then the existing crease it
+            // extends to. Keep candidate (point[1]) and destination (point[2]) separate;
+            // a legacy 2-point call reuses point[1] for both.
+            let destination_point = if points.len() >= 3 { points[2] } else { points[1] };
             let selected = nearest_candidate_segment(&command, points[1], &candidates.candidates)?;
             let (_, destination) = nearest_line_segment(
                 &document.crease_pattern,
-                points[1],
+                destination_point,
                 selection_distance(&command),
             )?;
             usize::from(
@@ -2942,13 +2946,29 @@ pub fn preview_command(
             }
         }
         OperationId::DrawCreaseAngleRestricted if points.len() >= 2 => {
+            let segment = LineSegment::new(points[0], points[1]);
             let candidates = operations::construction::angle_restricted_converging_candidates(
-                &LineSegment::new(points[0], points[1]),
+                &segment,
                 angle_system_divider(&command),
                 angle_system_angles(&command),
             );
             preview.segments = candidates.indicators;
-            preview.points = candidates.intersections;
+            preview.points = candidates.intersections.clone();
+            // Converge hover (3rd point): preview the two result creases to the
+            // nearest intersection, matching Oriedita's live result lines.
+            if points.len() >= 3 {
+                if let Ok(converge) =
+                    nearest_candidate_point(&command, points[2], &candidates.intersections)
+                {
+                    let color = active_line_color(&command);
+                    preview
+                        .segments
+                        .push(LineSegment::with_color(segment.a, converge, color));
+                    preview
+                        .segments
+                        .push(LineSegment::with_color(segment.b, converge, color));
+                }
+            }
         }
         OperationId::AngleSystem if points.len() >= 2 => {
             preview.segments = operations::construction::angle_system_candidates(
@@ -2988,7 +3008,40 @@ pub fn preview_command(
                 grid_width(&command, &document.crease_pattern),
                 active_line_color(&command),
             );
-            preview.segments = candidates.candidates;
+            if points.len() >= 3 {
+                // Step 3: a candidate ray is chosen — show only it, plus the crease
+                // that would be committed to the hovered destination (best-effort).
+                if let Ok(selected) =
+                    nearest_candidate_segment(&command, points[1], &candidates.candidates)
+                {
+                    preview.segments.push(selected.clone());
+                    if let Ok((_, destination)) = nearest_line_segment(
+                        &document.crease_pattern,
+                        points[2],
+                        selection_distance(&command),
+                    ) {
+                        let mut clone = document.clone();
+                        if operations::construction::make_vertex_flat_foldable_to_destination(
+                            &mut clone.crease_pattern,
+                            points[0],
+                            &selected,
+                            &destination,
+                            candidates.commit_color,
+                        ) {
+                            preview.segments.extend(
+                                clone
+                                    .crease_pattern
+                                    .line_segments
+                                    .into_iter()
+                                    .skip(document.crease_pattern.line_segments.len()),
+                            );
+                        }
+                    }
+                }
+            } else {
+                // Steps 1–2: show every candidate ray so the user can pick one.
+                preview.segments = candidates.candidates;
+            }
         }
         OperationId::ParallelDraw if points.len() >= 2 => {
             let (_, parallel_segment) = nearest_line_segment(
@@ -3053,12 +3106,41 @@ pub fn preview_command(
             }
         }
         OperationId::SquareBisector if points.len() >= 3 => {
+            // 3 points placed: show the bisector direction from the vertex (points[1])
+            // through the incenter as you position them.
             let center = geometry::center(points[0], points[1], points[2]);
             preview.segments.push(LineSegment::with_color(
                 points[1],
                 center,
                 active_line_color(&command),
             ));
+            // Destination hover (4th point): preview the actual bisector crease drawn
+            // to the nearest existing line.
+            if points.len() >= 4 {
+                if let Ok((_, destination)) = nearest_line_segment(
+                    &document.crease_pattern,
+                    points[3],
+                    selection_distance(&command),
+                ) {
+                    let mut clone = document.clone();
+                    if operations::construction::square_bisector_from_points_to_destination(
+                        &mut clone.crease_pattern,
+                        points[0],
+                        points[1],
+                        points[2],
+                        &destination,
+                        active_line_color(&command),
+                    ) {
+                        preview.segments.extend(
+                            clone
+                                .crease_pattern
+                                .line_segments
+                                .into_iter()
+                                .skip(document.crease_pattern.line_segments.len()),
+                        );
+                    }
+                }
+            }
         }
         OperationId::SymmetricDraw if points.len() >= 2 => {
             // Best-effort: while a point-mode sequence is mid-placement it briefly

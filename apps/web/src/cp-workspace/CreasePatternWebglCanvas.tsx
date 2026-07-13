@@ -54,8 +54,13 @@ import type { ToolCommit, ToolPreviewSegment } from './tools/types';
  * crease by id and commits line ids — the Lengthen model, which takes no points).
  */
 type ActiveToolMode = ToolInputMode | 'sequence' | 'line-entity';
-/** Per-step snap/feedback mode: snap to grid/vertices, or onto a crease. */
-export type StepKind = 'point' | 'crease';
+/**
+ * Per-step snap/feedback mode: snap to grid/vertices (`point`), onto an existing
+ * crease (`crease`), or onto the nearest kernel-computed candidate ray (`candidate`,
+ * used by the flat-foldable/candidate tools whose middle step picks one of the
+ * previewed option lines rather than free geometry).
+ */
+export type StepKind = 'point' | 'crease' | 'candidate';
 import type { OristudioCpGridMetadata } from '../engine/oristudioCpTypes';
 import { useThemeStore } from '../store/themeStore';
 
@@ -161,13 +166,69 @@ function snapIndicatorPoints(point: ModelPoint, color: Rgba): PointGeometry {
   };
 }
 
-/** Overlay markers for a sequence: placed points as dots + a ring at the cursor. */
+/** Clamped projection of `p` onto the segment a→b. */
+function projectPointOnSegment(
+  p: ModelPoint,
+  a: ToolPreviewSegment['a'],
+  b: ToolPreviewSegment['b']
+): ModelPoint {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq <= 1e-12) return { x: a.x, y: a.y };
+  const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq));
+  return { x: a.x + t * dx, y: a.y + t * dy };
+}
+
+/** Project `raw` onto the nearest of `segments` within `maxDistance`, else null. */
+function snapToNearestSegment(
+  raw: ModelPoint,
+  segments: readonly ToolPreviewSegment[],
+  maxDistance: number
+): ModelPoint | null {
+  let best: ModelPoint | null = null;
+  let bestDist = maxDistance;
+  for (const s of segments) {
+    const proj = projectPointOnSegment(raw, s.a, s.b);
+    const d = Math.hypot(proj.x - raw.x, proj.y - raw.y);
+    if (d <= bestDist) {
+      bestDist = d;
+      best = proj;
+    }
+  }
+  return best;
+}
+
+/** The nearest of `candidates` to `raw` within `maxDistance`, else null. */
+function snapToNearestPoint(
+  raw: ModelPoint,
+  candidates: readonly ModelPoint[],
+  maxDistance: number
+): ModelPoint | null {
+  let best: ModelPoint | null = null;
+  let bestDist = maxDistance;
+  for (const p of candidates) {
+    const d = Math.hypot(p.x - raw.x, p.y - raw.y);
+    if (d <= bestDist) {
+      bestDist = d;
+      best = p;
+    }
+  }
+  return best;
+}
+
+/**
+ * Overlay markers for a sequence: placed points as dots + a ring at the cursor.
+ * `candidateDots` are the endpoints of previewed candidate rays (flat-foldable
+ * step), drawn as dots so each option reads as a distinct pickable line.
+ */
 function sequenceOverlayPoints(
   placed: readonly ModelPoint[],
   ring: ModelPoint | null,
-  color: Rgba
+  color: Rgba,
+  candidateDots: readonly ModelPoint[] = []
 ): PointGeometry | null {
-  const count = placed.length + (ring ? 1 : 0);
+  const count = placed.length + candidateDots.length + (ring ? 1 : 0);
   if (count === 0) return null;
   const center = new Float32Array(count * 2);
   const radius = new Float32Array(count);
@@ -187,8 +248,10 @@ function sequenceOverlayPoints(
     stroke[i * 4 + 2] = color[2];
     stroke[i * 4 + 3] = color[3];
   };
-  placed.forEach((p, i) => put(i, p, PLACED_POINT_RADIUS, color));
-  if (ring) put(placed.length, ring, SNAP_INDICATOR_RADIUS, TRANSPARENT);
+  let idx = 0;
+  placed.forEach((p) => put(idx++, p, PLACED_POINT_RADIUS, color));
+  candidateDots.forEach((p) => put(idx++, p, PLACED_POINT_RADIUS, color));
+  if (ring) put(idx, ring, SNAP_INDICATOR_RADIUS, TRANSPARENT);
   return { center, radius, screenSpace, fill, stroke, count };
 }
 
@@ -274,15 +337,28 @@ export interface CreasePatternWebglCanvasProps {
    * True for Mirror Line (SymmetricDraw), whose input is dual-mode: the first pick
    * decides between a 3-point sequence (pick lands on a vertex/point) and a 2-line
    * sequence (pick lands on a bare crease). When set, the sequence engine defers its
-   * step kinds to {@link resolveMirrorFirstPick} at first press instead of reading
+   * step kinds to {@link resolveFirstPickKind} at first press instead of reading
    * the static `activeToolStepKinds`.
    */
   activeToolDualMirror: boolean;
   /**
-   * Classify Mirror Line's first pick as point mode or line mode. Only consulted on
-   * the first press of a dual-mirror sequence.
+   * True for Converging Lines (DrawCreaseAngleRestricted): a bespoke handler drives
+   * its dual first click (a crease → its two endpoints are the base, or two points)
+   * then a converge pick on one of the ray intersections in {@link
+   * toolCommandPreviewPoints}.
    */
-  resolveMirrorFirstPick: (rawPoint: ModelPoint, toleranceModel: number) => 'point' | 'line';
+  activeToolConverging: boolean;
+  /**
+   * True for Square Bisector: a bespoke handler drives its dual first pick — a point
+   * starts 3-point mode (3 points + destination crease → commit 4 points), a crease
+   * starts 2-line mode (2 source creases + destination crease → commit 3 line ids).
+   */
+  activeToolSquareBisector: boolean;
+  /**
+   * Classify a dual-mode tool's first pick as point mode or line mode (point-priority
+   * per Oriedita). Consulted on the first press of Mirror Line and Square Bisector.
+   */
+  resolveFirstPickKind: (rawPoint: ModelPoint, toleranceModel: number) => 'point' | 'line';
   /**
    * Snap a raw model draw point to nearby geometry (grid/vertices), reporting
    * whether it locked on (for restricted draws that reject unsnapped points).
@@ -316,6 +392,8 @@ export interface CreasePatternWebglCanvasProps {
   onToolPickProgress: (picked: number) => void;
   /** Kernel-computed preview + pick-highlight segments for the active sequence tool. */
   toolCommandPreviewSegments: readonly ToolPreviewSegment[];
+  /** Kernel-computed candidate *points* (Converging Lines ray intersections). */
+  toolCommandPreviewPoints: readonly ModelPoint[];
   /** Colour of the in-progress candidate crease (the resolved active line colour). */
   toolPreviewColor: Rgba;
   /**
@@ -381,13 +459,16 @@ export function CreasePatternWebglCanvas({
   activeToolRequireSnap,
   activeToolClickSelects,
   activeToolDualMirror,
-  resolveMirrorFirstPick,
+  activeToolConverging,
+  activeToolSquareBisector,
+  resolveFirstPickKind,
   resolveDrawPoint,
   resolveDrawPointOnCrease,
   onToolCommit,
   onToolPreviewInput,
   onToolPickProgress,
   toolCommandPreviewSegments,
+  toolCommandPreviewPoints,
   toolPreviewColor,
   onEraseBox,
   onEraseLine,
@@ -422,6 +503,18 @@ export function CreasePatternWebglCanvas({
   // 3 point steps, line mode → 2 crease steps). Null until the first press; reset
   // on commit/cancel. Overrides the static `activeToolStepKinds` when set.
   const dynamicStepKindsRef = useRef<readonly StepKind[] | null>(null);
+  // Converging Lines' base segment endpoints, accumulated across the dual first
+  // click: a crease pick fills both at once, two point picks fill one each. Once it
+  // holds 2, the gesture is in its converge (candidate-point) step.
+  const convergingBaseRef = useRef<ModelPoint[]>([]);
+  // Square Bisector's dual-mode accumulator: `mode` is chosen on the first pick
+  // ('point' → collect 3 points then a destination; 'line' → collect 2 source crease
+  // ids then a destination id). Null mode means the gesture hasn't started.
+  const squareBisectorRef = useRef<{
+    mode: 'point' | 'line' | null;
+    points: ModelPoint[];
+    lineIds: number[];
+  }>({ mode: null, points: [], lineIds: [] });
   // Creases picked so far by a `line-entity` tool (Lengthen). Rendered in the
   // selection style so a picked line "shows up as selected" until commit — parity
   // with the SVG's persistent `highlightedLineIds`. Read by `buildStrokes`.
@@ -433,12 +526,21 @@ export function CreasePatternWebglCanvas({
     persistentToolRuntimeRef.current = null;
     sequenceStepRef.current = 0;
     dynamicStepKindsRef.current = null;
+    convergingBaseRef.current = [];
+    squareBisectorRef.current = { mode: null, points: [], lineIds: [] };
     linePickHighlightRef.current = [];
     rendererRef.current?.setOverlayPoints(null);
     const rebuild = buildStrokesRef.current;
     if (rebuild) rendererRef.current?.setStrokes(rebuild());
     renderNowRef.current();
-  }, [activeToolInputMode, activeToolStepKinds, activeToolLineCount, activeToolDualMirror]);
+  }, [
+    activeToolInputMode,
+    activeToolStepKinds,
+    activeToolLineCount,
+    activeToolDualMirror,
+    activeToolConverging,
+    activeToolSquareBisector,
+  ]);
 
   // Content bounds in SVG user coords, for the initial camera fit (independent
   // of the SVG's own fixed-rect fit, which mis-centres imported cameras).
@@ -592,13 +694,17 @@ export function CreasePatternWebglCanvas({
     activeToolRequireSnap,
     activeToolClickSelects,
     activeToolDualMirror,
-    resolveMirrorFirstPick,
+    activeToolConverging,
+    activeToolSquareBisector,
+    resolveFirstPickKind,
     resolveDrawPoint,
     resolveDrawPointOnCrease,
     onToolCommit,
     onToolPreviewInput,
     onToolPickProgress,
     toolPreviewColor,
+    toolCommandPreviewSegments,
+    toolCommandPreviewPoints,
     onEraseBox,
     onEraseLine,
   };
@@ -932,7 +1038,7 @@ export function CreasePatternWebglCanvas({
           return;
         }
         dynamicStepKindsRef.current =
-          liveRef.current.resolveMirrorFirstPick(raw, tol) === 'line'
+          liveRef.current.resolveFirstPickKind(raw, tol) === 'line'
             ? ['crease', 'crease']
             : ['point', 'point', 'point'];
       }
@@ -942,13 +1048,36 @@ export function CreasePatternWebglCanvas({
         sequenceStepRef.current = 0;
       }
       const runtime = persistentToolRuntimeRef.current;
-      const creaseStep = stepKinds[sequenceStepRef.current] === 'crease';
+      // Auto-select a lone candidate: when the candidate step has exactly one
+      // previewed option, Oriedita skips the pick. Inject a point on that ray and
+      // advance, so this event lands on the following (destination) step.
+      while (
+        stepKinds[sequenceStepRef.current] === 'candidate' &&
+        liveRef.current.toolCommandPreviewSegments.length === 1
+      ) {
+        const only = liveRef.current.toolCommandPreviewSegments[0];
+        runtime.feed({
+          kind: 'down',
+          point: { x: (only.a.x + only.b.x) / 2, y: (only.a.y + only.b.y) / 2 },
+        });
+        sequenceStepRef.current += 1;
+      }
+      const stepKind = stepKinds[sequenceStepRef.current];
+      const creaseStep = stepKind === 'crease';
+      const candidateStep = stepKind === 'candidate';
       let point: ModelPoint;
       let snappedToVertex = false;
       if (creaseStep) {
         const resolved = liveRef.current.resolveDrawPointOnCrease(raw, tol);
         point = resolved.point;
         snappedToVertex = resolved.snappedToVertex;
+      } else if (candidateStep) {
+        // Snap onto the nearest previewed candidate ray. A pick that lands on no ray
+        // is ignored (Oriedita's candidate step gates on selection distance) rather
+        // than silently committing the nearest one from across the canvas.
+        const snapped = snapToNearestSegment(raw, liveRef.current.toolCommandPreviewSegments, tol);
+        if (snapped === null && kind === 'down') return;
+        point = snapped ?? raw;
       } else {
         point = liveRef.current.resolveDrawPoint(raw, tol).point;
       }
@@ -973,10 +1102,204 @@ export function CreasePatternWebglCanvas({
         const live = out.livePoints ?? [];
         const placed = kind === 'move' ? live.slice(0, -1) : live;
         const ring = kind === 'move' && (point.x !== raw.x || point.y !== raw.y) ? point : null;
-        renderer.setOverlayPoints(sequenceOverlayPoints(placed, ring, accent));
+        // On a candidate step, dot the endpoints of every previewed candidate ray so
+        // each option reads as a distinct pickable line (Oriedita draws these dots).
+        const candidateDots = candidateStep
+          ? liveRef.current.toolCommandPreviewSegments.flatMap((s) => [s.a, s.b])
+          : [];
+        renderer.setOverlayPoints(sequenceOverlayPoints(placed, ring, accent, candidateDots));
         liveRef.current.onToolPreviewInput(live, highlight);
       }
       renderNow();
+    };
+    // Converging Lines (angle-restricted): a bespoke sequence. The dual first click
+    // builds the base segment — a crease pick supplies both endpoints at once, else
+    // two point picks — then the previewed converging rays throw off intersection
+    // points; picking one draws the two creases from the base endpoints to it.
+    const feedConverging = (kind: 'down' | 'move' | 'cancel', clientX: number, clientY: number) => {
+      const accent = readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK);
+      if (kind === 'cancel') {
+        convergingBaseRef.current = [];
+        liveRef.current.onToolPreviewInput([], []);
+        renderer.setOverlayPoints(null);
+        renderNow();
+        return;
+      }
+      const raw = clientToModel(clientX, clientY);
+      if (!raw) return;
+      const tol = modelToleranceOf(SNAP_TOLERANCE_CSS);
+      const hitTol = modelToleranceOf(HIT_TOLERANCE_CSS);
+      const base = convergingBaseRef.current;
+
+      if (base.length < 2) {
+        if (kind === 'down') {
+          if (base.length === 0) {
+            // First pick: a crease supplies both base endpoints; else a free point.
+            const lineId = liveRef.current.hitIndex.query(raw.x, raw.y, hitTol);
+            const seg = lineId > 0 ? liveRef.current.lineSegments[lineId - 1] : undefined;
+            if (seg) {
+              convergingBaseRef.current = [
+                { x: seg.a.x, y: seg.a.y },
+                { x: seg.b.x, y: seg.b.y },
+              ];
+              liveRef.current.onToolPreviewInput(convergingBaseRef.current, []);
+            } else {
+              convergingBaseRef.current = [liveRef.current.resolveDrawPoint(raw, tol).point];
+            }
+          } else {
+            // Second base point completes the segment.
+            convergingBaseRef.current = [base[0], liveRef.current.resolveDrawPoint(raw, tol).point];
+            liveRef.current.onToolPreviewInput(convergingBaseRef.current, []);
+          }
+          renderer.setOverlayPoints(sequenceOverlayPoints(convergingBaseRef.current, null, accent));
+        } else if (base.length === 0) {
+          // Hover before the first pick: highlight a crease under the cursor, or ring
+          // the point it would snap to.
+          const lineId = liveRef.current.hitIndex.query(raw.x, raw.y, hitTol);
+          liveRef.current.onToolPreviewInput([], lineId > 0 ? [lineId] : []);
+          const snap = liveRef.current.resolveDrawPoint(raw, tol);
+          const ring = lineId > 0 || !snap.snapped ? null : snap.point;
+          renderer.setOverlayPoints(sequenceOverlayPoints([], ring, accent));
+        } else {
+          // Hover for the second base point.
+          liveRef.current.onToolPreviewInput([], []);
+          const snap = liveRef.current.resolveDrawPoint(raw, tol);
+          renderer.setOverlayPoints(sequenceOverlayPoints(base, snap.snapped ? snap.point : null, accent));
+        }
+        renderNow();
+        return;
+      }
+
+      // Converge step: pick one of the previewed ray intersections.
+      const converge = snapToNearestPoint(raw, liveRef.current.toolCommandPreviewPoints, tol);
+      if (kind === 'down') {
+        if (converge) {
+          liveRef.current.onToolCommit({ points: [base[0], base[1], converge] });
+          convergingBaseRef.current = [];
+          liveRef.current.onToolPreviewInput([], []);
+          renderer.setOverlayPoints(null);
+        }
+      } else {
+        // Preview the rays + result creases to the hovered converge point, and dot
+        // the intersection candidates (ringing the one under the cursor).
+        liveRef.current.onToolPreviewInput([base[0], base[1], converge ?? raw], []);
+        renderer.setOverlayPoints(
+          sequenceOverlayPoints([], converge, accent, liveRef.current.toolCommandPreviewPoints)
+        );
+      }
+      renderNow();
+    };
+    // Square Bisector (modes A + B): the first pick decides the mode. A point starts
+    // 3-point mode — collect 3 angle points then a destination crease, commit 4
+    // points. A crease starts 2-line mode — collect 2 source crease ids then a
+    // destination crease id, commit 3 line ids. Picked source creases render in the
+    // selection style; point mode shows placed dots + the kernel bisector preview.
+    const feedSquareBisector = (kind: 'down' | 'move' | 'cancel', clientX: number, clientY: number) => {
+      const accent = readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK);
+      const state = squareBisectorRef.current;
+      const reset = () => {
+        squareBisectorRef.current = { mode: null, points: [], lineIds: [] };
+        setLinePickHighlight([]);
+        liveRef.current.onToolPreviewInput([], []);
+        renderer.setOverlayPoints(null);
+      };
+      if (kind === 'cancel') {
+        reset();
+        renderNow();
+        return;
+      }
+      const raw = clientToModel(clientX, clientY);
+      if (!raw) return;
+      const tol = modelToleranceOf(SNAP_TOLERANCE_CSS);
+      const hitTol = modelToleranceOf(HIT_TOLERANCE_CSS);
+      const lineUnderCursor = () => liveRef.current.hitIndex.query(raw.x, raw.y, hitTol);
+
+      // First pick decides point mode vs line mode (point-priority, like Mirror Line).
+      // The line lookup uses the classifier's tolerance (`tol`), not the tighter hit
+      // tolerance, so a click the classifier calls a line always resolves to one.
+      if (state.mode === null) {
+        if (liveRef.current.resolveFirstPickKind(raw, tol) === 'line') {
+          const lineId = liveRef.current.hitIndex.query(raw.x, raw.y, tol);
+          if (kind === 'down') {
+            if (lineId > 0) {
+              state.mode = 'line';
+              state.lineIds = [lineId];
+              setLinePickHighlight([lineId]);
+            }
+          } else {
+            setLinePickHighlight(lineId > 0 ? [lineId] : []);
+            renderer.setOverlayPoints(null);
+          }
+        } else {
+          const snap = liveRef.current.resolveDrawPoint(raw, tol);
+          if (kind === 'down') {
+            state.mode = 'point';
+            state.points = [snap.point];
+            renderer.setOverlayPoints(sequenceOverlayPoints(state.points, null, accent));
+          } else {
+            setLinePickHighlight([]);
+            renderer.setOverlayPoints(sequenceOverlayPoints([], snap.snapped ? snap.point : null, accent));
+          }
+        }
+        renderNow();
+        return;
+      }
+
+      if (state.mode === 'point') {
+        const pts = state.points;
+        if (pts.length < 3) {
+          const snap = liveRef.current.resolveDrawPoint(raw, tol);
+          if (kind === 'down') {
+            pts.push(snap.point);
+            if (pts.length === 3) liveRef.current.onToolPreviewInput(pts, []);
+            renderer.setOverlayPoints(sequenceOverlayPoints(pts, null, accent));
+          } else {
+            renderer.setOverlayPoints(sequenceOverlayPoints(pts, snap.snapped ? snap.point : null, accent));
+          }
+        } else {
+          // Destination crease: the 4th point resolves the nearest line kernel-side.
+          const dest = liveRef.current.resolveDrawPointOnCrease(raw, tol).point;
+          if (kind === 'down') {
+            liveRef.current.onToolCommit({ points: [...pts, dest] });
+            reset();
+          } else {
+            const hoverLine = liveRef.current.hitIndex.query(dest.x, dest.y, hitTol);
+            liveRef.current.onToolPreviewInput([...pts, dest], hoverLine > 0 ? [hoverLine] : []);
+            renderer.setOverlayPoints(sequenceOverlayPoints(pts, null, accent));
+          }
+        }
+        renderNow();
+        return;
+      }
+
+      // mode === 'line': collect the 2nd source crease, then a destination crease.
+      const lineId = lineUnderCursor();
+      const lines = state.lineIds;
+      if (lines.length < 2) {
+        if (kind === 'down') {
+          if (lineId > 0 && !lines.includes(lineId)) {
+            lines.push(lineId);
+            setLinePickHighlight([...lines]);
+          }
+        } else {
+          setLinePickHighlight(lineId > 0 && !lines.includes(lineId) ? [...lines, lineId] : [...lines]);
+        }
+      } else if (kind === 'down') {
+        if (lineId > 0) {
+          liveRef.current.onToolCommit({ lineIds: [...lines, lineId] });
+          reset();
+        }
+      } else {
+        setLinePickHighlight(lineId > 0 ? [...lines, lineId] : [...lines]);
+      }
+      renderNow();
+    };
+    // Dispatch a click-based `sequence` gesture to the right bespoke handler, else the
+    // generic point-sequence engine.
+    const feedSequenceTool = (kind: 'down' | 'move' | 'cancel', clientX: number, clientY: number) => {
+      if (liveRef.current.activeToolConverging) feedConverging(kind, clientX, clientY);
+      else if (liveRef.current.activeToolSquareBisector) feedSquareBisector(kind, clientX, clientY);
+      else feedPersistent(kind, clientX, clientY);
     };
     // Set the persistent picked-crease highlight (rendered in the selection style
     // via buildStrokes) and re-upload strokes only when the set actually changes.
@@ -1086,7 +1409,7 @@ export function CreasePatternWebglCanvas({
       } else if (toolMode === 'sequence') {
         // Click-based tool: place a point / pick a crease (no drag). Hover previews.
         e.preventDefault();
-        feedPersistent('down', e.clientX, e.clientY);
+        feedSequenceTool('down', e.clientX, e.clientY);
       } else if (toolMode === 'line-entity') {
         // Click-based entity pick (Lengthen): each click grabs a crease by id.
         e.preventDefault();
@@ -1144,7 +1467,7 @@ export function CreasePatternWebglCanvas({
         !selecting
       ) {
         // Hover with a click-based tool active: update its preview / highlight.
-        feedPersistent('move', e.clientX, e.clientY);
+        feedSequenceTool('move', e.clientX, e.clientY);
       } else if (
         liveRef.current.activeToolInputMode === 'line-entity' &&
         !panning &&
@@ -1296,7 +1619,7 @@ export function CreasePatternWebglCanvas({
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       if (liveRef.current.activeToolInputMode === 'sequence') {
-        feedPersistent('cancel', 0, 0);
+        feedSequenceTool('cancel', 0, 0);
       } else if (liveRef.current.activeToolInputMode === 'line-entity') {
         feedLinePick('cancel', 0, 0);
       }

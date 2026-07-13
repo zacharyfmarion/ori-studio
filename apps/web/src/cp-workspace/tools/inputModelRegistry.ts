@@ -36,8 +36,12 @@ export type CpInputModel =
   | 'bespoke' // per-tool state machine (SquareBisector, Voronoi, Text)
   | 'select-apply'; // no canvas interaction; operates on the selection via Apply
 
-/** Per-step snap mode for point/axis tools. Mirrors the canvas `StepKind`. */
-export type CpStepSnap = 'point' | 'crease';
+/**
+ * Per-step snap mode for point/axis tools. Mirrors the canvas `StepKind`:
+ * `point` → free grid/vertex snap, `crease` → onto an existing crease, `candidate`
+ * → onto the nearest kernel-previewed candidate ray (flat-foldable middle step).
+ */
+export type CpStepSnap = 'point' | 'crease' | 'candidate';
 
 export interface CpInputModelEntry {
   model: CpInputModel;
@@ -75,7 +79,10 @@ export const CP_INPUT_MODELS: Partial<Record<OristudioCpOperationId, CpInputMode
   DoubleSymmetricDraw: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
   DrawBirdBase: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
   DrawBlintz: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
-  DrawCreaseAngleRestricted: { model: 'point-sequence', pointCount: 3, snapPerStep: ['point', 'point', 'crease'] },
+  // Converging Lines: driven by a bespoke canvas handler (dual first click → base
+  // segment, then a converge pick on a ray intersection). The step kinds here are
+  // nominal — the panel special-cases this op and does not route via snapPerStep.
+  DrawCreaseAngleRestricted: { model: 'point-sequence', pointCount: 3, snapPerStep: ['point', 'point', 'candidate'] },
   DrawCreaseAngleRestricted3: { model: 'point-sequence', pointCount: 3, snapPerStep: ['point', 'point', 'crease'] },
   DrawCreaseAngleRestricted5: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
   DrawDoveBase: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
@@ -96,7 +103,7 @@ export const CP_INPUT_MODELS: Partial<Record<OristudioCpOperationId, CpInputMode
   SymmetricDraw: { model: 'point-sequence', pointCount: 2, snapPerStep: ['crease', 'crease'] },
   UnselectLineIntersecting: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
   VertexDeleteOnCrease: { model: 'point-sequence', pointCount: 1, snapPerStep: ['point'] },
-  VertexMakeAngularlyFlatFoldable: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'crease'] },
+  VertexMakeAngularlyFlatFoldable: { model: 'point-sequence', pointCount: 3, snapPerStep: ['point', 'candidate', 'crease'] },
 
   // LINE-ENTITY — pick crease ids, commit line_ids, no points (§4.E)
   LengthenCrease: { model: 'line-entity', lineCount: 2 },

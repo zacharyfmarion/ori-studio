@@ -269,7 +269,7 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     tooltip: 'Reflect selected creases across a line drawn with two points',
   }),
   ready('DrawCreaseAngleRestricted', 'Angle restricted crease', 'construct', 'drafting-compass', 'MouseHandlerDrawCreaseAngleRestricted', {
-    toolSteps: ['Pick base start point', 'Pick base end point', 'Pick convergence candidate'],
+    toolSteps: ['Pick base crease or first point', 'Pick base end point', 'Pick convergence point'],
   }),
   ready('DrawPoint', 'Draw point', 'draw', 'circle-dot', 'MouseHandlerDrawPoint', {
     toolSteps: ['Pick point'],
@@ -390,7 +390,7 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     toolSteps: ['Pick anchor point', 'Pick snapped endpoint'],
   }),
   ready('VertexMakeAngularlyFlatFoldable', 'Make vertex flat-foldable', 'construct', 'badge-check', 'MouseHandlerVertexMakeAngularlyFlatFoldable', {
-    toolSteps: ['Pick odd vertex', 'Pick destination crease'],
+    toolSteps: ['Pick odd vertex', 'Pick candidate line', 'Pick destination crease'],
   }),
   ready('FoldableLineInput', 'Foldable line input', 'construct', 'list-plus', 'MouseHandlerFoldableLineInput', {
     // Not present in Oriedita's UI — hide the rail button (revisit at end).
