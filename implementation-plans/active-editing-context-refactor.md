@@ -157,12 +157,17 @@ the snapshot points, so one user action = one undo. The engine's internal
   - Ignore the restored project's embedded engine history (we track undo in JS).
   - Per-action full serialize is fine at these tree sizes; optimize later only if
     it bites.
-- [ ] **2c — Migrate CP onto the same primitive.** CP already snapshots the
-      previous document per mutation and restores in place — reshape it onto
-      `snapshotHistory<S>` with a CP adapter (`restore` keeps the CP-specific
-      side effects: CAMV refresh, operation descriptors, fold-artifact
-      staleness). Structurally identical, and the strong CP test suite guards the
-      migration. Net: BP and CP share one history implementation.
+- [~] **2c — Migrate CP onto the same primitive (deferred fast-follow).** CP
+      already snapshots the previous document per mutation (`cpHistoryEntry` +
+      ~2 record sites in `projectSlice`) and restores in place — reshape its entry
+      onto `SnapshotEntry<{document, selection}>` and route through
+      `recordSnapshot`/`undoSnapshot`/`redoSnapshot`, keeping the CP-specific
+      restore side effects (CAMV refresh, operation descriptors, fold-artifact
+      staleness). Structurally identical; the strong CP suite guards it.
+      **Deferred:** it's an internal refactor of a *working* system (BP, the pain
+      point, is done), so it's split into its own focused change rather than
+      landing at the tail of the context work. The primitive + BP adoption prove
+      the vehicle; CP converges next.
 - **Gate (author):** in a BP design, add node / move node / change length /
   (after Phase 4) delete node each undo **and redo** correctly in one step;
   TreeMaker and CP undo/redo still work (CP suite green); Simulate undo is inert.
