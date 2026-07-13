@@ -349,10 +349,10 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
       });
       const moved = translatePoints(child.loc, target, subtreePairs);
       const updates = [...moved].map(([id, loc]) => ({ id, loc }));
-      await setOristudioBpTreeEdgeLength(edge.vertices, length);
-      await moveOristudioBpTreeVertices(updates);
+      // One call → the slice runs length + reposition as a single undo entry.
+      await setOristudioBpTreeEdgeLength(edge.vertices, length, updates);
     },
-    [topology, findVertex, subtreeOf, setOristudioBpTreeEdgeLength, moveOristudioBpTreeVertices]
+    [topology, findVertex, subtreeOf, setOristudioBpTreeEdgeLength]
   );
 
   const eventToTreePoint = useCallback(

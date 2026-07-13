@@ -184,6 +184,22 @@ export async function loadOristudioBpProjectFromText(
   }
 }
 
+/**
+ * Restore a BP project from a serialized snapshot (bps text) captured for undo/
+ * redo. Loads it into a fresh engine handle and rebuilds the document, keeping
+ * the current source (filename/path) so undo doesn't rename the project.
+ */
+export async function restoreOristudioBpProjectSnapshot(
+  bps: string
+): Promise<OristudioBpDocumentState> {
+  return loadOristudioBpProjectFromText(bps, {
+    filename: currentSource?.filename ?? 'Untitled.bps',
+    path: currentSource?.path ?? null,
+    format: currentSource?.format === 'bps' ? 'bps' : 'generated',
+    dirty: true,
+  });
+}
+
 export async function importTreeMakerToOristudioBpProject(
   text: string,
   source: {

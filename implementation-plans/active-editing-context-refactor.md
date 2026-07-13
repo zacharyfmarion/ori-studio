@@ -119,16 +119,59 @@ deleted last.
   correct `activeEditingContext` (inspect via the store); no visible behavior
   change.
 
-### Phase 2 — History dispatch by context (fixes BP undo/redo)
-- [ ] Rewrite `undo`/`redo` to switch on `activeEditingContext`:
-      treemaker-tree → tree checkpoints; bp-* → `undo/redoOristudioBpProject`;
-      crease-pattern → CP history; nux/simulate → no-op.
-- [ ] Expose the BP undo/redo through the slice (currently unexposed) and confirm
-      each BP mutation coalesces into one engine history entry (drags already
-      pass `dragging`; verify add-leaf/length/delete each = one entry).
+### Phase 2 — History dispatch by context + BP snapshot history (fixes BP undo/redo)
+
+**Why snapshot history (decision).** Wiring BP undo/redo to the ported engine
+command-history surfaced two problems: (1) a correctness bug — redo of a
+structural add (`add_leaf`/`split`) restores the edge but not the vertex *node*,
+because `add_leaf` never records a vertex construct/destruct memento (undo works
+because removals are recomputed; redo can't re-add), so a second redo errors
+`missing BP tree vertex N`; and (2) coarse granularity — every session mutation
+calls `history.flush()` = one step, so a compound frontend action (add-leaf =
+`add_leaf` + reposition; length edit = `update_edge_length` + move-subtree)
+produces two undo steps that can't auto-coalesce. Rather than chase memento gaps
+in the ported command-history, **BP undo/redo will use a JS snapshot history**,
+exactly like the CP editor already does (`oristudioCpHistoryPast/Future`):
+snapshot the serializable BP project per user action; undo/redo restore a
+snapshot. Restoring a full snapshot is always structurally correct, and we choose
+the snapshot points, so one user action = one undo. The engine's internal
+`undo/redoProject` become unused by the app.
+
+- [x] **2a — Dispatch by context.** `undo`/`redo` switch on
+      `activeEditingContext`: treemaker-tree → tree checkpoints; bp-* → BP
+      history; crease-pattern → CP history; nux/simulate → no-op. (Done; the
+      tree/CP paths are unchanged, BP is a new branch.)
+- [ ] **2b — Generic snapshot-history primitive + BP adoption.**
+  - Extract a small pure primitive `snapshotHistory<S>` (past/future arrays,
+    `MAX_HISTORY`, clear-future-on-new-entry, push/undo/redo) so history is one
+    data structure instead of N bespoke copies.
+  - BP domain adapter: `capture()` = serialize the active BP project (wasm
+    `project_for_export` / bps text); `restore(s)` = load it back into the engine
+    handle and rebuild the document. Store `oristudioBpHistoryPast/Future`.
+  - **Capture at the slice-action boundary, not per engine call.** Snapshot the
+    previous project inside `runBpTreeMutation` (one snapshot per user action), so
+    single-action mutations are one undo. Move compound flows into single slice
+    actions so they capture once: fold the length-edit's subtree reposition (from
+    `BpTreePanel.setEdgeLength`) into the `setOristudioBpTreeEdgeLength` slice
+    action. Then add-leaf and length-edit are each exactly one undo.
+  - Ignore the restored project's embedded engine history (we track undo in JS).
+  - Per-action full serialize is fine at these tree sizes; optimize later only if
+    it bites.
+- [ ] **2c — Migrate CP onto the same primitive.** CP already snapshots the
+      previous document per mutation and restores in place — reshape it onto
+      `snapshotHistory<S>` with a CP adapter (`restore` keeps the CP-specific
+      side effects: CAMV refresh, operation descriptors, fold-artifact
+      staleness). Structurally identical, and the strong CP test suite guards the
+      migration. Net: BP and CP share one history implementation.
 - **Gate (author):** in a BP design, add node / move node / change length /
-  (after Phase 4) delete node all undo and redo correctly; TreeMaker and CP undo
-  still work; Simulate undo is inert.
+  (after Phase 4) delete node each undo **and redo** correctly in one step;
+  TreeMaker and CP undo/redo still work (CP suite green); Simulate undo is inert.
+
+**Deferred:** TreeMaker keeps its text-checkpoint history (pre-mutation `saveTmd5`
++ begin/commit, engine reload) for now — it is a genuinely different capture
+model and folding it onto the primitive belongs with the documents-registry
+cleanup (a non-goal here). The context dispatch already treats all three
+uniformly, so this is purely an internal convergence left for later.
 
 ### Phase 3 — Capabilities, menus, shortcuts by context (fixes Design-menu + toolbar)
 - [ ] Rewrite `WorkspaceCapabilityInput` to key on `activeEditingContext` plus

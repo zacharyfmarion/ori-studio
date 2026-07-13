@@ -10,6 +10,7 @@ import type {
 } from '../../engine/types';
 import type { Point } from '../../lib/geometry';
 import type { EditingContext } from '../../workspaces/editingContext';
+import type { SnapshotEntry } from './snapshotHistory';
 import type {
   AppStatus,
   CreaseColorMode,
@@ -381,12 +382,24 @@ export interface CreasePatternSliceActions {
 
 export type CreasePatternSlice = CreasePatternSliceState & CreasePatternSliceActions;
 
+/**
+ * A BP undo/redo snapshot: the serialized project (bps text) plus the selection
+ * to restore. BP history is snapshot-based (restore a whole previous state)
+ * rather than engine command-replay — see `snapshotHistory`.
+ */
+export interface BpHistorySnapshot {
+  bps: string;
+  selection: OristudioBpSelection;
+}
+
 export interface OristudioBpSliceState {
   oristudioBpDocument: OristudioBpDocumentState | null;
   oristudioBpWorkspace: OristudioBpWorkspaceState | null;
   oristudioBpPortDescriptors: OristudioBpPortDescriptor[];
   oristudioBpError: string | null;
   oristudioBpBusy: boolean;
+  oristudioBpHistoryPast: SnapshotEntry<BpHistorySnapshot>[];
+  oristudioBpHistoryFuture: SnapshotEntry<BpHistorySnapshot>[];
 }
 
 export interface OristudioBpSliceActions {
@@ -407,10 +420,15 @@ export interface OristudioBpSliceActions {
   ) => Promise<boolean>;
   /** Add a unit-length leaf to a parent vertex, optionally at a target location. */
   addOristudioBpTreeLeaf: (parentId: number, loc?: Point) => Promise<boolean>;
-  /** Set the length of the tree edge between two vertices (min 1). */
+  /**
+   * Set the length of the tree edge between two vertices (min 1). `subtreeUpdates`
+   * repositions the child subtree so the rendered edge stays length-faithful;
+   * doing it here keeps the length edit + reposition as one undo entry.
+   */
   setOristudioBpTreeEdgeLength: (
     vertices: [number, number],
-    length: number
+    length: number,
+    subtreeUpdates?: { id: number; loc: Point }[]
   ) => Promise<boolean>;
   /** Move a single BP flap in the packing. */
   moveOristudioBpLayoutFlap: (id: number, loc: Point, dragging?: boolean) => Promise<boolean>;

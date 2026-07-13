@@ -5,6 +5,7 @@ import { useLayoutStore } from '../../layoutStore';
 import {
   addOristudioBpTreeLeaf as addRuntimeOristudioBpTreeLeaf,
   completeOristudioBpStretch as completeRuntimeOristudioBpStretch,
+  exportOristudioBpProjectAsBps,
   flipOristudioBpLayoutSheet as flipRuntimeOristudioBpLayoutSheet,
   getOristudioBpPortDescriptors,
   loadOristudioBpProjectFromText,
@@ -20,8 +21,10 @@ import {
   switchOristudioBpStretchConfig as switchRuntimeOristudioBpStretchConfig,
   switchOristudioBpStretchPattern as switchRuntimeOristudioBpStretchPattern,
 } from '../oristudioBpRuntime';
+import { recordSnapshot, snapshotEntry } from '../snapshotHistory';
+import type { SnapshotEntry } from '../snapshotHistory';
 import type { OristudioBpDocumentState } from '../../../engine/oristudioBpTypes';
-import type { OristudioBpSlice, WorkspaceSliceCreator } from '../types';
+import type { BpHistorySnapshot, OristudioBpSlice, WorkspaceSliceCreator } from '../types';
 
 /**
  * A new Box Pleating design is scaffolded with a root vertex and a single
@@ -62,6 +65,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
   };
 
   const setLoadedBpProject = (document: OristudioBpDocumentState, message: string) => {
+    pendingHistory = null;
     set({
       workflowTarget: 'box-pleat',
       pendingDesignChoice: false,
@@ -78,6 +82,8 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       oristudioBpWorkspace: null,
       oristudioBpError: null,
       oristudioBpBusy: false,
+      oristudioBpHistoryPast: [],
+      oristudioBpHistoryFuture: [],
       currentFileName: document.source.filename,
       currentFilePath: document.source.path,
       dirty: document.dirty,
@@ -93,7 +99,11 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
 
   // Replace the active BP document after an edit and mark any generated BP
   // crease pattern stale (tree/packing edits invalidate a prior CP export).
-  const replaceActiveBpDocument = (document: OristudioBpDocumentState, message: string) => {
+  const replaceActiveBpDocument = (
+    document: OristudioBpDocumentState,
+    message: string,
+    history?: { past: SnapshotEntry<BpHistorySnapshot>[]; future: SnapshotEntry<BpHistorySnapshot>[] }
+  ) => {
     set({
       oristudioBpDocument: document,
       oristudioBpBusy: false,
@@ -102,21 +112,57 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       projectMessage: message,
       error: null,
       oristudioCpLineage: markGeneratedCpLineageStale(get().oristudioCpLineage),
+      ...(history
+        ? {
+            oristudioBpHistoryPast: history.past,
+            oristudioBpHistoryFuture: history.future,
+          }
+        : {}),
     });
   };
 
+  // The "before" snapshot for the in-progress gesture. Captured lazily on the
+  // first mutation of a gesture and committed as one history entry when the
+  // gesture ends (dragging=false). A drag's intermediate steps keep it pending so
+  // the whole drag is a single undo; likewise a compound action (add-leaf =
+  // add + reposition) runs inside one runBpTreeMutation and commits once.
+  let pendingHistory: SnapshotEntry<BpHistorySnapshot> | null = null;
+
   const runBpTreeMutation = async (
     message: string,
-    operation: (document: OristudioBpDocumentState) => Promise<OristudioBpDocumentState>
+    operation: (document: OristudioBpDocumentState) => Promise<OristudioBpDocumentState>,
+    options: { dragging?: boolean } = {}
   ): Promise<boolean> => {
     const document = get().oristudioBpDocument;
     if (!document) return false;
     set({ oristudioBpBusy: true });
     try {
+      if (!pendingHistory) {
+        const bps = await exportOristudioBpProjectAsBps();
+        pendingHistory = snapshotEntry({ bps, selection: document.selection }, message);
+      }
       const nextDocument = await operation(document);
-      replaceActiveBpDocument(nextDocument, message);
+      if (options.dragging) {
+        // Mid-gesture: apply the document but hold the pending snapshot open.
+        replaceActiveBpDocument(nextDocument, message);
+      } else {
+        const entry = pendingHistory;
+        pendingHistory = null;
+        replaceActiveBpDocument(
+          nextDocument,
+          message,
+          recordSnapshot(
+            {
+              past: get().oristudioBpHistoryPast,
+              future: get().oristudioBpHistoryFuture,
+            },
+            entry
+          )
+        );
+      }
       return true;
     } catch (error) {
+      pendingHistory = null;
       const normalized = oristudioBpError(error);
       set({ oristudioBpError: normalized.message, oristudioBpBusy: false, error: normalized });
       return false;
@@ -129,6 +175,8 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     oristudioBpPortDescriptors: [],
     oristudioBpError: null,
     oristudioBpBusy: false,
+    oristudioBpHistoryPast: [],
+    oristudioBpHistoryFuture: [],
 
     createOristudioBpProject: async (options = {}) => {
       if (options.confirmDiscard !== false && !(await confirmDiscardDirty(get().dirty))) {
@@ -214,27 +262,34 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     },
 
     moveOristudioBpTreeVertex: async (id, loc, dragging = false) =>
-      runBpTreeMutation('Moved BP vertex', (document) =>
-        moveRuntimeOristudioBpTreeVertex(id, loc, {
-          activeSurface: document.activeSurface,
-          selection: { kind: 'bp-vertex', id },
-          dragging,
-        })
+      runBpTreeMutation(
+        'Moved BP vertex',
+        (document) =>
+          moveRuntimeOristudioBpTreeVertex(id, loc, {
+            activeSurface: document.activeSurface,
+            selection: { kind: 'bp-vertex', id },
+            dragging,
+          }),
+        { dragging }
       ),
 
     moveOristudioBpTreeVertices: async (updates, dragging = false) => {
       if (updates.length === 0) return true;
-      return runBpTreeMutation('Moved BP subtree', async (document) => {
-        let next = document;
-        for (const update of updates) {
-          next = await moveRuntimeOristudioBpTreeVertex(update.id, update.loc, {
-            activeSurface: next.activeSurface,
-            selection: next.selection,
-            dragging,
-          });
-        }
-        return next;
-      });
+      return runBpTreeMutation(
+        'Moved BP subtree',
+        async (document) => {
+          let next = document;
+          for (const update of updates) {
+            next = await moveRuntimeOristudioBpTreeVertex(update.id, update.loc, {
+              activeSurface: next.activeSurface,
+              selection: next.selection,
+              dragging,
+            });
+          }
+          return next;
+        },
+        { dragging }
+      );
     },
 
     addOristudioBpTreeLeaf: async (parentId, loc) => {
@@ -255,51 +310,69 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       });
     },
 
-    setOristudioBpTreeEdgeLength: async (vertices, length) =>
-      runBpTreeMutation('Set BP edge length', (document) =>
-        updateRuntimeOristudioBpTreeEdgeLength(vertices, length, {
+    setOristudioBpTreeEdgeLength: async (vertices, length, subtreeUpdates = []) =>
+      // Length edit + length-faithful subtree reposition in one gesture, so it is
+      // a single undo entry (the reposition keeps rendered edge length == length).
+      runBpTreeMutation('Set BP edge length', async (document) => {
+        let next = await updateRuntimeOristudioBpTreeEdgeLength(vertices, length, {
           activeSurface: 'tree',
           selection: document.selection,
-        })
-      ),
+        });
+        for (const update of subtreeUpdates) {
+          next = await moveRuntimeOristudioBpTreeVertex(update.id, update.loc, {
+            activeSurface: 'tree',
+            selection: next.selection,
+          });
+        }
+        return next;
+      }),
 
     moveOristudioBpLayoutFlap: async (id, loc, dragging = false) =>
-      runBpTreeMutation('Moved BP flap', () =>
-        moveRuntimeOristudioBpLayoutFlap(id, loc, {
-          activeSurface: 'packing',
-          selection: { kind: 'bp-flap', id },
-          dragging,
-        })
+      runBpTreeMutation(
+        'Moved BP flap',
+        () =>
+          moveRuntimeOristudioBpLayoutFlap(id, loc, {
+            activeSurface: 'packing',
+            selection: { kind: 'bp-flap', id },
+            dragging,
+          }),
+        { dragging }
       ),
 
     moveOristudioBpLayoutFlaps: async (ids, loc, dragging = false) =>
-      runBpTreeMutation('Moved BP flaps', () =>
-        moveRuntimeOristudioBpLayoutFlaps(ids, loc, {
-          activeSurface: 'packing',
-          selection:
-            ids.length === 1
-              ? { kind: 'bp-flap', id: ids[0] }
-              : {
-                  kind: 'bp-multi',
-                  vertices: [],
-                  edges: [],
-                  flaps: ids,
-                  rivers: [],
-                  stretches: [],
-                  devices: [],
-                  invalidJunctions: [],
-                },
-          dragging,
-        })
+      runBpTreeMutation(
+        'Moved BP flaps',
+        () =>
+          moveRuntimeOristudioBpLayoutFlaps(ids, loc, {
+            activeSurface: 'packing',
+            selection:
+              ids.length === 1
+                ? { kind: 'bp-flap', id: ids[0] }
+                : {
+                    kind: 'bp-multi',
+                    vertices: [],
+                    edges: [],
+                    flaps: ids,
+                    rivers: [],
+                    stretches: [],
+                    devices: [],
+                    invalidJunctions: [],
+                  },
+            dragging,
+          }),
+        { dragging }
       ),
 
     moveOristudioBpDevice: async (id, index, loc, dragging = false) =>
-      runBpTreeMutation('Moved BP device', () =>
-        moveRuntimeOristudioBpDevice(id, index, loc, {
-          activeSurface: 'packing',
-          selection: { kind: 'bp-device', id: `${id}:device:${index}` },
-          dragging,
-        })
+      runBpTreeMutation(
+        'Moved BP device',
+        () =>
+          moveRuntimeOristudioBpDevice(id, index, loc, {
+            activeSurface: 'packing',
+            selection: { kind: 'bp-device', id: `${id}:device:${index}` },
+            dragging,
+          }),
+        { dragging }
       ),
 
     completeOristudioBpStretch: async (id) =>

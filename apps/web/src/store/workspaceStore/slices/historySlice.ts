@@ -12,6 +12,18 @@ import {
   oristudioCpError,
   restoreOristudioCpDocumentInPlace,
 } from '../oristudioCpRuntime';
+import {
+  exportOristudioBpProjectAsBps,
+  oristudioBpError,
+  restoreOristudioBpProjectSnapshot,
+} from '../oristudioBpRuntime';
+import {
+  redoSnapshot,
+  snapshotEntry,
+  undoSnapshot,
+  type SnapshotEntry,
+  type SnapshotHistory,
+} from '../snapshotHistory';
 import type {
   HistoryEntry,
   HistorySlice,
@@ -24,6 +36,7 @@ import type {
   OristudioCpDocumentState,
 } from '../../../engine/oristudioCpTypes';
 import type { OristudioCpSelection } from '../../../lib/creasePatternViewport';
+import type { BpHistorySnapshot } from '../types';
 import { markGeneratedCpLineageStale } from '../../../lib/oristudioCpLineage';
 
 const MAX_HISTORY = 100;
@@ -90,7 +103,62 @@ async function refreshAlwaysOnCamvDiagnostics(
   }
 }
 
-export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get) => ({
+export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get) => {
+  // BP undo/redo is snapshot-based (like the CP editor): each user action records
+  // the previous serialized project, and undo/redo restore a whole snapshot. This
+  // sidesteps the ported engine command-history (which mis-restores structural
+  // adds) and gives exactly one undo per user action. Returns false when there is
+  // nothing to navigate.
+  const navigateBpHistory = async (
+    pick: (
+      history: SnapshotHistory<BpHistorySnapshot>,
+      current: SnapshotEntry<BpHistorySnapshot>
+    ) => { restore: SnapshotEntry<BpHistorySnapshot>; history: SnapshotHistory<BpHistorySnapshot> } | null,
+    verb: 'Undid' | 'Redid'
+  ): Promise<boolean> => {
+    const document = get().oristudioBpDocument;
+    if (!document || get().historyBusy) return false;
+    const history: SnapshotHistory<BpHistorySnapshot> = {
+      past: get().oristudioBpHistoryPast,
+      future: get().oristudioBpHistoryFuture,
+    };
+    set({ historyBusy: true, error: null, oristudioBpError: null });
+    try {
+      const currentBps = await exportOristudioBpProjectAsBps();
+      const current = snapshotEntry(
+        { bps: currentBps, selection: document.selection },
+        document.history.activeLabel ?? 'edit'
+      );
+      const step = pick(history, current);
+      if (!step) {
+        set({ historyBusy: false });
+        return false;
+      }
+      const restored = await restoreOristudioBpProjectSnapshot(step.restore.snapshot.bps);
+      set({
+        oristudioBpDocument: { ...restored, selection: step.restore.snapshot.selection },
+        oristudioBpHistoryPast: step.history.past,
+        oristudioBpHistoryFuture: step.history.future,
+        dirty: true,
+        historyBusy: false,
+        error: null,
+        oristudioBpError: null,
+        projectMessage: `${verb} ${step.restore.label}`,
+        oristudioCpLineage: markGeneratedCpLineageStale(get().oristudioCpLineage),
+      });
+    } catch (error) {
+      const normalized = oristudioBpError(error);
+      set({
+        status: 'error',
+        error: normalized,
+        oristudioBpError: normalized.message,
+        historyBusy: false,
+      });
+    }
+    return true;
+  };
+
+  return {
   historyPast: [],
   historyFuture: [],
   historyBusy: false,
@@ -206,6 +274,13 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
       return true;
     };
 
+    const context = get().activeEditingContext;
+    if (context === 'bp-tree' || context === 'bp-packing') {
+      await navigateBpHistory(undoSnapshot, 'Undid');
+      return;
+    }
+    if (context === 'design-nux' || context === 'simulate') return;
+
     if (get().activeEditingSurface === 'crease-pattern') {
       if (await undoCreasePattern()) return;
       await undoTree();
@@ -286,6 +361,13 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
       return true;
     };
 
+    const context = get().activeEditingContext;
+    if (context === 'bp-tree' || context === 'bp-packing') {
+      await navigateBpHistory(redoSnapshot, 'Redid');
+      return;
+    }
+    if (context === 'design-nux' || context === 'simulate') return;
+
     if (get().activeEditingSurface === 'crease-pattern') {
       if (await redoCreasePattern()) return;
       await redoTree();
@@ -294,4 +376,5 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
       await redoCreasePattern();
     }
   },
-});
+  };
+};
