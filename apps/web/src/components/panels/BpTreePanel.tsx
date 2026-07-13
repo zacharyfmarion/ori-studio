@@ -244,6 +244,9 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     (state) => state.moveOristudioBpTreeVertices
   );
   const addOristudioBpTreeLeaf = useWorkspaceStore((state) => state.addOristudioBpTreeLeaf);
+  const deleteOristudioBpTreeNode = useWorkspaceStore(
+    (state) => state.deleteOristudioBpTreeNode
+  );
   const setOristudioBpTreeEdgeLength = useWorkspaceStore(
     (state) => state.setOristudioBpTreeEdgeLength
   );
@@ -477,6 +480,26 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     };
   }, [fitKey]);
 
+  // Delete the current selection's tree node. Kept in a ref so the (stable)
+  // keydown listener always sees the latest selection without re-subscribing;
+  // the ref is refreshed after each render (updating a ref during render is
+  // disallowed).
+  const deleteSelectionRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    deleteSelectionRef.current = () => {
+      const rootId = tree.rootVertexId;
+      if (selectedVertexId !== null && selectedVertexId !== rootId) {
+        void deleteOristudioBpTreeNode(selectedVertexId);
+        return;
+      }
+      if (selectedEdge) {
+        const [a, b] = selectedEdge.vertices;
+        const childId = topology.parent.get(a) === b ? a : b;
+        if (childId !== rootId) void deleteOristudioBpTreeNode(childId);
+      }
+    };
+  });
+
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return undefined;
@@ -486,6 +509,9 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
       if (event.key === ' ' && !interactive) {
         event.preventDefault();
         setSpacePressed(true);
+      } else if ((event.key === 'Delete' || event.key === 'Backspace') && !interactive) {
+        event.preventDefault();
+        deleteSelectionRef.current();
       }
     };
 

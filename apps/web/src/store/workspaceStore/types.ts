@@ -420,6 +420,8 @@ export interface OristudioBpSliceActions {
   ) => Promise<boolean>;
   /** Add a unit-length leaf to a parent vertex, optionally at a target location. */
   addOristudioBpTreeLeaf: (parentId: number, loc?: Point) => Promise<boolean>;
+  /** Delete a tree node (leaf-cascade; the engine refuses below the minimum size). */
+  deleteOristudioBpTreeNode: (id: number) => Promise<boolean>;
   /**
    * Set the length of the tree edge between two vertices (min 1). `subtreeUpdates`
    * repositions the child subtree so the rendered edge stays length-faithful;

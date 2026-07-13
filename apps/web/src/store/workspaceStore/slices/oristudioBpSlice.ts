@@ -5,6 +5,7 @@ import { useLayoutStore } from '../../layoutStore';
 import {
   addOristudioBpTreeLeaf as addRuntimeOristudioBpTreeLeaf,
   completeOristudioBpStretch as completeRuntimeOristudioBpStretch,
+  deleteOristudioBpTreeLeaf as deleteRuntimeOristudioBpTreeLeaf,
   exportOristudioBpProjectAsBps,
   flipOristudioBpLayoutSheet as flipRuntimeOristudioBpLayoutSheet,
   getOristudioBpPortDescriptors,
@@ -309,6 +310,16 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         return created ? { ...next, selection: { kind: 'bp-vertex', id: created.id } } : next;
       });
     },
+
+    deleteOristudioBpTreeNode: async (id) =>
+      // The engine removes the leaf (cascading down to a leaf and reseeding the
+      // parent's flap), refusing below the minimum tree size. One undo entry.
+      runBpTreeMutation('Deleted BP node', (document) =>
+        deleteRuntimeOristudioBpTreeLeaf(id, {
+          activeSurface: document.activeSurface,
+          selection: { kind: 'bp-tree' },
+        })
+      ),
 
     setOristudioBpTreeEdgeLength: async (vertices, length, subtreeUpdates = []) =>
       // Length edit + length-faithful subtree reposition in one gesture, so it is

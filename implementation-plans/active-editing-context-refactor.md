@@ -199,13 +199,19 @@ uniformly, so this is purely an internal convergence left for later.
   edit; TreeMaker (circle-packed) keeps its Design menu + toolbar; BP mask has a
   regression test; 465 web tests pass, lint + tsc clean.
 
-### Phase 4 — Tree-authoring completeness (delete + friends)
-- [ ] Expose `deleteOristudioBpTreeLeaf` (and `join/split/merge`, `rename`) as
-      slice actions.
-- [ ] Bind **Delete/Backspace** on a selected BP tree node (and `edit.delete`) to
-      delete, routed through the context command set; same for TreeMaker.
-- **Gate (author):** select a BP tree node, press Delete → node removed;
-  undoable (Phase 2); works via Edit ▸ Delete too.
+### Phase 4 — Tree-authoring completeness (delete) ✅
+- [x] Expose `deleteOristudioBpTreeNode` as a slice action (wraps the runtime
+      `deleteTreeLeaf` through `runBpTreeMutation`, so it's one undo entry and
+      snapshot-recorded like every other BP edit).
+- [x] Bind **Delete/Backspace** in `BpTreePanel` to delete the selected tree node
+      (or the child endpoint of a selected edge); the root is protected and the
+      engine refuses below the minimum tree size.
+- [~] `join`/`split`/`merge`/`rename` exist in the runtime but aren't wired to the
+      UI yet, and `edit.delete` menu routing for BP is deferred — the Delete key
+      covers the author's explicit ask; the rest is a small follow-up.
+- **Gate (author):** verified live — select a BP node, press Delete → removed and
+  undoable; also works via the `deleteOristudioBpTreeNode` action. lint + tsc
+  clean, 465 web tests pass.
 
 ### Phase 5 — Always-live Edit canvas + Send-to-Canvas
 - [ ] Create a blank editable `oristudioCpDocument` at startup so the Edit
