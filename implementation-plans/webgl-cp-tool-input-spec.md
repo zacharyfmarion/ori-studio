@@ -348,67 +348,69 @@ authored from the kernel argument types. Put the SVG line number in `SVG ref`.
 
 Live results as Zach validates each tool in-app. Fixes made during the sweep are noted.
 
-| Palette name | Op | Result |
-|---|---|---|
-| Line | DrawCreaseFree | ✅ |
-| Grid Restricted Line | DrawCreaseRestricted | ✅ — **fixed**: restricted draw now rejects unsnapped start/release (`resolveDrawPoint` reports `snapped`; was drawing like plain Line) |
-| Rabbit Ear | Inward | ✅ |
-| Flat Foldable Line | VertexMakeAngularlyFlatFoldable | ❌ **candidate-preview gap** — WebGL preview drops kernel `points` (no candidate dots) and can't snap-pick a candidate crease → clicking a candidate errors (`DrawPoint: nearest line outside selection distance`). Shared cause; batch-fix after sweep. |
-| Extend Line | LengthenCrease | ❌ **Oriedita-parity** — click-to-select + extend works, but Oriedita also lets you *drag a line across* a crease to select it; Ori Studio never ported this (missing in SVG too). Net-new feature; deferred to end. |
-| Perpendicular Line | PerpendicularDraw | ✅ |
-| Angle Restricted Line | DrawCreaseAngleRestricted5 | ✅ |
-| Offset Restricted Line | AngleSystem | ⏭️ **hidden** — not in Oriedita's UI; rail button removed (`placement: 'hidden-ui-only'`). Revisit at end. |
-| Converging Lines | DrawCreaseAngleRestricted | ❌ **candidate-preview + wrong model** — Oriedita: *select a crease line → extension lines appear → select intersection*. Port modeled it as a 3-point sequence (`toolSteps` don't even match its own instructions text). Needs re-model to line-select + candidate-intersection pick. Part of the candidate batch. (Earlier "highlight works" was incomplete — model is wrong.) |
-| Flat Foldable Line (free) | FoldableLineDraw | ⏭️ **hidden** — not in Oriedita's UI (`placement: 'hidden-ui-only'`). Revisit at end. |
-| Flat Foldable Line (extend) | FoldableLineInput | ⏭️ **hidden** — not in Oriedita's UI (`placement: 'hidden-ui-only'`). Revisit at end. |
-| Parallel Line | ParallelDraw | ✅ |
-| Mirror Line | SymmetricDraw | 🔨 **dual-mode built — pending Zach's validation.** Oriedita has two modes: *(1) 3 points ABC → mirror seg AB over line BC*, *(2) 2 lines AB → mirror A over B*. Only mode 2 was ported; point mode was unreachable (registry hardcoded `pointCount:2, ['crease','crease']`, and crease-snap stole every click onto a line). **Fix ("first click decides"):** Kernel — `symmetric_draw_lines` helper branches on point count (≥3 → `source=AB, mirror=BC` point mode; 2 → nearest-crease line mode), wired into execute + preview; both covered by new command-level tests (`construction_operations.rs`). Frontend — `webglActiveTool` flags SymmetricDraw `dualMirror`; the canvas sequence engine defers step kinds to `resolveMirrorFirstPick` on first press (vertex/point → 3 point-snap steps; bare crease → 2 crease-snap steps). Vertex-priority scoped to *this tool's* first pick — the shared `nearestCpSnapTarget` is untouched (line-preferred by design, locked by 2 viewport tests). |
-| Parallel Alternating Lines | FishBoneDraw | ✅ |
-| Reflect Through Lines | ContinuousSymmetricDraw | ✅ |
-| Reflect Over Line | DoubleSymmetricDraw | ❌ **KERNEL bug** (not frontend) — `is_double_symmetric_intersection` accepts L-shape endpoint intersections, so endpoint-incident lines get reflected where Oriedita doesn't. Frontend/WebGL faithful; affects SVG identically. Needs Oriedita `DOUBLE_SYMMETRIC_DRAW_35` ref to fix. Separate kernel task. |
-| Equally Divided Line | LineSegmentDivision | ❌ **wrong model + kernel** — Oriedita: *drag to draw a new line* split into N segments (like Line). Port + kernel only *divide an existing* segment (`required_or_nearest_line_segment` → `divide_segment_by_count`). Needs drag-line model + kernel op accepting 2 drawn points → create+divide. Same for LineSegmentRatioSet. |
-| Divided Line (ratio) | LineSegmentRatioSet | ❌ same as Equally Divided Line (drag-draw + kernel). |
-| Regular Polygon | PolygonSetNoCorners | ✅ |
-| Axiom 5 | Axiom5 | ⏭️ **hidden** — not in Oriedita UI. |
-| Axiom 7 | Axiom7 | ⏭️ **hidden** — not in Oriedita UI. |
-| Draw point | DrawPoint | ✅ |
-| Draw auxiliary line | (aux action) | ⏭️ **hidden** — kernel not implemented; rail button removed. |
-| Eraser | LineSegmentDelete | ✅ (click + box + right-drag) |
-| Delete Point | DeletePoint | ✅ |
-| Delete any Vertex | VertexDeleteOnCrease | ✅ |
-| Delete Coincident Lines | CreaseDeleteOverlapping | ✅ |
-| Delete Overlapping Lines | CreaseDeleteIntersecting | ✅ |
-| Angle restricted 3 crease | DrawCreaseAngleRestricted3 | ⏭️ **hidden** — not in Oriedita UI; empties the Construct section (header auto-drops). |
-| Parallel draw by width | ParallelDrawWidth | ⏭️ **hidden** — not in Oriedita UI. |
-| Reflect selection over line | DrawCreaseSymmetric | ✅ — plain 2-point axis; line-click shortcut removed. |
-| Move selected creases | CreaseMove | ✅ |
-| Copy selected creases | CreaseCopy | ✅ |
-| Move by four points | CreaseMove4p | ✅ |
-| Operation frame | OperationFrameCreate | ⏭️ **Phase-6 deferred** — kernel + SVG render it; WebGL has no operation-frame overlay yet (frame polygon is SVG-only). Explicitly a Phase-6 item, not a sweep regression. |
-| Box Select | CreaseSelect | ❌ **line-click-mutate hybrid** — box works; click-to-select, shift-add, empty-deselect broken (routes purely as drag-box; click path bypasses `handleEditableLineClick`). Same for CreaseUnselect (CreaseToggleMv works). Build item. |
-| Select Overlapping Lines | SelectLineIntersecting | ⏭️ **hidden** — not in Oriedita UI. |
-| Deselect Overlapping Lines | UnselectLineIntersecting | ⏭️ **hidden** — not in Oriedita UI. |
-| Polygon Select | SelectPolygon | ❌ **selection-state** — (1) Escape only deselects for CreaseSelect (`isDefaultSelectionMode` is CreaseSelect-only), not other select tools; (2) select commits merge with the passed selection instead of replacing → "select-all, Escape, select-one ⇒ all selected again". Cross-cutting; own fix. (Lasso + deselect variants likely same.) |
-| Lasso/Deselect variants | SelectLasso/UnselectPolygon/UnselectLasso/CreaseUnselect | ⏭️ folded into selection-state + line-click-mutate batches. |
-| Blintz base | DrawBlintz | ✅ |
-| Fish base | DrawFishBase | ✅ |
-| Dove base | DrawDoveBase | ✅ |
-| Bird base | DrawBirdBase | ✅ |
-| Frog base | DrawFrogBase | ✅ |
-| Measure length 1/2 | DisplayLengthBetweenPoints1/2 | ❌ **kernel-unimplemented** — no execute match arm → "not implemented yet". Frontend routes fine; needs kernel impl. Keep visible. |
-| Measure angle 1/2/3 | DisplayAngleBetweenThreePoints1/2/3 | ❌ **kernel-unimplemented** — same. Keep visible. |
-| Make alternating M/V | CreaseMakeMv | ✅ |
-| Alternate crossing M/V | CreasesAlternateMv | ✅ |
-| Toggle mountain/valley | CreaseToggleMv | ✅ — box-toggle handles single click; no hybrid needed. |
-| Color apply tools (rest) | CreaseMakeMountain/Valley/Edge/Aux, CreaseSetLineColor, Replace/DeleteLineTypeSelect | ✅ (Zach: "the rest work fine"). |
-| Change/Advance crease type | ChangeCreaseType, CreaseAdvanceType | ⏭️ **hidden** — menu tools not in Oriedita UI. |
-| Check-fix (all 8) | Check1-4, CheckCamv, Fix1/2, FixInaccurate | ⏭️ **Phase-6 deferred** — need the diagnostics overlay/markers on WebGL to verify; can’t meaningfully test until that’s ported. |
-| Circle draw (5) | CircleDraw, CircleDrawFree, CircleDrawConcentric, CircleDrawSeparate, CircleDrawThreePoint | ✅ — fixed faceted preview: ring resolution now scales with radius (128–512 sides) instead of fixed 48. |
-| Circle tangent line | CircleDrawTangentLine | ⏭️ **hidden** — single-point mode (built this session) not working; hidden pending fix. Revisit at end (also clean up the webglActiveTool special-case). |
-| _(fix)_ selection drags no longer snap | drag-box (box select) + drag-path (lasso/polygon) | ✅ **fixed** — only drag-line (crease draw) snaps; selection/erase boxes + freehand paths follow the raw cursor (was snapping to points, felt wrong). |
-| Circle-apply (rest) | CircleDrawInverted, CircleDrawConcentricSelect, CircleDrawConcentricTwoCircleSelect, CircleChangeColor, OrganizeCircles | ⏭️ **deferred** (Zach) — revisit at end. |
-| Text annotation | Text | ⏭️ **build-next** (bespoke DOM overlay). |
-| Copy by four points | CreaseCopy4p | ✅ |
+The **"Zach said"** column is Zach's *verbatim* report for that tool (typos preserved) — the ground-truth issue statement, kept separate from my interpretation in "Result / finding" so the two never get conflated again.
+
+| Palette name | Op | Zach said (verbatim) | Result / finding |
+|---|---|---|---|
+| Line | DrawCreaseFree | "Yep, confirmed works" | ✅ |
+| Grid Restricted Line | DrawCreaseRestricted | "This one doesn't work as expected - in oriedita it rejects drawing the line if it doesn't snap to grid points. But in Ori Studio it ddraws the line regardless...making its behavior basically identical to the first tool. Can you root cause and fix this. It was likely an existing bug - i never went tool by tool and verified functionality wit hthe SVG mode" | ✅ — **fixed**: restricted draw now rejects unsnapped start/release (`resolveDrawPoint` reports `snapped`; was drawing like plain Line) |
+| Rabbit Ear | Inward | "rabbit ear works great!" | ✅ |
+| Flat Foldable Line | VertexMakeAngularlyFlatFoldable | "for flat foldable line 1. There are little dots on the end of each option in oriedita which look nicer, can you add those 2. In oriedita, if you click on one of the lines, it hides the other options. In ori studio if you click on one of the lines, you get this error:" | ❌ **candidate-preview gap** — WebGL preview drops kernel `points` (no candidate dots) and can't snap-pick a candidate crease → clicking a candidate errors (`DrawPoint: nearest line outside selection distance`). Shared cause; batch-fix after sweep. |
+| Extend Line | LengthenCrease | "For lengthen crease, clicking a line to select works, but in oriedita you can also draw a line that intersects with the line you are selecting to select it, which ori studio does not allow for" (then: "mark it as X and we can come back to it at the end") | ❌ **Oriedita-parity** — click-to-select + extend works, but Oriedita also lets you *drag a line across* a crease to select it; Ori Studio never ported this (missing in SVG too). Net-new feature; deferred to end. |
+| Perpendicular Line | PerpendicularDraw | "Yep, perpendicular line works perfectly" | ✅ |
+| Angle Restricted Line | DrawCreaseAngleRestricted5 | "yep, good" | ✅ |
+| Offset Restricted Line | AngleSystem | "honestly i dont even see that one in the oriedita UI - can we just hide that one for now in the UI (so no button in the left toolbar) and mark as skipped" | ⏭️ **hidden** — not in Oriedita's UI; rail button removed (`placement: 'hidden-ui-only'`). Revisit at end. |
+| Converging Lines | DrawCreaseAngleRestricted | "Okay yeah this one isn't quite right - when i try to select a line, it gets interpreted as the first point of two points. In oriedita you just select a line, no option to select two points" | ❌ **candidate-preview + wrong model** — Oriedita: *select a crease line → extension lines appear → select intersection*. Port modeled it as a 3-point sequence (`toolSteps` don't even match its own instructions text). Needs re-model to line-select + candidate-intersection pick. Part of the candidate batch. (Earlier "highlight works" was incomplete — model is wrong.) |
+| Flat Foldable Line (free) | FoldableLineDraw | "This one should also be skipped and hidden in the UI" | ⏭️ **hidden** — not in Oriedita's UI (`placement: 'hidden-ui-only'`). Revisit at end. |
+| Flat Foldable Line (extend) | FoldableLineInput | "hide" | ⏭️ **hidden** — not in Oriedita's UI (`placement: 'hidden-ui-only'`). Revisit at end. |
+| Parallel Line | ParallelDraw | "yep works well" | ✅ |
+| Mirror Line | SymmetricDraw | "Mirror line doesn't properly snap to points if im trying to click on a vertex, im only able to select lines" | ✅ **dual-mode (Zach validated).** Oriedita has two modes: *(1) 3 points ABC → mirror seg AB over line BC*, *(2) 2 lines AB → mirror A over B*. Only mode 2 was ported; point mode was unreachable (registry hardcoded `pointCount:2, ['crease','crease']`, and crease-snap stole every click onto a line). **Fix ("first click decides"):** Kernel — `symmetric_draw_lines` helper branches on point count (≥3 → `source=AB, mirror=BC` point mode; 2 → nearest-crease line mode), wired into execute + preview; both covered by new command-level tests (`construction_operations.rs`). Frontend — `webglActiveTool` flags SymmetricDraw `dualMirror`; the canvas sequence engine defers step kinds to `resolveMirrorFirstPick` on first press (vertex/point → 3 point-snap steps; bare crease → 2 crease-snap steps). Vertex-priority scoped to *this tool's* first pick — the shared `nearestCpSnapTarget` is untouched (line-preferred by design, locked by 2 viewport tests). |
+| Parallel Alternating Lines | FishBoneDraw | "yep works great" | ✅ |
+| Reflect Through Lines | ContinuousSymmetricDraw | "yep works great" | ✅ |
+| Reflect Over Line | DoubleSymmetricDraw | "Seeing some differences - it looks like if lines incident to the endpoints are not reflected in Oriedita but they are in ori studio...or maybe its something else but it definitely behaves differently - can you check to see if its a kernel bug?" | ⚠️ **misdiagnosed — re-diagnose needed.** Prior claim ("Rust accepts L-shapes Oriedita rejects") is **wrong**: reading the vendored source `MouseHandlerDoubleSymmetricDraw.java`, Oriedita's `validIntersections` accepts the exact same six the Rust `is_double_symmetric_intersection` does (L-shapes 21–24 + T-shapes 25–26), and the mutation logic matches too. So the observed "differences" are NOT this filter. Real candidates: the shared intersection-classification primitive (`determine_line_segment_intersection_sweet_with_tolerances`) or `extend_to_intersection_point` diverging from Oriedita. Needs re-observation of the actual difference before any fix. |
+| Equally Divided Line | LineSegmentDivision | "This one is broken - it should work like the line too - clicking and dragging to draw a line that is broken up into n segments. But right now it works by selecting an existing line and dividing it" | ❌ **wrong model + kernel** — Oriedita: *drag to draw a new line* split into N segments (like Line). Port + kernel only *divide an existing* segment (`required_or_nearest_line_segment` → `divide_segment_by_count`). Needs drag-line model + kernel op accepting 2 drawn points → create+divide. Same for LineSegmentRatioSet. |
+| Divided Line (ratio) | LineSegmentRatioSet | "yep same issue" | ❌ same as Equally Divided Line (drag-draw + kernel). |
+| Regular Polygon | PolygonSetNoCorners | "okay yeah regular polygon also isn't snapping rpoperly to vertices" (then: "yep works great") | ✅ |
+| Axiom 5 | Axiom5 | "can you hide that and axiom 7" | ⏭️ **hidden** — not in Oriedita UI. |
+| Axiom 7 | Axiom7 | "can you hide that and axiom 7" | ⏭️ **hidden** — not in Oriedita UI. |
+| Draw point | DrawPoint | "yep it works" | ✅ |
+| Draw auxiliary line | (aux action) | "can you hide aux line, not just disable it." | ⏭️ **hidden** — kernel not implemented; rail button removed. |
+| Eraser | LineSegmentDelete | "For line segment delete, it works great" | ✅ (click + box + right-drag) |
+| Delete Point | DeletePoint | "delete point works, delete any vertex works too" | ✅ |
+| Delete any Vertex | VertexDeleteOnCrease | "delete point works, delete any vertex works too" | ✅ |
+| Delete Coincident Lines | CreaseDeleteOverlapping | "nope, doesn't appear to work - im drawing a line through another line but that line is not deleted" (then: "actually nvm i misunderstood, if i draw directly on top of the line it works") | ✅ |
+| Delete Overlapping Lines | CreaseDeleteIntersecting | "yep works" | ✅ |
+| Angle restricted 3 crease | DrawCreaseAngleRestricted3 | "can you hide both tools in the contstruct section and the section itself in th etoolbar" | ⏭️ **hidden** — not in Oriedita UI; empties the Construct section (header auto-drops). |
+| Parallel draw by width | ParallelDrawWidth | "can you hide both tools in the contstruct section and the section itself in th etoolbar" | ⏭️ **hidden** — not in Oriedita UI. |
+| Reflect selection over line | DrawCreaseSymmetric | "Reflect isn't right - it should work by selecting two points and it reflects the selection over that line, but instead of only reflects over a selected line" (then: "NIce works great!") | ✅ — plain 2-point axis; line-click shortcut removed. |
+| Move selected creases | CreaseMove | "confirmed that all 4 copy and move tools wrok properly." | ✅ |
+| Copy selected creases | CreaseCopy | "confirmed that all 4 copy and move tools wrok properly." | ✅ |
+| Move by four points | CreaseMove4p | "confirmed that all 4 copy and move tools wrok properly." | ✅ |
+| Operation frame | OperationFrameCreate | "i don't really understand this one, can you explain how ti wroks and make sure this functionality actually exists in the app? it might not have been ported" | ⏭️ **Phase-6 deferred** — kernel + SVG render it; WebGL has no operation-frame overlay yet (frame polygon is SVG-only). Explicitly a Phase-6 item, not a sweep regression. |
+| Box Select | CreaseSelect | "no, there are some issues - the initial crease selection works and selects all creases that touch, but then shift clicking doesn't add and clicking elsewhere on the canvas doesn't deselect. Also clicking on a crease to select it doesnt' work" | ✅ **done (Zach validated)** — line-click-mutate hybrid: click→select/toggle, shift-add, empty-deselect + box command. Committed. |
+| Select Overlapping Lines | SelectLineIntersecting | "can you hide select and deslect overlapping lines" | ⏭️ **hidden** — not in Oriedita UI. |
+| Deselect Overlapping Lines | UnselectLineIntersecting | "can you hide select and deslect overlapping lines" | ⏭️ **hidden** — not in Oriedita UI. |
+| Polygon Select | SelectPolygon | "I think there is a larger state issue iwth selection - if i select everything, the press escape, then sleect one line, everything is selected again" (full spec later: "escape should be seen as 'clear all selection state'... 1. first selection doesn't require shift... 2. Second selection should REPLACE the first selection if shift is not held down 3. If shift is held down, the second selection should be additive 4. clicking off to the side should deselect everything") | ✅ **done (Zach validated)** — Escape clears all selection state (incl. kernel) for any select tool; plain select replaces, shift adds. Committed. |
+| Lasso/Deselect variants | SelectLasso/UnselectPolygon/UnselectLasso/CreaseUnselect | "Excellent, selection now all behaves correctly" (earlier: "it works correctly for lasso, just not for box select") | ✅ **done** — folded into the selection-state + line-click-mutate fixes. |
+| Blintz base | DrawBlintz | "yeah lets batch - all of the generators work properly." | ✅ |
+| Fish base | DrawFishBase | "yeah lets batch - all of the generators work properly." | ✅ |
+| Dove base | DrawDoveBase | "yeah lets batch - all of the generators work properly." | ✅ |
+| Bird base | DrawBirdBase | "yeah lets batch - all of the generators work properly." | ✅ |
+| Frog base | DrawFrogBase | "yeah lets batch - all of the generators work properly." | ✅ |
+| Measure length 1/2 | DisplayLengthBetweenPoints1/2 | "looks like some of these are not implemented" (then: "wait what don't hide all 5 - mark them as an X, i want them. don't hide anyhting unless i tell you to") | ❌ **kernel-unimplemented** — no execute match arm → "not implemented yet". Frontend routes fine; needs kernel impl. Keep visible. |
+| Measure angle 1/2/3 | DisplayAngleBetweenThreePoints1/2/3 | "looks like some of these are not implemented" (then: "don't hide all 5 - mark them as an X, i want them") | ❌ **kernel-unimplemented** — same. Keep visible. |
+| Make alternating M/V | CreaseMakeMv | — (batched with color/MV tools; no issue reported) | ✅ |
+| Alternate crossing M/V | CreasesAlternateMv | — (batched; no issue reported) | ✅ |
+| Toggle mountain/valley | CreaseToggleMv | — (batched; no issue reported) | ✅ — box-toggle handles single click; no hybrid needed. |
+| Color apply tools (rest) | CreaseMakeMountain/Valley/Edge/Aux, CreaseSetLineColor, Replace/DeleteLineTypeSelect | "The rest work fine" (and "all 3 work!") | ✅ |
+| Change/Advance crease type | ChangeCreaseType, CreaseAdvanceType | "can you hide change crease type and advance crease type (they are in the menu, not the sidebar)" (then: "no I mean hide them from the menu lol") | ⏭️ **hidden** — menu tools not in Oriedita UI. |
+| Check-fix (all 8) | Check1-4, CheckCamv, Fix1/2, FixInaccurate | "can we just mark all the checks / fixes as deferred, can't really test without overlay / markers" | ⏭️ **Phase-6 deferred** — need the diagnostics overlay/markers on WebGL to verify; can’t meaningfully test until that’s ported. |
+| Circle draw (5) | CircleDraw, CircleDrawFree, CircleDrawConcentric, CircleDrawSeparate, CircleDrawThreePoint | "the preview UI for the cricles before it is commited shows a many side polygon instead of a smooth circle, i want better resolution so it looks like a smoother circle in preview" (then: "Otherwise they work fine") | ✅ — fixed faceted preview: ring resolution now scales with radius (128–512 sides) instead of fixed 48. |
+| Circle tangent line | CircleDrawTangentLine | "tangent line is not working, can you please hide it" | ⏭️ **hidden** — single-point mode (built this session) not working; hidden pending fix. Revisit at end (also clean up the webglActiveTool special-case). |
+| _(fix)_ selection drags no longer snap | drag-box (box select) + drag-path (lasso/polygon) | "the select tool should not snap at all - right now it snaps which is wierd - same with any tool that uses select as an input method - e.g. change crease (c) - the select drag should not snap to points" (also: "same with lasso select, it should not snap to points") | ✅ **fixed** — only drag-line (crease draw) snaps; selection/erase boxes + freehand paths follow the raw cursor (was snapping to points, felt wrong). |
+| Circle-apply (rest) | CircleDrawInverted, CircleDrawConcentricSelect, CircleDrawConcentricTwoCircleSelect, CircleChangeColor, OrganizeCircles | "can you mark rest of the circles as deferred?" | ⏭️ **deferred** — revisit at end. |
+| Text annotation | Text | — (not yet reached in the sweep; unbuilt) | ⏭️ **build-next** (bespoke DOM overlay). |
+| Copy by four points | CreaseCopy4p | "confirmed that all 4 copy and move tools wrok properly." | ✅ |
 
 Cross-cutting fixes made during the sweep (benefit many tools):
 - `handleWebglToolCommit` no longer rejects <2-point commits → unbreaks every 1-point tool.
