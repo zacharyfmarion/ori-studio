@@ -328,6 +328,33 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     [vertexLocations]
   );
 
+  // Set an edge's length and keep the tree length-faithful: re-place the child
+  // vertex at `length` units from its parent along the current direction, and
+  // translate the child's whole subtree by the same delta so nothing detaches.
+  const setEdgeLength = useCallback(
+    async (edge: OristudioBpTreeEdge, length: number) => {
+      const [a, b] = edge.vertices;
+      const childId = topology.parent.get(a) === b ? a : b;
+      const parentId = childId === a ? b : a;
+      const child = findVertex(childId);
+      const parent = findVertex(parentId);
+      if (!child || !parent) {
+        await setOristudioBpTreeEdgeLength(edge.vertices, length);
+        return;
+      }
+      const target = unitLeafLocation(parent.loc, child.loc, length);
+      const subtreePairs = subtreeOf(childId).flatMap((id) => {
+        const vertex = findVertex(id);
+        return vertex ? [[id, vertex.loc] as const] : [];
+      });
+      const moved = translatePoints(child.loc, target, subtreePairs);
+      const updates = [...moved].map(([id, loc]) => ({ id, loc }));
+      await setOristudioBpTreeEdgeLength(edge.vertices, length);
+      await moveOristudioBpTreeVertices(updates);
+    },
+    [topology, findVertex, subtreeOf, setOristudioBpTreeEdgeLength, moveOristudioBpTreeVertices]
+  );
+
   const eventToTreePoint = useCallback(
     (event: PointerEvent): Point => {
       const svg = svgRef.current;
@@ -769,9 +796,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
       {selectedEdge && (
         <BpTreeEdgeLengthEditor
           edge={selectedEdge}
-          onSetLength={(length) =>
-            void setOristudioBpTreeEdgeLength(selectedEdge.vertices, length)
-          }
+          onSetLength={(length) => void setEdgeLength(selectedEdge, length)}
         />
       )}
       <div className="design-status-readout">
