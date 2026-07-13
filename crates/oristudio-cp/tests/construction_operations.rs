@@ -505,6 +505,67 @@ fn square_bisector_command_line_mode_routes_on_three_line_ids() {
 }
 
 #[test]
+fn line_segment_division_command_divides_the_drawn_segment_by_count() {
+    // Drag (0,0)->(2,0) with division count 2 → two equal Red creases, dividing the
+    // *drawn* line (not an existing crease).
+    let mut document = CreasePatternDocument::default();
+    let command = CreasePatternCommand::new(OperationId::LineSegmentDivision).with_payload(
+        CreasePatternCommandPayload {
+            points: vec![Point::new(0.0, 0.0), Point::new(2.0, 0.0)],
+            division_count: Some(2),
+            line_color: Some(LineColor::Red1),
+            ..Default::default()
+        },
+    );
+
+    execute_command(&mut document, command).expect("line division executes");
+    assert_eq!(document.crease_pattern.line_segments.len(), 2);
+    assert!(contains_segment_close(
+        &document.crease_pattern.line_segments,
+        Point::new(0.0, 0.0),
+        Point::new(1.0, 0.0),
+        LineColor::Red1,
+    ));
+    assert!(contains_segment_close(
+        &document.crease_pattern.line_segments,
+        Point::new(1.0, 0.0),
+        Point::new(2.0, 0.0),
+        LineColor::Red1,
+    ));
+}
+
+#[test]
+fn line_segment_ratio_command_splits_the_drawn_segment_at_the_ratio_point() {
+    // Drag (0,0)->(10,0) with ratio 1:3 → two Blue creases meeting at the 1:3 point
+    // (2.5, 0), matching Oriedita's reversed-drag geometry.
+    let mut document = CreasePatternDocument::default();
+    let command = CreasePatternCommand::new(OperationId::LineSegmentRatioSet).with_payload(
+        CreasePatternCommandPayload {
+            points: vec![Point::new(0.0, 0.0), Point::new(10.0, 0.0)],
+            ratio_s: Some(1.0),
+            ratio_t: Some(3.0),
+            line_color: Some(LineColor::Blue2),
+            ..Default::default()
+        },
+    );
+
+    execute_command(&mut document, command).expect("line ratio executes");
+    assert_eq!(document.crease_pattern.line_segments.len(), 2);
+    assert!(contains_segment_close(
+        &document.crease_pattern.line_segments,
+        Point::new(10.0, 0.0),
+        Point::new(2.5, 0.0),
+        LineColor::Blue2,
+    ));
+    assert!(contains_segment_close(
+        &document.crease_pattern.line_segments,
+        Point::new(0.0, 0.0),
+        Point::new(2.5, 0.0),
+        LineColor::Blue2,
+    ));
+}
+
+#[test]
 fn fishbone_draw_adds_alternating_perpendicular_ribs() {
     let mut model = model_from_segments(&[
         segment(-1.0, -2.0, 3.0, -2.0, LineColor::Black0),

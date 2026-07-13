@@ -1633,18 +1633,20 @@ pub fn execute_command(
             )
         }
         OperationId::LineSegmentDivision => {
-            let segment = required_or_nearest_line_segment(document, &command)?;
+            // Oriedita drags a new segment and splits *that* into N equal creases
+            // (endpoints already point-snapped by the frontend), not an existing line.
+            let points = required_points(&command, 2)?;
             operations::point::divide_segment_by_count(
                 &mut document.crease_pattern,
-                &segment,
+                &LineSegment::with_color(points[0], points[1], active_line_color(&command)),
                 division_count(&command),
             )
         }
         OperationId::LineSegmentRatioSet => {
-            let segment = required_or_nearest_line_segment(document, &command)?;
+            let points = required_points(&command, 2)?;
             operations::point::divide_segment_by_ratio(
                 &mut document.crease_pattern,
-                &segment,
+                &LineSegment::with_color(points[0], points[1], active_line_color(&command)),
                 ratio_s(&command),
                 ratio_t(&command),
             )

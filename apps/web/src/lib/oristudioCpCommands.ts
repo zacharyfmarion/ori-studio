@@ -338,10 +338,12 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     'Background image manipulation is UI-only and not part of the CP kernel'
   ),
   ready('LineSegmentDivision', 'Divide line by count', 'draw', 'split', 'MouseHandlerLineSegmentDivision', {
-    toolSteps: ['Pick line segment'],
+    inputMode: 'drag-line',
+    toolSteps: ['Drag to draw a line to divide'],
   }),
   ready('LineSegmentRatioSet', 'Divide line by ratio', 'draw', 'divide', 'MouseHandlerLineSegmentRatioSet', {
-    toolSteps: ['Pick line segment'],
+    inputMode: 'drag-line',
+    toolSteps: ['Drag to draw a line to divide'],
   }),
   ready('PolygonSetNoCorners', 'Regular polygon', 'generators', 'hexagon', 'MouseHandlerPolygonSetNoCorners', {
     toolSteps: ['Pick first corner', 'Pick second corner'],

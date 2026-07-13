@@ -93,8 +93,10 @@ export const CP_INPUT_MODELS: Partial<Record<OristudioCpOperationId, CpInputMode
   FoldableLineDraw: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'crease'] },
   FoldableLineInput: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
   Inward: { model: 'point-sequence', pointCount: 3, snapPerStep: ['point', 'point', 'point'] },
-  LineSegmentDivision: { model: 'point-sequence', pointCount: 1, snapPerStep: ['crease'] },
-  LineSegmentRatioSet: { model: 'point-sequence', pointCount: 1, snapPerStep: ['crease'] },
+  // Drag to draw the segment; the kernel divides that drawn line (by count / ratio)
+  // rather than an existing crease — Oriedita's LINE_SEGMENT_DIVISION_27 / _RATIO_28.
+  LineSegmentDivision: { model: 'drag-line' },
+  LineSegmentRatioSet: { model: 'drag-line' },
   ParallelDraw: { model: 'point-sequence', pointCount: 3, snapPerStep: ['point', 'crease', 'crease'] },
   ParallelDrawWidth: { model: 'point-sequence', pointCount: 2, snapPerStep: ['crease', 'point'] },
   PerpendicularDraw: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'crease'] },
