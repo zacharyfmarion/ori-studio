@@ -2700,15 +2700,17 @@ export function CreasePatternPanel() {
   // excluded until it gets dedicated handling.
   const webglActiveTool = useMemo<{
     mode: 'drag-line' | 'drag-box' | 'drag-path' | 'sequence' | 'line-entity' | null;
-    stepKinds: ('point' | 'crease')[];
+    stepKinds: ('point' | 'crease' | 'candidate')[];
     lineCount: number;
     dualMirror: boolean;
+    converging: boolean;
   }>(() => {
     const idle = {
       mode: null,
-      stepKinds: [] as ('point' | 'crease')[],
+      stepKinds: [] as ('point' | 'crease' | 'candidate')[],
       lineCount: 0,
       dualMirror: false,
+      converging: false,
     };
     if (!activeCpCommand || activeCpCommand.uiStatus !== 'ready' || cpToolState.phase !== 'active') {
       return idle;
@@ -2722,6 +2724,13 @@ export function CreasePatternPanel() {
     // statically from the registry. Flag it and leave stepKinds empty.
     if (activeCpCommand.operationId === 'SymmetricDraw') {
       return { ...idle, mode: 'sequence', dualMirror: true };
+    }
+    // Converging Lines (angle-restricted): first pick is a crease OR two points →
+    // its two endpoints are the base; then pick one of the ray *intersections* those
+    // endpoints generate. A bespoke canvas handler drives it (dual first click +
+    // candidate-point converge), so leave stepKinds empty and flag it.
+    if (activeCpCommand.operationId === 'DrawCreaseAngleRestricted') {
+      return { ...idle, mode: 'sequence', converging: true };
     }
     // Everything below is driven by the explicit per-operation registry — never
     // by the step-prompt text. Line-entity (Lengthen) picks crease ids; point-
@@ -2756,6 +2765,9 @@ export function CreasePatternPanel() {
   const [webglToolPreviewSegments, setWebglToolPreviewSegments] = useState<
     readonly { a: Point; b: Point }[]
   >([]);
+  // Kernel-computed candidate *points* (e.g. Converging Lines ray intersections)
+  // rendered as pickable dots on the canvas, separate from candidate segments.
+  const [webglToolPreviewPoints, setWebglToolPreviewPoints] = useState<readonly Point[]>([]);
   const webglPreviewRequestRef = useRef(0);
   const handleWebglToolPreviewInput = useCallback(
     (points: readonly Point[], highlightLineIds: readonly number[]) => {
@@ -2769,6 +2781,7 @@ export function CreasePatternPanel() {
       if (!command || points.length === 0) {
         webglPreviewRequestRef.current += 1;
         setWebglToolPreviewSegments(highlight);
+        setWebglToolPreviewPoints([]);
         return;
       }
       setWebglToolPreviewSegments(highlight);
@@ -2802,6 +2815,7 @@ export function CreasePatternPanel() {
             )
           : [];
         setWebglToolPreviewSegments([...kernel, ...rings, ...highlight, ...snapped]);
+        setWebglToolPreviewPoints(preview?.points ?? []);
       });
     },
     [
@@ -2820,6 +2834,7 @@ export function CreasePatternPanel() {
     if (webglActiveTool.mode !== 'sequence') {
       webglPreviewRequestRef.current += 1;
       setWebglToolPreviewSegments([]);
+      setWebglToolPreviewPoints([]);
     }
   }, [webglActiveTool.mode]);
 
@@ -4795,6 +4810,7 @@ export function CreasePatternPanel() {
                   activeToolStepKinds={webglActiveTool.stepKinds}
                   activeToolLineCount={webglActiveTool.lineCount}
                   activeToolDualMirror={webglActiveTool.dualMirror}
+                  activeToolConverging={webglActiveTool.converging}
                   activeToolRequireSnap={isRestrictedDrawOperation(activeCpCommand?.operationId)}
                   activeToolClickSelects={isLineClickSelectionOperation(activeCpCommand?.operationId)}
                   resolveDrawPoint={resolveEditableDrawModelPoint}
@@ -4804,6 +4820,7 @@ export function CreasePatternPanel() {
                   onToolPreviewInput={handleWebglToolPreviewInput}
                   onToolPickProgress={handleWebglToolPickProgress}
                   toolCommandPreviewSegments={webglToolPreviewSegments}
+                  toolCommandPreviewPoints={webglToolPreviewPoints}
                   toolPreviewColor={toolPreviewColor}
                   onEraseBox={(points) => {
                     void executeOristudioCpCommand('LineSegmentDelete', {
@@ -7381,21 +7398,51 @@ function NumericToolOption({
   disabled?: boolean;
   onChange: (value: number) => void;
 }) {
+  // Edit against a local string draft so the field can be cleared or hold a partial
+  // value while typing; only parse/clamp/commit on blur or Enter. A controlled
+  // number input that committed every keystroke snapped an emptied field back to its
+  // old value (and committed intermediate digits, e.g. backspacing "16" → "1").
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [draft, setDraft] = useState(() => String(value));
+  // Re-sync the draft when the committed value changes from outside — but never
+  // while the user is mid-edit in this field.
+  useEffect(() => {
+    if (document.activeElement !== inputRef.current) setDraft(String(value));
+  }, [value]);
+
+  const commit = () => {
+    const parsed = Number.parseFloat(draft);
+    if (Number.isFinite(parsed)) {
+      const clamped = clampToolNumber(parsed, min, max);
+      onChange(clamped);
+      setDraft(String(clamped));
+    } else {
+      // Empty or unparseable: revert to the last committed value.
+      setDraft(String(value));
+    }
+  };
+
   return (
     <label className="cp-context-panel__field">
       <span>{label}</span>
       <input
+        ref={inputRef}
         aria-label={ariaLabel}
         type="number"
         min={min}
         max={max}
         step={step}
-        value={value}
+        value={draft}
         disabled={disabled}
-        onChange={(event) => {
-          const parsed = Number.parseFloat(event.currentTarget.value);
-          if (!Number.isFinite(parsed)) return;
-          onChange(clampToolNumber(parsed, min, max));
+        onChange={(event) => setDraft(event.currentTarget.value)}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            event.currentTarget.blur();
+          } else if (event.key === 'Escape') {
+            setDraft(String(value));
+            event.currentTarget.blur();
+          }
         }}
       />
     </label>
