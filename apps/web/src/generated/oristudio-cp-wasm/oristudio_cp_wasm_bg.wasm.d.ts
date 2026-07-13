@@ -2,6 +2,7 @@
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
 export const cp_operation_descriptors: () => [number, number, number];
+export const deselect_all: (a: number) => [number, number, number];
 export const document_snapshot: (a: number) => [number, number, number];
 export const document_summary: (a: number) => [number, number, number];
 export const execute_cp_command: (a: number, b: any, c: any) => [number, number, number];

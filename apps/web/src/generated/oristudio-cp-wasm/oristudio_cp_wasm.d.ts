@@ -3,6 +3,13 @@
 
 export function cp_operation_descriptors(): any;
 
+/**
+ * Clear the document's selection flags. A non-command mutation (no undo entry):
+ * the frontend selection is authoritative, and a UI deselect (Escape / click-off)
+ * must clear the kernel too, or a later select/deselect re-derives the stale set.
+ */
+export function deselect_all(handle: number): number;
+
 export function document_snapshot(handle: number): any;
 
 export function document_summary(handle: number): any;
@@ -81,6 +88,7 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly cp_operation_descriptors: () => [number, number, number];
+    readonly deselect_all: (a: number) => [number, number, number];
     readonly document_snapshot: (a: number) => [number, number, number];
     readonly document_summary: (a: number) => [number, number, number];
     readonly execute_cp_command: (a: number, b: any, c: any) => [number, number, number];

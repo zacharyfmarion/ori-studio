@@ -260,6 +260,18 @@ export async function insertOristudioCpLineSegments(
 }
 
 /**
+ * Clear the kernel document's selection flags (a UI deselect, not an undoable
+ * edit). The frontend selection mirror is cleared separately; this keeps the
+ * kernel in sync so a later select/deselect doesn't re-derive a stale selection.
+ */
+export async function deselectAllOristudioCp(): Promise<OristudioCpDocumentState | null> {
+  if (handle === null) return null;
+  const api = await getOristudioCpClient();
+  await api.deselectAll(handle);
+  return refreshOristudioCpDocument(null);
+}
+
+/**
  * Oriedita import (add): parse `text` into a throwaway document, merge it into
  * the currently loaded crease pattern (shifted beside the existing pattern and
  * divided against it), then release the throwaway document. Mirrors Oriedita's

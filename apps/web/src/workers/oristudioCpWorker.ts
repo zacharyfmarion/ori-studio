@@ -27,6 +27,7 @@ import init, {
   load_ori,
   import_add,
   insert_line_segments,
+  deselect_all,
   preview_cp_command,
   replace_line_segments,
   restore_document,
@@ -132,6 +133,9 @@ const api = {
     segments: OristudioCpLineSegment[]
   ): Promise<number> {
     return call(() => insert_line_segments(handle, segments));
+  },
+  async deselectAll(handle: number): Promise<number> {
+    return call(() => deselect_all(handle));
   },
   async importAdd(handle: number, importedHandle: number): Promise<number> {
     return call(() => import_add(handle, importedHandle));

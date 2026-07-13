@@ -12,6 +12,21 @@ export function cp_operation_descriptors() {
 }
 
 /**
+ * Clear the document's selection flags. A non-command mutation (no undo entry):
+ * the frontend selection is authoritative, and a UI deselect (Escape / click-off)
+ * must clear the kernel too, or a later select/deselect re-derives the stale set.
+ * @param {number} handle
+ * @returns {number}
+ */
+export function deselect_all(handle) {
+    const ret = wasm.deselect_all(handle);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return ret[0] >>> 0;
+}
+
+/**
  * @param {number} handle
  * @returns {any}
  */

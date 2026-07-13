@@ -37,6 +37,7 @@ import {
 } from '../engineRuntime';
 import {
   duplicateOristudioCpFoldedFigure as duplicateRuntimeOristudioCpFoldedFigure,
+  deselectAllOristudioCp,
   exportOristudioCpDocumentAsFold,
   foldOristudioCpDocument as foldRuntimeOristudioCpDocument,
   foldOristudioCpFigureAnother as foldRuntimeOristudioCpFigureAnother,
@@ -1041,8 +1042,26 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       });
     },
 
-    clearOristudioCpSelection: () =>
-      set({ oristudioCpSelection: emptyOristudioCpSelection() }),
+    clearOristudioCpSelection: () => {
+      // Clear the frontend mirror immediately (the surface deselects at once)...
+      set({ oristudioCpSelection: emptyOristudioCpSelection() });
+      // ...and the kernel document's selection flags, else a later select/deselect
+      // re-derives the stale set (the kernel is authoritative for select ops).
+      if (!get().oristudioCpDocument) return;
+      void (async () => {
+        try {
+          const refreshed = await deselectAllOristudioCp();
+          if (refreshed) {
+            set({
+              oristudioCpDocument: refreshed,
+              oristudioCpSelection: emptyOristudioCpSelection(),
+            });
+          }
+        } catch {
+          // A deselect is best-effort UI state; ignore kernel errors.
+        }
+      })();
+    },
 
     transformOristudioCpSelection: async (transform) => {
       const document = get().oristudioCpDocument?.document;

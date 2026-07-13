@@ -231,6 +231,17 @@ pub fn insert_line_segments(handle: u32, segments: JsValue) -> Result<u32, JsVal
     })
 }
 
+/// Clear the document's selection flags. A non-command mutation (no undo entry):
+/// the frontend selection is authoritative, and a UI deselect (Escape / click-off)
+/// must clear the kernel too, or a later select/deselect re-derives the stale set.
+#[wasm_bindgen]
+pub fn deselect_all(handle: u32) -> Result<u32, JsValue> {
+    with_document_mut(handle, |document| {
+        let changed = oristudio_cp::operations::selection::unselect_all(&mut document.crease_pattern);
+        Ok(changed as u32)
+    })
+}
+
 /// Oriedita import (add): merge the document behind `imported_handle` into the
 /// document behind `handle`, mirroring `setSave_for_reading_tuika`. The imported
 /// pattern is shifted to sit beside the existing one and divided against it.
