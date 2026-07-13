@@ -1910,17 +1910,9 @@ pub fn execute_command(
             }
         }
         OperationId::SymmetricDraw => {
-            let points = required_points(&command, 2)?;
-            let (_, source) = nearest_line_segment(
-                &document.crease_pattern,
-                points[0],
-                selection_distance(&command),
-            )?;
-            let (_, mirror) = nearest_line_segment(
-                &document.crease_pattern,
-                points[1],
-                selection_distance(&command),
-            )?;
+            let points = required_points_at_least(&command, 2)?;
+            let (source, mirror) =
+                symmetric_draw_lines(&document.crease_pattern, &command, &points)?;
             usize::from(operations::construction::symmetric_draw(
                 &mut document.crease_pattern,
                 &source,
@@ -3069,29 +3061,26 @@ pub fn preview_command(
             ));
         }
         OperationId::SymmetricDraw if points.len() >= 2 => {
-            let (_, source) = nearest_line_segment(
-                &document.crease_pattern,
-                points[0],
-                selection_distance(&command),
-            )?;
-            let (_, mirror) = nearest_line_segment(
-                &document.crease_pattern,
-                points[1],
-                selection_distance(&command),
-            )?;
-            let mut clone = document.clone();
-            if operations::construction::symmetric_draw(
-                &mut clone.crease_pattern,
-                &source,
-                &mirror,
-                active_line_color(&command),
-            ) {
-                preview.segments = clone
-                    .crease_pattern
-                    .line_segments
-                    .into_iter()
-                    .skip(document.crease_pattern.line_segments.len())
-                    .collect();
+            // Best-effort: while a point-mode sequence is mid-placement it briefly
+            // carries 2 points, which resolves as line mode and may find no crease —
+            // skip the preview then rather than surfacing an error.
+            if let Ok((source, mirror)) =
+                symmetric_draw_lines(&document.crease_pattern, &command, points)
+            {
+                let mut clone = document.clone();
+                if operations::construction::symmetric_draw(
+                    &mut clone.crease_pattern,
+                    &source,
+                    &mirror,
+                    active_line_color(&command),
+                ) {
+                    preview.segments = clone
+                        .crease_pattern
+                        .line_segments
+                        .into_iter()
+                        .skip(document.crease_pattern.line_segments.len())
+                        .collect();
+                }
             }
         }
         _ => {
@@ -3485,6 +3474,29 @@ fn fix_inaccurate_options(command: &CreasePatternCommand) -> checks::FixInaccura
 fn set_selected_line_flags(model: &mut CreasePatternModel, line_indices: &[usize]) {
     operations::selection::unselect_all(model);
     operations::selection::select_indices(model, line_indices);
+}
+
+/// Resolve Mirror Line's two construction lines from the clicked points. Oriedita's
+/// SymmetricDraw has two modes — the frontend picks by "first click decides":
+/// 3 points ABC → mirror segment AB over the line BC (point mode; the segments meet
+/// at B, so `symmetric_draw` reflects A across BC); 2 points → each resolves to the
+/// nearest existing crease and we mirror source over mirror (line mode). Only the
+/// point count differs, so both feed the same mode-agnostic `symmetric_draw`.
+fn symmetric_draw_lines(
+    model: &CreasePatternModel,
+    command: &CreasePatternCommand,
+    points: &[Point],
+) -> Result<(LineSegment, LineSegment)> {
+    if points.len() >= 3 {
+        Ok((
+            LineSegment::new(points[0], points[1]),
+            LineSegment::new(points[1], points[2]),
+        ))
+    } else {
+        let (_, source) = nearest_line_segment(model, points[0], selection_distance(command))?;
+        let (_, mirror) = nearest_line_segment(model, points[1], selection_distance(command))?;
+        Ok((source, mirror))
+    }
 }
 
 fn nearest_line_segment(

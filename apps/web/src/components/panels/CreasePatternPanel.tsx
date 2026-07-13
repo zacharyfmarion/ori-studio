@@ -2565,6 +2565,34 @@ export function CreasePatternPanel() {
     [editableCp, editableCpBounds, oristudioCpViewport]
   );
 
+  // Mirror Line (SymmetricDraw) is dual-mode and "the first click decides": a first
+  // pick on a vertex/point runs point mode (3 points ABC → mirror AB over BC), a
+  // first pick on a bare crease runs line mode (2 lines AB → mirror A over B).
+  // Vertices/points win the decision (that is the whole point of point mode — Zach
+  // couldn't snap to vertices before); only a crease with no vertex nearby is a line.
+  const resolveEditableMirrorFirstPick = useCallback(
+    (rawPoint: Point, toleranceModel: number): 'point' | 'line' => {
+      if (!editableCp) return 'point';
+      const vertex = nearestOrieditaDrawPointTarget(
+        editableCp,
+        rawPoint,
+        editableCpBounds,
+        { ...oristudioCpViewport, snapToGrid: false, snapToVertices: true },
+        toleranceModel
+      );
+      if (vertex && (vertex.kind === 'vertex' || vertex.kind === 'point')) return 'point';
+      const line = nearestCpSnapTarget(
+        editableCp,
+        rawPoint,
+        editableCpBounds,
+        { ...oristudioCpViewport, snapToLines: true, snapToVertices: false, snapToGrid: false },
+        toleranceModel
+      );
+      return line?.kind === 'line' ? 'line' : 'point';
+    },
+    [editableCp, editableCpBounds, oristudioCpViewport]
+  );
+
   // WebGL draw tools: commit a tool's collected points through the kernel command
   // (creases are resolved kernel-side from the points), then keep it active.
   const handleWebglToolCommit = useCallback(
@@ -2674,14 +2702,26 @@ export function CreasePatternPanel() {
     mode: 'drag-line' | 'drag-box' | 'drag-path' | 'sequence' | 'line-entity' | null;
     stepKinds: ('point' | 'crease')[];
     lineCount: number;
+    dualMirror: boolean;
   }>(() => {
-    const idle = { mode: null, stepKinds: [] as ('point' | 'crease')[], lineCount: 0 };
+    const idle = {
+      mode: null,
+      stepKinds: [] as ('point' | 'crease')[],
+      lineCount: 0,
+      dualMirror: false,
+    };
     if (!activeCpCommand || activeCpCommand.uiStatus !== 'ready' || cpToolState.phase !== 'active') {
       return idle;
     }
     const im = activeCpCommand.inputMode;
     if (im === 'drag-line' || im === 'drag-box' || im === 'drag-path') {
-      return { mode: im, stepKinds: [], lineCount: 0 };
+      return { ...idle, mode: im };
+    }
+    // Mirror Line branches per first pick between a 3-point sequence and a 2-line
+    // sequence, so its step kinds are decided on the canvas at press time — not
+    // statically from the registry. Flag it and leave stepKinds empty.
+    if (activeCpCommand.operationId === 'SymmetricDraw') {
+      return { ...idle, mode: 'sequence', dualMirror: true };
     }
     // Everything below is driven by the explicit per-operation registry — never
     // by the step-prompt text. Line-entity (Lengthen) picks crease ids; point-
@@ -2695,17 +2735,17 @@ export function CreasePatternPanel() {
       activeCpCommand.operationId === 'CircleDrawTangentLine' &&
       oristudioCpSelection.circles.length === 1
     ) {
-      return { mode: 'sequence', stepKinds: ['point'], lineCount: 0 };
+      return { ...idle, mode: 'sequence', stepKinds: ['point'] };
     }
     const inputModel = cpInputModel(activeCpCommand.operationId);
     if (inputModel?.model === 'line-entity') {
-      return { mode: 'line-entity', stepKinds: [], lineCount: inputModel.lineCount ?? 2 };
+      return { ...idle, mode: 'line-entity', lineCount: inputModel.lineCount ?? 2 };
     }
     if (
       (inputModel?.model === 'point-sequence' || inputModel?.model === 'axis-from-line') &&
       inputModel.snapPerStep
     ) {
-      return { mode: 'sequence', stepKinds: [...inputModel.snapPerStep], lineCount: 0 };
+      return { ...idle, mode: 'sequence', stepKinds: [...inputModel.snapPerStep] };
     }
     return idle;
   }, [activeCpCommand, cpToolState.phase, oristudioCpSelection.circles.length]);
@@ -4754,10 +4794,12 @@ export function CreasePatternPanel() {
                   activeToolInputMode={webglActiveTool.mode}
                   activeToolStepKinds={webglActiveTool.stepKinds}
                   activeToolLineCount={webglActiveTool.lineCount}
+                  activeToolDualMirror={webglActiveTool.dualMirror}
                   activeToolRequireSnap={isRestrictedDrawOperation(activeCpCommand?.operationId)}
                   activeToolClickSelects={isLineClickSelectionOperation(activeCpCommand?.operationId)}
                   resolveDrawPoint={resolveEditableDrawModelPoint}
                   resolveDrawPointOnCrease={resolveEditableDrawPointOnCrease}
+                  resolveMirrorFirstPick={resolveEditableMirrorFirstPick}
                   onToolCommit={handleWebglToolCommit}
                   onToolPreviewInput={handleWebglToolPreviewInput}
                   onToolPickProgress={handleWebglToolPickProgress}

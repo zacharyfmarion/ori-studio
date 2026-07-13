@@ -1,5 +1,9 @@
 use oristudio_cp::geometry::{LineColor, LineSegment, Point};
 use oristudio_cp::model::CreasePatternModel;
+use oristudio_cp::{
+    CreasePatternCommand, CreasePatternCommandPayload, CreasePatternDocument, OperationId,
+    execute_command,
+};
 use oristudio_cp::operations::construction::{
     DrawCreaseTarget, FoldableLineDrawOperationMode, angle_restricted_converging_candidates,
     angle_system_candidates, angle_system_draw_to_destination, axiom5_draw_to_destination,
@@ -199,6 +203,71 @@ fn symmetric_draw_reflects_source_ray_across_mirror_line() {
                 && (segment.a.y - 0.0).abs() < 1e-12
                 && (segment.b.x - 0.0).abs() < 1e-12
                 && (segment.b.y - 2.0).abs() < 1e-12)
+    );
+}
+
+// Helper: reflected Red ray anchored at the mirror crossing (0,0) extending to the
+// crease at y = 2. Both Mirror Line modes must produce this exact segment.
+fn has_reflected_ray_to_y2(document: &CreasePatternDocument) -> bool {
+    document.crease_pattern.line_segments.iter().any(|segment| {
+        segment.color == LineColor::Red1
+            && segment.a.x.abs() < 1e-12
+            && segment.a.y.abs() < 1e-12
+            && segment.b.x.abs() < 1e-12
+            && (segment.b.y - 2.0).abs() < 1e-12
+    })
+}
+
+#[test]
+fn symmetric_draw_command_point_mode_mirrors_segment_ab_over_bc() {
+    // Point mode (Oriedita "select points ABC"): 3 clicks mirror segment AB over the
+    // line BC. A=(1,0), B=(0,0), C=(1,1) is the same construction as the op-level
+    // test above, so the handler's 3-point branch must produce the identical ray.
+    let mut document = CreasePatternDocument {
+        crease_pattern: model_from_segments(&[segment(0.0, 2.0, 2.0, 2.0, LineColor::Black0)]),
+        ..Default::default()
+    };
+    let command =
+        CreasePatternCommand::new(OperationId::SymmetricDraw).with_payload(CreasePatternCommandPayload {
+            points: vec![Point::new(1.0, 0.0), Point::new(0.0, 0.0), Point::new(1.0, 1.0)],
+            line_color: Some(LineColor::Red1),
+            ..Default::default()
+        });
+
+    execute_command(&mut document, command).expect("point-mode symmetric draw executes");
+    assert!(
+        has_reflected_ray_to_y2(&document),
+        "expected reflected ray (0,0)->(0,2); got {:?}",
+        document.crease_pattern.line_segments,
+    );
+}
+
+#[test]
+fn symmetric_draw_command_line_mode_resolves_nearest_creases() {
+    // Line mode (Oriedita "select lines AB"): 2 clicks each resolve to the nearest
+    // existing crease, mirroring source over mirror — unchanged by the dual-mode
+    // refactor. Click near the source ray and near the mirror line.
+    let mut document = CreasePatternDocument {
+        crease_pattern: model_from_segments(&[
+            segment(0.0, 0.0, 1.0, 0.0, LineColor::Black0),
+            segment(0.0, 0.0, 1.0, 1.0, LineColor::Black0),
+            segment(0.0, 2.0, 2.0, 2.0, LineColor::Black0),
+        ]),
+        ..Default::default()
+    };
+    let command =
+        CreasePatternCommand::new(OperationId::SymmetricDraw).with_payload(CreasePatternCommandPayload {
+            points: vec![Point::new(0.5, 0.0), Point::new(0.5, 0.5)],
+            line_color: Some(LineColor::Red1),
+            selection_distance: Some(1.0),
+            ..Default::default()
+        });
+
+    execute_command(&mut document, command).expect("line-mode symmetric draw executes");
+    assert!(
+        has_reflected_ray_to_y2(&document),
+        "expected reflected ray (0,0)->(0,2); got {:?}",
+        document.crease_pattern.line_segments,
     );
 }
 

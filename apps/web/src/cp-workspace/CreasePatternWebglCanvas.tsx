@@ -271,6 +271,19 @@ export interface CreasePatternWebglCanvasProps {
    */
   activeToolClickSelects: boolean;
   /**
+   * True for Mirror Line (SymmetricDraw), whose input is dual-mode: the first pick
+   * decides between a 3-point sequence (pick lands on a vertex/point) and a 2-line
+   * sequence (pick lands on a bare crease). When set, the sequence engine defers its
+   * step kinds to {@link resolveMirrorFirstPick} at first press instead of reading
+   * the static `activeToolStepKinds`.
+   */
+  activeToolDualMirror: boolean;
+  /**
+   * Classify Mirror Line's first pick as point mode or line mode. Only consulted on
+   * the first press of a dual-mirror sequence.
+   */
+  resolveMirrorFirstPick: (rawPoint: ModelPoint, toleranceModel: number) => 'point' | 'line';
+  /**
    * Snap a raw model draw point to nearby geometry (grid/vertices), reporting
    * whether it locked on (for restricted draws that reject unsnapped points).
    */
@@ -367,6 +380,8 @@ export function CreasePatternWebglCanvas({
   activeToolLineCount,
   activeToolRequireSnap,
   activeToolClickSelects,
+  activeToolDualMirror,
+  resolveMirrorFirstPick,
   resolveDrawPoint,
   resolveDrawPointOnCrease,
   onToolCommit,
@@ -403,6 +418,10 @@ export function CreasePatternWebglCanvas({
   const persistentToolRuntimeRef = useRef<ToolRuntime | null>(null);
   // Index of the sequence step awaiting input, for per-step snapping/feedback.
   const sequenceStepRef = useRef(0);
+  // Mirror Line's per-first-pick step kinds, decided at press time (point mode →
+  // 3 point steps, line mode → 2 crease steps). Null until the first press; reset
+  // on commit/cancel. Overrides the static `activeToolStepKinds` when set.
+  const dynamicStepKindsRef = useRef<readonly StepKind[] | null>(null);
   // Creases picked so far by a `line-entity` tool (Lengthen). Rendered in the
   // selection style so a picked line "shows up as selected" until commit — parity
   // with the SVG's persistent `highlightedLineIds`. Read by `buildStrokes`.
@@ -413,12 +432,13 @@ export function CreasePatternWebglCanvas({
   useEffect(() => {
     persistentToolRuntimeRef.current = null;
     sequenceStepRef.current = 0;
+    dynamicStepKindsRef.current = null;
     linePickHighlightRef.current = [];
     rendererRef.current?.setOverlayPoints(null);
     const rebuild = buildStrokesRef.current;
     if (rebuild) rendererRef.current?.setStrokes(rebuild());
     renderNowRef.current();
-  }, [activeToolInputMode, activeToolStepKinds, activeToolLineCount]);
+  }, [activeToolInputMode, activeToolStepKinds, activeToolLineCount, activeToolDualMirror]);
 
   // Content bounds in SVG user coords, for the initial camera fit (independent
   // of the SVG's own fixed-rect fit, which mis-centres imported cameras).
@@ -571,6 +591,8 @@ export function CreasePatternWebglCanvas({
     activeToolLineCount,
     activeToolRequireSnap,
     activeToolClickSelects,
+    activeToolDualMirror,
+    resolveMirrorFirstPick,
     resolveDrawPoint,
     resolveDrawPointOnCrease,
     onToolCommit,
@@ -884,16 +906,11 @@ export function CreasePatternWebglCanvas({
     // controller kernel-previews the live points and renders the result.
     const feedPersistent = (kind: 'down' | 'move' | 'cancel', clientX: number, clientY: number) => {
       if (liveRef.current.activeToolInputMode !== 'sequence') return;
-      const stepKinds = liveRef.current.activeToolStepKinds;
-      if (!persistentToolRuntimeRef.current) {
-        persistentToolRuntimeRef.current = createToolRuntime(createStepSequenceTool(stepKinds.length));
-        sequenceStepRef.current = 0;
-      }
-      const runtime = persistentToolRuntimeRef.current;
       const accent = readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK);
       if (kind === 'cancel') {
-        runtime.feed({ kind: 'cancel', point: { x: 0, y: 0 } });
+        persistentToolRuntimeRef.current?.feed({ kind: 'cancel', point: { x: 0, y: 0 } });
         sequenceStepRef.current = 0;
+        dynamicStepKindsRef.current = null;
         liveRef.current.onToolPreviewInput([], []);
         renderer.setOverlayPoints(null);
         renderNow();
@@ -902,6 +919,29 @@ export function CreasePatternWebglCanvas({
       const raw = clientToModel(clientX, clientY);
       if (!raw) return;
       const tol = modelToleranceOf(SNAP_TOLERANCE_CSS);
+      // Mirror Line decides its step kinds on the first press: a pick on a
+      // vertex/point runs a 3-point sequence, a pick on a bare crease a 2-line one.
+      if (liveRef.current.activeToolDualMirror && !persistentToolRuntimeRef.current) {
+        if (kind !== 'down') {
+          // Hovering before the first pick — no mode yet. Show a plain point-snap
+          // ring so the cursor reads as a placement without committing to a mode.
+          const snap = liveRef.current.resolveDrawPoint(raw, tol).point;
+          const ring = snap.x !== raw.x || snap.y !== raw.y ? snap : null;
+          renderer.setOverlayPoints(sequenceOverlayPoints([], ring, accent));
+          renderNow();
+          return;
+        }
+        dynamicStepKindsRef.current =
+          liveRef.current.resolveMirrorFirstPick(raw, tol) === 'line'
+            ? ['crease', 'crease']
+            : ['point', 'point', 'point'];
+      }
+      const stepKinds = dynamicStepKindsRef.current ?? liveRef.current.activeToolStepKinds;
+      if (!persistentToolRuntimeRef.current) {
+        persistentToolRuntimeRef.current = createToolRuntime(createStepSequenceTool(stepKinds.length));
+        sequenceStepRef.current = 0;
+      }
+      const runtime = persistentToolRuntimeRef.current;
       const creaseStep = stepKinds[sequenceStepRef.current] === 'crease';
       let point: ModelPoint;
       let snappedToVertex = false;
@@ -927,6 +967,7 @@ export function CreasePatternWebglCanvas({
         liveRef.current.onToolPreviewInput([], []);
         renderer.setOverlayPoints(null);
         sequenceStepRef.current = 0;
+        dynamicStepKindsRef.current = null;
       } else {
         if (kind === 'down') sequenceStepRef.current += 1;
         const live = out.livePoints ?? [];
