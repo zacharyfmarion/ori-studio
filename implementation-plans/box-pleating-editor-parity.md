@@ -109,15 +109,14 @@ root of the breakage (see the assessment in the commit history / memory).
       implemented, not yet oracle-checked.
 - [x] Keyboard nudge (arrow keys) with the same constrain rules.
 - [x] Hover/long-press inspector.
-- [ ] **Click-again to cycle stacked objects** (BP Studio
-      `SelectionController.$processNext` / `$hitTestAll`). Selection currently
-      uses a fixed hit-test priority (smaller flap wins over a larger one at its
-      center; a stretch gadget wins over a flap hit-target in the river between
-      flaps). This resolves the common cases, but when a flap tip falls *inside*
-      a gadget contour (dense packings) it can only be reached by an off-center
-      click or box-select. The robust fix is to gather all selectable items at
-      the click point and, on repeated clicks at the same spot, cycle the
-      selection to the next one underneath.
+- [x] **Click-again to cycle stacked objects** (BP Studio
+      `SelectionController.$processNext`). A plain click selects the topmost
+      selectable; a repeat click at the same spot advances to the next item
+      underneath and wraps around, so a flap tip buried inside a gadget contour
+      is reachable without box-select. Each hit element carries a
+      `data-bp-select` token; an SVG onClick reads `document.elementsFromPoint`
+      to build the stack and cycles a ref-tracked index (a drag suppresses the
+      click, so it only fires on genuine clicks). Verified live on micrathena.
 
 ### Phase 4: Rivers, stretches, devices, junctions
 
@@ -161,10 +160,14 @@ geometry, and update-in-lockstep:
 
 ### Phase 7: Parity QA
 
-- [ ] Drive the full checklist on the sample set side-by-side with BP Studio.
+- [~] Drive the full checklist on the sample set side-by-side with BP Studio.
+      Author has spot-checked the editor and confirmed it looks right; a full
+      manual pass is deferred until every feature lands.
 - [~] Add unit tests for the pure geometry/constrain/selection helpers and the
       snapshot mapping.
-- [ ] `lint` / `typecheck` / `test:web` / production build.
+- [x] `lint` / `typecheck` / `test:web` / production build — all green
+      (engine 28/28, web 457/457 vitest, tsc clean, production build succeeds).
+- [x] Deferred **click-again-to-cycle** selection (see Phase 3).
 
 ## Affected areas
 
