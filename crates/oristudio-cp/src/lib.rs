@@ -2310,6 +2310,9 @@ pub fn execute_command(
         }
         OperationId::SelectPolygon => {
             let polygon = required_selection_polygon(&command)?;
+            if command.payload.replace_selection.unwrap_or(false) {
+                operations::selection::unselect_all(&mut document.crease_pattern);
+            }
             operations::selection::select_polygon(&mut document.crease_pattern, &polygon)
         }
         OperationId::UnselectPolygon => {
@@ -2482,6 +2485,11 @@ pub fn execute_command(
         }
         OperationId::SelectLasso => {
             let polygon = required_selection_polygon(&command)?;
+            // A plain lasso replaces the selection; a modified one adds to it
+            // (matches CreaseSelect). The kernel select is otherwise additive.
+            if command.payload.replace_selection.unwrap_or(false) {
+                operations::selection::unselect_all(&mut document.crease_pattern);
+            }
             operations::selection::select_lasso(&mut document.crease_pattern, &polygon)
         }
         OperationId::UnselectLasso => {

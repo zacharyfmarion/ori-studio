@@ -2594,10 +2594,15 @@ export function CreasePatternPanel() {
                 : oristudioCpSelection.lines,
             circle_ids: oristudioCpSelection.circles,
             points: [...points],
-            // A box-select replaces the selection unless a modifier was held
-            // (additive), matching the SVG. Only CreaseSelect honours this flag.
+            // A plain box/lasso/polygon select replaces the selection; holding a
+            // modifier (additive) adds to it. The kernel selects are additive by
+            // default, so the replace is done kernel-side when this is true.
             replace_selection:
-              command.operationId === 'CreaseSelect' ? !commit.additive : undefined,
+              command.operationId === 'CreaseSelect' ||
+              command.operationId === 'SelectLasso' ||
+              command.operationId === 'SelectPolygon'
+                ? !commit.additive
+                : undefined,
           })
         );
         setCpToolState((state) =>

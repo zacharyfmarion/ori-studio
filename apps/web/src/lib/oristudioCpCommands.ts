@@ -508,11 +508,15 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     tooltip: 'Delete crease segments intersecting or overlapping a dragged line',
   }),
   ready('SelectPolygon', 'Select polygon', 'select-edit', 'lasso-select', 'MouseHandlerSelectPolygon', {
+    // Hidden per Zach — lasso covers the freehand-select case. Revisit at end.
+    placement: 'hidden-ui-only',
     toolSteps: ['Drag polygon path'],
     inputMode: 'drag-path',
     tooltip: 'Select creases contained by a freehand polygon',
   }),
   ready('UnselectPolygon', 'Unselect polygon', 'select-edit', 'lasso', 'MouseHandlerUnselectPolygon', {
+    // Hidden per Zach — lasso covers the freehand-select case. Revisit at end.
+    placement: 'hidden-ui-only',
     toolSteps: ['Drag polygon path'],
     inputMode: 'drag-path',
     tooltip: 'Unselect creases contained by a freehand polygon',
