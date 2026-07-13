@@ -574,5 +574,5 @@ Division/RatioSet) already worked and are unchanged.
 | ✔ | Operation | steps | SVG ref | notes |
 |---|---|---|---|---|
 | 🔨 | SquareBisector | dual first pick | MouseHandlerSquareBisector | **Modes A + B built — pending Zach's validation.** Rail label "Angle Bisector". Bespoke `feedSquareBisector`: first pick decides point-priority — a point → 3-point mode (3 angle pts, vertex is the 2nd, + destination crease → commit 4 points), a crease → 2-line mode (2 source crease ids + destination id → commit 3 line_ids). Kernel execute already routed both; added the point-mode result preview; command-level tests for both branches. Reuses `resolveFirstPickKind` (shared with Mirror Line). **Mode C (2 parallel lines → indicator / 2-destination sub-flow) deferred** per scope decision. |
-| ⬜ | Text | — |  |  |
-| ⬜ | VoronoiCreate | — |  |  |
+| ⏭️ | Text | — | MouseHandlerTextEditor | **Deferred (Zach)** — text rendering (DOM overlay) punted for now. |
+| ✅ | VoronoiCreate | click seeds → Apply | MouseHandlerVoronoiCreate | **Built + Zach validated.** Bespoke `feedVoronoi`: every click appends a seed to the panel-owned `cpToolPoints`; the kernel snaps/toggles/rebuilds the whole diagram from the accumulated list (`voronoi_press` replay), so the frontend stays trivial. Diagram lines ride the preview-segments channel; seed points render as dots via preview-points. Reuses the existing contextual **Apply** button (`handleApplyActiveContextCommand` → `cpToolPoints`) to commit lines + circles. Kernel + Apply already existed; only the WebGL click→seed plumbing is new. |

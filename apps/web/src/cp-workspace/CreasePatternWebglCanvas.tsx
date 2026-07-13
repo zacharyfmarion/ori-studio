@@ -355,6 +355,16 @@ export interface CreasePatternWebglCanvasProps {
    */
   activeToolSquareBisector: boolean;
   /**
+   * True for Voronoi: each click appends a seed point; the kernel snaps/toggles and
+   * rebuilds the whole diagram from the accumulated list ({@link voronoiSeeds}),
+   * previewed live until the contextual Apply button commits.
+   */
+  activeToolVoronoi: boolean;
+  /** The current Voronoi click list (owned by the panel as `cpToolPoints`). */
+  voronoiSeeds: readonly ModelPoint[];
+  /** Report the updated Voronoi click list after a seed add / gesture reset. */
+  onVoronoiSeedsChange: (seeds: readonly ModelPoint[]) => void;
+  /**
    * Classify a dual-mode tool's first pick as point mode or line mode (point-priority
    * per Oriedita). Consulted on the first press of Mirror Line and Square Bisector.
    */
@@ -461,6 +471,9 @@ export function CreasePatternWebglCanvas({
   activeToolDualMirror,
   activeToolConverging,
   activeToolSquareBisector,
+  activeToolVoronoi,
+  voronoiSeeds,
+  onVoronoiSeedsChange,
   resolveFirstPickKind,
   resolveDrawPoint,
   resolveDrawPointOnCrease,
@@ -696,6 +709,9 @@ export function CreasePatternWebglCanvas({
     activeToolDualMirror,
     activeToolConverging,
     activeToolSquareBisector,
+    activeToolVoronoi,
+    voronoiSeeds,
+    onVoronoiSeedsChange,
     resolveFirstPickKind,
     resolveDrawPoint,
     resolveDrawPointOnCrease,
@@ -1294,11 +1310,25 @@ export function CreasePatternWebglCanvas({
       }
       renderNow();
     };
+    // Voronoi: every click appends a seed point to the panel-owned list; the kernel
+    // snaps/toggles/rebuilds the diagram from it, and the diagram + seed dots render
+    // via the preview channels. Cancel/Escape clears the list.
+    const feedVoronoi = (kind: 'down' | 'move' | 'cancel', clientX: number, clientY: number) => {
+      if (kind === 'cancel') {
+        liveRef.current.onVoronoiSeedsChange([]);
+        return;
+      }
+      if (kind !== 'down') return;
+      const raw = clientToModel(clientX, clientY);
+      if (!raw) return;
+      liveRef.current.onVoronoiSeedsChange([...liveRef.current.voronoiSeeds, raw]);
+    };
     // Dispatch a click-based `sequence` gesture to the right bespoke handler, else the
     // generic point-sequence engine.
     const feedSequenceTool = (kind: 'down' | 'move' | 'cancel', clientX: number, clientY: number) => {
       if (liveRef.current.activeToolConverging) feedConverging(kind, clientX, clientY);
       else if (liveRef.current.activeToolSquareBisector) feedSquareBisector(kind, clientX, clientY);
+      else if (liveRef.current.activeToolVoronoi) feedVoronoi(kind, clientX, clientY);
       else feedPersistent(kind, clientX, clientY);
     };
     // Set the persistent picked-crease highlight (rendered in the selection style
@@ -1672,6 +1702,26 @@ export function CreasePatternWebglCanvas({
     );
     renderNowRef.current();
   }, [toolCommandPreviewSegments, toolPreviewColor]);
+
+  // Voronoi seed markers: the kernel returns the current (snapped, toggled) seed set
+  // as preview points; render them as dots so each mother point reads clearly. The
+  // diagram lines themselves ride the preview-segments channel above.
+  useEffect(() => {
+    if (!activeToolVoronoi) return;
+    const renderer = rendererRef.current;
+    if (!renderer) return;
+    const accent = readCssVarColor(
+      document.documentElement,
+      SELECTION_COLOR_VAR,
+      SELECTION_FALLBACK
+    );
+    renderer.setOverlayPoints(
+      toolCommandPreviewPoints.length > 0
+        ? sequenceOverlayPoints([], null, accent, toolCommandPreviewPoints)
+        : null
+    );
+    renderNowRef.current();
+  }, [activeToolVoronoi, toolCommandPreviewPoints]);
 
   return <canvas ref={canvasRef} className={className} aria-hidden="true" />;
 }

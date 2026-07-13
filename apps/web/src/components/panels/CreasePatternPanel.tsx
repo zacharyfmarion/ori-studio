@@ -2712,6 +2712,7 @@ export function CreasePatternPanel() {
     dualMirror: boolean;
     converging: boolean;
     squareBisector: boolean;
+    voronoi: boolean;
   }>(() => {
     const idle = {
       mode: null,
@@ -2720,6 +2721,7 @@ export function CreasePatternPanel() {
       dualMirror: false,
       converging: false,
       squareBisector: false,
+      voronoi: false,
     };
     if (!activeCpCommand || activeCpCommand.uiStatus !== 'ready' || cpToolState.phase !== 'active') {
       return idle;
@@ -2746,6 +2748,13 @@ export function CreasePatternPanel() {
     // destination crease). A bespoke canvas handler drives both (modes A + B).
     if (activeCpCommand.operationId === 'SquareBisector') {
       return { ...idle, mode: 'sequence', squareBisector: true };
+    }
+    // Voronoi: click to add/toggle seed points (kernel snaps + toggles + rebuilds the
+    // whole diagram from the accumulated click list); the diagram + seeds render as a
+    // live preview, then the contextual Apply button commits. A bespoke canvas handler
+    // just accumulates clicks into `cpToolPoints`.
+    if (activeCpCommand.operationId === 'VoronoiCreate') {
+      return { ...idle, mode: 'sequence', voronoi: true };
     }
     // Everything below is driven by the explicit per-operation registry — never
     // by the step-prompt text. Line-entity (Lengthen) picks crease ids; point-
@@ -2842,6 +2851,17 @@ export function CreasePatternPanel() {
       oristudioCpSelection.lines,
       previewOristudioCpCommand,
     ]
+  );
+
+  // WebGL Voronoi seed clicks: mirror them into `cpToolPoints` (the source the
+  // contextual Apply button commits) and drive the live diagram preview. The kernel
+  // snaps/toggles/rebuilds from the accumulated click list, so we just pass it along.
+  const handleWebglVoronoiSeeds = useCallback(
+    (seeds: readonly Point[]) => {
+      setCpToolPoints([...seeds]);
+      handleWebglToolPreviewInput(seeds, []);
+    },
+    [handleWebglToolPreviewInput]
   );
 
   // Clear the WebGL point-sequence preview when that mode is no longer active.
@@ -4827,6 +4847,9 @@ export function CreasePatternPanel() {
                   activeToolDualMirror={webglActiveTool.dualMirror}
                   activeToolConverging={webglActiveTool.converging}
                   activeToolSquareBisector={webglActiveTool.squareBisector}
+                  activeToolVoronoi={webglActiveTool.voronoi}
+                  voronoiSeeds={cpToolPoints}
+                  onVoronoiSeedsChange={handleWebglVoronoiSeeds}
                   activeToolRequireSnap={isRestrictedDrawOperation(activeCpCommand?.operationId)}
                   activeToolClickSelects={isLineClickSelectionOperation(activeCpCommand?.operationId)}
                   resolveDrawPoint={resolveEditableDrawModelPoint}
