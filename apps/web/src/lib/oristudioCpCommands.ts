@@ -496,6 +496,8 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     'shield-check',
     'MouseHandlerFlatFoldableCheck',
     {
+      // Hidden per Zach. Revisit at end.
+      placement: 'hidden-ui-only',
       toolSteps: ['Draw a closed boundary loop'],
       inputMode: 'drag-path',
       tooltip: 'Draw a closed Oriedita boundary loop and color the check result',
