@@ -390,14 +390,21 @@ unverified gate.
     - **Operation frame.** Overlay render (dashed screen-constant loop) + a `drag-box`
       create interaction — then **hidden** in the UI (export is different here). Move/
       resize of an existing frame not ported.
-  - **Deferred (Zach):** the **snap-target indicator**. A drag-line snap ring already
-    draws on the WebGL surface; generalising it across tools + porting the SVG's
-    snapped-target/label HUD is deferred — revisit at the end.
-  - **Remaining in Phase 6:** **imported folded forms** on the WebGL surface — the
-    folded-state frames embedded in an imported `.fold` file
-    (`sourceFold.file_frames`), drawn today by the SVG `ImportedFoldedFormsLayer` as
-    small placed figures. They reuse the existing fill + stroke programs (same as
-    generated folded figures), so this is wiring, not new rendering primitives.
+    - **Imported folded forms.** The folded-state frames embedded in an imported
+      `.fold` (`sourceFold.file_frames`) now render on the WebGL surface — faces →
+      fills, edges → strokes in user coords, drawn through `userView` with the folded
+      figures (adapter `foldedGeometryFromShapes` + a `setImportedForms` channel).
+  - **Deferred (Zach):**
+    - The **snap-target indicator**. A drag-line snap ring already draws; generalising
+      it across tools + porting the SVG's snapped-target/label HUD is end-of-migration
+      polish.
+    - **Draggable imported forms.** Imported forms render but stay static reference
+      figures (parity with the SVG, where they are `pointer-events: none`). Promoting
+      them to move/select like generated figures — a scoped feature needing a new
+      per-form offset state slot — is punted (Zach: "good enough as is"). Unlike
+      generated figures they are foreign file snapshots with no engine/CP behind them,
+      so fold-another / restyle / front-back / restale don't apply.
+  - **Phase 6 is otherwise complete.**
 
 - **Phase 7 — Full-canvas scale.** Scale the single editable surface to the
   whole-canvas geometry set plus many placed folded objects (no new container
