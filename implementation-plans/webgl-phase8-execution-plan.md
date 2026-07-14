@@ -2,7 +2,7 @@
 
 **Guiding principle:** confirm parity, cover it with tests, and decompose the code —
 all *before* the irreversible deletion, so the risky step is the best-protected one. The
-SVG surface stays intact through steps 1–3; step 4 is a surgical removal.
+SVG surface stays intact through steps 1–2; step 3 is a surgical removal.
 
 The **deletion inventory + cleanup catalog** (what exactly gets removed, the WebGL→SVG
 umbilical, the architecture-cleanup list) lives in
@@ -11,7 +11,7 @@ execution plan**.
 
 > **Selection transform NOT ported (Zach, 2026-07-14).** Resize / rotate / flip of a
 > selection are **SVG-only** and are **not** being ported to WebGL. Move-drag already
-> works on WebGL and that is sufficient. So when the SVG surface is deleted (Step 4),
+> works on WebGL and that is sufficient. So when the SVG surface is deleted (Step 3),
 > resize / rotate / flip go away — an **accepted loss**, not a gap to close. (This
 > removes the former "Step 1" entirely.)
 
@@ -73,44 +73,41 @@ into `project.creases` but *fails to load into the oristudio kernel*
 (`loadOristudioCpDocumentFromText` throws → `oristudioCpRuntimeError` set,
 `oristudioCpDocument` null; `projectSlice` import path ~613), the panel enters CP mode
 and shows the parsed creases read-only with no editing tools. (Create-a-CP and the other
-CP entries always set an editable doc.) Rare but real. **Step-4 decision (not a Step-1
+CP entries always set an editable doc.) Rare but real. **Step-3 decision (not a Step-1
 blocker):** when the SVG is deleted, either (a) have the WebGL surface render the
 read-only `project.creases` when `editableCp === null`, or (b) replace the fallback with
 an explicit "couldn't load this CP" error state. Leaning (b) — a silent read-only view of
 a CP the editor can't actually open is arguably worse than a clear error.
 
-## Step 2 — Port / rebuild the tests onto WebGL + pure modules
+## Step 2 — Decompose the panel into focused modules + test each one
 
-Establish the safety net *before* the refactor and deletion.
+Extract the **renderer-agnostic keep code** out of the 7,960-line `CreasePatternPanel`
+and **write focused unit tests for each module as it's extracted** — decompose and test
+together (Zach's call, 2026-07-14). Extracting a module and then testing it directly is
+more natural than porting tests to modules that don't exist yet. The refactor is guarded
+throughout by the **existing suite** (the 74 SVG-DOM panel tests + the current pure tests)
+since the SVG surface isn't deleted until Step 3; the redundant SVG-DOM tests are retired
+there.
 
-- Move SVG-DOM assertions (the `data-cp-line-id` / SVG-node queries in
-  `CreasePatternPanel.test.tsx`) to:
-  - **pure-module unit tests** — geometry builders, tool engines, camera, picking,
-    adapters (these already exist and are the right home), and
-  - a **lean set of WebGL-surface smoke tests** for the integration path.
-- Anything that only made sense as an SVG-DOM assertion and is now covered by a pure test
-  gets dropped, not reproduced.
-- **Gate:** a green suite that exercises the WebGL path and the pure modules, with no
-  dependency on the SVG DOM.
-
-## Step 3 — Decompose the panel into focused modules
-
-Extract the **renderer-agnostic keep code** out of the 7,960-line `CreasePatternPanel`,
-which *isolates* the SVG surface as a discrete remaining block (so Step 4 is a clean
-removal, not a decompose-then-delete of the same lines).
-
+Extract (each with its own tests):
 - `diagnostics/geometry.ts` — `buildCpDiagnostic{Markers,Strokes,Wedges,MarkerHits}` +
-  tone/shape/LBL helpers.
+  tone/shape/LBL helpers. (Currently only exercised indirectly via the panel DOM.)
 - `tools/predicates.ts` — the `is*Operation` family + `shouldPreferPointSnapForStep`.
 - `toolPanel/` — `CpContextToolPanel` + all `*ToolOption` components + `CpLineTypeToolbar`
   + `FoldedFigureMenuButton`.
 - `commands.ts` — `buildCpCommandPayload`, `handleWebglToolCommit/PreviewInput`, measure
   slots.
+- Text overlay + its projection already live in `cp-workspace/` (`CpTextOverlay`).
 - Remaining `CreasePatternPanel` = state/orchestration + WebGL wiring + the (now isolated)
   SVG block.
-- **Gate:** tests still green; module boundaries reviewed.
 
-## Step 4 — Delete the SVG surface + finalize (the surgical removal)
+Also decompose *isolates* the SVG surface as a discrete remaining block, so Step 3 is a
+clean removal rather than a decompose-then-delete of the same lines.
+
+- **Gate:** existing suite still green; each extracted module has focused tests; module
+  boundaries reviewed.
+
+## Step 3 — Delete the SVG surface + finalize (the surgical removal)
 
 Now that WebGL is proven, tested, and the keep-code is modular, remove SVG.
 
@@ -135,9 +132,9 @@ Now that WebGL is proven, tested, and the keep-code is modular, remove SVG.
 
 ## Cross-cutting notes
 
-- **Reference stays live through steps 1–3.** Nothing in the SVG surface is deleted until
-  Step 4, so the audit always has a working oracle to diff against + fall back to (the flag
-  still lets you A/B until Step 4.2).
+- **Reference stays live through steps 1–2.** Nothing in the SVG surface is deleted until
+  Step 3, so the decompose always has a working oracle + fallback (the flag still lets you
+  A/B until Step 3.2).
 - **Open decisions (from the scope doc)** are resolved inside the steps: O1 (selection
   transform) → not ported, accepted loss; O2 (generated-CP path) → Step 1; O3 (test
   appetite) → Step 2.
