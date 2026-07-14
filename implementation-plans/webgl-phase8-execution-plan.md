@@ -40,6 +40,40 @@ Get WebGL to "complete replacement" so the delete is safe.
 - **Gate:** Zach signs off "WebGL is a complete replacement (modulo the accepted losses)"
   against a written checklist. This is the hard gate before anything is deleted.
 
+### Step 1 audit findings (2026-07-14)
+
+Mapped every layer the SVG `EditableCreasePattern` renders + every interaction handler
+against the WebGL surface.
+
+**At parity (WebGL ✅):** grid, crease lines (+ select), points (+ select), circles (+
+select), diagnostic segments + markers + LBL wedges, generated folded figures, imported
+folded forms, operation frame, all command/tool previews (candidate segments, candidate
+points, preview circles as rings), box-select marquee, and the full interaction set
+(draw tools, box/lasso select, erase, move-drag, line-entity, lengthen).
+
+**Accepted losses (deleted with SVG, confirmed not ported):**
+- Selection resize / rotate / flip (move-drag stays).
+- Snap-target HUD (a plain snap ring already draws on WebGL).
+- Draggable imported forms (render but static).
+- Vertex *selection* — vertices are derived; selection is being removed anyway (they
+  still render as points).
+
+**The one real gap — TEXT annotations.** The WebGL canvas does **not render or select
+`crease_pattern.texts`** (the SVG has `CreaseTexts` + `toggleText`; `CpSelectHit` on
+WebGL is line/point/circle only, no `text`). The Text *tool* (creating text) is already
+deferred, but **displaying/selecting existing text** (e.g. from an imported CP that
+carries labels) is a genuine display gap. Master plan's intent is a **DOM overlay** for
+text (low-count, camera-positioned — no GPU text). **Decision needed:** build the small
+text DOM overlay (render + click-select), or accept the loss. → resolve before Step 4.
+
+**O2 — non-editable / generated-CP path:** `GeneratedCreasePattern` renders when
+`editableCp === null` while `project.creases`/`facets` exist. Every current flow into the
+CP panel (Create a CP / import / generated-CP → Edit) sets `oristudioCpDocument`, so this
+path is *believed legacy/unreachable* — but that wants a **2-minute runtime confirmation
+by Zach**: is there any way to see a CP in the edit workspace with **no drawing tools**
+(read-only)? If not, `GeneratedCreasePattern` is dead code and goes in Step 4; if yes,
+WebGL must cover it or it's scoped out.
+
 ## Step 2 — Port / rebuild the tests onto WebGL + pure modules
 
 Establish the safety net *before* the refactor and deletion.
