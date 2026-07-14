@@ -640,10 +640,32 @@ const BP_HIDDEN_CAPABILITIES = new Set<WorkspaceCapabilityId>([
   'file.exportPng',
 ]);
 
+// Undo/redo stay in the Edit menu while simulating (rendered inert — the
+// simulate context has no history stack, so the count is zero and they are
+// disabled). Every other `edit.*` command authors the tree and is hidden.
+const SIMULATE_VISIBLE_EDIT = new Set<WorkspaceCapabilityId>(['edit.undo', 'edit.redo']);
+
 function maskCapabilitiesForContext(
   capabilities: WorkspaceCapabilities,
   context: EditingContext
 ): WorkspaceCapabilities {
+  if (context === 'simulate') {
+    // Simulate is a read-only consumer of the folded model: only navigation
+    // (`view.*`), file operations, playback (`simulator.*`), and inert
+    // undo/redo apply. Every authoring command is hidden.
+    const masked = { ...capabilities };
+    for (const id of Object.keys(masked) as WorkspaceCapabilityId[]) {
+      const isAuthoring =
+        id.startsWith('cp.') ||
+        id.startsWith('optimize.') ||
+        (id.startsWith('edit.') && !SIMULATE_VISIBLE_EDIT.has(id));
+      if (isAuthoring) {
+        masked[id] = { ...masked[id], visible: false, enabled: false };
+      }
+    }
+    return masked;
+  }
+
   const isBpContext = context === 'bp-tree' || context === 'bp-packing';
   if (!isBpContext) return capabilities;
   const masked = { ...capabilities };

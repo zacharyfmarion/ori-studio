@@ -396,4 +396,39 @@ describe('workspace capabilities', () => {
     expect(bp['edit.undo'].visible).toBe(true);
     expect(bp['edit.undo'].enabled).toBe(true);
   });
+
+  it('shows only playback/navigation commands with inert undo in the Simulate context', () => {
+    const sim = capabilities({
+      activeEditingContext: 'simulate',
+      documentMode: 'tree',
+      edgeCount: 2,
+      // The store selector zeroes the history count for simulate (it has no own
+      // stack), so undo/redo arrive here already at zero — hence inert.
+      historyPastCount: 0,
+      historyFutureCount: 0,
+    });
+    // Every authoring command — tree edits, CP edits, optimization — is hidden.
+    for (const id of [
+      'edit.delete',
+      'edit.copy',
+      'edit.selectAll',
+      'edit.triangulateTree',
+      'cp.build',
+      'cp.makeMountain',
+      'optimize.scale',
+    ] as const) {
+      expect(sim[id].visible).toBe(false);
+      expect(sim[id].enabled).toBe(false);
+    }
+    // Navigation, file operations, and playback stay.
+    expect(sim['view.simulate'].visible).toBe(true);
+    expect(sim['view.design'].visible).toBe(true);
+    expect(sim['file.open'].visible).toBe(true);
+    expect(sim['simulator.refresh'].visible).toBe(true);
+    // Undo/redo remain visible but inert — the simulate context has no history.
+    expect(sim['edit.undo'].visible).toBe(true);
+    expect(sim['edit.undo'].enabled).toBe(false);
+    expect(sim['edit.redo'].visible).toBe(true);
+    expect(sim['edit.redo'].enabled).toBe(false);
+  });
 });

@@ -225,8 +225,18 @@ uniformly, so this is purely an internal convergence left for later.
       three panels' "no editable tree" empty states (now that a CP always exists,
       the signal is `importedCreasePattern`) + context-drive the Edit-menu history
       counts. (The coupled Phase 6 field deletion.)
-- [ ] **5d** — split the polymorphic `design` panel into static-context
-      components (`design-nux` / `design-treemaker` / `design-bp-tree`).
+- [x] **5d** — the `design` panel is already a thin dispatcher over three
+      separate static components (`DesignMethodChooser` / `BpTreePanel` /
+      `TreeMakerDesignPanel`), and each sub-view resolves to a correct static
+      context (`design-nux` / `bp-tree` / `treemaker-tree`), fully covered by
+      `editingContext.test.ts`. The functional decomposition 5d asks for is done.
+      *Deliberately not done:* giving each a distinct Dockview **panel id** (they
+      share `'design'`), which is the only reason `resolveEditingContext` keeps a
+      state-driven design branch. That split would ripple through layout
+      anchoring (`bp-editor`/side panes reference the `'design'` id), every
+      `activatePanel('design')` navigation, and tests, for no user-visible
+      benefit — and the panel's polymorphism is sanctioned in the
+      `editingContext.ts` doc comment. Left as an accepted exception.
 - [~] TreeMaker "Build CP" still replaces (not merges) its CP; the always-live
       canvas shows it. Merge-reframe deferred (replace works fine).
 - **Gate (author):** Edit workspace shows a live empty canvas before any design;
@@ -258,9 +268,14 @@ design and a CP coexist.
   returns nothing in `src/`; full suite green.
 
 ### Phase 7 — Simulate finalization + (optional) BP optimizer surface
-- [ ] Finalize `simulate` as the read-only consumer context (menu set + inert
-      undo).
-- [ ] *(Optional, product-gated)* Surface the already-built
+- [x] Finalize `simulate` as the read-only consumer context (menu set + inert
+      undo). `maskCapabilitiesForContext` now hides every authoring command
+      (`edit.*` except undo/redo, `cp.*`, `optimize.*`) for the simulate context,
+      leaving navigation, file ops, and `simulator.*`; `historyCountForContext`
+      already reports zero so undo/redo render inert, and `getNextDocumentAction`
+      returns null (no stray Build/Optimize toolbar button). Locked by
+      `workspaceCapabilities.test.ts` + `capabilities.test.ts`.
+- [ ] *(Deferred — out of scope per author)* Surface the already-built
       `optimizeOristudioBpLayout` runtime behind a BP-context menu/toolbar entry
       with progress UI. Scope (replace-in-place vs open-new) is a separate
       decision.
