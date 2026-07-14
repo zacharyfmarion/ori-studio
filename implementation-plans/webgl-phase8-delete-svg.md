@@ -125,11 +125,10 @@ Phase 8 must:
 
 ## D. Open questions / decisions (resolve before/while executing)
 
-- **O1 — Selection resize/rotate (Phase 9 tension). RESOLVED (Zach):** port resize/rotate
-  to WebGL **first**, while the SVG `SelectionTransformBox` is still here as the reference
-  — it becomes **Step 1** of the execution plan
-  ([webgl-phase8-execution-plan.md](webgl-phase8-execution-plan.md)). No temporary loss;
-  the reference is only deleted in the final step.
+- **O1 — Selection resize/rotate/flip. RESOLVED (Zach, 2026-07-14): not ported.** The
+  selection transform box (resize + rotate + flip) is **SVG-only** and stays that way;
+  move-drag on WebGL is sufficient. Deleting the SVG surface (§A1) removes resize / rotate
+  / flip — an **accepted loss**, not a gap to close. No WebGL port.
 - **O2 — The non-editable `GeneratedCreasePattern` path.** The SVG renders a read-only CP
   when `editableCp` is null; the WebGL canvas only mounts when `editableCp` exists. Is the
   `editableCp === null` case still reachable in the CP workspace, or legacy? If reachable,

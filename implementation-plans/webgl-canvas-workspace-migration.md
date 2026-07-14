@@ -444,10 +444,9 @@ unverified gate.
   migration to land as a net maintainability/architecture win, not just a renderer
   swap.
 
-- **Phase 9 — Selection resize + flip handles (pulled into Phase 8, Step 1; rotate
-  dropped).** Resize + flip are now built as Step 1 of the Phase 8 execution plan while
-  the SVG reference exists. **Rotation is out of scope (Zach, 2026-07-14)** — no
-  free-drag rotate handles, no rotate-90° buttons. Historical description below.
+- **Phase 9 — Selection resize/rotate/flip handles. DROPPED (Zach, 2026-07-14): not
+  ported to WebGL.** The selection transform box stays SVG-only and is deleted with the
+  SVG surface in Phase 8; move-drag on WebGL is sufficient. Historical description below.
   The `SelectionTransformBox` proper: a DOM overlay with constant-size
   resize/rotate handles (and the flip/reflect menu) positioned by projecting the
   model-space frame (`cpLineSelectionFrame`) through the owned camera, driving a
