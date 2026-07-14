@@ -1467,6 +1467,12 @@ export function CreasePatternPanel() {
   const documentMode = useWorkspaceStore((state) => state.documentMode);
   const importedCreasePattern = useWorkspaceStore((state) => state.importedCreasePattern);
   const oristudioCpDocument = useWorkspaceStore((state) => state.oristudioCpDocument);
+  const ensureEditCreasePattern = useWorkspaceStore((state) => state.ensureEditCreasePattern);
+  // Always-live canvas: seed a blank editable CP when the Edit workspace mounts
+  // with no crease pattern (fresh app, or after a design reset cleared it).
+  useEffect(() => {
+    if (!oristudioCpDocument) void ensureEditCreasePattern();
+  }, [oristudioCpDocument, ensureEditCreasePattern]);
   const oristudioCpCamvResult = useWorkspaceStore((state) => state.oristudioCpCamvResult);
   const oristudioCpSelection = useWorkspaceStore((state) => state.oristudioCpSelection);
   const oristudioCpActionRequest = useWorkspaceStore((state) => state.oristudioCpActionRequest);

@@ -332,6 +332,8 @@ export interface CreasePatternSliceActions {
   optimizeScale: () => Promise<void>;
   optimizeEdges: () => Promise<void>;
   optimizeStrain: () => Promise<void>;
+  /** Seed a blank editable CP when the Edit workspace is entered with none loaded. */
+  ensureEditCreasePattern: () => Promise<void>;
   buildCreasePattern: () => Promise<void>;
   markFoldSourceChanged: () => void;
   ensureFoldArtifacts: () => Promise<FoldArtifacts | null>;

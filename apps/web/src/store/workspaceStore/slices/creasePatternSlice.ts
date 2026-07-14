@@ -15,6 +15,7 @@ import { DEFAULT_CREASE_COLOR_MODE } from '../../../lib/sampleProject';
 import { resolveCpSegments } from '../../../lib/creasePatternSegmentation';
 import { foldArtifactsFromFold } from '../../../lib/creasePatternImport';
 import {
+  blankCpLineage,
   generatedCpLineage,
   markGeneratedCpLineageStale,
   stableTextDigest,
@@ -36,6 +37,7 @@ import {
   type EngineClient,
 } from '../engineRuntime';
 import {
+  createBlankOristudioCpDocument,
   duplicateOristudioCpFoldedFigure as duplicateRuntimeOristudioCpFoldedFigure,
   exportOristudioCpDocumentAsFold,
   foldOristudioCpDocument as foldRuntimeOristudioCpDocument,
@@ -374,6 +376,27 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       await runOptimization('Optimize strain', 'optimize.strain', (api, treeHandle) =>
         api.optimizeStrain(treeHandle)
       );
+    },
+
+    // The Edit workspace's always-live canvas: seed a blank editable CP when the
+    // workspace is entered with no crease pattern loaded, so it is never empty.
+    ensureEditCreasePattern: async () => {
+      if (get().oristudioCpDocument) return;
+      try {
+        const document = await createBlankOristudioCpDocument();
+        set({
+          oristudioCpDocument: document,
+          oristudioCpLineage: blankCpLineage(),
+          oristudioCpOperationDescriptors: document.operationDescriptors,
+          oristudioCpSelection: emptyOristudioCpSelection(),
+          oristudioCpHistoryPast: [],
+          oristudioCpHistoryFuture: [],
+          oristudioCpError: null,
+          oristudioCpCamvResult: null,
+        });
+      } catch (error) {
+        set({ oristudioCpError: engineError(error).message });
+      }
     },
 
     buildCreasePattern: async () => {
