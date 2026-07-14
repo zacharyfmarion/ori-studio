@@ -449,7 +449,7 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
           return deps.workspace.deleteOristudioBpTreeNode(nodeId);
         }
         if (
-          deps.workspace.activeEditingSurface === 'crease-pattern' &&
+          deps.workspace.activeEditingContext === 'crease-pattern' &&
           deps.workspace.oristudioCpDocument
         ) {
           const lineIds = deps.workspace.oristudioCpSelection.lines;
@@ -479,7 +479,7 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
       }
       case 'edit.selectAll':
         if (
-          deps.workspace.activeEditingSurface === 'crease-pattern' &&
+          deps.workspace.activeEditingContext === 'crease-pattern' &&
           deps.workspace.oristudioCpDocument
         ) {
           const lineCount =
@@ -498,7 +498,7 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
         return true;
       case 'edit.deselectAll':
         if (
-          deps.workspace.activeEditingSurface === 'crease-pattern' &&
+          deps.workspace.activeEditingContext === 'crease-pattern' &&
           deps.workspace.oristudioCpDocument
         ) {
           deps.workspace.clearOristudioCpSelection();

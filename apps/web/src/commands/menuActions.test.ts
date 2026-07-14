@@ -280,6 +280,7 @@ describe('menu actions', () => {
     const deps = createDeps();
     deps.workspace.documentMode = 'crease-pattern';
     deps.workspace.activeEditingSurface = 'crease-pattern';
+    deps.workspace.activeEditingContext = 'crease-pattern';
     deps.workspace.oristudioCpDocument = {
       handle: 1,
       loadSerial: 1,
@@ -370,6 +371,7 @@ describe('menu actions', () => {
     const deps = createDeps();
     deps.workspace.documentMode = 'crease-pattern';
     deps.workspace.activeEditingSurface = 'crease-pattern';
+    deps.workspace.activeEditingContext = 'crease-pattern';
     deps.workspace.oristudioCpSelection = {
       lines: [],
       vertices: ['1000000000:0'],

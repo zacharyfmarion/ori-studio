@@ -164,7 +164,7 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
   historyBusy: false,
 
   beginHistoryCheckpoint: async () => {
-    if (get().documentMode !== 'tree') return null;
+    if (get().activeEditingContext !== 'treemaker-tree') return null;
     try {
       const { api, treeHandle } = await ensureTreeHandle();
       return api.saveTmd5(treeHandle);
@@ -240,7 +240,7 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
     };
 
     const undoTree = async () => {
-      if (get().documentMode !== 'tree') return false;
+      if (get().activeEditingContext !== 'treemaker-tree') return false;
       const past = get().historyPast;
       const previous = past.at(-1);
       if (!previous || get().historyBusy) return false;
@@ -281,7 +281,7 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
     }
     if (context === 'design-nux' || context === 'simulate') return;
 
-    if (get().activeEditingSurface === 'crease-pattern') {
+    if (get().activeEditingContext === 'crease-pattern') {
       if (await undoCreasePattern()) return;
       await undoTree();
     } else {
@@ -330,7 +330,7 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
     };
 
     const redoTree = async () => {
-      if (get().documentMode !== 'tree') return false;
+      if (get().activeEditingContext !== 'treemaker-tree') return false;
       const future = get().historyFuture;
       const next = future[0];
       if (!next || get().historyBusy) return false;
@@ -368,7 +368,7 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
     }
     if (context === 'design-nux' || context === 'simulate') return;
 
-    if (get().activeEditingSurface === 'crease-pattern') {
+    if (get().activeEditingContext === 'crease-pattern') {
       if (await redoCreasePattern()) return;
       await redoTree();
     } else {
