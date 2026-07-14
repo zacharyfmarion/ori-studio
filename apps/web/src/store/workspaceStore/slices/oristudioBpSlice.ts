@@ -28,23 +28,37 @@ import type { OristudioBpDocumentState } from '../../../engine/oristudioBpTypes'
 import type { BpHistorySnapshot, OristudioBpSlice, WorkspaceSliceCreator } from '../types';
 
 /**
- * A new Box Pleating design is scaffolded with a root vertex and a single
- * unit-length leaf (the engine requires at least one edge for a valid tree).
- * The user builds outward from here by adding leaves.
+ * A new Box Pleating design is scaffolded like BP Studio's blank project: a root
+ * with two unit-length leaves (three nodes, the engine's minimum tree size — so
+ * deletion is refused until the tree grows, matching BP Studio). Node positions
+ * follow our length-faithful convention (distance == length) rather than BP
+ * Studio's fixed grid offsets; the leaves get default flaps just off-centre so
+ * they don't overlap.
  */
 const BP_STARTER_PROJECT = JSON.stringify({
   version: '0.7',
   design: {
     title: '',
     mode: 'tree',
-    layout: { sheet: { type: 'rect', width: 16, height: 16 }, flaps: [], stretches: [] },
+    layout: {
+      sheet: { type: 'rect', width: 16, height: 16 },
+      flaps: [
+        { id: 1, x: 8, y: 7, width: 0, height: 0 },
+        { id: 2, x: 8, y: 9, width: 0, height: 0 },
+      ],
+      stretches: [],
+    },
     tree: {
       sheet: { type: 'rect', width: 20, height: 20 },
       nodes: [
-        { id: 0, x: 10, y: 10, name: '' },
-        { id: 1, x: 10, y: 9, name: '' },
+        { id: 0, x: 10, y: 10, name: '', isNew: true },
+        { id: 1, x: 10, y: 9, name: '', isNew: true },
+        { id: 2, x: 10, y: 11, name: '', isNew: true },
       ],
-      edges: [{ n1: 0, n2: 1, length: 1 }],
+      edges: [
+        { n1: 0, n2: 1, length: 1 },
+        { n1: 0, n2: 2, length: 1 },
+      ],
     },
   },
 });
