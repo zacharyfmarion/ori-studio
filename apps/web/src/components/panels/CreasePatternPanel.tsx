@@ -2137,6 +2137,34 @@ export function CreasePatternPanel() {
       strokes: buildCpDiagnosticStrokes(latestDiagnosticEntries, toneColors),
     };
   }, [latestDiagnosticEntries, currentTheme]);
+  // Oriedita operation-frame outline for the WebGL surface: a dashed accent-coloured
+  // closed loop (SVG `.cp-operation-frame`), or null when no frame is active.
+  const cpOperationFrameStrokes = useMemo<StrokeGeometry | null>(() => {
+    void currentTheme;
+    const frame = editableCp?.operation_frame;
+    if (!frame?.active) return null;
+    const color = readCssVarColor(document.documentElement, '--accent-primary', [0.4, 0.6, 1, 1]);
+    const p = frame.points;
+    const edges: [Point, Point][] = [
+      [p[0], p[1]],
+      [p[1], p[2]],
+      [p[2], p[3]],
+      [p[3], p[0]],
+    ];
+    const count = edges.length;
+    const a = new Float32Array(count * 2);
+    const b = new Float32Array(count * 2);
+    const colors = new Float32Array(count * 4);
+    const widthMul = new Float32Array(count).fill(1);
+    edges.forEach(([start, end], i) => {
+      a[i * 2] = start.x;
+      a[i * 2 + 1] = start.y;
+      b[i * 2] = end.x;
+      b[i * 2 + 1] = end.y;
+      colors.set(color, i * 4);
+    });
+    return { a, b, color: colors, widthMul, count, dashed: true };
+  }, [editableCp?.operation_frame, currentTheme]);
   const diagnosticStatus = useMemo(
     () => {
       const camvStatus = camvIssuesVisible
@@ -5042,6 +5070,7 @@ export function CreasePatternPanel() {
                   toolPreviewColor={toolPreviewColor}
                   diagnosticMarkers={cpDiagnosticGeometry.markers}
                   diagnosticStrokes={cpDiagnosticGeometry.strokes}
+                  operationFrame={cpOperationFrameStrokes}
                   focusModelBounds={cpDiagnosticFocusBounds}
                   cameraCommand={webglCameraCommand}
                   onZoomPercentChange={handleWebglZoomPercent}

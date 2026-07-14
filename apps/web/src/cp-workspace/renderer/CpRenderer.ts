@@ -55,6 +55,11 @@ export interface CpRenderer {
   setDiagnosticStrokes(strokes: StrokeGeometry | null): void;
   setDiagnosticFills(fills: FillGeometry | null): void;
   setDiagnosticMarkers(markers: MarkerGeometry | null): void;
+  /**
+   * The Oriedita operation-frame outline (a dashed, screen-constant-width closed
+   * loop in model coordinates), drawn above the crease pattern. `null` clears it.
+   */
+  setOverlayFrame(strokes: StrokeGeometry | null): void;
   /** Draw a single frame. Safe to call repeatedly. */
   render(frame: CpRenderFrame): void;
   /** Release all GPU resources. The renderer must not be used afterwards. */

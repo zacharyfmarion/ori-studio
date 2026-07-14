@@ -45,6 +45,8 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
   const diagnosticStrokes = createStrokeProgram(regl);
   const diagnosticFills = createFillProgram(regl);
   const diagnosticMarkers = createMarkerProgram(regl);
+  // Operation-frame outline: a dashed, screen-constant closed loop above the CP.
+  const overlayFrame = createStrokeProgram(regl);
   let viewport: Viewport = { width: 0, height: 0, dpr: 1 };
   let hasGrid = false;
   let hasPreview = false;
@@ -52,7 +54,11 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
   let hasDiagnosticStrokes = false;
   let hasDiagnosticFills = false;
   let hasDiagnosticMarkers = false;
+  let hasOverlayFrame = false;
   let disposed = false;
+
+  // Operation-frame outline width: SVG `.cp-operation-frame` is 1.5px non-scaling.
+  const FRAME_WIDTH_CSS = 1.5;
 
   // SVG `.cp-grid-line` is 0.95px, non-scaling — constant device px per dpr.
   const GRID_WIDTH_CSS = 0.95;
@@ -116,6 +122,12 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
       if (next) diagnosticMarkers.setData(next);
     },
 
+    setOverlayFrame(next) {
+      if (disposed) return;
+      hasOverlayFrame = next !== null && next.count > 0;
+      if (next) overlayFrame.setData(next);
+    },
+
     render(frame: CpRenderFrame) {
       if (disposed) return;
       // Nothing to draw into a zero-area buffer (e.g. a collapsed panel).
@@ -159,6 +171,10 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
           outlinePx: frame.pointOutlinePx,
         });
       }
+      // Operation-frame outline (dashed, screen-constant width) sits above the CP.
+      if (hasOverlayFrame) {
+        overlayFrame.draw({ view: frame.view, viewport, widthPx: FRAME_WIDTH_CSS * viewport.dpr });
+      }
       // A tool's in-progress candidate crease draws on top of everything.
       if (hasPreview) {
         previewStrokes.draw({ view: frame.view, viewport, widthPx: frame.strokeWidthPx });
@@ -188,6 +204,7 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
       diagnosticStrokes.dispose();
       diagnosticFills.dispose();
       diagnosticMarkers.dispose();
+      overlayFrame.dispose();
       regl.destroy();
     },
   };

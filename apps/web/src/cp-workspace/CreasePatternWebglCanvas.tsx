@@ -448,6 +448,8 @@ export interface CreasePatternWebglCanvasProps {
   /** Diagnostic overlay geometry (CAMV / check-fix): shape markers + segment highlights. */
   diagnosticMarkers: MarkerGeometry;
   diagnosticStrokes: StrokeGeometry;
+  /** The Oriedita operation-frame outline (dashed closed loop), or null when inactive. */
+  operationFrame: StrokeGeometry | null;
   /**
    * Model-space bounds of the selected diagnostic to frame in the camera (pan + zoom
    * to it), or null. Changing this re-frames; the WebGL camera owns pan/zoom so the
@@ -541,6 +543,7 @@ export function CreasePatternWebglCanvas({
   toolPreviewColor,
   diagnosticMarkers,
   diagnosticStrokes,
+  operationFrame,
   focusModelBounds,
   cameraCommand,
   onZoomPercentChange,
@@ -1909,6 +1912,10 @@ export function CreasePatternWebglCanvas({
     );
     renderNowRef.current();
   }, [diagnosticStrokes]);
+  useEffect(() => {
+    rendererRef.current?.setOverlayFrame(operationFrame);
+    renderNowRef.current();
+  }, [operationFrame]);
 
   // Frame the selected diagnostic: pan the owned camera to its centre and zoom in to
   // show the vertex + its creases (capped so it never over-zooms), matching the SVG's
