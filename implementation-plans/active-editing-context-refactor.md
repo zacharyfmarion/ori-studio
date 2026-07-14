@@ -224,15 +224,29 @@ uniformly, so this is purely an internal convergence left for later.
   geometry into that canvas and focuses Edit.
 
 ### Phase 6 — Delete the legacy axes + split the polymorphic design panel
-- [ ] Remove `documentMode`, `activeEditingSurface`, and `workflowTarget`-as-mode
-      (keep design-kind only as a per-document attribute where genuinely needed).
-- [ ] Split the polymorphic `design` panel into distinct panel components
-      (`design-nux`, `design-treemaker`, `design-bp-tree`) so each has a static
-      context — this is what makes future Design **tabs** trivial.
-- [ ] Rewrite the ~40 tests keying off `documentMode`/`activeEditingSurface` to
-      the context model. No compatibility shims remain.
-- **Gate (author):** `rg documentMode|activeEditingSurface` returns nothing in
-  `src/`; full suite green (engine, vitest, tsc, production build).
+
+**Shell migration (done):** the parts of the shell that key off the active *view*
+now read `activeEditingContext`, with `documentMode`/`activeEditingSurface` gone
+from them:
+- [x] **6a** — capability system (menus/toolbar).
+- [x] **6b** — history slice (checkpoint gate + tree/CP undo-redo dispatch) and
+      the menuAction CP branches.
+- [x] **6c** — shortcut runtime + app keyboard + App post-open navigation;
+      shortcut/keyboard tests migrated.
+
+**Field deletion (coupled to Phase 5):** the remaining `documentMode` reads are
+genuine *document-state*, not view state. `documentMode === 'crease-pattern'`
+means "the primary editable document is a CP with no editable tree" — a *built*
+tree keeps `documentMode: 'tree'` with a CP in `oristudioCpDocument`, so it does
+not derive from any single other field. The Design/CreasePattern/Conditions
+panels use it for their "no editable tree" empty states. That "primary document
+type" concept only dissolves once Phase 5's **always-live Edit canvas** lets a
+design and a CP coexist.
+- [ ] Delete the `documentMode`/`activeEditingSurface` fields + split the design
+      panel **as part of Phase 5** (which reframes the document model), rather
+      than forcing a fragile standalone mapping now.
+- **Gate (author):** after Phase 5, `rg documentMode|activeEditingSurface`
+  returns nothing in `src/`; full suite green.
 
 ### Phase 7 — Simulate finalization + (optional) BP optimizer surface
 - [ ] Finalize `simulate` as the read-only consumer context (menu set + inert
