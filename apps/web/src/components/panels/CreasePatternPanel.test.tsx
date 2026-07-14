@@ -806,7 +806,7 @@ describe('CreasePatternPanel', () => {
       handleShortcutRuntimeKeyDown(
         new KeyboardEvent('keydown', { key: '=', metaKey: true, bubbles: true }),
         {
-          context: { documentMode: 'crease-pattern', activeEditingSurface: 'crease-pattern' },
+          context: { activeEditingContext: 'crease-pattern' },
           menu: vi.fn(),
         }
       );
@@ -817,7 +817,7 @@ describe('CreasePatternPanel', () => {
       handleShortcutRuntimeKeyDown(
         new KeyboardEvent('keydown', { key: '-', metaKey: true, bubbles: true }),
         {
-          context: { documentMode: 'crease-pattern', activeEditingSurface: 'crease-pattern' },
+          context: { activeEditingContext: 'crease-pattern' },
           menu: vi.fn(),
         }
       );
@@ -828,7 +828,7 @@ describe('CreasePatternPanel', () => {
       handleShortcutRuntimeKeyDown(
         new KeyboardEvent('keydown', { key: '0', metaKey: true, bubbles: true }),
         {
-          context: { documentMode: 'crease-pattern', activeEditingSurface: 'crease-pattern' },
+          context: { activeEditingContext: 'crease-pattern' },
           menu: vi.fn(),
         }
       );
@@ -839,7 +839,7 @@ describe('CreasePatternPanel', () => {
       handleShortcutRuntimeKeyDown(
         new KeyboardEvent('keydown', { key: '1', metaKey: true, bubbles: true }),
         {
-          context: { documentMode: 'crease-pattern', activeEditingSurface: 'crease-pattern' },
+          context: { activeEditingContext: 'crease-pattern' },
           menu: vi.fn(),
         }
       );
@@ -1053,7 +1053,7 @@ describe('CreasePatternPanel', () => {
       handleShortcutRuntimeKeyDown(
         new KeyboardEvent('keydown', { bubbles: true, key: 'v' }),
         {
-          context: { documentMode: 'crease-pattern', activeEditingSurface: 'crease-pattern' },
+          context: { activeEditingContext: 'crease-pattern' },
           menu: vi.fn(),
         }
       );
@@ -1130,7 +1130,7 @@ describe('CreasePatternPanel', () => {
     // Oriedita binds C to CREASE_TOGGLE_MV_58; pressing it activates the tool.
     act(() => {
       handleShortcutRuntimeKeyDown(new KeyboardEvent('keydown', { key: 'c', bubbles: true }), {
-        context: { documentMode: 'crease-pattern', activeEditingSurface: 'crease-pattern' },
+        context: { activeEditingContext: 'crease-pattern' },
         menu: vi.fn(),
       });
     });

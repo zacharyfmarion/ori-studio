@@ -187,6 +187,14 @@ function FixedDockTab(props: IDockviewPanelHeaderProps) {
   return <DockviewDefaultTab {...props} hideClose />;
 }
 
+/** Which workspace to enter after opening a file: Edit for a crease pattern. */
+function openedCreasePatternWorkspace(): 'crease-pattern' | 'design' {
+  const state = useWorkspaceStore.getState();
+  return state.oristudioCpDocument !== null || state.importedCreasePattern !== null
+    ? 'crease-pattern'
+    : 'design';
+}
+
 export default function App() {
   const initEngine = useWorkspaceStore((state) => state.initEngine);
   const createNewCreasePattern = useWorkspaceStore((state) => state.createNewCreasePattern);
@@ -287,8 +295,7 @@ export default function App() {
   useEffect(() => {
     return installAppKeyboardListener(
       {
-        getDocumentMode: () => useWorkspaceStore.getState().documentMode,
-        getActiveEditingSurface: () => useWorkspaceStore.getState().activeEditingSurface,
+        getActiveEditingContext: () => useWorkspaceStore.getState().activeEditingContext,
         getCpSelectionSize: () =>
           cpSelectionSize(useWorkspaceStore.getState().oristudioCpSelection),
         getSelection: () => useWorkspaceStore.getState().selection,
@@ -356,11 +363,7 @@ export default function App() {
     async (path: string) => {
       const opened = await openProject(createOpenedPathFileService(path));
       if (!opened) return;
-      enterWorkspace(
-        useWorkspaceStore.getState().documentMode === 'crease-pattern'
-          ? 'crease-pattern'
-          : 'design'
-      );
+      enterWorkspace(openedCreasePatternWorkspace());
     },
     [enterWorkspace, openProject]
   );
@@ -384,9 +387,7 @@ export default function App() {
   const handleOpenFile = useCallback(async () => {
     const opened = await openProject();
     if (!opened) return;
-    enterWorkspace(
-      useWorkspaceStore.getState().documentMode === 'crease-pattern' ? 'crease-pattern' : 'design'
-    );
+    enterWorkspace(openedCreasePatternWorkspace());
   }, [enterWorkspace, openProject]);
 
   return (

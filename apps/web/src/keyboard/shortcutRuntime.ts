@@ -1,5 +1,6 @@
 import type { MenuActionId } from '../commands/menuActions';
 import type { DocumentMode } from '../lib/sampleProject';
+import type { EditingContext } from '../workspaces/editingContext';
 import type { OristudioCpActionId } from '../lib/oristudioCpActions';
 import {
   handleShortcutKeyDown,
@@ -26,9 +27,15 @@ let cpActionExecutor: CpActionExecutor | null = null;
 let activeViewportSurface: ViewportSurface | null = null;
 
 export interface ShortcutRuntimeContext {
-  documentMode: DocumentMode;
-  activeEditingSurface: DocumentMode;
+  activeEditingContext: EditingContext;
   activeViewportSurface?: ViewportSurface | null;
+}
+
+/** The viewport pane that owns shortcuts for a given editing context. */
+function viewportSurfaceForContext(context: EditingContext): ViewportSurface {
+  if (context === 'crease-pattern') return 'crease-pattern';
+  if (context === 'bp-packing') return 'bp-editor';
+  return 'tree';
 }
 
 export interface ShortcutRuntimeOptions {
@@ -63,17 +70,18 @@ export function setActiveShortcutViewportSurface(surface: ViewportSurface): void
 }
 
 function resolvedViewportSurface(context: ShortcutRuntimeContext): ViewportSurface {
-  return context.activeViewportSurface ?? activeViewportSurface ?? context.activeEditingSurface;
+  return (
+    context.activeViewportSurface ??
+    activeViewportSurface ??
+    viewportSurfaceForContext(context.activeEditingContext)
+  );
 }
 
 export function shortcutScopeStackForContext(
   context: ShortcutRuntimeContext
 ): ShortcutScope[] {
   const scopes: ShortcutScope[] = ['viewport'];
-  if (
-    context.documentMode === 'crease-pattern' &&
-    context.activeEditingSurface === 'crease-pattern'
-  ) {
+  if (context.activeEditingContext === 'crease-pattern') {
     scopes.push('crease-pattern');
   }
 
@@ -90,11 +98,7 @@ export function handleShortcutRuntimeKeyDown(
     viewport: viewportExecutors[resolvedViewportSurface(options.context)],
   };
 
-  if (
-    options.context.documentMode === 'crease-pattern' &&
-    options.context.activeEditingSurface === 'crease-pattern' &&
-    cpActionExecutor
-  ) {
+  if (options.context.activeEditingContext === 'crease-pattern' && cpActionExecutor) {
     executors.cpAction = cpActionExecutor;
   }
 
