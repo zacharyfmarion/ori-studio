@@ -15,22 +15,29 @@ Claude makes it testable + fixes what Zach surfaces — no self-certification).
 
 ---
 
-## Step 1 — Resize / rotate selection transform in WebGL (Phase 9, brought forward)
+## Step 1 — Resize + flip selection transform in WebGL (Phase 9, brought forward)
 
 Do this first, while the SVG `SelectionTransformBox` is available as the reference to
-port from. Move-drag already works on WebGL; this adds the resize/rotate/flip handles.
+port from. Move-drag already works on WebGL; this adds the resize handles + flip menu.
 
-- **Overlay:** a DOM overlay with constant-size resize + rotate handles and the
-  flip/reflect menu, positioned by projecting the model-space selection frame
-  (`cpLineSelectionFrame`) through the **owned WebGL camera** (not the SVG transform).
-- **Live preview:** generalize the existing move preview (`{ids, delta}`) to arbitrary
-  per-point transforms so resize/rotate preview on the GPU, reusing the stroke/point
-  re-upload path (`resizeTransformForPoint` / rotate).
-- **Commit:** `transformOristudioCpSelection` (resize / rotate), same as the SVG path.
+> **Rotate dropped (Zach, 2026-07-14).** Rotation is out of scope — **no free-drag
+> rotate handles and no rotate-90° menu buttons.** The transform box has resize handles
+> + Flip Horizontal / Flip Vertical only. This drops `normalizeSelectionTransformAngle`,
+> the rotate hit-rings, the angle preview, and the `rotate` branch of the transform
+> commit from the port.
+
+- **Overlay:** a DOM overlay with constant-size resize handles + a flip menu (H/V),
+  positioned by projecting the model-space selection frame (`cpLineSelectionFrame`,
+  `angleDegrees` fixed at 0) through the **owned WebGL camera** (not the SVG transform).
+- **Live preview:** generalize the existing move preview (`{ids, delta}`) to per-point
+  transforms so resize previews on the GPU, reusing the stroke/point re-upload path
+  (`resizeTransformForPoint`).
+- **Commit:** `transformOristudioCpSelection` — `scale` (resize) and
+  `flip-horizontal` / `flip-vertical`. No `rotate`.
 - **Reference (do not delete yet):** SVG `SelectionTransformBox` / `SelectionBoxPreview`
-  and `handleSelectionResize/Rotate/Transform PointerDown` in `CreasePatternPanel`.
-- **Gate:** resize, rotate, and flip/reflect at parity with the SVG surface; handle
-  hit-areas + constant on-screen size correct through zoom.
+  and `handleSelectionResize/Transform PointerDown` in `CreasePatternPanel`.
+- **Gate:** resize + flip at parity with the SVG surface; handle hit-areas + constant
+  on-screen size correct through zoom.
 
 ## Step 2 — Close the remaining WebGL-vs-SVG parity gaps
 
