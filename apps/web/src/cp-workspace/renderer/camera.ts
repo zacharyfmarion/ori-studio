@@ -53,7 +53,7 @@ export interface UserBounds {
 export function fitUserCamera(
   bounds: UserBounds,
   viewport: Viewport,
-  padding = 0.9
+  padding = 0.7
 ): UserCamera {
   const w = Math.max(1e-6, bounds.maxX - bounds.minX);
   const h = Math.max(1e-6, bounds.maxY - bounds.minY);

@@ -19,7 +19,14 @@ import {
   circleRingIntersectsAabb,
   segmentIntersectsAabb,
 } from './picking/lineHitIndex';
-import type { ModelPoint, PointGeometry, Rgba, StrokeGeometry, Viewport } from './renderer/types';
+import type {
+  MarkerGeometry,
+  ModelPoint,
+  PointGeometry,
+  Rgba,
+  StrokeGeometry,
+  Viewport,
+} from './renderer/types';
 import {
   cpSnapshotToScene,
   type CpLineSegmentInput,
@@ -61,6 +68,15 @@ type ActiveToolMode = ToolInputMode | 'sequence' | 'line-entity';
  * previewed option lines rather than free geometry).
  */
 export type StepKind = 'point' | 'crease' | 'candidate';
+/**
+ * A viewport-toolbar command for the WebGL camera. `nonce` re-fires the same command
+ * (e.g. repeated zoom-in presses); `percent` is only used by `set-percent`.
+ */
+export interface CameraCommand {
+  kind: 'zoom-in' | 'zoom-out' | 'fit' | 'set-percent';
+  percent?: number;
+  nonce: number;
+}
 import type { OristudioCpGridMetadata } from '../engine/oristudioCpTypes';
 import { useThemeStore } from '../store/themeStore';
 
@@ -409,6 +425,22 @@ export interface CreasePatternWebglCanvasProps {
   toolCommandPreviewPoints: readonly ModelPoint[];
   /** Colour of the in-progress candidate crease (the resolved active line colour). */
   toolPreviewColor: Rgba;
+  /** Diagnostic overlay geometry (CAMV / check-fix): shape markers + segment highlights. */
+  diagnosticMarkers: MarkerGeometry;
+  diagnosticStrokes: StrokeGeometry;
+  /**
+   * Model-space bounds of the selected diagnostic to frame in the camera (pan + zoom
+   * to it), or null. Changing this re-frames; the WebGL camera owns pan/zoom so the
+   * SVG-era focus can't drive it.
+   */
+  focusModelBounds: { minX: number; minY: number; maxX: number; maxY: number } | null;
+  /**
+   * A viewport-toolbar command for the owned camera (zoom in/out, fit, set percent).
+   * Applied when `nonce` changes so repeated presses re-fire.
+   */
+  cameraCommand: CameraCommand | null;
+  /** Report the camera's current zoom percent (100% = fit) so the toolbar reflects it. */
+  onZoomPercentChange: (percent: number) => void;
   /**
    * Right-drag box erase (universal, overrides the active tool): delete every
    * crease inside the box given by its two opposite corners (model coords).
@@ -487,6 +519,11 @@ export function CreasePatternWebglCanvas({
   toolCommandPreviewSegments,
   toolCommandPreviewPoints,
   toolPreviewColor,
+  diagnosticMarkers,
+  diagnosticStrokes,
+  focusModelBounds,
+  cameraCommand,
+  onZoomPercentChange,
   onEraseBox,
   onEraseLine,
   mode,
@@ -524,6 +561,8 @@ export function CreasePatternWebglCanvas({
   // click: a crease pick fills both at once, two point picks fill one each. Once it
   // holds 2, the gesture is in its converge (candidate-point) step.
   const convergingBaseRef = useRef<ModelPoint[]>([]);
+  // Last zoom percent reported to the panel (dedupes the per-frame report).
+  const lastReportedZoomRef = useRef<number | null>(null);
   // Square Bisector's dual-mode accumulator: `mode` is chosen on the first pick
   // ('point' → collect 3 points then a destination; 'line' → collect 2 source crease
   // ids then a destination id). Null mode means the gesture hasn't started.
@@ -725,6 +764,7 @@ export function CreasePatternWebglCanvas({
     toolPreviewColor,
     toolCommandPreviewSegments,
     toolCommandPreviewPoints,
+    onZoomPercentChange,
     onEraseBox,
     onEraseLine,
   };
@@ -834,6 +874,15 @@ export function CreasePatternWebglCanvas({
       const zoomRatio = cam.zoom / fitZoom;
       const widthBoost = Math.pow(Math.max(zoomRatio, 1), WIDTH_ZOOM_EXPONENT);
       const markerShrink = zoomRatio < 1 ? Math.pow(zoomRatio, MARKER_SHRINK_EXPONENT) : 1;
+
+      // Report the zoom percent so the viewport toolbar reflects the owned camera.
+      // 100% = actual size (1 user unit == 1 CSS px, i.e. zoom == dpr), matching the
+      // SVG transform's scale; deduped so it only fires when the value changes.
+      const zoomPercent = Math.round((cam.zoom / ratio) * 100);
+      if (zoomPercent !== lastReportedZoomRef.current) {
+        lastReportedZoomRef.current = zoomPercent;
+        liveRef.current.onZoomPercentChange(zoomPercent);
+      }
 
       renderer.render({
         clearColor: readCssVarColor(canvas, CANVAS_BG_VAR, FALLBACK_CLEAR),
@@ -1710,6 +1759,79 @@ export function CreasePatternWebglCanvas({
     );
     renderNowRef.current();
   }, [toolCommandPreviewSegments, toolPreviewColor, activeToolDashedPreview]);
+
+  // Diagnostic overlays (CAMV / check-fix): shape markers + segment highlights, built
+  // model-space by the panel and forwarded straight to the renderer's overlay layer.
+  useEffect(() => {
+    rendererRef.current?.setDiagnosticMarkers(
+      diagnosticMarkers.count > 0 ? diagnosticMarkers : null
+    );
+    renderNowRef.current();
+  }, [diagnosticMarkers]);
+  useEffect(() => {
+    rendererRef.current?.setDiagnosticStrokes(
+      diagnosticStrokes.count > 0 ? diagnosticStrokes : null
+    );
+    renderNowRef.current();
+  }, [diagnosticStrokes]);
+
+  // Frame the selected diagnostic: pan the owned camera to its centre and zoom in to
+  // show the vertex + its creases (capped so it never over-zooms), matching the SVG's
+  // click-to-focus. Model bounds → user coords via the current modelToSvg.
+  useEffect(() => {
+    const b = focusModelBounds;
+    const canvas = canvasRef.current;
+    const cam = cameraRef.current;
+    if (!b || !canvas || !cam || canvas.width === 0) return;
+    const m2s = liveRef.current.modelToSvg;
+    const corners = [
+      m2s({ x: b.minX, y: b.minY }),
+      m2s({ x: b.maxX, y: b.maxY }),
+      m2s({ x: b.minX, y: b.maxY }),
+      m2s({ x: b.maxX, y: b.minY }),
+    ];
+    const xs = corners.map((c) => c.x);
+    const ys = corners.map((c) => c.y);
+    const userBounds = {
+      minX: Math.min(...xs),
+      minY: Math.min(...ys),
+      maxX: Math.max(...xs),
+      maxY: Math.max(...ys),
+    };
+    const viewport: Viewport = { width: canvas.width, height: canvas.height, dpr: 1 };
+    const issue = fitUserCamera(userBounds, viewport, 0.5);
+    const docBounds = liveRef.current.contentBounds;
+    const docFitZoom = docBounds ? fitUserCamera(docBounds, viewport).zoom : issue.zoom;
+    // Zoom in enough to frame the issue, but never zoom out or blow past ~4x the fit.
+    const zoom = Math.max(cam.zoom, Math.min(issue.zoom, docFitZoom * 4));
+    cameraRef.current = { centerX: issue.centerX, centerY: issue.centerY, zoom };
+    renderNowRef.current();
+  }, [focusModelBounds]);
+
+  // Viewport-toolbar camera commands (zoom in/out, fit, set percent) for the owned
+  // camera — the SVG-era controls drove react-zoom-pan-pinch, which the GL camera
+  // ignores. Applied on each new command (nonce).
+  useEffect(() => {
+    const cmd = cameraCommand;
+    const canvas = canvasRef.current;
+    const cam = cameraRef.current;
+    if (!cmd || !canvas || !cam || canvas.width === 0) return;
+    const viewport: Viewport = { width: canvas.width, height: canvas.height, dpr: 1 };
+    const docBounds = liveRef.current.contentBounds;
+    const ratio = canvas.width / Math.max(1, canvas.clientWidth); // device px per CSS px
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    if (cmd.kind === 'fit') {
+      if (docBounds) cameraRef.current = fitUserCamera(docBounds, viewport);
+    } else if (cmd.kind === 'zoom-in') {
+      zoomUserCameraAt(cam, viewport, cx, cy, 1.35);
+    } else if (cmd.kind === 'zoom-out') {
+      zoomUserCameraAt(cam, viewport, cx, cy, 1 / 1.35);
+    } else if (cmd.kind === 'set-percent' && cmd.percent != null) {
+      cam.zoom = ratio * (cmd.percent / 100); // 100% == 1 user unit per CSS px
+    }
+    renderNowRef.current();
+  }, [cameraCommand]);
 
   // Voronoi seed markers: the kernel returns the current (snapped, toggled) seed set
   // as preview points; render them as dots so each mother point reads clearly. The

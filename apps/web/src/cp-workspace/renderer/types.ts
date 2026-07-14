@@ -87,6 +87,36 @@ export interface PointGeometry {
   count: number;
 }
 
+/** Marker shape ids for {@link MarkerGeometry} (must match the marker shader). */
+export const MARKER_SHAPE = {
+  disc: 0,
+  ring: 1,
+  triangle: 2,
+  square: 3,
+  pentagon: 4,
+  cross: 5,
+} as const;
+
+/**
+ * Instanced screen-space marker geometry: fixed-pixel shapes (diagnostic markers)
+ * anchored at model points. Each instance is one shape at a constant device size,
+ * with an SDF fill + outline in the fragment shader.
+ */
+export interface MarkerGeometry {
+  /** Anchor in model coords: [x, y] * count. */
+  center: Float32Array;
+  /** Half-extent in CSS px: [px] * count (constant screen size). */
+  size: Float32Array;
+  /** Shape id per instance ({@link MARKER_SHAPE}): [id] * count. */
+  shape: Float32Array;
+  /** Fill RGBA: [r, g, b, a] * count. */
+  fill: Float32Array;
+  /** Outline RGBA: [r, g, b, a] * count. */
+  stroke: Float32Array;
+  /** Number of markers. */
+  count: number;
+}
+
 /** Triangulated fill geometry (folded-figure facets), in SVG user coordinates. */
 export interface FillGeometry {
   /** Triangle vertex positions in user coords: [x, y] * vertexCount. */

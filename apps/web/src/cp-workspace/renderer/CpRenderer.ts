@@ -1,5 +1,7 @@
 import type {
   CpSceneData,
+  FillGeometry,
+  MarkerGeometry,
   PointGeometry,
   Rgba,
   StrokeGeometry,
@@ -45,6 +47,14 @@ export interface CpRenderer {
    * everything — cursor decorations such as the snap-target indicator.
    */
   setOverlayPoints(points: PointGeometry | null): void;
+  /**
+   * Diagnostic overlays (CAMV / check-fix), drawn above the crease pattern in model
+   * coordinates. Strokes = segment highlights + operation-frame outline; fills =
+   * sector wedges + frame region; markers = the fixed-size shape markers.
+   */
+  setDiagnosticStrokes(strokes: StrokeGeometry | null): void;
+  setDiagnosticFills(fills: FillGeometry | null): void;
+  setDiagnosticMarkers(markers: MarkerGeometry | null): void;
   /** Draw a single frame. Safe to call repeatedly. */
   render(frame: CpRenderFrame): void;
   /** Release all GPU resources. The renderer must not be used afterwards. */

@@ -176,10 +176,14 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import { useShortcutStore } from '../../store/shortcutStore';
 import { useCpRendererStore } from '../../store/cpRendererStore';
 import { CreasePatternWebglCanvas } from '../../cp-workspace/CreasePatternWebglCanvas';
+import type { CameraCommand } from '../../cp-workspace/CreasePatternWebglCanvas';
 import { cpInputModel } from '../../cp-workspace/tools/inputModelRegistry';
 import { distanceToSegment } from '../../cp-workspace/picking/lineHitIndex';
 import { resolveCpLineColor } from '../../cp-workspace/adapters/cpLineColor';
 import { readCssVarColor } from '../../cp-workspace/renderer/cssColor';
+import { useThemeStore } from '../../store/themeStore';
+import { MARKER_SHAPE } from '../../cp-workspace/renderer/types';
+import type { MarkerGeometry, Rgba, StrokeGeometry } from '../../cp-workspace/renderer/types';
 import { IconButton } from '../ui/IconButton';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { Toggle } from '../ui/Toggle';
@@ -348,6 +352,100 @@ function cpDiagnosticMarkerStyle(entry: OristudioCpDiagnosticEntry): CpDiagnosti
     default:
       return { shape: 'generic', tone: cpDiagnosticMarkerTone(entry) };
   }
+}
+
+// --- WebGL diagnostic overlay geometry ---------------------------------------
+// The diagnostic markers are screen-space shapes (sizes/colours don't depend on
+// the camera), so we build GPU geometry here from the entries and hand it to the
+// WebGL surface to render, rather than the (deleted-soon) SVG marker DOM.
+
+const CP_DIAGNOSTIC_MARKER_SHAPE_ID: Record<CpDiagnosticMarkerShape, number | null> = {
+  triangle: MARKER_SHAPE.triangle,
+  square: MARKER_SHAPE.square,
+  circle: MARKER_SHAPE.disc,
+  ring: MARKER_SHAPE.ring,
+  'little-big-little': MARKER_SHAPE.pentagon,
+  generic: MARKER_SHAPE.cross,
+  none: null,
+};
+const CP_DIAGNOSTIC_MARKER_PX = 10;
+
+/** Resolve each diagnostic tone to its themed base colour (matches theme.css). */
+function resolveCpDiagnosticToneColors(root: Element): Record<CpDiagnosticMarkerTone, Rgba> {
+  return {
+    danger: readCssVarColor(root, '--status-danger', [0.9, 0.24, 0.33, 1]),
+    warning: readCssVarColor(root, '--status-warning', [0.95, 0.68, 0.2, 1]),
+    mountain: readCssVarColor(root, '--fold-mountain', [1, 0.3, 0.36, 1]),
+    valley: readCssVarColor(root, '--fold-valley', [0.38, 0.65, 0.98, 1]),
+    neutral: readCssVarColor(root, '--fold-unassigned', [0.6, 0.6, 0.65, 1]),
+    unknown: [1, 0, 0.576, 1],
+  };
+}
+
+function withAlpha(color: Rgba, alpha: number): Rgba {
+  return [color[0], color[1], color[2], color[3] * alpha];
+}
+
+/** Build screen-space marker geometry for the diagnostic entries. */
+function buildCpDiagnosticMarkers(
+  entries: readonly OristudioCpDiagnosticEntry[],
+  toneColors: Record<CpDiagnosticMarkerTone, Rgba>
+): MarkerGeometry {
+  const markers: { center: Point; shape: number; fill: Rgba; stroke: Rgba }[] = [];
+  for (const entry of entries) {
+    if (!entry.point) continue;
+    const style = cpDiagnosticMarkerStyle(entry);
+    const shape = CP_DIAGNOSTIC_MARKER_SHAPE_ID[style.shape];
+    if (shape === null) continue;
+    const base = toneColors[style.tone];
+    const ring = style.shape === 'ring';
+    markers.push({
+      center: entry.point,
+      shape,
+      fill: ring ? [base[0], base[1], base[2], 0] : withAlpha(base, 0.18),
+      stroke: withAlpha(base, 0.7),
+    });
+  }
+  const count = markers.length;
+  const center = new Float32Array(count * 2);
+  const size = new Float32Array(count).fill(CP_DIAGNOSTIC_MARKER_PX);
+  const shape = new Float32Array(count);
+  const fill = new Float32Array(count * 4);
+  const stroke = new Float32Array(count * 4);
+  markers.forEach((m, i) => {
+    center[i * 2] = m.center.x;
+    center[i * 2 + 1] = m.center.y;
+    shape[i] = m.shape;
+    fill.set(m.fill, i * 4);
+    stroke.set(m.stroke, i * 4);
+  });
+  return { center, size, shape, fill, stroke, count };
+}
+
+/** Build model-space segment-highlight strokes for the diagnostic entries. */
+function buildCpDiagnosticStrokes(
+  entries: readonly OristudioCpDiagnosticEntry[],
+  toneColors: Record<CpDiagnosticMarkerTone, Rgba>
+): StrokeGeometry {
+  const segs: { a: Point; b: Point; color: Rgba }[] = [];
+  for (const entry of entries) {
+    if (cpDiagnosticMarkerStyle(entry).shape === 'little-big-little') continue;
+    const color = withAlpha(toneColors[cpDiagnosticMarkerTone(entry)], 0.85);
+    for (const segment of entry.segments ?? []) segs.push({ a: segment.a, b: segment.b, color });
+  }
+  const count = segs.length;
+  const a = new Float32Array(count * 2);
+  const b = new Float32Array(count * 2);
+  const color = new Float32Array(count * 4);
+  const widthMul = new Float32Array(count).fill(1.6);
+  segs.forEach((s, i) => {
+    a[i * 2] = s.a.x;
+    a[i * 2 + 1] = s.a.y;
+    b[i * 2] = s.b.x;
+    b[i * 2 + 1] = s.b.y;
+    color.set(s.color, i * 4);
+  });
+  return { a, b, color, widthMul, count };
 }
 
 function diagnosticSegmentEndpoint(point: Point, segment: OristudioCpLineSegment): Point {
@@ -1486,6 +1584,21 @@ export function CreasePatternPanel() {
   const zoomPercentRef = useRef(100);
   const viewportPanningRef = useRef(false);
   const [zoomPercent, setZoomPercent] = useState(100);
+  // Viewport-toolbar commands routed to the WebGL surface's owned camera (the SVG
+  // controls drive react-zoom-pan-pinch, which the GL camera ignores). A bumped nonce
+  // re-fires the same command.
+  const [webglCameraCommand, setWebglCameraCommand] = useState<CameraCommand | null>(null);
+  const cameraCommandNonceRef = useRef(0);
+  const sendWebglCameraCommand = useCallback(
+    (kind: CameraCommand['kind'], percent?: number) => {
+      setWebglCameraCommand({ kind, percent, nonce: ++cameraCommandNonceRef.current });
+    },
+    []
+  );
+  const handleWebglZoomPercent = useCallback((percent: number) => {
+    zoomPercentRef.current = percent;
+    setZoomPercent(percent);
+  }, []);
   const [spacePressed, setSpacePressed] = useState(false);
   const [cursorModelPoint, setCursorModelPoint] = useState<Point | null>(null);
   const [snapTarget, setSnapTarget] = useState<CpSnapTarget | null>(null);
@@ -1558,6 +1671,7 @@ export function CreasePatternPanel() {
   // Crease lines always use Oriedita's default M/V/flat/border coloring; the
   // color-by toggle has been removed from the CP panel header.
   const mode = 'mvf' as const;
+  const currentTheme = useThemeStore((state) => state.currentTheme);
   const selection = useWorkspaceStore((state) => state.selection);
   const select = useWorkspaceStore((state) => state.select);
   const setActiveEditingSurface = useWorkspaceStore((state) => state.setActiveEditingSurface);
@@ -2013,6 +2127,16 @@ export function CreasePatternPanel() {
     if (visibleLatestCommandDiagnosticEntries.length === 0) return camvDiagnosticEntries;
     return [...camvDiagnosticEntries, ...visibleLatestCommandDiagnosticEntries];
   }, [camvDiagnosticEntries, lastCommandResult?.operation, visibleLatestCommandDiagnosticEntries]);
+  // WebGL diagnostic overlay geometry (markers + segment highlights). Rebuilt when
+  // the entries or theme change; the tone colours read the current theme's CSS vars.
+  const cpDiagnosticGeometry = useMemo(() => {
+    void currentTheme;
+    const toneColors = resolveCpDiagnosticToneColors(document.documentElement);
+    return {
+      markers: buildCpDiagnosticMarkers(latestDiagnosticEntries, toneColors),
+      strokes: buildCpDiagnosticStrokes(latestDiagnosticEntries, toneColors),
+    };
+  }, [latestDiagnosticEntries, currentTheme]);
   const diagnosticStatus = useMemo(
     () => {
       const camvStatus = camvIssuesVisible
@@ -2043,6 +2167,15 @@ export function CreasePatternPanel() {
       latestDiagnosticEntries.find((entry) => entry.id === oristudioCpActiveDiagnosticId) ?? null,
     [latestDiagnosticEntries, oristudioCpActiveDiagnosticId]
   );
+  // Model bounds of the selected diagnostic, for the WebGL surface to frame in its
+  // owned camera (the SVG focus effect drives the SVG transform, not the GL camera).
+  const cpDiagnosticFocusBounds = useMemo(() => {
+    if (!activeDiagnosticEntry) return null;
+    const bounds = diagnosticEntryBounds(activeDiagnosticEntry);
+    return bounds
+      ? { minX: bounds.minX, minY: bounds.minY, maxX: bounds.maxX, maxY: bounds.maxY }
+      : null;
+  }, [activeDiagnosticEntry]);
   const buildCpCommandPayload = useCallback(
     (
       command: OristudioCpCommandDefinition,
@@ -4349,22 +4482,27 @@ export function CreasePatternPanel() {
 
   const handleViewportShortcut = useCallback(
     (id: ViewportShortcutId) => {
+      const webgl = cpRendererMode === 'webgl';
       switch (id) {
         case 'viewport.zoomIn':
-          transformRef.current?.zoomIn(0.35, 120);
+          if (webgl) sendWebglCameraCommand('zoom-in');
+          else transformRef.current?.zoomIn(0.35, 120);
           break;
         case 'viewport.zoomOut':
-          transformRef.current?.zoomOut(0.35, 120);
+          if (webgl) sendWebglCameraCommand('zoom-out');
+          else transformRef.current?.zoomOut(0.35, 120);
           break;
         case 'viewport.fit':
-          fitToView();
+          if (webgl) sendWebglCameraCommand('fit');
+          else fitToView();
           break;
         case 'viewport.actualSize':
-          setActualSize();
+          if (webgl) sendWebglCameraCommand('set-percent', 100);
+          else setActualSize();
           break;
       }
     },
-    [fitToView, setActualSize]
+    [cpRendererMode, fitToView, sendWebglCameraCommand, setActualSize]
   );
 
   useEffect(
@@ -4893,6 +5031,11 @@ export function CreasePatternPanel() {
                   toolCommandPreviewSegments={webglToolPreviewSegments}
                   toolCommandPreviewPoints={webglToolPreviewPoints}
                   toolPreviewColor={toolPreviewColor}
+                  diagnosticMarkers={cpDiagnosticGeometry.markers}
+                  diagnosticStrokes={cpDiagnosticGeometry.strokes}
+                  focusModelBounds={cpDiagnosticFocusBounds}
+                  cameraCommand={webglCameraCommand}
+                  onZoomPercentChange={handleWebglZoomPercent}
                   onEraseBox={(points) => {
                     void executeOristudioCpCommand('LineSegmentDelete', {
                       line_ids: [],
@@ -4917,9 +5060,19 @@ export function CreasePatternPanel() {
               <ViewportToolbar
                 ariaLabel="Crease pattern viewport controls"
                 zoomPercent={zoomPercent}
-                zoomIn={() => transformRef.current?.zoomIn(0.35, 120)}
-                zoomOut={() => transformRef.current?.zoomOut(0.35, 120)}
-                fitToView={() => fitToView()}
+                zoomIn={() =>
+                  cpRendererMode === 'webgl'
+                    ? sendWebglCameraCommand('zoom-in')
+                    : transformRef.current?.zoomIn(0.35, 120)
+                }
+                zoomOut={() =>
+                  cpRendererMode === 'webgl'
+                    ? sendWebglCameraCommand('zoom-out')
+                    : transformRef.current?.zoomOut(0.35, 120)
+                }
+                fitToView={() =>
+                  cpRendererMode === 'webgl' ? sendWebglCameraCommand('fit') : fitToView()
+                }
                 setZoomLevel={setZoomLevel}
               >
                 {editableCp && (

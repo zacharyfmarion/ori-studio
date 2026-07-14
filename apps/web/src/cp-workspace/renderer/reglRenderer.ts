@@ -4,6 +4,7 @@ import type { CpSceneData, Viewport } from './types';
 import { createStrokeProgram } from './programs/strokeProgram';
 import { createPointProgram } from './programs/pointProgram';
 import { createFillProgram } from './programs/fillProgram';
+import { createMarkerProgram } from './programs/markerProgram';
 
 // regl ships as a UMD module (`export = REGL`), so its instance type is reached
 // via the factory's return type rather than a named export.
@@ -39,10 +40,18 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
   const previewStrokes = createStrokeProgram(regl);
   const points = createPointProgram(regl);
   const overlayPoints = createPointProgram(regl);
+  // Diagnostic overlays (CAMV / check-fix markers + segment highlights + operation
+  // frame): sparse, on top of the crease pattern.
+  const diagnosticStrokes = createStrokeProgram(regl);
+  const diagnosticFills = createFillProgram(regl);
+  const diagnosticMarkers = createMarkerProgram(regl);
   let viewport: Viewport = { width: 0, height: 0, dpr: 1 };
   let hasGrid = false;
   let hasPreview = false;
   let hasOverlayPoints = false;
+  let hasDiagnosticStrokes = false;
+  let hasDiagnosticFills = false;
+  let hasDiagnosticMarkers = false;
   let disposed = false;
 
   // SVG `.cp-grid-line` is 0.95px, non-scaling — constant device px per dpr.
@@ -89,6 +98,24 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
       if (next) overlayPoints.setData(next);
     },
 
+    setDiagnosticStrokes(next) {
+      if (disposed) return;
+      hasDiagnosticStrokes = next !== null && next.count > 0;
+      if (next) diagnosticStrokes.setData(next);
+    },
+
+    setDiagnosticFills(next) {
+      if (disposed) return;
+      hasDiagnosticFills = next !== null && next.count > 0;
+      if (next) diagnosticFills.setData(next);
+    },
+
+    setDiagnosticMarkers(next) {
+      if (disposed) return;
+      hasDiagnosticMarkers = next !== null && next.count > 0;
+      if (next) diagnosticMarkers.setData(next);
+    },
+
     render(frame: CpRenderFrame) {
       if (disposed) return;
       // Nothing to draw into a zero-area buffer (e.g. a collapsed panel).
@@ -116,6 +143,22 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
         markerScalePx: frame.markerScalePx,
         outlinePx: frame.pointOutlinePx,
       });
+      // Diagnostic overlays sit above the crease pattern: fills (sector wedges /
+      // frame region) under the segment highlights, with the shape markers on top.
+      if (hasDiagnosticFills) {
+        diagnosticFills.draw({ view: frame.view, viewport });
+      }
+      if (hasDiagnosticStrokes) {
+        diagnosticStrokes.draw({ view: frame.view, viewport, widthPx: frame.strokeWidthPx });
+      }
+      if (hasDiagnosticMarkers) {
+        diagnosticMarkers.draw({
+          view: frame.view,
+          viewport,
+          scalePx: frame.markerScalePx,
+          outlinePx: frame.pointOutlinePx,
+        });
+      }
       // A tool's in-progress candidate crease draws on top of everything.
       if (hasPreview) {
         previewStrokes.draw({ view: frame.view, viewport, widthPx: frame.strokeWidthPx });
@@ -142,6 +185,9 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
       previewStrokes.dispose();
       points.dispose();
       overlayPoints.dispose();
+      diagnosticStrokes.dispose();
+      diagnosticFills.dispose();
+      diagnosticMarkers.dispose();
       regl.destroy();
     },
   };
