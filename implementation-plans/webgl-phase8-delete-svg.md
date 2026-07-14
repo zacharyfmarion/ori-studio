@@ -125,13 +125,11 @@ Phase 8 must:
 
 ## D. Open questions / decisions (resolve before/while executing)
 
-- **O1 — Selection resize/rotate (Phase 9 tension).** `SelectionTransformBox` (resize +
-  rotate handles + flip/reflect menu) is **SVG-only**; it is **not** ported to WebGL, and
-  Phase 9 (which ports it) is deferred to the very end. Deleting the SVG surface now
-  **removes resize/rotate handles** until Phase 9. Move-drag (the common case) already
-  works on WebGL. Options: (a) accept the temporary loss and do Phase 9 after Phase 7;
-  (b) pull a minimal DOM-overlay port of the transform box forward into Phase 8; (c)
-  bring Phase 9 forward to run inside Phase 8. **Needs Zach's call.**
+- **O1 — Selection resize/rotate (Phase 9 tension). RESOLVED (Zach):** port resize/rotate
+  to WebGL **first**, while the SVG `SelectionTransformBox` is still here as the reference
+  — it becomes **Step 1** of the execution plan
+  ([webgl-phase8-execution-plan.md](webgl-phase8-execution-plan.md)). No temporary loss;
+  the reference is only deleted in the final step.
 - **O2 — The non-editable `GeneratedCreasePattern` path.** The SVG renders a read-only CP
   when `editableCp` is null; the WebGL canvas only mounts when `editableCp` exists. Is the
   `editableCp === null` case still reachable in the CP workspace, or legacy? If reachable,
@@ -143,17 +141,11 @@ Phase 8 must:
 
 ---
 
-## E. Suggested sequencing (incremental, each step still runnable)
+## E. Sequencing
 
-1. **Sever the umbilical (A5)** — make the WebGL camera seed from `contentBounds`, drop
-   `svgRef`/`sampleView`/`svgToModel`, delete `svgViewBridge.ts`. WebGL still mounts over
-   the SVG; verify nothing regressed. *(Isolatable, low-risk first step.)*
-2. **Make WebGL unconditional (A4)** — remove the flag + branching; SVG stops rendering
-   for `editableCp`. Resolve O1/O2 here.
-3. **Delete the SVG render components (A1)** and the SVG interaction path (A3) + RZPP from
-   the edit path (A2).
-4. **Store cleanup (C2, C3)** — vertex selection + flag slice.
-5. **Decompose the panel (C1) + coordinate cleanup (C5) + collapse duplicates (C4).**
-6. **Rebuild tests (C6).**
-
-Each step is committed separately and hands to Zach for a gate check.
+The ordered execution plan lives in
+[webgl-phase8-execution-plan.md](webgl-phase8-execution-plan.md). Summary:
+**1) port resize/rotate to WebGL → 2) close remaining parity gaps → 3) port tests →
+4) decompose the keep-code into modules → 5) delete the SVG surface (surgical).** The
+SVG reference stays intact through steps 1–4; the inventory in this doc (§A–C) is what
+step 5 removes. Each step ends at a Zach gate.
