@@ -107,6 +107,27 @@ clean removal rather than a decompose-then-delete of the same lines.
 - **Gate:** existing suite still green; each extracted module has focused tests; module
   boundaries reviewed.
 
+### Step 2 progress
+
+- ✅ **`cp-workspace/diagnostics/geometry.ts`** extracted (commit `d5bb7395`): the
+  `buildCpDiagnostic{Markers,Strokes,Wedges,MarkerHits}` builders + style/tone/LBL/bounds
+  helpers, with **14 new focused unit tests** (coverage this logic never had —
+  previously only exercised via the SVG DOM). Behavior-preserving. The SVG-only
+  `diagnosticSectorPoint` + focus constants stay in the panel (deleted with SVG in Step 3),
+  importing the shared helpers back.
+- ⬜ Remaining: `tools/predicates.ts` (the `is*Operation` family — scattered, interleaved
+  with non-predicate geometry helpers that stay), `toolPanel/` (the context-tool-panel +
+  `*ToolOption` components + `FoldedFigureMenuButton`), `commands.ts`.
+
+**⚠️ Finding — the existing suite is not green at baseline.** `CreasePatternPanel.test.tsx`
+is **9 failed / 64 passed**, *identical before and after* the extraction (verified by
+stashing). The 9 are **stale SVG-DOM tests for tools hidden during this session's tool
+sweep** (e.g. asserting a `SelectLineIntersecting` toolbar button that no longer renders
+after "Select/Deselect Overlapping Lines" was hidden), not a regression. They're exactly
+the SVG-DOM tests Step 3 retires. The 64 passing tests + the new module tests are the real
+safety net. **These 9 should be updated/retired** (in Step 3's SVG-test cleanup, or a quick
+pass sooner) so the gate's "green suite" is meaningful.
+
 ## Step 3 — Delete the SVG surface + finalize (the surgical removal)
 
 Now that WebGL is proven, tested, and the keep-code is modular, remove SVG.
