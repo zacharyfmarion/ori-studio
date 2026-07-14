@@ -58,21 +58,26 @@ points, preview circles as rings), box-select marquee, and the full interaction 
 - Vertex *selection* — vertices are derived; selection is being removed anyway (they
   still render as points).
 
-**The one real gap — TEXT annotations.** The WebGL canvas does **not render or select
-`crease_pattern.texts`** (the SVG has `CreaseTexts` + `toggleText`; `CpSelectHit` on
-WebGL is line/point/circle only, no `text`). The Text *tool* (creating text) is already
-deferred, but **displaying/selecting existing text** (e.g. from an imported CP that
-carries labels) is a genuine display gap. Master plan's intent is a **DOM overlay** for
-text (low-count, camera-positioned — no GPU text). **Decision needed:** build the small
-text DOM overlay (render + click-select), or accept the loss. → resolve before Step 4.
+**The one real gap — TEXT annotations. ✅ CLOSED (built + Zach validated).** WebGL now
+renders + selects `crease_pattern.texts` via a DOM overlay: the canvas reports its
+model→CSS affine (`onViewChange`) and `CpTextOverlay` projects each label to it, scaling
+font with zoom (12px at 100%, matching the SVG); click toggles selection, gated to
+selection mode so labels are click-through while drawing. Render + select only (creating
+text is the still-deferred Text tool). The `onViewChange` report is a reusable
+"position DOM over the GL canvas" primitive.
 
-**O2 — non-editable / generated-CP path:** `GeneratedCreasePattern` renders when
-`editableCp === null` while `project.creases`/`facets` exist. Every current flow into the
-CP panel (Create a CP / import / generated-CP → Edit) sets `oristudioCpDocument`, so this
-path is *believed legacy/unreachable* — but that wants a **2-minute runtime confirmation
-by Zach**: is there any way to see a CP in the edit workspace with **no drawing tools**
-(read-only)? If not, `GeneratedCreasePattern` is dead code and goes in Step 4; if yes,
-WebGL must cover it or it's scoped out.
+**O2 — non-editable / generated-CP path. RESOLVED (from code): live fallback, not dead
+code.** `GeneratedCreasePattern` (read-only, `editableCp === null` + `project.creases`)
+is reachable only as the **kernel-load-failure fallback**: on import, if a CP *parses*
+into `project.creases` but *fails to load into the oristudio kernel*
+(`loadOristudioCpDocumentFromText` throws → `oristudioCpRuntimeError` set,
+`oristudioCpDocument` null; `projectSlice` import path ~613), the panel enters CP mode
+and shows the parsed creases read-only with no editing tools. (Create-a-CP and the other
+CP entries always set an editable doc.) Rare but real. **Step-4 decision (not a Step-1
+blocker):** when the SVG is deleted, either (a) have the WebGL surface render the
+read-only `project.creases` when `editableCp === null`, or (b) replace the fallback with
+an explicit "couldn't load this CP" error state. Leaning (b) — a silent read-only view of
+a CP the editor can't actually open is arguably worse than a clear error.
 
 ## Step 2 — Port / rebuild the tests onto WebGL + pure modules
 
