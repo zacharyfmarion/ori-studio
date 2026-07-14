@@ -9,6 +9,17 @@ umbilical, the architecture-cleanup list) lives in
 [webgl-phase8-delete-svg.md](webgl-phase8-delete-svg.md). This doc is the **ordered
 execution plan**.
 
+> **Reorder — delete before finishing decompose (Zach, 2026-07-14).** Mid-Step-2 we
+> found the panel is threaded with SVG-only dead-for-WebGL code (e.g.
+> `computeCpMeasurementValue`, `diagnosticSectorPoint`, the selection-transform cluster),
+> so every extraction pays an "is this SVG-only?" tax and sometimes preserves dead code.
+> New order: **(2a)** bank the clean *pure* module extractions — `diagnostics/geometry`,
+> `tools/predicates`, `measure` — **done**; **(2b) delete the SVG surface next** (was
+> Step 3), which drops all the dead code so that **(2c) decomposing the remaining,
+> all-keep-code panel** (tool-panel components, command handlers) is pure lift-and-shift.
+> Safe because WebGL parity is signed off (Step 1). The SVG-DOM tests break on deletion
+> and are retired then (their behavior is covered by the WebGL path + the pure modules).
+
 > **Selection transform NOT ported (Zach, 2026-07-14).** Resize / rotate / flip of a
 > selection are **SVG-only** and are **not** being ported to WebGL. Move-drag already
 > works on WebGL and that is sufficient. So when the SVG surface is deleted (Step 3),
