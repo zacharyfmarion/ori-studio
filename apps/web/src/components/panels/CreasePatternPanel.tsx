@@ -215,6 +215,16 @@ import {
   lineColorMatchesCustomType,
   shouldPreferPointSnapForStep,
 } from '../../cp-workspace/tools/predicates';
+import {
+  CP_MEASUREMENT_SLOT_LABELS,
+  CP_MEASUREMENT_SLOT_ORDER,
+  cpMeasurementSlotForOperation,
+  createEmptyCpMeasurementSlots,
+  formatCpMeasurementValue,
+  isCpMeasurementOperation,
+  type CpMeasurementSlotId,
+  type CpMeasurementSlots,
+} from '../../cp-workspace/measure';
 import { IconButton } from '../ui/IconButton';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { Toggle } from '../ui/Toggle';
@@ -1050,8 +1060,6 @@ function foldedFigureIdFromEventTarget(target: EventTarget | null): string | nul
   return target.closest('[data-folded-figure-id]')?.getAttribute('data-folded-figure-id') ?? null;
 }
 
-type CpMeasurementSlotId = 'length1' | 'length2' | 'angle1' | 'angle2' | 'angle3';
-type CpMeasurementSlots = Record<CpMeasurementSlotId, number | null>;
 
 interface CpSelectionRotationDrag {
   pointerId: number;
@@ -1127,57 +1135,8 @@ const CP_SELECTION_RESIZE_HANDLE_BY_ID = new Map(
   CP_SELECTION_RESIZE_HANDLES.map((handle) => [handle.id, handle])
 );
 
-const CP_MEASUREMENT_SLOT_LABELS: Record<CpMeasurementSlotId, string> = {
-  length1: 'L1',
-  length2: 'L2',
-  angle1: 'A1',
-  angle2: 'A2',
-  angle3: 'A3',
-};
-
-const CP_MEASUREMENT_SLOT_ORDER: readonly CpMeasurementSlotId[] = [
-  'length1',
-  'length2',
-  'angle1',
-  'angle2',
-  'angle3',
-];
-
-function createEmptyCpMeasurementSlots(): CpMeasurementSlots {
-  return {
-    length1: null,
-    length2: null,
-    angle1: null,
-    angle2: null,
-    angle3: null,
-  };
-}
-
-function cpMeasurementSlotForOperation(
-  operationId: OristudioCpCommandDefinition['operationId'] | null | undefined
-): CpMeasurementSlotId | null {
-  switch (operationId) {
-    case 'DisplayLengthBetweenPoints1':
-      return 'length1';
-    case 'DisplayLengthBetweenPoints2':
-      return 'length2';
-    case 'DisplayAngleBetweenThreePoints1':
-      return 'angle1';
-    case 'DisplayAngleBetweenThreePoints2':
-      return 'angle2';
-    case 'DisplayAngleBetweenThreePoints3':
-      return 'angle3';
-    default:
-      return null;
-  }
-}
-
-function isCpMeasurementOperation(
-  operationId: OristudioCpCommandDefinition['operationId'] | null | undefined
-): boolean {
-  return cpMeasurementSlotForOperation(operationId) !== null;
-}
-
+// SVG-only frontend recompute (the WebGL surface uses the kernel's preview.measurement);
+// deleted with the SVG interaction path in Phase 8, Step 3.
 function computeCpMeasurementValue(
   operationId: OristudioCpCommandDefinition['operationId'],
   points: readonly Point[]
@@ -1197,13 +1156,6 @@ function computeCpMeasurementValue(
   const end = Math.atan2(b.y - center.y, b.x - center.x);
   const degrees = ((end - start) * 180) / Math.PI;
   return ((degrees % 360) + 360) % 360;
-}
-
-function formatCpMeasurementValue(slot: CpMeasurementSlotId, value: number | null): string {
-  if (value === null) return '-';
-  const precision = slot.startsWith('angle') ? 2 : 3;
-  const unit = slot.startsWith('angle') ? ' deg' : '';
-  return `${formatNumber(value, precision)}${unit}`;
 }
 
 function resizeTransformForPoint(
