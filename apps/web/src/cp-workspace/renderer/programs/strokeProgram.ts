@@ -23,6 +23,7 @@ uniform vec2 u_ey;       // device delta per +1 model y
 uniform vec2 u_viewport; // device px
 uniform float u_widthPx; // base stroke width, device px
 varying vec4 vColor;
+varying float vDist;     // device px along the segment (for screen-space dashing)
 vec2 toDevice(vec2 m) { return u_origin + m.x * u_ex + m.y * u_ey; }
 void main() {
   vec2 sA = toDevice(aA);
@@ -37,12 +38,23 @@ void main() {
   vec2 clip = vec2(pos.x / u_viewport.x * 2.0 - 1.0, 1.0 - pos.y / u_viewport.y * 2.0);
   gl_Position = vec4(clip, 0.0, 1.0);
   vColor = aColor;
+  vDist = corner.x * len;
 }`;
 
 const FRAG = `
 precision highp float;
 varying vec4 vColor;
-void main() { gl_FragColor = vec4(vColor.rgb * vColor.a, vColor.a); }`;
+varying float vDist;
+uniform float u_dashOn;  // device px of the "on" segment; 0 disables dashing
+uniform float u_dashOff; // device px of the gap
+void main() {
+  if (u_dashOn > 0.0 && mod(vDist, u_dashOn + u_dashOff) > u_dashOn) discard;
+  gl_FragColor = vec4(vColor.rgb * vColor.a, vColor.a);
+}`;
+
+// Screen-space dash pattern (device px) for dashed geometry, e.g. measure guides.
+const DASH_ON = 11;
+const DASH_OFF = 7;
 
 // Unit quad (two triangles) parameterised as (t, side).
 const QUAD = new Float32Array([0, -0.5, 1, -0.5, 1, 0.5, 0, -0.5, 1, 0.5, 0, 0.5]);
@@ -75,6 +87,8 @@ interface StrokeDrawParams {
   eyArr: Vec2;
   viewportArr: Vec2;
   widthPx: number;
+  dashOn: number;
+  dashOff: number;
   aBuf: Buffer;
   bBuf: Buffer;
   colorBuf: Buffer;
@@ -89,6 +103,8 @@ interface StrokeUniforms {
   u_ey: Vec2;
   u_viewport: Vec2;
   u_widthPx: number;
+  u_dashOn: number;
+  u_dashOff: number;
 }
 
 /** Attribute key shapes; values are regl attribute configs (kept permissive). */
@@ -107,6 +123,7 @@ export function createStrokeProgram(regl: Regl): StrokeProgram {
   let colorBuf: Buffer | null = null;
   let widthMulBuf: Buffer | null = null;
   let count = 0;
+  let dashed = false;
 
   const draw = regl<StrokeUniforms, StrokeAttributes, StrokeDrawParams>({
     vert: VERT,
@@ -124,6 +141,8 @@ export function createStrokeProgram(regl: Regl): StrokeProgram {
       u_ey: (_ctx, props) => props.eyArr,
       u_viewport: (_ctx, props) => props.viewportArr,
       u_widthPx: (_ctx, props) => props.widthPx,
+      u_dashOn: (_ctx, props) => props.dashOn,
+      u_dashOff: (_ctx, props) => props.dashOff,
     },
     // Premultiplied-alpha blend: a no-op for opaque creases (alpha 1), and lets
     // semi-transparent strokes (e.g. grid lines) composite over the background.
@@ -139,6 +158,7 @@ export function createStrokeProgram(regl: Regl): StrokeProgram {
   return {
     setData(geometry) {
       count = geometry.count;
+      dashed = geometry.dashed ?? false;
       aBuf?.destroy();
       bBuf?.destroy();
       colorBuf?.destroy();
@@ -156,6 +176,8 @@ export function createStrokeProgram(regl: Regl): StrokeProgram {
         eyArr: [view.ey[0], view.ey[1]],
         viewportArr: [viewport.width, viewport.height],
         widthPx: Math.max(1, widthPx),
+        dashOn: dashed ? DASH_ON * viewport.dpr : 0,
+        dashOff: dashed ? DASH_OFF * viewport.dpr : 0,
         aBuf,
         bBuf,
         colorBuf,

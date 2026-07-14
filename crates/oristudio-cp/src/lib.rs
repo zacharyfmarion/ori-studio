@@ -228,6 +228,9 @@ pub struct CommandPreview {
     pub circles: Vec<geometry::Circle>,
     /// Candidate commit points, such as angle-restricted convergence points.
     pub points: Vec<geometry::Point>,
+    /// Non-mutating measurement value (length or angle) for the measure tools.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub measurement: Option<f64>,
     /// Human-readable diagnostics emitted by the preview query.
     pub diagnostics: Vec<String>,
 }
@@ -3166,6 +3169,36 @@ pub fn preview_command(
                         .collect();
                 }
             }
+        }
+        // Measure tools are non-mutating: the preview carries the length/angle value
+        // (parity math from operations::measure) plus a guide line the surface dashes.
+        OperationId::DisplayLengthBetweenPoints1 | OperationId::DisplayLengthBetweenPoints2
+            if points.len() >= 2 =>
+        {
+            preview.measurement =
+                Some(operations::measure::length_between_points(points[0], points[1]));
+            preview.segments.push(LineSegment::with_color(
+                points[0],
+                points[1],
+                active_line_color(&command),
+            ));
+        }
+        OperationId::DisplayAngleBetweenThreePoints1
+        | OperationId::DisplayAngleBetweenThreePoints2
+        | OperationId::DisplayAngleBetweenThreePoints3
+            if points.len() >= 3 =>
+        {
+            // Vertex is the 2nd point; rays go to the 1st and 3rd.
+            preview.measurement = Some(operations::measure::angle_between_three_points(
+                points[0], points[1], points[2],
+            ));
+            let color = active_line_color(&command);
+            preview
+                .segments
+                .push(LineSegment::with_color(points[1], points[0], color));
+            preview
+                .segments
+                .push(LineSegment::with_color(points[1], points[2], color));
         }
         _ => {
             if points.len() >= 2 {

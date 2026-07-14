@@ -132,6 +132,8 @@ export interface OristudioCpCommandPreview {
   segments: OristudioCpLineSegment[];
   circles: OristudioCpCircle[];
   points: Point[];
+  /** Non-mutating measurement (length or angle) for the measure tools. */
+  measurement?: number | null;
   diagnostics: string[];
 }
 

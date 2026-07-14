@@ -133,7 +133,8 @@ const dpr = () => Math.min(window.devicePixelRatio || 1, MAX_DPR);
 /** Pack a tool preview's candidate segments (model coords) into stroke geometry. */
 function previewSegmentsToStrokes(
   segments: readonly ToolPreviewSegment[],
-  color: Rgba
+  color: Rgba,
+  dashed = false
 ): StrokeGeometry {
   const count = segments.length;
   const a = new Float32Array(count * 2);
@@ -151,7 +152,7 @@ function previewSegmentsToStrokes(
     col[i * 4 + 2] = color[2];
     col[i * 4 + 3] = color[3];
   }
-  return { a, b, color: col, widthMul, count };
+  return { a, b, color: col, widthMul, count, dashed };
 }
 
 /** A single ring marker (transparent fill + coloured outline) at a snap point. */
@@ -360,6 +361,8 @@ export interface CreasePatternWebglCanvasProps {
    * previewed live until the contextual Apply button commits.
    */
   activeToolVoronoi: boolean;
+  /** True for the measure tools: their guide line renders as a screen-space dash. */
+  activeToolDashedPreview: boolean;
   /** The current Voronoi click list (owned by the panel as `cpToolPoints`). */
   voronoiSeeds: readonly ModelPoint[];
   /** Report the updated Voronoi click list after a seed add / gesture reset. */
@@ -472,6 +475,7 @@ export function CreasePatternWebglCanvas({
   activeToolConverging,
   activeToolSquareBisector,
   activeToolVoronoi,
+  activeToolDashedPreview,
   voronoiSeeds,
   onVoronoiSeedsChange,
   resolveFirstPickKind,
@@ -1697,11 +1701,15 @@ export function CreasePatternWebglCanvas({
     if (!renderer) return;
     renderer.setPreview(
       toolCommandPreviewSegments.length > 0
-        ? previewSegmentsToStrokes(toolCommandPreviewSegments, toolPreviewColor)
+        ? previewSegmentsToStrokes(
+            toolCommandPreviewSegments,
+            toolPreviewColor,
+            activeToolDashedPreview
+          )
         : null
     );
     renderNowRef.current();
-  }, [toolCommandPreviewSegments, toolPreviewColor]);
+  }, [toolCommandPreviewSegments, toolPreviewColor, activeToolDashedPreview]);
 
   // Voronoi seed markers: the kernel returns the current (snapped, toggled) seed set
   // as preview points; render them as dots so each mother point reads clearly. The

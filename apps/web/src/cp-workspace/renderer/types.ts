@@ -59,6 +59,8 @@ export interface StrokeGeometry {
   widthMul: Float32Array;
   /** Number of segments. */
   count: number;
+  /** Screen-space dashed rendering (measure guide lines). Defaults to solid. */
+  dashed?: boolean;
 }
 
 /**

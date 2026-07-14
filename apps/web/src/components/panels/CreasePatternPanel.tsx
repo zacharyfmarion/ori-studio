@@ -2611,6 +2611,28 @@ export function CreasePatternPanel() {
       // DeletePoint, tangent-through-point, …). Reject only an empty commit.
       const isLineEntityCommit = pickedLineIds.length > 0 && points.length === 0;
       if (!isLineEntityCommit && points.length === 0) return;
+
+      // Measure tools are non-mutating: never execute (the kernel has no execute arm
+      // by design). Ask the kernel for the exact length/angle at the committed points
+      // and store it in the panel slot; then just finalize the tool state.
+      const measurementSlot = cpMeasurementSlotForOperation(command.operationId);
+      if (measurementSlot) {
+        void previewOristudioCpCommand(
+          command.operationId,
+          buildCpCommandPayload(command, { points: [...points] })
+        ).then((preview) => {
+          const value = preview?.measurement;
+          if (value != null) {
+            setCpMeasurementSlots((current) => ({ ...current, [measurementSlot]: value }));
+          }
+        });
+        setCpToolState((state) =>
+          state.activeOperationId === command.operationId
+            ? transitionOristudioCpToolState(state, { type: 'commit', keepActive: true })
+            : state
+        );
+        return;
+      }
       void (async () => {
         const succeeded = await executeOristudioCpCommand(
           command.operationId,
@@ -2664,6 +2686,7 @@ export function CreasePatternPanel() {
       activeCpCommand,
       buildCpCommandPayload,
       executeOristudioCpCommand,
+      previewOristudioCpCommand,
       oristudioCpSelection.circles,
       oristudioCpSelection.lines,
     ]
@@ -2840,6 +2863,14 @@ export function CreasePatternPanel() {
           : [];
         setWebglToolPreviewSegments([...kernel, ...rings, ...highlight, ...snapped]);
         setWebglToolPreviewPoints(preview?.points ?? []);
+        // Measure tools: surface the kernel-computed length/angle into its panel slot
+        // live as points are placed (the value is Oriedita-parity math, not recomputed
+        // in JS). Only update once the kernel actually returns a value.
+        const measurementSlot = cpMeasurementSlotForOperation(command.operationId);
+        const measurement = preview?.measurement;
+        if (measurementSlot && measurement != null) {
+          setCpMeasurementSlots((current) => ({ ...current, [measurementSlot]: measurement }));
+        }
       });
     },
     [
@@ -4848,6 +4879,7 @@ export function CreasePatternPanel() {
                   activeToolConverging={webglActiveTool.converging}
                   activeToolSquareBisector={webglActiveTool.squareBisector}
                   activeToolVoronoi={webglActiveTool.voronoi}
+                  activeToolDashedPreview={isCpMeasurementOperation(activeCpCommand?.operationId)}
                   voronoiSeeds={cpToolPoints}
                   onVoronoiSeedsChange={handleWebglVoronoiSeeds}
                   activeToolRequireSnap={isRestrictedDrawOperation(activeCpCommand?.operationId)}
