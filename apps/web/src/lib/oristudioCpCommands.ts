@@ -481,6 +481,10 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     tooltip: 'Convert selected folding lines to auxiliary lines',
   }),
   ready('OperationFrameCreate', 'Operation frame', 'transform', 'frame', 'MouseHandlerOperationFrameCreate', {
+    // Hidden per Zach — CP export is handled differently here, so the frame isn't
+    // wired to anything user-facing yet. Revisit if export grows a crop step. The
+    // WebGL overlay + drag-box create interaction stay in place for when it returns.
+    placement: 'hidden-ui-only',
     toolSteps: ['Drag operation frame'],
     // A rubber-band rectangle (two opposite corners), not a freeform path: the kernel
     // builds the axis-aligned frame from the press + release corners.
