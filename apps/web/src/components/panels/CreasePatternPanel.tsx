@@ -2784,7 +2784,11 @@ export function CreasePatternPanel() {
                     // Square Bisector's point mode resolves everything from its 4
                     // points; the kernel routes to line mode when line_ids has ≥3, so
                     // never leak the ambient selection into it.
-                    command.operationId === 'SquareBisector'
+                    command.operationId === 'SquareBisector' ||
+                    // Lengthen commits a 3-point selection line + target; the kernel
+                    // prioritises line_ids ≥ 2, so a stray ambient selection would
+                    // hijack it into the click-pick path. Send its points alone.
+                    isLengthenCreaseOperation(command.operationId)
                   ? []
                   : oristudioCpSelection.lines,
             circle_ids: oristudioCpSelection.circles,
@@ -2862,7 +2866,7 @@ export function CreasePatternPanel() {
   // bisector's "2 segments or 3 points"), or variable-length / text ops, is
   // excluded until it gets dedicated handling.
   const webglActiveTool = useMemo<{
-    mode: 'drag-line' | 'drag-box' | 'drag-path' | 'sequence' | 'line-entity' | null;
+    mode: 'drag-line' | 'drag-box' | 'drag-path' | 'sequence' | 'line-entity' | 'lengthen' | null;
     stepKinds: ('point' | 'crease' | 'candidate')[];
     lineCount: number;
     dualMirror: boolean;
@@ -2929,6 +2933,11 @@ export function CreasePatternPanel() {
     const inputModel = cpInputModel(activeCpCommand.operationId);
     if (inputModel?.model === 'line-entity') {
       return { ...idle, mode: 'line-entity', lineCount: inputModel.lineCount ?? 2 };
+    }
+    // Lengthen: drag the selection line, then click the target line. A bespoke drag
+    // handler on the canvas drives both gestures and commits 3 points.
+    if (inputModel?.model === 'lengthen') {
+      return { ...idle, mode: 'lengthen' };
     }
     if (
       (inputModel?.model === 'point-sequence' || inputModel?.model === 'axis-from-line') &&

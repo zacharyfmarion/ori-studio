@@ -4458,6 +4458,52 @@ mod tests {
     }
 
     #[test]
+    fn command_dispatch_lengthens_creases_a_drag_selection_line_crosses() {
+        let mut document = CreasePatternDocument::default();
+        document.crease_pattern.add_line(
+            Point::new(0.0, 0.0),
+            Point::new(1.0, 0.0),
+            LineColor::Red1,
+        );
+        document.crease_pattern.add_line(
+            Point::new(2.0, -1.0),
+            Point::new(2.0, 1.0),
+            LineColor::Black0,
+        );
+
+        // A dragged selection line (points 0→1) crossing the red crease picks it to
+        // extend; the extension point (point 2) lands on the vertical target.
+        let result = execute_command(
+            &mut document,
+            CreasePatternCommand::new(OperationId::LengthenCrease).with_payload(
+                CreasePatternCommandPayload {
+                    points: vec![
+                        Point::new(0.5, -0.5),
+                        Point::new(0.5, 0.5),
+                        Point::new(2.0, 0.0),
+                    ],
+                    line_color: Some(LineColor::Blue2),
+                    selection_distance: Some(1.0),
+                    ..CreasePatternCommandPayload::default()
+                },
+            ),
+        )
+        .expect("drag-select lengthen should execute");
+
+        assert_eq!(result.status, OperationStatus::OracleTested);
+        assert_eq!(result.diagnostics, vec!["Changed 1 line(s)"]);
+        assert!(
+            document
+                .crease_pattern
+                .line_segments
+                .iter()
+                .any(|segment| segment.a == Point::new(2.0, 0.0)
+                    && segment.b == Point::new(1.0, 0.0)
+                    && segment.color == LineColor::Blue2)
+        );
+    }
+
+    #[test]
     fn command_dispatch_routes_operation_frame_create() {
         let mut document = CreasePatternDocument::default();
 

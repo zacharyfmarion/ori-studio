@@ -27,6 +27,7 @@ import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
 export type CpInputModel =
   | 'point-sequence' // N free points; kernel resolves creases from the points
   | 'line-entity' // pick N crease ids; commit line_ids, no points
+  | 'lengthen' // drag a selection line to pick creases, then click the target
   | 'axis-from-line' // click a crease (→ its endpoints) or place 2 points
   | 'line-click-mutate' // click crease toggles/(de)selects; box-drag hybrid
   | 'circle-apply' // circle selection (+ a point for tangent)
@@ -107,9 +108,13 @@ export const CP_INPUT_MODELS: Partial<Record<OristudioCpOperationId, CpInputMode
   VertexDeleteOnCrease: { model: 'point-sequence', pointCount: 1, snapPerStep: ['point'] },
   VertexMakeAngularlyFlatFoldable: { model: 'point-sequence', pointCount: 3, snapPerStep: ['point', 'candidate', 'crease'] },
 
-  // LINE-ENTITY — pick crease ids, commit line_ids, no points (§4.E)
-  LengthenCrease: { model: 'line-entity', lineCount: 2 },
-  LengthenCreaseSameColor: { model: 'line-entity', lineCount: 2 },
+  // LENGTHEN — drag a selection line across the crease(s) to extend (a click is the
+  // degenerate nearest-crease fallback), then click the target line to extend to.
+  // Commits 3 points [selectionA, selectionB, extensionPoint]; the kernel picks the
+  // creases the selection line crosses and extends them to the target (Oriedita's
+  // LENGTHEN_CREASE_5 two-gesture flow). (§4.E)
+  LengthenCrease: { model: 'lengthen' },
+  LengthenCreaseSameColor: { model: 'lengthen' },
 
   // AXIS-FROM-LINE — line-click shortcut or 2 points, commit points (§4.G)
   DrawCreaseSymmetric: { model: 'axis-from-line', pointCount: 2, snapPerStep: ['point', 'point'] },

@@ -57,10 +57,11 @@ import type { ToolCommit, ToolPreviewSegment } from './tools/types';
 /**
  * Draw modes the canvas routes: the drag engines, the click-based persistent
  * `sequence` mode (every step collects a point; its {@link StepKind} sets how the
- * surface snaps + gives feedback), and `line-entity` (each click picks an existing
- * crease by id and commits line ids — the Lengthen model, which takes no points).
+ * surface snaps + gives feedback), `line-entity` (each click picks an existing
+ * crease by id and commits line ids), and `lengthen` (drag a selection line to pick
+ * the crease(s) to extend, then click the target — commits 3 points).
  */
-type ActiveToolMode = ToolInputMode | 'sequence' | 'line-entity';
+type ActiveToolMode = ToolInputMode | 'sequence' | 'line-entity' | 'lengthen';
 /**
  * Per-step snap/feedback mode: snap to grid/vertices (`point`), onto an existing
  * crease (`crease`), or onto the nearest kernel-computed candidate ray (`candidate`,
@@ -214,6 +215,25 @@ function snapToNearestSegment(
     }
   }
   return best;
+}
+
+/** Whether segments p1p2 and p3p4 strictly cross (Oriedita's INTERSECTS_1). */
+function segmentsIntersect(
+  p1: ModelPoint,
+  p2: ModelPoint,
+  p3: ModelPoint,
+  p4: ModelPoint
+): boolean {
+  const side = (a: ModelPoint, b: ModelPoint, c: ModelPoint) =>
+    (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+  const d1 = side(p3, p4, p1);
+  const d2 = side(p3, p4, p2);
+  const d3 = side(p1, p2, p3);
+  const d4 = side(p1, p2, p4);
+  return (
+    ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
+    ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))
+  );
 }
 
 /** The nearest of `candidates` to `raw` within `maxDistance`, else null. */
@@ -571,10 +591,18 @@ export function CreasePatternWebglCanvas({
     points: ModelPoint[];
     lineIds: number[];
   }>({ mode: null, points: [], lineIds: [] });
-  // Creases picked so far by a `line-entity` tool (Lengthen). Rendered in the
-  // selection style so a picked line "shows up as selected" until commit — parity
-  // with the SVG's persistent `highlightedLineIds`. Read by `buildStrokes`.
+  // Creases picked so far by a `line-entity` tool. Rendered in the selection style
+  // so a picked line "shows up as selected" until commit — parity with the SVG's
+  // persistent `highlightedLineIds`. Read by `buildStrokes`.
   const linePickHighlightRef = useRef<readonly number[]>([]);
+  // Lengthen's two-gesture state: `select` draws the selection line (points a→b) the
+  // kernel intersects to pick creases; `extend` then clicks the target line. `a`/`b`
+  // hold the finalized selection line across the phase change.
+  const lengthenRef = useRef<{
+    phase: 'select' | 'extend';
+    a: ModelPoint | null;
+    b: ModelPoint | null;
+  }>({ phase: 'select', a: null, b: null });
   const currentTheme = useThemeStore((state) => state.currentTheme);
 
   // A tool change abandons any in-progress click sequence and its overlay.
@@ -585,6 +613,7 @@ export function CreasePatternWebglCanvas({
     convergingBaseRef.current = [];
     squareBisectorRef.current = { mode: null, points: [], lineIds: [] };
     linePickHighlightRef.current = [];
+    lengthenRef.current = { phase: 'select', a: null, b: null };
     rendererRef.current?.setOverlayPoints(null);
     const rebuild = buildStrokesRef.current;
     if (rebuild) rendererRef.current?.setStrokes(rebuild());
@@ -1435,6 +1464,91 @@ export function CreasePatternWebglCanvas({
       }
       renderNow();
     };
+    // Lengthen (Oriedita LENGTHEN_CREASE_5): two drag gestures. Gesture 1 draws a
+    // selection line — the kernel extends every crease it crosses (a click is the
+    // degenerate nearest-crease fallback); gesture 2 clicks the target line to extend
+    // to. Commits 3 raw points [selectionA, selectionB, extensionPoint] — no snapping,
+    // matching Oriedita's object-space handler. The kernel resolves creases + target.
+    const feedLengthen = (
+      kind: 'down' | 'move' | 'up' | 'cancel',
+      clientX: number,
+      clientY: number
+    ) => {
+      if (liveRef.current.activeToolInputMode !== 'lengthen') return;
+      const state = lengthenRef.current;
+      const accent = readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK);
+      // The crease ids the selection line picks, mirroring the kernel: every crease it
+      // strictly crosses, or — when degenerate (a click) — the nearest crease. Rendered
+      // in the selection style so they read as selected as the line is drawn through them.
+      const pickedCreaseIds = (a: ModelPoint, b: ModelPoint): number[] => {
+        if (Math.hypot(b.x - a.x, b.y - a.y) <= modelToleranceOf(CLICK_MOVE_THRESHOLD)) {
+          const hit = liveRef.current.hitIndex.query(b.x, b.y, modelToleranceOf(HIT_TOLERANCE_CSS));
+          return hit > 0 ? [hit] : [];
+        }
+        const ids: number[] = [];
+        liveRef.current.lineSegments.forEach((s, i) => {
+          if (segmentsIntersect(a, b, s.a, s.b)) ids.push(i + 1);
+        });
+        return ids;
+      };
+      const reset = () => {
+        lengthenRef.current = { phase: 'select', a: null, b: null };
+        setLinePickHighlight([]);
+        renderer.setPreview(null);
+        renderer.setOverlayPoints(null);
+        liveRef.current.onToolPickProgress(0);
+      };
+      if (kind === 'cancel') {
+        reset();
+        renderNow();
+        return;
+      }
+      const raw = clientToModel(clientX, clientY);
+      if (!raw) return;
+      if (state.phase === 'select') {
+        if (kind === 'down') {
+          state.a = raw;
+          state.b = raw;
+          setLinePickHighlight([]);
+          renderer.setPreview(null);
+        } else if (kind === 'move') {
+          if (!state.a) return; // hover before pressing: nothing to draw yet
+          state.b = raw;
+          // Draw only the selection line while dragging; the creases it picks light up
+          // on release (like a box select), not live under the cursor.
+          renderer.setPreview(
+            previewSegmentsToStrokes([{ a: state.a, b: state.b }], liveRef.current.toolPreviewColor)
+          );
+        } else if (kind === 'up') {
+          if (!state.a) return;
+          state.b = raw;
+          const picked = pickedCreaseIds(state.a, state.b);
+          // Nothing crossed — reset, as Oriedita does when the sorting box is empty.
+          if (picked.length === 0) {
+            reset();
+            renderNow();
+            return;
+          }
+          // Advance: keep the picked creases highlighted through the target step, and
+          // move the panel prompt to "select target line" (step 2).
+          state.phase = 'extend';
+          setLinePickHighlight(picked);
+          liveRef.current.onToolPickProgress(1);
+        }
+        renderNow();
+        return;
+      }
+      // phase === 'extend': the next click's raw point is the extension target.
+      if (kind === 'move' || kind === 'down') {
+        renderer.setOverlayPoints(sequenceOverlayPoints([], raw, accent));
+      } else if (kind === 'up') {
+        if (state.a && state.b) {
+          liveRef.current.onToolCommit({ points: [state.a, state.b, raw] });
+        }
+        reset();
+      }
+      renderNow();
+    };
     // Right-button erase gesture: reuses the drag-box engine for its rubber-band
     // box, but bound to the erase operation and never snapped (matches Oriedita).
     let erasing = false;
@@ -1494,9 +1608,13 @@ export function CreasePatternWebglCanvas({
         e.preventDefault();
         feedSequenceTool('down', e.clientX, e.clientY);
       } else if (toolMode === 'line-entity') {
-        // Click-based entity pick (Lengthen): each click grabs a crease by id.
+        // Click-based entity pick: each click grabs a crease by id.
         e.preventDefault();
         feedLinePick('down', e.clientX, e.clientY);
+      } else if (toolMode === 'lengthen') {
+        // Two-gesture drag tool: draw the selection line, then click the target.
+        e.preventDefault();
+        feedLengthen('down', e.clientX, e.clientY);
       } else if (toolMode) {
         // A drag draw tool is active: plain drag draws instead of selecting.
         e.preventDefault();
@@ -1542,6 +1660,14 @@ export function CreasePatternWebglCanvas({
         feedErase('move', e.clientX, e.clientY);
       } else if (drawing) {
         feedTool('move', e.clientX, e.clientY);
+      } else if (
+        liveRef.current.activeToolInputMode === 'lengthen' &&
+        !panning &&
+        !movingFigure
+      ) {
+        // Lengthen: draw the selection line while dragging, or (in the extension
+        // phase) track the target-point cursor. Fires on hover too.
+        feedLengthen('move', e.clientX, e.clientY);
       } else if (
         liveRef.current.activeToolInputMode === 'sequence' &&
         !panning &&
@@ -1621,7 +1747,14 @@ export function CreasePatternWebglCanvas({
       }
     };
     const onPointerUp = (e: PointerEvent) => {
-      if (erasing) {
+      if (
+        liveRef.current.activeToolInputMode === 'lengthen' &&
+        !erasing &&
+        !panning &&
+        !movingFigure
+      ) {
+        feedLengthen(e.type === 'pointercancel' ? 'cancel' : 'up', e.clientX, e.clientY);
+      } else if (erasing) {
         renderer.setPreview(null);
         const raw = clientToModel(e.clientX, e.clientY);
         if (eraseRuntime && raw) {
@@ -1705,6 +1838,8 @@ export function CreasePatternWebglCanvas({
         feedSequenceTool('cancel', 0, 0);
       } else if (liveRef.current.activeToolInputMode === 'line-entity') {
         feedLinePick('cancel', 0, 0);
+      } else if (liveRef.current.activeToolInputMode === 'lengthen') {
+        feedLengthen('cancel', 0, 0);
       }
     };
     canvas.addEventListener('pointerdown', onPointerDown);
