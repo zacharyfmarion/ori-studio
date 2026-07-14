@@ -20,6 +20,7 @@ import {
   segmentIntersectsAabb,
 } from './picking/lineHitIndex';
 import type {
+  FoldedGeometry,
   MarkerGeometry,
   ModelPoint,
   PointGeometry,
@@ -498,6 +499,8 @@ export interface CreasePatternWebglCanvasProps {
   circleRadiusToSvg: (radius: number) => number;
   /** Generated folded figures (render-snapshot primitives). */
   foldedFigures: readonly OristudioCpFoldedFigureEntry[];
+  /** Imported `.fold` folded-form frames as fills + strokes (user coords), or null. */
+  importedForms: FoldedGeometry | null;
   /** Grid parameters, or null when there is no grid. */
   grid: OristudioCpGridMetadata | null;
   /** Whether the grid is shown. */
@@ -572,6 +575,7 @@ export function CreasePatternWebglCanvas({
   circles,
   circleRadiusToSvg,
   foldedFigures,
+  importedForms,
   grid,
   gridVisible,
 }: CreasePatternWebglCanvasProps) {
@@ -1962,6 +1966,10 @@ export function CreasePatternWebglCanvas({
     rendererRef.current?.setOverlayFrame(operationFrame);
     renderNowRef.current();
   }, [operationFrame]);
+  useEffect(() => {
+    rendererRef.current?.setImportedForms(importedForms);
+    renderNowRef.current();
+  }, [importedForms]);
 
   // Frame the selected diagnostic: pan the owned camera to its centre and zoom in to
   // show the vertex + its creases (capped so it never over-zooms), matching the SVG's

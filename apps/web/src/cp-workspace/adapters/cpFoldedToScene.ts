@@ -226,6 +226,22 @@ export function cpFoldedToScene(figures: readonly OristudioCpFoldedFigureEntry[]
   return builder.build();
 }
 
+/**
+ * Build folded geometry from explicit face rings + edge segments already in SVG user
+ * coordinates. Used for imported `.fold` folded-form frames (faces → triangulated
+ * fills, edges → strokes), which the surface draws through the same `userView` as the
+ * generated folded figures.
+ */
+export function foldedGeometryFromShapes(
+  faces: readonly { ring: readonly Point[]; color: Rgba }[],
+  edges: readonly { a: Point; b: Point; color: Rgba; width: number }[]
+): FoldedGeometry {
+  const builder = new FoldedBuilder();
+  for (const face of faces) builder.addFillRing([...face.ring], face.color);
+  for (const edge of edges) builder.addStrokePolyline([edge.a, edge.b], edge.color, edge.width);
+  return builder.build();
+}
+
 /** A folded figure's id paired with its bounding box in SVG user coordinates. */
 export interface FoldedFigureBounds {
   id: string;

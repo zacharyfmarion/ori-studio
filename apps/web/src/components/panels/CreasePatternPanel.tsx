@@ -184,11 +184,13 @@ import { readCssVarColor } from '../../cp-workspace/renderer/cssColor';
 import { useThemeStore } from '../../store/themeStore';
 import { MARKER_SHAPE } from '../../cp-workspace/renderer/types';
 import type {
+  FoldedGeometry,
   MarkerGeometry,
   Rgba,
   StrokeGeometry,
   WedgeGeometry,
 } from '../../cp-workspace/renderer/types';
+import { foldedGeometryFromShapes } from '../../cp-workspace/adapters/cpFoldedToScene';
 import { IconButton } from '../ui/IconButton';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { Toggle } from '../ui/Toggle';
@@ -2043,6 +2045,33 @@ export function CreasePatternPanel() {
         .filter(isRenderableFoldedFormFrame),
     [importedCreasePattern?.sourceFold]
   );
+  // WebGL geometry for the imported .fold folded-form frames: faces → fills, edges →
+  // strokes in SVG user coords (via the same row layout as the SVG layer), so the
+  // surface can draw them through its `userView` like the generated folded figures.
+  const cpImportedFoldedFormsGeometry = useMemo<FoldedGeometry | null>(() => {
+    void currentTheme;
+    if (importedFoldedForms.length === 0) return null;
+    const startIndex = generatedFoldedFigures.filter(isRenderableGeneratedFoldedFigure).length;
+    const faceColor: Rgba = [1, 1, 50 / 255, 0.58]; // matches .cp-folded-form-face (#ffff32 @ .58)
+    const tp = readCssVarColor(document.documentElement, '--text-primary', [0.9, 0.9, 0.9, 1]);
+    const mix = (c: number) => c * 0.84 + 0.067 * 0.16; // color-mix(text-primary 84%, #111)
+    const edgeColor: Rgba = [mix(tp[0]), mix(tp[1]), mix(tp[2]), 0.86];
+    const faces: { ring: Point[]; color: Rgba }[] = [];
+    const edges: { a: Point; b: Point; color: Rgba; width: number }[] = [];
+    importedFoldedForms.forEach((frame, index) => {
+      const vertices = foldFrameVertices(frame);
+      const bounds = foldFrameBounds(vertices);
+      if (!bounds) return;
+      const toUser = (point: Point) => foldedFormPointToSvg(point, bounds, startIndex + index);
+      for (const face of foldFrameFaces(frame, vertices)) {
+        faces.push({ ring: face.map(toUser), color: faceColor });
+      }
+      for (const [a, b] of foldFrameEdges(frame, vertices)) {
+        edges.push({ a: toUser(a), b: toUser(b), color: edgeColor, width: 1.15 });
+      }
+    });
+    return foldedGeometryFromShapes(faces, edges);
+  }, [importedFoldedForms, generatedFoldedFigures, currentTheme]);
   const camvIssuesVisible = oristudioCpViewport.camvIssuesVisible !== false;
   const hasEditableCreasePattern = !!editableCp;
   const hasCreasePattern =
@@ -5190,6 +5219,7 @@ export function CreasePatternPanel() {
                   circles={editableCp.crease_pattern.circles}
                   circleRadiusToSvg={editableCircleRadiusToSvg}
                   foldedFigures={generatedFoldedFigures}
+                  importedForms={cpImportedFoldedFormsGeometry}
                   grid={editableCpVisibleGrid}
                   gridVisible={oristudioCpViewport.gridVisible}
                 />

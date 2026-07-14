@@ -38,6 +38,9 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
   const gridStrokes = createStrokeProgram(regl);
   const foldedFills = createFillProgram(regl);
   const foldedStrokes = createStrokeProgram(regl);
+  // Imported .fold folded-form frames: reference figures in user space, like folded.
+  const importedFills = createFillProgram(regl);
+  const importedStrokes = createStrokeProgram(regl);
   const previewStrokes = createStrokeProgram(regl);
   const points = createPointProgram(regl);
   const overlayPoints = createPointProgram(regl);
@@ -52,6 +55,7 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
   const overlayFrame = createStrokeProgram(regl);
   let viewport: Viewport = { width: 0, height: 0, dpr: 1 };
   let hasGrid = false;
+  let hasImportedForms = false;
   let hasPreview = false;
   let hasOverlayPoints = false;
   let hasDiagnosticStrokes = false;
@@ -94,6 +98,15 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
       if (disposed) return;
       hasGrid = grid !== null && grid.count > 0;
       if (grid) gridStrokes.setData(grid);
+    },
+
+    setImportedForms(folded) {
+      if (disposed) return;
+      hasImportedForms = folded !== null && (folded.fills.count > 0 || folded.strokes.count > 0);
+      if (folded) {
+        importedFills.setData(folded.fills);
+        importedStrokes.setData(folded.strokes);
+      }
     },
 
     setPreview(preview) {
@@ -157,6 +170,11 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
       // (dpr device px) scaled per-segment by the width multiplier.
       foldedFills.draw({ view: frame.userView, viewport });
       foldedStrokes.draw({ view: frame.userView, viewport, widthPx: viewport.dpr });
+      // Imported .fold folded-form frames are placed the same way, in user space.
+      if (hasImportedForms) {
+        importedFills.draw({ view: frame.userView, viewport });
+        importedStrokes.draw({ view: frame.userView, viewport, widthPx: viewport.dpr });
+      }
       // Points and vertices sit on top of the crease lines.
       points.draw({
         view: frame.view,
@@ -212,6 +230,8 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
       gridStrokes.dispose();
       foldedFills.dispose();
       foldedStrokes.dispose();
+      importedFills.dispose();
+      importedStrokes.dispose();
       previewStrokes.dispose();
       points.dispose();
       overlayPoints.dispose();

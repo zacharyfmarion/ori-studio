@@ -1,6 +1,7 @@
 import type {
   CpSceneData,
   FillGeometry,
+  FoldedGeometry,
   MarkerGeometry,
   PointGeometry,
   Rgba,
@@ -37,6 +38,11 @@ export interface CpRenderer {
   setPoints(points: PointGeometry): void;
   /** Upload (or clear) the view-dependent grid geometry, drawn behind the scene. */
   setGrid(strokes: StrokeGeometry | null): void;
+  /**
+   * Imported `.fold` folded-form frames (fills + strokes in SVG user coordinates),
+   * placed reference figures drawn with the folded figures. `null` clears them.
+   */
+  setImportedForms(folded: FoldedGeometry | null): void;
   /**
    * Upload (or clear, with `null`) additive preview strokes drawn on top of the
    * scene — a tool's in-progress candidate crease. Model coords + the frame's
