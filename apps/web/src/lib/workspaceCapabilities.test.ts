@@ -7,7 +7,6 @@ const treeSelection: Selection = { kind: 'tree' };
 
 function capabilities({
   documentMode = 'tree',
-  activeEditingSurface = documentMode,
   activeEditingContext = documentMode === 'crease-pattern' ? 'crease-pattern' : 'treemaker-tree',
   status = 'ready',
   edgeCount = 0,
@@ -27,7 +26,6 @@ function capabilities({
   selection = treeSelection,
 }: {
   documentMode?: DocumentMode;
-  activeEditingSurface?: DocumentMode;
   activeEditingContext?: EditingContext;
   status?: AppStatus;
   edgeCount?: number;
@@ -48,8 +46,6 @@ function capabilities({
 } = {}) {
   return getWorkspaceCapabilities({
     activeEditingContext,
-    documentMode,
-    activeEditingSurface,
     engineReady,
     status,
     edgeCount,

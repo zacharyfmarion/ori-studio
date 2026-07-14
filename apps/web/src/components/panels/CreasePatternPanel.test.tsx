@@ -894,6 +894,7 @@ describe('CreasePatternPanel', () => {
     };
     const { container } = renderPanel(project, 'crease_pattern_ready', {
       documentMode: 'crease-pattern',
+      activePanelId: 'crease-pattern',
       importedCreasePattern: null,
     });
 

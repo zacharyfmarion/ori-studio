@@ -51,8 +51,6 @@ export function workspaceCapabilityInput(state: WorkspaceState): WorkspaceCapabi
 
   return {
     activeEditingContext: context,
-    documentMode: state.documentMode,
-    activeEditingSurface: state.activeEditingSurface,
     engineReady: state.engineReady,
     status: state.status,
     edgeCount: state.project.edges.length,

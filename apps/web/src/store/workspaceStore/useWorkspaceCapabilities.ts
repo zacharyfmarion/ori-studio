@@ -68,8 +68,6 @@ export function useWorkspaceCapabilities() {
     () =>
       getWorkspaceCapabilities({
         activeEditingContext,
-        documentMode,
-        activeEditingSurface,
         engineReady,
         status,
         edgeCount,
@@ -92,8 +90,6 @@ export function useWorkspaceCapabilities() {
       clipboard,
       creaseCount,
       activeEditingContext,
-      activeEditingSurface,
-      documentMode,
       edgeCount,
       engineReady,
       facetCount,

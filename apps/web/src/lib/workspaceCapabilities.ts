@@ -1,4 +1,4 @@
-import type { AppStatus, DocumentMode, Selection } from './sampleProject';
+import type { AppStatus, Selection } from './sampleProject';
 import type { EditingContext } from '../workspaces/editingContext';
 
 export type WorkspaceCapabilityId =
@@ -93,8 +93,6 @@ export type WorkspaceCapabilities = Record<WorkspaceCapabilityId, WorkspaceCapab
 
 export interface WorkspaceCapabilityInput {
   activeEditingContext: EditingContext;
-  documentMode: DocumentMode;
-  activeEditingSurface: DocumentMode;
   engineReady: boolean;
   status: AppStatus;
   edgeCount: number;
@@ -117,9 +115,14 @@ export interface WorkspaceCapabilityInput {
 export function getWorkspaceCapabilities(input: WorkspaceCapabilityInput): WorkspaceCapabilities {
   const isBpContext =
     input.activeEditingContext === 'bp-tree' || input.activeEditingContext === 'bp-packing';
-  const treeMode = input.documentMode === 'tree';
-  const creasePatternMode = input.documentMode === 'crease-pattern';
-  const activeCpSurface = input.activeEditingSurface === 'crease-pattern' && input.hasEditableCreasePattern;
+  // The shell keys off the active editing context. `treeMode` is TreeMaker-tree
+  // authoring specifically (optimize / build / tree edits / TreeMaker export);
+  // BP authoring is `isBpContext`, and the crease-pattern editor is its own
+  // context.
+  const treeMode = input.activeEditingContext === 'treemaker-tree';
+  const creasePatternMode = input.activeEditingContext === 'crease-pattern';
+  const activeCpSurface =
+    input.activeEditingContext === 'crease-pattern' && input.hasEditableCreasePattern;
   const isBusy = isWorkspaceBusy(input.status);
   const hasTreeEdges = input.edgeCount > 0;
   const hasCreasePattern =
@@ -716,7 +719,8 @@ function disabledOptimizeReason(
   isBusy: boolean,
   hasTreeEdges: boolean
 ): string {
-  if (input.documentMode !== 'tree') return 'Optimization requires an editable tree document';
+  if (input.activeEditingContext !== 'treemaker-tree')
+    return 'Optimization requires an editable tree document';
   if (!input.engineReady || input.status === 'loading_engine') return 'Engine is still loading';
   if (isBusy) return busyReason(input.status);
   if (!hasTreeEdges) return 'Add at least one tree edge before optimizing';
@@ -729,7 +733,8 @@ function disabledBuildReason(
   isBusy: boolean,
   hasTreeEdges: boolean
 ): string {
-  if (input.documentMode !== 'tree') return 'Build CP requires an editable tree document';
+  if (input.activeEditingContext !== 'treemaker-tree')
+    return 'Build CP requires an editable tree document';
   if (!input.engineReady || input.status === 'loading_engine') return 'Engine is still loading';
   if (isBusy) return busyReason(input.status);
   if (input.status === 'error') return 'Resolve the current engine error before building the crease pattern';
