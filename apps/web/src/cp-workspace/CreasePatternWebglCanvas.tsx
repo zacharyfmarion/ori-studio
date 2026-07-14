@@ -80,6 +80,18 @@ export interface CameraCommand {
   percent?: number;
   nonce: number;
 }
+
+/**
+ * The owned camera's model → CSS-pixel affine (relative to the canvas top-left),
+ * reported to the panel so DOM overlays (text annotations) can position themselves
+ * against the same camera the GL surface draws with:
+ *   cssPoint = origin + model.x * ex + model.y * ey
+ */
+export interface CpOverlayView {
+  origin: readonly [number, number];
+  ex: readonly [number, number];
+  ey: readonly [number, number];
+}
 import type { OristudioCpGridMetadata } from '../engine/oristudioCpTypes';
 import { useThemeStore } from '../store/themeStore';
 
@@ -476,6 +488,8 @@ export interface CreasePatternWebglCanvasProps {
   cameraCommand: CameraCommand | null;
   /** Report the camera's current zoom percent (100% = fit) so the toolbar reflects it. */
   onZoomPercentChange: (percent: number) => void;
+  /** Report the camera's model→CSS affine so DOM overlays (text) can position to it. */
+  onViewChange: (view: CpOverlayView) => void;
   /**
    * Right-drag box erase (universal, overrides the active tool): delete every
    * crease inside the box given by its two opposite corners (model coords).
@@ -565,6 +579,7 @@ export function CreasePatternWebglCanvas({
   focusModelBounds,
   cameraCommand,
   onZoomPercentChange,
+  onViewChange,
   onEraseBox,
   onEraseLine,
   mode,
@@ -605,6 +620,8 @@ export function CreasePatternWebglCanvas({
   const convergingBaseRef = useRef<ModelPoint[]>([]);
   // Last zoom percent reported to the panel (dedupes the per-frame report).
   const lastReportedZoomRef = useRef<number | null>(null);
+  // Last model→CSS affine reported to the panel (for the text overlay), to dedupe.
+  const lastReportedViewRef = useRef<CpOverlayView | null>(null);
   // Square Bisector's dual-mode accumulator: `mode` is chosen on the first pick
   // ('point' → collect 3 points then a destination; 'line' → collect 2 source crease
   // ids then a destination id). Null mode means the gesture hasn't started.
@@ -816,6 +833,7 @@ export function CreasePatternWebglCanvas({
     toolCommandPreviewSegments,
     toolCommandPreviewPoints,
     onZoomPercentChange,
+    onViewChange,
     onEraseBox,
     onEraseLine,
     diagnosticHits,
@@ -935,6 +953,27 @@ export function CreasePatternWebglCanvas({
       if (zoomPercent !== lastReportedZoomRef.current) {
         lastReportedZoomRef.current = zoomPercent;
         liveRef.current.onZoomPercentChange(zoomPercent);
+      }
+
+      // Report the model→CSS affine (device view / dpr) for DOM overlays to project
+      // against; deduped so it only fires when the camera actually moved.
+      const cssView: CpOverlayView = {
+        origin: [view.origin[0] / ratio, view.origin[1] / ratio],
+        ex: [view.ex[0] / ratio, view.ex[1] / ratio],
+        ey: [view.ey[0] / ratio, view.ey[1] / ratio],
+      };
+      const prevView = lastReportedViewRef.current;
+      if (
+        !prevView ||
+        prevView.origin[0] !== cssView.origin[0] ||
+        prevView.origin[1] !== cssView.origin[1] ||
+        prevView.ex[0] !== cssView.ex[0] ||
+        prevView.ex[1] !== cssView.ex[1] ||
+        prevView.ey[0] !== cssView.ey[0] ||
+        prevView.ey[1] !== cssView.ey[1]
+      ) {
+        lastReportedViewRef.current = cssView;
+        liveRef.current.onViewChange(cssView);
       }
 
       renderer.render({

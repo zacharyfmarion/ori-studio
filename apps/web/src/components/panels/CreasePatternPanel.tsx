@@ -176,7 +176,8 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import { useShortcutStore } from '../../store/shortcutStore';
 import { useCpRendererStore } from '../../store/cpRendererStore';
 import { CreasePatternWebglCanvas } from '../../cp-workspace/CreasePatternWebglCanvas';
-import type { CameraCommand } from '../../cp-workspace/CreasePatternWebglCanvas';
+import type { CameraCommand, CpOverlayView } from '../../cp-workspace/CreasePatternWebglCanvas';
+import { CpTextOverlay } from '../../cp-workspace/CpTextOverlay';
 import { cpInputModel } from '../../cp-workspace/tools/inputModelRegistry';
 import { distanceToSegment } from '../../cp-workspace/picking/lineHitIndex';
 import { resolveCpLineColor } from '../../cp-workspace/adapters/cpLineColor';
@@ -1694,6 +1695,11 @@ export function CreasePatternPanel() {
   const handleWebglZoomPercent = useCallback((percent: number) => {
     zoomPercentRef.current = percent;
     setZoomPercent(percent);
+  }, []);
+  // The WebGL camera's model→CSS affine, for positioning the text-annotation overlay.
+  const [webglOverlayView, setWebglOverlayView] = useState<CpOverlayView | null>(null);
+  const handleWebglViewChange = useCallback((view: CpOverlayView) => {
+    setWebglOverlayView(view);
   }, []);
   const [spacePressed, setSpacePressed] = useState(false);
   const [cursorModelPoint, setCursorModelPoint] = useState<Point | null>(null);
@@ -5202,6 +5208,7 @@ export function CreasePatternPanel() {
                   focusModelBounds={cpDiagnosticFocusBounds}
                   cameraCommand={webglCameraCommand}
                   onZoomPercentChange={handleWebglZoomPercent}
+                  onViewChange={handleWebglViewChange}
                   onEraseBox={(points) => {
                     void executeOristudioCpCommand('LineSegmentDelete', {
                       line_ids: [],
@@ -5224,6 +5231,22 @@ export function CreasePatternPanel() {
                   gridVisible={oristudioCpViewport.gridVisible}
                 />
               )}
+              {cpRendererMode === 'webgl' &&
+                editableCp &&
+                webglOverlayView &&
+                editableCp.crease_pattern.texts.length > 0 && (
+                  <CpTextOverlay
+                    texts={editableCp.crease_pattern.texts}
+                    selectedTextIds={oristudioCpSelection.texts}
+                    view={webglOverlayView}
+                    zoomPercent={zoomPercent}
+                    selectable={
+                      cpToolState.phase !== 'active' ||
+                      allowsDirectEntitySelection(activeCpCommand?.operationId)
+                    }
+                    onToggleText={handleEditableTextClick}
+                  />
+                )}
               <ViewportToolbar
                 ariaLabel="Crease pattern viewport controls"
                 zoomPercent={zoomPercent}
