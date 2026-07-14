@@ -587,6 +587,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // editing context matches the document without waiting for Dockview to
       // report the activated panel (which never fires in headless tests).
       activePanelId: oristudioCpDocument ? 'crease-pattern' : 'design',
+      // A bare crease pattern establishes no design, so the Design workspace
+      // should still offer the method chooser rather than an empty tree.
+      pendingDesignChoice: true,
       project: result.project,
       importedCreasePattern: result.document,
       oristudioCpDocument,
@@ -702,6 +705,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     set({
       // Opening a crease pattern makes the CP editor the active view.
       activePanelId: 'crease-pattern',
+      // A CP-only project establishes no design; keep the Design chooser.
+      pendingDesignChoice: true,
       project: { ...result.project, title: nativeDocument.title || result.project.title },
       importedCreasePattern: importedDocument,
       oristudioCpDocument: documentState,
@@ -1081,18 +1086,20 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     return true;
   };
 
-  // Route a native save/save-as to the format that matches the active editing
-  // context. The native `.osf` bundles a design plus its companion crease
-  // pattern, so a box-pleat design and a TreeMaker tree each carry their Edit CP.
+  // Route a native save/save-as by the documents that exist, NOT by the pane in
+  // focus. The Edit crease-pattern canvas is always focusable, so keying off the
+  // active view would drop the design whenever the user saved from Edit. A design
+  // (box-pleat or TreeMaker tree) is always saved as a native `.osf` bundling its
+  // Edit crease pattern as a companion; a bare crease pattern (no design) saves
+  // as a CP project.
   const saveActiveProject = async (fileService: FileService, forceSaveAs: boolean) => {
-    const context = get().activeEditingContext;
-    if (context === 'crease-pattern') {
-      return saveEditableCreasePattern(fileService, forceSaveAs);
-    }
-    if (context === 'bp-tree' || context === 'bp-packing') {
+    if (get().oristudioBpDocument) {
       return saveNativeBoxPleatProject(fileService, forceSaveAs);
     }
-    return saveNativeTreeProject(fileService, forceSaveAs);
+    if (get().project.nodes.length > 0) {
+      return saveNativeTreeProject(fileService, forceSaveAs);
+    }
+    return saveEditableCreasePattern(fileService, forceSaveAs);
   };
 
   return {
@@ -1268,7 +1275,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           activePanelId: 'crease-pattern',
           project: { ...createEmptyProject(), title: documentState.summary.title ?? 'Untitled CP' },
           workflowTarget: 'treemaker',
-          pendingDesignChoice: false,
+          // Creating a bare CP establishes no design, so the Design workspace
+          // keeps offering the method chooser (Circle-packed vs Box-pleated).
+          pendingDesignChoice: true,
           importedCreasePattern: null,
           oristudioCpDocument: documentState,
           oristudioCpLineage: blankCpLineage(),

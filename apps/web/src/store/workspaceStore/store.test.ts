@@ -1524,6 +1524,8 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().importedCreasePattern).toBeNull();
     expect(useWorkspaceStore.getState().oristudioCpSelection).toEqual(emptyOristudioCpSelection());
     expect(activateWorkspace).toHaveBeenCalledWith('edit');
+    // A bare CP establishes no design, so the Design workspace keeps the chooser.
+    expect(useWorkspaceStore.getState().pendingDesignChoice).toBe(true);
   });
 
   it('opens native tree projects and keeps Save on the native file path', async () => {
@@ -3777,6 +3779,40 @@ describe('workspace store slices', () => {
       if (active.kind !== 'box-pleat') throw new Error('expected box-pleat document');
       expect(active.project.text).toBe('{"title":"Crane","saved":true}');
       expect(useWorkspaceStore.getState().dirty).toBe(false);
+    });
+
+    it('saves the box-pleat design even when the Edit crease pattern is the focused view', async () => {
+      // Regression: save routed by the active view dropped the design whenever
+      // the user saved from the always-live Edit canvas. Save must follow the
+      // documents that exist, not the focused pane.
+      useWorkspaceStore.setState({ engineReady: true, status: 'ready', dirty: false });
+      await useWorkspaceStore.getState().loadOristudioBpProjectFromFile('{"tree":{}}', {
+        filename: 'crane.bps',
+        path: null,
+      });
+      // The user sends to Edit and focuses the crease-pattern pane.
+      useWorkspaceStore.setState({
+        activePanelId: 'crease-pattern',
+        oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+      });
+      expect(useWorkspaceStore.getState().activeEditingContext).toBe('crease-pattern');
+      bpMocks.exportOristudioBpProjectAsBps.mockResolvedValueOnce('{"design":"kept"}');
+
+      const fileService = createFileService();
+      await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
+
+      const options = fileService.saveTextFile.mock.calls.at(-1)?.[0] as
+        | SaveTextFileOptions
+        | undefined;
+      const saved = parseNativeProjectFile(options?.contents ?? '');
+      expect(saved.workspace.activeMode).toBe('box-pleat');
+      expect(saved.workspace.documents.map((document) => document.kind)).toEqual([
+        'box-pleat',
+        'crease-pattern',
+      ]);
+      const active = activeNativeDocument(saved);
+      if (active.kind !== 'box-pleat') throw new Error('expected box-pleat document');
+      expect(active.project.text).toBe('{"design":"kept"}');
     });
 
     it('bundles the Edit crease pattern as a companion when saving a box-pleat design', async () => {

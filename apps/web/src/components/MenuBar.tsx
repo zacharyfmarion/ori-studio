@@ -29,6 +29,34 @@ function menuHasVisibleItems(menu: MenuDef, capabilities: WorkspaceCapabilities)
   );
 }
 
+/**
+ * Drop the items hidden in the current context, then collapse separators so no
+ * leading, trailing, or doubled dividers survive. Without this a menu (or
+ * submenu) whose visible items straddle a divider — e.g. an Export submenu that
+ * only exposes "Export .bps..." — renders orphaned separator lines around a lone
+ * entry.
+ */
+export function pruneMenuItems(
+  items: MenuItemDef[],
+  capabilities: WorkspaceCapabilities
+): MenuItemDef[] {
+  const pruned: MenuItemDef[] = [];
+  for (const item of items) {
+    if (item.type === 'separator') {
+      if (pruned.length > 0 && pruned[pruned.length - 1].type !== 'separator') {
+        pruned.push(item);
+      }
+      continue;
+    }
+    if (!isMenuItemVisible(item, capabilities)) continue;
+    pruned.push(item);
+  }
+  while (pruned.length > 0 && pruned[pruned.length - 1].type === 'separator') {
+    pruned.pop();
+  }
+  return pruned;
+}
+
 function MenuDropdown({
   items,
   onAction,
@@ -42,9 +70,10 @@ function MenuDropdown({
   capabilities: WorkspaceCapabilities;
   nested?: boolean;
 }) {
+  const visibleItems = pruneMenuItems(items, capabilities);
   return (
     <div className={`menu-dropdown ${nested ? 'menu-dropdown--submenu' : ''}`.trim()} role="menu">
-      {items.map((item, index) => {
+      {visibleItems.map((item, index) => {
         if (item.type === 'separator') {
           return <div key={`separator-${index}`} className="menu-dropdown__separator" />;
         }
