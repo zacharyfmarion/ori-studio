@@ -26,6 +26,7 @@ import type {
   Rgba,
   StrokeGeometry,
   Viewport,
+  WedgeGeometry,
 } from './renderer/types';
 import {
   cpSnapshotToScene,
@@ -450,6 +451,8 @@ export interface CreasePatternWebglCanvasProps {
   /** Diagnostic overlay geometry (CAMV / check-fix): shape markers + segment highlights. */
   diagnosticMarkers: MarkerGeometry;
   diagnosticStrokes: StrokeGeometry;
+  /** Little-big-little sector wedges (screen-scaled fills), or empty when none. */
+  diagnosticWedges: WedgeGeometry;
   /** The Oriedita operation-frame outline (dashed closed loop), or null when inactive. */
   operationFrame: StrokeGeometry | null;
   /**
@@ -552,6 +555,7 @@ export function CreasePatternWebglCanvas({
   toolPreviewColor,
   diagnosticMarkers,
   diagnosticStrokes,
+  diagnosticWedges,
   operationFrame,
   diagnosticHits,
   onSelectDiagnostic,
@@ -1948,6 +1952,12 @@ export function CreasePatternWebglCanvas({
     );
     renderNowRef.current();
   }, [diagnosticStrokes]);
+  useEffect(() => {
+    rendererRef.current?.setDiagnosticWedges(
+      diagnosticWedges.count > 0 ? diagnosticWedges : null
+    );
+    renderNowRef.current();
+  }, [diagnosticWedges]);
   useEffect(() => {
     rendererRef.current?.setOverlayFrame(operationFrame);
     renderNowRef.current();

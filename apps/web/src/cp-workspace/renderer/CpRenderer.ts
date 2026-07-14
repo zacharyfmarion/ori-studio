@@ -7,6 +7,7 @@ import type {
   StrokeGeometry,
   ViewTransform,
   Viewport,
+  WedgeGeometry,
 } from './types';
 
 /**
@@ -55,6 +56,11 @@ export interface CpRenderer {
   setDiagnosticStrokes(strokes: StrokeGeometry | null): void;
   setDiagnosticFills(fills: FillGeometry | null): void;
   setDiagnosticMarkers(markers: MarkerGeometry | null): void;
+  /**
+   * Little-big-little sector wedges (screen-scaled fills at a vertex), drawn under
+   * the shape markers. `null` clears them.
+   */
+  setDiagnosticWedges(wedges: WedgeGeometry | null): void;
   /**
    * The Oriedita operation-frame outline (a dashed, screen-constant-width closed
    * loop in model coordinates), drawn above the crease pattern. `null` clears it.

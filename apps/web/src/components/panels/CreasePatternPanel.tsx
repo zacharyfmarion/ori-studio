@@ -183,7 +183,12 @@ import { resolveCpLineColor } from '../../cp-workspace/adapters/cpLineColor';
 import { readCssVarColor } from '../../cp-workspace/renderer/cssColor';
 import { useThemeStore } from '../../store/themeStore';
 import { MARKER_SHAPE } from '../../cp-workspace/renderer/types';
-import type { MarkerGeometry, Rgba, StrokeGeometry } from '../../cp-workspace/renderer/types';
+import type {
+  MarkerGeometry,
+  Rgba,
+  StrokeGeometry,
+  WedgeGeometry,
+} from '../../cp-workspace/renderer/types';
 import { IconButton } from '../ui/IconButton';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { Toggle } from '../ui/Toggle';
@@ -386,6 +391,22 @@ function withAlpha(color: Rgba, alpha: number): Rgba {
   return [color[0], color[1], color[2], color[3] * alpha];
 }
 
+/** The angular sectors around a little-big-little vertex (or a segment fallback). */
+function cpLblSectors(
+  entry: OristudioCpDiagnosticEntry
+): { segment: OristudioCpLineSegment; violating: boolean }[] {
+  return entry.little_big_little && entry.little_big_little.length > 0
+    ? entry.little_big_little
+    : (entry.segments ?? []).map((segment) => ({ segment, violating: false }));
+}
+
+/** True when an LBL entry has enough sectors to draw wedges (else it falls back to a marker). */
+function cpHasLblWedges(entry: OristudioCpDiagnosticEntry): boolean {
+  return (
+    cpDiagnosticMarkerStyle(entry).shape === 'little-big-little' && cpLblSectors(entry).length >= 2
+  );
+}
+
 /** Build screen-space marker geometry for the diagnostic entries. */
 function buildCpDiagnosticMarkers(
   entries: readonly OristudioCpDiagnosticEntry[],
@@ -394,6 +415,8 @@ function buildCpDiagnosticMarkers(
   const markers: { center: Point; shape: number; fill: Rgba; stroke: Rgba }[] = [];
   for (const entry of entries) {
     if (!entry.point) continue;
+    // LBL vertices with real sectors render as wedges, not the pentagon fallback.
+    if (cpHasLblWedges(entry)) continue;
     const style = cpDiagnosticMarkerStyle(entry);
     const shape = CP_DIAGNOSTIC_MARKER_SHAPE_ID[style.shape];
     if (shape === null) continue;
@@ -459,6 +482,63 @@ function buildCpDiagnosticStrokes(
     color.set(s.color, i * 4);
   });
   return { a, b, color, widthMul, count };
+}
+
+// Fill opacity for the little-big-little sectors: the violating sectors read strongly,
+// the rest stay faint so the angular breakdown is visible without dominating.
+const CP_DIAGNOSTIC_LBL_VIOLATING_ALPHA = 0.32;
+const CP_DIAGNOSTIC_LBL_QUIET_ALPHA = 0.08;
+
+/**
+ * Build little-big-little sector wedges: for each pair of consecutive crease rays
+ * around the vertex, a filled triangle out to a screen-radius rim (the boundary edge
+ * closing the loop is skipped, matching the SVG). The renderer scales the rim by
+ * markerScalePx so the wedges track the other diagnostic markers as the camera zooms.
+ */
+function buildCpDiagnosticWedges(
+  entries: readonly OristudioCpDiagnosticEntry[],
+  toneColors: Record<CpDiagnosticMarkerTone, Rgba>
+): WedgeGeometry {
+  const wedges: { center: Point; dir0: Point; dir1: Point; color: Rgba }[] = [];
+  for (const entry of entries) {
+    if (!entry.point || !cpHasLblWedges(entry)) continue;
+    const vertex = entry.point;
+    const base = toneColors[cpDiagnosticMarkerTone(entry)];
+    const sectors = cpLblSectors(entry);
+    for (let i = 0; i < sectors.length; i += 1) {
+      const sector = sectors[i];
+      // The wrap-around wedge from the last ray is dropped when it is the boundary.
+      if (i === sectors.length - 1 && sector.segment.color === 'Black0') continue;
+      const next = sectors[(i + 1) % sectors.length];
+      const e0 = diagnosticSegmentEndpoint(vertex, sector.segment);
+      const e1 = diagnosticSegmentEndpoint(vertex, next.segment);
+      wedges.push({
+        center: vertex,
+        dir0: { x: e0.x - vertex.x, y: e0.y - vertex.y },
+        dir1: { x: e1.x - vertex.x, y: e1.y - vertex.y },
+        color: withAlpha(
+          base,
+          sector.violating ? CP_DIAGNOSTIC_LBL_VIOLATING_ALPHA : CP_DIAGNOSTIC_LBL_QUIET_ALPHA
+        ),
+      });
+    }
+  }
+  const count = wedges.length;
+  const center = new Float32Array(count * 2);
+  const dir0 = new Float32Array(count * 2);
+  const dir1 = new Float32Array(count * 2);
+  const radiusPx = new Float32Array(count).fill(CP_DIAGNOSTIC_LBL_RADIUS);
+  const color = new Float32Array(count * 4);
+  wedges.forEach((w, i) => {
+    center[i * 2] = w.center.x;
+    center[i * 2 + 1] = w.center.y;
+    dir0[i * 2] = w.dir0.x;
+    dir0[i * 2 + 1] = w.dir0.y;
+    dir1[i * 2] = w.dir1.x;
+    dir1[i * 2 + 1] = w.dir1.y;
+    color.set(w.color, i * 4);
+  });
+  return { center, dir0, dir1, radiusPx, color, count };
 }
 
 function diagnosticSegmentEndpoint(point: Point, segment: OristudioCpLineSegment): Point {
@@ -2148,6 +2228,7 @@ export function CreasePatternPanel() {
     return {
       markers: buildCpDiagnosticMarkers(latestDiagnosticEntries, toneColors),
       strokes: buildCpDiagnosticStrokes(latestDiagnosticEntries, toneColors),
+      wedges: buildCpDiagnosticWedges(latestDiagnosticEntries, toneColors),
       hits: buildCpDiagnosticMarkerHits(latestDiagnosticEntries),
     };
   }, [latestDiagnosticEntries, currentTheme]);
@@ -5084,6 +5165,7 @@ export function CreasePatternPanel() {
                   toolPreviewColor={toolPreviewColor}
                   diagnosticMarkers={cpDiagnosticGeometry.markers}
                   diagnosticStrokes={cpDiagnosticGeometry.strokes}
+                  diagnosticWedges={cpDiagnosticGeometry.wedges}
                   diagnosticHits={cpDiagnosticGeometry.hits}
                   onSelectDiagnostic={handleSelectCpDiagnostic}
                   operationFrame={cpOperationFrameStrokes}

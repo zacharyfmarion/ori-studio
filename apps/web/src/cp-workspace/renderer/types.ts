@@ -117,6 +117,27 @@ export interface MarkerGeometry {
   count: number;
 }
 
+/**
+ * Instanced little-big-little sector wedges: a filled triangle per instance from a
+ * vertex (model coords) out to two rim points placed a fixed *screen* radius along
+ * two crease directions. Screen-scaled like {@link MarkerGeometry} (via markerScalePx)
+ * so the wedges track the other diagnostic markers as the camera zooms.
+ */
+export interface WedgeGeometry {
+  /** Vertex (fan apex) in model coords: [x, y] * count. */
+  center: Float32Array;
+  /** Model direction to the first rim point: [x, y] * count. */
+  dir0: Float32Array;
+  /** Model direction to the second rim point: [x, y] * count. */
+  dir1: Float32Array;
+  /** Rim radius in CSS px: [px] * count (screen-scaled by markerScalePx). */
+  radiusPx: Float32Array;
+  /** Fill RGBA: [r, g, b, a] * count. */
+  color: Float32Array;
+  /** Number of wedges. */
+  count: number;
+}
+
 /** Triangulated fill geometry (folded-figure facets), in SVG user coordinates. */
 export interface FillGeometry {
   /** Triangle vertex positions in user coords: [x, y] * vertexCount. */

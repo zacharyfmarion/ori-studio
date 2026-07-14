@@ -5,6 +5,7 @@ import { createStrokeProgram } from './programs/strokeProgram';
 import { createPointProgram } from './programs/pointProgram';
 import { createFillProgram } from './programs/fillProgram';
 import { createMarkerProgram } from './programs/markerProgram';
+import { createWedgeProgram } from './programs/wedgeProgram';
 
 // regl ships as a UMD module (`export = REGL`), so its instance type is reached
 // via the factory's return type rather than a named export.
@@ -45,6 +46,8 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
   const diagnosticStrokes = createStrokeProgram(regl);
   const diagnosticFills = createFillProgram(regl);
   const diagnosticMarkers = createMarkerProgram(regl);
+  // Little-big-little sector wedges: screen-scaled fills at a vertex.
+  const diagnosticWedges = createWedgeProgram(regl);
   // Operation-frame outline: a dashed, screen-constant closed loop above the CP.
   const overlayFrame = createStrokeProgram(regl);
   let viewport: Viewport = { width: 0, height: 0, dpr: 1 };
@@ -54,6 +57,7 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
   let hasDiagnosticStrokes = false;
   let hasDiagnosticFills = false;
   let hasDiagnosticMarkers = false;
+  let hasDiagnosticWedges = false;
   let hasOverlayFrame = false;
   let disposed = false;
 
@@ -122,6 +126,12 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
       if (next) diagnosticMarkers.setData(next);
     },
 
+    setDiagnosticWedges(next) {
+      if (disposed) return;
+      hasDiagnosticWedges = next !== null && next.count > 0;
+      if (next) diagnosticWedges.setData(next);
+    },
+
     setOverlayFrame(next) {
       if (disposed) return;
       hasOverlayFrame = next !== null && next.count > 0;
@@ -162,6 +172,10 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
       }
       if (hasDiagnosticStrokes) {
         diagnosticStrokes.draw({ view: frame.view, viewport, widthPx: frame.strokeWidthPx });
+      }
+      // LBL sector wedges scale with the markers (markerScalePx), under the shapes.
+      if (hasDiagnosticWedges) {
+        diagnosticWedges.draw({ view: frame.view, viewport, scalePx: frame.markerScalePx });
       }
       if (hasDiagnosticMarkers) {
         diagnosticMarkers.draw({
@@ -204,6 +218,7 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
       diagnosticStrokes.dispose();
       diagnosticFills.dispose();
       diagnosticMarkers.dispose();
+      diagnosticWedges.dispose();
       overlayFrame.dispose();
       regl.destroy();
     },
