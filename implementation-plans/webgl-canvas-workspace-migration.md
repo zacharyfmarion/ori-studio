@@ -246,6 +246,13 @@ period.
 
 ## Migration structure (incremental, flag-gated, parity-first)
 
+> **Order update (2026-07-14):** Phases 0–6 are complete and WebGL parity is high,
+> so **Phase 8 (delete the SVG surface) now runs before Phase 7 (full-canvas
+> scale)**. Deleting SVG first removes the dual-render cost and the flag branching,
+> and makes the culling work in Phase 7 far easier to reason about against a single
+> renderer. The phase numbers below are kept for reference; the execution order is
+> now 6 → 8 → 7 → 9.
+
 Constraints: no integration tests, **no users**, bugs fixed together before
 committing to launch. Therefore build the WebGL renderer **alongside** SVG behind
 a runtime flag (`cpRenderer: 'svg' | 'webgl'`), reach parity **layer by layer**,
@@ -406,18 +413,36 @@ unverified gate.
       so fold-another / restyle / front-back / restale don't apply.
   - **Phase 6 is otherwise complete.**
 
-- **Phase 7 — Full-canvas scale.** Scale the single editable surface to the
-  whole-canvas geometry set plus many placed folded objects (no new container
-  model — it's the same scene, larger). Spatial-bin culling for the master
-  geometry; per-object cull for folded objects; **lazy + cached** folded
-  generation (below). Verify the ~500k-segment / ~100-folded-object target meets
-  budget.
+- **Phase 7 — Full-canvas scale (runs after Phase 8).** Scale the single editable
+  surface to the whole-canvas geometry set plus many placed folded objects (no new
+  container model — it's the same scene, larger). The work is **culling**, not
+  generation:
+  - **Viewport culling of the master geometry** — a dense box-pleated CP has
+    thousands of segments/points, all uploaded + drawn every frame today. Draw only
+    what intersects the visible bounds, reusing the hit-test spatial index.
+  - **Per-object culling for placed folded figures** — skip folded objects outside
+    the viewport.
+  - **(Secondary) folded-scene rebuild cost** — `cpFoldedToScene` re-triangulates
+    *all* folded figures (earcut) whenever the array changes; with many figures,
+    only re-triangulate what changed. On-change only, not per frame.
+  - Verify the ~500k-segment / ~100-folded-object target meets budget.
+  - **Dropped: "lazy + cached folded generation."** Investigated 2026-07-14 — folded
+    figures are point-in-time, user-triggered: Fold runs the WASM solve + render
+    snapshot **once** and caches both on the store entry; editing creases only marks
+    the figure `stale` (dimmed), never auto-refolds (you must explicitly refold). So
+    generation is never a per-frame or scaling cost, and the caching already exists.
+    "Lazy generation" would only matter for a future workspace that *auto-folds* many
+    CPs without the user folding each — which doesn't exist. Parked until it does.
 
-- **Phase 8 — Decompose + delete SVG.** With WebGL at full parity and signed off,
-  remove the SVG render layers and RZPP from the editable path, finalize the
-  module structure, slim `CreasePatternPanel`, and rebuild tests around the pure
-  modules (geometry, camera, picking, adapters) plus a few pixel-diff smoke
-  tests. Flip the default to `webgl`.
+- **Phase 8 — Decompose + delete SVG (runs next, before Phase 7).** With WebGL at
+  full parity and signed off, remove the SVG render layers and RZPP from the
+  editable path, finalize the module structure, slim `CreasePatternPanel`, and
+  rebuild tests around the pure modules (geometry, camera, picking, adapters) plus a
+  few pixel-diff smoke tests. Flip the default to `webgl`. **A detailed scope +
+  cleanup plan for this phase lives in
+  [webgl-phase8-delete-svg.md](webgl-phase8-delete-svg.md)** — the intent is for the
+  migration to land as a net maintainability/architecture win, not just a renderer
+  swap.
 
 - **Phase 9 (lowest priority, deferred to the end) — Selection resize + rotate
   handles.** The `SelectionTransformBox` proper: a DOM overlay with constant-size
