@@ -12,6 +12,7 @@ import {
   CircleHelp,
   PenTool,
   Save,
+  ScanLine,
   Settings,
   Sparkles,
   Play,
@@ -97,6 +98,13 @@ function Toolbar() {
   const downloadUrl = useMacDownloadUrl();
   const optimizeScale = capabilities['optimize.scale'];
   const buildCp = capabilities['cp.build'];
+  const activeContext = useWorkspaceStore((state) => state.activeEditingContext);
+  const sendBpToEdit = useWorkspaceStore((state) => state.sendOristudioBpToEdit);
+  const hasBpDocument = useWorkspaceStore((state) => state.oristudioBpDocument !== null);
+  const bpBusy = useWorkspaceStore((state) => state.oristudioBpBusy);
+  // In a BP design the top action sends the design's crease pattern to the Edit
+  // canvas (Import(Add) merge), in place of TreeMaker's Optimize/Build.
+  const isBpContext = activeContext === 'bp-tree' || activeContext === 'bp-packing';
 
   return (
     <header className="toolbar">
@@ -156,7 +164,21 @@ function Toolbar() {
             {buildCp.label}
           </Button>
         )}
-        {(optimizeScale.visible || buildCp.visible) && <span className="toolbar__separator" />}
+        {isBpContext && (
+          <Button
+            size="sm"
+            variant="primary"
+            disabled={!hasBpDocument || bpBusy}
+            title="Send this design's crease pattern to the Edit canvas"
+            onClick={() => void sendBpToEdit()}
+          >
+            <ScanLine size={14} />
+            Send to Edit
+          </Button>
+        )}
+        {(optimizeScale.visible || buildCp.visible || isBpContext) && (
+          <span className="toolbar__separator" />
+        )}
         {showDownloadCta && (
           <IconButton
             size="sm"
