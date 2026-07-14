@@ -10,6 +10,7 @@ import type {
 } from '../../engine/types';
 import type { Point } from '../../lib/geometry';
 import type { EditingContext } from '../../workspaces/editingContext';
+import type { ImportedCreasePatternFormat } from '../../lib/creasePatternImport';
 import type { SnapshotEntry } from './snapshotHistory';
 import type {
   AppStatus,
@@ -149,6 +150,13 @@ export interface ProjectSliceActions {
   clearOristudioCpDocument: () => Promise<void>;
   openProject: (fileService?: FileService) => Promise<boolean>;
   importAddCreasePattern: (fileService?: FileService) => Promise<boolean>;
+  /** Merge crease-pattern text into the Edit canvas (in-memory Import(Add)). */
+  importAddOristudioCpText: (
+    text: string,
+    format: ImportedCreasePatternFormat,
+    label: string,
+    filename?: string
+  ) => Promise<boolean>;
   saveProject: (fileService?: FileService) => Promise<boolean>;
   saveProjectAs: (fileService?: FileService) => Promise<boolean>;
   exportV5: (fileService?: FileService) => Promise<boolean>;
@@ -424,6 +432,8 @@ export interface OristudioBpSliceActions {
   addOristudioBpTreeLeaf: (parentId: number, loc?: Point) => Promise<boolean>;
   /** Delete a tree node (leaf-cascade; the engine refuses below the minimum size). */
   deleteOristudioBpTreeNode: (id: number) => Promise<boolean>;
+  /** Send the BP design's crease pattern to the Edit canvas (Import(Add) merge). */
+  sendOristudioBpToEdit: () => Promise<boolean>;
   /**
    * Set the length of the tree edge between two vertices (min 1). `subtreeUpdates`
    * repositions the child subtree so the rendered edge stays length-faithful;

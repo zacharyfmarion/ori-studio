@@ -7,6 +7,7 @@ import {
   completeOristudioBpStretch as completeRuntimeOristudioBpStretch,
   deleteOristudioBpTreeLeaf as deleteRuntimeOristudioBpTreeLeaf,
   exportOristudioBpProjectAsBps,
+  exportOristudioBpProjectAsCp,
   flipOristudioBpLayoutSheet as flipRuntimeOristudioBpLayoutSheet,
   getOristudioBpPortDescriptors,
   loadOristudioBpProjectFromText,
@@ -334,6 +335,33 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           selection: { kind: 'bp-tree' },
         })
       ),
+
+    // Send the BP design's crease pattern to the always-live Edit canvas: export
+    // the BP CP and merge it in via Import(Add), then switch to the Edit workspace.
+    sendOristudioBpToEdit: async () => {
+      if (!get().oristudioBpDocument) return false;
+      set({ oristudioBpBusy: true });
+      try {
+        const cpText = await exportOristudioBpProjectAsCp({
+          reorient: true,
+          includeAuxiliaryHinges: false,
+        });
+        await get().ensureEditCreasePattern();
+        const ok = await get().importAddOristudioCpText(
+          cpText,
+          'cp',
+          'Sent BP to Edit',
+          'box-pleat.cp'
+        );
+        set({ oristudioBpBusy: false });
+        if (ok) useLayoutStore.getState().activatePanel('crease-pattern');
+        return ok;
+      } catch (error) {
+        const normalized = oristudioBpError(error);
+        set({ oristudioBpError: normalized.message, oristudioBpBusy: false, error: normalized });
+        return false;
+      }
+    },
 
     setOristudioBpTreeEdgeLength: async (vertices, length, subtreeUpdates = []) =>
       // Length edit + length-faithful subtree reposition in one gesture, so it is
