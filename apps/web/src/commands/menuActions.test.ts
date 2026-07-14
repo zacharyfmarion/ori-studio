@@ -525,6 +525,7 @@ describe('menu actions', () => {
         facetCount: 1,
         hasEditableCreasePattern: false,
         hasImportedCreasePattern: true,
+        hasBoxPleatDocument: false,
         hasSimulationModel: true,
         oristudioCpSelectedLineCount: 0,
         oristudioCpSelectedVertexCount: 0,

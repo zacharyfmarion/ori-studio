@@ -50,6 +50,7 @@ export function workspaceCapabilityInput(state: WorkspaceState): WorkspaceCapabi
     facetCount: state.project.facets.length,
     hasEditableCreasePattern: state.oristudioCpDocument !== null,
     hasImportedCreasePattern: state.importedCreasePattern !== null,
+    hasBoxPleatDocument: state.oristudioBpDocument !== null,
     hasSimulationModel: state.foldArtifacts?.simulation_model != null,
     oristudioCpSelectedLineCount: state.oristudioCpSelection.lines.length,
     oristudioCpSelectedVertexCount: state.oristudioCpSelection.vertices?.length ?? 0,

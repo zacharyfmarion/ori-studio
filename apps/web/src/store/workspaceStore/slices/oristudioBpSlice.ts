@@ -273,6 +273,34 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       }
     },
 
+    loadOristudioBpProjectFromFile: async (text, source) => {
+      set({ oristudioBpBusy: true, oristudioBpError: null });
+      try {
+        await get().clearOristudioCpDocument();
+        const [document, portDescriptors] = await Promise.all([
+          loadOristudioBpProjectFromText(text, {
+            filename: source.filename,
+            path: source.path ?? null,
+            format: 'bps',
+            dirty: false,
+          }),
+          getOristudioBpPortDescriptors().catch(() => []),
+        ]);
+        set({ oristudioBpPortDescriptors: portDescriptors });
+        setLoadedBpProject(document, `Loaded ${source.filename}`);
+        return true;
+      } catch (error) {
+        const normalized = oristudioBpError(error);
+        set({
+          oristudioBpError: normalized.message,
+          oristudioBpBusy: false,
+          status: 'error',
+          error: normalized,
+        });
+        return false;
+      }
+    },
+
     selectOristudioBp: (selection) => {
       const document = get().oristudioBpDocument;
       if (!document) return;

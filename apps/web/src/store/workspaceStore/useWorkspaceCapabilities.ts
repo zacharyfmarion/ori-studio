@@ -12,6 +12,7 @@ export function useWorkspaceCapabilities() {
   const facetCount = useWorkspaceStore((state) => state.project.facets.length);
   const hasEditableCreasePattern = useWorkspaceStore((state) => state.oristudioCpDocument !== null);
   const hasImportedCreasePattern = useWorkspaceStore((state) => state.importedCreasePattern !== null);
+  const hasBoxPleatDocument = useWorkspaceStore((state) => state.oristudioBpDocument !== null);
   const hasSimulationModel = useWorkspaceStore((state) => state.foldArtifacts?.simulation_model != null);
   const oristudioCpSelectedLineCount = useWorkspaceStore(
     (state) => state.oristudioCpSelection.lines.length
@@ -65,6 +66,7 @@ export function useWorkspaceCapabilities() {
         facetCount,
         hasEditableCreasePattern,
         hasImportedCreasePattern,
+        hasBoxPleatDocument,
         hasSimulationModel,
         oristudioCpSelectedLineCount,
         oristudioCpSelectedVertexCount,
@@ -85,6 +87,7 @@ export function useWorkspaceCapabilities() {
       facetCount,
       hasEditableCreasePattern,
       hasImportedCreasePattern,
+      hasBoxPleatDocument,
       hasSimulationModel,
       oristudioCpSelectedCircleCount,
       oristudioCpSelectedLineCount,

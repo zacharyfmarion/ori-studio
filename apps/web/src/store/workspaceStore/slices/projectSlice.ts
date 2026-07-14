@@ -33,6 +33,7 @@ import {
 import { normalizeOristudioCpCommandPayload } from '../../../lib/oristudioCpCommandPayloads';
 import {
   activeNativeDocument,
+  createNativeBoxPleatProjectFile,
   createNativeCreasePatternProjectFile,
   createNativeTreeProjectFile,
   isNativeProjectFilename,
@@ -40,6 +41,10 @@ import {
   parseNativeProjectFile,
   serializeNativeProjectFile,
 } from '../../../lib/nativeProjectFile';
+import {
+  exportOristudioBpProjectAsBps,
+  isBpProjectFilename,
+} from '../oristudioBpRuntime';
 import type {
   OristudioCpSelection,
   OristudioCpViewportOptions,
@@ -790,6 +795,23 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       }
       return;
     }
+    if (nativeDocument.kind === 'box-pleat') {
+      const loaded = await get().loadOristudioBpProjectFromFile(nativeDocument.project.text, {
+        filename: source.filename,
+        path: source.path ?? null,
+      });
+      // Loading the BP design clears the Edit canvas; restore the saved CP
+      // companion (if any) so the Send-to-Edit result comes back too.
+      if (loaded) {
+        const companion = nativeProject.workspace.documents.find(
+          (document) => document.kind === 'crease-pattern'
+        );
+        if (companion?.kind === 'crease-pattern') {
+          await restoreNativeCreasePatternCompanion(companion, source);
+        }
+      }
+      return;
+    }
     await loadNativeCreasePattern(nativeDocument, source);
   };
 
@@ -841,6 +863,49 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       currentFilePath: result.path,
       dirty: false,
       projectMessage: `Saved ${result.name}`,
+    });
+    return true;
+  };
+
+  const saveNativeBoxPleatProject = async (fileService: FileService, forceSaveAs: boolean) => {
+    const bps = await exportOristudioBpProjectAsBps();
+    const creasePatternCompanion = get().oristudioCpDocument
+      ? await currentEditableCreasePatternProjectInput(get().currentFileName, get().currentFilePath)
+      : null;
+    const contents = serializeNativeProjectFile(
+      createNativeBoxPleatProjectFile({
+        title: get().oristudioBpDocument?.snapshot?.summary?.title || get().project.title,
+        filename: get().currentFileName,
+        path: get().currentFilePath,
+        bps,
+        creasePatternCompanion,
+        appVersion: APP_VERSION,
+      })
+    );
+    const target = nativeSaveTarget();
+    const result = await fileService.saveTextFile({
+      title: forceSaveAs ? 'Save Ori Studio Project As' : 'Save Ori Studio Project',
+      contents,
+      suggestedName: target.suggestedName,
+      path: forceSaveAs ? null : target.path,
+      extensions: [NATIVE_PROJECT_EXTENSION],
+    });
+    if (!result) return false;
+    const document = get().oristudioBpDocument;
+    set({
+      currentFileName: result.name,
+      currentFilePath: result.path,
+      dirty: false,
+      projectMessage: `Saved ${result.name}`,
+      ...(document
+        ? {
+            oristudioBpDocument: {
+              ...document,
+              dirty: false,
+              source: { ...document.source, filename: result.name, path: result.path },
+            },
+          }
+        : {}),
     });
     return true;
   };
@@ -1014,6 +1079,20 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       },
     });
     return true;
+  };
+
+  // Route a native save/save-as to the format that matches the active editing
+  // context. The native `.osf` bundles a design plus its companion crease
+  // pattern, so a box-pleat design and a TreeMaker tree each carry their Edit CP.
+  const saveActiveProject = async (fileService: FileService, forceSaveAs: boolean) => {
+    const context = get().activeEditingContext;
+    if (context === 'crease-pattern') {
+      return saveEditableCreasePattern(fileService, forceSaveAs);
+    }
+    if (context === 'bp-tree' || context === 'bp-packing') {
+      return saveNativeBoxPleatProject(fileService, forceSaveAs);
+    }
+    return saveNativeTreeProject(fileService, forceSaveAs);
   };
 
   return {
@@ -1513,11 +1592,26 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       try {
         const file = await fileService.openTextFile({
           title: 'Open Ori Studio Project or Crease Pattern',
-          extensions: [NATIVE_PROJECT_EXTENSION, 'tmd', 'tmd4', 'tmd5', 'fold', 'cp', 'ori', 'orh'],
+          extensions: [
+            NATIVE_PROJECT_EXTENSION,
+            'tmd',
+            'tmd4',
+            'tmd5',
+            'fold',
+            'cp',
+            'ori',
+            'orh',
+            'bps',
+          ],
         });
         if (!file) return false;
         if (isNativeProjectFilename(file.name)) {
           await loadNativeProject(file.text, { filename: file.name, path: file.path });
+        } else if (isBpProjectFilename(file.name)) {
+          await get().loadOristudioBpProjectFromFile(file.text, {
+            filename: file.name,
+            path: file.path,
+          });
         } else if (isCreasePatternFilename(file.name)) {
           await loadCreasePattern(file.text, { filename: file.name, path: file.path });
         } else {
@@ -1533,10 +1627,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     saveProject: async (fileService = getFileService()) => {
       try {
         if (rejectDisabled('file.save')) return false;
-        if (get().activeEditingContext === 'crease-pattern') {
-          return await saveEditableCreasePattern(fileService, false);
-        }
-        return await saveNativeTreeProject(fileService, false);
+        return await saveActiveProject(fileService, false);
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
         return false;
@@ -1546,10 +1637,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     saveProjectAs: async (fileService = getFileService()) => {
       try {
         if (rejectDisabled('file.saveAs')) return false;
-        if (get().activeEditingContext === 'crease-pattern') {
-          return await saveEditableCreasePattern(fileService, true);
-        }
-        return await saveNativeTreeProject(fileService, true);
+        return await saveActiveProject(fileService, true);
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
         return false;

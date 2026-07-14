@@ -15,6 +15,7 @@ function capabilities({
   engineReady = true,
   hasEditableCreasePattern = false,
   hasImportedCreasePattern = false,
+  hasBoxPleatDocument = false,
   oristudioCpSelectedLineCount = 0,
   oristudioCpSelectedVertexCount = 0,
   oristudioCpSelectedPointCount = 0,
@@ -34,6 +35,7 @@ function capabilities({
   engineReady?: boolean;
   hasEditableCreasePattern?: boolean;
   hasImportedCreasePattern?: boolean;
+  hasBoxPleatDocument?: boolean;
   oristudioCpSelectedLineCount?: number;
   oristudioCpSelectedVertexCount?: number;
   oristudioCpSelectedPointCount?: number;
@@ -53,6 +55,7 @@ function capabilities({
     facetCount,
     hasEditableCreasePattern,
     hasImportedCreasePattern,
+    hasBoxPleatDocument,
     hasSimulationModel: false,
     oristudioCpSelectedLineCount,
     oristudioCpSelectedVertexCount,

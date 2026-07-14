@@ -100,6 +100,7 @@ export interface WorkspaceCapabilityInput {
   facetCount: number;
   hasEditableCreasePattern: boolean;
   hasImportedCreasePattern: boolean;
+  hasBoxPleatDocument: boolean;
   hasSimulationModel: boolean;
   oristudioCpSelectedLineCount: number;
   oristudioCpSelectedVertexCount: number;
@@ -141,6 +142,8 @@ export function getWorkspaceCapabilities(input: WorkspaceCapabilityInput): Works
   const canExportEditableOrImportedFold =
     input.hasEditableCreasePattern || (creasePatternMode && input.hasImportedCreasePattern);
   const canSaveEditableCreasePattern = creasePatternMode && input.hasEditableCreasePattern;
+  // A box-pleat design saves as a native .osf (bundling its companion CP).
+  const canSaveBoxPleat = isBpContext && input.hasBoxPleatDocument;
   const canExportEditableCp = input.hasEditableCreasePattern;
   const canExportCreasePattern = hasCreasePattern && !isBusy;
   const canEditCp = input.hasEditableCreasePattern && !isBusy;
@@ -180,18 +183,18 @@ export function getWorkspaceCapabilities(input: WorkspaceCapabilityInput): Works
       isBusy ? busyReason(input.status) : 'Detect a square crease pattern from an image'
     ),
     'file.save': capability(
-      (treeMode || canSaveEditableCreasePattern) && !isBusy,
+      (treeMode || canSaveEditableCreasePattern || canSaveBoxPleat) && !isBusy,
       'Save',
-      treeMode
+      treeMode || canSaveBoxPleat
         ? busyOr('Save Ori Studio project', input.status)
         : canSaveEditableCreasePattern
           ? busyOr('Save editable crease pattern as an Ori Studio project', input.status)
           : 'Editable crease-pattern kernel is unavailable'
     ),
     'file.saveAs': capability(
-      (treeMode || canSaveEditableCreasePattern) && !isBusy,
+      (treeMode || canSaveEditableCreasePattern || canSaveBoxPleat) && !isBusy,
       'Save As...',
-      treeMode
+      treeMode || canSaveBoxPleat
         ? busyOr('Save Ori Studio project as a new file', input.status)
         : canSaveEditableCreasePattern
           ? busyOr('Save editable crease pattern as a new Ori Studio project', input.status)

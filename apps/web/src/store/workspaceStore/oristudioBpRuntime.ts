@@ -696,6 +696,11 @@ export function setOristudioBpCurrentSource(source: OristudioBpSourceRef | null)
   currentSource = source;
 }
 
+/** True for a Box Pleating Studio single-project file (`.bps`). */
+export function isBpProjectFilename(filename: string): boolean {
+  return /\.bps$/i.test(filename);
+}
+
 async function replaceHandles(
   api: OristudioBpClient,
   nextHandles: number[],

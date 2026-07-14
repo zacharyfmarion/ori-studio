@@ -413,6 +413,14 @@ export interface OristudioBpSliceActions {
   createOristudioBpProject: (options?: { confirmDiscard?: boolean }) => Promise<boolean>;
   /** Load a bundled Box Pleating example project. */
   loadOristudioBpExample: (id: string, options?: { confirmDiscard?: boolean }) => Promise<boolean>;
+  /**
+   * Load a Box Pleating Studio `.bps` project from file text into the workspace,
+   * mirroring {@link loadOristudioBpExample} but for user-supplied content.
+   */
+  loadOristudioBpProjectFromFile: (
+    text: string,
+    source: { filename: string; path?: string | null }
+  ) => Promise<boolean>;
   /** Replace the active BP selection. */
   selectOristudioBp: (selection: OristudioBpSelection) => void;
   /** Switch the BP editing surface intent (tree vs packing) and focus its pane. */
