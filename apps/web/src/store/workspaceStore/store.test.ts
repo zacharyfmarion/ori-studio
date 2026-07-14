@@ -3916,6 +3916,28 @@ describe('workspace store slices', () => {
       expect(bpMocks.loadOristudioBpProjectFromText).toHaveBeenCalledOnce();
     });
 
+    it('preserves the always-live Edit canvas when choosing a design method', async () => {
+      useWorkspaceStore.setState({ engineReady: true, status: 'ready' });
+      const editCp = editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]);
+      useWorkspaceStore.setState({ oristudioCpDocument: editCp });
+      useWorkspaceStore.getState().startNewDesign();
+
+      // Circle-packed: establishes a tree without touching the Edit canvas.
+      await useWorkspaceStore.getState().chooseDesignMethod('treemaker');
+      expect(useWorkspaceStore.getState().workflowTarget).toBe('treemaker');
+      expect(useWorkspaceStore.getState().pendingDesignChoice).toBe(false);
+      expect(useWorkspaceStore.getState().oristudioCpDocument).toBe(editCp);
+      // The CP wasm handle must not be released, or the kept document is dead.
+      expect(oristudioCpMocks.releaseOristudioCpDocument).not.toHaveBeenCalled();
+
+      // Box-pleated: same guarantee via the BP creation path.
+      useWorkspaceStore.getState().startNewDesign();
+      await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
+      expect(useWorkspaceStore.getState().oristudioBpDocument).not.toBeNull();
+      expect(useWorkspaceStore.getState().oristudioCpDocument).toBe(editCp);
+      expect(oristudioCpMocks.releaseOristudioCpDocument).not.toHaveBeenCalled();
+    });
+
     it('choosing Circle-packed creates a TreeMaker design and clears the chooser', async () => {
       useWorkspaceStore.setState({ engineReady: true, status: 'ready' });
       useWorkspaceStore.getState().startNewDesign();

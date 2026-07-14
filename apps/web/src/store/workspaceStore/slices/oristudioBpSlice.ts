@@ -217,7 +217,9 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       }
       set({ oristudioBpBusy: true, oristudioBpError: null });
       try {
-        await get().clearOristudioCpDocument();
+        // The design-method chooser preserves the always-live Edit canvas, so it
+        // must not release the CP handle; other entry points clear it as before.
+        if (!options.preserveEditCanvas) await get().clearOristudioCpDocument();
         const [document, portDescriptors] = await Promise.all([
           loadOristudioBpProjectFromText(BP_STARTER_PROJECT, {
             filename: 'Untitled.bps',

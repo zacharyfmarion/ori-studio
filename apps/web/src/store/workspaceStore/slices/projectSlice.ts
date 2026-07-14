@@ -1168,12 +1168,15 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       }
     },
 
-    createNewProject: async () => {
+    createNewProject: async (options = {}) => {
+      const preserveEditCanvas = options.preserveEditCanvas ?? false;
       if (rejectDisabled('file.new')) return;
-      if (!(await confirmDiscardDirty(get().dirty))) return;
+      // When preserving the Edit canvas (design-method chooser) there is nothing
+      // to discard and the CP handle must stay alive, so skip the prompt + release.
+      if (!preserveEditCanvas && !(await confirmDiscardDirty(get().dirty))) return;
       set({ status: 'loading_engine', error: null, projectMessage: null });
       try {
-        await releaseEditableCreasePattern();
+        if (!preserveEditCanvas) await releaseEditableCreasePattern();
         const api = await getEngine();
         const snapshot = await createBlankTree(api);
         set({
@@ -1888,15 +1891,37 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     },
 
     chooseDesignMethod: async (target) => {
+      // Choosing a design method establishes a design surface but must not touch
+      // the always-live Edit canvas. The design creators otherwise wipe the CP,
+      // so snapshot its document + editing state, create the design with the CP
+      // wasm handle kept alive (preserveEditCanvas), then restore the snapshot.
+      const before = get();
+      const editCanvas = {
+        importedCreasePattern: before.importedCreasePattern,
+        oristudioCpDocument: before.oristudioCpDocument,
+        oristudioCpLineage: before.oristudioCpLineage,
+        oristudioCpError: before.oristudioCpError,
+        oristudioCpCamvResult: before.oristudioCpCamvResult,
+        oristudioCpOperationDescriptors: before.oristudioCpOperationDescriptors,
+        oristudioCpHistoryPast: before.oristudioCpHistoryPast,
+        oristudioCpHistoryFuture: before.oristudioCpHistoryFuture,
+        oristudioCpSelection: before.oristudioCpSelection,
+        oristudioCpActiveDiagnosticId: before.oristudioCpActiveDiagnosticId,
+        oristudioCpRevision: before.oristudioCpRevision,
+        oristudioCpFoldedFigures: before.oristudioCpFoldedFigures,
+        oristudioCpActiveFoldedFigureId: before.oristudioCpActiveFoldedFigureId,
+        creaseColorMode: before.creaseColorMode,
+      };
+
       if (target === 'box-pleat') {
-        // Create a real BP document; it sets workflowTarget/box-pleat, clears
-        // the pending choice, and materializes the box-pleat Design layout.
-        await get().createOristudioBpProject({ confirmDiscard: false });
-        return;
+        await get().createOristudioBpProject({ confirmDiscard: false, preserveEditCanvas: true });
+      } else {
+        await get().createNewProject({ preserveEditCanvas: true });
       }
-      // Circle-packed: the standard TreeMaker blank-tree flow. createNewProject
-      // resets workflowTarget to 'treemaker' and clears pendingDesignChoice.
-      await get().createNewProject();
+
+      // The creators cleared the CP fields in their own set(); restore the live
+      // document (its handle was never released) so Edit is exactly as it was.
+      set({ ...editCanvas, dirty: get().dirty || before.dirty });
     },
   };
 };

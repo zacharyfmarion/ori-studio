@@ -111,7 +111,7 @@ export interface ProjectSliceState {
 
 export interface ProjectSliceActions {
   initEngine: () => Promise<void>;
-  createNewProject: () => Promise<void>;
+  createNewProject: (options?: { preserveEditCanvas?: boolean }) => Promise<void>;
   createNewCreasePattern: () => Promise<void>;
   loadStarterProject: () => Promise<void>;
   loadProjectText: (
@@ -411,7 +411,10 @@ export interface OristudioBpSliceState {
 
 export interface OristudioBpSliceActions {
   /** Create a fresh Box Pleating project and hold it in the store. */
-  createOristudioBpProject: (options?: { confirmDiscard?: boolean }) => Promise<boolean>;
+  createOristudioBpProject: (options?: {
+    confirmDiscard?: boolean;
+    preserveEditCanvas?: boolean;
+  }) => Promise<boolean>;
   /** Load a bundled Box Pleating example project. */
   loadOristudioBpExample: (id: string, options?: { confirmDiscard?: boolean }) => Promise<boolean>;
   /**
