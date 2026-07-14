@@ -65,6 +65,25 @@ const BP_STARTER_PROJECT = JSON.stringify({
 });
 
 /**
+ * BP Studio numbers `.cp` crease types Mountain=2, Valley=3 (ORIPA style); our
+ * Oriedita-based CP editor reads 2=valley, 3=mountain. The two are faithful ports
+ * of tools that genuinely use opposite `.cp` conventions, so bridge them at the
+ * hand-off: swap the per-line type token (2↔3) so a BP design's mountains and
+ * valleys render correctly on the Edit canvas. Border(1)/Auxiliary(4) are shared.
+ */
+function bpCpToEditorConvention(cpText: string): string {
+  return cpText
+    .split('\n')
+    .map((line) => {
+      const parts = line.split(' ');
+      if (parts[0] === '2') parts[0] = '3';
+      else if (parts[0] === '3') parts[0] = '2';
+      return parts.join(' ');
+    })
+    .join('\n');
+}
+
+/**
  * Box Pleating workspace slice. Phase 3 is the runtime foundation: it can create
  * and hold a BP document. The tree/packing editing surfaces and file/optimizer
  * actions are wired up in later phases.
@@ -345,10 +364,12 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         // Match BP Studio's Export CP defaults: keep the sheet orientation and
         // include auxiliary hinge creases (dropping them yields a sparse CP that
         // doesn't match BP Studio's export).
-        const cpText = await exportOristudioBpProjectAsCp({
-          reorient: false,
-          includeAuxiliaryHinges: true,
-        });
+        const cpText = bpCpToEditorConvention(
+          await exportOristudioBpProjectAsCp({
+            reorient: false,
+            includeAuxiliaryHinges: true,
+          })
+        );
         await get().ensureEditCreasePattern();
         const ok = await get().importAddOristudioCpText(
           cpText,
