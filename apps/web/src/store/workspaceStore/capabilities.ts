@@ -3,51 +3,43 @@ import {
   type WorkspaceCapabilities,
   type WorkspaceCapabilityInput,
 } from '../../lib/workspaceCapabilities';
+import type { EditingContext } from '../../workspaces/editingContext';
 import type { WorkspaceState } from './types';
 
-export function activeOrFallbackHistoryCount(
-  activeSurface: WorkspaceState['activeEditingSurface'],
-  treeCount: number,
-  cpCount: number
+/** The undo/redo count for the active editing context's own history stack. */
+export function historyCountForContext(
+  context: EditingContext,
+  bpCount: number,
+  cpCount: number,
+  treeCount: number
 ): number {
-  const activeCount = activeSurface === 'crease-pattern' ? cpCount : treeCount;
-  if (activeCount > 0) return activeCount;
-  return activeSurface === 'crease-pattern' ? treeCount : cpCount;
+  if (context === 'bp-tree' || context === 'bp-packing') return bpCount;
+  if (context === 'crease-pattern') return cpCount;
+  if (context === 'treemaker-tree') return treeCount;
+  return 0;
 }
 
 export function workspaceCapabilityInput(state: WorkspaceState): WorkspaceCapabilityInput {
   const context = state.activeEditingContext;
-  const isBpContext = context === 'bp-tree' || context === 'bp-packing';
   const bpSelection = state.oristudioBpDocument?.selection;
   const bpRoot = state.oristudioBpDocument?.snapshot?.tree?.rootVertexId;
   const hasDeletableBpSelection =
     (bpSelection?.kind === 'bp-vertex' && bpSelection.id !== bpRoot) ||
     bpSelection?.kind === 'bp-edge';
-  const treeHistoryPastCount = state.documentMode === 'tree' ? state.historyPast.length : 0;
-  const treeHistoryFutureCount = state.documentMode === 'tree' ? state.historyFuture.length : 0;
-  const cpHistoryPastCount = state.oristudioCpDocument
-    ? state.oristudioCpHistoryPast.length
-    : 0;
-  const cpHistoryFutureCount = state.oristudioCpDocument
-    ? state.oristudioCpHistoryFuture.length
-    : 0;
-
-  // BP undo/redo tracks its own snapshot history, so the Edit menu must read that
-  // count in a BP context rather than the (empty) TreeMaker/CP stacks.
-  const historyPastCount = isBpContext
-    ? state.oristudioBpHistoryPast.length
-    : activeOrFallbackHistoryCount(
-        state.activeEditingSurface,
-        treeHistoryPastCount,
-        cpHistoryPastCount
-      );
-  const historyFutureCount = isBpContext
-    ? state.oristudioBpHistoryFuture.length
-    : activeOrFallbackHistoryCount(
-        state.activeEditingSurface,
-        treeHistoryFutureCount,
-        cpHistoryFutureCount
-      );
+  // The Edit menu's undo/redo count comes from the active context's history:
+  // BP snapshots, the CP editor's stack, or the TreeMaker tree stack.
+  const historyPastCount = historyCountForContext(
+    context,
+    state.oristudioBpHistoryPast.length,
+    state.oristudioCpDocument ? state.oristudioCpHistoryPast.length : 0,
+    state.historyPast.length
+  );
+  const historyFutureCount = historyCountForContext(
+    context,
+    state.oristudioBpHistoryFuture.length,
+    state.oristudioCpDocument ? state.oristudioCpHistoryFuture.length : 0,
+    state.historyFuture.length
+  );
 
   return {
     activeEditingContext: context,

@@ -85,14 +85,14 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
   function hasFoldArtifactSource() {
     const state = get();
     if (state.oristudioCpDocument) return true;
-    if (state.documentMode === 'crease-pattern') return false;
+    if (state.importedCreasePattern) return false;
     return state.project.creases.length > 0 || state.project.facets.length > 0;
   }
 
   async function confirmReplaceCustomizedGeneratedCp(): Promise<boolean> {
     const lineage = get().oristudioCpLineage;
     if (
-      get().documentMode !== 'tree' ||
+      get().activeEditingContext !== 'treemaker-tree' ||
       lineage?.kind !== 'generated-from-tree' ||
       lineage.manualEditCount === 0
     ) {
@@ -328,7 +328,6 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         error: null,
         lastOptimization: report,
         ...staleFoldArtifactResourceState(get().foldArtifactRevision),
-        activeEditingSurface: 'tree',
         oristudioCpLineage: markGeneratedCpLineageStale(get().oristudioCpLineage),
         dirty: true,
         projectMessage: label,
@@ -468,7 +467,6 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         });
         set({
           project,
-          activeEditingSurface: 'crease-pattern',
           oristudioCpDocument: editableDocument,
           oristudioCpLineage: generatedCpLineage({
             sourceTreeDigest: stableTextDigest(treeText),

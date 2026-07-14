@@ -757,7 +757,6 @@ describe('CreasePatternPanel', () => {
 
   it('does not update editable cursor status while space-panning the CP viewport', () => {
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
     });
@@ -893,7 +892,6 @@ describe('CreasePatternPanel', () => {
       facets: [],
     };
     const { container } = renderPanel(project, 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       activePanelId: 'crease-pattern',
       importedCreasePattern: null,
     });
@@ -906,7 +904,6 @@ describe('CreasePatternPanel', () => {
   it('re-fits the viewport only on a genuine load, not on in-place history restore', () => {
     const base = editableCpState();
     renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: base,
     });
@@ -938,7 +935,6 @@ describe('CreasePatternPanel', () => {
       createSampleProject(),
       'crease_pattern_ready',
       {
-        documentMode: 'crease-pattern',
         importedCreasePattern: importedCpDocument(),
         oristudioCpDocument: editableCpState(),
       }
@@ -1121,7 +1117,6 @@ describe('CreasePatternPanel', () => {
   it('activates the flip mountain/valley tool with C and toggles the clicked crease', async () => {
     const executeOristudioCpCommand = vi.fn(async () => true);
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
       executeOristudioCpCommand,
@@ -1159,7 +1154,6 @@ describe('CreasePatternPanel', () => {
       },
     };
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: documentState,
     });
@@ -1188,7 +1182,6 @@ describe('CreasePatternPanel', () => {
     documentState.document.crease_pattern.circles[0].r = 20;
 
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: documentState,
     });
@@ -1235,7 +1228,6 @@ describe('CreasePatternPanel', () => {
       async (_operationId: string, _payload?: OristudioCpCommandPayload) => true
     );
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: documentState,
       oristudioCpViewport: {
@@ -1340,7 +1332,6 @@ describe('CreasePatternPanel', () => {
     };
 
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: imported,
       oristudioCpDocument: editableCpState(),
     });
@@ -1357,7 +1348,6 @@ describe('CreasePatternPanel', () => {
   it('renders generated folded figure snapshots in the editable CP grid', () => {
     const figure = generatedFoldedFigure();
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
       oristudioCpFoldedFigures: [figure],
@@ -1380,7 +1370,6 @@ describe('CreasePatternPanel', () => {
       handle: 8,
     };
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
       oristudioCpFoldedFigures: [first, second],
@@ -1404,7 +1393,6 @@ describe('CreasePatternPanel', () => {
       displayOffset: { x: 12, y: -8 },
     };
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
       oristudioCpFoldedFigures: [figure],
@@ -1428,7 +1416,6 @@ describe('CreasePatternPanel', () => {
     const moveOristudioCpFoldedFigure = vi.fn();
     const editableCp = editableCpState();
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCp,
       oristudioCpFoldedFigures: [first, second],
@@ -1509,7 +1496,6 @@ describe('CreasePatternPanel', () => {
       'oriedita:ori:creasePatternCamera': camera,
     };
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCp,
       oristudioCpFoldedFigures: [figure],
@@ -1561,7 +1547,6 @@ describe('CreasePatternPanel', () => {
   it('falls back to generated folded wireframes when render primitives are unavailable', () => {
     const figure = { ...generatedFoldedFigure(), renderSnapshot: null };
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
       oristudioCpFoldedFigures: [figure],
@@ -1576,7 +1561,6 @@ describe('CreasePatternPanel', () => {
   it('disables the fold command when no foldable CP line is selected', () => {
     const foldOristudioCpDocument = vi.fn(async () => true);
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
       oristudioCpSelection: emptyOristudioCpSelection(),
@@ -1611,7 +1595,6 @@ describe('CreasePatternPanel', () => {
     const duplicateOristudioCpFoldedFigure = vi.fn(async () => true);
     const deleteOristudioCpFoldedFigure = vi.fn(async () => undefined);
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
       oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [2] },
@@ -1687,7 +1670,6 @@ describe('CreasePatternPanel', () => {
 
   it('renders Oriedita instructions in the CP context tool panel', () => {
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
     });
@@ -1731,7 +1713,6 @@ describe('CreasePatternPanel', () => {
   it('allows additive line selection through the transform move hit area', () => {
     const editableCp = editableCpStateWithInteriorLine();
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCp,
       oristudioCpSelection: {
@@ -1770,7 +1751,6 @@ describe('CreasePatternPanel', () => {
 
   it('hides the selection transform controls while a selected-line tool is active', () => {
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
       oristudioCpSelection: {
@@ -1797,7 +1777,6 @@ describe('CreasePatternPanel', () => {
 
   it('uses an expanded canvas for imported editable CP documents', () => {
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
     });
@@ -1819,7 +1798,6 @@ describe('CreasePatternPanel', () => {
 
   it('does not auto-fit the editable CP viewport after geometry edits', () => {
     renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
     });
@@ -1862,7 +1840,6 @@ describe('CreasePatternPanel', () => {
 
   it('renders a newly created CP as an editable uniform canvas with a square border', () => {
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: null,
       oristudioCpDocument: blankEditableCpState(),
     });
@@ -1890,7 +1867,6 @@ describe('CreasePatternPanel', () => {
     });
 
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: state,
     });
@@ -1909,7 +1885,6 @@ describe('CreasePatternPanel', () => {
   it('opens contextual CP actions from menu requests with the current editable selection', async () => {
     const executeOristudioCpCommand = vi.fn(async () => true);
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
       executeOristudioCpCommand,
@@ -1946,7 +1921,6 @@ describe('CreasePatternPanel', () => {
   it('routes active unselect-crease clicks through the command instead of direct selection', async () => {
     const executeOristudioCpCommand = vi.fn(async () => true);
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
       executeOristudioCpCommand,
@@ -1979,7 +1953,6 @@ describe('CreasePatternPanel', () => {
       async (_operationId: string, _payload?: OristudioCpCommandPayload) => true
     );
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
       executeOristudioCpCommand,
@@ -2033,7 +2006,6 @@ describe('CreasePatternPanel', () => {
 
   it('clears the selection on Escape without cancelling the default box-select mode', () => {
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
     });
@@ -2063,7 +2035,6 @@ describe('CreasePatternPanel', () => {
 
   it('returns to box select when Escape cancels the active CP tool', async () => {
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
     });
@@ -2098,7 +2069,6 @@ describe('CreasePatternPanel', () => {
       },
     };
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: documentState,
     });
@@ -2131,7 +2101,6 @@ describe('CreasePatternPanel', () => {
       async (_operationId: string, _payload?: OristudioCpCommandPayload) => true
     );
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
       oristudioCpViewport: {
@@ -2199,7 +2168,6 @@ describe('CreasePatternPanel', () => {
       async (_operationId: string, _payload?: OristudioCpCommandPayload) => true
     );
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
       oristudioCpViewport: {
@@ -2261,7 +2229,6 @@ describe('CreasePatternPanel', () => {
       async (_operationId: string, _payload?: OristudioCpCommandPayload) => true
     );
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
       oristudioCpViewport: {
@@ -2333,7 +2300,6 @@ describe('CreasePatternPanel', () => {
   it('shows contextual line-type controls before applying selected-type commands', async () => {
     const executeOristudioCpCommand = vi.fn(async () => true);
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
       executeOristudioCpCommand,
@@ -2388,7 +2354,6 @@ describe('CreasePatternPanel', () => {
       },
     };
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: documentState,
       executeOristudioCpCommand,
@@ -2449,7 +2414,6 @@ describe('CreasePatternPanel', () => {
   it('passes contextual fix-inaccurate options only after apply', async () => {
     const executeOristudioCpCommand = vi.fn(async () => true);
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
       executeOristudioCpCommand,
@@ -2510,7 +2474,6 @@ describe('CreasePatternPanel', () => {
       ],
     };
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: state,
       executeOristudioCpCommand,
@@ -2543,7 +2506,6 @@ describe('CreasePatternPanel', () => {
     const camvResult = camvDiagnosticResult();
 
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: state,
       oristudioCpCamvResult: camvResult,
@@ -2665,7 +2627,6 @@ describe('CreasePatternPanel', () => {
     };
 
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: state,
       oristudioCpCamvResult: camvResult,
@@ -2699,7 +2660,6 @@ describe('CreasePatternPanel', () => {
     };
 
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: state,
     });
@@ -2709,7 +2669,6 @@ describe('CreasePatternPanel', () => {
 
   it('does not show an always-on CAMV OK result as a floating HUD', () => {
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
       oristudioCpCamvResult: {
@@ -2726,7 +2685,6 @@ describe('CreasePatternPanel', () => {
   it('passes contextual circle color options with selected circles only after apply', async () => {
     const executeOristudioCpCommand = vi.fn(async () => true);
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
       executeOristudioCpCommand,
@@ -2776,7 +2734,6 @@ describe('CreasePatternPanel', () => {
   it('keeps immediate annotation cleanup actions out of the left rail', async () => {
     const executeOristudioCpCommand = vi.fn(async () => true);
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
       executeOristudioCpCommand,
@@ -2791,7 +2748,6 @@ describe('CreasePatternPanel', () => {
       async (_operationId: string, _payload?: OristudioCpCommandPayload) => true
     );
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
       oristudioCpViewport: {
@@ -2845,7 +2801,6 @@ describe('CreasePatternPanel', () => {
       async (_operationId: string, _payload?: OristudioCpCommandPayload) => true
     );
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
       oristudioCpViewport: {
@@ -2913,7 +2868,6 @@ describe('CreasePatternPanel', () => {
       createSampleProject(),
       'crease_pattern_ready',
       {
-        documentMode: 'crease-pattern',
         importedCreasePattern: importedCpDocument(),
         oristudioCpDocument: editableCpState(),
         oristudioCpViewport: {
@@ -2979,7 +2933,6 @@ describe('CreasePatternPanel', () => {
       createSampleProject(),
       'crease_pattern_ready',
       {
-        documentMode: 'crease-pattern',
         importedCreasePattern: importedCpDocument(),
         oristudioCpDocument: editableCpState(),
         oristudioCpViewport: {
@@ -3045,7 +2998,6 @@ describe('CreasePatternPanel', () => {
       diagnostics: [],
     }));
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
       oristudioCpViewport: {
@@ -3150,7 +3102,6 @@ describe('CreasePatternPanel', () => {
       })
     );
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpStateWithCircleSet(),
       executeOristudioCpCommand,
@@ -3237,7 +3188,6 @@ describe('CreasePatternPanel', () => {
       async (_operationId: string, _payload?: OristudioCpCommandPayload) => true
     );
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpStateWithCircleSet(),
       oristudioCpViewport: {
@@ -3286,7 +3236,6 @@ describe('CreasePatternPanel', () => {
       async (_operationId: string, _payload?: OristudioCpCommandPayload) => true
     );
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
       oristudioCpViewport: {
@@ -3343,7 +3292,6 @@ describe('CreasePatternPanel', () => {
       async (_operationId: string, _payload?: OristudioCpCommandPayload) => true
     );
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
       oristudioCpViewport: {
@@ -3415,7 +3363,6 @@ describe('CreasePatternPanel', () => {
       })
     );
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
       oristudioCpViewport: {
@@ -3500,7 +3447,6 @@ describe('CreasePatternPanel', () => {
       })
     );
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
       executeOristudioCpCommand,
@@ -3543,7 +3489,6 @@ describe('CreasePatternPanel', () => {
       async (_operationId: string, _payload?: OristudioCpCommandPayload) => true
     );
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
       executeOristudioCpCommand,
@@ -3587,7 +3532,6 @@ describe('CreasePatternPanel', () => {
       async (_operationId: string, _payload?: OristudioCpCommandPayload) => true
     );
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
       executeOristudioCpCommand,
@@ -3689,7 +3633,6 @@ describe('CreasePatternPanel', () => {
       async (_operationId: string, _payload?: OristudioCpCommandPayload) => true
     );
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
       oristudioCpViewport: {
@@ -3742,7 +3685,6 @@ describe('CreasePatternPanel', () => {
       async (_operationId: string, _payload?: OristudioCpCommandPayload) => true
     );
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpStateWithAngleBisectorLines(),
       oristudioCpViewport: {
@@ -3826,7 +3768,6 @@ describe('CreasePatternPanel', () => {
       diagnostics: [],
     }));
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
       oristudioCpViewport: {
@@ -3895,7 +3836,6 @@ describe('CreasePatternPanel', () => {
       async (_operationId: string, _payload?: OristudioCpCommandPayload) => true
     );
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
       oristudioCpViewport: {
@@ -3952,7 +3892,6 @@ describe('CreasePatternPanel', () => {
     );
     const editableCp = editableCpState();
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCp,
       oristudioCpViewport: {
@@ -4021,7 +3960,6 @@ describe('CreasePatternPanel', () => {
     );
     const editableCp = editableCpState();
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCp,
       oristudioCpSelection: {
@@ -4087,7 +4025,6 @@ describe('CreasePatternPanel', () => {
       async (_operationId: string, _payload?: OristudioCpCommandPayload) => true
     );
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
       oristudioCpSelection: {
@@ -4131,7 +4068,6 @@ describe('CreasePatternPanel', () => {
       async (_operationId: string, _payload?: OristudioCpCommandPayload) => true
     );
     const { container } = renderPanel(createSampleProject(), 'crease_pattern_ready', {
-      documentMode: 'crease-pattern',
       importedCreasePattern: importedCpDocument(),
       oristudioCpDocument: editableCpState(),
       oristudioCpViewport: {

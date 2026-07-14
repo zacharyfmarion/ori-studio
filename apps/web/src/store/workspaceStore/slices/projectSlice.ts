@@ -466,8 +466,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     const title = source.title ?? basenameWithoutProjectExtension(filename);
     set({
       ...projectStateFromSnapshot(snapshot, title),
-      documentMode: 'tree',
-      activeEditingSurface: 'tree',
       importedCreasePattern: null,
       oristudioCpDocument: null,
       oristudioCpLineage: null,
@@ -580,9 +578,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     const artifactRevision = get().foldArtifactRevision + 1;
     const artifactState = readyFoldArtifactResourceState(result.foldArtifacts, artifactRevision);
     set({
+      // Loading a document makes its editor the active view, so the derived
+      // editing context matches the document without waiting for Dockview to
+      // report the activated panel (which never fires in headless tests).
+      activePanelId: oristudioCpDocument ? 'crease-pattern' : 'design',
       project: result.project,
-      documentMode: 'crease-pattern',
-      activeEditingSurface: 'crease-pattern',
       importedCreasePattern: result.document,
       oristudioCpDocument,
       oristudioCpLineage: importedCpLineage(),
@@ -695,9 +695,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       ? { ...result.document, source: originalSource }
       : result.document;
     set({
+      // Opening a crease pattern makes the CP editor the active view.
+      activePanelId: 'crease-pattern',
       project: { ...result.project, title: nativeDocument.title || result.project.title },
-      documentMode: 'crease-pattern',
-      activeEditingSurface: 'crease-pattern',
       importedCreasePattern: importedDocument,
       oristudioCpDocument: documentState,
       oristudioCpLineage: nativeDocument.creasePattern.lineage,
@@ -1020,8 +1020,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     project: createEmptyProject(),
     workflowTarget: 'treemaker',
     pendingDesignChoice: false,
-    documentMode: 'tree',
-    activeEditingSurface: 'tree',
     activePanelId: null,
     activeEditingContext: 'treemaker-tree',
     importedCreasePattern: null,
@@ -1050,15 +1048,13 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         const operationDescriptors = await getOristudioCpOperationDescriptors().catch(() => []);
         const api = await getEngine();
         const snapshot = await initializeBlankTree(api);
-        if (get().documentMode !== 'tree') {
+        if (get().importedCreasePattern) {
           set({ engineReady: true, oristudioCpOperationDescriptors: operationDescriptors });
           return;
         }
         await releaseEditableCreasePattern();
         set({
           ...projectStateFromSnapshot(snapshot, get().project.title),
-          documentMode: 'tree',
-          activeEditingSurface: 'tree',
           importedCreasePattern: null,
           oristudioCpDocument: null,
           oristudioCpLineage: null,
@@ -1096,12 +1092,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         const snapshot = await createBlankTree(api);
         set({
           ...projectStateFromSnapshot(snapshot, 'Untitled'),
+          activePanelId: 'design',
           workflowTarget: 'treemaker',
           pendingDesignChoice: false,
           oristudioBpDocument: null,
           oristudioBpWorkspace: null,
-          documentMode: 'tree',
-          activeEditingSurface: 'tree',
           importedCreasePattern: null,
           oristudioCpDocument: null,
           oristudioCpLineage: null,
@@ -1149,8 +1144,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         const snapshot = await createStarterTree(api);
         set({
           ...projectStateFromSnapshot(snapshot, 'Three terminal flaps'),
-          documentMode: 'tree',
-          activeEditingSurface: 'tree',
           importedCreasePattern: null,
           oristudioCpDocument: null,
           oristudioCpLineage: null,
@@ -1192,11 +1185,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         await releaseEditableCreasePattern();
         const documentState = await createBlankOristudioCpDocument();
         set({
+          // A new crease pattern opens directly in the CP editor.
+          activePanelId: 'crease-pattern',
           project: { ...createEmptyProject(), title: documentState.summary.title ?? 'Untitled CP' },
           workflowTarget: 'treemaker',
           pendingDesignChoice: false,
-          documentMode: 'crease-pattern',
-          activeEditingSurface: 'crease-pattern',
           importedCreasePattern: null,
           oristudioCpDocument: documentState,
           oristudioCpLineage: blankCpLineage(),
@@ -1307,7 +1300,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           : get().oristudioCpRevision;
         set({
           oristudioCpDocument: nextDocument,
-          activeEditingSurface: 'crease-pattern',
           oristudioCpLineage: editsCreasePattern
             ? markCpLineageEdited(get().oristudioCpLineage)
             : get().oristudioCpLineage,
@@ -1457,7 +1449,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         );
         set({
           oristudioCpDocument: nextDocument,
-          activeEditingSurface: 'crease-pattern',
           oristudioCpLineage: markCpLineageEdited(get().oristudioCpLineage),
           oristudioCpOperationDescriptors: nextDocument.operationDescriptors,
           oristudioCpError: null,
@@ -1542,7 +1533,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     saveProject: async (fileService = getFileService()) => {
       try {
         if (rejectDisabled('file.save')) return false;
-        if (get().documentMode === 'crease-pattern') {
+        if (get().activeEditingContext === 'crease-pattern') {
           return await saveEditableCreasePattern(fileService, false);
         }
         return await saveNativeTreeProject(fileService, false);
@@ -1555,7 +1546,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     saveProjectAs: async (fileService = getFileService()) => {
       try {
         if (rejectDisabled('file.saveAs')) return false;
-        if (get().documentMode === 'crease-pattern') {
+        if (get().activeEditingContext === 'crease-pattern') {
           return await saveEditableCreasePattern(fileService, true);
         }
         return await saveNativeTreeProject(fileService, true);
@@ -1635,7 +1626,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         const contents =
           get().oristudioCpDocument
             ? await exportOristudioCpDocumentAsFold()
-            : get().documentMode === 'crease-pattern' && get().importedCreasePattern
+            : get().importedCreasePattern
             ? JSON.stringify(get().importedCreasePattern?.fold, null, 2)
             : await (async () => {
                 const { api, treeHandle } = await ensureTreeHandle();
@@ -1761,7 +1752,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
 
     clearProjectMessage: () => set({ projectMessage: null }),
     setActivePanelId: (id) => set({ activePanelId: id }),
-    setActiveEditingSurface: (surface) => set({ activeEditingSurface: surface }),
     setWorkflowTarget: (target) => {
       if (get().workflowTarget === target) return;
       set({ workflowTarget: target });

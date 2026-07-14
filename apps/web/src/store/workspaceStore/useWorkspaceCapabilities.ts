@@ -1,12 +1,10 @@
 import { useMemo } from 'react';
 import { getWorkspaceCapabilities } from '../../lib/workspaceCapabilities';
-import { activeOrFallbackHistoryCount } from './capabilities';
+import { historyCountForContext } from './capabilities';
 import { useWorkspaceStore } from './store';
 
 export function useWorkspaceCapabilities() {
   const activeEditingContext = useWorkspaceStore((state) => state.activeEditingContext);
-  const documentMode = useWorkspaceStore((state) => state.documentMode);
-  const activeEditingSurface = useWorkspaceStore((state) => state.activeEditingSurface);
   const engineReady = useWorkspaceStore((state) => state.engineReady);
   const status = useWorkspaceStore((state) => state.status);
   const edgeCount = useWorkspaceStore((state) => state.project.edges.length);
@@ -43,26 +41,18 @@ export function useWorkspaceCapabilities() {
   });
   const clipboard = useWorkspaceStore((state) => state.clipboard);
   const selection = useWorkspaceStore((state) => state.selection);
-  const isBpContext =
-    activeEditingContext === 'bp-tree' || activeEditingContext === 'bp-packing';
-  const usableTreeHistoryPastCount = documentMode === 'tree' ? treeHistoryPastCount : 0;
-  const usableTreeHistoryFutureCount = documentMode === 'tree' ? treeHistoryFutureCount : 0;
-  const usableCpHistoryPastCount = hasEditableCreasePattern ? cpHistoryPastCount : 0;
-  const usableCpHistoryFutureCount = hasEditableCreasePattern ? cpHistoryFutureCount : 0;
-  const historyPastCount = isBpContext
-    ? bpHistoryPastCount
-    : activeOrFallbackHistoryCount(
-        activeEditingSurface,
-        usableTreeHistoryPastCount,
-        usableCpHistoryPastCount
-      );
-  const historyFutureCount = isBpContext
-    ? bpHistoryFutureCount
-    : activeOrFallbackHistoryCount(
-        activeEditingSurface,
-        usableTreeHistoryFutureCount,
-        usableCpHistoryFutureCount
-      );
+  const historyPastCount = historyCountForContext(
+    activeEditingContext,
+    bpHistoryPastCount,
+    hasEditableCreasePattern ? cpHistoryPastCount : 0,
+    treeHistoryPastCount
+  );
+  const historyFutureCount = historyCountForContext(
+    activeEditingContext,
+    bpHistoryFutureCount,
+    hasEditableCreasePattern ? cpHistoryFutureCount : 0,
+    treeHistoryFutureCount
+  );
 
   return useMemo(
     () =>

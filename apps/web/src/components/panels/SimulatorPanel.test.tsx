@@ -119,7 +119,6 @@ function renderPanel(state: Partial<ReturnType<typeof useWorkspaceStore.getState
     {
       ...useWorkspaceStore.getInitialState(),
       project: createSampleProject(),
-      documentMode: 'crease-pattern',
       status: 'crease_pattern_ready',
       engineReady: true,
       ...state,

@@ -55,10 +55,7 @@ function createDeps() {
       addLargestStubForSelectedNodes: vi.fn().mockResolvedValue(undefined),
       addLargestStubForSelectedPoly: vi.fn().mockResolvedValue(undefined),
       triangulateTree: vi.fn().mockResolvedValue(undefined),
-      documentMode: 'tree' as 'tree' | 'crease-pattern',
-      activeEditingSurface: 'tree' as 'tree' | 'crease-pattern',
       activeEditingContext: 'treemaker-tree' as import('../workspaces/editingContext').EditingContext,
-      setActiveEditingSurface: vi.fn(),
       oristudioBpDocument: null,
       deleteOristudioBpTreeNode: vi.fn().mockResolvedValue(true),
       oristudioCpDocument: null as OristudioCpDocumentState | null,
@@ -278,8 +275,6 @@ describe('menu actions', () => {
 
   it('routes generic selection commands to editable CP state in CP mode', async () => {
     const deps = createDeps();
-    deps.workspace.documentMode = 'crease-pattern';
-    deps.workspace.activeEditingSurface = 'crease-pattern';
     deps.workspace.activeEditingContext = 'crease-pattern';
     deps.workspace.oristudioCpDocument = {
       handle: 1,
@@ -369,8 +364,6 @@ describe('menu actions', () => {
 
   it('routes Delete to selected editable CP vertices and points', async () => {
     const deps = createDeps();
-    deps.workspace.documentMode = 'crease-pattern';
-    deps.workspace.activeEditingSurface = 'crease-pattern';
     deps.workspace.activeEditingContext = 'crease-pattern';
     deps.workspace.oristudioCpSelection = {
       lines: [],

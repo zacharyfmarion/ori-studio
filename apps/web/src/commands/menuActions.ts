@@ -16,7 +16,6 @@ import { getCpVertices, type OristudioCpSelection } from '../lib/creasePatternVi
 import type { CpSelectionTransform } from '../lib/creasePatternClipboard';
 import type { Point } from '../lib/geometry';
 import type { OristudioCpOperationId } from '../lib/oristudioCpCommands';
-import type { DocumentMode } from '../lib/sampleProject';
 import type { EditingContext } from '../workspaces/editingContext';
 import type { OristudioBpDocumentState } from '../engine/oristudioBpTypes';
 import type { CreaseExportOptions } from '../lib/creaseExport';
@@ -157,10 +156,7 @@ export interface WorkspaceCommands {
   addLargestStubForSelectedNodes(): Promise<void>;
   addLargestStubForSelectedPoly(): Promise<void>;
   triangulateTree(): Promise<void>;
-  documentMode: DocumentMode;
-  activeEditingSurface: DocumentMode;
   activeEditingContext: EditingContext;
-  setActiveEditingSurface(surface: DocumentMode): void;
   oristudioBpDocument: OristudioBpDocumentState | null;
   deleteOristudioBpTreeNode(id: number): Promise<boolean>;
   oristudioCpDocument: OristudioCpDocumentState | null;
@@ -600,12 +596,10 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
         await deps.workspace.triangulateTree();
         return true;
       case 'view.design':
-        deps.workspace.setActiveEditingSurface('tree');
         deps.layout.activatePanel('design');
         return true;
       case 'view.edit':
       case 'view.creasePattern':
-        if (deps.workspace.oristudioCpDocument) deps.workspace.setActiveEditingSurface('crease-pattern');
         deps.layout.activatePanel('crease-pattern');
         return true;
       case 'view.simulate':

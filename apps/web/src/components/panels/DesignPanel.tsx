@@ -487,7 +487,6 @@ function TreeMakerDesignPanel() {
   const [symmetryModeOverride, setSymmetryModeOverride] = useState<SymmetrySelectValue | null>(null);
   const project = useWorkspaceStore((state) => state.project);
   const engineReady = useWorkspaceStore((state) => state.engineReady);
-  const documentMode = useWorkspaceStore((state) => state.documentMode);
   const importedCreasePattern = useWorkspaceStore((state) => state.importedCreasePattern);
   const selection = useWorkspaceStore((state) => state.selection);
   const toolMode = useWorkspaceStore((state) => state.toolMode);
@@ -499,7 +498,6 @@ function TreeMakerDesignPanel() {
   const moveNodeWithSymmetry = useWorkspaceStore((state) => state.moveNodeWithSymmetry);
   const setToolMode = useWorkspaceStore((state) => state.setToolMode);
   const setSymmetry = useWorkspaceStore((state) => state.setSymmetry);
-  const setActiveEditingSurface = useWorkspaceStore((state) => state.setActiveEditingSurface);
   const projectLoadId = useWorkspaceStore((state) => state.projectLoadId);
   const designViewportFitRequestId = useWorkspaceStore(
     (state) => state.designViewportFitRequestId
@@ -724,7 +722,6 @@ function TreeMakerDesignPanel() {
 
   const setDesignSymmetryEnabled = useCallback(
     (enabled: boolean) => {
-      setActiveEditingSurface('tree');
       if (!enabled) {
         setSymmetryModeOverride(null);
         if (mirrorMode) setToolMode('select');
@@ -748,7 +745,6 @@ function TreeMakerDesignPanel() {
       project.paper.symAngle,
       project.paper.symLoc,
       project.paper.width,
-      setActiveEditingSurface,
       setSymmetry,
       setToolMode,
     ]
@@ -757,7 +753,6 @@ function TreeMakerDesignPanel() {
   const applyDesignSymmetryPreset = useCallback(
     (preset: SymmetryPreset) => {
       const option = symmetryOptionForPreset(preset, project.paper.symAngle);
-      setActiveEditingSurface('tree');
       setSymmetryModeOverride(preset);
       setLayers((current) => setDesignLayerVisibility(current, 'symmetry', true));
       void setSymmetry({
@@ -770,14 +765,12 @@ function TreeMakerDesignPanel() {
       project.paper.height,
       project.paper.symAngle,
       project.paper.width,
-      setActiveEditingSurface,
       setSymmetry,
     ]
   );
 
   const flipDesignSymmetryPreset = useCallback(() => {
     if (!nextSymmetryPresetOption || !presetSymmetryMode) return;
-    setActiveEditingSurface('tree');
     setSymmetryModeOverride(presetSymmetryMode);
     setLayers((current) => setDesignLayerVisibility(current, 'symmetry', true));
     void setSymmetry({
@@ -790,13 +783,11 @@ function TreeMakerDesignPanel() {
     presetSymmetryMode,
     project.paper.height,
     project.paper.width,
-    setActiveEditingSurface,
     setSymmetry,
   ]);
 
   const setDesignMirrorMode = useCallback(
     (enabled: boolean) => {
-      setActiveEditingSurface('tree');
       if (!enabled) {
         setToolMode('select');
         return;
@@ -816,7 +807,6 @@ function TreeMakerDesignPanel() {
       project.hasSymmetry,
       project.paper.height,
       project.paper.width,
-      setActiveEditingSurface,
       setSymmetry,
       setToolMode,
     ]
@@ -824,12 +814,11 @@ function TreeMakerDesignPanel() {
 
   const updateDesignCustomSymmetry = useCallback(
     (update: { symAngle?: number; symLoc?: Point }) => {
-      setActiveEditingSurface('tree');
       setSymmetryModeOverride('custom');
       setLayers((current) => setDesignLayerVisibility(current, 'symmetry', true));
       void setSymmetry({ hasSymmetry: true, ...update });
     },
-    [setActiveEditingSurface, setSymmetry]
+    [setSymmetry]
   );
 
   useEffect(() => {
@@ -928,7 +917,7 @@ function TreeMakerDesignPanel() {
     setHoverPoint(eventToPaper(event));
   };
 
-  if (documentMode === 'crease-pattern') {
+  if (importedCreasePattern) {
     return (
       <section className="panel-shell design-panel">
         <div className="panel-body document-mode-empty">
@@ -977,7 +966,6 @@ function TreeMakerDesignPanel() {
         tabIndex={-1}
         onPointerDownCapture={(event) => {
           setActiveShortcutViewportSurface('tree');
-          setActiveEditingSurface('tree');
           if (!isViewportInteractiveTarget(event.target)) containerRef.current?.focus();
         }}
       >

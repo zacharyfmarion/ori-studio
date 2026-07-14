@@ -15,7 +15,6 @@ import type { SnapshotEntry } from './snapshotHistory';
 import type {
   AppStatus,
   CreaseColorMode,
-  DocumentMode,
   Selection,
   ToolMode,
   TreeProject,
@@ -79,8 +78,6 @@ export interface ProjectSliceState {
    * method (Circle-packed vs Box-pleated). Drives the Design pane NUX chooser.
    */
   pendingDesignChoice: boolean;
-  documentMode: DocumentMode;
-  activeEditingSurface: DocumentMode;
   /**
    * The id of the Dockview panel the user last focused. Source of truth for the
    * active editing context (below); updated from `onDidActivePanelChange`.
@@ -170,7 +167,6 @@ export interface ProjectSliceActions {
   loadExampleProject: (id: string) => Promise<void>;
   clearProjectMessage: () => void;
   setActivePanelId: (id: string | null) => void;
-  setActiveEditingSurface: (surface: DocumentMode) => void;
   setWorkflowTarget: (target: WorkflowTarget) => void;
   /** Enter the Design workspace on the method chooser without creating a document. */
   startNewDesign: () => void;

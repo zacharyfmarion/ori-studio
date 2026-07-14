@@ -104,8 +104,6 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     set({
       workflowTarget: 'box-pleat',
       pendingDesignChoice: false,
-      documentMode: 'tree',
-      activeEditingSurface: 'tree',
       importedCreasePattern: null,
       oristudioCpDocument: null,
       oristudioCpLineage: null,

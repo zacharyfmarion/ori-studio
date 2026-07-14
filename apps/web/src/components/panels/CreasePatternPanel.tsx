@@ -1464,8 +1464,8 @@ export function CreasePatternPanel() {
   const project = useWorkspaceStore((state) => state.project);
   const status = useWorkspaceStore((state) => state.status);
   const error = useWorkspaceStore((state) => state.error);
-  const documentMode = useWorkspaceStore((state) => state.documentMode);
   const importedCreasePattern = useWorkspaceStore((state) => state.importedCreasePattern);
+  const activeEditingContext = useWorkspaceStore((state) => state.activeEditingContext);
   const oristudioCpDocument = useWorkspaceStore((state) => state.oristudioCpDocument);
   const ensureEditCreasePattern = useWorkspaceStore((state) => state.ensureEditCreasePattern);
   // Always-live canvas: seed a blank editable CP when the Edit workspace mounts
@@ -1490,7 +1490,6 @@ export function CreasePatternPanel() {
   const mode = 'mvf' as const;
   const selection = useWorkspaceStore((state) => state.selection);
   const select = useWorkspaceStore((state) => state.select);
-  const setActiveEditingSurface = useWorkspaceStore((state) => state.setActiveEditingSurface);
   const toggleOristudioCpLineSelection = useWorkspaceStore(
     (state) => state.toggleOristudioCpLineSelection
   );
@@ -2623,7 +2622,6 @@ export function CreasePatternPanel() {
       if (event.button !== 0 || spacePressed || !editableCp) return;
       event.preventDefault();
       event.stopPropagation();
-      setActiveEditingSurface('crease-pattern');
       setOristudioCpActiveFoldedFigure(figureId);
 
       if (!event.metaKey && !event.ctrlKey) return;
@@ -2639,7 +2637,6 @@ export function CreasePatternPanel() {
     [
       editableCp,
       eventToEditableSvgPoint,
-      setActiveEditingSurface,
       setOristudioCpActiveFoldedFigure,
       spacePressed,
     ]
@@ -3803,7 +3800,7 @@ export function CreasePatternPanel() {
         ? 'Optimizing scale'
         : status === 'error' && error
           ? shortStatus(error.message)
-          : documentMode === 'crease-pattern'
+          : activeEditingContext === 'crease-pattern'
             ? 'No imported crease pattern'
             : 'No crease pattern';
   const getViewportSize = useCallback((): ViewportSize | null => {
@@ -4118,7 +4115,6 @@ export function CreasePatternPanel() {
         tabIndex={-1}
         onPointerDownCapture={(event) => {
           setActiveShortcutViewportSurface('crease-pattern');
-          if (editableCp) setActiveEditingSurface('crease-pattern');
           if (!isViewportInteractiveTarget(event.target)) containerRef.current?.focus();
         }}
       >

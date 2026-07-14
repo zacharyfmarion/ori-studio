@@ -913,7 +913,6 @@ function configureEngine(api: TestEngineApi) {
 function loadSnapshotIntoStore(snapshot: TreeSnapshot, title = 'Seed project') {
   useWorkspaceStore.setState({
     project: projectFromSnapshot(snapshot, title),
-    documentMode: 'tree',
     importedCreasePattern: null,
     oristudioCpDocument: null,
     oristudioCpOperationDescriptors: [],
@@ -1348,7 +1347,6 @@ describe('workspace store slices', () => {
     const state = useWorkspaceStore.getState();
 
     expect(state.project.nodes).toEqual([]);
-    expect(state.documentMode).toBe('tree');
     expect(state.importedCreasePattern).toBeNull();
     expect(state.oristudioCpDocument).toBeNull();
     expect(state.oristudioCpOperationDescriptors).toEqual([]);
@@ -1498,7 +1496,6 @@ describe('workspace store slices', () => {
     expect(oristudioCpMocks.releaseOristudioCpDocument).toHaveBeenCalledOnce();
     expect(oristudioCpMocks.createBlankOristudioCpDocument).toHaveBeenCalledOnce();
     expect(useWorkspaceStore.getState()).toMatchObject({
-      documentMode: 'crease-pattern',
       currentFileName: 'Untitled-CP.osf',
       currentFilePath: null,
       status: 'crease_pattern_ready',
@@ -1546,7 +1543,6 @@ describe('workspace store slices', () => {
 
     expect(engineMocks.loadTreeFromText).toHaveBeenCalledWith(api, 'native tree tmd5');
     expect(useWorkspaceStore.getState()).toMatchObject({
-      documentMode: 'tree',
       currentFileName: 'native-tree.osf',
       currentFilePath: '/tmp/native-tree.osf',
       dirty: false,
@@ -1617,7 +1613,6 @@ describe('workspace store slices', () => {
       }
     );
     expect(useWorkspaceStore.getState()).toMatchObject({
-      documentMode: 'crease-pattern',
       currentFileName: 'native-cp.osf',
       currentFilePath: '/tmp/native-cp.osf',
       creaseColorMode: 'agrh',
@@ -1657,7 +1652,6 @@ describe('workspace store slices', () => {
     await expect(useWorkspaceStore.getState().openProject(fileService)).resolves.toBe(true);
 
     expect(useWorkspaceStore.getState()).toMatchObject({
-      documentMode: 'crease-pattern',
       currentFileName: 'square.cp',
       currentFilePath: '/tmp/square.cp',
       dirty: false,
@@ -1836,7 +1830,6 @@ describe('workspace store slices', () => {
     );
     expect(oristudioCpMocks.exportOristudioCpDocumentAsFold).toHaveBeenCalledOnce();
     expect(useWorkspaceStore.getState()).toMatchObject({
-      documentMode: 'crease-pattern',
       currentFileName: 'native.ori',
       currentFilePath: '/tmp/native.ori',
       dirty: false,
@@ -2833,7 +2826,6 @@ describe('workspace store slices', () => {
       label: 'CreaseMakeMountain',
     });
 
-    useWorkspaceStore.setState({ activeEditingSurface: 'tree' });
     expect(selectWorkspaceCapabilities(useWorkspaceStore.getState())['edit.undo'].enabled).toBe(
       true
     );
@@ -2869,7 +2861,6 @@ describe('workspace store slices', () => {
     expect(oristudioCpMocks.exportOristudioCpDocumentAsFold).toHaveBeenCalled();
     expect(useWorkspaceStore.getState().foldArtifactStatus).toBe('ready');
 
-    useWorkspaceStore.setState({ activeEditingSurface: 'tree' });
     expect(selectWorkspaceCapabilities(useWorkspaceStore.getState())['edit.redo'].enabled).toBe(
       true
     );
@@ -2981,8 +2972,6 @@ describe('workspace store slices', () => {
     const documentState = blankCpDocumentState();
     const selection = { ...emptyOristudioCpSelection(), lines: [1] };
     useWorkspaceStore.setState({
-      documentMode: 'crease-pattern',
-      activeEditingSurface: 'crease-pattern',
       oristudioCpDocument: documentState,
       oristudioCpSelection: selection,
       status: 'crease_pattern_ready',
@@ -3030,8 +3019,6 @@ describe('workspace store slices', () => {
   it('normalizes advanced grid metadata using Oriedita validation rules', async () => {
     resetStores(seedSnapshot());
     useWorkspaceStore.setState({
-      documentMode: 'crease-pattern',
-      activeEditingSurface: 'crease-pattern',
       oristudioCpDocument: blankCpDocumentState(),
       status: 'crease_pattern_ready',
       dirty: false,
@@ -3506,7 +3493,7 @@ describe('workspace store slices', () => {
       cpLine({ x: 0, y: 1 }, { x: 2, y: 1 }),
     ]);
     useWorkspaceStore.setState({
-      documentMode: 'crease-pattern',
+      activePanelId: 'crease-pattern',
       oristudioCpDocument: documentState,
       oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
       status: 'crease_pattern_ready',
@@ -3548,7 +3535,6 @@ describe('workspace store slices', () => {
       cpLine({ x: 0, y: 1 }, { x: 2, y: 1 }, { color: 'Blue2' }),
     ]);
     useWorkspaceStore.setState({
-      documentMode: 'crease-pattern',
       oristudioCpDocument: documentState,
       oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
       status: 'crease_pattern_ready',
@@ -3757,7 +3743,6 @@ describe('workspace store slices', () => {
       const state = useWorkspaceStore.getState();
       expect(state.workflowTarget).toBe('box-pleat');
       expect(state.pendingDesignChoice).toBe(false);
-      expect(state.documentMode).toBe('tree');
       expect(state.oristudioBpDocument).not.toBeNull();
       expect(bpMocks.loadOristudioBpProjectFromText).toHaveBeenCalledOnce();
     });
@@ -3771,7 +3756,6 @@ describe('workspace store slices', () => {
       const state = useWorkspaceStore.getState();
       expect(state.workflowTarget).toBe('treemaker');
       expect(state.pendingDesignChoice).toBe(false);
-      expect(state.documentMode).toBe('tree');
     });
 
     it('creating a TreeMaker project after a Box-pleat design resets the method', async () => {
