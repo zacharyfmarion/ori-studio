@@ -214,14 +214,23 @@ uniformly, so this is purely an internal convergence left for later.
   clean, 465 web tests pass.
 
 ### Phase 5 — Always-live Edit canvas + Send-to-Canvas
-- [ ] Create a blank editable `oristudioCpDocument` at startup so the Edit
-      workspace is never empty.
-- [ ] Reframe "Build CP" (TreeMaker) and add "Send to Edit" (BP, using
-      `snapshot.creasePattern` — no legacy tree needed) as **producers that merge
-      into the Edit CP** via the Import(Add) path. Duplicates OK.
+- [x] **5a** — always-live blank CP: `ensureEditCreasePattern` seeds a blank
+      editable CP, called from the CreasePatternPanel mount (covers startup +
+      after-reset at one point), so the Edit workspace is never empty.
+- [x] **5b** — BP "Send to Edit": `sendOristudioBpToEdit` exports the BP crease
+      pattern and merges it into the Edit canvas via a reusable in-memory
+      Import(Add) (`importAddOristudioCpText`), then switches to Edit; surfaced as
+      the top "Send to Edit" toolbar action in a BP context. Duplicates OK.
+- [ ] **5c** — delete `documentMode`/`activeEditingSurface` fields + reframe the
+      three panels' "no editable tree" empty states (now that a CP always exists,
+      the signal is `importedCreasePattern`) + context-drive the Edit-menu history
+      counts. (The coupled Phase 6 field deletion.)
+- [ ] **5d** — split the polymorphic `design` panel into static-context
+      components (`design-nux` / `design-treemaker` / `design-bp-tree`).
+- [~] TreeMaker "Build CP" still replaces (not merges) its CP; the always-live
+      canvas shows it. Merge-reframe deferred (replace works fine).
 - **Gate (author):** Edit workspace shows a live empty canvas before any design;
-  building/sending from a circle-packed *and* a box-pleat design merges CP
-  geometry into that canvas and focuses Edit.
+  BP "Send to Edit" merges the box-pleat CP into that canvas and focuses Edit.
 
 ### Phase 6 — Delete the legacy axes + split the polymorphic design panel
 
