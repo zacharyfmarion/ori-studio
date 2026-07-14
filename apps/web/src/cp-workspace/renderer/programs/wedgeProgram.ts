@@ -42,10 +42,18 @@ void main() {
   vColor = aColor;
 }`;
 
-const FRAG = `
+const FILL_FRAG = `
 precision highp float;
 varying vec4 vColor;
 void main() { gl_FragColor = vec4(vColor.rgb * vColor.a, vColor.a); }`;
+
+// Outline pass: the sector's tone at a fixed strong alpha, so every sector edge
+// reads (the SVG stroked them all); the per-sector fill alpha is ignored here.
+const OUTLINE_FRAG = `
+precision highp float;
+varying vec4 vColor;
+const float A = 0.9;
+void main() { gl_FragColor = vec4(vColor.rgb * A, A); }`;
 
 // Three fan corners: apex + the two rim points.
 const CORNERS = new Float32Array([0, 1, 2]);
@@ -105,9 +113,8 @@ export function createWedgeProgram(regl: Regl): WedgeProgram {
   let colorBuf: Buffer | null = null;
   let count = 0;
 
-  const draw = regl<WedgeUniforms, WedgeAttributes, WedgeDrawParams>({
+  const shared = {
     vert: VERT,
-    frag: FRAG,
     attributes: {
       aCorner: corners,
       aCenter: { buffer: (_c: unknown, props: WedgeDrawParams) => props.centerBuf, divisor: 1 },
@@ -117,11 +124,11 @@ export function createWedgeProgram(regl: Regl): WedgeProgram {
       aColor: { buffer: (_c: unknown, props: WedgeDrawParams) => props.colorBuf, divisor: 1 },
     },
     uniforms: {
-      u_origin: (_ctx, props) => props.originArr,
-      u_ex: (_ctx, props) => props.exArr,
-      u_ey: (_ctx, props) => props.eyArr,
-      u_viewport: (_ctx, props) => props.viewportArr,
-      u_scalePx: (_ctx, props) => props.scalePx,
+      u_origin: (_ctx: unknown, props: WedgeDrawParams) => props.originArr,
+      u_ex: (_ctx: unknown, props: WedgeDrawParams) => props.exArr,
+      u_ey: (_ctx: unknown, props: WedgeDrawParams) => props.eyArr,
+      u_viewport: (_ctx: unknown, props: WedgeDrawParams) => props.viewportArr,
+      u_scalePx: (_ctx: unknown, props: WedgeDrawParams) => props.scalePx,
     },
     blend: {
       enable: true,
@@ -129,7 +136,18 @@ export function createWedgeProgram(regl: Regl): WedgeProgram {
     },
     depth: { enable: false },
     count: 3,
-    instances: (_ctx, props) => props.instanceCount,
+    instances: (_ctx: unknown, props: WedgeDrawParams) => props.instanceCount,
+  } as const;
+
+  const drawFill = regl<WedgeUniforms, WedgeAttributes, WedgeDrawParams>({
+    ...shared,
+    frag: FILL_FRAG,
+  });
+  // Closed triangle outline (apex -> rim0 -> rim1 -> apex) so each sector edge reads.
+  const drawOutline = regl<WedgeUniforms, WedgeAttributes, WedgeDrawParams>({
+    ...shared,
+    frag: OUTLINE_FRAG,
+    primitive: 'line loop',
   });
 
   return {
@@ -148,7 +166,7 @@ export function createWedgeProgram(regl: Regl): WedgeProgram {
     },
     draw({ view, viewport, scalePx }) {
       if (count === 0 || !centerBuf || !dir0Buf || !dir1Buf || !radiusBuf || !colorBuf) return;
-      draw({
+      const params: WedgeDrawParams = {
         originArr: [view.origin[0], view.origin[1]],
         exArr: [view.ex[0], view.ex[1]],
         eyArr: [view.ey[0], view.ey[1]],
@@ -160,7 +178,9 @@ export function createWedgeProgram(regl: Regl): WedgeProgram {
         radiusBuf,
         colorBuf,
         instanceCount: count,
-      });
+      };
+      drawFill(params);
+      drawOutline(params);
     },
     dispose() {
       corners.destroy();

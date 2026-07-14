@@ -485,9 +485,10 @@ function buildCpDiagnosticStrokes(
 }
 
 // Fill opacity for the little-big-little sectors: the violating sectors read strongly,
-// the rest stay faint so the angular breakdown is visible without dominating.
-const CP_DIAGNOSTIC_LBL_VIOLATING_ALPHA = 0.32;
-const CP_DIAGNOSTIC_LBL_QUIET_ALPHA = 0.08;
+// the rest stay lighter (but still legible) so the angular breakdown reads without
+// dominating. The wedge program also strokes every sector edge for definition.
+const CP_DIAGNOSTIC_LBL_VIOLATING_ALPHA = 0.48;
+const CP_DIAGNOSTIC_LBL_QUIET_ALPHA = 0.16;
 
 /**
  * Build little-big-little sector wedges: for each pair of consecutive crease rays
