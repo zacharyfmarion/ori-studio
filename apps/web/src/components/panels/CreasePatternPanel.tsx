@@ -198,6 +198,23 @@ import { readCssVarColor } from '../../cp-workspace/renderer/cssColor';
 import { useThemeStore } from '../../store/themeStore';
 import type { FoldedGeometry, Rgba, StrokeGeometry } from '../../cp-workspace/renderer/types';
 import { foldedGeometryFromShapes } from '../../cp-workspace/adapters/cpFoldedToScene';
+import {
+  allowsDirectEntitySelection,
+  isCircleTangentPointOperation,
+  isCreaseToggleMvClickTool,
+  isDefaultSelectionMode,
+  isLengthenCreaseOperation,
+  isLineClickSelectionOperation,
+  isLineEraseClickTool,
+  isReflectSelectionOperation,
+  isRestrictedDrawOperation,
+  isSelectionCircleApplyOperation,
+  isSquareBisectorOperation,
+  isTextAnnotationOperation,
+  isVariablePointSequenceOperation,
+  lineColorMatchesCustomType,
+  shouldPreferPointSnapForStep,
+} from '../../cp-workspace/tools/predicates';
 import { IconButton } from '../ui/IconButton';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { Toggle } from '../ui/Toggle';
@@ -525,60 +542,6 @@ function nearestEditableCpLineId(
   return nearestId;
 }
 
-function isLineClickSelectionOperation(operationId: string | null | undefined): boolean {
-  return operationId === 'CreaseSelect' || operationId === 'CreaseUnselect';
-}
-
-function isLengthenCreaseOperation(operationId: string | null | undefined): boolean {
-  return operationId === 'LengthenCrease' || operationId === 'LengthenCreaseSameColor';
-}
-
-// Oriedita `CREASE_TOGGLE_MV_58` (the 'C' tool): clicking a crease flips its
-// mountain/valley assignment in place, keeping the tool active for the next click.
-function isCreaseToggleMvClickTool(operationId: string | null | undefined): boolean {
-  return operationId === 'CreaseToggleMv';
-}
-
-function isSquareBisectorOperation(operationId: string | null | undefined): boolean {
-  return operationId === 'SquareBisector';
-}
-
-// Oriedita `LINE_SEGMENT_DELETE_3` (the eraser tool): clicking a crease deletes
-// it (honoring the tool-options line-type filter), keeping the tool active for
-// the next click.
-function isLineEraseClickTool(operationId: string | null | undefined): boolean {
-  return operationId === 'LineSegmentDelete';
-}
-
-// Mirrors the kernel `CustomLineType::matches`: does a crease's line color pass
-// the eraser's line-type filter? Used to preview which crease a click erases.
-function lineColorMatchesCustomType(
-  color: string,
-  lineType: OristudioCpCustomLineType
-): boolean {
-  switch (lineType) {
-    case 'Any':
-      return true;
-    case 'Edge':
-      return color === 'Black0';
-    case 'MountainAndValley':
-      return color === 'Red1' || color === 'Blue2';
-    case 'Mountain':
-      return color === 'Red1';
-    case 'Valley':
-      return color === 'Blue2';
-    case 'Aux':
-      return color === 'Cyan3';
-    default:
-      return false;
-  }
-}
-
-function allowsDirectEntitySelection(operationId: string | null | undefined): boolean {
-  return operationId === 'CreaseSelect';
-}
-
-
 /**
  * Segment count for a preview circle of model radius `r`: scales with the
  * circumference (larger circles get more sides) with a high floor/cap, so the
@@ -645,45 +608,6 @@ function cpCreasesUnderPreviewEndpoints(
     if (count === 1) found.add(onlyHit);
   }
   return [...found].map((i) => ({ a: lineSegments[i].a, b: lineSegments[i].b }));
-}
-
-function shouldPreferPointSnapForStep(
-  command: OristudioCpCommandDefinition | null | undefined,
-  stepIndex: number
-): boolean {
-  if (command?.operationId === 'DrawCreaseSymmetric') return true;
-  if (command?.operationId === 'DoubleSymmetricDraw') return true;
-  const step = command?.toolSteps?.[stepIndex]?.toLowerCase();
-  if (!step) return false;
-  if (step.includes('crease') || step.includes('line')) return false;
-  return (
-    step.includes('point') ||
-    step.includes('vertex') ||
-    step.includes('endpoint') ||
-    step.includes('center') ||
-    step.includes('radius')
-  );
-}
-
-function isDefaultSelectionMode(
-  state: { activeOperationId: string | null; phase: string },
-  pendingPointCount: number,
-  pendingPathCount: number
-): boolean {
-  return (
-    state.phase === 'active' &&
-    state.activeOperationId === 'CreaseSelect' &&
-    pendingPointCount === 0 &&
-    pendingPathCount === 0
-  );
-}
-
-function isRestrictedDrawOperation(operationId: string | null | undefined): boolean {
-  return operationId === 'DrawCreaseRestricted';
-}
-
-function isReflectSelectionOperation(operationId: string | null | undefined): boolean {
-  return operationId === 'DrawCreaseSymmetric';
 }
 
 function cpLineTypeStatusLabel(lineColor: OristudioCpLineColor): string {
@@ -1036,35 +960,6 @@ function cpCommandRequiresContextApply(command: OristudioCpCommandDefinition): b
   return cpToolSettingGroupsForCommand(command).some(
     (group) => group !== 'line-color' && group !== 'line-select-help'
   );
-}
-
-function isVariablePointSequenceOperation(
-  operationId: OristudioCpCommandDefinition['operationId'] | null | undefined
-): boolean {
-  return operationId === 'VoronoiCreate';
-}
-
-function isTextAnnotationOperation(
-  operationId: OristudioCpCommandDefinition['operationId'] | null | undefined
-): boolean {
-  return operationId === 'Text';
-}
-
-function isSelectionCircleApplyOperation(
-  operationId: OristudioCpCommandDefinition['operationId'] | null | undefined
-): boolean {
-  return (
-    operationId === 'CircleDrawTangentLine' ||
-    operationId === 'CircleDrawInverted' ||
-    operationId === 'CircleDrawConcentricSelect' ||
-    operationId === 'CircleDrawConcentricTwoCircleSelect'
-  );
-}
-
-function isCircleTangentPointOperation(
-  operationId: OristudioCpCommandDefinition['operationId'] | null | undefined
-): boolean {
-  return operationId === 'CircleDrawTangentLine';
 }
 
 function canPreviewFromSelection(
