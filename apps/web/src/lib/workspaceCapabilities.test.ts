@@ -400,6 +400,22 @@ describe('workspace capabilities', () => {
     expect(bp['edit.undo'].enabled).toBe(true);
   });
 
+  it('enables Save and Export .bps for a loaded box-pleat design', () => {
+    const withBp = capabilities({
+      activeEditingContext: 'bp-tree',
+      hasBoxPleatDocument: true,
+    });
+    expect(withBp['file.save'].enabled).toBe(true);
+    expect(withBp['file.saveAs'].enabled).toBe(true);
+    expect(withBp['file.exportBps'].visible).toBe(true);
+    expect(withBp['file.exportBps'].enabled).toBe(true);
+
+    // Without a box-pleat design, Export .bps is hidden and Save is not a BP save.
+    const withoutBp = capabilities({ activeEditingContext: 'treemaker-tree', edgeCount: 0 });
+    expect(withoutBp['file.exportBps'].visible).toBe(false);
+    expect(withoutBp['file.exportBps'].enabled).toBe(false);
+  });
+
   it('shows only playback/navigation commands with inert undo in the Simulate context', () => {
     const sim = capabilities({
       activeEditingContext: 'simulate',

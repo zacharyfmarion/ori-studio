@@ -160,6 +160,7 @@ export interface ProjectSliceActions {
   exportV4: (fileService?: FileService) => Promise<boolean>;
   exportCp: (fileService?: FileService) => Promise<boolean>;
   exportFold: (fileService?: FileService) => Promise<boolean>;
+  exportBps: (fileService?: FileService) => Promise<boolean>;
   exportOri: (fileService?: FileService) => Promise<boolean>;
   exportOrh: (fileService?: FileService) => Promise<boolean>;
   exportSvg: (fileService?: FileService, options?: CreaseExportOptions) => Promise<boolean>;

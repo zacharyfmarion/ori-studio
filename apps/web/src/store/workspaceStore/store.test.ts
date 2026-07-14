@@ -3801,6 +3801,25 @@ describe('workspace store slices', () => {
       ]);
     });
 
+    it('exports the active box-pleat design as a .bps file', async () => {
+      useWorkspaceStore.setState({ engineReady: true, status: 'ready', dirty: false });
+      await useWorkspaceStore.getState().loadOristudioBpProjectFromFile('{"tree":{}}', {
+        filename: 'crane.bps',
+        path: null,
+      });
+      bpMocks.exportOristudioBpProjectAsBps.mockResolvedValueOnce('{"exported":true}');
+
+      const fileService = createFileService();
+      await expect(useWorkspaceStore.getState().exportBps(fileService)).resolves.toBe(true);
+
+      const options = fileService.saveTextFile.mock.calls.at(-1)?.[0] as
+        | SaveTextFileOptions
+        | undefined;
+      expect(options?.contents).toBe('{"exported":true}');
+      expect(options?.extensions).toEqual(['bps']);
+      expect(options?.suggestedName.endsWith('.bps')).toBe(true);
+    });
+
     it('reopens a saved box-pleat .osf, restoring the design and its CP companion', async () => {
       const osf = serializeNativeProjectFile(
         createNativeBoxPleatProjectFile({

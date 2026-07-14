@@ -1708,6 +1708,29 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       }
     },
 
+    exportBps: async (fileService = getFileService()) => {
+      try {
+        if (rejectDisabled('file.exportBps')) return false;
+        const contents = await exportOristudioBpProjectAsBps();
+        const result = await fileService.saveTextFile({
+          title: 'Export Box Pleating Studio Project',
+          contents,
+          suggestedName: defaultFilename(
+            get().oristudioBpDocument?.snapshot?.summary?.title || get().project.title,
+            'bps'
+          ),
+          path: null,
+          extensions: ['bps'],
+        });
+        if (!result) return false;
+        set({ projectMessage: `Exported ${result.name}` });
+        return true;
+      } catch (error) {
+        set({ status: 'error', error: engineError(error) });
+        return false;
+      }
+    },
+
     exportFold: async (fileService = getFileService()) => {
       try {
         if (rejectDisabled('file.exportFold')) return false;

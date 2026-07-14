@@ -18,6 +18,7 @@ function createDeps() {
       exportV4: vi.fn().mockResolvedValue(true),
       exportCp: vi.fn().mockResolvedValue(true),
       exportFold: vi.fn().mockResolvedValue(true),
+      exportBps: vi.fn().mockResolvedValue(true),
       exportOri: vi.fn().mockResolvedValue(true),
       exportOrh: vi.fn().mockResolvedValue(true),
       exportSvg: vi.fn().mockResolvedValue(true),

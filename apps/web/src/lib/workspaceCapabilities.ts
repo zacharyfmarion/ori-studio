@@ -12,6 +12,7 @@ export type WorkspaceCapabilityId =
   | 'file.exportV4'
   | 'file.exportCp'
   | 'file.exportFold'
+  | 'file.exportBps'
   | 'file.exportOri'
   | 'file.exportOrh'
   | 'file.exportSvg'
@@ -225,6 +226,14 @@ export function getWorkspaceCapabilities(input: WorkspaceCapabilityInput): Works
         : treeMode
           ? 'Build a crease pattern before exporting FOLD'
           : 'Open a crease pattern before exporting FOLD'
+    ),
+    'file.exportBps': commandCapability(
+      input.hasBoxPleatDocument && !isBusy,
+      input.hasBoxPleatDocument,
+      'Export .bps...',
+      input.hasBoxPleatDocument
+        ? busyOr('Export the box-pleat design as a Box Pleating Studio .bps file', input.status)
+        : 'Open a box-pleat design before exporting .bps'
     ),
     'file.exportOri': capability(
       canExportEditableCp && !isBusy,
