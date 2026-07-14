@@ -342,9 +342,12 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       if (!get().oristudioBpDocument) return false;
       set({ oristudioBpBusy: true });
       try {
+        // Match BP Studio's Export CP defaults: keep the sheet orientation and
+        // include auxiliary hinge creases (dropping them yields a sparse CP that
+        // doesn't match BP Studio's export).
         const cpText = await exportOristudioBpProjectAsCp({
-          reorient: true,
-          includeAuxiliaryHinges: false,
+          reorient: false,
+          includeAuxiliaryHinges: true,
         });
         await get().ensureEditCreasePattern();
         const ok = await get().importAddOristudioCpText(
