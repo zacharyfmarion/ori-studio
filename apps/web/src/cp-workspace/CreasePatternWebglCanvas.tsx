@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, type RefObject } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { createReglRenderer } from './renderer/reglRenderer';
 import type { CpRenderer } from './renderer/CpRenderer';
 import { readCssVarColor } from './renderer/cssColor';
@@ -6,7 +6,6 @@ import {
   fitUserCamera,
   modelViewFromCamera,
   panUserCamera,
-  seedUserCamera,
   unprojectDevicePoint,
   userCameraToView,
   viewTransformScale,
@@ -48,7 +47,6 @@ import {
   gridBoundsKey,
   visibleGridBounds,
 } from './adapters/cpGridToScene';
-import { sampleView } from './svgViewBridge';
 import { cpVertexId, orieditaGridLinesForModelBounds } from '../lib/creasePatternViewport';
 import { toolEngineFor, type ToolInputMode } from './tools/registry';
 import { createToolRuntime, type ToolRuntime } from './tools/runtime';
@@ -328,11 +326,9 @@ export interface CreasePatternWebglCanvasProps {
   className?: string;
   /** Crease-pattern line segments in model coordinates. */
   lineSegments: readonly CpLineSegmentInput[];
-  /** The SVG the WebGL overlay mirrors for pan/zoom (Phase-1 bridge). */
-  svgRef: RefObject<SVGSVGElement | null>;
-  /** Model → SVG user-coordinate mapping (matches the SVG renderer). */
+  /** Model → user-coordinate mapping (the intermediate space the surface renders in). */
   modelToSvg: (point: ModelPoint) => ModelPoint;
-  /** SVG user → model mapping (inverse of {@link modelToSvg}) for hit-testing. */
+  /** User → model mapping (inverse of {@link modelToSvg}) for hit-testing. */
   svgToModel: (point: ModelPoint) => ModelPoint;
   /** Currently selected ids (lines/points/circles are 1-based). */
   selectedLineIds: readonly number[];
@@ -538,7 +534,6 @@ export interface CreasePatternWebglCanvasProps {
 export function CreasePatternWebglCanvas({
   className,
   lineSegments,
-  svgRef,
   modelToSvg,
   svgToModel,
   selectedLineIds,
@@ -885,30 +880,21 @@ export function CreasePatternWebglCanvas({
       dpr: ratio,
     });
 
-    // Seed the owned camera once. Prefer fitting the actual geometry bounds
-    // (correct for any imported camera); fall back to the SVG's current fit if
-    // there is no geometry yet.
-    const ensureCamera = (viewport: Viewport, ratio: number): UserCamera | null => {
+    // Seed the owned camera once by fitting the geometry bounds. An editable CP always
+    // carries its paper boundary, so `contentBounds` is present; when it isn't (no
+    // geometry yet) the camera stays unseeded and nothing draws until geometry arrives.
+    const ensureCamera = (viewport: Viewport): UserCamera | null => {
       if (cameraRef.current) return cameraRef.current;
       const bounds = liveRef.current.contentBounds;
-      if (bounds) {
-        cameraRef.current = fitUserCamera(bounds, viewport);
-        return cameraRef.current;
-      }
-      const svg = svgRef.current;
-      if (!svg) return null;
-      const sampled = sampleView(svg, canvas, liveRef.current.modelToSvg, ratio);
-      if (!sampled) return null;
-      const seeded = seedUserCamera(sampled.userView, viewport);
-      if (!seeded) return null;
-      cameraRef.current = seeded;
-      return seeded;
+      if (!bounds) return null;
+      cameraRef.current = fitUserCamera(bounds, viewport);
+      return cameraRef.current;
     };
 
     const renderNow = () => {
       const ratio = dpr();
       const viewport = viewportOf(ratio);
-      const cam = ensureCamera(viewport, ratio);
+      const cam = ensureCamera(viewport);
       if (!cam) return;
 
       const view = modelViewFromCamera(cam, viewport, liveRef.current.modelToSvg);
@@ -1953,7 +1939,8 @@ export function CreasePatternWebglCanvas({
       renderer.dispose();
       rendererRef.current = null;
     };
-  }, [svgRef]);
+    // Set up once on mount; all live inputs are read through liveRef, not deps.
+  }, []);
 
   // Upload geometry whenever it is rebuilt, then redraw immediately.
   useEffect(() => {
