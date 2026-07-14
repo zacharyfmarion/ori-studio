@@ -422,6 +422,19 @@ function buildCpDiagnosticMarkers(
   return { center, size, shape, fill, stroke, count };
 }
 
+/** Marker anchors {id, model point} for click hit-testing — same filter as the render. */
+function buildCpDiagnosticMarkerHits(
+  entries: readonly OristudioCpDiagnosticEntry[]
+): { id: string; point: Point }[] {
+  const hits: { id: string; point: Point }[] = [];
+  for (const entry of entries) {
+    if (!entry.point) continue;
+    if (CP_DIAGNOSTIC_MARKER_SHAPE_ID[cpDiagnosticMarkerStyle(entry).shape] === null) continue;
+    hits.push({ id: entry.id, point: entry.point });
+  }
+  return hits;
+}
+
 /** Build model-space segment-highlight strokes for the diagnostic entries. */
 function buildCpDiagnosticStrokes(
   entries: readonly OristudioCpDiagnosticEntry[],
@@ -2135,6 +2148,7 @@ export function CreasePatternPanel() {
     return {
       markers: buildCpDiagnosticMarkers(latestDiagnosticEntries, toneColors),
       strokes: buildCpDiagnosticStrokes(latestDiagnosticEntries, toneColors),
+      hits: buildCpDiagnosticMarkerHits(latestDiagnosticEntries),
     };
   }, [latestDiagnosticEntries, currentTheme]);
   // Oriedita operation-frame outline for the WebGL surface: a dashed accent-coloured
@@ -5070,6 +5084,8 @@ export function CreasePatternPanel() {
                   toolPreviewColor={toolPreviewColor}
                   diagnosticMarkers={cpDiagnosticGeometry.markers}
                   diagnosticStrokes={cpDiagnosticGeometry.strokes}
+                  diagnosticHits={cpDiagnosticGeometry.hits}
+                  onSelectDiagnostic={handleSelectCpDiagnostic}
                   operationFrame={cpOperationFrameStrokes}
                   focusModelBounds={cpDiagnosticFocusBounds}
                   cameraCommand={webglCameraCommand}
