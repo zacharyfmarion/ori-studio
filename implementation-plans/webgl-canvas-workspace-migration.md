@@ -356,10 +356,43 @@ unverified gate.
     overrides); preview source-of-truth split (prefer kernel preview). Verify each
     tool. **First vertical slice: the `drag-line` crease tool** end-to-end (types +
     engine + unit tests + controller + WebGL adapter + preview channel + commit).
+  - **Landed (Phase 5 essentially complete):** the full tool sweep is tracked
+    per-tool with Zach's verbatim asks in
+    [webgl-cp-tool-input-spec.md](webgl-cp-tool-input-spec.md). All in-scope draw /
+    construction / measure / transform tools are built + validated (Line, grid-
+    restricted, perpendicular, parallel, angle-restricted/converging, mirror
+    (dual-mode), square/angle bisector, divided lines, voronoi, measure length/angle,
+    Extend Line drag-to-select, …); out-of-Oriedita-UI tools are hidden per Zach.
+    **Deferred to the end** (Zach's "revisit at end" pile): Text annotation (DOM
+    overlay), Reflect Over Line (needs a fresh divergence diagnosis), Square Bisector
+    mode C (parallel), Circle tangent-line fix + the rest of Circle-apply.
 
 - **Phase 6 — Diagnostics, snap, operation frame, imported forms.** CAMV
   segment lines on GPU; markers via overlay (revisit if counts get high); snap
   target; operation frame; imported folded forms. Verify.
+  - **Landed (most of Phase 6, 2026-07-14):**
+    - **Diagnostics overlay (WebGL-native).** The panel builds GPU geometry from the
+      live CAMV result + any check/fix `diagnostic_entries` — shape markers
+      (`markerProgram`: disc/ring/triangle/square/pentagon/cross SDFs), segment
+      highlights (stroke channel), and **little-big-little sector wedges** (a
+      dedicated `wedgeProgram`: instanced filled triangles + a hairline outline pass,
+      fanning from the vertex along consecutive crease rays). All diagnostic markers
+      **scale with zoom** via `markerScalePx` — a deliberate divergence from
+      Oriedita's screen-constant markers (Zach's call), applied consistently across
+      markers and wedges. Tone colours read the theme's CSS vars.
+    - **Check / fix tools unblocked.** `Check1–4` / `CheckCamv` render through the
+      overlay and auto-frame the selected issue; `Fix*` mutate through the kernel.
+    - **Click-a-marker-to-select.** In select mode, pressing a diagnostic marker
+      selects that diagnostic (frames + highlights it), via `{id, model point}`
+      anchors hit-tested on the canvas.
+    - **Diagnostic focus framing.** Selecting a diagnostic pans/zooms the owned camera
+      to the issue (capped), replacing the SVG-era focus.
+    - **Operation frame.** Overlay render (dashed screen-constant loop) + a `drag-box`
+      create interaction — then **hidden** in the UI (export is different here). Move/
+      resize of an existing frame not ported.
+  - **Remaining in Phase 6:** the **snap-target indicator** (a drag-line snap ring
+    exists; generalise it + show the SVG's snapped-target/label feedback), and
+    **imported folded forms** on the WebGL surface.
 
 - **Phase 7 — Full-canvas scale.** Scale the single editable surface to the
   whole-canvas geometry set plus many placed folded objects (no new container
