@@ -390,9 +390,14 @@ unverified gate.
     - **Operation frame.** Overlay render (dashed screen-constant loop) + a `drag-box`
       create interaction — then **hidden** in the UI (export is different here). Move/
       resize of an existing frame not ported.
-  - **Remaining in Phase 6:** the **snap-target indicator** (a drag-line snap ring
-    exists; generalise it + show the SVG's snapped-target/label feedback), and
-    **imported folded forms** on the WebGL surface.
+  - **Deferred (Zach):** the **snap-target indicator**. A drag-line snap ring already
+    draws on the WebGL surface; generalising it across tools + porting the SVG's
+    snapped-target/label HUD is deferred — revisit at the end.
+  - **Remaining in Phase 6:** **imported folded forms** on the WebGL surface — the
+    folded-state frames embedded in an imported `.fold` file
+    (`sourceFold.file_frames`), drawn today by the SVG `ImportedFoldedFormsLayer` as
+    small placed figures. They reuse the existing fill + stroke programs (same as
+    generated folded figures), so this is wiring, not new rendering primitives.
 
 - **Phase 7 — Full-canvas scale.** Scale the single editable surface to the
   whole-canvas geometry set plus many placed folded objects (no new container
