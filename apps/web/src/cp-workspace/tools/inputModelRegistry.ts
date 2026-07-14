@@ -138,10 +138,11 @@ export const CP_INPUT_MODELS: Partial<Record<OristudioCpOperationId, CpInputMode
 
   // DRAG-BOX / erase (§4.B)
   LineSegmentDelete: { model: 'drag-box' },
+  // The operation frame is a rubber-band rectangle (two corners), not a freeform path.
+  OperationFrameCreate: { model: 'drag-box' },
 
   // DRAG-PATH (§4.C)
   FlatFoldableCheck: { model: 'drag-path' },
-  OperationFrameCreate: { model: 'drag-path' },
   SelectLasso: { model: 'drag-path' },
   SelectPolygon: { model: 'drag-path' },
   UnselectLasso: { model: 'drag-path' },

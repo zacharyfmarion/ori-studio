@@ -482,8 +482,10 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
   }),
   ready('OperationFrameCreate', 'Operation frame', 'transform', 'frame', 'MouseHandlerOperationFrameCreate', {
     toolSteps: ['Drag operation frame'],
-    inputMode: 'drag-path',
-    tooltip: 'Create or adjust an Oriedita operation frame by dragging on the CP',
+    // A rubber-band rectangle (two opposite corners), not a freeform path: the kernel
+    // builds the axis-aligned frame from the press + release corners.
+    inputMode: 'drag-box',
+    tooltip: 'Create an Oriedita operation frame by dragging a rectangle on the CP',
   }),
   ready('VoronoiCreate', 'Voronoi', 'generators', 'network', 'MouseHandlerVoronoiCreate', {
     toolSteps: ['Click seed point'],
