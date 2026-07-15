@@ -1209,11 +1209,11 @@ impl BpProjectSession {
             self.project.design.tree.sheet = sheet;
             return Ok(());
         }
-        if let Some(id) = parse_prefixed_node_tag(tag, 'v')? {
-            if prop == "name" {
-                self.vertex_mut(id)?.name = value_from_history(value, "vertex name")?;
-                return Ok(());
-            }
+        if let Some(id) = parse_prefixed_node_tag(tag, 'v')?
+            && prop == "name"
+        {
+            self.vertex_mut(id)?.name = value_from_history(value, "vertex name")?;
+            return Ok(());
         }
         if let Some(id) = parse_prefixed_node_tag(tag, 'f')? {
             let index = self.flap_index(id)?;
