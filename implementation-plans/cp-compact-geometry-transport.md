@@ -141,22 +141,69 @@ Decisions baked into the format for correctness:
 
 ## Undo/redo (the correctness wrinkle)
 
-Undo/redo currently **store the structured document snapshot per edit** in
-`oristudioCpHistoryPast` and restore via `restoreOristudioCpDocumentInPlace(previous.document)`.
-If edits stop producing a structured snapshot, there is no restore point.
+Undo/redo currently **store the structured document snapshot per edit** (`MAX_HISTORY = 100`
+entries of `{ document, selection, label, timestamp }`) and restore via
+`restoreOristudioCpDocumentInPlace(previous.document)`. There is **no kernel-side undo** —
+it is entirely frontend-owned. If edits stop producing a structured snapshot, there is no
+restore point, so this must be addressed as part of the refactor.
 
-**Chosen approach: history stores the compact snapshot; restore rebuilds from it.**
-Keeps the existing frontend-owned undo architecture (store snapshot → restore snapshot),
-only swapping the *encoding* from structured to compact. Requires:
-- The compact codec to be **complete and round-trippable** (captures every field needed to
-  reconstruct the exact model — all attributes + texts/grid tail), which we need anyway.
-- A kernel `restore_from_compact(transport)` that rebuilds the model, mirroring
-  `restore_document` but from typed arrays.
-- Guarded by the **round-trip identity test** (below).
+### Option A — frontend history holds compact snapshots (chosen for this plan)
 
-Memory: compact snapshots are *smaller* than today's structured JS snapshots, so history
-memory improves. (Alternative, deferred: move the undo stack into the kernel entirely —
-cheaper still and cleaner, but a larger change; not needed for this plan.)
+Keep the existing frontend-owned architecture (store snapshot → restore snapshot); swap the
+*encoding* from structured to compact. **The per-edit compact geometry we already fetch for
+rendering is a complete, round-trippable snapshot, so it doubles as the undo entry — no
+extra per-edit work.** Requires only a kernel `restore_from_compact(transport)` (which we
+need anyway for the round-trip identity gate).
+
+- **Effort:** small on top of the codec — reuses the per-edit fetch; add `restore_from_compact`;
+  change `cpHistoryEntry` to store the compact buffers instead of the JS object.
+- **Correctness:** guarded by the round-trip identity gate; same undo flow as today, so undo
+  behavior is unchanged.
+- **Memory:** O(doc) per entry × 100 in JS (transferable `ArrayBuffer`s ≈ ~2.6MB per snapshot
+  at 52k edges → ~260MB at full depth). This is **better than today** (structured JS object
+  graphs are larger per element), and bounded; if it bites on huge docs, lower `MAX_HISTORY`
+  for large docs or move to Option B.
+- **Restore cost:** undo does a full `restore_from_compact` (O(doc), but cheap with typed
+  arrays). Undo is infrequent vs edits, so this is fine.
+
+### Option B — kernel-owned undo stack (deferred; larger, cleaner)
+
+The kernel keeps its own undo stack per handle: on each *mutating* command it clones the
+pre-state; `undo_command`/`redo_command` restore it. The frontend keeps only a lightweight
+label stack synced to kernel undo depth (the kernel doesn't know UI labels), re-derives its
+selection mirror after a restore, and reads can-undo/can-redo from kernel state.
+
+- **Pros:** edits store nothing in JS for undo (the kernel clones internally — a cheap Rust
+  clone, no serde); undo/redo are fast kernel ops; restores are **bit-exact** (no serde
+  round-trip at all); and with *delta/inverse-command* undo it becomes **O(edit-size) memory**
+  instead of O(doc)×depth.
+- **Cons / effort:** net-new kernel subsystem — undo stack + per-command record (must exclude
+  read-only checks like `CheckCamv`) + undo/redo ops + label/selection sync + Rust tests
+  (**~kernel: 3–4 days**); plus gutting the frontend CP-history slice and rewiring the undo
+  actions/capabilities/tests (**~1–2 days**). With *full clones* (not deltas) its memory is the
+  same order as Option A, just in wasm — so the memory win only materializes with delta undo,
+  which is the most work.
+- **Interaction with unified history:** the app's `undo`/`redo` route by `activeEditingSurface`
+  (tree vs CP); only the CP branch changes — the tree branch and the coordinator stay.
+
+### Recommendation
+
+Ship **Option A** with the refactor: it reuses the per-edit compact fetch, keeps undo behavior
+identical, and adds only `restore_from_compact`. Treat **Option B** (ideally delta-based) as a
+**separate follow-up** justified by memory/undo-latency measurements on real large-doc sessions,
+not upfront — it's a ~1-week project on its own and its memory advantage only lands with deltas.
+
+## Follow-ups (out of scope here, tracked)
+
+- **`CheckCamv` costs ~268ms per action** (deferred, off the critical path, but still heavy
+  worker time that can stall rapid edits). Fix B removed its O(E·V) `point_line_map`, but a
+  ~268ms residual remains — hypothesis: building + serde-serializing one `CommandDiagnostic`
+  per flat-foldability violation (a dense pattern has many), the same serde-object-graph cost
+  as the document snapshot. Candidate fixes (all smaller than this refactor): cap the number of
+  violations surfaced (thousands of markers is unusable UX anyway), skip the recompute when the
+  CAMV overlay is hidden, and/or reuse this plan's compact encoding for the diagnostics result.
+  Pin down compute-vs-serialize with a timing pass in the Rust `CheckCamv` handler before
+  choosing. Not on the felt-latency critical path, so sequenced after the transport refactor.
 
 ## Correctness & regression analysis (primary concern)
 
@@ -228,9 +275,8 @@ advances on an unverified gate).
 
 ## Open decisions
 
-- **Undo ownership:** compact snapshots in frontend history (this plan) vs kernel-owned
-  undo stack (cheaper, cleaner, larger change) — revisit if history memory or undo latency
-  is a problem after Phase 3.
+- **Undo ownership:** decided — Option A (frontend compact snapshots) for this refactor;
+  kernel-owned undo (Option B) is a measured follow-up. See the undo section above.
 - **Circles/points/texts encoding:** typed arrays for circles/points (this plan) vs leaving
   them structured in the tail (simpler, fine while counts stay low). Measure a
   many-circles/points doc before deciding; segments are the only guaranteed-large array.
