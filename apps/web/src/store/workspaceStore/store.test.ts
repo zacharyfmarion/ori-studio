@@ -2510,13 +2510,17 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().foldArtifacts).toBeNull();
   });
 
-  it('refreshes always-on CAMV diagnostics after editable CP mutations', async () => {
+  it('refreshes always-on CAMV diagnostics (deferred) after editable CP mutations', async () => {
+    // CAMV recompute is deferred off the edit's critical path: the mutation applies +
+    // renders immediately, then a debounced CheckCamv updates the overlay. Fake timers
+    // let us flush that deferred pass before asserting the overlay result.
+    vi.useFakeTimers();
     resetStores(seedSnapshot());
     await useWorkspaceStore.getState().loadCreasePatternText('1 0 0 1 0\n2 0 0 0 1', {
       filename: 'lines.cp',
       path: '/tmp/lines.cp',
     });
-    useWorkspaceStore.setState({ dirty: false });
+    useWorkspaceStore.setState({ dirty: false, oristudioCpCamvResult: null });
     const currentDocument = useWorkspaceStore.getState().oristudioCpDocument;
     if (!currentDocument) throw new Error('expected editable CP document');
     const commandResult: OristudioCpCommandResult = {
@@ -2525,15 +2529,11 @@ describe('workspace store slices', () => {
       diagnostics: ['Changed 2 line(s)'],
     };
     const camvResult = camvErrorResult();
-    oristudioCpMocks.executeOristudioCpCommand
-      .mockResolvedValueOnce({
-        ...currentDocument,
-        lastCommandResult: commandResult,
-      })
-      .mockResolvedValueOnce({
-        ...currentDocument,
-        lastCommandResult: camvResult,
-      });
+    oristudioCpMocks.executeOristudioCpCommand.mockResolvedValueOnce({
+      ...currentDocument,
+      lastCommandResult: commandResult,
+    });
+    oristudioCpMocks.runOristudioCpCheckCommand.mockResolvedValueOnce(camvResult);
 
     await expect(
       useWorkspaceStore.getState().executeOristudioCpCommand('CreaseMakeMountain', {
@@ -2541,18 +2541,25 @@ describe('workspace store slices', () => {
       })
     ).resolves.toBe(true);
 
+    // The edit applied + rendered immediately, without awaiting CAMV.
     expect(oristudioCpMocks.executeOristudioCpCommand).toHaveBeenCalledWith(
       'CreaseMakeMountain',
       { line_ids: [1, 2] }
     );
-    expect(oristudioCpMocks.executeOristudioCpCommand).toHaveBeenCalledWith('CheckCamv');
     expect(useWorkspaceStore.getState().oristudioCpDocument?.lastCommandResult).toEqual(
       commandResult
     );
-    expect(useWorkspaceStore.getState().oristudioCpCamvResult).toEqual(camvResult);
     expect(useWorkspaceStore.getState().oristudioCpActiveDiagnosticId).toBeNull();
     expect(useWorkspaceStore.getState().oristudioCpHistoryPast).toHaveLength(1);
     expect(useWorkspaceStore.getState().dirty).toBe(true);
+    // CAMV has not run yet — it is debounced off the critical path.
+    expect(oristudioCpMocks.runOristudioCpCheckCommand).not.toHaveBeenCalled();
+    expect(useWorkspaceStore.getState().oristudioCpCamvResult).toBeNull();
+
+    // Flush the deferred recompute; the overlay result now lands.
+    await vi.advanceTimersByTimeAsync(200);
+    expect(oristudioCpMocks.runOristudioCpCheckCommand).toHaveBeenCalledWith('CheckCamv');
+    expect(useWorkspaceStore.getState().oristudioCpCamvResult).toEqual(camvResult);
   });
 
   it('keeps editable CP diagnostic checks out of undo history', async () => {
