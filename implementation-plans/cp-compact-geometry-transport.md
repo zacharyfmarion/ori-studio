@@ -73,9 +73,11 @@ CpGeometryTransport {
   // --- line_segments (the bulk) ---
   segCount: u32
   segEndpoints: Float64Array   // [ax, ay, bx, by] × segCount   (EXACT f64 — see below)
-  segAttr:      Int32Array     // [color, active, customized] × segCount (enum codes)
+  segAttr:      Int32Array     // [color, active, selected, customized] × segCount (enum codes)
   segCustomColor: Uint8Array   // [r, g, b] × segCount (only meaningful when customized)
-  // NOTE: `selected` is deliberately NOT here — see "Selection" below.
+  // NOTE: `selected` is here for lossless round-trip/restore only (it is a rich i32 — e.g.
+  // 2 = "selected folding line" — not a 0/1 flag, so the tail id-list can't reconstruct it).
+  // The RENDERER does not read it (see "Selection"); selection highlight stays frontend-owned.
 
   // --- aux_line_segments (same layout) ---
   auxCount, auxEndpoints, auxAttr, auxCustomColor
@@ -96,7 +98,9 @@ CpGeometryTransport {
     grid: OristudioCpGridMetadata
     operationFrame?: {...}
     title, metadata
-    selection: { lines, points, circles, texts, faces: number[] }  // post-command selection (id lists)
+    // No selection field: the frontend derives its line selection from segAttr[selected]
+    // (same logic as today's selectedLineSelectionFromDocument); point/circle/text
+    // selection is already frontend-only. See "Selection".
   }
 }
 ```
@@ -126,20 +130,22 @@ Decisions baked into the format for correctness:
 
 ## Selection (stays frontend-owned — do not bake into geometry)
 
-Selection is carried as an **id list in the tail**, and `selected` is **not** a per-segment
-attribute in `segAttr`. The reason is a real architectural corner:
+The per-segment `selected` value stays in `segAttr` for lossless restore (it is a rich i32,
+not a 0/1 flag). The frontend **derives** its line-selection mirror from `segAttr[selected]`
+after a command — the same logic as today's `selectedLineSelectionFromDocument` reading
+`snapshot.selected` — so no separate id-list is needed on the wire. The key rule is that **the
+renderer never reads `selected` from the geometry** — it highlights from frontend selection
+state. The reason is a real architectural corner:
 
-- Selection is already **frontend-owned state** (`oristudioCpSelection`, per-type id lists).
-  The renderer highlights by building a `Set` of selected ids from that state and recolouring
-  at scene-build (`cpSnapshotToScene(selection)`), *not* by reading a per-segment kernel flag.
-- If `selected` lived in the geometry buffer, a **pure selection change (a click, no geometry
-  edit) would have to touch the geometry** — either a kernel round-trip to update flags (an
-  O(doc) trip on every click — worse than what we're fixing) or local mutation of the geometry
-  buffer that the next real fetch would clobber (out-of-sync, fragile).
-- The compact format only needs to tell the frontend the **post-command** selection (some
-  commands change it, e.g. select-the-result) so the frontend mirror stays in sync — an id
-  list is exactly that, and small in the common case (a select-all is the only large case, and
-  can get an "all" sentinel later if it matters).
+- Selection highlight is already **frontend-owned** (`oristudioCpSelection`, per-type id
+  lists). The renderer builds a `Set` from that state and recolours at scene-build
+  (`cpSnapshotToScene(selection)`); it does *not* read a per-segment kernel flag.
+- If the *renderer* read `selected` from the geometry buffer, a **pure selection change (a
+  click, no geometry edit) would have to touch the geometry** — a kernel round-trip to update
+  flags (an O(doc) trip on every click — worse than what we're fixing), or local mutation of
+  the geometry buffer that the next real fetch would clobber (out-of-sync, fragile).
+- So the geometry carries `selected` only for *restore fidelity*; the frontend reads it once
+  per command to update its mirror, and **all live selection interaction stays frontend-only**.
 
 **This keeps selection decoupled from geometry, which is the future-proof choice.** Anything
 the UI might later want — hover highlight, selection groups, multi-select modes, a different
@@ -312,6 +318,7 @@ advances on an unverified gate).
 - **Circles/points/texts encoding:** decided — circles and points are **typed arrays**
   (circles are used heavily; keep them fast at high count). Only `texts` stays structured
   in the tail (string payload).
-- **Selection:** decided — **id list in the tail only; not in `segAttr`.** Keeps selection
-  frontend-owned and decoupled from geometry (see the Selection section). Avoids a kernel
-  round-trip on every click and leaves future UI selection changes unconstrained.
+- **Selection:** decided — per-segment `selected` stays in `segAttr` (a rich i32, needed for
+  lossless restore); the **renderer never reads it** and the frontend derives its selection
+  mirror from it once per command. No wire id-list. Keeps live selection frontend-owned and
+  decoupled from geometry (see the Selection section).
