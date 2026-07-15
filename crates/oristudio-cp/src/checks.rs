@@ -9,6 +9,7 @@ use crate::geometry::{
 };
 use crate::model::CreasePatternModel;
 use crate::operations::arrangement::divide_line_segment_with_new_lines;
+use std::collections::HashMap;
 
 const FIX_DATA_22_5_BYTES: &[u8] = include_bytes!("../resources/fix-precision/fixData_22_5.bin");
 
@@ -1162,32 +1163,60 @@ fn orient_little_big_little_segment(point: Point, segment: &LineSegment) -> Line
 }
 
 fn point_line_map(model: &CreasePatternModel) -> Vec<(Point, Vec<LineSegment>)> {
+    let eps = Epsilon::UNKNOWN_1EN4;
+    let eps_squared = eps * eps;
     let mut map = Vec::<(Point, Vec<LineSegment>)>::new();
-    let eps_squared = Epsilon::UNKNOWN_1EN4 * Epsilon::UNKNOWN_1EN4;
+    // Spatial hash keyed by eps-sized cells, so each endpoint is matched only
+    // against the points in its 3x3 cell neighbourhood — O(edges) instead of the
+    // old O(edges * vertices) linear scan (which hung CheckCamv for ~0.85s on a
+    // 52k-edge document). Cell size == eps guarantees any two points within eps
+    // share a cell or an adjacent one.
+    let mut cells: HashMap<(i64, i64), Vec<usize>> = HashMap::new();
 
     for segment in &model.line_segments {
         if segment.color != LineColor::Cyan3 {
-            point_line_map_process(&mut map, segment.a, segment, eps_squared);
-            point_line_map_process(&mut map, segment.b, segment, eps_squared);
+            point_line_map_process(&mut map, &mut cells, segment.a, segment, eps, eps_squared);
+            point_line_map_process(&mut map, &mut cells, segment.b, segment, eps, eps_squared);
         }
     }
 
     map
 }
 
+fn point_cell(point: Point, eps: f64) -> (i64, i64) {
+    ((point.x / eps).floor() as i64, (point.y / eps).floor() as i64)
+}
+
 fn point_line_map_process(
     map: &mut Vec<(Point, Vec<LineSegment>)>,
+    cells: &mut HashMap<(i64, i64), Vec<usize>>,
     point: Point,
     segment: &LineSegment,
+    eps: f64,
     eps_squared: f64,
 ) {
-    if let Some((_, lines)) = map
-        .iter_mut()
-        .find(|(candidate, _)| candidate.distance_squared(point) < eps_squared)
-    {
-        lines.push(segment.clone());
+    let (cx, cy) = point_cell(point, eps);
+    // Take the lowest-index group within eps across the neighbourhood, which
+    // reproduces the original `iter().find()` insertion-order "first match" exactly.
+    let mut best: Option<usize> = None;
+    for dx in -1..=1 {
+        for dy in -1..=1 {
+            if let Some(indices) = cells.get(&(cx + dx, cy + dy)) {
+                for &index in indices {
+                    if map[index].0.distance_squared(point) < eps_squared {
+                        best = Some(best.map_or(index, |b| b.min(index)));
+                    }
+                }
+            }
+        }
+    }
+
+    if let Some(index) = best {
+        map[index].1.push(segment.clone());
     } else {
+        let index = map.len();
         map.push((point, vec![segment.clone()]));
+        cells.entry((cx, cy)).or_default().push(index);
     }
 }
 
