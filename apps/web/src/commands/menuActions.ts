@@ -16,7 +16,8 @@ import { getCpVertices, type OristudioCpSelection } from '../lib/creasePatternVi
 import type { CpSelectionTransform } from '../lib/creasePatternClipboard';
 import type { Point } from '../lib/geometry';
 import type { OristudioCpOperationId } from '../lib/oristudioCpCommands';
-import type { DocumentMode } from '../lib/sampleProject';
+import type { EditingContext } from '../workspaces/editingContext';
+import type { OristudioBpDocumentState } from '../engine/oristudioBpTypes';
 import type { CreaseExportOptions } from '../lib/creaseExport';
 
 export const MENU_ACTION_IDS = [
@@ -33,6 +34,7 @@ export const MENU_ACTION_IDS = [
   'file.exportV4',
   'file.exportCp',
   'file.exportFold',
+  'file.exportBps',
   'file.exportOri',
   'file.exportOrh',
   'file.exportSvg',
@@ -118,6 +120,7 @@ export interface WorkspaceCommands {
   exportV4(fileService?: FileService): Promise<boolean>;
   exportCp(fileService?: FileService): Promise<boolean>;
   exportFold(fileService?: FileService): Promise<boolean>;
+  exportBps(fileService?: FileService): Promise<boolean>;
   exportOri(fileService?: FileService): Promise<boolean>;
   exportOrh(fileService?: FileService): Promise<boolean>;
   exportSvg(fileService?: FileService, options?: CreaseExportOptions): Promise<boolean>;
@@ -155,9 +158,9 @@ export interface WorkspaceCommands {
   addLargestStubForSelectedNodes(): Promise<void>;
   addLargestStubForSelectedPoly(): Promise<void>;
   triangulateTree(): Promise<void>;
-  documentMode: DocumentMode;
-  activeEditingSurface: DocumentMode;
-  setActiveEditingSurface(surface: DocumentMode): void;
+  activeEditingContext: EditingContext;
+  oristudioBpDocument: OristudioBpDocumentState | null;
+  deleteOristudioBpTreeNode(id: number): Promise<boolean>;
   oristudioCpDocument: OristudioCpDocumentState | null;
   oristudioCpSelection: OristudioCpSelection;
   setOristudioCpSelection(selection: OristudioCpSelection): void;
@@ -226,6 +229,7 @@ const FILE_ACTIONS: Partial<Record<MenuActionId, FileCommand>> = {
   'file.exportV4': 'exportV4',
   'file.exportCp': 'exportCp',
   'file.exportFold': 'exportFold',
+  'file.exportBps': 'exportBps',
   'file.exportOri': 'exportOri',
   'file.exportOrh': 'exportOrh',
   'file.exportSvg': 'exportSvg',
@@ -270,6 +274,46 @@ export function isMenuActionId(id: string): id is MenuActionId {
   return (MENU_ACTION_IDS as readonly string[]).includes(id);
 }
 
+/**
+ * The tree node to delete for the current BP selection: the selected vertex, or
+ * the child endpoint of a selected edge. Returns null when nothing deletable is
+ * selected or the target is the root (which can't be deleted).
+ */
+function deletableBpNodeId(document: OristudioBpDocumentState | null): number | null {
+  if (!document) return null;
+  const selection = document.selection;
+  const tree = document.snapshot.tree;
+  const root = tree.rootVertexId;
+  if (selection.kind === 'bp-vertex') {
+    return selection.id !== root ? selection.id : null;
+  }
+  if (selection.kind === 'bp-edge') {
+    const edge = tree.edges.find((candidate) => candidate.id === selection.id);
+    if (!edge) return null;
+    const parent = new Map<number, number>();
+    const adjacency = new Map<number, number[]>();
+    for (const e of tree.edges) {
+      adjacency.set(e.vertices[0], [...(adjacency.get(e.vertices[0]) ?? []), e.vertices[1]]);
+      adjacency.set(e.vertices[1], [...(adjacency.get(e.vertices[1]) ?? []), e.vertices[0]]);
+    }
+    const queue = [root];
+    const seen = new Set([root]);
+    while (queue.length > 0) {
+      const current = queue.shift() as number;
+      for (const next of adjacency.get(current) ?? []) {
+        if (seen.has(next)) continue;
+        seen.add(next);
+        parent.set(next, current);
+        queue.push(next);
+      }
+    }
+    const [a, b] = edge.vertices;
+    const childId = parent.get(a) === b ? a : b;
+    return childId !== root ? childId : null;
+  }
+  return null;
+}
+
 const OPEN_EXAMPLE_PREFIX = 'file.openExample:';
 
 export function createMenuActionHandler(deps: MenuActionDependencies) {
@@ -312,6 +356,8 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
           return deps.workspace.exportCp(deps.fileService);
         case 'exportFold':
           return deps.workspace.exportFold(deps.fileService);
+        case 'exportBps':
+          return deps.workspace.exportBps(deps.fileService);
         case 'exportOri':
           return deps.workspace.exportOri(deps.fileService);
         case 'exportOrh':
@@ -394,9 +440,17 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
       case 'edit.paste':
         await deps.workspace.pasteClipboard();
         return true;
-      case 'edit.delete':
+      case 'edit.delete': {
+        const bpContext =
+          deps.workspace.activeEditingContext === 'bp-tree' ||
+          deps.workspace.activeEditingContext === 'bp-packing';
+        if (bpContext) {
+          const nodeId = deletableBpNodeId(deps.workspace.oristudioBpDocument);
+          if (nodeId === null) return false;
+          return deps.workspace.deleteOristudioBpTreeNode(nodeId);
+        }
         if (
-          deps.workspace.activeEditingSurface === 'crease-pattern' &&
+          deps.workspace.activeEditingContext === 'crease-pattern' &&
           deps.workspace.oristudioCpDocument
         ) {
           const lineIds = deps.workspace.oristudioCpSelection.lines;
@@ -423,9 +477,10 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
           await deps.workspace.deleteSelection();
           return true;
         }
+      }
       case 'edit.selectAll':
         if (
-          deps.workspace.activeEditingSurface === 'crease-pattern' &&
+          deps.workspace.activeEditingContext === 'crease-pattern' &&
           deps.workspace.oristudioCpDocument
         ) {
           const lineCount =
@@ -444,7 +499,7 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
         return true;
       case 'edit.deselectAll':
         if (
-          deps.workspace.activeEditingSurface === 'crease-pattern' &&
+          deps.workspace.activeEditingContext === 'crease-pattern' &&
           deps.workspace.oristudioCpDocument
         ) {
           deps.workspace.clearOristudioCpSelection();
@@ -546,12 +601,10 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
         await deps.workspace.triangulateTree();
         return true;
       case 'view.design':
-        deps.workspace.setActiveEditingSurface('tree');
         deps.layout.activatePanel('design');
         return true;
       case 'view.edit':
       case 'view.creasePattern':
-        if (deps.workspace.oristudioCpDocument) deps.workspace.setActiveEditingSurface('crease-pattern');
         deps.layout.activatePanel('crease-pattern');
         return true;
       case 'view.simulate':

@@ -38,6 +38,7 @@ export const WORKSPACE_IDS = WORKSPACE_DEFINITIONS.map(
 
 const WORKSPACE_BY_PANEL_ID: Record<string, WorkspaceId> = {
   design: 'design',
+  'bp-editor': 'design',
   inspector: 'design',
   conditions: 'design',
   diagnostics: 'design',

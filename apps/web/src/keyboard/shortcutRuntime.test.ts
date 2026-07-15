@@ -20,15 +20,13 @@ describe('shortcut runtime', () => {
   it('computes scopes from active app surface instead of DOM focus', () => {
     expect(
       shortcutScopeStackForContext({
-        documentMode: 'crease-pattern',
-        activeEditingSurface: 'crease-pattern',
+        activeEditingContext: 'crease-pattern',
       })
     ).toEqual(['viewport', 'crease-pattern', 'global']);
 
     expect(
       shortcutScopeStackForContext({
-        documentMode: 'tree',
-        activeEditingSurface: 'tree',
+        activeEditingContext: 'treemaker-tree',
       })
     ).toEqual(['viewport', 'global']);
   });
@@ -50,8 +48,7 @@ describe('shortcut runtime', () => {
     expect(
       handleShortcutRuntimeKeyDown(event, {
         context: {
-          documentMode: 'tree',
-          activeEditingSurface: 'tree',
+          activeEditingContext: 'treemaker-tree',
           activeViewportSurface: 'crease-pattern',
         },
         menu,
@@ -77,8 +74,7 @@ describe('shortcut runtime', () => {
     expect(
       handleShortcutRuntimeKeyDown(event, {
         context: {
-          documentMode: 'crease-pattern',
-          activeEditingSurface: 'crease-pattern',
+          activeEditingContext: 'crease-pattern',
         },
         menu,
       })
@@ -105,8 +101,7 @@ describe('shortcut runtime', () => {
     expect(
       handleShortcutRuntimeKeyDown(event, {
         context: {
-          documentMode: 'tree',
-          activeEditingSurface: 'tree',
+          activeEditingContext: 'treemaker-tree',
         },
         menu,
       })
@@ -128,8 +123,7 @@ describe('shortcut runtime', () => {
     expect(
       handleShortcutRuntimeKeyDown(event, {
         context: {
-          documentMode: 'crease-pattern',
-          activeEditingSurface: 'crease-pattern',
+          activeEditingContext: 'crease-pattern',
         },
         menu,
       })

@@ -1,0 +1,181 @@
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import gulp from "gulp";
+import through2 from "gulp-through2";
+
+import config from "../config.json" with { type: "json" };
+import seriesIf from "../utils/seriesIf.js";
+
+// This file is not in the repo, of course
+const ftpConfigPath = process.cwd() + "/.vscode/ftp.json";
+
+/** @type {import("../../.vscode/ftp.json")} */
+const ftpConfig = existsSync(ftpConfigPath) ? JSON.parse(readFileSync(ftpConfigPath, "utf-8")) : null;
+
+function configGuard() {
+	if(!ftpConfig) throw new Error("The repo is not configured with FTP. This operation is for maintainers only.");
+	return true;
+}
+
+function getCompareRecords(findCacheDirectory, tag) {
+	const cacheDir = findCacheDirectory({ name: "smart-ftp", create: true });
+	const cache = `${cacheDir}/${tag}.json`;
+	const records = existsSync(cache) ? JSON.parse(readFileSync(cache)) : [];
+	return { records, cache };
+}
+
+function compare(records, newRecords) {
+	const map = new Map();
+	for(const record of records) map.set(record.path, record.hash);
+
+	// Clear all records, so that files that no longer exists can be removedZ
+	records.length = 0;
+
+	return through2({
+		transform(_, file) {
+			const md5 = createHash("md5");
+			md5.update(file.contents);
+			const hash = md5.digest("hex");
+			const record = { path: file.relative, hash };
+			if(map.get(file.relative) === hash) {
+				records.push(record);
+				return null;
+			} else {
+				newRecords.push(record);
+			}
+		},
+	});
+}
+
+async function connect(list, base) {
+	const ftp = (await import("vinyl-ftp")).default;
+	const log = (await import("fancy-log")).default;
+	const options = ftpConfig.server;
+	options.log = function(...args) {
+		if(list && args[0].startsWith("UP")) {
+			const test1 = "100% " + (base ?? "") + "/";
+			const test2 = " 99% " + (base ?? "") + "/"; // This shows sometimes
+			if(args[1].startsWith(test1) || args[1].startsWith(test2)) {
+				list.push(args[1].substring(test1.length));
+			}
+		}
+		log(...args);
+	};
+	return ftp.create(options);
+}
+
+/**
+ * @param {string} folder
+ */
+async function cleanFactory(folder) {
+	const conn = await connect();
+	const stream = conn.clean(`/public_html/${folder}/**/*.*`, config.dest.dist);
+	await streamToPromise(stream);
+}
+
+/**
+ * @param {NodeJS.ReadWriteStream} stream
+ * @returns {Promise<void>}
+ */
+function streamToPromise(stream) {
+	return new Promise((resolve, reject) => {
+		stream.on("end", resolve);
+		stream.on("finish", resolve);
+		stream.on("error", reject);
+	});
+}
+
+/**
+ * @param {string} folder
+ * @param {(stream: NodeJS.ReadWriteStream) => NodeJS.ReadWriteStream} pipeFactory
+ */
+async function ftpFactory(folder, pipeFactory) {
+	const findCacheDirectory = (await import("find-cache-directory")).default;
+	const base = `/public_html/${folder}`;
+	const uploaded = [];
+	const conn = await connect(uploaded, base);
+	const sw = config.dest.dist + "/sw.js";
+	const globs = [
+		config.dest.dist + "/**/*",
+		"!" + sw,
+		"!**/debug.log",
+	];
+
+	const newRecords = [];
+	let records, cache;
+	try {
+		({ records, cache } = getCompareRecords(findCacheDirectory, folder));
+		const pipe = gulp.src(globs, {
+			base: config.dest.dist,
+			dot: true, // for .htaccess
+			encoding: false, // Gulp v5
+		});
+		await streamToPromise(
+			(pipeFactory ? pipeFactory(pipe) : pipe)
+				.pipe(compare(records, newRecords))
+				.pipe(conn.dest(base))
+		);
+
+		// Ensure that sw.js is uploaded last, to avoid inconsistent update.
+		await streamToPromise(
+			gulp.src(sw, { base: config.dest.dist })
+				.pipe(conn.dest(base))
+		);
+	} finally {
+		// Combine old records with the new ones that are actually uploaded
+		for(const record of newRecords) {
+			if(uploaded.includes(record.path)) records.push(record);
+		}
+		if(cache && records) writeFileSync(cache, JSON.stringify(records));
+	}
+}
+
+gulp.task("cleanPub", () => configGuard() && seriesIf(
+	async () => {
+		const inquirer = (await import("inquirer")).default;
+		const answers = await inquirer.prompt([{
+			type: "confirm",
+			message: "Are you sure you want to cleanup the remote distribution folder? Be certain that the deploying is done.",
+			name: "ok",
+			default: false,
+		}]);
+		return answers.ok;
+	},
+	() => cleanFactory("bp")
+));
+gulp.task("cleanPubInternal_", () => configGuard() && cleanFactory("bp"));
+gulp.task("uploadPub", () => configGuard() && ftpFactory("bp"));
+
+/**
+ * @param {"qa"|"dev"} id
+ */
+function taskFactory(id) {
+	const name = id.replace(/^\w/, a => a.toUpperCase());
+	gulp.task("clean" + name, () => configGuard() && cleanFactory(ftpConfig[id].folder));
+	gulp.task("upload" + name, () => {
+		configGuard();
+		return ftpFactory(
+			ftpConfig[id].folder,
+			pipe => pipe
+				.pipe(through2((content, file) => {
+					if(file.basename == "index.htm") {
+						return content
+							.replace('<script async src="https://www.googletagmanager.com/gtag/js?id=G-GG1TEZGBCQ"></script>', "")
+							.replace("<title>Box Pleating Studio</title>", `<title>${ftpConfig[id].title}</title>`);
+					}
+					if(file.basename == "manifest.json") {
+						return content
+							.replace(/\/\/bpstudio\./g, `//${ftpConfig[id].subdomain}.`)
+							.replace(/"BP Studio"/, `"BP Studio ${name}"`)
+							.replace(/Box Pleating Studio/g, ftpConfig[id].title);
+					}
+					if(file.basename == ".htaccess") {
+						return content.replace(/!bpstudio\./g, `!${ftpConfig[id].subdomain}.`);
+					}
+				}))
+		);
+	});
+}
+
+taskFactory("dev");
+taskFactory("qa");

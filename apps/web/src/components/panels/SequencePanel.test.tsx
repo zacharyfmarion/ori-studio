@@ -114,7 +114,6 @@ function renderPanel(
     {
       ...useWorkspaceStore.getInitialState(),
       project: createSampleProject(),
-      documentMode: 'crease-pattern',
       status: 'crease_pattern_ready',
       engineReady: true,
       foldArtifacts: { fold } satisfies FoldArtifacts,

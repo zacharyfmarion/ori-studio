@@ -70,7 +70,7 @@ export const createClipboardSlice: WorkspaceSliceCreator<ClipboardSlice> = (set,
   clipboardPasteCount: 0,
 
   copySelection: () => {
-    if (get().documentMode === 'crease-pattern') {
+    if (get().activeEditingContext === 'crease-pattern') {
       const clipboard = buildCpLineClipboardPayload(
         get().oristudioCpDocument?.document,
         get().oristudioCpSelection
@@ -84,7 +84,7 @@ export const createClipboardSlice: WorkspaceSliceCreator<ClipboardSlice> = (set,
       });
       return;
     }
-    if (get().documentMode !== 'tree') {
+    if (get().activeEditingContext === 'crease-pattern') {
       set({
         error: {
           code: 'invalid_operation',
@@ -103,7 +103,7 @@ export const createClipboardSlice: WorkspaceSliceCreator<ClipboardSlice> = (set,
   },
 
   cutSelection: async () => {
-    if (get().documentMode !== 'tree') {
+    if (get().activeEditingContext === 'crease-pattern') {
       set({
         error: {
           code: 'invalid_operation',
@@ -118,7 +118,7 @@ export const createClipboardSlice: WorkspaceSliceCreator<ClipboardSlice> = (set,
   },
 
   pasteClipboard: async () => {
-    if (get().documentMode === 'crease-pattern') {
+    if (get().activeEditingContext === 'crease-pattern') {
       const clipboard = get().clipboard;
       if (!clipboard || clipboard.kind !== 'cp-lines' || clipboard.lines.length === 0) return;
       const segments = offsetCpLineSegmentsForPaste(clipboard.lines, get().clipboardPasteCount);
@@ -131,7 +131,7 @@ export const createClipboardSlice: WorkspaceSliceCreator<ClipboardSlice> = (set,
       });
       return;
     }
-    if (get().documentMode !== 'tree') {
+    if (get().activeEditingContext === 'crease-pattern') {
       set({
         error: {
           code: 'invalid_operation',

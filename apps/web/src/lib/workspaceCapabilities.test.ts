@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { AppStatus, DocumentMode, Selection } from './sampleProject';
+import type { EditingContext } from '../workspaces/editingContext';
 import { getNextDocumentAction, getWorkspaceCapabilities } from './workspaceCapabilities';
 
 const treeSelection: Selection = { kind: 'tree' };
 
 function capabilities({
   documentMode = 'tree',
-  activeEditingSurface = documentMode,
+  activeEditingContext = documentMode === 'crease-pattern' ? 'crease-pattern' : 'treemaker-tree',
   status = 'ready',
   edgeCount = 0,
   creaseCount = 0,
@@ -14,17 +15,19 @@ function capabilities({
   engineReady = true,
   hasEditableCreasePattern = false,
   hasImportedCreasePattern = false,
+  hasBoxPleatDocument = false,
   oristudioCpSelectedLineCount = 0,
   oristudioCpSelectedVertexCount = 0,
   oristudioCpSelectedPointCount = 0,
   oristudioCpSelectedCircleCount = 0,
+  hasDeletableBpSelection = false,
   historyPastCount = 0,
   historyFutureCount = 0,
   clipboard = null,
   selection = treeSelection,
 }: {
   documentMode?: DocumentMode;
-  activeEditingSurface?: DocumentMode;
+  activeEditingContext?: EditingContext;
   status?: AppStatus;
   edgeCount?: number;
   creaseCount?: number;
@@ -32,18 +35,19 @@ function capabilities({
   engineReady?: boolean;
   hasEditableCreasePattern?: boolean;
   hasImportedCreasePattern?: boolean;
+  hasBoxPleatDocument?: boolean;
   oristudioCpSelectedLineCount?: number;
   oristudioCpSelectedVertexCount?: number;
   oristudioCpSelectedPointCount?: number;
   oristudioCpSelectedCircleCount?: number;
+  hasDeletableBpSelection?: boolean;
   historyPastCount?: number;
   historyFutureCount?: number;
   clipboard?: unknown | null;
   selection?: Selection;
 } = {}) {
   return getWorkspaceCapabilities({
-    documentMode,
-    activeEditingSurface,
+    activeEditingContext,
     engineReady,
     status,
     edgeCount,
@@ -51,11 +55,13 @@ function capabilities({
     facetCount,
     hasEditableCreasePattern,
     hasImportedCreasePattern,
+    hasBoxPleatDocument,
     hasSimulationModel: false,
     oristudioCpSelectedLineCount,
     oristudioCpSelectedVertexCount,
     oristudioCpSelectedPointCount,
     oristudioCpSelectedCircleCount,
+    hasDeletableBpSelection,
     historyPastCount,
     historyFutureCount,
     clipboard,
@@ -364,5 +370,84 @@ describe('workspace capabilities', () => {
     const errorState = capabilities({ status: 'error', edgeCount: 2 });
     expect(errorState['optimize.scale'].enabled).toBe(false);
     expect(errorState['cp.build'].enabled).toBe(false);
+  });
+
+  it('hides TreeMaker/CP commands in a Box-Pleat context', () => {
+    const bp = capabilities({
+      activeEditingContext: 'bp-tree',
+      documentMode: 'tree',
+      edgeCount: 2,
+      historyPastCount: 1,
+    });
+    // Design menu + toolbar (TreeMaker/CP), tree-edit submenus, and CP exports hide.
+    for (const id of [
+      'optimize.scale',
+      'optimize.edges',
+      'cp.build',
+      'cp.deleteSelectedLines',
+      'edit.triangulateTree',
+      'edit.absorbNodes',
+      'view.conditions',
+      'file.exportV5',
+    ] as const) {
+      expect(bp[id].visible).toBe(false);
+      expect(bp[id].enabled).toBe(false);
+    }
+    // Generic commands stay; undo reads the BP history count.
+    expect(bp['file.new'].visible).toBe(true);
+    expect(bp['file.open'].visible).toBe(true);
+    expect(bp['edit.undo'].visible).toBe(true);
+    expect(bp['edit.undo'].enabled).toBe(true);
+  });
+
+  it('enables Save and Export .bps for a loaded box-pleat design', () => {
+    const withBp = capabilities({
+      activeEditingContext: 'bp-tree',
+      hasBoxPleatDocument: true,
+    });
+    expect(withBp['file.save'].enabled).toBe(true);
+    expect(withBp['file.saveAs'].enabled).toBe(true);
+    expect(withBp['file.exportBps'].visible).toBe(true);
+    expect(withBp['file.exportBps'].enabled).toBe(true);
+
+    // Without a box-pleat design, Export .bps is hidden and Save is not a BP save.
+    const withoutBp = capabilities({ activeEditingContext: 'treemaker-tree', edgeCount: 0 });
+    expect(withoutBp['file.exportBps'].visible).toBe(false);
+    expect(withoutBp['file.exportBps'].enabled).toBe(false);
+  });
+
+  it('shows only playback/navigation commands with inert undo in the Simulate context', () => {
+    const sim = capabilities({
+      activeEditingContext: 'simulate',
+      documentMode: 'tree',
+      edgeCount: 2,
+      // The store selector zeroes the history count for simulate (it has no own
+      // stack), so undo/redo arrive here already at zero — hence inert.
+      historyPastCount: 0,
+      historyFutureCount: 0,
+    });
+    // Every authoring command — tree edits, CP edits, optimization — is hidden.
+    for (const id of [
+      'edit.delete',
+      'edit.copy',
+      'edit.selectAll',
+      'edit.triangulateTree',
+      'cp.build',
+      'cp.makeMountain',
+      'optimize.scale',
+    ] as const) {
+      expect(sim[id].visible).toBe(false);
+      expect(sim[id].enabled).toBe(false);
+    }
+    // Navigation, file operations, and playback stay.
+    expect(sim['view.simulate'].visible).toBe(true);
+    expect(sim['view.design'].visible).toBe(true);
+    expect(sim['file.open'].visible).toBe(true);
+    expect(sim['simulator.refresh'].visible).toBe(true);
+    // Undo/redo remain visible but inert — the simulate context has no history.
+    expect(sim['edit.undo'].visible).toBe(true);
+    expect(sim['edit.undo'].enabled).toBe(false);
+    expect(sim['edit.redo'].visible).toBe(true);
+    expect(sim['edit.redo'].enabled).toBe(false);
   });
 });

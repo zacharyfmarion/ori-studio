@@ -1,0 +1,12 @@
+{
+	"dest": {
+		"temp": "build/temp",
+		"dist": "build/dist"
+	},
+	"src": {
+		"app": "src/app",
+		"icon": "src/other/icons",
+		"lib": "lib",
+		"locale": "src/locale"
+	}
+}

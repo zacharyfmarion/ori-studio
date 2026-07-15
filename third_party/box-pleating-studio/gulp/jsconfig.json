@@ -1,0 +1,13 @@
+{
+	"compilerOptions": {
+		"module": "CommonJS",
+		"resolveJsonModule": true,
+		"skipLibCheck": true,
+		"lib": [
+			"ESNext"
+		],
+		"types": [
+			"node"
+		]
+	}
+}

@@ -9,13 +9,16 @@ import type {
   WasmErrorEnvelope,
 } from '../../engine/types';
 import type { Point } from '../../lib/geometry';
+import type { EditingContext } from '../../workspaces/editingContext';
+import type { ImportedCreasePatternFormat } from '../../lib/creasePatternImport';
+import type { SnapshotEntry } from './snapshotHistory';
 import type {
   AppStatus,
   CreaseColorMode,
-  DocumentMode,
   Selection,
   ToolMode,
   TreeProject,
+  WorkflowTarget,
 } from '../../lib/sampleProject';
 import type {
   OristudioCpSelection,
@@ -46,6 +49,14 @@ import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
 import type { OristudioCpActionId } from '../../lib/oristudioCpActions';
 import type { CpLineClipboardPayload, CpSelectionTransform } from '../../lib/creasePatternClipboard';
 import type { OristudioCpLineage } from '../../lib/oristudioCpLineage';
+import type {
+  OristudioBpDocumentState,
+  OristudioBpEditingSurface,
+  OristudioBpPortDescriptor,
+  OristudioBpSelection,
+  OristudioBpSheetKind,
+  OristudioBpWorkspaceState,
+} from '../../engine/oristudioBpTypes';
 
 export interface OristudioCpHistoryEntry {
   document: OristudioCpDocumentSnapshot;
@@ -61,8 +72,23 @@ export interface OristudioCpActionRequest {
 
 export interface ProjectSliceState {
   project: TreeProject;
-  documentMode: DocumentMode;
-  activeEditingSurface: DocumentMode;
+  workflowTarget: WorkflowTarget;
+  /**
+   * True while the Design workspace is waiting for the user to pick a design
+   * method (Circle-packed vs Box-pleated). Drives the Design pane NUX chooser.
+   */
+  pendingDesignChoice: boolean;
+  /**
+   * The id of the Dockview panel the user last focused. Source of truth for the
+   * active editing context (below); updated from `onDidActivePanelChange`.
+   */
+  activePanelId: string | null;
+  /**
+   * Derived from `activePanelId` + design state (see `resolveEditingContext`).
+   * Kept in sync by a store subscription; the single value the shell reads for
+   * menus, capabilities, history, and shortcut routing.
+   */
+  activeEditingContext: EditingContext;
   importedCreasePattern: ImportedCreasePatternDocument | null;
   oristudioCpDocument: OristudioCpDocumentState | null;
   oristudioCpLineage: OristudioCpLineage | null;
@@ -85,7 +111,7 @@ export interface ProjectSliceState {
 
 export interface ProjectSliceActions {
   initEngine: () => Promise<void>;
-  createNewProject: () => Promise<void>;
+  createNewProject: (options?: { preserveEditCanvas?: boolean }) => Promise<void>;
   createNewCreasePattern: () => Promise<void>;
   loadStarterProject: () => Promise<void>;
   loadProjectText: (
@@ -121,19 +147,32 @@ export interface ProjectSliceActions {
   clearOristudioCpDocument: () => Promise<void>;
   openProject: (fileService?: FileService) => Promise<boolean>;
   importAddCreasePattern: (fileService?: FileService) => Promise<boolean>;
+  /** Merge crease-pattern text into the Edit canvas (in-memory Import(Add)). */
+  importAddOristudioCpText: (
+    text: string,
+    format: ImportedCreasePatternFormat,
+    label: string,
+    filename?: string
+  ) => Promise<boolean>;
   saveProject: (fileService?: FileService) => Promise<boolean>;
   saveProjectAs: (fileService?: FileService) => Promise<boolean>;
   exportV5: (fileService?: FileService) => Promise<boolean>;
   exportV4: (fileService?: FileService) => Promise<boolean>;
   exportCp: (fileService?: FileService) => Promise<boolean>;
   exportFold: (fileService?: FileService) => Promise<boolean>;
+  exportBps: (fileService?: FileService) => Promise<boolean>;
   exportOri: (fileService?: FileService) => Promise<boolean>;
   exportOrh: (fileService?: FileService) => Promise<boolean>;
   exportSvg: (fileService?: FileService, options?: CreaseExportOptions) => Promise<boolean>;
   exportPng: (fileService?: FileService, options?: CreaseExportOptions) => Promise<boolean>;
   loadExampleProject: (id: string) => Promise<void>;
   clearProjectMessage: () => void;
-  setActiveEditingSurface: (surface: DocumentMode) => void;
+  setActivePanelId: (id: string | null) => void;
+  setWorkflowTarget: (target: WorkflowTarget) => void;
+  /** Enter the Design workspace on the method chooser without creating a document. */
+  startNewDesign: () => void;
+  /** Resolve the Design pane NUX chooser into a concrete design method. */
+  chooseDesignMethod: (target: WorkflowTarget) => Promise<void>;
 }
 
 export type ProjectSlice = ProjectSliceState & ProjectSliceActions;
@@ -298,6 +337,8 @@ export interface CreasePatternSliceActions {
   optimizeScale: () => Promise<void>;
   optimizeEdges: () => Promise<void>;
   optimizeStrain: () => Promise<void>;
+  /** Seed a blank editable CP when the Edit workspace is entered with none loaded. */
+  ensureEditCreasePattern: () => Promise<void>;
   buildCreasePattern: () => Promise<void>;
   markFoldSourceChanged: () => void;
   ensureFoldArtifacts: () => Promise<FoldArtifacts | null>;
@@ -348,13 +389,110 @@ export interface CreasePatternSliceActions {
 
 export type CreasePatternSlice = CreasePatternSliceState & CreasePatternSliceActions;
 
+/**
+ * A BP undo/redo snapshot: the serialized project (bps text) plus the selection
+ * to restore. BP history is snapshot-based (restore a whole previous state)
+ * rather than engine command-replay — see `snapshotHistory`.
+ */
+export interface BpHistorySnapshot {
+  bps: string;
+  selection: OristudioBpSelection;
+}
+
+export interface OristudioBpSliceState {
+  oristudioBpDocument: OristudioBpDocumentState | null;
+  oristudioBpWorkspace: OristudioBpWorkspaceState | null;
+  oristudioBpPortDescriptors: OristudioBpPortDescriptor[];
+  oristudioBpError: string | null;
+  oristudioBpBusy: boolean;
+  oristudioBpHistoryPast: SnapshotEntry<BpHistorySnapshot>[];
+  oristudioBpHistoryFuture: SnapshotEntry<BpHistorySnapshot>[];
+}
+
+export interface OristudioBpSliceActions {
+  /** Create a fresh Box Pleating project and hold it in the store. */
+  createOristudioBpProject: (options?: {
+    confirmDiscard?: boolean;
+    preserveEditCanvas?: boolean;
+  }) => Promise<boolean>;
+  /** Load a bundled Box Pleating example project. */
+  loadOristudioBpExample: (id: string, options?: { confirmDiscard?: boolean }) => Promise<boolean>;
+  /**
+   * Load a Box Pleating Studio `.bps` project from file text into the workspace,
+   * mirroring {@link loadOristudioBpExample} but for user-supplied content.
+   */
+  loadOristudioBpProjectFromFile: (
+    text: string,
+    source: { filename: string; path?: string | null }
+  ) => Promise<boolean>;
+  /** Replace the active BP selection. */
+  selectOristudioBp: (selection: OristudioBpSelection) => void;
+  /** Switch the BP editing surface intent (tree vs packing) and focus its pane. */
+  setOristudioBpActiveSurface: (surface: OristudioBpEditingSurface) => void;
+  /** Move a BP tree vertex; `dragging` coalesces intermediate drag updates. */
+  moveOristudioBpTreeVertex: (id: number, loc: Point, dragging?: boolean) => Promise<boolean>;
+  /** Move several BP tree vertices at once (e.g. a rigidly-rotated subtree). */
+  moveOristudioBpTreeVertices: (
+    updates: { id: number; loc: Point }[],
+    dragging?: boolean
+  ) => Promise<boolean>;
+  /** Add a unit-length leaf to a parent vertex, optionally at a target location. */
+  addOristudioBpTreeLeaf: (parentId: number, loc?: Point) => Promise<boolean>;
+  /** Delete a tree node (leaf-cascade; the engine refuses below the minimum size). */
+  deleteOristudioBpTreeNode: (id: number) => Promise<boolean>;
+  /** Send the BP design's crease pattern to the Edit canvas (Import(Add) merge). */
+  sendOristudioBpToEdit: () => Promise<boolean>;
+  /**
+   * Set the length of the tree edge between two vertices (min 1). `subtreeUpdates`
+   * repositions the child subtree so the rendered edge stays length-faithful;
+   * doing it here keeps the length edit + reposition as one undo entry.
+   */
+  setOristudioBpTreeEdgeLength: (
+    vertices: [number, number],
+    length: number,
+    subtreeUpdates?: { id: number; loc: Point }[]
+  ) => Promise<boolean>;
+  /** Move a single BP flap in the packing. */
+  moveOristudioBpLayoutFlap: (id: number, loc: Point, dragging?: boolean) => Promise<boolean>;
+  /** Move a group of BP flaps in the packing. */
+  moveOristudioBpLayoutFlaps: (ids: number[], loc: Point, dragging?: boolean) => Promise<boolean>;
+  /** Move a BP device handle in the packing. */
+  moveOristudioBpDevice: (
+    id: string,
+    index: number,
+    loc: Point,
+    dragging?: boolean
+  ) => Promise<boolean>;
+  /** Cycle a stretch's GOPS configuration (delta ±1) to pick a valid crease pattern. */
+  switchOristudioBpStretchConfig: (id: string, delta: number) => Promise<boolean>;
+  /** Cycle a stretch's pattern within the current configuration (delta ±1). */
+  switchOristudioBpStretchPattern: (id: string, delta: number) => Promise<boolean>;
+  /** Compute a stretch's configurations/patterns (BP Studio completes on select). */
+  completeOristudioBpStretch: (id: string) => Promise<boolean>;
+  /** Subdivide the BP sheet grid. */
+  subdivideOristudioBpLayoutSheet: () => Promise<boolean>;
+  /** Rotate the BP sheet clockwise/counter-clockwise. */
+  rotateOristudioBpLayoutSheet: (clockwise: boolean) => Promise<boolean>;
+  /** Flip the BP sheet horizontally/vertically. */
+  flipOristudioBpLayoutSheet: (horizontal: boolean) => Promise<boolean>;
+  /** Set the BP sheet grid type and dimensions (flaps re-map to stay in range). */
+  setOristudioBpLayoutSheet: (
+    gridType: OristudioBpSheetKind,
+    width: number,
+    height: number
+  ) => Promise<boolean>;
+}
+
+export type OristudioBpSlice = OristudioBpSliceState & OristudioBpSliceActions;
+
 export type WorkspaceState =
   ProjectSlice &
   HistorySlice &
   EditingSlice &
   ClipboardSlice &
   ConditionSlice &
-  CreasePatternSlice;
+  CreasePatternSlice &
+  OristudioBpSlice;
 
 export type WorkspaceSliceCreator<T> = StateCreator<
   WorkspaceState,

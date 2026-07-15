@@ -1,5 +1,6 @@
 import type { MenuActionId } from '../commands/menuActions';
 import type { DocumentMode } from '../lib/sampleProject';
+import type { EditingContext } from '../workspaces/editingContext';
 import type { OristudioCpActionId } from '../lib/oristudioCpActions';
 import {
   handleShortcutKeyDown,
@@ -14,14 +15,27 @@ import type {
 type CpActionExecutor = (id: OristudioCpActionId) => unknown;
 type ViewportExecutor = (id: ViewportShortcutId) => unknown;
 
-const viewportExecutors: Partial<Record<DocumentMode, ViewportExecutor>> = {};
+/**
+ * Which viewport currently owns keyboard shortcuts. This is the document modes
+ * plus the Box Pleating packing pane, which is its own focusable viewport
+ * surface distinct from the tree (design) pane.
+ */
+export type ViewportSurface = DocumentMode | 'bp-editor';
+
+const viewportExecutors: Partial<Record<ViewportSurface, ViewportExecutor>> = {};
 let cpActionExecutor: CpActionExecutor | null = null;
-let activeViewportSurface: DocumentMode | null = null;
+let activeViewportSurface: ViewportSurface | null = null;
 
 export interface ShortcutRuntimeContext {
-  documentMode: DocumentMode;
-  activeEditingSurface: DocumentMode;
-  activeViewportSurface?: DocumentMode | null;
+  activeEditingContext: EditingContext;
+  activeViewportSurface?: ViewportSurface | null;
+}
+
+/** The viewport pane that owns shortcuts for a given editing context. */
+function viewportSurfaceForContext(context: EditingContext): ViewportSurface {
+  if (context === 'crease-pattern') return 'crease-pattern';
+  if (context === 'bp-packing') return 'bp-editor';
+  return 'tree';
 }
 
 export interface ShortcutRuntimeOptions {
@@ -31,7 +45,7 @@ export interface ShortcutRuntimeOptions {
 }
 
 export function registerViewportShortcutExecutor(
-  surface: DocumentMode,
+  surface: ViewportSurface,
   executor: ViewportExecutor
 ): () => void {
   viewportExecutors[surface] = executor;
@@ -51,22 +65,23 @@ export function registerCpActionShortcutExecutor(executor: CpActionExecutor): ()
   };
 }
 
-export function setActiveShortcutViewportSurface(surface: DocumentMode): void {
+export function setActiveShortcutViewportSurface(surface: ViewportSurface): void {
   activeViewportSurface = surface;
 }
 
-function resolvedViewportSurface(context: ShortcutRuntimeContext): DocumentMode {
-  return context.activeViewportSurface ?? activeViewportSurface ?? context.activeEditingSurface;
+function resolvedViewportSurface(context: ShortcutRuntimeContext): ViewportSurface {
+  return (
+    context.activeViewportSurface ??
+    activeViewportSurface ??
+    viewportSurfaceForContext(context.activeEditingContext)
+  );
 }
 
 export function shortcutScopeStackForContext(
   context: ShortcutRuntimeContext
 ): ShortcutScope[] {
   const scopes: ShortcutScope[] = ['viewport'];
-  if (
-    context.documentMode === 'crease-pattern' &&
-    context.activeEditingSurface === 'crease-pattern'
-  ) {
+  if (context.activeEditingContext === 'crease-pattern') {
     scopes.push('crease-pattern');
   }
 
@@ -83,11 +98,7 @@ export function handleShortcutRuntimeKeyDown(
     viewport: viewportExecutors[resolvedViewportSurface(options.context)],
   };
 
-  if (
-    options.context.documentMode === 'crease-pattern' &&
-    options.context.activeEditingSurface === 'crease-pattern' &&
-    cpActionExecutor
-  ) {
+  if (options.context.activeEditingContext === 'crease-pattern' && cpActionExecutor) {
     executors.cpAction = cpActionExecutor;
   }
 

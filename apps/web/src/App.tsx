@@ -12,6 +12,7 @@ import {
   CircleHelp,
   PenTool,
   Save,
+  ScanLine,
   Settings,
   Sparkles,
   Play,
@@ -97,6 +98,13 @@ function Toolbar() {
   const downloadUrl = useMacDownloadUrl();
   const optimizeScale = capabilities['optimize.scale'];
   const buildCp = capabilities['cp.build'];
+  const activeContext = useWorkspaceStore((state) => state.activeEditingContext);
+  const sendBpToEdit = useWorkspaceStore((state) => state.sendOristudioBpToEdit);
+  const hasBpDocument = useWorkspaceStore((state) => state.oristudioBpDocument !== null);
+  const bpBusy = useWorkspaceStore((state) => state.oristudioBpBusy);
+  // In a BP design the top action sends the design's crease pattern to the Edit
+  // canvas (Import(Add) merge), in place of TreeMaker's Optimize/Build.
+  const isBpContext = activeContext === 'bp-tree' || activeContext === 'bp-packing';
 
   return (
     <header className="toolbar">
@@ -156,7 +164,21 @@ function Toolbar() {
             {buildCp.label}
           </Button>
         )}
-        {(optimizeScale.visible || buildCp.visible) && <span className="toolbar__separator" />}
+        {isBpContext && (
+          <Button
+            size="sm"
+            variant="primary"
+            disabled={!hasBpDocument || bpBusy}
+            title="Send this design's crease pattern to the Edit canvas"
+            onClick={() => void sendBpToEdit()}
+          >
+            <ScanLine size={14} />
+            Send to Edit
+          </Button>
+        )}
+        {(optimizeScale.visible || buildCp.visible || isBpContext) && (
+          <span className="toolbar__separator" />
+        )}
         {showDownloadCta && (
           <IconButton
             size="sm"
@@ -187,10 +209,17 @@ function FixedDockTab(props: IDockviewPanelHeaderProps) {
   return <DockviewDefaultTab {...props} hideClose />;
 }
 
+/** Which workspace to enter after opening a file: Edit for a crease pattern. */
+function openedCreasePatternWorkspace(): 'crease-pattern' | 'design' {
+  const state = useWorkspaceStore.getState();
+  return state.oristudioCpDocument !== null || state.importedCreasePattern !== null
+    ? 'crease-pattern'
+    : 'design';
+}
+
 export default function App() {
   const initEngine = useWorkspaceStore((state) => state.initEngine);
   const createNewCreasePattern = useWorkspaceStore((state) => state.createNewCreasePattern);
-  const createNewProject = useWorkspaceStore((state) => state.createNewProject);
   const openProject = useWorkspaceStore((state) => state.openProject);
   const selectNone = useWorkspaceStore((state) => state.selectNone);
   const project = useWorkspaceStore((state) => state.project);
@@ -288,8 +317,7 @@ export default function App() {
   useEffect(() => {
     return installAppKeyboardListener(
       {
-        getDocumentMode: () => useWorkspaceStore.getState().documentMode,
-        getActiveEditingSurface: () => useWorkspaceStore.getState().activeEditingSurface,
+        getActiveEditingContext: () => useWorkspaceStore.getState().activeEditingContext,
         getCpSelectionSize: () =>
           cpSelectionSize(useWorkspaceStore.getState().oristudioCpSelection),
         getSelection: () => useWorkspaceStore.getState().selection,
@@ -330,6 +358,14 @@ export default function App() {
         setWorkspaceInitialPanel(null);
       }
 
+      // The active panel drives the active editing context (menus, history,
+      // shortcuts). Seed it and keep it in sync as the user focuses panels.
+      const setActivePanelId = useWorkspaceStore.getState().setActivePanelId;
+      setActivePanelId(api.activePanel?.id ?? null);
+      api.onDidActivePanelChange((panel) => {
+        setActivePanelId(panel?.id ?? null);
+      });
+
       let timer: ReturnType<typeof setTimeout> | null = null;
       api.onDidLayoutChange(() => {
         if (timer) clearTimeout(timer);
@@ -349,11 +385,7 @@ export default function App() {
     async (path: string) => {
       const opened = await openProject(createOpenedPathFileService(path));
       if (!opened) return;
-      enterWorkspace(
-        useWorkspaceStore.getState().documentMode === 'crease-pattern'
-          ? 'crease-pattern'
-          : 'design'
-      );
+      enterWorkspace(openedCreasePatternWorkspace());
     },
     [enterWorkspace, openProject]
   );
@@ -367,19 +399,17 @@ export default function App() {
     }
   }, [createNewCreasePattern, enterWorkspace]);
 
-  const handleCreateDesign = useCallback(async () => {
-    await createNewProject();
-    if (useWorkspaceStore.getState().status !== 'error') {
-      enterWorkspace('design');
-    }
-  }, [createNewProject, enterWorkspace]);
+  const handleCreateDesign = useCallback(() => {
+    // Enter the Design workspace on the method chooser (Circle-packed vs
+    // Box-pleated) instead of creating a blank tree up front.
+    useWorkspaceStore.getState().startNewDesign();
+    enterWorkspace('design');
+  }, [enterWorkspace]);
 
   const handleOpenFile = useCallback(async () => {
     const opened = await openProject();
     if (!opened) return;
-    enterWorkspace(
-      useWorkspaceStore.getState().documentMode === 'crease-pattern' ? 'crease-pattern' : 'design'
-    );
+    enterWorkspace(openedCreasePatternWorkspace());
   }, [enterWorkspace, openProject]);
 
   return (

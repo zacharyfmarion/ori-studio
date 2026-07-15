@@ -15,6 +15,7 @@ import { DEFAULT_CREASE_COLOR_MODE } from '../../../lib/sampleProject';
 import { resolveCpSegments } from '../../../lib/creasePatternSegmentation';
 import { foldArtifactsFromFold } from '../../../lib/creasePatternImport';
 import {
+  blankCpLineage,
   generatedCpLineage,
   markGeneratedCpLineageStale,
   stableTextDigest,
@@ -36,6 +37,7 @@ import {
   type EngineClient,
 } from '../engineRuntime';
 import {
+  createBlankOristudioCpDocument,
   duplicateOristudioCpFoldedFigure as duplicateRuntimeOristudioCpFoldedFigure,
   exportOristudioCpDocumentAsFold,
   foldOristudioCpDocument as foldRuntimeOristudioCpDocument,
@@ -83,14 +85,14 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
   function hasFoldArtifactSource() {
     const state = get();
     if (state.oristudioCpDocument) return true;
-    if (state.documentMode === 'crease-pattern') return false;
+    if (state.importedCreasePattern) return false;
     return state.project.creases.length > 0 || state.project.facets.length > 0;
   }
 
   async function confirmReplaceCustomizedGeneratedCp(): Promise<boolean> {
     const lineage = get().oristudioCpLineage;
     if (
-      get().documentMode !== 'tree' ||
+      get().activeEditingContext !== 'treemaker-tree' ||
       lineage?.kind !== 'generated-from-tree' ||
       lineage.manualEditCount === 0
     ) {
@@ -326,7 +328,6 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         error: null,
         lastOptimization: report,
         ...staleFoldArtifactResourceState(get().foldArtifactRevision),
-        activeEditingSurface: 'tree',
         oristudioCpLineage: markGeneratedCpLineageStale(get().oristudioCpLineage),
         dirty: true,
         projectMessage: label,
@@ -374,6 +375,27 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       await runOptimization('Optimize strain', 'optimize.strain', (api, treeHandle) =>
         api.optimizeStrain(treeHandle)
       );
+    },
+
+    // The Edit workspace's always-live canvas: seed a blank editable CP when the
+    // workspace is entered with no crease pattern loaded, so it is never empty.
+    ensureEditCreasePattern: async () => {
+      if (get().oristudioCpDocument) return;
+      try {
+        const document = await createBlankOristudioCpDocument();
+        set({
+          oristudioCpDocument: document,
+          oristudioCpLineage: blankCpLineage(),
+          oristudioCpOperationDescriptors: document.operationDescriptors,
+          oristudioCpSelection: emptyOristudioCpSelection(),
+          oristudioCpHistoryPast: [],
+          oristudioCpHistoryFuture: [],
+          oristudioCpError: null,
+          oristudioCpCamvResult: null,
+        });
+      } catch (error) {
+        set({ oristudioCpError: engineError(error).message });
+      }
     },
 
     buildCreasePattern: async () => {
@@ -445,7 +467,6 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         });
         set({
           project,
-          activeEditingSurface: 'crease-pattern',
           oristudioCpDocument: editableDocument,
           oristudioCpLineage: generatedCpLineage({
             sourceTreeDigest: stableTextDigest(treeText),

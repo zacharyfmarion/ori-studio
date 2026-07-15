@@ -5,6 +5,7 @@ import type {
 } from '../engine/oristudioCpTypes';
 import {
   activeNativeDocument,
+  createNativeBoxPleatProjectFile,
   createNativeCreasePatternProjectFile,
   createNativeTreeProjectFile,
   isNativeProjectFilename,
@@ -255,6 +256,78 @@ describe('native project file', () => {
       'crease-pattern',
     ]);
     expect(parsed.workspace.activeDocumentId).toBe('tree');
+  });
+
+  it('round-trips a box-pleat design with its crease-pattern companion', () => {
+    const file = createNativeBoxPleatProjectFile({
+      title: 'Crane',
+      filename: 'crane.osf',
+      path: '/tmp/crane.osf',
+      bps: '{"title":"Crane","tree":{}}',
+      creasePatternCompanion: {
+        title: 'Crane CP',
+        document: cpDocument(),
+        source: null,
+        foldProjection: null,
+        foldArtifacts: null,
+        creaseColorMode: 'mvf',
+        selection: emptyOristudioCpSelection(),
+        viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+        foldedFigures: [],
+        activeFoldedFigureId: null,
+        lineage: importedCpLineage(),
+      },
+      appVersion: '0.1.1',
+      now,
+    });
+
+    const parsed = parseNativeProjectFile(serializeNativeProjectFile(file));
+
+    expect(parsed.workspace.activeMode).toBe('box-pleat');
+    expect(parsed.workspace.activeDocumentId).toBe('box-pleat');
+    expect(parsed.workspace.documents.map((document) => document.kind)).toEqual([
+      'box-pleat',
+      'crease-pattern',
+    ]);
+    const active = activeNativeDocument(parsed);
+    expect(active.kind).toBe('box-pleat');
+    if (active.kind !== 'box-pleat') throw new Error('expected box-pleat document');
+    expect(active.project).toEqual({
+      engine: 'oristudio-bp',
+      format: 'bps',
+      text: '{"title":"Crane","tree":{}}',
+    });
+  });
+
+  it('round-trips a box-pleat design with no companion crease pattern', () => {
+    const file = createNativeBoxPleatProjectFile({
+      title: 'Untitled',
+      filename: 'untitled.osf',
+      path: null,
+      bps: '{"tree":{}}',
+      appVersion: '0.1.1',
+      now,
+    });
+
+    const parsed = parseNativeProjectFile(serializeNativeProjectFile(file));
+    expect(parsed.workspace.documents.map((document) => document.kind)).toEqual(['box-pleat']);
+  });
+
+  it('rejects a box-pleat document with an unknown engine', () => {
+    const file = JSON.parse(
+      serializeNativeProjectFile(
+        createNativeBoxPleatProjectFile({
+          title: 'Bad',
+          filename: 'bad.osf',
+          path: null,
+          bps: '{}',
+          appVersion: '0.1.1',
+          now,
+        })
+      )
+    );
+    file.workspace.documents[0].project.engine = 'somethingElse';
+    expect(() => parseNativeProjectFile(JSON.stringify(file))).toThrow(/Unsupported box-pleat engine/i);
   });
 
   it('defaults missing schema-1 CP lineage during migration', () => {

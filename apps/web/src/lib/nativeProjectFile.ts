@@ -7,7 +7,7 @@ import type {
 } from '../engine/oristudioCpTypes';
 import type { ImportedCreasePatternSource } from './creasePatternImport';
 import type { Point } from './geometry';
-import type { CreaseColorMode, DocumentMode } from './sampleProject';
+import type { CreaseColorMode } from './sampleProject';
 import type { OristudioCpSelection, OristudioCpViewportOptions } from './creasePatternViewport';
 import {
   importedCpLineage,
@@ -20,7 +20,15 @@ export const NATIVE_PROJECT_EXTENSION = 'osf';
 export const NATIVE_PROJECT_MIME_TYPE = 'application/vnd.oristudio.project+json';
 export const NATIVE_PROJECT_SCHEMA_VERSION = 2;
 
-export type NativeProjectDocumentKind = 'treemaker-tree' | 'crease-pattern';
+export type NativeProjectDocumentKind = 'treemaker-tree' | 'crease-pattern' | 'box-pleat';
+
+/**
+ * Which document the workspace was focused on when saved. This is the file's
+ * own concept — distinct from the runtime `DocumentMode`/editing-context types —
+ * so the format can grow document kinds (e.g. box-pleat) without dragging in the
+ * viewport-surface unions.
+ */
+export type NativeProjectActiveMode = 'tree' | 'crease-pattern' | 'box-pleat';
 
 export interface NativeProjectActor {
   app: 'Ori Studio';
@@ -69,7 +77,19 @@ export interface NativeCreasePatternDocumentV1 extends NativeProjectBaseDocument
   };
 }
 
-export type NativeProjectDocumentV1 = NativeTreeDocumentV1 | NativeCreasePatternDocumentV1;
+export interface NativeBoxPleatDocumentV1 extends NativeProjectBaseDocumentV1 {
+  kind: 'box-pleat';
+  project: {
+    engine: 'oristudio-bp';
+    format: 'bps';
+    text: string;
+  };
+}
+
+export type NativeProjectDocumentV1 =
+  | NativeTreeDocumentV1
+  | NativeCreasePatternDocumentV1
+  | NativeBoxPleatDocumentV1;
 
 export interface NativeProjectFileV1 {
   format: typeof NATIVE_PROJECT_FORMAT;
@@ -81,7 +101,7 @@ export interface NativeProjectFileV1 {
     id: string;
     title: string;
     activeDocumentId: string;
-    activeMode: DocumentMode;
+    activeMode: NativeProjectActiveMode;
     documents: NativeProjectDocumentV1[];
     viewState: Record<string, unknown>;
   };
@@ -124,6 +144,21 @@ export interface NativeCreasePatternProjectInput {
   foldedFigures: OristudioCpFoldedFigureEntry[];
   activeFoldedFigureId: string | null;
   lineage: OristudioCpLineage;
+  appVersion: string;
+  now?: Date;
+}
+
+export interface NativeBoxPleatProjectInput {
+  title: string;
+  filename: string;
+  path: string | null;
+  /** The Box Pleating Studio project serialized as `.bps` JSON text. */
+  bps: string;
+  /** The crease pattern sent to Edit, bundled so the workspace round-trips. */
+  creasePatternCompanion?: Omit<
+    NativeCreasePatternProjectInput,
+    'appVersion' | 'filename' | 'path' | 'now'
+  > | null;
   appVersion: string;
   now?: Date;
 }
@@ -193,6 +228,57 @@ export function createNativeTreeProjectFile(input: NativeTreeProjectInput): Nati
           tree: {
             format: 'tmd5',
             text: input.tmd5Text,
+          },
+          extensions: {},
+        },
+        ...(input.creasePatternCompanion
+          ? [
+              createNativeCreasePatternDocument(
+                {
+                  ...input.creasePatternCompanion,
+                  filename: input.filename,
+                  path: input.path,
+                  appVersion: input.appVersion,
+                  now: input.now,
+                },
+                'generated-crease-pattern'
+              ),
+            ]
+          : []),
+      ],
+      viewState: {},
+    },
+    artifacts: {},
+    extensions: {},
+  };
+}
+
+export function createNativeBoxPleatProjectFile(
+  input: NativeBoxPleatProjectInput
+): NativeProjectFileV1 {
+  const actor = actorFromInput(input);
+  const title = input.title.trim() || 'Untitled';
+  return {
+    format: NATIVE_PROJECT_FORMAT,
+    schemaVersion: 2,
+    minimumReaderSchemaVersion: 1,
+    createdBy: actor,
+    modifiedBy: actor,
+    workspace: {
+      id: 'workspace',
+      title,
+      activeDocumentId: 'box-pleat',
+      activeMode: 'box-pleat',
+      documents: [
+        {
+          id: 'box-pleat',
+          kind: 'box-pleat',
+          title,
+          source: sourceFromFilename(input.filename, input.path),
+          project: {
+            engine: 'oristudio-bp',
+            format: 'bps',
+            text: input.bps,
           },
           extensions: {},
         },
@@ -419,7 +505,7 @@ function validateV1(value: Record<string, unknown>): NativeProjectFileV1 {
   const documents = arrayField(workspace.documents, 'workspace.documents').map(validateDocumentV1);
   const activeDocumentId = stringField(workspace.activeDocumentId, 'workspace.activeDocumentId');
   const activeMode = stringField(workspace.activeMode, 'workspace.activeMode');
-  if (activeMode !== 'tree' && activeMode !== 'crease-pattern') {
+  if (activeMode !== 'tree' && activeMode !== 'crease-pattern' && activeMode !== 'box-pleat') {
     throw new Error(`Unsupported Ori Studio activeMode ${JSON.stringify(activeMode)}`);
   }
   if (!documents.some((document) => document.id === activeDocumentId)) {
@@ -525,6 +611,28 @@ function validateDocumentV1(value: unknown): NativeProjectDocumentV1 {
             ? viewState.activeFoldedFigureId
             : null
         ),
+      },
+      extensions,
+    };
+  }
+
+  if (kind === 'box-pleat') {
+    const project = recordField(document.project, 'document.project');
+    const engine = stringField(project.engine, 'document.project.engine');
+    if (engine !== 'oristudio-bp') {
+      throw new Error(`Unsupported box-pleat engine ${JSON.stringify(engine)}`);
+    }
+    const format = stringField(project.format, 'document.project.format');
+    if (format !== 'bps') throw new Error(`Unsupported box-pleat project format ${format}`);
+    return {
+      id,
+      kind,
+      title,
+      source,
+      project: {
+        engine,
+        format: 'bps',
+        text: stringField(project.text, 'document.project.text'),
       },
       extensions,
     };

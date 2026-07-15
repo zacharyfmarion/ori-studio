@@ -161,6 +161,108 @@
   line-height: 1.46;
 }
 
+.design-method-chooser {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  padding: var(--space-6);
+}
+
+.design-method-chooser__body {
+  display: grid;
+  gap: var(--space-5);
+  width: min(100%, 680px);
+}
+
+.design-method-chooser__intro {
+  display: grid;
+  gap: var(--space-2);
+  text-align: center;
+}
+
+.design-method-chooser__title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.15rem;
+  font-weight: 760;
+}
+
+.design-method-chooser__subtitle {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.design-method-chooser__options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.design-method-card {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-3);
+  min-width: 0;
+  min-height: 168px;
+  align-content: start;
+  padding: var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg-elevated) 88%, var(--bg-primary));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text-primary) 6%, transparent);
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.design-method-card:hover:not(:disabled),
+.design-method-card:focus-visible {
+  border-color: color-mix(in srgb, var(--accent-primary) 44%, var(--border-default));
+  background: color-mix(in srgb, var(--accent-primary) 6%, var(--bg-elevated));
+}
+
+.design-method-card:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent-primary) 72%, transparent);
+  outline-offset: 2px;
+}
+
+.design-method-card:disabled {
+  cursor: default;
+  opacity: 0.56;
+}
+
+.design-method-card__icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 22%, var(--border-subtle));
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+  color: color-mix(in srgb, var(--accent-primary) 78%, var(--text-primary));
+}
+
+.design-method-card__title {
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 760;
+  line-height: 1.2;
+}
+
+.design-method-card__description {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 520;
+  line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .design-method-chooser__options {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .start-screen__status {
   display: inline-flex;
   width: fit-content;

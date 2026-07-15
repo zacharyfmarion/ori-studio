@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { handleMenuAction } from '../commands/menuActions';
-import { getMenuBarDef, type MenuItemDef } from '../menus/menuDefinition';
+import { getMenuBarDef, type MenuDef, type MenuItemDef } from '../menus/menuDefinition';
 import { useShortcutStore } from '../store/shortcutStore';
 import { useWorkspaceCapabilities } from '../store/workspaceStore/useWorkspaceCapabilities';
 import type { WorkspaceCapabilities, WorkspaceCapabilityId } from '../lib/workspaceCapabilities';
@@ -18,6 +18,45 @@ function isMenuItemVisible(item: MenuItemDef, capabilities: WorkspaceCapabilitie
   return !(capability && !capability.visible);
 }
 
+/**
+ * Whether a top-level menu has any non-separator item that is visible in the
+ * current context. Lets the bar drop menus that are entirely hidden — e.g. the
+ * Design and Crease Pattern menus while authoring a Box-Pleat design.
+ */
+function menuHasVisibleItems(menu: MenuDef, capabilities: WorkspaceCapabilities): boolean {
+  return menu.items.some(
+    (item) => item.type !== 'separator' && isMenuItemVisible(item, capabilities)
+  );
+}
+
+/**
+ * Drop the items hidden in the current context, then collapse separators so no
+ * leading, trailing, or doubled dividers survive. Without this a menu (or
+ * submenu) whose visible items straddle a divider — e.g. an Export submenu that
+ * only exposes "Export .bps..." — renders orphaned separator lines around a lone
+ * entry.
+ */
+export function pruneMenuItems(
+  items: MenuItemDef[],
+  capabilities: WorkspaceCapabilities
+): MenuItemDef[] {
+  const pruned: MenuItemDef[] = [];
+  for (const item of items) {
+    if (item.type === 'separator') {
+      if (pruned.length > 0 && pruned[pruned.length - 1].type !== 'separator') {
+        pruned.push(item);
+      }
+      continue;
+    }
+    if (!isMenuItemVisible(item, capabilities)) continue;
+    pruned.push(item);
+  }
+  while (pruned.length > 0 && pruned[pruned.length - 1].type === 'separator') {
+    pruned.pop();
+  }
+  return pruned;
+}
+
 function MenuDropdown({
   items,
   onAction,
@@ -31,9 +70,10 @@ function MenuDropdown({
   capabilities: WorkspaceCapabilities;
   nested?: boolean;
 }) {
+  const visibleItems = pruneMenuItems(items, capabilities);
   return (
     <div className={`menu-dropdown ${nested ? 'menu-dropdown--submenu' : ''}`.trim()} role="menu">
-      {items.map((item, index) => {
+      {visibleItems.map((item, index) => {
         if (item.type === 'separator') {
           return <div key={`separator-${index}`} className="menu-dropdown__separator" />;
         }
@@ -122,6 +162,10 @@ export function MenuBar() {
     [shortcutOverrides]
   );
   const capabilities = useWorkspaceCapabilities();
+  const visibleMenus = useMemo<MenuDef[]>(
+    () => menuDef.filter((menu) => menuHasVisibleItems(menu, capabilities)),
+    [menuDef, capabilities]
+  );
 
   const closeMenu = useCallback(() => {
     setOpenMenu(null);
@@ -154,7 +198,7 @@ export function MenuBar() {
   return (
     <div className="menubar" ref={menuRef}>
       <div className="menubar__menus">
-        {menuDef.map((menu, index) => (
+        {visibleMenus.map((menu, index) => (
           <div key={menu.label} className="menubar__menu-wrapper">
             <button
               type="button"

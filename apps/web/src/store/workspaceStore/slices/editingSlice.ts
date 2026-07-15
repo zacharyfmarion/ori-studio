@@ -36,13 +36,12 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
   function staleTreeDerivedArtifacts() {
     return {
       ...staleFoldArtifactResourceState(get().foldArtifactRevision),
-      activeEditingSurface: 'tree' as const,
       oristudioCpLineage: markGeneratedCpLineageStale(get().oristudioCpLineage),
     };
   }
 
   function rejectReadOnly() {
-    if (get().documentMode === 'tree') return false;
+    if (!get().importedCreasePattern) return false;
     set({
       error: {
         code: 'invalid_operation',
@@ -576,6 +575,6 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
       );
       if (path) set({ selection: { kind: 'path', id: path.id } });
     },
-    setToolMode: (toolMode) => set({ toolMode: get().documentMode === 'tree' ? toolMode : 'select' }),
+    setToolMode: (toolMode) => set({ toolMode: !get().importedCreasePattern ? toolMode : 'select' }),
   };
 };
