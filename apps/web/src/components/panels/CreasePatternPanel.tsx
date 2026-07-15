@@ -103,6 +103,8 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import { useShortcutStore } from '../../store/shortcutStore';
 import { CreasePatternWebglCanvas } from '../../cp-workspace/CreasePatternWebglCanvas';
 import type { CameraCommand, CpOverlayView } from '../../cp-workspace/CreasePatternWebglCanvas';
+import { isCompactTransportEnabled } from '../../cp-workspace/cpTransportFlag';
+import { vertexPointsFromTransport } from '../../engine/oristudioCpGeometry';
 import { CpTextOverlay } from '../../cp-workspace/CpTextOverlay';
 import {
   CpContextToolPanel,
@@ -1116,7 +1118,18 @@ export function CreasePatternPanel() {
     if (!activeFoldedFigure) return;
     void deleteOristudioCpFoldedFigure(activeFoldedFigure.id);
   }, [activeFoldedFigure, deleteOristudioCpFoldedFigure]);
-  const editableCpVertexPoints = useMemo(() => getCpVertexPoints(editableCp), [editableCp]);
+  // Vertex dots: dedup crease-segment endpoints. This is the top main-thread cost
+  // after an edit on dense patterns, so when the compact-transport flag is on we
+  // dedup straight from the transport's typed arrays (parity-proven identical to
+  // getCpVertexPoints) instead of the structured snapshot's segment objects.
+  const editableCpGeometry = oristudioCpDocument?.geometry ?? null;
+  const editableCpVertexPoints = useMemo(
+    () =>
+      isCompactTransportEnabled() && editableCpGeometry
+        ? vertexPointsFromTransport(editableCpGeometry)
+        : getCpVertexPoints(editableCp),
+    [editableCp, editableCpGeometry]
+  );
   const importedFoldedForms = useMemo(
     () =>
       (importedCreasePattern?.sourceFold?.file_frames ?? [])
