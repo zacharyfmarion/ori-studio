@@ -286,11 +286,30 @@ has signed off, then compact becomes the default and (later) the flag is removed
 Each phase ends at an author-verified gate (this is a correctness-first change; no phase
 advances on an unverified gate).
 
-- **Phase 1 — Codec + parity, no behavior change.**
+- **Phase 1 — Codec + parity, no behavior change. ✅ DONE.**
   - Kernel: `document_geometry()` → `CpGeometryTransport` (transferables); `restore_from_compact()`.
   - Frontend: `CpGeometry` accessor + typed decode; comlink `transfer` wiring.
   - **Parity gate** + **round-trip identity gate** green on the full battery.
   - Nothing consumes the codec yet. *De-risks the encoding before any rewire.*
+  - **Landed:**
+    - Rust codec `crates/oristudio-cp/src/geometry_transport.rs` (`encode`/`decode`,
+      `CompactGeometry`/`CompactTail`) — Rust round-trip identity gate green. *(commit `36099889`)*
+    - Wasm exports `document_geometry` / `restore_from_compact` (js-sys typed-array
+      marshalling) in `crates/oristudio-cp-wasm/src/lib.rs`. *(commit `6cf5b112`)*
+    - Frontend `apps/web/src/engine/oristudioCpGeometry.ts`: `CpGeometryTransport`,
+      `CpGeometry` accessor (random-access-by-id + iteration, no per-element alloc),
+      `decodeCpGeometryToSnapshot`; int→name tables mirror the kernel enums.
+    - Worker `documentGeometry` (transfers buffers to main thread) / `restoreFromCompact`.
+    - **Gates green** (drive the real wasm from vitest via `initSync`):
+      `oristudioCpGeometry.test.ts` — parity (`document_geometry` decoded ==
+      `document_snapshot` field-for-field) + round-trip identity
+      (`restore_from_compact` reproduces the doc) + accessor agreement, on the full
+      battery (every color × active state, rich `selected` incl. `2`, customized
+      colors, aux, points, plain/customized circles, unicode texts, extreme/coincident
+      f64 coords). tsc/eslint clean; oristudio-cp + web store/geometry suites green.
+  - **Author gate:** ⏳ pending Zach's sign-off (this is his gate to verify — nothing
+    consumes the codec yet, so there is no UI change to test; verification is
+    reading the gates + running the suites).
 
 - **Phase 2 — Hot path on `CpGeometry` (flagged, structured still fetched).**
   - Rewire render (`cpSnapshotToScene`/`cpPointsToScene`), `getCpVertexPoints`, hit/point
