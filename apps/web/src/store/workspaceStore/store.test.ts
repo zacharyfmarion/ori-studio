@@ -2164,7 +2164,7 @@ describe('workspace store slices', () => {
       7,
       'Paper5',
       {
-        display_mark: true,
+        display_mark: false,
         selected: true,
         index: 1,
       }
@@ -2310,7 +2310,7 @@ describe('workspace store slices', () => {
       7,
       'Transparent3',
       {
-        display_mark: true,
+        display_mark: false,
         selected: true,
         index: 1,
       }
@@ -2398,7 +2398,7 @@ describe('workspace store slices', () => {
       7,
       'Paper5',
       {
-        display_mark: true,
+        display_mark: false,
         selected: false,
         index: 1,
       }
@@ -2407,7 +2407,7 @@ describe('workspace store slices', () => {
       8,
       'Paper5',
       {
-        display_mark: true,
+        display_mark: false,
         selected: true,
         index: 2,
       }
