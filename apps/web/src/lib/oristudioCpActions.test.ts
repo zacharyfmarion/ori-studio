@@ -51,14 +51,10 @@ describe('oristudio CP action registry', () => {
   });
 
   it('orders rail actions like Oriedita while exposing dropdown entries', () => {
-    expect(cpRailActions().slice(0, 14).map((action) => action.label)).toEqual([
+    expect(cpRailActions().slice(0, 10).map((action) => action.label)).toEqual([
       'Box Select',
-      'Select Overlapping Lines',
-      'Polygon Select',
       'Lasso Select',
       'Box Deselect',
-      'Deselect Overlapping Lines',
-      'Polygon Deselect',
       'Lasso Deselect',
       'Line',
       'Grid Restricted Line',
@@ -68,29 +64,22 @@ describe('oristudio CP action registry', () => {
       'Lengthen by Same Color',
     ]);
 
-    expect(cpRailActions().slice(14, 15).map((action) => action.label)).toEqual([
+    expect(cpRailActions().slice(10, 11).map((action) => action.label)).toEqual([
       'Perpendicular Line',
     ]);
 
+    // Angle-restricted variants that remain in the curated rail keep their Oriedita
+    // override mappings. (Offset Restricted Line / Flat Foldable Line (extend) and the
+    // other non-Oriedita-UI tools were deliberately hidden from the rail.)
     expect(cpRailActions().find((action) => action.kind === 'command' && action.operationId === 'DrawCreaseAngleRestricted5')).toMatchObject({
       label: 'Angle Restricted Line',
       upstreamAction: 'deg2Action',
       upstreamMouseMode: 'DRAW_CREASE_ANGLE_RESTRICTED_5_37',
     });
-    expect(cpRailActions().find((action) => action.kind === 'command' && action.operationId === 'AngleSystem')).toMatchObject({
-      label: 'Offset Restricted Line',
-      upstreamAction: 'deg3Action',
-      upstreamMouseMode: 'ANGLE_SYSTEM_16',
-    });
     expect(cpRailActions().find((action) => action.kind === 'command' && action.operationId === 'DrawCreaseAngleRestricted')).toMatchObject({
       label: 'Converging Lines',
       upstreamAction: 'deg1Action',
       upstreamMouseMode: 'DRAW_CREASE_ANGLE_RESTRICTED_13',
-    });
-    expect(cpRailActions().find((action) => action.kind === 'command' && action.operationId === 'FoldableLineInput')).toMatchObject({
-      label: 'Flat Foldable Line (extend)',
-      upstreamAction: 'foldableLinePlusGridInputAction',
-      upstreamMouseMode: 'FOLDABLE_LINE_INPUT_39',
     });
   });
 
