@@ -160,6 +160,39 @@ Now that WebGL is proven, tested, and the keep-code is modular, remove SVG.
 6. **Gate:** full manual pass; parity holds; review the net LOC reduction + final module
    structure — confirm the "maintainability win," not just a passing app.
 
+### Step 3 progress (2026-07-14)
+
+- ✅ **3.1 umbilical severed** + **3.2 WebGL unconditional** — landed in prior commits
+  (`svgViewBridge.ts`/`sampleView` deleted, camera seeds from `contentBounds`,
+  `cpRendererMode` gone, WebGL mounts unconditionally, SVG-DOM panel test retired).
+- ✅ **3.3 SVG render surface + interaction path deleted** — in
+  `CreasePatternPanel.tsx`: the `<TransformWrapper>` SVG surface, all SVG render
+  components (`CreaseLines/Points/Circles/Texts/Vertices`, `OrieditaInfiniteGrid`,
+  `Generated*`/`Imported*FoldedForm*` layers, `DiagnosticPointMarker`,
+  `DiagnosticLittleBigLittleMarker`, `SelectionTransformBox`, `SelectionBoxPreview`,
+  the folded-SVG render helpers), the SVG interaction handlers (`resolveEditable*`,
+  `updateSelection{Move,Resize,Rotation}Preview`, `handleFoldedFigurePointerDown`,
+  `updateEditablePointerStatus`, `eraseCreaseAtModelPoint`, `eventToEditable{Svg,Model}Point`,
+  the pointer event-target helpers), and RZPP from the edit path. The `foldFrame*` /
+  `foldedFormPointToSvg` / `isRenderable*` helpers are **kept** — shared by the (live)
+  `cpImportedFoldedFormsGeometry` WebGL memo.
+- ✅ **Vestigial SVG state removed** — the write-only `cpCommandPreview` state + its
+  now-dead preview-fetch `useEffect` (WebGL previews come through `handleWebglToolPreviewInput`;
+  the kernel `previewCommand` is a side-effect-free fetch, so discarding it changes nothing),
+  the always-null `cursorModelPoint` (setter never fired; simplified `liveCommandPreviewPoints`
+  to `snapTarget?.point` and dropped the dead cursor-coord HUD readout), and the whole
+  SVG-only live-preview chain (`liveCommandPreviewPoints`, `activeCpInputMode`,
+  `canPreviewFromSelection`, `activeActionInputMode`).
+- **Result:** `CreasePatternPanel.tsx` **7,530 → 3,845 lines** (−3,685); tsc + eslint clean,
+  112 `cp-workspace` module tests green. **⚠️ Human test still owed (Zach):** command
+  previews / snap HUD on the WebGL surface, since vestigial preview plumbing was removed.
+- ⬜ **Remaining:** 3.4 remove vertex selection end-to-end (store side: `types.ts`,
+  `creasePatternSlice.ts`, `projectSlice.ts`, the selection type) — the panel no longer
+  *uses* `toggleOristudioCpVertexSelection`/`selection`/`select`, but the store still
+  defines them. 3.5 coordinate cleanup (`svgToModel` is still used by `clientToModel`, so it
+  stays for now; viewBox/decoration-scale machinery already gone). Then Step 2c decompose
+  the remaining all-keep panel into `toolPanel/` + `commands.ts`.
+
 ---
 
 ## Cross-cutting notes
