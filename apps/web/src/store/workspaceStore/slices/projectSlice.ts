@@ -62,6 +62,7 @@ import { requestConfirmation, requestCreasePatternExportOptions } from '../../co
 import { useLayoutStore } from '../../layoutStore';
 import {
   emptyFoldArtifactResourceState,
+  pickFoldArtifactResourceState,
   readyFoldArtifactResourceState,
   staleFoldArtifactResourceState,
 } from '../foldArtifactResource';
@@ -1184,6 +1185,31 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         if (!preserveEditCanvas) await releaseEditableCreasePattern();
         const api = await getEngine();
         const snapshot = await createBlankTree(api);
+        // File>New clears the Edit canvas back to blank. The design-method chooser
+        // instead preserves the always-live canvas (its CP wasm handle is never
+        // released), so it omits every CP reset and keeps the live document's fold
+        // artifacts — spread last so they win over projectStateFromSnapshot's empty
+        // fold state. Grouping the resets under one conditional means a newly added
+        // oristudioCp* field is preserved automatically, with no capture list to
+        // keep in sync.
+        const editCanvasState = preserveEditCanvas
+          ? pickFoldArtifactResourceState(get())
+          : {
+              importedCreasePattern: null,
+              oristudioCpDocument: null,
+              oristudioCpLineage: null,
+              oristudioCpError: null,
+              oristudioCpCamvResult: null,
+              oristudioCpHistoryPast: [],
+              oristudioCpHistoryFuture: [],
+              oristudioCpSelection: emptyOristudioCpSelection(),
+              oristudioCpActiveDiagnosticId: null,
+              oristudioCpRevision: 0,
+              oristudioCpFoldedFigures: [],
+              oristudioCpActiveFoldedFigureId: null,
+              creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
+              ...emptyFoldArtifactResourceState(),
+            };
         set({
           ...projectStateFromSnapshot(snapshot, 'Untitled'),
           activePanelId: 'design',
@@ -1191,32 +1217,19 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           pendingDesignChoice: false,
           oristudioBpDocument: null,
           oristudioBpWorkspace: null,
-          importedCreasePattern: null,
-          oristudioCpDocument: null,
-          oristudioCpLineage: null,
-          oristudioCpError: null,
-          oristudioCpCamvResult: null,
-          oristudioCpHistoryPast: [],
-          oristudioCpHistoryFuture: [],
           projectLoadId: get().projectLoadId + 1,
           currentFileName: defaultNativeFilename('Untitled'),
           currentFilePath: null,
           projectMessage: null,
           selection: { kind: 'tree' },
-          oristudioCpSelection: emptyOristudioCpSelection(),
-          oristudioCpActiveDiagnosticId: null,
-          oristudioCpRevision: 0,
-          oristudioCpFoldedFigures: [],
-          oristudioCpActiveFoldedFigureId: null,
           toolMode: 'select',
           symmetryAuthoringPairs: [],
-          creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
-          ...emptyFoldArtifactResourceState(),
           dirty: false,
           lastOptimization: null,
           historyPast: [],
           historyFuture: [],
           clipboardPasteCount: 0,
+          ...editCanvasState,
         });
         const layout = useLayoutStore.getState();
         layout.activateWorkspace('design');
@@ -1897,36 +1910,18 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
 
     chooseDesignMethod: async (target) => {
       // Choosing a design method establishes a design surface but must not touch
-      // the always-live Edit canvas. The design creators otherwise wipe the CP,
-      // so snapshot its document + editing state, create the design with the CP
-      // wasm handle kept alive (preserveEditCanvas), then restore the snapshot.
-      const before = get();
-      const editCanvas = {
-        importedCreasePattern: before.importedCreasePattern,
-        oristudioCpDocument: before.oristudioCpDocument,
-        oristudioCpLineage: before.oristudioCpLineage,
-        oristudioCpError: before.oristudioCpError,
-        oristudioCpCamvResult: before.oristudioCpCamvResult,
-        oristudioCpOperationDescriptors: before.oristudioCpOperationDescriptors,
-        oristudioCpHistoryPast: before.oristudioCpHistoryPast,
-        oristudioCpHistoryFuture: before.oristudioCpHistoryFuture,
-        oristudioCpSelection: before.oristudioCpSelection,
-        oristudioCpActiveDiagnosticId: before.oristudioCpActiveDiagnosticId,
-        oristudioCpRevision: before.oristudioCpRevision,
-        oristudioCpFoldedFigures: before.oristudioCpFoldedFigures,
-        oristudioCpActiveFoldedFigureId: before.oristudioCpActiveFoldedFigureId,
-        creaseColorMode: before.creaseColorMode,
-      };
-
+      // the always-live Edit canvas. The creators run in preserveEditCanvas mode,
+      // where they keep the CP wasm handle alive and omit every Edit-canvas field
+      // from their set() — so no snapshot/restore is needed here. The only thing
+      // to carry across is dirtiness: establishing a design must not silently mark
+      // a previously-dirty document clean.
+      const wasDirty = get().dirty;
       if (target === 'box-pleat') {
         await get().createOristudioBpProject({ confirmDiscard: false, preserveEditCanvas: true });
       } else {
         await get().createNewProject({ preserveEditCanvas: true });
       }
-
-      // The creators cleared the CP fields in their own set(); restore the live
-      // document (its handle was never released) so Edit is exactly as it was.
-      set({ ...editCanvas, dirty: get().dirty || before.dirty });
+      if (get().dirty !== wasDirty) set({ dirty: get().dirty || wasDirty });
     },
   };
 };

@@ -45,6 +45,26 @@ export function emptyFoldArtifactResourceState(): FoldArtifactResourceState {
   };
 }
 
+/**
+ * Extract the current fold-artifact resource fields from a larger state object.
+ * Used when a project mutation resets most state but must leave the live Edit
+ * canvas's fold artifacts untouched (design-method chooser). Kept next to
+ * {@link emptyFoldArtifactResourceState} so the field set stays in sync.
+ */
+export function pickFoldArtifactResourceState(
+  state: FoldArtifactResourceState
+): FoldArtifactResourceState {
+  return {
+    foldArtifacts: state.foldArtifacts,
+    foldArtifactError: state.foldArtifactError,
+    foldArtifactStatus: state.foldArtifactStatus,
+    foldArtifactRevision: state.foldArtifactRevision,
+    foldArtifactResolvedRevision: state.foldArtifactResolvedRevision,
+    foldArtifactRequestId: state.foldArtifactRequestId,
+    selectedSegmentId: state.selectedSegmentId,
+  };
+}
+
 export function staleFoldArtifactResourceState(
   currentRevision: number
 ): FoldArtifactResourceState & FoldArtifactDependentState {
