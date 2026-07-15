@@ -235,6 +235,24 @@ export async function executeOristudioCpCommand(
   return refreshed;
 }
 
+/**
+ * Run a non-mutating check command (e.g. `CheckCamv`) for its result only. The
+ * kernel already holds the document and the check does not mutate it, so this
+ * deliberately skips the full-document snapshot that `executeOristudioCpCommand`
+ * performs — the caller keeps the current document state and only needs the
+ * command's diagnostics. Used by the deferred always-on CAMV recompute.
+ */
+export async function runOristudioCpCheckCommand(
+  operationId: OristudioCpOperationId,
+  payload: OristudioCpCommandPayload = {}
+): Promise<OristudioCpCommandResult> {
+  if (handle === null) {
+    throw new Error('No editable crease-pattern document is loaded');
+  }
+  const api = await getOristudioCpClient();
+  return api.executeCommand(handle, operationId, payload);
+}
+
 export async function previewOristudioCpCommand(
   operationId: OristudioCpOperationId,
   payload: OristudioCpCommandPayload = {}

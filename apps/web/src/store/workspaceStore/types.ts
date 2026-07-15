@@ -119,6 +119,12 @@ export interface ProjectSliceActions {
     payload?: OristudioCpCommandPayload
   ) => Promise<OristudioCpCommandPreview | null>;
   clearOristudioCpDocument: () => Promise<void>;
+  /**
+   * Recompute the always-on CAMV diagnostics off the edit critical path: debounced,
+   * runs `CheckCamv` for its result only (no full-document snapshot), and updates
+   * `oristudioCpCamvResult` when it lands — dropped if the document changed meanwhile.
+   */
+  scheduleOristudioCamvRefresh: () => void;
   openProject: (fileService?: FileService) => Promise<boolean>;
   importAddCreasePattern: (fileService?: FileService) => Promise<boolean>;
   saveProject: (fileService?: FileService) => Promise<boolean>;

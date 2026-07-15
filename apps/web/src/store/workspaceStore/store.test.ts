@@ -78,6 +78,7 @@ const oristudioCpMocks = vi.hoisted(() => ({
   replaceOristudioCpLineSegments: vi.fn(),
   restoreOristudioCpDocument: vi.fn(),
   restoreOristudioCpDocumentInPlace: vi.fn(),
+  runOristudioCpCheckCommand: vi.fn(),
   setOristudioCpDocumentSource: vi.fn(),
   setOristudioCpFoldedFigureModel: vi.fn(),
 }));
@@ -128,6 +129,7 @@ vi.mock('./oristudioCpRuntime', async (importOriginal) => {
     replaceOristudioCpLineSegments: oristudioCpMocks.replaceOristudioCpLineSegments,
     restoreOristudioCpDocument: oristudioCpMocks.restoreOristudioCpDocument,
     restoreOristudioCpDocumentInPlace: oristudioCpMocks.restoreOristudioCpDocumentInPlace,
+    runOristudioCpCheckCommand: oristudioCpMocks.runOristudioCpCheckCommand,
     setOristudioCpDocumentSource: oristudioCpMocks.setOristudioCpDocumentSource,
     setOristudioCpFoldedFigureModel: oristudioCpMocks.setOristudioCpFoldedFigureModel,
   };
@@ -1309,6 +1311,7 @@ describe('workspace store slices', () => {
   });
 
   afterEach(async () => {
+    vi.useRealTimers();
     await flushAsyncWork();
   });
 
@@ -2750,6 +2753,9 @@ describe('workspace store slices', () => {
   });
 
   it('restores editable CP snapshots and selections through undo and redo', async () => {
+    // The always-on CAMV recompute is now deferred (debounced, off the edit critical
+    // path), so fake timers let us flush it before asserting the overlay result.
+    vi.useFakeTimers();
     resetStores(seedSnapshot());
     await useWorkspaceStore.getState().loadCreasePatternText('1 0 0 1 0', {
       filename: 'line.cp',
@@ -2807,10 +2813,7 @@ describe('workspace store slices', () => {
     );
 
     const undoCamvResult = camvErrorResult('CheckCamv-undo');
-    oristudioCpMocks.executeOristudioCpCommand.mockResolvedValueOnce({
-      ...loadedDocument,
-      lastCommandResult: undoCamvResult,
-    });
+    oristudioCpMocks.runOristudioCpCheckCommand.mockResolvedValueOnce(undoCamvResult);
     await useWorkspaceStore.getState().undo();
     expect(oristudioCpMocks.restoreOristudioCpDocumentInPlace).toHaveBeenLastCalledWith(
       loadedDocument.document,
@@ -2827,6 +2830,8 @@ describe('workspace store slices', () => {
       loadedDocument.document
     );
     expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual([1]);
+    // CAMV is recomputed off the critical path — flush the debounce, then assert.
+    await vi.advanceTimersByTimeAsync(200);
     expect(useWorkspaceStore.getState().oristudioCpCamvResult).toEqual(undoCamvResult);
     expect(useWorkspaceStore.getState().oristudioCpHistoryFuture).toHaveLength(1);
     expect(useWorkspaceStore.getState().foldArtifactStatus).toBe('stale');
@@ -2843,11 +2848,7 @@ describe('workspace store slices', () => {
     );
 
     const redoCamvResult = camvErrorResult('CheckCamv-redo');
-    oristudioCpMocks.executeOristudioCpCommand.mockResolvedValueOnce({
-      ...loadedDocument,
-      document: changedDocument,
-      lastCommandResult: redoCamvResult,
-    });
+    oristudioCpMocks.runOristudioCpCheckCommand.mockResolvedValueOnce(redoCamvResult);
     await useWorkspaceStore.getState().redo();
     expect(oristudioCpMocks.restoreOristudioCpDocumentInPlace).toHaveBeenLastCalledWith(
       changedDocument,
@@ -2856,6 +2857,7 @@ describe('workspace store slices', () => {
     );
     expect(useWorkspaceStore.getState().oristudioCpDocument?.document).toEqual(changedDocument);
     expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual([1]);
+    await vi.advanceTimersByTimeAsync(200);
     expect(useWorkspaceStore.getState().oristudioCpCamvResult).toEqual(redoCamvResult);
     expect(useWorkspaceStore.getState().oristudioCpHistoryPast).toHaveLength(1);
     expect(useWorkspaceStore.getState().foldArtifactStatus).toBe('stale');
