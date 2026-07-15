@@ -10,6 +10,18 @@ export function cp_operation_descriptors(): any;
  */
 export function deselect_all(handle: number): number;
 
+/**
+ * Compact, transfer-friendly geometry for the hot render/interaction path.
+ *
+ * Returns a plain JS object whose bulk-geometry fields are typed arrays (each
+ * backed by its own transferable `ArrayBuffer`) plus a small serde `tail`. This
+ * is the fast counterpart to [`document_snapshot`]: it skips the O(n)
+ * JS-object-graph build and lets the worker `transfer` the buffers to the main
+ * thread instead of structured-cloning them. Coordinates stay `f64`
+ * (`Float64Array`), so nothing on this path loses precision.
+ */
+export function document_geometry(handle: number): any;
+
 export function document_snapshot(handle: number): any;
 
 export function document_summary(handle: number): any;
@@ -83,12 +95,21 @@ export function replace_line_segments(handle: number, line_ids: any, segments: a
  */
 export function restore_document(handle: number, document: any): void;
 
+/**
+ * Restore a document in place from the compact geometry produced by
+ * [`document_geometry`]. Used by undo/redo: `decode` is the exact inverse of
+ * `encode`, so the restored model is identical to the one that was captured.
+ * Keeps the handle stable, mirroring [`restore_document`].
+ */
+export function restore_from_compact(handle: number, value: any): void;
+
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly cp_operation_descriptors: () => [number, number, number];
     readonly deselect_all: (a: number) => [number, number, number];
+    readonly document_geometry: (a: number) => [number, number, number];
     readonly document_snapshot: (a: number) => [number, number, number];
     readonly document_summary: (a: number) => [number, number, number];
     readonly execute_cp_command: (a: number, b: any, c: any) => [number, number, number];
@@ -118,6 +139,7 @@ export interface InitOutput {
     readonly preview_cp_command: (a: number, b: any, c: any) => [number, number, number];
     readonly replace_line_segments: (a: number, b: any, c: any) => [number, number, number];
     readonly restore_document: (a: number, b: any) => [number, number];
+    readonly restore_from_compact: (a: number, b: any) => [number, number];
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_exn_store: (a: number) => void;

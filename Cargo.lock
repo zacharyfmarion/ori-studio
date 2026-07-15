@@ -2736,6 +2736,7 @@ dependencies = [
 name = "oristudio-cp-wasm"
 version = "0.1.2"
 dependencies = [
+ "js-sys",
  "oristudio-cp",
  "serde",
  "serde-wasm-bindgen",

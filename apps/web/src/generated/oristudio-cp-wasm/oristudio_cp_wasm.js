@@ -27,6 +27,26 @@ export function deselect_all(handle) {
 }
 
 /**
+ * Compact, transfer-friendly geometry for the hot render/interaction path.
+ *
+ * Returns a plain JS object whose bulk-geometry fields are typed arrays (each
+ * backed by its own transferable `ArrayBuffer`) plus a small serde `tail`. This
+ * is the fast counterpart to [`document_snapshot`]: it skips the O(n)
+ * JS-object-graph build and lets the worker `transfer` the buffers to the main
+ * thread instead of structured-cloning them. Coordinates stay `f64`
+ * (`Float64Array`), so nothing on this path loses precision.
+ * @param {number} handle
+ * @returns {any}
+ */
+export function document_geometry(handle) {
+    const ret = wasm.document_geometry(handle);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
  * @param {number} handle
  * @returns {any}
  */
@@ -471,6 +491,21 @@ export function restore_document(handle, document) {
         throw takeFromExternrefTable0(ret[0]);
     }
 }
+
+/**
+ * Restore a document in place from the compact geometry produced by
+ * [`document_geometry`]. Used by undo/redo: `decode` is the exact inverse of
+ * `encode`, so the restored model is identical to the one that was captured.
+ * Keeps the handle stable, mirroring [`restore_document`].
+ * @param {number} handle
+ * @param {any} value
+ */
+export function restore_from_compact(handle, value) {
+    const ret = wasm.restore_from_compact(handle, value);
+    if (ret[1]) {
+        throw takeFromExternrefTable0(ret[0]);
+    }
+}
 function __wbg_get_imports() {
     const import0 = {
         __proto__: null,
@@ -581,6 +616,10 @@ function __wbg_get_imports() {
             const ret = arg0[arg1 >>> 0];
             return ret;
         },
+        __wbg_get_dcf82ab8aad1a593: function() { return handleError(function (arg0, arg1) {
+            const ret = Reflect.get(arg0, arg1);
+            return ret;
+        }, arguments); },
         __wbg_get_unchecked_1dfe6d05ad91d9b7: function(arg0, arg1) {
             const ret = arg0[arg1 >>> 0];
             return ret;
@@ -593,6 +632,26 @@ function __wbg_get_imports() {
             let result;
             try {
                 result = arg0 instanceof ArrayBuffer;
+            } catch (_) {
+                result = false;
+            }
+            const ret = result;
+            return ret;
+        },
+        __wbg_instanceof_Float64Array_3bb8295dc7055274: function(arg0) {
+            let result;
+            try {
+                result = arg0 instanceof Float64Array;
+            } catch (_) {
+                result = false;
+            }
+            const ret = result;
+            return ret;
+        },
+        __wbg_instanceof_Int32Array_d0b4b9933e2ea52d: function(arg0) {
+            let result;
+            try {
+                result = arg0 instanceof Int32Array;
             } catch (_) {
                 result = false;
             }
@@ -639,6 +698,14 @@ function __wbg_get_imports() {
             const ret = arg0.length;
             return ret;
         },
+        __wbg_length_911750a64e2f4f88: function(arg0) {
+            const ret = arg0.length;
+            return ret;
+        },
+        __wbg_length_c7ce929623e7a230: function(arg0) {
+            const ret = arg0.length;
+            return ret;
+        },
         __wbg_new_02d162bc6cf02f60: function() {
             const ret = new Object();
             return ret;
@@ -655,6 +722,18 @@ function __wbg_get_imports() {
             const ret = new Uint8Array(arg0);
             return ret;
         },
+        __wbg_new_from_slice_02962bf7778cf945: function(arg0, arg1) {
+            const ret = new Float64Array(getArrayF64FromWasm0(arg0, arg1));
+            return ret;
+        },
+        __wbg_new_from_slice_269e35316ed2d061: function(arg0, arg1) {
+            const ret = new Uint8Array(getArrayU8FromWasm0(arg0, arg1));
+            return ret;
+        },
+        __wbg_new_from_slice_53b9575cecde0d9e: function(arg0, arg1) {
+            const ret = new Int32Array(getArrayI32FromWasm0(arg0, arg1));
+            return ret;
+        },
         __wbg_next_2a4e19f4f5083b0f: function(arg0) {
             const ret = arg0.next;
             return ret;
@@ -663,8 +742,14 @@ function __wbg_get_imports() {
             const ret = arg0.next();
             return ret;
         }, arguments); },
+        __wbg_prototypesetcall_272875b350b1e49b: function(arg0, arg1, arg2) {
+            Float64Array.prototype.set.call(getArrayF64FromWasm0(arg0, arg1), arg2);
+        },
         __wbg_prototypesetcall_5f9bdc8d75e07276: function(arg0, arg1, arg2) {
             Uint8Array.prototype.set.call(getArrayU8FromWasm0(arg0, arg1), arg2);
+        },
+        __wbg_prototypesetcall_e8325bfb1e498d1c: function(arg0, arg1, arg2) {
+            Int32Array.prototype.set.call(getArrayI32FromWasm0(arg0, arg1), arg2);
         },
         __wbg_set_6be42768c690e380: function(arg0, arg1, arg2) {
             arg0[arg1] = arg2;
@@ -672,6 +757,10 @@ function __wbg_get_imports() {
         __wbg_set_78ea6a19f4818587: function(arg0, arg1, arg2) {
             arg0[arg1 >>> 0] = arg2;
         },
+        __wbg_set_a0e911be3da02782: function() { return handleError(function (arg0, arg1, arg2) {
+            const ret = Reflect.set(arg0, arg1, arg2);
+            return ret;
+        }, arguments); },
         __wbg_set_facb7a5914e0fa39: function(arg0, arg1, arg2) {
             const ret = arg0.set(arg1, arg2);
             return ret;
@@ -787,6 +876,16 @@ function debugString(val) {
     return className;
 }
 
+function getArrayF64FromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return getFloat64ArrayMemory0().subarray(ptr / 8, ptr / 8 + len);
+}
+
+function getArrayI32FromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return getInt32ArrayMemory0().subarray(ptr / 4, ptr / 4 + len);
+}
+
 function getArrayU8FromWasm0(ptr, len) {
     ptr = ptr >>> 0;
     return getUint8ArrayMemory0().subarray(ptr / 1, ptr / 1 + len);
@@ -798,6 +897,22 @@ function getDataViewMemory0() {
         cachedDataViewMemory0 = new DataView(wasm.memory.buffer);
     }
     return cachedDataViewMemory0;
+}
+
+let cachedFloat64ArrayMemory0 = null;
+function getFloat64ArrayMemory0() {
+    if (cachedFloat64ArrayMemory0 === null || cachedFloat64ArrayMemory0.byteLength === 0) {
+        cachedFloat64ArrayMemory0 = new Float64Array(wasm.memory.buffer);
+    }
+    return cachedFloat64ArrayMemory0;
+}
+
+let cachedInt32ArrayMemory0 = null;
+function getInt32ArrayMemory0() {
+    if (cachedInt32ArrayMemory0 === null || cachedInt32ArrayMemory0.byteLength === 0) {
+        cachedInt32ArrayMemory0 = new Int32Array(wasm.memory.buffer);
+    }
+    return cachedInt32ArrayMemory0;
 }
 
 function getStringFromWasm0(ptr, len) {
@@ -903,6 +1018,8 @@ function __wbg_finalize_init(instance, module) {
     wasm = instance.exports;
     wasmModule = module;
     cachedDataViewMemory0 = null;
+    cachedFloat64ArrayMemory0 = null;
+    cachedInt32ArrayMemory0 = null;
     cachedUint8ArrayMemory0 = null;
     wasm.__wbindgen_start();
     return wasm;
