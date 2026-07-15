@@ -7,6 +7,7 @@ import {
   activeNativeDocument,
   createNativeBoxPleatProjectFile,
   createNativeCreasePatternProjectFile,
+  createNativeProjectFile,
   createNativeTreeProjectFile,
   isNativeProjectFilename,
   parseNativeProjectFile,
@@ -297,6 +298,62 @@ describe('native project file', () => {
       format: 'bps',
       text: '{"title":"Crane","tree":{}}',
     });
+  });
+
+  it('serializes a tree design, a box-pleat design, and a crease pattern together', () => {
+    const file = createNativeProjectFile({
+      workspaceTitle: 'Multi',
+      filename: 'multi.osf',
+      path: '/tmp/multi.osf',
+      activeMode: 'tree',
+      tree: { title: 'Multi tree', tmd5Text: 'tmd5-body' },
+      boxPleat: { title: 'Multi bp', bps: '{"tree":{}}' },
+      creasePattern: {
+        title: 'Multi CP',
+        document: cpDocument(),
+        source: null,
+        foldProjection: null,
+        foldArtifacts: null,
+        creaseColorMode: 'mvf',
+        selection: emptyOristudioCpSelection(),
+        viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+        foldedFigures: [],
+        activeFoldedFigureId: null,
+        lineage: importedCpLineage(),
+      },
+      appVersion: '0.1.1',
+      now,
+    });
+
+    const parsed = parseNativeProjectFile(serializeNativeProjectFile(file));
+
+    // All three documents coexist in the one workspace container.
+    expect(parsed.workspace.documents.map((document) => document.kind)).toEqual([
+      'treemaker-tree',
+      'box-pleat',
+      'crease-pattern',
+    ]);
+    // activeMode selects which document is primary; here the tree.
+    expect(parsed.workspace.activeMode).toBe('tree');
+    expect(parsed.workspace.activeDocumentId).toBe('tree');
+    expect(activeNativeDocument(parsed).kind).toBe('treemaker-tree');
+  });
+
+  it('points activeDocumentId at the box-pleat design when it is the active mode', () => {
+    const file = createNativeProjectFile({
+      workspaceTitle: 'Multi',
+      filename: 'multi.osf',
+      path: null,
+      activeMode: 'box-pleat',
+      tree: { title: 'Multi tree', tmd5Text: 'tmd5-body' },
+      boxPleat: { title: 'Multi bp', bps: '{"tree":{}}' },
+      appVersion: '0.1.1',
+      now,
+    });
+
+    const parsed = parseNativeProjectFile(serializeNativeProjectFile(file));
+    expect(parsed.workspace.activeDocumentId).toBe('box-pleat');
+    expect(activeNativeDocument(parsed).kind).toBe('box-pleat');
   });
 
   it('round-trips a box-pleat design with no companion crease pattern', () => {

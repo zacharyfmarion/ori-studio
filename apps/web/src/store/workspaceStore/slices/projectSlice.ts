@@ -33,13 +33,13 @@ import {
 import { normalizeOristudioCpCommandPayload } from '../../../lib/oristudioCpCommandPayloads';
 import {
   activeNativeDocument,
-  createNativeBoxPleatProjectFile,
   createNativeCreasePatternProjectFile,
-  createNativeTreeProjectFile,
+  createNativeProjectFile,
   isNativeProjectFilename,
   NATIVE_PROJECT_EXTENSION,
   parseNativeProjectFile,
   serializeNativeProjectFile,
+  type NativeProjectActiveMode,
 } from '../../../lib/nativeProjectFile';
 import {
   exportOristudioBpProjectAsBps,
@@ -104,9 +104,31 @@ import type {
   OristudioCpFoldedFigureEntry,
   OristudioCpGridMetadata,
 } from '../../../engine/oristudioCpTypes';
+import type { EditingContext } from '../../../workspaces/editingContext';
 
 function nowIso(): string {
   return new Date().toISOString();
+}
+
+/**
+ * Which document a saved workspace records as active/primary. A design (tree or
+ * box-pleat) always wins over the crease pattern: the Edit canvas is always
+ * focusable, and the single-document loader dispatches on the active document,
+ * so letting a focused Edit view mark the CP active would drop the design on
+ * reload. The editing context only chooses which design is primary when more
+ * than one is present.
+ */
+function resolveNativeActiveMode(
+  context: EditingContext,
+  present: { hasTree: boolean; hasBoxPleat: boolean }
+): NativeProjectActiveMode {
+  if ((context === 'bp-tree' || context === 'bp-packing') && present.hasBoxPleat) {
+    return 'box-pleat';
+  }
+  if (context === 'treemaker-tree' && present.hasTree) return 'tree';
+  if (present.hasBoxPleat) return 'box-pleat';
+  if (present.hasTree) return 'tree';
+  return 'crease-pattern';
 }
 
 function cpHistoryEntry(
@@ -839,51 +861,35 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     };
   };
 
-  const saveNativeTreeProject = async (fileService: FileService, forceSaveAs: boolean) => {
-    const tmd5Text = await currentTreeTmd5Text();
+  // Serialize every design document the workspace currently holds into one
+  // native `.osf` bundle: a TreeMaker tree (if the tree has nodes), a Box-Pleat
+  // design (if one is loaded), and the Edit crease pattern as a companion (if
+  // present). This is the multi-document path; the workspace container can hold
+  // all three at once. `activeMode` records which view was focused, but a design
+  // always stays the primary/active document so the single-document loader never
+  // drops it when the always-live Edit canvas is the one in focus.
+  const saveNativeWorkspaceProject = async (fileService: FileService, forceSaveAs: boolean) => {
+    const hasTree = get().project.nodes.length > 0;
+    const bpDocument = get().oristudioBpDocument;
+    const tmd5Text = hasTree ? await currentTreeTmd5Text() : null;
+    const bps = bpDocument ? await exportOristudioBpProjectAsBps() : null;
     const creasePatternCompanion = get().oristudioCpDocument
       ? await currentEditableCreasePatternProjectInput(get().currentFileName, get().currentFilePath)
       : null;
+    const bpTitle = bpDocument?.snapshot?.summary?.title || get().project.title;
+    const activeMode = resolveNativeActiveMode(get().activeEditingContext, {
+      hasTree,
+      hasBoxPleat: Boolean(bpDocument),
+    });
     const contents = serializeNativeProjectFile(
-      createNativeTreeProjectFile({
-        title: get().project.title,
+      createNativeProjectFile({
+        workspaceTitle: activeMode === 'box-pleat' ? bpTitle : get().project.title,
         filename: get().currentFileName,
         path: get().currentFilePath,
-        tmd5Text,
-        creasePatternCompanion,
-        appVersion: APP_VERSION,
-      })
-    );
-    const target = nativeSaveTarget();
-    const result = await fileService.saveTextFile({
-      title: forceSaveAs ? 'Save Ori Studio Project As' : 'Save Ori Studio Project',
-      contents,
-      suggestedName: target.suggestedName,
-      path: forceSaveAs ? null : target.path,
-      extensions: [NATIVE_PROJECT_EXTENSION],
-    });
-    if (!result) return false;
-    set({
-      currentFileName: result.name,
-      currentFilePath: result.path,
-      dirty: false,
-      projectMessage: `Saved ${result.name}`,
-    });
-    return true;
-  };
-
-  const saveNativeBoxPleatProject = async (fileService: FileService, forceSaveAs: boolean) => {
-    const bps = await exportOristudioBpProjectAsBps();
-    const creasePatternCompanion = get().oristudioCpDocument
-      ? await currentEditableCreasePatternProjectInput(get().currentFileName, get().currentFilePath)
-      : null;
-    const contents = serializeNativeProjectFile(
-      createNativeBoxPleatProjectFile({
-        title: get().oristudioBpDocument?.snapshot?.summary?.title || get().project.title,
-        filename: get().currentFileName,
-        path: get().currentFilePath,
-        bps,
-        creasePatternCompanion,
+        activeMode,
+        tree: tmd5Text !== null ? { title: get().project.title, tmd5Text } : null,
+        boxPleat: bps !== null ? { title: bpTitle, bps } : null,
+        creasePattern: creasePatternCompanion,
         appVersion: APP_VERSION,
       })
     );
@@ -1088,16 +1094,15 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
 
   // Route a native save/save-as by the documents that exist, NOT by the pane in
   // focus. The Edit crease-pattern canvas is always focusable, so keying off the
-  // active view would drop the design whenever the user saved from Edit. A design
-  // (box-pleat or TreeMaker tree) is always saved as a native `.osf` bundling its
-  // Edit crease pattern as a companion; a bare crease pattern (no design) saves
-  // as a CP project.
+  // active view would drop the design whenever the user saved from Edit. If any
+  // design is present (a TreeMaker tree and/or a Box-Pleat design), save a native
+  // `.osf` bundling every design plus the Edit crease pattern as a companion; a
+  // bare crease pattern (no design) saves as a CP project, preserving its
+  // Oriedita-sourced `.ori`/`.orh` save-as special cases.
   const saveActiveProject = async (fileService: FileService, forceSaveAs: boolean) => {
-    if (get().oristudioBpDocument) {
-      return saveNativeBoxPleatProject(fileService, forceSaveAs);
-    }
-    if (get().project.nodes.length > 0) {
-      return saveNativeTreeProject(fileService, forceSaveAs);
+    const hasDesign = get().project.nodes.length > 0 || Boolean(get().oristudioBpDocument);
+    if (hasDesign) {
+      return saveNativeWorkspaceProject(fileService, forceSaveAs);
     }
     return saveEditableCreasePattern(fileService, forceSaveAs);
   };
