@@ -36,7 +36,7 @@ import type {
   OristudioCpLineColor,
   OristudioCpLineSegment,
 } from '../../engine/oristudioCpTypes';
-import { formatNumber, type Point } from '../../lib/geometry';
+import type { Point } from '../../lib/geometry';
 import {
   cpDiagnosticEntryMessage,
   semanticCpDiagnosticKind,
@@ -98,8 +98,6 @@ import {
   selectedFoldableCpLineIds,
   selectedCpLineSegments,
   translateCpLineSegments,
-  type CpLineSelectionFrame,
-  type CpSelectionTransform,
 } from '../../lib/creasePatternClipboard';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { useShortcutStore } from '../../store/shortcutStore';
@@ -802,56 +800,6 @@ function FoldedFigureMenuButton({
   );
 }
 
-interface CpSelectionRotationDrag {
-  pointerId: number;
-  center: Point;
-  startAngleDegrees: number;
-  sourceLines: OristudioCpLineSegment[];
-  currentAngleDegrees: number;
-}
-
-interface CpSelectionMoveDrag {
-  pointerId: number;
-  startPoint: Point;
-  sourceLines: OristudioCpLineSegment[];
-  currentDelta: Point;
-}
-
-type CpSelectionResizeHandle =
-  | 'top-left'
-  | 'top'
-  | 'top-right'
-  | 'right'
-  | 'bottom-right'
-  | 'bottom'
-  | 'bottom-left'
-  | 'left';
-
-interface CpSelectionResizeDrag {
-  pointerId: number;
-  frame: CpLineSelectionFrame;
-  handle: CpSelectionResizeHandle;
-  sourceLines: OristudioCpLineSegment[];
-  currentTransform: Extract<CpSelectionTransform, { kind: 'scale' }> | null;
-}
-
-interface FoldedFigureMoveDrag {
-  pointerId: number;
-  figureId: string;
-  lastSvgPoint: Point;
-}
-
-interface CpSelectionTransformPreview {
-  kind: 'rotate' | 'translate' | 'scale';
-  angleDegrees?: number;
-  delta?: Point;
-  scaleX?: number;
-  scaleY?: number;
-  snapLabel?: string | null;
-  segments: OristudioCpLineSegment[];
-  frame: CpLineSelectionFrame;
-}
-
 export function CreasePatternPanel() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cpViewportRef = useRef<HTMLDivElement | null>(null);
@@ -879,7 +827,6 @@ export function CreasePatternPanel() {
     setWebglOverlayView(view);
   }, []);
   const [spacePressed, setSpacePressed] = useState(false);
-  const [snapTarget, setSnapTarget] = useState<CpSnapTarget | null>(null);
   const [cpToolState, setCpToolState] = useState(IDLE_ORISTUDIO_CP_TOOL_STATE);
   const [activeCpLineColor, setActiveCpLineColor] = useState<OristudioCpLineColor>('Red1');
   const [foldStartingFaceId, setFoldStartingFaceId] = useState(1);
@@ -894,15 +841,8 @@ export function CreasePatternPanel() {
   const [cpMeasurementSlots, setCpMeasurementSlots] = useState<CpMeasurementSlots>(
     createEmptyCpMeasurementSlots
   );
-  const [selectionRotationPreview, setSelectionRotationPreview] =
-    useState<CpSelectionTransformPreview | null>(null);
-  const [selectionTransformAngleDegrees, setSelectionTransformAngleDegrees] = useState(0);
   const [diagnosticHudExpanded, setDiagnosticHudExpanded] = useState(false);
   const defaultCpToolDocumentRef = useRef<string | null>(null);
-  const selectionRotateDragRef = useRef<CpSelectionRotationDrag | null>(null);
-  const selectionMoveDragRef = useRef<CpSelectionMoveDrag | null>(null);
-  const selectionResizeDragRef = useRef<CpSelectionResizeDrag | null>(null);
-  const foldedFigureMoveDragRef = useRef<FoldedFigureMoveDrag | null>(null);
   const restoredNativeCanvasModelRef = useRef<string | null>(null);
   const cpToolDragRef = useRef<{
     operationId: OristudioCpCommandDefinition['operationId'];
@@ -1219,7 +1159,6 @@ export function CreasePatternPanel() {
   const hasCreasePattern =
     hasEditableCreasePattern || project.creases.length > 0 || project.facets.length > 0;
   const editableSelectionSize = cpSelectionSize(oristudioCpSelection);
-  const editableSelectionLineKey = oristudioCpSelection.lines.join(',');
   const selectedEditableCpLines = useMemo(
     () => selectedCpLineSegments(editableCp, oristudioCpSelection),
     [editableCp, oristudioCpSelection]
@@ -1637,10 +1576,7 @@ export function CreasePatternPanel() {
         return { delta: rawDelta, snapLabel: null };
       }
       const translated = translateCpLineSegments(selectedEditableCpLines, rawDelta);
-      const anchorPoints = cpLineSelectionMoveAnchorPoints(
-        translated,
-        selectionTransformAngleDegrees
-      );
+      const anchorPoints = cpLineSelectionMoveAnchorPoints(translated, 0);
       let best: { target: CpSnapTarget; anchorPoint: Point } | null = null;
       for (const anchorPoint of anchorPoints) {
         const target = nearestCpSnapTarget(
@@ -1662,13 +1598,7 @@ export function CreasePatternPanel() {
         snapLabel: best.target.label,
       };
     },
-    [
-      editableCpBounds,
-      oristudioCpViewport,
-      selectedEditableCpLines,
-      selectionMoveSnapDocument,
-      selectionTransformAngleDegrees,
-    ]
+    [editableCpBounds, oristudioCpViewport, selectedEditableCpLines, selectionMoveSnapDocument]
   );
 
   // WebGL draw tools: snap a raw model draw point to nearby geometry (the surface
@@ -2392,10 +2322,6 @@ export function CreasePatternPanel() {
   );
 
   useEffect(() => {
-    setSelectionTransformAngleDegrees(0);
-  }, [editableCpHandle, editableSelectionLineKey]);
-
-  useEffect(() => {
     if (!diagnosticStatus) setDiagnosticHudExpanded(false);
   }, [diagnosticStatus]);
 
@@ -2407,22 +2333,6 @@ export function CreasePatternPanel() {
     const onKeyDown = (event: KeyboardEvent) => {
       const interactive = isViewportInteractiveTarget(event.target);
       if (event.key === 'Escape' && editableCp) {
-        if (
-          selectionRotateDragRef.current ||
-          selectionMoveDragRef.current ||
-          selectionResizeDragRef.current ||
-          foldedFigureMoveDragRef.current ||
-          selectionRotationPreview
-        ) {
-          event.preventDefault();
-          selectionRotateDragRef.current = null;
-          selectionMoveDragRef.current = null;
-          selectionResizeDragRef.current = null;
-          foldedFigureMoveDragRef.current = null;
-          setSelectionRotationPreview(null);
-          setSnapTarget(null);
-          return;
-        }
         // A selection takes priority: Escape deselects for *any* resting tool (not
         // just CreaseSelect) as long as no gesture is in progress — a second Escape
         // then cancels/deactivates the tool. Matches Oriedita, and fixes "select-all,
@@ -2489,7 +2399,6 @@ export function CreasePatternPanel() {
     hasCreasePattern,
     pendingLengthenLineId,
     pendingSquareBisectorLineIds.length,
-    selectionRotationPreview,
   ]);
 
   useEffect(() => {
@@ -2499,11 +2408,6 @@ export function CreasePatternPanel() {
       setPendingLengthenLineId(null);
       setPendingSquareBisectorLineIds([]);
       cpToolDragRef.current = null;
-      selectionRotateDragRef.current = null;
-      selectionMoveDragRef.current = null;
-      selectionResizeDragRef.current = null;
-      foldedFigureMoveDragRef.current = null;
-      setSelectionRotationPreview(null);
       setCpToolState(IDLE_ORISTUDIO_CP_TOOL_STATE);
     }
   }, [editableCp]);
@@ -2803,24 +2707,8 @@ export function CreasePatternPanel() {
                 {editableCp && editableCpSummary && (
                   <span>{editableCpSummary.line_segments} lines</span>
                 )}
-                {editableCp && snapTarget && <span>Snap {snapTarget.label}</span>}
                 {editableCp && editableSelectionSize > 0 && (
                   <span>{editableSelectionSize} selected</span>
-                )}
-                {editableCp && selectionRotationPreview?.kind === 'rotate' && (
-                  <span>{formatNumber(selectionRotationPreview.angleDegrees ?? 0, 1)} deg</span>
-                )}
-                {editableCp && selectionRotationPreview?.kind === 'translate' && selectionRotationPreview.delta && (
-                  <span>
-                    Move {formatNumber(selectionRotationPreview.delta.x, 2)},{' '}
-                    {formatNumber(selectionRotationPreview.delta.y, 2)}
-                  </span>
-                )}
-                {editableCp && selectionRotationPreview?.kind === 'scale' && (
-                  <span>
-                    Scale {formatNumber((selectionRotationPreview.scaleX ?? 1) * 100, 0)}%,{' '}
-                    {formatNumber((selectionRotationPreview.scaleY ?? 1) * 100, 0)}%
-                  </span>
                 )}
               </div>
             </div>
