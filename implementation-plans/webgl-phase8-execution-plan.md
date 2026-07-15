@@ -126,18 +126,44 @@ clean removal rather than a decompose-then-delete of the same lines.
   previously only exercised via the SVG DOM). Behavior-preserving. The SVG-only
   `diagnosticSectorPoint` + focus constants stay in the panel (deleted with SVG in Step 3),
   importing the shared helpers back.
-- ⬜ Remaining: `tools/predicates.ts` (the `is*Operation` family — scattered, interleaved
-  with non-predicate geometry helpers that stay), `toolPanel/` (the context-tool-panel +
-  `*ToolOption` components + `FoldedFigureMenuButton`), `commands.ts`.
+- ✅ `tools/predicates.ts` (commit `633ce7bb`) + `measure.ts` (commit `9f2bf4fd`) extracted
+  with focused tests.
+- ✅ `CpContextToolPanel.tsx` extracted (commit `7a7c5837`): the whole tool-options subtree
+  (`CpContextToolPanel`/`Instructions`/`Group` + the `*ToolOption` leaves +
+  `DivisionRatioOptions` + their pure helpers), ~920 lines out of the panel, with a focused
+  unit test for its exported predicates. Panel 3,845 → 2,924.
 
-**⚠️ Finding — the existing suite is not green at baseline.** `CreasePatternPanel.test.tsx`
-is **9 failed / 64 passed**, *identical before and after* the extraction (verified by
-stashing). The 9 are **stale SVG-DOM tests for tools hidden during this session's tool
-sweep** (e.g. asserting a `SelectLineIntersecting` toolbar button that no longer renders
-after "Select/Deselect Overlapping Lines" was hidden), not a regression. They're exactly
-the SVG-DOM tests Step 3 retires. The 64 passing tests + the new module tests are the real
-safety net. **These 9 should be updated/retired** (in Step 3's SVG-test cleanup, or a quick
-pass sooner) so the gate's "green suite" is meaningful.
+### Step 2c reassessment — decomposition is essentially DONE (2026-07-15, Zach)
+
+Re-evaluated the remaining decomposition against the master plan now that the SVG code is
+gone, and **scoped the rest out.** Rationale, grounded in
+[webgl-canvas-workspace-migration.md](webgl-canvas-workspace-migration.md):
+
+- **The valuable decomposition target was the framework-agnostic core** (master plan
+  §Decomposition, "renderer, geometry, camera, and picking are pure TS … unit-testable").
+  That whole layer — `cp-workspace/renderer` / `camera` / `picking` / `adapters` /
+  `tools/` engines — was carved out in Phases 1–6, and the pure helpers
+  (`diagnostics/geometry`, `tools/predicates`, `measure`) came out in Step 2. **None of
+  that character is left in the panel.**
+- **The panel's plan-intended end-state is "toolbars, menus, store wiring"** (master plan
+  proposed layout: *"CreasePatternPanel.tsx — slimmed: toolbars, menus, store wiring"*).
+  The remaining ~2,900 lines *are* exactly that. The principles §
+  ("cohesion by feature, not type; a 400–600-line controller is good; don't introduce an
+  abstraction until there's a second consumer; decompose only what you touch") argue
+  **against** further splitting.
+- **`toolPanel/` toolbar components** (`CpLineTypeToolbar`, `CpLineColorMenuButton`,
+  `FoldedFigureMenuButton`) — **left in the panel.** Prop-driven view the plan says the
+  panel keeps; extracting is cosmetic (no reuse/testability gain).
+- **`commands.ts` — dropped.** `buildCpCommandPayload` / `handleWebglToolCommit` /
+  `handleWebglToolPreviewInput` are component-bound `useCallback`s coupled to store/state;
+  a "pure" module would be dependency-injection ceremony against the "don't over-abstract"
+  rule. Their one pure part (measure slots) is already in `measure.ts`.
+
+**The real remaining work is deletion, not extraction** — see Step 3.6 below.
+
+*(The earlier "9 stale SVG-DOM tests" finding is resolved: that whole `CreasePatternPanel.test.tsx`
+suite was retired with the SVG surface, and the stale rail/registry tests were fixed in
+`2aab361b`. Full suite is green — 459 passed.)*
 
 ## Step 3 — Delete the SVG surface + finalize (the surgical removal)
 
@@ -199,23 +225,40 @@ Now that WebGL is proven, tested, and the keep-code is modular, remove SVG.
   `72ac6654` intentionally set the render-snapshot `display_mark` to false (the rotation
   marker inflated the move hit-box); three store tests still asserted `true`.
 
-**⚠️ Two PRE-EXISTING test failures flagged for Zach (NOT from this work).**
-`oristudioCpActions.test.ts` ("orders rail actions like Oriedita") and
-`oristudioCpToolInstructions.test.ts` ("resolves rail aliases") fail on the pre-Step-3.4
-baseline — untouched by any deletion commit. Cause: the rail no longer exposes **Select
-Overlapping Lines / Polygon Select / Deselect Overlapping Lines / Polygon Deselect**
-(`cpRailActions()` filters to `placement: 'left-rail'`, and these four no longer have it).
-**Left unfixed deliberately:** unlike the aux-line hide (explicit `placement:
-'hidden-ui-only'` + a "Revisit at end" comment), these four carry no hidden marker, so
-their rail-absence is ambiguous — could be an intentional hide or an accidental regression
-from the registry refactor. Editing the tests to match current output would mask a real
-bug if it's the latter. Needs Zach's intent (hide → update tests; regression → restore
-`placement`).
+- ✅ **Stale rail-action tests fixed** (commit `2aab361b`). `oristudioCpActions.test.ts`
+  and `oristudioCpToolInstructions.test.ts` predated the branch's deliberate "hide tools
+  not in Oriedita's UI" curation (they were unchanged from main) and still asserted the
+  full pre-hiding rail. Zach confirmed the curation is intentional (the UI shows the 4
+  select/deselect tools correctly), so the tests were updated: rail-order slice matches the
+  current order, and the `.find`/instruction checks for the now-hidden `AngleSystem`
+  ("Offset Restricted Line") and `FoldableLineInput` ("Flat Foldable Line (extend)") were
+  dropped. **Full suite now green: 456 passed.**
 
-- ⬜ **Remaining:** 3.5 coordinate cleanup (`svgToModel` still used by `clientToModel`, so
-  it stays; viewBox/decoration-scale machinery already gone — largely a no-op now). Then
-  **Step 2c** decompose the remaining all-keep panel into `toolPanel/` + `commands.ts`
-  (the last structural piece — pure lift-and-shift now that the SVG code is gone).
+- ✅ **Step 2c decomposition** — done / scoped out (see the Step 2c reassessment above:
+  `CpContextToolPanel` extracted; toolbar components + `commands.ts` deliberately left).
+
+### Step 3.6 — Finish the migration: delete remaining unused SVG-era code + default WebGL
+
+Goal (Zach, 2026-07-15): **no unused old SVG code + WebGL is the only renderer.** The
+render surface is already WebGL-only; what's left is dead weight lint can't flag and the
+now-inert renderer flag.
+
+- ⬜ **Delete the vestigial selection-transform machinery** in `CreasePatternPanel`. The
+  SVG removal orphaned it, but it stays lint-clean because it's still read/written with
+  `null`: `selectionRotationPreview` (only ever `setSelectionRotationPreview(null)` → always
+  null), the four drag refs (`selection{Rotate,Move,Resize}DragRef`, `foldedFigureMoveDragRef`
+  — only ever set to null and read), the always-false `Escape`-handler reset block that reads
+  them, `selectionTransformAngleDegrees` (verify), and the six now-dead types
+  (`CpSelectionRotationDrag`, `CpSelectionMoveDrag`, `CpSelectionResizeHandle`,
+  `CpSelectionResizeDrag`, `FoldedFigureMoveDrag`, `CpSelectionTransformPreview`). ~80–100 lines.
+- ⬜ **Delete the renderer flag** (Step 3.2 finish). The panel no longer branches on it, but
+  `store/cpRendererStore.ts` still exists and `SettingsModal.tsx` still renders an
+  SVG-vs-WebGL toggle that does nothing. Remove the toggle from `SettingsModal`, delete
+  `cpRendererStore.ts`. WebGL becomes the unconditional, only renderer.
+- ⬜ **Sweep for any other orphaned SVG-era symbols** (e.g. `shortStatus`/coordinate helpers
+  only reachable from deleted paths) via tsc + eslint after the above.
+- **Gate:** tsc + eslint clean, full suite green; grep confirms no `svg`-renderer flag / no
+  dead selection-transform refs remain.
 
 ---
 
