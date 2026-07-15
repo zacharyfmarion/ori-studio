@@ -20,7 +20,9 @@ fn scaffolded_root_project_loads_and_accepts_edits() {
     let project = bps::load_project_str(ROOT_WITH_LEAF).expect("scaffolded project loads");
     let mut session = BpProjectSession::new(project).expect("session builds");
     // Add another unit leaf to the root and move it to a float (non-grid) spot.
-    session.add_leaf(0, 1.0).expect("add a unit leaf to the root");
+    session
+        .add_leaf(0, 1.0)
+        .expect("add a unit leaf to the root");
     session
         .move_vertex(2, oristudio_bp::model::Point { x: 9.31, y: 10.72 }, false)
         .expect("move the new leaf to a float position");

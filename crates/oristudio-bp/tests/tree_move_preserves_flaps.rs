@@ -43,16 +43,28 @@ fn moving_a_tree_vertex_does_not_reset_arranged_flaps() {
     session.add_leaf(0, 1.0).expect("add leaf 2");
 
     // Arrange flap 2 by hand in the packing view.
-    session.move_flap(2, Point { x: 5.0, y: 5.0 }, false).expect("place flap 2");
+    session
+        .move_flap(2, Point { x: 5.0, y: 5.0 }, false)
+        .expect("place flap 2");
     assert_eq!(flap_pos(&session, 2), (5.0, 5.0), "flap 2 placed at (5,5)");
     let flap1_before = flap_pos(&session, 1);
 
     // Now drag tree vertex 2 to a very different tree-diagram position.
-    session.move_vertex(2, Point { x: 3.0, y: 17.0 }, false).expect("move vertex 2");
+    session
+        .move_vertex(2, Point { x: 3.0, y: 17.0 }, false)
+        .expect("move vertex 2");
 
     // Flap positions are unchanged — the tree edit did not touch the layout.
-    assert_eq!(flap_pos(&session, 2), (5.0, 5.0), "flap 2 must stay where it was placed");
-    assert_eq!(flap_pos(&session, 1), flap1_before, "unrelated flap 1 must not move");
+    assert_eq!(
+        flap_pos(&session, 2),
+        (5.0, 5.0),
+        "flap 2 must stay where it was placed"
+    );
+    assert_eq!(
+        flap_pos(&session, 1),
+        flap1_before,
+        "unrelated flap 1 must not move"
+    );
 }
 
 /// Control: before any layout arranging, a freshly added leaf's flap still
@@ -65,7 +77,12 @@ fn a_new_leaf_flap_follows_its_vertex_until_the_layout_is_touched() {
     session.add_leaf(0, 1.0).expect("add leaf 2");
 
     let before = flap_pos(&session, 2);
-    session.move_vertex(2, Point { x: 3.0, y: 17.0 }, false).expect("move vertex 2");
+    session
+        .move_vertex(2, Point { x: 3.0, y: 17.0 }, false)
+        .expect("move vertex 2");
     let after = flap_pos(&session, 2);
-    assert_ne!(before, after, "a still-new leaf's flap follows its tree vertex");
+    assert_ne!(
+        before, after,
+        "a still-new leaf's flap follows its tree vertex"
+    );
 }

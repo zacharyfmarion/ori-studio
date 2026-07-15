@@ -2,7 +2,8 @@ use oristudio_bp::engine::BpProjectSession;
 use oristudio_bp::io::bps;
 use oristudio_bp::model::Point;
 
-const VALID_PACKING: &str = include_str!("../../../tests/fixtures/bp-studio/valid-packing.sample.json");
+const VALID_PACKING: &str =
+    include_str!("../../../tests/fixtures/bp-studio/valid-packing.sample.json");
 
 fn flap_pos(session: &BpProjectSession, id: u32) -> (f64, f64) {
     let project = session.project_for_export();

@@ -38,7 +38,11 @@ fn distant_flaps_produce_no_stretch_device() {
         .iter()
         .map(|entry| entry.id.as_str())
         .collect();
-    assert_eq!(tags, vec!["f1", "f2"], "only the two flap contours, no gadget");
+    assert_eq!(
+        tags,
+        vec!["f1", "f2"],
+        "only the two flap contours, no gadget"
+    );
     assert!(
         snapshot.device_graphics.is_empty(),
         "distant flaps must not generate a device, got {:?}",
