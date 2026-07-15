@@ -60,6 +60,26 @@ export function sameEdge(edge: [number, number], a: number, b: number): boolean 
   return (edge[0] === a && edge[1] === b) || (edge[0] === b && edge[1] === a);
 }
 
+// Pack an unordered vertex pair into one numeric key for O(1) edge lookup. The
+// stride (2^26 ≈ 67M) exceeds any realistic vertex count, so distinct pairs never
+// collide while the key stays well inside the safe-integer range. Replaces the
+// O(edges) linear `findEdge` scan in the fold-prep hot paths (a big pattern with
+// tens of thousands of edges was O(E²) → seconds; this makes it O(E)).
+const EDGE_KEY_STRIDE = 0x4000000;
+
+export function edgeKey(a: number, b: number): number {
+  return a < b ? a * EDGE_KEY_STRIDE + b : b * EDGE_KEY_STRIDE + a;
+}
+
+export function buildEdgeIndex(edges: [number, number][]): Map<number, number> {
+  const index = new Map<number, number>();
+  for (let i = 0; i < edges.length; i += 1) {
+    const edge = edges[i];
+    if (edge) index.set(edgeKey(edge[0], edge[1]), i);
+  }
+  return index;
+}
+
 export function facePairs(face: number[]): Array<[number, number]> {
   return face.map((vertex, index) => [vertex, face[(index + 1) % face.length] ?? vertex]);
 }
