@@ -340,6 +340,13 @@ export interface CreasePatternSliceActions {
   /** Seed a blank editable CP when the Edit workspace is entered with none loaded. */
   ensureEditCreasePattern: () => Promise<void>;
   buildCreasePattern: () => Promise<void>;
+  /**
+   * Generate the tree's crease pattern and merge it into the always-live Edit
+   * canvas via Import(Add), rather than replacing the Edit surface. This is the
+   * TreeMaker analogue of {@link sendOristudioBpToEdit}, backing the toolbar's
+   * "Send to Edit" action.
+   */
+  sendTreeCreasePatternToEdit: () => Promise<boolean>;
   markFoldSourceChanged: () => void;
   ensureFoldArtifacts: () => Promise<FoldArtifacts | null>;
   refreshFoldArtifacts: () => Promise<FoldArtifacts | null>;

@@ -508,6 +508,43 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       }
     },
 
+    sendTreeCreasePatternToEdit: async () => {
+      const capability = selectWorkspaceCapabilities(get())['cp.build'];
+      if (!capability.enabled) {
+        set({ error: { code: 'invalid_operation', message: capability.reason } });
+        return false;
+      }
+      const previousStatus = get().status;
+      set({ status: 'building_crease_pattern', error: null });
+      try {
+        const { api, treeHandle } = await requireActiveTree();
+        // Turn the tree into creases, then hand the generated CP to the always-live
+        // Edit canvas via Import(Add) so it merges into whatever is already there,
+        // instead of replacing the Edit surface. Mirrors BP's "Send to Edit"
+        // (see sendOristudioBpToEdit). The engine FOLD already uses the CP editor's
+        // crease convention, so no ORIPA-style 2<->3 swap is needed here.
+        await api.buildCreasePattern(treeHandle);
+        const foldJson = await api.exportFold(treeHandle);
+        await get().ensureEditCreasePattern();
+        const ok = await get().importAddOristudioCpText(
+          foldJson,
+          'fold',
+          'Sent design to Edit',
+          `${get().project.title || 'design'}.fold`
+        );
+        set({ status: ok ? 'crease_pattern_ready' : previousStatus });
+        if (ok) {
+          const layout = useLayoutStore.getState();
+          layout.activateWorkspace('edit');
+          layout.activatePanel('crease-pattern');
+        }
+        return ok;
+      } catch (error) {
+        set({ status: 'error', error: engineError(error) });
+        return false;
+      }
+    },
+
     markFoldSourceChanged: () => {
       set(staleFoldArtifactResourceState(get().foldArtifactRevision));
     },
