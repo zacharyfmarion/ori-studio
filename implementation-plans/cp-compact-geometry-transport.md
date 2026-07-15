@@ -307,19 +307,37 @@ advances on an unverified gate).
       battery (every color × active state, rich `selected` incl. `2`, customized
       colors, aux, points, plain/customized circles, unicode texts, extreme/coincident
       f64 coords). tsc/eslint clean; oristudio-cp + web store/geometry suites green.
-  - **Author gate:** ⏳ pending Zach's sign-off (this is his gate to verify — nothing
-    consumes the codec yet, so there is no UI change to test; verification is
-    reading the gates + running the suites).
+  - Tool gate: ✅ green (self-verified — codec, wasm, accessor, parity + round-trip on the
+    full battery; tsc/eslint/cargo/suites).
+  - **Browser gate:** n/a for Phase 1 (nothing consumes the codec yet).
 
-- **Phase 2 — Hot path on `CpGeometry` (flagged, structured still fetched).**
-  - Rewire render (`cpSnapshotToScene`/`cpPointsToScene`), `getCpVertexPoints`, hit/point
-    index, bounds, snapping, and the `line_segments[id-1]` handlers to `CpGeometry`.
+- **Phase 2 — Hot path on `CpGeometry` (flagged, structured still fetched). ✅ TOOL-COMPLETE.**
   - Structured snapshot **still fetched per edit** so selection/undo are untouched; the two
-    representations run **side by side** (A/B) and the parity gate guards them.
-  - Gate: visual + interaction parity on representative docs; snapping/hit-test correctness
-    (esp. dense/close-pair); no coordinate drift.
+    representations run **side by side** (A/B) behind an off-by-default flag, parity-guarded.
+  - **Landed:**
+    - **2a — builders + byte-parity gate** *(commit `416ddc12`)*: `cpGeometryStrokesToScene`
+      (crease strokes straight from `segEndpoints`/`segAttr`, no per-crease object alloc) and
+      `vertexPointsFromTransport` (vertex dedup from the buffer). Both **byte-identical** to
+      `cpSnapshotToScene` / `getCpVertexPoints` on the real-wasm battery (plain / selection /
+      move-drag) — `cpGeometryToScene.test.ts`. Shared `oristudioCpTestSupport`.
+    - **2b — wiring behind the flag** *(commits `14999fc1`, `4992027f`)*: `cpTransportFlag`
+      (localStorage `cp.compactTransport`, default off); `OristudioCpDocumentState.geometry`
+      fetched per edit only when the flag is on; the canvas builds strokes from the transport
+      when on (else structured); the panel dedups `editableCpVertexPoints` from the transport
+      when on (the top main-thread post-edit cost). tsc/eslint clean; full web suite green
+      (466 tests).
+  - **Scope note:** 2a/2b migrate the two dominant costs (stroke buffer build + vertex dedup).
+    Hit/point index, bounds, snapping, and the `line_segments[id-1]` handlers still read the
+    structured snapshot — fine for Phase 2 (structured is still fetched); they move in Phase 3
+    when the structured hot-path fetch is removed.
+  - **Browser gate (Zach — blocks Phase 3):** flip the flag on
+    (`localStorage.setItem('cp.compactTransport','1')` + reload) and confirm crease render,
+    vertex dots, selection highlight, and move-drag look/behave identically to flag-off on
+    representative docs incl. a dense box-pleat. This is the A/B parity confirmation the
+    default-flip in Phase 3 depends on.
 
-- **Phase 3 — Demote the structured snapshot off the hot path (the win).**
+- **Phase 3 — Demote the structured snapshot off the hot path (the win). ⛔ BLOCKED on the
+  Phase 2 browser gate + a perf measurement that needs the running app.**
   - Per-edit sync fetches **only** compact geometry (+ selection/counts); `refreshOristudioCpDocument`
     no longer calls `document_snapshot` on the edit path.
   - Undo/redo store + restore compact snapshots (`restore_from_compact`).
