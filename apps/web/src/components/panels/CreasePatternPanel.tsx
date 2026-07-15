@@ -83,7 +83,7 @@ import {
   cpSelectionSize,
   cpSvgPointToModel,
   emptyOristudioCpSelection,
-  getCpVertices,
+  getCpVertexPoints,
   getOrieditaGridBasis,
   modelPointToCpSvg,
   nearestCpSnapTarget,
@@ -1116,11 +1116,7 @@ export function CreasePatternPanel() {
     if (!activeFoldedFigure) return;
     void deleteOristudioCpFoldedFigure(activeFoldedFigure.id);
   }, [activeFoldedFigure, deleteOristudioCpFoldedFigure]);
-  const editableCpVertices = useMemo(() => getCpVertices(editableCp), [editableCp]);
-  const editableCpVertexPoints = useMemo(
-    () => editableCpVertices.map((vertex) => vertex.point),
-    [editableCpVertices]
-  );
+  const editableCpVertexPoints = useMemo(() => getCpVertexPoints(editableCp), [editableCp]);
   const importedFoldedForms = useMemo(
     () =>
       (importedCreasePattern?.sourceFold?.file_frames ?? [])

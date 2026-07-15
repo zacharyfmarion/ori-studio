@@ -15,7 +15,7 @@ import {
   cpSvgPointToModel,
   expandedModelBoundsFromPoints,
   getCpGridLines,
-  getCpVertices,
+  getCpVertexPoints,
   getEditableCpModelBounds,
   getOrieditaGridBasis,
   modelPointToCpSvg,
@@ -257,13 +257,17 @@ describe('crease pattern viewport helpers', () => {
 
   it('finds nearest snap candidates without mutating selection state', () => {
     const bounds = getEditableCpModelBounds(document);
-    const vertices = getCpVertices(document);
+    const vertices = getCpVertexPoints(document);
 
-    expect(vertices).toEqual([
-      { id: '0:0', point: { x: 0, y: 0 }, lineIds: [1, 2] },
-      { id: '0:10000000000', point: { x: 0, y: 10 }, lineIds: [2] },
-      { id: '10000000000:0', point: { x: 10, y: 0 }, lineIds: [1] },
-    ]);
+    // Deduplicated endpoint positions (order is irrelevant — they render as dots).
+    expect(vertices).toHaveLength(3);
+    expect(vertices).toEqual(
+      expect.arrayContaining([
+        { x: 0, y: 0 },
+        { x: 0, y: 10 },
+        { x: 10, y: 0 },
+      ])
+    );
 
     expect(
       nearestCpSnapTarget(document, { x: 0.03, y: 0.02 }, bounds, {
