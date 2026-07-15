@@ -73,8 +73,9 @@ CpGeometryTransport {
   // --- line_segments (the bulk) ---
   segCount: u32
   segEndpoints: Float64Array   // [ax, ay, bx, by] × segCount   (EXACT f64 — see below)
-  segAttr:      Int32Array     // [color, active, selected, customized] × segCount (enum codes)
+  segAttr:      Int32Array     // [color, active, customized] × segCount (enum codes)
   segCustomColor: Uint8Array   // [r, g, b] × segCount (only meaningful when customized)
+  // NOTE: `selected` is deliberately NOT here — see "Selection" below.
 
   // --- aux_line_segments (same layout) ---
   auxCount, auxEndpoints, auxAttr, auxCustomColor
@@ -95,10 +96,14 @@ CpGeometryTransport {
     grid: OristudioCpGridMetadata
     operationFrame?: {...}
     title, metadata
-    // selection is already implied by segAttr[selected]; also surfaced as a flat id list
+    selection: { lines, points, circles, texts, faces: number[] }  // post-command selection (id lists)
   }
 }
 ```
+
+Circles and points are typed arrays (`circleData`/`circleAttr`, `pointCoords`) — circles are
+used heavily and must stay performant at high count, so they are not left in the structured
+tail. Only `texts` stays structured (its payload is a string).
 
 Decisions baked into the format for correctness:
 
@@ -118,6 +123,33 @@ Decisions baked into the format for correctness:
   asserts index correspondence.
 - **Transferables are freshly allocated each export** (a transferred buffer is neutered
   in the worker) — never reuse a buffer across exports.
+
+## Selection (stays frontend-owned — do not bake into geometry)
+
+Selection is carried as an **id list in the tail**, and `selected` is **not** a per-segment
+attribute in `segAttr`. The reason is a real architectural corner:
+
+- Selection is already **frontend-owned state** (`oristudioCpSelection`, per-type id lists).
+  The renderer highlights by building a `Set` of selected ids from that state and recolouring
+  at scene-build (`cpSnapshotToScene(selection)`), *not* by reading a per-segment kernel flag.
+- If `selected` lived in the geometry buffer, a **pure selection change (a click, no geometry
+  edit) would have to touch the geometry** — either a kernel round-trip to update flags (an
+  O(doc) trip on every click — worse than what we're fixing) or local mutation of the geometry
+  buffer that the next real fetch would clobber (out-of-sync, fragile).
+- The compact format only needs to tell the frontend the **post-command** selection (some
+  commands change it, e.g. select-the-result) so the frontend mirror stays in sync — an id
+  list is exactly that, and small in the common case (a select-all is the only large case, and
+  can get an "all" sentinel later if it matters).
+
+**This keeps selection decoupled from geometry, which is the future-proof choice.** Anything
+the UI might later want — hover highlight, selection groups, multi-select modes, a different
+selection visual, marquee refinements — is then a **frontend-only** change with no kernel or
+wire-format entanglement. It also *enables* (doesn't require) a later rendering win: a small,
+separate per-instance selection attribute so selection changes stop rebuilding all geometry
+buffers — impossible if selection were fused into the kernel geometry.
+
+Baking `selected` into `segAttr` would do the opposite: couple a frequent, should-be-instant
+UI interaction to the geometry pipeline and the kernel wire format.
 
 ## Consumer inventory (what reads the document today)
 
@@ -277,9 +309,9 @@ advances on an unverified gate).
 
 - **Undo ownership:** decided — Option A (frontend compact snapshots) for this refactor;
   kernel-owned undo (Option B) is a measured follow-up. See the undo section above.
-- **Circles/points/texts encoding:** typed arrays for circles/points (this plan) vs leaving
-  them structured in the tail (simpler, fine while counts stay low). Measure a
-  many-circles/points doc before deciding; segments are the only guaranteed-large array.
-- **Selection as flags vs id list:** both are cheap; surface an id list in the tail for
-  direct `selectedLineSelectionFromDocument` use and keep `selected` in `segAttr` for the
-  renderer.
+- **Circles/points/texts encoding:** decided — circles and points are **typed arrays**
+  (circles are used heavily; keep them fast at high count). Only `texts` stays structured
+  in the tail (string payload).
+- **Selection:** decided — **id list in the tail only; not in `segAttr`.** Keeps selection
+  frontend-owned and decoupled from geometry (see the Selection section). Avoids a kernel
+  round-trip on every click and leaves future UI selection changes unconstrained.
