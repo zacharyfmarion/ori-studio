@@ -10,6 +10,7 @@ pub mod checks;
 mod fold_graph;
 pub mod folding;
 pub mod geometry;
+pub mod geometry_transport;
 pub mod io;
 pub mod model;
 pub mod operations;
