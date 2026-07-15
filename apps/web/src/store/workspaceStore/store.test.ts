@@ -2920,13 +2920,6 @@ describe('workspace store slices', () => {
       points: [1],
     });
 
-    useWorkspaceStore.getState().toggleOristudioCpVertexSelection('0:0', true);
-    expect(useWorkspaceStore.getState().oristudioCpSelection).toMatchObject({
-      lines: [2],
-      vertices: ['0:0'],
-      points: [1],
-    });
-
     useWorkspaceStore.getState().setOristudioCpViewportOption('snapToGrid', false);
     expect(useWorkspaceStore.getState().oristudioCpViewport).toMatchObject({
       snapToGrid: false,

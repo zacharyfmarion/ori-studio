@@ -19,7 +19,6 @@ import {
   DEFAULT_ORISTUDIO_CP_LINE_WIDTH,
   DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
   emptyOristudioCpSelection,
-  getCpVertices,
   isValidOrieditaGridScale,
   normalizeOrieditaGridSize,
   normalizeOrieditaIntervalGridSize,
@@ -225,11 +224,8 @@ function oristudioCpSelectionAfterCommand(
     };
   }
 
-  const vertexIds = new Set(getCpVertices(document).map((vertex) => vertex.id));
-
   return {
     lines: selection.lines.filter((id) => id >= 1 && id <= document.crease_pattern.line_segments.length),
-    vertices: (selection.vertices ?? []).filter((id) => vertexIds.has(id)),
     points: selection.points.filter((id) => id >= 1 && id <= document.crease_pattern.points.length),
     circles: selection.circles.filter((id) => id >= 1 && id <= document.crease_pattern.circles.length),
     texts: selection.texts.filter((id) => id >= 1 && id <= document.crease_pattern.texts.length),
@@ -359,7 +355,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       hasImportedCreasePattern: get().importedCreasePattern !== null,
       hasSimulationModel: get().foldArtifacts?.simulation_model != null,
       oristudioCpSelectedLineCount: get().oristudioCpSelection.lines.length,
-      oristudioCpSelectedVertexCount: get().oristudioCpSelection.vertices?.length ?? 0,
       oristudioCpSelectedPointCount: get().oristudioCpSelection.points.length,
       oristudioCpSelectedCircleCount: get().oristudioCpSelection.circles.length,
       historyPastCount:

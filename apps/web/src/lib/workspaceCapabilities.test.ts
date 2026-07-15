@@ -15,7 +15,6 @@ function capabilities({
   hasEditableCreasePattern = false,
   hasImportedCreasePattern = false,
   oristudioCpSelectedLineCount = 0,
-  oristudioCpSelectedVertexCount = 0,
   oristudioCpSelectedPointCount = 0,
   oristudioCpSelectedCircleCount = 0,
   historyPastCount = 0,
@@ -33,7 +32,6 @@ function capabilities({
   hasEditableCreasePattern?: boolean;
   hasImportedCreasePattern?: boolean;
   oristudioCpSelectedLineCount?: number;
-  oristudioCpSelectedVertexCount?: number;
   oristudioCpSelectedPointCount?: number;
   oristudioCpSelectedCircleCount?: number;
   historyPastCount?: number;
@@ -53,7 +51,6 @@ function capabilities({
     hasImportedCreasePattern,
     hasSimulationModel: false,
     oristudioCpSelectedLineCount,
-    oristudioCpSelectedVertexCount,
     oristudioCpSelectedPointCount,
     oristudioCpSelectedCircleCount,
     historyPastCount,
@@ -301,7 +298,7 @@ describe('workspace capabilities', () => {
       status: 'crease_pattern_ready',
       hasEditableCreasePattern: true,
       hasImportedCreasePattern: true,
-      oristudioCpSelectedVertexCount: 1,
+      oristudioCpSelectedPointCount: 1,
     });
 
     expect(state['edit.delete']).toMatchObject({

@@ -509,7 +509,6 @@ function validateDocumentV1(value: unknown): NativeProjectDocumentV1 {
           ? (viewState.selection as unknown as OristudioCpSelection)
           : {
               lines: [],
-              vertices: [],
               points: [],
               circles: [],
               texts: [],

@@ -12,7 +12,7 @@ import type {
   OristudioCpCommandPayload,
   OristudioCpDocumentState,
 } from '../engine/oristudioCpTypes';
-import { getCpVertices, type OristudioCpSelection } from '../lib/creasePatternViewport';
+import type { OristudioCpSelection } from '../lib/creasePatternViewport';
 import type { CpSelectionTransform } from '../lib/creasePatternClipboard';
 import type { Point } from '../lib/geometry';
 import type { OristudioCpOperationId } from '../lib/oristudioCpCommands';
@@ -177,13 +177,6 @@ function selectedCpDeletePoints(
   if (!documentState) return [];
 
   const points: Point[] = [];
-  const selectedVertices = new Set(selection.vertices ?? []);
-  for (const vertex of getCpVertices(documentState.document)) {
-    if (selectedVertices.has(vertex.id)) {
-      points.push(vertex.point);
-    }
-  }
-
   for (const id of selection.points) {
     const point = documentState.document.crease_pattern.points[id - 1];
     if (point) points.push(point);
@@ -432,7 +425,6 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
             deps.workspace.oristudioCpDocument?.document.crease_pattern.line_segments.length ?? 0;
           deps.workspace.setOristudioCpSelection({
             lines: Array.from({ length: lineCount }, (_value, index) => index + 1),
-            vertices: [],
             points: [],
             circles: [],
             texts: [],

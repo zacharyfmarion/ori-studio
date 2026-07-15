@@ -280,13 +280,12 @@ describe('crease pattern viewport helpers', () => {
     expect(
       cpSelectionSize({
         lines: [1, 2],
-        vertices: ['0:0'],
         points: [1],
         circles: [],
         texts: [],
         faces: [],
       })
-    ).toBe(4);
+    ).toBe(3);
   });
 
   it('uses Oriedita draw snapping without snapping endpoints to line interiors', () => {

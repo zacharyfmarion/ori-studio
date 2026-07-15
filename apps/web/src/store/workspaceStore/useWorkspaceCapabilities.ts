@@ -17,9 +17,6 @@ export function useWorkspaceCapabilities() {
   const oristudioCpSelectedLineCount = useWorkspaceStore(
     (state) => state.oristudioCpSelection.lines.length
   );
-  const oristudioCpSelectedVertexCount = useWorkspaceStore(
-    (state) => state.oristudioCpSelection.vertices?.length ?? 0
-  );
   const oristudioCpSelectedPointCount = useWorkspaceStore(
     (state) => state.oristudioCpSelection.points.length
   );
@@ -61,7 +58,6 @@ export function useWorkspaceCapabilities() {
         hasImportedCreasePattern,
         hasSimulationModel,
         oristudioCpSelectedLineCount,
-        oristudioCpSelectedVertexCount,
         oristudioCpSelectedPointCount,
         oristudioCpSelectedCircleCount,
         historyPastCount,
@@ -83,7 +79,6 @@ export function useWorkspaceCapabilities() {
       oristudioCpSelectedCircleCount,
       oristudioCpSelectedLineCount,
       oristudioCpSelectedPointCount,
-      oristudioCpSelectedVertexCount,
       historyFutureCount,
       historyPastCount,
       selection,

@@ -49,7 +49,6 @@ const POINT_SNAP_DISTANCE_MULTIPLIER = 1.75;
 
 export interface OristudioCpSelection {
   lines: number[];
-  vertices?: string[];
   points: number[];
   circles: number[];
   texts: number[];
@@ -135,7 +134,6 @@ export function clampOristudioCpPointSize(value: number): number {
 
 export const EMPTY_ORISTUDIO_CP_SELECTION: OristudioCpSelection = {
   lines: [],
-  vertices: [],
   points: [],
   circles: [],
   texts: [],
@@ -208,7 +206,6 @@ export function emptyOristudioCpSelection(): OristudioCpSelection {
 export function cpSelectionSize(selection: OristudioCpSelection): number {
   return (
     selection.lines.length +
-    (selection.vertices?.length ?? 0) +
     selection.points.length +
     selection.circles.length +
     selection.texts.length +
