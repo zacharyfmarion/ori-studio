@@ -94,7 +94,8 @@ const ACTIVE_STATE_BY_NUMBER: Record<number, string> = {
   3: 'ActiveBoth3',
 };
 
-function lineColorName(code: number): OristudioCpLineColor {
+/** Map a kernel line-color number to its snapshot name (mirrors `LineColor::from_number`). */
+export function lineColorName(code: number): OristudioCpLineColor {
   const name = LINE_COLOR_BY_NUMBER[code];
   if (name === undefined) {
     throw new Error(`unknown line color number ${code}`);
@@ -227,6 +228,42 @@ function readSegment(
     customized: attr[a + 3],
     customized_color: rgb(custom, c),
   };
+}
+
+/**
+ * Deduplicate crease **line-segment** endpoints into unique vertex positions
+ * (for drawing the vertex dots) straight from the compact transport — the
+ * transport-driven mirror of `getCpVertexPoints`. Same quantization (1e-9) and
+ * same first-seen push order, so it produces an identical `Point[]`, but reads
+ * the flat `segEndpoints` buffer instead of an array of segment objects (a hot
+ * path on dense patterns: tens of thousands of segments, rerun every edit).
+ *
+ * Aux segments are intentionally excluded, exactly as `getCpVertexPoints` does.
+ */
+export function vertexPointsFromTransport(transport: CpGeometryTransport): Point[] {
+  const endpoints = transport.segEndpoints;
+  const count = endpoints.length / 4;
+  const seen = new Map<number, Set<number>>();
+  const points: Point[] = [];
+  for (let i = 0; i < count; i += 1) {
+    const base = i * 4;
+    for (let k = 0; k < 2; k += 1) {
+      const x = endpoints[base + k * 2];
+      const y = endpoints[base + k * 2 + 1];
+      const qx = Math.round(x * 1e9);
+      const qy = Math.round(y * 1e9);
+      let column = seen.get(qx);
+      if (!column) {
+        column = new Set<number>();
+        seen.set(qx, column);
+      }
+      if (!column.has(qy)) {
+        column.add(qy);
+        points.push({ x, y });
+      }
+    }
+  }
+  return points;
 }
 
 /**
