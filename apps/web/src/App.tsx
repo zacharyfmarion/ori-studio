@@ -15,7 +15,6 @@ import {
   ScanLine,
   Settings,
   Sparkles,
-  Play,
 } from 'lucide-react';
 import { MenuBar } from './components/MenuBar';
 import { CommandDialogModal } from './components/CommandDialogModal';
@@ -100,6 +99,7 @@ function Toolbar() {
   const buildCp = capabilities['cp.build'];
   const activeContext = useWorkspaceStore((state) => state.activeEditingContext);
   const sendBpToEdit = useWorkspaceStore((state) => state.sendOristudioBpToEdit);
+  const sendTreeToEdit = useWorkspaceStore((state) => state.sendTreeCreasePatternToEdit);
   const hasBpDocument = useWorkspaceStore((state) => state.oristudioBpDocument !== null);
   const bpBusy = useWorkspaceStore((state) => state.oristudioBpBusy);
   // In a BP design the top action sends the design's crease pattern to the Edit
@@ -157,11 +157,15 @@ function Toolbar() {
             size="sm"
             variant={buildCp.enabled ? 'primary' : 'secondary'}
             disabled={!buildCp.enabled}
-            title={buildCp.reason}
-            onClick={() => void handleMenuAction('cp.build')}
+            title={
+              buildCp.enabled
+                ? "Send this design's crease pattern to the Edit canvas"
+                : buildCp.reason
+            }
+            onClick={() => void sendTreeToEdit()}
           >
-            <Play size={14} />
-            {buildCp.label}
+            <ScanLine size={14} />
+            Send to Edit
           </Button>
         )}
         {isBpContext && (

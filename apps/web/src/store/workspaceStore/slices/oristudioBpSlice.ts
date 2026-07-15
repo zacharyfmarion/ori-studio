@@ -99,18 +99,29 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     });
   };
 
-  const setLoadedBpProject = (document: OristudioBpDocumentState, message: string) => {
+  const setLoadedBpProject = (
+    document: OristudioBpDocumentState,
+    message: string,
+    options: { preserveEditCanvas?: boolean } = {}
+  ) => {
     pendingHistory = null;
     set({
       workflowTarget: 'box-pleat',
       pendingDesignChoice: false,
-      importedCreasePattern: null,
-      oristudioCpDocument: null,
-      oristudioCpLineage: null,
-      oristudioCpError: null,
-      oristudioCpCamvResult: null,
-      oristudioCpHistoryPast: [],
-      oristudioCpHistoryFuture: [],
+      // Every entry point but the design-method chooser clears the Edit canvas.
+      // The chooser preserves it (its CP wasm handle is never released), so it
+      // omits the CP resets and leaves the live document untouched.
+      ...(options.preserveEditCanvas
+        ? {}
+        : {
+            importedCreasePattern: null,
+            oristudioCpDocument: null,
+            oristudioCpLineage: null,
+            oristudioCpError: null,
+            oristudioCpCamvResult: null,
+            oristudioCpHistoryPast: [],
+            oristudioCpHistoryFuture: [],
+          }),
       oristudioBpDocument: document,
       oristudioBpWorkspace: null,
       oristudioBpError: null,
@@ -229,7 +240,9 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           getOristudioBpPortDescriptors().catch(() => []),
         ]);
         set({ oristudioBpPortDescriptors: portDescriptors });
-        setLoadedBpProject(document, 'Created Box Pleat project');
+        setLoadedBpProject(document, 'Created Box Pleat project', {
+          preserveEditCanvas: options.preserveEditCanvas,
+        });
         return true;
       } catch (error) {
         const normalized = oristudioBpError(error);
