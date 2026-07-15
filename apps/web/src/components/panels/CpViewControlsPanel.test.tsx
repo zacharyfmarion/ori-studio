@@ -26,6 +26,7 @@ function editableCpState(): OristudioCpDocumentState {
   return {
     handle: 1,
     loadSerial: 1,
+    geometry: null,
     source: { format: 'cp', filename: 'editable.cp', path: null },
     operationDescriptors: [],
     lastCommandResult: null,

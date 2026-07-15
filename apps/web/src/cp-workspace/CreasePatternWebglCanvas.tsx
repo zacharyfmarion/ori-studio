@@ -33,6 +33,9 @@ import {
   type CpLineSegmentInput,
   type CpMovePreview,
 } from './adapters/cpSnapshotToScene';
+import { cpGeometryStrokesToScene } from './adapters/cpGeometryToScene';
+import { isCompactTransportEnabled } from './cpTransportFlag';
+import type { CpGeometryTransport } from '../engine/oristudioCpGeometry';
 import { cpPointsToScene } from './adapters/cpPointsToScene';
 import { resolveCpLineColor } from './adapters/cpLineColor';
 import { resolveCpPointStyle } from './adapters/cpPointStyle';
@@ -326,6 +329,13 @@ export interface CreasePatternWebglCanvasProps {
   className?: string;
   /** Crease-pattern line segments in model coordinates. */
   lineSegments: readonly CpLineSegmentInput[];
+  /**
+   * Compact geometry transport for the same document (Phase 2 A/B). When present
+   * and the compact-transport flag is on, crease strokes are built from this
+   * (typed arrays) instead of `lineSegments`; otherwise it is ignored. See
+   * `cpTransportFlag`.
+   */
+  geometry?: CpGeometryTransport | null;
   /** Model → user-coordinate mapping (the intermediate space the surface renders in). */
   modelToSvg: (point: ModelPoint) => ModelPoint;
   /** User → model mapping (inverse of {@link modelToSvg}) for hit-testing. */
@@ -534,6 +544,7 @@ export interface CreasePatternWebglCanvasProps {
 export function CreasePatternWebglCanvas({
   className,
   lineSegments,
+  geometry,
   modelToSvg,
   svgToModel,
   selectedLineIds,
@@ -725,20 +736,23 @@ export function CreasePatternWebglCanvas({
         pickedLineIds && pickedLineIds.length
           ? new Set([...selectedLineSet, ...pickedLineIds])
           : selectedLineSet;
-      return cpSnapshotToScene(
-        lineSegments,
-        (color) => resolveCpLineColor(color, mode, document.documentElement),
-        {
-          selected,
-          color: readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK),
-          widthMul: SELECTION_WIDTH_MUL,
-        },
-        move
-      ).strokes;
+      const colorFor = (color: string) => resolveCpLineColor(color, mode, document.documentElement);
+      const selection = {
+        selected,
+        color: readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK),
+        widthMul: SELECTION_WIDTH_MUL,
+      };
+      // Phase 2 A/B: build strokes from the compact transport when enabled and
+      // available; the two paths are byte-identical (guarded by the parity gate),
+      // so this is a pure perf swap. Falls back to the structured path otherwise.
+      if (isCompactTransportEnabled() && geometry) {
+        return cpGeometryStrokesToScene(geometry, colorFor, selection, move).strokes;
+      }
+      return cpSnapshotToScene(lineSegments, colorFor, selection, move).strokes;
     },
     // currentTheme drives DOM-resolved colours; rebuild callers on theme change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [lineSegments, mode, selectedLineSet, currentTheme]
+    [lineSegments, geometry, mode, selectedLineSet, currentTheme]
   );
   useEffect(() => {
     buildStrokesRef.current = buildStrokes;

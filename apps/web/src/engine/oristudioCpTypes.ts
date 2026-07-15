@@ -1,4 +1,5 @@
 import type { Point } from '../lib/geometry';
+import type { CpGeometryTransport } from './oristudioCpGeometry';
 import type {
   OristudioCpOperationId,
   OristudioCpOperationStatus,
@@ -398,6 +399,13 @@ export interface OristudioCpDocumentState {
    */
   loadSerial: number;
   document: OristudioCpDocumentSnapshot;
+  /**
+   * Compact geometry transport for the same kernel state as `document`, fetched
+   * alongside it when the compact-transport A/B flag is on (else `null`). The
+   * render path builds crease strokes from this instead of the structured
+   * snapshot; see `cpTransportFlag`.
+   */
+  geometry: CpGeometryTransport | null;
   summary: OristudioCpDocumentSummary;
   source: {
     format: 'cp' | 'fold' | 'ori' | 'orh' | 'osf';

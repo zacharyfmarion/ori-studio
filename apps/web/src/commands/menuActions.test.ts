@@ -278,6 +278,7 @@ describe('menu actions', () => {
     deps.workspace.oristudioCpDocument = {
       handle: 1,
       loadSerial: 1,
+      geometry: null,
       source: { format: 'cp', filename: 'lines.cp', path: null },
       operationDescriptors: [],
       lastCommandResult: null,
@@ -374,6 +375,7 @@ describe('menu actions', () => {
     deps.workspace.oristudioCpDocument = {
       handle: 1,
       loadSerial: 1,
+      geometry: null,
       source: { format: 'cp', filename: 'points.cp', path: null },
       operationDescriptors: [],
       lastCommandResult: null,

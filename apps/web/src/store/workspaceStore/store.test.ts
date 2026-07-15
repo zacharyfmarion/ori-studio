@@ -944,6 +944,7 @@ function blankCpDocumentState(): OristudioCpDocumentState {
     handle: 4,
     loadSerial: 1,
     document,
+    geometry: null,
     summary: {
       title: 'Untitled CP',
       line_segments: document.crease_pattern.line_segments.length,

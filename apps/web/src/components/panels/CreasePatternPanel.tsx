@@ -2501,6 +2501,7 @@ export function CreasePatternPanel() {
                 <CreasePatternWebglCanvas
                   className="cp-webgl-layer"
                   lineSegments={editableCp.crease_pattern.line_segments}
+                  geometry={oristudioCpDocument?.geometry ?? null}
                   modelToSvg={editableModelToSvg}
                   svgToModel={editableSvgToModel}
                   selectedLineIds={oristudioCpSelection.lines}

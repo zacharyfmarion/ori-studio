@@ -17,6 +17,7 @@ import type {
   OristudioCpOperationDescriptor,
 } from '../../engine/oristudioCpTypes';
 import type { WasmErrorEnvelope } from '../../engine/types';
+import { isCompactTransportEnabled } from '../../cp-workspace/cpTransportFlag';
 import type { ImportedCreasePatternFormat } from '../../lib/creasePatternImport';
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
 import { createStarterOristudioCpDocument } from '../../lib/oristudioCpStarterDocument';
@@ -151,10 +152,12 @@ export async function refreshOristudioCpDocument(
   const document = await api.snapshot(handle);
   const summary = await api.summary(handle);
   const operationDescriptors = await getOristudioCpOperationDescriptors();
+  const geometry = isCompactTransportEnabled() ? await api.documentGeometry(handle) : null;
   return {
     handle,
     loadSerial: documentLoadSerial,
     document,
+    geometry,
     summary,
     source:
       currentSource ??
@@ -460,10 +463,14 @@ async function buildDocumentState(
     api.summary(documentHandle),
     getOristudioCpOperationDescriptors(),
   ]);
+  const geometry = isCompactTransportEnabled()
+    ? await api.documentGeometry(documentHandle)
+    : null;
   return {
     handle: documentHandle,
     loadSerial: documentLoadSerial,
     document,
+    geometry,
     summary,
     source: {
       format: source.format,
