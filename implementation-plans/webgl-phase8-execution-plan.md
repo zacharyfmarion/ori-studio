@@ -243,22 +243,28 @@ Goal (Zach, 2026-07-15): **no unused old SVG code + WebGL is the only renderer.*
 render surface is already WebGL-only; what's left is dead weight lint can't flag and the
 now-inert renderer flag.
 
-- ⬜ **Delete the vestigial selection-transform machinery** in `CreasePatternPanel`. The
-  SVG removal orphaned it, but it stays lint-clean because it's still read/written with
-  `null`: `selectionRotationPreview` (only ever `setSelectionRotationPreview(null)` → always
-  null), the four drag refs (`selection{Rotate,Move,Resize}DragRef`, `foldedFigureMoveDragRef`
-  — only ever set to null and read), the always-false `Escape`-handler reset block that reads
-  them, `selectionTransformAngleDegrees` (verify), and the six now-dead types
-  (`CpSelectionRotationDrag`, `CpSelectionMoveDrag`, `CpSelectionResizeHandle`,
-  `CpSelectionResizeDrag`, `FoldedFigureMoveDrag`, `CpSelectionTransformPreview`). ~80–100 lines.
-- ⬜ **Delete the renderer flag** (Step 3.2 finish). The panel no longer branches on it, but
-  `store/cpRendererStore.ts` still exists and `SettingsModal.tsx` still renders an
-  SVG-vs-WebGL toggle that does nothing. Remove the toggle from `SettingsModal`, delete
-  `cpRendererStore.ts`. WebGL becomes the unconditional, only renderer.
-- ⬜ **Sweep for any other orphaned SVG-era symbols** (e.g. `shortStatus`/coordinate helpers
-  only reachable from deleted paths) via tsc + eslint after the above.
-- **Gate:** tsc + eslint clean, full suite green; grep confirms no `svg`-renderer flag / no
-  dead selection-transform refs remain.
+- ✅ **Deleted the vestigial selection-transform + snap machinery** (commit `1b5bce2e`).
+  `selectionRotationPreview` (always null) + its move/scale/rotate HUD, the four drag refs
+  (only ever set to null), the always-false `Escape` reset branch, `selectionTransformAngleDegrees`
+  (frozen at 0 → inlined `0` into `resolveEditableMoveSnap`), **and `snapTarget`** (a further
+  orphan the cleanup surfaced — `setSnapTarget` was only called by the deleted blocks, so the
+  "Snap" HUD never rendered; the WebGL snap indicator is a separate deferred feature), plus the
+  six dead types + cascaded imports (`formatNumber`, `CpLineSelectionFrame`, `CpSelectionTransform`,
+  `editableSelectionLineKey`). Behavior-preserving. Panel 2,924 → 2,814.
+- ✅ **Removed the renderer flag** (commit `f7c0a268`) — deleted `store/cpRendererStore.ts`, the
+  dead Settings "Developer" toggle (+ cascaded `Toggle` import). **WebGL is now the
+  unconditional, only renderer** — no flag anywhere.
+- ✅ **Orphan sweep clean.** Workspace-wide eslint reports **0 unused vars**; no SVG-render
+  component/handler names remain; the `modelToSvg`/`svgToModel`/`editable{Model→Svg,Svg→Model}`
+  coordinate helpers stay because they're live infrastructure (model↔svg-user↔device mapping
+  wired into `CreasePatternWebglCanvas`), not orphans.
+- **Gate: MET** — tsc + eslint clean, full suite green (459 passed), grep confirms no renderer
+  flag and no dead selection-transform/snap refs.
+
+**Migration status: functionally complete.** SVG surface + interaction + dead code + vertex
+selection + vestigial state all removed; WebGL is the sole renderer. `CreasePatternPanel.tsx`
+**7,530 → 2,814 lines** across Phase 8. Remaining is Phase 7 (full-canvas scale / culling),
+which is net-new perf work, not migration cleanup.
 
 ---
 
