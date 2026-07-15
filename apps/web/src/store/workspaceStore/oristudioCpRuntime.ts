@@ -17,7 +17,6 @@ import type {
   OristudioCpOperationDescriptor,
 } from '../../engine/oristudioCpTypes';
 import type { WasmErrorEnvelope } from '../../engine/types';
-import { isCompactTransportEnabled } from '../../cp-workspace/cpTransportFlag';
 import {
   decodeCpGeometryToSnapshot,
   type CpGeometryTransport,
@@ -149,41 +148,21 @@ export async function createBlankOristudioCpDocument(
 }
 
 /**
- * Fetch the document for a handle, choosing the transport by the compact-transport
- * flag. When on, this is the Phase 3 hot path: fetch **only** the compact geometry
- * (transferable typed arrays) and build the structured snapshot from it on the main
- * thread via `decodeCpGeometryToSnapshot` — skipping the worker's `document_snapshot`
- * (its serde object-graph build + structured clone). The parity gate proves the
- * decoded snapshot is identical to `document_snapshot`, so every consumer, undo, and
- * save/export are unaffected. When off, the unchanged structured path is used.
- *
- * Dev timing is logged so the two paths can be compared (`cp.transportTiming`).
+ * Fetch the document for a handle via the compact geometry transport: fetch **only**
+ * the compact geometry (transferable typed arrays) and build the structured snapshot
+ * from it on the main thread via `decodeCpGeometryToSnapshot`, skipping the worker's
+ * `document_snapshot` (its serde object-graph build + structured clone, ~140ms on a
+ * dense document vs ~4ms here). The parity gate proves the decoded snapshot is
+ * identical to `document_snapshot`, so every consumer, undo, and save/export are
+ * unaffected. Save/export operate on the kernel handle directly, so they never need
+ * `document_snapshot` either.
  */
 async function fetchDocumentAndGeometry(
   api: OristudioCpClient,
   targetHandle: number
-): Promise<{ document: OristudioCpDocumentSnapshot; geometry: CpGeometryTransport | null }> {
-  if (!isCompactTransportEnabled()) {
-    const t0 = performance.now();
-    const document = await api.snapshot(targetHandle);
-    logCpTransportTiming(`structured: document_snapshot ${(performance.now() - t0).toFixed(1)}ms`);
-    return { document, geometry: null };
-  }
-  const t0 = performance.now();
+): Promise<{ document: OristudioCpDocumentSnapshot; geometry: CpGeometryTransport }> {
   const geometry = await api.documentGeometry(targetHandle);
-  const t1 = performance.now();
-  const document = decodeCpGeometryToSnapshot(geometry);
-  const t2 = performance.now();
-  logCpTransportTiming(
-    `compact: fetch ${(t1 - t0).toFixed(1)}ms + decode ${(t2 - t1).toFixed(1)}ms = ${(t2 - t0).toFixed(1)}ms`
-  );
-  return { document, geometry };
-}
-
-function logCpTransportTiming(message: string): void {
-  if (import.meta.env.DEV && typeof window !== 'undefined') {
-    console.debug(`[cp-transport] ${message}`);
-  }
+  return { document: decodeCpGeometryToSnapshot(geometry), geometry };
 }
 
 export async function refreshOristudioCpDocument(

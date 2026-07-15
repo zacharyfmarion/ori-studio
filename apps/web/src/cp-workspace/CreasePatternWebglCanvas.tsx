@@ -34,7 +34,6 @@ import {
   type CpMovePreview,
 } from './adapters/cpSnapshotToScene';
 import { cpGeometryStrokesToScene } from './adapters/cpGeometryToScene';
-import { isCompactTransportEnabled } from './cpTransportFlag';
 import type { CpGeometryTransport } from '../engine/oristudioCpGeometry';
 import { cpPointsToScene } from './adapters/cpPointsToScene';
 import { resolveCpLineColor } from './adapters/cpLineColor';
@@ -330,10 +329,9 @@ export interface CreasePatternWebglCanvasProps {
   /** Crease-pattern line segments in model coordinates. */
   lineSegments: readonly CpLineSegmentInput[];
   /**
-   * Compact geometry transport for the same document (Phase 2 A/B). When present
-   * and the compact-transport flag is on, crease strokes are built from this
-   * (typed arrays) instead of `lineSegments`; otherwise it is ignored. See
-   * `cpTransportFlag`.
+   * Compact geometry transport for the same document. Crease strokes are built from
+   * this (typed arrays) when present — the default; `lineSegments` is used only as a
+   * fallback when it is absent, and for hit-testing / id lookups either way.
    */
   geometry?: CpGeometryTransport | null;
   /** Model → user-coordinate mapping (the intermediate space the surface renders in). */
@@ -742,10 +740,11 @@ export function CreasePatternWebglCanvas({
         color: readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK),
         widthMul: SELECTION_WIDTH_MUL,
       };
-      // Phase 2 A/B: build strokes from the compact transport when enabled and
-      // available; the two paths are byte-identical (guarded by the parity gate),
-      // so this is a pure perf swap. Falls back to the structured path otherwise.
-      if (isCompactTransportEnabled() && geometry) {
+      // Build strokes from the compact transport (typed arrays) — the default hot
+      // path. The two builders are byte-identical (guarded by the parity gate), so
+      // the structured fallback below is only for the rare state that carries no
+      // geometry (e.g. a fixture); it never runs on a real edit.
+      if (geometry) {
         return cpGeometryStrokesToScene(geometry, colorFor, selection, move).strokes;
       }
       return cpSnapshotToScene(lineSegments, colorFor, selection, move).strokes;

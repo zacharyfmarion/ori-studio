@@ -400,10 +400,11 @@ export interface OristudioCpDocumentState {
   loadSerial: number;
   document: OristudioCpDocumentSnapshot;
   /**
-   * Compact geometry transport for the same kernel state as `document`, fetched
-   * alongside it when the compact-transport A/B flag is on (else `null`). The
-   * render path builds crease strokes from this instead of the structured
-   * snapshot; see `cpTransportFlag`.
+   * Compact geometry transport for the same kernel state as `document`. This is the
+   * hot-path representation: `document` itself is decoded from it (no per-edit
+   * `document_snapshot`), and the render builds crease strokes + vertex dots straight
+   * from its typed arrays. `null` only for states that predate/omit a fetch (e.g. a
+   * test fixture), which fall back to the structured path.
    */
   geometry: CpGeometryTransport | null;
   summary: OristudioCpDocumentSummary;
