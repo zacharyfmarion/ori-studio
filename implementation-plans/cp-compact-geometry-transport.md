@@ -330,23 +330,42 @@ advances on an unverified gate).
     Hit/point index, bounds, snapping, and the `line_segments[id-1]` handlers still read the
     structured snapshot — fine for Phase 2 (structured is still fetched); they move in Phase 3
     when the structured hot-path fetch is removed.
-  - **Browser gate (Zach — blocks Phase 3):** flip the flag on
-    (`localStorage.setItem('cp.compactTransport','1')` + reload) and confirm crease render,
-    vertex dots, selection highlight, and move-drag look/behave identically to flag-off on
-    representative docs incl. a dense box-pleat. This is the A/B parity confirmation the
-    default-flip in Phase 3 depends on.
+  - **Browser gate (Zach):** ✅ confirmed — flag-on render/selection/move-drag looked
+    identical to flag-off.
 
-- **Phase 3 — Demote the structured snapshot off the hot path (the win). ⛔ BLOCKED on the
-  Phase 2 browser gate + a perf measurement that needs the running app.**
-  - Per-edit sync fetches **only** compact geometry (+ selection/counts); `refreshOristudioCpDocument`
-    no longer calls `document_snapshot` on the edit path.
-  - Undo/redo store + restore compact snapshots (`restore_from_compact`).
-  - Structured snapshot fetched only for save/export.
-  - Gate: **measured** per-command overhead <16ms on the 52k doc; save/export/undo/redo
-    verified; full suite green.
+- **Phase 3 — Demote the structured snapshot off the hot path (the win). ✅ DONE (default).**
+  *(commit `b427a3cd`)*
+  - The per-edit/load refresh fetches **only** compact geometry and decodes the structured
+    snapshot from it on the main thread (`decodeCpGeometryToSnapshot`) —
+    `refreshOristudioCpDocument`/`buildDocumentState` no longer call `document_snapshot`.
+    Measured on a production build: `document_snapshot` **~140ms → fetch ~2ms + decode ~2ms**.
+  - **Undo/redo:** kept storing the (now cheaply-decoded) structured snapshot —
+    behaviourally identical, already on the fast path. Storing **compact** buffers in history
+    (`restore_from_compact`) is a **memory** optimization **deferred** (needs care around
+    transferable neutering on restore); `restore_from_compact` + its round-trip gate stay as
+    the tested foundation.
+  - **Save/export** operate on the kernel handle directly — never needed `document_snapshot`.
+  - **Approach note:** we build the structured snapshot via a fast main-thread decode rather
+    than moving every consumer (hit-test, snapping, bounds, `line[id-1]`) onto the accessor.
+    The decode is ~ms, so the full accessor rewire (avoid the object graph entirely) was not
+    worth its risk/churn; the accessor + render builders remain as the render fast path.
 
-- **Phase 4 — Cleanup.** Remove the flag + any dead structured-per-edit code; final
-  prod-build profile (React DevTools off) to confirm the end-to-end per-edit budget.
+- **Phase 4 — Cleanup. ✅ DONE.** *(commit `b427a3cd`)* Removed the `cp.compactTransport` A/B
+  flag and the temporary prod timing log; the compact path is unconditional (structured kept
+  only as a null-guard fallback for a geometry-less state). Full web suite green (466).
+
+### The actual felt-latency headline (separate from this plan)
+
+Profiling in a **prod** build (dev-mode React instrumentation had inflated the numbers ~10×)
+overturned the original assumption: the felt draw-lag was **not** `document_snapshot` — it was
+the mutating command path **synchronously awaiting a full-document `CheckCamv`** (~200ms;
+`checks::check4` → `point_line_map` over every segment) before rendering the edit. Fixed by
+deferring CAMV off the critical path (apply + render immediately, recompute the passive overlay
+debounced) — *commit `91147f91`*, independent of the transport. That is what made drawing snappy;
+the transport removes the *next* ~140ms so the two compound. The named-wasm profiling method
+(build `oristudio-cp-wasm --profiling` with a temporary `wasm-opt = ['-O2','-g']` in Cargo.toml
+metadata, swap the `_bg.wasm` into the served bundle — the JS glue is identical, so the swap is
+safe) is how `wasm-function[NNN]` was resolved to real names.
 
 ## Open decisions
 
