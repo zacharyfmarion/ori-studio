@@ -2035,7 +2035,11 @@ pub fn execute_command(
             // Oriedita's 3 clicks: vertex, candidate ray, then the existing crease it
             // extends to. Keep candidate (point[1]) and destination (point[2]) separate;
             // a legacy 2-point call reuses point[1] for both.
-            let destination_point = if points.len() >= 3 { points[2] } else { points[1] };
+            let destination_point = if points.len() >= 3 {
+                points[2]
+            } else {
+                points[1]
+            };
             let selected = nearest_candidate_segment(&command, points[1], &candidates.candidates)?;
             let (_, destination) = nearest_line_segment(
                 &document.crease_pattern,
@@ -2962,18 +2966,17 @@ pub fn preview_command(
             preview.points = candidates.intersections.clone();
             // Converge hover (3rd point): preview the two result creases to the
             // nearest intersection, matching Oriedita's live result lines.
-            if points.len() >= 3 {
-                if let Ok(converge) =
+            if points.len() >= 3
+                && let Ok(converge) =
                     nearest_candidate_point(&command, points[2], &candidates.intersections)
-                {
-                    let color = active_line_color(&command);
-                    preview
-                        .segments
-                        .push(LineSegment::with_color(segment.a, converge, color));
-                    preview
-                        .segments
-                        .push(LineSegment::with_color(segment.b, converge, color));
-                }
+            {
+                let color = active_line_color(&command);
+                preview
+                    .segments
+                    .push(LineSegment::with_color(segment.a, converge, color));
+                preview
+                    .segments
+                    .push(LineSegment::with_color(segment.b, converge, color));
             }
         }
         OperationId::AngleSystem if points.len() >= 2 => {
@@ -3122,29 +3125,29 @@ pub fn preview_command(
             ));
             // Destination hover (4th point): preview the actual bisector crease drawn
             // to the nearest existing line.
-            if points.len() >= 4 {
-                if let Ok((_, destination)) = nearest_line_segment(
+            if points.len() >= 4
+                && let Ok((_, destination)) = nearest_line_segment(
                     &document.crease_pattern,
                     points[3],
                     selection_distance(&command),
+                )
+            {
+                let mut clone = document.clone();
+                if operations::construction::square_bisector_from_points_to_destination(
+                    &mut clone.crease_pattern,
+                    points[0],
+                    points[1],
+                    points[2],
+                    &destination,
+                    active_line_color(&command),
                 ) {
-                    let mut clone = document.clone();
-                    if operations::construction::square_bisector_from_points_to_destination(
-                        &mut clone.crease_pattern,
-                        points[0],
-                        points[1],
-                        points[2],
-                        &destination,
-                        active_line_color(&command),
-                    ) {
-                        preview.segments.extend(
-                            clone
-                                .crease_pattern
-                                .line_segments
-                                .into_iter()
-                                .skip(document.crease_pattern.line_segments.len()),
-                        );
-                    }
+                    preview.segments.extend(
+                        clone
+                            .crease_pattern
+                            .line_segments
+                            .into_iter()
+                            .skip(document.crease_pattern.line_segments.len()),
+                    );
                 }
             }
         }
@@ -3176,8 +3179,9 @@ pub fn preview_command(
         OperationId::DisplayLengthBetweenPoints1 | OperationId::DisplayLengthBetweenPoints2
             if points.len() >= 2 =>
         {
-            preview.measurement =
-                Some(operations::measure::length_between_points(points[0], points[1]));
+            preview.measurement = Some(operations::measure::length_between_points(
+                points[0], points[1],
+            ));
             preview.segments.push(LineSegment::with_color(
                 points[0],
                 points[1],

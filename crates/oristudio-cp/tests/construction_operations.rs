@@ -1,9 +1,5 @@
 use oristudio_cp::geometry::{LineColor, LineSegment, Point};
 use oristudio_cp::model::CreasePatternModel;
-use oristudio_cp::{
-    CreasePatternCommand, CreasePatternCommandPayload, CreasePatternDocument, OperationId,
-    execute_command,
-};
 use oristudio_cp::operations::construction::{
     DrawCreaseTarget, FoldableLineDrawOperationMode, angle_restricted_converging_candidates,
     angle_system_candidates, angle_system_draw_to_destination, axiom5_draw_to_destination,
@@ -19,6 +15,10 @@ use oristudio_cp::operations::construction::{
     square_bisector_from_lines_to_destination, square_bisector_from_points_to_destination,
     square_bisector_parallel_between_destinations, square_bisector_parallel_indicator,
     symmetric_draw,
+};
+use oristudio_cp::{
+    CreasePatternCommand, CreasePatternCommandPayload, CreasePatternDocument, OperationId,
+    execute_command,
 };
 
 #[test]
@@ -227,12 +227,17 @@ fn symmetric_draw_command_point_mode_mirrors_segment_ab_over_bc() {
         crease_pattern: model_from_segments(&[segment(0.0, 2.0, 2.0, 2.0, LineColor::Black0)]),
         ..Default::default()
     };
-    let command =
-        CreasePatternCommand::new(OperationId::SymmetricDraw).with_payload(CreasePatternCommandPayload {
-            points: vec![Point::new(1.0, 0.0), Point::new(0.0, 0.0), Point::new(1.0, 1.0)],
+    let command = CreasePatternCommand::new(OperationId::SymmetricDraw).with_payload(
+        CreasePatternCommandPayload {
+            points: vec![
+                Point::new(1.0, 0.0),
+                Point::new(0.0, 0.0),
+                Point::new(1.0, 1.0),
+            ],
             line_color: Some(LineColor::Red1),
             ..Default::default()
-        });
+        },
+    );
 
     execute_command(&mut document, command).expect("point-mode symmetric draw executes");
     assert!(
@@ -255,13 +260,14 @@ fn symmetric_draw_command_line_mode_resolves_nearest_creases() {
         ]),
         ..Default::default()
     };
-    let command =
-        CreasePatternCommand::new(OperationId::SymmetricDraw).with_payload(CreasePatternCommandPayload {
+    let command = CreasePatternCommand::new(OperationId::SymmetricDraw).with_payload(
+        CreasePatternCommandPayload {
             points: vec![Point::new(0.5, 0.0), Point::new(0.5, 0.5)],
             line_color: Some(LineColor::Red1),
             selection_distance: Some(1.0),
             ..Default::default()
-        });
+        },
+    );
 
     execute_command(&mut document, command).expect("line-mode symmetric draw executes");
     assert!(

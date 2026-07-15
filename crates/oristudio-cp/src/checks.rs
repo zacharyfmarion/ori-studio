@@ -1184,7 +1184,10 @@ fn point_line_map(model: &CreasePatternModel) -> Vec<(Point, Vec<LineSegment>)> 
 }
 
 fn point_cell(point: Point, eps: f64) -> (i64, i64) {
-    ((point.x / eps).floor() as i64, (point.y / eps).floor() as i64)
+    (
+        (point.x / eps).floor() as i64,
+        (point.y / eps).floor() as i64,
+    )
 }
 
 fn point_line_map_process(

@@ -15,10 +15,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
+use crate::CreasePatternDocument;
 use crate::geometry::{ActiveState, Circle, LineColor, LineSegment, Point, RgbColor};
 use crate::model::{CreasePatternModel, GridMetadata, TextElement};
 use crate::operations::transform::OperationFrame;
-use crate::CreasePatternDocument;
 
 /// Per-segment attribute stride: `[color, active, selected, customized]`.
 const SEG_ATTR_STRIDE: usize = 4;
@@ -115,8 +115,14 @@ fn decode_segments(
         let c = i * 3;
         let color = LineColor::from_number(attr[a]).map_err(|err| err.to_string())?;
         segments.push(LineSegment {
-            a: Point { x: endpoints[e], y: endpoints[e + 1] },
-            b: Point { x: endpoints[e + 2], y: endpoints[e + 3] },
+            a: Point {
+                x: endpoints[e],
+                y: endpoints[e + 1],
+            },
+            b: Point {
+                x: endpoints[e + 2],
+                y: endpoints[e + 3],
+            },
             active: active_state_from_code(attr[a + 1]),
             color,
             selected: attr[a + 2],
@@ -167,7 +173,7 @@ pub fn encode(document: &CreasePatternDocument) -> CompactGeometry {
         tail: CompactTail {
             title: document.title.clone(),
             texts: model.texts.clone(),
-            grid: model.grid.clone(),
+            grid: model.grid,
             operation_frame: document.operation_frame.clone(),
             metadata: document.metadata.clone(),
         },
@@ -176,17 +182,26 @@ pub fn encode(document: &CreasePatternDocument) -> CompactGeometry {
 
 /// Rebuild an exact document from a compact encoding. Inverse of [`encode`].
 pub fn decode(compact: &CompactGeometry) -> Result<CreasePatternDocument, String> {
-    let line_segments =
-        decode_segments(&compact.seg_endpoints, &compact.seg_attr, &compact.seg_custom_color)?;
-    let aux_line_segments =
-        decode_segments(&compact.aux_endpoints, &compact.aux_attr, &compact.aux_custom_color)?;
+    let line_segments = decode_segments(
+        &compact.seg_endpoints,
+        &compact.seg_attr,
+        &compact.seg_custom_color,
+    )?;
+    let aux_line_segments = decode_segments(
+        &compact.aux_endpoints,
+        &compact.aux_attr,
+        &compact.aux_custom_color,
+    )?;
 
     let point_count = compact.point_coords.len() / 2;
     if compact.point_coords.len() != point_count * 2 {
         return Err("compact point buffer has an odd length".to_string());
     }
     let points = (0..point_count)
-        .map(|i| Point { x: compact.point_coords[i * 2], y: compact.point_coords[i * 2 + 1] })
+        .map(|i| Point {
+            x: compact.point_coords[i * 2],
+            y: compact.point_coords[i * 2 + 1],
+        })
         .collect();
 
     let circle_count = compact.circle_data.len() / 3;
@@ -200,7 +215,8 @@ pub fn decode(compact: &CompactGeometry) -> Result<CreasePatternDocument, String
     for i in 0..circle_count {
         let d = i * 3;
         let a = i * CIRCLE_ATTR_STRIDE;
-        let color = LineColor::from_number(compact.circle_attr[a]).map_err(|err| err.to_string())?;
+        let color =
+            LineColor::from_number(compact.circle_attr[a]).map_err(|err| err.to_string())?;
         circles.push(Circle {
             x: compact.circle_data[d],
             y: compact.circle_data[d + 1],
@@ -223,7 +239,7 @@ pub fn decode(compact: &CompactGeometry) -> Result<CreasePatternDocument, String
             points,
             aux_line_segments,
             texts: compact.tail.texts.clone(),
-            grid: compact.tail.grid.clone(),
+            grid: compact.tail.grid,
         },
         operation_frame: compact.tail.operation_frame.clone(),
         metadata: compact.tail.metadata.clone(),
@@ -323,8 +339,14 @@ mod tests {
             customized: 1,
             customized_color: RgbColor::new(10, 20, 30),
         });
-        mixed.crease_pattern.texts.push(TextElement::new(5.0, 6.0, "hello"));
-        mixed.crease_pattern.texts.push(TextElement::new(-5.0, -6.0, "折り紙 🦀"));
+        mixed
+            .crease_pattern
+            .texts
+            .push(TextElement::new(5.0, 6.0, "hello"));
+        mixed
+            .crease_pattern
+            .texts
+            .push(TextElement::new(-5.0, -6.0, "折り紙 🦀"));
         mixed.crease_pattern.grid.grid_size = 16;
         mixed.title = Some("mixed".to_string());
         mixed

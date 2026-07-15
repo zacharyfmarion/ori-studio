@@ -3,13 +3,13 @@
 //! The wasm API stores editable crease-pattern documents behind integer
 //! handles so the web worker can keep command calls cheap and explicit.
 
+use js_sys::{Float64Array, Int32Array, Object, Reflect, Uint8Array};
 use oristudio_cp::folding::{
     DisplayStyle, EstimationOrder, FoldedFigureModel, FoldedFigureRenderOptions,
     FoldedFigureSnapshot, FoldingEstimateError, FoldingEstimateSession, fold_another,
     folded_figure_render_snapshot_from_session, folded_figure_snapshot_from_session,
     folding_estimate_to_case,
 };
-use js_sys::{Float64Array, Int32Array, Object, Reflect, Uint8Array};
 use oristudio_cp::geometry_transport::{self, CompactGeometry};
 use oristudio_cp::{
     CommandError, CreasePatternCommand, CreasePatternCommandPayload, CreasePatternDocument,
@@ -18,8 +18,8 @@ use oristudio_cp::{
 };
 use serde::Serialize;
 use std::cell::RefCell;
-use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
+use wasm_bindgen::prelude::*;
 
 thread_local! {
     static DOCUMENTS: RefCell<Vec<Option<CreasePatternDocument>>> = const { RefCell::new(Vec::new()) };
@@ -186,8 +186,8 @@ pub fn document_geometry(handle: u32) -> Result<JsValue, JsValue> {
 #[wasm_bindgen]
 pub fn restore_from_compact(handle: u32, value: JsValue) -> Result<(), JsValue> {
     let compact = compact_from_js(&value)?;
-    let document = geometry_transport::decode(&compact)
-        .map_err(|error| js_error("invalid_input", error))?;
+    let document =
+        geometry_transport::decode(&compact).map_err(|error| js_error("invalid_input", error))?;
     with_document_mut(handle, |slot| {
         *slot = document;
         Ok(())
@@ -271,7 +271,8 @@ pub fn insert_line_segments(handle: u32, segments: JsValue) -> Result<u32, JsVal
 #[wasm_bindgen]
 pub fn deselect_all(handle: u32) -> Result<u32, JsValue> {
     with_document_mut(handle, |document| {
-        let changed = oristudio_cp::operations::selection::unselect_all(&mut document.crease_pattern);
+        let changed =
+            oristudio_cp::operations::selection::unselect_all(&mut document.crease_pattern);
         Ok(changed as u32)
     })
 }
@@ -731,7 +732,11 @@ fn compact_to_js(compact: &CompactGeometry) -> Result<JsValue, JsValue> {
     set_f64_array(&object, "circleData", &compact.circle_data)?;
     set_i32_array(&object, "circleAttr", &compact.circle_attr)?;
     set_u8_array(&object, "circleCustomColor", &compact.circle_custom_color)?;
-    Reflect::set(&object, &JsValue::from_str("tail"), &to_js_value(&compact.tail)?)?;
+    Reflect::set(
+        &object,
+        &JsValue::from_str("tail"),
+        &to_js_value(&compact.tail)?,
+    )?;
     Ok(object.into())
 }
 
