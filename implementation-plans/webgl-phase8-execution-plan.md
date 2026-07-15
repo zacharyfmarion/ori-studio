@@ -186,12 +186,36 @@ Now that WebGL is proven, tested, and the keep-code is modular, remove SVG.
 - **Result:** `CreasePatternPanel.tsx` **7,530 → 3,845 lines** (−3,685); tsc + eslint clean,
   112 `cp-workspace` module tests green. **⚠️ Human test still owed (Zach):** command
   previews / snap HUD on the WebGL surface, since vestigial preview plumbing was removed.
-- ⬜ **Remaining:** 3.4 remove vertex selection end-to-end (store side: `types.ts`,
-  `creasePatternSlice.ts`, `projectSlice.ts`, the selection type) — the panel no longer
-  *uses* `toggleOristudioCpVertexSelection`/`selection`/`select`, but the store still
-  defines them. 3.5 coordinate cleanup (`svgToModel` is still used by `clientToModel`, so it
-  stays for now; viewBox/decoration-scale machinery already gone). Then Step 2c decompose
-  the remaining all-keep panel into `toolPanel/` + `commands.ts`.
+- ✅ **3.4 vertex selection removed end-to-end** (commit `7fc8b622`). The SVG surface was
+  the only thing that could create a vertex selection; with it gone,
+  `oristudioCpSelection.vertices` was permanently empty. Dropped the `vertices` field
+  (`OristudioCpSelection` + EMPTY + size), `toggleOristudioCpVertexSelection` (action +
+  type), the vertices filter/count in `projectSlice`/`capabilities`,
+  `oristudioCpSelectedVertexCount` (the delete gate `hasSelectedCpPoints` collapses to the
+  point count — behavior identical since vertex count was always 0), and the vertex branch
+  in `menuActions`. Vertex *geometry* (`getCpVertices`/`CpVertex`/`cpVertexId`) stays —
+  still used by snapping + derived-point delete. Tests updated; suites green.
+- ✅ **Stale folded-figure `display_mark` tests fixed** (commit `66334582`) — branch commit
+  `72ac6654` intentionally set the render-snapshot `display_mark` to false (the rotation
+  marker inflated the move hit-box); three store tests still asserted `true`.
+
+**⚠️ Two PRE-EXISTING test failures flagged for Zach (NOT from this work).**
+`oristudioCpActions.test.ts` ("orders rail actions like Oriedita") and
+`oristudioCpToolInstructions.test.ts` ("resolves rail aliases") fail on the pre-Step-3.4
+baseline — untouched by any deletion commit. Cause: the rail no longer exposes **Select
+Overlapping Lines / Polygon Select / Deselect Overlapping Lines / Polygon Deselect**
+(`cpRailActions()` filters to `placement: 'left-rail'`, and these four no longer have it).
+**Left unfixed deliberately:** unlike the aux-line hide (explicit `placement:
+'hidden-ui-only'` + a "Revisit at end" comment), these four carry no hidden marker, so
+their rail-absence is ambiguous — could be an intentional hide or an accidental regression
+from the registry refactor. Editing the tests to match current output would mask a real
+bug if it's the latter. Needs Zach's intent (hide → update tests; regression → restore
+`placement`).
+
+- ⬜ **Remaining:** 3.5 coordinate cleanup (`svgToModel` still used by `clientToModel`, so
+  it stays; viewBox/decoration-scale machinery already gone — largely a no-op now). Then
+  **Step 2c** decompose the remaining all-keep panel into `toolPanel/` + `commands.ts`
+  (the last structural piece — pure lift-and-shift now that the SVG code is gone).
 
 ---
 
