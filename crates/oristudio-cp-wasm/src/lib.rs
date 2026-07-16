@@ -3,12 +3,14 @@
 //! The wasm API stores editable crease-pattern documents behind integer
 //! handles so the web worker can keep command calls cheap and explicit.
 
+use js_sys::{Float64Array, Int32Array, Object, Reflect, Uint8Array};
 use oristudio_cp::folding::{
     DisplayStyle, EstimationOrder, FoldedFigureModel, FoldedFigureRenderOptions,
     FoldedFigureSnapshot, FoldingEstimateError, FoldingEstimateSession, fold_another,
     folded_figure_render_snapshot_from_session, folded_figure_snapshot_from_session,
     folding_estimate_to_case,
 };
+use oristudio_cp::geometry_transport::{self, CompactGeometry};
 use oristudio_cp::{
     CommandError, CreasePatternCommand, CreasePatternCommandPayload, CreasePatternDocument,
     OperationCategory, OperationDescriptor, OperationId, OperationStatus, execute_command, io,
@@ -16,6 +18,7 @@ use oristudio_cp::{
 };
 use serde::Serialize;
 use std::cell::RefCell;
+use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
 
 thread_local! {
@@ -160,6 +163,37 @@ pub fn document_snapshot(handle: u32) -> Result<JsValue, JsValue> {
     with_document(handle, to_js_value)
 }
 
+/// Compact, transfer-friendly geometry for the hot render/interaction path.
+///
+/// Returns a plain JS object whose bulk-geometry fields are typed arrays (each
+/// backed by its own transferable `ArrayBuffer`) plus a small serde `tail`. This
+/// is the fast counterpart to [`document_snapshot`]: it skips the O(n)
+/// JS-object-graph build and lets the worker `transfer` the buffers to the main
+/// thread instead of structured-cloning them. Coordinates stay `f64`
+/// (`Float64Array`), so nothing on this path loses precision.
+#[wasm_bindgen]
+pub fn document_geometry(handle: u32) -> Result<JsValue, JsValue> {
+    with_document(handle, |document| {
+        let compact = geometry_transport::encode(document);
+        compact_to_js(&compact)
+    })
+}
+
+/// Restore a document in place from the compact geometry produced by
+/// [`document_geometry`]. Used by undo/redo: `decode` is the exact inverse of
+/// `encode`, so the restored model is identical to the one that was captured.
+/// Keeps the handle stable, mirroring [`restore_document`].
+#[wasm_bindgen]
+pub fn restore_from_compact(handle: u32, value: JsValue) -> Result<(), JsValue> {
+    let compact = compact_from_js(&value)?;
+    let document =
+        geometry_transport::decode(&compact).map_err(|error| js_error("invalid_input", error))?;
+    with_document_mut(handle, |slot| {
+        *slot = document;
+        Ok(())
+    })
+}
+
 #[wasm_bindgen]
 pub fn document_summary(handle: u32) -> Result<JsValue, JsValue> {
     with_document(handle, |document| {
@@ -227,6 +261,18 @@ pub fn insert_line_segments(handle: u32, segments: JsValue) -> Result<u32, JsVal
             &segments,
             true,
         );
+        Ok(changed as u32)
+    })
+}
+
+/// Clear the document's selection flags. A non-command mutation (no undo entry):
+/// the frontend selection is authoritative, and a UI deselect (Escape / click-off)
+/// must clear the kernel too, or a later select/deselect re-derives the stale set.
+#[wasm_bindgen]
+pub fn deselect_all(handle: u32) -> Result<u32, JsValue> {
+    with_document_mut(handle, |document| {
+        let changed =
+            oristudio_cp::operations::selection::unselect_all(&mut document.crease_pattern);
         Ok(changed as u32)
     })
 }
@@ -657,6 +703,80 @@ fn to_js_value_error(error: impl std::fmt::Display) -> JsValue {
 fn to_js_value(value: &impl Serialize) -> Result<JsValue, JsValue> {
     let serializer = serde_wasm_bindgen::Serializer::json_compatible();
     value.serialize(&serializer).map_err(to_js_value_error)
+}
+
+fn set_f64_array(target: &Object, key: &str, data: &[f64]) -> Result<(), JsValue> {
+    let array = Float64Array::from(data);
+    Reflect::set(target, &JsValue::from_str(key), array.as_ref()).map(|_| ())
+}
+
+fn set_i32_array(target: &Object, key: &str, data: &[i32]) -> Result<(), JsValue> {
+    let array = Int32Array::from(data);
+    Reflect::set(target, &JsValue::from_str(key), array.as_ref()).map(|_| ())
+}
+
+fn set_u8_array(target: &Object, key: &str, data: &[u8]) -> Result<(), JsValue> {
+    let array = Uint8Array::from(data);
+    Reflect::set(target, &JsValue::from_str(key), array.as_ref()).map(|_| ())
+}
+
+fn compact_to_js(compact: &CompactGeometry) -> Result<JsValue, JsValue> {
+    let object = Object::new();
+    set_f64_array(&object, "segEndpoints", &compact.seg_endpoints)?;
+    set_i32_array(&object, "segAttr", &compact.seg_attr)?;
+    set_u8_array(&object, "segCustomColor", &compact.seg_custom_color)?;
+    set_f64_array(&object, "auxEndpoints", &compact.aux_endpoints)?;
+    set_i32_array(&object, "auxAttr", &compact.aux_attr)?;
+    set_u8_array(&object, "auxCustomColor", &compact.aux_custom_color)?;
+    set_f64_array(&object, "pointCoords", &compact.point_coords)?;
+    set_f64_array(&object, "circleData", &compact.circle_data)?;
+    set_i32_array(&object, "circleAttr", &compact.circle_attr)?;
+    set_u8_array(&object, "circleCustomColor", &compact.circle_custom_color)?;
+    Reflect::set(
+        &object,
+        &JsValue::from_str("tail"),
+        &to_js_value(&compact.tail)?,
+    )?;
+    Ok(object.into())
+}
+
+fn get_f64_array(value: &JsValue, key: &str) -> Result<Vec<f64>, JsValue> {
+    Reflect::get(value, &JsValue::from_str(key))?
+        .dyn_into::<Float64Array>()
+        .map(|array| array.to_vec())
+        .map_err(|_| js_error("invalid_input", format!("`{key}` must be a Float64Array")))
+}
+
+fn get_i32_array(value: &JsValue, key: &str) -> Result<Vec<i32>, JsValue> {
+    Reflect::get(value, &JsValue::from_str(key))?
+        .dyn_into::<Int32Array>()
+        .map(|array| array.to_vec())
+        .map_err(|_| js_error("invalid_input", format!("`{key}` must be an Int32Array")))
+}
+
+fn get_u8_array(value: &JsValue, key: &str) -> Result<Vec<u8>, JsValue> {
+    Reflect::get(value, &JsValue::from_str(key))?
+        .dyn_into::<Uint8Array>()
+        .map(|array| array.to_vec())
+        .map_err(|_| js_error("invalid_input", format!("`{key}` must be a Uint8Array")))
+}
+
+fn compact_from_js(value: &JsValue) -> Result<CompactGeometry, JsValue> {
+    let tail = serde_wasm_bindgen::from_value(Reflect::get(value, &JsValue::from_str("tail"))?)
+        .map_err(to_js_value_error)?;
+    Ok(CompactGeometry {
+        seg_endpoints: get_f64_array(value, "segEndpoints")?,
+        seg_attr: get_i32_array(value, "segAttr")?,
+        seg_custom_color: get_u8_array(value, "segCustomColor")?,
+        aux_endpoints: get_f64_array(value, "auxEndpoints")?,
+        aux_attr: get_i32_array(value, "auxAttr")?,
+        aux_custom_color: get_u8_array(value, "auxCustomColor")?,
+        point_coords: get_f64_array(value, "pointCoords")?,
+        circle_data: get_f64_array(value, "circleData")?,
+        circle_attr: get_i32_array(value, "circleAttr")?,
+        circle_custom_color: get_u8_array(value, "circleCustomColor")?,
+        tail,
+    })
 }
 
 fn js_error(code: &'static str, message: impl Into<String>) -> JsValue {

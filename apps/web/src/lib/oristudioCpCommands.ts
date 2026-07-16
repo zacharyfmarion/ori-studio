@@ -233,7 +233,8 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     }
   ),
   ready('ChangeCreaseType', 'Change crease type', 'color', 'paintbrush', 'MouseHandlerChangeCreaseType', {
-    placement: 'menu',
+    // Not in Oriedita's UI — hide entirely (revisit at end).
+    placement: 'hidden-ui-only',
     selectionRequirement: 'selected folding lines',
     tooltip: 'Advance selected folding lines through edge, mountain, and valley',
   }),
@@ -268,7 +269,7 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     tooltip: 'Reflect selected creases across a line drawn with two points',
   }),
   ready('DrawCreaseAngleRestricted', 'Angle restricted crease', 'construct', 'drafting-compass', 'MouseHandlerDrawCreaseAngleRestricted', {
-    toolSteps: ['Pick base start point', 'Pick base end point', 'Pick convergence candidate'],
+    toolSteps: ['Pick base crease or first point', 'Pick base end point', 'Pick convergence point'],
   }),
   ready('DrawPoint', 'Draw point', 'draw', 'circle-dot', 'MouseHandlerDrawPoint', {
     toolSteps: ['Pick point'],
@@ -278,9 +279,15 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     tooltip: 'Merge same-color creases meeting at the picked vertex',
   }),
   ready('AngleSystem', 'Angle system', 'construct', 'chart-no-axes-combined', 'MouseHandlerAngleSystem', {
+    // Not present in Oriedita's UI — hide the rail button (revisit during the
+    // Oriedita-parity pass at the end of the migration).
+    placement: 'hidden-ui-only',
     toolSteps: ['Pick angle start point', 'Pick angle end point', 'Pick destination crease'],
   }),
   ready('DrawCreaseAngleRestricted3', 'Angle restricted 3 crease', 'construct', 'between-horizontal-start', 'MouseHandlerDrawCreaseAngleRestricted3_2', {
+    // Not present in Oriedita's UI — hide the rail button (the now-empty Construct
+    // section auto-drops its header). Revisit at end.
+    placement: 'hidden-ui-only',
     toolSteps: ['Pick fan start point', 'Pick fan end point', 'Pick angle candidate'],
   }),
   ready('CreaseSelect', 'Select crease', 'select-edit', 'mouse-pointer-2', 'MouseHandlerCreaseSelect', {
@@ -331,16 +338,19 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     'Background image manipulation is UI-only and not part of the CP kernel'
   ),
   ready('LineSegmentDivision', 'Divide line by count', 'draw', 'split', 'MouseHandlerLineSegmentDivision', {
-    toolSteps: ['Pick line segment'],
+    inputMode: 'drag-line',
+    toolSteps: ['Drag to draw a line to divide'],
   }),
   ready('LineSegmentRatioSet', 'Divide line by ratio', 'draw', 'divide', 'MouseHandlerLineSegmentRatioSet', {
-    toolSteps: ['Pick line segment'],
+    inputMode: 'drag-line',
+    toolSteps: ['Drag to draw a line to divide'],
   }),
   ready('PolygonSetNoCorners', 'Regular polygon', 'generators', 'hexagon', 'MouseHandlerPolygonSetNoCorners', {
     toolSteps: ['Pick first corner', 'Pick second corner'],
   }),
   ready('CreaseAdvanceType', 'Advance crease type', 'color', 'list-restart', 'MouseHandlerCreaseAdvanceType', {
-    placement: 'menu',
+    // Not in Oriedita's UI — hide entirely (revisit at end).
+    placement: 'hidden-ui-only',
     selectionRequirement: 'selected folding lines',
     tooltip: 'Advance selected folding lines through edge, mountain, and valley',
   }),
@@ -382,9 +392,11 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     toolSteps: ['Pick anchor point', 'Pick snapped endpoint'],
   }),
   ready('VertexMakeAngularlyFlatFoldable', 'Make vertex flat-foldable', 'construct', 'badge-check', 'MouseHandlerVertexMakeAngularlyFlatFoldable', {
-    toolSteps: ['Pick odd vertex', 'Pick destination crease'],
+    toolSteps: ['Pick odd vertex', 'Pick candidate line', 'Pick destination crease'],
   }),
   ready('FoldableLineInput', 'Foldable line input', 'construct', 'list-plus', 'MouseHandlerFoldableLineInput', {
+    // Not present in Oriedita's UI — hide the rail button (revisit at end).
+    placement: 'hidden-ui-only',
     toolSteps: ['Pick start vertex', 'Pick endpoint'],
   }),
   ready('ParallelDraw', 'Parallel draw', 'construct', 'align-justify', 'MouseHandlerParallelDraw', {
@@ -404,6 +416,8 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     toolSteps: ['Pick center point', 'Pick radius start', 'Pick radius end'],
   }),
   ready('CircleDrawTangentLine', 'Circle tangent line', 'annotations', 'circle-slash', 'MouseHandlerCircleDrawTangentLine', {
+    // Not working (single-point mode incomplete) — hide for now; revisit at end.
+    placement: 'hidden-ui-only',
     selectionRequirement: 'selected circle(s)',
     tooltip: 'Create tangent lines from two selected circles, or from one selected circle plus a clicked point',
   }),
@@ -427,6 +441,8 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     tooltip: 'Create the two Oriedita concentric offset circles from selected circles',
   }),
   ready('ParallelDrawWidth', 'Parallel draw by width', 'construct', 'between-horizontal-end', 'MouseHandlerParallelDrawWidth', {
+    // Not present in Oriedita's UI — hide the rail button (revisit at end).
+    placement: 'hidden-ui-only',
     toolSteps: ['Pick source crease', 'Pick width point'],
   }),
   ready('ContinuousSymmetricDraw', 'Continuous symmetric draw', 'construct', 'repeat', 'MouseHandlerContinuousSymmetricDraw', {
@@ -465,9 +481,15 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     tooltip: 'Convert selected folding lines to auxiliary lines',
   }),
   ready('OperationFrameCreate', 'Operation frame', 'transform', 'frame', 'MouseHandlerOperationFrameCreate', {
+    // Hidden per Zach — CP export is handled differently here, so the frame isn't
+    // wired to anything user-facing yet. Revisit if export grows a crop step. The
+    // WebGL overlay + drag-box create interaction stay in place for when it returns.
+    placement: 'hidden-ui-only',
     toolSteps: ['Drag operation frame'],
-    inputMode: 'drag-path',
-    tooltip: 'Create or adjust an Oriedita operation frame by dragging on the CP',
+    // A rubber-band rectangle (two opposite corners), not a freeform path: the kernel
+    // builds the axis-aligned frame from the press + release corners.
+    inputMode: 'drag-box',
+    tooltip: 'Create an Oriedita operation frame by dragging a rectangle on the CP',
   }),
   ready('VoronoiCreate', 'Voronoi', 'generators', 'network', 'MouseHandlerVoronoiCreate', {
     toolSteps: ['Click seed point'],
@@ -480,6 +502,8 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     'shield-check',
     'MouseHandlerFlatFoldableCheck',
     {
+      // Hidden per Zach. Revisit at end.
+      placement: 'hidden-ui-only',
       toolSteps: ['Draw a closed boundary loop'],
       inputMode: 'drag-path',
       tooltip: 'Draw a closed Oriedita boundary loop and color the check result',
@@ -494,20 +518,28 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     tooltip: 'Delete crease segments intersecting or overlapping a dragged line',
   }),
   ready('SelectPolygon', 'Select polygon', 'select-edit', 'lasso-select', 'MouseHandlerSelectPolygon', {
+    // Hidden per Zach — lasso covers the freehand-select case. Revisit at end.
+    placement: 'hidden-ui-only',
     toolSteps: ['Drag polygon path'],
     inputMode: 'drag-path',
     tooltip: 'Select creases contained by a freehand polygon',
   }),
   ready('UnselectPolygon', 'Unselect polygon', 'select-edit', 'lasso', 'MouseHandlerUnselectPolygon', {
+    // Hidden per Zach — lasso covers the freehand-select case. Revisit at end.
+    placement: 'hidden-ui-only',
     toolSteps: ['Drag polygon path'],
     inputMode: 'drag-path',
     tooltip: 'Unselect creases contained by a freehand polygon',
   }),
   ready('SelectLineIntersecting', 'Select intersecting line', 'select-edit', 'scan-search', 'MouseHandlerSelectLineIntersecting', {
+    // Not present in Oriedita's UI — hide the rail button (revisit at end).
+    placement: 'hidden-ui-only',
     toolSteps: ['Pick drag start point', 'Pick drag end point'],
     tooltip: 'Select crease segments intersecting or overlapping a dragged line',
   }),
   ready('UnselectLineIntersecting', 'Unselect intersecting line', 'select-edit', 'scan-search', 'MouseHandlerUnselectLineIntersecting', {
+    // Not present in Oriedita's UI — hide the rail button (revisit at end).
+    placement: 'hidden-ui-only',
     toolSteps: ['Pick drag start point', 'Pick drag end point'],
     tooltip: 'Unselect crease segments intersecting or overlapping a dragged line',
   }),
@@ -516,6 +548,8 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     tooltip: 'Extend creases crossed by the guide line while preserving original colors',
   }),
   ready('FoldableLineDraw', 'Foldable line draw', 'construct', 'pen-line', 'MouseHandlerFoldableLineDraw', {
+    // Not present in Oriedita's UI — hide the rail button (revisit at end).
+    placement: 'hidden-ui-only',
     toolSteps: ['Pick start vertex', 'Pick destination'],
   }),
   ready('ReplaceLineTypeSelect', 'Replace selected line type', 'color', 'replace', 'MouseHandlerReplaceTypeSelect', {
@@ -562,9 +596,13 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
   notImplemented('ChangeStandardFace', 'Change standard face', 'folding', 'layers', 'MouseHandlerChangeStandardFace'),
   notImplemented('AddFoldingConstraint', 'Add folding constraint', 'folding', 'list-plus', 'MouseHandlerAddFoldingConstraints'),
   ready('Axiom5', 'Axiom 5', 'construct', 'compass', 'MouseHandlerAxiom5', {
+    // Not present in Oriedita's UI — hide the rail button (revisit at end).
+    placement: 'hidden-ui-only',
     toolSteps: ['Pick target point', 'Pick target crease', 'Pick pivot point', 'Pick destination crease'],
   }),
   ready('Axiom7', 'Axiom 7', 'construct', 'compass', 'MouseHandlerAxiom7', {
+    // Not present in Oriedita's UI — hide the rail button (revisit at end).
+    placement: 'hidden-ui-only',
     toolSteps: ['Pick target point', 'Pick target crease', 'Pick perpendicular crease', 'Pick destination crease'],
   }),
   ready('FixInaccurate', 'Fix inaccurate creases', 'check-fix', 'wrench', 'MouseHandlerCreaseFixInaccurate', {

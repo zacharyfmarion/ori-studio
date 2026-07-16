@@ -104,7 +104,6 @@ export interface WorkspaceCapabilityInput {
   hasBoxPleatDocument: boolean;
   hasSimulationModel: boolean;
   oristudioCpSelectedLineCount: number;
-  oristudioCpSelectedVertexCount: number;
   oristudioCpSelectedPointCount: number;
   oristudioCpSelectedCircleCount: number;
   hasDeletableBpSelection: boolean;
@@ -153,8 +152,7 @@ export function getWorkspaceCapabilities(input: WorkspaceCapabilityInput): Works
     (input.hasEditableCreasePattern ||
       (treeMode && (input.creaseCount > 0 || input.facetCount > 0)));
   const hasSelectedCpLines = input.oristudioCpSelectedLineCount > 0;
-  const hasSelectedCpPoints =
-    input.oristudioCpSelectedVertexCount > 0 || input.oristudioCpSelectedPointCount > 0;
+  const hasSelectedCpPoints = input.oristudioCpSelectedPointCount > 0;
   const hasSelectedCpCircles = input.oristudioCpSelectedCircleCount > 0;
   const hasSelectedCpLinesOrCircles = hasSelectedCpLines || hasSelectedCpCircles;
   const hasSelection = selectionHasEditableParts(input.selection);

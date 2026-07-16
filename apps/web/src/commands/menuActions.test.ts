@@ -206,7 +206,6 @@ describe('menu actions', () => {
     const deps = createDeps();
     deps.workspace.oristudioCpSelection = {
       lines: [],
-      vertices: [],
       points: [],
       circles: [],
       texts: [],
@@ -227,7 +226,6 @@ describe('menu actions', () => {
     const deps = createDeps();
     deps.workspace.oristudioCpSelection = {
       lines: [],
-      vertices: [],
       points: [],
       circles: [1],
       texts: [],
@@ -280,6 +278,7 @@ describe('menu actions', () => {
     deps.workspace.oristudioCpDocument = {
       handle: 1,
       loadSerial: 1,
+      geometry: null,
       source: { format: 'cp', filename: 'lines.cp', path: null },
       operationDescriptors: [],
       lastCommandResult: null,
@@ -347,7 +346,6 @@ describe('menu actions', () => {
 
     expect(deps.workspace.setOristudioCpSelection).toHaveBeenCalledWith({
       lines: [1, 2],
-      vertices: [],
       points: [],
       circles: [],
       texts: [],
@@ -363,12 +361,11 @@ describe('menu actions', () => {
     expect(deps.workspace.deleteSelection).not.toHaveBeenCalled();
   });
 
-  it('routes Delete to selected editable CP vertices and points', async () => {
+  it('routes Delete to selected editable CP points', async () => {
     const deps = createDeps();
     deps.workspace.activeEditingContext = 'crease-pattern';
     deps.workspace.oristudioCpSelection = {
       lines: [],
-      vertices: ['1000000000:0'],
       points: [1],
       circles: [],
       texts: [],
@@ -377,6 +374,7 @@ describe('menu actions', () => {
     deps.workspace.oristudioCpDocument = {
       handle: 1,
       loadSerial: 1,
+      geometry: null,
       source: { format: 'cp', filename: 'points.cp', path: null },
       operationDescriptors: [],
       lastCommandResult: null,
@@ -440,11 +438,8 @@ describe('menu actions', () => {
 
     await expect(handle('edit.delete')).resolves.toBe(true);
 
-    expect(deps.workspace.executeOristudioCpCommand).toHaveBeenNthCalledWith(1, 'DeletePoint', {
-      points: [{ x: 1, y: 0 }],
-      selection_distance: 1,
-    });
-    expect(deps.workspace.executeOristudioCpCommand).toHaveBeenNthCalledWith(2, 'DeletePoint', {
+    expect(deps.workspace.executeOristudioCpCommand).toHaveBeenCalledTimes(1);
+    expect(deps.workspace.executeOristudioCpCommand).toHaveBeenCalledWith('DeletePoint', {
       points: [{ x: 2, y: 2 }],
       selection_distance: 1,
     });
@@ -529,7 +524,6 @@ describe('menu actions', () => {
         hasBoxPleatDocument: false,
         hasSimulationModel: true,
         oristudioCpSelectedLineCount: 0,
-        oristudioCpSelectedVertexCount: 0,
         oristudioCpSelectedPointCount: 0,
         oristudioCpSelectedCircleCount: 0,
         hasDeletableBpSelection: false,

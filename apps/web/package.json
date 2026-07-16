@@ -32,6 +32,7 @@
     "class-variance-authority": "^0.7.1",
     "comlink": "^4.4.2",
     "dockview": "^4.13.1",
+    "earcut": "^3.2.3",
     "lucide-react": "^0.563.0",
     "onnxruntime-web": "^1.26.0",
     "react": "^19.2.0",
@@ -42,6 +43,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/earcut": "^3.0.0",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
@@ -52,6 +54,7 @@
     "globals": "^17.6.0",
     "jsdom": "^29.1.0",
     "playwright": "^1.60.0",
+    "regl": "^2.1.1",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.59.4",
     "vite": "^7.3.1",

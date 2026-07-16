@@ -8,7 +8,6 @@ import {
 } from '../engineRuntime';
 import { staleFoldArtifactResourceState } from '../foldArtifactResource';
 import {
-  executeOristudioCpCommand as executeRuntimeOristudioCpCommand,
   oristudioCpError,
   restoreOristudioCpDocumentInPlace,
 } from '../oristudioCpRuntime';
@@ -78,29 +77,6 @@ function setRestoredCreasePatternState(
     dirty: true,
     status: 'crease_pattern_ready' as const,
   };
-}
-
-async function refreshAlwaysOnCamvDiagnostics(
-  restored: OristudioCpDocumentState
-): Promise<{
-  restored: OristudioCpDocumentState;
-  camvResult: OristudioCpCommandResult | null;
-}> {
-  try {
-    const checkedDocument = await executeRuntimeOristudioCpCommand('CheckCamv');
-    return {
-      restored: {
-        ...checkedDocument,
-        lastCommandResult: restored.lastCommandResult,
-      },
-      camvResult:
-        checkedDocument.lastCommandResult?.operation === 'CheckCamv'
-          ? checkedDocument.lastCommandResult
-          : null,
-    };
-  } catch {
-    return { restored, camvResult: null };
-  }
 }
 
 export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get) => {
@@ -210,12 +186,13 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
           current.source,
           null
         );
-        const checked = await refreshAlwaysOnCamvDiagnostics(restored);
+        // Apply immediately; the always-on CAMV overlay recomputes off the critical
+        // path (keeps the previous result until the deferred refresh lands).
         set({
           ...setRestoredCreasePatternState(
-            checked.restored,
+            restored,
             previous.selection,
-            checked.camvResult
+            get().oristudioCpCamvResult
           ),
           oristudioCpHistoryPast: past.slice(0, -1),
           oristudioCpHistoryFuture: [
@@ -226,6 +203,7 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
           historyBusy: false,
           projectMessage: `Undid ${previous.label}`,
         });
+        get().scheduleOristudioCamvRefresh();
       } catch (error) {
         const normalized = oristudioCpError(error);
         set({
@@ -302,9 +280,8 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
           current.source,
           null
         );
-        const checked = await refreshAlwaysOnCamvDiagnostics(restored);
         set({
-          ...setRestoredCreasePatternState(checked.restored, next.selection, checked.camvResult),
+          ...setRestoredCreasePatternState(restored, next.selection, get().oristudioCpCamvResult),
           oristudioCpHistoryPast: [
             ...get().oristudioCpHistoryPast,
             cpHistoryEntry(current.document, currentSelection, next.label),
@@ -314,6 +291,7 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
           historyBusy: false,
           projectMessage: `Redid ${next.label}`,
         });
+        get().scheduleOristudioCamvRefresh();
       } catch (error) {
         const normalized = oristudioCpError(error);
         set({

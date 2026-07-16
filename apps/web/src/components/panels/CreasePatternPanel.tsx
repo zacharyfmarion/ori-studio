@@ -1,30 +1,17 @@
 import {
-  memo,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
-  type Dispatch,
-  type MouseEvent as ReactMouseEvent,
-  type MutableRefObject,
-  type PointerEvent,
-  type RefObject,
-  type SetStateAction,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { TransformComponent, TransformWrapper, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import {
   ChevronDown,
   ChevronRight,
   Copy,
-  FlipHorizontal,
-  FlipVertical,
   GitBranch,
   ListChecks,
-  RotateCcw,
-  RotateCw,
   Trash2,
 } from 'lucide-react';
 import {
@@ -39,30 +26,17 @@ import {
 } from '../../keyboard/shortcuts';
 import type {
   OristudioCpCommandPayload,
-  OristudioCpCommandPreview,
   OristudioCpCommandResult,
-  OristudioCpCircle,
-  OristudioCpCustomLineType,
   OristudioCpDiagnosticEntry,
   OristudioCpDocumentSnapshot,
   OristudioCpFoldedFigureDisplayStyle,
   OristudioCpFoldedFigureEntry,
   OristudioCpFoldedFigureModel,
   OristudioCpFoldedFigureState,
-  OristudioCpFoldedRenderGeometry,
-  OristudioCpFoldedRenderPaint,
-  OristudioCpFoldedRenderPathCommand,
-  OristudioCpFoldedRenderPrimitive,
-  OristudioCpFoldedRenderSnapshot,
-  OristudioCpFoldedRenderStroke,
-  OristudioCpGridMetadata,
   OristudioCpLineColor,
   OristudioCpLineSegment,
-  OristudioCpRgbColor,
-  OristudioCpRgbaColor,
 } from '../../engine/oristudioCpTypes';
-import { formatNumber, paperToSvg, type Point } from '../../lib/geometry';
-import { getViewportFitScale, type ViewportSize } from '../../lib/designViewport';
+import type { Point } from '../../lib/geometry';
 import {
   cpDiagnosticEntryMessage,
   semanticCpDiagnosticKind,
@@ -75,7 +49,6 @@ import {
   cpActionByUpstreamMouseMode,
   type OristudioCpActionDefinition,
   type OristudioCpActionId,
-  type OristudioCpActionInputMode,
   type OristudioCpCommandActionDefinition,
 } from '../../lib/oristudioCpActions';
 import {
@@ -89,28 +62,11 @@ import {
 } from '../../lib/oristudioCpToolState';
 import {
   DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS,
-  ORISTUDIO_CP_CUSTOM_LINE_TYPE_OPTIONS,
-  ORISTUDIO_CP_RATIO_PRESETS,
-  ORISTUDIO_CP_REPLACE_TARGET_LINE_TYPE_OPTIONS,
   cpToolSettingGroupsForCommand,
   evaluateOrieditaRatioExpression,
-  formatOrieditaRatioHalf,
-  formatOrieditaRatioNumber,
-  parseOrieditaRatioHalfInput,
-  type OristudioCpRatioExpression,
   type OristudioCpToolOptions,
-  type OristudioCpToolSettingGroup,
-  ratioExpressionFromHalves,
-  ratioHalvesFromExpression,
 } from '../../lib/oristudioCpToolSettings';
-import {
-  instructionsForCpTool,
-  type OristudioCpToolInstructions,
-} from '../../lib/oristudioCpToolInstructions';
-import {
-  ORISTUDIO_CP_EXTRA_LINE_COLOR_PALETTE,
-  cpPaletteEntryForColor,
-} from '../../lib/oristudioCpPalette';
+import { ORISTUDIO_CP_EXTRA_LINE_COLOR_PALETTE } from '../../lib/oristudioCpPalette';
 import {
   activeLineColorFromOrieditaMetadata,
   activeMouseModeFromOrieditaMetadata,
@@ -123,57 +79,72 @@ import {
   orieditaSvgToObject,
 } from '../../lib/orieditaCamera';
 import {
-  CP_EDITABLE_CANVAS_RECT,
-  CP_EDITABLE_FIT_RECT,
   CP_PAPER_RECT,
-  CP_PAPER_SHADOW_RECT,
-  CP_WORLD_RECT,
-  cpLineAssignmentLabel,
-  cpLineColorClass,
-  cpLineStyleColorKind,
   cpSelectionSize,
   cpSvgPointToModel,
   emptyOristudioCpSelection,
-  expandedModelBoundsFromPoints,
-  getCpVertices,
+  getCpVertexPoints,
   getOrieditaGridBasis,
   modelPointToCpSvg,
   nearestCpSnapTarget,
   nearestOrieditaDrawPointTarget,
-  orieditaGridLinesForModelBounds,
   ORIEDITA_PAPER_BOUNDS,
-  textCoordinate,
   visibleOrieditaGridMetadata,
-  type CpGridLine,
   type CpModelBounds,
   type CpSnapTarget,
-  type CpVertex,
-  type OristudioCpSelection,
 } from '../../lib/creasePatternViewport';
 import {
-  cpFramePointToLocal,
-  cpLineSelectionFrame,
   cpLineSelectionMoveAnchorPoints,
-  rotationAngleFromCenter,
-  scaleCpLineSegments,
   selectedFoldableCpLineIds,
   selectedCpLineSegments,
-  snapRotationDegrees,
   translateCpLineSegments,
-  transformCpLineSegments,
-  type CpLineSelectionFrame,
-  type CpSelectionTransform,
 } from '../../lib/creasePatternClipboard';
-import type { Selection, TreeProject } from '../../lib/sampleProject';
-import {
-  isCreaseSelected,
-  isFacetSelected,
-  selectionSize,
-  toggleCreaseSelection,
-  toggleFacetSelection,
-} from '../../lib/selection';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { useShortcutStore } from '../../store/shortcutStore';
+import { CreasePatternWebglCanvas } from '../../cp-workspace/CreasePatternWebglCanvas';
+import type { CameraCommand, CpOverlayView } from '../../cp-workspace/CreasePatternWebglCanvas';
+import { vertexPointsFromTransport } from '../../engine/oristudioCpGeometry';
+import { CpTextOverlay } from '../../cp-workspace/CpTextOverlay';
+import {
+  CpContextToolPanel,
+  cpCommandRequiresContextApply,
+  cpLineTypeStatusLabel,
+} from './CpContextToolPanel';
+import {
+  buildCpDiagnosticMarkerHits,
+  buildCpDiagnosticMarkers,
+  buildCpDiagnosticStrokes,
+  buildCpDiagnosticWedges,
+  diagnosticEntryBounds,
+  resolveCpDiagnosticToneColors,
+} from '../../cp-workspace/diagnostics/geometry';
+import { cpInputModel } from '../../cp-workspace/tools/inputModelRegistry';
+import { distanceToSegment } from '../../cp-workspace/picking/lineHitIndex';
+import { resolveCpLineColor } from '../../cp-workspace/adapters/cpLineColor';
+import { readCssVarColor } from '../../cp-workspace/renderer/cssColor';
+import { useThemeStore } from '../../store/themeStore';
+import type { FoldedGeometry, Rgba, StrokeGeometry } from '../../cp-workspace/renderer/types';
+import { foldedGeometryFromShapes } from '../../cp-workspace/adapters/cpFoldedToScene';
+import {
+  allowsDirectEntitySelection,
+  isCreaseToggleMvClickTool,
+  isDefaultSelectionMode,
+  isLengthenCreaseOperation,
+  isLineClickSelectionOperation,
+  isLineEraseClickTool,
+  isReflectSelectionOperation,
+  isRestrictedDrawOperation,
+  isSelectionCircleApplyOperation,
+  isSquareBisectorOperation,
+  isTextAnnotationOperation,
+  isVariablePointSequenceOperation,
+} from '../../cp-workspace/tools/predicates';
+import {
+  cpMeasurementSlotForOperation,
+  createEmptyCpMeasurementSlots,
+  isCpMeasurementOperation,
+  type CpMeasurementSlots,
+} from '../../cp-workspace/measure';
 import { IconButton } from '../ui/IconButton';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { Toggle } from '../ui/Toggle';
@@ -186,11 +157,6 @@ import {
 } from './ViewportToolbar';
 import { CP_TOOL_OPTIONS_PANE_SLOT_ID } from './cpToolOptionsPortal';
 import type { FoldDocument } from '../../engine/types';
-
-function creaseClass(fold: string, kind: string, mode: 'mvf' | 'agrh'): string {
-  if (mode === 'agrh') return `crease crease--kind-${kind}`;
-  return `crease crease--fold-${fold}`;
-}
 
 function formatZoom(scale: number): string {
   return `${Math.round(scale * 100)}%`;
@@ -225,152 +191,6 @@ interface CpDiagnosticHudStatus {
   label: string;
   detail: string | null;
   tone: 'ok' | 'warn' | 'error';
-}
-
-interface CpDiagnosticBounds {
-  minX: number;
-  minY: number;
-  maxX: number;
-  maxY: number;
-  center: Point;
-}
-
-type CpDiagnosticMarkerShape =
-  | 'generic'
-  | 'triangle'
-  | 'square'
-  | 'circle'
-  | 'ring'
-  | 'little-big-little'
-  | 'none';
-
-type CpDiagnosticMarkerTone = 'danger' | 'warning' | 'mountain' | 'valley' | 'neutral' | 'unknown';
-
-interface CpDiagnosticMarkerStyle {
-  shape: CpDiagnosticMarkerShape;
-  tone: CpDiagnosticMarkerTone;
-}
-
-const CP_DIAGNOSTIC_FOCUS_PADDING = 56;
-const CP_DIAGNOSTIC_MARKER_SIZE = 24;
-const CP_DIAGNOSTIC_LBL_RADIUS = 18;
-
-function diagnosticEntryPoints(entry: OristudioCpDiagnosticEntry): Point[] {
-  const points: Point[] = [];
-  if (entry.point) points.push(entry.point);
-  for (const segment of entry.segments ?? []) {
-    points.push(segment.a, segment.b);
-  }
-  for (const sector of entry.little_big_little ?? []) {
-    points.push(sector.segment.a, sector.segment.b);
-  }
-  return points;
-}
-
-function boundsFromPoints(points: Point[]): CpDiagnosticBounds | null {
-  if (points.length === 0) return null;
-  const minX = Math.min(...points.map((point) => point.x));
-  const maxX = Math.max(...points.map((point) => point.x));
-  const minY = Math.min(...points.map((point) => point.y));
-  const maxY = Math.max(...points.map((point) => point.y));
-  return {
-    minX,
-    minY,
-    maxX,
-    maxY,
-    center: { x: (minX + maxX) / 2, y: (minY + maxY) / 2 },
-  };
-}
-
-function diagnosticEntryBounds(entry: OristudioCpDiagnosticEntry): CpDiagnosticBounds | null {
-  return boundsFromPoints(diagnosticEntryPoints(entry));
-}
-
-function svgPointToContentPoint(point: Point, viewBox: { x: number; y: number }): Point {
-  return { x: point.x - viewBox.x, y: point.y - viewBox.y };
-}
-
-function isFlatFoldabilityDiagnostic(entry: OristudioCpDiagnosticEntry): boolean {
-  return (
-    entry.kind === 'Check4' ||
-    entry.kind === 'CheckCamv' ||
-    entry.rule === 'NumberOfFolds' ||
-    entry.rule === 'Angles' ||
-    entry.rule === 'Maekawa' ||
-    entry.rule === 'LittleBigLittle'
-  );
-}
-
-function cpDiagnosticMarkerTone(entry: OristudioCpDiagnosticEntry): CpDiagnosticMarkerTone {
-  switch (entry.violation_color) {
-    case 'NotEnoughMountain':
-      return 'mountain';
-    case 'NotEnoughValley':
-      return 'valley';
-    case 'Equal':
-    case 'Correct':
-      return 'neutral';
-    case 'Unknown':
-      return 'unknown';
-    default:
-      return entry.severity === 'warning' ? 'warning' : 'danger';
-  }
-}
-
-function cpDiagnosticMarkerStyle(entry: OristudioCpDiagnosticEntry): CpDiagnosticMarkerStyle {
-  if (!isFlatFoldabilityDiagnostic(entry)) {
-    return {
-      shape: 'generic',
-      tone: cpDiagnosticMarkerTone(entry),
-    };
-  }
-
-  switch (entry.rule) {
-    case 'NumberOfFolds':
-      return { shape: 'triangle', tone: cpDiagnosticMarkerTone(entry) };
-    case 'Angles':
-      return {
-        shape: entry.violation_color === 'Correct' ? 'ring' : 'circle',
-        tone: cpDiagnosticMarkerTone(entry),
-      };
-    case 'Maekawa':
-      return { shape: 'square', tone: cpDiagnosticMarkerTone(entry) };
-    case 'LittleBigLittle':
-      return { shape: 'little-big-little', tone: cpDiagnosticMarkerTone(entry) };
-    case 'None':
-      return { shape: 'none', tone: cpDiagnosticMarkerTone(entry) };
-    default:
-      return { shape: 'generic', tone: cpDiagnosticMarkerTone(entry) };
-  }
-}
-
-function diagnosticSegmentEndpoint(point: Point, segment: OristudioCpLineSegment): Point {
-  const distanceA = squaredDistance(point, segment.a);
-  const distanceB = squaredDistance(point, segment.b);
-  return distanceA > distanceB ? segment.a : segment.b;
-}
-
-function squaredDistance(a: Point, b: Point): number {
-  const dx = a.x - b.x;
-  const dy = a.y - b.y;
-  return dx * dx + dy * dy;
-}
-
-function diagnosticSectorPoint(
-  center: Point,
-  segment: OristudioCpLineSegment,
-  modelToSvg: (point: Point) => Point
-): Point {
-  const endpoint = modelToSvg(diagnosticSegmentEndpoint(center, segment));
-  const svgCenter = modelToSvg(center);
-  const dx = endpoint.x - svgCenter.x;
-  const dy = endpoint.y - svgCenter.y;
-  const length = Math.hypot(dx, dy);
-  if (length < 1e-9) return svgCenter;
-  return {
-    x: svgCenter.x + (dx / length) * CP_DIAGNOSTIC_LBL_RADIUS,
-    y: svgCenter.y + (dy / length) * CP_DIAGNOSTIC_LBL_RADIUS,
-  };
 }
 
 function diagnosticOperationLabel(operation: string): string {
@@ -583,140 +403,72 @@ function cpCommandPayloadDefaults(
   return payload;
 }
 
-function pointDistanceSquared(a: Point, b: Point): number {
-  const dx = a.x - b.x;
-  const dy = a.y - b.y;
-  return dx * dx + dy * dy;
+/**
+ * Segment count for a preview circle of model radius `r`: scales with the
+ * circumference (larger circles get more sides) with a high floor/cap, so the
+ * preview reads as a smooth circle rather than a faceted polygon even zoomed in.
+ */
+function cpCircleRingSideCount(r: number): number {
+  return Math.min(512, Math.max(128, Math.round(Math.abs(r) * 6)));
 }
 
-function pointToLineSegmentDistanceSquared(point: Point, segment: OristudioCpLineSegment): number {
-  const dx = segment.b.x - segment.a.x;
-  const dy = segment.b.y - segment.a.y;
-  const lengthSquared = dx * dx + dy * dy;
-  if (lengthSquared === 0) return pointDistanceSquared(point, segment.a);
-  const t = Math.max(
-    0,
-    Math.min(1, ((point.x - segment.a.x) * dx + (point.y - segment.a.y) * dy) / lengthSquared)
-  );
-  return pointDistanceSquared(point, {
-    x: segment.a.x + dx * t,
-    y: segment.a.y + dy * t,
-  });
-}
-
-function nearestEditableCpLineId(
-  document: OristudioCpDocumentSnapshot,
-  point: Point,
-  maxDistance: number
-): number | null {
-  const maxDistanceSquared = maxDistance * maxDistance;
-  let nearestId: number | null = null;
-  let nearestDistanceSquared = Number.POSITIVE_INFINITY;
-  document.crease_pattern.line_segments.forEach((segment, index) => {
-    const distanceSquared = pointToLineSegmentDistanceSquared(point, segment);
-    if (distanceSquared > maxDistanceSquared) return;
-    if (distanceSquared < nearestDistanceSquared) {
-      nearestId = index + 1;
-      nearestDistanceSquared = distanceSquared;
-    }
-  });
-  return nearestId;
-}
-
-function isLineClickSelectionOperation(operationId: string | null | undefined): boolean {
-  return operationId === 'CreaseSelect' || operationId === 'CreaseUnselect';
-}
-
-function isLengthenCreaseOperation(operationId: string | null | undefined): boolean {
-  return operationId === 'LengthenCrease' || operationId === 'LengthenCreaseSameColor';
-}
-
-// Oriedita `CREASE_TOGGLE_MV_58` (the 'C' tool): clicking a crease flips its
-// mountain/valley assignment in place, keeping the tool active for the next click.
-function isCreaseToggleMvClickTool(operationId: string | null | undefined): boolean {
-  return operationId === 'CreaseToggleMv';
-}
-
-function isSquareBisectorOperation(operationId: string | null | undefined): boolean {
-  return operationId === 'SquareBisector';
-}
-
-// Oriedita `LINE_SEGMENT_DELETE_3` (the eraser tool): clicking a crease deletes
-// it (honoring the tool-options line-type filter), keeping the tool active for
-// the next click.
-function isLineEraseClickTool(operationId: string | null | undefined): boolean {
-  return operationId === 'LineSegmentDelete';
-}
-
-// Mirrors the kernel `CustomLineType::matches`: does a crease's line color pass
-// the eraser's line-type filter? Used to preview which crease a click erases.
-function lineColorMatchesCustomType(
-  color: string,
-  lineType: OristudioCpCustomLineType
-): boolean {
-  switch (lineType) {
-    case 'Any':
-      return true;
-    case 'Edge':
-      return color === 'Black0';
-    case 'MountainAndValley':
-      return color === 'Red1' || color === 'Blue2';
-    case 'Mountain':
-      return color === 'Red1';
-    case 'Valley':
-      return color === 'Blue2';
-    case 'Aux':
-      return color === 'Cyan3';
-    default:
-      return false;
+/** Approximate a circle (model coords) as ring segments, for the WebGL preview. */
+function cpCircleRingSegments(
+  x: number,
+  y: number,
+  r: number,
+  sides = cpCircleRingSideCount(r)
+): { a: Point; b: Point }[] {
+  const out: { a: Point; b: Point }[] = [];
+  for (let i = 0; i < sides; i++) {
+    const a0 = (i / sides) * Math.PI * 2;
+    const a1 = ((i + 1) / sides) * Math.PI * 2;
+    out.push({
+      a: { x: x + Math.cos(a0) * r, y: y + Math.sin(a0) * r },
+      b: { x: x + Math.cos(a1) * r, y: y + Math.sin(a1) * r },
+    });
   }
+  return out;
 }
 
-function allowsDirectEntitySelection(operationId: string | null | undefined): boolean {
-  return operationId === 'CreaseSelect';
-}
-
-function shouldPreferPointSnapForStep(
-  command: OristudioCpCommandDefinition | null | undefined,
-  stepIndex: number
-): boolean {
-  if (command?.operationId === 'DrawCreaseSymmetric') return true;
-  if (command?.operationId === 'DoubleSymmetricDraw') return true;
-  const step = command?.toolSteps?.[stepIndex]?.toLowerCase();
-  if (!step) return false;
-  if (step.includes('crease') || step.includes('line')) return false;
-  return (
-    step.includes('point') ||
-    step.includes('vertex') ||
-    step.includes('endpoint') ||
-    step.includes('center') ||
-    step.includes('radius')
-  );
-}
-
-function isDefaultSelectionMode(
-  state: { activeOperationId: string | null; phase: string },
-  pendingPointCount: number,
-  pendingPathCount: number
-): boolean {
-  return (
-    state.phase === 'active' &&
-    state.activeOperationId === 'CreaseSelect' &&
-    pendingPointCount === 0 &&
-    pendingPathCount === 0
-  );
-}
-
-function isRestrictedDrawOperation(operationId: string | null | undefined): boolean {
-  return operationId === 'DrawCreaseRestricted';
-}
-
-function isReflectSelectionOperation(operationId: string | null | undefined): boolean {
-  return operationId === 'DrawCreaseSymmetric';
-}
-
-function cpLineTypeStatusLabel(lineColor: OristudioCpLineColor): string {
-  return cpPaletteEntryForColor(lineColor)?.statusLabel ?? `Line ${cpLineAssignmentLabel(lineColor)}`;
+/**
+ * Existing creases the *active* end of a previewed crease lands on: for each
+ * endpoint of the kernel preview geometry that is not one of the already-placed
+ * points (`anchors`), the single crease it lies on (skipping junctions, where more
+ * than one crease meets and which is meant would be ambiguous). This lets the
+ * surface highlight a crease the new line snaps to even when the cursor point is
+ * constrained off it — e.g. angle-restricted draw ending at an intersection, which
+ * the point-under-cursor highlight can't see — without lighting up (and pinning) a
+ * crease that merely happens to pass through a fixed anchor. Matches the vertex
+ * rule of the live snap highlight: a lone crease lights up, a junction does not.
+ */
+function cpCreasesUnderPreviewEndpoints(
+  previewSegments: readonly { a: Point; b: Point }[],
+  anchors: readonly Point[],
+  lineSegments: readonly OristudioCpLineSegment[],
+  eps: number
+): { a: Point; b: Point }[] {
+  const nearAnchor = (p: Point) =>
+    anchors.some((a) => Math.hypot(p.x - a.x, p.y - a.y) <= eps);
+  const endpoints: Point[] = [];
+  for (const s of previewSegments) {
+    if (!nearAnchor(s.a)) endpoints.push(s.a);
+    if (!nearAnchor(s.b)) endpoints.push(s.b);
+  }
+  const found = new Set<number>();
+  for (const p of endpoints) {
+    let onlyHit = -1;
+    let count = 0;
+    for (let i = 0; i < lineSegments.length && count < 2; i += 1) {
+      const seg = lineSegments[i];
+      if (distanceToSegment(p.x, p.y, seg.a, seg.b) <= eps) {
+        count += 1;
+        onlyHit = i;
+      }
+    }
+    if (count === 1) found.add(onlyHit);
+  }
+  return [...found].map((i) => ({ a: lineSegments[i].a, b: lineSegments[i].b }));
 }
 
 function CpLineTypeToolbar({
@@ -1049,371 +801,33 @@ function FoldedFigureMenuButton({
   );
 }
 
-function activeActionInputMode(
-  action: OristudioCpActionDefinition | undefined,
-  command: OristudioCpCommandDefinition | undefined
-): OristudioCpActionInputMode | undefined {
-  if (action?.kind === 'command') return action.inputMode ?? action.command.inputMode;
-  return command?.inputMode;
-}
-
-function cpCommandRequiresContextApply(command: OristudioCpCommandDefinition): boolean {
-  if (command.operationId === 'Text') return true;
-  if (command.operationId === 'VoronoiCreate') return true;
-  if (isSelectionCircleApplyOperation(command.operationId)) return true;
-  if ((command.toolSteps?.length ?? 0) > 0) return false;
-  return cpToolSettingGroupsForCommand(command).some(
-    (group) => group !== 'line-color' && group !== 'line-select-help'
-  );
-}
-
-function isVariablePointSequenceOperation(
-  operationId: OristudioCpCommandDefinition['operationId'] | null | undefined
-): boolean {
-  return operationId === 'VoronoiCreate';
-}
-
-function isTextAnnotationOperation(
-  operationId: OristudioCpCommandDefinition['operationId'] | null | undefined
-): boolean {
-  return operationId === 'Text';
-}
-
-function isSelectionCircleApplyOperation(
-  operationId: OristudioCpCommandDefinition['operationId'] | null | undefined
-): boolean {
-  return (
-    operationId === 'CircleDrawTangentLine' ||
-    operationId === 'CircleDrawInverted' ||
-    operationId === 'CircleDrawConcentricSelect' ||
-    operationId === 'CircleDrawConcentricTwoCircleSelect'
-  );
-}
-
-function isCircleTangentPointOperation(
-  operationId: OristudioCpCommandDefinition['operationId'] | null | undefined
-): boolean {
-  return operationId === 'CircleDrawTangentLine';
-}
-
-function canPreviewFromSelection(
-  command: OristudioCpCommandDefinition | null | undefined,
-  selection: OristudioCpSelection
-): boolean {
-  if (!command) return false;
-  switch (command.operationId) {
-    case 'CircleDrawTangentLine':
-      return selection.circles.length >= 2;
-    case 'CircleDrawInverted':
-      return selection.circles.length >= 2 || (selection.circles.length >= 1 && selection.lines.length >= 1);
-    case 'CircleDrawConcentricSelect':
-      return selection.circles.length >= 3;
-    case 'CircleDrawConcentricTwoCircleSelect':
-      return selection.circles.length >= 2;
-    default:
-      return false;
-  }
-}
-
-function contextApplyDisabledForCommand(
-  command: OristudioCpCommandDefinition,
-  selection: OristudioCpSelection,
-  pendingPointCount: number
-): boolean {
-  switch (command.operationId) {
-    case 'VoronoiCreate':
-      return pendingPointCount === 0;
-    case 'Text':
-      return selection.texts.length === 0;
-    case 'CircleChangeColor':
-      return selection.circles.length === 0 && selection.lines.length === 0;
-    case 'CircleDrawTangentLine':
-      return selection.circles.length < 2;
-    case 'CircleDrawInverted':
-      return selection.circles.length < 2 && !(selection.circles.length >= 1 && selection.lines.length >= 1);
-    case 'CircleDrawConcentricSelect':
-      return selection.circles.length < 3;
-    case 'CircleDrawConcentricTwoCircleSelect':
-      return selection.circles.length < 2;
-    default:
-      return false;
-  }
-}
-
-function isCpLineEventTarget(target: EventTarget | null): boolean {
-  return (
-    target instanceof Element &&
-    target.closest('[data-cp-line-id], [data-cp-line-hit-id]') !== null
-  );
-}
-
-function isCpSelectableEntityEventTarget(target: EventTarget | null): boolean {
-  return (
-    target instanceof Element &&
-    target.closest(
-      [
-        '[data-cp-line-id]',
-        '[data-cp-line-hit-id]',
-        '[data-cp-point-id]',
-        '[data-cp-circle-id]',
-        '[data-cp-text-id]',
-        '[data-cp-vertex-id]',
-      ].join(', ')
-    ) !== null
-  );
-}
-
-function isCpSelectionTransformEventTarget(target: EventTarget | null): boolean {
-  return (
-    target instanceof Element &&
-    target.closest('[data-cp-selection-transform-control]') !== null
-  );
-}
-
-function cpTextIdFromEventTarget(target: EventTarget | null): number | null {
-  if (!(target instanceof Element)) return null;
-  const element = target.closest('[data-cp-text-id]');
-  const id = element?.getAttribute('data-cp-text-id');
-  if (!id) return null;
-  const parsed = Number.parseInt(id, 10);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function foldedFigureIdFromEventTarget(target: EventTarget | null): string | null {
-  if (!(target instanceof Element)) return null;
-  return target.closest('[data-folded-figure-id]')?.getAttribute('data-folded-figure-id') ?? null;
-}
-
-type CpMeasurementSlotId = 'length1' | 'length2' | 'angle1' | 'angle2' | 'angle3';
-type CpMeasurementSlots = Record<CpMeasurementSlotId, number | null>;
-
-interface CpSelectionRotationDrag {
-  pointerId: number;
-  center: Point;
-  startAngleDegrees: number;
-  sourceLines: OristudioCpLineSegment[];
-  currentAngleDegrees: number;
-}
-
-interface CpSelectionMoveDrag {
-  pointerId: number;
-  startPoint: Point;
-  sourceLines: OristudioCpLineSegment[];
-  currentDelta: Point;
-}
-
-type CpSelectionResizeHandle =
-  | 'top-left'
-  | 'top'
-  | 'top-right'
-  | 'right'
-  | 'bottom-right'
-  | 'bottom'
-  | 'bottom-left'
-  | 'left';
-
-interface CpSelectionResizeDrag {
-  pointerId: number;
-  frame: CpLineSelectionFrame;
-  handle: CpSelectionResizeHandle;
-  sourceLines: OristudioCpLineSegment[];
-  currentTransform: Extract<CpSelectionTransform, { kind: 'scale' }> | null;
-}
-
-interface FoldedFigureMoveDrag {
-  pointerId: number;
-  figureId: string;
-  lastSvgPoint: Point;
-}
-
-interface CpSelectionTransformPreview {
-  kind: 'rotate' | 'translate' | 'scale';
-  angleDegrees?: number;
-  delta?: Point;
-  scaleX?: number;
-  scaleY?: number;
-  snapLabel?: string | null;
-  segments: OristudioCpLineSegment[];
-  frame: CpLineSelectionFrame;
-}
-
-interface CpSelectionResizeHandleSpec {
-  id: CpSelectionResizeHandle;
-  x: -1 | 0 | 1;
-  y: -1 | 0 | 1;
-  scaleX: boolean;
-  scaleY: boolean;
-  cursor: 'ew' | 'ns' | 'nwse' | 'nesw';
-}
-
-const CP_SELECTION_RESIZE_HANDLES: readonly CpSelectionResizeHandleSpec[] = [
-  { id: 'top-left', x: -1, y: 1, scaleX: true, scaleY: true, cursor: 'nwse' },
-  { id: 'top', x: 0, y: 1, scaleX: false, scaleY: true, cursor: 'ns' },
-  { id: 'top-right', x: 1, y: 1, scaleX: true, scaleY: true, cursor: 'nesw' },
-  { id: 'right', x: 1, y: 0, scaleX: true, scaleY: false, cursor: 'ew' },
-  { id: 'bottom-right', x: 1, y: -1, scaleX: true, scaleY: true, cursor: 'nwse' },
-  { id: 'bottom', x: 0, y: -1, scaleX: false, scaleY: true, cursor: 'ns' },
-  { id: 'bottom-left', x: -1, y: -1, scaleX: true, scaleY: true, cursor: 'nesw' },
-  { id: 'left', x: -1, y: 0, scaleX: true, scaleY: false, cursor: 'ew' },
-];
-
-const CP_SELECTION_RESIZE_HANDLE_BY_ID = new Map(
-  CP_SELECTION_RESIZE_HANDLES.map((handle) => [handle.id, handle])
-);
-
-const CP_MEASUREMENT_SLOT_LABELS: Record<CpMeasurementSlotId, string> = {
-  length1: 'L1',
-  length2: 'L2',
-  angle1: 'A1',
-  angle2: 'A2',
-  angle3: 'A3',
-};
-
-const CP_MEASUREMENT_SLOT_ORDER: readonly CpMeasurementSlotId[] = [
-  'length1',
-  'length2',
-  'angle1',
-  'angle2',
-  'angle3',
-];
-
-function createEmptyCpMeasurementSlots(): CpMeasurementSlots {
-  return {
-    length1: null,
-    length2: null,
-    angle1: null,
-    angle2: null,
-    angle3: null,
-  };
-}
-
-function cpMeasurementSlotForOperation(
-  operationId: OristudioCpCommandDefinition['operationId'] | null | undefined
-): CpMeasurementSlotId | null {
-  switch (operationId) {
-    case 'DisplayLengthBetweenPoints1':
-      return 'length1';
-    case 'DisplayLengthBetweenPoints2':
-      return 'length2';
-    case 'DisplayAngleBetweenThreePoints1':
-      return 'angle1';
-    case 'DisplayAngleBetweenThreePoints2':
-      return 'angle2';
-    case 'DisplayAngleBetweenThreePoints3':
-      return 'angle3';
-    default:
-      return null;
-  }
-}
-
-function isCpMeasurementOperation(
-  operationId: OristudioCpCommandDefinition['operationId'] | null | undefined
-): boolean {
-  return cpMeasurementSlotForOperation(operationId) !== null;
-}
-
-function computeCpMeasurementValue(
-  operationId: OristudioCpCommandDefinition['operationId'],
-  points: readonly Point[]
-): number | null {
-  const slot = cpMeasurementSlotForOperation(operationId);
-  if (!slot) return null;
-
-  if (slot === 'length1' || slot === 'length2') {
-    const [a, b] = points;
-    if (!a || !b) return null;
-    return Math.hypot(b.x - a.x, b.y - a.y);
-  }
-
-  const [a, center, b] = points;
-  if (!a || !center || !b) return null;
-  const start = Math.atan2(a.y - center.y, a.x - center.x);
-  const end = Math.atan2(b.y - center.y, b.x - center.x);
-  const degrees = ((end - start) * 180) / Math.PI;
-  return ((degrees % 360) + 360) % 360;
-}
-
-function formatCpMeasurementValue(slot: CpMeasurementSlotId, value: number | null): string {
-  if (value === null) return '-';
-  const precision = slot.startsWith('angle') ? 2 : 3;
-  const unit = slot.startsWith('angle') ? ' deg' : '';
-  return `${formatNumber(value, precision)}${unit}`;
-}
-
-function resizeTransformForPoint(
-  frame: CpLineSelectionFrame,
-  handleId: CpSelectionResizeHandle,
-  point: Point,
-  minSpan: number
-): Extract<CpSelectionTransform, { kind: 'scale' }> {
-  const handle = CP_SELECTION_RESIZE_HANDLE_BY_ID.get(handleId);
-  const halfWidth = frame.width / 2;
-  const halfHeight = frame.height / 2;
-  if (!handle) {
-    return {
-      kind: 'scale',
-      frame,
-      anchor: { x: 0, y: 0 },
-      scaleX: 1,
-      scaleY: 1,
-    };
-  }
-
-  const local = cpFramePointToLocal(frame, point);
-  const anchor = {
-    x: handle.scaleX ? -handle.x * halfWidth : 0,
-    y: handle.scaleY ? -handle.y * halfHeight : 0,
-  };
-  const handleLocal = {
-    x: handle.x * halfWidth,
-    y: handle.y * halfHeight,
-  };
-  let scaleX = 1;
-  let scaleY = 1;
-  if (handle.scaleX) {
-    const denominator = handleLocal.x - anchor.x;
-    if (Math.abs(denominator) > 1e-9) {
-      const minScale = minSpan / Math.max(frame.width, 1e-9);
-      scaleX = Math.max(minScale, (local.x - anchor.x) / denominator);
-    }
-  }
-  if (handle.scaleY) {
-    const denominator = handleLocal.y - anchor.y;
-    if (Math.abs(denominator) > 1e-9) {
-      const minScale = minSpan / Math.max(frame.height, 1e-9);
-      scaleY = Math.max(minScale, (local.y - anchor.y) / denominator);
-    }
-  }
-
-  return {
-    kind: 'scale',
-    frame,
-    anchor,
-    scaleX,
-    scaleY,
-  };
-}
-
-function normalizeSelectionTransformAngle(angleDegrees: number): number {
-  const normalized = angleDegrees % 360;
-  return normalized < 0 ? normalized + 360 : normalized;
-}
-
 export function CreasePatternPanel() {
-  const svgRef = useRef<SVGSVGElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cpViewportRef = useRef<HTMLDivElement | null>(null);
-  const transformRef = useRef<ReactZoomPanPinchRef | null>(null);
   const [toolOptionsPortalTarget, setToolOptionsPortalTarget] = useState<HTMLElement | null>(null);
-  // Registered by the infinite grid layer so viewport transforms can trigger a
-  // grid recompute without re-rendering the whole panel on every pan frame.
-  const gridSyncRef = useRef<(() => void) | null>(null);
   const zoomPercentRef = useRef(100);
-  const viewportPanningRef = useRef(false);
   const [zoomPercent, setZoomPercent] = useState(100);
+  // Viewport-toolbar commands routed to the WebGL surface's owned camera (the SVG
+  // controls drive react-zoom-pan-pinch, which the GL camera ignores). A bumped nonce
+  // re-fires the same command.
+  const [webglCameraCommand, setWebglCameraCommand] = useState<CameraCommand | null>(null);
+  const cameraCommandNonceRef = useRef(0);
+  const sendWebglCameraCommand = useCallback(
+    (kind: CameraCommand['kind'], percent?: number) => {
+      setWebglCameraCommand({ kind, percent, nonce: ++cameraCommandNonceRef.current });
+    },
+    []
+  );
+  const handleWebglZoomPercent = useCallback((percent: number) => {
+    zoomPercentRef.current = percent;
+    setZoomPercent(percent);
+  }, []);
+  // The WebGL camera's model→CSS affine, for positioning the text-annotation overlay.
+  const [webglOverlayView, setWebglOverlayView] = useState<CpOverlayView | null>(null);
+  const handleWebglViewChange = useCallback((view: CpOverlayView) => {
+    setWebglOverlayView(view);
+  }, []);
   const [spacePressed, setSpacePressed] = useState(false);
-  const [cursorModelPoint, setCursorModelPoint] = useState<Point | null>(null);
-  const [snapTarget, setSnapTarget] = useState<CpSnapTarget | null>(null);
   const [cpToolState, setCpToolState] = useState(IDLE_ORISTUDIO_CP_TOOL_STATE);
   const [activeCpLineColor, setActiveCpLineColor] = useState<OristudioCpLineColor>('Red1');
   const [foldStartingFaceId, setFoldStartingFaceId] = useState(1);
@@ -1423,25 +837,13 @@ export function CreasePatternPanel() {
   );
   const [cpToolPoints, setCpToolPoints] = useState<Point[]>([]);
   const [cpToolPath, setCpToolPath] = useState<Point[]>([]);
-  // Live preview box for the right-button-drag erase gesture.
-  const [rightEraseBox, setRightEraseBox] = useState<readonly [Point, Point] | null>(null);
   const [pendingLengthenLineId, setPendingLengthenLineId] = useState<number | null>(null);
   const [pendingSquareBisectorLineIds, setPendingSquareBisectorLineIds] = useState<number[]>([]);
   const [cpMeasurementSlots, setCpMeasurementSlots] = useState<CpMeasurementSlots>(
     createEmptyCpMeasurementSlots
   );
-  const [cpCommandPreview, setCpCommandPreview] = useState<OristudioCpCommandPreview | null>(null);
-  const [selectionRotationPreview, setSelectionRotationPreview] =
-    useState<CpSelectionTransformPreview | null>(null);
-  const [selectionTransformAngleDegrees, setSelectionTransformAngleDegrees] = useState(0);
   const [diagnosticHudExpanded, setDiagnosticHudExpanded] = useState(false);
-  const cpPreviewRequestRef = useRef(0);
-  const lastFocusedDiagnosticRef = useRef<string | null>(null);
   const defaultCpToolDocumentRef = useRef<string | null>(null);
-  const selectionRotateDragRef = useRef<CpSelectionRotationDrag | null>(null);
-  const selectionMoveDragRef = useRef<CpSelectionMoveDrag | null>(null);
-  const selectionResizeDragRef = useRef<CpSelectionResizeDrag | null>(null);
-  const foldedFigureMoveDragRef = useRef<FoldedFigureMoveDrag | null>(null);
   const restoredNativeCanvasModelRef = useRef<string | null>(null);
   const cpToolDragRef = useRef<{
     operationId: OristudioCpCommandDefinition['operationId'];
@@ -1451,14 +853,6 @@ export function CreasePatternPanel() {
     points: Point[];
     replaceSelection?: boolean;
     textId?: number;
-  } | null>(null);
-  // Oriedita's universal right-button-drag erase: dragging a box with the right
-  // mouse button deletes every crease in that region (any line type), and a
-  // plain right-click deletes the crease under the cursor. Works with any tool.
-  const rightEraseDragRef = useRef<{
-    pointerId: number;
-    startPoint: Point;
-    currentPoint: Point;
   } | null>(null);
 
   const project = useWorkspaceStore((state) => state.project);
@@ -1488,13 +882,9 @@ export function CreasePatternPanel() {
   // Crease lines always use Oriedita's default M/V/flat/border coloring; the
   // color-by toggle has been removed from the CP panel header.
   const mode = 'mvf' as const;
-  const selection = useWorkspaceStore((state) => state.selection);
-  const select = useWorkspaceStore((state) => state.select);
+  const currentTheme = useThemeStore((state) => state.currentTheme);
   const toggleOristudioCpLineSelection = useWorkspaceStore(
     (state) => state.toggleOristudioCpLineSelection
-  );
-  const toggleOristudioCpVertexSelection = useWorkspaceStore(
-    (state) => state.toggleOristudioCpVertexSelection
   );
   const toggleOristudioCpPointSelection = useWorkspaceStore(
     (state) => state.toggleOristudioCpPointSelection
@@ -1567,9 +957,6 @@ export function CreasePatternPanel() {
 
   const editableCp = oristudioCpDocument?.document ?? null;
   const editableCpHandle = oristudioCpDocument?.handle ?? null;
-  // Identifies a genuine document load; stable across edits and undo/redo so the
-  // viewport auto-fit does not re-run when history is restored in place.
-  const editableCpLoadSerial = oristudioCpDocument?.loadSerial ?? null;
   const editableCpSummary = oristudioCpDocument?.summary ?? null;
   const nativeActiveLineColor = useMemo(
     () => activeLineColorFromOrieditaMetadata(editableCp?.metadata),
@@ -1587,9 +974,6 @@ export function CreasePatternPanel() {
     () => orieditaCameraFromMetadata(editableCp?.metadata),
     [editableCp?.metadata]
   );
-  const cpCanvasRect = editableCp ? CP_EDITABLE_CANVAS_RECT : CP_WORLD_RECT;
-  const cpFitRect = editableCp ? CP_EDITABLE_FIT_RECT : CP_WORLD_RECT;
-  const cpCanvasViewBox = `${cpCanvasRect.x} ${cpCanvasRect.y} ${cpCanvasRect.width} ${cpCanvasRect.height}`;
   const editableCpBounds = ORIEDITA_PAPER_BOUNDS;
   const editableModelToSvg = useCallback(
     (point: Point) =>
@@ -1629,15 +1013,6 @@ export function CreasePatternPanel() {
   // unavailable (initial paint before fit, jsdom tests). Mirrors the previous
   // fixed-world extent so a grid is always present; the live layer widens this
   // to the visible viewport once a screen CTM is available.
-  const editableCpFallbackGridBounds = useMemo(() => {
-    const corners = [
-      { x: cpCanvasRect.x, y: cpCanvasRect.y },
-      { x: cpCanvasRect.x + cpCanvasRect.width, y: cpCanvasRect.y },
-      { x: cpCanvasRect.x, y: cpCanvasRect.y + cpCanvasRect.height },
-      { x: cpCanvasRect.x + cpCanvasRect.width, y: cpCanvasRect.y + cpCanvasRect.height },
-    ].map((point) => editableSvgToModel(point));
-    return expandedModelBoundsFromPoints(corners, 0);
-  }, [cpCanvasRect, editableSvgToModel]);
   const editableCpGridWidth = useMemo(
     () =>
       editableCp
@@ -1747,30 +1122,60 @@ export function CreasePatternPanel() {
     if (!activeFoldedFigure) return;
     void deleteOristudioCpFoldedFigure(activeFoldedFigure.id);
   }, [activeFoldedFigure, deleteOristudioCpFoldedFigure]);
-  const editableCpVertices = useMemo(() => getCpVertices(editableCp), [editableCp]);
+  // Vertex dots: dedup crease-segment endpoints — the top main-thread cost after an
+  // edit on dense patterns. Dedup straight from the transport's typed arrays
+  // (parity-proven identical to getCpVertexPoints); the structured fallback only runs
+  // for a state that carries no geometry.
+  const editableCpGeometry = oristudioCpDocument?.geometry ?? null;
+  const editableCpVertexPoints = useMemo(
+    () =>
+      editableCpGeometry
+        ? vertexPointsFromTransport(editableCpGeometry)
+        : getCpVertexPoints(editableCp),
+    [editableCp, editableCpGeometry]
+  );
   const importedFoldedForms = useMemo(
     () =>
       (importedCreasePattern?.sourceFold?.file_frames ?? [])
         .filter(isRenderableFoldedFormFrame),
     [importedCreasePattern?.sourceFold]
   );
+  // WebGL geometry for the imported .fold folded-form frames: faces → fills, edges →
+  // strokes in SVG user coords (via the same row layout as the SVG layer), so the
+  // surface can draw them through its `userView` like the generated folded figures.
+  const cpImportedFoldedFormsGeometry = useMemo<FoldedGeometry | null>(() => {
+    void currentTheme;
+    if (importedFoldedForms.length === 0) return null;
+    const startIndex = generatedFoldedFigures.filter(isRenderableGeneratedFoldedFigure).length;
+    const faceColor: Rgba = [1, 1, 50 / 255, 0.58]; // matches .cp-folded-form-face (#ffff32 @ .58)
+    const tp = readCssVarColor(document.documentElement, '--text-primary', [0.9, 0.9, 0.9, 1]);
+    const mix = (c: number) => c * 0.84 + 0.067 * 0.16; // color-mix(text-primary 84%, #111)
+    const edgeColor: Rgba = [mix(tp[0]), mix(tp[1]), mix(tp[2]), 0.86];
+    const faces: { ring: Point[]; color: Rgba }[] = [];
+    const edges: { a: Point; b: Point; color: Rgba; width: number }[] = [];
+    importedFoldedForms.forEach((frame, index) => {
+      const vertices = foldFrameVertices(frame);
+      const bounds = foldFrameBounds(vertices);
+      if (!bounds) return;
+      const toUser = (point: Point) => foldedFormPointToSvg(point, bounds, startIndex + index);
+      for (const face of foldFrameFaces(frame, vertices)) {
+        faces.push({ ring: face.map(toUser), color: faceColor });
+      }
+      for (const [a, b] of foldFrameEdges(frame, vertices)) {
+        edges.push({ a: toUser(a), b: toUser(b), color: edgeColor, width: 1.15 });
+      }
+    });
+    return foldedGeometryFromShapes(faces, edges);
+  }, [importedFoldedForms, generatedFoldedFigures, currentTheme]);
   const camvIssuesVisible = oristudioCpViewport.camvIssuesVisible !== false;
   const hasEditableCreasePattern = !!editableCp;
   const hasCreasePattern =
     hasEditableCreasePattern || project.creases.length > 0 || project.facets.length > 0;
   const editableSelectionSize = cpSelectionSize(oristudioCpSelection);
-  const editableSelectionLineKey = oristudioCpSelection.lines.join(',');
   const selectedEditableCpLines = useMemo(
     () => selectedCpLineSegments(editableCp, oristudioCpSelection),
     [editableCp, oristudioCpSelection]
   );
-  const selectionTransformFrame = useMemo(
-    () =>
-      selectionRotationPreview?.frame ??
-      cpLineSelectionFrame(selectedEditableCpLines, selectionTransformAngleDegrees),
-    [selectedEditableCpLines, selectionRotationPreview, selectionTransformAngleDegrees]
-  );
-  const cpUiScale = 100 / Math.max(zoomPercent, 1);
   const activeCpAction = useMemo(
     () => (cpToolState.activeActionId ? cpActionById(cpToolState.activeActionId) : undefined),
     [cpToolState.activeActionId]
@@ -1783,125 +1188,6 @@ export function CreasePatternPanel() {
         : undefined;
     },
     [activeCpAction, cpToolState.activeOperationId]
-  );
-  const activeCpInputMode = useMemo(
-    () => activeActionInputMode(activeCpAction, activeCpCommand),
-    [activeCpAction, activeCpCommand]
-  );
-  const visibleSelectionTransformFrame = isDefaultSelectionMode(
-    cpToolState,
-    cpToolPoints.length,
-    cpToolPath.length
-  )
-    ? selectionTransformFrame
-    : null;
-  const eraseHoverLineId = useMemo(() => {
-    if (
-      cpToolState.activeOperationId !== 'LineSegmentDelete' ||
-      cpToolState.phase !== 'active' ||
-      !editableCp ||
-      !cursorModelPoint
-    ) {
-      return null;
-    }
-    const id = nearestEditableCpLineId(
-      editableCp,
-      cursorModelPoint,
-      modelSelectionDistance(editableCpBounds, zoomPercent / 100)
-    );
-    if (id === null) return null;
-    const segment = editableCp.crease_pattern.line_segments[id - 1];
-    if (
-      segment &&
-      !lineColorMatchesCustomType(segment.color, cpToolOptions.customLineType)
-    ) {
-      return null;
-    }
-    return id;
-  }, [
-    cpToolState.activeOperationId,
-    cpToolState.phase,
-    editableCp,
-    cursorModelPoint,
-    editableCpBounds,
-    zoomPercent,
-    cpToolOptions.customLineType,
-  ]);
-  const highlightedEditableLineIds = useMemo(
-    () => [
-      ...pendingSquareBisectorLineIds,
-      ...(pendingLengthenLineId === null ? [] : [pendingLengthenLineId]),
-      ...(eraseHoverLineId === null ? [] : [eraseHoverLineId]),
-    ],
-    [pendingLengthenLineId, pendingSquareBisectorLineIds, eraseHoverLineId]
-  );
-  const liveCommandPreviewPoints = useMemo(() => {
-    if (cpToolPath.length > 0) return cpToolPath;
-    if (!activeCpCommand || cpToolState.phase !== 'active') return cpToolPoints;
-    if (isVariablePointSequenceOperation(activeCpCommand.operationId)) return cpToolPoints;
-    const stepCount = activeCpCommand.toolSteps?.length ?? 0;
-    const livePoint = snapTarget?.point ?? cursorModelPoint;
-    if (stepCount === 0 || !livePoint || cpToolPoints.length === 0) return cpToolPoints;
-    return [...cpToolPoints, livePoint].slice(0, stepCount);
-  }, [activeCpCommand, cpToolPath, cpToolPoints, cpToolState.phase, cursorModelPoint, snapTarget]);
-  const localDragLinePreviewSegments = useMemo<OristudioCpLineSegment[]>(() => {
-    if (activeCpInputMode !== 'drag-line' || liveCommandPreviewPoints.length < 2) return [];
-    const a = liveCommandPreviewPoints[0];
-    const b = liveCommandPreviewPoints[1];
-    if (!a || !b) return [];
-    return [
-      {
-        a,
-        b,
-        color: activeCpLineColor,
-        active: 'Inactive0',
-        selected: 0,
-        customized: 0,
-        customized_color: { red: 0, green: 0, blue: 0 },
-      },
-    ];
-  }, [activeCpInputMode, activeCpLineColor, liveCommandPreviewPoints]);
-  const baseRenderedCommandPreviewPoints = useMemo(
-    () =>
-      activeCpInputMode === 'drag-line' ||
-      activeCpInputMode === 'drag-box' ||
-      isVariablePointSequenceOperation(activeCpCommand?.operationId)
-        ? []
-        : liveCommandPreviewPoints,
-    [activeCpCommand?.operationId, activeCpInputMode, liveCommandPreviewPoints]
-  );
-  const baseRenderedCommandPreviewSegments = useMemo(
-    () =>
-      localDragLinePreviewSegments.length > 0
-        ? localDragLinePreviewSegments
-        : (cpCommandPreview?.segments ?? []),
-    [cpCommandPreview?.segments, localDragLinePreviewSegments]
-  );
-  const renderedCommandPreviewBox = useMemo(
-    () =>
-      activeCpInputMode === 'drag-box' &&
-      liveCommandPreviewPoints[0] &&
-      liveCommandPreviewPoints[1]
-        ? ([liveCommandPreviewPoints[0], liveCommandPreviewPoints[1]] as const)
-        : null,
-    [activeCpInputMode, liveCommandPreviewPoints]
-  );
-  const renderedCommandPreviewBoxes = useMemo(
-    () => [
-      ...(renderedCommandPreviewBox ? [renderedCommandPreviewBox] : []),
-      ...(rightEraseBox ? [rightEraseBox] : []),
-    ],
-    [renderedCommandPreviewBox, rightEraseBox]
-  );
-  const renderedCommandPreviewPoints = baseRenderedCommandPreviewPoints;
-  const renderedCommandPreviewSegments = baseRenderedCommandPreviewSegments;
-  const renderedCommandPreviewCircles = useMemo(
-    () => cpCommandPreview?.circles ?? [],
-    [cpCommandPreview?.circles]
-  );
-  const renderedCommandCandidatePoints = useMemo(
-    () => cpCommandPreview?.points ?? [],
-    [cpCommandPreview?.points]
   );
   const squareBisectorToolPrompt =
     isSquareBisectorOperation(activeCpCommand?.operationId) &&
@@ -1932,6 +1218,46 @@ export function CreasePatternPanel() {
     if (visibleLatestCommandDiagnosticEntries.length === 0) return camvDiagnosticEntries;
     return [...camvDiagnosticEntries, ...visibleLatestCommandDiagnosticEntries];
   }, [camvDiagnosticEntries, lastCommandResult?.operation, visibleLatestCommandDiagnosticEntries]);
+  // WebGL diagnostic overlay geometry (markers + segment highlights). Rebuilt when
+  // the entries or theme change; the tone colours read the current theme's CSS vars.
+  const cpDiagnosticGeometry = useMemo(() => {
+    void currentTheme;
+    const toneColors = resolveCpDiagnosticToneColors(document.documentElement);
+    return {
+      markers: buildCpDiagnosticMarkers(latestDiagnosticEntries, toneColors),
+      strokes: buildCpDiagnosticStrokes(latestDiagnosticEntries, toneColors),
+      wedges: buildCpDiagnosticWedges(latestDiagnosticEntries, toneColors),
+      hits: buildCpDiagnosticMarkerHits(latestDiagnosticEntries),
+    };
+  }, [latestDiagnosticEntries, currentTheme]);
+  // Oriedita operation-frame outline for the WebGL surface: a dashed accent-coloured
+  // closed loop (SVG `.cp-operation-frame`), or null when no frame is active.
+  const cpOperationFrameStrokes = useMemo<StrokeGeometry | null>(() => {
+    void currentTheme;
+    const frame = editableCp?.operation_frame;
+    if (!frame?.active) return null;
+    const color = readCssVarColor(document.documentElement, '--accent-primary', [0.4, 0.6, 1, 1]);
+    const p = frame.points;
+    const edges: [Point, Point][] = [
+      [p[0], p[1]],
+      [p[1], p[2]],
+      [p[2], p[3]],
+      [p[3], p[0]],
+    ];
+    const count = edges.length;
+    const a = new Float32Array(count * 2);
+    const b = new Float32Array(count * 2);
+    const colors = new Float32Array(count * 4);
+    const widthMul = new Float32Array(count).fill(1);
+    edges.forEach(([start, end], i) => {
+      a[i * 2] = start.x;
+      a[i * 2 + 1] = start.y;
+      b[i * 2] = end.x;
+      b[i * 2 + 1] = end.y;
+      colors.set(color, i * 4);
+    });
+    return { a, b, color: colors, widthMul, count, dashed: true };
+  }, [editableCp?.operation_frame, currentTheme]);
   const diagnosticStatus = useMemo(
     () => {
       const camvStatus = camvIssuesVisible
@@ -1962,6 +1288,15 @@ export function CreasePatternPanel() {
       latestDiagnosticEntries.find((entry) => entry.id === oristudioCpActiveDiagnosticId) ?? null,
     [latestDiagnosticEntries, oristudioCpActiveDiagnosticId]
   );
+  // Model bounds of the selected diagnostic, for the WebGL surface to frame in its
+  // owned camera (the SVG focus effect drives the SVG transform, not the GL camera).
+  const cpDiagnosticFocusBounds = useMemo(() => {
+    if (!activeDiagnosticEntry) return null;
+    const bounds = diagnosticEntryBounds(activeDiagnosticEntry);
+    return bounds
+      ? { minX: bounds.minX, minY: bounds.minY, maxX: bounds.maxX, maxY: bounds.maxY }
+      : null;
+  }, [activeDiagnosticEntry]);
   const buildCpCommandPayload = useCallback(
     (
       command: OristudioCpCommandDefinition,
@@ -2010,50 +1345,6 @@ export function CreasePatternPanel() {
     );
   }, [cpToolState.phase, editableCp, editableCpHandle, nativeActiveMouseMode, projectLoadId]);
 
-  useEffect(() => {
-    if (
-      !editableCp ||
-      !activeCpCommand ||
-      activeCpCommand.uiStatus !== 'ready' ||
-      cpToolState.phase !== 'active' ||
-      isCpMeasurementOperation(activeCpCommand.operationId) ||
-      activeCpInputMode === 'drag-path' ||
-      activeCpInputMode === 'drag-line' ||
-      activeCpInputMode === 'drag-box' ||
-      (liveCommandPreviewPoints.length === 0 &&
-        !canPreviewFromSelection(activeCpCommand, oristudioCpSelection))
-    ) {
-      cpPreviewRequestRef.current += 1;
-      setCpCommandPreview(null);
-      return;
-    }
-
-    const requestId = cpPreviewRequestRef.current + 1;
-    cpPreviewRequestRef.current = requestId;
-    void previewOristudioCpCommand(
-      activeCpCommand.operationId,
-      buildCpCommandPayload(activeCpCommand, {
-        line_ids: oristudioCpSelection.lines,
-        circle_ids: oristudioCpSelection.circles,
-        points: liveCommandPreviewPoints,
-      })
-    ).then((preview) => {
-      if (cpPreviewRequestRef.current === requestId) {
-        setCpCommandPreview(preview);
-      }
-    });
-  }, [
-    activeCpCommand,
-    activeCpInputMode,
-    buildCpCommandPayload,
-    cpToolState.phase,
-    editableCp,
-    liveCommandPreviewPoints,
-    oristudioCpSelection.circles,
-    oristudioCpSelection.lines,
-    oristudioCpSelection,
-    previewOristudioCpCommand,
-  ]);
 
   const handleCpToolAction = useCallback(
     (action: OristudioCpActionDefinition) => {
@@ -2067,7 +1358,6 @@ export function CreasePatternPanel() {
       setCpToolPoints([]);
       setCpToolPath([]);
       setPendingSquareBisectorLineIds([]);
-      setCpCommandPreview(null);
       cpToolDragRef.current = null;
       setCpToolState((state) =>
         transitionOristudioCpToolState(state, {
@@ -2179,7 +1469,6 @@ export function CreasePatternPanel() {
       );
       if (succeeded && activeCpCommand.operationId === 'VoronoiCreate') {
         setCpToolPoints([]);
-        setCpCommandPreview(null);
       }
       setCpToolState((state) =>
         state.activeOperationId === activeCpCommand.operationId
@@ -2210,7 +1499,6 @@ export function CreasePatternPanel() {
   const handleClearActiveContextInput = useCallback(() => {
     if (!activeCpCommand || activeCpCommand.operationId !== 'VoronoiCreate') return;
     setCpToolPoints([]);
-    setCpCommandPreview(null);
     setCpToolState((state) =>
       state.activeOperationId === activeCpCommand.operationId
         ? transitionOristudioCpToolState(state, { type: 'cancel', keepActive: true })
@@ -2269,115 +1557,6 @@ export function CreasePatternPanel() {
     setOristudioCpSelection,
   ]);
 
-  const eventToEditableSvgPoint = useCallback(
-    (event: Pick<PointerEvent<Element>, 'clientX' | 'clientY'>): Point | null => {
-      const svg = svgRef.current;
-      if (!svg || !editableCp) return null;
-      const bounds = svg.getBoundingClientRect();
-      if (bounds.width <= 0 || bounds.height <= 0) return null;
-      return {
-        x: cpCanvasRect.x + ((event.clientX - bounds.left) / bounds.width) * cpCanvasRect.width,
-        y: cpCanvasRect.y + ((event.clientY - bounds.top) / bounds.height) * cpCanvasRect.height,
-      };
-    },
-    [cpCanvasRect, editableCp]
-  );
-
-  const eventToEditableModelPoint = useCallback(
-    (event: Pick<PointerEvent<Element>, 'clientX' | 'clientY'>): Point | null => {
-      const svgPoint = eventToEditableSvgPoint(event);
-      if (!svgPoint) return null;
-      return editableSvgToModel(svgPoint);
-    },
-    [editableSvgToModel, eventToEditableSvgPoint]
-  );
-
-  const resolveEditableToolPoint = useCallback(
-    (event: PointerEvent<SVGElement>, preferPointSnap = false): Point | null => {
-      if (!editableCp) return null;
-      const modelPoint = eventToEditableModelPoint(event);
-      if (!modelPoint) return null;
-      const selectionDistance = modelSelectionDistance(editableCpBounds, zoomPercent / 100);
-      const target = preferPointSnap
-        ? nearestOrieditaDrawPointTarget(
-            editableCp,
-            modelPoint,
-            editableCpBounds,
-            oristudioCpViewport,
-            selectionDistance
-          )
-        : nearestCpSnapTarget(
-            editableCp,
-            modelPoint,
-            editableCpBounds,
-            oristudioCpViewport,
-            selectionDistance
-          );
-      return target?.point ?? modelPoint;
-    },
-    [editableCp, editableCpBounds, eventToEditableModelPoint, oristudioCpViewport, zoomPercent]
-  );
-
-  const resolveEditableDrawPoint = useCallback(
-    (
-      event: PointerEvent<SVGElement>,
-      requireSnap: boolean
-    ): { point: Point; target: CpSnapTarget | null } | null => {
-      if (!editableCp) return null;
-      const modelPoint = eventToEditableModelPoint(event);
-      if (!modelPoint) return null;
-      const target = nearestOrieditaDrawPointTarget(
-        editableCp,
-        modelPoint,
-        editableCpBounds,
-        oristudioCpViewport,
-        modelSelectionDistance(editableCpBounds, zoomPercent / 100)
-      );
-      if (!target && requireSnap) return null;
-      return { point: target?.point ?? modelPoint, target };
-    },
-    [editableCp, editableCpBounds, eventToEditableModelPoint, oristudioCpViewport, zoomPercent]
-  );
-
-  const handleSelectionTransform = useCallback(
-    (transform: CpSelectionTransform) => {
-      const resolvedTransform =
-        transform.kind === 'rotate' && !transform.center && selectionTransformFrame
-          ? { ...transform, center: selectionTransformFrame.center }
-          : transform;
-      void transformOristudioCpSelection(resolvedTransform).then((succeeded) => {
-        if (succeeded && resolvedTransform.kind === 'rotate') {
-          setSelectionTransformAngleDegrees((current) =>
-            normalizeSelectionTransformAngle(current + resolvedTransform.angleDegrees)
-          );
-        }
-      });
-    },
-    [selectionTransformFrame, transformOristudioCpSelection]
-  );
-
-  const updateSelectionRotationPreview = useCallback(
-    (drag: CpSelectionRotationDrag, point: Point, snap: boolean) => {
-      const rawAngle =
-        rotationAngleFromCenter(drag.center, point) - drag.startAngleDegrees;
-      const angleDegrees = snap ? snapRotationDegrees(rawAngle) : rawAngle;
-      const segments = transformCpLineSegments(drag.sourceLines, {
-        kind: 'rotate',
-        angleDegrees,
-        center: drag.center,
-      });
-      const frame = cpLineSelectionFrame(
-        segments,
-        selectionTransformAngleDegrees + angleDegrees
-      );
-      drag.currentAngleDegrees = angleDegrees;
-      if (frame) {
-        setSelectionRotationPreview({ kind: 'rotate', angleDegrees, segments, frame });
-      }
-    },
-    [selectionTransformAngleDegrees]
-  );
-
   const selectionMoveSnapDocument = useMemo<OristudioCpDocumentSnapshot | null>(() => {
     if (!editableCp || oristudioCpSelection.lines.length === 0) return null;
     const selectedLineIds = new Set(oristudioCpSelection.lines);
@@ -2392,674 +1571,197 @@ export function CreasePatternPanel() {
     };
   }, [editableCp, oristudioCpSelection.lines]);
 
-  const updateSelectionMovePreview = useCallback(
-    (drag: CpSelectionMoveDrag, point: Point) => {
-      const rawDelta = {
-        x: point.x - drag.startPoint.x,
-        y: point.y - drag.startPoint.y,
-      };
-      let delta = rawDelta;
-      let snappedTarget: CpSnapTarget | null = null;
+  // Snap a move-drag delta to grid/vertices/lines for the WebGL surface. The
+  // caller supplies the tolerance in model units (from its own camera) so the
+  // snap radius stays a fixed screen distance. Mirrors the SVG snap in
+  // updateSelectionMovePreview, but returns the adjusted delta instead of
+  // driving SVG preview state.
+  const resolveEditableMoveSnap = useCallback(
+    (
+      rawDelta: Point,
+      toleranceModel: number
+    ): { delta: Point; snapLabel: string | null } => {
       const snappingEnabled =
         oristudioCpViewport.snapToGrid ||
         oristudioCpViewport.snapToVertices ||
         oristudioCpViewport.snapToLines;
-
-      if (selectionMoveSnapDocument && snappingEnabled) {
-        const translated = translateCpLineSegments(drag.sourceLines, rawDelta);
-        const anchorPoints = cpLineSelectionMoveAnchorPoints(
-          translated,
-          selectionTransformAngleDegrees
+      if (!snappingEnabled || !selectionMoveSnapDocument) {
+        return { delta: rawDelta, snapLabel: null };
+      }
+      const translated = translateCpLineSegments(selectedEditableCpLines, rawDelta);
+      const anchorPoints = cpLineSelectionMoveAnchorPoints(translated, 0);
+      let best: { target: CpSnapTarget; anchorPoint: Point } | null = null;
+      for (const anchorPoint of anchorPoints) {
+        const target = nearestCpSnapTarget(
+          selectionMoveSnapDocument,
+          anchorPoint,
+          editableCpBounds,
+          oristudioCpViewport,
+          toleranceModel
         );
-        const maxDistance = modelSelectionDistance(editableCpBounds, zoomPercent / 100);
-        let best:
-          | {
-              target: CpSnapTarget;
-              anchorPoint: Point;
-            }
-          | null = null;
-        for (const anchorPoint of anchorPoints) {
-          const target = nearestCpSnapTarget(
-            selectionMoveSnapDocument,
-            anchorPoint,
-            editableCpBounds,
-            oristudioCpViewport,
-            maxDistance
-          );
-          if (!target) continue;
-          if (!best || target.distance < best.target.distance) {
-            best = { target, anchorPoint };
-          }
-        }
-        if (best) {
-          snappedTarget = best.target;
-          delta = {
-            x: rawDelta.x + best.target.point.x - best.anchorPoint.x,
-            y: rawDelta.y + best.target.point.y - best.anchorPoint.y,
-          };
-        }
+        if (!target) continue;
+        if (!best || target.distance < best.target.distance) best = { target, anchorPoint };
       }
-
-      const segments = translateCpLineSegments(drag.sourceLines, delta);
-      const frame = cpLineSelectionFrame(segments, selectionTransformAngleDegrees);
-      drag.currentDelta = delta;
-      setCursorModelPoint(point);
-      setSnapTarget(snappedTarget);
-      if (frame) {
-        setSelectionRotationPreview({
-          kind: 'translate',
-          delta,
-          snapLabel: snappedTarget?.label ?? null,
-          segments,
-          frame,
-        });
-      }
-    },
-    [
-      editableCpBounds,
-      oristudioCpViewport,
-      selectionMoveSnapDocument,
-      selectionTransformAngleDegrees,
-      zoomPercent,
-    ]
-  );
-
-  const updateSelectionResizePreview = useCallback(
-    (drag: CpSelectionResizeDrag, point: Point) => {
-      const transform = resizeTransformForPoint(
-        drag.frame,
-        drag.handle,
-        point,
-        modelSelectionDistance(editableCpBounds, zoomPercent / 100) / 2
-      );
-      const segments = scaleCpLineSegments(
-        drag.sourceLines,
-        transform.frame,
-        transform.anchor,
-        transform.scaleX,
-        transform.scaleY
-      );
-      const frame = cpLineSelectionFrame(segments, drag.frame.angleDegrees);
-      drag.currentTransform = transform;
-      setCursorModelPoint(point);
-      setSnapTarget(null);
-      if (frame) {
-        setSelectionRotationPreview({
-          kind: 'scale',
-          scaleX: transform.scaleX,
-          scaleY: transform.scaleY,
-          segments,
-          frame,
-        });
-      }
-    },
-    [editableCpBounds, zoomPercent]
-  );
-
-  const handleSelectionRotatePointerDown = useCallback(
-    (event: PointerEvent<Element>) => {
-      if (event.button !== 0 || spacePressed || !editableCp || selectedEditableCpLines.length === 0) {
-        return;
-      }
-      const frame = selectionTransformFrame;
-      const point = eventToEditableModelPoint(event);
-      if (!frame || !point) return;
-      event.preventDefault();
-      event.stopPropagation();
-      selectionRotateDragRef.current = {
-        pointerId: event.pointerId,
-        center: frame.center,
-        startAngleDegrees: rotationAngleFromCenter(frame.center, point),
-        sourceLines: selectedEditableCpLines,
-        currentAngleDegrees: 0,
+      if (!best) return { delta: rawDelta, snapLabel: null };
+      return {
+        delta: {
+          x: rawDelta.x + best.target.point.x - best.anchorPoint.x,
+          y: rawDelta.y + best.target.point.y - best.anchorPoint.y,
+        },
+        snapLabel: best.target.label,
       };
-      svgRef.current?.setPointerCapture?.(event.pointerId);
-      setSelectionRotationPreview({
-        kind: 'rotate',
-        angleDegrees: 0,
-        segments: selectedEditableCpLines,
-        frame,
-      });
     },
-    [editableCp, eventToEditableModelPoint, selectedEditableCpLines, selectionTransformFrame, spacePressed]
+    [editableCpBounds, oristudioCpViewport, selectedEditableCpLines, selectionMoveSnapDocument]
   );
 
-  const handleSelectionMovePointerDown = useCallback(
-    (event: PointerEvent<Element>) => {
-      if (event.button !== 0 || spacePressed || !editableCp || selectedEditableCpLines.length === 0) {
-        return;
-      }
-      const frame = selectionTransformFrame;
-      const point = eventToEditableModelPoint(event);
-      if (!frame || !point) return;
-      if (event.shiftKey || event.metaKey || event.ctrlKey) {
-        const lineId = nearestEditableCpLineId(
-          editableCp,
-          point,
-          modelSelectionDistance(editableCpBounds, zoomPercent / 100)
-        );
-        if (lineId !== null) {
-          event.preventDefault();
-          event.stopPropagation();
-          toggleOristudioCpLineSelection(lineId, true);
-        }
-        return;
-      }
-      event.preventDefault();
-      event.stopPropagation();
-      selectionMoveDragRef.current = {
-        pointerId: event.pointerId,
-        startPoint: point,
-        sourceLines: selectedEditableCpLines,
-        currentDelta: { x: 0, y: 0 },
-      };
-      svgRef.current?.setPointerCapture?.(event.pointerId);
-      setSelectionRotationPreview({
-        kind: 'translate',
-        delta: { x: 0, y: 0 },
-        snapLabel: null,
-        segments: selectedEditableCpLines,
-        frame,
-      });
-    },
-    [
-      editableCp,
-      editableCpBounds,
-      eventToEditableModelPoint,
-      selectedEditableCpLines,
-      selectionTransformFrame,
-      spacePressed,
-      toggleOristudioCpLineSelection,
-      zoomPercent,
-    ]
-  );
-
-  const handleSelectionResizePointerDown = useCallback(
-    (handle: CpSelectionResizeHandle, event: PointerEvent<Element>) => {
-      if (event.button !== 0 || spacePressed || !editableCp || selectedEditableCpLines.length === 0) {
-        return;
-      }
-      const frame = selectionTransformFrame;
-      const point = eventToEditableModelPoint(event);
-      if (!frame || !point) return;
-      event.preventDefault();
-      event.stopPropagation();
-      const transform = resizeTransformForPoint(
-        frame,
-        handle,
-        point,
-        modelSelectionDistance(editableCpBounds, zoomPercent / 100) / 2
-      );
-      selectionResizeDragRef.current = {
-        pointerId: event.pointerId,
-        frame,
-        handle,
-        sourceLines: selectedEditableCpLines,
-        currentTransform: transform,
-      };
-      svgRef.current?.setPointerCapture?.(event.pointerId);
-      setSelectionRotationPreview({
-        kind: 'scale',
-        scaleX: transform.scaleX,
-        scaleY: transform.scaleY,
-        segments: selectedEditableCpLines,
-        frame,
-      });
-    },
-    [
-      editableCp,
-      editableCpBounds,
-      eventToEditableModelPoint,
-      selectedEditableCpLines,
-      selectionTransformFrame,
-      spacePressed,
-      zoomPercent,
-    ]
-  );
-
-  const handleFoldedFigurePointerDown = useCallback(
-    (figureId: string, event: PointerEvent<Element>) => {
-      if (event.button !== 0 || spacePressed || !editableCp) return;
-      event.preventDefault();
-      event.stopPropagation();
-      setOristudioCpActiveFoldedFigure(figureId);
-
-      if (!event.metaKey && !event.ctrlKey) return;
-      const svgPoint = eventToEditableSvgPoint(event);
-      if (!svgPoint) return;
-      foldedFigureMoveDragRef.current = {
-        pointerId: event.pointerId,
-        figureId,
-        lastSvgPoint: svgPoint,
-      };
-      svgRef.current?.setPointerCapture?.(event.pointerId);
-    },
-    [
-      editableCp,
-      eventToEditableSvgPoint,
-      setOristudioCpActiveFoldedFigure,
-      spacePressed,
-    ]
-  );
-
-  const updateEditablePointerStatus = useCallback(
-    (event: PointerEvent<SVGElement>) => {
-      if (!editableCp) return;
-      if (viewportPanningRef.current || spacePressed || (event.buttons & 4) !== 0) {
-        setCursorModelPoint(null);
-        setSnapTarget(null);
-        return;
-      }
-      const modelPoint = eventToEditableModelPoint(event);
-      setCursorModelPoint(modelPoint);
-      if (modelPoint && activeCpInputMode === 'drag-line') {
-        setSnapTarget(
-          nearestOrieditaDrawPointTarget(
-            editableCp,
-            modelPoint,
-            editableCpBounds,
-            oristudioCpViewport,
-            modelSelectionDistance(editableCpBounds, zoomPercent / 100)
-          )
-        );
-        return;
-      }
-      const preferPointSnap =
-        activeCpCommand && shouldPreferPointSnapForStep(activeCpCommand, cpToolPoints.length);
-      setSnapTarget(
-        modelPoint
-          ? preferPointSnap
-            ? nearestOrieditaDrawPointTarget(
-                editableCp,
-                modelPoint,
-                editableCpBounds,
-                oristudioCpViewport,
-                modelSelectionDistance(editableCpBounds, zoomPercent / 100)
-              )
-            : nearestCpSnapTarget(
-                editableCp,
-                modelPoint,
-                editableCpBounds,
-                oristudioCpViewport,
-                modelSelectionDistance(editableCpBounds, zoomPercent / 100)
-              )
-          : null
-      );
-    },
-    [
-      activeCpCommand,
-      activeCpInputMode,
-      cpToolPoints.length,
-      editableCp,
-      editableCpBounds,
-      eventToEditableModelPoint,
-      oristudioCpViewport,
-      spacePressed,
-      zoomPercent,
-    ]
-  );
-
-  const handleViewportTransformed = useCallback(
-    (_ref: ReactZoomPanPinchRef, state: { scale: number }) => {
-      // Keep the infinite grid aligned with the visible viewport on every
-      // transform (pan, zoom, pinch, programmatic fit).
-      gridSyncRef.current?.();
-      const nextZoomPercent = Math.round(state.scale * 100);
-      if (zoomPercentRef.current === nextZoomPercent) return;
-      zoomPercentRef.current = nextZoomPercent;
-      setZoomPercent(nextZoomPercent);
-    },
-    []
-  );
-
-  const handleViewportPanning = useCallback(() => {
-    gridSyncRef.current?.();
-  }, []);
-
-  const handleViewportPanStart = useCallback(() => {
-    viewportPanningRef.current = true;
-    setCursorModelPoint(null);
-    setSnapTarget(null);
-  }, []);
-
-  const handleViewportPanStop = useCallback(() => {
-    viewportPanningRef.current = false;
-    // Grid regeneration was frozen during the gesture; refill it for the final
-    // viewport now that panning has ended.
-    gridSyncRef.current?.();
-  }, []);
-
-  // Erase the crease nearest a model-space point (Oriedita right-drag delete).
-  // Filter-free: the right-drag gesture removes any crease it sweeps over.
-  const eraseCreaseAtModelPoint = useCallback(
-    (point: Point) => {
-      if (!editableCp) return;
-      const id = nearestEditableCpLineId(
+  // WebGL draw tools: snap a raw model draw point to nearby geometry (the surface
+  // supplies its camera-derived tolerance), mirroring resolveEditableDrawPoint.
+  const resolveEditableDrawModelPoint = useCallback(
+    (rawPoint: Point, toleranceModel: number): { point: Point; snapped: boolean } => {
+      if (!editableCp) return { point: rawPoint, snapped: false };
+      const target = nearestOrieditaDrawPointTarget(
         editableCp,
-        point,
-        modelSelectionDistance(editableCpBounds, zoomPercent / 100)
+        rawPoint,
+        editableCpBounds,
+        oristudioCpViewport,
+        toleranceModel
       );
-      if (id === null) return;
-      void executeOristudioCpCommand('LineSegmentDelete', { line_ids: [id] });
+      // Report whether the point locked onto a grid point / vertex, so a restricted
+      // draw can reject a start/end that doesn't snap.
+      return { point: target?.point ?? rawPoint, snapped: target !== null };
     },
-    [editableCp, editableCpBounds, executeOristudioCpCommand, zoomPercent]
+    [editableCp, editableCpBounds, oristudioCpViewport]
   );
 
-  const handleEditableToolPointerDown = useCallback(
-    (event: PointerEvent<SVGElement>) => {
-      const foldedFigureId = foldedFigureIdFromEventTarget(event.target);
-      if (foldedFigureId) {
-        handleFoldedFigurePointerDown(foldedFigureId, event);
-        return;
-      }
-
-      // Oriedita's universal right-button-drag erase (box-select-and-delete a
-      // region, any line type) works with any tool active.
-      if (
-        event.button === 2 &&
-        editableCp &&
-        !spacePressed &&
-        !isViewportInteractiveTarget(event.target) &&
-        !isCpSelectionTransformEventTarget(event.target)
-      ) {
-        const point = eventToEditableModelPoint(event);
-        if (!point) return;
-        event.preventDefault();
-        event.stopPropagation();
-        rightEraseDragRef.current = {
-          pointerId: event.pointerId,
-          startPoint: point,
-          currentPoint: point,
-        };
-        event.currentTarget.setPointerCapture?.(event.pointerId);
-        setRightEraseBox([point, point]);
-        return;
-      }
-
-      if (
-        event.button !== 0 ||
-        spacePressed ||
-        isViewportInteractiveTarget(event.target) ||
-        isCpSelectionTransformEventTarget(event.target) ||
-        !editableCp ||
-        !activeCpCommand ||
-        activeCpCommand.uiStatus !== 'ready' ||
-        cpToolState.phase !== 'active'
-      ) {
-        return;
-      }
-      const stepCount = activeCpCommand.toolSteps?.length ?? 0;
-      if (
-        stepCount === 0 &&
-        isCircleTangentPointOperation(activeCpCommand.operationId) &&
-        oristudioCpSelection.circles.length === 1
-      ) {
-        const point = resolveEditableToolPoint(event);
-        if (!point) return;
-        event.preventDefault();
-        event.stopPropagation();
-        void (async () => {
-          const succeeded = await executeOristudioCpCommand(
-            activeCpCommand.operationId,
-            buildCpCommandPayload(activeCpCommand, {
-              circle_ids: oristudioCpSelection.circles,
-              points: [point],
-            })
-          );
-          setCpToolState((state) =>
-            state.activeOperationId === activeCpCommand.operationId
-              ? transitionOristudioCpToolState(
-                  state,
-                  succeeded
-                    ? { type: 'commit', keepActive: true }
-                    : {
-                        type: 'commandError',
-                        message:
-                          useWorkspaceStore.getState().oristudioCpError ?? 'Command failed',
-                      }
-                )
-              : state
-          );
-        })();
-        return;
-      }
-      if (stepCount === 0) return;
-      if (
-        (isLineClickSelectionOperation(activeCpCommand.operationId) ||
-          isCreaseToggleMvClickTool(activeCpCommand.operationId)) &&
-        isCpLineEventTarget(event.target)
-      ) {
-        // Clicking a crease should flip it via the line click handler; let the
-        // pointerdown fall through so a box drag only starts on empty canvas.
-        return;
-      }
-      if (
-        isReflectSelectionOperation(activeCpCommand.operationId) &&
-        cpToolPoints.length === 0 &&
-        isCpLineEventTarget(event.target)
-      ) {
-        return;
-      }
-      if (isLengthenCreaseOperation(activeCpCommand.operationId)) {
-        if (isCpLineEventTarget(event.target)) return;
-        event.preventDefault();
-        event.stopPropagation();
-        return;
-      }
-      if (
-        isSquareBisectorOperation(activeCpCommand.operationId) &&
-        isCpLineEventTarget(event.target) &&
-        (cpToolPoints.length === 0 || pendingSquareBisectorLineIds.length > 0)
-      ) {
-        return;
-      }
-      if (
-        isSquareBisectorOperation(activeCpCommand.operationId) &&
-        pendingSquareBisectorLineIds.length > 0
-      ) {
-        event.preventDefault();
-        event.stopPropagation();
-        return;
-      }
-      if (
-        allowsDirectEntitySelection(activeCpCommand.operationId) &&
-        isCpSelectableEntityEventTarget(event.target)
-      ) {
-        return;
-      }
-
-      if (isTextAnnotationOperation(activeCpCommand.operationId)) {
-        const point = eventToEditableModelPoint(event);
-        if (!point) return;
-        event.preventDefault();
-        event.stopPropagation();
-        const textId = cpTextIdFromEventTarget(event.target);
-        if (textId) {
-          const text = editableCp.crease_pattern.texts[textId - 1];
-          setOristudioCpSelection({ ...emptyOristudioCpSelection(), texts: [textId] });
-          if (text) {
-            setCpToolOptions((current) => ({ ...current, textContent: text.text }));
-          }
-          cpToolDragRef.current = {
-            operationId: activeCpCommand.operationId,
-            actionId: activeCpAction?.kind === 'command' ? activeCpAction.id : null,
-            mode: 'text-drag',
-            pointerId: event.pointerId,
-            points: [point],
-            textId,
-          };
-          if (typeof event.pointerId === 'number') {
-            event.currentTarget.setPointerCapture?.(event.pointerId);
-          }
-          return;
-        }
-
-        void (async () => {
-          const previousTextCount = editableCp.crease_pattern.texts.length;
-          const succeeded = await executeOristudioCpCommand(
-            activeCpCommand.operationId,
-            buildCpCommandPayload(activeCpCommand, {
-              text_action: 'Create',
-              text_content: cpToolOptions.textContent,
-              points: [point],
-            })
-          );
-          if (succeeded) {
-            const nextTextCount =
-              useWorkspaceStore.getState().oristudioCpDocument?.document.crease_pattern.texts
-                .length ?? previousTextCount;
-            if (nextTextCount > previousTextCount) {
-              setOristudioCpSelection({
-                ...emptyOristudioCpSelection(),
-                texts: [nextTextCount],
-              });
-            }
-          }
-          setCpToolState((state) =>
-            state.activeOperationId === activeCpCommand.operationId
-              ? transitionOristudioCpToolState(
-                  state,
-                  succeeded
-                    ? { type: 'commit', keepActive: true }
-                    : {
-                        type: 'commandError',
-                        message:
-                          useWorkspaceStore.getState().oristudioCpError ?? 'Command failed',
-                      }
-                )
-              : state
-          );
-        })();
-        return;
-      }
-
-      if (isVariablePointSequenceOperation(activeCpCommand.operationId)) {
-        const point = eventToEditableModelPoint(event);
-        if (!point) return;
-        event.preventDefault();
-        event.stopPropagation();
-        setCpToolPoints((current) => [...current, point]);
-        setCpToolState((state) =>
-          state.activeOperationId === activeCpCommand.operationId
-            ? transitionOristudioCpToolState(state, { type: 'advanceStep' })
-            : state
-        );
-        return;
-      }
-
-      if (activeCpInputMode === 'drag-line') {
-        const resolved = resolveEditableDrawPoint(
-          event,
-          isRestrictedDrawOperation(activeCpCommand.operationId)
-        );
-        if (!resolved) return;
-        event.preventDefault();
-        event.stopPropagation();
-        cpToolDragRef.current = {
-          operationId: activeCpCommand.operationId,
-          actionId: activeCpAction?.kind === 'command' ? activeCpAction.id : null,
-          mode: 'drag-line',
-          pointerId: event.pointerId,
-          points: [resolved.point],
-        };
-        if (typeof event.pointerId === 'number') {
-          event.currentTarget.setPointerCapture?.(event.pointerId);
-        }
-        setSnapTarget(resolved.target);
-        setCpToolPoints([resolved.point]);
-        setCpToolPath([resolved.point]);
-        return;
-      }
-
-      if (activeCpInputMode === 'drag-box') {
-        const point = eventToEditableModelPoint(event);
-        if (!point) return;
-        event.preventDefault();
-        event.stopPropagation();
-        cpToolDragRef.current = {
-          operationId: activeCpCommand.operationId,
-          actionId: activeCpAction?.kind === 'command' ? activeCpAction.id : null,
-          mode: 'drag-box',
-          pointerId: event.pointerId,
-          points: [point],
-          replaceSelection: !(event.shiftKey || event.metaKey || event.ctrlKey),
-        };
-        if (typeof event.pointerId === 'number') {
-          event.currentTarget.setPointerCapture?.(event.pointerId);
-        }
-        setCpToolPoints([point]);
-        setCpToolPath([point]);
-        return;
-      }
-
-      if (activeCpInputMode === 'drag-path') {
-        const point = eventToEditableModelPoint(event);
-        if (!point) return;
-        event.preventDefault();
-        event.stopPropagation();
-        cpToolDragRef.current = {
-          operationId: activeCpCommand.operationId,
-          actionId: activeCpAction?.kind === 'command' ? activeCpAction.id : null,
-          mode: 'drag-path',
-          pointerId: event.pointerId,
-          points: [point],
-        };
-        if (typeof event.pointerId === 'number') {
-          event.currentTarget.setPointerCapture?.(event.pointerId);
-        }
-        setCpToolPath([point]);
-        return;
-      }
-
-      const point = resolveEditableToolPoint(
-        event,
-        shouldPreferPointSnapForStep(activeCpCommand, cpToolPoints.length)
+  // Crease steps: snap the point onto the nearest crease (forcing line/vertex
+  // snapping) so the kernel resolves that crease from the point.
+  const resolveEditableDrawPointOnCrease = useCallback(
+    (rawPoint: Point, toleranceModel: number): { point: Point; snappedToVertex: boolean } => {
+      if (!editableCp) return { point: rawPoint, snappedToVertex: false };
+      const target = nearestCpSnapTarget(
+        editableCp,
+        rawPoint,
+        editableCpBounds,
+        { ...oristudioCpViewport, snapToLines: true, snapToVertices: true },
+        toleranceModel
       );
-      if (!point) return;
+      // Report whether we snapped to a crease *junction* (a vertex where multiple
+      // creases meet). The surface highlights the single line under any other snap
+      // (line interior, or a grid point that lies on a line) but suppresses the
+      // highlight at a junction, where which crease is meant is ambiguous.
+      return { point: target?.point ?? rawPoint, snappedToVertex: target?.kind === 'vertex' };
+    },
+    [editableCp, editableCpBounds, oristudioCpViewport]
+  );
 
-      event.preventDefault();
-      event.stopPropagation();
-      const nextPoints = [...cpToolPoints, point];
+  // "First click decides" classifier for the dual-mode tools (Mirror Line, Square
+  // Bisector), mirroring Oriedita's `getClosestPoint` vs `getClosestLineSegment`
+  // logic: the nearest snappable *point* — vertices AND grid points (per the snapping
+  // setting) — wins ties, and a line only wins when it is *strictly* closer. Grid
+  // inclusion is what lets a click land as a point even when it sits on a crease (a
+  // grid point on the paper edge), instead of being read as a line selection; the
+  // strict-closer rule keeps a bare mid-crease click a line. Point/vertex ties still
+  // resolve to point mode, so Mirror Line's "click a vertex" path is unchanged.
+  const resolveEditableFirstPickKind = useCallback(
+    (rawPoint: Point, toleranceModel: number): 'point' | 'line' => {
+      if (!editableCp) return 'point';
+      const point = nearestOrieditaDrawPointTarget(
+        editableCp,
+        rawPoint,
+        editableCpBounds,
+        { ...oristudioCpViewport, snapToVertices: true },
+        toleranceModel
+      );
+      const line = nearestCpSnapTarget(
+        editableCp,
+        rawPoint,
+        editableCpBounds,
+        { ...oristudioCpViewport, snapToLines: true, snapToVertices: false, snapToGrid: false },
+        toleranceModel
+      );
+      if (line?.kind === 'line' && (!point || line.distance < point.distance)) return 'line';
+      return 'point';
+    },
+    [editableCp, editableCpBounds, oristudioCpViewport]
+  );
 
-      if (nextPoints.length < stepCount) {
-        setCpToolPoints(nextPoints);
-        setCpToolState((state) =>
-          state.activeOperationId === activeCpCommand.operationId
-            ? transitionOristudioCpToolState(state, { type: 'advanceStep' })
-            : state
-        );
-        return;
-      }
+  // WebGL draw tools: commit a tool's collected points through the kernel command
+  // (creases are resolved kernel-side from the points), then keep it active.
+  const handleWebglToolCommit = useCallback(
+    (commit: { points?: readonly Point[]; lineIds?: readonly number[]; additive?: boolean }) => {
+      const command = activeCpCommand;
+      if (!command || command.uiStatus !== 'ready') return;
+      const points = commit.points ?? [];
+      const pickedLineIds = commit.lineIds ?? [];
+      // Line-entity tools (Lengthen) commit the picked crease ids as `line_ids`
+      // and carry no points; the kernel operates on those creases directly. Every
+      // other tool's engine only commits once it has its full point count, so any
+      // non-empty point list is valid — including 1-point tools (DrawPoint,
+      // DeletePoint, tangent-through-point, …). Reject only an empty commit.
+      const isLineEntityCommit = pickedLineIds.length > 0 && points.length === 0;
+      if (!isLineEntityCommit && points.length === 0) return;
 
-      const measurementSlot = cpMeasurementSlotForOperation(activeCpCommand.operationId);
+      // Measure tools are non-mutating: never execute (the kernel has no execute arm
+      // by design). Ask the kernel for the exact length/angle at the committed points
+      // and store it in the panel slot; then just finalize the tool state.
+      const measurementSlot = cpMeasurementSlotForOperation(command.operationId);
       if (measurementSlot) {
-        const value = computeCpMeasurementValue(activeCpCommand.operationId, nextPoints);
-        if (value === null) return;
-        setCpMeasurementSlots((current) => ({
-          ...current,
-          [measurementSlot]: value,
-        }));
-        setCpToolPoints([]);
+        void previewOristudioCpCommand(
+          command.operationId,
+          buildCpCommandPayload(command, { points: [...points] })
+        ).then((preview) => {
+          const value = preview?.measurement;
+          if (value != null) {
+            setCpMeasurementSlots((current) => ({ ...current, [measurementSlot]: value }));
+          }
+        });
         setCpToolState((state) =>
-          state.activeOperationId === activeCpCommand.operationId
+          state.activeOperationId === command.operationId
             ? transitionOristudioCpToolState(state, { type: 'commit', keepActive: true })
             : state
         );
         return;
       }
-
-      setCpToolPoints([]);
       void (async () => {
         const succeeded = await executeOristudioCpCommand(
-          activeCpCommand.operationId,
-          buildCpCommandPayload(activeCpCommand, {
-            line_ids: oristudioCpSelection.lines,
+          command.operationId,
+          buildCpCommandPayload(command, {
+            // Line-entity commits send the picked ids. Box select/unselect, flip,
+            // and erase resolve their region from the box *points* kernel-side and
+            // must send empty line_ids — CreaseSelect prioritises line_ids over the
+            // box, so passing the prior selection would re-select it instead of the
+            // new region. Other tools carry the prior selection as their input.
+            line_ids:
+              isLineEntityCommit
+                ? [...pickedLineIds]
+                : isCreaseToggleMvClickTool(command.operationId) ||
+                    isLineEraseClickTool(command.operationId) ||
+                    isLineClickSelectionOperation(command.operationId) ||
+                    // Square Bisector's point mode resolves everything from its 4
+                    // points; the kernel routes to line mode when line_ids has ≥3, so
+                    // never leak the ambient selection into it.
+                    command.operationId === 'SquareBisector' ||
+                    // Lengthen commits a 3-point selection line + target; the kernel
+                    // prioritises line_ids ≥ 2, so a stray ambient selection would
+                    // hijack it into the click-pick path. Send its points alone.
+                    isLengthenCreaseOperation(command.operationId)
+                  ? []
+                  : oristudioCpSelection.lines,
             circle_ids: oristudioCpSelection.circles,
-            points: nextPoints,
+            points: [...points],
+            // A plain box/lasso/polygon select replaces the selection; holding a
+            // modifier (additive) adds to it. The kernel selects are additive by
+            // default, so the replace is done kernel-side when this is true.
+            replace_selection:
+              command.operationId === 'CreaseSelect' ||
+              command.operationId === 'SelectLasso' ||
+              command.operationId === 'SelectPolygon'
+                ? !commit.additive
+                : undefined,
           })
         );
         setCpToolState((state) =>
-          state.activeOperationId === activeCpCommand.operationId
+          state.activeOperationId === command.operationId
             ? transitionOristudioCpToolState(
                 state,
                 succeeded
@@ -3074,411 +1776,231 @@ export function CreasePatternPanel() {
       })();
     },
     [
-      activeCpAction,
       activeCpCommand,
-      activeCpInputMode,
       buildCpCommandPayload,
-      cpToolPoints,
-      cpToolOptions.textContent,
-      cpToolState.phase,
+      executeOristudioCpCommand,
+      previewOristudioCpCommand,
+      oristudioCpSelection.circles,
+      oristudioCpSelection.lines,
+    ]
+  );
+
+  // Drive the step prompt for a WebGL line-entity tool (Lengthen) in lock-step
+  // with the creases it has picked: derive the step from the pick count (reset,
+  // then advance once per pick) so the prompt reads "Select target line" after the
+  // first pick — parity with the SVG, whose `pendingLengthenLineId` advances it.
+  const handleWebglToolPickProgress = useCallback(
+    (picked: number) => {
+      const command = activeCpCommand;
+      if (!command || command.uiStatus !== 'ready') return;
+      setCpToolState((state) => {
+        if (state.activeOperationId !== command.operationId) return state;
+        let next = transitionOristudioCpToolState(state, { type: 'cancel', keepActive: true });
+        for (let i = 0; i < picked; i += 1) {
+          next = transitionOristudioCpToolState(next, { type: 'advanceStep' });
+        }
+        return next;
+      });
+    },
+    [activeCpCommand]
+  );
+
+  // Only crease-drawing tools preview in the active line colour; select / toggle /
+  // transform box + lasso tools preview in the neutral selection accent so a
+  // "select crease" box doesn't look like a red crease.
+  const toolPreviewColor = useMemo(
+    () =>
+      activeCpCommand?.group === 'draw'
+        ? resolveCpLineColor(activeCpLineColor, mode, document.documentElement)
+        : readCssVarColor(document.documentElement, '--accent-primary', [0.4, 0.6, 1, 1] as const),
+    [activeCpCommand?.group, activeCpLineColor, mode]
+  );
+
+  // The active tool's WebGL routing from its declarative steps: a drag mode; a
+  // click-based `sequence` with a per-step kind (free point vs picked crease); or
+  // null. A step that is neither cleanly a point nor a crease (e.g. Square
+  // bisector's "2 segments or 3 points"), or variable-length / text ops, is
+  // excluded until it gets dedicated handling.
+  const webglActiveTool = useMemo<{
+    mode: 'drag-line' | 'drag-box' | 'drag-path' | 'sequence' | 'line-entity' | 'lengthen' | null;
+    stepKinds: ('point' | 'crease' | 'candidate')[];
+    lineCount: number;
+    dualMirror: boolean;
+    converging: boolean;
+    squareBisector: boolean;
+    voronoi: boolean;
+  }>(() => {
+    const idle = {
+      mode: null,
+      stepKinds: [] as ('point' | 'crease' | 'candidate')[],
+      lineCount: 0,
+      dualMirror: false,
+      converging: false,
+      squareBisector: false,
+      voronoi: false,
+    };
+    if (!activeCpCommand || activeCpCommand.uiStatus !== 'ready' || cpToolState.phase !== 'active') {
+      return idle;
+    }
+    const im = activeCpCommand.inputMode;
+    if (im === 'drag-line' || im === 'drag-box' || im === 'drag-path') {
+      return { ...idle, mode: im };
+    }
+    // Mirror Line branches per first pick between a 3-point sequence and a 2-line
+    // sequence, so its step kinds are decided on the canvas at press time — not
+    // statically from the registry. Flag it and leave stepKinds empty.
+    if (activeCpCommand.operationId === 'SymmetricDraw') {
+      return { ...idle, mode: 'sequence', dualMirror: true };
+    }
+    // Converging Lines (angle-restricted): first pick is a crease OR two points →
+    // its two endpoints are the base; then pick one of the ray *intersections* those
+    // endpoints generate. A bespoke canvas handler drives it (dual first click +
+    // candidate-point converge), so leave stepKinds empty and flag it.
+    if (activeCpCommand.operationId === 'DrawCreaseAngleRestricted') {
+      return { ...idle, mode: 'sequence', converging: true };
+    }
+    // Square Bisector: dual first pick — a point starts 3-point mode (3 points + a
+    // destination crease), a crease starts 2-line mode (2 source creases + a
+    // destination crease). A bespoke canvas handler drives both (modes A + B).
+    if (activeCpCommand.operationId === 'SquareBisector') {
+      return { ...idle, mode: 'sequence', squareBisector: true };
+    }
+    // Voronoi: click to add/toggle seed points (kernel snaps + toggles + rebuilds the
+    // whole diagram from the accumulated click list); the diagram + seeds render as a
+    // live preview, then the contextual Apply button commits. A bespoke canvas handler
+    // just accumulates clicks into `cpToolPoints`.
+    if (activeCpCommand.operationId === 'VoronoiCreate') {
+      return { ...idle, mode: 'sequence', voronoi: true };
+    }
+    // Everything below is driven by the explicit per-operation registry — never
+    // by the step-prompt text. Line-entity (Lengthen) picks crease ids; point-
+    // sequence and axis-from-line (Reflect) collect points with the registry's
+    // per-step snap; other models (circle-apply, line-click-mutate, bespoke,
+    // select-apply) have no dedicated engine yet.
+    // CircleDrawTangentLine with exactly one circle selected: click a point to draw
+    // the tangent from that circle through it (a synthetic 1-point sequence). With
+    // 2+ circles it is an Apply-button op instead, handled off-canvas.
+    if (
+      activeCpCommand.operationId === 'CircleDrawTangentLine' &&
+      oristudioCpSelection.circles.length === 1
+    ) {
+      return { ...idle, mode: 'sequence', stepKinds: ['point'] };
+    }
+    const inputModel = cpInputModel(activeCpCommand.operationId);
+    if (inputModel?.model === 'line-entity') {
+      return { ...idle, mode: 'line-entity', lineCount: inputModel.lineCount ?? 2 };
+    }
+    // Lengthen: drag the selection line, then click the target line. A bespoke drag
+    // handler on the canvas drives both gestures and commits 3 points.
+    if (inputModel?.model === 'lengthen') {
+      return { ...idle, mode: 'lengthen' };
+    }
+    if (
+      (inputModel?.model === 'point-sequence' || inputModel?.model === 'axis-from-line') &&
+      inputModel.snapPerStep
+    ) {
+      return { ...idle, mode: 'sequence', stepKinds: [...inputModel.snapPerStep] };
+    }
+    return idle;
+  }, [activeCpCommand, cpToolState.phase, oristudioCpSelection.circles.length]);
+
+  // Sequence-tool live preview for the WebGL surface: kernel-computed candidate
+  // segments from the live points + picked/hovered creases, plus a highlight of
+  // those creases. Picked creases show immediately; the kernel result merges in.
+  const [webglToolPreviewSegments, setWebglToolPreviewSegments] = useState<
+    readonly { a: Point; b: Point }[]
+  >([]);
+  // Kernel-computed candidate *points* (e.g. Converging Lines ray intersections)
+  // rendered as pickable dots on the canvas, separate from candidate segments.
+  const [webglToolPreviewPoints, setWebglToolPreviewPoints] = useState<readonly Point[]>([]);
+  const webglPreviewRequestRef = useRef(0);
+  const handleWebglToolPreviewInput = useCallback(
+    (points: readonly Point[], highlightLineIds: readonly number[]) => {
+      const command = activeCpCommand;
+      // The passed ids are the hovered crease(s) — highlight only. The kernel
+      // resolves creases from the points, so its payload carries the selection.
+      const highlight = highlightLineIds
+        .map((id) => editableCp?.crease_pattern.line_segments[id - 1])
+        .filter((s): s is OristudioCpLineSegment => Boolean(s))
+        .map((s) => ({ a: s.a, b: s.b }));
+      if (!command || points.length === 0) {
+        webglPreviewRequestRef.current += 1;
+        setWebglToolPreviewSegments(highlight);
+        setWebglToolPreviewPoints([]);
+        return;
+      }
+      setWebglToolPreviewSegments(highlight);
+      const requestId = ++webglPreviewRequestRef.current;
+      void previewOristudioCpCommand(
+        command.operationId,
+        buildCpCommandPayload(command, {
+          line_ids: oristudioCpSelection.lines,
+          circle_ids: oristudioCpSelection.circles,
+          points: [...points],
+        })
+      ).then((preview) => {
+        if (webglPreviewRequestRef.current !== requestId) return;
+        const kernel = (preview?.segments ?? []).map((s) => ({ a: s.a, b: s.b }));
+        const rings = (preview?.circles ?? []).flatMap((c) => cpCircleRingSegments(c.x, c.y, c.r));
+        // Also highlight any existing crease the previewed line actually lands on
+        // (its kernel-computed endpoints), so an angle-constrained draw that snaps
+        // to an intersection lights up that crease even though the cursor point is
+        // off it. `highlight` already covers tools whose point snaps onto the line.
+        const onCreaseEps = editableCpBounds.spanX * 1e-3;
+        // Exclude the already-placed points (all but the live cursor) so only the
+        // crease the *active* endpoint snaps to lights up — a crease under a fixed
+        // anchor must not stay pinned.
+        const anchors = points.slice(0, -1);
+        const snapped = editableCp
+          ? cpCreasesUnderPreviewEndpoints(
+              kernel,
+              anchors,
+              editableCp.crease_pattern.line_segments,
+              onCreaseEps
+            )
+          : [];
+        setWebglToolPreviewSegments([...kernel, ...rings, ...highlight, ...snapped]);
+        setWebglToolPreviewPoints(preview?.points ?? []);
+        // Measure tools: surface the kernel-computed length/angle into its panel slot
+        // live as points are placed (the value is Oriedita-parity math, not recomputed
+        // in JS). Only update once the kernel actually returns a value.
+        const measurementSlot = cpMeasurementSlotForOperation(command.operationId);
+        const measurement = preview?.measurement;
+        if (measurementSlot && measurement != null) {
+          setCpMeasurementSlots((current) => ({ ...current, [measurementSlot]: measurement }));
+        }
+      });
+    },
+    [
+      activeCpCommand,
+      buildCpCommandPayload,
       editableCp,
-      eventToEditableModelPoint,
-      executeOristudioCpCommand,
-      handleFoldedFigurePointerDown,
+      editableCpBounds,
       oristudioCpSelection.circles,
       oristudioCpSelection.lines,
-      pendingSquareBisectorLineIds.length,
-      resolveEditableDrawPoint,
-      resolveEditableToolPoint,
-      setOristudioCpSelection,
-      spacePressed,
+      previewOristudioCpCommand,
     ]
   );
 
-  const handleEditablePointerMove = useCallback(
-    (event: PointerEvent<SVGElement>) => {
-      const rightEraseDrag = rightEraseDragRef.current;
-      if (rightEraseDrag && rightEraseDrag.pointerId === event.pointerId) {
-        const point = eventToEditableModelPoint(event);
-        if (!point) return;
-        event.preventDefault();
-        event.stopPropagation();
-        rightEraseDrag.currentPoint = point;
-        setRightEraseBox([rightEraseDrag.startPoint, point]);
-        return;
-      }
-      const foldedFigureMoveDrag = foldedFigureMoveDragRef.current;
-      if (foldedFigureMoveDrag && foldedFigureMoveDrag.pointerId === event.pointerId) {
-        const svgPoint = eventToEditableSvgPoint(event);
-        if (!svgPoint) return;
-        event.preventDefault();
-        event.stopPropagation();
-        const delta = {
-          x: svgPoint.x - foldedFigureMoveDrag.lastSvgPoint.x,
-          y: svgPoint.y - foldedFigureMoveDrag.lastSvgPoint.y,
-        };
-        foldedFigureMoveDrag.lastSvgPoint = svgPoint;
-        moveOristudioCpFoldedFigure(foldedFigureMoveDrag.figureId, delta);
-        return;
-      }
-      const selectionRotateDrag = selectionRotateDragRef.current;
-      if (selectionRotateDrag && selectionRotateDrag.pointerId === event.pointerId) {
-        const point = eventToEditableModelPoint(event);
-        if (!point) return;
-        event.preventDefault();
-        event.stopPropagation();
-        updateSelectionRotationPreview(selectionRotateDrag, point, event.shiftKey);
-        return;
-      }
-      const selectionMoveDrag = selectionMoveDragRef.current;
-      if (selectionMoveDrag && selectionMoveDrag.pointerId === event.pointerId) {
-        const point = eventToEditableModelPoint(event);
-        if (!point) return;
-        event.preventDefault();
-        event.stopPropagation();
-        updateSelectionMovePreview(selectionMoveDrag, point);
-        return;
-      }
-      const selectionResizeDrag = selectionResizeDragRef.current;
-      if (selectionResizeDrag && selectionResizeDrag.pointerId === event.pointerId) {
-        const point = eventToEditableModelPoint(event);
-        if (!point) return;
-        event.preventDefault();
-        event.stopPropagation();
-        updateSelectionResizePreview(selectionResizeDrag, point);
-        return;
-      }
-      updateEditablePointerStatus(event);
-      const drag = cpToolDragRef.current;
-      if (!drag || drag.pointerId !== event.pointerId) return;
-      if (drag.mode === 'text-drag') {
-        const point = eventToEditableModelPoint(event);
-        const startPoint = drag.points[0];
-        if (!point || !startPoint) return;
-        drag.points = [startPoint, point];
-        return;
-      }
-      if (drag.mode === 'drag-line') {
-        const resolved = resolveEditableDrawPoint(event, false);
-        const startPoint = drag.points[0];
-        if (!resolved || !startPoint) return;
-        drag.points = [startPoint, resolved.point];
-        setSnapTarget(resolved.target);
-        setCpToolPath(drag.points);
-        return;
-      }
-      if (drag.mode === 'drag-box') {
-        const point = eventToEditableModelPoint(event);
-        const startPoint = drag.points[0];
-        if (!point || !startPoint) return;
-        drag.points = [startPoint, point];
-        setCpToolPath(drag.points);
-        return;
-      }
-      const point = eventToEditableModelPoint(event);
-      if (!point) return;
-      const last = drag.points.at(-1);
-      if (
-        last &&
-        pointDistanceSquared(last, point) <
-          modelSelectionDistance(editableCpBounds, zoomPercent / 100) ** 2 / 16
-      ) {
-        return;
-      }
-      drag.points = [...drag.points, point];
-      setCpToolPath(drag.points);
+  // WebGL Voronoi seed clicks: mirror them into `cpToolPoints` (the source the
+  // contextual Apply button commits) and drive the live diagram preview. The kernel
+  // snaps/toggles/rebuilds from the accumulated click list, so we just pass it along.
+  const handleWebglVoronoiSeeds = useCallback(
+    (seeds: readonly Point[]) => {
+      setCpToolPoints([...seeds]);
+      handleWebglToolPreviewInput(seeds, []);
     },
-    [
-      editableCpBounds,
-      eventToEditableModelPoint,
-      eventToEditableSvgPoint,
-      moveOristudioCpFoldedFigure,
-      resolveEditableDrawPoint,
-      updateSelectionMovePreview,
-      updateSelectionResizePreview,
-      updateSelectionRotationPreview,
-      updateEditablePointerStatus,
-      zoomPercent,
-    ]
+    [handleWebglToolPreviewInput]
   );
 
-  const finishEditableDragPath = useCallback(
-    (event: PointerEvent<SVGElement>) => {
-      const rightEraseDrag = rightEraseDragRef.current;
-      if (rightEraseDrag && rightEraseDrag.pointerId === event.pointerId) {
-        event.preventDefault();
-        event.stopPropagation();
-        const { startPoint, currentPoint } = rightEraseDrag;
-        rightEraseDragRef.current = null;
-        setRightEraseBox(null);
-        event.currentTarget.releasePointerCapture?.(event.pointerId);
-        const clickThreshold =
-          modelSelectionDistance(editableCpBounds, zoomPercent / 100) ** 2 / 16;
-        if (pointDistanceSquared(startPoint, currentPoint) < clickThreshold) {
-          // Plain right-click: erase the crease under the cursor (any type).
-          eraseCreaseAtModelPoint(currentPoint);
-        } else {
-          // Right-drag: box-select and delete the region (any line type). The
-          // empty line_ids makes the kernel resolve the box, and omitting
-          // custom_line_type erases every crease inside it.
-          void executeOristudioCpCommand('LineSegmentDelete', {
-            line_ids: [],
-            points: [startPoint, currentPoint],
-          });
-        }
-        return;
-      }
-      const foldedFigureMoveDrag = foldedFigureMoveDragRef.current;
-      if (foldedFigureMoveDrag && foldedFigureMoveDrag.pointerId === event.pointerId) {
-        event.preventDefault();
-        event.stopPropagation();
-        foldedFigureMoveDragRef.current = null;
-        svgRef.current?.releasePointerCapture?.(event.pointerId);
-        return;
-      }
-      const selectionRotateDrag = selectionRotateDragRef.current;
-      if (selectionRotateDrag && selectionRotateDrag.pointerId === event.pointerId) {
-        event.preventDefault();
-        event.stopPropagation();
-        const point = eventToEditableModelPoint(event);
-        if (point) {
-          updateSelectionRotationPreview(selectionRotateDrag, point, event.shiftKey);
-        }
-        const angleDegrees = selectionRotateDrag.currentAngleDegrees;
-        selectionRotateDragRef.current = null;
-        setSelectionRotationPreview(null);
-        svgRef.current?.releasePointerCapture?.(event.pointerId);
-        if (Math.abs(angleDegrees) > 0.001) {
-          void transformOristudioCpSelection({
-            kind: 'rotate',
-            angleDegrees,
-            center: selectionRotateDrag.center,
-          }).then((succeeded) => {
-            if (succeeded) {
-              setSelectionTransformAngleDegrees((current) =>
-                normalizeSelectionTransformAngle(current + angleDegrees)
-              );
-            }
-          });
-        }
-        return;
-      }
-      const selectionMoveDrag = selectionMoveDragRef.current;
-      if (selectionMoveDrag && selectionMoveDrag.pointerId === event.pointerId) {
-        event.preventDefault();
-        event.stopPropagation();
-        const point = eventToEditableModelPoint(event);
-        if (point) {
-          updateSelectionMovePreview(selectionMoveDrag, point);
-        }
-        const delta = selectionMoveDrag.currentDelta;
-        selectionMoveDragRef.current = null;
-        setSelectionRotationPreview(null);
-        setSnapTarget(null);
-        svgRef.current?.releasePointerCapture?.(event.pointerId);
-        if (pointDistanceSquared({ x: 0, y: 0 }, delta) > 1e-10) {
-          void transformOristudioCpSelection({ kind: 'translate', delta });
-        }
-        return;
-      }
-      const selectionResizeDrag = selectionResizeDragRef.current;
-      if (selectionResizeDrag && selectionResizeDrag.pointerId === event.pointerId) {
-        event.preventDefault();
-        event.stopPropagation();
-        const point = eventToEditableModelPoint(event);
-        if (point) {
-          updateSelectionResizePreview(selectionResizeDrag, point);
-        }
-        const transform = selectionResizeDrag.currentTransform;
-        selectionResizeDragRef.current = null;
-        setSelectionRotationPreview(null);
-        setSnapTarget(null);
-        svgRef.current?.releasePointerCapture?.(event.pointerId);
-        if (
-          transform &&
-          (Math.abs(transform.scaleX - 1) > 0.001 || Math.abs(transform.scaleY - 1) > 0.001)
-        ) {
-          void transformOristudioCpSelection(transform);
-        }
-        return;
-      }
-      const drag = cpToolDragRef.current;
-      if (!drag || drag.pointerId !== event.pointerId) return;
-      event.preventDefault();
-      event.stopPropagation();
-      const command = cpCommandByOperation(drag.operationId);
-      if (!command) {
-        cpToolDragRef.current = null;
-        setCpToolPath([]);
-        setCpToolPoints([]);
-        return;
-      }
-      const finalResolution =
-        drag.mode === 'drag-line'
-          ? resolveEditableDrawPoint(event, isRestrictedDrawOperation(drag.operationId))
-          : null;
-      const finalPoint =
-        drag.mode === 'drag-line' ? finalResolution?.point : eventToEditableModelPoint(event);
-      const points =
-        drag.mode === 'drag-line'
-          ? drag.points[0] && finalPoint
-            ? [drag.points[0], finalPoint]
-            : drag.points.slice(0, 1)
-          : finalPoint &&
-              !drag.points.some((point) => pointDistanceSquared(point, finalPoint) < 1e-12)
-            ? [...drag.points, finalPoint]
-            : drag.points;
-      cpToolDragRef.current = null;
-      if (typeof event.pointerId === 'number') {
-        event.currentTarget.releasePointerCapture?.(event.pointerId);
-      }
-      if (drag.mode === 'text-drag') {
-        const [startPoint, endPoint] = drag.points;
-        if (
-          !drag.textId ||
-          !startPoint ||
-          !endPoint ||
-          pointDistanceSquared(startPoint, endPoint) <
-            modelSelectionDistance(editableCpBounds, zoomPercent / 100) ** 2 / 16
-        ) {
-          return;
-        }
-
-        void (async () => {
-          const succeeded = await executeOristudioCpCommand(
-            command.operationId,
-            buildCpCommandPayload(command, {
-              text_action: 'Move',
-              text_ids: [drag.textId as number],
-              points: [startPoint, endPoint],
-            })
-          );
-          setCpToolState((state) =>
-            state.activeOperationId === command.operationId
-              ? transitionOristudioCpToolState(
-                  state,
-                  succeeded
-                    ? { type: 'commit', keepActive: true }
-                    : {
-                        type: 'commandError',
-                        message:
-                          useWorkspaceStore.getState().oristudioCpError ?? 'Command failed',
-                      }
-                )
-              : state
-          );
-        })();
-        return;
-      }
-      setCpToolPath([]);
-      setCpToolPoints([]);
-      if (points.length < 2) {
-        setCpToolState((state) =>
-          state.activeOperationId === command.operationId
-            ? transitionOristudioCpToolState(state, {
-                type: 'cancel',
-                keepActive: drag.mode === 'drag-line' || drag.mode === 'drag-box',
-              })
-            : state
-        );
-        return;
-      }
-
-      void (async () => {
-        const succeeded = await executeOristudioCpCommand(
-          command.operationId,
-          buildCpCommandPayload(command, {
-            // The flip and eraser tools operate on the boxed lines, never on a
-            // prior selection, so they always resolve the box on the kernel side.
-            line_ids:
-              isCreaseToggleMvClickTool(drag.operationId) ||
-              isLineEraseClickTool(drag.operationId)
-                ? []
-                : oristudioCpSelection.lines,
-            circle_ids: oristudioCpSelection.circles,
-            points,
-            replace_selection:
-              drag.operationId === 'CreaseSelect' ? drag.replaceSelection : undefined,
-          })
-        );
-        setCpToolState((state) =>
-          state.activeOperationId === command.operationId
-            ? transitionOristudioCpToolState(
-                state,
-                succeeded
-                  ? {
-                      type: 'commit',
-                      keepActive: true,
-                    }
-                  : {
-                      type: 'commandError',
-                      message: useWorkspaceStore.getState().oristudioCpError ?? 'Command failed',
-                    }
-              )
-            : state
-        );
-      })();
-    },
-    [
-      buildCpCommandPayload,
-      editableCpBounds,
-      eraseCreaseAtModelPoint,
-      eventToEditableModelPoint,
-      executeOristudioCpCommand,
-      oristudioCpSelection.circles,
-      oristudioCpSelection.lines,
-      resolveEditableDrawPoint,
-      transformOristudioCpSelection,
-      updateSelectionMovePreview,
-      updateSelectionResizePreview,
-      updateSelectionRotationPreview,
-      zoomPercent,
-    ]
-  );
-
-  const cancelEditableDragPath = useCallback((event: PointerEvent<SVGElement>) => {
-    const rightEraseDrag = rightEraseDragRef.current;
-    if (rightEraseDrag && rightEraseDrag.pointerId === event.pointerId) {
-      rightEraseDragRef.current = null;
-      setRightEraseBox(null);
-      svgRef.current?.releasePointerCapture?.(event.pointerId);
-      return;
+  // Clear the WebGL point-sequence preview when that mode is no longer active.
+  useEffect(() => {
+    if (webglActiveTool.mode !== 'sequence') {
+      webglPreviewRequestRef.current += 1;
+      setWebglToolPreviewSegments([]);
+      setWebglToolPreviewPoints([]);
     }
-    const foldedFigureMoveDrag = foldedFigureMoveDragRef.current;
-    if (foldedFigureMoveDrag && foldedFigureMoveDrag.pointerId === event.pointerId) {
-      foldedFigureMoveDragRef.current = null;
-      svgRef.current?.releasePointerCapture?.(event.pointerId);
-      return;
-    }
-    const selectionRotateDrag = selectionRotateDragRef.current;
-    if (selectionRotateDrag && selectionRotateDrag.pointerId === event.pointerId) {
-      selectionRotateDragRef.current = null;
-      setSelectionRotationPreview(null);
-      svgRef.current?.releasePointerCapture?.(event.pointerId);
-      return;
-    }
-    const selectionMoveDrag = selectionMoveDragRef.current;
-    if (selectionMoveDrag && selectionMoveDrag.pointerId === event.pointerId) {
-      selectionMoveDragRef.current = null;
-      setSelectionRotationPreview(null);
-      setSnapTarget(null);
-      svgRef.current?.releasePointerCapture?.(event.pointerId);
-      return;
-    }
-    const selectionResizeDrag = selectionResizeDragRef.current;
-    if (selectionResizeDrag && selectionResizeDrag.pointerId === event.pointerId) {
-      selectionResizeDragRef.current = null;
-      setSelectionRotationPreview(null);
-      setSnapTarget(null);
-      svgRef.current?.releasePointerCapture?.(event.pointerId);
-      return;
-    }
-    const drag = cpToolDragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    cpToolDragRef.current = null;
-    setCpToolPoints([]);
-    setCpToolPath([]);
-  }, []);
+  }, [webglActiveTool.mode]);
 
   const handleEditableLineClick = useCallback(
     (id: number, additive = false) => {
@@ -3732,19 +2254,6 @@ export function CreasePatternPanel() {
     ]
   );
 
-  const handleEditableVertexClick = useCallback(
-    (id: string, additive = false) => {
-      if (
-        cpToolState.phase === 'active' &&
-        !allowsDirectEntitySelection(activeCpCommand?.operationId)
-      ) {
-        return;
-      }
-      toggleOristudioCpVertexSelection(id, additive);
-    },
-    [activeCpCommand?.operationId, cpToolState.phase, toggleOristudioCpVertexSelection]
-  );
-
   const handleEditablePointClick = useCallback(
     (id: number, additive = false) => {
       if (
@@ -3784,15 +2293,6 @@ export function CreasePatternPanel() {
     [activeCpCommand?.operationId, cpToolState.phase, toggleOristudioCpTextSelection]
   );
 
-  const clearSelectionOnBackgroundPointerDown = (event: PointerEvent<SVGElement>) => {
-    if (event.button !== 0 || spacePressed) return;
-    if (editableCp && editableSelectionSize > 0) {
-      clearOristudioCpSelection();
-      return;
-    }
-    if (selectionSize(selection) === 0) return;
-    select({ kind: 'tree' });
-  };
   const emptyStatusLabel =
     status === 'building_crease_pattern'
       ? 'Building crease pattern'
@@ -3803,54 +2303,30 @@ export function CreasePatternPanel() {
           : activeEditingContext === 'crease-pattern'
             ? 'No imported crease pattern'
             : 'No crease pattern';
-  const getViewportSize = useCallback((): ViewportSize | null => {
-    const viewport = containerRef.current;
-    if (!viewport) return null;
-    return {
-      width: viewport.clientWidth || viewport.offsetWidth,
-      height: viewport.clientHeight || viewport.offsetHeight,
-    };
-  }, []);
-
-  const computeFitScale = useCallback(() => {
-    const viewport = getViewportSize();
-    if (!viewport) return 1;
-    return getViewportFitScale(viewport, cpFitRect);
-  }, [cpFitRect, getViewportSize]);
-
-  const fitToView = useCallback(
-    (animationTime = 180) => {
-      transformRef.current?.centerView(computeFitScale(), animationTime);
-    },
-    [computeFitScale]
+  // The zoom-preset dropdown passes a scale (preset/100); the owned camera takes a percent.
+  const setZoomLevel = useCallback(
+    (scale: number) => sendWebglCameraCommand('set-percent', scale * 100),
+    [sendWebglCameraCommand]
   );
-
-  const setActualSize = useCallback(() => {
-    transformRef.current?.centerView(1, 160);
-  }, []);
-
-  const setZoomLevel = useCallback((scale: number) => {
-    transformRef.current?.centerView(scale, 160);
-  }, []);
 
   const handleViewportShortcut = useCallback(
     (id: ViewportShortcutId) => {
       switch (id) {
         case 'viewport.zoomIn':
-          transformRef.current?.zoomIn(0.35, 120);
+          sendWebglCameraCommand('zoom-in');
           break;
         case 'viewport.zoomOut':
-          transformRef.current?.zoomOut(0.35, 120);
+          sendWebglCameraCommand('zoom-out');
           break;
         case 'viewport.fit':
-          fitToView();
+          sendWebglCameraCommand('fit');
           break;
         case 'viewport.actualSize':
-          setActualSize();
+          sendWebglCameraCommand('set-percent', 100);
           break;
       }
     },
-    [fitToView, setActualSize]
+    [sendWebglCameraCommand]
   );
 
   useEffect(
@@ -3858,135 +2334,10 @@ export function CreasePatternPanel() {
     [handleViewportShortcut]
   );
 
-  const clearEditablePointerStatus = useCallback(() => {
-    setCursorModelPoint(null);
-    setSnapTarget(null);
-  }, []);
-
-  const creasePatternFitKey = useMemo(
-    () =>
-      editableCp
-        ? `editable:${projectLoadId}:${editableCpLoadSerial ?? 'unloaded'}`
-        : `generated:${projectLoadId}:${project.creases.length}:${project.facets.length}`,
-    [editableCp, editableCpLoadSerial, project.creases.length, project.facets.length, projectLoadId]
-  );
-  const lastFittedCreasePatternRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    setSelectionTransformAngleDegrees(0);
-  }, [editableCpHandle, editableSelectionLineKey]);
-
-  const fitLoadedCreasePattern = useCallback(
-    (animationTime = 0) => {
-      if (!hasCreasePattern) {
-        lastFittedCreasePatternRef.current = null;
-        return true;
-      }
-      if (lastFittedCreasePatternRef.current === creasePatternFitKey) return true;
-      const container = containerRef.current;
-      if (!container || !transformRef.current || container.clientWidth <= 0 || container.clientHeight <= 0) {
-        return false;
-      }
-      transformRef.current.centerView(computeFitScale(), animationTime);
-      lastFittedCreasePatternRef.current = creasePatternFitKey;
-      return true;
-    },
-    [computeFitScale, creasePatternFitKey, hasCreasePattern]
-  );
-
-  const fitLoadedCreasePatternRef = useRef(fitLoadedCreasePattern);
-  useEffect(() => {
-    fitLoadedCreasePatternRef.current = fitLoadedCreasePattern;
-  }, [fitLoadedCreasePattern]);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!hasCreasePattern) {
-      lastFittedCreasePatternRef.current = null;
-      return undefined;
-    }
-
-    let frame = requestAnimationFrame(() => fitLoadedCreasePatternRef.current(0));
-    const observer =
-      typeof ResizeObserver === 'undefined' || !container
-        ? null
-        : new ResizeObserver(() => {
-            if (lastFittedCreasePatternRef.current !== creasePatternFitKey) {
-              cancelAnimationFrame(frame);
-              frame = requestAnimationFrame(() => fitLoadedCreasePatternRef.current(0));
-            }
-          });
-
-    if (observer && container) {
-      observer.observe(container);
-    }
-    return () => {
-      cancelAnimationFrame(frame);
-      observer?.disconnect();
-    };
-  }, [creasePatternFitKey, hasCreasePattern]);
-
   useEffect(() => {
     if (!diagnosticStatus) setDiagnosticHudExpanded(false);
   }, [diagnosticStatus]);
 
-  useEffect(() => {
-    if (!activeDiagnosticEntry || !editableCp) {
-      lastFocusedDiagnosticRef.current = null;
-      return;
-    }
-
-    const focusBounds = diagnosticEntryBounds(activeDiagnosticEntry);
-    if (!focusBounds) return;
-    const focusKey = [
-      editableCpHandle ?? 'none',
-      activeDiagnosticEntry.id,
-      focusBounds.minX,
-      focusBounds.minY,
-      focusBounds.maxX,
-      focusBounds.maxY,
-      cpCanvasRect.x,
-      cpCanvasRect.y,
-    ].join(':');
-    if (lastFocusedDiagnosticRef.current === focusKey) return;
-    const container = containerRef.current;
-    const transform = transformRef.current;
-    if (!container || !transform || container.clientWidth <= 0 || container.clientHeight <= 0) {
-      return;
-    }
-    const contentBounds = boundsFromPoints(
-      diagnosticEntryPoints(activeDiagnosticEntry).map((point) =>
-        svgPointToContentPoint(editableModelToSvg(point), cpCanvasRect)
-      )
-    );
-    if (!contentBounds) return;
-    const paddedWidth = Math.max(container.clientWidth - CP_DIAGNOSTIC_FOCUS_PADDING * 2, 32);
-    const paddedHeight = Math.max(container.clientHeight - CP_DIAGNOSTIC_FOCUS_PADDING * 2, 32);
-    const boundsWidth = Math.max(contentBounds.maxX - contentBounds.minX, CP_DIAGNOSTIC_MARKER_SIZE);
-    const boundsHeight = Math.max(contentBounds.maxY - contentBounds.minY, CP_DIAGNOSTIC_MARKER_SIZE);
-    const issueFitScale = Math.min(
-      30,
-      Math.max(0.05, Math.min(paddedWidth / boundsWidth, paddedHeight / boundsHeight))
-    );
-    const documentFitScale = computeFitScale();
-    const currentScale = Math.max(zoomPercentRef.current / 100, 0.05);
-    const desiredScale = Math.min(3, Math.max(currentScale, documentFitScale * 2));
-    const focusScale = Math.min(30, Math.max(0.05, Math.min(desiredScale, issueFitScale)));
-    transform.setTransform(
-      container.clientWidth / 2 - contentBounds.center.x * focusScale,
-      container.clientHeight / 2 - contentBounds.center.y * focusScale,
-      focusScale,
-      180
-    );
-    lastFocusedDiagnosticRef.current = focusKey;
-  }, [
-    activeDiagnosticEntry,
-    computeFitScale,
-    cpCanvasRect,
-    editableCp,
-    editableCpHandle,
-    editableModelToSvg,
-  ]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -3995,26 +2346,17 @@ export function CreasePatternPanel() {
     const onKeyDown = (event: KeyboardEvent) => {
       const interactive = isViewportInteractiveTarget(event.target);
       if (event.key === 'Escape' && editableCp) {
-        if (
-          selectionRotateDragRef.current ||
-          selectionMoveDragRef.current ||
-          selectionResizeDragRef.current ||
-          foldedFigureMoveDragRef.current ||
-          selectionRotationPreview
-        ) {
-          event.preventDefault();
-          selectionRotateDragRef.current = null;
-          selectionMoveDragRef.current = null;
-          selectionResizeDragRef.current = null;
-          foldedFigureMoveDragRef.current = null;
-          setSelectionRotationPreview(null);
-          setSnapTarget(null);
-          return;
-        }
-        if (
-          editableSelectionSize > 0 &&
-          isDefaultSelectionMode(cpToolState, cpToolPoints.length, cpToolPath.length)
-        ) {
+        // A selection takes priority: Escape deselects for *any* resting tool (not
+        // just CreaseSelect) as long as no gesture is in progress — a second Escape
+        // then cancels/deactivates the tool. Matches Oriedita, and fixes "select-all,
+        // Escape, select-one ⇒ everything selected again" for Polygon/Lasso/etc.
+        const gestureInProgress =
+          cpToolPoints.length > 0 ||
+          cpToolPath.length > 0 ||
+          pendingLengthenLineId !== null ||
+          pendingSquareBisectorLineIds.length > 0 ||
+          cpToolDragRef.current !== null;
+        if (editableSelectionSize > 0 && !gestureInProgress) {
           event.preventDefault();
           clearOristudioCpSelection();
           return;
@@ -4068,7 +2410,8 @@ export function CreasePatternPanel() {
     editableCp,
     editableSelectionSize,
     hasCreasePattern,
-    selectionRotationPreview,
+    pendingLengthenLineId,
+    pendingSquareBisectorLineIds.length,
   ]);
 
   useEffect(() => {
@@ -4078,11 +2421,6 @@ export function CreasePatternPanel() {
       setPendingLengthenLineId(null);
       setPendingSquareBisectorLineIds([]);
       cpToolDragRef.current = null;
-      selectionRotateDragRef.current = null;
-      selectionMoveDragRef.current = null;
-      selectionResizeDragRef.current = null;
-      foldedFigureMoveDragRef.current = null;
-      setSelectionRotationPreview(null);
       setCpToolState(IDLE_ORISTUDIO_CP_TOOL_STATE);
     }
   }, [editableCp]);
@@ -4174,146 +2512,121 @@ export function CreasePatternPanel() {
                   )}
                 </div>
               )}
-              <TransformWrapper
-                ref={transformRef}
-                initialScale={1}
-                minScale={0.05}
-                maxScale={30}
-                centerOnInit
-                limitToBounds={false}
-                wheel={{ step: 0.5, wheelDisabled: true }}
-                panning={{
-                  velocityDisabled: true,
-                  wheelPanning: true,
-                  allowMiddleClickPan: true,
-                  allowLeftClickPan: spacePressed,
-                }}
-                pinch={{ step: 0.5 }}
-                doubleClick={{ disabled: true }}
-                onInit={(ref) => {
-                  transformRef.current = ref;
-                  requestAnimationFrame(() => fitLoadedCreasePatternRef.current(0));
-                }}
-                onPanningStart={handleViewportPanStart}
-                onPanning={handleViewportPanning}
-                onPanningStop={handleViewportPanStop}
-                onTransformed={handleViewportTransformed}
-              >
-                <TransformComponent
-                  wrapperStyle={{ width: '100%', height: '100%' }}
-                  contentStyle={{ width: 'fit-content', height: 'fit-content' }}
-                >
-                  <svg
-                    ref={svgRef}
-                    className="cp-canvas"
-                    data-canvas-mode={editableCp ? 'editable' : 'generated'}
-                    data-cp-line-style={oristudioCpViewport.lineStyle ?? 'color'}
-                    viewBox={cpCanvasViewBox}
-                    width={cpCanvasRect.width}
-                    height={cpCanvasRect.height}
-                    style={
-                      {
-                        width: cpCanvasRect.width,
-                        height: cpCanvasRect.height,
-                        '--cp-line-width': oristudioCpViewport.lineWidth ?? 1,
-                        '--cp-point-size': oristudioCpViewport.pointSize ?? 1,
-                      } as CSSProperties
+              {editableCp ? (
+                <>
+                <CreasePatternWebglCanvas
+                  className="cp-webgl-layer"
+                  lineSegments={editableCp.crease_pattern.line_segments}
+                  geometry={oristudioCpDocument?.geometry ?? null}
+                  modelToSvg={editableModelToSvg}
+                  svgToModel={editableSvgToModel}
+                  selectedLineIds={oristudioCpSelection.lines}
+                  selectedPointIds={oristudioCpSelection.points}
+                  selectedCircleIds={oristudioCpSelection.circles}
+                  onSelect={(hit, additive) => {
+                    if (!hit) {
+                      if (!additive) clearOristudioCpSelection();
+                      return;
                     }
-                    role="img"
-                    aria-label="Crease pattern"
-                    onPointerMove={handleEditablePointerMove}
-                    onPointerUp={finishEditableDragPath}
-                    onPointerCancel={cancelEditableDragPath}
-                    onPointerLeave={clearEditablePointerStatus}
-                    onPointerDownCapture={handleEditableToolPointerDown}
-                    onContextMenu={(event) => event.preventDefault()}
-                    onPointerDown={(event) => {
-                      if (event.target === event.currentTarget) clearSelectionOnBackgroundPointerDown(event);
-                    }}
-                  >
-                    {!editableCp && (
-                      <>
-                        <rect
-                          className="paper-shadow"
-                          x={CP_PAPER_SHADOW_RECT.x}
-                          y={CP_PAPER_SHADOW_RECT.y}
-                          width={CP_PAPER_SHADOW_RECT.width}
-                          height={CP_PAPER_SHADOW_RECT.height}
-                          rx="6"
-                        />
-                        <rect
-                          className="paper"
-                          x={CP_PAPER_RECT.x}
-                          y={CP_PAPER_RECT.y}
-                          width={CP_PAPER_RECT.width}
-                          height={CP_PAPER_RECT.height}
-                          onPointerDown={clearSelectionOnBackgroundPointerDown}
-                        />
-                      </>
-                    )}
-                    {editableCp ? (
-                      <EditableCreasePattern
-                        circleRadiusToSvg={editableCircleRadiusToSvg}
-                        document={editableCp}
-                        generatedFoldedFigures={generatedFoldedFigures}
-                        grid={editableCpVisibleGrid}
-                        gridFallbackBounds={editableCpFallbackGridBounds}
-                        gridSyncRef={gridSyncRef}
-                        gridPanningRef={viewportPanningRef}
-                        gridVisible={oristudioCpViewport.gridVisible}
-                        importedFoldedForms={importedFoldedForms}
-                        mode={mode}
-                        modelToSvg={editableModelToSvg}
-                        svgRef={svgRef}
-                        svgToModel={editableSvgToModel}
-                        viewportRef={cpViewportRef}
-                        commandPreviewBoxes={renderedCommandPreviewBoxes}
-                        commandCandidatePoints={renderedCommandCandidatePoints}
-                        commandPreviewCircles={renderedCommandPreviewCircles}
-                        commandPreviewPoints={renderedCommandPreviewPoints}
-                        commandPreviewSegments={renderedCommandPreviewSegments}
-                        highlightedLineIds={highlightedEditableLineIds}
-                        selectionTransformFrame={visibleSelectionTransformFrame}
-                        selectionTransformPreview={selectionRotationPreview}
-                        selectionTransformUiScale={cpUiScale}
-                        activeDiagnosticId={oristudioCpActiveDiagnosticId}
-                        activeFoldedFigureId={oristudioCpActiveFoldedFigureId}
-                        diagnostics={latestDiagnosticEntries}
-                        onFoldedFigurePointerDown={handleFoldedFigurePointerDown}
-                        onSelectionMovePointerDown={handleSelectionMovePointerDown}
-                        onSelectionResizePointerDown={handleSelectionResizePointerDown}
-                        onSelectionRotatePointerDown={handleSelectionRotatePointerDown}
-                        onSelectionTransform={handleSelectionTransform}
-                        selectDiagnostic={handleSelectCpDiagnostic}
-                        selection={oristudioCpSelection}
-                        snapTarget={snapTarget}
-                        spacePressed={spacePressed}
-                        toggleCircle={handleEditableCircleClick}
-                        toggleLine={handleEditableLineClick}
-                        togglePoint={handleEditablePointClick}
-                        toggleText={handleEditableTextClick}
-                        toggleVertex={handleEditableVertexClick}
-                        vertices={editableCpVertices}
-                      />
-                    ) : (
-                      <GeneratedCreasePattern
-                        clearSelectionOnBackgroundPointerDown={clearSelectionOnBackgroundPointerDown}
-                        mode={mode}
-                        project={project}
-                        select={select}
-                        selection={selection}
-                        spacePressed={spacePressed}
-                      />
-                    )}
-                  </svg>
-                </TransformComponent>
-              </TransformWrapper>
+                    if (hit.kind === 'line') handleEditableLineClick(hit.id, additive);
+                    else if (hit.kind === 'point') handleEditablePointClick(hit.id, additive);
+                    else handleEditableCircleClick(hit.id, additive);
+                  }}
+                  onBoxSelect={(sets, additive) => {
+                    const merge = (prev: number[], next: number[]) =>
+                      Array.from(new Set([...prev, ...next]));
+                    const base = additive ? oristudioCpSelection : emptyOristudioCpSelection();
+                    setOristudioCpSelection({
+                      ...base,
+                      lines: additive ? merge(base.lines, sets.lines) : sets.lines,
+                      points: additive ? merge(base.points, sets.points) : sets.points,
+                      circles: additive ? merge(base.circles, sets.circles) : sets.circles,
+                    });
+                  }}
+                  onMoveFoldedFigure={(figureId, delta) => {
+                    moveOristudioCpFoldedFigure(figureId, delta);
+                  }}
+                  onTranslateSelection={(delta) => {
+                    void transformOristudioCpSelection({ kind: 'translate', delta });
+                  }}
+                  resolveMoveSnap={resolveEditableMoveSnap}
+                  activeToolInputMode={webglActiveTool.mode}
+                  activeToolStepKinds={webglActiveTool.stepKinds}
+                  activeToolLineCount={webglActiveTool.lineCount}
+                  activeToolDualMirror={webglActiveTool.dualMirror}
+                  activeToolConverging={webglActiveTool.converging}
+                  activeToolSquareBisector={webglActiveTool.squareBisector}
+                  activeToolVoronoi={webglActiveTool.voronoi}
+                  activeToolDashedPreview={isCpMeasurementOperation(activeCpCommand?.operationId)}
+                  voronoiSeeds={cpToolPoints}
+                  onVoronoiSeedsChange={handleWebglVoronoiSeeds}
+                  activeToolRequireSnap={isRestrictedDrawOperation(activeCpCommand?.operationId)}
+                  activeToolClickSelects={isLineClickSelectionOperation(activeCpCommand?.operationId)}
+                  resolveDrawPoint={resolveEditableDrawModelPoint}
+                  resolveDrawPointOnCrease={resolveEditableDrawPointOnCrease}
+                  resolveFirstPickKind={resolveEditableFirstPickKind}
+                  onToolCommit={handleWebglToolCommit}
+                  onToolPreviewInput={handleWebglToolPreviewInput}
+                  onToolPickProgress={handleWebglToolPickProgress}
+                  toolCommandPreviewSegments={webglToolPreviewSegments}
+                  toolCommandPreviewPoints={webglToolPreviewPoints}
+                  toolPreviewColor={toolPreviewColor}
+                  diagnosticMarkers={cpDiagnosticGeometry.markers}
+                  diagnosticStrokes={cpDiagnosticGeometry.strokes}
+                  diagnosticWedges={cpDiagnosticGeometry.wedges}
+                  diagnosticHits={cpDiagnosticGeometry.hits}
+                  onSelectDiagnostic={handleSelectCpDiagnostic}
+                  operationFrame={cpOperationFrameStrokes}
+                  focusModelBounds={cpDiagnosticFocusBounds}
+                  cameraCommand={webglCameraCommand}
+                  onZoomPercentChange={handleWebglZoomPercent}
+                  onViewChange={handleWebglViewChange}
+                  onEraseBox={(points) => {
+                    void executeOristudioCpCommand('LineSegmentDelete', {
+                      line_ids: [],
+                      points: [...points],
+                    });
+                  }}
+                  onEraseLine={(id) => {
+                    void executeOristudioCpCommand('LineSegmentDelete', { line_ids: [id] });
+                  }}
+                  mode={mode}
+                  lineWidth={oristudioCpViewport.lineWidth ?? 1}
+                  points={editableCp.crease_pattern.points}
+                  vertices={editableCpVertexPoints}
+                  pointSize={oristudioCpViewport.pointSize ?? 1}
+                  circles={editableCp.crease_pattern.circles}
+                  circleRadiusToSvg={editableCircleRadiusToSvg}
+                  foldedFigures={generatedFoldedFigures}
+                  importedForms={cpImportedFoldedFormsGeometry}
+                  grid={editableCpVisibleGrid}
+                  gridVisible={oristudioCpViewport.gridVisible}
+                />
+                {webglOverlayView && editableCp.crease_pattern.texts.length > 0 && (
+                  <CpTextOverlay
+                    texts={editableCp.crease_pattern.texts}
+                    selectedTextIds={oristudioCpSelection.texts}
+                    view={webglOverlayView}
+                    zoomPercent={zoomPercent}
+                    selectable={
+                      cpToolState.phase !== 'active' ||
+                      allowsDirectEntitySelection(activeCpCommand?.operationId)
+                    }
+                    onToggleText={handleEditableTextClick}
+                  />
+                )}
+                </>
+              ) : (
+                <div className="cp-panel__unopened" role="status">
+                  This crease pattern could not be opened for editing.
+                </div>
+              )}
               <ViewportToolbar
                 ariaLabel="Crease pattern viewport controls"
                 zoomPercent={zoomPercent}
-                zoomIn={() => transformRef.current?.zoomIn(0.35, 120)}
-                zoomOut={() => transformRef.current?.zoomOut(0.35, 120)}
-                fitToView={() => fitToView()}
+                zoomIn={() => sendWebglCameraCommand('zoom-in')}
+                zoomOut={() => sendWebglCameraCommand('zoom-out')}
+                fitToView={() => sendWebglCameraCommand('fit')}
                 setZoomLevel={setZoomLevel}
               >
                 {editableCp && (
@@ -4407,29 +2720,8 @@ export function CreasePatternPanel() {
                 {editableCp && editableCpSummary && (
                   <span>{editableCpSummary.line_segments} lines</span>
                 )}
-                {editableCp && cursorModelPoint && (
-                  <span>
-                    {formatNumber(cursorModelPoint.x, 2)}, {formatNumber(cursorModelPoint.y, 2)}
-                  </span>
-                )}
-                {editableCp && snapTarget && <span>Snap {snapTarget.label}</span>}
                 {editableCp && editableSelectionSize > 0 && (
                   <span>{editableSelectionSize} selected</span>
-                )}
-                {editableCp && selectionRotationPreview?.kind === 'rotate' && (
-                  <span>{formatNumber(selectionRotationPreview.angleDegrees ?? 0, 1)} deg</span>
-                )}
-                {editableCp && selectionRotationPreview?.kind === 'translate' && selectionRotationPreview.delta && (
-                  <span>
-                    Move {formatNumber(selectionRotationPreview.delta.x, 2)},{' '}
-                    {formatNumber(selectionRotationPreview.delta.y, 2)}
-                  </span>
-                )}
-                {editableCp && selectionRotationPreview?.kind === 'scale' && (
-                  <span>
-                    Scale {formatNumber((selectionRotationPreview.scaleX ?? 1) * 100, 0)}%,{' '}
-                    {formatNumber((selectionRotationPreview.scaleY ?? 1) * 100, 0)}%
-                  </span>
                 )}
               </div>
             </div>
@@ -4445,1318 +2737,9 @@ export function CreasePatternPanel() {
   );
 }
 
-// Extra viewport shown around the visible region so pans reuse the cached grid
-// instead of revealing an ungridded edge before the next recompute. Widened
-// because grid regeneration is now frozen during an active pan gesture (it
-// re-rasterizes the layer), so this margin is the buffer the drag pans into
-// before the grid is refilled on pan-stop.
-const GRID_VIEWPORT_MARGIN_RATIO = 0.75;
-// Snap the generation region outward to this fraction of its span so small pans
-// resolve to the same coverage key and skip regeneration.
-const GRID_SNAP_STEP_RATIO = 0.2;
-const GRID_SNAP_MIN_STEP = 1e-3;
-
-/**
- * Map the visible viewport rectangle into model space using the SVG's live
- * screen CTM (which already folds in the pan/zoom CSS transform). Returns null
- * when no transform is available yet (initial paint, jsdom), so callers can fall
- * back to a fixed extent.
- */
-function visibleModelGridBounds(
-  svg: SVGSVGElement | null,
-  viewport: HTMLElement | null,
-  svgToModel: (point: Point) => Point
-): CpModelBounds | null {
-  if (!svg || !viewport || typeof svg.getScreenCTM !== 'function') return null;
-  const ctm = svg.getScreenCTM();
-  if (!ctm) return null;
-  const rect = viewport.getBoundingClientRect();
-  if (rect.width <= 0 || rect.height <= 0) return null;
-  let inverse: DOMMatrix;
-  try {
-    inverse = ctm.inverse();
-  } catch {
-    return null;
-  }
-  const screenCorners: Point[] = [
-    { x: rect.left, y: rect.top },
-    { x: rect.right, y: rect.top },
-    { x: rect.left, y: rect.bottom },
-    { x: rect.right, y: rect.bottom },
-  ];
-  const modelCorners = screenCorners.map((corner) => {
-    const svgX = inverse.a * corner.x + inverse.c * corner.y + inverse.e;
-    const svgY = inverse.b * corner.x + inverse.d * corner.y + inverse.f;
-    return svgToModel({ x: svgX, y: svgY });
-  });
-  return expandedModelBoundsFromPoints(modelCorners, GRID_VIEWPORT_MARGIN_RATIO);
-}
-
-function snapModelGridBounds(bounds: CpModelBounds): CpModelBounds {
-  const step = Math.max(
-    GRID_SNAP_MIN_STEP,
-    Math.max(bounds.spanX, bounds.spanY) * GRID_SNAP_STEP_RATIO
-  );
-  const minX = Math.floor(bounds.minX / step) * step;
-  const minY = Math.floor(bounds.minY / step) * step;
-  const maxX = Math.ceil(bounds.maxX / step) * step;
-  const maxY = Math.ceil(bounds.maxY / step) * step;
-  return {
-    minX,
-    minY,
-    maxX,
-    maxY,
-    spanX: Math.max(step, maxX - minX),
-    spanY: Math.max(step, maxY - minY),
-  };
-}
-
-interface OrieditaInfiniteGridProps {
-  grid: OristudioCpGridMetadata;
-  fallbackBounds: CpModelBounds;
-  modelToSvg: (point: Point) => Point;
-  svgToModel: (point: Point) => Point;
-  svgRef: RefObject<SVGSVGElement | null>;
-  viewportRef: RefObject<HTMLElement | null>;
-  syncRef: MutableRefObject<(() => void) | null>;
-  isPanningRef: MutableRefObject<boolean>;
-}
-
-/**
- * Grid layer that follows the visible viewport, matching Oriedita's behavior of
- * repainting the grid across the whole visible canvas each frame. Lines are
- * generated over the currently visible model region (widened by a margin) rather
- * than a fixed world rect, so the grid never terminates at a world edge. The
- * lines render inside the pan/zoom-transformed SVG and its `overflow: visible`
- * surface, so they move with the content and are not clipped to the CP viewBox.
- */
-function OrieditaInfiniteGrid({
-  grid,
-  fallbackBounds,
-  modelToSvg,
-  svgToModel,
-  svgRef,
-  viewportRef,
-  syncRef,
-  isPanningRef,
-}: OrieditaInfiniteGridProps) {
-  const [lines, setLines] = useState<CpGridLine[]>([]);
-  const coverageKeyRef = useRef<string | null>(null);
-  const frameRef = useRef<number | null>(null);
-
-  const recompute = useCallback(() => {
-    // Freeze regeneration during an active pan gesture: rebuilding the grid's
-    // DOM re-rasterizes the promoted crease layer and costs a frame. The margin
-    // around the visible region keeps the grid covering the viewport while
-    // dragging, and the parent forces one recompute on pan-stop.
-    if (isPanningRef.current) return;
-    const visible = visibleModelGridBounds(svgRef.current, viewportRef.current, svgToModel);
-    const snapped = snapModelGridBounds(visible ?? fallbackBounds);
-    const key = [
-      grid.grid_size,
-      grid.grid_angle,
-      grid.grid_xa,
-      grid.grid_ya,
-      grid.interval_grid_size,
-      grid.draw_diagonal_gridlines ? 1 : 0,
-      snapped.minX.toFixed(3),
-      snapped.minY.toFixed(3),
-      snapped.maxX.toFixed(3),
-      snapped.maxY.toFixed(3),
-    ].join(':');
-    if (key === coverageKeyRef.current) return;
-    coverageKeyRef.current = key;
-    setLines(orieditaGridLinesForModelBounds(snapped, grid));
-  }, [fallbackBounds, grid, isPanningRef, svgRef, svgToModel, viewportRef]);
-
-  const scheduleRecompute = useCallback(() => {
-    if (frameRef.current != null) return;
-    if (typeof requestAnimationFrame !== 'function') {
-      recompute();
-      return;
-    }
-    frameRef.current = requestAnimationFrame(() => {
-      frameRef.current = null;
-      recompute();
-    });
-  }, [recompute]);
-
-  // Let viewport transforms drive a recompute without re-rendering the panel.
-  useEffect(() => {
-    syncRef.current = scheduleRecompute;
-    return () => {
-      if (syncRef.current === scheduleRecompute) syncRef.current = null;
-    };
-  }, [scheduleRecompute, syncRef]);
-
-  // Recompute immediately when grid params or coordinate mapping change, and keep
-  // the grid aligned when the viewport element resizes.
-  useEffect(() => {
-    coverageKeyRef.current = null;
-    recompute();
-    const viewport = viewportRef.current;
-    if (!viewport || typeof ResizeObserver === 'undefined') return undefined;
-    const observer = new ResizeObserver(() => scheduleRecompute());
-    observer.observe(viewport);
-    return () => observer.disconnect();
-  }, [recompute, scheduleRecompute, viewportRef]);
-
-  useEffect(
-    () => () => {
-      if (frameRef.current != null && typeof cancelAnimationFrame === 'function') {
-        cancelAnimationFrame(frameRef.current);
-      }
-    },
-    []
-  );
-
-  return (
-    <g className="cp-grid-layer">
-      {lines.map((line) => {
-        const a = modelToSvg(line.a);
-        const b = modelToSvg(line.b);
-        return <line key={line.id} className="cp-grid-line" x1={a.x} y1={a.y} x2={b.x} y2={b.y} />;
-      })}
-    </g>
-  );
-}
-
-interface EditableCreasePatternProps {
-  activeDiagnosticId: string | null;
-  activeFoldedFigureId: string | null;
-  circleRadiusToSvg: (radius: number) => number;
-  document: OristudioCpDocumentSnapshot;
-  generatedFoldedFigures: OristudioCpFoldedFigureEntry[];
-  grid: OristudioCpGridMetadata | null;
-  gridFallbackBounds: CpModelBounds;
-  gridSyncRef: MutableRefObject<(() => void) | null>;
-  gridPanningRef: MutableRefObject<boolean>;
-  gridVisible: boolean;
-  importedFoldedForms: FoldDocument[];
-  mode: 'mvf' | 'agrh';
-  modelToSvg: (point: Point) => Point;
-  svgRef: RefObject<SVGSVGElement | null>;
-  svgToModel: (point: Point) => Point;
-  viewportRef: RefObject<HTMLElement | null>;
-  commandPreviewBoxes: readonly (readonly [Point, Point])[];
-  commandCandidatePoints: Point[];
-  commandPreviewCircles: OristudioCpCircle[];
-  commandPreviewPoints: Point[];
-  commandPreviewSegments: OristudioCpLineSegment[];
-  diagnostics: OristudioCpDiagnosticEntry[];
-  highlightedLineIds: number[];
-  onFoldedFigurePointerDown: (id: string, event: PointerEvent<Element>) => void;
-  onSelectionMovePointerDown: (event: PointerEvent<Element>) => void;
-  onSelectionResizePointerDown: (
-    handle: CpSelectionResizeHandle,
-    event: PointerEvent<Element>
-  ) => void;
-  onSelectionRotatePointerDown: (event: PointerEvent<Element>) => void;
-  onSelectionTransform: (transform: CpSelectionTransform) => void;
-  selectDiagnostic: (id: string) => void;
-  selection: OristudioCpSelection;
-  selectionTransformFrame: CpLineSelectionFrame | null;
-  selectionTransformPreview: CpSelectionTransformPreview | null;
-  selectionTransformUiScale: number;
-  snapTarget: CpSnapTarget | null;
-  spacePressed: boolean;
-  toggleCircle: (id: number, additive?: boolean) => void;
-  toggleLine: (id: number, additive?: boolean) => void;
-  togglePoint: (id: number, additive?: boolean) => void;
-  toggleText: (id: number, additive?: boolean) => void;
-  toggleVertex: (id: string, additive?: boolean) => void;
-  vertices: CpVertex[];
-}
-
-// Static crease geometry is split into memoized layers so panning (which only
-// touches cursor/snap/grid state) never re-reconciles the hundreds of SVG nodes
-// below. Each layer only re-renders when its own geometry or selection changes,
-// uses O(1) Set lookups for the selected/highlighted classes (instead of a
-// per-node Array.includes scan), and delegates click handling to a single group
-// handler (instead of a fresh closure per node).
-const CreaseLines = memo(function CreaseLines({
-  lineSegments,
-  modelToSvg,
-  mode,
-  selectedLineIds,
-  highlightedLineIds,
-  spacePressed,
-  onToggleLine,
-}: {
-  lineSegments: OristudioCpDocumentSnapshot['crease_pattern']['line_segments'];
-  modelToSvg: (point: Point) => Point;
-  mode: 'mvf' | 'agrh';
-  selectedLineIds: readonly number[];
-  highlightedLineIds: readonly number[];
-  spacePressed: boolean;
-  onToggleLine: (id: number, additive?: boolean) => void;
-}) {
-  const selectedSet = useMemo(() => new Set(selectedLineIds), [selectedLineIds]);
-  const highlightedSet = useMemo(() => new Set(highlightedLineIds), [highlightedLineIds]);
-  const handleClick = useCallback(
-    (event: ReactMouseEvent<SVGGElement>) => {
-      if (spacePressed) return;
-      const target = (event.target as Element).closest?.(
-        '[data-cp-line-hit-id],[data-cp-line-id]'
-      );
-      const raw =
-        target?.getAttribute('data-cp-line-hit-id') ?? target?.getAttribute('data-cp-line-id');
-      if (!raw) return;
-      event.stopPropagation();
-      onToggleLine(Number(raw), event.shiftKey || event.metaKey || event.ctrlKey);
-    },
-    [onToggleLine, spacePressed]
-  );
-  return (
-    <g onClick={handleClick}>
-      {lineSegments.map((line, index) => {
-        const id = index + 1;
-        const a = modelToSvg(line.a);
-        const b = modelToSvg(line.b);
-        const selected = selectedSet.has(id) || highlightedSet.has(id);
-        return (
-          <g key={id}>
-            <line
-              className="cp-line-hit-target"
-              data-cp-line-hit-id={id}
-              x1={a.x}
-              y1={a.y}
-              x2={b.x}
-              y2={b.y}
-              aria-label={`Editable ${cpLineAssignmentLabel(line.color)} line ${id} hit target`}
-            />
-            <line
-              className={[
-                cpLineColorClass(line.color, mode),
-                selected ? 'crease--selected' : '',
-              ].join(' ')}
-              data-cp-line-id={id}
-              data-cp-line-color={cpLineStyleColorKind(line.color)}
-              x1={a.x}
-              y1={a.y}
-              x2={b.x}
-              y2={b.y}
-              aria-label={`Editable ${cpLineAssignmentLabel(line.color)} line ${id}`}
-            />
-          </g>
-        );
-      })}
-    </g>
-  );
-});
-
-const CreasePoints = memo(function CreasePoints({
-  points,
-  modelToSvg,
-  selectedPointIds,
-  spacePressed,
-  onTogglePoint,
-}: {
-  points: OristudioCpDocumentSnapshot['crease_pattern']['points'];
-  modelToSvg: (point: Point) => Point;
-  selectedPointIds: readonly number[];
-  spacePressed: boolean;
-  onTogglePoint: (id: number, additive?: boolean) => void;
-}) {
-  const selectedSet = useMemo(() => new Set(selectedPointIds), [selectedPointIds]);
-  const handleClick = useCallback(
-    (event: ReactMouseEvent<SVGGElement>) => {
-      if (spacePressed) return;
-      const raw = (event.target as Element)
-        .closest?.('[data-cp-point-id]')
-        ?.getAttribute('data-cp-point-id');
-      if (!raw) return;
-      event.stopPropagation();
-      onTogglePoint(Number(raw), event.shiftKey || event.metaKey || event.ctrlKey);
-    },
-    [onTogglePoint, spacePressed]
-  );
-  return (
-    <g onClick={handleClick}>
-      {points.map((point, index) => {
-        const id = index + 1;
-        const svgPoint = modelToSvg(point);
-        return (
-          <circle
-            key={id}
-            className={['cp-point', selectedSet.has(id) ? 'cp-point--selected' : ''].join(' ')}
-            data-cp-point-id={id}
-            cx={svgPoint.x}
-            cy={svgPoint.y}
-            r="4"
-          />
-        );
-      })}
-    </g>
-  );
-});
-
-const CreaseCircles = memo(function CreaseCircles({
-  circles,
-  modelToSvg,
-  circleRadiusToSvg,
-  selectedCircleIds,
-  spacePressed,
-  onToggleCircle,
-}: {
-  circles: OristudioCpDocumentSnapshot['crease_pattern']['circles'];
-  modelToSvg: (point: Point) => Point;
-  circleRadiusToSvg: (radius: number) => number;
-  selectedCircleIds: readonly number[];
-  spacePressed: boolean;
-  onToggleCircle: (id: number, additive?: boolean) => void;
-}) {
-  const selectedSet = useMemo(() => new Set(selectedCircleIds), [selectedCircleIds]);
-  const handleClick = useCallback(
-    (event: ReactMouseEvent<SVGGElement>) => {
-      if (spacePressed) return;
-      const raw = (event.target as Element)
-        .closest?.('[data-cp-circle-id]')
-        ?.getAttribute('data-cp-circle-id');
-      if (!raw) return;
-      event.stopPropagation();
-      onToggleCircle(Number(raw), event.shiftKey || event.metaKey || event.ctrlKey);
-    },
-    [onToggleCircle, spacePressed]
-  );
-  return (
-    <g onClick={handleClick}>
-      {circles.map((circle, index) => {
-        const id = index + 1;
-        const center = modelToSvg({ x: circle.x, y: circle.y });
-        const radius = circleRadiusToSvg(circle.r);
-        return (
-          <circle
-            key={id}
-            className={['cp-circle', selectedSet.has(id) ? 'cp-circle--selected' : ''].join(' ')}
-            data-cp-circle-id={id}
-            cx={center.x}
-            cy={center.y}
-            r={Math.max(1, radius)}
-          />
-        );
-      })}
-    </g>
-  );
-});
-
-const CreaseTexts = memo(function CreaseTexts({
-  texts,
-  modelToSvg,
-  selectedTextIds,
-  spacePressed,
-  onToggleText,
-}: {
-  texts: OristudioCpDocumentSnapshot['crease_pattern']['texts'];
-  modelToSvg: (point: Point) => Point;
-  selectedTextIds: readonly number[];
-  spacePressed: boolean;
-  onToggleText: (id: number, additive?: boolean) => void;
-}) {
-  const selectedSet = useMemo(() => new Set(selectedTextIds), [selectedTextIds]);
-  const handleClick = useCallback(
-    (event: ReactMouseEvent<SVGGElement>) => {
-      if (spacePressed) return;
-      const raw = (event.target as Element)
-        .closest?.('[data-cp-text-id]')
-        ?.getAttribute('data-cp-text-id');
-      if (!raw) return;
-      event.stopPropagation();
-      onToggleText(Number(raw), event.shiftKey || event.metaKey || event.ctrlKey);
-    },
-    [onToggleText, spacePressed]
-  );
-  return (
-    <g onClick={handleClick}>
-      {texts.map((text, index) => {
-        const id = index + 1;
-        const position = modelToSvg({ x: textCoordinate(text.x), y: textCoordinate(text.y) });
-        return (
-          <text
-            key={id}
-            className={['cp-text', selectedSet.has(id) ? 'cp-text--selected' : ''].join(' ')}
-            data-cp-text-id={id}
-            x={position.x}
-            y={position.y}
-          >
-            {text.text}
-          </text>
-        );
-      })}
-    </g>
-  );
-});
-
-const CreaseVertices = memo(function CreaseVertices({
-  vertices,
-  modelToSvg,
-  selectedVertexIds,
-  spacePressed,
-  onToggleVertex,
-}: {
-  vertices: CpVertex[];
-  modelToSvg: (point: Point) => Point;
-  selectedVertexIds: readonly string[] | undefined;
-  spacePressed: boolean;
-  onToggleVertex: (id: string, additive?: boolean) => void;
-}) {
-  const selectedSet = useMemo(() => new Set(selectedVertexIds ?? []), [selectedVertexIds]);
-  const handleClick = useCallback(
-    (event: ReactMouseEvent<SVGGElement>) => {
-      if (spacePressed) return;
-      const raw = (event.target as Element)
-        .closest?.('[data-cp-vertex-id]')
-        ?.getAttribute('data-cp-vertex-id');
-      if (!raw) return;
-      event.stopPropagation();
-      onToggleVertex(raw, event.shiftKey || event.metaKey || event.ctrlKey);
-    },
-    [onToggleVertex, spacePressed]
-  );
-  return (
-    <g onClick={handleClick}>
-      {vertices.map((vertex) => {
-        const svgPoint = modelToSvg(vertex.point);
-        const selected = selectedSet.has(vertex.id);
-        return (
-          <g key={vertex.id} data-cp-vertex-id={vertex.id}>
-            <circle
-              className="cp-vertex-hit-target"
-              cx={svgPoint.x}
-              cy={svgPoint.y}
-              r="7"
-              aria-label={`Editable vertex at ${formatNumber(vertex.point.x, 2)}, ${formatNumber(vertex.point.y, 2)}`}
-            />
-            <circle
-              className={['cp-vertex', selected ? 'cp-vertex--selected' : ''].join(' ')}
-              cx={svgPoint.x}
-              cy={svgPoint.y}
-              r="3.2"
-              aria-hidden="true"
-            />
-          </g>
-        );
-      })}
-    </g>
-  );
-});
-
-function EditableCreasePattern({
-  activeDiagnosticId,
-  activeFoldedFigureId,
-  circleRadiusToSvg,
-  document,
-  generatedFoldedFigures,
-  grid,
-  gridFallbackBounds,
-  gridSyncRef,
-  gridPanningRef,
-  gridVisible,
-  importedFoldedForms,
-  mode,
-  modelToSvg,
-  svgRef,
-  svgToModel,
-  viewportRef,
-  commandPreviewBoxes,
-  commandCandidatePoints,
-  commandPreviewCircles,
-  commandPreviewPoints,
-  commandPreviewSegments,
-  diagnostics,
-  highlightedLineIds,
-  onFoldedFigurePointerDown,
-  onSelectionMovePointerDown,
-  onSelectionResizePointerDown,
-  onSelectionRotatePointerDown,
-  onSelectionTransform,
-  selectDiagnostic,
-  selection,
-  selectionTransformFrame,
-  selectionTransformPreview,
-  selectionTransformUiScale,
-  snapTarget,
-  spacePressed,
-  toggleCircle,
-  toggleLine,
-  togglePoint,
-  toggleText,
-  toggleVertex,
-  vertices,
-}: EditableCreasePatternProps) {
-  return (
-    <>
-      {gridVisible && grid && (
-        <OrieditaInfiniteGrid
-          grid={grid}
-          fallbackBounds={gridFallbackBounds}
-          modelToSvg={modelToSvg}
-          svgToModel={svgToModel}
-          svgRef={svgRef}
-          viewportRef={viewportRef}
-          syncRef={gridSyncRef}
-          isPanningRef={gridPanningRef}
-        />
-      )}
-      <CreaseLines
-        lineSegments={document.crease_pattern.line_segments}
-        modelToSvg={modelToSvg}
-        mode={mode}
-        selectedLineIds={selection.lines}
-        highlightedLineIds={highlightedLineIds}
-        spacePressed={spacePressed}
-        onToggleLine={toggleLine}
-      />
-      {selectionTransformPreview?.segments.map((segment, index) => {
-        const a = modelToSvg(segment.a);
-        const b = modelToSvg(segment.b);
-        return (
-          <line
-            key={`selection-transform-preview-${index}-${segment.a.x}-${segment.a.y}-${segment.b.x}-${segment.b.y}`}
-            className={[
-              cpLineColorClass(segment.color, mode),
-              'cp-selection-transform-preview',
-            ].join(' ')}
-            x1={a.x}
-            y1={a.y}
-            x2={b.x}
-            y2={b.y}
-          />
-        );
-      })}
-      <CreasePoints
-        points={document.crease_pattern.points}
-        modelToSvg={modelToSvg}
-        selectedPointIds={selection.points}
-        spacePressed={spacePressed}
-        onTogglePoint={togglePoint}
-      />
-      <CreaseCircles
-        circles={document.crease_pattern.circles}
-        modelToSvg={modelToSvg}
-        circleRadiusToSvg={circleRadiusToSvg}
-        selectedCircleIds={selection.circles}
-        spacePressed={spacePressed}
-        onToggleCircle={toggleCircle}
-      />
-      {commandPreviewCircles.map((circle, index) => {
-        const center = modelToSvg({ x: circle.x, y: circle.y });
-        const radius = circleRadiusToSvg(circle.r);
-        return (
-          <circle
-            key={`${index}-${circle.x}-${circle.y}-${circle.r}`}
-            className="cp-command-preview"
-            cx={center.x}
-            cy={center.y}
-            r={Math.max(1, radius)}
-          />
-        );
-      })}
-      {commandPreviewBoxes.map((box, index) => (
-        <SelectionBoxPreview
-          key={`${index}-${box[0].x}-${box[0].y}`}
-          modelToSvg={modelToSvg}
-          points={box}
-        />
-      ))}
-      {diagnostics.flatMap((diagnostic) => {
-        if (cpDiagnosticMarkerStyle(diagnostic).shape === 'little-big-little') return [];
-        return (diagnostic.segments ?? []).map((segment, index) => {
-          const a = modelToSvg(segment.a);
-          const b = modelToSvg(segment.b);
-          const active = diagnostic.id === activeDiagnosticId;
-          return (
-            <line
-              key={`${diagnostic.id}-segment-${index}`}
-              className={[
-                'cp-diagnostic-segment',
-                active ? 'cp-diagnostic-segment--active' : '',
-              ].join(' ')}
-              data-active={active || undefined}
-              data-cp-diagnostic-id={diagnostic.id}
-              data-diagnostic-color={segment.color}
-              x1={a.x}
-              y1={a.y}
-              x2={b.x}
-              y2={b.y}
-              onPointerDown={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                selectDiagnostic(diagnostic.id);
-              }}
-            />
-          );
-        });
-      })}
-      <CreaseTexts
-        texts={document.crease_pattern.texts}
-        modelToSvg={modelToSvg}
-        selectedTextIds={selection.texts}
-        spacePressed={spacePressed}
-        onToggleText={toggleText}
-      />
-      <GeneratedFoldedFiguresLayer
-        activeFigureId={activeFoldedFigureId}
-        figures={generatedFoldedFigures}
-        onFigurePointerDown={onFoldedFigurePointerDown}
-      />
-      <ImportedFoldedFormsLayer
-        frames={importedFoldedForms}
-        startIndex={generatedFoldedFigures.filter(isRenderableGeneratedFoldedFigure).length}
-      />
-      <CreaseVertices
-        vertices={vertices}
-        modelToSvg={modelToSvg}
-        selectedVertexIds={selection.vertices}
-        spacePressed={spacePressed}
-        onToggleVertex={toggleVertex}
-      />
-      {diagnostics.map((diagnostic) => (
-        <DiagnosticPointMarker
-          key={`${diagnostic.id}-point`}
-          activeDiagnosticId={activeDiagnosticId}
-          diagnostic={diagnostic}
-          modelToSvg={modelToSvg}
-          selectDiagnostic={selectDiagnostic}
-        />
-      ))}
-      {document.operation_frame?.active && (
-        <polygon
-          className="cp-operation-frame"
-          points={document.operation_frame.points
-            .map(modelToSvg)
-            .map((point) => `${point.x},${point.y}`)
-          .join(' ')}
-        />
-      )}
-      {commandPreviewSegments.map((segment, index) => {
-        const a = modelToSvg(segment.a);
-        const b = modelToSvg(segment.b);
-        return (
-          <line
-            key={`${index}-${segment.a.x}-${segment.a.y}-${segment.b.x}-${segment.b.y}`}
-            className={[
-              cpLineColorClass(segment.color, mode),
-              'cp-command-candidate',
-            ].join(' ')}
-            x1={a.x}
-            y1={a.y}
-            x2={b.x}
-            y2={b.y}
-          />
-        );
-      })}
-      {commandPreviewPoints.length > 1 && (
-        <polyline
-          className="cp-command-preview"
-          points={commandPreviewPoints
-            .map(modelToSvg)
-            .map((point) => `${point.x},${point.y}`)
-            .join(' ')}
-        />
-      )}
-      {commandCandidatePoints.map((point, index) => {
-        const svgPoint = modelToSvg(point);
-        return (
-          <circle
-            key={`${index}-${point.x}-${point.y}`}
-            className="cp-command-candidate-point"
-            cx={svgPoint.x}
-            cy={svgPoint.y}
-            r="4"
-          />
-        );
-      })}
-      {selectionTransformFrame && (
-        <SelectionTransformBox
-          modelToSvg={modelToSvg}
-          selectionFrame={selectionTransformFrame}
-          uiScale={selectionTransformUiScale}
-          onMovePointerDown={onSelectionMovePointerDown}
-          onResizePointerDown={onSelectionResizePointerDown}
-          onRotatePointerDown={onSelectionRotatePointerDown}
-          onTransform={onSelectionTransform}
-        />
-      )}
-      {snapTarget && (
-        <circle
-          className="cp-snap-target"
-          cx={modelToSvg(snapTarget.point).x}
-          cy={modelToSvg(snapTarget.point).y}
-          r="5"
-        />
-      )}
-    </>
-  );
-}
-
-function DiagnosticPointMarker({
-  activeDiagnosticId,
-  diagnostic,
-  modelToSvg,
-  selectDiagnostic,
-}: {
-  activeDiagnosticId: string | null;
-  diagnostic: OristudioCpDiagnosticEntry;
-  modelToSvg: (point: Point) => Point;
-  selectDiagnostic: (id: string) => void;
-}) {
-  if (!diagnostic.point) return null;
-  const point = modelToSvg(diagnostic.point);
-  const active = diagnostic.id === activeDiagnosticId;
-  const marker = cpDiagnosticMarkerStyle(diagnostic);
-  if (marker.shape === 'none') return null;
-
-  return (
-    <g
-      className={[
-        'cp-diagnostic-point',
-        active ? 'cp-diagnostic-point--active' : '',
-      ].join(' ')}
-      data-active={active || undefined}
-      data-cp-diagnostic-id={diagnostic.id}
-      data-diagnostic-tone={marker.tone}
-      data-marker-shape={marker.shape}
-      data-rule={diagnostic.rule ?? undefined}
-      data-severity={diagnostic.severity}
-      data-violation-color={diagnostic.violation_color ?? undefined}
-      onPointerDown={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        selectDiagnostic(diagnostic.id);
-      }}
-    >
-      {marker.shape === 'generic' ? (
-        <>
-          <circle className="cp-diagnostic-point__halo" cx={point.x} cy={point.y} r="9" />
-          <circle className="cp-diagnostic-point__core" cx={point.x} cy={point.y} r="3.2" />
-          <line
-            className="cp-diagnostic-point__cross"
-            x1={point.x - 6}
-            y1={point.y}
-            x2={point.x + 6}
-            y2={point.y}
-          />
-          <line
-            className="cp-diagnostic-point__cross"
-            x1={point.x}
-            y1={point.y - 6}
-            x2={point.x}
-            y2={point.y + 6}
-          />
-        </>
-      ) : marker.shape === 'triangle' ? (
-        <polygon
-          className="cp-diagnostic-point__oriedita-shape"
-          points={`${point.x},${point.y - 10} ${point.x - 10},${point.y + 8} ${point.x + 10},${point.y + 8}`}
-        />
-      ) : marker.shape === 'square' ? (
-        <rect
-          className="cp-diagnostic-point__oriedita-shape"
-          x={point.x - 9}
-          y={point.y - 9}
-          width="18"
-          height="18"
-        />
-      ) : marker.shape === 'circle' || marker.shape === 'ring' ? (
-        <circle className="cp-diagnostic-point__oriedita-shape" cx={point.x} cy={point.y} r="10" />
-      ) : (
-        <DiagnosticLittleBigLittleMarker
-          diagnostic={diagnostic}
-          modelToSvg={modelToSvg}
-          point={diagnostic.point}
-        />
-      )}
-    </g>
-  );
-}
-
-function DiagnosticLittleBigLittleMarker({
-  diagnostic,
-  modelToSvg,
-  point,
-}: {
-  diagnostic: OristudioCpDiagnosticEntry;
-  modelToSvg: (point: Point) => Point;
-  point: Point;
-}) {
-  const sectors =
-    diagnostic.little_big_little && diagnostic.little_big_little.length > 0
-      ? diagnostic.little_big_little
-      : (diagnostic.segments ?? []).map((segment) => ({ segment, violating: false }));
-  const svgPoint = modelToSvg(point);
-
-  if (sectors.length < 2) {
-    return (
-      <polygon
-        className="cp-diagnostic-point__oriedita-shape"
-        points={`${svgPoint.x},${svgPoint.y - 11} ${svgPoint.x + 10},${svgPoint.y - 4} ${svgPoint.x + 6},${svgPoint.y + 9} ${svgPoint.x - 6},${svgPoint.y + 9} ${svgPoint.x - 10},${svgPoint.y - 4}`}
-      />
-    );
-  }
-
-  return (
-    <>
-      {sectors.flatMap((sector, index) => {
-        if (index === sectors.length - 1 && sector.segment.color === 'Black0') return [];
-        const next = sectors[(index + 1) % sectors.length];
-        if (!next) return [];
-        const a = diagnosticSectorPoint(point, sector.segment, modelToSvg);
-        const b = diagnosticSectorPoint(point, next.segment, modelToSvg);
-        return (
-          <polygon
-            key={`${diagnostic.id}-lbl-${index}`}
-            className="cp-diagnostic-lbl-sector"
-            data-violating={sector.violating || undefined}
-            points={`${svgPoint.x},${svgPoint.y} ${a.x},${a.y} ${b.x},${b.y}`}
-          />
-        );
-      })}
-    </>
-  );
-}
-
-const IMPORTED_FOLDED_FORM_VIEW = {
-  x: CP_PAPER_RECT.x + 20,
-  y: CP_PAPER_RECT.y + 20,
-  width: 136,
-  height: 136,
-};
-
-function GeneratedFoldedFiguresLayer({
-  activeFigureId,
-  figures,
-  onFigurePointerDown,
-}: {
-  activeFigureId: string | null;
-  figures: OristudioCpFoldedFigureEntry[];
-  onFigurePointerDown: (id: string, event: PointerEvent<Element>) => void;
-}) {
-  const renderableFigures = figures.filter(isRenderableGeneratedFoldedFigure);
-  if (renderableFigures.length === 0) return null;
-  return (
-    <g className="cp-generated-folded-figures-layer">
-      {renderableFigures.map((figure) => (
-        <GeneratedFoldedFigure
-          key={figure.id}
-          active={figure.id === activeFigureId}
-          figure={figure}
-          onPointerDown={onFigurePointerDown}
-        />
-      ))}
-    </g>
-  );
-}
 
 function isRenderableGeneratedFoldedFigure(figure: OristudioCpFoldedFigureEntry): boolean {
   return Boolean(figure.renderSnapshot?.primitives.length || figure.snapshot?.wireframe);
-}
-
-function foldedFigureDisplayTransform(figure: OristudioCpFoldedFigureEntry): string | undefined {
-  const offset = figure.displayOffset;
-  if (!offset || (Math.abs(offset.x) < 1e-9 && Math.abs(offset.y) < 1e-9)) return undefined;
-  return `translate(${offset.x} ${offset.y})`;
-}
-
-function GeneratedFoldedFigure({
-  active,
-  figure,
-  onPointerDown,
-}: {
-  active: boolean;
-  figure: OristudioCpFoldedFigureEntry;
-  onPointerDown: (id: string, event: PointerEvent<Element>) => void;
-}) {
-  if (figure.renderSnapshot?.primitives.length) {
-    return (
-      <GeneratedFoldedFigurePrimitiveLayer
-        active={active}
-        figure={figure}
-        onPointerDown={onPointerDown}
-        snapshot={figure.renderSnapshot}
-      />
-    );
-  }
-
-  const wireframe = figure?.snapshot?.wireframe;
-  if (!wireframe) return null;
-  const bounds = foldFrameBounds(wireframe.points);
-  if (!bounds) return null;
-
-  const toSvg = (point: Point) => foldedFormPointToSvg(point, bounds, 0);
-  const fill = rgbColorCss(figure.snapshot?.model.front_color);
-  const stroke = rgbColorCss(figure.snapshot?.model.line_color);
-  return (
-    <g
-      className={[
-        'cp-generated-folded-figure',
-        figure.status === 'stale' ? 'cp-generated-folded-figure--stale' : '',
-      ].join(' ')}
-      data-folded-figure-id={figure.id}
-      data-folded-figure-active={active || undefined}
-      data-folded-figure-status={figure.status}
-      transform={foldedFigureDisplayTransform(figure)}
-      onPointerDown={(event) => onPointerDown(figure.id, event)}
-    >
-      {wireframe.faces.map((face, faceIndex) => {
-        const points = face
-          .map((pointIndex) => wireframe.points[pointIndex])
-          .filter((point): point is Point => !!point);
-        if (points.length < 3 || points.length !== face.length) return null;
-        return (
-          <polygon
-            key={`face-${faceIndex}`}
-            className="cp-generated-folded-figure-face"
-            points={points
-              .map(toSvg)
-              .map((point) => `${point.x},${point.y}`)
-              .join(' ')}
-            style={{ fill }}
-          />
-        );
-      })}
-      {wireframe.lines.map((line, lineIndex) => {
-        const start = wireframe.points[line.begin];
-        const end = wireframe.points[line.end];
-        if (!start || !end) return null;
-        const a = toSvg(start);
-        const b = toSvg(end);
-        return (
-          <line
-            key={`line-${lineIndex}`}
-            className="cp-generated-folded-figure-edge"
-            x1={a.x}
-            y1={a.y}
-            x2={b.x}
-            y2={b.y}
-            style={{ stroke }}
-          />
-        );
-      })}
-    </g>
-  );
-}
-
-function GeneratedFoldedFigurePrimitiveLayer({
-  active,
-  figure,
-  onPointerDown,
-  snapshot,
-}: {
-  active: boolean;
-  figure: OristudioCpFoldedFigureEntry;
-  onPointerDown: (id: string, event: PointerEvent<Element>) => void;
-  snapshot: OristudioCpFoldedRenderSnapshot;
-}) {
-  const bounds = foldedRenderSnapshotBounds(snapshot);
-  if (!bounds) return null;
-  const toSvg = (point: Point) => modelPointToCpSvg(point, ORIEDITA_PAPER_BOUNDS);
-  const hitRect = foldedRenderBoundsRect(bounds, toSvg);
-  const gradientIds = new Map<number, string>();
-  const gradients = snapshot.primitives.flatMap((primitive) => {
-    const paint = primitive.style.paint;
-    if (paint.kind !== 'gradient') return [];
-    const id = `cp-folded-gradient-${figure.id}-${primitive.sequence}`;
-    gradientIds.set(primitive.sequence, id);
-    const from = toSvg(paint.from);
-    const to = toSvg(paint.to);
-    return [{ id, from, to, paint }];
-  });
-
-  return (
-    <g
-      className={[
-        'cp-generated-folded-figure',
-        'cp-generated-folded-figure--primitive',
-        figure.status === 'stale' ? 'cp-generated-folded-figure--stale' : '',
-      ].join(' ')}
-      data-folded-figure-id={figure.id}
-      data-folded-figure-active={active || undefined}
-      data-folded-figure-status={figure.status}
-      data-folded-render-pass={snapshot.pass ?? undefined}
-      transform={foldedFigureDisplayTransform(figure)}
-      onPointerDown={(event) => onPointerDown(figure.id, event)}
-    >
-      <rect className="cp-generated-folded-figure-hit-target" {...hitRect} />
-      {gradients.length > 0 && (
-        <defs>
-          {gradients.map(({ id, from, to, paint }) => (
-            <linearGradient
-              key={id}
-              id={id}
-              gradientUnits="userSpaceOnUse"
-              x1={from.x}
-              y1={from.y}
-              x2={to.x}
-              y2={to.y}
-            >
-              <stop offset="0%" stopColor={rgbaColorCss(paint.from_color)} />
-              <stop offset="100%" stopColor={rgbaColorCss(paint.to_color)} />
-            </linearGradient>
-          ))}
-        </defs>
-      )}
-      {snapshot.primitives.map((primitive) =>
-        renderFoldedRenderPrimitive(primitive, toSvg, gradientIds.get(primitive.sequence))
-      )}
-    </g>
-  );
-}
-
-function renderFoldedRenderPrimitive(
-  primitive: OristudioCpFoldedRenderPrimitive,
-  toSvg: (point: Point) => Point,
-  gradientId: string | undefined
-) {
-  const key = `primitive-${primitive.sequence}`;
-  const paint = foldedRenderPaintCss(primitive.style.paint, gradientId);
-  const stroke = foldedRenderStrokeAttrs(primitive.style.stroke);
-  const isFill = primitive.kind.startsWith('fill_');
-  const isStroke = primitive.kind.startsWith('stroke_');
-  const common = {
-    key,
-    className: 'cp-generated-folded-figure-primitive',
-    vectorEffect: 'non-scaling-stroke' as const,
-  };
-  const paintAttrs = isFill
-    ? { fill: paint, stroke: 'none' }
-    : isStroke
-      ? { fill: 'none', stroke: paint, ...stroke }
-      : { fill: paint, stroke: 'none' };
-
-  switch (primitive.geometry.kind) {
-    case 'path':
-      return (
-        <path
-          {...common}
-          {...paintAttrs}
-          d={foldedRenderPathD(primitive.geometry.commands, toSvg)}
-        />
-      );
-    case 'segment': {
-      const from = toSvg(primitive.geometry.from);
-      const to = toSvg(primitive.geometry.to);
-      return (
-        <line
-          {...common}
-          {...paintAttrs}
-          x1={from.x}
-          y1={from.y}
-          x2={to.x}
-          y2={to.y}
-        />
-      );
-    }
-    case 'polygon':
-      return (
-        <polygon
-          {...common}
-          {...paintAttrs}
-          points={primitive.geometry.points
-            .map(toSvg)
-            .map((point) => `${point.x},${point.y}`)
-            .join(' ')}
-        />
-      );
-    case 'rect': {
-      const rect = foldedRenderRectToSvg(primitive.geometry, toSvg);
-      return <rect {...common} {...paintAttrs} {...rect} />;
-    }
-    case 'ellipse': {
-      const rect = foldedRenderRectToSvg(primitive.geometry, toSvg);
-      return (
-        <ellipse
-          {...common}
-          {...paintAttrs}
-          cx={rect.x + rect.width / 2}
-          cy={rect.y + rect.height / 2}
-          rx={rect.width / 2}
-          ry={rect.height / 2}
-        />
-      );
-    }
-    case 'text': {
-      const position = toSvg(primitive.geometry.position);
-      return (
-        <text
-          {...common}
-          {...paintAttrs}
-          x={position.x}
-          y={position.y}
-          fontSize={12}
-          fontWeight={700}
-        >
-          {primitive.geometry.value}
-        </text>
-      );
-    }
-    default:
-      return null;
-  }
-}
-
-function foldedRenderPathD(
-  commands: OristudioCpFoldedRenderPathCommand[],
-  toSvg: (point: Point) => Point
-): string {
-  return commands
-    .map((command) => {
-      switch (command.command) {
-        case 'move_to': {
-          const point = toSvg(command.point);
-          return `M ${point.x} ${point.y}`;
-        }
-        case 'line_to': {
-          const point = toSvg(command.point);
-          return `L ${point.x} ${point.y}`;
-        }
-        case 'quad_to': {
-          const control = toSvg(command.control);
-          const point = toSvg(command.point);
-          return `Q ${control.x} ${control.y} ${point.x} ${point.y}`;
-        }
-        case 'cubic_to': {
-          const control1 = toSvg(command.control_1);
-          const control2 = toSvg(command.control_2);
-          const point = toSvg(command.point);
-          return `C ${control1.x} ${control1.y} ${control2.x} ${control2.y} ${point.x} ${point.y}`;
-        }
-        case 'close':
-          return 'Z';
-      }
-    })
-    .join(' ');
-}
-
-function foldedRenderRectToSvg(
-  rect: Extract<OristudioCpFoldedRenderGeometry, { kind: 'rect' | 'ellipse' }>,
-  toSvg: (point: Point) => Point
-) {
-  const first = toSvg({ x: rect.x, y: rect.y });
-  const second = toSvg({ x: rect.x + rect.width, y: rect.y + rect.height });
-  return {
-    x: Math.min(first.x, second.x),
-    y: Math.min(first.y, second.y),
-    width: Math.abs(second.x - first.x),
-    height: Math.abs(second.y - first.y),
-  };
-}
-
-function foldedRenderBoundsRect(bounds: CpModelBounds, toSvg: (point: Point) => Point) {
-  const first = toSvg({ x: bounds.minX, y: bounds.minY });
-  const second = toSvg({ x: bounds.maxX, y: bounds.maxY });
-  return {
-    x: Math.min(first.x, second.x),
-    y: Math.min(first.y, second.y),
-    width: Math.max(Math.abs(second.x - first.x), 1e-6),
-    height: Math.max(Math.abs(second.y - first.y), 1e-6),
-  };
-}
-
-function foldedRenderPaintCss(
-  paint: OristudioCpFoldedRenderPaint,
-  gradientId: string | undefined
-): string {
-  switch (paint.kind) {
-    case 'none':
-      return 'none';
-    case 'color':
-      return rgbaColorCss(paint.color);
-    case 'gradient':
-      return gradientId ? `url(#${gradientId})` : rgbaColorCss(paint.from_color);
-    case 'texture':
-    case 'other':
-      return 'currentColor';
-  }
-}
-
-function foldedRenderStrokeAttrs(stroke: OristudioCpFoldedRenderStroke) {
-  if (stroke.kind !== 'basic') return {};
-  return {
-    strokeWidth: stroke.width,
-    strokeLinecap: foldedRenderLineCap(stroke.end_cap),
-    strokeLinejoin: foldedRenderLineJoin(stroke.line_join),
-    strokeMiterlimit: stroke.miter_limit,
-  };
-}
-
-function foldedRenderLineCap(cap: number): 'butt' | 'round' | 'square' {
-  if (cap === 1) return 'round';
-  if (cap === 2) return 'square';
-  return 'butt';
-}
-
-function foldedRenderLineJoin(join: number): 'miter' | 'round' | 'bevel' {
-  if (join === 1) return 'round';
-  if (join === 2) return 'bevel';
-  return 'miter';
-}
-
-function ImportedFoldedFormsLayer({
-  frames,
-  startIndex = 0,
-}: {
-  frames: FoldDocument[];
-  startIndex?: number;
-}) {
-  if (frames.length === 0) return null;
-  return (
-    <g className="cp-folded-form-layer" aria-hidden="true">
-      {frames.map((frame, index) => (
-        <ImportedFoldedFormFigure
-          key={`${index}-${frame.frame_title ?? 'folded-form'}`}
-          frame={frame}
-          index={startIndex + index}
-        />
-      ))}
-    </g>
-  );
-}
-
-function ImportedFoldedFormFigure({
-  frame,
-  index,
-}: {
-  frame: FoldDocument;
-  index: number;
-}) {
-  const vertices = foldFrameVertices(frame);
-  const bounds = foldFrameBounds(vertices);
-  if (!bounds) return null;
-
-  const toSvg = (point: Point) => foldedFormPointToSvg(point, bounds, index);
-  return (
-    <g
-      className="cp-folded-form"
-      data-folded-form-index={index}
-      data-folded-form-title={frame.frame_title || undefined}
-    >
-      {foldFrameFaces(frame, vertices).map((face, faceIndex) => (
-        <polygon
-          key={`face-${faceIndex}`}
-          className="cp-folded-form-face"
-          points={face
-            .map(toSvg)
-            .map((point) => `${point.x},${point.y}`)
-            .join(' ')}
-        />
-      ))}
-      {foldFrameEdges(frame, vertices).map(([a, b], edgeIndex) => {
-        const start = toSvg(a);
-        const end = toSvg(b);
-        return (
-          <line
-            key={`edge-${edgeIndex}`}
-            className="cp-folded-form-edge"
-            x1={start.x}
-            y1={start.y}
-            x2={end.x}
-            y2={end.y}
-          />
-        );
-      })}
-    </g>
-  );
 }
 
 function isRenderableFoldedFormFrame(frame: FoldDocument): boolean {
@@ -5812,46 +2795,12 @@ function foldFrameBounds(vertices: Point[]): CpModelBounds | null {
   return { minX, minY, maxX, maxY, spanX, spanY };
 }
 
-function foldedRenderSnapshotBounds(snapshot: OristudioCpFoldedRenderSnapshot): CpModelBounds | null {
-  const points = snapshot.primitives.flatMap(foldedRenderPrimitiveBoundsPoints);
-  return foldFrameBounds(points);
-}
-
-function foldedRenderPrimitiveBoundsPoints(primitive: OristudioCpFoldedRenderPrimitive): Point[] {
-  switch (primitive.geometry.kind) {
-    case 'path':
-      return primitive.geometry.commands.flatMap(foldedRenderPathCommandPoints);
-    case 'segment':
-      return [primitive.geometry.from, primitive.geometry.to];
-    case 'polygon':
-      return primitive.geometry.points;
-    case 'rect':
-    case 'ellipse':
-      return [
-        { x: primitive.geometry.x, y: primitive.geometry.y },
-        {
-          x: primitive.geometry.x + primitive.geometry.width,
-          y: primitive.geometry.y + primitive.geometry.height,
-        },
-      ];
-    case 'text':
-      return [primitive.geometry.position];
-  }
-}
-
-function foldedRenderPathCommandPoints(command: OristudioCpFoldedRenderPathCommand): Point[] {
-  switch (command.command) {
-    case 'move_to':
-    case 'line_to':
-      return [command.point];
-    case 'quad_to':
-      return [command.control, command.point];
-    case 'cubic_to':
-      return [command.control_1, command.control_2, command.point];
-    case 'close':
-      return [];
-  }
-}
+const IMPORTED_FOLDED_FORM_VIEW = {
+  x: CP_PAPER_RECT.x + 20,
+  y: CP_PAPER_RECT.y + 20,
+  width: 136,
+  height: 136,
+};
 
 function foldedFormPointToSvg(point: Point, bounds: CpModelBounds, index: number): Point {
   const gap = 16;
@@ -5866,1134 +2815,6 @@ function foldedFormPointToSvg(point: Point, bounds: CpModelBounds, index: number
     x: view.x + offsetX + (point.x - bounds.minX) * scale,
     y: view.y + offsetY + (point.y - bounds.minY) * scale,
   };
-}
-
-function rgbColorCss(color: OristudioCpRgbColor | undefined): string {
-  if (!color) return 'currentColor';
-  return `rgb(${color.red} ${color.green} ${color.blue})`;
-}
-
-function rgbaColorCss(color: OristudioCpRgbaColor): string {
-  return `rgb(${color.red} ${color.green} ${color.blue} / ${color.alpha / 255})`;
-}
-
-function SelectionTransformBox({
-  modelToSvg,
-  selectionFrame,
-  uiScale,
-  onMovePointerDown,
-  onResizePointerDown,
-  onRotatePointerDown,
-  onTransform,
-}: {
-  modelToSvg: (point: Point) => Point;
-  selectionFrame: CpLineSelectionFrame;
-  uiScale: number;
-  onMovePointerDown: (event: PointerEvent<Element>) => void;
-  onResizePointerDown: (
-    handle: CpSelectionResizeHandle,
-    event: PointerEvent<Element>
-  ) => void;
-  onRotatePointerDown: (event: PointerEvent<Element>) => void;
-  onTransform: (transform: CpSelectionTransform) => void;
-}) {
-  const center = modelToSvg(selectionFrame.center);
-  const axisXEnd = modelToSvg({
-    x: selectionFrame.center.x + selectionFrame.axisX.x,
-    y: selectionFrame.center.y + selectionFrame.axisX.y,
-  });
-  const axisYEnd = modelToSvg({
-    x: selectionFrame.center.x + selectionFrame.axisY.x,
-    y: selectionFrame.center.y + selectionFrame.axisY.y,
-  });
-  const axisXVector = { x: axisXEnd.x - center.x, y: axisXEnd.y - center.y };
-  const axisYVector = { x: axisYEnd.x - center.x, y: axisYEnd.y - center.y };
-  const axisXLength = Math.max(1e-9, Math.hypot(axisXVector.x, axisXVector.y));
-  const axisYLength = Math.max(1e-9, Math.hypot(axisYVector.x, axisYVector.y));
-  const axisX = { x: axisXVector.x / axisXLength, y: axisXVector.y / axisXLength };
-  const axisY = { x: axisYVector.x / axisYLength, y: axisYVector.y / axisYLength };
-  const minSize = 18 * uiScale;
-  const width = Math.max(selectionFrame.width * axisXLength, minSize);
-  const height = Math.max(selectionFrame.height * axisYLength, minSize);
-  const halfWidth = width / 2;
-  const halfHeight = height / 2;
-  const framePoint = (xSign: -1 | 0 | 1, ySign: -1 | 0 | 1): Point => ({
-    x: center.x + axisX.x * halfWidth * xSign + axisY.x * halfHeight * ySign,
-    y: center.y + axisX.y * halfWidth * xSign + axisY.y * halfHeight * ySign,
-  });
-  const boxPoints = [
-    framePoint(-1, 1),
-    framePoint(1, 1),
-    framePoint(1, -1),
-    framePoint(-1, -1),
-  ];
-  const boxMinX = Math.min(...boxPoints.map((point) => point.x));
-  const boxMinY = Math.min(...boxPoints.map((point) => point.y));
-  const boxMaxY = Math.max(...boxPoints.map((point) => point.y));
-  const menuButtonCount = 4;
-  const menuSeparatorCount = 1;
-  const menuChildCount = menuButtonCount + menuSeparatorCount;
-  const menuButtonSize = 25;
-  const menuGap = 3;
-  const menuPadding = 4;
-  const menuBorderWidth = 1;
-  const menuSeparatorWidth = 1;
-  const menuWidth =
-    menuButtonCount * menuButtonSize +
-    menuSeparatorCount * menuSeparatorWidth +
-    (menuChildCount - 1) * menuGap +
-    menuPadding * 2 +
-    menuBorderWidth * 2;
-  const menuHeight = 34;
-  const canvasPadding = 10 * uiScale;
-  const menuSvgWidth = menuWidth * uiScale;
-  const menuSvgHeight = menuHeight * uiScale;
-  const menuX = Math.min(
-    Math.max(boxMinX, CP_EDITABLE_CANVAS_RECT.x + canvasPadding),
-    CP_EDITABLE_CANVAS_RECT.x + CP_EDITABLE_CANVAS_RECT.width - menuSvgWidth - canvasPadding
-  );
-  const aboveMenuY = boxMinY - menuSvgHeight - 10 * uiScale;
-  const menuY =
-    aboveMenuY < CP_EDITABLE_CANVAS_RECT.y + canvasPadding
-      ? boxMaxY + 10 * uiScale
-      : aboveMenuY;
-  const boxPointList = boxPoints.map((point) => `${point.x},${point.y}`).join(' ');
-  const handleRadius = 5 * uiScale;
-  const rotateHitRadius = 18 * uiScale;
-  const resizeHandles = CP_SELECTION_RESIZE_HANDLES.map((handle) => ({
-    ...handle,
-    point: framePoint(handle.x, handle.y),
-  }));
-
-  return (
-    <g className="cp-selection-transform" data-cp-selection-transform-control="true">
-      <polygon
-        className="cp-selection-transform__move-hit-area"
-        points={boxPointList}
-        onPointerDown={onMovePointerDown}
-      />
-      <polygon
-        className="cp-selection-transform__box"
-        points={boxPointList}
-      />
-      <foreignObject
-        x={menuX}
-        y={menuY}
-        width={menuSvgWidth}
-        height={menuSvgHeight}
-        className="cp-selection-transform__menu-foreign"
-      >
-        <div
-          className="cp-selection-transform__menu"
-          role="toolbar"
-          aria-label="Selection transforms"
-          style={{
-            width: menuWidth,
-            height: menuHeight,
-            transform: `scale(${uiScale})`,
-            transformOrigin: 'top left',
-          }}
-        >
-          <button
-            type="button"
-            title="Flip Horizontal"
-            aria-label="Flip Horizontal"
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={() => onTransform({ kind: 'flip-horizontal' })}
-          >
-            <FlipHorizontal size={14} />
-          </button>
-          <button
-            type="button"
-            title="Flip Vertical"
-            aria-label="Flip Vertical"
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={() => onTransform({ kind: 'flip-vertical' })}
-          >
-            <FlipVertical size={14} />
-          </button>
-          <span className="cp-selection-transform__separator" />
-          <button
-            type="button"
-            title="Rotate Left 90"
-            aria-label="Rotate Left 90"
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={() => onTransform({ kind: 'rotate', angleDegrees: 90 })}
-          >
-            <RotateCcw size={14} />
-          </button>
-          <button
-            type="button"
-            title="Rotate Right 90"
-            aria-label="Rotate Right 90"
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={() => onTransform({ kind: 'rotate', angleDegrees: -90 })}
-          >
-            <RotateCw size={14} />
-          </button>
-        </div>
-      </foreignObject>
-      {resizeHandles
-        .filter((handle) => handle.x !== 0 && handle.y !== 0)
-        .map((handle) => (
-          <circle
-            key={`rotate-${handle.id}`}
-            className="cp-selection-transform__rotate-hit-area"
-            cx={handle.point.x}
-            cy={handle.point.y}
-            r={rotateHitRadius}
-            aria-label="Rotate selection"
-            onPointerDown={onRotatePointerDown}
-          />
-        ))}
-      {resizeHandles.map((handle) => (
-        <circle
-          key={handle.id}
-          className="cp-selection-transform__resize-handle"
-          data-cp-resize-cursor={handle.cursor}
-          data-cp-resize-handle={handle.id}
-          cx={handle.point.x}
-          cy={handle.point.y}
-          r={handleRadius}
-          onPointerDown={(event) => onResizePointerDown(handle.id, event)}
-        />
-      ))}
-    </g>
-  );
-}
-
-function SelectionBoxPreview({
-  modelToSvg,
-  points,
-}: {
-  modelToSvg: (point: Point) => Point;
-  points: readonly [Point, Point];
-}) {
-  const first = modelToSvg(points[0]);
-  const second = modelToSvg(points[1]);
-  const x = Math.min(first.x, second.x);
-  const y = Math.min(first.y, second.y);
-  const width = Math.abs(first.x - second.x);
-  const height = Math.abs(first.y - second.y);
-
-  return (
-    <rect
-      className="cp-command-box-preview"
-      x={x}
-      y={y}
-      width={width}
-      height={height}
-    />
-  );
-}
-
-interface GeneratedCreasePatternProps {
-  clearSelectionOnBackgroundPointerDown: (event: PointerEvent<SVGElement>) => void;
-  mode: 'mvf' | 'agrh';
-  project: TreeProject;
-  select: (selection: Selection) => void;
-  selection: Selection;
-  spacePressed: boolean;
-}
-
-function GeneratedCreasePattern({
-  clearSelectionOnBackgroundPointerDown,
-  mode,
-  project,
-  select,
-  selection,
-  spacePressed,
-}: GeneratedCreasePatternProps) {
-  return (
-    <>
-      {project.facets.map((facet) => {
-        const points = facet.vertices
-          .map((point) => paperToSvg(point, CP_PAPER_RECT))
-          .map((point) => `${point.x},${point.y}`)
-          .join(' ');
-        return (
-          <polygon
-            key={facet.id}
-            className={[
-              `facet facet--${facet.color}`,
-              isFacetSelected(selection, facet.id) ? 'facet--selected' : '',
-            ].join(' ')}
-            points={points}
-            onClick={(event) => {
-              if (spacePressed) return;
-              select(
-                event.shiftKey || event.metaKey || event.ctrlKey
-                  ? toggleFacetSelection(selection, facet.id)
-                  : { kind: 'facet', id: facet.id }
-              );
-            }}
-          />
-        );
-      })}
-      {project.creases.map((crease) => {
-        const a = paperToSvg(crease.vertices[0], CP_PAPER_RECT);
-        const b = paperToSvg(crease.vertices[1], CP_PAPER_RECT);
-        return (
-          <line
-            key={crease.id}
-            className={[
-              creaseClass(crease.fold, crease.kind, mode),
-              isCreaseSelected(selection, crease.id) ? 'crease--selected' : '',
-            ].join(' ')}
-            x1={a.x}
-            y1={a.y}
-            x2={b.x}
-            y2={b.y}
-            onClick={(event) => {
-              if (spacePressed) return;
-              select(
-                event.shiftKey || event.metaKey || event.ctrlKey
-                  ? toggleCreaseSelection(selection, crease.id)
-                  : { kind: 'crease', id: crease.id }
-              );
-            }}
-          />
-        );
-      })}
-      <rect
-        className="paper-border"
-        x={CP_PAPER_RECT.x}
-        y={CP_PAPER_RECT.y}
-        width={CP_PAPER_RECT.width}
-        height={CP_PAPER_RECT.height}
-        onPointerDown={clearSelectionOnBackgroundPointerDown}
-      />
-    </>
-  );
-}
-
-function CpContextToolPanel({
-  action,
-  command,
-  options,
-  setOptions,
-  activeLineColor,
-  measurementSlots,
-  pendingPointCount,
-  selection,
-  onApply,
-  onClearInput,
-  onDeleteText,
-}: {
-  action: OristudioCpActionDefinition | undefined;
-  command: OristudioCpCommandDefinition;
-  options: OristudioCpToolOptions;
-  setOptions: Dispatch<SetStateAction<OristudioCpToolOptions>>;
-  activeLineColor: OristudioCpLineColor;
-  measurementSlots: CpMeasurementSlots;
-  pendingPointCount: number;
-  selection: OristudioCpSelection;
-  onApply?: () => void;
-  onClearInput?: () => void;
-  onDeleteText?: () => void;
-}) {
-  const [collapsed, setCollapsed] = useState(false);
-  const groups = cpToolSettingGroupsForCommand(command);
-  const instructions = instructionsForCpTool(action, command);
-  const applyDisabled = contextApplyDisabledForCommand(command, selection, pendingPointCount);
-  const title = action?.kind === 'command' ? action.label : command.label;
-  const meta =
-    groups.length > 0
-      ? `${groups.length} ${groups.length === 1 ? 'setting' : 'settings'}`
-      : 'Instructions';
-
-  if (groups.length === 0 && !instructions) return null;
-
-  return (
-    <section
-      className="cp-context-panel"
-      aria-label="Crease pattern tool options"
-      onPointerDown={(event) => event.stopPropagation()}
-      onClick={(event) => event.stopPropagation()}
-    >
-      <button
-        className="cp-context-panel__header"
-        type="button"
-        aria-expanded={!collapsed}
-        onClick={() => setCollapsed((current) => !current)}
-      >
-        {collapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
-        <span className="cp-context-panel__title">{title}</span>
-        <span className="cp-context-panel__meta">{meta}</span>
-      </button>
-      {!collapsed && (
-        <div className="cp-context-panel__body">
-          {instructions && <CpContextToolInstructions instructions={instructions} />}
-          {groups.map((group) => (
-            <CpContextToolGroup
-              key={group}
-              group={group}
-              options={options}
-              setOptions={setOptions}
-              activeLineColor={activeLineColor}
-              activeMeasurementSlot={cpMeasurementSlotForOperation(command.operationId)}
-              activeOperationId={command.operationId}
-              measurementSlots={measurementSlots}
-              pendingPointCount={pendingPointCount}
-              selection={selection}
-            />
-          ))}
-          {onApply && (
-            <button
-              className="cp-context-panel__apply"
-              type="button"
-              disabled={applyDisabled}
-              onClick={onApply}
-            >
-              {command.operationId === 'VoronoiCreate'
-                ? 'Apply Voronoi'
-                : command.operationId === 'Text'
-                  ? 'Apply text'
-                  : command.operationId === 'CircleChangeColor'
-                    ? 'Apply color'
-                    : isSelectionCircleApplyOperation(command.operationId)
-                      ? 'Apply circle'
-                  : 'Apply to selection'}
-            </button>
-          )}
-          {onDeleteText && (
-            <button className="cp-context-panel__secondary" type="button" onClick={onDeleteText}>
-              Delete text
-            </button>
-          )}
-          {onClearInput && (
-            <button className="cp-context-panel__secondary" type="button" onClick={onClearInput}>
-              Clear seeds
-            </button>
-          )}
-        </div>
-      )}
-    </section>
-  );
-}
-
-function CpContextToolInstructions({
-  instructions,
-}: {
-  instructions: OristudioCpToolInstructions;
-}) {
-  const hasIntro = (instructions.intro?.length ?? 0) > 0;
-  const hasSteps = (instructions.steps?.length ?? 0) > 0;
-  const hasNotes = (instructions.notes?.length ?? 0) > 0;
-
-  return (
-    <div className="cp-context-panel__instructions">
-      <div className="cp-context-panel__group-title">Instructions</div>
-      {hasIntro && (
-        <div className="cp-context-panel__instruction-copy">
-          {instructions.intro?.map((line) => <p key={line}>{line}</p>)}
-        </div>
-      )}
-      {hasSteps && (
-        <ol className="cp-context-panel__instruction-list">
-          {instructions.steps?.map((step) => <li key={step}>{step}</li>)}
-        </ol>
-      )}
-      {hasNotes && (
-        <div className="cp-context-panel__instruction-notes">
-          {instructions.notes?.map((note) => <p key={note}>{note}</p>)}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function CpContextToolGroup({
-  group,
-  options,
-  setOptions,
-  activeLineColor,
-  activeMeasurementSlot,
-  activeOperationId,
-  measurementSlots,
-  pendingPointCount,
-  selection,
-}: {
-  group: OristudioCpToolSettingGroup;
-  options: OristudioCpToolOptions;
-  setOptions: Dispatch<SetStateAction<OristudioCpToolOptions>>;
-  activeLineColor: OristudioCpLineColor;
-  activeMeasurementSlot: CpMeasurementSlotId | null;
-  activeOperationId: OristudioCpCommandDefinition['operationId'];
-  measurementSlots: CpMeasurementSlots;
-  pendingPointCount: number;
-  selection: OristudioCpSelection;
-}) {
-  if (group === 'line-color') {
-    return (
-      <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">Line type</div>
-        <div className="cp-context-panel__readout">{cpLineTypeStatusLabel(activeLineColor)}</div>
-      </div>
-    );
-  }
-
-  if (group === 'division-count') {
-    return (
-      <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">Divide by count</div>
-        <NumericToolOption
-          label="Count"
-          ariaLabel="Division count"
-          min={1}
-          max={256}
-          step={1}
-          value={options.divisionCount}
-          onChange={(divisionCount) =>
-            setOptions((current) => ({ ...current, divisionCount }))
-          }
-        />
-      </div>
-    );
-  }
-
-  if (group === 'division-ratio') {
-    return <DivisionRatioOptions options={options} setOptions={setOptions} />;
-  }
-
-  if (group === 'angle-system') {
-    return (
-      <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">Angle system</div>
-        <NumericToolOption
-          label="Divider"
-          ariaLabel="Angle system divider"
-          min={0}
-          max={360}
-          step={1}
-          value={options.angleSystemDivider}
-          onChange={(angleSystemDivider) =>
-            setOptions((current) => ({ ...current, angleSystemDivider }))
-          }
-        />
-        <div className="cp-context-panel__angle-grid">
-          {ANGLE_FIELDS.map((field, index) => (
-            <NumericToolOption
-              key={field}
-              label={field}
-              ariaLabel={`Angle ${field}`}
-              min={0}
-              max={360}
-              step={0.1}
-              value={options.angleSystemAngles[index] ?? 0}
-              onChange={(value) => updateAngleField(setOptions, index, value)}
-            />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (group === 'replace-line-type') {
-    return (
-      <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">Replace line type</div>
-        <SelectToolOption
-          label="From"
-          ariaLabel="Replace from line type"
-          value={options.customFromLineType}
-          options={ORISTUDIO_CP_CUSTOM_LINE_TYPE_OPTIONS}
-          onChange={(customFromLineType) =>
-            setOptions((current) => ({ ...current, customFromLineType }))
-          }
-        />
-        <SelectToolOption
-          label="To"
-          ariaLabel="Replace to line type"
-          value={options.customToLineType}
-          options={ORISTUDIO_CP_REPLACE_TARGET_LINE_TYPE_OPTIONS}
-          onChange={(customToLineType) =>
-            setOptions((current) => ({ ...current, customToLineType }))
-          }
-        />
-      </div>
-    );
-  }
-
-  if (group === 'delete-line-type') {
-    return (
-      <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">Delete line type</div>
-        <SelectToolOption
-          label="Filter"
-          ariaLabel="Delete line type"
-          value={options.customLineType}
-          options={ORISTUDIO_CP_CUSTOM_LINE_TYPE_OPTIONS}
-          onChange={(customLineType) =>
-            setOptions((current) => ({ ...current, customLineType }))
-          }
-        />
-      </div>
-    );
-  }
-
-  if (group === 'erase-line-type') {
-    return (
-      <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">Erase</div>
-        <SelectToolOption
-          label="Filter"
-          ariaLabel="Erase line type"
-          value={options.customLineType}
-          options={ORISTUDIO_CP_CUSTOM_LINE_TYPE_OPTIONS}
-          onChange={(customLineType) =>
-            setOptions((current) => ({ ...current, customLineType }))
-          }
-        />
-      </div>
-    );
-  }
-
-  if (group === 'fix-precision') {
-    return (
-      <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">Fix inaccurate</div>
-        <NumericToolOption
-          label="Precision"
-          ariaLabel="Fix precision"
-          min={0}
-          max={100}
-          step={0.01}
-          value={options.fixPrecision}
-          onChange={(fixPrecision) => setOptions((current) => ({ ...current, fixPrecision }))}
-        />
-        <CheckboxToolOption
-          label="BP"
-          ariaLabel="Use BP fix targets"
-          checked={options.fixPrecisionUseBp}
-          onChange={(fixPrecisionUseBp) =>
-            setOptions((current) => ({ ...current, fixPrecisionUseBp }))
-          }
-        />
-        <CheckboxToolOption
-          label="22.5"
-          ariaLabel="Use 22.5 fix targets"
-          checked={options.fixPrecisionUse22_5}
-          onChange={(fixPrecisionUse22_5) =>
-            setOptions((current) => ({ ...current, fixPrecisionUse22_5 }))
-          }
-        />
-      </div>
-    );
-  }
-
-  if (group === 'polygon-corners') {
-    return (
-      <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">Regular polygon</div>
-        <NumericToolOption
-          label="Corners"
-          ariaLabel="Polygon corners"
-          min={3}
-          max={256}
-          step={1}
-          value={options.polygonCorners}
-          onChange={(polygonCorners) =>
-            setOptions((current) => ({ ...current, polygonCorners }))
-          }
-        />
-      </div>
-    );
-  }
-
-  if (group === 'parallel-width') {
-    return (
-      <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">Parallel width</div>
-        <NumericToolOption
-          label="Width"
-          ariaLabel="Parallel width"
-          min={0}
-          max={9999}
-          step={0.1}
-          value={options.parallelWidth}
-          onChange={(parallelWidth) =>
-            setOptions((current) => ({ ...current, parallelWidth }))
-          }
-        />
-      </div>
-    );
-  }
-
-  if (group === 'candidate-choice') {
-    const usesNearestCandidate =
-      activeOperationId !== 'CircleDrawTangentLine' &&
-      activeOperationId !== 'CircleDrawConcentricSelect';
-    return (
-      <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">Candidate</div>
-        <CheckboxToolOption
-          label={usesNearestCandidate ? 'Auto nearest' : 'First candidate'}
-          ariaLabel={usesNearestCandidate ? 'Use nearest candidate' : 'Use first candidate'}
-          checked={options.candidateIndex === null}
-          onChange={(useNearest) =>
-            setOptions((current) => ({
-              ...current,
-              candidateIndex: useNearest ? null : 0,
-            }))
-          }
-        />
-        <NumericToolOption
-          label="Index"
-          ariaLabel="Candidate index"
-          min={1}
-          max={256}
-          step={1}
-          value={(options.candidateIndex ?? 0) + 1}
-          disabled={options.candidateIndex === null}
-          onChange={(candidateIndex) =>
-            setOptions((current) => ({
-              ...current,
-              candidateIndex: Math.max(0, candidateIndex - 1),
-            }))
-          }
-        />
-      </div>
-    );
-  }
-
-  if (group === 'circle-select-help') {
-    return (
-      <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">Circle selection</div>
-        <div className="cp-context-panel__readout">
-          {selection.circles.length} circle{selection.circles.length === 1 ? '' : 's'} selected
-          {selection.lines.length > 0
-            ? `, ${selection.lines.length} crease${selection.lines.length === 1 ? '' : 's'} selected`
-            : ''}
-        </div>
-      </div>
-    );
-  }
-
-  if (group === 'apply-lines') {
-    return (
-      <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">
-          {activeOperationId === 'VoronoiCreate' ? 'Voronoi seeds' : 'Apply lines'}
-        </div>
-        <div className="cp-context-panel__readout">
-          {activeOperationId === 'VoronoiCreate'
-            ? `${pendingPointCount} seed ${pendingPointCount === 1 ? 'press' : 'presses'} pending`
-            : 'Apply the generated lines from this tool.'}
-        </div>
-      </div>
-    );
-  }
-
-  if (group === 'measurement-readout') {
-    return (
-      <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">Measurement</div>
-        <div className="cp-context-panel__measurement-grid">
-          {CP_MEASUREMENT_SLOT_ORDER.map((slot) => (
-            <div
-              key={slot}
-              className="cp-context-panel__measurement-row"
-              data-active={slot === activeMeasurementSlot || undefined}
-              data-measurement-slot={slot}
-            >
-              <span>{CP_MEASUREMENT_SLOT_LABELS[slot]}</span>
-              <span>{formatCpMeasurementValue(slot, measurementSlots[slot])}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (group === 'custom-circle-color') {
-    return (
-      <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">Circle color</div>
-        <div
-          className="cp-context-panel__color-swatch"
-          style={{
-            backgroundColor: `rgb(${options.customCircleColor.red}, ${options.customCircleColor.green}, ${options.customCircleColor.blue})`,
-          }}
-          aria-hidden="true"
-        />
-        <div className="cp-context-panel__angle-grid">
-          {RGB_FIELDS.map((field) => (
-            <NumericToolOption
-              key={field.key}
-              label={field.label}
-              ariaLabel={field.ariaLabel}
-              min={0}
-              max={255}
-              step={1}
-              value={options.customCircleColor[field.key]}
-              onChange={(value) => updateCustomCircleColor(setOptions, field.key, value)}
-            />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (group === 'text-content') {
-    return (
-      <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">Text annotation</div>
-        <TextAreaToolOption
-          label="Text"
-          ariaLabel="Text annotation content"
-          value={options.textContent}
-          onChange={(textContent) => setOptions((current) => ({ ...current, textContent }))}
-        />
-        <div className="cp-context-panel__readout">
-          {selection.texts.length === 0 ? 'No text selected' : `${selection.texts.length} selected`}
-        </div>
-      </div>
-    );
-  }
-
-  if (group === 'line-select-help') {
-    return (
-      <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">Line selection</div>
-        <div className="cp-context-panel__readout">Drag across creases to apply this action.</div>
-      </div>
-    );
-  }
-
-  return null;
-}
-
-const RATIO_FIELDS: readonly {
-  key: keyof OristudioCpRatioExpression;
-  label: string;
-  ariaLabel: string;
-  min?: number;
-  step: number;
-}[] = [
-  { key: 'a', label: 'A', ariaLabel: 'Ratio A', step: 0.1 },
-  { key: 'b', label: 'B', ariaLabel: 'Ratio B', step: 0.1 },
-  { key: 'c', label: 'C', ariaLabel: 'Ratio C', min: 0, step: 0.1 },
-  { key: 'd', label: 'D', ariaLabel: 'Ratio D', step: 0.1 },
-  { key: 'e', label: 'E', ariaLabel: 'Ratio E', step: 0.1 },
-  { key: 'f', label: 'F', ariaLabel: 'Ratio F', min: 0, step: 0.1 },
-];
-
-function DivisionRatioOptions({
-  options,
-  setOptions,
-}: {
-  options: OristudioCpToolOptions;
-  setOptions: Dispatch<SetStateAction<OristudioCpToolOptions>>;
-}) {
-  const initialHalves = ratioHalvesFromExpression(options.divisionRatio);
-  const [leftDraft, setLeftDraft] = useState(() => formatOrieditaRatioHalf(initialHalves.left));
-  const [rightDraft, setRightDraft] = useState(() => formatOrieditaRatioHalf(initialHalves.right));
-  const ratio = evaluateOrieditaRatioExpression(options.divisionRatio);
-  const leftInvalid = parseOrieditaRatioHalfInput(leftDraft) === null;
-  const rightInvalid = parseOrieditaRatioHalfInput(rightDraft) === null;
-
-  const applyRatioExpression = useCallback(
-    (divisionRatio: OristudioCpRatioExpression) => {
-      const halves = ratioHalvesFromExpression(divisionRatio);
-      setLeftDraft(formatOrieditaRatioHalf(halves.left));
-      setRightDraft(formatOrieditaRatioHalf(halves.right));
-      setOptions((current) => ({ ...current, divisionRatio }));
-    },
-    [setOptions]
-  );
-
-  const updateSimpleHalf = useCallback(
-    (side: 'left' | 'right', value: string) => {
-      if (side === 'left') {
-        setLeftDraft(value);
-      } else {
-        setRightDraft(value);
-      }
-      const parsed = parseOrieditaRatioHalfInput(value);
-      if (!parsed) return;
-      setOptions((current) => {
-        const halves = ratioHalvesFromExpression(current.divisionRatio);
-        return {
-          ...current,
-          divisionRatio: ratioExpressionFromHalves(
-            side === 'left' ? parsed : halves.left,
-            side === 'right' ? parsed : halves.right
-          ),
-        };
-      });
-    },
-    [setOptions]
-  );
-
-  const updateExactField = useCallback(
-    (field: keyof OristudioCpRatioExpression, value: number) => {
-      const divisionRatio = {
-        ...options.divisionRatio,
-        [field]: value,
-      };
-      applyRatioExpression(divisionRatio);
-    },
-    [applyRatioExpression, options.divisionRatio]
-  );
-
-  return (
-    <div className="cp-context-panel__group">
-      <div className="cp-context-panel__group-title">Divide by ratio</div>
-      <div className="cp-context-panel__ratio-simple">
-        <TextToolOption
-          label="Left"
-          ariaLabel="Left segment ratio"
-          value={leftDraft}
-          invalid={leftInvalid}
-          onChange={(value) => updateSimpleHalf('left', value)}
-        />
-        <TextToolOption
-          label="Right"
-          ariaLabel="Right segment ratio"
-          value={rightDraft}
-          invalid={rightInvalid}
-          onChange={(value) => updateSimpleHalf('right', value)}
-        />
-      </div>
-      <div className="cp-context-panel__preset-grid" aria-label="Ratio presets">
-        {ORISTUDIO_CP_RATIO_PRESETS.map((preset) => (
-          <button
-            key={preset.label}
-            type="button"
-            className="cp-context-panel__preset"
-            data-active={sameRatioExpression(options.divisionRatio, preset.expression) || undefined}
-            aria-label={`Use ${preset.label} ratio`}
-            onClick={() => applyRatioExpression(preset.expression)}
-          >
-            {preset.label}
-          </button>
-        ))}
-      </div>
-      <div className="cp-context-panel__readout">
-        Computed ratio {formatOrieditaRatioNumber(ratio.ratioS)} :{' '}
-        {formatOrieditaRatioNumber(ratio.ratioT)}
-      </div>
-      <details className="cp-context-panel__details">
-        <summary>Exact form</summary>
-        <div className="cp-context-panel__ratio-grid">
-          {RATIO_FIELDS.map((field) => (
-            <NumericToolOption
-              key={field.key}
-              label={field.label}
-              ariaLabel={field.ariaLabel}
-              min={field.min}
-              max={999}
-              step={field.step}
-              value={options.divisionRatio[field.key]}
-              onChange={(value) => updateExactField(field.key, value)}
-            />
-          ))}
-        </div>
-      </details>
-    </div>
-  );
-}
-
-function sameRatioExpression(
-  left: OristudioCpRatioExpression,
-  right: OristudioCpRatioExpression
-): boolean {
-  return RATIO_FIELDS.every((field) => left[field.key] === right[field.key]);
-}
-
-const ANGLE_FIELDS = ['A', 'B', 'C', 'D', 'E', 'F'] as const;
-
-const RGB_FIELDS: readonly {
-  key: keyof OristudioCpRgbColor;
-  label: string;
-  ariaLabel: string;
-}[] = [
-  { key: 'red', label: 'R', ariaLabel: 'Circle color red' },
-  { key: 'green', label: 'G', ariaLabel: 'Circle color green' },
-  { key: 'blue', label: 'B', ariaLabel: 'Circle color blue' },
-];
-
-function updateAngleField(
-  setOptions: Dispatch<SetStateAction<OristudioCpToolOptions>>,
-  index: number,
-  value: number
-) {
-  setOptions((current) => {
-    const angleSystemAngles = [...current.angleSystemAngles] as OristudioCpToolOptions['angleSystemAngles'];
-    angleSystemAngles[index] = value;
-    return {
-      ...current,
-      angleSystemAngles,
-    };
-  });
-}
-
-function updateCustomCircleColor(
-  setOptions: Dispatch<SetStateAction<OristudioCpToolOptions>>,
-  field: keyof OristudioCpRgbColor,
-  value: number
-) {
-  setOptions((current) => ({
-    ...current,
-    customCircleColor: {
-      ...current.customCircleColor,
-      [field]: Math.round(value),
-    },
-  }));
-}
-
-function NumericToolOption({
-  label,
-  ariaLabel,
-  min,
-  max,
-  step,
-  value,
-  disabled = false,
-  onChange,
-}: {
-  label: string;
-  ariaLabel: string;
-  min?: number;
-  max?: number;
-  step: number;
-  value: number;
-  disabled?: boolean;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <label className="cp-context-panel__field">
-      <span>{label}</span>
-      <input
-        aria-label={ariaLabel}
-        type="number"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        disabled={disabled}
-        onChange={(event) => {
-          const parsed = Number.parseFloat(event.currentTarget.value);
-          if (!Number.isFinite(parsed)) return;
-          onChange(clampToolNumber(parsed, min, max));
-        }}
-      />
-    </label>
-  );
-}
-
-function TextToolOption({
-  label,
-  ariaLabel,
-  value,
-  invalid,
-  onChange,
-}: {
-  label: string;
-  ariaLabel: string;
-  value: string;
-  invalid: boolean;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className="cp-context-panel__field">
-      <span>{label}</span>
-      <input
-        aria-label={ariaLabel}
-        type="text"
-        value={value}
-        aria-invalid={invalid}
-        data-invalid={invalid || undefined}
-        onChange={(event) => onChange(event.currentTarget.value)}
-      />
-    </label>
-  );
-}
-
-function TextAreaToolOption({
-  label,
-  ariaLabel,
-  value,
-  onChange,
-}: {
-  label: string;
-  ariaLabel: string;
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className="cp-context-panel__field cp-context-panel__field--textarea">
-      <span>{label}</span>
-      <textarea
-        aria-label={ariaLabel}
-        rows={3}
-        value={value}
-        onChange={(event) => onChange(event.currentTarget.value)}
-      />
-    </label>
-  );
-}
-
-function SelectToolOption({
-  label,
-  ariaLabel,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  ariaLabel: string;
-  value: OristudioCpCustomLineType;
-  options: readonly { value: OristudioCpCustomLineType; label: string }[];
-  onChange: (value: OristudioCpCustomLineType) => void;
-}) {
-  return (
-    <label className="cp-context-panel__field">
-      <span>{label}</span>
-      <select
-        aria-label={ariaLabel}
-        value={value}
-        onChange={(event) => onChange(event.currentTarget.value as OristudioCpCustomLineType)}
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
-function CheckboxToolOption({
-  label,
-  ariaLabel,
-  checked,
-  onChange,
-}: {
-  label: string;
-  ariaLabel: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-}) {
-  return (
-    <label className="cp-context-panel__checkbox">
-      <input
-        aria-label={ariaLabel}
-        type="checkbox"
-        checked={checked}
-        onChange={(event) => onChange(event.currentTarget.checked)}
-      />
-      <span>{label}</span>
-    </label>
-  );
-}
-
-function clampToolNumber(value: number, min: number | undefined, max: number | undefined): number {
-  const lowerBounded = min === undefined ? value : Math.max(min, value);
-  return max === undefined ? lowerBounded : Math.min(max, lowerBounded);
 }
 
 function shortStatus(message: string): string {

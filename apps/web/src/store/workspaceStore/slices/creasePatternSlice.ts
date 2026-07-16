@@ -39,6 +39,7 @@ import {
 import {
   createBlankOristudioCpDocument,
   duplicateOristudioCpFoldedFigure as duplicateRuntimeOristudioCpFoldedFigure,
+  deselectAllOristudioCp,
   exportOristudioCpDocumentAsFold,
   foldOristudioCpDocument as foldRuntimeOristudioCpDocument,
   foldOristudioCpFigureAnother as foldRuntimeOristudioCpFigureAnother,
@@ -125,7 +126,11 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     selected: boolean
   ) {
     return getRuntimeOristudioCpFoldedFigureRenderSnapshot(handle, displayStyle, {
-      display_mark: true,
+      // The camera/rotation marker (orange cross + purple selection disc) is not
+      // used in this workspace — we always rotate about the origin and it only
+      // inflated the figure's move hit-box. Omit it so the grab area is the
+      // folded form itself.
+      display_mark: false,
       selected,
       index,
     });
@@ -1095,8 +1100,26 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       });
     },
 
-    clearOristudioCpSelection: () =>
-      set({ oristudioCpSelection: emptyOristudioCpSelection() }),
+    clearOristudioCpSelection: () => {
+      // Clear the frontend mirror immediately (the surface deselects at once)...
+      set({ oristudioCpSelection: emptyOristudioCpSelection() });
+      // ...and the kernel document's selection flags, else a later select/deselect
+      // re-derives the stale set (the kernel is authoritative for select ops).
+      if (!get().oristudioCpDocument) return;
+      void (async () => {
+        try {
+          const refreshed = await deselectAllOristudioCp();
+          if (refreshed) {
+            set({
+              oristudioCpDocument: refreshed,
+              oristudioCpSelection: emptyOristudioCpSelection(),
+            });
+          }
+        } catch {
+          // A deselect is best-effort UI state; ignore kernel errors.
+        }
+      })();
+    },
 
     transformOristudioCpSelection: async (transform) => {
       const document = get().oristudioCpDocument?.document;
@@ -1128,16 +1151,6 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
               lines: toggleCpSelectionList(get().oristudioCpSelection.lines, id),
             }
           : { ...emptyOristudioCpSelection(), lines: [id] },
-      }),
-
-    toggleOristudioCpVertexSelection: (id, additive = false) =>
-      set({
-        oristudioCpSelection: additive
-          ? {
-              ...get().oristudioCpSelection,
-              vertices: toggleCpSelectionList(get().oristudioCpSelection.vertices ?? [], id),
-            }
-          : { ...emptyOristudioCpSelection(), vertices: [id] },
       }),
 
     toggleOristudioCpPointSelection: (id, additive = false) =>

@@ -49,7 +49,6 @@ const POINT_SNAP_DISTANCE_MULTIPLIER = 1.75;
 
 export interface OristudioCpSelection {
   lines: number[];
-  vertices?: string[];
   points: number[];
   circles: number[];
   texts: number[];
@@ -135,7 +134,6 @@ export function clampOristudioCpPointSize(value: number): number {
 
 export const EMPTY_ORISTUDIO_CP_SELECTION: OristudioCpSelection = {
   lines: [],
-  vertices: [],
   points: [],
   circles: [],
   texts: [],
@@ -181,12 +179,6 @@ export interface CpGridRenderOptions {
   paperRect?: PlotRect;
 }
 
-export interface CpVertex {
-  id: string;
-  point: Point;
-  lineIds: number[];
-}
-
 export type OrieditaGridBaseState = 'hidden' | 'within-paper' | 'full';
 
 export interface OrieditaGridBasis {
@@ -208,7 +200,6 @@ export function emptyOristudioCpSelection(): OristudioCpSelection {
 export function cpSelectionSize(selection: OristudioCpSelection): number {
   return (
     selection.lines.length +
-    (selection.vertices?.length ?? 0) +
     selection.points.length +
     selection.circles.length +
     selection.texts.length +
@@ -220,30 +211,38 @@ export function cpVertexId(point: Point): string {
   return `${quantizeCoordinate(point.x)}:${quantizeCoordinate(point.y)}`;
 }
 
-export function getCpVertices(
+/**
+ * Deduplicate crease-segment endpoints into unique vertex positions (for drawing
+ * the vertex dots). Only the points are needed, so this deliberately skips the
+ * per-vertex line-id bookkeeping and string keys the old `getCpVertices` computed
+ * and threw away: a nested numeric map keyed by the quantized coordinates avoids
+ * allocating a string per endpoint — a hot path on dense patterns (tens of
+ * thousands of segments) that reruns on every edit.
+ */
+export function getCpVertexPoints(
   document: OristudioCpDocumentSnapshot | null | undefined
-): CpVertex[] {
+): Point[] {
   if (!document) return [];
 
-  const vertices = new Map<string, CpVertex>();
-  document.crease_pattern.line_segments.forEach((segment, index) => {
-    const lineId = index + 1;
+  const seen = new Map<number, Set<number>>();
+  const points: Point[] = [];
+  for (const segment of document.crease_pattern.line_segments) {
     for (const point of [segment.a, segment.b]) {
-      const id = cpVertexId(point);
-      const existing = vertices.get(id);
-      if (existing) {
-        if (!existing.lineIds.includes(lineId)) {
-          existing.lineIds = [...existing.lineIds, lineId].sort((a, b) => a - b);
-        }
-      } else {
-        vertices.set(id, { id, point, lineIds: [lineId] });
+      const qx = Math.round(point.x * 1e9);
+      const qy = Math.round(point.y * 1e9);
+      let column = seen.get(qx);
+      if (!column) {
+        column = new Set<number>();
+        seen.set(qx, column);
+      }
+      if (!column.has(qy)) {
+        column.add(qy);
+        points.push(point);
       }
     }
-  });
+  }
 
-  return Array.from(vertices.values()).sort((a, b) =>
-    a.point.x === b.point.x ? a.point.y - b.point.y : a.point.x - b.point.x
-  );
+  return points;
 }
 
 export function toggleCpSelectionList<T extends number | string>(ids: T[], id: T): T[] {

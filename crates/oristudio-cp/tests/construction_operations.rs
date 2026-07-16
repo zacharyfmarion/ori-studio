@@ -16,6 +16,10 @@ use oristudio_cp::operations::construction::{
     square_bisector_parallel_between_destinations, square_bisector_parallel_indicator,
     symmetric_draw,
 };
+use oristudio_cp::{
+    CreasePatternCommand, CreasePatternCommandPayload, CreasePatternDocument, OperationId,
+    execute_command,
+};
 
 #[test]
 fn draw_crease_segment_inserts_and_splits_fold_lines() {
@@ -202,6 +206,77 @@ fn symmetric_draw_reflects_source_ray_across_mirror_line() {
     );
 }
 
+// Helper: reflected Red ray anchored at the mirror crossing (0,0) extending to the
+// crease at y = 2. Both Mirror Line modes must produce this exact segment.
+fn has_reflected_ray_to_y2(document: &CreasePatternDocument) -> bool {
+    document.crease_pattern.line_segments.iter().any(|segment| {
+        segment.color == LineColor::Red1
+            && segment.a.x.abs() < 1e-12
+            && segment.a.y.abs() < 1e-12
+            && segment.b.x.abs() < 1e-12
+            && (segment.b.y - 2.0).abs() < 1e-12
+    })
+}
+
+#[test]
+fn symmetric_draw_command_point_mode_mirrors_segment_ab_over_bc() {
+    // Point mode (Oriedita "select points ABC"): 3 clicks mirror segment AB over the
+    // line BC. A=(1,0), B=(0,0), C=(1,1) is the same construction as the op-level
+    // test above, so the handler's 3-point branch must produce the identical ray.
+    let mut document = CreasePatternDocument {
+        crease_pattern: model_from_segments(&[segment(0.0, 2.0, 2.0, 2.0, LineColor::Black0)]),
+        ..Default::default()
+    };
+    let command = CreasePatternCommand::new(OperationId::SymmetricDraw).with_payload(
+        CreasePatternCommandPayload {
+            points: vec![
+                Point::new(1.0, 0.0),
+                Point::new(0.0, 0.0),
+                Point::new(1.0, 1.0),
+            ],
+            line_color: Some(LineColor::Red1),
+            ..Default::default()
+        },
+    );
+
+    execute_command(&mut document, command).expect("point-mode symmetric draw executes");
+    assert!(
+        has_reflected_ray_to_y2(&document),
+        "expected reflected ray (0,0)->(0,2); got {:?}",
+        document.crease_pattern.line_segments,
+    );
+}
+
+#[test]
+fn symmetric_draw_command_line_mode_resolves_nearest_creases() {
+    // Line mode (Oriedita "select lines AB"): 2 clicks each resolve to the nearest
+    // existing crease, mirroring source over mirror — unchanged by the dual-mode
+    // refactor. Click near the source ray and near the mirror line.
+    let mut document = CreasePatternDocument {
+        crease_pattern: model_from_segments(&[
+            segment(0.0, 0.0, 1.0, 0.0, LineColor::Black0),
+            segment(0.0, 0.0, 1.0, 1.0, LineColor::Black0),
+            segment(0.0, 2.0, 2.0, 2.0, LineColor::Black0),
+        ]),
+        ..Default::default()
+    };
+    let command = CreasePatternCommand::new(OperationId::SymmetricDraw).with_payload(
+        CreasePatternCommandPayload {
+            points: vec![Point::new(0.5, 0.0), Point::new(0.5, 0.5)],
+            line_color: Some(LineColor::Red1),
+            selection_distance: Some(1.0),
+            ..Default::default()
+        },
+    );
+
+    execute_command(&mut document, command).expect("line-mode symmetric draw executes");
+    assert!(
+        has_reflected_ray_to_y2(&document),
+        "expected reflected ray (0,0)->(0,2); got {:?}",
+        document.crease_pattern.line_segments,
+    );
+}
+
 #[test]
 fn double_symmetric_draw_reflects_far_endpoint_across_drag_axis() {
     let mut model = model_from_segments(&[
@@ -368,6 +443,135 @@ fn square_bisector_parallel_indicator_and_destination_commit() {
 }
 
 #[test]
+fn square_bisector_command_point_mode_routes_on_four_points() {
+    // Mode A: 3 angle points (vertex is the 2nd) + a 4th point near the destination
+    // crease → the handler's `else` branch resolves the destination and bisects.
+    let mut document = CreasePatternDocument {
+        crease_pattern: model_from_segments(&[segment(2.0, -1.0, 2.0, 3.0, LineColor::Black0)]),
+        ..Default::default()
+    };
+    let command = CreasePatternCommand::new(OperationId::SquareBisector).with_payload(
+        CreasePatternCommandPayload {
+            points: vec![
+                Point::new(0.0, 0.0),
+                Point::new(4.0, 0.0),
+                Point::new(0.0, 3.0),
+                Point::new(2.0, 0.5),
+            ],
+            line_color: Some(LineColor::Red1),
+            selection_distance: Some(1.0),
+            ..Default::default()
+        },
+    );
+
+    execute_command(&mut document, command).expect("point-mode square bisector executes");
+    assert!(
+        contains_segment_close(
+            &document.crease_pattern.line_segments,
+            Point::new(2.0, 2.0 / 3.0),
+            Point::new(4.0, 0.0),
+            LineColor::Red1,
+        ),
+        "expected bisector (2,2/3)-(4,0); got {:?}",
+        document.crease_pattern.line_segments,
+    );
+}
+
+#[test]
+fn square_bisector_command_line_mode_routes_on_three_line_ids() {
+    // Mode B: 2 source crease ids + a destination crease id → the `line_ids.len() >= 3`
+    // branch bisects the angle between the sources and draws to the destination.
+    let mut document = CreasePatternDocument {
+        crease_pattern: model_from_segments(&[
+            segment(0.0, 0.0, 4.0, 0.0, LineColor::Black0),
+            segment(0.0, 0.0, 0.0, 4.0, LineColor::Black0),
+            segment(2.0, -1.0, 2.0, 3.0, LineColor::Black0),
+        ]),
+        ..Default::default()
+    };
+    let command = CreasePatternCommand::new(OperationId::SquareBisector).with_payload(
+        CreasePatternCommandPayload {
+            line_ids: vec![1, 2, 3],
+            line_color: Some(LineColor::Blue2),
+            ..Default::default()
+        },
+    );
+
+    execute_command(&mut document, command).expect("line-mode square bisector executes");
+    assert!(
+        contains_segment_close(
+            &document.crease_pattern.line_segments,
+            Point::new(2.0, 2.0),
+            Point::new(0.0, 0.0),
+            LineColor::Blue2,
+        ),
+        "expected bisector (2,2)-(0,0); got {:?}",
+        document.crease_pattern.line_segments,
+    );
+}
+
+#[test]
+fn line_segment_division_command_divides_the_drawn_segment_by_count() {
+    // Drag (0,0)->(2,0) with division count 2 → two equal Red creases, dividing the
+    // *drawn* line (not an existing crease).
+    let mut document = CreasePatternDocument::default();
+    let command = CreasePatternCommand::new(OperationId::LineSegmentDivision).with_payload(
+        CreasePatternCommandPayload {
+            points: vec![Point::new(0.0, 0.0), Point::new(2.0, 0.0)],
+            division_count: Some(2),
+            line_color: Some(LineColor::Red1),
+            ..Default::default()
+        },
+    );
+
+    execute_command(&mut document, command).expect("line division executes");
+    assert_eq!(document.crease_pattern.line_segments.len(), 2);
+    assert!(contains_segment_close(
+        &document.crease_pattern.line_segments,
+        Point::new(0.0, 0.0),
+        Point::new(1.0, 0.0),
+        LineColor::Red1,
+    ));
+    assert!(contains_segment_close(
+        &document.crease_pattern.line_segments,
+        Point::new(1.0, 0.0),
+        Point::new(2.0, 0.0),
+        LineColor::Red1,
+    ));
+}
+
+#[test]
+fn line_segment_ratio_command_splits_the_drawn_segment_at_the_ratio_point() {
+    // Drag (0,0)->(10,0) with ratio 1:3 → two Blue creases meeting at the 1:3 point
+    // (2.5, 0), matching Oriedita's reversed-drag geometry.
+    let mut document = CreasePatternDocument::default();
+    let command = CreasePatternCommand::new(OperationId::LineSegmentRatioSet).with_payload(
+        CreasePatternCommandPayload {
+            points: vec![Point::new(0.0, 0.0), Point::new(10.0, 0.0)],
+            ratio_s: Some(1.0),
+            ratio_t: Some(3.0),
+            line_color: Some(LineColor::Blue2),
+            ..Default::default()
+        },
+    );
+
+    execute_command(&mut document, command).expect("line ratio executes");
+    assert_eq!(document.crease_pattern.line_segments.len(), 2);
+    assert!(contains_segment_close(
+        &document.crease_pattern.line_segments,
+        Point::new(10.0, 0.0),
+        Point::new(2.5, 0.0),
+        LineColor::Blue2,
+    ));
+    assert!(contains_segment_close(
+        &document.crease_pattern.line_segments,
+        Point::new(0.0, 0.0),
+        Point::new(2.5, 0.0),
+        LineColor::Blue2,
+    ));
+}
+
+#[test]
 fn fishbone_draw_adds_alternating_perpendicular_ribs() {
     let mut model = model_from_segments(&[
         segment(-1.0, -2.0, 3.0, -2.0, LineColor::Black0),
@@ -525,6 +729,45 @@ fn make_vertex_flat_foldable_generates_odd_vertex_candidate_and_commits_to_desti
         Point::new(0.0, 0.0),
         LineColor::Red1,
     ));
+}
+
+#[test]
+fn make_vertex_flat_foldable_command_uses_separate_candidate_and_destination() {
+    // Oriedita's 3 clicks: vertex (0,0), a point on the candidate ray (0,0)->(-1,0),
+    // then a point on the destination crease at x=-1. The candidate (point[1]) and
+    // destination (point[2]) are distinct locations — the old 2-point collapse could
+    // not express this. Commits the Red crease (-1,0)-(0,0).
+    let mut document = CreasePatternDocument {
+        crease_pattern: model_from_segments(&[
+            segment(0.0, 0.0, 1.0, 0.0, LineColor::Red1),
+            segment(-1.0, -1.0, -1.0, 1.0, LineColor::Black0),
+        ]),
+        ..Default::default()
+    };
+    let command = CreasePatternCommand::new(OperationId::VertexMakeAngularlyFlatFoldable)
+        .with_payload(CreasePatternCommandPayload {
+            points: vec![
+                Point::new(0.0, 0.0),
+                Point::new(-0.5, 0.0),
+                Point::new(-1.0, 0.5),
+            ],
+            line_color: Some(LineColor::Blue2),
+            selection_distance: Some(1.0),
+            grid_width: Some(1.0),
+            ..Default::default()
+        });
+
+    execute_command(&mut document, command).expect("3-point flat-foldable executes");
+    assert!(
+        contains_segment_close(
+            &document.crease_pattern.line_segments,
+            Point::new(-1.0, 0.0),
+            Point::new(0.0, 0.0),
+            LineColor::Red1,
+        ),
+        "expected committed crease (-1,0)-(0,0); got {:?}",
+        document.crease_pattern.line_segments,
+    );
 }
 
 #[test]

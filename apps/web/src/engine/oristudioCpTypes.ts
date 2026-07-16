@@ -1,4 +1,5 @@
 import type { Point } from '../lib/geometry';
+import type { CpGeometryTransport } from './oristudioCpGeometry';
 import type {
   OristudioCpOperationId,
   OristudioCpOperationStatus,
@@ -132,6 +133,8 @@ export interface OristudioCpCommandPreview {
   segments: OristudioCpLineSegment[];
   circles: OristudioCpCircle[];
   points: Point[];
+  /** Non-mutating measurement (length or angle) for the measure tools. */
+  measurement?: number | null;
   diagnostics: string[];
 }
 
@@ -396,6 +399,14 @@ export interface OristudioCpDocumentState {
    */
   loadSerial: number;
   document: OristudioCpDocumentSnapshot;
+  /**
+   * Compact geometry transport for the same kernel state as `document`. This is the
+   * hot-path representation: `document` itself is decoded from it (no per-edit
+   * `document_snapshot`), and the render builds crease strokes + vertex dots straight
+   * from its typed arrays. `null` only for states that predate/omit a fetch (e.g. a
+   * test fixture), which fall back to the structured path.
+   */
+  geometry: CpGeometryTransport | null;
   summary: OristudioCpDocumentSummary;
   source: {
     format: 'cp' | 'fold' | 'ori' | 'orh' | 'osf';

@@ -53,7 +53,6 @@ export function workspaceCapabilityInput(state: WorkspaceState): WorkspaceCapabi
     hasBoxPleatDocument: state.oristudioBpDocument !== null,
     hasSimulationModel: state.foldArtifacts?.simulation_model != null,
     oristudioCpSelectedLineCount: state.oristudioCpSelection.lines.length,
-    oristudioCpSelectedVertexCount: state.oristudioCpSelection.vertices?.length ?? 0,
     oristudioCpSelectedPointCount: state.oristudioCpSelection.points.length,
     oristudioCpSelectedCircleCount: state.oristudioCpSelection.circles.length,
     hasDeletableBpSelection,

@@ -17,6 +17,10 @@ import type {
   OristudioCpOperationDescriptor,
 } from '../../engine/oristudioCpTypes';
 import type { WasmErrorEnvelope } from '../../engine/types';
+import {
+  decodeCpGeometryToSnapshot,
+  type CpGeometryTransport,
+} from '../../engine/oristudioCpGeometry';
 import type { ImportedCreasePatternFormat } from '../../lib/creasePatternImport';
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
 import { createStarterOristudioCpDocument } from '../../lib/oristudioCpStarterDocument';
@@ -143,18 +147,37 @@ export async function createBlankOristudioCpDocument(
   }
 }
 
+/**
+ * Fetch the document for a handle via the compact geometry transport: fetch **only**
+ * the compact geometry (transferable typed arrays) and build the structured snapshot
+ * from it on the main thread via `decodeCpGeometryToSnapshot`, skipping the worker's
+ * `document_snapshot` (its serde object-graph build + structured clone, ~140ms on a
+ * dense document vs ~4ms here). The parity gate proves the decoded snapshot is
+ * identical to `document_snapshot`, so every consumer, undo, and save/export are
+ * unaffected. Save/export operate on the kernel handle directly, so they never need
+ * `document_snapshot` either.
+ */
+async function fetchDocumentAndGeometry(
+  api: OristudioCpClient,
+  targetHandle: number
+): Promise<{ document: OristudioCpDocumentSnapshot; geometry: CpGeometryTransport }> {
+  const geometry = await api.documentGeometry(targetHandle);
+  return { document: decodeCpGeometryToSnapshot(geometry), geometry };
+}
+
 export async function refreshOristudioCpDocument(
   lastCommandResult: OristudioCpCommandResult | null = null
 ): Promise<OristudioCpDocumentState | null> {
   if (handle === null) return null;
   const api = await getOristudioCpClient();
-  const document = await api.snapshot(handle);
+  const { document, geometry } = await fetchDocumentAndGeometry(api, handle);
   const summary = await api.summary(handle);
   const operationDescriptors = await getOristudioCpOperationDescriptors();
   return {
     handle,
     loadSerial: documentLoadSerial,
     document,
+    geometry,
     summary,
     source:
       currentSource ??
@@ -235,6 +258,24 @@ export async function executeOristudioCpCommand(
   return refreshed;
 }
 
+/**
+ * Run a non-mutating check command (e.g. `CheckCamv`) for its result only. The
+ * kernel already holds the document and the check does not mutate it, so this
+ * deliberately skips the full-document snapshot that `executeOristudioCpCommand`
+ * performs — the caller keeps the current document state and only needs the
+ * command's diagnostics. Used by the deferred always-on CAMV recompute.
+ */
+export async function runOristudioCpCheckCommand(
+  operationId: OristudioCpOperationId,
+  payload: OristudioCpCommandPayload = {}
+): Promise<OristudioCpCommandResult> {
+  if (handle === null) {
+    throw new Error('No editable crease-pattern document is loaded');
+  }
+  const api = await getOristudioCpClient();
+  return api.executeCommand(handle, operationId, payload);
+}
+
 export async function previewOristudioCpCommand(
   operationId: OristudioCpOperationId,
   payload: OristudioCpCommandPayload = {}
@@ -257,6 +298,18 @@ export async function insertOristudioCpLineSegments(
   const refreshed = await refreshOristudioCpDocument(null);
   if (!refreshed) throw new Error('Editable crease-pattern document was released');
   return refreshed;
+}
+
+/**
+ * Clear the kernel document's selection flags (a UI deselect, not an undoable
+ * edit). The frontend selection mirror is cleared separately; this keeps the
+ * kernel in sync so a later select/deselect doesn't re-derive a stale selection.
+ */
+export async function deselectAllOristudioCp(): Promise<OristudioCpDocumentState | null> {
+  if (handle === null) return null;
+  const api = await getOristudioCpClient();
+  await api.deselectAll(handle);
+  return refreshOristudioCpDocument(null);
 }
 
 /**
@@ -425,8 +478,8 @@ async function buildDocumentState(
   source: OristudioCpDocumentState['source'],
   lastCommandResult: OristudioCpCommandResult | null
 ): Promise<OristudioCpDocumentState> {
-  const [document, summary, operationDescriptors] = await Promise.all([
-    api.snapshot(documentHandle),
+  const [{ document, geometry }, summary, operationDescriptors] = await Promise.all([
+    fetchDocumentAndGeometry(api, documentHandle),
     api.summary(documentHandle),
     getOristudioCpOperationDescriptors(),
   ]);
@@ -434,6 +487,7 @@ async function buildDocumentState(
     handle: documentHandle,
     loadSerial: documentLoadSerial,
     document,
+    geometry,
     summary,
     source: {
       format: source.format,

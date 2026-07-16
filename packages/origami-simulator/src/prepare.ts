@@ -1,9 +1,10 @@
 import earcut from 'earcut';
 import {
   assignmentFoldAngle,
+  buildEdgeIndex,
   cloneFold,
+  edgeKey,
   facePairs,
-  findEdge,
   normalizeAssignment,
   normalizePoint,
 } from './geometry.js';
@@ -110,6 +111,9 @@ function normalizeFold(
 }
 
 function triangulateFold(fold: FoldDocument, diagnostics: SimulatorDiagnostics): void {
+  // One O(edges) index, kept in sync as triangulation appends diagonal edges, so
+  // every dedup below is O(1) instead of a linear `findEdge` scan.
+  const edgeIndex = buildEdgeIndex(fold.edges_vertices);
   const nextFaces: number[][] = [];
   const originalFaceCount = fold.faces_vertices.length;
   for (let faceIndex = 0; faceIndex < originalFaceCount; faceIndex += 1) {
@@ -119,7 +123,7 @@ function triangulateFold(fold: FoldDocument, diagnostics: SimulatorDiagnostics):
       continue;
     }
     if (face.length === 4) {
-      triangulateQuad(fold, face, nextFaces);
+      triangulateQuad(fold, face, nextFaces, edgeIndex);
       continue;
     }
 
@@ -145,32 +149,42 @@ function triangulateFold(fold: FoldDocument, diagnostics: SimulatorDiagnostics):
   fold.faces_vertices = nextFaces;
   for (const face of nextFaces) {
     for (const [a, b] of facePairs(face)) {
-      if (findEdge(fold.edges_vertices, a, b) === -1) {
-        fold.edges_vertices.push([a, b]);
-        fold.edges_assignment?.push('F');
-        fold.edges_foldAngle?.push(0);
-      }
+      appendEdgeIfMissing(fold, edgeIndex, a, b);
     }
   }
 }
 
-function triangulateQuad(fold: FoldDocument, face: number[], nextFaces: number[][]): void {
+function triangulateQuad(
+  fold: FoldDocument,
+  face: number[],
+  nextFaces: number[][],
+  edgeIndex: Map<number, number>
+): void {
   const d1 = pointDistanceSq(fold, face[0] ?? 0, face[2] ?? 0);
   const d2 = pointDistanceSq(fold, face[1] ?? 0, face[3] ?? 0);
   if (d2 < d1) {
-    pushFlatEdge(fold, [face[1] ?? 0, face[3] ?? 0]);
+    appendEdgeIfMissing(fold, edgeIndex, face[1] ?? 0, face[3] ?? 0);
     nextFaces.push([face[0] ?? 0, face[1] ?? 0, face[3] ?? 0]);
     nextFaces.push([face[1] ?? 0, face[2] ?? 0, face[3] ?? 0]);
   } else {
-    pushFlatEdge(fold, [face[0] ?? 0, face[2] ?? 0]);
+    appendEdgeIfMissing(fold, edgeIndex, face[0] ?? 0, face[2] ?? 0);
     nextFaces.push([face[0] ?? 0, face[1] ?? 0, face[2] ?? 0]);
     nextFaces.push([face[0] ?? 0, face[2] ?? 0, face[3] ?? 0]);
   }
 }
 
-function pushFlatEdge(fold: FoldDocument, edge: [number, number]): void {
-  if (findEdge(fold.edges_vertices, edge[0], edge[1]) !== -1) return;
-  fold.edges_vertices.push(edge);
+// Append an edge only if it isn't already present, keeping `edgeIndex` in sync so
+// subsequent lookups (and appends) stay O(1). Replaces the old linear-scan dedup.
+function appendEdgeIfMissing(
+  fold: FoldDocument,
+  edgeIndex: Map<number, number>,
+  a: number,
+  b: number
+): void {
+  const key = edgeKey(a, b);
+  if (edgeIndex.has(key)) return;
+  edgeIndex.set(key, fold.edges_vertices.length);
+  fold.edges_vertices.push([a, b]);
   fold.edges_assignment?.push('F');
   fold.edges_foldAngle?.push(0);
 }
@@ -184,9 +198,12 @@ function pointDistanceSq(fold: FoldDocument, a: number, b: number): number {
 }
 
 function buildFacesEdges(fold: FoldDocument, diagnostics: SimulatorDiagnostics): number[][] {
+  // Build the edge lookup once (O(edges)) and hit it O(1) per face-edge, instead
+  // of a linear `findEdge` scan per face-edge (which was O(faces × edges)).
+  const edgeIndex = buildEdgeIndex(fold.edges_vertices);
   return fold.faces_vertices.map((face, faceIndex) =>
     facePairs(face).map(([a, b]) => {
-      const edge = findEdge(fold.edges_vertices, a, b);
+      const edge = edgeIndex.get(edgeKey(a, b)) ?? -1;
       if (edge === -1) {
         diagnostics.warnings.push(`face ${faceIndex} references missing edge ${a}-${b}`);
       }

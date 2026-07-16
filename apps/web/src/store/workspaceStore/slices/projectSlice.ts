@@ -19,7 +19,6 @@ import {
   DEFAULT_ORISTUDIO_CP_LINE_WIDTH,
   DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
   emptyOristudioCpSelection,
-  getCpVertices,
   isValidOrieditaGridScale,
   normalizeOrieditaGridSize,
   normalizeOrieditaIntervalGridSize,
@@ -79,6 +78,7 @@ import {
 } from '../engineRuntime';
 import {
   executeOristudioCpCommand as executeRuntimeOristudioCpCommand,
+  runOristudioCpCheckCommand,
   exportOristudioCpDocumentAsCp,
   exportOristudioCpDocumentAsFold,
   exportOristudioCpDocumentAsOri,
@@ -174,6 +174,17 @@ function importedSourceFromNativeSource(
   };
 }
 
+// Deferred always-on CAMV recompute: a passive diagnostic overlay does not need to
+// block the edit's critical path, so edits/undo/redo apply + render immediately and
+// schedule this instead. The short debounce coalesces bursts (e.g. held cmd+z).
+const CAMV_REFRESH_DEBOUNCE_MS = 120;
+let camvRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Synchronous, eager CAMV refresh (runs CheckCamv + re-snapshots). Still used by the
+ * document-load paths, which want the overlay populated as part of opening a document.
+ * Interactive edits use the deferred `scheduleOristudioCamvRefresh` instead.
+ */
 async function refreshAlwaysOnCamvDiagnostics(
   documentState: OristudioCpDocumentState
 ): Promise<{
@@ -251,11 +262,8 @@ function oristudioCpSelectionAfterCommand(
     };
   }
 
-  const vertexIds = new Set(getCpVertices(document).map((vertex) => vertex.id));
-
   return {
     lines: selection.lines.filter((id) => id >= 1 && id <= document.crease_pattern.line_segments.length),
-    vertices: (selection.vertices ?? []).filter((id) => vertexIds.has(id)),
     points: selection.points.filter((id) => id >= 1 && id <= document.crease_pattern.points.length),
     circles: selection.circles.filter((id) => id >= 1 && id <= document.crease_pattern.circles.length),
     texts: selection.texts.filter((id) => id >= 1 && id <= document.crease_pattern.texts.length),
@@ -442,16 +450,16 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       const previousDocument = get().oristudioCpDocument?.document ?? null;
       const previousSelection = get().oristudioCpSelection;
       const commandDocument = await mutate();
-      const checked = await refreshAlwaysOnCamvDiagnostics(commandDocument);
-      const nextDocument = checked.documentState;
       const nextRevision = get().oristudioCpRevision + 1;
+      // Apply + render the edit immediately. The always-on CAMV overlay is a passive
+      // read-only view of the new document, so it recomputes off the critical path
+      // (below) rather than blocking here; the previous overlay stays until it lands.
       set({
-        oristudioCpDocument: nextDocument,
-        oristudioCpCamvResult: checked.camvResult,
-        oristudioCpOperationDescriptors: nextDocument.operationDescriptors,
+        oristudioCpDocument: commandDocument,
+        oristudioCpOperationDescriptors: commandDocument.operationDescriptors,
         oristudioCpError: null,
         oristudioCpActiveDiagnosticId: null,
-        oristudioCpSelection: selectedLineSelectionFromDocument(nextDocument.document),
+        oristudioCpSelection: selectedLineSelectionFromDocument(commandDocument.document),
         oristudioCpRevision: nextRevision,
         oristudioCpFoldedFigures: staleGeneratedFoldedFigures(get().oristudioCpFoldedFigures),
         oristudioCpHistoryPast: previousDocument
@@ -466,6 +474,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         dirty: true,
         projectMessage: label,
       });
+      get().scheduleOristudioCamvRefresh();
       return true;
     } catch (error) {
       const normalized = oristudioCpError(error);
@@ -1391,18 +1400,18 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           validation.payload
         );
         if (!commandDocument) throw new Error('Crease-pattern command did not return a document');
-        const checked =
-          mutatesDocument
-            ? await refreshAlwaysOnCamvDiagnostics(commandDocument)
-            : {
-                documentState: commandDocument,
-                camvResult:
-                  operationId === 'CheckCamv' &&
-                  commandDocument.lastCommandResult?.operation === 'CheckCamv'
-                    ? commandDocument.lastCommandResult
-                    : get().oristudioCpCamvResult,
-              };
-        const nextDocument = checked.documentState;
+        // The always-on CAMV overlay is a passive read-only view of the new document,
+        // so a mutating edit applies + renders immediately and recomputes CAMV deferred,
+        // off the critical path (below) — mirroring `applyOristudioCpLineMutation`. Awaiting
+        // the full-document CheckCamv here is what made edits feel laggy on dense patterns
+        // (~200ms before the edit rendered). The previous overlay stays until the new one lands.
+        const nextDocument = commandDocument;
+        const nextCamvResult = mutatesDocument
+          ? get().oristudioCpCamvResult
+          : operationId === 'CheckCamv' &&
+              commandDocument.lastCommandResult?.operation === 'CheckCamv'
+            ? commandDocument.lastCommandResult
+            : get().oristudioCpCamvResult;
         const diagnosticEntries = nextDocument.lastCommandResult?.diagnostic_entries ?? [];
         const nextRevision = editsCreasePattern
           ? get().oristudioCpRevision + 1
@@ -1412,7 +1421,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           oristudioCpLineage: editsCreasePattern
             ? markCpLineageEdited(get().oristudioCpLineage)
             : get().oristudioCpLineage,
-          oristudioCpCamvResult: checked.camvResult,
+          oristudioCpCamvResult: nextCamvResult,
           oristudioCpOperationDescriptors: nextDocument.operationDescriptors,
           oristudioCpError: null,
           oristudioCpActiveDiagnosticId: mutatesDocument
@@ -1454,6 +1463,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           error: null,
           dirty: mutatesDocument ? true : get().dirty,
         });
+        // Recompute the passive CAMV overlay off the critical path (debounced),
+        // now that the edit has already rendered.
+        if (mutatesDocument) get().scheduleOristudioCamvRefresh();
         return true;
       } catch (error) {
         const normalized = oristudioCpError(error);
@@ -1613,6 +1625,27 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         oristudioCpActiveFoldedFigureId: null,
         oristudioCpCamvResult: null,
       });
+    },
+
+    scheduleOristudioCamvRefresh: () => {
+      if (camvRefreshTimer !== null) clearTimeout(camvRefreshTimer);
+      camvRefreshTimer = setTimeout(() => {
+        camvRefreshTimer = null;
+        // Snapshot the document we're checking; the result is discarded if any edit,
+        // undo/redo, or load replaces it (reference change) before the check lands.
+        const pending = get().oristudioCpDocument;
+        if (!pending) return;
+        void runOristudioCpCheckCommand('CheckCamv')
+          .then((result) => {
+            if (get().oristudioCpDocument !== pending) return;
+            set({
+              oristudioCpCamvResult: result.operation === 'CheckCamv' ? result : null,
+            });
+          })
+          .catch(() => {
+            // Leave the existing overlay in place on failure.
+          });
+      }, CAMV_REFRESH_DEBOUNCE_MS);
     },
 
     openProject: async (fileService = getFileService()) => {

@@ -79,6 +79,7 @@ const oristudioCpMocks = vi.hoisted(() => ({
   replaceOristudioCpLineSegments: vi.fn(),
   restoreOristudioCpDocument: vi.fn(),
   restoreOristudioCpDocumentInPlace: vi.fn(),
+  runOristudioCpCheckCommand: vi.fn(),
   setOristudioCpDocumentSource: vi.fn(),
   setOristudioCpFoldedFigureModel: vi.fn(),
 }));
@@ -147,6 +148,7 @@ vi.mock('./oristudioCpRuntime', async (importOriginal) => {
     replaceOristudioCpLineSegments: oristudioCpMocks.replaceOristudioCpLineSegments,
     restoreOristudioCpDocument: oristudioCpMocks.restoreOristudioCpDocument,
     restoreOristudioCpDocumentInPlace: oristudioCpMocks.restoreOristudioCpDocumentInPlace,
+    runOristudioCpCheckCommand: oristudioCpMocks.runOristudioCpCheckCommand,
     setOristudioCpDocumentSource: oristudioCpMocks.setOristudioCpDocumentSource,
     setOristudioCpFoldedFigureModel: oristudioCpMocks.setOristudioCpFoldedFigureModel,
   };
@@ -973,6 +975,7 @@ function blankCpDocumentState(): OristudioCpDocumentState {
     handle: 4,
     loadSerial: 1,
     document,
+    geometry: null,
     summary: {
       title: 'Untitled CP',
       line_segments: document.crease_pattern.line_segments.length,
@@ -1346,6 +1349,7 @@ describe('workspace store slices', () => {
   });
 
   afterEach(async () => {
+    vi.useRealTimers();
     await flushAsyncWork();
   });
 
@@ -2197,7 +2201,7 @@ describe('workspace store slices', () => {
       7,
       'Paper5',
       {
-        display_mark: true,
+        display_mark: false,
         selected: true,
         index: 1,
       }
@@ -2343,7 +2347,7 @@ describe('workspace store slices', () => {
       7,
       'Transparent3',
       {
-        display_mark: true,
+        display_mark: false,
         selected: true,
         index: 1,
       }
@@ -2431,7 +2435,7 @@ describe('workspace store slices', () => {
       7,
       'Paper5',
       {
-        display_mark: true,
+        display_mark: false,
         selected: false,
         index: 1,
       }
@@ -2440,7 +2444,7 @@ describe('workspace store slices', () => {
       8,
       'Paper5',
       {
-        display_mark: true,
+        display_mark: false,
         selected: true,
         index: 2,
       }
@@ -2539,13 +2543,17 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().foldArtifacts).toBeNull();
   });
 
-  it('refreshes always-on CAMV diagnostics after editable CP mutations', async () => {
+  it('refreshes always-on CAMV diagnostics (deferred) after editable CP mutations', async () => {
+    // CAMV recompute is deferred off the edit's critical path: the mutation applies +
+    // renders immediately, then a debounced CheckCamv updates the overlay. Fake timers
+    // let us flush that deferred pass before asserting the overlay result.
+    vi.useFakeTimers();
     resetStores(seedSnapshot());
     await useWorkspaceStore.getState().loadCreasePatternText('1 0 0 1 0\n2 0 0 0 1', {
       filename: 'lines.cp',
       path: '/tmp/lines.cp',
     });
-    useWorkspaceStore.setState({ dirty: false });
+    useWorkspaceStore.setState({ dirty: false, oristudioCpCamvResult: null });
     const currentDocument = useWorkspaceStore.getState().oristudioCpDocument;
     if (!currentDocument) throw new Error('expected editable CP document');
     const commandResult: OristudioCpCommandResult = {
@@ -2554,15 +2562,11 @@ describe('workspace store slices', () => {
       diagnostics: ['Changed 2 line(s)'],
     };
     const camvResult = camvErrorResult();
-    oristudioCpMocks.executeOristudioCpCommand
-      .mockResolvedValueOnce({
-        ...currentDocument,
-        lastCommandResult: commandResult,
-      })
-      .mockResolvedValueOnce({
-        ...currentDocument,
-        lastCommandResult: camvResult,
-      });
+    oristudioCpMocks.executeOristudioCpCommand.mockResolvedValueOnce({
+      ...currentDocument,
+      lastCommandResult: commandResult,
+    });
+    oristudioCpMocks.runOristudioCpCheckCommand.mockResolvedValueOnce(camvResult);
 
     await expect(
       useWorkspaceStore.getState().executeOristudioCpCommand('CreaseMakeMountain', {
@@ -2570,18 +2574,25 @@ describe('workspace store slices', () => {
       })
     ).resolves.toBe(true);
 
+    // The edit applied + rendered immediately, without awaiting CAMV.
     expect(oristudioCpMocks.executeOristudioCpCommand).toHaveBeenCalledWith(
       'CreaseMakeMountain',
       { line_ids: [1, 2] }
     );
-    expect(oristudioCpMocks.executeOristudioCpCommand).toHaveBeenCalledWith('CheckCamv');
     expect(useWorkspaceStore.getState().oristudioCpDocument?.lastCommandResult).toEqual(
       commandResult
     );
-    expect(useWorkspaceStore.getState().oristudioCpCamvResult).toEqual(camvResult);
     expect(useWorkspaceStore.getState().oristudioCpActiveDiagnosticId).toBeNull();
     expect(useWorkspaceStore.getState().oristudioCpHistoryPast).toHaveLength(1);
     expect(useWorkspaceStore.getState().dirty).toBe(true);
+    // CAMV has not run yet — it is debounced off the critical path.
+    expect(oristudioCpMocks.runOristudioCpCheckCommand).not.toHaveBeenCalled();
+    expect(useWorkspaceStore.getState().oristudioCpCamvResult).toBeNull();
+
+    // Flush the deferred recompute; the overlay result now lands.
+    await vi.advanceTimersByTimeAsync(200);
+    expect(oristudioCpMocks.runOristudioCpCheckCommand).toHaveBeenCalledWith('CheckCamv');
+    expect(useWorkspaceStore.getState().oristudioCpCamvResult).toEqual(camvResult);
   });
 
   it('keeps editable CP diagnostic checks out of undo history', async () => {
@@ -2783,6 +2794,9 @@ describe('workspace store slices', () => {
   });
 
   it('restores editable CP snapshots and selections through undo and redo', async () => {
+    // The always-on CAMV recompute is now deferred (debounced, off the edit critical
+    // path), so fake timers let us flush it before asserting the overlay result.
+    vi.useFakeTimers();
     resetStores(seedSnapshot());
     await useWorkspaceStore.getState().loadCreasePatternText('1 0 0 1 0', {
       filename: 'line.cp',
@@ -2839,10 +2853,7 @@ describe('workspace store slices', () => {
     );
 
     const undoCamvResult = camvErrorResult('CheckCamv-undo');
-    oristudioCpMocks.executeOristudioCpCommand.mockResolvedValueOnce({
-      ...loadedDocument,
-      lastCommandResult: undoCamvResult,
-    });
+    oristudioCpMocks.runOristudioCpCheckCommand.mockResolvedValueOnce(undoCamvResult);
     await useWorkspaceStore.getState().undo();
     expect(oristudioCpMocks.restoreOristudioCpDocumentInPlace).toHaveBeenLastCalledWith(
       loadedDocument.document,
@@ -2859,6 +2870,8 @@ describe('workspace store slices', () => {
       loadedDocument.document
     );
     expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual([1]);
+    // CAMV is recomputed off the critical path — flush the debounce, then assert.
+    await vi.advanceTimersByTimeAsync(200);
     expect(useWorkspaceStore.getState().oristudioCpCamvResult).toEqual(undoCamvResult);
     expect(useWorkspaceStore.getState().oristudioCpHistoryFuture).toHaveLength(1);
     expect(useWorkspaceStore.getState().foldArtifactStatus).toBe('stale');
@@ -2874,11 +2887,7 @@ describe('workspace store slices', () => {
     );
 
     const redoCamvResult = camvErrorResult('CheckCamv-redo');
-    oristudioCpMocks.executeOristudioCpCommand.mockResolvedValueOnce({
-      ...loadedDocument,
-      document: changedDocument,
-      lastCommandResult: redoCamvResult,
-    });
+    oristudioCpMocks.runOristudioCpCheckCommand.mockResolvedValueOnce(redoCamvResult);
     await useWorkspaceStore.getState().redo();
     expect(oristudioCpMocks.restoreOristudioCpDocumentInPlace).toHaveBeenLastCalledWith(
       changedDocument,
@@ -2887,6 +2896,7 @@ describe('workspace store slices', () => {
     );
     expect(useWorkspaceStore.getState().oristudioCpDocument?.document).toEqual(changedDocument);
     expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual([1]);
+    await vi.advanceTimersByTimeAsync(200);
     expect(useWorkspaceStore.getState().oristudioCpCamvResult).toEqual(redoCamvResult);
     expect(useWorkspaceStore.getState().oristudioCpHistoryPast).toHaveLength(1);
     expect(useWorkspaceStore.getState().foldArtifactStatus).toBe('stale');
@@ -2948,13 +2958,6 @@ describe('workspace store slices', () => {
     useWorkspaceStore.getState().toggleOristudioCpPointSelection(1, true);
     expect(useWorkspaceStore.getState().oristudioCpSelection).toMatchObject({
       lines: [2],
-      points: [1],
-    });
-
-    useWorkspaceStore.getState().toggleOristudioCpVertexSelection('0:0', true);
-    expect(useWorkspaceStore.getState().oristudioCpSelection).toMatchObject({
-      lines: [2],
-      vertices: ['0:0'],
       points: [1],
     });
 

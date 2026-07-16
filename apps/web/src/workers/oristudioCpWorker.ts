@@ -1,6 +1,7 @@
-import { expose } from 'comlink';
+import { expose, transfer } from 'comlink';
 import init, {
   cp_operation_descriptors,
+  document_geometry,
   document_snapshot,
   document_summary,
   execute_cp_command,
@@ -27,10 +28,13 @@ import init, {
   load_ori,
   import_add,
   insert_line_segments,
+  deselect_all,
   preview_cp_command,
   replace_line_segments,
   restore_document,
+  restore_from_compact,
 } from '../generated/oristudio-cp-wasm/oristudio_cp_wasm';
+import type { CpGeometryTransport } from '../engine/oristudioCpGeometry';
 import type {
   OristudioCpCommandPayload,
   OristudioCpCommandPreview,
@@ -73,6 +77,23 @@ function normalizeError(error: unknown): WasmErrorEnvelope {
   };
 }
 
+function geometryTransferables(geometry: CpGeometryTransport): Transferable[] {
+  // Every typed array is a distinct wasm-allocated (non-shared) ArrayBuffer, so
+  // their buffers are independent and safe to transfer.
+  return [
+    geometry.segEndpoints,
+    geometry.segAttr,
+    geometry.segCustomColor,
+    geometry.auxEndpoints,
+    geometry.auxAttr,
+    geometry.auxCustomColor,
+    geometry.pointCoords,
+    geometry.circleData,
+    geometry.circleAttr,
+    geometry.circleCustomColor,
+  ].map((array) => array.buffer as ArrayBuffer);
+}
+
 async function call<T>(fn: () => T): Promise<T> {
   await ensureReady();
   try {
@@ -110,6 +131,14 @@ const api = {
   async snapshot(handle: number): Promise<OristudioCpDocumentSnapshot> {
     return call(() => document_snapshot(handle) as OristudioCpDocumentSnapshot);
   },
+  async documentGeometry(handle: number): Promise<CpGeometryTransport> {
+    const geometry = await call(() => document_geometry(handle) as CpGeometryTransport);
+    // Move the buffers to the main thread instead of structured-cloning them.
+    return transfer(geometry, geometryTransferables(geometry));
+  },
+  async restoreFromCompact(handle: number, geometry: CpGeometryTransport): Promise<void> {
+    return call(() => restore_from_compact(handle, geometry as unknown as object));
+  },
   async summary(handle: number): Promise<OristudioCpDocumentSummary> {
     return call(() => document_summary(handle) as OristudioCpDocumentSummary);
   },
@@ -132,6 +161,9 @@ const api = {
     segments: OristudioCpLineSegment[]
   ): Promise<number> {
     return call(() => insert_line_segments(handle, segments));
+  },
+  async deselectAll(handle: number): Promise<number> {
+    return call(() => deselect_all(handle));
   },
   async importAdd(handle: number, importedHandle: number): Promise<number> {
     return call(() => import_add(handle, importedHandle));

@@ -22,3 +22,11 @@ tools/oracle/build/
 tools/oriedita-oracle/build/
 .env.release.local
 .DS_Store
+
+# WebGL-migration / compact-transport working plans (local scratch, not tracked)
+implementation-plans/cp-compact-geometry-transport.md
+implementation-plans/webgl-branch-reconcile-with-main.md
+implementation-plans/webgl-canvas-workspace-migration.md
+implementation-plans/webgl-cp-tool-input-spec.md
+implementation-plans/webgl-phase8-delete-svg.md
+implementation-plans/webgl-phase8-execution-plan.md

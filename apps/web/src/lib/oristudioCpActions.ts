@@ -570,7 +570,9 @@ export const ORISTUDIO_CP_ACTIONS: OristudioCpActionDefinition[] = [
             disabledReason: 'Auxiliary-line insertion mode is not implemented in the CP kernel yet',
             lineInputMode: 'aux-line',
           }),
-          placement: 'left-rail-overflow',
+          // Not present in Oriedita's UI (and kernel not implemented) — hide the
+          // rail button rather than show it disabled. Revisit at end.
+          placement: 'hidden-ui-only',
         } satisfies OristudioCpCommandActionDefinition,
       ]
     : []),

@@ -145,6 +145,12 @@ export interface ProjectSliceActions {
     payload?: OristudioCpCommandPayload
   ) => Promise<OristudioCpCommandPreview | null>;
   clearOristudioCpDocument: () => Promise<void>;
+  /**
+   * Recompute the always-on CAMV diagnostics off the edit critical path: debounced,
+   * runs `CheckCamv` for its result only (no full-document snapshot), and updates
+   * `oristudioCpCamvResult` when it lands — dropped if the document changed meanwhile.
+   */
+  scheduleOristudioCamvRefresh: () => void;
   openProject: (fileService?: FileService) => Promise<boolean>;
   importAddCreasePattern: (fileService?: FileService) => Promise<boolean>;
   /** Merge crease-pattern text into the Edit canvas (in-memory Import(Add)). */
@@ -387,7 +393,6 @@ export interface CreasePatternSliceActions {
   clearOristudioCpFoldedFigures: () => Promise<void>;
   clearOristudioCpSelection: () => void;
   toggleOristudioCpLineSelection: (id: number, additive?: boolean) => void;
-  toggleOristudioCpVertexSelection: (id: string, additive?: boolean) => void;
   toggleOristudioCpPointSelection: (id: number, additive?: boolean) => void;
   toggleOristudioCpCircleSelection: (id: number, additive?: boolean) => void;
   toggleOristudioCpTextSelection: (id: number, additive?: boolean) => void;

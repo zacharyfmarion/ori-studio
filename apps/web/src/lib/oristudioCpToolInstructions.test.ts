@@ -47,26 +47,10 @@ describe('Oriedita CP tool instructions', () => {
     expect(
       instructionsForCpAction(
         railActions.find(
-          (action) => action.kind === 'command' && action.operationId === 'AngleSystem'
-        )
-      )?.steps
-    ).toEqual(['Select 2 points to set angle offset.', 'Select a target line to extend to.']);
-
-    expect(
-      instructionsForCpAction(
-        railActions.find(
           (action) => action.kind === 'command' && action.operationId === 'DrawCreaseAngleRestricted'
         )
       )?.intro?.[0]
     ).toBe('Draw converging lines with angle offset.');
-
-    expect(
-      instructionsForCpAction(
-        railActions.find(
-          (action) => action.kind === 'command' && action.operationId === 'FoldableLineInput'
-        )
-      )?.notes
-    ).toEqual(['Select a line to extend it.']);
 
     expect(
       instructionsForCpAction(

@@ -1366,6 +1366,35 @@
   text-transform: uppercase;
 }
 
+.settings-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--bg-surface);
+  cursor: pointer;
+}
+
+.settings-toggle-row__copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-toggle-row__label {
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.settings-toggle-row__desc {
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+}
+
 .settings-theme-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2037,6 +2066,69 @@
   min-height: 0;
   overflow: hidden;
   place-items: center;
+}
+
+/* WebGL crease-pattern surface (dev flag). Overlays the SVG viewport and owns
+   pan/zoom (Phase 2), so it takes pointer events. Plain drag is reserved for
+   tools; cmd/ctrl-drag pans. */
+.cp-webgl-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 5;
+  touch-action: none;
+}
+
+/* Transient marquee (box-select) rectangle over the WebGL surface. */
+.cp-webgl-marquee {
+  position: absolute;
+  z-index: 6;
+  pointer-events: none;
+  border: 1px solid var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
+}
+
+/* Text-annotation labels over the WebGL surface: a DOM overlay (low glyph count,
+   CSS-styled) that scales with zoom. Container is click-through; each label opts back
+   into pointer events only when the active tool allows entity selection. */
+.cp-text-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 7;
+}
+
+.cp-text-label {
+  position: absolute;
+  /* The model point is the SVG text baseline-start; nudge so the label sits there. */
+  transform: translateY(-0.85em);
+  white-space: nowrap;
+  line-height: 1;
+  font-weight: 600;
+  font-family: Inter, system-ui, sans-serif;
+  color: var(--text-primary);
+  /* Halo so text reads over creases (mirrors the SVG's stroke paint-order). */
+  text-shadow:
+    0 0 3px var(--bg-primary),
+    0 0 3px var(--bg-primary),
+    0 0 3px var(--bg-primary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.cp-text-label--selected {
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent-primary) 80%, transparent));
+}
+
+/* In WebGL mode the SVG is covered by the canvas; hide it so the browser stops
+   painting the (large) SVG DOM. visibility:hidden keeps its layout box so the
+   camera can still seed from its fit. */
+.cp-canvas[data-webgl-hidden='true'] {
+  visibility: hidden;
 }
 
 .cp-diagnostic-hud {
