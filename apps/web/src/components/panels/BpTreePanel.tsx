@@ -61,6 +61,11 @@ const LAYER_OPTIONS: { key: BpTreeViewLayerKey; label: string; icon: ReactNode }
 
 const BP_TREE_DRAG_START_THRESHOLD_PX = 4;
 
+// The rendered symmetry snap-lane width in SVG units — keep in sync with the CSS
+// `.symmetry-snap-lane { stroke-width }`. A leaf tip landing anywhere inside this
+// band snaps onto the axis as a single centred leaf (matches what the user sees).
+const SYMMETRY_AXIS_BAND_SVG = 18;
+
 // Default so a unit-length edge is ~this many screen pixels. Node dots and
 // labels are drawn at fixed screen sizes (counter-scaled by the zoom) so they
 // stay small relative to the geometry at any zoom.
@@ -613,8 +618,13 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     const parent = findVertex(parentId);
     if (!parent) return;
     const loc = constrainBpTreePoint(unitLeafLocation(parent.loc, down.point), tree.sheet);
-    if (symmetry.enabled) void addOristudioBpTreeLeafWithSymmetry(parentId, loc);
-    else void addOristudioBpTreeLeaf(parentId, loc);
+    if (symmetry.enabled) {
+      // Match the axis-snap zone to the visible band's half-width, converted from
+      // SVG units to tree units at the current sheet scale.
+      const axisTolerance =
+        SYMMETRY_AXIS_BAND_SVG / 2 / bpTreeUnitToSvg(tree.sheet, paperRect);
+      void addOristudioBpTreeLeafWithSymmetry(parentId, loc, axisTolerance);
+    } else void addOristudioBpTreeLeaf(parentId, loc);
   };
 
   const onEdgePointerDown = (event: PointerEvent<SVGGElement>, edgeId: number) => {

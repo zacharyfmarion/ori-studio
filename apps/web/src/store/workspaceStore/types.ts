@@ -468,9 +468,16 @@ export interface OristudioBpSliceActions {
   setOristudioBpSymmetry: (update: Partial<OristudioBpSymmetryState>) => void;
   /**
    * Add a leaf and, when mirror-draw is on and the parent has a mirror, also add the
-   * reflected leaf on the other side — recording the new pair. One undo entry.
+   * reflected leaf on the other side — recording the new pair. One undo entry. A leaf
+   * whose tip lands within `axisTolerance` (tree units) of the axis snaps onto it as a
+   * single centred leaf instead of mirroring; the panel sizes this to the visible
+   * axis band so a click anywhere inside the line makes one centred leaf.
    */
-  addOristudioBpTreeLeafWithSymmetry: (parentId: number, loc?: Point) => Promise<boolean>;
+  addOristudioBpTreeLeafWithSymmetry: (
+    parentId: number,
+    loc?: Point,
+    axisTolerance?: number
+  ) => Promise<boolean>;
   /**
    * Move vertices and, when mirror-draw is on, also move their paired counterparts to
    * the reflected positions (partial mirror). One undo entry / coalesced drag.

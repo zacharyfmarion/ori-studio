@@ -417,10 +417,13 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       set({ oristudioBpSymmetry: { ...get().oristudioBpSymmetry, ...update } });
     },
 
-    addOristudioBpTreeLeafWithSymmetry: async (parentId, loc) => {
+    addOristudioBpTreeLeafWithSymmetry: async (parentId, loc, axisTolerance) => {
       const symmetry = get().oristudioBpSymmetry;
       if (!symmetry.enabled) return get().addOristudioBpTreeLeaf(parentId, loc);
       const axis: SymmetryAxis = { loc: symmetry.loc, angle: symmetry.angle };
+      // Snap-onto-axis zone: the panel passes a tolerance matching the visible axis
+      // band; fall back to the tight geometric tolerance when unset.
+      const axisSnapTolerance = axisTolerance ?? BP_TREE_SYMMETRY_TOLERANCE;
       // Add a unit leaf to `on` and reposition it to `at`; returns the doc + new id.
       const addLeafAt = async (
         document: OristudioBpDocumentState,
@@ -445,9 +448,10 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         const tree = document.snapshot.tree;
         const parent = tree.vertices.find((vertex) => vertex.id === parentId);
         if (!parent) return document;
-        // Snap the target onto the axis when close; an axial leaf gets no mirror.
+        // Snap the target onto the axis when inside the band; an axial leaf gets no
+        // mirror (a single centred leaf).
         const snap = loc
-          ? snapPointToSymmetryAxis(loc, axis, BP_TREE_SYMMETRY_TOLERANCE)
+          ? snapPointToSymmetryAxis(loc, axis, axisSnapTolerance)
           : { point: undefined as Point | undefined, snapped: false };
         const targetLoc = snap.point ?? loc;
 
