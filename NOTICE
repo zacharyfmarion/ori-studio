@@ -1,0 +1,95 @@
+Ori Studio — Third-Party Notices
+================================
+
+This product is distributed as a whole under the GNU General Public License,
+version 2 or (at your option) any later version (GPL-2.0-or-later), because it
+incorporates a Rust/WASM port of Robert J. Lang's TreeMaker. See LICENSE.txt
+for the GPL text and LICENSING.md for the full licensing posture.
+
+The GPL-licensed whole additionally bundles the following works, whose original
+licenses are permissive and GPL-compatible. Their copyright and permission
+notices are reproduced here to satisfy their attribution requirements. Nothing
+in this file narrows the GPL obligations that govern the combined distribution.
+
+--------------------------------------------------------------------------------
+1. TreeMaker 5.0.1 — Robert J. Lang
+--------------------------------------------------------------------------------
+License:  GNU GPL, version 2 or later
+Upstream: https://langorigami.com/article/treemaker/
+Ported into: crates/treemaker-core, crates/treemaker-cli, crates/treemaker-wasm,
+             crates/treemaker-sequence
+Vendored source: third_party/treemaker-5.0.1 (see its LICENSE.txt). The wnlib
+             directory within it is distributable with no restrictions per the
+             bundled TreeMaker license notice.
+
+--------------------------------------------------------------------------------
+2. Box Pleating Studio — Mu-Tsun Tsai
+--------------------------------------------------------------------------------
+License:  MIT
+Upstream: https://github.com/MuTsunTsai/box-pleating-studio
+Ported into: crates/oristudio-bp, crates/oristudio-bp-wasm
+
+  Copyright (c) 2020-PRESENT Mu-Tsun Tsai
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in
+  all copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED. See the crate LICENSE (crates/oristudio-bp/LICENSE) for the full
+  MIT text.
+
+--------------------------------------------------------------------------------
+3. Oriedita (a fork of Orihime オリヒメ by @meguro77)
+--------------------------------------------------------------------------------
+License:  MIT
+Upstream: https://github.com/oriedita/oriedita
+Ported into: crates/oristudio-cp, crates/oristudio-cp-wasm
+
+  Copyright (c) 2021 Oriedita contributors
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, subject to the condition that the above
+  copyright notice and this permission notice be included in all copies or
+  substantial portions of the Software. See the crate LICENSE
+  (crates/oristudio-cp/LICENSE) for the full MIT text.
+
+  Oriedita is a fork of Orihime, whose author (@meguro77) placed it under
+  unrestricted terms. third_party/oriedita/LICENSE.md preserves that history.
+
+--------------------------------------------------------------------------------
+4. Flat-Folder — Jason S. Ku (origamimagiro)
+--------------------------------------------------------------------------------
+License:  MIT
+Upstream: https://github.com/origamimagiro/flat-folder
+Ported into: crates/treemaker-flatfold
+
+  Copyright (c) 2022 Jason S. Ku (origamimagiro)
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, subject to the condition that the above
+  copyright notice and this permission notice be included in all copies or
+  substantial portions of the Software. See the crate LICENSE-MIT
+  (crates/treemaker-flatfold/LICENSE-MIT) for the full MIT text. The Rust port
+  is additionally offered under Apache-2.0 (LICENSE-APACHE) for the port's own
+  contributions.
+
+--------------------------------------------------------------------------------
+5. Origami Simulator — Amanda Ghassaei
+--------------------------------------------------------------------------------
+License:  MIT
+Upstream: https://github.com/amandaghassaei/OrigamiSimulator
+Ported into: packages/origami-simulator (@treemaker/origami-simulator)
+
+  Copyright (c) 2018 Amanda Ghassaei
+
+  See packages/origami-simulator/LICENSE and packages/origami-simulator/NOTICE
+  for the full MIT text and the list of upstream source files used.

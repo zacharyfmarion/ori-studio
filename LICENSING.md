@@ -21,6 +21,32 @@ If you distribute binaries, wasm packages, npm packages, or other object-code
 forms built from this repository, the GPL requires that recipients receive or
 can obtain the corresponding source code under the same GPL terms.
 
+## Third-Party Ports
+
+Beyond TreeMaker, this repository contains Rust/TypeScript ports of several
+other origami tools. Every upstream is permissively licensed (MIT) and therefore
+GPL-compatible, so bundling them inside the GPL-2.0-or-later whole is allowed.
+Because the project is GPL v2 **or later**, Apache-2.0 components are compatible
+too (the combined work can be taken as GPLv3). The root `NOTICE` file reproduces
+each upstream copyright/permission notice; keep it in source and binary
+distributions.
+
+| Upstream | Upstream license | Ported into | Crate/package license | Attribution |
+| --- | --- | --- | --- | --- |
+| Box Pleating Studio (Mu-Tsun Tsai) | MIT | `oristudio-bp`, `oristudio-bp-wasm` | `oristudio-bp`: MIT; wasm wrapper: GPL-2.0-or-later (workspace) | `crates/oristudio-bp/LICENSE` + `NOTICE` |
+| Oriedita / Orihime | MIT | `oristudio-cp`, `oristudio-cp-wasm` | `oristudio-cp`: MIT OR Apache-2.0; wasm wrapper: GPL-2.0-or-later (workspace) | `crates/oristudio-cp/LICENSE` + `NOTICE` |
+| Flat-Folder (Jason S. Ku) | MIT | `treemaker-flatfold` | MIT OR Apache-2.0 | `crates/treemaker-flatfold/LICENSE-MIT`, `LICENSE-APACHE` + `NOTICE` |
+| Origami Simulator (Amanda Ghassaei) | MIT | `packages/origami-simulator` | MIT | `packages/origami-simulator/LICENSE` + `NOTICE` |
+
+The individual MIT crate licenses let those crates be reused on their own MIT
+terms; each retains its upstream copyright notice so that reuse stays compliant.
+When such a crate is combined into a shipped Ori Studio binary/wasm alongside the
+GPL TreeMaker port, the combined distribution as a whole is governed by the GPL.
+
+JavaScript/npm dependencies of the web and desktop apps are all permissive
+(MIT/Apache-2.0/ISC/BSD); there are no GPL/AGPL/LGPL npm dependencies imposing
+additional obligations.
+
 ## What Is Covered
 
 | Path or artifact | License / status | Notes |
@@ -28,6 +54,10 @@ can obtain the corresponding source code under the same GPL terms.
 | Rust workspace crates | `GPL-2.0-or-later` | `treemaker-core`, `treemaker-cli`, `treemaker-wasm`, and `oracle-tests`. |
 | `LICENSE.txt` | GPL v2 text from TreeMaker 5.0.1 | Keep this file in source distributions. |
 | `third_party/treemaker-5.0.1` | TreeMaker GPL source distribution | Vendored as the behavioral baseline and C++ oracle source. Preserve notices. |
+| `third_party/box-pleating-studio` | MIT (Mu-Tsun Tsai) | Vendored reference/oracle source for the BP port. Preserve `LICENSE.md`. |
+| `third_party/flat-folder` | MIT (Jason S. Ku) | Vendored reference/oracle source for the flat-fold port. Preserve `LICENSE`. |
+| `third_party/oriedita` | MIT (Oriedita / Orihime) | Vendored reference/oracle source for the CP-editing port. Preserve `LICENSE.md`. |
+| `packages/origami-simulator` | MIT (Amanda Ghassaei + port) | TypeScript port of the Origami Simulator solver. Preserve `LICENSE` and `NOTICE`. |
 | `third_party/treemaker-5.0.1/Source/tmModel/wnlib` | Unrestricted per TreeMaker's bundled license notice | The TreeMaker license file says the `wnlib` directory may be distributed with no restrictions. |
 | `tests/fixtures` | GPL-compatible TreeMaker fixture data | Fixtures are copied or generated from the TreeMaker parity workflow; keep them with the GPL source distribution. |
 | `crates/*/testdata` | GPL-compatible TreeMaker fixture data | Small crate-local copies keep packaged crate tests self-contained. |
