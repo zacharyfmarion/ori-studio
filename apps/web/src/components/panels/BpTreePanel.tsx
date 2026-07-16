@@ -32,10 +32,6 @@ import {
 import { formatNumber, type Point } from '../../lib/geometry';
 import { rotatePointsAround, translatePoints, unitLeafLocation } from '../../lib/bpTreeAuthoring';
 import { bpTreeSymmetryDefaultLoc } from '../../lib/bpTreeSymmetry';
-import { Toggle } from '../ui/Toggle';
-
-/** The BP tree mirror line only makes sense vertical or horizontal (no paper). */
-type BpSymmetryOrientation = 'vertical' | 'horizontal';
 import { type BpTreeViewLayerKey, type BpTreeViewLayers } from '../../lib/oristudioBpViewportSettings';
 import {
   clientPointToDesignWorld,
@@ -73,105 +69,12 @@ const NODE_DOT_PX = 5;
 const LEAF_DOT_PX = 4;
 const NODE_LABEL_PX = 12;
 
-/**
- * Mirror-draw controls for the BP tree, reusing the shared `symmetry-menu` styling.
- * Enabling turns on the axis + paired add/drag. A tree has no paper to orient against,
- * so the mirror line is simply vertical or horizontal. Ephemeral — state lives in the
- * store, never in the document.
- */
-function BpTreeSymmetryMenu({
-  enabled,
-  orientation,
-  onEnabledChange,
-  onOrientation,
-}: {
-  enabled: boolean;
-  orientation: BpSymmetryOrientation;
-  onEnabledChange: (enabled: boolean) => void;
-  onOrientation: (orientation: BpSymmetryOrientation) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const onPointerDown = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (menuRef.current?.contains(target)) return;
-      setOpen(false);
-    };
-    document.addEventListener('mousedown', onPointerDown);
-    return () => document.removeEventListener('mousedown', onPointerDown);
-  }, [open]);
-
-  return (
-    <div className="viewport-toolbar__menu-anchor design-symmetry-menu" ref={menuRef}>
-      <button
-        type="button"
-        className="viewport-toolbar__symmetry-button"
-        data-active={enabled ? true : undefined}
-        aria-label="Tree symmetry"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
-      >
-        <FlipHorizontal2 size={14} />
-        <span>{enabled ? 'Mirror' : 'Symmetry'}</span>
-      </button>
-      {open && (
-        <div
-          className="viewport-toolbar__dropdown symmetry-menu__panel"
-          role="menu"
-          aria-label="Tree symmetry controls"
-        >
-          <div className="symmetry-menu__header">
-            <span>Symmetry</span>
-            <span>{enabled ? 'Mirroring' : 'Off'}</span>
-          </div>
-          <div className="symmetry-menu__toggle-row">
-            <div className="symmetry-menu__toggle-copy">
-              <span>Mirror draw</span>
-              <small>Reflect new leaves and drags</small>
-            </div>
-            <Toggle
-              checked={enabled}
-              onChange={onEnabledChange}
-              aria-label="Enable tree mirror draw"
-            />
-          </div>
-          <div className="symmetry-menu__section-label">Mirror line</div>
-          <div className="symmetry-menu__preset-grid">
-            <button
-              type="button"
-              className="symmetry-menu__preset"
-              data-active={enabled && orientation === 'vertical' ? true : undefined}
-              onClick={() => onOrientation('vertical')}
-            >
-              Vertical
-            </button>
-            <button
-              type="button"
-              className="symmetry-menu__preset"
-              data-active={enabled && orientation === 'horizontal' ? true : undefined}
-              onClick={() => onOrientation('horizontal')}
-            >
-              Horizontal
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function BpTreeViewportToolbar({
   zoomPercent,
   layers,
   onLayerChange,
   symmetryEnabled,
-  symmetryOrientation,
-  onSymmetryEnabledChange,
-  onSymmetryOrientation,
+  onSymmetryToggle,
   zoomIn,
   zoomOut,
   fitToView,
@@ -181,9 +84,7 @@ function BpTreeViewportToolbar({
   layers: BpTreeViewLayers;
   onLayerChange: (layer: BpTreeViewLayerKey, visible: boolean) => void;
   symmetryEnabled: boolean;
-  symmetryOrientation: BpSymmetryOrientation;
-  onSymmetryEnabledChange: (enabled: boolean) => void;
-  onSymmetryOrientation: (orientation: BpSymmetryOrientation) => void;
+  onSymmetryToggle: () => void;
   zoomIn: () => void;
   zoomOut: () => void;
   fitToView: () => void;
@@ -213,12 +114,15 @@ function BpTreeViewportToolbar({
       setZoomLevel={setZoomLevel}
     >
       <ViewportToolbarSeparator />
-      <BpTreeSymmetryMenu
-        enabled={symmetryEnabled}
-        orientation={symmetryOrientation}
-        onEnabledChange={onSymmetryEnabledChange}
-        onOrientation={onSymmetryOrientation}
-      />
+      <IconButton
+        size="sm"
+        variant="toolbar"
+        title={symmetryEnabled ? 'Mirror draw (on)' : 'Mirror draw'}
+        isActive={symmetryEnabled}
+        onClick={onSymmetryToggle}
+      >
+        <FlipHorizontal2 size={14} />
+      </IconButton>
       <ViewportToolbarSeparator />
       <div className="viewport-toolbar__menu-anchor" ref={layersMenuRef}>
         <IconButton
@@ -435,35 +339,20 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
   );
 
   // --- Symmetry (mirror-draw) -------------------------------------------------
-  // A tree isn't drawn on the paper, so a paper-relative diagonal axis is meaningless
-  // here — the mirror line is simply vertical or horizontal. angle 90 = vertical
-  // (mirror left/right), angle 0 = horizontal (mirror top/bottom).
-  const symmetryOrientation: BpSymmetryOrientation = symmetry.angle === 0 ? 'horizontal' : 'vertical';
-  const handleToggleSymmetry = useCallback(
-    (enabled: boolean) => {
-      if (!enabled) {
-        setOristudioBpSymmetry({ enabled: false });
-        return;
-      }
-      // Enabling centres the axis on the sheet; keep the current orientation.
-      setOristudioBpSymmetry({
-        enabled: true,
-        loc: bpTreeSymmetryDefaultLoc(tree.sheet),
-        angle: symmetry.angle === 0 ? 0 : 90,
-      });
-    },
-    [setOristudioBpSymmetry, tree.sheet, symmetry.angle]
-  );
-  const handleSymmetryOrientation = useCallback(
-    (orientation: BpSymmetryOrientation) => {
-      setOristudioBpSymmetry({
-        enabled: true,
-        loc: bpTreeSymmetryDefaultLoc(tree.sheet),
-        angle: orientation === 'horizontal' ? 0 : 90,
-      });
-    },
-    [setOristudioBpSymmetry, tree.sheet]
-  );
+  // A tree isn't drawn on the paper, so there's nothing to orient a mirror line
+  // against — symmetry is a plain on/off toggle with a vertical axis (angle 90,
+  // mirror left/right) centred on the sheet.
+  const handleToggleSymmetry = useCallback(() => {
+    if (symmetry.enabled) {
+      setOristudioBpSymmetry({ enabled: false });
+      return;
+    }
+    setOristudioBpSymmetry({
+      enabled: true,
+      loc: bpTreeSymmetryDefaultLoc(tree.sheet),
+      angle: 90,
+    });
+  }, [setOristudioBpSymmetry, tree.sheet, symmetry.enabled]);
 
   // The mirror line clipped to the sheet, in SVG coords.
   const symmetryAxisLine = useMemo(() => {
@@ -1002,9 +891,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
         layers={layers}
         onLayerChange={setLayer}
         symmetryEnabled={symmetry.enabled}
-        symmetryOrientation={symmetryOrientation}
-        onSymmetryEnabledChange={handleToggleSymmetry}
-        onSymmetryOrientation={handleSymmetryOrientation}
+        onSymmetryToggle={handleToggleSymmetry}
         zoomIn={() => transformRef.current?.zoomIn(0.35, 120)}
         zoomOut={() => transformRef.current?.zoomOut(0.35, 120)}
         fitToView={() => fitToView()}
