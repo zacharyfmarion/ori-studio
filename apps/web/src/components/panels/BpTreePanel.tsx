@@ -793,7 +793,14 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     }
   };
 
-  const onCanvasPointerMove = (event: PointerEvent<SVGSVGElement>) => {
+  const onCanvasPointerMove = (event: PointerEvent<Element>) => {
+    // Track hover across the whole clickable pane — clicks commit anywhere on the
+    // canvas (via the container), not just over the content-sized SVG, so the mirror
+    // ghost must follow the cursor there too. Skip the toolbar/editor chrome.
+    if (isViewportInteractiveTarget(event.target)) {
+      setHoverPoint(null);
+      return;
+    }
     setHoverPoint(eventToTreePoint(event));
   };
 
@@ -809,6 +816,8 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
         if (!isViewportInteractiveTarget(event.target)) containerRef.current?.focus();
         onCanvasAddPointerDown(event);
       }}
+      onPointerMove={onCanvasPointerMove}
+      onPointerLeave={() => setHoverPoint(null)}
       onPointerUp={onCanvasAddPointerUp}
     >
       <TransformWrapper
@@ -846,8 +855,6 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
             style={{ width: worldRect.width, height: worldRect.height }}
             role="img"
             aria-label="Box Pleat tree canvas"
-            onPointerMove={onCanvasPointerMove}
-            onPointerLeave={() => setHoverPoint(null)}
           >
             {symmetryAxisLine && (
               <>
