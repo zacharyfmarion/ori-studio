@@ -181,22 +181,23 @@ The scale preview needs the active figure's geometry isolated from the merged
 
 ## Phases / Checklist
 
-- [ ] **P1 – Framework:** add `@radix-ui/react-dropdown-menu`; controlled
-      cursor-anchored `ContextMenu` wrapper + types + styles; tests. Radix supplies
-      clamping/dismissal/keyboard nav. No canvas wiring yet.
-- [ ] **P2 – Routing:** canvas right-click vs right-drag split; `onRequestContextMenu`
-      prop + target resolution; native menu still suppressed; erase-drag unchanged.
-- [ ] **P3 – Folded menu:** panel item builder for `folded-figure`; wire Delete,
-      Duplicate, Wireframe (`Wire2`), X-ray (`Transparent3`); ready-state gating;
-      select-on-open.
-- [ ] **P4 – Flip:** `advanceFoldedState` + wire, matching Oriedita `advanceState`.
-- [ ] **P5 – Drag-to-scale:** scale-about-pivot preview in `cpFoldedToScene`;
-      canvas gesture arming + live preview; commit `model.scale` on release;
-      Escape/right-click cancel.
-- [ ] **P6 – Verify:** `cd apps/web && npx tsc --noEmit`, vitest, eslint; browser
-      pass (checklist below). Restore any spuriously-regenerated `generated/**`
-      (`git checkout main -- <path>`) before committing — none expected since this
-      is frontend-only.
+- [x] **P1 – Framework:** added `@radix-ui/react-dropdown-menu`; controlled
+      cursor-anchored `ContextMenu` wrapper + types + styles + tests. Radix supplies
+      clamping/dismissal/keyboard nav. (commit: Radix context-menu framework)
+- [x] **P2–P4 – Routing + folded menu + Flip** (committed together — routing is
+      untestable without items and vice-versa): canvas right-click vs right-drag
+      split; `onRequestContextMenu` + `CpContextTarget`; erase-drag unchanged;
+      panel item builder with Delete, Duplicate, Wireframe (`Wire2`), X-ray
+      (`Transparent3`), ready-state gating, select-on-open; Flip via extracted +
+      unit-tested `advanceFoldedState` (Oriedita `advanceState` parity).
+- [x] **P5 – Drag-to-scale:** scale-about-pivot preview in `cpFoldedToScene` +
+      renderer `setFolded`; canvas arm/preview/commit/cancel gesture wired to
+      `scaleFoldedFigureId`; commit `model.scale` on release; Escape / no-move click
+      cancels; preview-transform tests.
+- [x] **P6 – Verify (tool-checkable):** `npx tsc --noEmit`, `vitest run` (540
+      pass), `eslint .` all clean. No `generated/**` changes (frontend-only; the
+      gitignored wasm artifacts were copied into the worktree only so tsc could
+      resolve them). Browser pass below is the author's.
 
 ## Testing
 
