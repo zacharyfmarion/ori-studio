@@ -44,6 +44,7 @@ import {
   type FoldedFigureBounds,
 } from './adapters/cpFoldedToScene';
 import type { OristudioCpFoldedFigureEntry } from '../engine/oristudioCpTypes';
+import type { CpContextMenuRequest } from './contextMenuTarget';
 import {
   cpGridLinesToStrokes,
   gridBoundsKey,
@@ -501,6 +502,12 @@ export interface CreasePatternWebglCanvasProps {
   onEraseBox: (points: readonly ModelPoint[]) => void;
   /** Right-click erase: delete the 1-based crease id under the cursor. */
   onEraseLine: (id: number) => void;
+  /**
+   * Open a context menu for what a right-*click* (press + release without a drag)
+   * landed on. Right-*drag* remains the erase gesture and never calls this. The
+   * canvas resolves the target; the panel decides what menu to show.
+   */
+  onRequestContextMenu: (request: CpContextMenuRequest) => void;
   /** Assignment colour mode. */
   mode: 'mvf' | 'agrh';
   /** `--cp-line-width` value driving stroke thickness. */
@@ -586,6 +593,7 @@ export function CreasePatternWebglCanvas({
   onViewChange,
   onEraseBox,
   onEraseLine,
+  onRequestContextMenu,
   mode,
   lineWidth,
   points,
@@ -844,6 +852,7 @@ export function CreasePatternWebglCanvas({
     onViewChange,
     onEraseBox,
     onEraseLine,
+    onRequestContextMenu,
     diagnosticHits,
     onSelectDiagnostic,
   };
@@ -1843,8 +1852,18 @@ export function CreasePatternWebglCanvas({
         renderer.setPreview(null);
         const raw = clientToModel(e.clientX, e.clientY);
         if (eraseRuntime && raw) {
+          const figureId = !moved ? figureAt(e.clientX, e.clientY) : null;
           if (e.type === 'pointercancel') {
             eraseRuntime.feed({ kind: 'cancel', point: raw });
+          } else if (figureId) {
+            // Right-*click* (no drag) over a folded figure opens its context menu
+            // instead of erasing; right-*drag* and clicks elsewhere still erase.
+            eraseRuntime.feed({ kind: 'cancel', point: raw });
+            liveRef.current.onRequestContextMenu({
+              clientX: e.clientX,
+              clientY: e.clientY,
+              target: { kind: 'folded-figure', figureId },
+            });
           } else {
             const out = eraseRuntime.feed({ kind: 'up', point: raw });
             if (out.commit) {

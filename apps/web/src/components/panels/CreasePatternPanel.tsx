@@ -7,9 +7,12 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import {
+  Box,
   ChevronDown,
   ChevronRight,
   Copy,
+  Eye,
+  FlipHorizontal2,
   GitBranch,
   ListChecks,
   Trash2,
@@ -103,6 +106,10 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import { useShortcutStore } from '../../store/shortcutStore';
 import { CreasePatternWebglCanvas } from '../../cp-workspace/CreasePatternWebglCanvas';
 import type { CameraCommand, CpOverlayView } from '../../cp-workspace/CreasePatternWebglCanvas';
+import type { CpContextMenuRequest } from '../../cp-workspace/contextMenuTarget';
+import { advanceFoldedState } from '../../cp-workspace/foldedFigureState';
+import { ContextMenu } from '../ui/ContextMenu';
+import type { ContextMenuItem, ContextMenuRequest } from '../ui/contextMenuTypes';
 import { vertexPointsFromTransport } from '../../engine/oristudioCpGeometry';
 import { CpTextOverlay } from '../../cp-workspace/CpTextOverlay';
 import {
@@ -1122,6 +1129,87 @@ export function CreasePatternPanel() {
     if (!activeFoldedFigure) return;
     void deleteOristudioCpFoldedFigure(activeFoldedFigure.id);
   }, [activeFoldedFigure, deleteOristudioCpFoldedFigure]);
+
+  // Right-click context menu for a folded form. Items act on the clicked figure by
+  // id (not the active one), so they behave correctly even before selection settles.
+  const [foldedContextMenu, setFoldedContextMenu] = useState<ContextMenuRequest | null>(null);
+  const buildFoldedFigureMenuItems = useCallback(
+    (figure: OristudioCpFoldedFigureEntry): ContextMenuItem[] => {
+      const ready =
+        figure.status === 'ready' && figure.handle !== null && figure.snapshot !== null;
+      const currentState = figure.snapshot?.model.state ?? 'Front0';
+      return [
+        {
+          kind: 'action',
+          id: 'flip',
+          label: 'Flip',
+          icon: <FlipHorizontal2 size={14} />,
+          disabled: !ready,
+          // Oriedita's FlipAction: cycle the figure's shown side.
+          onSelect: () =>
+            void updateOristudioCpFoldedFigureModel(figure.id, {
+              state: advanceFoldedState(currentState),
+            }),
+        },
+        {
+          kind: 'action',
+          id: 'delete',
+          label: 'Delete',
+          icon: <Trash2 size={14} />,
+          danger: true,
+          onSelect: () => void deleteOristudioCpFoldedFigure(figure.id),
+        },
+        {
+          kind: 'action',
+          id: 'duplicate',
+          label: 'Duplicate',
+          icon: <Copy size={14} />,
+          disabled: figure.handle === null,
+          onSelect: () => void duplicateOristudioCpFoldedFigure(figure.id),
+        },
+        {
+          kind: 'action',
+          id: 'wireframe',
+          label: 'Wireframe',
+          icon: <Box size={14} />,
+          disabled: !ready,
+          onSelect: () => void setOristudioCpFoldedFigureDisplayStyle(figure.id, 'Wire2'),
+        },
+        {
+          kind: 'action',
+          id: 'xray',
+          label: 'X-ray',
+          icon: <Eye size={14} />,
+          disabled: !ready,
+          onSelect: () =>
+            void setOristudioCpFoldedFigureDisplayStyle(figure.id, 'Transparent3'),
+        },
+      ];
+    },
+    [
+      updateOristudioCpFoldedFigureModel,
+      deleteOristudioCpFoldedFigure,
+      duplicateOristudioCpFoldedFigure,
+      setOristudioCpFoldedFigureDisplayStyle,
+    ]
+  );
+  const handleRequestContextMenu = useCallback(
+    (request: CpContextMenuRequest) => {
+      // Only folded figures raise a menu today; other targets fall through to the
+      // canvas's existing behavior (e.g. right-drag erase).
+      if (request.target.kind !== 'folded-figure') return;
+      const figureId = request.target.figureId;
+      const figure = oristudioCpFoldedFigures.find((candidate) => candidate.id === figureId);
+      if (!figure) return;
+      setOristudioCpActiveFoldedFigure(figureId);
+      setFoldedContextMenu({
+        x: request.clientX,
+        y: request.clientY,
+        items: buildFoldedFigureMenuItems(figure),
+      });
+    },
+    [oristudioCpFoldedFigures, setOristudioCpActiveFoldedFigure, buildFoldedFigureMenuItems]
+  );
   // Vertex dots: dedup crease-segment endpoints — the top main-thread cost after an
   // edit on dense patterns. Dedup straight from the transport's typed arrays
   // (parity-proven identical to getCpVertexPoints); the structured fallback only runs
@@ -2590,6 +2678,7 @@ export function CreasePatternPanel() {
                   onEraseLine={(id) => {
                     void executeOristudioCpCommand('LineSegmentDelete', { line_ids: [id] });
                   }}
+                  onRequestContextMenu={handleRequestContextMenu}
                   mode={mode}
                   lineWidth={oristudioCpViewport.lineWidth ?? 1}
                   points={editableCp.crease_pattern.points}
@@ -2601,6 +2690,15 @@ export function CreasePatternPanel() {
                   importedForms={cpImportedFoldedFormsGeometry}
                   grid={editableCpVisibleGrid}
                   gridVisible={oristudioCpViewport.gridVisible}
+                />
+                <ContextMenu
+                  open={foldedContextMenu !== null}
+                  x={foldedContextMenu?.x ?? 0}
+                  y={foldedContextMenu?.y ?? 0}
+                  items={foldedContextMenu?.items ?? []}
+                  onOpenChange={(open) => {
+                    if (!open) setFoldedContextMenu(null);
+                  }}
                 />
                 {webglOverlayView && editableCp.crease_pattern.texts.length > 0 && (
                   <CpTextOverlay
