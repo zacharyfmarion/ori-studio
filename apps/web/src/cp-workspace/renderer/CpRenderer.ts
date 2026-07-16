@@ -36,6 +36,12 @@ export interface CpRenderer {
    * of the moved lines follow them without a full scene re-upload.
    */
   setPoints(points: PointGeometry): void;
+  /**
+   * Replace only the folded-figure buffers (fills + edge strokes), leaving creases
+   * and points untouched. Used to preview a folded form being scaled during a
+   * drag-to-scale gesture without a full scene re-upload each frame.
+   */
+  setFolded(folded: FoldedGeometry): void;
   /** Upload (or clear) the view-dependent grid geometry, drawn behind the scene. */
   setGrid(strokes: StrokeGeometry | null): void;
   /**

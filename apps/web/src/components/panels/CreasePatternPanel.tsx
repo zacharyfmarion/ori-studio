@@ -15,6 +15,7 @@ import {
   FlipHorizontal2,
   GitBranch,
   ListChecks,
+  Maximize2,
   Trash2,
 } from 'lucide-react';
 import {
@@ -1133,6 +1134,8 @@ export function CreasePatternPanel() {
   // Right-click context menu for a folded form. Items act on the clicked figure by
   // id (not the active one), so they behave correctly even before selection settles.
   const [foldedContextMenu, setFoldedContextMenu] = useState<ContextMenuRequest | null>(null);
+  // The folded figure armed for a drag-to-scale gesture (chosen "Scale"), or null.
+  const [pendingScaleFigureId, setPendingScaleFigureId] = useState<string | null>(null);
   const buildFoldedFigureMenuItems = useCallback(
     (figure: OristudioCpFoldedFigureEntry): ContextMenuItem[] => {
       const ready =
@@ -1150,6 +1153,15 @@ export function CreasePatternPanel() {
             void updateOristudioCpFoldedFigureModel(figure.id, {
               state: advanceFoldedState(currentState),
             }),
+        },
+        {
+          kind: 'action',
+          id: 'scale',
+          label: 'Scale',
+          icon: <Maximize2 size={14} />,
+          disabled: !ready,
+          // Arm the canvas; the next drag scales this figure live.
+          onSelect: () => setPendingScaleFigureId(figure.id),
         },
         {
           kind: 'action',
@@ -2687,6 +2699,11 @@ export function CreasePatternPanel() {
                   circles={editableCp.crease_pattern.circles}
                   circleRadiusToSvg={editableCircleRadiusToSvg}
                   foldedFigures={generatedFoldedFigures}
+                  scaleFoldedFigureId={pendingScaleFigureId}
+                  onScaleFoldedFigure={(figureId, scale) => {
+                    void updateOristudioCpFoldedFigureModel(figureId, { scale });
+                  }}
+                  onScaleFoldedFigureEnd={() => setPendingScaleFigureId(null)}
                   importedForms={cpImportedFoldedFormsGeometry}
                   grid={editableCpVisibleGrid}
                   gridVisible={oristudioCpViewport.gridVisible}

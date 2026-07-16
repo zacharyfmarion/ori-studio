@@ -184,24 +184,50 @@ class FoldedBuilder {
 }
 
 /**
+ * A live scale preview applied to one figure while it is being drag-scaled: its
+ * user-space geometry is scaled by `factor` about `pivot` (both in SVG user
+ * coordinates). Cheap and wasm-free — the committed `model.scale` is only written
+ * on release. Other figures are unaffected.
+ */
+export interface FoldedFigureScalePreview {
+  figureId: string;
+  factor: number;
+  pivot: Point;
+}
+
+/**
  * Build folded-figure geometry (triangulated fills + edge strokes) in SVG user
  * coordinates from the figures' render snapshots, matching the SVG primitive
  * layer: points map through {@link modelPointToCpSvg} plus the figure's display
  * offset, and primitives are emitted in `sequence` order so overlapping,
  * semi-transparent facets composite correctly.
  *
+ * When `scalePreview` targets a figure, that figure's user-space points are scaled
+ * about the preview pivot (see {@link FoldedFigureScalePreview}).
+ *
  * First cut: solid colours (gradients use their start colour); text is skipped.
  */
-export function cpFoldedToScene(figures: readonly OristudioCpFoldedFigureEntry[]): FoldedGeometry {
+export function cpFoldedToScene(
+  figures: readonly OristudioCpFoldedFigureEntry[],
+  scalePreview?: FoldedFigureScalePreview | null
+): FoldedGeometry {
   const builder = new FoldedBuilder();
 
   for (const figure of figures) {
     const snapshot = figure.renderSnapshot;
     if (!snapshot?.primitives.length) continue;
     const offset = figure.displayOffset ?? { x: 0, y: 0 };
+    const preview =
+      scalePreview && scalePreview.figureId === figure.id ? scalePreview : null;
     const toUser = (p: Point): Point => {
       const u = modelPointToCpSvg(p, ORIEDITA_PAPER_BOUNDS);
-      return { x: u.x + offset.x, y: u.y + offset.y };
+      const x = u.x + offset.x;
+      const y = u.y + offset.y;
+      if (!preview) return { x, y };
+      return {
+        x: preview.pivot.x + (x - preview.pivot.x) * preview.factor,
+        y: preview.pivot.y + (y - preview.pivot.y) * preview.factor,
+      };
     };
 
     const primitives: OristudioCpFoldedRenderPrimitive[] = [...snapshot.primitives].sort(
