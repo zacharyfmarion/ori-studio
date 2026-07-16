@@ -7,13 +7,6 @@
       "runtimeArgs": ["vite", "apps/web", "--port", "5174", "--strictPort"],
       "port": 5174,
       "autoPort": false
-    },
-    {
-      "name": "webgl-spike",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["vite", "apps/web/spike", "--port", "5175", "--strictPort"],
-      "port": 5175,
-      "autoPort": false
     }
   ]
 }
