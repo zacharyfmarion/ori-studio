@@ -24,7 +24,20 @@ import {
   switchOristudioBpStretchPattern as switchRuntimeOristudioBpStretchPattern,
 } from '../oristudioBpRuntime';
 import { recordSnapshot, snapshotEntry } from '../snapshotHistory';
+import {
+  addBpTreeSymmetryPair,
+  buildMirroredBpTreeUpdates,
+  filterBpTreeSymmetryPairs,
+  mirrorBpTreeVertexId,
+  BP_TREE_SYMMETRY_TOLERANCE,
+} from '../../../lib/bpTreeSymmetry';
+import {
+  reflectPointAcrossSymmetryAxis,
+  snapPointToSymmetryAxis,
+  type SymmetryAxis,
+} from '../../../lib/symmetryGeometry';
 import type { SnapshotEntry } from '../snapshotHistory';
+import type { Point } from '../../../lib/geometry';
 import type { OristudioBpDocumentState } from '../../../engine/oristudioBpTypes';
 import type { BpHistorySnapshot, OristudioBpSlice, WorkspaceSliceCreator } from '../types';
 
@@ -128,6 +141,8 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       oristudioBpBusy: false,
       oristudioBpHistoryPast: [],
       oristudioBpHistoryFuture: [],
+      // Ephemeral mirror-draw state is project-specific — reset it on every load.
+      oristudioBpSymmetry: { enabled: false, angle: 90, loc: { x: 0, y: 0 }, pairs: [] },
       currentFileName: document.source.filename,
       currentFilePath: document.source.path,
       dirty: document.dirty,
@@ -186,6 +201,15 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         pendingHistory = snapshotEntry({ bps, selection: document.selection }, message);
       }
       const nextDocument = await operation(document);
+      // Prune ephemeral symmetry pairs to vertices that still exist after the edit,
+      // so deletes/reseeds can't leave a dangling pair behind.
+      const symmetry = get().oristudioBpSymmetry;
+      if (symmetry.pairs.length > 0) {
+        const prunedPairs = filterBpTreeSymmetryPairs(nextDocument.snapshot.tree, symmetry.pairs);
+        if (prunedPairs.length !== symmetry.pairs.length) {
+          set({ oristudioBpSymmetry: { ...symmetry, pairs: prunedPairs } });
+        }
+      }
       if (options.dragging) {
         // Mid-gesture: apply the document but hold the pending snapshot open.
         replaceActiveBpDocument(nextDocument, message);
@@ -221,6 +245,9 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     oristudioBpBusy: false,
     oristudioBpHistoryPast: [],
     oristudioBpHistoryFuture: [],
+    // Ephemeral mirror-draw state (never persisted). `loc` is set to the sheet centre
+    // when the panel enables symmetry; `angle` 90 is a vertical (book) axis.
+    oristudioBpSymmetry: { enabled: false, angle: 90, loc: { x: 0, y: 0 }, pairs: [] },
 
     createOristudioBpProject: async (options = {}) => {
       if (options.confirmDiscard !== false && !(await confirmDiscardDirty(get().dirty))) {
@@ -384,6 +411,107 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         }
         return created ? { ...next, selection: { kind: 'bp-vertex', id: created.id } } : next;
       });
+    },
+
+    setOristudioBpSymmetry: (update) => {
+      set({ oristudioBpSymmetry: { ...get().oristudioBpSymmetry, ...update } });
+    },
+
+    addOristudioBpTreeLeafWithSymmetry: async (parentId, loc) => {
+      const symmetry = get().oristudioBpSymmetry;
+      if (!symmetry.enabled) return get().addOristudioBpTreeLeaf(parentId, loc);
+      const axis: SymmetryAxis = { loc: symmetry.loc, angle: symmetry.angle };
+      // Add a unit leaf to `on` and reposition it to `at`; returns the doc + new id.
+      const addLeafAt = async (
+        document: OristudioBpDocumentState,
+        on: number,
+        at: Point | undefined
+      ): Promise<{ document: OristudioBpDocumentState; createdId: number | null }> => {
+        const before = new Set(document.snapshot.tree.vertices.map((vertex) => vertex.id));
+        let next = await addRuntimeOristudioBpTreeLeaf(on, 1, {
+          activeSurface: document.activeSurface,
+          selection: { kind: 'bp-vertex', id: on },
+        });
+        const created = next.snapshot.tree.vertices.find((vertex) => !before.has(vertex.id));
+        if (created && at) {
+          next = await moveRuntimeOristudioBpTreeVertex(created.id, at, {
+            activeSurface: next.activeSurface,
+            selection: { kind: 'bp-vertex', id: created.id },
+          });
+        }
+        return { document: next, createdId: created?.id ?? null };
+      };
+      return runBpTreeMutation('Added mirrored BP leaf', async (document) => {
+        const tree = document.snapshot.tree;
+        const parent = tree.vertices.find((vertex) => vertex.id === parentId);
+        if (!parent) return document;
+        // Snap the target onto the axis when close; an axial leaf gets no mirror.
+        const snap = loc
+          ? snapPointToSymmetryAxis(loc, axis, BP_TREE_SYMMETRY_TOLERANCE)
+          : { point: undefined as Point | undefined, snapped: false };
+        const targetLoc = snap.point ?? loc;
+
+        const primary = await addLeafAt(document, parentId, targetLoc);
+        const mirrorParentId = mirrorBpTreeVertexId(
+          tree,
+          symmetry.pairs,
+          axis,
+          parentId,
+          BP_TREE_SYMMETRY_TOLERANCE
+        );
+        const shouldMirror = Boolean(
+          primary.createdId != null && targetLoc && !snap.snapped && mirrorParentId != null
+        );
+        if (!shouldMirror || primary.createdId == null || mirrorParentId == null || !targetLoc) {
+          return primary.createdId != null
+            ? { ...primary.document, selection: { kind: 'bp-vertex', id: primary.createdId } }
+            : primary.document;
+        }
+        const mirror = await addLeafAt(
+          primary.document,
+          mirrorParentId,
+          reflectPointAcrossSymmetryAxis(targetLoc, axis)
+        );
+        if (mirror.createdId != null) {
+          const pairs = addBpTreeSymmetryPair(
+            get().oristudioBpSymmetry.pairs,
+            primary.createdId,
+            mirror.createdId
+          );
+          set({ oristudioBpSymmetry: { ...get().oristudioBpSymmetry, pairs } });
+        }
+        return { ...mirror.document, selection: { kind: 'bp-vertex', id: primary.createdId } };
+      });
+    },
+
+    moveOristudioBpTreeVerticesWithSymmetry: async (updates, dragging = false) => {
+      const symmetry = get().oristudioBpSymmetry;
+      if (!symmetry.enabled || updates.length === 0) {
+        return get().moveOristudioBpTreeVertices(updates, dragging);
+      }
+      const axis: SymmetryAxis = { loc: symmetry.loc, angle: symmetry.angle };
+      return runBpTreeMutation(
+        'Moved mirrored BP subtree',
+        async (document) => {
+          const mirrored = buildMirroredBpTreeUpdates(
+            document.snapshot.tree,
+            symmetry.pairs,
+            axis,
+            updates,
+            BP_TREE_SYMMETRY_TOLERANCE
+          );
+          let next = document;
+          for (const update of [...updates, ...mirrored]) {
+            next = await moveRuntimeOristudioBpTreeVertex(update.id, update.loc, {
+              activeSurface: next.activeSurface,
+              selection: next.selection,
+              dragging,
+            });
+          }
+          return next;
+        },
+        { dragging }
+      );
     },
 
     deleteOristudioBpTreeNode: async (id) =>
