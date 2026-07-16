@@ -4613,6 +4613,9 @@
 }
 
 .bp-sheet-menu__segment button {
+  appearance: none;
+  border: none;
+  background: transparent;
   padding: 4px 6px;
   border-radius: calc(var(--radius-sm) - 1px);
   color: var(--text-secondary);

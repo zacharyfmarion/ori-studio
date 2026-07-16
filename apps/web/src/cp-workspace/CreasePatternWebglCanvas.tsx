@@ -391,6 +391,13 @@ export interface CreasePatternWebglCanvasProps {
    */
   activeToolClickSelects: boolean;
   /**
+   * True for the Eraser (LineSegmentDelete). Like {@link activeToolClickSelects},
+   * its drag-box engine commits nothing for a zero-area box, so a plain click
+   * (no drag) is routed to {@link onEraseLine} — delete the crease under the
+   * cursor — while a drag box-erases. Mirrors Oriedita's LINE_SEGMENT_DELETE_3.
+   */
+  activeToolClickErases: boolean;
+  /**
    * True for Mirror Line (SymmetricDraw), whose input is dual-mode: the first pick
    * decides between a 3-point sequence (pick lands on a vertex/point) and a 2-line
    * sequence (pick lands on a bare crease). When set, the sequence engine defers its
@@ -558,6 +565,7 @@ export function CreasePatternWebglCanvas({
   activeToolLineCount,
   activeToolRequireSnap,
   activeToolClickSelects,
+  activeToolClickErases,
   activeToolDualMirror,
   activeToolConverging,
   activeToolSquareBisector,
@@ -825,6 +833,7 @@ export function CreasePatternWebglCanvas({
     activeToolLineCount,
     activeToolRequireSnap,
     activeToolClickSelects,
+    activeToolClickErases,
     activeToolDualMirror,
     activeToolConverging,
     activeToolSquareBisector,
@@ -1867,6 +1876,13 @@ export function CreasePatternWebglCanvas({
           // empty), matching the SVG's per-crease click select.
           feedTool('cancel', e.clientX, e.clientY);
           liveRef.current.onSelect(hitTest(e.clientX, e.clientY), e.shiftKey);
+        } else if (liveRef.current.activeToolClickErases && !moved && e.type !== 'pointercancel') {
+          // A click (no drag) on the eraser: discard the degenerate box and delete
+          // the crease under the cursor, matching Oriedita's LINE_SEGMENT_DELETE_3
+          // (and the right-button erase gesture's own degenerate-box fallback).
+          feedTool('cancel', e.clientX, e.clientY);
+          const hit = hitTest(e.clientX, e.clientY);
+          if (hit && hit.kind === 'line') liveRef.current.onEraseLine(hit.id);
         } else {
           feedTool(e.type === 'pointercancel' ? 'cancel' : 'up', e.clientX, e.clientY);
         }

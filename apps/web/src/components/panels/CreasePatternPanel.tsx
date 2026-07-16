@@ -1407,9 +1407,20 @@ export function CreasePatternPanel() {
     (actionId: OristudioCpActionId) => {
       const action = cpActionById(actionId);
       if (!action) return;
+      // The `foldAction` (F) chord resolves to the Fold / FoldingEstimate CP
+      // commands, which are still unimplemented stubs — selecting them as a tool
+      // does nothing. Route F to the real fold path (the toolbar Fold button),
+      // matching Oriedita where F folds the model in place.
+      if (action.kind !== 'line-type') {
+        const operationId = action.command.operationId;
+        if (operationId === 'Fold' || operationId === 'FoldingEstimate') {
+          handleFoldModel();
+          return;
+        }
+      }
       handleCpToolAction(action);
     },
-    [handleCpToolAction]
+    [handleCpToolAction, handleFoldModel]
   );
 
   useEffect(
@@ -2562,6 +2573,7 @@ export function CreasePatternPanel() {
                   onVoronoiSeedsChange={handleWebglVoronoiSeeds}
                   activeToolRequireSnap={isRestrictedDrawOperation(activeCpCommand?.operationId)}
                   activeToolClickSelects={isLineClickSelectionOperation(activeCpCommand?.operationId)}
+                  activeToolClickErases={isLineEraseClickTool(activeCpCommand?.operationId)}
                   resolveDrawPoint={resolveEditableDrawModelPoint}
                   resolveDrawPointOnCrease={resolveEditableDrawPointOnCrease}
                   resolveFirstPickKind={resolveEditableFirstPickKind}
