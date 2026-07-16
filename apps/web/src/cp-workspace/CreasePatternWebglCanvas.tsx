@@ -63,7 +63,14 @@ import type { ToolCommit, ToolPreviewSegment } from './tools/types';
  * crease by id and commits line ids), and `lengthen` (drag a selection line to pick
  * the crease(s) to extend, then click the target — commits 3 points).
  */
-type ActiveToolMode = ToolInputMode | 'sequence' | 'line-entity' | 'lengthen';
+type ActiveToolMode =
+  | ToolInputMode
+  | 'sequence'
+  | 'line-entity'
+  | 'lengthen'
+  // Angle Restricted Line (DrawCreaseAngleRestricted5): press-drag-release like the
+  // Line tool, but the endpoint is angle-system-snapped (kernel-previewed live).
+  | 'angle-drag';
 /**
  * Per-step snap/feedback mode: snap to grid/vertices (`point`), onto an existing
  * crease (`crease`), or onto the nearest kernel-computed candidate ray (`candidate`,
@@ -630,6 +637,9 @@ export function CreasePatternWebglCanvas({
   // click: a crease pick fills both at once, two point picks fill one each. Once it
   // holds 2, the gesture is in its converge (candidate-point) step.
   const convergingBaseRef = useRef<ModelPoint[]>([]);
+  // Angle Restricted Line's anchor (the press point), held while dragging the
+  // angle-snapped endpoint; null when no drag is in progress.
+  const angleDragAnchorRef = useRef<ModelPoint | null>(null);
   // Last zoom percent reported to the panel (dedupes the per-frame report).
   const lastReportedZoomRef = useRef<number | null>(null);
   // Last model→CSS affine reported to the panel (for the text overlay), to dedupe.
@@ -662,6 +672,7 @@ export function CreasePatternWebglCanvas({
     sequenceStepRef.current = 0;
     dynamicStepKindsRef.current = null;
     convergingBaseRef.current = [];
+    angleDragAnchorRef.current = null;
     squareBisectorRef.current = { mode: null, points: [], lineIds: [] };
     linePickHighlightRef.current = [];
     lengthenRef.current = { phase: 'select', a: null, b: null };
@@ -1375,6 +1386,58 @@ export function CreasePatternWebglCanvas({
       }
       renderNow();
     };
+    // Angle Restricted Line (DrawCreaseAngleRestricted5): press-drag-release like the
+    // Line tool. Press anchors the start (snapped to grid/vertices, as Oriedita's
+    // move_click_drag_point snaps to the closest point); dragging kernel-previews the
+    // angle-system-snapped segment [anchor, cursor]; release commits those two points
+    // (the kernel re-snaps the endpoint on execute). Before a press, hover just shows
+    // the anchor snap indicator.
+    const feedAngleDrag = (
+      kind: 'down' | 'move' | 'up' | 'cancel',
+      clientX: number,
+      clientY: number
+    ) => {
+      const accent = readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK);
+      const tol = modelToleranceOf(SNAP_TOLERANCE_CSS);
+      const reset = () => {
+        angleDragAnchorRef.current = null;
+        liveRef.current.onToolPreviewInput([], []);
+        renderer.setOverlayPoints(null);
+      };
+      if (kind === 'cancel') {
+        reset();
+        renderNow();
+        return;
+      }
+      const raw = clientToModel(clientX, clientY);
+      if (!raw) return;
+      if (kind === 'down') {
+        const anchor = liveRef.current.resolveDrawPoint(raw, tol).point;
+        angleDragAnchorRef.current = anchor;
+        renderer.setOverlayPoints(sequenceOverlayPoints([anchor], null, accent));
+        renderNow();
+        return;
+      }
+      const anchor = angleDragAnchorRef.current;
+      if (kind === 'move') {
+        if (!anchor) {
+          // Pre-press hover: show where the anchor would snap.
+          const snap = liveRef.current.resolveDrawPoint(raw, tol).point;
+          const ring = snap.x !== raw.x || snap.y !== raw.y ? snap : null;
+          renderer.setOverlayPoints(sequenceOverlayPoints([], ring, accent));
+          renderNow();
+          return;
+        }
+        liveRef.current.onToolPreviewInput([anchor, raw], []);
+        renderer.setOverlayPoints(sequenceOverlayPoints([anchor], null, accent));
+        renderNow();
+        return;
+      }
+      // up
+      if (anchor && moved) liveRef.current.onToolCommit({ points: [anchor, raw] });
+      reset();
+      renderNow();
+    };
     // Square Bisector (modes A + B): the first pick decides the mode. A point starts
     // 3-point mode — collect 3 angle points then a destination crease, commit 4
     // points. A crease starts 2-line mode — collect 2 source crease ids then a
@@ -1703,6 +1766,11 @@ export function CreasePatternWebglCanvas({
         // Two-gesture drag tool: draw the selection line, then click the target.
         e.preventDefault();
         feedLengthen('down', e.clientX, e.clientY);
+      } else if (toolMode === 'angle-drag') {
+        // Angle Restricted Line: press anchors the start, drag previews the
+        // angle-snapped segment, release commits.
+        e.preventDefault();
+        feedAngleDrag('down', e.clientX, e.clientY);
       } else if (toolMode) {
         // A drag draw tool is active: plain drag draws instead of selecting.
         e.preventDefault();
@@ -1762,6 +1830,16 @@ export function CreasePatternWebglCanvas({
         // Lengthen: draw the selection line while dragging, or (in the extension
         // phase) track the target-point cursor. Fires on hover too.
         feedLengthen('move', e.clientX, e.clientY);
+      } else if (
+        liveRef.current.activeToolInputMode === 'angle-drag' &&
+        !panning &&
+        !movingFigure &&
+        !movingSelection &&
+        !selecting
+      ) {
+        // Angle Restricted Line: preview the angle-snapped segment while dragging
+        // (and show the anchor snap indicator on hover before the press).
+        feedAngleDrag('move', e.clientX, e.clientY);
       } else if (
         liveRef.current.activeToolInputMode === 'sequence' &&
         !panning &&
@@ -1848,6 +1926,9 @@ export function CreasePatternWebglCanvas({
         !movingFigure
       ) {
         feedLengthen(e.type === 'pointercancel' ? 'cancel' : 'up', e.clientX, e.clientY);
+      } else if (liveRef.current.activeToolInputMode === 'angle-drag' && !panning && !movingFigure) {
+        // Angle Restricted Line: release commits the [anchor, endpoint] segment.
+        feedAngleDrag(e.type === 'pointercancel' ? 'cancel' : 'up', e.clientX, e.clientY);
       } else if (erasing) {
         renderer.setPreview(null);
         const raw = clientToModel(e.clientX, e.clientY);

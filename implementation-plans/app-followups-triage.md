@@ -7,8 +7,8 @@ the last two (diagonal grid, BP-tree symmetry) are real features.
 
 Effort key: 🟢 small · 🟡 moderate · 🔴 feature-sized
 
-**Status:** items 1, 2, 4b (🟢) and **4a (diagonal grid, 🔴)** are **implemented**
-(tsc clean, unit tests green). Items 3 and 5 remain.
+**Status:** items 1, 2, 4b (🟢), **4a (diagonal grid, 🔴)**, and **3 (angle-restricted
+line, 🟡)** are **implemented** (tsc clean, unit tests green). Item 5 remains.
 
 ---
 
@@ -285,7 +285,7 @@ node on one side → mirrored node appears; move it → pair follows.
 | 2 | `F` folds the model | 🟢 | ✅ done | Fold/FoldingEstimate shortcut → `handleFoldModel` |
 | 4b | Segment button styling | 🟢 | ✅ done | `appearance/border/background` reset |
 | 4a | Diagonal grid parity | 🔴 | ✅ done | Rotated-diamond render model (needs visual check) |
-| 3 | Angle-restricted line drag | 🟡 | todo | Registry + optional preview snap |
+| 3 | Angle-restricted line drag | 🟡 | ✅ done | Bespoke 'angle-drag' mode, kernel-previewed snap |
 | 5 | BP-tree symmetry | 🔴 | todo | Feature port from DesignPanel |
 
 Land the three 🟢 items together as a quick pass, then tackle 3, then the two

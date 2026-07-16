@@ -1833,7 +1833,15 @@ export function CreasePatternPanel() {
   // bisector's "2 segments or 3 points"), or variable-length / text ops, is
   // excluded until it gets dedicated handling.
   const webglActiveTool = useMemo<{
-    mode: 'drag-line' | 'drag-box' | 'drag-path' | 'sequence' | 'line-entity' | 'lengthen' | null;
+    mode:
+      | 'drag-line'
+      | 'drag-box'
+      | 'drag-path'
+      | 'sequence'
+      | 'line-entity'
+      | 'lengthen'
+      | 'angle-drag'
+      | null;
     stepKinds: ('point' | 'crease' | 'candidate')[];
     lineCount: number;
     dualMirror: boolean;
@@ -1869,6 +1877,13 @@ export function CreasePatternPanel() {
     // candidate-point converge), so leave stepKinds empty and flag it.
     if (activeCpCommand.operationId === 'DrawCreaseAngleRestricted') {
       return { ...idle, mode: 'sequence', converging: true };
+    }
+    // Angle Restricted Line: a press-drag-release draw (like the Line tool) whose
+    // endpoint is angle-system-snapped. A bespoke canvas handler anchors on press,
+    // kernel-previews the snapped segment during the drag, and commits on release —
+    // so it is neither the generic drag-line nor a two-click point sequence.
+    if (activeCpCommand.operationId === 'DrawCreaseAngleRestricted5') {
+      return { ...idle, mode: 'angle-drag' };
     }
     // Square Bisector: dual first pick — a point starts 3-point mode (3 points + a
     // destination crease), a crease starts 2-line mode (2 source creases + a
