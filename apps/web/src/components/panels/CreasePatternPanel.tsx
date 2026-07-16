@@ -303,6 +303,8 @@ function cpCommandPayloadDefaults(
     operationId === 'LengthenCrease' ||
     operationId === 'DrawCreaseFree' ||
     operationId === 'DrawCreaseRestricted' ||
+    operationId === 'LineSegmentDivision' ||
+    operationId === 'LineSegmentRatioSet' ||
     operationId === 'DrawCreaseSymmetric' ||
     operationId === 'DrawCreaseAngleRestricted' ||
     operationId === 'DrawCreaseAngleRestricted3' ||
