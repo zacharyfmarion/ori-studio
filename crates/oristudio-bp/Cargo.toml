@@ -1,0 +1,23 @@
+[package]
+name = "oristudio-bp"
+version.workspace = true
+edition.workspace = true
+license = "MIT"
+description = "Box Pleating Studio-compatible headless kernel for Ori Studio"
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords = ["origami", "box-pleating", "crease-pattern"]
+categories = ["algorithms", "data-structures", "mathematics"]
+include = ["Cargo.toml", "README.md", "src/**", "tests/**"]
+
+[dependencies]
+serde.workspace = true
+serde_json = { workspace = true, features = ["preserve_order"] }
+slsqp.workspace = true
+slsqp-rssl.workspace = true
+thiserror.workspace = true
+zip.workspace = true
+
+[dev-dependencies]
+serde_json = { workspace = true, features = ["preserve_order"] }

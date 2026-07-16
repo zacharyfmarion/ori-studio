@@ -1,5 +1,7 @@
 [workspace]
 members = [
+    "crates/oristudio-bp",
+    "crates/oristudio-bp-wasm",
     "crates/oristudio-cp",
     "crates/oristudio-cp-compiler",
     "crates/oristudio-cp-detect",
@@ -46,12 +48,16 @@ treemaker-fold = { version = "0.1.2", path = "crates/treemaker-fold" }
 treemaker-flatfold = { version = "0.1.2", path = "crates/treemaker-flatfold" }
 treemaker-sequence = { version = "0.1.1", path = "crates/treemaker-sequence" }
 oristudio-cp = { version = "0.1.1", path = "crates/oristudio-cp" }
+oristudio-bp = { version = "0.1.2", path = "crates/oristudio-bp" }
 oristudio-cp-compiler = { version = "0.1.1", path = "crates/oristudio-cp-compiler" }
 oristudio-cp-detect = { version = "0.1.1", path = "crates/oristudio-cp-detect" }
 oristudio-cp-eval = { version = "0.1.2", path = "crates/oristudio-cp-eval" }
 wasm-bindgen = "0.2"
 wasm-bindgen-test = "0.3"
 walkdir = "2.5"
+slsqp = "1.0.1"
+slsqp-rssl = "0.1.0"
+zip = { version = "6.0.0", default-features = false, features = ["deflate"] }
 
 # CP detection exact solve is dominated by nalgebra/LM numeric kernels. Keep
 # normal dev builds broad and debuggable, but optimize this narrow path so the

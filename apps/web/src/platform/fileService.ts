@@ -10,6 +10,7 @@ export type FileCommand =
   | 'exportV4'
   | 'exportCp'
   | 'exportFold'
+  | 'exportBps'
   | 'exportOri'
   | 'exportOrh'
   | 'exportSvg'

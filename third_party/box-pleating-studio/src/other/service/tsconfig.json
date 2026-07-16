@@ -1,0 +1,17 @@
+{
+	"compilerOptions": {
+		"lib": [
+			"webworker",
+			"esnext",
+		],
+		"module": "esnext",
+		"moduleResolution": "node",
+		"removeComments": true,
+		"skipLibCheck": true,
+		"target": "es2017",
+		"types": []
+	},
+	"include": [
+		"./**/*.ts"
+	]
+}

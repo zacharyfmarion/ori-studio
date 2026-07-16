@@ -1,0 +1,38 @@
+
+#include "roundedConstraint.h"
+#include "global/global.h"
+
+/**
+ * Signed-distance between two intervals, represented by the left endpoint and width.
+ *
+ * The formula is `max(l1 - r2, 0) + min(r1 - l2, 0)`.
+ */
+double interval_distance(const double l1, const double w1, const double l2, const double w2) {
+	return max(l1 - l2 - w2, 0.0) + min(l1 + w1 - l2, 0.0);
+}
+
+double RoundedConstraint::constraint(const double *x, double *grad) const {
+	auto m = x[Shared::last];
+	auto d = dist * m;
+	const auto &fi = (*flaps)[i];
+	const auto &fj = (*flaps)[j];
+	auto dx = interval_distance(x[i * 2], m * fi.width, x[j * 2], m * fj.width);
+	auto dy = interval_distance(x[i * 2 + 1], m * fi.height, x[j * 2 + 1], m * fj.height);
+
+	if(grad) {
+		auto dx_s = dx > 0 ? -fj.width : (dx < 0 ? fi.width : 0);
+		auto dy_s = dy > 0 ? -fj.height : (dy < 0 ? fi.height : 0);
+		reset(grad, 2 * dist * d - 2 * dx * dx_s - 2 * dy * dy_s);
+		grad[i * 2] = -2 * dx;
+		grad[j * 2] = 2 * dx;
+		grad[i * 2 + 1] = -2 * dy;
+		grad[j * 2 + 1] = 2 * dy;
+	}
+	return d * d - dx * dx - dy * dy;
+}
+
+double RoundedConstraint::exact(const vector<double> &x, const int i, const int j, const int dist, const vector<Flap> &flaps) {
+	auto dx = interval_distance(x[i * 2], flaps[i].width, x[j * 2], flaps[j].width);
+	auto dy = interval_distance(x[i * 2 + 1], flaps[i].height, x[j * 2 + 1], flaps[j].height);
+	return dist * dist - dx * dx - dy * dy;
+}

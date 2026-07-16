@@ -41,7 +41,6 @@ function renderInspector(state: Partial<ReturnType<typeof useWorkspaceStore.getS
 describe('InspectorPanel', () => {
   it('shows selected tree node details', () => {
     const element = renderInspector({
-      documentMode: 'tree',
       selection: { kind: 'node', id: 2 },
     });
 
@@ -54,7 +53,6 @@ describe('InspectorPanel', () => {
 
   it('keeps the tree summary design-focused', () => {
     const element = renderInspector({
-      documentMode: 'crease-pattern',
       selection: { kind: 'tree' },
     });
 

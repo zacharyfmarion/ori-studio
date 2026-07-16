@@ -1,0 +1,16 @@
+{
+	"compilerOptions": {
+		"baseUrl": "..",
+		"paths": {
+			"lib/*": [
+				"../lib/*"
+			]
+		}
+	},
+	"extends": "../shared/tsconfig",
+	"include": [
+		"./**/*.ts",
+		"../shared/types/**/*.d.ts",
+		"../shared/frontend/**/*.d.ts"
+	]
+}

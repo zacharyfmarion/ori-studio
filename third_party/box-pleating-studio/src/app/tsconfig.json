@@ -1,0 +1,25 @@
+{
+	"compilerOptions": {
+		"baseUrl": "..",
+		"jsx": "preserve",
+		"target": "ESNext",
+		"paths": {
+			"@/*": [
+				"app/vue/*"
+			],
+			"temp/*": [
+				"../build/temp/*"
+			],
+			"lib/*": [
+				"../lib/*"
+			]
+		}
+	},
+	"extends": "../shared/tsconfig",
+	"include": [
+		"./**/*.ts",
+		"./**/*.vue",
+		"../shared/types/**/*.d.ts",
+		"../shared/frontend/**/*.d.ts"
+	]
+}

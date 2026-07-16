@@ -68,6 +68,8 @@ import {
   symmetrySide,
 } from '../../lib/symmetryAuthoring';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { DesignMethodChooser } from './DesignMethodChooser';
+import { BpTreePanel } from './BpTreePanel';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { Toggle } from '../ui/Toggle';
@@ -445,7 +447,30 @@ function DesignViewportToolbar({
   );
 }
 
+/**
+ * Design pane router. The Design workspace hosts either the NUX method chooser,
+ * a Box Pleating design, or the TreeMaker (circle-packed) tree editor. Keeping
+ * the branch in a thin wrapper lets each surface own its own hooks.
+ */
 export function DesignPanel() {
+  const pendingDesignChoice = useWorkspaceStore((state) => state.pendingDesignChoice);
+  const workflowTarget = useWorkspaceStore((state) => state.workflowTarget);
+  const oristudioBpDocument = useWorkspaceStore((state) => state.oristudioBpDocument);
+
+  if (pendingDesignChoice) {
+    return <DesignMethodChooser />;
+  }
+  if (workflowTarget === 'box-pleat' && oristudioBpDocument) {
+    return (
+      <section className="panel-shell design-panel bp-tree-panel">
+        <BpTreePanel document={oristudioBpDocument} />
+      </section>
+    );
+  }
+  return <TreeMakerDesignPanel />;
+}
+
+function TreeMakerDesignPanel() {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const transformRef = useRef<ReactZoomPanPinchRef | null>(null);
@@ -462,7 +487,6 @@ export function DesignPanel() {
   const [symmetryModeOverride, setSymmetryModeOverride] = useState<SymmetrySelectValue | null>(null);
   const project = useWorkspaceStore((state) => state.project);
   const engineReady = useWorkspaceStore((state) => state.engineReady);
-  const documentMode = useWorkspaceStore((state) => state.documentMode);
   const importedCreasePattern = useWorkspaceStore((state) => state.importedCreasePattern);
   const selection = useWorkspaceStore((state) => state.selection);
   const toolMode = useWorkspaceStore((state) => state.toolMode);
@@ -474,7 +498,6 @@ export function DesignPanel() {
   const moveNodeWithSymmetry = useWorkspaceStore((state) => state.moveNodeWithSymmetry);
   const setToolMode = useWorkspaceStore((state) => state.setToolMode);
   const setSymmetry = useWorkspaceStore((state) => state.setSymmetry);
-  const setActiveEditingSurface = useWorkspaceStore((state) => state.setActiveEditingSurface);
   const projectLoadId = useWorkspaceStore((state) => state.projectLoadId);
   const designViewportFitRequestId = useWorkspaceStore(
     (state) => state.designViewportFitRequestId
@@ -699,7 +722,6 @@ export function DesignPanel() {
 
   const setDesignSymmetryEnabled = useCallback(
     (enabled: boolean) => {
-      setActiveEditingSurface('tree');
       if (!enabled) {
         setSymmetryModeOverride(null);
         if (mirrorMode) setToolMode('select');
@@ -723,7 +745,6 @@ export function DesignPanel() {
       project.paper.symAngle,
       project.paper.symLoc,
       project.paper.width,
-      setActiveEditingSurface,
       setSymmetry,
       setToolMode,
     ]
@@ -732,7 +753,6 @@ export function DesignPanel() {
   const applyDesignSymmetryPreset = useCallback(
     (preset: SymmetryPreset) => {
       const option = symmetryOptionForPreset(preset, project.paper.symAngle);
-      setActiveEditingSurface('tree');
       setSymmetryModeOverride(preset);
       setLayers((current) => setDesignLayerVisibility(current, 'symmetry', true));
       void setSymmetry({
@@ -745,14 +765,12 @@ export function DesignPanel() {
       project.paper.height,
       project.paper.symAngle,
       project.paper.width,
-      setActiveEditingSurface,
       setSymmetry,
     ]
   );
 
   const flipDesignSymmetryPreset = useCallback(() => {
     if (!nextSymmetryPresetOption || !presetSymmetryMode) return;
-    setActiveEditingSurface('tree');
     setSymmetryModeOverride(presetSymmetryMode);
     setLayers((current) => setDesignLayerVisibility(current, 'symmetry', true));
     void setSymmetry({
@@ -765,13 +783,11 @@ export function DesignPanel() {
     presetSymmetryMode,
     project.paper.height,
     project.paper.width,
-    setActiveEditingSurface,
     setSymmetry,
   ]);
 
   const setDesignMirrorMode = useCallback(
     (enabled: boolean) => {
-      setActiveEditingSurface('tree');
       if (!enabled) {
         setToolMode('select');
         return;
@@ -791,7 +807,6 @@ export function DesignPanel() {
       project.hasSymmetry,
       project.paper.height,
       project.paper.width,
-      setActiveEditingSurface,
       setSymmetry,
       setToolMode,
     ]
@@ -799,12 +814,11 @@ export function DesignPanel() {
 
   const updateDesignCustomSymmetry = useCallback(
     (update: { symAngle?: number; symLoc?: Point }) => {
-      setActiveEditingSurface('tree');
       setSymmetryModeOverride('custom');
       setLayers((current) => setDesignLayerVisibility(current, 'symmetry', true));
       void setSymmetry({ hasSymmetry: true, ...update });
     },
-    [setActiveEditingSurface, setSymmetry]
+    [setSymmetry]
   );
 
   useEffect(() => {
@@ -903,7 +917,7 @@ export function DesignPanel() {
     setHoverPoint(eventToPaper(event));
   };
 
-  if (documentMode === 'crease-pattern') {
+  if (importedCreasePattern) {
     return (
       <section className="panel-shell design-panel">
         <div className="panel-body document-mode-empty">
@@ -952,7 +966,6 @@ export function DesignPanel() {
         tabIndex={-1}
         onPointerDownCapture={(event) => {
           setActiveShortcutViewportSurface('tree');
-          setActiveEditingSurface('tree');
           if (!isViewportInteractiveTarget(event.target)) containerRef.current?.focus();
         }}
       >

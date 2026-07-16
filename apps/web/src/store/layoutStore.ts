@@ -5,14 +5,64 @@ import { workspaceForPanelId } from '../workspaces/workspaces';
 
 const LAYOUT_STORAGE_KEY = 'treemaker-web-layout';
 const LAYOUT_VERSION_KEY = 'treemaker-web-layout-version';
-const LAYOUT_VERSION = 12;
+const LAYOUT_VERSION = 14;
 
-function layoutStorageKey(workspace: WorkspaceId): string {
-  return `${LAYOUT_STORAGE_KEY}:${workspace}`;
+/**
+ * The Design workspace renders one of three layouts depending on the active
+ * design state:
+ *
+ * - `nux`: the method chooser only (single design pane, no side panes).
+ * - `box-pleat`: the BP tree editor beside the BP Editor packing pane. All BP
+ *   behavior lives in these two panes; the TreeMaker inspector/diagnostics/
+ *   conditions panes are intentionally absent.
+ * - `treemaker`: the circle-packed tree editor with its inspector/diagnostics/
+ *   conditions side panes.
+ */
+export type DesignLayoutVariant = 'nux' | 'treemaker' | 'box-pleat';
+
+/**
+ * Source for the current Design layout variant. Registered by the workspace
+ * store at app init to avoid an import cycle; defaults to `treemaker` for tests
+ * and non-design workspaces.
+ */
+let readDesignVariant: () => DesignLayoutVariant = () => 'treemaker';
+
+export function registerDesignVariantSource(source: () => DesignLayoutVariant): void {
+  readDesignVariant = source;
 }
 
-function layoutVersionKey(workspace: WorkspaceId): string {
-  return `${LAYOUT_VERSION_KEY}:${workspace}`;
+/**
+ * Persisted-layout scope. Only the Design workspace varies (by design variant);
+ * TreeMaker keeps the plain `design` scope for backward compatibility. The NUX
+ * layout is transient and never persisted.
+ */
+function layoutScope(workspace: WorkspaceId, variant: DesignLayoutVariant): string {
+  if (workspace !== 'design') return workspace;
+  switch (variant) {
+    case 'box-pleat':
+      return 'design:box-pleat';
+    case 'nux':
+      return 'design:nux';
+    case 'treemaker':
+      return 'design';
+  }
+}
+
+function currentLayoutScope(workspace: WorkspaceId): string {
+  return layoutScope(workspace, readDesignVariant());
+}
+
+function isPersistentScope(workspace: WorkspaceId): boolean {
+  // The NUX chooser layout is transient and must not clobber a real design layout.
+  return !(workspace === 'design' && readDesignVariant() === 'nux');
+}
+
+function layoutStorageKey(scope: string): string {
+  return `${LAYOUT_STORAGE_KEY}:${scope}`;
+}
+
+function layoutVersionKey(scope: string): string {
+  return `${LAYOUT_VERSION_KEY}:${scope}`;
 }
 
 interface PrimaryPanelOptions {
@@ -21,10 +71,14 @@ interface PrimaryPanelOptions {
   title: string;
 }
 
-export function applyDefaultLayout(api: DockviewApi, workspace: WorkspaceId = 'design'): void {
+export function applyDefaultLayout(
+  api: DockviewApi,
+  workspace: WorkspaceId = 'design',
+  variant: DesignLayoutVariant = readDesignVariant()
+): void {
   switch (workspace) {
     case 'design':
-      applyDesignLayout(api);
+      applyDesignLayout(api, variant);
       return;
     case 'edit':
       applyEditLayout(api);
@@ -40,13 +94,12 @@ function addHeaderlessPanel(api: DockviewApi, options: PrimaryPanelOptions): IDo
   return api.addPanel({ ...options, position: { referenceGroup: group } });
 }
 
-function applyDesignLayout(api: DockviewApi): void {
-  addHeaderlessPanel(api, { id: 'design', component: 'design', title: 'Design' });
+function addDesignSidePanes(api: DockviewApi, referencePanelId: string): void {
   api.addPanel({
     id: 'inspector',
     component: 'inspector',
     title: 'Inspector',
-    position: { referencePanel: 'design', direction: 'right' },
+    position: { referencePanel: referencePanelId, direction: 'right' },
     initialWidth: 320,
   });
   const inspector = api.getPanel('inspector');
@@ -66,6 +119,31 @@ function applyDesignLayout(api: DockviewApi): void {
       inactive: true,
     });
   }
+}
+
+function applyDesignLayout(api: DockviewApi, variant: DesignLayoutVariant): void {
+  const design = addHeaderlessPanel(api, { id: 'design', component: 'design', title: 'Design' });
+
+  if (variant === 'nux') {
+    // Method chooser only — no TreeMaker side panes.
+    design.api.setActive();
+    return;
+  }
+
+  if (variant === 'box-pleat') {
+    // BP tree editor + BP Editor packing pane, split evenly. No TreeMaker panes;
+    // all BP behavior lives in these two surfaces.
+    api.addPanel({
+      id: 'bp-editor',
+      component: 'bp-editor',
+      title: 'BP Editor',
+      position: { referencePanel: 'design', direction: 'right' },
+    });
+    design.api.setActive();
+    return;
+  }
+
+  addDesignSidePanes(api, 'design');
 }
 
 function applyEditLayout(api: DockviewApi): void {
@@ -92,6 +170,13 @@ function applySimulateLayout(api: DockviewApi): void {
   simulator.api.setActive();
 }
 
+/** Derive which design variant is currently mounted from panel presence. */
+function mountedDesignVariant(api: DockviewApi): DesignLayoutVariant {
+  if (api.getPanel('bp-editor')) return 'box-pleat';
+  if (api.getPanel('inspector')) return 'treemaker';
+  return 'nux';
+}
+
 interface LayoutState {
   dockviewApi: DockviewApi | null;
   activeWorkspace: WorkspaceId;
@@ -99,6 +184,8 @@ interface LayoutState {
   setActiveWorkspace: (workspace: WorkspaceId) => void;
   activateWorkspace: (workspace: WorkspaceId) => void;
   activatePanel: (id: string) => void;
+  /** Rebuild the Design layout when the desired variant differs from what's mounted. */
+  ensureDesignLayout: () => void;
   saveLayout: (workspace?: WorkspaceId) => void;
   loadLayout: (workspace?: WorkspaceId) => SerializedDockview | null;
   resetLayout: (workspace?: WorkspaceId) => void;
@@ -128,8 +215,9 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
         return;
       } catch (error) {
         console.warn('Failed to restore layout', error);
-        localStorage.removeItem(layoutStorageKey(workspace));
-        localStorage.removeItem(layoutVersionKey(workspace));
+        const scope = currentLayoutScope(workspace);
+        localStorage.removeItem(layoutStorageKey(scope));
+        localStorage.removeItem(layoutVersionKey(scope));
       }
     }
 
@@ -141,26 +229,39 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
     const panel = get().dockviewApi?.getPanel(id);
     panel?.api.setActive();
   },
+  ensureDesignLayout: () => {
+    const { dockviewApi, activeWorkspace } = get();
+    if (!dockviewApi || activeWorkspace !== 'design') return;
+    const desired = readDesignVariant();
+    if (mountedDesignVariant(dockviewApi) === desired) return;
+    dockviewApi.clear();
+    applyDefaultLayout(dockviewApi, 'design', desired);
+    if (isPersistentScope('design')) get().saveLayout('design');
+  },
   saveLayout: (workspace = get().activeWorkspace) => {
     const { dockviewApi } = get();
     if (!dockviewApi) return;
+    if (!isPersistentScope(workspace)) return;
+    const scope = currentLayoutScope(workspace);
     try {
-      localStorage.setItem(layoutStorageKey(workspace), JSON.stringify(dockviewApi.toJSON()));
-      localStorage.setItem(layoutVersionKey(workspace), String(LAYOUT_VERSION));
+      localStorage.setItem(layoutStorageKey(scope), JSON.stringify(dockviewApi.toJSON()));
+      localStorage.setItem(layoutVersionKey(scope), String(LAYOUT_VERSION));
     } catch (error) {
       console.warn('Failed to save layout', error);
     }
   },
   loadLayout: (workspace = get().activeWorkspace) => {
-    const version = localStorage.getItem(layoutVersionKey(workspace));
+    if (!isPersistentScope(workspace)) return null;
+    const scope = currentLayoutScope(workspace);
+    const version = localStorage.getItem(layoutVersionKey(scope));
     if (version !== String(LAYOUT_VERSION)) {
-      localStorage.removeItem(layoutStorageKey(workspace));
-      localStorage.removeItem(layoutVersionKey(workspace));
+      localStorage.removeItem(layoutStorageKey(scope));
+      localStorage.removeItem(layoutVersionKey(scope));
       localStorage.removeItem(LAYOUT_STORAGE_KEY);
       localStorage.removeItem(LAYOUT_VERSION_KEY);
       return null;
     }
-    const saved = localStorage.getItem(layoutStorageKey(workspace));
+    const saved = localStorage.getItem(layoutStorageKey(scope));
     if (!saved) return null;
     try {
       return JSON.parse(saved) as SerializedDockview;
@@ -170,8 +271,9 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
     }
   },
   resetLayout: (workspace = get().activeWorkspace) => {
-    localStorage.removeItem(layoutStorageKey(workspace));
-    localStorage.removeItem(layoutVersionKey(workspace));
+    const scope = currentLayoutScope(workspace);
+    localStorage.removeItem(layoutStorageKey(scope));
+    localStorage.removeItem(layoutVersionKey(scope));
     const { dockviewApi } = get();
     if (!dockviewApi || workspace !== get().activeWorkspace) return;
     dockviewApi.clear();

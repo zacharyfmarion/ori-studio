@@ -1,0 +1,9 @@
+{
+  "repository": "https://github.com/bp-studio/box-pleating-studio",
+  "commit": "d86f8051812458b2c7b1ed7fac49fe7dc1d4dad4",
+  "version": "0.7.14",
+  "app_version": "1898",
+  "commit_date": "2026-03-11T15:02:04+08:00",
+  "license": "MIT",
+  "source_root": "third_party/box-pleating-studio"
+}

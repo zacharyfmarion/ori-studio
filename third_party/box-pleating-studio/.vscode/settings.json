@@ -1,0 +1,172 @@
+{
+	"C_Cpp.autoAddFileAssociations": false,
+	"C_Cpp.codeAnalysis.clangTidy.args": [
+		"--extra-arg-before=-target",
+		"--extra-arg-before=wasm32-unknown-emscripten"
+	],
+	"C_Cpp.codeAnalysis.clangTidy.enabled": true,
+	"C_Cpp.codeAnalysis.clangTidy.headerFilter": "${workspaceFolder}",
+	"C_Cpp.codeAnalysis.exclude": {
+		"lib/**": true
+	},
+	"C_Cpp.loggingLevel": "Debug",
+	"[jsonc]": {
+		"editor.formatOnSave": true
+	},
+	"cSpell.ignorePaths": [
+		"**/package*.json",
+		"src/locale/es.json",
+		".vscode",
+		".eslintrc*",
+		"debug/**/*",
+		"**/*sample*"
+	],
+	"cSpell.ignoreRegExpList": [
+		"/[A-Z]+(?![a-z])/g",
+		"/(?:NL|nl)opt/g"
+	],
+	"cSpell.ignoreWords": [
+		"fbclid",
+		"opendir",
+		"purgecss",
+		"tinyurl",
+		"weixin"
+	],
+	"cSpell.words": [
+		"aabb",
+		"aaroon",
+		"appinstalled",
+		"basinhopping",
+		"beforeinstallprompt",
+		"bpstudio",
+		"browserslistrc",
+		"ccall",
+		"Chainer",
+		"Chebyshev",
+		"configurator",
+		"dpad",
+		"draggables",
+		"earcut",
+		"Emscripten",
+		"esbuild",
+		"fflate",
+		"fontawesome",
+		"fullscreen",
+		"gops",
+		"gtag",
+		"gulpfile",
+		"i",
+		"Intersector",
+		"Joinee",
+		"jsons",
+		"jszip",
+		"kamiya",
+		"keyval",
+		"lzma",
+		"macrotasks",
+		"makeomatic",
+		"mixins",
+		"mozfullscreenchange",
+		"mutsuntsai",
+		"ndarray",
+		"nocheck",
+		"notranslate",
+		"onbeforeinstallprompt",
+		"osme",
+		"outfile",
+		"overlappings",
+		"partitioner",
+		"paypal",
+		"periodicsync",
+		"pixi",
+		"popperjs",
+		"precache",
+		"precaching",
+		"pyodide",
+		"queryable",
+		"Ravl",
+		"Rebalancing",
+		"Renderable",
+		"reselectable",
+		"rsbuild",
+		"Rsdoctor",
+		"rspack",
+		"scrollable",
+		"selectables",
+		"serializable",
+		"slicksort",
+		"stylelint",
+		"touchability",
+		"tsai",
+		"tsun",
+		"typeless",
+		"unversioned",
+		"webglcontextlost",
+		"webglcontextrestored",
+		"wicg",
+		"xdescribe"
+	],
+	"css.validate": false,
+	"editor.codeActionsOnSave": {
+		"source.fixAll.eslint": "explicit"
+	},
+	"eslint.useFlatConfig": true,
+	"explorer.fileNesting.enabled": true,
+	"explorer.fileNesting.expand": false,
+	"explorer.fileNesting.patterns": {
+		"*.css": "$(capture).css.map",
+		"*.js": "$(capture).prod.js, $(capture).min.js, $(capture).js.map",
+		"*.woff2": "$(capture).eot, $(capture).svg, $(capture).ttf, $(capture).woff",
+		".gitignore": ".gitattributes",
+		".mocharc.json": ".nycrc",
+		".stylelintrc.json": ".stylelintignore",
+		"README.md": "LICENSE.md, CONTRIBUTING.md",
+		"eslint.config.js": ".editorconfig",
+		"makefile": ".clang-*",
+		"package.json": "pnpm-*.yaml, .npmrc, .browserslistrc, knip.config.ts"
+	},
+	"files.associations": {
+		"*.bps": "json",
+		".clang-*": "yaml"
+	},
+	"files.exclude": {
+		"**/debug.log": true,
+		".nyc_output": true,
+		"build/obj/": true,
+		"coverage": true,
+		"node_modules/": true,
+		"patches/": true,
+		"test-results/": true
+	},
+	"i18n-ally.enabledFrameworks": [
+		"vue"
+	],
+	"i18n-ally.enabledParsers": [
+		"json"
+	],
+	"i18n-ally.indent": 4,
+	"i18n-ally.keysInUse": [
+		"since"
+	],
+	"i18n-ally.keystyle": "nested",
+	"i18n-ally.localesPaths": "src/locale",
+	"i18n-ally.sourceLanguage": "en",
+	"i18n-ally.tabStyle": "tab",
+	"i18n-ally.usage.scanningIgnore": [
+		"src/public/**/*",
+		"lib/**/*"
+	],
+	"javascript.suggestionActions.enabled": false, // See https://github.com/Microsoft/vscode/issues/47299
+	"mochaExplorer.multiFileSuites": true,
+	"mochaExplorer.nodeArgv": [
+		"--enable-source-maps"
+	],
+	"scss.validate": false,
+	"stylelint.packageManager": "pnpm",
+	"stylelint.validate": [
+		"css",
+		"scss",
+		"vue"
+	],
+	"typescript.tsdk": "node_modules\\typescript\\lib"
+}

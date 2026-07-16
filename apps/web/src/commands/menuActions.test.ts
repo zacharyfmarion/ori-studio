@@ -18,6 +18,7 @@ function createDeps() {
       exportV4: vi.fn().mockResolvedValue(true),
       exportCp: vi.fn().mockResolvedValue(true),
       exportFold: vi.fn().mockResolvedValue(true),
+      exportBps: vi.fn().mockResolvedValue(true),
       exportOri: vi.fn().mockResolvedValue(true),
       exportOrh: vi.fn().mockResolvedValue(true),
       exportSvg: vi.fn().mockResolvedValue(true),
@@ -55,9 +56,9 @@ function createDeps() {
       addLargestStubForSelectedNodes: vi.fn().mockResolvedValue(undefined),
       addLargestStubForSelectedPoly: vi.fn().mockResolvedValue(undefined),
       triangulateTree: vi.fn().mockResolvedValue(undefined),
-      documentMode: 'tree' as 'tree' | 'crease-pattern',
-      activeEditingSurface: 'tree' as 'tree' | 'crease-pattern',
-      setActiveEditingSurface: vi.fn(),
+      activeEditingContext: 'treemaker-tree' as import('../workspaces/editingContext').EditingContext,
+      oristudioBpDocument: null,
+      deleteOristudioBpTreeNode: vi.fn().mockResolvedValue(true),
       oristudioCpDocument: null as OristudioCpDocumentState | null,
       oristudioCpSelection: {
         lines: [1, 2],
@@ -273,8 +274,7 @@ describe('menu actions', () => {
 
   it('routes generic selection commands to editable CP state in CP mode', async () => {
     const deps = createDeps();
-    deps.workspace.documentMode = 'crease-pattern';
-    deps.workspace.activeEditingSurface = 'crease-pattern';
+    deps.workspace.activeEditingContext = 'crease-pattern';
     deps.workspace.oristudioCpDocument = {
       handle: 1,
       loadSerial: 1,
@@ -363,8 +363,7 @@ describe('menu actions', () => {
 
   it('routes Delete to selected editable CP points', async () => {
     const deps = createDeps();
-    deps.workspace.documentMode = 'crease-pattern';
-    deps.workspace.activeEditingSurface = 'crease-pattern';
+    deps.workspace.activeEditingContext = 'crease-pattern';
     deps.workspace.oristudioCpSelection = {
       lines: [],
       points: [1],
@@ -514,8 +513,7 @@ describe('menu actions', () => {
       ...createDeps(),
       capabilities: () =>
         getWorkspaceCapabilities({
-        documentMode: 'crease-pattern',
-        activeEditingSurface: 'crease-pattern',
+        activeEditingContext: 'crease-pattern',
         engineReady: true,
         status: 'crease_pattern_ready',
         edgeCount: 0,
@@ -523,10 +521,12 @@ describe('menu actions', () => {
         facetCount: 1,
         hasEditableCreasePattern: false,
         hasImportedCreasePattern: true,
+        hasBoxPleatDocument: false,
         hasSimulationModel: true,
         oristudioCpSelectedLineCount: 0,
         oristudioCpSelectedPointCount: 0,
         oristudioCpSelectedCircleCount: 0,
+        hasDeletableBpSelection: false,
         historyPastCount: 0,
         historyFutureCount: 0,
         clipboard: null,

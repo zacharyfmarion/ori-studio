@@ -1,0 +1,248 @@
+$statusbar-height: 2rem;
+
+.viewport {
+	background: var(--bs-body-bg);
+}
+
+#divShade {
+	pointer-events: none;
+
+	right: 0;
+
+	opacity: 0;
+	background: black;
+
+	transition: opacity 500ms;
+}
+
+aside {
+	cursor: default;
+
+	position: fixed;
+	top: 3.75rem;
+	right: 0;
+	bottom: 0;
+
+	display: flex;
+	flex-direction: column;
+
+	width: 250px;
+
+	color: #000; /* AAA consideration */
+
+	background: var(--bg-ui) !important;
+
+	transition: right 500ms;
+}
+
+footer {
+	position: absolute;
+	bottom: 0;
+	left: 0;
+
+	display: none;
+
+	width: 100vw;
+	height: $statusbar-height;
+
+	background: var(--bg-ui);
+}
+
+#note {
+	position: absolute;
+	bottom: 20px;
+}
+
+.show-status {
+	#divWorkspace,
+	#divShade,
+	aside,
+	.viewport {
+		bottom: $statusbar-height;
+	}
+
+	#divDPad {
+		bottom: calc($statusbar-height + 1rem);
+	}
+
+	footer {
+		display: block;
+	}
+
+	#note {
+		bottom: calc($statusbar-height + 20px);
+	}
+}
+
+@media print {
+	#app {
+		display: none;
+	}
+}
+
+@media screen {
+	#divWorkspace,
+	#divShade,
+	.viewport {
+		position: absolute;
+		top: 0; /* IE 8 fallback */
+		top: 3.75rem;
+		bottom: 0;
+		left: 0;
+	}
+}
+
+@media screen and (width <= 650px) {
+	#divWorkspace,
+	#divShade,
+	aside,
+	.shift-down {
+		top: 6.15rem;
+	}
+}
+
+@media (100vh < width) and (700px <= width) {
+	#divWorkspace,
+	.viewport {
+		right: 250px;
+	}
+
+	#panelToggle {
+		display: none;
+	}
+
+	#note {
+		right: 270px;
+	}
+}
+
+@media (width <= 100vh), (width < 700px) {
+	#divWorkspace,
+	.viewport,
+	aside.show {
+		right: 0;
+	}
+
+	aside {
+		right: -250px;
+
+		&.show {
+			box-shadow: 0 0 5px #000a;
+		}
+	}
+
+	#divShade.show {
+		pointer-events: all;
+		opacity: 0.2;
+	}
+
+	#panelToggle {
+		display: block;
+	}
+
+	#note {
+		right: 20px;
+	}
+}
+
+@media (display-mode: standalone) {
+	.browser-only {
+		display: none;
+	}
+}
+
+#divWelcome {
+	overflow-y: auto;
+
+	&, * {
+		/* stylelint-disable-next-line plugin/no-unsupported-browser-features */
+		touch-action: pan-y;
+	}
+}
+
+.quick-item {
+	cursor: pointer;
+
+	overflow: hidden;
+
+	max-width: 100%;
+	padding-left: 0.33rem;
+
+	line-height: 1.75;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+
+	&:hover {
+		background: #eee;
+	}
+}
+
+/* We use this to force loading Font-Awesome */
+.font-preload {
+	pointer-events: none;
+
+	position: absolute;
+	top: 0;
+	left: 0;
+
+	opacity: 0;
+}
+
+#divDPad {
+	pointer-events: none;
+
+	position: absolute;
+	z-index: 100;
+	bottom: 1rem;
+	left: 1rem;
+
+	overflow: hidden;
+
+	width: 7.5rem;
+	height: 7.5rem;
+	border-radius: 3.75rem;
+
+	opacity: 0;
+	background-color: var(--bs-primary);
+
+	/* Vanishing is faster */
+	transition-duration: 0.1s;
+	transition-property: opacity;
+
+	&.show {
+		pointer-events: all;
+		opacity: 0.8;
+
+		/* Slightly delay displaying to avoid glitches in multiple touches */
+		transition-delay: 60ms;
+		transition-duration: 0.2s;
+
+		&.disabled {
+			pointer-events: none;
+			opacity: 0.5;
+		}
+	}
+
+	div {
+		position: absolute;
+
+		/* Create diamond shaped clicking area. */
+		transform: rotate(45deg);
+
+		padding: 0.75rem;
+
+		line-height: 1;
+		color: white;
+	}
+
+	i {
+		transform: rotate(-45deg);
+
+		display: inline-block;
+
+		width: 2rem;
+		height: 2rem;
+
+		font-size: 2rem;
+	}
+}

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { EditingContext } from '../workspaces/editingContext';
 import { handleAppKeyDown, installAppKeyboardListener } from './appKeyboard';
 import { createSampleProject, type Selection } from './sampleProject';
 import { selectEverything } from './selection';
@@ -6,14 +7,12 @@ import { selectEverything } from './selection';
 function createActions(
   selection: Selection,
   options: {
-    documentMode?: 'tree' | 'crease-pattern';
-    activeEditingSurface?: 'tree' | 'crease-pattern';
+    activeEditingContext?: EditingContext;
     cpSelectionSize?: number;
   } = {}
 ) {
   return {
-    getDocumentMode: vi.fn(() => options.documentMode ?? 'tree'),
-    getActiveEditingSurface: vi.fn(() => options.activeEditingSurface ?? 'tree'),
+    getActiveEditingContext: vi.fn(() => options.activeEditingContext ?? 'treemaker-tree'),
     getCpSelectionSize: vi.fn(() => options.cpSelectionSize ?? 0),
     getSelection: vi.fn(() => selection),
     handleMenuAction: vi.fn(),
@@ -65,7 +64,7 @@ describe('app keyboard shortcuts', () => {
   it('routes Escape through CP deselection when editing an imported crease pattern', () => {
     const actions = createActions(
       { kind: 'tree' },
-      { documentMode: 'crease-pattern', cpSelectionSize: 2 }
+      { activeEditingContext: 'crease-pattern', cpSelectionSize: 2 }
     );
     const event = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true });
 

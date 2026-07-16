@@ -1,4 +1,5 @@
-import type { AppStatus, DocumentMode, Selection } from './sampleProject';
+import type { AppStatus, Selection } from './sampleProject';
+import type { EditingContext } from '../workspaces/editingContext';
 
 export type WorkspaceCapabilityId =
   | 'file.new'
@@ -11,6 +12,7 @@ export type WorkspaceCapabilityId =
   | 'file.exportV4'
   | 'file.exportCp'
   | 'file.exportFold'
+  | 'file.exportBps'
   | 'file.exportOri'
   | 'file.exportOrh'
   | 'file.exportSvg'
@@ -91,8 +93,7 @@ export interface WorkspaceCapability {
 export type WorkspaceCapabilities = Record<WorkspaceCapabilityId, WorkspaceCapability>;
 
 export interface WorkspaceCapabilityInput {
-  documentMode: DocumentMode;
-  activeEditingSurface: DocumentMode;
+  activeEditingContext: EditingContext;
   engineReady: boolean;
   status: AppStatus;
   edgeCount: number;
@@ -100,10 +101,12 @@ export interface WorkspaceCapabilityInput {
   facetCount: number;
   hasEditableCreasePattern: boolean;
   hasImportedCreasePattern: boolean;
+  hasBoxPleatDocument: boolean;
   hasSimulationModel: boolean;
   oristudioCpSelectedLineCount: number;
   oristudioCpSelectedPointCount: number;
   oristudioCpSelectedCircleCount: number;
+  hasDeletableBpSelection: boolean;
   historyPastCount: number;
   historyFutureCount: number;
   clipboard: unknown | null;
@@ -111,9 +114,16 @@ export interface WorkspaceCapabilityInput {
 }
 
 export function getWorkspaceCapabilities(input: WorkspaceCapabilityInput): WorkspaceCapabilities {
-  const treeMode = input.documentMode === 'tree';
-  const creasePatternMode = input.documentMode === 'crease-pattern';
-  const activeCpSurface = input.activeEditingSurface === 'crease-pattern' && input.hasEditableCreasePattern;
+  const isBpContext =
+    input.activeEditingContext === 'bp-tree' || input.activeEditingContext === 'bp-packing';
+  // The shell keys off the active editing context. `treeMode` is TreeMaker-tree
+  // authoring specifically (optimize / build / tree edits / TreeMaker export);
+  // BP authoring is `isBpContext`, and the crease-pattern editor is its own
+  // context.
+  const treeMode = input.activeEditingContext === 'treemaker-tree';
+  const creasePatternMode = input.activeEditingContext === 'crease-pattern';
+  const activeCpSurface =
+    input.activeEditingContext === 'crease-pattern' && input.hasEditableCreasePattern;
   const isBusy = isWorkspaceBusy(input.status);
   const hasTreeEdges = input.edgeCount > 0;
   const hasCreasePattern =
@@ -132,6 +142,8 @@ export function getWorkspaceCapabilities(input: WorkspaceCapabilityInput): Works
   const canExportEditableOrImportedFold =
     input.hasEditableCreasePattern || (creasePatternMode && input.hasImportedCreasePattern);
   const canSaveEditableCreasePattern = creasePatternMode && input.hasEditableCreasePattern;
+  // A box-pleat design saves as a native .osf (bundling its companion CP).
+  const canSaveBoxPleat = isBpContext && input.hasBoxPleatDocument;
   const canExportEditableCp = input.hasEditableCreasePattern;
   const canExportCreasePattern = hasCreasePattern && !isBusy;
   const canEditCp = input.hasEditableCreasePattern && !isBusy;
@@ -152,7 +164,7 @@ export function getWorkspaceCapabilities(input: WorkspaceCapabilityInput): Works
   const buildLabel = hasCreasePattern ? 'Rebuild CP' : 'Build CP';
   const buildReason = hasCreasePattern ? 'Rebuild crease pattern' : 'Build crease pattern';
 
-  return {
+  const capabilities: WorkspaceCapabilities = {
     'file.new': capability(!isBusy, 'New', isBusy ? busyReason(input.status) : 'Choose a new Ori Studio workspace'),
     'file.open': capability(!isBusy, 'Open...', isBusy ? busyReason(input.status) : 'Open a project or crease pattern'),
     'file.importAdd': capability(
@@ -170,18 +182,18 @@ export function getWorkspaceCapabilities(input: WorkspaceCapabilityInput): Works
       isBusy ? busyReason(input.status) : 'Detect a square crease pattern from an image'
     ),
     'file.save': capability(
-      (treeMode || canSaveEditableCreasePattern) && !isBusy,
+      (treeMode || canSaveEditableCreasePattern || canSaveBoxPleat) && !isBusy,
       'Save',
-      treeMode
+      treeMode || canSaveBoxPleat
         ? busyOr('Save Ori Studio project', input.status)
         : canSaveEditableCreasePattern
           ? busyOr('Save editable crease pattern as an Ori Studio project', input.status)
           : 'Editable crease-pattern kernel is unavailable'
     ),
     'file.saveAs': capability(
-      (treeMode || canSaveEditableCreasePattern) && !isBusy,
+      (treeMode || canSaveEditableCreasePattern || canSaveBoxPleat) && !isBusy,
       'Save As...',
-      treeMode
+      treeMode || canSaveBoxPleat
         ? busyOr('Save Ori Studio project as a new file', input.status)
         : canSaveEditableCreasePattern
           ? busyOr('Save editable crease pattern as a new Ori Studio project', input.status)
@@ -212,6 +224,14 @@ export function getWorkspaceCapabilities(input: WorkspaceCapabilityInput): Works
         : treeMode
           ? 'Build a crease pattern before exporting FOLD'
           : 'Open a crease pattern before exporting FOLD'
+    ),
+    'file.exportBps': commandCapability(
+      input.hasBoxPleatDocument && !isBusy,
+      input.hasBoxPleatDocument,
+      'Export .bps...',
+      input.hasBoxPleatDocument
+        ? busyOr('Export the box-pleat design as a Box Pleating Studio .bps file', input.status)
+        : 'Open a box-pleat design before exporting .bps'
     ),
     'file.exportOri': capability(
       canExportEditableCp && !isBusy,
@@ -282,7 +302,8 @@ export function getWorkspaceCapabilities(input: WorkspaceCapabilityInput): Works
           : 'Open an editable crease pattern first'
     ),
     'edit.delete': capability(
-      (treeMode && !activeCpSurface && hasSelection && !isBusy) ||
+      (isBpContext && input.hasDeletableBpSelection && !isBusy) ||
+        (!isBpContext && treeMode && !activeCpSurface && hasSelection && !isBusy) ||
         (canEditCp && activeCpSurface && (hasSelectedCpLines || hasSelectedCpPoints)),
       'Delete Selected',
       treeMode && !activeCpSurface
@@ -586,6 +607,84 @@ export function getWorkspaceCapabilities(input: WorkspaceCapabilityInput): Works
         : 'Build or edit a crease pattern before refreshing the simulator'
     ),
   };
+
+  return maskCapabilitiesForContext(capabilities, input.activeEditingContext);
+}
+
+/**
+ * TreeMaker/CP-specific commands that make no sense while authoring a Box-Pleat
+ * design. Hidden (and disabled) in a BP context so the Design and Crease Pattern
+ * menus — and the tree-editing Edit submenus — don't surface TreeMaker actions.
+ * File/Edit(undo,redo,clipboard)/View stay available.
+ */
+const BP_HIDDEN_CAPABILITIES = new Set<WorkspaceCapabilityId>([
+  'edit.makeRoot',
+  'edit.splitEdge',
+  'edit.setEdgeLength',
+  'edit.scaleEdgeLengths',
+  'edit.renormalizeToEdge',
+  'edit.renormalizeToUnitScale',
+  'edit.absorbNodes',
+  'edit.absorbRedundantNodes',
+  'edit.absorbEdges',
+  'edit.perturbNodes',
+  'edit.perturbAllNodes',
+  'edit.removeStrain',
+  'edit.removeAllStrain',
+  'edit.relieveStrain',
+  'edit.relieveAllStrain',
+  'edit.addLargestStubForNodes',
+  'edit.addLargestStubForPoly',
+  'edit.triangulateTree',
+  'edit.selectByIndex',
+  'edit.selectMovableParts',
+  'edit.selectCorridorFacets',
+  'view.conditions',
+  'file.exportV5',
+  'file.exportV4',
+  'file.exportCp',
+  'file.exportFold',
+  'file.exportOri',
+  'file.exportOrh',
+  'file.exportSvg',
+  'file.exportPng',
+]);
+
+// Undo/redo stay in the Edit menu while simulating (rendered inert — the
+// simulate context has no history stack, so the count is zero and they are
+// disabled). Every other `edit.*` command authors the tree and is hidden.
+const SIMULATE_VISIBLE_EDIT = new Set<WorkspaceCapabilityId>(['edit.undo', 'edit.redo']);
+
+function maskCapabilitiesForContext(
+  capabilities: WorkspaceCapabilities,
+  context: EditingContext
+): WorkspaceCapabilities {
+  if (context === 'simulate') {
+    // Simulate is a read-only consumer of the folded model: only navigation
+    // (`view.*`), file operations, playback (`simulator.*`), and inert
+    // undo/redo apply. Every authoring command is hidden.
+    const masked = { ...capabilities };
+    for (const id of Object.keys(masked) as WorkspaceCapabilityId[]) {
+      const isAuthoring =
+        id.startsWith('cp.') ||
+        id.startsWith('optimize.') ||
+        (id.startsWith('edit.') && !SIMULATE_VISIBLE_EDIT.has(id));
+      if (isAuthoring) {
+        masked[id] = { ...masked[id], visible: false, enabled: false };
+      }
+    }
+    return masked;
+  }
+
+  const isBpContext = context === 'bp-tree' || context === 'bp-packing';
+  if (!isBpContext) return capabilities;
+  const masked = { ...capabilities };
+  for (const id of Object.keys(masked) as WorkspaceCapabilityId[]) {
+    if (id.startsWith('optimize.') || id.startsWith('cp.') || BP_HIDDEN_CAPABILITIES.has(id)) {
+      masked[id] = { ...masked[id], visible: false, enabled: false };
+    }
+  }
+  return masked;
 }
 
 export function getNextDocumentAction(
@@ -652,7 +751,8 @@ function disabledOptimizeReason(
   isBusy: boolean,
   hasTreeEdges: boolean
 ): string {
-  if (input.documentMode !== 'tree') return 'Optimization requires an editable tree document';
+  if (input.activeEditingContext !== 'treemaker-tree')
+    return 'Optimization requires an editable tree document';
   if (!input.engineReady || input.status === 'loading_engine') return 'Engine is still loading';
   if (isBusy) return busyReason(input.status);
   if (!hasTreeEdges) return 'Add at least one tree edge before optimizing';
@@ -665,7 +765,8 @@ function disabledBuildReason(
   isBusy: boolean,
   hasTreeEdges: boolean
 ): string {
-  if (input.documentMode !== 'tree') return 'Build CP requires an editable tree document';
+  if (input.activeEditingContext !== 'treemaker-tree')
+    return 'Build CP requires an editable tree document';
   if (!input.engineReady || input.status === 'loading_engine') return 'Engine is still loading';
   if (isBusy) return busyReason(input.status);
   if (input.status === 'error') return 'Resolve the current engine error before building the crease pattern';

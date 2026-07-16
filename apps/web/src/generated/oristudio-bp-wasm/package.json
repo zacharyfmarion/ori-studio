@@ -1,0 +1,27 @@
+{
+  "name": "oristudio-bp-wasm",
+  "type": "module",
+  "description": "wasm-bindgen package for the Box Pleating Studio-compatible kernel",
+  "version": "0.1.2",
+  "license": "GPL-2.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zacharyfmarion/ori-studio"
+  },
+  "files": [
+    "oristudio_bp_wasm_bg.wasm",
+    "oristudio_bp_wasm.js",
+    "oristudio_bp_wasm.d.ts"
+  ],
+  "main": "oristudio_bp_wasm.js",
+  "homepage": "https://github.com/zacharyfmarion/ori-studio",
+  "types": "oristudio_bp_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ],
+  "keywords": [
+    "origami",
+    "box-pleating",
+    "wasm"
+  ]
+}

@@ -10,6 +10,8 @@ export function NextDocumentAction() {
   if (!action) return null;
 
   const capability = capabilities[action];
+  // Optimize/Build are TreeMaker/CP actions; hidden (masked) in a BP context.
+  if (!capability.visible) return null;
   return (
     <Button
       size="sm"

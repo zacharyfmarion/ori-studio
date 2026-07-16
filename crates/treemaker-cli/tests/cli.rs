@@ -204,11 +204,11 @@ fn corpus_reports_recursive_fixtures_and_max_files() {
     ]);
     assert_success(&output);
     let report: Value = serde_json::from_slice(&output.stdout).expect("corpus json");
-    assert_eq!(report["scanned_files"], 11);
-    assert_eq!(report["unique_files"], 11);
+    assert_eq!(report["scanned_files"], 12);
+    assert_eq!(report["unique_files"], 12);
     assert_eq!(report["duplicates"], 0);
-    assert_eq!(report["parsed"], 11);
-    assert_eq!(report["roundtripped"], 11);
+    assert_eq!(report["parsed"], 12);
+    assert_eq!(report["roundtripped"], 12);
     assert_eq!(report["failed"], 0);
 
     let text = run([

@@ -1,0 +1,16 @@
+{
+	"compilerOptions": {
+		"baseUrl": "..",
+		"isolatedModules": true,
+		"lib": [
+			"webworker",
+			"esnext"
+		],
+		"types": []
+	},
+	"extends": "../shared/tsconfig",
+	"include": [
+		"./**/*.ts",
+		"../shared/types/**/*.d.ts"
+	]
+}

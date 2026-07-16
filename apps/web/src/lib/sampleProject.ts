@@ -29,6 +29,12 @@ export type AppStatus =
   | 'crease_pattern_ready'
   | 'error';
 export type DocumentMode = 'tree' | 'crease-pattern';
+/**
+ * Which design method authored the active document. Both live in the Design
+ * workspace: `treemaker` is the circle/river-packing tree editor, `box-pleat`
+ * is the Box Pleating Studio tree + packing workflow.
+ */
+export type WorkflowTarget = 'treemaker' | 'box-pleat';
 export type ToolMode = 'select' | 'node' | 'edge' | 'symmetry';
 export type CreaseColorMode = 'mvf' | 'agrh';
 export const DEFAULT_CREASE_COLOR_MODE: CreaseColorMode = 'mvf';

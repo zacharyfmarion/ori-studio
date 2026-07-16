@@ -1,0 +1,26 @@
+{
+  "command": "start",
+  "useBH": false,
+  "layout": "random",
+  "random": 1,
+  "problem": {
+    "type": "rect",
+    "flaps": [
+      {
+        "id": 1,
+        "width": 0,
+        "height": 0
+      }
+    ],
+    "hierarchies": [
+      {
+        "leaves": [
+          1
+        ],
+        "distMap": [],
+        "parents": []
+      }
+    ]
+  },
+  "vec": null
+}

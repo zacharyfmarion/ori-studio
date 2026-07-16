@@ -15,6 +15,7 @@ import { DEFAULT_CREASE_COLOR_MODE } from '../../../lib/sampleProject';
 import { resolveCpSegments } from '../../../lib/creasePatternSegmentation';
 import { foldArtifactsFromFold } from '../../../lib/creasePatternImport';
 import {
+  blankCpLineage,
   generatedCpLineage,
   markGeneratedCpLineageStale,
   stableTextDigest,
@@ -36,6 +37,7 @@ import {
   type EngineClient,
 } from '../engineRuntime';
 import {
+  createBlankOristudioCpDocument,
   duplicateOristudioCpFoldedFigure as duplicateRuntimeOristudioCpFoldedFigure,
   deselectAllOristudioCp,
   exportOristudioCpDocumentAsFold,
@@ -84,14 +86,14 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
   function hasFoldArtifactSource() {
     const state = get();
     if (state.oristudioCpDocument) return true;
-    if (state.documentMode === 'crease-pattern') return false;
+    if (state.importedCreasePattern) return false;
     return state.project.creases.length > 0 || state.project.facets.length > 0;
   }
 
   async function confirmReplaceCustomizedGeneratedCp(): Promise<boolean> {
     const lineage = get().oristudioCpLineage;
     if (
-      get().documentMode !== 'tree' ||
+      get().activeEditingContext !== 'treemaker-tree' ||
       lineage?.kind !== 'generated-from-tree' ||
       lineage.manualEditCount === 0
     ) {
@@ -331,7 +333,6 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         error: null,
         lastOptimization: report,
         ...staleFoldArtifactResourceState(get().foldArtifactRevision),
-        activeEditingSurface: 'tree',
         oristudioCpLineage: markGeneratedCpLineageStale(get().oristudioCpLineage),
         dirty: true,
         projectMessage: label,
@@ -379,6 +380,27 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       await runOptimization('Optimize strain', 'optimize.strain', (api, treeHandle) =>
         api.optimizeStrain(treeHandle)
       );
+    },
+
+    // The Edit workspace's always-live canvas: seed a blank editable CP when the
+    // workspace is entered with no crease pattern loaded, so it is never empty.
+    ensureEditCreasePattern: async () => {
+      if (get().oristudioCpDocument) return;
+      try {
+        const document = await createBlankOristudioCpDocument();
+        set({
+          oristudioCpDocument: document,
+          oristudioCpLineage: blankCpLineage(),
+          oristudioCpOperationDescriptors: document.operationDescriptors,
+          oristudioCpSelection: emptyOristudioCpSelection(),
+          oristudioCpHistoryPast: [],
+          oristudioCpHistoryFuture: [],
+          oristudioCpError: null,
+          oristudioCpCamvResult: null,
+        });
+      } catch (error) {
+        set({ oristudioCpError: engineError(error).message });
+      }
     },
 
     buildCreasePattern: async () => {
@@ -450,7 +472,6 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         });
         set({
           project,
-          activeEditingSurface: 'crease-pattern',
           oristudioCpDocument: editableDocument,
           oristudioCpLineage: generatedCpLineage({
             sourceTreeDigest: stableTextDigest(treeText),
@@ -489,6 +510,43 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         useLayoutStore.getState().activateWorkspace('edit');
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
+      }
+    },
+
+    sendTreeCreasePatternToEdit: async () => {
+      const capability = selectWorkspaceCapabilities(get())['cp.build'];
+      if (!capability.enabled) {
+        set({ error: { code: 'invalid_operation', message: capability.reason } });
+        return false;
+      }
+      const previousStatus = get().status;
+      set({ status: 'building_crease_pattern', error: null });
+      try {
+        const { api, treeHandle } = await requireActiveTree();
+        // Turn the tree into creases, then hand the generated CP to the always-live
+        // Edit canvas via Import(Add) so it merges into whatever is already there,
+        // instead of replacing the Edit surface. Mirrors BP's "Send to Edit"
+        // (see sendOristudioBpToEdit). The engine FOLD already uses the CP editor's
+        // crease convention, so no ORIPA-style 2<->3 swap is needed here.
+        await api.buildCreasePattern(treeHandle);
+        const foldJson = await api.exportFold(treeHandle);
+        await get().ensureEditCreasePattern();
+        const ok = await get().importAddOristudioCpText(
+          foldJson,
+          'fold',
+          'Sent design to Edit',
+          `${get().project.title || 'design'}.fold`
+        );
+        set({ status: ok ? 'crease_pattern_ready' : previousStatus });
+        if (ok) {
+          const layout = useLayoutStore.getState();
+          layout.activateWorkspace('edit');
+          layout.activatePanel('crease-pattern');
+        }
+        return ok;
+      } catch (error) {
+        set({ status: 'error', error: engineError(error) });
+        return false;
       }
     },
 

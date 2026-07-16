@@ -1,0 +1,33 @@
+{
+	// See https://go.microsoft.com/fwlink/?linkid=830387
+	"version": "0.2.0",
+	"configurations": [
+		{
+			// https://github.com/microsoft/vscode-js-debug/blob/main/OPTIONS.md
+			"type": "chrome",
+			"request": "launch",
+			"name": "Launch in Chrome",
+			"preLaunchTask": "Server",
+			"internalConsoleOptions": "neverOpen",
+			"url": "http://localhost:30783",
+			// For some unknown reason, source binding does not work
+			// for some (but not all) of the Vue files for now.
+			"webRoot": "${workspaceFolder}",
+			"sourceMaps": true,
+			"sourceMapPathOverrides": {
+				"webpack://box-pleating-studio/./*": "${webRoot}/*"
+			}
+		},
+		{
+			"type": "chrome",
+			"request": "launch",
+			"name": "Test PolyBool",
+			"internalConsoleOptions": "neverOpen",
+			"file": "${workspaceFolder}/build/tools/index.htm",
+			"sourceMaps": true,
+			"skipFiles": [
+				"${workspaceFolder}/build/dist/lib/**"
+			]
+		}
+	]
+}

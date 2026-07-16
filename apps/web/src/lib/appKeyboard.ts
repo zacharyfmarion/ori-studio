@@ -1,12 +1,12 @@
 import { selectionSize } from './selection';
-import type { DocumentMode, Selection } from './sampleProject';
+import type { Selection } from './sampleProject';
+import type { EditingContext } from '../workspaces/editingContext';
 import { isShortcutEditingTarget } from '../keyboard/shortcutDispatcher';
 import { handleShortcutRuntimeKeyDown } from '../keyboard/shortcutRuntime';
 import type { ShortcutOverrides } from '../keyboard/shortcuts';
 
 export interface AppKeyboardActions {
-  getDocumentMode: () => DocumentMode;
-  getActiveEditingSurface: () => DocumentMode;
+  getActiveEditingContext: () => EditingContext;
   getCpSelectionSize: () => number;
   getSelection: () => Selection;
   handleMenuAction: (id: string) => unknown;
@@ -18,7 +18,7 @@ export function handleAppKeyDown(event: KeyboardEvent, actions: AppKeyboardActio
   if (event.defaultPrevented || isShortcutEditingTarget(event.target)) return false;
 
   if (event.key === 'Escape') {
-    if (actions.getDocumentMode() === 'crease-pattern') {
+    if (actions.getActiveEditingContext() === 'crease-pattern') {
       if (actions.getCpSelectionSize() === 0) return false;
       event.preventDefault();
       void actions.handleMenuAction('edit.deselectAll');
@@ -32,8 +32,7 @@ export function handleAppKeyDown(event: KeyboardEvent, actions: AppKeyboardActio
 
   return handleShortcutRuntimeKeyDown(event, {
     context: {
-      documentMode: actions.getDocumentMode(),
-      activeEditingSurface: actions.getActiveEditingSurface(),
+      activeEditingContext: actions.getActiveEditingContext(),
     },
     overrides: actions.getShortcutOverrides?.(),
     menu: actions.handleMenuAction,

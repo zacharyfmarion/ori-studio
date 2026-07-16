@@ -1,11 +1,10 @@
 import { useMemo } from 'react';
 import { getWorkspaceCapabilities } from '../../lib/workspaceCapabilities';
-import { activeOrFallbackHistoryCount } from './capabilities';
+import { historyCountForContext } from './capabilities';
 import { useWorkspaceStore } from './store';
 
 export function useWorkspaceCapabilities() {
-  const documentMode = useWorkspaceStore((state) => state.documentMode);
-  const activeEditingSurface = useWorkspaceStore((state) => state.activeEditingSurface);
+  const activeEditingContext = useWorkspaceStore((state) => state.activeEditingContext);
   const engineReady = useWorkspaceStore((state) => state.engineReady);
   const status = useWorkspaceStore((state) => state.status);
   const edgeCount = useWorkspaceStore((state) => state.project.edges.length);
@@ -13,6 +12,7 @@ export function useWorkspaceCapabilities() {
   const facetCount = useWorkspaceStore((state) => state.project.facets.length);
   const hasEditableCreasePattern = useWorkspaceStore((state) => state.oristudioCpDocument !== null);
   const hasImportedCreasePattern = useWorkspaceStore((state) => state.importedCreasePattern !== null);
+  const hasBoxPleatDocument = useWorkspaceStore((state) => state.oristudioBpDocument !== null);
   const hasSimulationModel = useWorkspaceStore((state) => state.foldArtifacts?.simulation_model != null);
   const oristudioCpSelectedLineCount = useWorkspaceStore(
     (state) => state.oristudioCpSelection.lines.length
@@ -27,28 +27,35 @@ export function useWorkspaceCapabilities() {
   const treeHistoryFutureCount = useWorkspaceStore((state) => state.historyFuture.length);
   const cpHistoryPastCount = useWorkspaceStore((state) => state.oristudioCpHistoryPast.length);
   const cpHistoryFutureCount = useWorkspaceStore((state) => state.oristudioCpHistoryFuture.length);
+  const bpHistoryPastCount = useWorkspaceStore((state) => state.oristudioBpHistoryPast.length);
+  const bpHistoryFutureCount = useWorkspaceStore((state) => state.oristudioBpHistoryFuture.length);
+  const hasDeletableBpSelection = useWorkspaceStore((state) => {
+    const selection = state.oristudioBpDocument?.selection;
+    const root = state.oristudioBpDocument?.snapshot?.tree?.rootVertexId;
+    return (
+      (selection?.kind === 'bp-vertex' && selection.id !== root) ||
+      selection?.kind === 'bp-edge'
+    );
+  });
   const clipboard = useWorkspaceStore((state) => state.clipboard);
   const selection = useWorkspaceStore((state) => state.selection);
-  const usableTreeHistoryPastCount = documentMode === 'tree' ? treeHistoryPastCount : 0;
-  const usableTreeHistoryFutureCount = documentMode === 'tree' ? treeHistoryFutureCount : 0;
-  const usableCpHistoryPastCount = hasEditableCreasePattern ? cpHistoryPastCount : 0;
-  const usableCpHistoryFutureCount = hasEditableCreasePattern ? cpHistoryFutureCount : 0;
-  const historyPastCount = activeOrFallbackHistoryCount(
-    activeEditingSurface,
-    usableTreeHistoryPastCount,
-    usableCpHistoryPastCount
+  const historyPastCount = historyCountForContext(
+    activeEditingContext,
+    bpHistoryPastCount,
+    hasEditableCreasePattern ? cpHistoryPastCount : 0,
+    treeHistoryPastCount
   );
-  const historyFutureCount = activeOrFallbackHistoryCount(
-    activeEditingSurface,
-    usableTreeHistoryFutureCount,
-    usableCpHistoryFutureCount
+  const historyFutureCount = historyCountForContext(
+    activeEditingContext,
+    bpHistoryFutureCount,
+    hasEditableCreasePattern ? cpHistoryFutureCount : 0,
+    treeHistoryFutureCount
   );
 
   return useMemo(
     () =>
       getWorkspaceCapabilities({
-        documentMode,
-        activeEditingSurface,
+        activeEditingContext,
         engineReady,
         status,
         edgeCount,
@@ -56,10 +63,12 @@ export function useWorkspaceCapabilities() {
         facetCount,
         hasEditableCreasePattern,
         hasImportedCreasePattern,
+        hasBoxPleatDocument,
         hasSimulationModel,
         oristudioCpSelectedLineCount,
         oristudioCpSelectedPointCount,
         oristudioCpSelectedCircleCount,
+        hasDeletableBpSelection,
         historyPastCount,
         historyFutureCount,
         clipboard,
@@ -68,17 +77,18 @@ export function useWorkspaceCapabilities() {
     [
       clipboard,
       creaseCount,
-      activeEditingSurface,
-      documentMode,
+      activeEditingContext,
       edgeCount,
       engineReady,
       facetCount,
       hasEditableCreasePattern,
       hasImportedCreasePattern,
+      hasBoxPleatDocument,
       hasSimulationModel,
       oristudioCpSelectedCircleCount,
       oristudioCpSelectedLineCount,
       oristudioCpSelectedPointCount,
+      hasDeletableBpSelection,
       historyFutureCount,
       historyPastCount,
       selection,

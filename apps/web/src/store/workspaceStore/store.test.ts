@@ -33,6 +33,7 @@ import {
 } from '../../lib/creasePatternViewport';
 import {
   activeNativeDocument,
+  createNativeBoxPleatProjectFile,
   createNativeCreasePatternProjectFile,
   createNativeTreeProjectFile,
   parseNativeProjectFile,
@@ -88,6 +89,13 @@ const exportMocks = vi.hoisted(() => ({
   serializeCreasePatternSvg: vi.fn(() => '<svg role="img"></svg>'),
 }));
 
+const bpMocks = vi.hoisted(() => ({
+  createSampleOristudioBpProject: vi.fn(),
+  loadOristudioBpProjectFromText: vi.fn(),
+  getOristudioBpPortDescriptors: vi.fn(),
+  exportOristudioBpProjectAsBps: vi.fn(),
+}));
+
 vi.mock('../../lib/creaseExport', () => exportMocks);
 
 vi.mock('./engineRuntime', async (importOriginal) => {
@@ -100,6 +108,17 @@ vi.mock('./engineRuntime', async (importOriginal) => {
     getEngine: engineMocks.getEngine,
     initializeBlankTree: engineMocks.initializeBlankTree,
     loadTreeFromText: engineMocks.loadTreeFromText,
+  };
+});
+
+vi.mock('./oristudioBpRuntime', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./oristudioBpRuntime')>();
+  return {
+    ...actual,
+    createSampleOristudioBpProject: bpMocks.createSampleOristudioBpProject,
+    loadOristudioBpProjectFromText: bpMocks.loadOristudioBpProjectFromText,
+    getOristudioBpPortDescriptors: bpMocks.getOristudioBpPortDescriptors,
+    exportOristudioBpProjectAsBps: bpMocks.exportOristudioBpProjectAsBps,
   };
 });
 
@@ -899,7 +918,6 @@ function configureEngine(api: TestEngineApi) {
 function loadSnapshotIntoStore(snapshot: TreeSnapshot, title = 'Seed project') {
   useWorkspaceStore.setState({
     project: projectFromSnapshot(snapshot, title),
-    documentMode: 'tree',
     importedCreasePattern: null,
     oristudioCpDocument: null,
     oristudioCpOperationDescriptors: [],
@@ -936,6 +954,19 @@ function loadSnapshotIntoStore(snapshot: TreeSnapshot, title = 'Seed project') {
     sequencePlanning: false,
     sequenceError: null,
   });
+}
+
+function sampleBpDocument(): import('../../engine/oristudioBpTypes').OristudioBpDocumentState {
+  // Only the fields read by the BP slice are needed; the rest are irrelevant to
+  // these store-level tests, so a minimal cast keeps the fixture small.
+  return {
+    workflowTarget: 'box-pleat',
+    kind: 'box-pleat-project',
+    handle: 9,
+    source: { format: 'generated', filename: 'Untitled.bps', path: null },
+    activeSurface: 'tree',
+    dirty: true,
+  } as import('../../engine/oristudioBpTypes').OristudioBpDocumentState;
 }
 
 function blankCpDocumentState(): OristudioCpDocumentState {
@@ -1075,6 +1106,12 @@ function resetStores(snapshot = makeSnapshot()) {
   useLayoutStore.setState(initialLayoutState, true);
   const api = createMockEngineApi(snapshot);
   configureEngine(api);
+  bpMocks.createSampleOristudioBpProject.mockReset().mockImplementation(async () => sampleBpDocument());
+  bpMocks.loadOristudioBpProjectFromText.mockReset().mockImplementation(async () => sampleBpDocument());
+  bpMocks.getOristudioBpPortDescriptors.mockReset().mockResolvedValue([]);
+  bpMocks.exportOristudioBpProjectAsBps
+    .mockReset()
+    .mockResolvedValue('{"title":"Untitled","tree":{}}');
   oristudioCpMocks.getOristudioCpOperationDescriptors
     .mockReset()
     .mockResolvedValue(cpOperationDescriptors);
@@ -1320,7 +1357,6 @@ describe('workspace store slices', () => {
     const state = useWorkspaceStore.getState();
 
     expect(state.project.nodes).toEqual([]);
-    expect(state.documentMode).toBe('tree');
     expect(state.importedCreasePattern).toBeNull();
     expect(state.oristudioCpDocument).toBeNull();
     expect(state.oristudioCpOperationDescriptors).toEqual([]);
@@ -1394,7 +1430,7 @@ describe('workspace store slices', () => {
     await expect(useWorkspaceStore.getState().openProject(fileService)).resolves.toBe(true);
     expect(fileService.openTextFile).toHaveBeenCalledWith({
       title: 'Open Ori Studio Project or Crease Pattern',
-      extensions: ['osf', 'tmd', 'tmd4', 'tmd5', 'fold', 'cp', 'ori', 'orh'],
+      extensions: ['osf', 'tmd', 'tmd4', 'tmd5', 'fold', 'cp', 'ori', 'orh', 'bps'],
     });
 
     await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
@@ -1470,7 +1506,6 @@ describe('workspace store slices', () => {
     expect(oristudioCpMocks.releaseOristudioCpDocument).toHaveBeenCalledOnce();
     expect(oristudioCpMocks.createBlankOristudioCpDocument).toHaveBeenCalledOnce();
     expect(useWorkspaceStore.getState()).toMatchObject({
-      documentMode: 'crease-pattern',
       currentFileName: 'Untitled-CP.osf',
       currentFilePath: null,
       status: 'crease_pattern_ready',
@@ -1493,6 +1528,8 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().importedCreasePattern).toBeNull();
     expect(useWorkspaceStore.getState().oristudioCpSelection).toEqual(emptyOristudioCpSelection());
     expect(activateWorkspace).toHaveBeenCalledWith('edit');
+    // A bare CP establishes no design, so the Design workspace keeps the chooser.
+    expect(useWorkspaceStore.getState().pendingDesignChoice).toBe(true);
   });
 
   it('opens native tree projects and keeps Save on the native file path', async () => {
@@ -1518,7 +1555,6 @@ describe('workspace store slices', () => {
 
     expect(engineMocks.loadTreeFromText).toHaveBeenCalledWith(api, 'native tree tmd5');
     expect(useWorkspaceStore.getState()).toMatchObject({
-      documentMode: 'tree',
       currentFileName: 'native-tree.osf',
       currentFilePath: '/tmp/native-tree.osf',
       dirty: false,
@@ -1589,7 +1625,6 @@ describe('workspace store slices', () => {
       }
     );
     expect(useWorkspaceStore.getState()).toMatchObject({
-      documentMode: 'crease-pattern',
       currentFileName: 'native-cp.osf',
       currentFilePath: '/tmp/native-cp.osf',
       creaseColorMode: 'agrh',
@@ -1629,7 +1664,6 @@ describe('workspace store slices', () => {
     await expect(useWorkspaceStore.getState().openProject(fileService)).resolves.toBe(true);
 
     expect(useWorkspaceStore.getState()).toMatchObject({
-      documentMode: 'crease-pattern',
       currentFileName: 'square.cp',
       currentFilePath: '/tmp/square.cp',
       dirty: false,
@@ -1808,7 +1842,6 @@ describe('workspace store slices', () => {
     );
     expect(oristudioCpMocks.exportOristudioCpDocumentAsFold).toHaveBeenCalledOnce();
     expect(useWorkspaceStore.getState()).toMatchObject({
-      documentMode: 'crease-pattern',
       currentFileName: 'native.ori',
       currentFilePath: '/tmp/native.ori',
       dirty: false,
@@ -2815,7 +2848,6 @@ describe('workspace store slices', () => {
       label: 'CreaseMakeMountain',
     });
 
-    useWorkspaceStore.setState({ activeEditingSurface: 'tree' });
     expect(selectWorkspaceCapabilities(useWorkspaceStore.getState())['edit.undo'].enabled).toBe(
       true
     );
@@ -2850,7 +2882,6 @@ describe('workspace store slices', () => {
     expect(oristudioCpMocks.exportOristudioCpDocumentAsFold).toHaveBeenCalled();
     expect(useWorkspaceStore.getState().foldArtifactStatus).toBe('ready');
 
-    useWorkspaceStore.setState({ activeEditingSurface: 'tree' });
     expect(selectWorkspaceCapabilities(useWorkspaceStore.getState())['edit.redo'].enabled).toBe(
       true
     );
@@ -2952,8 +2983,6 @@ describe('workspace store slices', () => {
     const documentState = blankCpDocumentState();
     const selection = { ...emptyOristudioCpSelection(), lines: [1] };
     useWorkspaceStore.setState({
-      documentMode: 'crease-pattern',
-      activeEditingSurface: 'crease-pattern',
       oristudioCpDocument: documentState,
       oristudioCpSelection: selection,
       status: 'crease_pattern_ready',
@@ -3001,8 +3030,6 @@ describe('workspace store slices', () => {
   it('normalizes advanced grid metadata using Oriedita validation rules', async () => {
     resetStores(seedSnapshot());
     useWorkspaceStore.setState({
-      documentMode: 'crease-pattern',
-      activeEditingSurface: 'crease-pattern',
       oristudioCpDocument: blankCpDocumentState(),
       status: 'crease_pattern_ready',
       dirty: false,
@@ -3477,7 +3504,7 @@ describe('workspace store slices', () => {
       cpLine({ x: 0, y: 1 }, { x: 2, y: 1 }),
     ]);
     useWorkspaceStore.setState({
-      documentMode: 'crease-pattern',
+      activePanelId: 'crease-pattern',
       oristudioCpDocument: documentState,
       oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
       status: 'crease_pattern_ready',
@@ -3519,7 +3546,6 @@ describe('workspace store slices', () => {
       cpLine({ x: 0, y: 1 }, { x: 2, y: 1 }, { color: 'Blue2' }),
     ]);
     useWorkspaceStore.setState({
-      documentMode: 'crease-pattern',
       oristudioCpDocument: documentState,
       oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
       status: 'crease_pattern_ready',
@@ -3709,6 +3735,248 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().error).toEqual({
       code: 'invalid_operation',
       message: 'nope',
+    });
+  });
+
+  describe('Box Pleating Studio file interchange', () => {
+    it('opens a .bps file as a box-pleat design in the BP context', async () => {
+      useWorkspaceStore.setState({ engineReady: true, status: 'ready', dirty: false });
+      const fileService = createFileService({
+        text: '{"title":"Crane","tree":{}}',
+        name: 'crane.bps',
+        path: '/tmp/crane.bps',
+      });
+
+      await expect(useWorkspaceStore.getState().openProject(fileService)).resolves.toBe(true);
+
+      expect(bpMocks.loadOristudioBpProjectFromText).toHaveBeenCalledWith(
+        '{"title":"Crane","tree":{}}',
+        expect.objectContaining({ filename: 'crane.bps', format: 'bps' })
+      );
+      const state = useWorkspaceStore.getState();
+      expect(state.oristudioBpDocument).not.toBeNull();
+      expect(state.workflowTarget).toBe('box-pleat');
+      expect(state.activeEditingContext).toBe('bp-tree');
+    });
+
+    it('saves a box-pleat design as a native .osf bundling the bps payload', async () => {
+      useWorkspaceStore.setState({ engineReady: true, status: 'ready', dirty: false });
+      await useWorkspaceStore.getState().loadOristudioBpProjectFromFile('{"tree":{}}', {
+        filename: 'crane.bps',
+        path: '/tmp/crane.bps',
+      });
+      expect(useWorkspaceStore.getState().activeEditingContext).toBe('bp-tree');
+      bpMocks.exportOristudioBpProjectAsBps.mockResolvedValueOnce('{"title":"Crane","saved":true}');
+
+      const fileService = createFileService();
+      await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
+
+      const options = fileService.saveTextFile.mock.calls.at(-1)?.[0] as
+        | SaveTextFileOptions
+        | undefined;
+      expect(options?.extensions).toEqual(['osf']);
+      const saved = parseNativeProjectFile(options?.contents ?? '');
+      expect(saved.workspace.activeMode).toBe('box-pleat');
+      const active = activeNativeDocument(saved);
+      expect(active.kind).toBe('box-pleat');
+      if (active.kind !== 'box-pleat') throw new Error('expected box-pleat document');
+      expect(active.project.text).toBe('{"title":"Crane","saved":true}');
+      expect(useWorkspaceStore.getState().dirty).toBe(false);
+    });
+
+    it('saves the box-pleat design even when the Edit crease pattern is the focused view', async () => {
+      // Regression: save routed by the active view dropped the design whenever
+      // the user saved from the always-live Edit canvas. Save must follow the
+      // documents that exist, not the focused pane.
+      useWorkspaceStore.setState({ engineReady: true, status: 'ready', dirty: false });
+      await useWorkspaceStore.getState().loadOristudioBpProjectFromFile('{"tree":{}}', {
+        filename: 'crane.bps',
+        path: null,
+      });
+      // The user sends to Edit and focuses the crease-pattern pane.
+      useWorkspaceStore.setState({
+        activePanelId: 'crease-pattern',
+        oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+      });
+      expect(useWorkspaceStore.getState().activeEditingContext).toBe('crease-pattern');
+      bpMocks.exportOristudioBpProjectAsBps.mockResolvedValueOnce('{"design":"kept"}');
+
+      const fileService = createFileService();
+      await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
+
+      const options = fileService.saveTextFile.mock.calls.at(-1)?.[0] as
+        | SaveTextFileOptions
+        | undefined;
+      const saved = parseNativeProjectFile(options?.contents ?? '');
+      expect(saved.workspace.activeMode).toBe('box-pleat');
+      expect(saved.workspace.documents.map((document) => document.kind)).toEqual([
+        'box-pleat',
+        'crease-pattern',
+      ]);
+      const active = activeNativeDocument(saved);
+      if (active.kind !== 'box-pleat') throw new Error('expected box-pleat document');
+      expect(active.project.text).toBe('{"design":"kept"}');
+    });
+
+    it('bundles the Edit crease pattern as a companion when saving a box-pleat design', async () => {
+      useWorkspaceStore.setState({ engineReady: true, status: 'ready', dirty: false });
+      await useWorkspaceStore.getState().loadOristudioBpProjectFromFile('{"tree":{}}', {
+        filename: 'crane.bps',
+        path: null,
+      });
+      // A design coexists with a CP on the always-live Edit canvas.
+      useWorkspaceStore.setState({ oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]) });
+
+      const fileService = createFileService();
+      await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
+
+      const options = fileService.saveTextFile.mock.calls.at(-1)?.[0] as
+        | SaveTextFileOptions
+        | undefined;
+      const saved = parseNativeProjectFile(options?.contents ?? '');
+      expect(saved.workspace.documents.map((document) => document.kind)).toEqual([
+        'box-pleat',
+        'crease-pattern',
+      ]);
+    });
+
+    it('exports the active box-pleat design as a .bps file', async () => {
+      useWorkspaceStore.setState({ engineReady: true, status: 'ready', dirty: false });
+      await useWorkspaceStore.getState().loadOristudioBpProjectFromFile('{"tree":{}}', {
+        filename: 'crane.bps',
+        path: null,
+      });
+      bpMocks.exportOristudioBpProjectAsBps.mockResolvedValueOnce('{"exported":true}');
+
+      const fileService = createFileService();
+      await expect(useWorkspaceStore.getState().exportBps(fileService)).resolves.toBe(true);
+
+      const options = fileService.saveTextFile.mock.calls.at(-1)?.[0] as
+        | SaveTextFileOptions
+        | undefined;
+      expect(options?.contents).toBe('{"exported":true}');
+      expect(options?.extensions).toEqual(['bps']);
+      expect(options?.suggestedName.endsWith('.bps')).toBe(true);
+    });
+
+    it('reopens a saved box-pleat .osf, restoring the design and its CP companion', async () => {
+      const osf = serializeNativeProjectFile(
+        createNativeBoxPleatProjectFile({
+          title: 'Crane',
+          filename: 'crane.osf',
+          path: '/tmp/crane.osf',
+          bps: '{"title":"Crane"}',
+          creasePatternCompanion: {
+            title: 'Crane CP',
+            document: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]).document,
+            source: null,
+            foldProjection: null,
+            foldArtifacts: null,
+            creaseColorMode: 'mvf',
+            selection: emptyOristudioCpSelection(),
+            viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+            foldedFigures: [],
+            activeFoldedFigureId: null,
+            lineage: importedCpLineage(),
+          },
+          appVersion: '0.0.0',
+        })
+      );
+      useWorkspaceStore.setState({ engineReady: true, status: 'ready', dirty: false });
+      const fileService = createFileService({ text: osf, name: 'crane.osf', path: '/tmp/crane.osf' });
+
+      await expect(useWorkspaceStore.getState().openProject(fileService)).resolves.toBe(true);
+
+      expect(bpMocks.loadOristudioBpProjectFromText).toHaveBeenCalledWith(
+        '{"title":"Crane"}',
+        expect.objectContaining({ format: 'bps' })
+      );
+      const state = useWorkspaceStore.getState();
+      expect(state.oristudioBpDocument).not.toBeNull();
+      expect(state.workflowTarget).toBe('box-pleat');
+      // The companion crease pattern is restored onto the Edit canvas.
+      expect(state.oristudioCpDocument).not.toBeNull();
+    });
+  });
+
+  describe('design method chooser', () => {
+    it('startNewDesign enters the Design workspace on the chooser without a document', () => {
+      useWorkspaceStore.getState().startNewDesign();
+
+      expect(useWorkspaceStore.getState().pendingDesignChoice).toBe(true);
+      expect(useLayoutStore.getState().activeWorkspace).toBe('design');
+    });
+
+    it('choosing Box-pleated sets the method and clears the chooser', async () => {
+      useWorkspaceStore.getState().startNewDesign();
+
+      await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
+
+      const state = useWorkspaceStore.getState();
+      expect(state.workflowTarget).toBe('box-pleat');
+      expect(state.pendingDesignChoice).toBe(false);
+      expect(state.oristudioBpDocument).not.toBeNull();
+      expect(bpMocks.loadOristudioBpProjectFromText).toHaveBeenCalledOnce();
+    });
+
+    it('preserves the always-live Edit canvas when choosing a design method', async () => {
+      useWorkspaceStore.setState({ engineReady: true, status: 'ready' });
+      const editCp = editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]);
+      useWorkspaceStore.setState({ oristudioCpDocument: editCp });
+      useWorkspaceStore.getState().startNewDesign();
+
+      // Circle-packed: establishes a tree without touching the Edit canvas.
+      await useWorkspaceStore.getState().chooseDesignMethod('treemaker');
+      expect(useWorkspaceStore.getState().workflowTarget).toBe('treemaker');
+      expect(useWorkspaceStore.getState().pendingDesignChoice).toBe(false);
+      expect(useWorkspaceStore.getState().oristudioCpDocument).toBe(editCp);
+      // The CP wasm handle must not be released, or the kept document is dead.
+      expect(oristudioCpMocks.releaseOristudioCpDocument).not.toHaveBeenCalled();
+
+      // Box-pleated: same guarantee via the BP creation path.
+      useWorkspaceStore.getState().startNewDesign();
+      await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
+      expect(useWorkspaceStore.getState().oristudioBpDocument).not.toBeNull();
+      expect(useWorkspaceStore.getState().oristudioCpDocument).toBe(editCp);
+      expect(oristudioCpMocks.releaseOristudioCpDocument).not.toHaveBeenCalled();
+    });
+
+    it('choosing Circle-packed creates a TreeMaker design and clears the chooser', async () => {
+      useWorkspaceStore.setState({ engineReady: true, status: 'ready' });
+      useWorkspaceStore.getState().startNewDesign();
+
+      await useWorkspaceStore.getState().chooseDesignMethod('treemaker');
+
+      const state = useWorkspaceStore.getState();
+      expect(state.workflowTarget).toBe('treemaker');
+      expect(state.pendingDesignChoice).toBe(false);
+    });
+
+    it('creating a TreeMaker project after a Box-pleat design resets the method', async () => {
+      useWorkspaceStore.setState({ engineReady: true, status: 'ready' });
+      useWorkspaceStore.getState().startNewDesign();
+      await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
+      expect(useWorkspaceStore.getState().workflowTarget).toBe('box-pleat');
+      expect(useWorkspaceStore.getState().oristudioBpDocument).not.toBeNull();
+
+      // Skip the discard confirmation this test isn't exercising.
+      useWorkspaceStore.setState({ dirty: false });
+      await useWorkspaceStore.getState().createNewProject();
+
+      expect(useWorkspaceStore.getState().workflowTarget).toBe('treemaker');
+      expect(useWorkspaceStore.getState().pendingDesignChoice).toBe(false);
+      expect(useWorkspaceStore.getState().oristudioBpDocument).toBeNull();
+    });
+
+    it('opening a file clears a pending design choice', async () => {
+      useWorkspaceStore.getState().startNewDesign();
+      expect(useWorkspaceStore.getState().pendingDesignChoice).toBe(true);
+
+      await useWorkspaceStore.getState().loadProjectText('native tree tmd5', {
+        filename: 'sample.osf',
+      });
+
+      expect(useWorkspaceStore.getState().pendingDesignChoice).toBe(false);
     });
   });
 });

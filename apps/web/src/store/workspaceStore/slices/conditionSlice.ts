@@ -19,13 +19,12 @@ export const createConditionSlice: WorkspaceSliceCreator<ConditionSlice> = (set,
   function staleTreeDerivedArtifacts() {
     return {
       ...staleFoldArtifactResourceState(get().foldArtifactRevision),
-      activeEditingSurface: 'tree' as const,
       oristudioCpLineage: markGeneratedCpLineageStale(get().oristudioCpLineage),
     };
   }
 
   function rejectReadOnly() {
-    if (get().documentMode === 'tree') return false;
+    if (!get().importedCreasePattern) return false;
     set({
       error: {
         code: 'invalid_operation',

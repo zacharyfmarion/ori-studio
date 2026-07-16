@@ -1,0 +1,153 @@
+{
+	"name": "Box Pleating Studio",
+	"short_name": "BP Studio",
+	"id": "/",
+	"start_url": "/",
+	"scope": "/",
+	"display": "standalone",
+	"theme_color": "#007bff",
+	"background_color": "#fff",
+	"orientation": "any",
+	"description": "Super-complex origami design made easy!",
+	"categories": [
+		"education",
+		"entertainment",
+		"productivity"
+	],
+	"icons": [
+		{
+			"src": "assets/icon/icon-512.png",
+			"type": "image/png",
+			"sizes": "512x512"
+		},
+		{
+			"src": "assets/icon/icon-192.png",
+			"type": "image/png",
+			"sizes": "192x192"
+		},
+		{
+			"src": "assets/icon/icon-96.png",
+			"type": "image/png",
+			"sizes": "96x96"
+		},
+		{
+			"src": "assets/icon/icon-32.png",
+			"type": "image/png",
+			"sizes": "32x32"
+		},
+		{
+			"src": "assets/icon/icon-16.png",
+			"type": "image/png",
+			"sizes": "16x16"
+		}
+	],
+	"user_preferences": {
+		"color_scheme": {
+			"dark": {
+				"theme_color": "#007bff",
+				"background_color": "#1e1e1e"
+			},
+			"light": {
+				"theme_color": "#007bff",
+				"background_color": "#fff"
+			}
+		}
+	},
+	"theme_colors": [
+		{
+			"color": "#007bff",
+			"media": "(prefers-color-scheme: dark)"
+		}
+	],
+	"background_colors": [
+		{
+			"color": "#1e1e1e",
+			"media": "(prefers-color-scheme: dark)"
+		}
+	],
+	"related_applications": [
+		{
+			"platform": "webapp",
+			"url": "https://bpstudio.abstreamace.com/manifest.json"
+		}
+	],
+	"url_handlers": [
+		{
+			"origin": "https://bpstudio.abstreamace.com"
+		}
+	],
+	"launch_handler": {
+		"route_to": "existing-client-retain",
+		"client_mode": "focus-existing"
+	},
+	"file_handlers": [
+		{
+			"action": "/",
+			"name": "BP Studio Project",
+			"accept": {
+				"application/bpstudio.project+json": ".bps"
+			},
+			"icons": [
+				{
+					"src": "assets/icon/file-512.png",
+					"type": "image/png",
+					"sizes": "512x512"
+				},
+				{
+					"src": "assets/icon/file-192.png",
+					"type": "image/png",
+					"sizes": "192x192"
+				},
+				{
+					"src": "assets/icon/file-96.png",
+					"type": "image/png",
+					"sizes": "96x96"
+				},
+				{
+					"src": "assets/icon/file-32.png",
+					"type": "image/png",
+					"sizes": "32x32"
+				},
+				{
+					"src": "assets/icon/file-16.png",
+					"type": "image/png",
+					"sizes": "16x16"
+				}
+			]
+		},
+		{
+			"action": "/",
+			"name": "BP Studio Workspace",
+			"accept": {
+				"application/bpstudio.workspace+zip": ".bpz"
+			},
+			"icons": [
+				{
+					"src": "assets/icon/file-512.png",
+					"type": "image/png",
+					"sizes": "512x512"
+				},
+				{
+					"src": "assets/icon/file-192.png",
+					"type": "image/png",
+					"sizes": "192x192"
+				},
+				{
+					"src": "assets/icon/file-96.png",
+					"type": "image/png",
+					"sizes": "96x96"
+				},
+				{
+					"src": "assets/icon/file-32.png",
+					"type": "image/png",
+					"sizes": "32x32"
+				},
+				{
+					"src": "assets/icon/file-16.png",
+					"type": "image/png",
+					"sizes": "16x16"
+				}
+			]
+		}
+	]
+}

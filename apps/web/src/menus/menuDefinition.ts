@@ -77,6 +77,7 @@ export function getMenuBarDef(
             { type: 'separator' },
             { type: 'action', id: 'file.exportCp', label: 'Export CP...' },
             { type: 'action', id: 'file.exportFold', label: 'Export FOLD...' },
+            { type: 'action', id: 'file.exportBps', label: 'Export .bps...' },
             { type: 'action', id: 'file.exportOri', label: 'Export ORI...' },
             { type: 'action', id: 'file.exportOrh', label: 'Export ORH...' },
             { type: 'separator' },

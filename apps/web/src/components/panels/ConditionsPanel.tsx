@@ -28,7 +28,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/Tooltip';
 
 export function ConditionsPanel() {
   const project = useWorkspaceStore((state) => state.project);
-  const documentMode = useWorkspaceStore((state) => state.documentMode);
+  const importedCreasePattern = useWorkspaceStore((state) => state.importedCreasePattern);
   const selection = useWorkspaceStore((state) => state.selection);
   const select = useWorkspaceStore((state) => state.select);
   const updatePaper = useWorkspaceStore((state) => state.updatePaper);
@@ -68,7 +68,7 @@ export function ConditionsPanel() {
     void addCondition(kind);
   };
 
-  if (documentMode === 'crease-pattern') {
+  if (importedCreasePattern) {
     return (
       <section className="panel-shell conditions-panel">
         <div className="panel-body document-mode-empty">

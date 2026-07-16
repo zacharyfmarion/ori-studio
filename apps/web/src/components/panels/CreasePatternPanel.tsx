@@ -858,9 +858,15 @@ export function CreasePatternPanel() {
   const project = useWorkspaceStore((state) => state.project);
   const status = useWorkspaceStore((state) => state.status);
   const error = useWorkspaceStore((state) => state.error);
-  const documentMode = useWorkspaceStore((state) => state.documentMode);
   const importedCreasePattern = useWorkspaceStore((state) => state.importedCreasePattern);
+  const activeEditingContext = useWorkspaceStore((state) => state.activeEditingContext);
   const oristudioCpDocument = useWorkspaceStore((state) => state.oristudioCpDocument);
+  const ensureEditCreasePattern = useWorkspaceStore((state) => state.ensureEditCreasePattern);
+  // Always-live canvas: seed a blank editable CP when the Edit workspace mounts
+  // with no crease pattern (fresh app, or after a design reset cleared it).
+  useEffect(() => {
+    if (!oristudioCpDocument) void ensureEditCreasePattern();
+  }, [oristudioCpDocument, ensureEditCreasePattern]);
   const oristudioCpCamvResult = useWorkspaceStore((state) => state.oristudioCpCamvResult);
   const oristudioCpSelection = useWorkspaceStore((state) => state.oristudioCpSelection);
   const oristudioCpActionRequest = useWorkspaceStore((state) => state.oristudioCpActionRequest);
@@ -877,7 +883,6 @@ export function CreasePatternPanel() {
   // color-by toggle has been removed from the CP panel header.
   const mode = 'mvf' as const;
   const currentTheme = useThemeStore((state) => state.currentTheme);
-  const setActiveEditingSurface = useWorkspaceStore((state) => state.setActiveEditingSurface);
   const toggleOristudioCpLineSelection = useWorkspaceStore(
     (state) => state.toggleOristudioCpLineSelection
   );
@@ -2295,7 +2300,7 @@ export function CreasePatternPanel() {
         ? 'Optimizing scale'
         : status === 'error' && error
           ? shortStatus(error.message)
-          : documentMode === 'crease-pattern'
+          : activeEditingContext === 'crease-pattern'
             ? 'No imported crease pattern'
             : 'No crease pattern';
   // The zoom-preset dropdown passes a scale (preset/100); the owned camera takes a percent.
@@ -2448,7 +2453,6 @@ export function CreasePatternPanel() {
         tabIndex={-1}
         onPointerDownCapture={(event) => {
           setActiveShortcutViewportSurface('crease-pattern');
-          if (editableCp) setActiveEditingSurface('crease-pattern');
           if (!isViewportInteractiveTarget(event.target)) containerRef.current?.focus();
         }}
       >
