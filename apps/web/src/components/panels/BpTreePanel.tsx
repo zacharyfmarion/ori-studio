@@ -31,7 +31,15 @@ import {
 } from '../../lib/bpTreeViewport';
 import { formatNumber, type Point } from '../../lib/geometry';
 import { rotatePointsAround, translatePoints, unitLeafLocation } from '../../lib/bpTreeAuthoring';
-import { bpTreeSymmetryDefaultLoc } from '../../lib/bpTreeSymmetry';
+import {
+  bpTreeSymmetryDefaultLoc,
+  mirrorBpTreeVertexId,
+  BP_TREE_SYMMETRY_TOLERANCE,
+} from '../../lib/bpTreeSymmetry';
+import {
+  reflectPointAcrossSymmetryAxis,
+  snapPointToSymmetryAxis,
+} from '../../lib/symmetryGeometry';
 import { type BpTreeViewLayerKey, type BpTreeViewLayers } from '../../lib/oristudioBpViewportSettings';
 import {
   clientPointToDesignWorld,
@@ -343,6 +351,19 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     [tree]
   );
 
+  // Convert a target screen-pixel size into SVG units at the current zoom, so
+  // dots/labels keep a constant on-screen size regardless of zoom.
+  const svgPerScreenPx = Math.max(0.02, zoomPercent / 100);
+  const chromePx = (px: number) => px / svgPerScreenPx;
+  const findVertex = useCallback(
+    (id: number) => tree.vertices.find((vertex) => vertex.id === id),
+    [tree.vertices]
+  );
+  const displayLoc = useCallback(
+    (id: number, loc: Point) => vertexLocations?.get(id) ?? loc,
+    [vertexLocations]
+  );
+
   // --- Symmetry (mirror-draw) -------------------------------------------------
   // A tree isn't drawn on the paper, so there's nothing to orient a mirror line
   // against — symmetry is a plain on/off toggle with a vertical axis (angle 90,
@@ -402,18 +423,55 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     return { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y };
   }, [symmetry.enabled, symmetry.angle, symmetry.loc, tree.sheet, paperRect]);
 
-  // Convert a target screen-pixel size into SVG units at the current zoom, so
-  // dots/labels keep a constant on-screen size regardless of zoom.
-  const svgPerScreenPx = Math.max(0.02, zoomPercent / 100);
-  const chromePx = (px: number) => px / svgPerScreenPx;
-  const findVertex = useCallback(
-    (id: number) => tree.vertices.find((vertex) => vertex.id === id),
-    [tree.vertices]
-  );
-  const displayLoc = useCallback(
-    (id: number, loc: Point) => vertexLocations?.get(id) ?? loc,
-    [vertexLocations]
-  );
+  // Ghost preview of the leaf a click would add (and its mirror), mirroring what
+  // addOristudioBpTreeLeafWithSymmetry will do: an on-axis tip is a single centred
+  // leaf; otherwise it reflects onto the parent's mirror.
+  const symmetryHoverPreview = useMemo(() => {
+    if (!symmetry.enabled || dragging || !hoverPoint) return null;
+    const parentId = selectedVertexId ?? tree.rootVertexId;
+    if (parentId === null) return null;
+    const parent = findVertex(parentId);
+    if (!parent) return null;
+    const axis = { loc: symmetry.loc, angle: symmetry.angle };
+    const axisTolerance = SYMMETRY_AXIS_BAND_SVG / 2 / bpTreeUnitToSvg(tree.sheet, paperRect);
+    const tip = constrainBpTreePoint(unitLeafLocation(parent.loc, hoverPoint), tree.sheet);
+    const snap = snapPointToSymmetryAxis(tip, axis, axisTolerance);
+    const primaryTip = snap.point;
+    let mirror: { from: Point; to: Point } | null = null;
+    let unresolved = false;
+    if (!snap.snapped) {
+      const mirrorParentId = mirrorBpTreeVertexId(
+        tree,
+        symmetry.pairs,
+        axis,
+        parentId,
+        BP_TREE_SYMMETRY_TOLERANCE
+      );
+      const mirrorParent = mirrorParentId != null ? findVertex(mirrorParentId) : undefined;
+      if (mirrorParent) {
+        mirror = { from: mirrorParent.loc, to: reflectPointAcrossSymmetryAxis(primaryTip, axis) };
+      } else {
+        unresolved = true;
+      }
+    }
+    return {
+      primary: { from: parent.loc, to: primaryTip },
+      mirror,
+      snapped: snap.snapped,
+      unresolved,
+    };
+  }, [
+    symmetry.enabled,
+    symmetry.loc,
+    symmetry.angle,
+    symmetry.pairs,
+    dragging,
+    hoverPoint,
+    selectedVertexId,
+    tree,
+    paperRect,
+    findVertex,
+  ]);
 
   // Set an edge's length and keep the tree length-faithful: re-place the child
   // vertex at `length` units from its parent along the current direction, and
@@ -808,6 +866,57 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
                   y2={symmetryAxisLine.y2}
                 />
               </>
+            )}
+            {symmetryHoverPreview && (
+              <g className="symmetry-ghost">
+                {(() => {
+                  const from = bpTreePointToSvg(symmetryHoverPreview.primary.from, tree.sheet, paperRect);
+                  const to = bpTreePointToSvg(symmetryHoverPreview.primary.to, tree.sheet, paperRect);
+                  return (
+                    <>
+                      <line
+                        className={[
+                          'symmetry-ghost-edge',
+                          symmetryHoverPreview.unresolved ? 'symmetry-ghost-edge--unresolved' : '',
+                        ].join(' ')}
+                        x1={from.x}
+                        y1={from.y}
+                        x2={to.x}
+                        y2={to.y}
+                      />
+                      <circle
+                        className="symmetry-ghost-node"
+                        data-snapped={symmetryHoverPreview.snapped || undefined}
+                        cx={to.x}
+                        cy={to.y}
+                        r={chromePx(LEAF_DOT_PX)}
+                      />
+                    </>
+                  );
+                })()}
+                {symmetryHoverPreview.mirror &&
+                  (() => {
+                    const from = bpTreePointToSvg(symmetryHoverPreview.mirror.from, tree.sheet, paperRect);
+                    const to = bpTreePointToSvg(symmetryHoverPreview.mirror.to, tree.sheet, paperRect);
+                    return (
+                      <>
+                        <line
+                          className="symmetry-ghost-edge"
+                          x1={from.x}
+                          y1={from.y}
+                          x2={to.x}
+                          y2={to.y}
+                        />
+                        <circle
+                          className="symmetry-ghost-node"
+                          cx={to.x}
+                          cy={to.y}
+                          r={chromePx(LEAF_DOT_PX)}
+                        />
+                      </>
+                    );
+                  })()}
+              </g>
             )}
             {tree.edges.map((edge) => {
               const a = findVertex(edge.vertices[0]);

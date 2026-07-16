@@ -167,9 +167,10 @@ Store actions to add (mirroring `editingSlice`):
 ## 5. Phased implementation
 
 > **Progress:** Phases 1–5 landed (geometry extraction, BP adapter + tests, store
-> state + paired mutations, tool menu + axis overlay, add/drag wiring, shared menu
-> CSS). Deferred to a follow-up: the **mirror hover ghost** (Phase 5's preview) and
-> Phase 6 polish (empty-state, custom-angle field). Needs browser verification.
+> state + paired mutations, tool toggle + axis overlay, add/drag wiring, mirror hover
+> ghost). The menu was later simplified to a single on/off toggle with a fixed
+> vertical axis (no paper to orient against in the tree view), so the preset/custom
+> controls are intentionally gone. Remaining: Phase 6 polish only. Needs browser check.
 
 
 1. **Geometry extraction (D1).** Move pure fns to `symmetryGeometry.ts`, re-export
