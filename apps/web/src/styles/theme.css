@@ -4649,6 +4649,129 @@
   outline-offset: 1px;
 }
 
+/* Symmetry (mirror-draw) menu — shared by the Design tree and the BP tree panels. */
+.viewport-toolbar__symmetry-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 8px;
+  appearance: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+
+.viewport-toolbar__symmetry-button:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.viewport-toolbar__symmetry-button[data-active] {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+}
+
+.symmetry-menu__panel {
+  min-width: 210px;
+  gap: 8px;
+  padding: 10px;
+}
+
+.symmetry-menu__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.symmetry-menu__header span:last-child {
+  font-weight: 400;
+  color: var(--text-tertiary);
+}
+
+.symmetry-menu__toggle-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.symmetry-menu__toggle-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 0.74rem;
+  color: var(--text-primary);
+}
+
+.symmetry-menu__toggle-copy small {
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
+}
+
+.symmetry-menu__section-label {
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+}
+
+.symmetry-menu__preset-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.symmetry-menu__preset {
+  padding: 5px 6px;
+  appearance: none;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.symmetry-menu__preset:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.symmetry-menu__preset[data-active] {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: var(--bg-primary);
+  font-weight: 600;
+}
+
+.symmetry-menu__item {
+  padding: 6px 8px;
+  appearance: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.symmetry-menu__item:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+
+.symmetry-menu__item:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .design-layer-option__icon {
   display: inline-flex;
   color: var(--text-tertiary);

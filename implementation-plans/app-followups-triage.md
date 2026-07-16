@@ -286,7 +286,7 @@ node on one side → mirrored node appears; move it → pair follows.
 | 4b | Segment button styling | 🟢 | ✅ done | `appearance/border/background` reset |
 | 4a | Diagonal grid parity | 🔴 | ✅ done | Rotated-diamond render model (needs visual check) |
 | 3 | Angle-restricted line drag | 🟡 | ✅ done | Bespoke 'angle-drag' mode, kernel-previewed snap |
-| 5 | BP-tree symmetry | 🔴 | todo | Feature port from DesignPanel |
+| 5 | BP-tree symmetry | 🔴 | ✅ core done | Presets + mirror add/drag + axis; see bp-tree-symmetry-draw.md (hover ghost deferred) |
 
 Land the three 🟢 items together as a quick pass, then tackle 3, then the two
 feature-sized BP items on their own branches. Both prior open questions are now

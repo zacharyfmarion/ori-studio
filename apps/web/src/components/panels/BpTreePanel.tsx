@@ -10,7 +10,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import { TransformComponent, TransformWrapper, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
-import { Circle, Grid2X2, Layers, Minus, Plus, Tag, Waypoints } from 'lucide-react';
+import { Circle, FlipHorizontal2, Grid2X2, Layers, Minus, Plus, Tag, Waypoints } from 'lucide-react';
 import type {
   OristudioBpDocumentState,
   OristudioBpTreeEdge,
@@ -31,6 +31,16 @@ import {
 } from '../../lib/bpTreeViewport';
 import { formatNumber, type Point } from '../../lib/geometry';
 import { rotatePointsAround, translatePoints, unitLeafLocation } from '../../lib/bpTreeAuthoring';
+import { bpTreeSymmetryDefaultLoc } from '../../lib/bpTreeSymmetry';
+import {
+  nextSymmetryOption,
+  symmetryOptionForAngle,
+  symmetryOptionForPreset,
+  symmetrySelectValueForState,
+  type SymmetryPreset,
+  type SymmetrySelectValue,
+} from '../../lib/symmetryPresets';
+import { Toggle } from '../ui/Toggle';
 import { type BpTreeViewLayerKey, type BpTreeViewLayers } from '../../lib/oristudioBpViewportSettings';
 import {
   clientPointToDesignWorld,
@@ -68,10 +78,116 @@ const NODE_DOT_PX = 5;
 const LEAF_DOT_PX = 4;
 const NODE_LABEL_PX = 12;
 
+/**
+ * Mirror-draw controls for the BP tree, reusing the shared `symmetry-menu` styling.
+ * Enabling turns on the axis + paired add/drag; presets pick book/diagonal and Flip
+ * cycles the variant. Ephemeral — state lives in the store, never in the document.
+ */
+function BpTreeSymmetryMenu({
+  symmetryMode,
+  enabled,
+  onEnabledChange,
+  onPreset,
+  onFlip,
+}: {
+  symmetryMode: SymmetrySelectValue;
+  enabled: boolean;
+  onEnabledChange: (enabled: boolean) => void;
+  onPreset: (preset: SymmetryPreset) => void;
+  onFlip: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const canFlip = symmetryMode === 'book' || symmetryMode === 'diagonal';
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onPointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (menuRef.current?.contains(target)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, [open]);
+
+  return (
+    <div className="viewport-toolbar__menu-anchor design-symmetry-menu" ref={menuRef}>
+      <button
+        type="button"
+        className="viewport-toolbar__symmetry-button"
+        data-active={enabled ? true : undefined}
+        aria-label="Tree symmetry"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <FlipHorizontal2 size={14} />
+        <span>{enabled ? 'Mirror' : 'Symmetry'}</span>
+      </button>
+      {open && (
+        <div
+          className="viewport-toolbar__dropdown symmetry-menu__panel"
+          role="menu"
+          aria-label="Tree symmetry controls"
+        >
+          <div className="symmetry-menu__header">
+            <span>Symmetry</span>
+            <span>{enabled ? 'Mirroring' : 'Off'}</span>
+          </div>
+          <div className="symmetry-menu__toggle-row">
+            <div className="symmetry-menu__toggle-copy">
+              <span>Mirror draw</span>
+              <small>Reflect new leaves and drags</small>
+            </div>
+            <Toggle
+              checked={enabled}
+              onChange={onEnabledChange}
+              aria-label="Enable tree mirror draw"
+            />
+          </div>
+          <div className="symmetry-menu__section-label">Preset</div>
+          <div className="symmetry-menu__preset-grid">
+            <button
+              type="button"
+              className="symmetry-menu__preset"
+              data-active={symmetryMode === 'book' ? true : undefined}
+              onClick={() => onPreset('book')}
+            >
+              Book
+            </button>
+            <button
+              type="button"
+              className="symmetry-menu__preset"
+              data-active={symmetryMode === 'diagonal' ? true : undefined}
+              onClick={() => onPreset('diagonal')}
+            >
+              Diag
+            </button>
+          </div>
+          <button
+            type="button"
+            className="symmetry-menu__item"
+            disabled={!canFlip}
+            onClick={onFlip}
+          >
+            Flip axis
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function BpTreeViewportToolbar({
   zoomPercent,
   layers,
   onLayerChange,
+  symmetryMode,
+  symmetryEnabled,
+  onSymmetryEnabledChange,
+  onSymmetryPreset,
+  onFlipSymmetry,
   zoomIn,
   zoomOut,
   fitToView,
@@ -80,6 +196,11 @@ function BpTreeViewportToolbar({
   zoomPercent: number;
   layers: BpTreeViewLayers;
   onLayerChange: (layer: BpTreeViewLayerKey, visible: boolean) => void;
+  symmetryMode: SymmetrySelectValue;
+  symmetryEnabled: boolean;
+  onSymmetryEnabledChange: (enabled: boolean) => void;
+  onSymmetryPreset: (preset: SymmetryPreset) => void;
+  onFlipSymmetry: () => void;
   zoomIn: () => void;
   zoomOut: () => void;
   fitToView: () => void;
@@ -108,6 +229,14 @@ function BpTreeViewportToolbar({
       fitToView={fitToView}
       setZoomLevel={setZoomLevel}
     >
+      <ViewportToolbarSeparator />
+      <BpTreeSymmetryMenu
+        symmetryMode={symmetryMode}
+        enabled={symmetryEnabled}
+        onEnabledChange={onSymmetryEnabledChange}
+        onPreset={onSymmetryPreset}
+        onFlip={onFlipSymmetry}
+      />
       <ViewportToolbarSeparator />
       <div className="viewport-toolbar__menu-anchor" ref={layersMenuRef}>
         <IconButton
@@ -250,6 +379,14 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
   const setOristudioBpActiveSurface = useWorkspaceStore(
     (state) => state.setOristudioBpActiveSurface
   );
+  const symmetry = useWorkspaceStore((state) => state.oristudioBpSymmetry);
+  const setOristudioBpSymmetry = useWorkspaceStore((state) => state.setOristudioBpSymmetry);
+  const addOristudioBpTreeLeafWithSymmetry = useWorkspaceStore(
+    (state) => state.addOristudioBpTreeLeafWithSymmetry
+  );
+  const moveOristudioBpTreeVerticesWithSymmetry = useWorkspaceStore(
+    (state) => state.moveOristudioBpTreeVerticesWithSymmetry
+  );
   const tree = document.snapshot.tree;
   const selectedVertexId = document.selection.kind === 'bp-vertex' ? document.selection.id : null;
   // The edge selected by clicking a tree segment — drives the length editor.
@@ -314,6 +451,90 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     () => getBpTreeWorldRect(tree, { contentOnly: true, padding: 12 }),
     [tree]
   );
+
+  // --- Symmetry (mirror-draw) -------------------------------------------------
+  const symmetryMode = useMemo(
+    () =>
+      symmetrySelectValueForState({
+        hasSymmetry: symmetry.enabled,
+        symAngle: symmetry.angle,
+        symLoc: symmetry.loc,
+        paperWidth: tree.sheet.width,
+        paperHeight: tree.sheet.height,
+      }),
+    [symmetry.enabled, symmetry.angle, symmetry.loc, tree.sheet.width, tree.sheet.height]
+  );
+  const handleToggleSymmetry = useCallback(
+    (enabled: boolean) => {
+      if (!enabled) {
+        setOristudioBpSymmetry({ enabled: false });
+        return;
+      }
+      // Enabling centres the axis on the sheet and keeps the nearest preset angle.
+      setOristudioBpSymmetry({
+        enabled: true,
+        loc: bpTreeSymmetryDefaultLoc(tree.sheet),
+        angle: symmetryOptionForAngle(symmetry.angle).angle,
+      });
+    },
+    [setOristudioBpSymmetry, tree.sheet, symmetry.angle]
+  );
+  const handleSymmetryPreset = useCallback(
+    (preset: SymmetryPreset) => {
+      setOristudioBpSymmetry({
+        enabled: true,
+        loc: bpTreeSymmetryDefaultLoc(tree.sheet),
+        angle: symmetryOptionForPreset(preset, symmetry.angle).angle,
+      });
+    },
+    [setOristudioBpSymmetry, tree.sheet, symmetry.angle]
+  );
+  const handleFlipSymmetry = useCallback(() => {
+    setOristudioBpSymmetry({ angle: nextSymmetryOption(symmetryOptionForAngle(symmetry.angle)).angle });
+  }, [setOristudioBpSymmetry, symmetry.angle]);
+
+  // The mirror line clipped to the sheet, in SVG coords.
+  const symmetryAxisLine = useMemo(() => {
+    if (!symmetry.enabled) return null;
+    const w = Math.max(1, tree.sheet.width);
+    const h = Math.max(1, tree.sheet.height);
+    const rad = (symmetry.angle * Math.PI) / 180;
+    const dir = { x: Math.cos(rad), y: Math.sin(rad) };
+    const hits: Point[] = [];
+    const push = (p: Point) => {
+      if (p.x >= -1e-6 && p.x <= w + 1e-6 && p.y >= -1e-6 && p.y <= h + 1e-6) hits.push(p);
+    };
+    if (Math.abs(dir.x) > 1e-9) {
+      for (const bx of [0, w]) {
+        const t = (bx - symmetry.loc.x) / dir.x;
+        push({ x: bx, y: symmetry.loc.y + t * dir.y });
+      }
+    }
+    if (Math.abs(dir.y) > 1e-9) {
+      for (const by of [0, h]) {
+        const t = (by - symmetry.loc.y) / dir.y;
+        push({ x: symmetry.loc.x + t * dir.x, y: by });
+      }
+    }
+    if (hits.length < 2) return null;
+    // Take the two most distant intersection points.
+    let a = hits[0];
+    let b = hits[1];
+    let best = -1;
+    for (let i = 0; i < hits.length; i += 1) {
+      for (let j = i + 1; j < hits.length; j += 1) {
+        const d = Math.hypot(hits[i].x - hits[j].x, hits[i].y - hits[j].y);
+        if (d > best) {
+          best = d;
+          a = hits[i];
+          b = hits[j];
+        }
+      }
+    }
+    const p1 = bpTreePointToSvg(a, tree.sheet, paperRect);
+    const p2 = bpTreePointToSvg(b, tree.sheet, paperRect);
+    return { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y };
+  }, [symmetry.enabled, symmetry.angle, symmetry.loc, tree.sheet, paperRect]);
 
   // Convert a target screen-pixel size into SVG units at the current zoom, so
   // dots/labels keep a constant on-screen size regardless of zoom.
@@ -531,7 +752,8 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     const parent = findVertex(parentId);
     if (!parent) return;
     const loc = constrainBpTreePoint(unitLeafLocation(parent.loc, down.point), tree.sheet);
-    void addOristudioBpTreeLeaf(parentId, loc);
+    if (symmetry.enabled) void addOristudioBpTreeLeafWithSymmetry(parentId, loc);
+    else void addOristudioBpTreeLeaf(parentId, loc);
   };
 
   const onEdgePointerDown = (event: PointerEvent<SVGGElement>, edgeId: number) => {
@@ -637,7 +859,8 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     setDragging(null);
     if (moved && preview.size > 0) {
       const updates = [...preview.entries()].map(([id, loc]) => ({ id, loc }));
-      void moveOristudioBpTreeVertices(updates, false);
+      if (symmetry.enabled) void moveOristudioBpTreeVerticesWithSymmetry(updates, false);
+      else void moveOristudioBpTreeVertices(updates, false);
     }
   };
 
@@ -697,6 +920,24 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
             onPointerMove={onCanvasPointerMove}
             onPointerLeave={() => setHoverPoint(null)}
           >
+            {symmetryAxisLine && (
+              <>
+                <line
+                  className="symmetry-snap-lane"
+                  x1={symmetryAxisLine.x1}
+                  y1={symmetryAxisLine.y1}
+                  x2={symmetryAxisLine.x2}
+                  y2={symmetryAxisLine.y2}
+                />
+                <line
+                  className="symmetry-line"
+                  x1={symmetryAxisLine.x1}
+                  y1={symmetryAxisLine.y1}
+                  x2={symmetryAxisLine.x2}
+                  y2={symmetryAxisLine.y2}
+                />
+              </>
+            )}
             {tree.edges.map((edge) => {
               const a = findVertex(edge.vertices[0]);
               const b = findVertex(edge.vertices[1]);
@@ -788,6 +1029,11 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
         zoomPercent={zoomPercent}
         layers={layers}
         onLayerChange={setLayer}
+        symmetryMode={symmetryMode}
+        symmetryEnabled={symmetry.enabled}
+        onSymmetryEnabledChange={handleToggleSymmetry}
+        onSymmetryPreset={handleSymmetryPreset}
+        onFlipSymmetry={handleFlipSymmetry}
         zoomIn={() => transformRef.current?.zoomIn(0.35, 120)}
         zoomOut={() => transformRef.current?.zoomOut(0.35, 120)}
         fitToView={() => fitToView()}
