@@ -208,7 +208,7 @@ export function CpImageOverlay({
             key={image.id}
             points={points}
             fill="transparent"
-            stroke={isSelected ? 'var(--accent, #4c9aff)' : 'transparent'}
+            stroke={isSelected ? 'var(--accent-primary, #4c9aff)' : 'transparent'}
             strokeWidth={isSelected ? 1.5 : 0}
             style={{
               pointerEvents: interactive && !image.locked ? 'auto' : 'none',
@@ -292,7 +292,7 @@ function SelectionHandles({
             cy={at.y}
             r={HANDLE_SIZE_PX / 2 + 1}
             fill="var(--bg-primary, #202430)"
-            stroke="var(--accent, #4c9aff)"
+            stroke="var(--accent-primary, #4c9aff)"
             strokeWidth={1.5}
             style={{ pointerEvents: 'auto', cursor: 'grab', vectorEffect: 'non-scaling-stroke' }}
             onPointerDown={(event) => onRotateDown(event, image)}
@@ -309,7 +309,7 @@ function SelectionHandles({
           width={HANDLE_SIZE_PX}
           height={HANDLE_SIZE_PX}
           fill="var(--bg-primary, #202430)"
-          stroke="var(--accent, #4c9aff)"
+          stroke="var(--accent-primary, #4c9aff)"
           strokeWidth={1.5}
           style={{ pointerEvents: 'auto', cursor: 'pointer', vectorEffect: 'non-scaling-stroke' }}
           onPointerDown={(event) => onResizeDown(event, image, handle)}
