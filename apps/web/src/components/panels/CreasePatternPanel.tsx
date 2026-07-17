@@ -1075,6 +1075,13 @@ export function CreasePatternPanel() {
   );
   const oristudioCpViewport = useWorkspaceStore((state) => state.oristudioCpViewport);
   const projectLoadId = useWorkspaceStore((state) => state.projectLoadId);
+  // Opening (or creating) a document enters Images edit mode iff it carries
+  // reference images, so a saved file's images are immediately selectable and
+  // editable — matching a fresh drop, which also enters the mode. A plain crease
+  // document exits it. Keyed on projectLoadId (bumped by every open/new).
+  useEffect(() => {
+    setImageEditMode(useWorkspaceStore.getState().oristudioCpImages.length > 0);
+  }, [projectLoadId]);
   // Crease lines always use Oriedita's default M/V/flat/border coloring; the
   // color-by toggle has been removed from the CP panel header.
   const mode = 'mvf' as const;

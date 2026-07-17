@@ -1643,6 +1643,57 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().foldArtifacts?.simulation_model).not.toBeNull();
   });
 
+  it('restores reference images from a native CP project', async () => {
+    resetStores(seedSnapshot());
+    loadSnapshotIntoStore(seedSnapshot());
+    const document = blankCpDocumentState().document;
+    const image = {
+      id: 'image-load-1',
+      src: 'data:image/png;base64,AAAA',
+      naturalWidth: 100,
+      naturalHeight: 80,
+      center: { x: 0.5, y: 0.5 },
+      width: 0.8,
+      height: 0.64,
+      rotation: 0,
+      crop: { x: 0, y: 0, w: 1, h: 1 },
+      opacity: 1,
+      locked: false,
+      hidden: false,
+      z: 1,
+    };
+    const nativeText = serializeNativeProjectFile(
+      createNativeCreasePatternProjectFile({
+        title: 'CP with image',
+        filename: 'imaged.cp',
+        path: null,
+        document,
+        source: null,
+        foldProjection: JSON.parse(editableCpFoldText) as FoldDocument,
+        foldArtifacts: null,
+        creaseColorMode: 'mvf',
+        selection: emptyOristudioCpSelection(),
+        viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+        foldedFigures: [],
+        activeFoldedFigureId: null,
+        lineage: importedCpLineage(),
+        images: [image],
+        appVersion: '0.1.1',
+        now: new Date('2026-05-26T12:00:00.000Z'),
+      })
+    );
+    const fileService = createFileService({
+      text: nativeText,
+      name: 'imaged.osf',
+      path: '/tmp/imaged.osf',
+    });
+
+    await expect(useWorkspaceStore.getState().openProject(fileService)).resolves.toBe(true);
+
+    expect(useWorkspaceStore.getState().oristudioCpImages).toEqual([image]);
+    expect(useWorkspaceStore.getState().oristudioCpSelectedImageId).toBeNull();
+  });
+
   it('loads CP-only documents and gates tree-only persistence', async () => {
     resetStores(seedSnapshot());
     loadSnapshotIntoStore(seedSnapshot());
