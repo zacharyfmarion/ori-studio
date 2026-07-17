@@ -5,7 +5,10 @@ import { workspaceForPanelId } from '../workspaces/workspaces';
 
 const LAYOUT_STORAGE_KEY = 'treemaker-web-layout';
 const LAYOUT_VERSION_KEY = 'treemaker-web-layout-version';
-const LAYOUT_VERSION = 14;
+// v15: workspace routing rebuilt the layout lifecycle; invalidate any layouts
+// persisted by the racy pre-routing/interim builds (e.g. a vertically stacked BP
+// split, an Edit layout missing the View pane).
+export const LAYOUT_VERSION = 15;
 
 /**
  * The Design workspace renders one of three layouts depending on the active

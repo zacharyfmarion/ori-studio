@@ -39,3 +39,27 @@ export function workspacePath(workspace: WorkspaceId, variant?: DesignLayoutVari
       return SIMULATE_PATH;
   }
 }
+
+/**
+ * Reverse of {@link workspacePath}: the workspace (and Design variant) a path
+ * targets, or null for a non-workspace path (e.g. `/welcome`). Lets the shell
+ * build the correct initial layout straight from the URL.
+ */
+export function parseWorkspacePath(
+  pathname: string
+): { workspace: WorkspaceId; variant?: DesignLayoutVariant } | null {
+  switch (pathname) {
+    case EDIT_PATH:
+      return { workspace: 'edit' };
+    case SIMULATE_PATH:
+      return { workspace: 'simulate' };
+    case DESIGN_PATH:
+      return { workspace: 'design', variant: 'nux' };
+    case DESIGN_TREEMAKER_PATH:
+      return { workspace: 'design', variant: 'treemaker' };
+    case DESIGN_BP_PATH:
+      return { workspace: 'design', variant: 'box-pleat' };
+    default:
+      return null;
+  }
+}

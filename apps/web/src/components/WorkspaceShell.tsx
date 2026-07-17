@@ -1,7 +1,8 @@
-import { useCallback, useEffect } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useRef } from 'react';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { DockviewDefaultTab, DockviewReact } from 'dockview';
 import type { DockviewReadyEvent, IDockviewPanelHeaderProps } from 'dockview';
+import 'dockview/dist/styles/dockview.css';
 import {
   Box,
   CircleHelp,
@@ -29,7 +30,7 @@ import { useSettingsStore } from '../store/settingsStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { deriveDesignVariant } from '../store/workspaceStore/designVariant';
 import { useWorkspaceCapabilities } from '../store/workspaceStore/useWorkspaceCapabilities';
-import { workspacePath } from '../routing/paths';
+import { parseWorkspacePath, workspacePath } from '../routing/paths';
 import { WORKSPACE_DEFINITIONS, type WorkspaceId } from '../workspaces/workspaces';
 
 const workspaceIcons: Record<WorkspaceId, typeof DraftingCompass> = {
@@ -218,6 +219,16 @@ export function WorkspaceShell() {
   const saveLayout = useLayoutStore((state) => state.saveLayout);
   const engineReady = useWorkspaceStore((state) => state.engineReady);
 
+  // The workspace/variant the URL targets at mount, captured in a ref so onReady
+  // (fired once by Dockview, possibly before the route effect runs) builds the
+  // right layout instead of the stale store default. onReady fires at mount, so
+  // the mount-time value is what it needs; later route changes rebuild via
+  // WorkspaceRoute without a fresh onReady.
+  const location = useLocation();
+  const targetRef = useRef(
+    parseWorkspacePath(location.pathname) ?? { workspace: 'design' as WorkspaceId }
+  );
+
   // Drop the disposed Dockview API when the shell unmounts (e.g. navigating to
   // /welcome) so a later remount doesn't operate on a dead handle.
   useEffect(() => () => setDockviewApi(null), [setDockviewApi]);
@@ -227,22 +238,30 @@ export function WorkspaceShell() {
       const { api } = event;
       setDockviewApi(api);
 
-      const activeWorkspace = useLayoutStore.getState().activeWorkspace;
+      // Build for the workspace the URL asks for, not the store default. Set the
+      // active workspace and (for Design) the variant first so the layout is
+      // built once, correctly, with no second rebuild churning the WebGL canvas.
+      const { workspace, variant } = targetRef.current;
+      if (workspace === 'design' && variant) {
+        useWorkspaceStore.getState().applyDesignRoute(variant);
+      }
+      useLayoutStore.setState({ activeWorkspace: workspace });
+
       let loaded = false;
-      const saved = loadLayout(activeWorkspace);
+      const saved = loadLayout(workspace);
       if (saved) {
         try {
           api.fromJSON(saved);
           loaded = true;
         } catch (error) {
           console.warn('Failed to restore layout', error);
-          localStorage.removeItem(`treemaker-web-layout:${activeWorkspace}`);
-          localStorage.removeItem(`treemaker-web-layout-version:${activeWorkspace}`);
+          localStorage.removeItem(`treemaker-web-layout:${workspace}`);
+          localStorage.removeItem(`treemaker-web-layout-version:${workspace}`);
         }
       }
 
       if (!loaded) {
-        applyDefaultLayout(api, activeWorkspace);
+        applyDefaultLayout(api, workspace);
       }
 
       // The active panel drives the active editing context (menus, history,
