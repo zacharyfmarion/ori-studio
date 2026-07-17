@@ -788,7 +788,7 @@ function FoldedFigureMenuButton({
               size="sm"
               variant="toolbar"
               title="Duplicate folded model"
-              disabled={!activeFigure?.handle}
+              disabled={activeFigure?.handle == null}
               onClick={() => onDuplicate()}
             >
               <Copy size={14} />

@@ -2451,6 +2451,52 @@ describe('workspace store slices', () => {
     );
   });
 
+  it('treats folded figure handle 0 as valid (wasm slot indices start at 0)', async () => {
+    // Regression: the first folded figure gets wasm handle 0, and truthy guards
+    // (`!figure.handle`) wrongly rejected it as "No folded model is ready", so
+    // every action except Delete failed on the first model.
+    resetStores(seedSnapshot());
+    const figure: OristudioCpFoldedFigureEntry = {
+      id: 'generated-1',
+      title: 'Folded model 1',
+      handle: 0,
+      sourceKind: 'generated-from-current-cp',
+      sourceCpRevision: 0,
+      startingFaceId: 1,
+      displayStyle: 'Paper5',
+      status: 'ready',
+      snapshot: foldedFigureSnapshot(),
+      renderSnapshot: foldedRenderSnapshot(),
+      error: null,
+    };
+    useWorkspaceStore.setState({
+      oristudioCpFoldedFigures: [figure],
+      oristudioCpActiveFoldedFigureId: figure.id,
+      oristudioCpError: null,
+    });
+
+    await useWorkspaceStore.getState().setOristudioCpFoldedFigureDisplayStyle(figure.id, 'Wire2');
+    expect(oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot).toHaveBeenCalledWith(
+      0,
+      'Wire2',
+      expect.anything()
+    );
+
+    await useWorkspaceStore.getState().updateOristudioCpFoldedFigureModel(figure.id, {
+      state: 'Back1',
+    });
+    expect(oristudioCpMocks.setOristudioCpFoldedFigureModel).toHaveBeenCalledWith(
+      0,
+      expect.objectContaining({ state: 'Back1' })
+    );
+
+    await useWorkspaceStore.getState().duplicateOristudioCpFoldedFigure(figure.id);
+    expect(oristudioCpMocks.duplicateOristudioCpFoldedFigure).toHaveBeenCalledWith(0);
+
+    // None of the handle-0 actions tripped the "not ready" guard.
+    expect(useWorkspaceStore.getState().oristudioCpError).toBeNull();
+  });
+
   it('releases folded figure handles when clearing the editable CP document', async () => {
     resetStores(seedSnapshot());
     await useWorkspaceStore.getState().loadCreasePatternText('1 0 0 1 0', {

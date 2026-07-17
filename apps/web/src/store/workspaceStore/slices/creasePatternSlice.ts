@@ -139,7 +139,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
   async function refreshFoldedFigureSelectionMarker(id: string | null | undefined) {
     if (!id) return;
     const figure = get().oristudioCpFoldedFigures.find((candidate) => candidate.id === id);
-    if (!figure?.handle) return;
+    // Handle 0 is a valid wasm slot index; only null/undefined means "not ready".
+    if (figure?.handle == null) return;
     const selected = get().oristudioCpActiveFoldedFigureId === id;
     try {
       const renderSnapshot = await renderSnapshotForFoldedFigure(
@@ -782,7 +783,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         (id
           ? get().oristudioCpFoldedFigures.find((candidate) => candidate.id === id)
           : activeGeneratedFoldedFigure()) ?? null;
-      if (!figure?.handle || figure.status !== 'ready') {
+      if (figure?.handle == null || figure.status !== 'ready') {
         const message =
           figure?.status === 'stale'
             ? 'Refold the stale folded model first'
@@ -839,7 +840,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
 
     foldOristudioCpFigureToCase: async (id, objective) => {
       const figure = get().oristudioCpFoldedFigures.find((candidate) => candidate.id === id);
-      if (!figure?.handle || figure.status !== 'ready') {
+      if (figure?.handle == null || figure.status !== 'ready') {
         const message =
           figure?.status === 'stale'
             ? 'Refold the stale folded model first'
@@ -902,7 +903,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
 
     setOristudioCpFoldedFigureDisplayStyle: async (id, displayStyle) => {
       const figure = get().oristudioCpFoldedFigures.find((candidate) => candidate.id === id);
-      if (!figure?.handle) {
+      if (figure?.handle == null) {
         const message = 'No folded model is ready';
         set({
           oristudioCpError: message,
@@ -943,7 +944,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
 
     updateOristudioCpFoldedFigureModel: async (id, update) => {
       const figure = get().oristudioCpFoldedFigures.find((candidate) => candidate.id === id);
-      if (!figure?.handle || !figure.snapshot) {
+      if (figure?.handle == null || !figure.snapshot) {
         const message = 'No folded model is ready';
         set({
           oristudioCpError: message,
@@ -994,7 +995,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         (id
           ? get().oristudioCpFoldedFigures.find((candidate) => candidate.id === id)
           : activeGeneratedFoldedFigure()) ?? null;
-      if (!source?.handle) {
+      if (source?.handle == null) {
         const message = 'No folded model is ready';
         set({
           oristudioCpError: message,
