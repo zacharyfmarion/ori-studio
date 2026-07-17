@@ -1449,15 +1449,11 @@ export function CreasePatternPanel() {
       !activeCpCommand ||
       activeCpCommand.uiStatus !== 'ready' ||
       ((activeCpCommand.toolSteps?.length ?? 0) > 0 &&
-        !isVariablePointSequenceOperation(activeCpCommand.operationId) &&
-        !isTextAnnotationOperation(activeCpCommand.operationId))
+        !isVariablePointSequenceOperation(activeCpCommand.operationId))
     ) {
       return;
     }
     if (activeCpCommand.operationId === 'VoronoiCreate' && cpToolPoints.length === 0) {
-      return;
-    }
-    if (activeCpCommand.operationId === 'Text' && oristudioCpSelection.texts.length === 0) {
       return;
     }
 
@@ -1473,11 +1469,6 @@ export function CreasePatternPanel() {
       }
       if (activeCpCommand.operationId === 'VoronoiCreate') {
         selectionPayload.points = cpToolPoints;
-      }
-      if (activeCpCommand.operationId === 'Text') {
-        selectionPayload.text_ids = oristudioCpSelection.texts;
-        selectionPayload.text_action = 'SetContent';
-        selectionPayload.text_content = cpToolOptions.textContent;
       }
       const succeeded = await executeOristudioCpCommand(
         activeCpCommand.operationId,
@@ -1504,12 +1495,10 @@ export function CreasePatternPanel() {
     activeCpCommand,
     buildCpCommandPayload,
     cpToolPoints,
-    cpToolOptions.textContent,
     editableCp,
     executeOristudioCpCommand,
     oristudioCpSelection.circles,
     oristudioCpSelection.lines,
-    oristudioCpSelection.texts,
   ]);
 
   const handleClearActiveContextInput = useCallback(() => {
@@ -2405,10 +2394,12 @@ export function CreasePatternPanel() {
 
   // Commit a text drag. The engine's Move applies (points[1] - points[0]) as the
   // delta, so a zero origin + the model delta moves the text by exactly that much.
+  // Returns the command promise so the overlay can hold its optimistic offset until
+  // the document update lands (no snap-back flicker).
   const handleTextMove = useCallback(
     (id: number, delta: Point) => {
-      if (delta.x === 0 && delta.y === 0) return;
-      void executeOristudioCpCommand('Text', {
+      if (delta.x === 0 && delta.y === 0) return Promise.resolve();
+      return executeOristudioCpCommand('Text', {
         line_ids: [],
         text_action: 'Move',
         text_ids: [id],
@@ -2473,7 +2464,9 @@ export function CreasePatternPanel() {
 
     const onKeyDown = (event: KeyboardEvent) => {
       const interactive = isViewportInteractiveTarget(event.target);
-      if (event.key === 'Escape' && editableCp) {
+      // While typing in the inline text editor, let it own ESC (commit + deselect);
+      // don't also run the panel's ESC (which would clear selection / cancel the tool).
+      if (event.key === 'Escape' && editableCp && !interactive) {
         // A selection takes priority: Escape deselects for *any* resting tool (not
         // just CreaseSelect) as long as no gesture is in progress — a second Escape
         // then cancels/deactivates the tool. Matches Oriedita, and fixes "select-all,
@@ -2761,6 +2754,7 @@ export function CreasePatternPanel() {
                       onSetTextContent={handleTextSetContent}
                       onDeleteText={handleTextDeleteById}
                       onMoveText={handleTextMove}
+                      onDeselect={clearOristudioCpSelection}
                     />
                   )}
                 </>
@@ -2850,12 +2844,6 @@ export function CreasePatternPanel() {
                     onClearInput={
                       activeCpCommand.operationId === 'VoronoiCreate' && cpToolPoints.length > 0
                         ? handleClearActiveContextInput
-                        : undefined
-                    }
-                    onDeleteText={
-                      activeCpCommand.operationId === 'Text' &&
-                      oristudioCpSelection.texts.length > 0
-                        ? handleDeleteSelectedText
                         : undefined
                     }
                   />,

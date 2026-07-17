@@ -50,7 +50,6 @@ export function cpLineTypeStatusLabel(lineColor: OristudioCpLineColor): string {
 }
 
 export function cpCommandRequiresContextApply(command: OristudioCpCommandDefinition): boolean {
-  if (command.operationId === 'Text') return true;
   if (command.operationId === 'VoronoiCreate') return true;
   if (isSelectionCircleApplyOperation(command.operationId)) return true;
   if ((command.toolSteps?.length ?? 0) > 0) return false;
@@ -67,10 +66,6 @@ function contextApplyDisabledForCommand(
   switch (command.operationId) {
     case 'VoronoiCreate':
       return pendingPointCount === 0;
-    case 'Text':
-      // Single/zero selection is edited inline on the canvas; the panel's Apply is
-      // the bulk path only (set the same content across 2+ selected texts).
-      return selection.texts.length < 2;
     case 'CircleChangeColor':
       return selection.circles.length === 0 && selection.lines.length === 0;
     case 'CircleDrawTangentLine':
@@ -97,7 +92,6 @@ export function CpContextToolPanel({
   selection,
   onApply,
   onClearInput,
-  onDeleteText,
 }: {
   action: OristudioCpActionDefinition | undefined;
   command: OristudioCpCommandDefinition;
@@ -109,7 +103,6 @@ export function CpContextToolPanel({
   selection: OristudioCpSelection;
   onApply?: () => void;
   onClearInput?: () => void;
-  onDeleteText?: () => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const groups = cpToolSettingGroupsForCommand(command);
@@ -166,18 +159,11 @@ export function CpContextToolPanel({
             >
               {command.operationId === 'VoronoiCreate'
                 ? 'Apply Voronoi'
-                : command.operationId === 'Text'
-                  ? 'Apply text'
-                  : command.operationId === 'CircleChangeColor'
-                    ? 'Apply color'
-                    : isSelectionCircleApplyOperation(command.operationId)
-                      ? 'Apply circle'
-                  : 'Apply to selection'}
-            </button>
-          )}
-          {onDeleteText && (
-            <button className="cp-context-panel__secondary" type="button" onClick={onDeleteText}>
-              Delete text
+                : command.operationId === 'CircleChangeColor'
+                  ? 'Apply color'
+                  : isSelectionCircleApplyOperation(command.operationId)
+                    ? 'Apply circle'
+                    : 'Apply to selection'}
             </button>
           )}
           {onClearInput && (
@@ -555,35 +541,6 @@ function CpContextToolGroup({
     );
   }
 
-  if (group === 'text-content') {
-    const textCount = selection.texts.length;
-    // Single/zero text is authored inline on the canvas; the panel field is only an
-    // editor for a bulk (2+) selection. At 0/1 it is a read-only mirror + hint.
-    const bulk = textCount > 1;
-    return (
-      <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">Text annotation</div>
-        <TextAreaToolOption
-          label={bulk ? 'Set all' : 'Text'}
-          ariaLabel="Text annotation content"
-          value={bulk ? options.textContent : ''}
-          disabled={!bulk}
-          placeholder={
-            textCount === 0 ? 'Click the canvas to add text' : 'Edit on the canvas'
-          }
-          onChange={(textContent) => setOptions((current) => ({ ...current, textContent }))}
-        />
-        <div className="cp-context-panel__readout">
-          {textCount === 0
-            ? 'Click to add · click a label to edit'
-            : textCount === 1
-              ? 'Editing on canvas'
-              : `${textCount} selected · Apply sets all`}
-        </div>
-      </div>
-    );
-  }
-
   if (group === 'line-select-help') {
     return (
       <div className="cp-context-panel__group">
@@ -867,36 +824,6 @@ function TextToolOption({
         value={value}
         aria-invalid={invalid}
         data-invalid={invalid || undefined}
-        onChange={(event) => onChange(event.currentTarget.value)}
-      />
-    </label>
-  );
-}
-
-function TextAreaToolOption({
-  label,
-  ariaLabel,
-  value,
-  onChange,
-  disabled = false,
-  placeholder,
-}: {
-  label: string;
-  ariaLabel: string;
-  value: string;
-  onChange: (value: string) => void;
-  disabled?: boolean;
-  placeholder?: string;
-}) {
-  return (
-    <label className="cp-context-panel__field cp-context-panel__field--textarea">
-      <span>{label}</span>
-      <textarea
-        aria-label={ariaLabel}
-        rows={3}
-        value={value}
-        disabled={disabled}
-        placeholder={placeholder}
         onChange={(event) => onChange(event.currentTarget.value)}
       />
     </label>

@@ -2152,6 +2152,15 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 35%, transparent);
 }
 
+/* Transparent click-catcher shown only while the inline editor is open. It sits
+   above the canvas but below the labels/editor (earlier in the DOM), so clicking
+   empty space dismisses the editor instead of creating a new text box. */
+.cp-text-editor-backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+}
+
 /* In WebGL mode the SVG is covered by the canvas; hide it so the browser stops
    painting the (large) SVG DOM. visibility:hidden keeps its layout box so the
    camera can still seed from its fit. */

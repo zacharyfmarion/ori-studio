@@ -25,6 +25,7 @@ interface Handlers {
   onSetTextContent?: AnyMock;
   onDeleteText?: AnyMock;
   onMoveText?: AnyMock;
+  onDeselect?: AnyMock;
   onCreateDraftConsumed?: AnyMock;
 }
 
@@ -68,6 +69,7 @@ function render(
             | ((id: number, delta: { x: number; y: number }) => void)
             | undefined
         }
+        onDeselect={props.onDeselect as (() => void) | undefined}
       />
     );
   });
@@ -246,11 +248,13 @@ describe('CpTextOverlay inline editor', () => {
 
   it('Escape commits the draft and closes the editor', () => {
     const onCreateText = vi.fn();
+    const onDeselect = vi.fn();
     render({
       texts: [],
       textToolActive: true,
       createDraftAt: { x: 0, y: 0 },
       onCreateText,
+      onDeselect,
     });
 
     const el = textarea();
@@ -259,7 +263,9 @@ describe('CpTextOverlay inline editor', () => {
       el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     });
 
+    // ESC keeps the typed text (commits) and deselects — it never deletes.
     expect(onCreateText).toHaveBeenCalledWith({ x: 0, y: 0 }, 'kept');
+    expect(onDeselect).toHaveBeenCalled();
     expect(container?.querySelector('textarea')).toBeNull();
   });
 
@@ -356,5 +362,58 @@ describe('CpTextOverlay inline editor', () => {
       labels()[0].dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, button: 2 }))
     );
     expect(onDeleteText).toHaveBeenCalledWith(1);
+  });
+
+  it('clicking the backdrop dismisses the editor (commit + deselect), no new draft', () => {
+    const onSetTextContent = vi.fn();
+    const onDeselect = vi.fn();
+    render({
+      texts: [textElement(1, 1, 'hi')],
+      textToolActive: true,
+      onSetTextContent,
+      onDeselect,
+    });
+
+    openEditor(labels()[0]);
+    expect(container?.querySelector('textarea')).not.toBeNull();
+
+    const backdrop = container?.querySelector('.cp-text-editor-backdrop');
+    expect(backdrop).not.toBeNull();
+    pointer(backdrop as Element, 'pointerdown', 200, 200, 0);
+
+    // Editor closed and selection cleared; unchanged text is not re-committed.
+    expect(onDeselect).toHaveBeenCalled();
+    expect(container?.querySelector('textarea')).toBeNull();
+    expect(onSetTextContent).not.toHaveBeenCalled();
+  });
+
+  it('holds the drag offset until the move command resolves', async () => {
+    let resolveMove: (() => void) | null = null;
+    const onMoveText = vi.fn(() => new Promise<void>((resolve) => (resolveMove = () => resolve())));
+    render({
+      texts: [textElement(1, 1, 'a')],
+      textToolActive: true,
+      onMoveText,
+    });
+
+    const label = labels()[0];
+    pointer(label, 'pointerdown', 100, 100, 0);
+    pointer(label, 'pointermove', 130, 100, 0);
+    pointer(label, 'pointerup', 130, 100, 0);
+
+    // Before the command resolves, the label keeps its dragged (offset) position:
+    // 1 (model) + 30 (delta) == 31.
+    const before = labels()[0].style.left;
+    expect(before).toBe('31px');
+
+    await act(async () => {
+      resolveMove?.();
+      await Promise.resolve();
+    });
+
+    // After resolve the optimistic offset is dropped; the label returns to the
+    // model position the (mocked) engine would have applied — here the prop is
+    // unchanged, so it renders at its original 1px.
+    expect(labels()[0].style.left).toBe('1px');
   });
 });

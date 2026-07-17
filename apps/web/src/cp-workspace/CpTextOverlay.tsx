@@ -94,6 +94,7 @@ export const CpTextOverlay = memo(function CpTextOverlay({
   onSetTextContent,
   onDeleteText,
   onMoveText,
+  onDeselect,
 }: {
   texts: readonly OristudioCpTextElement[];
   selectedTextIds: readonly number[];
@@ -116,8 +117,11 @@ export const CpTextOverlay = memo(function CpTextOverlay({
   onSetTextContent?: (id: number, text: string) => void;
   /** Delete an existing text (emptied-out content, or a right-click delete). */
   onDeleteText?: (id: number) => void;
-  /** Commit a drag: move text `id` by `delta` model units. */
-  onMoveText?: (id: number, delta: Point) => void;
+  /** Commit a drag: move text `id` by `delta` model units. May resolve after the
+   * document reflects the move, so the overlay can hold the optimistic offset. */
+  onMoveText?: (id: number, delta: Point) => void | Promise<unknown>;
+  /** Clear the text selection (dismissing an edit by clicking away or pressing ESC). */
+  onDeselect?: () => void;
 }) {
   const selectedSet = useMemo(() => new Set(selectedTextIds), [selectedTextIds]);
   const fontPx = Math.max(1, BASE_FONT_PX * (zoomPercent / 100));
@@ -256,10 +260,17 @@ export const CpTextOverlay = memo(function CpTextOverlay({
       }
       if (!state || state.id !== id) return;
       const moved = drag != null && (state.delta.x !== 0 || state.delta.y !== 0);
-      setDrag(null);
       if (moved) {
-        onMoveText?.(id, state.delta);
+        // Hold the optimistic offset until the Move command's document update lands,
+        // so the label doesn't snap back to its old spot for a frame before jumping
+        // to the committed position (the drag "lag" jank).
+        const committed = { id, dx: state.delta.x, dy: state.delta.y };
+        setDrag(committed);
+        Promise.resolve(onMoveText?.(id, state.delta)).finally(() => {
+          setDrag((current) => (current === committed ? null : current));
+        });
       } else {
+        setDrag(null);
         startEditSession(id);
       }
     },
@@ -278,29 +289,39 @@ export const CpTextOverlay = memo(function CpTextOverlay({
     [textToolActive, onDeleteText]
   );
 
+  // Commit and close the editor. `deselect` also clears the selection — used by the
+  // explicit dismiss gestures (ESC, clicking the empty canvas) so a dismissed text
+  // is no longer selected. Blur alone keeps the selection (commit only).
+  const dismissSession = useCallback(
+    (deselect: boolean) => {
+      setSession((current) => {
+        commitSession(current);
+        return null;
+      });
+      if (deselect) onDeselect?.();
+    },
+    [commitSession, onDeselect]
+  );
+
   const handleTextareaKeyDown = useCallback(
     (event: KeyboardEvent<HTMLTextAreaElement>) => {
       // Keep canvas/global shortcuts from firing while typing.
       event.stopPropagation();
       if (event.key === 'Escape') {
+        // ESC just unfocuses: commit what's typed (blank is dropped) and deselect.
+        // It never deletes a text that has content.
         event.preventDefault();
-        setSession((current) => {
-          commitSession(current);
-          return null;
-        });
+        dismissSession(true);
       }
       // Enter inserts a newline (multi-line text, matching Oriedita); commit is
       // via blur / ESC only.
     },
-    [commitSession]
+    [dismissSession]
   );
 
   const handleTextareaBlur = useCallback(() => {
-    setSession((current) => {
-      commitSession(current);
-      return null;
-    });
-  }, [commitSession]);
+    dismissSession(false);
+  }, [dismissSession]);
 
   const handleDraftChange = useCallback((value: string) => {
     setSession((current) => (current ? { ...current, draft: value } : current));
@@ -311,6 +332,19 @@ export const CpTextOverlay = memo(function CpTextOverlay({
 
   return (
     <div className="cp-text-overlay" aria-hidden="true">
+      {/* While editing, a backdrop under the labels/editor catches clicks on empty
+          space so they dismiss the editor (commit + deselect) instead of falling
+          through to the canvas and starting a new text box. Labels sit above it, so
+          clicking another label still switches the edit. */}
+      {session && (
+        <div
+          className="cp-text-editor-backdrop"
+          onPointerDown={(event) => {
+            event.stopPropagation();
+            dismissSession(true);
+          }}
+        />
+      )}
       {texts.map((text, index) => {
         const id = index + 1;
         // Hide the label currently being edited — the textarea stands in for it.
