@@ -360,6 +360,7 @@ export interface OristudioCpCommandPayload {
 
 export type OristudioCpTextCommandAction =
   | 'Create'
+  | 'CreateAt'
   | 'Move'
   | 'SetContent'
   | 'DeleteSelected'

@@ -841,6 +841,9 @@ export function CreasePatternPanel() {
   const [cpToolPath, setCpToolPath] = useState<Point[]>([]);
   const [pendingLengthenLineId, setPendingLengthenLineId] = useState<number | null>(null);
   const [pendingSquareBisectorLineIds, setPendingSquareBisectorLineIds] = useState<number[]>([]);
+  // Model point of an empty-canvas Text-tool click, relayed to the overlay to open
+  // an inline-edit draft there. Cleared once the overlay has consumed it.
+  const [textCreateDraftAt, setTextCreateDraftAt] = useState<Point | null>(null);
   const [cpMeasurementSlots, setCpMeasurementSlots] = useState<CpMeasurementSlots>(
     createEmptyCpMeasurementSlots
   );
@@ -1446,15 +1449,11 @@ export function CreasePatternPanel() {
       !activeCpCommand ||
       activeCpCommand.uiStatus !== 'ready' ||
       ((activeCpCommand.toolSteps?.length ?? 0) > 0 &&
-        !isVariablePointSequenceOperation(activeCpCommand.operationId) &&
-        !isTextAnnotationOperation(activeCpCommand.operationId))
+        !isVariablePointSequenceOperation(activeCpCommand.operationId))
     ) {
       return;
     }
     if (activeCpCommand.operationId === 'VoronoiCreate' && cpToolPoints.length === 0) {
-      return;
-    }
-    if (activeCpCommand.operationId === 'Text' && oristudioCpSelection.texts.length === 0) {
       return;
     }
 
@@ -1470,11 +1469,6 @@ export function CreasePatternPanel() {
       }
       if (activeCpCommand.operationId === 'VoronoiCreate') {
         selectionPayload.points = cpToolPoints;
-      }
-      if (activeCpCommand.operationId === 'Text') {
-        selectionPayload.text_ids = oristudioCpSelection.texts;
-        selectionPayload.text_action = 'SetContent';
-        selectionPayload.text_content = cpToolOptions.textContent;
       }
       const succeeded = await executeOristudioCpCommand(
         activeCpCommand.operationId,
@@ -1501,12 +1495,10 @@ export function CreasePatternPanel() {
     activeCpCommand,
     buildCpCommandPayload,
     cpToolPoints,
-    cpToolOptions.textContent,
     editableCp,
     executeOristudioCpCommand,
     oristudioCpSelection.circles,
     oristudioCpSelection.lines,
-    oristudioCpSelection.texts,
   ]);
 
   const handleClearActiveContextInput = useCallback(() => {
@@ -1843,6 +1835,7 @@ export function CreasePatternPanel() {
       | 'line-entity'
       | 'lengthen'
       | 'angle-drag'
+      | 'text'
       | null;
     stepKinds: ('point' | 'crease' | 'candidate')[];
     lineCount: number;
@@ -1899,6 +1892,11 @@ export function CreasePatternPanel() {
     // just accumulates clicks into `cpToolPoints`.
     if (activeCpCommand.operationId === 'VoronoiCreate') {
       return { ...idle, mode: 'sequence', voronoi: true };
+    }
+    // Text: existing texts are selected/dragged via the DOM overlay; the canvas only
+    // reports an empty-space click so the panel can start an inline-edit draft there.
+    if (activeCpCommand.operationId === 'Text') {
+      return { ...idle, mode: 'text' };
     }
     // Everything below is driven by the explicit per-operation registry — never
     // by the step-prompt text. Line-entity (Lengthen) picks crease ids; point-
@@ -2312,13 +2310,106 @@ export function CreasePatternPanel() {
     (id: number, additive = false) => {
       if (
         cpToolState.phase === 'active' &&
-        !allowsDirectEntitySelection(activeCpCommand?.operationId)
+        !allowsDirectEntitySelection(activeCpCommand?.operationId) &&
+        !isTextAnnotationOperation(activeCpCommand?.operationId)
       ) {
         return;
       }
       toggleOristudioCpTextSelection(id, additive);
     },
     [activeCpCommand?.operationId, cpToolState.phase, toggleOristudioCpTextSelection]
+  );
+
+  // Text tool: a click on empty canvas opens an inline-edit draft at that model
+  // point (the overlay owns the editor). Nothing is created until the draft is
+  // committed non-blank — see handleTextCommitCreate.
+  const handleTextCreate = useCallback(
+    (modelPoint: Point) => {
+      if (!editableCp || activeCpCommand?.operationId !== 'Text') return;
+      setTextCreateDraftAt({ x: modelPoint.x, y: modelPoint.y });
+    },
+    [activeCpCommand?.operationId, editableCp]
+  );
+
+  // Commit a new text from the inline editor. Uses CreateAt (not Create) so the
+  // engine never second-guesses the click with its FontMetrics-less bounds — the
+  // frontend is the sole authority on "empty space".
+  const handleTextCommitCreate = useCallback(
+    (anchor: Point, content: string) => {
+      if (!editableCp) return;
+      const newTextId = editableCp.crease_pattern.texts.length + 1;
+      void (async () => {
+        const succeeded = await executeOristudioCpCommand('Text', {
+          line_ids: [],
+          text_action: 'CreateAt',
+          points: [anchor],
+          text_content: content,
+        });
+        if (succeeded) {
+          setOristudioCpSelection({ ...emptyOristudioCpSelection(), texts: [newTextId] });
+        }
+      })();
+    },
+    [editableCp, executeOristudioCpCommand, setOristudioCpSelection]
+  );
+
+  const handleTextSetContent = useCallback(
+    (id: number, content: string) => {
+      void executeOristudioCpCommand('Text', {
+        line_ids: [],
+        text_action: 'SetContent',
+        text_ids: [id],
+        text_content: content,
+      });
+    },
+    [executeOristudioCpCommand]
+  );
+
+  // An existing text edited down to blank is deleted (parity with Oriedita's
+  // blank-text GC on commit).
+  const handleTextDeleteById = useCallback(
+    (id: number) => {
+      void (async () => {
+        const succeeded = await executeOristudioCpCommand('Text', {
+          line_ids: [],
+          text_action: 'DeleteSelected',
+          text_ids: [id],
+        });
+        if (succeeded) setOristudioCpSelection(emptyOristudioCpSelection());
+      })();
+    },
+    [executeOristudioCpCommand, setOristudioCpSelection]
+  );
+
+  const handleSelectSingleText = useCallback(
+    (id: number) => {
+      setOristudioCpSelection({ ...emptyOristudioCpSelection(), texts: [id] });
+    },
+    [setOristudioCpSelection]
+  );
+
+  const handleTextDraftConsumed = useCallback(() => {
+    setTextCreateDraftAt(null);
+  }, []);
+
+  // Commit a text drag. The engine's Move applies (points[1] - points[0]) as the
+  // delta, so a zero origin + the model delta moves the text by exactly that much.
+  // Returns the command promise so the overlay can hold its optimistic offset until
+  // the document update lands (no snap-back flicker).
+  const handleTextMove = useCallback(
+    (id: number, delta: Point) => {
+      if (delta.x === 0 && delta.y === 0) return Promise.resolve();
+      return executeOristudioCpCommand('Text', {
+        line_ids: [],
+        text_action: 'Move',
+        text_ids: [id],
+        points: [
+          { x: 0, y: 0 },
+          { x: delta.x, y: delta.y },
+        ],
+      });
+    },
+    [executeOristudioCpCommand]
   );
 
   const emptyStatusLabel =
@@ -2373,7 +2464,9 @@ export function CreasePatternPanel() {
 
     const onKeyDown = (event: KeyboardEvent) => {
       const interactive = isViewportInteractiveTarget(event.target);
-      if (event.key === 'Escape' && editableCp) {
+      // While typing in the inline text editor, let it own ESC (commit + deselect);
+      // don't also run the panel's ESC (which would clear selection / cancel the tool).
+      if (event.key === 'Escape' && editableCp && !interactive) {
         // A selection takes priority: Escape deselects for *any* resting tool (not
         // just CreaseSelect) as long as no gesture is in progress — a second Escape
         // then cancels/deactivates the tool. Matches Oriedita, and fixes "select-all,
@@ -2407,6 +2500,22 @@ export function CreasePatternPanel() {
         }
       }
 
+      // Delete/Backspace removes the selected text annotation(s) under the Text tool
+      // (a web convention Oriedita lacks). Guarded by `!interactive` so it never
+      // fires while typing in the inline editor. handleDeleteSelectedText itself
+      // checks the Text tool + a non-empty text selection.
+      if (
+        (event.key === 'Delete' || event.key === 'Backspace') &&
+        !interactive &&
+        editableCp &&
+        isTextAnnotationOperation(activeCpCommand?.operationId) &&
+        oristudioCpSelection.texts.length > 0
+      ) {
+        event.preventDefault();
+        handleDeleteSelectedText();
+        return;
+      }
+
       if (event.key === ' ' && !interactive) {
         event.preventDefault();
         setSpacePressed(true);
@@ -2431,13 +2540,16 @@ export function CreasePatternPanel() {
       window.removeEventListener('blur', clearSpace);
     };
   }, [
+    activeCpCommand?.operationId,
     clearOristudioCpSelection,
     cpToolPath.length,
     cpToolPoints.length,
     cpToolState,
     editableCp,
     editableSelectionSize,
+    handleDeleteSelectedText,
     hasCreasePattern,
+    oristudioCpSelection.texts.length,
     pendingLengthenLineId,
     pendingSquareBisectorLineIds.length,
   ]);
@@ -2456,18 +2568,6 @@ export function CreasePatternPanel() {
   useEffect(() => {
     setCpMeasurementSlots(createEmptyCpMeasurementSlots());
   }, [editableCpHandle]);
-
-  useEffect(() => {
-    if (!editableCp || activeCpCommand?.operationId !== 'Text') return;
-    if (oristudioCpSelection.texts.length !== 1) return;
-    const selectedText = editableCp.crease_pattern.texts[oristudioCpSelection.texts[0] - 1];
-    if (!selectedText) return;
-    setCpToolOptions((current) =>
-      current.textContent === selectedText.text
-        ? current
-        : { ...current, textContent: selectedText.text }
-    );
-  }, [activeCpCommand?.operationId, editableCp, oristudioCpSelection.texts]);
 
   return (
     <section className="panel-shell cp-panel">
@@ -2586,6 +2686,7 @@ export function CreasePatternPanel() {
                   activeToolSquareBisector={webglActiveTool.squareBisector}
                   activeToolVoronoi={webglActiveTool.voronoi}
                   activeToolDashedPreview={isCpMeasurementOperation(activeCpCommand?.operationId)}
+                  onTextCreate={handleTextCreate}
                   voronoiSeeds={cpToolPoints}
                   onVoronoiSeedsChange={handleWebglVoronoiSeeds}
                   activeToolRequireSnap={isRestrictedDrawOperation(activeCpCommand?.operationId)}
@@ -2631,19 +2732,31 @@ export function CreasePatternPanel() {
                   grid={editableCpVisibleGrid}
                   gridVisible={oristudioCpViewport.gridVisible}
                 />
-                {webglOverlayView && editableCp.crease_pattern.texts.length > 0 && (
-                  <CpTextOverlay
-                    texts={editableCp.crease_pattern.texts}
-                    selectedTextIds={oristudioCpSelection.texts}
-                    view={webglOverlayView}
-                    zoomPercent={zoomPercent}
-                    selectable={
-                      cpToolState.phase !== 'active' ||
-                      allowsDirectEntitySelection(activeCpCommand?.operationId)
-                    }
-                    onToggleText={handleEditableTextClick}
-                  />
-                )}
+                {webglOverlayView &&
+                  (editableCp.crease_pattern.texts.length > 0 ||
+                    isTextAnnotationOperation(activeCpCommand?.operationId)) && (
+                    <CpTextOverlay
+                      texts={editableCp.crease_pattern.texts}
+                      selectedTextIds={oristudioCpSelection.texts}
+                      view={webglOverlayView}
+                      zoomPercent={zoomPercent}
+                      selectable={
+                        cpToolState.phase !== 'active' ||
+                        allowsDirectEntitySelection(activeCpCommand?.operationId) ||
+                        isTextAnnotationOperation(activeCpCommand?.operationId)
+                      }
+                      textToolActive={isTextAnnotationOperation(activeCpCommand?.operationId)}
+                      createDraftAt={textCreateDraftAt}
+                      onCreateDraftConsumed={handleTextDraftConsumed}
+                      onToggleText={handleEditableTextClick}
+                      onSelectText={handleSelectSingleText}
+                      onCreateText={handleTextCommitCreate}
+                      onSetTextContent={handleTextSetContent}
+                      onDeleteText={handleTextDeleteById}
+                      onMoveText={handleTextMove}
+                      onDeselect={clearOristudioCpSelection}
+                    />
+                  )}
                 </>
               ) : (
                 <div className="cp-panel__unopened" role="status">
@@ -2731,12 +2844,6 @@ export function CreasePatternPanel() {
                     onClearInput={
                       activeCpCommand.operationId === 'VoronoiCreate' && cpToolPoints.length > 0
                         ? handleClearActiveContextInput
-                        : undefined
-                    }
-                    onDeleteText={
-                      activeCpCommand.operationId === 'Text' &&
-                      oristudioCpSelection.texts.length > 0
-                        ? handleDeleteSelectedText
                         : undefined
                     }
                   />,

@@ -23,8 +23,7 @@ export type OristudioCpToolSettingGroup =
   | 'circle-select-help'
   | 'apply-lines'
   | 'measurement-readout'
-  | 'custom-circle-color'
-  | 'text-content';
+  | 'custom-circle-color';
 
 export interface OristudioCpRatioExpression {
   a: number;
@@ -199,7 +198,9 @@ const TOOL_SETTING_GROUPS_BY_OPERATION: Partial<
   CircleDrawConcentric: ['circle-select-help'],
   CircleDrawConcentricSelect: ['circle-select-help', 'candidate-choice'],
   CircleDrawConcentricTwoCircleSelect: ['circle-select-help'],
-  Text: ['text-content'],
+  // Text is authored entirely on the canvas (inline editor, drag, right-click /
+  // Delete); it has no side-panel settings — only the tool instructions show.
+  Text: [],
   VoronoiCreate: ['apply-lines'],
   Axiom5: ['candidate-choice'],
   Axiom7: ['candidate-choice'],

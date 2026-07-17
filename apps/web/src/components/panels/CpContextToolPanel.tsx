@@ -50,7 +50,6 @@ export function cpLineTypeStatusLabel(lineColor: OristudioCpLineColor): string {
 }
 
 export function cpCommandRequiresContextApply(command: OristudioCpCommandDefinition): boolean {
-  if (command.operationId === 'Text') return true;
   if (command.operationId === 'VoronoiCreate') return true;
   if (isSelectionCircleApplyOperation(command.operationId)) return true;
   if ((command.toolSteps?.length ?? 0) > 0) return false;
@@ -67,8 +66,6 @@ function contextApplyDisabledForCommand(
   switch (command.operationId) {
     case 'VoronoiCreate':
       return pendingPointCount === 0;
-    case 'Text':
-      return selection.texts.length === 0;
     case 'CircleChangeColor':
       return selection.circles.length === 0 && selection.lines.length === 0;
     case 'CircleDrawTangentLine':
@@ -95,7 +92,6 @@ export function CpContextToolPanel({
   selection,
   onApply,
   onClearInput,
-  onDeleteText,
 }: {
   action: OristudioCpActionDefinition | undefined;
   command: OristudioCpCommandDefinition;
@@ -107,7 +103,6 @@ export function CpContextToolPanel({
   selection: OristudioCpSelection;
   onApply?: () => void;
   onClearInput?: () => void;
-  onDeleteText?: () => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const groups = cpToolSettingGroupsForCommand(command);
@@ -164,18 +159,11 @@ export function CpContextToolPanel({
             >
               {command.operationId === 'VoronoiCreate'
                 ? 'Apply Voronoi'
-                : command.operationId === 'Text'
-                  ? 'Apply text'
-                  : command.operationId === 'CircleChangeColor'
-                    ? 'Apply color'
-                    : isSelectionCircleApplyOperation(command.operationId)
-                      ? 'Apply circle'
-                  : 'Apply to selection'}
-            </button>
-          )}
-          {onDeleteText && (
-            <button className="cp-context-panel__secondary" type="button" onClick={onDeleteText}>
-              Delete text
+                : command.operationId === 'CircleChangeColor'
+                  ? 'Apply color'
+                  : isSelectionCircleApplyOperation(command.operationId)
+                    ? 'Apply circle'
+                    : 'Apply to selection'}
             </button>
           )}
           {onClearInput && (
@@ -553,23 +541,6 @@ function CpContextToolGroup({
     );
   }
 
-  if (group === 'text-content') {
-    return (
-      <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">Text annotation</div>
-        <TextAreaToolOption
-          label="Text"
-          ariaLabel="Text annotation content"
-          value={options.textContent}
-          onChange={(textContent) => setOptions((current) => ({ ...current, textContent }))}
-        />
-        <div className="cp-context-panel__readout">
-          {selection.texts.length === 0 ? 'No text selected' : `${selection.texts.length} selected`}
-        </div>
-      </div>
-    );
-  }
-
   if (group === 'line-select-help') {
     return (
       <div className="cp-context-panel__group">
@@ -853,30 +824,6 @@ function TextToolOption({
         value={value}
         aria-invalid={invalid}
         data-invalid={invalid || undefined}
-        onChange={(event) => onChange(event.currentTarget.value)}
-      />
-    </label>
-  );
-}
-
-function TextAreaToolOption({
-  label,
-  ariaLabel,
-  value,
-  onChange,
-}: {
-  label: string;
-  ariaLabel: string;
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className="cp-context-panel__field cp-context-panel__field--textarea">
-      <span>{label}</span>
-      <textarea
-        aria-label={ariaLabel}
-        rows={3}
-        value={value}
         onChange={(event) => onChange(event.currentTarget.value)}
       />
     </label>

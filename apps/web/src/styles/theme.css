@@ -2124,6 +2124,43 @@
   filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent-primary) 80%, transparent));
 }
 
+/* Inline editor for the Text tool. Anchored at the same model point as a label
+   (baseline-start), it stands in for the label while editing. Pointer-enabled so
+   it captures typing; the rest of the overlay stays click-through. */
+.cp-text-editor {
+  position: absolute;
+  transform: translateY(-0.85em);
+  margin: 0;
+  padding: 0 2px;
+  min-width: 3ch;
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 70%, transparent);
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--bg-primary) 92%, transparent);
+  color: var(--text-primary);
+  font-weight: 600;
+  font-family: Inter, system-ui, sans-serif;
+  line-height: 1;
+  white-space: pre;
+  overflow: hidden;
+  resize: none;
+  pointer-events: auto;
+  z-index: 8;
+}
+
+.cp-text-editor:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 35%, transparent);
+}
+
+/* Transparent click-catcher shown only while the inline editor is open. It sits
+   above the canvas but below the labels/editor (earlier in the DOM), so clicking
+   empty space dismisses the editor instead of creating a new text box. */
+.cp-text-editor-backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+}
+
 /* In WebGL mode the SVG is covered by the canvas; hide it so the browser stops
    painting the (large) SVG DOM. visibility:hidden keeps its layout box so the
    camera can still seed from its fit. */
