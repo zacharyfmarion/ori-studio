@@ -72,7 +72,7 @@ describe('oristudioCpToolSettings', () => {
     expect(cpToolSettingGroupsForOperation('CircleDrawConcentricTwoCircleSelect')).toEqual([
       'circle-select-help',
     ]);
-    expect(cpToolSettingGroupsForOperation('Text')).toEqual(['text-content']);
+    expect(cpToolSettingGroupsForOperation('Text')).toEqual([]);
     expect(cpToolSettingGroupsForOperation('DisplayLengthBetweenPoints1')).toEqual([
       'measurement-readout',
     ]);

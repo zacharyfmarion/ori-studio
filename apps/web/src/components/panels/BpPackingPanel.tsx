@@ -56,6 +56,9 @@ import {
   bpPackingPointToSvg,
   bpPackingRectToSvg,
   bpPackingShadowRect,
+  bpPackingSheetBorderPoints,
+  bpPackingSheetShadowPoints,
+  bpPackingSvgToPoint,
   bpPackingUnitToSvg,
   constrainBpPackingFlapGroupTarget,
   getBpPackingWorldRect,
@@ -395,22 +398,36 @@ function BpPackingViewportToolbar({
                 <button
                   type="button"
                   className={sheet.kind === 'diagonal' ? 'is-active' : undefined}
-                  onClick={() => setSheet('diagonal', sheet.width, sheet.height)}
+                  onClick={() =>
+                    // A diagonal grid is a square placed as a diamond; collapse to one
+                    // size (BP Studio averages the current dimensions when converting).
+                    setSheet('diagonal', sheet.width, sheet.height)
+                  }
                 >
                   Diagonal
                 </button>
               </div>
             </div>
-            <BpSheetSizeInput
-              label="Width"
-              value={sheet.width}
-              onCommit={(w) => setSheet(sheet.kind, w, sheet.height)}
-            />
-            <BpSheetSizeInput
-              label="Height"
-              value={sheet.height}
-              onCommit={(h) => setSheet(sheet.kind, sheet.width, h)}
-            />
+            {sheet.kind === 'diagonal' ? (
+              <BpSheetSizeInput
+                label="Size"
+                value={sheet.width}
+                onCommit={(s) => setSheet('diagonal', s, s)}
+              />
+            ) : (
+              <>
+                <BpSheetSizeInput
+                  label="Width"
+                  value={sheet.width}
+                  onCommit={(w) => setSheet(sheet.kind, w, sheet.height)}
+                />
+                <BpSheetSizeInput
+                  label="Height"
+                  value={sheet.height}
+                  onCommit={(h) => setSheet(sheet.kind, sheet.width, h)}
+                />
+              </>
+            )}
           </div>
         )}
       </div>
@@ -724,6 +741,24 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   const displayPacking = packing;
   const paperRect = useMemo(() => bpPackingPaperRect(packing.sheet), [packing.sheet]);
   const shadowRect = useMemo(() => bpPackingShadowRect(packing.sheet), [packing.sheet]);
+  // A diagonal sheet is the square rotated 45° into a diamond; render the paper,
+  // shadow, and hit-area as polygons rather than the axis-aligned rects used for a
+  // rectangular grid.
+  const isDiagonalSheet = packing.sheet.kind === 'diagonal';
+  const sheetPolygonPoints = useMemo(
+    () =>
+      bpPackingSheetBorderPoints(packing.sheet, paperRect)
+        .map((p) => `${p.x},${p.y}`)
+        .join(' '),
+    [packing.sheet, paperRect]
+  );
+  const sheetShadowPolygonPoints = useMemo(
+    () =>
+      bpPackingSheetShadowPoints(packing.sheet, paperRect)
+        .map((p) => `${p.x},${p.y}`)
+        .join(' '),
+    [packing.sheet, paperRect]
+  );
   const worldRect = useMemo(() => getBpPackingWorldRect(displayPacking), [displayPacking]);
   const gridLines = useMemo(() => bpPackingGridLines(packing.sheet, paperRect), [paperRect, packing.sheet]);
   const unit = useMemo(() => bpPackingUnitToSvg(packing.sheet, paperRect), [packing.sheet, paperRect]);
@@ -755,18 +790,12 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
       );
       // Match Box Pleating Studio: the pointer is rounded to the integer grid
       // (dragController.getCoordinate -> $round) before constraint/movement, so
-      // flaps and devices snap to grid cells.
-      return {
-        x: Math.round(
-          ((worldPoint.x - paperRect.x) / paperRect.width) * Math.max(1, packing.sheet.width)
-        ),
-        y: Math.round(
-          ((paperRect.y + paperRect.height - worldPoint.y) / paperRect.height) *
-            Math.max(1, packing.sheet.height)
-        ),
-      };
+      // flaps and devices snap to grid cells. The inverse mapping is frame-aware,
+      // so a diagonal sheet's rotated coordinate box rounds correctly too.
+      const gridPoint = bpPackingSvgToPoint(worldPoint, packing.sheet, paperRect);
+      return { x: Math.round(gridPoint.x), y: Math.round(gridPoint.y) };
     },
-    [packing.sheet.height, packing.sheet.width, paperRect, worldRect]
+    [packing.sheet, paperRect, worldRect]
   );
 
   // Raw pointer position in world (SVG viewBox) coordinates — unrounded, used to
@@ -1102,7 +1131,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     beginMarquee(event);
   };
 
-  const onPaperPointerDown = (event: PointerEvent<SVGRectElement>) => {
+  const onPaperPointerDown = (event: PointerEvent<SVGElement>) => {
     beginMarquee(event);
   };
 
@@ -1521,21 +1550,29 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
             onPointerLeave={() => setHoverPoint(null)}
             onClick={onSelectionCycleClick}
           >
-            <rect
-              className="paper-shadow"
-              x={shadowRect.x}
-              y={shadowRect.y}
-              width={shadowRect.width}
-              height={shadowRect.height}
-              rx="6"
-            />
-            <rect
-              className="paper bp-packing-sheet"
-              x={paperRect.x}
-              y={paperRect.y}
-              width={paperRect.width}
-              height={paperRect.height}
-            />
+            {isDiagonalSheet ? (
+              <polygon className="paper-shadow" points={sheetShadowPolygonPoints} />
+            ) : (
+              <rect
+                className="paper-shadow"
+                x={shadowRect.x}
+                y={shadowRect.y}
+                width={shadowRect.width}
+                height={shadowRect.height}
+                rx="6"
+              />
+            )}
+            {isDiagonalSheet ? (
+              <polygon className="paper bp-packing-sheet" points={sheetPolygonPoints} />
+            ) : (
+              <rect
+                className="paper bp-packing-sheet"
+                x={paperRect.x}
+                y={paperRect.y}
+                width={paperRect.width}
+                height={paperRect.height}
+              />
+            )}
             {layers.grid && (
               <g className="bp-packing-grid" aria-hidden="true">
                 {gridLines.map((line) => (
@@ -1554,14 +1591,22 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                 ))}
               </g>
             )}
-            <rect
-              className="paper-hit-area"
-              x={paperRect.x}
-              y={paperRect.y}
-              width={paperRect.width}
-              height={paperRect.height}
-              onPointerDown={onPaperPointerDown}
-            />
+            {isDiagonalSheet ? (
+              <polygon
+                className="paper-hit-area"
+                points={sheetPolygonPoints}
+                onPointerDown={onPaperPointerDown}
+              />
+            ) : (
+              <rect
+                className="paper-hit-area"
+                x={paperRect.x}
+                y={paperRect.y}
+                width={paperRect.width}
+                height={paperRect.height}
+                onPointerDown={onPaperPointerDown}
+              />
+            )}
             {displayPacking.graphics.map((primitive) =>
               primitive.layer !== 'device' && isBpPackingLayerVisible(layers, primitive.layer) ? (
                 <Primitive

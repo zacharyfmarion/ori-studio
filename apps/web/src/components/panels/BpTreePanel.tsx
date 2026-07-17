@@ -10,7 +10,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import { TransformComponent, TransformWrapper, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
-import { Circle, Grid2X2, Layers, Minus, Plus, Tag, Waypoints } from 'lucide-react';
+import { Circle, FlipHorizontal2, Grid2X2, Layers, Minus, Plus, Tag, Waypoints } from 'lucide-react';
 import type {
   OristudioBpDocumentState,
   OristudioBpTreeEdge,
@@ -31,6 +31,15 @@ import {
 } from '../../lib/bpTreeViewport';
 import { formatNumber, type Point } from '../../lib/geometry';
 import { rotatePointsAround, translatePoints, unitLeafLocation } from '../../lib/bpTreeAuthoring';
+import {
+  bpTreeSymmetryDefaultLoc,
+  mirrorBpTreeVertexId,
+  BP_TREE_SYMMETRY_TOLERANCE,
+} from '../../lib/bpTreeSymmetry';
+import {
+  reflectPointAcrossSymmetryAxis,
+  snapPointToSymmetryAxis,
+} from '../../lib/symmetryGeometry';
 import { type BpTreeViewLayerKey, type BpTreeViewLayers } from '../../lib/oristudioBpViewportSettings';
 import {
   clientPointToDesignWorld,
@@ -60,6 +69,11 @@ const LAYER_OPTIONS: { key: BpTreeViewLayerKey; label: string; icon: ReactNode }
 
 const BP_TREE_DRAG_START_THRESHOLD_PX = 4;
 
+// The rendered symmetry snap-lane width in SVG units — keep in sync with the CSS
+// `.symmetry-snap-lane { stroke-width }`. A leaf tip landing anywhere inside this
+// band snaps onto the axis as a single centred leaf (matches what the user sees).
+const SYMMETRY_AXIS_BAND_SVG = 18;
+
 // Default so a unit-length edge is ~this many screen pixels. Node dots and
 // labels are drawn at fixed screen sizes (counter-scaled by the zoom) so they
 // stay small relative to the geometry at any zoom.
@@ -72,6 +86,8 @@ function BpTreeViewportToolbar({
   zoomPercent,
   layers,
   onLayerChange,
+  symmetryEnabled,
+  onSymmetryToggle,
   zoomIn,
   zoomOut,
   fitToView,
@@ -80,6 +96,8 @@ function BpTreeViewportToolbar({
   zoomPercent: number;
   layers: BpTreeViewLayers;
   onLayerChange: (layer: BpTreeViewLayerKey, visible: boolean) => void;
+  symmetryEnabled: boolean;
+  onSymmetryToggle: () => void;
   zoomIn: () => void;
   zoomOut: () => void;
   fitToView: () => void;
@@ -108,6 +126,16 @@ function BpTreeViewportToolbar({
       fitToView={fitToView}
       setZoomLevel={setZoomLevel}
     >
+      <ViewportToolbarSeparator />
+      <IconButton
+        size="sm"
+        variant="toolbar"
+        title={symmetryEnabled ? 'Mirror draw (on)' : 'Mirror draw'}
+        isActive={symmetryEnabled}
+        onClick={onSymmetryToggle}
+      >
+        <FlipHorizontal2 size={14} />
+      </IconButton>
       <ViewportToolbarSeparator />
       <div className="viewport-toolbar__menu-anchor" ref={layersMenuRef}>
         <IconButton
@@ -250,6 +278,14 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
   const setOristudioBpActiveSurface = useWorkspaceStore(
     (state) => state.setOristudioBpActiveSurface
   );
+  const symmetry = useWorkspaceStore((state) => state.oristudioBpSymmetry);
+  const setOristudioBpSymmetry = useWorkspaceStore((state) => state.setOristudioBpSymmetry);
+  const addOristudioBpTreeLeafWithSymmetry = useWorkspaceStore(
+    (state) => state.addOristudioBpTreeLeafWithSymmetry
+  );
+  const moveOristudioBpTreeVerticesWithSymmetry = useWorkspaceStore(
+    (state) => state.moveOristudioBpTreeVerticesWithSymmetry
+  );
   const tree = document.snapshot.tree;
   const selectedVertexId = document.selection.kind === 'bp-vertex' ? document.selection.id : null;
   // The edge selected by clicking a tree segment — drives the length editor.
@@ -327,6 +363,115 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     (id: number, loc: Point) => vertexLocations?.get(id) ?? loc,
     [vertexLocations]
   );
+
+  // --- Symmetry (mirror-draw) -------------------------------------------------
+  // A tree isn't drawn on the paper, so there's nothing to orient a mirror line
+  // against — symmetry is a plain on/off toggle with a vertical axis (angle 90,
+  // mirror left/right) centred on the sheet.
+  const handleToggleSymmetry = useCallback(() => {
+    if (symmetry.enabled) {
+      setOristudioBpSymmetry({ enabled: false });
+      return;
+    }
+    setOristudioBpSymmetry({
+      enabled: true,
+      loc: bpTreeSymmetryDefaultLoc(tree.sheet),
+      angle: 90,
+    });
+  }, [setOristudioBpSymmetry, tree.sheet, symmetry.enabled]);
+
+  // The mirror line clipped to the sheet, in SVG coords.
+  const symmetryAxisLine = useMemo(() => {
+    if (!symmetry.enabled) return null;
+    const w = Math.max(1, tree.sheet.width);
+    const h = Math.max(1, tree.sheet.height);
+    const rad = (symmetry.angle * Math.PI) / 180;
+    const dir = { x: Math.cos(rad), y: Math.sin(rad) };
+    const hits: Point[] = [];
+    const push = (p: Point) => {
+      if (p.x >= -1e-6 && p.x <= w + 1e-6 && p.y >= -1e-6 && p.y <= h + 1e-6) hits.push(p);
+    };
+    if (Math.abs(dir.x) > 1e-9) {
+      for (const bx of [0, w]) {
+        const t = (bx - symmetry.loc.x) / dir.x;
+        push({ x: bx, y: symmetry.loc.y + t * dir.y });
+      }
+    }
+    if (Math.abs(dir.y) > 1e-9) {
+      for (const by of [0, h]) {
+        const t = (by - symmetry.loc.y) / dir.y;
+        push({ x: symmetry.loc.x + t * dir.x, y: by });
+      }
+    }
+    if (hits.length < 2) return null;
+    // Take the two most distant intersection points.
+    let a = hits[0];
+    let b = hits[1];
+    let best = -1;
+    for (let i = 0; i < hits.length; i += 1) {
+      for (let j = i + 1; j < hits.length; j += 1) {
+        const d = Math.hypot(hits[i].x - hits[j].x, hits[i].y - hits[j].y);
+        if (d > best) {
+          best = d;
+          a = hits[i];
+          b = hits[j];
+        }
+      }
+    }
+    const p1 = bpTreePointToSvg(a, tree.sheet, paperRect);
+    const p2 = bpTreePointToSvg(b, tree.sheet, paperRect);
+    return { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y };
+  }, [symmetry.enabled, symmetry.angle, symmetry.loc, tree.sheet, paperRect]);
+
+  // Ghost preview of the leaf a click would add (and its mirror), mirroring what
+  // addOristudioBpTreeLeafWithSymmetry will do: an on-axis tip is a single centred
+  // leaf; otherwise it reflects onto the parent's mirror.
+  const symmetryHoverPreview = useMemo(() => {
+    if (!symmetry.enabled || dragging || !hoverPoint) return null;
+    const parentId = selectedVertexId ?? tree.rootVertexId;
+    if (parentId === null) return null;
+    const parent = findVertex(parentId);
+    if (!parent) return null;
+    const axis = { loc: symmetry.loc, angle: symmetry.angle };
+    const axisTolerance = SYMMETRY_AXIS_BAND_SVG / 2 / bpTreeUnitToSvg(tree.sheet, paperRect);
+    const tip = constrainBpTreePoint(unitLeafLocation(parent.loc, hoverPoint), tree.sheet);
+    const snap = snapPointToSymmetryAxis(tip, axis, axisTolerance);
+    const primaryTip = snap.point;
+    let mirror: { from: Point; to: Point } | null = null;
+    let unresolved = false;
+    if (!snap.snapped) {
+      const mirrorParentId = mirrorBpTreeVertexId(
+        tree,
+        symmetry.pairs,
+        axis,
+        parentId,
+        BP_TREE_SYMMETRY_TOLERANCE
+      );
+      const mirrorParent = mirrorParentId != null ? findVertex(mirrorParentId) : undefined;
+      if (mirrorParent) {
+        mirror = { from: mirrorParent.loc, to: reflectPointAcrossSymmetryAxis(primaryTip, axis) };
+      } else {
+        unresolved = true;
+      }
+    }
+    return {
+      primary: { from: parent.loc, to: primaryTip },
+      mirror,
+      snapped: snap.snapped,
+      unresolved,
+    };
+  }, [
+    symmetry.enabled,
+    symmetry.loc,
+    symmetry.angle,
+    symmetry.pairs,
+    dragging,
+    hoverPoint,
+    selectedVertexId,
+    tree,
+    paperRect,
+    findVertex,
+  ]);
 
   // Set an edge's length and keep the tree length-faithful: re-place the child
   // vertex at `length` units from its parent along the current direction, and
@@ -531,7 +676,13 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     const parent = findVertex(parentId);
     if (!parent) return;
     const loc = constrainBpTreePoint(unitLeafLocation(parent.loc, down.point), tree.sheet);
-    void addOristudioBpTreeLeaf(parentId, loc);
+    if (symmetry.enabled) {
+      // Match the axis-snap zone to the visible band's half-width, converted from
+      // SVG units to tree units at the current sheet scale.
+      const axisTolerance =
+        SYMMETRY_AXIS_BAND_SVG / 2 / bpTreeUnitToSvg(tree.sheet, paperRect);
+      void addOristudioBpTreeLeafWithSymmetry(parentId, loc, axisTolerance);
+    } else void addOristudioBpTreeLeaf(parentId, loc);
   };
 
   const onEdgePointerDown = (event: PointerEvent<SVGGElement>, edgeId: number) => {
@@ -637,11 +788,19 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     setDragging(null);
     if (moved && preview.size > 0) {
       const updates = [...preview.entries()].map(([id, loc]) => ({ id, loc }));
-      void moveOristudioBpTreeVertices(updates, false);
+      if (symmetry.enabled) void moveOristudioBpTreeVerticesWithSymmetry(updates, false);
+      else void moveOristudioBpTreeVertices(updates, false);
     }
   };
 
-  const onCanvasPointerMove = (event: PointerEvent<SVGSVGElement>) => {
+  const onCanvasPointerMove = (event: PointerEvent<Element>) => {
+    // Track hover across the whole clickable pane — clicks commit anywhere on the
+    // canvas (via the container), not just over the content-sized SVG, so the mirror
+    // ghost must follow the cursor there too. Skip the toolbar/editor chrome.
+    if (isViewportInteractiveTarget(event.target)) {
+      setHoverPoint(null);
+      return;
+    }
     setHoverPoint(eventToTreePoint(event));
   };
 
@@ -657,6 +816,8 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
         if (!isViewportInteractiveTarget(event.target)) containerRef.current?.focus();
         onCanvasAddPointerDown(event);
       }}
+      onPointerMove={onCanvasPointerMove}
+      onPointerLeave={() => setHoverPoint(null)}
       onPointerUp={onCanvasAddPointerUp}
     >
       <TransformWrapper
@@ -694,9 +855,76 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
             style={{ width: worldRect.width, height: worldRect.height }}
             role="img"
             aria-label="Box Pleat tree canvas"
-            onPointerMove={onCanvasPointerMove}
-            onPointerLeave={() => setHoverPoint(null)}
           >
+            {symmetryAxisLine && (
+              <>
+                <line
+                  className="symmetry-snap-lane"
+                  x1={symmetryAxisLine.x1}
+                  y1={symmetryAxisLine.y1}
+                  x2={symmetryAxisLine.x2}
+                  y2={symmetryAxisLine.y2}
+                />
+                <line
+                  className="symmetry-line"
+                  x1={symmetryAxisLine.x1}
+                  y1={symmetryAxisLine.y1}
+                  x2={symmetryAxisLine.x2}
+                  y2={symmetryAxisLine.y2}
+                />
+              </>
+            )}
+            {symmetryHoverPreview && (
+              <g className="symmetry-ghost">
+                {(() => {
+                  const from = bpTreePointToSvg(symmetryHoverPreview.primary.from, tree.sheet, paperRect);
+                  const to = bpTreePointToSvg(symmetryHoverPreview.primary.to, tree.sheet, paperRect);
+                  return (
+                    <>
+                      <line
+                        className={[
+                          'symmetry-ghost-edge',
+                          symmetryHoverPreview.unresolved ? 'symmetry-ghost-edge--unresolved' : '',
+                        ].join(' ')}
+                        x1={from.x}
+                        y1={from.y}
+                        x2={to.x}
+                        y2={to.y}
+                      />
+                      <circle
+                        className="symmetry-ghost-node"
+                        data-snapped={symmetryHoverPreview.snapped || undefined}
+                        cx={to.x}
+                        cy={to.y}
+                        r={chromePx(LEAF_DOT_PX)}
+                      />
+                    </>
+                  );
+                })()}
+                {symmetryHoverPreview.mirror &&
+                  (() => {
+                    const from = bpTreePointToSvg(symmetryHoverPreview.mirror.from, tree.sheet, paperRect);
+                    const to = bpTreePointToSvg(symmetryHoverPreview.mirror.to, tree.sheet, paperRect);
+                    return (
+                      <>
+                        <line
+                          className="symmetry-ghost-edge"
+                          x1={from.x}
+                          y1={from.y}
+                          x2={to.x}
+                          y2={to.y}
+                        />
+                        <circle
+                          className="symmetry-ghost-node"
+                          cx={to.x}
+                          cy={to.y}
+                          r={chromePx(LEAF_DOT_PX)}
+                        />
+                      </>
+                    );
+                  })()}
+              </g>
+            )}
             {tree.edges.map((edge) => {
               const a = findVertex(edge.vertices[0]);
               const b = findVertex(edge.vertices[1]);
@@ -788,6 +1016,8 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
         zoomPercent={zoomPercent}
         layers={layers}
         onLayerChange={setLayer}
+        symmetryEnabled={symmetry.enabled}
+        onSymmetryToggle={handleToggleSymmetry}
         zoomIn={() => transformRef.current?.zoomIn(0.35, 120)}
         zoomOut={() => transformRef.current?.zoomOut(0.35, 120)}
         fitToView={() => fitToView()}

@@ -352,9 +352,15 @@ const ORIEDITA_CP_TOOL_INSTRUCTIONS: Record<string, OristudioCpToolInstructions>
     ],
   },
   textAction: {
-    intro: ['Create text box.'],
-    steps: ['Select text field to move and edit it.'],
-    notes: ['Press ESC or click anywhere to apply edit. Right click on text to delete it.'],
+    intro: ['Add and edit text annotations.'],
+    steps: [
+      'Click an empty spot to add text there.',
+      'Click a label to edit it; drag to move it.',
+    ],
+    notes: [
+      'Press ESC or click away to finish an edit; empty text is discarded.',
+      'Right-click a label, or select it and press Delete, to remove it.',
+    ],
   },
   unselectAction: {
     intro: ['Deselect lines by drawing a rectangle.'],

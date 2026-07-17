@@ -53,12 +53,48 @@ function labelWidth(text: string, characterWidth: number): number {
   return Math.max(18, text.length * characterWidth) + 12;
 }
 
+interface BpSheetFrame {
+  /** Grid-space coordinate of the frame's left/bottom origin. */
+  originX: number;
+  originY: number;
+  /** Frame span in grid units — the bounding box the sheet maps into. */
+  spanX: number;
+  spanY: number;
+}
+
+/**
+ * The coordinate frame a sheet maps into. A rectangular sheet spans [0,width] ×
+ * [0,height]. A diagonal sheet is a square of `size` placed as a diamond, so it
+ * maps into Box Pleating Studio's render box (`DiagonalGrid.$renderWidth` /
+ * `$offset`): a square of side `size + size%2` whose origin is shifted by
+ * `-size%2/2` on each axis. Routing every screen mapping through this frame keeps
+ * the diamond border, the clipped grid, and the flap lattice on one transform,
+ * including the half-cell shift on odd sizes.
+ */
+export function bpPackingSheetFrame(sheet: OristudioBpSheet): BpSheetFrame {
+  if (sheet.kind === 'diagonal') {
+    const size = Math.max(1, Math.round(sheet.width));
+    const shift = (size % 2) / 2;
+    const span = size + (size % 2);
+    const origin = shift === 0 ? 0 : -shift; // avoid -0 for even sizes
+    return { originX: origin, originY: origin, spanX: span, spanY: span };
+  }
+  return {
+    originX: 0,
+    originY: 0,
+    spanX: Math.max(1, sheet.width),
+    spanY: Math.max(1, sheet.height),
+  };
+}
+
 export function bpPackingPaperRect(sheet: OristudioBpSheet): PlotRect {
-  const width = Math.max(1, sheet.width);
-  const height = Math.max(1, sheet.height);
-  const scale = Math.min(BASE_SHEET_RECT.width / width, BASE_SHEET_RECT.height / height);
-  const rectWidth = width * scale;
-  const rectHeight = height * scale;
+  const frame = bpPackingSheetFrame(sheet);
+  const scale = Math.min(
+    BASE_SHEET_RECT.width / frame.spanX,
+    BASE_SHEET_RECT.height / frame.spanY
+  );
+  const rectWidth = frame.spanX * scale;
+  const rectHeight = frame.spanY * scale;
   return {
     x: BASE_SHEET_RECT.x + (BASE_SHEET_RECT.width - rectWidth) / 2,
     y: BASE_SHEET_RECT.y + (BASE_SHEET_RECT.height - rectHeight) / 2,
@@ -82,9 +118,23 @@ export function bpPackingPointToSvg(
   sheet: OristudioBpSheet,
   rect = bpPackingPaperRect(sheet)
 ): Point {
+  const frame = bpPackingSheetFrame(sheet);
   return {
-    x: rect.x + (point.x / Math.max(1, sheet.width)) * rect.width,
-    y: rect.y + rect.height - (point.y / Math.max(1, sheet.height)) * rect.height,
+    x: rect.x + ((point.x - frame.originX) / frame.spanX) * rect.width,
+    y: rect.y + rect.height - ((point.y - frame.originY) / frame.spanY) * rect.height,
+  };
+}
+
+/** Inverse of {@link bpPackingPointToSvg}: SVG space back to grid coordinates. */
+export function bpPackingSvgToPoint(
+  svgPoint: Point,
+  sheet: OristudioBpSheet,
+  rect = bpPackingPaperRect(sheet)
+): Point {
+  const frame = bpPackingSheetFrame(sheet);
+  return {
+    x: frame.originX + ((svgPoint.x - rect.x) / rect.width) * frame.spanX,
+    y: frame.originY + ((rect.y + rect.height - svgPoint.y) / rect.height) * frame.spanY,
   };
 }
 
@@ -92,7 +142,53 @@ export function bpPackingUnitToSvg(
   sheet: OristudioBpSheet,
   rect = bpPackingPaperRect(sheet)
 ): number {
-  return rect.width / Math.max(1, sheet.width);
+  const frame = bpPackingSheetFrame(sheet);
+  return rect.width / frame.spanX;
+}
+
+/**
+ * The paper outline in SVG space. A rectangular sheet returns its four corners; a
+ * diagonal sheet returns Box Pleating Studio's diamond (`DiagonalGrid.$getBorderPath`),
+ * the square rotated 45° so its vertices land on the render box's edge midpoints.
+ */
+export function bpPackingSheetBorderPoints(
+  sheet: OristudioBpSheet,
+  rect = bpPackingPaperRect(sheet)
+): Point[] {
+  if (sheet.kind === 'diagonal') {
+    const size = Math.max(1, Math.round(sheet.width));
+    const shift = (size % 2) / 2;
+    const full = size + (size % 2) - shift;
+    const half = (size + (size % 2)) / 2 - shift;
+    return [
+      { x: half, y: -shift },
+      { x: full, y: half },
+      { x: half, y: full },
+      { x: -shift, y: half },
+    ].map((corner) => bpPackingPointToSvg(corner, sheet, rect));
+  }
+  return [
+    { x: rect.x, y: rect.y },
+    { x: rect.x + rect.width, y: rect.y },
+    { x: rect.x + rect.width, y: rect.y + rect.height },
+    { x: rect.x, y: rect.y + rect.height },
+  ];
+}
+
+/** The drop-shadow polygon: the paper outline pushed out from its centroid. */
+export function bpPackingSheetShadowPoints(
+  sheet: OristudioBpSheet,
+  rect = bpPackingPaperRect(sheet)
+): Point[] {
+  const border = bpPackingSheetBorderPoints(sheet, rect);
+  const cx = border.reduce((sum, p) => sum + p.x, 0) / border.length;
+  const cy = border.reduce((sum, p) => sum + p.y, 0) / border.length;
+  return border.map((p) => {
+    const dx = p.x - cx;
+    const dy = p.y - cy;
+    const len = Math.hypot(dx, dy) || 1;
+    return { x: p.x + (dx / len) * SHADOW_INSET, y: p.y + (dy / len) * SHADOW_INSET };
+  });
 }
 
 export function bpPackingRectToSvg(
@@ -254,6 +350,30 @@ export function bpPackingGridLines(
   rect = bpPackingPaperRect(sheet)
 ): BpPackingGridLine[] {
   const lines: BpPackingGridLine[] = [];
+  if (sheet.grid.kind === 'diagonal') {
+    // Box Pleating Studio's DiagonalGrid.$drawGrid: the grid lines stay horizontal
+    // and vertical, but each is clipped to the diamond — widest across the middle,
+    // tapering to a point at the top/bottom/left/right corners. The border itself is
+    // the rotated square drawn separately (bpPackingSheetBorderPoints).
+    const size = Math.max(1, Math.round(sheet.width));
+    const shift = size % 2;
+    for (let i = 1 - shift; i < size + shift; i++) {
+      const offset = Math.abs(i - size / 2) - shift / 2;
+      lines.push({
+        id: `dh:${i}`,
+        kind: 'minor',
+        from: bpPackingPointToSvg({ x: offset, y: i }, sheet, rect),
+        to: bpPackingPointToSvg({ x: size - offset, y: i }, sheet, rect),
+      });
+      lines.push({
+        id: `dv:${i}`,
+        kind: 'minor',
+        from: bpPackingPointToSvg({ x: i, y: offset }, sheet, rect),
+        to: bpPackingPointToSvg({ x: i, y: size - offset }, sheet, rect),
+      });
+    }
+    return lines;
+  }
   const interval = Math.max(1, sheet.grid.interval || 1);
   for (let x = 0; x <= sheet.width; x += interval) {
     const from = bpPackingPointToSvg({ x, y: 0 }, sheet, rect);
@@ -264,32 +384,6 @@ export function bpPackingGridLines(
     const from = bpPackingPointToSvg({ x: 0, y }, sheet, rect);
     const to = bpPackingPointToSvg({ x: sheet.width, y }, sheet, rect);
     lines.push({ id: `y:${y}`, kind: y === 0 || y === sheet.height ? 'major' : 'minor', from, to });
-  }
-  if (sheet.grid.kind === 'diagonal') {
-    for (let x = -sheet.height; x <= sheet.width; x += interval) {
-      const startX = Math.max(0, x);
-      const startY = Math.max(0, -x);
-      const endX = Math.min(sheet.width, x + sheet.height);
-      const endY = Math.min(sheet.height, sheet.width - x);
-      lines.push({
-        id: `d1:${x}`,
-        kind: 'diagonal',
-        from: bpPackingPointToSvg({ x: startX, y: startY }, sheet, rect),
-        to: bpPackingPointToSvg({ x: endX, y: endY }, sheet, rect),
-      });
-    }
-    for (let x = 0; x <= sheet.width + sheet.height; x += interval) {
-      const startX = Math.max(0, x - sheet.height);
-      const startY = Math.min(sheet.height, x);
-      const endX = Math.min(sheet.width, x);
-      const endY = Math.max(0, x - sheet.width);
-      lines.push({
-        id: `d2:${x}`,
-        kind: 'diagonal',
-        from: bpPackingPointToSvg({ x: startX, y: startY }, sheet, rect),
-        to: bpPackingPointToSvg({ x: endX, y: endY }, sheet, rect),
-      });
-    }
   }
   return lines;
 }

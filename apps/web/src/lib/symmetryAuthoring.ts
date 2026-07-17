@@ -1,21 +1,23 @@
-import type { Point } from './geometry';
 import type { TreeProject } from './sampleProject';
+import { symmetrySide, type SymmetryAxis } from './symmetryGeometry';
 
-export const SYMMETRY_AUTHORING_TOLERANCE = 0.015;
-
-export interface SymmetryAxis {
-  loc: Point;
-  angle: number;
-}
+// The pure geometry now lives in ./symmetryGeometry (shared with the BP-tree
+// adapter). Re-export it here so this module stays the one-stop import for
+// TreeMaker's symmetry authoring (DesignPanel, editingSlice).
+export {
+  SYMMETRY_AUTHORING_TOLERANCE,
+  axisDirection,
+  distanceToSymmetryAxis,
+  projectOntoSymmetryAxis,
+  reflectPointAcrossSymmetryAxis,
+  snapPointToSymmetryAxis,
+  symmetrySide,
+  type SymmetryAxis,
+} from './symmetryGeometry';
 
 export interface SymmetryAuthoringPair {
   node1: number;
   node2: number;
-}
-
-function axisDirection(axis: SymmetryAxis): Point {
-  const radians = (axis.angle * Math.PI) / 180;
-  return { x: Math.cos(radians), y: Math.sin(radians) };
 }
 
 function nodeExists(project: TreeProject, nodeId: number): boolean {
@@ -27,51 +29,6 @@ export function symmetryAxisForProject(project: TreeProject): SymmetryAxis {
     loc: project.paper.symLoc,
     angle: project.paper.symAngle,
   };
-}
-
-export function projectOntoSymmetryAxis(point: Point, axis: SymmetryAxis): Point {
-  const direction = axisDirection(axis);
-  const dx = point.x - axis.loc.x;
-  const dy = point.y - axis.loc.y;
-  const dot = dx * direction.x + dy * direction.y;
-  return {
-    x: axis.loc.x + dot * direction.x,
-    y: axis.loc.y + dot * direction.y,
-  };
-}
-
-export function reflectPointAcrossSymmetryAxis(point: Point, axis: SymmetryAxis): Point {
-  const projected = projectOntoSymmetryAxis(point, axis);
-  return {
-    x: 2 * projected.x - point.x,
-    y: 2 * projected.y - point.y,
-  };
-}
-
-export function distanceToSymmetryAxis(point: Point, axis: SymmetryAxis): number {
-  const direction = axisDirection(axis);
-  const dx = point.x - axis.loc.x;
-  const dy = point.y - axis.loc.y;
-  return Math.abs(dx * direction.y - dy * direction.x);
-}
-
-export function symmetrySide(point: Point, axis: SymmetryAxis, tolerance = SYMMETRY_AUTHORING_TOLERANCE): -1 | 0 | 1 {
-  const direction = axisDirection(axis);
-  const dx = point.x - axis.loc.x;
-  const dy = point.y - axis.loc.y;
-  const cross = dx * direction.y - dy * direction.x;
-  if (Math.abs(cross) <= tolerance) return 0;
-  return cross < 0 ? -1 : 1;
-}
-
-export function snapPointToSymmetryAxis(
-  point: Point,
-  axis: SymmetryAxis,
-  tolerance = SYMMETRY_AUTHORING_TOLERANCE
-): { point: Point; snapped: boolean; distance: number } {
-  const distance = distanceToSymmetryAxis(point, axis);
-  if (distance > tolerance) return { point, snapped: false, distance };
-  return { point: projectOntoSymmetryAxis(point, axis), snapped: true, distance };
 }
 
 export function findPairedNodeId(project: TreeProject, nodeId: number): number | null {

@@ -27,6 +27,7 @@ import type {
 } from '../../lib/creasePatternViewport';
 import type { SelectablePartKind } from '../../lib/selection';
 import type { SymmetryAuthoringPair } from '../../lib/symmetryAuthoring';
+import type { BpTreeSymmetryPair } from '../../lib/bpTreeSymmetry';
 import type { FileService } from '../../platform/fileService';
 import type { ImportedCreasePatternDocument } from '../../lib/creasePatternImport';
 import type { CreaseExportOptions } from '../../lib/creaseExport';
@@ -411,6 +412,18 @@ export interface BpHistorySnapshot {
   selection: OristudioBpSelection;
 }
 
+/**
+ * Ephemeral BP-tree symmetry authoring state. Not persisted to the document/.bps —
+ * it lives only in the store for the current editing session (mirror-draw axis +
+ * paired vertices). `angle`/`loc` describe the mirror axis in tree coordinates.
+ */
+export interface OristudioBpSymmetryState {
+  enabled: boolean;
+  angle: number;
+  loc: Point;
+  pairs: BpTreeSymmetryPair[];
+}
+
 export interface OristudioBpSliceState {
   oristudioBpDocument: OristudioBpDocumentState | null;
   oristudioBpWorkspace: OristudioBpWorkspaceState | null;
@@ -419,6 +432,7 @@ export interface OristudioBpSliceState {
   oristudioBpBusy: boolean;
   oristudioBpHistoryPast: SnapshotEntry<BpHistorySnapshot>[];
   oristudioBpHistoryFuture: SnapshotEntry<BpHistorySnapshot>[];
+  oristudioBpSymmetry: OristudioBpSymmetryState;
 }
 
 export interface OristudioBpSliceActions {
@@ -450,6 +464,28 @@ export interface OristudioBpSliceActions {
   ) => Promise<boolean>;
   /** Add a unit-length leaf to a parent vertex, optionally at a target location. */
   addOristudioBpTreeLeaf: (parentId: number, loc?: Point) => Promise<boolean>;
+  /** Patch the ephemeral BP-tree symmetry authoring state (mirror-draw). */
+  setOristudioBpSymmetry: (update: Partial<OristudioBpSymmetryState>) => void;
+  /**
+   * Add a leaf and, when mirror-draw is on and the parent has a mirror, also add the
+   * reflected leaf on the other side — recording the new pair. One undo entry. A leaf
+   * whose tip lands within `axisTolerance` (tree units) of the axis snaps onto it as a
+   * single centred leaf instead of mirroring; the panel sizes this to the visible
+   * axis band so a click anywhere inside the line makes one centred leaf.
+   */
+  addOristudioBpTreeLeafWithSymmetry: (
+    parentId: number,
+    loc?: Point,
+    axisTolerance?: number
+  ) => Promise<boolean>;
+  /**
+   * Move vertices and, when mirror-draw is on, also move their paired counterparts to
+   * the reflected positions (partial mirror). One undo entry / coalesced drag.
+   */
+  moveOristudioBpTreeVerticesWithSymmetry: (
+    updates: { id: number; loc: Point }[],
+    dragging?: boolean
+  ) => Promise<boolean>;
   /** Delete a tree node (leaf-cascade; the engine refuses below the minimum size). */
   deleteOristudioBpTreeNode: (id: number) => Promise<boolean>;
   /** Send the BP design's crease pattern to the Edit canvas (Import(Add) merge). */

@@ -64,7 +64,18 @@ import type { ToolCommit, ToolPreviewSegment } from './tools/types';
  * crease by id and commits line ids), and `lengthen` (drag a selection line to pick
  * the crease(s) to extend, then click the target — commits 3 points).
  */
-type ActiveToolMode = ToolInputMode | 'sequence' | 'line-entity' | 'lengthen';
+type ActiveToolMode =
+  | ToolInputMode
+  | 'sequence'
+  | 'line-entity'
+  | 'lengthen'
+  // Angle Restricted Line (DrawCreaseAngleRestricted5): press-drag-release like the
+  // Line tool, but the endpoint is angle-system-snapped (kernel-previewed live).
+  | 'angle-drag'
+  // Text annotation tool: existing texts are selected/dragged via the DOM overlay
+  // (it owns the real glyph bounds); the canvas only reports an empty-space click's
+  // model point so the panel can start an inline-edit draft there.
+  | 'text';
 /**
  * Per-step snap/feedback mode: snap to grid/vertices (`point`), onto an existing
  * crease (`crease`), or onto the nearest kernel-computed candidate ray (`candidate`,
@@ -392,6 +403,13 @@ export interface CreasePatternWebglCanvasProps {
    */
   activeToolClickSelects: boolean;
   /**
+   * True for the Eraser (LineSegmentDelete). Like {@link activeToolClickSelects},
+   * its drag-box engine commits nothing for a zero-area box, so a plain click
+   * (no drag) is routed to {@link onEraseLine} — delete the crease under the
+   * cursor — while a drag box-erases. Mirrors Oriedita's LINE_SEGMENT_DELETE_3.
+   */
+  activeToolClickErases: boolean;
+  /**
    * True for Mirror Line (SymmetricDraw), whose input is dual-mode: the first pick
    * decides between a 3-point sequence (pick lands on a vertex/point) and a 2-line
    * sequence (pick lands on a bare crease). When set, the sequence engine defers its
@@ -420,6 +438,12 @@ export interface CreasePatternWebglCanvasProps {
   activeToolVoronoi: boolean;
   /** True for the measure tools: their guide line renders as a screen-space dash. */
   activeToolDashedPreview: boolean;
+  /**
+   * Text tool: a plain click on empty canvas (no drag, no pan) reports its model
+   * point so the panel can start an inline-edit draft there. Selecting/dragging an
+   * existing text is handled by the DOM overlay, so those clicks never reach here.
+   */
+  onTextCreate?: (modelPoint: ModelPoint) => void;
   /** The current Voronoi click list (owned by the panel as `cpToolPoints`). */
   voronoiSeeds: readonly ModelPoint[];
   /** Report the updated Voronoi click list after a seed add / gesture reset. */
@@ -576,11 +600,13 @@ export function CreasePatternWebglCanvas({
   activeToolLineCount,
   activeToolRequireSnap,
   activeToolClickSelects,
+  activeToolClickErases,
   activeToolDualMirror,
   activeToolConverging,
   activeToolSquareBisector,
   activeToolVoronoi,
   activeToolDashedPreview,
+  onTextCreate,
   voronoiSeeds,
   onVoronoiSeedsChange,
   resolveFirstPickKind,
@@ -644,6 +670,9 @@ export function CreasePatternWebglCanvas({
   // click: a crease pick fills both at once, two point picks fill one each. Once it
   // holds 2, the gesture is in its converge (candidate-point) step.
   const convergingBaseRef = useRef<ModelPoint[]>([]);
+  // Angle Restricted Line's anchor (the press point), held while dragging the
+  // angle-snapped endpoint; null when no drag is in progress.
+  const angleDragAnchorRef = useRef<ModelPoint | null>(null);
   // Last zoom percent reported to the panel (dedupes the per-frame report).
   const lastReportedZoomRef = useRef<number | null>(null);
   // Last model→CSS affine reported to the panel (for the text overlay), to dedupe.
@@ -676,6 +705,7 @@ export function CreasePatternWebglCanvas({
     sequenceStepRef.current = 0;
     dynamicStepKindsRef.current = null;
     convergingBaseRef.current = [];
+    angleDragAnchorRef.current = null;
     squareBisectorRef.current = { mode: null, points: [], lineIds: [] };
     linePickHighlightRef.current = [];
     lengthenRef.current = { phase: 'select', a: null, b: null };
@@ -851,10 +881,12 @@ export function CreasePatternWebglCanvas({
     activeToolLineCount,
     activeToolRequireSnap,
     activeToolClickSelects,
+    activeToolClickErases,
     activeToolDualMirror,
     activeToolConverging,
     activeToolSquareBisector,
     activeToolVoronoi,
+    onTextCreate,
     voronoiSeeds,
     onVoronoiSeedsChange,
     resolveFirstPickKind,
@@ -1174,6 +1206,12 @@ export function CreasePatternWebglCanvas({
     let panning = false;
     let selecting = false;
     let moved = false;
+    // Text tool: true only when THIS press started on the canvas (empty space).
+    // A press that began on the DOM overlay (a label, or the dismiss backdrop that
+    // closes an open editor) never runs the canvas' pointerdown, so this stays false
+    // and the release must not create a text — otherwise clicking away from an editor
+    // (which removes the backdrop mid-gesture) would spawn a stray box.
+    let textPressStarted = false;
     // Active draw-tool drag: a runtime wrapping the active input mode's pure
     // engine, created on pointer-down and driven by feedTool.
     let drawing = false;
@@ -1404,6 +1442,58 @@ export function CreasePatternWebglCanvas({
           sequenceOverlayPoints([], converge, accent, liveRef.current.toolCommandPreviewPoints)
         );
       }
+      renderNow();
+    };
+    // Angle Restricted Line (DrawCreaseAngleRestricted5): press-drag-release like the
+    // Line tool. Press anchors the start (snapped to grid/vertices, as Oriedita's
+    // move_click_drag_point snaps to the closest point); dragging kernel-previews the
+    // angle-system-snapped segment [anchor, cursor]; release commits those two points
+    // (the kernel re-snaps the endpoint on execute). Before a press, hover just shows
+    // the anchor snap indicator.
+    const feedAngleDrag = (
+      kind: 'down' | 'move' | 'up' | 'cancel',
+      clientX: number,
+      clientY: number
+    ) => {
+      const accent = readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK);
+      const tol = modelToleranceOf(SNAP_TOLERANCE_CSS);
+      const reset = () => {
+        angleDragAnchorRef.current = null;
+        liveRef.current.onToolPreviewInput([], []);
+        renderer.setOverlayPoints(null);
+      };
+      if (kind === 'cancel') {
+        reset();
+        renderNow();
+        return;
+      }
+      const raw = clientToModel(clientX, clientY);
+      if (!raw) return;
+      if (kind === 'down') {
+        const anchor = liveRef.current.resolveDrawPoint(raw, tol).point;
+        angleDragAnchorRef.current = anchor;
+        renderer.setOverlayPoints(sequenceOverlayPoints([anchor], null, accent));
+        renderNow();
+        return;
+      }
+      const anchor = angleDragAnchorRef.current;
+      if (kind === 'move') {
+        if (!anchor) {
+          // Pre-press hover: show where the anchor would snap.
+          const snap = liveRef.current.resolveDrawPoint(raw, tol).point;
+          const ring = snap.x !== raw.x || snap.y !== raw.y ? snap : null;
+          renderer.setOverlayPoints(sequenceOverlayPoints([], ring, accent));
+          renderNow();
+          return;
+        }
+        liveRef.current.onToolPreviewInput([anchor, raw], []);
+        renderer.setOverlayPoints(sequenceOverlayPoints([anchor], null, accent));
+        renderNow();
+        return;
+      }
+      // up
+      if (anchor && moved) liveRef.current.onToolCommit({ points: [anchor, raw] });
+      reset();
       renderNow();
     };
     // Square Bisector (modes A + B): the first pick decides the mode. A point starts
@@ -1781,6 +1871,18 @@ export function CreasePatternWebglCanvas({
         // Two-gesture drag tool: draw the selection line, then click the target.
         e.preventDefault();
         feedLengthen('down', e.clientX, e.clientY);
+      } else if (toolMode === 'angle-drag') {
+        // Angle Restricted Line: press anchors the start, drag previews the
+        // angle-snapped segment, release commits.
+        e.preventDefault();
+        feedAngleDrag('down', e.clientX, e.clientY);
+      } else if (toolMode === 'text') {
+        // Text tool: a plain click on empty canvas starts an inline-edit draft
+        // (handled on release, once we know it was a click and not a pan/drag).
+        // Clicks on existing texts are captured by the DOM overlay and never reach
+        // here, so any press that lands here is on empty space.
+        e.preventDefault();
+        textPressStarted = true;
       } else if (toolMode) {
         // A drag draw tool is active: plain drag draws instead of selecting.
         e.preventDefault();
@@ -1855,6 +1957,16 @@ export function CreasePatternWebglCanvas({
         // Lengthen: draw the selection line while dragging, or (in the extension
         // phase) track the target-point cursor. Fires on hover too.
         feedLengthen('move', e.clientX, e.clientY);
+      } else if (
+        liveRef.current.activeToolInputMode === 'angle-drag' &&
+        !panning &&
+        !movingFigure &&
+        !movingSelection &&
+        !selecting
+      ) {
+        // Angle Restricted Line: preview the angle-snapped segment while dragging
+        // (and show the anchor snap indicator on hover before the press).
+        feedAngleDrag('move', e.clientX, e.clientY);
       } else if (
         liveRef.current.activeToolInputMode === 'sequence' &&
         !panning &&
@@ -1957,6 +2069,22 @@ export function CreasePatternWebglCanvas({
         !movingFigure
       ) {
         feedLengthen(e.type === 'pointercancel' ? 'cancel' : 'up', e.clientX, e.clientY);
+      } else if (liveRef.current.activeToolInputMode === 'angle-drag' && !panning && !movingFigure) {
+        // Angle Restricted Line: release commits the [anchor, endpoint] segment.
+        feedAngleDrag(e.type === 'pointercancel' ? 'cancel' : 'up', e.clientX, e.clientY);
+      } else if (
+        liveRef.current.activeToolInputMode === 'text' &&
+        !panning &&
+        !movingFigure
+      ) {
+        // Text tool: a click (no drag) whose press started on the canvas starts an
+        // inline-edit draft at that model point. A drag/pan, or a release whose press
+        // began on the overlay (dismissing an editor), does nothing.
+        if (textPressStarted && !moved && e.type !== 'pointercancel') {
+          const m = clientToModel(e.clientX, e.clientY);
+          if (m) liveRef.current.onTextCreate?.(m);
+        }
+        textPressStarted = false;
       } else if (erasing) {
         renderer.setPreview(null);
         const raw = clientToModel(e.clientX, e.clientY);
@@ -1995,6 +2123,13 @@ export function CreasePatternWebglCanvas({
           // empty), matching the SVG's per-crease click select.
           feedTool('cancel', e.clientX, e.clientY);
           liveRef.current.onSelect(hitTest(e.clientX, e.clientY), e.shiftKey);
+        } else if (liveRef.current.activeToolClickErases && !moved && e.type !== 'pointercancel') {
+          // A click (no drag) on the eraser: discard the degenerate box and delete
+          // the crease under the cursor, matching Oriedita's LINE_SEGMENT_DELETE_3
+          // (and the right-button erase gesture's own degenerate-box fallback).
+          feedTool('cancel', e.clientX, e.clientY);
+          const hit = hitTest(e.clientX, e.clientY);
+          if (hit && hit.kind === 'line') liveRef.current.onEraseLine(hit.id);
         } else {
           feedTool(e.type === 'pointercancel' ? 'cancel' : 'up', e.clientX, e.clientY);
         }

@@ -50,6 +50,14 @@ describe('shortcut registry', () => {
     expect(shortcutLabelForAction('edit.delete')).toContain('Delete / Backspace');
   });
 
+  it('binds the F fold chord to a single fold action (deduped)', () => {
+    // Fold and FoldingEstimate both default to `foldAction` (F); the builder keeps
+    // the chord on FoldingEstimate and drops the duplicate on Fold. CreasePatternPanel
+    // routes both operationIds to the real fold, so this pins the de-dup it relies on.
+    expect(getResolvedShortcut('cp.action.folding-estimate')).toEqual({ key: 'f' });
+    expect(getResolvedShortcut('cp.action.fold')).toBeNull();
+  });
+
   it('keeps undo and redo defaults available even when overrides are stale or cleared', () => {
     expect(getResolvedShortcuts('edit.undo', { 'edit.undo': null })).toEqual([
       { primary: true, key: 'z' },
