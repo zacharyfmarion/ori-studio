@@ -29,6 +29,7 @@ import {
   importedCpLineage,
   markCpLineageEdited,
 } from '../../../lib/oristudioCpLineage';
+import type { CpImage } from '../../../cp-workspace/images/cpImage';
 import { normalizeOristudioCpCommandPayload } from '../../../lib/oristudioCpCommandPayloads';
 import {
   activeNativeDocument,
@@ -135,11 +136,13 @@ function resolveNativeActiveMode(
 function cpHistoryEntry(
   document: Awaited<ReturnType<typeof loadOristudioCpDocumentFromText>>['document'],
   label: string,
-  selection: OristudioCpSelection
+  selection: OristudioCpSelection,
+  images: CpImage[]
 ) {
   return {
     document,
     selection,
+    images,
     label,
     timestamp: nowIso(),
   };
@@ -465,7 +468,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         oristudioCpHistoryPast: previousDocument
           ? [
               ...get().oristudioCpHistoryPast,
-              cpHistoryEntry(previousDocument, label, previousSelection),
+              cpHistoryEntry(previousDocument, label, previousSelection, get().oristudioCpImages),
             ]
           : get().oristudioCpHistoryPast,
         oristudioCpHistoryFuture: [],
@@ -1467,7 +1470,12 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
             ? mutatesDocument
               ? [
                   ...get().oristudioCpHistoryPast,
-                  cpHistoryEntry(previousDocument, String(operationId), previousSelection),
+                  cpHistoryEntry(
+                    previousDocument,
+                    String(operationId),
+                    previousSelection,
+                    get().oristudioCpImages
+                  ),
                 ]
               : get().oristudioCpHistoryPast
             : get().oristudioCpHistoryPast,
@@ -1602,7 +1610,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           oristudioCpError: null,
           oristudioCpHistoryPast: [
             ...get().oristudioCpHistoryPast,
-            cpHistoryEntry(previousDocument, label, previousSelection),
+            cpHistoryEntry(previousDocument, label, previousSelection, get().oristudioCpImages),
           ],
           oristudioCpHistoryFuture: [],
           error: null,

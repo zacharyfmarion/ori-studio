@@ -90,6 +90,95 @@ export function imageCornersModel(image: CpImage): [Vec2, Vec2, Vec2, Vec2] {
   return [corner(-hw, -hh), corner(hw, -hh), corner(hw, hh), corner(-hw, hh)];
 }
 
+/** The eight resize handles, by compass position on the (unrotated) image. */
+export type CpImageResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
+
+/** Local-axis signs of a handle's dragged point: 0 = that axis is fixed (edge). */
+const HANDLE_SIGNS: Record<CpImageResizeHandle, { sx: -1 | 0 | 1; sy: -1 | 0 | 1 }> = {
+  nw: { sx: -1, sy: -1 },
+  n: { sx: 0, sy: -1 },
+  ne: { sx: 1, sy: -1 },
+  e: { sx: 1, sy: 0 },
+  se: { sx: 1, sy: 1 },
+  s: { sx: 0, sy: 1 },
+  sw: { sx: -1, sy: 1 },
+  w: { sx: -1, sy: 0 },
+};
+
+/** Minimum image extent (model units) so a resize can't collapse the quad. */
+const MIN_IMAGE_EXTENT = 1e-4;
+
+export interface CpImageResizeResult {
+  center: Vec2;
+  width: number;
+  height: number;
+}
+
+/**
+ * Resize an image by dragging one of its eight handles to `pointerModel`,
+ * keeping the opposite corner/edge anchored. Corner handles scale both axes;
+ * edge handles scale one. `aspectLock` (Shift on a corner) preserves the source
+ * aspect ratio. Pure — returns the new center + extent.
+ */
+export function resizeImage(
+  image: CpImage,
+  handle: CpImageResizeHandle,
+  pointerModel: Vec2,
+  aspectLock = false
+): CpImageResizeResult {
+  const { sx, sy } = HANDLE_SIGNS[handle];
+  const cos = Math.cos(image.rotation);
+  const sin = Math.sin(image.rotation);
+  const u: Vec2 = { x: cos, y: sin }; // local +x (right) in model space
+  const v: Vec2 = { x: -sin, y: cos }; // local +y (down) in model space
+  const hw = image.width / 2;
+  const hh = image.height / 2;
+
+  // Anchor = the opposite corner/edge, fixed during the drag.
+  const anchorLocalX = -sx * hw;
+  const anchorLocalY = -sy * hh;
+  const anchor: Vec2 = {
+    x: image.center.x + u.x * anchorLocalX + v.x * anchorLocalY,
+    y: image.center.y + u.y * anchorLocalX + v.y * anchorLocalY,
+  };
+  const dx = pointerModel.x - anchor.x;
+  const dy = pointerModel.y - anchor.y;
+  const du = dx * u.x + dy * u.y; // extent along local x
+  const dv = dx * v.x + dy * v.y; // extent along local y
+
+  let width = sx !== 0 ? Math.abs(du) : image.width;
+  let height = sy !== 0 ? Math.abs(dv) : image.height;
+
+  if (aspectLock && sx !== 0 && sy !== 0) {
+    const scale = Math.max(Math.abs(du) / image.width, Math.abs(dv) / image.height);
+    width = image.width * scale;
+    height = image.height * scale;
+  }
+
+  width = Math.max(width, MIN_IMAGE_EXTENT);
+  height = Math.max(height, MIN_IMAGE_EXTENT);
+
+  // Center sits half the new extent from the anchor, along the drag direction on
+  // active axes; on a fixed axis the anchor already carries the center's position.
+  const signU = du >= 0 ? 1 : -1;
+  const signV = dv >= 0 ? 1 : -1;
+  const offX = sx !== 0 ? (signU * width) / 2 : 0;
+  const offY = sy !== 0 ? (signV * height) / 2 : 0;
+  return {
+    center: {
+      x: anchor.x + u.x * offX + v.x * offY,
+      y: anchor.y + u.y * offX + v.y * offY,
+    },
+    width,
+    height,
+  };
+}
+
+/** Snap an angle (radians) to the nearest multiple of `step` radians. */
+export function snapAngle(angle: number, step: number): number {
+  return Math.round(angle / step) * step;
+}
+
 /** True if `model` lies inside the image's rotated quad. */
 export function imageContainsModelPoint(image: CpImage, model: Vec2): boolean {
   // Transform the point into the image's local (unrotated, centered) frame.

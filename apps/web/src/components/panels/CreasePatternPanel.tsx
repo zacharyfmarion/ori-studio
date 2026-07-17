@@ -118,7 +118,7 @@ import type { ContextMenuItem, ContextMenuRequest } from '../ui/contextMenuTypes
 import { vertexPointsFromTransport } from '../../engine/oristudioCpGeometry';
 import { CpTextOverlay } from '../../cp-workspace/CpTextOverlay';
 import { CpImageOverlay } from '../../cp-workspace/CpImageOverlay';
-import { createCpImage } from '../../cp-workspace/images/cpImage';
+import { createCpImage, type CpImage } from '../../cp-workspace/images/cpImage';
 import { importImageFile, isSupportedImageFile } from '../../cp-workspace/images/cpImageImport';
 import {
   fitImageModelSize,
@@ -934,6 +934,10 @@ export function CreasePatternPanel() {
   const addCpImage = useWorkspaceStore((state) => state.addCpImage);
   const updateCpImage = useWorkspaceStore((state) => state.updateCpImage);
   const setSelectedCpImage = useWorkspaceStore((state) => state.setSelectedCpImage);
+  const recordCpImageHistory = useWorkspaceStore((state) => state.recordCpImageHistory);
+  // Image-layer state captured at the start of a move/resize/rotate gesture, so
+  // the whole gesture records a single undo entry on commit.
+  const preGestureImagesRef = useRef<readonly CpImage[] | null>(null);
 
   // Drag-and-drop an image file onto the canvas to add it as a reference image,
   // placed at the drop point (or view center) and sized to ~half the view.
@@ -975,6 +979,7 @@ export function CreasePatternPanel() {
             targetExtent
           );
           const topZ = oristudioCpImages.reduce((max, image) => Math.max(max, image.z), 0);
+          const previousImages = oristudioCpImages;
           addCpImage(
             createCpImage({
               src: source.src,
@@ -986,13 +991,14 @@ export function CreasePatternPanel() {
               z: topZ + 1,
             })
           );
+          recordCpImageHistory([...previousImages], 'Add image');
           setImageEditMode(true);
         } catch (error) {
           console.error('[cp-image] failed to import dropped image', error);
         }
       })();
     },
-    [addCpImage, oristudioCpImages, webglOverlayView]
+    [addCpImage, oristudioCpImages, recordCpImageHistory, webglOverlayView]
   );
   const oristudioCpActionRequest = useWorkspaceStore((state) => state.oristudioCpActionRequest);
   const oristudioCpFoldedFigures = useWorkspaceStore((state) => state.oristudioCpFoldedFigures);
@@ -2999,6 +3005,14 @@ export function CreasePatternPanel() {
                     interactive={imageEditMode}
                     onSelectImage={setSelectedCpImage}
                     onUpdateImage={updateCpImage}
+                    onGestureStart={() => {
+                      preGestureImagesRef.current = oristudioCpImages;
+                    }}
+                    onGestureCommit={(_id, label) => {
+                      const previous = preGestureImagesRef.current;
+                      preGestureImagesRef.current = null;
+                      if (previous) recordCpImageHistory([...previous], label);
+                    }}
                   />
                 )}
                 </>

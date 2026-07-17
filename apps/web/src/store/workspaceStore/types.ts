@@ -63,6 +63,14 @@ import type {
 export interface OristudioCpHistoryEntry {
   document: OristudioCpDocumentSnapshot;
   selection: OristudioCpSelection;
+  /** Reference-image layer at the captured moment (superset feature). */
+  images: CpImage[];
+  /**
+   * True when the entry captures an image-layer-only change (add/move/resize/
+   * rotate/crop/delete). Undo/redo then swaps images without reloading the
+   * (unchanged) wasm document, keeping image edits cheap.
+   */
+  imageOnly?: boolean;
   label: string;
   timestamp: string;
 }
@@ -424,6 +432,12 @@ export interface CreasePatternSliceActions {
   setSelectedCpImage: (id: string | null) => void;
   /** Replace the whole image layer (used by load and snapshot restore). */
   setCpImages: (images: CpImage[]) => void;
+  /**
+   * Record an image-layer edit into the CP undo history. `previousImages` is the
+   * layer state *before* the gesture (the store already holds the post-gesture
+   * state). Pushes an `imageOnly` history entry and clears the redo stack.
+   */
+  recordCpImageHistory: (previousImages: CpImage[], label: string) => void;
 }
 
 export type CreasePatternSlice = CreasePatternSliceState & CreasePatternSliceActions;

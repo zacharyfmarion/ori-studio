@@ -8,6 +8,8 @@ import {
   overlayCssDeltaToModel,
   overlayCssToModel,
   overlayModelToCss,
+  resizeImage,
+  snapAngle,
 } from './cpImagePlacement';
 
 // A simple view: model (0,0) at CSS (100,100), 10 CSS px per model unit, y down.
@@ -90,5 +92,52 @@ describe('hit-testing', () => {
 
   it('returns null when nothing is hit', () => {
     expect(imageAtModelPoint([image({ center: { x: 100, y: 100 } })], { x: 0, y: 0 })).toBeNull();
+  });
+});
+
+describe('resizeImage', () => {
+  it('resizes a corner keeping the opposite corner anchored', () => {
+    // 4x2 image centered at origin; SE corner at (2,1), NW anchor at (-2,-1).
+    const img = image({ center: { x: 0, y: 0 }, width: 4, height: 2 });
+    // Drag SE to (4, 3): anchor stays (-2,-1) → new width 6, height 4, center (1,1).
+    const r = resizeImage(img, 'se', { x: 4, y: 3 });
+    expect(r.width).toBeCloseTo(6);
+    expect(r.height).toBeCloseTo(4);
+    expect(r.center.x).toBeCloseTo(1);
+    expect(r.center.y).toBeCloseTo(1);
+  });
+
+  it('resizes only one axis for an edge handle', () => {
+    const img = image({ center: { x: 0, y: 0 }, width: 4, height: 2 });
+    // East edge anchored at west edge midpoint (-2,0); drag to (5, 9).
+    const r = resizeImage(img, 'e', { x: 5, y: 9 });
+    expect(r.width).toBeCloseTo(7); // |5 - (-2)|
+    expect(r.height).toBeCloseTo(2); // unchanged
+    expect(r.center.y).toBeCloseTo(0); // perpendicular position preserved
+    expect(r.center.x).toBeCloseTo(1.5); // anchor -2 + width/2 * 3.5
+  });
+
+  it('preserves aspect ratio with the lock flag on a corner', () => {
+    const img = image({ center: { x: 0, y: 0 }, width: 4, height: 2 }); // aspect 2:1
+    const r = resizeImage(img, 'se', { x: 6, y: 2 }, true);
+    // du=8, dv=3 → scale=max(8/4, 3/2)=2 → 8x4, aspect preserved.
+    expect(r.width / r.height).toBeCloseTo(2);
+  });
+
+  it('clamps to a minimum extent', () => {
+    const img = image({ center: { x: 0, y: 0 }, width: 4, height: 2 });
+    const r = resizeImage(img, 'se', { x: -2, y: -1 }); // dragged onto the anchor
+    expect(r.width).toBeGreaterThan(0);
+    expect(r.height).toBeGreaterThan(0);
+  });
+});
+
+describe('snapAngle', () => {
+  const step = Math.PI / 12; // 15°
+  it('snaps to the nearest increment', () => {
+    expect(snapAngle(0.02, step)).toBeCloseTo(0);
+    expect(snapAngle((14 * Math.PI) / 180, step)).toBeCloseTo(step); // ~14° → 15°
+    expect(snapAngle((22 * Math.PI) / 180, step)).toBeCloseTo(step); // ~22° → 15°
+    expect(snapAngle((24 * Math.PI) / 180, step)).toBeCloseTo(2 * step); // ~24° → 30°
   });
 });

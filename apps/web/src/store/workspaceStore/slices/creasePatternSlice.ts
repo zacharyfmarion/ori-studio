@@ -58,6 +58,9 @@ import type {
 } from '../../../engine/oristudioCpTypes';
 import type { WorkspaceCapabilityId } from '../../../lib/workspaceCapabilities';
 
+/** Cap on the CP undo stack (matches historySlice's MAX_HISTORY). */
+const MAX_CP_HISTORY = 100;
+
 export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice> = (
   set,
   get
@@ -1227,5 +1230,25 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
             ? get().oristudioCpSelectedImageId
             : null,
       }),
+
+    recordCpImageHistory: (previousImages, label) => {
+      const document = get().oristudioCpDocument;
+      if (!document) return;
+      set({
+        oristudioCpHistoryPast: [
+          ...get().oristudioCpHistoryPast,
+          {
+            document: document.document,
+            selection: get().oristudioCpSelection,
+            images: previousImages,
+            imageOnly: true,
+            label,
+            timestamp: new Date().toISOString(),
+          },
+        ].slice(-MAX_CP_HISTORY),
+        oristudioCpHistoryFuture: [],
+        dirty: true,
+      });
+    },
   };
 };
