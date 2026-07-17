@@ -883,8 +883,10 @@ export function CreasePatternPanel() {
   const [spacePressed, setSpacePressed] = useState(false);
   // Images tool: when on, the reference-image overlay is interactive (select /
   // move / resize / rotate) and crease clicks fall through to it only over an
-  // image. Off by default so tracing over an image is the common case.
-  const [imageEditMode, setImageEditMode] = useState(false);
+  // image. Store-owned so the load transaction can set it atomically (a saved
+  // file with images opens ready to edit) — see projectSlice.
+  const imageEditMode = useWorkspaceStore((state) => state.oristudioCpImageEditMode);
+  const setImageEditMode = useWorkspaceStore((state) => state.setOristudioCpImageEditMode);
   const [cpToolState, setCpToolState] = useState(IDLE_ORISTUDIO_CP_TOOL_STATE);
   const [activeCpLineColor, setActiveCpLineColor] = useState<OristudioCpLineColor>('Red1');
   const [foldStartingFaceId, setFoldStartingFaceId] = useState(1);
@@ -1002,7 +1004,7 @@ export function CreasePatternPanel() {
         console.error('[cp-image] failed to import image', error);
       }
     },
-    [addCpImage, recordCpImageHistory, webglOverlayView]
+    [addCpImage, recordCpImageHistory, setImageEditMode, webglOverlayView]
   );
 
   const handleViewportDragOver = useCallback((event: ReactDragEvent<HTMLDivElement>) => {
@@ -1075,13 +1077,6 @@ export function CreasePatternPanel() {
   );
   const oristudioCpViewport = useWorkspaceStore((state) => state.oristudioCpViewport);
   const projectLoadId = useWorkspaceStore((state) => state.projectLoadId);
-  // Opening (or creating) a document enters Images edit mode iff it carries
-  // reference images, so a saved file's images are immediately selectable and
-  // editable — matching a fresh drop, which also enters the mode. A plain crease
-  // document exits it. Keyed on projectLoadId (bumped by every open/new).
-  useEffect(() => {
-    setImageEditMode(useWorkspaceStore.getState().oristudioCpImages.length > 0);
-  }, [projectLoadId]);
   // Crease lines always use Oriedita's default M/V/flat/border coloring; the
   // color-by toggle has been removed from the CP panel header.
   const mode = 'mvf' as const;
@@ -3136,12 +3131,7 @@ export function CreasePatternPanel() {
                       title={imageEditMode ? 'Editing images (click to exit)' : 'Edit images'}
                       aria-pressed={imageEditMode}
                       data-active={imageEditMode || undefined}
-                      onClick={() => {
-                        setImageEditMode((on) => {
-                          if (on) setSelectedCpImage(null);
-                          return !on;
-                        });
-                      }}
+                      onClick={() => setImageEditMode(!imageEditMode)}
                     >
                       <ImageIcon size={14} />
                     </IconButton>

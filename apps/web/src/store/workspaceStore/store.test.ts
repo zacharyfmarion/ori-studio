@@ -1692,6 +1692,9 @@ describe('workspace store slices', () => {
 
     expect(useWorkspaceStore.getState().oristudioCpImages).toEqual([image]);
     expect(useWorkspaceStore.getState().oristudioCpSelectedImageId).toBeNull();
+    // The load transaction enters Images edit mode so the file's images are
+    // immediately editable (set atomically with the images, not via an effect).
+    expect(useWorkspaceStore.getState().oristudioCpImageEditMode).toBe(true);
   });
 
   it('loads CP-only documents and gates tree-only persistence', async () => {

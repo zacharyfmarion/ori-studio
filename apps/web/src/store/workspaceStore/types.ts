@@ -346,6 +346,12 @@ export interface CreasePatternSliceState {
    */
   oristudioCpImages: CpImage[];
   oristudioCpSelectedImageId: string | null;
+  /**
+   * Whether the Images tool is active (overlay interactive: select/move/resize/
+   * rotate/crop). Set atomically by the load transaction so a saved file's
+   * images are immediately editable — see projectSlice load/reset handlers.
+   */
+  oristudioCpImageEditMode: boolean;
   foldArtifacts: FoldArtifacts | null;
   foldArtifactError: string | null;
   foldArtifactStatus: FoldArtifactStatus;
@@ -430,6 +436,8 @@ export interface CreasePatternSliceActions {
   removeCpImage: (id: string) => void;
   /** Select an image (or clear with `null`). */
   setSelectedCpImage: (id: string | null) => void;
+  /** Toggle the Images tool (interactive overlay) on/off. */
+  setOristudioCpImageEditMode: (active: boolean) => void;
   /** Replace the whole image layer (used by load and snapshot restore). */
   setCpImages: (images: CpImage[]) => void;
   /**

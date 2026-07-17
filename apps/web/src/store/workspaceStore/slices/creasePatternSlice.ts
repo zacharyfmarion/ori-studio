@@ -362,6 +362,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     oristudioCpViewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
     oristudioCpImages: [],
     oristudioCpSelectedImageId: null,
+    oristudioCpImageEditMode: false,
     ...emptyFoldArtifactResourceState(),
     sequenceTarget: null,
     sequencePlan: null,
@@ -1219,6 +1220,13 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       set({
         oristudioCpSelectedImageId:
           id !== null && get().oristudioCpImages.some((image) => image.id === id) ? id : null,
+      }),
+
+    setOristudioCpImageEditMode: (active) =>
+      set({
+        oristudioCpImageEditMode: active,
+        // Leaving the tool clears any image selection so its handles don't linger.
+        oristudioCpSelectedImageId: active ? get().oristudioCpSelectedImageId : null,
       }),
 
     setCpImages: (images) =>
