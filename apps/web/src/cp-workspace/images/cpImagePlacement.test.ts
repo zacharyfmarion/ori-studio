@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createCpImage, type CpImage } from './cpImage';
 import type { CpOverlayView } from '../CreasePatternWebglCanvas';
 import {
+  cropImage,
   fitImageModelSize,
   imageAtModelPoint,
   imageContainsModelPoint,
@@ -129,6 +130,38 @@ describe('resizeImage', () => {
     const r = resizeImage(img, 'se', { x: -2, y: -1 }); // dragged onto the anchor
     expect(r.width).toBeGreaterThan(0);
     expect(r.height).toBeGreaterThan(0);
+  });
+});
+
+describe('cropImage', () => {
+  it('crops an edge inward, keeping pixel density and anchoring the far edge', () => {
+    // 4-wide, full crop; density = 1/4 crop-fraction per model unit.
+    const img = image({ center: { x: 0, y: 0 }, width: 4, height: 2 });
+    // Drag east edge from x=2 in to x=1: width 3 (anchor at x=-2), crop.w 0.75.
+    const r = cropImage(img, 'e', { x: 1, y: 0 });
+    expect(r.width).toBeCloseTo(3);
+    expect(r.height).toBeCloseTo(2);
+    expect(r.crop.x).toBeCloseTo(0); // left anchored
+    expect(r.crop.w).toBeCloseTo(0.75);
+    expect(r.center.x).toBeCloseTo(-0.5); // anchor -2 + width/2
+  });
+
+  it('crops the left edge, anchoring the right crop coordinate', () => {
+    const img = image({ center: { x: 0, y: 0 }, width: 4, height: 2 });
+    // Drag west edge from x=-2 in to x=0: width 2 (anchor at x=2), crop 0.5..1.
+    const r = cropImage(img, 'w', { x: 0, y: 0 });
+    expect(r.width).toBeCloseTo(2);
+    expect(r.crop.w).toBeCloseTo(0.5);
+    expect(r.crop.x).toBeCloseTo(0.5); // right coord 1 preserved
+  });
+
+  it('clamps the crop to the source bounds', () => {
+    const img = image({ center: { x: 0, y: 0 }, width: 4, height: 2 });
+    // Try to drag the east edge way past the source (x=100): crop.w clamps to 1.
+    const r = cropImage(img, 'e', { x: 100, y: 0 });
+    expect(r.crop.x).toBeCloseTo(0);
+    expect(r.crop.w).toBeCloseTo(1);
+    expect(r.width).toBeCloseTo(4); // width follows clamped crop / density
   });
 });
 

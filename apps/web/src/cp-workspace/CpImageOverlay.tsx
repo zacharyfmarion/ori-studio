@@ -1,7 +1,14 @@
-import { useCallback, useRef, type PointerEvent as ReactPointerEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
 import type { CpOverlayView } from './CreasePatternWebglCanvas';
 import { IMAGE_ROTATION_SNAP_RADIANS, type CpImage, type CpImageUpdate } from './images/cpImage';
 import {
+  cropImage,
   imageCornersModel,
   overlayCssDeltaToModel,
   overlayCssToModel,
@@ -36,6 +43,8 @@ type Drag =
       id: string;
       handle: CpImageResizeHandle;
       startImage: CpImage;
+      /** When true the handle crops instead of scaling. */
+      crop: boolean;
       moved: boolean;
     }
   | {
@@ -70,6 +79,18 @@ export function CpImageOverlay({
 }) {
   const dragRef = useRef<Drag | null>(null);
   const containerRef = useRef<SVGSVGElement | null>(null);
+  // Crop mode: handles adjust the crop rect instead of scaling. Entered by
+  // double-clicking the selected image; Escape (or reselecting) exits.
+  const [cropMode, setCropMode] = useState(false);
+  useEffect(() => setCropMode(false), [selectedImageId]);
+  useEffect(() => {
+    if (!cropMode) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setCropMode(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [cropMode]);
 
   const pointerToModel = useCallback(
     (event: ReactPointerEvent): Vec2 | null => {
@@ -108,9 +129,16 @@ export function CpImageOverlay({
       if (!interactive || image.locked) return;
       beginCapture(event);
       onGestureStart?.();
-      dragRef.current = { kind: 'resize', id: image.id, handle, startImage: image, moved: false };
+      dragRef.current = {
+        kind: 'resize',
+        id: image.id,
+        handle,
+        startImage: image,
+        crop: cropMode,
+        moved: false,
+      };
     },
-    [interactive, onGestureStart]
+    [interactive, onGestureStart, cropMode]
   );
 
   const handleRotateDown = useCallback(
@@ -152,6 +180,16 @@ export function CpImageOverlay({
       if (!pointer) return;
       if (drag.kind === 'resize') {
         drag.moved = true;
+        if (drag.crop) {
+          const next = cropImage(drag.startImage, drag.handle, pointer);
+          onUpdateImage(drag.id, {
+            center: next.center,
+            width: next.width,
+            height: next.height,
+            crop: next.crop,
+          });
+          return;
+        }
         const next = resizeImage(drag.startImage, drag.handle, pointer, event.shiftKey);
         onUpdateImage(drag.id, { center: next.center, width: next.width, height: next.height });
         return;
@@ -175,7 +213,13 @@ export function CpImageOverlay({
       }
       if (drag?.moved) {
         const label =
-          drag.kind === 'move' ? 'Move image' : drag.kind === 'resize' ? 'Resize image' : 'Rotate image';
+          drag.kind === 'move'
+            ? 'Move image'
+            : drag.kind === 'rotate'
+              ? 'Rotate image'
+              : drag.crop
+                ? 'Crop image'
+                : 'Resize image';
         onGestureCommit?.(drag.id, label);
       }
     },
@@ -208,8 +252,15 @@ export function CpImageOverlay({
             key={image.id}
             points={points}
             fill="transparent"
-            stroke={isSelected ? 'var(--accent-primary, #4c9aff)' : 'transparent'}
+            stroke={
+              isSelected
+                ? cropMode
+                  ? '#e0a020'
+                  : 'var(--accent-primary, #4c9aff)'
+                : 'transparent'
+            }
             strokeWidth={isSelected ? 1.5 : 0}
+            strokeDasharray={isSelected && cropMode ? '4 3' : undefined}
             style={{
               pointerEvents: interactive && !image.locked ? 'auto' : 'none',
               cursor: interactive ? 'move' : 'default',
@@ -218,6 +269,11 @@ export function CpImageOverlay({
             onPointerDown={(event) => handleBodyDown(event, image)}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
+            onDoubleClick={(event) => {
+              if (!interactive || image.locked || image.id !== selectedImageId) return;
+              event.stopPropagation();
+              setCropMode((mode) => !mode);
+            }}
           />
         );
       })}
@@ -226,6 +282,7 @@ export function CpImageOverlay({
         <SelectionHandles
           image={selected}
           view={view}
+          cropMode={cropMode}
           onResizeDown={handleResizeDown}
           onRotateDown={handleRotateDown}
           onPointerMove={handlePointerMove}
@@ -240,6 +297,7 @@ export function CpImageOverlay({
 function SelectionHandles({
   image,
   view,
+  cropMode,
   onResizeDown,
   onRotateDown,
   onPointerMove,
@@ -247,6 +305,7 @@ function SelectionHandles({
 }: {
   image: CpImage;
   view: CpOverlayView;
+  cropMode: boolean;
   onResizeDown: (
     event: ReactPointerEvent<SVGRectElement>,
     image: CpImage,
@@ -256,6 +315,8 @@ function SelectionHandles({
   onPointerMove: (event: ReactPointerEvent<SVGElement>) => void;
   onPointerUp: (event: ReactPointerEvent<SVGElement>) => void;
 }) {
+  // Crop handles use the warning accent; resize/rotate the primary accent.
+  const handleStroke = cropMode ? '#e0a020' : 'var(--accent-primary, #4c9aff)';
   const [tl, tr, br, bl] = imageCornersModel(image).map((corner) => overlayModelToCss(view, corner));
   const mid = (a: Vec2, b: Vec2): Vec2 => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
   const center = { x: (tl.x + br.x) / 2, y: (tl.y + br.y) / 2 };
@@ -283,24 +344,26 @@ function SelectionHandles({
   const half = HANDLE_SIZE_PX / 2;
   return (
     <g>
-      {rotateCorners.map((corner, i) => {
-        const at = outward(corner);
-        return (
-          <circle
-            key={`rot-${i}`}
-            cx={at.x}
-            cy={at.y}
-            r={HANDLE_SIZE_PX / 2 + 1}
-            fill="var(--bg-primary, #202430)"
-            stroke="var(--accent-primary, #4c9aff)"
-            strokeWidth={1.5}
-            style={{ pointerEvents: 'auto', cursor: 'grab', vectorEffect: 'non-scaling-stroke' }}
-            onPointerDown={(event) => onRotateDown(event, image)}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-          />
-        );
-      })}
+      {/* Rotation handles are only meaningful when scaling, not cropping. */}
+      {!cropMode &&
+        rotateCorners.map((corner, i) => {
+          const at = outward(corner);
+          return (
+            <circle
+              key={`rot-${i}`}
+              cx={at.x}
+              cy={at.y}
+              r={HANDLE_SIZE_PX / 2 + 1}
+              fill="var(--bg-primary, #202430)"
+              stroke={handleStroke}
+              strokeWidth={1.5}
+              style={{ pointerEvents: 'auto', cursor: 'grab', vectorEffect: 'non-scaling-stroke' }}
+              onPointerDown={(event) => onRotateDown(event, image)}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+            />
+          );
+        })}
       {resizePoints.map(({ handle, at }) => (
         <rect
           key={handle}
@@ -309,7 +372,7 @@ function SelectionHandles({
           width={HANDLE_SIZE_PX}
           height={HANDLE_SIZE_PX}
           fill="var(--bg-primary, #202430)"
-          stroke="var(--accent-primary, #4c9aff)"
+          stroke={handleStroke}
           strokeWidth={1.5}
           style={{ pointerEvents: 'auto', cursor: 'pointer', vectorEffect: 'non-scaling-stroke' }}
           onPointerDown={(event) => onResizeDown(event, image, handle)}
