@@ -1,4 +1,4 @@
-import { act, type ReactElement } from 'react';
+import { act, StrictMode, type ReactElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CpTextOverlay } from './CpTextOverlay';
@@ -385,6 +385,45 @@ describe('CpTextOverlay inline editor', () => {
     expect(onDeselect).toHaveBeenCalled();
     expect(container?.querySelector('textarea')).toBeNull();
     expect(onSetTextContent).not.toHaveBeenCalled();
+  });
+
+  it('creates a text exactly once under StrictMode (no duplicate on commit)', () => {
+    // StrictMode double-invokes state updaters in dev; a commit performed inside a
+    // setState updater would fire onCreateText twice → two stacked texts. This
+    // guards that commits happen outside updaters.
+    const onCreateText = vi.fn();
+    container = document.createElement('div');
+    document.body.append(container);
+    root = createRoot(container);
+    act(() => {
+      root?.render(
+        <StrictMode>
+          <CpTextOverlay
+            texts={[]}
+            selectedTextIds={[]}
+            view={VIEW}
+            zoomPercent={100}
+            selectable
+            textToolActive
+            createDraftAt={{ x: 4, y: 5 }}
+            onCreateDraftConsumed={vi.fn()}
+            onToggleText={vi.fn()}
+            onCreateText={
+              onCreateText as (anchor: { x: number; y: number }, text: string) => void
+            }
+          />
+        </StrictMode>
+      );
+    });
+
+    const el = textarea();
+    type(el, 'once');
+    act(() => {
+      el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+
+    expect(onCreateText).toHaveBeenCalledTimes(1);
+    expect(onCreateText).toHaveBeenCalledWith({ x: 4, y: 5 }, 'once');
   });
 
   it('holds the drag offset until the move command resolves', async () => {

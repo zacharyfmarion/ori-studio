@@ -127,6 +127,9 @@ export const CpTextOverlay = memo(function CpTextOverlay({
   const fontPx = Math.max(1, BASE_FONT_PX * (zoomPercent / 100));
 
   const [session, setSession] = useState<EditSession | null>(null);
+  // Mirror of `session` for imperative reads. All session mutations go through
+  // `setSessionSafely`, which keeps this in sync. It is the authority for commits.
+  const sessionRef = useRef<EditSession | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Latest props the commit closure needs, without making commit itself churn.
@@ -150,26 +153,39 @@ export const CpTextOverlay = memo(function CpTextOverlay({
     }
   }, []);
 
+  const setSessionSafely = useCallback((next: EditSession | null) => {
+    sessionRef.current = next;
+    setSession(next);
+  }, []);
+
+  // Commit the open session exactly once, OUTSIDE any state updater. Commits must
+  // not live inside a setState updater: React StrictMode double-invokes updaters in
+  // dev, which would run the create/set side effect twice (two texts). Nulling the
+  // ref first also makes re-entrant calls (e.g. blur + backdrop from one click) a
+  // no-op on the second.
+  const commitCurrentSession = useCallback(() => {
+    const current = sessionRef.current;
+    if (!current) return;
+    sessionRef.current = null;
+    commitSession(current);
+  }, [commitSession]);
+
   // Open a create draft when the canvas relays an empty-space click. Commit any
   // in-progress session first, then start fresh at the new point.
   useEffect(() => {
     if (!createDraftAt) return;
-    setSession((current) => {
-      commitSession(current);
-      return { textId: null, anchor: { x: createDraftAt.x, y: createDraftAt.y }, draft: '' };
-    });
+    commitCurrentSession();
+    setSessionSafely({ textId: null, anchor: { x: createDraftAt.x, y: createDraftAt.y }, draft: '' });
     onCreateDraftConsumed?.();
-  }, [createDraftAt, commitSession, onCreateDraftConsumed]);
+  }, [createDraftAt, commitCurrentSession, setSessionSafely, onCreateDraftConsumed]);
 
   // Leaving the Text tool commits the open session (parity with Oriedita hiding the
   // editor + firing record() when the mouse mode changes away from TEXT).
   useEffect(() => {
     if (textToolActive) return;
-    setSession((current) => {
-      commitSession(current);
-      return null;
-    });
-  }, [textToolActive, commitSession]);
+    commitCurrentSession();
+    setSessionSafely(null);
+  }, [textToolActive, commitCurrentSession, setSessionSafely]);
 
   // A stable identity for the edited target: changes when the session opens or
   // switches texts/anchor, but NOT as the draft is typed — so focus is placed once
@@ -192,17 +208,15 @@ export const CpTextOverlay = memo(function CpTextOverlay({
     (id: number) => {
       const text = texts[id - 1];
       if (!text) return;
-      setSession((current) => {
-        commitSession(current);
-        return {
-          textId: id,
-          anchor: { x: textCoordinate(text.x), y: textCoordinate(text.y) },
-          draft: text.text,
-        };
+      commitCurrentSession();
+      setSessionSafely({
+        textId: id,
+        anchor: { x: textCoordinate(text.x), y: textCoordinate(text.y) },
+        draft: text.text,
       });
       onSelectText?.(id);
     },
-    [texts, commitSession, onSelectText]
+    [texts, commitCurrentSession, setSessionSafely, onSelectText]
   );
 
   // Plain (non-Text-tool) selection stays a click; the Text tool routes clicks and
@@ -294,13 +308,11 @@ export const CpTextOverlay = memo(function CpTextOverlay({
   // is no longer selected. Blur alone keeps the selection (commit only).
   const dismissSession = useCallback(
     (deselect: boolean) => {
-      setSession((current) => {
-        commitSession(current);
-        return null;
-      });
+      commitCurrentSession();
+      setSessionSafely(null);
       if (deselect) onDeselect?.();
     },
-    [commitSession, onDeselect]
+    [commitCurrentSession, setSessionSafely, onDeselect]
   );
 
   const handleTextareaKeyDown = useCallback(
@@ -323,9 +335,13 @@ export const CpTextOverlay = memo(function CpTextOverlay({
     dismissSession(false);
   }, [dismissSession]);
 
-  const handleDraftChange = useCallback((value: string) => {
-    setSession((current) => (current ? { ...current, draft: value } : current));
-  }, []);
+  const handleDraftChange = useCallback(
+    (value: string) => {
+      const current = sessionRef.current;
+      if (current) setSessionSafely({ ...current, draft: value });
+    },
+    [setSessionSafely]
+  );
 
   const editorPos = session ? projectAnchor(view, session.anchor) : null;
   const editorRows = session ? Math.max(1, session.draft.split('\n').length) : 1;
