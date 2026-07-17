@@ -36,6 +36,7 @@ import {
 import { cpGeometryStrokesToScene } from './adapters/cpGeometryToScene';
 import type { CpGeometryTransport } from '../engine/oristudioCpGeometry';
 import type { CpImage } from './images/cpImage';
+import { imageCornersModel } from './images/cpImagePlacement';
 import { cpPointsToScene } from './adapters/cpPointsToScene';
 import { resolveCpLineColor } from './adapters/cpLineColor';
 import { resolveCpPointStyle } from './adapters/cpPointStyle';
@@ -735,22 +736,32 @@ export function CreasePatternWebglCanvas({
   // Content bounds in SVG user coords, for the initial camera fit (independent
   // of the SVG's own fixed-rect fit, which mis-centres imported cameras).
   const contentBounds = useMemo<UserBounds | null>(() => {
-    if (lineSegments.length === 0) return null;
     let minX = Infinity;
     let minY = Infinity;
     let maxX = -Infinity;
     let maxY = -Infinity;
+    let has = false;
+    const extend = (point: ModelPoint) => {
+      const u = modelToSvg(point);
+      if (u.x < minX) minX = u.x;
+      if (u.y < minY) minY = u.y;
+      if (u.x > maxX) maxX = u.x;
+      if (u.y > maxY) maxY = u.y;
+      has = true;
+    };
     for (const seg of lineSegments) {
-      for (const p of [seg.a, seg.b]) {
-        const u = modelToSvg(p);
-        if (u.x < minX) minX = u.x;
-        if (u.y < minY) minY = u.y;
-        if (u.x > maxX) maxX = u.x;
-        if (u.y > maxY) maxY = u.y;
-      }
+      extend(seg.a);
+      extend(seg.b);
     }
-    return { minX, minY, maxX, maxY };
-  }, [lineSegments, modelToSvg]);
+    // Reference images are placed content too, so framing (open + fit-to-view)
+    // must include them. Their model-space quad corners are folded into the
+    // bounds; hidden images are excluded (they aren't drawn).
+    for (const image of images ?? EMPTY_IMAGES) {
+      if (image.hidden) continue;
+      for (const corner of imageCornersModel(image)) extend(corner);
+    }
+    return has ? { minX, minY, maxX, maxY } : null;
+  }, [lineSegments, images, modelToSvg]);
 
   // Spatial indices for click hit-testing. Points are indexed as zero-length
   // segments so the same distance query applies (id = index + 1). Vertices are
