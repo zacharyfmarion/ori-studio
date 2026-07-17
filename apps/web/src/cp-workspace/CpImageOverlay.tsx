@@ -83,14 +83,24 @@ export function CpImageOverlay({
   // double-clicking the selected image; Escape (or reselecting) exits.
   const [cropMode, setCropMode] = useState(false);
   useEffect(() => setCropMode(false), [selectedImageId]);
+  // Escape steps back one level: exit crop mode if cropping, else deselect the
+  // image. Deselect via the empty-canvas click is handled by the canvas
+  // background-click path (see CreasePatternPanel `onSelect`); this covers the
+  // keyboard. Ignored while typing in a field.
   useEffect(() => {
-    if (!cropMode) return;
+    if (!interactive || !selectedImageId) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setCropMode(false);
+      if (event.key !== 'Escape') return;
+      const target = event.target as HTMLElement | null;
+      if (target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) {
+        return;
+      }
+      if (cropMode) setCropMode(false);
+      else onSelectImage(null);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [cropMode]);
+  }, [interactive, selectedImageId, cropMode, onSelectImage]);
 
   const pointerToModel = useCallback(
     (event: ReactPointerEvent): Vec2 | null => {

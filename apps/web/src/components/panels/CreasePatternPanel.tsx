@@ -2944,6 +2944,10 @@ export function CreasePatternPanel() {
                   onSelect={(hit, additive) => {
                     if (!hit) {
                       if (!additive) clearOristudioCpSelection();
+                      // A click on empty canvas also deselects the active image
+                      // (mirrors how creases clear on a background click). An image
+                      // click is captured by its overlay and never reaches here.
+                      if (imageEditMode) setSelectedCpImage(null);
                       return;
                     }
                     if (hit.kind === 'line') handleEditableLineClick(hit.id, additive);
