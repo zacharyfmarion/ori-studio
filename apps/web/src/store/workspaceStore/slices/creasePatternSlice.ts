@@ -357,6 +357,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     oristudioCpFoldedFigures: [],
     oristudioCpActiveFoldedFigureId: null,
     oristudioCpViewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+    oristudioCpImages: [],
+    oristudioCpSelectedImageId: null,
     ...emptyFoldArtifactResourceState(),
     sequenceTarget: null,
     sequencePlan: null,
@@ -1182,6 +1184,48 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
               texts: toggleCpSelectionList(get().oristudioCpSelection.texts, id),
             }
           : { ...emptyOristudioCpSelection(), texts: [id] },
+      }),
+
+    // --- Reference images (superset feature; see docs/superset-features.md) ---
+    // These mutate the web-side image layer only. Undo integration lands in a
+    // later phase; a fresh document resets the layer via the load/create paths.
+    addCpImage: (image) =>
+      set({
+        oristudioCpImages: [...get().oristudioCpImages, image],
+        oristudioCpSelectedImageId: image.id,
+        dirty: true,
+      }),
+
+    updateCpImage: (id, patch) =>
+      set({
+        oristudioCpImages: get().oristudioCpImages.map((image) =>
+          image.id === id ? { ...image, ...patch } : image
+        ),
+        dirty: true,
+      }),
+
+    removeCpImage: (id) =>
+      set({
+        oristudioCpImages: get().oristudioCpImages.filter((image) => image.id !== id),
+        oristudioCpSelectedImageId:
+          get().oristudioCpSelectedImageId === id ? null : get().oristudioCpSelectedImageId,
+        dirty: true,
+      }),
+
+    setSelectedCpImage: (id) =>
+      set({
+        oristudioCpSelectedImageId:
+          id !== null && get().oristudioCpImages.some((image) => image.id === id) ? id : null,
+      }),
+
+    setCpImages: (images) =>
+      set({
+        oristudioCpImages: images,
+        oristudioCpSelectedImageId:
+          get().oristudioCpSelectedImageId !== null &&
+          images.some((image) => image.id === get().oristudioCpSelectedImageId)
+            ? get().oristudioCpSelectedImageId
+            : null,
       }),
   };
 };

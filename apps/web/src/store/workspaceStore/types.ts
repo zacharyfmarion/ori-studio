@@ -50,6 +50,7 @@ import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
 import type { OristudioCpActionId } from '../../lib/oristudioCpActions';
 import type { CpLineClipboardPayload, CpSelectionTransform } from '../../lib/creasePatternClipboard';
 import type { OristudioCpLineage } from '../../lib/oristudioCpLineage';
+import type { CpImage, CpImageUpdate } from '../../cp-workspace/images/cpImage';
 import type {
   OristudioBpDocumentState,
   OristudioBpEditingSurface,
@@ -98,6 +99,14 @@ export interface ProjectSliceState {
   oristudioCpCamvResult: OristudioCpCommandResult | null;
   oristudioCpHistoryPast: OristudioCpHistoryEntry[];
   oristudioCpHistoryFuture: OristudioCpHistoryEntry[];
+  /**
+   * Extension bags carried forward from a loaded `.osf` and re-emitted on save,
+   * so forward-compat data written by a newer app version survives a round-trip
+   * through this one (see `nativeProjectFile` extensions notes). File-level and
+   * crease-pattern-document-level respectively; `{}` when none.
+   */
+  nativeProjectExtensions: Record<string, unknown>;
+  oristudioCpDocumentExtensions: Record<string, unknown>;
   projectLoadId: number;
   currentFilePath: string | null;
   currentFileName: string;
@@ -322,6 +331,13 @@ export interface CreasePatternSliceState {
   oristudioCpFoldedFigures: OristudioCpFoldedFigureEntry[];
   oristudioCpActiveFoldedFigureId: string | null;
   oristudioCpViewport: OristudioCpViewportOptions;
+  /**
+   * Superset feature: reference images placed on the crease-pattern canvas.
+   * Web-side layer, never in the kernel; persisted only in `.osf`. See
+   * `apps/web/docs/superset-features.md`.
+   */
+  oristudioCpImages: CpImage[];
+  oristudioCpSelectedImageId: string | null;
   foldArtifacts: FoldArtifacts | null;
   foldArtifactError: string | null;
   foldArtifactStatus: FoldArtifactStatus;
@@ -398,6 +414,16 @@ export interface CreasePatternSliceActions {
   toggleOristudioCpCircleSelection: (id: number, additive?: boolean) => void;
   toggleOristudioCpTextSelection: (id: number, additive?: boolean) => void;
   transformOristudioCpSelection: (transform: CpSelectionTransform) => Promise<boolean>;
+  /** Append a reference image to the crease-pattern image layer and select it. */
+  addCpImage: (image: CpImage) => void;
+  /** Patch an existing image (transform, crop, opacity, lock/hide, z). */
+  updateCpImage: (id: string, patch: CpImageUpdate) => void;
+  /** Remove an image; clears the selection if it was selected. */
+  removeCpImage: (id: string) => void;
+  /** Select an image (or clear with `null`). */
+  setSelectedCpImage: (id: string | null) => void;
+  /** Replace the whole image layer (used by load and snapshot restore). */
+  setCpImages: (images: CpImage[]) => void;
 }
 
 export type CreasePatternSlice = CreasePatternSliceState & CreasePatternSliceActions;

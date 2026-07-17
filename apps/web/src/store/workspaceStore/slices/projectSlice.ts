@@ -633,6 +633,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       oristudioCpError: oristudioCpRuntimeError,
       oristudioCpHistoryPast: [],
       oristudioCpHistoryFuture: [],
+      // A non-.osf crease pattern carries no superset data; reset the layer.
+      oristudioCpImages: [],
+      oristudioCpSelectedImageId: null,
+      oristudioCpDocumentExtensions: {},
+      nativeProjectExtensions: {},
       projectLoadId: get().projectLoadId + 1,
       currentFileName: filename,
       currentFilePath: source.path ?? null,
@@ -743,6 +748,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       importedCreasePattern: importedDocument,
       oristudioCpDocument: documentState,
       oristudioCpLineage: nativeDocument.creasePattern.lineage,
+      oristudioCpImages: nativeDocument.creasePattern.images,
+      oristudioCpSelectedImageId: null,
+      oristudioCpDocumentExtensions: nativeDocument.extensions,
       oristudioCpCamvResult: checked.camvResult,
       oristudioCpOperationDescriptors: documentState.operationDescriptors,
       oristudioCpError: null,
@@ -799,6 +807,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     set({
       oristudioCpDocument: checked.documentState,
       oristudioCpLineage: nativeDocument.creasePattern.lineage,
+      oristudioCpImages: nativeDocument.creasePattern.images,
+      oristudioCpSelectedImageId: null,
+      oristudioCpDocumentExtensions: nativeDocument.extensions,
       oristudioCpCamvResult: checked.camvResult,
       oristudioCpOperationDescriptors: checked.documentState.operationDescriptors,
       oristudioCpError: null,
@@ -818,6 +829,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   ) => {
     const nativeProject = parseNativeProjectFile(text);
     const nativeDocument = activeNativeDocument(nativeProject);
+    // Retain the file-level extension bag for a lossless save round-trip. Set
+    // early; the document load paths below never touch this field.
+    set({ nativeProjectExtensions: nativeProject.extensions });
     if (nativeDocument.kind === 'treemaker-tree') {
       await loadText(nativeDocument.tree.text, {
         title: nativeDocument.title || nativeProject.workspace.title,
@@ -900,6 +914,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         tree: tmd5Text !== null ? { title: get().project.title, tmd5Text } : null,
         boxPleat: bps !== null ? { title: bpTitle, bps } : null,
         creasePattern: creasePatternCompanion,
+        extensions: get().nativeProjectExtensions,
         appVersion: APP_VERSION,
       })
     );
@@ -960,6 +975,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       foldedFigures: get().oristudioCpFoldedFigures,
       activeFoldedFigureId: get().oristudioCpActiveFoldedFigureId,
       lineage: get().oristudioCpLineage ?? importedCpLineage(),
+      images: get().oristudioCpImages,
+      extensions: get().oristudioCpDocumentExtensions,
       appVersion: APP_VERSION,
     };
   };
@@ -1131,6 +1148,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     oristudioCpCamvResult: null,
     oristudioCpHistoryPast: [],
     oristudioCpHistoryFuture: [],
+    nativeProjectExtensions: {},
+    oristudioCpDocumentExtensions: {},
     projectLoadId: 0,
     currentFilePath: null,
     currentFileName: defaultNativeFilename('Untitled'),
@@ -1216,6 +1235,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
               oristudioCpRevision: 0,
               oristudioCpFoldedFigures: [],
               oristudioCpActiveFoldedFigureId: null,
+              oristudioCpImages: [],
+              oristudioCpSelectedImageId: null,
+              oristudioCpDocumentExtensions: {},
               creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
               ...emptyFoldArtifactResourceState(),
             };
@@ -1226,6 +1248,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           pendingDesignChoice: false,
           oristudioBpDocument: null,
           oristudioBpWorkspace: null,
+          nativeProjectExtensions: {},
           projectLoadId: get().projectLoadId + 1,
           currentFileName: defaultNativeFilename('Untitled'),
           currentFilePath: null,
@@ -1326,6 +1349,10 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           oristudioCpRevision: 0,
           oristudioCpFoldedFigures: [],
           oristudioCpActiveFoldedFigureId: null,
+          oristudioCpImages: [],
+          oristudioCpSelectedImageId: null,
+          oristudioCpDocumentExtensions: {},
+          nativeProjectExtensions: {},
           toolMode: 'select',
           symmetryAuthoringPairs: [],
           creaseColorMode: DEFAULT_CREASE_COLOR_MODE,

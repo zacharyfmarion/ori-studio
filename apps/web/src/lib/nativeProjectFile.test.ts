@@ -251,7 +251,7 @@ describe('native project file', () => {
 
     const parsed = parseNativeProjectFile(serializeNativeProjectFile(file));
 
-    expect(parsed.schemaVersion).toBe(2);
+    expect(parsed.schemaVersion).toBe(3);
     expect(parsed.workspace.documents.map((document) => document.kind)).toEqual([
       'treemaker-tree',
       'crease-pattern',
@@ -412,7 +412,7 @@ describe('native project file', () => {
     const parsed = parseNativeProjectFile(JSON.stringify(legacy));
     const document = activeNativeDocument(parsed);
 
-    expect(parsed.schemaVersion).toBe(2);
+    expect(parsed.schemaVersion).toBe(3);
     expect(document.kind).toBe('crease-pattern');
     if (document.kind !== 'crease-pattern') throw new Error('expected CP document');
     expect(document.creasePattern.lineage).toMatchObject({ kind: 'imported', stale: false });
@@ -424,10 +424,150 @@ describe('native project file', () => {
       parseNativeProjectFile(
         JSON.stringify({
           format: 'oristudio.project',
-          schemaVersion: 3,
-          minimumReaderSchemaVersion: 3,
+          schemaVersion: 4,
+          minimumReaderSchemaVersion: 4,
         })
       )
-    ).toThrow(/requires reader schema 3/i);
+    ).toThrow(/requires reader schema 4/i);
+  });
+
+  it('round-trips crease-pattern reference images (superset feature)', () => {
+    const image = {
+      id: 'image-1',
+      src: 'data:image/png;base64,AAAA',
+      naturalWidth: 800,
+      naturalHeight: 600,
+      center: { x: 0.5, y: 0.25 },
+      width: 0.8,
+      height: 0.6,
+      rotation: Math.PI / 6,
+      crop: { x: 0.1, y: 0.1, w: 0.8, h: 0.8 },
+      opacity: 0.5,
+      locked: true,
+      hidden: false,
+      z: 2,
+    };
+    const file = createNativeCreasePatternProjectFile({
+      title: 'CP with image',
+      filename: 'img.osf',
+      path: '/tmp/img.osf',
+      document: cpDocument(),
+      source: null,
+      foldProjection: null,
+      foldArtifacts: null,
+      creaseColorMode: 'mvf',
+      selection: emptyOristudioCpSelection(),
+      viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+      foldedFigures: [],
+      activeFoldedFigureId: null,
+      lineage: importedCpLineage(),
+      images: [image],
+      appVersion: '0.1.1',
+      now,
+    });
+
+    const parsed = parseNativeProjectFile(serializeNativeProjectFile(file));
+    const document = activeNativeDocument(parsed);
+    if (document.kind !== 'crease-pattern') throw new Error('expected CP document');
+    expect(document.creasePattern.images).toEqual([image]);
+  });
+
+  it('migrates v2 files with no images to an empty image layer', () => {
+    const file = createNativeCreasePatternProjectFile({
+      title: 'Legacy CP',
+      filename: 'legacy.osf',
+      path: '/tmp/legacy.osf',
+      document: cpDocument(),
+      source: null,
+      foldProjection: null,
+      foldArtifacts: null,
+      creaseColorMode: 'mvf',
+      selection: emptyOristudioCpSelection(),
+      viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+      foldedFigures: [],
+      activeFoldedFigureId: null,
+      lineage: importedCpLineage(),
+      appVersion: '0.1.1',
+      now,
+    });
+    const legacy = JSON.parse(serializeNativeProjectFile(file));
+    legacy.schemaVersion = 2;
+    delete legacy.workspace.documents[0].creasePattern.images;
+
+    const parsed = parseNativeProjectFile(JSON.stringify(legacy));
+    const document = activeNativeDocument(parsed);
+    if (document.kind !== 'crease-pattern') throw new Error('expected CP document');
+    expect(document.creasePattern.images).toEqual([]);
+  });
+
+  it('drops malformed image entries without failing the load', () => {
+    const file = createNativeCreasePatternProjectFile({
+      title: 'CP',
+      filename: 'img.osf',
+      path: null,
+      document: cpDocument(),
+      source: null,
+      foldProjection: null,
+      foldArtifacts: null,
+      creaseColorMode: 'mvf',
+      selection: emptyOristudioCpSelection(),
+      viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+      foldedFigures: [],
+      activeFoldedFigureId: null,
+      lineage: importedCpLineage(),
+      appVersion: '0.1.1',
+      now,
+    });
+    const raw = JSON.parse(serializeNativeProjectFile(file));
+    raw.workspace.documents[0].creasePattern.images = [
+      { id: 'bad', src: '' }, // empty src → dropped
+      {
+        id: 'good',
+        src: 'data:image/png;base64,AAAA',
+        naturalWidth: 10,
+        naturalHeight: 10,
+        center: { x: 0, y: 0 },
+        width: 1,
+        height: 1,
+      },
+    ];
+
+    const parsed = parseNativeProjectFile(JSON.stringify(raw));
+    const document = activeNativeDocument(parsed);
+    if (document.kind !== 'crease-pattern') throw new Error('expected CP document');
+    expect(document.creasePattern.images).toHaveLength(1);
+    expect(document.creasePattern.images?.[0]?.id).toBe('good');
+  });
+
+  it('preserves file- and document-level extension bags on save (forward-compat)', () => {
+    const file = createNativeProjectFile({
+      workspaceTitle: 'CP',
+      filename: 'ext.osf',
+      path: null,
+      activeMode: 'crease-pattern',
+      creasePattern: {
+        title: 'CP',
+        document: cpDocument(),
+        source: null,
+        foldProjection: null,
+        foldArtifacts: null,
+        creaseColorMode: 'mvf',
+        selection: emptyOristudioCpSelection(),
+        viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+        foldedFigures: [],
+        activeFoldedFigureId: null,
+        lineage: importedCpLineage(),
+        images: [],
+        extensions: { futureDocFeature: { a: 1 } },
+      },
+      extensions: { futureFileFeature: 'keep-me' },
+      appVersion: '0.1.1',
+      now,
+    });
+
+    const parsed = parseNativeProjectFile(serializeNativeProjectFile(file));
+    const document = activeNativeDocument(parsed);
+    expect(parsed.extensions).toEqual({ futureFileFeature: 'keep-me' });
+    expect(document.extensions).toEqual({ futureDocFeature: { a: 1 } });
   });
 });
