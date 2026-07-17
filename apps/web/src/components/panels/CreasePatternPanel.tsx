@@ -2576,18 +2576,6 @@ export function CreasePatternPanel() {
     setCpMeasurementSlots(createEmptyCpMeasurementSlots());
   }, [editableCpHandle]);
 
-  useEffect(() => {
-    if (!editableCp || activeCpCommand?.operationId !== 'Text') return;
-    if (oristudioCpSelection.texts.length !== 1) return;
-    const selectedText = editableCp.crease_pattern.texts[oristudioCpSelection.texts[0] - 1];
-    if (!selectedText) return;
-    setCpToolOptions((current) =>
-      current.textContent === selectedText.text
-        ? current
-        : { ...current, textContent: selectedText.text }
-    );
-  }, [activeCpCommand?.operationId, editableCp, oristudioCpSelection.texts]);
-
   return (
     <section className="panel-shell cp-panel">
       <div

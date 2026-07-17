@@ -68,7 +68,9 @@ function contextApplyDisabledForCommand(
     case 'VoronoiCreate':
       return pendingPointCount === 0;
     case 'Text':
-      return selection.texts.length === 0;
+      // Single/zero selection is edited inline on the canvas; the panel's Apply is
+      // the bulk path only (set the same content across 2+ selected texts).
+      return selection.texts.length < 2;
     case 'CircleChangeColor':
       return selection.circles.length === 0 && selection.lines.length === 0;
     case 'CircleDrawTangentLine':
@@ -554,17 +556,29 @@ function CpContextToolGroup({
   }
 
   if (group === 'text-content') {
+    const textCount = selection.texts.length;
+    // Single/zero text is authored inline on the canvas; the panel field is only an
+    // editor for a bulk (2+) selection. At 0/1 it is a read-only mirror + hint.
+    const bulk = textCount > 1;
     return (
       <div className="cp-context-panel__group">
         <div className="cp-context-panel__group-title">Text annotation</div>
         <TextAreaToolOption
-          label="Text"
+          label={bulk ? 'Set all' : 'Text'}
           ariaLabel="Text annotation content"
-          value={options.textContent}
+          value={bulk ? options.textContent : ''}
+          disabled={!bulk}
+          placeholder={
+            textCount === 0 ? 'Click the canvas to add text' : 'Edit on the canvas'
+          }
           onChange={(textContent) => setOptions((current) => ({ ...current, textContent }))}
         />
         <div className="cp-context-panel__readout">
-          {selection.texts.length === 0 ? 'No text selected' : `${selection.texts.length} selected`}
+          {textCount === 0
+            ? 'Click to add · click a label to edit'
+            : textCount === 1
+              ? 'Editing on canvas'
+              : `${textCount} selected · Apply sets all`}
         </div>
       </div>
     );
@@ -864,11 +878,15 @@ function TextAreaToolOption({
   ariaLabel,
   value,
   onChange,
+  disabled = false,
+  placeholder,
 }: {
   label: string;
   ariaLabel: string;
   value: string;
   onChange: (value: string) => void;
+  disabled?: boolean;
+  placeholder?: string;
 }) {
   return (
     <label className="cp-context-panel__field cp-context-panel__field--textarea">
@@ -877,6 +895,8 @@ function TextAreaToolOption({
         aria-label={ariaLabel}
         rows={3}
         value={value}
+        disabled={disabled}
+        placeholder={placeholder}
         onChange={(event) => onChange(event.currentTarget.value)}
       />
     </label>
