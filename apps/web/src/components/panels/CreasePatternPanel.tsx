@@ -1643,6 +1643,11 @@ export function CreasePatternPanel() {
         return;
       }
 
+      // Picking a crease/geometry tool deselects the active reference image, so
+      // its handles don't linger over the canvas while another tool is active.
+      // (Image-layer interactivity itself is left untouched.)
+      setSelectedCpImage(null);
+
       const command = action.command;
       setCpToolPoints([]);
       setCpToolPath([]);
@@ -1689,7 +1694,13 @@ export function CreasePatternPanel() {
         );
       })();
     },
-    [buildCpCommandPayload, editableCp, executeOristudioCpCommand, oristudioCpSelection.lines]
+    [
+      buildCpCommandPayload,
+      editableCp,
+      executeOristudioCpCommand,
+      oristudioCpSelection.lines,
+      setSelectedCpImage,
+    ]
   );
 
   const handleCpShortcutAction = useCallback(
