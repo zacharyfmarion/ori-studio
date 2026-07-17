@@ -228,6 +228,34 @@ export function CpImageOverlay({
 
   const selected = images.find((image) => image.id === selectedImageId) ?? null;
 
+  // The interactive polygons/handles capture pointer events, which would
+  // otherwise swallow the wheel and stop the canvas from zooming while the
+  // cursor is over an image. Forward the wheel to the sibling WebGL canvas so
+  // zoom keeps working over images. A native, non-passive listener is used so
+  // preventDefault actually suppresses the page scroll (React's onWheel is
+  // registered passive).
+  useEffect(() => {
+    const svg = containerRef.current;
+    if (!svg) return;
+    const onWheel = (event: WheelEvent) => {
+      const canvas = svg.parentElement?.querySelector('canvas');
+      if (!canvas) return;
+      event.preventDefault();
+      canvas.dispatchEvent(
+        new WheelEvent('wheel', {
+          deltaX: event.deltaX,
+          deltaY: event.deltaY,
+          deltaMode: event.deltaMode,
+          clientX: event.clientX,
+          clientY: event.clientY,
+          cancelable: true,
+        })
+      );
+    };
+    svg.addEventListener('wheel', onWheel, { passive: false });
+    return () => svg.removeEventListener('wheel', onWheel);
+  }, []);
+
   return (
     <svg
       ref={containerRef}

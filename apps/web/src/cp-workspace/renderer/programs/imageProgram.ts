@@ -42,9 +42,10 @@ void main() {
   vec2 dev = u_origin + model.x * u_ex + model.y * u_ey;
   vec2 clip = vec2(dev.x / u_viewport.x * 2.0 - 1.0, 1.0 - dev.y / u_viewport.y * 2.0);
   gl_Position = vec4(clip, 0.0, 1.0);
-  // corner.x in [-0.5,0.5] -> u in [0,1]; flip V so image pixels (top-left
-  // origin) render upright against the model's downward +Y.
-  vec2 cornerUv = vec2(corner.x + 0.5, 0.5 - corner.y);
+  // corner in [-0.5,0.5] -> uv in [0,1]. The model's +Y runs downward (like the
+  // texture's rows), so the top corner (corner.y = -0.5) maps to v = 0 and the
+  // image renders upright — no V flip.
+  vec2 cornerUv = corner + 0.5;
   vUv = u_crop.xy + cornerUv * u_crop.zw;
 }`;
 
