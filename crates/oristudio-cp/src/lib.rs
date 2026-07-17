@@ -175,6 +175,15 @@ pub struct CreasePatternCommandPayload {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TextCommandAction {
     Create,
+    /// Append a text annotation at a point unconditionally.
+    ///
+    /// Unlike [`TextCommandAction::Create`] (which mirrors Oriedita's
+    /// press-to-select-or-create semantics and no-ops when the point lands within
+    /// an existing text's identity-camera bounds), this always creates. The web
+    /// frontend hit-tests against the rendered DOM glyph bounds and is the sole
+    /// authority on whether a click is "empty space", so the engine must not
+    /// re-decide with its `FontMetrics`-less 25x3 model-space box.
+    CreateAt,
     Move,
     SetContent,
     DeleteSelected,
@@ -3500,6 +3509,14 @@ fn execute_text_command(
             }
             Ok(0)
         }
+        TextCommandAction::CreateAt => {
+            let points = required_points(command, 1)?;
+            let content = command.payload.text_content.clone().unwrap_or_default();
+            document
+                .crease_pattern
+                .add_text(model::TextElement::new(points[0].x, points[0].y, content));
+            Ok(1)
+        }
         TextCommandAction::Move => {
             let text_indices = required_text_indices(command)?;
             let points = required_points(command, 2)?;
@@ -5308,6 +5325,67 @@ mod tests {
         )
         .expect("text delete command should execute");
         assert!(document.crease_pattern.texts.is_empty());
+    }
+
+    #[test]
+    fn command_dispatch_create_at_always_appends_text() {
+        let mut document = CreasePatternDocument::default();
+
+        // Seed an existing text; a plain `Create` press within its
+        // identity-camera bounds would select instead of create.
+        document
+            .crease_pattern
+            .add_text(model::TextElement::new(10.0, 10.0, "existing"));
+
+        // A `Create` press near the existing text no-ops (selects, count unchanged).
+        execute_command(
+            &mut document,
+            CreasePatternCommand::new(OperationId::Text).with_payload(
+                CreasePatternCommandPayload {
+                    text_action: Some(TextCommandAction::Create),
+                    points: vec![Point::new(12.0, 10.0)],
+                    text_content: Some("blocked".to_string()),
+                    ..CreasePatternCommandPayload::default()
+                },
+            ),
+        )
+        .expect("text create command should execute");
+        assert_eq!(document.crease_pattern.texts.len(), 1);
+
+        // `CreateAt` at the same point always appends.
+        execute_command(
+            &mut document,
+            CreasePatternCommand::new(OperationId::Text).with_payload(
+                CreasePatternCommandPayload {
+                    text_action: Some(TextCommandAction::CreateAt),
+                    points: vec![Point::new(12.0, 10.0)],
+                    text_content: Some("new".to_string()),
+                    ..CreasePatternCommandPayload::default()
+                },
+            ),
+        )
+        .expect("text create-at command should execute");
+        assert_eq!(document.crease_pattern.texts.len(), 2);
+        assert_eq!(
+            document.crease_pattern.texts[1].position(),
+            Point::new(12.0, 10.0)
+        );
+        assert_eq!(document.crease_pattern.texts[1].text, "new");
+
+        // `CreateAt` with no content creates a blank text (inline-editor start).
+        execute_command(
+            &mut document,
+            CreasePatternCommand::new(OperationId::Text).with_payload(
+                CreasePatternCommandPayload {
+                    text_action: Some(TextCommandAction::CreateAt),
+                    points: vec![Point::new(80.0, 80.0)],
+                    ..CreasePatternCommandPayload::default()
+                },
+            ),
+        )
+        .expect("blank text create-at command should execute");
+        assert_eq!(document.crease_pattern.texts.len(), 3);
+        assert_eq!(document.crease_pattern.texts[2].text, "");
     }
 
     #[test]
