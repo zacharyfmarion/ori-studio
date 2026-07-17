@@ -913,6 +913,7 @@ export function CreasePatternPanel() {
   }, [oristudioCpDocument, ensureEditCreasePattern]);
   const oristudioCpCamvResult = useWorkspaceStore((state) => state.oristudioCpCamvResult);
   const oristudioCpSelection = useWorkspaceStore((state) => state.oristudioCpSelection);
+  const oristudioCpImages = useWorkspaceStore((state) => state.oristudioCpImages);
   const oristudioCpActionRequest = useWorkspaceStore((state) => state.oristudioCpActionRequest);
   const oristudioCpFoldedFigures = useWorkspaceStore((state) => state.oristudioCpFoldedFigures);
   const oristudioCpActiveFoldedFigureId = useWorkspaceStore(
@@ -2778,6 +2779,7 @@ export function CreasePatternPanel() {
                   className="cp-webgl-layer"
                   lineSegments={editableCp.crease_pattern.line_segments}
                   geometry={oristudioCpDocument?.geometry ?? null}
+                  images={oristudioCpImages}
                   modelToSvg={editableModelToSvg}
                   svgToModel={editableSvgToModel}
                   selectedLineIds={oristudioCpSelection.lines}

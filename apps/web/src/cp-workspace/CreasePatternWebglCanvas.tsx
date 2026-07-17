@@ -35,6 +35,7 @@ import {
 } from './adapters/cpSnapshotToScene';
 import { cpGeometryStrokesToScene } from './adapters/cpGeometryToScene';
 import type { CpGeometryTransport } from '../engine/oristudioCpGeometry';
+import type { CpImage } from './images/cpImage';
 import { cpPointsToScene } from './adapters/cpPointsToScene';
 import { resolveCpLineColor } from './adapters/cpLineColor';
 import { resolveCpPointStyle } from './adapters/cpPointStyle';
@@ -109,6 +110,9 @@ import { useThemeStore } from '../store/themeStore';
 
 /** Cap DPR at 2 — matches the perf budget and avoids 3x/4x fill on hidpi. */
 const MAX_DPR = 2;
+
+/** Stable empty image list so the upload effect doesn't re-run on every render. */
+const EMPTY_IMAGES: readonly CpImage[] = [];
 
 /**
  * The editable SVG canvas is transparent, so the colour behind it is the panel
@@ -350,6 +354,11 @@ export interface CreasePatternWebglCanvasProps {
   modelToSvg: (point: ModelPoint) => ModelPoint;
   /** User → model mapping (inverse of {@link modelToSvg}) for hit-testing. */
   svgToModel: (point: ModelPoint) => ModelPoint;
+  /**
+   * Reference images (superset layer), drawn above the grid and below the
+   * creases. Placement is in model coordinates.
+   */
+  images?: readonly CpImage[];
   /** Currently selected ids (lines/points/circles are 1-based). */
   selectedLineIds: readonly number[];
   selectedPointIds: readonly number[];
@@ -585,6 +594,7 @@ export function CreasePatternWebglCanvas({
   className,
   lineSegments,
   geometry,
+  images,
   modelToSvg,
   svgToModel,
   selectedLineIds,
@@ -939,7 +949,10 @@ export function CreasePatternWebglCanvas({
 
     let renderer: CpRenderer;
     try {
-      renderer = createReglRenderer(canvas);
+      renderer = createReglRenderer(canvas, {
+        // Redraw once an async image texture finishes decoding.
+        onAsyncLoad: () => renderNowRef.current(),
+      });
     } catch (error) {
       console.error('[cp-webgl] failed to initialise WebGL renderer', error);
       return;
@@ -2277,6 +2290,14 @@ export function CreasePatternWebglCanvas({
     rendererRef.current?.setImportedForms(importedForms);
     renderNowRef.current();
   }, [importedForms]);
+
+  // Reference-image layer: upload/evict textures when the image list changes,
+  // then redraw. Textures are cached by `src` in the renderer, so transform-only
+  // edits (move/resize/rotate/crop) re-run this cheaply without re-uploading.
+  useEffect(() => {
+    rendererRef.current?.setImages(images ?? EMPTY_IMAGES);
+    renderNowRef.current();
+  }, [images]);
 
   // Frame the selected diagnostic: pan the owned camera to its centre and zoom in to
   // show the vertex + its creases (capped so it never over-zooms), matching the SVG's

@@ -1,3 +1,4 @@
+import type { CpImage } from '../images/cpImage';
 import type {
   CpSceneData,
   FillGeometry,
@@ -44,6 +45,15 @@ export interface CpRenderer {
   setFolded(folded: FoldedGeometry): void;
   /** Upload (or clear) the view-dependent grid geometry, drawn behind the scene. */
   setGrid(strokes: StrokeGeometry | null): void;
+  /**
+   * Set the reference-image layer (superset feature). Drawn above the grid and
+   * below the creases. Textures are decoded from each image's `src` data URL and
+   * cached by `src`, so transform-only changes never re-upload; the renderer
+   * evicts textures no longer referenced. Loading is async — when a texture
+   * finishes, the renderer invokes the `onAsyncLoad` callback supplied at
+   * construction so the host can redraw.
+   */
+  setImages(images: readonly CpImage[]): void;
   /**
    * Imported `.fold` folded-form frames (fills + strokes in SVG user coordinates),
    * placed reference figures drawn with the folded figures. `null` clears them.
