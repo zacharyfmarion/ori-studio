@@ -841,6 +841,9 @@ export function CreasePatternPanel() {
   const [cpToolPath, setCpToolPath] = useState<Point[]>([]);
   const [pendingLengthenLineId, setPendingLengthenLineId] = useState<number | null>(null);
   const [pendingSquareBisectorLineIds, setPendingSquareBisectorLineIds] = useState<number[]>([]);
+  // Model point of an empty-canvas Text-tool click, relayed to the overlay to open
+  // an inline-edit draft there. Cleared once the overlay has consumed it.
+  const [textCreateDraftAt, setTextCreateDraftAt] = useState<Point | null>(null);
   const [cpMeasurementSlots, setCpMeasurementSlots] = useState<CpMeasurementSlots>(
     createEmptyCpMeasurementSlots
   );
@@ -2328,28 +2331,77 @@ export function CreasePatternPanel() {
     [activeCpCommand?.operationId, cpToolState.phase, toggleOristudioCpTextSelection]
   );
 
-  // Text tool: a click on empty canvas creates a new (initially blank) text at that
-  // model point and selects it. Uses CreateAt (not Create) so the engine never
-  // second-guesses the click with its FontMetrics-less bounds — the frontend is the
-  // sole authority on "empty space". Phase 3 opens an inline editor on the new text.
+  // Text tool: a click on empty canvas opens an inline-edit draft at that model
+  // point (the overlay owns the editor). Nothing is created until the draft is
+  // committed non-blank — see handleTextCommitCreate.
   const handleTextCreate = useCallback(
     (modelPoint: Point) => {
       if (!editableCp || activeCpCommand?.operationId !== 'Text') return;
+      setTextCreateDraftAt({ x: modelPoint.x, y: modelPoint.y });
+    },
+    [activeCpCommand?.operationId, editableCp]
+  );
+
+  // Commit a new text from the inline editor. Uses CreateAt (not Create) so the
+  // engine never second-guesses the click with its FontMetrics-less bounds — the
+  // frontend is the sole authority on "empty space".
+  const handleTextCommitCreate = useCallback(
+    (anchor: Point, content: string) => {
+      if (!editableCp) return;
       const newTextId = editableCp.crease_pattern.texts.length + 1;
       void (async () => {
         const succeeded = await executeOristudioCpCommand('Text', {
           line_ids: [],
           text_action: 'CreateAt',
-          points: [modelPoint],
-          text_content: '',
+          points: [anchor],
+          text_content: content,
         });
         if (succeeded) {
           setOristudioCpSelection({ ...emptyOristudioCpSelection(), texts: [newTextId] });
         }
       })();
     },
-    [activeCpCommand?.operationId, editableCp, executeOristudioCpCommand, setOristudioCpSelection]
+    [editableCp, executeOristudioCpCommand, setOristudioCpSelection]
   );
+
+  const handleTextSetContent = useCallback(
+    (id: number, content: string) => {
+      void executeOristudioCpCommand('Text', {
+        line_ids: [],
+        text_action: 'SetContent',
+        text_ids: [id],
+        text_content: content,
+      });
+    },
+    [executeOristudioCpCommand]
+  );
+
+  // An existing text edited down to blank is deleted (parity with Oriedita's
+  // blank-text GC on commit).
+  const handleTextDeleteById = useCallback(
+    (id: number) => {
+      void (async () => {
+        const succeeded = await executeOristudioCpCommand('Text', {
+          line_ids: [],
+          text_action: 'DeleteSelected',
+          text_ids: [id],
+        });
+        if (succeeded) setOristudioCpSelection(emptyOristudioCpSelection());
+      })();
+    },
+    [executeOristudioCpCommand, setOristudioCpSelection]
+  );
+
+  const handleSelectSingleText = useCallback(
+    (id: number) => {
+      setOristudioCpSelection({ ...emptyOristudioCpSelection(), texts: [id] });
+    },
+    [setOristudioCpSelection]
+  );
+
+  const handleTextDraftConsumed = useCallback(() => {
+    setTextCreateDraftAt(null);
+  }, []);
 
   const emptyStatusLabel =
     status === 'building_crease_pattern'
@@ -2662,21 +2714,29 @@ export function CreasePatternPanel() {
                   grid={editableCpVisibleGrid}
                   gridVisible={oristudioCpViewport.gridVisible}
                 />
-                {webglOverlayView && editableCp.crease_pattern.texts.length > 0 && (
-                  <CpTextOverlay
-                    texts={editableCp.crease_pattern.texts}
-                    selectedTextIds={oristudioCpSelection.texts}
-                    view={webglOverlayView}
-                    zoomPercent={zoomPercent}
-                    selectable={
-                      cpToolState.phase !== 'active' ||
-                      allowsDirectEntitySelection(activeCpCommand?.operationId) ||
-                      isTextAnnotationOperation(activeCpCommand?.operationId)
-                    }
-                    textToolActive={isTextAnnotationOperation(activeCpCommand?.operationId)}
-                    onToggleText={handleEditableTextClick}
-                  />
-                )}
+                {webglOverlayView &&
+                  (editableCp.crease_pattern.texts.length > 0 ||
+                    isTextAnnotationOperation(activeCpCommand?.operationId)) && (
+                    <CpTextOverlay
+                      texts={editableCp.crease_pattern.texts}
+                      selectedTextIds={oristudioCpSelection.texts}
+                      view={webglOverlayView}
+                      zoomPercent={zoomPercent}
+                      selectable={
+                        cpToolState.phase !== 'active' ||
+                        allowsDirectEntitySelection(activeCpCommand?.operationId) ||
+                        isTextAnnotationOperation(activeCpCommand?.operationId)
+                      }
+                      textToolActive={isTextAnnotationOperation(activeCpCommand?.operationId)}
+                      createDraftAt={textCreateDraftAt}
+                      onCreateDraftConsumed={handleTextDraftConsumed}
+                      onToggleText={handleEditableTextClick}
+                      onSelectText={handleSelectSingleText}
+                      onCreateText={handleTextCommitCreate}
+                      onSetTextContent={handleTextSetContent}
+                      onDeleteText={handleTextDeleteById}
+                    />
+                  )}
                 </>
               ) : (
                 <div className="cp-panel__unopened" role="status">
