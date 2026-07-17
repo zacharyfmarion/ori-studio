@@ -9,6 +9,7 @@ import {
   Download,
   FilePlus,
   FolderOpen,
+  Loader2,
   PenTool,
   Save,
   ScanLine,
@@ -215,6 +216,7 @@ export function WorkspaceShell() {
   const setDockviewApi = useLayoutStore((state) => state.setDockviewApi);
   const loadLayout = useLayoutStore((state) => state.loadLayout);
   const saveLayout = useLayoutStore((state) => state.saveLayout);
+  const engineReady = useWorkspaceStore((state) => state.engineReady);
 
   // Drop the disposed Dockview API when the shell unmounts (e.g. navigating to
   // /welcome) so a later remount doesn't operate on a dead handle.
@@ -273,6 +275,12 @@ export function WorkspaceShell() {
           disableFloatingGroups
         />
       </div>
+      {!engineReady && (
+        <div className="workspace-shell__loading" role="status" aria-live="polite">
+          <Loader2 size={26} className="workspace-shell__loading-spinner" />
+          <span>Preparing the editor…</span>
+        </div>
+      )}
       <Outlet />
     </div>
   );
