@@ -3512,9 +3512,11 @@ fn execute_text_command(
         TextCommandAction::CreateAt => {
             let points = required_points(command, 1)?;
             let content = command.payload.text_content.clone().unwrap_or_default();
-            document
-                .crease_pattern
-                .add_text(model::TextElement::new(points[0].x, points[0].y, content));
+            document.crease_pattern.add_text(model::TextElement::new(
+                points[0].x,
+                points[0].y,
+                content,
+            ));
             Ok(1)
         }
         TextCommandAction::Move => {

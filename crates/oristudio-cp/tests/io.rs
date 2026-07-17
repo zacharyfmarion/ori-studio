@@ -25,8 +25,11 @@ fn text_command_pipeline_round_trips_through_ori_and_fold() {
 
     execute_command(&mut document, create(Point::new(1.5, 2.5), "alpha"))
         .expect("create first text");
-    execute_command(&mut document, create(Point::new(10.0, 20.0), "multi\nline\nnote"))
-        .expect("create multi-line text");
+    execute_command(
+        &mut document,
+        create(Point::new(10.0, 20.0), "multi\nline\nnote"),
+    )
+    .expect("create multi-line text");
 
     // Move the first text via the command layer (delta = points[1] - points[0]).
     execute_command(
