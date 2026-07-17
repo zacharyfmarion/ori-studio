@@ -37,6 +37,7 @@ import type {
   OristudioCpFoldedFigureEntry,
   OristudioCpFoldedFigureModel,
   OristudioCpFoldedFigureState,
+  OristudioCpRgbColor,
   OristudioCpLineColor,
   OristudioCpLineSegment,
 } from '../../engine/oristudioCpTypes';
@@ -109,6 +110,7 @@ import { CreasePatternWebglCanvas } from '../../cp-workspace/CreasePatternWebglC
 import type { CameraCommand, CpOverlayView } from '../../cp-workspace/CreasePatternWebglCanvas';
 import type { CpContextMenuRequest } from '../../cp-workspace/contextMenuTarget';
 import { flipFoldedState } from '../../cp-workspace/foldedFigureState';
+import { hexToRgbColor, rgbColorToHex } from '../../lib/rgbColor';
 import { ContextMenu } from '../ui/ContextMenu';
 import type { ContextMenuItem, ContextMenuRequest } from '../ui/contextMenuTypes';
 import { vertexPointsFromTransport } from '../../engine/oristudioCpGeometry';
@@ -193,6 +195,19 @@ const FOLDED_STATE_OPTIONS: Array<{
   { value: 'Back1', label: 'B', title: 'Back' },
   { value: 'Both2', label: 'Both', title: 'Both' },
   { value: 'Transparent3', label: 'T', title: 'Transparent state' },
+];
+
+// Front/back/line color pickers for a folded model (Oriedita's Front/Back/Line
+// color actions). Fallbacks mirror the Rust FoldedFigureModel defaults.
+const FOLDED_COLOR_FIELDS: Array<{
+  key: 'front_color' | 'back_color' | 'line_color';
+  label: string;
+  ariaLabel: string;
+  fallback: OristudioCpRgbColor;
+}> = [
+  { key: 'front_color', label: 'Front', ariaLabel: 'Folded front color', fallback: { red: 255, green: 255, blue: 50 } },
+  { key: 'back_color', label: 'Back', ariaLabel: 'Folded back color', fallback: { red: 233, green: 233, blue: 233 } },
+  { key: 'line_color', label: 'Line', ariaLabel: 'Folded line color', fallback: { red: 0, green: 0, blue: 0 } },
 ];
 
 interface CpDiagnosticHudStatus {
@@ -717,6 +732,22 @@ function FoldedFigureMenuButton({
               value={model?.state ?? 'Front0'}
               onChange={(state) => onModelUpdate({ state })}
             />
+          </div>
+          <div className="folded-figure-menu__colors">
+            {FOLDED_COLOR_FIELDS.map((field) => (
+              <label key={field.key} className="folded-figure-menu__color">
+                <span>{field.label}</span>
+                <input
+                  aria-label={field.ariaLabel}
+                  type="color"
+                  value={rgbColorToHex(model?.[field.key] ?? field.fallback)}
+                  disabled={!activeReady}
+                  onChange={(event) =>
+                    onModelUpdate({ [field.key]: hexToRgbColor(event.currentTarget.value) })
+                  }
+                />
+              </label>
+            ))}
           </div>
           <label className="folded-figure-menu__field">
             <span>Case</span>
