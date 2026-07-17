@@ -234,19 +234,36 @@ export const CpTextOverlay = memo(function CpTextOverlay({
   // Text-tool drag/click: press to start a potential drag; a move past the
   // threshold becomes a drag (live-offset preview), and release commits the move —
   // or, if it never moved, opens the inline editor (a click).
-  const dragRef = useRef<{ id: number; startX: number; startY: number; delta: Point } | null>(
-    null
-  );
-  const [drag, setDrag] = useState<{ id: number; dx: number; dy: number } | null>(null);
+  const dragRef = useRef<{
+    id: number;
+    startX: number;
+    startY: number;
+    origin: Point;
+    delta: Point;
+  } | null>(null);
+  // The dragged label's live ABSOLUTE model position (origin + delta), not a
+  // relative offset. Rendering the absolute target means that when the Move
+  // command's document update lands (texts prop → origin + delta) while we still
+  // hold `drag`, the label stays put instead of briefly double-shifting to
+  // origin + 2*delta and snapping back.
+  const [drag, setDrag] = useState<{ id: number; x: number; y: number } | null>(null);
 
   const handleLabelPointerDown = useCallback(
     (id: number, event: PointerEvent<HTMLSpanElement>) => {
       if (!textToolActive || event.button !== 0) return;
+      const text = texts[id - 1];
+      if (!text) return;
       event.stopPropagation();
-      dragRef.current = { id, startX: event.clientX, startY: event.clientY, delta: { x: 0, y: 0 } };
+      dragRef.current = {
+        id,
+        startX: event.clientX,
+        startY: event.clientY,
+        origin: { x: textCoordinate(text.x), y: textCoordinate(text.y) },
+        delta: { x: 0, y: 0 },
+      };
       event.currentTarget.setPointerCapture(event.pointerId);
     },
-    [textToolActive]
+    [textToolActive, texts]
   );
 
   const handleLabelPointerMove = useCallback(
@@ -260,7 +277,7 @@ export const CpTextOverlay = memo(function CpTextOverlay({
       }
       const delta = clientDeltaToModel(view, dxCss, dyCss) ?? { x: 0, y: 0 };
       state.delta = delta;
-      setDrag({ id: state.id, dx: delta.x, dy: delta.y });
+      setDrag({ id: state.id, x: state.origin.x + delta.x, y: state.origin.y + delta.y });
     },
     [view, drag]
   );
@@ -275,10 +292,10 @@ export const CpTextOverlay = memo(function CpTextOverlay({
       if (!state || state.id !== id) return;
       const moved = drag != null && (state.delta.x !== 0 || state.delta.y !== 0);
       if (moved) {
-        // Hold the optimistic offset until the Move command's document update lands,
-        // so the label doesn't snap back to its old spot for a frame before jumping
-        // to the committed position (the drag "lag" jank).
-        const committed = { id, dx: state.delta.x, dy: state.delta.y };
+        // Hold the label at its final absolute position until the Move command's
+        // document update lands, so it doesn't snap back to the old spot for a frame
+        // before the committed position renders (the drag "lag").
+        const committed = { id, x: state.origin.x + state.delta.x, y: state.origin.y + state.delta.y };
         setDrag(committed);
         Promise.resolve(onMoveText?.(id, state.delta)).finally(() => {
           setDrag((current) => (current === committed ? null : current));
@@ -365,10 +382,10 @@ export const CpTextOverlay = memo(function CpTextOverlay({
         const id = index + 1;
         // Hide the label currently being edited — the textarea stands in for it.
         if (session && session.textId === id) return null;
-        // Apply the live drag offset to the label being dragged.
+        // The label being dragged renders at its live absolute model position.
         const dragging = drag?.id === id;
-        const mx = textCoordinate(text.x) + (dragging ? drag.dx : 0);
-        const my = textCoordinate(text.y) + (dragging ? drag.dy : 0);
+        const mx = dragging ? drag.x : textCoordinate(text.x);
+        const my = dragging ? drag.y : textCoordinate(text.y);
         const { left, top } = projectAnchor(view, { x: mx, y: my });
         const isSelected = selectedSet.has(id);
         const style: CSSProperties = {
@@ -376,7 +393,9 @@ export const CpTextOverlay = memo(function CpTextOverlay({
           top,
           fontSize: fontPx,
           pointerEvents: selectable ? 'auto' : 'none',
-          cursor: textToolActive ? (isSelected ? 'move' : 'text') : undefined,
+          // Every label is draggable under the Text tool, so show the move cursor on
+          // hover (a plain click still opens the editor).
+          cursor: textToolActive ? 'move' : undefined,
         };
         return (
           <span

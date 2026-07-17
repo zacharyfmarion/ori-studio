@@ -1166,6 +1166,12 @@ export function CreasePatternWebglCanvas({
     let panning = false;
     let selecting = false;
     let moved = false;
+    // Text tool: true only when THIS press started on the canvas (empty space).
+    // A press that began on the DOM overlay (a label, or the dismiss backdrop that
+    // closes an open editor) never runs the canvas' pointerdown, so this stays false
+    // and the release must not create a text — otherwise clicking away from an editor
+    // (which removes the backdrop mid-gesture) would spawn a stray box.
+    let textPressStarted = false;
     // Active draw-tool drag: a runtime wrapping the active input mode's pure
     // engine, created on pointer-down and driven by feedTool.
     let drawing = false;
@@ -1789,6 +1795,7 @@ export function CreasePatternWebglCanvas({
         // Clicks on existing texts are captured by the DOM overlay and never reach
         // here, so any press that lands here is on empty space.
         e.preventDefault();
+        textPressStarted = true;
       } else if (toolMode) {
         // A drag draw tool is active: plain drag draws instead of selecting.
         e.preventDefault();
@@ -1952,12 +1959,14 @@ export function CreasePatternWebglCanvas({
         !panning &&
         !movingFigure
       ) {
-        // Text tool: a click (no drag) on empty canvas starts an inline-edit draft
-        // at that model point. A drag/pan does nothing.
-        if (!moved && e.type !== 'pointercancel') {
+        // Text tool: a click (no drag) whose press started on the canvas starts an
+        // inline-edit draft at that model point. A drag/pan, or a release whose press
+        // began on the overlay (dismissing an editor), does nothing.
+        if (textPressStarted && !moved && e.type !== 'pointercancel') {
           const m = clientToModel(e.clientX, e.clientY);
           if (m) liveRef.current.onTextCreate?.(m);
         }
+        textPressStarted = false;
       } else if (erasing) {
         renderer.setPreview(null);
         const raw = clientToModel(e.clientX, e.clientY);
