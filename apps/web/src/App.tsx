@@ -9,7 +9,6 @@ import { SelectByIndexModal } from './components/SelectByIndexModal';
 import { SettingsModal } from './components/SettingsModal';
 import { TooltipProvider } from './components/ui/Tooltip';
 import { handleMenuAction } from './commands/menuActions';
-import { registerStartScreenRequestHandler } from './commands/startScreenController';
 import { useTauriOpenedFiles } from './hooks/useTauriOpenedFiles';
 import { installAppKeyboardListener } from './lib/appKeyboard';
 import { cpSelectionSize } from './lib/creasePatternViewport';
@@ -19,10 +18,9 @@ import { getRuntimeSurface } from './platform/runtime';
 import { applyWindowTitle, formatWindowTitle } from './platform/windowTitle';
 import { navigateTo } from './routing/appRouter';
 import { openedProjectPath } from './routing/landing';
-import { WELCOME_PATH } from './routing/paths';
 import { startWorkspaceUrlSync } from './routing/workspaceUrlSync';
+import { useWelcomeDiscardGuard } from './routing/useWelcomeDiscardGuard';
 import { requestConfirmation } from './store/commandDialogStore';
-import { useLayoutStore } from './store/layoutStore';
 import { useShortcutStore } from './store/shortcutStore';
 import { useThemeStore } from './store/themeStore';
 import { useWorkspaceStore } from './store/workspaceStore';
@@ -42,31 +40,7 @@ export default function App() {
   const engineReady = useWorkspaceStore((state) => state.engineReady);
   const toasterTheme = useThemeStore((state) => state.currentTheme.type);
 
-  const showStartScreen = useCallback(async () => {
-    const state = useWorkspaceStore.getState();
-    if (state.dirty) {
-      const confirmed = await requestConfirmation({
-        title: 'Discard unsaved changes?',
-        message:
-          'Your current project has unsaved changes. Return to the start screen and discard them?',
-        confirmLabel: 'Discard',
-        tone: 'danger',
-      });
-      if (!confirmed) return false;
-    }
-
-    useWorkspaceStore.setState({
-      dirty: false,
-      error: null,
-      projectMessage: null,
-      status: state.engineReady ? 'ready' : 'loading_engine',
-    });
-    useLayoutStore.getState().setActiveWorkspace('design');
-    navigateTo(WELCOME_PATH);
-    return true;
-  }, []);
-
-  useEffect(() => registerStartScreenRequestHandler(showStartScreen), [showStartScreen]);
+  useWelcomeDiscardGuard();
 
   useEffect(() => startWorkspaceUrlSync(), []);
 

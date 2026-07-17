@@ -1,6 +1,7 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { StartScreen } from '../components/StartScreen';
+import { useLayoutStore } from '../store/layoutStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { DESIGN_PATH, EDIT_PATH } from './paths';
 import { openedProjectPath } from './landing';
@@ -8,6 +9,8 @@ import { openedProjectPath } from './landing';
 /**
  * The `/welcome` route: the start screen. Creating or opening a document
  * establishes it in the store, then navigates to the workspace that owns it.
+ * Arriving here clears transient project state (a discarded dirty flag, a stale
+ * error/message) so the start screen is a clean slate.
  */
 export function WelcomeRoute() {
   const navigate = useNavigate();
@@ -15,6 +18,17 @@ export function WelcomeRoute() {
   const error = useWorkspaceStore((state) => state.error);
   const createNewCreasePattern = useWorkspaceStore((state) => state.createNewCreasePattern);
   const openProject = useWorkspaceStore((state) => state.openProject);
+
+  useEffect(() => {
+    const state = useWorkspaceStore.getState();
+    useWorkspaceStore.setState({
+      dirty: false,
+      error: null,
+      projectMessage: null,
+      status: state.engineReady ? 'ready' : 'loading_engine',
+    });
+    useLayoutStore.getState().setActiveWorkspace('design');
+  }, []);
 
   const handleCreateCreasePattern = useCallback(async () => {
     await createNewCreasePattern();

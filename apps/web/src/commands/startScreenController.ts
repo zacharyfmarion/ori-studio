@@ -1,16 +1,12 @@
-type StartScreenRequestHandler = () => boolean | Promise<boolean>;
+import { navigateTo } from '../routing/appRouter';
+import { WELCOME_PATH } from '../routing/paths';
 
-let startScreenRequestHandler: StartScreenRequestHandler | null = null;
-
-export function registerStartScreenRequestHandler(handler: StartScreenRequestHandler): () => void {
-  startScreenRequestHandler = handler;
-  return () => {
-    if (startScreenRequestHandler === handler) {
-      startScreenRequestHandler = null;
-    }
-  };
-}
-
+/**
+ * Return to the start screen. The unsaved-changes prompt is handled by the
+ * navigation blocker ({@link useWelcomeDiscardGuard}); landing on `/welcome`
+ * resets transient project state ({@link WelcomeRoute}).
+ */
 export async function requestStartScreen(): Promise<boolean> {
-  return (await startScreenRequestHandler?.()) ?? false;
+  navigateTo(WELCOME_PATH);
+  return true;
 }
