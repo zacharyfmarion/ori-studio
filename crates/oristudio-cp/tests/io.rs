@@ -1,7 +1,61 @@
-use oristudio_cp::CreasePatternDocument;
 use oristudio_cp::geometry::{Circle, LineColor, LineSegment, Point, RgbColor};
 use oristudio_cp::io::{cp, dxf, fold, obj, orh, ori};
 use oristudio_cp::model::{CreasePatternModel, GridState, TextElement};
+use oristudio_cp::{
+    CreasePatternCommand, CreasePatternCommandPayload, CreasePatternDocument, OperationId,
+    TextCommandAction, execute_command,
+};
+
+/// Full text pipeline: author annotations through the command layer (CreateAt +
+/// Move, as the Text tool does), export to both interchange formats, re-import, and
+/// assert the texts survive byte-for-byte — including a multi-line body. This is the
+/// Oriedita-compatibility gate for text creation.
+#[test]
+fn text_command_pipeline_round_trips_through_ori_and_fold() {
+    let mut document = CreasePatternDocument::default();
+
+    let create = |point: Point, content: &str| {
+        CreasePatternCommand::new(OperationId::Text).with_payload(CreasePatternCommandPayload {
+            text_action: Some(TextCommandAction::CreateAt),
+            points: vec![point],
+            text_content: Some(content.to_string()),
+            ..CreasePatternCommandPayload::default()
+        })
+    };
+
+    execute_command(&mut document, create(Point::new(1.5, 2.5), "alpha"))
+        .expect("create first text");
+    execute_command(&mut document, create(Point::new(10.0, 20.0), "multi\nline\nnote"))
+        .expect("create multi-line text");
+
+    // Move the first text via the command layer (delta = points[1] - points[0]).
+    execute_command(
+        &mut document,
+        CreasePatternCommand::new(OperationId::Text).with_payload(CreasePatternCommandPayload {
+            text_action: Some(TextCommandAction::Move),
+            text_ids: vec![1],
+            points: vec![Point::new(0.0, 0.0), Point::new(3.0, -1.0)],
+            ..CreasePatternCommandPayload::default()
+        }),
+    )
+    .expect("move first text");
+
+    let expected = vec![
+        TextElement::new(4.5, 1.5, "alpha"),
+        TextElement::new(10.0, 20.0, "multi\nline\nnote"),
+    ];
+    assert_eq!(document.crease_pattern.texts, expected);
+
+    // .ori round-trip.
+    let ori_json = ori::export_ori_json(&document).expect("export ori");
+    let from_ori = ori::import_ori_json(&ori_json).expect("import ori");
+    assert_eq!(from_ori.crease_pattern.texts, expected);
+
+    // FOLD round-trip (oriedita:texts_coords / texts_text extensions).
+    let fold_json = fold::export_fold_file_document_json(&document).expect("export fold");
+    let from_fold = fold::import_fold_file_document_json(&fold_json).expect("import fold");
+    assert_eq!(from_fold.crease_pattern.texts, expected);
+}
 
 #[test]
 fn cp_import_and_export_preserve_oriedita_assignment_numbers() {
