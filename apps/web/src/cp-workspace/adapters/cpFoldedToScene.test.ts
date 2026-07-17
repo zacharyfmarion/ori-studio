@@ -86,6 +86,55 @@ describe('cpFoldedToScene', () => {
   });
 });
 
+const strokeTriangle = () =>
+  figure([
+    {
+      sequence: 0,
+      kind: 'stroke_polygon',
+      style: {
+        paint: solid(0, 0, 0, 255),
+        stroke: { kind: 'basic', width: 1, end_cap: 0, line_join: 0, miter_limit: 4 },
+        antialias: 'default',
+      },
+      geometry: {
+        kind: 'polygon',
+        points: [
+          { x: 0, y: 0 },
+          { x: 8, y: 0 },
+          { x: 8, y: 8 },
+        ],
+      },
+    },
+  ]);
+
+describe('cpFoldedToScene scale preview', () => {
+  it('scales the targeted figure about the pivot (user coords)', () => {
+    const base = cpFoldedToScene([strokeTriangle()]);
+    const pivot = { x: 5, y: 5 };
+    const factor = 2;
+    const preview = cpFoldedToScene([strokeTriangle()], { figureId: 'f1', factor, pivot });
+
+    expect(preview.strokes.count).toBe(base.strokes.count);
+    for (let i = 0; i < base.strokes.count * 2; i += 2) {
+      expect(preview.strokes.a[i]).toBeCloseTo(pivot.x + (base.strokes.a[i] - pivot.x) * factor);
+      expect(preview.strokes.a[i + 1]).toBeCloseTo(
+        pivot.y + (base.strokes.a[i + 1] - pivot.y) * factor
+      );
+    }
+  });
+
+  it('leaves a non-targeted figure unchanged', () => {
+    const base = cpFoldedToScene([strokeTriangle()]);
+    const preview = cpFoldedToScene([strokeTriangle()], {
+      figureId: 'other',
+      factor: 3,
+      pivot: { x: 0, y: 0 },
+    });
+    expect(Array.from(preview.strokes.a)).toEqual(Array.from(base.strokes.a));
+    expect(Array.from(preview.strokes.b)).toEqual(Array.from(base.strokes.b));
+  });
+});
+
 describe('foldedFigureUserBounds', () => {
   const polygonFigure = () =>
     figure([

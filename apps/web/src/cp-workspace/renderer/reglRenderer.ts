@@ -94,6 +94,12 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
       points.setData(next);
     },
 
+    setFolded(folded) {
+      if (disposed) return;
+      foldedFills.setData(folded.fills);
+      foldedStrokes.setData(folded.strokes);
+    },
+
     setGrid(grid) {
       if (disposed) return;
       hasGrid = grid !== null && grid.count > 0;
