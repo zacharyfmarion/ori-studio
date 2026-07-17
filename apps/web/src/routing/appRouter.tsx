@@ -41,9 +41,12 @@ export function createAppRouter(): AppRouter {
         {
           element: <WorkspaceShell />,
           children: [
-            { path: 'design', element: <WorkspaceRoute workspace="design" /> },
-            { path: 'design/treemaker', element: <WorkspaceRoute workspace="design" /> },
-            { path: 'design/bp', element: <WorkspaceRoute workspace="design" /> },
+            { path: 'design', element: <WorkspaceRoute workspace="design" variant="nux" /> },
+            {
+              path: 'design/treemaker',
+              element: <WorkspaceRoute workspace="design" variant="treemaker" />,
+            },
+            { path: 'design/bp', element: <WorkspaceRoute workspace="design" variant="box-pleat" /> },
             { path: 'edit', element: <WorkspaceRoute workspace="edit" /> },
             { path: 'simulate', element: <WorkspaceRoute workspace="simulate" /> },
           ],

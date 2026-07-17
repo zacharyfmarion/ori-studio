@@ -9,6 +9,7 @@ import type {
   WasmErrorEnvelope,
 } from '../../engine/types';
 import type { Point } from '../../lib/geometry';
+import type { DesignLayoutVariant } from '../layoutStore';
 import type { EditingContext } from '../../workspaces/editingContext';
 import type { ImportedCreasePatternFormat } from '../../lib/creasePatternImport';
 import type { SnapshotEntry } from './snapshotHistory';
@@ -180,6 +181,12 @@ export interface ProjectSliceActions {
   startNewDesign: () => void;
   /** Resolve the Design pane NUX chooser into a concrete design method. */
   chooseDesignMethod: (target: WorkflowTarget) => Promise<void>;
+  /**
+   * Reflect a Design sub-route (`/design`, `/design/treemaker`, `/design/bp`)
+   * into the design state so the layout variant matches the URL. Sets the
+   * variant fields only; establishing a document is the caller's concern.
+   */
+  applyDesignRoute: (variant: DesignLayoutVariant) => void;
 }
 
 export type ProjectSlice = ProjectSliceState & ProjectSliceActions;

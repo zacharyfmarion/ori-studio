@@ -26,6 +26,7 @@ import { getRuntimeSurface } from '../platform/runtime';
 import { applyDefaultLayout, useLayoutStore } from '../store/layoutStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
+import { deriveDesignVariant } from '../store/workspaceStore/designVariant';
 import { useWorkspaceCapabilities } from '../store/workspaceStore/useWorkspaceCapabilities';
 import { workspacePath } from '../routing/paths';
 import { WORKSPACE_DEFINITIONS, type WorkspaceId } from '../workspaces/workspaces';
@@ -35,6 +36,18 @@ const workspaceIcons: Record<WorkspaceId, typeof DraftingCompass> = {
   edit: PenTool,
   simulate: Box,
 };
+
+/**
+ * Path a rail button navigates to. Design targets its active variant sub-route
+ * (so an in-progress design isn't bounced back to the method chooser); other
+ * workspaces have a single path.
+ */
+function railPath(workspace: WorkspaceId): string {
+  if (workspace === 'design') {
+    return workspacePath('design', deriveDesignVariant(useWorkspaceStore.getState()));
+  }
+  return workspacePath(workspace);
+}
 
 function WorkspaceRail() {
   const activeWorkspace = useLayoutStore((state) => state.activeWorkspace);
@@ -55,7 +68,7 @@ function WorkspaceRail() {
               title={workspace.tooltip}
               tooltipSide="right"
               aria-label={workspace.tooltip}
-              onClick={() => navigate(workspacePath(workspace.id))}
+              onClick={() => navigate(railPath(workspace.id))}
             >
               <Icon size={19} />
             </IconButton>

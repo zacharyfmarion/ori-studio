@@ -1941,6 +1941,23 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       useLayoutStore.getState().ensureDesignLayout();
     },
 
+    applyDesignRoute: (variant) => {
+      // Reflect the Design sub-route into the variant fields. Layout rebuild and
+      // document provisioning are the caller's concern (WorkspaceRoute).
+      const state = get();
+      if (variant === 'nux') {
+        if (!state.pendingDesignChoice) set({ pendingDesignChoice: true });
+      } else if (variant === 'box-pleat') {
+        if (state.pendingDesignChoice || state.workflowTarget !== 'box-pleat') {
+          set({ pendingDesignChoice: false, workflowTarget: 'box-pleat' });
+        }
+      } else {
+        if (state.pendingDesignChoice || state.workflowTarget !== 'treemaker') {
+          set({ pendingDesignChoice: false, workflowTarget: 'treemaker' });
+        }
+      }
+    },
+
     chooseDesignMethod: async (target) => {
       // Choosing a design method establishes a design surface but must not touch
       // the always-live Edit canvas. The creators run in preserveEditCanvas mode,
