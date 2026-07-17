@@ -1,5 +1,11 @@
 # CP text annotation creation — UX & implementation plan
 
+> **Status: implemented.** All six phases landed (engine `CreateAt`, canvas text
+> mode, inline editor, drag/right-click/Delete, panel re-scope, round-trip proof).
+> `cargo test -p oristudio-cp`, `tsc`, `vitest`, and `eslint` are green; the ori +
+> FOLD round-trip test guards Oriedita compatibility. Browser checklist (§7) is the
+> remaining author-owned verification.
+
 **Goal.** Let users *create* text annotations on the crease-pattern canvas by
 clicking with the Text tool, edit them inline where they sit, drag them to
 reposition, and delete them — matching Oriedita's `MouseHandlerText` behaviour
