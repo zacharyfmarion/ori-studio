@@ -29,7 +29,11 @@ import {
   importedCpLineage,
   markCpLineageEdited,
 } from '../../../lib/oristudioCpLineage';
-import type { CpImage } from '../../../cp-workspace/images/cpImage';
+import {
+  IMAGE_TOTAL_BYTES_WARN,
+  totalCpImageBytes,
+  type CpImage,
+} from '../../../cp-workspace/images/cpImage';
 import { normalizeOristudioCpCommandPayload } from '../../../lib/oristudioCpCommandPayloads';
 import {
   activeNativeDocument,
@@ -59,6 +63,12 @@ import { type WorkspaceCapabilityId } from '../../../lib/workspaceCapabilities';
 import { selectWorkspaceCapabilities } from '../capabilities';
 import { ensureExtension, getFileService, type FileService } from '../../../platform/fileService';
 import { requestConfirmation, requestCreasePatternExportOptions } from '../../commandDialogStore';
+import {
+  collectExportLossWarnings,
+  describeExportLoss,
+  exportFormatLabel,
+  type ExportFormat,
+} from '../../../lib/supersetFeatures';
 import { useLayoutStore } from '../../layoutStore';
 import {
   emptyFoldArtifactResourceState,
@@ -931,11 +941,19 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     });
     if (!result) return false;
     const document = get().oristudioBpDocument;
+    // Soft, non-blocking notice when the file embeds a lot of image data.
+    const imageBytes = totalCpImageBytes(get().oristudioCpImages);
+    const savedMessage =
+      imageBytes > IMAGE_TOTAL_BYTES_WARN
+        ? `Saved ${result.name} — embeds ~${Math.round(
+            imageBytes / (1024 * 1024)
+          )} MB of images and may be slow to open or sync.`
+        : `Saved ${result.name}`;
     set({
       currentFileName: result.name,
       currentFilePath: result.path,
       dirty: false,
-      projectMessage: `Saved ${result.name}`,
+      projectMessage: savedMessage,
       ...(document
         ? {
             oristudioBpDocument: {
@@ -982,6 +1000,27 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       extensions: get().oristudioCpDocumentExtensions,
       appVersion: APP_VERSION,
     };
+  };
+
+  // Superset-feature guard: warn before an Oriedita-compatible export drops data
+  // it cannot store (images, and future superset features). `.osf` save is
+  // lossless and never calls this. Returns `true` *synchronously* when there is
+  // nothing to lose, so a lossless export keeps whatever confirm timing it had;
+  // otherwise returns a Promise resolving to the user's choice. Callers use the
+  // `gate !== true && !(await gate)` idiom so the no-loss path never awaits.
+  const guardExportLoss = (format: ExportFormat): true | Promise<boolean> => {
+    const warnings = collectExportLossWarnings(format, { images: get().oristudioCpImages });
+    if (warnings.length === 0) return true;
+    return requestConfirmation({
+      title: 'Some features can’t be exported',
+      message: `This project uses features the ${exportFormatLabel(
+        format
+      )} format can’t store. They’ll be omitted from the export: ${describeExportLoss(
+        warnings
+      )}.`,
+      confirmLabel: 'Export anyway',
+      cancelLabel: 'Cancel',
+    });
   };
 
   const saveEditableCreasePatternAsOri = async (fileService: FileService) => {
@@ -1786,6 +1825,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     exportCp: async (fileService = getFileService()) => {
       try {
         if (rejectDisabled('file.exportCp')) return false;
+        const cpLoss = guardExportLoss('cp');
+        if (cpLoss !== true && !(await cpLoss)) return false;
         const contents = await exportOristudioCpDocumentAsCp();
         const result = await fileService.saveTextFile({
           title: 'Export CP Document',
@@ -1832,6 +1873,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     exportFold: async (fileService = getFileService()) => {
       try {
         if (rejectDisabled('file.exportFold')) return false;
+        const foldLoss = guardExportLoss('fold');
+        if (foldLoss !== true && !(await foldLoss)) return false;
         const contents =
           get().oristudioCpDocument
             ? await exportOristudioCpDocumentAsFold()
@@ -1860,6 +1903,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     exportOri: async (fileService = getFileService()) => {
       try {
         if (rejectDisabled('file.exportOri')) return false;
+        const oriLoss = guardExportLoss('ori');
+        if (oriLoss !== true && !(await oriLoss)) return false;
         const contents = await exportOristudioCpDocumentAsOri();
         const result = await fileService.saveTextFile({
           title: 'Export Oriedita ORI Document',
@@ -1883,6 +1928,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     exportOrh: async (fileService = getFileService()) => {
       try {
         if (rejectDisabled('file.exportOrh')) return false;
+        const orhLoss = guardExportLoss('orh');
+        if (orhLoss !== true && !(await orhLoss)) return false;
         if (!(await confirmLossyOrhWrite())) return false;
         const contents = await exportOristudioCpDocumentAsOrh();
         const result = await fileService.saveTextFile({
@@ -1907,6 +1954,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     exportSvg: async (fileService = getFileService(), options) => {
       try {
         if (rejectDisabled('file.exportSvg')) return false;
+        const svgLoss = guardExportLoss('svg');
+        if (svgLoss !== true && !(await svgLoss)) return false;
         const resolved = await resolveCreaseExport('svg', options);
         if (!resolved) return false;
         const contents = serializeCreasePatternSvg(resolved.fold, resolved.segments, resolved.options);
@@ -1929,6 +1978,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     exportPng: async (fileService = getFileService(), options) => {
       try {
         if (rejectDisabled('file.exportPng')) return false;
+        const pngLoss = guardExportLoss('png');
+        if (pngLoss !== true && !(await pngLoss)) return false;
         const resolved = await resolveCreaseExport('png', options);
         if (!resolved) return false;
         const bytes = await renderCreasePatternPng(resolved.fold, resolved.segments, resolved.options);
