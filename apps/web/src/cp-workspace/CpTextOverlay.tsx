@@ -21,6 +21,7 @@ export const CpTextOverlay = memo(function CpTextOverlay({
   view,
   zoomPercent,
   selectable,
+  textToolActive = false,
   onToggleText,
 }: {
   texts: readonly OristudioCpTextElement[];
@@ -28,6 +29,8 @@ export const CpTextOverlay = memo(function CpTextOverlay({
   view: CpOverlayView;
   zoomPercent: number;
   selectable: boolean;
+  /** Text tool is active: labels show an editing cursor (text, or move when selected). */
+  textToolActive?: boolean;
   onToggleText: (id: number, additive?: boolean) => void;
 }) {
   const selectedSet = useMemo(() => new Set(selectedTextIds), [selectedTextIds]);
@@ -41,11 +44,13 @@ export const CpTextOverlay = memo(function CpTextOverlay({
         const my = textCoordinate(text.y);
         const left = view.origin[0] + mx * view.ex[0] + my * view.ey[0];
         const top = view.origin[1] + mx * view.ex[1] + my * view.ey[1];
+        const isSelected = selectedSet.has(id);
         const style: CSSProperties = {
           left,
           top,
           fontSize: fontPx,
           pointerEvents: selectable ? 'auto' : 'none',
+          cursor: textToolActive ? (isSelected ? 'move' : 'text') : undefined,
         };
         const handleClick = (event: MouseEvent<HTMLSpanElement>) => {
           event.stopPropagation();
@@ -54,7 +59,7 @@ export const CpTextOverlay = memo(function CpTextOverlay({
         return (
           <span
             key={id}
-            className={['cp-text-label', selectedSet.has(id) ? 'cp-text-label--selected' : '']
+            className={['cp-text-label', isSelected ? 'cp-text-label--selected' : '']
               .join(' ')
               .trim()}
             style={style}

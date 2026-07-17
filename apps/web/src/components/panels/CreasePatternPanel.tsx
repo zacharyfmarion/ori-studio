@@ -1843,6 +1843,7 @@ export function CreasePatternPanel() {
       | 'line-entity'
       | 'lengthen'
       | 'angle-drag'
+      | 'text'
       | null;
     stepKinds: ('point' | 'crease' | 'candidate')[];
     lineCount: number;
@@ -1899,6 +1900,11 @@ export function CreasePatternPanel() {
     // just accumulates clicks into `cpToolPoints`.
     if (activeCpCommand.operationId === 'VoronoiCreate') {
       return { ...idle, mode: 'sequence', voronoi: true };
+    }
+    // Text: existing texts are selected/dragged via the DOM overlay; the canvas only
+    // reports an empty-space click so the panel can start an inline-edit draft there.
+    if (activeCpCommand.operationId === 'Text') {
+      return { ...idle, mode: 'text' };
     }
     // Everything below is driven by the explicit per-operation registry — never
     // by the step-prompt text. Line-entity (Lengthen) picks crease ids; point-
@@ -2312,13 +2318,37 @@ export function CreasePatternPanel() {
     (id: number, additive = false) => {
       if (
         cpToolState.phase === 'active' &&
-        !allowsDirectEntitySelection(activeCpCommand?.operationId)
+        !allowsDirectEntitySelection(activeCpCommand?.operationId) &&
+        !isTextAnnotationOperation(activeCpCommand?.operationId)
       ) {
         return;
       }
       toggleOristudioCpTextSelection(id, additive);
     },
     [activeCpCommand?.operationId, cpToolState.phase, toggleOristudioCpTextSelection]
+  );
+
+  // Text tool: a click on empty canvas creates a new (initially blank) text at that
+  // model point and selects it. Uses CreateAt (not Create) so the engine never
+  // second-guesses the click with its FontMetrics-less bounds — the frontend is the
+  // sole authority on "empty space". Phase 3 opens an inline editor on the new text.
+  const handleTextCreate = useCallback(
+    (modelPoint: Point) => {
+      if (!editableCp || activeCpCommand?.operationId !== 'Text') return;
+      const newTextId = editableCp.crease_pattern.texts.length + 1;
+      void (async () => {
+        const succeeded = await executeOristudioCpCommand('Text', {
+          line_ids: [],
+          text_action: 'CreateAt',
+          points: [modelPoint],
+          text_content: '',
+        });
+        if (succeeded) {
+          setOristudioCpSelection({ ...emptyOristudioCpSelection(), texts: [newTextId] });
+        }
+      })();
+    },
+    [activeCpCommand?.operationId, editableCp, executeOristudioCpCommand, setOristudioCpSelection]
   );
 
   const emptyStatusLabel =
@@ -2586,6 +2616,7 @@ export function CreasePatternPanel() {
                   activeToolSquareBisector={webglActiveTool.squareBisector}
                   activeToolVoronoi={webglActiveTool.voronoi}
                   activeToolDashedPreview={isCpMeasurementOperation(activeCpCommand?.operationId)}
+                  onTextCreate={handleTextCreate}
                   voronoiSeeds={cpToolPoints}
                   onVoronoiSeedsChange={handleWebglVoronoiSeeds}
                   activeToolRequireSnap={isRestrictedDrawOperation(activeCpCommand?.operationId)}
@@ -2639,8 +2670,10 @@ export function CreasePatternPanel() {
                     zoomPercent={zoomPercent}
                     selectable={
                       cpToolState.phase !== 'active' ||
-                      allowsDirectEntitySelection(activeCpCommand?.operationId)
+                      allowsDirectEntitySelection(activeCpCommand?.operationId) ||
+                      isTextAnnotationOperation(activeCpCommand?.operationId)
                     }
+                    textToolActive={isTextAnnotationOperation(activeCpCommand?.operationId)}
                     onToggleText={handleEditableTextClick}
                   />
                 )}

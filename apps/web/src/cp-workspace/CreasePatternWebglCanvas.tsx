@@ -70,7 +70,11 @@ type ActiveToolMode =
   | 'lengthen'
   // Angle Restricted Line (DrawCreaseAngleRestricted5): press-drag-release like the
   // Line tool, but the endpoint is angle-system-snapped (kernel-previewed live).
-  | 'angle-drag';
+  | 'angle-drag'
+  // Text annotation tool: existing texts are selected/dragged via the DOM overlay
+  // (it owns the real glyph bounds); the canvas only reports an empty-space click's
+  // model point so the panel can start an inline-edit draft there.
+  | 'text';
 /**
  * Per-step snap/feedback mode: snap to grid/vertices (`point`), onto an existing
  * crease (`crease`), or onto the nearest kernel-computed candidate ray (`candidate`,
@@ -433,6 +437,12 @@ export interface CreasePatternWebglCanvasProps {
   activeToolVoronoi: boolean;
   /** True for the measure tools: their guide line renders as a screen-space dash. */
   activeToolDashedPreview: boolean;
+  /**
+   * Text tool: a plain click on empty canvas (no drag, no pan) reports its model
+   * point so the panel can start an inline-edit draft there. Selecting/dragging an
+   * existing text is handled by the DOM overlay, so those clicks never reach here.
+   */
+  onTextCreate?: (modelPoint: ModelPoint) => void;
   /** The current Voronoi click list (owned by the panel as `cpToolPoints`). */
   voronoiSeeds: readonly ModelPoint[];
   /** Report the updated Voronoi click list after a seed add / gesture reset. */
@@ -578,6 +588,7 @@ export function CreasePatternWebglCanvas({
   activeToolSquareBisector,
   activeToolVoronoi,
   activeToolDashedPreview,
+  onTextCreate,
   voronoiSeeds,
   onVoronoiSeedsChange,
   resolveFirstPickKind,
@@ -849,6 +860,7 @@ export function CreasePatternWebglCanvas({
     activeToolConverging,
     activeToolSquareBisector,
     activeToolVoronoi,
+    onTextCreate,
     voronoiSeeds,
     onVoronoiSeedsChange,
     resolveFirstPickKind,
@@ -1771,6 +1783,12 @@ export function CreasePatternWebglCanvas({
         // angle-snapped segment, release commits.
         e.preventDefault();
         feedAngleDrag('down', e.clientX, e.clientY);
+      } else if (toolMode === 'text') {
+        // Text tool: a plain click on empty canvas starts an inline-edit draft
+        // (handled on release, once we know it was a click and not a pan/drag).
+        // Clicks on existing texts are captured by the DOM overlay and never reach
+        // here, so any press that lands here is on empty space.
+        e.preventDefault();
       } else if (toolMode) {
         // A drag draw tool is active: plain drag draws instead of selecting.
         e.preventDefault();
@@ -1929,6 +1947,17 @@ export function CreasePatternWebglCanvas({
       } else if (liveRef.current.activeToolInputMode === 'angle-drag' && !panning && !movingFigure) {
         // Angle Restricted Line: release commits the [anchor, endpoint] segment.
         feedAngleDrag(e.type === 'pointercancel' ? 'cancel' : 'up', e.clientX, e.clientY);
+      } else if (
+        liveRef.current.activeToolInputMode === 'text' &&
+        !panning &&
+        !movingFigure
+      ) {
+        // Text tool: a click (no drag) on empty canvas starts an inline-edit draft
+        // at that model point. A drag/pan does nothing.
+        if (!moved && e.type !== 'pointercancel') {
+          const m = clientToModel(e.clientX, e.clientY);
+          if (m) liveRef.current.onTextCreate?.(m);
+        }
       } else if (erasing) {
         renderer.setPreview(null);
         const raw = clientToModel(e.clientX, e.clientY);
