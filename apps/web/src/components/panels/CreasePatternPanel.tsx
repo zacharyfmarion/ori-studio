@@ -108,7 +108,7 @@ import { useShortcutStore } from '../../store/shortcutStore';
 import { CreasePatternWebglCanvas } from '../../cp-workspace/CreasePatternWebglCanvas';
 import type { CameraCommand, CpOverlayView } from '../../cp-workspace/CreasePatternWebglCanvas';
 import type { CpContextMenuRequest } from '../../cp-workspace/contextMenuTarget';
-import { advanceFoldedState } from '../../cp-workspace/foldedFigureState';
+import { flipFoldedState } from '../../cp-workspace/foldedFigureState';
 import { ContextMenu } from '../ui/ContextMenu';
 import type { ContextMenuItem, ContextMenuRequest } from '../ui/contextMenuTypes';
 import { vertexPointsFromTransport } from '../../engine/oristudioCpGeometry';
@@ -1148,10 +1148,11 @@ export function CreasePatternPanel() {
           label: 'Flip',
           icon: <FlipHorizontal2 size={14} />,
           disabled: !ready,
-          // Oriedita's FlipAction: cycle the figure's shown side.
+          // Turn the paper over: Front <-> Back. The Both/Transparent overlay
+          // states live on the toolbar's "Side" control, not here.
           onSelect: () =>
             void updateOristudioCpFoldedFigureModel(figure.id, {
-              state: advanceFoldedState(currentState),
+              state: flipFoldedState(currentState),
             }),
         },
         {

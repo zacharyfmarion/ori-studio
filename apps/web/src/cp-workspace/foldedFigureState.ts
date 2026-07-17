@@ -1,21 +1,17 @@
 import type { OristudioCpFoldedFigureState } from '../engine/oristudioCpTypes';
 
 /**
- * Order + wraparound of Oriedita's `FoldedFigure.State.advance()`, which its
- * `FlipAction` invokes: Front → Back → Both → Transparent → Front. Keeping this
- * faithful is what makes the folded-form "Flip" match the reference app.
+ * Toggle a folded figure between its front and back — turning the paper over.
+ * This is the honest "Flip": Front ↔ Back.
+ *
+ * `Both` and `Transparent` are overlay view modes (front and back drawn together,
+ * opaque or see-through), not sides, so a flip from either resolves to `Back` —
+ * the reverse of the default `Front` view. Those overlay states are chosen from
+ * the toolbar's "Side" control, which is the full four-way surface; the context
+ * menu only offers the common front/back toggle.
  */
-export const FOLDED_STATE_CYCLE: readonly OristudioCpFoldedFigureState[] = [
-  'Front0',
-  'Back1',
-  'Both2',
-  'Transparent3',
-];
-
-/** The next side to show, cycling per {@link FOLDED_STATE_CYCLE}. */
-export function advanceFoldedState(
+export function flipFoldedState(
   state: OristudioCpFoldedFigureState
 ): OristudioCpFoldedFigureState {
-  const index = FOLDED_STATE_CYCLE.indexOf(state);
-  return FOLDED_STATE_CYCLE[(index + 1) % FOLDED_STATE_CYCLE.length] ?? 'Front0';
+  return state === 'Back1' ? 'Front0' : 'Back1';
 }

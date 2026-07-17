@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { advanceFoldedState } from './foldedFigureState';
+import { flipFoldedState } from './foldedFigureState';
 
-describe('advanceFoldedState', () => {
-  it('cycles Front -> Back -> Both -> Transparent -> Front (Oriedita FlipAction)', () => {
-    expect(advanceFoldedState('Front0')).toBe('Back1');
-    expect(advanceFoldedState('Back1')).toBe('Both2');
-    expect(advanceFoldedState('Both2')).toBe('Transparent3');
-    expect(advanceFoldedState('Transparent3')).toBe('Front0');
+describe('flipFoldedState', () => {
+  it('toggles Front <-> Back (turning the paper over)', () => {
+    expect(flipFoldedState('Front0')).toBe('Back1');
+    expect(flipFoldedState('Back1')).toBe('Front0');
+  });
+
+  it('resolves the overlay states to Back (reverse of the default Front view)', () => {
+    expect(flipFoldedState('Both2')).toBe('Back1');
+    expect(flipFoldedState('Transparent3')).toBe('Back1');
   });
 });
