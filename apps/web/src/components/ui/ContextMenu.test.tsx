@@ -85,6 +85,21 @@ describe('ContextMenu', () => {
     expect(onSelect).toHaveBeenCalledTimes(1);
   });
 
+  // The anchor must sit under the cursor in viewport coordinates. It is portaled
+  // to document.body because `position: fixed` resolves against any transformed /
+  // will-change-promoted ancestor, and callers render this inside the CP viewport
+  // (a centring grid) inside transformed Dockview panels — where it would
+  // otherwise drift to the container's origin or get centred over the model.
+  it('anchors to the cursor via a fixed, body-level element', () => {
+    render(true, [{ kind: 'action', id: 'flip', label: 'Flip', onSelect: () => {} }]);
+    const anchor = document.querySelector<HTMLElement>('[data-context-menu-anchor]');
+    expect(anchor).not.toBeNull();
+    expect(anchor?.parentElement).toBe(document.body);
+    expect(anchor?.style.position).toBe('fixed');
+    expect(anchor?.style.left).toBe('10px');
+    expect(anchor?.style.top).toBe('20px');
+  });
+
   it('marks disabled items so they cannot be selected', () => {
     const onSelect = vi.fn();
     render(true, [{ kind: 'action', id: 'flip', label: 'Flip', disabled: true, onSelect }]);

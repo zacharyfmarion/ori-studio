@@ -1,4 +1,5 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { createPortal } from 'react-dom';
 import type { ContextMenuItem } from './contextMenuTypes';
 
 interface ContextMenuProps {
@@ -22,16 +23,35 @@ interface ContextMenuProps {
  * typeahead, arrow-key nav, Escape, and viewport collision handling.
  *
  * The menu anchors to an invisible zero-size trigger positioned at the cursor.
+ * That anchor is portaled to `document.body` on purpose: `position: fixed` is
+ * only viewport-relative when no ancestor establishes a containing block, and
+ * callers render this inside laid-out, transformed, or `will-change`-promoted
+ * containers (the CP viewport is a centring grid; Dockview panels are
+ * transformed). Left in place, the anchor drifts to its container's origin — or
+ * gets centred by the grid — instead of sitting under the cursor. Portaling to
+ * body makes `x`/`y` unambiguously viewport coordinates. React portals preserve
+ * context, so Radix still wires the trigger to the menu.
  */
 export function ContextMenu({ open, x, y, items, onOpenChange }: ContextMenuProps) {
   return (
     <DropdownMenu.Root open={open} onOpenChange={onOpenChange}>
-      <DropdownMenu.Trigger asChild>
-        <span
-          aria-hidden
-          style={{ position: 'fixed', left: x, top: y, width: 0, height: 0 }}
-        />
-      </DropdownMenu.Trigger>
+      {createPortal(
+        <DropdownMenu.Trigger asChild>
+          <span
+            aria-hidden
+            data-context-menu-anchor=""
+            style={{
+              position: 'fixed',
+              left: x,
+              top: y,
+              width: 0,
+              height: 0,
+              pointerEvents: 'none',
+            }}
+          />
+        </DropdownMenu.Trigger>,
+        document.body
+      )}
       <DropdownMenu.Portal>
         <DropdownMenu.Content
           className="context-menu"
