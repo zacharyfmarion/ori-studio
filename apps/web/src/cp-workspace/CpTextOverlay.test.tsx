@@ -24,6 +24,7 @@ interface Handlers {
   onCreateText?: AnyMock;
   onSetTextContent?: AnyMock;
   onDeleteText?: AnyMock;
+  onMoveText?: AnyMock;
   onCreateDraftConsumed?: AnyMock;
 }
 
@@ -62,6 +63,11 @@ function render(
           props.onSetTextContent as ((id: number, text: string) => void) | undefined
         }
         onDeleteText={props.onDeleteText as ((id: number) => void) | undefined}
+        onMoveText={
+          props.onMoveText as
+            | ((id: number, delta: { x: number; y: number }) => void)
+            | undefined
+        }
       />
     );
   });
@@ -102,6 +108,34 @@ function type(el: HTMLTextAreaElement, value: string) {
 // not trigger it. Dispatch focusout to exercise the component's blur-commit path.
 function blur(el: HTMLTextAreaElement) {
   act(() => el.dispatchEvent(new FocusEvent('focusout', { bubbles: true })));
+}
+
+// jsdom lacks the Pointer Capture API; stub the calls the drag handlers make.
+function stubPointerCapture(el: Element) {
+  const target = el as Element & {
+    setPointerCapture: () => void;
+    releasePointerCapture: () => void;
+    hasPointerCapture: () => boolean;
+  };
+  target.setPointerCapture = () => {};
+  target.releasePointerCapture = () => {};
+  target.hasPointerCapture = () => false;
+}
+
+function pointer(el: Element, type: string, clientX: number, clientY: number, button = 0) {
+  stubPointerCapture(el);
+  act(() => {
+    const event = new MouseEvent(type, { bubbles: true, button, clientX, clientY });
+    Object.defineProperty(event, 'pointerId', { value: 1 });
+    el.dispatchEvent(event);
+  });
+}
+
+// Under the Text tool the editor opens on a press+release with no movement (a
+// click), not on the DOM 'click' event.
+function openEditor(el: Element) {
+  pointer(el, 'pointerdown', 0, 0, 0);
+  pointer(el, 'pointerup', 0, 0, 0);
 }
 
 beforeEach(() => {
@@ -162,7 +196,7 @@ describe('CpTextOverlay inline editor', () => {
       onSelectText,
     });
 
-    act(() => labels()[0].dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    openEditor(labels()[0]);
     expect(onSelectText).toHaveBeenCalledWith(1);
 
     const el = textarea();
@@ -183,7 +217,7 @@ describe('CpTextOverlay inline editor', () => {
       onSetTextContent,
     });
 
-    act(() => labels()[0].dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    openEditor(labels()[0]);
     const el = textarea();
     type(el, '');
     blur(el);
@@ -202,7 +236,7 @@ describe('CpTextOverlay inline editor', () => {
       onDeleteText,
     });
 
-    act(() => labels()[0].dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    openEditor(labels()[0]);
     const el = textarea();
     blur(el);
 
@@ -273,5 +307,54 @@ describe('CpTextOverlay inline editor', () => {
     expect(onToggleText).toHaveBeenCalledWith(1, false);
     expect(onSelectText).not.toHaveBeenCalled();
     expect(container?.querySelector('textarea')).toBeNull();
+  });
+
+  it('drags a text and commits the model delta on release', () => {
+    const onMoveText = vi.fn();
+    render({
+      // Identity view → 1 model unit == 1 CSS px, so a 20px drag == a 20-unit move.
+      texts: [textElement(1, 1, 'a')],
+      textToolActive: true,
+      onMoveText,
+    });
+
+    const label = labels()[0];
+    pointer(label, 'pointerdown', 100, 100, 0);
+    pointer(label, 'pointermove', 120, 108, 0);
+    pointer(label, 'pointerup', 120, 108, 0);
+
+    expect(onMoveText).toHaveBeenCalledWith(1, { x: 20, y: 8 });
+    // A drag must not also open the editor.
+    expect(container?.querySelector('textarea')).toBeNull();
+  });
+
+  it('treats a press with no movement as a click that opens the editor', () => {
+    const onMoveText = vi.fn();
+    render({
+      texts: [textElement(1, 1, 'a')],
+      textToolActive: true,
+      onMoveText,
+    });
+
+    const label = labels()[0];
+    pointer(label, 'pointerdown', 50, 50, 0);
+    pointer(label, 'pointerup', 50, 50, 0);
+
+    expect(onMoveText).not.toHaveBeenCalled();
+    expect(container?.querySelector('textarea')).not.toBeNull();
+  });
+
+  it('right-clicking a text deletes it', () => {
+    const onDeleteText = vi.fn();
+    render({
+      texts: [textElement(1, 1, 'a')],
+      textToolActive: true,
+      onDeleteText,
+    });
+
+    act(() =>
+      labels()[0].dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, button: 2 }))
+    );
+    expect(onDeleteText).toHaveBeenCalledWith(1);
   });
 });

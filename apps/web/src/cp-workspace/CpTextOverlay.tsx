@@ -8,6 +8,7 @@ import {
   type CSSProperties,
   type KeyboardEvent,
   type MouseEvent,
+  type PointerEvent,
 } from 'react';
 import { textCoordinate } from '../lib/creasePatternViewport';
 import type { OristudioCpTextElement } from '../engine/oristudioCpTypes';
@@ -56,6 +57,28 @@ function projectAnchor(view: CpOverlayView, anchor: Point): { left: number; top:
   };
 }
 
+/**
+ * Invert the view's linear part to turn a CSS-pixel drag delta into a model-space
+ * delta (the origin cancels for a delta, so only [ex ey] is needed). Returns null
+ * for a degenerate (non-invertible) view.
+ */
+function clientDeltaToModel(
+  view: CpOverlayView,
+  dxCss: number,
+  dyCss: number
+): Point | null {
+  const det = view.ex[0] * view.ey[1] - view.ey[0] * view.ex[1];
+  if (Math.abs(det) < 1e-12) return null;
+  return {
+    x: (dxCss * view.ey[1] - dyCss * view.ey[0]) / det,
+    y: (view.ex[0] * dyCss - view.ex[1] * dxCss) / det,
+  };
+}
+
+// A drag must exceed this many CSS px before it counts as a move (below it, the
+// gesture is treated as a click that opens the editor).
+const DRAG_THRESHOLD_PX = 3;
+
 export const CpTextOverlay = memo(function CpTextOverlay({
   texts,
   selectedTextIds,
@@ -70,6 +93,7 @@ export const CpTextOverlay = memo(function CpTextOverlay({
   onCreateText,
   onSetTextContent,
   onDeleteText,
+  onMoveText,
 }: {
   texts: readonly OristudioCpTextElement[];
   selectedTextIds: readonly number[];
@@ -90,8 +114,10 @@ export const CpTextOverlay = memo(function CpTextOverlay({
   onCreateText?: (anchor: Point, text: string) => void;
   /** Commit an edit to an existing text's content. */
   onSetTextContent?: (id: number, text: string) => void;
-  /** Delete an existing text (its content was emptied out). */
+  /** Delete an existing text (emptied-out content, or a right-click delete). */
   onDeleteText?: (id: number) => void;
+  /** Commit a drag: move text `id` by `delta` model units. */
+  onMoveText?: (id: number, delta: Point) => void;
 }) {
   const selectedSet = useMemo(() => new Set(selectedTextIds), [selectedTextIds]);
   const fontPx = Math.max(1, BASE_FONT_PX * (zoomPercent / 100));
@@ -175,16 +201,81 @@ export const CpTextOverlay = memo(function CpTextOverlay({
     [texts, commitSession, onSelectText]
   );
 
+  // Plain (non-Text-tool) selection stays a click; the Text tool routes clicks and
+  // drags through the pointer handlers below instead.
   const handleLabelClick = useCallback(
     (id: number, event: MouseEvent<HTMLSpanElement>) => {
       event.stopPropagation();
-      if (textToolActive) {
-        startEditSession(id);
-      } else {
+      if (!textToolActive) {
         onToggleText(id, event.shiftKey || event.metaKey || event.ctrlKey);
       }
     },
-    [textToolActive, startEditSession, onToggleText]
+    [textToolActive, onToggleText]
+  );
+
+  // Text-tool drag/click: press to start a potential drag; a move past the
+  // threshold becomes a drag (live-offset preview), and release commits the move —
+  // or, if it never moved, opens the inline editor (a click).
+  const dragRef = useRef<{ id: number; startX: number; startY: number; delta: Point } | null>(
+    null
+  );
+  const [drag, setDrag] = useState<{ id: number; dx: number; dy: number } | null>(null);
+
+  const handleLabelPointerDown = useCallback(
+    (id: number, event: PointerEvent<HTMLSpanElement>) => {
+      if (!textToolActive || event.button !== 0) return;
+      event.stopPropagation();
+      dragRef.current = { id, startX: event.clientX, startY: event.clientY, delta: { x: 0, y: 0 } };
+      event.currentTarget.setPointerCapture(event.pointerId);
+    },
+    [textToolActive]
+  );
+
+  const handleLabelPointerMove = useCallback(
+    (event: PointerEvent<HTMLSpanElement>) => {
+      const state = dragRef.current;
+      if (!state) return;
+      const dxCss = event.clientX - state.startX;
+      const dyCss = event.clientY - state.startY;
+      if (Math.abs(dxCss) < DRAG_THRESHOLD_PX && Math.abs(dyCss) < DRAG_THRESHOLD_PX && !drag) {
+        return;
+      }
+      const delta = clientDeltaToModel(view, dxCss, dyCss) ?? { x: 0, y: 0 };
+      state.delta = delta;
+      setDrag({ id: state.id, dx: delta.x, dy: delta.y });
+    },
+    [view, drag]
+  );
+
+  const handleLabelPointerUp = useCallback(
+    (id: number, event: PointerEvent<HTMLSpanElement>) => {
+      const state = dragRef.current;
+      dragRef.current = null;
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+      if (!state || state.id !== id) return;
+      const moved = drag != null && (state.delta.x !== 0 || state.delta.y !== 0);
+      setDrag(null);
+      if (moved) {
+        onMoveText?.(id, state.delta);
+      } else {
+        startEditSession(id);
+      }
+    },
+    [drag, onMoveText, startEditSession]
+  );
+
+  const handleLabelContextMenu = useCallback(
+    (id: number, event: MouseEvent<HTMLSpanElement>) => {
+      if (!textToolActive) return;
+      event.preventDefault();
+      event.stopPropagation();
+      dragRef.current = null;
+      setDrag(null);
+      onDeleteText?.(id);
+    },
+    [textToolActive, onDeleteText]
   );
 
   const handleTextareaKeyDown = useCallback(
@@ -224,8 +315,10 @@ export const CpTextOverlay = memo(function CpTextOverlay({
         const id = index + 1;
         // Hide the label currently being edited — the textarea stands in for it.
         if (session && session.textId === id) return null;
-        const mx = textCoordinate(text.x);
-        const my = textCoordinate(text.y);
+        // Apply the live drag offset to the label being dragged.
+        const dragging = drag?.id === id;
+        const mx = textCoordinate(text.x) + (dragging ? drag.dx : 0);
+        const my = textCoordinate(text.y) + (dragging ? drag.dy : 0);
         const { left, top } = projectAnchor(view, { x: mx, y: my });
         const isSelected = selectedSet.has(id);
         const style: CSSProperties = {
@@ -243,6 +336,10 @@ export const CpTextOverlay = memo(function CpTextOverlay({
               .trim()}
             style={style}
             onClick={(event) => handleLabelClick(id, event)}
+            onPointerDown={(event) => handleLabelPointerDown(id, event)}
+            onPointerMove={handleLabelPointerMove}
+            onPointerUp={(event) => handleLabelPointerUp(id, event)}
+            onContextMenu={(event) => handleLabelContextMenu(id, event)}
           >
             {text.text}
           </span>

@@ -2403,6 +2403,24 @@ export function CreasePatternPanel() {
     setTextCreateDraftAt(null);
   }, []);
 
+  // Commit a text drag. The engine's Move applies (points[1] - points[0]) as the
+  // delta, so a zero origin + the model delta moves the text by exactly that much.
+  const handleTextMove = useCallback(
+    (id: number, delta: Point) => {
+      if (delta.x === 0 && delta.y === 0) return;
+      void executeOristudioCpCommand('Text', {
+        line_ids: [],
+        text_action: 'Move',
+        text_ids: [id],
+        points: [
+          { x: 0, y: 0 },
+          { x: delta.x, y: delta.y },
+        ],
+      });
+    },
+    [executeOristudioCpCommand]
+  );
+
   const emptyStatusLabel =
     status === 'building_crease_pattern'
       ? 'Building crease pattern'
@@ -2489,6 +2507,22 @@ export function CreasePatternPanel() {
         }
       }
 
+      // Delete/Backspace removes the selected text annotation(s) under the Text tool
+      // (a web convention Oriedita lacks). Guarded by `!interactive` so it never
+      // fires while typing in the inline editor. handleDeleteSelectedText itself
+      // checks the Text tool + a non-empty text selection.
+      if (
+        (event.key === 'Delete' || event.key === 'Backspace') &&
+        !interactive &&
+        editableCp &&
+        isTextAnnotationOperation(activeCpCommand?.operationId) &&
+        oristudioCpSelection.texts.length > 0
+      ) {
+        event.preventDefault();
+        handleDeleteSelectedText();
+        return;
+      }
+
       if (event.key === ' ' && !interactive) {
         event.preventDefault();
         setSpacePressed(true);
@@ -2513,13 +2547,16 @@ export function CreasePatternPanel() {
       window.removeEventListener('blur', clearSpace);
     };
   }, [
+    activeCpCommand?.operationId,
     clearOristudioCpSelection,
     cpToolPath.length,
     cpToolPoints.length,
     cpToolState,
     editableCp,
     editableSelectionSize,
+    handleDeleteSelectedText,
     hasCreasePattern,
+    oristudioCpSelection.texts.length,
     pendingLengthenLineId,
     pendingSquareBisectorLineIds.length,
   ]);
@@ -2735,6 +2772,7 @@ export function CreasePatternPanel() {
                       onCreateText={handleTextCommitCreate}
                       onSetTextContent={handleTextSetContent}
                       onDeleteText={handleTextDeleteById}
+                      onMoveText={handleTextMove}
                     />
                   )}
                 </>
