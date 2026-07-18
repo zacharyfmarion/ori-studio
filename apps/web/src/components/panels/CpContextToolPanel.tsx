@@ -7,7 +7,7 @@ import {
   type SetStateAction,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { cpActionLabel } from '../../i18n/cpVocab';
+import { cpActionLabel, cpToolInstructions } from '../../i18n/cpVocab';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import type {
   OristudioCpCustomLineType,
@@ -31,10 +31,7 @@ import {
   type OristudioCpToolOptions,
   type OristudioCpToolSettingGroup,
 } from '../../lib/oristudioCpToolSettings';
-import {
-  instructionsForCpTool,
-  type OristudioCpToolInstructions,
-} from '../../lib/oristudioCpToolInstructions';
+import type { OristudioCpToolInstructions } from '../../lib/oristudioCpToolInstructions';
 import { cpPaletteEntryForColor } from '../../lib/oristudioCpPalette';
 import { cpLineAssignmentLabel, type OristudioCpSelection } from '../../lib/creasePatternViewport';
 import { isSelectionCircleApplyOperation } from '../../cp-workspace/tools/predicates';
@@ -109,7 +106,7 @@ export function CpContextToolPanel({
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(false);
   const groups = cpToolSettingGroupsForCommand(command);
-  const instructions = instructionsForCpTool(action, command);
+  const instructions = cpToolInstructions(t, action, command);
   const applyDisabled = contextApplyDisabledForCommand(command, selection, pendingPointCount);
   const title = action?.kind === 'command' ? cpActionLabel(t, action) : command.label;
   const meta =

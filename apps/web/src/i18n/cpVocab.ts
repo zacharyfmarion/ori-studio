@@ -5,6 +5,12 @@ import {
   type OristudioCpActionDefinition,
   type OristudioCpActionGroupDefinition,
 } from '../lib/oristudioCpActions';
+import type { OristudioCpCommandDefinition } from '../lib/oristudioCpCommands';
+import {
+  ORIEDITA_CP_TOOL_INSTRUCTIONS,
+  resolvedOrieditaInstructionKey,
+  type OristudioCpToolInstructions,
+} from '../lib/oristudioCpToolInstructions';
 
 /**
  * Localization for the crease-pattern tool vocabulary (tool names, tooltips, tool-step
@@ -64,6 +70,49 @@ export function cpGroupRailLabel(t: TFunction, group: OristudioCpActionGroupDefi
   return t(groupKey(group, 'railLabel'), group.railLabel);
 }
 
+function instructionKey(upstreamAction: string, field: string, index: number): string {
+  return `${CP_VOCAB_NAMESPACE}:instructions.${segment(upstreamAction)}.${field}.${index}`;
+}
+
+function translateLines(
+  t: TFunction,
+  upstreamAction: string,
+  field: 'intro' | 'steps' | 'notes',
+  lines: readonly string[] | undefined
+): string[] | undefined {
+  if (!lines || lines.length === 0) return undefined;
+  return lines.map((line, index) => t(instructionKey(upstreamAction, field, index), line));
+}
+
+/**
+ * Translated tool instructions for the context panel. When the tool matches the Oriedita
+ * instruction dictionary, each line is translated by its stable key; otherwise it falls back
+ * to action-derived instructions (tooltip / steps / disabled reason), all via cpVocab.
+ */
+export function cpToolInstructions(
+  t: TFunction,
+  action: OristudioCpActionDefinition | null | undefined,
+  command: OristudioCpCommandDefinition | null | undefined
+): OristudioCpToolInstructions | null {
+  const key = resolvedOrieditaInstructionKey(action, command);
+  if (key) {
+    const raw = ORIEDITA_CP_TOOL_INSTRUCTIONS[key];
+    return {
+      intro: translateLines(t, key, 'intro', raw.intro),
+      steps: translateLines(t, key, 'steps', raw.steps),
+      notes: translateLines(t, key, 'notes', raw.notes),
+    };
+  }
+  if (!action || action.kind !== 'command') return null;
+  const intro =
+    action.tooltip && action.tooltip !== action.label
+      ? [cpActionTooltip(t, action)]
+      : [t('cpVocab:instructions.useTool', 'Use {{label}}.', { label: cpActionLabel(t, action) })];
+  const steps = cpActionSteps(t, action);
+  const notes = action.uiStatus === 'ready' ? undefined : [cpActionDisabledReason(t, action)];
+  return { intro, steps: steps.length > 0 ? steps : undefined, notes };
+}
+
 type CatalogNode = { [key: string]: string | CatalogNode };
 
 function setDeep(root: CatalogNode, dottedKey: string, value: string): void {
@@ -95,6 +144,15 @@ export function buildCpVocabCatalog(): CatalogNode {
     put(actionKey(action, 'disabledReason'), action.disabledReason);
     const steps = 'toolSteps' in action ? (action.toolSteps ?? []) : [];
     steps.forEach((step, index) => put(actionKey(action, `steps.${index}`), step));
+  }
+  // Tool instruction dictionary (intro / steps / notes) + the action-derived fallback.
+  setDeep(root, 'instructions.useTool', 'Use {{label}}.');
+  for (const [upstreamAction, entry] of Object.entries(ORIEDITA_CP_TOOL_INSTRUCTIONS)) {
+    for (const field of ['intro', 'steps', 'notes'] as const) {
+      entry[field]?.forEach((line, index) =>
+        put(instructionKey(upstreamAction, field, index), line)
+      );
+    }
   }
   return root;
 }

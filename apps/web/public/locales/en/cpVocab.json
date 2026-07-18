@@ -971,5 +971,608 @@
         "0": "Drag crease endpoint"
       }
     }
+  },
+  "instructions": {
+    "useTool": "Use {{label}}.",
+    "angleBisectorAction": {
+      "intro": {
+        "0": "Draw angle bisector between lines or points."
+      },
+      "steps": {
+        "0": "Select 2 segments or 3 points.",
+        "1": "3-point method: select 3 points, then select segment to end.",
+        "2": "2-line method: select 2 lines, then select segment to end.",
+        "3": "Parallel line method: select segment/indicator to end."
+      }
+    },
+    "As100Action": {
+      "intro": {
+        "0": "Calculate 100 solutions of folded shape and save them as image files."
+      }
+    },
+    "axiom5Action": {
+      "intro": {
+        "0": "Draw a line that places point A to a line while passing through point B."
+      },
+      "steps": {
+        "0": "Select point A.",
+        "1": "Select a line.",
+        "2": "Select point B.",
+        "3": "Select a target line to extend to, or select the indicator to extend."
+      },
+      "notes": {
+        "0": "Distance between point A and point B must be equal or greater than projected distance between point B and the line."
+      }
+    },
+    "axiom7Action": {
+      "intro": {
+        "0": "Draw a line that places a point to line A, while perpendicular to line B."
+      },
+      "steps": {
+        "0": "Select a point.",
+        "1": "Select lines A and B.",
+        "2": "Select a target line to extend to, or select the indicator to extend."
+      },
+      "notes": {
+        "0": "The point must not be on line A's span and line B must not be parallel with line A."
+      }
+    },
+    "a1Action": {
+      "intro": {
+        "0": "Measure angle by selecting points ABC."
+      }
+    },
+    "a2Action": {
+      "intro": {
+        "0": "Measure angle by selecting points ABC."
+      }
+    },
+    "a3Action": {
+      "intro": {
+        "0": "Measure angle by selecting points ABC."
+      }
+    },
+    "addColorConstraintAction": {
+      "intro": {
+        "0": "Add color constraints to folded shape."
+      },
+      "steps": {
+        "0": "Select a point on a face on the folded shape to set the color it should have."
+      },
+      "notes": {
+        "0": "White circles mean the face shows the white side; black circles mean the face shows the color side.",
+        "1": "Fold again to use the constraints to find a new solution."
+      }
+    },
+    "anotherSolutionAction": {
+      "intro": {
+        "0": "Calculate the next available solution for folded shape."
+      }
+    },
+    "circleDrawAction": {
+      "intro": {
+        "0": "Draw circles snapping to grid and vertices."
+      }
+    },
+    "circleDrawConcentricAction": {
+      "intro": {
+        "0": "Draw concentric circle."
+      },
+      "steps": {
+        "0": "Select circle A to set position.",
+        "1": "Draw a line to set radius."
+      },
+      "notes": {
+        "0": "Difference between radii of concentric circle and circle A is equal to length of the line."
+      }
+    },
+    "circleDrawConcentricSelectAction": {
+      "intro": {
+        "0": "Draw concentric circle by selecting circles ABC."
+      },
+      "steps": {
+        "0": "Select circle A to set position.",
+        "1": "Select circles B and C to set radius."
+      },
+      "notes": {
+        "0": "Circle is drawn concentric to circle A.",
+        "1": "Difference between radii of concentric circle and circle A is equal to difference between radii of circles B and C."
+      }
+    },
+    "circleDrawFreeAction": {
+      "intro": {
+        "0": "Free draw circles."
+      }
+    },
+    "circleDrawInvertedAction": {
+      "intro": {
+        "0": "Draw inverted circle by selecting circles or lines."
+      },
+      "steps": {
+        "0": "Select a circle or a line.",
+        "1": "Select inversion circle."
+      }
+    },
+    "circleDrawSeparateAction": {
+      "intro": {
+        "0": "Draw a circle by selecting a point and drawing a line."
+      },
+      "notes": {
+        "0": "Circle is drawn on selected point and radius is equal to length of drawn line."
+      }
+    },
+    "circleDrawTangentLineAction": {
+      "intro": {
+        "0": "Draw tangent line."
+      },
+      "steps": {
+        "0": "Select two circles, or select a point and a circle.",
+        "1": "Select tangent line to draw."
+      }
+    },
+    "circleDrawThreePointAction": {
+      "intro": {
+        "0": "Draw a circle passing through 3 selected points."
+      }
+    },
+    "circleDrawTwoConcentricAction": {
+      "intro": {
+        "0": "Draw connecting concentric circles by selecting two circles."
+      },
+      "notes": {
+        "0": "Differences of radii between concentric and selected circles are equal."
+      }
+    },
+    "continuousSymmetricDrawAction": {
+      "intro": {
+        "0": "Draw a line reflecting through crease lines."
+      },
+      "steps": {
+        "0": "Select 2 points to draw a line reflecting and alternating through crease lines."
+      },
+      "notes": {
+        "0": "Reflection continues until it hits an edge or a vertex with 3 or more lines."
+      }
+    },
+    "copy2p2pAction": {
+      "intro": {
+        "0": "Copy and transform selected lines by selecting origin and target points."
+      },
+      "steps": {
+        "0": "Select points AB to set origin.",
+        "1": "Select points CD to set a target."
+      },
+      "notes": {
+        "0": "Selected lines are copied and transformed to a new position, scale, and angle based on relation between points AB and CD.",
+        "1": "Point A is transformed to point C and point B is transformed to point D."
+      }
+    },
+    "copyAction": {
+      "intro": {
+        "0": "Copy selected lines by drawing a line."
+      }
+    },
+    "deg1Action": {
+      "intro": {
+        "0": "Draw converging lines with angle offset."
+      },
+      "steps": {
+        "0": "Set offset by selecting a line or selecting 2 points.",
+        "1": "Select intersection of converging lines."
+      }
+    },
+    "deg2Action": {
+      "intro": {
+        "0": "Draw angle restricted line with selected angle restriction."
+      }
+    },
+    "deg3Action": {
+      "intro": {
+        "0": "Draw angle restricted line with offset."
+      },
+      "steps": {
+        "0": "Select 2 points to set angle offset.",
+        "1": "Select a target line to extend to."
+      }
+    },
+    "deg4Action": {
+      "intro": {
+        "0": "Draw angle restricted line with offset."
+      },
+      "steps": {
+        "0": "Select 2 points to set angle offset.",
+        "1": "Select a target line to extend to."
+      }
+    },
+    "del_lAction": {
+      "intro": {
+        "0": "Delete all coinciding lines by drawing a line."
+      }
+    },
+    "del_l_XAction": {
+      "intro": {
+        "0": "Delete all intersecting lines by drawing a line."
+      }
+    },
+    "doubleSymmetricDrawAction": {
+      "intro": {
+        "0": "Reflect contacting lines over the drawn line."
+      },
+      "steps": {
+        "0": "Draw a line over the end points of lines to reflect them."
+      }
+    },
+    "drawBlintzAction": {
+      "intro": {
+        "0": "Draw a blintz by selecting 2 opposite corner points."
+      }
+    },
+    "drawBirdBaseAction": {
+      "intro": {
+        "0": "Draw a bird base by selecting 2 opposite corner points."
+      }
+    },
+    "drawCreaseFreeAction": {
+      "intro": {
+        "0": "Free draw straight lines."
+      }
+    },
+    "drawCreaseRestrictedAction": {
+      "intro": {
+        "0": "Draw lines snapping to grid and vertices."
+      }
+    },
+    "drawDoveBaseAction": {
+      "intro": {
+        "0": "Draw a dove base by selecting 2 opposite corner points."
+      }
+    },
+    "drawFishBaseAction": {
+      "intro": {
+        "0": "Draw a fish base by selecting 2 opposite corner points."
+      }
+    },
+    "drawFrogBaseAction": {
+      "intro": {
+        "0": "Draw a frog base by selecting 2 opposite corner points."
+      }
+    },
+    "drawLineSegmentInternalDivisionRatioAction": {
+      "intro": {
+        "0": "Draw a line divided by the set ratio."
+      }
+    },
+    "drawTwoColoredCpAction": {
+      "intro": {
+        "0": "Create two-color crease pattern with selected crease lines."
+      }
+    },
+    "duplicateFoldedModelAction": {
+      "intro": {
+        "0": "Duplicate folded shape."
+      }
+    },
+    "fishBoneDrawAction": {
+      "intro": {
+        "0": "Draw perpendicular parallel lines alternating in mountain and valley by drawing a line."
+      },
+      "notes": {
+        "0": "The interval of the parallel lines will be equal to the width of grid."
+      }
+    },
+    "foldableLineDrawAction": {
+      "intro": {
+        "0": "Draw flat foldable line."
+      },
+      "steps": {
+        "0": "Select vertex with odd number of connecting lines.",
+        "1": "Select flat foldable line.",
+        "2": "Select a target line to extend to."
+      },
+      "notes": {
+        "0": "Draw anywhere to free draw."
+      }
+    },
+    "foldableLinePlusGridInputAction": {
+      "intro": {
+        "0": "Draw flat foldable line."
+      },
+      "steps": {
+        "0": "Select vertex with odd number of connecting lines.",
+        "1": "Select flat foldable line.",
+        "2": "Select a target line to extend to."
+      },
+      "notes": {
+        "0": "Select a line to extend it."
+      }
+    },
+    "foldAction": {
+      "intro": {
+        "0": "Calculate folded shape from crease pattern."
+      }
+    },
+    "foldedFigureMoveAction": {
+      "intro": {
+        "0": "Move folded shape."
+      }
+    },
+    "goToFoldedFigureAction": {
+      "intro": {
+        "0": "Go to specific solution of folded shape."
+      }
+    },
+    "h_senbun_nyuryokuAction": {
+      "intro": {
+        "0": "Draw marker lines."
+      },
+      "notes": {
+        "0": "Marker lines do not interfere with crease lines."
+      }
+    },
+    "in_L_col_changeAction": {
+      "intro": {
+        "0": "Alternate colors of line segments in mountain and valley by drawing a line."
+      }
+    },
+    "koteimen_siteiAction": {
+      "intro": {
+        "0": "Set starting face by selecting a face."
+      },
+      "notes": {
+        "0": "Folded shape is calculated relative to starting face."
+      }
+    },
+    "l1Action": {
+      "intro": {
+        "0": "Measure length by selecting 2 points."
+      },
+      "notes": {
+        "0": "Length is measured in grid units.",
+        "1": "Length is relative to crease pattern size with grid size of 1."
+      }
+    },
+    "l2Action": {
+      "intro": {
+        "0": "Measure length by selecting 2 points."
+      },
+      "notes": {
+        "0": "Length is measured in grid units.",
+        "1": "Length is relative to crease pattern size with grid size of 1."
+      }
+    },
+    "makeFlatFoldableAction": {
+      "intro": {
+        "0": "Draw flat foldable line."
+      },
+      "steps": {
+        "0": "Select vertex with odd number of connecting lines.",
+        "1": "Select flat foldable line.",
+        "2": "Select a target line to extend to."
+      }
+    },
+    "lengthenCreaseAction": {
+      "intro": {
+        "0": "Extend a line with selected color."
+      },
+      "steps": {
+        "0": "Select or draw a line to select lines.",
+        "1": "Select a target line to extend to, or select previous line to extend."
+      }
+    },
+    "lengthenCrease2Action": {
+      "intro": {
+        "0": "Extend a line with same color."
+      },
+      "steps": {
+        "0": "Select or draw a line to select lines.",
+        "1": "Select a target line to extend to, or select previous line to extend."
+      }
+    },
+    "move2p2pAction": {
+      "intro": {
+        "0": "Transform selected lines by selecting origin and target points."
+      },
+      "steps": {
+        "0": "Select points AB to set origin.",
+        "1": "Select points CD to set a target."
+      },
+      "notes": {
+        "0": "Selected lines are transformed to a new position, scale, and angle based on relation between points AB and CD.",
+        "1": "Point A is transformed to point C and point B is transformed to point D."
+      }
+    },
+    "moveAction": {
+      "intro": {
+        "0": "Move selected lines by drawing a line."
+      }
+    },
+    "o_F_checkAction": {
+      "intro": {
+        "0": "Check flat foldability inside polygon."
+      },
+      "steps": {
+        "0": "Click or click and drag to add segments.",
+        "1": "Select starting point to close polygon."
+      },
+      "notes": {
+        "0": "Polygon turns cyan if pattern inside it is flat foldable, otherwise it stays magenta.",
+        "1": "If the tool does not work as intended, vertices and segments should not be on crease pattern vertices."
+      }
+    },
+    "on_L_col_changeAction": {
+      "intro": {
+        "0": "Alternate colors of intersecting lines in mountain and valley by drawing a line."
+      }
+    },
+    "operationFrameSelectAction": {
+      "intro": {
+        "0": "Create operation frame by drawing a rectangle."
+      },
+      "notes": {
+        "0": "Operation frame crops the exported image."
+      }
+    },
+    "oriagari_sousa_2Action": {
+      "intro": {
+        "0": "Modify folded shape by dragging vertices."
+      }
+    },
+    "parallelDrawAction": {
+      "intro": {
+        "0": "Draw parallel line from a point."
+      },
+      "steps": {
+        "0": "Select a point.",
+        "1": "Select a line to make parallel to.",
+        "2": "Select a target line to extend to."
+      }
+    },
+    "perpendicularDrawAction": {
+      "intro": {
+        "0": "Draw perpendicular line."
+      },
+      "steps": {
+        "0": "Select starting point A.",
+        "1": "Select a target line B."
+      },
+      "notes": {
+        "0": "A line is drawn from point A to line B perpendicular to line B.",
+        "1": "If point A is on line B, select a target line to extend to, or select the indicator to extend."
+      }
+    },
+    "rabbitEarAction": {
+      "intro": {
+        "0": "Draw lines toward inner center."
+      },
+      "steps": {
+        "0": "Select point A.",
+        "1": "Select point B.",
+        "2": "Select point C.",
+        "3": "Three lines toward inner center are drawn."
+      }
+    },
+    "regularPolygonAction": {
+      "intro": {
+        "0": "Draw regular polygon by selecting points AB."
+      },
+      "notes": {
+        "0": "Points AB will form one side of polygon, which will be drawn clockwise."
+      }
+    },
+    "reflectAction": {
+      "intro": {
+        "0": "Reflect selected lines over a line drawn with 2 points."
+      }
+    },
+    "selectAction": {
+      "intro": {
+        "0": "Select lines by drawing a rectangle."
+      }
+    },
+    "select_lXAction": {
+      "intro": {
+        "0": "Select overlapping lines by drawing a line."
+      }
+    },
+    "select_polygonAction": {
+      "intro": {
+        "0": "Select lines by drawing polygon."
+      },
+      "notes": {
+        "0": "Lines completely inside polygon are selected."
+      }
+    },
+    "selectLassoAction": {
+      "intro": {
+        "0": "Select lines by drawing freehand."
+      }
+    },
+    "senbun_b_nyuryokuAction": {
+      "intro": {
+        "0": "Draw segmented line with selected division."
+      }
+    },
+    "symmetricDrawAction": {
+      "intro": {
+        "0": "Draw mirror line by selecting points or lines."
+      },
+      "steps": {
+        "0": "Select points ABC to mirror line AB over line BC.",
+        "1": "Or select lines AB to mirror line A over line B."
+      }
+    },
+    "setParallelDrawWidthAction": {
+      "intro": {
+        "0": "Draw parallel line by selecting a line."
+      },
+      "steps": {
+        "0": "Select a line.",
+        "1": "Click and drag to set offset width.",
+        "2": "Select parallel line to draw."
+      }
+    },
+    "textAction": {
+      "intro": {
+        "0": "Add and edit text annotations."
+      },
+      "steps": {
+        "0": "Click an empty spot to add text there.",
+        "1": "Click a label to edit it; drag to move it."
+      },
+      "notes": {
+        "0": "Press ESC or click away to finish an edit; empty text is discarded.",
+        "1": "Right-click a label, or select it and press Delete, to remove it."
+      }
+    },
+    "unselectAction": {
+      "intro": {
+        "0": "Deselect lines by drawing a rectangle."
+      }
+    },
+    "unselect_lXAction": {
+      "intro": {
+        "0": "Deselect overlapping lines by drawing a line."
+      }
+    },
+    "unselect_polygonAction": {
+      "intro": {
+        "0": "Deselect lines by drawing polygon."
+      },
+      "notes": {
+        "0": "Lines completely inside polygon are deselected."
+      }
+    },
+    "unselectLassoAction": {
+      "intro": {
+        "0": "Deselect lines by drawing freehand."
+      },
+      "notes": {
+        "0": "Lines completely inside drawn area are deselected."
+      }
+    },
+    "v_del_ccAction": {
+      "intro": {
+        "0": "Delete a vertex on a straight line."
+      }
+    },
+    "vertexDeleteAction": {
+      "intro": {
+        "0": "Delete a vertex on a straight line of uniform color."
+      }
+    },
+    "vertexAddAction": {
+      "intro": {
+        "0": "Add a vertex."
+      }
+    },
+    "voronoiAction": {
+      "intro": {
+        "0": "Draw voronoi pattern by selecting points."
+      },
+      "notes": {
+        "0": "Selecting points again will cancel them.",
+        "1": "Select apply temporary lines to change them to crease lines."
+      }
+    }
   }
 }
