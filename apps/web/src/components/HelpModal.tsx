@@ -160,16 +160,22 @@ const ACKNOWLEDGEMENTS = [
       "TreeMaker's original model code and behavior are the canonical reference for this Rust, WebAssembly, and desktop port.",
   },
   {
-    title: 'Jason S. Ku and Flat-Folder',
-    href: 'https://github.com/origamimagiro/flat-folder',
+    title: 'Mu-Tsun Tsai and Box Pleating Studio',
+    href: 'https://github.com/bp-studio/box-pleating-studio',
     detail:
-      'The flat-folding analysis path is validated against the vendored Flat-Folder implementation by Jason S. Ku, also known as origamimagiro.',
+      "The box-pleated authoring method is a Rust and WebAssembly port of Mu-Tsun Tsai's Box Pleating Studio.",
   },
   {
-    title: 'FOLD and origami software references',
-    href: 'https://github.com/edemaine/fold',
+    title: 'Oriedita',
+    href: 'https://github.com/oriedita/oriedita',
     detail:
-      'The app reads and exports crease-pattern data using community file-format conventions and compares behavior against redistributable fixtures.',
+      'The crease-pattern editor is a Rust and WebAssembly port of the Oriedita editor (itself a fork of Orihime), including its foldability diagnostics, repairs, and file formats.',
+  },
+  {
+    title: 'Amanda Ghassaei and Origami Simulator',
+    href: 'https://github.com/amandaghassaei/OrigamiSimulator',
+    detail:
+      "The Simulate workspace folds bases into an interactive 3D model using a TypeScript port of Amanda Ghassaei's Origami Simulator.",
   },
 ];
 
@@ -304,7 +310,7 @@ function AboutModal() {
     <ModalShell
       kind="about"
       title="About Ori Studio"
-      subtitle="A modern shared GUI for tree-based origami design."
+      subtitle="A modern shared workspace for designing, editing, and folding origami crease patterns."
       icon={<BookOpen size={18} />}
       footer={
         <Button size="sm" variant="secondary" onClick={openGuide}>
@@ -317,14 +323,19 @@ function AboutModal() {
         <img src="/favicon.png" alt="" aria-hidden="true" />
         <div>
           <p>
-            Ori Studio turns a tree structure into an origami crease pattern. This app
-            wraps the Rust and WebAssembly port of Robert J. Lang's TreeMaker 5.0.1
-            engine in a pane-based browser and Tauri desktop workspace.
-          </p>
-          <p>
-            The current surface supports drawing and editing trees, adding conditions,
-            running optimizers, building crease patterns, reviewing folded-base and
-            simulator artifacts, and saving or exporting the result.
+            Ori Studio aims to be the ultimate workspace for origami design and analysis.
+            It leans heavily on ports of existing origami tools created by the community
+            &mdash; the Edit workspace, for instance, is a port of Oriedita to Rust,
+            focused on usability and performance. If you have any suggestions, feel free
+            to{' '}
+            <a
+              href="https://github.com/zacharyfmarion/ori-studio/issues"
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              open an issue on GitHub
+            </a>
+            .
           </p>
         </div>
       </div>

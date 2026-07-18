@@ -72,7 +72,9 @@ describe('HelpModal', () => {
 
     expect(useHelpStore.getState().activeModal).toBe('about');
     expect(rendered.textContent).toContain('Robert J. Lang and TreeMaker 5.0.1');
-    expect(rendered.textContent).toContain('Jason S. Ku and Flat-Folder');
+    expect(rendered.textContent).toContain('Mu-Tsun Tsai and Box Pleating Studio');
+    expect(rendered.textContent).toContain('Oriedita');
+    expect(rendered.textContent).toContain('Amanda Ghassaei and Origami Simulator');
     expect(rendered.textContent).not.toContain('treemaker-rs');
     expect(rendered.textContent).not.toContain('GPL-2.0-or-later');
     expect(rendered.textContent).not.toContain('http://127.0.0.1:5275/');
@@ -83,8 +85,9 @@ describe('HelpModal', () => {
     }));
     expect(links).toEqual([
       { href: 'https://langorigami.com/article/treemaker/', target: '_blank' },
-      { href: 'https://github.com/origamimagiro/flat-folder', target: '_blank' },
-      { href: 'https://github.com/edemaine/fold', target: '_blank' },
+      { href: 'https://github.com/bp-studio/box-pleating-studio', target: '_blank' },
+      { href: 'https://github.com/oriedita/oriedita', target: '_blank' },
+      { href: 'https://github.com/amandaghassaei/OrigamiSimulator', target: '_blank' },
     ]);
 
     act(() => {
