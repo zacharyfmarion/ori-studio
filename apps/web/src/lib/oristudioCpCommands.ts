@@ -591,10 +591,18 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
   ready('DrawFrogBase', 'Frog base', 'generators', 'sparkles', 'MouseHandlerDrawFrogBase', {
     toolSteps: ['Pick first anchor point', 'Pick second anchor point'],
   }),
-  notImplemented('ModifyCalculatedShape', 'Modify calculated shape', 'folding', 'pen-tool', 'MouseHandlerModifyCalculatedShape'),
-  notImplemented('MoveCalculatedShape', 'Move calculated shape', 'folding', 'move', 'MouseHandlerMoveCalculatedShape'),
-  notImplemented('ChangeStandardFace', 'Change standard face', 'folding', 'layers', 'MouseHandlerChangeStandardFace'),
-  notImplemented('AddFoldingConstraint', 'Add folding constraint', 'folding', 'list-plus', 'MouseHandlerAddFoldingConstraints'),
+  notImplemented('ModifyCalculatedShape', 'Modify calculated shape', 'folding', 'pen-tool', 'MouseHandlerModifyCalculatedShape', {
+    placement: 'hidden-ui-only',
+  }),
+  notImplemented('MoveCalculatedShape', 'Move calculated shape', 'folding', 'move', 'MouseHandlerMoveCalculatedShape', {
+    placement: 'hidden-ui-only',
+  }),
+  notImplemented('ChangeStandardFace', 'Change standard face', 'folding', 'layers', 'MouseHandlerChangeStandardFace', {
+    placement: 'hidden-ui-only',
+  }),
+  notImplemented('AddFoldingConstraint', 'Add folding constraint', 'folding', 'list-plus', 'MouseHandlerAddFoldingConstraints', {
+    placement: 'hidden-ui-only',
+  }),
   ready('Axiom5', 'Axiom 5', 'construct', 'compass', 'MouseHandlerAxiom5', {
     // Not present in Oriedita's UI — hide the rail button (revisit at end).
     placement: 'hidden-ui-only',
@@ -628,13 +636,27 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     placement: 'menu',
     tooltip: 'Run Oriedita CAMV flat-foldability diagnostics without changing the CP',
   }),
-  porting('FoldingEstimate', 'Fold estimate', 'folding', 'origami', 'FoldingEstimateTask'),
-  porting('FoldingEstimateSpecific', 'Fold to case', 'folding', 'list-ordered', 'FoldingEstimateSpecificTask'),
-  porting('FoldingEstimateSave100', 'Save 100 simulations', 'folding', 'download', 'FoldingEstimateSave100Task'),
-  porting('TwoColoredCp', 'Two-color CP', 'folding', 'palette', 'TwoColoredTask'),
-  notImplemented('Fold', 'Fold', 'folding', 'origami', 'FoldingServiceImpl.fold'),
-  porting('FoldAnother', 'Another solution', 'folding', 'skip-forward', 'FoldingServiceImpl.foldAnother'),
-  porting('DuplicateFoldedModel', 'Duplicate folded model', 'folding', 'copy', 'FoldingServiceImpl.duplicate'),
+  porting('FoldingEstimate', 'Fold estimate', 'folding', 'origami', 'FoldingEstimateTask', {
+    placement: 'hidden-ui-only',
+  }),
+  porting('FoldingEstimateSpecific', 'Fold to case', 'folding', 'list-ordered', 'FoldingEstimateSpecificTask', {
+    placement: 'hidden-ui-only',
+  }),
+  porting('FoldingEstimateSave100', 'Save 100 simulations', 'folding', 'download', 'FoldingEstimateSave100Task', {
+    placement: 'hidden-ui-only',
+  }),
+  porting('TwoColoredCp', 'Two-color CP', 'folding', 'palette', 'TwoColoredTask', {
+    placement: 'hidden-ui-only',
+  }),
+  notImplemented('Fold', 'Fold', 'folding', 'origami', 'FoldingServiceImpl.fold', {
+    placement: 'hidden-ui-only',
+  }),
+  porting('FoldAnother', 'Another solution', 'folding', 'skip-forward', 'FoldingServiceImpl.foldAnother', {
+    placement: 'hidden-ui-only',
+  }),
+  porting('DuplicateFoldedModel', 'Duplicate folded model', 'folding', 'copy', 'FoldingServiceImpl.duplicate', {
+    placement: 'hidden-ui-only',
+  }),
   notImplemented('FoldedFigureSetModel', 'Folded figure model', 'folding', 'palette', 'FoldedFigureModel', {
     placement: 'hidden-ui-only',
   }),
