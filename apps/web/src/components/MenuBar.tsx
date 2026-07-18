@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ChevronRight } from 'lucide-react';
 import { handleMenuAction } from '../commands/menuActions';
 import { getMenuBarDef, type MenuDef, type MenuItemDef } from '../menus/menuDefinition';
@@ -157,9 +158,10 @@ export function MenuBar() {
   const [openMenu, setOpenMenu] = useState<number | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const shortcutOverrides = useShortcutStore((state) => state.overrides);
+  const { t } = useTranslation();
   const menuDef = useMemo(
-    () => getMenuBarDef(shortcutOverrides),
-    [shortcutOverrides]
+    () => getMenuBarDef(shortcutOverrides, (key, defaultValue) => t(key, defaultValue)),
+    [shortcutOverrides, t]
   );
   const capabilities = useWorkspaceCapabilities();
   const visibleMenus = useMemo<MenuDef[]>(

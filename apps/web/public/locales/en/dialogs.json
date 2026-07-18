@@ -1,7 +1,62 @@
 {
+  "common": {
+    "cancel": "Cancel",
+    "closeNamed": "Close {{name}}",
+    "ok": "OK",
+    "reset": "Reset"
+  },
+  "export": {
+    "allPatterns": "All patterns",
+    "confirm": "Export {{format}}",
+    "creasePattern": "Crease pattern",
+    "creasePatternToExport": "Crease pattern to export",
+    "includeUnassigned": "Include flat / unassigned creases",
+    "lineStyle": "Line style",
+    "lineWidth": "Line width",
+    "patternN": "Pattern {{index}}",
+    "pointSize": "Point size",
+    "preview": "Export preview",
+    "showBackgroundColor": "Show background color"
+  },
+  "number": {
+    "tooSmall": "Enter a number greater than {{minimum}}."
+  },
   "settings": {
+    "appearance": {
+      "dark": "Dark",
+      "light": "Light"
+    },
+    "close": "Close settings",
     "language": {
       "title": "Language"
+    },
+    "sections": "Settings sections",
+    "shortcuts": {
+      "alreadyAssigned": "{{chord}} is already assigned to {{label}}.",
+      "assigned": "Assigned",
+      "clear": "Clear {{label}} shortcut",
+      "pressKeys": "Press keys",
+      "pressPrompt": "Press a shortcut for {{label}}.",
+      "reserved": "{{chord}} is reserved by the browser.",
+      "reset": "Reset {{label}} shortcut",
+      "resetAll": "Reset All",
+      "resetAllMessage": "Restore all keyboard shortcuts to their defaults?",
+      "resetAllTitle": "Reset Shortcuts",
+      "search": "Search shortcuts",
+      "softReserved": "{{chord}} was assigned, but some browsers may reserve it.",
+      "unassigned": "Unassigned"
+    },
+    "tab": {
+      "appearance": "Appearance",
+      "shortcuts": "Shortcuts",
+      "workspace": "Workspace"
+    },
+    "title": "Settings",
+    "workspace": {
+      "layout": "Layout",
+      "resetButton": "Reset Workspace Layout",
+      "resetMessage": "Restore the default layout for the current workspace?",
+      "resetTitle": "Reset Workspace Layout"
     }
   }
 }

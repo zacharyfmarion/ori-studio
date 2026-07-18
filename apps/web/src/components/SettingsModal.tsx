@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { Check, Keyboard, LayoutDashboard, Palette, RotateCcw, X } from 'lucide-react';
 import { SUPPORTED_LOCALES } from '../i18n/locales';
 import { useLocaleStore } from '../store/localeStore';
@@ -22,17 +23,23 @@ import type { TreeMakerTheme } from '../themes';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 
-const TABS: Array<{ key: SettingsTab; label: string; icon: typeof Palette }> = [
-  { key: 'appearance', label: 'Appearance', icon: Palette },
-  { key: 'shortcuts', label: 'Shortcuts', icon: Keyboard },
-  { key: 'workspace', label: 'Workspace', icon: LayoutDashboard },
+const TABS: Array<{ key: SettingsTab; icon: typeof Palette }> = [
+  { key: 'appearance', icon: Palette },
+  { key: 'shortcuts', icon: Keyboard },
+  { key: 'workspace', icon: LayoutDashboard },
 ];
 
-const TAB_TITLES: Record<SettingsTab, string> = {
-  appearance: 'Appearance',
-  shortcuts: 'Shortcuts',
-  workspace: 'Workspace',
-};
+/** Localized tab label. Literal `t()` calls keep the keys extractable. */
+function tabLabel(t: TFunction, key: SettingsTab): string {
+  switch (key) {
+    case 'appearance':
+      return t('dialogs:settings.tab.appearance', 'Appearance');
+    case 'shortcuts':
+      return t('dialogs:settings.tab.shortcuts', 'Shortcuts');
+    case 'workspace':
+      return t('dialogs:settings.tab.workspace', 'Workspace');
+  }
+}
 
 function resolveInitialTab(initialTab: SettingsTab | null): SettingsTab {
   return initialTab && TABS.some((tab) => tab.key === initialTab) ? initialTab : 'appearance';
@@ -96,6 +103,7 @@ function LanguageSection() {
 }
 
 function AppearanceTab() {
+  const { t } = useTranslation();
   const currentTheme = useThemeStore((state) => state.currentTheme);
   const presetThemes = useThemeStore((state) => state.presetThemes);
   const setTheme = useThemeStore((state) => state.setTheme);
@@ -109,10 +117,10 @@ function AppearanceTab() {
       { dark: [], light: [] }
     );
     return [
-      { key: 'dark', label: 'Dark', themes: grouped.dark },
-      { key: 'light', label: 'Light', themes: grouped.light },
+      { key: 'dark', label: t('dialogs:settings.appearance.dark', 'Dark'), themes: grouped.dark },
+      { key: 'light', label: t('dialogs:settings.appearance.light', 'Light'), themes: grouped.light },
     ].filter((section) => section.themes.length > 0);
-  }, [presetThemes]);
+  }, [presetThemes, t]);
 
   return (
     <div className="settings-tab">
@@ -137,21 +145,22 @@ function AppearanceTab() {
 }
 
 function WorkspaceTab() {
+  const { t } = useTranslation();
   const resetLayout = useLayoutStore((state) => state.resetLayout);
 
   return (
     <div className="settings-tab">
       <section className="settings-section">
-        <h3 className="settings-section__title">Layout</h3>
+        <h3 className="settings-section__title">{t('dialogs:settings.workspace.layout', 'Layout')}</h3>
         <Button
           size="md"
           variant="secondary"
           className="settings-full-width"
           onClick={() => {
             void requestConfirmation({
-              title: 'Reset Workspace Layout',
-              message: 'Restore the default layout for the current workspace?',
-              confirmLabel: 'Reset',
+              title: t('dialogs:settings.workspace.resetTitle', 'Reset Workspace Layout'),
+              message: t('dialogs:settings.workspace.resetMessage', 'Restore the default layout for the current workspace?'),
+              confirmLabel: t('dialogs:common.reset', 'Reset'),
               tone: 'danger',
             }).then((confirmed) => {
               if (!confirmed) return;
@@ -160,7 +169,7 @@ function WorkspaceTab() {
           }}
         >
           <RotateCcw size={14} />
-          Reset Workspace Layout
+          {t('dialogs:settings.workspace.resetButton', 'Reset Workspace Layout')}
         </Button>
       </section>
     </div>
@@ -168,6 +177,7 @@ function WorkspaceTab() {
 }
 
 function ShortcutsTab() {
+  const { t } = useTranslation();
   const overrides = useShortcutStore((state) => state.overrides);
   const setShortcut = useShortcutStore((state) => state.setShortcut);
   const clearShortcut = useShortcutStore((state) => state.clearShortcut);
@@ -192,25 +202,25 @@ function ShortcutsTab() {
       if (!chord) return;
       const reserved = classifyReservedKey(chord);
       if (reserved === 'hard-reserved') {
-        setMessage(`${formatKeyChord(chord)} is reserved by the browser.`);
+        setMessage(t('dialogs:settings.shortcuts.reserved', '{{chord}} is reserved by the browser.', { chord: formatKeyChord(chord) }));
         return;
       }
       const conflict = findShortcutConflict(capturingId, chord, overrides);
       if (conflict) {
-        setMessage(`${formatKeyChord(chord)} is already assigned to ${conflict.label}.`);
+        setMessage(t('dialogs:settings.shortcuts.alreadyAssigned', '{{chord}} is already assigned to {{label}}.', { chord: formatKeyChord(chord), label: conflict.label }));
         return;
       }
       setShortcut(capturingId, chord);
       setCapturingId(null);
       setMessage(
         reserved === 'soft-reserved'
-          ? `${formatKeyChord(chord)} was assigned, but some browsers may reserve it.`
+          ? t('dialogs:settings.shortcuts.softReserved', '{{chord}} was assigned, but some browsers may reserve it.', { chord: formatKeyChord(chord) })
           : null
       );
     };
     window.addEventListener('keydown', onKeyDown, true);
     return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [capturingId, overrides, setShortcut]);
+  }, [capturingId, overrides, setShortcut, t]);
 
   const rows = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -241,9 +251,9 @@ function ShortcutsTab() {
 
   const resetAll = () => {
     void requestConfirmation({
-      title: 'Reset Shortcuts',
-      message: 'Restore all keyboard shortcuts to their defaults?',
-      confirmLabel: 'Reset',
+      title: t('dialogs:settings.shortcuts.resetAllTitle', 'Reset Shortcuts'),
+      message: t('dialogs:settings.shortcuts.resetAllMessage', 'Restore all keyboard shortcuts to their defaults?'),
+      confirmLabel: t('dialogs:common.reset', 'Reset'),
       tone: 'danger',
     }).then((confirmed) => {
       if (!confirmed) return;
@@ -260,8 +270,8 @@ function ShortcutsTab() {
           <input
             type="search"
             value={search}
-            placeholder="Search shortcuts"
-            aria-label="Search shortcuts"
+            placeholder={t('dialogs:settings.shortcuts.search', 'Search shortcuts')}
+            aria-label={t('dialogs:settings.shortcuts.search', 'Search shortcuts')}
             onChange={(event) => setSearch(event.target.value)}
           />
           <label className="settings-shortcuts__assigned">
@@ -270,11 +280,11 @@ function ShortcutsTab() {
               checked={assignedOnly}
               onChange={(event) => setAssignedOnly(event.target.checked)}
             />
-            Assigned
+            {t('dialogs:settings.shortcuts.assigned', 'Assigned')}
           </label>
           <Button size="sm" variant="secondary" onClick={resetAll}>
             <RotateCcw size={14} />
-            Reset All
+            {t('dialogs:settings.shortcuts.resetAll', 'Reset All')}
           </Button>
         </div>
         {message && <div className="settings-shortcuts__message">{message}</div>}
@@ -309,22 +319,22 @@ function ShortcutsTab() {
                     data-capturing={capturingId === definition.id || undefined}
                     onClick={() => {
                       setCapturingId(definition.id);
-                      setMessage(`Press a shortcut for ${definition.label}.`);
+                      setMessage(t('dialogs:settings.shortcuts.pressPrompt', 'Press a shortcut for {{label}}.', { label: definition.label }));
                     }}
                   >
                     {capturingId === definition.id
-                      ? 'Press keys'
+                      ? t('dialogs:settings.shortcuts.pressKeys', 'Press keys')
                       : currentLabel
                         ? currentLabel
-                        : 'Unassigned'}
+                        : t('dialogs:settings.shortcuts.unassigned', 'Unassigned')}
                   </button>
                   <span className="settings-shortcuts__default">
                     {defaultLabel}
                   </span>
                   <IconButton
                     size="sm"
-                    title={`Clear ${definition.label} shortcut`}
-                    aria-label={`Clear ${definition.label} shortcut`}
+                    title={t('dialogs:settings.shortcuts.clear', 'Clear {{label}} shortcut', { label: definition.label })}
+                    aria-label={t('dialogs:settings.shortcuts.clear', 'Clear {{label}} shortcut', { label: definition.label })}
                     onClick={() => {
                       clearShortcut(definition.id);
                       setCapturingId(null);
@@ -335,8 +345,8 @@ function ShortcutsTab() {
                   </IconButton>
                   <IconButton
                     size="sm"
-                    title={`Reset ${definition.label} shortcut`}
-                    aria-label={`Reset ${definition.label} shortcut`}
+                    title={t('dialogs:settings.shortcuts.reset', 'Reset {{label}} shortcut', { label: definition.label })}
+                    aria-label={t('dialogs:settings.shortcuts.reset', 'Reset {{label}} shortcut', { label: definition.label })}
                     disabled={!hasOverride}
                     onClick={() => {
                       resetShortcut(definition.id);
@@ -369,6 +379,7 @@ function SettingsModalContent({
   initialTab: SettingsTab;
   closeSettings: () => void;
 }) {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
   const ActiveTab = TAB_COMPONENTS[activeTab];
 
@@ -387,7 +398,7 @@ function SettingsModalContent({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Settings"
+      aria-label={t('dialogs:settings.title', 'Settings')}
       className="settings-modal"
       onMouseDown={closeSettings}
     >
@@ -397,8 +408,8 @@ function SettingsModalContent({
         onMouseDown={(event) => event.stopPropagation()}
       >
         <aside className="settings-modal__sidebar">
-          <div className="settings-modal__title">Settings</div>
-          <nav className="settings-modal__tabs" aria-label="Settings sections">
+          <div className="settings-modal__title">{t('dialogs:settings.title', 'Settings')}</div>
+          <nav className="settings-modal__tabs" aria-label={t('dialogs:settings.sections', 'Settings sections')}>
             {TABS.map((tab) => {
               const Icon = tab.icon;
               return (
@@ -410,7 +421,7 @@ function SettingsModalContent({
                   onClick={() => setActiveTab(tab.key)}
                 >
                   <Icon size={14} aria-hidden="true" />
-                  <span>{tab.label}</span>
+                  <span>{tabLabel(t, tab.key)}</span>
                 </button>
               );
             })}
@@ -419,10 +430,10 @@ function SettingsModalContent({
 
         <section className="settings-modal__content">
           <header className="settings-modal__header">
-            <h2>{TAB_TITLES[activeTab]}</h2>
+            <h2>{tabLabel(t, activeTab)}</h2>
             <IconButton
               size="sm"
-              aria-label="Close settings"
+              aria-label={t('dialogs:settings.close', 'Close settings')}
               onClick={closeSettings}
             >
               <X size={15} />
