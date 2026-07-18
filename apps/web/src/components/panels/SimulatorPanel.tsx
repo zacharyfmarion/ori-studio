@@ -8,6 +8,7 @@ import {
   type WheelEvent as ReactWheelEvent,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import { simulatorAccuracyLabel, simulatorAccuracyTitle } from '../../i18n/enumLabels';
 import type { TFunction } from 'i18next';
 import {
   AlertTriangle,
@@ -638,7 +639,11 @@ export function SimulatorPanel() {
                 aria-label={t('panels:simulator.stepAccuracy', 'Step simulation accuracy')}
                 value={stepAccuracy}
                 onChange={setStepAccuracy}
-                options={STEP_SIMULATION_ACCURACY_OPTIONS}
+                options={STEP_SIMULATION_ACCURACY_OPTIONS.map((option) => ({
+                  ...option,
+                  label: simulatorAccuracyLabel(t, option.value),
+                  title: simulatorAccuracyTitle(t, option.value),
+                }))}
               />
             </div>
           )}

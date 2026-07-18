@@ -10,12 +10,12 @@ import {
 import { serializeCreasePatternSvg, type CreaseExportOptions } from '../lib/creaseExport';
 import {
   ORISTUDIO_CP_LINE_STYLES,
-  ORISTUDIO_CP_LINE_STYLE_LABELS,
   ORISTUDIO_CP_MIN_LINE_WIDTH,
   ORISTUDIO_CP_MAX_LINE_WIDTH,
   ORISTUDIO_CP_MIN_POINT_SIZE,
   ORISTUDIO_CP_MAX_POINT_SIZE,
 } from '../lib/creasePatternViewport';
+import { cpLineStyleLabel } from '../i18n/enumLabels';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import { Slider } from './ui/Slider';
@@ -164,7 +164,7 @@ export function CommandDialogModal() {
                   <SelectContent>
                     {ORISTUDIO_CP_LINE_STYLES.map((style) => (
                       <SelectItem key={style} value={style}>
-                        {ORISTUDIO_CP_LINE_STYLE_LABELS[style]}
+                        {cpLineStyleLabel(t, style)}
                       </SelectItem>
                     ))}
                   </SelectContent>

@@ -10,13 +10,13 @@ import {
   normalizeOrieditaIntervalGridSize,
   ORIEDITA_GRID_SCALE_DEFAULTS,
   ORISTUDIO_CP_LINE_STYLES,
-  ORISTUDIO_CP_LINE_STYLE_LABELS,
   ORISTUDIO_CP_MAX_LINE_WIDTH,
   ORISTUDIO_CP_MAX_POINT_SIZE,
   ORISTUDIO_CP_MIN_LINE_WIDTH,
   ORISTUDIO_CP_MIN_POINT_SIZE,
   type OristudioCpLineStyle,
 } from '../../lib/creasePatternViewport';
+import { cpLineStyleLabel } from '../../i18n/enumLabels';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
 import { Toggle } from '../ui/Toggle';
@@ -245,7 +245,7 @@ function LineStyleRow({
           <SelectContent>
             {ORISTUDIO_CP_LINE_STYLES.map((style) => (
               <SelectItem key={style} value={style}>
-                {ORISTUDIO_CP_LINE_STYLE_LABELS[style]}
+                {cpLineStyleLabel(t, style)}
               </SelectItem>
             ))}
           </SelectContent>

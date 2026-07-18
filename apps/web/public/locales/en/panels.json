@@ -370,6 +370,10 @@
     "title": "Sequence"
   },
   "simulator": {
+    "accuracyAccurate": "Accurate",
+    "accuracyAccurateTitle": "Step preview with smaller solver increments and more settling",
+    "accuracyFast": "Fast",
+    "accuracyFastTitle": "Step preview with standard simulator work",
     "canvasAriaLabel": "Origami folded-base simulator. Drag to rotate, scroll to zoom, double-click to reset view.",
     "canvasTitle": "Drag to rotate, scroll to zoom, double-click to reset view",
     "controls": "Simulation controls",

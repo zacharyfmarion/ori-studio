@@ -362,6 +362,10 @@
     "title": ""
   },
   "simulator": {
+    "accuracyAccurate": "",
+    "accuracyAccurateTitle": "",
+    "accuracyFast": "",
+    "accuracyFastTitle": "",
     "canvasAriaLabel": "",
     "canvasTitle": "",
     "controls": "",

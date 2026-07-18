@@ -79,6 +79,13 @@
     "ariaLabel": "",
     "openEditableFirst": ""
   },
+  "lineStyle": {
+    "blackOneDot": "",
+    "blackTwoDot": "",
+    "blackWhite": "",
+    "color": "",
+    "colorAndShape": ""
+  },
   "viewport": {
     "fit": "",
     "zoomIn": "",
