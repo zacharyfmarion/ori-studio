@@ -10,6 +10,7 @@ import {
   importedCreasePatternFormat,
   isCreasePatternFilename,
   parseImportedCreasePattern,
+  parseImportedCreasePatternFromFold,
   type ImportedCreasePatternResult,
   type ImportedCreasePatternSource,
 } from '../../../lib/creasePatternImport';
@@ -345,6 +346,25 @@ function selectedLineSelectionFromDocument(
     lines: document.crease_pattern.line_segments
       .map((line, index) => (line.selected === 0 ? null : index + 1))
       .filter((id): id is number => id !== null),
+  };
+}
+
+// A project source this large risks exhausting the desktop WebView's memory as
+// it is parsed, loaded into the engine, and uploaded to WebGL. We can't stop the
+// OS from killing an out-of-memory WebView, but when a load throws we can turn the
+// opaque engine error into an actionable message. Measured against string length
+// (a cheap UTF-16 proxy) to avoid allocating a byte view of a huge file.
+const LARGE_PROJECT_WARN_CHARS = 25 * 1024 * 1024;
+
+function annotateLargeSourceError(
+  error: ReturnType<typeof engineError>,
+  sourceLength: number
+): ReturnType<typeof engineError> {
+  if (sourceLength < LARGE_PROJECT_WARN_CHARS) return error;
+  const mb = Math.round(sourceLength / (1024 * 1024));
+  return {
+    ...error,
+    message: `${error.message} — this file is very large (~${mb} MB) and may have exceeded available memory. Very large crease patterns can fail to open in the desktop app; the web version has more headroom.`,
   };
 }
 
@@ -727,19 +747,22 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       filename: source.filename,
       path: source.path ?? null,
     };
-    const restoredDocument = await restoreOristudioCpDocument(
-      nativeDocument.creasePattern.document,
-      nativeSource
-    );
+    const creasePattern = nativeDocument.creasePattern;
+    const restoredDocument = await restoreOristudioCpDocument(creasePattern.document, nativeSource);
+    // The engine now owns the crease-pattern snapshot; drop this (potentially large)
+    // parsed copy so it can be reclaimed before the FOLD projection is turned into
+    // simulator artifacts and uploaded to WebGL below, keeping peak memory lower.
+    (creasePattern as { document: unknown }).document = undefined;
     const checked = await refreshAlwaysOnCamvDiagnostics(restoredDocument);
     const documentState = checked.documentState;
     const fold =
-      nativeDocument.creasePattern.sourceFold ??
-      nativeDocument.creasePattern.foldProjection ??
+      creasePattern.sourceFold ??
+      creasePattern.foldProjection ??
       (await exportedEditableFoldProjection());
     if (!fold) throw new Error('Native crease-pattern project does not contain a FOLD projection');
 
-    const parsed = parseImportedCreasePattern(JSON.stringify(fold), {
+    // Parse straight from the live FOLD object — no stringify + re-parse round-trip.
+    const parsed = parseImportedCreasePatternFromFold(fold, {
       format: 'fold',
       filename: `${nativeDocument.title || source.filename}.fold`,
       path: null,
@@ -1732,6 +1755,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       if (rejectDisabled('file.open')) return false;
       if (!(await confirmDiscardDirty(get().dirty))) return false;
       set({ pendingDesignChoice: false });
+      let openedSourceLength = 0;
       try {
         const file = await fileService.openTextFile({
           title: 'Open Ori Studio Project or Crease Pattern',
@@ -1748,6 +1772,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           ],
         });
         if (!file) return false;
+        openedSourceLength = file.text.length;
         if (isNativeProjectFilename(file.name)) {
           await loadNativeProject(file.text, { filename: file.name, path: file.path });
         } else if (isBpProjectFilename(file.name)) {
@@ -1762,7 +1787,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         }
         return true;
       } catch (error) {
-        set({ status: 'error', error: engineError(error) });
+        set({ status: 'error', error: annotateLargeSourceError(engineError(error), openedSourceLength) });
         return false;
       }
     },

@@ -100,7 +100,26 @@ export function parseImportedCreasePattern(
     source.format === 'cp'
       ? parseCpText(text, source.filename, diagnostics)
       : parseFoldText(text, source.filename, diagnostics);
+  return buildImportedCreasePatternResult(parsed, source, diagnostics);
+}
 
+// Parse a crease pattern from an already-parsed FOLD object (the native `.osf`
+// load path). Equivalent to `parseImportedCreasePattern(JSON.stringify(fold), …)`
+// but without the stringify + re-parse of a potentially very large projection.
+export function parseImportedCreasePatternFromFold(
+  fold: unknown,
+  source: ImportedCreasePatternSource
+): ImportedCreasePatternResult {
+  const diagnostics: ImportedCreasePatternDiagnostics = { warnings: [], errors: [] };
+  const parsed = parseFoldValue(fold, source.filename, diagnostics);
+  return buildImportedCreasePatternResult(parsed, source, diagnostics);
+}
+
+function buildImportedCreasePatternResult(
+  parsed: ParsedFoldSource,
+  source: ImportedCreasePatternSource,
+  diagnostics: ImportedCreasePatternDiagnostics
+): ImportedCreasePatternResult {
   const withTopology =
     parsed.fold.faces_vertices.length > 0
       ? parsed.fold
@@ -201,18 +220,20 @@ function parseCpText(
   };
 }
 
-function parseFoldText(
-  text: string,
-  filename: string,
-  diagnostics: ImportedCreasePatternDiagnostics
-): {
+interface ParsedFoldSource {
   title: string;
   selectedFrame: ImportedFoldFrameInfo | null;
   foldFrames: ImportedFoldFrameInfo[];
   foldedFormFrames: ImportedFoldFrameInfo[];
-  sourceFold: FoldDocument;
+  sourceFold: FoldDocument | null;
   fold: FoldDocument;
-} {
+}
+
+function parseFoldText(
+  text: string,
+  filename: string,
+  diagnostics: ImportedCreasePatternDiagnostics
+): ParsedFoldSource {
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
@@ -221,6 +242,18 @@ function parseFoldText(
       cause: error,
     });
   }
+  return parseFoldValue(parsed, filename, diagnostics);
+}
+
+// Same as parseFoldText but for an already-parsed FOLD object. The native `.osf`
+// load path holds the FOLD projection as a live object, so parsing straight from
+// it avoids re-serializing it to a string and parsing that string back — a large
+// transient allocation for dense crease patterns.
+function parseFoldValue(
+  parsed: unknown,
+  filename: string,
+  diagnostics: ImportedCreasePatternDiagnostics
+): ParsedFoldSource {
   if (!isRecord(parsed)) throw new Error('FOLD file must contain a JSON object');
 
   const frames = resolveFoldFrames(parsed);
