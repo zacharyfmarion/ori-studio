@@ -140,12 +140,21 @@ Replace `useTauriMenuListener` with `useTauriNativeMenu`:
   Export-as-submenu) disappear automatically — native now renders the same
   definition. Confirm each still dispatches.
 
+## Status — implemented (2026-07-18)
+
+All three phases landed on `claude/native-web-menu-drift-4fce25`:
+- `566e836` Phase 1 — shared `menuVisibility.ts` + `nativeMenu.ts` builder.
+- `d079ba3` Phase 2 — `useTauriNativeMenu` hook, App wiring, `core:menu:default`.
+- `9966ad3` Phase 3 — deleted `menu.rs` (+ `cp.foldedPreview`).
+
 ## Verification
 
-Tool-checkable (self-verify, proceed autonomously):
-- `cd apps/web && npx tsc --noEmit` clean.
-- `cargo build` for the tauri crate clean after menu.rs removal.
-- Any menu unit tests updated to the shared builder.
+Tool-checkable (done):
+- `cd apps/web && npx tsc --noEmit` — 0 errors.
+- `npx eslint src/menus src/components/MenuBar.tsx src/App.tsx` — clean.
+- `vitest run` menu suites (MenuBar/menuDefinition/menuActions) — 26 passing.
+- `cargo build` + `cargo test` for the tauri crate — clean (validates the new
+  `core:menu:default` grant).
 
 Browser/desktop checklist (author-owned):
 - In each context — Design NUX, TreeMaker tree, BP tree, BP packing, Crease
