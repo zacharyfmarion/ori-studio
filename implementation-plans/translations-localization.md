@@ -102,6 +102,38 @@ any user-facing text that *originates* in a crate (validation/error messages), t
 - If Phase 2c finds zero such strings (likely), the registry starts empty and the check
   guards the future at no cost now.
 
+## Progress
+
+- **Phase 0 done** (commit: i18n infra & tooling) — react-i18next, lazy out-of-bundle
+  catalogs, `i18n:extract`/`stamp`/`check` with hash staleness. Verified.
+- **Phase 1 done** (language picker & persistence) — `localeStore`, Settings selector,
+  BCP-47 normalization (unit-tested).
+- **Phase 2 done** (2a menu/dialog/settings; 2b/2c app + modals + ~23 panels) — **743
+  English keys** across 7 namespaces, 0 empty. `tsc`, `eslint`, and all **622 tests** green;
+  `i18n:check` reports 0 structural issues (English matches source) and the expected
+  target-locale gaps. A Vitest setup file initializes i18n so `t()` yields English defaults
+  in component tests.
+
+### Deferred long-tail (user-facing strings still in English — decide before merge vs follow-up)
+These were intentionally left by the sweep because they live in data modules / exported
+helpers / concatenated strings rather than inline JSX, so converting them is more invasive:
+- `keyboard/shortcuts.ts` — ~90 shortcut definition `label`/`category` strings (Settings →
+  Shortcuts list; largely duplicate menu/tool names).
+- `lib/workspaceCapabilities.ts` — `capability.label`/`reason` (toolbar buttons via
+  `NextDocumentAction`, capability tooltips).
+- `CreasePatternPanel` — folded-figure option arrays (`FOLDED_DISPLAY_STYLE_OPTIONS`,
+  `FOLDED_STATE_OPTIONS`, `FOLDED_COLOR_FIELDS`) and the diagnostic-HUD helper strings
+  (CAMV/Overlap/T-junction/… with concatenated pluralization).
+- `CpContextToolPanel` — single-letter field labels `ANGLE_FIELDS` (A–F), `RATIO_FIELDS`,
+  `RGB_FIELDS` (R/G/B + "Circle color red" aria) and exported `cpLineTypeStatusLabel`.
+- `CpViewControlsPanel` — `GridScaleRow` concatenated aria-labels and
+  `ORISTUDIO_CP_LINE_STYLE_LABELS` (line-style names from a data module).
+- `SimulatorPanel` — `STEP_SIMULATION_ACCURACY_OPTIONS` (from `lib/simulatorRunConfig`).
+- `workspaces.ts` — workspace `label` (the View-menu equivalents are already keyed; rail
+  tooltips are done).
+Truly dynamic values (segment/figure titles, `error.message`, ids) are correctly NOT
+translated.
+
 ## Phases (single PR; each independently verifiable)
 
 ### Phase 0 — Infra & tooling (no user-visible change)
