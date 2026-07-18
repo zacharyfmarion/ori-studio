@@ -1977,6 +1977,20 @@
   line-height: 1.5;
 }
 
+.about-modal__intro a {
+  color: var(--accent-primary);
+  font-weight: 500;
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent-primary) 40%, transparent);
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.about-modal__intro a:hover,
+.about-modal__intro a:focus-visible {
+  color: var(--accent-hover);
+  border-bottom-color: var(--accent-hover);
+}
+
 .about-modal__intro div,
 .about-modal__section,
 .about-modal__ack-list {
