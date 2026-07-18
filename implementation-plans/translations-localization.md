@@ -114,25 +114,30 @@ any user-facing text that *originates* in a crate (validation/error messages), t
   target-locale gaps. A Vitest setup file initializes i18n so `t()` yields English defaults
   in component tests.
 
-### Deferred long-tail (user-facing strings still in English — decide before merge vs follow-up)
-These were intentionally left by the sweep because they live in data modules / exported
-helpers / concatenated strings rather than inline JSX, so converting them is more invasive:
-- `keyboard/shortcuts.ts` — ~90 shortcut definition `label`/`category` strings (Settings →
-  Shortcuts list; largely duplicate menu/tool names).
-- `lib/workspaceCapabilities.ts` — `capability.label`/`reason` (toolbar buttons via
-  `NextDocumentAction`, capability tooltips).
-- `CreasePatternPanel` — folded-figure option arrays (`FOLDED_DISPLAY_STYLE_OPTIONS`,
-  `FOLDED_STATE_OPTIONS`, `FOLDED_COLOR_FIELDS`) and the diagnostic-HUD helper strings
-  (CAMV/Overlap/T-junction/… with concatenated pluralization).
-- `CpContextToolPanel` — single-letter field labels `ANGLE_FIELDS` (A–F), `RATIO_FIELDS`,
-  `RGB_FIELDS` (R/G/B + "Circle color red" aria) and exported `cpLineTypeStatusLabel`.
-- `CpViewControlsPanel` — `GridScaleRow` concatenated aria-labels and
-  `ORISTUDIO_CP_LINE_STYLE_LABELS` (line-style names from a data module).
-- `SimulatorPanel` — `STEP_SIMULATION_ACCURACY_OPTIONS` (from `lib/simulatorRunConfig`).
-- `workspaces.ts` — workspace `label` (the View-menu equivalents are already keyed; rail
-  tooltips are done).
+### Phase 2d — data-module long-tail (DONE, full coverage)
+The remaining user-facing strings that lived in data modules / exported helpers were all
+localized:
+- **cpVocab generated namespace** (`src/i18n/cpVocab.ts`) — the crease-pattern tool
+  vocabulary (labels, rail labels, tooltips, disabled reasons, group headings, tool steps)
+  and the Oriedita tool-instruction dictionary (intro/steps/notes), generated from
+  `lib/oristudioCpActions.ts` + `lib/oristudioCpToolInstructions.ts` and kept in sync by
+  `cpVocab.gen.test.ts` (regenerated inside `i18n:extract`). ~730 keys.
+- `lib/workspaceCapabilities.ts` — `t` threaded through the builder; all button labels and
+  disabled-state reasons localize (`common:capability.*`), reactive via the hook.
+- `keyboard/shortcuts.ts` (Settings → Shortcuts) — categories/scopes get literal keys;
+  action labels reuse the menu + cpVocab translations (`i18n/shortcutLabels.ts`).
+- `CreasePatternPanel` — folded-figure display/state/color options + diagnostic-HUD status
+  (i18next plurals); palette color names + status labels (`i18n/paletteLabels.ts`).
+- `CpContextToolPanel` — circle-color/angle/ratio field aria; `cpLineTypeStatusLabel`.
+- `CpViewControlsPanel` / `CommandDialogModal` — grid-scale aria + line-style names
+  (`i18n/enumLabels.ts`).
+- `SimulatorPanel` — step-accuracy options.
 Truly dynamic values (segment/figure titles, `error.message`, ids) are correctly NOT
-translated.
+translated. Audit confirms 0 hardcoded user-facing strings remain in production `.tsx`.
+
+**Totals:** 1,769 English keys across 8 namespaces (common/menu/panels/dialogs/tools/
+toasts/errors/cpVocab). `tsc`, `eslint`, and all 623 tests pass; `i18n:check` reports 0
+structural issues and 14,152 target gaps (1,769 × 8) awaiting Phase 3 translation.
 
 ## Phases (single PR; each independently verifiable)
 
