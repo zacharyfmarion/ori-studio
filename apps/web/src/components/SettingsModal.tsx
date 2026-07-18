@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState, type ReactElement } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Check, Keyboard, LayoutDashboard, Palette, RotateCcw, X } from 'lucide-react';
+import { SUPPORTED_LOCALES } from '../i18n/locales';
+import { useLocaleStore } from '../store/localeStore';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/Select';
 import {
   classifyReservedKey,
   findShortcutConflict,
@@ -67,6 +71,30 @@ function ThemeCard({
   );
 }
 
+function LanguageSection() {
+  const { t } = useTranslation();
+  const locale = useLocaleStore((state) => state.locale);
+  const setLocale = useLocaleStore((state) => state.setLocale);
+
+  return (
+    <section className="settings-section">
+      <h3 className="settings-section__title">{t('dialogs:settings.language.title', 'Language')}</h3>
+      <Select value={locale} onValueChange={setLocale}>
+        <SelectTrigger className="settings-full-width" aria-label={t('dialogs:settings.language.title', 'Language')}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {SUPPORTED_LOCALES.map((option) => (
+            <SelectItem key={option.code} value={option.code}>
+              {option.nativeName}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </section>
+  );
+}
+
 function AppearanceTab() {
   const currentTheme = useThemeStore((state) => state.currentTheme);
   const presetThemes = useThemeStore((state) => state.presetThemes);
@@ -88,6 +116,7 @@ function AppearanceTab() {
 
   return (
     <div className="settings-tab">
+      <LanguageSection />
       {themeCategories.map((section) => (
         <section key={section.key} className="settings-section">
           <h3 className="settings-section__title">{section.label}</h3>
