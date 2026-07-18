@@ -1,4 +1,6 @@
 import { memo } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import {
   AlignJustify,
   BadgeAlert,
@@ -302,10 +304,11 @@ export const CpToolRail = memo(function CpToolRail({
   editable,
   onSelectAction,
 }: CpToolRailProps) {
+  const { t } = useTranslation();
   const shortcutOverrides = useShortcutStore((state) => state.overrides);
 
   return (
-    <aside className="cp-tool-rail" aria-label="Crease pattern tools">
+    <aside className="cp-tool-rail" aria-label={t('tools:cpRail.ariaLabel', 'Crease pattern tools')}>
       <div className="cp-tool-rail__groups">
         {ORISTUDIO_CP_ACTION_GROUPS.map((group) => {
           const actions = cpActionsForGroup(group.id).filter(
@@ -355,6 +358,7 @@ const CpToolButton = memo(function CpToolButton({
   onSelectAction: (action: OristudioCpActionDefinition) => void;
   shortcutLabel?: string;
 }) {
+  const { t } = useTranslation();
   const Icon =
     action.kind === 'command'
       ? (CP_TOOL_ICON_BY_OPERATION[action.operationId] ?? CircleDashed)
@@ -363,7 +367,7 @@ const CpToolButton = memo(function CpToolButton({
     ORIEDITA_ICON_GLYPHS[action.upstreamAction] ??
     (action.kind === 'command' ? ORIEDITA_OPERATION_GLYPHS[action.operationId] : undefined);
   const available = editable && action.uiStatus === 'ready';
-  const statusLabel = commandStatusLabel(action, editable);
+  const statusLabel = commandStatusLabel(action, editable, t);
   const title = shortcutLabel
     ? `${action.label} (${shortcutLabel}) - ${statusLabel}`
     : `${action.label} - ${statusLabel}`;
@@ -415,8 +419,12 @@ function capitalize(value: string): string {
   return value.length === 0 ? value : `${value[0].toUpperCase()}${value.slice(1)}`;
 }
 
-function commandStatusLabel(action: OristudioCpActionDefinition, editable: boolean): string {
-  if (!editable) return 'Open an editable crease pattern first';
+function commandStatusLabel(
+  action: OristudioCpActionDefinition,
+  editable: boolean,
+  t: TFunction
+): string {
+  if (!editable) return t('tools:cpRail.openEditableFirst', 'Open an editable crease pattern first');
   if (action.uiStatus === 'ready') return action.tooltip;
   return action.disabledReason;
 }

@@ -1,1 +1,250 @@
-{}
+{
+  "common": {
+    "cancel": "",
+    "closeNamed": "",
+    "ok": "",
+    "reset": ""
+  },
+  "cpDetectImport": {
+    "ariaLabel": "",
+    "busy": {
+      "detecting": "",
+      "importing": "",
+      "loadingModel": "",
+      "opening": "",
+      "rectifying": ""
+    },
+    "chooseImage": "",
+    "compilerReviewOverlays": "",
+    "crop": "",
+    "detect": "",
+    "detected": "",
+    "dropImageHere": "",
+    "import": "",
+    "inferred": "",
+    "mvChanges": "",
+    "openImageTitle": "",
+    "rectified": "",
+    "report": {
+      "ambiguous": "",
+      "assignmentChange_one": "",
+      "assignmentChange_other": "",
+      "assignmentChanges_one": "",
+      "assignmentChanges_other": "",
+      "compilerFallback": "",
+      "counts": "",
+      "topologyMove_one": "",
+      "topologyMove_other": "",
+      "topologyMoves_one": "",
+      "topologyMoves_other": ""
+    },
+    "runningModel": "",
+    "title": "",
+    "updateCrop": ""
+  },
+  "export": {
+    "allPatterns": "",
+    "confirm": "",
+    "creasePattern": "",
+    "creasePatternToExport": "",
+    "includeUnassigned": "",
+    "lineStyle": "",
+    "lineWidth": "",
+    "patternN": "",
+    "pointSize": "",
+    "preview": "",
+    "showBackgroundColor": ""
+  },
+  "help": {
+    "about": {
+      "acknowledgements": "",
+      "help": "",
+      "intro1": "",
+      "intro2": "",
+      "subtitle": "",
+      "title": ""
+    },
+    "acknowledgements": {
+      "flatFolder": {
+        "detail": "",
+        "title": ""
+      },
+      "fold": {
+        "detail": "",
+        "title": ""
+      },
+      "treemaker": {
+        "detail": "",
+        "title": ""
+      }
+    },
+    "closeLabel": "",
+    "guide": {
+      "about": "",
+      "footer": "",
+      "subtitle": "",
+      "title": "",
+      "topicsNav": ""
+    },
+    "topics": {
+      "conditions": {
+        "caption": "",
+        "imageAlt": "",
+        "step1": "",
+        "step2": "",
+        "step3": "",
+        "step4": "",
+        "summary": "",
+        "title": ""
+      },
+      "creasePattern": {
+        "caption": "",
+        "imageAlt": "",
+        "step1": "",
+        "step2": "",
+        "step3": "",
+        "step4": "",
+        "summary": "",
+        "title": ""
+      },
+      "design": {
+        "caption": "",
+        "imageAlt": "",
+        "step1": "",
+        "step2": "",
+        "step3": "",
+        "step4": "",
+        "summary": "",
+        "title": ""
+      },
+      "files": {
+        "caption": "",
+        "imageAlt": "",
+        "step1": "",
+        "step2": "",
+        "step3": "",
+        "step4": "",
+        "summary": "",
+        "title": ""
+      },
+      "folding": {
+        "caption": "",
+        "imageAlt": "",
+        "step1": "",
+        "step2": "",
+        "step3": "",
+        "step4": "",
+        "summary": "",
+        "title": ""
+      },
+      "inspector": {
+        "caption": "",
+        "imageAlt": "",
+        "step1": "",
+        "step2": "",
+        "step3": "",
+        "step4": "",
+        "summary": "",
+        "title": ""
+      },
+      "optimize": {
+        "caption": "",
+        "imageAlt": "",
+        "step1": "",
+        "step2": "",
+        "step3": "",
+        "step4": "",
+        "summary": "",
+        "title": ""
+      },
+      "workspace": {
+        "caption": "",
+        "imageAlt": "",
+        "step1": "",
+        "step2": "",
+        "step3": "",
+        "step4": "",
+        "summary": "",
+        "title": ""
+      }
+    }
+  },
+  "number": {
+    "tooSmall": ""
+  },
+  "selectByIndex": {
+    "available": "",
+    "close": "",
+    "index": "",
+    "noParts": "",
+    "part": "",
+    "partKind": {
+      "condition": "",
+      "crease": "",
+      "edge": "",
+      "facet": "",
+      "node": "",
+      "path": ""
+    },
+    "partType": "",
+    "select": "",
+    "title": ""
+  },
+  "settings": {
+    "appearance": {
+      "dark": "",
+      "light": ""
+    },
+    "close": "",
+    "language": {
+      "title": ""
+    },
+    "sections": "",
+    "shortcuts": {
+      "alreadyAssigned": "",
+      "assigned": "",
+      "clear": "",
+      "pressKeys": "",
+      "pressPrompt": "",
+      "reserved": "",
+      "reset": "",
+      "resetAll": "",
+      "resetAllMessage": "",
+      "resetAllTitle": "",
+      "search": "",
+      "softReserved": "",
+      "unassigned": ""
+    },
+    "tab": {
+      "appearance": "",
+      "shortcuts": "",
+      "workspace": ""
+    },
+    "title": "",
+    "workspace": {
+      "layout": "",
+      "resetButton": "",
+      "resetMessage": "",
+      "resetTitle": ""
+    }
+  },
+  "startScreen": {
+    "chooseBegin": "",
+    "createCp": {
+      "description": "",
+      "title": ""
+    },
+    "createDesign": {
+      "description": "",
+      "title": ""
+    },
+    "description": "",
+    "openFile": {
+      "description": "",
+      "title": ""
+    },
+    "preparing": "",
+    "startOptions": "",
+    "title": ""
+  }
+}

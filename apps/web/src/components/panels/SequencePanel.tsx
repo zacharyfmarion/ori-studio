@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { AlertTriangle, ArrowRight, CheckCircle2, CircleDashed, Layers3, Play, Waves } from 'lucide-react';
 import type {
   FoldDocument,
@@ -15,6 +17,7 @@ const PREVIEW_VIEWBOX = 320;
 const PREVIEW_PADDING = 24;
 
 export function SequencePanel() {
+  const { t } = useTranslation();
   const foldArtifacts = useWorkspaceStore((state) => state.foldArtifacts);
   const foldArtifactError = useWorkspaceStore((state) => state.foldArtifactError);
   const foldArtifactStatus = useWorkspaceStore((state) => state.foldArtifactStatus);
@@ -41,27 +44,32 @@ export function SequencePanel() {
           ? 'warn'
           : 'warn';
   const statusLabel = sequencePlanning
-    ? 'Planning sequence'
+    ? t('panels:sequence.statusPlanning', 'Planning sequence')
     : sequenceError
       ? sequenceError
       : foldArtifactStatus === 'loading'
-        ? 'Preparing crease pattern'
+        ? t('panels:sequence.statusPreparing', 'Preparing crease pattern')
       : sequencePlan
         ? formatStatus(sequencePlan.status)
         : foldArtifacts
-          ? 'Sequence not planned'
-          : foldArtifactError || 'Crease pattern pending';
+          ? t('panels:sequence.statusNotPlanned', 'Sequence not planned')
+          : foldArtifactError || t('panels:sequence.statusPending', 'Crease pattern pending');
   const headerSummary = sequencePlanning
-    ? `Planning | ${formatElapsed(planningElapsedSeconds)}`
+    ? t('panels:sequence.headerPlanning', 'Planning | {{elapsed}}', {
+        elapsed: formatElapsed(planningElapsedSeconds),
+      })
     : sequencePlan
-      ? `${formatStatus(sequencePlan.status)} | ${sequencePlan.steps.length} step${sequencePlan.steps.length === 1 ? '' : 's'}`
+      ? t('panels:sequence.headerSummary', '{{status}} | {{steps}}', {
+          status: formatStatus(sequencePlan.status),
+          steps: formatStepCount(t, sequencePlan.steps.length),
+        })
       : statusLabel;
 
   return (
     <section className="panel-shell sequence-panel">
       <div className="panel-toolbar">
         <div className="panel-toolbar__group">
-          <span className="panel-title">Sequence</span>
+          <span className="panel-title">{t('panels:sequence.title', 'Sequence')}</span>
           <span className="sequence-panel__toolbar-summary" data-tone={statusTone}>
             {headerSummary}
           </span>
@@ -73,7 +81,9 @@ export function SequencePanel() {
           onClick={() => void planFoldingSequence()}
         >
           <Play size={14} />
-          {sequencePlanning ? 'Planning' : 'Plan'}
+          {sequencePlanning
+            ? t('panels:sequence.planning', 'Planning')
+            : t('panels:sequence.plan', 'Plan')}
         </Button>
       </div>
       <div className="panel-body sequence-panel__body">
@@ -109,23 +119,29 @@ function SequenceDetails({
   sequencePlanning: boolean;
   planningElapsedSeconds: number;
 }) {
+  const { t } = useTranslation();
   return (
     <details className="sequence-panel__details">
       <summary>
-        <span>Details</span>
+        <span>{t('panels:sequence.details', 'Details')}</span>
         <span>
           {sequencePlanning
-            ? `Planning ${formatElapsed(planningElapsedSeconds)}`
+            ? t('panels:sequence.detailsPlanning', 'Planning {{elapsed}}', {
+                elapsed: formatElapsed(planningElapsedSeconds),
+              })
             : sequencePlan
               ? formatStatus(sequencePlan.status)
               : statusLabel}
         </span>
       </summary>
       <div className="metric-grid sequence-panel__metrics">
-        <Metric label="Status" value={sequencePlan ? formatStatus(sequencePlan.status) : 'Idle'} />
-        <Metric label="Steps" value={sequencePlan?.steps.length ?? 0} />
-        <Metric label="Open" value={sequencePlan?.search.best_unresolved_creases ?? 0} />
-        <Metric label="States" value={sequencePlan?.search.states_explored ?? 0} />
+        <Metric
+          label={t('panels:sequence.metricStatus', 'Status')}
+          value={sequencePlan ? formatStatus(sequencePlan.status) : t('panels:sequence.idle', 'Idle')}
+        />
+        <Metric label={t('panels:sequence.metricSteps', 'Steps')} value={sequencePlan?.steps.length ?? 0} />
+        <Metric label={t('panels:sequence.metricOpen', 'Open')} value={sequencePlan?.search.best_unresolved_creases ?? 0} />
+        <Metric label={t('panels:sequence.metricStates', 'States')} value={sequencePlan?.search.states_explored ?? 0} />
       </div>
       <div className="status-row" data-tone={statusTone}>
         {statusTone === 'good' ? <CheckCircle2 size={15} /> : <AlertTriangle size={15} />}
@@ -135,15 +151,17 @@ function SequenceDetails({
         <div className="status-row" data-tone="good">
           <CheckCircle2 size={15} />
           <span>
-            {sequenceTarget.normalized.faces_vertices.length} faces, {sequenceTarget.states} layer
-            state{sequenceTarget.states === '1' ? '' : 's'}
+            {t('panels:sequence.targetSummary', '{{faces}} faces, {{layers}}', {
+              faces: sequenceTarget.normalized.faces_vertices.length,
+              layers: formatLayerStateCount(t, sequenceTarget.states),
+            })}
           </span>
         </div>
       )}
       {sequencePlan?.search.budget_exhausted && (
         <div className="status-row" data-tone="warn">
           <CircleDashed size={15} />
-          <span>Search budget reached with a partial result</span>
+          <span>{t('panels:sequence.budgetReached', 'Search budget reached with a partial result')}</span>
         </div>
       )}
       {sequencePlan?.diagnostics.slice(0, 4).map((diagnostic) => (
@@ -161,25 +179,27 @@ function SequenceDetails({
 }
 
 function SequencePlanningProgress({ elapsedSeconds }: { elapsedSeconds: number }) {
+  const { t } = useTranslation();
   return (
     <div className="sequence-planning-card" role="status" aria-live="polite">
       <div className="sequence-planning-card__header">
-        <span>Planning folding sequence</span>
+        <span>{t('panels:sequence.planningFoldingSequence', 'Planning folding sequence')}</span>
         <span>{formatElapsed(elapsedSeconds)}</span>
       </div>
       <div
         className="sequence-planning-progress"
         role="progressbar"
-        aria-label="Sequence planning in progress"
+        aria-label={t('panels:sequence.planningInProgress', 'Sequence planning in progress')}
       >
         <span />
       </div>
-      <p>{planningMessage(elapsedSeconds)}</p>
+      <p>{planningMessage(t, elapsedSeconds)}</p>
     </div>
   );
 }
 
 function SequenceDiagramList({ plan }: { plan: SequencePlan }) {
+  const { t } = useTranslation();
   const setSequenceSimulationFocus = useWorkspaceStore((state) => state.setSequenceSimulationFocus);
   const activateWorkspace = useLayoutStore((state) => state.activateWorkspace);
   const stateById = useMemo(
@@ -190,13 +210,13 @@ function SequenceDiagramList({ plan }: { plan: SequencePlan }) {
   if (plan.steps.length === 0) {
     return (
       <ol className="sequence-panel__steps">
-        <li className="sequence-panel__empty-step">No sequence steps</li>
+        <li className="sequence-panel__empty-step">{t('panels:sequence.noSteps', 'No sequence steps')}</li>
       </ol>
     );
   }
 
   return (
-    <ol className="sequence-panel__steps" aria-label="Folding sequence diagram">
+    <ol className="sequence-panel__steps" aria-label={t('panels:sequence.diagramLabel', 'Folding sequence diagram')}>
       {plan.steps.map((step, index) => {
         const beforeState = step.before_state ? stateById.get(step.before_state) : null;
         const afterState = step.after_state ? stateById.get(step.after_state) : null;
@@ -205,7 +225,7 @@ function SequenceDiagramList({ plan }: { plan: SequencePlan }) {
           <li key={step.id} className="sequence-diagram-step">
             <div className="sequence-diagram-step__header">
               <div className="sequence-diagram-step__header-main">
-                <span>Step {index + 1}</span>
+                <span>{t('panels:sequence.stepNumber', 'Step {{number}}', { number: index + 1 })}</span>
                 <strong>{formatKind(step.kind)}</strong>
               </div>
               <div className="sequence-diagram-step__header-actions">
@@ -213,41 +233,46 @@ function SequenceDiagramList({ plan }: { plan: SequencePlan }) {
                   size="sm"
                   variant="secondary"
                   className="sequence-diagram-step__simulate"
-                  title="Simulate step"
-                  aria-label="Simulate step"
+                  title={t('panels:sequence.simulateStep', 'Simulate step')}
+                  aria-label={t('panels:sequence.simulateStep', 'Simulate step')}
                   onClick={() => {
                     setSequenceSimulationFocus({ kind: 'sequence_step', stepId: step.id });
                     activateWorkspace('simulate');
                   }}
                 >
                   <Waves size={13} />
-                  Simulate
+                  {t('panels:sequence.simulate', 'Simulate')}
                 </Button>
               </div>
             </div>
             <div className="sequence-diagram-step__visuals">
               <SequencePreview
-                title="Before"
+                title={t('panels:sequence.before', 'Before')}
                 state={beforeState}
                 mode="folded"
                 highlights={highlights}
-                stepLabel={`Step ${index + 1}`}
+                stepLabel={t('panels:sequence.stepNumber', 'Step {{number}}', { number: index + 1 })}
               />
               <div className="sequence-diagram-step__arrow" aria-hidden="true">
                 <ArrowRight size={17} />
               </div>
               <SequencePreview
-                title="After"
+                title={t('panels:sequence.after', 'After')}
                 state={afterState}
                 mode="folded"
                 highlights={highlights}
-                stepLabel={`Step ${index + 1}`}
+                stepLabel={t('panels:sequence.stepNumber', 'Step {{number}}', { number: index + 1 })}
               />
             </div>
             <div className="sequence-diagram-step__copy">
               <div className="sequence-diagram-step__label">{step.label}</div>
               <div className="sequence-diagram-step__meta">
-                {step.after_state ? `${step.before_state} to ${step.after_state}` : formatKind(step.kind)}
+                {step.after_state
+                  ? t('panels:sequence.stateTransition', '{{from}} to {{to}}', {
+                      from: step.before_state,
+                      to: step.after_state,
+                    })
+                  : formatKind(step.kind)}
               </div>
             </div>
           </li>
@@ -270,6 +295,7 @@ function SequencePreview({
   highlights: SequenceHighlights;
   stepLabel?: string;
 }) {
+  const { t } = useTranslation();
   const projection = useMemo(() => {
     if (!state) return null;
     return createPreviewProjection(pointsForState(state, mode));
@@ -282,7 +308,7 @@ function SequencePreview({
           <Layers3 size={13} />
           <span>{title}</span>
         </div>
-        <div className="sequence-panel__preview-empty">State unavailable</div>
+        <div className="sequence-panel__preview-empty">{t('panels:sequence.stateUnavailable', 'State unavailable')}</div>
       </div>
     );
   }
@@ -300,7 +326,14 @@ function SequencePreview({
         className="sequence-preview-canvas"
         viewBox={`0 0 ${PREVIEW_VIEWBOX} ${PREVIEW_VIEWBOX}`}
         role="img"
-        aria-label={[stepLabel, title, mode === 'folded' ? 'folded state' : 'crease pattern', state.id]
+        aria-label={[
+          stepLabel,
+          title,
+          mode === 'folded'
+            ? t('panels:sequence.foldedState', 'folded state')
+            : t('panels:sequence.creasePattern', 'crease pattern'),
+          state.id,
+        ]
           .filter(Boolean)
           .join(' ')}
       >
@@ -372,14 +405,36 @@ function usePlanningElapsed(active: boolean): number {
   return elapsedSeconds;
 }
 
-function planningMessage(elapsedSeconds: number): string {
+function planningMessage(t: TFunction, elapsedSeconds: number): string {
   if (elapsedSeconds >= 60) {
-    return `Still planning after ${formatElapsed(elapsedSeconds)}. Large crease patterns can take a while; this run is still active.`;
+    return t(
+      'panels:sequence.planningMessageLong',
+      'Still planning after {{elapsed}}. Large crease patterns can take a while; this run is still active.',
+      { elapsed: formatElapsed(elapsedSeconds) }
+    );
   }
   if (elapsedSeconds >= 15) {
-    return 'Searching sequence states. Complex crease patterns may take longer than simple bases.';
+    return t(
+      'panels:sequence.planningMessageMedium',
+      'Searching sequence states. Complex crease patterns may take longer than simple bases.'
+    );
   }
-  return 'Resolving the flat-fold target and searching for fold steps.';
+  return t(
+    'panels:sequence.planningMessageShort',
+    'Resolving the flat-fold target and searching for fold steps.'
+  );
+}
+
+function formatStepCount(t: TFunction, count: number): string {
+  return count === 1
+    ? t('panels:sequence.stepCountOne', '{{count}} step', { count })
+    : t('panels:sequence.stepCountOther', '{{count}} steps', { count });
+}
+
+function formatLayerStateCount(t: TFunction, states: string): string {
+  return states === '1'
+    ? t('panels:sequence.layerStateOne', '{{value}} layer state', { value: states })
+    : t('panels:sequence.layerStateOther', '{{value}} layer states', { value: states });
 }
 
 function formatElapsed(totalSeconds: number): string {

@@ -1,7 +1,9 @@
+import { useTranslation } from 'react-i18next';
 import { AlertTriangle, CheckCircle2, CircleDashed } from 'lucide-react';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 
 export function DiagnosticsPanel() {
+  const { t } = useTranslation();
   const project = useWorkspaceStore((state) => state.project);
   const status = useWorkspaceStore((state) => state.status);
   const engineReady = useWorkspaceStore((state) => state.engineReady);
@@ -30,14 +32,20 @@ export function DiagnosticsPanel() {
     <section className="panel-shell">
       <div className="panel-body">
         <div className="metric-grid">
-          <Metric label="Nodes" value={project.nodes.length} />
-          <Metric label="Edges" value={project.edges.length} />
-          <Metric label="Paths" value={project.paths.length} />
-          <Metric label="Conditions" value={project.conditions.length} />
+          <Metric label={t('panels:diagnostics.nodes', 'Nodes')} value={project.nodes.length} />
+          <Metric label={t('panels:diagnostics.edges', 'Edges')} value={project.edges.length} />
+          <Metric label={t('panels:diagnostics.paths', 'Paths')} value={project.paths.length} />
+          <Metric label={t('panels:diagnostics.conditions', 'Conditions')} value={project.conditions.length} />
         </div>
         <div className="status-row" data-tone={error ? 'bad' : engineReady ? 'good' : 'warn'}>
           {engineIcon}
-          <span>{error ? error.message : engineReady ? 'Engine ready' : 'Loading engine'}</span>
+          <span>
+            {error
+              ? error.message
+              : engineReady
+                ? t('panels:diagnostics.engineReady', 'Engine ready')
+                : t('panels:diagnostics.loadingEngine', 'Loading engine')}
+          </span>
         </div>
         <div className="status-row" data-tone={optimizationTone}>
           {lastOptimization?.is_feasible ? <CheckCircle2 size={15} /> : <CircleDashed size={15} />}
@@ -45,41 +53,61 @@ export function DiagnosticsPanel() {
             {lastOptimization
               ? lastOptimization.message
               : status === 'optimizing'
-                ? 'Optimizing scale'
-                : 'Optimization pending'}
+                ? t('panels:diagnostics.optimizingScale', 'Optimizing scale')
+                : t('panels:diagnostics.optimizationPending', 'Optimization pending')}
           </span>
         </div>
         <div className="status-row" data-tone={infeasibleConditions.length === 0 ? 'good' : 'bad'}>
           {infeasibleConditions.length === 0 ? <CheckCircle2 size={15} /> : <AlertTriangle size={15} />}
           <span>
             {infeasibleConditions.length === 0
-              ? 'All conditions feasible'
-              : `${infeasibleConditions.length} infeasible condition${infeasibleConditions.length === 1 ? '' : 's'}: ${infeasibleConditions
-                  .slice(0, 3)
-                  .map((condition) => condition.id)
-                  .join(', ')}`}
+              ? t('panels:diagnostics.allConditionsFeasible', 'All conditions feasible')
+              : infeasibleConditions.length === 1
+                ? t('panels:diagnostics.infeasibleConditionOne', '{{count}} infeasible condition: {{ids}}', {
+                    count: infeasibleConditions.length,
+                    ids: infeasibleConditions.map((condition) => condition.id).join(', '),
+                  })
+                : t('panels:diagnostics.infeasibleConditionOther', '{{count}} infeasible conditions: {{ids}}', {
+                    count: infeasibleConditions.length,
+                    ids: infeasibleConditions
+                      .slice(0, 3)
+                      .map((condition) => condition.id)
+                      .join(', '),
+                  })}
           </span>
         </div>
         <div className="status-row" data-tone="warn">
           <CircleDashed size={15} />
           <span>
-            Conditioned parts: {conditionedNodes} nodes, {conditionedEdges} edges, {conditionedPaths} paths
+            {t(
+              'panels:diagnostics.conditionedParts',
+              'Conditioned parts: {{nodes}} nodes, {{edges}} edges, {{paths}} paths',
+              { nodes: conditionedNodes, edges: conditionedEdges, paths: conditionedPaths }
+            )}
           </span>
         </div>
         {lastOptimization && !lastOptimization.is_feasible && (
           <div className="status-row" data-tone="bad">
             <AlertTriangle size={15} />
-            <span>Optimizer reported an infeasible constrained system</span>
+            <span>
+              {t(
+                'panels:diagnostics.optimizerInfeasible',
+                'Optimizer reported an infeasible constrained system'
+              )}
+            </span>
           </div>
         )}
         <div className="status-row" data-tone={cpReady ? 'good' : 'warn'}>
           {cpReady ? <CheckCircle2 size={15} /> : <CircleDashed size={15} />}
           <span>
             {cpReady
-              ? `${project.creases.length} creases, ${project.facets.length} facets`
+              ? t('panels:diagnostics.creasesFacets', '{{creases}} creases, {{facets}} facets', {
+                  creases: project.creases.length,
+                  facets: project.facets.length,
+                })
               : status === 'building_crease_pattern'
-                ? 'Building crease pattern'
-                : 'Crease pattern pending'}
+                ? t('panels:diagnostics.buildingCreasePattern', 'Building crease pattern')
+                : t('panels:diagnostics.creasePatternPending', 'Crease pattern pending')}
           </span>
         </div>
       </div>

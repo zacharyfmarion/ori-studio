@@ -7,6 +7,8 @@ import {
   type PointerEvent as ReactPointerEvent,
   type WheelEvent as ReactWheelEvent,
 } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import {
   AlertTriangle,
   Eye,
@@ -107,6 +109,7 @@ const EMPTY_HIGHLIGHTS: SimulatorHighlights = {
 };
 
 export function SimulatorPanel() {
+  const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const controllerRef = useRef<OrigamiSimulatorController | null>(null);
   const modelRef = useRef<PreparedOrigamiModel | null>(null);
@@ -289,7 +292,7 @@ export function SimulatorPanel() {
         setModelError(null);
         setLoadState('ready');
       } else {
-        setModelError('Step simulation unavailable.');
+        setModelError(t('panels:simulator.stepSimulationUnavailable', 'Step simulation unavailable.'));
         setLoadState('error');
       }
       return;
@@ -315,7 +318,7 @@ export function SimulatorPanel() {
       return;
     }
     if (foldArtifactStatus === 'error') {
-      setModelError(foldArtifactError ?? 'Simulator unavailable');
+      setModelError(foldArtifactError ?? t('panels:simulator.unavailable', 'Simulator unavailable'));
       setLoadState('error');
       return;
     }
@@ -334,6 +337,7 @@ export function SimulatorPanel() {
     simulatorMode,
     activeStepSimulation,
     stepSimulationError,
+    t,
   ]);
 
   useEffect(() => {
@@ -560,17 +564,21 @@ export function SimulatorPanel() {
     drawCurrentFrame();
   };
 
-  const errorDetail = stepSimulationError ?? modelError ?? foldArtifactError ?? 'Simulator unavailable';
+  const errorDetail =
+    stepSimulationError ?? modelError ?? foldArtifactError ?? t('panels:simulator.unavailable', 'Simulator unavailable');
   const statusLabel =
     loadState === 'ready'
-      ? `${modelStats.vertices} vertices | ${modelStats.triangles} triangles`
+      ? t('panels:simulator.stats', '{{vertices}} vertices | {{triangles}} triangles', {
+          vertices: modelStats.vertices,
+          triangles: modelStats.triangles,
+        })
       : loadState === 'loading'
-        ? 'Loading'
+        ? t('panels:simulator.loading', 'Loading')
         : loadState === 'empty'
-          ? 'No crease pattern'
+          ? t('panels:simulator.noCreasePattern', 'No crease pattern')
           : loadState === 'error'
-            ? shortStatus(errorDetail)
-            : 'Idle';
+            ? shortStatus(errorDetail, t)
+            : t('panels:simulator.idle', 'Idle');
 
   return (
     <div className="simulator-workspace">
@@ -579,12 +587,12 @@ export function SimulatorPanel() {
       <div className="panel-toolbar">
         <div className="panel-toolbar__group">
           <Waves size={14} />
-          <span className="panel-title">Simulator</span>
+          <span className="panel-title">{t('panels:simulator.title', 'Simulator')}</span>
         </div>
         {/* Scope controls hidden while the Sequence panel is hidden (always "whole"). */}
         <div className="panel-toolbar__group simulator-scope-controls" style={{ display: 'none' }}>
           <SegmentedControl
-            aria-label="Simulator scope"
+            aria-label={t('panels:simulator.scope', 'Simulator scope')}
             value={simulatorMode}
             onChange={(mode) => {
               if (mode === 'whole') {
@@ -598,25 +606,36 @@ export function SimulatorPanel() {
               }
             }}
             options={[
-              { value: 'whole', label: 'Whole', title: 'Simulate the whole crease pattern' },
-              { value: 'step', label: 'Step', title: 'Simulate the selected sequence step' },
+              {
+                value: 'whole',
+                label: t('panels:simulator.scopeWhole', 'Whole'),
+                title: t('panels:simulator.scopeWholeTitle', 'Simulate the whole crease pattern'),
+              },
+              {
+                value: 'step',
+                label: t('panels:simulator.scopeStep', 'Step'),
+                title: t('panels:simulator.scopeStepTitle', 'Simulate the selected sequence step'),
+              },
             ]}
           />
           {activeStepSimulation && (
             <span className="simulator-step-chip">
-              Step {activeStepSimulation.stepIndex + 1}: {formatKind(activeStepSimulation.step.kind)}
+              {t('panels:simulator.stepChip', 'Step {{n}}: {{kind}}', {
+                n: activeStepSimulation.stepIndex + 1,
+                kind: formatKind(activeStepSimulation.step.kind),
+              })}
             </span>
           )}
           {activeStepSimulation?.warning && (
             <span className="simulator-step-chip simulator-step-chip--warn">
               <AlertTriangle size={12} />
-              Manual preview
+              {t('panels:simulator.manualPreview', 'Manual preview')}
             </span>
           )}
           {simulatorMode === 'step' && (
             <div className="simulator-accuracy-controls">
               <SegmentedControl
-                aria-label="Step simulation accuracy"
+                aria-label={t('panels:simulator.stepAccuracy', 'Step simulation accuracy')}
                 value={stepAccuracy}
                 onChange={setStepAccuracy}
                 options={STEP_SIMULATION_ACCURACY_OPTIONS}
@@ -624,20 +643,31 @@ export function SimulatorPanel() {
             </div>
           )}
         </div>
-        <div className="panel-toolbar__group simulator-view-settings" aria-label="Simulator view settings">
+        <div
+          className="panel-toolbar__group simulator-view-settings"
+          aria-label={t('panels:simulator.viewSettings', 'Simulator view settings')}
+        >
           <SegmentedControl
-            aria-label="Simulator render mode"
+            aria-label={t('panels:simulator.renderMode', 'Simulator render mode')}
             value={viewSettings.renderMode}
             onChange={(renderMode) => setViewSettings((current) => ({ ...current, renderMode }))}
             options={[
-              { value: 'paper', label: 'Paper', title: 'Paper rendering' },
-              { value: 'xray', label: 'X-ray', title: 'X-ray rendering' },
+              {
+                value: 'paper',
+                label: t('panels:simulator.renderPaper', 'Paper'),
+                title: t('panels:simulator.renderPaperTitle', 'Paper rendering'),
+              },
+              {
+                value: 'xray',
+                label: t('panels:simulator.renderXray', 'X-ray'),
+                title: t('panels:simulator.renderXrayTitle', 'X-ray rendering'),
+              },
             ]}
           />
           <IconButton
             size="sm"
             variant="toolbar"
-            title="Faces"
+            title={t('panels:simulator.faces', 'Faces')}
             tooltipSide="bottom"
             isActive={viewSettings.showFaces}
             onClick={() => setViewSettings((current) => ({ ...current, showFaces: !current.showFaces }))}
@@ -647,7 +677,7 @@ export function SimulatorPanel() {
           <IconButton
             size="sm"
             variant="toolbar"
-            title="Crease Lines"
+            title={t('panels:simulator.creaseLines', 'Crease Lines')}
             tooltipSide="bottom"
             isActive={viewSettings.showEdges}
             onClick={() => setViewSettings((current) => ({ ...current, showEdges: !current.showEdges }))}
@@ -657,7 +687,7 @@ export function SimulatorPanel() {
           <IconButton
             size="sm"
             variant="toolbar"
-            title="Hidden Lines"
+            title={t('panels:simulator.hiddenLines', 'Hidden Lines')}
             tooltipSide="bottom"
             isActive={viewSettings.showHiddenLines}
             onClick={() =>
@@ -673,7 +703,7 @@ export function SimulatorPanel() {
           <IconButton
             size="sm"
             variant="toolbar"
-            title="Lighting"
+            title={t('panels:simulator.lighting', 'Lighting')}
             tooltipSide="bottom"
             isActive={viewSettings.lighting}
             onClick={() => setViewSettings((current) => ({ ...current, lighting: !current.lighting }))}
@@ -687,8 +717,11 @@ export function SimulatorPanel() {
           ref={canvasRef}
           className="simulator-canvas"
           data-lighting={viewSettings.lighting || undefined}
-          aria-label="Origami folded-base simulator. Drag to rotate, scroll to zoom, double-click to reset view."
-          title="Drag to rotate, scroll to zoom, double-click to reset view"
+          aria-label={t(
+            'panels:simulator.canvasAriaLabel',
+            'Origami folded-base simulator. Drag to rotate, scroll to zoom, double-click to reset view.'
+          )}
+          title={t('panels:simulator.canvasTitle', 'Drag to rotate, scroll to zoom, double-click to reset view')}
           onPointerDown={handleCanvasPointerDown}
           onPointerMove={handleCanvasPointerMove}
           onPointerUp={handleCanvasPointerEnd}
@@ -705,10 +738,10 @@ export function SimulatorPanel() {
         )}
       </div>
       <div className="simulator-controls">
-        <div className="simulator-transport" aria-label="Simulation controls">
+        <div className="simulator-transport" aria-label={t('panels:simulator.controls', 'Simulation controls')}>
           <IconButton
             size="sm"
-            title="Refresh"
+            title={t('panels:simulator.refresh', 'Refresh')}
             tooltipSide="top"
             onClick={() => {
               clearPlayback();
@@ -723,7 +756,7 @@ export function SimulatorPanel() {
           </IconButton>
           <IconButton
             size="sm"
-            title={playing ? 'Pause' : 'Play'}
+            title={playing ? t('panels:simulator.pause', 'Pause') : t('panels:simulator.play', 'Play')}
             tooltipSide="top"
             onClick={() => setPlaying((value) => !value)}
             disabled={loadState !== 'ready'}
@@ -732,7 +765,7 @@ export function SimulatorPanel() {
           </IconButton>
           <IconButton
             size="sm"
-            title="Step"
+            title={t('panels:simulator.step', 'Step')}
             tooltipSide="top"
             onClick={stepFoldTarget}
             disabled={loadState !== 'ready'}
@@ -741,7 +774,7 @@ export function SimulatorPanel() {
           </IconButton>
           <IconButton
             size="sm"
-            title="Reset"
+            title={t('panels:simulator.reset', 'Reset')}
             tooltipSide="top"
             onClick={replayFromFlat}
             disabled={loadState !== 'ready'}
@@ -750,9 +783,17 @@ export function SimulatorPanel() {
           </IconButton>
         </div>
         <label className="simulator-slider">
-          <span>{simulatorMode === 'step' ? 'Step' : 'Fold'}</span>
+          <span>
+            {simulatorMode === 'step'
+              ? t('panels:simulator.step', 'Step')
+              : t('panels:simulator.fold', 'Fold')}
+          </span>
           <input
-            aria-label={simulatorMode === 'step' ? 'Step percent' : 'Fold percent'}
+            aria-label={
+              simulatorMode === 'step'
+                ? t('panels:simulator.stepPercent', 'Step percent')
+                : t('panels:simulator.foldPercent', 'Fold percent')
+            }
             type="range"
             min="0"
             max="100"
@@ -761,12 +802,12 @@ export function SimulatorPanel() {
             onChange={(event) => setFoldTarget(Number(event.currentTarget.value))}
             disabled={loadState !== 'ready'}
           />
-          <output>{Math.round(foldPercent)}%</output>
+          <output>{t('panels:simulator.percent', '{{value}}%', { value: Math.round(foldPercent) })}</output>
         </label>
         <div className="simulator-readout">
           <span>{statusLabel}</span>
-          <span>Step {step}</span>
-          <span>Strain {strain.toFixed(4)}</span>
+          <span>{t('panels:simulator.stepReadout', 'Step {{n}}', { n: step })}</span>
+          <span>{t('panels:simulator.strain', 'Strain {{value}}', { value: strain.toFixed(4) })}</span>
         </div>
       </div>
       </section>
@@ -786,9 +827,9 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-function shortStatus(message: string): string {
+function shortStatus(message: string, t: TFunction): string {
   const trimmed = message.trim();
-  if (!trimmed) return 'Simulator unavailable';
+  if (!trimmed) return t('panels:simulator.unavailable', 'Simulator unavailable');
   const sentence = trimmed.split(/[.;]\s+/u)[0] ?? trimmed;
   return sentence.length > 54 ? `${sentence.slice(0, 51)}...` : sentence;
 }

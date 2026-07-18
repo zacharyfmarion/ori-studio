@@ -1,3 +1,21 @@
 {
-  "ok": ""
+  "cancel": "",
+  "close": "",
+  "toolbar": {
+    "downloadMac": "",
+    "help": "",
+    "new": "",
+    "open": "",
+    "optimizeScale": "",
+    "save": "",
+    "sendToEdit": "",
+    "sendToEditTooltip": "",
+    "settings": ""
+  },
+  "workspaceRail": {
+    "design": "",
+    "edit": "",
+    "label": "",
+    "simulate": ""
+  }
 }

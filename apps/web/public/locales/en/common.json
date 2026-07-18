@@ -1,1 +1,21 @@
-{}
+{
+  "cancel": "Cancel",
+  "close": "Close",
+  "toolbar": {
+    "downloadMac": "Download Ori Studio for Mac",
+    "help": "Help",
+    "new": "New",
+    "open": "Open",
+    "optimizeScale": "Optimize Scale",
+    "save": "Save",
+    "sendToEdit": "Send to Edit",
+    "sendToEditTooltip": "Send this design's crease pattern to the Edit canvas",
+    "settings": "Settings"
+  },
+  "workspaceRail": {
+    "design": "Design workspace",
+    "edit": "Edit workspace",
+    "label": "Workspaces",
+    "simulate": "Simulate workspace"
+  }
+}

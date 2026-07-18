@@ -15,7 +15,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   WEB_ROOT,
-  LOCALES_DIR,
   ERROR_CODES_FILE,
   SOURCE_LOCALE,
   TARGET_LOCALES,
