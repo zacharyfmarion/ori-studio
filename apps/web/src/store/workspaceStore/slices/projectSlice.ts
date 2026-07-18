@@ -1121,6 +1121,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     project: createEmptyProject(),
     workflowTarget: 'treemaker',
     pendingDesignChoice: false,
+    projectEstablished: false,
     activePanelId: null,
     activeEditingContext: 'treemaker-tree',
     importedCreasePattern: null,
@@ -1965,6 +1966,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // from their set() — so no snapshot/restore is needed here. The only thing
       // to carry across is dirtiness: establishing a design must not silently mark
       // a previously-dirty document clean.
+      // Establish the project up front (synchronously, before the async creation
+      // and before the chooser navigates to the sub-route) so the route guard
+      // doesn't bounce a freshly-chosen design — a blank TreeMaker tree has no
+      // document content for the presence subscription to detect.
+      set({ projectEstablished: true });
       const wasDirty = get().dirty;
       if (target === 'box-pleat') {
         await get().createOristudioBpProject({ confirmDiscard: false, preserveEditCanvas: true });

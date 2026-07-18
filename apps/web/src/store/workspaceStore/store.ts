@@ -48,6 +48,21 @@ useWorkspaceStore.subscribe((state) => {
   }
 });
 
+// Mark a project as established (sticky for the session) as soon as a real
+// document appears: a crease pattern, a BP design, or an authored/loaded tree.
+// A blank TreeMaker design picked from the chooser has no document content, so
+// `chooseDesignMethod` sets the flag directly. Deep-linked workspace routes read
+// this to redirect to /welcome when nothing has been established.
+useWorkspaceStore.subscribe((state) => {
+  if (state.projectEstablished) return;
+  const hasDocument =
+    state.oristudioCpDocument !== null ||
+    state.importedCreasePattern !== null ||
+    state.oristudioBpDocument !== null ||
+    state.project.edges.length > 0;
+  if (hasDocument) useWorkspaceStore.setState({ projectEstablished: true });
+});
+
 if (import.meta.env.DEV && typeof window !== 'undefined') {
   const debugWindow = window as Window & {
     __treemakerWorkspaceStore?: typeof useWorkspaceStore;

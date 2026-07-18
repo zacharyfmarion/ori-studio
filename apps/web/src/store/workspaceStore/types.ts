@@ -81,6 +81,13 @@ export interface ProjectSliceState {
    */
   pendingDesignChoice: boolean;
   /**
+   * True once the user has created, opened, or chosen a project this session.
+   * A fresh page load starts false, so deep-linked workspace routes redirect to
+   * `/welcome` instead of showing an empty editor. Set by the create/open/choose
+   * actions and by a document-presence subscription.
+   */
+  projectEstablished: boolean;
+  /**
    * The id of the Dockview panel the user last focused. Source of truth for the
    * active editing context (below); updated from `onDidActivePanelChange`.
    */
