@@ -7,6 +7,7 @@ import {
   type DragEvent as ReactDragEvent,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { cpActionLabel } from '../../i18n/cpVocab';
 import { createPortal } from 'react-dom';
 import {
@@ -188,41 +189,105 @@ function formatZoom(scale: number): string {
 
 const EMPTY_DIAGNOSTIC_ENTRIES: OristudioCpDiagnosticEntry[] = [];
 
-const FOLDED_DISPLAY_STYLE_OPTIONS: Array<{
-  value: OristudioCpFoldedFigureDisplayStyle;
-  label: string;
-}> = [
-  { value: 'Paper5', label: 'Paper' },
-  { value: 'Transparent3', label: 'Transparent' },
-  { value: 'Wire2', label: 'Wire' },
-  { value: 'Development1', label: 'Dev 1' },
-  { value: 'Development4', label: 'Dev 4' },
-  { value: 'None0', label: 'None' },
+const FOLDED_DISPLAY_STYLE_OPTIONS: OristudioCpFoldedFigureDisplayStyle[] = [
+  'Paper5',
+  'Transparent3',
+  'Wire2',
+  'Development1',
+  'Development4',
+  'None0',
 ];
 
-const FOLDED_STATE_OPTIONS: Array<{
-  value: OristudioCpFoldedFigureState;
-  label: string;
-  title: string;
-}> = [
-  { value: 'Front0', label: 'F', title: 'Front' },
-  { value: 'Back1', label: 'B', title: 'Back' },
-  { value: 'Both2', label: 'Both', title: 'Both' },
-  { value: 'Transparent3', label: 'T', title: 'Transparent state' },
+function foldedDisplayStyleLabel(t: TFunction, value: OristudioCpFoldedFigureDisplayStyle): string {
+  switch (value) {
+    case 'Paper5':
+      return t('panels:creasePattern.foldedStyle.paper', 'Paper');
+    case 'Transparent3':
+      return t('panels:creasePattern.foldedStyle.transparent', 'Transparent');
+    case 'Wire2':
+      return t('panels:creasePattern.foldedStyle.wire', 'Wire');
+    case 'Development1':
+      return t('panels:creasePattern.foldedStyle.dev1', 'Dev 1');
+    case 'Development4':
+      return t('panels:creasePattern.foldedStyle.dev4', 'Dev 4');
+    case 'None0':
+      return t('panels:creasePattern.foldedStyle.none', 'None');
+    default:
+      return value;
+  }
+}
+
+const FOLDED_STATE_OPTIONS: OristudioCpFoldedFigureState[] = [
+  'Front0',
+  'Back1',
+  'Both2',
+  'Transparent3',
 ];
+
+function foldedStateLabel(t: TFunction, value: OristudioCpFoldedFigureState): string {
+  switch (value) {
+    case 'Front0':
+      return t('panels:creasePattern.foldedState.frontShort', 'F');
+    case 'Back1':
+      return t('panels:creasePattern.foldedState.backShort', 'B');
+    case 'Both2':
+      return t('panels:creasePattern.foldedState.both', 'Both');
+    case 'Transparent3':
+      return t('panels:creasePattern.foldedState.transparentShort', 'T');
+    default:
+      return value;
+  }
+}
+
+function foldedStateTitle(t: TFunction, value: OristudioCpFoldedFigureState): string {
+  switch (value) {
+    case 'Front0':
+      return t('panels:creasePattern.foldedState.front', 'Front');
+    case 'Back1':
+      return t('panels:creasePattern.foldedState.back', 'Back');
+    case 'Both2':
+      return t('panels:creasePattern.foldedState.bothTitle', 'Both');
+    case 'Transparent3':
+      return t('panels:creasePattern.foldedState.transparent', 'Transparent state');
+    default:
+      return value;
+  }
+}
 
 // Front/back/line color pickers for a folded model (Oriedita's Front/Back/Line
 // color actions). Fallbacks mirror the Rust FoldedFigureModel defaults.
-const FOLDED_COLOR_FIELDS: Array<{
-  key: 'front_color' | 'back_color' | 'line_color';
-  label: string;
-  ariaLabel: string;
-  fallback: OristudioCpRgbColor;
-}> = [
-  { key: 'front_color', label: 'Front', ariaLabel: 'Folded front color', fallback: { red: 255, green: 255, blue: 50 } },
-  { key: 'back_color', label: 'Back', ariaLabel: 'Folded back color', fallback: { red: 233, green: 233, blue: 233 } },
-  { key: 'line_color', label: 'Line', ariaLabel: 'Folded line color', fallback: { red: 0, green: 0, blue: 0 } },
+type FoldedColorKey = 'front_color' | 'back_color' | 'line_color';
+const FOLDED_COLOR_FIELDS: Array<{ key: FoldedColorKey; fallback: OristudioCpRgbColor }> = [
+  { key: 'front_color', fallback: { red: 255, green: 255, blue: 50 } },
+  { key: 'back_color', fallback: { red: 233, green: 233, blue: 233 } },
+  { key: 'line_color', fallback: { red: 0, green: 0, blue: 0 } },
 ];
+
+function foldedColorLabel(t: TFunction, key: FoldedColorKey): string {
+  switch (key) {
+    case 'front_color':
+      return t('panels:creasePattern.foldedColor.front', 'Front');
+    case 'back_color':
+      return t('panels:creasePattern.foldedColor.back', 'Back');
+    case 'line_color':
+      return t('panels:creasePattern.foldedColor.line', 'Line');
+    default:
+      return key;
+  }
+}
+
+function foldedColorAria(t: TFunction, key: FoldedColorKey): string {
+  switch (key) {
+    case 'front_color':
+      return t('panels:creasePattern.foldedColor.frontAria', 'Folded front color');
+    case 'back_color':
+      return t('panels:creasePattern.foldedColor.backAria', 'Folded back color');
+    case 'line_color':
+      return t('panels:creasePattern.foldedColor.lineAria', 'Folded line color');
+    default:
+      return key;
+  }
+}
 
 interface CpDiagnosticHudStatus {
   label: string;
@@ -230,37 +295,34 @@ interface CpDiagnosticHudStatus {
   tone: 'ok' | 'warn' | 'error';
 }
 
-function diagnosticOperationLabel(operation: string): string {
+function diagnosticOperationLabel(t: TFunction, operation: string): string {
   switch (operation) {
     case 'CheckCamv':
-      return 'CAMV';
+      return t('panels:creasePattern.diagnostic.camv', 'CAMV');
     case 'Check1':
-      return 'Overlap';
+      return t('panels:creasePattern.diagnostic.overlap', 'Overlap');
     case 'Check2':
-      return 'T-junction';
+      return t('panels:creasePattern.diagnostic.tJunction', 'T-junction');
     case 'Check3':
-      return 'Vertex foldability';
+      return t('panels:creasePattern.diagnostic.vertexFoldability', 'Vertex foldability');
     case 'Check4':
-      return 'Maekawa/LBL';
+      return t('panels:creasePattern.diagnostic.maekawaLbl', 'Maekawa/LBL');
     case 'FlatFoldableCheck':
-      return 'Boundary';
+      return t('panels:creasePattern.diagnostic.boundary', 'Boundary');
     default:
       return operation;
   }
 }
 
-function pluralizeCount(count: number, singular: string): string {
-  return `${count} ${singular}${count === 1 ? '' : 's'}`;
-}
-
 function diagnosticHudStatus(
+  t: TFunction,
   result: OristudioCpCommandResult | null | undefined,
   options: { issueOnly?: boolean } = {}
 ): CpDiagnosticHudStatus | null {
   if (!result || !isDiagnosticResultOperation(result.operation)) return null;
   if (!result?.diagnostics.length) return null;
   const entries = result.diagnostic_entries ?? EMPTY_DIAGNOSTIC_ENTRIES;
-  const label = diagnosticOperationLabel(result.operation);
+  const label = diagnosticOperationLabel(t, result.operation);
   const errorCount = entries.filter((entry) => entry.severity === 'error').length;
   const warningCount = entries.filter((entry) => entry.severity === 'warning').length;
   const detail =
@@ -272,7 +334,10 @@ function diagnosticHudStatus(
 
   if (errorCount > 0) {
     return {
-      label: `${pluralizeCount(errorCount, `${label} Error`)}`,
+      label:
+        errorCount === 1
+          ? t('panels:creasePattern.diagnostic.errorOne', '{{count}} {{label}} Error', { count: errorCount, label })
+          : t('panels:creasePattern.diagnostic.errorOther', '{{count}} {{label}} Errors', { count: errorCount, label }),
       detail,
       tone: 'error',
     };
@@ -280,7 +345,10 @@ function diagnosticHudStatus(
 
   if (warningCount > 0) {
     return {
-      label: `${pluralizeCount(warningCount, `${label} Warning`)}`,
+      label:
+        warningCount === 1
+          ? t('panels:creasePattern.diagnostic.warningOne', '{{count}} {{label}} Warning', { count: warningCount, label })
+          : t('panels:creasePattern.diagnostic.warningOther', '{{count}} {{label}} Warnings', { count: warningCount, label }),
       detail,
       tone: 'warn',
     };
@@ -289,7 +357,7 @@ function diagnosticHudStatus(
   if (options.issueOnly) return null;
 
   return {
-    label: `${label} OK`,
+    label: t('panels:creasePattern.diagnostic.ok', '{{label}} OK', { label }),
     detail,
     tone: 'ok',
   };
@@ -736,9 +804,9 @@ function FoldedFigureMenuButton({
                 onDisplayStyle(event.currentTarget.value as OristudioCpFoldedFigureDisplayStyle)
               }
             >
-              {FOLDED_DISPLAY_STYLE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
+              {FOLDED_DISPLAY_STYLE_OPTIONS.map((value) => (
+                <option key={value} value={value}>
+                  {foldedDisplayStyleLabel(t, value)}
                 </option>
               ))}
             </select>
@@ -747,7 +815,11 @@ function FoldedFigureMenuButton({
             <span>{t('panels:creasePattern.side', 'Side')}</span>
             <SegmentedControl
               aria-label={t('panels:creasePattern.foldedModelSide', 'Folded model side')}
-              options={FOLDED_STATE_OPTIONS}
+              options={FOLDED_STATE_OPTIONS.map((value) => ({
+                value,
+                label: foldedStateLabel(t, value),
+                title: foldedStateTitle(t, value),
+              }))}
               value={model?.state ?? 'Front0'}
               onChange={(state) => onModelUpdate({ state })}
             />
@@ -755,9 +827,9 @@ function FoldedFigureMenuButton({
           <div className="folded-figure-menu__colors">
             {FOLDED_COLOR_FIELDS.map((field) => (
               <label key={field.key} className="folded-figure-menu__color">
-                <span>{field.label}</span>
+                <span>{foldedColorLabel(t, field.key)}</span>
                 <input
-                  aria-label={field.ariaLabel}
+                  aria-label={foldedColorAria(t, field.key)}
                   type="color"
                   value={rgbColorToHex(model?.[field.key] ?? field.fallback)}
                   disabled={!activeReady}
@@ -1561,19 +1633,19 @@ export function CreasePatternPanel() {
   const diagnosticStatus = useMemo(
     () => {
       const camvStatus = camvIssuesVisible
-        ? diagnosticHudStatus(oristudioCpCamvResult, { issueOnly: true })
+        ? diagnosticHudStatus(t, oristudioCpCamvResult, { issueOnly: true })
         : null;
       const commandStatus =
         !camvIssuesVisible && lastCommandResult?.operation === 'CheckCamv'
           ? null
-          : diagnosticHudStatus(lastCommandResult);
+          : diagnosticHudStatus(t, lastCommandResult);
       return camvStatus ?? commandStatus;
     },
-    [camvIssuesVisible, lastCommandResult, oristudioCpCamvResult]
+    [camvIssuesVisible, lastCommandResult, oristudioCpCamvResult, t]
   );
   const diagnosticHudEntries = useMemo(() => {
     const hudResult =
-      camvIssuesVisible && diagnosticHudStatus(oristudioCpCamvResult, { issueOnly: true }) !== null
+      camvIssuesVisible && diagnosticHudStatus(t, oristudioCpCamvResult, { issueOnly: true }) !== null
         ? oristudioCpCamvResult
         : !camvIssuesVisible && lastCommandResult?.operation === 'CheckCamv'
           ? null
@@ -1582,7 +1654,7 @@ export function CreasePatternPanel() {
       return EMPTY_DIAGNOSTIC_ENTRIES;
     }
     return hudResult.diagnostic_entries ?? EMPTY_DIAGNOSTIC_ENTRIES;
-  }, [camvIssuesVisible, lastCommandResult, oristudioCpCamvResult]);
+  }, [camvIssuesVisible, lastCommandResult, oristudioCpCamvResult, t]);
   const activeDiagnosticEntry = useMemo(
     () =>
       latestDiagnosticEntries.find((entry) => entry.id === oristudioCpActiveDiagnosticId) ?? null,

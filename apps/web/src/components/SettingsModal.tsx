@@ -3,6 +3,11 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { Check, Keyboard, LayoutDashboard, Palette, RotateCcw, X } from 'lucide-react';
 import { SUPPORTED_LOCALES } from '../i18n/locales';
+import {
+  shortcutActionLabel,
+  shortcutCategoryLabel,
+  shortcutScopeLabel,
+} from '../i18n/shortcutLabels';
 import { useLocaleStore } from '../store/localeStore';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/Select';
 import {
@@ -292,10 +297,11 @@ function ShortcutsTab() {
 
       {Object.entries(groupedRows).map(([category, definitions]) => (
         <section key={category} className="settings-section">
-          <h3 className="settings-section__title">{category}</h3>
+          <h3 className="settings-section__title">{shortcutCategoryLabel(t, category)}</h3>
           <div className="settings-shortcuts__table">
             {definitions.map((definition) => {
               const currentLabel = shortcutLabelForAction(definition.id, overrides);
+              const actionLabel = shortcutActionLabel(t, definition);
               const defaultLabel =
                 definition.defaultChords.length > 0
                   ? definition.defaultChords.map((chord) => formatKeyChord(chord)).join(' / ')
@@ -307,9 +313,9 @@ function ShortcutsTab() {
               return (
                 <div key={definition.id} className="settings-shortcuts__row">
                   <div className="settings-shortcuts__copy">
-                    <span>{definition.label}</span>
+                    <span>{actionLabel}</span>
                     <small>
-                      {definition.scope}
+                      {shortcutScopeLabel(t, definition.scope)}
                       {definition.upstreamAction ? ` - ${definition.upstreamAction}` : ''}
                     </small>
                   </div>
@@ -319,7 +325,7 @@ function ShortcutsTab() {
                     data-capturing={capturingId === definition.id || undefined}
                     onClick={() => {
                       setCapturingId(definition.id);
-                      setMessage(t('dialogs:settings.shortcuts.pressPrompt', 'Press a shortcut for {{label}}.', { label: definition.label }));
+                      setMessage(t('dialogs:settings.shortcuts.pressPrompt', 'Press a shortcut for {{label}}.', { label: actionLabel }));
                     }}
                   >
                     {capturingId === definition.id
@@ -333,8 +339,8 @@ function ShortcutsTab() {
                   </span>
                   <IconButton
                     size="sm"
-                    title={t('dialogs:settings.shortcuts.clear', 'Clear {{label}} shortcut', { label: definition.label })}
-                    aria-label={t('dialogs:settings.shortcuts.clear', 'Clear {{label}} shortcut', { label: definition.label })}
+                    title={t('dialogs:settings.shortcuts.clear', 'Clear {{label}} shortcut', { label: actionLabel })}
+                    aria-label={t('dialogs:settings.shortcuts.clear', 'Clear {{label}} shortcut', { label: actionLabel })}
                     onClick={() => {
                       clearShortcut(definition.id);
                       setCapturingId(null);
@@ -345,8 +351,8 @@ function ShortcutsTab() {
                   </IconButton>
                   <IconButton
                     size="sm"
-                    title={t('dialogs:settings.shortcuts.reset', 'Reset {{label}} shortcut', { label: definition.label })}
-                    aria-label={t('dialogs:settings.shortcuts.reset', 'Reset {{label}} shortcut', { label: definition.label })}
+                    title={t('dialogs:settings.shortcuts.reset', 'Reset {{label}} shortcut', { label: actionLabel })}
+                    aria-label={t('dialogs:settings.shortcuts.reset', 'Reset {{label}} shortcut', { label: actionLabel })}
                     disabled={!hasOverride}
                     onClick={() => {
                       resetShortcut(definition.id);

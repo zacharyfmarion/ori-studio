@@ -42,6 +42,14 @@ export function cpActionLabel(t: TFunction, action: OristudioCpActionDefinition)
   return t(actionKey(action, 'label'), action.label);
 }
 
+const CP_ACTION_BY_ID = new Map(ORISTUDIO_CP_ACTIONS.map((action) => [action.id, action]));
+
+/** Localized label for a CP action referenced by id (e.g. from a shortcut definition). */
+export function cpActionLabelById(t: TFunction, id: string): string {
+  const action = CP_ACTION_BY_ID.get(id as OristudioCpActionDefinition['id']);
+  return action ? cpActionLabel(t, action) : id;
+}
+
 export function cpActionRailLabel(t: TFunction, action: OristudioCpActionDefinition): string {
   return action.railLabel ? t(actionKey(action, 'railLabel'), action.railLabel) : '';
 }
