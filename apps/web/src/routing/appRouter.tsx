@@ -1,10 +1,27 @@
 import { createBrowserRouter, createMemoryRouter, redirect } from 'react-router-dom';
+import type { LoaderFunctionArgs } from 'react-router-dom';
 import App from '../App';
 import { WorkspaceShell } from '../components/WorkspaceShell';
 import { getRuntimeSurface } from '../platform/runtime';
-import { WELCOME_PATH } from './paths';
+import { useWorkspaceStore } from '../store/workspaceStore';
+import { WELCOME_PATH, parseWorkspacePath } from './paths';
 import { WelcomeRoute } from './WelcomeRoute';
 import { WorkspaceRoute } from './WorkspaceRoute';
+
+/**
+ * Guard the workspace routes: with no project established this session (a cold
+ * reload / deep link), redirect to `/welcome` before anything renders — no empty
+ * editor flashes. The Design method chooser (`/design`, variant `nux`) is exempt;
+ * it is the pre-project entry point.
+ */
+function workspaceGuard({ request }: LoaderFunctionArgs) {
+  const parsed = parseWorkspacePath(new URL(request.url).pathname);
+  const isChooser = parsed?.workspace === 'design' && parsed.variant === 'nux';
+  if (!isChooser && !useWorkspaceStore.getState().projectEstablished) {
+    return redirect(WELCOME_PATH);
+  }
+  return null;
+}
 
 type AppRouter = ReturnType<typeof createBrowserRouter>;
 
@@ -40,6 +57,7 @@ export function createAppRouter(): AppRouter {
         { path: 'welcome', element: <WelcomeRoute /> },
         {
           element: <WorkspaceShell />,
+          loader: workspaceGuard,
           children: [
             { path: 'design', element: <WorkspaceRoute workspace="design" variant="nux" /> },
             {
