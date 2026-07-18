@@ -58,6 +58,9 @@ import type {
 } from '../../../engine/oristudioCpTypes';
 import type { WorkspaceCapabilityId } from '../../../lib/workspaceCapabilities';
 
+/** Cap on the CP undo stack (matches historySlice's MAX_HISTORY). */
+const MAX_CP_HISTORY = 100;
+
 export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice> = (
   set,
   get
@@ -357,6 +360,9 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     oristudioCpFoldedFigures: [],
     oristudioCpActiveFoldedFigureId: null,
     oristudioCpViewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+    oristudioCpImages: [],
+    oristudioCpSelectedImageId: null,
+    oristudioCpImageEditMode: false,
     ...emptyFoldArtifactResourceState(),
     sequenceTarget: null,
     sequencePlan: null,
@@ -1183,5 +1189,74 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
             }
           : { ...emptyOristudioCpSelection(), texts: [id] },
       }),
+
+    // --- Reference images (superset feature; see docs/superset-features.md) ---
+    // These mutate the web-side image layer only. Undo integration lands in a
+    // later phase; a fresh document resets the layer via the load/create paths.
+    addCpImage: (image) =>
+      set({
+        oristudioCpImages: [...get().oristudioCpImages, image],
+        oristudioCpSelectedImageId: image.id,
+        dirty: true,
+      }),
+
+    updateCpImage: (id, patch) =>
+      set({
+        oristudioCpImages: get().oristudioCpImages.map((image) =>
+          image.id === id ? { ...image, ...patch } : image
+        ),
+        dirty: true,
+      }),
+
+    removeCpImage: (id) =>
+      set({
+        oristudioCpImages: get().oristudioCpImages.filter((image) => image.id !== id),
+        oristudioCpSelectedImageId:
+          get().oristudioCpSelectedImageId === id ? null : get().oristudioCpSelectedImageId,
+        dirty: true,
+      }),
+
+    setSelectedCpImage: (id) =>
+      set({
+        oristudioCpSelectedImageId:
+          id !== null && get().oristudioCpImages.some((image) => image.id === id) ? id : null,
+      }),
+
+    setOristudioCpImageEditMode: (active) =>
+      set({
+        oristudioCpImageEditMode: active,
+        // Leaving the tool clears any image selection so its handles don't linger.
+        oristudioCpSelectedImageId: active ? get().oristudioCpSelectedImageId : null,
+      }),
+
+    setCpImages: (images) =>
+      set({
+        oristudioCpImages: images,
+        oristudioCpSelectedImageId:
+          get().oristudioCpSelectedImageId !== null &&
+          images.some((image) => image.id === get().oristudioCpSelectedImageId)
+            ? get().oristudioCpSelectedImageId
+            : null,
+      }),
+
+    recordCpImageHistory: (previousImages, label) => {
+      const document = get().oristudioCpDocument;
+      if (!document) return;
+      set({
+        oristudioCpHistoryPast: [
+          ...get().oristudioCpHistoryPast,
+          {
+            document: document.document,
+            selection: get().oristudioCpSelection,
+            images: previousImages,
+            imageOnly: true,
+            label,
+            timestamp: new Date().toISOString(),
+          },
+        ].slice(-MAX_CP_HISTORY),
+        oristudioCpHistoryFuture: [],
+        dirty: true,
+      });
+    },
   };
 };

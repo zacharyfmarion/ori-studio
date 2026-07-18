@@ -14,11 +14,12 @@ import {
   normalizeCpLineage,
   type OristudioCpLineage,
 } from './oristudioCpLineage';
+import { validateCpImages, type CpImage } from '../cp-workspace/images/cpImage';
 
 export const NATIVE_PROJECT_FORMAT = 'oristudio.project';
 export const NATIVE_PROJECT_EXTENSION = 'osf';
 export const NATIVE_PROJECT_MIME_TYPE = 'application/vnd.oristudio.project+json';
-export const NATIVE_PROJECT_SCHEMA_VERSION = 2;
+export const NATIVE_PROJECT_SCHEMA_VERSION = 3;
 
 export type NativeProjectDocumentKind = 'treemaker-tree' | 'crease-pattern' | 'box-pleat';
 
@@ -67,6 +68,12 @@ export interface NativeCreasePatternDocumentV1 extends NativeProjectBaseDocument
     foldProjection: FoldDocument | null;
     sourceFold: FoldDocument | null;
     lineage: OristudioCpLineage;
+    /**
+     * Superset feature (no Oriedita equivalent): reference images placed on the
+     * canvas. Persisted only in `.osf`; omitted from every Oriedita export.
+     * Added in schema v3; absent in v1/v2 files (migrated to `[]`).
+     */
+    images: CpImage[];
   };
   viewState: {
     creaseColorMode: CreaseColorMode;
@@ -93,7 +100,7 @@ export type NativeProjectDocumentV1 =
 
 export interface NativeProjectFileV1 {
   format: typeof NATIVE_PROJECT_FORMAT;
-  schemaVersion: 1 | 2;
+  schemaVersion: 1 | 2 | 3;
   minimumReaderSchemaVersion: 1;
   createdBy: NativeProjectActor;
   modifiedBy: NativeProjectActor;
@@ -144,6 +151,17 @@ export interface NativeCreasePatternProjectInput {
   foldedFigures: OristudioCpFoldedFigureEntry[];
   activeFoldedFigureId: string | null;
   lineage: OristudioCpLineage;
+  /**
+   * Superset feature: reference images placed on the canvas (§ image support).
+   * Optional so older call sites (and tests) omit it; written as `[]` when absent.
+   */
+  images?: CpImage[];
+  /**
+   * Document-level extension bag carried forward from a loaded file. Threading
+   * this back on save preserves data written by a *newer* app version across a
+   * round-trip through an *older* one (forward-compat). Defaults to `{}`.
+   */
+  extensions?: Record<string, unknown>;
   appVersion: string;
   now?: Date;
 }
@@ -183,6 +201,12 @@ export interface NativeProjectDocumentsInput {
     NativeCreasePatternProjectInput,
     'appVersion' | 'filename' | 'path' | 'now'
   > | null;
+  /**
+   * File-level extension bag carried forward from a loaded project, preserved on
+   * save for forward-compat (see the doc-level note on
+   * {@link NativeCreasePatternProjectInput.extensions}). Defaults to `{}`.
+   */
+  extensions?: Record<string, unknown>;
   appVersion: string;
   now?: Date;
 }
@@ -228,7 +252,7 @@ export function migrateNativeProjectFile(value: unknown): NativeProjectFile {
   }
 
   const schemaVersion = numberField(value.schemaVersion);
-  if (schemaVersion === 1 || schemaVersion === 2) return validateV1(value);
+  if (schemaVersion === 1 || schemaVersion === 2 || schemaVersion === 3) return validateV1(value);
   if (schemaVersion === null) throw new Error('Ori Studio project is missing schemaVersion');
   throw new Error(`Unsupported Ori Studio project schemaVersion ${schemaVersion}`);
 }
@@ -285,7 +309,7 @@ export function createNativeProjectFile(
 
   return {
     format: NATIVE_PROJECT_FORMAT,
-    schemaVersion: 2,
+    schemaVersion: 3,
     minimumReaderSchemaVersion: 1,
     createdBy: actor,
     modifiedBy: actor,
@@ -298,7 +322,7 @@ export function createNativeProjectFile(
       viewState: {},
     },
     artifacts: {},
-    extensions: {},
+    extensions: input.extensions ?? {},
   };
 }
 
@@ -348,7 +372,7 @@ export function createNativeCreasePatternProjectFile(
   const title = input.title.trim() || input.document.title || 'Untitled CP';
   return {
     format: NATIVE_PROJECT_FORMAT,
-    schemaVersion: 2,
+    schemaVersion: 3,
     minimumReaderSchemaVersion: 1,
     createdBy: actor,
     modifiedBy: actor,
@@ -392,6 +416,7 @@ function createNativeCreasePatternDocument(
       foldProjection: input.foldProjection,
       sourceFold: input.sourceFold ?? null,
       lineage: input.lineage,
+      images: input.images ?? [],
     },
     viewState: {
       creaseColorMode: input.creaseColorMode,
@@ -403,7 +428,10 @@ function createNativeCreasePatternDocument(
         input.activeFoldedFigureId
       ),
     },
-    extensions: {},
+    // Preserve any extension bag carried forward from a loaded file rather than
+    // clobbering it with `{}` — keeps forward-compat data written by a newer app
+    // version across a round-trip through this one.
+    extensions: input.extensions ?? {},
   };
 }
 
@@ -551,7 +579,7 @@ function validateV1(value: Record<string, unknown>): NativeProjectFileV1 {
 
   return {
     format: NATIVE_PROJECT_FORMAT,
-    schemaVersion: 2,
+    schemaVersion: 3,
     minimumReaderSchemaVersion: 1,
     createdBy: validateActor(recordField(value.createdBy, 'createdBy')),
     modifiedBy: validateActor(recordField(value.modifiedBy, 'modifiedBy')),
@@ -622,6 +650,8 @@ function validateDocumentV1(value: unknown): NativeProjectDocumentV1 {
         lineage: isRecord(creasePattern.lineage)
           ? normalizeCpLineage(creasePattern.lineage)
           : importedCpLineage(),
+        // Absent in v1/v2 files → []. Invalid entries are dropped, not thrown.
+        images: validateCpImages(creasePattern.images),
       },
       viewState: {
         creaseColorMode:

@@ -1,15 +1,38 @@
 import createREGL from 'regl';
 import type { CpRenderFrame, CpRenderer } from './CpRenderer';
 import type { CpSceneData, Viewport } from './types';
+import type { CpImage } from '../images/cpImage';
 import { createStrokeProgram } from './programs/strokeProgram';
 import { createPointProgram } from './programs/pointProgram';
 import { createFillProgram } from './programs/fillProgram';
 import { createMarkerProgram } from './programs/markerProgram';
 import { createWedgeProgram } from './programs/wedgeProgram';
+import { createImageProgram, type ImageDrawItem } from './programs/imageProgram';
 
 // regl ships as a UMD module (`export = REGL`), so its instance type is reached
 // via the factory's return type rather than a named export.
 type Regl = ReturnType<typeof createREGL>;
+type Texture = ReturnType<Regl['texture']>;
+
+export interface ReglRendererOptions {
+  /**
+   * Invoked when an async image texture finishes loading, so the host can
+   * schedule a redraw (the image was not yet drawable when {@link CpRenderer.setImages}
+   * returned).
+   */
+  onAsyncLoad?: () => void;
+}
+
+/** Decode an image `src` (data URL) to a GPU-ready bitmap, off the main thread. */
+async function decodeImageBitmap(src: string): Promise<ImageBitmap | null> {
+  try {
+    const response = await fetch(src);
+    const blob = await response.blob();
+    return await createImageBitmap(blob);
+  } catch {
+    return null;
+  }
+}
 
 /**
  * regl-backed {@link CpRenderer}. Owns the WebGL context for a single canvas and
@@ -17,7 +40,10 @@ type Regl = ReturnType<typeof createREGL>;
  *
  * @throws if a WebGL context cannot be created (caller should fall back to SVG).
  */
-export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
+export function createReglRenderer(
+  canvas: HTMLCanvasElement,
+  options: ReglRendererOptions = {}
+): CpRenderer {
   const regl: Regl = createREGL({
     canvas,
     // Instanced strokes drive the whole renderer; require the extension up front
@@ -36,6 +62,14 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
 
   const strokes = createStrokeProgram(regl);
   const gridStrokes = createStrokeProgram(regl);
+  // Reference-image layer: one textured quad per image, above the grid, below
+  // the creases. Textures are cached by `src` so transform-only updates never
+  // re-upload, and evicted when no image references them.
+  const images = createImageProgram(regl);
+  const imageTextures = new Map<string, Texture>();
+  const imageLoading = new Set<string>();
+  let currentImages: readonly CpImage[] = [];
+  let hasImages = false;
   const foldedFills = createFillProgram(regl);
   const foldedStrokes = createStrokeProgram(regl);
   // Imported .fold folded-form frames: reference figures in user space, like folded.
@@ -71,6 +105,31 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
   // SVG `.cp-grid-line` is 0.95px, non-scaling — constant device px per dpr.
   const GRID_WIDTH_CSS = 0.95;
 
+  // Build the per-frame image draw list from the current layer: skip hidden
+  // images and those whose texture is still decoding, sorted back-to-front by z.
+  const buildImageItems = (): ImageDrawItem[] => {
+    const items: { z: number; item: ImageDrawItem }[] = [];
+    for (const image of currentImages) {
+      if (image.hidden) continue;
+      const texture = imageTextures.get(image.src);
+      if (!texture) continue;
+      items.push({
+        z: image.z,
+        item: {
+          texture,
+          center: [image.center.x, image.center.y],
+          halfWidth: image.width / 2,
+          halfHeight: image.height / 2,
+          rotation: image.rotation,
+          crop: [image.crop.x, image.crop.y, image.crop.w, image.crop.h],
+          opacity: image.opacity,
+        },
+      });
+    }
+    items.sort((a, b) => a.z - b.z);
+    return items.map((entry) => entry.item);
+  };
+
   return {
     resize(next) {
       viewport = next;
@@ -104,6 +163,47 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
       if (disposed) return;
       hasGrid = grid !== null && grid.count > 0;
       if (grid) gridStrokes.setData(grid);
+    },
+
+    setImages(next) {
+      if (disposed) return;
+      currentImages = next;
+      hasImages = next.length > 0;
+      const neededSrcs = new Set(next.map((image) => image.src));
+      // Evict textures no longer referenced by any image.
+      for (const [src, texture] of imageTextures) {
+        if (!neededSrcs.has(src)) {
+          texture.destroy();
+          imageTextures.delete(src);
+        }
+      }
+      // Upload any newly referenced sources (async, deduped by src).
+      for (const src of neededSrcs) {
+        if (imageTextures.has(src) || imageLoading.has(src)) continue;
+        imageLoading.add(src);
+        void decodeImageBitmap(src).then((bitmap) => {
+          imageLoading.delete(src);
+          if (disposed || !bitmap) return;
+          // The image may have been removed while decoding.
+          if (!currentImages.some((image) => image.src === src)) return;
+          imageTextures.set(
+            src,
+            regl.texture({
+              // regl's TS types predate ImageBitmap; it is valid at runtime
+              // (passed straight to texImage2D).
+              data: bitmap as unknown as HTMLCanvasElement,
+              premultiplyAlpha: true,
+              // NPOT-safe on WebGL1: linear filtering, clamp wrap, no mipmaps.
+              min: 'linear',
+              mag: 'linear',
+              wrapS: 'clamp',
+              wrapT: 'clamp',
+              flipY: false,
+            })
+          );
+          options.onAsyncLoad?.();
+        });
+      }
     },
 
     setImportedForms(folded) {
@@ -166,9 +266,14 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
       regl.poll();
       const [r, g, b, a] = frame.clearColor;
       regl.clear({ color: [r, g, b, a], depth: 1 });
-      // Grid sits behind the crease pattern.
+      // Grid sits behind everything as the coordinate backdrop.
       if (hasGrid) {
         gridStrokes.draw({ view: frame.view, viewport, widthPx: GRID_WIDTH_CSS * viewport.dpr });
+      }
+      // Reference images sit above the grid but below the creases (trace-over).
+      if (hasImages) {
+        const items = buildImageItems();
+        if (items.length > 0) images.draw({ view: frame.view, viewport, items });
       }
       strokes.draw({ view: frame.view, viewport, widthPx: frame.strokeWidthPx });
       // Folded figures are placed objects in user space; fills first, then their
@@ -234,6 +339,9 @@ export function createReglRenderer(canvas: HTMLCanvasElement): CpRenderer {
       disposed = true;
       strokes.dispose();
       gridStrokes.dispose();
+      images.dispose();
+      for (const texture of imageTextures.values()) texture.destroy();
+      imageTextures.clear();
       foldedFills.dispose();
       foldedStrokes.dispose();
       importedFills.dispose();

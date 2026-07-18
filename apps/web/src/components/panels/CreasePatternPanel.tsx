@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type DragEvent as ReactDragEvent,
 } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -14,6 +15,8 @@ import {
   Eye,
   FlipHorizontal2,
   GitBranch,
+  Image as ImageIcon,
+  ImagePlus,
   ListChecks,
   Maximize2,
   Trash2,
@@ -115,6 +118,15 @@ import { ContextMenu } from '../ui/ContextMenu';
 import type { ContextMenuItem, ContextMenuRequest } from '../ui/contextMenuTypes';
 import { vertexPointsFromTransport } from '../../engine/oristudioCpGeometry';
 import { CpTextOverlay } from '../../cp-workspace/CpTextOverlay';
+import { CpImageOverlay } from '../../cp-workspace/CpImageOverlay';
+import { CpImageInspector } from '../../cp-workspace/CpImageInspector';
+import { createCpImage, type CpImage } from '../../cp-workspace/images/cpImage';
+import { importImageFile, isSupportedImageFile } from '../../cp-workspace/images/cpImageImport';
+import {
+  fitImageModelSize,
+  overlayCssPerModel,
+  overlayCssToModel,
+} from '../../cp-workspace/images/cpImagePlacement';
 import {
   CpContextToolPanel,
   cpCommandRequiresContextApply,
@@ -869,6 +881,12 @@ export function CreasePatternPanel() {
     setWebglOverlayView(view);
   }, []);
   const [spacePressed, setSpacePressed] = useState(false);
+  // Images tool: when on, the reference-image overlay is interactive (select /
+  // move / resize / rotate) and crease clicks fall through to it only over an
+  // image. Store-owned so the load transaction can set it atomically (a saved
+  // file with images opens ready to edit) — see projectSlice.
+  const imageEditMode = useWorkspaceStore((state) => state.oristudioCpImageEditMode);
+  const setImageEditMode = useWorkspaceStore((state) => state.setOristudioCpImageEditMode);
   const [cpToolState, setCpToolState] = useState(IDLE_ORISTUDIO_CP_TOOL_STATE);
   const [activeCpLineColor, setActiveCpLineColor] = useState<OristudioCpLineColor>('Red1');
   const [foldStartingFaceId, setFoldStartingFaceId] = useState(1);
@@ -913,6 +931,142 @@ export function CreasePatternPanel() {
   }, [oristudioCpDocument, ensureEditCreasePattern]);
   const oristudioCpCamvResult = useWorkspaceStore((state) => state.oristudioCpCamvResult);
   const oristudioCpSelection = useWorkspaceStore((state) => state.oristudioCpSelection);
+  const oristudioCpImages = useWorkspaceStore((state) => state.oristudioCpImages);
+  const oristudioCpSelectedImageId = useWorkspaceStore(
+    (state) => state.oristudioCpSelectedImageId
+  );
+  const addCpImage = useWorkspaceStore((state) => state.addCpImage);
+  const updateCpImage = useWorkspaceStore((state) => state.updateCpImage);
+  const removeCpImage = useWorkspaceStore((state) => state.removeCpImage);
+  const setSelectedCpImage = useWorkspaceStore((state) => state.setSelectedCpImage);
+  const recordCpImageHistory = useWorkspaceStore((state) => state.recordCpImageHistory);
+  const selectedCpImage =
+    oristudioCpImages.find((image) => image.id === oristudioCpSelectedImageId) ?? null;
+  // Image-layer state captured at the start of a move/resize/rotate gesture, so
+  // the whole gesture records a single undo entry on commit.
+  const preGestureImagesRef = useRef<readonly CpImage[] | null>(null);
+  const imageFileInputRef = useRef<HTMLInputElement | null>(null);
+  const beginImageGesture = useCallback(() => {
+    preGestureImagesRef.current = useWorkspaceStore.getState().oristudioCpImages;
+  }, []);
+  const commitImageGesture = useCallback(
+    (label: string) => {
+      const previous = preGestureImagesRef.current;
+      preGestureImagesRef.current = null;
+      if (previous) recordCpImageHistory([...previous], label);
+    },
+    [recordCpImageHistory]
+  );
+
+  // Import an image file and add it as a reference image, placed at the given
+  // client point (or the view center) and sized to ~half the view. Shared by the
+  // drop handler and the Insert-image button.
+  const addImageFromFile = useCallback(
+    async (file: File, client: { x: number; y: number } | null) => {
+      const view = webglOverlayView;
+      const rect = cpViewportRef.current?.getBoundingClientRect();
+      try {
+        const source = await importImageFile(file);
+        let center = { x: 0.5, y: 0.5 };
+        let targetExtent = 1;
+        if (view && rect) {
+          const cssPoint = client
+            ? { x: client.x - rect.left, y: client.y - rect.top }
+            : { x: rect.width / 2, y: rect.height / 2 };
+          const model = overlayCssToModel(view, cssPoint);
+          if (model) center = model;
+          const cssPerModel = overlayCssPerModel(view);
+          if (cssPerModel > 0) {
+            targetExtent = (0.5 * Math.min(rect.width, rect.height)) / cssPerModel;
+          }
+        }
+        const { width, height } = fitImageModelSize(
+          source.naturalWidth,
+          source.naturalHeight,
+          targetExtent
+        );
+        const images = useWorkspaceStore.getState().oristudioCpImages;
+        const topZ = images.reduce((max, image) => Math.max(max, image.z), 0);
+        addCpImage(
+          createCpImage({
+            src: source.src,
+            naturalWidth: source.naturalWidth,
+            naturalHeight: source.naturalHeight,
+            center,
+            width,
+            height,
+            z: topZ + 1,
+          })
+        );
+        recordCpImageHistory([...images], 'Add image');
+        setImageEditMode(true);
+      } catch (error) {
+        console.error('[cp-image] failed to import image', error);
+      }
+    },
+    [addCpImage, recordCpImageHistory, setImageEditMode, webglOverlayView]
+  );
+
+  const handleViewportDragOver = useCallback((event: ReactDragEvent<HTMLDivElement>) => {
+    if (Array.from(event.dataTransfer.types).includes('Files')) {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'copy';
+    }
+  }, []);
+
+  const handleViewportDrop = useCallback(
+    (event: ReactDragEvent<HTMLDivElement>) => {
+      const file = Array.from(event.dataTransfer.files).find(isSupportedImageFile);
+      if (!file) return;
+      event.preventDefault();
+      void addImageFromFile(file, { x: event.clientX, y: event.clientY });
+    },
+    [addImageFromFile]
+  );
+
+  // Image-layer edits driven by the inspector: each records one undo entry.
+  const bringSelectedImageToFront = useCallback(() => {
+    if (!oristudioCpSelectedImageId) return;
+    const images = useWorkspaceStore.getState().oristudioCpImages;
+    const maxZ = images.reduce((max, image) => Math.max(max, image.z), 0);
+    beginImageGesture();
+    updateCpImage(oristudioCpSelectedImageId, { z: maxZ + 1 });
+    commitImageGesture('Bring image to front');
+  }, [oristudioCpSelectedImageId, updateCpImage, beginImageGesture, commitImageGesture]);
+
+  const sendSelectedImageToBack = useCallback(() => {
+    if (!oristudioCpSelectedImageId) return;
+    const images = useWorkspaceStore.getState().oristudioCpImages;
+    const minZ = images.reduce((min, image) => Math.min(min, image.z), 0);
+    beginImageGesture();
+    updateCpImage(oristudioCpSelectedImageId, { z: minZ - 1 });
+    commitImageGesture('Send image to back');
+  }, [oristudioCpSelectedImageId, updateCpImage, beginImageGesture, commitImageGesture]);
+
+  const deleteSelectedImage = useCallback(() => {
+    if (!oristudioCpSelectedImageId) return;
+    beginImageGesture();
+    removeCpImage(oristudioCpSelectedImageId);
+    commitImageGesture('Delete image');
+  }, [oristudioCpSelectedImageId, removeCpImage, beginImageGesture, commitImageGesture]);
+
+  // Delete/Backspace removes the selected image while the Images tool is active.
+  // Ignored when typing in a field so it never eats text edits.
+  useEffect(() => {
+    if (!imageEditMode || !oristudioCpSelectedImageId) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Delete' && event.key !== 'Backspace') return;
+      const target = event.target as HTMLElement | null;
+      if (target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) {
+        return;
+      }
+      event.preventDefault();
+      deleteSelectedImage();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [imageEditMode, oristudioCpSelectedImageId, deleteSelectedImage]);
+
   const oristudioCpActionRequest = useWorkspaceStore((state) => state.oristudioCpActionRequest);
   const oristudioCpFoldedFigures = useWorkspaceStore((state) => state.oristudioCpFoldedFigures);
   const oristudioCpActiveFoldedFigureId = useWorkspaceStore(
@@ -1491,6 +1645,11 @@ export function CreasePatternPanel() {
         return;
       }
 
+      // Picking a crease/geometry tool deselects the active reference image, so
+      // its handles don't linger over the canvas while another tool is active.
+      // (Image-layer interactivity itself is left untouched.)
+      setSelectedCpImage(null);
+
       const command = action.command;
       setCpToolPoints([]);
       setCpToolPath([]);
@@ -1537,7 +1696,13 @@ export function CreasePatternPanel() {
         );
       })();
     },
-    [buildCpCommandPayload, editableCp, executeOristudioCpCommand, oristudioCpSelection.lines]
+    [
+      buildCpCommandPayload,
+      editableCp,
+      executeOristudioCpCommand,
+      oristudioCpSelection.lines,
+      setSelectedCpImage,
+    ]
   );
 
   const handleCpShortcutAction = useCallback(
@@ -2726,7 +2891,12 @@ export function CreasePatternPanel() {
                 onSelectAction={handleCpToolAction}
               />
             )}
-            <div className="cp-panel__viewport" ref={cpViewportRef}>
+            <div
+              className="cp-panel__viewport"
+              ref={cpViewportRef}
+              onDragOver={handleViewportDragOver}
+              onDrop={handleViewportDrop}
+            >
               {diagnosticStatus && (
                 <div
                   className="cp-diagnostic-hud"
@@ -2778,6 +2948,7 @@ export function CreasePatternPanel() {
                   className="cp-webgl-layer"
                   lineSegments={editableCp.crease_pattern.line_segments}
                   geometry={oristudioCpDocument?.geometry ?? null}
+                  images={oristudioCpImages}
                   modelToSvg={editableModelToSvg}
                   svgToModel={editableSvgToModel}
                   selectedLineIds={oristudioCpSelection.lines}
@@ -2786,6 +2957,10 @@ export function CreasePatternPanel() {
                   onSelect={(hit, additive) => {
                     if (!hit) {
                       if (!additive) clearOristudioCpSelection();
+                      // A click on empty canvas also deselects the active image
+                      // (mirrors how creases clear on a background click). An image
+                      // click is captured by its overlay and never reaches here.
+                      if (imageEditMode) setSelectedCpImage(null);
                       return;
                     }
                     if (hit.kind === 'line') handleEditableLineClick(hit.id, additive);
@@ -2904,6 +3079,29 @@ export function CreasePatternPanel() {
                       onDeselect={clearOristudioCpSelection}
                     />
                   )}
+                {webglOverlayView && oristudioCpImages.length > 0 && (
+                  <CpImageOverlay
+                    images={oristudioCpImages}
+                    selectedImageId={oristudioCpSelectedImageId}
+                    view={webglOverlayView}
+                    interactive={imageEditMode}
+                    onSelectImage={setSelectedCpImage}
+                    onUpdateImage={updateCpImage}
+                    onGestureStart={beginImageGesture}
+                    onGestureCommit={(_id, label) => commitImageGesture(label)}
+                  />
+                )}
+                {imageEditMode && selectedCpImage && (
+                  <CpImageInspector
+                    image={selectedCpImage}
+                    onUpdate={(patch) => updateCpImage(selectedCpImage.id, patch)}
+                    onGestureStart={beginImageGesture}
+                    onGestureCommit={commitImageGesture}
+                    onBringToFront={bringSelectedImageToFront}
+                    onSendToBack={sendSelectedImageToBack}
+                    onDelete={deleteSelectedImage}
+                  />
+                )}
                 </>
               ) : (
                 <div className="cp-panel__unopened" role="status">
@@ -2925,6 +3123,36 @@ export function CreasePatternPanel() {
                       activeLineColor={activeCpLineColor}
                       onSelectLineColor={setActiveCpLineColor}
                       shortcutOverrides={shortcutOverrides}
+                    />
+                    <ViewportToolbarSeparator />
+                    <IconButton
+                      size="sm"
+                      variant="toolbar"
+                      title={imageEditMode ? 'Editing images (click to exit)' : 'Edit images'}
+                      aria-pressed={imageEditMode}
+                      data-active={imageEditMode || undefined}
+                      onClick={() => setImageEditMode(!imageEditMode)}
+                    >
+                      <ImageIcon size={14} />
+                    </IconButton>
+                    <IconButton
+                      size="sm"
+                      variant="toolbar"
+                      title="Insert image..."
+                      onClick={() => imageFileInputRef.current?.click()}
+                    >
+                      <ImagePlus size={14} />
+                    </IconButton>
+                    <input
+                      ref={imageFileInputRef}
+                      type="file"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        event.target.value = '';
+                        if (file) void addImageFromFile(file, null);
+                      }}
                     />
                     <ViewportToolbarSeparator />
                     <div className="cp-folded-figure-actions">

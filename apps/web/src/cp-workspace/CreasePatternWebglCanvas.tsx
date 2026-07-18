@@ -35,6 +35,8 @@ import {
 } from './adapters/cpSnapshotToScene';
 import { cpGeometryStrokesToScene } from './adapters/cpGeometryToScene';
 import type { CpGeometryTransport } from '../engine/oristudioCpGeometry';
+import type { CpImage } from './images/cpImage';
+import { imageCornersModel } from './images/cpImagePlacement';
 import { cpPointsToScene } from './adapters/cpPointsToScene';
 import { resolveCpLineColor } from './adapters/cpLineColor';
 import { resolveCpPointStyle } from './adapters/cpPointStyle';
@@ -109,6 +111,9 @@ import { useThemeStore } from '../store/themeStore';
 
 /** Cap DPR at 2 — matches the perf budget and avoids 3x/4x fill on hidpi. */
 const MAX_DPR = 2;
+
+/** Stable empty image list so the upload effect doesn't re-run on every render. */
+const EMPTY_IMAGES: readonly CpImage[] = [];
 
 /**
  * The editable SVG canvas is transparent, so the colour behind it is the panel
@@ -350,6 +355,11 @@ export interface CreasePatternWebglCanvasProps {
   modelToSvg: (point: ModelPoint) => ModelPoint;
   /** User → model mapping (inverse of {@link modelToSvg}) for hit-testing. */
   svgToModel: (point: ModelPoint) => ModelPoint;
+  /**
+   * Reference images (superset layer), drawn above the grid and below the
+   * creases. Placement is in model coordinates.
+   */
+  images?: readonly CpImage[];
   /** Currently selected ids (lines/points/circles are 1-based). */
   selectedLineIds: readonly number[];
   selectedPointIds: readonly number[];
@@ -585,6 +595,7 @@ export function CreasePatternWebglCanvas({
   className,
   lineSegments,
   geometry,
+  images,
   modelToSvg,
   svgToModel,
   selectedLineIds,
@@ -725,22 +736,32 @@ export function CreasePatternWebglCanvas({
   // Content bounds in SVG user coords, for the initial camera fit (independent
   // of the SVG's own fixed-rect fit, which mis-centres imported cameras).
   const contentBounds = useMemo<UserBounds | null>(() => {
-    if (lineSegments.length === 0) return null;
     let minX = Infinity;
     let minY = Infinity;
     let maxX = -Infinity;
     let maxY = -Infinity;
+    let has = false;
+    const extend = (point: ModelPoint) => {
+      const u = modelToSvg(point);
+      if (u.x < minX) minX = u.x;
+      if (u.y < minY) minY = u.y;
+      if (u.x > maxX) maxX = u.x;
+      if (u.y > maxY) maxY = u.y;
+      has = true;
+    };
     for (const seg of lineSegments) {
-      for (const p of [seg.a, seg.b]) {
-        const u = modelToSvg(p);
-        if (u.x < minX) minX = u.x;
-        if (u.y < minY) minY = u.y;
-        if (u.x > maxX) maxX = u.x;
-        if (u.y > maxY) maxY = u.y;
-      }
+      extend(seg.a);
+      extend(seg.b);
     }
-    return { minX, minY, maxX, maxY };
-  }, [lineSegments, modelToSvg]);
+    // Reference images are placed content too, so framing (open + fit-to-view)
+    // must include them. Their model-space quad corners are folded into the
+    // bounds; hidden images are excluded (they aren't drawn).
+    for (const image of images ?? EMPTY_IMAGES) {
+      if (image.hidden) continue;
+      for (const corner of imageCornersModel(image)) extend(corner);
+    }
+    return has ? { minX, minY, maxX, maxY } : null;
+  }, [lineSegments, images, modelToSvg]);
 
   // Spatial indices for click hit-testing. Points are indexed as zero-length
   // segments so the same distance query applies (id = index + 1). Vertices are
@@ -939,7 +960,10 @@ export function CreasePatternWebglCanvas({
 
     let renderer: CpRenderer;
     try {
-      renderer = createReglRenderer(canvas);
+      renderer = createReglRenderer(canvas, {
+        // Redraw once an async image texture finishes decoding.
+        onAsyncLoad: () => renderNowRef.current(),
+      });
     } catch (error) {
       console.error('[cp-webgl] failed to initialise WebGL renderer', error);
       return;
@@ -2277,6 +2301,14 @@ export function CreasePatternWebglCanvas({
     rendererRef.current?.setImportedForms(importedForms);
     renderNowRef.current();
   }, [importedForms]);
+
+  // Reference-image layer: upload/evict textures when the image list changes,
+  // then redraw. Textures are cached by `src` in the renderer, so transform-only
+  // edits (move/resize/rotate/crop) re-run this cheaply without re-uploading.
+  useEffect(() => {
+    rendererRef.current?.setImages(images ?? EMPTY_IMAGES);
+    renderNowRef.current();
+  }, [images]);
 
   // Frame the selected diagnostic: pan the owned camera to its centre and zoom in to
   // show the vertex + its creases (capped so it never over-zooms), matching the SVG's
