@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pruneMenuItems } from './MenuBar';
+import { pruneMenuItems } from '../menus/menuVisibility';
 import type { MenuItemDef } from '../menus/menuDefinition';
 import type { WorkspaceCapabilities } from '../lib/workspaceCapabilities';
 
