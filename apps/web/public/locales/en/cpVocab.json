@@ -1,0 +1,975 @@
+{
+  "group": {
+    "line_type": {
+      "label": "Line type",
+      "railLabel": "Type"
+    },
+    "select_edit": {
+      "label": "Select and edit",
+      "railLabel": "Select"
+    },
+    "draw": {
+      "label": "Draw folds and points",
+      "railLabel": "Draw"
+    },
+    "edit": {
+      "label": "Delete",
+      "railLabel": "Delete"
+    },
+    "construct": {
+      "label": "Construct by geometry",
+      "railLabel": "Construct"
+    },
+    "transform": {
+      "label": "Transform and operation frame",
+      "railLabel": "Transform"
+    },
+    "color": {
+      "label": "Color and assignment",
+      "railLabel": "Color"
+    },
+    "annotations": {
+      "label": "Circles, text, and annotations",
+      "railLabel": "Annotate"
+    },
+    "generators": {
+      "label": "Generators and base molecules",
+      "railLabel": "Generate"
+    },
+    "measure": {
+      "label": "Measure",
+      "railLabel": "Measure"
+    },
+    "check_fix": {
+      "label": "Check and fix",
+      "railLabel": "Check"
+    },
+    "folding": {
+      "label": "Fold estimate and folded figure",
+      "railLabel": "Fold"
+    },
+    "file": {
+      "label": "File import/export",
+      "railLabel": "File"
+    }
+  },
+  "action": {
+    "cp_action_line_type_mountain": {
+      "label": "Mountain",
+      "railLabel": "M",
+      "tooltip": "Set active line type to mountain",
+      "disabledReason": "Ready"
+    },
+    "cp_action_line_type_valley": {
+      "label": "Valley",
+      "railLabel": "V",
+      "tooltip": "Set active line type to valley",
+      "disabledReason": "Ready"
+    },
+    "cp_action_line_type_edge": {
+      "label": "Edge",
+      "railLabel": "E",
+      "tooltip": "Set active line type to edge",
+      "disabledReason": "Ready"
+    },
+    "cp_action_line_type_unassigned": {
+      "label": "Unassigned",
+      "railLabel": "U",
+      "tooltip": "Set active line type to unassigned",
+      "disabledReason": "Ready"
+    },
+    "cp_action_line_type_auxiliary": {
+      "label": "Auxiliary",
+      "railLabel": "A",
+      "tooltip": "Set active line type to auxiliary",
+      "disabledReason": "Ready"
+    },
+    "cp_action_draw_crease": {
+      "label": "Line",
+      "tooltip": "Drag a crease using the current line type",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Drag crease endpoint"
+      }
+    },
+    "cp_action_move_crease_pattern": {
+      "label": "Pan viewport",
+      "tooltip": "Covered by the landed CP viewport pan controls",
+      "disabledReason": "Handled by the viewport runtime instead of a CP command"
+    },
+    "cp_action_line_segment_delete": {
+      "label": "Eraser",
+      "tooltip": "Click a crease or drag a box to erase creases",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Click a crease or drag a box to erase"
+      }
+    },
+    "cp_action_change_crease_type": {
+      "label": "Change crease type",
+      "tooltip": "Advance selected folding lines through edge, mountain, and valley",
+      "disabledReason": "Ready"
+    },
+    "cp_action_lengthen_crease": {
+      "label": "Extend Line",
+      "tooltip": "Extend creases crossed by the guide line to the target crease",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Select line to extend",
+        "1": "Select target line"
+      }
+    },
+    "cp_action_square_bisector": {
+      "label": "Angle Bisector",
+      "tooltip": "Square bisector",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Select 2 segments or 3 points",
+        "1": "Select 3 points",
+        "2": "Select 3 points",
+        "3": "Select segment to end"
+      }
+    },
+    "cp_action_inward": {
+      "label": "Rabbit Ear",
+      "tooltip": "Inward fold line",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick first triangle point",
+        "1": "Pick second triangle point",
+        "2": "Pick third triangle point"
+      }
+    },
+    "cp_action_perpendicular_draw": {
+      "label": "Perpendicular Line",
+      "tooltip": "Perpendicular draw",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick target point",
+        "1": "Pick base crease"
+      }
+    },
+    "cp_action_symmetric_draw": {
+      "label": "Mirror Line",
+      "tooltip": "Symmetric draw",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick source crease",
+        "1": "Pick mirror crease"
+      }
+    },
+    "cp_action_draw_crease_restricted": {
+      "label": "Grid Restricted Line",
+      "tooltip": "Draw restricted crease",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Drag between existing points"
+      }
+    },
+    "cp_action_draw_crease_symmetric": {
+      "label": "Reflect selection over line",
+      "tooltip": "Reflect selected creases across a line drawn with two points",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Select 2 points or select a line",
+        "1": "Pick reflection line end"
+      }
+    },
+    "cp_action_draw_crease_angle_restricted": {
+      "label": "Converging Lines",
+      "tooltip": "Angle restricted crease",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick base crease or first point",
+        "1": "Pick base end point",
+        "2": "Pick convergence point"
+      }
+    },
+    "cp_action_draw_point": {
+      "label": "Draw point",
+      "tooltip": "Draw point",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick point"
+      }
+    },
+    "cp_action_delete_point": {
+      "label": "Delete Point",
+      "tooltip": "Merge same-color creases meeting at the picked vertex",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick vertex"
+      }
+    },
+    "cp_action_angle_system": {
+      "label": "Offset Restricted Line",
+      "tooltip": "Angle system",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick angle start point",
+        "1": "Pick angle end point",
+        "2": "Pick destination crease"
+      }
+    },
+    "cp_action_draw_crease_angle_restricted3": {
+      "label": "Angle restricted 3 crease",
+      "tooltip": "Angle restricted 3 crease",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick fan start point",
+        "1": "Pick fan end point",
+        "2": "Pick angle candidate"
+      }
+    },
+    "cp_action_crease_select": {
+      "label": "Box Select",
+      "tooltip": "Select creases inside a dragged box",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Drag selection box"
+      }
+    },
+    "cp_action_crease_unselect": {
+      "label": "Box Deselect",
+      "tooltip": "Unselect creases inside a dragged box",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Drag selection box"
+      }
+    },
+    "cp_action_crease_move": {
+      "label": "Move selected creases",
+      "tooltip": "Move selected creases",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick source point",
+        "1": "Pick destination point"
+      }
+    },
+    "cp_action_crease_copy": {
+      "label": "Copy selected creases",
+      "tooltip": "Copy selected creases",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick source point",
+        "1": "Pick destination point"
+      }
+    },
+    "cp_action_crease_make_mountain": {
+      "label": "Make mountain",
+      "tooltip": "Make selected lines mountain folds",
+      "disabledReason": "Ready"
+    },
+    "cp_action_crease_make_valley": {
+      "label": "Make valley",
+      "tooltip": "Make selected lines valley folds",
+      "disabledReason": "Ready"
+    },
+    "cp_action_crease_make_edge": {
+      "label": "Make edge",
+      "tooltip": "Make selected lines edge folds",
+      "disabledReason": "Ready"
+    },
+    "cp_action_crease_set_line_color": {
+      "label": "Set selected line color",
+      "tooltip": "Apply the active line color to selected lines",
+      "disabledReason": "Ready"
+    },
+    "cp_action_background_change_position": {
+      "label": "Move background",
+      "tooltip": "Background image manipulation is UI-only and not part of the CP kernel",
+      "disabledReason": "Handled by the viewport runtime instead of a CP command"
+    },
+    "cp_action_line_segment_division": {
+      "label": "Equally Divided Line",
+      "tooltip": "Divide line by count",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Drag to draw a line to divide"
+      }
+    },
+    "cp_action_line_segment_ratio_set": {
+      "label": "Divided Line (ratio)",
+      "tooltip": "Divide line by ratio",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Drag to draw a line to divide"
+      }
+    },
+    "cp_action_polygon_set_no_corners": {
+      "label": "Regular Polygon",
+      "tooltip": "Regular polygon",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick first corner",
+        "1": "Pick second corner"
+      }
+    },
+    "cp_action_crease_advance_type": {
+      "label": "Advance crease type",
+      "tooltip": "Advance selected folding lines through edge, mountain, and valley",
+      "disabledReason": "Ready"
+    },
+    "cp_action_crease_move4p": {
+      "label": "Move by four points",
+      "tooltip": "Move by four points",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick source first point",
+        "1": "Pick source second point",
+        "2": "Pick target first point",
+        "3": "Pick target second point"
+      }
+    },
+    "cp_action_crease_copy4p": {
+      "label": "Copy by four points",
+      "tooltip": "Copy by four points",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick source first point",
+        "1": "Pick source second point",
+        "2": "Pick target first point",
+        "3": "Pick target second point"
+      }
+    },
+    "cp_action_fish_bone_draw": {
+      "label": "Parallel Alternating Lines",
+      "tooltip": "Fishbone draw",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick spine start point",
+        "1": "Pick spine end point"
+      }
+    },
+    "cp_action_crease_make_mv": {
+      "label": "Make alternating M/V",
+      "tooltip": "Assign alternating mountain and valley folds along a guide line",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Drag a guide line along the creases"
+      }
+    },
+    "cp_action_double_symmetric_draw": {
+      "label": "Reflect Over Line",
+      "tooltip": "Double symmetric draw",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick symmetry axis start",
+        "1": "Pick symmetry axis end"
+      }
+    },
+    "cp_action_creases_alternate_mv": {
+      "label": "Alternate crossing M/V",
+      "tooltip": "Assign alternating mountain and valley folds to crossings along a guide line",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Drag a guide line across the crossings"
+      }
+    },
+    "cp_action_draw_crease_angle_restricted5": {
+      "label": "Angle Restricted Line",
+      "tooltip": "Angle restricted 5 crease",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick anchor point",
+        "1": "Pick snapped endpoint"
+      }
+    },
+    "cp_action_vertex_make_angularly_flat_foldable": {
+      "label": "Flat Foldable Line",
+      "tooltip": "Make vertex flat-foldable",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick odd vertex",
+        "1": "Pick candidate line",
+        "2": "Pick destination crease"
+      }
+    },
+    "cp_action_foldable_line_input": {
+      "label": "Flat Foldable Line (extend)",
+      "tooltip": "Foldable line input",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick start vertex",
+        "1": "Pick endpoint"
+      }
+    },
+    "cp_action_parallel_draw": {
+      "label": "Parallel Line",
+      "tooltip": "Parallel draw",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick target point",
+        "1": "Pick parallel source crease",
+        "2": "Pick destination crease"
+      }
+    },
+    "cp_action_vertex_delete_on_crease": {
+      "label": "Delete any Vertex",
+      "tooltip": "Merge adjacent creases at a vertex with Oriedita color-change rules",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick vertex"
+      }
+    },
+    "cp_action_circle_draw": {
+      "label": "Draw circle",
+      "tooltip": "Draw circle",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick center point",
+        "1": "Pick radius point"
+      }
+    },
+    "cp_action_circle_draw_three_point": {
+      "label": "Circle through three points",
+      "tooltip": "Circle through three points",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick first point",
+        "1": "Pick second point",
+        "2": "Pick third point"
+      }
+    },
+    "cp_action_circle_draw_separate": {
+      "label": "Separate circle",
+      "tooltip": "Separate circle",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick center point",
+        "1": "Pick radius start",
+        "2": "Pick radius end"
+      }
+    },
+    "cp_action_circle_draw_tangent_line": {
+      "label": "Circle tangent line",
+      "tooltip": "Create tangent lines from two selected circles, or from one selected circle plus a clicked point",
+      "disabledReason": "Ready"
+    },
+    "cp_action_circle_draw_inverted": {
+      "label": "Inverted circle",
+      "tooltip": "Invert a selected circle or crease through a selected circle",
+      "disabledReason": "Ready"
+    },
+    "cp_action_circle_draw_free": {
+      "label": "Free circle",
+      "tooltip": "Free circle",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick center point",
+        "1": "Pick radius point"
+      }
+    },
+    "cp_action_circle_draw_concentric": {
+      "label": "Concentric circle",
+      "tooltip": "Concentric circle",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick radius start",
+        "1": "Pick radius end"
+      }
+    },
+    "cp_action_circle_draw_concentric_select": {
+      "label": "Concentric from selection",
+      "tooltip": "Create a concentric circle from a target circle and two reference circle radii",
+      "disabledReason": "Ready"
+    },
+    "cp_action_circle_draw_concentric_two_circle_select": {
+      "label": "Concentric from two circles",
+      "tooltip": "Create the two Oriedita concentric offset circles from selected circles",
+      "disabledReason": "Ready"
+    },
+    "cp_action_parallel_draw_width": {
+      "label": "Parallel draw by width",
+      "tooltip": "Parallel draw by width",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick source crease",
+        "1": "Pick width point"
+      }
+    },
+    "cp_action_continuous_symmetric_draw": {
+      "label": "Reflect Through Lines",
+      "tooltip": "Continuous symmetric draw",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick start point",
+        "1": "Pick through point"
+      }
+    },
+    "cp_action_display_length_between_points1": {
+      "label": "Measure length 1",
+      "tooltip": "Measure length 1",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick first point",
+        "1": "Pick second point"
+      }
+    },
+    "cp_action_display_length_between_points2": {
+      "label": "Measure length 2",
+      "tooltip": "Measure length 2",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick first point",
+        "1": "Pick second point"
+      }
+    },
+    "cp_action_display_angle_between_three_points1": {
+      "label": "Measure angle 1",
+      "tooltip": "Measure angle 1",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick first point",
+        "1": "Pick vertex point",
+        "2": "Pick second point"
+      }
+    },
+    "cp_action_display_angle_between_three_points2": {
+      "label": "Measure angle 2",
+      "tooltip": "Measure angle 2",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick first point",
+        "1": "Pick vertex point",
+        "2": "Pick second point"
+      }
+    },
+    "cp_action_display_angle_between_three_points3": {
+      "label": "Measure angle 3",
+      "tooltip": "Measure angle 3",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick first point",
+        "1": "Pick vertex point",
+        "2": "Pick second point"
+      }
+    },
+    "cp_action_crease_toggle_mv": {
+      "label": "Flip Mountain/Valley",
+      "tooltip": "Click a crease or drag a box to flip mountain/valley assignments",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Click a crease or drag a box to flip"
+      }
+    },
+    "cp_action_circle_change_color": {
+      "label": "Change circle color",
+      "tooltip": "Apply the contextual custom color to selected circles and auxiliary lines",
+      "disabledReason": "Ready"
+    },
+    "cp_action_crease_make_aux": {
+      "label": "Make auxiliary",
+      "tooltip": "Convert selected folding lines to auxiliary lines",
+      "disabledReason": "Ready"
+    },
+    "cp_action_operation_frame_create": {
+      "label": "Operation frame",
+      "tooltip": "Create an Oriedita operation frame by dragging a rectangle on the CP",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Drag operation frame"
+      }
+    },
+    "cp_action_voronoi_create": {
+      "label": "Voronoi",
+      "tooltip": "Click seed points to preview a Voronoi diagram, then apply from the contextual panel",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Click seed point"
+      }
+    },
+    "cp_action_flat_foldable_check": {
+      "label": "Flat-foldable boundary check",
+      "tooltip": "Draw a closed Oriedita boundary loop and color the check result",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Draw a closed boundary loop"
+      }
+    },
+    "cp_action_crease_delete_overlapping": {
+      "label": "Delete Coincident Lines",
+      "tooltip": "Delete crease segments overlapping a dragged line",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick drag start point",
+        "1": "Pick drag end point"
+      }
+    },
+    "cp_action_crease_delete_intersecting": {
+      "label": "Delete Overlapping Lines",
+      "tooltip": "Delete crease segments intersecting or overlapping a dragged line",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick drag start point",
+        "1": "Pick drag end point"
+      }
+    },
+    "cp_action_select_polygon": {
+      "label": "Polygon Select",
+      "tooltip": "Select creases contained by a freehand polygon",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Drag polygon path"
+      }
+    },
+    "cp_action_unselect_polygon": {
+      "label": "Polygon Deselect",
+      "tooltip": "Unselect creases contained by a freehand polygon",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Drag polygon path"
+      }
+    },
+    "cp_action_select_line_intersecting": {
+      "label": "Select Overlapping Lines",
+      "tooltip": "Select crease segments intersecting or overlapping a dragged line",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick drag start point",
+        "1": "Pick drag end point"
+      }
+    },
+    "cp_action_unselect_line_intersecting": {
+      "label": "Deselect Overlapping Lines",
+      "tooltip": "Unselect crease segments intersecting or overlapping a dragged line",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick drag start point",
+        "1": "Pick drag end point"
+      }
+    },
+    "cp_action_lengthen_crease_same_color": {
+      "label": "Lengthen by Same Color",
+      "tooltip": "Extend creases crossed by the guide line while preserving original colors",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Select line to extend",
+        "1": "Select target line"
+      }
+    },
+    "cp_action_foldable_line_draw": {
+      "label": "Flat Foldable Line (free)",
+      "tooltip": "Foldable line draw",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick start vertex",
+        "1": "Pick destination"
+      }
+    },
+    "cp_action_replace_line_type_select": {
+      "label": "Replace selected line type",
+      "tooltip": "Replace selected lines matching the active source line type",
+      "disabledReason": "Ready"
+    },
+    "cp_action_delete_line_type_select": {
+      "label": "Delete selected line type",
+      "tooltip": "Delete selected lines matching the active line type filter",
+      "disabledReason": "Ready"
+    },
+    "cp_action_select_lasso": {
+      "label": "Lasso Select",
+      "tooltip": "Select creases touched by a freehand lasso path",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Drag lasso path"
+      }
+    },
+    "cp_action_unselect_lasso": {
+      "label": "Lasso Deselect",
+      "tooltip": "Unselect creases touched by a freehand lasso path",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Drag lasso path"
+      }
+    },
+    "cp_action_text": {
+      "label": "Text annotation",
+      "tooltip": "Create, select, drag, and edit text annotations",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Click text position"
+      }
+    },
+    "cp_action_draw_blintz": {
+      "label": "Blintz base",
+      "tooltip": "Blintz base",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick first anchor point",
+        "1": "Pick second anchor point"
+      }
+    },
+    "cp_action_draw_fish_base": {
+      "label": "Fish base",
+      "tooltip": "Fish base",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick first anchor point",
+        "1": "Pick second anchor point"
+      }
+    },
+    "cp_action_draw_dove_base": {
+      "label": "Dove base",
+      "tooltip": "Dove base",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick first anchor point",
+        "1": "Pick second anchor point"
+      }
+    },
+    "cp_action_draw_bird_base": {
+      "label": "Bird base",
+      "tooltip": "Bird base",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick first anchor point",
+        "1": "Pick second anchor point"
+      }
+    },
+    "cp_action_draw_frog_base": {
+      "label": "Frog base",
+      "tooltip": "Frog base",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick first anchor point",
+        "1": "Pick second anchor point"
+      }
+    },
+    "cp_action_modify_calculated_shape": {
+      "label": "Modify calculated shape",
+      "tooltip": "Modify calculated shape",
+      "disabledReason": "Not implemented in the CP editor yet"
+    },
+    "cp_action_move_calculated_shape": {
+      "label": "Move calculated shape",
+      "tooltip": "Move calculated shape",
+      "disabledReason": "Not implemented in the CP editor yet"
+    },
+    "cp_action_change_standard_face": {
+      "label": "Change standard face",
+      "tooltip": "Change standard face",
+      "disabledReason": "Not implemented in the CP editor yet"
+    },
+    "cp_action_add_folding_constraint": {
+      "label": "Add folding constraint",
+      "tooltip": "Add folding constraint",
+      "disabledReason": "Not implemented in the CP editor yet"
+    },
+    "cp_action_axiom5": {
+      "label": "Axiom 5",
+      "tooltip": "Axiom 5",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick target point",
+        "1": "Pick target crease",
+        "2": "Pick pivot point",
+        "3": "Pick destination crease"
+      }
+    },
+    "cp_action_axiom7": {
+      "label": "Axiom 7",
+      "tooltip": "Axiom 7",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick target point",
+        "1": "Pick target crease",
+        "2": "Pick perpendicular crease",
+        "3": "Pick destination crease"
+      }
+    },
+    "cp_action_fix_inaccurate": {
+      "label": "Fix inaccurate creases",
+      "tooltip": "Snap inaccurate selected folding lines to Oriedita fix targets",
+      "disabledReason": "Ready"
+    },
+    "cp_action_import_cp": {
+      "label": "Import CP",
+      "tooltip": "Import CP",
+      "disabledReason": "Not implemented in the CP editor yet"
+    },
+    "cp_action_export_cp": {
+      "label": "Export CP",
+      "tooltip": "Export CP",
+      "disabledReason": "Not implemented in the CP editor yet"
+    },
+    "cp_action_import_fold": {
+      "label": "Import FOLD",
+      "tooltip": "Import FOLD",
+      "disabledReason": "Not implemented in the CP editor yet"
+    },
+    "cp_action_export_fold": {
+      "label": "Export FOLD",
+      "tooltip": "Export FOLD",
+      "disabledReason": "Not implemented in the CP editor yet"
+    },
+    "cp_action_import_ori": {
+      "label": "Import ORI",
+      "tooltip": "Import ORI",
+      "disabledReason": "Not implemented in the CP editor yet"
+    },
+    "cp_action_export_ori": {
+      "label": "Export ORI",
+      "tooltip": "Export ORI",
+      "disabledReason": "Not implemented in the CP editor yet"
+    },
+    "cp_action_import_orh": {
+      "label": "Import ORH",
+      "tooltip": "Import ORH",
+      "disabledReason": "Not implemented in the CP editor yet"
+    },
+    "cp_action_export_orh": {
+      "label": "Export ORH",
+      "tooltip": "Export ORH",
+      "disabledReason": "Not implemented in the CP editor yet"
+    },
+    "cp_action_import_obj": {
+      "label": "Import OBJ",
+      "tooltip": "Import OBJ",
+      "disabledReason": "Not implemented in the CP editor yet"
+    },
+    "cp_action_export_dxf": {
+      "label": "Export DXF",
+      "tooltip": "Export DXF",
+      "disabledReason": "Not implemented in the CP editor yet"
+    },
+    "cp_action_save_convert": {
+      "label": "Convert save",
+      "tooltip": "Convert save",
+      "disabledReason": "Not implemented in the CP editor yet"
+    },
+    "cp_action_save_version_detect": {
+      "label": "Detect save version",
+      "tooltip": "Detect save version",
+      "disabledReason": "Not implemented in the CP editor yet"
+    },
+    "cp_action_check_camv": {
+      "label": "Check CAMV",
+      "tooltip": "Run Oriedita CAMV flat-foldability diagnostics without changing the CP",
+      "disabledReason": "Ready"
+    },
+    "cp_action_folding_estimate": {
+      "label": "Fold estimate",
+      "tooltip": "Fold estimate",
+      "disabledReason": "Kernel port is in progress; UI wiring is not implemented yet"
+    },
+    "cp_action_folding_estimate_specific": {
+      "label": "Fold to case",
+      "tooltip": "Fold to case",
+      "disabledReason": "Kernel port is in progress; UI wiring is not implemented yet"
+    },
+    "cp_action_folding_estimate_save100": {
+      "label": "Save 100 simulations",
+      "tooltip": "Save 100 simulations",
+      "disabledReason": "Kernel port is in progress; UI wiring is not implemented yet"
+    },
+    "cp_action_two_colored_cp": {
+      "label": "Two-color CP",
+      "tooltip": "Two-color CP",
+      "disabledReason": "Kernel port is in progress; UI wiring is not implemented yet"
+    },
+    "cp_action_fold": {
+      "label": "Fold",
+      "tooltip": "Fold",
+      "disabledReason": "Not implemented in the CP editor yet"
+    },
+    "cp_action_fold_another": {
+      "label": "Another solution",
+      "tooltip": "Another solution",
+      "disabledReason": "Kernel port is in progress; UI wiring is not implemented yet"
+    },
+    "cp_action_duplicate_folded_model": {
+      "label": "Duplicate folded model",
+      "tooltip": "Duplicate folded model",
+      "disabledReason": "Kernel port is in progress; UI wiring is not implemented yet"
+    },
+    "cp_action_folded_figure_set_model": {
+      "label": "Folded figure model",
+      "tooltip": "Folded figure model",
+      "disabledReason": "Not implemented in the CP editor yet"
+    },
+    "cp_action_folded_figure_set_display_style": {
+      "label": "Folded display style",
+      "tooltip": "Folded display style",
+      "disabledReason": "Not implemented in the CP editor yet"
+    },
+    "cp_action_folded_figure_set_state": {
+      "label": "Folded front/back state",
+      "tooltip": "Folded front/back state",
+      "disabledReason": "Not implemented in the CP editor yet"
+    },
+    "cp_action_folded_figure_set_starting_face": {
+      "label": "Folded starting face",
+      "tooltip": "Folded starting face",
+      "disabledReason": "Not implemented in the CP editor yet"
+    },
+    "cp_action_folded_figure_move_camera": {
+      "label": "Move folded figure camera",
+      "tooltip": "Handled by the grid viewport camera layer",
+      "disabledReason": "Handled by the viewport runtime instead of a CP command"
+    },
+    "cp_action_folded_figure_select_canvas_point": {
+      "label": "Folded point selection",
+      "tooltip": "Folded point selection",
+      "disabledReason": "Not implemented in the CP editor yet"
+    },
+    "cp_action_folded_figure_render_snapshot": {
+      "label": "Folded render snapshot",
+      "tooltip": "Folded render snapshot",
+      "disabledReason": "Not implemented in the CP editor yet"
+    },
+    "cp_action_folded_figure_import_fold_frame": {
+      "label": "Import folded FOLD frame",
+      "tooltip": "Import folded FOLD frame",
+      "disabledReason": "Not implemented in the CP editor yet"
+    },
+    "cp_action_folded_figure_export_fold_frames": {
+      "label": "Export folded FOLD frames",
+      "tooltip": "Export folded FOLD frames",
+      "disabledReason": "Not implemented in the CP editor yet"
+    },
+    "cp_action_check1": {
+      "label": "Check overlaps",
+      "tooltip": "Find overlapping or contained non-auxiliary crease pairs",
+      "disabledReason": "Ready"
+    },
+    "cp_action_check2": {
+      "label": "Check T-junctions",
+      "tooltip": "Find near T-intersections between non-auxiliary crease pairs",
+      "disabledReason": "Ready"
+    },
+    "cp_action_check3": {
+      "label": "Check vertex foldability",
+      "tooltip": "Find Oriedita vertex flat-foldability markers",
+      "disabledReason": "Ready"
+    },
+    "cp_action_check4": {
+      "label": "Check Maekawa/LBL",
+      "tooltip": "Find Maekawa, angle, and little-big-little violations",
+      "disabledReason": "Ready"
+    },
+    "cp_action_fix1": {
+      "label": "Repair overlaps",
+      "tooltip": "Merge exact duplicates and select remaining overlapping creases",
+      "disabledReason": "Ready"
+    },
+    "cp_action_fix2": {
+      "label": "Split T-junctions",
+      "tooltip": "Split near T-intersections using Oriedita tolerances",
+      "disabledReason": "Ready"
+    },
+    "cp_action_organize_circles": {
+      "label": "Organize circles",
+      "tooltip": "Prune invalid zero-radius circles using Oriedita cleanup rules",
+      "disabledReason": "Ready"
+    },
+    "cp_action_draw_auxiliary_line": {
+      "label": "Draw auxiliary line",
+      "tooltip": "Draw an Oriedita auxiliary line",
+      "disabledReason": "Auxiliary-line insertion mode is not implemented in the CP kernel yet",
+      "steps": {
+        "0": "Drag crease endpoint"
+      }
+    }
+  }
+}

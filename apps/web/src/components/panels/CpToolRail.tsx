@@ -87,6 +87,14 @@ import type { OristudioCpLineColor } from '../../engine/oristudioCpTypes';
 import { shortcutLabelForAction } from '../../keyboard/shortcuts';
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
 import { useShortcutStore } from '../../store/shortcutStore';
+import {
+  cpActionLabel,
+  cpActionRailLabel,
+  cpActionTooltip,
+  cpActionDisabledReason,
+  cpGroupLabel,
+  cpGroupRailLabel,
+} from '../../i18n/cpVocab';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/Tooltip';
 
 interface CpToolRailProps {
@@ -319,8 +327,8 @@ export const CpToolRail = memo(function CpToolRail({
           if (actions.length === 0) return null;
 
           return (
-            <section key={group.id} className="cp-tool-rail__group" aria-label={group.label}>
-              <div className="cp-tool-rail__group-label">{group.railLabel}</div>
+            <section key={group.id} className="cp-tool-rail__group" aria-label={cpGroupLabel(t, group)}>
+              <div className="cp-tool-rail__group-label">{cpGroupRailLabel(t, group)}</div>
               <div className="cp-tool-rail__buttons">
                 {actions.map((action) => (
                   <CpToolButton
@@ -367,16 +375,18 @@ const CpToolButton = memo(function CpToolButton({
     ORIEDITA_ICON_GLYPHS[action.upstreamAction] ??
     (action.kind === 'command' ? ORIEDITA_OPERATION_GLYPHS[action.operationId] : undefined);
   const available = editable && action.uiStatus === 'ready';
+  const label = cpActionLabel(t, action);
+  const railLabel = cpActionRailLabel(t, action);
   const statusLabel = commandStatusLabel(action, editable, t);
   const title = shortcutLabel
-    ? `${action.label} (${shortcutLabel}) - ${statusLabel}`
-    : `${action.label} - ${statusLabel}`;
+    ? `${label} (${shortcutLabel}) - ${statusLabel}`
+    : `${label} - ${statusLabel}`;
 
   const button = (
     <button
       type="button"
       className="cp-tool-rail__button"
-      aria-label={action.label}
+      aria-label={label}
       aria-disabled={!available}
       data-active={isActive || undefined}
       data-action-kind={action.kind}
@@ -387,9 +397,9 @@ const CpToolButton = memo(function CpToolButton({
         onSelectAction(action);
       }}
     >
-      {action.railLabel ? (
+      {railLabel ? (
         <span className="cp-tool-rail__button-label" aria-hidden="true">
-          {action.railLabel}
+          {railLabel}
         </span>
       ) : orieditaGlyph ? (
         <span className="cp-tool-rail__oriedita-icon" aria-hidden="true">
@@ -425,6 +435,6 @@ function commandStatusLabel(
   t: TFunction
 ): string {
   if (!editable) return t('tools:cpRail.openEditableFirst', 'Open an editable crease pattern first');
-  if (action.uiStatus === 'ready') return action.tooltip;
-  return action.disabledReason;
+  if (action.uiStatus === 'ready') return cpActionTooltip(t, action);
+  return cpActionDisabledReason(t, action);
 }

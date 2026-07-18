@@ -19,6 +19,7 @@ import {
   SOURCE_LOCALE,
   TARGET_LOCALES,
   NAMESPACES,
+  PARSER_NAMESPACES,
   readEnglishKeys,
   readCatalog,
   flatten,
@@ -43,7 +44,7 @@ try {
     console.error('i18next-parser failed to run.');
     process.exit(res.status ?? 1);
   }
-  for (const ns of NAMESPACES) {
+  for (const ns of PARSER_NAMESPACES) {
     const freshFile = join(tmp, SOURCE_LOCALE, `${ns}.json`);
     const fresh = existsSync(freshFile) ? JSON.parse(readFileSync(freshFile, 'utf8')) : {};
     const committed = readCatalog(SOURCE_LOCALE, ns);
@@ -51,6 +52,7 @@ try {
       problems.push(`[en:${ns}] out of date with source — run \`npm run i18n:extract\``);
     }
   }
+  // The generated cpVocab English catalog is verified separately by cpVocab.gen.test.ts.
 } finally {
   rmSync(tmp, { recursive: true, force: true });
 }

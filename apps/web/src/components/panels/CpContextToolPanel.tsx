@@ -7,6 +7,7 @@ import {
   type SetStateAction,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import { cpActionLabel } from '../../i18n/cpVocab';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import type {
   OristudioCpCustomLineType,
@@ -110,7 +111,7 @@ export function CpContextToolPanel({
   const groups = cpToolSettingGroupsForCommand(command);
   const instructions = instructionsForCpTool(action, command);
   const applyDisabled = contextApplyDisabledForCommand(command, selection, pendingPointCount);
-  const title = action?.kind === 'command' ? action.label : command.label;
+  const title = action?.kind === 'command' ? cpActionLabel(t, action) : command.label;
   const meta =
     groups.length > 0
       ? groups.length === 1

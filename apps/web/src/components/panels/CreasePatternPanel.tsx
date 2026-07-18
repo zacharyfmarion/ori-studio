@@ -7,6 +7,7 @@ import {
   type DragEvent as ReactDragEvent,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import { cpActionLabel } from '../../i18n/cpVocab';
 import { createPortal } from 'react-dom';
 import {
   Box,
@@ -528,8 +529,8 @@ function CpLineTypeToolbar({
             key={action.id}
             size="sm"
             variant="toolbar"
-            title={shortcut ? `${action.label} (${shortcut})` : action.label}
-            aria-label={action.label}
+            title={shortcut ? `${cpActionLabel(t, action)} (${shortcut})` : cpActionLabel(t, action)}
+            aria-label={cpActionLabel(t, action)}
             className="cp-line-type-toolbar__button"
             data-line-color={action.lineColor}
             isActive={activeLineColor === action.lineColor}

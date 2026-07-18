@@ -17,13 +17,27 @@ export const ERROR_CODES_FILE = join(WEB_ROOT, 'src', 'generated', 'error-codes.
 export const SOURCE_LOCALE = 'en';
 export const LOCALES = ['en', 'ja', 'zh-CN', 'es', 'fr', 'de', 'pt-BR', 'ru', 'ko'];
 export const TARGET_LOCALES = LOCALES.filter((l) => l !== SOURCE_LOCALE);
-export const NAMESPACES = ['common', 'menu', 'panels', 'dialogs', 'tools', 'toasts', 'errors'];
+
+// Namespaces extracted from inline t() defaults by i18next-parser.
+export const PARSER_NAMESPACES = [
+  'common',
+  'menu',
+  'panels',
+  'dialogs',
+  'tools',
+  'toasts',
+  'errors',
+];
+// `cpVocab` is generated from the CP tool data module (not parser-managed) but is still a
+// first-class namespace for translation parity.
+export const GENERATED_NAMESPACES = ['cpVocab'];
+export const NAMESPACES = [...PARSER_NAMESPACES, ...GENERATED_NAMESPACES];
 
 /** Fail if the hardcoded lists here drift from src/i18n/locales.ts. */
 export function assertInSync() {
   const src = readFileSync(join(WEB_ROOT, 'src', 'i18n', 'locales.ts'), 'utf8');
   const codes = [...src.matchAll(/code:\s*'([^']+)'/g)].map((m) => m[1]);
-  const ns = [...src.matchAll(/^\s*'([a-z]+)',?\s*$/gm)]
+  const ns = [...src.matchAll(/^\s*'([a-zA-Z]+)',?\s*$/gm)]
     .map((m) => m[1])
     .filter((n) => NAMESPACES.includes(n));
   const mismatch = [];

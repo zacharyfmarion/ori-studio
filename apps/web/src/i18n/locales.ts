@@ -32,7 +32,11 @@ export const SUPPORTED_LOCALES: LocaleDescriptor[] = [
 /** Locale codes only, in display order. */
 export const SUPPORTED_LOCALE_CODES: string[] = SUPPORTED_LOCALES.map((l) => l.code);
 
-/** i18next namespaces, one JSON file per surface area. */
+/**
+ * i18next namespaces, one JSON file per surface area. `cpVocab` is generated from the
+ * crease-pattern tool data module (see src/i18n/cpVocab.ts) rather than extracted from
+ * inline `t()` calls.
+ */
 export const I18N_NAMESPACES = [
   'common',
   'menu',
@@ -41,6 +45,7 @@ export const I18N_NAMESPACES = [
   'tools',
   'toasts',
   'errors',
+  'cpVocab',
 ] as const;
 
 export type I18nNamespace = (typeof I18N_NAMESPACES)[number];
