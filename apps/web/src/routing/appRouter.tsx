@@ -11,15 +11,16 @@ import { WorkspaceRoute } from './WorkspaceRoute';
 /**
  * Guard the workspace routes: with no project established this session (a cold
  * reload / deep link), redirect to `/welcome` before anything renders — no empty
- * editor flashes. The Design method chooser (`/design`, variant `nux`) is exempt;
- * it is the pre-project entry point.
+ * editor flashes. The Design method chooser (`/design`) is allowed without a
+ * project only when it was entered intentionally (`pendingDesignChoice`, set by
+ * "Create a design"); a cold deep link to it redirects like any other route.
  */
 function workspaceGuard({ request }: LoaderFunctionArgs) {
   const parsed = parseWorkspacePath(new URL(request.url).pathname);
   const isChooser = parsed?.workspace === 'design' && parsed.variant === 'nux';
-  if (!isChooser && !useWorkspaceStore.getState().projectEstablished) {
-    return redirect(WELCOME_PATH);
-  }
+  const state = useWorkspaceStore.getState();
+  const allowed = state.projectEstablished || (isChooser && state.pendingDesignChoice);
+  if (!allowed) return redirect(WELCOME_PATH);
   return null;
 }
 
