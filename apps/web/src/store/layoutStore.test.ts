@@ -1,6 +1,7 @@
 import type { DockviewApi, SerializedDockview } from 'dockview';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  LAYOUT_VERSION,
   applyDefaultLayout,
   registerDesignVariantSource,
   useLayoutStore,
@@ -186,7 +187,7 @@ describe('layout store', () => {
     expect(useLayoutStore.getState().loadLayout()).toBeNull();
     expect(localStorage.getItem('treemaker-web-layout:design')).toBeNull();
 
-    localStorage.setItem('treemaker-web-layout-version:design', '14');
+    localStorage.setItem('treemaker-web-layout-version:design', String(LAYOUT_VERSION));
     localStorage.setItem('treemaker-web-layout:design', '{broken');
 
     expect(useLayoutStore.getState().loadLayout()).toBeNull();
