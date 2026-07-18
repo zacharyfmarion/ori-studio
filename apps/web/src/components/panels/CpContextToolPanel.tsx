@@ -7,7 +7,9 @@ import {
   type SetStateAction,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { cpActionLabel, cpToolInstructions } from '../../i18n/cpVocab';
+import { cpPaletteStatusLabel } from '../../i18n/paletteLabels';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import type {
   OristudioCpCustomLineType,
@@ -44,8 +46,15 @@ import {
   type CpMeasurementSlots,
 } from '../../cp-workspace/measure';
 
-export function cpLineTypeStatusLabel(lineColor: OristudioCpLineColor): string {
-  return cpPaletteEntryForColor(lineColor)?.statusLabel ?? `Line ${cpLineAssignmentLabel(lineColor)}`;
+const identityTranslate = ((_key: string, defaultValue?: string) =>
+  defaultValue ?? _key) as unknown as TFunction;
+
+export function cpLineTypeStatusLabel(
+  lineColor: OristudioCpLineColor,
+  t: TFunction = identityTranslate
+): string {
+  const entry = cpPaletteEntryForColor(lineColor);
+  return entry ? cpPaletteStatusLabel(t, entry) : `Line ${cpLineAssignmentLabel(lineColor)}`;
 }
 
 export function cpCommandRequiresContextApply(command: OristudioCpCommandDefinition): boolean {
@@ -237,7 +246,7 @@ function CpContextToolGroup({
     return (
       <div className="cp-context-panel__group">
         <div className="cp-context-panel__group-title">{t('tools:cpContext.lineType', 'Line type')}</div>
-        <div className="cp-context-panel__readout">{cpLineTypeStatusLabel(activeLineColor)}</div>
+        <div className="cp-context-panel__readout">{cpLineTypeStatusLabel(activeLineColor, t)}</div>
       </div>
     );
   }
@@ -285,7 +294,7 @@ function CpContextToolGroup({
             <NumericToolOption
               key={field}
               label={field}
-              ariaLabel={`Angle ${field}`}
+              ariaLabel={t('tools:cpContext.angleFieldAria', 'Angle {{letter}}', { letter: field })}
               min={0}
               max={360}
               step={0.1}
@@ -560,7 +569,7 @@ function CpContextToolGroup({
             <NumericToolOption
               key={field.key}
               label={field.label}
-              ariaLabel={field.ariaLabel}
+              ariaLabel={circleColorAria(t, field.key)}
               min={0}
               max={255}
               step={1}
@@ -705,7 +714,7 @@ function DivisionRatioOptions({
             <NumericToolOption
               key={field.key}
               label={field.label}
-              ariaLabel={field.ariaLabel}
+              ariaLabel={t('tools:cpContext.ratioFieldAria', 'Ratio {{letter}}', { letter: field.label })}
               min={field.min}
               max={999}
               step={field.step}
@@ -731,12 +740,24 @@ const ANGLE_FIELDS = ['A', 'B', 'C', 'D', 'E', 'F'] as const;
 const RGB_FIELDS: readonly {
   key: keyof OristudioCpRgbColor;
   label: string;
-  ariaLabel: string;
 }[] = [
-  { key: 'red', label: 'R', ariaLabel: 'Circle color red' },
-  { key: 'green', label: 'G', ariaLabel: 'Circle color green' },
-  { key: 'blue', label: 'B', ariaLabel: 'Circle color blue' },
+  { key: 'red', label: 'R' },
+  { key: 'green', label: 'G' },
+  { key: 'blue', label: 'B' },
 ];
+
+function circleColorAria(t: TFunction, key: keyof OristudioCpRgbColor): string {
+  switch (key) {
+    case 'red':
+      return t('tools:cpContext.circleColorRed', 'Circle color red');
+    case 'green':
+      return t('tools:cpContext.circleColorGreen', 'Circle color green');
+    case 'blue':
+      return t('tools:cpContext.circleColorBlue', 'Circle color blue');
+    default:
+      return key;
+  }
+}
 
 function updateAngleField(
   setOptions: Dispatch<SetStateAction<OristudioCpToolOptions>>,

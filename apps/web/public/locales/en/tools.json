@@ -1,5 +1,6 @@
 {
   "cpContext": {
+    "angleFieldAria": "Angle {{letter}}",
     "angleSystem": "Angle system",
     "angleSystemDivider": "Angle system divider",
     "applyCircle": "Apply circle",
@@ -13,6 +14,9 @@
     "candidate": "Candidate",
     "candidateIndex": "Candidate index",
     "circleColor": "Circle color",
+    "circleColorBlue": "Circle color blue",
+    "circleColorGreen": "Circle color green",
+    "circleColorRed": "Circle color red",
     "circleSelection": "Circle selection",
     "circlesSelectedOne_one": "{{count}} circle selected",
     "circlesSelectedOne_other": "{{count}} circle selected",
@@ -52,6 +56,7 @@
     "parallelWidthAria": "Parallel width",
     "polygonCorners": "Polygon corners",
     "precision": "Precision",
+    "ratioFieldAria": "Ratio {{letter}}",
     "ratioPresets": "Ratio presets",
     "regularPolygon": "Regular polygon",
     "replaceFromLineType": "Replace from line type",
@@ -85,6 +90,32 @@
     "blackWhite": "Black & white",
     "color": "Color",
     "colorAndShape": "Color + shape"
+  },
+  "paletteColor": {
+    "auxiliary": "Auxiliary",
+    "edge": "Edge",
+    "green": "Green",
+    "magenta": "Magenta",
+    "mountain": "Mountain",
+    "orange": "Orange",
+    "other": "Other",
+    "purple": "Purple",
+    "unassigned": "Unassigned",
+    "valley": "Valley",
+    "yellow": "Yellow"
+  },
+  "paletteStatus": {
+    "auxiliary": "Line A",
+    "edge": "Line E",
+    "green": "Line green",
+    "magenta": "Line magenta",
+    "mountain": "Line M",
+    "orange": "Line orange",
+    "other": "Line other",
+    "purple": "Line purple",
+    "unassigned": "Line U",
+    "valley": "Line V",
+    "yellow": "Line yellow"
   },
   "viewport": {
     "fit": "Fit",

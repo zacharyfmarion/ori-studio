@@ -9,6 +9,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { cpActionLabel } from '../../i18n/cpVocab';
+import { cpPaletteLabel } from '../../i18n/paletteLabels';
 import { createPortal } from 'react-dom';
 import {
   Box,
@@ -677,7 +678,7 @@ function CpLineColorMenuButton({
               data-line-color={entry.lineColor}
               role="menuitemradio"
               aria-checked={activeLineColor === entry.lineColor}
-              aria-label={entry.label}
+              aria-label={cpPaletteLabel(t, entry)}
               onClick={() => chooseColor(entry.lineColor)}
             >
               <span className="cp-line-color-menu__swatch" aria-hidden="true" />
@@ -3313,7 +3314,7 @@ export function CreasePatternPanel() {
               <div className="viewport-status-readout">
                 <span>{formatZoom(zoomPercent / 100)}</span>
                 {editableCp && <span>{activeCpToolPrompt}</span>}
-                {editableCp && <span>{cpLineTypeStatusLabel(activeCpLineColor)}</span>}
+                {editableCp && <span>{cpLineTypeStatusLabel(activeCpLineColor, t)}</span>}
                 {editableCp && editableCpSummary && (
                   <span>{t('panels:creasePattern.linesCount', '{{count}} lines', { count: editableCpSummary.line_segments })}</span>
                 )}

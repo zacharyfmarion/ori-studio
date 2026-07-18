@@ -1,5 +1,6 @@
 {
   "cpContext": {
+    "angleFieldAria": "",
     "angleSystem": "",
     "angleSystemDivider": "",
     "applyCircle": "",
@@ -13,6 +14,9 @@
     "candidate": "",
     "candidateIndex": "",
     "circleColor": "",
+    "circleColorBlue": "",
+    "circleColorGreen": "",
+    "circleColorRed": "",
     "circleSelection": "",
     "circlesSelectedOne_one": "",
     "circlesSelectedOne_other": "",
@@ -52,6 +56,7 @@
     "parallelWidthAria": "",
     "polygonCorners": "",
     "precision": "",
+    "ratioFieldAria": "",
     "ratioPresets": "",
     "regularPolygon": "",
     "replaceFromLineType": "",
@@ -85,6 +90,32 @@
     "blackWhite": "",
     "color": "",
     "colorAndShape": ""
+  },
+  "paletteColor": {
+    "auxiliary": "",
+    "edge": "",
+    "green": "",
+    "magenta": "",
+    "mountain": "",
+    "orange": "",
+    "other": "",
+    "purple": "",
+    "unassigned": "",
+    "valley": "",
+    "yellow": ""
+  },
+  "paletteStatus": {
+    "auxiliary": "",
+    "edge": "",
+    "green": "",
+    "magenta": "",
+    "mountain": "",
+    "orange": "",
+    "other": "",
+    "purple": "",
+    "unassigned": "",
+    "valley": "",
+    "yellow": ""
   },
   "viewport": {
     "fit": "",

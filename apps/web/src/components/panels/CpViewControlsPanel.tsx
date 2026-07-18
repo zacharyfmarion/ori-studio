@@ -325,12 +325,13 @@ function GridScaleRow({
   c: number;
   onChange: (a: number, b: number, c: number) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="grid-scale-row">
       <span className="grid-scale-row__label">{label}</span>
       <div className="grid-scale-row__formula">
         <CommittedNumberInput
-          ariaLabel={`${label} constant term`}
+          ariaLabel={t('panels:cpViewControls.gridConstantTerm', '{{label}} constant term', { label })}
           className="grid-scale-row__input"
           value={a}
           step={0.1}
@@ -340,7 +341,7 @@ function GridScaleRow({
           +
         </span>
         <CommittedNumberInput
-          ariaLabel={`${label} root coefficient`}
+          ariaLabel={t('panels:cpViewControls.gridRootCoefficient', '{{label}} root coefficient', { label })}
           className="grid-scale-row__input"
           value={b}
           step={0.1}
@@ -350,7 +351,7 @@ function GridScaleRow({
           √
         </span>
         <CommittedNumberInput
-          ariaLabel={`${label} radicand`}
+          ariaLabel={t('panels:cpViewControls.gridRadicand', '{{label}} radicand', { label })}
           className="grid-scale-row__input"
           value={c}
           min={0}
