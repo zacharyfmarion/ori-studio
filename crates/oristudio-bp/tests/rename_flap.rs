@@ -46,7 +46,9 @@ fn rename_flap_allows_empty_and_duplicate_names() {
     assert_eq!(vertex_name(&session, 2), "", "empty name accepted");
 
     // Duplicate of vertex 1's name ("a") — no uniqueness constraint.
-    session.rename_vertex(2, "a".to_string()).expect("duplicate name");
+    session
+        .rename_vertex(2, "a".to_string())
+        .expect("duplicate name");
     assert_eq!(vertex_name(&session, 1), "a", "vertex 1 unchanged");
     assert_eq!(vertex_name(&session, 2), "a", "duplicate name accepted");
 }
