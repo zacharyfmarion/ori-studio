@@ -9,6 +9,7 @@ import type {
   WasmErrorEnvelope,
 } from '../../engine/types';
 import type { Point } from '../../lib/geometry';
+import type { DesignLayoutVariant } from '../layoutStore';
 import type { EditingContext } from '../../workspaces/editingContext';
 import type { ImportedCreasePatternFormat } from '../../lib/creasePatternImport';
 import type { SnapshotEntry } from './snapshotHistory';
@@ -88,6 +89,13 @@ export interface ProjectSliceState {
    * method (Circle-packed vs Box-pleated). Drives the Design pane NUX chooser.
    */
   pendingDesignChoice: boolean;
+  /**
+   * True once the user has created, opened, or chosen a project this session.
+   * A fresh page load starts false, so deep-linked workspace routes redirect to
+   * `/welcome` instead of showing an empty editor. Set by the create/open/choose
+   * actions and by a document-presence subscription.
+   */
+  projectEstablished: boolean;
   /**
    * The id of the Dockview panel the user last focused. Source of truth for the
    * active editing context (below); updated from `onDidActivePanelChange`.
@@ -197,6 +205,12 @@ export interface ProjectSliceActions {
   startNewDesign: () => void;
   /** Resolve the Design pane NUX chooser into a concrete design method. */
   chooseDesignMethod: (target: WorkflowTarget) => Promise<void>;
+  /**
+   * Reflect a Design sub-route (`/design`, `/design/treemaker`, `/design/bp`)
+   * into the design state so the layout variant matches the URL. Sets the
+   * variant fields only; establishing a document is the caller's concern.
+   */
+  applyDesignRoute: (variant: DesignLayoutVariant) => void;
 }
 
 export type ProjectSlice = ProjectSliceState & ProjectSliceActions;

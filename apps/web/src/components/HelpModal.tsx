@@ -1,5 +1,5 @@
 import { useEffect, type ReactElement, type ReactNode } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
   BookOpen,
@@ -314,19 +314,27 @@ function acknowledgements(t: TFunction): Array<{ title: string; href: string; de
       ),
     },
     {
-      title: t('dialogs:help.acknowledgements.flatFolder.title', 'Jason S. Ku and Flat-Folder'),
-      href: 'https://github.com/origamimagiro/flat-folder',
+      title: t('dialogs:help.acknowledgements.boxPleatingStudio.title', 'Mu-Tsun Tsai and Box Pleating Studio'),
+      href: 'https://github.com/bp-studio/box-pleating-studio',
       detail: t(
-        'dialogs:help.acknowledgements.flatFolder.detail',
-        'The flat-folding analysis path is validated against the vendored Flat-Folder implementation by Jason S. Ku, also known as origamimagiro.'
+        'dialogs:help.acknowledgements.boxPleatingStudio.detail',
+        "The box-pleated authoring method is a Rust and WebAssembly port of Mu-Tsun Tsai's Box Pleating Studio."
       ),
     },
     {
-      title: t('dialogs:help.acknowledgements.fold.title', 'FOLD and origami software references'),
-      href: 'https://github.com/edemaine/fold',
+      title: t('dialogs:help.acknowledgements.oriedita.title', 'Oriedita'),
+      href: 'https://github.com/oriedita/oriedita',
       detail: t(
-        'dialogs:help.acknowledgements.fold.detail',
-        'The app reads and exports crease-pattern data using community file-format conventions and compares behavior against redistributable fixtures.'
+        'dialogs:help.acknowledgements.oriedita.detail',
+        'The crease-pattern editor is a Rust and WebAssembly port of the Oriedita editor (itself a fork of Orihime), including its foldability diagnostics, repairs, and file formats.'
+      ),
+    },
+    {
+      title: t('dialogs:help.acknowledgements.origamiSimulator.title', 'Amanda Ghassaei and Origami Simulator'),
+      href: 'https://github.com/amandaghassaei/OrigamiSimulator',
+      detail: t(
+        'dialogs:help.acknowledgements.origamiSimulator.detail',
+        "The Simulate workspace folds bases into an interactive 3D model using a TypeScript port of Amanda Ghassaei's Origami Simulator."
       ),
     },
   ];
@@ -476,7 +484,10 @@ function AboutModal() {
     <ModalShell
       kind="about"
       title={t('dialogs:help.about.title', 'About Ori Studio')}
-      subtitle={t('dialogs:help.about.subtitle', 'A modern shared GUI for tree-based origami design.')}
+      subtitle={t(
+        'dialogs:help.about.subtitle',
+        'A modern shared workspace for designing, editing, and folding origami crease patterns.'
+      )}
       icon={<BookOpen size={18} />}
       footer={
         <Button size="sm" variant="secondary" onClick={openGuide}>
@@ -489,16 +500,20 @@ function AboutModal() {
         <img src="/favicon.png" alt="" aria-hidden="true" />
         <div>
           <p>
-            {t(
-              'dialogs:help.about.intro1',
-              "Ori Studio turns a tree structure into an origami crease pattern. This app wraps the Rust and WebAssembly port of Robert J. Lang's TreeMaker 5.0.1 engine in a pane-based browser and Tauri desktop workspace."
-            )}
-          </p>
-          <p>
-            {t(
-              'dialogs:help.about.intro2',
-              'The current surface supports drawing and editing trees, adding conditions, running optimizers, building crease patterns, reviewing folded-base and simulator artifacts, and saving or exporting the result.'
-            )}
+            <Trans i18nKey="dialogs:help.about.intro">
+              Ori Studio aims to be the ultimate workspace for origami design and analysis. It
+              leans heavily on ports of existing origami tools created by the community — the
+              Edit workspace, for instance, is a port of Oriedita to Rust, focused on usability
+              and performance. If you have any suggestions, feel free to{' '}
+              <a
+                href="https://github.com/zacharyfmarion/ori-studio/issues"
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                open an issue on GitHub
+              </a>
+              .
+            </Trans>
           </p>
         </div>
       </div>

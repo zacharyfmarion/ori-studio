@@ -1,4 +1,9 @@
 {
+  "closeGuard": {
+    "discard": "",
+    "message": "",
+    "title": ""
+  },
   "common": {
     "cancel": "",
     "closeNamed": "",
@@ -67,17 +72,20 @@
     "about": {
       "acknowledgements": "",
       "help": "",
-      "intro1": "",
-      "intro2": "",
+      "intro": "",
       "subtitle": "",
       "title": ""
     },
     "acknowledgements": {
-      "flatFolder": {
+      "boxPleatingStudio": {
         "detail": "",
         "title": ""
       },
-      "fold": {
+      "oriedita": {
+        "detail": "",
+        "title": ""
+      },
+      "origamiSimulator": {
         "detail": "",
         "title": ""
       },

@@ -1,5 +1,3 @@
-mod menu;
-
 use std::fs;
 use std::sync::Mutex;
 
@@ -80,10 +78,6 @@ pub fn run() {
     tauri::Builder::default()
         .manage(OpenedFiles::default())
         .plugin(tauri_plugin_dialog::init())
-        .setup(|app| {
-            menu::setup_menu(app)?;
-            Ok(())
-        })
         .invoke_handler(tauri::generate_handler![
             platform_ping,
             read_text_file,

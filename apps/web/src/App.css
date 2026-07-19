@@ -1,4 +1,5 @@
 .app-layout {
+  position: relative;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   width: 100vw;
@@ -331,8 +332,37 @@
 .workspace-shell {
   display: grid;
   grid-template-columns: 50px minmax(0, 1fr);
+  /* Explicit 1fr row (not the default content-sized `auto`) so the Dockview
+     cell tracks the container height in both directions. Without it the row
+     grows to Dockview's explicit pixel height and never shrinks back when the
+     window does (e.g. exiting fullscreen), pushing the bottom viewport toolbar
+     out of the clipped app-layout. */
+  grid-template-rows: minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
+}
+
+.workspace-shell__loading {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+}
+
+.workspace-shell__loading-spinner {
+  animation: workspace-shell-spin 0.9s linear infinite;
+}
+
+@keyframes workspace-shell-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .workspace-rail {

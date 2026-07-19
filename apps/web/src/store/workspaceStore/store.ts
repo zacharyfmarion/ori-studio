@@ -9,6 +9,7 @@ import { createProjectSlice } from './slices/projectSlice';
 import { createOristudioBpSlice } from './slices/oristudioBpSlice';
 import { registerDesignVariantSource } from '../layoutStore';
 import { resolveEditingContext } from '../../workspaces/editingContext';
+import { deriveDesignVariant } from './designVariant';
 import type { WorkspaceState } from './types';
 
 export const useWorkspaceStore = create<WorkspaceState>()(
@@ -28,11 +29,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
 
 // Let the layout store read the active Design layout variant so it can
 // materialize the NUX chooser, box-pleat split, or TreeMaker layout.
-registerDesignVariantSource(() => {
-  const state = useWorkspaceStore.getState();
-  if (state.pendingDesignChoice) return 'nux';
-  return state.workflowTarget === 'box-pleat' ? 'box-pleat' : 'treemaker';
-});
+registerDesignVariantSource(() => deriveDesignVariant(useWorkspaceStore.getState()));
 
 // Keep `activeEditingContext` derived from the active panel + design state. The
 // active panel (`activePanelId`) is the source of truth; every other input
@@ -49,6 +46,21 @@ useWorkspaceStore.subscribe((state) => {
   if (next !== state.activeEditingContext) {
     useWorkspaceStore.setState({ activeEditingContext: next });
   }
+});
+
+// Mark a project as established (sticky for the session) as soon as a real
+// document appears: a crease pattern, a BP design, or an authored/loaded tree.
+// A blank TreeMaker design picked from the chooser has no document content, so
+// `chooseDesignMethod` sets the flag directly. Deep-linked workspace routes read
+// this to redirect to /welcome when nothing has been established.
+useWorkspaceStore.subscribe((state) => {
+  if (state.projectEstablished) return;
+  const hasDocument =
+    state.oristudioCpDocument !== null ||
+    state.importedCreasePattern !== null ||
+    state.oristudioBpDocument !== null ||
+    state.project.edges.length > 0;
+  if (hasDocument) useWorkspaceStore.setState({ projectEstablished: true });
 });
 
 if (import.meta.env.DEV && typeof window !== 'undefined') {

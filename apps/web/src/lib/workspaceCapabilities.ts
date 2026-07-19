@@ -750,12 +750,14 @@ export function getWorkspaceCapabilities(
 }
 
 /**
- * TreeMaker/CP-specific commands that make no sense while authoring a Box-Pleat
- * design. Hidden (and disabled) in a BP context so the Design and Crease Pattern
- * menus — and the tree-editing Edit submenus — don't surface TreeMaker actions.
- * File/Edit(undo,redo,clipboard)/View stay available.
+ * Edit-menu commands that author a TreeMaker tree specifically — the
+ * Node/Edge/Strain/Stubs submenus and the tree-only Select items. They are
+ * hidden entirely outside `treemaker-tree` context so the Edit menu never
+ * surfaces tree operations in the crease-pattern editor, a Box-Pleat design, or
+ * simulate. (Undo/redo, clipboard, delete, and Select All/Deselect All are
+ * context-agnostic and stay visible.)
  */
-const BP_HIDDEN_CAPABILITIES = new Set<WorkspaceCapabilityId>([
+const TREE_ONLY_EDIT_CAPABILITIES = new Set<WorkspaceCapabilityId>([
   'edit.makeRoot',
   'edit.splitEdge',
   'edit.setEdgeLength',
@@ -777,6 +779,16 @@ const BP_HIDDEN_CAPABILITIES = new Set<WorkspaceCapabilityId>([
   'edit.selectByIndex',
   'edit.selectMovableParts',
   'edit.selectCorridorFacets',
+]);
+
+/**
+ * TreeMaker/CP-specific commands that make no sense while authoring a Box-Pleat
+ * design. Hidden (and disabled) in a BP context so the Design and Crease Pattern
+ * menus — and the tree-editing Edit submenus — don't surface TreeMaker actions.
+ * File/Edit(undo,redo,clipboard)/View stay available.
+ */
+const BP_HIDDEN_CAPABILITIES = new Set<WorkspaceCapabilityId>([
+  ...TREE_ONLY_EDIT_CAPABILITIES,
   'view.conditions',
   'file.exportV5',
   'file.exportV4',
@@ -797,31 +809,51 @@ function maskCapabilitiesForContext(
   capabilities: WorkspaceCapabilities,
   context: EditingContext
 ): WorkspaceCapabilities {
+  const masked = { ...capabilities };
+  const ids = Object.keys(masked) as WorkspaceCapabilityId[];
+  const hide = (id: WorkspaceCapabilityId) => {
+    masked[id] = { ...masked[id], visible: false, enabled: false };
+  };
+
+  // Tree authoring only applies while editing a TreeMaker tree; hide those Edit
+  // commands in every other context (CP editor, BP, simulate, the NUX) so the
+  // Node/Edge/Strain/Stubs submenus and tree-only Select items collapse away.
+  if (context !== 'treemaker-tree') {
+    for (const id of TREE_ONLY_EDIT_CAPABILITIES) hide(id);
+  }
+
+  // The Crease Pattern menu operates on the editable crease pattern, so it only
+  // belongs to the CP editor. Hide those `cp.*` commands everywhere else so the
+  // whole menu collapses in Design/Simulate/BP. `cp.build` is exempt — it lives
+  // in the Design menu and is gated separately by `treeMode`.
+  if (context !== 'crease-pattern') {
+    for (const id of ids) {
+      if (id.startsWith('cp.') && id !== 'cp.build') hide(id);
+    }
+  }
+
   if (context === 'simulate') {
     // Simulate is a read-only consumer of the folded model: only navigation
     // (`view.*`), file operations, playback (`simulator.*`), and inert
     // undo/redo apply. Every authoring command is hidden.
-    const masked = { ...capabilities };
-    for (const id of Object.keys(masked) as WorkspaceCapabilityId[]) {
+    for (const id of ids) {
       const isAuthoring =
         id.startsWith('cp.') ||
         id.startsWith('optimize.') ||
         (id.startsWith('edit.') && !SIMULATE_VISIBLE_EDIT.has(id));
-      if (isAuthoring) {
-        masked[id] = { ...masked[id], visible: false, enabled: false };
-      }
+      if (isAuthoring) hide(id);
     }
     return masked;
   }
 
-  const isBpContext = context === 'bp-tree' || context === 'bp-packing';
-  if (!isBpContext) return capabilities;
-  const masked = { ...capabilities };
-  for (const id of Object.keys(masked) as WorkspaceCapabilityId[]) {
-    if (id.startsWith('optimize.') || id.startsWith('cp.') || BP_HIDDEN_CAPABILITIES.has(id)) {
-      masked[id] = { ...masked[id], visible: false, enabled: false };
+  if (context === 'bp-tree' || context === 'bp-packing') {
+    for (const id of ids) {
+      if (id.startsWith('optimize.') || id.startsWith('cp.') || BP_HIDDEN_CAPABILITIES.has(id)) {
+        hide(id);
+      }
     }
   }
+
   return masked;
 }
 

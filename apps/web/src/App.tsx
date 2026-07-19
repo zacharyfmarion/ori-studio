@@ -1,287 +1,52 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { TFunction } from 'i18next';
-import { DockviewDefaultTab, DockviewReact } from 'dockview';
-import type { DockviewReadyEvent, IDockviewPanelHeaderProps } from 'dockview';
-import 'dockview/dist/styles/dockview.css';
+import { Outlet } from 'react-router-dom';
 import { Toaster } from 'sonner';
-import {
-  Download,
-  Box,
-  DraftingCompass,
-  FilePlus,
-  FolderOpen,
-  CircleHelp,
-  PenTool,
-  Save,
-  ScanLine,
-  Settings,
-  Sparkles,
-} from 'lucide-react';
-import { MenuBar } from './components/MenuBar';
 import { CommandDialogModal } from './components/CommandDialogModal';
 import { CpDetectImportModal } from './components/CpDetectImportModal';
 import { GlobalToasts } from './components/GlobalToasts';
 import { HelpModal } from './components/HelpModal';
 import { SelectByIndexModal } from './components/SelectByIndexModal';
 import { SettingsModal } from './components/SettingsModal';
-import { StartScreen } from './components/StartScreen';
 import { TooltipProvider } from './components/ui/Tooltip';
-import { IconButton } from './components/ui/IconButton';
-import { Button } from './components/ui/Button';
-import { panelComponents } from './components/panels/PanelComponents';
 import { handleMenuAction } from './commands/menuActions';
-import { registerStartScreenRequestHandler } from './commands/startScreenController';
-import { useMacDownloadUrl } from './hooks/useMacDownloadUrl';
 import { useTauriOpenedFiles } from './hooks/useTauriOpenedFiles';
 import { installAppKeyboardListener } from './lib/appKeyboard';
 import { cpSelectionSize } from './lib/creasePatternViewport';
-import { useTauriMenuListener } from './menus/tauriMenuListener';
-import { isFeatureVisible } from './platform/features';
+import { useTauriNativeMenu } from './menus/useTauriNativeMenu';
 import { createOpenedPathFileService } from './platform/fileService';
 import { getRuntimeSurface } from './platform/runtime';
 import { applyWindowTitle, formatWindowTitle } from './platform/windowTitle';
+import { navigateTo } from './routing/appRouter';
+import { openedProjectPath } from './routing/landing';
+import { startWorkspaceUrlSync } from './routing/workspaceUrlSync';
+import { useWelcomeDiscardGuard } from './routing/useWelcomeDiscardGuard';
 import { requestConfirmation } from './store/commandDialogStore';
-import { applyDefaultLayout, useLayoutStore } from './store/layoutStore';
-import { useSettingsStore } from './store/settingsStore';
 import { useShortcutStore } from './store/shortcutStore';
 import { useThemeStore } from './store/themeStore';
 import { useWorkspaceStore } from './store/workspaceStore';
-import { useWorkspaceCapabilities } from './store/workspaceStore/useWorkspaceCapabilities';
-import {
-  WORKSPACE_DEFINITIONS,
-  workspaceForPanelId,
-  type WorkspaceId,
-} from './workspaces/workspaces';
 import './styles/sonner.css';
 
-const workspaceIcons: Record<WorkspaceId, typeof DraftingCompass> = {
-  design: DraftingCompass,
-  edit: PenTool,
-  simulate: Box,
-};
-
-/** Localized workspace-rail tooltip. Literal `t()` calls keep the keys extractable. */
-function workspaceTooltip(t: TFunction, id: WorkspaceId): string {
-  switch (id) {
-    case 'design':
-      return t('common:workspaceRail.design', 'Design workspace');
-    case 'edit':
-      return t('common:workspaceRail.edit', 'Edit workspace');
-    case 'simulate':
-      return t('common:workspaceRail.simulate', 'Simulate workspace');
-  }
-}
-
-function WorkspaceRail() {
-  const { t } = useTranslation();
-  const activeWorkspace = useLayoutStore((state) => state.activeWorkspace);
-
-  return (
-    <aside className="workspace-rail" aria-label={t('common:workspaceRail.label', 'Workspaces')}>
-      <div className="workspace-rail__items">
-        {WORKSPACE_DEFINITIONS.map((workspace) => {
-          const Icon = workspaceIcons[workspace.id];
-          return (
-            <IconButton
-              key={workspace.id}
-              size="lg"
-              variant="toolbar"
-              className="workspace-rail__button"
-              isActive={activeWorkspace === workspace.id}
-              title={workspaceTooltip(t, workspace.id)}
-              tooltipSide="right"
-              aria-label={workspaceTooltip(t, workspace.id)}
-              onClick={() => void handleMenuAction(workspace.commandId)}
-            >
-              <Icon size={19} />
-            </IconButton>
-          );
-        })}
-      </div>
-    </aside>
-  );
-}
-
-function Toolbar() {
-  const { t } = useTranslation();
-  const openSettings = useSettingsStore((state) => state.openSettings);
-  const capabilities = useWorkspaceCapabilities();
-  const runtimeSurface = getRuntimeSurface();
-  const isDesktop = runtimeSurface === 'desktop';
-  const showDownloadCta = isFeatureVisible('macDownloadCta', runtimeSurface);
-  const downloadUrl = useMacDownloadUrl();
-  const optimizeScale = capabilities['optimize.scale'];
-  const buildCp = capabilities['cp.build'];
-  const activeContext = useWorkspaceStore((state) => state.activeEditingContext);
-  const sendBpToEdit = useWorkspaceStore((state) => state.sendOristudioBpToEdit);
-  const sendTreeToEdit = useWorkspaceStore((state) => state.sendTreeCreasePatternToEdit);
-  const hasBpDocument = useWorkspaceStore((state) => state.oristudioBpDocument !== null);
-  const bpBusy = useWorkspaceStore((state) => state.oristudioBpBusy);
-  // In a BP design the top action sends the design's crease pattern to the Edit
-  // canvas (Import(Add) merge), in place of TreeMaker's Optimize/Build.
-  const isBpContext = activeContext === 'bp-tree' || activeContext === 'bp-packing';
-
-  return (
-    <header className="toolbar">
-      <div className="toolbar__brand">
-        {isDesktop ? <span className="toolbar__title">Ori Studio</span> : <MenuBar />}
-      </div>
-      <div className="toolbar__actions">
-        <IconButton
-          size="sm"
-          title={t('common:toolbar.new', 'New')}
-          tooltipSide="bottom"
-          disabled={!capabilities['file.new'].enabled}
-          onClick={() => void handleMenuAction('file.new')}
-        >
-          <FilePlus size={15} />
-        </IconButton>
-        <IconButton
-          size="sm"
-          title={t('common:toolbar.open', 'Open')}
-          tooltipSide="bottom"
-          disabled={!capabilities['file.open'].enabled}
-          onClick={() => void handleMenuAction('file.open')}
-        >
-          <FolderOpen size={15} />
-        </IconButton>
-        <IconButton
-          size="sm"
-          title={t('common:toolbar.save', 'Save')}
-          tooltipSide="bottom"
-          disabled={!capabilities['file.save'].enabled}
-          onClick={() => void handleMenuAction('file.save')}
-        >
-          <Save size={15} />
-        </IconButton>
-        <span className="toolbar__separator" />
-        {optimizeScale.visible && (
-          <Button
-            size="sm"
-            variant={buildCp.enabled ? 'secondary' : 'primary'}
-            disabled={!optimizeScale.enabled}
-            title={optimizeScale.reason}
-            onClick={() => void handleMenuAction('optimize.scale')}
-          >
-            <Sparkles size={14} />
-            {t('common:toolbar.optimizeScale', 'Optimize Scale')}
-          </Button>
-        )}
-        {buildCp.visible && (
-          <Button
-            size="sm"
-            variant={buildCp.enabled ? 'primary' : 'secondary'}
-            disabled={!buildCp.enabled}
-            title={
-              buildCp.enabled
-                ? t('common:toolbar.sendToEditTooltip', "Send this design's crease pattern to the Edit canvas")
-                : buildCp.reason
-            }
-            onClick={() => void sendTreeToEdit()}
-          >
-            <ScanLine size={14} />
-            {t('common:toolbar.sendToEdit', 'Send to Edit')}
-          </Button>
-        )}
-        {isBpContext && (
-          <Button
-            size="sm"
-            variant="primary"
-            disabled={!hasBpDocument || bpBusy}
-            title={t('common:toolbar.sendToEditTooltip', "Send this design's crease pattern to the Edit canvas")}
-            onClick={() => void sendBpToEdit()}
-          >
-            <ScanLine size={14} />
-            {t('common:toolbar.sendToEdit', 'Send to Edit')}
-          </Button>
-        )}
-        {(optimizeScale.visible || buildCp.visible || isBpContext) && (
-          <span className="toolbar__separator" />
-        )}
-        {showDownloadCta && (
-          <IconButton
-            size="sm"
-            title={t('common:toolbar.downloadMac', 'Download Ori Studio for Mac')}
-            tooltipSide="bottom"
-            onClick={() => window.open(downloadUrl, '_blank', 'noreferrer')}
-          >
-            <Download size={15} />
-          </IconButton>
-        )}
-        <IconButton
-          size="sm"
-          title={t('common:toolbar.help', 'Help')}
-          tooltipSide="bottom"
-          onClick={() => void handleMenuAction('help.documentation')}
-        >
-          <CircleHelp size={15} />
-        </IconButton>
-        <IconButton size="sm" title={t('common:toolbar.settings', 'Settings')} tooltipSide="bottom" onClick={() => openSettings()}>
-          <Settings size={15} />
-        </IconButton>
-      </div>
-    </header>
-  );
-}
-
-function FixedDockTab(props: IDockviewPanelHeaderProps) {
-  return <DockviewDefaultTab {...props} hideClose />;
-}
-
-/** Which workspace to enter after opening a file: Edit for a crease pattern. */
-function openedCreasePatternWorkspace(): 'crease-pattern' | 'design' {
-  const state = useWorkspaceStore.getState();
-  return state.oristudioCpDocument !== null || state.importedCreasePattern !== null
-    ? 'crease-pattern'
-    : 'design';
-}
-
+/**
+ * Root layout route. Owns app-wide lifecycle (engine init, window title, close
+ * guards, global keyboard, workspace↔URL sync) and the always-mounted overlays,
+ * and renders the active route (`/welcome` or a workspace) into the outlet.
+ */
 export default function App() {
+  const { t } = useTranslation();
   const initEngine = useWorkspaceStore((state) => state.initEngine);
-  const createNewCreasePattern = useWorkspaceStore((state) => state.createNewCreasePattern);
   const openProject = useWorkspaceStore((state) => state.openProject);
   const selectNone = useWorkspaceStore((state) => state.selectNone);
   const project = useWorkspaceStore((state) => state.project);
   const dirty = useWorkspaceStore((state) => state.dirty);
-  const status = useWorkspaceStore((state) => state.status);
   const engineReady = useWorkspaceStore((state) => state.engineReady);
-  const error = useWorkspaceStore((state) => state.error);
   const toasterTheme = useThemeStore((state) => state.currentTheme.type);
-  const setDockviewApi = useLayoutStore((state) => state.setDockviewApi);
-  const activeWorkspace = useLayoutStore((state) => state.activeWorkspace);
-  const loadLayout = useLayoutStore((state) => state.loadLayout);
-  const saveLayout = useLayoutStore((state) => state.saveLayout);
-  const [workspaceStarted, setWorkspaceStarted] = useState(false);
-  const [workspaceInitialPanel, setWorkspaceInitialPanel] = useState<string | null>(null);
 
-  const showStartScreen = useCallback(async () => {
-    const state = useWorkspaceStore.getState();
-    if (state.dirty) {
-      const confirmed = await requestConfirmation({
-        title: 'Discard unsaved changes?',
-        message: 'Your current project has unsaved changes. Return to the start screen and discard them?',
-        confirmLabel: 'Discard',
-        tone: 'danger',
-      });
-      if (!confirmed) return false;
-    }
+  useWelcomeDiscardGuard();
 
-    useWorkspaceStore.setState({
-      dirty: false,
-      error: null,
-      projectMessage: null,
-      status: state.engineReady ? 'ready' : 'loading_engine',
-    });
-    useLayoutStore.getState().setActiveWorkspace('design');
-    setWorkspaceInitialPanel(null);
-    setWorkspaceStarted(false);
-    return true;
-  }, []);
+  useEffect(() => startWorkspaceUrlSync(), []);
 
-  useEffect(() => registerStartScreenRequestHandler(showStartScreen), [showStartScreen]);
-
-  useTauriMenuListener();
+  useTauriNativeMenu();
 
   useEffect(() => {
     void initEngine();
@@ -313,9 +78,12 @@ export default function App() {
           if (!useWorkspaceStore.getState().dirty) return;
           event.preventDefault();
           void requestConfirmation({
-            title: 'Discard unsaved changes?',
-            message: 'Your current project has unsaved changes. Close Ori Studio and discard them?',
-            confirmLabel: 'Discard',
+            title: t('dialogs:closeGuard.title', 'Discard unsaved changes?'),
+            message: t(
+              'dialogs:closeGuard.message',
+              'Your current project has unsaved changes. Close Ori Studio and discard them?'
+            ),
+            confirmLabel: t('dialogs:closeGuard.discard', 'Discard'),
             tone: 'danger',
           }).then((confirmed) => {
             if (confirmed) void appWindow.destroy();
@@ -332,7 +100,7 @@ export default function App() {
     return () => {
       unlisten?.();
     };
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     return installAppKeyboardListener(
@@ -349,116 +117,20 @@ export default function App() {
     );
   }, [selectNone]);
 
-  const onReady = useCallback(
-    (event: DockviewReadyEvent) => {
-      const { api } = event;
-      setDockviewApi(api);
-
-      let loaded = false;
-      const saved = loadLayout(activeWorkspace);
-      if (saved) {
-        try {
-          api.fromJSON(saved);
-          loaded = true;
-        } catch (error) {
-          console.warn('Failed to restore layout', error);
-          localStorage.removeItem(`treemaker-web-layout:${activeWorkspace}`);
-          localStorage.removeItem(`treemaker-web-layout-version:${activeWorkspace}`);
-        }
-      }
-
-      if (!loaded) {
-        applyDefaultLayout(api, activeWorkspace);
-      }
-
-      if (workspaceInitialPanel) {
-        requestAnimationFrame(() => {
-          api.getPanel(workspaceInitialPanel)?.api.setActive();
-        });
-        setWorkspaceInitialPanel(null);
-      }
-
-      // The active panel drives the active editing context (menus, history,
-      // shortcuts). Seed it and keep it in sync as the user focuses panels.
-      const setActivePanelId = useWorkspaceStore.getState().setActivePanelId;
-      setActivePanelId(api.activePanel?.id ?? null);
-      api.onDidActivePanelChange((panel) => {
-        setActivePanelId(panel?.id ?? null);
-      });
-
-      let timer: ReturnType<typeof setTimeout> | null = null;
-      api.onDidLayoutChange(() => {
-        if (timer) clearTimeout(timer);
-        timer = setTimeout(() => saveLayout(), 250);
-      });
-    },
-    [activeWorkspace, loadLayout, saveLayout, setDockviewApi, workspaceInitialPanel]
-  );
-
-  const enterWorkspace = useCallback((panelId: string) => {
-    useLayoutStore.getState().setActiveWorkspace(workspaceForPanelId(panelId) ?? 'design');
-    setWorkspaceInitialPanel(panelId);
-    setWorkspaceStarted(true);
-  }, []);
-
   const handleOpenedFilePath = useCallback(
     async (path: string) => {
       const opened = await openProject(createOpenedPathFileService(path));
       if (!opened) return;
-      enterWorkspace(openedCreasePatternWorkspace());
+      navigateTo(openedProjectPath());
     },
-    [enterWorkspace, openProject]
+    [openProject]
   );
 
   useTauriOpenedFiles(engineReady, handleOpenedFilePath);
 
-  const handleCreateCreasePattern = useCallback(async () => {
-    await createNewCreasePattern();
-    if (useWorkspaceStore.getState().status !== 'error') {
-      enterWorkspace('crease-pattern');
-    }
-  }, [createNewCreasePattern, enterWorkspace]);
-
-  const handleCreateDesign = useCallback(() => {
-    // Enter the Design workspace on the method chooser (Circle-packed vs
-    // Box-pleated) instead of creating a blank tree up front.
-    useWorkspaceStore.getState().startNewDesign();
-    enterWorkspace('design');
-  }, [enterWorkspace]);
-
-  const handleOpenFile = useCallback(async () => {
-    const opened = await openProject();
-    if (!opened) return;
-    enterWorkspace(openedCreasePatternWorkspace());
-  }, [enterWorkspace, openProject]);
-
   return (
     <TooltipProvider>
-      <div className={workspaceStarted ? 'app-layout' : 'app-layout app-layout--start'}>
-        {workspaceStarted ? (
-          <>
-            <Toolbar />
-            <div className="workspace-shell">
-              <WorkspaceRail />
-              <DockviewReact
-                components={panelComponents}
-                defaultTabComponent={FixedDockTab}
-                onReady={onReady}
-                className="dockview-theme-treemaker workspace-shell__dockview"
-                disableFloatingGroups
-              />
-            </div>
-          </>
-        ) : (
-          <StartScreen
-            status={status}
-            errorMessage={error?.message ?? null}
-            onCreateCreasePattern={() => void handleCreateCreasePattern()}
-            onCreateDesign={() => void handleCreateDesign()}
-            onOpenFile={() => void handleOpenFile()}
-          />
-        )}
-      </div>
+      <Outlet />
       <HelpModal />
       <SelectByIndexModal />
       <CpDetectImportModal />

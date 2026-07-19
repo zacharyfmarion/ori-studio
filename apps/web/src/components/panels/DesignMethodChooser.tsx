@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { DraftingCompass, Grid3x3 } from 'lucide-react';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { DESIGN_BP_PATH, DESIGN_TREEMAKER_PATH } from '../../routing/paths';
 import type { WorkflowTarget } from '../../lib/sampleProject';
 
 /**
@@ -15,6 +17,12 @@ export function DesignMethodChooser() {
   const { t } = useTranslation();
   const engineReady = useWorkspaceStore((state) => state.engineReady);
   const chooseDesignMethod = useWorkspaceStore((state) => state.chooseDesignMethod);
+  const navigate = useNavigate();
+
+  const chooseMethod = (target: WorkflowTarget) => {
+    void chooseDesignMethod(target);
+    navigate(target === 'box-pleat' ? DESIGN_BP_PATH : DESIGN_TREEMAKER_PATH);
+  };
 
   return (
     <section className="panel-shell design-panel design-method-chooser">
@@ -41,7 +49,7 @@ export function DesignMethodChooser() {
             )}
             icon={<DraftingCompass size={22} />}
             disabled={!engineReady}
-            onSelect={() => void chooseDesignMethod('treemaker')}
+            onSelect={() => chooseMethod('treemaker')}
           />
           <MethodCard
             method="box-pleat"
@@ -52,7 +60,7 @@ export function DesignMethodChooser() {
             )}
             icon={<Grid3x3 size={22} />}
             disabled={!engineReady}
-            onSelect={() => void chooseDesignMethod('box-pleat')}
+            onSelect={() => chooseMethod('box-pleat')}
           />
         </div>
       </div>

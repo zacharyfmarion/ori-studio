@@ -1,7 +1,37 @@
 import { describe, expect, it } from 'vitest';
-import { parseImportedCreasePattern } from './creasePatternImport';
+import {
+  parseImportedCreasePattern,
+  parseImportedCreasePatternFromFold,
+} from './creasePatternImport';
 
 describe('crease pattern import', () => {
+  it('parseImportedCreasePatternFromFold matches the stringify+reparse path', () => {
+    const fold = {
+      file_spec: 1.1,
+      frame_title: 'square',
+      vertices_coords: [
+        [0, 0],
+        [1, 0],
+        [1, 1],
+        [0, 1],
+      ],
+      edges_vertices: [
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 0],
+        [0, 2],
+      ],
+      edges_assignment: ['B', 'B', 'B', 'B', 'M'],
+    };
+    const source = { format: 'fold' as const, filename: 'square.fold', path: null };
+
+    const viaText = parseImportedCreasePattern(JSON.stringify(fold), source);
+    const viaObject = parseImportedCreasePatternFromFold(fold, source);
+
+    expect(viaObject).toEqual(viaText);
+  });
+
   it('parses ORIPA CP lines and infers simulatable faces', () => {
     const result = parseImportedCreasePattern(
       [
