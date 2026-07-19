@@ -195,7 +195,7 @@ Checklist (by namespace):
   screen, CP-detect import, Select-by-index, desktop close-guard. Preserved `{{...}}`
   placeholders + the `<Trans>` `<2>…</2>` markup; filled per-locale CLDR plural forms.
   (Also fixed `i18n:check` to be plural-aware.)
-- [ ] `tools` (111) — viewport toolbar, CP tool rail, CP context tool options (angle/ratio/
+- [x] `tools` (111) — viewport toolbar, CP tool rail, CP context tool options (angle/ratio/
   RGB fields), line-style + palette-color names.
 - [ ] `panels` (~410) — all dockview panels (inspector, design, diagnostics, sequence,
   simulator, conditions, BP editor/packing/tree, CP view controls, crease pattern).
