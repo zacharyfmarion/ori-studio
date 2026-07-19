@@ -29,6 +29,9 @@ export const i18nReady = i18n
     load: 'currentOnly',
     ns: I18N_NAMESPACES,
     defaultNS: DEFAULT_NAMESPACE,
+    // Untranslated target keys are empty strings (seeded per surface); treat them as
+    // missing so they fall back to the inline English default rather than rendering blank.
+    returnEmptyString: false,
     interpolation: {
       // React already escapes rendered values.
       escapeValue: false,
