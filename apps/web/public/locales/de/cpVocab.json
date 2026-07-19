@@ -1,5 +1,1578 @@
 {
+  "group": {
+    "line_type": {
+      "label": "Linientyp",
+      "railLabel": "Typ"
+    },
+    "select_edit": {
+      "label": "Auswählen und bearbeiten",
+      "railLabel": "Auswählen"
+    },
+    "draw": {
+      "label": "Falten und Punkte zeichnen",
+      "railLabel": "Zeichnen"
+    },
+    "edit": {
+      "label": "Löschen",
+      "railLabel": "Löschen"
+    },
+    "construct": {
+      "label": "Geometrisch konstruieren",
+      "railLabel": "Konstruieren"
+    },
+    "transform": {
+      "label": "Transformieren und Operationsrahmen",
+      "railLabel": "Transformieren"
+    },
+    "color": {
+      "label": "Farbe und Zuweisung",
+      "railLabel": "Farbe"
+    },
+    "annotations": {
+      "label": "Kreise, Text und Anmerkungen",
+      "railLabel": "Anmerken"
+    },
+    "generators": {
+      "label": "Generatoren und Basismoleküle",
+      "railLabel": "Generieren"
+    },
+    "measure": {
+      "label": "Messen",
+      "railLabel": "Messen"
+    },
+    "check_fix": {
+      "label": "Prüfen und korrigieren",
+      "railLabel": "Prüfen"
+    },
+    "folding": {
+      "label": "Faltschätzung und gefaltete Figur",
+      "railLabel": "Falten"
+    },
+    "file": {
+      "label": "Datei-Import/-Export",
+      "railLabel": "Datei"
+    }
+  },
+  "action": {
+    "cp_action_line_type_mountain": {
+      "label": "Berg",
+      "railLabel": "M",
+      "tooltip": "Aktiven Linientyp auf Berg setzen",
+      "disabledReason": "Bereit"
+    },
+    "cp_action_line_type_valley": {
+      "label": "Tal",
+      "railLabel": "V",
+      "tooltip": "Aktiven Linientyp auf Tal setzen",
+      "disabledReason": "Bereit"
+    },
+    "cp_action_line_type_edge": {
+      "label": "Rand",
+      "railLabel": "E",
+      "tooltip": "Aktiven Linientyp auf Rand setzen",
+      "disabledReason": "Bereit"
+    },
+    "cp_action_line_type_unassigned": {
+      "label": "Nicht zugewiesen",
+      "railLabel": "U",
+      "tooltip": "Aktiven Linientyp auf nicht zugewiesen setzen",
+      "disabledReason": "Bereit"
+    },
+    "cp_action_line_type_auxiliary": {
+      "label": "Hilfslinie",
+      "railLabel": "A",
+      "tooltip": "Aktiven Linientyp auf Hilfslinie setzen",
+      "disabledReason": "Bereit"
+    },
+    "cp_action_draw_crease": {
+      "label": "Linie",
+      "tooltip": "Eine Falte mit dem aktuellen Linientyp ziehen",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Faltenendpunkt ziehen"
+      }
+    },
+    "cp_action_move_crease_pattern": {
+      "label": "Ansicht verschieben",
+      "tooltip": "Wird von den vorhandenen CP-Ansichtsverschiebungssteuerungen abgedeckt",
+      "disabledReason": "Wird von der Ansichts-Laufzeit statt von einem CP-Befehl verarbeitet"
+    },
+    "cp_action_line_segment_delete": {
+      "label": "Radierer",
+      "tooltip": "Auf eine Falte klicken oder ein Rechteck ziehen, um Falten zu löschen",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Auf eine Falte klicken oder ein Rechteck ziehen, um zu löschen"
+      }
+    },
+    "cp_action_change_crease_type": {
+      "label": "Faltentyp ändern",
+      "tooltip": "Ausgewählte Faltlinien durch Rand, Berg und Tal weiterschalten",
+      "disabledReason": "Bereit"
+    },
+    "cp_action_lengthen_crease": {
+      "label": "Linie verlängern",
+      "tooltip": "Falten, die von der Führungslinie gekreuzt werden, bis zur Zielfalte verlängern",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Zu verlängernde Linie auswählen",
+        "1": "Ziellinie auswählen"
+      }
+    },
+    "cp_action_square_bisector": {
+      "label": "Winkelhalbierende",
+      "tooltip": "Winkelhalbierende im Quadrat",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "2 Segmente oder 3 Punkte auswählen",
+        "1": "3 Punkte auswählen",
+        "2": "3 Punkte auswählen",
+        "3": "Segment zum Beenden auswählen"
+      }
+    },
+    "cp_action_inward": {
+      "label": "Hasenohr",
+      "tooltip": "Nach innen gerichtete Faltlinie",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Ersten Dreieckspunkt wählen",
+        "1": "Zweiten Dreieckspunkt wählen",
+        "2": "Dritten Dreieckspunkt wählen"
+      }
+    },
+    "cp_action_perpendicular_draw": {
+      "label": "Senkrechte Linie",
+      "tooltip": "Senkrechte zeichnen",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Zielpunkt wählen",
+        "1": "Basisfalte wählen"
+      }
+    },
+    "cp_action_symmetric_draw": {
+      "label": "Spiegellinie",
+      "tooltip": "Symmetrisch zeichnen",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Quellfalte wählen",
+        "1": "Spiegelfalte wählen"
+      }
+    },
+    "cp_action_draw_crease_restricted": {
+      "label": "Rasterbeschränkte Linie",
+      "tooltip": "Beschränkte Falte zeichnen",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Zwischen vorhandenen Punkten ziehen"
+      }
+    },
+    "cp_action_draw_crease_symmetric": {
+      "label": "Auswahl an Linie spiegeln",
+      "tooltip": "Ausgewählte Falten an einer mit zwei Punkten gezeichneten Linie spiegeln",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "2 Punkte auswählen oder eine Linie auswählen",
+        "1": "Ende der Spiegelachse wählen"
+      }
+    },
+    "cp_action_draw_crease_angle_restricted": {
+      "label": "Konvergierende Linien",
+      "tooltip": "Winkelbeschränkte Falte",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Basisfalte oder ersten Punkt wählen",
+        "1": "Basisendpunkt wählen",
+        "2": "Konvergenzpunkt wählen"
+      }
+    },
+    "cp_action_draw_point": {
+      "label": "Punkt zeichnen",
+      "tooltip": "Punkt zeichnen",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Punkt wählen"
+      }
+    },
+    "cp_action_delete_point": {
+      "label": "Punkt löschen",
+      "tooltip": "Gleichfarbige Falten zusammenführen, die sich am gewählten Knoten treffen",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Knoten wählen"
+      }
+    },
+    "cp_action_angle_system": {
+      "label": "Versatzbeschränkte Linie",
+      "tooltip": "Winkelsystem",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Winkelstartpunkt wählen",
+        "1": "Winkelendpunkt wählen",
+        "2": "Bestimmungsfalte wählen"
+      }
+    },
+    "cp_action_draw_crease_angle_restricted3": {
+      "label": "Winkelbeschränkte 3-Falte",
+      "tooltip": "Winkelbeschränkte 3-Falte",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Fächerstartpunkt wählen",
+        "1": "Fächerendpunkt wählen",
+        "2": "Winkelkandidat wählen"
+      }
+    },
+    "cp_action_crease_select": {
+      "label": "Rechteckauswahl",
+      "tooltip": "Falten innerhalb eines gezogenen Rechtecks auswählen",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Auswahlrechteck ziehen"
+      }
+    },
+    "cp_action_crease_unselect": {
+      "label": "Rechteck-Abwahl",
+      "tooltip": "Falten innerhalb eines gezogenen Rechtecks abwählen",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Auswahlrechteck ziehen"
+      }
+    },
+    "cp_action_crease_move": {
+      "label": "Ausgewählte Falten verschieben",
+      "tooltip": "Ausgewählte Falten verschieben",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Quellpunkt wählen",
+        "1": "Zielpunkt wählen"
+      }
+    },
+    "cp_action_crease_copy": {
+      "label": "Ausgewählte Falten kopieren",
+      "tooltip": "Ausgewählte Falten kopieren",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Quellpunkt wählen",
+        "1": "Zielpunkt wählen"
+      }
+    },
+    "cp_action_crease_make_mountain": {
+      "label": "Als Berg festlegen",
+      "tooltip": "Ausgewählte Linien zu Bergfalten machen",
+      "disabledReason": "Bereit"
+    },
+    "cp_action_crease_make_valley": {
+      "label": "Als Tal festlegen",
+      "tooltip": "Ausgewählte Linien zu Talfalten machen",
+      "disabledReason": "Bereit"
+    },
+    "cp_action_crease_make_edge": {
+      "label": "Als Rand festlegen",
+      "tooltip": "Ausgewählte Linien zu Randfalten machen",
+      "disabledReason": "Bereit"
+    },
+    "cp_action_crease_set_line_color": {
+      "label": "Ausgewählte Linienfarbe festlegen",
+      "tooltip": "Die aktive Linienfarbe auf ausgewählte Linien anwenden",
+      "disabledReason": "Bereit"
+    },
+    "cp_action_background_change_position": {
+      "label": "Hintergrund verschieben",
+      "tooltip": "Die Bearbeitung des Hintergrundbilds ist nur UI und nicht Teil des CP-Kernels",
+      "disabledReason": "Wird von der Ansichts-Laufzeit statt von einem CP-Befehl verarbeitet"
+    },
+    "cp_action_line_segment_division": {
+      "label": "Gleichmäßig geteilte Linie",
+      "tooltip": "Linie nach Anzahl teilen",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Ziehen, um eine zu teilende Linie zu zeichnen"
+      }
+    },
+    "cp_action_line_segment_ratio_set": {
+      "label": "Geteilte Linie (Verhältnis)",
+      "tooltip": "Linie nach Verhältnis teilen",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Ziehen, um eine zu teilende Linie zu zeichnen"
+      }
+    },
+    "cp_action_polygon_set_no_corners": {
+      "label": "Regelmäßiges Polygon",
+      "tooltip": "Regelmäßiges Polygon",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Erste Ecke wählen",
+        "1": "Zweite Ecke wählen"
+      }
+    },
+    "cp_action_crease_advance_type": {
+      "label": "Faltentyp weiterschalten",
+      "tooltip": "Ausgewählte Faltlinien durch Rand, Berg und Tal weiterschalten",
+      "disabledReason": "Bereit"
+    },
+    "cp_action_crease_move4p": {
+      "label": "Über vier Punkte verschieben",
+      "tooltip": "Über vier Punkte verschieben",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Ersten Quellpunkt wählen",
+        "1": "Zweiten Quellpunkt wählen",
+        "2": "Ersten Zielpunkt wählen",
+        "3": "Zweiten Zielpunkt wählen"
+      }
+    },
+    "cp_action_crease_copy4p": {
+      "label": "Über vier Punkte kopieren",
+      "tooltip": "Über vier Punkte kopieren",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Ersten Quellpunkt wählen",
+        "1": "Zweiten Quellpunkt wählen",
+        "2": "Ersten Zielpunkt wählen",
+        "3": "Zweiten Zielpunkt wählen"
+      }
+    },
+    "cp_action_fish_bone_draw": {
+      "label": "Parallele abwechselnde Linien",
+      "tooltip": "Fischgräten zeichnen",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Rückgrat-Startpunkt wählen",
+        "1": "Rückgrat-Endpunkt wählen"
+      }
+    },
+    "cp_action_crease_make_mv": {
+      "label": "Abwechselnd M/V machen",
+      "tooltip": "Abwechselnde Berg- und Talfalten entlang einer Führungslinie zuweisen",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Eine Führungslinie entlang der Falten ziehen"
+      }
+    },
+    "cp_action_double_symmetric_draw": {
+      "label": "An Linie spiegeln",
+      "tooltip": "Doppelt symmetrisch zeichnen",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Anfang der Symmetrieachse wählen",
+        "1": "Ende der Symmetrieachse wählen"
+      }
+    },
+    "cp_action_creases_alternate_mv": {
+      "label": "Kreuzungen abwechselnd M/V",
+      "tooltip": "Abwechselnde Berg- und Talfalten den Kreuzungen entlang einer Führungslinie zuweisen",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Eine Führungslinie über die Kreuzungen ziehen"
+      }
+    },
+    "cp_action_draw_crease_angle_restricted5": {
+      "label": "Winkelbeschränkte Linie",
+      "tooltip": "Winkelbeschränkte 5-Falte",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Ankerpunkt wählen",
+        "1": "Eingerasteten Endpunkt wählen"
+      }
+    },
+    "cp_action_vertex_make_angularly_flat_foldable": {
+      "label": "Flachfaltbare Linie",
+      "tooltip": "Knoten flachfaltbar machen",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Ungeraden Knoten wählen",
+        "1": "Kandidatenlinie wählen",
+        "2": "Bestimmungsfalte wählen"
+      }
+    },
+    "cp_action_foldable_line_input": {
+      "label": "Flachfaltbare Linie (verlängern)",
+      "tooltip": "Flachfaltbare Linie eingeben",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Startknoten wählen",
+        "1": "Endpunkt wählen"
+      }
+    },
+    "cp_action_parallel_draw": {
+      "label": "Parallele Linie",
+      "tooltip": "Parallel zeichnen",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Zielpunkt wählen",
+        "1": "Parallele Quellfalte wählen",
+        "2": "Bestimmungsfalte wählen"
+      }
+    },
+    "cp_action_vertex_delete_on_crease": {
+      "label": "Beliebigen Knoten löschen",
+      "tooltip": "Benachbarte Falten an einem Knoten mit Oriedita-Farbwechselregeln zusammenführen",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Knoten wählen"
+      }
+    },
+    "cp_action_circle_draw": {
+      "label": "Kreis zeichnen",
+      "tooltip": "Kreis zeichnen",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Mittelpunkt wählen",
+        "1": "Radiuspunkt wählen"
+      }
+    },
+    "cp_action_circle_draw_three_point": {
+      "label": "Kreis durch drei Punkte",
+      "tooltip": "Kreis durch drei Punkte",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Ersten Punkt wählen",
+        "1": "Zweiten Punkt wählen",
+        "2": "Dritten Punkt wählen"
+      }
+    },
+    "cp_action_circle_draw_separate": {
+      "label": "Separater Kreis",
+      "tooltip": "Separater Kreis",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Mittelpunkt wählen",
+        "1": "Radiusanfang wählen",
+        "2": "Radiusende wählen"
+      }
+    },
+    "cp_action_circle_draw_tangent_line": {
+      "label": "Kreistangente",
+      "tooltip": "Tangentenlinien aus zwei ausgewählten Kreisen oder aus einem ausgewählten Kreis plus einem angeklickten Punkt erstellen",
+      "disabledReason": "Bereit"
+    },
+    "cp_action_circle_draw_inverted": {
+      "label": "Invertierter Kreis",
+      "tooltip": "Einen ausgewählten Kreis oder eine Falte an einem ausgewählten Kreis invertieren",
+      "disabledReason": "Bereit"
+    },
+    "cp_action_circle_draw_free": {
+      "label": "Freier Kreis",
+      "tooltip": "Freier Kreis",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Mittelpunkt wählen",
+        "1": "Radiuspunkt wählen"
+      }
+    },
+    "cp_action_circle_draw_concentric": {
+      "label": "Konzentrischer Kreis",
+      "tooltip": "Konzentrischer Kreis",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Radiusanfang wählen",
+        "1": "Radiusende wählen"
+      }
+    },
+    "cp_action_circle_draw_concentric_select": {
+      "label": "Konzentrisch aus Auswahl",
+      "tooltip": "Einen konzentrischen Kreis aus einem Zielkreis und zwei Referenzkreisradien erstellen",
+      "disabledReason": "Bereit"
+    },
+    "cp_action_circle_draw_concentric_two_circle_select": {
+      "label": "Konzentrisch aus zwei Kreisen",
+      "tooltip": "Die beiden konzentrischen Oriedita-Versatzkreise aus ausgewählten Kreisen erstellen",
+      "disabledReason": "Bereit"
+    },
+    "cp_action_parallel_draw_width": {
+      "label": "Parallel nach Breite zeichnen",
+      "tooltip": "Parallel nach Breite zeichnen",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Quellfalte wählen",
+        "1": "Breitenpunkt wählen"
+      }
+    },
+    "cp_action_continuous_symmetric_draw": {
+      "label": "Durch Linien spiegeln",
+      "tooltip": "Kontinuierlich symmetrisch zeichnen",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Startpunkt wählen",
+        "1": "Durchgangspunkt wählen"
+      }
+    },
+    "cp_action_display_length_between_points1": {
+      "label": "Länge messen 1",
+      "tooltip": "Länge messen 1",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Ersten Punkt wählen",
+        "1": "Zweiten Punkt wählen"
+      }
+    },
+    "cp_action_display_length_between_points2": {
+      "label": "Länge messen 2",
+      "tooltip": "Länge messen 2",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Ersten Punkt wählen",
+        "1": "Zweiten Punkt wählen"
+      }
+    },
+    "cp_action_display_angle_between_three_points1": {
+      "label": "Winkel messen 1",
+      "tooltip": "Winkel messen 1",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Ersten Punkt wählen",
+        "1": "Knotenpunkt wählen",
+        "2": "Zweiten Punkt wählen"
+      }
+    },
+    "cp_action_display_angle_between_three_points2": {
+      "label": "Winkel messen 2",
+      "tooltip": "Winkel messen 2",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Ersten Punkt wählen",
+        "1": "Knotenpunkt wählen",
+        "2": "Zweiten Punkt wählen"
+      }
+    },
+    "cp_action_display_angle_between_three_points3": {
+      "label": "Winkel messen 3",
+      "tooltip": "Winkel messen 3",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Ersten Punkt wählen",
+        "1": "Knotenpunkt wählen",
+        "2": "Zweiten Punkt wählen"
+      }
+    },
+    "cp_action_crease_toggle_mv": {
+      "label": "Berg/Tal umschalten",
+      "tooltip": "Auf eine Falte klicken oder ein Rechteck ziehen, um Berg/Tal-Zuweisungen umzuschalten",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Auf eine Falte klicken oder ein Rechteck ziehen, um umzuschalten"
+      }
+    },
+    "cp_action_circle_change_color": {
+      "label": "Kreisfarbe ändern",
+      "tooltip": "Die kontextbezogene benutzerdefinierte Farbe auf ausgewählte Kreise und Hilfslinien anwenden",
+      "disabledReason": "Bereit"
+    },
+    "cp_action_crease_make_aux": {
+      "label": "Als Hilfslinie festlegen",
+      "tooltip": "Ausgewählte Faltlinien in Hilfslinien umwandeln",
+      "disabledReason": "Bereit"
+    },
+    "cp_action_operation_frame_create": {
+      "label": "Operationsrahmen",
+      "tooltip": "Einen Oriedita-Operationsrahmen durch Ziehen eines Rechtecks auf dem CP erstellen",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Operationsrahmen ziehen"
+      }
+    },
+    "cp_action_voronoi_create": {
+      "label": "Voronoi",
+      "tooltip": "Keimpunkte anklicken, um ein Voronoi-Diagramm in der Vorschau anzuzeigen, dann aus dem Kontextbereich anwenden",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Keimpunkt anklicken"
+      }
+    },
+    "cp_action_flat_foldable_check": {
+      "label": "Flachfaltbarkeit-Randprüfung",
+      "tooltip": "Eine geschlossene Oriedita-Randschleife zeichnen und das Prüfergebnis einfärben",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Eine geschlossene Randschleife zeichnen"
+      }
+    },
+    "cp_action_crease_delete_overlapping": {
+      "label": "Deckungsgleiche Linien löschen",
+      "tooltip": "Faltensegmente löschen, die eine gezogene Linie überlappen",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Ziehen-Startpunkt wählen",
+        "1": "Ziehen-Endpunkt wählen"
+      }
+    },
+    "cp_action_crease_delete_intersecting": {
+      "label": "Überlappende Linien löschen",
+      "tooltip": "Faltensegmente löschen, die eine gezogene Linie schneiden oder überlappen",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Ziehen-Startpunkt wählen",
+        "1": "Ziehen-Endpunkt wählen"
+      }
+    },
+    "cp_action_select_polygon": {
+      "label": "Polygonauswahl",
+      "tooltip": "Falten auswählen, die von einem Freihandpolygon umschlossen werden",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Polygonpfad ziehen"
+      }
+    },
+    "cp_action_unselect_polygon": {
+      "label": "Polygon-Abwahl",
+      "tooltip": "Falten abwählen, die von einem Freihandpolygon umschlossen werden",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Polygonpfad ziehen"
+      }
+    },
+    "cp_action_select_line_intersecting": {
+      "label": "Überlappende Linien auswählen",
+      "tooltip": "Faltensegmente auswählen, die eine gezogene Linie schneiden oder überlappen",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Ziehen-Startpunkt wählen",
+        "1": "Ziehen-Endpunkt wählen"
+      }
+    },
+    "cp_action_unselect_line_intersecting": {
+      "label": "Überlappende Linien abwählen",
+      "tooltip": "Faltensegmente abwählen, die eine gezogene Linie schneiden oder überlappen",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Ziehen-Startpunkt wählen",
+        "1": "Ziehen-Endpunkt wählen"
+      }
+    },
+    "cp_action_lengthen_crease_same_color": {
+      "label": "Nach gleicher Farbe verlängern",
+      "tooltip": "Falten, die von der Führungslinie gekreuzt werden, verlängern und dabei die Originalfarben beibehalten",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Zu verlängernde Linie auswählen",
+        "1": "Ziellinie auswählen"
+      }
+    },
+    "cp_action_foldable_line_draw": {
+      "label": "Flachfaltbare Linie (frei)",
+      "tooltip": "Flachfaltbare Linie zeichnen",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Startknoten wählen",
+        "1": "Ziel wählen"
+      }
+    },
+    "cp_action_replace_line_type_select": {
+      "label": "Ausgewählten Linientyp ersetzen",
+      "tooltip": "Ausgewählte Linien ersetzen, die dem aktiven Quell-Linientyp entsprechen",
+      "disabledReason": "Bereit"
+    },
+    "cp_action_delete_line_type_select": {
+      "label": "Ausgewählten Linientyp löschen",
+      "tooltip": "Ausgewählte Linien löschen, die dem aktiven Linientyp-Filter entsprechen",
+      "disabledReason": "Bereit"
+    },
+    "cp_action_select_lasso": {
+      "label": "Lasso-Auswahl",
+      "tooltip": "Falten auswählen, die von einem Freihand-Lassopfad berührt werden",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Lassopfad ziehen"
+      }
+    },
+    "cp_action_unselect_lasso": {
+      "label": "Lasso-Abwahl",
+      "tooltip": "Falten abwählen, die von einem Freihand-Lassopfad berührt werden",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Lassopfad ziehen"
+      }
+    },
+    "cp_action_text": {
+      "label": "Textanmerkung",
+      "tooltip": "Textanmerkungen erstellen, auswählen, ziehen und bearbeiten",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Textposition anklicken"
+      }
+    },
+    "cp_action_draw_blintz": {
+      "label": "Blintz-Basis",
+      "tooltip": "Blintz-Basis",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Ersten Ankerpunkt wählen",
+        "1": "Zweiten Ankerpunkt wählen"
+      }
+    },
+    "cp_action_draw_fish_base": {
+      "label": "Fischbasis",
+      "tooltip": "Fischbasis",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Ersten Ankerpunkt wählen",
+        "1": "Zweiten Ankerpunkt wählen"
+      }
+    },
+    "cp_action_draw_dove_base": {
+      "label": "Taubenbasis",
+      "tooltip": "Taubenbasis",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Ersten Ankerpunkt wählen",
+        "1": "Zweiten Ankerpunkt wählen"
+      }
+    },
+    "cp_action_draw_bird_base": {
+      "label": "Vogelbasis",
+      "tooltip": "Vogelbasis",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Ersten Ankerpunkt wählen",
+        "1": "Zweiten Ankerpunkt wählen"
+      }
+    },
+    "cp_action_draw_frog_base": {
+      "label": "Froschbasis",
+      "tooltip": "Froschbasis",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Ersten Ankerpunkt wählen",
+        "1": "Zweiten Ankerpunkt wählen"
+      }
+    },
+    "cp_action_modify_calculated_shape": {
+      "label": "Berechnete Form ändern",
+      "tooltip": "Berechnete Form ändern",
+      "disabledReason": "Im CP-Editor noch nicht implementiert"
+    },
+    "cp_action_move_calculated_shape": {
+      "label": "Berechnete Form verschieben",
+      "tooltip": "Berechnete Form verschieben",
+      "disabledReason": "Im CP-Editor noch nicht implementiert"
+    },
+    "cp_action_change_standard_face": {
+      "label": "Standardfläche ändern",
+      "tooltip": "Standardfläche ändern",
+      "disabledReason": "Im CP-Editor noch nicht implementiert"
+    },
+    "cp_action_add_folding_constraint": {
+      "label": "Faltbeschränkung hinzufügen",
+      "tooltip": "Faltbeschränkung hinzufügen",
+      "disabledReason": "Im CP-Editor noch nicht implementiert"
+    },
+    "cp_action_axiom5": {
+      "label": "Axiom 5",
+      "tooltip": "Axiom 5",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Zielpunkt wählen",
+        "1": "Zielfalte wählen",
+        "2": "Drehpunkt wählen",
+        "3": "Bestimmungsfalte wählen"
+      }
+    },
+    "cp_action_axiom7": {
+      "label": "Axiom 7",
+      "tooltip": "Axiom 7",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Zielpunkt wählen",
+        "1": "Zielfalte wählen",
+        "2": "Senkrechte Falte wählen",
+        "3": "Bestimmungsfalte wählen"
+      }
+    },
+    "cp_action_fix_inaccurate": {
+      "label": "Ungenaue Falten korrigieren",
+      "tooltip": "Ungenaue ausgewählte Faltlinien an Oriedita-Korrekturziele einrasten",
+      "disabledReason": "Bereit"
+    },
+    "cp_action_import_cp": {
+      "label": "CP importieren",
+      "tooltip": "CP importieren",
+      "disabledReason": "Im CP-Editor noch nicht implementiert"
+    },
+    "cp_action_export_cp": {
+      "label": "CP exportieren",
+      "tooltip": "CP exportieren",
+      "disabledReason": "Im CP-Editor noch nicht implementiert"
+    },
+    "cp_action_import_fold": {
+      "label": "FOLD importieren",
+      "tooltip": "FOLD importieren",
+      "disabledReason": "Im CP-Editor noch nicht implementiert"
+    },
+    "cp_action_export_fold": {
+      "label": "FOLD exportieren",
+      "tooltip": "FOLD exportieren",
+      "disabledReason": "Im CP-Editor noch nicht implementiert"
+    },
+    "cp_action_import_ori": {
+      "label": "ORI importieren",
+      "tooltip": "ORI importieren",
+      "disabledReason": "Im CP-Editor noch nicht implementiert"
+    },
+    "cp_action_export_ori": {
+      "label": "ORI exportieren",
+      "tooltip": "ORI exportieren",
+      "disabledReason": "Im CP-Editor noch nicht implementiert"
+    },
+    "cp_action_import_orh": {
+      "label": "ORH importieren",
+      "tooltip": "ORH importieren",
+      "disabledReason": "Im CP-Editor noch nicht implementiert"
+    },
+    "cp_action_export_orh": {
+      "label": "ORH exportieren",
+      "tooltip": "ORH exportieren",
+      "disabledReason": "Im CP-Editor noch nicht implementiert"
+    },
+    "cp_action_import_obj": {
+      "label": "OBJ importieren",
+      "tooltip": "OBJ importieren",
+      "disabledReason": "Im CP-Editor noch nicht implementiert"
+    },
+    "cp_action_export_dxf": {
+      "label": "DXF exportieren",
+      "tooltip": "DXF exportieren",
+      "disabledReason": "Im CP-Editor noch nicht implementiert"
+    },
+    "cp_action_save_convert": {
+      "label": "Speichern konvertieren",
+      "tooltip": "Speichern konvertieren",
+      "disabledReason": "Im CP-Editor noch nicht implementiert"
+    },
+    "cp_action_save_version_detect": {
+      "label": "Speicherversion erkennen",
+      "tooltip": "Speicherversion erkennen",
+      "disabledReason": "Im CP-Editor noch nicht implementiert"
+    },
+    "cp_action_check_camv": {
+      "label": "CAMV prüfen",
+      "tooltip": "Oriedita-CAMV-Flachfaltbarkeitsdiagnose ausführen, ohne das CP zu ändern",
+      "disabledReason": "Bereit"
+    },
+    "cp_action_folding_estimate": {
+      "label": "Faltschätzung",
+      "tooltip": "Faltschätzung",
+      "disabledReason": "Die Kernel-Portierung ist im Gange; die UI-Anbindung ist noch nicht implementiert"
+    },
+    "cp_action_folding_estimate_specific": {
+      "label": "Auf Fall falten",
+      "tooltip": "Auf Fall falten",
+      "disabledReason": "Die Kernel-Portierung ist im Gange; die UI-Anbindung ist noch nicht implementiert"
+    },
+    "cp_action_folding_estimate_save100": {
+      "label": "100 Simulationen speichern",
+      "tooltip": "100 Simulationen speichern",
+      "disabledReason": "Die Kernel-Portierung ist im Gange; die UI-Anbindung ist noch nicht implementiert"
+    },
+    "cp_action_two_colored_cp": {
+      "label": "Zweifarbiges CP",
+      "tooltip": "Zweifarbiges CP",
+      "disabledReason": "Die Kernel-Portierung ist im Gange; die UI-Anbindung ist noch nicht implementiert"
+    },
+    "cp_action_fold": {
+      "label": "Falten",
+      "tooltip": "Falten",
+      "disabledReason": "Im CP-Editor noch nicht implementiert"
+    },
+    "cp_action_fold_another": {
+      "label": "Andere Lösung",
+      "tooltip": "Andere Lösung",
+      "disabledReason": "Die Kernel-Portierung ist im Gange; die UI-Anbindung ist noch nicht implementiert"
+    },
+    "cp_action_duplicate_folded_model": {
+      "label": "Gefaltetes Modell duplizieren",
+      "tooltip": "Gefaltetes Modell duplizieren",
+      "disabledReason": "Die Kernel-Portierung ist im Gange; die UI-Anbindung ist noch nicht implementiert"
+    },
+    "cp_action_folded_figure_set_model": {
+      "label": "Modell der gefalteten Figur",
+      "tooltip": "Modell der gefalteten Figur",
+      "disabledReason": "Im CP-Editor noch nicht implementiert"
+    },
+    "cp_action_folded_figure_set_display_style": {
+      "label": "Gefalteter Anzeigestil",
+      "tooltip": "Gefalteter Anzeigestil",
+      "disabledReason": "Im CP-Editor noch nicht implementiert"
+    },
+    "cp_action_folded_figure_set_state": {
+      "label": "Gefalteter Vorder-/Rückzustand",
+      "tooltip": "Gefalteter Vorder-/Rückzustand",
+      "disabledReason": "Im CP-Editor noch nicht implementiert"
+    },
+    "cp_action_folded_figure_set_starting_face": {
+      "label": "Gefaltete Startfläche",
+      "tooltip": "Gefaltete Startfläche",
+      "disabledReason": "Im CP-Editor noch nicht implementiert"
+    },
+    "cp_action_folded_figure_move_camera": {
+      "label": "Kamera der gefalteten Figur bewegen",
+      "tooltip": "Wird von der Kameraebene der Rasteransicht verarbeitet",
+      "disabledReason": "Wird von der Ansichts-Laufzeit statt von einem CP-Befehl verarbeitet"
+    },
+    "cp_action_folded_figure_select_canvas_point": {
+      "label": "Gefaltete Punktauswahl",
+      "tooltip": "Gefaltete Punktauswahl",
+      "disabledReason": "Im CP-Editor noch nicht implementiert"
+    },
+    "cp_action_folded_figure_render_snapshot": {
+      "label": "Gefalteter Render-Schnappschuss",
+      "tooltip": "Gefalteter Render-Schnappschuss",
+      "disabledReason": "Im CP-Editor noch nicht implementiert"
+    },
+    "cp_action_folded_figure_import_fold_frame": {
+      "label": "Gefalteten FOLD-Frame importieren",
+      "tooltip": "Gefalteten FOLD-Frame importieren",
+      "disabledReason": "Im CP-Editor noch nicht implementiert"
+    },
+    "cp_action_folded_figure_export_fold_frames": {
+      "label": "Gefaltete FOLD-Frames exportieren",
+      "tooltip": "Gefaltete FOLD-Frames exportieren",
+      "disabledReason": "Im CP-Editor noch nicht implementiert"
+    },
+    "cp_action_check1": {
+      "label": "Überlappungen prüfen",
+      "tooltip": "Überlappende oder enthaltene Nicht-Hilfsfaltenpaare finden",
+      "disabledReason": "Bereit"
+    },
+    "cp_action_check2": {
+      "label": "T-Verbindungen prüfen",
+      "tooltip": "Nahezu-T-Schnittpunkte zwischen Nicht-Hilfsfaltenpaaren finden",
+      "disabledReason": "Bereit"
+    },
+    "cp_action_check3": {
+      "label": "Faltbarkeit der Ecken prüfen",
+      "tooltip": "Oriedita-Marker für Flachfaltbarkeit von Ecken finden",
+      "disabledReason": "Bereit"
+    },
+    "cp_action_check4": {
+      "label": "Maekawa/LBL prüfen",
+      "tooltip": "Maekawa-, Winkel- und Little-Big-Little-Verletzungen finden",
+      "disabledReason": "Bereit"
+    },
+    "cp_action_fix1": {
+      "label": "Überlappungen reparieren",
+      "tooltip": "Exakte Duplikate zusammenführen und verbleibende überlappende Falten auswählen",
+      "disabledReason": "Bereit"
+    },
+    "cp_action_fix2": {
+      "label": "T-Verbindungen aufteilen",
+      "tooltip": "Nahezu-T-Schnittpunkte mit Oriedita-Toleranzen aufteilen",
+      "disabledReason": "Bereit"
+    },
+    "cp_action_organize_circles": {
+      "label": "Kreise organisieren",
+      "tooltip": "Ungültige Kreise mit Radius null mit Oriedita-Bereinigungsregeln entfernen",
+      "disabledReason": "Bereit"
+    },
+    "cp_action_draw_auxiliary_line": {
+      "label": "Hilfslinie zeichnen",
+      "tooltip": "Eine Oriedita-Hilfslinie zeichnen",
+      "disabledReason": "Der Einfügemodus für Hilfslinien ist im CP-Kernel noch nicht implementiert",
+      "steps": {
+        "0": "Faltenendpunkt ziehen"
+      }
+    }
+  },
   "instructions": {
-    "useTool": ""
+    "useTool": "{{label}} verwenden.",
+    "angleBisectorAction": {
+      "intro": {
+        "0": "Winkelhalbierende zwischen Linien oder Punkten zeichnen."
+      },
+      "steps": {
+        "0": "2 Segmente oder 3 Punkte auswählen.",
+        "1": "3-Punkt-Methode: 3 Punkte auswählen, dann Segment zum Beenden auswählen.",
+        "2": "2-Linien-Methode: 2 Linien auswählen, dann Segment zum Beenden auswählen.",
+        "3": "Parallellinien-Methode: Segment/Indikator zum Beenden auswählen."
+      }
+    },
+    "As100Action": {
+      "intro": {
+        "0": "100 Lösungen der gefalteten Form berechnen und als Bilddateien speichern."
+      }
+    },
+    "axiom5Action": {
+      "intro": {
+        "0": "Eine Linie zeichnen, die Punkt A auf eine Linie legt und dabei durch Punkt B verläuft."
+      },
+      "steps": {
+        "0": "Punkt A auswählen.",
+        "1": "Eine Linie auswählen.",
+        "2": "Punkt B auswählen.",
+        "3": "Eine Ziellinie zum Verlängern auswählen oder den Indikator zum Verlängern auswählen."
+      },
+      "notes": {
+        "0": "Der Abstand zwischen Punkt A und Punkt B muss gleich oder größer sein als der projizierte Abstand zwischen Punkt B und der Linie."
+      }
+    },
+    "axiom7Action": {
+      "intro": {
+        "0": "Eine Linie zeichnen, die einen Punkt auf Linie A legt und dabei senkrecht zu Linie B steht."
+      },
+      "steps": {
+        "0": "Einen Punkt auswählen.",
+        "1": "Linien A und B auswählen.",
+        "2": "Eine Ziellinie zum Verlängern auswählen oder den Indikator zum Verlängern auswählen."
+      },
+      "notes": {
+        "0": "Der Punkt darf nicht auf der Spanne von Linie A liegen, und Linie B darf nicht parallel zu Linie A sein."
+      }
+    },
+    "a1Action": {
+      "intro": {
+        "0": "Winkel durch Auswahl der Punkte ABC messen."
+      }
+    },
+    "a2Action": {
+      "intro": {
+        "0": "Winkel durch Auswahl der Punkte ABC messen."
+      }
+    },
+    "a3Action": {
+      "intro": {
+        "0": "Winkel durch Auswahl der Punkte ABC messen."
+      }
+    },
+    "addColorConstraintAction": {
+      "intro": {
+        "0": "Farbbeschränkungen zur gefalteten Form hinzufügen."
+      },
+      "steps": {
+        "0": "Einen Punkt auf einer Fläche der gefalteten Form auswählen, um die gewünschte Farbe festzulegen."
+      },
+      "notes": {
+        "0": "Weiße Kreise bedeuten, dass die Fläche die weiße Seite zeigt; schwarze Kreise bedeuten, dass die Fläche die farbige Seite zeigt.",
+        "1": "Erneut falten, um mit den Beschränkungen eine neue Lösung zu finden."
+      }
+    },
+    "anotherSolutionAction": {
+      "intro": {
+        "0": "Die nächste verfügbare Lösung für die gefaltete Form berechnen."
+      }
+    },
+    "circleDrawAction": {
+      "intro": {
+        "0": "Kreise zeichnen, die an Raster und Knoten einrasten."
+      }
+    },
+    "circleDrawConcentricAction": {
+      "intro": {
+        "0": "Konzentrischen Kreis zeichnen."
+      },
+      "steps": {
+        "0": "Kreis A auswählen, um die Position festzulegen.",
+        "1": "Eine Linie zeichnen, um den Radius festzulegen."
+      },
+      "notes": {
+        "0": "Die Differenz zwischen den Radien des konzentrischen Kreises und des Kreises A entspricht der Länge der Linie."
+      }
+    },
+    "circleDrawConcentricSelectAction": {
+      "intro": {
+        "0": "Konzentrischen Kreis durch Auswahl der Kreise ABC zeichnen."
+      },
+      "steps": {
+        "0": "Kreis A auswählen, um die Position festzulegen.",
+        "1": "Kreise B und C auswählen, um den Radius festzulegen."
+      },
+      "notes": {
+        "0": "Der Kreis wird konzentrisch zu Kreis A gezeichnet.",
+        "1": "Die Differenz zwischen den Radien des konzentrischen Kreises und des Kreises A entspricht der Differenz zwischen den Radien der Kreise B und C."
+      }
+    },
+    "circleDrawFreeAction": {
+      "intro": {
+        "0": "Kreise frei zeichnen."
+      }
+    },
+    "circleDrawInvertedAction": {
+      "intro": {
+        "0": "Invertierten Kreis durch Auswahl von Kreisen oder Linien zeichnen."
+      },
+      "steps": {
+        "0": "Einen Kreis oder eine Linie auswählen.",
+        "1": "Inversionskreis auswählen."
+      }
+    },
+    "circleDrawSeparateAction": {
+      "intro": {
+        "0": "Einen Kreis durch Auswahl eines Punktes und Zeichnen einer Linie zeichnen."
+      },
+      "notes": {
+        "0": "Der Kreis wird auf dem ausgewählten Punkt gezeichnet, und der Radius entspricht der Länge der gezeichneten Linie."
+      }
+    },
+    "circleDrawTangentLineAction": {
+      "intro": {
+        "0": "Tangente zeichnen."
+      },
+      "steps": {
+        "0": "Zwei Kreise auswählen oder einen Punkt und einen Kreis auswählen.",
+        "1": "Zu zeichnende Tangente auswählen."
+      }
+    },
+    "circleDrawThreePointAction": {
+      "intro": {
+        "0": "Einen Kreis zeichnen, der durch 3 ausgewählte Punkte verläuft."
+      }
+    },
+    "circleDrawTwoConcentricAction": {
+      "intro": {
+        "0": "Verbindende konzentrische Kreise durch Auswahl zweier Kreise zeichnen."
+      },
+      "notes": {
+        "0": "Die Radiusdifferenzen zwischen den konzentrischen und den ausgewählten Kreisen sind gleich."
+      }
+    },
+    "continuousSymmetricDrawAction": {
+      "intro": {
+        "0": "Eine Linie zeichnen, die durch Faltlinien reflektiert wird."
+      },
+      "steps": {
+        "0": "2 Punkte auswählen, um eine Linie zu zeichnen, die durch Faltlinien reflektiert und abwechselt."
+      },
+      "notes": {
+        "0": "Die Reflexion setzt sich fort, bis sie auf einen Rand oder einen Knoten mit 3 oder mehr Linien trifft."
+      }
+    },
+    "copy2p2pAction": {
+      "intro": {
+        "0": "Ausgewählte Linien durch Auswahl von Ursprungs- und Zielpunkten kopieren und transformieren."
+      },
+      "steps": {
+        "0": "Punkte AB auswählen, um den Ursprung festzulegen.",
+        "1": "Punkte CD auswählen, um ein Ziel festzulegen."
+      },
+      "notes": {
+        "0": "Ausgewählte Linien werden kopiert und auf eine neue Position, Skalierung und einen neuen Winkel transformiert, basierend auf der Beziehung zwischen den Punkten AB und CD.",
+        "1": "Punkt A wird zu Punkt C transformiert und Punkt B wird zu Punkt D transformiert."
+      }
+    },
+    "copyAction": {
+      "intro": {
+        "0": "Ausgewählte Linien durch Zeichnen einer Linie kopieren."
+      }
+    },
+    "deg1Action": {
+      "intro": {
+        "0": "Konvergierende Linien mit Winkelversatz zeichnen."
+      },
+      "steps": {
+        "0": "Versatz durch Auswahl einer Linie oder Auswahl von 2 Punkten festlegen.",
+        "1": "Schnittpunkt der konvergierenden Linien auswählen."
+      }
+    },
+    "deg2Action": {
+      "intro": {
+        "0": "Winkelbeschränkte Linie mit ausgewählter Winkelbeschränkung zeichnen."
+      }
+    },
+    "deg3Action": {
+      "intro": {
+        "0": "Winkelbeschränkte Linie mit Versatz zeichnen."
+      },
+      "steps": {
+        "0": "2 Punkte auswählen, um den Winkelversatz festzulegen.",
+        "1": "Eine Ziellinie zum Verlängern auswählen."
+      }
+    },
+    "deg4Action": {
+      "intro": {
+        "0": "Winkelbeschränkte Linie mit Versatz zeichnen."
+      },
+      "steps": {
+        "0": "2 Punkte auswählen, um den Winkelversatz festzulegen.",
+        "1": "Eine Ziellinie zum Verlängern auswählen."
+      }
+    },
+    "del_lAction": {
+      "intro": {
+        "0": "Alle deckungsgleichen Linien durch Zeichnen einer Linie löschen."
+      }
+    },
+    "del_l_XAction": {
+      "intro": {
+        "0": "Alle sich schneidenden Linien durch Zeichnen einer Linie löschen."
+      }
+    },
+    "doubleSymmetricDrawAction": {
+      "intro": {
+        "0": "Berührende Linien an der gezeichneten Linie spiegeln."
+      },
+      "steps": {
+        "0": "Eine Linie über die Endpunkte der Linien zeichnen, um sie zu spiegeln."
+      }
+    },
+    "drawBlintzAction": {
+      "intro": {
+        "0": "Einen Blintz durch Auswahl von 2 gegenüberliegenden Eckpunkten zeichnen."
+      }
+    },
+    "drawBirdBaseAction": {
+      "intro": {
+        "0": "Eine Vogelbasis durch Auswahl von 2 gegenüberliegenden Eckpunkten zeichnen."
+      }
+    },
+    "drawCreaseFreeAction": {
+      "intro": {
+        "0": "Gerade Linien frei zeichnen."
+      }
+    },
+    "drawCreaseRestrictedAction": {
+      "intro": {
+        "0": "Linien zeichnen, die an Raster und Knoten einrasten."
+      }
+    },
+    "drawDoveBaseAction": {
+      "intro": {
+        "0": "Eine Taubenbasis durch Auswahl von 2 gegenüberliegenden Eckpunkten zeichnen."
+      }
+    },
+    "drawFishBaseAction": {
+      "intro": {
+        "0": "Eine Fischbasis durch Auswahl von 2 gegenüberliegenden Eckpunkten zeichnen."
+      }
+    },
+    "drawFrogBaseAction": {
+      "intro": {
+        "0": "Eine Froschbasis durch Auswahl von 2 gegenüberliegenden Eckpunkten zeichnen."
+      }
+    },
+    "drawLineSegmentInternalDivisionRatioAction": {
+      "intro": {
+        "0": "Eine Linie zeichnen, die durch das festgelegte Verhältnis geteilt wird."
+      }
+    },
+    "drawTwoColoredCpAction": {
+      "intro": {
+        "0": "Zweifarbiges Faltmuster mit ausgewählten Faltlinien erstellen."
+      }
+    },
+    "duplicateFoldedModelAction": {
+      "intro": {
+        "0": "Gefaltete Form duplizieren."
+      }
+    },
+    "fishBoneDrawAction": {
+      "intro": {
+        "0": "Senkrechte Parallellinien, die zwischen Berg und Tal abwechseln, durch Zeichnen einer Linie zeichnen."
+      },
+      "notes": {
+        "0": "Der Abstand der Parallellinien entspricht der Rasterbreite."
+      }
+    },
+    "foldableLineDrawAction": {
+      "intro": {
+        "0": "Flachfaltbare Linie zeichnen."
+      },
+      "steps": {
+        "0": "Knoten mit ungerader Anzahl verbindender Linien auswählen.",
+        "1": "Flachfaltbare Linie auswählen.",
+        "2": "Eine Ziellinie zum Verlängern auswählen."
+      },
+      "notes": {
+        "0": "Zum freien Zeichnen an beliebiger Stelle zeichnen."
+      }
+    },
+    "foldableLinePlusGridInputAction": {
+      "intro": {
+        "0": "Flachfaltbare Linie zeichnen."
+      },
+      "steps": {
+        "0": "Knoten mit ungerader Anzahl verbindender Linien auswählen.",
+        "1": "Flachfaltbare Linie auswählen.",
+        "2": "Eine Ziellinie zum Verlängern auswählen."
+      },
+      "notes": {
+        "0": "Eine Linie auswählen, um sie zu verlängern."
+      }
+    },
+    "foldAction": {
+      "intro": {
+        "0": "Gefaltete Form aus dem Faltmuster berechnen."
+      }
+    },
+    "foldedFigureMoveAction": {
+      "intro": {
+        "0": "Gefaltete Form verschieben."
+      }
+    },
+    "goToFoldedFigureAction": {
+      "intro": {
+        "0": "Zu einer bestimmten Lösung der gefalteten Form gehen."
+      }
+    },
+    "h_senbun_nyuryokuAction": {
+      "intro": {
+        "0": "Markierungslinien zeichnen."
+      },
+      "notes": {
+        "0": "Markierungslinien beeinträchtigen die Faltlinien nicht."
+      }
+    },
+    "in_L_col_changeAction": {
+      "intro": {
+        "0": "Farben der Liniensegmente zwischen Berg und Tal durch Zeichnen einer Linie abwechseln."
+      }
+    },
+    "koteimen_siteiAction": {
+      "intro": {
+        "0": "Startfläche durch Auswahl einer Fläche festlegen."
+      },
+      "notes": {
+        "0": "Die gefaltete Form wird relativ zur Startfläche berechnet."
+      }
+    },
+    "l1Action": {
+      "intro": {
+        "0": "Länge durch Auswahl von 2 Punkten messen."
+      },
+      "notes": {
+        "0": "Die Länge wird in Rastereinheiten gemessen.",
+        "1": "Die Länge ist relativ zur Faltmustergröße bei einer Rastergröße von 1."
+      }
+    },
+    "l2Action": {
+      "intro": {
+        "0": "Länge durch Auswahl von 2 Punkten messen."
+      },
+      "notes": {
+        "0": "Die Länge wird in Rastereinheiten gemessen.",
+        "1": "Die Länge ist relativ zur Faltmustergröße bei einer Rastergröße von 1."
+      }
+    },
+    "makeFlatFoldableAction": {
+      "intro": {
+        "0": "Flachfaltbare Linie zeichnen."
+      },
+      "steps": {
+        "0": "Knoten mit ungerader Anzahl verbindender Linien auswählen.",
+        "1": "Flachfaltbare Linie auswählen.",
+        "2": "Eine Ziellinie zum Verlängern auswählen."
+      }
+    },
+    "lengthenCreaseAction": {
+      "intro": {
+        "0": "Eine Linie mit ausgewählter Farbe verlängern."
+      },
+      "steps": {
+        "0": "Eine Linie auswählen oder zeichnen, um Linien auszuwählen.",
+        "1": "Eine Ziellinie zum Verlängern auswählen oder die vorherige Linie zum Verlängern auswählen."
+      }
+    },
+    "lengthenCrease2Action": {
+      "intro": {
+        "0": "Eine Linie mit gleicher Farbe verlängern."
+      },
+      "steps": {
+        "0": "Eine Linie auswählen oder zeichnen, um Linien auszuwählen.",
+        "1": "Eine Ziellinie zum Verlängern auswählen oder die vorherige Linie zum Verlängern auswählen."
+      }
+    },
+    "move2p2pAction": {
+      "intro": {
+        "0": "Ausgewählte Linien durch Auswahl von Ursprungs- und Zielpunkten transformieren."
+      },
+      "steps": {
+        "0": "Punkte AB auswählen, um den Ursprung festzulegen.",
+        "1": "Punkte CD auswählen, um ein Ziel festzulegen."
+      },
+      "notes": {
+        "0": "Ausgewählte Linien werden auf eine neue Position, Skalierung und einen neuen Winkel transformiert, basierend auf der Beziehung zwischen den Punkten AB und CD.",
+        "1": "Punkt A wird zu Punkt C transformiert und Punkt B wird zu Punkt D transformiert."
+      }
+    },
+    "moveAction": {
+      "intro": {
+        "0": "Ausgewählte Linien durch Zeichnen einer Linie verschieben."
+      }
+    },
+    "o_F_checkAction": {
+      "intro": {
+        "0": "Flachfaltbarkeit innerhalb des Polygons prüfen."
+      },
+      "steps": {
+        "0": "Klicken oder klicken und ziehen, um Segmente hinzuzufügen.",
+        "1": "Startpunkt auswählen, um das Polygon zu schließen."
+      },
+      "notes": {
+        "0": "Das Polygon wird cyan, wenn das darin enthaltene Muster flachfaltbar ist, andernfalls bleibt es magenta.",
+        "1": "Wenn das Werkzeug nicht wie beabsichtigt funktioniert, sollten Knoten und Segmente nicht auf Faltmusterknoten liegen."
+      }
+    },
+    "on_L_col_changeAction": {
+      "intro": {
+        "0": "Farben sich schneidender Linien zwischen Berg und Tal durch Zeichnen einer Linie abwechseln."
+      }
+    },
+    "operationFrameSelectAction": {
+      "intro": {
+        "0": "Operationsrahmen durch Zeichnen eines Rechtecks erstellen."
+      },
+      "notes": {
+        "0": "Der Operationsrahmen schneidet das exportierte Bild zu."
+      }
+    },
+    "oriagari_sousa_2Action": {
+      "intro": {
+        "0": "Gefaltete Form durch Ziehen von Knoten ändern."
+      }
+    },
+    "parallelDrawAction": {
+      "intro": {
+        "0": "Parallele Linie von einem Punkt zeichnen."
+      },
+      "steps": {
+        "0": "Einen Punkt auswählen.",
+        "1": "Eine Linie auswählen, zu der parallel gezeichnet werden soll.",
+        "2": "Eine Ziellinie zum Verlängern auswählen."
+      }
+    },
+    "perpendicularDrawAction": {
+      "intro": {
+        "0": "Senkrechte Linie zeichnen."
+      },
+      "steps": {
+        "0": "Startpunkt A auswählen.",
+        "1": "Eine Ziellinie B auswählen."
+      },
+      "notes": {
+        "0": "Eine Linie wird von Punkt A zu Linie B gezeichnet, senkrecht zu Linie B.",
+        "1": "Wenn Punkt A auf Linie B liegt, eine Ziellinie zum Verlängern auswählen oder den Indikator zum Verlängern auswählen."
+      }
+    },
+    "rabbitEarAction": {
+      "intro": {
+        "0": "Linien zum inneren Zentrum zeichnen."
+      },
+      "steps": {
+        "0": "Punkt A auswählen.",
+        "1": "Punkt B auswählen.",
+        "2": "Punkt C auswählen.",
+        "3": "Drei Linien zum inneren Zentrum werden gezeichnet."
+      }
+    },
+    "regularPolygonAction": {
+      "intro": {
+        "0": "Regelmäßiges Polygon durch Auswahl der Punkte AB zeichnen."
+      },
+      "notes": {
+        "0": "Die Punkte AB bilden eine Seite des Polygons, das im Uhrzeigersinn gezeichnet wird."
+      }
+    },
+    "reflectAction": {
+      "intro": {
+        "0": "Ausgewählte Linien an einer mit 2 Punkten gezeichneten Linie spiegeln."
+      }
+    },
+    "selectAction": {
+      "intro": {
+        "0": "Linien durch Zeichnen eines Rechtecks auswählen."
+      }
+    },
+    "select_lXAction": {
+      "intro": {
+        "0": "Überlappende Linien durch Zeichnen einer Linie auswählen."
+      }
+    },
+    "select_polygonAction": {
+      "intro": {
+        "0": "Linien durch Zeichnen eines Polygons auswählen."
+      },
+      "notes": {
+        "0": "Linien, die vollständig innerhalb des Polygons liegen, werden ausgewählt."
+      }
+    },
+    "selectLassoAction": {
+      "intro": {
+        "0": "Linien durch Freihandzeichnen auswählen."
+      }
+    },
+    "senbun_b_nyuryokuAction": {
+      "intro": {
+        "0": "Segmentierte Linie mit ausgewählter Teilung zeichnen."
+      }
+    },
+    "symmetricDrawAction": {
+      "intro": {
+        "0": "Spiegellinie durch Auswahl von Punkten oder Linien zeichnen."
+      },
+      "steps": {
+        "0": "Punkte ABC auswählen, um Linie AB an Linie BC zu spiegeln.",
+        "1": "Oder Linien AB auswählen, um Linie A an Linie B zu spiegeln."
+      }
+    },
+    "setParallelDrawWidthAction": {
+      "intro": {
+        "0": "Parallele Linie durch Auswahl einer Linie zeichnen."
+      },
+      "steps": {
+        "0": "Eine Linie auswählen.",
+        "1": "Klicken und ziehen, um die Versatzbreite festzulegen.",
+        "2": "Zu zeichnende parallele Linie auswählen."
+      }
+    },
+    "textAction": {
+      "intro": {
+        "0": "Textanmerkungen hinzufügen und bearbeiten."
+      },
+      "steps": {
+        "0": "Auf eine leere Stelle klicken, um dort Text hinzuzufügen.",
+        "1": "Auf eine Beschriftung klicken, um sie zu bearbeiten; ziehen, um sie zu verschieben."
+      },
+      "notes": {
+        "0": "ESC drücken oder wegklicken, um eine Bearbeitung zu beenden; leerer Text wird verworfen.",
+        "1": "Mit der rechten Maustaste auf eine Beschriftung klicken oder sie auswählen und Entf drücken, um sie zu entfernen."
+      }
+    },
+    "unselectAction": {
+      "intro": {
+        "0": "Linien durch Zeichnen eines Rechtecks abwählen."
+      }
+    },
+    "unselect_lXAction": {
+      "intro": {
+        "0": "Überlappende Linien durch Zeichnen einer Linie abwählen."
+      }
+    },
+    "unselect_polygonAction": {
+      "intro": {
+        "0": "Linien durch Zeichnen eines Polygons abwählen."
+      },
+      "notes": {
+        "0": "Linien, die vollständig innerhalb des Polygons liegen, werden abgewählt."
+      }
+    },
+    "unselectLassoAction": {
+      "intro": {
+        "0": "Linien durch Freihandzeichnen abwählen."
+      },
+      "notes": {
+        "0": "Linien, die vollständig innerhalb des gezeichneten Bereichs liegen, werden abgewählt."
+      }
+    },
+    "v_del_ccAction": {
+      "intro": {
+        "0": "Einen Knoten auf einer geraden Linie löschen."
+      }
+    },
+    "vertexDeleteAction": {
+      "intro": {
+        "0": "Einen Knoten auf einer geraden Linie einheitlicher Farbe löschen."
+      }
+    },
+    "vertexAddAction": {
+      "intro": {
+        "0": "Einen Knoten hinzufügen."
+      }
+    },
+    "voronoiAction": {
+      "intro": {
+        "0": "Voronoi-Muster durch Auswahl von Punkten zeichnen."
+      },
+      "notes": {
+        "0": "Erneutes Auswählen von Punkten hebt sie auf.",
+        "1": "Anwenden auswählen, um die temporären Linien in Faltlinien umzuwandeln."
+      }
+    }
   }
 }
