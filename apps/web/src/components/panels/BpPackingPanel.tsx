@@ -503,6 +503,53 @@ function StretchStepper({
 }
 
 /**
+ * Contextual name field for the selected flap. Mirrors BP Studio's flap panel
+ * "Name" input: the name lives on the dual tree vertex, so this renames the
+ * vertex too. Empty and duplicate names are allowed (no validation). Commits on
+ * blur and Enter; Escape reverts.
+ */
+function BpFlapNameEditor({
+  flap,
+  onRename,
+}: {
+  flap: OristudioBpFlap;
+  onRename: (name: string) => void;
+}) {
+  const [draft, setDraft] = useState(() => flap.name);
+  useEffect(() => {
+    setDraft(flap.name);
+  }, [flap.id, flap.name]);
+
+  const commit = () => {
+    if (draft !== flap.name) onRename(draft);
+  };
+
+  return (
+    <div className="bp-flap-name-editor" role="group" aria-label={`Name of flap ${flap.id}`}>
+      <span className="bp-flap-name-editor__title">Flap {flap.id}</span>
+      <span className="bp-flap-name-editor__label">Name</span>
+      <input
+        className="bp-flap-name-editor__input"
+        type="text"
+        value={draft}
+        placeholder={`f${flap.id}`}
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            commit();
+            event.currentTarget.blur();
+          } else if (event.key === 'Escape') {
+            setDraft(flap.name);
+            event.currentTarget.blur();
+          }
+        }}
+      />
+    </div>
+  );
+}
+
+/**
  * Contextual control for cycling a stretch's GOPS configuration and pattern —
  * the "pick a valid crease pattern by hand" navigation. Mirrors BP Studio's
  * Stretch.switchConfig/switchPattern (±1 with wraparound).
@@ -690,6 +737,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   );
   const moveOristudioBpLayoutFlap = useWorkspaceStore((state) => state.moveOristudioBpLayoutFlap);
   const moveOristudioBpLayoutFlaps = useWorkspaceStore((state) => state.moveOristudioBpLayoutFlaps);
+  const renameOristudioBpFlap = useWorkspaceStore((state) => state.renameOristudioBpFlap);
   const moveOristudioBpDevice = useWorkspaceStore((state) => state.moveOristudioBpDevice);
   const switchOristudioBpStretchConfig = useWorkspaceStore(
     (state) => state.switchOristudioBpStretchConfig
@@ -739,6 +787,13 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   // — matching Box Pleating Studio's Core-driven update. (Perf can be tuned
   // later; correctness first.)
   const displayPacking = packing;
+  // The single selected flap, if exactly one flap is selected — the contextual
+  // name editor only appears for a single flap (matches the edge-length editor).
+  const singleSelectedFlap = useMemo(() => {
+    const id = document.selection.kind === 'bp-flap' ? document.selection.id : null;
+    if (id === null) return null;
+    return packing.flaps.find((flap) => flap.id === id) ?? null;
+  }, [document.selection, packing.flaps]);
   const paperRect = useMemo(() => bpPackingPaperRect(packing.sheet), [packing.sheet]);
   const shadowRect = useMemo(() => bpPackingShadowRect(packing.sheet), [packing.sheet]);
   // A diagonal sheet is the square rotated 45° into a diamond; render the paper,
@@ -1892,6 +1947,12 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
         enabled={nudgeableFlaps.length > 0 || nudgeableDevice !== null}
         onNudge={nudgeSelection}
       />
+      {singleSelectedFlap && (
+        <BpFlapNameEditor
+          flap={singleSelectedFlap}
+          onRename={(name) => void renameOristudioBpFlap(singleSelectedFlap.id, name)}
+        />
+      )}
       {activeStretch && (
         <BpPackingStretchNav
           stretch={activeStretch}

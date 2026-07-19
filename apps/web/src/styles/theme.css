@@ -5607,6 +5607,48 @@ button.bp-packing-alert:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
+.bp-flap-name-editor {
+  position: absolute;
+  top: var(--space-3);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-context-menu);
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.bp-flap-name-editor__title {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.bp-flap-name-editor__label {
+  color: var(--text-secondary);
+}
+
+.bp-flap-name-editor__input {
+  width: 140px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.bp-flap-name-editor__input:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 1px;
+}
+
 .bp-packing-stretch-nav {
   position: absolute;
   top: var(--space-3);
