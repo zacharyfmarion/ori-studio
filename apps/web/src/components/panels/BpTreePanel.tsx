@@ -296,12 +296,12 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     if (id === null) return null;
     return tree.edges.find((edge) => edge.id === id) ?? null;
   }, [document.selection, tree.edges]);
-  // The single vertex selected by clicking a tree node — drives the name editor.
-  // A leaf vertex is a flap; internal/root vertices can be named too (BP Studio
-  // stores the name on the vertex regardless).
-  const selectedVertex = useMemo(() => {
+  // The selected leaf vertex (a flap) — drives the name editor. Only leaves are
+  // nameable: internal vertices are rivers, which aren't worth labeling.
+  const selectedFlapVertex = useMemo(() => {
     if (selectedVertexId === null) return null;
-    return tree.vertices.find((vertex) => vertex.id === selectedVertexId) ?? null;
+    const vertex = tree.vertices.find((v) => v.id === selectedVertexId) ?? null;
+    return vertex?.isLeaf ? vertex : null;
   }, [selectedVertexId, tree.vertices]);
 
   // Parent/children maps rooted at the tree root, for rotate-around-parent drags.
@@ -1038,14 +1038,14 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
           onSetLength={(length) => void setEdgeLength(selectedEdge, length)}
         />
       )}
-      {selectedVertex && (
+      {selectedFlapVertex && (
         <BpNameEditor
-          key={selectedVertex.id}
-          title={`${selectedVertex.isLeaf ? 'Flap' : 'Node'} ${selectedVertex.id}`}
-          name={selectedVertex.name}
-          placeholder={`f${selectedVertex.id}`}
-          ariaLabel={`Name of ${selectedVertex.isLeaf ? 'flap' : 'node'} ${selectedVertex.id}`}
-          onRename={(name) => void renameOristudioBpVertex(selectedVertex.id, name)}
+          key={selectedFlapVertex.id}
+          title={`Flap ${selectedFlapVertex.id}`}
+          name={selectedFlapVertex.name}
+          placeholder={`f${selectedFlapVertex.id}`}
+          ariaLabel={`Name of flap ${selectedFlapVertex.id}`}
+          onRename={(name) => void renameOristudioBpVertex(selectedFlapVertex.id, name)}
         />
       )}
       <div className="design-status-readout">
