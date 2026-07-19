@@ -548,6 +548,13 @@ export interface OristudioBpSliceActions {
     length: number,
     subtreeUpdates?: { id: number; loc: Point }[]
   ) => Promise<boolean>;
+  /**
+   * Rename a BP flap. The name is stored on the flap's dual tree leaf vertex
+   * (a flap has no name of its own), so this also renames the vertex in the
+   * tree view. Empty and duplicate names are allowed, matching Box Pleating
+   * Studio. Recorded as a single undo entry.
+   */
+  renameOristudioBpFlap: (id: number, name: string) => Promise<boolean>;
   /** Move a single BP flap in the packing. */
   moveOristudioBpLayoutFlap: (id: number, loc: Point, dragging?: boolean) => Promise<boolean>;
   /** Move a group of BP flaps in the packing. */
