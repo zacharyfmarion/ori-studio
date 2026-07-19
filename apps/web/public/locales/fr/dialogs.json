@@ -1,284 +1,284 @@
 {
   "closeGuard": {
-    "discard": "",
-    "message": "",
-    "title": ""
+    "discard": "Abandonner",
+    "message": "Votre projet actuel comporte des modifications non enregistrées. Fermer Ori Studio et les abandonner ?",
+    "title": "Abandonner les modifications non enregistrées ?"
   },
   "common": {
-    "cancel": "",
-    "closeNamed": "",
-    "ok": "",
-    "reset": ""
+    "cancel": "Annuler",
+    "closeNamed": "Fermer {{name}}",
+    "ok": "OK",
+    "reset": "Réinitialiser"
   },
   "cpDetectImport": {
-    "ariaLabel": "",
+    "ariaLabel": "Détecter le CP depuis une image",
     "busy": {
-      "detecting": "",
-      "importing": "",
-      "loadingModel": "",
-      "opening": "",
-      "rectifying": ""
+      "detecting": "Exécution du modèle",
+      "importing": "Importation du patron de plis",
+      "loadingModel": "Vérification du modèle de détection",
+      "opening": "Ouverture de l'image",
+      "rectifying": "Redressement du recadrage"
     },
-    "chooseImage": "",
-    "compilerReviewOverlays": "",
-    "crop": "",
-    "detect": "",
-    "detected": "",
-    "dropImageHere": "",
-    "import": "",
-    "inferred": "",
-    "mvChanges": "",
-    "openImageTitle": "",
-    "rectified": "",
+    "chooseImage": "Choisir une image",
+    "compilerReviewOverlays": "Superpositions de révision du compilateur",
+    "crop": "Recadrer",
+    "detect": "Détecter",
+    "detected": "Détecté",
+    "dropImageHere": "Déposez l'image ici",
+    "import": "Importer",
+    "inferred": "Déduit",
+    "mvChanges": "Changements M/V",
+    "openImageTitle": "Ouvrir l'image du patron de plis",
+    "rectified": "Redressé",
     "report": {
-      "ambiguous": "",
-      "assignmentChange_one": "",
-      "assignmentChange_many": "",
-      "assignmentChange_other": "",
-      "assignmentChanges_one": "",
-      "assignmentChanges_many": "",
-      "assignmentChanges_other": "",
-      "compilerFallback": "",
-      "counts": "",
-      "topologyMove_one": "",
-      "topologyMove_many": "",
-      "topologyMove_other": "",
-      "topologyMoves_one": "",
-      "topologyMoves_many": "",
-      "topologyMoves_other": ""
+      "ambiguous": "ambigu",
+      "assignmentChange_one": "{{count}} changement d'assignation",
+      "assignmentChange_many": "{{count}} changement d'assignation",
+      "assignmentChange_other": "{{count}} changement d'assignation",
+      "assignmentChanges_one": "{{count}} changements d'assignation",
+      "assignmentChanges_many": "{{count}} changements d'assignation",
+      "assignmentChanges_other": "{{count}} changements d'assignation",
+      "compilerFallback": "solution de repli du compilateur",
+      "counts": "{{vertices}} sommets, {{edges}} arêtes",
+      "topologyMove_one": "{{count}} déplacement topologique",
+      "topologyMove_many": "{{count}} déplacement topologique",
+      "topologyMove_other": "{{count}} déplacement topologique",
+      "topologyMoves_one": "{{count}} déplacements topologiques",
+      "topologyMoves_many": "{{count}} déplacements topologiques",
+      "topologyMoves_other": "{{count}} déplacements topologiques"
     },
-    "runningModel": "",
-    "title": "",
-    "updateCrop": ""
+    "runningModel": "Exécution du modèle",
+    "title": "Détecter le CP depuis une image",
+    "updateCrop": "Mettre à jour le recadrage"
   },
   "export": {
-    "allPatterns": "",
-    "confirm": "",
-    "creasePattern": "",
-    "creasePatternToExport": "",
-    "includeUnassigned": "",
-    "lineStyle": "",
-    "lineWidth": "",
-    "patternN": "",
-    "pointSize": "",
-    "preview": "",
-    "showBackgroundColor": ""
+    "allPatterns": "Tous les patrons",
+    "confirm": "Exporter {{format}}",
+    "creasePattern": "Patron de plis",
+    "creasePatternToExport": "Patron de plis à exporter",
+    "includeUnassigned": "Inclure les plis plats / non assignés",
+    "lineStyle": "Style de ligne",
+    "lineWidth": "Largeur de ligne",
+    "patternN": "Patron {{index}}",
+    "pointSize": "Taille des points",
+    "preview": "Aperçu de l'exportation",
+    "showBackgroundColor": "Afficher la couleur d'arrière-plan"
   },
   "help": {
     "about": {
-      "acknowledgements": "",
-      "help": "",
-      "intro": "",
-      "subtitle": "",
-      "title": ""
+      "acknowledgements": "Remerciements",
+      "help": "Aide",
+      "intro": "Ori Studio a pour ambition d'être l'espace de travail ultime pour la conception et l'analyse d'origami. Il repose largement sur des portages d'outils d'origami existants créés par la communauté — l'espace de travail Édition, par exemple, est un portage d'Oriedita vers Rust, axé sur la convivialité et les performances. Si vous avez des suggestions, n'hésitez pas à <2>ouvrir un ticket sur GitHub</2>.",
+      "subtitle": "Un espace de travail partagé et moderne pour concevoir, modifier et plier des patrons de plis d'origami.",
+      "title": "À propos d'Ori Studio"
     },
     "acknowledgements": {
       "boxPleatingStudio": {
-        "detail": "",
-        "title": ""
+        "detail": "La méthode de création en pliage en boîte est un portage en Rust et WebAssembly de Box Pleating Studio de Mu-Tsun Tsai.",
+        "title": "Mu-Tsun Tsai et Box Pleating Studio"
       },
       "oriedita": {
-        "detail": "",
-        "title": ""
+        "detail": "L'éditeur de patron de plis est un portage en Rust et WebAssembly de l'éditeur Oriedita (lui-même une bifurcation d'Orihime), y compris ses diagnostics de pliabilité, ses réparations et ses formats de fichier.",
+        "title": "Oriedita"
       },
       "origamiSimulator": {
-        "detail": "",
-        "title": ""
+        "detail": "L'espace de travail Simuler plie les bases en un modèle 3D interactif à l'aide d'un portage en TypeScript d'Origami Simulator d'Amanda Ghassaei.",
+        "title": "Amanda Ghassaei et Origami Simulator"
       },
       "treemaker": {
-        "detail": "",
-        "title": ""
+        "detail": "Le code et le comportement du modèle original de TreeMaker constituent la référence canonique pour ce portage en Rust, WebAssembly et pour ordinateur de bureau.",
+        "title": "Robert J. Lang et TreeMaker 5.0.1"
       }
     },
-    "closeLabel": "",
+    "closeLabel": "Fermer {{title}}",
     "guide": {
-      "about": "",
-      "footer": "",
-      "subtitle": "",
-      "title": "",
-      "topicsNav": ""
+      "about": "À propos",
+      "footer": "Les commandes d'Ori Studio sont accessibles depuis la barre de menus web, le menu natif du bureau et la barre d'outils compacte.",
+      "subtitle": "Un aperçu pratique de la surface actuelle de l'application partagée pour navigateur et ordinateur de bureau.",
+      "title": "Aide d'Ori Studio",
+      "topicsNav": "Rubriques d'aide"
     },
     "topics": {
       "conditions": {
-        "caption": "",
-        "imageAlt": "",
-        "step1": "",
-        "step2": "",
-        "step3": "",
-        "step4": "",
-        "summary": "",
-        "title": ""
+        "caption": "Les conditions sont construites à partir de la sélection actuelle ; sélectionnez donc des nœuds, des arêtes ou des chemins avant d'ajouter des contraintes.",
+        "imageAlt": "Panneau des conditions avec la taille du papier, le type de symétrie, les options de symétrie avancées et les actions d'ajout depuis la sélection",
+        "step1": "Définissez la largeur et la hauteur du papier avant d'ajuster les coordonnées exactes.",
+        "step2": "Choisissez une symétrie livre, diagonale ou personnalisée, puis utilisez les outils de miroir du panneau Conception pour créer des feuilles appariées.",
+        "step3": "Ajoutez des conditions de nœud fixe, nœud sur arête, nœud sur coin, nœuds appariés, longueur fixe, tension identique et chemin à partir des parties sélectionnées.",
+        "step4": "Utilisez la liste des conditions pour inspecter, sélectionner ou supprimer les contraintes à mesure que le modèle évolue.",
+        "summary": "Le panneau des conditions contrôle la taille du papier, les préréglages de symétrie et les contraintes de conception basées sur la sélection.",
+        "title": "Définir le papier, la symétrie et les conditions"
       },
       "creasePattern": {
-        "caption": "",
-        "imageAlt": "",
-        "step1": "",
-        "step2": "",
-        "step3": "",
-        "step4": "",
-        "summary": "",
-        "title": ""
+        "caption": "Basculez entre les modes de couleur par rôle de pli et par montagne-vallée selon ce que vous devez inspecter.",
+        "imageAlt": "Panneau du patron de plis affichant un patron de plis généré avec les contrôles de mode de couleur",
+        "step1": "Utilisez la coloration par rôle de pli pour distinguer les lignes axiales, de goussets, de crêtes, de charnières et de pseudo-charnières.",
+        "step2": "Les lignes de pli utilisent la coloration d'assignation M/V pour montrer les montagnes, les vallées, les plats et les bords.",
+        "step3": "Utilisez les outils du canevas de l'espace de travail Édition et l'affichage tête haute de l'état du CP pour la sélection et les diagnostics du patron de plis.",
+        "step4": "Exportez en SVG ou PNG une fois le patron de plis créé ; exportez en FOLD pour une géométrie prête pour le simulateur.",
+        "summary": "L'espace de travail Édition affiche les patrons de plis générés ou importés avec la coloration par rôle et par montagne-vallée.",
+        "title": "Modifier les patrons de plis"
       },
       "design": {
-        "caption": "",
-        "imageAlt": "",
-        "step1": "",
-        "step2": "",
-        "step3": "",
-        "step4": "",
-        "summary": "",
-        "title": ""
+        "caption": "Utilisez les contrôles compacts de la fenêtre d'affichage pour le zoom, l'ajustement, la création de symétrie et la visibilité des calques.",
+        "imageAlt": "Panneau Conception avec les nœuds de l'arbre, les arêtes, les étiquettes, les cercles de feuilles, les contrôles de zoom et les contrôles de calques",
+        "step1": "Sélectionnez des parties directement sur le papier ; utilisez les clics Maj, Cmd ou Ctrl pour construire une sélection multiple.",
+        "step2": "Cliquez sur du papier vide pour ajouter des nœuds, ou sélectionnez un nœud et cliquez sur du papier vide pour rattacher une nouvelle arête et un nouveau nœud.",
+        "step3": "Faites glisser les nœuds pour remodeler l'arbre. Le glisser avec la barre d'espace ou les contrôles de zoom aident à se déplacer dans les conceptions plus grandes.",
+        "step4": "Activez ou désactivez les chemins, les cercles de feuilles, les étiquettes et les superpositions de symétrie depuis le menu des calques lorsque la vue devient dense.",
+        "summary": "L'espace de travail Conception est la surface papier principale pour sélectionner, dessiner, connecter, faire glisser et visualiser la structure de l'arbre.",
+        "title": "Dessiner et modifier l'arbre"
       },
       "files": {
-        "caption": "",
-        "imageAlt": "",
-        "step1": "",
-        "step2": "",
-        "step3": "",
-        "step4": "",
-        "summary": "",
-        "title": ""
+        "caption": "Le menu Fichier regroupe les actions de projet, les exportations et les exemples en un seul endroit.",
+        "imageAlt": "Menu Fichier affichant les commandes Nouveau, Ouvrir, Exemples, Enregistrer et les commandes d'exportation",
+        "step1": "Nouveau renvoie à l'écran de démarrage ; Ouvrir accepte les fichiers .osf, .tmd, .tmd4, .tmd5, .fold, .cp, .ori et .orh.",
+        "step2": "Fichier → Exemples charge les conceptions de départ intégrées.",
+        "step3": "Enregistrer et Enregistrer sous écrivent des fichiers de projet Ori Studio ; utilisez Exporter pour les formats TreeMaker, CP, FOLD, SVG et PNG.",
+        "step4": "Les exportations deviennent disponibles lorsque le document actuel contient les données requises par chaque format.",
+        "summary": "Utilisez l'écran de démarrage ou le menu Fichier pour gérer les projets Ori Studio et les exportations de patrons de plis.",
+        "title": "Démarrer, ouvrir, enregistrer, exporter"
       },
       "folding": {
-        "caption": "",
-        "imageAlt": "",
-        "step1": "",
-        "step2": "",
-        "step3": "",
-        "step4": "",
-        "summary": "",
-        "title": ""
+        "caption": "Les contrôles d'actualisation régénèrent les artefacts de pliage à plat lorsqu'un patron de plis change.",
+        "imageAlt": "Panneau du simulateur affichant les contrôles de pliage et la géométrie pliée",
+        "step1": "Ouvrez Simuler une fois qu'un patron de plis est généré ou importé, puis faites glisser la fenêtre d'affichage pour faire pivoter le modèle plié en 3D.",
+        "step2": "Utilisez le curseur de pliage, la lecture, le pas à pas et les contrôles de vue pour inspecter le mouvement de pliage.",
+        "step3": "Basculez les paramètres de rendu entre les vues papier et rayons X, et activez ou désactivez les faces, les arêtes et les lignes cachées.",
+        "step4": "Générez une figure pliée Oriedita directement dans la grille du patron de plis pour inspecter la forme pliée à plat.",
+        "summary": "L'espace de travail Simuler utilise les artefacts de pliage à plat produits à partir de patrons de plis générés ou importés.",
+        "title": "Simuler le modèle plié"
       },
       "inspector": {
-        "caption": "",
-        "imageAlt": "",
-        "step1": "",
-        "step2": "",
-        "step3": "",
-        "step4": "",
-        "summary": "",
-        "title": ""
+        "caption": "La sélection pilote l'inspecteur ; modifiez les étiquettes, les coordonnées, les longueurs d'arête et la rigidité sans quitter l'espace de travail.",
+        "imageAlt": "Panneau de l'inspecteur affichant l'étiquette de nœud modifiable et les champs de coordonnées à côté de la conception sélectionnée",
+        "step1": "Sélectionnez un nœud pour modifier son étiquette et ses coordonnées sur le papier.",
+        "step2": "Sélectionnez une arête pour modifier son étiquette, sa longueur cible et sa rigidité, tandis que la tension reste en lecture seule.",
+        "step3": "Sélectionnez des chemins ou des conditions pour examiner leurs métadonnées de conception.",
+        "step4": "Lorsque deux nœuds sont sélectionnés, l'inspecteur peut sélectionner le chemin entre eux pour les conditions de chemin.",
+        "summary": "L'inspecteur de l'espace de travail Conception modifie les nœuds et arêtes sélectionnés et résume les chemins et conditions de l'arbre.",
+        "title": "Inspecter les détails de la sélection"
       },
       "optimize": {
-        "caption": "",
-        "imageAlt": "",
-        "step1": "",
-        "step2": "",
-        "step3": "",
-        "step4": "",
-        "summary": "",
-        "title": ""
+        "caption": "Ori Studio active chaque commande uniquement lorsque le document est prêt pour cette étape.",
+        "imageAlt": "Barre d'outils affichant les actions Optimiser l'échelle et Générer le patron de plis avec les diagnostics visibles",
+        "step1": "Optimiser l'échelle ajuste l'arbre au papier actuel tout en préservant la sémantique du modèle TreeMaker sélectionné.",
+        "step2": "Optimiser les arêtes et Optimiser la tension sont disponibles depuis le menu Conception pour des flux d'optimisation plus poussés.",
+        "step3": "Générer le patron de plis transforme un arbre optimisé en plis, facettes, directions de pliage et données de base pliée.",
+        "step4": "Les diagnostics rendent compte de l'état de préparation du moteur, de l'état de l'optimisation, de la faisabilité et des résultats de génération du patron de plis.",
+        "summary": "L'optimisation et la génération du patron de plis passent par le menu Conception partagé, les boutons de la barre d'outils et le menu natif du bureau.",
+        "title": "Optimiser et générer le patron de plis"
       },
       "workspace": {
-        "caption": "",
-        "imageAlt": "",
-        "step1": "",
-        "step2": "",
-        "step3": "",
-        "step4": "",
-        "summary": "",
-        "title": ""
+        "caption": "Réinitialisez la disposition des panneaux depuis Affichage ou Paramètres, et choisissez un thème dans les paramètres Apparence.",
+        "imageAlt": "Fenêtre des paramètres et menu de l'application affichant les contrôles de thème et de disposition",
+        "step1": "Utilisez la barre latérale gauche ou le menu Affichage pour activer Conception, Édition ou Simuler.",
+        "step2": "Faites glisser les en-têtes de panneaux à l'intérieur d'un espace de travail pour le réorganiser ; Réinitialiser la disposition restaure la disposition par défaut de l'espace de travail actuel.",
+        "step3": "Les paramètres contiennent les thèmes d'apparence, les raccourcis clavier et les contrôles de disposition de l'espace de travail.",
+        "step4": "Utilisez l'onglet Raccourcis des paramètres pour inspecter ou réaffecter les commandes de fichier, d'édition, de fenêtre d'affichage et des outils du patron de plis.",
+        "summary": "La surface de l'application est partagée entre le navigateur et le bureau, avec des menus web, des menus Tauri natifs, des dispositions d'espaces de travail et des paramètres.",
+        "title": "Menus, disposition, paramètres"
       }
     }
   },
   "number": {
-    "tooSmall": ""
+    "tooSmall": "Saisissez un nombre supérieur à {{minimum}}."
   },
   "selectByIndex": {
-    "available": "",
-    "close": "",
-    "index": "",
-    "noParts": "",
-    "part": "",
+    "available": "Disponible : {{ids}}",
+    "close": "Fermer la sélection par index",
+    "index": "Index",
+    "noParts": "Aucune partie de ce type",
+    "part": "Partie",
     "partKind": {
-      "condition": "",
-      "crease": "",
-      "edge": "",
-      "facet": "",
-      "node": "",
-      "path": ""
+      "condition": "Condition",
+      "crease": "Pli",
+      "edge": "Arête",
+      "facet": "Facette",
+      "node": "Nœud",
+      "path": "Chemin"
     },
-    "partType": "",
-    "select": "",
-    "title": ""
+    "partType": "Type de partie",
+    "select": "Sélectionner",
+    "title": "Sélectionner par index"
   },
   "settings": {
     "appearance": {
-      "dark": "",
-      "light": ""
+      "dark": "Sombre",
+      "light": "Clair"
     },
-    "close": "",
+    "close": "Fermer les paramètres",
     "language": {
-      "title": ""
+      "title": "Langue"
     },
-    "sections": "",
+    "sections": "Sections des paramètres",
     "shortcuts": {
-      "alreadyAssigned": "",
-      "assigned": "",
-      "categoryAnnotations": "",
-      "categoryCheckAndFix": "",
-      "categoryColor": "",
-      "categoryConstruct": "",
-      "categoryCreasePattern": "",
-      "categoryDesign": "",
-      "categoryDraw": "",
-      "categoryEdit": "",
-      "categoryFile": "",
-      "categoryFold": "",
-      "categoryGenerators": "",
-      "categoryHelp": "",
-      "categoryLineType": "",
-      "categoryMeasure": "",
-      "categorySelectAndEdit": "",
-      "categoryTransform": "",
-      "categoryViewport": "",
-      "clear": "",
-      "pressKeys": "",
-      "pressPrompt": "",
-      "reserved": "",
-      "reset": "",
-      "resetAll": "",
-      "resetAllMessage": "",
-      "resetAllTitle": "",
-      "scopeCreasePattern": "",
-      "scopeGlobal": "",
-      "scopeViewport": "",
-      "search": "",
-      "softReserved": "",
-      "unassigned": "",
-      "viewportActualSize": "",
-      "viewportFit": ""
+      "alreadyAssigned": "{{chord}} est déjà attribué à {{label}}.",
+      "assigned": "Attribué",
+      "categoryAnnotations": "Annotations",
+      "categoryCheckAndFix": "Vérifier et corriger",
+      "categoryColor": "Couleur",
+      "categoryConstruct": "Construire",
+      "categoryCreasePattern": "Patron de plis",
+      "categoryDesign": "Conception",
+      "categoryDraw": "Dessiner",
+      "categoryEdit": "Édition",
+      "categoryFile": "Fichier",
+      "categoryFold": "Plier",
+      "categoryGenerators": "Générateurs",
+      "categoryHelp": "Aide",
+      "categoryLineType": "Type de ligne",
+      "categoryMeasure": "Mesurer",
+      "categorySelectAndEdit": "Sélectionner et modifier",
+      "categoryTransform": "Transformer",
+      "categoryViewport": "Fenêtre d'affichage",
+      "clear": "Effacer le raccourci {{label}}",
+      "pressKeys": "Appuyez sur les touches",
+      "pressPrompt": "Appuyez sur un raccourci pour {{label}}.",
+      "reserved": "{{chord}} est réservé par le navigateur.",
+      "reset": "Réinitialiser le raccourci {{label}}",
+      "resetAll": "Tout réinitialiser",
+      "resetAllMessage": "Restaurer tous les raccourcis clavier à leurs valeurs par défaut ?",
+      "resetAllTitle": "Réinitialiser les raccourcis",
+      "scopeCreasePattern": "patron de plis",
+      "scopeGlobal": "global",
+      "scopeViewport": "fenêtre d'affichage",
+      "search": "Rechercher des raccourcis",
+      "softReserved": "{{chord}} a été attribué, mais certains navigateurs peuvent le réserver.",
+      "unassigned": "Non attribué",
+      "viewportActualSize": "Taille réelle",
+      "viewportFit": "Ajuster à la vue"
     },
     "tab": {
-      "appearance": "",
-      "shortcuts": "",
-      "workspace": ""
+      "appearance": "Apparence",
+      "shortcuts": "Raccourcis",
+      "workspace": "Espace de travail"
     },
-    "title": "",
+    "title": "Paramètres",
     "workspace": {
-      "layout": "",
-      "resetButton": "",
-      "resetMessage": "",
-      "resetTitle": ""
+      "layout": "Disposition",
+      "resetButton": "Réinitialiser la disposition de l'espace de travail",
+      "resetMessage": "Restaurer la disposition par défaut de l'espace de travail actuel ?",
+      "resetTitle": "Réinitialiser la disposition de l'espace de travail"
     }
   },
   "startScreen": {
-    "chooseBegin": "",
+    "chooseBegin": "Choisissez comment vous voulez commencer.",
     "createCp": {
-      "description": "",
-      "title": ""
+      "description": "Ouvrez un document de patron de plis vierge et modifiable avec les outils de dessin de CP prêts.",
+      "title": "Créer un CP"
     },
     "createDesign": {
-      "description": "",
-      "title": ""
+      "description": "Partez d'un arbre vierge, puis optimisez-le et générez un patron de plis.",
+      "title": "Créer une conception"
     },
-    "description": "",
+    "description": "Commencez par un patron de plis, ouvrez un fichier existant ou esquissez la structure de l'arbre pour une nouvelle conception.",
     "openFile": {
-      "description": "",
-      "title": ""
+      "description": "Ouvrez des projets .osf ou importez des fichiers .cp, .fold, .ori, .orh, .tmd, .tmd4 et .tmd5 via le flux de fichiers partagé.",
+      "title": "Ouvrir un fichier"
     },
-    "preparing": "",
-    "startOptions": "",
-    "title": ""
+    "preparing": "Préparation de l'éditeur...",
+    "startOptions": "Options de démarrage",
+    "title": "Démarrer un nouvel espace de travail d'origami"
   }
 }

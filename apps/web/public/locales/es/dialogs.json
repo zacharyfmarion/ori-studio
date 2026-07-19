@@ -1,284 +1,284 @@
 {
   "closeGuard": {
-    "discard": "",
-    "message": "",
-    "title": ""
+    "discard": "Descartar",
+    "message": "El proyecto actual tiene cambios sin guardar. ¿Cerrar Ori Studio y descartarlos?",
+    "title": "¿Descartar los cambios sin guardar?"
   },
   "common": {
-    "cancel": "",
-    "closeNamed": "",
-    "ok": "",
-    "reset": ""
+    "cancel": "Cancelar",
+    "closeNamed": "Cerrar {{name}}",
+    "ok": "Aceptar",
+    "reset": "Restablecer"
   },
   "cpDetectImport": {
-    "ariaLabel": "",
+    "ariaLabel": "Detectar CP desde imagen",
     "busy": {
-      "detecting": "",
-      "importing": "",
-      "loadingModel": "",
-      "opening": "",
-      "rectifying": ""
+      "detecting": "Ejecutando el modelo",
+      "importing": "Importando patrón de pliegues",
+      "loadingModel": "Comprobando el modelo de detección",
+      "opening": "Abriendo imagen",
+      "rectifying": "Rectificando el recorte"
     },
-    "chooseImage": "",
-    "compilerReviewOverlays": "",
-    "crop": "",
-    "detect": "",
-    "detected": "",
-    "dropImageHere": "",
-    "import": "",
-    "inferred": "",
-    "mvChanges": "",
-    "openImageTitle": "",
-    "rectified": "",
+    "chooseImage": "Elegir imagen",
+    "compilerReviewOverlays": "Superposiciones de revisión del compilador",
+    "crop": "Recortar",
+    "detect": "Detectar",
+    "detected": "Detectado",
+    "dropImageHere": "Suelta la imagen aquí",
+    "import": "Importar",
+    "inferred": "Inferido",
+    "mvChanges": "Cambios M/V",
+    "openImageTitle": "Abrir imagen de patrón de pliegues",
+    "rectified": "Rectificado",
     "report": {
-      "ambiguous": "",
-      "assignmentChange_one": "",
-      "assignmentChange_many": "",
-      "assignmentChange_other": "",
-      "assignmentChanges_one": "",
-      "assignmentChanges_many": "",
-      "assignmentChanges_other": "",
-      "compilerFallback": "",
-      "counts": "",
-      "topologyMove_one": "",
-      "topologyMove_many": "",
-      "topologyMove_other": "",
-      "topologyMoves_one": "",
-      "topologyMoves_many": "",
-      "topologyMoves_other": ""
+      "ambiguous": "ambiguo",
+      "assignmentChange_one": "{{count}} cambio de asignación",
+      "assignmentChange_many": "{{count}} cambio de asignación",
+      "assignmentChange_other": "{{count}} cambio de asignación",
+      "assignmentChanges_one": "{{count}} cambios de asignación",
+      "assignmentChanges_many": "{{count}} cambios de asignación",
+      "assignmentChanges_other": "{{count}} cambios de asignación",
+      "compilerFallback": "alternativa del compilador",
+      "counts": "{{vertices}} vértices, {{edges}} aristas",
+      "topologyMove_one": "{{count}} movimiento de topología",
+      "topologyMove_many": "{{count}} movimiento de topología",
+      "topologyMove_other": "{{count}} movimiento de topología",
+      "topologyMoves_one": "{{count}} movimientos de topología",
+      "topologyMoves_many": "{{count}} movimientos de topología",
+      "topologyMoves_other": "{{count}} movimientos de topología"
     },
-    "runningModel": "",
-    "title": "",
-    "updateCrop": ""
+    "runningModel": "Ejecutando el modelo",
+    "title": "Detectar CP desde imagen",
+    "updateCrop": "Actualizar recorte"
   },
   "export": {
-    "allPatterns": "",
-    "confirm": "",
-    "creasePattern": "",
-    "creasePatternToExport": "",
-    "includeUnassigned": "",
-    "lineStyle": "",
-    "lineWidth": "",
-    "patternN": "",
-    "pointSize": "",
-    "preview": "",
-    "showBackgroundColor": ""
+    "allPatterns": "Todos los patrones",
+    "confirm": "Exportar {{format}}",
+    "creasePattern": "Patrón de pliegues",
+    "creasePatternToExport": "Patrón de pliegues a exportar",
+    "includeUnassigned": "Incluir pliegues planos / sin asignar",
+    "lineStyle": "Estilo de línea",
+    "lineWidth": "Grosor de línea",
+    "patternN": "Patrón {{index}}",
+    "pointSize": "Tamaño de punto",
+    "preview": "Vista previa de exportación",
+    "showBackgroundColor": "Mostrar color de fondo"
   },
   "help": {
     "about": {
-      "acknowledgements": "",
-      "help": "",
-      "intro": "",
-      "subtitle": "",
-      "title": ""
+      "acknowledgements": "Agradecimientos",
+      "help": "Ayuda",
+      "intro": "Ori Studio aspira a ser el espacio de trabajo definitivo para el diseño y el análisis de origami. Se apoya en gran medida en migraciones de herramientas de origami existentes creadas por la comunidad: el espacio de trabajo de edición, por ejemplo, es una migración de Oriedita a Rust, centrada en la usabilidad y el rendimiento. Si tienes alguna sugerencia, no dudes en <2>abrir una incidencia en GitHub</2>.",
+      "subtitle": "Un espacio de trabajo compartido y moderno para diseñar, editar y plegar patrones de pliegues de origami.",
+      "title": "Acerca de Ori Studio"
     },
     "acknowledgements": {
       "boxPleatingStudio": {
-        "detail": "",
-        "title": ""
+        "detail": "El método de creación de plegado en caja es una migración a Rust y WebAssembly de Box Pleating Studio de Mu-Tsun Tsai.",
+        "title": "Mu-Tsun Tsai y Box Pleating Studio"
       },
       "oriedita": {
-        "detail": "",
-        "title": ""
+        "detail": "El editor de patrones de pliegues es una migración a Rust y WebAssembly del editor Oriedita (a su vez una bifurcación de Orihime), incluidos sus diagnósticos de plegabilidad, reparaciones y formatos de archivo.",
+        "title": "Oriedita"
       },
       "origamiSimulator": {
-        "detail": "",
-        "title": ""
+        "detail": "El espacio de trabajo de simulación pliega bases en un modelo 3D interactivo mediante una migración a TypeScript de Origami Simulator de Amanda Ghassaei.",
+        "title": "Amanda Ghassaei y Origami Simulator"
       },
       "treemaker": {
-        "detail": "",
-        "title": ""
+        "detail": "El código y el comportamiento del modelo original de TreeMaker son la referencia canónica para esta migración a Rust, WebAssembly y escritorio.",
+        "title": "Robert J. Lang y TreeMaker 5.0.1"
       }
     },
-    "closeLabel": "",
+    "closeLabel": "Cerrar {{title}}",
     "guide": {
-      "about": "",
-      "footer": "",
-      "subtitle": "",
-      "title": "",
-      "topicsNav": ""
+      "about": "Acerca de",
+      "footer": "Los comandos de Ori Studio están disponibles desde la barra de menús web, el menú nativo de escritorio y la barra de herramientas compacta.",
+      "subtitle": "Un mapa práctico de la superficie actual compartida de la aplicación web y de escritorio.",
+      "title": "Ayuda de Ori Studio",
+      "topicsNav": "Temas de ayuda"
     },
     "topics": {
       "conditions": {
-        "caption": "",
-        "imageAlt": "",
-        "step1": "",
-        "step2": "",
-        "step3": "",
-        "step4": "",
-        "summary": "",
-        "title": ""
+        "caption": "Las condiciones se crean a partir de la selección actual, así que selecciona nodos, aristas o rutas antes de añadir restricciones.",
+        "imageAlt": "Panel de condiciones con tamaño del papel, tipo de simetría, opciones avanzadas de simetría y acciones de añadir desde la selección",
+        "step1": "Establece el ancho y el alto del papel antes de ajustar las coordenadas exactas.",
+        "step2": "Elige simetría de libro, diagonal o personalizada, y luego usa las herramientas de espejo del panel de diseño para crear hojas emparejadas.",
+        "step3": "Añade condiciones de nodo fijo, nodo en arista, nodo en esquina, nodo emparejado, longitud fija, misma tensión y ruta a partir de las partes seleccionadas.",
+        "step4": "Usa la lista de condiciones para inspeccionar, seleccionar o eliminar restricciones a medida que el modelo evoluciona.",
+        "summary": "El panel de condiciones controla el tamaño del papel, los ajustes preestablecidos de simetría y las restricciones de diseño basadas en la selección.",
+        "title": "Establecer papel, simetría y condiciones"
       },
       "creasePattern": {
-        "caption": "",
-        "imageAlt": "",
-        "step1": "",
-        "step2": "",
-        "step3": "",
-        "step4": "",
-        "summary": "",
-        "title": ""
+        "caption": "Cambia entre los modos de color por función del pliegue y de monte-valle según lo que necesites inspeccionar.",
+        "imageAlt": "Panel de patrón de pliegues que muestra un patrón de pliegues generado con controles de modo de color",
+        "step1": "Usa Color por función del pliegue para distinguir las líneas axiales, de refuerzo, de cresta, de bisagra y de pseudobisagra.",
+        "step2": "Las líneas de pliegue usan el coloreado por asignación M/V para mostrar montes, valles, planos y bordes.",
+        "step3": "Usa las herramientas del lienzo del espacio de trabajo de edición y el HUD de estado del CP para la selección y los diagnósticos del patrón de pliegues.",
+        "step4": "Exporta SVG o PNG una vez que exista el patrón de pliegues; exporta FOLD para obtener geometría lista para el simulador.",
+        "summary": "El espacio de trabajo de edición muestra patrones de pliegues generados o importados con coloreado por función y de monte-valle.",
+        "title": "Editar patrones de pliegues"
       },
       "design": {
-        "caption": "",
-        "imageAlt": "",
-        "step1": "",
-        "step2": "",
-        "step3": "",
-        "step4": "",
-        "summary": "",
-        "title": ""
+        "caption": "Usa los controles compactos de la vista para el zoom, el ajuste, la creación de simetría y la visibilidad de capas.",
+        "imageAlt": "Panel de diseño con nodos del árbol, aristas, etiquetas, círculos de hoja, controles de zoom y controles de capas",
+        "step1": "Selecciona partes directamente sobre el papel; usa clics con Shift, Cmd o Ctrl para crear una selección múltiple.",
+        "step2": "Haz clic en papel vacío para añadir nodos, o selecciona un nodo y haz clic en papel vacío para adjuntar una nueva arista y un nuevo nodo.",
+        "step3": "Arrastra los nodos para remodelar el árbol. Arrastrar con la barra espaciadora o los controles de zoom ayudan a desplazarte por diseños más grandes.",
+        "step4": "Activa o desactiva las rutas, los círculos de hoja, las etiquetas y las superposiciones de simetría desde el menú de capas cuando la vista se satura.",
+        "summary": "El espacio de trabajo de diseño es la principal superficie de papel para seleccionar, dibujar, conectar, arrastrar y ver la estructura del árbol.",
+        "title": "Dibujar y editar el árbol"
       },
       "files": {
-        "caption": "",
-        "imageAlt": "",
-        "step1": "",
-        "step2": "",
-        "step3": "",
-        "step4": "",
-        "summary": "",
-        "title": ""
+        "caption": "El menú Archivo mantiene las acciones de proyecto, las exportaciones y los ejemplos en un solo lugar.",
+        "imageAlt": "Menú Archivo que muestra los comandos Nuevo, Abrir, Ejemplos, Guardar y de exportación",
+        "step1": "Nuevo regresa a la pantalla de inicio; Abrir acepta archivos .osf, .tmd, .tmd4, .tmd5, .fold, .cp, .ori y .orh.",
+        "step2": "Archivo → Ejemplos carga diseños de inicio incluidos.",
+        "step3": "Guardar y Guardar como escriben archivos de proyecto de Ori Studio; usa Exportar para los formatos TreeMaker, CP, FOLD, SVG y PNG.",
+        "step4": "Las exportaciones están disponibles cuando el documento actual tiene los datos que necesita cada formato.",
+        "summary": "Usa la pantalla de inicio o el menú Archivo para gestionar los proyectos de Ori Studio y las exportaciones de patrones de pliegues.",
+        "title": "Iniciar, abrir, guardar, exportar"
       },
       "folding": {
-        "caption": "",
-        "imageAlt": "",
-        "step1": "",
-        "step2": "",
-        "step3": "",
-        "step4": "",
-        "summary": "",
-        "title": ""
+        "caption": "Los controles de actualización regeneran los artefactos de plegado plano cuando cambia un patrón de pliegues.",
+        "imageAlt": "Panel del simulador que muestra los controles de plegado y la geometría plegada",
+        "step1": "Abre Simular después de generar o importar un patrón de pliegues, y luego arrastra la vista para rotar el modelo plegado en 3D.",
+        "step2": "Usa el control deslizante de plegado y los controles de reproducción, paso y vista para inspeccionar el movimiento del plegado.",
+        "step3": "Cambia la configuración de renderizado entre las vistas de papel y de rayos X, y activa o desactiva las caras, las aristas y las líneas ocultas.",
+        "step4": "Genera una figura plegada de Oriedita directamente en la cuadrícula del patrón de pliegues para inspeccionar la forma plegada en plano.",
+        "summary": "El espacio de trabajo de simulación usa los artefactos de plegado plano producidos a partir de patrones de pliegues generados o importados.",
+        "title": "Simular el modelo plegado"
       },
       "inspector": {
-        "caption": "",
-        "imageAlt": "",
-        "step1": "",
-        "step2": "",
-        "step3": "",
-        "step4": "",
-        "summary": "",
-        "title": ""
+        "caption": "La selección controla el inspector; cambia etiquetas, coordenadas, longitudes de arista y rigidez sin salir del espacio de trabajo.",
+        "imageAlt": "Panel del inspector que muestra la etiqueta editable del nodo y los campos de coordenadas junto al diseño seleccionado",
+        "step1": "Selecciona un nodo para editar su etiqueta y sus coordenadas en el papel.",
+        "step2": "Selecciona una arista para editar su etiqueta, longitud objetivo y rigidez, mientras que la tensión permanece de solo lectura.",
+        "step3": "Selecciona rutas o condiciones para revisar sus metadatos de diseño.",
+        "step4": "Cuando hay dos nodos seleccionados, el inspector puede seleccionar la ruta entre ellos para las condiciones de ruta.",
+        "summary": "El inspector del espacio de trabajo de diseño edita los nodos y aristas seleccionados y resume las rutas y condiciones del árbol.",
+        "title": "Inspeccionar los detalles de la selección"
       },
       "optimize": {
-        "caption": "",
-        "imageAlt": "",
-        "step1": "",
-        "step2": "",
-        "step3": "",
-        "step4": "",
-        "summary": "",
-        "title": ""
+        "caption": "Ori Studio habilita cada comando solo cuando el documento está listo para ese paso.",
+        "imageAlt": "Barra de herramientas que muestra las acciones Optimizar escala y Generar CP con los diagnósticos visibles",
+        "step1": "Optimizar escala ajusta el árbol al papel actual conservando la semántica del modelo de TreeMaker seleccionado.",
+        "step2": "Optimizar aristas y Optimizar tensión están disponibles en el menú Diseño para flujos de trabajo de optimización más profundos.",
+        "step3": "Generar CP convierte un árbol optimizado en pliegues, facetas, direcciones de plegado y datos de base plegada.",
+        "step4": "Los diagnósticos informan sobre la disponibilidad del motor, el estado de la optimización, la viabilidad y los resultados de la generación del patrón de pliegues.",
+        "summary": "La optimización y la generación del patrón de pliegues se realizan a través del menú Diseño compartido, los botones de la barra de herramientas y el menú nativo de escritorio.",
+        "title": "Optimizar y generar CP"
       },
       "workspace": {
-        "caption": "",
-        "imageAlt": "",
-        "step1": "",
-        "step2": "",
-        "step3": "",
-        "step4": "",
-        "summary": "",
-        "title": ""
+        "caption": "Restablece la disposición de paneles desde Ver o Configuración, y elige un tema desde la configuración de Apariencia.",
+        "imageAlt": "Ventana de configuración y menú de la aplicación que muestran los controles de tema y disposición",
+        "step1": "Usa la barra lateral izquierda o el menú Ver para activar Diseño, Edición o Simulación.",
+        "step2": "Arrastra los encabezados de los paneles dentro de un espacio de trabajo para reorganizarlo; Restablecer disposición restaura los valores predeterminados del espacio de trabajo actual.",
+        "step3": "La configuración contiene los temas de Apariencia, los atajos de teclado y los controles de disposición del espacio de trabajo.",
+        "step4": "Usa la pestaña de configuración Atajos para inspeccionar o reasignar los comandos de las herramientas de archivo, edición, vista y patrón de pliegues.",
+        "summary": "La superficie de la aplicación se comparte entre el navegador y el escritorio, con menús web, menús nativos de Tauri, disposiciones de espacio de trabajo y configuración.",
+        "title": "Menús, disposición, configuración"
       }
     }
   },
   "number": {
-    "tooSmall": ""
+    "tooSmall": "Introduce un número mayor que {{minimum}}."
   },
   "selectByIndex": {
-    "available": "",
-    "close": "",
-    "index": "",
-    "noParts": "",
-    "part": "",
+    "available": "Disponibles: {{ids}}",
+    "close": "Cerrar seleccionar por índice",
+    "index": "Índice",
+    "noParts": "No hay partes de este tipo",
+    "part": "Parte",
     "partKind": {
-      "condition": "",
-      "crease": "",
-      "edge": "",
-      "facet": "",
-      "node": "",
-      "path": ""
+      "condition": "Condición",
+      "crease": "Pliegue",
+      "edge": "Arista",
+      "facet": "Faceta",
+      "node": "Nodo",
+      "path": "Ruta"
     },
-    "partType": "",
-    "select": "",
-    "title": ""
+    "partType": "Tipo de parte",
+    "select": "Seleccionar",
+    "title": "Seleccionar por índice"
   },
   "settings": {
     "appearance": {
-      "dark": "",
-      "light": ""
+      "dark": "Oscuro",
+      "light": "Claro"
     },
-    "close": "",
+    "close": "Cerrar configuración",
     "language": {
-      "title": ""
+      "title": "Idioma"
     },
-    "sections": "",
+    "sections": "Secciones de configuración",
     "shortcuts": {
-      "alreadyAssigned": "",
-      "assigned": "",
-      "categoryAnnotations": "",
-      "categoryCheckAndFix": "",
-      "categoryColor": "",
-      "categoryConstruct": "",
-      "categoryCreasePattern": "",
-      "categoryDesign": "",
-      "categoryDraw": "",
-      "categoryEdit": "",
-      "categoryFile": "",
-      "categoryFold": "",
-      "categoryGenerators": "",
-      "categoryHelp": "",
-      "categoryLineType": "",
-      "categoryMeasure": "",
-      "categorySelectAndEdit": "",
-      "categoryTransform": "",
-      "categoryViewport": "",
-      "clear": "",
-      "pressKeys": "",
-      "pressPrompt": "",
-      "reserved": "",
-      "reset": "",
-      "resetAll": "",
-      "resetAllMessage": "",
-      "resetAllTitle": "",
-      "scopeCreasePattern": "",
-      "scopeGlobal": "",
-      "scopeViewport": "",
-      "search": "",
-      "softReserved": "",
-      "unassigned": "",
-      "viewportActualSize": "",
-      "viewportFit": ""
+      "alreadyAssigned": "{{chord}} ya está asignado a {{label}}.",
+      "assigned": "Asignado",
+      "categoryAnnotations": "Anotaciones",
+      "categoryCheckAndFix": "Comprobar y reparar",
+      "categoryColor": "Color",
+      "categoryConstruct": "Construir",
+      "categoryCreasePattern": "Patrón de pliegues",
+      "categoryDesign": "Diseño",
+      "categoryDraw": "Dibujar",
+      "categoryEdit": "Edición",
+      "categoryFile": "Archivo",
+      "categoryFold": "Plegar",
+      "categoryGenerators": "Generadores",
+      "categoryHelp": "Ayuda",
+      "categoryLineType": "Tipo de línea",
+      "categoryMeasure": "Medir",
+      "categorySelectAndEdit": "Seleccionar y editar",
+      "categoryTransform": "Transformar",
+      "categoryViewport": "Vista",
+      "clear": "Borrar el atajo de {{label}}",
+      "pressKeys": "Pulsa las teclas",
+      "pressPrompt": "Pulsa un atajo para {{label}}.",
+      "reserved": "{{chord}} está reservado por el navegador.",
+      "reset": "Restablecer el atajo de {{label}}",
+      "resetAll": "Restablecer todo",
+      "resetAllMessage": "¿Restaurar todos los atajos de teclado a sus valores predeterminados?",
+      "resetAllTitle": "Restablecer atajos",
+      "scopeCreasePattern": "patrón de pliegues",
+      "scopeGlobal": "global",
+      "scopeViewport": "vista",
+      "search": "Buscar atajos",
+      "softReserved": "{{chord}} se asignó, pero algunos navegadores podrían reservarlo.",
+      "unassigned": "Sin asignar",
+      "viewportActualSize": "Tamaño real",
+      "viewportFit": "Ajustar a la vista"
     },
     "tab": {
-      "appearance": "",
-      "shortcuts": "",
-      "workspace": ""
+      "appearance": "Apariencia",
+      "shortcuts": "Atajos",
+      "workspace": "Espacio de trabajo"
     },
-    "title": "",
+    "title": "Configuración",
     "workspace": {
-      "layout": "",
-      "resetButton": "",
-      "resetMessage": "",
-      "resetTitle": ""
+      "layout": "Disposición",
+      "resetButton": "Restablecer disposición del espacio de trabajo",
+      "resetMessage": "¿Restaurar la disposición predeterminada del espacio de trabajo actual?",
+      "resetTitle": "Restablecer disposición del espacio de trabajo"
     }
   },
   "startScreen": {
-    "chooseBegin": "",
+    "chooseBegin": "Elige cómo quieres empezar.",
     "createCp": {
-      "description": "",
-      "title": ""
+      "description": "Abre un documento de patrón de pliegues editable en blanco con las herramientas de dibujo de CP listas.",
+      "title": "Crear un CP"
     },
     "createDesign": {
-      "description": "",
-      "title": ""
+      "description": "Empieza con un árbol en blanco, luego optimízalo y genera un patrón de pliegues.",
+      "title": "Crear un diseño"
     },
-    "description": "",
+    "description": "Empieza con un patrón de pliegues, abre un archivo existente o esboza la estructura de árbol para un nuevo diseño.",
     "openFile": {
-      "description": "",
-      "title": ""
+      "description": "Abre proyectos .osf o importa archivos .cp, .fold, .ori, .orh, .tmd, .tmd4 y .tmd5 mediante el flujo de trabajo de archivos compartido.",
+      "title": "Abrir un archivo"
     },
-    "preparing": "",
-    "startOptions": "",
-    "title": ""
+    "preparing": "Preparando el editor...",
+    "startOptions": "Opciones de inicio",
+    "title": "Iniciar un nuevo espacio de trabajo de origami"
   }
 }

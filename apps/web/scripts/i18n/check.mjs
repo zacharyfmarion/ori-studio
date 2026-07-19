@@ -62,6 +62,18 @@ const english = readEnglishKeys();
 const hashes = readHashes();
 const gaps = {}; // locale -> { missing: [], stale: [] }
 
+// CLDR plural suffixes i18next appends per key+locale. A key's plural forms differ by
+// locale (en: one/other; ja/zh/ko: other only; ru: one/few/many/other), so an English
+// `_one` key legitimately has no counterpart in a single-category locale — treat the plural
+// family as satisfied if the target has ANY non-empty form of the same base key.
+const PLURAL_SUFFIX = /_(zero|one|two|few|many|other)$/;
+function pluralFamilySatisfied(flatNs, key) {
+  const base = key.replace(PLURAL_SUFFIX, '');
+  return Object.entries(flatNs).some(
+    ([k, v]) => (k === base || k.startsWith(`${base}_`)) && v !== '' && v !== undefined
+  );
+}
+
 for (const locale of TARGET_LOCALES) {
   const bucket = hashes[locale] ?? {};
   const flatByNs = Object.fromEntries(NAMESPACES.map((ns) => [ns, flatten(readCatalog(locale, ns))]));
@@ -72,9 +84,18 @@ for (const locale of TARGET_LOCALES) {
     const key = rest.join(':');
     const value = flatByNs[ns]?.[key];
     if (value === undefined || value === '') {
+      // A plural-form English key may map to different plural categories in this locale;
+      // don't flag it if the locale has the base key's plural family filled.
+      if (PLURAL_SUFFIX.test(key) && pluralFamilySatisfied(flatByNs[ns] ?? {}, key)) continue;
       missing.push(id);
     } else if (bucket[id] !== shortHash(enValue)) {
       stale.push(id);
+    }
+  }
+  // Also flag any of this locale's OWN plural forms that were left empty.
+  for (const ns of NAMESPACES) {
+    for (const [key, value] of Object.entries(flatByNs[ns] ?? {})) {
+      if (PLURAL_SUFFIX.test(key) && value === '') missing.push(`${ns}:${key}`);
     }
   }
   if (missing.length || stale.length) gaps[locale] = { missing, stale };

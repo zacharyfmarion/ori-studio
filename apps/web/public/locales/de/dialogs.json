@@ -1,280 +1,280 @@
 {
   "closeGuard": {
-    "discard": "",
-    "message": "",
-    "title": ""
+    "discard": "Verwerfen",
+    "message": "Ihr aktuelles Projekt enthält nicht gespeicherte Änderungen. Ori Studio schließen und verwerfen?",
+    "title": "Nicht gespeicherte Änderungen verwerfen?"
   },
   "common": {
-    "cancel": "",
-    "closeNamed": "",
-    "ok": "",
-    "reset": ""
+    "cancel": "Abbrechen",
+    "closeNamed": "{{name}} schließen",
+    "ok": "OK",
+    "reset": "Zurücksetzen"
   },
   "cpDetectImport": {
-    "ariaLabel": "",
+    "ariaLabel": "CP aus Bild erkennen",
     "busy": {
-      "detecting": "",
-      "importing": "",
-      "loadingModel": "",
-      "opening": "",
-      "rectifying": ""
+      "detecting": "Modell wird ausgeführt",
+      "importing": "Faltmuster wird importiert",
+      "loadingModel": "Erkennungsmodell wird geprüft",
+      "opening": "Bild wird geöffnet",
+      "rectifying": "Zuschnitt wird entzerrt"
     },
-    "chooseImage": "",
-    "compilerReviewOverlays": "",
-    "crop": "",
-    "detect": "",
-    "detected": "",
-    "dropImageHere": "",
-    "import": "",
-    "inferred": "",
-    "mvChanges": "",
-    "openImageTitle": "",
-    "rectified": "",
+    "chooseImage": "Bild auswählen",
+    "compilerReviewOverlays": "Compiler-Prüfungs-Overlays",
+    "crop": "Zuschneiden",
+    "detect": "Erkennen",
+    "detected": "Erkannt",
+    "dropImageHere": "Bild hier ablegen",
+    "import": "Importieren",
+    "inferred": "Abgeleitet",
+    "mvChanges": "Berg/Tal-Änderungen",
+    "openImageTitle": "Faltmuster-Bild öffnen",
+    "rectified": "Entzerrt",
     "report": {
-      "ambiguous": "",
-      "assignmentChange_one": "",
-      "assignmentChange_other": "",
-      "assignmentChanges_one": "",
-      "assignmentChanges_other": "",
-      "compilerFallback": "",
-      "counts": "",
-      "topologyMove_one": "",
-      "topologyMove_other": "",
-      "topologyMoves_one": "",
-      "topologyMoves_other": ""
+      "ambiguous": "mehrdeutig",
+      "assignmentChange_one": "{{count}} Zuordnungsänderung",
+      "assignmentChange_other": "{{count}} Zuordnungsänderung",
+      "assignmentChanges_one": "{{count}} Zuordnungsänderungen",
+      "assignmentChanges_other": "{{count}} Zuordnungsänderungen",
+      "compilerFallback": "Compiler-Fallback",
+      "counts": "{{vertices}} Ecken, {{edges}} Kanten",
+      "topologyMove_one": "{{count}} Topologie-Verschiebung",
+      "topologyMove_other": "{{count}} Topologie-Verschiebung",
+      "topologyMoves_one": "{{count}} Topologie-Verschiebungen",
+      "topologyMoves_other": "{{count}} Topologie-Verschiebungen"
     },
-    "runningModel": "",
-    "title": "",
-    "updateCrop": ""
+    "runningModel": "Modell wird ausgeführt",
+    "title": "CP aus Bild erkennen",
+    "updateCrop": "Zuschnitt aktualisieren"
   },
   "export": {
-    "allPatterns": "",
-    "confirm": "",
-    "creasePattern": "",
-    "creasePatternToExport": "",
-    "includeUnassigned": "",
-    "lineStyle": "",
-    "lineWidth": "",
-    "patternN": "",
-    "pointSize": "",
-    "preview": "",
-    "showBackgroundColor": ""
+    "allPatterns": "Alle Muster",
+    "confirm": "{{format}} exportieren",
+    "creasePattern": "Faltmuster",
+    "creasePatternToExport": "Zu exportierendes Faltmuster",
+    "includeUnassigned": "Flache / nicht zugewiesene Falten einschließen",
+    "lineStyle": "Linienstil",
+    "lineWidth": "Linienbreite",
+    "patternN": "Muster {{index}}",
+    "pointSize": "Punktgröße",
+    "preview": "Export-Vorschau",
+    "showBackgroundColor": "Hintergrundfarbe anzeigen"
   },
   "help": {
     "about": {
-      "acknowledgements": "",
-      "help": "",
-      "intro": "",
-      "subtitle": "",
-      "title": ""
+      "acknowledgements": "Danksagungen",
+      "help": "Hilfe",
+      "intro": "Ori Studio möchte der ultimative Arbeitsbereich für Origami-Design und -Analyse sein. Es stützt sich stark auf Portierungen bestehender Origami-Werkzeuge, die von der Community erstellt wurden — der Bearbeiten-Arbeitsbereich ist zum Beispiel eine Portierung von Oriedita nach Rust, mit Fokus auf Benutzerfreundlichkeit und Leistung. Wenn Sie Vorschläge haben, können Sie gerne <2>ein Issue auf GitHub eröffnen</2>.",
+      "subtitle": "Ein moderner gemeinsamer Arbeitsbereich zum Entwerfen, Bearbeiten und Falten von Origami-Faltmustern.",
+      "title": "Über Ori Studio"
     },
     "acknowledgements": {
       "boxPleatingStudio": {
-        "detail": "",
-        "title": ""
+        "detail": "Die Box-Pleating-Autorenmethode ist eine Portierung von Mu-Tsun Tsais Box Pleating Studio nach Rust und WebAssembly.",
+        "title": "Mu-Tsun Tsai und Box Pleating Studio"
       },
       "oriedita": {
-        "detail": "",
-        "title": ""
+        "detail": "Der Faltmuster-Editor ist eine Portierung des Oriedita-Editors (selbst ein Fork von Orihime) nach Rust und WebAssembly, einschließlich seiner Faltbarkeitsdiagnosen, Reparaturen und Dateiformate.",
+        "title": "Oriedita"
       },
       "origamiSimulator": {
-        "detail": "",
-        "title": ""
+        "detail": "Der Simulieren-Arbeitsbereich faltet Basen mithilfe einer TypeScript-Portierung von Amanda Ghassaeis Origami Simulator zu einem interaktiven 3D-Modell.",
+        "title": "Amanda Ghassaei und Origami Simulator"
       },
       "treemaker": {
-        "detail": "",
-        "title": ""
+        "detail": "Der ursprüngliche Modellcode und das Verhalten von TreeMaker sind die maßgebliche Referenz für diese Portierung nach Rust, WebAssembly und Desktop.",
+        "title": "Robert J. Lang und TreeMaker 5.0.1"
       }
     },
-    "closeLabel": "",
+    "closeLabel": "{{title}} schließen",
     "guide": {
-      "about": "",
-      "footer": "",
-      "subtitle": "",
-      "title": "",
-      "topicsNav": ""
+      "about": "Über",
+      "footer": "Ori Studio-Befehle sind über die Web-Menüleiste, das native Desktop-Menü und die kompakte Symbolleiste verfügbar.",
+      "subtitle": "Eine praktische Übersicht über die aktuelle gemeinsame Browser- und Desktop-App-Oberfläche.",
+      "title": "Ori Studio-Hilfe",
+      "topicsNav": "Hilfethemen"
     },
     "topics": {
       "conditions": {
-        "caption": "",
-        "imageAlt": "",
-        "step1": "",
-        "step2": "",
-        "step3": "",
-        "step4": "",
-        "summary": "",
-        "title": ""
+        "caption": "Bedingungen werden aus der aktuellen Auswahl erstellt, wählen Sie also Knoten, Kanten oder Pfade aus, bevor Sie Einschränkungen hinzufügen.",
+        "imageAlt": "Bedingungsbereich mit Papiergröße, Symmetrietyp, erweiterten Symmetrieoptionen und Aktionen zum Hinzufügen aus der Auswahl",
+        "step1": "Legen Sie Papierbreite und -höhe fest, bevor Sie exakte Koordinaten anpassen.",
+        "step2": "Wählen Sie Buch-, Diagonal- oder benutzerdefinierte Symmetrie und verwenden Sie dann die Spiegelwerkzeuge des Design-Bereichs, um gepaarte Blätter zu erstellen.",
+        "step3": "Fügen Sie Bedingungen für fixierte Knoten, Knoten-auf-Kante, Knoten-auf-Ecke, gepaarte Knoten, feste Länge, gleiche Dehnung und Pfade aus ausgewählten Teilen hinzu.",
+        "step4": "Verwenden Sie die Bedingungsliste, um Einschränkungen zu prüfen, auszuwählen oder zu entfernen, während sich das Modell weiterentwickelt.",
+        "summary": "Der Bedingungsbereich steuert Papiergröße, Symmetrievoreinstellungen und auswahlbasierte Design-Einschränkungen.",
+        "title": "Papier, Symmetrie und Bedingungen festlegen"
       },
       "creasePattern": {
-        "caption": "",
-        "imageAlt": "",
-        "step1": "",
-        "step2": "",
-        "step3": "",
-        "step4": "",
-        "summary": "",
-        "title": ""
+        "caption": "Wechseln Sie je nach dem, was Sie prüfen möchten, zwischen den Farbmodi Faltenrolle und Berg-Tal.",
+        "imageAlt": "Faltmuster-Bereich, der ein generiertes Faltmuster mit Farbmodus-Steuerelementen zeigt",
+        "step1": "Verwenden Sie 'Nach Faltenrolle einfärben', um Axial-, Zwickel-, Grat-, Scharnier- und Pseudoscharnierlinien zu unterscheiden.",
+        "step2": "Faltlinien verwenden die Berg-Tal-Zuordnungsfärbung, um Berge, Täler, flache Falten und Ränder anzuzeigen.",
+        "step3": "Verwenden Sie die Leinwandwerkzeuge des Bearbeiten-Arbeitsbereichs und das CP-Status-HUD für Faltmuster-Auswahl und -Diagnose.",
+        "step4": "Exportieren Sie SVG oder PNG, nachdem das Faltmuster existiert; exportieren Sie FOLD für simulatorfertige Geometrie.",
+        "summary": "Der Bearbeiten-Arbeitsbereich zeigt generierte oder importierte Faltmuster mit Rollen- und Berg-Tal-Färbung.",
+        "title": "Faltmuster bearbeiten"
       },
       "design": {
-        "caption": "",
-        "imageAlt": "",
-        "step1": "",
-        "step2": "",
-        "step3": "",
-        "step4": "",
-        "summary": "",
-        "title": ""
+        "caption": "Verwenden Sie die kompakten Viewport-Steuerelemente für Zoom, Anpassen, Symmetrieerstellung und Ebenensichtbarkeit.",
+        "imageAlt": "Design-Bereich mit Baumknoten, Kanten, Beschriftungen, Blattkreisen, Zoom-Steuerelementen und Ebenensteuerelementen",
+        "step1": "Wählen Sie Teile direkt auf dem Papier aus; verwenden Sie Umschalt-, Cmd- oder Strg-Klicks, um eine Mehrfachauswahl aufzubauen.",
+        "step2": "Klicken Sie auf leeres Papier, um Knoten hinzuzufügen, oder wählen Sie einen Knoten aus und klicken Sie auf leeres Papier, um eine neue Kante und einen neuen Knoten anzuhängen.",
+        "step3": "Ziehen Sie Knoten, um den Baum umzuformen. Leertaste-Ziehen oder die Zoom-Steuerelemente helfen beim Navigieren in größeren Designs.",
+        "step4": "Schalten Sie Pfade, Blattkreise, Beschriftungen und Symmetrie-Overlays über das Ebenenmenü um, wenn die Ansicht dicht wird.",
+        "summary": "Der Design-Arbeitsbereich ist die Hauptpapieroberfläche zum Auswählen, Zeichnen, Verbinden, Ziehen und Betrachten der Baumstruktur.",
+        "title": "Den Baum zeichnen und bearbeiten"
       },
       "files": {
-        "caption": "",
-        "imageAlt": "",
-        "step1": "",
-        "step2": "",
-        "step3": "",
-        "step4": "",
-        "summary": "",
-        "title": ""
+        "caption": "Das Datei-Menü hält Projektaktionen, Exporte und Beispiele an einem Ort bereit.",
+        "imageAlt": "Datei-Menü mit den Befehlen Neu, Öffnen, Beispiele, Speichern und Export",
+        "step1": "'Neu' kehrt zum Startbildschirm zurück; 'Öffnen' akzeptiert .osf-, .tmd-, .tmd4-, .tmd5-, .fold-, .cp-, .ori- und .orh-Dateien.",
+        "step2": "Datei → Beispiele lädt mitgelieferte Startdesigns.",
+        "step3": "'Speichern' und 'Speichern unter' schreiben Ori Studio-Projektdateien; verwenden Sie 'Exportieren' für die Formate TreeMaker, CP, FOLD, SVG und PNG.",
+        "step4": "Exporte werden verfügbar, wenn das aktuelle Dokument die von jedem Format benötigten Daten enthält.",
+        "summary": "Verwenden Sie den Startbildschirm oder das Datei-Menü, um Ori Studio-Projekte und Faltmuster-Exporte zu verwalten.",
+        "title": "Starten, Öffnen, Speichern, Exportieren"
       },
       "folding": {
-        "caption": "",
-        "imageAlt": "",
-        "step1": "",
-        "step2": "",
-        "step3": "",
-        "step4": "",
-        "summary": "",
-        "title": ""
+        "caption": "Aktualisierungssteuerelemente regenerieren Flachfalt-Artefakte, wenn sich ein Faltmuster ändert.",
+        "imageAlt": "Simulator-Bereich mit Faltsteuerelementen und gefalteter Geometrie",
+        "step1": "Öffnen Sie 'Simulieren', nachdem ein Faltmuster erstellt oder importiert wurde, und ziehen Sie dann den Viewport, um das gefaltete 3D-Modell zu drehen.",
+        "step2": "Verwenden Sie den Faltregler sowie die Wiedergabe-, Schritt- und Ansichtssteuerelemente, um die Faltbewegung zu prüfen.",
+        "step3": "Wechseln Sie die Render-Einstellungen zwischen Papier- und Röntgenansicht und schalten Sie Flächen, Kanten und verdeckte Linien um.",
+        "step4": "Erzeugen Sie eine gefaltete Oriedita-Figur direkt im Faltmuster-Raster, um die flachgefaltete Form zu prüfen.",
+        "summary": "Der Simulieren-Arbeitsbereich verwendet die Flachfalt-Artefakte, die aus erstellten oder importierten Faltmustern erzeugt werden.",
+        "title": "Das gefaltete Modell simulieren"
       },
       "inspector": {
-        "caption": "",
-        "imageAlt": "",
-        "step1": "",
-        "step2": "",
-        "step3": "",
-        "step4": "",
-        "summary": "",
-        "title": ""
+        "caption": "Die Auswahl steuert den Inspektor; ändern Sie Beschriftungen, Koordinaten, Kantenlängen und Steifigkeit, ohne den Arbeitsbereich zu verlassen.",
+        "imageAlt": "Inspektor-Bereich mit bearbeitbaren Feldern für Knotenbeschriftung und Koordinaten neben dem ausgewählten Design",
+        "step1": "Wählen Sie einen Knoten aus, um seine Beschriftung und Papierkoordinaten zu bearbeiten.",
+        "step2": "Wählen Sie eine Kante aus, um ihre Beschriftung, Ziellänge und Steifigkeit zu bearbeiten, während die Dehnung nur zur Anzeige dient.",
+        "step3": "Wählen Sie Pfade oder Bedingungen aus, um ihre Design-Metadaten zu überprüfen.",
+        "step4": "Wenn zwei Knoten ausgewählt sind, kann der Inspektor den Pfad zwischen ihnen für Pfadbedingungen auswählen.",
+        "summary": "Der Inspektor des Design-Arbeitsbereichs bearbeitet ausgewählte Knoten und Kanten und fasst Baumpfade und Bedingungen zusammen.",
+        "title": "Auswahldetails inspizieren"
       },
       "optimize": {
-        "caption": "",
-        "imageAlt": "",
-        "step1": "",
-        "step2": "",
-        "step3": "",
-        "step4": "",
-        "summary": "",
-        "title": ""
+        "caption": "Ori Studio aktiviert jeden Befehl nur, wenn das Dokument für diesen Schritt bereit ist.",
+        "imageAlt": "Symbolleiste mit den Aktionen 'Skalierung optimieren' und 'CP erstellen' mit sichtbarer Diagnose",
+        "step1": "'Skalierung optimieren' passt den Baum an das aktuelle Papier an und erhält dabei die Semantik des ausgewählten TreeMaker-Modells.",
+        "step2": "'Kanten optimieren' und 'Dehnung optimieren' sind über das Design-Menü für tiefergehende Optimierungsabläufe verfügbar.",
+        "step3": "'CP erstellen' verwandelt einen optimierten Baum in Falten, Facetten, Faltrichtungen und Daten der gefalteten Basis.",
+        "step4": "Die Diagnose meldet Engine-Bereitschaft, Optimierungsstatus, Machbarkeit und Ergebnisse der Faltmuster-Erstellung.",
+        "summary": "Optimierung und Faltmuster-Erstellung laufen über das gemeinsame Design-Menü, die Symbolleistenschaltflächen und das native Desktop-Menü.",
+        "title": "CP optimieren und erstellen"
       },
       "workspace": {
-        "caption": "",
-        "imageAlt": "",
-        "step1": "",
-        "step2": "",
-        "step3": "",
-        "step4": "",
-        "summary": "",
-        "title": ""
+        "caption": "Setzen Sie das Bereichslayout über 'Ansicht' oder 'Einstellungen' zurück und wählen Sie ein Thema in den Darstellungseinstellungen.",
+        "imageAlt": "Einstellungsdialog und App-Menü mit Steuerelementen für Thema und Layout",
+        "step1": "Verwenden Sie die linke Leiste oder das Ansicht-Menü, um Design, Bearbeiten oder Simulieren zu aktivieren.",
+        "step2": "Ziehen Sie Bereichsköpfe innerhalb eines Arbeitsbereichs, um ihn neu zu organisieren; 'Layout zurücksetzen' stellt die Standardeinstellung des aktuellen Arbeitsbereichs wieder her.",
+        "step3": "Die Einstellungen enthalten Darstellungsthemen, Tastenkürzel und Steuerelemente für das Arbeitsbereichslayout.",
+        "step4": "Verwenden Sie den Tab 'Tastenkürzel' in den Einstellungen, um Datei-, Bearbeitungs-, Viewport- und Faltmuster-Werkzeugbefehle zu prüfen oder neu zu belegen.",
+        "summary": "Die App-Oberfläche wird zwischen Browser und Desktop geteilt, mit Web-Menüs, nativen Tauri-Menüs, Arbeitsbereichslayouts und Einstellungen.",
+        "title": "Menüs, Layout, Einstellungen"
       }
     }
   },
   "number": {
-    "tooSmall": ""
+    "tooSmall": "Geben Sie eine Zahl größer als {{minimum}} ein."
   },
   "selectByIndex": {
-    "available": "",
-    "close": "",
-    "index": "",
-    "noParts": "",
-    "part": "",
+    "available": "Verfügbar: {{ids}}",
+    "close": "Auswahl nach Index schließen",
+    "index": "Index",
+    "noParts": "Keine Teile dieses Typs",
+    "part": "Teil",
     "partKind": {
-      "condition": "",
-      "crease": "",
-      "edge": "",
-      "facet": "",
-      "node": "",
-      "path": ""
+      "condition": "Bedingung",
+      "crease": "Falte",
+      "edge": "Kante",
+      "facet": "Facette",
+      "node": "Knoten",
+      "path": "Pfad"
     },
-    "partType": "",
-    "select": "",
-    "title": ""
+    "partType": "Teiltyp",
+    "select": "Auswählen",
+    "title": "Nach Index auswählen"
   },
   "settings": {
     "appearance": {
-      "dark": "",
-      "light": ""
+      "dark": "Dunkel",
+      "light": "Hell"
     },
-    "close": "",
+    "close": "Einstellungen schließen",
     "language": {
-      "title": ""
+      "title": "Sprache"
     },
-    "sections": "",
+    "sections": "Einstellungsbereiche",
     "shortcuts": {
-      "alreadyAssigned": "",
-      "assigned": "",
-      "categoryAnnotations": "",
-      "categoryCheckAndFix": "",
-      "categoryColor": "",
-      "categoryConstruct": "",
-      "categoryCreasePattern": "",
-      "categoryDesign": "",
-      "categoryDraw": "",
-      "categoryEdit": "",
-      "categoryFile": "",
-      "categoryFold": "",
-      "categoryGenerators": "",
-      "categoryHelp": "",
-      "categoryLineType": "",
-      "categoryMeasure": "",
-      "categorySelectAndEdit": "",
-      "categoryTransform": "",
-      "categoryViewport": "",
-      "clear": "",
-      "pressKeys": "",
-      "pressPrompt": "",
-      "reserved": "",
-      "reset": "",
-      "resetAll": "",
-      "resetAllMessage": "",
-      "resetAllTitle": "",
-      "scopeCreasePattern": "",
-      "scopeGlobal": "",
-      "scopeViewport": "",
-      "search": "",
-      "softReserved": "",
-      "unassigned": "",
-      "viewportActualSize": "",
-      "viewportFit": ""
+      "alreadyAssigned": "{{chord}} ist bereits {{label}} zugewiesen.",
+      "assigned": "Zugewiesen",
+      "categoryAnnotations": "Anmerkungen",
+      "categoryCheckAndFix": "Prüfen und reparieren",
+      "categoryColor": "Farbe",
+      "categoryConstruct": "Konstruieren",
+      "categoryCreasePattern": "Faltmuster",
+      "categoryDesign": "Design",
+      "categoryDraw": "Zeichnen",
+      "categoryEdit": "Bearbeiten",
+      "categoryFile": "Datei",
+      "categoryFold": "Falten",
+      "categoryGenerators": "Generatoren",
+      "categoryHelp": "Hilfe",
+      "categoryLineType": "Linientyp",
+      "categoryMeasure": "Messen",
+      "categorySelectAndEdit": "Auswählen und bearbeiten",
+      "categoryTransform": "Transformieren",
+      "categoryViewport": "Viewport",
+      "clear": "{{label}}-Tastenkürzel löschen",
+      "pressKeys": "Tasten drücken",
+      "pressPrompt": "Drücken Sie ein Tastenkürzel für {{label}}.",
+      "reserved": "{{chord}} ist vom Browser reserviert.",
+      "reset": "{{label}}-Tastenkürzel zurücksetzen",
+      "resetAll": "Alle zurücksetzen",
+      "resetAllMessage": "Alle Tastenkürzel auf ihre Standardwerte zurücksetzen?",
+      "resetAllTitle": "Tastenkürzel zurücksetzen",
+      "scopeCreasePattern": "faltmuster",
+      "scopeGlobal": "global",
+      "scopeViewport": "viewport",
+      "search": "Tastenkürzel suchen",
+      "softReserved": "{{chord}} wurde zugewiesen, aber einige Browser reservieren es möglicherweise.",
+      "unassigned": "Nicht zugewiesen",
+      "viewportActualSize": "Tatsächliche Größe",
+      "viewportFit": "An Ansicht anpassen"
     },
     "tab": {
-      "appearance": "",
-      "shortcuts": "",
-      "workspace": ""
+      "appearance": "Darstellung",
+      "shortcuts": "Tastenkürzel",
+      "workspace": "Arbeitsbereich"
     },
-    "title": "",
+    "title": "Einstellungen",
     "workspace": {
-      "layout": "",
-      "resetButton": "",
-      "resetMessage": "",
-      "resetTitle": ""
+      "layout": "Layout",
+      "resetButton": "Arbeitsbereichslayout zurücksetzen",
+      "resetMessage": "Das Standardlayout für den aktuellen Arbeitsbereich wiederherstellen?",
+      "resetTitle": "Arbeitsbereichslayout zurücksetzen"
     }
   },
   "startScreen": {
-    "chooseBegin": "",
+    "chooseBegin": "Wählen Sie, wie Sie beginnen möchten.",
     "createCp": {
-      "description": "",
-      "title": ""
+      "description": "Öffnen Sie ein leeres, bearbeitbares Faltmuster-Dokument mit einsatzbereiten CP-Zeichenwerkzeugen.",
+      "title": "Ein CP erstellen"
     },
     "createDesign": {
-      "description": "",
-      "title": ""
+      "description": "Beginnen Sie mit einem leeren Baum, optimieren Sie ihn dann und erstellen Sie ein Faltmuster.",
+      "title": "Ein Design erstellen"
     },
-    "description": "",
+    "description": "Beginnen Sie mit einem Faltmuster, öffnen Sie eine vorhandene Datei oder skizzieren Sie die Baumstruktur für ein neues Design.",
     "openFile": {
-      "description": "",
-      "title": ""
+      "description": "Öffnen Sie .osf-Projekte oder importieren Sie .cp-, .fold-, .ori-, .orh-, .tmd-, .tmd4- und .tmd5-Dateien über den gemeinsamen Datei-Workflow.",
+      "title": "Eine Datei öffnen"
     },
-    "preparing": "",
-    "startOptions": "",
-    "title": ""
+    "preparing": "Editor wird vorbereitet...",
+    "startOptions": "Startoptionen",
+    "title": "Einen neuen Origami-Arbeitsbereich starten"
   }
 }
