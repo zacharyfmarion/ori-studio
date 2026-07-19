@@ -199,7 +199,13 @@ Checklist (by namespace):
   RGB fields), line-style + palette-color names.
 - [x] `panels` (410) — all dockview panels (inspector, design, diagnostics, sequence,
   simulator, conditions, BP editor/packing/tree, CP view controls, crease pattern).
-- [ ] `cpVocab` (730) — generated CP tool vocabulary + Oriedita tool-step instructions.
+- [x] `cpVocab` (730) — generated CP tool vocabulary + Oriedita tool-step instructions.
+
+**Phase 3 COMPLETE:** all 8 namespaces translated in all 8 locales; `i18n:check` passes with
+0 gaps. (`extract.mjs` now seeds generated-namespace target skeletons; `i18n:check` is
+CLDR-plural-aware.) Native-speaker QA of the LLM translations remains post-merge (agents
+flagged domain terms — origami base names, box-pleat vocabulary, "little-big-little",
+"corridor facets", BP stretch/device — for review).
 - [x] `toasts` (1) + `errors` (2) — plus any Rust error codes added later.
 
 Domain terms flagged for post-merge native review (render fine, word-choice only):
