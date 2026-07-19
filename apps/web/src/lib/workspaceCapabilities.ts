@@ -671,14 +671,26 @@ function maskCapabilitiesForContext(
   capabilities: WorkspaceCapabilities,
   context: EditingContext
 ): WorkspaceCapabilities {
+  const masked = { ...capabilities };
+  const ids = Object.keys(masked) as WorkspaceCapabilityId[];
+  const hide = (id: WorkspaceCapabilityId) => {
+    masked[id] = { ...masked[id], visible: false, enabled: false };
+  };
+
   // Tree authoring only applies while editing a TreeMaker tree; hide those Edit
   // commands in every other context (CP editor, BP, simulate, the NUX) so the
   // Node/Edge/Strain/Stubs submenus and tree-only Select items collapse away.
-  let masked = capabilities;
   if (context !== 'treemaker-tree') {
-    masked = { ...masked };
-    for (const id of TREE_ONLY_EDIT_CAPABILITIES) {
-      masked[id] = { ...masked[id], visible: false, enabled: false };
+    for (const id of TREE_ONLY_EDIT_CAPABILITIES) hide(id);
+  }
+
+  // The Crease Pattern menu operates on the editable crease pattern, so it only
+  // belongs to the CP editor. Hide those `cp.*` commands everywhere else so the
+  // whole menu collapses in Design/Simulate/BP. `cp.build` is exempt — it lives
+  // in the Design menu and is gated separately by `treeMode`.
+  if (context !== 'crease-pattern') {
+    for (const id of ids) {
+      if (id.startsWith('cp.') && id !== 'cp.build') hide(id);
     }
   }
 
@@ -686,27 +698,24 @@ function maskCapabilitiesForContext(
     // Simulate is a read-only consumer of the folded model: only navigation
     // (`view.*`), file operations, playback (`simulator.*`), and inert
     // undo/redo apply. Every authoring command is hidden.
-    masked = { ...masked };
-    for (const id of Object.keys(masked) as WorkspaceCapabilityId[]) {
+    for (const id of ids) {
       const isAuthoring =
         id.startsWith('cp.') ||
         id.startsWith('optimize.') ||
         (id.startsWith('edit.') && !SIMULATE_VISIBLE_EDIT.has(id));
-      if (isAuthoring) {
-        masked[id] = { ...masked[id], visible: false, enabled: false };
-      }
+      if (isAuthoring) hide(id);
     }
     return masked;
   }
 
-  const isBpContext = context === 'bp-tree' || context === 'bp-packing';
-  if (!isBpContext) return masked;
-  masked = { ...masked };
-  for (const id of Object.keys(masked) as WorkspaceCapabilityId[]) {
-    if (id.startsWith('optimize.') || id.startsWith('cp.') || BP_HIDDEN_CAPABILITIES.has(id)) {
-      masked[id] = { ...masked[id], visible: false, enabled: false };
+  if (context === 'bp-tree' || context === 'bp-packing') {
+    for (const id of ids) {
+      if (id.startsWith('optimize.') || id.startsWith('cp.') || BP_HIDDEN_CAPABILITIES.has(id)) {
+        hide(id);
+      }
     }
   }
+
   return masked;
 }
 
