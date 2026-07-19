@@ -612,12 +612,14 @@ export function getWorkspaceCapabilities(input: WorkspaceCapabilityInput): Works
 }
 
 /**
- * TreeMaker/CP-specific commands that make no sense while authoring a Box-Pleat
- * design. Hidden (and disabled) in a BP context so the Design and Crease Pattern
- * menus — and the tree-editing Edit submenus — don't surface TreeMaker actions.
- * File/Edit(undo,redo,clipboard)/View stay available.
+ * Edit-menu commands that author a TreeMaker tree specifically — the
+ * Node/Edge/Strain/Stubs submenus and the tree-only Select items. They are
+ * hidden entirely outside `treemaker-tree` context so the Edit menu never
+ * surfaces tree operations in the crease-pattern editor, a Box-Pleat design, or
+ * simulate. (Undo/redo, clipboard, delete, and Select All/Deselect All are
+ * context-agnostic and stay visible.)
  */
-const BP_HIDDEN_CAPABILITIES = new Set<WorkspaceCapabilityId>([
+const TREE_ONLY_EDIT_CAPABILITIES = new Set<WorkspaceCapabilityId>([
   'edit.makeRoot',
   'edit.splitEdge',
   'edit.setEdgeLength',
@@ -639,6 +641,16 @@ const BP_HIDDEN_CAPABILITIES = new Set<WorkspaceCapabilityId>([
   'edit.selectByIndex',
   'edit.selectMovableParts',
   'edit.selectCorridorFacets',
+]);
+
+/**
+ * TreeMaker/CP-specific commands that make no sense while authoring a Box-Pleat
+ * design. Hidden (and disabled) in a BP context so the Design and Crease Pattern
+ * menus — and the tree-editing Edit submenus — don't surface TreeMaker actions.
+ * File/Edit(undo,redo,clipboard)/View stay available.
+ */
+const BP_HIDDEN_CAPABILITIES = new Set<WorkspaceCapabilityId>([
+  ...TREE_ONLY_EDIT_CAPABILITIES,
   'view.conditions',
   'file.exportV5',
   'file.exportV4',
@@ -659,11 +671,22 @@ function maskCapabilitiesForContext(
   capabilities: WorkspaceCapabilities,
   context: EditingContext
 ): WorkspaceCapabilities {
+  // Tree authoring only applies while editing a TreeMaker tree; hide those Edit
+  // commands in every other context (CP editor, BP, simulate, the NUX) so the
+  // Node/Edge/Strain/Stubs submenus and tree-only Select items collapse away.
+  let masked = capabilities;
+  if (context !== 'treemaker-tree') {
+    masked = { ...masked };
+    for (const id of TREE_ONLY_EDIT_CAPABILITIES) {
+      masked[id] = { ...masked[id], visible: false, enabled: false };
+    }
+  }
+
   if (context === 'simulate') {
     // Simulate is a read-only consumer of the folded model: only navigation
     // (`view.*`), file operations, playback (`simulator.*`), and inert
     // undo/redo apply. Every authoring command is hidden.
-    const masked = { ...capabilities };
+    masked = { ...masked };
     for (const id of Object.keys(masked) as WorkspaceCapabilityId[]) {
       const isAuthoring =
         id.startsWith('cp.') ||
@@ -677,8 +700,8 @@ function maskCapabilitiesForContext(
   }
 
   const isBpContext = context === 'bp-tree' || context === 'bp-packing';
-  if (!isBpContext) return capabilities;
-  const masked = { ...capabilities };
+  if (!isBpContext) return masked;
+  masked = { ...masked };
   for (const id of Object.keys(masked) as WorkspaceCapabilityId[]) {
     if (id.startsWith('optimize.') || id.startsWith('cp.') || BP_HIDDEN_CAPABILITIES.has(id)) {
       masked[id] = { ...masked[id], visible: false, enabled: false };
