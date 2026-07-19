@@ -41,6 +41,17 @@ function mirrorStructure(enNode, targetNode) {
   return out;
 }
 
+// Snapshot generated-namespace target translations BEFORE the parser runs. A generated
+// namespace (cpVocab) has a stray inline `t('cpVocab:...')` literal, so i18next-parser treats
+// it as parser-managed and — with keepRemoved:false — prunes each target down to that one
+// key. We restore the full structure from this snapshot after regeneration.
+const generatedSnapshots = Object.fromEntries(
+  GENERATED_NAMESPACES.map((ns) => [
+    ns,
+    Object.fromEntries(TARGET_LOCALES.map((locale) => [locale, readCatalog(locale, ns)])),
+  ])
+);
+
 // Delete the English parser-managed catalogs so the parser rebuilds them purely from the
 // inline defaults (English is a generated artifact and must always match source). Target
 // locales are left in place so their translations are preserved.
@@ -71,7 +82,8 @@ for (const ns of GENERATED_NAMESPACES) {
   for (const locale of TARGET_LOCALES) {
     const dir = join(LOCALES_DIR, locale);
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-    const seeded = mirrorStructure(enCatalog, readCatalog(locale, ns));
+    // Mirror from the pre-parser snapshot, not the on-disk file (which the parser pruned).
+    const seeded = mirrorStructure(enCatalog, generatedSnapshots[ns][locale]);
     writeFileSync(join(dir, `${ns}.json`), JSON.stringify(seeded, null, 2) + '\n');
   }
 }
