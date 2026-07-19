@@ -105,7 +105,6 @@ const BP_PACKING_CYCLE_THRESHOLD_PX = 4;
 interface BpRiverVisual {
   river: OristudioBpRiver;
   bounds: { x: number; y: number; width: number; height: number };
-  center: Point;
 }
 
 interface BpPackingDragState {
@@ -1668,15 +1667,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                         height={visual.bounds.height + pad * 2}
                         rx={Math.min(8, Math.max(2, unit * 0.12))}
                       />
-                      {layers.labels && (
-                        <text
-                          className="bp-packing-label bp-packing-river-label"
-                          x={visual.center.x + 7}
-                          y={visual.center.y - 7}
-                        >
-                          r{visual.river.id}
-                        </text>
-                      )}
                     </g>
                   );
                 })}
@@ -2272,7 +2262,6 @@ function riverVisual(
       width: Math.max(1, maxX - minX),
       height: Math.max(1, maxY - minY),
     },
-    center: { x: (minX + maxX) / 2, y: (minY + maxY) / 2 },
   };
 }
 

@@ -5380,10 +5380,6 @@
   pointer-events: none;
 }
 
-.bp-packing-river--selected .bp-packing-river-label {
-  fill: var(--accent-primary);
-}
-
 .bp-packing-rivers [role='button']:focus-visible {
   outline: none;
 }
