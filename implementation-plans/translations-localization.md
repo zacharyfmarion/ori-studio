@@ -171,34 +171,38 @@ English catalog is complete before any translating. Run `i18n:extract` after eac
 - **Verify per sub-phase:** surface renders from the English catalog; `typecheck:web` +
   `test:web` pass; `i18n:extract` idempotent.
 
-### Phase 3 — Translate, surface by surface (agent-authored, checklist-driven)
-For each surface in the checklist below, in order: the agent reads the component to
-understand each string's meaning, **asks Zach clarifying questions** about anything
-ambiguous, then fills all 8 locales for that surface's keys (glossary-consistent), and Zach
-verifies the rendered screen in-language before checking it off. `i18n:check` shows the
-remaining gaps at any time.
+### Phase 3 — Translate, namespace by namespace (agent-authored)
+Translate one **namespace** at a time (this matches the `i18n:check` gate and the runtime's
+per-namespace lazy loading), reusing already-translated namespaces as a terminology
+glossary, then Zach verifies the affected screens in-language. `i18n:check` shows remaining
+gaps at any time. Convention (locked): brand names + file formats + CAMV/LBL/Maekawa/Voronoi
+stay verbatim; TreeMaker/origami jargon uses descriptive-native terms.
 
-Checklist (one row = one review/verify unit):
-- [ ] Menu bar + submenus (`menu`)
-- [ ] Command palette (`CommandDialogModal`)
-- [ ] Settings modal — all tabs
-- [ ] Help modal
-- [ ] Start screen
-- [ ] CP-detect import modal
-- [ ] Select-by-index modal
-- [ ] Toasts + error messages (`toasts`, `errors`)
-- [ ] Viewport toolbar
-- [ ] CP tool rail + context tool panel
-- [ ] CP view controls panel
-- [ ] Crease pattern panel
-- [ ] Inspector panel
-- [ ] Diagnostics panel
-- [ ] Conditions panel
-- [ ] Sequence panel
-- [ ] Design panel + design-method chooser
-- [ ] Simulator panel + simulator segments panel
-- [ ] BP editor / packing / tree panels
-- [ ] Shared panel components (`PanelComponents`, `NextDocumentAction`)
+While the flag is set (`returnEmptyString: true`, Phase 5 flips it), untranslated keys render
+BLANK — a live map of what's left.
+
+**Key insight (surfaces span namespaces):** a visible surface can draw from more than one
+namespace. The menu bar is the prime example — its capability-backed action labels
+(New/Open/Save, most Edit/CP/Design actions) render from `common:capability.*` (via
+`workspaceCapabilities`, `MenuBar.tsx:97` = `capability?.label ?? item.label`), NOT from
+`menu`. So "the menu" needed both `menu` and `common`.
+
+Checklist (by namespace):
+- [x] `menu` (98) — menu bar titles/submenus + non-capability items (e.g. Settings).
+- [x] `common` (216) — capability labels + disabled reasons, toolbar, workspace rail;
+  completes the menu's capability-backed action labels.
+- [ ] `dialogs` (~205) — Settings, Help/About, command + crease-export dialog, Start
+  screen, CP-detect import, Select-by-index, desktop close-guard. (Help/About intro uses
+  `<Trans>`.)
+- [ ] `tools` (~111) — viewport toolbar, CP tool rail, CP context tool options.
+- [ ] `panels` (~410) — all dockview panels (inspector, design, diagnostics, sequence,
+  simulator, conditions, BP editor/packing/tree, CP view controls, crease pattern).
+- [ ] `cpVocab` (~730) — generated CP tool vocabulary + Oriedita tool-step instructions.
+- [ ] `toasts` (1) + `errors` (2) — plus any Rust error codes added later.
+
+Domain terms flagged for post-merge native review (render fine, word-choice only):
+"box-pleat design" (no established term in most locales; transliterated), "little-big-little
+/ LBL", "corridor facets", "perturb", "renormalize", "stub".
 
 ### Phase 4 — Enforcement & docs
 - Implement `check.mjs`; add `i18n:check` to the `web-client` CI job (and the WASM
