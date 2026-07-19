@@ -80,6 +80,7 @@ import { useBpLongPressInspector } from '../../hooks/useBpLongPressInspector';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { IconButton } from '../ui/IconButton';
+import { BpNameEditor } from './BpNameEditor';
 import {
   isViewportInteractiveTarget,
   ViewportToolbar,
@@ -104,7 +105,6 @@ const BP_PACKING_CYCLE_THRESHOLD_PX = 4;
 interface BpRiverVisual {
   river: OristudioBpRiver;
   bounds: { x: number; y: number; width: number; height: number };
-  center: Point;
 }
 
 interface BpPackingDragState {
@@ -690,6 +690,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   );
   const moveOristudioBpLayoutFlap = useWorkspaceStore((state) => state.moveOristudioBpLayoutFlap);
   const moveOristudioBpLayoutFlaps = useWorkspaceStore((state) => state.moveOristudioBpLayoutFlaps);
+  const renameOristudioBpVertex = useWorkspaceStore((state) => state.renameOristudioBpVertex);
   const moveOristudioBpDevice = useWorkspaceStore((state) => state.moveOristudioBpDevice);
   const switchOristudioBpStretchConfig = useWorkspaceStore(
     (state) => state.switchOristudioBpStretchConfig
@@ -739,6 +740,13 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   // — matching Box Pleating Studio's Core-driven update. (Perf can be tuned
   // later; correctness first.)
   const displayPacking = packing;
+  // The single selected flap, if exactly one flap is selected — the contextual
+  // name editor only appears for a single flap (matches the edge-length editor).
+  const singleSelectedFlap = useMemo(() => {
+    const id = document.selection.kind === 'bp-flap' ? document.selection.id : null;
+    if (id === null) return null;
+    return packing.flaps.find((flap) => flap.id === id) ?? null;
+  }, [document.selection, packing.flaps]);
   const paperRect = useMemo(() => bpPackingPaperRect(packing.sheet), [packing.sheet]);
   const shadowRect = useMemo(() => bpPackingShadowRect(packing.sheet), [packing.sheet]);
   // A diagonal sheet is the square rotated 45° into a diamond; render the paper,
@@ -1659,15 +1667,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                         height={visual.bounds.height + pad * 2}
                         rx={Math.min(8, Math.max(2, unit * 0.12))}
                       />
-                      {layers.labels && (
-                        <text
-                          className="bp-packing-label bp-packing-river-label"
-                          x={visual.center.x + 7}
-                          y={visual.center.y - 7}
-                        >
-                          r{visual.river.id}
-                        </text>
-                      )}
                     </g>
                   );
                 })}
@@ -1892,6 +1891,16 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
         enabled={nudgeableFlaps.length > 0 || nudgeableDevice !== null}
         onNudge={nudgeSelection}
       />
+      {singleSelectedFlap && (
+        <BpNameEditor
+          key={singleSelectedFlap.id}
+          title={`Flap ${singleSelectedFlap.id}`}
+          name={singleSelectedFlap.name}
+          placeholder={`f${singleSelectedFlap.id}`}
+          ariaLabel={`Name of flap ${singleSelectedFlap.id}`}
+          onRename={(name) => void renameOristudioBpVertex(singleSelectedFlap.vertexId, name)}
+        />
+      )}
       {activeStretch && (
         <BpPackingStretchNav
           stretch={activeStretch}
@@ -2253,7 +2262,6 @@ function riverVisual(
       width: Math.max(1, maxX - minX),
       height: Math.max(1, maxY - minY),
     },
-    center: { x: (minX + maxX) / 2, y: (minY + maxY) / 2 },
   };
 }
 
