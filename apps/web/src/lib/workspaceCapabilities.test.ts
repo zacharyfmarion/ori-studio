@@ -397,6 +397,80 @@ describe('workspace capabilities', () => {
     expect(bp['edit.undo'].enabled).toBe(true);
   });
 
+  it('hides tree-authoring Edit commands in the crease-pattern context', () => {
+    const cp = capabilities({
+      activeEditingContext: 'crease-pattern',
+      documentMode: 'crease-pattern',
+      hasEditableCreasePattern: true,
+    });
+    // The Node/Edge/Strain/Stubs submenus and tree-only Select items collapse
+    // away so the Edit menu never surfaces tree operations in the CP editor.
+    for (const id of [
+      'edit.makeRoot',
+      'edit.splitEdge',
+      'edit.absorbNodes',
+      'edit.removeStrain',
+      'edit.triangulateTree',
+      'edit.selectByIndex',
+      'edit.selectMovableParts',
+      'edit.selectCorridorFacets',
+    ] as const) {
+      expect(cp[id].visible).toBe(false);
+      expect(cp[id].enabled).toBe(false);
+    }
+    // Context-agnostic Edit commands stay visible.
+    for (const id of [
+      'edit.undo',
+      'edit.redo',
+      'edit.cut',
+      'edit.copy',
+      'edit.paste',
+      'edit.delete',
+      'edit.selectAll',
+      'edit.deselectAll',
+    ] as const) {
+      expect(cp[id].visible).toBe(true);
+    }
+  });
+
+  it('keeps tree-authoring Edit commands visible in the treemaker-tree context', () => {
+    const tree = capabilities({ activeEditingContext: 'treemaker-tree', edgeCount: 2 });
+    for (const id of ['edit.makeRoot', 'edit.absorbNodes', 'edit.selectMovableParts'] as const) {
+      expect(tree[id].visible).toBe(true);
+    }
+  });
+
+  it('shows the Crease Pattern menu only in the crease-pattern context', () => {
+    const cpMenuIds = [
+      'cp.deleteSelectedLines',
+      'cp.changeCreaseType',
+      'cp.transformFlipHorizontal',
+      'cp.checkCamv',
+      'cp.fix1',
+      'cp.organizeCircles',
+    ] as const;
+
+    // Visible in the CP editor.
+    const cp = capabilities({
+      activeEditingContext: 'crease-pattern',
+      documentMode: 'crease-pattern',
+      hasEditableCreasePattern: true,
+    });
+    for (const id of cpMenuIds) expect(cp[id].visible).toBe(true);
+
+    // Hidden in Design (tree) and Simulate — cp.build (a Design-menu command)
+    // stays visible while authoring a tree.
+    const tree = capabilities({ activeEditingContext: 'treemaker-tree', edgeCount: 2 });
+    for (const id of cpMenuIds) {
+      expect(tree[id].visible).toBe(false);
+      expect(tree[id].enabled).toBe(false);
+    }
+    expect(tree['cp.build'].visible).toBe(true);
+
+    const sim = capabilities({ activeEditingContext: 'simulate' });
+    for (const id of cpMenuIds) expect(sim[id].visible).toBe(false);
+  });
+
   it('enables Save and Export .bps for a loaded box-pleat design', () => {
     const withBp = capabilities({
       activeEditingContext: 'bp-tree',

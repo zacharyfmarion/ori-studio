@@ -12,7 +12,7 @@ import { handleMenuAction } from './commands/menuActions';
 import { useTauriOpenedFiles } from './hooks/useTauriOpenedFiles';
 import { installAppKeyboardListener } from './lib/appKeyboard';
 import { cpSelectionSize } from './lib/creasePatternViewport';
-import { useTauriMenuListener } from './menus/tauriMenuListener';
+import { useTauriNativeMenu } from './menus/useTauriNativeMenu';
 import { createOpenedPathFileService } from './platform/fileService';
 import { getRuntimeSurface } from './platform/runtime';
 import { applyWindowTitle, formatWindowTitle } from './platform/windowTitle';
@@ -44,7 +44,7 @@ export default function App() {
 
   useEffect(() => startWorkspaceUrlSync(), []);
 
-  useTauriMenuListener();
+  useTauriNativeMenu();
 
   useEffect(() => {
     void initEngine();
