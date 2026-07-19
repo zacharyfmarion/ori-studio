@@ -207,6 +207,19 @@ Checklist (one row = one review/verify unit):
 - **Verify:** add a throwaway untranslated key → `i18n:check` fails; fill it → passes;
   revert.
 
+### Phase 5 — Pre-merge verification (do LAST, right before the PR merges)
+- **Flip `returnEmptyString` back to `false`** in `src/i18n/index.ts`. During Phase 3 it is
+  intentionally `true` so untranslated keys render BLANK (an at-a-glance marker of what still
+  needs translating). In production it must be `false` so any not-yet-translated key falls
+  back to the inline English default instead of showing blank.
+- **Full-app language sweep:** with the flag flipped, switch through all 8 locales and
+  confirm every surface renders (translated where done, English fallback elsewhere) with no
+  blank labels, no leaked keys (`ns:key`), and no layout breakage (watch the longest locales,
+  de/ru).
+- Confirm `i18n:check` is green (every target key translated) OR, if shipping partial
+  translations, that the remaining gaps are acceptable and the English fallback is active.
+- `tsc` / `eslint` / `test:web` green; `i18n:extract` idempotent.
+
 ## Out of scope
 - Tauri native menu (being rewritten in JS separately) and the cp-detect inspector app.
 - Native-speaker QA of the LLM translations (post-merge refinement).

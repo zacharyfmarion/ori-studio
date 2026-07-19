@@ -29,9 +29,12 @@ export const i18nReady = i18n
     load: 'currentOnly',
     ns: I18N_NAMESPACES,
     defaultNS: DEFAULT_NAMESPACE,
-    // Untranslated target keys are empty strings (seeded per surface); treat them as
-    // missing so they fall back to the inline English default rather than rendering blank.
-    returnEmptyString: false,
+    // DURING PHASE 3 (translation): keep `true` so untranslated keys (empty-string seeds)
+    // render BLANK — a visible marker of what still needs translating, surface by surface.
+    // BEFORE MERGE: flip to `false` so empty keys fall back to the inline English default in
+    // production. See the "Pre-merge verification" phase in
+    // implementation-plans/translations-localization.md.
+    returnEmptyString: true,
     interpolation: {
       // React already escapes rendered values.
       escapeValue: false,
