@@ -1015,7 +1015,10 @@
     "panels:simulatorSegments.creasePatterns": "f66a64c16ad8",
     "panels:simulatorSegments.patternLabel": "fef879d6eb9c",
     "panels:simulatorSegments.patterns": "160a13d94fb0",
-    "panels:simulatorSegments.patternTitle_other": "05169301948c"
+    "panels:simulatorSegments.patternTitle_other": "05169301948c",
+    "toasts:global.error": "dc7385533aa8",
+    "errors:cpDetectImport.canvasUnavailable": "c7db8623d01c",
+    "errors:cpDetectImport.unsupportedImage": "1b23a1674f81"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -2033,7 +2036,10 @@
     "panels:simulatorSegments.creasePatterns": "f66a64c16ad8",
     "panels:simulatorSegments.patternLabel": "fef879d6eb9c",
     "panels:simulatorSegments.patterns": "160a13d94fb0",
-    "panels:simulatorSegments.patternTitle_other": "05169301948c"
+    "panels:simulatorSegments.patternTitle_other": "05169301948c",
+    "toasts:global.error": "dc7385533aa8",
+    "errors:cpDetectImport.canvasUnavailable": "c7db8623d01c",
+    "errors:cpDetectImport.unsupportedImage": "1b23a1674f81"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -3076,7 +3082,10 @@
     "panels:simulatorSegments.patternLabel": "fef879d6eb9c",
     "panels:simulatorSegments.patterns": "160a13d94fb0",
     "panels:simulatorSegments.patternTitle_one": "05169301948c",
-    "panels:simulatorSegments.patternTitle_other": "05169301948c"
+    "panels:simulatorSegments.patternTitle_other": "05169301948c",
+    "toasts:global.error": "dc7385533aa8",
+    "errors:cpDetectImport.canvasUnavailable": "c7db8623d01c",
+    "errors:cpDetectImport.unsupportedImage": "1b23a1674f81"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -4119,7 +4128,10 @@
     "panels:simulatorSegments.patternLabel": "fef879d6eb9c",
     "panels:simulatorSegments.patterns": "160a13d94fb0",
     "panels:simulatorSegments.patternTitle_one": "05169301948c",
-    "panels:simulatorSegments.patternTitle_other": "05169301948c"
+    "panels:simulatorSegments.patternTitle_other": "05169301948c",
+    "toasts:global.error": "dc7385533aa8",
+    "errors:cpDetectImport.canvasUnavailable": "c7db8623d01c",
+    "errors:cpDetectImport.unsupportedImage": "1b23a1674f81"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -5162,7 +5174,10 @@
     "panels:simulatorSegments.patternLabel": "fef879d6eb9c",
     "panels:simulatorSegments.patterns": "160a13d94fb0",
     "panels:simulatorSegments.patternTitle_one": "05169301948c",
-    "panels:simulatorSegments.patternTitle_other": "05169301948c"
+    "panels:simulatorSegments.patternTitle_other": "05169301948c",
+    "toasts:global.error": "dc7385533aa8",
+    "errors:cpDetectImport.canvasUnavailable": "c7db8623d01c",
+    "errors:cpDetectImport.unsupportedImage": "1b23a1674f81"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -6205,7 +6220,10 @@
     "panels:simulatorSegments.patternLabel": "fef879d6eb9c",
     "panels:simulatorSegments.patterns": "160a13d94fb0",
     "panels:simulatorSegments.patternTitle_one": "05169301948c",
-    "panels:simulatorSegments.patternTitle_other": "05169301948c"
+    "panels:simulatorSegments.patternTitle_other": "05169301948c",
+    "toasts:global.error": "dc7385533aa8",
+    "errors:cpDetectImport.canvasUnavailable": "c7db8623d01c",
+    "errors:cpDetectImport.unsupportedImage": "1b23a1674f81"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -7248,7 +7266,10 @@
     "panels:simulatorSegments.patternLabel": "fef879d6eb9c",
     "panels:simulatorSegments.patterns": "160a13d94fb0",
     "panels:simulatorSegments.patternTitle_one": "05169301948c",
-    "panels:simulatorSegments.patternTitle_other": "05169301948c"
+    "panels:simulatorSegments.patternTitle_other": "05169301948c",
+    "toasts:global.error": "dc7385533aa8",
+    "errors:cpDetectImport.canvasUnavailable": "c7db8623d01c",
+    "errors:cpDetectImport.unsupportedImage": "1b23a1674f81"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8266,6 +8287,9 @@
     "panels:simulatorSegments.creasePatterns": "f66a64c16ad8",
     "panels:simulatorSegments.patternLabel": "fef879d6eb9c",
     "panels:simulatorSegments.patterns": "160a13d94fb0",
-    "panels:simulatorSegments.patternTitle_other": "05169301948c"
+    "panels:simulatorSegments.patternTitle_other": "05169301948c",
+    "toasts:global.error": "dc7385533aa8",
+    "errors:cpDetectImport.canvasUnavailable": "c7db8623d01c",
+    "errors:cpDetectImport.unsupportedImage": "1b23a1674f81"
   }
 }

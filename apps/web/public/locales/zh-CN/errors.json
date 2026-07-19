@@ -1,6 +1,6 @@
 {
   "cpDetectImport": {
-    "canvasUnavailable": "",
-    "unsupportedImage": ""
+    "canvasUnavailable": "Canvas 2D 不可用",
+    "unsupportedImage": "请使用 PNG、JPEG 或 WebP 图像。"
   }
 }

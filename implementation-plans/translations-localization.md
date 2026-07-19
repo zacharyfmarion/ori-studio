@@ -197,10 +197,10 @@ Checklist (by namespace):
   (Also fixed `i18n:check` to be plural-aware.)
 - [x] `tools` (111) — viewport toolbar, CP tool rail, CP context tool options (angle/ratio/
   RGB fields), line-style + palette-color names.
-- [ ] `panels` (~410) — all dockview panels (inspector, design, diagnostics, sequence,
+- [x] `panels` (410) — all dockview panels (inspector, design, diagnostics, sequence,
   simulator, conditions, BP editor/packing/tree, CP view controls, crease pattern).
-- [ ] `cpVocab` (~730) — generated CP tool vocabulary + Oriedita tool-step instructions.
-- [ ] `toasts` (1) + `errors` (2) — plus any Rust error codes added later.
+- [ ] `cpVocab` (730) — generated CP tool vocabulary + Oriedita tool-step instructions.
+- [x] `toasts` (1) + `errors` (2) — plus any Rust error codes added later.
 
 Domain terms flagged for post-merge native review (render fine, word-choice only):
 "box-pleat design" (no established term in most locales; transliterated), "little-big-little

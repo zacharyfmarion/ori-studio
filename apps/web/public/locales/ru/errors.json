@@ -1,6 +1,6 @@
 {
   "cpDetectImport": {
-    "canvasUnavailable": "",
-    "unsupportedImage": ""
+    "canvasUnavailable": "Canvas 2D недоступен",
+    "unsupportedImage": "Используйте изображение PNG, JPEG или WebP."
   }
 }
