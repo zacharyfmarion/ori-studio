@@ -49,6 +49,9 @@ jobs:
       - name: Lint web client
         run: npm run lint:web
 
+      - name: Check i18n translations
+        run: npm run i18n:check
+
       - name: Typecheck web client
         run: npm run typecheck:web
 

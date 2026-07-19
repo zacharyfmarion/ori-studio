@@ -212,18 +212,19 @@ Domain terms flagged for post-merge native review (render fine, word-choice only
 "box-pleat design" (no established term in most locales; transliterated), "little-big-little
 / LBL", "corridor facets", "perturb", "renormalize", "stub".
 
-### Phase 4 — Enforcement & docs
-- Implement `check.mjs`; add `i18n:check` to the `web-client` CI job (and the WASM
-  error-code assertion).
-- CLAUDE.md rule + `docs/i18n.md`.
-- **Verify:** add a throwaway untranslated key → `i18n:check` fails; fill it → passes;
-  revert.
+### Phase 4 — Enforcement & docs (DONE)
+- [x] `check.mjs` implemented (plural-aware; WASM error-code assertion guards a future
+  `src/generated/error-codes.json`).
+- [x] `i18n:check` wired into the `web-client` CI job (`.github/workflows/ci.yml`).
+- [x] `apps/web/CLAUDE.md` rule + `apps/web/docs/i18n.md`.
 
-### Phase 5 — Pre-merge verification (do LAST, right before the PR merges)
-- **Flip `returnEmptyString` back to `false`** in `src/i18n/index.ts`. During Phase 3 it is
-  intentionally `true` so untranslated keys render BLANK (an at-a-glance marker of what still
-  needs translating). In production it must be `false` so any not-yet-translated key falls
-  back to the inline English default instead of showing blank.
+### Phase 5 — Pre-merge verification (mostly DONE; browser sweep is Zach's)
+- [x] **Flipped `returnEmptyString` back to `false`** in `src/i18n/index.ts` — untranslated
+  keys now fall back to inline English instead of rendering blank. (It was `true` during
+  Phase 3 as a progress marker.)
+- [x] `tsc` / `eslint` / `test:web` green; `i18n:check` passes (0 gaps); `i18n:extract`
+  idempotent (fixed a bug where the parser wiped generated-namespace targets).
+- [ ] **Full-app language sweep (Zach, browser):** switch through all 8 locales and
 - **Full-app language sweep:** with the flag flipped, switch through all 8 locales and
   confirm every surface renders (translated where done, English fallback elsewhere) with no
   blank labels, no leaked keys (`ns:key`), and no layout breakage (watch the longest locales,
