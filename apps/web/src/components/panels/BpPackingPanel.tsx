@@ -80,6 +80,7 @@ import { useBpLongPressInspector } from '../../hooks/useBpLongPressInspector';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { IconButton } from '../ui/IconButton';
+import { BpNameEditor } from './BpNameEditor';
 import {
   isViewportInteractiveTarget,
   ViewportToolbar,
@@ -503,53 +504,6 @@ function StretchStepper({
 }
 
 /**
- * Contextual name field for the selected flap. Mirrors BP Studio's flap panel
- * "Name" input: the name lives on the dual tree vertex, so this renames the
- * vertex too. Empty and duplicate names are allowed (no validation). Commits on
- * blur and Enter; Escape reverts.
- */
-function BpFlapNameEditor({
-  flap,
-  onRename,
-}: {
-  flap: OristudioBpFlap;
-  onRename: (name: string) => void;
-}) {
-  const [draft, setDraft] = useState(() => flap.name);
-  useEffect(() => {
-    setDraft(flap.name);
-  }, [flap.id, flap.name]);
-
-  const commit = () => {
-    if (draft !== flap.name) onRename(draft);
-  };
-
-  return (
-    <div className="bp-flap-name-editor" role="group" aria-label={`Name of flap ${flap.id}`}>
-      <span className="bp-flap-name-editor__title">Flap {flap.id}</span>
-      <span className="bp-flap-name-editor__label">Name</span>
-      <input
-        className="bp-flap-name-editor__input"
-        type="text"
-        value={draft}
-        placeholder={`f${flap.id}`}
-        onChange={(event) => setDraft(event.target.value)}
-        onBlur={commit}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') {
-            commit();
-            event.currentTarget.blur();
-          } else if (event.key === 'Escape') {
-            setDraft(flap.name);
-            event.currentTarget.blur();
-          }
-        }}
-      />
-    </div>
-  );
-}
-
-/**
  * Contextual control for cycling a stretch's GOPS configuration and pattern —
  * the "pick a valid crease pattern by hand" navigation. Mirrors BP Studio's
  * Stretch.switchConfig/switchPattern (±1 with wraparound).
@@ -737,7 +691,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   );
   const moveOristudioBpLayoutFlap = useWorkspaceStore((state) => state.moveOristudioBpLayoutFlap);
   const moveOristudioBpLayoutFlaps = useWorkspaceStore((state) => state.moveOristudioBpLayoutFlaps);
-  const renameOristudioBpFlap = useWorkspaceStore((state) => state.renameOristudioBpFlap);
+  const renameOristudioBpVertex = useWorkspaceStore((state) => state.renameOristudioBpVertex);
   const moveOristudioBpDevice = useWorkspaceStore((state) => state.moveOristudioBpDevice);
   const switchOristudioBpStretchConfig = useWorkspaceStore(
     (state) => state.switchOristudioBpStretchConfig
@@ -1948,9 +1902,13 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
         onNudge={nudgeSelection}
       />
       {singleSelectedFlap && (
-        <BpFlapNameEditor
-          flap={singleSelectedFlap}
-          onRename={(name) => void renameOristudioBpFlap(singleSelectedFlap.id, name)}
+        <BpNameEditor
+          key={singleSelectedFlap.id}
+          title={`Flap ${singleSelectedFlap.id}`}
+          name={singleSelectedFlap.name}
+          placeholder={`f${singleSelectedFlap.id}`}
+          ariaLabel={`Name of flap ${singleSelectedFlap.id}`}
+          onRename={(name) => void renameOristudioBpVertex(singleSelectedFlap.vertexId, name)}
         />
       )}
       {activeStretch && (

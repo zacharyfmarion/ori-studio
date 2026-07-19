@@ -5607,7 +5607,7 @@ button.bp-packing-alert:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
-.bp-flap-name-editor {
+.bp-name-editor {
   position: absolute;
   top: var(--space-3);
   left: 50%;
@@ -5625,16 +5625,16 @@ button.bp-packing-alert:focus-visible {
   color: var(--text-primary);
 }
 
-.bp-flap-name-editor__title {
+.bp-name-editor__title {
   font-weight: 600;
   color: var(--text-secondary);
 }
 
-.bp-flap-name-editor__label {
+.bp-name-editor__label {
   color: var(--text-secondary);
 }
 
-.bp-flap-name-editor__input {
+.bp-name-editor__input {
   width: 140px;
   padding: 3px 6px;
   border-radius: 6px;
@@ -5644,7 +5644,7 @@ button.bp-packing-alert:focus-visible {
   font-size: 12px;
 }
 
-.bp-flap-name-editor__input:focus-visible {
+.bp-name-editor__input:focus-visible {
   outline: 2px solid var(--accent-primary);
   outline-offset: 1px;
 }

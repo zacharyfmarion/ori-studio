@@ -57,6 +57,7 @@ import {
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { IconButton } from '../ui/IconButton';
+import { BpNameEditor } from './BpNameEditor';
 import {
   isViewportInteractiveTarget,
   ViewportToolbar,
@@ -275,6 +276,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
   const setOristudioBpTreeEdgeLength = useWorkspaceStore(
     (state) => state.setOristudioBpTreeEdgeLength
   );
+  const renameOristudioBpVertex = useWorkspaceStore((state) => state.renameOristudioBpVertex);
   const setOristudioBpActiveSurface = useWorkspaceStore(
     (state) => state.setOristudioBpActiveSurface
   );
@@ -294,6 +296,13 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     if (id === null) return null;
     return tree.edges.find((edge) => edge.id === id) ?? null;
   }, [document.selection, tree.edges]);
+  // The single vertex selected by clicking a tree node — drives the name editor.
+  // A leaf vertex is a flap; internal/root vertices can be named too (BP Studio
+  // stores the name on the vertex regardless).
+  const selectedVertex = useMemo(() => {
+    if (selectedVertexId === null) return null;
+    return tree.vertices.find((vertex) => vertex.id === selectedVertexId) ?? null;
+  }, [selectedVertexId, tree.vertices]);
 
   // Parent/children maps rooted at the tree root, for rotate-around-parent drags.
   const topology = useMemo(() => {
@@ -1027,6 +1036,16 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
         <BpTreeEdgeLengthEditor
           edge={selectedEdge}
           onSetLength={(length) => void setEdgeLength(selectedEdge, length)}
+        />
+      )}
+      {selectedVertex && (
+        <BpNameEditor
+          key={selectedVertex.id}
+          title={`${selectedVertex.isLeaf ? 'Flap' : 'Node'} ${selectedVertex.id}`}
+          name={selectedVertex.name}
+          placeholder={`f${selectedVertex.id}`}
+          ariaLabel={`Name of ${selectedVertex.isLeaf ? 'flap' : 'node'} ${selectedVertex.id}`}
+          onRename={(name) => void renameOristudioBpVertex(selectedVertex.id, name)}
         />
       )}
       <div className="design-status-readout">

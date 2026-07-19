@@ -578,18 +578,16 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         return next;
       }),
 
-    renameOristudioBpFlap: async (id, name) =>
-      // A flap's name lives on its dual tree leaf vertex (flap id === vertex id),
-      // so renaming a flap renames the vertex — visible in the tree view too.
-      // The engine no-ops on an unchanged name, so this won't add empty history.
-      runBpTreeMutation('Renamed BP flap', (document) => {
-        const flap = document.snapshot.packing.flaps.find((f) => f.id === id);
-        const vertexId = flap ? flap.vertexId : id;
-        return renameRuntimeOristudioBpTreeVertex(vertexId, name, {
-          activeSurface: 'packing',
+    renameOristudioBpVertex: async (id, name) =>
+      // The name lives on the tree vertex; a flap just reuses its dual leaf
+      // vertex's name. The engine no-ops on an unchanged name, so this won't add
+      // an empty history entry.
+      runBpTreeMutation('Renamed BP node', (document) =>
+        renameRuntimeOristudioBpTreeVertex(id, name, {
+          activeSurface: document.activeSurface,
           selection: document.selection,
-        });
-      }),
+        })
+      ),
 
     moveOristudioBpLayoutFlap: async (id, loc, dragging = false) =>
       runBpTreeMutation(
