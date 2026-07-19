@@ -191,10 +191,12 @@ Checklist (by namespace):
 - [x] `menu` (98) — menu bar titles/submenus + non-capability items (e.g. Settings).
 - [x] `common` (216) — capability labels + disabled reasons, toolbar, workspace rail;
   completes the menu's capability-backed action labels.
-- [ ] `dialogs` (~205) — Settings, Help/About, command + crease-export dialog, Start
-  screen, CP-detect import, Select-by-index, desktop close-guard. (Help/About intro uses
-  `<Trans>`.)
-- [ ] `tools` (~111) — viewport toolbar, CP tool rail, CP context tool options.
+- [x] `dialogs` (206) — Settings, Help/About, command + crease-export dialog, Start
+  screen, CP-detect import, Select-by-index, desktop close-guard. Preserved `{{...}}`
+  placeholders + the `<Trans>` `<2>…</2>` markup; filled per-locale CLDR plural forms.
+  (Also fixed `i18n:check` to be plural-aware.)
+- [ ] `tools` (111) — viewport toolbar, CP tool rail, CP context tool options (angle/ratio/
+  RGB fields), line-style + palette-color names.
 - [ ] `panels` (~410) — all dockview panels (inspector, design, diagnostics, sequence,
   simulator, conditions, BP editor/packing/tree, CP view controls, crease pattern).
 - [ ] `cpVocab` (~730) — generated CP tool vocabulary + Oriedita tool-step instructions.
