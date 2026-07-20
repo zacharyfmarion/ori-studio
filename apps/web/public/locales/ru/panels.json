@@ -36,6 +36,7 @@
     "selectFlapWithName": "Выбрать клапан BP {{id}}, {{name}}",
     "selectRiver": "Выбрать реку BP {{id}}, длина {{length}}",
     "selectRiverShort": "Выбрать реку BP {{id}}",
+    "sheetDimensions": "{{width}} × {{height}}",
     "sheetSizeGrid": "Размер листа и сетка",
     "size": "Размер",
     "stretch": "Растяжка {{id}}",
@@ -64,6 +65,7 @@
     "selectLeafVertexWithLabel": "Выбрать концевую вершину BP {{id}}, {{label}}",
     "selectVertex": "Выбрать вершину BP {{id}}",
     "selectVertexWithLabel": "Выбрать вершину BP {{id}}, {{label}}",
+    "sheetDimensions": "{{width}} × {{height}}",
     "viewportControls": "Элементы управления областью просмотра дерева Box Pleat"
   },
   "conditions": {
@@ -93,9 +95,12 @@
       "title": "Добавить из выделения"
     },
     "clear": "Очистить",
+    "editor": "Редактор",
     "imported": {
       "message": "Импортированные паттерны складок не имеют редактируемых условий дерева."
     },
+    "list": "Список",
+    "noConditions": "Нет условий",
     "paper": {
       "height": "Высота",
       "title": "Бумага",
@@ -344,6 +349,14 @@
     "editCp": "Редактировать CP",
     "newTree": "Новое дерево",
     "open": "Открыть"
+  },
+  "imageInspector": {
+    "adjustOpacity": "Настроить непрозрачность",
+    "bringToFront": "На передний план",
+    "deleteImage": "Удалить изображение",
+    "imageControls": "Управление изображением",
+    "opacity": "Непрозрачность",
+    "sendToBack": "На задний план"
   },
   "inspector": {
     "absorbNodes": "Поглотить узлы",

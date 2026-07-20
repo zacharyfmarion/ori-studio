@@ -36,6 +36,7 @@
     "selectFlapWithName": "Selecionar aba BP {{id}}, {{name}}",
     "selectRiver": "Selecionar rio BP {{id}}, comprimento {{length}}",
     "selectRiverShort": "Selecionar rio BP {{id}}",
+    "sheetDimensions": "{{width}} × {{height}}",
     "sheetSizeGrid": "Tamanho da folha e grade",
     "size": "Tamanho",
     "stretch": "Estiramento {{id}}",
@@ -64,6 +65,7 @@
     "selectLeafVertexWithLabel": "Selecionar vértice folha BP {{id}}, {{label}}",
     "selectVertex": "Selecionar vértice BP {{id}}",
     "selectVertexWithLabel": "Selecionar vértice BP {{id}}, {{label}}",
+    "sheetDimensions": "{{width}} × {{height}}",
     "viewportControls": "Controles da viewport da árvore de dobra em caixa"
   },
   "conditions": {
@@ -93,9 +95,12 @@
       "title": "Adicionar a partir da seleção"
     },
     "clear": "Limpar",
+    "editor": "Editor",
     "imported": {
       "message": "Padrões de vincos importados não possuem condições de árvore editáveis."
     },
+    "list": "Lista",
+    "noConditions": "Sem condições",
     "paper": {
       "height": "Altura",
       "title": "Papel",
@@ -334,6 +339,14 @@
     "editCp": "Editar CP",
     "newTree": "Nova Árvore",
     "open": "Abrir"
+  },
+  "imageInspector": {
+    "adjustOpacity": "Ajustar opacidade",
+    "bringToFront": "Trazer para frente",
+    "deleteImage": "Excluir imagem",
+    "imageControls": "Controles de imagem",
+    "opacity": "Opacidade",
+    "sendToBack": "Enviar para trás"
   },
   "inspector": {
     "absorbNodes": "Absorver nós",

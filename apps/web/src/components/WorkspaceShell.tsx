@@ -118,6 +118,7 @@ function Toolbar() {
   return (
     <header className="toolbar">
       <div className="toolbar__brand">
+        {/* eslint-disable-next-line i18next/no-literal-string -- brand name, never translated */}
         {isDesktop ? <span className="toolbar__title">Ori Studio</span> : <MenuBar />}
       </div>
       <div className="toolbar__actions">

@@ -1700,7 +1700,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                           x={visual.center.x + 7}
                           y={visual.center.y - 7}
                         >
-                          r{visual.river.id}
+                          {`r${visual.river.id}`}
                         </text>
                       )}
                     </g>
@@ -1962,7 +1962,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
         <span><CircleDot size={13} /> {packing.flaps.length}</span>
         <span><Route size={13} /> {packing.rivers.length}</span>
         <span><TriangleAlert size={13} /> {packing.invalidJunctions.length}</span>
-        <span><Grid2X2 size={13} /> {packing.sheet.width} x {packing.sheet.height}</span>
+        <span><Grid2X2 size={13} /> {t('panels:bpPacking.sheetDimensions', '{{width}} × {{height}}', { width: packing.sheet.width, height: packing.sheet.height })}</span>
       </div>
     </div>
   );

@@ -36,6 +36,7 @@
     "selectFlapWithName": "Sélectionner le rabat BP {{id}}, {{name}}",
     "selectRiver": "Sélectionner la rivière BP {{id}}, longueur {{length}}",
     "selectRiverShort": "Sélectionner la rivière BP {{id}}",
+    "sheetDimensions": "{{width}} × {{height}}",
     "sheetSizeGrid": "Taille de la feuille et grille",
     "size": "Taille",
     "stretch": "Étirement {{id}}",
@@ -64,6 +65,7 @@
     "selectLeafVertexWithLabel": "Sélectionner le sommet feuille BP {{id}}, {{label}}",
     "selectVertex": "Sélectionner le sommet BP {{id}}",
     "selectVertexWithLabel": "Sélectionner le sommet BP {{id}}, {{label}}",
+    "sheetDimensions": "{{width}} × {{height}}",
     "viewportControls": "Commandes d'affichage de l'arbre du pliage en boîte"
   },
   "conditions": {
@@ -93,9 +95,12 @@
       "title": "Ajouter depuis la sélection"
     },
     "clear": "Effacer",
+    "editor": "Éditeur",
     "imported": {
       "message": "Les patrons de plis importés n'ont pas de conditions d'arbre modifiables."
     },
+    "list": "Liste",
+    "noConditions": "Aucune condition",
     "paper": {
       "height": "Hauteur",
       "title": "Papier",
@@ -334,6 +339,14 @@
     "editCp": "Modifier le CP",
     "newTree": "Nouvel arbre",
     "open": "Ouvrir"
+  },
+  "imageInspector": {
+    "adjustOpacity": "Ajuster lʼopacité",
+    "bringToFront": "Mettre au premier plan",
+    "deleteImage": "Supprimer lʼimage",
+    "imageControls": "Commandes dʼimage",
+    "opacity": "Opacité",
+    "sendToBack": "Envoyer à lʼarrière-plan"
   },
   "inspector": {
     "absorbNodes": "Absorber les nœuds",

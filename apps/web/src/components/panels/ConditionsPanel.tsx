@@ -304,7 +304,7 @@ export function ConditionsPanel() {
 
         {editedCondition && (
           <section className="condition-section">
-            <div className="condition-section__title">Editor</div>
+            <div className="condition-section__title">{t('panels:conditions.editor', 'Editor')}</div>
             <ConditionEditor
               condition={editedCondition}
               onUpdate={(kind) => void updateCondition(editedCondition.id, kind)}
@@ -313,9 +313,9 @@ export function ConditionsPanel() {
         )}
 
         <section className="condition-section">
-          <div className="condition-section__title">List</div>
+          <div className="condition-section__title">{t('panels:conditions.list', 'List')}</div>
           {project.conditions.length === 0 ? (
-            <div className="empty-note">No conditions</div>
+            <div className="empty-note">{t('panels:conditions.noConditions', 'No conditions')}</div>
           ) : (
             <div className="condition-list">
               {project.conditions.map((condition) => (

@@ -1081,7 +1081,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
       <div className="design-legend bp-tree-legend">
         <span><Circle size={13} /> {tree.vertices.filter((vertex) => vertex.isLeaf).length}</span>
         <span><Waypoints size={13} /> {tree.edges.length}</span>
-        <span><Grid2X2 size={13} /> {tree.sheet.width} x {tree.sheet.height}</span>
+        <span><Grid2X2 size={13} /> {t('panels:bpTree.sheetDimensions', '{{width}} × {{height}}', { width: tree.sheet.width, height: tree.sheet.height })}</span>
       </div>
     </div>
   );

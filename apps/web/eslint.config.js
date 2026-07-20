@@ -1,5 +1,6 @@
 import js from '@eslint/js';
 import globals from 'globals';
+import i18next from 'eslint-plugin-i18next';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
@@ -47,6 +48,17 @@ export default tseslint.config(
           varsIgnorePattern: '^_',
         },
       ],
+    },
+  },
+  {
+    // Catch hardcoded user-facing text that bypasses t(). Scoped to JSX text nodes
+    // (jsx-text-only) — the main regression risk — with low false-positive noise. Tests are
+    // exempt; the "Ori Studio" brand name is intentionally verbatim.
+    files: ['src/**/*.tsx'],
+    ignores: ['src/**/*.test.tsx'],
+    plugins: { i18next },
+    rules: {
+      'i18next/no-literal-string': ['error', { mode: 'jsx-text-only' }],
     },
   }
 );

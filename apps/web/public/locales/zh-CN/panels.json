@@ -36,6 +36,7 @@
     "selectFlapWithName": "选择 BP 瓣 {{id}}，{{name}}",
     "selectRiver": "选择 BP 河 {{id}}，长度 {{length}}",
     "selectRiverShort": "选择 BP 河 {{id}}",
+    "sheetDimensions": "{{width}} × {{height}}",
     "sheetSizeGrid": "纸张尺寸与网格",
     "size": "尺寸",
     "stretch": "拉伸 {{id}}",
@@ -64,6 +65,7 @@
     "selectLeafVertexWithLabel": "选择 BP 叶顶点 {{id}}，{{label}}",
     "selectVertex": "选择 BP 顶点 {{id}}",
     "selectVertexWithLabel": "选择 BP 顶点 {{id}}，{{label}}",
+    "sheetDimensions": "{{width}} × {{height}}",
     "viewportControls": "箱形褶皱树视口控件"
   },
   "conditions": {
@@ -93,9 +95,12 @@
       "title": "从所选内容添加"
     },
     "clear": "清除",
+    "editor": "编辑器",
     "imported": {
       "message": "导入的折痕图没有可编辑的树条件。"
     },
+    "list": "列表",
+    "noConditions": "无条件",
     "paper": {
       "height": "高度",
       "title": "纸张",
@@ -314,6 +319,14 @@
     "editCp": "编辑 CP",
     "newTree": "新建树",
     "open": "打开"
+  },
+  "imageInspector": {
+    "adjustOpacity": "调整不透明度",
+    "bringToFront": "移到最前",
+    "deleteImage": "删除图像",
+    "imageControls": "图像控件",
+    "opacity": "不透明度",
+    "sendToBack": "移到最后"
   },
   "inspector": {
     "absorbNodes": "吸收节点",

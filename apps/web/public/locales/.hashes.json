@@ -1748,7 +1748,18 @@
     "cpVocab:instructions.vertexAddAction.intro.0": "fb05eff93be4",
     "cpVocab:instructions.voronoiAction.intro.0": "99de6bf6257d",
     "cpVocab:instructions.voronoiAction.notes.0": "73cc88e870c6",
-    "cpVocab:instructions.voronoiAction.notes.1": "6fac89130446"
+    "cpVocab:instructions.voronoiAction.notes.1": "6fac89130446",
+    "panels:bpPacking.sheetDimensions": "c465e2176383",
+    "panels:bpTree.sheetDimensions": "c465e2176383",
+    "panels:conditions.editor": "936a161c3931",
+    "panels:conditions.list": "6f202f54a7b2",
+    "panels:conditions.noConditions": "5cd900a5e76c",
+    "panels:imageInspector.imageControls": "9c0e253c9e93",
+    "panels:imageInspector.opacity": "6062652e10dd",
+    "panels:imageInspector.bringToFront": "520cdb7e4609",
+    "panels:imageInspector.sendToBack": "e3daa79eaf69",
+    "panels:imageInspector.deleteImage": "fbbc98ee63a5",
+    "panels:imageInspector.adjustOpacity": "dddcb2eab31a"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -3499,7 +3510,18 @@
     "cpVocab:instructions.vertexAddAction.intro.0": "fb05eff93be4",
     "cpVocab:instructions.voronoiAction.intro.0": "99de6bf6257d",
     "cpVocab:instructions.voronoiAction.notes.0": "73cc88e870c6",
-    "cpVocab:instructions.voronoiAction.notes.1": "6fac89130446"
+    "cpVocab:instructions.voronoiAction.notes.1": "6fac89130446",
+    "panels:bpPacking.sheetDimensions": "c465e2176383",
+    "panels:bpTree.sheetDimensions": "c465e2176383",
+    "panels:conditions.editor": "936a161c3931",
+    "panels:conditions.list": "6f202f54a7b2",
+    "panels:conditions.noConditions": "5cd900a5e76c",
+    "panels:imageInspector.imageControls": "9c0e253c9e93",
+    "panels:imageInspector.opacity": "6062652e10dd",
+    "panels:imageInspector.bringToFront": "520cdb7e4609",
+    "panels:imageInspector.sendToBack": "e3daa79eaf69",
+    "panels:imageInspector.deleteImage": "fbbc98ee63a5",
+    "panels:imageInspector.adjustOpacity": "dddcb2eab31a"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -5275,7 +5297,18 @@
     "cpVocab:instructions.vertexAddAction.intro.0": "fb05eff93be4",
     "cpVocab:instructions.voronoiAction.intro.0": "99de6bf6257d",
     "cpVocab:instructions.voronoiAction.notes.0": "73cc88e870c6",
-    "cpVocab:instructions.voronoiAction.notes.1": "6fac89130446"
+    "cpVocab:instructions.voronoiAction.notes.1": "6fac89130446",
+    "panels:bpPacking.sheetDimensions": "c465e2176383",
+    "panels:bpTree.sheetDimensions": "c465e2176383",
+    "panels:conditions.editor": "936a161c3931",
+    "panels:conditions.list": "6f202f54a7b2",
+    "panels:conditions.noConditions": "5cd900a5e76c",
+    "panels:imageInspector.imageControls": "9c0e253c9e93",
+    "panels:imageInspector.opacity": "6062652e10dd",
+    "panels:imageInspector.bringToFront": "520cdb7e4609",
+    "panels:imageInspector.sendToBack": "e3daa79eaf69",
+    "panels:imageInspector.deleteImage": "fbbc98ee63a5",
+    "panels:imageInspector.adjustOpacity": "dddcb2eab31a"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -7051,7 +7084,18 @@
     "cpVocab:instructions.vertexAddAction.intro.0": "fb05eff93be4",
     "cpVocab:instructions.voronoiAction.intro.0": "99de6bf6257d",
     "cpVocab:instructions.voronoiAction.notes.0": "73cc88e870c6",
-    "cpVocab:instructions.voronoiAction.notes.1": "6fac89130446"
+    "cpVocab:instructions.voronoiAction.notes.1": "6fac89130446",
+    "panels:bpPacking.sheetDimensions": "c465e2176383",
+    "panels:bpTree.sheetDimensions": "c465e2176383",
+    "panels:conditions.editor": "936a161c3931",
+    "panels:conditions.list": "6f202f54a7b2",
+    "panels:conditions.noConditions": "5cd900a5e76c",
+    "panels:imageInspector.imageControls": "9c0e253c9e93",
+    "panels:imageInspector.opacity": "6062652e10dd",
+    "panels:imageInspector.bringToFront": "520cdb7e4609",
+    "panels:imageInspector.sendToBack": "e3daa79eaf69",
+    "panels:imageInspector.deleteImage": "fbbc98ee63a5",
+    "panels:imageInspector.adjustOpacity": "dddcb2eab31a"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8827,7 +8871,18 @@
     "cpVocab:instructions.vertexAddAction.intro.0": "fb05eff93be4",
     "cpVocab:instructions.voronoiAction.intro.0": "99de6bf6257d",
     "cpVocab:instructions.voronoiAction.notes.0": "73cc88e870c6",
-    "cpVocab:instructions.voronoiAction.notes.1": "6fac89130446"
+    "cpVocab:instructions.voronoiAction.notes.1": "6fac89130446",
+    "panels:bpPacking.sheetDimensions": "c465e2176383",
+    "panels:bpTree.sheetDimensions": "c465e2176383",
+    "panels:conditions.editor": "936a161c3931",
+    "panels:conditions.list": "6f202f54a7b2",
+    "panels:conditions.noConditions": "5cd900a5e76c",
+    "panels:imageInspector.imageControls": "9c0e253c9e93",
+    "panels:imageInspector.opacity": "6062652e10dd",
+    "panels:imageInspector.bringToFront": "520cdb7e4609",
+    "panels:imageInspector.sendToBack": "e3daa79eaf69",
+    "panels:imageInspector.deleteImage": "fbbc98ee63a5",
+    "panels:imageInspector.adjustOpacity": "dddcb2eab31a"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10603,7 +10658,18 @@
     "cpVocab:instructions.vertexAddAction.intro.0": "fb05eff93be4",
     "cpVocab:instructions.voronoiAction.intro.0": "99de6bf6257d",
     "cpVocab:instructions.voronoiAction.notes.0": "73cc88e870c6",
-    "cpVocab:instructions.voronoiAction.notes.1": "6fac89130446"
+    "cpVocab:instructions.voronoiAction.notes.1": "6fac89130446",
+    "panels:bpPacking.sheetDimensions": "c465e2176383",
+    "panels:bpTree.sheetDimensions": "c465e2176383",
+    "panels:conditions.editor": "936a161c3931",
+    "panels:conditions.list": "6f202f54a7b2",
+    "panels:conditions.noConditions": "5cd900a5e76c",
+    "panels:imageInspector.imageControls": "9c0e253c9e93",
+    "panels:imageInspector.opacity": "6062652e10dd",
+    "panels:imageInspector.bringToFront": "520cdb7e4609",
+    "panels:imageInspector.sendToBack": "e3daa79eaf69",
+    "panels:imageInspector.deleteImage": "fbbc98ee63a5",
+    "panels:imageInspector.adjustOpacity": "dddcb2eab31a"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12379,7 +12445,18 @@
     "cpVocab:instructions.vertexAddAction.intro.0": "fb05eff93be4",
     "cpVocab:instructions.voronoiAction.intro.0": "99de6bf6257d",
     "cpVocab:instructions.voronoiAction.notes.0": "73cc88e870c6",
-    "cpVocab:instructions.voronoiAction.notes.1": "6fac89130446"
+    "cpVocab:instructions.voronoiAction.notes.1": "6fac89130446",
+    "panels:bpPacking.sheetDimensions": "c465e2176383",
+    "panels:bpTree.sheetDimensions": "c465e2176383",
+    "panels:conditions.editor": "936a161c3931",
+    "panels:conditions.list": "6f202f54a7b2",
+    "panels:conditions.noConditions": "5cd900a5e76c",
+    "panels:imageInspector.imageControls": "9c0e253c9e93",
+    "panels:imageInspector.opacity": "6062652e10dd",
+    "panels:imageInspector.bringToFront": "520cdb7e4609",
+    "panels:imageInspector.sendToBack": "e3daa79eaf69",
+    "panels:imageInspector.deleteImage": "fbbc98ee63a5",
+    "panels:imageInspector.adjustOpacity": "dddcb2eab31a"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -14130,6 +14207,17 @@
     "cpVocab:instructions.vertexAddAction.intro.0": "fb05eff93be4",
     "cpVocab:instructions.voronoiAction.intro.0": "99de6bf6257d",
     "cpVocab:instructions.voronoiAction.notes.0": "73cc88e870c6",
-    "cpVocab:instructions.voronoiAction.notes.1": "6fac89130446"
+    "cpVocab:instructions.voronoiAction.notes.1": "6fac89130446",
+    "panels:bpPacking.sheetDimensions": "c465e2176383",
+    "panels:bpTree.sheetDimensions": "c465e2176383",
+    "panels:conditions.editor": "936a161c3931",
+    "panels:conditions.list": "6f202f54a7b2",
+    "panels:conditions.noConditions": "5cd900a5e76c",
+    "panels:imageInspector.imageControls": "9c0e253c9e93",
+    "panels:imageInspector.opacity": "6062652e10dd",
+    "panels:imageInspector.bringToFront": "520cdb7e4609",
+    "panels:imageInspector.sendToBack": "e3daa79eaf69",
+    "panels:imageInspector.deleteImage": "fbbc98ee63a5",
+    "panels:imageInspector.adjustOpacity": "dddcb2eab31a"
   }
 }

@@ -37,6 +37,7 @@ export function StartScreen({
       <section className="start-screen__content" aria-labelledby="start-screen-title">
         <div className="start-screen__hero">
           <div className="start-screen__copy">
+            {/* eslint-disable-next-line i18next/no-literal-string -- brand name, never translated */}
             <span className="start-screen__eyebrow">Ori Studio</span>
             <h1 id="start-screen-title">{t('dialogs:startScreen.title', 'Start a new origami workspace')}</h1>
             <p>

@@ -36,6 +36,7 @@
     "selectFlapWithName": "Select BP flap {{id}}, {{name}}",
     "selectRiver": "Select BP river {{id}}, length {{length}}",
     "selectRiverShort": "Select BP river {{id}}",
+    "sheetDimensions": "{{width}} × {{height}}",
     "sheetSizeGrid": "Sheet size & grid",
     "size": "Size",
     "stretch": "Stretch {{id}}",
@@ -64,6 +65,7 @@
     "selectLeafVertexWithLabel": "Select BP leaf vertex {{id}}, {{label}}",
     "selectVertex": "Select BP vertex {{id}}",
     "selectVertexWithLabel": "Select BP vertex {{id}}, {{label}}",
+    "sheetDimensions": "{{width}} × {{height}}",
     "viewportControls": "Box Pleat tree viewport controls"
   },
   "conditions": {
@@ -93,9 +95,12 @@
       "title": "Add From Selection"
     },
     "clear": "Clear",
+    "editor": "Editor",
     "imported": {
       "message": "Imported crease patterns do not have editable tree conditions."
     },
+    "list": "List",
+    "noConditions": "No conditions",
     "paper": {
       "height": "Height",
       "title": "Paper",
@@ -324,6 +329,14 @@
     "editCp": "Edit CP",
     "newTree": "New Tree",
     "open": "Open"
+  },
+  "imageInspector": {
+    "adjustOpacity": "Adjust opacity",
+    "bringToFront": "Bring to front",
+    "deleteImage": "Delete image",
+    "imageControls": "Image controls",
+    "opacity": "Opacity",
+    "sendToBack": "Send to back"
   },
   "inspector": {
     "absorbNodes": "Absorb nodes",

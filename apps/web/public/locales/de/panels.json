@@ -36,6 +36,7 @@
     "selectFlapWithName": "BP-Klappe {{id}} auswählen, {{name}}",
     "selectRiver": "BP-Fluss {{id}} auswählen, Länge {{length}}",
     "selectRiverShort": "BP-Fluss {{id}} auswählen",
+    "sheetDimensions": "{{width}} × {{height}}",
     "sheetSizeGrid": "Blattgröße & Raster",
     "size": "Größe",
     "stretch": "Streckung {{id}}",
@@ -64,6 +65,7 @@
     "selectLeafVertexWithLabel": "BP-Blattknoten {{id}} auswählen, {{label}}",
     "selectVertex": "BP-Knoten {{id}} auswählen",
     "selectVertexWithLabel": "BP-Knoten {{id}} auswählen, {{label}}",
+    "sheetDimensions": "{{width}} × {{height}}",
     "viewportControls": "Ansichtssteuerung des Box-Pleating-Baums"
   },
   "conditions": {
@@ -93,9 +95,12 @@
       "title": "Aus Auswahl hinzufügen"
     },
     "clear": "Löschen",
+    "editor": "Editor",
     "imported": {
       "message": "Importierte Faltmuster haben keine bearbeitbaren Baumbedingungen."
     },
+    "list": "Liste",
+    "noConditions": "Keine Bedingungen",
     "paper": {
       "height": "Höhe",
       "title": "Papier",
@@ -324,6 +329,14 @@
     "editCp": "CP bearbeiten",
     "newTree": "Neuer Baum",
     "open": "Öffnen"
+  },
+  "imageInspector": {
+    "adjustOpacity": "Deckkraft anpassen",
+    "bringToFront": "In den Vordergrund",
+    "deleteImage": "Bild löschen",
+    "imageControls": "Bildsteuerung",
+    "opacity": "Deckkraft",
+    "sendToBack": "In den Hintergrund"
   },
   "inspector": {
     "absorbNodes": "Knoten absorbieren",

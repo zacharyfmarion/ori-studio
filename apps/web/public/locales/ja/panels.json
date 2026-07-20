@@ -36,6 +36,7 @@
     "selectFlapWithName": "BP フラップ {{id}}、{{name}} を選択",
     "selectRiver": "BP リバー {{id}}、長さ {{length}} を選択",
     "selectRiverShort": "BP リバー {{id}} を選択",
+    "sheetDimensions": "{{width}} × {{height}}",
     "sheetSizeGrid": "用紙サイズとグリッド",
     "size": "サイズ",
     "stretch": "ストレッチ {{id}}",
@@ -64,6 +65,7 @@
     "selectLeafVertexWithLabel": "BP 葉頂点 {{id}}、{{label}} を選択",
     "selectVertex": "BP 頂点 {{id}} を選択",
     "selectVertexWithLabel": "BP 頂点 {{id}}、{{label}} を選択",
+    "sheetDimensions": "{{width}} × {{height}}",
     "viewportControls": "ボックスプリーツツリーのビューポート操作"
   },
   "conditions": {
@@ -93,9 +95,12 @@
       "title": "選択範囲から追加"
     },
     "clear": "クリア",
+    "editor": "エディター",
     "imported": {
       "message": "インポートした展開図には編集可能なツリー条件がありません。"
     },
+    "list": "リスト",
+    "noConditions": "条件なし",
     "paper": {
       "height": "高さ",
       "title": "用紙",
@@ -314,6 +319,14 @@
     "editCp": "CP を編集",
     "newTree": "新規ツリー",
     "open": "開く"
+  },
+  "imageInspector": {
+    "adjustOpacity": "不透明度を調整",
+    "bringToFront": "最前面へ",
+    "deleteImage": "画像を削除",
+    "imageControls": "画像コントロール",
+    "opacity": "不透明度",
+    "sendToBack": "最背面へ"
   },
   "inspector": {
     "absorbNodes": "ノードを吸収",

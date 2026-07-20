@@ -36,6 +36,7 @@
     "selectFlapWithName": "BP 플랩 {{id}} 선택, {{name}}",
     "selectRiver": "BP 리버 {{id}} 선택, 길이 {{length}}",
     "selectRiverShort": "BP 리버 {{id}} 선택",
+    "sheetDimensions": "{{width}} × {{height}}",
     "sheetSizeGrid": "시트 크기 및 격자",
     "size": "크기",
     "stretch": "스트레치 {{id}}",
@@ -64,6 +65,7 @@
     "selectLeafVertexWithLabel": "BP 리프 정점 {{id}} 선택, {{label}}",
     "selectVertex": "BP 정점 {{id}} 선택",
     "selectVertexWithLabel": "BP 정점 {{id}} 선택, {{label}}",
+    "sheetDimensions": "{{width}} × {{height}}",
     "viewportControls": "박스 플리츠 트리 뷰포트 컨트롤"
   },
   "conditions": {
@@ -93,9 +95,12 @@
       "title": "선택 항목에서 추가"
     },
     "clear": "지우기",
+    "editor": "편집기",
     "imported": {
       "message": "가져온 전개도에는 편집 가능한 트리 조건이 없습니다."
     },
+    "list": "목록",
+    "noConditions": "조건 없음",
     "paper": {
       "height": "높이",
       "title": "종이",
@@ -314,6 +319,14 @@
     "editCp": "CP 편집",
     "newTree": "새 트리",
     "open": "열기"
+  },
+  "imageInspector": {
+    "adjustOpacity": "불투명도 조정",
+    "bringToFront": "맨 앞으로",
+    "deleteImage": "이미지 삭제",
+    "imageControls": "이미지 컨트롤",
+    "opacity": "불투명도",
+    "sendToBack": "맨 뒤로"
   },
   "inspector": {
     "absorbNodes": "노드 흡수",
