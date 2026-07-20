@@ -81,7 +81,6 @@ function createDeps() {
     fileService: createFileService('web'),
     showStartScreen: vi.fn().mockResolvedValue(true),
     quit: vi.fn(),
-    help: vi.fn(),
     about: vi.fn(),
     settings: vi.fn(),
     selectByIndex: vi.fn(),
@@ -107,7 +106,6 @@ describe('menu actions', () => {
     await expect(handle('view.creasePattern')).resolves.toBe(true);
     await expect(handle('view.simulator')).resolves.toBe(true);
     await expect(handle('file.settings')).resolves.toBe(true);
-    await expect(handle('help.documentation')).resolves.toBe(true);
     await expect(handle('help.about')).resolves.toBe(true);
     await expect(handle('app.about')).resolves.toBe(true);
     await expect(handle('cp.build')).resolves.toBe(true);
@@ -119,7 +117,6 @@ describe('menu actions', () => {
     expect(deps.layout.activatePanel).toHaveBeenCalledWith('simulator');
     expect(deps.layout.activatePanel).toHaveBeenCalledTimes(4);
     expect(deps.settings).toHaveBeenCalledOnce();
-    expect(deps.help).toHaveBeenCalledOnce();
     expect(deps.about).toHaveBeenCalledTimes(2);
     expect(deps.workspace.buildCreasePattern).toHaveBeenCalledOnce();
     expect(deps.workspace.optimizeEdges).toHaveBeenCalledOnce();

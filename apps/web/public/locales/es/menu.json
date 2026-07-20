@@ -88,8 +88,7 @@
     "settings": "Configuración"
   },
   "help": {
-    "about": "Acerca de Ori Studio",
-    "documentation": "Ayuda de Ori Studio"
+    "about": "Acerca de Ori Studio"
   },
   "menubar": {
     "creasePattern": "Patrón de pliegues",

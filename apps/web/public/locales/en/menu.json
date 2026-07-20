@@ -88,8 +88,7 @@
     "settings": "Settings"
   },
   "help": {
-    "about": "About Ori Studio",
-    "documentation": "Ori Studio Help"
+    "about": "About Ori Studio"
   },
   "menubar": {
     "creasePattern": "Crease Pattern",
