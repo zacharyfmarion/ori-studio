@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { Check, Keyboard, LayoutDashboard, Palette, RotateCcw, X } from 'lucide-react';
-import { SUPPORTED_LOCALES } from '../i18n/locales';
+import { detectSystemLocale, SUPPORTED_LOCALES, SYSTEM_LOCALE } from '../i18n/locales';
 import {
   shortcutActionLabel,
   shortcutCategoryLabel,
@@ -85,17 +85,25 @@ function ThemeCard({
 
 function LanguageSection() {
   const { t } = useTranslation();
-  const locale = useLocaleStore((state) => state.locale);
+  const preference = useLocaleStore((state) => state.preference);
   const setLocale = useLocaleStore((state) => state.setLocale);
+
+  // Annotate "System default" with the language it currently resolves to.
+  const detected = detectSystemLocale();
+  const detectedName =
+    SUPPORTED_LOCALES.find((l) => l.code === detected)?.nativeName ?? detected;
 
   return (
     <section className="settings-section">
       <h3 className="settings-section__title">{t('dialogs:settings.language.title', 'Language')}</h3>
-      <Select value={locale} onValueChange={setLocale}>
+      <Select value={preference} onValueChange={setLocale}>
         <SelectTrigger className="settings-full-width" aria-label={t('dialogs:settings.language.title', 'Language')}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
+          <SelectItem value={SYSTEM_LOCALE}>
+            {t('dialogs:settings.language.system', 'System default')} — {detectedName}
+          </SelectItem>
           {SUPPORTED_LOCALES.map((option) => (
             <SelectItem key={option.code} value={option.code}>
               {option.nativeName}

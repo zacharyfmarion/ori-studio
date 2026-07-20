@@ -1,41 +1,54 @@
 import { create } from 'zustand';
 import i18n from '../i18n';
-import { DEFAULT_LOCALE, SUPPORTED_LOCALE_CODES } from '../i18n/locales';
+import {
+  detectSystemLocale,
+  LOCALE_STORAGE_KEY,
+  normalizeLocale,
+  readStoredPreference,
+  SYSTEM_LOCALE,
+  type LocalePreference,
+} from '../i18n/locales';
 
 /**
- * Reactive wrapper around i18next's active language.
+ * Owns the user's language preference and keeps i18next + `<html lang>` in sync.
  *
- * i18next (with the language detector) owns detection and localStorage persistence under
- * {@link LOCALE_STORAGE_KEY}; this store mirrors the active locale for the UI, keeps
- * `<html lang>` in sync, and exposes {@link setLocale}. It intentionally does not persist
- * separately — `changeLanguage` triggers the detector's cache.
+ * The preference is either a pinned locale code or {@link SYSTEM_LOCALE} ("follow the OS").
+ * This store — not the i18next language detector — persists it to {@link LOCALE_STORAGE_KEY},
+ * so "System default" keeps tracking the OS locale across reloads instead of pinning the
+ * first detected language.
  */
 
-/** Map an arbitrary BCP-47 tag to the closest supported locale, else the default. */
-export function normalizeLocale(code: string | undefined | null): string {
-  if (!code) return DEFAULT_LOCALE;
-  if (SUPPORTED_LOCALE_CODES.includes(code)) return code;
-  const base = code.split('-')[0].toLowerCase();
-  const exactBase = SUPPORTED_LOCALE_CODES.find((c) => c.toLowerCase() === base);
-  if (exactBase) return exactBase;
-  const byBase = SUPPORTED_LOCALE_CODES.find((c) => c.split('-')[0].toLowerCase() === base);
-  return byBase ?? DEFAULT_LOCALE;
-}
+// Re-exported for existing importers/tests.
+export { normalizeLocale };
 
 function applyHtmlLang(code: string): void {
   if (typeof document !== 'undefined') document.documentElement.lang = code;
 }
 
+function persistPreference(preference: LocalePreference): void {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.setItem(LOCALE_STORAGE_KEY, preference);
+  } catch {
+    // Ignore storage failures in restricted browser contexts.
+  }
+}
+
 interface LocaleState {
+  /** The active (resolved) locale code i18next is currently using. */
   locale: string;
-  setLocale: (code: string) => void;
+  /** The stored preference: a locale code, or `SYSTEM_LOCALE` to follow the OS. */
+  preference: LocalePreference;
+  /** Pick a locale, or `SYSTEM_LOCALE` to follow the OS/browser locale. */
+  setLocale: (preference: LocalePreference) => void;
 }
 
 export const useLocaleStore = create<LocaleState>()((set) => {
-  const initial = normalizeLocale(i18n.resolvedLanguage ?? i18n.language ?? DEFAULT_LOCALE);
+  const initialPreference = readStoredPreference();
+  const initial = normalizeLocale(i18n.resolvedLanguage ?? i18n.language ?? SYSTEM_LOCALE);
   applyHtmlLang(initial);
 
-  // Reflect language changes from any source (e.g. changeLanguage elsewhere) into the store.
+  // Reflect language changes from any source into the store.
   i18n.on('languageChanged', (lng) => {
     const normalized = normalizeLocale(lng);
     applyHtmlLang(normalized);
@@ -44,8 +57,18 @@ export const useLocaleStore = create<LocaleState>()((set) => {
 
   return {
     locale: initial,
-    setLocale: (code) => {
-      void i18n.changeLanguage(normalizeLocale(code));
+    preference: initialPreference,
+    setLocale: (preference) => {
+      if (preference === SYSTEM_LOCALE) {
+        persistPreference(SYSTEM_LOCALE);
+        set({ preference: SYSTEM_LOCALE });
+        void i18n.changeLanguage(detectSystemLocale());
+        return;
+      }
+      const code = normalizeLocale(preference);
+      persistPreference(code);
+      set({ preference: code });
+      void i18n.changeLanguage(code);
     },
   };
 });

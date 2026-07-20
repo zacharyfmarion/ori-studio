@@ -201,6 +201,7 @@
     },
     "close": "설정 닫기",
     "language": {
+      "system": "시스템 기본값",
       "title": "언어"
     },
     "sections": "설정 섹션",

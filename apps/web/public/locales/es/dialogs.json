@@ -209,6 +209,7 @@
     },
     "close": "Cerrar configuración",
     "language": {
+      "system": "Predeterminado del sistema",
       "title": "Idioma"
     },
     "sections": "Secciones de configuración",

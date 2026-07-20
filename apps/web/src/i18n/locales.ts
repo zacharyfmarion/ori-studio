@@ -52,5 +52,52 @@ export type I18nNamespace = (typeof I18N_NAMESPACES)[number];
 
 export const DEFAULT_NAMESPACE: I18nNamespace = 'common';
 
-/** localStorage key holding the user's chosen locale (shared with the language detector). */
+/** localStorage key holding the user's locale preference (a locale code or SYSTEM_LOCALE). */
 export const LOCALE_STORAGE_KEY = 'treemaker-web-locale';
+
+/**
+ * Sentinel preference meaning "follow the OS/browser locale" rather than a pinned language.
+ * Stored in {@link LOCALE_STORAGE_KEY} when the user chooses "System default".
+ */
+export const SYSTEM_LOCALE = 'system';
+
+/** A stored locale preference: a specific supported code, or "follow system". */
+export type LocalePreference = string;
+
+/** Map an arbitrary BCP-47 tag to the closest supported locale, else the default. */
+export function normalizeLocale(code: string | undefined | null): string {
+  if (!code) return DEFAULT_LOCALE;
+  if (SUPPORTED_LOCALE_CODES.includes(code)) return code;
+  const base = code.split('-')[0].toLowerCase();
+  const exactBase = SUPPORTED_LOCALE_CODES.find((c) => c.toLowerCase() === base);
+  if (exactBase) return exactBase;
+  const byBase = SUPPORTED_LOCALE_CODES.find((c) => c.split('-')[0].toLowerCase() === base);
+  return byBase ?? DEFAULT_LOCALE;
+}
+
+/** The supported locale that best matches the OS/browser language. */
+export function detectSystemLocale(): string {
+  const nav = typeof navigator !== 'undefined' ? navigator.language : undefined;
+  return normalizeLocale(nav);
+}
+
+/**
+ * The stored preference: a specific supported locale code the user pinned, or
+ * {@link SYSTEM_LOCALE} when they follow the OS (also the default when nothing is stored).
+ */
+export function readStoredPreference(): LocalePreference {
+  if (typeof localStorage === 'undefined') return SYSTEM_LOCALE;
+  let stored: string | null;
+  try {
+    stored = localStorage.getItem(LOCALE_STORAGE_KEY);
+  } catch {
+    return SYSTEM_LOCALE;
+  }
+  return stored && SUPPORTED_LOCALE_CODES.includes(stored) ? stored : SYSTEM_LOCALE;
+}
+
+/** The language i18next should start in: the pinned code, or the detected system locale. */
+export function resolveInitialLanguage(): string {
+  const preference = readStoredPreference();
+  return preference === SYSTEM_LOCALE ? detectSystemLocale() : preference;
+}

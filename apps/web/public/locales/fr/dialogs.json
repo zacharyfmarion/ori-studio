@@ -209,6 +209,7 @@
     },
     "close": "Fermer les paramètres",
     "language": {
+      "system": "Par défaut du système",
       "title": "Langue"
     },
     "sections": "Sections des paramètres",

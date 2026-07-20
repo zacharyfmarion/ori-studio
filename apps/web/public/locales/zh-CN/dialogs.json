@@ -201,6 +201,7 @@
     },
     "close": "关闭设置",
     "language": {
+      "system": "系统默认",
       "title": "语言"
     },
     "sections": "设置分区",

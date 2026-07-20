@@ -209,6 +209,7 @@
     },
     "close": "Fechar configurações",
     "language": {
+      "system": "Padrão do sistema",
       "title": "Idioma"
     },
     "sections": "Seções de configurações",

@@ -201,6 +201,7 @@
     },
     "close": "設定を閉じる",
     "language": {
+      "system": "システムのデフォルト",
       "title": "言語"
     },
     "sections": "設定セクション",
