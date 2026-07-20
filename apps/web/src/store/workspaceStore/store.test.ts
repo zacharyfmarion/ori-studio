@@ -1401,6 +1401,19 @@ describe('workspace store slices', () => {
     expect(state.transformOristudioCpSelection).toBeTypeOf('function');
   });
 
+  it('initEngine preserves an editable CP provisioned while the engine was loading', async () => {
+    resetStores(seedSnapshot());
+    // Simulate the Edit surface seeding its own CP (via the CP worker) before the
+    // treemaker engine finished loading — initEngine must not clobber it.
+    const doc = editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]);
+    useWorkspaceStore.setState({ oristudioCpDocument: doc });
+
+    await useWorkspaceStore.getState().initEngine();
+
+    expect(useWorkspaceStore.getState().engineReady).toBe(true);
+    expect(useWorkspaceStore.getState().oristudioCpDocument).toBe(doc);
+  });
+
   it('initializes projects, loads text, saves, and exports', async () => {
     const api = resetStores(seedSnapshot());
     const fileService = createFileService({
@@ -1530,6 +1543,31 @@ describe('workspace store slices', () => {
     expect(activateWorkspace).toHaveBeenCalledWith('edit');
     // A bare CP establishes no design, so the Design workspace keeps the chooser.
     expect(useWorkspaceStore.getState().pendingDesignChoice).toBe(true);
+  });
+
+  it('ensureEditCreasePattern offers the Design chooser only for a design-less bare CP', async () => {
+    // Fresh, design-less project (no tree, no BP): the auto-seeded Edit CP keeps
+    // the Design workspace on its method chooser.
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpDocument: null,
+      oristudioBpDocument: null,
+      pendingDesignChoice: false,
+    });
+    await useWorkspaceStore.getState().ensureEditCreasePattern();
+    expect(useWorkspaceStore.getState().oristudioCpDocument).not.toBeNull();
+    expect(useWorkspaceStore.getState().pendingDesignChoice).toBe(true);
+    // The CP editor must report ready (not the initial 'loading_engine'), else
+    // `isBusy` disables undo/redo and every engine-gated command on this canvas.
+    expect(useWorkspaceStore.getState().status).toBe('crease_pattern_ready');
+
+    // With an authored tree, seeding a blank Edit CP must NOT reset the choice.
+    resetStores(seedSnapshot());
+    await useWorkspaceStore.getState().initEngine();
+    expect(useWorkspaceStore.getState().project.edges.length).toBeGreaterThan(0);
+    useWorkspaceStore.setState({ oristudioCpDocument: null, pendingDesignChoice: false });
+    await useWorkspaceStore.getState().ensureEditCreasePattern();
+    expect(useWorkspaceStore.getState().pendingDesignChoice).toBe(false);
   });
 
   it('opens native tree projects and keeps Save on the native file path', async () => {

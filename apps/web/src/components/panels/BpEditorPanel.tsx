@@ -1,15 +1,31 @@
 import { BoxSelect, CircleDashed } from 'lucide-react';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { Button } from '../ui/Button';
+import { SurfaceLoading } from '../ui/SurfaceLoading';
 import { BpPackingPanel } from './BpPackingPanel';
 
 export function BpEditorPanel() {
   const workflowTarget = useWorkspaceStore((state) => state.workflowTarget);
   const document = useWorkspaceStore((state) => state.oristudioBpDocument);
+  const oristudioBpError = useWorkspaceStore((state) => state.oristudioBpError);
   const createOristudioBpProject = useWorkspaceStore((state) => state.createOristudioBpProject);
   const setOristudioBpActiveSurface = useWorkspaceStore(
     (state) => state.setOristudioBpActiveSurface
   );
+
+  // Box-pleat chosen but the BP worker hasn't produced the document yet: show a
+  // loading state (gated on the BP worker) rather than the "open a project"
+  // affordance, which only applies once we know there's no project incoming.
+  if (workflowTarget === 'box-pleat' && !document && !oristudioBpError) {
+    return (
+      <section className="panel-shell bp-editor-panel">
+        <div className="panel-toolbar">
+          <span className="panel-title">BP Editor</span>
+        </div>
+        <SurfaceLoading label="Preparing the box-pleat editor…" />
+      </section>
+    );
+  }
 
   if (workflowTarget !== 'box-pleat' || !document) {
     return (

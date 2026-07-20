@@ -19,6 +19,8 @@ function renderStartScreen(overrides: Partial<ComponentProps<typeof StartScreen>
     onCreateCreasePattern: vi.fn(),
     onCreateDesign: vi.fn(),
     onOpenFile: vi.fn(),
+    showWelcomeOnStartup: true,
+    onToggleShowWelcomeOnStartup: vi.fn(),
     ...overrides,
   };
 

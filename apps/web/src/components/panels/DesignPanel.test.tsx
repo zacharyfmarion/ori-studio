@@ -1,5 +1,6 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DESIGN_PAPER_RECT } from '../../lib/designViewport';
 import { createEmptyProject, createSampleProject, type TreeProject } from '../../lib/sampleProject';
@@ -110,7 +111,44 @@ afterEach(() => {
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
 });
 
+function renderDesignPanel(state: Partial<ReturnType<typeof useWorkspaceStore.getState>>) {
+  useWorkspaceStore.setState({ ...useWorkspaceStore.getInitialState(), ...state }, true);
+  container = document.createElement('div');
+  document.body.append(container);
+  root = createRoot(container);
+  act(() => {
+    root?.render(
+      <MemoryRouter>
+        <TooltipProvider>
+          <DesignPanel />
+        </TooltipProvider>
+      </MemoryRouter>
+    );
+  });
+}
+
 describe('DesignPanel', () => {
+  it('shows the tree-editor loading state while the treemaker engine is not ready', () => {
+    renderDesignPanel({ engineReady: false, pendingDesignChoice: false });
+
+    expect(container?.textContent).toContain('Preparing the tree editor');
+    // The tree canvas itself does not render until the engine is ready.
+    expect(container?.querySelector('.design-panel__body')).toBeNull();
+  });
+
+  it('leaves the Box-pleated method available before the treemaker engine loads', () => {
+    renderDesignPanel({ engineReady: false, pendingDesignChoice: true });
+
+    const button = (label: string) =>
+      Array.from(container?.querySelectorAll('button') ?? []).find((element) =>
+        element.textContent?.includes(label)
+      );
+    // Box-pleating runs on the BP worker, so it must not wait on the engine…
+    expect(button('Box-pleated')?.disabled).toBe(false);
+    // …while circle-packing genuinely does.
+    expect(button('Circle-packed')?.disabled).toBe(true);
+  });
+
   it('shows a subtle nudge when the design tree is empty', () => {
     renderPanel(createEmptyProject());
 

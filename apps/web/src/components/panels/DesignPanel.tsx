@@ -72,6 +72,7 @@ import { DesignMethodChooser } from './DesignMethodChooser';
 import { BpTreePanel } from './BpTreePanel';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
+import { SurfaceLoading } from '../ui/SurfaceLoading';
 import { Toggle } from '../ui/Toggle';
 import {
   isViewportInteractiveTarget,
@@ -456,16 +457,39 @@ export function DesignPanel() {
   const pendingDesignChoice = useWorkspaceStore((state) => state.pendingDesignChoice);
   const workflowTarget = useWorkspaceStore((state) => state.workflowTarget);
   const oristudioBpDocument = useWorkspaceStore((state) => state.oristudioBpDocument);
+  const oristudioBpError = useWorkspaceStore((state) => state.oristudioBpError);
+  const ensureBoxPleatProject = useWorkspaceStore((state) => state.ensureBoxPleatProject);
+
+  // Self-provision the box-pleat surface: entering `/design/bp` without a BP
+  // document (a direct deep link / reload) seeds a starter project so the surface
+  // stands alone, mirroring the Edit canvas. No-op once a document exists.
+  useEffect(() => {
+    if (!pendingDesignChoice && workflowTarget === 'box-pleat' && !oristudioBpDocument && !oristudioBpError) {
+      void ensureBoxPleatProject();
+    }
+  }, [pendingDesignChoice, workflowTarget, oristudioBpDocument, oristudioBpError, ensureBoxPleatProject]);
 
   if (pendingDesignChoice) {
     return <DesignMethodChooser />;
   }
-  if (workflowTarget === 'box-pleat' && oristudioBpDocument) {
-    return (
-      <section className="panel-shell design-panel bp-tree-panel">
-        <BpTreePanel document={oristudioBpDocument} />
-      </section>
-    );
+  if (workflowTarget === 'box-pleat') {
+    if (oristudioBpDocument) {
+      return (
+        <section className="panel-shell design-panel bp-tree-panel">
+          <BpTreePanel document={oristudioBpDocument} />
+        </section>
+      );
+    }
+    // Box-pleat chosen but the BP worker hasn't produced the document yet — show
+    // a loading state (gated on the BP worker) instead of flashing the tree
+    // editor. On failure, fall through to the tree editor's error surface.
+    if (!oristudioBpError) {
+      return (
+        <section className="panel-shell design-panel">
+          <SurfaceLoading label="Preparing the box-pleat editor…" />
+        </section>
+      );
+    }
   }
   return <TreeMakerDesignPanel />;
 }
@@ -916,6 +940,16 @@ function TreeMakerDesignPanel() {
   const onCanvasPointerMove = (event: PointerEvent<SVGSVGElement>) => {
     setHoverPoint(eventToPaper(event));
   };
+
+  if (!engineReady) {
+    // The tree editor runs on the treemaker engine; show its own loading state
+    // while that WASM comes up (no global overlay gates this surface).
+    return (
+      <section className="panel-shell design-panel">
+        <SurfaceLoading label="Preparing the tree editor…" />
+      </section>
+    );
+  }
 
   if (importedCreasePattern) {
     return (

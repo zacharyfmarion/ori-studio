@@ -15,7 +15,6 @@ import { DEFAULT_CREASE_COLOR_MODE } from '../../../lib/sampleProject';
 import { resolveCpSegments } from '../../../lib/creasePatternSegmentation';
 import { foldArtifactsFromFold } from '../../../lib/creasePatternImport';
 import {
-  blankCpLineage,
   generatedCpLineage,
   markGeneratedCpLineageStale,
   stableTextDigest,
@@ -24,6 +23,7 @@ import { foldedFigureModelFromOrieditaMetadata } from '../../../lib/orieditaNati
 import { requestConfirmation } from '../../commandDialogStore';
 import { useLayoutStore } from '../../layoutStore';
 import { selectWorkspaceCapabilities } from '../capabilities';
+import { freshEditableCpState } from '../freshCreasePattern';
 import {
   emptyFoldArtifactResourceState,
   readyFoldArtifactResourceState,
@@ -60,6 +60,10 @@ import type { WorkspaceCapabilityId } from '../../../lib/workspaceCapabilities';
 
 /** Cap on the CP undo stack (matches historySlice's MAX_HISTORY). */
 const MAX_CP_HISTORY = 100;
+
+// Dedupe concurrent `ensureEditCreasePattern` calls (e.g. React StrictMode
+// double-invoking the seeding effect) so only one blank document is created.
+let ensureEditInFlight: Promise<void> | null = null;
 
 export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice> = (
   set,
@@ -393,21 +397,30 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     // workspace is entered with no crease pattern loaded, so it is never empty.
     ensureEditCreasePattern: async () => {
       if (get().oristudioCpDocument) return;
-      try {
-        const document = await createBlankOristudioCpDocument();
-        set({
-          oristudioCpDocument: document,
-          oristudioCpLineage: blankCpLineage(),
-          oristudioCpOperationDescriptors: document.operationDescriptors,
-          oristudioCpSelection: emptyOristudioCpSelection(),
-          oristudioCpHistoryPast: [],
-          oristudioCpHistoryFuture: [],
-          oristudioCpError: null,
-          oristudioCpCamvResult: null,
-        });
-      } catch (error) {
-        set({ oristudioCpError: engineError(error).message });
-      }
+      if (ensureEditInFlight) return ensureEditInFlight;
+      ensureEditInFlight = (async () => {
+        try {
+          const document = await createBlankOristudioCpDocument();
+          const priorState = get();
+          // A bare, auto-seeded CP establishes no design. If nothing has been
+          // authored yet (no tree, no BP project), keep the Design workspace on
+          // its method chooser — matching `createNewCreasePattern` — instead of
+          // deep-linking to a TreeMaker layout for a design that doesn't exist.
+          const noDesignYet =
+            priorState.project.edges.length === 0 && priorState.oristudioBpDocument === null;
+          // Same complete editor state File › New establishes, so interactive
+          // edits (undo/redo, images, tools) behave identically on this canvas.
+          set({
+            ...freshEditableCpState(document, priorState.projectLoadId),
+            ...(noDesignYet ? { pendingDesignChoice: true } : {}),
+          });
+        } catch (error) {
+          set({ oristudioCpError: engineError(error).message });
+        } finally {
+          ensureEditInFlight = null;
+        }
+      })();
+      return ensureEditInFlight;
     },
 
     buildCreasePattern: async () => {

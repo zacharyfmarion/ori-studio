@@ -280,6 +280,29 @@
   color: var(--status-danger);
 }
 
+.start-screen__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.start-screen__startup-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-tertiary);
+  font-size: 0.75rem;
+  font-weight: 650;
+  cursor: pointer;
+  user-select: none;
+}
+
+.start-screen__startup-toggle input {
+  cursor: pointer;
+}
+
 .toolbar {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -336,10 +359,14 @@
   min-height: 0;
 }
 
-.workspace-shell__loading {
-  position: absolute;
-  inset: 0;
-  z-index: 20;
+/* Per-surface loading state (see components/ui/SurfaceLoading.tsx). Fills the
+   pane it is rendered into; there is no global app-wide loading overlay. */
+.surface-loading {
+  flex: 1 1 auto;
+  align-self: stretch;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
@@ -349,11 +376,11 @@
   background: var(--bg-primary);
 }
 
-.workspace-shell__loading-spinner {
-  animation: workspace-shell-spin 0.9s linear infinite;
+.surface-loading__spinner {
+  animation: surface-loading-spin 0.9s linear infinite;
 }
 
-@keyframes workspace-shell-spin {
+@keyframes surface-loading-spin {
   to {
     transform: rotate(360deg);
   }

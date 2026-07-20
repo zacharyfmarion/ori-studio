@@ -14,6 +14,7 @@ import type { WorkflowTarget } from '../../lib/sampleProject';
  */
 export function DesignMethodChooser() {
   const engineReady = useWorkspaceStore((state) => state.engineReady);
+  const status = useWorkspaceStore((state) => state.status);
   const chooseDesignMethod = useWorkspaceStore((state) => state.chooseDesignMethod);
   const navigate = useNavigate();
 
@@ -36,6 +37,7 @@ export function DesignMethodChooser() {
             title="Circle-packed"
             description="Sketch a tree and let circle/river packing optimize the base, TreeMaker-style."
             icon={<DraftingCompass size={22} />}
+            // Circle-packing runs on the treemaker engine — wait for it to load.
             disabled={!engineReady}
             onSelect={() => chooseMethod('treemaker')}
           />
@@ -43,7 +45,9 @@ export function DesignMethodChooser() {
             title="Box-pleated"
             description="Author a tree, then pack flaps and rivers on a grid with Box Pleating Studio."
             icon={<Grid3x3 size={22} />}
-            disabled={!engineReady}
+            // Box-pleating runs on the independent BP worker, not the treemaker
+            // engine, so it needn't wait for `engineReady`.
+            disabled={status === 'error'}
             onSelect={() => chooseMethod('box-pleat')}
           />
         </div>

@@ -10,7 +10,6 @@ import {
   Download,
   FilePlus,
   FolderOpen,
-  Loader2,
   PenTool,
   Save,
   ScanLine,
@@ -25,7 +24,7 @@ import { handleMenuAction } from '../commands/menuActions';
 import { useMacDownloadUrl } from '../hooks/useMacDownloadUrl';
 import { isFeatureVisible } from '../platform/features';
 import { getRuntimeSurface } from '../platform/runtime';
-import { applyDefaultLayout, useLayoutStore } from '../store/layoutStore';
+import { applyDefaultLayout, clearPersistedLayout, useLayoutStore } from '../store/layoutStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { deriveDesignVariant } from '../store/workspaceStore/designVariant';
@@ -217,7 +216,6 @@ export function WorkspaceShell() {
   const setDockviewApi = useLayoutStore((state) => state.setDockviewApi);
   const loadLayout = useLayoutStore((state) => state.loadLayout);
   const saveLayout = useLayoutStore((state) => state.saveLayout);
-  const engineReady = useWorkspaceStore((state) => state.engineReady);
 
   // The workspace/variant the URL targets at mount, captured in a ref so onReady
   // (fired once by Dockview, possibly before the route effect runs) builds the
@@ -255,8 +253,7 @@ export function WorkspaceShell() {
           loaded = true;
         } catch (error) {
           console.warn('Failed to restore layout', error);
-          localStorage.removeItem(`treemaker-web-layout:${workspace}`);
-          localStorage.removeItem(`treemaker-web-layout-version:${workspace}`);
+          clearPersistedLayout(workspace);
         }
       }
 
@@ -294,12 +291,6 @@ export function WorkspaceShell() {
           disableFloatingGroups
         />
       </div>
-      {!engineReady && (
-        <div className="workspace-shell__loading" role="status" aria-live="polite">
-          <Loader2 size={26} className="workspace-shell__loading-spinner" />
-          <span>Preparing the editor…</span>
-        </div>
-      )}
       <Outlet />
     </div>
   );
