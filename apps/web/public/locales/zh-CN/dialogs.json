@@ -1,0 +1,277 @@
+{
+  "closeGuard": {
+    "discard": "放弃",
+    "message": "您当前的项目有未保存的更改。关闭 Ori Studio 并放弃这些更改吗？",
+    "title": "放弃未保存的更改？"
+  },
+  "common": {
+    "cancel": "取消",
+    "closeNamed": "关闭 {{name}}",
+    "ok": "确定",
+    "reset": "重置"
+  },
+  "cpDetectImport": {
+    "ariaLabel": "从图像检测 CP",
+    "busy": {
+      "detecting": "正在运行模型",
+      "importing": "正在导入折痕图",
+      "loadingModel": "正在检查检测器模型",
+      "opening": "正在打开图像",
+      "rectifying": "正在校正裁剪"
+    },
+    "chooseImage": "选择图像",
+    "compilerReviewOverlays": "编译器审查叠加层",
+    "crop": "裁剪",
+    "detect": "检测",
+    "detected": "已检测",
+    "dropImageHere": "将图像拖放到此处",
+    "import": "导入",
+    "inferred": "已推断",
+    "mvChanges": "山折/谷折更改",
+    "openImageTitle": "打开折痕图图像",
+    "rectified": "已校正",
+    "report": {
+      "ambiguous": "不明确",
+      "assignmentChange_other": "{{count}} 处分配更改",
+      "assignmentChanges_other": "{{count}} 处分配更改",
+      "compilerFallback": "编译器回退",
+      "counts": "{{vertices}} 个顶点，{{edges}} 条边",
+      "topologyMove_other": "{{count}} 处拓扑变动",
+      "topologyMoves_other": "{{count}} 处拓扑变动"
+    },
+    "runningModel": "正在运行模型",
+    "title": "从图像检测 CP",
+    "updateCrop": "更新裁剪"
+  },
+  "export": {
+    "allPatterns": "所有折痕图",
+    "confirm": "导出 {{format}}",
+    "creasePattern": "折痕图",
+    "creasePatternToExport": "要导出的折痕图",
+    "includeUnassigned": "包含平折/未分配折痕",
+    "lineStyle": "线型",
+    "lineWidth": "线宽",
+    "patternN": "折痕图 {{index}}",
+    "pointSize": "点大小",
+    "preview": "导出预览",
+    "showBackgroundColor": "显示背景颜色"
+  },
+  "help": {
+    "about": {
+      "acknowledgements": "致谢",
+      "help": "帮助",
+      "intro": "Ori Studio 旨在成为折纸设计与分析的终极工作区。它在很大程度上依赖于对社区所创建的现有折纸工具的移植——例如，编辑工作区就是将 Oriedita 移植到 Rust 的成果，专注于易用性和性能。如果您有任何建议，欢迎<2>在 GitHub 上提交 issue</2>。",
+      "subtitle": "一个用于设计、编辑和折叠折纸折痕图的现代化共享工作区。",
+      "title": "关于 Ori Studio"
+    },
+    "acknowledgements": {
+      "boxPleatingStudio": {
+        "detail": "箱形褶皱创作方法是 Mu-Tsun Tsai 的 Box Pleating Studio 的 Rust 和 WebAssembly 移植版本。",
+        "title": "Mu-Tsun Tsai 和 Box Pleating Studio"
+      },
+      "oriedita": {
+        "detail": "折痕图编辑器是 Oriedita 编辑器（其本身是 Orihime 的一个分支）的 Rust 和 WebAssembly 移植版本，包括其可折性诊断、修复和文件格式。",
+        "title": "Oriedita"
+      },
+      "origamiSimulator": {
+        "detail": "模拟工作区使用 Amanda Ghassaei 的 Origami Simulator 的 TypeScript 移植版本，将基础形态折叠成可交互的 3D 模型。",
+        "title": "Amanda Ghassaei 和 Origami Simulator"
+      },
+      "treemaker": {
+        "detail": "TreeMaker 的原始模型代码和行为是此 Rust、WebAssembly 及桌面移植版本的权威参考。",
+        "title": "Robert J. Lang 和 TreeMaker 5.0.1"
+      }
+    },
+    "closeLabel": "关闭 {{title}}",
+    "guide": {
+      "about": "关于",
+      "footer": "Ori Studio 命令可从网页菜单栏、原生桌面菜单和精简工具栏中使用。",
+      "subtitle": "当前共享的浏览器与桌面应用界面的实用导览。",
+      "title": "Ori Studio 帮助",
+      "topicsNav": "帮助主题"
+    },
+    "topics": {
+      "conditions": {
+        "caption": "条件基于当前选择构建，因此在添加约束之前请先选择节点、边或路径。",
+        "imageAlt": "条件窗格，包含纸张尺寸、对称类型、高级对称选项以及从选择添加的操作",
+        "step1": "在微调精确坐标之前，先设置纸张的宽度和高度。",
+        "step2": "选择书本、对角或自定义对称，然后使用设计窗格的镜像工具来创作成对的叶片。",
+        "step3": "从所选部件添加固定节点、边上节点、角上节点、成对节点、固定长度、相同张力以及路径等条件。",
+        "step4": "随着模型的演变，使用条件列表来检查、选择或移除约束。",
+        "summary": "条件窗格控制纸张尺寸、对称预设以及基于选择的设计约束。",
+        "title": "设置纸张、对称与条件"
+      },
+      "creasePattern": {
+        "caption": "根据您需要检查的内容，在折痕角色和山折/谷折颜色模式之间切换。",
+        "imageAlt": "折痕图窗格，显示带有颜色模式控件的已生成折痕图",
+        "step1": "使用“按折痕角色着色”来区分轴向线、角撑线、脊线、铰链线和伪铰链线。",
+        "step2": "折痕线使用山折/谷折指定的着色，以显示山折、谷折、平折和边界。",
+        "step3": "使用编辑工作区的画布工具和 CP 状态提示（HUD）进行折痕图的选择和诊断。",
+        "step4": "折痕图存在后可导出 SVG 或 PNG；导出 FOLD 可获得可用于模拟器的几何数据。",
+        "summary": "编辑工作区显示生成或导入的折痕图，并带有角色着色和山折/谷折着色。",
+        "title": "编辑折痕图"
+      },
+      "design": {
+        "caption": "使用精简的视口控件进行缩放、适配、对称创作和图层可见性控制。",
+        "imageAlt": "设计窗格，包含树节点、边、标签、叶圆、缩放控件和图层控件",
+        "step1": "直接在纸张上选择部件；使用 Shift、Cmd 或 Ctrl 单击来建立多选。",
+        "step2": "单击空白纸张以添加节点，或选择一个节点后单击空白纸张以连接一条新边和新节点。",
+        "step3": "拖动节点来重塑树。空格拖动或缩放控件有助于在较大的设计中移动。",
+        "step4": "当视图变得密集时，从图层菜单切换路径、叶圆、标签和对称叠加层。",
+        "summary": "设计工作区是用于选择、绘制、连接、拖动和查看树结构的主要纸张界面。",
+        "title": "绘制并编辑树"
+      },
+      "files": {
+        "caption": "文件菜单将项目操作、导出和示例集中在一处。",
+        "imageAlt": "文件菜单，显示新建、打开、示例、保存和导出命令",
+        "step1": "“新建”返回起始屏幕；“打开”接受 .osf、.tmd、.tmd4、.tmd5、.fold、.cp、.ori 和 .orh 文件。",
+        "step2": "文件 → 示例加载已签入的入门设计。",
+        "step3": "“保存”和“另存为”写入 Ori Studio 项目文件；使用“导出”以获得 TreeMaker、CP、FOLD、SVG 和 PNG 格式。",
+        "step4": "当当前文档具备各格式所需的数据时，相应的导出选项即变为可用。",
+        "summary": "使用起始屏幕或文件菜单来管理 Ori Studio 项目和折痕图导出。",
+        "title": "开始、打开、保存、导出"
+      },
+      "folding": {
+        "caption": "当折痕图发生更改时，刷新控件会重新生成平折产物。",
+        "imageAlt": "模拟器窗格，显示折叠控件和折叠后的几何形态",
+        "step1": "在折痕图构建或导入后打开模拟，然后拖动视口以旋转 3D 折叠模型。",
+        "step2": "使用折叠滑块、播放、单步和视图控件来检查折叠动作。",
+        "step3": "在纸张视图和 X 光视图之间切换渲染设置，并切换面、边和隐藏线。",
+        "step4": "直接在折痕图网格中生成 Oriedita 折叠图形，以检查平折后的形态。",
+        "summary": "模拟工作区使用由构建或导入的折痕图生成的平折产物。",
+        "title": "模拟折叠模型"
+      },
+      "inspector": {
+        "caption": "选择驱动检查器；无需离开工作区即可更改标签、坐标、边长和刚度。",
+        "imageAlt": "检查器窗格，在所选设计旁显示可编辑的节点标签和坐标字段",
+        "step1": "选择一个节点以编辑其标签和纸张坐标。",
+        "step2": "选择一条边以编辑其标签、目标长度和刚度，而张力保持仅供报告。",
+        "step3": "选择路径或条件以查看其设计元数据。",
+        "step4": "当选中两个节点时，检查器可以选择它们之间的路径以用于路径条件。",
+        "summary": "设计工作区检查器编辑所选节点和边，并汇总树的路径和条件。",
+        "title": "检查选择详情"
+      },
+      "optimize": {
+        "caption": "Ori Studio 仅在文档为某一步骤准备就绪时才启用相应命令。",
+        "imageAlt": "工具栏，显示“优化比例”和“生成 CP”操作以及可见的诊断信息",
+        "step1": "“优化比例”在保留所选 TreeMaker 模型语义的同时，将树适配到当前纸张。",
+        "step2": "“优化边”和“优化张力”可从设计菜单中使用，用于更深入的优化工作流。",
+        "step3": "“生成 CP”将优化后的树转换为折痕、面、折叠方向和折叠基础数据。",
+        "step4": "诊断报告引擎就绪状态、优化状态、可行性以及折痕图构建结果。",
+        "summary": "优化和折痕图生成通过共享的设计菜单、工具栏按钮和原生桌面菜单运行。",
+        "title": "优化并生成 CP"
+      },
+      "workspace": {
+        "caption": "从视图或设置中重置窗格布局，并从外观设置中选择主题。",
+        "imageAlt": "设置对话框和应用菜单，显示主题和布局控件",
+        "step1": "使用左侧栏或视图菜单来激活设计、编辑或模拟。",
+        "step2": "在工作区内拖动窗格标题以重新组织；“重置布局”可恢复当前工作区的默认布局。",
+        "step3": "设置包含外观主题、键盘快捷键和工作区布局控件。",
+        "step4": "使用“快捷键”设置选项卡来查看或重新绑定文件、编辑、视口和折痕图工具命令。",
+        "summary": "应用界面在浏览器和桌面之间共享，包含网页菜单、原生 Tauri 菜单、工作区布局和设置。",
+        "title": "菜单、布局、设置"
+      }
+    }
+  },
+  "number": {
+    "tooSmall": "请输入大于 {{minimum}} 的数字。"
+  },
+  "selectByIndex": {
+    "available": "可用：{{ids}}",
+    "close": "关闭按索引选择",
+    "index": "索引",
+    "noParts": "没有此类型的部件",
+    "part": "部件",
+    "partKind": {
+      "condition": "条件",
+      "crease": "折痕",
+      "edge": "边",
+      "facet": "面",
+      "node": "节点",
+      "path": "路径"
+    },
+    "partType": "部件类型",
+    "select": "选择",
+    "title": "按索引选择"
+  },
+  "settings": {
+    "appearance": {
+      "dark": "深色",
+      "light": "浅色"
+    },
+    "close": "关闭设置",
+    "language": {
+      "system": "系统默认",
+      "title": "语言"
+    },
+    "sections": "设置分区",
+    "shortcuts": {
+      "alreadyAssigned": "{{chord}} 已分配给 {{label}}。",
+      "assigned": "已分配",
+      "categoryAnnotations": "标注",
+      "categoryCheckAndFix": "检查与修复",
+      "categoryColor": "颜色",
+      "categoryConstruct": "构造",
+      "categoryCreasePattern": "折痕图",
+      "categoryDesign": "设计",
+      "categoryDraw": "绘制",
+      "categoryEdit": "编辑",
+      "categoryFile": "文件",
+      "categoryFold": "折叠",
+      "categoryGenerators": "生成器",
+      "categoryHelp": "帮助",
+      "categoryLineType": "线型",
+      "categoryMeasure": "测量",
+      "categorySelectAndEdit": "选择与编辑",
+      "categoryTransform": "变换",
+      "categoryViewport": "视口",
+      "clear": "清除 {{label}} 快捷键",
+      "pressKeys": "按下按键",
+      "pressPrompt": "为 {{label}} 按下快捷键。",
+      "reserved": "{{chord}} 已被浏览器保留。",
+      "reset": "重置 {{label}} 快捷键",
+      "resetAll": "全部重置",
+      "resetAllMessage": "将所有键盘快捷键恢复为默认值吗？",
+      "resetAllTitle": "重置快捷键",
+      "scopeCreasePattern": "折痕图",
+      "scopeGlobal": "全局",
+      "scopeViewport": "视口",
+      "search": "搜索快捷键",
+      "softReserved": "{{chord}} 已分配，但某些浏览器可能会保留它。",
+      "unassigned": "未分配",
+      "viewportActualSize": "实际大小",
+      "viewportFit": "适配视图"
+    },
+    "tab": {
+      "appearance": "外观",
+      "shortcuts": "快捷键",
+      "workspace": "工作区"
+    },
+    "title": "设置",
+    "workspace": {
+      "layout": "布局",
+      "resetButton": "重置工作区布局",
+      "resetMessage": "为当前工作区恢复默认布局吗？",
+      "resetTitle": "重置工作区布局"
+    }
+  },
+  "startScreen": {
+    "chooseBegin": "选择您希望的开始方式。",
+    "createCp": {
+      "description": "打开一个空白的可编辑折痕图文档，并准备好 CP 绘制工具。",
+      "title": "创建 CP"
+    },
+    "createDesign": {
+      "description": "从空白的树开始，然后对其进行优化并生成折痕图。",
+      "title": "创建设计"
+    },
+    "description": "从折痕图开始、打开现有文件，或为新设计勾勒树结构。",
+    "openFile": {
+      "description": "通过共享的文件工作流打开 .osf 项目或导入 .cp、.fold、.ori、.orh、.tmd、.tmd4 和 .tmd5 文件。",
+      "title": "打开文件"
+    },
+    "preparing": "正在准备编辑器...",
+    "startOptions": "开始选项",
+    "title": "开始新的折纸工作区"
+  }
+}

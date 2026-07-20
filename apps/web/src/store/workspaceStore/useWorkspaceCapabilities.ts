@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getWorkspaceCapabilities } from '../../lib/workspaceCapabilities';
 import { historyCountForContext } from './capabilities';
 import { useWorkspaceStore } from './store';
 
 export function useWorkspaceCapabilities() {
+  const { t } = useTranslation();
   const activeEditingContext = useWorkspaceStore((state) => state.activeEditingContext);
   const engineReady = useWorkspaceStore((state) => state.engineReady);
   const status = useWorkspaceStore((state) => state.status);
@@ -54,26 +56,29 @@ export function useWorkspaceCapabilities() {
 
   return useMemo(
     () =>
-      getWorkspaceCapabilities({
-        activeEditingContext,
-        engineReady,
-        status,
-        edgeCount,
-        creaseCount,
-        facetCount,
-        hasEditableCreasePattern,
-        hasImportedCreasePattern,
-        hasBoxPleatDocument,
-        hasSimulationModel,
-        oristudioCpSelectedLineCount,
-        oristudioCpSelectedPointCount,
-        oristudioCpSelectedCircleCount,
-        hasDeletableBpSelection,
-        historyPastCount,
-        historyFutureCount,
-        clipboard,
-        selection,
-      }),
+      getWorkspaceCapabilities(
+        {
+          activeEditingContext,
+          engineReady,
+          status,
+          edgeCount,
+          creaseCount,
+          facetCount,
+          hasEditableCreasePattern,
+          hasImportedCreasePattern,
+          hasBoxPleatDocument,
+          hasSimulationModel,
+          oristudioCpSelectedLineCount,
+          oristudioCpSelectedPointCount,
+          oristudioCpSelectedCircleCount,
+          hasDeletableBpSelection,
+          historyPastCount,
+          historyFutureCount,
+          clipboard,
+          selection,
+        },
+        t
+      ),
     [
       clipboard,
       creaseCount,
@@ -93,6 +98,7 @@ export function useWorkspaceCapabilities() {
       historyPastCount,
       selection,
       status,
+      t,
     ]
   );
 }

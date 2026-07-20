@@ -10,6 +10,8 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import { TransformComponent, TransformWrapper, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { Circle, FlipHorizontal2, Grid2X2, Layers, Minus, Plus, Tag, Waypoints } from 'lucide-react';
 import type {
   OristudioBpDocumentState,
@@ -64,9 +66,19 @@ import {
   ViewportToolbarSeparator,
 } from './ViewportToolbar';
 
-const LAYER_OPTIONS: { key: BpTreeViewLayerKey; label: string; icon: ReactNode }[] = [
-  { key: 'labels', label: 'Labels', icon: <Tag size={13} /> },
+const LAYER_OPTIONS: { key: BpTreeViewLayerKey; icon: ReactNode }[] = [
+  { key: 'labels', icon: <Tag size={13} /> },
 ];
+
+/** Localized BP-tree layer label. Literal `t()` calls keep the keys extractable. */
+function bpTreeLayerLabel(t: TFunction, key: BpTreeViewLayerKey): string {
+  switch (key) {
+    case 'labels':
+      return t('panels:bpTree.layerLabels', 'Labels');
+    default:
+      return key;
+  }
+}
 
 const BP_TREE_DRAG_START_THRESHOLD_PX = 4;
 
@@ -104,6 +116,7 @@ function BpTreeViewportToolbar({
   fitToView: () => void;
   setZoomLevel: (scale: number) => void;
 }) {
+  const { t } = useTranslation();
   const [layersOpen, setLayersOpen] = useState(false);
   const layersMenuRef = useRef<HTMLDivElement | null>(null);
 
@@ -120,7 +133,7 @@ function BpTreeViewportToolbar({
 
   return (
     <ViewportToolbar
-      ariaLabel="Box Pleat tree viewport controls"
+      ariaLabel={t('panels:bpTree.viewportControls', 'Box Pleat tree viewport controls')}
       zoomPercent={zoomPercent}
       zoomIn={zoomIn}
       zoomOut={zoomOut}
@@ -131,7 +144,11 @@ function BpTreeViewportToolbar({
       <IconButton
         size="sm"
         variant="toolbar"
-        title={symmetryEnabled ? 'Mirror draw (on)' : 'Mirror draw'}
+        title={
+          symmetryEnabled
+            ? t('panels:bpTree.mirrorDrawOn', 'Mirror draw (on)')
+            : t('panels:bpTree.mirrorDraw', 'Mirror draw')
+        }
         isActive={symmetryEnabled}
         onClick={onSymmetryToggle}
       >
@@ -142,7 +159,7 @@ function BpTreeViewportToolbar({
         <IconButton
           size="sm"
           variant="toolbar"
-          title="Layers"
+          title={t('panels:bpTree.layers', 'Layers')}
           isActive={layersOpen}
           onClick={() => setLayersOpen((open) => !open)}
         >
@@ -158,7 +175,7 @@ function BpTreeViewportToolbar({
                   onChange={(event) => onLayerChange(option.key, event.target.checked)}
                 />
                 <span className="design-layer-option__icon">{option.icon}</span>
-                <span>{option.label}</span>
+                <span>{bpTreeLayerLabel(t, option.key)}</span>
               </label>
             ))}
           </div>
@@ -180,6 +197,7 @@ function BpTreeEdgeLengthEditor({
   edge: OristudioBpTreeEdge;
   onSetLength: (length: number) => void;
 }) {
+  const { t } = useTranslation();
   const [draft, setDraft] = useState(() => formatNumber(edge.length, 2));
   useEffect(() => {
     setDraft(formatNumber(edge.length, 2));
@@ -200,16 +218,22 @@ function BpTreeEdgeLengthEditor({
     <div
       className="bp-tree-edge-editor"
       role="group"
-      aria-label={`Length of edge ${edge.vertices[0]} to ${edge.vertices[1]}`}
+      aria-label={t('panels:bpTree.edgeLengthGroup', 'Length of edge {{from}} to {{to}}', {
+        from: edge.vertices[0],
+        to: edge.vertices[1],
+      })}
     >
       <span className="bp-tree-edge-editor__title">
-        Edge {edge.vertices[0]}–{edge.vertices[1]}
+        {t('panels:bpTree.edgeTitle', 'Edge {{from}}–{{to}}', {
+          from: edge.vertices[0],
+          to: edge.vertices[1],
+        })}
       </span>
-      <span className="bp-tree-edge-editor__label">Length</span>
+      <span className="bp-tree-edge-editor__label">{t('panels:bpTree.length', 'Length')}</span>
       <IconButton
         size="sm"
         variant="toolbar"
-        title="Decrease length"
+        title={t('panels:bpTree.decreaseLength', 'Decrease length')}
         disabled={edge.length <= 1}
         onClick={() => commit(Math.round(edge.length) - 1)}
       >
@@ -237,20 +261,23 @@ function BpTreeEdgeLengthEditor({
       <IconButton
         size="sm"
         variant="toolbar"
-        title="Increase length"
+        title={t('panels:bpTree.increaseLength', 'Increase length')}
         disabled={max !== null && edge.length >= max}
         onClick={() => commit(Math.round(edge.length) + 1)}
       >
         <Plus size={14} />
       </IconButton>
       {max !== null && (
-        <span className="bp-tree-edge-editor__max">max {formatNumber(max, 2)}</span>
+        <span className="bp-tree-edge-editor__max">
+          {t('panels:bpTree.max', 'max {{value}}', { value: formatNumber(max, 2) })}
+        </span>
       )}
     </div>
   );
 }
 
 export function BpTreePanel({ document }: { document: OristudioBpDocumentState }) {
+  const { t } = useTranslation();
   const svgRef = useRef<SVGSVGElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const transformRef = useRef<ReactZoomPanPinchRef | null>(null);
@@ -863,7 +890,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
             height={worldRect.height}
             style={{ width: worldRect.width, height: worldRect.height }}
             role="img"
-            aria-label="Box Pleat tree canvas"
+            aria-label={t('panels:bpTree.canvas', 'Box Pleat tree canvas')}
           >
             {symmetryAxisLine && (
               <>
@@ -946,7 +973,10 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
                   key={edge.id}
                   role="button"
                   tabIndex={0}
-                  aria-label={`Select BP edge ${edge.id}, length ${formatNumber(edge.length, 2)}`}
+                  aria-label={t('panels:bpTree.selectEdge', 'Select BP edge {{id}}, length {{length}}', {
+                    id: edge.id,
+                    length: formatNumber(edge.length, 2),
+                  })}
                   onPointerDown={(event) => onEdgePointerDown(event, edge.id)}
                   onKeyDown={(event) => onEdgeKeyDown(event, edge.id)}
                 >
@@ -980,6 +1010,19 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
               const point = bpTreePointToSvg(displayLoc(vertex.id, vertex.loc), tree.sheet, paperRect);
               const active = linkedSelection.vertices.has(vertex.id);
               const label = bpTreeVertexLabel(vertex);
+              const vertexAriaLabel = vertex.isLeaf
+                ? label
+                  ? t('panels:bpTree.selectLeafVertexWithLabel', 'Select BP leaf vertex {{id}}, {{label}}', {
+                      id: vertex.id,
+                      label,
+                    })
+                  : t('panels:bpTree.selectLeafVertex', 'Select BP leaf vertex {{id}}', { id: vertex.id })
+                : label
+                  ? t('panels:bpTree.selectVertexWithLabel', 'Select BP vertex {{id}}, {{label}}', {
+                      id: vertex.id,
+                      label,
+                    })
+                  : t('panels:bpTree.selectVertex', 'Select BP vertex {{id}}', { id: vertex.id });
               return (
                 <g key={vertex.id}>
                   <circle
@@ -996,9 +1039,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
                     r={chromePx(vertex.isLeaf ? LEAF_DOT_PX : NODE_DOT_PX)}
                     role="button"
                     tabIndex={0}
-                    aria-label={`Select BP ${vertex.isLeaf ? 'leaf ' : ''}vertex ${vertex.id}${
-                      label ? `, ${label}` : ''
-                    }`}
+                    aria-label={vertexAriaLabel}
                     onPointerDown={(event) => onVertexPointerDown(event, vertex.id)}
                     onPointerMove={(event) => onVertexPointerMove(event, vertex.id)}
                     onPointerUp={(event) => finishDrag(event, vertex.id)}
@@ -1041,10 +1082,12 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
       {selectedFlapVertex && (
         <BpNameEditor
           key={selectedFlapVertex.id}
-          title={`Flap ${selectedFlapVertex.id}`}
+          title={t('panels:bpTree.flapTitle', 'Flap {{id}}', { id: selectedFlapVertex.id })}
           name={selectedFlapVertex.name}
           placeholder={`f${selectedFlapVertex.id}`}
-          ariaLabel={`Name of flap ${selectedFlapVertex.id}`}
+          ariaLabel={t('panels:bpTree.flapNameAria', 'Name of flap {{id}}', {
+            id: selectedFlapVertex.id,
+          })}
           onRename={(name) => void renameOristudioBpVertex(selectedFlapVertex.id, name)}
         />
       )}
@@ -1059,7 +1102,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
       <div className="design-legend bp-tree-legend">
         <span><Circle size={13} /> {tree.vertices.filter((vertex) => vertex.isLeaf).length}</span>
         <span><Waypoints size={13} /> {tree.edges.length}</span>
-        <span><Grid2X2 size={13} /> {tree.sheet.width} x {tree.sheet.height}</span>
+        <span><Grid2X2 size={13} /> {t('panels:bpTree.sheetDimensions', '{{width}} × {{height}}', { width: tree.sheet.width, height: tree.sheet.height })}</span>
       </div>
     </div>
   );

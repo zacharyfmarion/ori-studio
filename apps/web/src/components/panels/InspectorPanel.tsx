@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Activity, Circle, GitBranch, MousePointer2, Square, Waypoints } from 'lucide-react';
 import { handleMenuAction } from '../../commands/menuActions';
 import { formatNumber } from '../../lib/geometry';
@@ -7,6 +8,7 @@ import { selectedNodeIds, selectionSummary } from '../../lib/selection';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 
 export function InspectorPanel() {
+  const { t } = useTranslation();
   const project = useWorkspaceStore((state) => state.project);
   const selection = useWorkspaceStore((state) => state.selection);
   const moveNode = useWorkspaceStore((state) => state.moveNode);
@@ -28,19 +30,22 @@ export function InspectorPanel() {
     selection.kind === 'path' ? project.paths.find((path) => path.id === selection.id) : null;
   const selectedNodes = selectedNodeIds(selection);
 
+  const yesNo = (value: boolean) =>
+    value ? t('panels:inspector.yes', 'Yes') : t('panels:inspector.no', 'No');
+
   return (
     <section className="panel-shell inspector-panel">
       <div className="panel-body">
         {selectedNode && (
           <>
-            <div className="inspector-heading"><Circle size={15} /> Node {selectedNode.id}</div>
+            <div className="inspector-heading"><Circle size={15} /> {t('panels:inspector.node', 'Node {{id}}', { id: selectedNode.id })}</div>
             <EditableRow
-              label="Label"
+              label={t('panels:inspector.label', 'Label')}
               value={selectedNode.label}
               onCommit={(label) => void updateNodeLabel(selectedNode.id, label)}
             />
             <NumberRow
-              label="X"
+              label={t('panels:inspector.x', 'X')}
               value={selectedNode.loc.x}
               min={0}
               max={1}
@@ -48,103 +53,103 @@ export function InspectorPanel() {
               onCommit={(x) => void moveNode(selectedNode.id, { ...selectedNode.loc, x })}
             />
             <NumberRow
-              label="Y"
+              label={t('panels:inspector.y', 'Y')}
               value={selectedNode.loc.y}
               min={0}
               max={1}
               step={0.01}
               onCommit={(y) => void moveNode(selectedNode.id, { ...selectedNode.loc, y })}
             />
-            <Row label="Leaf" value={selectedNode.isLeaf ? 'Yes' : 'No'} />
-            <Row label="Pinned" value={selectedNode.isPinned ? 'Yes' : 'No'} />
-            <Row label="Conditioned" value={selectedNode.isConditioned ? 'Yes' : 'No'} />
-            <ActionRow label="Make Root" onClick={() => void handleMenuAction('edit.makeRoot')} />
-            <ActionRow label="Perturb" onClick={() => void handleMenuAction('edit.perturbNodes')} />
+            <Row label={t('panels:inspector.leaf', 'Leaf')} value={yesNo(selectedNode.isLeaf)} />
+            <Row label={t('panels:inspector.pinned', 'Pinned')} value={yesNo(selectedNode.isPinned)} />
+            <Row label={t('panels:inspector.conditioned', 'Conditioned')} value={yesNo(selectedNode.isConditioned)} />
+            <ActionRow label={t('panels:inspector.makeRoot', 'Make Root')} onClick={() => void handleMenuAction('edit.makeRoot')} />
+            <ActionRow label={t('panels:inspector.perturb', 'Perturb')} onClick={() => void handleMenuAction('edit.perturbNodes')} />
           </>
         )}
         {selectedEdge && (
           <>
-            <div className="inspector-heading"><GitBranch size={15} /> Edge {selectedEdge.id}</div>
+            <div className="inspector-heading"><GitBranch size={15} /> {t('panels:inspector.edge', 'Edge {{id}}', { id: selectedEdge.id })}</div>
             <EditableRow
-              label="Label"
+              label={t('panels:inspector.label', 'Label')}
               value={selectedEdge.label}
               onCommit={(label) => void updateEdge(selectedEdge.id, { label })}
             />
-            <Row label="Nodes" value={selectedEdge.nodes.join(' -> ')} />
+            <Row label={t('panels:inspector.nodes', 'Nodes')} value={selectedEdge.nodes.join(' -> ')} />
             <NumberRow
-              label="Length"
+              label={t('panels:inspector.length', 'Length')}
               value={selectedEdge.length}
               min={0.001}
               step={0.05}
               onCommit={(length) => void updateEdge(selectedEdge.id, { length })}
             />
-            <Row label="Strain" value={formatNumber(selectedEdge.strain)} />
-            <Row label="Conditioned" value={selectedEdge.isConditioned ? 'Yes' : 'No'} />
+            <Row label={t('panels:inspector.strain', 'Strain')} value={formatNumber(selectedEdge.strain)} />
+            <Row label={t('panels:inspector.conditioned', 'Conditioned')} value={yesNo(selectedEdge.isConditioned)} />
             <NumberRow
-              label="Stiffness"
+              label={t('panels:inspector.stiffness', 'Stiffness')}
               value={selectedEdge.stiffness}
               min={0.001}
               step={0.1}
               onCommit={(stiffness) => void updateEdge(selectedEdge.id, { stiffness })}
             />
-            <ActionRow label="Split" onClick={() => void handleMenuAction('edit.splitEdge')} />
-            <ActionRow label="Renormalize" onClick={() => void handleMenuAction('edit.renormalizeToEdge')} />
-            <ActionRow label="Remove strain" onClick={() => void handleMenuAction('edit.removeStrain')} />
-            <ActionRow label="Relieve strain" onClick={() => void handleMenuAction('edit.relieveStrain')} />
+            <ActionRow label={t('panels:inspector.split', 'Split')} onClick={() => void handleMenuAction('edit.splitEdge')} />
+            <ActionRow label={t('panels:inspector.renormalize', 'Renormalize')} onClick={() => void handleMenuAction('edit.renormalizeToEdge')} />
+            <ActionRow label={t('panels:inspector.removeStrain', 'Remove strain')} onClick={() => void handleMenuAction('edit.removeStrain')} />
+            <ActionRow label={t('panels:inspector.relieveStrain', 'Relieve strain')} onClick={() => void handleMenuAction('edit.relieveStrain')} />
           </>
         )}
         {selectedPath && (
           <>
-            <div className="inspector-heading"><Waypoints size={15} /> Path {selectedPath.id}</div>
-            <Row label="Nodes" value={selectedPath.nodes.join(' -> ')} />
-            <Row label="Leaf" value={selectedPath.isLeaf ? 'Yes' : 'No'} />
-            <Row label="Active" value={selectedPath.isActive ? 'Yes' : 'No'} />
-            <Row label="Feasible" value={selectedPath.isFeasible ? 'Yes' : 'No'} />
-            <Row label="Border" value={selectedPath.isBorder ? 'Yes' : 'No'} />
-            <Row label="Polygon" value={selectedPath.isPolygon ? 'Yes' : 'No'} />
-            <Row label="Conditioned" value={selectedPath.isConditioned ? 'Yes' : 'No'} />
+            <div className="inspector-heading"><Waypoints size={15} /> {t('panels:inspector.path', 'Path {{id}}', { id: selectedPath.id })}</div>
+            <Row label={t('panels:inspector.nodes', 'Nodes')} value={selectedPath.nodes.join(' -> ')} />
+            <Row label={t('panels:inspector.leaf', 'Leaf')} value={yesNo(selectedPath.isLeaf)} />
+            <Row label={t('panels:inspector.active', 'Active')} value={yesNo(selectedPath.isActive)} />
+            <Row label={t('panels:inspector.feasible', 'Feasible')} value={yesNo(selectedPath.isFeasible)} />
+            <Row label={t('panels:inspector.border', 'Border')} value={yesNo(selectedPath.isBorder)} />
+            <Row label={t('panels:inspector.polygon', 'Polygon')} value={yesNo(selectedPath.isPolygon)} />
+            <Row label={t('panels:inspector.conditioned', 'Conditioned')} value={yesNo(selectedPath.isConditioned)} />
           </>
         )}
         {selectedCondition && (
           <>
-            <div className="inspector-heading"><Activity size={15} /> Condition {selectedCondition.id}</div>
-            <Row label="Type" value={conditionTitle(selectedCondition.kind)} />
-            <Row label="Detail" value={conditionDetail(selectedCondition.kind)} />
-            <Row label="Feasible" value={selectedCondition.isFeasible ? 'Yes' : 'No'} />
+            <div className="inspector-heading"><Activity size={15} /> {t('panels:inspector.condition', 'Condition {{id}}', { id: selectedCondition.id })}</div>
+            <Row label={t('panels:inspector.type', 'Type')} value={conditionTitle(selectedCondition.kind)} />
+            <Row label={t('panels:inspector.detail', 'Detail')} value={conditionDetail(selectedCondition.kind)} />
+            <Row label={t('panels:inspector.feasible', 'Feasible')} value={yesNo(selectedCondition.isFeasible)} />
           </>
         )}
         {selection.kind === 'multi' && (
           <>
-            <div className="inspector-heading"><MousePointer2 size={15} /> Selection</div>
-            <Row label="Parts" value={selectionSummary(selection)} />
+            <div className="inspector-heading"><MousePointer2 size={15} /> {t('panels:inspector.selection', 'Selection')}</div>
+            <Row label={t('panels:inspector.parts', 'Parts')} value={selectionSummary(selection)} />
             {selectedNodes.length === 2 && (
               <button
                 className="control-row control-row--button"
                 type="button"
                 onClick={selectPathBetweenSelectedNodes}
               >
-                <span className="control-row__label">Path</span>
-                <span className="control-row__value">Select between nodes</span>
+                <span className="control-row__label">{t('panels:inspector.pathLabel', 'Path')}</span>
+                <span className="control-row__value">{t('panels:inspector.selectBetweenNodes', 'Select between nodes')}</span>
               </button>
             )}
-            <ActionRow label="Absorb nodes" onClick={() => void handleMenuAction('edit.absorbNodes')} />
-            <ActionRow label="Perturb nodes" onClick={() => void handleMenuAction('edit.perturbNodes')} />
+            <ActionRow label={t('panels:inspector.absorbNodes', 'Absorb nodes')} onClick={() => void handleMenuAction('edit.absorbNodes')} />
+            <ActionRow label={t('panels:inspector.perturbNodes', 'Perturb nodes')} onClick={() => void handleMenuAction('edit.perturbNodes')} />
           </>
         )}
         {selection.kind === 'tree' && (
           <>
-            <div className="inspector-heading"><Square size={15} /> Tree</div>
-            <Row label="Title" value={project.title} />
-            <Row label="Paper" value={`${project.paper.width} x ${project.paper.height}`} />
-            <Row label="Scale" value={formatNumber(project.scale)} />
-            <Row label="Nodes" value={String(project.nodes.length)} />
-            <Row label="Edges" value={String(project.edges.length)} />
-            <Row label="Creases" value={String(project.creases.length)} />
-            <Row label="Conditions" value={String(project.conditions.length)} />
-            <ActionRow label="Absorb redundant nodes" onClick={() => void handleMenuAction('edit.absorbRedundantNodes')} />
-            <ActionRow label="Renormalize unit scale" onClick={() => void handleMenuAction('edit.renormalizeToUnitScale')} />
-            <ActionRow label="Remove all strain" onClick={() => void handleMenuAction('edit.removeAllStrain')} />
-            <ActionRow label="Relieve all strain" onClick={() => void handleMenuAction('edit.relieveAllStrain')} />
+            <div className="inspector-heading"><Square size={15} /> {t('panels:inspector.tree', 'Tree')}</div>
+            <Row label={t('panels:inspector.title', 'Title')} value={project.title} />
+            <Row label={t('panels:inspector.paper', 'Paper')} value={`${project.paper.width} x ${project.paper.height}`} />
+            <Row label={t('panels:inspector.scale', 'Scale')} value={formatNumber(project.scale)} />
+            <Row label={t('panels:inspector.nodes', 'Nodes')} value={String(project.nodes.length)} />
+            <Row label={t('panels:inspector.edges', 'Edges')} value={String(project.edges.length)} />
+            <Row label={t('panels:inspector.creases', 'Creases')} value={String(project.creases.length)} />
+            <Row label={t('panels:inspector.conditions', 'Conditions')} value={String(project.conditions.length)} />
+            <ActionRow label={t('panels:inspector.absorbRedundantNodes', 'Absorb redundant nodes')} onClick={() => void handleMenuAction('edit.absorbRedundantNodes')} />
+            <ActionRow label={t('panels:inspector.renormalizeUnitScale', 'Renormalize unit scale')} onClick={() => void handleMenuAction('edit.renormalizeToUnitScale')} />
+            <ActionRow label={t('panels:inspector.removeAllStrain', 'Remove all strain')} onClick={() => void handleMenuAction('edit.removeAllStrain')} />
+            <ActionRow label={t('panels:inspector.relieveAllStrain', 'Relieve all strain')} onClick={() => void handleMenuAction('edit.relieveAllStrain')} />
           </>
         )}
       </div>
@@ -153,9 +158,10 @@ export function InspectorPanel() {
 }
 
 function ActionRow({ label, onClick }: { label: string; onClick: () => void }) {
+  const { t } = useTranslation();
   return (
     <button className="control-row control-row--button" type="button" onClick={onClick}>
-      <span className="control-row__label">Action</span>
+      <span className="control-row__label">{t('panels:inspector.action', 'Action')}</span>
       <span className="control-row__value">{label}</span>
     </button>
   );

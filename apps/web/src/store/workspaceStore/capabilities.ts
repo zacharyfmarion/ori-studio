@@ -3,6 +3,7 @@ import {
   type WorkspaceCapabilities,
   type WorkspaceCapabilityInput,
 } from '../../lib/workspaceCapabilities';
+import i18n from '../../i18n';
 import type { EditingContext } from '../../workspaces/editingContext';
 import type { WorkspaceState } from './types';
 
@@ -64,5 +65,6 @@ export function workspaceCapabilityInput(state: WorkspaceState): WorkspaceCapabi
 }
 
 export function selectWorkspaceCapabilities(state: WorkspaceState): WorkspaceCapabilities {
-  return getWorkspaceCapabilities(workspaceCapabilityInput(state));
+  // Imperative (non-reactive) read; use the current-language translator singleton.
+  return getWorkspaceCapabilities(workspaceCapabilityInput(state), i18n.t.bind(i18n));
 }

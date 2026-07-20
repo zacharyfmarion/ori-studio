@@ -8,6 +8,8 @@ import {
   type PointerEvent as ReactPointerEvent,
   type RefObject,
 } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { ImagePlus, Loader2, Play, RefreshCw, Upload, X } from 'lucide-react';
 import type {
   CpDetectFoldResult,
@@ -51,6 +53,7 @@ const DEFAULT_PREVIEW_OVERLAYS: PreviewOverlayState = {
 };
 
 export function CpDetectImportModal() {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [source, setSource] = useState<SourceImage | null>(null);
   const [quad, setQuad] = useState<CpDetectQuad | null>(null);
@@ -107,7 +110,7 @@ export function CpDetectImportModal() {
   }, [busy]);
 
   const loadImageFile = useCallback(async (file: OpenBinaryFileResult) => {
-    const nextSource = await sourceImageFromFile(file);
+    const nextSource = await sourceImageFromFile(file, t);
     setSource((previous) => {
       if (previous?.url) URL.revokeObjectURL(previous.url);
       return nextSource;
@@ -122,14 +125,14 @@ export function CpDetectImportModal() {
     const auto = await client.autoRectifyImage(nextSource.image, DETECT_IMAGE_SIZE);
     setRectified(auto);
     setQuad(auto.report.detected_source_quad ?? auto.report.source_quad);
-  }, []);
+  }, [t]);
 
   const chooseImage = useCallback(async () => {
     setBusy('opening');
     setError(null);
     try {
       const file = await getFileService().openBinaryFile({
-        title: 'Open Crease Pattern Image',
+        title: t('dialogs:cpDetectImport.openImageTitle', 'Open Crease Pattern Image'),
         extensions: IMAGE_EXTENSIONS,
         mimeTypes: IMAGE_MIME_TYPES,
       });
@@ -139,7 +142,7 @@ export function CpDetectImportModal() {
     } finally {
       setBusy(null);
     }
-  }, [loadImageFile]);
+  }, [loadImageFile, t]);
 
   const chooseDroppedImage = useCallback(
     async (file: File) => {
@@ -147,7 +150,7 @@ export function CpDetectImportModal() {
       setError(null);
       try {
         if (!isSupportedImageFile(file)) {
-          throw new Error('Use a PNG, JPEG, or WebP image.');
+          throw new Error(t('errors:cpDetectImport.unsupportedImage', 'Use a PNG, JPEG, or WebP image.'));
         }
         await loadImageFile(await openBinaryFileFromBrowserFile(file));
       } catch (caught) {
@@ -156,7 +159,7 @@ export function CpDetectImportModal() {
         setBusy(null);
       }
     },
-    [loadImageFile]
+    [loadImageFile, t]
   );
 
   const rerunManualRectification = useCallback(async () => {
@@ -234,7 +237,7 @@ export function CpDetectImportModal() {
 
   const rectificationWarnings = rectified?.report.warnings ?? [];
   const detectorWarnings = detection?.detectorReport.warnings ?? [];
-  const compilerMetadata = useMemo(() => compilerReportMetadata(detection), [detection]);
+  const compilerMetadata = useMemo(() => compilerReportMetadata(t, detection), [detection, t]);
   const compilerOverlay = useMemo(() => compilerPreviewOverlay(detection), [detection]);
   const foldPreview = useMemo(
     () => (detection ? parseFoldPreview(detection.foldJson) : null),
@@ -243,7 +246,7 @@ export function CpDetectImportModal() {
   const stage: ModalStage =
     busy === 'detecting' ? 'detecting' : detection ? 'review' : source ? 'crop' : 'upload';
   const canChooseImage = modelManifest !== null && busy === null;
-  const status = busy ? busyLabel(busy) : null;
+  const status = busy ? busyLabel(t, busy) : null;
   const togglePreviewOverlay = useCallback((key: PreviewOverlayKey) => {
     setPreviewOverlays((previous) => ({ ...previous, [key]: !previous[key] }));
   }, []);
@@ -251,14 +254,19 @@ export function CpDetectImportModal() {
   if (!open) return null;
 
   return (
-    <div className="cp-detect-modal" role="dialog" aria-modal="true" aria-label="Detect CP from image">
+    <div
+      className="cp-detect-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-label={t('dialogs:cpDetectImport.ariaLabel', 'Detect CP from image')}
+    >
       <div className={`cp-detect-modal__surface cp-detect-modal__surface--${stage}`}>
         <header className="cp-detect-modal__header">
           <div>
-            <h2>Detect CP from Image</h2>
+            <h2>{t('dialogs:cpDetectImport.title', 'Detect CP from Image')}</h2>
             {source && <p>{source.name}</p>}
           </div>
-          <IconButton title="Close" size="sm" onClick={close} disabled={busy !== null}>
+          <IconButton title={t('common:close', 'Close')} size="sm" onClick={close} disabled={busy !== null}>
             <X size={15} />
           </IconButton>
         </header>
@@ -279,9 +287,9 @@ export function CpDetectImportModal() {
           >
             <Button size="md" variant="primary" onClick={chooseImage} disabled={!canChooseImage}>
               <ImagePlus size={16} />
-              Choose Image
+              {t('dialogs:cpDetectImport.chooseImage', 'Choose Image')}
             </Button>
-            <div className="cp-detect-modal__drop-hint">Drop image here</div>
+            <div className="cp-detect-modal__drop-hint">{t('dialogs:cpDetectImport.dropImageHere', 'Drop image here')}</div>
             {status && (
               <div className="cp-detect-modal__inline-status">
                 <Loader2 size={14} className="cp-detect-modal__spinner" />
@@ -296,15 +304,15 @@ export function CpDetectImportModal() {
             <div className="cp-detect-modal__actions">
               <Button size="sm" onClick={chooseImage} disabled={busy !== null}>
                 <ImagePlus size={14} />
-                Choose Image
+                {t('dialogs:cpDetectImport.chooseImage', 'Choose Image')}
               </Button>
               <Button size="sm" onClick={rerunManualRectification} disabled={!quad || busy !== null}>
                 <RefreshCw size={14} />
-                Update Crop
+                {t('dialogs:cpDetectImport.updateCrop', 'Update Crop')}
               </Button>
               <Button size="sm" variant="primary" onClick={runDetection} disabled={!rectified || busy !== null}>
                 <Play size={14} />
-                Detect
+                {t('dialogs:cpDetectImport.detect', 'Detect')}
               </Button>
             </div>
 
@@ -312,7 +320,7 @@ export function CpDetectImportModal() {
 
             <div className="cp-detect-modal__crop-grid">
               <section className="cp-detect-modal__pane">
-                <h3>Crop</h3>
+                <h3>{t('dialogs:cpDetectImport.crop', 'Crop')}</h3>
                 <SourceCropEditor
                   source={source}
                   quad={quad}
@@ -324,7 +332,7 @@ export function CpDetectImportModal() {
               </section>
 
               <section className="cp-detect-modal__pane">
-                <h3>Rectified</h3>
+                <h3>{t('dialogs:cpDetectImport.rectified', 'Rectified')}</h3>
                 {rectified ? <CanvasImage image={rectified.image} /> : <div className="cp-detect-modal__empty" />}
               </section>
             </div>
@@ -334,7 +342,7 @@ export function CpDetectImportModal() {
         {stage === 'detecting' && (
           <div className="cp-detect-modal__detecting">
             <Loader2 size={28} className="cp-detect-modal__spinner" />
-            <div>{status ?? 'Running model'}</div>
+            <div>{status ?? t('dialogs:cpDetectImport.runningModel', 'Running model')}</div>
             {rectified && <CanvasImage image={rectified.image} />}
           </div>
         )}
@@ -344,19 +352,19 @@ export function CpDetectImportModal() {
             <div className="cp-detect-modal__actions">
               <Button size="sm" onClick={chooseImage} disabled={busy !== null}>
                 <ImagePlus size={14} />
-                Choose Image
+                {t('dialogs:cpDetectImport.chooseImage', 'Choose Image')}
               </Button>
               <Button size="sm" onClick={rerunManualRectification} disabled={!source || !quad || busy !== null}>
                 <RefreshCw size={14} />
-                Update Crop
+                {t('dialogs:cpDetectImport.updateCrop', 'Update Crop')}
               </Button>
               <Button size="sm" variant="primary" onClick={runDetection} disabled={!rectified || busy !== null}>
                 <Play size={14} />
-                Detect
+                {t('dialogs:cpDetectImport.detect', 'Detect')}
               </Button>
               <Button size="sm" variant="primary" onClick={importDetection} disabled={!detection || busy !== null}>
                 <Upload size={14} />
-                Import
+                {t('dialogs:cpDetectImport.import', 'Import')}
               </Button>
             </div>
 
@@ -364,13 +372,13 @@ export function CpDetectImportModal() {
 
             <div className="cp-detect-modal__review-grid">
               <section className="cp-detect-modal__pane">
-                <h3>Rectified</h3>
+                <h3>{t('dialogs:cpDetectImport.rectified', 'Rectified')}</h3>
                 {rectified ? <CanvasImage image={rectified.image} /> : <div className="cp-detect-modal__empty" />}
               </section>
 
               <section className="cp-detect-modal__pane">
                 <div className="cp-detect-modal__pane-heading">
-                  <h3>Detected</h3>
+                  <h3>{t('dialogs:cpDetectImport.detected', 'Detected')}</h3>
                   <CompilerPreviewControls
                     overlay={previewOverlays}
                     hasInferred={foldPreview?.edgeProvenance.some(edgeHasInferredProvenance) ?? false}
@@ -394,7 +402,10 @@ export function CpDetectImportModal() {
               {modelManifest && <span>{modelManifest.id}</span>}
               {detection && (
                 <span>
-                  {detection.detectorReport.vertex_count} vertices, {detection.detectorReport.edge_count} edges
+                  {t('dialogs:cpDetectImport.report.counts', '{{vertices}} vertices, {{edges}} edges', {
+                    vertices: detection.detectorReport.vertex_count,
+                    edges: detection.detectorReport.edge_count,
+                  })}
                 </span>
               )}
               {detection && (
@@ -522,9 +533,13 @@ function CompilerPreviewControls({
   hasAssignments: boolean;
   onToggle: (key: PreviewOverlayKey) => void;
 }) {
+  const { t } = useTranslation();
   if (!hasInferred && !hasAssignments) return null;
   return (
-    <div className="cp-detect-modal__preview-controls" aria-label="Compiler review overlays">
+    <div
+      className="cp-detect-modal__preview-controls"
+      aria-label={t('dialogs:cpDetectImport.compilerReviewOverlays', 'Compiler review overlays')}
+    >
       {hasInferred && (
         <Button
           size="sm"
@@ -533,7 +548,7 @@ function CompilerPreviewControls({
           aria-pressed={overlay.inferred}
           onClick={() => onToggle('inferred')}
         >
-          Inferred
+          {t('dialogs:cpDetectImport.inferred', 'Inferred')}
         </Button>
       )}
       {hasAssignments && (
@@ -544,7 +559,7 @@ function CompilerPreviewControls({
           aria-pressed={overlay.assignments}
           onClick={() => onToggle('assignments')}
         >
-          M/V changes
+          {t('dialogs:cpDetectImport.mvChanges', 'M/V changes')}
         </Button>
       )}
     </div>
@@ -613,7 +628,7 @@ function provenanceLine(
   );
 }
 
-async function sourceImageFromFile(file: OpenBinaryFileResult): Promise<SourceImage> {
+async function sourceImageFromFile(file: OpenBinaryFileResult, t: TFunction): Promise<SourceImage> {
   const bytes = new Uint8Array(file.bytes.length);
   bytes.set(file.bytes);
   const blob = new Blob([bytes.buffer], { type: file.mimeType });
@@ -624,7 +639,7 @@ async function sourceImageFromFile(file: OpenBinaryFileResult): Promise<SourceIm
     canvas.width = bitmap.width;
     canvas.height = bitmap.height;
     const context = canvas.getContext('2d');
-    if (!context) throw new Error('Canvas 2D is unavailable');
+    if (!context) throw new Error(t('errors:cpDetectImport.canvasUnavailable', 'Canvas 2D is unavailable'));
     context.drawImage(bitmap, 0, 0);
     bitmap.close?.();
     return {
@@ -675,14 +690,19 @@ function quadPolygon(quad: CpDetectQuad): string {
     .join(' ');
 }
 
-function busyLabel(busy: Exclude<BusyState, null>): string {
-  return {
-    loading_model: 'Checking detector model',
-    opening: 'Opening image',
-    rectifying: 'Rectifying crop',
-    detecting: 'Running model',
-    importing: 'Importing crease pattern',
-  }[busy];
+function busyLabel(t: TFunction, busy: Exclude<BusyState, null>): string {
+  switch (busy) {
+    case 'loading_model':
+      return t('dialogs:cpDetectImport.busy.loadingModel', 'Checking detector model');
+    case 'opening':
+      return t('dialogs:cpDetectImport.busy.opening', 'Opening image');
+    case 'rectifying':
+      return t('dialogs:cpDetectImport.busy.rectifying', 'Rectifying crop');
+    case 'detecting':
+      return t('dialogs:cpDetectImport.busy.detecting', 'Running model');
+    case 'importing':
+      return t('dialogs:cpDetectImport.busy.importing', 'Importing crease pattern');
+  }
 }
 
 function detectedFoldFilename(name: string): string {
@@ -782,7 +802,7 @@ function compilerPreviewOverlay(detection: CpDetectFoldResult | null): CompilerP
   return { assignmentEdgeIds };
 }
 
-function compilerReportMetadata(detection: CpDetectFoldResult | null): string[] {
+function compilerReportMetadata(t: TFunction, detection: CpDetectFoldResult | null): string[] {
   const report = detection?.detectorReport.quality_report;
   if (!report || typeof report !== 'object') return [];
   const compilerReport = (report as { compiler_report?: unknown }).compiler_report;
@@ -796,10 +816,16 @@ function compilerReportMetadata(detection: CpDetectFoldResult | null): string[] 
   };
   const items: string[] = [];
   if (!emitted && data.output?.selected === 'legacy_fallback') {
-    items.push('compiler fallback');
+    items.push(t('dialogs:cpDetectImport.report.compilerFallback', 'compiler fallback'));
   }
   const moves = emitted ? data.topology?.accepted_moves?.length ?? 0 : 0;
-  if (moves > 0) items.push(`${moves} topology ${moves === 1 ? 'move' : 'moves'}`);
+  if (moves > 0) {
+    items.push(
+      moves === 1
+        ? t('dialogs:cpDetectImport.report.topologyMove', '{{count}} topology move', { count: moves })
+        : t('dialogs:cpDetectImport.report.topologyMoves', '{{count}} topology moves', { count: moves })
+    );
+  }
   const decisions = emitted ? data.assignments?.decisions?.filter((decision) => {
     return (
       decision &&
@@ -807,8 +833,16 @@ function compilerReportMetadata(detection: CpDetectFoldResult | null): string[] 
       (decision as { provenance?: unknown }).provenance !== 'assignment_observed'
     );
   }).length ?? 0 : 0;
-  if (decisions > 0) items.push(`${decisions} assignment ${decisions === 1 ? 'change' : 'changes'}`);
-  if (data.topology?.ambiguous || data.assignments?.ambiguous) items.push('ambiguous');
+  if (decisions > 0) {
+    items.push(
+      decisions === 1
+        ? t('dialogs:cpDetectImport.report.assignmentChange', '{{count}} assignment change', { count: decisions })
+        : t('dialogs:cpDetectImport.report.assignmentChanges', '{{count}} assignment changes', { count: decisions })
+    );
+  }
+  if (data.topology?.ambiguous || data.assignments?.ambiguous) {
+    items.push(t('dialogs:cpDetectImport.report.ambiguous', 'ambiguous'));
+  }
   const classifications = data.final_verification?.classifications ?? [];
   if (classifications.length > 0 && !classifications.includes('clean')) {
     items.push(...classifications);

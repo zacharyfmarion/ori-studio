@@ -1,0 +1,6 @@
+{
+  "cpDetectImport": {
+    "canvasUnavailable": "Canvas 2D ist nicht verfügbar",
+    "unsupportedImage": "Verwenden Sie ein PNG-, JPEG- oder WebP-Bild."
+  }
+}

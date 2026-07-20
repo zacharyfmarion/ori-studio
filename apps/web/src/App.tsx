@@ -1,4 +1,5 @@
 import { useCallback, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Outlet } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { CommandDialogModal } from './components/CommandDialogModal';
@@ -32,6 +33,7 @@ import './styles/sonner.css';
  * and renders the active route (`/welcome` or a workspace) into the outlet.
  */
 export default function App() {
+  const { t } = useTranslation();
   const initEngine = useWorkspaceStore((state) => state.initEngine);
   const openProject = useWorkspaceStore((state) => state.openProject);
   const selectNone = useWorkspaceStore((state) => state.selectNone);
@@ -76,9 +78,12 @@ export default function App() {
           if (!useWorkspaceStore.getState().dirty) return;
           event.preventDefault();
           void requestConfirmation({
-            title: 'Discard unsaved changes?',
-            message: 'Your current project has unsaved changes. Close Ori Studio and discard them?',
-            confirmLabel: 'Discard',
+            title: t('dialogs:closeGuard.title', 'Discard unsaved changes?'),
+            message: t(
+              'dialogs:closeGuard.message',
+              'Your current project has unsaved changes. Close Ori Studio and discard them?'
+            ),
+            confirmLabel: t('dialogs:closeGuard.discard', 'Discard'),
             tone: 'danger',
           }).then((confirmed) => {
             if (confirmed) void appWindow.destroy();
@@ -95,7 +100,7 @@ export default function App() {
     return () => {
       unlisten?.();
     };
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     return installAppKeyboardListener(

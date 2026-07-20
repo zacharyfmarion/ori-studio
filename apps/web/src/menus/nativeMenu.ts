@@ -4,7 +4,7 @@ import type {
   PredefinedMenuItemOptions,
   SubmenuOptions,
 } from '@tauri-apps/api/menu';
-import { getMenuBarDef, type MenuDef, type MenuItemDef } from './menuDefinition';
+import { getMenuBarDef, type MenuDef, type MenuItemDef, type MenuTranslate } from './menuDefinition';
 import { menuHasVisibleItems, pruneMenuItems } from './menuVisibility';
 import { handleMenuAction } from '../commands/menuActions';
 import {
@@ -213,8 +213,9 @@ export function nativeMenuSignature(
 /** Build a fresh {@link Menu} for the current context. */
 export async function buildNativeMenu(
   capabilities: WorkspaceCapabilities,
-  overrides: ShortcutOverrides | undefined
+  overrides: ShortcutOverrides | undefined,
+  translate?: MenuTranslate
 ): Promise<Menu> {
-  const options = nativeMenuOptions(getMenuBarDef(overrides), capabilities, overrides);
+  const options = nativeMenuOptions(getMenuBarDef(overrides, translate), capabilities, overrides);
   return Menu.new({ items: options });
 }

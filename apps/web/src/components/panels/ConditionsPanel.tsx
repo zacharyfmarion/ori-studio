@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   FileQuestionMark,
   FileText,
@@ -27,6 +28,7 @@ import { Button } from '../ui/Button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/Tooltip';
 
 export function ConditionsPanel() {
+  const { t } = useTranslation();
   const project = useWorkspaceStore((state) => state.project);
   const importedCreasePattern = useWorkspaceStore((state) => state.importedCreasePattern);
   const selection = useWorkspaceStore((state) => state.selection);
@@ -76,20 +78,23 @@ export function ConditionsPanel() {
             <FileQuestionMark size={30} />
           </div>
           <span className="document-mode-empty__message">
-            Imported crease patterns do not have editable tree conditions.
+            {t(
+              'panels:conditions.imported.message',
+              'Imported crease patterns do not have editable tree conditions.'
+            )}
           </span>
           <div className="document-mode-empty__actions">
             <Button size="sm" variant="primary" onClick={() => void handleMenuAction('view.edit')}>
               <ScanLine size={14} />
-              Edit CP
+              {t('panels:documentModeEmpty.editCp', 'Edit CP')}
             </Button>
             <Button size="sm" variant="secondary" onClick={() => void handleMenuAction('file.new')}>
               <FileText size={14} />
-              New Tree
+              {t('panels:documentModeEmpty.newTree', 'New Tree')}
             </Button>
             <Button size="sm" variant="secondary" onClick={() => void handleMenuAction('file.open')}>
               <FolderOpen size={14} />
-              Open
+              {t('panels:documentModeEmpty.open', 'Open')}
             </Button>
           </div>
         </div>
@@ -106,21 +111,21 @@ export function ConditionsPanel() {
           disabled={project.conditions.length === 0}
           onClick={() => void clearConditions()}
         >
-          Clear
+          {t('panels:conditions.clear', 'Clear')}
         </button>
       </div>
       <div className="panel-body conditions-panel__body">
         <section className="condition-section">
-          <div className="condition-section__title">Paper</div>
+          <div className="condition-section__title">{t('panels:conditions.paper.title', 'Paper')}</div>
           <NumberControl
-            label="Width"
+            label={t('panels:conditions.paper.width', 'Width')}
             value={project.paper.width}
             min={0.1}
             step={0.05}
             onCommit={(width) => void updatePaper({ width })}
           />
           <NumberControl
-            label="Height"
+            label={t('panels:conditions.paper.height', 'Height')}
             value={project.paper.height}
             min={0.1}
             step={0.05}
@@ -129,12 +134,17 @@ export function ConditionsPanel() {
         </section>
 
         <section className="condition-section">
-          <div className="condition-section__title">Add From Selection</div>
+          <div className="condition-section__title">
+            {t('panels:conditions.addFromSelection.title', 'Add From Selection')}
+          </div>
           <div className="condition-actions">
             <ConditionAction
               icon={<LockKeyhole size={14} />}
-              label="Fix node"
-              help="Select one leaf node. Adds a fixed-position condition at the node's current coordinates."
+              label={t('panels:conditions.actions.fixNode.label', 'Fix node')}
+              help={t(
+                'panels:conditions.actions.fixNode.help',
+                "Select one leaf node. Adds a fixed-position condition at the node's current coordinates."
+              )}
               disabled={!selectedNode?.isLeaf}
               onClick={() =>
                 selectedNode &&
@@ -150,29 +160,41 @@ export function ConditionsPanel() {
             />
             <ConditionAction
               icon={<Ruler size={14} />}
-              label="Node on edge"
-              help="Select one leaf node. Constrains it to lie somewhere on the paper boundary."
+              label={t('panels:conditions.actions.nodeOnEdge.label', 'Node on edge')}
+              help={t(
+                'panels:conditions.actions.nodeOnEdge.help',
+                'Select one leaf node. Constrains it to lie somewhere on the paper boundary.'
+              )}
               disabled={!selectedNode?.isLeaf}
               onClick={() => selectedNode && add({ type: 'node_on_edge', node: selectedNode.id })}
             />
             <ConditionAction
               icon={<Ruler size={14} />}
-              label="Node on corner"
-              help="Select one leaf node. Constrains it to one of the paper corners."
+              label={t('panels:conditions.actions.nodeOnCorner.label', 'Node on corner')}
+              help={t(
+                'panels:conditions.actions.nodeOnCorner.help',
+                'Select one leaf node. Constrains it to one of the paper corners.'
+              )}
               disabled={!selectedNode?.isLeaf}
               onClick={() => selectedNode && add({ type: 'node_on_corner', node: selectedNode.id })}
             />
             <ConditionAction
               icon={<Link2 size={14} />}
-              label="Node on symmetry"
-              help="Enable symmetry and select one leaf node. Constrains the node to the active symmetry line."
+              label={t('panels:conditions.actions.nodeOnSymmetry.label', 'Node on symmetry')}
+              help={t(
+                'panels:conditions.actions.nodeOnSymmetry.help',
+                'Enable symmetry and select one leaf node. Constrains the node to the active symmetry line.'
+              )}
               disabled={!selectedNode?.isLeaf || !project.hasSymmetry}
               onClick={() => selectedNode && add({ type: 'node_symmetric', node: selectedNode.id })}
             />
             <ConditionAction
               icon={<Link2 size={14} />}
-              label="Pair nodes"
-              help="Select two leaf nodes. Keeps the pair mirrored across the active symmetry line."
+              label={t('panels:conditions.actions.pairNodes.label', 'Pair nodes')}
+              help={t(
+                'panels:conditions.actions.pairNodes.help',
+                'Select two leaf nodes. Keeps the pair mirrored across the active symmetry line.'
+              )}
               disabled={selectedLeafNodeIds.length !== 2}
               onClick={() =>
                 add({
@@ -282,7 +304,7 @@ export function ConditionsPanel() {
 
         {editedCondition && (
           <section className="condition-section">
-            <div className="condition-section__title">Editor</div>
+            <div className="condition-section__title">{t('panels:conditions.editor', 'Editor')}</div>
             <ConditionEditor
               condition={editedCondition}
               onUpdate={(kind) => void updateCondition(editedCondition.id, kind)}
@@ -291,9 +313,9 @@ export function ConditionsPanel() {
         )}
 
         <section className="condition-section">
-          <div className="condition-section__title">List</div>
+          <div className="condition-section__title">{t('panels:conditions.list', 'List')}</div>
           {project.conditions.length === 0 ? (
-            <div className="empty-note">No conditions</div>
+            <div className="empty-note">{t('panels:conditions.noConditions', 'No conditions')}</div>
           ) : (
             <div className="condition-list">
               {project.conditions.map((condition) => (

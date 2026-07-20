@@ -1,0 +1,1578 @@
+{
+  "group": {
+    "line_type": {
+      "label": "선 종류",
+      "railLabel": "종류"
+    },
+    "select_edit": {
+      "label": "선택 및 편집",
+      "railLabel": "선택"
+    },
+    "draw": {
+      "label": "접힘선 및 점 그리기",
+      "railLabel": "그리기"
+    },
+    "edit": {
+      "label": "삭제",
+      "railLabel": "삭제"
+    },
+    "construct": {
+      "label": "기하로 작도",
+      "railLabel": "작도"
+    },
+    "transform": {
+      "label": "변형 및 작업 프레임",
+      "railLabel": "변형"
+    },
+    "color": {
+      "label": "색상 및 지정",
+      "railLabel": "색상"
+    },
+    "annotations": {
+      "label": "원, 텍스트, 주석",
+      "railLabel": "주석"
+    },
+    "generators": {
+      "label": "생성기 및 베이스 몰리큘",
+      "railLabel": "생성"
+    },
+    "measure": {
+      "label": "측정",
+      "railLabel": "측정"
+    },
+    "check_fix": {
+      "label": "확인 및 수정",
+      "railLabel": "확인"
+    },
+    "folding": {
+      "label": "접기 추정 및 접힌 도형",
+      "railLabel": "접기"
+    },
+    "file": {
+      "label": "파일 가져오기/내보내기",
+      "railLabel": "파일"
+    }
+  },
+  "action": {
+    "cp_action_line_type_mountain": {
+      "label": "산",
+      "railLabel": "M",
+      "tooltip": "활성 선 종류를 산으로 설정",
+      "disabledReason": "준비됨"
+    },
+    "cp_action_line_type_valley": {
+      "label": "골",
+      "railLabel": "V",
+      "tooltip": "활성 선 종류를 골로 설정",
+      "disabledReason": "준비됨"
+    },
+    "cp_action_line_type_edge": {
+      "label": "경계",
+      "railLabel": "E",
+      "tooltip": "활성 선 종류를 경계로 설정",
+      "disabledReason": "준비됨"
+    },
+    "cp_action_line_type_unassigned": {
+      "label": "미지정",
+      "railLabel": "U",
+      "tooltip": "활성 선 종류를 미지정으로 설정",
+      "disabledReason": "준비됨"
+    },
+    "cp_action_line_type_auxiliary": {
+      "label": "보조선",
+      "railLabel": "A",
+      "tooltip": "활성 선 종류를 보조선으로 설정",
+      "disabledReason": "준비됨"
+    },
+    "cp_action_draw_crease": {
+      "label": "선",
+      "tooltip": "현재 선 종류로 접힘선을 드래그하여 그리기",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "접힘선 끝점 드래그"
+      }
+    },
+    "cp_action_move_crease_pattern": {
+      "label": "뷰포트 이동",
+      "tooltip": "완성된 전개도 뷰포트 이동 컨트롤로 처리됨",
+      "disabledReason": "전개도 명령이 아닌 뷰포트 런타임에서 처리됨"
+    },
+    "cp_action_line_segment_delete": {
+      "label": "지우개",
+      "tooltip": "접힘선을 클릭하거나 상자를 드래그하여 접힘선 지우기",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "접힘선을 클릭하거나 상자를 드래그하여 지우기"
+      }
+    },
+    "cp_action_change_crease_type": {
+      "label": "접힘선 종류 변경",
+      "tooltip": "선택한 접힘선을 경계, 산, 골 순으로 전환",
+      "disabledReason": "준비됨"
+    },
+    "cp_action_lengthen_crease": {
+      "label": "선 연장",
+      "tooltip": "가이드 선이 가로지르는 접힘선을 대상 접힘선까지 연장",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "연장할 선 선택",
+        "1": "대상 선 선택"
+      }
+    },
+    "cp_action_square_bisector": {
+      "label": "각 이등분선",
+      "tooltip": "정사각형 이등분선",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "선분 2개 또는 점 3개 선택",
+        "1": "점 3개 선택",
+        "2": "점 3개 선택",
+        "3": "끝낼 선분 선택"
+      }
+    },
+    "cp_action_inward": {
+      "label": "래빗 이어",
+      "tooltip": "안쪽 접힘선",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "첫 번째 삼각형 점 선택",
+        "1": "두 번째 삼각형 점 선택",
+        "2": "세 번째 삼각형 점 선택"
+      }
+    },
+    "cp_action_perpendicular_draw": {
+      "label": "수직선",
+      "tooltip": "수직선 그리기",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "대상 점 선택",
+        "1": "기준 접힘선 선택"
+      }
+    },
+    "cp_action_symmetric_draw": {
+      "label": "대칭선",
+      "tooltip": "대칭선 그리기",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "원본 접힘선 선택",
+        "1": "대칭 접힘선 선택"
+      }
+    },
+    "cp_action_draw_crease_restricted": {
+      "label": "격자 제한 선",
+      "tooltip": "제한된 접힘선 그리기",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "기존 점 사이를 드래그"
+      }
+    },
+    "cp_action_draw_crease_symmetric": {
+      "label": "선 기준 선택 항목 반사",
+      "tooltip": "두 점으로 그린 선을 기준으로 선택한 접힘선 반사",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "점 2개 선택 또는 선 선택",
+        "1": "반사 선 끝점 선택"
+      }
+    },
+    "cp_action_draw_crease_angle_restricted": {
+      "label": "수렴선",
+      "tooltip": "각도 제한 접힘선",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "기준 접힘선 또는 첫 번째 점 선택",
+        "1": "기준 끝점 선택",
+        "2": "수렴점 선택"
+      }
+    },
+    "cp_action_draw_point": {
+      "label": "점 그리기",
+      "tooltip": "점 그리기",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "점 선택"
+      }
+    },
+    "cp_action_delete_point": {
+      "label": "점 삭제",
+      "tooltip": "선택한 정점에서 만나는 같은 색상의 접힘선 병합",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "정점 선택"
+      }
+    },
+    "cp_action_angle_system": {
+      "label": "오프셋 제한 선",
+      "tooltip": "각도 시스템",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "각도 시작점 선택",
+        "1": "각도 끝점 선택",
+        "2": "대상 접힘선 선택"
+      }
+    },
+    "cp_action_draw_crease_angle_restricted3": {
+      "label": "각도 제한 3 접힘선",
+      "tooltip": "각도 제한 3 접힘선",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "부채꼴 시작점 선택",
+        "1": "부채꼴 끝점 선택",
+        "2": "각도 후보 선택"
+      }
+    },
+    "cp_action_crease_select": {
+      "label": "상자 선택",
+      "tooltip": "드래그한 상자 안의 접힘선 선택",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "선택 상자 드래그"
+      }
+    },
+    "cp_action_crease_unselect": {
+      "label": "상자 선택 해제",
+      "tooltip": "드래그한 상자 안의 접힘선 선택 해제",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "선택 상자 드래그"
+      }
+    },
+    "cp_action_crease_move": {
+      "label": "선택한 접힘선 이동",
+      "tooltip": "선택한 접힘선 이동",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "원본 점 선택",
+        "1": "대상 점 선택"
+      }
+    },
+    "cp_action_crease_copy": {
+      "label": "선택한 접힘선 복사",
+      "tooltip": "선택한 접힘선 복사",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "원본 점 선택",
+        "1": "대상 점 선택"
+      }
+    },
+    "cp_action_crease_make_mountain": {
+      "label": "산으로 지정",
+      "tooltip": "선택한 선을 산 접힘선으로 지정",
+      "disabledReason": "준비됨"
+    },
+    "cp_action_crease_make_valley": {
+      "label": "골로 지정",
+      "tooltip": "선택한 선을 골 접힘선으로 지정",
+      "disabledReason": "준비됨"
+    },
+    "cp_action_crease_make_edge": {
+      "label": "경계로 지정",
+      "tooltip": "선택한 선을 경계 접힘선으로 지정",
+      "disabledReason": "준비됨"
+    },
+    "cp_action_crease_set_line_color": {
+      "label": "선택한 선 색상 설정",
+      "tooltip": "활성 선 색상을 선택한 선에 적용",
+      "disabledReason": "준비됨"
+    },
+    "cp_action_background_change_position": {
+      "label": "배경 이동",
+      "tooltip": "배경 이미지 조작은 UI 전용이며 전개도 커널의 일부가 아닙니다",
+      "disabledReason": "전개도 명령이 아닌 뷰포트 런타임에서 처리됨"
+    },
+    "cp_action_line_segment_division": {
+      "label": "균등 분할 선",
+      "tooltip": "개수로 선 분할",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "분할할 선을 드래그하여 그리기"
+      }
+    },
+    "cp_action_line_segment_ratio_set": {
+      "label": "분할 선(비율)",
+      "tooltip": "비율로 선 분할",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "분할할 선을 드래그하여 그리기"
+      }
+    },
+    "cp_action_polygon_set_no_corners": {
+      "label": "정다각형",
+      "tooltip": "정다각형",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "첫 번째 꼭짓점 선택",
+        "1": "두 번째 꼭짓점 선택"
+      }
+    },
+    "cp_action_crease_advance_type": {
+      "label": "접힘선 종류 다음으로",
+      "tooltip": "선택한 접힘선을 경계, 산, 골 순으로 전환",
+      "disabledReason": "준비됨"
+    },
+    "cp_action_crease_move4p": {
+      "label": "네 점으로 이동",
+      "tooltip": "네 점으로 이동",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "원본 첫 번째 점 선택",
+        "1": "원본 두 번째 점 선택",
+        "2": "대상 첫 번째 점 선택",
+        "3": "대상 두 번째 점 선택"
+      }
+    },
+    "cp_action_crease_copy4p": {
+      "label": "네 점으로 복사",
+      "tooltip": "네 점으로 복사",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "원본 첫 번째 점 선택",
+        "1": "원본 두 번째 점 선택",
+        "2": "대상 첫 번째 점 선택",
+        "3": "대상 두 번째 점 선택"
+      }
+    },
+    "cp_action_fish_bone_draw": {
+      "label": "평행 교차 선",
+      "tooltip": "생선 뼈 그리기",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "중심선 시작점 선택",
+        "1": "중심선 끝점 선택"
+      }
+    },
+    "cp_action_crease_make_mv": {
+      "label": "산/골 번갈아 지정",
+      "tooltip": "가이드 선을 따라 산과 골을 번갈아 지정",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "접힘선을 따라 가이드 선 드래그"
+      }
+    },
+    "cp_action_double_symmetric_draw": {
+      "label": "선 기준 반사",
+      "tooltip": "이중 대칭 그리기",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "대칭축 시작점 선택",
+        "1": "대칭축 끝점 선택"
+      }
+    },
+    "cp_action_creases_alternate_mv": {
+      "label": "교차점 산/골 번갈아",
+      "tooltip": "가이드 선을 따라 교차점에 산과 골을 번갈아 지정",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "교차점을 가로질러 가이드 선 드래그"
+      }
+    },
+    "cp_action_draw_crease_angle_restricted5": {
+      "label": "각도 제한 선",
+      "tooltip": "각도 제한 5 접힘선",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "앵커 점 선택",
+        "1": "스냅된 끝점 선택"
+      }
+    },
+    "cp_action_vertex_make_angularly_flat_foldable": {
+      "label": "평면 접힘 가능 선",
+      "tooltip": "정점을 평면 접힘 가능하게 만들기",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "홀수 정점 선택",
+        "1": "후보 선 선택",
+        "2": "대상 접힘선 선택"
+      }
+    },
+    "cp_action_foldable_line_input": {
+      "label": "평면 접힘 가능 선(연장)",
+      "tooltip": "접힘 가능 선 입력",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "시작 정점 선택",
+        "1": "끝점 선택"
+      }
+    },
+    "cp_action_parallel_draw": {
+      "label": "평행선",
+      "tooltip": "평행선 그리기",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "대상 점 선택",
+        "1": "평행 원본 접힘선 선택",
+        "2": "대상 접힘선 선택"
+      }
+    },
+    "cp_action_vertex_delete_on_crease": {
+      "label": "임의 정점 삭제",
+      "tooltip": "Oriedita 색상 변경 규칙으로 정점의 인접 접힘선 병합",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "정점 선택"
+      }
+    },
+    "cp_action_circle_draw": {
+      "label": "원 그리기",
+      "tooltip": "원 그리기",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "중심점 선택",
+        "1": "반지름 점 선택"
+      }
+    },
+    "cp_action_circle_draw_three_point": {
+      "label": "세 점을 지나는 원",
+      "tooltip": "세 점을 지나는 원",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "첫 번째 점 선택",
+        "1": "두 번째 점 선택",
+        "2": "세 번째 점 선택"
+      }
+    },
+    "cp_action_circle_draw_separate": {
+      "label": "분리 원",
+      "tooltip": "분리 원",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "중심점 선택",
+        "1": "반지름 시작 선택",
+        "2": "반지름 끝 선택"
+      }
+    },
+    "cp_action_circle_draw_tangent_line": {
+      "label": "원 접선",
+      "tooltip": "선택한 두 원, 또는 선택한 원 하나와 클릭한 점으로 접선 생성",
+      "disabledReason": "준비됨"
+    },
+    "cp_action_circle_draw_inverted": {
+      "label": "반전 원",
+      "tooltip": "선택한 원 또는 접힘선을 선택한 원을 기준으로 반전",
+      "disabledReason": "준비됨"
+    },
+    "cp_action_circle_draw_free": {
+      "label": "자유 원",
+      "tooltip": "자유 원",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "중심점 선택",
+        "1": "반지름 점 선택"
+      }
+    },
+    "cp_action_circle_draw_concentric": {
+      "label": "동심원",
+      "tooltip": "동심원",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "반지름 시작 선택",
+        "1": "반지름 끝 선택"
+      }
+    },
+    "cp_action_circle_draw_concentric_select": {
+      "label": "선택 항목에서 동심원",
+      "tooltip": "대상 원과 두 참조 원 반지름으로 동심원 생성",
+      "disabledReason": "준비됨"
+    },
+    "cp_action_circle_draw_concentric_two_circle_select": {
+      "label": "두 원에서 동심원",
+      "tooltip": "선택한 원에서 두 Oriedita 동심 오프셋 원 생성",
+      "disabledReason": "준비됨"
+    },
+    "cp_action_parallel_draw_width": {
+      "label": "폭으로 평행선 그리기",
+      "tooltip": "폭으로 평행선 그리기",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "원본 접힘선 선택",
+        "1": "폭 점 선택"
+      }
+    },
+    "cp_action_continuous_symmetric_draw": {
+      "label": "선을 통한 반사",
+      "tooltip": "연속 대칭 그리기",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "시작점 선택",
+        "1": "통과점 선택"
+      }
+    },
+    "cp_action_display_length_between_points1": {
+      "label": "길이 측정 1",
+      "tooltip": "길이 측정 1",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "첫 번째 점 선택",
+        "1": "두 번째 점 선택"
+      }
+    },
+    "cp_action_display_length_between_points2": {
+      "label": "길이 측정 2",
+      "tooltip": "길이 측정 2",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "첫 번째 점 선택",
+        "1": "두 번째 점 선택"
+      }
+    },
+    "cp_action_display_angle_between_three_points1": {
+      "label": "각도 측정 1",
+      "tooltip": "각도 측정 1",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "첫 번째 점 선택",
+        "1": "정점 선택",
+        "2": "두 번째 점 선택"
+      }
+    },
+    "cp_action_display_angle_between_three_points2": {
+      "label": "각도 측정 2",
+      "tooltip": "각도 측정 2",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "첫 번째 점 선택",
+        "1": "정점 선택",
+        "2": "두 번째 점 선택"
+      }
+    },
+    "cp_action_display_angle_between_three_points3": {
+      "label": "각도 측정 3",
+      "tooltip": "각도 측정 3",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "첫 번째 점 선택",
+        "1": "정점 선택",
+        "2": "두 번째 점 선택"
+      }
+    },
+    "cp_action_crease_toggle_mv": {
+      "label": "산/골 뒤집기",
+      "tooltip": "접힘선을 클릭하거나 상자를 드래그하여 산/골 지정 뒤집기",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "접힘선을 클릭하거나 상자를 드래그하여 뒤집기"
+      }
+    },
+    "cp_action_circle_change_color": {
+      "label": "원 색상 변경",
+      "tooltip": "선택한 원과 보조선에 상황별 사용자 지정 색상 적용",
+      "disabledReason": "준비됨"
+    },
+    "cp_action_crease_make_aux": {
+      "label": "보조선으로 지정",
+      "tooltip": "선택한 접힘선을 보조선으로 변환",
+      "disabledReason": "준비됨"
+    },
+    "cp_action_operation_frame_create": {
+      "label": "작업 프레임",
+      "tooltip": "전개도에서 사각형을 드래그하여 Oriedita 작업 프레임 생성",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "작업 프레임 드래그"
+      }
+    },
+    "cp_action_voronoi_create": {
+      "label": "Voronoi",
+      "tooltip": "시드 점을 클릭하여 Voronoi 다이어그램을 미리 보고 상황별 패널에서 적용",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "시드 점 클릭"
+      }
+    },
+    "cp_action_flat_foldable_check": {
+      "label": "평면 접힘 가능 경계 확인",
+      "tooltip": "닫힌 Oriedita 경계 루프를 그리고 확인 결과를 색상으로 표시",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "닫힌 경계 루프 그리기"
+      }
+    },
+    "cp_action_crease_delete_overlapping": {
+      "label": "일치하는 선 삭제",
+      "tooltip": "드래그한 선과 겹치는 접힘선 구간 삭제",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "드래그 시작점 선택",
+        "1": "드래그 끝점 선택"
+      }
+    },
+    "cp_action_crease_delete_intersecting": {
+      "label": "겹치는 선 삭제",
+      "tooltip": "드래그한 선과 교차하거나 겹치는 접힘선 구간 삭제",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "드래그 시작점 선택",
+        "1": "드래그 끝점 선택"
+      }
+    },
+    "cp_action_select_polygon": {
+      "label": "다각형 선택",
+      "tooltip": "자유형 다각형에 포함된 접힘선 선택",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "다각형 경로 드래그"
+      }
+    },
+    "cp_action_unselect_polygon": {
+      "label": "다각형 선택 해제",
+      "tooltip": "자유형 다각형에 포함된 접힘선 선택 해제",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "다각형 경로 드래그"
+      }
+    },
+    "cp_action_select_line_intersecting": {
+      "label": "겹치는 선 선택",
+      "tooltip": "드래그한 선과 교차하거나 겹치는 접힘선 구간 선택",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "드래그 시작점 선택",
+        "1": "드래그 끝점 선택"
+      }
+    },
+    "cp_action_unselect_line_intersecting": {
+      "label": "겹치는 선 선택 해제",
+      "tooltip": "드래그한 선과 교차하거나 겹치는 접힘선 구간 선택 해제",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "드래그 시작점 선택",
+        "1": "드래그 끝점 선택"
+      }
+    },
+    "cp_action_lengthen_crease_same_color": {
+      "label": "같은 색상으로 연장",
+      "tooltip": "원래 색상을 유지하면서 가이드 선이 가로지르는 접힘선 연장",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "연장할 선 선택",
+        "1": "대상 선 선택"
+      }
+    },
+    "cp_action_foldable_line_draw": {
+      "label": "평면 접힘 가능 선(자유)",
+      "tooltip": "접힘 가능 선 그리기",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "시작 정점 선택",
+        "1": "대상 선택"
+      }
+    },
+    "cp_action_replace_line_type_select": {
+      "label": "선택한 선 종류 교체",
+      "tooltip": "활성 원본 선 종류와 일치하는 선택한 선 교체",
+      "disabledReason": "준비됨"
+    },
+    "cp_action_delete_line_type_select": {
+      "label": "선택한 선 종류 삭제",
+      "tooltip": "활성 선 종류 필터와 일치하는 선택한 선 삭제",
+      "disabledReason": "준비됨"
+    },
+    "cp_action_select_lasso": {
+      "label": "올가미 선택",
+      "tooltip": "자유형 올가미 경로에 닿는 접힘선 선택",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "올가미 경로 드래그"
+      }
+    },
+    "cp_action_unselect_lasso": {
+      "label": "올가미 선택 해제",
+      "tooltip": "자유형 올가미 경로에 닿는 접힘선 선택 해제",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "올가미 경로 드래그"
+      }
+    },
+    "cp_action_text": {
+      "label": "텍스트 주석",
+      "tooltip": "텍스트 주석 생성, 선택, 드래그, 편집",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "텍스트 위치 클릭"
+      }
+    },
+    "cp_action_draw_blintz": {
+      "label": "블린츠 베이스",
+      "tooltip": "블린츠 베이스",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "첫 번째 앵커 점 선택",
+        "1": "두 번째 앵커 점 선택"
+      }
+    },
+    "cp_action_draw_fish_base": {
+      "label": "물고기 베이스",
+      "tooltip": "물고기 베이스",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "첫 번째 앵커 점 선택",
+        "1": "두 번째 앵커 점 선택"
+      }
+    },
+    "cp_action_draw_dove_base": {
+      "label": "비둘기 베이스",
+      "tooltip": "비둘기 베이스",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "첫 번째 앵커 점 선택",
+        "1": "두 번째 앵커 점 선택"
+      }
+    },
+    "cp_action_draw_bird_base": {
+      "label": "새 베이스",
+      "tooltip": "새 베이스",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "첫 번째 앵커 점 선택",
+        "1": "두 번째 앵커 점 선택"
+      }
+    },
+    "cp_action_draw_frog_base": {
+      "label": "개구리 베이스",
+      "tooltip": "개구리 베이스",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "첫 번째 앵커 점 선택",
+        "1": "두 번째 앵커 점 선택"
+      }
+    },
+    "cp_action_modify_calculated_shape": {
+      "label": "계산된 도형 수정",
+      "tooltip": "계산된 도형 수정",
+      "disabledReason": "아직 전개도 편집기에 구현되지 않음"
+    },
+    "cp_action_move_calculated_shape": {
+      "label": "계산된 도형 이동",
+      "tooltip": "계산된 도형 이동",
+      "disabledReason": "아직 전개도 편집기에 구현되지 않음"
+    },
+    "cp_action_change_standard_face": {
+      "label": "표준 면 변경",
+      "tooltip": "표준 면 변경",
+      "disabledReason": "아직 전개도 편집기에 구현되지 않음"
+    },
+    "cp_action_add_folding_constraint": {
+      "label": "접기 제약 조건 추가",
+      "tooltip": "접기 제약 조건 추가",
+      "disabledReason": "아직 전개도 편집기에 구현되지 않음"
+    },
+    "cp_action_axiom5": {
+      "label": "공리 5",
+      "tooltip": "공리 5",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "대상 점 선택",
+        "1": "대상 접힘선 선택",
+        "2": "회전축 점 선택",
+        "3": "대상 접힘선 선택"
+      }
+    },
+    "cp_action_axiom7": {
+      "label": "공리 7",
+      "tooltip": "공리 7",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "대상 점 선택",
+        "1": "대상 접힘선 선택",
+        "2": "수직 접힘선 선택",
+        "3": "대상 접힘선 선택"
+      }
+    },
+    "cp_action_fix_inaccurate": {
+      "label": "부정확한 접힘선 수정",
+      "tooltip": "부정확한 선택 접힘선을 Oriedita 수정 대상에 스냅",
+      "disabledReason": "준비됨"
+    },
+    "cp_action_import_cp": {
+      "label": "CP 가져오기",
+      "tooltip": "CP 가져오기",
+      "disabledReason": "아직 전개도 편집기에 구현되지 않음"
+    },
+    "cp_action_export_cp": {
+      "label": "CP 내보내기",
+      "tooltip": "CP 내보내기",
+      "disabledReason": "아직 전개도 편집기에 구현되지 않음"
+    },
+    "cp_action_import_fold": {
+      "label": "FOLD 가져오기",
+      "tooltip": "FOLD 가져오기",
+      "disabledReason": "아직 전개도 편집기에 구현되지 않음"
+    },
+    "cp_action_export_fold": {
+      "label": "FOLD 내보내기",
+      "tooltip": "FOLD 내보내기",
+      "disabledReason": "아직 전개도 편집기에 구현되지 않음"
+    },
+    "cp_action_import_ori": {
+      "label": "ORI 가져오기",
+      "tooltip": "ORI 가져오기",
+      "disabledReason": "아직 전개도 편집기에 구현되지 않음"
+    },
+    "cp_action_export_ori": {
+      "label": "ORI 내보내기",
+      "tooltip": "ORI 내보내기",
+      "disabledReason": "아직 전개도 편집기에 구현되지 않음"
+    },
+    "cp_action_import_orh": {
+      "label": "ORH 가져오기",
+      "tooltip": "ORH 가져오기",
+      "disabledReason": "아직 전개도 편집기에 구현되지 않음"
+    },
+    "cp_action_export_orh": {
+      "label": "ORH 내보내기",
+      "tooltip": "ORH 내보내기",
+      "disabledReason": "아직 전개도 편집기에 구현되지 않음"
+    },
+    "cp_action_import_obj": {
+      "label": "OBJ 가져오기",
+      "tooltip": "OBJ 가져오기",
+      "disabledReason": "아직 전개도 편집기에 구현되지 않음"
+    },
+    "cp_action_export_dxf": {
+      "label": "DXF 내보내기",
+      "tooltip": "DXF 내보내기",
+      "disabledReason": "아직 전개도 편집기에 구현되지 않음"
+    },
+    "cp_action_save_convert": {
+      "label": "변환 저장",
+      "tooltip": "변환 저장",
+      "disabledReason": "아직 전개도 편집기에 구현되지 않음"
+    },
+    "cp_action_save_version_detect": {
+      "label": "저장 버전 감지",
+      "tooltip": "저장 버전 감지",
+      "disabledReason": "아직 전개도 편집기에 구현되지 않음"
+    },
+    "cp_action_check_camv": {
+      "label": "CAMV 확인",
+      "tooltip": "전개도를 변경하지 않고 Oriedita CAMV 평면 접힘 가능성 진단 실행",
+      "disabledReason": "준비됨"
+    },
+    "cp_action_folding_estimate": {
+      "label": "접기 추정",
+      "tooltip": "접기 추정",
+      "disabledReason": "커널 포팅이 진행 중이며 UI 연결이 아직 구현되지 않음"
+    },
+    "cp_action_folding_estimate_specific": {
+      "label": "특정 케이스로 접기",
+      "tooltip": "특정 케이스로 접기",
+      "disabledReason": "커널 포팅이 진행 중이며 UI 연결이 아직 구현되지 않음"
+    },
+    "cp_action_folding_estimate_save100": {
+      "label": "100개 시뮬레이션 저장",
+      "tooltip": "100개 시뮬레이션 저장",
+      "disabledReason": "커널 포팅이 진행 중이며 UI 연결이 아직 구현되지 않음"
+    },
+    "cp_action_two_colored_cp": {
+      "label": "두 색 전개도",
+      "tooltip": "두 색 전개도",
+      "disabledReason": "커널 포팅이 진행 중이며 UI 연결이 아직 구현되지 않음"
+    },
+    "cp_action_fold": {
+      "label": "접기",
+      "tooltip": "접기",
+      "disabledReason": "아직 전개도 편집기에 구현되지 않음"
+    },
+    "cp_action_fold_another": {
+      "label": "다른 해",
+      "tooltip": "다른 해",
+      "disabledReason": "커널 포팅이 진행 중이며 UI 연결이 아직 구현되지 않음"
+    },
+    "cp_action_duplicate_folded_model": {
+      "label": "접힌 모델 복제",
+      "tooltip": "접힌 모델 복제",
+      "disabledReason": "커널 포팅이 진행 중이며 UI 연결이 아직 구현되지 않음"
+    },
+    "cp_action_folded_figure_set_model": {
+      "label": "접힌 도형 모델",
+      "tooltip": "접힌 도형 모델",
+      "disabledReason": "아직 전개도 편집기에 구현되지 않음"
+    },
+    "cp_action_folded_figure_set_display_style": {
+      "label": "접힌 표시 스타일",
+      "tooltip": "접힌 표시 스타일",
+      "disabledReason": "아직 전개도 편집기에 구현되지 않음"
+    },
+    "cp_action_folded_figure_set_state": {
+      "label": "접힌 앞/뒷면 상태",
+      "tooltip": "접힌 앞/뒷면 상태",
+      "disabledReason": "아직 전개도 편집기에 구현되지 않음"
+    },
+    "cp_action_folded_figure_set_starting_face": {
+      "label": "접힌 시작 면",
+      "tooltip": "접힌 시작 면",
+      "disabledReason": "아직 전개도 편집기에 구현되지 않음"
+    },
+    "cp_action_folded_figure_move_camera": {
+      "label": "접힌 도형 카메라 이동",
+      "tooltip": "격자 뷰포트 카메라 레이어에서 처리됨",
+      "disabledReason": "전개도 명령이 아닌 뷰포트 런타임에서 처리됨"
+    },
+    "cp_action_folded_figure_select_canvas_point": {
+      "label": "접힌 점 선택",
+      "tooltip": "접힌 점 선택",
+      "disabledReason": "아직 전개도 편집기에 구현되지 않음"
+    },
+    "cp_action_folded_figure_render_snapshot": {
+      "label": "접힌 렌더 스냅샷",
+      "tooltip": "접힌 렌더 스냅샷",
+      "disabledReason": "아직 전개도 편집기에 구현되지 않음"
+    },
+    "cp_action_folded_figure_import_fold_frame": {
+      "label": "접힌 FOLD 프레임 가져오기",
+      "tooltip": "접힌 FOLD 프레임 가져오기",
+      "disabledReason": "아직 전개도 편집기에 구현되지 않음"
+    },
+    "cp_action_folded_figure_export_fold_frames": {
+      "label": "접힌 FOLD 프레임 내보내기",
+      "tooltip": "접힌 FOLD 프레임 내보내기",
+      "disabledReason": "아직 전개도 편집기에 구현되지 않음"
+    },
+    "cp_action_check1": {
+      "label": "겹침 확인",
+      "tooltip": "겹치거나 포함된 비보조 접힘선 쌍 찾기",
+      "disabledReason": "준비됨"
+    },
+    "cp_action_check2": {
+      "label": "T자 접합 확인",
+      "tooltip": "비보조 접힘선 쌍 사이의 근접 T자 교차 찾기",
+      "disabledReason": "준비됨"
+    },
+    "cp_action_check3": {
+      "label": "정점 접힘 가능성 확인",
+      "tooltip": "Oriedita 정점 평면 접힘 가능성 표시 찾기",
+      "disabledReason": "준비됨"
+    },
+    "cp_action_check4": {
+      "label": "Maekawa/LBL 확인",
+      "tooltip": "Maekawa, 각도, little-big-little 위반 찾기",
+      "disabledReason": "준비됨"
+    },
+    "cp_action_fix1": {
+      "label": "겹침 복구",
+      "tooltip": "정확한 중복을 병합하고 남은 겹치는 접힘선 선택",
+      "disabledReason": "준비됨"
+    },
+    "cp_action_fix2": {
+      "label": "T자 접합 분할",
+      "tooltip": "Oriedita 허용 오차를 사용하여 근접 T자 교차 분할",
+      "disabledReason": "준비됨"
+    },
+    "cp_action_organize_circles": {
+      "label": "원 정리",
+      "tooltip": "Oriedita 정리 규칙을 사용하여 반지름이 0인 잘못된 원 정리",
+      "disabledReason": "준비됨"
+    },
+    "cp_action_draw_auxiliary_line": {
+      "label": "보조선 그리기",
+      "tooltip": "Oriedita 보조선 그리기",
+      "disabledReason": "보조선 삽입 모드가 아직 전개도 커널에 구현되지 않음",
+      "steps": {
+        "0": "접힘선 끝점 드래그"
+      }
+    }
+  },
+  "instructions": {
+    "useTool": "{{label}} 사용.",
+    "angleBisectorAction": {
+      "intro": {
+        "0": "선 또는 점 사이에 각 이등분선을 그립니다."
+      },
+      "steps": {
+        "0": "선분 2개 또는 점 3개를 선택합니다.",
+        "1": "3점 방식: 점 3개를 선택한 다음, 끝낼 선분을 선택합니다.",
+        "2": "2선 방식: 선 2개를 선택한 다음, 끝낼 선분을 선택합니다.",
+        "3": "평행선 방식: 끝낼 선분/표시기를 선택합니다."
+      }
+    },
+    "As100Action": {
+      "intro": {
+        "0": "접힌 도형의 해 100개를 계산하여 이미지 파일로 저장합니다."
+      }
+    },
+    "axiom5Action": {
+      "intro": {
+        "0": "점 B를 지나면서 점 A를 선 위에 놓는 선을 그립니다."
+      },
+      "steps": {
+        "0": "점 A를 선택합니다.",
+        "1": "선을 선택합니다.",
+        "2": "점 B를 선택합니다.",
+        "3": "연장할 대상 선을 선택하거나, 표시기를 선택하여 연장합니다."
+      },
+      "notes": {
+        "0": "점 A와 점 B 사이의 거리는 점 B와 선 사이의 투영 거리보다 크거나 같아야 합니다."
+      }
+    },
+    "axiom7Action": {
+      "intro": {
+        "0": "선 B에 수직이면서 점을 선 A 위에 놓는 선을 그립니다."
+      },
+      "steps": {
+        "0": "점을 선택합니다.",
+        "1": "선 A와 B를 선택합니다.",
+        "2": "연장할 대상 선을 선택하거나, 표시기를 선택하여 연장합니다."
+      },
+      "notes": {
+        "0": "점은 선 A의 범위 위에 있어서는 안 되며, 선 B는 선 A와 평행해서는 안 됩니다."
+      }
+    },
+    "a1Action": {
+      "intro": {
+        "0": "점 ABC를 선택하여 각도를 측정합니다."
+      }
+    },
+    "a2Action": {
+      "intro": {
+        "0": "점 ABC를 선택하여 각도를 측정합니다."
+      }
+    },
+    "a3Action": {
+      "intro": {
+        "0": "점 ABC를 선택하여 각도를 측정합니다."
+      }
+    },
+    "addColorConstraintAction": {
+      "intro": {
+        "0": "접힌 도형에 색상 제약 조건을 추가합니다."
+      },
+      "steps": {
+        "0": "접힌 도형의 면 위의 점을 선택하여 해당 면이 가져야 할 색상을 설정합니다."
+      },
+      "notes": {
+        "0": "흰색 원은 면이 흰색 면을 보이는 것을, 검은색 원은 면이 색상 면을 보이는 것을 의미합니다.",
+        "1": "제약 조건을 사용하여 새 해를 찾으려면 다시 접으세요."
+      }
+    },
+    "anotherSolutionAction": {
+      "intro": {
+        "0": "접힌 도형의 다음 사용 가능한 해를 계산합니다."
+      }
+    },
+    "circleDrawAction": {
+      "intro": {
+        "0": "격자와 정점에 스냅하여 원을 그립니다."
+      }
+    },
+    "circleDrawConcentricAction": {
+      "intro": {
+        "0": "동심원을 그립니다."
+      },
+      "steps": {
+        "0": "원 A를 선택하여 위치를 설정합니다.",
+        "1": "선을 그려 반지름을 설정합니다."
+      },
+      "notes": {
+        "0": "동심원과 원 A의 반지름 차이는 선의 길이와 같습니다."
+      }
+    },
+    "circleDrawConcentricSelectAction": {
+      "intro": {
+        "0": "원 ABC를 선택하여 동심원을 그립니다."
+      },
+      "steps": {
+        "0": "원 A를 선택하여 위치를 설정합니다.",
+        "1": "원 B와 C를 선택하여 반지름을 설정합니다."
+      },
+      "notes": {
+        "0": "원은 원 A에 동심으로 그려집니다.",
+        "1": "동심원과 원 A의 반지름 차이는 원 B와 C의 반지름 차이와 같습니다."
+      }
+    },
+    "circleDrawFreeAction": {
+      "intro": {
+        "0": "원을 자유롭게 그립니다."
+      }
+    },
+    "circleDrawInvertedAction": {
+      "intro": {
+        "0": "원 또는 선을 선택하여 반전 원을 그립니다."
+      },
+      "steps": {
+        "0": "원 또는 선을 선택합니다.",
+        "1": "반전 원을 선택합니다."
+      }
+    },
+    "circleDrawSeparateAction": {
+      "intro": {
+        "0": "점을 선택하고 선을 그려 원을 그립니다."
+      },
+      "notes": {
+        "0": "원은 선택한 점에 그려지며 반지름은 그린 선의 길이와 같습니다."
+      }
+    },
+    "circleDrawTangentLineAction": {
+      "intro": {
+        "0": "접선을 그립니다."
+      },
+      "steps": {
+        "0": "두 원을 선택하거나, 점과 원을 선택합니다.",
+        "1": "그릴 접선을 선택합니다."
+      }
+    },
+    "circleDrawThreePointAction": {
+      "intro": {
+        "0": "선택한 3개의 점을 지나는 원을 그립니다."
+      }
+    },
+    "circleDrawTwoConcentricAction": {
+      "intro": {
+        "0": "두 원을 선택하여 연결된 동심원을 그립니다."
+      },
+      "notes": {
+        "0": "동심원과 선택한 원 사이의 반지름 차이가 같습니다."
+      }
+    },
+    "continuousSymmetricDrawAction": {
+      "intro": {
+        "0": "접힘선을 통해 반사하는 선을 그립니다."
+      },
+      "steps": {
+        "0": "점 2개를 선택하여 접힘선을 통해 반사하고 번갈아 이어지는 선을 그립니다."
+      },
+      "notes": {
+        "0": "반사는 경계 또는 선이 3개 이상인 정점에 도달할 때까지 계속됩니다."
+      }
+    },
+    "copy2p2pAction": {
+      "intro": {
+        "0": "원점과 대상 점을 선택하여 선택한 선을 복사하고 변형합니다."
+      },
+      "steps": {
+        "0": "점 AB를 선택하여 원점을 설정합니다.",
+        "1": "점 CD를 선택하여 대상을 설정합니다."
+      },
+      "notes": {
+        "0": "선택한 선은 점 AB와 CD 사이의 관계에 따라 새 위치, 배율, 각도로 복사되고 변형됩니다.",
+        "1": "점 A는 점 C로, 점 B는 점 D로 변형됩니다."
+      }
+    },
+    "copyAction": {
+      "intro": {
+        "0": "선을 그려 선택한 선을 복사합니다."
+      }
+    },
+    "deg1Action": {
+      "intro": {
+        "0": "각도 오프셋으로 수렴선을 그립니다."
+      },
+      "steps": {
+        "0": "선을 선택하거나 점 2개를 선택하여 오프셋을 설정합니다.",
+        "1": "수렴선의 교차점을 선택합니다."
+      }
+    },
+    "deg2Action": {
+      "intro": {
+        "0": "선택한 각도 제한으로 각도 제한 선을 그립니다."
+      }
+    },
+    "deg3Action": {
+      "intro": {
+        "0": "오프셋으로 각도 제한 선을 그립니다."
+      },
+      "steps": {
+        "0": "점 2개를 선택하여 각도 오프셋을 설정합니다.",
+        "1": "연장할 대상 선을 선택합니다."
+      }
+    },
+    "deg4Action": {
+      "intro": {
+        "0": "오프셋으로 각도 제한 선을 그립니다."
+      },
+      "steps": {
+        "0": "점 2개를 선택하여 각도 오프셋을 설정합니다.",
+        "1": "연장할 대상 선을 선택합니다."
+      }
+    },
+    "del_lAction": {
+      "intro": {
+        "0": "선을 그려 모든 일치하는 선을 삭제합니다."
+      }
+    },
+    "del_l_XAction": {
+      "intro": {
+        "0": "선을 그려 모든 교차하는 선을 삭제합니다."
+      }
+    },
+    "doubleSymmetricDrawAction": {
+      "intro": {
+        "0": "그린 선을 기준으로 닿는 선을 반사합니다."
+      },
+      "steps": {
+        "0": "선의 끝점 위로 선을 그려 반사합니다."
+      }
+    },
+    "drawBlintzAction": {
+      "intro": {
+        "0": "마주보는 두 꼭짓점을 선택하여 블린츠를 그립니다."
+      }
+    },
+    "drawBirdBaseAction": {
+      "intro": {
+        "0": "마주보는 두 꼭짓점을 선택하여 새 베이스를 그립니다."
+      }
+    },
+    "drawCreaseFreeAction": {
+      "intro": {
+        "0": "직선을 자유롭게 그립니다."
+      }
+    },
+    "drawCreaseRestrictedAction": {
+      "intro": {
+        "0": "격자와 정점에 스냅하여 선을 그립니다."
+      }
+    },
+    "drawDoveBaseAction": {
+      "intro": {
+        "0": "마주보는 두 꼭짓점을 선택하여 비둘기 베이스를 그립니다."
+      }
+    },
+    "drawFishBaseAction": {
+      "intro": {
+        "0": "마주보는 두 꼭짓점을 선택하여 물고기 베이스를 그립니다."
+      }
+    },
+    "drawFrogBaseAction": {
+      "intro": {
+        "0": "마주보는 두 꼭짓점을 선택하여 개구리 베이스를 그립니다."
+      }
+    },
+    "drawLineSegmentInternalDivisionRatioAction": {
+      "intro": {
+        "0": "설정한 비율로 분할된 선을 그립니다."
+      }
+    },
+    "drawTwoColoredCpAction": {
+      "intro": {
+        "0": "선택한 접힘선으로 두 색 전개도를 만듭니다."
+      }
+    },
+    "duplicateFoldedModelAction": {
+      "intro": {
+        "0": "접힌 도형을 복제합니다."
+      }
+    },
+    "fishBoneDrawAction": {
+      "intro": {
+        "0": "선을 그려 산과 골을 번갈아 가며 수직 평행선을 그립니다."
+      },
+      "notes": {
+        "0": "평행선의 간격은 격자 폭과 같습니다."
+      }
+    },
+    "foldableLineDrawAction": {
+      "intro": {
+        "0": "평면 접힘 가능 선을 그립니다."
+      },
+      "steps": {
+        "0": "연결된 선의 개수가 홀수인 정점을 선택합니다.",
+        "1": "평면 접힘 가능 선을 선택합니다.",
+        "2": "연장할 대상 선을 선택합니다."
+      },
+      "notes": {
+        "0": "아무 곳에나 그리면 자유롭게 그립니다."
+      }
+    },
+    "foldableLinePlusGridInputAction": {
+      "intro": {
+        "0": "평면 접힘 가능 선을 그립니다."
+      },
+      "steps": {
+        "0": "연결된 선의 개수가 홀수인 정점을 선택합니다.",
+        "1": "평면 접힘 가능 선을 선택합니다.",
+        "2": "연장할 대상 선을 선택합니다."
+      },
+      "notes": {
+        "0": "선을 선택하여 연장합니다."
+      }
+    },
+    "foldAction": {
+      "intro": {
+        "0": "전개도에서 접힌 도형을 계산합니다."
+      }
+    },
+    "foldedFigureMoveAction": {
+      "intro": {
+        "0": "접힌 도형을 이동합니다."
+      }
+    },
+    "goToFoldedFigureAction": {
+      "intro": {
+        "0": "접힌 도형의 특정 해로 이동합니다."
+      }
+    },
+    "h_senbun_nyuryokuAction": {
+      "intro": {
+        "0": "마커 선을 그립니다."
+      },
+      "notes": {
+        "0": "마커 선은 접힘선과 간섭하지 않습니다."
+      }
+    },
+    "in_L_col_changeAction": {
+      "intro": {
+        "0": "선을 그려 선분의 색상을 산과 골로 번갈아 바꿉니다."
+      }
+    },
+    "koteimen_siteiAction": {
+      "intro": {
+        "0": "면을 선택하여 시작 면을 설정합니다."
+      },
+      "notes": {
+        "0": "접힌 도형은 시작 면을 기준으로 계산됩니다."
+      }
+    },
+    "l1Action": {
+      "intro": {
+        "0": "점 2개를 선택하여 길이를 측정합니다."
+      },
+      "notes": {
+        "0": "길이는 격자 단위로 측정됩니다.",
+        "1": "길이는 격자 크기가 1인 전개도 크기를 기준으로 합니다."
+      }
+    },
+    "l2Action": {
+      "intro": {
+        "0": "점 2개를 선택하여 길이를 측정합니다."
+      },
+      "notes": {
+        "0": "길이는 격자 단위로 측정됩니다.",
+        "1": "길이는 격자 크기가 1인 전개도 크기를 기준으로 합니다."
+      }
+    },
+    "makeFlatFoldableAction": {
+      "intro": {
+        "0": "평면 접힘 가능 선을 그립니다."
+      },
+      "steps": {
+        "0": "연결된 선의 개수가 홀수인 정점을 선택합니다.",
+        "1": "평면 접힘 가능 선을 선택합니다.",
+        "2": "연장할 대상 선을 선택합니다."
+      }
+    },
+    "lengthenCreaseAction": {
+      "intro": {
+        "0": "선택한 색상으로 선을 연장합니다."
+      },
+      "steps": {
+        "0": "선을 선택하거나 그려서 선을 선택합니다.",
+        "1": "연장할 대상 선을 선택하거나, 이전 선을 선택하여 연장합니다."
+      }
+    },
+    "lengthenCrease2Action": {
+      "intro": {
+        "0": "같은 색상으로 선을 연장합니다."
+      },
+      "steps": {
+        "0": "선을 선택하거나 그려서 선을 선택합니다.",
+        "1": "연장할 대상 선을 선택하거나, 이전 선을 선택하여 연장합니다."
+      }
+    },
+    "move2p2pAction": {
+      "intro": {
+        "0": "원점과 대상 점을 선택하여 선택한 선을 변형합니다."
+      },
+      "steps": {
+        "0": "점 AB를 선택하여 원점을 설정합니다.",
+        "1": "점 CD를 선택하여 대상을 설정합니다."
+      },
+      "notes": {
+        "0": "선택한 선은 점 AB와 CD 사이의 관계에 따라 새 위치, 배율, 각도로 변형됩니다.",
+        "1": "점 A는 점 C로, 점 B는 점 D로 변형됩니다."
+      }
+    },
+    "moveAction": {
+      "intro": {
+        "0": "선을 그려 선택한 선을 이동합니다."
+      }
+    },
+    "o_F_checkAction": {
+      "intro": {
+        "0": "다각형 내부의 평면 접힘 가능성을 확인합니다."
+      },
+      "steps": {
+        "0": "클릭하거나 클릭 후 드래그하여 선분을 추가합니다.",
+        "1": "시작점을 선택하여 다각형을 닫습니다."
+      },
+      "notes": {
+        "0": "내부 패턴이 평면 접힘 가능하면 다각형이 청록색으로 바뀌고, 그렇지 않으면 자홍색으로 유지됩니다.",
+        "1": "도구가 의도한 대로 작동하지 않으면, 정점과 선분이 전개도 정점 위에 있지 않아야 합니다."
+      }
+    },
+    "on_L_col_changeAction": {
+      "intro": {
+        "0": "선을 그려 교차하는 선의 색상을 산과 골로 번갈아 바꿉니다."
+      }
+    },
+    "operationFrameSelectAction": {
+      "intro": {
+        "0": "사각형을 그려 작업 프레임을 만듭니다."
+      },
+      "notes": {
+        "0": "작업 프레임은 내보낸 이미지를 자릅니다."
+      }
+    },
+    "oriagari_sousa_2Action": {
+      "intro": {
+        "0": "정점을 드래그하여 접힌 도형을 수정합니다."
+      }
+    },
+    "parallelDrawAction": {
+      "intro": {
+        "0": "점에서 평행선을 그립니다."
+      },
+      "steps": {
+        "0": "점을 선택합니다.",
+        "1": "평행하게 만들 선을 선택합니다.",
+        "2": "연장할 대상 선을 선택합니다."
+      }
+    },
+    "perpendicularDrawAction": {
+      "intro": {
+        "0": "수직선을 그립니다."
+      },
+      "steps": {
+        "0": "시작점 A를 선택합니다.",
+        "1": "대상 선 B를 선택합니다."
+      },
+      "notes": {
+        "0": "점 A에서 선 B에 수직으로 선이 그려집니다.",
+        "1": "점 A가 선 B 위에 있으면, 연장할 대상 선을 선택하거나 표시기를 선택하여 연장합니다."
+      }
+    },
+    "rabbitEarAction": {
+      "intro": {
+        "0": "안쪽 중심을 향해 선을 그립니다."
+      },
+      "steps": {
+        "0": "점 A를 선택합니다.",
+        "1": "점 B를 선택합니다.",
+        "2": "점 C를 선택합니다.",
+        "3": "안쪽 중심을 향한 세 개의 선이 그려집니다."
+      }
+    },
+    "regularPolygonAction": {
+      "intro": {
+        "0": "점 AB를 선택하여 정다각형을 그립니다."
+      },
+      "notes": {
+        "0": "점 AB는 다각형의 한 변을 이루며, 다각형은 시계 방향으로 그려집니다."
+      }
+    },
+    "reflectAction": {
+      "intro": {
+        "0": "두 점으로 그린 선을 기준으로 선택한 선을 반사합니다."
+      }
+    },
+    "selectAction": {
+      "intro": {
+        "0": "사각형을 그려 선을 선택합니다."
+      }
+    },
+    "select_lXAction": {
+      "intro": {
+        "0": "선을 그려 겹치는 선을 선택합니다."
+      }
+    },
+    "select_polygonAction": {
+      "intro": {
+        "0": "다각형을 그려 선을 선택합니다."
+      },
+      "notes": {
+        "0": "다각형 내부에 완전히 있는 선이 선택됩니다."
+      }
+    },
+    "selectLassoAction": {
+      "intro": {
+        "0": "자유형으로 그려 선을 선택합니다."
+      }
+    },
+    "senbun_b_nyuryokuAction": {
+      "intro": {
+        "0": "선택한 분할로 분할된 선을 그립니다."
+      }
+    },
+    "symmetricDrawAction": {
+      "intro": {
+        "0": "점 또는 선을 선택하여 대칭선을 그립니다."
+      },
+      "steps": {
+        "0": "점 ABC를 선택하여 선 AB를 선 BC를 기준으로 대칭시킵니다.",
+        "1": "또는 선 AB를 선택하여 선 A를 선 B를 기준으로 대칭시킵니다."
+      }
+    },
+    "setParallelDrawWidthAction": {
+      "intro": {
+        "0": "선을 선택하여 평행선을 그립니다."
+      },
+      "steps": {
+        "0": "선을 선택합니다.",
+        "1": "클릭하고 드래그하여 오프셋 폭을 설정합니다.",
+        "2": "그릴 평행선을 선택합니다."
+      }
+    },
+    "textAction": {
+      "intro": {
+        "0": "텍스트 주석을 추가하고 편집합니다."
+      },
+      "steps": {
+        "0": "빈 공간을 클릭하여 그곳에 텍스트를 추가합니다.",
+        "1": "레이블을 클릭하여 편집하고, 드래그하여 이동합니다."
+      },
+      "notes": {
+        "0": "ESC를 누르거나 다른 곳을 클릭하여 편집을 마칩니다. 빈 텍스트는 삭제됩니다.",
+        "1": "레이블을 마우스 오른쪽 버튼으로 클릭하거나, 선택 후 Delete를 눌러 제거합니다."
+      }
+    },
+    "unselectAction": {
+      "intro": {
+        "0": "사각형을 그려 선을 선택 해제합니다."
+      }
+    },
+    "unselect_lXAction": {
+      "intro": {
+        "0": "선을 그려 겹치는 선을 선택 해제합니다."
+      }
+    },
+    "unselect_polygonAction": {
+      "intro": {
+        "0": "다각형을 그려 선을 선택 해제합니다."
+      },
+      "notes": {
+        "0": "다각형 내부에 완전히 있는 선이 선택 해제됩니다."
+      }
+    },
+    "unselectLassoAction": {
+      "intro": {
+        "0": "자유형으로 그려 선을 선택 해제합니다."
+      },
+      "notes": {
+        "0": "그린 영역 내부에 완전히 있는 선이 선택 해제됩니다."
+      }
+    },
+    "v_del_ccAction": {
+      "intro": {
+        "0": "직선 위의 정점을 삭제합니다."
+      }
+    },
+    "vertexDeleteAction": {
+      "intro": {
+        "0": "균일한 색상의 직선 위의 정점을 삭제합니다."
+      }
+    },
+    "vertexAddAction": {
+      "intro": {
+        "0": "정점을 추가합니다."
+      }
+    },
+    "voronoiAction": {
+      "intro": {
+        "0": "점을 선택하여 Voronoi 패턴을 그립니다."
+      },
+      "notes": {
+        "0": "점을 다시 선택하면 취소됩니다.",
+        "1": "적용을 선택하여 임시 선을 접힘선으로 바꿉니다."
+      }
+    }
+  }
+}

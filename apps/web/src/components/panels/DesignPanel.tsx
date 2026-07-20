@@ -8,6 +8,8 @@ import {
   type PointerEvent,
   type ReactNode,
 } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { TransformComponent, TransformWrapper, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import {
   Axis3d,
@@ -79,12 +81,28 @@ import {
   ViewportToolbarSeparator,
 } from './ViewportToolbar';
 
-const LAYER_OPTIONS: { key: DesignViewLayerKey; label: string; icon: ReactNode }[] = [
-  { key: 'paths', label: 'Paths', icon: <Waypoints size={13} /> },
-  { key: 'leafCircles', label: 'Circles', icon: <Circle size={13} /> },
-  { key: 'labels', label: 'Labels', icon: <Tag size={13} /> },
-  { key: 'symmetry', label: 'Symmetry', icon: <Axis3d size={13} /> },
+const LAYER_OPTIONS: { key: DesignViewLayerKey; icon: ReactNode }[] = [
+  { key: 'paths', icon: <Waypoints size={13} /> },
+  { key: 'leafCircles', icon: <Circle size={13} /> },
+  { key: 'labels', icon: <Tag size={13} /> },
+  { key: 'symmetry', icon: <Axis3d size={13} /> },
 ];
+
+/** Localized design-view layer label. Literal `t()` calls keep the keys extractable. */
+function designLayerLabel(t: TFunction, key: DesignViewLayerKey): string {
+  switch (key) {
+    case 'paths':
+      return t('panels:design.layerPaths', 'Paths');
+    case 'leafCircles':
+      return t('panels:design.layerCircles', 'Circles');
+    case 'labels':
+      return t('panels:design.layerLabels', 'Labels');
+    case 'symmetry':
+      return t('panels:design.layerSymmetry', 'Symmetry');
+    default:
+      return key;
+  }
+}
 
 function formatZoom(scale: number): string {
   return `${Math.round(scale * 100)}%`;
@@ -94,20 +112,20 @@ function viewBox(rect: { x: number; y: number; width: number; height: number }):
   return `${rect.x} ${rect.y} ${rect.width} ${rect.height}`;
 }
 
-function designSymmetryToolbarLabel(mode: SymmetrySelectValue, mirrorMode: boolean) {
-  if (mirrorMode) return 'Mirror';
-  if (mode === 'none') return 'Sym';
-  if (mode === 'book') return 'Book';
-  if (mode === 'diagonal') return 'Diag';
-  return 'Custom';
+function designSymmetryToolbarLabel(t: TFunction, mode: SymmetrySelectValue, mirrorMode: boolean) {
+  if (mirrorMode) return t('panels:design.symmetryToolbarMirror', 'Mirror');
+  if (mode === 'none') return t('panels:design.symmetryToolbarOff', 'Sym');
+  if (mode === 'book') return t('panels:design.symmetryToolbarBook', 'Book');
+  if (mode === 'diagonal') return t('panels:design.symmetryToolbarDiag', 'Diag');
+  return t('panels:design.symmetryToolbarCustom', 'Custom');
 }
 
-function designSymmetryStatusLabel(mode: SymmetrySelectValue, mirrorMode: boolean) {
-  if (mirrorMode) return 'Mirroring';
-  if (mode === 'none') return 'Off';
-  if (mode === 'book') return 'Book';
-  if (mode === 'diagonal') return 'Diagonal';
-  return 'Custom axis';
+function designSymmetryStatusLabel(t: TFunction, mode: SymmetrySelectValue, mirrorMode: boolean) {
+  if (mirrorMode) return t('panels:design.symmetryStatusMirroring', 'Mirroring');
+  if (mode === 'none') return t('panels:design.symmetryStatusOff', 'Off');
+  if (mode === 'book') return t('panels:design.symmetryStatusBook', 'Book');
+  if (mode === 'diagonal') return t('panels:design.symmetryStatusDiagonal', 'Diagonal');
+  return t('panels:design.symmetryStatusCustom', 'Custom axis');
 }
 
 function SymmetryNumberField({
@@ -222,10 +240,11 @@ function DesignSymmetryMenuButton({
   onMirrorModeChange: (enabled: boolean) => void;
   onCustomSymmetryChange: (update: { symAngle?: number; symLoc?: Point }) => void;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const toolbarLabel = designSymmetryToolbarLabel(symmetryMode, mirrorMode);
-  const statusLabel = designSymmetryStatusLabel(symmetryMode, mirrorMode);
+  const toolbarLabel = designSymmetryToolbarLabel(t, symmetryMode, mirrorMode);
+  const statusLabel = designSymmetryStatusLabel(t, symmetryMode, mirrorMode);
   const canFlipPreset = symmetryMode === 'book' || symmetryMode === 'diagonal';
 
   useEffect(() => {
@@ -245,7 +264,7 @@ function DesignSymmetryMenuButton({
         type="button"
         className="viewport-toolbar__symmetry-button"
         data-active={symmetryMode !== 'none' || mirrorMode ? true : undefined}
-        aria-label="Design symmetry"
+        aria-label={t('panels:design.symmetryButton', 'Design symmetry')}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
@@ -257,46 +276,46 @@ function DesignSymmetryMenuButton({
         <div
           className="viewport-toolbar__dropdown symmetry-menu__panel"
           role="menu"
-          aria-label="Design symmetry controls"
+          aria-label={t('panels:design.symmetryControls', 'Design symmetry controls')}
         >
           <div className="symmetry-menu__header">
-            <span>Symmetry</span>
+            <span>{t('panels:design.symmetry', 'Symmetry')}</span>
             <span>{statusLabel}</span>
           </div>
           <div className="symmetry-menu__toggle-row">
             <div className="symmetry-menu__toggle-copy">
-              <span>Enable symmetry</span>
-              <small>Define the tree mirror line</small>
+              <span>{t('panels:design.enableSymmetry', 'Enable symmetry')}</span>
+              <small>{t('panels:design.enableSymmetryHint', 'Define the tree mirror line')}</small>
             </div>
             <Toggle
               checked={symmetryMode !== 'none'}
               onChange={onSymmetryEnabledChange}
-              aria-label="Enable design symmetry"
+              aria-label={t('panels:design.enableSymmetryAria', 'Enable design symmetry')}
             />
           </div>
           <div className="symmetry-menu__toggle-row">
             <div className="symmetry-menu__toggle-copy">
-              <span>Show axis</span>
-              <small>Display the mirror line</small>
+              <span>{t('panels:design.showAxis', 'Show axis')}</span>
+              <small>{t('panels:design.showAxisHint', 'Display the mirror line')}</small>
             </div>
             <Toggle
               checked={showAxis}
               onChange={onShowAxisChange}
-              aria-label="Show design symmetry axis"
+              aria-label={t('panels:design.showAxisAria', 'Show design symmetry axis')}
             />
           </div>
           <div className="symmetry-menu__toggle-row">
             <div className="symmetry-menu__toggle-copy">
-              <span>Mirror nodes</span>
-              <small>Reflect new node edits</small>
+              <span>{t('panels:design.mirrorNodes', 'Mirror nodes')}</span>
+              <small>{t('panels:design.mirrorNodesHint', 'Reflect new node edits')}</small>
             </div>
             <Toggle
               checked={mirrorMode}
               onChange={onMirrorModeChange}
-              aria-label="Mirror design node edits"
+              aria-label={t('panels:design.mirrorNodesAria', 'Mirror design node edits')}
             />
           </div>
-          <div className="symmetry-menu__section-label">Preset</div>
+          <div className="symmetry-menu__section-label">{t('panels:design.preset', 'Preset')}</div>
           <div className="symmetry-menu__preset-grid">
             <button
               type="button"
@@ -304,7 +323,7 @@ function DesignSymmetryMenuButton({
               data-active={symmetryMode === 'book' ? true : undefined}
               onClick={() => onSymmetryPreset('book')}
             >
-              Book
+              {t('panels:design.presetBook', 'Book')}
             </button>
             <button
               type="button"
@@ -312,7 +331,7 @@ function DesignSymmetryMenuButton({
               data-active={symmetryMode === 'diagonal' ? true : undefined}
               onClick={() => onSymmetryPreset('diagonal')}
             >
-              Diag
+              {t('panels:design.presetDiag', 'Diag')}
             </button>
           </div>
           <button
@@ -321,32 +340,36 @@ function DesignSymmetryMenuButton({
             disabled={!canFlipPreset}
             onClick={onFlipSymmetryPreset}
           >
-            <span>{nextSymmetryPresetLabel ? `Flip to ${nextSymmetryPresetLabel}` : 'Flip preset axis'}</span>
+            <span>
+              {nextSymmetryPresetLabel
+                ? t('panels:design.flipToPreset', 'Flip to {{preset}}', { preset: nextSymmetryPresetLabel })
+                : t('panels:design.flipPresetAxis', 'Flip preset axis')}
+            </span>
           </button>
-          <div className="symmetry-menu__section-label">Axis</div>
+          <div className="symmetry-menu__section-label">{t('panels:design.axis', 'Axis')}</div>
           <SymmetryNumberField
-            label="Angle"
+            label={t('panels:design.axisAngle', 'Angle')}
             value={symmetryAngle}
             step={1}
-            ariaLabel="Design symmetry angle"
+            ariaLabel={t('panels:design.axisAngleAria', 'Design symmetry angle')}
             onCommit={(symAngle) => onCustomSymmetryChange({ symAngle })}
           />
           <SymmetryNumberField
-            label="X"
+            label={t('panels:design.axisX', 'X')}
             value={symmetryLoc.x}
             min={0}
             max={paperWidth}
             step={0.01}
-            ariaLabel="Design symmetry axis X"
+            ariaLabel={t('panels:design.axisXAria', 'Design symmetry axis X')}
             onCommit={(x) => onCustomSymmetryChange({ symLoc: { ...symmetryLoc, x } })}
           />
           <SymmetryNumberField
-            label="Y"
+            label={t('panels:design.axisY', 'Y')}
             value={symmetryLoc.y}
             min={0}
             max={paperHeight}
             step={0.01}
-            ariaLabel="Design symmetry axis Y"
+            ariaLabel={t('panels:design.axisYAria', 'Design symmetry axis Y')}
             onCommit={(y) => onCustomSymmetryChange({ symLoc: { ...symmetryLoc, y } })}
           />
         </div>
@@ -376,6 +399,7 @@ function DesignViewportToolbar({
   fitToView,
   setZoomLevel,
 }: DesignViewportToolbarProps) {
+  const { t } = useTranslation();
   const [layersOpen, setLayersOpen] = useState(false);
   const layersMenuRef = useRef<HTMLDivElement | null>(null);
 
@@ -392,7 +416,7 @@ function DesignViewportToolbar({
 
   return (
     <ViewportToolbar
-      ariaLabel="Design viewport controls"
+      ariaLabel={t('panels:design.viewportControls', 'Design viewport controls')}
       zoomPercent={zoomPercent}
       zoomIn={zoomIn}
       zoomOut={zoomOut}
@@ -421,7 +445,7 @@ function DesignViewportToolbar({
         <IconButton
           size="sm"
           variant="toolbar"
-          title="Layers"
+          title={t('panels:design.layers', 'Layers')}
           isActive={layersOpen}
           onClick={() => setLayersOpen((open) => !open)}
         >
@@ -437,7 +461,7 @@ function DesignViewportToolbar({
                   onChange={(event) => onLayerChange(option.key, event.target.checked)}
                 />
                 <span className="design-layer-option__icon">{option.icon}</span>
-                <span>{option.label}</span>
+                <span>{designLayerLabel(t, option.key)}</span>
               </label>
             ))}
           </div>
@@ -471,6 +495,7 @@ export function DesignPanel() {
 }
 
 function TreeMakerDesignPanel() {
+  const { t } = useTranslation();
   const svgRef = useRef<SVGSVGElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const transformRef = useRef<ReactZoomPanPinchRef | null>(null);
@@ -931,25 +956,28 @@ function TreeMakerDesignPanel() {
                   <span className="document-mode-empty__filename">
                     {importedCreasePattern.source.filename}
                   </span>{' '}
-                  is an imported crease pattern without an editable tree.
+                  {t(
+                    'panels:design.importedCreasePatternSuffix',
+                    'is an imported crease pattern without an editable tree.'
+                  )}
                 </>
               )
               : (
-                'This document does not have an editable tree.'
+                t('panels:design.noEditableTree', 'This document does not have an editable tree.')
               )}
           </span>
           <div className="document-mode-empty__actions">
             <Button size="sm" variant="primary" onClick={() => void handleMenuAction('view.edit')}>
               <ScanLine size={14} />
-              Edit CP
+              {t('panels:design.editCp', 'Edit CP')}
             </Button>
             <Button size="sm" variant="secondary" onClick={() => void handleMenuAction('file.new')}>
               <FileText size={14} />
-              New Tree
+              {t('panels:design.newTree', 'New Tree')}
             </Button>
             <Button size="sm" variant="secondary" onClick={() => void handleMenuAction('file.open')}>
               <FolderOpen size={14} />
-              Open
+              {t('panels:design.open', 'Open')}
             </Button>
           </div>
         </div>
@@ -1003,7 +1031,7 @@ function TreeMakerDesignPanel() {
               height={worldRect.height}
               style={{ width: worldRect.width, height: worldRect.height }}
               role="img"
-              aria-label="Tree design canvas"
+              aria-label={t('panels:design.canvas', 'Tree design canvas')}
               onPointerDown={onCanvasPointerDown}
               onPointerMove={onCanvasPointerMove}
               onPointerLeave={() => setHoverPoint(null)}
@@ -1061,8 +1089,13 @@ function TreeMakerDesignPanel() {
                 >
                   <div className="design-empty-state__inner" role="note">
                     <div className="design-empty-state__copy">
-                      <strong>Sketch the tree behind your design</strong>
-                      <span>Use branches for the flaps, limbs, and features the folded base needs.</span>
+                      <strong>{t('panels:design.emptyStateTitle', 'Sketch the tree behind your design')}</strong>
+                      <span>
+                        {t(
+                          'panels:design.emptyStateBody',
+                          'Use branches for the flaps, limbs, and features the folded base needs.'
+                        )}
+                      </span>
                     </div>
                   </div>
                 </foreignObject>
@@ -1249,9 +1282,9 @@ function TreeMakerDesignPanel() {
           )}
         </div>
         <div className="design-legend">
-          <span><CircleDot size={13} /> Terminal</span>
-          <span><Waypoints size={13} /> Active path</span>
-          <span><Plus size={13} /> Scale {formatNumber(project.scale, 3)}</span>
+          <span><CircleDot size={13} /> {t('panels:design.legendTerminal', 'Terminal')}</span>
+          <span><Waypoints size={13} /> {t('panels:design.legendActivePath', 'Active path')}</span>
+          <span><Plus size={13} /> {t('panels:design.legendScale', 'Scale {{value}}', { value: formatNumber(project.scale, 3) })}</span>
         </div>
       </div>
     </section>

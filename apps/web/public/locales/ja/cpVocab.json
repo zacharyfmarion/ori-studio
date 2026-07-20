@@ -1,0 +1,1578 @@
+{
+  "group": {
+    "line_type": {
+      "label": "線種",
+      "railLabel": "種類"
+    },
+    "select_edit": {
+      "label": "選択と編集",
+      "railLabel": "選択"
+    },
+    "draw": {
+      "label": "折り線と点を描画",
+      "railLabel": "描画"
+    },
+    "edit": {
+      "label": "削除",
+      "railLabel": "削除"
+    },
+    "construct": {
+      "label": "幾何で作図",
+      "railLabel": "作図"
+    },
+    "transform": {
+      "label": "変形と操作フレーム",
+      "railLabel": "変形"
+    },
+    "color": {
+      "label": "色と割り当て",
+      "railLabel": "色"
+    },
+    "annotations": {
+      "label": "円・テキスト・注釈",
+      "railLabel": "注釈"
+    },
+    "generators": {
+      "label": "ジェネレーターとベース分子",
+      "railLabel": "生成"
+    },
+    "measure": {
+      "label": "測定",
+      "railLabel": "測定"
+    },
+    "check_fix": {
+      "label": "チェックと修正",
+      "railLabel": "チェック"
+    },
+    "folding": {
+      "label": "折り推定と折り上がり図",
+      "railLabel": "折り"
+    },
+    "file": {
+      "label": "ファイルの入出力",
+      "railLabel": "ファイル"
+    }
+  },
+  "action": {
+    "cp_action_line_type_mountain": {
+      "label": "山折り",
+      "railLabel": "M",
+      "tooltip": "アクティブな線種を山折りに設定",
+      "disabledReason": "準備完了"
+    },
+    "cp_action_line_type_valley": {
+      "label": "谷折り",
+      "railLabel": "V",
+      "tooltip": "アクティブな線種を谷折りに設定",
+      "disabledReason": "準備完了"
+    },
+    "cp_action_line_type_edge": {
+      "label": "境界線",
+      "railLabel": "E",
+      "tooltip": "アクティブな線種を境界線に設定",
+      "disabledReason": "準備完了"
+    },
+    "cp_action_line_type_unassigned": {
+      "label": "未割り当て",
+      "railLabel": "U",
+      "tooltip": "アクティブな線種を未割り当てに設定",
+      "disabledReason": "準備完了"
+    },
+    "cp_action_line_type_auxiliary": {
+      "label": "補助線",
+      "railLabel": "A",
+      "tooltip": "アクティブな線種を補助線に設定",
+      "disabledReason": "準備完了"
+    },
+    "cp_action_draw_crease": {
+      "label": "線",
+      "tooltip": "現在の線種で折り線をドラッグします",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "折り線の端点をドラッグ"
+      }
+    },
+    "cp_action_move_crease_pattern": {
+      "label": "ビューポートをパン",
+      "tooltip": "既存の展開図ビューポートのパン操作で対応済みです",
+      "disabledReason": "CP コマンドではなくビューポートランタイムで処理されます"
+    },
+    "cp_action_line_segment_delete": {
+      "label": "消しゴム",
+      "tooltip": "折り線をクリックするか、ボックスをドラッグして折り線を消去します",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "クリックするかボックスをドラッグして消去"
+      }
+    },
+    "cp_action_change_crease_type": {
+      "label": "折り線の種類を変更",
+      "tooltip": "選択した折り線を境界線・山折り・谷折りの順に進めます",
+      "disabledReason": "準備完了"
+    },
+    "cp_action_lengthen_crease": {
+      "label": "線を延長",
+      "tooltip": "ガイド線が横切る折り線をターゲットの折り線まで延長します",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "延長する線を選択",
+        "1": "ターゲットの線を選択"
+      }
+    },
+    "cp_action_square_bisector": {
+      "label": "角の二等分線",
+      "tooltip": "角の二等分線",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "2 本のセグメントまたは 3 点を選択",
+        "1": "3 点を選択",
+        "2": "3 点を選択",
+        "3": "終了するセグメントを選択"
+      }
+    },
+    "cp_action_inward": {
+      "label": "うさぎの耳",
+      "tooltip": "内向きの折り線",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "三角形の 1 点目を選択",
+        "1": "三角形の 2 点目を選択",
+        "2": "三角形の 3 点目を選択"
+      }
+    },
+    "cp_action_perpendicular_draw": {
+      "label": "垂線",
+      "tooltip": "垂線を描画",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "対象の点を選択",
+        "1": "基準の折り線を選択"
+      }
+    },
+    "cp_action_symmetric_draw": {
+      "label": "鏡映線",
+      "tooltip": "対称に描画",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "元の折り線を選択",
+        "1": "鏡映の折り線を選択"
+      }
+    },
+    "cp_action_draw_crease_restricted": {
+      "label": "グリッド制限線",
+      "tooltip": "制限付き折り線を描画",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "既存の点の間をドラッグ"
+      }
+    },
+    "cp_action_draw_crease_symmetric": {
+      "label": "選択範囲を線で反転",
+      "tooltip": "2 点で描いた線を軸に選択した折り線を反転します",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "2 点を選択するか線を選択",
+        "1": "反転軸の端点を選択"
+      }
+    },
+    "cp_action_draw_crease_angle_restricted": {
+      "label": "収束線",
+      "tooltip": "角度制限付き折り線",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "基準の折り線または 1 点目を選択",
+        "1": "基準の端点を選択",
+        "2": "収束点を選択"
+      }
+    },
+    "cp_action_draw_point": {
+      "label": "点を描画",
+      "tooltip": "点を描画",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "点を選択"
+      }
+    },
+    "cp_action_delete_point": {
+      "label": "点を削除",
+      "tooltip": "選択した頂点で交わる同色の折り線を統合します",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "頂点を選択"
+      }
+    },
+    "cp_action_angle_system": {
+      "label": "オフセット制限線",
+      "tooltip": "角度システム",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "角度の始点を選択",
+        "1": "角度の終点を選択",
+        "2": "延長先の折り線を選択"
+      }
+    },
+    "cp_action_draw_crease_angle_restricted3": {
+      "label": "角度制限3の折り線",
+      "tooltip": "角度制限3の折り線",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "扇の始点を選択",
+        "1": "扇の終点を選択",
+        "2": "角度候補を選択"
+      }
+    },
+    "cp_action_crease_select": {
+      "label": "ボックス選択",
+      "tooltip": "ドラッグしたボックス内の折り線を選択します",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "選択ボックスをドラッグ"
+      }
+    },
+    "cp_action_crease_unselect": {
+      "label": "ボックス選択解除",
+      "tooltip": "ドラッグしたボックス内の折り線を選択解除します",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "選択ボックスをドラッグ"
+      }
+    },
+    "cp_action_crease_move": {
+      "label": "選択した折り線を移動",
+      "tooltip": "選択した折り線を移動",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "元の点を選択",
+        "1": "移動先の点を選択"
+      }
+    },
+    "cp_action_crease_copy": {
+      "label": "選択した折り線をコピー",
+      "tooltip": "選択した折り線をコピー",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "元の点を選択",
+        "1": "コピー先の点を選択"
+      }
+    },
+    "cp_action_crease_make_mountain": {
+      "label": "山折りにする",
+      "tooltip": "選択した線を山折りにします",
+      "disabledReason": "準備完了"
+    },
+    "cp_action_crease_make_valley": {
+      "label": "谷折りにする",
+      "tooltip": "選択した線を谷折りにします",
+      "disabledReason": "準備完了"
+    },
+    "cp_action_crease_make_edge": {
+      "label": "境界線にする",
+      "tooltip": "選択した線を境界線にします",
+      "disabledReason": "準備完了"
+    },
+    "cp_action_crease_set_line_color": {
+      "label": "選択した線の色を設定",
+      "tooltip": "アクティブな線の色を選択した線に適用します",
+      "disabledReason": "準備完了"
+    },
+    "cp_action_background_change_position": {
+      "label": "背景を移動",
+      "tooltip": "背景画像の操作は UI のみで、CP カーネルの一部ではありません",
+      "disabledReason": "CP コマンドではなくビューポートランタイムで処理されます"
+    },
+    "cp_action_line_segment_division": {
+      "label": "等分線",
+      "tooltip": "個数で線を分割",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "ドラッグして分割する線を描画"
+      }
+    },
+    "cp_action_line_segment_ratio_set": {
+      "label": "分割線（比率）",
+      "tooltip": "比率で線を分割",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "ドラッグして分割する線を描画"
+      }
+    },
+    "cp_action_polygon_set_no_corners": {
+      "label": "正多角形",
+      "tooltip": "正多角形",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "1 つ目の角を選択",
+        "1": "2 つ目の角を選択"
+      }
+    },
+    "cp_action_crease_advance_type": {
+      "label": "折り線の種類を進める",
+      "tooltip": "選択した折り線を境界線・山折り・谷折りの順に進めます",
+      "disabledReason": "準備完了"
+    },
+    "cp_action_crease_move4p": {
+      "label": "4 点で移動",
+      "tooltip": "4 点で移動",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "元の 1 点目を選択",
+        "1": "元の 2 点目を選択",
+        "2": "移動先の 1 点目を選択",
+        "3": "移動先の 2 点目を選択"
+      }
+    },
+    "cp_action_crease_copy4p": {
+      "label": "4 点でコピー",
+      "tooltip": "4 点でコピー",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "元の 1 点目を選択",
+        "1": "元の 2 点目を選択",
+        "2": "コピー先の 1 点目を選択",
+        "3": "コピー先の 2 点目を選択"
+      }
+    },
+    "cp_action_fish_bone_draw": {
+      "label": "平行交互線",
+      "tooltip": "フィッシュボーン描画",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "背骨の始点を選択",
+        "1": "背骨の終点を選択"
+      }
+    },
+    "cp_action_crease_make_mv": {
+      "label": "交互の山折り／谷折りにする",
+      "tooltip": "ガイド線に沿って山折りと谷折りを交互に割り当てます",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "折り線に沿ってガイド線をドラッグ"
+      }
+    },
+    "cp_action_double_symmetric_draw": {
+      "label": "線で反転",
+      "tooltip": "二重対称に描画",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "対称軸の始点を選択",
+        "1": "対称軸の終点を選択"
+      }
+    },
+    "cp_action_creases_alternate_mv": {
+      "label": "交差点で山折り／谷折りを交互に",
+      "tooltip": "ガイド線沿いの交差点に山折りと谷折りを交互に割り当てます",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "交差点を横切るようにガイド線をドラッグ"
+      }
+    },
+    "cp_action_draw_crease_angle_restricted5": {
+      "label": "角度制限線",
+      "tooltip": "角度制限5の折り線",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "アンカー点を選択",
+        "1": "スナップした端点を選択"
+      }
+    },
+    "cp_action_vertex_make_angularly_flat_foldable": {
+      "label": "平坦折り可能線",
+      "tooltip": "頂点を平坦折り可能にします",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "奇数次の頂点を選択",
+        "1": "候補の線を選択",
+        "2": "延長先の折り線を選択"
+      }
+    },
+    "cp_action_foldable_line_input": {
+      "label": "平坦折り可能線（延長）",
+      "tooltip": "折り可能線の入力",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "始点の頂点を選択",
+        "1": "端点を選択"
+      }
+    },
+    "cp_action_parallel_draw": {
+      "label": "平行線",
+      "tooltip": "平行線を描画",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "対象の点を選択",
+        "1": "平行の基準となる折り線を選択",
+        "2": "延長先の折り線を選択"
+      }
+    },
+    "cp_action_vertex_delete_on_crease": {
+      "label": "任意の頂点を削除",
+      "tooltip": "Oriedita の色変更規則に従って頂点で隣接する折り線を統合します",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "頂点を選択"
+      }
+    },
+    "cp_action_circle_draw": {
+      "label": "円を描画",
+      "tooltip": "円を描画",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "中心点を選択",
+        "1": "半径の点を選択"
+      }
+    },
+    "cp_action_circle_draw_three_point": {
+      "label": "3 点を通る円",
+      "tooltip": "3 点を通る円",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "1 点目を選択",
+        "1": "2 点目を選択",
+        "2": "3 点目を選択"
+      }
+    },
+    "cp_action_circle_draw_separate": {
+      "label": "分離円",
+      "tooltip": "分離円",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "中心点を選択",
+        "1": "半径の始点を選択",
+        "2": "半径の終点を選択"
+      }
+    },
+    "cp_action_circle_draw_tangent_line": {
+      "label": "円の接線",
+      "tooltip": "選択した 2 つの円から、または選択した 1 つの円とクリックした点から接線を作成します",
+      "disabledReason": "準備完了"
+    },
+    "cp_action_circle_draw_inverted": {
+      "label": "反転円",
+      "tooltip": "選択した円を基準に、選択した円または折り線を反転します",
+      "disabledReason": "準備完了"
+    },
+    "cp_action_circle_draw_free": {
+      "label": "フリー円",
+      "tooltip": "フリー円",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "中心点を選択",
+        "1": "半径の点を選択"
+      }
+    },
+    "cp_action_circle_draw_concentric": {
+      "label": "同心円",
+      "tooltip": "同心円",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "半径の始点を選択",
+        "1": "半径の終点を選択"
+      }
+    },
+    "cp_action_circle_draw_concentric_select": {
+      "label": "選択範囲から同心円",
+      "tooltip": "対象の円と 2 つの参照円の半径から同心円を作成します",
+      "disabledReason": "準備完了"
+    },
+    "cp_action_circle_draw_concentric_two_circle_select": {
+      "label": "2 つの円から同心円",
+      "tooltip": "選択した円から Oriedita の 2 つの同心オフセット円を作成します",
+      "disabledReason": "準備完了"
+    },
+    "cp_action_parallel_draw_width": {
+      "label": "幅で平行線を描画",
+      "tooltip": "幅で平行線を描画",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "元の折り線を選択",
+        "1": "幅の点を選択"
+      }
+    },
+    "cp_action_continuous_symmetric_draw": {
+      "label": "線を通して反転",
+      "tooltip": "連続対称に描画",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "始点を選択",
+        "1": "通過点を選択"
+      }
+    },
+    "cp_action_display_length_between_points1": {
+      "label": "長さを測定 1",
+      "tooltip": "長さを測定 1",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "1 点目を選択",
+        "1": "2 点目を選択"
+      }
+    },
+    "cp_action_display_length_between_points2": {
+      "label": "長さを測定 2",
+      "tooltip": "長さを測定 2",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "1 点目を選択",
+        "1": "2 点目を選択"
+      }
+    },
+    "cp_action_display_angle_between_three_points1": {
+      "label": "角度を測定 1",
+      "tooltip": "角度を測定 1",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "1 点目を選択",
+        "1": "頂点を選択",
+        "2": "2 点目を選択"
+      }
+    },
+    "cp_action_display_angle_between_three_points2": {
+      "label": "角度を測定 2",
+      "tooltip": "角度を測定 2",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "1 点目を選択",
+        "1": "頂点を選択",
+        "2": "2 点目を選択"
+      }
+    },
+    "cp_action_display_angle_between_three_points3": {
+      "label": "角度を測定 3",
+      "tooltip": "角度を測定 3",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "1 点目を選択",
+        "1": "頂点を選択",
+        "2": "2 点目を選択"
+      }
+    },
+    "cp_action_crease_toggle_mv": {
+      "label": "山折り／谷折りを反転",
+      "tooltip": "折り線をクリックするか、ボックスをドラッグして山折り／谷折りの割り当てを反転します",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "クリックするかボックスをドラッグして反転"
+      }
+    },
+    "cp_action_circle_change_color": {
+      "label": "円の色を変更",
+      "tooltip": "コンテキストのカスタム色を選択した円と補助線に適用します",
+      "disabledReason": "準備完了"
+    },
+    "cp_action_crease_make_aux": {
+      "label": "補助線にする",
+      "tooltip": "選択した折り線を補助線に変換します",
+      "disabledReason": "準備完了"
+    },
+    "cp_action_operation_frame_create": {
+      "label": "操作フレーム",
+      "tooltip": "CP 上で矩形をドラッグして Oriedita の操作フレームを作成します",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "操作フレームをドラッグ"
+      }
+    },
+    "cp_action_voronoi_create": {
+      "label": "Voronoi",
+      "tooltip": "シード点をクリックして Voronoi 図をプレビューし、コンテキストパネルから適用します",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "シード点をクリック"
+      }
+    },
+    "cp_action_flat_foldable_check": {
+      "label": "平坦折り可能性の境界チェック",
+      "tooltip": "閉じた Oriedita の境界ループを描き、チェック結果を色分けします",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "閉じた境界ループを描画"
+      }
+    },
+    "cp_action_crease_delete_overlapping": {
+      "label": "重複した線を削除",
+      "tooltip": "ドラッグした線に重なる折り線のセグメントを削除します",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "ドラッグの始点を選択",
+        "1": "ドラッグの終点を選択"
+      }
+    },
+    "cp_action_crease_delete_intersecting": {
+      "label": "交差する線を削除",
+      "tooltip": "ドラッグした線に交差または重なる折り線のセグメントを削除します",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "ドラッグの始点を選択",
+        "1": "ドラッグの終点を選択"
+      }
+    },
+    "cp_action_select_polygon": {
+      "label": "多角形選択",
+      "tooltip": "フリーハンドの多角形に含まれる折り線を選択します",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "多角形のパスをドラッグ"
+      }
+    },
+    "cp_action_unselect_polygon": {
+      "label": "多角形選択解除",
+      "tooltip": "フリーハンドの多角形に含まれる折り線を選択解除します",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "多角形のパスをドラッグ"
+      }
+    },
+    "cp_action_select_line_intersecting": {
+      "label": "重なる線を選択",
+      "tooltip": "ドラッグした線に交差または重なる折り線のセグメントを選択します",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "ドラッグの始点を選択",
+        "1": "ドラッグの終点を選択"
+      }
+    },
+    "cp_action_unselect_line_intersecting": {
+      "label": "重なる線を選択解除",
+      "tooltip": "ドラッグした線に交差または重なる折り線のセグメントを選択解除します",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "ドラッグの始点を選択",
+        "1": "ドラッグの終点を選択"
+      }
+    },
+    "cp_action_lengthen_crease_same_color": {
+      "label": "同色で延長",
+      "tooltip": "元の色を保持しながらガイド線が横切る折り線を延長します",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "延長する線を選択",
+        "1": "ターゲットの線を選択"
+      }
+    },
+    "cp_action_foldable_line_draw": {
+      "label": "平坦折り可能線（フリー）",
+      "tooltip": "折り可能線を描画",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "始点の頂点を選択",
+        "1": "目的地を選択"
+      }
+    },
+    "cp_action_replace_line_type_select": {
+      "label": "選択した線種を置換",
+      "tooltip": "アクティブな置換元の線種に一致する選択した線を置換します",
+      "disabledReason": "準備完了"
+    },
+    "cp_action_delete_line_type_select": {
+      "label": "選択した線種を削除",
+      "tooltip": "アクティブな線種フィルターに一致する選択した線を削除します",
+      "disabledReason": "準備完了"
+    },
+    "cp_action_select_lasso": {
+      "label": "投げ縄選択",
+      "tooltip": "フリーハンドの投げ縄パスに触れた折り線を選択します",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "投げ縄パスをドラッグ"
+      }
+    },
+    "cp_action_unselect_lasso": {
+      "label": "投げ縄選択解除",
+      "tooltip": "フリーハンドの投げ縄パスに触れた折り線を選択解除します",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "投げ縄パスをドラッグ"
+      }
+    },
+    "cp_action_text": {
+      "label": "テキスト注釈",
+      "tooltip": "テキスト注釈の作成・選択・ドラッグ・編集を行います",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "テキストの位置をクリック"
+      }
+    },
+    "cp_action_draw_blintz": {
+      "label": "座布団の基本形",
+      "tooltip": "座布団の基本形",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "1 つ目のアンカー点を選択",
+        "1": "2 つ目のアンカー点を選択"
+      }
+    },
+    "cp_action_draw_fish_base": {
+      "label": "魚の基本形",
+      "tooltip": "魚の基本形",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "1 つ目のアンカー点を選択",
+        "1": "2 つ目のアンカー点を選択"
+      }
+    },
+    "cp_action_draw_dove_base": {
+      "label": "鳩の基本形",
+      "tooltip": "鳩の基本形",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "1 つ目のアンカー点を選択",
+        "1": "2 つ目のアンカー点を選択"
+      }
+    },
+    "cp_action_draw_bird_base": {
+      "label": "鶴の基本形",
+      "tooltip": "鶴の基本形",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "1 つ目のアンカー点を選択",
+        "1": "2 つ目のアンカー点を選択"
+      }
+    },
+    "cp_action_draw_frog_base": {
+      "label": "蛙の基本形",
+      "tooltip": "蛙の基本形",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "1 つ目のアンカー点を選択",
+        "1": "2 つ目のアンカー点を選択"
+      }
+    },
+    "cp_action_modify_calculated_shape": {
+      "label": "計算された形状を修正",
+      "tooltip": "計算された形状を修正",
+      "disabledReason": "CP エディターではまだ実装されていません"
+    },
+    "cp_action_move_calculated_shape": {
+      "label": "計算された形状を移動",
+      "tooltip": "計算された形状を移動",
+      "disabledReason": "CP エディターではまだ実装されていません"
+    },
+    "cp_action_change_standard_face": {
+      "label": "基準面を変更",
+      "tooltip": "基準面を変更",
+      "disabledReason": "CP エディターではまだ実装されていません"
+    },
+    "cp_action_add_folding_constraint": {
+      "label": "折りの制約を追加",
+      "tooltip": "折りの制約を追加",
+      "disabledReason": "CP エディターではまだ実装されていません"
+    },
+    "cp_action_axiom5": {
+      "label": "公理 5",
+      "tooltip": "公理 5",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "対象の点を選択",
+        "1": "対象の折り線を選択",
+        "2": "支点を選択",
+        "3": "延長先の折り線を選択"
+      }
+    },
+    "cp_action_axiom7": {
+      "label": "公理 7",
+      "tooltip": "公理 7",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "対象の点を選択",
+        "1": "対象の折り線を選択",
+        "2": "垂直の折り線を選択",
+        "3": "延長先の折り線を選択"
+      }
+    },
+    "cp_action_fix_inaccurate": {
+      "label": "不正確な折り線を修正",
+      "tooltip": "不正確な選択済みの折り線を Oriedita の修正ターゲットにスナップします",
+      "disabledReason": "準備完了"
+    },
+    "cp_action_import_cp": {
+      "label": "CP をインポート",
+      "tooltip": "CP をインポート",
+      "disabledReason": "CP エディターではまだ実装されていません"
+    },
+    "cp_action_export_cp": {
+      "label": "CP をエクスポート",
+      "tooltip": "CP をエクスポート",
+      "disabledReason": "CP エディターではまだ実装されていません"
+    },
+    "cp_action_import_fold": {
+      "label": "FOLD をインポート",
+      "tooltip": "FOLD をインポート",
+      "disabledReason": "CP エディターではまだ実装されていません"
+    },
+    "cp_action_export_fold": {
+      "label": "FOLD をエクスポート",
+      "tooltip": "FOLD をエクスポート",
+      "disabledReason": "CP エディターではまだ実装されていません"
+    },
+    "cp_action_import_ori": {
+      "label": "ORI をインポート",
+      "tooltip": "ORI をインポート",
+      "disabledReason": "CP エディターではまだ実装されていません"
+    },
+    "cp_action_export_ori": {
+      "label": "ORI をエクスポート",
+      "tooltip": "ORI をエクスポート",
+      "disabledReason": "CP エディターではまだ実装されていません"
+    },
+    "cp_action_import_orh": {
+      "label": "ORH をインポート",
+      "tooltip": "ORH をインポート",
+      "disabledReason": "CP エディターではまだ実装されていません"
+    },
+    "cp_action_export_orh": {
+      "label": "ORH をエクスポート",
+      "tooltip": "ORH をエクスポート",
+      "disabledReason": "CP エディターではまだ実装されていません"
+    },
+    "cp_action_import_obj": {
+      "label": "OBJ をインポート",
+      "tooltip": "OBJ をインポート",
+      "disabledReason": "CP エディターではまだ実装されていません"
+    },
+    "cp_action_export_dxf": {
+      "label": "DXF をエクスポート",
+      "tooltip": "DXF をエクスポート",
+      "disabledReason": "CP エディターではまだ実装されていません"
+    },
+    "cp_action_save_convert": {
+      "label": "保存を変換",
+      "tooltip": "保存を変換",
+      "disabledReason": "CP エディターではまだ実装されていません"
+    },
+    "cp_action_save_version_detect": {
+      "label": "保存バージョンを検出",
+      "tooltip": "保存バージョンを検出",
+      "disabledReason": "CP エディターではまだ実装されていません"
+    },
+    "cp_action_check_camv": {
+      "label": "CAMV をチェック",
+      "tooltip": "CP を変更せずに Oriedita の CAMV 平坦折り可能性診断を実行します",
+      "disabledReason": "準備完了"
+    },
+    "cp_action_folding_estimate": {
+      "label": "折り推定",
+      "tooltip": "折り推定",
+      "disabledReason": "カーネルの移植が進行中で、UI の接続はまだ実装されていません"
+    },
+    "cp_action_folding_estimate_specific": {
+      "label": "特定のケースに折る",
+      "tooltip": "特定のケースに折る",
+      "disabledReason": "カーネルの移植が進行中で、UI の接続はまだ実装されていません"
+    },
+    "cp_action_folding_estimate_save100": {
+      "label": "100 個のシミュレーションを保存",
+      "tooltip": "100 個のシミュレーションを保存",
+      "disabledReason": "カーネルの移植が進行中で、UI の接続はまだ実装されていません"
+    },
+    "cp_action_two_colored_cp": {
+      "label": "2 色 CP",
+      "tooltip": "2 色 CP",
+      "disabledReason": "カーネルの移植が進行中で、UI の接続はまだ実装されていません"
+    },
+    "cp_action_fold": {
+      "label": "折る",
+      "tooltip": "折る",
+      "disabledReason": "CP エディターではまだ実装されていません"
+    },
+    "cp_action_fold_another": {
+      "label": "別の解",
+      "tooltip": "別の解",
+      "disabledReason": "カーネルの移植が進行中で、UI の接続はまだ実装されていません"
+    },
+    "cp_action_duplicate_folded_model": {
+      "label": "折り上がりモデルを複製",
+      "tooltip": "折り上がりモデルを複製",
+      "disabledReason": "カーネルの移植が進行中で、UI の接続はまだ実装されていません"
+    },
+    "cp_action_folded_figure_set_model": {
+      "label": "折り上がり図のモデル",
+      "tooltip": "折り上がり図のモデル",
+      "disabledReason": "CP エディターではまだ実装されていません"
+    },
+    "cp_action_folded_figure_set_display_style": {
+      "label": "折り上がりの表示スタイル",
+      "tooltip": "折り上がりの表示スタイル",
+      "disabledReason": "CP エディターではまだ実装されていません"
+    },
+    "cp_action_folded_figure_set_state": {
+      "label": "折り上がりの表裏状態",
+      "tooltip": "折り上がりの表裏状態",
+      "disabledReason": "CP エディターではまだ実装されていません"
+    },
+    "cp_action_folded_figure_set_starting_face": {
+      "label": "折り上がりの開始面",
+      "tooltip": "折り上がりの開始面",
+      "disabledReason": "CP エディターではまだ実装されていません"
+    },
+    "cp_action_folded_figure_move_camera": {
+      "label": "折り上がり図のカメラを移動",
+      "tooltip": "グリッドビューポートのカメラレイヤーで処理されます",
+      "disabledReason": "CP コマンドではなくビューポートランタイムで処理されます"
+    },
+    "cp_action_folded_figure_select_canvas_point": {
+      "label": "折り上がりの点選択",
+      "tooltip": "折り上がりの点選択",
+      "disabledReason": "CP エディターではまだ実装されていません"
+    },
+    "cp_action_folded_figure_render_snapshot": {
+      "label": "折り上がりのレンダースナップショット",
+      "tooltip": "折り上がりのレンダースナップショット",
+      "disabledReason": "CP エディターではまだ実装されていません"
+    },
+    "cp_action_folded_figure_import_fold_frame": {
+      "label": "折り上がり FOLD フレームをインポート",
+      "tooltip": "折り上がり FOLD フレームをインポート",
+      "disabledReason": "CP エディターではまだ実装されていません"
+    },
+    "cp_action_folded_figure_export_fold_frames": {
+      "label": "折り上がり FOLD フレームをエクスポート",
+      "tooltip": "折り上がり FOLD フレームをエクスポート",
+      "disabledReason": "CP エディターではまだ実装されていません"
+    },
+    "cp_action_check1": {
+      "label": "重なりをチェック",
+      "tooltip": "重なりまたは包含された非補助折り線のペアを見つけます",
+      "disabledReason": "準備完了"
+    },
+    "cp_action_check2": {
+      "label": "T字接合をチェック",
+      "tooltip": "非補助折り線のペア間の近接 T 字交差を見つけます",
+      "disabledReason": "準備完了"
+    },
+    "cp_action_check3": {
+      "label": "頂点の折り可能性をチェック",
+      "tooltip": "Oriedita の頂点平坦折り可能性マーカーを見つけます",
+      "disabledReason": "準備完了"
+    },
+    "cp_action_check4": {
+      "label": "Maekawa/LBL をチェック",
+      "tooltip": "Maekawa、角度、およびリトル・ビッグ・リトル違反を見つけます",
+      "disabledReason": "準備完了"
+    },
+    "cp_action_fix1": {
+      "label": "重なりを修復",
+      "tooltip": "完全な重複を統合し、残りの重なった折り線を選択します",
+      "disabledReason": "準備完了"
+    },
+    "cp_action_fix2": {
+      "label": "T字接合を分割",
+      "tooltip": "Oriedita の許容値を使って近接 T 字交差を分割します",
+      "disabledReason": "準備完了"
+    },
+    "cp_action_organize_circles": {
+      "label": "円を整理",
+      "tooltip": "Oriedita のクリーンアップ規則を使って無効な半径ゼロの円を除去します",
+      "disabledReason": "準備完了"
+    },
+    "cp_action_draw_auxiliary_line": {
+      "label": "補助線を描画",
+      "tooltip": "Oriedita の補助線を描画します",
+      "disabledReason": "補助線の挿入モードは CP カーネルにまだ実装されていません",
+      "steps": {
+        "0": "折り線の端点をドラッグ"
+      }
+    }
+  },
+  "instructions": {
+    "useTool": "{{label}}を使用します。",
+    "angleBisectorAction": {
+      "intro": {
+        "0": "線または点の間に角の二等分線を描きます。"
+      },
+      "steps": {
+        "0": "2 本のセグメントまたは 3 点を選択します。",
+        "1": "3 点法：3 点を選択し、終了するセグメントを選択します。",
+        "2": "2 線法：2 本の線を選択し、終了するセグメントを選択します。",
+        "3": "平行線法：終了するセグメントまたはインジケーターを選択します。"
+      }
+    },
+    "As100Action": {
+      "intro": {
+        "0": "折り上がり形状の 100 個の解を計算し、画像ファイルとして保存します。"
+      }
+    },
+    "axiom5Action": {
+      "intro": {
+        "0": "点 B を通りながら点 A を線上に配置する線を描きます。"
+      },
+      "steps": {
+        "0": "点 A を選択します。",
+        "1": "線を選択します。",
+        "2": "点 B を選択します。",
+        "3": "延長先のターゲット線を選択するか、インジケーターを選択して延長します。"
+      },
+      "notes": {
+        "0": "点 A と点 B の間の距離は、点 B と線の間の投影距離以上でなければなりません。"
+      }
+    },
+    "axiom7Action": {
+      "intro": {
+        "0": "線 B に垂直でありながら、点を線 A 上に配置する線を描きます。"
+      },
+      "steps": {
+        "0": "点を選択します。",
+        "1": "線 A と線 B を選択します。",
+        "2": "延長先のターゲット線を選択するか、インジケーターを選択して延長します。"
+      },
+      "notes": {
+        "0": "点は線 A の範囲上にあってはならず、線 B は線 A と平行であってはなりません。"
+      }
+    },
+    "a1Action": {
+      "intro": {
+        "0": "点 ABC を選択して角度を測定します。"
+      }
+    },
+    "a2Action": {
+      "intro": {
+        "0": "点 ABC を選択して角度を測定します。"
+      }
+    },
+    "a3Action": {
+      "intro": {
+        "0": "点 ABC を選択して角度を測定します。"
+      }
+    },
+    "addColorConstraintAction": {
+      "intro": {
+        "0": "折り上がり形状に色の制約を追加します。"
+      },
+      "steps": {
+        "0": "折り上がり形状の面上の点を選択して、その面が持つべき色を設定します。"
+      },
+      "notes": {
+        "0": "白い円はその面が白い側を表すことを、黒い円は色のある側を表すことを意味します。",
+        "1": "もう一度折って、制約を使って新しい解を見つけます。"
+      }
+    },
+    "anotherSolutionAction": {
+      "intro": {
+        "0": "折り上がり形状の次に利用可能な解を計算します。"
+      }
+    },
+    "circleDrawAction": {
+      "intro": {
+        "0": "グリッドと頂点にスナップして円を描きます。"
+      }
+    },
+    "circleDrawConcentricAction": {
+      "intro": {
+        "0": "同心円を描きます。"
+      },
+      "steps": {
+        "0": "円 A を選択して位置を設定します。",
+        "1": "線を描いて半径を設定します。"
+      },
+      "notes": {
+        "0": "同心円と円 A の半径の差は、線の長さに等しくなります。"
+      }
+    },
+    "circleDrawConcentricSelectAction": {
+      "intro": {
+        "0": "円 ABC を選択して同心円を描きます。"
+      },
+      "steps": {
+        "0": "円 A を選択して位置を設定します。",
+        "1": "円 B と円 C を選択して半径を設定します。"
+      },
+      "notes": {
+        "0": "円は円 A と同心に描かれます。",
+        "1": "同心円と円 A の半径の差は、円 B と円 C の半径の差に等しくなります。"
+      }
+    },
+    "circleDrawFreeAction": {
+      "intro": {
+        "0": "円を自由に描きます。"
+      }
+    },
+    "circleDrawInvertedAction": {
+      "intro": {
+        "0": "円または線を選択して反転円を描きます。"
+      },
+      "steps": {
+        "0": "円または線を選択します。",
+        "1": "反転の基準となる円を選択します。"
+      }
+    },
+    "circleDrawSeparateAction": {
+      "intro": {
+        "0": "点を選択して線を描き、円を描きます。"
+      },
+      "notes": {
+        "0": "円は選択した点上に描かれ、半径は描いた線の長さに等しくなります。"
+      }
+    },
+    "circleDrawTangentLineAction": {
+      "intro": {
+        "0": "接線を描きます。"
+      },
+      "steps": {
+        "0": "2 つの円を選択するか、点と円を選択します。",
+        "1": "描く接線を選択します。"
+      }
+    },
+    "circleDrawThreePointAction": {
+      "intro": {
+        "0": "選択した 3 点を通る円を描きます。"
+      }
+    },
+    "circleDrawTwoConcentricAction": {
+      "intro": {
+        "0": "2 つの円を選択して、つながる同心円を描きます。"
+      },
+      "notes": {
+        "0": "同心円と選択した円の半径の差は等しくなります。"
+      }
+    },
+    "continuousSymmetricDrawAction": {
+      "intro": {
+        "0": "折り線を通して反射する線を描きます。"
+      },
+      "steps": {
+        "0": "2 点を選択して、折り線を通して反射・交互に進む線を描きます。"
+      },
+      "notes": {
+        "0": "反射は、境界線または 3 本以上の線を持つ頂点に達するまで続きます。"
+      }
+    },
+    "copy2p2pAction": {
+      "intro": {
+        "0": "始点と目標点を選択して、選択した線をコピー・変形します。"
+      },
+      "steps": {
+        "0": "点 AB を選択して始点を設定します。",
+        "1": "点 CD を選択して目標を設定します。"
+      },
+      "notes": {
+        "0": "選択した線は、点 AB と点 CD の関係に基づいて、新しい位置・スケール・角度にコピー・変形されます。",
+        "1": "点 A は点 C に、点 B は点 D に変形されます。"
+      }
+    },
+    "copyAction": {
+      "intro": {
+        "0": "線を描いて、選択した線をコピーします。"
+      }
+    },
+    "deg1Action": {
+      "intro": {
+        "0": "角度オフセット付きの収束線を描きます。"
+      },
+      "steps": {
+        "0": "線を選択するか 2 点を選択してオフセットを設定します。",
+        "1": "収束線の交点を選択します。"
+      }
+    },
+    "deg2Action": {
+      "intro": {
+        "0": "選択した角度制限で角度制限線を描きます。"
+      }
+    },
+    "deg3Action": {
+      "intro": {
+        "0": "オフセット付きの角度制限線を描きます。"
+      },
+      "steps": {
+        "0": "2 点を選択して角度オフセットを設定します。",
+        "1": "延長先のターゲット線を選択します。"
+      }
+    },
+    "deg4Action": {
+      "intro": {
+        "0": "オフセット付きの角度制限線を描きます。"
+      },
+      "steps": {
+        "0": "2 点を選択して角度オフセットを設定します。",
+        "1": "延長先のターゲット線を選択します。"
+      }
+    },
+    "del_lAction": {
+      "intro": {
+        "0": "線を描いて、一致するすべての線を削除します。"
+      }
+    },
+    "del_l_XAction": {
+      "intro": {
+        "0": "線を描いて、交差するすべての線を削除します。"
+      }
+    },
+    "doubleSymmetricDrawAction": {
+      "intro": {
+        "0": "描いた線を軸に、接触する線を反転します。"
+      },
+      "steps": {
+        "0": "線の端点の上に線を描いて、それらを反転します。"
+      }
+    },
+    "drawBlintzAction": {
+      "intro": {
+        "0": "対角の 2 点を選択して座布団の基本形を描きます。"
+      }
+    },
+    "drawBirdBaseAction": {
+      "intro": {
+        "0": "対角の 2 点を選択して鶴の基本形を描きます。"
+      }
+    },
+    "drawCreaseFreeAction": {
+      "intro": {
+        "0": "直線を自由に描きます。"
+      }
+    },
+    "drawCreaseRestrictedAction": {
+      "intro": {
+        "0": "グリッドと頂点にスナップして線を描きます。"
+      }
+    },
+    "drawDoveBaseAction": {
+      "intro": {
+        "0": "対角の 2 点を選択して鳩の基本形を描きます。"
+      }
+    },
+    "drawFishBaseAction": {
+      "intro": {
+        "0": "対角の 2 点を選択して魚の基本形を描きます。"
+      }
+    },
+    "drawFrogBaseAction": {
+      "intro": {
+        "0": "対角の 2 点を選択して蛙の基本形を描きます。"
+      }
+    },
+    "drawLineSegmentInternalDivisionRatioAction": {
+      "intro": {
+        "0": "設定した比率で分割された線を描きます。"
+      }
+    },
+    "drawTwoColoredCpAction": {
+      "intro": {
+        "0": "選択した折り線で 2 色の展開図を作成します。"
+      }
+    },
+    "duplicateFoldedModelAction": {
+      "intro": {
+        "0": "折り上がり形状を複製します。"
+      }
+    },
+    "fishBoneDrawAction": {
+      "intro": {
+        "0": "線を描いて、山折りと谷折りが交互になる垂直な平行線を描きます。"
+      },
+      "notes": {
+        "0": "平行線の間隔はグリッドの幅に等しくなります。"
+      }
+    },
+    "foldableLineDrawAction": {
+      "intro": {
+        "0": "平坦折り可能線を描きます。"
+      },
+      "steps": {
+        "0": "接続する線が奇数本の頂点を選択します。",
+        "1": "平坦折り可能線を選択します。",
+        "2": "延長先のターゲット線を選択します。"
+      },
+      "notes": {
+        "0": "任意の場所に描いて自由に描画します。"
+      }
+    },
+    "foldableLinePlusGridInputAction": {
+      "intro": {
+        "0": "平坦折り可能線を描きます。"
+      },
+      "steps": {
+        "0": "接続する線が奇数本の頂点を選択します。",
+        "1": "平坦折り可能線を選択します。",
+        "2": "延長先のターゲット線を選択します。"
+      },
+      "notes": {
+        "0": "線を選択して延長します。"
+      }
+    },
+    "foldAction": {
+      "intro": {
+        "0": "展開図から折り上がり形状を計算します。"
+      }
+    },
+    "foldedFigureMoveAction": {
+      "intro": {
+        "0": "折り上がり形状を移動します。"
+      }
+    },
+    "goToFoldedFigureAction": {
+      "intro": {
+        "0": "折り上がり形状の特定の解に移動します。"
+      }
+    },
+    "h_senbun_nyuryokuAction": {
+      "intro": {
+        "0": "マーカー線を描きます。"
+      },
+      "notes": {
+        "0": "マーカー線は折り線に干渉しません。"
+      }
+    },
+    "in_L_col_changeAction": {
+      "intro": {
+        "0": "線を描いて、線分の色を山折りと谷折りで交互にします。"
+      }
+    },
+    "koteimen_siteiAction": {
+      "intro": {
+        "0": "面を選択して開始面を設定します。"
+      },
+      "notes": {
+        "0": "折り上がり形状は開始面を基準に計算されます。"
+      }
+    },
+    "l1Action": {
+      "intro": {
+        "0": "2 点を選択して長さを測定します。"
+      },
+      "notes": {
+        "0": "長さはグリッド単位で測定されます。",
+        "1": "長さは、グリッドサイズを 1 とした展開図のサイズに対する相対値です。"
+      }
+    },
+    "l2Action": {
+      "intro": {
+        "0": "2 点を選択して長さを測定します。"
+      },
+      "notes": {
+        "0": "長さはグリッド単位で測定されます。",
+        "1": "長さは、グリッドサイズを 1 とした展開図のサイズに対する相対値です。"
+      }
+    },
+    "makeFlatFoldableAction": {
+      "intro": {
+        "0": "平坦折り可能線を描きます。"
+      },
+      "steps": {
+        "0": "接続する線が奇数本の頂点を選択します。",
+        "1": "平坦折り可能線を選択します。",
+        "2": "延長先のターゲット線を選択します。"
+      }
+    },
+    "lengthenCreaseAction": {
+      "intro": {
+        "0": "選択した色で線を延長します。"
+      },
+      "steps": {
+        "0": "線を選択するか描いて、線を選択します。",
+        "1": "延長先のターゲット線を選択するか、前の線を選択して延長します。"
+      }
+    },
+    "lengthenCrease2Action": {
+      "intro": {
+        "0": "同じ色で線を延長します。"
+      },
+      "steps": {
+        "0": "線を選択するか描いて、線を選択します。",
+        "1": "延長先のターゲット線を選択するか、前の線を選択して延長します。"
+      }
+    },
+    "move2p2pAction": {
+      "intro": {
+        "0": "始点と目標点を選択して、選択した線を変形します。"
+      },
+      "steps": {
+        "0": "点 AB を選択して始点を設定します。",
+        "1": "点 CD を選択して目標を設定します。"
+      },
+      "notes": {
+        "0": "選択した線は、点 AB と点 CD の関係に基づいて、新しい位置・スケール・角度に変形されます。",
+        "1": "点 A は点 C に、点 B は点 D に変形されます。"
+      }
+    },
+    "moveAction": {
+      "intro": {
+        "0": "線を描いて、選択した線を移動します。"
+      }
+    },
+    "o_F_checkAction": {
+      "intro": {
+        "0": "多角形内の平坦折り可能性をチェックします。"
+      },
+      "steps": {
+        "0": "クリックまたはクリック＆ドラッグしてセグメントを追加します。",
+        "1": "始点を選択して多角形を閉じます。"
+      },
+      "notes": {
+        "0": "内部のパターンが平坦折り可能な場合、多角形はシアンになり、そうでない場合はマゼンタのままになります。",
+        "1": "ツールが意図どおりに動作しない場合は、頂点とセグメントを展開図の頂点上に置かないでください。"
+      }
+    },
+    "on_L_col_changeAction": {
+      "intro": {
+        "0": "線を描いて、交差する線の色を山折りと谷折りで交互にします。"
+      }
+    },
+    "operationFrameSelectAction": {
+      "intro": {
+        "0": "矩形を描いて操作フレームを作成します。"
+      },
+      "notes": {
+        "0": "操作フレームはエクスポートされる画像を切り抜きます。"
+      }
+    },
+    "oriagari_sousa_2Action": {
+      "intro": {
+        "0": "頂点をドラッグして折り上がり形状を修正します。"
+      }
+    },
+    "parallelDrawAction": {
+      "intro": {
+        "0": "点から平行線を描きます。"
+      },
+      "steps": {
+        "0": "点を選択します。",
+        "1": "平行にする基準の線を選択します。",
+        "2": "延長先のターゲット線を選択します。"
+      }
+    },
+    "perpendicularDrawAction": {
+      "intro": {
+        "0": "垂線を描きます。"
+      },
+      "steps": {
+        "0": "始点 A を選択します。",
+        "1": "対象の線 B を選択します。"
+      },
+      "notes": {
+        "0": "点 A から線 B に対して垂直な線が、線 B まで描かれます。",
+        "1": "点 A が線 B 上にある場合は、延長先のターゲット線を選択するか、インジケーターを選択して延長します。"
+      }
+    },
+    "rabbitEarAction": {
+      "intro": {
+        "0": "内側の中心に向かって線を描きます。"
+      },
+      "steps": {
+        "0": "点 A を選択します。",
+        "1": "点 B を選択します。",
+        "2": "点 C を選択します。",
+        "3": "内側の中心に向かう 3 本の線が描かれます。"
+      }
+    },
+    "regularPolygonAction": {
+      "intro": {
+        "0": "点 AB を選択して正多角形を描きます。"
+      },
+      "notes": {
+        "0": "点 AB は多角形の 1 辺を形成し、多角形は時計回りに描かれます。"
+      }
+    },
+    "reflectAction": {
+      "intro": {
+        "0": "2 点で描いた線を軸に、選択した線を反転します。"
+      }
+    },
+    "selectAction": {
+      "intro": {
+        "0": "矩形を描いて線を選択します。"
+      }
+    },
+    "select_lXAction": {
+      "intro": {
+        "0": "線を描いて、重なる線を選択します。"
+      }
+    },
+    "select_polygonAction": {
+      "intro": {
+        "0": "多角形を描いて線を選択します。"
+      },
+      "notes": {
+        "0": "多角形の完全に内側にある線が選択されます。"
+      }
+    },
+    "selectLassoAction": {
+      "intro": {
+        "0": "フリーハンドで描いて線を選択します。"
+      }
+    },
+    "senbun_b_nyuryokuAction": {
+      "intro": {
+        "0": "選択した分割で分割線を描きます。"
+      }
+    },
+    "symmetricDrawAction": {
+      "intro": {
+        "0": "点または線を選択して鏡映線を描きます。"
+      },
+      "steps": {
+        "0": "点 ABC を選択して、線 AB を線 BC を軸に鏡映します。",
+        "1": "または線 AB を選択して、線 A を線 B を軸に鏡映します。"
+      }
+    },
+    "setParallelDrawWidthAction": {
+      "intro": {
+        "0": "線を選択して平行線を描きます。"
+      },
+      "steps": {
+        "0": "線を選択します。",
+        "1": "クリック＆ドラッグしてオフセット幅を設定します。",
+        "2": "描く平行線を選択します。"
+      }
+    },
+    "textAction": {
+      "intro": {
+        "0": "テキスト注釈を追加・編集します。"
+      },
+      "steps": {
+        "0": "空いている場所をクリックして、そこにテキストを追加します。",
+        "1": "ラベルをクリックして編集し、ドラッグして移動します。"
+      },
+      "notes": {
+        "0": "ESC を押すか別の場所をクリックして編集を終了します。空のテキストは破棄されます。",
+        "1": "ラベルを右クリックするか、選択して Delete を押すと削除できます。"
+      }
+    },
+    "unselectAction": {
+      "intro": {
+        "0": "矩形を描いて線を選択解除します。"
+      }
+    },
+    "unselect_lXAction": {
+      "intro": {
+        "0": "線を描いて、重なる線を選択解除します。"
+      }
+    },
+    "unselect_polygonAction": {
+      "intro": {
+        "0": "多角形を描いて線を選択解除します。"
+      },
+      "notes": {
+        "0": "多角形の完全に内側にある線が選択解除されます。"
+      }
+    },
+    "unselectLassoAction": {
+      "intro": {
+        "0": "フリーハンドで描いて線を選択解除します。"
+      },
+      "notes": {
+        "0": "描いた領域の完全に内側にある線が選択解除されます。"
+      }
+    },
+    "v_del_ccAction": {
+      "intro": {
+        "0": "直線上の頂点を削除します。"
+      }
+    },
+    "vertexDeleteAction": {
+      "intro": {
+        "0": "均一な色の直線上の頂点を削除します。"
+      }
+    },
+    "vertexAddAction": {
+      "intro": {
+        "0": "頂点を追加します。"
+      }
+    },
+    "voronoiAction": {
+      "intro": {
+        "0": "点を選択して Voronoi パターンを描きます。"
+      },
+      "notes": {
+        "0": "点を再度選択すると取り消されます。",
+        "1": "「適用」を選択すると、一時的な線が折り線に変わります。"
+      }
+    }
+  }
+}

@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { LocateFixed, X } from 'lucide-react';
 import type { SelectablePartKind } from '../lib/selection';
 import type { TreeProject } from '../lib/sampleProject';
@@ -8,14 +10,31 @@ import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/Select';
 
-const PART_KINDS: Array<{ kind: SelectablePartKind; label: string }> = [
-  { kind: 'node', label: 'Node' },
-  { kind: 'edge', label: 'Edge' },
-  { kind: 'path', label: 'Path' },
-  { kind: 'crease', label: 'Crease' },
-  { kind: 'facet', label: 'Facet' },
-  { kind: 'condition', label: 'Condition' },
+const PART_KINDS: Array<{ kind: SelectablePartKind }> = [
+  { kind: 'node' },
+  { kind: 'edge' },
+  { kind: 'path' },
+  { kind: 'crease' },
+  { kind: 'facet' },
+  { kind: 'condition' },
 ];
+
+function partKindLabel(t: TFunction, kind: SelectablePartKind): string {
+  switch (kind) {
+    case 'node':
+      return t('dialogs:selectByIndex.partKind.node', 'Node');
+    case 'edge':
+      return t('dialogs:selectByIndex.partKind.edge', 'Edge');
+    case 'path':
+      return t('dialogs:selectByIndex.partKind.path', 'Path');
+    case 'crease':
+      return t('dialogs:selectByIndex.partKind.crease', 'Crease');
+    case 'facet':
+      return t('dialogs:selectByIndex.partKind.facet', 'Facet');
+    case 'condition':
+      return t('dialogs:selectByIndex.partKind.condition', 'Condition');
+  }
+}
 
 function idsForKind(project: TreeProject, kind: SelectablePartKind): number[] {
   switch (kind) {
@@ -35,6 +54,7 @@ function idsForKind(project: TreeProject, kind: SelectablePartKind): number[] {
 }
 
 export function SelectByIndexModal() {
+  const { t } = useTranslation();
   const isOpen = useSelectionUiStore((state) => state.isSelectByIndexOpen);
   const close = useSelectionUiStore((state) => state.closeSelectByIndex);
   const project = useWorkspaceStore((state) => state.project);
@@ -76,7 +96,7 @@ export function SelectByIndexModal() {
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Select by index"
+      aria-label={t('dialogs:selectByIndex.title', 'Select by index')}
       className="simple-modal"
       onMouseDown={close}
     >
@@ -84,9 +104,9 @@ export function SelectByIndexModal() {
         <header className="simple-modal__header">
           <span>
             <LocateFixed size={15} aria-hidden="true" />
-            Select by index
+            {t('dialogs:selectByIndex.title', 'Select by index')}
           </span>
-          <IconButton size="sm" aria-label="Close select by index" onClick={close}>
+          <IconButton size="sm" aria-label={t('dialogs:selectByIndex.close', 'Close select by index')} onClick={close}>
             <X size={15} />
           </IconButton>
         </header>
@@ -98,7 +118,7 @@ export function SelectByIndexModal() {
           }}
         >
           <label className="field-row">
-            <span>Part</span>
+            <span>{t('dialogs:selectByIndex.part', 'Part')}</span>
             <Select
               value={kind}
               onValueChange={(value) => {
@@ -108,20 +128,20 @@ export function SelectByIndexModal() {
                 setDraft(String(nextIds[0] ?? ''));
               }}
             >
-              <SelectTrigger aria-label="Part type">
+              <SelectTrigger aria-label={t('dialogs:selectByIndex.partType', 'Part type')}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {PART_KINDS.map((part) => (
                   <SelectItem key={part.kind} value={part.kind}>
-                    {part.label}
+                    {partKindLabel(t, part.kind)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </label>
           <label className="field-row">
-            <span>Index</span>
+            <span>{t('dialogs:selectByIndex.index', 'Index')}</span>
             <input
               type="number"
               min={ids[0] ?? 1}
@@ -133,14 +153,16 @@ export function SelectByIndexModal() {
             />
           </label>
           <div className="simple-modal__meta">
-            {ids.length > 0 ? `Available: ${ids.join(', ')}` : 'No parts of this type'}
+            {ids.length > 0
+              ? t('dialogs:selectByIndex.available', 'Available: {{ids}}', { ids: ids.join(', ') })
+              : t('dialogs:selectByIndex.noParts', 'No parts of this type')}
           </div>
           <footer className="simple-modal__footer">
             <Button size="sm" variant="ghost" onClick={close}>
-              Cancel
+              {t('common:cancel', 'Cancel')}
             </Button>
             <Button size="sm" variant="primary" type="submit" disabled={!canSelect}>
-              Select
+              {t('dialogs:selectByIndex.select', 'Select')}
             </Button>
           </footer>
         </form>

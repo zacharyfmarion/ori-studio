@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Contextual name field for a selected BP flap or tree vertex. A flap's name
@@ -24,6 +25,7 @@ export function BpNameEditor({
   ariaLabel: string;
   onRename: (name: string) => void;
 }) {
+  const { t } = useTranslation();
   const [draft, setDraft] = useState(() => name);
   useEffect(() => {
     setDraft(name);
@@ -36,7 +38,7 @@ export function BpNameEditor({
   return (
     <div className="bp-name-editor" role="group" aria-label={ariaLabel}>
       <span className="bp-name-editor__title">{title}</span>
-      <span className="bp-name-editor__label">Name</span>
+      <span className="bp-name-editor__label">{t('panels:bpNameEditor.label', 'Name')}</span>
       <input
         className="bp-name-editor__input"
         type="text"

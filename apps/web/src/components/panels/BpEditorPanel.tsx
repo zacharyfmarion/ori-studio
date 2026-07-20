@@ -1,9 +1,11 @@
 import { BoxSelect, CircleDashed } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { Button } from '../ui/Button';
 import { BpPackingPanel } from './BpPackingPanel';
 
 export function BpEditorPanel() {
+  const { t } = useTranslation();
   const workflowTarget = useWorkspaceStore((state) => state.workflowTarget);
   const document = useWorkspaceStore((state) => state.oristudioBpDocument);
   const createOristudioBpProject = useWorkspaceStore((state) => state.createOristudioBpProject);
@@ -15,21 +17,21 @@ export function BpEditorPanel() {
     return (
       <section className="panel-shell bp-editor-panel">
         <div className="panel-toolbar">
-          <span className="panel-title">BP Editor</span>
+          <span className="panel-title">{t('panels:bpEditor.title', 'BP Editor')}</span>
         </div>
         <div className="panel-body document-mode-empty">
           <div className="document-mode-empty__icon" aria-hidden="true">
             <BoxSelect size={24} />
           </div>
           <span className="document-mode-empty__message">
-            Open a Box Pleat project to edit flaps and rivers.
+            {t('panels:bpEditor.emptyProject', 'Open a Box Pleat project to edit flaps and rivers.')}
           </span>
           <Button
             size="sm"
             variant="secondary"
             onClick={() => void createOristudioBpProject()}
           >
-            New Box Pleat
+            {t('panels:bpEditor.newBoxPleat', 'New Box Pleat')}
           </Button>
         </div>
       </section>
@@ -44,14 +46,14 @@ export function BpEditorPanel() {
         onPointerDown={() => setOristudioBpActiveSurface('packing')}
       >
         <div className="panel-toolbar">
-          <span className="panel-title">BP Editor</span>
+          <span className="panel-title">{t('panels:bpEditor.title', 'BP Editor')}</span>
         </div>
         <div className="panel-body document-mode-empty">
           <div className="document-mode-empty__icon" aria-hidden="true">
             <CircleDashed size={24} />
           </div>
           <span className="document-mode-empty__message">
-            Run Optimize Layout or materialize a packing before manual BP editing.
+            {t('panels:bpEditor.emptyPacking', 'Run Optimize Layout or materialize a packing before manual BP editing.')}
           </span>
         </div>
       </section>

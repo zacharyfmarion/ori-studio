@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, type ChangeEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ArrowDownToLine, ArrowUpToLine, Trash2 } from 'lucide-react';
 import { IconButton } from '../components/ui/IconButton';
 import type { CpImage, CpImageUpdate } from './images/cpImage';
@@ -33,6 +34,7 @@ export function CpImageInspector({
   onSendToBack: () => void;
   onDelete: () => void;
 }) {
+  const { t } = useTranslation();
   const opacityRef = useRef<HTMLInputElement | null>(null);
   const opacitySessionRef = useRef(false);
 
@@ -43,11 +45,11 @@ export function CpImageInspector({
     const onCommit = () => {
       if (!opacitySessionRef.current) return;
       opacitySessionRef.current = false;
-      onGestureCommit('Adjust opacity');
+      onGestureCommit(t('panels:imageInspector.adjustOpacity', 'Adjust opacity'));
     };
     el.addEventListener('change', onCommit);
     return () => el.removeEventListener('change', onCommit);
-  }, [onGestureCommit]);
+  }, [onGestureCommit, t]);
 
   const handleOpacityInput = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
@@ -62,9 +64,9 @@ export function CpImageInspector({
   );
 
   return (
-    <div className="cp-image-inspector" role="toolbar" aria-label="Image controls">
-      <label className="cp-image-inspector__opacity" title="Opacity">
-        <span aria-hidden="true">Opacity</span>
+    <div className="cp-image-inspector" role="toolbar" aria-label={t('panels:imageInspector.imageControls', 'Image controls')}>
+      <label className="cp-image-inspector__opacity" title={t('panels:imageInspector.opacity', 'Opacity')}>
+        <span aria-hidden="true">{t('panels:imageInspector.opacity', 'Opacity')}</span>
         <input
           ref={opacityRef}
           type="range"
@@ -75,13 +77,13 @@ export function CpImageInspector({
         />
         <span aria-hidden="true">{Math.round(image.opacity * 100)}%</span>
       </label>
-      <IconButton size="sm" variant="toolbar" title="Bring to front" onClick={onBringToFront}>
+      <IconButton size="sm" variant="toolbar" title={t('panels:imageInspector.bringToFront', 'Bring to front')} onClick={onBringToFront}>
         <ArrowUpToLine size={14} />
       </IconButton>
-      <IconButton size="sm" variant="toolbar" title="Send to back" onClick={onSendToBack}>
+      <IconButton size="sm" variant="toolbar" title={t('panels:imageInspector.sendToBack', 'Send to back')} onClick={onSendToBack}>
         <ArrowDownToLine size={14} />
       </IconButton>
-      <IconButton size="sm" variant="toolbar" title="Delete image" onClick={onDelete}>
+      <IconButton size="sm" variant="toolbar" title={t('panels:imageInspector.deleteImage', 'Delete image')} onClick={onDelete}>
         <Trash2 size={14} />
       </IconButton>
     </div>
