@@ -66,11 +66,11 @@ describe('web menu definition', () => {
     ]);
   });
 
-  it('exposes documentation and about from the Help menu', () => {
+  it('exposes about from the Help menu', () => {
     const helpMenu = getMenuBarDef().find((menu) => menu.label === 'Help');
     const actionIds = helpMenu ? actionIdsFor(helpMenu.items) : undefined;
 
-    expect(actionIds).toEqual(['help.documentation', 'help.about']);
+    expect(actionIds).toEqual(['help.about']);
   });
 
   it('exposes CP diagnostics, repair, and line commands', () => {

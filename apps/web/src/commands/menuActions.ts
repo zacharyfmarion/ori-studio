@@ -103,7 +103,6 @@ export const MENU_ACTION_IDS = [
   'cp.fixInaccurate',
   'cp.changeCircleColor',
   'cp.organizeCircles',
-  'help.documentation',
   'help.about',
 ] as const;
 
@@ -206,7 +205,6 @@ export interface MenuActionDependencies {
   capabilities?: () => WorkspaceCapabilities;
   showStartScreen?: () => Promise<boolean>;
   quit?: () => void;
-  help?: () => void;
   about?: () => void;
   settings?: () => void;
   selectByIndex?: () => void;
@@ -630,9 +628,6 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
       }
       case 'cp.organizeCircles':
         return deps.workspace.executeOristudioCpCommand('OrganizeCircles');
-      case 'help.documentation':
-        deps.help?.();
-        return true;
       case 'help.about':
         deps.about?.();
         return true;
@@ -651,9 +646,6 @@ export function handleMenuAction(id: string): Promise<boolean> {
     showStartScreen: requestStartScreen,
     settings: () => {
       useSettingsStore.getState().openSettings();
-    },
-    help: () => {
-      useHelpStore.getState().openGuide();
     },
     about: () => {
       useHelpStore.getState().openAbout();

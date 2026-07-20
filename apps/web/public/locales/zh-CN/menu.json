@@ -88,8 +88,7 @@
     "settings": "设置"
   },
   "help": {
-    "about": "关于 Ori Studio",
-    "documentation": "Ori Studio 帮助"
+    "about": "关于 Ori Studio"
   },
   "menubar": {
     "creasePattern": "折痕图",

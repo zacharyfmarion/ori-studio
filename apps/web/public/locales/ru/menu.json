@@ -88,8 +88,7 @@
     "settings": "Настройки"
   },
   "help": {
-    "about": "О программе Ori Studio",
-    "documentation": "Справка Ori Studio"
+    "about": "О программе Ori Studio"
   },
   "menubar": {
     "creasePattern": "Паттерн складок",

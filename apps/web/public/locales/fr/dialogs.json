@@ -67,7 +67,6 @@
   "help": {
     "about": {
       "acknowledgements": "Remerciements",
-      "help": "Aide",
       "intro": "Ori Studio a pour ambition d'être l'espace de travail ultime pour la conception et l'analyse d'origami. Il repose largement sur des portages d'outils d'origami existants créés par la communauté — l'espace de travail Édition, par exemple, est un portage d'Oriedita vers Rust, axé sur la convivialité et les performances. Si vous avez des suggestions, n'hésitez pas à <2>ouvrir un ticket sur GitHub</2>.",
       "subtitle": "Un espace de travail partagé et moderne pour concevoir, modifier et plier des patrons de plis d'origami.",
       "title": "À propos d'Ori Studio"
@@ -90,96 +89,7 @@
         "title": "Robert J. Lang et TreeMaker 5.0.1"
       }
     },
-    "closeLabel": "Fermer {{title}}",
-    "guide": {
-      "about": "À propos",
-      "footer": "Les commandes d'Ori Studio sont accessibles depuis la barre de menus web, le menu natif du bureau et la barre d'outils compacte.",
-      "subtitle": "Un aperçu pratique de la surface actuelle de l'application partagée pour navigateur et ordinateur de bureau.",
-      "title": "Aide d'Ori Studio",
-      "topicsNav": "Rubriques d'aide"
-    },
-    "topics": {
-      "conditions": {
-        "caption": "Les conditions sont construites à partir de la sélection actuelle ; sélectionnez donc des nœuds, des arêtes ou des chemins avant d'ajouter des contraintes.",
-        "imageAlt": "Panneau des conditions avec la taille du papier, le type de symétrie, les options de symétrie avancées et les actions d'ajout depuis la sélection",
-        "step1": "Définissez la largeur et la hauteur du papier avant d'ajuster les coordonnées exactes.",
-        "step2": "Choisissez une symétrie livre, diagonale ou personnalisée, puis utilisez les outils de miroir du panneau Conception pour créer des feuilles appariées.",
-        "step3": "Ajoutez des conditions de nœud fixe, nœud sur arête, nœud sur coin, nœuds appariés, longueur fixe, tension identique et chemin à partir des parties sélectionnées.",
-        "step4": "Utilisez la liste des conditions pour inspecter, sélectionner ou supprimer les contraintes à mesure que le modèle évolue.",
-        "summary": "Le panneau des conditions contrôle la taille du papier, les préréglages de symétrie et les contraintes de conception basées sur la sélection.",
-        "title": "Définir le papier, la symétrie et les conditions"
-      },
-      "creasePattern": {
-        "caption": "Basculez entre les modes de couleur par rôle de pli et par montagne-vallée selon ce que vous devez inspecter.",
-        "imageAlt": "Panneau du patron de plis affichant un patron de plis généré avec les contrôles de mode de couleur",
-        "step1": "Utilisez la coloration par rôle de pli pour distinguer les lignes axiales, de goussets, de crêtes, de charnières et de pseudo-charnières.",
-        "step2": "Les lignes de pli utilisent la coloration d'assignation M/V pour montrer les montagnes, les vallées, les plats et les bords.",
-        "step3": "Utilisez les outils du canevas de l'espace de travail Édition et l'affichage tête haute de l'état du CP pour la sélection et les diagnostics du patron de plis.",
-        "step4": "Exportez en SVG ou PNG une fois le patron de plis créé ; exportez en FOLD pour une géométrie prête pour le simulateur.",
-        "summary": "L'espace de travail Édition affiche les patrons de plis générés ou importés avec la coloration par rôle et par montagne-vallée.",
-        "title": "Modifier les patrons de plis"
-      },
-      "design": {
-        "caption": "Utilisez les contrôles compacts de la fenêtre d'affichage pour le zoom, l'ajustement, la création de symétrie et la visibilité des calques.",
-        "imageAlt": "Panneau Conception avec les nœuds de l'arbre, les arêtes, les étiquettes, les cercles de feuilles, les contrôles de zoom et les contrôles de calques",
-        "step1": "Sélectionnez des parties directement sur le papier ; utilisez les clics Maj, Cmd ou Ctrl pour construire une sélection multiple.",
-        "step2": "Cliquez sur du papier vide pour ajouter des nœuds, ou sélectionnez un nœud et cliquez sur du papier vide pour rattacher une nouvelle arête et un nouveau nœud.",
-        "step3": "Faites glisser les nœuds pour remodeler l'arbre. Le glisser avec la barre d'espace ou les contrôles de zoom aident à se déplacer dans les conceptions plus grandes.",
-        "step4": "Activez ou désactivez les chemins, les cercles de feuilles, les étiquettes et les superpositions de symétrie depuis le menu des calques lorsque la vue devient dense.",
-        "summary": "L'espace de travail Conception est la surface papier principale pour sélectionner, dessiner, connecter, faire glisser et visualiser la structure de l'arbre.",
-        "title": "Dessiner et modifier l'arbre"
-      },
-      "files": {
-        "caption": "Le menu Fichier regroupe les actions de projet, les exportations et les exemples en un seul endroit.",
-        "imageAlt": "Menu Fichier affichant les commandes Nouveau, Ouvrir, Exemples, Enregistrer et les commandes d'exportation",
-        "step1": "Nouveau renvoie à l'écran de démarrage ; Ouvrir accepte les fichiers .osf, .tmd, .tmd4, .tmd5, .fold, .cp, .ori et .orh.",
-        "step2": "Fichier → Exemples charge les conceptions de départ intégrées.",
-        "step3": "Enregistrer et Enregistrer sous écrivent des fichiers de projet Ori Studio ; utilisez Exporter pour les formats TreeMaker, CP, FOLD, SVG et PNG.",
-        "step4": "Les exportations deviennent disponibles lorsque le document actuel contient les données requises par chaque format.",
-        "summary": "Utilisez l'écran de démarrage ou le menu Fichier pour gérer les projets Ori Studio et les exportations de patrons de plis.",
-        "title": "Démarrer, ouvrir, enregistrer, exporter"
-      },
-      "folding": {
-        "caption": "Les contrôles d'actualisation régénèrent les artefacts de pliage à plat lorsqu'un patron de plis change.",
-        "imageAlt": "Panneau du simulateur affichant les contrôles de pliage et la géométrie pliée",
-        "step1": "Ouvrez Simuler une fois qu'un patron de plis est généré ou importé, puis faites glisser la fenêtre d'affichage pour faire pivoter le modèle plié en 3D.",
-        "step2": "Utilisez le curseur de pliage, la lecture, le pas à pas et les contrôles de vue pour inspecter le mouvement de pliage.",
-        "step3": "Basculez les paramètres de rendu entre les vues papier et rayons X, et activez ou désactivez les faces, les arêtes et les lignes cachées.",
-        "step4": "Générez une figure pliée Oriedita directement dans la grille du patron de plis pour inspecter la forme pliée à plat.",
-        "summary": "L'espace de travail Simuler utilise les artefacts de pliage à plat produits à partir de patrons de plis générés ou importés.",
-        "title": "Simuler le modèle plié"
-      },
-      "inspector": {
-        "caption": "La sélection pilote l'inspecteur ; modifiez les étiquettes, les coordonnées, les longueurs d'arête et la rigidité sans quitter l'espace de travail.",
-        "imageAlt": "Panneau de l'inspecteur affichant l'étiquette de nœud modifiable et les champs de coordonnées à côté de la conception sélectionnée",
-        "step1": "Sélectionnez un nœud pour modifier son étiquette et ses coordonnées sur le papier.",
-        "step2": "Sélectionnez une arête pour modifier son étiquette, sa longueur cible et sa rigidité, tandis que la tension reste en lecture seule.",
-        "step3": "Sélectionnez des chemins ou des conditions pour examiner leurs métadonnées de conception.",
-        "step4": "Lorsque deux nœuds sont sélectionnés, l'inspecteur peut sélectionner le chemin entre eux pour les conditions de chemin.",
-        "summary": "L'inspecteur de l'espace de travail Conception modifie les nœuds et arêtes sélectionnés et résume les chemins et conditions de l'arbre.",
-        "title": "Inspecter les détails de la sélection"
-      },
-      "optimize": {
-        "caption": "Ori Studio active chaque commande uniquement lorsque le document est prêt pour cette étape.",
-        "imageAlt": "Barre d'outils affichant les actions Optimiser l'échelle et Générer le patron de plis avec les diagnostics visibles",
-        "step1": "Optimiser l'échelle ajuste l'arbre au papier actuel tout en préservant la sémantique du modèle TreeMaker sélectionné.",
-        "step2": "Optimiser les arêtes et Optimiser la tension sont disponibles depuis le menu Conception pour des flux d'optimisation plus poussés.",
-        "step3": "Générer le patron de plis transforme un arbre optimisé en plis, facettes, directions de pliage et données de base pliée.",
-        "step4": "Les diagnostics rendent compte de l'état de préparation du moteur, de l'état de l'optimisation, de la faisabilité et des résultats de génération du patron de plis.",
-        "summary": "L'optimisation et la génération du patron de plis passent par le menu Conception partagé, les boutons de la barre d'outils et le menu natif du bureau.",
-        "title": "Optimiser et générer le patron de plis"
-      },
-      "workspace": {
-        "caption": "Réinitialisez la disposition des panneaux depuis Affichage ou Paramètres, et choisissez un thème dans les paramètres Apparence.",
-        "imageAlt": "Fenêtre des paramètres et menu de l'application affichant les contrôles de thème et de disposition",
-        "step1": "Utilisez la barre latérale gauche ou le menu Affichage pour activer Conception, Édition ou Simuler.",
-        "step2": "Faites glisser les en-têtes de panneaux à l'intérieur d'un espace de travail pour le réorganiser ; Réinitialiser la disposition restaure la disposition par défaut de l'espace de travail actuel.",
-        "step3": "Les paramètres contiennent les thèmes d'apparence, les raccourcis clavier et les contrôles de disposition de l'espace de travail.",
-        "step4": "Utilisez l'onglet Raccourcis des paramètres pour inspecter ou réaffecter les commandes de fichier, d'édition, de fenêtre d'affichage et des outils du patron de plis.",
-        "summary": "La surface de l'application est partagée entre le navigateur et le bureau, avec des menus web, des menus Tauri natifs, des dispositions d'espaces de travail et des paramètres.",
-        "title": "Menus, disposition, paramètres"
-      }
-    }
+    "closeLabel": "Fermer {{title}}"
   },
   "number": {
     "tooSmall": "Saisissez un nombre supérieur à {{minimum}}."

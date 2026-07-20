@@ -7,7 +7,6 @@ import type { DockviewReadyEvent, IDockviewPanelHeaderProps } from 'dockview';
 import 'dockview/dist/styles/dockview.css';
 import {
   Box,
-  CircleHelp,
   DraftingCompass,
   Download,
   FilePlus,
@@ -203,14 +202,6 @@ function Toolbar() {
             <Download size={15} />
           </IconButton>
         )}
-        <IconButton
-          size="sm"
-          title={t('common:toolbar.help', 'Help')}
-          tooltipSide="bottom"
-          onClick={() => void handleMenuAction('help.documentation')}
-        >
-          <CircleHelp size={15} />
-        </IconButton>
         <IconButton size="sm" title={t('common:toolbar.settings', 'Settings')} tooltipSide="bottom" onClick={() => openSettings()}>
           <Settings size={15} />
         </IconButton>

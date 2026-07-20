@@ -115,7 +115,6 @@ const MENU_SHORTCUTS: ShortcutDefinition[] = [
     shift: true,
     key: 'm',
   }),
-  menuShortcut('help.documentation', 'Ori Studio Help', 'Help', { key: 'f1' }),
 ];
 
 const VIEWPORT_SHORTCUTS: ShortcutDefinition[] = [

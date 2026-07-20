@@ -88,8 +88,7 @@
     "settings": "설정"
   },
   "help": {
-    "about": "Ori Studio 정보",
-    "documentation": "Ori Studio 도움말"
+    "about": "Ori Studio 정보"
   },
   "menubar": {
     "creasePattern": "전개도",

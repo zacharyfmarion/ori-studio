@@ -63,7 +63,6 @@
   "help": {
     "about": {
       "acknowledgements": "Acknowledgements",
-      "help": "Help",
       "intro": "Ori Studio aims to be the ultimate workspace for origami design and analysis. It leans heavily on ports of existing origami tools created by the community — the Edit workspace, for instance, is a port of Oriedita to Rust, focused on usability and performance. If you have any suggestions, feel free to <2>open an issue on GitHub</2>.",
       "subtitle": "A modern shared workspace for designing, editing, and folding origami crease patterns.",
       "title": "About Ori Studio"
@@ -86,96 +85,7 @@
         "title": "Robert J. Lang and TreeMaker 5.0.1"
       }
     },
-    "closeLabel": "Close {{title}}",
-    "guide": {
-      "about": "About",
-      "footer": "Ori Studio commands are available from the web menubar, native desktop menu, and compact toolbar.",
-      "subtitle": "A practical map of the current shared browser and desktop app surface.",
-      "title": "Ori Studio Help",
-      "topicsNav": "Help topics"
-    },
-    "topics": {
-      "conditions": {
-        "caption": "Conditions are built from the current selection, so select nodes, edges, or paths before adding constraints.",
-        "imageAlt": "Conditions pane with paper size, symmetry type, advanced symmetry options, and add-from-selection actions",
-        "step1": "Set paper width and height before tuning exact coordinates.",
-        "step2": "Choose book, diagonal, or custom symmetry, then use the Design pane mirror tools to author paired leaves.",
-        "step3": "Add fixed node, node-on-edge, node-on-corner, paired-node, fixed-length, same-strain, and path conditions from selected parts.",
-        "step4": "Use the condition list to inspect, select, or remove constraints as the model evolves.",
-        "summary": "The Conditions pane controls paper size, symmetry presets, and selection-based design constraints.",
-        "title": "Set Paper, Symmetry, And Conditions"
-      },
-      "creasePattern": {
-        "caption": "Switch between crease-role and mountain-valley color modes depending on what you need to inspect.",
-        "imageAlt": "Crease Pattern pane showing a generated crease pattern with color mode controls",
-        "step1": "Use Color by Crease roles to distinguish axial, gusset, ridge, hinge, and pseudohinge lines.",
-        "step2": "Crease lines use M/V assignment coloring to show mountains, valleys, flats, and borders.",
-        "step3": "Use the Edit workspace canvas tools and CP status HUD for crease-pattern selection and diagnostics.",
-        "step4": "Export SVG or PNG after the crease pattern exists; export FOLD for simulator-ready geometry.",
-        "summary": "The Edit workspace shows generated or imported crease patterns with role and mountain-valley coloring.",
-        "title": "Edit Crease Patterns"
-      },
-      "design": {
-        "caption": "Use the compact viewport controls for zoom, fit, symmetry authoring, and layer visibility.",
-        "imageAlt": "Design pane with tree nodes, edges, labels, leaf circles, zoom controls, and layer controls",
-        "step1": "Select parts directly on the paper; use Shift, Cmd, or Ctrl clicks to build a multi-selection.",
-        "step2": "Click empty paper to add nodes, or select a node and click empty paper to attach a new edge and node.",
-        "step3": "Drag nodes to reshape the tree. Space-drag or the zoom controls help move around larger designs.",
-        "step4": "Toggle paths, leaf circles, labels, and symmetry overlays from the layer menu when the view gets dense.",
-        "summary": "The Design workspace is the main paper surface for selecting, drawing, connecting, dragging, and viewing tree structure.",
-        "title": "Draw And Edit The Tree"
-      },
-      "files": {
-        "caption": "The File menu keeps project actions, exports, and examples in one place.",
-        "imageAlt": "File menu showing New, Open, Examples, Save, and export commands",
-        "step1": "New returns to the start screen; Open accepts .osf, .tmd, .tmd4, .tmd5, .fold, .cp, .ori, and .orh files.",
-        "step2": "File → Examples loads checked-in starter designs.",
-        "step3": "Save and Save As write Ori Studio project files; use Export for TreeMaker, CP, FOLD, SVG, and PNG formats.",
-        "step4": "Exports become available when the current document has the data each format needs.",
-        "summary": "Use the start screen or the File menu to manage Ori Studio projects and crease-pattern exports.",
-        "title": "Start, Open, Save, Export"
-      },
-      "folding": {
-        "caption": "Refresh controls regenerate flat-fold artifacts when a crease pattern changes.",
-        "imageAlt": "Simulator pane showing fold controls and folded geometry",
-        "step1": "Open Simulate after a crease pattern is built or imported, then drag the viewport to rotate the 3D folded model.",
-        "step2": "Use the fold slider, play, step, and view controls to inspect the fold motion.",
-        "step3": "Switch render settings between paper and x-ray views, and toggle faces, edges, and hidden lines.",
-        "step4": "Generate an Oriedita folded figure directly in the Crease Pattern grid to inspect the flat-folded form.",
-        "summary": "The Simulate workspace uses the flat-fold artifacts produced from built or imported crease patterns.",
-        "title": "Simulate The Folded Model"
-      },
-      "inspector": {
-        "caption": "Selection drives the inspector; change labels, coordinates, edge lengths, and stiffness without leaving the workspace.",
-        "imageAlt": "Inspector pane showing editable node label and coordinate fields beside the selected design",
-        "step1": "Select a node to edit its label and paper coordinates.",
-        "step2": "Select an edge to edit its label, target length, and stiffness, while strain stays report-only.",
-        "step3": "Select paths or conditions to review their design metadata.",
-        "step4": "When two nodes are selected, the Inspector can select the path between them for path conditions.",
-        "summary": "The Design workspace Inspector edits selected nodes and edges and summarizes tree paths and conditions.",
-        "title": "Inspect Selection Details"
-      },
-      "optimize": {
-        "caption": "Ori Studio enables each command only when the document is ready for that step.",
-        "imageAlt": "Toolbar showing Optimize Scale and Build CP actions with diagnostics visible",
-        "step1": "Optimize Scale fits the tree to the current paper while preserving the selected TreeMaker model semantics.",
-        "step2": "Optimize Edges and Optimize Strain are available from the Design menu for deeper optimization workflows.",
-        "step3": "Build CP turns an optimized tree into creases, facets, fold directions, and folded-base data.",
-        "step4": "Diagnostics report engine readiness, optimization status, feasibility, and crease-pattern build results.",
-        "summary": "Optimization and crease-pattern generation run through the shared Design menu, toolbar buttons, and native desktop menu.",
-        "title": "Optimize And Build CP"
-      },
-      "workspace": {
-        "caption": "Reset the pane layout from View or Settings, and choose a theme from the Appearance settings.",
-        "imageAlt": "Settings modal and app menu showing theme and layout controls",
-        "step1": "Use the left rail or View menu to activate Design, Edit, or Simulate.",
-        "step2": "Drag pane headers inside a workspace to reorganize it; Reset Layout restores the current workspace default.",
-        "step3": "Settings contains Appearance themes, keyboard shortcuts, and Workspace layout controls.",
-        "step4": "Use the Shortcuts settings tab to inspect or rebind file, edit, viewport, and crease-pattern tool commands.",
-        "summary": "The app surface is shared between browser and desktop, with web menus, native Tauri menus, workspace layouts, and settings.",
-        "title": "Menus, Layout, Settings"
-      }
-    }
+    "closeLabel": "Close {{title}}"
   },
   "number": {
     "tooSmall": "Enter a number greater than {{minimum}}."
