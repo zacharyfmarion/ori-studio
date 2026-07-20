@@ -194,9 +194,6 @@ const FOLDED_DISPLAY_STYLE_OPTIONS: OristudioCpFoldedFigureDisplayStyle[] = [
   'Paper5',
   'Transparent3',
   'Wire2',
-  'Development1',
-  'Development4',
-  'None0',
 ];
 
 function foldedDisplayStyleLabel(t: TFunction, value: OristudioCpFoldedFigureDisplayStyle): string {
@@ -726,6 +723,13 @@ function FoldedFigureMenuButton({
   const currentCase = Math.max(activeFigure?.snapshot?.discovered_fold_cases ?? 1, 1);
   const canJumpCase = activeReady && Number.isFinite(Number(caseDraft));
 
+  // Keep any display style already saved on a document selectable even if it is no
+  // longer offered as a fresh choice (e.g. legacy Dev/None figures).
+  const currentDisplayStyle = activeFigure?.displayStyle ?? 'Paper5';
+  const foldedDisplayStyleOptions = FOLDED_DISPLAY_STYLE_OPTIONS.includes(currentDisplayStyle)
+    ? FOLDED_DISPLAY_STYLE_OPTIONS
+    : [...FOLDED_DISPLAY_STYLE_OPTIONS, currentDisplayStyle];
+
   useEffect(() => {
     if (!open) return undefined;
     const onPointerDown = (event: MouseEvent) => {
@@ -805,7 +809,7 @@ function FoldedFigureMenuButton({
                 onDisplayStyle(event.currentTarget.value as OristudioCpFoldedFigureDisplayStyle)
               }
             >
-              {FOLDED_DISPLAY_STYLE_OPTIONS.map((value) => (
+              {foldedDisplayStyleOptions.map((value) => (
                 <option key={value} value={value}>
                   {foldedDisplayStyleLabel(t, value)}
                 </option>
