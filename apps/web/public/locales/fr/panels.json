@@ -5,10 +5,15 @@
     "newBoxPleat": "Nouveau pliage en boîte",
     "title": "Éditeur BP"
   },
+  "bpNameEditor": {
+    "label": "Nom"
+  },
   "bpPacking": {
     "canvas": "Canevas d'agencement du pliage en boîte",
     "config": "Config",
     "diagonal": "Diagonale",
+    "flapNameAria": "Nom du rabat {{id}}",
+    "flapTitle": "Rabat {{id}}",
     "grid": "Grille",
     "height": "Hauteur",
     "layerAxis": "Axe",
@@ -53,6 +58,8 @@
     "decreaseLength": "Diminuer la longueur",
     "edgeLengthGroup": "Longueur de l'arête {{from}} à {{to}}",
     "edgeTitle": "Arête {{from}}–{{to}}",
+    "flapNameAria": "Nom du rabat {{id}}",
+    "flapTitle": "Rabat {{id}}",
     "increaseLength": "Augmenter la longueur",
     "layerLabels": "Étiquettes",
     "layers": "Calques",

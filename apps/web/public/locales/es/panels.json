@@ -5,10 +5,15 @@
     "newBoxPleat": "Nuevo plegado en caja",
     "title": "Editor BP"
   },
+  "bpNameEditor": {
+    "label": "Nombre"
+  },
   "bpPacking": {
     "canvas": "Lienzo de empaquetado de plegado en caja",
     "config": "Configuración",
     "diagonal": "Diagonal",
+    "flapNameAria": "Nombre de la solapa {{id}}",
+    "flapTitle": "Solapa {{id}}",
     "grid": "Cuadrícula",
     "height": "Altura",
     "layerAxis": "Eje",
@@ -53,6 +58,8 @@
     "decreaseLength": "Reducir longitud",
     "edgeLengthGroup": "Longitud de la arista {{from}} a {{to}}",
     "edgeTitle": "Arista {{from}}–{{to}}",
+    "flapNameAria": "Nombre de la solapa {{id}}",
+    "flapTitle": "Solapa {{id}}",
     "increaseLength": "Aumentar longitud",
     "layerLabels": "Etiquetas",
     "layers": "Capas",

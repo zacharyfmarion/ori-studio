@@ -5,10 +5,15 @@
     "newBoxPleat": "새 박스 플리츠",
     "title": "BP 편집기"
   },
+  "bpNameEditor": {
+    "label": "이름"
+  },
   "bpPacking": {
     "canvas": "박스 플리츠 패킹 캔버스",
     "config": "구성",
     "diagonal": "대각선",
+    "flapNameAria": "플랩 {{id}} 이름",
+    "flapTitle": "플랩 {{id}}",
     "grid": "격자",
     "height": "높이",
     "layerAxis": "축",
@@ -53,6 +58,8 @@
     "decreaseLength": "길이 감소",
     "edgeLengthGroup": "{{from}}에서 {{to}}까지 모서리 길이",
     "edgeTitle": "모서리 {{from}}–{{to}}",
+    "flapNameAria": "플랩 {{id}} 이름",
+    "flapTitle": "플랩 {{id}}",
     "increaseLength": "길이 증가",
     "layerLabels": "레이블",
     "layers": "레이어",

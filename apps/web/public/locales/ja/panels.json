@@ -5,10 +5,15 @@
     "newBoxPleat": "新規ボックスプリーツ",
     "title": "BP エディター"
   },
+  "bpNameEditor": {
+    "label": "名前"
+  },
   "bpPacking": {
     "canvas": "ボックスプリーツパッキングキャンバス",
     "config": "設定",
     "diagonal": "対角",
+    "flapNameAria": "フラップ {{id}} の名前",
+    "flapTitle": "フラップ {{id}}",
     "grid": "グリッド",
     "height": "高さ",
     "layerAxis": "軸",
@@ -53,6 +58,8 @@
     "decreaseLength": "長さを減らす",
     "edgeLengthGroup": "辺 {{from}} から {{to}} の長さ",
     "edgeTitle": "辺 {{from}}–{{to}}",
+    "flapNameAria": "フラップ {{id}} の名前",
+    "flapTitle": "フラップ {{id}}",
     "increaseLength": "長さを増やす",
     "layerLabels": "ラベル",
     "layers": "レイヤー",

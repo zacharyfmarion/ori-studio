@@ -1760,7 +1760,12 @@
     "panels:imageInspector.sendToBack": "e3daa79eaf69",
     "panels:imageInspector.deleteImage": "fbbc98ee63a5",
     "panels:imageInspector.adjustOpacity": "dddcb2eab31a",
-    "dialogs:settings.language.system": "b0459211f9f7"
+    "dialogs:settings.language.system": "b0459211f9f7",
+    "panels:bpNameEditor.label": "dcd1d5223f73",
+    "panels:bpPacking.flapNameAria": "acce910aed38",
+    "panels:bpPacking.flapTitle": "05f6293f188c",
+    "panels:bpTree.flapNameAria": "acce910aed38",
+    "panels:bpTree.flapTitle": "05f6293f188c"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -3523,7 +3528,12 @@
     "panels:imageInspector.sendToBack": "e3daa79eaf69",
     "panels:imageInspector.deleteImage": "fbbc98ee63a5",
     "panels:imageInspector.adjustOpacity": "dddcb2eab31a",
-    "dialogs:settings.language.system": "b0459211f9f7"
+    "dialogs:settings.language.system": "b0459211f9f7",
+    "panels:bpNameEditor.label": "dcd1d5223f73",
+    "panels:bpPacking.flapNameAria": "acce910aed38",
+    "panels:bpPacking.flapTitle": "05f6293f188c",
+    "panels:bpTree.flapNameAria": "acce910aed38",
+    "panels:bpTree.flapTitle": "05f6293f188c"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -5311,7 +5321,12 @@
     "panels:imageInspector.sendToBack": "e3daa79eaf69",
     "panels:imageInspector.deleteImage": "fbbc98ee63a5",
     "panels:imageInspector.adjustOpacity": "dddcb2eab31a",
-    "dialogs:settings.language.system": "b0459211f9f7"
+    "dialogs:settings.language.system": "b0459211f9f7",
+    "panels:bpNameEditor.label": "dcd1d5223f73",
+    "panels:bpPacking.flapNameAria": "acce910aed38",
+    "panels:bpPacking.flapTitle": "05f6293f188c",
+    "panels:bpTree.flapNameAria": "acce910aed38",
+    "panels:bpTree.flapTitle": "05f6293f188c"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -7099,7 +7114,12 @@
     "panels:imageInspector.sendToBack": "e3daa79eaf69",
     "panels:imageInspector.deleteImage": "fbbc98ee63a5",
     "panels:imageInspector.adjustOpacity": "dddcb2eab31a",
-    "dialogs:settings.language.system": "b0459211f9f7"
+    "dialogs:settings.language.system": "b0459211f9f7",
+    "panels:bpNameEditor.label": "dcd1d5223f73",
+    "panels:bpPacking.flapNameAria": "acce910aed38",
+    "panels:bpPacking.flapTitle": "05f6293f188c",
+    "panels:bpTree.flapNameAria": "acce910aed38",
+    "panels:bpTree.flapTitle": "05f6293f188c"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8887,7 +8907,12 @@
     "panels:imageInspector.sendToBack": "e3daa79eaf69",
     "panels:imageInspector.deleteImage": "fbbc98ee63a5",
     "panels:imageInspector.adjustOpacity": "dddcb2eab31a",
-    "dialogs:settings.language.system": "b0459211f9f7"
+    "dialogs:settings.language.system": "b0459211f9f7",
+    "panels:bpNameEditor.label": "dcd1d5223f73",
+    "panels:bpPacking.flapNameAria": "acce910aed38",
+    "panels:bpPacking.flapTitle": "05f6293f188c",
+    "panels:bpTree.flapNameAria": "acce910aed38",
+    "panels:bpTree.flapTitle": "05f6293f188c"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10675,7 +10700,12 @@
     "panels:imageInspector.sendToBack": "e3daa79eaf69",
     "panels:imageInspector.deleteImage": "fbbc98ee63a5",
     "panels:imageInspector.adjustOpacity": "dddcb2eab31a",
-    "dialogs:settings.language.system": "b0459211f9f7"
+    "dialogs:settings.language.system": "b0459211f9f7",
+    "panels:bpNameEditor.label": "dcd1d5223f73",
+    "panels:bpPacking.flapNameAria": "acce910aed38",
+    "panels:bpPacking.flapTitle": "05f6293f188c",
+    "panels:bpTree.flapNameAria": "acce910aed38",
+    "panels:bpTree.flapTitle": "05f6293f188c"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12463,7 +12493,12 @@
     "panels:imageInspector.sendToBack": "e3daa79eaf69",
     "panels:imageInspector.deleteImage": "fbbc98ee63a5",
     "panels:imageInspector.adjustOpacity": "dddcb2eab31a",
-    "dialogs:settings.language.system": "b0459211f9f7"
+    "dialogs:settings.language.system": "b0459211f9f7",
+    "panels:bpNameEditor.label": "dcd1d5223f73",
+    "panels:bpPacking.flapNameAria": "acce910aed38",
+    "panels:bpPacking.flapTitle": "05f6293f188c",
+    "panels:bpTree.flapNameAria": "acce910aed38",
+    "panels:bpTree.flapTitle": "05f6293f188c"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -14226,6 +14261,11 @@
     "panels:imageInspector.sendToBack": "e3daa79eaf69",
     "panels:imageInspector.deleteImage": "fbbc98ee63a5",
     "panels:imageInspector.adjustOpacity": "dddcb2eab31a",
-    "dialogs:settings.language.system": "b0459211f9f7"
+    "dialogs:settings.language.system": "b0459211f9f7",
+    "panels:bpNameEditor.label": "dcd1d5223f73",
+    "panels:bpPacking.flapNameAria": "acce910aed38",
+    "panels:bpPacking.flapTitle": "05f6293f188c",
+    "panels:bpTree.flapNameAria": "acce910aed38",
+    "panels:bpTree.flapTitle": "05f6293f188c"
   }
 }

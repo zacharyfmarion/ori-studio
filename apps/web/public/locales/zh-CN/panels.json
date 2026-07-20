@@ -5,10 +5,15 @@
     "newBoxPleat": "新建箱形褶皱",
     "title": "BP 编辑器"
   },
+  "bpNameEditor": {
+    "label": "名称"
+  },
   "bpPacking": {
     "canvas": "箱形褶皱排布画布",
     "config": "配置",
     "diagonal": "对角线",
+    "flapNameAria": "瓣 {{id}} 的名称",
+    "flapTitle": "瓣 {{id}}",
     "grid": "网格",
     "height": "高度",
     "layerAxis": "轴",
@@ -53,6 +58,8 @@
     "decreaseLength": "减小长度",
     "edgeLengthGroup": "边 {{from}} 到 {{to}} 的长度",
     "edgeTitle": "边 {{from}}–{{to}}",
+    "flapNameAria": "瓣 {{id}} 的名称",
+    "flapTitle": "瓣 {{id}}",
     "increaseLength": "增大长度",
     "layerLabels": "标签",
     "layers": "图层",

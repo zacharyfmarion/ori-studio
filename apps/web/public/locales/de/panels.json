@@ -5,10 +5,15 @@
     "newBoxPleat": "Neues Box-Pleating",
     "title": "BP-Editor"
   },
+  "bpNameEditor": {
+    "label": "Name"
+  },
   "bpPacking": {
     "canvas": "Box-Pleating-Packungsleinwand",
     "config": "Konfiguration",
     "diagonal": "Diagonal",
+    "flapNameAria": "Name der Klappe {{id}}",
+    "flapTitle": "Klappe {{id}}",
     "grid": "Raster",
     "height": "Höhe",
     "layerAxis": "Achse",
@@ -53,6 +58,8 @@
     "decreaseLength": "Länge verringern",
     "edgeLengthGroup": "Länge der Kante {{from}} bis {{to}}",
     "edgeTitle": "Kante {{from}}–{{to}}",
+    "flapNameAria": "Name der Klappe {{id}}",
+    "flapTitle": "Klappe {{id}}",
     "increaseLength": "Länge erhöhen",
     "layerLabels": "Beschriftungen",
     "layers": "Ebenen",

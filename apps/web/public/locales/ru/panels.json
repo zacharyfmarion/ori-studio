@@ -5,10 +5,15 @@
     "newBoxPleat": "Новый Box Pleat",
     "title": "Редактор BP"
   },
+  "bpNameEditor": {
+    "label": "Название"
+  },
   "bpPacking": {
     "canvas": "Холст упаковки Box Pleat",
     "config": "Конфигурация",
     "diagonal": "Диагональ",
+    "flapNameAria": "Название клапана {{id}}",
+    "flapTitle": "Клапан {{id}}",
     "grid": "Сетка",
     "height": "Высота",
     "layerAxis": "Оси",
@@ -53,6 +58,8 @@
     "decreaseLength": "Уменьшить длину",
     "edgeLengthGroup": "Длина ребра от {{from}} до {{to}}",
     "edgeTitle": "Ребро {{from}}–{{to}}",
+    "flapNameAria": "Название клапана {{id}}",
+    "flapTitle": "Клапан {{id}}",
     "increaseLength": "Увеличить длину",
     "layerLabels": "Подписи",
     "layers": "Слои",

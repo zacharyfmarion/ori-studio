@@ -5,10 +5,15 @@
     "newBoxPleat": "New Box Pleat",
     "title": "BP Editor"
   },
+  "bpNameEditor": {
+    "label": "Name"
+  },
   "bpPacking": {
     "canvas": "Box Pleat packing canvas",
     "config": "Config",
     "diagonal": "Diagonal",
+    "flapNameAria": "Name of flap {{id}}",
+    "flapTitle": "Flap {{id}}",
     "grid": "Grid",
     "height": "Height",
     "layerAxis": "Axis",
@@ -53,6 +58,8 @@
     "decreaseLength": "Decrease length",
     "edgeLengthGroup": "Length of edge {{from}} to {{to}}",
     "edgeTitle": "Edge {{from}}–{{to}}",
+    "flapNameAria": "Name of flap {{id}}",
+    "flapTitle": "Flap {{id}}",
     "increaseLength": "Increase length",
     "layerLabels": "Labels",
     "layers": "Layers",

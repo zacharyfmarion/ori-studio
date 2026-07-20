@@ -5,10 +5,15 @@
     "newBoxPleat": "Nova dobra em caixa",
     "title": "Editor BP"
   },
+  "bpNameEditor": {
+    "label": "Nome"
+  },
   "bpPacking": {
     "canvas": "Canvas do empacotamento de dobra em caixa",
     "config": "Config",
     "diagonal": "Diagonal",
+    "flapNameAria": "Nome da aba {{id}}",
+    "flapTitle": "Aba {{id}}",
     "grid": "Grade",
     "height": "Altura",
     "layerAxis": "Eixo",
@@ -53,6 +58,8 @@
     "decreaseLength": "Diminuir comprimento",
     "edgeLengthGroup": "Comprimento da aresta {{from}} a {{to}}",
     "edgeTitle": "Aresta {{from}}–{{to}}",
+    "flapNameAria": "Nome da aba {{id}}",
+    "flapTitle": "Aba {{id}}",
     "increaseLength": "Aumentar comprimento",
     "layerLabels": "Rótulos",
     "layers": "Camadas",
