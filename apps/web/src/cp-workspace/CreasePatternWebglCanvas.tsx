@@ -459,10 +459,16 @@ export interface CreasePatternWebglCanvasProps {
   /** Report the updated Voronoi click list after a seed add / gesture reset. */
   onVoronoiSeedsChange: (seeds: readonly ModelPoint[]) => void;
   /**
-   * Classify a dual-mode tool's first pick as point mode or line mode (point-priority
-   * per Oriedita). Consulted on the first press of Mirror Line and Square Bisector.
+   * Classify a dual-mode tool's first pick as point mode or line mode (point-priority).
+   * Consulted on the first press/hover of Mirror Line, Converging Lines, and Square
+   * Bisector. `pointPriorityModel` is the tight radius within which a vertex wins
+   * outright over a crease whose perpendicular foot is marginally closer.
    */
-  resolveFirstPickKind: (rawPoint: ModelPoint, toleranceModel: number) => 'point' | 'line';
+  resolveFirstPickKind: (
+    rawPoint: ModelPoint,
+    toleranceModel: number,
+    pointPriorityModel: number
+  ) => 'point' | 'line';
   /**
    * Snap a raw model draw point to nearby geometry (grid/vertices), reporting
    * whether it locked on (for restricted draws that reject unsnapped points).
@@ -1307,19 +1313,33 @@ export function CreasePatternWebglCanvas({
       // Mirror Line decides its step kinds on the first press: a pick on a
       // vertex/point runs a 3-point sequence, a pick on a bare crease a 2-line one.
       if (liveRef.current.activeToolDualMirror && !persistentToolRuntimeRef.current) {
+        const firstPickKind = liveRef.current.resolveFirstPickKind(
+          raw,
+          tol,
+          modelToleranceOf(POINT_HIT_TOLERANCE_CSS)
+        );
         if (kind !== 'down') {
-          // Hovering before the first pick — no mode yet. Show a plain point-snap
-          // ring so the cursor reads as a placement without committing to a mode.
-          const snap = liveRef.current.resolveDrawPoint(raw, tol).point;
-          const ring = snap.x !== raw.x || snap.y !== raw.y ? snap : null;
-          renderer.setOverlayPoints(sequenceOverlayPoints([], ring, accent));
+          // Hovering before the first pick — preview the mode the click will enter so
+          // the two modes are legible: highlight the crease it would pick in line mode,
+          // else ring the vertex/point it would snap to in point mode.
+          if (firstPickKind === 'line') {
+            // Query with the classifier's tolerance so a crease it called "line" always
+            // resolves to a highlight (no 8–10px dead zone against the tighter hit tol).
+            const lineId = liveRef.current.hitIndex.query(raw.x, raw.y, tol);
+            liveRef.current.onToolPreviewInput([], lineId > 0 ? [lineId] : []);
+            renderer.setOverlayPoints(null);
+          } else {
+            liveRef.current.onToolPreviewInput([], []);
+            const snap = liveRef.current.resolveDrawPoint(raw, tol);
+            renderer.setOverlayPoints(
+              sequenceOverlayPoints([], snap.snapped ? snap.point : null, accent)
+            );
+          }
           renderNow();
           return;
         }
         dynamicStepKindsRef.current =
-          liveRef.current.resolveFirstPickKind(raw, tol) === 'line'
-            ? ['crease', 'crease']
-            : ['point', 'point', 'point'];
+          firstPickKind === 'line' ? ['crease', 'crease'] : ['point', 'point', 'point'];
       }
       const stepKinds = dynamicStepKindsRef.current ?? liveRef.current.activeToolStepKinds;
       if (!persistentToolRuntimeRef.current) {
@@ -1407,14 +1427,19 @@ export function CreasePatternWebglCanvas({
       const raw = clientToModel(clientX, clientY);
       if (!raw) return;
       const tol = modelToleranceOf(SNAP_TOLERANCE_CSS);
-      const hitTol = modelToleranceOf(HIT_TOLERANCE_CSS);
       const base = convergingBaseRef.current;
 
       if (base.length < 2) {
         if (kind === 'down') {
           if (base.length === 0) {
             // First pick: a crease supplies both base endpoints; else a free point.
-            const lineId = liveRef.current.hitIndex.query(raw.x, raw.y, hitTol);
+            // A vertex under the cursor wins outright (classifier's tight point-priority
+            // radius) — otherwise the crease an endpoint caps always shadows the vertex
+            // (its distance-to-segment is ~0 there), making vertices impossible to grab.
+            const lineId =
+              liveRef.current.resolveFirstPickKind(raw, tol, modelToleranceOf(POINT_HIT_TOLERANCE_CSS)) === 'line'
+                ? liveRef.current.hitIndex.query(raw.x, raw.y, tol)
+                : 0;
             const seg = lineId > 0 ? liveRef.current.lineSegments[lineId - 1] : undefined;
             if (seg) {
               convergingBaseRef.current = [
@@ -1433,8 +1458,12 @@ export function CreasePatternWebglCanvas({
           renderer.setOverlayPoints(sequenceOverlayPoints(convergingBaseRef.current, null, accent));
         } else if (base.length === 0) {
           // Hover before the first pick: highlight a crease under the cursor, or ring
-          // the point it would snap to.
-          const lineId = liveRef.current.hitIndex.query(raw.x, raw.y, hitTol);
+          // the point it would snap to. Mirror the commit's point-wins-ties rule so
+          // the preview matches what the click will actually grab.
+          const lineId =
+            liveRef.current.resolveFirstPickKind(raw, tol, modelToleranceOf(POINT_HIT_TOLERANCE_CSS)) === 'line'
+              ? liveRef.current.hitIndex.query(raw.x, raw.y, tol)
+              : 0;
           liveRef.current.onToolPreviewInput([], lineId > 0 ? [lineId] : []);
           const snap = liveRef.current.resolveDrawPoint(raw, tol);
           const ring = lineId > 0 || !snap.snapped ? null : snap.point;
@@ -1549,7 +1578,7 @@ export function CreasePatternWebglCanvas({
       // The line lookup uses the classifier's tolerance (`tol`), not the tighter hit
       // tolerance, so a click the classifier calls a line always resolves to one.
       if (state.mode === null) {
-        if (liveRef.current.resolveFirstPickKind(raw, tol) === 'line') {
+        if (liveRef.current.resolveFirstPickKind(raw, tol, modelToleranceOf(POINT_HIT_TOLERANCE_CSS)) === 'line') {
           const lineId = liveRef.current.hitIndex.query(raw.x, raw.y, tol);
           if (kind === 'down') {
             if (lineId > 0) {

@@ -2042,16 +2042,29 @@ export function CreasePatternPanel() {
   );
 
   // "First click decides" classifier for the dual-mode tools (Mirror Line, Square
-  // Bisector), mirroring Oriedita's `getClosestPoint` vs `getClosestLineSegment`
-  // logic: the nearest snappable *point* — vertices AND grid points (per the snapping
-  // setting) — wins ties, and a line only wins when it is *strictly* closer. Grid
-  // inclusion is what lets a click land as a point even when it sits on a crease (a
-  // grid point on the paper edge), instead of being read as a line selection; the
-  // strict-closer rule keeps a bare mid-crease click a line. Point/vertex ties still
-  // resolve to point mode, so Mirror Line's "click a vertex" path is unchanged.
+  // Bisector). A crease's nearest point is its *perpendicular foot*, which sits
+  // essentially on top of its own endpoint — so comparing that foot-distance against
+  // the vertex distance lets a crease shadow its own vertex almost everywhere around
+  // it, making vertices near-impossible to grab. So a *vertex* within a tight grab
+  // radius wins outright (the same point-first rule `hitTest` uses for selection),
+  // and only when no vertex is that close do we fall back to the grid-vs-line contest:
+  // there the nearest snappable point (vertices + grid points, per the snapping
+  // setting) wins ties and a line only wins when *strictly* closer, which keeps a
+  // bare mid-crease click a line and lets a grid point on a crease read as a point.
   const resolveEditableFirstPickKind = useCallback(
-    (rawPoint: Point, toleranceModel: number): 'point' | 'line' => {
+    (rawPoint: Point, toleranceModel: number, pointPriorityModel: number): 'point' | 'line' => {
       if (!editableCp) return 'point';
+      // A crease endpoint / paper corner / bare point within the tight radius wins
+      // outright — grid points are excluded here so a click near a grid point on a
+      // crease still falls through to the line contest below.
+      const vertex = nearestOrieditaDrawPointTarget(
+        editableCp,
+        rawPoint,
+        editableCpBounds,
+        { ...oristudioCpViewport, snapToVertices: true, snapToGrid: false },
+        pointPriorityModel
+      );
+      if (vertex && vertex.distance <= pointPriorityModel) return 'point';
       const point = nearestOrieditaDrawPointTarget(
         editableCp,
         rawPoint,
@@ -2338,7 +2351,12 @@ export function CreasePatternPanel() {
         setWebglToolPreviewPoints([]);
         return;
       }
-      setWebglToolPreviewSegments(highlight);
+      // Show a hovered-crease highlight immediately, but when there is none don't blank
+      // the current kernel preview while the async recompute is in flight: that
+      // clear-then-repopulate on every mouse move is what makes continuous guide lines
+      // (e.g. Converging Lines' rays) flicker. Leaving the last preview in place until
+      // the new one arrives keeps them steady; the async result replaces it below.
+      if (highlight.length > 0) setWebglToolPreviewSegments(highlight);
       const requestId = ++webglPreviewRequestRef.current;
       void previewOristudioCpCommand(
         command.operationId,
