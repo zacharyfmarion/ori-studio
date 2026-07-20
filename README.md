@@ -9,24 +9,21 @@
 Ori Studio aims to be the ultimate workspace for origami design and analysis. It
 combines a modern web and desktop interface with a family of Rust and WebAssembly
 engines, and it leans heavily on ports of existing origami tools created by the
-community. Robert J. Lang's TreeMaker 5.0.1 is the parity reference for turning a
-tree structure into a crease pattern; the Edit workspace is a Rust port of
-Oriedita; box-pleated authoring is a Rust port of Box Pleating Studio; and the
-Simulate workspace folds bases in 3D with a port of Origami Simulator.
+community. The bulk of the functionality is dedicated to creating and editing origami
+crease patterns through a fork of [Oriedita](https://oriedita.github.io/). It also
+incorporates ports of [Treemaker](https://langorigami.com/article/treemaker/) and
+[Box Pleating Studio](https://bpstudio.abstreamace.com/).
 
-The app is organized around three workspaces that share a single pane-based
-surface across browser and desktop:
-
-- **Design** — draw and edit a tree, set paper size, symmetry, and conditions,
-  run optimization passes, and build a crease pattern from the optimized tree.
-- **Edit** — a full Oriedita-compatible crease-pattern editor with drawing tools,
-  snapping, mountain/valley and crease-role coloring, foldability diagnostics,
-  repairs, and import/export.
-- **Simulate** — an interactive 3D fold of the built or imported crease pattern.
+While the ports serve as the base for functionality, additional tools and functionality
+are being built on top of them - for example the edit workspace supports adding images next
+to crease patterns, which is useful as you are designing for references of the subject.
+However, maintaining compatibility with existing tools is a priority - you will always be
+able to export to to a `.ori` file, which will just omit the images.
 
 Try the hosted app at [oristudio.pages.dev](https://oristudio.pages.dev/).
 Signed Apple Silicon DMGs are published from local notarized builds on
-[GitHub Releases](https://github.com/zacharyfmarion/ori-studio/releases).
+[GitHub Releases](https://github.com/zacharyfmarion/ori-studio/releases) (other platforms
+coming soon, community help would be appreciated!).
 
 ## Applications
 
@@ -87,23 +84,6 @@ the workspace alongside the TreeMaker engine.
 - `@treemaker/cp-detect-architecture-inspector`: the private workspace package
   for the crease-pattern detection inspector.
 
-## Engine Capability
-
-The TreeMaker engine supports the TreeMaker 5.0.1 model engine surface:
-
-- Read TreeMaker v3, v4, and v5 files.
-- Write canonical v5 files and export v4 files.
-- Read and write native `.osf` Ori Studio project files.
-- Inspect summaries and crease-pattern status.
-- Run the ALM scale, edge-strain, and strain optimizers.
-- Build polygons, vertices, creases, facets, fold directions, and facet order.
-- Use the engine from native Rust, a CLI, or WebAssembly.
-
-The parity baseline is the public TreeMaker 5.0.1 source with its distributable
-ALM optimizer. CFSQP and RFSQP are not included because the public TreeMaker
-5.0.1 source does not include redistributable source for those optimizer
-backends.
-
 ## Getting Started
 
 Install dependencies:
@@ -141,14 +121,6 @@ Use the WebAssembly bindings:
 ```toml
 treemaker-wasm = "0.1"
 ```
-
-## Confidence
-
-The engine is tested against a C++ oracle built from the vendored TreeMaker
-5.0.1 source. CI checks the Rust workspace, web client, generated WebAssembly
-bindings used by the web client, and oracle parity suite. An external corpus
-harness is available for private/user `.tmd`, `.tmd4`, and `.tmd5` collections,
-but no real-user corpus files are committed to this repository.
 
 ## Development
 
