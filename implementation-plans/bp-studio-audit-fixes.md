@@ -184,7 +184,9 @@ first.
 - [x] 1. Default symmetry on (enabled + centered axis at creation/resize)
 - [ ] 2. Send to Edit maps BP grid → Edit grid units (rect + diagonal)
 - [ ] 3. Un-subdivide: engine op + guard + wasm + runtime + store + button + command + tests
-- [ ] 4. Symmetric length editing updates the mirror partner (single undo)
+- [x] 4. Symmetric length editing updates the mirror partner (single undo)
+      (slice orchestration over the already-tested mirroring helper; integration
+      is browser-verifiable)
 - [x] 5. Selecting a node focuses (and select-alls) its name box
 - [ ] 6. Repro + stop viewport moving during flap drag
 - [ ] Validation: `cargo test --workspace` (engine), wasm rebuild, `npx tsc --noEmit`

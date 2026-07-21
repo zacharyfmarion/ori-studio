@@ -588,22 +588,69 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       }
     },
 
-    setOristudioBpTreeEdgeLength: async (vertices, length, subtreeUpdates = []) =>
+    setOristudioBpTreeEdgeLength: async (vertices, length, subtreeUpdates = []) => {
       // Length edit + length-faithful subtree reposition in one gesture, so it is
       // a single undo entry (the reposition keeps rendered edge length == length).
-      runBpTreeMutation('Set BP edge length', async (document) => {
-        let next = await updateRuntimeOristudioBpTreeEdgeLength(vertices, length, {
-          activeSurface: 'tree',
-          selection: document.selection,
-        });
-        for (const update of subtreeUpdates) {
-          next = await moveRuntimeOristudioBpTreeVertex(update.id, update.loc, {
+      // When symmetry is enabled, the same length is applied to the mirror partner
+      // edge and its subtree is reflected across the axis, so a length edit on one
+      // side updates both sides — reusing the same mirroring the drag path uses.
+      const symmetry = get().oristudioBpSymmetry;
+      const label = symmetry.enabled ? 'Set mirrored BP edge length' : 'Set BP edge length';
+      return runBpTreeMutation(label, async (document) => {
+        const applyEdge = async (
+          next: OristudioBpDocumentState,
+          edgeVertices: [number, number],
+          updates: readonly { id: number; loc: Point }[]
+        ) => {
+          let current = await updateRuntimeOristudioBpTreeEdgeLength(edgeVertices, length, {
             activeSurface: 'tree',
             selection: next.selection,
           });
+          for (const update of updates) {
+            current = await moveRuntimeOristudioBpTreeVertex(update.id, update.loc, {
+              activeSurface: 'tree',
+              selection: current.selection,
+            });
+          }
+          return current;
+        };
+
+        let next = await applyEdge(document, vertices, subtreeUpdates);
+        if (!symmetry.enabled) return next;
+
+        // Resolve the mirror edge from the pre-edit tree so pair inference sees the
+        // symmetric configuration. A vertex on the axis mirrors to itself.
+        const tree = document.snapshot.tree;
+        const axis: SymmetryAxis = { loc: symmetry.loc, angle: symmetry.angle };
+        const [a, b] = vertices;
+        const mirrorA = mirrorBpTreeVertexId(tree, symmetry.pairs, axis, a, BP_TREE_SYMMETRY_TOLERANCE);
+        const mirrorB = mirrorBpTreeVertexId(tree, symmetry.pairs, axis, b, BP_TREE_SYMMETRY_TOLERANCE);
+        const mirroredUpdates = buildMirroredBpTreeUpdates(
+          tree,
+          symmetry.pairs,
+          axis,
+          subtreeUpdates,
+          BP_TREE_SYMMETRY_TOLERANCE
+        );
+
+        // Only mirror onto a genuinely distinct partner edge: skip when the edge
+        // lies on the axis (mirrors onto itself) or a partner can't be resolved.
+        const partnerIsSameEdge =
+          (mirrorA === a && mirrorB === b) || (mirrorA === b && mirrorB === a);
+        if (mirrorA != null && mirrorB != null && mirrorA !== mirrorB && !partnerIsSameEdge) {
+          next = await applyEdge(next, [mirrorA, mirrorB], mirroredUpdates);
+        } else if (mirroredUpdates.length > 0) {
+          // Partner subtree still reflects even when the shared edge isn't mirrored.
+          for (const update of mirroredUpdates) {
+            next = await moveRuntimeOristudioBpTreeVertex(update.id, update.loc, {
+              activeSurface: 'tree',
+              selection: next.selection,
+            });
+          }
         }
         return next;
-      }),
+      });
+    },
 
     renameOristudioBpVertex: async (id, name) =>
       // The name lives on the tree vertex; a flap just reuses its dual leaf
