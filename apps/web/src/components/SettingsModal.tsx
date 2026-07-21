@@ -162,6 +162,8 @@ function WorkspaceTab() {
   const resetLayout = useLayoutStore((state) => state.resetLayout);
   const showWelcomeOnStartup = useSettingsStore((state) => state.showWelcomeOnStartup);
   const setShowWelcomeOnStartup = useSettingsStore((state) => state.setShowWelcomeOnStartup);
+  const foldWarningEnabled = useSettingsStore((state) => state.foldWarningEnabled);
+  const setFoldWarningEnabled = useSettingsStore((state) => state.setFoldWarningEnabled);
 
   return (
     <div className="settings-tab">
@@ -176,6 +178,22 @@ function WorkspaceTab() {
             onChange={(event) => setShowWelcomeOnStartup(event.target.checked)}
           />
           {t('dialogs:settings.workspace.showWelcome', 'Show welcome screen on startup')}
+        </label>
+      </section>
+      <section className="settings-section">
+        <h3 className="settings-section__title">
+          {t('dialogs:settings.workspace.folding', 'Folding')}
+        </h3>
+        <label className="settings-checkbox">
+          <input
+            type="checkbox"
+            checked={foldWarningEnabled}
+            onChange={(event) => setFoldWarningEnabled(event.target.checked)}
+          />
+          {t(
+            'dialogs:settings.workspace.foldWarning',
+            'Warn before folding a crease pattern with flat-foldability errors'
+          )}
         </label>
       </section>
       <section className="settings-section">

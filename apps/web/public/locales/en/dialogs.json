@@ -163,6 +163,8 @@
     },
     "title": "Settings",
     "workspace": {
+      "folding": "Folding",
+      "foldWarning": "Warn before folding a crease pattern with flat-foldability errors",
       "layout": "Layout",
       "resetButton": "Reset Workspace Layout",
       "resetMessage": "Restore the default layout for the current workspace?",

@@ -1696,7 +1696,9 @@
     "panels:design.preparingTreeEditor": "3b7930e2d017",
     "dialogs:settings.workspace.showWelcome": "92d9169a02d0",
     "dialogs:settings.workspace.startup": "65d48235a91e",
-    "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9"
+    "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9",
+    "dialogs:settings.workspace.folding": "5fad9cc3dcdc",
+    "dialogs:settings.workspace.foldWarning": "9a607191b2da"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -3395,7 +3397,9 @@
     "panels:design.preparingTreeEditor": "3b7930e2d017",
     "dialogs:settings.workspace.showWelcome": "92d9169a02d0",
     "dialogs:settings.workspace.startup": "65d48235a91e",
-    "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9"
+    "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9",
+    "dialogs:settings.workspace.folding": "5fad9cc3dcdc",
+    "dialogs:settings.workspace.foldWarning": "9a607191b2da"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -5119,7 +5123,9 @@
     "panels:design.preparingTreeEditor": "3b7930e2d017",
     "dialogs:settings.workspace.showWelcome": "92d9169a02d0",
     "dialogs:settings.workspace.startup": "65d48235a91e",
-    "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9"
+    "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9",
+    "dialogs:settings.workspace.folding": "5fad9cc3dcdc",
+    "dialogs:settings.workspace.foldWarning": "9a607191b2da"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -6843,7 +6849,9 @@
     "panels:design.preparingTreeEditor": "3b7930e2d017",
     "dialogs:settings.workspace.showWelcome": "92d9169a02d0",
     "dialogs:settings.workspace.startup": "65d48235a91e",
-    "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9"
+    "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9",
+    "dialogs:settings.workspace.folding": "5fad9cc3dcdc",
+    "dialogs:settings.workspace.foldWarning": "9a607191b2da"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8567,7 +8575,9 @@
     "panels:design.preparingTreeEditor": "3b7930e2d017",
     "dialogs:settings.workspace.showWelcome": "92d9169a02d0",
     "dialogs:settings.workspace.startup": "65d48235a91e",
-    "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9"
+    "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9",
+    "dialogs:settings.workspace.folding": "5fad9cc3dcdc",
+    "dialogs:settings.workspace.foldWarning": "9a607191b2da"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10291,7 +10301,9 @@
     "panels:design.preparingTreeEditor": "3b7930e2d017",
     "dialogs:settings.workspace.showWelcome": "92d9169a02d0",
     "dialogs:settings.workspace.startup": "65d48235a91e",
-    "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9"
+    "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9",
+    "dialogs:settings.workspace.folding": "5fad9cc3dcdc",
+    "dialogs:settings.workspace.foldWarning": "9a607191b2da"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12015,7 +12027,9 @@
     "panels:design.preparingTreeEditor": "3b7930e2d017",
     "dialogs:settings.workspace.showWelcome": "92d9169a02d0",
     "dialogs:settings.workspace.startup": "65d48235a91e",
-    "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9"
+    "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9",
+    "dialogs:settings.workspace.folding": "5fad9cc3dcdc",
+    "dialogs:settings.workspace.foldWarning": "9a607191b2da"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -13714,6 +13728,8 @@
     "panels:design.preparingTreeEditor": "3b7930e2d017",
     "dialogs:settings.workspace.showWelcome": "92d9169a02d0",
     "dialogs:settings.workspace.startup": "65d48235a91e",
-    "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9"
+    "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9",
+    "dialogs:settings.workspace.folding": "5fad9cc3dcdc",
+    "dialogs:settings.workspace.foldWarning": "9a607191b2da"
   }
 }

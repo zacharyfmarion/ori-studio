@@ -167,6 +167,8 @@
     },
     "title": "Configuración",
     "workspace": {
+      "folding": "Plegado",
+      "foldWarning": "Avisar antes de plegar un patrón de pliegues con errores de plegado plano",
       "layout": "Disposición",
       "resetButton": "Restablecer disposición del espacio de trabajo",
       "resetMessage": "¿Restaurar la disposición predeterminada del espacio de trabajo actual?",

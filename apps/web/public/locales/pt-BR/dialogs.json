@@ -167,6 +167,8 @@
     },
     "title": "Configurações",
     "workspace": {
+      "folding": "Dobra",
+      "foldWarning": "Avisar antes de dobrar um padrão de vincos com erros de dobradura plana",
       "layout": "Layout",
       "resetButton": "Redefinir layout do workspace",
       "resetMessage": "Restaurar o layout padrão do workspace atual?",

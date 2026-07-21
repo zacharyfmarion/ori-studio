@@ -159,6 +159,8 @@
     },
     "title": "設定",
     "workspace": {
+      "folding": "折り",
+      "foldWarning": "平坦折りエラーのある展開図を折る前に警告する",
       "layout": "レイアウト",
       "resetButton": "ワークスペースレイアウトをリセット",
       "resetMessage": "現在のワークスペースの既定のレイアウトに戻しますか？",

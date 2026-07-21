@@ -167,6 +167,8 @@
     },
     "title": "Paramètres",
     "workspace": {
+      "folding": "Pliage",
+      "foldWarning": "Avertir avant de plier un patron de plis comportant des erreurs de pliabilité à plat",
       "layout": "Disposition",
       "resetButton": "Réinitialiser la disposition de l'espace de travail",
       "resetMessage": "Restaurer la disposition par défaut de l'espace de travail actuel ?",

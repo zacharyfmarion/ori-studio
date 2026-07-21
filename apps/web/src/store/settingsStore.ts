@@ -15,6 +15,7 @@ import { readBoolean, storageKey, STORAGE_KEYS, writeBoolean } from '../lib/stor
 export type SettingsTab = 'appearance' | 'shortcuts' | 'workspace';
 
 const SHOW_WELCOME_ON_STARTUP_KEY = storageKey(STORAGE_KEYS.showWelcomeOnStartup);
+const FOLD_WARNING_KEY = storageKey(STORAGE_KEYS.foldWarning);
 
 interface SettingsState {
   isSettingsOpen: boolean;
@@ -23,11 +24,18 @@ interface SettingsState {
   bpPackingLayers: BpPackingViewLayers;
   /** Whether a cold start lands on the welcome screen (vs. straight into Edit). */
   showWelcomeOnStartup: boolean;
+  /**
+   * Whether to warn before folding a crease pattern with flat-foldability
+   * violations (Oriedita's `ApplicationModel.foldWarning`, inverted: here `true`
+   * means "warn"). The dialog's "Don't show this again" checkbox sets this false.
+   */
+  foldWarningEnabled: boolean;
   openSettings: (tab?: SettingsTab) => void;
   closeSettings: () => void;
   setBpTreeLayer: (layer: BpTreeViewLayerKey, visible: boolean) => void;
   setBpPackingLayer: (layer: BpPackingViewLayerKey, visible: boolean) => void;
   setShowWelcomeOnStartup: (value: boolean) => void;
+  setFoldWarningEnabled: (value: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -38,6 +46,7 @@ export const useSettingsStore = create<SettingsState>()(
       bpTreeLayers: DEFAULT_BP_TREE_VIEW_LAYERS,
       bpPackingLayers: DEFAULT_BP_PACKING_VIEW_LAYERS,
       showWelcomeOnStartup: readBoolean(SHOW_WELCOME_ON_STARTUP_KEY, true),
+      foldWarningEnabled: readBoolean(FOLD_WARNING_KEY, true),
       openSettings: (tab) => set({ isSettingsOpen: true, settingsInitialTab: tab ?? null }),
       closeSettings: () => set({ isSettingsOpen: false, settingsInitialTab: null }),
       setBpTreeLayer: (layer, visible) =>
@@ -51,6 +60,10 @@ export const useSettingsStore = create<SettingsState>()(
       setShowWelcomeOnStartup: (value) => {
         writeBoolean(SHOW_WELCOME_ON_STARTUP_KEY, value);
         set({ showWelcomeOnStartup: value });
+      },
+      setFoldWarningEnabled: (value) => {
+        writeBoolean(FOLD_WARNING_KEY, value);
+        set({ foldWarningEnabled: value });
       },
     }),
     { name: 'SettingsStore' }
