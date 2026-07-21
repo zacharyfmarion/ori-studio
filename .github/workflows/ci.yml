@@ -128,7 +128,17 @@ jobs:
       - name: Doctests
         run: RUSTC_WORKSPACE_WRAPPER="${GITHUB_WORKSPACE}/.github/clippy-driver-wrapper.sh" cargo test --workspace --doc
 
+      # The oracle compiles from vendored, effectively-static source, so cache
+      # the built binary keyed on that source and skip the build on a hit.
+      - name: Cache C++ oracle binary
+        id: oracle-cache
+        uses: actions/cache@v4
+        with:
+          path: tools/oracle/build/treemaker-oracle
+          key: ${{ runner.os }}-oracle-${{ hashFiles('tools/oracle/treemaker_oracle.cpp', 'tools/oracle/build_oracle.sh', 'third_party/treemaker-5.0.1/Source/**') }}
+
       - name: Build C++ oracle
+        if: steps.oracle-cache.outputs.cache-hit != 'true'
         run: tools/oracle/build_oracle.sh
 
       # Same wrapper as above so the already-compiled test binary is reused and
