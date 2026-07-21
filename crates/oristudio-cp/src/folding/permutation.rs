@@ -1578,8 +1578,6 @@ struct PairGuide {
     init_guide: Vec<usize>,
     init_entries: usize,
     is_source: Vec<bool>,
-    path: Vec<usize>,
-    visited: Vec<usize>,
 }
 
 impl PairGuide {
@@ -1598,8 +1596,6 @@ impl PairGuide {
             init_guide: vec![0; num_digits + 1],
             init_entries: 0,
             is_source: vec![false; num_digits + 1],
-            path: vec![0; num_digits + 1],
-            visited: vec![0; num_digits + 1],
         }
     }
 
@@ -1650,31 +1646,145 @@ impl PairGuide {
             self.init_guide[i] = self.guide[i];
         }
 
-        let mut result = None;
-        let mut max = 0usize;
-        for i in 1..=self.num_digits {
-            if self.is_source[i] {
-                self.dfs(i, 1);
-                if self.path[0] > max {
-                    max = self.path[0];
-                    result = Some(self.path.clone());
-                    self.path.fill(0);
-                }
-            }
-        }
-
+        let result = self.longest_source_path();
+        // The memoized longest-path must return exactly what the original
+        // Oriedita DFS did. Cross-check on every call in debug/test builds; the
+        // reference is compiled out entirely in release.
+        #[cfg(debug_assertions)]
+        assert_eq!(
+            result,
+            self.longest_source_path_reference(),
+            "PairGuide memoized longest-path diverged from the reference DFS"
+        );
         result
     }
 
-    fn dfs(&mut self, id: usize, depth: usize) -> bool {
-        if self.visited[id] > depth {
+    /// Longest source→sink path in the guide DAG, computed in O(V+E).
+    ///
+    /// Oriedita's `DFS` re-explores a node every time it is reached at a greater
+    /// depth, which is super-linear on deep guide graphs. But a node's best
+    /// continuation (`best_child`) and the length below it (`best_len`) depend
+    /// only on its subtree, not on the depth it is reached at — so they memoize.
+    /// The winner is the lowest-index source achieving the global maximum length,
+    /// and each step follows the first child (in guide-list order) that maximizes
+    /// the remaining length. This reproduces the reference DFS's exact path (see
+    /// `longest_source_path_reference` and the `debug_assert` in `lock`).
+    fn longest_source_path(&self) -> Option<Vec<usize>> {
+        let n = self.num_digits;
+        // best_len[id] == 0 means "not yet computed" (a real length is >= 1).
+        let mut best_len = vec![0usize; n + 1];
+        let mut best_child = vec![0usize; n + 1];
+        // 0 = unvisited, 1 = on the current stack (cycle guard), 2 = done.
+        let mut state = vec![0u8; n + 1];
+        for id in 1..=n {
+            if state[id] == 0 {
+                self.compute_best(id, &mut best_len, &mut best_child, &mut state);
+            }
+        }
+
+        // Lowest-index source achieving the global maximum length (strict `>`
+        // keeps the first one). Indexes several parallel arrays by node id.
+        let mut winner = 0usize;
+        let mut max_len = 0usize;
+        #[allow(clippy::needless_range_loop)]
+        for id in 1..=n {
+            if self.is_source[id] && best_len[id] > max_len {
+                max_len = best_len[id];
+                winner = id;
+            }
+        }
+        if winner == 0 {
+            return None;
+        }
+
+        let mut path = vec![0usize; n + 1];
+        path[0] = max_len;
+        let mut cursor = winner;
+        for step in path.iter_mut().take(max_len + 1).skip(1) {
+            *step = cursor;
+            cursor = best_child[cursor];
+        }
+        Some(path)
+    }
+
+    /// Memoized post-order: `best_len[id] = 1 + max_child_len`, `best_child[id] =`
+    /// the first child (guide-list order) achieving that max. Iterates children
+    /// in the same order as the reference DFS so ties resolve identically. The
+    /// `state` cycle guard is defensive — the guide graph is the acyclic "above"
+    /// partial order in practice.
+    fn compute_best(
+        &self,
+        id: usize,
+        best_len: &mut [usize],
+        best_child: &mut [usize],
+        state: &mut [u8],
+    ) -> usize {
+        if state[id] == 2 {
+            return best_len[id];
+        }
+        if state[id] == 1 {
+            // Back-edge (should not happen on a DAG): treat as a non-extending leaf.
+            return 0;
+        }
+        state[id] = 1;
+        let mut max_child = 0usize;
+        let mut chosen = 0usize;
+        let mut pos = self.guide[id];
+        while pos != 0 {
+            let entry = self.entries[pos];
+            let child = entry & Self::MASK;
+            let child_len = self.compute_best(child, best_len, best_child, state);
+            if child_len > max_child {
+                max_child = child_len;
+                chosen = child;
+            }
+            pos = entry >> 16;
+        }
+        best_len[id] = 1 + max_child;
+        best_child[id] = chosen;
+        state[id] = 2;
+        best_len[id]
+    }
+
+    /// The original Oriedita `PairGuide.lock`/`DFS`, kept as the correctness
+    /// oracle for [`Self::longest_source_path`]. Uses local scratch so it has no
+    /// persistent side effects. Debug-only (drives the `debug_assert` in `lock`).
+    #[cfg(debug_assertions)]
+    fn longest_source_path_reference(&self) -> Option<Vec<usize>> {
+        let n = self.num_digits;
+        let mut path = vec![0usize; n + 1];
+        let mut visited = vec![0usize; n + 1];
+        let mut result = None;
+        let mut max = 0usize;
+        for i in 1..=n {
+            if self.is_source[i] {
+                self.dfs_reference(i, 1, &mut path, &mut visited);
+                if path[0] > max {
+                    max = path[0];
+                    result = Some(path.clone());
+                    path.fill(0);
+                }
+            }
+        }
+        result
+    }
+
+    #[cfg(debug_assertions)]
+    fn dfs_reference(
+        &self,
+        id: usize,
+        depth: usize,
+        path: &mut [usize],
+        visited: &mut [usize],
+    ) -> bool {
+        if visited[id] > depth {
             return false;
         }
-        self.visited[id] = depth;
+        visited[id] = depth;
 
-        if self.guide[id] == 0 && depth > self.path[0] {
-            self.path[0] = depth;
-            self.path[depth] = id;
+        if self.guide[id] == 0 && depth > path[0] {
+            path[0] = depth;
+            path[depth] = id;
             return true;
         }
 
@@ -1682,13 +1792,13 @@ impl PairGuide {
         let mut found = false;
         while pos != 0 {
             let entry = self.entries[pos];
-            if self.dfs(entry & Self::MASK, depth + 1) {
+            if self.dfs_reference(entry & Self::MASK, depth + 1, path, visited) {
                 found = true;
             }
             pos = entry >> 16;
         }
         if found {
-            self.path[depth] = id;
+            path[depth] = id;
         }
         found
     }
