@@ -251,6 +251,10 @@ pub struct FoldedFigureSnapshot {
     pub find_another_overlap_valid: bool,
     pub text_result: String,
     pub wireframe: Option<FoldedWireframe>,
+    /// Present when the layer-ordering estimate hit an unresolvable
+    /// contradiction; carries the two faces to highlight (Feature B).
+    #[serde(default)]
+    pub contradiction: Option<FoldContradiction>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1025,7 +1029,7 @@ pub struct FoldingEstimate {
 /// The two faces the layer-ordering estimate could not consistently stack — the
 /// port's analog of Oriedita's `InferenceFailureException(i, j)`. Face indices
 /// match the folded figure's 1-based face numbering.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FoldContradiction {
     pub upper_face: usize,
     pub lower_face: usize,
@@ -1739,6 +1743,7 @@ pub fn folded_figure_snapshot_from_session(
         find_another_overlap_valid: estimate.find_another_overlap_valid,
         text_result: estimate.text_result.clone(),
         wireframe,
+        contradiction: estimate.contradiction,
     }
 }
 
