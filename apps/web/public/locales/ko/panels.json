@@ -1,4 +1,7 @@
 {
+  "annotationActions": {
+    "delete": "삭제"
+  },
   "bpEditor": {
     "emptyPacking": "수동으로 BP를 편집하기 전에 레이아웃 최적화를 실행하거나 패킹을 구체화하세요.",
     "emptyProject": "플랩과 리버를 편집하려면 박스 플리츠 프로젝트를 여세요.",
@@ -331,7 +334,6 @@
   "imageInspector": {
     "adjustOpacity": "불투명도 조정",
     "bringToFront": "맨 앞으로",
-    "deleteImage": "이미지 삭제",
     "imageControls": "이미지 컨트롤",
     "opacity": "불투명도",
     "sendToBack": "맨 뒤로"
@@ -474,5 +476,28 @@
     "patternLabel": "패턴 {{n}}",
     "patterns": "패턴",
     "patternTitle_other": "패턴 {{n}} — 면 {{count}}개"
+  },
+  "textAnnotation": {
+    "addText": "텍스트 추가",
+    "alignCenter": "가운데 정렬",
+    "alignLeft": "왼쪽 정렬",
+    "alignRight": "오른쪽 정렬",
+    "alignment": "정렬",
+    "blockBody": "본문",
+    "blockHeading": "제목",
+    "blockSubheading": "부제목",
+    "bold": "굵게",
+    "color": "텍스트 색상",
+    "deleteText": "텍스트 삭제",
+    "editText": "텍스트 편집",
+    "formatText": "텍스트 서식",
+    "italic": "기울임꼴",
+    "placeholder": "입력…",
+    "setAlign": "텍스트 정렬",
+    "setBlockType": "텍스트 스타일 변경",
+    "setColor": "텍스트 색상 설정",
+    "textControls": "텍스트 컨트롤",
+    "textStyle": "텍스트 스타일",
+    "underline": "밑줄"
   }
 }

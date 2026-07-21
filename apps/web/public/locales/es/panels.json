@@ -1,4 +1,7 @@
 {
+  "annotationActions": {
+    "delete": "Eliminar"
+  },
   "bpEditor": {
     "emptyPacking": "Ejecute Optimizar disposición o materialice un empaquetado antes de la edición manual de BP.",
     "emptyProject": "Abra un proyecto de plegado en caja para editar solapas y ríos.",
@@ -351,7 +354,6 @@
   "imageInspector": {
     "adjustOpacity": "Ajustar opacidad",
     "bringToFront": "Traer al frente",
-    "deleteImage": "Eliminar imagen",
     "imageControls": "Controles de imagen",
     "opacity": "Opacidad",
     "sendToBack": "Enviar al fondo"
@@ -500,5 +502,28 @@
     "patternTitle_one": "Patrón {{n}} — {{count}} cara",
     "patternTitle_many": "Patrón {{n}} — {{count}} caras",
     "patternTitle_other": "Patrón {{n}} — {{count}} caras"
+  },
+  "textAnnotation": {
+    "addText": "Añadir texto",
+    "alignCenter": "Centrar",
+    "alignLeft": "Alinear a la izquierda",
+    "alignRight": "Alinear a la derecha",
+    "alignment": "Alineación",
+    "blockBody": "Cuerpo",
+    "blockHeading": "Encabezado",
+    "blockSubheading": "Subencabezado",
+    "bold": "Negrita",
+    "color": "Color de texto",
+    "deleteText": "Eliminar texto",
+    "editText": "Editar texto",
+    "formatText": "Formatear texto",
+    "italic": "Cursiva",
+    "placeholder": "Escribe…",
+    "setAlign": "Alinear texto",
+    "setBlockType": "Cambiar estilo de texto",
+    "setColor": "Establecer color de texto",
+    "textControls": "Controles de texto",
+    "textStyle": "Estilo de texto",
+    "underline": "Subrayado"
   }
 }

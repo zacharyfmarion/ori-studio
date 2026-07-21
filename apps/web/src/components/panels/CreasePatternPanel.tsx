@@ -122,18 +122,29 @@ import { hexToRgbColor, rgbColorToHex } from '../../lib/rgbColor';
 import { ContextMenu } from '../ui/ContextMenu';
 import type { ContextMenuItem, ContextMenuRequest } from '../ui/contextMenuTypes';
 import { vertexPointsFromTransport } from '../../engine/oristudioCpGeometry';
-import { CpTextOverlay } from '../../cp-workspace/CpTextOverlay';
-import { CpImageOverlay } from '../../cp-workspace/CpImageOverlay';
+import { CpAnnotationOverlay } from '../../cp-workspace/CpAnnotationOverlay';
+import { CpTextAnnotationLayer } from '../../cp-workspace/CpTextAnnotationLayer';
 import { CpImageInspector } from '../../cp-workspace/CpImageInspector';
-import { createCpImage, type CpImage } from '../../cp-workspace/images/cpImage';
+import { createCpImage } from '../../cp-workspace/images/cpImage';
 import { importImageFile, isSupportedImageFile } from '../../cp-workspace/images/cpImageImport';
 import {
   fitImageModelSize,
-  imageCornersModel,
   overlayCssPerModel,
   overlayCssToModel,
 } from '../../cp-workspace/images/cpImagePlacement';
-import { boundingScreenRect } from '../../cp-workspace/annotations/annotationAnchor';
+import { annotationScreenRect } from '../../cp-workspace/annotations/annotationAnchor';
+import {
+  bottomAnnotationZ,
+  isImageAnnotation,
+  topAnnotationZ,
+} from '../../cp-workspace/annotations/annotation';
+import type { CanvasAnnotation } from '../../cp-workspace/annotations/annotation';
+import {
+  createTextAnnotation,
+  DEFAULT_TEXT_BOX_WIDTH,
+  DEFAULT_TEXT_FONT_SIZE,
+} from '../../cp-workspace/annotations/textAnnotation';
+import type { SerializedEditorState } from 'lexical';
 import type { FloatingAnchorRect } from '../../components/ui/FloatingToolbar';
 import {
   CpContextToolPanel,
@@ -166,7 +177,6 @@ import {
   isRestrictedDrawOperation,
   isSelectionCircleApplyOperation,
   isSquareBisectorOperation,
-  isTextAnnotationOperation,
   isVariablePointSequenceOperation,
 } from '../../cp-workspace/tools/predicates';
 import {
@@ -979,9 +989,11 @@ export function CreasePatternPanel() {
   const [cpToolPath, setCpToolPath] = useState<Point[]>([]);
   const [pendingLengthenLineId, setPendingLengthenLineId] = useState<number | null>(null);
   const [pendingSquareBisectorLineIds, setPendingSquareBisectorLineIds] = useState<number[]>([]);
-  // Model point of an empty-canvas Text-tool click, relayed to the overlay to open
-  // an inline-edit draft there. Cleared once the overlay has consumed it.
-  const [textCreateDraftAt, setTextCreateDraftAt] = useState<Point | null>(null);
+  // Id of the text annotation currently being inline-edited (null = none). The
+  // editStartRef records whether that edit began from a fresh box, so exit can
+  // roll back / label undo correctly.
+  const [editingTextId, setEditingTextId] = useState<string | null>(null);
+  const editStartRef = useRef<{ id: string; created: boolean } | null>(null);
   const [cpMeasurementSlots, setCpMeasurementSlots] = useState<CpMeasurementSlots>(
     createEmptyCpMeasurementSlots
   );
@@ -1035,35 +1047,42 @@ export function CreasePatternPanel() {
   const removeAnnotation = useWorkspaceStore((state) => state.removeAnnotation);
   const setSelectedAnnotation = useWorkspaceStore((state) => state.setSelectedAnnotation);
   const recordAnnotationHistory = useWorkspaceStore((state) => state.recordAnnotationHistory);
+  const selectedAnnotation =
+    oristudioCpAnnotations.find((a) => a.id === oristudioCpSelectedAnnotationId) ?? null;
   const selectedCpImage =
-    oristudioCpAnnotations.find((image) => image.id === oristudioCpSelectedAnnotationId) ?? null;
-  // Viewport-space anchor for the selected image's floating inspector. Measured
-  // in a layout effect (the container's screen offset requires a ref read, which
-  // isn't allowed during render) and refreshed as the camera or image changes.
-  const [imageInspectorAnchor, setImageInspectorAnchor] = useState<FloatingAnchorRect | null>(null);
+    selectedAnnotation && isImageAnnotation(selectedAnnotation) ? selectedAnnotation : null;
+  // Image annotations only — the WebGL renderer and the image overlay narrow to
+  // this; text annotations render on their own DOM layer.
+  const imageAnnotations = useMemo(
+    () => oristudioCpAnnotations.filter(isImageAnnotation),
+    [oristudioCpAnnotations]
+  );
+  // Viewport-space anchor for the selected annotation's floating toolbar.
+  // Measured in a layout effect (the container's screen offset requires a ref
+  // read, disallowed during render) and refreshed as the camera or box changes.
+  const [annotationToolbarAnchor, setAnnotationToolbarAnchor] =
+    useState<FloatingAnchorRect | null>(null);
   useLayoutEffect(() => {
-    if (!selectedCpImage || !webglOverlayView) {
-      setImageInspectorAnchor(null);
+    if (!selectedAnnotation || !webglOverlayView) {
+      setAnnotationToolbarAnchor(null);
       return;
     }
     const container = cpViewportRef.current?.getBoundingClientRect();
-    setImageInspectorAnchor(
-      container
-        ? boundingScreenRect(webglOverlayView, container, imageCornersModel(selectedCpImage))
-        : null
+    setAnnotationToolbarAnchor(
+      container ? annotationScreenRect(webglOverlayView, container, selectedAnnotation) : null
     );
-  }, [selectedCpImage, webglOverlayView]);
-  // Image-layer state captured at the start of a move/resize/rotate gesture, so
-  // the whole gesture records a single undo entry on commit.
-  const preGestureImagesRef = useRef<readonly CpImage[] | null>(null);
+  }, [selectedAnnotation, webglOverlayView]);
+  // Annotation-layer state captured at the start of a move/resize/rotate/edit
+  // gesture, so the whole gesture records a single undo entry on commit.
+  const preGestureAnnotationsRef = useRef<readonly CanvasAnnotation[] | null>(null);
   const imageFileInputRef = useRef<HTMLInputElement | null>(null);
   const beginImageGesture = useCallback(() => {
-    preGestureImagesRef.current = useWorkspaceStore.getState().oristudioCpAnnotations;
+    preGestureAnnotationsRef.current = useWorkspaceStore.getState().oristudioCpAnnotations;
   }, []);
   const commitImageGesture = useCallback(
     (label: string) => {
-      const previous = preGestureImagesRef.current;
-      preGestureImagesRef.current = null;
+      const previous = preGestureAnnotationsRef.current;
+      preGestureAnnotationsRef.current = null;
       if (previous) recordAnnotationHistory([...previous], label);
     },
     [recordAnnotationHistory]
@@ -1182,9 +1201,6 @@ export function CreasePatternPanel() {
   );
   const toggleOristudioCpCircleSelection = useWorkspaceStore(
     (state) => state.toggleOristudioCpCircleSelection
-  );
-  const toggleOristudioCpTextSelection = useWorkspaceStore(
-    (state) => state.toggleOristudioCpTextSelection
   );
   const setOristudioCpSelection = useWorkspaceStore((state) => state.setOristudioCpSelection);
   const clearOristudioCpActionRequest = useWorkspaceStore(
@@ -1934,51 +1950,6 @@ export function CreasePatternPanel() {
     },
     [setOristudioCpActiveDiagnostic]
   );
-
-  const handleDeleteSelectedText = useCallback(() => {
-    if (
-      !editableCp ||
-      !activeCpCommand ||
-      activeCpCommand.operationId !== 'Text' ||
-      oristudioCpSelection.texts.length === 0
-    ) {
-      return;
-    }
-
-    void (async () => {
-      const succeeded = await executeOristudioCpCommand(
-        activeCpCommand.operationId,
-        buildCpCommandPayload(activeCpCommand, {
-          text_action: 'DeleteSelected',
-          text_ids: oristudioCpSelection.texts,
-        })
-      );
-      if (succeeded) {
-        setOristudioCpSelection(emptyOristudioCpSelection());
-      }
-      setCpToolState((state) =>
-        state.activeOperationId === activeCpCommand.operationId
-          ? transitionOristudioCpToolState(
-              state,
-              succeeded
-                ? { type: 'commit', keepActive: true }
-                : {
-                    type: 'commandError',
-                    message: useWorkspaceStore.getState().oristudioCpError ?? t('panels:creasePattern.commandFailed', 'Command failed'),
-                  }
-            )
-          : state
-      );
-    })();
-  }, [
-    activeCpCommand,
-    buildCpCommandPayload,
-    editableCp,
-    executeOristudioCpCommand,
-    oristudioCpSelection.texts,
-    setOristudioCpSelection,
-    t,
-  ]);
 
   const selectionMoveSnapDocument = useMemo<OristudioCpDocumentSnapshot | null>(() => {
     if (!editableCp || oristudioCpSelection.lines.length === 0) return null;
@@ -2744,111 +2715,92 @@ export function CreasePatternPanel() {
     [activeCpCommand?.operationId, cpToolState.phase, toggleOristudioCpCircleSelection]
   );
 
-  const handleEditableTextClick = useCallback(
-    (id: number, additive = false) => {
-      if (
-        cpToolState.phase === 'active' &&
-        !allowsDirectEntitySelection(activeCpCommand?.operationId) &&
-        !isTextAnnotationOperation(activeCpCommand?.operationId)
-      ) {
-        return;
-      }
-      toggleOristudioCpTextSelection(id, additive);
-    },
-    [activeCpCommand?.operationId, cpToolState.phase, toggleOristudioCpTextSelection]
-  );
-
-  // Text tool: a click on empty canvas opens an inline-edit draft at that model
-  // point (the overlay owns the editor). Nothing is created until the draft is
-  // committed non-blank — see handleTextCommitCreate.
+  // Text tool: a click on empty canvas creates a text box there and drops
+  // straight into inline editing. The box is a web-side annotation (never a
+  // kernel text); Oriedita export flattens it back to {x,y,text} in Phase 3.
   const handleTextCreate = useCallback(
     (modelPoint: Point) => {
-      if (!editableCp || activeCpCommand?.operationId !== 'Text') return;
-      setTextCreateDraftAt({ x: modelPoint.x, y: modelPoint.y });
-    },
-    [activeCpCommand?.operationId, editableCp]
-  );
-
-  // Commit a new text from the inline editor. Uses CreateAt (not Create) so the
-  // engine never second-guesses the click with its FontMetrics-less bounds — the
-  // frontend is the sole authority on "empty space".
-  const handleTextCommitCreate = useCallback(
-    (anchor: Point, content: string) => {
-      if (!editableCp) return;
-      const newTextId = editableCp.crease_pattern.texts.length + 1;
-      void (async () => {
-        const succeeded = await executeOristudioCpCommand('Text', {
-          line_ids: [],
-          text_action: 'CreateAt',
-          points: [anchor],
-          text_content: content,
-        });
-        if (succeeded) {
-          setOristudioCpSelection({ ...emptyOristudioCpSelection(), texts: [newTextId] });
-        }
-      })();
-    },
-    [editableCp, executeOristudioCpCommand, setOristudioCpSelection]
-  );
-
-  const handleTextSetContent = useCallback(
-    (id: number, content: string) => {
-      void executeOristudioCpCommand('Text', {
-        line_ids: [],
-        text_action: 'SetContent',
-        text_ids: [id],
-        text_content: content,
+      if (!editableCp || activeCpCommand?.operationId !== 'Text' || !webglOverlayView) return;
+      const prev = useWorkspaceStore.getState().oristudioCpAnnotations;
+      const cssPerModel = overlayCssPerModel(webglOverlayView);
+      const box = createTextAnnotation({
+        center: { x: modelPoint.x, y: modelPoint.y },
+        width: cssPerModel > 0 ? 220 / cssPerModel : DEFAULT_TEXT_BOX_WIDTH,
+        fontSize: cssPerModel > 0 ? 16 / cssPerModel : DEFAULT_TEXT_FONT_SIZE,
+        z: topAnnotationZ(prev) + 1,
       });
+      preGestureAnnotationsRef.current = prev; // snapshot before add, for undo
+      editStartRef.current = { id: box.id, created: true };
+      addAnnotation(box);
+      setEditingTextId(box.id);
     },
-    [executeOristudioCpCommand]
+    [activeCpCommand?.operationId, editableCp, webglOverlayView, addAnnotation]
   );
 
-  // An existing text edited down to blank is deleted (parity with Oriedita's
-  // blank-text GC on commit).
-  const handleTextDeleteById = useCallback(
-    (id: number) => {
-      void (async () => {
-        const succeeded = await executeOristudioCpCommand('Text', {
-          line_ids: [],
-          text_action: 'DeleteSelected',
-          text_ids: [id],
-        });
-        if (succeeded) setOristudioCpSelection(emptyOristudioCpSelection());
-      })();
+  // Double-click a text box (via the annotation overlay) → inline editing.
+  const handleRequestEditText = useCallback(
+    (id: string) => {
+      preGestureAnnotationsRef.current = useWorkspaceStore.getState().oristudioCpAnnotations;
+      editStartRef.current = { id, created: false };
+      setSelectedAnnotation(id);
+      setEditingTextId(id);
     },
-    [executeOristudioCpCommand, setOristudioCpSelection]
+    [setSelectedAnnotation]
   );
 
-  const handleSelectSingleText = useCallback(
-    (id: number) => {
-      setOristudioCpSelection({ ...emptyOristudioCpSelection(), texts: [id] });
+  const handleTextContentChange = useCallback(
+    (id: string, doc: SerializedEditorState, plainText: string) => {
+      updateAnnotation(id, { doc, plainText });
     },
-    [setOristudioCpSelection]
+    [updateAnnotation]
   );
 
-  const handleTextDraftConsumed = useCallback(() => {
-    setTextCreateDraftAt(null);
-  }, []);
+  // Leave inline editing. An empty box is discarded (parity with Oriedita's
+  // blank-text GC); otherwise the whole edit records one undo entry.
+  const handleExitEditText = useCallback(() => {
+    const editing = editStartRef.current;
+    setEditingTextId(null);
+    editStartRef.current = null;
+    if (!editing) {
+      preGestureAnnotationsRef.current = null;
+      return;
+    }
+    const annotation = useWorkspaceStore
+      .getState()
+      .oristudioCpAnnotations.find((a) => a.id === editing.id);
+    const empty =
+      !annotation || (annotation.kind === 'text' && annotation.plainText.trim() === '');
+    if (empty) {
+      removeAnnotation(editing.id);
+      if (editing.created) preGestureAnnotationsRef.current = null;
+      else commitImageGesture(t('panels:textAnnotation.deleteText', 'Delete text'));
+      return;
+    }
+    commitImageGesture(
+      editing.created
+        ? t('panels:textAnnotation.addText', 'Add text')
+        : t('panels:textAnnotation.editText', 'Edit text')
+    );
+  }, [removeAnnotation, commitImageGesture, t]);
 
-  // Commit a text drag. The engine's Move applies (points[1] - points[0]) as the
-  // delta, so a zero origin + the model delta moves the text by exactly that much.
-  // Returns the command promise so the overlay can hold its optimistic offset until
-  // the document update lands (no snap-back flicker).
-  const handleTextMove = useCallback(
-    (id: number, delta: Point) => {
-      if (delta.x === 0 && delta.y === 0) return Promise.resolve();
-      return executeOristudioCpCommand('Text', {
-        line_ids: [],
-        text_action: 'Move',
-        text_ids: [id],
-        points: [
-          { x: 0, y: 0 },
-          { x: delta.x, y: delta.y },
-        ],
-      });
-    },
-    [executeOristudioCpCommand]
-  );
+  const syncAnnotationHeight = useWorkspaceStore((state) => state.syncAnnotationHeight);
+
+  // Chrome changes made from the text toolbar during an edit fold into the single
+  // edit undo entry, so they use no-op gesture boundaries.
+  const noopGesture = useCallback(() => {}, []);
+
+  // Delete from the text toolbar removes the box and leaves edit mode; the
+  // pre-edit snapshot makes it undoable (unless the box was never real).
+  const handleDeleteEditingText = useCallback(() => {
+    const editing = editStartRef.current;
+    const id = editingTextId;
+    setEditingTextId(null);
+    editStartRef.current = null;
+    if (!id) return;
+    removeAnnotation(id);
+    if (editing && !editing.created) commitImageGesture(t('panels:textAnnotation.deleteText', 'Delete text'));
+    else preGestureAnnotationsRef.current = null;
+  }, [editingTextId, removeAnnotation, commitImageGesture, t]);
 
   const emptyStatusLabel =
     status === 'building_crease_pattern'
@@ -2945,22 +2897,6 @@ export function CreasePatternPanel() {
         }
       }
 
-      // Delete/Backspace removes the selected text annotation(s) under the Text tool
-      // (a web convention Oriedita lacks). Guarded by `!interactive` so it never
-      // fires while typing in the inline editor. handleDeleteSelectedText itself
-      // checks the Text tool + a non-empty text selection.
-      if (
-        (event.key === 'Delete' || event.key === 'Backspace') &&
-        !interactive &&
-        editableCp &&
-        isTextAnnotationOperation(activeCpCommand?.operationId) &&
-        oristudioCpSelection.texts.length > 0
-      ) {
-        event.preventDefault();
-        handleDeleteSelectedText();
-        return;
-      }
-
       if (event.key === ' ' && !interactive) {
         event.preventDefault();
         setSpacePressed(true);
@@ -2992,9 +2928,7 @@ export function CreasePatternPanel() {
     cpToolState,
     editableCp,
     editableSelectionSize,
-    handleDeleteSelectedText,
     hasCreasePattern,
-    oristudioCpSelection.texts.length,
     pendingLengthenLineId,
     pendingSquareBisectorLineIds.length,
   ]);
@@ -3096,7 +3030,7 @@ export function CreasePatternPanel() {
                   className="cp-webgl-layer"
                   lineSegments={editableCp.crease_pattern.line_segments}
                   geometry={oristudioCpDocument?.geometry ?? null}
-                  images={oristudioCpAnnotations}
+                  images={imageAnnotations}
                   modelToSvg={editableModelToSvg}
                   svgToModel={editableSvgToModel}
                   selectedLineIds={oristudioCpSelection.lines}
@@ -3203,47 +3137,53 @@ export function CreasePatternPanel() {
                     if (!open) setFoldedContextMenu(null);
                   }}
                 />
-                {webglOverlayView &&
-                  (editableCp.crease_pattern.texts.length > 0 ||
-                    isTextAnnotationOperation(activeCpCommand?.operationId)) && (
-                    <CpTextOverlay
-                      texts={editableCp.crease_pattern.texts}
-                      selectedTextIds={oristudioCpSelection.texts}
-                      view={webglOverlayView}
-                      zoomPercent={zoomPercent}
-                      selectable={
-                        cpToolState.phase !== 'active' ||
-                        allowsDirectEntitySelection(activeCpCommand?.operationId) ||
-                        isTextAnnotationOperation(activeCpCommand?.operationId)
-                      }
-                      textToolActive={isTextAnnotationOperation(activeCpCommand?.operationId)}
-                      createDraftAt={textCreateDraftAt}
-                      onCreateDraftConsumed={handleTextDraftConsumed}
-                      onToggleText={handleEditableTextClick}
-                      onSelectText={handleSelectSingleText}
-                      onCreateText={handleTextCommitCreate}
-                      onSetTextContent={handleTextSetContent}
-                      onDeleteText={handleTextDeleteById}
-                      onMoveText={handleTextMove}
-                      onDeselect={clearOristudioCpSelection}
-                    />
-                  )}
+                {webglOverlayView && (oristudioCpAnnotations.length > 0 || editingTextId) && (
+                  <CpTextAnnotationLayer
+                    annotations={oristudioCpAnnotations}
+                    view={webglOverlayView}
+                    editingTextId={editingTextId}
+                    toolbarAnchor={annotationToolbarAnchor}
+                    onChangeText={handleTextContentChange}
+                    onExitEdit={handleExitEditText}
+                    onGestureStart={noopGesture}
+                    onGestureCommit={noopGesture}
+                    onOpacity={(value) =>
+                      editingTextId && updateAnnotation(editingTextId, { opacity: value })
+                    }
+                    onBringToFront={() =>
+                      editingTextId &&
+                      updateAnnotation(editingTextId, {
+                        z: topAnnotationZ(oristudioCpAnnotations) + 1,
+                      })
+                    }
+                    onSendToBack={() =>
+                      editingTextId &&
+                      updateAnnotation(editingTextId, {
+                        z: bottomAnnotationZ(oristudioCpAnnotations) - 1,
+                      })
+                    }
+                    onDelete={handleDeleteEditingText}
+                    onSyncHeight={syncAnnotationHeight}
+                  />
+                )}
                 {webglOverlayView && oristudioCpAnnotations.length > 0 && (
-                  <CpImageOverlay
-                    images={oristudioCpAnnotations}
-                    selectedImageId={oristudioCpSelectedAnnotationId}
+                  <CpAnnotationOverlay
+                    annotations={oristudioCpAnnotations}
+                    selectedId={oristudioCpSelectedAnnotationId}
+                    editingTextId={editingTextId}
                     view={webglOverlayView}
                     interactive={annotationsInteractive}
-                    onSelectImage={setSelectedAnnotation}
-                    onUpdateImage={updateAnnotation}
+                    onSelect={setSelectedAnnotation}
+                    onUpdate={updateAnnotation}
+                    onRequestEditText={handleRequestEditText}
                     onGestureStart={beginImageGesture}
                     onGestureCommit={(_id, label) => commitImageGesture(label)}
                   />
                 )}
-                {annotationsInteractive && selectedCpImage && (
+                {annotationsInteractive && selectedCpImage && !editingTextId && (
                   <CpImageInspector
                     image={selectedCpImage}
-                    anchorRect={imageInspectorAnchor}
+                    anchorRect={annotationToolbarAnchor}
                     onUpdate={(patch) => updateAnnotation(selectedCpImage.id, patch)}
                     onGestureStart={beginImageGesture}
                     onGestureCommit={commitImageGesture}

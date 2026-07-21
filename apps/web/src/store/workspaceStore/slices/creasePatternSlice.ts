@@ -1282,6 +1282,15 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
             : null,
       }),
 
+    syncAnnotationHeight: (id, height) =>
+      set({
+        oristudioCpAnnotations: get().oristudioCpAnnotations.map((annotation) =>
+          annotation.id === id && annotation.kind === 'text'
+            ? { ...annotation, height }
+            : annotation
+        ),
+      }),
+
     setAnnotations: (annotations) =>
       set({
         oristudioCpAnnotations: annotations,

@@ -12,24 +12,27 @@
  */
 
 import type { CpImage, CpImageUpdate } from '../images/cpImage';
+import type { TextAnnotation, TextAnnotationUpdate } from './textAnnotation';
 
 export type { AnnotationBase, AnnotationKind } from './annotationBase';
 
 /** The `'image'` annotation variant. */
 export type ImageAnnotation = CpImage;
 
-/**
- * Every annotation kind. A discriminated union on `kind`; widens as new variants
- * (text) are added.
- */
-export type CanvasAnnotation = ImageAnnotation;
+/** Every annotation kind. A discriminated union on `kind`. */
+export type CanvasAnnotation = ImageAnnotation | TextAnnotation;
 
 /** A partial update to an annotation, discriminated per kind. */
-export type AnnotationUpdate = CpImageUpdate;
+export type AnnotationUpdate = CpImageUpdate | TextAnnotationUpdate;
 
 /** Narrow a {@link CanvasAnnotation} to the image variant. */
 export function isImageAnnotation(annotation: CanvasAnnotation): annotation is ImageAnnotation {
   return annotation.kind === 'image';
+}
+
+/** Narrow a {@link CanvasAnnotation} to the text variant. */
+export function isTextAnnotation(annotation: CanvasAnnotation): annotation is TextAnnotation {
+  return annotation.kind === 'text';
 }
 
 /** The highest `z` across the annotations, or 0 for an empty layer. */

@@ -445,6 +445,12 @@ export interface CreasePatternSliceActions {
   removeAnnotation: (id: string) => void;
   /** Select an annotation (or clear with `null`). */
   setSelectedAnnotation: (id: string | null) => void;
+  /**
+   * Update a text box's measured auto-height without dirtying the project or
+   * recording history — a pure layout sync driven by content reflow, so the
+   * selection handles match the rendered box.
+   */
+  syncAnnotationHeight: (id: string, height: number) => void;
   /** Replace the whole annotation layer (used by load and snapshot restore). */
   setAnnotations: (annotations: CanvasAnnotation[]) => void;
   /**

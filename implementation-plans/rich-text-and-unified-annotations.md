@@ -174,29 +174,31 @@ image edits. Retire the kernel text-command history path for editing.
 ## Checklist
 
 ### Phase 0 — Reusable floating toolbar (ship-able, no model change)
-- [ ] Add `@floating-ui/react`; build generic `FloatingToolbar` (portal, flip/shift).
-- [ ] Add `annotationScreenRect` anchoring helper (+ unit tests).
-- [ ] Migrate `CpImageInspector` → anchored `FloatingToolbar` instance above the image.
+- [x] Add `@floating-ui/react`; build generic `FloatingToolbar` (portal, flip/shift).
+- [x] Add `annotationScreenRect` anchoring helper (+ unit tests).
+- [x] Migrate `CpImageInspector` → anchored `FloatingToolbar` instance above the image.
 
 ### Phase 1 — Unified annotation substrate (images only, behavior-preserving)
-- [ ] Introduce `CanvasAnnotation` / `AnnotationBase` / `ImageAnnotation` types.
-- [ ] Refactor store slice: `oristudioCpImages` → `oristudioCpAnnotations`, shared selection + history.
-- [ ] Generalize placement/hit-test/resize into `annotationPlacement.ts`.
-- [ ] Renderer filters `kind === 'image'`; image render output unchanged.
-- [ ] Remove Images tool / `imageEditMode`; image selection global under Select context.
-- [ ] `.osf` v4 migration for `images` → annotations (keep reading v3).
+- [x] Introduce `CanvasAnnotation` / `AnnotationBase` / `ImageAnnotation` types.
+- [x] Refactor store slice: `oristudioCpImages` → `oristudioCpAnnotations`, shared selection + history.
+- [x] Generalize placement/hit-test/resize (widened `cpImagePlacement`, `annotationAnchor`).
+- [x] Renderer consumes filtered image annotations; image render output unchanged.
+- [x] Remove Images tool / `imageEditMode`; image selection global under Select context.
+- [x] `.osf` in-memory rename (disk format unchanged this phase).
 
 ### Phase 2 — Rich text object
-- [ ] Add `lexical`; define `textDoc` schema (marks, block presets, color, align).
-- [ ] `CpTextAnnotation` DOM renderer/editor with reflow in a resizable box.
-- [ ] Text creation tool (drop box → edit); double-click-to-edit; select/drag/resize via shared overlay.
-- [ ] `TextToolbar` (block type, B/I/U, color, alignment) + shared annotation actions.
-- [ ] Retire `CpTextOverlay`; text no longer routes through kernel edit commands.
+- [x] Add `lexical`; define `textAnnotation` model + `textFormatting` (marks, block presets, color, align).
+- [x] `CpTextView` read-only renderer + `CpTextEditor` (Lexical) with reflow in a resizable box.
+- [x] Text creation tool (drop box → edit); double-click-to-edit; select/drag/resize via shared `CpAnnotationOverlay`.
+- [x] `TextToolbar` (block type, B/I/U, color, alignment) + shared `AnnotationActions`.
+- [x] Retire `CpTextOverlay` / kernel text-edit commands.
+- [x] `.osf` v4: additive `textAnnotations` field persists text boxes (+ round-trip tests).
+- [ ] Inflate legacy kernel `texts` → text annotations on load (**deferred to Phase 3** — needs a kernel "clear texts" op; until then, legacy files with kernel texts don't display them).
 
-### Phase 3 — Serialization codec
+### Phase 3 — Oriedita serialization codec
 - [ ] Flatten (Lexical → `{x,y,text}`) + `set_texts` WASM bridge; wire `.ori`/`.fold` export.
-- [ ] Inflate kernel `texts` → default text annotations on import + legacy `.osf` load.
-- [ ] `.osf` v4 stores text annotations (Lexical JSON); round-trip tests (`.osf`, `.ori`, `.fold`).
+- [ ] Inflate kernel `texts` → default text annotations on import + legacy load (closes the Phase 2 gap).
+- [ ] Round-trip tests (`.ori`, `.fold`).
 
 ### Phase 4 — Unification polish
 - [ ] Unified annotation undo/redo across text + image edits.

@@ -251,7 +251,7 @@ describe('native project file', () => {
 
     const parsed = parseNativeProjectFile(serializeNativeProjectFile(file));
 
-    expect(parsed.schemaVersion).toBe(3);
+    expect(parsed.schemaVersion).toBe(4);
     expect(parsed.workspace.documents.map((document) => document.kind)).toEqual([
       'treemaker-tree',
       'crease-pattern',
@@ -412,7 +412,7 @@ describe('native project file', () => {
     const parsed = parseNativeProjectFile(JSON.stringify(legacy));
     const document = activeNativeDocument(parsed);
 
-    expect(parsed.schemaVersion).toBe(3);
+    expect(parsed.schemaVersion).toBe(4);
     expect(document.kind).toBe('crease-pattern');
     if (document.kind !== 'crease-pattern') throw new Error('expected CP document');
     expect(document.creasePattern.lineage).toMatchObject({ kind: 'imported', stale: false });
@@ -424,11 +424,11 @@ describe('native project file', () => {
       parseNativeProjectFile(
         JSON.stringify({
           format: 'oristudio.project',
-          schemaVersion: 4,
-          minimumReaderSchemaVersion: 4,
+          schemaVersion: 5,
+          minimumReaderSchemaVersion: 5,
         })
       )
-    ).toThrow(/requires reader schema 4/i);
+    ).toThrow(/requires reader schema 5/i);
   });
 
   it('round-trips crease-pattern reference images (superset feature)', () => {

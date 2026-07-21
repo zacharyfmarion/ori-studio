@@ -30,6 +30,7 @@ import {
   markCpLineageEdited,
 } from '../../../lib/oristudioCpLineage';
 import { IMAGE_TOTAL_BYTES_WARN, totalCpImageBytes } from '../../../cp-workspace/images/cpImage';
+import { isImageAnnotation, isTextAnnotation } from '../../../cp-workspace/annotations/annotation';
 import type { CanvasAnnotation } from '../../../cp-workspace/annotations/annotation';
 import { normalizeOristudioCpCommandPayload } from '../../../lib/oristudioCpCommandPayloads';
 import {
@@ -780,7 +781,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       importedCreasePattern: importedDocument,
       oristudioCpDocument: documentState,
       oristudioCpLineage: nativeDocument.creasePattern.lineage,
-      oristudioCpAnnotations: nativeDocument.creasePattern.images,
+      oristudioCpAnnotations: [...nativeDocument.creasePattern.images, ...nativeDocument.creasePattern.textAnnotations],
       oristudioCpSelectedAnnotationId: null,
       oristudioCpDocumentExtensions: nativeDocument.extensions,
       oristudioCpCamvResult: checked.camvResult,
@@ -838,7 +839,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     set({
       oristudioCpDocument: checked.documentState,
       oristudioCpLineage: nativeDocument.creasePattern.lineage,
-      oristudioCpAnnotations: nativeDocument.creasePattern.images,
+      oristudioCpAnnotations: [...nativeDocument.creasePattern.images, ...nativeDocument.creasePattern.textAnnotations],
       oristudioCpSelectedAnnotationId: null,
       oristudioCpDocumentExtensions: nativeDocument.extensions,
       oristudioCpCamvResult: checked.camvResult,
@@ -960,7 +961,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     if (!result) return false;
     const document = get().oristudioBpDocument;
     // Soft, non-blocking notice when the file embeds a lot of image data.
-    const imageBytes = totalCpImageBytes(get().oristudioCpAnnotations);
+    const imageBytes = totalCpImageBytes(get().oristudioCpAnnotations.filter(isImageAnnotation));
     const savedMessage =
       imageBytes > IMAGE_TOTAL_BYTES_WARN
         ? `Saved ${result.name} — embeds ~${Math.round(
@@ -1014,7 +1015,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       foldedFigures: get().oristudioCpFoldedFigures,
       activeFoldedFigureId: get().oristudioCpActiveFoldedFigureId,
       lineage: get().oristudioCpLineage ?? importedCpLineage(),
-      images: get().oristudioCpAnnotations,
+      images: get().oristudioCpAnnotations.filter(isImageAnnotation),
+      textAnnotations: get().oristudioCpAnnotations.filter(isTextAnnotation),
       extensions: get().oristudioCpDocumentExtensions,
       appVersion: APP_VERSION,
     };
@@ -1027,7 +1029,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   // otherwise returns a Promise resolving to the user's choice. Callers use the
   // `gate !== true && !(await gate)` idiom so the no-loss path never awaits.
   const guardExportLoss = (format: ExportFormat): true | Promise<boolean> => {
-    const warnings = collectExportLossWarnings(format, { images: get().oristudioCpAnnotations });
+    const warnings = collectExportLossWarnings(format, { images: get().oristudioCpAnnotations.filter(isImageAnnotation) });
     if (warnings.length === 0) return true;
     return requestConfirmation({
       title: 'Some features can’t be exported',

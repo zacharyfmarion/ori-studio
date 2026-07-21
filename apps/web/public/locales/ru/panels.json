@@ -1,4 +1,7 @@
 {
+  "annotationActions": {
+    "delete": "Удалить"
+  },
   "bpEditor": {
     "emptyPacking": "Запустите «Оптимизировать раскладку» или материализуйте упаковку перед ручным редактированием BP.",
     "emptyProject": "Откройте проект Box Pleat, чтобы редактировать клапаны и реки.",
@@ -361,7 +364,6 @@
   "imageInspector": {
     "adjustOpacity": "Настроить непрозрачность",
     "bringToFront": "На передний план",
-    "deleteImage": "Удалить изображение",
     "imageControls": "Управление изображением",
     "opacity": "Непрозрачность",
     "sendToBack": "На задний план"
@@ -513,5 +515,28 @@
     "patternTitle_few": "Паттерн {{n}} — {{count}} грани",
     "patternTitle_many": "Паттерн {{n}} — {{count}} граней",
     "patternTitle_other": "Паттерн {{n}} — {{count}} грани"
+  },
+  "textAnnotation": {
+    "addText": "Добавить текст",
+    "alignCenter": "По центру",
+    "alignLeft": "По левому краю",
+    "alignRight": "По правому краю",
+    "alignment": "Выравнивание",
+    "blockBody": "Основной текст",
+    "blockHeading": "Заголовок",
+    "blockSubheading": "Подзаголовок",
+    "bold": "Полужирный",
+    "color": "Цвет текста",
+    "deleteText": "Удалить текст",
+    "editText": "Изменить текст",
+    "formatText": "Форматировать текст",
+    "italic": "Курсив",
+    "placeholder": "Введите…",
+    "setAlign": "Выровнять текст",
+    "setBlockType": "Изменить стиль текста",
+    "setColor": "Задать цвет текста",
+    "textControls": "Элементы управления текстом",
+    "textStyle": "Стиль текста",
+    "underline": "Подчёркнутый"
   }
 }

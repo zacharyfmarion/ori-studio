@@ -1,4 +1,7 @@
 {
+  "annotationActions": {
+    "delete": "Supprimer"
+  },
   "bpEditor": {
     "emptyPacking": "Lancez Optimiser la disposition ou matérialisez un agencement avant l'édition BP manuelle.",
     "emptyProject": "Ouvrez un projet de pliage en boîte pour modifier les rabats et les rivières.",
@@ -351,7 +354,6 @@
   "imageInspector": {
     "adjustOpacity": "Ajuster lʼopacité",
     "bringToFront": "Mettre au premier plan",
-    "deleteImage": "Supprimer lʼimage",
     "imageControls": "Commandes dʼimage",
     "opacity": "Opacité",
     "sendToBack": "Envoyer à lʼarrière-plan"
@@ -500,5 +502,28 @@
     "patternTitle_one": "Patron {{n}} — {{count}} face",
     "patternTitle_many": "Patron {{n}} — {{count}} faces",
     "patternTitle_other": "Patron {{n}} — {{count}} faces"
+  },
+  "textAnnotation": {
+    "addText": "Ajouter du texte",
+    "alignCenter": "Centrer",
+    "alignLeft": "Aligner à gauche",
+    "alignRight": "Aligner à droite",
+    "alignment": "Alignement",
+    "blockBody": "Corps",
+    "blockHeading": "Titre",
+    "blockSubheading": "Sous-titre",
+    "bold": "Gras",
+    "color": "Couleur du texte",
+    "deleteText": "Supprimer le texte",
+    "editText": "Modifier le texte",
+    "formatText": "Mettre en forme le texte",
+    "italic": "Italique",
+    "placeholder": "Saisir…",
+    "setAlign": "Aligner le texte",
+    "setBlockType": "Changer le style de texte",
+    "setColor": "Définir la couleur du texte",
+    "textControls": "Contrôles de texte",
+    "textStyle": "Style de texte",
+    "underline": "Souligné"
   }
 }

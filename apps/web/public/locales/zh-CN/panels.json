@@ -1,4 +1,7 @@
 {
+  "annotationActions": {
+    "delete": "删除"
+  },
   "bpEditor": {
     "emptyPacking": "手动编辑 BP 前，请先运行优化布局或生成一个排布方案。",
     "emptyProject": "打开一个箱形褶皱项目以编辑瓣和河。",
@@ -331,7 +334,6 @@
   "imageInspector": {
     "adjustOpacity": "调整不透明度",
     "bringToFront": "移到最前",
-    "deleteImage": "删除图像",
     "imageControls": "图像控件",
     "opacity": "不透明度",
     "sendToBack": "移到最后"
@@ -474,5 +476,28 @@
     "patternLabel": "折痕图 {{n}}",
     "patterns": "折痕图",
     "patternTitle_other": "折痕图 {{n}} — {{count}} 个面"
+  },
+  "textAnnotation": {
+    "addText": "添加文本",
+    "alignCenter": "居中对齐",
+    "alignLeft": "左对齐",
+    "alignRight": "右对齐",
+    "alignment": "对齐",
+    "blockBody": "正文",
+    "blockHeading": "标题",
+    "blockSubheading": "副标题",
+    "bold": "粗体",
+    "color": "文本颜色",
+    "deleteText": "删除文本",
+    "editText": "编辑文本",
+    "formatText": "格式化文本",
+    "italic": "斜体",
+    "placeholder": "输入…",
+    "setAlign": "对齐文本",
+    "setBlockType": "更改文本样式",
+    "setColor": "设置文本颜色",
+    "textControls": "文本控件",
+    "textStyle": "文本样式",
+    "underline": "下划线"
   }
 }
