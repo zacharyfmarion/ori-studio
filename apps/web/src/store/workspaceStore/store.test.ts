@@ -1134,6 +1134,17 @@ function resetStores(snapshot = makeSnapshot()) {
   oristudioCpMocks.foldOristudioCpDocument
     .mockReset()
     .mockResolvedValue({ handle: 7, snapshot: foldedFigureSnapshot() });
+  // Default: no flat-foldability violations, so the pre-fold warning gate folds
+  // straight through. Reset here so its call count / queued results don't leak
+  // between tests now that folding runs CheckCamv up front.
+  oristudioCpMocks.runOristudioCpCheckCommand
+    .mockReset()
+    .mockResolvedValue({
+      operation: 'CheckCamv',
+      status: 'OracleTested',
+      diagnostics: [],
+      diagnostic_entries: [],
+    });
   oristudioCpMocks.foldOristudioCpFigureAnother
     .mockReset()
     .mockResolvedValue({ ...foldedFigureSnapshot(), discovered_fold_cases: 2 });

@@ -1,11 +1,10 @@
 use oristudio_cp::folding::{
-    ChainPermutationGenerator, DisplayStyle, EstimationOrder, EstimationStep, FoldedFigureModel,
-    FoldedFigureRenderAntialias, FoldedFigureRenderGeometry, FoldedFigureRenderPaint,
-    AdditionalEstimationError, FoldContradiction, FoldedFigureRenderPrimitiveKind,
-    FoldedFigureRenderStroke, FoldedFigureState, FoldingEstimateError,
-    FoldingEstimateSession, HierarchyRelation, InitialHierarchy, RenderPathCommand, RgbaColor,
-    WorkerOverlapSearchError,
-    SubFacePermutationSearch, SubFaceSwapper, WorkerOverlapEnumerator,
+    AdditionalEstimationError, ChainPermutationGenerator, DisplayStyle, EstimationOrder,
+    EstimationStep, FoldContradiction, FoldedFigureModel, FoldedFigureRenderAntialias,
+    FoldedFigureRenderGeometry, FoldedFigureRenderPaint, FoldedFigureRenderPrimitiveKind,
+    FoldedFigureRenderStroke, FoldedFigureState, FoldingEstimateError, FoldingEstimateSession,
+    HierarchyRelation, InitialHierarchy, RenderPathCommand, RgbaColor, SubFacePermutationSearch,
+    SubFaceSwapper, WorkerOverlapEnumerator, WorkerOverlapSearchError,
     additional_estimation_from_segments, configure_subfaces_from_segments,
     duplicate_estimation_order_for_display, equivalence_condition_candidates_from_segments,
     estimate_wireframe_from_segments, fold_another, folded_figure_snapshot_from_segments,
@@ -621,12 +620,11 @@ fn fold_another_runs_order6_on_existing_session() {
 fn worker_overlap_contradiction_is_extractable() {
     // A layer-ordering contradiction is recoverable: it carries the offending
     // face pair so the fold can conclude gracefully instead of erroring out.
-    let err = WorkerOverlapSearchError::AdditionalEstimation(
-        AdditionalEstimationError::Contradiction {
+    let err =
+        WorkerOverlapSearchError::AdditionalEstimation(AdditionalEstimationError::Contradiction {
             upper_face: 15,
             lower_face: 12,
-        },
-    );
+        });
     assert_eq!(
         err.contradiction(),
         Some(FoldContradiction {

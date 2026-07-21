@@ -730,8 +730,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           const camv = await runOristudioCpCheckCommand('CheckCamv');
           hasFlatFoldabilityViolations = (camv.diagnostic_entries?.length ?? 0) > 0;
         } catch {
-          // A failed check must not block folding — fall through and fold.
-          hasFlatFoldabilityViolations = false;
+          // A failed check must not block folding — leave the flag false and fold.
         }
         if (hasFlatFoldabilityViolations) {
           const { confirmed, optionChecked } = await requestConfirmationWithOption({
