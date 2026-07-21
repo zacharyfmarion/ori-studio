@@ -1065,7 +1065,10 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   // otherwise returns a Promise resolving to the user's choice. Callers use the
   // `gate !== true && !(await gate)` idiom so the no-loss path never awaits.
   const guardExportLoss = (format: ExportFormat): true | Promise<boolean> => {
-    const warnings = collectExportLossWarnings(format, { images: get().oristudioCpAnnotations.filter(isImageAnnotation) });
+    const warnings = collectExportLossWarnings(format, {
+      images: get().oristudioCpAnnotations.filter(isImageAnnotation),
+      richText: get().oristudioCpAnnotations.filter(isTextAnnotation),
+    });
     if (warnings.length === 0) return true;
     return requestConfirmation({
       title: 'Some features can’t be exported',

@@ -503,12 +503,8 @@
     "color": "Text color",
     "deleteText": "Delete text",
     "editText": "Edit text",
-    "formatText": "Format text",
     "italic": "Italic",
     "placeholder": "Type…",
-    "setAlign": "Align text",
-    "setBlockType": "Change text style",
-    "setColor": "Set text color",
     "textControls": "Text controls",
     "textStyle": "Text style",
     "underline": "Underline"
