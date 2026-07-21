@@ -188,7 +188,10 @@ first.
       (slice orchestration over the already-tested mirroring helper; integration
       is browser-verifiable)
 - [x] 5. Selecting a node focuses (and select-alls) its name box
-- [ ] 6. Repro + stop viewport moving during flap drag
+- [x] 6. Repro + stop viewport moving during flap drag
+      (root cause: SVG viewBox from getBpPackingWorldRect grew to include the
+      dragged flap's rect+label, so the viewBox chased the flap; fix freezes the
+      viewBox during any pointer drag)
 - [ ] Validation: `cargo test --workspace` (engine), wasm rebuild, `npx tsc --noEmit`
       + `npm run test:web` + lint, `npm run i18n:check`; browser verification of
       symmetry default, send-to-edit alignment, un-subdivide, name focus, and
