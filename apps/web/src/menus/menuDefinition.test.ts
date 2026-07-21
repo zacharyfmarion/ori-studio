@@ -54,14 +54,12 @@ describe('web menu definition', () => {
       'Design',
       'Edit',
       'Simulate',
-      'Conditions',
       'Reset Layout',
     ]);
     expect(actionItems.map((item) => item.id)).toEqual([
       'view.design',
       'view.edit',
       'view.simulate',
-      'view.conditions',
       'view.resetLayout',
     ]);
   });
