@@ -102,6 +102,10 @@ function bpCpToEditorConvention(cpText: string): string {
  * and hold a BP document. The tree/packing editing surfaces and file/optimizer
  * actions are wired up in later phases.
  */
+// Dedupe concurrent `ensureBoxPleatProject` calls (e.g. React StrictMode
+// double-invoking the seeding effect) so only one starter project is created.
+let ensureBpInFlight: Promise<void> | null = null;
+
 export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (set, get) => {
   const confirmDiscardDirty = async (dirty: boolean): Promise<boolean> => {
     if (!dirty) return true;
@@ -149,7 +153,6 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       dirty: document.dirty,
       projectMessage: message,
       status: 'ready',
-      engineReady: true,
       error: null,
     });
     const layout = useLayoutStore.getState();
@@ -249,6 +252,21 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     // Ephemeral mirror-draw state (never persisted). `loc` is set to the sheet centre
     // when the panel enables symmetry; `angle` 90 is a vertical (book) axis.
     oristudioBpSymmetry: { enabled: false, angle: 90, loc: { x: 0, y: 0 }, pairs: [] },
+
+    ensureBoxPleatProject: async () => {
+      if (get().oristudioBpDocument || get().oristudioBpBusy) return;
+      if (ensureBpInFlight) return ensureBpInFlight;
+      ensureBpInFlight = (async () => {
+        try {
+          // Preserve the always-live Edit canvas; this is a passive seed, not a
+          // user-initiated "new project", so it must not prompt to discard.
+          await get().createOristudioBpProject({ preserveEditCanvas: true, confirmDiscard: false });
+        } finally {
+          ensureBpInFlight = null;
+        }
+      })();
+      return ensureBpInFlight;
+    },
 
     createOristudioBpProject: async (options = {}) => {
       if (options.confirmDiscard !== false && !(await confirmDiscardDirty(get().dirty))) {

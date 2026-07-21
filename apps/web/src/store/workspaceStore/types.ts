@@ -503,6 +503,12 @@ export interface OristudioBpSliceActions {
     confirmDiscard?: boolean;
     preserveEditCanvas?: boolean;
   }) => Promise<boolean>;
+  /**
+   * Seed a starter box-pleat project when the Design/box-pleat surface is entered
+   * without one (self-provision), so `/design/bp` is reachable directly. Idempotent
+   * and deduped against concurrent callers; a no-op when a BP document exists.
+   */
+  ensureBoxPleatProject: () => Promise<void>;
   /** Load a bundled Box Pleating example project. */
   loadOristudioBpExample: (id: string, options?: { confirmDiscard?: boolean }) => Promise<boolean>;
   /**

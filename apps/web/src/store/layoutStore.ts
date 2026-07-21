@@ -2,9 +2,8 @@ import { create } from 'zustand';
 import type { DockviewApi, IDockviewPanel, SerializedDockview } from 'dockview';
 import type { WorkspaceId } from '../workspaces/workspaces';
 import { workspaceForPanelId } from '../workspaces/workspaces';
+import { readJson, readString, removeKey, storageKey, STORAGE_KEYS, writeJson, writeString } from '../lib/storage';
 
-const LAYOUT_STORAGE_KEY = 'treemaker-web-layout';
-const LAYOUT_VERSION_KEY = 'treemaker-web-layout-version';
 // v15: workspace routing rebuilt the layout lifecycle; invalidate any layouts
 // persisted by the racy pre-routing/interim builds (e.g. a vertically stacked BP
 // split, an Edit layout missing the View pane).
@@ -61,11 +60,23 @@ function isPersistentScope(workspace: WorkspaceId): boolean {
 }
 
 function layoutStorageKey(scope: string): string {
-  return `${LAYOUT_STORAGE_KEY}:${scope}`;
+  return storageKey(STORAGE_KEYS.layout, scope);
 }
 
 function layoutVersionKey(scope: string): string {
-  return `${LAYOUT_VERSION_KEY}:${scope}`;
+  return storageKey(STORAGE_KEYS.layoutVersion, scope);
+}
+
+/**
+ * Remove the persisted layout (and its version) for a workspace's current scope.
+ * Uses the variant-aware scope, so clearing the Design workspace targets the
+ * layout actually stored for its active variant (treemaker/box-pleat), not a
+ * stale plain-`design` key.
+ */
+export function clearPersistedLayout(workspace: WorkspaceId): void {
+  const scope = currentLayoutScope(workspace);
+  removeKey(layoutStorageKey(scope));
+  removeKey(layoutVersionKey(scope));
 }
 
 interface PrimaryPanelOptions {
@@ -218,9 +229,7 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
         return;
       } catch (error) {
         console.warn('Failed to restore layout', error);
-        const scope = currentLayoutScope(workspace);
-        localStorage.removeItem(layoutStorageKey(scope));
-        localStorage.removeItem(layoutVersionKey(scope));
+        clearPersistedLayout(workspace);
       }
     }
 
@@ -246,37 +255,21 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
     if (!dockviewApi) return;
     if (!isPersistentScope(workspace)) return;
     const scope = currentLayoutScope(workspace);
-    try {
-      localStorage.setItem(layoutStorageKey(scope), JSON.stringify(dockviewApi.toJSON()));
-      localStorage.setItem(layoutVersionKey(scope), String(LAYOUT_VERSION));
-    } catch (error) {
-      console.warn('Failed to save layout', error);
-    }
+    writeJson(layoutStorageKey(scope), dockviewApi.toJSON());
+    writeString(layoutVersionKey(scope), String(LAYOUT_VERSION));
   },
   loadLayout: (workspace = get().activeWorkspace) => {
     if (!isPersistentScope(workspace)) return null;
     const scope = currentLayoutScope(workspace);
-    const version = localStorage.getItem(layoutVersionKey(scope));
+    const version = readString(layoutVersionKey(scope));
     if (version !== String(LAYOUT_VERSION)) {
-      localStorage.removeItem(layoutStorageKey(scope));
-      localStorage.removeItem(layoutVersionKey(scope));
-      localStorage.removeItem(LAYOUT_STORAGE_KEY);
-      localStorage.removeItem(LAYOUT_VERSION_KEY);
+      clearPersistedLayout(workspace);
       return null;
     }
-    const saved = localStorage.getItem(layoutStorageKey(scope));
-    if (!saved) return null;
-    try {
-      return JSON.parse(saved) as SerializedDockview;
-    } catch (error) {
-      console.warn('Failed to parse saved layout', error);
-      return null;
-    }
+    return readJson<SerializedDockview | null>(layoutStorageKey(scope), null);
   },
   resetLayout: (workspace = get().activeWorkspace) => {
-    const scope = currentLayoutScope(workspace);
-    localStorage.removeItem(layoutStorageKey(scope));
-    localStorage.removeItem(layoutVersionKey(scope));
+    clearPersistedLayout(workspace);
     const { dockviewApi } = get();
     if (!dockviewApi || workspace !== get().activeWorkspace) return;
     dockviewApi.clear();

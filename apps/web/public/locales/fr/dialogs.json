@@ -170,7 +170,9 @@
       "layout": "Disposition",
       "resetButton": "Réinitialiser la disposition de l'espace de travail",
       "resetMessage": "Restaurer la disposition par défaut de l'espace de travail actuel ?",
-      "resetTitle": "Réinitialiser la disposition de l'espace de travail"
+      "resetTitle": "Réinitialiser la disposition de l'espace de travail",
+      "showWelcome": "Afficher l'écran d'accueil au démarrage",
+      "startup": "Démarrage"
     }
   },
   "startScreen": {
@@ -189,6 +191,7 @@
       "title": "Ouvrir un fichier"
     },
     "preparing": "Préparation de l'éditeur...",
+    "showWelcomeOnStartup": "Afficher l'accueil au démarrage",
     "startOptions": "Options de démarrage",
     "title": "Démarrer un nouvel espace de travail d'origami"
   }

@@ -8,13 +8,13 @@ import {
 describe('workspace definitions', () => {
   it('defines the three primary workspaces in rail order', () => {
     expect(WORKSPACE_DEFINITIONS.map((workspace) => workspace.id)).toEqual([
-      'design',
       'edit',
+      'design',
       'simulate',
     ]);
     expect(WORKSPACE_DEFINITIONS.map((workspace) => workspace.label)).toEqual([
-      'Design',
       'Edit',
+      'Design',
       'Simulate',
     ]);
   });

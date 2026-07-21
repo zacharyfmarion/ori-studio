@@ -2,6 +2,7 @@ import { useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { StartScreen } from '../components/StartScreen';
 import { useLayoutStore } from '../store/layoutStore';
+import { useSettingsStore } from '../store/settingsStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { DESIGN_PATH, EDIT_PATH } from './paths';
 import { openedProjectPath } from './landing';
@@ -11,6 +12,10 @@ import { openedProjectPath } from './landing';
  * establishes it in the store, then navigates to the workspace that owns it.
  * Arriving here clears transient project state (a discarded dirty flag, a stale
  * error/message) so the start screen is a clean slate.
+ *
+ * Whether a cold start lands here or straight in Edit is decided by the router's
+ * index redirect (the "Show welcome on startup" preference), not this component —
+ * so returning here intentionally (File › New) always shows the start screen.
  */
 export function WelcomeRoute() {
   const navigate = useNavigate();
@@ -18,6 +23,8 @@ export function WelcomeRoute() {
   const error = useWorkspaceStore((state) => state.error);
   const createNewCreasePattern = useWorkspaceStore((state) => state.createNewCreasePattern);
   const openProject = useWorkspaceStore((state) => state.openProject);
+  const showWelcomeOnStartup = useSettingsStore((state) => state.showWelcomeOnStartup);
+  const setShowWelcomeOnStartup = useSettingsStore((state) => state.setShowWelcomeOnStartup);
 
   useEffect(() => {
     const state = useWorkspaceStore.getState();
@@ -56,6 +63,8 @@ export function WelcomeRoute() {
         onCreateCreasePattern={() => void handleCreateCreasePattern()}
         onCreateDesign={() => void handleCreateDesign()}
         onOpenFile={() => void handleOpenFile()}
+        showWelcomeOnStartup={showWelcomeOnStartup}
+        onToggleShowWelcomeOnStartup={setShowWelcomeOnStartup}
       />
     </div>
   );

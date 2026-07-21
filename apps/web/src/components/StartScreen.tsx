@@ -14,6 +14,8 @@ interface StartScreenProps {
   onCreateCreasePattern: () => void;
   onCreateDesign: () => void;
   onOpenFile: () => void;
+  showWelcomeOnStartup: boolean;
+  onToggleShowWelcomeOnStartup: (value: boolean) => void;
 }
 
 export function StartScreen({
@@ -22,6 +24,8 @@ export function StartScreen({
   onCreateCreasePattern,
   onCreateDesign,
   onOpenFile,
+  showWelcomeOnStartup,
+  onToggleShowWelcomeOnStartup,
 }: StartScreenProps) {
   const { t } = useTranslation();
   const preparing = status === 'loading_engine';
@@ -92,9 +96,19 @@ export function StartScreen({
           />
         </div>
 
-        <div className="start-screen__status" data-error={status === 'error' || undefined}>
-          <FilePlus size={14} />
-          <span>{statusMessage}</span>
+        <div className="start-screen__footer">
+          <div className="start-screen__status" data-error={status === 'error' || undefined}>
+            <FilePlus size={14} />
+            <span>{statusMessage}</span>
+          </div>
+          <label className="start-screen__startup-toggle">
+            <input
+              type="checkbox"
+              checked={showWelcomeOnStartup}
+              onChange={(event) => onToggleShowWelcomeOnStartup(event.target.checked)}
+            />
+            {t('dialogs:startScreen.showWelcomeOnStartup', 'Show welcome on startup')}
+          </label>
         </div>
       </section>
     </main>

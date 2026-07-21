@@ -218,8 +218,5 @@
     "edit": "Bearbeiten-Arbeitsbereich",
     "label": "Arbeitsbereiche",
     "simulate": "Simulieren-Arbeitsbereich"
-  },
-  "workspaceShell": {
-    "preparing": "Editor wird vorbereitet…"
   }
 }

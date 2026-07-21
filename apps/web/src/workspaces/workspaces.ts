@@ -10,18 +10,18 @@ export interface WorkspaceDefinition {
 
 export const WORKSPACE_DEFINITIONS: WorkspaceDefinition[] = [
   {
-    id: 'design',
-    label: 'Design',
-    tooltip: 'Design workspace',
-    commandId: 'view.design',
-    primaryPanelId: 'design',
-  },
-  {
     id: 'edit',
     label: 'Edit',
     tooltip: 'Edit workspace',
     commandId: 'view.edit',
     primaryPanelId: 'crease-pattern',
+  },
+  {
+    id: 'design',
+    label: 'Design',
+    tooltip: 'Design workspace',
+    commandId: 'view.design',
+    primaryPanelId: 'design',
   },
   {
     id: 'simulate',

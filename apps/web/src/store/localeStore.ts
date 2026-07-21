@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import i18n from '../i18n';
+import { writeString } from '../lib/storage';
 import {
   detectSystemLocale,
   LOCALE_STORAGE_KEY,
@@ -26,12 +27,7 @@ function applyHtmlLang(code: string): void {
 }
 
 function persistPreference(preference: LocalePreference): void {
-  if (typeof localStorage === 'undefined') return;
-  try {
-    localStorage.setItem(LOCALE_STORAGE_KEY, preference);
-  } catch {
-    // Ignore storage failures in restricted browser contexts.
-  }
+  writeString(LOCALE_STORAGE_KEY, preference);
 }
 
 interface LocaleState {

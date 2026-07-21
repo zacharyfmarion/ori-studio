@@ -1,27 +1,31 @@
 import { createBrowserRouter, createMemoryRouter, redirect } from 'react-router-dom';
-import type { LoaderFunctionArgs } from 'react-router-dom';
 import App from '../App';
 import { WorkspaceShell } from '../components/WorkspaceShell';
+import { readBoolean, storageKey, STORAGE_KEYS } from '../lib/storage';
 import { getRuntimeSurface } from '../platform/runtime';
-import { useWorkspaceStore } from '../store/workspaceStore';
-import { WELCOME_PATH, parseWorkspacePath } from './paths';
+import { EDIT_PATH, WELCOME_PATH } from './paths';
 import { WelcomeRoute } from './WelcomeRoute';
 import { WorkspaceRoute } from './WorkspaceRoute';
 
 /**
- * Guard the workspace routes: with no project established this session (a cold
- * reload / deep link), redirect to `/welcome` before anything renders — no empty
- * editor flashes. The Design method chooser (`/design`) is allowed without a
- * project only when it was entered intentionally (`pendingDesignChoice`, set by
- * "Create a design"); a cold deep link to it redirects like any other route.
+ * The configured startup home for a bare `/` or an unknown path. The "Show
+ * welcome on startup" preference is a synchronously-readable routing choice — the
+ * welcome screen (the default) or straight into Edit.
+ *
+ * Note there is deliberately **no** guard on the workspace routes: every surface
+ * stands on its own (Edit and Design/box-pleat self-provision their documents,
+ * the Design chooser establishes itself, TreeMaker opens an empty tree, Simulate
+ * shows its own empty state), so a cold reload / deep link into any workspace is
+ * always honored rather than bounced.
  */
-function workspaceGuard({ request }: LoaderFunctionArgs) {
-  const parsed = parseWorkspacePath(new URL(request.url).pathname);
-  const isChooser = parsed?.workspace === 'design' && parsed.variant === 'nux';
-  const state = useWorkspaceStore.getState();
-  const allowed = state.projectEstablished || (isChooser && state.pendingDesignChoice);
-  if (!allowed) return redirect(WELCOME_PATH);
-  return null;
+export function startupHomePath(): string {
+  const showWelcome = readBoolean(storageKey(STORAGE_KEYS.showWelcomeOnStartup), true);
+  return showWelcome ? WELCOME_PATH : EDIT_PATH;
+}
+
+/** Where a cold start (`/`) or an unmatched path lands. */
+function startupRedirect() {
+  return redirect(startupHomePath());
 }
 
 type AppRouter = ReturnType<typeof createBrowserRouter>;
@@ -54,11 +58,10 @@ export function createAppRouter(): AppRouter {
       path: '/',
       element: <App />,
       children: [
-        { index: true, loader: () => redirect(WELCOME_PATH) },
+        { index: true, loader: startupRedirect },
         { path: 'welcome', element: <WelcomeRoute /> },
         {
           element: <WorkspaceShell />,
-          loader: workspaceGuard,
           children: [
             { path: 'design', element: <WorkspaceRoute workspace="design" variant="nux" /> },
             {
@@ -70,13 +73,15 @@ export function createAppRouter(): AppRouter {
             { path: 'simulate', element: <WorkspaceRoute workspace="simulate" /> },
           ],
         },
-        { path: '*', loader: () => redirect(WELCOME_PATH) },
+        { path: '*', loader: startupRedirect },
       ],
     },
   ];
 
   if (getRuntimeSurface() === 'desktop') {
-    return createMemoryRouter(routes, { initialEntries: [WELCOME_PATH] });
+    // Start at the index so `startupRedirect` applies the welcome/Edit preference
+    // on desktop too (there's no address bar to deep-link from).
+    return createMemoryRouter(routes, { initialEntries: ['/'] });
   }
 
   const basename = import.meta.env.BASE_URL.replace(/\/$/, '') || '/';

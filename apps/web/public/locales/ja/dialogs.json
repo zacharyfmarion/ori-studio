@@ -162,7 +162,9 @@
       "layout": "レイアウト",
       "resetButton": "ワークスペースレイアウトをリセット",
       "resetMessage": "現在のワークスペースの既定のレイアウトに戻しますか？",
-      "resetTitle": "ワークスペースレイアウトをリセット"
+      "resetTitle": "ワークスペースレイアウトをリセット",
+      "showWelcome": "起動時にようこそ画面を表示する",
+      "startup": "起動"
     }
   },
   "startScreen": {
@@ -181,6 +183,7 @@
       "title": "ファイルを開く"
     },
     "preparing": "エディターを準備中...",
+    "showWelcomeOnStartup": "起動時にようこそ画面を表示",
     "startOptions": "開始オプション",
     "title": "新しい折り紙ワークスペースを開始"
   }

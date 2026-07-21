@@ -311,7 +311,6 @@
     "common:workspaceRail.edit": "52e3ba99e590",
     "common:workspaceRail.label": "1377264ba3b0",
     "common:workspaceRail.simulate": "448ecf02e7b4",
-    "common:workspaceShell.preparing": "15c51339d09f",
     "dialogs:closeGuard.discard": "eb1a70e39274",
     "dialogs:closeGuard.message": "3992fd9a151a",
     "dialogs:closeGuard.title": "470e7ee2a579",
@@ -1693,7 +1692,13 @@
     "panels:bpPacking.flapNameAria": "acce910aed38",
     "panels:bpPacking.flapTitle": "05f6293f188c",
     "panels:bpTree.flapNameAria": "acce910aed38",
-    "panels:bpTree.flapTitle": "05f6293f188c"
+    "panels:bpTree.flapTitle": "05f6293f188c",
+    "panels:creasePattern.preparing": "15c51339d09f",
+    "panels:design.preparingBoxPleatEditor": "1c57afe4161f",
+    "panels:design.preparingTreeEditor": "3b7930e2d017",
+    "dialogs:settings.workspace.showWelcome": "92d9169a02d0",
+    "dialogs:settings.workspace.startup": "65d48235a91e",
+    "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -2007,7 +2012,6 @@
     "common:workspaceRail.edit": "52e3ba99e590",
     "common:workspaceRail.label": "1377264ba3b0",
     "common:workspaceRail.simulate": "448ecf02e7b4",
-    "common:workspaceShell.preparing": "15c51339d09f",
     "dialogs:closeGuard.discard": "eb1a70e39274",
     "dialogs:closeGuard.message": "3992fd9a151a",
     "dialogs:closeGuard.title": "470e7ee2a579",
@@ -3389,7 +3393,13 @@
     "panels:bpPacking.flapNameAria": "acce910aed38",
     "panels:bpPacking.flapTitle": "05f6293f188c",
     "panels:bpTree.flapNameAria": "acce910aed38",
-    "panels:bpTree.flapTitle": "05f6293f188c"
+    "panels:bpTree.flapTitle": "05f6293f188c",
+    "panels:creasePattern.preparing": "15c51339d09f",
+    "panels:design.preparingBoxPleatEditor": "1c57afe4161f",
+    "panels:design.preparingTreeEditor": "3b7930e2d017",
+    "dialogs:settings.workspace.showWelcome": "92d9169a02d0",
+    "dialogs:settings.workspace.startup": "65d48235a91e",
+    "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -3703,7 +3713,6 @@
     "common:workspaceRail.edit": "52e3ba99e590",
     "common:workspaceRail.label": "1377264ba3b0",
     "common:workspaceRail.simulate": "448ecf02e7b4",
-    "common:workspaceShell.preparing": "15c51339d09f",
     "dialogs:closeGuard.discard": "eb1a70e39274",
     "dialogs:closeGuard.message": "3992fd9a151a",
     "dialogs:closeGuard.title": "470e7ee2a579",
@@ -5110,7 +5119,13 @@
     "panels:bpPacking.flapNameAria": "acce910aed38",
     "panels:bpPacking.flapTitle": "05f6293f188c",
     "panels:bpTree.flapNameAria": "acce910aed38",
-    "panels:bpTree.flapTitle": "05f6293f188c"
+    "panels:bpTree.flapTitle": "05f6293f188c",
+    "panels:creasePattern.preparing": "15c51339d09f",
+    "panels:design.preparingBoxPleatEditor": "1c57afe4161f",
+    "panels:design.preparingTreeEditor": "3b7930e2d017",
+    "dialogs:settings.workspace.showWelcome": "92d9169a02d0",
+    "dialogs:settings.workspace.startup": "65d48235a91e",
+    "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -5424,7 +5439,6 @@
     "common:workspaceRail.edit": "52e3ba99e590",
     "common:workspaceRail.label": "1377264ba3b0",
     "common:workspaceRail.simulate": "448ecf02e7b4",
-    "common:workspaceShell.preparing": "15c51339d09f",
     "dialogs:closeGuard.discard": "eb1a70e39274",
     "dialogs:closeGuard.message": "3992fd9a151a",
     "dialogs:closeGuard.title": "470e7ee2a579",
@@ -6831,7 +6845,13 @@
     "panels:bpPacking.flapNameAria": "acce910aed38",
     "panels:bpPacking.flapTitle": "05f6293f188c",
     "panels:bpTree.flapNameAria": "acce910aed38",
-    "panels:bpTree.flapTitle": "05f6293f188c"
+    "panels:bpTree.flapTitle": "05f6293f188c",
+    "panels:creasePattern.preparing": "15c51339d09f",
+    "panels:design.preparingBoxPleatEditor": "1c57afe4161f",
+    "panels:design.preparingTreeEditor": "3b7930e2d017",
+    "dialogs:settings.workspace.showWelcome": "92d9169a02d0",
+    "dialogs:settings.workspace.startup": "65d48235a91e",
+    "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -7145,7 +7165,6 @@
     "common:workspaceRail.edit": "52e3ba99e590",
     "common:workspaceRail.label": "1377264ba3b0",
     "common:workspaceRail.simulate": "448ecf02e7b4",
-    "common:workspaceShell.preparing": "15c51339d09f",
     "dialogs:closeGuard.discard": "eb1a70e39274",
     "dialogs:closeGuard.message": "3992fd9a151a",
     "dialogs:closeGuard.title": "470e7ee2a579",
@@ -8552,7 +8571,13 @@
     "panels:bpPacking.flapNameAria": "acce910aed38",
     "panels:bpPacking.flapTitle": "05f6293f188c",
     "panels:bpTree.flapNameAria": "acce910aed38",
-    "panels:bpTree.flapTitle": "05f6293f188c"
+    "panels:bpTree.flapTitle": "05f6293f188c",
+    "panels:creasePattern.preparing": "15c51339d09f",
+    "panels:design.preparingBoxPleatEditor": "1c57afe4161f",
+    "panels:design.preparingTreeEditor": "3b7930e2d017",
+    "dialogs:settings.workspace.showWelcome": "92d9169a02d0",
+    "dialogs:settings.workspace.startup": "65d48235a91e",
+    "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8866,7 +8891,6 @@
     "common:workspaceRail.edit": "52e3ba99e590",
     "common:workspaceRail.label": "1377264ba3b0",
     "common:workspaceRail.simulate": "448ecf02e7b4",
-    "common:workspaceShell.preparing": "15c51339d09f",
     "dialogs:closeGuard.discard": "eb1a70e39274",
     "dialogs:closeGuard.message": "3992fd9a151a",
     "dialogs:closeGuard.title": "470e7ee2a579",
@@ -10273,7 +10297,13 @@
     "panels:bpPacking.flapNameAria": "acce910aed38",
     "panels:bpPacking.flapTitle": "05f6293f188c",
     "panels:bpTree.flapNameAria": "acce910aed38",
-    "panels:bpTree.flapTitle": "05f6293f188c"
+    "panels:bpTree.flapTitle": "05f6293f188c",
+    "panels:creasePattern.preparing": "15c51339d09f",
+    "panels:design.preparingBoxPleatEditor": "1c57afe4161f",
+    "panels:design.preparingTreeEditor": "3b7930e2d017",
+    "dialogs:settings.workspace.showWelcome": "92d9169a02d0",
+    "dialogs:settings.workspace.startup": "65d48235a91e",
+    "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10587,7 +10617,6 @@
     "common:workspaceRail.edit": "52e3ba99e590",
     "common:workspaceRail.label": "1377264ba3b0",
     "common:workspaceRail.simulate": "448ecf02e7b4",
-    "common:workspaceShell.preparing": "15c51339d09f",
     "dialogs:closeGuard.discard": "eb1a70e39274",
     "dialogs:closeGuard.message": "3992fd9a151a",
     "dialogs:closeGuard.title": "470e7ee2a579",
@@ -11994,7 +12023,13 @@
     "panels:bpPacking.flapNameAria": "acce910aed38",
     "panels:bpPacking.flapTitle": "05f6293f188c",
     "panels:bpTree.flapNameAria": "acce910aed38",
-    "panels:bpTree.flapTitle": "05f6293f188c"
+    "panels:bpTree.flapTitle": "05f6293f188c",
+    "panels:creasePattern.preparing": "15c51339d09f",
+    "panels:design.preparingBoxPleatEditor": "1c57afe4161f",
+    "panels:design.preparingTreeEditor": "3b7930e2d017",
+    "dialogs:settings.workspace.showWelcome": "92d9169a02d0",
+    "dialogs:settings.workspace.startup": "65d48235a91e",
+    "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12308,7 +12343,6 @@
     "common:workspaceRail.edit": "52e3ba99e590",
     "common:workspaceRail.label": "1377264ba3b0",
     "common:workspaceRail.simulate": "448ecf02e7b4",
-    "common:workspaceShell.preparing": "15c51339d09f",
     "dialogs:closeGuard.discard": "eb1a70e39274",
     "dialogs:closeGuard.message": "3992fd9a151a",
     "dialogs:closeGuard.title": "470e7ee2a579",
@@ -13690,6 +13724,12 @@
     "panels:bpPacking.flapNameAria": "acce910aed38",
     "panels:bpPacking.flapTitle": "05f6293f188c",
     "panels:bpTree.flapNameAria": "acce910aed38",
-    "panels:bpTree.flapTitle": "05f6293f188c"
+    "panels:bpTree.flapTitle": "05f6293f188c",
+    "panels:creasePattern.preparing": "15c51339d09f",
+    "panels:design.preparingBoxPleatEditor": "1c57afe4161f",
+    "panels:design.preparingTreeEditor": "3b7930e2d017",
+    "dialogs:settings.workspace.showWelcome": "92d9169a02d0",
+    "dialogs:settings.workspace.startup": "65d48235a91e",
+    "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9"
   }
 }

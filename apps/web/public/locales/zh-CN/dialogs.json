@@ -162,7 +162,9 @@
       "layout": "布局",
       "resetButton": "重置工作区布局",
       "resetMessage": "为当前工作区恢复默认布局吗？",
-      "resetTitle": "重置工作区布局"
+      "resetTitle": "重置工作区布局",
+      "showWelcome": "启动时显示欢迎屏幕",
+      "startup": "启动"
     }
   },
   "startScreen": {
@@ -181,6 +183,7 @@
       "title": "打开文件"
     },
     "preparing": "正在准备编辑器...",
+    "showWelcomeOnStartup": "启动时显示欢迎界面",
     "startOptions": "开始选项",
     "title": "开始新的折纸工作区"
   }

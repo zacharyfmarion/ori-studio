@@ -1434,6 +1434,21 @@
   text-transform: uppercase;
 }
 
+.settings-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+
+.settings-checkbox input {
+  cursor: pointer;
+}
+
 .settings-toggle-row {
   display: flex;
   align-items: center;
@@ -3087,6 +3102,23 @@
   font-size: 0.78rem;
   font-weight: 650;
   text-align: center;
+}
+
+.cp-panel__preparing {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-tertiary);
+}
+
+.cp-panel__spinner {
+  animation: cp-panel-spin 0.9s linear infinite;
+}
+
+@keyframes cp-panel-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .document-mode-empty {

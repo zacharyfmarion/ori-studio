@@ -218,8 +218,5 @@
     "edit": "编辑工作区",
     "label": "工作区",
     "simulate": "模拟工作区"
-  },
-  "workspaceShell": {
-    "preparing": "正在准备编辑器…"
   }
 }

@@ -218,8 +218,5 @@
     "edit": "Espacio de trabajo de edición",
     "label": "Espacios de trabajo",
     "simulate": "Espacio de trabajo de simulación"
-  },
-  "workspaceShell": {
-    "preparing": "Preparando el editor…"
   }
 }

@@ -160,9 +160,24 @@ function AppearanceTab() {
 function WorkspaceTab() {
   const { t } = useTranslation();
   const resetLayout = useLayoutStore((state) => state.resetLayout);
+  const showWelcomeOnStartup = useSettingsStore((state) => state.showWelcomeOnStartup);
+  const setShowWelcomeOnStartup = useSettingsStore((state) => state.setShowWelcomeOnStartup);
 
   return (
     <div className="settings-tab">
+      <section className="settings-section">
+        <h3 className="settings-section__title">
+          {t('dialogs:settings.workspace.startup', 'Startup')}
+        </h3>
+        <label className="settings-checkbox">
+          <input
+            type="checkbox"
+            checked={showWelcomeOnStartup}
+            onChange={(event) => setShowWelcomeOnStartup(event.target.checked)}
+          />
+          {t('dialogs:settings.workspace.showWelcome', 'Show welcome screen on startup')}
+        </label>
+      </section>
       <section className="settings-section">
         <h3 className="settings-section__title">{t('dialogs:settings.workspace.layout', 'Layout')}</h3>
         <Button

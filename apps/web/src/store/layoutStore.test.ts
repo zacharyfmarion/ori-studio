@@ -176,35 +176,35 @@ describe('layout store', () => {
     useLayoutStore.getState().saveLayout();
 
     expect(useLayoutStore.getState().loadLayout()).toEqual(layout);
-    expect(localStorage.getItem('treemaker-web-layout:design')).toContain('branch');
+    expect(localStorage.getItem('oristudio:layout:design')).toContain('branch');
   });
 
   it('rejects stale or malformed saved layouts', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    localStorage.setItem('treemaker-web-layout-version:design', '1');
-    localStorage.setItem('treemaker-web-layout:design', '{"grid":true}');
+    // A stale version discards the saved layout and clears its keys.
+    localStorage.setItem('oristudio:layout-version:design', '1');
+    localStorage.setItem('oristudio:layout:design', '{"grid":true}');
 
     expect(useLayoutStore.getState().loadLayout()).toBeNull();
-    expect(localStorage.getItem('treemaker-web-layout:design')).toBeNull();
+    expect(localStorage.getItem('oristudio:layout:design')).toBeNull();
 
-    localStorage.setItem('treemaker-web-layout-version:design', String(LAYOUT_VERSION));
-    localStorage.setItem('treemaker-web-layout:design', '{broken');
+    // A current version but malformed JSON falls back to null (no throw).
+    localStorage.setItem('oristudio:layout-version:design', String(LAYOUT_VERSION));
+    localStorage.setItem('oristudio:layout:design', '{broken');
 
     expect(useLayoutStore.getState().loadLayout()).toBeNull();
-    expect(warn).toHaveBeenCalledWith('Failed to parse saved layout', expect.any(SyntaxError));
   });
 
   it('resets to the default layout and persists the replacement', () => {
     const api = createDockviewApi(dockviewLayout('reset'));
     useLayoutStore.getState().setDockviewApi(api);
-    localStorage.setItem('treemaker-web-layout-version:design', '10');
-    localStorage.setItem('treemaker-web-layout:design', '{"old":true}');
+    localStorage.setItem('oristudio:layout-version:design', '10');
+    localStorage.setItem('oristudio:layout:design', '{"old":true}');
 
     useLayoutStore.getState().resetLayout();
 
     expect(api.clear).toHaveBeenCalledOnce();
     expect(api.addPanel).toHaveBeenCalledTimes(4);
-    expect(localStorage.getItem('treemaker-web-layout:design')).toContain('reset');
+    expect(localStorage.getItem('oristudio:layout:design')).toContain('reset');
   });
 
   it('builds the box-pleat design layout as tree + BP Editor with no TreeMaker panes', () => {
@@ -244,8 +244,8 @@ describe('layout store', () => {
     designVariant = 'box-pleat';
     useLayoutStore.getState().saveLayout('design');
 
-    expect(localStorage.getItem('treemaker-web-layout:design')).toContain('design-layout');
-    expect(localStorage.getItem('treemaker-web-layout:design:box-pleat')).toContain('design-layout');
+    expect(localStorage.getItem('oristudio:layout:design')).toContain('design-layout');
+    expect(localStorage.getItem('oristudio:layout:design:box-pleat')).toContain('design-layout');
   });
 
   it('does not persist the transient NUX layout', () => {
@@ -255,7 +255,7 @@ describe('layout store', () => {
 
     useLayoutStore.getState().saveLayout('design');
 
-    expect(localStorage.getItem('treemaker-web-layout:design:nux')).toBeNull();
+    expect(localStorage.getItem('oristudio:layout:design:nux')).toBeNull();
     expect(useLayoutStore.getState().loadLayout('design')).toBeNull();
   });
 

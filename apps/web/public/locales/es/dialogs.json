@@ -170,7 +170,9 @@
       "layout": "Disposición",
       "resetButton": "Restablecer disposición del espacio de trabajo",
       "resetMessage": "¿Restaurar la disposición predeterminada del espacio de trabajo actual?",
-      "resetTitle": "Restablecer disposición del espacio de trabajo"
+      "resetTitle": "Restablecer disposición del espacio de trabajo",
+      "showWelcome": "Mostrar la pantalla de bienvenida al iniciar",
+      "startup": "Inicio"
     }
   },
   "startScreen": {
@@ -189,6 +191,7 @@
       "title": "Abrir un archivo"
     },
     "preparing": "Preparando el editor...",
+    "showWelcomeOnStartup": "Mostrar bienvenida al iniciar",
     "startOptions": "Opciones de inicio",
     "title": "Iniciar un nuevo espacio de trabajo de origami"
   }

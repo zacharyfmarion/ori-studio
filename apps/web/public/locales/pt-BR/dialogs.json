@@ -170,7 +170,9 @@
       "layout": "Layout",
       "resetButton": "Redefinir layout do workspace",
       "resetMessage": "Restaurar o layout padrão do workspace atual?",
-      "resetTitle": "Redefinir layout do workspace"
+      "resetTitle": "Redefinir layout do workspace",
+      "showWelcome": "Mostrar a tela de boas-vindas ao iniciar",
+      "startup": "Inicialização"
     }
   },
   "startScreen": {
@@ -189,6 +191,7 @@
       "title": "Abrir um arquivo"
     },
     "preparing": "Preparando o editor...",
+    "showWelcomeOnStartup": "Mostrar boas-vindas ao iniciar",
     "startOptions": "Opções de início",
     "title": "Iniciar um novo workspace de origami"
   }

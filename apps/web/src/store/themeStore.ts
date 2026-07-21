@@ -7,26 +7,17 @@ import {
   PRESET_THEMES,
   type TreeMakerTheme,
 } from '../themes';
+import { readString, storageKey, STORAGE_KEYS, writeString } from '../lib/storage';
 
-export const THEME_STORAGE_KEY = 'treemaker-web-theme';
+export const THEME_STORAGE_KEY = storageKey(STORAGE_KEYS.theme);
 const LIGHT_SCHEME_QUERY = '(prefers-color-scheme: light)';
 
 function loadSavedThemeName(): string | null {
-  if (typeof localStorage === 'undefined') return null;
-  try {
-    return localStorage.getItem(THEME_STORAGE_KEY);
-  } catch {
-    return null;
-  }
+  return readString(THEME_STORAGE_KEY);
 }
 
 function saveThemeName(name: string): void {
-  if (typeof localStorage === 'undefined') return;
-  try {
-    localStorage.setItem(THEME_STORAGE_KEY, name);
-  } catch {
-    // Ignore storage failures in restricted browser contexts.
-  }
+  writeString(THEME_STORAGE_KEY, name);
 }
 
 export function resolveSystemDefaultTheme(): TreeMakerTheme {

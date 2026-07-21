@@ -1,3 +1,5 @@
+import { readString, storageKey, STORAGE_KEYS } from '../lib/storage';
+
 /**
  * Supported UI locales.
  *
@@ -53,7 +55,7 @@ export type I18nNamespace = (typeof I18N_NAMESPACES)[number];
 export const DEFAULT_NAMESPACE: I18nNamespace = 'common';
 
 /** localStorage key holding the user's locale preference (a locale code or SYSTEM_LOCALE). */
-export const LOCALE_STORAGE_KEY = 'treemaker-web-locale';
+export const LOCALE_STORAGE_KEY = storageKey(STORAGE_KEYS.locale);
 
 /**
  * Sentinel preference meaning "follow the OS/browser locale" rather than a pinned language.
@@ -86,13 +88,7 @@ export function detectSystemLocale(): string {
  * {@link SYSTEM_LOCALE} when they follow the OS (also the default when nothing is stored).
  */
 export function readStoredPreference(): LocalePreference {
-  if (typeof localStorage === 'undefined') return SYSTEM_LOCALE;
-  let stored: string | null;
-  try {
-    stored = localStorage.getItem(LOCALE_STORAGE_KEY);
-  } catch {
-    return SYSTEM_LOCALE;
-  }
+  const stored = readString(LOCALE_STORAGE_KEY);
   return stored && SUPPORTED_LOCALE_CODES.includes(stored) ? stored : SYSTEM_LOCALE;
 }
 

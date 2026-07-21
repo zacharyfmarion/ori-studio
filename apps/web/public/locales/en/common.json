@@ -218,8 +218,5 @@
     "edit": "Edit workspace",
     "label": "Workspaces",
     "simulate": "Simulate workspace"
-  },
-  "workspaceShell": {
-    "preparing": "Preparing the editor…"
   }
 }

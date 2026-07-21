@@ -166,7 +166,9 @@
       "layout": "Layout",
       "resetButton": "Reset Workspace Layout",
       "resetMessage": "Restore the default layout for the current workspace?",
-      "resetTitle": "Reset Workspace Layout"
+      "resetTitle": "Reset Workspace Layout",
+      "showWelcome": "Show welcome screen on startup",
+      "startup": "Startup"
     }
   },
   "startScreen": {
@@ -185,6 +187,7 @@
       "title": "Open a file"
     },
     "preparing": "Preparing the editor...",
+    "showWelcomeOnStartup": "Show welcome on startup",
     "startOptions": "Start options",
     "title": "Start a new origami workspace"
   }

@@ -166,7 +166,9 @@
       "layout": "Layout",
       "resetButton": "Arbeitsbereichslayout zurücksetzen",
       "resetMessage": "Das Standardlayout für den aktuellen Arbeitsbereich wiederherstellen?",
-      "resetTitle": "Arbeitsbereichslayout zurücksetzen"
+      "resetTitle": "Arbeitsbereichslayout zurücksetzen",
+      "showWelcome": "Willkommensbildschirm beim Start anzeigen",
+      "startup": "Start"
     }
   },
   "startScreen": {
@@ -185,6 +187,7 @@
       "title": "Eine Datei öffnen"
     },
     "preparing": "Editor wird vorbereitet...",
+    "showWelcomeOnStartup": "Beim Start Willkommensseite anzeigen",
     "startOptions": "Startoptionen",
     "title": "Einen neuen Origami-Arbeitsbereich starten"
   }

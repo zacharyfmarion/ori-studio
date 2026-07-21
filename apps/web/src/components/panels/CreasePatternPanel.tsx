@@ -22,6 +22,7 @@ import {
   Image as ImageIcon,
   ImagePlus,
   ListChecks,
+  Loader2,
   Maximize2,
   Trash2,
 } from 'lucide-react';
@@ -1008,9 +1009,23 @@ export function CreasePatternPanel() {
   const oristudioCpDocument = useWorkspaceStore((state) => state.oristudioCpDocument);
   const ensureEditCreasePattern = useWorkspaceStore((state) => state.ensureEditCreasePattern);
   // Always-live canvas: seed a blank editable CP when the Edit workspace mounts
-  // with no crease pattern (fresh app, or after a design reset cleared it).
+  // with no crease pattern (fresh app, or after a design reset cleared it). Track
+  // the in-flight provision so the empty canvas shows a loading state rather than
+  // the "No crease pattern" affordance during that brief gap.
+  const [cpProvisioning, setCpProvisioning] = useState(false);
   useEffect(() => {
-    if (!oristudioCpDocument) void ensureEditCreasePattern();
+    if (oristudioCpDocument) {
+      setCpProvisioning(false);
+      return;
+    }
+    let cancelled = false;
+    setCpProvisioning(true);
+    void ensureEditCreasePattern().finally(() => {
+      if (!cancelled) setCpProvisioning(false);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [oristudioCpDocument, ensureEditCreasePattern]);
   const oristudioCpCamvResult = useWorkspaceStore((state) => state.oristudioCpCamvResult);
   const oristudioCpSelection = useWorkspaceStore((state) => state.oristudioCpSelection);
@@ -2828,6 +2843,13 @@ export function CreasePatternPanel() {
           : activeEditingContext === 'crease-pattern'
             ? t('panels:creasePattern.noImportedCreasePattern', 'No imported crease pattern')
             : t('panels:creasePattern.noCreasePattern', 'No crease pattern');
+  // While the blank editable CP is being seeded, show a loading state instead of
+  // the "No crease pattern" affordance — but never mask a real busy/error status.
+  const isProvisioningInitialCp =
+    cpProvisioning &&
+    status !== 'error' &&
+    status !== 'building_crease_pattern' &&
+    status !== 'optimizing';
   // The zoom-preset dropdown passes a scale (preset/100); the owned camera takes a percent.
   const setZoomLevel = useCallback(
     (scale: number) => sendWebglCameraCommand('set-percent', scale * 100),
@@ -3348,8 +3370,17 @@ export function CreasePatternPanel() {
           </>
         ) : (
           <div className="cp-panel__empty">
-            <span title={status === 'error' ? error?.message : undefined}>{emptyStatusLabel}</span>
-            <NextDocumentAction />
+            {isProvisioningInitialCp ? (
+              <span className="cp-panel__preparing" role="status" aria-live="polite">
+                <Loader2 size={16} className="cp-panel__spinner" aria-hidden="true" />
+                {t('panels:creasePattern.preparing', 'Preparing the editor…')}
+              </span>
+            ) : (
+              <>
+                <span title={status === 'error' ? error?.message : undefined}>{emptyStatusLabel}</span>
+                <NextDocumentAction />
+              </>
+            )}
           </div>
         )}
       </div>

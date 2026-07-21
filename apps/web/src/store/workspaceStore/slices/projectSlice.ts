@@ -26,7 +26,6 @@ import {
   ORIEDITA_GRID_SCALE_DEFAULTS,
 } from '../../../lib/creasePatternViewport';
 import {
-  blankCpLineage,
   importedCpLineage,
   markCpLineageEdited,
 } from '../../../lib/oristudioCpLineage';
@@ -62,6 +61,7 @@ import type { OristudioCpOperationId } from '../../../lib/oristudioCpCommands';
 import { createEmptyProject, DEFAULT_CREASE_COLOR_MODE } from '../../../lib/sampleProject';
 import { type WorkspaceCapabilityId } from '../../../lib/workspaceCapabilities';
 import { selectWorkspaceCapabilities } from '../capabilities';
+import { freshEditableCpState } from '../freshCreasePattern';
 import { ensureExtension, getFileService, type FileService } from '../../../platform/fileService';
 import { requestConfirmation, requestCreasePatternExportOptions } from '../../commandDialogStore';
 import {
@@ -693,7 +693,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       status: 'crease_pattern_ready',
       dirty: false,
       error: null,
-      engineReady: true,
       lastOptimization: null,
       historyPast: [],
       historyFuture: [],
@@ -819,7 +818,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       status: 'crease_pattern_ready',
       dirty: false,
       error: null,
-      engineReady: true,
       lastOptimization: null,
       historyPast: [],
       historyFuture: [],
@@ -1237,7 +1235,12 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         const operationDescriptors = await getOristudioCpOperationDescriptors().catch(() => []);
         const api = await getEngine();
         const snapshot = await initializeBlankTree(api);
-        if (get().importedCreasePattern) {
+        // A document may already have been established while the engine was
+        // loading — an imported CP, or an editable CP the Edit surface
+        // provisioned for itself on a cold `/edit`. Mark the engine ready but do
+        // not run the blank-tree reset below, which would clobber that document
+        // (and cause the Edit canvas to re-provision with a visible flash).
+        if (get().importedCreasePattern || get().oristudioCpDocument) {
           set({ engineReady: true, oristudioCpOperationDescriptors: operationDescriptors });
           return;
         }
@@ -1394,48 +1397,29 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         await releaseEditableCreasePattern();
         const documentState = await createBlankOristudioCpDocument();
         set({
-          // A new crease pattern opens directly in the CP editor.
-          activePanelId: 'crease-pattern',
+          // Shared "fresh blank CP" editor state (activePanelId, history reset,
+          // projectLoadId bump, …) — the same bundle the Edit self-provision uses.
+          ...freshEditableCpState(documentState, get().projectLoadId),
+          // File › New additionally discards the whole project back to a bare CP:
           project: { ...createEmptyProject(), title: documentState.summary.title ?? 'Untitled CP' },
           workflowTarget: 'treemaker',
           // Creating a bare CP establishes no design, so the Design workspace
           // keeps offering the method chooser (Circle-packed vs Box-pleated).
           pendingDesignChoice: true,
           importedCreasePattern: null,
-          oristudioCpDocument: documentState,
-          oristudioCpLineage: blankCpLineage(),
-          oristudioCpOperationDescriptors: documentState.operationDescriptors,
-          oristudioCpError: null,
-          oristudioCpCamvResult: null,
-          oristudioCpHistoryPast: [],
-          oristudioCpHistoryFuture: [],
-          projectLoadId: get().projectLoadId + 1,
           currentFileName: defaultNativeFilename(documentState.summary.title ?? 'Untitled CP'),
           currentFilePath: null,
           projectMessage: null,
           selection: { kind: 'tree' },
-          oristudioCpSelection: emptyOristudioCpSelection(),
-          oristudioCpActiveDiagnosticId: null,
-          oristudioCpRevision: 0,
-          oristudioCpFoldedFigures: [],
-          oristudioCpActiveFoldedFigureId: null,
-          oristudioCpImages: [],
-          oristudioCpImageEditMode: false,
-          oristudioCpSelectedImageId: null,
-          oristudioCpDocumentExtensions: {},
           nativeProjectExtensions: {},
-          toolMode: 'select',
-          symmetryAuthoringPairs: [],
-          creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
           ...emptyFoldArtifactResourceState(),
           sequenceTarget: null,
           sequencePlan: null,
           sequenceSimulationFocus: { kind: 'whole' },
           sequencePlanning: false,
           sequenceError: null,
-          status: 'crease_pattern_ready',
+          // `status: 'crease_pattern_ready'` comes from `freshEditableCpState`.
           dirty: false,
-          engineReady: true,
           lastOptimization: null,
           historyPast: [],
           historyFuture: [],
