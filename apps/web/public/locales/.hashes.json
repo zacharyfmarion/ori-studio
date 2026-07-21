@@ -1698,7 +1698,12 @@
     "dialogs:settings.workspace.startup": "65d48235a91e",
     "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9",
     "dialogs:settings.workspace.folding": "5fad9cc3dcdc",
-    "dialogs:settings.workspace.foldWarning": "9a607191b2da"
+    "dialogs:settings.workspace.foldWarning": "9a607191b2da",
+    "dialogs:common.no": "1ea442a134b2",
+    "dialogs:common.yes": "85a39ab345d6",
+    "dialogs:foldWarning.dontShowAgain": "497a0f940e31",
+    "dialogs:foldWarning.message": "3943ff51e8ac",
+    "dialogs:foldWarning.title": "e981ddae45d8"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -3399,7 +3404,12 @@
     "dialogs:settings.workspace.startup": "65d48235a91e",
     "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9",
     "dialogs:settings.workspace.folding": "5fad9cc3dcdc",
-    "dialogs:settings.workspace.foldWarning": "9a607191b2da"
+    "dialogs:settings.workspace.foldWarning": "9a607191b2da",
+    "dialogs:common.no": "1ea442a134b2",
+    "dialogs:common.yes": "85a39ab345d6",
+    "dialogs:foldWarning.dontShowAgain": "497a0f940e31",
+    "dialogs:foldWarning.message": "3943ff51e8ac",
+    "dialogs:foldWarning.title": "e981ddae45d8"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -5125,7 +5135,12 @@
     "dialogs:settings.workspace.startup": "65d48235a91e",
     "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9",
     "dialogs:settings.workspace.folding": "5fad9cc3dcdc",
-    "dialogs:settings.workspace.foldWarning": "9a607191b2da"
+    "dialogs:settings.workspace.foldWarning": "9a607191b2da",
+    "dialogs:common.no": "1ea442a134b2",
+    "dialogs:common.yes": "85a39ab345d6",
+    "dialogs:foldWarning.dontShowAgain": "497a0f940e31",
+    "dialogs:foldWarning.message": "3943ff51e8ac",
+    "dialogs:foldWarning.title": "e981ddae45d8"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -6851,7 +6866,12 @@
     "dialogs:settings.workspace.startup": "65d48235a91e",
     "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9",
     "dialogs:settings.workspace.folding": "5fad9cc3dcdc",
-    "dialogs:settings.workspace.foldWarning": "9a607191b2da"
+    "dialogs:settings.workspace.foldWarning": "9a607191b2da",
+    "dialogs:common.no": "1ea442a134b2",
+    "dialogs:common.yes": "85a39ab345d6",
+    "dialogs:foldWarning.dontShowAgain": "497a0f940e31",
+    "dialogs:foldWarning.message": "3943ff51e8ac",
+    "dialogs:foldWarning.title": "e981ddae45d8"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8577,7 +8597,12 @@
     "dialogs:settings.workspace.startup": "65d48235a91e",
     "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9",
     "dialogs:settings.workspace.folding": "5fad9cc3dcdc",
-    "dialogs:settings.workspace.foldWarning": "9a607191b2da"
+    "dialogs:settings.workspace.foldWarning": "9a607191b2da",
+    "dialogs:common.no": "1ea442a134b2",
+    "dialogs:common.yes": "85a39ab345d6",
+    "dialogs:foldWarning.dontShowAgain": "497a0f940e31",
+    "dialogs:foldWarning.message": "3943ff51e8ac",
+    "dialogs:foldWarning.title": "e981ddae45d8"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10303,7 +10328,12 @@
     "dialogs:settings.workspace.startup": "65d48235a91e",
     "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9",
     "dialogs:settings.workspace.folding": "5fad9cc3dcdc",
-    "dialogs:settings.workspace.foldWarning": "9a607191b2da"
+    "dialogs:settings.workspace.foldWarning": "9a607191b2da",
+    "dialogs:common.no": "1ea442a134b2",
+    "dialogs:common.yes": "85a39ab345d6",
+    "dialogs:foldWarning.dontShowAgain": "497a0f940e31",
+    "dialogs:foldWarning.message": "3943ff51e8ac",
+    "dialogs:foldWarning.title": "e981ddae45d8"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12029,7 +12059,12 @@
     "dialogs:settings.workspace.startup": "65d48235a91e",
     "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9",
     "dialogs:settings.workspace.folding": "5fad9cc3dcdc",
-    "dialogs:settings.workspace.foldWarning": "9a607191b2da"
+    "dialogs:settings.workspace.foldWarning": "9a607191b2da",
+    "dialogs:common.no": "1ea442a134b2",
+    "dialogs:common.yes": "85a39ab345d6",
+    "dialogs:foldWarning.dontShowAgain": "497a0f940e31",
+    "dialogs:foldWarning.message": "3943ff51e8ac",
+    "dialogs:foldWarning.title": "e981ddae45d8"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -13730,6 +13765,11 @@
     "dialogs:settings.workspace.startup": "65d48235a91e",
     "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9",
     "dialogs:settings.workspace.folding": "5fad9cc3dcdc",
-    "dialogs:settings.workspace.foldWarning": "9a607191b2da"
+    "dialogs:settings.workspace.foldWarning": "9a607191b2da",
+    "dialogs:common.no": "1ea442a134b2",
+    "dialogs:common.yes": "85a39ab345d6",
+    "dialogs:foldWarning.dontShowAgain": "497a0f940e31",
+    "dialogs:foldWarning.message": "3943ff51e8ac",
+    "dialogs:foldWarning.title": "e981ddae45d8"
   }
 }

@@ -26,4 +26,14 @@ describe('settingsStore', () => {
     expect(useSettingsStore.getState().isSettingsOpen).toBe(true);
     expect(useSettingsStore.getState().settingsInitialTab).toBe('workspace');
   });
+
+  it('defaults the fold warning to enabled and toggles it', () => {
+    expect(useSettingsStore.getState().foldWarningEnabled).toBe(true);
+
+    useSettingsStore.getState().setFoldWarningEnabled(false);
+    expect(useSettingsStore.getState().foldWarningEnabled).toBe(false);
+
+    useSettingsStore.getState().setFoldWarningEnabled(true);
+    expect(useSettingsStore.getState().foldWarningEnabled).toBe(true);
+  });
 });

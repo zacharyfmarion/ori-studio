@@ -7,8 +7,10 @@
   "common": {
     "cancel": "取消",
     "closeNamed": "关闭 {{name}}",
+    "no": "否",
     "ok": "确定",
-    "reset": "重置"
+    "reset": "重置",
+    "yes": "是"
   },
   "cpDetectImport": {
     "ariaLabel": "从图像检测 CP",
@@ -55,6 +57,11 @@
     "pointSize": "点大小",
     "preview": "导出预览",
     "showBackgroundColor": "显示背景颜色"
+  },
+  "foldWarning": {
+    "dontShowAgain": "不再显示",
+    "message": "检测到平折性错误。是否继续折叠？",
+    "title": "警告"
   },
   "help": {
     "about": {

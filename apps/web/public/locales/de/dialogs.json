@@ -7,8 +7,10 @@
   "common": {
     "cancel": "Abbrechen",
     "closeNamed": "{{name}} schließen",
+    "no": "Nein",
     "ok": "OK",
-    "reset": "Zurücksetzen"
+    "reset": "Zurücksetzen",
+    "yes": "Ja"
   },
   "cpDetectImport": {
     "ariaLabel": "CP aus Bild erkennen",
@@ -59,6 +61,11 @@
     "pointSize": "Punktgröße",
     "preview": "Export-Vorschau",
     "showBackgroundColor": "Hintergrundfarbe anzeigen"
+  },
+  "foldWarning": {
+    "dontShowAgain": "Nicht mehr anzeigen",
+    "message": "Fehler bei der Flachfaltbarkeit erkannt. Trotzdem falten?",
+    "title": "Warnung"
   },
   "help": {
     "about": {

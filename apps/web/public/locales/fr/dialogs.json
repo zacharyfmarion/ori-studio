@@ -7,8 +7,10 @@
   "common": {
     "cancel": "Annuler",
     "closeNamed": "Fermer {{name}}",
+    "no": "Non",
     "ok": "OK",
-    "reset": "Réinitialiser"
+    "reset": "Réinitialiser",
+    "yes": "Oui"
   },
   "cpDetectImport": {
     "ariaLabel": "Détecter le CP depuis une image",
@@ -63,6 +65,11 @@
     "pointSize": "Taille des points",
     "preview": "Aperçu de l'exportation",
     "showBackgroundColor": "Afficher la couleur d'arrière-plan"
+  },
+  "foldWarning": {
+    "dontShowAgain": "Ne plus afficher",
+    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage ?",
+    "title": "Avertissement"
   },
   "help": {
     "about": {
