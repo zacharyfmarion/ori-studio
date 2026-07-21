@@ -220,6 +220,49 @@ for the tell: if search tools return worktree-relative paths but you feed
 absolute ones, the two roots can diverge — that is exactly where changes leak
 into the main checkout.
 
+### Worktree setup
+
+A fresh worktree is **not** ready to build, typecheck, or run the web tooling.
+Two things it lacks that the primary checkout has:
+
+1. **`node_modules`** — npm never populates a worktree; each one needs its own
+   install. Without it, `tsc` cannot resolve packages (`react-i18next`,
+   `react-router-dom`, …) and the i18n scripts fail with cryptic errors.
+2. **The `.gitignore`'d generated artifacts** under `apps/web/src/generated/`
+   (the wasm bridges and generated TS). They are build outputs, not tracked in
+   git, so a new worktree starts without them and typecheck/build fail.
+
+Bootstrap both in one step from the worktree root:
+
+```bash
+scripts/setup-worktree.sh
+```
+
+On APFS (the macOS default) it does **not** run a fresh `npm install` — that
+would burn ~490MB per worktree. Instead it clones the primary's `node_modules`
+with copy-on-write (`cp -c`): the worktree gets real, fully-functional
+directories that share disk blocks with the primary, so the whole bootstrap
+costs a few MB of actual disk and runs in a second. npm's internal workspace
+links are relative, so a clone resolves to the worktree's own packages. On
+non-APFS filesystems it falls back to `npm install`. It then copies the
+generated artifacts from the primary checkout.
+
+Do **not** symlink `node_modules` from the primary — npm workspace bin
+resolution breaks under symlinks (`npx i18next` fails), so the i18n tooling
+(`i18n:extract` / `i18n:check`) won't run. Clone or install into the worktree
+instead.
+
+The clone source must be current, so the script runs `npm install` in the
+primary first (idempotent — a fast no-op when already up to date) to catch the
+stale case where the primary's `node_modules` predates a dependency change.
+
+Caveats:
+- If your branch itself adds/removes deps, run `npm install` in the worktree
+  after bootstrap — starting from the clone it only fetches the delta.
+- The copy step assumes the primary's wasm bridges are already built (see WASM
+  bridge above); if `setup-worktree.sh` reports 0 files copied, build them there
+  and re-run.
+
 ## Pull requests
 
 Unless the user explicitly says otherwise, open pull requests against `main`.
