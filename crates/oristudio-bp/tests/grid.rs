@@ -1,7 +1,7 @@
 use oristudio_bp::grid::{
     BpGrid, DiagonalGrid, Dimension, RectangularGrid, constrain_flap, diagonal_constrain,
     flip_sheet, get_dots, get_relative_point, image_dimension, rectangular_constrain, rotate_sheet,
-    subdivide_sheet,
+    subdivide_sheet, unsubdivide_sheet,
 };
 use oristudio_bp::model::{GridType, Point, Sheet};
 use oristudio_bp::shared::Direction;
@@ -174,6 +174,72 @@ fn relative_points_scale_between_grid_render_dimensions() {
     DiagonalGrid::fix_dimension(&mut dimension);
     assert_eq!(dimension.width, 6.0);
     assert_eq!(dimension.height, 6.0);
+}
+
+#[test]
+fn unsubdivide_halves_the_grid_when_flaps_sit_on_even_lines() {
+    let rect = BpGrid::new(Sheet {
+        grid_type: GridType::Rectangular,
+        width: 10.0,
+        height: 20.0,
+    });
+    // All flap dots on even coordinates → clean halving.
+    let anchors = [Point { x: 2.0, y: 4.0 }, Point { x: 6.0, y: 8.0 }];
+    let transform = unsubdivide_sheet(rect, &anchors).unwrap().unwrap();
+    assert_eq!(
+        transform.grid.to_sheet(),
+        Sheet {
+            grid_type: GridType::Rectangular,
+            width: 5.0,
+            height: 10.0,
+        }
+    );
+    assert_eq!(transform.matrix, [0.5, 0.0, 0.0, 0.5, 0.0, 0.0]);
+}
+
+#[test]
+fn unsubdivide_is_the_inverse_of_subdivide() {
+    let rect = BpGrid::new(Sheet {
+        grid_type: GridType::Rectangular,
+        width: 10.0,
+        height: 20.0,
+    });
+    let up = subdivide_sheet(rect).unwrap().unwrap();
+    // After subdividing, every original anchor doubles, so it stays even.
+    let doubled = [Point { x: 4.0, y: 8.0 }, Point { x: 12.0, y: 16.0 }];
+    let down = unsubdivide_sheet(up.grid, &doubled).unwrap().unwrap();
+    assert_eq!(down.grid.to_sheet(), rect.to_sheet());
+    assert_eq!(down.matrix, [0.5, 0.0, 0.0, 0.5, 0.0, 0.0]);
+}
+
+#[test]
+fn unsubdivide_refuses_flaps_on_odd_lines() {
+    let rect = BpGrid::new(Sheet {
+        grid_type: GridType::Rectangular,
+        width: 16.0,
+        height: 16.0,
+    });
+    // A flap dot on an odd line cannot halve onto the coarser grid.
+    let anchors = [Point { x: 3.0, y: 4.0 }];
+    assert!(unsubdivide_sheet(rect, &anchors).unwrap().is_none());
+}
+
+#[test]
+fn unsubdivide_refuses_odd_or_below_minimum_dimensions() {
+    let odd = BpGrid::new(Sheet {
+        grid_type: GridType::Rectangular,
+        width: 15.0,
+        height: 16.0,
+    });
+    assert!(unsubdivide_sheet(odd, &[]).unwrap().is_none());
+
+    // 6/2 = 3 < MIN_RECT_SIZE (4), so halving is refused.
+    let too_small = BpGrid::new(Sheet {
+        grid_type: GridType::Rectangular,
+        width: 6.0,
+        height: 6.0,
+    });
+    assert!(unsubdivide_sheet(too_small, &[]).unwrap().is_none());
 }
 
 #[test]

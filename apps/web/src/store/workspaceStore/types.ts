@@ -595,6 +595,8 @@ export interface OristudioBpSliceActions {
   completeOristudioBpStretch: (id: string) => Promise<boolean>;
   /** Subdivide the BP sheet grid. */
   subdivideOristudioBpLayoutSheet: () => Promise<boolean>;
+  /** Un-subdivide (halve) the BP sheet grid. No-ops if it can't halve cleanly. */
+  unsubdivideOristudioBpLayoutSheet: () => Promise<boolean>;
   /** Rotate the BP sheet clockwise/counter-clockwise. */
   rotateOristudioBpLayoutSheet: (clockwise: boolean) => Promise<boolean>;
   /** Flip the BP sheet horizontally/vertically. */

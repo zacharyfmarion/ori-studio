@@ -768,17 +768,6 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     });
   };
 
-  const onVertexKeyDown = (event: ReactKeyboardEvent<SVGCircleElement>, vertexId: number) => {
-    if (!isTreeViewportKeyboardActivation(event)) return;
-    event.preventDefault();
-    event.stopPropagation();
-    selectOristudioBp(
-      event.shiftKey || event.metaKey || event.ctrlKey
-        ? toggleBpVertexSelection(document.selection, vertexId)
-        : { kind: 'bp-vertex', id: vertexId }
-    );
-  };
-
   const onVertexPointerMove = (event: PointerEvent<SVGCircleElement>, vertexId: number) => {
     if (dragging?.id !== vertexId) return;
     event.stopPropagation();
@@ -993,7 +982,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
                     x2={p2.x}
                     y2={p2.y}
                   />
-                  {layers.labels && (
+                  {layers.labels && edge.isLeafEdge && (
                     <text
                       className="edge-label bp-tree-edge-label"
                       x={(p1.x + p2.x) / 2 + chromePx(6)}
@@ -1037,16 +1026,18 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
                     cx={point.x}
                     cy={point.y}
                     r={chromePx(vertex.isLeaf ? LEAF_DOT_PX : NODE_DOT_PX)}
-                    role="button"
-                    tabIndex={0}
+                    // Intentionally not focusable (no role/tabIndex): a focusable
+                    // dot draws its own browser focus ring that competes with the
+                    // selection highlight and steals focus from the name field, so
+                    // typing a name would go nowhere. Selection is by click; the
+                    // tree's keyboard nudge/delete live on the container.
                     aria-label={vertexAriaLabel}
                     onPointerDown={(event) => onVertexPointerDown(event, vertex.id)}
                     onPointerMove={(event) => onVertexPointerMove(event, vertex.id)}
                     onPointerUp={(event) => finishDrag(event, vertex.id)}
                     onPointerCancel={(event) => finishDrag(event, vertex.id)}
-                    onKeyDown={(event) => onVertexKeyDown(event, vertex.id)}
                   />
-                  {layers.labels && label && (
+                  {layers.labels && vertex.isLeaf && label && (
                     <text
                       className="node-label bp-tree-node-label"
                       x={point.x + chromePx(NODE_DOT_PX + 4)}
@@ -1088,6 +1079,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
           ariaLabel={t('panels:bpTree.flapNameAria', 'Name of flap {{id}}', {
             id: selectedFlapVertex.id,
           })}
+          autoFocus
           onRename={(name) => void renameOristudioBpVertex(selectedFlapVertex.id, name)}
         />
       )}

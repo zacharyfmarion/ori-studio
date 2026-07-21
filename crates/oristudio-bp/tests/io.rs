@@ -252,6 +252,26 @@ fn project_level_cp_export_handles_stretch_free_projects() {
 }
 
 #[test]
+fn project_level_cp_export_applies_cp_scale() {
+    // cp_scale multiplies the exported full width, so every coordinate scales
+    // linearly. "Send to Edit" uses this to make one BP cell equal one Edit
+    // grid cell without changing the Edit grid.
+    let text = cp::export_project(
+        &Project::sample(),
+        cp::CpExportOptions {
+            cp_scale: 2.0,
+            ..cp::CpExportOptions::default()
+        },
+    )
+    .unwrap();
+
+    assert_eq!(
+        text,
+        "1 -400 -400 -400 400\n1 -400 400 400 400\n1 400 400 400 -400\n1 400 -400 -400 -400"
+    );
+}
+
+#[test]
 fn project_level_cp_export_ignores_inactive_stretch_prototypes() {
     let mut project = Project::sample();
     project.design.layout.stretches.push(Stretch {

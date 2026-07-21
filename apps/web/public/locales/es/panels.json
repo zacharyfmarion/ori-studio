@@ -47,6 +47,7 @@
     "stretch": "Estiramiento {{id}}",
     "stretchNav": "Navegación de patrones del estiramiento {{id}}",
     "subdivideSheet": "Subdividir hoja",
+    "unsubdivideSheet": "Combinar hoja",
     "unsupportedOperation": "Operación BP no admitida",
     "upstreamGap": "Hueco anterior",
     "viewportControls": "Controles de la vista de empaquetado de plegado en caja",

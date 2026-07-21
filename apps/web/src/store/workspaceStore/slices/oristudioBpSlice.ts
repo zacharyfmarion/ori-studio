@@ -19,6 +19,7 @@ import {
   oristudioBpError,
   rotateOristudioBpLayoutSheet as rotateRuntimeOristudioBpLayoutSheet,
   subdivideOristudioBpLayoutSheet as subdivideRuntimeOristudioBpLayoutSheet,
+  unsubdivideOristudioBpLayoutSheet as unsubdivideRuntimeOristudioBpLayoutSheet,
   updateOristudioBpLayoutSheet as updateRuntimeOristudioBpLayoutSheet,
   updateOristudioBpTreeEdgeLength as updateRuntimeOristudioBpTreeEdgeLength,
   switchOristudioBpStretchConfig as switchRuntimeOristudioBpStretchConfig,
@@ -28,6 +29,7 @@ import { recordSnapshot, snapshotEntry } from '../snapshotHistory';
 import {
   addBpTreeSymmetryPair,
   buildMirroredBpTreeUpdates,
+  bpTreeSymmetryDefaultLoc,
   filterBpTreeSymmetryPairs,
   mirrorBpTreeVertexId,
   BP_TREE_SYMMETRY_TOLERANCE,
@@ -37,6 +39,7 @@ import {
   snapPointToSymmetryAxis,
   type SymmetryAxis,
 } from '../../../lib/symmetryGeometry';
+import { normalizeOrieditaGridSize } from '../../../lib/creasePatternViewport';
 import type { SnapshotEntry } from '../snapshotHistory';
 import type { Point } from '../../../lib/geometry';
 import type { OristudioBpDocumentState } from '../../../engine/oristudioBpTypes';
@@ -147,7 +150,14 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       oristudioBpHistoryPast: [],
       oristudioBpHistoryFuture: [],
       // Ephemeral mirror-draw state is project-specific — reset it on every load.
-      oristudioBpSymmetry: { enabled: false, angle: 90, loc: { x: 0, y: 0 }, pairs: [] },
+      // Symmetry defaults ON with the axis centred on the sheet (angle 90 =
+      // vertical book axis), so box-pleat authoring is symmetric out of the box.
+      oristudioBpSymmetry: {
+        enabled: true,
+        angle: 90,
+        loc: bpTreeSymmetryDefaultLoc(document.snapshot.tree.sheet),
+        pairs: [],
+      },
       currentFileName: document.source.filename,
       currentFilePath: document.source.path,
       dirty: document.dirty,
@@ -249,9 +259,10 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     oristudioBpBusy: false,
     oristudioBpHistoryPast: [],
     oristudioBpHistoryFuture: [],
-    // Ephemeral mirror-draw state (never persisted). `loc` is set to the sheet centre
-    // when the panel enables symmetry; `angle` 90 is a vertical (book) axis.
-    oristudioBpSymmetry: { enabled: false, angle: 90, loc: { x: 0, y: 0 }, pairs: [] },
+    // Ephemeral mirror-draw state (never persisted). Defaults ON; `loc` is
+    // re-centred on the sheet on every document load (see createOristudioBpProject),
+    // so this pre-load {0,0} is a placeholder. `angle` 90 is a vertical (book) axis.
+    oristudioBpSymmetry: { enabled: true, angle: 90, loc: { x: 0, y: 0 }, pairs: [] },
 
     ensureBoxPleatProject: async () => {
       if (get().oristudioBpDocument || get().oristudioBpBusy) return;
@@ -550,9 +561,22 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     // Send the BP design's crease pattern to the always-live Edit canvas: export
     // the BP CP and merge it in via Import(Add), then switch to the Edit workspace.
     sendOristudioBpToEdit: async () => {
-      if (!get().oristudioBpDocument) return false;
+      const bpDocument = get().oristudioBpDocument;
+      if (!bpDocument) return false;
       set({ oristudioBpBusy: true });
       try {
+        // Ensure the Edit CP exists first so we can read its grid divisions.
+        await get().ensureEditCreasePattern();
+        // Scale the export so one BP grid cell maps onto one Edit grid cell —
+        // without changing the Edit grid. Both use the same paper convention, so
+        // the scale is just bpSheetMaxCells / editGridDivisions (the paper width
+        // cancels). When the two match the design fills the paper as before.
+        const sheet = bpDocument.snapshot.packing.sheet;
+        const bpCells = Math.max(sheet.width, sheet.height);
+        const editDivisions = normalizeOrieditaGridSize(
+          get().oristudioCpDocument?.document.crease_pattern.grid.grid_size ?? bpCells
+        );
+        const cpScale = editDivisions > 0 ? bpCells / editDivisions : 1;
         // Match BP Studio's Export CP defaults: keep the sheet orientation and
         // include auxiliary hinge creases (dropping them yields a sparse CP that
         // doesn't match BP Studio's export).
@@ -560,9 +584,9 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           await exportOristudioBpProjectAsCp({
             reorient: false,
             includeAuxiliaryHinges: true,
+            cpScale,
           })
         );
-        await get().ensureEditCreasePattern();
         const ok = await get().importAddOristudioCpText(
           cpText,
           'cp',
@@ -579,22 +603,69 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       }
     },
 
-    setOristudioBpTreeEdgeLength: async (vertices, length, subtreeUpdates = []) =>
+    setOristudioBpTreeEdgeLength: async (vertices, length, subtreeUpdates = []) => {
       // Length edit + length-faithful subtree reposition in one gesture, so it is
       // a single undo entry (the reposition keeps rendered edge length == length).
-      runBpTreeMutation('Set BP edge length', async (document) => {
-        let next = await updateRuntimeOristudioBpTreeEdgeLength(vertices, length, {
-          activeSurface: 'tree',
-          selection: document.selection,
-        });
-        for (const update of subtreeUpdates) {
-          next = await moveRuntimeOristudioBpTreeVertex(update.id, update.loc, {
+      // When symmetry is enabled, the same length is applied to the mirror partner
+      // edge and its subtree is reflected across the axis, so a length edit on one
+      // side updates both sides — reusing the same mirroring the drag path uses.
+      const symmetry = get().oristudioBpSymmetry;
+      const label = symmetry.enabled ? 'Set mirrored BP edge length' : 'Set BP edge length';
+      return runBpTreeMutation(label, async (document) => {
+        const applyEdge = async (
+          next: OristudioBpDocumentState,
+          edgeVertices: [number, number],
+          updates: readonly { id: number; loc: Point }[]
+        ) => {
+          let current = await updateRuntimeOristudioBpTreeEdgeLength(edgeVertices, length, {
             activeSurface: 'tree',
             selection: next.selection,
           });
+          for (const update of updates) {
+            current = await moveRuntimeOristudioBpTreeVertex(update.id, update.loc, {
+              activeSurface: 'tree',
+              selection: current.selection,
+            });
+          }
+          return current;
+        };
+
+        let next = await applyEdge(document, vertices, subtreeUpdates);
+        if (!symmetry.enabled) return next;
+
+        // Resolve the mirror edge from the pre-edit tree so pair inference sees the
+        // symmetric configuration. A vertex on the axis mirrors to itself.
+        const tree = document.snapshot.tree;
+        const axis: SymmetryAxis = { loc: symmetry.loc, angle: symmetry.angle };
+        const [a, b] = vertices;
+        const mirrorA = mirrorBpTreeVertexId(tree, symmetry.pairs, axis, a, BP_TREE_SYMMETRY_TOLERANCE);
+        const mirrorB = mirrorBpTreeVertexId(tree, symmetry.pairs, axis, b, BP_TREE_SYMMETRY_TOLERANCE);
+        const mirroredUpdates = buildMirroredBpTreeUpdates(
+          tree,
+          symmetry.pairs,
+          axis,
+          subtreeUpdates,
+          BP_TREE_SYMMETRY_TOLERANCE
+        );
+
+        // Only mirror onto a genuinely distinct partner edge: skip when the edge
+        // lies on the axis (mirrors onto itself) or a partner can't be resolved.
+        const partnerIsSameEdge =
+          (mirrorA === a && mirrorB === b) || (mirrorA === b && mirrorB === a);
+        if (mirrorA != null && mirrorB != null && mirrorA !== mirrorB && !partnerIsSameEdge) {
+          next = await applyEdge(next, [mirrorA, mirrorB], mirroredUpdates);
+        } else if (mirroredUpdates.length > 0) {
+          // Partner subtree still reflects even when the shared edge isn't mirrored.
+          for (const update of mirroredUpdates) {
+            next = await moveRuntimeOristudioBpTreeVertex(update.id, update.loc, {
+              activeSurface: 'tree',
+              selection: next.selection,
+            });
+          }
         }
         return next;
-      }),
+      });
+    },
 
     renameOristudioBpVertex: async (id, name) =>
       // The name lives on the tree vertex; a flap just reuses its dual leaf
@@ -682,6 +753,18 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     subdivideOristudioBpLayoutSheet: async () =>
       runBpTreeMutation('Subdivided BP sheet', (document) =>
         subdivideRuntimeOristudioBpLayoutSheet({
+          activeSurface: 'packing',
+          selection: document.selection,
+        })
+      ),
+
+    unsubdivideOristudioBpLayoutSheet: async () =>
+      // The engine no-ops (leaving the sheet unchanged) when the grid can't
+      // halve cleanly — dimensions not even, below the minimum, or a flap off an
+      // even line — so the button is also disabled in those cases (see the
+      // packing panel's canUnsubdivide).
+      runBpTreeMutation('Un-subdivided BP sheet', (document) =>
+        unsubdivideRuntimeOristudioBpLayoutSheet({
           activeSurface: 'packing',
           selection: document.selection,
         })

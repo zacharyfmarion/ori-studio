@@ -129,7 +129,7 @@ fn tree_maker_import_and_ordered_workspace_round_trip_through_wasm_handle() {
 fn sample_project_exports_cp_and_fold_through_wasm_handle() {
     let handle = oristudio_bp_wasm::bp_new_sample_project().expect("sample handle");
 
-    let cp = oristudio_bp_wasm::bp_export_cp(handle, false, true).expect("cp export");
+    let cp = oristudio_bp_wasm::bp_export_cp(handle, false, true, 1.0).expect("cp export");
     let fold = oristudio_bp_wasm::bp_export_fold(handle, false, true).expect("fold export");
 
     assert!(cp.contains("1 -200 -200 -200 200"));

@@ -79,13 +79,14 @@ export function bp_export_bps(handle) {
  * @param {number} handle
  * @param {boolean} reorient
  * @param {boolean} use_auxiliary
+ * @param {number} cp_scale
  * @returns {string}
  */
-export function bp_export_cp(handle, reorient, use_auxiliary) {
+export function bp_export_cp(handle, reorient, use_auxiliary, cp_scale) {
     let deferred2_0;
     let deferred2_1;
     try {
-        const ret = wasm.bp_export_cp(handle, reorient, use_auxiliary);
+        const ret = wasm.bp_export_cp(handle, reorient, use_auxiliary, cp_scale);
         var ptr1 = ret[0];
         var len1 = ret[1];
         if (ret[3]) {
@@ -627,6 +628,18 @@ export function bp_switch_stretch_pattern(handle, id, delta) {
  */
 export function bp_undo_project(handle) {
     const ret = wasm.bp_undo_project(handle);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {number} handle
+ * @returns {any}
+ */
+export function bp_unsubdivide_layout_sheet(handle) {
+    const ret = wasm.bp_unsubdivide_layout_sheet(handle);
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }

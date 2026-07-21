@@ -78,6 +78,16 @@ impl BpGrid {
         }
     }
 
+    /// Whether the grid dimensions themselves permit halving (even, and staying
+    /// at or above the minimum size). The full un-subdivide guard also requires
+    /// every flap to sit on an even grid line — see [`unsubdivide_sheet`].
+    pub fn can_unsubdivide(&self) -> bool {
+        match self {
+            Self::Rectangular(grid) => grid.can_unsubdivide(),
+            Self::Diagonal(grid) => grid.can_unsubdivide(),
+        }
+    }
+
     pub fn resize_center(&self) -> Point {
         match self {
             Self::Rectangular(grid) => grid.resize_center(),
@@ -195,6 +205,13 @@ impl RectangularGrid {
 
     pub fn can_subdivide(&self) -> bool {
         self.width * 2.0 <= MAX_SHEET_SIZE as f64 && self.height * 2.0 <= MAX_SHEET_SIZE as f64
+    }
+
+    pub fn can_unsubdivide(&self) -> bool {
+        is_even(self.width)
+            && is_even(self.height)
+            && self.width / 2.0 >= MIN_RECT_SIZE as f64
+            && self.height / 2.0 >= MIN_RECT_SIZE as f64
     }
 
     pub fn resize_center(&self) -> Point {
@@ -461,6 +478,10 @@ impl DiagonalGrid {
 
     pub fn can_subdivide(&self) -> bool {
         self.size * 2.0 <= MAX_SHEET_SIZE as f64
+    }
+
+    pub fn can_unsubdivide(&self) -> bool {
+        is_even(self.size) && self.size / 2.0 >= MIN_DIAG_SIZE as f64
     }
 
     pub fn resize_center(&self) -> Point {
@@ -864,6 +885,41 @@ pub fn subdivide_sheet(grid: BpGrid) -> BpResult<Option<SheetTransform>> {
     }))
 }
 
+/// Halve the grid (inverse of [`subdivide_sheet`]). Refuses — returning
+/// `Ok(None)` — when the dimensions can't halve cleanly ([`BpGrid::can_unsubdivide`])
+/// or any flap dot would land on a half-cell after halving, so the coarser grid
+/// stays exact. `anchors` are the flap dots (see `layout_flap_anchors`).
+pub fn unsubdivide_sheet(grid: BpGrid, anchors: &[Point]) -> BpResult<Option<SheetTransform>> {
+    if !grid.can_unsubdivide() {
+        return Ok(None);
+    }
+    let old_center = grid.resize_center();
+    let mut next_grid = grid;
+    let resize = next_grid.set_dimension(grid.render_width() / 2.0, grid.render_height() / 2.0)?;
+    let new_center = next_grid.resize_center();
+    let matrix = [
+        0.5,
+        0.0,
+        0.0,
+        0.5,
+        new_center.x - 0.5 * old_center.x,
+        new_center.y - 0.5 * old_center.y,
+    ];
+    let lands_on_grid = anchors.iter().all(|point| {
+        let x = matrix[0] * point.x + matrix[4];
+        let y = matrix[3] * point.y + matrix[5];
+        is_integer(x) && is_integer(y)
+    });
+    if !lands_on_grid {
+        return Ok(None);
+    }
+    Ok(Some(SheetTransform {
+        grid: next_grid,
+        matrix,
+        resize,
+    }))
+}
+
 pub fn rotate_sheet(grid: BpGrid, by: f64) -> BpResult<SheetTransform> {
     let old_center = grid.center();
     let sheet = grid.to_sheet();
@@ -899,6 +955,18 @@ pub fn image_dimension(grid: &BpGrid, scale: f64, margin: f64) -> Dimension {
         width: (grid.render_width() + offset.x * 2.0) * scale + margin * 2.0,
         height: (grid.render_height() + offset.y * 2.0) * scale + margin * 2.0,
     }
+}
+
+/// Grid coordinates are whole numbers; this tolerance absorbs float error when
+/// testing integrality/parity after a halving transform.
+const GRID_COORD_EPSILON: f64 = 1e-9;
+
+fn is_integer(value: f64) -> bool {
+    (value - value.round()).abs() < GRID_COORD_EPSILON
+}
+
+fn is_even(value: f64) -> bool {
+    is_integer(value) && (value.round() as i64) % 2 == 0
 }
 
 fn fix_vector(constrain: impl Fn(Point) -> Point, point: Point, vector: Point) -> Point {

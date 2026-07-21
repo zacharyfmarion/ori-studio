@@ -41,6 +41,7 @@ import init, {
   bp_rotate_layout_sheet,
   bp_split_tree_edge,
   bp_subdivide_layout_sheet,
+  bp_unsubdivide_layout_sheet,
   bp_switch_stretch_config,
   bp_switch_stretch_pattern,
   bp_undo_project,
@@ -217,6 +218,9 @@ const api = {
   async subdivideLayoutSheet(handle: number): Promise<OristudioBpRawProject> {
     return call(() => bp_subdivide_layout_sheet(handle) as OristudioBpRawProject);
   },
+  async unsubdivideLayoutSheet(handle: number): Promise<OristudioBpRawProject> {
+    return call(() => bp_unsubdivide_layout_sheet(handle) as OristudioBpRawProject);
+  },
   async rotateLayoutSheet(handle: number, clockwise: boolean): Promise<OristudioBpRawProject> {
     return call(() => bp_rotate_layout_sheet(handle, clockwise) as OristudioBpRawProject);
   },
@@ -263,8 +267,13 @@ const api = {
   async exportBps(handle: number): Promise<string> {
     return call(() => bp_export_bps(handle));
   },
-  async exportCp(handle: number, reorient = true, useAuxiliary = false): Promise<string> {
-    return call(() => bp_export_cp(handle, reorient, useAuxiliary));
+  async exportCp(
+    handle: number,
+    reorient = true,
+    useAuxiliary = false,
+    cpScale = 1
+  ): Promise<string> {
+    return call(() => bp_export_cp(handle, reorient, useAuxiliary, cpScale));
   },
   async exportFold(handle: number, reorient = true, useAuxiliary = false): Promise<string> {
     return call(() => bp_export_fold(handle, reorient, useAuxiliary));

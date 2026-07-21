@@ -47,6 +47,7 @@
     "stretch": "Растяжка {{id}}",
     "stretchNav": "Навигация по паттерну растяжки {{id}}",
     "subdivideSheet": "Разбить лист",
+    "unsubdivideSheet": "Объединить лист",
     "unsupportedOperation": "Неподдерживаемая операция BP",
     "upstreamGap": "Зазор выше по потоку",
     "viewportControls": "Элементы управления областью просмотра упаковки Box Pleat",

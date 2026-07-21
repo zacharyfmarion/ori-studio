@@ -47,6 +47,7 @@
     "stretch": "Stretch {{id}}",
     "stretchNav": "Stretch {{id}} pattern navigation",
     "subdivideSheet": "Subdivide Sheet",
+    "unsubdivideSheet": "Un-subdivide Sheet",
     "unsupportedOperation": "Unsupported BP operation",
     "upstreamGap": "Upstream gap",
     "viewportControls": "Box Pleat packing viewport controls",

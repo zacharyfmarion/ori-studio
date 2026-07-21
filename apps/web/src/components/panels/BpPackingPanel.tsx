@@ -23,6 +23,8 @@ import {
   CircleDot,
   Grid2X2,
   Layers,
+  Minus,
+  Plus,
   Route,
   Ruler,
   Tag,
@@ -92,6 +94,10 @@ import {
 type BpPackingNudgeDirection = 'up' | 'down' | 'left' | 'right';
 
 const BP_MAX_SHEET_SIZE = 8192;
+// Smallest grid the engine allows per kind (crates/oristudio-bp/src/shared.rs);
+// un-subdivide is disabled when halving would drop below these.
+const BP_MIN_RECT_SIZE = 4;
+const BP_MIN_DIAG_SIZE = 6;
 const BP_PACKING_DRAG_START_THRESHOLD_PX = 4;
 // Pointer travel before an empty-space drag becomes a rubberband selection,
 // matching Box Pleating Studio's SelectionController MOUSE_THRESHOLD.
@@ -334,6 +340,8 @@ function BpPackingViewportToolbar({
   onLayerChange,
   canSubdivide,
   subdivideSheet,
+  canUnsubdivide,
+  unsubdivideSheet,
   sheet,
   setSheet,
   zoomIn,
@@ -346,6 +354,8 @@ function BpPackingViewportToolbar({
   onLayerChange: (layer: BpPackingViewLayerKey, visible: boolean) => void;
   canSubdivide: boolean;
   subdivideSheet: () => void;
+  canUnsubdivide: boolean;
+  unsubdivideSheet: () => void;
   sheet: OristudioBpSheet;
   setSheet: (gridType: OristudioBpSheetKind, width: number, height: number) => void;
   zoomIn: () => void;
@@ -398,7 +408,16 @@ function BpPackingViewportToolbar({
         onClick={subdivideSheet}
         disabled={!canSubdivide}
       >
-        <Grid2X2 size={14} />
+        <Plus size={14} />
+      </IconButton>
+      <IconButton
+        size="sm"
+        variant="toolbar"
+        title={t('panels:bpPacking.unsubdivideSheet', 'Un-subdivide Sheet')}
+        onClick={unsubdivideSheet}
+        disabled={!canUnsubdivide}
+      >
+        <Minus size={14} />
       </IconButton>
       <div className="viewport-toolbar__menu-anchor" ref={sheetMenuRef}>
         <IconButton
@@ -739,6 +758,9 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   const subdivideOristudioBpLayoutSheet = useWorkspaceStore(
     (state) => state.subdivideOristudioBpLayoutSheet
   );
+  const unsubdivideOristudioBpLayoutSheet = useWorkspaceStore(
+    (state) => state.unsubdivideOristudioBpLayoutSheet
+  );
   const setOristudioBpLayoutSheet = useWorkspaceStore(
     (state) => state.setOristudioBpLayoutSheet
   );
@@ -788,6 +810,21 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   // shadow, and hit-area as polygons rather than the axis-aligned rects used for a
   // rectangular grid.
   const isDiagonalSheet = packing.sheet.kind === 'diagonal';
+  // Un-subdivide is possible only when the grid can halve cleanly: even
+  // dimensions, staying at or above the minimum, and every flap sitting on even
+  // grid lines (position and size). Mirrors the engine's unsubdivide_sheet guard
+  // so the button is disabled exactly when the engine would no-op.
+  const canUnsubdivide = useMemo(() => {
+    const { sheet, flaps } = packing;
+    const even = (value: number) => Number.isInteger(value) && value % 2 === 0;
+    if (!even(sheet.width) || !even(sheet.height)) return false;
+    const minCells = sheet.kind === 'diagonal' ? BP_MIN_DIAG_SIZE : BP_MIN_RECT_SIZE;
+    if (sheet.width / 2 < minCells || sheet.height / 2 < minCells) return false;
+    return flaps.every(
+      (flap) =>
+        even(flap.anchor.x) && even(flap.anchor.y) && even(flap.width) && even(flap.height)
+    );
+  }, [packing]);
   const sheetPolygonPoints = useMemo(
     () =>
       bpPackingSheetBorderPoints(packing.sheet, paperRect)
@@ -1923,6 +1960,8 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
           packing.sheet.height * 2 <= BP_MAX_SHEET_SIZE
         }
         subdivideSheet={() => void subdivideOristudioBpLayoutSheet()}
+        canUnsubdivide={canUnsubdivide}
+        unsubdivideSheet={() => void unsubdivideOristudioBpLayoutSheet()}
         sheet={packing.sheet}
         setSheet={(gridType, width, height) =>
           void setOristudioBpLayoutSheet(gridType, width, height)
@@ -1945,6 +1984,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
           ariaLabel={t('panels:bpPacking.flapNameAria', 'Name of flap {{id}}', {
             id: singleSelectedFlap.id,
           })}
+          autoFocus
           onRename={(name) => void renameOristudioBpVertex(singleSelectedFlap.vertexId, name)}
         />
       )}

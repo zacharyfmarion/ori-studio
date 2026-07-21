@@ -405,6 +405,14 @@ export async function subdivideOristudioBpLayoutSheet(
   );
 }
 
+export async function unsubdivideOristudioBpLayoutSheet(
+  options: OristudioBpMutationOptions = {}
+): Promise<OristudioBpDocumentState> {
+  return mutateActiveOristudioBpProject(options, (api, handle) =>
+    api.unsubdivideLayoutSheet(handle)
+  );
+}
+
 export async function rotateOristudioBpLayoutSheet(
   clockwise: boolean,
   options: OristudioBpMutationOptions = {}
@@ -673,13 +681,23 @@ export async function exportOristudioBpWorkspaceAsBpz(
 }
 
 export async function exportOristudioBpProjectAsCp(
-  options: Pick<OristudioBpExportOptions, 'reorient' | 'includeAuxiliaryHinges'>
+  options: Pick<OristudioBpExportOptions, 'reorient' | 'includeAuxiliaryHinges'> & {
+    // Multiplier on the exported full width. "Send to Edit" passes
+    // bpSheetMaxCells / editGridDivisions so one BP cell maps onto one Edit
+    // grid cell. Defaults to 1 (fill the standard paper) for every other caller.
+    cpScale?: number;
+  }
 ): Promise<string> {
   if (activeHandle === null) {
     throw new Error('No Box Pleat project is loaded');
   }
   const api = await getOristudioBpClient();
-  return api.exportCp(activeHandle, options.reorient, options.includeAuxiliaryHinges);
+  return api.exportCp(
+    activeHandle,
+    options.reorient,
+    options.includeAuxiliaryHinges,
+    options.cpScale ?? 1
+  );
 }
 
 export async function exportOristudioBpProjectAsFold(

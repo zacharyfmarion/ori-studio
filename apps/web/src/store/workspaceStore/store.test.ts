@@ -966,6 +966,9 @@ function sampleBpDocument(): import('../../engine/oristudioBpTypes').OristudioBp
     source: { format: 'generated', filename: 'Untitled.bps', path: null },
     activeSurface: 'tree',
     dirty: true,
+    // The slice centres the default symmetry axis on the tree sheet on load, so
+    // the fixture needs sheet dimensions.
+    snapshot: { tree: { sheet: { width: 20, height: 20 } } },
   } as import('../../engine/oristudioBpTypes').OristudioBpDocumentState;
 }
 

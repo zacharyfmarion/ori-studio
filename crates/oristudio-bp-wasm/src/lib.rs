@@ -160,6 +160,7 @@ pub fn bp_project_crease_pattern_snapshot(
                 format: CpFormat::Cp,
                 reorient,
                 use_auxiliary,
+                ..CpExportOptions::default()
             },
         )
         .map_err(to_js_bp_error)?;
@@ -343,6 +344,14 @@ pub fn bp_subdivide_layout_sheet(handle: u32) -> Result<JsValue, JsValue> {
 }
 
 #[wasm_bindgen]
+pub fn bp_unsubdivide_layout_sheet(handle: u32) -> Result<JsValue, JsValue> {
+    with_session_mut(handle, |session| {
+        session.unsubdivide_layout_sheet().map_err(to_js_bp_error)?;
+        to_js_value(&session.project_for_export())
+    })
+}
+
+#[wasm_bindgen]
 pub fn bp_rotate_layout_sheet(handle: u32, clockwise: bool) -> Result<JsValue, JsValue> {
     with_session_mut(handle, |session| {
         session
@@ -441,7 +450,12 @@ pub fn bp_export_workspace(projects: JsValue) -> Result<Vec<u8>, JsValue> {
 }
 
 #[wasm_bindgen]
-pub fn bp_export_cp(handle: u32, reorient: bool, use_auxiliary: bool) -> Result<String, JsValue> {
+pub fn bp_export_cp(
+    handle: u32,
+    reorient: bool,
+    use_auxiliary: bool,
+    cp_scale: f64,
+) -> Result<String, JsValue> {
     with_project(handle, |project| {
         io::cp::export_project(
             project,
@@ -449,6 +463,7 @@ pub fn bp_export_cp(handle: u32, reorient: bool, use_auxiliary: bool) -> Result<
                 format: CpFormat::Cp,
                 reorient,
                 use_auxiliary,
+                cp_scale,
             },
         )
         .map_err(to_js_bp_error)
@@ -464,6 +479,7 @@ pub fn bp_export_fold(handle: u32, reorient: bool, use_auxiliary: bool) -> Resul
                 format: CpFormat::Fold,
                 reorient,
                 use_auxiliary,
+                ..CpExportOptions::default()
             },
         )
         .map_err(to_js_bp_error)

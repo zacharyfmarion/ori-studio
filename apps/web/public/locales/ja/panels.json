@@ -47,6 +47,7 @@
     "stretch": "ストレッチ {{id}}",
     "stretchNav": "ストレッチ {{id}} のパターンナビゲーション",
     "subdivideSheet": "用紙を細分化",
+    "unsubdivideSheet": "用紙の細分化を解除",
     "unsupportedOperation": "サポートされていない BP 操作",
     "upstreamGap": "上流のギャップ",
     "viewportControls": "ボックスプリーツパッキングのビューポート操作",
