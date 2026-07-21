@@ -255,6 +255,10 @@ pub struct FoldedFigureSnapshot {
     /// contradiction; carries the two faces to highlight (Feature B).
     #[serde(default)]
     pub contradiction: Option<FoldContradiction>,
+    /// Flat CP polygons of the two contradicting faces (present iff
+    /// `contradiction` is), for the editor's red-fill overlay.
+    #[serde(default)]
+    pub contradiction_faces: Option<ContradictionFaceGeometry>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1027,12 +1031,47 @@ pub struct FoldingEstimate {
 }
 
 /// The two faces the layer-ordering estimate could not consistently stack — the
-/// port's analog of Oriedita's `InferenceFailureException(i, j)`. Face indices
-/// match the folded figure's 1-based face numbering.
+/// port's analog of Oriedita's `InferenceFailureException(i, j)`. Both are
+/// 0-based indices into the folded wireframe's `faces` list (`graph.faces`);
+/// index directly, no offset.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FoldContradiction {
     pub upper_face: usize,
     pub lower_face: usize,
+}
+
+/// Flat crease-pattern polygons (CP model coordinates) of the two contradicting
+/// faces, so the editor can fill them red without needing the CP face
+/// decomposition (which lives only in the Rust `FoldGraph`). Oriedita's
+/// `drawSelfIntersectingSubFaces` fills the equivalent flat faces.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ContradictionFaceGeometry {
+    pub upper: Vec<Point>,
+    pub lower: Vec<Point>,
+}
+
+/// Flat CP polygons for a contradiction's two faces. The flat wireframe shares
+/// the folded wireframe's face topology (both come from the same `FoldGraph`
+/// faces), so the 0-based `upper_face`/`lower_face` index it directly.
+fn contradiction_flat_faces(
+    segments: &[LineSegment],
+    starting_face_id: i32,
+    contradiction: FoldContradiction,
+) -> Option<ContradictionFaceGeometry> {
+    let wireframe = face_position_wireframe_from_segments(segments, starting_face_id)?;
+    let face_polygon = |index: usize| -> Option<Vec<Point>> {
+        let loop_indices = wireframe.faces.get(index)?;
+        Some(
+            loop_indices
+                .iter()
+                .filter_map(|&point_index| wireframe.points.get(point_index).copied())
+                .collect(),
+        )
+    };
+    Some(ContradictionFaceGeometry {
+        upper: face_polygon(contradiction.upper_face)?,
+        lower: face_polygon(contradiction.lower_face)?,
+    })
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1735,6 +1774,9 @@ pub fn folded_figure_snapshot_from_session(
     } else {
         None
     };
+    let contradiction_faces = estimate.contradiction.and_then(|contradiction| {
+        contradiction_flat_faces(&session.segments, session.starting_face_id, contradiction)
+    });
     FoldedFigureSnapshot {
         model,
         estimation_step: estimate.estimation_step,
@@ -1744,6 +1786,7 @@ pub fn folded_figure_snapshot_from_session(
         text_result: estimate.text_result.clone(),
         wireframe,
         contradiction: estimate.contradiction,
+        contradiction_faces,
     }
 }
 
