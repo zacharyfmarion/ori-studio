@@ -33,6 +33,7 @@ import init, {
   replace_line_segments,
   restore_document,
   restore_from_compact,
+  set_texts,
 } from '../generated/oristudio-cp-wasm/oristudio_cp_wasm';
 import type { CpGeometryTransport } from '../engine/oristudioCpGeometry';
 import type {
@@ -53,8 +54,34 @@ import type {
 } from '../engine/oristudioCpTypes';
 import type { OristudioCpOperationId } from '../lib/oristudioCpCommands';
 import type { WasmErrorEnvelope } from '../engine/types';
+import type { FlatText } from '../cp-workspace/annotations/annotation';
 
 let ready: Promise<void> | null = null;
+
+/**
+ * Populate the kernel's text elements from flattened rich-text boxes, run an
+ * export, then clear them again. Rich text lives web-side; the kernel `texts`
+ * vec is only the Oriedita interchange representation, so it stays empty during a
+ * session and is loaded transiently around an export. Synchronous — all three
+ * wasm calls run inside one `call()`.
+ */
+function exportWithTexts(handle: number, texts: FlatText[], exporter: () => string): string {
+  const coords = new Float64Array(texts.length * 2);
+  for (let i = 0; i < texts.length; i += 1) {
+    coords[i * 2] = texts[i].x;
+    coords[i * 2 + 1] = texts[i].y;
+  }
+  set_texts(
+    handle,
+    coords,
+    texts.map((entry) => entry.text)
+  );
+  try {
+    return exporter();
+  } finally {
+    set_texts(handle, new Float64Array(0), []);
+  }
+}
 
 async function ensureReady() {
   ready ??= init().then(() => undefined);
@@ -249,17 +276,31 @@ const api = {
   async exportCp(handle: number): Promise<string> {
     return call(() => export_cp(handle));
   },
-  async exportFold(handle: number): Promise<string> {
-    return call(() => export_fold(handle));
+  async exportFold(handle: number, texts: FlatText[] = []): Promise<string> {
+    return call(() => exportWithTexts(handle, texts, () => export_fold(handle)));
   },
-  async exportFoldFile(handle: number): Promise<string> {
-    return call(() => export_fold_file(handle));
+  async exportFoldFile(handle: number, texts: FlatText[] = []): Promise<string> {
+    return call(() => exportWithTexts(handle, texts, () => export_fold_file(handle)));
   },
-  async exportOri(handle: number): Promise<string> {
-    return call(() => export_ori(handle));
+  async exportOri(handle: number, texts: FlatText[] = []): Promise<string> {
+    return call(() => exportWithTexts(handle, texts, () => export_ori(handle)));
   },
-  async exportOrh(handle: number): Promise<string> {
-    return call(() => export_orh(handle));
+  async exportOrh(handle: number, texts: FlatText[] = []): Promise<string> {
+    return call(() => exportWithTexts(handle, texts, () => export_orh(handle)));
+  },
+  async setTexts(handle: number, texts: FlatText[]): Promise<void> {
+    const coords = new Float64Array(texts.length * 2);
+    for (let i = 0; i < texts.length; i += 1) {
+      coords[i * 2] = texts[i].x;
+      coords[i * 2 + 1] = texts[i].y;
+    }
+    return call(() =>
+      set_texts(
+        handle,
+        coords,
+        texts.map((entry) => entry.text)
+      )
+    );
   },
   async freeDocument(handle: number): Promise<void> {
     return call(() => free_document(handle));

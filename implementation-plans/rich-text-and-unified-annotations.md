@@ -196,9 +196,9 @@ image edits. Retire the kernel text-command history path for editing.
 - [ ] Inflate legacy kernel `texts` → text annotations on load (**deferred to Phase 3** — needs a kernel "clear texts" op; until then, legacy files with kernel texts don't display them).
 
 ### Phase 3 — Oriedita serialization codec
-- [ ] Flatten (Lexical → `{x,y,text}`) + `set_texts` WASM bridge; wire `.ori`/`.fold` export.
-- [ ] Inflate kernel `texts` → default text annotations on import + legacy load (closes the Phase 2 gap).
-- [ ] Round-trip tests (`.ori`, `.fold`).
+- [x] Flatten (Lexical → `{x,y,text}`, `flattenTextAnnotations`) + `set_texts` WASM bridge; wire `.ori`/`.fold`/`.orh` export (worker sets texts → exports → restores empty). Internal fold projection stays text-free.
+- [x] Inflate kernel `texts` → default text annotations on import (`.cp`/`.ori`/`.fold`/`.orh`), clearing the kernel copy so `.osf` save doesn't double-count. Closes the Phase 2 gap.
+- [x] Flatten unit tests; kernel text round-trip already covered by `io/ori.rs` / `io/fold.rs`.
 
 ### Phase 4 — Unification polish
 - [ ] Unified annotation undo/redo across text + image edits.

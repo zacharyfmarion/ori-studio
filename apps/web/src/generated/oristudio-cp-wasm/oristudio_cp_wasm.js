@@ -506,6 +506,30 @@ export function restore_from_compact(handle, value) {
         throw takeFromExternrefTable0(ret[0]);
     }
 }
+
+/**
+ * Replace the kernel document's text elements wholesale.
+ *
+ * Rich text lives in a web-side annotation layer; the kernel `texts` vec is only
+ * the Oriedita interchange representation. The frontend flattens each rich text
+ * box to a plain `{x, y, text}` and pushes them here right before an `.ori` /
+ * `.fold` export (restoring `[]` afterwards), and clears them (an empty call)
+ * after inflating a loaded file's texts into web-side annotations. `coords` is a
+ * flat `[x0, y0, x1, y1, ...]` paired with `texts` by index.
+ * @param {number} handle
+ * @param {Float64Array} coords
+ * @param {string[]} texts
+ */
+export function set_texts(handle, coords, texts) {
+    const ptr0 = passArrayF64ToWasm0(coords, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passArrayJsValueToWasm0(texts, wasm.__wbindgen_malloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.set_texts(handle, ptr0, len0, ptr1, len1);
+    if (ret[1]) {
+        throw takeFromExternrefTable0(ret[0]);
+    }
+}
 function __wbg_get_imports() {
     const import0 = {
         __proto__: null,
@@ -938,6 +962,23 @@ function handleError(f, args) {
 
 function isLikeNone(x) {
     return x === undefined || x === null;
+}
+
+function passArrayF64ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 8, 8) >>> 0;
+    getFloat64ArrayMemory0().set(arg, ptr / 8);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
+}
+
+function passArrayJsValueToWasm0(array, malloc) {
+    const ptr = malloc(array.length * 4, 4) >>> 0;
+    for (let i = 0; i < array.length; i++) {
+        const add = addToExternrefTable0(array[i]);
+        getDataViewMemory0().setUint32(ptr + 4 * i, add, true);
+    }
+    WASM_VECTOR_LEN = array.length;
+    return ptr;
 }
 
 function passStringToWasm0(arg, malloc, realloc) {

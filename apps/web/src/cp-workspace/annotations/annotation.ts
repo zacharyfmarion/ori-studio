@@ -12,7 +12,11 @@
  */
 
 import type { CpImage, CpImageUpdate } from '../images/cpImage';
-import type { TextAnnotation, TextAnnotationUpdate } from './textAnnotation';
+import {
+  serializedStateToPlainText,
+  type TextAnnotation,
+  type TextAnnotationUpdate,
+} from './textAnnotation';
 
 export type { AnnotationBase, AnnotationKind } from './annotationBase';
 
@@ -43,4 +47,25 @@ export function topAnnotationZ(annotations: readonly CanvasAnnotation[]): number
 /** The lowest `z` across the annotations, or 0 for an empty layer. */
 export function bottomAnnotationZ(annotations: readonly CanvasAnnotation[]): number {
   return annotations.reduce((min, annotation) => Math.min(min, annotation.z), 0);
+}
+
+/** A text annotation flattened to the Oriedita `{x, y, text}` interchange shape. */
+export interface FlatText {
+  x: number;
+  y: number;
+  text: string;
+}
+
+/**
+ * Flatten every text annotation to the plain `{x, y, text}` that Oriedita
+ * formats support: the box center becomes the text position and the rich content
+ * collapses to plain text (marks dropped). This is the export-time projection
+ * handed to the kernel before an `.ori`/`.fold` export.
+ */
+export function flattenTextAnnotations(annotations: readonly CanvasAnnotation[]): FlatText[] {
+  return annotations.filter(isTextAnnotation).map((text) => ({
+    x: text.center.x,
+    y: text.center.y,
+    text: serializedStateToPlainText(text.doc),
+  }));
 }
