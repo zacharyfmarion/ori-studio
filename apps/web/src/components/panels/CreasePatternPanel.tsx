@@ -133,11 +133,7 @@ import {
   overlayCssToModel,
 } from '../../cp-workspace/images/cpImagePlacement';
 import { annotationScreenRect } from '../../cp-workspace/annotations/annotationAnchor';
-import {
-  bottomAnnotationZ,
-  isImageAnnotation,
-  topAnnotationZ,
-} from '../../cp-workspace/annotations/annotation';
+import { isImageAnnotation, topAnnotationZ } from '../../cp-workspace/annotations/annotation';
 import type { CanvasAnnotation } from '../../cp-workspace/annotations/annotation';
 import {
   createTextAnnotation,
@@ -2785,10 +2781,6 @@ export function CreasePatternPanel() {
 
   const syncAnnotationHeight = useWorkspaceStore((state) => state.syncAnnotationHeight);
 
-  // Chrome changes made from the text toolbar during an edit fold into the single
-  // edit undo entry, so they use no-op gesture boundaries.
-  const noopGesture = useCallback(() => {}, []);
-
   // Delete from the text toolbar removes the box and leaves edit mode; the
   // pre-edit snapshot makes it undoable (unless the box was never real).
   const handleDeleteEditingText = useCallback(() => {
@@ -3145,23 +3137,6 @@ export function CreasePatternPanel() {
                     toolbarAnchor={annotationToolbarAnchor}
                     onChangeText={handleTextContentChange}
                     onExitEdit={handleExitEditText}
-                    onGestureStart={noopGesture}
-                    onGestureCommit={noopGesture}
-                    onOpacity={(value) =>
-                      editingTextId && updateAnnotation(editingTextId, { opacity: value })
-                    }
-                    onBringToFront={() =>
-                      editingTextId &&
-                      updateAnnotation(editingTextId, {
-                        z: topAnnotationZ(oristudioCpAnnotations) + 1,
-                      })
-                    }
-                    onSendToBack={() =>
-                      editingTextId &&
-                      updateAnnotation(editingTextId, {
-                        z: bottomAnnotationZ(oristudioCpAnnotations) - 1,
-                      })
-                    }
                     onDelete={handleDeleteEditingText}
                     onSyncHeight={syncAnnotationHeight}
                   />

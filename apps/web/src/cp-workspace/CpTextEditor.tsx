@@ -27,10 +27,9 @@ import {
 } from '@lexical/rich-text';
 import { $setBlocksType, $patchStyleText } from '@lexical/selection';
 import { $createParagraphNode } from 'lexical';
-import { Bold, Italic, Underline } from 'lucide-react';
+import { Bold, Italic, Trash2, Underline } from 'lucide-react';
 import { FloatingToolbar, type FloatingAnchorRect } from '../components/ui/FloatingToolbar';
 import { IconButton } from '../components/ui/IconButton';
-import { AnnotationActions } from './AnnotationActions';
 import { TEXT_BLOCK_PRESETS, type TextAlign, type TextBlockType } from './annotations/textFormatting';
 
 const LEXICAL_THEME = {
@@ -57,33 +56,15 @@ const TEXT_COLORS = [
 
 export interface CpTextEditorProps {
   doc: SerializedEditorState;
-  opacity: number;
   anchorRect: FloatingAnchorRect | null;
   /** Content changed: persist the new doc + its plain-text projection. */
   onChange: (doc: SerializedEditorState, plainText: string) => void;
   /** Leave inline-edit mode (blur outside / Escape). */
   onExit: () => void;
-  onGestureStart: () => void;
-  onGestureCommit: (label: string) => void;
-  onOpacity: (value: number) => void;
-  onBringToFront: () => void;
-  onSendToBack: () => void;
   onDelete: () => void;
 }
 
-export function CpTextEditor({
-  doc,
-  opacity,
-  anchorRect,
-  onChange,
-  onExit,
-  onGestureStart,
-  onGestureCommit,
-  onOpacity,
-  onBringToFront,
-  onSendToBack,
-  onDelete,
-}: CpTextEditorProps) {
+export function CpTextEditor({ doc, anchorRect, onChange, onExit, onDelete }: CpTextEditorProps) {
   const { t } = useTranslation();
   const handleChange = useCallback(
     (editorState: EditorState) => {
@@ -143,16 +124,7 @@ export function CpTextEditor({
       <HistoryPlugin />
       <AutoFocusPlugin />
       <OnChangePlugin onChange={handleChange} ignoreSelectionChange />
-      <TextToolbar
-        opacity={opacity}
-        anchorRect={anchorRect}
-        onGestureStart={onGestureStart}
-        onGestureCommit={onGestureCommit}
-        onOpacity={onOpacity}
-        onBringToFront={onBringToFront}
-        onSendToBack={onSendToBack}
-        onDelete={onDelete}
-      />
+      <TextToolbar anchorRect={anchorRect} onDelete={onDelete} />
     </LexicalComposer>
   );
 }
@@ -176,22 +148,10 @@ const INITIAL_TOOLBAR_STATE: ToolbarState = {
 };
 
 function TextToolbar({
-  opacity,
   anchorRect,
-  onGestureStart,
-  onGestureCommit,
-  onOpacity,
-  onBringToFront,
-  onSendToBack,
   onDelete,
 }: {
-  opacity: number;
   anchorRect: FloatingAnchorRect | null;
-  onGestureStart: () => void;
-  onGestureCommit: (label: string) => void;
-  onOpacity: (value: number) => void;
-  onBringToFront: () => void;
-  onSendToBack: () => void;
   onDelete: () => void;
 }) {
   const { t } = useTranslation();
@@ -224,6 +184,8 @@ function TextToolbar({
     });
   }, [editor]);
 
+  // Formatting changes fold into the single "edit text" undo entry recorded when
+  // the box leaves edit mode, so they don't manage their own gesture boundaries.
   const setBlock = useCallback(
     (type: TextBlockType) => {
       editor.update(() => {
@@ -233,17 +195,15 @@ function TextToolbar({
           type === 'paragraph' ? $createParagraphNode() : $createHeadingNode(type as HeadingTagType)
         );
       });
-      onGestureCommit(t('panels:textAnnotation.setBlockType', 'Change text style'));
     },
-    [editor, onGestureCommit, t]
+    [editor]
   );
 
   const setAlign = useCallback(
     (align: TextAlign) => {
       editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, align as ElementFormatType);
-      onGestureCommit(t('panels:textAnnotation.setAlign', 'Align text'));
     },
-    [editor, onGestureCommit, t]
+    [editor]
   );
 
   const setColor = useCallback(
@@ -252,17 +212,15 @@ function TextToolbar({
         const selection = $getSelection();
         if ($isRangeSelection(selection)) $patchStyleText(selection, { color: color || null });
       });
-      onGestureCommit(t('panels:textAnnotation.setColor', 'Set text color'));
     },
-    [editor, onGestureCommit, t]
+    [editor]
   );
 
   const toggleMark = useCallback(
     (mark: 'bold' | 'italic' | 'underline') => {
       editor.dispatchCommand(FORMAT_TEXT_COMMAND, mark);
-      onGestureCommit(t('panels:textAnnotation.formatText', 'Format text'));
     },
-    [editor, onGestureCommit, t]
+    [editor]
   );
 
   return (
@@ -359,15 +317,14 @@ function TextToolbar({
           </select>
         </label>
         <span className="floating-toolbar__separator" />
-        <AnnotationActions
-          opacity={opacity}
-          onOpacity={onOpacity}
-          onGestureStart={onGestureStart}
-          onGestureCommit={onGestureCommit}
-          onBringToFront={onBringToFront}
-          onSendToBack={onSendToBack}
-          onDelete={onDelete}
-        />
+        <IconButton
+          size="sm"
+          variant="toolbar"
+          title={t('panels:textAnnotation.deleteText', 'Delete text')}
+          onClick={onDelete}
+        >
+          <Trash2 size={14} />
+        </IconButton>
       </div>
     </FloatingToolbar>
   );

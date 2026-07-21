@@ -37,11 +37,6 @@ export function CpTextAnnotationLayer({
   toolbarAnchor,
   onChangeText,
   onExitEdit,
-  onGestureStart,
-  onGestureCommit,
-  onOpacity,
-  onBringToFront,
-  onSendToBack,
   onDelete,
   onSyncHeight,
 }: {
@@ -51,11 +46,6 @@ export function CpTextAnnotationLayer({
   toolbarAnchor: FloatingAnchorRect | null;
   onChangeText: (id: string, doc: SerializedEditorState, plainText: string) => void;
   onExitEdit: () => void;
-  onGestureStart: () => void;
-  onGestureCommit: (label: string) => void;
-  onOpacity: (value: number) => void;
-  onBringToFront: () => void;
-  onSendToBack: () => void;
   onDelete: () => void;
   onSyncHeight: (id: string, height: number) => void;
 }) {
@@ -65,7 +55,16 @@ export function CpTextAnnotationLayer({
   return (
     <div
       className="cp-text-layer"
-      style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'visible' }}
+      style={{
+        position: 'absolute',
+        inset: 0,
+        pointerEvents: 'none',
+        overflow: 'visible',
+        // Above the WebGL canvas (5) and grid (6); the annotation overlay (8)
+        // and its handles sit just above this. Without a z-index the DOM text
+        // paints behind the opaque canvas and is invisible.
+        zIndex: 7,
+      }}
       aria-hidden={editingTextId ? undefined : true}
     >
       {textAnnotations.map((text) => {
@@ -94,11 +93,6 @@ export function CpTextAnnotationLayer({
             toolbarAnchor={toolbarAnchor}
             onChangeText={onChangeText}
             onExitEdit={onExitEdit}
-            onGestureStart={onGestureStart}
-            onGestureCommit={onGestureCommit}
-            onOpacity={onOpacity}
-            onBringToFront={onBringToFront}
-            onSendToBack={onSendToBack}
             onDelete={onDelete}
             onSyncHeight={onSyncHeight}
           />
@@ -116,11 +110,6 @@ function TextBox({
   toolbarAnchor,
   onChangeText,
   onExitEdit,
-  onGestureStart,
-  onGestureCommit,
-  onOpacity,
-  onBringToFront,
-  onSendToBack,
   onDelete,
   onSyncHeight,
 }: {
@@ -131,11 +120,6 @@ function TextBox({
   toolbarAnchor: FloatingAnchorRect | null;
   onChangeText: (id: string, doc: SerializedEditorState, plainText: string) => void;
   onExitEdit: () => void;
-  onGestureStart: () => void;
-  onGestureCommit: (label: string) => void;
-  onOpacity: (value: number) => void;
-  onBringToFront: () => void;
-  onSendToBack: () => void;
   onDelete: () => void;
   onSyncHeight: (id: string, height: number) => void;
 }) {
@@ -167,15 +151,9 @@ function TextBox({
       {editing ? (
         <CpTextEditor
           doc={text.doc}
-          opacity={text.opacity}
           anchorRect={toolbarAnchor}
           onChange={(doc, plainText) => onChangeText(text.id, doc, plainText)}
           onExit={onExitEdit}
-          onGestureStart={onGestureStart}
-          onGestureCommit={onGestureCommit}
-          onOpacity={onOpacity}
-          onBringToFront={onBringToFront}
-          onSendToBack={onSendToBack}
           onDelete={onDelete}
         />
       ) : (

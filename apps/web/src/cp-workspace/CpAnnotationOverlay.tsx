@@ -305,6 +305,9 @@ export function CpAnnotationOverlay({
         height: '100%',
         pointerEvents: 'none',
         overflow: 'visible',
+        // Above the WebGL canvas (5), grid (6), and the text DOM layer (7) so
+        // selection handles sit on top of every annotation kind.
+        zIndex: 8,
       }}
       aria-hidden="true"
     >
