@@ -41,7 +41,6 @@
     "selectFlapWithName": "Select BP flap {{id}}, {{name}}",
     "selectRiver": "Select BP river {{id}}, length {{length}}",
     "selectRiverShort": "Select BP river {{id}}",
-    "sheetDimensions": "{{width}} × {{height}}",
     "sheetSizeGrid": "Sheet size & grid",
     "size": "Size",
     "stretch": "Stretch {{id}}",
@@ -73,7 +72,6 @@
     "selectLeafVertexWithLabel": "Select BP leaf vertex {{id}}, {{label}}",
     "selectVertex": "Select BP vertex {{id}}",
     "selectVertexWithLabel": "Select BP vertex {{id}}, {{label}}",
-    "sheetDimensions": "{{width}} × {{height}}",
     "viewportControls": "Box Pleat tree viewport controls"
   },
   "conditions": {
@@ -249,6 +247,8 @@
     "xray": "X-ray"
   },
   "design": {
+    "attributionBoxPleating": "Adapted from <2>Mu-Tsun Tsai's Box Pleating Studio</2> · MIT",
+    "attributionTreemaker": "Adapted from <2>Robert J. Lang's TreeMaker</2> · GPL-2.0",
     "axis": "Axis",
     "axisAngle": "Angle",
     "axisAngleAria": "Design symmetry angle",

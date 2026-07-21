@@ -218,6 +218,9 @@ describe('layout store', () => {
       id: 'bp-editor',
       position: { referencePanel: 'design', direction: 'right' },
     });
+    // Both panes are headered (draggable/rearrangeable) — the tree pane is not in
+    // a headerless group here, unlike the TreeMaker primary pane.
+    expect(api.panelMap.get('design')?.group.hideHeader).not.toBe(true);
     // The TreeMaker side panes must not appear in the box-pleat layout.
     expect(api.getPanel('inspector')).toBeNull();
     expect(api.getPanel('diagnostics')).toBeNull();

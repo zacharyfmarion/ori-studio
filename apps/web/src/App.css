@@ -450,6 +450,20 @@
   background: var(--accent-primary);
 }
 
+/* Column 2 of the workspace grid: the Dockview canvas stacked above the Design
+   attribution bar, so the footer spans all of the workspace's panes. A grid with
+   an `auto` footer row (sized to the bar) and a `minmax(0, 1fr)` canvas row (the
+   remainder) keeps the Dockview cell definite regardless of the footer — a flex
+   column can't, because DockviewReact's own wrapper div (inline height:100%,
+   default min-height:auto) resists shrinking and pushes the footer out of view. */
+.workspace-shell__canvas {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-width: 0;
+  min-height: 0;
+}
+
 .workspace-shell__dockview {
   min-width: 0;
   min-height: 0;

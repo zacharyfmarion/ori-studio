@@ -41,7 +41,6 @@
     "selectFlapWithName": "BP-Klappe {{id}} auswählen, {{name}}",
     "selectRiver": "BP-Fluss {{id}} auswählen, Länge {{length}}",
     "selectRiverShort": "BP-Fluss {{id}} auswählen",
-    "sheetDimensions": "{{width}} × {{height}}",
     "sheetSizeGrid": "Blattgröße & Raster",
     "size": "Größe",
     "stretch": "Streckung {{id}}",
@@ -73,7 +72,6 @@
     "selectLeafVertexWithLabel": "BP-Blattknoten {{id}} auswählen, {{label}}",
     "selectVertex": "BP-Knoten {{id}} auswählen",
     "selectVertexWithLabel": "BP-Knoten {{id}} auswählen, {{label}}",
-    "sheetDimensions": "{{width}} × {{height}}",
     "viewportControls": "Ansichtssteuerung des Box-Pleating-Baums"
   },
   "conditions": {
@@ -249,6 +247,8 @@
     "xray": "Röntgen"
   },
   "design": {
+    "attributionBoxPleating": "Adaptiert von <2>Mu-Tsun Tsai's Box Pleating Studio</2> · MIT",
+    "attributionTreemaker": "Adaptiert von <2>Robert J. Lang's TreeMaker</2> · GPL-2.0",
     "axis": "Achse",
     "axisAngle": "Winkel",
     "axisAngleAria": "Winkel der Design-Symmetrie",

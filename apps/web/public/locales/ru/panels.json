@@ -41,7 +41,6 @@
     "selectFlapWithName": "Выбрать клапан BP {{id}}, {{name}}",
     "selectRiver": "Выбрать реку BP {{id}}, длина {{length}}",
     "selectRiverShort": "Выбрать реку BP {{id}}",
-    "sheetDimensions": "{{width}} × {{height}}",
     "sheetSizeGrid": "Размер листа и сетка",
     "size": "Размер",
     "stretch": "Растяжка {{id}}",
@@ -73,7 +72,6 @@
     "selectLeafVertexWithLabel": "Выбрать концевую вершину BP {{id}}, {{label}}",
     "selectVertex": "Выбрать вершину BP {{id}}",
     "selectVertexWithLabel": "Выбрать вершину BP {{id}}, {{label}}",
-    "sheetDimensions": "{{width}} × {{height}}",
     "viewportControls": "Элементы управления областью просмотра дерева Box Pleat"
   },
   "conditions": {
@@ -265,6 +263,8 @@
     "xray": "Рентген"
   },
   "design": {
+    "attributionBoxPleating": "Адаптировано из <2>Mu-Tsun Tsai's Box Pleating Studio</2> · MIT",
+    "attributionTreemaker": "Адаптировано из <2>Robert J. Lang's TreeMaker</2> · GPL-2.0",
     "axis": "Ось",
     "axisAngle": "Угол",
     "axisAngleAria": "Угол симметрии дизайна",

@@ -41,7 +41,6 @@
     "selectFlapWithName": "BP 플랩 {{id}} 선택, {{name}}",
     "selectRiver": "BP 리버 {{id}} 선택, 길이 {{length}}",
     "selectRiverShort": "BP 리버 {{id}} 선택",
-    "sheetDimensions": "{{width}} × {{height}}",
     "sheetSizeGrid": "시트 크기 및 격자",
     "size": "크기",
     "stretch": "스트레치 {{id}}",
@@ -73,7 +72,6 @@
     "selectLeafVertexWithLabel": "BP 리프 정점 {{id}} 선택, {{label}}",
     "selectVertex": "BP 정점 {{id}} 선택",
     "selectVertexWithLabel": "BP 정점 {{id}} 선택, {{label}}",
-    "sheetDimensions": "{{width}} × {{height}}",
     "viewportControls": "박스 플리츠 트리 뷰포트 컨트롤"
   },
   "conditions": {
@@ -241,6 +239,8 @@
     "xray": "X-ray"
   },
   "design": {
+    "attributionBoxPleating": "<2>Mu-Tsun Tsai's Box Pleating Studio</2> 기반 · MIT",
+    "attributionTreemaker": "<2>Robert J. Lang's TreeMaker</2> 기반 · GPL-2.0",
     "axis": "축",
     "axisAngle": "각도",
     "axisAngleAria": "디자인 대칭 각도",

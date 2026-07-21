@@ -221,10 +221,6 @@ function viewBox(rect: { x: number; y: number; width: number; height: number }):
   return `${rect.x} ${rect.y} ${rect.width} ${rect.height}`;
 }
 
-function formatZoom(scale: number): string {
-  return `${Math.round(scale * 100)}%`;
-}
-
 function isKeyboardActivation(event: { key: string }): boolean {
   return event.key === 'Enter' || event.key === ' ';
 }
@@ -725,7 +721,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   const transformRef = useRef<ReactZoomPanPinchRef | null>(null);
   const [zoomPercent, setZoomPercent] = useState(100);
   const [spacePressed, setSpacePressed] = useState(false);
-  const [hoverPoint, setHoverPoint] = useState<Point | null>(null);
   const [flapDragging, setFlapDragging] = useState<BpPackingDragState | null>(null);
   const [marquee, setMarquee] = useState<BpPackingMarqueeState | null>(null);
   const dragBackendFrameRef = useRef<number | null>(null);
@@ -1339,7 +1334,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
       target,
       packing.sheet
     );
-    setHoverPoint(loc);
     const dx = loc.x - flapDragging.start.x;
     const dy = loc.y - flapDragging.start.y;
     const clientDx = event.clientX - flapDragging.clientStart.x;
@@ -1526,7 +1520,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
       deviceDragging.start,
       eventToPackingPoint(event)
     );
-    setHoverPoint(constrained.loc);
     const clientDx = event.clientX - deviceDragging.clientStart.x;
     const clientDy = event.clientY - deviceDragging.clientStart.y;
     const worldMoved = Math.hypot(constrained.vector.x, constrained.vector.y) > 0;
@@ -1571,9 +1564,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   const onCanvasPointerMove = (event: PointerEvent<SVGSVGElement>) => {
     if (marquee && marquee.pointerId === event.pointerId) {
       updateMarquee(event, marquee);
-      return;
     }
-    setHoverPoint(eventToPackingPoint(event));
   };
 
   return (
@@ -1627,7 +1618,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
             onPointerMove={onCanvasPointerMove}
             onPointerUp={finishMarquee}
             onPointerCancel={finishMarquee}
-            onPointerLeave={() => setHoverPoint(null)}
             onClick={onSelectionCycleClick}
           >
             {isDiagonalSheet ? (
@@ -2001,20 +1991,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
           if (diagnostic.selection) selectOristudioBp(diagnostic.selection);
         }}
       />
-      <div className="design-status-readout">
-        <span>{formatZoom(zoomPercent / 100)}</span>
-        {hoverPoint && (
-          <span>
-            {formatNumber(hoverPoint.x, 3)}, {formatNumber(hoverPoint.y, 3)}
-          </span>
-        )}
-      </div>
-      <div className="design-legend bp-packing-legend">
-        <span><CircleDot size={13} /> {packing.flaps.length}</span>
-        <span><Route size={13} /> {packing.rivers.length}</span>
-        <span><TriangleAlert size={13} /> {packing.invalidJunctions.length}</span>
-        <span><Grid2X2 size={13} /> {t('panels:bpPacking.sheetDimensions', '{{width}} × {{height}}', { width: packing.sheet.width, height: packing.sheet.height })}</span>
-      </div>
     </div>
   );
 }

@@ -41,7 +41,6 @@
     "selectFlapWithName": "BP フラップ {{id}}、{{name}} を選択",
     "selectRiver": "BP リバー {{id}}、長さ {{length}} を選択",
     "selectRiverShort": "BP リバー {{id}} を選択",
-    "sheetDimensions": "{{width}} × {{height}}",
     "sheetSizeGrid": "用紙サイズとグリッド",
     "size": "サイズ",
     "stretch": "ストレッチ {{id}}",
@@ -73,7 +72,6 @@
     "selectLeafVertexWithLabel": "BP 葉頂点 {{id}}、{{label}} を選択",
     "selectVertex": "BP 頂点 {{id}} を選択",
     "selectVertexWithLabel": "BP 頂点 {{id}}、{{label}} を選択",
-    "sheetDimensions": "{{width}} × {{height}}",
     "viewportControls": "ボックスプリーツツリーのビューポート操作"
   },
   "conditions": {
@@ -241,6 +239,8 @@
     "xray": "X 線"
   },
   "design": {
+    "attributionBoxPleating": "<2>Mu-Tsun Tsai's Box Pleating Studio</2> を基に · MIT",
+    "attributionTreemaker": "<2>Robert J. Lang's TreeMaker</2> を基に · GPL-2.0",
     "axis": "軸",
     "axisAngle": "角度",
     "axisAngleAria": "デザインの対称角度",

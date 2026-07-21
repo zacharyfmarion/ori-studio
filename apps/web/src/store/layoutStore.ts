@@ -4,17 +4,20 @@ import type { WorkspaceId } from '../workspaces/workspaces';
 import { workspaceForPanelId } from '../workspaces/workspaces';
 import { readJson, readString, removeKey, storageKey, STORAGE_KEYS, writeJson, writeString } from '../lib/storage';
 
+// v16: the box-pleat tree pane gained a tab header (draggable/rearrangeable), so
+// invalidate persisted box-pleat layouts that still have it in a headerless group.
 // v15: workspace routing rebuilt the layout lifecycle; invalidate any layouts
 // persisted by the racy pre-routing/interim builds (e.g. a vertically stacked BP
 // split, an Edit layout missing the View pane).
-export const LAYOUT_VERSION = 15;
+export const LAYOUT_VERSION = 16;
 
 /**
  * The Design workspace renders one of three layouts depending on the active
  * design state:
  *
  * - `nux`: the method chooser only (single design pane, no side panes).
- * - `box-pleat`: the BP tree editor beside the BP Editor packing pane. All BP
+ * - `box-pleat`: the BP tree editor beside the BP Editor packing pane, each in
+ *   its own headered group so both can be dragged and rearranged. All BP
  *   behavior lives in these two panes; the TreeMaker inspector/diagnostics/
  *   conditions panes are intentionally absent.
  * - `treemaker`: the circle-packed tree editor with its inspector/diagnostics/
@@ -136,23 +139,26 @@ function addDesignSidePanes(api: DockviewApi, referencePanelId: string): void {
 }
 
 function applyDesignLayout(api: DockviewApi, variant: DesignLayoutVariant): void {
-  const design = addHeaderlessPanel(api, { id: 'design', component: 'design', title: 'Design' });
-
-  if (variant === 'nux') {
-    // Method chooser only — no TreeMaker side panes.
-    design.api.setActive();
-    return;
-  }
-
   if (variant === 'box-pleat') {
-    // BP tree editor + BP Editor packing pane, split evenly. No TreeMaker panes;
-    // all BP behavior lives in these two surfaces.
+    // BP tree editor + BP Editor packing pane, split evenly. Both panes carry a
+    // tab header (the tree pane is added to its own headered group rather than a
+    // headerless one) so either can be dragged and rearranged. No TreeMaker
+    // panes; all BP behavior lives in these two surfaces.
+    const design = api.addPanel({ id: 'design', component: 'design', title: 'Tree editor' });
     api.addPanel({
       id: 'bp-editor',
       component: 'bp-editor',
       title: 'BP Editor',
       position: { referencePanel: 'design', direction: 'right' },
     });
+    design.api.setActive();
+    return;
+  }
+
+  const design = addHeaderlessPanel(api, { id: 'design', component: 'design', title: 'Design' });
+
+  if (variant === 'nux') {
+    // Method chooser only — no TreeMaker side panes.
     design.api.setActive();
     return;
   }

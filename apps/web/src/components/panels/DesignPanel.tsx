@@ -71,6 +71,7 @@ import {
 } from '../../lib/symmetryAuthoring';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { DesignMethodChooser } from './DesignMethodChooser';
+import { DesignAttributionFooter } from '../DesignAttributionFooter';
 import { BpTreePanel } from './BpTreePanel';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
@@ -1324,6 +1325,7 @@ function TreeMakerDesignPanel() {
           <span><Plus size={13} /> {t('panels:design.legendScale', 'Scale {{value}}', { value: formatNumber(project.scale, 3) })}</span>
         </div>
       </div>
+      <DesignAttributionFooter method="tree" />
     </section>
   );
 }
