@@ -1,6 +1,5 @@
 import type { MenuActionId } from '../commands/menuActions';
 import { shortcutLabelForAction, type ShortcutOverrides } from '../keyboard/shortcuts';
-import { EXAMPLE_PROJECTS } from '../examples/catalog';
 
 /**
  * Minimal translator shape: `(key, englishDefault) => localized`. The app passes
@@ -52,15 +51,6 @@ function shortcut(id: MenuActionId, overrides?: ShortcutOverrides): string | und
   return shortcutLabelForAction(id, overrides);
 }
 
-/** Build the `Examples ▸` submenu items from the checked-in example catalog. */
-function exampleProjectItems(): MenuItemDef[] {
-  return EXAMPLE_PROJECTS.map((example) => ({
-    type: 'command',
-    actionId: `file.openExample:${example.id}`,
-    label: example.title,
-  }));
-}
-
 export function getMenuBarDef(
   overrides?: ShortcutOverrides,
   t: MenuTranslate = identityTranslate
@@ -72,8 +62,16 @@ export function getMenuBarDef(
         { type: 'action', id: 'file.new', label: t('menu:file.new', 'New'), shortcut: shortcut('file.new', overrides) },
         { type: 'action', id: 'file.open', label: t('menu:file.open', 'Open...'), shortcut: shortcut('file.open', overrides) },
         { type: 'action', id: 'file.importAdd', label: t('menu:file.importAdd', 'Import (Add)...') },
-        { type: 'action', id: 'file.detectCpImage', label: t('menu:file.detectCpImage', 'Detect CP from Image...') },
-        { type: 'submenu', label: t('menu:file.examples', 'Examples'), items: exampleProjectItems() },
+        // "Detect CP from Image..." is still experimental — dev builds only.
+        ...(import.meta.env.DEV
+          ? [
+              {
+                type: 'action' as const,
+                id: 'file.detectCpImage' as const,
+                label: t('menu:file.detectCpImage', 'Detect CP from Image...'),
+              },
+            ]
+          : []),
         { type: 'separator' },
         { type: 'action', id: 'file.save', label: t('menu:file.save', 'Save'), shortcut: shortcut('file.save', overrides) },
         { type: 'action', id: 'file.saveAs', label: t('menu:file.saveAs', 'Save As...'), shortcut: shortcut('file.saveAs', overrides) },
@@ -176,7 +174,6 @@ export function getMenuBarDef(
         { type: 'action', id: 'view.design', label: t('menu:view.design', 'Design') },
         { type: 'action', id: 'view.edit', label: t('menu:view.edit', 'Edit') },
         { type: 'action', id: 'view.simulate', label: t('menu:view.simulate', 'Simulate') },
-        { type: 'action', id: 'view.conditions', label: t('menu:view.conditions', 'Conditions') },
         { type: 'separator' },
         { type: 'action', id: 'view.resetLayout', label: t('menu:view.resetLayout', 'Reset Layout') },
       ],

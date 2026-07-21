@@ -69,7 +69,6 @@
   },
   "file": {
     "detectCpImage": "从图像检测 CP...",
-    "examples": "示例",
     "export": "导出",
     "exportBps": "导出 .bps...",
     "exportCp": "导出 CP...",
@@ -104,7 +103,6 @@
     "strain": "优化张力"
   },
   "view": {
-    "conditions": "条件",
     "design": "设计",
     "edit": "编辑",
     "resetLayout": "重置布局",

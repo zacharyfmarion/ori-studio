@@ -69,7 +69,6 @@
   },
   "file": {
     "detectCpImage": "Détecter le CP depuis une image...",
-    "examples": "Exemples",
     "export": "Exporter",
     "exportBps": "Exporter .bps...",
     "exportCp": "Exporter CP...",
@@ -104,7 +103,6 @@
     "strain": "Optimiser la tension"
   },
   "view": {
-    "conditions": "Conditions",
     "design": "Conception",
     "edit": "Édition",
     "resetLayout": "Réinitialiser la disposition",

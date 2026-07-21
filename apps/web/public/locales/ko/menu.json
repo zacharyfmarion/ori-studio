@@ -69,7 +69,6 @@
   },
   "file": {
     "detectCpImage": "이미지에서 CP 감지...",
-    "examples": "예제",
     "export": "내보내기",
     "exportBps": ".bps 내보내기...",
     "exportCp": "CP 내보내기...",
@@ -104,7 +103,6 @@
     "strain": "장력 최적화"
   },
   "view": {
-    "conditions": "조건",
     "design": "디자인",
     "edit": "편집",
     "resetLayout": "레이아웃 초기화",

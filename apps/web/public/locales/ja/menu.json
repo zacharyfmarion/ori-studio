@@ -69,7 +69,6 @@
   },
   "file": {
     "detectCpImage": "画像から CP を検出...",
-    "examples": "例",
     "export": "エクスポート",
     "exportBps": ".bps をエクスポート...",
     "exportCp": "CP をエクスポート...",
@@ -104,7 +103,6 @@
     "strain": "ひずみを最適化"
   },
   "view": {
-    "conditions": "条件",
     "design": "デザイン",
     "edit": "編集",
     "resetLayout": "レイアウトをリセット",
