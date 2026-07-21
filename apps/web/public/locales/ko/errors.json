@@ -2,5 +2,10 @@
   "cpDetectImport": {
     "canvasUnavailable": "Canvas 2D를 사용할 수 없습니다",
     "unsupportedImage": "PNG, JPEG 또는 WebP 이미지를 사용하세요."
+  },
+  "fold": {
+    "contradiction": "이 전개도는 평평하게 접을 수 없습니다: 일부 면에 일관된 쌓임 순서가 없습니다.",
+    "layerSearch": "이 전개도를 접을 수 없습니다: 층을 겹치지 않게 배치할 수 없습니다.",
+    "sameParity": "이 전개도는 평평하게 접을 수 없습니다: 접힘선을 사이에 두고 두 면이 같은 방향으로 만납니다."
   }
 }

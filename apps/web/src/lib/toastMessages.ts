@@ -1,3 +1,5 @@
+import type { TFunction } from 'i18next';
+
 export function formatUnknownError(error: unknown): string {
   if (error instanceof Error) return error.message;
   if (typeof error === 'string') return error;
@@ -6,4 +8,42 @@ export function formatUnknownError(error: unknown): string {
     if (typeof message === 'string') return message;
   }
   return String(error);
+}
+
+/** The `code` of a `{ code, message }` engine error envelope, if present. */
+function errorEnvelopeCode(error: unknown): string | null {
+  if (error && typeof error === 'object' && 'code' in error) {
+    const code = (error as { code?: unknown }).code;
+    if (typeof code === 'string') return code;
+  }
+  return null;
+}
+
+/**
+ * A human-readable description for an engine error. Structural fold failures
+ * (from `to_js_folding_error`) carry a stable `code` and an opaque Rust Debug
+ * string as their message; translate the known codes to a plain-language
+ * explanation and fall back to the raw message for everything else. Literal
+ * `t()` calls so the i18n extractor can see the keys.
+ */
+export function humanizeError(error: unknown, t: TFunction): string {
+  switch (errorEnvelopeCode(error)) {
+    case 'fold_same_parity':
+      return t(
+        'errors:fold.sameParity',
+        "This crease pattern can't be folded flat: two faces meet with the same orientation across a crease."
+      );
+    case 'fold_layer_search':
+      return t(
+        'errors:fold.layerSearch',
+        "This crease pattern couldn't be folded: its layers can't be arranged without overlap."
+      );
+    case 'fold_contradiction':
+      return t(
+        'errors:fold.contradiction',
+        "This crease pattern isn't flat-foldable: some faces have no consistent stacking order."
+      );
+    default:
+      return formatUnknownError(error);
+  }
 }

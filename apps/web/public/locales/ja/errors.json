@@ -2,5 +2,10 @@
   "cpDetectImport": {
     "canvasUnavailable": "Canvas 2D を利用できません",
     "unsupportedImage": "PNG、JPEG、または WebP 画像を使用してください。"
+  },
+  "fold": {
+    "contradiction": "この展開図は平坦に折れません。一部の面に一貫した重なり順序がありません。",
+    "layerSearch": "この展開図は折れませんでした。層を重なりなく並べることができません。",
+    "sameParity": "この展開図は平坦に折れません。折り線を挟んで2つの面が同じ向きで接しています。"
   }
 }
