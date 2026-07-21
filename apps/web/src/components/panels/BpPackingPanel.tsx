@@ -839,21 +839,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
         .join(' '),
     [packing.sheet, paperRect]
   );
-  // The SVG viewBox is derived from the packing bounds, which grow to include a
-  // flap's rect and its label. Feeding the live packing during a drag makes the
-  // viewBox chase the moving flap, visually shifting/rescaling the whole scene to
-  // "keep it in view". Freeze the viewBox while a pointer drag is active so a drag
-  // only moves the flap, not the viewport; it re-syncs to live bounds on release.
-  const liveWorldRect = useMemo(() => getBpPackingWorldRect(displayPacking), [displayPacking]);
-  const isPointerDragging = flapDragging !== null || deviceDragging !== null;
-  // While a drag runs, hold the viewBox at its pre-drag bounds. The effect only
-  // re-syncs the frozen rect when no drag is active, so at drag start the frozen
-  // value is the last committed non-drag rect.
-  const [frozenWorldRect, setFrozenWorldRect] = useState(liveWorldRect);
-  useEffect(() => {
-    if (!isPointerDragging) setFrozenWorldRect(liveWorldRect);
-  }, [isPointerDragging, liveWorldRect]);
-  const worldRect = isPointerDragging ? frozenWorldRect : liveWorldRect;
+  const worldRect = useMemo(() => getBpPackingWorldRect(displayPacking), [displayPacking]);
   const gridLines = useMemo(() => bpPackingGridLines(packing.sheet, paperRect), [paperRect, packing.sheet]);
   const unit = useMemo(() => bpPackingUnitToSvg(packing.sheet, paperRect), [packing.sheet, paperRect]);
   const riverVisuals = useMemo(
