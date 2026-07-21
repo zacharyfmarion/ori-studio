@@ -1,8 +1,10 @@
 use oristudio_cp::folding::{
     ChainPermutationGenerator, DisplayStyle, EstimationOrder, EstimationStep, FoldedFigureModel,
     FoldedFigureRenderAntialias, FoldedFigureRenderGeometry, FoldedFigureRenderPaint,
-    FoldedFigureRenderPrimitiveKind, FoldedFigureRenderStroke, FoldedFigureState,
+    AdditionalEstimationError, FoldContradiction, FoldedFigureRenderPrimitiveKind,
+    FoldedFigureRenderStroke, FoldedFigureState, FoldingEstimateError,
     FoldingEstimateSession, HierarchyRelation, InitialHierarchy, RenderPathCommand, RgbaColor,
+    WorkerOverlapSearchError,
     SubFacePermutationSearch, SubFaceSwapper, WorkerOverlapEnumerator,
     additional_estimation_from_segments, configure_subfaces_from_segments,
     duplicate_estimation_order_for_display, equivalence_condition_candidates_from_segments,
@@ -613,6 +615,43 @@ fn fold_another_runs_order6_on_existing_session() {
 
     assert_eq!(estimate.discovered_fold_cases, 1);
     assert!(!estimate.find_another_overlap_valid);
+}
+
+#[test]
+fn worker_overlap_contradiction_is_extractable() {
+    // A layer-ordering contradiction is recoverable: it carries the offending
+    // face pair so the fold can conclude gracefully instead of erroring out.
+    let err = WorkerOverlapSearchError::AdditionalEstimation(
+        AdditionalEstimationError::Contradiction {
+            upper_face: 15,
+            lower_face: 12,
+        },
+    );
+    assert_eq!(
+        err.contradiction(),
+        Some(FoldContradiction {
+            upper_face: 15,
+            lower_face: 12,
+        })
+    );
+    assert_eq!(
+        FoldingEstimateError::WorkerOverlap(err).contradiction(),
+        Some(FoldContradiction {
+            upper_face: 15,
+            lower_face: 12,
+        })
+    );
+
+    // Structural failures stay fatal — there is nothing to render past them.
+    let structural = WorkerOverlapSearchError::FinalAdditionalEstimationRequired {
+        valid_count: 1,
+        reduced_subface_count: 2,
+    };
+    assert_eq!(structural.contradiction(), None);
+    assert_eq!(
+        FoldingEstimateError::WorkerOverlap(structural).contradiction(),
+        None
+    );
 }
 
 #[test]
