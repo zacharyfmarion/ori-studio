@@ -11,6 +11,10 @@ keywords = ["origami", "crease-pattern", "fold", "oriedita"]
 categories = ["algorithms", "data-structures", "mathematics"]
 include = ["Cargo.toml", "README.md", "resources/**", "src/**", "tests/**"]
 
+[features]
+# Opt-in, coarse fold-estimation counters for perf diagnosis. No-op when off.
+fold-profiling = []
+
 [dependencies]
 encoding_rs.workspace = true
 serde.workspace = true

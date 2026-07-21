@@ -8,6 +8,7 @@
 pub mod canonical;
 pub mod checks;
 mod fold_graph;
+pub mod fold_profiling;
 pub mod folding;
 pub mod geometry;
 pub mod geometry_transport;

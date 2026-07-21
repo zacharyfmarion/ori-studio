@@ -426,6 +426,12 @@ impl WorkerOverlapEnumerator {
         &mut self,
         swap: bool,
     ) -> Result<WorkerOverlapSearch, WorkerOverlapSearchError> {
+        crate::fold_profiling::record_sizes(
+            self.hierarchy.faces_total as u64,
+            self.subface_total as u64,
+            self.valid_count as u64,
+            self.hierarchy.relations.len() as u64,
+        );
         let mut swapper = SubFaceSwapper::new();
         let mut realtime_additional_estimation = swap;
         let mut last_table = HierarchyTable::from_initial(&self.hierarchy);
@@ -433,6 +439,7 @@ impl WorkerOverlapEnumerator {
         let conditions = self.conditions.clone();
         let conditions = conditions.as_ref();
         while changed_subface != 0 {
+            crate::fold_profiling::bump_outer_iter();
             match inconsistent_subface_request(
                 &mut self.entries,
                 &self.order,
@@ -603,6 +610,7 @@ fn run_realtime_additional_estimation(
     valid_count: usize,
     conditions: Option<&EquivalenceConditionSet>,
 ) -> Result<(), AdditionalEstimationError> {
+    crate::fold_profiling::bump_realtime_estimation();
     let configuration = subface_configuration_from_entries(entries, order, valid_count);
     let empty_conditions = empty_conditions();
     let conditions = conditions.unwrap_or(&empty_conditions);
@@ -621,6 +629,7 @@ fn run_fast_realtime_additional_estimation(
     valid_count: usize,
     conditions: Option<&EquivalenceConditionSet>,
 ) -> Result<(), AdditionalEstimationError> {
+    crate::fold_profiling::bump_fast_realtime_estimation();
     let configuration = subface_configuration_from_entries(entries, order, valid_count);
     let empty_conditions = empty_conditions();
     let conditions = conditions.unwrap_or(&empty_conditions);
@@ -1000,6 +1009,7 @@ fn inconsistent_subface_request(
     mut swapper: Option<&mut SubFaceSwapper>,
     realtime_additional_estimation: &mut bool,
 ) -> Result<WorkerSearchStep, WorkerOverlapSearchError> {
+    crate::fold_profiling::bump_inconsistent_request();
     let mut table = HierarchyTable::from_initial(hierarchy);
     for index in 0..valid_count {
         let Some(entry_index) = order.get(index).copied() else {
@@ -1067,6 +1077,7 @@ fn advance_subface_permutations(
     subface_count: usize,
     active_count: usize,
 ) -> Result<usize, PermutationError> {
+    crate::fold_profiling::bump_perm_advance();
     let active_count = active_count.min(order.len());
     let subface_count = subface_count.min(active_count);
     for entry_index in order.iter().take(active_count).skip(subface_count) {

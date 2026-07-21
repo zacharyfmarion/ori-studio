@@ -26,6 +26,97 @@ thread_local! {
     static FOLDED_FIGURES: RefCell<Vec<Option<WasmFoldedFigure>>> = const { RefCell::new(Vec::new()) };
 }
 
+/// Console logging + wall-clock helpers for the `fold-profiling` feature.
+#[cfg(feature = "fold-profiling")]
+mod fold_prof {
+    use wasm_bindgen::prelude::*;
+    #[wasm_bindgen]
+    extern "C" {
+        #[wasm_bindgen(js_namespace = console)]
+        pub fn log(message: &str);
+    }
+    pub fn now() -> f64 {
+        js_sys::Date::now()
+    }
+    /// Log `label` with the ms elapsed since `start`, returning a fresh timestamp.
+    pub fn mark(label: &str, start: f64) -> f64 {
+        let now = now();
+        log(&format!("[fold-prof] {label}: {:.1}ms", now - start));
+        now
+    }
+}
+
+/// Drive `folding_estimated` up to `order`, logging per-estimation-step wall time
+/// and the fold counters to the browser console. Only compiled with the
+/// `fold-profiling` feature; the normal path calls `folding_estimated` directly.
+#[cfg(feature = "fold-profiling")]
+fn folding_estimated_profiled(
+    session: &mut FoldingEstimateSession,
+    order: EstimationOrder,
+) -> Result<oristudio_cp::folding::FoldingEstimate, FoldingEstimateError> {
+    use fold_prof::log;
+
+    // Order51 normalizes to Order5; both rank 5 here.
+    fn rank(order: EstimationOrder) -> u8 {
+        match order {
+            EstimationOrder::Order0 => 0,
+            EstimationOrder::Order1 => 1,
+            EstimationOrder::Order2 => 2,
+            EstimationOrder::Order3 => 3,
+            EstimationOrder::Order4 => 4,
+            EstimationOrder::Order5 | EstimationOrder::Order51 => 5,
+            EstimationOrder::Order6 => 6,
+        }
+    }
+
+    oristudio_cp::fold_profiling::reset();
+    let steps = [
+        EstimationOrder::Order1,
+        EstimationOrder::Order2,
+        EstimationOrder::Order3,
+        EstimationOrder::Order4,
+        EstimationOrder::Order5,
+        EstimationOrder::Order6,
+    ];
+    let target_rank = rank(order);
+    let total_start = js_sys::Date::now();
+    let mut result = session.estimate().clone();
+    for step in steps {
+        if rank(step) > target_rank {
+            break;
+        }
+        let start = js_sys::Date::now();
+        result = session.folding_estimated(step)?;
+        let elapsed = js_sys::Date::now() - start;
+        log(&format!(
+            "[fold-prof] {step:?}: {elapsed:.1}ms | {}",
+            oristudio_cp::fold_profiling::snapshot()
+        ));
+    }
+    let total = js_sys::Date::now() - total_start;
+    log(&format!(
+        "[fold-prof] TOTAL up to {order:?}: {total:.1}ms | {}",
+        oristudio_cp::fold_profiling::snapshot()
+    ));
+    Ok(result)
+}
+
+/// Run the fold estimation, routing through the profiled path when the
+/// `fold-profiling` feature is enabled.
+fn run_folding_estimated(
+    session: &mut FoldingEstimateSession,
+    order: EstimationOrder,
+) -> Result<oristudio_cp::folding::FoldingEstimate, FoldingEstimateError> {
+    #[cfg(feature = "fold-profiling")]
+    {
+        folding_estimated_profiled(session, order)
+    }
+    #[cfg(not(feature = "fold-profiling"))]
+    {
+        session.folding_estimated(order)
+    }
+}
+
 #[derive(Serialize)]
 struct JsErrorEnvelope {
     code: &'static str,
@@ -363,12 +454,17 @@ pub fn folded_figure_fold(
     with_document(document_handle, |document| {
         let mut session =
             FoldingEstimateSession::new(&document.crease_pattern.line_segments, starting_face_id);
-        session
-            .folding_estimated(order)
-            .map_err(to_js_folding_error)?;
+        run_folding_estimated(&mut session, order).map_err(to_js_folding_error)?;
+        #[cfg(feature = "fold-profiling")]
+        let t = fold_prof::now();
         let snapshot = folded_figure_snapshot_from_session(&session, model.clone());
+        #[cfg(feature = "fold-profiling")]
+        let t = fold_prof::mark("post-fold snapshot build", t);
         let handle = store_folded_figure(WasmFoldedFigure { session, model })?;
-        to_js_value(&JsFoldedFigureResult { handle, snapshot })
+        let result = to_js_value(&JsFoldedFigureResult { handle, snapshot });
+        #[cfg(feature = "fold-profiling")]
+        fold_prof::mark("post-fold serialize to JS", t);
+        result
     })
 }
 
@@ -394,9 +490,7 @@ pub fn folded_figure_fold_selected(
             selected_segments.as_slice()
         };
         let mut session = FoldingEstimateSession::new(segments, starting_face_id);
-        session
-            .folding_estimated(order)
-            .map_err(to_js_folding_error)?;
+        run_folding_estimated(&mut session, order).map_err(to_js_folding_error)?;
         let snapshot = folded_figure_snapshot_from_session(&session, model.clone());
         let handle = store_folded_figure(WasmFoldedFigure { session, model })?;
         to_js_value(&JsFoldedFigureResult { handle, snapshot })
@@ -428,6 +522,8 @@ pub fn folded_figure_render_snapshot(
     let options = folded_figure_render_options_from_js(options)?;
     with_folded_figure(handle, |folded| {
         let display_style = display_style.unwrap_or(folded.session.estimate().display_style);
+        #[cfg(feature = "fold-profiling")]
+        let t = fold_prof::now();
         let snapshot = folded_figure_render_snapshot_from_session(
             &folded.session,
             display_style,
@@ -435,7 +531,12 @@ pub fn folded_figure_render_snapshot(
             options,
         )
         .map_err(to_js_folding_error)?;
-        to_js_value(&snapshot)
+        #[cfg(feature = "fold-profiling")]
+        let t = fold_prof::mark("render snapshot build", t);
+        let result = to_js_value(&snapshot);
+        #[cfg(feature = "fold-profiling")]
+        fold_prof::mark("render snapshot serialize to JS", t);
+        result
     })
 }
 

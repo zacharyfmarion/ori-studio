@@ -1,4 +1,6 @@
+mod additional_estimation;
 mod permutation;
+mod quad_tree;
 
 use crate::fold_graph::{FacePositions, FoldGraph};
 use crate::geometry::{
@@ -12,6 +14,35 @@ use std::{collections::HashMap, fmt};
 
 #[allow(clippy::approx_constant)]
 const ORIEDITA_DEGREES_TO_RADIANS: f64 = 3.14159265 / 180.0;
+
+/// Native-only, feature-gated phase timer: prints ms since the previous mark to
+/// stderr. Compiles to nothing off the `fold-profiling` feature or on wasm
+/// (which has no `Instant`).
+#[cfg(all(feature = "fold-profiling", not(target_arch = "wasm32")))]
+pub(crate) fn fold_phase_mark(label: &str) {
+    use std::cell::Cell;
+    use std::time::Instant;
+    thread_local! {
+        static LAST: Cell<Option<Instant>> = const { Cell::new(None) };
+    }
+    let now = Instant::now();
+    let previous = LAST.with(|last| last.replace(Some(now)));
+    if let Some(previous) = previous {
+        eprintln!(
+            "  [fold-phase] {label}: {:.1}ms",
+            now.duration_since(previous).as_secs_f64() * 1000.0
+        );
+    } else {
+        eprintln!("  [fold-phase] {label}: (start)");
+    }
+}
+
+macro_rules! fold_phase_timer {
+    ($label:expr) => {{
+        #[cfg(all(feature = "fold-profiling", not(target_arch = "wasm32")))]
+        $crate::folding::fold_phase_mark($label);
+    }};
+}
 
 pub use permutation::{
     ChainPermutationGenerator, PermutationError, PermutationSnapshot, SubFacePermutationSearch,
@@ -1796,12 +1827,21 @@ pub fn folded_figure_render_snapshot_from_session(
     model: FoldedFigureModel,
     options: FoldedFigureRenderOptions,
 ) -> Result<Option<FoldedFigureRenderSnapshot>, FoldingEstimateError> {
-    folded_figure_render_snapshot_from_segments(
+    // Reuse the layer ordering the session already solved rather than re-running
+    // the whole fold estimation inside the renderer.
+    let precomputed_hierarchy = session
+        .estimate()
+        .overlap
+        .as_ref()
+        .filter(|overlap| overlap.found)
+        .map(|overlap| &overlap.hierarchy);
+    render_snapshot_impl(
         &session.segments,
         session.starting_face_id,
         display_style,
         model,
         options,
+        precomputed_hierarchy,
     )
 }
 
@@ -1922,6 +1962,27 @@ pub fn folded_figure_render_snapshot_from_segments(
     model: FoldedFigureModel,
     options: FoldedFigureRenderOptions,
 ) -> Result<Option<FoldedFigureRenderSnapshot>, FoldingEstimateError> {
+    render_snapshot_impl(
+        segments,
+        starting_face_id,
+        display_style,
+        model,
+        options,
+        None,
+    )
+}
+
+/// Shared render-snapshot builder. `precomputed_hierarchy`, when supplied, is the
+/// solved layer ordering from the owning session — reusing it avoids re-running
+/// the entire (expensive) fold estimation just to draw the solid `Paper5` view.
+fn render_snapshot_impl(
+    segments: &[LineSegment],
+    starting_face_id: i32,
+    display_style: DisplayStyle,
+    model: FoldedFigureModel,
+    options: FoldedFigureRenderOptions,
+    precomputed_hierarchy: Option<&InitialHierarchy>,
+) -> Result<Option<FoldedFigureRenderSnapshot>, FoldingEstimateError> {
     let Some((graph, folded)) =
         folded_graph_and_wireframe_from_segments(segments, starting_face_id)
     else {
@@ -1942,15 +2003,20 @@ pub fn folded_figure_render_snapshot_from_segments(
     };
 
     let hierarchy = if display_style == DisplayStyle::Paper5 {
-        let Some(mut enumerator) = overlap_enumerator_from_segments(segments, starting_face_id)?
-        else {
-            return Ok(None);
-        };
-        let overlap = enumerator.possible_overlapping_search(true)?;
-        if !overlap.found {
-            return Ok(None);
+        if let Some(precomputed) = precomputed_hierarchy {
+            Some(HierarchyTable::from_initial(precomputed))
+        } else {
+            let Some(mut enumerator) =
+                overlap_enumerator_from_segments(segments, starting_face_id)?
+            else {
+                return Ok(None);
+            };
+            let overlap = enumerator.possible_overlapping_search(true)?;
+            if !overlap.found {
+                return Ok(None);
+            }
+            Some(HierarchyTable::from_initial(&overlap.hierarchy))
         }
-        Some(HierarchyTable::from_initial(&overlap.hierarchy))
     } else {
         None
     };
@@ -2194,10 +2260,12 @@ fn overlap_enumerator_from_segments(
         return Ok(None);
     }
 
+    fold_phase_timer!("enumerator start");
     let graph = FoldGraph::from_segments(segments, true);
     if graph.faces.is_empty() {
         return Ok(None);
     }
+    fold_phase_timer!("fold graph built");
 
     let positions = graph.face_positions(starting_face_id);
     let initial = initial_hierarchy_from_graph(&graph, &positions)?;
@@ -2209,24 +2277,34 @@ fn overlap_enumerator_from_segments(
         return WorkerOverlapEnumerator::from_ordered_subfaces(&[], &[], 0, &initial, None)
             .map(Some);
     }
+    fold_phase_timer!("subface graph built");
 
     let subfaces = configure_subfaces(&folded, &subface_graph);
-    let conditions = equivalence_condition_candidates_from_parts(&graph, &folded, &subfaces)?;
+    fold_phase_timer!("subface config done");
+    let mut conditions = equivalence_condition_candidates_from_parts(&graph, &folded, &subfaces)?;
+    fold_phase_timer!("equivalence conditions built");
     let mut table = HierarchyTable::from_initial(&initial);
-    run_additional_estimation(
+    // Oriedita's second AEA round runs with `removeMode`: close the hierarchy and
+    // drop every equivalence condition that fires (it is then redundant, already
+    // implied by the closed hierarchy). This shrinks the sets the search and the
+    // per-subface guide maps must scan — the folded result is unchanged.
+    run_additional_estimation_remove(
         &mut table,
         &subfaces,
-        &conditions.triple_conditions,
-        &conditions.quadruple_conditions,
+        &mut conditions.triple_conditions,
+        &mut conditions.quadruple_conditions,
     )?;
+    fold_phase_timer!("additional estimation done");
     let configured_hierarchy = table.into_initial_hierarchy(initial.faces_total);
-    WorkerOverlapEnumerator::from_subfaces(
+    let enumerator = WorkerOverlapEnumerator::from_subfaces(
         &subfaces.subfaces,
         &subfaces.reduced_subface_indices,
         &configured_hierarchy,
         Some(&conditions),
     )
-    .map(Some)
+    .map(Some);
+    fold_phase_timer!("worker enumerator built");
+    enumerator
 }
 
 fn two_colored_overlap_enumerator_from_segments(
@@ -3794,6 +3872,33 @@ fn equivalence_condition_candidates_from_parts(
     };
     let folded_segments = folded_wireframe_segments(folded);
     let face_polygons = folded_face_polygons(folded);
+
+    // Oriedita prunes candidates with a QuadTree instead of scanning every face
+    // (triple, `RectangleCollector` over folded faces) or every line pair (quad,
+    // `getPotentialCollision` over folded lines). The collectors are supersets of
+    // the geometric predicate that follows, and are returned in ascending index
+    // order, so the produced condition set is identical to the brute-force scan.
+    let degenerate = quad_tree::BBox {
+        l: 0.0,
+        r: 0.0,
+        b: 0.0,
+        t: 0.0,
+    };
+    let face_items: Vec<quad_tree::BBox> = face_polygons
+        .iter()
+        .map(|polygon| quad_tree::BBox::from_points(&polygon.vertices).unwrap_or(degenerate))
+        .collect();
+    let face_tree = quad_tree::QuadTree::new(face_items, &folded.points, quad_tree::Comparator::Expand);
+    let line_items: Vec<quad_tree::BBox> = (0..graph.lines.len())
+        .map(|line_index| {
+            folded_segments
+                .get(line_index)
+                .map(|segment| quad_tree::BBox::from_segment(segment.a, segment.b))
+                .unwrap_or(degenerate)
+        })
+        .collect();
+    let line_tree = quad_tree::QuadTree::new(line_items, &folded.points, quad_tree::Comparator::Shrink);
+
     let mut triple_conditions = Vec::new();
     for line_index in 0..graph.lines.len() {
         let Some((first_face, second_face)) = graph.line_face_border(line_index) else {
@@ -3805,7 +3910,11 @@ fn equivalence_condition_candidates_from_parts(
         let Some(segment) = folded_segments.get(line_index) else {
             continue;
         };
-        for (face_index, polygon) in face_polygons.iter().enumerate() {
+        let query = quad_tree::BBox::from_segment(segment.a, segment.b);
+        for face_index in face_tree.collect_rectangle(query) {
+            let Some(polygon) = face_polygons.get(face_index) else {
+                continue;
+            };
             if face_index != first_face
                 && face_index != second_face
                 && polygon.convex_inside(segment)
@@ -3832,7 +3941,7 @@ fn equivalence_condition_candidates_from_parts(
         let Some(first_segment) = folded_segments.get(first_line) else {
             continue;
         };
-        for second_line in (first_line + 1)..graph.lines.len() {
+        for second_line in line_tree.collect_potential_collision(first_line) {
             let Some((second_a, second_b)) = graph.line_face_border(second_line) else {
                 continue;
             };
@@ -3975,14 +4084,33 @@ enum FaceOrder {
     Below,
 }
 
+/// Dense layer-ordering table, mirroring Oriedita's `SymmetricMatrix`
+/// (`HierarchyList`). Cells are stored for the canonical `(lo, hi)` ordering
+/// with `lo < hi`; queries with `first > second` flip the result. Backing it
+/// with a flat `Vec` (O(1) index, no hashing) instead of a
+/// `HashMap<(usize, usize), _>` is the key perf property: the additional-
+/// estimation inference performs millions of `get`/`infer_above` calls per
+/// pass, and hashing a tuple key each time was the dominant cost.
 struct HierarchyTable {
-    order: HashMap<(usize, usize), FaceOrder>,
+    faces_total: usize,
+    /// `faces_total * faces_total` cells. `CELL_ABOVE` at `[lo * n + hi]` means
+    /// face `lo` is above face `hi`; `CELL_BELOW` means below; `CELL_NONE` means
+    /// no determined relation (covers both "no overlap" and "undetermined",
+    /// matching the previous `HashMap` absence semantics).
+    cells: Vec<u8>,
 }
+
+const CELL_NONE: u8 = 0;
+const CELL_ABOVE: u8 = 1;
+const CELL_BELOW: u8 = 2;
 
 impl HierarchyTable {
     fn from_initial(initial: &InitialHierarchy) -> Self {
+        crate::fold_profiling::bump_table_from_initial();
+        let faces_total = initial.faces_total;
         let mut table = Self {
-            order: HashMap::new(),
+            faces_total,
+            cells: vec![CELL_NONE; faces_total.saturating_mul(faces_total)],
         };
         for relation in &initial.relations {
             let _ = table.infer_above(relation.upper_face, relation.lower_face);
@@ -3990,17 +4118,50 @@ impl HierarchyTable {
         table
     }
 
+    #[inline]
+    fn cell_index(&self, lo: usize, hi: usize) -> Option<usize> {
+        if hi >= self.faces_total {
+            return None;
+        }
+        Some(lo * self.faces_total + hi)
+    }
+
+    /// True when the pair has no determined relation (Oriedita's `isEmpty`,
+    /// covering both its `EMPTY` and `UNKNOWN` states — we collapse both to
+    /// "absent").
+    #[inline]
+    fn is_empty(&self, first: usize, second: usize) -> bool {
+        self.get(first, second).is_none()
+    }
+
+    /// Raw "set `upper` above `lower`" with no contradiction check. The
+    /// `AdditionalEstimationAlgorithm` performs its own `BELOW` check before
+    /// calling this (Oriedita's `HierarchyList.set(i, j, ABOVE)`).
+    fn set_above(&mut self, upper: usize, lower: usize) {
+        let (lo, hi, value) = if upper < lower {
+            (upper, lower, CELL_ABOVE)
+        } else {
+            (lower, upper, CELL_BELOW)
+        };
+        if let Some(index) = self.cell_index(lo, hi) {
+            self.cells[index] = value;
+        }
+    }
+
     fn get(&self, first: usize, second: usize) -> Option<FaceOrder> {
         if first == second {
             return None;
         }
-        if first < second {
-            self.order.get(&(first, second)).copied()
+        let (lo, hi, flip) = if first < second {
+            (first, second, false)
         } else {
-            self.order.get(&(second, first)).map(|order| match order {
-                FaceOrder::Above => FaceOrder::Below,
-                FaceOrder::Below => FaceOrder::Above,
-            })
+            (second, first, true)
+        };
+        let cell = self.cells[self.cell_index(lo, hi)?];
+        match (cell, flip) {
+            (CELL_ABOVE, false) | (CELL_BELOW, true) => Some(FaceOrder::Above),
+            (CELL_BELOW, false) | (CELL_ABOVE, true) => Some(FaceOrder::Below),
+            _ => None,
         }
     }
 
@@ -4019,29 +4180,38 @@ impl HierarchyTable {
             return Ok(false);
         }
 
-        if upper < lower {
-            self.order.insert((upper, lower), FaceOrder::Above);
+        let (lo, hi, value) = if upper < lower {
+            (upper, lower, CELL_ABOVE)
         } else {
-            self.order.insert((lower, upper), FaceOrder::Below);
+            (lower, upper, CELL_BELOW)
+        };
+        if let Some(index) = self.cell_index(lo, hi) {
+            self.cells[index] = value;
+            Ok(true)
+        } else {
+            Ok(false)
         }
-        Ok(true)
     }
 
     fn into_initial_hierarchy(self, faces_total: usize) -> InitialHierarchy {
-        let mut relations = self
-            .order
-            .into_iter()
-            .map(|((first, second), order)| match order {
-                FaceOrder::Above => HierarchyRelation {
-                    upper_face: first,
-                    lower_face: second,
-                },
-                FaceOrder::Below => HierarchyRelation {
-                    upper_face: second,
-                    lower_face: first,
-                },
-            })
-            .collect::<Vec<_>>();
+        let mut relations = Vec::new();
+        let n = self.faces_total;
+        for lo in 0..n {
+            let row = lo * n;
+            for hi in (lo + 1)..n {
+                match self.cells[row + hi] {
+                    CELL_ABOVE => relations.push(HierarchyRelation {
+                        upper_face: lo,
+                        lower_face: hi,
+                    }),
+                    CELL_BELOW => relations.push(HierarchyRelation {
+                        upper_face: hi,
+                        lower_face: lo,
+                    }),
+                    _ => {}
+                }
+            }
+        }
         relations.sort_by_key(|relation| (relation.upper_face, relation.lower_face));
         InitialHierarchy {
             faces_total,
@@ -4056,19 +4226,24 @@ fn run_additional_estimation(
     triple_conditions: &[EquivalenceCondition],
     quadruple_conditions: &[EquivalenceCondition],
 ) -> Result<(), AdditionalEstimationError> {
-    loop {
-        let mut changes = 0usize;
-        changes += infer_subface_transitivity(table, subfaces)?;
-        for condition in triple_conditions {
-            changes += apply_triple_condition(table, *condition)?;
-        }
-        for condition in quadruple_conditions {
-            changes += apply_quadruple_condition(table, *condition)?;
-        }
-        if changes == 0 {
-            return Ok(());
-        }
-    }
+    crate::fold_profiling::record_estimation_inputs(
+        triple_conditions.len() as u64,
+        quadruple_conditions.len() as u64,
+        subfaces
+            .reduced_subface_indices
+            .iter()
+            .filter_map(|index| subfaces.subfaces.get(*index))
+            .map(|subface| subface.face_ids.len())
+            .max()
+            .unwrap_or(0) as u64,
+    );
+    crate::fold_profiling::bump_additional_estimation_pass();
+    additional_estimation::AdditionalEstimation::new(reduced_subface_face_ids(subfaces)).run(
+        table,
+        triple_conditions,
+        quadruple_conditions,
+        0,
+    )
 }
 
 fn run_additional_estimation_fast(
@@ -4077,41 +4252,56 @@ fn run_additional_estimation_fast(
     triple_conditions: &[EquivalenceCondition],
     quadruple_conditions: &[EquivalenceCondition],
 ) -> Result<(), AdditionalEstimationError> {
-    infer_subface_transitivity(table, subfaces)?;
-    for condition in triple_conditions {
-        apply_triple_condition(table, *condition)?;
-    }
-    for condition in quadruple_conditions {
-        apply_quadruple_condition(table, *condition)?;
-    }
-    Ok(())
+    crate::fold_profiling::bump_additional_estimation_pass();
+    additional_estimation::AdditionalEstimation::new(reduced_subface_face_ids(subfaces)).fast_run(
+        table,
+        triple_conditions,
+        quadruple_conditions,
+    )
 }
 
-fn infer_subface_transitivity(
+/// Oriedita's `removeMode` AEA round: close the hierarchy and prune every
+/// equivalence condition that fires (leaving only the residual needed by the
+/// search). Port of `AEA.run` with `removeMode == true`.
+fn run_additional_estimation_remove(
     table: &mut HierarchyTable,
     subfaces: &SubFaceConfiguration,
-) -> Result<usize, AdditionalEstimationError> {
-    let mut changes = 0usize;
-    for subface_index in &subfaces.reduced_subface_indices {
-        let Some(subface) = subfaces.subfaces.get(*subface_index) else {
-            continue;
-        };
-        for upper in &subface.face_ids {
-            for middle in &subface.face_ids {
-                if table.get(*upper, *middle) != Some(FaceOrder::Above) {
-                    continue;
-                }
-                for lower in &subface.face_ids {
-                    if table.get(*middle, *lower) == Some(FaceOrder::Above)
-                        && table.infer_above(*upper, *lower)?
-                    {
-                        changes += 1;
-                    }
-                }
-            }
-        }
-    }
-    Ok(changes)
+    triple_conditions: &mut Vec<EquivalenceCondition>,
+    quadruple_conditions: &mut Vec<EquivalenceCondition>,
+) -> Result<(), AdditionalEstimationError> {
+    crate::fold_profiling::record_estimation_inputs(
+        triple_conditions.len() as u64,
+        quadruple_conditions.len() as u64,
+        subfaces
+            .reduced_subface_indices
+            .iter()
+            .filter_map(|index| subfaces.subfaces.get(*index))
+            .map(|subface| subface.face_ids.len())
+            .max()
+            .unwrap_or(0) as u64,
+    );
+    crate::fold_profiling::bump_additional_estimation_pass();
+    let result = additional_estimation::AdditionalEstimation::new(reduced_subface_face_ids(subfaces))
+        .run_with_removal(table, triple_conditions, quadruple_conditions, 0);
+    fold_phase_timer!("removeMode reduced conditions");
+    #[cfg(all(feature = "fold-profiling", not(target_arch = "wasm32")))]
+    eprintln!(
+        "  [fold-phase] conditions after removeMode: triple={} quad={}",
+        triple_conditions.len(),
+        quadruple_conditions.len()
+    );
+    result
+}
+
+/// Global face-id lists for the reduced subfaces, in reduced order — the subface
+/// set the additional-estimation algorithm operates over.
+fn reduced_subface_face_ids(subfaces: &SubFaceConfiguration) -> Vec<Vec<usize>> {
+    subfaces
+        .reduced_subface_indices
+        .iter()
+        .filter_map(|index| subfaces.subfaces.get(*index))
+        .map(|subface| subface.face_ids.clone())
+        .collect()
 }
 
 fn apply_triple_condition(
