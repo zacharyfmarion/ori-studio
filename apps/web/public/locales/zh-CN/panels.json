@@ -266,7 +266,7 @@
     "legendTerminal": "端点",
     "methodChooser": {
       "boxPleated": {
-        "description": "编写一棵树，然后使用 Box Pleating Studio 在网格上排布瓣和河。",
+        "description": "编写一棵树，然后在网格上排布瓣和河。",
         "title": "箱形褶皱"
       },
       "circlePacked": {

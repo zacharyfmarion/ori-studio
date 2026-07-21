@@ -56,7 +56,7 @@ export function DesignMethodChooser() {
             title={t('panels:design.methodChooser.boxPleated.title', 'Box-pleated')}
             description={t(
               'panels:design.methodChooser.boxPleated.description',
-              'Author a tree, then pack flaps and rivers on a grid with Box Pleating Studio.'
+              'Author a tree, then pack flaps and rivers on a grid.'
             )}
             icon={<Grid3x3 size={22} />}
             disabled={!engineReady}

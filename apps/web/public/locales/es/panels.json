@@ -282,7 +282,7 @@
     "legendTerminal": "Terminal",
     "methodChooser": {
       "boxPleated": {
-        "description": "Cree un árbol y luego empaquete solapas y ríos en una cuadrícula con Box Pleating Studio.",
+        "description": "Cree un árbol y luego empaquete solapas y ríos en una cuadrícula.",
         "title": "Plegado en caja"
       },
       "circlePacked": {

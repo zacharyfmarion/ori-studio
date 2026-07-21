@@ -290,7 +290,7 @@
     "legendTerminal": "Концевой узел",
     "methodChooser": {
       "boxPleated": {
-        "description": "Создайте дерево, затем упакуйте клапаны и реки на сетке с помощью Box Pleating Studio.",
+        "description": "Создайте дерево, затем упакуйте клапаны и реки на сетке.",
         "title": "Коробчатое складывание"
       },
       "circlePacked": {
