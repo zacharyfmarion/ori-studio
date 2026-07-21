@@ -7,8 +7,10 @@
   "common": {
     "cancel": "Cancel",
     "closeNamed": "Close {{name}}",
+    "no": "No",
     "ok": "OK",
-    "reset": "Reset"
+    "reset": "Reset",
+    "yes": "Yes"
   },
   "cpDetectImport": {
     "ariaLabel": "Detect CP from image",
@@ -59,6 +61,11 @@
     "pointSize": "Point size",
     "preview": "Export preview",
     "showBackgroundColor": "Show background color"
+  },
+  "foldWarning": {
+    "dontShowAgain": "Don't show this again",
+    "message": "Detected errors in flat foldability. Continue to fold?",
+    "title": "Warning"
   },
   "help": {
     "about": {
@@ -163,6 +170,8 @@
     },
     "title": "Settings",
     "workspace": {
+      "folding": "Folding",
+      "foldWarning": "Warn before folding a crease pattern with flat-foldability errors",
       "layout": "Layout",
       "resetButton": "Reset Workspace Layout",
       "resetMessage": "Restore the default layout for the current workspace?",

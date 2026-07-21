@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { cpFoldedToScene, foldedFigureUserBounds } from './cpFoldedToScene';
+import {
+  cpContradictionFaceFills,
+  cpFoldedToScene,
+  foldedFigureUserBounds,
+} from './cpFoldedToScene';
 import type {
+  OristudioCpContradictionFaceGeometry,
   OristudioCpFoldedFigureEntry,
+  OristudioCpFoldedFigureSnapshot,
   OristudioCpFoldedRenderPrimitive,
 } from '../../engine/oristudioCpTypes';
 
@@ -176,5 +182,53 @@ describe('foldedFigureUserBounds', () => {
   it('omits figures with no drawable geometry', () => {
     expect(foldedFigureUserBounds([figure([])])).toHaveLength(0);
     expect(foldedFigureUserBounds([{ ...figure([]), renderSnapshot: null }])).toHaveLength(0);
+  });
+});
+
+describe('cpContradictionFaceFills', () => {
+  const quad = (x: number, y: number) => [
+    { x, y },
+    { x: x + 10, y },
+    { x: x + 10, y: y + 10 },
+    { x, y: y + 10 },
+  ];
+
+  function figureWithContradiction(
+    faces: OristudioCpContradictionFaceGeometry | null
+  ): OristudioCpFoldedFigureEntry {
+    const snapshot = {
+      contradiction_faces: faces,
+    } as unknown as OristudioCpFoldedFigureSnapshot;
+    return { ...figure([]), snapshot: faces ? snapshot : null };
+  }
+
+  it('is empty when no figure has a contradiction', () => {
+    expect(cpContradictionFaceFills([figureWithContradiction(null)]).count).toBe(0);
+  });
+
+  it('triangulates both contradicting faces as translucent red, in model coords', () => {
+    const geo = cpContradictionFaceFills([
+      figureWithContradiction({ upper: quad(0, 0), lower: quad(20, 0) }),
+    ]);
+    // two quads -> 2 triangles each -> 12 vertices
+    expect(geo.count).toBe(12);
+    expect(geo.color[0]).toBeCloseTo(1); // red
+    expect(geo.color[1]).toBeCloseTo(0);
+    expect(geo.color[2]).toBeCloseTo(0);
+    expect(geo.color[3]).toBeCloseTo(75 / 255); // Oriedita (255,0,0,75)
+    // positions are the raw model coords (no SVG mapping): every vertex lies in
+    // one of the two 10x10 quads.
+    for (let i = 0; i < geo.count; i++) {
+      const x = geo.position[i * 2];
+      expect((x >= 0 && x <= 10) || (x >= 20 && x <= 30)).toBe(true);
+    }
+  });
+
+  it('skips degenerate (sub-triangle) face rings', () => {
+    const geo = cpContradictionFaceFills([
+      figureWithContradiction({ upper: [{ x: 0, y: 0 }, { x: 1, y: 1 }], lower: quad(0, 0) }),
+    ]);
+    // upper has < 3 points -> dropped; lower quad -> 6 vertices
+    expect(geo.count).toBe(6);
   });
 });

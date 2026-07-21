@@ -41,6 +41,7 @@ import { cpPointsToScene } from './adapters/cpPointsToScene';
 import { resolveCpLineColor } from './adapters/cpLineColor';
 import { resolveCpPointStyle } from './adapters/cpPointStyle';
 import {
+  cpContradictionFaceFills,
   cpFoldedToScene,
   foldedFigureUserBounds,
   type FoldedFigureBounds,
@@ -957,6 +958,14 @@ export function CreasePatternWebglCanvas({
       folded: cpFoldedToScene(foldedFigures),
     }),
     [buildStrokes, buildPoints, foldedFigures]
+  );
+
+  // Red fill for the two faces of any folded figure whose fold hit a global
+  // layer-ordering contradiction (Oriedita drawSelfIntersectingSubFaces). Model
+  // space, so it rides the renderer's diagnostic-fill layer.
+  const contradictionFaceFills = useMemo(
+    () => cpContradictionFaceFills(foldedFigures),
+    [foldedFigures]
   );
 
   // Renderer lifecycle + render loop (once per mount).
@@ -2322,6 +2331,12 @@ export function CreasePatternWebglCanvas({
     );
     renderNowRef.current();
   }, [diagnosticWedges]);
+  useEffect(() => {
+    rendererRef.current?.setDiagnosticFills(
+      contradictionFaceFills.count > 0 ? contradictionFaceFills : null
+    );
+    renderNowRef.current();
+  }, [contradictionFaceFills]);
   useEffect(() => {
     rendererRef.current?.setOverlayFrame(operationFrame);
     renderNowRef.current();

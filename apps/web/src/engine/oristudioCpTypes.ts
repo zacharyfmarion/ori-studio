@@ -287,6 +287,28 @@ export interface OristudioCpFoldedRenderSnapshot {
   primitives: OristudioCpFoldedRenderPrimitive[];
 }
 
+/**
+ * The two faces the layer-ordering estimate could not consistently stack
+ * (Oriedita's `errorPos`). Both are 0-based indices into the folded
+ * `wireframe.faces` list — index directly, no offset. Present only when the
+ * fold hit a global flat-foldability contradiction; the fold still produces a
+ * (transparent) figure.
+ */
+export interface OristudioCpFoldContradiction {
+  upper_face: number;
+  lower_face: number;
+}
+
+/**
+ * Flat crease-pattern polygons (CP model coordinates) of the two contradicting
+ * faces. Rendered as a translucent red fill in the CP editor, matching
+ * Oriedita's `fillFace` in `drawSelfIntersectingSubFaces`.
+ */
+export interface OristudioCpContradictionFaceGeometry {
+  upper: Point[];
+  lower: Point[];
+}
+
 export interface OristudioCpFoldedFigureSnapshot {
   model: OristudioCpFoldedFigureModel;
   estimation_step: OristudioCpEstimationStep;
@@ -295,6 +317,8 @@ export interface OristudioCpFoldedFigureSnapshot {
   find_another_overlap_valid: boolean;
   text_result: string;
   wireframe: OristudioCpFoldedWireframe | null;
+  contradiction?: OristudioCpFoldContradiction | null;
+  contradiction_faces?: OristudioCpContradictionFaceGeometry | null;
 }
 
 export interface OristudioCpFoldedFigureResult {
@@ -327,6 +351,14 @@ export interface OristudioCpFoldedFigureEntry {
   renderSnapshot: OristudioCpFoldedRenderSnapshot | null;
   displayOffset?: Point;
   error: string | null;
+  /**
+   * Set when the fold concluded with a global flat-foldability contradiction.
+   * The figure is still `ready` and rendered; these two faces are highlighted
+   * red on both the folded figure and the flat CP (Oriedita's
+   * `drawSelfIntersectingSubFaces`). Cleared when the figure is deleted or
+   * re-folded (it lives on the entry, so deletion removes it for free).
+   */
+  contradiction?: OristudioCpFoldContradiction | null;
 }
 
 export interface OristudioCpCommandPayload {

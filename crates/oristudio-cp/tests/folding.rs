@@ -1,9 +1,10 @@
 use oristudio_cp::folding::{
-    ChainPermutationGenerator, DisplayStyle, EstimationOrder, EstimationStep, FoldedFigureModel,
-    FoldedFigureRenderAntialias, FoldedFigureRenderGeometry, FoldedFigureRenderPaint,
-    FoldedFigureRenderPrimitiveKind, FoldedFigureRenderStroke, FoldedFigureState,
-    FoldingEstimateSession, HierarchyRelation, InitialHierarchy, RenderPathCommand, RgbaColor,
-    SubFacePermutationSearch, SubFaceSwapper, WorkerOverlapEnumerator,
+    AdditionalEstimationError, ChainPermutationGenerator, DisplayStyle, EstimationOrder,
+    EstimationStep, FoldContradiction, FoldedFigureModel, FoldedFigureRenderAntialias,
+    FoldedFigureRenderGeometry, FoldedFigureRenderPaint, FoldedFigureRenderPrimitiveKind,
+    FoldedFigureRenderStroke, FoldedFigureState, FoldingEstimateError, FoldingEstimateSession,
+    HierarchyRelation, InitialHierarchy, RenderPathCommand, RgbaColor, SubFacePermutationSearch,
+    SubFaceSwapper, WorkerOverlapEnumerator, WorkerOverlapSearchError,
     additional_estimation_from_segments, configure_subfaces_from_segments,
     duplicate_estimation_order_for_display, equivalence_condition_candidates_from_segments,
     estimate_wireframe_from_segments, fold_another, folded_figure_snapshot_from_segments,
@@ -15,7 +16,7 @@ use oristudio_cp::folding::{
     two_colored_folding_estimate_from_segments, two_colored_subface_segments_from_segments,
 };
 use oristudio_cp::geometry::{LineColor, LineSegment, Point, RgbColor};
-use oristudio_cp::io::cp;
+use oristudio_cp::io::{cp, ori};
 
 #[test]
 fn folded_figure_model_defaults_match_oriedita() {
@@ -613,6 +614,84 @@ fn fold_another_runs_order6_on_existing_session() {
 
     assert_eq!(estimate.discovered_fold_cases, 1);
     assert!(!estimate.find_another_overlap_valid);
+}
+
+#[test]
+fn worker_overlap_contradiction_is_extractable() {
+    // A layer-ordering contradiction is recoverable: it carries the offending
+    // face pair so the fold can conclude gracefully instead of erroring out.
+    let err =
+        WorkerOverlapSearchError::AdditionalEstimation(AdditionalEstimationError::Contradiction {
+            upper_face: 15,
+            lower_face: 12,
+        });
+    assert_eq!(
+        err.contradiction(),
+        Some(FoldContradiction {
+            upper_face: 15,
+            lower_face: 12,
+        })
+    );
+    assert_eq!(
+        FoldingEstimateError::WorkerOverlap(err).contradiction(),
+        Some(FoldContradiction {
+            upper_face: 15,
+            lower_face: 12,
+        })
+    );
+
+    // Structural failures stay fatal — there is nothing to render past them.
+    let structural = WorkerOverlapSearchError::FinalAdditionalEstimationRequired {
+        valid_count: 1,
+        reduced_subface_count: 2,
+    };
+    assert_eq!(structural.contradiction(), None);
+    assert_eq!(
+        FoldingEstimateError::WorkerOverlap(structural).contradiction(),
+        None
+    );
+}
+
+#[test]
+fn folding_a_globally_non_flat_foldable_cp_reports_a_contradiction() {
+    // Real CP (no CAMV / local flat-foldability violations) that nonetheless has
+    // no consistent global layer ordering. Oriedita shows this as red faces with
+    // no error dialog; our fold must conclude gracefully and record the offending
+    // face pair rather than aborting with WorkerOverlap(AdditionalEstimation(...)).
+    let doc = ori::import_ori_json(include_str!(
+        "../../../tests/fixtures/oriedita/failing_global_flat_fold.ori"
+    ))
+    .expect("import ori fixture");
+    let segments = doc.crease_pattern.line_segments;
+
+    let mut session = FoldingEstimateSession::new(&segments, 1);
+    let estimate = session
+        .folding_estimated(EstimationOrder::Order5)
+        .expect("fold should conclude, not error, on a global contradiction");
+
+    let contradiction = estimate
+        .contradiction
+        .expect("a global layer-ordering contradiction should be recorded");
+    assert_ne!(contradiction.upper_face, contradiction.lower_face);
+    // No valid layering exists: fall back to the transparent development so the
+    // figure still renders.
+    assert_eq!(estimate.estimation_step, EstimationStep::Step3);
+    assert_eq!(estimate.discovered_fold_cases, 0);
+
+    // The snapshot carries flat CP polygons for both faces so the editor can fill
+    // them red; each must be a real (>= 3 vertex) polygon.
+    let snapshot = folded_figure_snapshot_from_segments(
+        &segments,
+        1,
+        EstimationOrder::Order5,
+        FoldedFigureModel::default(),
+    )
+    .expect("snapshot should build");
+    let faces = snapshot
+        .contradiction_faces
+        .expect("contradiction face geometry should be present");
+    assert!(faces.upper.len() >= 3, "upper face should be a polygon");
+    assert!(faces.lower.len() >= 3, "lower face should be a polygon");
 }
 
 #[test]

@@ -7,8 +7,10 @@
   "common": {
     "cancel": "キャンセル",
     "closeNamed": "{{name}}を閉じる",
+    "no": "いいえ",
     "ok": "OK",
-    "reset": "リセット"
+    "reset": "リセット",
+    "yes": "はい"
   },
   "cpDetectImport": {
     "ariaLabel": "画像から CP を検出",
@@ -55,6 +57,11 @@
     "pointSize": "点のサイズ",
     "preview": "エクスポートのプレビュー",
     "showBackgroundColor": "背景色を表示"
+  },
+  "foldWarning": {
+    "dontShowAgain": "今後表示しない",
+    "message": "平坦折りのエラーが検出されました。折りを続行しますか？",
+    "title": "警告"
   },
   "help": {
     "about": {
@@ -159,6 +166,8 @@
     },
     "title": "設定",
     "workspace": {
+      "folding": "折り",
+      "foldWarning": "平坦折りエラーのある展開図を折る前に警告する",
       "layout": "レイアウト",
       "resetButton": "ワークスペースレイアウトをリセット",
       "resetMessage": "現在のワークスペースの既定のレイアウトに戻しますか？",

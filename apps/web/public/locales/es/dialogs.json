@@ -7,8 +7,10 @@
   "common": {
     "cancel": "Cancelar",
     "closeNamed": "Cerrar {{name}}",
+    "no": "No",
     "ok": "Aceptar",
-    "reset": "Restablecer"
+    "reset": "Restablecer",
+    "yes": "Sí"
   },
   "cpDetectImport": {
     "ariaLabel": "Detectar CP desde imagen",
@@ -63,6 +65,11 @@
     "pointSize": "Tamaño de punto",
     "preview": "Vista previa de exportación",
     "showBackgroundColor": "Mostrar color de fondo"
+  },
+  "foldWarning": {
+    "dontShowAgain": "No volver a mostrar",
+    "message": "Se detectaron errores de plegabilidad plana. ¿Continuar con el plegado?",
+    "title": "Advertencia"
   },
   "help": {
     "about": {
@@ -167,6 +174,8 @@
     },
     "title": "Configuración",
     "workspace": {
+      "folding": "Plegado",
+      "foldWarning": "Avisar antes de plegar un patrón de pliegues con errores de plegado plano",
       "layout": "Disposición",
       "resetButton": "Restablecer disposición del espacio de trabajo",
       "resetMessage": "¿Restaurar la disposición predeterminada del espacio de trabajo actual?",

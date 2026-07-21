@@ -22,6 +22,7 @@ export const STORAGE_KEYS = {
   shortcuts: 'shortcuts',
   locale: 'locale',
   showWelcomeOnStartup: 'show-welcome-on-startup',
+  foldWarning: 'fold-warning',
   layout: 'layout',
   layoutVersion: 'layout-version',
 } as const;

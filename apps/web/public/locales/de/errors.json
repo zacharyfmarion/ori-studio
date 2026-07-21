@@ -2,5 +2,10 @@
   "cpDetectImport": {
     "canvasUnavailable": "Canvas 2D ist nicht verfügbar",
     "unsupportedImage": "Verwenden Sie ein PNG-, JPEG- oder WebP-Bild."
+  },
+  "fold": {
+    "contradiction": "Dieses Faltmuster ist nicht flachfaltbar: Einige Flächen haben keine konsistente Stapelreihenfolge.",
+    "layerSearch": "Dieses Faltmuster konnte nicht gefaltet werden: Seine Schichten lassen sich nicht überlappungsfrei anordnen.",
+    "sameParity": "Dieses Faltmuster lässt sich nicht flach falten: Zwei Flächen treffen mit gleicher Ausrichtung an einer Faltkante aufeinander."
   }
 }

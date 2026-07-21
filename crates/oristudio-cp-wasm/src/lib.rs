@@ -6,8 +6,8 @@
 use js_sys::{Float64Array, Int32Array, Object, Reflect, Uint8Array};
 use oristudio_cp::folding::{
     DisplayStyle, EstimationOrder, FoldedFigureModel, FoldedFigureRenderOptions,
-    FoldedFigureSnapshot, FoldingEstimateError, FoldingEstimateSession, fold_another,
-    folded_figure_render_snapshot_from_session, folded_figure_snapshot_from_session,
+    FoldedFigureSnapshot, FoldingEstimateError, FoldingEstimateSession, WorkerOverlapSearchError,
+    fold_another, folded_figure_render_snapshot_from_session, folded_figure_snapshot_from_session,
     folding_estimate_to_case,
 };
 use oristudio_cp::geometry_transport::{self, CompactGeometry};
@@ -693,7 +693,22 @@ fn to_js_io_error(error: io::IoError) -> JsValue {
 }
 
 fn to_js_folding_error(error: FoldingEstimateError) -> JsValue {
-    js_error("folding_error", format!("{error:?}"))
+    // Stable per-cause code so the UI can show a human message; the Debug string
+    // is kept as the envelope message for detail/debugging. Layer-ordering
+    // contradictions are handled non-fatally upstream and normally never reach
+    // here, but keep a code for them in case one slips through a different path.
+    let code = match &error {
+        FoldingEstimateError::InitialHierarchy(_) => "fold_same_parity",
+        FoldingEstimateError::WorkerOverlap(worker) => match worker {
+            WorkerOverlapSearchError::InitialHierarchy(_) => "fold_same_parity",
+            WorkerOverlapSearchError::AdditionalEstimation(_) => "fold_contradiction",
+            WorkerOverlapSearchError::SubFace(_)
+            | WorkerOverlapSearchError::FinalAdditionalEstimationRequired { .. } => {
+                "fold_layer_search"
+            }
+        },
+    };
+    js_error(code, format!("{error:?}"))
 }
 
 fn to_js_value_error(error: impl std::fmt::Display) -> JsValue {

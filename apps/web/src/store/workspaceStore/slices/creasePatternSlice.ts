@@ -20,8 +20,10 @@ import {
   stableTextDigest,
 } from '../../../lib/oristudioCpLineage';
 import { foldedFigureModelFromOrieditaMetadata } from '../../../lib/orieditaNativeMetadata';
-import { requestConfirmation } from '../../commandDialogStore';
+import i18n from '../../../i18n';
+import { requestConfirmation, requestConfirmationWithOption } from '../../commandDialogStore';
 import { useLayoutStore } from '../../layoutStore';
+import { useSettingsStore } from '../../settingsStore';
 import { selectWorkspaceCapabilities } from '../capabilities';
 import { freshEditableCpState } from '../freshCreasePattern';
 import {
@@ -48,6 +50,7 @@ import {
   getOristudioCpFoldedFigureRenderSnapshot as getRuntimeOristudioCpFoldedFigureRenderSnapshot,
   loadOristudioCpDocumentFromText,
   releaseOristudioCpDocument,
+  runOristudioCpCheckCommand,
   setOristudioCpFoldedFigureModel as setRuntimeOristudioCpFoldedFigureModel,
 } from '../oristudioCpRuntime';
 import type { CreasePatternSlice, WorkspaceSliceCreator } from '../types';
@@ -715,6 +718,38 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         return false;
       }
 
+      // Oriedita `FoldAction`: before folding, run the local flat-foldability
+      // check (CAMV / Check4) and, if it finds violations, warn the user and let
+      // them fold anyway. This gate is purely LOCAL (per-vertex Maekawa/Kawasaki/
+      // big-little-big); global layer-ordering contradictions surface later, from
+      // the fold itself. Skipped when the user has disabled the warning.
+      const settings = useSettingsStore.getState();
+      if (settings.foldWarningEnabled) {
+        let hasFlatFoldabilityViolations = false;
+        try {
+          const camv = await runOristudioCpCheckCommand('CheckCamv');
+          hasFlatFoldabilityViolations = (camv.diagnostic_entries?.length ?? 0) > 0;
+        } catch {
+          // A failed check must not block folding — leave the flag false and fold.
+        }
+        if (hasFlatFoldabilityViolations) {
+          const { confirmed, optionChecked } = await requestConfirmationWithOption({
+            title: i18n.t('dialogs:foldWarning.title', 'Warning'),
+            message: i18n.t(
+              'dialogs:foldWarning.message',
+              'Detected errors in flat foldability. Continue to fold?'
+            ),
+            optionLabel: i18n.t('dialogs:foldWarning.dontShowAgain', "Don't show this again"),
+            confirmLabel: i18n.t('dialogs:common.yes', 'Yes'),
+            cancelLabel: i18n.t('dialogs:common.no', 'No'),
+          });
+          // Oriedita persists the "don't show again" choice whether the user
+          // clicks Yes or No.
+          if (optionChecked) settings.setFoldWarningEnabled(false);
+          if (!confirmed) return false;
+        }
+      }
+
       const previousActiveId = get().oristudioCpActiveFoldedFigureId;
       const figureId = nextGeneratedFoldedFigureId();
       const sourceCpRevision = get().oristudioCpRevision;
@@ -758,6 +793,12 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           figureIndex,
           true
         );
+        // A global layer-ordering contradiction is NOT an error: the estimate
+        // still produced a (transparent) figure. Oriedita shows no dialog for
+        // this — it highlights the two offending faces red. Carry the pair on
+        // the entry so deleting/re-folding the figure clears the highlight for
+        // free, and keep the fold out of the error toast path.
+        const contradiction = result.snapshot.contradiction ?? null;
         set({
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((figure) =>
             figure.id === figureId
@@ -769,6 +810,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                   snapshot: result.snapshot,
                   renderSnapshot,
                   error: null,
+                  contradiction,
                 }
               : figure
           ),

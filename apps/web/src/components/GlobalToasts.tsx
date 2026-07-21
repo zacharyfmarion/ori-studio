@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { formatUnknownError } from '../lib/toastMessages';
+import { formatUnknownError, humanizeError } from '../lib/toastMessages';
 import { useWorkspaceStore } from '../store/workspaceStore';
 
 function errorKey(error: unknown): string {
@@ -31,7 +31,7 @@ export function GlobalToasts() {
 
     toast.error(t('toasts:global.error', 'Ori Studio error'), {
       id: `treemaker-error-${key}`,
-      description: formatUnknownError(error),
+      description: humanizeError(error, t),
       duration: 8000,
     });
   }, [error, t]);

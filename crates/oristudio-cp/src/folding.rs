@@ -251,6 +251,14 @@ pub struct FoldedFigureSnapshot {
     pub find_another_overlap_valid: bool,
     pub text_result: String,
     pub wireframe: Option<FoldedWireframe>,
+    /// Present when the layer-ordering estimate hit an unresolvable
+    /// contradiction; carries the two faces to highlight (Feature B).
+    #[serde(default)]
+    pub contradiction: Option<FoldContradiction>,
+    /// Flat CP polygons of the two contradicting faces (present iff
+    /// `contradiction` is), for the editor's red-fill overlay.
+    #[serde(default)]
+    pub contradiction_faces: Option<ContradictionFaceGeometry>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1014,6 +1022,56 @@ pub struct FoldingEstimate {
     pub find_another_overlap_valid: bool,
     pub text_result: String,
     pub overlap: Option<WorkerOverlapSearch>,
+    /// Set when the layer-ordering estimate hit an unresolvable contradiction
+    /// (Oriedita `AdditionalEstimationAlgorithm` → `CONTRADICTED_*` + `errorPos`).
+    /// The fold does not error out; instead it concludes at the transparent
+    /// development so the caller can render the crease pattern with the two
+    /// offending faces highlighted, matching Oriedita's `drawSelfIntersectingSubFaces`.
+    pub contradiction: Option<FoldContradiction>,
+}
+
+/// The two faces the layer-ordering estimate could not consistently stack — the
+/// port's analog of Oriedita's `InferenceFailureException(i, j)`. Both are
+/// 0-based indices into the folded wireframe's `faces` list (`graph.faces`);
+/// index directly, no offset.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FoldContradiction {
+    pub upper_face: usize,
+    pub lower_face: usize,
+}
+
+/// Flat crease-pattern polygons (CP model coordinates) of the two contradicting
+/// faces, so the editor can fill them red without needing the CP face
+/// decomposition (which lives only in the Rust `FoldGraph`). Oriedita's
+/// `drawSelfIntersectingSubFaces` fills the equivalent flat faces.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ContradictionFaceGeometry {
+    pub upper: Vec<Point>,
+    pub lower: Vec<Point>,
+}
+
+/// Flat CP polygons for a contradiction's two faces. The flat wireframe shares
+/// the folded wireframe's face topology (both come from the same `FoldGraph`
+/// faces), so the 0-based `upper_face`/`lower_face` index it directly.
+fn contradiction_flat_faces(
+    segments: &[LineSegment],
+    starting_face_id: i32,
+    contradiction: FoldContradiction,
+) -> Option<ContradictionFaceGeometry> {
+    let wireframe = face_position_wireframe_from_segments(segments, starting_face_id)?;
+    let face_polygon = |index: usize| -> Option<Vec<Point>> {
+        let loop_indices = wireframe.faces.get(index)?;
+        Some(
+            loop_indices
+                .iter()
+                .filter_map(|&point_index| wireframe.points.get(point_index).copied())
+                .collect(),
+        )
+    };
+    Some(ContradictionFaceGeometry {
+        upper: face_polygon(contradiction.upper_face)?,
+        lower: face_polygon(contradiction.lower_face)?,
+    })
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1045,6 +1103,34 @@ impl From<InitialHierarchyError> for FoldingEstimateError {
 impl From<WorkerOverlapSearchError> for FoldingEstimateError {
     fn from(error: WorkerOverlapSearchError) -> Self {
         Self::WorkerOverlap(error)
+    }
+}
+
+impl WorkerOverlapSearchError {
+    /// The offending face pair when this error is a layer-ordering contradiction,
+    /// otherwise `None` (structural errors stay fatal).
+    pub fn contradiction(&self) -> Option<FoldContradiction> {
+        match self {
+            Self::AdditionalEstimation(AdditionalEstimationError::Contradiction {
+                upper_face,
+                lower_face,
+            }) => Some(FoldContradiction {
+                upper_face: *upper_face,
+                lower_face: *lower_face,
+            }),
+            _ => None,
+        }
+    }
+}
+
+impl FoldingEstimateError {
+    /// The offending face pair when this error is a layer-ordering contradiction,
+    /// otherwise `None` (structural errors stay fatal).
+    pub fn contradiction(&self) -> Option<FoldContradiction> {
+        match self {
+            Self::WorkerOverlap(error) => error.contradiction(),
+            Self::InitialHierarchy(_) => None,
+        }
     }
 }
 
@@ -1204,6 +1290,7 @@ pub fn two_colored_folding_estimate_from_segments(
         find_another_overlap_valid: false,
         text_result: String::new(),
         overlap: None,
+        contradiction: None,
     };
 
     if segments.is_empty() {
@@ -1424,6 +1511,7 @@ impl FoldingEstimateSession {
                 find_another_overlap_valid: false,
                 text_result: String::new(),
                 overlap: None,
+                contradiction: None,
             },
             worker: None,
         }
@@ -1468,16 +1556,31 @@ impl FoldingEstimateSession {
         if self.estimate.estimation_step == EstimationStep::Step3
             && order.is_at_least(EstimationOrder::Order4)
         {
-            self.worker = overlap_enumerator_from_segments(&self.segments, self.starting_face_id)?;
-            self.estimate.estimation_step = EstimationStep::Step4;
-            self.estimate.display_style = DisplayStyle::Development4;
-            self.estimate.find_another_overlap_valid = self.worker.is_some();
-            self.estimate.discovered_fold_cases = 0;
+            match overlap_enumerator_from_segments(&self.segments, self.starting_face_id) {
+                Ok(worker) => {
+                    self.worker = worker;
+                    self.estimate.estimation_step = EstimationStep::Step4;
+                    self.estimate.display_style = DisplayStyle::Development4;
+                    self.estimate.find_another_overlap_valid = self.worker.is_some();
+                    self.estimate.discovered_fold_cases = 0;
+                }
+                Err(error) => {
+                    if let Some(contradiction) = error.contradiction() {
+                        return Ok(self.conclude_with_contradiction(contradiction));
+                    }
+                    return Err(error.into());
+                }
+            }
         }
         if self.estimate.estimation_step == EstimationStep::Step4
             && order.is_at_least(EstimationOrder::Order5)
         {
-            self.folding_estimated_05()?;
+            if let Err(error) = self.folding_estimated_05() {
+                if let Some(contradiction) = error.contradiction() {
+                    return Ok(self.conclude_with_contradiction(contradiction));
+                }
+                return Err(error.into());
+            }
             self.estimate.estimation_step = EstimationStep::Step5;
             self.estimate.display_style = DisplayStyle::Paper5;
             if self.estimate.discovered_fold_cases == 0 && !self.estimate.find_another_overlap_valid
@@ -1489,11 +1592,32 @@ impl FoldingEstimateSession {
         if self.estimate.estimation_step == EstimationStep::Step5
             && order == EstimationOrder::Order6
         {
-            self.folding_estimated_05()?;
+            if let Err(error) = self.folding_estimated_05() {
+                if let Some(contradiction) = error.contradiction() {
+                    return Ok(self.conclude_with_contradiction(contradiction));
+                }
+                return Err(error.into());
+            }
             self.estimate.display_style = DisplayStyle::Paper5;
         }
 
         Ok(self.estimate.clone())
+    }
+
+    /// Oriedita catches `InferenceFailureException` inside
+    /// `AdditionalEstimationAlgorithm.run` and keeps the figure renderable rather
+    /// than aborting. We mirror that: record the offending face pair and fall back
+    /// to the transparent development (as the existing "no solutions" path already
+    /// does), so the caller renders the crease pattern with the two faces
+    /// highlighted instead of surfacing a raw error.
+    fn conclude_with_contradiction(&mut self, contradiction: FoldContradiction) -> FoldingEstimate {
+        self.estimate.contradiction = Some(contradiction);
+        self.estimate.estimation_step = EstimationStep::Step3;
+        self.estimate.display_style = DisplayStyle::Transparent3;
+        self.estimate.discovered_fold_cases = 0;
+        self.estimate.find_another_overlap_valid = false;
+        self.estimate.overlap = None;
+        self.estimate.clone()
     }
 
     fn folding_estimated_05(&mut self) -> Result<(), WorkerOverlapSearchError> {
@@ -1650,6 +1774,9 @@ pub fn folded_figure_snapshot_from_session(
     } else {
         None
     };
+    let contradiction_faces = estimate.contradiction.and_then(|contradiction| {
+        contradiction_flat_faces(&session.segments, session.starting_face_id, contradiction)
+    });
     FoldedFigureSnapshot {
         model,
         estimation_step: estimate.estimation_step,
@@ -1658,6 +1785,8 @@ pub fn folded_figure_snapshot_from_session(
         find_another_overlap_valid: estimate.find_another_overlap_valid,
         text_result: estimate.text_result.clone(),
         wireframe,
+        contradiction: estimate.contradiction,
+        contradiction_faces,
     }
 }
 

@@ -11,7 +11,7 @@ import type {
   OristudioCpRgbaColor,
 } from '../../engine/oristudioCpTypes';
 import type { Aabb } from '../picking/lineHitIndex';
-import type { FoldedGeometry, Rgba } from '../renderer/types';
+import type { FillGeometry, FoldedGeometry, Rgba } from '../renderer/types';
 
 /** Steps used to flatten quadratic/cubic path curves into polylines. */
 const CURVE_STEPS = 12;
@@ -266,6 +266,46 @@ export function foldedGeometryFromShapes(
   for (const face of faces) builder.addFillRing([...face.ring], face.color);
   for (const edge of edges) builder.addStrokePolyline([edge.a, edge.b], edge.color, edge.width);
   return builder.build();
+}
+
+/**
+ * Translucent red (Oriedita `(255,0,0,75)`) used to fill the two faces a fold
+ * could not consistently stack — the flat-CP half of `drawSelfIntersectingSubFaces`.
+ */
+const CONTRADICTION_FILL: Rgba = [1, 0, 0, 75 / 255];
+
+/**
+ * Build a model-space filled-triangle overlay for the contradicting faces of any
+ * folded figures whose fold hit a global layer-ordering contradiction. Polygons
+ * are the flat CP faces (CP model coordinates, straight from
+ * `snapshot.contradiction_faces`) so they draw in the CP editor's model view —
+ * no coordinate mapping, unlike the folded scene. Empty when nothing contradicts.
+ */
+export function cpContradictionFaceFills(
+  figures: readonly OristudioCpFoldedFigureEntry[]
+): FillGeometry {
+  const position: number[] = [];
+  const color: number[] = [];
+  const addRing = (ring: readonly Point[]): void => {
+    if (ring.length < 3) return;
+    const flat: number[] = [];
+    for (const p of ring) flat.push(p.x, p.y);
+    for (const i of earcut(flat)) {
+      position.push(flat[i * 2], flat[i * 2 + 1]);
+      color.push(CONTRADICTION_FILL[0], CONTRADICTION_FILL[1], CONTRADICTION_FILL[2], CONTRADICTION_FILL[3]);
+    }
+  };
+  for (const figure of figures) {
+    const faces = figure.snapshot?.contradiction_faces;
+    if (!faces) continue;
+    addRing(faces.upper);
+    addRing(faces.lower);
+  }
+  return {
+    position: new Float32Array(position),
+    color: new Float32Array(color),
+    count: position.length / 2,
+  };
 }
 
 /** A folded figure's id paired with its bounding box in SVG user coordinates. */

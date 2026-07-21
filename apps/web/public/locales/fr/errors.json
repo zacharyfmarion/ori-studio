@@ -2,5 +2,10 @@
   "cpDetectImport": {
     "canvasUnavailable": "Canvas 2D n’est pas disponible",
     "unsupportedImage": "Utilisez une image PNG, JPEG ou WebP."
+  },
+  "fold": {
+    "contradiction": "Ce patron de plis n'est pas pliable à plat : certaines facettes n'ont pas d'ordre d'empilement cohérent.",
+    "layerSearch": "Ce patron de plis n'a pas pu être plié : ses couches ne peuvent pas être disposées sans chevauchement.",
+    "sameParity": "Ce patron de plis ne peut pas être plié à plat : deux facettes se rencontrent avec la même orientation de part et d'autre d'un pli."
   }
 }

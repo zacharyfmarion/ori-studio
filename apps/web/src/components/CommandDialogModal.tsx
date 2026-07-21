@@ -34,8 +34,14 @@ export function CommandDialogModal() {
   const [draft, setDraft] = useState('');
   const [exportOptions, setExportOptions] = useState<CreaseExportOptions | null>(null);
   const [touched, setTouched] = useState(false);
+  const [optionChecked, setOptionChecked] = useState(false);
 
   useEffect(() => registerCommandDialogHost(), []);
+
+  useEffect(() => {
+    if (dialog?.type !== 'confirm-option') return;
+    setOptionChecked(false);
+  }, [dialog]);
 
   useEffect(() => {
     if (dialog?.type !== 'number') return;
@@ -281,6 +287,58 @@ export function CommandDialogModal() {
                 size="sm"
                 variant={dialog.tone === 'danger' ? 'danger' : 'primary'}
                 onClick={() => resolveCommandDialog(dialog.id, true)}
+              >
+                {confirmLabel}
+              </Button>
+            </footer>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (dialog.type === 'confirm-option') {
+    const confirmLabel = dialog.confirmLabel ?? t('dialogs:common.ok', 'OK');
+    return (
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={dialog.title}
+        className="simple-modal"
+        onMouseDown={() => cancelCommandDialog(dialog.id)}
+      >
+        <div role="document" className="simple-modal__document" onMouseDown={(event) => event.stopPropagation()}>
+          <header className="simple-modal__header">
+            <span>
+              <CircleAlert size={15} aria-hidden="true" />
+              {dialog.title}
+            </span>
+            <IconButton size="sm" aria-label={t('dialogs:common.closeNamed', 'Close {{name}}', { name: dialog.title })} onClick={() => cancelCommandDialog(dialog.id)}>
+              <X size={15} />
+            </IconButton>
+          </header>
+          <div className="simple-modal__body">
+            <p className="simple-modal__message">{dialog.message}</p>
+            <label className="settings-checkbox">
+              <input
+                type="checkbox"
+                checked={optionChecked}
+                onChange={(event) => setOptionChecked(event.target.checked)}
+              />
+              {dialog.optionLabel}
+            </label>
+            <footer className="simple-modal__footer">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => resolveCommandDialog(dialog.id, { confirmed: false, optionChecked })}
+              >
+                {cancelLabel}
+              </Button>
+              <Button
+                size="sm"
+                variant={dialog.tone === 'danger' ? 'danger' : 'primary'}
+                onClick={() => resolveCommandDialog(dialog.id, { confirmed: true, optionChecked })}
               >
                 {confirmLabel}
               </Button>
