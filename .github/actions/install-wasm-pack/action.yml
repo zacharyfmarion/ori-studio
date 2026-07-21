@@ -1,5 +1,5 @@
 name: Install wasm-pack
-description: Install wasm-pack with retries for transient registry/network failures.
+description: Install a prebuilt wasm-pack binary with retries for transient network failures.
 
 inputs:
   version:
@@ -10,17 +10,25 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Install wasm-pack with retry
+    - name: Install prebuilt wasm-pack with retry
       shell: bash
       env:
-        CARGO_HTTP_MULTIPLEXING: "false"
         WASM_PACK_VERSION: ${{ inputs.version }}
       run: |
         set -euo pipefail
 
+        target="x86_64-unknown-linux-musl"
+        archive="wasm-pack-v${WASM_PACK_VERSION}-${target}"
+        url="https://github.com/rustwasm/wasm-pack/releases/download/v${WASM_PACK_VERSION}/${archive}.tar.gz"
+        dest="${HOME}/.cargo/bin"
+        mkdir -p "${dest}"
+
         for attempt in 1 2 3; do
           echo "Installing wasm-pack ${WASM_PACK_VERSION} (attempt ${attempt}/3)"
-          if cargo install wasm-pack --version "${WASM_PACK_VERSION}" --locked; then
+          if curl -fsSL "${url}" -o /tmp/wasm-pack.tar.gz \
+            && tar -xzf /tmp/wasm-pack.tar.gz -C /tmp; then
+            mv "/tmp/${archive}/wasm-pack" "${dest}/wasm-pack"
+            chmod +x "${dest}/wasm-pack"
             wasm-pack --version
             exit 0
           fi
