@@ -38,11 +38,17 @@ export function BpNameEditor({
     setDraft(name);
   }, [name]);
   useEffect(() => {
-    if (!autoFocus) return;
-    const input = inputRef.current;
-    if (!input) return;
-    input.focus();
-    input.select();
+    if (!autoFocus) return undefined;
+    // Defer to the next frame so this focus wins the browser's native focus from
+    // the pointerdown that selected the node (the canvas dot is focusable), which
+    // otherwise runs after our synchronous focus and steals it back.
+    const frame = requestAnimationFrame(() => {
+      const input = inputRef.current;
+      if (!input) return;
+      input.focus();
+      input.select();
+    });
+    return () => cancelAnimationFrame(frame);
     // Mount-only: a fresh selection remounts this component (keyed by id), so
     // focusing once per mount is exactly "focus on new selection".
     // eslint-disable-next-line react-hooks/exhaustive-deps

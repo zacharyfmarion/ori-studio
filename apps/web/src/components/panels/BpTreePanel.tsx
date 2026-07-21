@@ -993,7 +993,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
                     x2={p2.x}
                     y2={p2.y}
                   />
-                  {layers.labels && (
+                  {layers.labels && edge.isLeafEdge && (
                     <text
                       className="edge-label bp-tree-edge-label"
                       x={(p1.x + p2.x) / 2 + chromePx(6)}
@@ -1046,7 +1046,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
                     onPointerCancel={(event) => finishDrag(event, vertex.id)}
                     onKeyDown={(event) => onVertexKeyDown(event, vertex.id)}
                   />
-                  {layers.labels && label && (
+                  {layers.labels && vertex.isLeaf && label && (
                     <text
                       className="node-label bp-tree-node-label"
                       x={point.x + chromePx(NODE_DOT_PX + 4)}
