@@ -794,6 +794,12 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           figureIndex,
           true
         );
+        // A global layer-ordering contradiction is NOT an error: the estimate
+        // still produced a (transparent) figure. Oriedita shows no dialog for
+        // this — it highlights the two offending faces red. Carry the pair on
+        // the entry so deleting/re-folding the figure clears the highlight for
+        // free, and keep the fold out of the error toast path.
+        const contradiction = result.snapshot.contradiction ?? null;
         set({
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((figure) =>
             figure.id === figureId
@@ -805,6 +811,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                   snapshot: result.snapshot,
                   renderSnapshot,
                   error: null,
+                  contradiction,
                 }
               : figure
           ),
