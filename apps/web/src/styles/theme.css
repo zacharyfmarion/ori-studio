@@ -2106,11 +2106,9 @@
 }
 
 /* Floating controls for the selected reference image. */
-.cp-image-inspector {
-  position: absolute;
-  top: 8px;
-  left: 50%;
-  transform: translateX(-50%);
+/* Generic floating toolbar pill. Position/transform are set inline by
+   @floating-ui (fixed strategy, body-portaled), so this only styles the pill. */
+.floating-toolbar {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -2119,11 +2117,18 @@
   border: 1px solid var(--border-default);
   border-radius: 8px;
   box-shadow: 0 2px 8px rgb(0 0 0 / 30%);
-  z-index: 9;
+  z-index: var(--z-portaled-popover, 10000);
   pointer-events: auto;
 }
 
-.cp-image-inspector__opacity {
+.floating-toolbar__separator {
+  align-self: stretch;
+  width: 1px;
+  margin: 2px 2px;
+  background: var(--border-default);
+}
+
+.floating-toolbar__opacity {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -2132,7 +2137,7 @@
   white-space: nowrap;
 }
 
-.cp-image-inspector__opacity input {
+.floating-toolbar__opacity input {
   width: 90px;
 }
 

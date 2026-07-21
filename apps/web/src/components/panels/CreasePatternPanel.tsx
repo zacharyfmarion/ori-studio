@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -129,9 +130,12 @@ import { createCpImage, type CpImage } from '../../cp-workspace/images/cpImage';
 import { importImageFile, isSupportedImageFile } from '../../cp-workspace/images/cpImageImport';
 import {
   fitImageModelSize,
+  imageCornersModel,
   overlayCssPerModel,
   overlayCssToModel,
 } from '../../cp-workspace/images/cpImagePlacement';
+import { boundingScreenRect } from '../../cp-workspace/annotations/annotationAnchor';
+import type { FloatingAnchorRect } from '../../components/ui/FloatingToolbar';
 import {
   CpContextToolPanel,
   cpCommandRequiresContextApply,
@@ -1040,6 +1044,22 @@ export function CreasePatternPanel() {
   const recordCpImageHistory = useWorkspaceStore((state) => state.recordCpImageHistory);
   const selectedCpImage =
     oristudioCpImages.find((image) => image.id === oristudioCpSelectedImageId) ?? null;
+  // Viewport-space anchor for the selected image's floating inspector. Measured
+  // in a layout effect (the container's screen offset requires a ref read, which
+  // isn't allowed during render) and refreshed as the camera or image changes.
+  const [imageInspectorAnchor, setImageInspectorAnchor] = useState<FloatingAnchorRect | null>(null);
+  useLayoutEffect(() => {
+    if (!selectedCpImage || !webglOverlayView) {
+      setImageInspectorAnchor(null);
+      return;
+    }
+    const container = cpViewportRef.current?.getBoundingClientRect();
+    setImageInspectorAnchor(
+      container
+        ? boundingScreenRect(webglOverlayView, container, imageCornersModel(selectedCpImage))
+        : null
+    );
+  }, [selectedCpImage, webglOverlayView]);
   // Image-layer state captured at the start of a move/resize/rotate gesture, so
   // the whole gesture records a single undo entry on commit.
   const preGestureImagesRef = useRef<readonly CpImage[] | null>(null);
@@ -3225,6 +3245,7 @@ export function CreasePatternPanel() {
                 {imageEditMode && selectedCpImage && (
                   <CpImageInspector
                     image={selectedCpImage}
+                    anchorRect={imageInspectorAnchor}
                     onUpdate={(patch) => updateCpImage(selectedCpImage.id, patch)}
                     onGestureStart={beginImageGesture}
                     onGestureCommit={commitImageGesture}

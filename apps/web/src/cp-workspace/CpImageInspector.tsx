@@ -2,11 +2,12 @@ import { useCallback, useEffect, useRef, type ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowDownToLine, ArrowUpToLine, Trash2 } from 'lucide-react';
 import { IconButton } from '../components/ui/IconButton';
+import { FloatingToolbar, type FloatingAnchorRect } from '../components/ui/FloatingToolbar';
 import type { CpImage, CpImageUpdate } from './images/cpImage';
 
 /**
  * Floating controls for the selected reference image: opacity, z-order, and
- * delete. Shown only while the Images tool is active and an image is selected.
+ * delete. Hovers above the selected image via {@link FloatingToolbar}.
  *
  * The opacity slider records a single undo entry per adjustment: the first
  * `input` event of a drag snapshots the pre-state (gesture start) and the native
@@ -19,6 +20,7 @@ import type { CpImage, CpImageUpdate } from './images/cpImage';
  */
 export function CpImageInspector({
   image,
+  anchorRect,
   onUpdate,
   onGestureStart,
   onGestureCommit,
@@ -27,6 +29,7 @@ export function CpImageInspector({
   onDelete,
 }: {
   image: CpImage;
+  anchorRect: FloatingAnchorRect | null;
   onUpdate: (patch: CpImageUpdate) => void;
   onGestureStart: () => void;
   onGestureCommit: (label: string) => void;
@@ -64,8 +67,12 @@ export function CpImageInspector({
   );
 
   return (
-    <div className="cp-image-inspector" role="toolbar" aria-label={t('panels:imageInspector.imageControls', 'Image controls')}>
-      <label className="cp-image-inspector__opacity" title={t('panels:imageInspector.opacity', 'Opacity')}>
+    <FloatingToolbar
+      anchorRect={anchorRect}
+      className="cp-image-inspector"
+      ariaLabel={t('panels:imageInspector.imageControls', 'Image controls')}
+    >
+      <label className="floating-toolbar__opacity" title={t('panels:imageInspector.opacity', 'Opacity')}>
         <span aria-hidden="true">{t('panels:imageInspector.opacity', 'Opacity')}</span>
         <input
           ref={opacityRef}
@@ -86,6 +93,6 @@ export function CpImageInspector({
       <IconButton size="sm" variant="toolbar" title={t('panels:imageInspector.deleteImage', 'Delete image')} onClick={onDelete}>
         <Trash2 size={14} />
       </IconButton>
-    </div>
+    </FloatingToolbar>
   );
 }
