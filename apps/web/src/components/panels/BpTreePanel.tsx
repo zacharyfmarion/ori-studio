@@ -1088,6 +1088,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
           ariaLabel={t('panels:bpTree.flapNameAria', 'Name of flap {{id}}', {
             id: selectedFlapVertex.id,
           })}
+          autoFocus
           onRename={(name) => void renameOristudioBpVertex(selectedFlapVertex.id, name)}
         />
       )}

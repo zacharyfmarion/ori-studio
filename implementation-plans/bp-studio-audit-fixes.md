@@ -185,7 +185,7 @@ first.
 - [ ] 2. Send to Edit maps BP grid → Edit grid units (rect + diagonal)
 - [ ] 3. Un-subdivide: engine op + guard + wasm + runtime + store + button + command + tests
 - [ ] 4. Symmetric length editing updates the mirror partner (single undo)
-- [ ] 5. Selecting a node focuses (and select-alls) its name box
+- [x] 5. Selecting a node focuses (and select-alls) its name box
 - [ ] 6. Repro + stop viewport moving during flap drag
 - [ ] Validation: `cargo test --workspace` (engine), wasm rebuild, `npx tsc --noEmit`
       + `npm run test:web` + lint, `npm run i18n:check`; browser verification of
