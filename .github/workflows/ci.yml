@@ -12,6 +12,13 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  # Compile caching. sccache caches individual rustc invocations (deps and, in
+  # the web job, unchanged wasm crates) in the GitHub Actions cache, shared
+  # across steps and runs. Incremental compilation is incompatible with sccache
+  # and is not useful in CI, so it is disabled.
+  RUSTC_WRAPPER: sccache
+  SCCACHE_GHA_ENABLED: "true"
+  CARGO_INCREMENTAL: 0
 
 jobs:
   web-client:
@@ -23,8 +30,13 @@ jobs:
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
 
-      - name: Cache Cargo
+      - name: Set up sccache
+        uses: mozilla-actions/sccache-action@v0.0.10
+
+      - name: Cache Cargo registry
         uses: actions/cache@v4
         with:
           path: |
@@ -46,6 +58,11 @@ jobs:
       - name: Install Node dependencies
         run: npm ci
 
+      # Build the simulator + wasm crates once. The typecheck/test steps below
+      # skip their pre-hooks (which would rebuild these) via --ignore-scripts.
+      - name: Build web assets (simulator + wasm)
+        run: npm --workspace @treemaker/web run build:simulator && npm --workspace @treemaker/web run build:wasm
+
       - name: Lint web client
         run: npm run lint:web
 
@@ -53,10 +70,10 @@ jobs:
         run: npm run i18n:check
 
       - name: Typecheck web client
-        run: npm run typecheck:web
+        run: npm run typecheck:web --ignore-scripts
 
       - name: Unit test web client
-        run: npm run test:web
+        run: npm run test:web --ignore-scripts
 
   native-oracle:
     name: Native Rust + C++ oracle
@@ -84,13 +101,15 @@ jobs:
         with:
           components: clippy,rustfmt
 
-      - name: Cache Cargo
+      - name: Set up sccache
+        uses: mozilla-actions/sccache-action@v0.0.10
+
+      - name: Cache Cargo registry
         uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
           key: ${{ runner.os }}-${{ github.repository }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-${{ github.repository }}-cargo-
@@ -98,14 +117,21 @@ jobs:
       - name: Format
         run: cargo fmt --check
 
-      - name: Clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
+      # Clippy + tests in a single workspace compile. clippy-driver-wrapper.sh is
+      # used as RUSTC_WORKSPACE_WRAPPER so workspace crates are linted while being
+      # built for the test run, avoiding a separate `cargo clippy` compile.
+      - name: Clippy + test workspace
+        run: RUSTC_WORKSPACE_WRAPPER="${GITHUB_WORKSPACE}/.github/clippy-driver-wrapper.sh" cargo test --workspace --all-targets
 
-      - name: Test workspace
-        run: cargo test --workspace
+      # --all-targets excludes doctests; run them separately. Reuses the artifacts
+      # from the step above (same wrapper), so only crates with doctests rebuild.
+      - name: Doctests
+        run: RUSTC_WORKSPACE_WRAPPER="${GITHUB_WORKSPACE}/.github/clippy-driver-wrapper.sh" cargo test --workspace --doc
 
       - name: Build C++ oracle
         run: tools/oracle/build_oracle.sh
 
+      # Same wrapper as above so the already-compiled test binary is reused and
+      # this step only re-runs it with the oracle binary wired in.
       - name: C++ oracle parity
-        run: TREEMAKER_CPP_ORACLE=tools/oracle/build/treemaker-oracle cargo test -p oracle-tests --test cpp_oracle
+        run: RUSTC_WORKSPACE_WRAPPER="${GITHUB_WORKSPACE}/.github/clippy-driver-wrapper.sh" TREEMAKER_CPP_ORACLE=tools/oracle/build/treemaker-oracle cargo test -p oracle-tests --test cpp_oracle
