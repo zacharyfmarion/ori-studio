@@ -11,7 +11,7 @@ export function bp_delete_tree_leaf(handle: number, id: number): any;
 
 export function bp_export_bps(handle: number): string;
 
-export function bp_export_cp(handle: number, reorient: boolean, use_auxiliary: boolean): string;
+export function bp_export_cp(handle: number, reorient: boolean, use_auxiliary: boolean, cp_scale: number): string;
 
 export function bp_export_fold(handle: number, reorient: boolean, use_auxiliary: boolean): string;
 
@@ -104,7 +104,7 @@ export interface InitOutput {
     readonly bp_complete_stretch: (a: number, b: number, c: number) => [number, number, number];
     readonly bp_delete_tree_leaf: (a: number, b: number) => [number, number, number];
     readonly bp_export_bps: (a: number) => [number, number, number, number];
-    readonly bp_export_cp: (a: number, b: number, c: number) => [number, number, number, number];
+    readonly bp_export_cp: (a: number, b: number, c: number, d: number) => [number, number, number, number];
     readonly bp_export_fold: (a: number, b: number, c: number) => [number, number, number, number];
     readonly bp_export_workspace: (a: any) => [number, number, number, number];
     readonly bp_flip_layout_sheet: (a: number, b: number) => [number, number, number];

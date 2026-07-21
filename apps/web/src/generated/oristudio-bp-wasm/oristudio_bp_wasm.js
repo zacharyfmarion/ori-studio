@@ -79,13 +79,14 @@ export function bp_export_bps(handle) {
  * @param {number} handle
  * @param {boolean} reorient
  * @param {boolean} use_auxiliary
+ * @param {number} cp_scale
  * @returns {string}
  */
-export function bp_export_cp(handle, reorient, use_auxiliary) {
+export function bp_export_cp(handle, reorient, use_auxiliary, cp_scale) {
     let deferred2_0;
     let deferred2_1;
     try {
-        const ret = wasm.bp_export_cp(handle, reorient, use_auxiliary);
+        const ret = wasm.bp_export_cp(handle, reorient, use_auxiliary, cp_scale);
         var ptr1 = ret[0];
         var len1 = ret[1];
         if (ret[3]) {

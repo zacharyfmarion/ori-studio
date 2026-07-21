@@ -263,8 +263,13 @@ const api = {
   async exportBps(handle: number): Promise<string> {
     return call(() => bp_export_bps(handle));
   },
-  async exportCp(handle: number, reorient = true, useAuxiliary = false): Promise<string> {
-    return call(() => bp_export_cp(handle, reorient, useAuxiliary));
+  async exportCp(
+    handle: number,
+    reorient = true,
+    useAuxiliary = false,
+    cpScale = 1
+  ): Promise<string> {
+    return call(() => bp_export_cp(handle, reorient, useAuxiliary, cpScale));
   },
   async exportFold(handle: number, reorient = true, useAuxiliary = false): Promise<string> {
     return call(() => bp_export_fold(handle, reorient, useAuxiliary));

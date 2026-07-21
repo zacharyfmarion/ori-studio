@@ -31,11 +31,16 @@ pub enum CpFormat {
     Fold,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CpExportOptions {
     pub format: CpFormat,
     pub reorient: bool,
     pub use_auxiliary: bool,
+    /// Multiplier on the exported full width. `1.0` fills the standard
+    /// [`CP_FULL_WIDTH`] paper (BP Studio's convention). "Send to Edit" passes
+    /// `bp_sheet_max_cells / edit_grid_divisions` so one BP grid cell maps onto
+    /// one Edit-workspace grid cell without changing the Edit grid.
+    pub cp_scale: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Default)]
@@ -91,6 +96,7 @@ impl Default for CpExportOptions {
             format: CpFormat::Cp,
             reorient: false,
             use_auxiliary: true,
+            cp_scale: 1.0,
         }
     }
 }
@@ -109,7 +115,7 @@ pub fn project_crease_pattern_snapshot(
     let grid = BpGrid::new(project.design.layout.sheet.clone());
     let components = project_line_components(project, options.use_auxiliary)?;
     let lines = get_cp_lines(&grid.border_path(), &components);
-    let matrix = grid.transform_matrix(CP_FULL_WIDTH, options.reorient);
+    let matrix = grid.transform_matrix(CP_FULL_WIDTH * options.cp_scale, options.reorient);
     let lines = transform_lines(&lines, matrix);
     let border = transform_points(&grid.border_path(), matrix);
     let (width, height) = path_bounds_size(&border);
@@ -357,7 +363,7 @@ pub fn export_lines(
     project: &Project,
     options: CpExportOptions,
 ) -> BpResult<String> {
-    let matrix = grid.transform_matrix(CP_FULL_WIDTH, options.reorient);
+    let matrix = grid.transform_matrix(CP_FULL_WIDTH * options.cp_scale, options.reorient);
     let lines = transform_lines(lines, matrix);
     match options.format {
         CpFormat::Cp => Ok(to_cp(&lines)),

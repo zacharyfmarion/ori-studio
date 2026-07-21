@@ -182,7 +182,9 @@ first.
 ## Checklist
 
 - [x] 1. Default symmetry on (enabled + centered axis at creation/resize)
-- [ ] 2. Send to Edit maps BP grid → Edit grid units (rect + diagonal)
+- [x] 2. Send to Edit maps BP grid → Edit grid units
+      (engine cp_scale export option; slice passes bpCells/editDivisions; rect
+      exact — diagonal uses max(w,h) as an approximation, browser-verify)
 - [ ] 3. Un-subdivide: engine op + guard + wasm + runtime + store + button + command + tests
 - [x] 4. Symmetric length editing updates the mirror partner (single undo)
       (slice orchestration over the already-tested mirroring helper; integration

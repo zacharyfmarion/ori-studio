@@ -38,6 +38,7 @@ import {
   snapPointToSymmetryAxis,
   type SymmetryAxis,
 } from '../../../lib/symmetryGeometry';
+import { normalizeOrieditaGridSize } from '../../../lib/creasePatternViewport';
 import type { SnapshotEntry } from '../snapshotHistory';
 import type { Point } from '../../../lib/geometry';
 import type { OristudioBpDocumentState } from '../../../engine/oristudioBpTypes';
@@ -559,9 +560,22 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     // Send the BP design's crease pattern to the always-live Edit canvas: export
     // the BP CP and merge it in via Import(Add), then switch to the Edit workspace.
     sendOristudioBpToEdit: async () => {
-      if (!get().oristudioBpDocument) return false;
+      const bpDocument = get().oristudioBpDocument;
+      if (!bpDocument) return false;
       set({ oristudioBpBusy: true });
       try {
+        // Ensure the Edit CP exists first so we can read its grid divisions.
+        await get().ensureEditCreasePattern();
+        // Scale the export so one BP grid cell maps onto one Edit grid cell —
+        // without changing the Edit grid. Both use the same paper convention, so
+        // the scale is just bpSheetMaxCells / editGridDivisions (the paper width
+        // cancels). When the two match the design fills the paper as before.
+        const sheet = bpDocument.snapshot.packing.sheet;
+        const bpCells = Math.max(sheet.width, sheet.height);
+        const editDivisions = normalizeOrieditaGridSize(
+          get().oristudioCpDocument?.document.crease_pattern.grid.grid_size ?? bpCells
+        );
+        const cpScale = editDivisions > 0 ? bpCells / editDivisions : 1;
         // Match BP Studio's Export CP defaults: keep the sheet orientation and
         // include auxiliary hinge creases (dropping them yields a sparse CP that
         // doesn't match BP Studio's export).
@@ -569,9 +583,9 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           await exportOristudioBpProjectAsCp({
             reorient: false,
             includeAuxiliaryHinges: true,
+            cpScale,
           })
         );
-        await get().ensureEditCreasePattern();
         const ok = await get().importAddOristudioCpText(
           cpText,
           'cp',
