@@ -29,11 +29,8 @@ import {
   importedCpLineage,
   markCpLineageEdited,
 } from '../../../lib/oristudioCpLineage';
-import {
-  IMAGE_TOTAL_BYTES_WARN,
-  totalCpImageBytes,
-  type CpImage,
-} from '../../../cp-workspace/images/cpImage';
+import { IMAGE_TOTAL_BYTES_WARN, totalCpImageBytes } from '../../../cp-workspace/images/cpImage';
+import type { CanvasAnnotation } from '../../../cp-workspace/annotations/annotation';
 import { normalizeOristudioCpCommandPayload } from '../../../lib/oristudioCpCommandPayloads';
 import {
   activeNativeDocument,
@@ -148,12 +145,12 @@ function cpHistoryEntry(
   document: Awaited<ReturnType<typeof loadOristudioCpDocumentFromText>>['document'],
   label: string,
   selection: OristudioCpSelection,
-  images: CpImage[]
+  annotations: CanvasAnnotation[]
 ) {
   return {
     document,
     selection,
-    images,
+    annotations,
     label,
     timestamp: nowIso(),
   };
@@ -498,7 +495,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         oristudioCpHistoryPast: previousDocument
           ? [
               ...get().oristudioCpHistoryPast,
-              cpHistoryEntry(previousDocument, label, previousSelection, get().oristudioCpImages),
+              cpHistoryEntry(previousDocument, label, previousSelection, get().oristudioCpAnnotations),
             ]
           : get().oristudioCpHistoryPast,
         oristudioCpHistoryFuture: [],
@@ -667,9 +664,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       oristudioCpHistoryPast: [],
       oristudioCpHistoryFuture: [],
       // A non-.osf crease pattern carries no superset data; reset the layer.
-      oristudioCpImages: [],
-      oristudioCpImageEditMode: false,
-      oristudioCpSelectedImageId: null,
+      oristudioCpAnnotations: [],
+      oristudioCpSelectedAnnotationId: null,
       oristudioCpDocumentExtensions: {},
       nativeProjectExtensions: {},
       projectLoadId: get().projectLoadId + 1,
@@ -784,9 +780,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       importedCreasePattern: importedDocument,
       oristudioCpDocument: documentState,
       oristudioCpLineage: nativeDocument.creasePattern.lineage,
-      oristudioCpImages: nativeDocument.creasePattern.images,
-      oristudioCpImageEditMode: nativeDocument.creasePattern.images.length > 0,
-      oristudioCpSelectedImageId: null,
+      oristudioCpAnnotations: nativeDocument.creasePattern.images,
+      oristudioCpSelectedAnnotationId: null,
       oristudioCpDocumentExtensions: nativeDocument.extensions,
       oristudioCpCamvResult: checked.camvResult,
       oristudioCpOperationDescriptors: documentState.operationDescriptors,
@@ -843,9 +838,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     set({
       oristudioCpDocument: checked.documentState,
       oristudioCpLineage: nativeDocument.creasePattern.lineage,
-      oristudioCpImages: nativeDocument.creasePattern.images,
-      oristudioCpImageEditMode: nativeDocument.creasePattern.images.length > 0,
-      oristudioCpSelectedImageId: null,
+      oristudioCpAnnotations: nativeDocument.creasePattern.images,
+      oristudioCpSelectedAnnotationId: null,
       oristudioCpDocumentExtensions: nativeDocument.extensions,
       oristudioCpCamvResult: checked.camvResult,
       oristudioCpOperationDescriptors: checked.documentState.operationDescriptors,
@@ -966,7 +960,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     if (!result) return false;
     const document = get().oristudioBpDocument;
     // Soft, non-blocking notice when the file embeds a lot of image data.
-    const imageBytes = totalCpImageBytes(get().oristudioCpImages);
+    const imageBytes = totalCpImageBytes(get().oristudioCpAnnotations);
     const savedMessage =
       imageBytes > IMAGE_TOTAL_BYTES_WARN
         ? `Saved ${result.name} — embeds ~${Math.round(
@@ -1020,7 +1014,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       foldedFigures: get().oristudioCpFoldedFigures,
       activeFoldedFigureId: get().oristudioCpActiveFoldedFigureId,
       lineage: get().oristudioCpLineage ?? importedCpLineage(),
-      images: get().oristudioCpImages,
+      images: get().oristudioCpAnnotations,
       extensions: get().oristudioCpDocumentExtensions,
       appVersion: APP_VERSION,
     };
@@ -1033,7 +1027,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   // otherwise returns a Promise resolving to the user's choice. Callers use the
   // `gate !== true && !(await gate)` idiom so the no-loss path never awaits.
   const guardExportLoss = (format: ExportFormat): true | Promise<boolean> => {
-    const warnings = collectExportLossWarnings(format, { images: get().oristudioCpImages });
+    const warnings = collectExportLossWarnings(format, { images: get().oristudioCpAnnotations });
     if (warnings.length === 0) return true;
     return requestConfirmation({
       title: 'Some features can’t be exported',
@@ -1307,9 +1301,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
               oristudioCpRevision: 0,
               oristudioCpFoldedFigures: [],
               oristudioCpActiveFoldedFigureId: null,
-              oristudioCpImages: [],
-              oristudioCpImageEditMode: false,
-              oristudioCpSelectedImageId: null,
+              oristudioCpAnnotations: [],
+              oristudioCpSelectedAnnotationId: null,
               oristudioCpDocumentExtensions: {},
               creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
               ...emptyFoldArtifactResourceState(),
@@ -1526,7 +1519,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
                     previousDocument,
                     String(operationId),
                     previousSelection,
-                    get().oristudioCpImages
+                    get().oristudioCpAnnotations
                   ),
                 ]
               : get().oristudioCpHistoryPast
@@ -1662,7 +1655,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           oristudioCpError: null,
           oristudioCpHistoryPast: [
             ...get().oristudioCpHistoryPast,
-            cpHistoryEntry(previousDocument, label, previousSelection, get().oristudioCpImages),
+            cpHistoryEntry(previousDocument, label, previousSelection, get().oristudioCpAnnotations),
           ],
           oristudioCpHistoryFuture: [],
           error: null,

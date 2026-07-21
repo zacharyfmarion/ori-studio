@@ -20,7 +20,6 @@ import {
   Eye,
   FlipHorizontal2,
   GitBranch,
-  Image as ImageIcon,
   ImagePlus,
   ListChecks,
   Loader2,
@@ -969,12 +968,6 @@ export function CreasePatternPanel() {
     setWebglOverlayView(view);
   }, []);
   const [spacePressed, setSpacePressed] = useState(false);
-  // Images tool: when on, the reference-image overlay is interactive (select /
-  // move / resize / rotate) and crease clicks fall through to it only over an
-  // image. Store-owned so the load transaction can set it atomically (a saved
-  // file with images opens ready to edit) — see projectSlice.
-  const imageEditMode = useWorkspaceStore((state) => state.oristudioCpImageEditMode);
-  const setImageEditMode = useWorkspaceStore((state) => state.setOristudioCpImageEditMode);
   const [cpToolState, setCpToolState] = useState(IDLE_ORISTUDIO_CP_TOOL_STATE);
   const [activeCpLineColor, setActiveCpLineColor] = useState<OristudioCpLineColor>('Red1');
   const [foldStartingFaceId, setFoldStartingFaceId] = useState(1);
@@ -1033,17 +1026,17 @@ export function CreasePatternPanel() {
   }, [oristudioCpDocument, ensureEditCreasePattern]);
   const oristudioCpCamvResult = useWorkspaceStore((state) => state.oristudioCpCamvResult);
   const oristudioCpSelection = useWorkspaceStore((state) => state.oristudioCpSelection);
-  const oristudioCpImages = useWorkspaceStore((state) => state.oristudioCpImages);
-  const oristudioCpSelectedImageId = useWorkspaceStore(
-    (state) => state.oristudioCpSelectedImageId
+  const oristudioCpAnnotations = useWorkspaceStore((state) => state.oristudioCpAnnotations);
+  const oristudioCpSelectedAnnotationId = useWorkspaceStore(
+    (state) => state.oristudioCpSelectedAnnotationId
   );
-  const addCpImage = useWorkspaceStore((state) => state.addCpImage);
-  const updateCpImage = useWorkspaceStore((state) => state.updateCpImage);
-  const removeCpImage = useWorkspaceStore((state) => state.removeCpImage);
-  const setSelectedCpImage = useWorkspaceStore((state) => state.setSelectedCpImage);
-  const recordCpImageHistory = useWorkspaceStore((state) => state.recordCpImageHistory);
+  const addAnnotation = useWorkspaceStore((state) => state.addAnnotation);
+  const updateAnnotation = useWorkspaceStore((state) => state.updateAnnotation);
+  const removeAnnotation = useWorkspaceStore((state) => state.removeAnnotation);
+  const setSelectedAnnotation = useWorkspaceStore((state) => state.setSelectedAnnotation);
+  const recordAnnotationHistory = useWorkspaceStore((state) => state.recordAnnotationHistory);
   const selectedCpImage =
-    oristudioCpImages.find((image) => image.id === oristudioCpSelectedImageId) ?? null;
+    oristudioCpAnnotations.find((image) => image.id === oristudioCpSelectedAnnotationId) ?? null;
   // Viewport-space anchor for the selected image's floating inspector. Measured
   // in a layout effect (the container's screen offset requires a ref read, which
   // isn't allowed during render) and refreshed as the camera or image changes.
@@ -1065,15 +1058,15 @@ export function CreasePatternPanel() {
   const preGestureImagesRef = useRef<readonly CpImage[] | null>(null);
   const imageFileInputRef = useRef<HTMLInputElement | null>(null);
   const beginImageGesture = useCallback(() => {
-    preGestureImagesRef.current = useWorkspaceStore.getState().oristudioCpImages;
+    preGestureImagesRef.current = useWorkspaceStore.getState().oristudioCpAnnotations;
   }, []);
   const commitImageGesture = useCallback(
     (label: string) => {
       const previous = preGestureImagesRef.current;
       preGestureImagesRef.current = null;
-      if (previous) recordCpImageHistory([...previous], label);
+      if (previous) recordAnnotationHistory([...previous], label);
     },
-    [recordCpImageHistory]
+    [recordAnnotationHistory]
   );
 
   // Import an image file and add it as a reference image, placed at the given
@@ -1103,9 +1096,9 @@ export function CreasePatternPanel() {
           source.naturalHeight,
           targetExtent
         );
-        const images = useWorkspaceStore.getState().oristudioCpImages;
+        const images = useWorkspaceStore.getState().oristudioCpAnnotations;
         const topZ = images.reduce((max, image) => Math.max(max, image.z), 0);
-        addCpImage(
+        addAnnotation(
           createCpImage({
             src: source.src,
             naturalWidth: source.naturalWidth,
@@ -1116,13 +1109,12 @@ export function CreasePatternPanel() {
             z: topZ + 1,
           })
         );
-        recordCpImageHistory([...images], t('panels:creasePattern.addImage', 'Add image'));
-        setImageEditMode(true);
+        recordAnnotationHistory([...images], t('panels:creasePattern.addImage', 'Add image'));
       } catch (error) {
         console.error('[cp-image] failed to import image', error);
       }
     },
-    [addCpImage, recordCpImageHistory, setImageEditMode, webglOverlayView, t]
+    [addAnnotation, recordAnnotationHistory, webglOverlayView, t]
   );
 
   const handleViewportDragOver = useCallback((event: ReactDragEvent<HTMLDivElement>) => {
@@ -1144,46 +1136,29 @@ export function CreasePatternPanel() {
 
   // Image-layer edits driven by the inspector: each records one undo entry.
   const bringSelectedImageToFront = useCallback(() => {
-    if (!oristudioCpSelectedImageId) return;
-    const images = useWorkspaceStore.getState().oristudioCpImages;
+    if (!oristudioCpSelectedAnnotationId) return;
+    const images = useWorkspaceStore.getState().oristudioCpAnnotations;
     const maxZ = images.reduce((max, image) => Math.max(max, image.z), 0);
     beginImageGesture();
-    updateCpImage(oristudioCpSelectedImageId, { z: maxZ + 1 });
+    updateAnnotation(oristudioCpSelectedAnnotationId, { z: maxZ + 1 });
     commitImageGesture(t('panels:creasePattern.bringImageToFront', 'Bring image to front'));
-  }, [oristudioCpSelectedImageId, updateCpImage, beginImageGesture, commitImageGesture, t]);
+  }, [oristudioCpSelectedAnnotationId, updateAnnotation, beginImageGesture, commitImageGesture, t]);
 
   const sendSelectedImageToBack = useCallback(() => {
-    if (!oristudioCpSelectedImageId) return;
-    const images = useWorkspaceStore.getState().oristudioCpImages;
+    if (!oristudioCpSelectedAnnotationId) return;
+    const images = useWorkspaceStore.getState().oristudioCpAnnotations;
     const minZ = images.reduce((min, image) => Math.min(min, image.z), 0);
     beginImageGesture();
-    updateCpImage(oristudioCpSelectedImageId, { z: minZ - 1 });
+    updateAnnotation(oristudioCpSelectedAnnotationId, { z: minZ - 1 });
     commitImageGesture(t('panels:creasePattern.sendImageToBack', 'Send image to back'));
-  }, [oristudioCpSelectedImageId, updateCpImage, beginImageGesture, commitImageGesture, t]);
+  }, [oristudioCpSelectedAnnotationId, updateAnnotation, beginImageGesture, commitImageGesture, t]);
 
   const deleteSelectedImage = useCallback(() => {
-    if (!oristudioCpSelectedImageId) return;
+    if (!oristudioCpSelectedAnnotationId) return;
     beginImageGesture();
-    removeCpImage(oristudioCpSelectedImageId);
+    removeAnnotation(oristudioCpSelectedAnnotationId);
     commitImageGesture(t('panels:creasePattern.deleteImage', 'Delete image'));
-  }, [oristudioCpSelectedImageId, removeCpImage, beginImageGesture, commitImageGesture, t]);
-
-  // Delete/Backspace removes the selected image while the Images tool is active.
-  // Ignored when typing in a field so it never eats text edits.
-  useEffect(() => {
-    if (!imageEditMode || !oristudioCpSelectedImageId) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Delete' && event.key !== 'Backspace') return;
-      const target = event.target as HTMLElement | null;
-      if (target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) {
-        return;
-      }
-      event.preventDefault();
-      deleteSelectedImage();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [imageEditMode, oristudioCpSelectedImageId, deleteSelectedImage]);
+  }, [oristudioCpSelectedAnnotationId, removeAnnotation, beginImageGesture, commitImageGesture, t]);
 
   const oristudioCpActionRequest = useWorkspaceStore((state) => state.oristudioCpActionRequest);
   const oristudioCpFoldedFigures = useWorkspaceStore((state) => state.oristudioCpFoldedFigures);
@@ -1601,6 +1576,28 @@ export function CreasePatternPanel() {
     },
     [activeCpAction, cpToolState.activeOperationId]
   );
+  // Annotations (images, text) select/drag/resize directly — no dedicated tool.
+  // They are interactive whenever the active tool isn't mid-draw, or explicitly
+  // allows direct entity selection; a drawing tool keeps its clicks on the canvas.
+  const annotationsInteractive =
+    cpToolState.phase !== 'active' || allowsDirectEntitySelection(activeCpCommand?.operationId);
+
+  // Delete/Backspace removes the selected annotation. Only while annotations are
+  // interactive, and ignored when typing in a field so it never eats text edits.
+  useEffect(() => {
+    if (!annotationsInteractive || !oristudioCpSelectedAnnotationId) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Delete' && event.key !== 'Backspace') return;
+      const target = event.target as HTMLElement | null;
+      if (target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) {
+        return;
+      }
+      event.preventDefault();
+      deleteSelectedImage();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [annotationsInteractive, oristudioCpSelectedAnnotationId, deleteSelectedImage]);
   const squareBisectorToolPrompt =
     isSquareBisectorOperation(activeCpCommand?.operationId) &&
     cpToolState.phase === 'active' &&
@@ -1769,7 +1766,7 @@ export function CreasePatternPanel() {
       // Picking a crease/geometry tool deselects the active reference image, so
       // its handles don't linger over the canvas while another tool is active.
       // (Image-layer interactivity itself is left untouched.)
-      setSelectedCpImage(null);
+      setSelectedAnnotation(null);
 
       const command = action.command;
       setCpToolPoints([]);
@@ -1822,7 +1819,7 @@ export function CreasePatternPanel() {
       editableCp,
       executeOristudioCpCommand,
       oristudioCpSelection.lines,
-      setSelectedCpImage,
+      setSelectedAnnotation,
       t,
     ]
   );
@@ -3099,7 +3096,7 @@ export function CreasePatternPanel() {
                   className="cp-webgl-layer"
                   lineSegments={editableCp.crease_pattern.line_segments}
                   geometry={oristudioCpDocument?.geometry ?? null}
-                  images={oristudioCpImages}
+                  images={oristudioCpAnnotations}
                   modelToSvg={editableModelToSvg}
                   svgToModel={editableSvgToModel}
                   selectedLineIds={oristudioCpSelection.lines}
@@ -3108,10 +3105,11 @@ export function CreasePatternPanel() {
                   onSelect={(hit, additive) => {
                     if (!hit) {
                       if (!additive) clearOristudioCpSelection();
-                      // A click on empty canvas also deselects the active image
-                      // (mirrors how creases clear on a background click). An image
-                      // click is captured by its overlay and never reaches here.
-                      if (imageEditMode) setSelectedCpImage(null);
+                      // A click on empty canvas also deselects the active
+                      // annotation (mirrors how creases clear on a background
+                      // click). An annotation click is captured by its overlay and
+                      // never reaches here.
+                      setSelectedAnnotation(null);
                       return;
                     }
                     if (hit.kind === 'line') handleEditableLineClick(hit.id, additive);
@@ -3230,23 +3228,23 @@ export function CreasePatternPanel() {
                       onDeselect={clearOristudioCpSelection}
                     />
                   )}
-                {webglOverlayView && oristudioCpImages.length > 0 && (
+                {webglOverlayView && oristudioCpAnnotations.length > 0 && (
                   <CpImageOverlay
-                    images={oristudioCpImages}
-                    selectedImageId={oristudioCpSelectedImageId}
+                    images={oristudioCpAnnotations}
+                    selectedImageId={oristudioCpSelectedAnnotationId}
                     view={webglOverlayView}
-                    interactive={imageEditMode}
-                    onSelectImage={setSelectedCpImage}
-                    onUpdateImage={updateCpImage}
+                    interactive={annotationsInteractive}
+                    onSelectImage={setSelectedAnnotation}
+                    onUpdateImage={updateAnnotation}
                     onGestureStart={beginImageGesture}
                     onGestureCommit={(_id, label) => commitImageGesture(label)}
                   />
                 )}
-                {imageEditMode && selectedCpImage && (
+                {annotationsInteractive && selectedCpImage && (
                   <CpImageInspector
                     image={selectedCpImage}
                     anchorRect={imageInspectorAnchor}
-                    onUpdate={(patch) => updateCpImage(selectedCpImage.id, patch)}
+                    onUpdate={(patch) => updateAnnotation(selectedCpImage.id, patch)}
                     onGestureStart={beginImageGesture}
                     onGestureCommit={commitImageGesture}
                     onBringToFront={bringSelectedImageToFront}
@@ -3277,16 +3275,6 @@ export function CreasePatternPanel() {
                       shortcutOverrides={shortcutOverrides}
                     />
                     <ViewportToolbarSeparator />
-                    <IconButton
-                      size="sm"
-                      variant="toolbar"
-                      title={imageEditMode ? t('panels:creasePattern.editingImagesClickToExit', 'Editing images (click to exit)') : t('panels:creasePattern.editImages', 'Edit images')}
-                      aria-pressed={imageEditMode}
-                      data-active={imageEditMode || undefined}
-                      onClick={() => setImageEditMode(!imageEditMode)}
-                    >
-                      <ImageIcon size={14} />
-                    </IconButton>
                     <IconButton
                       size="sm"
                       variant="toolbar"

@@ -1697,6 +1697,7 @@ describe('workspace store slices', () => {
     loadSnapshotIntoStore(seedSnapshot());
     const document = blankCpDocumentState().document;
     const image = {
+      kind: 'image' as const,
       id: 'image-load-1',
       src: 'data:image/png;base64,AAAA',
       naturalWidth: 100,
@@ -1739,11 +1740,8 @@ describe('workspace store slices', () => {
 
     await expect(useWorkspaceStore.getState().openProject(fileService)).resolves.toBe(true);
 
-    expect(useWorkspaceStore.getState().oristudioCpImages).toEqual([image]);
-    expect(useWorkspaceStore.getState().oristudioCpSelectedImageId).toBeNull();
-    // The load transaction enters Images edit mode so the file's images are
-    // immediately editable (set atomically with the images, not via an effect).
-    expect(useWorkspaceStore.getState().oristudioCpImageEditMode).toBe(true);
+    expect(useWorkspaceStore.getState().oristudioCpAnnotations).toEqual([image]);
+    expect(useWorkspaceStore.getState().oristudioCpSelectedAnnotationId).toBeNull();
   });
 
   it('loads CP-only documents and gates tree-only persistence', async () => {

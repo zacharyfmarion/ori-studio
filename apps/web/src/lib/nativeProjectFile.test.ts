@@ -433,6 +433,7 @@ describe('native project file', () => {
 
   it('round-trips crease-pattern reference images (superset feature)', () => {
     const image = {
+      kind: 'image' as const,
       id: 'image-1',
       src: 'data:image/png;base64,AAAA',
       naturalWidth: 800,
