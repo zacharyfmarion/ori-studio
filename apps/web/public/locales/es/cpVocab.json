@@ -1,0 +1,1578 @@
+{
+  "group": {
+    "line_type": {
+      "label": "Tipo de línea",
+      "railLabel": "Tipo"
+    },
+    "select_edit": {
+      "label": "Seleccionar y editar",
+      "railLabel": "Selección"
+    },
+    "draw": {
+      "label": "Dibujar pliegues y puntos",
+      "railLabel": "Dibujar"
+    },
+    "edit": {
+      "label": "Eliminar",
+      "railLabel": "Eliminar"
+    },
+    "construct": {
+      "label": "Construir por geometría",
+      "railLabel": "Construir"
+    },
+    "transform": {
+      "label": "Transformar y marco de operación",
+      "railLabel": "Transformar"
+    },
+    "color": {
+      "label": "Color y asignación",
+      "railLabel": "Color"
+    },
+    "annotations": {
+      "label": "Círculos, texto y anotaciones",
+      "railLabel": "Anotar"
+    },
+    "generators": {
+      "label": "Generadores y moléculas base",
+      "railLabel": "Generar"
+    },
+    "measure": {
+      "label": "Medir",
+      "railLabel": "Medir"
+    },
+    "check_fix": {
+      "label": "Comprobar y corregir",
+      "railLabel": "Comprobar"
+    },
+    "folding": {
+      "label": "Estimación de plegado y figura plegada",
+      "railLabel": "Plegar"
+    },
+    "file": {
+      "label": "Importar/exportar archivos",
+      "railLabel": "Archivo"
+    }
+  },
+  "action": {
+    "cp_action_line_type_mountain": {
+      "label": "Monte",
+      "railLabel": "M",
+      "tooltip": "Establecer el tipo de línea activo en monte",
+      "disabledReason": "Listo"
+    },
+    "cp_action_line_type_valley": {
+      "label": "Valle",
+      "railLabel": "V",
+      "tooltip": "Establecer el tipo de línea activo en valle",
+      "disabledReason": "Listo"
+    },
+    "cp_action_line_type_edge": {
+      "label": "Borde",
+      "railLabel": "E",
+      "tooltip": "Establecer el tipo de línea activo en borde",
+      "disabledReason": "Listo"
+    },
+    "cp_action_line_type_unassigned": {
+      "label": "Sin asignar",
+      "railLabel": "U",
+      "tooltip": "Establecer el tipo de línea activo en sin asignar",
+      "disabledReason": "Listo"
+    },
+    "cp_action_line_type_auxiliary": {
+      "label": "Auxiliar",
+      "railLabel": "A",
+      "tooltip": "Establecer el tipo de línea activo en auxiliar",
+      "disabledReason": "Listo"
+    },
+    "cp_action_draw_crease": {
+      "label": "Línea",
+      "tooltip": "Arrastra un pliegue con el tipo de línea actual",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Arrastra el extremo del pliegue"
+      }
+    },
+    "cp_action_move_crease_pattern": {
+      "label": "Desplazar el visor",
+      "tooltip": "Cubierto por los controles de desplazamiento del visor de CP ya integrados",
+      "disabledReason": "Gestionado por el entorno de ejecución del visor en lugar de un comando de CP"
+    },
+    "cp_action_line_segment_delete": {
+      "label": "Borrador",
+      "tooltip": "Haz clic en un pliegue o arrastra un recuadro para borrar pliegues",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Haz clic en un pliegue o arrastra un recuadro para borrar"
+      }
+    },
+    "cp_action_change_crease_type": {
+      "label": "Cambiar tipo de pliegue",
+      "tooltip": "Avanzar las líneas de plegado seleccionadas por borde, monte y valle",
+      "disabledReason": "Listo"
+    },
+    "cp_action_lengthen_crease": {
+      "label": "Extender línea",
+      "tooltip": "Extender los pliegues cruzados por la línea guía hasta el pliegue objetivo",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Selecciona la línea a extender",
+        "1": "Selecciona la línea objetivo"
+      }
+    },
+    "cp_action_square_bisector": {
+      "label": "Bisectriz de ángulo",
+      "tooltip": "Bisectriz cuadrada",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Selecciona 2 segmentos o 3 puntos",
+        "1": "Selecciona 3 puntos",
+        "2": "Selecciona 3 puntos",
+        "3": "Selecciona el segmento para terminar"
+      }
+    },
+    "cp_action_inward": {
+      "label": "Oreja de conejo",
+      "tooltip": "Línea de plegado hacia dentro",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el primer punto del triángulo",
+        "1": "Elige el segundo punto del triángulo",
+        "2": "Elige el tercer punto del triángulo"
+      }
+    },
+    "cp_action_perpendicular_draw": {
+      "label": "Línea perpendicular",
+      "tooltip": "Dibujo perpendicular",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el punto objetivo",
+        "1": "Elige el pliegue base"
+      }
+    },
+    "cp_action_symmetric_draw": {
+      "label": "Línea de espejo",
+      "tooltip": "Dibujo simétrico",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el pliegue de origen",
+        "1": "Elige el pliegue de espejo"
+      }
+    },
+    "cp_action_draw_crease_restricted": {
+      "label": "Línea restringida a la cuadrícula",
+      "tooltip": "Dibujar pliegue restringido",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Arrastra entre puntos existentes"
+      }
+    },
+    "cp_action_draw_crease_symmetric": {
+      "label": "Reflejar la selección sobre una línea",
+      "tooltip": "Reflejar los pliegues seleccionados sobre una línea trazada con dos puntos",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Selecciona 2 puntos o selecciona una línea",
+        "1": "Elige el extremo de la línea de reflexión"
+      }
+    },
+    "cp_action_draw_crease_angle_restricted": {
+      "label": "Líneas convergentes",
+      "tooltip": "Pliegue restringido por ángulo",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el pliegue base o el primer punto",
+        "1": "Elige el punto final de la base",
+        "2": "Elige el punto de convergencia"
+      }
+    },
+    "cp_action_draw_point": {
+      "label": "Dibujar punto",
+      "tooltip": "Dibujar punto",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el punto"
+      }
+    },
+    "cp_action_delete_point": {
+      "label": "Eliminar punto",
+      "tooltip": "Fusionar los pliegues del mismo color que se encuentran en el vértice elegido",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el vértice"
+      }
+    },
+    "cp_action_angle_system": {
+      "label": "Línea restringida con desplazamiento",
+      "tooltip": "Sistema de ángulos",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el punto inicial del ángulo",
+        "1": "Elige el punto final del ángulo",
+        "2": "Elige el pliegue de destino"
+      }
+    },
+    "cp_action_draw_crease_angle_restricted3": {
+      "label": "Pliegue restringido por ángulo 3",
+      "tooltip": "Pliegue restringido por ángulo 3",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el punto inicial del abanico",
+        "1": "Elige el punto final del abanico",
+        "2": "Elige el candidato de ángulo"
+      }
+    },
+    "cp_action_crease_select": {
+      "label": "Selección por recuadro",
+      "tooltip": "Seleccionar los pliegues dentro de un recuadro arrastrado",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Arrastra el recuadro de selección"
+      }
+    },
+    "cp_action_crease_unselect": {
+      "label": "Deselección por recuadro",
+      "tooltip": "Deseleccionar los pliegues dentro de un recuadro arrastrado",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Arrastra el recuadro de selección"
+      }
+    },
+    "cp_action_crease_move": {
+      "label": "Mover los pliegues seleccionados",
+      "tooltip": "Mover los pliegues seleccionados",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el punto de origen",
+        "1": "Elige el punto de destino"
+      }
+    },
+    "cp_action_crease_copy": {
+      "label": "Copiar los pliegues seleccionados",
+      "tooltip": "Copiar los pliegues seleccionados",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el punto de origen",
+        "1": "Elige el punto de destino"
+      }
+    },
+    "cp_action_crease_make_mountain": {
+      "label": "Marcar como monte",
+      "tooltip": "Convertir las líneas seleccionadas en pliegues de monte",
+      "disabledReason": "Listo"
+    },
+    "cp_action_crease_make_valley": {
+      "label": "Marcar como valle",
+      "tooltip": "Convertir las líneas seleccionadas en pliegues de valle",
+      "disabledReason": "Listo"
+    },
+    "cp_action_crease_make_edge": {
+      "label": "Marcar como borde",
+      "tooltip": "Convertir las líneas seleccionadas en pliegues de borde",
+      "disabledReason": "Listo"
+    },
+    "cp_action_crease_set_line_color": {
+      "label": "Establecer el color de las líneas seleccionadas",
+      "tooltip": "Aplicar el color de línea activo a las líneas seleccionadas",
+      "disabledReason": "Listo"
+    },
+    "cp_action_background_change_position": {
+      "label": "Mover fondo",
+      "tooltip": "La manipulación de la imagen de fondo es solo de la interfaz y no forma parte del núcleo de CP",
+      "disabledReason": "Gestionado por el entorno de ejecución del visor en lugar de un comando de CP"
+    },
+    "cp_action_line_segment_division": {
+      "label": "Línea dividida en partes iguales",
+      "tooltip": "Dividir la línea por cantidad",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Arrastra para trazar una línea que dividir"
+      }
+    },
+    "cp_action_line_segment_ratio_set": {
+      "label": "Línea dividida (proporción)",
+      "tooltip": "Dividir la línea por proporción",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Arrastra para trazar una línea que dividir"
+      }
+    },
+    "cp_action_polygon_set_no_corners": {
+      "label": "Polígono regular",
+      "tooltip": "Polígono regular",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el primer vértice",
+        "1": "Elige el segundo vértice"
+      }
+    },
+    "cp_action_crease_advance_type": {
+      "label": "Avanzar tipo de pliegue",
+      "tooltip": "Avanzar las líneas de plegado seleccionadas por borde, monte y valle",
+      "disabledReason": "Listo"
+    },
+    "cp_action_crease_move4p": {
+      "label": "Mover con cuatro puntos",
+      "tooltip": "Mover con cuatro puntos",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el primer punto de origen",
+        "1": "Elige el segundo punto de origen",
+        "2": "Elige el primer punto de destino",
+        "3": "Elige el segundo punto de destino"
+      }
+    },
+    "cp_action_crease_copy4p": {
+      "label": "Copiar con cuatro puntos",
+      "tooltip": "Copiar con cuatro puntos",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el primer punto de origen",
+        "1": "Elige el segundo punto de origen",
+        "2": "Elige el primer punto de destino",
+        "3": "Elige el segundo punto de destino"
+      }
+    },
+    "cp_action_fish_bone_draw": {
+      "label": "Líneas alternas paralelas",
+      "tooltip": "Dibujo en espina de pez",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el punto inicial del eje",
+        "1": "Elige el punto final del eje"
+      }
+    },
+    "cp_action_crease_make_mv": {
+      "label": "Alternar M/V",
+      "tooltip": "Asignar pliegues de monte y valle alternos a lo largo de una línea guía",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Arrastra una línea guía a lo largo de los pliegues"
+      }
+    },
+    "cp_action_double_symmetric_draw": {
+      "label": "Reflejar sobre línea",
+      "tooltip": "Dibujo doble simétrico",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el inicio del eje de simetría",
+        "1": "Elige el final del eje de simetría"
+      }
+    },
+    "cp_action_creases_alternate_mv": {
+      "label": "Alternar M/V en cruces",
+      "tooltip": "Asignar pliegues de monte y valle alternos a los cruces a lo largo de una línea guía",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Arrastra una línea guía a través de los cruces"
+      }
+    },
+    "cp_action_draw_crease_angle_restricted5": {
+      "label": "Línea restringida por ángulo",
+      "tooltip": "Pliegue restringido por ángulo 5",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el punto de anclaje",
+        "1": "Elige el extremo ajustado"
+      }
+    },
+    "cp_action_vertex_make_angularly_flat_foldable": {
+      "label": "Línea plegable plana",
+      "tooltip": "Hacer el vértice plegable plano",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el vértice impar",
+        "1": "Elige la línea candidata",
+        "2": "Elige el pliegue de destino"
+      }
+    },
+    "cp_action_foldable_line_input": {
+      "label": "Línea plegable plana (extender)",
+      "tooltip": "Entrada de línea plegable",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el vértice inicial",
+        "1": "Elige el extremo"
+      }
+    },
+    "cp_action_parallel_draw": {
+      "label": "Línea paralela",
+      "tooltip": "Dibujo paralelo",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el punto objetivo",
+        "1": "Elige el pliegue de origen paralelo",
+        "2": "Elige el pliegue de destino"
+      }
+    },
+    "cp_action_vertex_delete_on_crease": {
+      "label": "Eliminar cualquier vértice",
+      "tooltip": "Fusionar los pliegues adyacentes en un vértice con las reglas de cambio de color de Oriedita",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el vértice"
+      }
+    },
+    "cp_action_circle_draw": {
+      "label": "Dibujar círculo",
+      "tooltip": "Dibujar círculo",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el punto central",
+        "1": "Elige el punto del radio"
+      }
+    },
+    "cp_action_circle_draw_three_point": {
+      "label": "Círculo por tres puntos",
+      "tooltip": "Círculo por tres puntos",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el primer punto",
+        "1": "Elige el segundo punto",
+        "2": "Elige el tercer punto"
+      }
+    },
+    "cp_action_circle_draw_separate": {
+      "label": "Círculo separado",
+      "tooltip": "Círculo separado",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el punto central",
+        "1": "Elige el inicio del radio",
+        "2": "Elige el final del radio"
+      }
+    },
+    "cp_action_circle_draw_tangent_line": {
+      "label": "Línea tangente al círculo",
+      "tooltip": "Crear líneas tangentes a partir de dos círculos seleccionados, o de un círculo seleccionado más un punto marcado",
+      "disabledReason": "Listo"
+    },
+    "cp_action_circle_draw_inverted": {
+      "label": "Círculo invertido",
+      "tooltip": "Invertir un círculo o pliegue seleccionado a través de un círculo seleccionado",
+      "disabledReason": "Listo"
+    },
+    "cp_action_circle_draw_free": {
+      "label": "Círculo libre",
+      "tooltip": "Círculo libre",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el punto central",
+        "1": "Elige el punto del radio"
+      }
+    },
+    "cp_action_circle_draw_concentric": {
+      "label": "Círculo concéntrico",
+      "tooltip": "Círculo concéntrico",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el inicio del radio",
+        "1": "Elige el final del radio"
+      }
+    },
+    "cp_action_circle_draw_concentric_select": {
+      "label": "Concéntrico desde la selección",
+      "tooltip": "Crear un círculo concéntrico a partir de un círculo objetivo y los radios de dos círculos de referencia",
+      "disabledReason": "Listo"
+    },
+    "cp_action_circle_draw_concentric_two_circle_select": {
+      "label": "Concéntrico desde dos círculos",
+      "tooltip": "Crear los dos círculos concéntricos desplazados de Oriedita a partir de los círculos seleccionados",
+      "disabledReason": "Listo"
+    },
+    "cp_action_parallel_draw_width": {
+      "label": "Dibujo paralelo por ancho",
+      "tooltip": "Dibujo paralelo por ancho",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el pliegue de origen",
+        "1": "Elige el punto de ancho"
+      }
+    },
+    "cp_action_continuous_symmetric_draw": {
+      "label": "Reflejar a través de líneas",
+      "tooltip": "Dibujo simétrico continuo",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el punto inicial",
+        "1": "Elige el punto de paso"
+      }
+    },
+    "cp_action_display_length_between_points1": {
+      "label": "Medir longitud 1",
+      "tooltip": "Medir longitud 1",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el primer punto",
+        "1": "Elige el segundo punto"
+      }
+    },
+    "cp_action_display_length_between_points2": {
+      "label": "Medir longitud 2",
+      "tooltip": "Medir longitud 2",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el primer punto",
+        "1": "Elige el segundo punto"
+      }
+    },
+    "cp_action_display_angle_between_three_points1": {
+      "label": "Medir ángulo 1",
+      "tooltip": "Medir ángulo 1",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el primer punto",
+        "1": "Elige el punto del vértice",
+        "2": "Elige el segundo punto"
+      }
+    },
+    "cp_action_display_angle_between_three_points2": {
+      "label": "Medir ángulo 2",
+      "tooltip": "Medir ángulo 2",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el primer punto",
+        "1": "Elige el punto del vértice",
+        "2": "Elige el segundo punto"
+      }
+    },
+    "cp_action_display_angle_between_three_points3": {
+      "label": "Medir ángulo 3",
+      "tooltip": "Medir ángulo 3",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el primer punto",
+        "1": "Elige el punto del vértice",
+        "2": "Elige el segundo punto"
+      }
+    },
+    "cp_action_crease_toggle_mv": {
+      "label": "Alternar monte/valle",
+      "tooltip": "Haz clic en un pliegue o arrastra un recuadro para invertir las asignaciones de monte/valle",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Haz clic en un pliegue o arrastra un recuadro para invertir"
+      }
+    },
+    "cp_action_circle_change_color": {
+      "label": "Cambiar color del círculo",
+      "tooltip": "Aplicar el color personalizado contextual a los círculos y líneas auxiliares seleccionados",
+      "disabledReason": "Listo"
+    },
+    "cp_action_crease_make_aux": {
+      "label": "Marcar como auxiliar",
+      "tooltip": "Convertir las líneas de plegado seleccionadas en líneas auxiliares",
+      "disabledReason": "Listo"
+    },
+    "cp_action_operation_frame_create": {
+      "label": "Marco de operación",
+      "tooltip": "Crear un marco de operación de Oriedita arrastrando un rectángulo sobre el CP",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Arrastra el marco de operación"
+      }
+    },
+    "cp_action_voronoi_create": {
+      "label": "Voronoi",
+      "tooltip": "Haz clic en los puntos semilla para previsualizar un diagrama de Voronoi y luego aplícalo desde el panel contextual",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Haz clic en el punto semilla"
+      }
+    },
+    "cp_action_flat_foldable_check": {
+      "label": "Comprobación de contorno plegable plano",
+      "tooltip": "Traza un bucle de contorno cerrado de Oriedita y colorea el resultado de la comprobación",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Traza un bucle de contorno cerrado"
+      }
+    },
+    "cp_action_crease_delete_overlapping": {
+      "label": "Eliminar líneas coincidentes",
+      "tooltip": "Eliminar los segmentos de pliegue que se solapan con una línea arrastrada",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el punto inicial del arrastre",
+        "1": "Elige el punto final del arrastre"
+      }
+    },
+    "cp_action_crease_delete_intersecting": {
+      "label": "Eliminar líneas solapadas",
+      "tooltip": "Eliminar los segmentos de pliegue que se cruzan o solapan con una línea arrastrada",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el punto inicial del arrastre",
+        "1": "Elige el punto final del arrastre"
+      }
+    },
+    "cp_action_select_polygon": {
+      "label": "Selección por polígono",
+      "tooltip": "Seleccionar los pliegues contenidos por un polígono a mano alzada",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Arrastra el trazado del polígono"
+      }
+    },
+    "cp_action_unselect_polygon": {
+      "label": "Deselección por polígono",
+      "tooltip": "Deseleccionar los pliegues contenidos por un polígono a mano alzada",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Arrastra el trazado del polígono"
+      }
+    },
+    "cp_action_select_line_intersecting": {
+      "label": "Seleccionar líneas solapadas",
+      "tooltip": "Seleccionar los segmentos de pliegue que se cruzan o solapan con una línea arrastrada",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el punto inicial del arrastre",
+        "1": "Elige el punto final del arrastre"
+      }
+    },
+    "cp_action_unselect_line_intersecting": {
+      "label": "Deseleccionar líneas solapadas",
+      "tooltip": "Deseleccionar los segmentos de pliegue que se cruzan o solapan con una línea arrastrada",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el punto inicial del arrastre",
+        "1": "Elige el punto final del arrastre"
+      }
+    },
+    "cp_action_lengthen_crease_same_color": {
+      "label": "Extender por mismo color",
+      "tooltip": "Extender los pliegues cruzados por la línea guía conservando los colores originales",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Selecciona la línea a extender",
+        "1": "Selecciona la línea objetivo"
+      }
+    },
+    "cp_action_foldable_line_draw": {
+      "label": "Línea plegable plana (libre)",
+      "tooltip": "Dibujo de línea plegable",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el vértice inicial",
+        "1": "Elige el destino"
+      }
+    },
+    "cp_action_replace_line_type_select": {
+      "label": "Reemplazar tipo de línea seleccionado",
+      "tooltip": "Reemplazar las líneas seleccionadas que coinciden con el tipo de línea de origen activo",
+      "disabledReason": "Listo"
+    },
+    "cp_action_delete_line_type_select": {
+      "label": "Eliminar tipo de línea seleccionado",
+      "tooltip": "Eliminar las líneas seleccionadas que coinciden con el filtro de tipo de línea activo",
+      "disabledReason": "Listo"
+    },
+    "cp_action_select_lasso": {
+      "label": "Selección con lazo",
+      "tooltip": "Seleccionar los pliegues tocados por un trazado de lazo a mano alzada",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Arrastra el trazado del lazo"
+      }
+    },
+    "cp_action_unselect_lasso": {
+      "label": "Deselección con lazo",
+      "tooltip": "Deseleccionar los pliegues tocados por un trazado de lazo a mano alzada",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Arrastra el trazado del lazo"
+      }
+    },
+    "cp_action_text": {
+      "label": "Anotación de texto",
+      "tooltip": "Crear, seleccionar, arrastrar y editar anotaciones de texto",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Haz clic en la posición del texto"
+      }
+    },
+    "cp_action_draw_blintz": {
+      "label": "Base blintz",
+      "tooltip": "Base blintz",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el primer punto de anclaje",
+        "1": "Elige el segundo punto de anclaje"
+      }
+    },
+    "cp_action_draw_fish_base": {
+      "label": "Base de pez",
+      "tooltip": "Base de pez",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el primer punto de anclaje",
+        "1": "Elige el segundo punto de anclaje"
+      }
+    },
+    "cp_action_draw_dove_base": {
+      "label": "Base de paloma",
+      "tooltip": "Base de paloma",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el primer punto de anclaje",
+        "1": "Elige el segundo punto de anclaje"
+      }
+    },
+    "cp_action_draw_bird_base": {
+      "label": "Base de pájaro",
+      "tooltip": "Base de pájaro",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el primer punto de anclaje",
+        "1": "Elige el segundo punto de anclaje"
+      }
+    },
+    "cp_action_draw_frog_base": {
+      "label": "Base de rana",
+      "tooltip": "Base de rana",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el primer punto de anclaje",
+        "1": "Elige el segundo punto de anclaje"
+      }
+    },
+    "cp_action_modify_calculated_shape": {
+      "label": "Modificar forma calculada",
+      "tooltip": "Modificar forma calculada",
+      "disabledReason": "Aún no implementado en el editor de CP"
+    },
+    "cp_action_move_calculated_shape": {
+      "label": "Mover forma calculada",
+      "tooltip": "Mover forma calculada",
+      "disabledReason": "Aún no implementado en el editor de CP"
+    },
+    "cp_action_change_standard_face": {
+      "label": "Cambiar cara estándar",
+      "tooltip": "Cambiar cara estándar",
+      "disabledReason": "Aún no implementado en el editor de CP"
+    },
+    "cp_action_add_folding_constraint": {
+      "label": "Añadir restricción de plegado",
+      "tooltip": "Añadir restricción de plegado",
+      "disabledReason": "Aún no implementado en el editor de CP"
+    },
+    "cp_action_axiom5": {
+      "label": "Axioma 5",
+      "tooltip": "Axioma 5",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el punto objetivo",
+        "1": "Elige el pliegue objetivo",
+        "2": "Elige el punto de pivote",
+        "3": "Elige el pliegue de destino"
+      }
+    },
+    "cp_action_axiom7": {
+      "label": "Axioma 7",
+      "tooltip": "Axioma 7",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el punto objetivo",
+        "1": "Elige el pliegue objetivo",
+        "2": "Elige el pliegue perpendicular",
+        "3": "Elige el pliegue de destino"
+      }
+    },
+    "cp_action_fix_inaccurate": {
+      "label": "Corregir pliegues imprecisos",
+      "tooltip": "Ajustar las líneas de plegado imprecisas seleccionadas a los objetivos de corrección de Oriedita",
+      "disabledReason": "Listo"
+    },
+    "cp_action_import_cp": {
+      "label": "Importar CP",
+      "tooltip": "Importar CP",
+      "disabledReason": "Aún no implementado en el editor de CP"
+    },
+    "cp_action_export_cp": {
+      "label": "Exportar CP",
+      "tooltip": "Exportar CP",
+      "disabledReason": "Aún no implementado en el editor de CP"
+    },
+    "cp_action_import_fold": {
+      "label": "Importar FOLD",
+      "tooltip": "Importar FOLD",
+      "disabledReason": "Aún no implementado en el editor de CP"
+    },
+    "cp_action_export_fold": {
+      "label": "Exportar FOLD",
+      "tooltip": "Exportar FOLD",
+      "disabledReason": "Aún no implementado en el editor de CP"
+    },
+    "cp_action_import_ori": {
+      "label": "Importar ORI",
+      "tooltip": "Importar ORI",
+      "disabledReason": "Aún no implementado en el editor de CP"
+    },
+    "cp_action_export_ori": {
+      "label": "Exportar ORI",
+      "tooltip": "Exportar ORI",
+      "disabledReason": "Aún no implementado en el editor de CP"
+    },
+    "cp_action_import_orh": {
+      "label": "Importar ORH",
+      "tooltip": "Importar ORH",
+      "disabledReason": "Aún no implementado en el editor de CP"
+    },
+    "cp_action_export_orh": {
+      "label": "Exportar ORH",
+      "tooltip": "Exportar ORH",
+      "disabledReason": "Aún no implementado en el editor de CP"
+    },
+    "cp_action_import_obj": {
+      "label": "Importar OBJ",
+      "tooltip": "Importar OBJ",
+      "disabledReason": "Aún no implementado en el editor de CP"
+    },
+    "cp_action_export_dxf": {
+      "label": "Exportar DXF",
+      "tooltip": "Exportar DXF",
+      "disabledReason": "Aún no implementado en el editor de CP"
+    },
+    "cp_action_save_convert": {
+      "label": "Convertir guardado",
+      "tooltip": "Convertir guardado",
+      "disabledReason": "Aún no implementado en el editor de CP"
+    },
+    "cp_action_save_version_detect": {
+      "label": "Detectar versión de guardado",
+      "tooltip": "Detectar versión de guardado",
+      "disabledReason": "Aún no implementado en el editor de CP"
+    },
+    "cp_action_check_camv": {
+      "label": "Comprobar CAMV",
+      "tooltip": "Ejecutar los diagnósticos de plegabilidad plana CAMV de Oriedita sin modificar el CP",
+      "disabledReason": "Listo"
+    },
+    "cp_action_folding_estimate": {
+      "label": "Estimación de plegado",
+      "tooltip": "Estimación de plegado",
+      "disabledReason": "La migración del núcleo está en curso; la conexión de la interfaz aún no está implementada"
+    },
+    "cp_action_folding_estimate_specific": {
+      "label": "Plegar a caso",
+      "tooltip": "Plegar a caso",
+      "disabledReason": "La migración del núcleo está en curso; la conexión de la interfaz aún no está implementada"
+    },
+    "cp_action_folding_estimate_save100": {
+      "label": "Guardar 100 simulaciones",
+      "tooltip": "Guardar 100 simulaciones",
+      "disabledReason": "La migración del núcleo está en curso; la conexión de la interfaz aún no está implementada"
+    },
+    "cp_action_two_colored_cp": {
+      "label": "CP de dos colores",
+      "tooltip": "CP de dos colores",
+      "disabledReason": "La migración del núcleo está en curso; la conexión de la interfaz aún no está implementada"
+    },
+    "cp_action_fold": {
+      "label": "Plegar",
+      "tooltip": "Plegar",
+      "disabledReason": "Aún no implementado en el editor de CP"
+    },
+    "cp_action_fold_another": {
+      "label": "Otra solución",
+      "tooltip": "Otra solución",
+      "disabledReason": "La migración del núcleo está en curso; la conexión de la interfaz aún no está implementada"
+    },
+    "cp_action_duplicate_folded_model": {
+      "label": "Duplicar modelo plegado",
+      "tooltip": "Duplicar modelo plegado",
+      "disabledReason": "La migración del núcleo está en curso; la conexión de la interfaz aún no está implementada"
+    },
+    "cp_action_folded_figure_set_model": {
+      "label": "Modelo de figura plegada",
+      "tooltip": "Modelo de figura plegada",
+      "disabledReason": "Aún no implementado en el editor de CP"
+    },
+    "cp_action_folded_figure_set_display_style": {
+      "label": "Estilo de visualización plegada",
+      "tooltip": "Estilo de visualización plegada",
+      "disabledReason": "Aún no implementado en el editor de CP"
+    },
+    "cp_action_folded_figure_set_state": {
+      "label": "Estado anverso/reverso plegado",
+      "tooltip": "Estado anverso/reverso plegado",
+      "disabledReason": "Aún no implementado en el editor de CP"
+    },
+    "cp_action_folded_figure_set_starting_face": {
+      "label": "Cara inicial plegada",
+      "tooltip": "Cara inicial plegada",
+      "disabledReason": "Aún no implementado en el editor de CP"
+    },
+    "cp_action_folded_figure_move_camera": {
+      "label": "Mover la cámara de la figura plegada",
+      "tooltip": "Gestionado por la capa de cámara del visor de cuadrícula",
+      "disabledReason": "Gestionado por el entorno de ejecución del visor en lugar de un comando de CP"
+    },
+    "cp_action_folded_figure_select_canvas_point": {
+      "label": "Selección de punto plegado",
+      "tooltip": "Selección de punto plegado",
+      "disabledReason": "Aún no implementado en el editor de CP"
+    },
+    "cp_action_folded_figure_render_snapshot": {
+      "label": "Captura de renderizado plegado",
+      "tooltip": "Captura de renderizado plegado",
+      "disabledReason": "Aún no implementado en el editor de CP"
+    },
+    "cp_action_folded_figure_import_fold_frame": {
+      "label": "Importar fotograma FOLD plegado",
+      "tooltip": "Importar fotograma FOLD plegado",
+      "disabledReason": "Aún no implementado en el editor de CP"
+    },
+    "cp_action_folded_figure_export_fold_frames": {
+      "label": "Exportar fotogramas FOLD plegados",
+      "tooltip": "Exportar fotogramas FOLD plegados",
+      "disabledReason": "Aún no implementado en el editor de CP"
+    },
+    "cp_action_check1": {
+      "label": "Comprobar solapamientos",
+      "tooltip": "Buscar pares de pliegues no auxiliares solapados o contenidos",
+      "disabledReason": "Listo"
+    },
+    "cp_action_check2": {
+      "label": "Comprobar uniones en T",
+      "tooltip": "Buscar intersecciones cuasi en T entre pares de pliegues no auxiliares",
+      "disabledReason": "Listo"
+    },
+    "cp_action_check3": {
+      "label": "Comprobar plegabilidad de vértices",
+      "tooltip": "Buscar marcadores de plegabilidad plana de vértices de Oriedita",
+      "disabledReason": "Listo"
+    },
+    "cp_action_check4": {
+      "label": "Comprobar Maekawa/LBL",
+      "tooltip": "Buscar violaciones de Maekawa, ángulo y pequeño-grande-pequeño",
+      "disabledReason": "Listo"
+    },
+    "cp_action_fix1": {
+      "label": "Reparar solapamientos",
+      "tooltip": "Fusionar los duplicados exactos y seleccionar los pliegues solapados restantes",
+      "disabledReason": "Listo"
+    },
+    "cp_action_fix2": {
+      "label": "Dividir uniones en T",
+      "tooltip": "Dividir las intersecciones cuasi en T usando las tolerancias de Oriedita",
+      "disabledReason": "Listo"
+    },
+    "cp_action_organize_circles": {
+      "label": "Organizar círculos",
+      "tooltip": "Eliminar los círculos inválidos de radio cero usando las reglas de limpieza de Oriedita",
+      "disabledReason": "Listo"
+    },
+    "cp_action_draw_auxiliary_line": {
+      "label": "Dibujar línea auxiliar",
+      "tooltip": "Dibujar una línea auxiliar de Oriedita",
+      "disabledReason": "El modo de inserción de líneas auxiliares aún no está implementado en el núcleo de CP",
+      "steps": {
+        "0": "Arrastra el extremo del pliegue"
+      }
+    }
+  },
+  "instructions": {
+    "useTool": "Usa {{label}}.",
+    "angleBisectorAction": {
+      "intro": {
+        "0": "Traza la bisectriz de ángulo entre líneas o puntos."
+      },
+      "steps": {
+        "0": "Selecciona 2 segmentos o 3 puntos.",
+        "1": "Método de 3 puntos: selecciona 3 puntos y luego selecciona el segmento para terminar.",
+        "2": "Método de 2 líneas: selecciona 2 líneas y luego selecciona el segmento para terminar.",
+        "3": "Método de línea paralela: selecciona el segmento/indicador para terminar."
+      }
+    },
+    "As100Action": {
+      "intro": {
+        "0": "Calcula 100 soluciones de la forma plegada y guárdalas como archivos de imagen."
+      }
+    },
+    "axiom5Action": {
+      "intro": {
+        "0": "Traza una línea que coloque el punto A sobre una línea mientras pasa por el punto B."
+      },
+      "steps": {
+        "0": "Selecciona el punto A.",
+        "1": "Selecciona una línea.",
+        "2": "Selecciona el punto B.",
+        "3": "Selecciona una línea objetivo hasta la que extender, o selecciona el indicador para extender."
+      },
+      "notes": {
+        "0": "La distancia entre el punto A y el punto B debe ser igual o mayor que la distancia proyectada entre el punto B y la línea."
+      }
+    },
+    "axiom7Action": {
+      "intro": {
+        "0": "Traza una línea que coloque un punto sobre la línea A, siendo perpendicular a la línea B."
+      },
+      "steps": {
+        "0": "Selecciona un punto.",
+        "1": "Selecciona las líneas A y B.",
+        "2": "Selecciona una línea objetivo hasta la que extender, o selecciona el indicador para extender."
+      },
+      "notes": {
+        "0": "El punto no debe estar sobre el tramo de la línea A y la línea B no debe ser paralela a la línea A."
+      }
+    },
+    "a1Action": {
+      "intro": {
+        "0": "Mide el ángulo seleccionando los puntos ABC."
+      }
+    },
+    "a2Action": {
+      "intro": {
+        "0": "Mide el ángulo seleccionando los puntos ABC."
+      }
+    },
+    "a3Action": {
+      "intro": {
+        "0": "Mide el ángulo seleccionando los puntos ABC."
+      }
+    },
+    "addColorConstraintAction": {
+      "intro": {
+        "0": "Añade restricciones de color a la forma plegada."
+      },
+      "steps": {
+        "0": "Selecciona un punto en una cara de la forma plegada para establecer el color que debe tener."
+      },
+      "notes": {
+        "0": "Los círculos blancos indican que la cara muestra el lado blanco; los círculos negros indican que la cara muestra el lado de color.",
+        "1": "Pliega de nuevo para usar las restricciones y encontrar una nueva solución."
+      }
+    },
+    "anotherSolutionAction": {
+      "intro": {
+        "0": "Calcula la siguiente solución disponible para la forma plegada."
+      }
+    },
+    "circleDrawAction": {
+      "intro": {
+        "0": "Dibuja círculos ajustándose a la cuadrícula y los vértices."
+      }
+    },
+    "circleDrawConcentricAction": {
+      "intro": {
+        "0": "Dibuja un círculo concéntrico."
+      },
+      "steps": {
+        "0": "Selecciona el círculo A para establecer la posición.",
+        "1": "Traza una línea para establecer el radio."
+      },
+      "notes": {
+        "0": "La diferencia entre los radios del círculo concéntrico y el círculo A es igual a la longitud de la línea."
+      }
+    },
+    "circleDrawConcentricSelectAction": {
+      "intro": {
+        "0": "Dibuja un círculo concéntrico seleccionando los círculos ABC."
+      },
+      "steps": {
+        "0": "Selecciona el círculo A para establecer la posición.",
+        "1": "Selecciona los círculos B y C para establecer el radio."
+      },
+      "notes": {
+        "0": "El círculo se dibuja concéntrico al círculo A.",
+        "1": "La diferencia entre los radios del círculo concéntrico y el círculo A es igual a la diferencia entre los radios de los círculos B y C."
+      }
+    },
+    "circleDrawFreeAction": {
+      "intro": {
+        "0": "Dibuja círculos a mano alzada."
+      }
+    },
+    "circleDrawInvertedAction": {
+      "intro": {
+        "0": "Dibuja un círculo invertido seleccionando círculos o líneas."
+      },
+      "steps": {
+        "0": "Selecciona un círculo o una línea.",
+        "1": "Selecciona el círculo de inversión."
+      }
+    },
+    "circleDrawSeparateAction": {
+      "intro": {
+        "0": "Dibuja un círculo seleccionando un punto y trazando una línea."
+      },
+      "notes": {
+        "0": "El círculo se dibuja sobre el punto seleccionado y el radio es igual a la longitud de la línea trazada."
+      }
+    },
+    "circleDrawTangentLineAction": {
+      "intro": {
+        "0": "Traza una línea tangente."
+      },
+      "steps": {
+        "0": "Selecciona dos círculos, o selecciona un punto y un círculo.",
+        "1": "Selecciona la línea tangente a trazar."
+      }
+    },
+    "circleDrawThreePointAction": {
+      "intro": {
+        "0": "Dibuja un círculo que pase por 3 puntos seleccionados."
+      }
+    },
+    "circleDrawTwoConcentricAction": {
+      "intro": {
+        "0": "Dibuja círculos concéntricos que conectan seleccionando dos círculos."
+      },
+      "notes": {
+        "0": "Las diferencias de radios entre los círculos concéntricos y los seleccionados son iguales."
+      }
+    },
+    "continuousSymmetricDrawAction": {
+      "intro": {
+        "0": "Traza una línea que se refleja a través de las líneas de pliegue."
+      },
+      "steps": {
+        "0": "Selecciona 2 puntos para trazar una línea que se refleja y alterna a través de las líneas de pliegue."
+      },
+      "notes": {
+        "0": "La reflexión continúa hasta que llega a un borde o a un vértice con 3 o más líneas."
+      }
+    },
+    "copy2p2pAction": {
+      "intro": {
+        "0": "Copia y transforma las líneas seleccionadas seleccionando los puntos de origen y de destino."
+      },
+      "steps": {
+        "0": "Selecciona los puntos AB para establecer el origen.",
+        "1": "Selecciona los puntos CD para establecer un destino."
+      },
+      "notes": {
+        "0": "Las líneas seleccionadas se copian y transforman a una nueva posición, escala y ángulo según la relación entre los puntos AB y CD.",
+        "1": "El punto A se transforma en el punto C y el punto B se transforma en el punto D."
+      }
+    },
+    "copyAction": {
+      "intro": {
+        "0": "Copia las líneas seleccionadas trazando una línea."
+      }
+    },
+    "deg1Action": {
+      "intro": {
+        "0": "Traza líneas convergentes con desplazamiento de ángulo."
+      },
+      "steps": {
+        "0": "Establece el desplazamiento seleccionando una línea o seleccionando 2 puntos.",
+        "1": "Selecciona la intersección de las líneas convergentes."
+      }
+    },
+    "deg2Action": {
+      "intro": {
+        "0": "Traza una línea restringida por ángulo con la restricción de ángulo seleccionada."
+      }
+    },
+    "deg3Action": {
+      "intro": {
+        "0": "Traza una línea restringida por ángulo con desplazamiento."
+      },
+      "steps": {
+        "0": "Selecciona 2 puntos para establecer el desplazamiento de ángulo.",
+        "1": "Selecciona una línea objetivo hasta la que extender."
+      }
+    },
+    "deg4Action": {
+      "intro": {
+        "0": "Traza una línea restringida por ángulo con desplazamiento."
+      },
+      "steps": {
+        "0": "Selecciona 2 puntos para establecer el desplazamiento de ángulo.",
+        "1": "Selecciona una línea objetivo hasta la que extender."
+      }
+    },
+    "del_lAction": {
+      "intro": {
+        "0": "Elimina todas las líneas coincidentes trazando una línea."
+      }
+    },
+    "del_l_XAction": {
+      "intro": {
+        "0": "Elimina todas las líneas que se cruzan trazando una línea."
+      }
+    },
+    "doubleSymmetricDrawAction": {
+      "intro": {
+        "0": "Refleja las líneas en contacto sobre la línea trazada."
+      },
+      "steps": {
+        "0": "Traza una línea sobre los extremos de las líneas para reflejarlas."
+      }
+    },
+    "drawBlintzAction": {
+      "intro": {
+        "0": "Dibuja un blintz seleccionando 2 puntos de vértices opuestos."
+      }
+    },
+    "drawBirdBaseAction": {
+      "intro": {
+        "0": "Dibuja una base de pájaro seleccionando 2 puntos de vértices opuestos."
+      }
+    },
+    "drawCreaseFreeAction": {
+      "intro": {
+        "0": "Dibuja líneas rectas a mano alzada."
+      }
+    },
+    "drawCreaseRestrictedAction": {
+      "intro": {
+        "0": "Dibuja líneas ajustándose a la cuadrícula y los vértices."
+      }
+    },
+    "drawDoveBaseAction": {
+      "intro": {
+        "0": "Dibuja una base de paloma seleccionando 2 puntos de vértices opuestos."
+      }
+    },
+    "drawFishBaseAction": {
+      "intro": {
+        "0": "Dibuja una base de pez seleccionando 2 puntos de vértices opuestos."
+      }
+    },
+    "drawFrogBaseAction": {
+      "intro": {
+        "0": "Dibuja una base de rana seleccionando 2 puntos de vértices opuestos."
+      }
+    },
+    "drawLineSegmentInternalDivisionRatioAction": {
+      "intro": {
+        "0": "Traza una línea dividida por la proporción establecida."
+      }
+    },
+    "drawTwoColoredCpAction": {
+      "intro": {
+        "0": "Crea un patrón de pliegues de dos colores con las líneas de pliegue seleccionadas."
+      }
+    },
+    "duplicateFoldedModelAction": {
+      "intro": {
+        "0": "Duplica la forma plegada."
+      }
+    },
+    "fishBoneDrawAction": {
+      "intro": {
+        "0": "Traza líneas paralelas perpendiculares que alternan entre monte y valle trazando una línea."
+      },
+      "notes": {
+        "0": "El intervalo de las líneas paralelas será igual al ancho de la cuadrícula."
+      }
+    },
+    "foldableLineDrawAction": {
+      "intro": {
+        "0": "Traza una línea plegable plana."
+      },
+      "steps": {
+        "0": "Selecciona un vértice con un número impar de líneas conectadas.",
+        "1": "Selecciona la línea plegable plana.",
+        "2": "Selecciona una línea objetivo hasta la que extender."
+      },
+      "notes": {
+        "0": "Dibuja en cualquier lugar para dibujar a mano alzada."
+      }
+    },
+    "foldableLinePlusGridInputAction": {
+      "intro": {
+        "0": "Traza una línea plegable plana."
+      },
+      "steps": {
+        "0": "Selecciona un vértice con un número impar de líneas conectadas.",
+        "1": "Selecciona la línea plegable plana.",
+        "2": "Selecciona una línea objetivo hasta la que extender."
+      },
+      "notes": {
+        "0": "Selecciona una línea para extenderla."
+      }
+    },
+    "foldAction": {
+      "intro": {
+        "0": "Calcula la forma plegada a partir del patrón de pliegues."
+      }
+    },
+    "foldedFigureMoveAction": {
+      "intro": {
+        "0": "Mueve la forma plegada."
+      }
+    },
+    "goToFoldedFigureAction": {
+      "intro": {
+        "0": "Ve a una solución específica de la forma plegada."
+      }
+    },
+    "h_senbun_nyuryokuAction": {
+      "intro": {
+        "0": "Traza líneas de marcador."
+      },
+      "notes": {
+        "0": "Las líneas de marcador no interfieren con las líneas de pliegue."
+      }
+    },
+    "in_L_col_changeAction": {
+      "intro": {
+        "0": "Alterna los colores de los segmentos de línea entre monte y valle trazando una línea."
+      }
+    },
+    "koteimen_siteiAction": {
+      "intro": {
+        "0": "Establece la cara inicial seleccionando una cara."
+      },
+      "notes": {
+        "0": "La forma plegada se calcula en relación con la cara inicial."
+      }
+    },
+    "l1Action": {
+      "intro": {
+        "0": "Mide la longitud seleccionando 2 puntos."
+      },
+      "notes": {
+        "0": "La longitud se mide en unidades de cuadrícula.",
+        "1": "La longitud es relativa al tamaño del patrón de pliegues con un tamaño de cuadrícula de 1."
+      }
+    },
+    "l2Action": {
+      "intro": {
+        "0": "Mide la longitud seleccionando 2 puntos."
+      },
+      "notes": {
+        "0": "La longitud se mide en unidades de cuadrícula.",
+        "1": "La longitud es relativa al tamaño del patrón de pliegues con un tamaño de cuadrícula de 1."
+      }
+    },
+    "makeFlatFoldableAction": {
+      "intro": {
+        "0": "Traza una línea plegable plana."
+      },
+      "steps": {
+        "0": "Selecciona un vértice con un número impar de líneas conectadas.",
+        "1": "Selecciona la línea plegable plana.",
+        "2": "Selecciona una línea objetivo hasta la que extender."
+      }
+    },
+    "lengthenCreaseAction": {
+      "intro": {
+        "0": "Extiende una línea con el color seleccionado."
+      },
+      "steps": {
+        "0": "Selecciona o traza una línea para seleccionar líneas.",
+        "1": "Selecciona una línea objetivo hasta la que extender, o selecciona la línea anterior para extender."
+      }
+    },
+    "lengthenCrease2Action": {
+      "intro": {
+        "0": "Extiende una línea con el mismo color."
+      },
+      "steps": {
+        "0": "Selecciona o traza una línea para seleccionar líneas.",
+        "1": "Selecciona una línea objetivo hasta la que extender, o selecciona la línea anterior para extender."
+      }
+    },
+    "move2p2pAction": {
+      "intro": {
+        "0": "Transforma las líneas seleccionadas seleccionando los puntos de origen y de destino."
+      },
+      "steps": {
+        "0": "Selecciona los puntos AB para establecer el origen.",
+        "1": "Selecciona los puntos CD para establecer un destino."
+      },
+      "notes": {
+        "0": "Las líneas seleccionadas se transforman a una nueva posición, escala y ángulo según la relación entre los puntos AB y CD.",
+        "1": "El punto A se transforma en el punto C y el punto B se transforma en el punto D."
+      }
+    },
+    "moveAction": {
+      "intro": {
+        "0": "Mueve las líneas seleccionadas trazando una línea."
+      }
+    },
+    "o_F_checkAction": {
+      "intro": {
+        "0": "Comprueba la plegabilidad plana dentro de un polígono."
+      },
+      "steps": {
+        "0": "Haz clic o haz clic y arrastra para añadir segmentos.",
+        "1": "Selecciona el punto inicial para cerrar el polígono."
+      },
+      "notes": {
+        "0": "El polígono se vuelve cian si el patrón dentro de él es plegable plano; de lo contrario, permanece magenta.",
+        "1": "Si la herramienta no funciona como se espera, los vértices y segmentos no deben estar sobre los vértices del patrón de pliegues."
+      }
+    },
+    "on_L_col_changeAction": {
+      "intro": {
+        "0": "Alterna los colores de las líneas que se cruzan entre monte y valle trazando una línea."
+      }
+    },
+    "operationFrameSelectAction": {
+      "intro": {
+        "0": "Crea un marco de operación trazando un rectángulo."
+      },
+      "notes": {
+        "0": "El marco de operación recorta la imagen exportada."
+      }
+    },
+    "oriagari_sousa_2Action": {
+      "intro": {
+        "0": "Modifica la forma plegada arrastrando los vértices."
+      }
+    },
+    "parallelDrawAction": {
+      "intro": {
+        "0": "Traza una línea paralela desde un punto."
+      },
+      "steps": {
+        "0": "Selecciona un punto.",
+        "1": "Selecciona una línea a la que hacer paralela.",
+        "2": "Selecciona una línea objetivo hasta la que extender."
+      }
+    },
+    "perpendicularDrawAction": {
+      "intro": {
+        "0": "Traza una línea perpendicular."
+      },
+      "steps": {
+        "0": "Selecciona el punto inicial A.",
+        "1": "Selecciona una línea objetivo B."
+      },
+      "notes": {
+        "0": "Se traza una línea desde el punto A hasta la línea B perpendicular a la línea B.",
+        "1": "Si el punto A está sobre la línea B, selecciona una línea objetivo hasta la que extender, o selecciona el indicador para extender."
+      }
+    },
+    "rabbitEarAction": {
+      "intro": {
+        "0": "Traza líneas hacia el centro interior."
+      },
+      "steps": {
+        "0": "Selecciona el punto A.",
+        "1": "Selecciona el punto B.",
+        "2": "Selecciona el punto C.",
+        "3": "Se trazan tres líneas hacia el centro interior."
+      }
+    },
+    "regularPolygonAction": {
+      "intro": {
+        "0": "Dibuja un polígono regular seleccionando los puntos AB."
+      },
+      "notes": {
+        "0": "Los puntos AB formarán un lado del polígono, que se dibujará en el sentido de las agujas del reloj."
+      }
+    },
+    "reflectAction": {
+      "intro": {
+        "0": "Refleja las líneas seleccionadas sobre una línea trazada con 2 puntos."
+      }
+    },
+    "selectAction": {
+      "intro": {
+        "0": "Selecciona líneas trazando un rectángulo."
+      }
+    },
+    "select_lXAction": {
+      "intro": {
+        "0": "Selecciona líneas solapadas trazando una línea."
+      }
+    },
+    "select_polygonAction": {
+      "intro": {
+        "0": "Selecciona líneas trazando un polígono."
+      },
+      "notes": {
+        "0": "Se seleccionan las líneas que están completamente dentro del polígono."
+      }
+    },
+    "selectLassoAction": {
+      "intro": {
+        "0": "Selecciona líneas dibujando a mano alzada."
+      }
+    },
+    "senbun_b_nyuryokuAction": {
+      "intro": {
+        "0": "Traza una línea segmentada con la división seleccionada."
+      }
+    },
+    "symmetricDrawAction": {
+      "intro": {
+        "0": "Traza una línea de espejo seleccionando puntos o líneas."
+      },
+      "steps": {
+        "0": "Selecciona los puntos ABC para reflejar la línea AB sobre la línea BC.",
+        "1": "O selecciona las líneas AB para reflejar la línea A sobre la línea B."
+      }
+    },
+    "setParallelDrawWidthAction": {
+      "intro": {
+        "0": "Traza una línea paralela seleccionando una línea."
+      },
+      "steps": {
+        "0": "Selecciona una línea.",
+        "1": "Haz clic y arrastra para establecer el ancho de desplazamiento.",
+        "2": "Selecciona la línea paralela a trazar."
+      }
+    },
+    "textAction": {
+      "intro": {
+        "0": "Añade y edita anotaciones de texto."
+      },
+      "steps": {
+        "0": "Haz clic en un lugar vacío para añadir texto allí.",
+        "1": "Haz clic en una etiqueta para editarla; arrástrala para moverla."
+      },
+      "notes": {
+        "0": "Pulsa ESC o haz clic fuera para terminar una edición; el texto vacío se descarta.",
+        "1": "Haz clic derecho en una etiqueta, o selecciónala y pulsa Suprimir, para eliminarla."
+      }
+    },
+    "unselectAction": {
+      "intro": {
+        "0": "Deselecciona líneas trazando un rectángulo."
+      }
+    },
+    "unselect_lXAction": {
+      "intro": {
+        "0": "Deselecciona líneas solapadas trazando una línea."
+      }
+    },
+    "unselect_polygonAction": {
+      "intro": {
+        "0": "Deselecciona líneas trazando un polígono."
+      },
+      "notes": {
+        "0": "Se deseleccionan las líneas que están completamente dentro del polígono."
+      }
+    },
+    "unselectLassoAction": {
+      "intro": {
+        "0": "Deselecciona líneas dibujando a mano alzada."
+      },
+      "notes": {
+        "0": "Se deseleccionan las líneas que están completamente dentro del área dibujada."
+      }
+    },
+    "v_del_ccAction": {
+      "intro": {
+        "0": "Elimina un vértice en una línea recta."
+      }
+    },
+    "vertexDeleteAction": {
+      "intro": {
+        "0": "Elimina un vértice en una línea recta de color uniforme."
+      }
+    },
+    "vertexAddAction": {
+      "intro": {
+        "0": "Añade un vértice."
+      }
+    },
+    "voronoiAction": {
+      "intro": {
+        "0": "Dibuja un patrón de Voronoi seleccionando puntos."
+      },
+      "notes": {
+        "0": "Volver a seleccionar los puntos los cancelará.",
+        "1": "Selecciona aplicar las líneas temporales para convertirlas en líneas de pliegue."
+      }
+    }
+  }
+}

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Maximize2, ZoomIn, ZoomOut } from 'lucide-react';
 import { IconButton } from '../ui/IconButton';
 
@@ -27,6 +28,7 @@ export function ViewportToolbar({
   setZoomLevel,
   children,
 }: ViewportToolbarProps) {
+  const { t } = useTranslation();
   const [zoomMenuOpen, setZoomMenuOpen] = useState(false);
   const zoomMenuRef = useRef<HTMLDivElement | null>(null);
 
@@ -43,7 +45,7 @@ export function ViewportToolbar({
 
   return (
     <div className="viewport-toolbar" aria-label={ariaLabel}>
-      <IconButton size="sm" variant="toolbar" title="Zoom Out" onClick={zoomOut}>
+      <IconButton size="sm" variant="toolbar" title={t('tools:viewport.zoomOut', 'Zoom Out')} onClick={zoomOut}>
         <ZoomOut size={14} />
       </IconButton>
       <div className="viewport-toolbar__menu-anchor" ref={zoomMenuRef}>
@@ -74,11 +76,11 @@ export function ViewportToolbar({
           </div>
         )}
       </div>
-      <IconButton size="sm" variant="toolbar" title="Zoom In" onClick={zoomIn}>
+      <IconButton size="sm" variant="toolbar" title={t('tools:viewport.zoomIn', 'Zoom In')} onClick={zoomIn}>
         <ZoomIn size={14} />
       </IconButton>
       <ViewportToolbarSeparator />
-      <IconButton size="sm" variant="toolbar" title="Fit" onClick={fitToView}>
+      <IconButton size="sm" variant="toolbar" title={t('tools:viewport.fit', 'Fit')} onClick={fitToView}>
         <Maximize2 size={14} />
       </IconButton>
       {children}

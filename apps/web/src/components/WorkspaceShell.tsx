@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { DockviewDefaultTab, DockviewReact } from 'dockview';
 import type { DockviewReadyEvent, IDockviewPanelHeaderProps } from 'dockview';
@@ -50,12 +52,25 @@ function railPath(workspace: WorkspaceId): string {
   return workspacePath(workspace);
 }
 
+/** Localized workspace-rail tooltip. Literal `t()` calls keep the keys extractable. */
+function workspaceTooltip(t: TFunction, id: WorkspaceId): string {
+  switch (id) {
+    case 'design':
+      return t('common:workspaceRail.design', 'Design workspace');
+    case 'edit':
+      return t('common:workspaceRail.edit', 'Edit workspace');
+    case 'simulate':
+      return t('common:workspaceRail.simulate', 'Simulate workspace');
+  }
+}
+
 function WorkspaceRail() {
+  const { t } = useTranslation();
   const activeWorkspace = useLayoutStore((state) => state.activeWorkspace);
   const navigate = useNavigate();
 
   return (
-    <aside className="workspace-rail" aria-label="Workspaces">
+    <aside className="workspace-rail" aria-label={t('common:workspaceRail.label', 'Workspaces')}>
       <div className="workspace-rail__items">
         {WORKSPACE_DEFINITIONS.map((workspace) => {
           const Icon = workspaceIcons[workspace.id];
@@ -66,9 +81,9 @@ function WorkspaceRail() {
               variant="toolbar"
               className="workspace-rail__button"
               isActive={activeWorkspace === workspace.id}
-              title={workspace.tooltip}
+              title={workspaceTooltip(t, workspace.id)}
               tooltipSide="right"
-              aria-label={workspace.tooltip}
+              aria-label={workspaceTooltip(t, workspace.id)}
               onClick={() => navigate(railPath(workspace.id))}
             >
               <Icon size={19} />
@@ -81,6 +96,7 @@ function WorkspaceRail() {
 }
 
 function Toolbar() {
+  const { t } = useTranslation();
   const openSettings = useSettingsStore((state) => state.openSettings);
   const capabilities = useWorkspaceCapabilities();
   const runtimeSurface = getRuntimeSurface();
@@ -101,12 +117,13 @@ function Toolbar() {
   return (
     <header className="toolbar">
       <div className="toolbar__brand">
+        {/* eslint-disable-next-line i18next/no-literal-string -- brand name, never translated */}
         {isDesktop ? <span className="toolbar__title">Ori Studio</span> : <MenuBar />}
       </div>
       <div className="toolbar__actions">
         <IconButton
           size="sm"
-          title="New"
+          title={t('common:toolbar.new', 'New')}
           tooltipSide="bottom"
           disabled={!capabilities['file.new'].enabled}
           onClick={() => void handleMenuAction('file.new')}
@@ -115,7 +132,7 @@ function Toolbar() {
         </IconButton>
         <IconButton
           size="sm"
-          title="Open"
+          title={t('common:toolbar.open', 'Open')}
           tooltipSide="bottom"
           disabled={!capabilities['file.open'].enabled}
           onClick={() => void handleMenuAction('file.open')}
@@ -124,7 +141,7 @@ function Toolbar() {
         </IconButton>
         <IconButton
           size="sm"
-          title="Save"
+          title={t('common:toolbar.save', 'Save')}
           tooltipSide="bottom"
           disabled={!capabilities['file.save'].enabled}
           onClick={() => void handleMenuAction('file.save')}
@@ -141,7 +158,7 @@ function Toolbar() {
             onClick={() => void handleMenuAction('optimize.scale')}
           >
             <Sparkles size={14} />
-            Optimize Scale
+            {t('common:toolbar.optimizeScale', 'Optimize Scale')}
           </Button>
         )}
         {buildCp.visible && (
@@ -151,13 +168,13 @@ function Toolbar() {
             disabled={!buildCp.enabled}
             title={
               buildCp.enabled
-                ? "Send this design's crease pattern to the Edit canvas"
+                ? t('common:toolbar.sendToEditTooltip', "Send this design's crease pattern to the Edit canvas")
                 : buildCp.reason
             }
             onClick={() => void sendTreeToEdit()}
           >
             <ScanLine size={14} />
-            Send to Edit
+            {t('common:toolbar.sendToEdit', 'Send to Edit')}
           </Button>
         )}
         {isBpContext && (
@@ -165,11 +182,11 @@ function Toolbar() {
             size="sm"
             variant="primary"
             disabled={!hasBpDocument || bpBusy}
-            title="Send this design's crease pattern to the Edit canvas"
+            title={t('common:toolbar.sendToEditTooltip', "Send this design's crease pattern to the Edit canvas")}
             onClick={() => void sendBpToEdit()}
           >
             <ScanLine size={14} />
-            Send to Edit
+            {t('common:toolbar.sendToEdit', 'Send to Edit')}
           </Button>
         )}
         {(optimizeScale.visible || buildCp.visible || isBpContext) && (
@@ -178,7 +195,7 @@ function Toolbar() {
         {showDownloadCta && (
           <IconButton
             size="sm"
-            title="Download Ori Studio for Mac"
+            title={t('common:toolbar.downloadMac', 'Download Ori Studio for Mac')}
             tooltipSide="bottom"
             onClick={() => window.open(downloadUrl, '_blank', 'noreferrer')}
           >
@@ -187,13 +204,13 @@ function Toolbar() {
         )}
         <IconButton
           size="sm"
-          title="Help"
+          title={t('common:toolbar.help', 'Help')}
           tooltipSide="bottom"
           onClick={() => void handleMenuAction('help.documentation')}
         >
           <CircleHelp size={15} />
         </IconButton>
-        <IconButton size="sm" title="Settings" tooltipSide="bottom" onClick={() => openSettings()}>
+        <IconButton size="sm" title={t('common:toolbar.settings', 'Settings')} tooltipSide="bottom" onClick={() => openSettings()}>
           <Settings size={15} />
         </IconButton>
       </div>

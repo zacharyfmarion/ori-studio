@@ -6,6 +6,10 @@ import {
   useState,
   type DragEvent as ReactDragEvent,
 } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
+import { cpActionLabel } from '../../i18n/cpVocab';
+import { cpPaletteLabel } from '../../i18n/paletteLabels';
 import { createPortal } from 'react-dom';
 import {
   Box,
@@ -187,41 +191,102 @@ function formatZoom(scale: number): string {
 
 const EMPTY_DIAGNOSTIC_ENTRIES: OristudioCpDiagnosticEntry[] = [];
 
-const FOLDED_DISPLAY_STYLE_OPTIONS: Array<{
-  value: OristudioCpFoldedFigureDisplayStyle;
-  label: string;
-}> = [
-  { value: 'Paper5', label: 'Paper' },
-  { value: 'Transparent3', label: 'Transparent' },
-  { value: 'Wire2', label: 'Wire' },
-  { value: 'Development1', label: 'Dev 1' },
-  { value: 'Development4', label: 'Dev 4' },
-  { value: 'None0', label: 'None' },
+const FOLDED_DISPLAY_STYLE_OPTIONS: OristudioCpFoldedFigureDisplayStyle[] = [
+  'Paper5',
+  'Transparent3',
+  'Wire2',
 ];
 
-const FOLDED_STATE_OPTIONS: Array<{
-  value: OristudioCpFoldedFigureState;
-  label: string;
-  title: string;
-}> = [
-  { value: 'Front0', label: 'F', title: 'Front' },
-  { value: 'Back1', label: 'B', title: 'Back' },
-  { value: 'Both2', label: 'Both', title: 'Both' },
-  { value: 'Transparent3', label: 'T', title: 'Transparent state' },
+function foldedDisplayStyleLabel(t: TFunction, value: OristudioCpFoldedFigureDisplayStyle): string {
+  switch (value) {
+    case 'Paper5':
+      return t('panels:creasePattern.foldedStyle.paper', 'Paper');
+    case 'Transparent3':
+      return t('panels:creasePattern.foldedStyle.transparent', 'Transparent');
+    case 'Wire2':
+      return t('panels:creasePattern.foldedStyle.wire', 'Wire');
+    case 'Development1':
+      return t('panels:creasePattern.foldedStyle.dev1', 'Dev 1');
+    case 'Development4':
+      return t('panels:creasePattern.foldedStyle.dev4', 'Dev 4');
+    case 'None0':
+      return t('panels:creasePattern.foldedStyle.none', 'None');
+    default:
+      return value;
+  }
+}
+
+const FOLDED_STATE_OPTIONS: OristudioCpFoldedFigureState[] = [
+  'Front0',
+  'Back1',
+  'Both2',
+  'Transparent3',
 ];
+
+function foldedStateLabel(t: TFunction, value: OristudioCpFoldedFigureState): string {
+  switch (value) {
+    case 'Front0':
+      return t('panels:creasePattern.foldedState.frontShort', 'F');
+    case 'Back1':
+      return t('panels:creasePattern.foldedState.backShort', 'B');
+    case 'Both2':
+      return t('panels:creasePattern.foldedState.both', 'Both');
+    case 'Transparent3':
+      return t('panels:creasePattern.foldedState.transparentShort', 'T');
+    default:
+      return value;
+  }
+}
+
+function foldedStateTitle(t: TFunction, value: OristudioCpFoldedFigureState): string {
+  switch (value) {
+    case 'Front0':
+      return t('panels:creasePattern.foldedState.front', 'Front');
+    case 'Back1':
+      return t('panels:creasePattern.foldedState.back', 'Back');
+    case 'Both2':
+      return t('panels:creasePattern.foldedState.bothTitle', 'Both');
+    case 'Transparent3':
+      return t('panels:creasePattern.foldedState.transparent', 'Transparent state');
+    default:
+      return value;
+  }
+}
 
 // Front/back/line color pickers for a folded model (Oriedita's Front/Back/Line
 // color actions). Fallbacks mirror the Rust FoldedFigureModel defaults.
-const FOLDED_COLOR_FIELDS: Array<{
-  key: 'front_color' | 'back_color' | 'line_color';
-  label: string;
-  ariaLabel: string;
-  fallback: OristudioCpRgbColor;
-}> = [
-  { key: 'front_color', label: 'Front', ariaLabel: 'Folded front color', fallback: { red: 255, green: 255, blue: 50 } },
-  { key: 'back_color', label: 'Back', ariaLabel: 'Folded back color', fallback: { red: 233, green: 233, blue: 233 } },
-  { key: 'line_color', label: 'Line', ariaLabel: 'Folded line color', fallback: { red: 0, green: 0, blue: 0 } },
+type FoldedColorKey = 'front_color' | 'back_color' | 'line_color';
+const FOLDED_COLOR_FIELDS: Array<{ key: FoldedColorKey; fallback: OristudioCpRgbColor }> = [
+  { key: 'front_color', fallback: { red: 255, green: 255, blue: 50 } },
+  { key: 'back_color', fallback: { red: 233, green: 233, blue: 233 } },
+  { key: 'line_color', fallback: { red: 0, green: 0, blue: 0 } },
 ];
+
+function foldedColorLabel(t: TFunction, key: FoldedColorKey): string {
+  switch (key) {
+    case 'front_color':
+      return t('panels:creasePattern.foldedColor.front', 'Front');
+    case 'back_color':
+      return t('panels:creasePattern.foldedColor.back', 'Back');
+    case 'line_color':
+      return t('panels:creasePattern.foldedColor.line', 'Line');
+    default:
+      return key;
+  }
+}
+
+function foldedColorAria(t: TFunction, key: FoldedColorKey): string {
+  switch (key) {
+    case 'front_color':
+      return t('panels:creasePattern.foldedColor.frontAria', 'Folded front color');
+    case 'back_color':
+      return t('panels:creasePattern.foldedColor.backAria', 'Folded back color');
+    case 'line_color':
+      return t('panels:creasePattern.foldedColor.lineAria', 'Folded line color');
+    default:
+      return key;
+  }
+}
 
 interface CpDiagnosticHudStatus {
   label: string;
@@ -229,37 +294,34 @@ interface CpDiagnosticHudStatus {
   tone: 'ok' | 'warn' | 'error';
 }
 
-function diagnosticOperationLabel(operation: string): string {
+function diagnosticOperationLabel(t: TFunction, operation: string): string {
   switch (operation) {
     case 'CheckCamv':
-      return 'CAMV';
+      return t('panels:creasePattern.diagnostic.camv', 'CAMV');
     case 'Check1':
-      return 'Overlap';
+      return t('panels:creasePattern.diagnostic.overlap', 'Overlap');
     case 'Check2':
-      return 'T-junction';
+      return t('panels:creasePattern.diagnostic.tJunction', 'T-junction');
     case 'Check3':
-      return 'Vertex foldability';
+      return t('panels:creasePattern.diagnostic.vertexFoldability', 'Vertex foldability');
     case 'Check4':
-      return 'Maekawa/LBL';
+      return t('panels:creasePattern.diagnostic.maekawaLbl', 'Maekawa/LBL');
     case 'FlatFoldableCheck':
-      return 'Boundary';
+      return t('panels:creasePattern.diagnostic.boundary', 'Boundary');
     default:
       return operation;
   }
 }
 
-function pluralizeCount(count: number, singular: string): string {
-  return `${count} ${singular}${count === 1 ? '' : 's'}`;
-}
-
 function diagnosticHudStatus(
+  t: TFunction,
   result: OristudioCpCommandResult | null | undefined,
   options: { issueOnly?: boolean } = {}
 ): CpDiagnosticHudStatus | null {
   if (!result || !isDiagnosticResultOperation(result.operation)) return null;
   if (!result?.diagnostics.length) return null;
   const entries = result.diagnostic_entries ?? EMPTY_DIAGNOSTIC_ENTRIES;
-  const label = diagnosticOperationLabel(result.operation);
+  const label = diagnosticOperationLabel(t, result.operation);
   const errorCount = entries.filter((entry) => entry.severity === 'error').length;
   const warningCount = entries.filter((entry) => entry.severity === 'warning').length;
   const detail =
@@ -271,7 +333,10 @@ function diagnosticHudStatus(
 
   if (errorCount > 0) {
     return {
-      label: `${pluralizeCount(errorCount, `${label} Error`)}`,
+      label:
+        errorCount === 1
+          ? t('panels:creasePattern.diagnostic.errorOne', '{{count}} {{label}} Error', { count: errorCount, label })
+          : t('panels:creasePattern.diagnostic.errorOther', '{{count}} {{label}} Errors', { count: errorCount, label }),
       detail,
       tone: 'error',
     };
@@ -279,7 +344,10 @@ function diagnosticHudStatus(
 
   if (warningCount > 0) {
     return {
-      label: `${pluralizeCount(warningCount, `${label} Warning`)}`,
+      label:
+        warningCount === 1
+          ? t('panels:creasePattern.diagnostic.warningOne', '{{count}} {{label}} Warning', { count: warningCount, label })
+          : t('panels:creasePattern.diagnostic.warningOther', '{{count}} {{label}} Warnings', { count: warningCount, label }),
       detail,
       tone: 'warn',
     };
@@ -288,7 +356,7 @@ function diagnosticHudStatus(
   if (options.issueOnly) return null;
 
   return {
-    label: `${label} OK`,
+    label: t('panels:creasePattern.diagnostic.ok', '{{label}} OK', { label }),
     detail,
     tone: 'ok',
   };
@@ -518,8 +586,9 @@ function CpLineTypeToolbar({
   onSelectLineColor: (lineColor: OristudioCpLineColor) => void;
   shortcutOverrides: ShortcutOverrides;
 }) {
+  const { t } = useTranslation();
   return (
-    <div className="cp-line-type-toolbar" aria-label="Active crease line type">
+    <div className="cp-line-type-toolbar" aria-label={t('panels:creasePattern.activeCreaseLineType', 'Active crease line type')}>
       {ORISTUDIO_CP_LINE_TYPE_ACTIONS.map((action) => {
         const shortcut = shortcutLabelForAction(action.id, shortcutOverrides);
         return (
@@ -527,8 +596,8 @@ function CpLineTypeToolbar({
             key={action.id}
             size="sm"
             variant="toolbar"
-            title={shortcut ? `${action.label} (${shortcut})` : action.label}
-            aria-label={action.label}
+            title={shortcut ? `${cpActionLabel(t, action)} (${shortcut})` : cpActionLabel(t, action)}
+            aria-label={cpActionLabel(t, action)}
             className="cp-line-type-toolbar__button"
             data-line-color={action.lineColor}
             isActive={activeLineColor === action.lineColor}
@@ -553,6 +622,7 @@ function CpLineColorMenuButton({
   activeLineColor: OristudioCpLineColor;
   onSelectLineColor: (lineColor: OristudioCpLineColor) => void;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const activeExtraEntry = ORISTUDIO_CP_EXTRA_LINE_COLOR_PALETTE.find(
@@ -580,8 +650,8 @@ function CpLineColorMenuButton({
       <IconButton
         size="sm"
         variant="toolbar"
-        title={activeExtraEntry ? activeExtraEntry.label : 'More line colors'}
-        aria-label="More line colors"
+        title={activeExtraEntry ? activeExtraEntry.label : t('panels:creasePattern.moreLineColors', 'More line colors')}
+        aria-label={t('panels:creasePattern.moreLineColors', 'More line colors')}
         aria-haspopup="menu"
         aria-expanded={open}
         className="cp-line-color-menu__trigger"
@@ -595,7 +665,7 @@ function CpLineColorMenuButton({
         <div
           className="viewport-toolbar__dropdown cp-line-color-menu__panel"
           role="menu"
-          aria-label="Extra line colors"
+          aria-label={t('panels:creasePattern.extraLineColors', 'Extra line colors')}
         >
           {ORISTUDIO_CP_EXTRA_LINE_COLOR_PALETTE.map((entry) => (
             <button
@@ -606,7 +676,7 @@ function CpLineColorMenuButton({
               data-line-color={entry.lineColor}
               role="menuitemradio"
               aria-checked={activeLineColor === entry.lineColor}
-              aria-label={entry.label}
+              aria-label={cpPaletteLabel(t, entry)}
               onClick={() => chooseColor(entry.lineColor)}
             >
               <span className="cp-line-color-menu__swatch" aria-hidden="true" />
@@ -645,6 +715,7 @@ function FoldedFigureMenuButton({
   onDuplicate: () => void;
   onDelete: () => void;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const model = activeFigure?.snapshot?.model ?? null;
@@ -652,6 +723,13 @@ function FoldedFigureMenuButton({
     activeFigure?.status === 'ready' && activeFigure.handle !== null && activeFigure.snapshot !== null;
   const currentCase = Math.max(activeFigure?.snapshot?.discovered_fold_cases ?? 1, 1);
   const canJumpCase = activeReady && Number.isFinite(Number(caseDraft));
+
+  // Keep any display style already saved on a document selectable even if it is no
+  // longer offered as a fresh choice (e.g. legacy Dev/None figures).
+  const currentDisplayStyle = activeFigure?.displayStyle ?? 'Paper5';
+  const foldedDisplayStyleOptions = FOLDED_DISPLAY_STYLE_OPTIONS.includes(currentDisplayStyle)
+    ? FOLDED_DISPLAY_STYLE_OPTIONS
+    : [...FOLDED_DISPLAY_STYLE_OPTIONS, currentDisplayStyle];
 
   useEffect(() => {
     if (!open) return undefined;
@@ -674,7 +752,7 @@ function FoldedFigureMenuButton({
       <IconButton
         size="sm"
         variant="toolbar"
-        title="Folded models"
+        title={t('panels:creasePattern.foldedModels', 'Folded models')}
         aria-haspopup="menu"
         aria-expanded={open}
         isActive={open}
@@ -686,11 +764,11 @@ function FoldedFigureMenuButton({
         <div
           className="viewport-toolbar__dropdown folded-figure-menu__panel"
           role="menu"
-          aria-label="Folded model controls"
+          aria-label={t('panels:creasePattern.foldedModelControls', 'Folded model controls')}
         >
           <div className="folded-figure-menu__header">
-            <span>Folded models</span>
-            <span>{activeFigure ? activeFigure.title : 'None'}</span>
+            <span>{t('panels:creasePattern.foldedModels', 'Folded models')}</span>
+            <span>{activeFigure ? activeFigure.title : t('panels:creasePattern.none', 'None')}</span>
           </div>
           {figures.length > 0 && (
             <div className="folded-figure-menu__list">
@@ -706,15 +784,15 @@ function FoldedFigureMenuButton({
                   onClick={() => onSelectFigure(figure.id)}
                 >
                   <span>{figure.title}</span>
-                  <small>{figure.status === 'ready' ? `Case ${figure.snapshot?.discovered_fold_cases ?? 0}` : figure.status}</small>
+                  <small>{figure.status === 'ready' ? t('panels:creasePattern.case', 'Case {{count}}', { count: figure.snapshot?.discovered_fold_cases ?? 0 }) : figure.status}</small>
                 </button>
               ))}
             </div>
           )}
           <label className="folded-figure-menu__field">
-            <span>Start</span>
+            <span>{t('panels:creasePattern.start', 'Start')}</span>
             <input
-              aria-label="Starting face"
+              aria-label={t('panels:creasePattern.startingFace', 'Starting face')}
               type="number"
               min={1}
               step={1}
@@ -723,27 +801,31 @@ function FoldedFigureMenuButton({
             />
           </label>
           <label className="folded-figure-menu__field">
-            <span>Display</span>
+            <span>{t('panels:creasePattern.display', 'Display')}</span>
             <select
-              aria-label="Folded display style"
+              aria-label={t('panels:creasePattern.foldedDisplayStyle', 'Folded display style')}
               value={activeFigure?.displayStyle ?? 'Paper5'}
               disabled={!activeReady}
               onChange={(event) =>
                 onDisplayStyle(event.currentTarget.value as OristudioCpFoldedFigureDisplayStyle)
               }
             >
-              {FOLDED_DISPLAY_STYLE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
+              {foldedDisplayStyleOptions.map((value) => (
+                <option key={value} value={value}>
+                  {foldedDisplayStyleLabel(t, value)}
                 </option>
               ))}
             </select>
           </label>
           <div className="folded-figure-menu__field folded-figure-menu__field--segmented">
-            <span>Side</span>
+            <span>{t('panels:creasePattern.side', 'Side')}</span>
             <SegmentedControl
-              aria-label="Folded model side"
-              options={FOLDED_STATE_OPTIONS}
+              aria-label={t('panels:creasePattern.foldedModelSide', 'Folded model side')}
+              options={FOLDED_STATE_OPTIONS.map((value) => ({
+                value,
+                label: foldedStateLabel(t, value),
+                title: foldedStateTitle(t, value),
+              }))}
               value={model?.state ?? 'Front0'}
               onChange={(state) => onModelUpdate({ state })}
             />
@@ -751,9 +833,9 @@ function FoldedFigureMenuButton({
           <div className="folded-figure-menu__colors">
             {FOLDED_COLOR_FIELDS.map((field) => (
               <label key={field.key} className="folded-figure-menu__color">
-                <span>{field.label}</span>
+                <span>{foldedColorLabel(t, field.key)}</span>
                 <input
-                  aria-label={field.ariaLabel}
+                  aria-label={foldedColorAria(t, field.key)}
                   type="color"
                   value={rgbColorToHex(model?.[field.key] ?? field.fallback)}
                   disabled={!activeReady}
@@ -765,10 +847,10 @@ function FoldedFigureMenuButton({
             ))}
           </div>
           <label className="folded-figure-menu__field">
-            <span>Case</span>
+            <span>{t('panels:creasePattern.caseLabel', 'Case')}</span>
             <div className="folded-figure-menu__case">
               <input
-                aria-label="Fold case"
+                aria-label={t('panels:creasePattern.foldCase', 'Fold case')}
                 type="number"
                 min={1}
                 step={1}
@@ -782,7 +864,7 @@ function FoldedFigureMenuButton({
               <IconButton
                 size="sm"
                 variant="toolbar"
-                title="Go to folded case"
+                title={t('panels:creasePattern.goToFoldedCase', 'Go to folded case')}
                 disabled={!canJumpCase}
                 onClick={onFoldToCase}
               >
@@ -790,29 +872,29 @@ function FoldedFigureMenuButton({
               </IconButton>
             </div>
           </label>
-          <div className="folded-figure-menu__hint">Current {currentCase}</div>
+          <div className="folded-figure-menu__hint">{t('panels:creasePattern.current', 'Current {{count}}', { count: currentCase })}</div>
           <div className="folded-figure-menu__toggle-row">
-            <span>Shadow</span>
+            <span>{t('panels:creasePattern.shadow', 'Shadow')}</span>
             <Toggle
               checked={model?.display_shadows ?? false}
               disabled={!activeReady}
               onChange={(display_shadows) => onModelUpdate({ display_shadows })}
-              aria-label="Show folded model shadow"
+              aria-label={t('panels:creasePattern.showFoldedModelShadow', 'Show folded model shadow')}
             />
           </div>
           <div className="folded-figure-menu__toggle-row">
-            <span>Color alpha</span>
+            <span>{t('panels:creasePattern.colorAlpha', 'Color alpha')}</span>
             <Toggle
               checked={model?.transparency_color ?? false}
               disabled={!activeReady}
               onChange={(transparency_color) => onModelUpdate({ transparency_color })}
-              aria-label="Use colored folded transparency"
+              aria-label={t('panels:creasePattern.useColoredFoldedTransparency', 'Use colored folded transparency')}
             />
           </div>
           <label className="folded-figure-menu__field folded-figure-menu__field--range">
-            <span>Alpha</span>
+            <span>{t('panels:creasePattern.alpha', 'Alpha')}</span>
             <input
-              aria-label="Folded transparency"
+              aria-label={t('panels:creasePattern.foldedTransparency', 'Folded transparency')}
               type="range"
               min={0}
               max={255}
@@ -833,7 +915,7 @@ function FoldedFigureMenuButton({
             <IconButton
               size="sm"
               variant="toolbar"
-              title="Duplicate folded model"
+              title={t('panels:creasePattern.duplicateFoldedModel', 'Duplicate folded model')}
               disabled={activeFigure?.handle == null}
               onClick={() => onDuplicate()}
             >
@@ -842,7 +924,7 @@ function FoldedFigureMenuButton({
             <IconButton
               size="sm"
               variant="toolbar"
-              title="Delete folded model"
+              title={t('panels:creasePattern.deleteFoldedModel', 'Delete folded model')}
               disabled={!activeFigure}
               onClick={() => onDelete()}
             >
@@ -856,6 +938,7 @@ function FoldedFigureMenuButton({
 }
 
 export function CreasePatternPanel() {
+  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cpViewportRef = useRef<HTMLDivElement | null>(null);
   const [toolOptionsPortalTarget, setToolOptionsPortalTarget] = useState<HTMLElement | null>(null);
@@ -1013,13 +1096,13 @@ export function CreasePatternPanel() {
             z: topZ + 1,
           })
         );
-        recordCpImageHistory([...images], 'Add image');
+        recordCpImageHistory([...images], t('panels:creasePattern.addImage', 'Add image'));
         setImageEditMode(true);
       } catch (error) {
         console.error('[cp-image] failed to import image', error);
       }
     },
-    [addCpImage, recordCpImageHistory, setImageEditMode, webglOverlayView]
+    [addCpImage, recordCpImageHistory, setImageEditMode, webglOverlayView, t]
   );
 
   const handleViewportDragOver = useCallback((event: ReactDragEvent<HTMLDivElement>) => {
@@ -1046,8 +1129,8 @@ export function CreasePatternPanel() {
     const maxZ = images.reduce((max, image) => Math.max(max, image.z), 0);
     beginImageGesture();
     updateCpImage(oristudioCpSelectedImageId, { z: maxZ + 1 });
-    commitImageGesture('Bring image to front');
-  }, [oristudioCpSelectedImageId, updateCpImage, beginImageGesture, commitImageGesture]);
+    commitImageGesture(t('panels:creasePattern.bringImageToFront', 'Bring image to front'));
+  }, [oristudioCpSelectedImageId, updateCpImage, beginImageGesture, commitImageGesture, t]);
 
   const sendSelectedImageToBack = useCallback(() => {
     if (!oristudioCpSelectedImageId) return;
@@ -1055,15 +1138,15 @@ export function CreasePatternPanel() {
     const minZ = images.reduce((min, image) => Math.min(min, image.z), 0);
     beginImageGesture();
     updateCpImage(oristudioCpSelectedImageId, { z: minZ - 1 });
-    commitImageGesture('Send image to back');
-  }, [oristudioCpSelectedImageId, updateCpImage, beginImageGesture, commitImageGesture]);
+    commitImageGesture(t('panels:creasePattern.sendImageToBack', 'Send image to back'));
+  }, [oristudioCpSelectedImageId, updateCpImage, beginImageGesture, commitImageGesture, t]);
 
   const deleteSelectedImage = useCallback(() => {
     if (!oristudioCpSelectedImageId) return;
     beginImageGesture();
     removeCpImage(oristudioCpSelectedImageId);
-    commitImageGesture('Delete image');
-  }, [oristudioCpSelectedImageId, removeCpImage, beginImageGesture, commitImageGesture]);
+    commitImageGesture(t('panels:creasePattern.deleteImage', 'Delete image'));
+  }, [oristudioCpSelectedImageId, removeCpImage, beginImageGesture, commitImageGesture, t]);
 
   // Delete/Backspace removes the selected image while the Images tool is active.
   // Ignored when typing in a field so it never eats text edits.
@@ -1271,13 +1354,15 @@ export function CreasePatternPanel() {
   );
   const foldedFigureStatusLabel = activeFoldedFigure
     ? activeFoldedFigure.status === 'ready' || activeFoldedFigure.status === 'stale'
-      ? `Case ${activeFoldedFigure.snapshot?.discovered_fold_cases ?? 0}`
+      ? t('panels:creasePattern.case', 'Case {{count}}', {
+          count: activeFoldedFigure.snapshot?.discovered_fold_cases ?? 0,
+        })
       : activeFoldedFigure.status === 'loading'
-        ? 'Folding'
+        ? t('panels:creasePattern.folding', 'Folding')
         : activeFoldedFigure.status === 'error'
-          ? 'Fold error'
-          : 'Unsupported'
-    : 'No fold';
+          ? t('panels:creasePattern.foldError', 'Fold error')
+          : t('panels:creasePattern.unsupported', 'Unsupported')
+    : t('panels:creasePattern.noFold', 'No fold');
   const canFoldAnother =
     activeFoldedFigure?.status === 'ready' &&
     activeFoldedFigure.handle !== null &&
@@ -1350,7 +1435,7 @@ export function CreasePatternPanel() {
         {
           kind: 'action',
           id: 'flip',
-          label: 'Flip',
+          label: t('panels:creasePattern.flip', 'Flip'),
           icon: <FlipHorizontal2 size={14} />,
           disabled: !ready,
           // Turn the paper over: Front <-> Back. The Both/Transparent overlay
@@ -1363,7 +1448,7 @@ export function CreasePatternPanel() {
         {
           kind: 'action',
           id: 'scale',
-          label: 'Scale',
+          label: t('panels:creasePattern.scale', 'Scale'),
           icon: <Maximize2 size={14} />,
           disabled: !ready,
           // Arm the canvas; the next drag scales this figure live.
@@ -1372,7 +1457,7 @@ export function CreasePatternPanel() {
         {
           kind: 'action',
           id: 'delete',
-          label: 'Delete',
+          label: t('panels:creasePattern.delete', 'Delete'),
           icon: <Trash2 size={14} />,
           danger: true,
           onSelect: () => void deleteOristudioCpFoldedFigure(figure.id),
@@ -1380,7 +1465,7 @@ export function CreasePatternPanel() {
         {
           kind: 'action',
           id: 'duplicate',
-          label: 'Duplicate',
+          label: t('panels:creasePattern.duplicate', 'Duplicate'),
           icon: <Copy size={14} />,
           disabled: figure.handle === null,
           onSelect: () => void duplicateOristudioCpFoldedFigure(figure.id),
@@ -1388,7 +1473,7 @@ export function CreasePatternPanel() {
         {
           kind: 'action',
           id: 'wireframe',
-          label: 'Wireframe',
+          label: t('panels:creasePattern.wireframe', 'Wireframe'),
           icon: <Box size={14} />,
           disabled: !ready,
           onSelect: () => void setOristudioCpFoldedFigureDisplayStyle(figure.id, 'Wire2'),
@@ -1396,7 +1481,7 @@ export function CreasePatternPanel() {
         {
           kind: 'action',
           id: 'xray',
-          label: 'X-ray',
+          label: t('panels:creasePattern.xray', 'X-ray'),
           icon: <Eye size={14} />,
           disabled: !ready,
           onSelect: () =>
@@ -1409,6 +1494,7 @@ export function CreasePatternPanel() {
       deleteOristudioCpFoldedFigure,
       duplicateOristudioCpFoldedFigure,
       setOristudioCpFoldedFigureDisplayStyle,
+      t,
     ]
   );
   const handleRequestContextMenu = useCallback(
@@ -1500,9 +1586,9 @@ export function CreasePatternPanel() {
     cpToolState.phase === 'active' &&
     cpToolPoints.length === 0
       ? pendingSquareBisectorLineIds.length === 1
-        ? 'Angle Bisector: Select 2 lines'
+        ? t('panels:creasePattern.angleBisectorSelect2Lines', 'Angle Bisector: Select 2 lines')
         : pendingSquareBisectorLineIds.length === 2
-          ? 'Angle Bisector: Select segment to end'
+          ? t('panels:creasePattern.angleBisectorSelectSegmentToEnd', 'Angle Bisector: Select segment to end')
           : cpToolState.prompt
       : cpToolState.prompt;
   const activeCpToolPrompt = squareBisectorToolPrompt;
@@ -1567,19 +1653,19 @@ export function CreasePatternPanel() {
   const diagnosticStatus = useMemo(
     () => {
       const camvStatus = camvIssuesVisible
-        ? diagnosticHudStatus(oristudioCpCamvResult, { issueOnly: true })
+        ? diagnosticHudStatus(t, oristudioCpCamvResult, { issueOnly: true })
         : null;
       const commandStatus =
         !camvIssuesVisible && lastCommandResult?.operation === 'CheckCamv'
           ? null
-          : diagnosticHudStatus(lastCommandResult);
+          : diagnosticHudStatus(t, lastCommandResult);
       return camvStatus ?? commandStatus;
     },
-    [camvIssuesVisible, lastCommandResult, oristudioCpCamvResult]
+    [camvIssuesVisible, lastCommandResult, oristudioCpCamvResult, t]
   );
   const diagnosticHudEntries = useMemo(() => {
     const hudResult =
-      camvIssuesVisible && diagnosticHudStatus(oristudioCpCamvResult, { issueOnly: true }) !== null
+      camvIssuesVisible && diagnosticHudStatus(t, oristudioCpCamvResult, { issueOnly: true }) !== null
         ? oristudioCpCamvResult
         : !camvIssuesVisible && lastCommandResult?.operation === 'CheckCamv'
           ? null
@@ -1588,7 +1674,7 @@ export function CreasePatternPanel() {
       return EMPTY_DIAGNOSTIC_ENTRIES;
     }
     return hudResult.diagnostic_entries ?? EMPTY_DIAGNOSTIC_ENTRIES;
-  }, [camvIssuesVisible, lastCommandResult, oristudioCpCamvResult]);
+  }, [camvIssuesVisible, lastCommandResult, oristudioCpCamvResult, t]);
   const activeDiagnosticEntry = useMemo(
     () =>
       latestDiagnosticEntries.find((entry) => entry.id === oristudioCpActiveDiagnosticId) ?? null,
@@ -1704,7 +1790,7 @@ export function CreasePatternPanel() {
                   ? { type: 'commit', keepActive: true }
                   : {
                       type: 'commandError',
-                      message: useWorkspaceStore.getState().oristudioCpError ?? 'Command failed',
+                      message: useWorkspaceStore.getState().oristudioCpError ?? t('panels:creasePattern.commandFailed', 'Command failed'),
                     }
               )
             : state
@@ -1717,6 +1803,7 @@ export function CreasePatternPanel() {
       executeOristudioCpCommand,
       oristudioCpSelection.lines,
       setSelectedCpImage,
+      t,
     ]
   );
 
@@ -1797,7 +1884,7 @@ export function CreasePatternPanel() {
                   ? { type: 'commit', keepActive: true }
                 : {
                     type: 'commandError',
-                    message: useWorkspaceStore.getState().oristudioCpError ?? 'Command failed',
+                    message: useWorkspaceStore.getState().oristudioCpError ?? t('panels:creasePattern.commandFailed', 'Command failed'),
                   }
             )
           : state
@@ -1811,6 +1898,7 @@ export function CreasePatternPanel() {
     executeOristudioCpCommand,
     oristudioCpSelection.circles,
     oristudioCpSelection.lines,
+    t,
   ]);
 
   const handleClearActiveContextInput = useCallback(() => {
@@ -1859,7 +1947,7 @@ export function CreasePatternPanel() {
                 ? { type: 'commit', keepActive: true }
                 : {
                     type: 'commandError',
-                    message: useWorkspaceStore.getState().oristudioCpError ?? 'Command failed',
+                    message: useWorkspaceStore.getState().oristudioCpError ?? t('panels:creasePattern.commandFailed', 'Command failed'),
                   }
             )
           : state
@@ -1872,6 +1960,7 @@ export function CreasePatternPanel() {
     executeOristudioCpCommand,
     oristudioCpSelection.texts,
     setOristudioCpSelection,
+    t,
   ]);
 
   const selectionMoveSnapDocument = useMemo<OristudioCpDocumentSnapshot | null>(() => {
@@ -2085,7 +2174,7 @@ export function CreasePatternPanel() {
                   ? { type: 'commit', keepActive: true }
                   : {
                       type: 'commandError',
-                      message: useWorkspaceStore.getState().oristudioCpError ?? 'Command failed',
+                      message: useWorkspaceStore.getState().oristudioCpError ?? t('panels:creasePattern.commandFailed', 'Command failed'),
                     }
               )
             : state
@@ -2099,6 +2188,7 @@ export function CreasePatternPanel() {
       previewOristudioCpCommand,
       oristudioCpSelection.circles,
       oristudioCpSelection.lines,
+      t,
     ]
   );
 
@@ -2369,7 +2459,7 @@ export function CreasePatternPanel() {
                     : {
                         type: 'commandError',
                         message:
-                          useWorkspaceStore.getState().oristudioCpError ?? 'Command failed',
+                          useWorkspaceStore.getState().oristudioCpError ?? t('panels:creasePattern.commandFailed', 'Command failed'),
                       }
                 )
               : state
@@ -2412,7 +2502,7 @@ export function CreasePatternPanel() {
                     ? { type: 'commit', keepActive: true }
                     : {
                         type: 'commandError',
-                        message: useWorkspaceStore.getState().oristudioCpError ?? 'Command failed',
+                        message: useWorkspaceStore.getState().oristudioCpError ?? t('panels:creasePattern.commandFailed', 'Command failed'),
                       }
                 )
               : state
@@ -2441,7 +2531,7 @@ export function CreasePatternPanel() {
                     ? { type: 'commit', keepActive: true }
                     : {
                         type: 'commandError',
-                        message: useWorkspaceStore.getState().oristudioCpError ?? 'Command failed',
+                        message: useWorkspaceStore.getState().oristudioCpError ?? t('panels:creasePattern.commandFailed', 'Command failed'),
                       }
                 )
               : state
@@ -2470,7 +2560,7 @@ export function CreasePatternPanel() {
                     ? { type: 'commit', keepActive: true }
                     : {
                         type: 'commandError',
-                        message: useWorkspaceStore.getState().oristudioCpError ?? 'Command failed',
+                        message: useWorkspaceStore.getState().oristudioCpError ?? t('panels:creasePattern.commandFailed', 'Command failed'),
                       }
                 )
               : state
@@ -2521,7 +2611,7 @@ export function CreasePatternPanel() {
                       }
                     : {
                         type: 'commandError',
-                        message: useWorkspaceStore.getState().oristudioCpError ?? 'Command failed',
+                        message: useWorkspaceStore.getState().oristudioCpError ?? t('panels:creasePattern.commandFailed', 'Command failed'),
                       }
                 )
               : state
@@ -2565,7 +2655,7 @@ export function CreasePatternPanel() {
                     ? { type: 'commit', keepActive: true }
                     : {
                         type: 'commandError',
-                        message: useWorkspaceStore.getState().oristudioCpError ?? 'Command failed',
+                        message: useWorkspaceStore.getState().oristudioCpError ?? t('panels:creasePattern.commandFailed', 'Command failed'),
                       }
                 )
               : state
@@ -2589,6 +2679,7 @@ export function CreasePatternPanel() {
       pendingLengthenLineId,
       pendingSquareBisectorLineIds,
       toggleOristudioCpLineSelection,
+      t,
     ]
   );
 
@@ -2726,14 +2817,14 @@ export function CreasePatternPanel() {
 
   const emptyStatusLabel =
     status === 'building_crease_pattern'
-      ? 'Building crease pattern'
+      ? t('panels:creasePattern.buildingCreasePattern', 'Building crease pattern')
       : status === 'optimizing'
-        ? 'Optimizing scale'
+        ? t('panels:creasePattern.optimizingScale', 'Optimizing scale')
         : status === 'error' && error
           ? shortStatus(error.message)
           : activeEditingContext === 'crease-pattern'
-            ? 'No imported crease pattern'
-            : 'No crease pattern';
+            ? t('panels:creasePattern.noImportedCreasePattern', 'No imported crease pattern')
+            : t('panels:creasePattern.noCreasePattern', 'No crease pattern');
   // While the blank editable CP is being seeded, show a loading state instead of
   // the "No crease pattern" affordance — but never mask a real busy/error status.
   const isProvisioningInitialCp =
@@ -2946,7 +3037,7 @@ export function CreasePatternPanel() {
                     )}
                   </button>
                   {diagnosticHudExpanded && diagnosticHudEntries.length > 0 && (
-                    <div className="cp-diagnostic-hud__list" aria-label="Canvas diagnostics">
+                    <div className="cp-diagnostic-hud__list" aria-label={t('panels:creasePattern.canvasDiagnostics', 'Canvas diagnostics')}>
                       {diagnosticHudEntries.slice(0, 12).map((entry) => (
                         <button
                           type="button"
@@ -3127,11 +3218,11 @@ export function CreasePatternPanel() {
                 </>
               ) : (
                 <div className="cp-panel__unopened" role="status">
-                  This crease pattern could not be opened for editing.
+                  {t('panels:creasePattern.couldNotOpenForEditing', 'This crease pattern could not be opened for editing.')}
                 </div>
               )}
               <ViewportToolbar
-                ariaLabel="Crease pattern viewport controls"
+                ariaLabel={t('panels:creasePattern.viewportControls', 'Crease pattern viewport controls')}
                 zoomPercent={zoomPercent}
                 zoomIn={() => sendWebglCameraCommand('zoom-in')}
                 zoomOut={() => sendWebglCameraCommand('zoom-out')}
@@ -3150,7 +3241,7 @@ export function CreasePatternPanel() {
                     <IconButton
                       size="sm"
                       variant="toolbar"
-                      title={imageEditMode ? 'Editing images (click to exit)' : 'Edit images'}
+                      title={imageEditMode ? t('panels:creasePattern.editingImagesClickToExit', 'Editing images (click to exit)') : t('panels:creasePattern.editImages', 'Edit images')}
                       aria-pressed={imageEditMode}
                       data-active={imageEditMode || undefined}
                       onClick={() => setImageEditMode(!imageEditMode)}
@@ -3160,7 +3251,7 @@ export function CreasePatternPanel() {
                     <IconButton
                       size="sm"
                       variant="toolbar"
-                      title="Insert image..."
+                      title={t('panels:creasePattern.insertImage', 'Insert image...')}
                       onClick={() => imageFileInputRef.current?.click()}
                     >
                       <ImagePlus size={14} />
@@ -3181,7 +3272,7 @@ export function CreasePatternPanel() {
                       <IconButton
                         size="sm"
                         variant="toolbar"
-                        title="Fold"
+                        title={t('panels:creasePattern.fold', 'Fold')}
                         disabled={!canFoldSelectedModel}
                         onClick={handleFoldModel}
                       >
@@ -3190,7 +3281,7 @@ export function CreasePatternPanel() {
                       <IconButton
                         size="sm"
                         variant="toolbar"
-                        title="Another solution"
+                        title={t('panels:creasePattern.anotherSolution', 'Another solution')}
                         disabled={!canFoldAnother}
                         onClick={handleFoldAnother}
                       >
@@ -3249,12 +3340,12 @@ export function CreasePatternPanel() {
               <div className="viewport-status-readout">
                 <span>{formatZoom(zoomPercent / 100)}</span>
                 {editableCp && <span>{activeCpToolPrompt}</span>}
-                {editableCp && <span>{cpLineTypeStatusLabel(activeCpLineColor)}</span>}
+                {editableCp && <span>{cpLineTypeStatusLabel(activeCpLineColor, t)}</span>}
                 {editableCp && editableCpSummary && (
-                  <span>{editableCpSummary.line_segments} lines</span>
+                  <span>{t('panels:creasePattern.linesCount', '{{count}} lines', { count: editableCpSummary.line_segments })}</span>
                 )}
                 {editableCp && editableSelectionSize > 0 && (
-                  <span>{editableSelectionSize} selected</span>
+                  <span>{t('panels:creasePattern.selectedCount', '{{count}} selected', { count: editableSelectionSize })}</span>
                 )}
               </div>
             </div>
@@ -3264,7 +3355,7 @@ export function CreasePatternPanel() {
             {isProvisioningInitialCp ? (
               <span className="cp-panel__preparing" role="status" aria-live="polite">
                 <Loader2 size={16} className="cp-panel__spinner" aria-hidden="true" />
-                Preparing the editor…
+                {t('panels:creasePattern.preparing', 'Preparing the editor…')}
               </span>
             ) : (
               <>

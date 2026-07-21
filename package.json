@@ -20,6 +20,8 @@
     "test:web": "npm --workspace @treemaker/web run test",
     "test:web:folded-screenshot": "node scripts/folded-grid-screenshot.mjs",
     "typecheck:web": "npm --workspace @treemaker/web run typecheck",
-    "check:desktop": "npm --workspace @treemaker/tauri run check"
+    "check:desktop": "npm --workspace @treemaker/tauri run check",
+    "i18n:extract": "npm --workspace @treemaker/web run i18n:extract",
+    "i18n:check": "npm --workspace @treemaker/web run i18n:check"
   }
 }

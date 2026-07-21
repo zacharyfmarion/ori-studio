@@ -1,5 +1,6 @@
 import { DraftingCompass, FilePlus, FolderOpen, PenTool } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { AppStatus } from '../lib/sampleProject';
 
 const publicAssetBase = import.meta.env.BASE_URL.endsWith('/')
@@ -26,24 +27,28 @@ export function StartScreen({
   showWelcomeOnStartup,
   onToggleShowWelcomeOnStartup,
 }: StartScreenProps) {
+  const { t } = useTranslation();
   const preparing = status === 'loading_engine';
   const disabled = preparing || status === 'optimizing' || status === 'building_crease_pattern';
   const statusMessage = preparing
-    ? 'Preparing the editor...'
+    ? t('dialogs:startScreen.preparing', 'Preparing the editor...')
     : status === 'error' && errorMessage
       ? errorMessage
-      : 'Choose how you want to begin.';
+      : t('dialogs:startScreen.chooseBegin', 'Choose how you want to begin.');
 
   return (
     <main className="start-screen" aria-busy={preparing || undefined}>
       <section className="start-screen__content" aria-labelledby="start-screen-title">
         <div className="start-screen__hero">
           <div className="start-screen__copy">
+            {/* eslint-disable-next-line i18next/no-literal-string -- brand name, never translated */}
             <span className="start-screen__eyebrow">Ori Studio</span>
-            <h1 id="start-screen-title">Start a new origami workspace</h1>
+            <h1 id="start-screen-title">{t('dialogs:startScreen.title', 'Start a new origami workspace')}</h1>
             <p>
-              Begin with a crease pattern, open an existing file, or sketch the tree
-              structure for a new design.
+              {t(
+                'dialogs:startScreen.description',
+                'Begin with a crease pattern, open an existing file, or sketch the tree structure for a new design.'
+              )}
             </p>
           </div>
           <div className="start-screen__preview" aria-hidden="true">
@@ -58,24 +63,33 @@ export function StartScreen({
           </div>
         </div>
 
-        <div className="start-screen__actions" aria-label="Start options">
+        <div className="start-screen__actions" aria-label={t('dialogs:startScreen.startOptions', 'Start options')}>
           <StartAction
-            title="Create a CP"
-            description="Open a blank editable crease-pattern document with CP drawing tools ready."
+            title={t('dialogs:startScreen.createCp.title', 'Create a CP')}
+            description={t(
+              'dialogs:startScreen.createCp.description',
+              'Open a blank editable crease-pattern document with CP drawing tools ready.'
+            )}
             icon={<PenTool size={20} />}
             disabled={disabled}
             onClick={onCreateCreasePattern}
           />
           <StartAction
-            title="Open a file"
-            description="Open .osf projects or import .cp, .fold, .ori, .orh, .tmd, .tmd4, and .tmd5 files through the shared file workflow."
+            title={t('dialogs:startScreen.openFile.title', 'Open a file')}
+            description={t(
+              'dialogs:startScreen.openFile.description',
+              'Open .osf projects or import .cp, .fold, .ori, .orh, .tmd, .tmd4, and .tmd5 files through the shared file workflow.'
+            )}
             icon={<FolderOpen size={20} />}
             disabled={disabled}
             onClick={onOpenFile}
           />
           <StartAction
-            title="Create a design"
-            description="Start from a blank tree, then optimize it and build a crease pattern."
+            title={t('dialogs:startScreen.createDesign.title', 'Create a design')}
+            description={t(
+              'dialogs:startScreen.createDesign.description',
+              'Start from a blank tree, then optimize it and build a crease pattern.'
+            )}
             icon={<DraftingCompass size={20} />}
             disabled={disabled}
             onClick={onCreateDesign}
@@ -93,7 +107,7 @@ export function StartScreen({
               checked={showWelcomeOnStartup}
               onChange={(event) => onToggleShowWelcomeOnStartup(event.target.checked)}
             />
-            Show welcome on startup
+            {t('dialogs:startScreen.showWelcomeOnStartup', 'Show welcome on startup')}
           </label>
         </div>
       </section>

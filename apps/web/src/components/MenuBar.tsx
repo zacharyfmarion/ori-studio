@@ -1,61 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ChevronRight } from 'lucide-react';
 import { handleMenuAction } from '../commands/menuActions';
 import { getMenuBarDef, type MenuDef, type MenuItemDef } from '../menus/menuDefinition';
+import { isMenuItemVisible, menuHasVisibleItems, pruneMenuItems } from '../menus/menuVisibility';
 import { useShortcutStore } from '../store/shortcutStore';
 import { useWorkspaceCapabilities } from '../store/workspaceStore/useWorkspaceCapabilities';
 import type { WorkspaceCapabilities, WorkspaceCapabilityId } from '../lib/workspaceCapabilities';
 import './MenuBar.css';
-
-function isMenuItemVisible(item: MenuItemDef, capabilities: WorkspaceCapabilities): boolean {
-  if (item.type === 'separator') return true;
-  if (item.type === 'command') return true;
-  if (item.type === 'submenu') {
-    return item.items.some((child) => child.type !== 'separator' && isMenuItemVisible(child, capabilities));
-  }
-
-  const capability = capabilities[item.id as WorkspaceCapabilityId];
-  return !(capability && !capability.visible);
-}
-
-/**
- * Whether a top-level menu has any non-separator item that is visible in the
- * current context. Lets the bar drop menus that are entirely hidden — e.g. the
- * Design and Crease Pattern menus while authoring a Box-Pleat design.
- */
-function menuHasVisibleItems(menu: MenuDef, capabilities: WorkspaceCapabilities): boolean {
-  return menu.items.some(
-    (item) => item.type !== 'separator' && isMenuItemVisible(item, capabilities)
-  );
-}
-
-/**
- * Drop the items hidden in the current context, then collapse separators so no
- * leading, trailing, or doubled dividers survive. Without this a menu (or
- * submenu) whose visible items straddle a divider — e.g. an Export submenu that
- * only exposes "Export .bps..." — renders orphaned separator lines around a lone
- * entry.
- */
-export function pruneMenuItems(
-  items: MenuItemDef[],
-  capabilities: WorkspaceCapabilities
-): MenuItemDef[] {
-  const pruned: MenuItemDef[] = [];
-  for (const item of items) {
-    if (item.type === 'separator') {
-      if (pruned.length > 0 && pruned[pruned.length - 1].type !== 'separator') {
-        pruned.push(item);
-      }
-      continue;
-    }
-    if (!isMenuItemVisible(item, capabilities)) continue;
-    pruned.push(item);
-  }
-  while (pruned.length > 0 && pruned[pruned.length - 1].type === 'separator') {
-    pruned.pop();
-  }
-  return pruned;
-}
 
 function MenuDropdown({
   items,
@@ -157,9 +109,10 @@ export function MenuBar() {
   const [openMenu, setOpenMenu] = useState<number | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const shortcutOverrides = useShortcutStore((state) => state.overrides);
+  const { t } = useTranslation();
   const menuDef = useMemo(
-    () => getMenuBarDef(shortcutOverrides),
-    [shortcutOverrides]
+    () => getMenuBarDef(shortcutOverrides, (key, defaultValue) => t(key, defaultValue)),
+    [shortcutOverrides, t]
   );
   const capabilities = useWorkspaceCapabilities();
   const visibleMenus = useMemo<MenuDef[]>(

@@ -20,6 +20,7 @@ export const STORAGE_NAMESPACE = 'oristudio';
 export const STORAGE_KEYS = {
   theme: 'theme',
   shortcuts: 'shortcuts',
+  locale: 'locale',
   showWelcomeOnStartup: 'show-welcome-on-startup',
   layout: 'layout',
   layoutVersion: 'layout-version',

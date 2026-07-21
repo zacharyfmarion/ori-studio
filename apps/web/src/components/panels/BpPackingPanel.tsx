@@ -11,6 +11,8 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import { TransformComponent, TransformWrapper, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import {
   ArrowDown,
   ArrowLeft,
@@ -80,6 +82,7 @@ import { useBpLongPressInspector } from '../../hooks/useBpLongPressInspector';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { IconButton } from '../ui/IconButton';
+import { BpNameEditor } from './BpNameEditor';
 import {
   isViewportInteractiveTarget,
   ViewportToolbar,
@@ -104,7 +107,6 @@ const BP_PACKING_CYCLE_THRESHOLD_PX = 4;
 interface BpRiverVisual {
   river: OristudioBpRiver;
   bounds: { x: number; y: number; width: number; height: number };
-  center: Point;
 }
 
 interface BpPackingDragState {
@@ -174,16 +176,40 @@ const BP_PACKING_NUDGE_VECTORS: Record<BpPackingNudgeDirection, Point> = {
 const BP_DPAD_INITIAL_REPEAT_MS = 750;
 const BP_DPAD_REPEAT_MS = 150;
 
-const LAYER_OPTIONS: { key: BpPackingViewLayerKey; label: string; icon: ReactNode }[] = [
-  { key: 'grid', label: 'Grid', icon: <Grid2X2 size={13} /> },
-  { key: 'flaps', label: 'Flaps', icon: <CircleDot size={13} /> },
-  { key: 'rivers', label: 'Rivers', icon: <Route size={13} /> },
-  { key: 'hinges', label: 'Hinges', icon: <Waypoints size={13} /> },
-  { key: 'ridges', label: 'Ridges', icon: <Waypoints size={13} /> },
-  { key: 'axisParallels', label: 'Axis', icon: <Waypoints size={13} /> },
-  { key: 'conflicts', label: 'Conflicts', icon: <TriangleAlert size={13} /> },
-  { key: 'labels', label: 'Labels', icon: <Tag size={13} /> },
+const LAYER_OPTIONS: { key: BpPackingViewLayerKey; icon: ReactNode }[] = [
+  { key: 'grid', icon: <Grid2X2 size={13} /> },
+  { key: 'flaps', icon: <CircleDot size={13} /> },
+  { key: 'rivers', icon: <Route size={13} /> },
+  { key: 'hinges', icon: <Waypoints size={13} /> },
+  { key: 'ridges', icon: <Waypoints size={13} /> },
+  { key: 'axisParallels', icon: <Waypoints size={13} /> },
+  { key: 'conflicts', icon: <TriangleAlert size={13} /> },
+  { key: 'labels', icon: <Tag size={13} /> },
 ];
+
+/** Localized BP-packing layer label. Literal `t()` calls keep the keys extractable. */
+function bpPackingLayerLabel(t: TFunction, key: BpPackingViewLayerKey): string {
+  switch (key) {
+    case 'grid':
+      return t('panels:bpPacking.layerGrid', 'Grid');
+    case 'flaps':
+      return t('panels:bpPacking.layerFlaps', 'Flaps');
+    case 'rivers':
+      return t('panels:bpPacking.layerRivers', 'Rivers');
+    case 'hinges':
+      return t('panels:bpPacking.layerHinges', 'Hinges');
+    case 'ridges':
+      return t('panels:bpPacking.layerRidges', 'Ridges');
+    case 'axisParallels':
+      return t('panels:bpPacking.layerAxis', 'Axis');
+    case 'conflicts':
+      return t('panels:bpPacking.layerConflicts', 'Conflicts');
+    case 'labels':
+      return t('panels:bpPacking.layerLabels', 'Labels');
+    default:
+      return key;
+  }
+}
 
 function viewBox(rect: { x: number; y: number; width: number; height: number }): string {
   return `${rect.x} ${rect.y} ${rect.width} ${rect.height}`;
@@ -327,6 +353,7 @@ function BpPackingViewportToolbar({
   fitToView: () => void;
   setZoomLevel: (scale: number) => void;
 }) {
+  const { t } = useTranslation();
   const [layersOpen, setLayersOpen] = useState(false);
   const layersMenuRef = useRef<HTMLDivElement | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -356,7 +383,7 @@ function BpPackingViewportToolbar({
 
   return (
     <ViewportToolbar
-      ariaLabel="Box Pleat packing viewport controls"
+      ariaLabel={t('panels:bpPacking.viewportControls', 'Box Pleat packing viewport controls')}
       zoomPercent={zoomPercent}
       zoomIn={zoomIn}
       zoomOut={zoomOut}
@@ -367,7 +394,7 @@ function BpPackingViewportToolbar({
       <IconButton
         size="sm"
         variant="toolbar"
-        title="Subdivide Sheet"
+        title={t('panels:bpPacking.subdivideSheet', 'Subdivide Sheet')}
         onClick={subdivideSheet}
         disabled={!canSubdivide}
       >
@@ -377,7 +404,7 @@ function BpPackingViewportToolbar({
         <IconButton
           size="sm"
           variant="toolbar"
-          title="Sheet size & grid"
+          title={t('panels:bpPacking.sheetSizeGrid', 'Sheet size & grid')}
           isActive={sheetOpen}
           onClick={() => setSheetOpen((open) => !open)}
         >
@@ -386,14 +413,14 @@ function BpPackingViewportToolbar({
         {sheetOpen && (
           <div className="design-layer-menu bp-sheet-menu" role="menu">
             <div className="bp-sheet-menu__row">
-              <span className="bp-sheet-menu__label">Grid</span>
+              <span className="bp-sheet-menu__label">{t('panels:bpPacking.grid', 'Grid')}</span>
               <div className="bp-sheet-menu__segment">
                 <button
                   type="button"
                   className={sheet.kind === 'rectangular' ? 'is-active' : undefined}
                   onClick={() => setSheet('rectangular', sheet.width, sheet.height)}
                 >
-                  Rect
+                  {t('panels:bpPacking.rect', 'Rect')}
                 </button>
                 <button
                   type="button"
@@ -404,25 +431,25 @@ function BpPackingViewportToolbar({
                     setSheet('diagonal', sheet.width, sheet.height)
                   }
                 >
-                  Diagonal
+                  {t('panels:bpPacking.diagonal', 'Diagonal')}
                 </button>
               </div>
             </div>
             {sheet.kind === 'diagonal' ? (
               <BpSheetSizeInput
-                label="Size"
+                label={t('panels:bpPacking.size', 'Size')}
                 value={sheet.width}
                 onCommit={(s) => setSheet('diagonal', s, s)}
               />
             ) : (
               <>
                 <BpSheetSizeInput
-                  label="Width"
+                  label={t('panels:bpPacking.width', 'Width')}
                   value={sheet.width}
                   onCommit={(w) => setSheet(sheet.kind, w, sheet.height)}
                 />
                 <BpSheetSizeInput
-                  label="Height"
+                  label={t('panels:bpPacking.height', 'Height')}
                   value={sheet.height}
                   onCommit={(h) => setSheet(sheet.kind, sheet.width, h)}
                 />
@@ -436,7 +463,7 @@ function BpPackingViewportToolbar({
         <IconButton
           size="sm"
           variant="toolbar"
-          title="Layers"
+          title={t('panels:bpPacking.layers', 'Layers')}
           isActive={layersOpen}
           onClick={() => setLayersOpen((open) => !open)}
         >
@@ -452,7 +479,7 @@ function BpPackingViewportToolbar({
                   onChange={(event) => onLayerChange(option.key, event.target.checked)}
                 />
                 <span className="design-layer-option__icon">{option.icon}</span>
-                <span>{option.label}</span>
+                <span>{bpPackingLayerLabel(t, option.key)}</span>
               </label>
             ))}
           </div>
@@ -473,6 +500,7 @@ function StretchStepper({
   count: number;
   onStep: (delta: number) => void;
 }) {
+  const { t } = useTranslation();
   const disabled = count <= 1;
   return (
     <div className="bp-packing-stretch-nav__stepper">
@@ -480,7 +508,7 @@ function StretchStepper({
       <IconButton
         size="sm"
         variant="toolbar"
-        title={`Previous ${label.toLowerCase()}`}
+        title={t('panels:bpPacking.previousStepper', 'Previous {{label}}', { label: label.toLowerCase() })}
         disabled={disabled}
         onClick={() => onStep(-1)}
       >
@@ -492,7 +520,7 @@ function StretchStepper({
       <IconButton
         size="sm"
         variant="toolbar"
-        title={`Next ${label.toLowerCase()}`}
+        title={t('panels:bpPacking.nextStepper', 'Next {{label}}', { label: label.toLowerCase() })}
         disabled={disabled}
         onClick={() => onStep(1)}
       >
@@ -516,27 +544,32 @@ function BpPackingStretchNav({
   onSwitchConfig: (delta: number) => void;
   onSwitchPattern: (delta: number) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div
       className="bp-packing-stretch-nav"
       role="group"
-      aria-label={`Stretch ${stretch.id} pattern navigation`}
+      aria-label={t('panels:bpPacking.stretchNav', 'Stretch {{id}} pattern navigation', { id: stretch.id })}
     >
-      <span className="bp-packing-stretch-nav__title">Stretch {stretch.id}</span>
+      <span className="bp-packing-stretch-nav__title">
+        {t('panels:bpPacking.stretch', 'Stretch {{id}}', { id: stretch.id })}
+      </span>
       <StretchStepper
-        label="Config"
+        label={t('panels:bpPacking.config', 'Config')}
         index={stretch.configIndex ?? 0}
         count={stretch.configCount ?? 0}
         onStep={onSwitchConfig}
       />
       <StretchStepper
-        label="Pattern"
+        label={t('panels:bpPacking.pattern', 'Pattern')}
         index={stretch.patternIndex ?? 0}
         count={stretch.patternCount ?? 0}
         onStep={onSwitchPattern}
       />
       {stretch.patternFound === false && (
-        <span className="bp-packing-stretch-nav__warning">No valid pattern</span>
+        <span className="bp-packing-stretch-nav__warning">
+          {t('panels:bpPacking.noValidPattern', 'No valid pattern')}
+        </span>
       )}
     </div>
   );
@@ -549,6 +582,7 @@ function BpPackingDPad({
   enabled: boolean;
   onNudge: (direction: BpPackingNudgeDirection) => boolean;
 }) {
+  const { t } = useTranslation();
   const repeatTimerRef = useRef<number | null>(null);
   const clearRepeat = useCallback(() => {
     if (repeatTimerRef.current !== null) {
@@ -581,7 +615,7 @@ function BpPackingDPad({
       <DPadButton
         className="bp-packing-dpad__up"
         direction="up"
-        label="Nudge BP selection up"
+        label={t('panels:bpPacking.nudgeUp', 'Nudge BP selection up')}
         disabled={!enabled}
         onStart={startNudge}
         onStop={clearRepeat}
@@ -591,7 +625,7 @@ function BpPackingDPad({
       <DPadButton
         className="bp-packing-dpad__left"
         direction="left"
-        label="Nudge BP selection left"
+        label={t('panels:bpPacking.nudgeLeft', 'Nudge BP selection left')}
         disabled={!enabled}
         onStart={startNudge}
         onStop={clearRepeat}
@@ -601,7 +635,7 @@ function BpPackingDPad({
       <DPadButton
         className="bp-packing-dpad__right"
         direction="right"
-        label="Nudge BP selection right"
+        label={t('panels:bpPacking.nudgeRight', 'Nudge BP selection right')}
         disabled={!enabled}
         onStart={startNudge}
         onStop={clearRepeat}
@@ -611,7 +645,7 @@ function BpPackingDPad({
       <DPadButton
         className="bp-packing-dpad__down"
         direction="down"
-        label="Nudge BP selection down"
+        label={t('panels:bpPacking.nudgeDown', 'Nudge BP selection down')}
         disabled={!enabled}
         onStart={startNudge}
         onStop={clearRepeat}
@@ -666,6 +700,7 @@ function DPadButton({
 }
 
 export function BpPackingPanel({ document }: { document: OristudioBpDocumentState }) {
+  const { t } = useTranslation();
   const svgRef = useRef<SVGSVGElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const transformRef = useRef<ReactZoomPanPinchRef | null>(null);
@@ -690,6 +725,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   );
   const moveOristudioBpLayoutFlap = useWorkspaceStore((state) => state.moveOristudioBpLayoutFlap);
   const moveOristudioBpLayoutFlaps = useWorkspaceStore((state) => state.moveOristudioBpLayoutFlaps);
+  const renameOristudioBpVertex = useWorkspaceStore((state) => state.renameOristudioBpVertex);
   const moveOristudioBpDevice = useWorkspaceStore((state) => state.moveOristudioBpDevice);
   const switchOristudioBpStretchConfig = useWorkspaceStore(
     (state) => state.switchOristudioBpStretchConfig
@@ -739,6 +775,13 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   // — matching Box Pleating Studio's Core-driven update. (Perf can be tuned
   // later; correctness first.)
   const displayPacking = packing;
+  // The single selected flap, if exactly one flap is selected — the contextual
+  // name editor only appears for a single flap (matches the edge-length editor).
+  const singleSelectedFlap = useMemo(() => {
+    const id = document.selection.kind === 'bp-flap' ? document.selection.id : null;
+    if (id === null) return null;
+    return packing.flaps.find((flap) => flap.id === id) ?? null;
+  }, [document.selection, packing.flaps]);
   const paperRect = useMemo(() => bpPackingPaperRect(packing.sheet), [packing.sheet]);
   const shadowRect = useMemo(() => bpPackingShadowRect(packing.sheet), [packing.sheet]);
   // A diagonal sheet is the square rotated 45° into a diamond; render the paper,
@@ -1542,7 +1585,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
             height={worldRect.height}
             style={{ width: worldRect.width, height: worldRect.height }}
             role="img"
-            aria-label="Box Pleat packing canvas"
+            aria-label={t('panels:bpPacking.canvas', 'Box Pleat packing canvas')}
             onPointerDown={onCanvasPointerDown}
             onPointerMove={onCanvasPointerMove}
             onPointerUp={finishMarquee}
@@ -1634,10 +1677,10 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                       role="button"
                       tabIndex={0}
                       data-bp-select={`river:${visual.river.id}`}
-                      aria-label={`Select BP river ${visual.river.id}, length ${formatNumber(
-                        visual.river.length,
-                        2
-                      )}`}
+                      aria-label={t('panels:bpPacking.selectRiver', 'Select BP river {{id}}, length {{length}}', {
+                        id: visual.river.id,
+                        length: formatNumber(visual.river.length, 2),
+                      })}
                       onPointerDown={(event) => onRiverPointerDown(event, visual.river.id)}
                       onKeyDown={(event) => onRiverKeyDown(event, visual.river.id)}
                     >
@@ -1659,15 +1702,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                         height={visual.bounds.height + pad * 2}
                         rx={Math.min(8, Math.max(2, unit * 0.12))}
                       />
-                      {layers.labels && (
-                        <text
-                          className="bp-packing-label bp-packing-river-label"
-                          x={visual.center.x + 7}
-                          y={visual.center.y - 7}
-                        >
-                          r{visual.river.id}
-                        </text>
-                      )}
                     </g>
                   );
                 })}
@@ -1684,7 +1718,10 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                       role="button"
                       tabIndex={0}
                       data-bp-select={`conflict:${junction.id}`}
-                      aria-label={`Select BP conflict ${junction.id}: ${junction.message}`}
+                      aria-label={t('panels:bpPacking.selectConflict', 'Select BP conflict {{id}}: {{message}}', {
+                        id: junction.id,
+                        message: junction.message,
+                      })}
                       onPointerDown={(event) => onConflictPointerDown(event, junction.id)}
                       onKeyDown={(event) => onConflictKeyDown(event, junction.id)}
                     >
@@ -1787,7 +1824,14 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                         role="button"
                         tabIndex={0}
                         data-bp-select={`flap:${flap.id}`}
-                        aria-label={`Select BP flap ${flap.id}${flap.name ? `, ${flap.name}` : ''}`}
+                        aria-label={
+                          flap.name
+                            ? t('panels:bpPacking.selectFlapWithName', 'Select BP flap {{id}}, {{name}}', {
+                                id: flap.id,
+                                name: flap.name,
+                              })
+                            : t('panels:bpPacking.selectFlap', 'Select BP flap {{id}}', { id: flap.id })
+                        }
                         onPointerDown={(event) => onFlapPointerDown(event, flap.id)}
                         onPointerMove={(event) => onFlapPointerMove(event, flap)}
                         onPointerUp={(event) => finishFlapDrag(event, flap)}
@@ -1892,6 +1936,18 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
         enabled={nudgeableFlaps.length > 0 || nudgeableDevice !== null}
         onNudge={nudgeSelection}
       />
+      {singleSelectedFlap && (
+        <BpNameEditor
+          key={singleSelectedFlap.id}
+          title={t('panels:bpPacking.flapTitle', 'Flap {{id}}', { id: singleSelectedFlap.id })}
+          name={singleSelectedFlap.name}
+          placeholder={`f${singleSelectedFlap.id}`}
+          ariaLabel={t('panels:bpPacking.flapNameAria', 'Name of flap {{id}}', {
+            id: singleSelectedFlap.id,
+          })}
+          onRename={(name) => void renameOristudioBpVertex(singleSelectedFlap.vertexId, name)}
+        />
+      )}
       {activeStretch && (
         <BpPackingStretchNav
           stretch={activeStretch}
@@ -1917,7 +1973,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
         <span><CircleDot size={13} /> {packing.flaps.length}</span>
         <span><Route size={13} /> {packing.rivers.length}</span>
         <span><TriangleAlert size={13} /> {packing.invalidJunctions.length}</span>
-        <span><Grid2X2 size={13} /> {packing.sheet.width} x {packing.sheet.height}</span>
+        <span><Grid2X2 size={13} /> {t('panels:bpPacking.sheetDimensions', '{{width}} × {{height}}', { width: packing.sheet.width, height: packing.sheet.height })}</span>
       </div>
     </div>
   );
@@ -1930,15 +1986,16 @@ function BpPackingAlerts({
   diagnostics: OristudioBpDiagnostic[];
   onActivate: (diagnostic: OristudioBpDiagnostic) => void;
 }) {
+  const { t } = useTranslation();
   if (diagnostics.length === 0) return null;
   return (
-    <div className="bp-packing-alerts" aria-label="Box Pleat packing warnings">
+    <div className="bp-packing-alerts" aria-label={t('panels:bpPacking.warnings', 'Box Pleat packing warnings')}>
       {diagnostics.slice(0, 3).map((diagnostic) => {
         const content = (
           <>
             <TriangleAlert size={14} />
             <span>
-              <strong>{bpPackingAlertLabel(diagnostic)}</strong>
+              <strong>{bpPackingAlertLabel(diagnostic, t)}</strong>
               <small>{diagnostic.message}</small>
             </span>
           </>
@@ -1990,6 +2047,7 @@ function Primitive({
     primitive: OristudioBpGraphicPrimitive
   ) => void;
 }) {
+  const { t } = useTranslation();
   const sheet = document.snapshot.packing.sheet;
   const active =
     primitiveSelectedByFlap(primitive.id, linkedSelection) ||
@@ -2000,7 +2058,7 @@ function Primitive({
     `bp-packing-primitive--${primitive.layer}`,
     active ? 'bp-packing-primitive--selected' : '',
   ].join(' ');
-  const ariaLabel = primitiveAriaLabel(primitive, document);
+  const ariaLabel = primitiveAriaLabel(primitive, document, t);
   const keyboardProps = ariaLabel
     ? {
         role: 'button' as const,
@@ -2100,17 +2158,21 @@ function Primitive({
 
 function primitiveAriaLabel(
   primitive: OristudioBpGraphicPrimitive,
-  document: OristudioBpDocumentState
+  document: OristudioBpDocumentState,
+  t: TFunction
 ): string | undefined {
   const deviceInfo = deviceInfoFromPrimitiveId(primitive.id, document);
   if (deviceInfo) {
     const stretchId = deviceInfo.deviceId.split(':device:')[0] ?? deviceInfo.deviceId;
-    return `Select BP device ${deviceInfo.index + 1} for stretch ${stretchId}`;
+    return t('panels:bpPacking.selectDevice', 'Select BP device {{index}} for stretch {{stretchId}}', {
+      index: deviceInfo.index + 1,
+      stretchId,
+    });
   }
   const flapId = flapIdFromPrimitiveId(primitive.id);
-  if (flapId !== null) return `Select BP flap ${flapId}`;
+  if (flapId !== null) return t('panels:bpPacking.selectFlap', 'Select BP flap {{id}}', { id: flapId });
   const riverId = riverIdFromPrimitiveId(primitive.id, document);
-  if (riverId !== null) return `Select BP river ${riverId}`;
+  if (riverId !== null) return t('panels:bpPacking.selectRiverShort', 'Select BP river {{id}}', { id: riverId });
   return undefined;
 }
 
@@ -2179,10 +2241,10 @@ function bpPackingAlertDiagnostics(
   );
 }
 
-function bpPackingAlertLabel(diagnostic: OristudioBpDiagnostic): string {
-  if (diagnostic.kind === 'pattern-not-found') return 'Pattern not found';
-  if (diagnostic.kind === 'upstream-gap') return 'Upstream gap';
-  return 'Unsupported BP operation';
+function bpPackingAlertLabel(diagnostic: OristudioBpDiagnostic, t: TFunction): string {
+  if (diagnostic.kind === 'pattern-not-found') return t('panels:bpPacking.patternNotFound', 'Pattern not found');
+  if (diagnostic.kind === 'upstream-gap') return t('panels:bpPacking.upstreamGap', 'Upstream gap');
+  return t('panels:bpPacking.unsupportedOperation', 'Unsupported BP operation');
 }
 
 function constrainBpPackingDeviceTarget(
@@ -2253,7 +2315,6 @@ function riverVisual(
       width: Math.max(1, maxX - minX),
       height: Math.max(1, maxY - minY),
     },
-    center: { x: (minX + maxX) / 2, y: (minY + maxY) / 2 },
   };
 }
 

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { DraftingCompass, Grid3x3 } from 'lucide-react';
 import { useWorkspaceStore } from '../../store/workspaceStore';
@@ -13,6 +14,7 @@ import type { WorkflowTarget } from '../../lib/sampleProject';
  * - Box-pleated   → the Box Pleating Studio tree + packing workflow.
  */
 export function DesignMethodChooser() {
+  const { t } = useTranslation();
   const engineReady = useWorkspaceStore((state) => state.engineReady);
   const status = useWorkspaceStore((state) => state.status);
   const chooseDesignMethod = useWorkspaceStore((state) => state.chooseDesignMethod);
@@ -27,23 +29,37 @@ export function DesignMethodChooser() {
     <section className="panel-shell design-panel design-method-chooser">
       <div className="design-method-chooser__body">
         <div className="design-method-chooser__intro">
-          <h2 className="design-method-chooser__title">Start a new design</h2>
+          <h2 className="design-method-chooser__title">
+            {t('panels:design.methodChooser.title', 'Start a new design')}
+          </h2>
           <p className="design-method-chooser__subtitle">
-            Choose how you want to author this model.
+            {t('panels:design.methodChooser.subtitle', 'Choose how you want to author this model.')}
           </p>
         </div>
-        <div className="design-method-chooser__options" role="group" aria-label="Design method">
+        <div
+          className="design-method-chooser__options"
+          role="group"
+          aria-label={t('panels:design.methodChooser.groupLabel', 'Design method')}
+        >
           <MethodCard
-            title="Circle-packed"
-            description="Sketch a tree and let circle/river packing optimize the base, TreeMaker-style."
+            method="treemaker"
+            title={t('panels:design.methodChooser.circlePacked.title', 'Circle-packed')}
+            description={t(
+              'panels:design.methodChooser.circlePacked.description',
+              'Sketch a tree and let circle/river packing optimize the base, TreeMaker-style.'
+            )}
             icon={<DraftingCompass size={22} />}
             // Circle-packing runs on the treemaker engine — wait for it to load.
             disabled={!engineReady}
             onSelect={() => chooseMethod('treemaker')}
           />
           <MethodCard
-            title="Box-pleated"
-            description="Author a tree, then pack flaps and rivers on a grid with Box Pleating Studio."
+            method="box-pleat"
+            title={t('panels:design.methodChooser.boxPleated.title', 'Box-pleated')}
+            description={t(
+              'panels:design.methodChooser.boxPleated.description',
+              'Author a tree, then pack flaps and rivers on a grid with Box Pleating Studio.'
+            )}
             icon={<Grid3x3 size={22} />}
             // Box-pleating runs on the independent BP worker, not the treemaker
             // engine, so it needn't wait for `engineReady`.
@@ -57,6 +73,7 @@ export function DesignMethodChooser() {
 }
 
 interface MethodCardProps {
+  method: WorkflowTarget;
   title: string;
   description: string;
   icon: ReactNode;
@@ -64,8 +81,7 @@ interface MethodCardProps {
   onSelect: () => void;
 }
 
-function MethodCard({ title, description, icon, disabled, onSelect }: MethodCardProps) {
-  const method: WorkflowTarget = title === 'Box-pleated' ? 'box-pleat' : 'treemaker';
+function MethodCard({ method, title, description, icon, disabled, onSelect }: MethodCardProps) {
   return (
     <button
       type="button"

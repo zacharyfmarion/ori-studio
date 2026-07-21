@@ -1,0 +1,1578 @@
+{
+  "group": {
+    "line_type": {
+      "label": "线型",
+      "railLabel": "线型"
+    },
+    "select_edit": {
+      "label": "选择与编辑",
+      "railLabel": "选择"
+    },
+    "draw": {
+      "label": "绘制折痕和点",
+      "railLabel": "绘制"
+    },
+    "edit": {
+      "label": "删除",
+      "railLabel": "删除"
+    },
+    "construct": {
+      "label": "按几何构造",
+      "railLabel": "构造"
+    },
+    "transform": {
+      "label": "变换与操作框",
+      "railLabel": "变换"
+    },
+    "color": {
+      "label": "颜色与指定",
+      "railLabel": "颜色"
+    },
+    "annotations": {
+      "label": "圆、文本和标注",
+      "railLabel": "标注"
+    },
+    "generators": {
+      "label": "生成器与基础分子",
+      "railLabel": "生成"
+    },
+    "measure": {
+      "label": "测量",
+      "railLabel": "测量"
+    },
+    "check_fix": {
+      "label": "检查与修复",
+      "railLabel": "检查"
+    },
+    "folding": {
+      "label": "折叠估算与折叠图形",
+      "railLabel": "折叠"
+    },
+    "file": {
+      "label": "文件导入/导出",
+      "railLabel": "文件"
+    }
+  },
+  "action": {
+    "cp_action_line_type_mountain": {
+      "label": "山折",
+      "railLabel": "M",
+      "tooltip": "将当前线型设为山折",
+      "disabledReason": "就绪"
+    },
+    "cp_action_line_type_valley": {
+      "label": "谷折",
+      "railLabel": "V",
+      "tooltip": "将当前线型设为谷折",
+      "disabledReason": "就绪"
+    },
+    "cp_action_line_type_edge": {
+      "label": "边界线",
+      "railLabel": "E",
+      "tooltip": "将当前线型设为边界线",
+      "disabledReason": "就绪"
+    },
+    "cp_action_line_type_unassigned": {
+      "label": "未指定",
+      "railLabel": "U",
+      "tooltip": "将当前线型设为未指定",
+      "disabledReason": "就绪"
+    },
+    "cp_action_line_type_auxiliary": {
+      "label": "辅助线",
+      "railLabel": "A",
+      "tooltip": "将当前线型设为辅助线",
+      "disabledReason": "就绪"
+    },
+    "cp_action_draw_crease": {
+      "label": "线",
+      "tooltip": "使用当前线型拖动绘制折痕",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "拖动折痕端点"
+      }
+    },
+    "cp_action_move_crease_pattern": {
+      "label": "平移视口",
+      "tooltip": "由已落地的折痕图视口平移控件处理",
+      "disabledReason": "由视口运行时处理，而非折痕图命令"
+    },
+    "cp_action_line_segment_delete": {
+      "label": "橡皮擦",
+      "tooltip": "点击折痕或拖动方框以擦除折痕",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "点击折痕或拖动方框以擦除"
+      }
+    },
+    "cp_action_change_crease_type": {
+      "label": "更改折痕类型",
+      "tooltip": "在边界线、山折和谷折之间递进所选折线",
+      "disabledReason": "就绪"
+    },
+    "cp_action_lengthen_crease": {
+      "label": "延长线",
+      "tooltip": "将参考线穿过的折痕延长至目标折痕",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选择要延长的线",
+        "1": "选择目标线"
+      }
+    },
+    "cp_action_square_bisector": {
+      "label": "角平分线",
+      "tooltip": "方形平分线",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选择 2 条线段或 3 个点",
+        "1": "选择 3 个点",
+        "2": "选择 3 个点",
+        "3": "选择线段以结束"
+      }
+    },
+    "cp_action_inward": {
+      "label": "兔耳折",
+      "tooltip": "向内折线",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取第一个三角形点",
+        "1": "选取第二个三角形点",
+        "2": "选取第三个三角形点"
+      }
+    },
+    "cp_action_perpendicular_draw": {
+      "label": "垂线",
+      "tooltip": "绘制垂线",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取目标点",
+        "1": "选取基准折痕"
+      }
+    },
+    "cp_action_symmetric_draw": {
+      "label": "镜像线",
+      "tooltip": "对称绘制",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取源折痕",
+        "1": "选取镜像折痕"
+      }
+    },
+    "cp_action_draw_crease_restricted": {
+      "label": "网格约束线",
+      "tooltip": "绘制约束折痕",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "在现有点之间拖动"
+      }
+    },
+    "cp_action_draw_crease_symmetric": {
+      "label": "沿线反射所选内容",
+      "tooltip": "沿两点绘制的线反射所选折痕",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选择 2 个点或选择一条线",
+        "1": "选取反射线端点"
+      }
+    },
+    "cp_action_draw_crease_angle_restricted": {
+      "label": "汇聚线",
+      "tooltip": "角度约束折痕",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取基准折痕或第一个点",
+        "1": "选取基准端点",
+        "2": "选取汇聚点"
+      }
+    },
+    "cp_action_draw_point": {
+      "label": "绘制点",
+      "tooltip": "绘制点",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取点"
+      }
+    },
+    "cp_action_delete_point": {
+      "label": "删除点",
+      "tooltip": "合并在所选顶点相交的同色折痕",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取顶点"
+      }
+    },
+    "cp_action_angle_system": {
+      "label": "偏移约束线",
+      "tooltip": "角度系统",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取角度起点",
+        "1": "选取角度终点",
+        "2": "选取目标折痕"
+      }
+    },
+    "cp_action_draw_crease_angle_restricted3": {
+      "label": "角度约束折痕 3",
+      "tooltip": "角度约束折痕 3",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取扇形起点",
+        "1": "选取扇形终点",
+        "2": "选取角度候选"
+      }
+    },
+    "cp_action_crease_select": {
+      "label": "框选",
+      "tooltip": "选择拖动方框内的折痕",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "拖动选择框"
+      }
+    },
+    "cp_action_crease_unselect": {
+      "label": "框选取消",
+      "tooltip": "取消选择拖动方框内的折痕",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "拖动选择框"
+      }
+    },
+    "cp_action_crease_move": {
+      "label": "移动所选折痕",
+      "tooltip": "移动所选折痕",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取源点",
+        "1": "选取目标点"
+      }
+    },
+    "cp_action_crease_copy": {
+      "label": "复制所选折痕",
+      "tooltip": "复制所选折痕",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取源点",
+        "1": "选取目标点"
+      }
+    },
+    "cp_action_crease_make_mountain": {
+      "label": "设为山折",
+      "tooltip": "将所选线设为山折",
+      "disabledReason": "就绪"
+    },
+    "cp_action_crease_make_valley": {
+      "label": "设为谷折",
+      "tooltip": "将所选线设为谷折",
+      "disabledReason": "就绪"
+    },
+    "cp_action_crease_make_edge": {
+      "label": "设为边界线",
+      "tooltip": "将所选线设为边界线",
+      "disabledReason": "就绪"
+    },
+    "cp_action_crease_set_line_color": {
+      "label": "设置所选线颜色",
+      "tooltip": "将当前线颜色应用到所选线",
+      "disabledReason": "就绪"
+    },
+    "cp_action_background_change_position": {
+      "label": "移动背景",
+      "tooltip": "背景图像操作仅限 UI，不属于折痕图内核",
+      "disabledReason": "由视口运行时处理，而非折痕图命令"
+    },
+    "cp_action_line_segment_division": {
+      "label": "等分线",
+      "tooltip": "按数量分割线",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "拖动绘制要分割的线"
+      }
+    },
+    "cp_action_line_segment_ratio_set": {
+      "label": "分割线（比率）",
+      "tooltip": "按比率分割线",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "拖动绘制要分割的线"
+      }
+    },
+    "cp_action_polygon_set_no_corners": {
+      "label": "正多边形",
+      "tooltip": "正多边形",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取第一个角",
+        "1": "选取第二个角"
+      }
+    },
+    "cp_action_crease_advance_type": {
+      "label": "递进折痕类型",
+      "tooltip": "在边界线、山折和谷折之间递进所选折线",
+      "disabledReason": "就绪"
+    },
+    "cp_action_crease_move4p": {
+      "label": "按四点移动",
+      "tooltip": "按四点移动",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取源第一个点",
+        "1": "选取源第二个点",
+        "2": "选取目标第一个点",
+        "3": "选取目标第二个点"
+      }
+    },
+    "cp_action_crease_copy4p": {
+      "label": "按四点复制",
+      "tooltip": "按四点复制",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取源第一个点",
+        "1": "选取源第二个点",
+        "2": "选取目标第一个点",
+        "3": "选取目标第二个点"
+      }
+    },
+    "cp_action_fish_bone_draw": {
+      "label": "平行交替线",
+      "tooltip": "鱼骨绘制",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取脊线起点",
+        "1": "选取脊线终点"
+      }
+    },
+    "cp_action_crease_make_mv": {
+      "label": "设为交替 M/V",
+      "tooltip": "沿参考线交替指定山折和谷折",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "沿折痕拖动参考线"
+      }
+    },
+    "cp_action_double_symmetric_draw": {
+      "label": "沿线反射",
+      "tooltip": "双对称绘制",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取对称轴起点",
+        "1": "选取对称轴终点"
+      }
+    },
+    "cp_action_creases_alternate_mv": {
+      "label": "交替交叉 M/V",
+      "tooltip": "沿参考线为交叉点交替指定山折和谷折",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "拖动参考线穿过交叉点"
+      }
+    },
+    "cp_action_draw_crease_angle_restricted5": {
+      "label": "角度约束线",
+      "tooltip": "角度约束折痕 5",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取锚点",
+        "1": "选取吸附端点"
+      }
+    },
+    "cp_action_vertex_make_angularly_flat_foldable": {
+      "label": "平折线",
+      "tooltip": "使顶点可平折",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取奇数顶点",
+        "1": "选取候选线",
+        "2": "选取目标折痕"
+      }
+    },
+    "cp_action_foldable_line_input": {
+      "label": "平折线（延长）",
+      "tooltip": "平折线输入",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取起始顶点",
+        "1": "选取端点"
+      }
+    },
+    "cp_action_parallel_draw": {
+      "label": "平行线",
+      "tooltip": "绘制平行线",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取目标点",
+        "1": "选取平行源折痕",
+        "2": "选取目标折痕"
+      }
+    },
+    "cp_action_vertex_delete_on_crease": {
+      "label": "删除任意顶点",
+      "tooltip": "按 Oriedita 颜色变更规则合并顶点处的相邻折痕",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取顶点"
+      }
+    },
+    "cp_action_circle_draw": {
+      "label": "绘制圆",
+      "tooltip": "绘制圆",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取圆心点",
+        "1": "选取半径点"
+      }
+    },
+    "cp_action_circle_draw_three_point": {
+      "label": "三点画圆",
+      "tooltip": "三点画圆",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取第一个点",
+        "1": "选取第二个点",
+        "2": "选取第三个点"
+      }
+    },
+    "cp_action_circle_draw_separate": {
+      "label": "分离圆",
+      "tooltip": "分离圆",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取圆心点",
+        "1": "选取半径起点",
+        "2": "选取半径终点"
+      }
+    },
+    "cp_action_circle_draw_tangent_line": {
+      "label": "圆切线",
+      "tooltip": "从两个所选圆，或从一个所选圆加一个点击的点创建切线",
+      "disabledReason": "就绪"
+    },
+    "cp_action_circle_draw_inverted": {
+      "label": "反演圆",
+      "tooltip": "通过所选圆对所选圆或折痕进行反演",
+      "disabledReason": "就绪"
+    },
+    "cp_action_circle_draw_free": {
+      "label": "自由圆",
+      "tooltip": "自由圆",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取圆心点",
+        "1": "选取半径点"
+      }
+    },
+    "cp_action_circle_draw_concentric": {
+      "label": "同心圆",
+      "tooltip": "同心圆",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取半径起点",
+        "1": "选取半径终点"
+      }
+    },
+    "cp_action_circle_draw_concentric_select": {
+      "label": "从选择创建同心圆",
+      "tooltip": "根据目标圆和两个参考圆的半径创建同心圆",
+      "disabledReason": "就绪"
+    },
+    "cp_action_circle_draw_concentric_two_circle_select": {
+      "label": "从两个圆创建同心圆",
+      "tooltip": "从所选圆创建两个 Oriedita 同心偏移圆",
+      "disabledReason": "就绪"
+    },
+    "cp_action_parallel_draw_width": {
+      "label": "按宽度绘制平行线",
+      "tooltip": "按宽度绘制平行线",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取源折痕",
+        "1": "选取宽度点"
+      }
+    },
+    "cp_action_continuous_symmetric_draw": {
+      "label": "穿线反射",
+      "tooltip": "连续对称绘制",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取起点",
+        "1": "选取穿过点"
+      }
+    },
+    "cp_action_display_length_between_points1": {
+      "label": "测量长度 1",
+      "tooltip": "测量长度 1",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取第一个点",
+        "1": "选取第二个点"
+      }
+    },
+    "cp_action_display_length_between_points2": {
+      "label": "测量长度 2",
+      "tooltip": "测量长度 2",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取第一个点",
+        "1": "选取第二个点"
+      }
+    },
+    "cp_action_display_angle_between_three_points1": {
+      "label": "测量角度 1",
+      "tooltip": "测量角度 1",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取第一个点",
+        "1": "选取顶点",
+        "2": "选取第二个点"
+      }
+    },
+    "cp_action_display_angle_between_three_points2": {
+      "label": "测量角度 2",
+      "tooltip": "测量角度 2",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取第一个点",
+        "1": "选取顶点",
+        "2": "选取第二个点"
+      }
+    },
+    "cp_action_display_angle_between_three_points3": {
+      "label": "测量角度 3",
+      "tooltip": "测量角度 3",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取第一个点",
+        "1": "选取顶点",
+        "2": "选取第二个点"
+      }
+    },
+    "cp_action_crease_toggle_mv": {
+      "label": "翻转山折/谷折",
+      "tooltip": "点击折痕或拖动方框以翻转山折/谷折指定",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "点击折痕或拖动方框以翻转"
+      }
+    },
+    "cp_action_circle_change_color": {
+      "label": "更改圆的颜色",
+      "tooltip": "将上下文自定义颜色应用到所选圆和辅助线",
+      "disabledReason": "就绪"
+    },
+    "cp_action_crease_make_aux": {
+      "label": "设为辅助线",
+      "tooltip": "将所选折线转换为辅助线",
+      "disabledReason": "就绪"
+    },
+    "cp_action_operation_frame_create": {
+      "label": "操作框",
+      "tooltip": "在折痕图上拖动矩形以创建 Oriedita 操作框",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "拖动操作框"
+      }
+    },
+    "cp_action_voronoi_create": {
+      "label": "Voronoi",
+      "tooltip": "点击种子点以预览 Voronoi 图，然后从上下文面板应用",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "点击种子点"
+      }
+    },
+    "cp_action_flat_foldable_check": {
+      "label": "平折边界检查",
+      "tooltip": "绘制闭合的 Oriedita 边界环并为检查结果着色",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "绘制闭合边界环"
+      }
+    },
+    "cp_action_crease_delete_overlapping": {
+      "label": "删除重合线",
+      "tooltip": "删除与拖动线重叠的折痕线段",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取拖动起点",
+        "1": "选取拖动终点"
+      }
+    },
+    "cp_action_crease_delete_intersecting": {
+      "label": "删除相交线",
+      "tooltip": "删除与拖动线相交或重叠的折痕线段",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取拖动起点",
+        "1": "选取拖动终点"
+      }
+    },
+    "cp_action_select_polygon": {
+      "label": "多边形选择",
+      "tooltip": "选择自由多边形内包含的折痕",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "拖动多边形路径"
+      }
+    },
+    "cp_action_unselect_polygon": {
+      "label": "多边形取消选择",
+      "tooltip": "取消选择自由多边形内包含的折痕",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "拖动多边形路径"
+      }
+    },
+    "cp_action_select_line_intersecting": {
+      "label": "选择相交线",
+      "tooltip": "选择与拖动线相交或重叠的折痕线段",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取拖动起点",
+        "1": "选取拖动终点"
+      }
+    },
+    "cp_action_unselect_line_intersecting": {
+      "label": "取消选择相交线",
+      "tooltip": "取消选择与拖动线相交或重叠的折痕线段",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取拖动起点",
+        "1": "选取拖动终点"
+      }
+    },
+    "cp_action_lengthen_crease_same_color": {
+      "label": "按同色延长",
+      "tooltip": "延长参考线穿过的折痕，同时保留原始颜色",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选择要延长的线",
+        "1": "选择目标线"
+      }
+    },
+    "cp_action_foldable_line_draw": {
+      "label": "平折线（自由）",
+      "tooltip": "平折线绘制",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取起始顶点",
+        "1": "选取目标"
+      }
+    },
+    "cp_action_replace_line_type_select": {
+      "label": "替换所选线型",
+      "tooltip": "替换与当前源线型匹配的所选线",
+      "disabledReason": "就绪"
+    },
+    "cp_action_delete_line_type_select": {
+      "label": "删除所选线型",
+      "tooltip": "删除与当前线型筛选匹配的所选线",
+      "disabledReason": "就绪"
+    },
+    "cp_action_select_lasso": {
+      "label": "套索选择",
+      "tooltip": "选择自由套索路径接触到的折痕",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "拖动套索路径"
+      }
+    },
+    "cp_action_unselect_lasso": {
+      "label": "套索取消选择",
+      "tooltip": "取消选择自由套索路径接触到的折痕",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "拖动套索路径"
+      }
+    },
+    "cp_action_text": {
+      "label": "文本标注",
+      "tooltip": "创建、选择、拖动和编辑文本标注",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "点击文本位置"
+      }
+    },
+    "cp_action_draw_blintz": {
+      "label": "坐垫基",
+      "tooltip": "坐垫基",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取第一个锚点",
+        "1": "选取第二个锚点"
+      }
+    },
+    "cp_action_draw_fish_base": {
+      "label": "鱼基",
+      "tooltip": "鱼基",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取第一个锚点",
+        "1": "选取第二个锚点"
+      }
+    },
+    "cp_action_draw_dove_base": {
+      "label": "鸽基",
+      "tooltip": "鸽基",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取第一个锚点",
+        "1": "选取第二个锚点"
+      }
+    },
+    "cp_action_draw_bird_base": {
+      "label": "鸟基",
+      "tooltip": "鸟基",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取第一个锚点",
+        "1": "选取第二个锚点"
+      }
+    },
+    "cp_action_draw_frog_base": {
+      "label": "蛙基",
+      "tooltip": "蛙基",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取第一个锚点",
+        "1": "选取第二个锚点"
+      }
+    },
+    "cp_action_modify_calculated_shape": {
+      "label": "修改计算形状",
+      "tooltip": "修改计算形状",
+      "disabledReason": "折痕图编辑器中尚未实现"
+    },
+    "cp_action_move_calculated_shape": {
+      "label": "移动计算形状",
+      "tooltip": "移动计算形状",
+      "disabledReason": "折痕图编辑器中尚未实现"
+    },
+    "cp_action_change_standard_face": {
+      "label": "更改标准面",
+      "tooltip": "更改标准面",
+      "disabledReason": "折痕图编辑器中尚未实现"
+    },
+    "cp_action_add_folding_constraint": {
+      "label": "添加折叠约束",
+      "tooltip": "添加折叠约束",
+      "disabledReason": "折痕图编辑器中尚未实现"
+    },
+    "cp_action_axiom5": {
+      "label": "公理 5",
+      "tooltip": "公理 5",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取目标点",
+        "1": "选取目标折痕",
+        "2": "选取枢轴点",
+        "3": "选取目标折痕"
+      }
+    },
+    "cp_action_axiom7": {
+      "label": "公理 7",
+      "tooltip": "公理 7",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选取目标点",
+        "1": "选取目标折痕",
+        "2": "选取垂直折痕",
+        "3": "选取目标折痕"
+      }
+    },
+    "cp_action_fix_inaccurate": {
+      "label": "修正不精确折痕",
+      "tooltip": "将不精确的所选折线吸附到 Oriedita 修正目标",
+      "disabledReason": "就绪"
+    },
+    "cp_action_import_cp": {
+      "label": "导入 CP",
+      "tooltip": "导入 CP",
+      "disabledReason": "折痕图编辑器中尚未实现"
+    },
+    "cp_action_export_cp": {
+      "label": "导出 CP",
+      "tooltip": "导出 CP",
+      "disabledReason": "折痕图编辑器中尚未实现"
+    },
+    "cp_action_import_fold": {
+      "label": "导入 FOLD",
+      "tooltip": "导入 FOLD",
+      "disabledReason": "折痕图编辑器中尚未实现"
+    },
+    "cp_action_export_fold": {
+      "label": "导出 FOLD",
+      "tooltip": "导出 FOLD",
+      "disabledReason": "折痕图编辑器中尚未实现"
+    },
+    "cp_action_import_ori": {
+      "label": "导入 ORI",
+      "tooltip": "导入 ORI",
+      "disabledReason": "折痕图编辑器中尚未实现"
+    },
+    "cp_action_export_ori": {
+      "label": "导出 ORI",
+      "tooltip": "导出 ORI",
+      "disabledReason": "折痕图编辑器中尚未实现"
+    },
+    "cp_action_import_orh": {
+      "label": "导入 ORH",
+      "tooltip": "导入 ORH",
+      "disabledReason": "折痕图编辑器中尚未实现"
+    },
+    "cp_action_export_orh": {
+      "label": "导出 ORH",
+      "tooltip": "导出 ORH",
+      "disabledReason": "折痕图编辑器中尚未实现"
+    },
+    "cp_action_import_obj": {
+      "label": "导入 OBJ",
+      "tooltip": "导入 OBJ",
+      "disabledReason": "折痕图编辑器中尚未实现"
+    },
+    "cp_action_export_dxf": {
+      "label": "导出 DXF",
+      "tooltip": "导出 DXF",
+      "disabledReason": "折痕图编辑器中尚未实现"
+    },
+    "cp_action_save_convert": {
+      "label": "转换保存",
+      "tooltip": "转换保存",
+      "disabledReason": "折痕图编辑器中尚未实现"
+    },
+    "cp_action_save_version_detect": {
+      "label": "检测保存版本",
+      "tooltip": "检测保存版本",
+      "disabledReason": "折痕图编辑器中尚未实现"
+    },
+    "cp_action_check_camv": {
+      "label": "检查 CAMV",
+      "tooltip": "运行 Oriedita CAMV 平折性诊断，不更改折痕图",
+      "disabledReason": "就绪"
+    },
+    "cp_action_folding_estimate": {
+      "label": "折叠估算",
+      "tooltip": "折叠估算",
+      "disabledReason": "内核移植正在进行中；UI 接线尚未实现"
+    },
+    "cp_action_folding_estimate_specific": {
+      "label": "折叠到指定情况",
+      "tooltip": "折叠到指定情况",
+      "disabledReason": "内核移植正在进行中；UI 接线尚未实现"
+    },
+    "cp_action_folding_estimate_save100": {
+      "label": "保存 100 次模拟",
+      "tooltip": "保存 100 次模拟",
+      "disabledReason": "内核移植正在进行中；UI 接线尚未实现"
+    },
+    "cp_action_two_colored_cp": {
+      "label": "双色折痕图",
+      "tooltip": "双色折痕图",
+      "disabledReason": "内核移植正在进行中；UI 接线尚未实现"
+    },
+    "cp_action_fold": {
+      "label": "折叠",
+      "tooltip": "折叠",
+      "disabledReason": "折痕图编辑器中尚未实现"
+    },
+    "cp_action_fold_another": {
+      "label": "另一个解",
+      "tooltip": "另一个解",
+      "disabledReason": "内核移植正在进行中；UI 接线尚未实现"
+    },
+    "cp_action_duplicate_folded_model": {
+      "label": "复制折叠模型",
+      "tooltip": "复制折叠模型",
+      "disabledReason": "内核移植正在进行中；UI 接线尚未实现"
+    },
+    "cp_action_folded_figure_set_model": {
+      "label": "折叠图形模型",
+      "tooltip": "折叠图形模型",
+      "disabledReason": "折痕图编辑器中尚未实现"
+    },
+    "cp_action_folded_figure_set_display_style": {
+      "label": "折叠显示样式",
+      "tooltip": "折叠显示样式",
+      "disabledReason": "折痕图编辑器中尚未实现"
+    },
+    "cp_action_folded_figure_set_state": {
+      "label": "折叠正/反面状态",
+      "tooltip": "折叠正/反面状态",
+      "disabledReason": "折痕图编辑器中尚未实现"
+    },
+    "cp_action_folded_figure_set_starting_face": {
+      "label": "折叠起始面",
+      "tooltip": "折叠起始面",
+      "disabledReason": "折痕图编辑器中尚未实现"
+    },
+    "cp_action_folded_figure_move_camera": {
+      "label": "移动折叠图形相机",
+      "tooltip": "由网格视口相机层处理",
+      "disabledReason": "由视口运行时处理，而非折痕图命令"
+    },
+    "cp_action_folded_figure_select_canvas_point": {
+      "label": "折叠点选择",
+      "tooltip": "折叠点选择",
+      "disabledReason": "折痕图编辑器中尚未实现"
+    },
+    "cp_action_folded_figure_render_snapshot": {
+      "label": "折叠渲染快照",
+      "tooltip": "折叠渲染快照",
+      "disabledReason": "折痕图编辑器中尚未实现"
+    },
+    "cp_action_folded_figure_import_fold_frame": {
+      "label": "导入折叠 FOLD 帧",
+      "tooltip": "导入折叠 FOLD 帧",
+      "disabledReason": "折痕图编辑器中尚未实现"
+    },
+    "cp_action_folded_figure_export_fold_frames": {
+      "label": "导出折叠 FOLD 帧",
+      "tooltip": "导出折叠 FOLD 帧",
+      "disabledReason": "折痕图编辑器中尚未实现"
+    },
+    "cp_action_check1": {
+      "label": "检查重叠",
+      "tooltip": "查找重叠或被包含的非辅助折痕对",
+      "disabledReason": "就绪"
+    },
+    "cp_action_check2": {
+      "label": "检查 T 型交点",
+      "tooltip": "查找非辅助折痕对之间的近 T 型交点",
+      "disabledReason": "就绪"
+    },
+    "cp_action_check3": {
+      "label": "检查顶点可折性",
+      "tooltip": "查找 Oriedita 顶点平折性标记",
+      "disabledReason": "就绪"
+    },
+    "cp_action_check4": {
+      "label": "检查 Maekawa/LBL",
+      "tooltip": "查找 Maekawa、角度以及小大小违规",
+      "disabledReason": "就绪"
+    },
+    "cp_action_fix1": {
+      "label": "修复重叠",
+      "tooltip": "合并完全重复项并选择剩余的重叠折痕",
+      "disabledReason": "就绪"
+    },
+    "cp_action_fix2": {
+      "label": "拆分 T 型交点",
+      "tooltip": "使用 Oriedita 容差拆分近 T 型交点",
+      "disabledReason": "就绪"
+    },
+    "cp_action_organize_circles": {
+      "label": "整理圆",
+      "tooltip": "使用 Oriedita 清理规则剪除无效的零半径圆",
+      "disabledReason": "就绪"
+    },
+    "cp_action_draw_auxiliary_line": {
+      "label": "绘制辅助线",
+      "tooltip": "绘制 Oriedita 辅助线",
+      "disabledReason": "折痕图内核中尚未实现辅助线插入模式",
+      "steps": {
+        "0": "拖动折痕端点"
+      }
+    }
+  },
+  "instructions": {
+    "useTool": "使用{{label}}。",
+    "angleBisectorAction": {
+      "intro": {
+        "0": "在线或点之间绘制角平分线。"
+      },
+      "steps": {
+        "0": "选择 2 条线段或 3 个点。",
+        "1": "三点法：选择 3 个点，然后选择线段以结束。",
+        "2": "两线法：选择 2 条线，然后选择线段以结束。",
+        "3": "平行线法：选择线段/指示器以结束。"
+      }
+    },
+    "As100Action": {
+      "intro": {
+        "0": "计算折叠形状的 100 个解并将其保存为图像文件。"
+      }
+    },
+    "axiom5Action": {
+      "intro": {
+        "0": "绘制一条将点 A 落到某条线上、同时通过点 B 的线。"
+      },
+      "steps": {
+        "0": "选择点 A。",
+        "1": "选择一条线。",
+        "2": "选择点 B。",
+        "3": "选择要延长到的目标线，或选择指示器以延长。"
+      },
+      "notes": {
+        "0": "点 A 与点 B 之间的距离必须大于或等于点 B 到该线的投影距离。"
+      }
+    },
+    "axiom7Action": {
+      "intro": {
+        "0": "绘制一条将某个点落到线 A 上、同时垂直于线 B 的线。"
+      },
+      "steps": {
+        "0": "选择一个点。",
+        "1": "选择线 A 和线 B。",
+        "2": "选择要延长到的目标线，或选择指示器以延长。"
+      },
+      "notes": {
+        "0": "该点不能位于线 A 的延伸范围上，且线 B 不能与线 A 平行。"
+      }
+    },
+    "a1Action": {
+      "intro": {
+        "0": "通过选择点 ABC 测量角度。"
+      }
+    },
+    "a2Action": {
+      "intro": {
+        "0": "通过选择点 ABC 测量角度。"
+      }
+    },
+    "a3Action": {
+      "intro": {
+        "0": "通过选择点 ABC 测量角度。"
+      }
+    },
+    "addColorConstraintAction": {
+      "intro": {
+        "0": "为折叠形状添加颜色约束。"
+      },
+      "steps": {
+        "0": "在折叠形状的某个面上选择一个点，以设置它应有的颜色。"
+      },
+      "notes": {
+        "0": "白色圆表示该面显示白色一侧；黑色圆表示该面显示彩色一侧。",
+        "1": "再次折叠以使用这些约束寻找新的解。"
+      }
+    },
+    "anotherSolutionAction": {
+      "intro": {
+        "0": "计算折叠形状的下一个可用解。"
+      }
+    },
+    "circleDrawAction": {
+      "intro": {
+        "0": "绘制吸附到网格和顶点的圆。"
+      }
+    },
+    "circleDrawConcentricAction": {
+      "intro": {
+        "0": "绘制同心圆。"
+      },
+      "steps": {
+        "0": "选择圆 A 以设置位置。",
+        "1": "绘制一条线以设置半径。"
+      },
+      "notes": {
+        "0": "同心圆与圆 A 的半径之差等于该线的长度。"
+      }
+    },
+    "circleDrawConcentricSelectAction": {
+      "intro": {
+        "0": "通过选择圆 ABC 绘制同心圆。"
+      },
+      "steps": {
+        "0": "选择圆 A 以设置位置。",
+        "1": "选择圆 B 和 C 以设置半径。"
+      },
+      "notes": {
+        "0": "圆将与圆 A 同心绘制。",
+        "1": "同心圆与圆 A 的半径之差等于圆 B 与圆 C 的半径之差。"
+      }
+    },
+    "circleDrawFreeAction": {
+      "intro": {
+        "0": "自由绘制圆。"
+      }
+    },
+    "circleDrawInvertedAction": {
+      "intro": {
+        "0": "通过选择圆或线绘制反演圆。"
+      },
+      "steps": {
+        "0": "选择一个圆或一条线。",
+        "1": "选择反演圆。"
+      }
+    },
+    "circleDrawSeparateAction": {
+      "intro": {
+        "0": "通过选择一个点并绘制一条线来绘制圆。"
+      },
+      "notes": {
+        "0": "圆以所选点为圆心绘制，半径等于所绘制线的长度。"
+      }
+    },
+    "circleDrawTangentLineAction": {
+      "intro": {
+        "0": "绘制切线。"
+      },
+      "steps": {
+        "0": "选择两个圆，或选择一个点和一个圆。",
+        "1": "选择要绘制的切线。"
+      }
+    },
+    "circleDrawThreePointAction": {
+      "intro": {
+        "0": "绘制一个通过 3 个所选点的圆。"
+      }
+    },
+    "circleDrawTwoConcentricAction": {
+      "intro": {
+        "0": "通过选择两个圆绘制连接的同心圆。"
+      },
+      "notes": {
+        "0": "同心圆与所选圆之间的半径差相等。"
+      }
+    },
+    "continuousSymmetricDrawAction": {
+      "intro": {
+        "0": "绘制一条穿过折痕线反射的线。"
+      },
+      "steps": {
+        "0": "选择 2 个点，绘制一条穿过折痕线反射并交替的线。"
+      },
+      "notes": {
+        "0": "反射持续进行，直到遇到边界或有 3 条及以上线的顶点。"
+      }
+    },
+    "copy2p2pAction": {
+      "intro": {
+        "0": "通过选择原点和目标点来复制并变换所选线。"
+      },
+      "steps": {
+        "0": "选择点 AB 以设置原点。",
+        "1": "选择点 CD 以设置目标。"
+      },
+      "notes": {
+        "0": "所选线将根据点 AB 与 CD 之间的关系被复制并变换到新的位置、比例和角度。",
+        "1": "点 A 变换到点 C，点 B 变换到点 D。"
+      }
+    },
+    "copyAction": {
+      "intro": {
+        "0": "通过绘制一条线来复制所选线。"
+      }
+    },
+    "deg1Action": {
+      "intro": {
+        "0": "绘制带角度偏移的汇聚线。"
+      },
+      "steps": {
+        "0": "通过选择一条线或选择 2 个点来设置偏移。",
+        "1": "选择汇聚线的交点。"
+      }
+    },
+    "deg2Action": {
+      "intro": {
+        "0": "使用所选角度约束绘制角度约束线。"
+      }
+    },
+    "deg3Action": {
+      "intro": {
+        "0": "绘制带偏移的角度约束线。"
+      },
+      "steps": {
+        "0": "选择 2 个点以设置角度偏移。",
+        "1": "选择要延长到的目标线。"
+      }
+    },
+    "deg4Action": {
+      "intro": {
+        "0": "绘制带偏移的角度约束线。"
+      },
+      "steps": {
+        "0": "选择 2 个点以设置角度偏移。",
+        "1": "选择要延长到的目标线。"
+      }
+    },
+    "del_lAction": {
+      "intro": {
+        "0": "通过绘制一条线删除所有重合线。"
+      }
+    },
+    "del_l_XAction": {
+      "intro": {
+        "0": "通过绘制一条线删除所有相交线。"
+      }
+    },
+    "doubleSymmetricDrawAction": {
+      "intro": {
+        "0": "沿所绘制的线反射接触到的线。"
+      },
+      "steps": {
+        "0": "在线的端点上绘制一条线以反射它们。"
+      }
+    },
+    "drawBlintzAction": {
+      "intro": {
+        "0": "通过选择 2 个对角点绘制坐垫基。"
+      }
+    },
+    "drawBirdBaseAction": {
+      "intro": {
+        "0": "通过选择 2 个对角点绘制鸟基。"
+      }
+    },
+    "drawCreaseFreeAction": {
+      "intro": {
+        "0": "自由绘制直线。"
+      }
+    },
+    "drawCreaseRestrictedAction": {
+      "intro": {
+        "0": "绘制吸附到网格和顶点的线。"
+      }
+    },
+    "drawDoveBaseAction": {
+      "intro": {
+        "0": "通过选择 2 个对角点绘制鸽基。"
+      }
+    },
+    "drawFishBaseAction": {
+      "intro": {
+        "0": "通过选择 2 个对角点绘制鱼基。"
+      }
+    },
+    "drawFrogBaseAction": {
+      "intro": {
+        "0": "通过选择 2 个对角点绘制蛙基。"
+      }
+    },
+    "drawLineSegmentInternalDivisionRatioAction": {
+      "intro": {
+        "0": "绘制一条按设定比率分割的线。"
+      }
+    },
+    "drawTwoColoredCpAction": {
+      "intro": {
+        "0": "使用所选折痕线创建双色折痕图。"
+      }
+    },
+    "duplicateFoldedModelAction": {
+      "intro": {
+        "0": "复制折叠形状。"
+      }
+    },
+    "fishBoneDrawAction": {
+      "intro": {
+        "0": "通过绘制一条线来绘制垂直的平行线，并在山折和谷折之间交替。"
+      },
+      "notes": {
+        "0": "平行线的间隔将等于网格的宽度。"
+      }
+    },
+    "foldableLineDrawAction": {
+      "intro": {
+        "0": "绘制平折线。"
+      },
+      "steps": {
+        "0": "选择连接线数量为奇数的顶点。",
+        "1": "选择平折线。",
+        "2": "选择要延长到的目标线。"
+      },
+      "notes": {
+        "0": "在任意位置绘制以自由绘制。"
+      }
+    },
+    "foldableLinePlusGridInputAction": {
+      "intro": {
+        "0": "绘制平折线。"
+      },
+      "steps": {
+        "0": "选择连接线数量为奇数的顶点。",
+        "1": "选择平折线。",
+        "2": "选择要延长到的目标线。"
+      },
+      "notes": {
+        "0": "选择一条线以延长它。"
+      }
+    },
+    "foldAction": {
+      "intro": {
+        "0": "根据折痕图计算折叠形状。"
+      }
+    },
+    "foldedFigureMoveAction": {
+      "intro": {
+        "0": "移动折叠形状。"
+      }
+    },
+    "goToFoldedFigureAction": {
+      "intro": {
+        "0": "转到折叠形状的指定解。"
+      }
+    },
+    "h_senbun_nyuryokuAction": {
+      "intro": {
+        "0": "绘制标记线。"
+      },
+      "notes": {
+        "0": "标记线不会干扰折痕线。"
+      }
+    },
+    "in_L_col_changeAction": {
+      "intro": {
+        "0": "通过绘制一条线，在山折和谷折之间交替线段的颜色。"
+      }
+    },
+    "koteimen_siteiAction": {
+      "intro": {
+        "0": "通过选择一个面来设置起始面。"
+      },
+      "notes": {
+        "0": "折叠形状相对于起始面进行计算。"
+      }
+    },
+    "l1Action": {
+      "intro": {
+        "0": "通过选择 2 个点测量长度。"
+      },
+      "notes": {
+        "0": "长度以网格单位测量。",
+        "1": "长度相对于网格大小为 1 的折痕图尺寸。"
+      }
+    },
+    "l2Action": {
+      "intro": {
+        "0": "通过选择 2 个点测量长度。"
+      },
+      "notes": {
+        "0": "长度以网格单位测量。",
+        "1": "长度相对于网格大小为 1 的折痕图尺寸。"
+      }
+    },
+    "makeFlatFoldableAction": {
+      "intro": {
+        "0": "绘制平折线。"
+      },
+      "steps": {
+        "0": "选择连接线数量为奇数的顶点。",
+        "1": "选择平折线。",
+        "2": "选择要延长到的目标线。"
+      }
+    },
+    "lengthenCreaseAction": {
+      "intro": {
+        "0": "以所选颜色延长线。"
+      },
+      "steps": {
+        "0": "选择或绘制一条线以选择线。",
+        "1": "选择要延长到的目标线，或选择上一条线以延长。"
+      }
+    },
+    "lengthenCrease2Action": {
+      "intro": {
+        "0": "以相同颜色延长线。"
+      },
+      "steps": {
+        "0": "选择或绘制一条线以选择线。",
+        "1": "选择要延长到的目标线，或选择上一条线以延长。"
+      }
+    },
+    "move2p2pAction": {
+      "intro": {
+        "0": "通过选择原点和目标点来变换所选线。"
+      },
+      "steps": {
+        "0": "选择点 AB 以设置原点。",
+        "1": "选择点 CD 以设置目标。"
+      },
+      "notes": {
+        "0": "所选线将根据点 AB 与 CD 之间的关系被变换到新的位置、比例和角度。",
+        "1": "点 A 变换到点 C，点 B 变换到点 D。"
+      }
+    },
+    "moveAction": {
+      "intro": {
+        "0": "通过绘制一条线来移动所选线。"
+      }
+    },
+    "o_F_checkAction": {
+      "intro": {
+        "0": "检查多边形内部的平折性。"
+      },
+      "steps": {
+        "0": "点击或点击并拖动以添加线段。",
+        "1": "选择起点以闭合多边形。"
+      },
+      "notes": {
+        "0": "如果多边形内部的图案可平折，则多边形变为青色，否则保持品红色。",
+        "1": "如果工具未按预期工作，顶点和线段不应位于折痕图顶点上。"
+      }
+    },
+    "on_L_col_changeAction": {
+      "intro": {
+        "0": "通过绘制一条线，在山折和谷折之间交替相交线的颜色。"
+      }
+    },
+    "operationFrameSelectAction": {
+      "intro": {
+        "0": "通过绘制矩形创建操作框。"
+      },
+      "notes": {
+        "0": "操作框会裁剪导出的图像。"
+      }
+    },
+    "oriagari_sousa_2Action": {
+      "intro": {
+        "0": "通过拖动顶点修改折叠形状。"
+      }
+    },
+    "parallelDrawAction": {
+      "intro": {
+        "0": "从一个点绘制平行线。"
+      },
+      "steps": {
+        "0": "选择一个点。",
+        "1": "选择要平行的线。",
+        "2": "选择要延长到的目标线。"
+      }
+    },
+    "perpendicularDrawAction": {
+      "intro": {
+        "0": "绘制垂线。"
+      },
+      "steps": {
+        "0": "选择起点 A。",
+        "1": "选择目标线 B。"
+      },
+      "notes": {
+        "0": "将从点 A 绘制一条垂直于线 B 的线到线 B。",
+        "1": "如果点 A 在线 B 上，选择要延长到的目标线，或选择指示器以延长。"
+      }
+    },
+    "rabbitEarAction": {
+      "intro": {
+        "0": "绘制指向内部中心的线。"
+      },
+      "steps": {
+        "0": "选择点 A。",
+        "1": "选择点 B。",
+        "2": "选择点 C。",
+        "3": "将绘制三条指向内部中心的线。"
+      }
+    },
+    "regularPolygonAction": {
+      "intro": {
+        "0": "通过选择点 AB 绘制正多边形。"
+      },
+      "notes": {
+        "0": "点 AB 将构成多边形的一条边，多边形将按顺时针方向绘制。"
+      }
+    },
+    "reflectAction": {
+      "intro": {
+        "0": "沿用 2 个点绘制的线反射所选线。"
+      }
+    },
+    "selectAction": {
+      "intro": {
+        "0": "通过绘制矩形选择线。"
+      }
+    },
+    "select_lXAction": {
+      "intro": {
+        "0": "通过绘制一条线选择相交线。"
+      }
+    },
+    "select_polygonAction": {
+      "intro": {
+        "0": "通过绘制多边形选择线。"
+      },
+      "notes": {
+        "0": "完全位于多边形内的线将被选中。"
+      }
+    },
+    "selectLassoAction": {
+      "intro": {
+        "0": "通过自由绘制选择线。"
+      }
+    },
+    "senbun_b_nyuryokuAction": {
+      "intro": {
+        "0": "使用所选分割绘制分段线。"
+      }
+    },
+    "symmetricDrawAction": {
+      "intro": {
+        "0": "通过选择点或线绘制镜像线。"
+      },
+      "steps": {
+        "0": "选择点 ABC，将线 AB 沿线 BC 镜像。",
+        "1": "或选择线 AB，将线 A 沿线 B 镜像。"
+      }
+    },
+    "setParallelDrawWidthAction": {
+      "intro": {
+        "0": "通过选择一条线绘制平行线。"
+      },
+      "steps": {
+        "0": "选择一条线。",
+        "1": "点击并拖动以设置偏移宽度。",
+        "2": "选择要绘制的平行线。"
+      }
+    },
+    "textAction": {
+      "intro": {
+        "0": "添加和编辑文本标注。"
+      },
+      "steps": {
+        "0": "点击空白处以在该处添加文本。",
+        "1": "点击标签以编辑它；拖动以移动它。"
+      },
+      "notes": {
+        "0": "按 ESC 或点击别处以完成编辑；空文本将被丢弃。",
+        "1": "右键点击标签，或选中它并按 Delete，以将其移除。"
+      }
+    },
+    "unselectAction": {
+      "intro": {
+        "0": "通过绘制矩形取消选择线。"
+      }
+    },
+    "unselect_lXAction": {
+      "intro": {
+        "0": "通过绘制一条线取消选择相交线。"
+      }
+    },
+    "unselect_polygonAction": {
+      "intro": {
+        "0": "通过绘制多边形取消选择线。"
+      },
+      "notes": {
+        "0": "完全位于多边形内的线将被取消选择。"
+      }
+    },
+    "unselectLassoAction": {
+      "intro": {
+        "0": "通过自由绘制取消选择线。"
+      },
+      "notes": {
+        "0": "完全位于所绘制区域内的线将被取消选择。"
+      }
+    },
+    "v_del_ccAction": {
+      "intro": {
+        "0": "删除直线上的顶点。"
+      }
+    },
+    "vertexDeleteAction": {
+      "intro": {
+        "0": "删除颜色一致的直线上的顶点。"
+      }
+    },
+    "vertexAddAction": {
+      "intro": {
+        "0": "添加顶点。"
+      }
+    },
+    "voronoiAction": {
+      "intro": {
+        "0": "通过选择点绘制 Voronoi 图案。"
+      },
+      "notes": {
+        "0": "再次选择点将取消它们。",
+        "1": "选择应用临时线以将其转换为折痕线。"
+      }
+    }
+  }
+}

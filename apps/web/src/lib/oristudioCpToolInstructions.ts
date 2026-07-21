@@ -10,7 +10,7 @@ export interface OristudioCpToolInstructions {
   notes?: readonly string[];
 }
 
-const ORIEDITA_CP_TOOL_INSTRUCTIONS: Record<string, OristudioCpToolInstructions> = {
+export const ORIEDITA_CP_TOOL_INSTRUCTIONS: Record<string, OristudioCpToolInstructions> = {
   angleBisectorAction: {
     intro: ['Draw angle bisector between lines or points.'],
     steps: [
@@ -419,6 +419,30 @@ export function instructionsForOrieditaAction(
 ): OristudioCpToolInstructions | null {
   if (!upstreamAction) return null;
   return ORIEDITA_CP_TOOL_INSTRUCTIONS[upstreamAction] ?? null;
+}
+
+/**
+ * The `ORIEDITA_CP_TOOL_INSTRUCTIONS` dictionary key that {@link instructionsForCpTool}
+ * would resolve to, or null when it falls back to action-derived instructions. Used to key
+ * translations of the (otherwise data-sourced) instruction text.
+ */
+export function resolvedOrieditaInstructionKey(
+  action: OristudioCpActionDefinition | null | undefined,
+  command: OristudioCpCommandDefinition | null | undefined
+): string | null {
+  if (action) {
+    if (action.upstreamAction && ORIEDITA_CP_TOOL_INSTRUCTIONS[action.upstreamAction]) {
+      return action.upstreamAction;
+    }
+    const fallbackUpstream = isCommandAction(action) ? action.command.upstream : undefined;
+    if (fallbackUpstream && ORIEDITA_CP_TOOL_INSTRUCTIONS[fallbackUpstream]) {
+      return fallbackUpstream;
+    }
+  }
+  if (command?.upstream && ORIEDITA_CP_TOOL_INSTRUCTIONS[command.upstream]) {
+    return command.upstream;
+  }
+  return null;
 }
 
 function isCommandAction(

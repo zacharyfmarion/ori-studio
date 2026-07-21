@@ -2,6 +2,15 @@ import type { MenuActionId } from '../commands/menuActions';
 import { shortcutLabelForAction, type ShortcutOverrides } from '../keyboard/shortcuts';
 import { EXAMPLE_PROJECTS } from '../examples/catalog';
 
+/**
+ * Minimal translator shape: `(key, englishDefault) => localized`. The app passes
+ * react-i18next's `t`; callers that only need English (tests, native-menu wiring) can omit
+ * it and get the inline English defaults via {@link identityTranslate}.
+ */
+export type MenuTranslate = (key: string, defaultValue: string) => string;
+
+const identityTranslate: MenuTranslate = (_key, defaultValue) => defaultValue;
+
 export type MenuActionItem = {
   type: 'action';
   id: MenuActionId;
@@ -53,203 +62,204 @@ function exampleProjectItems(): MenuItemDef[] {
 }
 
 export function getMenuBarDef(
-  overrides?: ShortcutOverrides
+  overrides?: ShortcutOverrides,
+  t: MenuTranslate = identityTranslate
 ): MenuDef[] {
   return [
     {
-      label: 'File',
+      label: t('menu:menubar.file', 'File'),
       items: [
-        { type: 'action', id: 'file.new', label: 'New', shortcut: shortcut('file.new', overrides) },
-        { type: 'action', id: 'file.open', label: 'Open...', shortcut: shortcut('file.open', overrides) },
-        { type: 'action', id: 'file.importAdd', label: 'Import (Add)...' },
-        { type: 'action', id: 'file.detectCpImage', label: 'Detect CP from Image...' },
-        { type: 'submenu', label: 'Examples', items: exampleProjectItems() },
+        { type: 'action', id: 'file.new', label: t('menu:file.new', 'New'), shortcut: shortcut('file.new', overrides) },
+        { type: 'action', id: 'file.open', label: t('menu:file.open', 'Open...'), shortcut: shortcut('file.open', overrides) },
+        { type: 'action', id: 'file.importAdd', label: t('menu:file.importAdd', 'Import (Add)...') },
+        { type: 'action', id: 'file.detectCpImage', label: t('menu:file.detectCpImage', 'Detect CP from Image...') },
+        { type: 'submenu', label: t('menu:file.examples', 'Examples'), items: exampleProjectItems() },
         { type: 'separator' },
-        { type: 'action', id: 'file.save', label: 'Save', shortcut: shortcut('file.save', overrides) },
-        { type: 'action', id: 'file.saveAs', label: 'Save As...', shortcut: shortcut('file.saveAs', overrides) },
+        { type: 'action', id: 'file.save', label: t('menu:file.save', 'Save'), shortcut: shortcut('file.save', overrides) },
+        { type: 'action', id: 'file.saveAs', label: t('menu:file.saveAs', 'Save As...'), shortcut: shortcut('file.saveAs', overrides) },
         { type: 'separator' },
         {
           type: 'submenu',
-          label: 'Export',
+          label: t('menu:file.export', 'Export'),
           items: [
-            { type: 'action', id: 'file.exportV5', label: 'Export TreeMaker 5...' },
-            { type: 'action', id: 'file.exportV4', label: 'Export TreeMaker 4...' },
+            { type: 'action', id: 'file.exportV5', label: t('menu:file.exportV5', 'Export TreeMaker 5...') },
+            { type: 'action', id: 'file.exportV4', label: t('menu:file.exportV4', 'Export TreeMaker 4...') },
             { type: 'separator' },
-            { type: 'action', id: 'file.exportCp', label: 'Export CP...' },
-            { type: 'action', id: 'file.exportFold', label: 'Export FOLD...' },
-            { type: 'action', id: 'file.exportBps', label: 'Export .bps...' },
-            { type: 'action', id: 'file.exportOri', label: 'Export ORI...' },
-            { type: 'action', id: 'file.exportOrh', label: 'Export ORH...' },
+            { type: 'action', id: 'file.exportCp', label: t('menu:file.exportCp', 'Export CP...') },
+            { type: 'action', id: 'file.exportFold', label: t('menu:file.exportFold', 'Export FOLD...') },
+            { type: 'action', id: 'file.exportBps', label: t('menu:file.exportBps', 'Export .bps...') },
+            { type: 'action', id: 'file.exportOri', label: t('menu:file.exportOri', 'Export ORI...') },
+            { type: 'action', id: 'file.exportOrh', label: t('menu:file.exportOrh', 'Export ORH...') },
             { type: 'separator' },
-            { type: 'action', id: 'file.exportSvg', label: 'Export SVG...' },
-            { type: 'action', id: 'file.exportPng', label: 'Export PNG...' },
+            { type: 'action', id: 'file.exportSvg', label: t('menu:file.exportSvg', 'Export SVG...') },
+            { type: 'action', id: 'file.exportPng', label: t('menu:file.exportPng', 'Export PNG...') },
           ],
         },
         { type: 'separator' },
-        { type: 'action', id: 'file.settings', label: 'Settings', shortcut: shortcut('file.settings', overrides) },
+        { type: 'action', id: 'file.settings', label: t('menu:file.settings', 'Settings'), shortcut: shortcut('file.settings', overrides) },
       ],
     },
     {
-      label: 'Edit',
+      label: t('menu:menubar.edit', 'Edit'),
       items: [
-        { type: 'action', id: 'edit.undo', label: 'Undo', shortcut: shortcut('edit.undo', overrides) },
-        { type: 'action', id: 'edit.redo', label: 'Redo', shortcut: shortcut('edit.redo', overrides) },
+        { type: 'action', id: 'edit.undo', label: t('menu:edit.undo', 'Undo'), shortcut: shortcut('edit.undo', overrides) },
+        { type: 'action', id: 'edit.redo', label: t('menu:edit.redo', 'Redo'), shortcut: shortcut('edit.redo', overrides) },
         { type: 'separator' },
-        { type: 'action', id: 'edit.cut', label: 'Cut', shortcut: shortcut('edit.cut', overrides) },
-        { type: 'action', id: 'edit.copy', label: 'Copy', shortcut: shortcut('edit.copy', overrides) },
-        { type: 'action', id: 'edit.paste', label: 'Paste', shortcut: shortcut('edit.paste', overrides) },
+        { type: 'action', id: 'edit.cut', label: t('menu:edit.cut', 'Cut'), shortcut: shortcut('edit.cut', overrides) },
+        { type: 'action', id: 'edit.copy', label: t('menu:edit.copy', 'Copy'), shortcut: shortcut('edit.copy', overrides) },
+        { type: 'action', id: 'edit.paste', label: t('menu:edit.paste', 'Paste'), shortcut: shortcut('edit.paste', overrides) },
         { type: 'separator' },
-        { type: 'action', id: 'edit.delete', label: 'Delete Selected', shortcut: shortcut('edit.delete', overrides) },
+        { type: 'action', id: 'edit.delete', label: t('menu:edit.delete', 'Delete Selected'), shortcut: shortcut('edit.delete', overrides) },
         { type: 'separator' },
         {
           type: 'submenu',
-          label: 'Select',
+          label: t('menu:edit.select', 'Select'),
           items: [
-            { type: 'action', id: 'edit.selectAll', label: 'Select All', shortcut: shortcut('edit.selectAll', overrides) },
-            { type: 'action', id: 'edit.deselectAll', label: 'Deselect All' },
-            { type: 'action', id: 'edit.selectByIndex', label: 'Select By Index...' },
-            { type: 'action', id: 'edit.selectMovableParts', label: 'Select Movable Parts' },
-            { type: 'action', id: 'edit.selectCorridorFacets', label: 'Select Corridor Facets' },
+            { type: 'action', id: 'edit.selectAll', label: t('menu:edit.selectAll', 'Select All'), shortcut: shortcut('edit.selectAll', overrides) },
+            { type: 'action', id: 'edit.deselectAll', label: t('menu:edit.deselectAll', 'Deselect All') },
+            { type: 'action', id: 'edit.selectByIndex', label: t('menu:edit.selectByIndex', 'Select By Index...') },
+            { type: 'action', id: 'edit.selectMovableParts', label: t('menu:edit.selectMovableParts', 'Select Movable Parts') },
+            { type: 'action', id: 'edit.selectCorridorFacets', label: t('menu:edit.selectCorridorFacets', 'Select Corridor Facets') },
           ],
         },
         {
           type: 'submenu',
-          label: 'Node',
+          label: t('menu:edit.node', 'Node'),
           items: [
-            { type: 'action', id: 'edit.makeRoot', label: 'Make Root' },
-            { type: 'action', id: 'edit.absorbNodes', label: 'Absorb Nodes' },
-            { type: 'action', id: 'edit.absorbRedundantNodes', label: 'Absorb Redundant Nodes' },
+            { type: 'action', id: 'edit.makeRoot', label: t('menu:edit.makeRoot', 'Make Root') },
+            { type: 'action', id: 'edit.absorbNodes', label: t('menu:edit.absorbNodes', 'Absorb Nodes') },
+            { type: 'action', id: 'edit.absorbRedundantNodes', label: t('menu:edit.absorbRedundantNodes', 'Absorb Redundant Nodes') },
             { type: 'separator' },
-            { type: 'action', id: 'edit.perturbNodes', label: 'Perturb Nodes' },
-            { type: 'action', id: 'edit.perturbAllNodes', label: 'Perturb All Nodes' },
+            { type: 'action', id: 'edit.perturbNodes', label: t('menu:edit.perturbNodes', 'Perturb Nodes') },
+            { type: 'action', id: 'edit.perturbAllNodes', label: t('menu:edit.perturbAllNodes', 'Perturb All Nodes') },
           ],
         },
         {
           type: 'submenu',
-          label: 'Edge',
+          label: t('menu:edit.edge', 'Edge'),
           items: [
-            { type: 'action', id: 'edit.splitEdge', label: 'Split Edge...' },
-            { type: 'action', id: 'edit.setEdgeLength', label: 'Set Edge Length...' },
-            { type: 'action', id: 'edit.scaleEdgeLengths', label: 'Scale Edge Lengths...' },
+            { type: 'action', id: 'edit.splitEdge', label: t('menu:edit.splitEdge', 'Split Edge...') },
+            { type: 'action', id: 'edit.setEdgeLength', label: t('menu:edit.setEdgeLength', 'Set Edge Length...') },
+            { type: 'action', id: 'edit.scaleEdgeLengths', label: t('menu:edit.scaleEdgeLengths', 'Scale Edge Lengths...') },
             { type: 'separator' },
-            { type: 'action', id: 'edit.renormalizeToEdge', label: 'Renormalize To Edge' },
-            { type: 'action', id: 'edit.renormalizeToUnitScale', label: 'Renormalize To Unit Scale' },
-            { type: 'action', id: 'edit.absorbEdges', label: 'Absorb Edges' },
+            { type: 'action', id: 'edit.renormalizeToEdge', label: t('menu:edit.renormalizeToEdge', 'Renormalize To Edge') },
+            { type: 'action', id: 'edit.renormalizeToUnitScale', label: t('menu:edit.renormalizeToUnitScale', 'Renormalize To Unit Scale') },
+            { type: 'action', id: 'edit.absorbEdges', label: t('menu:edit.absorbEdges', 'Absorb Edges') },
           ],
         },
         {
           type: 'submenu',
-          label: 'Strain',
+          label: t('menu:edit.strain', 'Strain'),
           items: [
-            { type: 'action', id: 'edit.removeStrain', label: 'Remove Strain' },
-            { type: 'action', id: 'edit.removeAllStrain', label: 'Remove All Strain' },
+            { type: 'action', id: 'edit.removeStrain', label: t('menu:edit.removeStrain', 'Remove Strain') },
+            { type: 'action', id: 'edit.removeAllStrain', label: t('menu:edit.removeAllStrain', 'Remove All Strain') },
             { type: 'separator' },
-            { type: 'action', id: 'edit.relieveStrain', label: 'Relieve Strain' },
-            { type: 'action', id: 'edit.relieveAllStrain', label: 'Relieve All Strain' },
+            { type: 'action', id: 'edit.relieveStrain', label: t('menu:edit.relieveStrain', 'Relieve Strain') },
+            { type: 'action', id: 'edit.relieveAllStrain', label: t('menu:edit.relieveAllStrain', 'Relieve All Strain') },
           ],
         },
         {
           type: 'submenu',
-          label: 'Stubs',
+          label: t('menu:edit.stubs', 'Stubs'),
           items: [
-            { type: 'action', id: 'edit.addLargestStubForNodes', label: 'Add Largest Stub From Nodes' },
-            { type: 'action', id: 'edit.addLargestStubForPoly', label: 'Add Largest Stub From Poly' },
+            { type: 'action', id: 'edit.addLargestStubForNodes', label: t('menu:edit.addLargestStubForNodes', 'Add Largest Stub From Nodes') },
+            { type: 'action', id: 'edit.addLargestStubForPoly', label: t('menu:edit.addLargestStubForPoly', 'Add Largest Stub From Poly') },
             { type: 'separator' },
-            { type: 'action', id: 'edit.triangulateTree', label: 'Triangulate Tree' },
-          ],
-        },
-      ],
-    },
-    {
-      label: 'View',
-      items: [
-        { type: 'action', id: 'view.design', label: 'Design' },
-        { type: 'action', id: 'view.edit', label: 'Edit' },
-        { type: 'action', id: 'view.simulate', label: 'Simulate' },
-        { type: 'action', id: 'view.conditions', label: 'Conditions' },
-        { type: 'separator' },
-        { type: 'action', id: 'view.resetLayout', label: 'Reset Layout' },
-      ],
-    },
-    {
-      label: 'Design',
-      items: [
-        { type: 'action', id: 'optimize.scale', label: 'Optimize Scale', shortcut: shortcut('optimize.scale', overrides) },
-        { type: 'action', id: 'optimize.edges', label: 'Optimize Edges' },
-        { type: 'action', id: 'optimize.strain', label: 'Optimize Strain' },
-        { type: 'separator' },
-        { type: 'action', id: 'cp.build', label: 'Build Crease Pattern', shortcut: shortcut('cp.build', overrides) },
-      ],
-    },
-    {
-      label: 'Crease Pattern',
-      items: [
-        {
-          type: 'submenu',
-          label: 'Selected Lines',
-          items: [
-            { type: 'action', id: 'cp.deleteSelectedLines', label: 'Delete Selected Lines' },
-            { type: 'separator' },
-            { type: 'action', id: 'cp.changeCreaseType', label: 'Change Crease Type' },
-            { type: 'action', id: 'cp.advanceCreaseType', label: 'Advance Crease Type' },
-            { type: 'action', id: 'cp.toggleMountainValley', label: 'Toggle Mountain/Valley' },
-            { type: 'separator' },
-            { type: 'action', id: 'cp.makeMountain', label: 'Make Mountain' },
-            { type: 'action', id: 'cp.makeValley', label: 'Make Valley' },
-            { type: 'action', id: 'cp.makeEdge', label: 'Make Edge' },
-            { type: 'action', id: 'cp.makeAuxiliary', label: 'Make Auxiliary' },
-            { type: 'separator' },
-            { type: 'action', id: 'cp.replaceLineType', label: 'Replace Selected Line Type...' },
-            { type: 'action', id: 'cp.deleteLineType', label: 'Delete Selected Line Type...' },
-          ],
-        },
-        {
-          type: 'submenu',
-          label: 'Transform Selection',
-          items: [
-            { type: 'action', id: 'cp.transformFlipHorizontal', label: 'Flip Horizontal' },
-            { type: 'action', id: 'cp.transformFlipVertical', label: 'Flip Vertical' },
-            { type: 'separator' },
-            { type: 'action', id: 'cp.transformRotateLeft', label: 'Rotate Left 90' },
-            { type: 'action', id: 'cp.transformRotateRight', label: 'Rotate Right 90' },
-          ],
-        },
-        {
-          type: 'submenu',
-          label: 'Diagnostics',
-          items: [
-            { type: 'action', id: 'cp.checkCamv', label: 'Check CAMV', shortcut: shortcut('cp.checkCamv', overrides) },
-            { type: 'action', id: 'cp.check1', label: 'Check Overlaps' },
-            { type: 'action', id: 'cp.check2', label: 'Check T-junctions' },
-            { type: 'action', id: 'cp.check3', label: 'Check Vertex Foldability' },
-            { type: 'action', id: 'cp.check4', label: 'Check Maekawa/LBL' },
-          ],
-        },
-        {
-          type: 'submenu',
-          label: 'Repair',
-          items: [
-            { type: 'action', id: 'cp.fix1', label: 'Repair Overlaps' },
-            { type: 'action', id: 'cp.fix2', label: 'Split T-junctions' },
-            { type: 'action', id: 'cp.fixInaccurate', label: 'Fix Inaccurate Creases...' },
-          ],
-        },
-        {
-          type: 'submenu',
-          label: 'Annotations',
-          items: [
-            { type: 'action', id: 'cp.changeCircleColor', label: 'Change Circle Color...' },
-            { type: 'action', id: 'cp.organizeCircles', label: 'Organize Circles' },
+            { type: 'action', id: 'edit.triangulateTree', label: t('menu:edit.triangulateTree', 'Triangulate Tree') },
           ],
         },
       ],
     },
     {
-      label: 'Help',
+      label: t('menu:menubar.view', 'View'),
       items: [
-        { type: 'action', id: 'help.documentation', label: 'Ori Studio Help', shortcut: shortcut('help.documentation', overrides) },
+        { type: 'action', id: 'view.design', label: t('menu:view.design', 'Design') },
+        { type: 'action', id: 'view.edit', label: t('menu:view.edit', 'Edit') },
+        { type: 'action', id: 'view.simulate', label: t('menu:view.simulate', 'Simulate') },
+        { type: 'action', id: 'view.conditions', label: t('menu:view.conditions', 'Conditions') },
         { type: 'separator' },
-        { type: 'action', id: 'help.about', label: 'About Ori Studio' },
+        { type: 'action', id: 'view.resetLayout', label: t('menu:view.resetLayout', 'Reset Layout') },
+      ],
+    },
+    {
+      label: t('menu:menubar.design', 'Design'),
+      items: [
+        { type: 'action', id: 'optimize.scale', label: t('menu:optimize.scale', 'Optimize Scale'), shortcut: shortcut('optimize.scale', overrides) },
+        { type: 'action', id: 'optimize.edges', label: t('menu:optimize.edges', 'Optimize Edges') },
+        { type: 'action', id: 'optimize.strain', label: t('menu:optimize.strain', 'Optimize Strain') },
+        { type: 'separator' },
+        { type: 'action', id: 'cp.build', label: t('menu:cp.build', 'Build Crease Pattern'), shortcut: shortcut('cp.build', overrides) },
+      ],
+    },
+    {
+      label: t('menu:menubar.creasePattern', 'Crease Pattern'),
+      items: [
+        {
+          type: 'submenu',
+          label: t('menu:cp.selectedLines', 'Selected Lines'),
+          items: [
+            { type: 'action', id: 'cp.deleteSelectedLines', label: t('menu:cp.deleteSelectedLines', 'Delete Selected Lines') },
+            { type: 'separator' },
+            { type: 'action', id: 'cp.changeCreaseType', label: t('menu:cp.changeCreaseType', 'Change Crease Type') },
+            { type: 'action', id: 'cp.advanceCreaseType', label: t('menu:cp.advanceCreaseType', 'Advance Crease Type') },
+            { type: 'action', id: 'cp.toggleMountainValley', label: t('menu:cp.toggleMountainValley', 'Toggle Mountain/Valley') },
+            { type: 'separator' },
+            { type: 'action', id: 'cp.makeMountain', label: t('menu:cp.makeMountain', 'Make Mountain') },
+            { type: 'action', id: 'cp.makeValley', label: t('menu:cp.makeValley', 'Make Valley') },
+            { type: 'action', id: 'cp.makeEdge', label: t('menu:cp.makeEdge', 'Make Edge') },
+            { type: 'action', id: 'cp.makeAuxiliary', label: t('menu:cp.makeAuxiliary', 'Make Auxiliary') },
+            { type: 'separator' },
+            { type: 'action', id: 'cp.replaceLineType', label: t('menu:cp.replaceLineType', 'Replace Selected Line Type...') },
+            { type: 'action', id: 'cp.deleteLineType', label: t('menu:cp.deleteLineType', 'Delete Selected Line Type...') },
+          ],
+        },
+        {
+          type: 'submenu',
+          label: t('menu:cp.transform', 'Transform Selection'),
+          items: [
+            { type: 'action', id: 'cp.transformFlipHorizontal', label: t('menu:cp.transformFlipHorizontal', 'Flip Horizontal') },
+            { type: 'action', id: 'cp.transformFlipVertical', label: t('menu:cp.transformFlipVertical', 'Flip Vertical') },
+            { type: 'separator' },
+            { type: 'action', id: 'cp.transformRotateLeft', label: t('menu:cp.transformRotateLeft', 'Rotate Left 90') },
+            { type: 'action', id: 'cp.transformRotateRight', label: t('menu:cp.transformRotateRight', 'Rotate Right 90') },
+          ],
+        },
+        {
+          type: 'submenu',
+          label: t('menu:cp.diagnostics', 'Diagnostics'),
+          items: [
+            { type: 'action', id: 'cp.checkCamv', label: t('menu:cp.checkCamv', 'Check CAMV'), shortcut: shortcut('cp.checkCamv', overrides) },
+            { type: 'action', id: 'cp.check1', label: t('menu:cp.check1', 'Check Overlaps') },
+            { type: 'action', id: 'cp.check2', label: t('menu:cp.check2', 'Check T-junctions') },
+            { type: 'action', id: 'cp.check3', label: t('menu:cp.check3', 'Check Vertex Foldability') },
+            { type: 'action', id: 'cp.check4', label: t('menu:cp.check4', 'Check Maekawa/LBL') },
+          ],
+        },
+        {
+          type: 'submenu',
+          label: t('menu:cp.repair', 'Repair'),
+          items: [
+            { type: 'action', id: 'cp.fix1', label: t('menu:cp.fix1', 'Repair Overlaps') },
+            { type: 'action', id: 'cp.fix2', label: t('menu:cp.fix2', 'Split T-junctions') },
+            { type: 'action', id: 'cp.fixInaccurate', label: t('menu:cp.fixInaccurate', 'Fix Inaccurate Creases...') },
+          ],
+        },
+        {
+          type: 'submenu',
+          label: t('menu:cp.annotations', 'Annotations'),
+          items: [
+            { type: 'action', id: 'cp.changeCircleColor', label: t('menu:cp.changeCircleColor', 'Change Circle Color...') },
+            { type: 'action', id: 'cp.organizeCircles', label: t('menu:cp.organizeCircles', 'Organize Circles') },
+          ],
+        },
+      ],
+    },
+    {
+      label: t('menu:menubar.help', 'Help'),
+      items: [
+        { type: 'action', id: 'help.documentation', label: t('menu:help.documentation', 'Ori Studio Help'), shortcut: shortcut('help.documentation', overrides) },
+        { type: 'separator' },
+        { type: 'action', id: 'help.about', label: t('menu:help.about', 'About Ori Studio') },
       ],
     },
   ];

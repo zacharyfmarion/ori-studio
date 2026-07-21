@@ -6,6 +6,10 @@ import {
   type Dispatch,
   type SetStateAction,
 } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
+import { cpActionLabel, cpToolInstructions } from '../../i18n/cpVocab';
+import { cpPaletteStatusLabel } from '../../i18n/paletteLabels';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import type {
   OristudioCpCustomLineType,
@@ -29,10 +33,7 @@ import {
   type OristudioCpToolOptions,
   type OristudioCpToolSettingGroup,
 } from '../../lib/oristudioCpToolSettings';
-import {
-  instructionsForCpTool,
-  type OristudioCpToolInstructions,
-} from '../../lib/oristudioCpToolInstructions';
+import type { OristudioCpToolInstructions } from '../../lib/oristudioCpToolInstructions';
 import { cpPaletteEntryForColor } from '../../lib/oristudioCpPalette';
 import { cpLineAssignmentLabel, type OristudioCpSelection } from '../../lib/creasePatternViewport';
 import { isSelectionCircleApplyOperation } from '../../cp-workspace/tools/predicates';
@@ -45,8 +46,15 @@ import {
   type CpMeasurementSlots,
 } from '../../cp-workspace/measure';
 
-export function cpLineTypeStatusLabel(lineColor: OristudioCpLineColor): string {
-  return cpPaletteEntryForColor(lineColor)?.statusLabel ?? `Line ${cpLineAssignmentLabel(lineColor)}`;
+const identityTranslate = ((_key: string, defaultValue?: string) =>
+  defaultValue ?? _key) as unknown as TFunction;
+
+export function cpLineTypeStatusLabel(
+  lineColor: OristudioCpLineColor,
+  t: TFunction = identityTranslate
+): string {
+  const entry = cpPaletteEntryForColor(lineColor);
+  return entry ? cpPaletteStatusLabel(t, entry) : `Line ${cpLineAssignmentLabel(lineColor)}`;
 }
 
 export function cpCommandRequiresContextApply(command: OristudioCpCommandDefinition): boolean {
@@ -104,22 +112,25 @@ export function CpContextToolPanel({
   onApply?: () => void;
   onClearInput?: () => void;
 }) {
+  const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(false);
   const groups = cpToolSettingGroupsForCommand(command);
-  const instructions = instructionsForCpTool(action, command);
+  const instructions = cpToolInstructions(t, action, command);
   const applyDisabled = contextApplyDisabledForCommand(command, selection, pendingPointCount);
-  const title = action?.kind === 'command' ? action.label : command.label;
+  const title = action?.kind === 'command' ? cpActionLabel(t, action) : command.label;
   const meta =
     groups.length > 0
-      ? `${groups.length} ${groups.length === 1 ? 'setting' : 'settings'}`
-      : 'Instructions';
+      ? groups.length === 1
+        ? t('tools:cpContext.settingCountOne', '{{count}} setting', { count: groups.length })
+        : t('tools:cpContext.settingCountOther', '{{count}} settings', { count: groups.length })
+      : t('tools:cpContext.instructions', 'Instructions');
 
   if (groups.length === 0 && !instructions) return null;
 
   return (
     <section
       className="cp-context-panel"
-      aria-label="Crease pattern tool options"
+      aria-label={t('tools:cpContext.ariaLabel', 'Crease pattern tool options')}
       onPointerDown={(event) => event.stopPropagation()}
       onClick={(event) => event.stopPropagation()}
     >
@@ -158,17 +169,17 @@ export function CpContextToolPanel({
               onClick={onApply}
             >
               {command.operationId === 'VoronoiCreate'
-                ? 'Apply Voronoi'
+                ? t('tools:cpContext.applyVoronoi', 'Apply Voronoi')
                 : command.operationId === 'CircleChangeColor'
-                  ? 'Apply color'
+                  ? t('tools:cpContext.applyColor', 'Apply color')
                   : isSelectionCircleApplyOperation(command.operationId)
-                    ? 'Apply circle'
-                    : 'Apply to selection'}
+                    ? t('tools:cpContext.applyCircle', 'Apply circle')
+                    : t('tools:cpContext.applyToSelection', 'Apply to selection')}
             </button>
           )}
           {onClearInput && (
             <button className="cp-context-panel__secondary" type="button" onClick={onClearInput}>
-              Clear seeds
+              {t('tools:cpContext.clearSeeds', 'Clear seeds')}
             </button>
           )}
         </div>
@@ -182,13 +193,14 @@ function CpContextToolInstructions({
 }: {
   instructions: OristudioCpToolInstructions;
 }) {
+  const { t } = useTranslation();
   const hasIntro = (instructions.intro?.length ?? 0) > 0;
   const hasSteps = (instructions.steps?.length ?? 0) > 0;
   const hasNotes = (instructions.notes?.length ?? 0) > 0;
 
   return (
     <div className="cp-context-panel__instructions">
-      <div className="cp-context-panel__group-title">Instructions</div>
+      <div className="cp-context-panel__group-title">{t('tools:cpContext.instructions', 'Instructions')}</div>
       {hasIntro && (
         <div className="cp-context-panel__instruction-copy">
           {instructions.intro?.map((line) => <p key={line}>{line}</p>)}
@@ -229,11 +241,12 @@ function CpContextToolGroup({
   pendingPointCount: number;
   selection: OristudioCpSelection;
 }) {
+  const { t } = useTranslation();
   if (group === 'line-color') {
     return (
       <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">Line type</div>
-        <div className="cp-context-panel__readout">{cpLineTypeStatusLabel(activeLineColor)}</div>
+        <div className="cp-context-panel__group-title">{t('tools:cpContext.lineType', 'Line type')}</div>
+        <div className="cp-context-panel__readout">{cpLineTypeStatusLabel(activeLineColor, t)}</div>
       </div>
     );
   }
@@ -241,10 +254,10 @@ function CpContextToolGroup({
   if (group === 'division-count') {
     return (
       <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">Divide by count</div>
+        <div className="cp-context-panel__group-title">{t('tools:cpContext.divideByCount', 'Divide by count')}</div>
         <NumericToolOption
-          label="Count"
-          ariaLabel="Division count"
+          label={t('tools:cpContext.count', 'Count')}
+          ariaLabel={t('tools:cpContext.divisionCount', 'Division count')}
           min={1}
           max={256}
           step={1}
@@ -264,10 +277,10 @@ function CpContextToolGroup({
   if (group === 'angle-system') {
     return (
       <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">Angle system</div>
+        <div className="cp-context-panel__group-title">{t('tools:cpContext.angleSystem', 'Angle system')}</div>
         <NumericToolOption
-          label="Divider"
-          ariaLabel="Angle system divider"
+          label={t('tools:cpContext.divider', 'Divider')}
+          ariaLabel={t('tools:cpContext.angleSystemDivider', 'Angle system divider')}
           min={0}
           max={360}
           step={1}
@@ -281,7 +294,7 @@ function CpContextToolGroup({
             <NumericToolOption
               key={field}
               label={field}
-              ariaLabel={`Angle ${field}`}
+              ariaLabel={t('tools:cpContext.angleFieldAria', 'Angle {{letter}}', { letter: field })}
               min={0}
               max={360}
               step={0.1}
@@ -297,10 +310,10 @@ function CpContextToolGroup({
   if (group === 'replace-line-type') {
     return (
       <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">Replace line type</div>
+        <div className="cp-context-panel__group-title">{t('tools:cpContext.replaceLineType', 'Replace line type')}</div>
         <SelectToolOption
-          label="From"
-          ariaLabel="Replace from line type"
+          label={t('tools:cpContext.from', 'From')}
+          ariaLabel={t('tools:cpContext.replaceFromLineType', 'Replace from line type')}
           value={options.customFromLineType}
           options={ORISTUDIO_CP_CUSTOM_LINE_TYPE_OPTIONS}
           onChange={(customFromLineType) =>
@@ -308,8 +321,8 @@ function CpContextToolGroup({
           }
         />
         <SelectToolOption
-          label="To"
-          ariaLabel="Replace to line type"
+          label={t('tools:cpContext.to', 'To')}
+          ariaLabel={t('tools:cpContext.replaceToLineType', 'Replace to line type')}
           value={options.customToLineType}
           options={ORISTUDIO_CP_REPLACE_TARGET_LINE_TYPE_OPTIONS}
           onChange={(customToLineType) =>
@@ -323,10 +336,10 @@ function CpContextToolGroup({
   if (group === 'delete-line-type') {
     return (
       <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">Delete line type</div>
+        <div className="cp-context-panel__group-title">{t('tools:cpContext.deleteLineType', 'Delete line type')}</div>
         <SelectToolOption
-          label="Filter"
-          ariaLabel="Delete line type"
+          label={t('tools:cpContext.filter', 'Filter')}
+          ariaLabel={t('tools:cpContext.deleteLineTypeAria', 'Delete line type')}
           value={options.customLineType}
           options={ORISTUDIO_CP_CUSTOM_LINE_TYPE_OPTIONS}
           onChange={(customLineType) =>
@@ -340,10 +353,10 @@ function CpContextToolGroup({
   if (group === 'erase-line-type') {
     return (
       <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">Erase</div>
+        <div className="cp-context-panel__group-title">{t('tools:cpContext.erase', 'Erase')}</div>
         <SelectToolOption
-          label="Filter"
-          ariaLabel="Erase line type"
+          label={t('tools:cpContext.filter', 'Filter')}
+          ariaLabel={t('tools:cpContext.eraseLineType', 'Erase line type')}
           value={options.customLineType}
           options={ORISTUDIO_CP_CUSTOM_LINE_TYPE_OPTIONS}
           onChange={(customLineType) =>
@@ -357,10 +370,10 @@ function CpContextToolGroup({
   if (group === 'fix-precision') {
     return (
       <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">Fix inaccurate</div>
+        <div className="cp-context-panel__group-title">{t('tools:cpContext.fixInaccurate', 'Fix inaccurate')}</div>
         <NumericToolOption
-          label="Precision"
-          ariaLabel="Fix precision"
+          label={t('tools:cpContext.precision', 'Precision')}
+          ariaLabel={t('tools:cpContext.fixPrecision', 'Fix precision')}
           min={0}
           max={100}
           step={0.01}
@@ -369,7 +382,7 @@ function CpContextToolGroup({
         />
         <CheckboxToolOption
           label="BP"
-          ariaLabel="Use BP fix targets"
+          ariaLabel={t('tools:cpContext.useBpFixTargets', 'Use BP fix targets')}
           checked={options.fixPrecisionUseBp}
           onChange={(fixPrecisionUseBp) =>
             setOptions((current) => ({ ...current, fixPrecisionUseBp }))
@@ -377,7 +390,7 @@ function CpContextToolGroup({
         />
         <CheckboxToolOption
           label="22.5"
-          ariaLabel="Use 22.5 fix targets"
+          ariaLabel={t('tools:cpContext.use225FixTargets', 'Use 22.5 fix targets')}
           checked={options.fixPrecisionUse22_5}
           onChange={(fixPrecisionUse22_5) =>
             setOptions((current) => ({ ...current, fixPrecisionUse22_5 }))
@@ -390,10 +403,10 @@ function CpContextToolGroup({
   if (group === 'polygon-corners') {
     return (
       <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">Regular polygon</div>
+        <div className="cp-context-panel__group-title">{t('tools:cpContext.regularPolygon', 'Regular polygon')}</div>
         <NumericToolOption
-          label="Corners"
-          ariaLabel="Polygon corners"
+          label={t('tools:cpContext.corners', 'Corners')}
+          ariaLabel={t('tools:cpContext.polygonCorners', 'Polygon corners')}
           min={3}
           max={256}
           step={1}
@@ -409,10 +422,10 @@ function CpContextToolGroup({
   if (group === 'parallel-width') {
     return (
       <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">Parallel width</div>
+        <div className="cp-context-panel__group-title">{t('tools:cpContext.parallelWidth', 'Parallel width')}</div>
         <NumericToolOption
-          label="Width"
-          ariaLabel="Parallel width"
+          label={t('tools:cpContext.width', 'Width')}
+          ariaLabel={t('tools:cpContext.parallelWidthAria', 'Parallel width')}
           min={0}
           max={9999}
           step={0.1}
@@ -431,10 +444,18 @@ function CpContextToolGroup({
       activeOperationId !== 'CircleDrawConcentricSelect';
     return (
       <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">Candidate</div>
+        <div className="cp-context-panel__group-title">{t('tools:cpContext.candidate', 'Candidate')}</div>
         <CheckboxToolOption
-          label={usesNearestCandidate ? 'Auto nearest' : 'First candidate'}
-          ariaLabel={usesNearestCandidate ? 'Use nearest candidate' : 'Use first candidate'}
+          label={
+            usesNearestCandidate
+              ? t('tools:cpContext.autoNearest', 'Auto nearest')
+              : t('tools:cpContext.firstCandidate', 'First candidate')
+          }
+          ariaLabel={
+            usesNearestCandidate
+              ? t('tools:cpContext.useNearestCandidate', 'Use nearest candidate')
+              : t('tools:cpContext.useFirstCandidate', 'Use first candidate')
+          }
           checked={options.candidateIndex === null}
           onChange={(useNearest) =>
             setOptions((current) => ({
@@ -444,8 +465,8 @@ function CpContextToolGroup({
           }
         />
         <NumericToolOption
-          label="Index"
-          ariaLabel="Candidate index"
+          label={t('tools:cpContext.index', 'Index')}
+          ariaLabel={t('tools:cpContext.candidateIndex', 'Candidate index')}
           min={1}
           max={256}
           step={1}
@@ -465,11 +486,23 @@ function CpContextToolGroup({
   if (group === 'circle-select-help') {
     return (
       <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">Circle selection</div>
+        <div className="cp-context-panel__group-title">{t('tools:cpContext.circleSelection', 'Circle selection')}</div>
         <div className="cp-context-panel__readout">
-          {selection.circles.length} circle{selection.circles.length === 1 ? '' : 's'} selected
+          {selection.circles.length === 1
+            ? t('tools:cpContext.circlesSelectedOne', '{{count}} circle selected', {
+                count: selection.circles.length,
+              })
+            : t('tools:cpContext.circlesSelectedOther', '{{count}} circles selected', {
+                count: selection.circles.length,
+              })}
           {selection.lines.length > 0
-            ? `, ${selection.lines.length} crease${selection.lines.length === 1 ? '' : 's'} selected`
+            ? selection.lines.length === 1
+              ? t('tools:cpContext.creasesSelectedOne', ', {{count}} crease selected', {
+                  count: selection.lines.length,
+                })
+              : t('tools:cpContext.creasesSelectedOther', ', {{count}} creases selected', {
+                  count: selection.lines.length,
+                })
             : ''}
         </div>
       </div>
@@ -480,12 +513,20 @@ function CpContextToolGroup({
     return (
       <div className="cp-context-panel__group">
         <div className="cp-context-panel__group-title">
-          {activeOperationId === 'VoronoiCreate' ? 'Voronoi seeds' : 'Apply lines'}
+          {activeOperationId === 'VoronoiCreate'
+            ? t('tools:cpContext.voronoiSeeds', 'Voronoi seeds')
+            : t('tools:cpContext.applyLines', 'Apply lines')}
         </div>
         <div className="cp-context-panel__readout">
           {activeOperationId === 'VoronoiCreate'
-            ? `${pendingPointCount} seed ${pendingPointCount === 1 ? 'press' : 'presses'} pending`
-            : 'Apply the generated lines from this tool.'}
+            ? pendingPointCount === 1
+              ? t('tools:cpContext.seedPressPendingOne', '{{count}} seed press pending', {
+                  count: pendingPointCount,
+                })
+              : t('tools:cpContext.seedPressPendingOther', '{{count}} seed presses pending', {
+                  count: pendingPointCount,
+                })
+            : t('tools:cpContext.applyGeneratedLines', 'Apply the generated lines from this tool.')}
         </div>
       </div>
     );
@@ -494,7 +535,7 @@ function CpContextToolGroup({
   if (group === 'measurement-readout') {
     return (
       <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">Measurement</div>
+        <div className="cp-context-panel__group-title">{t('tools:cpContext.measurement', 'Measurement')}</div>
         <div className="cp-context-panel__measurement-grid">
           {CP_MEASUREMENT_SLOT_ORDER.map((slot) => (
             <div
@@ -515,7 +556,7 @@ function CpContextToolGroup({
   if (group === 'custom-circle-color') {
     return (
       <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">Circle color</div>
+        <div className="cp-context-panel__group-title">{t('tools:cpContext.circleColor', 'Circle color')}</div>
         <div
           className="cp-context-panel__color-swatch"
           style={{
@@ -528,7 +569,7 @@ function CpContextToolGroup({
             <NumericToolOption
               key={field.key}
               label={field.label}
-              ariaLabel={field.ariaLabel}
+              ariaLabel={circleColorAria(t, field.key)}
               min={0}
               max={255}
               step={1}
@@ -544,8 +585,8 @@ function CpContextToolGroup({
   if (group === 'line-select-help') {
     return (
       <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">Line selection</div>
-        <div className="cp-context-panel__readout">Drag across creases to apply this action.</div>
+        <div className="cp-context-panel__group-title">{t('tools:cpContext.lineSelection', 'Line selection')}</div>
+        <div className="cp-context-panel__readout">{t('tools:cpContext.dragAcrossCreases', 'Drag across creases to apply this action.')}</div>
       </div>
     );
   }
@@ -575,6 +616,7 @@ function DivisionRatioOptions({
   options: OristudioCpToolOptions;
   setOptions: Dispatch<SetStateAction<OristudioCpToolOptions>>;
 }) {
+  const { t } = useTranslation();
   const initialHalves = ratioHalvesFromExpression(options.divisionRatio);
   const [leftDraft, setLeftDraft] = useState(() => formatOrieditaRatioHalf(initialHalves.left));
   const [rightDraft, setRightDraft] = useState(() => formatOrieditaRatioHalf(initialHalves.right));
@@ -628,24 +670,24 @@ function DivisionRatioOptions({
 
   return (
     <div className="cp-context-panel__group">
-      <div className="cp-context-panel__group-title">Divide by ratio</div>
+      <div className="cp-context-panel__group-title">{t('tools:cpContext.divideByRatio', 'Divide by ratio')}</div>
       <div className="cp-context-panel__ratio-simple">
         <TextToolOption
-          label="Left"
-          ariaLabel="Left segment ratio"
+          label={t('tools:cpContext.left', 'Left')}
+          ariaLabel={t('tools:cpContext.leftSegmentRatio', 'Left segment ratio')}
           value={leftDraft}
           invalid={leftInvalid}
           onChange={(value) => updateSimpleHalf('left', value)}
         />
         <TextToolOption
-          label="Right"
-          ariaLabel="Right segment ratio"
+          label={t('tools:cpContext.right', 'Right')}
+          ariaLabel={t('tools:cpContext.rightSegmentRatio', 'Right segment ratio')}
           value={rightDraft}
           invalid={rightInvalid}
           onChange={(value) => updateSimpleHalf('right', value)}
         />
       </div>
-      <div className="cp-context-panel__preset-grid" aria-label="Ratio presets">
+      <div className="cp-context-panel__preset-grid" aria-label={t('tools:cpContext.ratioPresets', 'Ratio presets')}>
         {ORISTUDIO_CP_RATIO_PRESETS.map((preset) => (
           <button
             key={preset.label}
@@ -660,17 +702,19 @@ function DivisionRatioOptions({
         ))}
       </div>
       <div className="cp-context-panel__readout">
-        Computed ratio {formatOrieditaRatioNumber(ratio.ratioS)} :{' '}
-        {formatOrieditaRatioNumber(ratio.ratioT)}
+        {t('tools:cpContext.computedRatio', 'Computed ratio {{s}} : {{t}}', {
+          s: formatOrieditaRatioNumber(ratio.ratioS),
+          t: formatOrieditaRatioNumber(ratio.ratioT),
+        })}
       </div>
       <details className="cp-context-panel__details">
-        <summary>Exact form</summary>
+        <summary>{t('tools:cpContext.exactForm', 'Exact form')}</summary>
         <div className="cp-context-panel__ratio-grid">
           {RATIO_FIELDS.map((field) => (
             <NumericToolOption
               key={field.key}
               label={field.label}
-              ariaLabel={field.ariaLabel}
+              ariaLabel={t('tools:cpContext.ratioFieldAria', 'Ratio {{letter}}', { letter: field.label })}
               min={field.min}
               max={999}
               step={field.step}
@@ -696,12 +740,24 @@ const ANGLE_FIELDS = ['A', 'B', 'C', 'D', 'E', 'F'] as const;
 const RGB_FIELDS: readonly {
   key: keyof OristudioCpRgbColor;
   label: string;
-  ariaLabel: string;
 }[] = [
-  { key: 'red', label: 'R', ariaLabel: 'Circle color red' },
-  { key: 'green', label: 'G', ariaLabel: 'Circle color green' },
-  { key: 'blue', label: 'B', ariaLabel: 'Circle color blue' },
+  { key: 'red', label: 'R' },
+  { key: 'green', label: 'G' },
+  { key: 'blue', label: 'B' },
 ];
+
+function circleColorAria(t: TFunction, key: keyof OristudioCpRgbColor): string {
+  switch (key) {
+    case 'red':
+      return t('tools:cpContext.circleColorRed', 'Circle color red');
+    case 'green':
+      return t('tools:cpContext.circleColorGreen', 'Circle color green');
+    case 'blue':
+      return t('tools:cpContext.circleColorBlue', 'Circle color blue');
+    default:
+      return key;
+  }
+}
 
 function updateAngleField(
   setOptions: Dispatch<SetStateAction<OristudioCpToolOptions>>,

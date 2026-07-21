@@ -1,0 +1,1578 @@
+{
+  "group": {
+    "line_type": {
+      "label": "Tipo de linha",
+      "railLabel": "Tipo"
+    },
+    "select_edit": {
+      "label": "Selecionar e editar",
+      "railLabel": "Selec."
+    },
+    "draw": {
+      "label": "Desenhar dobras e pontos",
+      "railLabel": "Desenhar"
+    },
+    "edit": {
+      "label": "Excluir",
+      "railLabel": "Excluir"
+    },
+    "construct": {
+      "label": "Construir por geometria",
+      "railLabel": "Construir"
+    },
+    "transform": {
+      "label": "Transformar e quadro de operação",
+      "railLabel": "Transf."
+    },
+    "color": {
+      "label": "Cor e atribuição",
+      "railLabel": "Cor"
+    },
+    "annotations": {
+      "label": "Círculos, texto e anotações",
+      "railLabel": "Anotar"
+    },
+    "generators": {
+      "label": "Geradores e moléculas base",
+      "railLabel": "Gerar"
+    },
+    "measure": {
+      "label": "Medir",
+      "railLabel": "Medir"
+    },
+    "check_fix": {
+      "label": "Verificar e corrigir",
+      "railLabel": "Verif."
+    },
+    "folding": {
+      "label": "Estimativa de dobra e figura dobrada",
+      "railLabel": "Dobrar"
+    },
+    "file": {
+      "label": "Importar/exportar arquivo",
+      "railLabel": "Arquivo"
+    }
+  },
+  "action": {
+    "cp_action_line_type_mountain": {
+      "label": "Montanha",
+      "railLabel": "M",
+      "tooltip": "Definir o tipo de linha ativo como montanha",
+      "disabledReason": "Pronto"
+    },
+    "cp_action_line_type_valley": {
+      "label": "Vale",
+      "railLabel": "V",
+      "tooltip": "Definir o tipo de linha ativo como vale",
+      "disabledReason": "Pronto"
+    },
+    "cp_action_line_type_edge": {
+      "label": "Borda",
+      "railLabel": "E",
+      "tooltip": "Definir o tipo de linha ativo como borda",
+      "disabledReason": "Pronto"
+    },
+    "cp_action_line_type_unassigned": {
+      "label": "Não atribuído",
+      "railLabel": "U",
+      "tooltip": "Definir o tipo de linha ativo como não atribuído",
+      "disabledReason": "Pronto"
+    },
+    "cp_action_line_type_auxiliary": {
+      "label": "Auxiliar",
+      "railLabel": "A",
+      "tooltip": "Definir o tipo de linha ativo como auxiliar",
+      "disabledReason": "Pronto"
+    },
+    "cp_action_draw_crease": {
+      "label": "Linha",
+      "tooltip": "Arraste um vinco usando o tipo de linha atual",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Arraste a extremidade do vinco"
+      }
+    },
+    "cp_action_move_crease_pattern": {
+      "label": "Deslocar viewport",
+      "tooltip": "Coberto pelos controles de deslocamento do viewport de CP já implementados",
+      "disabledReason": "Tratado pelo runtime do viewport em vez de um comando de CP"
+    },
+    "cp_action_line_segment_delete": {
+      "label": "Borracha",
+      "tooltip": "Clique em um vinco ou arraste uma caixa para apagar vincos",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Clique em um vinco ou arraste uma caixa para apagar"
+      }
+    },
+    "cp_action_change_crease_type": {
+      "label": "Alterar tipo de vinco",
+      "tooltip": "Avançar as linhas de dobra selecionadas por borda, montanha e vale",
+      "disabledReason": "Pronto"
+    },
+    "cp_action_lengthen_crease": {
+      "label": "Estender linha",
+      "tooltip": "Estender os vincos cruzados pela linha-guia até o vinco alvo",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Selecione a linha a estender",
+        "1": "Selecione a linha alvo"
+      }
+    },
+    "cp_action_square_bisector": {
+      "label": "Bissetriz de ângulo",
+      "tooltip": "Bissetriz quadrada",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Selecione 2 segmentos ou 3 pontos",
+        "1": "Selecione 3 pontos",
+        "2": "Selecione 3 pontos",
+        "3": "Selecione o segmento para finalizar"
+      }
+    },
+    "cp_action_inward": {
+      "label": "Orelha de coelho",
+      "tooltip": "Linha de dobra para dentro",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o primeiro ponto do triângulo",
+        "1": "Escolha o segundo ponto do triângulo",
+        "2": "Escolha o terceiro ponto do triângulo"
+      }
+    },
+    "cp_action_perpendicular_draw": {
+      "label": "Linha perpendicular",
+      "tooltip": "Desenho perpendicular",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o ponto alvo",
+        "1": "Escolha o vinco base"
+      }
+    },
+    "cp_action_symmetric_draw": {
+      "label": "Linha espelhada",
+      "tooltip": "Desenho simétrico",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o vinco de origem",
+        "1": "Escolha o vinco espelho"
+      }
+    },
+    "cp_action_draw_crease_restricted": {
+      "label": "Linha restrita à grade",
+      "tooltip": "Desenhar vinco restrito",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Arraste entre pontos existentes"
+      }
+    },
+    "cp_action_draw_crease_symmetric": {
+      "label": "Refletir seleção sobre a linha",
+      "tooltip": "Refletir os vincos selecionados através de uma linha desenhada com dois pontos",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Selecione 2 pontos ou selecione uma linha",
+        "1": "Escolha o fim da linha de reflexão"
+      }
+    },
+    "cp_action_draw_crease_angle_restricted": {
+      "label": "Linhas convergentes",
+      "tooltip": "Vinco restrito por ângulo",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o vinco base ou o primeiro ponto",
+        "1": "Escolha o ponto final da base",
+        "2": "Escolha o ponto de convergência"
+      }
+    },
+    "cp_action_draw_point": {
+      "label": "Desenhar ponto",
+      "tooltip": "Desenhar ponto",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o ponto"
+      }
+    },
+    "cp_action_delete_point": {
+      "label": "Excluir ponto",
+      "tooltip": "Mesclar vincos da mesma cor que se encontram no vértice escolhido",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o vértice"
+      }
+    },
+    "cp_action_angle_system": {
+      "label": "Linha restrita por deslocamento",
+      "tooltip": "Sistema de ângulos",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o ponto inicial do ângulo",
+        "1": "Escolha o ponto final do ângulo",
+        "2": "Escolha o vinco de destino"
+      }
+    },
+    "cp_action_draw_crease_angle_restricted3": {
+      "label": "Vinco restrito por ângulo 3",
+      "tooltip": "Vinco restrito por ângulo 3",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o ponto inicial do leque",
+        "1": "Escolha o ponto final do leque",
+        "2": "Escolha o candidato de ângulo"
+      }
+    },
+    "cp_action_crease_select": {
+      "label": "Seleção por caixa",
+      "tooltip": "Selecionar vincos dentro de uma caixa arrastada",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Arraste a caixa de seleção"
+      }
+    },
+    "cp_action_crease_unselect": {
+      "label": "Desmarcar por caixa",
+      "tooltip": "Desmarcar vincos dentro de uma caixa arrastada",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Arraste a caixa de seleção"
+      }
+    },
+    "cp_action_crease_move": {
+      "label": "Mover vincos selecionados",
+      "tooltip": "Mover vincos selecionados",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o ponto de origem",
+        "1": "Escolha o ponto de destino"
+      }
+    },
+    "cp_action_crease_copy": {
+      "label": "Copiar vincos selecionados",
+      "tooltip": "Copiar vincos selecionados",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o ponto de origem",
+        "1": "Escolha o ponto de destino"
+      }
+    },
+    "cp_action_crease_make_mountain": {
+      "label": "Definir como montanha",
+      "tooltip": "Definir as linhas selecionadas como dobras de montanha",
+      "disabledReason": "Pronto"
+    },
+    "cp_action_crease_make_valley": {
+      "label": "Definir como vale",
+      "tooltip": "Definir as linhas selecionadas como dobras de vale",
+      "disabledReason": "Pronto"
+    },
+    "cp_action_crease_make_edge": {
+      "label": "Definir como borda",
+      "tooltip": "Definir as linhas selecionadas como dobras de borda",
+      "disabledReason": "Pronto"
+    },
+    "cp_action_crease_set_line_color": {
+      "label": "Definir cor da linha selecionada",
+      "tooltip": "Aplicar a cor de linha ativa às linhas selecionadas",
+      "disabledReason": "Pronto"
+    },
+    "cp_action_background_change_position": {
+      "label": "Mover plano de fundo",
+      "tooltip": "A manipulação da imagem de fundo é apenas da interface e não faz parte do núcleo de CP",
+      "disabledReason": "Tratado pelo runtime do viewport em vez de um comando de CP"
+    },
+    "cp_action_line_segment_division": {
+      "label": "Linha dividida igualmente",
+      "tooltip": "Dividir a linha por quantidade",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Arraste para desenhar uma linha a dividir"
+      }
+    },
+    "cp_action_line_segment_ratio_set": {
+      "label": "Linha dividida (proporção)",
+      "tooltip": "Dividir a linha por proporção",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Arraste para desenhar uma linha a dividir"
+      }
+    },
+    "cp_action_polygon_set_no_corners": {
+      "label": "Polígono regular",
+      "tooltip": "Polígono regular",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o primeiro vértice",
+        "1": "Escolha o segundo vértice"
+      }
+    },
+    "cp_action_crease_advance_type": {
+      "label": "Avançar tipo de vinco",
+      "tooltip": "Avançar as linhas de dobra selecionadas por borda, montanha e vale",
+      "disabledReason": "Pronto"
+    },
+    "cp_action_crease_move4p": {
+      "label": "Mover por quatro pontos",
+      "tooltip": "Mover por quatro pontos",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o primeiro ponto de origem",
+        "1": "Escolha o segundo ponto de origem",
+        "2": "Escolha o primeiro ponto alvo",
+        "3": "Escolha o segundo ponto alvo"
+      }
+    },
+    "cp_action_crease_copy4p": {
+      "label": "Copiar por quatro pontos",
+      "tooltip": "Copiar por quatro pontos",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o primeiro ponto de origem",
+        "1": "Escolha o segundo ponto de origem",
+        "2": "Escolha o primeiro ponto alvo",
+        "3": "Escolha o segundo ponto alvo"
+      }
+    },
+    "cp_action_fish_bone_draw": {
+      "label": "Linhas alternadas paralelas",
+      "tooltip": "Desenho em espinha de peixe",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o ponto inicial da espinha",
+        "1": "Escolha o ponto final da espinha"
+      }
+    },
+    "cp_action_crease_make_mv": {
+      "label": "Criar M/V alternado",
+      "tooltip": "Atribuir dobras alternadas de montanha e vale ao longo de uma linha-guia",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Arraste uma linha-guia ao longo dos vincos"
+      }
+    },
+    "cp_action_double_symmetric_draw": {
+      "label": "Refletir sobre a linha",
+      "tooltip": "Desenho simétrico duplo",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o início do eixo de simetria",
+        "1": "Escolha o fim do eixo de simetria"
+      }
+    },
+    "cp_action_creases_alternate_mv": {
+      "label": "Alternar M/V nos cruzamentos",
+      "tooltip": "Atribuir dobras alternadas de montanha e vale aos cruzamentos ao longo de uma linha-guia",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Arraste uma linha-guia através dos cruzamentos"
+      }
+    },
+    "cp_action_draw_crease_angle_restricted5": {
+      "label": "Linha restrita por ângulo",
+      "tooltip": "Vinco restrito por ângulo 5",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o ponto de âncora",
+        "1": "Escolha a extremidade ajustada"
+      }
+    },
+    "cp_action_vertex_make_angularly_flat_foldable": {
+      "label": "Linha dobrável plana",
+      "tooltip": "Tornar o vértice dobrável plano",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o vértice ímpar",
+        "1": "Escolha a linha candidata",
+        "2": "Escolha o vinco de destino"
+      }
+    },
+    "cp_action_foldable_line_input": {
+      "label": "Linha dobrável plana (estender)",
+      "tooltip": "Entrada de linha dobrável",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o vértice inicial",
+        "1": "Escolha a extremidade"
+      }
+    },
+    "cp_action_parallel_draw": {
+      "label": "Linha paralela",
+      "tooltip": "Desenho paralelo",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o ponto alvo",
+        "1": "Escolha o vinco de origem paralelo",
+        "2": "Escolha o vinco de destino"
+      }
+    },
+    "cp_action_vertex_delete_on_crease": {
+      "label": "Excluir qualquer vértice",
+      "tooltip": "Mesclar vincos adjacentes em um vértice com as regras de mudança de cor do Oriedita",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o vértice"
+      }
+    },
+    "cp_action_circle_draw": {
+      "label": "Desenhar círculo",
+      "tooltip": "Desenhar círculo",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o ponto central",
+        "1": "Escolha o ponto do raio"
+      }
+    },
+    "cp_action_circle_draw_three_point": {
+      "label": "Círculo por três pontos",
+      "tooltip": "Círculo por três pontos",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o primeiro ponto",
+        "1": "Escolha o segundo ponto",
+        "2": "Escolha o terceiro ponto"
+      }
+    },
+    "cp_action_circle_draw_separate": {
+      "label": "Círculo separado",
+      "tooltip": "Círculo separado",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o ponto central",
+        "1": "Escolha o início do raio",
+        "2": "Escolha o fim do raio"
+      }
+    },
+    "cp_action_circle_draw_tangent_line": {
+      "label": "Linha tangente ao círculo",
+      "tooltip": "Criar linhas tangentes a partir de dois círculos selecionados, ou de um círculo selecionado mais um ponto clicado",
+      "disabledReason": "Pronto"
+    },
+    "cp_action_circle_draw_inverted": {
+      "label": "Círculo invertido",
+      "tooltip": "Inverter um círculo selecionado ou um vinco através de um círculo selecionado",
+      "disabledReason": "Pronto"
+    },
+    "cp_action_circle_draw_free": {
+      "label": "Círculo livre",
+      "tooltip": "Círculo livre",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o ponto central",
+        "1": "Escolha o ponto do raio"
+      }
+    },
+    "cp_action_circle_draw_concentric": {
+      "label": "Círculo concêntrico",
+      "tooltip": "Círculo concêntrico",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o início do raio",
+        "1": "Escolha o fim do raio"
+      }
+    },
+    "cp_action_circle_draw_concentric_select": {
+      "label": "Concêntrico a partir da seleção",
+      "tooltip": "Criar um círculo concêntrico a partir de um círculo alvo e dos raios de dois círculos de referência",
+      "disabledReason": "Pronto"
+    },
+    "cp_action_circle_draw_concentric_two_circle_select": {
+      "label": "Concêntrico a partir de dois círculos",
+      "tooltip": "Criar os dois círculos concêntricos com deslocamento do Oriedita a partir dos círculos selecionados",
+      "disabledReason": "Pronto"
+    },
+    "cp_action_parallel_draw_width": {
+      "label": "Desenho paralelo por largura",
+      "tooltip": "Desenho paralelo por largura",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o vinco de origem",
+        "1": "Escolha o ponto de largura"
+      }
+    },
+    "cp_action_continuous_symmetric_draw": {
+      "label": "Refletir através das linhas",
+      "tooltip": "Desenho simétrico contínuo",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o ponto inicial",
+        "1": "Escolha o ponto de passagem"
+      }
+    },
+    "cp_action_display_length_between_points1": {
+      "label": "Medir comprimento 1",
+      "tooltip": "Medir comprimento 1",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o primeiro ponto",
+        "1": "Escolha o segundo ponto"
+      }
+    },
+    "cp_action_display_length_between_points2": {
+      "label": "Medir comprimento 2",
+      "tooltip": "Medir comprimento 2",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o primeiro ponto",
+        "1": "Escolha o segundo ponto"
+      }
+    },
+    "cp_action_display_angle_between_three_points1": {
+      "label": "Medir ângulo 1",
+      "tooltip": "Medir ângulo 1",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o primeiro ponto",
+        "1": "Escolha o ponto do vértice",
+        "2": "Escolha o segundo ponto"
+      }
+    },
+    "cp_action_display_angle_between_three_points2": {
+      "label": "Medir ângulo 2",
+      "tooltip": "Medir ângulo 2",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o primeiro ponto",
+        "1": "Escolha o ponto do vértice",
+        "2": "Escolha o segundo ponto"
+      }
+    },
+    "cp_action_display_angle_between_three_points3": {
+      "label": "Medir ângulo 3",
+      "tooltip": "Medir ângulo 3",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o primeiro ponto",
+        "1": "Escolha o ponto do vértice",
+        "2": "Escolha o segundo ponto"
+      }
+    },
+    "cp_action_crease_toggle_mv": {
+      "label": "Inverter montanha/vale",
+      "tooltip": "Clique em um vinco ou arraste uma caixa para inverter as atribuições de montanha/vale",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Clique em um vinco ou arraste uma caixa para inverter"
+      }
+    },
+    "cp_action_circle_change_color": {
+      "label": "Alterar cor do círculo",
+      "tooltip": "Aplicar a cor personalizada contextual aos círculos e linhas auxiliares selecionados",
+      "disabledReason": "Pronto"
+    },
+    "cp_action_crease_make_aux": {
+      "label": "Definir como auxiliar",
+      "tooltip": "Converter linhas de dobra selecionadas em linhas auxiliares",
+      "disabledReason": "Pronto"
+    },
+    "cp_action_operation_frame_create": {
+      "label": "Quadro de operação",
+      "tooltip": "Criar um quadro de operação do Oriedita arrastando um retângulo no CP",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Arraste o quadro de operação"
+      }
+    },
+    "cp_action_voronoi_create": {
+      "label": "Voronoi",
+      "tooltip": "Clique em pontos-semente para pré-visualizar um diagrama de Voronoi e depois aplique pelo painel contextual",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Clique no ponto-semente"
+      }
+    },
+    "cp_action_flat_foldable_check": {
+      "label": "Verificação de contorno dobrável plano",
+      "tooltip": "Desenhe um laço de contorno fechado do Oriedita e colora o resultado da verificação",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Desenhe um laço de contorno fechado"
+      }
+    },
+    "cp_action_crease_delete_overlapping": {
+      "label": "Excluir linhas coincidentes",
+      "tooltip": "Excluir segmentos de vinco que se sobrepõem a uma linha arrastada",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o ponto inicial do arrasto",
+        "1": "Escolha o ponto final do arrasto"
+      }
+    },
+    "cp_action_crease_delete_intersecting": {
+      "label": "Excluir linhas sobrepostas",
+      "tooltip": "Excluir segmentos de vinco que cruzam ou se sobrepõem a uma linha arrastada",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o ponto inicial do arrasto",
+        "1": "Escolha o ponto final do arrasto"
+      }
+    },
+    "cp_action_select_polygon": {
+      "label": "Seleção por polígono",
+      "tooltip": "Selecionar vincos contidos por um polígono à mão livre",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Arraste o caminho do polígono"
+      }
+    },
+    "cp_action_unselect_polygon": {
+      "label": "Desmarcar por polígono",
+      "tooltip": "Desmarcar vincos contidos por um polígono à mão livre",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Arraste o caminho do polígono"
+      }
+    },
+    "cp_action_select_line_intersecting": {
+      "label": "Selecionar linhas sobrepostas",
+      "tooltip": "Selecionar segmentos de vinco que cruzam ou se sobrepõem a uma linha arrastada",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o ponto inicial do arrasto",
+        "1": "Escolha o ponto final do arrasto"
+      }
+    },
+    "cp_action_unselect_line_intersecting": {
+      "label": "Desmarcar linhas sobrepostas",
+      "tooltip": "Desmarcar segmentos de vinco que cruzam ou se sobrepõem a uma linha arrastada",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o ponto inicial do arrasto",
+        "1": "Escolha o ponto final do arrasto"
+      }
+    },
+    "cp_action_lengthen_crease_same_color": {
+      "label": "Estender pela mesma cor",
+      "tooltip": "Estender os vincos cruzados pela linha-guia preservando as cores originais",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Selecione a linha a estender",
+        "1": "Selecione a linha alvo"
+      }
+    },
+    "cp_action_foldable_line_draw": {
+      "label": "Linha dobrável plana (livre)",
+      "tooltip": "Desenho de linha dobrável",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o vértice inicial",
+        "1": "Escolha o destino"
+      }
+    },
+    "cp_action_replace_line_type_select": {
+      "label": "Substituir tipo de linha selecionado",
+      "tooltip": "Substituir as linhas selecionadas que correspondem ao tipo de linha de origem ativo",
+      "disabledReason": "Pronto"
+    },
+    "cp_action_delete_line_type_select": {
+      "label": "Excluir tipo de linha selecionado",
+      "tooltip": "Excluir as linhas selecionadas que correspondem ao filtro de tipo de linha ativo",
+      "disabledReason": "Pronto"
+    },
+    "cp_action_select_lasso": {
+      "label": "Seleção por laço",
+      "tooltip": "Selecionar vincos tocados por um caminho de laço à mão livre",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Arraste o caminho do laço"
+      }
+    },
+    "cp_action_unselect_lasso": {
+      "label": "Desmarcar por laço",
+      "tooltip": "Desmarcar vincos tocados por um caminho de laço à mão livre",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Arraste o caminho do laço"
+      }
+    },
+    "cp_action_text": {
+      "label": "Anotação de texto",
+      "tooltip": "Criar, selecionar, arrastar e editar anotações de texto",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Clique na posição do texto"
+      }
+    },
+    "cp_action_draw_blintz": {
+      "label": "Base blintz",
+      "tooltip": "Base blintz",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o primeiro ponto de âncora",
+        "1": "Escolha o segundo ponto de âncora"
+      }
+    },
+    "cp_action_draw_fish_base": {
+      "label": "Base peixe",
+      "tooltip": "Base peixe",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o primeiro ponto de âncora",
+        "1": "Escolha o segundo ponto de âncora"
+      }
+    },
+    "cp_action_draw_dove_base": {
+      "label": "Base pomba",
+      "tooltip": "Base pomba",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o primeiro ponto de âncora",
+        "1": "Escolha o segundo ponto de âncora"
+      }
+    },
+    "cp_action_draw_bird_base": {
+      "label": "Base pássaro",
+      "tooltip": "Base pássaro",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o primeiro ponto de âncora",
+        "1": "Escolha o segundo ponto de âncora"
+      }
+    },
+    "cp_action_draw_frog_base": {
+      "label": "Base sapo",
+      "tooltip": "Base sapo",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o primeiro ponto de âncora",
+        "1": "Escolha o segundo ponto de âncora"
+      }
+    },
+    "cp_action_modify_calculated_shape": {
+      "label": "Modificar forma calculada",
+      "tooltip": "Modificar forma calculada",
+      "disabledReason": "Ainda não implementado no editor de CP"
+    },
+    "cp_action_move_calculated_shape": {
+      "label": "Mover forma calculada",
+      "tooltip": "Mover forma calculada",
+      "disabledReason": "Ainda não implementado no editor de CP"
+    },
+    "cp_action_change_standard_face": {
+      "label": "Alterar face padrão",
+      "tooltip": "Alterar face padrão",
+      "disabledReason": "Ainda não implementado no editor de CP"
+    },
+    "cp_action_add_folding_constraint": {
+      "label": "Adicionar restrição de dobra",
+      "tooltip": "Adicionar restrição de dobra",
+      "disabledReason": "Ainda não implementado no editor de CP"
+    },
+    "cp_action_axiom5": {
+      "label": "Axioma 5",
+      "tooltip": "Axioma 5",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o ponto alvo",
+        "1": "Escolha o vinco alvo",
+        "2": "Escolha o ponto de pivô",
+        "3": "Escolha o vinco de destino"
+      }
+    },
+    "cp_action_axiom7": {
+      "label": "Axioma 7",
+      "tooltip": "Axioma 7",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o ponto alvo",
+        "1": "Escolha o vinco alvo",
+        "2": "Escolha o vinco perpendicular",
+        "3": "Escolha o vinco de destino"
+      }
+    },
+    "cp_action_fix_inaccurate": {
+      "label": "Corrigir vincos imprecisos",
+      "tooltip": "Ajustar as linhas de dobra selecionadas imprecisas aos alvos de correção do Oriedita",
+      "disabledReason": "Pronto"
+    },
+    "cp_action_import_cp": {
+      "label": "Importar CP",
+      "tooltip": "Importar CP",
+      "disabledReason": "Ainda não implementado no editor de CP"
+    },
+    "cp_action_export_cp": {
+      "label": "Exportar CP",
+      "tooltip": "Exportar CP",
+      "disabledReason": "Ainda não implementado no editor de CP"
+    },
+    "cp_action_import_fold": {
+      "label": "Importar FOLD",
+      "tooltip": "Importar FOLD",
+      "disabledReason": "Ainda não implementado no editor de CP"
+    },
+    "cp_action_export_fold": {
+      "label": "Exportar FOLD",
+      "tooltip": "Exportar FOLD",
+      "disabledReason": "Ainda não implementado no editor de CP"
+    },
+    "cp_action_import_ori": {
+      "label": "Importar ORI",
+      "tooltip": "Importar ORI",
+      "disabledReason": "Ainda não implementado no editor de CP"
+    },
+    "cp_action_export_ori": {
+      "label": "Exportar ORI",
+      "tooltip": "Exportar ORI",
+      "disabledReason": "Ainda não implementado no editor de CP"
+    },
+    "cp_action_import_orh": {
+      "label": "Importar ORH",
+      "tooltip": "Importar ORH",
+      "disabledReason": "Ainda não implementado no editor de CP"
+    },
+    "cp_action_export_orh": {
+      "label": "Exportar ORH",
+      "tooltip": "Exportar ORH",
+      "disabledReason": "Ainda não implementado no editor de CP"
+    },
+    "cp_action_import_obj": {
+      "label": "Importar OBJ",
+      "tooltip": "Importar OBJ",
+      "disabledReason": "Ainda não implementado no editor de CP"
+    },
+    "cp_action_export_dxf": {
+      "label": "Exportar DXF",
+      "tooltip": "Exportar DXF",
+      "disabledReason": "Ainda não implementado no editor de CP"
+    },
+    "cp_action_save_convert": {
+      "label": "Converter e salvar",
+      "tooltip": "Converter e salvar",
+      "disabledReason": "Ainda não implementado no editor de CP"
+    },
+    "cp_action_save_version_detect": {
+      "label": "Detectar versão do salvamento",
+      "tooltip": "Detectar versão do salvamento",
+      "disabledReason": "Ainda não implementado no editor de CP"
+    },
+    "cp_action_check_camv": {
+      "label": "Verificar CAMV",
+      "tooltip": "Executar os diagnósticos de dobrabilidade plana CAMV do Oriedita sem alterar o CP",
+      "disabledReason": "Pronto"
+    },
+    "cp_action_folding_estimate": {
+      "label": "Estimativa de dobra",
+      "tooltip": "Estimativa de dobra",
+      "disabledReason": "A portabilidade do núcleo está em andamento; a integração da interface ainda não foi implementada"
+    },
+    "cp_action_folding_estimate_specific": {
+      "label": "Dobrar para o caso",
+      "tooltip": "Dobrar para o caso",
+      "disabledReason": "A portabilidade do núcleo está em andamento; a integração da interface ainda não foi implementada"
+    },
+    "cp_action_folding_estimate_save100": {
+      "label": "Salvar 100 simulações",
+      "tooltip": "Salvar 100 simulações",
+      "disabledReason": "A portabilidade do núcleo está em andamento; a integração da interface ainda não foi implementada"
+    },
+    "cp_action_two_colored_cp": {
+      "label": "CP de duas cores",
+      "tooltip": "CP de duas cores",
+      "disabledReason": "A portabilidade do núcleo está em andamento; a integração da interface ainda não foi implementada"
+    },
+    "cp_action_fold": {
+      "label": "Dobrar",
+      "tooltip": "Dobrar",
+      "disabledReason": "Ainda não implementado no editor de CP"
+    },
+    "cp_action_fold_another": {
+      "label": "Outra solução",
+      "tooltip": "Outra solução",
+      "disabledReason": "A portabilidade do núcleo está em andamento; a integração da interface ainda não foi implementada"
+    },
+    "cp_action_duplicate_folded_model": {
+      "label": "Duplicar modelo dobrado",
+      "tooltip": "Duplicar modelo dobrado",
+      "disabledReason": "A portabilidade do núcleo está em andamento; a integração da interface ainda não foi implementada"
+    },
+    "cp_action_folded_figure_set_model": {
+      "label": "Modelo da figura dobrada",
+      "tooltip": "Modelo da figura dobrada",
+      "disabledReason": "Ainda não implementado no editor de CP"
+    },
+    "cp_action_folded_figure_set_display_style": {
+      "label": "Estilo de exibição da dobra",
+      "tooltip": "Estilo de exibição da dobra",
+      "disabledReason": "Ainda não implementado no editor de CP"
+    },
+    "cp_action_folded_figure_set_state": {
+      "label": "Estado frente/verso da dobra",
+      "tooltip": "Estado frente/verso da dobra",
+      "disabledReason": "Ainda não implementado no editor de CP"
+    },
+    "cp_action_folded_figure_set_starting_face": {
+      "label": "Face inicial da dobra",
+      "tooltip": "Face inicial da dobra",
+      "disabledReason": "Ainda não implementado no editor de CP"
+    },
+    "cp_action_folded_figure_move_camera": {
+      "label": "Mover câmera da figura dobrada",
+      "tooltip": "Tratado pela camada de câmera do viewport de grade",
+      "disabledReason": "Tratado pelo runtime do viewport em vez de um comando de CP"
+    },
+    "cp_action_folded_figure_select_canvas_point": {
+      "label": "Seleção de ponto na dobra",
+      "tooltip": "Seleção de ponto na dobra",
+      "disabledReason": "Ainda não implementado no editor de CP"
+    },
+    "cp_action_folded_figure_render_snapshot": {
+      "label": "Captura de renderização da dobra",
+      "tooltip": "Captura de renderização da dobra",
+      "disabledReason": "Ainda não implementado no editor de CP"
+    },
+    "cp_action_folded_figure_import_fold_frame": {
+      "label": "Importar quadro FOLD dobrado",
+      "tooltip": "Importar quadro FOLD dobrado",
+      "disabledReason": "Ainda não implementado no editor de CP"
+    },
+    "cp_action_folded_figure_export_fold_frames": {
+      "label": "Exportar quadros FOLD dobrados",
+      "tooltip": "Exportar quadros FOLD dobrados",
+      "disabledReason": "Ainda não implementado no editor de CP"
+    },
+    "cp_action_check1": {
+      "label": "Verificar sobreposições",
+      "tooltip": "Encontrar pares de vincos não auxiliares sobrepostos ou contidos",
+      "disabledReason": "Pronto"
+    },
+    "cp_action_check2": {
+      "label": "Verificar junções em T",
+      "tooltip": "Encontrar quase-interseções em T entre pares de vincos não auxiliares",
+      "disabledReason": "Pronto"
+    },
+    "cp_action_check3": {
+      "label": "Verificar dobrabilidade dos vértices",
+      "tooltip": "Encontrar marcadores de dobrabilidade plana dos vértices do Oriedita",
+      "disabledReason": "Pronto"
+    },
+    "cp_action_check4": {
+      "label": "Verificar Maekawa/LBL",
+      "tooltip": "Encontrar violações de Maekawa, de ângulo e little-big-little",
+      "disabledReason": "Pronto"
+    },
+    "cp_action_fix1": {
+      "label": "Reparar sobreposições",
+      "tooltip": "Mesclar duplicatas exatas e selecionar os vincos sobrepostos restantes",
+      "disabledReason": "Pronto"
+    },
+    "cp_action_fix2": {
+      "label": "Dividir junções em T",
+      "tooltip": "Dividir quase-interseções em T usando as tolerâncias do Oriedita",
+      "disabledReason": "Pronto"
+    },
+    "cp_action_organize_circles": {
+      "label": "Organizar círculos",
+      "tooltip": "Remover círculos inválidos de raio zero usando as regras de limpeza do Oriedita",
+      "disabledReason": "Pronto"
+    },
+    "cp_action_draw_auxiliary_line": {
+      "label": "Desenhar linha auxiliar",
+      "tooltip": "Desenhar uma linha auxiliar do Oriedita",
+      "disabledReason": "O modo de inserção de linha auxiliar ainda não foi implementado no núcleo de CP",
+      "steps": {
+        "0": "Arraste a extremidade do vinco"
+      }
+    }
+  },
+  "instructions": {
+    "useTool": "Use {{label}}.",
+    "angleBisectorAction": {
+      "intro": {
+        "0": "Desenhe a bissetriz do ângulo entre linhas ou pontos."
+      },
+      "steps": {
+        "0": "Selecione 2 segmentos ou 3 pontos.",
+        "1": "Método de 3 pontos: selecione 3 pontos e depois selecione o segmento para finalizar.",
+        "2": "Método de 2 linhas: selecione 2 linhas e depois selecione o segmento para finalizar.",
+        "3": "Método de linha paralela: selecione o segmento/indicador para finalizar."
+      }
+    },
+    "As100Action": {
+      "intro": {
+        "0": "Calcule 100 soluções da forma dobrada e salve-as como arquivos de imagem."
+      }
+    },
+    "axiom5Action": {
+      "intro": {
+        "0": "Desenhe uma linha que posicione o ponto A sobre uma linha passando pelo ponto B."
+      },
+      "steps": {
+        "0": "Selecione o ponto A.",
+        "1": "Selecione uma linha.",
+        "2": "Selecione o ponto B.",
+        "3": "Selecione uma linha alvo para estender até ela, ou selecione o indicador para estender."
+      },
+      "notes": {
+        "0": "A distância entre o ponto A e o ponto B deve ser igual ou maior que a distância projetada entre o ponto B e a linha."
+      }
+    },
+    "axiom7Action": {
+      "intro": {
+        "0": "Desenhe uma linha que posicione um ponto sobre a linha A, sendo perpendicular à linha B."
+      },
+      "steps": {
+        "0": "Selecione um ponto.",
+        "1": "Selecione as linhas A e B.",
+        "2": "Selecione uma linha alvo para estender até ela, ou selecione o indicador para estender."
+      },
+      "notes": {
+        "0": "O ponto não deve estar sobre a extensão da linha A e a linha B não deve ser paralela à linha A."
+      }
+    },
+    "a1Action": {
+      "intro": {
+        "0": "Meça o ângulo selecionando os pontos ABC."
+      }
+    },
+    "a2Action": {
+      "intro": {
+        "0": "Meça o ângulo selecionando os pontos ABC."
+      }
+    },
+    "a3Action": {
+      "intro": {
+        "0": "Meça o ângulo selecionando os pontos ABC."
+      }
+    },
+    "addColorConstraintAction": {
+      "intro": {
+        "0": "Adicione restrições de cor à forma dobrada."
+      },
+      "steps": {
+        "0": "Selecione um ponto em uma face da forma dobrada para definir a cor que ela deve ter."
+      },
+      "notes": {
+        "0": "Círculos brancos significam que a face mostra o lado branco; círculos pretos significam que a face mostra o lado colorido.",
+        "1": "Dobre novamente para usar as restrições e encontrar uma nova solução."
+      }
+    },
+    "anotherSolutionAction": {
+      "intro": {
+        "0": "Calcule a próxima solução disponível para a forma dobrada."
+      }
+    },
+    "circleDrawAction": {
+      "intro": {
+        "0": "Desenhe círculos encaixando na grade e nos vértices."
+      }
+    },
+    "circleDrawConcentricAction": {
+      "intro": {
+        "0": "Desenhe um círculo concêntrico."
+      },
+      "steps": {
+        "0": "Selecione o círculo A para definir a posição.",
+        "1": "Desenhe uma linha para definir o raio."
+      },
+      "notes": {
+        "0": "A diferença entre os raios do círculo concêntrico e do círculo A é igual ao comprimento da linha."
+      }
+    },
+    "circleDrawConcentricSelectAction": {
+      "intro": {
+        "0": "Desenhe um círculo concêntrico selecionando os círculos ABC."
+      },
+      "steps": {
+        "0": "Selecione o círculo A para definir a posição.",
+        "1": "Selecione os círculos B e C para definir o raio."
+      },
+      "notes": {
+        "0": "O círculo é desenhado concêntrico ao círculo A.",
+        "1": "A diferença entre os raios do círculo concêntrico e do círculo A é igual à diferença entre os raios dos círculos B e C."
+      }
+    },
+    "circleDrawFreeAction": {
+      "intro": {
+        "0": "Desenhe círculos livremente."
+      }
+    },
+    "circleDrawInvertedAction": {
+      "intro": {
+        "0": "Desenhe um círculo invertido selecionando círculos ou linhas."
+      },
+      "steps": {
+        "0": "Selecione um círculo ou uma linha.",
+        "1": "Selecione o círculo de inversão."
+      }
+    },
+    "circleDrawSeparateAction": {
+      "intro": {
+        "0": "Desenhe um círculo selecionando um ponto e desenhando uma linha."
+      },
+      "notes": {
+        "0": "O círculo é desenhado no ponto selecionado e o raio é igual ao comprimento da linha desenhada."
+      }
+    },
+    "circleDrawTangentLineAction": {
+      "intro": {
+        "0": "Desenhe uma linha tangente."
+      },
+      "steps": {
+        "0": "Selecione dois círculos, ou selecione um ponto e um círculo.",
+        "1": "Selecione a linha tangente a desenhar."
+      }
+    },
+    "circleDrawThreePointAction": {
+      "intro": {
+        "0": "Desenhe um círculo que passe pelos 3 pontos selecionados."
+      }
+    },
+    "circleDrawTwoConcentricAction": {
+      "intro": {
+        "0": "Desenhe círculos concêntricos conectados selecionando dois círculos."
+      },
+      "notes": {
+        "0": "As diferenças de raios entre os círculos concêntricos e os selecionados são iguais."
+      }
+    },
+    "continuousSymmetricDrawAction": {
+      "intro": {
+        "0": "Desenhe uma linha refletindo através das linhas de vinco."
+      },
+      "steps": {
+        "0": "Selecione 2 pontos para desenhar uma linha que reflete e alterna através das linhas de vinco."
+      },
+      "notes": {
+        "0": "A reflexão continua até atingir uma borda ou um vértice com 3 ou mais linhas."
+      }
+    },
+    "copy2p2pAction": {
+      "intro": {
+        "0": "Copie e transforme as linhas selecionadas selecionando os pontos de origem e alvo."
+      },
+      "steps": {
+        "0": "Selecione os pontos AB para definir a origem.",
+        "1": "Selecione os pontos CD para definir um alvo."
+      },
+      "notes": {
+        "0": "As linhas selecionadas são copiadas e transformadas para uma nova posição, escala e ângulo com base na relação entre os pontos AB e CD.",
+        "1": "O ponto A é transformado no ponto C e o ponto B é transformado no ponto D."
+      }
+    },
+    "copyAction": {
+      "intro": {
+        "0": "Copie as linhas selecionadas desenhando uma linha."
+      }
+    },
+    "deg1Action": {
+      "intro": {
+        "0": "Desenhe linhas convergentes com deslocamento de ângulo."
+      },
+      "steps": {
+        "0": "Defina o deslocamento selecionando uma linha ou selecionando 2 pontos.",
+        "1": "Selecione a interseção das linhas convergentes."
+      }
+    },
+    "deg2Action": {
+      "intro": {
+        "0": "Desenhe uma linha restrita por ângulo com a restrição de ângulo selecionada."
+      }
+    },
+    "deg3Action": {
+      "intro": {
+        "0": "Desenhe uma linha restrita por ângulo com deslocamento."
+      },
+      "steps": {
+        "0": "Selecione 2 pontos para definir o deslocamento do ângulo.",
+        "1": "Selecione uma linha alvo para estender até ela."
+      }
+    },
+    "deg4Action": {
+      "intro": {
+        "0": "Desenhe uma linha restrita por ângulo com deslocamento."
+      },
+      "steps": {
+        "0": "Selecione 2 pontos para definir o deslocamento do ângulo.",
+        "1": "Selecione uma linha alvo para estender até ela."
+      }
+    },
+    "del_lAction": {
+      "intro": {
+        "0": "Exclua todas as linhas coincidentes desenhando uma linha."
+      }
+    },
+    "del_l_XAction": {
+      "intro": {
+        "0": "Exclua todas as linhas que se cruzam desenhando uma linha."
+      }
+    },
+    "doubleSymmetricDrawAction": {
+      "intro": {
+        "0": "Reflita as linhas em contato sobre a linha desenhada."
+      },
+      "steps": {
+        "0": "Desenhe uma linha sobre as extremidades das linhas para refleti-las."
+      }
+    },
+    "drawBlintzAction": {
+      "intro": {
+        "0": "Desenhe uma base blintz selecionando 2 pontos de vértices opostos."
+      }
+    },
+    "drawBirdBaseAction": {
+      "intro": {
+        "0": "Desenhe uma base pássaro selecionando 2 pontos de vértices opostos."
+      }
+    },
+    "drawCreaseFreeAction": {
+      "intro": {
+        "0": "Desenhe linhas retas livremente."
+      }
+    },
+    "drawCreaseRestrictedAction": {
+      "intro": {
+        "0": "Desenhe linhas encaixando na grade e nos vértices."
+      }
+    },
+    "drawDoveBaseAction": {
+      "intro": {
+        "0": "Desenhe uma base pomba selecionando 2 pontos de vértices opostos."
+      }
+    },
+    "drawFishBaseAction": {
+      "intro": {
+        "0": "Desenhe uma base peixe selecionando 2 pontos de vértices opostos."
+      }
+    },
+    "drawFrogBaseAction": {
+      "intro": {
+        "0": "Desenhe uma base sapo selecionando 2 pontos de vértices opostos."
+      }
+    },
+    "drawLineSegmentInternalDivisionRatioAction": {
+      "intro": {
+        "0": "Desenhe uma linha dividida pela proporção definida."
+      }
+    },
+    "drawTwoColoredCpAction": {
+      "intro": {
+        "0": "Crie um padrão de vincos de duas cores com as linhas de vinco selecionadas."
+      }
+    },
+    "duplicateFoldedModelAction": {
+      "intro": {
+        "0": "Duplique a forma dobrada."
+      }
+    },
+    "fishBoneDrawAction": {
+      "intro": {
+        "0": "Desenhe linhas paralelas perpendiculares alternando em montanha e vale ao desenhar uma linha."
+      },
+      "notes": {
+        "0": "O intervalo das linhas paralelas será igual à largura da grade."
+      }
+    },
+    "foldableLineDrawAction": {
+      "intro": {
+        "0": "Desenhe uma linha dobrável plana."
+      },
+      "steps": {
+        "0": "Selecione o vértice com número ímpar de linhas conectadas.",
+        "1": "Selecione a linha dobrável plana.",
+        "2": "Selecione uma linha alvo para estender até ela."
+      },
+      "notes": {
+        "0": "Desenhe em qualquer lugar para desenhar livremente."
+      }
+    },
+    "foldableLinePlusGridInputAction": {
+      "intro": {
+        "0": "Desenhe uma linha dobrável plana."
+      },
+      "steps": {
+        "0": "Selecione o vértice com número ímpar de linhas conectadas.",
+        "1": "Selecione a linha dobrável plana.",
+        "2": "Selecione uma linha alvo para estender até ela."
+      },
+      "notes": {
+        "0": "Selecione uma linha para estendê-la."
+      }
+    },
+    "foldAction": {
+      "intro": {
+        "0": "Calcule a forma dobrada a partir do padrão de vincos."
+      }
+    },
+    "foldedFigureMoveAction": {
+      "intro": {
+        "0": "Mova a forma dobrada."
+      }
+    },
+    "goToFoldedFigureAction": {
+      "intro": {
+        "0": "Vá para uma solução específica da forma dobrada."
+      }
+    },
+    "h_senbun_nyuryokuAction": {
+      "intro": {
+        "0": "Desenhe linhas marcadoras."
+      },
+      "notes": {
+        "0": "As linhas marcadoras não interferem nas linhas de vinco."
+      }
+    },
+    "in_L_col_changeAction": {
+      "intro": {
+        "0": "Alterne as cores dos segmentos de linha em montanha e vale ao desenhar uma linha."
+      }
+    },
+    "koteimen_siteiAction": {
+      "intro": {
+        "0": "Defina a face inicial selecionando uma face."
+      },
+      "notes": {
+        "0": "A forma dobrada é calculada em relação à face inicial."
+      }
+    },
+    "l1Action": {
+      "intro": {
+        "0": "Meça o comprimento selecionando 2 pontos."
+      },
+      "notes": {
+        "0": "O comprimento é medido em unidades de grade.",
+        "1": "O comprimento é relativo ao tamanho do padrão de vincos com tamanho de grade de 1."
+      }
+    },
+    "l2Action": {
+      "intro": {
+        "0": "Meça o comprimento selecionando 2 pontos."
+      },
+      "notes": {
+        "0": "O comprimento é medido em unidades de grade.",
+        "1": "O comprimento é relativo ao tamanho do padrão de vincos com tamanho de grade de 1."
+      }
+    },
+    "makeFlatFoldableAction": {
+      "intro": {
+        "0": "Desenhe uma linha dobrável plana."
+      },
+      "steps": {
+        "0": "Selecione o vértice com número ímpar de linhas conectadas.",
+        "1": "Selecione a linha dobrável plana.",
+        "2": "Selecione uma linha alvo para estender até ela."
+      }
+    },
+    "lengthenCreaseAction": {
+      "intro": {
+        "0": "Estenda uma linha com a cor selecionada."
+      },
+      "steps": {
+        "0": "Selecione ou desenhe uma linha para selecionar linhas.",
+        "1": "Selecione uma linha alvo para estender até ela, ou selecione a linha anterior para estender."
+      }
+    },
+    "lengthenCrease2Action": {
+      "intro": {
+        "0": "Estenda uma linha com a mesma cor."
+      },
+      "steps": {
+        "0": "Selecione ou desenhe uma linha para selecionar linhas.",
+        "1": "Selecione uma linha alvo para estender até ela, ou selecione a linha anterior para estender."
+      }
+    },
+    "move2p2pAction": {
+      "intro": {
+        "0": "Transforme as linhas selecionadas selecionando os pontos de origem e alvo."
+      },
+      "steps": {
+        "0": "Selecione os pontos AB para definir a origem.",
+        "1": "Selecione os pontos CD para definir um alvo."
+      },
+      "notes": {
+        "0": "As linhas selecionadas são transformadas para uma nova posição, escala e ângulo com base na relação entre os pontos AB e CD.",
+        "1": "O ponto A é transformado no ponto C e o ponto B é transformado no ponto D."
+      }
+    },
+    "moveAction": {
+      "intro": {
+        "0": "Mova as linhas selecionadas desenhando uma linha."
+      }
+    },
+    "o_F_checkAction": {
+      "intro": {
+        "0": "Verifique a dobrabilidade plana dentro do polígono."
+      },
+      "steps": {
+        "0": "Clique ou clique e arraste para adicionar segmentos.",
+        "1": "Selecione o ponto inicial para fechar o polígono."
+      },
+      "notes": {
+        "0": "O polígono fica ciano se o padrão dentro dele for dobrável plano; caso contrário, permanece magenta.",
+        "1": "Se a ferramenta não funcionar como esperado, os vértices e segmentos não devem estar sobre os vértices do padrão de vincos."
+      }
+    },
+    "on_L_col_changeAction": {
+      "intro": {
+        "0": "Alterne as cores das linhas que se cruzam em montanha e vale ao desenhar uma linha."
+      }
+    },
+    "operationFrameSelectAction": {
+      "intro": {
+        "0": "Crie um quadro de operação desenhando um retângulo."
+      },
+      "notes": {
+        "0": "O quadro de operação recorta a imagem exportada."
+      }
+    },
+    "oriagari_sousa_2Action": {
+      "intro": {
+        "0": "Modifique a forma dobrada arrastando os vértices."
+      }
+    },
+    "parallelDrawAction": {
+      "intro": {
+        "0": "Desenhe uma linha paralela a partir de um ponto."
+      },
+      "steps": {
+        "0": "Selecione um ponto.",
+        "1": "Selecione uma linha para tornar paralela a ela.",
+        "2": "Selecione uma linha alvo para estender até ela."
+      }
+    },
+    "perpendicularDrawAction": {
+      "intro": {
+        "0": "Desenhe uma linha perpendicular."
+      },
+      "steps": {
+        "0": "Selecione o ponto inicial A.",
+        "1": "Selecione uma linha alvo B."
+      },
+      "notes": {
+        "0": "Uma linha é desenhada do ponto A até a linha B, perpendicular à linha B.",
+        "1": "Se o ponto A estiver sobre a linha B, selecione uma linha alvo para estender até ela, ou selecione o indicador para estender."
+      }
+    },
+    "rabbitEarAction": {
+      "intro": {
+        "0": "Desenhe linhas em direção ao centro interno."
+      },
+      "steps": {
+        "0": "Selecione o ponto A.",
+        "1": "Selecione o ponto B.",
+        "2": "Selecione o ponto C.",
+        "3": "Três linhas em direção ao centro interno são desenhadas."
+      }
+    },
+    "regularPolygonAction": {
+      "intro": {
+        "0": "Desenhe um polígono regular selecionando os pontos AB."
+      },
+      "notes": {
+        "0": "Os pontos AB formarão um lado do polígono, que será desenhado no sentido horário."
+      }
+    },
+    "reflectAction": {
+      "intro": {
+        "0": "Reflita as linhas selecionadas sobre uma linha desenhada com 2 pontos."
+      }
+    },
+    "selectAction": {
+      "intro": {
+        "0": "Selecione linhas desenhando um retângulo."
+      }
+    },
+    "select_lXAction": {
+      "intro": {
+        "0": "Selecione linhas sobrepostas desenhando uma linha."
+      }
+    },
+    "select_polygonAction": {
+      "intro": {
+        "0": "Selecione linhas desenhando um polígono."
+      },
+      "notes": {
+        "0": "As linhas completamente dentro do polígono são selecionadas."
+      }
+    },
+    "selectLassoAction": {
+      "intro": {
+        "0": "Selecione linhas desenhando à mão livre."
+      }
+    },
+    "senbun_b_nyuryokuAction": {
+      "intro": {
+        "0": "Desenhe uma linha segmentada com a divisão selecionada."
+      }
+    },
+    "symmetricDrawAction": {
+      "intro": {
+        "0": "Desenhe uma linha espelhada selecionando pontos ou linhas."
+      },
+      "steps": {
+        "0": "Selecione os pontos ABC para espelhar a linha AB sobre a linha BC.",
+        "1": "Ou selecione as linhas AB para espelhar a linha A sobre a linha B."
+      }
+    },
+    "setParallelDrawWidthAction": {
+      "intro": {
+        "0": "Desenhe uma linha paralela selecionando uma linha."
+      },
+      "steps": {
+        "0": "Selecione uma linha.",
+        "1": "Clique e arraste para definir a largura do deslocamento.",
+        "2": "Selecione a linha paralela a desenhar."
+      }
+    },
+    "textAction": {
+      "intro": {
+        "0": "Adicione e edite anotações de texto."
+      },
+      "steps": {
+        "0": "Clique em um espaço vazio para adicionar texto ali.",
+        "1": "Clique em um rótulo para editá-lo; arraste para movê-lo."
+      },
+      "notes": {
+        "0": "Pressione ESC ou clique fora para concluir uma edição; o texto vazio é descartado.",
+        "1": "Clique com o botão direito em um rótulo, ou selecione-o e pressione Delete, para removê-lo."
+      }
+    },
+    "unselectAction": {
+      "intro": {
+        "0": "Desmarque linhas desenhando um retângulo."
+      }
+    },
+    "unselect_lXAction": {
+      "intro": {
+        "0": "Desmarque linhas sobrepostas desenhando uma linha."
+      }
+    },
+    "unselect_polygonAction": {
+      "intro": {
+        "0": "Desmarque linhas desenhando um polígono."
+      },
+      "notes": {
+        "0": "As linhas completamente dentro do polígono são desmarcadas."
+      }
+    },
+    "unselectLassoAction": {
+      "intro": {
+        "0": "Desmarque linhas desenhando à mão livre."
+      },
+      "notes": {
+        "0": "As linhas completamente dentro da área desenhada são desmarcadas."
+      }
+    },
+    "v_del_ccAction": {
+      "intro": {
+        "0": "Exclua um vértice em uma linha reta."
+      }
+    },
+    "vertexDeleteAction": {
+      "intro": {
+        "0": "Exclua um vértice em uma linha reta de cor uniforme."
+      }
+    },
+    "vertexAddAction": {
+      "intro": {
+        "0": "Adicione um vértice."
+      }
+    },
+    "voronoiAction": {
+      "intro": {
+        "0": "Desenhe um padrão de Voronoi selecionando pontos."
+      },
+      "notes": {
+        "0": "Selecionar pontos novamente irá cancelá-los.",
+        "1": "Selecione aplicar as linhas temporárias para transformá-las em linhas de vinco."
+      }
+    }
+  }
+}

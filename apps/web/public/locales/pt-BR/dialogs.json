@@ -1,0 +1,288 @@
+{
+  "closeGuard": {
+    "discard": "Descartar",
+    "message": "Seu projeto atual tem alterações não salvas. Fechar o Ori Studio e descartá-las?",
+    "title": "Descartar alterações não salvas?"
+  },
+  "common": {
+    "cancel": "Cancelar",
+    "closeNamed": "Fechar {{name}}",
+    "ok": "OK",
+    "reset": "Redefinir"
+  },
+  "cpDetectImport": {
+    "ariaLabel": "Detectar CP a partir de imagem",
+    "busy": {
+      "detecting": "Executando o modelo",
+      "importing": "Importando padrão de vincos",
+      "loadingModel": "Verificando o modelo detector",
+      "opening": "Abrindo imagem",
+      "rectifying": "Retificando recorte"
+    },
+    "chooseImage": "Escolher imagem",
+    "compilerReviewOverlays": "Sobreposições de revisão do compilador",
+    "crop": "Recortar",
+    "detect": "Detectar",
+    "detected": "Detectado",
+    "dropImageHere": "Solte a imagem aqui",
+    "import": "Importar",
+    "inferred": "Inferido",
+    "mvChanges": "Alterações de M/V",
+    "openImageTitle": "Abrir imagem de padrão de vincos",
+    "rectified": "Retificado",
+    "report": {
+      "ambiguous": "ambíguo",
+      "assignmentChange_one": "{{count}} alteração de atribuição",
+      "assignmentChange_many": "{{count}} alteração de atribuição",
+      "assignmentChange_other": "{{count}} alteração de atribuição",
+      "assignmentChanges_one": "{{count}} alterações de atribuição",
+      "assignmentChanges_many": "{{count}} alterações de atribuição",
+      "assignmentChanges_other": "{{count}} alterações de atribuição",
+      "compilerFallback": "recurso alternativo do compilador",
+      "counts": "{{vertices}} vértices, {{edges}} arestas",
+      "topologyMove_one": "{{count}} movimento de topologia",
+      "topologyMove_many": "{{count}} movimento de topologia",
+      "topologyMove_other": "{{count}} movimento de topologia",
+      "topologyMoves_one": "{{count}} movimentos de topologia",
+      "topologyMoves_many": "{{count}} movimentos de topologia",
+      "topologyMoves_other": "{{count}} movimentos de topologia"
+    },
+    "runningModel": "Executando o modelo",
+    "title": "Detectar CP a partir de imagem",
+    "updateCrop": "Atualizar recorte"
+  },
+  "export": {
+    "allPatterns": "Todos os padrões",
+    "confirm": "Exportar {{format}}",
+    "creasePattern": "Padrão de vincos",
+    "creasePatternToExport": "Padrão de vincos a exportar",
+    "includeUnassigned": "Incluir vincos planos / não atribuídos",
+    "lineStyle": "Estilo de linha",
+    "lineWidth": "Espessura da linha",
+    "patternN": "Padrão {{index}}",
+    "pointSize": "Tamanho do ponto",
+    "preview": "Pré-visualização da exportação",
+    "showBackgroundColor": "Mostrar cor de fundo"
+  },
+  "help": {
+    "about": {
+      "acknowledgements": "Agradecimentos",
+      "help": "Ajuda",
+      "intro": "O Ori Studio busca ser o espaço de trabalho definitivo para o design e a análise de origami. Ele se apoia fortemente em portes de ferramentas de origami existentes criadas pela comunidade — o workspace de Edição, por exemplo, é um porte do Oriedita para Rust, focado em usabilidade e desempenho. Se você tiver alguma sugestão, sinta-se à vontade para <2>abrir uma issue no GitHub</2>.",
+      "subtitle": "Um espaço de trabalho compartilhado moderno para projetar, editar e dobrar padrões de vincos de origami.",
+      "title": "Sobre o Ori Studio"
+    },
+    "acknowledgements": {
+      "boxPleatingStudio": {
+        "detail": "O método de autoria por dobra em caixa é um porte para Rust e WebAssembly do Box Pleating Studio de Mu-Tsun Tsai.",
+        "title": "Mu-Tsun Tsai e Box Pleating Studio"
+      },
+      "oriedita": {
+        "detail": "O editor de padrão de vincos é um porte para Rust e WebAssembly do editor Oriedita (ele próprio um fork do Orihime), incluindo seus diagnósticos de dobrabilidade, reparos e formatos de arquivo.",
+        "title": "Oriedita"
+      },
+      "origamiSimulator": {
+        "detail": "O workspace de Simulação dobra bases em um modelo 3D interativo usando um porte para TypeScript do Origami Simulator de Amanda Ghassaei.",
+        "title": "Amanda Ghassaei e Origami Simulator"
+      },
+      "treemaker": {
+        "detail": "O código e o comportamento do modelo original do TreeMaker são a referência canônica para este porte para Rust, WebAssembly e desktop.",
+        "title": "Robert J. Lang e TreeMaker 5.0.1"
+      }
+    },
+    "closeLabel": "Fechar {{title}}",
+    "guide": {
+      "about": "Sobre",
+      "footer": "Os comandos do Ori Studio estão disponíveis na barra de menus da web, no menu nativo do desktop e na barra de ferramentas compacta.",
+      "subtitle": "Um mapa prático da superfície atual do aplicativo compartilhado para navegador e desktop.",
+      "title": "Ajuda do Ori Studio",
+      "topicsNav": "Tópicos de ajuda"
+    },
+    "topics": {
+      "conditions": {
+        "caption": "As condições são criadas a partir da seleção atual, então selecione nós, arestas ou caminhos antes de adicionar restrições.",
+        "imageAlt": "Painel de condições com tamanho do papel, tipo de simetria, opções avançadas de simetria e ações de adicionar a partir da seleção",
+        "step1": "Defina a largura e a altura do papel antes de ajustar as coordenadas exatas.",
+        "step2": "Escolha simetria de livro, diagonal ou personalizada e, em seguida, use as ferramentas de espelhamento do painel de Design para criar folhas emparelhadas.",
+        "step3": "Adicione condições de nó fixo, nó em aresta, nó em canto, nó emparelhado, comprimento fixo, mesma deformação e caminho a partir das partes selecionadas.",
+        "step4": "Use a lista de condições para inspecionar, selecionar ou remover restrições à medida que o modelo evolui.",
+        "summary": "O painel de condições controla o tamanho do papel, as predefinições de simetria e as restrições de design baseadas em seleção.",
+        "title": "Definir papel, simetria e condições"
+      },
+      "creasePattern": {
+        "caption": "Alterne entre os modos de cor por função do vinco e por montanha-vale conforme o que você precisa inspecionar.",
+        "imageAlt": "Painel de Padrão de Vincos mostrando um padrão de vincos gerado com controles de modo de cor",
+        "step1": "Use Colorir por funções do vinco para distinguir linhas axiais, de reforço, de crista, de dobradiça e pseudodobradiça.",
+        "step2": "As linhas de vinco usam a coloração por atribuição M/V para mostrar montanhas, vales, planos e bordas.",
+        "step3": "Use as ferramentas de canvas do workspace de Edição e o HUD de status do CP para seleção e diagnóstico do padrão de vincos.",
+        "step4": "Exporte SVG ou PNG depois que o padrão de vincos existir; exporte FOLD para geometria pronta para o simulador.",
+        "summary": "O workspace de Edição mostra padrões de vincos gerados ou importados com coloração por função e por montanha-vale.",
+        "title": "Editar padrões de vincos"
+      },
+      "design": {
+        "caption": "Use os controles compactos da viewport para zoom, ajuste, autoria de simetria e visibilidade de camadas.",
+        "imageAlt": "Painel de Design com nós da árvore, arestas, rótulos, círculos de folha, controles de zoom e controles de camada",
+        "step1": "Selecione partes diretamente no papel; use cliques com Shift, Cmd ou Ctrl para montar uma seleção múltipla.",
+        "step2": "Clique em um espaço vazio do papel para adicionar nós, ou selecione um nó e clique em um espaço vazio para anexar uma nova aresta e nó.",
+        "step3": "Arraste os nós para remodelar a árvore. Arraste com a barra de espaço ou use os controles de zoom para navegar em designs maiores.",
+        "step4": "Alterne caminhos, círculos de folha, rótulos e sobreposições de simetria no menu de camadas quando a visualização ficar densa.",
+        "summary": "O workspace de Design é a principal superfície de papel para selecionar, desenhar, conectar, arrastar e visualizar a estrutura da árvore.",
+        "title": "Desenhar e editar a árvore"
+      },
+      "files": {
+        "caption": "O menu Arquivo mantém as ações de projeto, exportações e exemplos em um só lugar.",
+        "imageAlt": "Menu Arquivo mostrando os comandos Novo, Abrir, Exemplos, Salvar e de exportação",
+        "step1": "Novo retorna à tela inicial; Abrir aceita arquivos .osf, .tmd, .tmd4, .tmd5, .fold, .cp, .ori e .orh.",
+        "step2": "Arquivo → Exemplos carrega designs iniciais incluídos no projeto.",
+        "step3": "Salvar e Salvar como gravam arquivos de projeto do Ori Studio; use Exportar para os formatos TreeMaker, CP, FOLD, SVG e PNG.",
+        "step4": "As exportações ficam disponíveis quando o documento atual possui os dados de que cada formato precisa.",
+        "summary": "Use a tela inicial ou o menu Arquivo para gerenciar projetos do Ori Studio e exportações de padrões de vincos.",
+        "title": "Iniciar, abrir, salvar, exportar"
+      },
+      "folding": {
+        "caption": "Os controles de atualização regeneram os artefatos de dobra plana quando um padrão de vincos muda.",
+        "imageAlt": "Painel do Simulador mostrando controles de dobra e geometria dobrada",
+        "step1": "Abra Simular depois que um padrão de vincos for gerado ou importado, então arraste a viewport para girar o modelo dobrado 3D.",
+        "step2": "Use o controle deslizante de dobra e os controles de reproduzir, avançar passo a passo e visualizar para inspecionar o movimento da dobra.",
+        "step3": "Alterne as configurações de renderização entre as visualizações de papel e de raio-x, e ative faces, arestas e linhas ocultas.",
+        "step4": "Gere uma figura dobrada do Oriedita diretamente na grade de Padrão de Vincos para inspecionar a forma dobrada plana.",
+        "summary": "O workspace de Simulação usa os artefatos de dobra plana produzidos a partir de padrões de vincos gerados ou importados.",
+        "title": "Simular o modelo dobrado"
+      },
+      "inspector": {
+        "caption": "A seleção comanda o inspetor; altere rótulos, coordenadas, comprimentos de aresta e rigidez sem sair do workspace.",
+        "imageAlt": "Painel do Inspetor mostrando campos editáveis de rótulo e coordenada do nó ao lado do design selecionado",
+        "step1": "Selecione um nó para editar seu rótulo e coordenadas no papel.",
+        "step2": "Selecione uma aresta para editar seu rótulo, comprimento-alvo e rigidez, enquanto a deformação permanece apenas informativa.",
+        "step3": "Selecione caminhos ou condições para revisar seus metadados de design.",
+        "step4": "Quando dois nós estão selecionados, o Inspetor pode selecionar o caminho entre eles para condições de caminho.",
+        "summary": "O Inspetor do workspace de Design edita os nós e arestas selecionados e resume os caminhos e condições da árvore.",
+        "title": "Inspecionar detalhes da seleção"
+      },
+      "optimize": {
+        "caption": "O Ori Studio habilita cada comando apenas quando o documento está pronto para aquela etapa.",
+        "imageAlt": "Barra de ferramentas mostrando as ações Otimizar Escala e Gerar CP com os diagnósticos visíveis",
+        "step1": "Otimizar Escala ajusta a árvore ao papel atual, preservando a semântica do modelo TreeMaker selecionado.",
+        "step2": "Otimizar Arestas e Otimizar Tensão estão disponíveis no menu Design para fluxos de otimização mais aprofundados.",
+        "step3": "Gerar CP transforma uma árvore otimizada em vincos, facetas, direções de dobra e dados de base dobrada.",
+        "step4": "Os diagnósticos relatam a prontidão do motor, o status da otimização, a viabilidade e os resultados da geração do padrão de vincos.",
+        "summary": "A otimização e a geração do padrão de vincos são executadas pelo menu Design compartilhado, pelos botões da barra de ferramentas e pelo menu nativo do desktop.",
+        "title": "Otimizar e gerar CP"
+      },
+      "workspace": {
+        "caption": "Redefina o layout dos painéis em Exibir ou em Configurações, e escolha um tema nas configurações de Aparência.",
+        "imageAlt": "Janela modal de Configurações e menu do aplicativo mostrando os controles de tema e layout",
+        "step1": "Use a barra lateral esquerda ou o menu Exibir para ativar Design, Edição ou Simulação.",
+        "step2": "Arraste os cabeçalhos dos painéis dentro de um workspace para reorganizá-lo; Redefinir Layout restaura o padrão do workspace atual.",
+        "step3": "As Configurações contêm temas de Aparência, atalhos de teclado e controles de layout do Workspace.",
+        "step4": "Use a aba Atalhos das configurações para inspecionar ou reatribuir comandos de arquivo, edição, viewport e ferramentas de padrão de vincos.",
+        "summary": "A superfície do aplicativo é compartilhada entre navegador e desktop, com menus web, menus nativos do Tauri, layouts de workspace e configurações.",
+        "title": "Menus, layout, configurações"
+      }
+    }
+  },
+  "number": {
+    "tooSmall": "Insira um número maior que {{minimum}}."
+  },
+  "selectByIndex": {
+    "available": "Disponível: {{ids}}",
+    "close": "Fechar seleção por índice",
+    "index": "Índice",
+    "noParts": "Nenhuma parte deste tipo",
+    "part": "Parte",
+    "partKind": {
+      "condition": "Condição",
+      "crease": "Vinco",
+      "edge": "Aresta",
+      "facet": "Faceta",
+      "node": "Nó",
+      "path": "Caminho"
+    },
+    "partType": "Tipo de parte",
+    "select": "Selecionar",
+    "title": "Selecionar por índice"
+  },
+  "settings": {
+    "appearance": {
+      "dark": "Escuro",
+      "light": "Claro"
+    },
+    "close": "Fechar configurações",
+    "language": {
+      "system": "Padrão do sistema",
+      "title": "Idioma"
+    },
+    "sections": "Seções de configurações",
+    "shortcuts": {
+      "alreadyAssigned": "{{chord}} já está atribuído a {{label}}.",
+      "assigned": "Atribuído",
+      "categoryAnnotations": "Anotações",
+      "categoryCheckAndFix": "Verificar e reparar",
+      "categoryColor": "Cor",
+      "categoryConstruct": "Construir",
+      "categoryCreasePattern": "Padrão de vincos",
+      "categoryDesign": "Design",
+      "categoryDraw": "Desenhar",
+      "categoryEdit": "Editar",
+      "categoryFile": "Arquivo",
+      "categoryFold": "Dobrar",
+      "categoryGenerators": "Geradores",
+      "categoryHelp": "Ajuda",
+      "categoryLineType": "Tipo de linha",
+      "categoryMeasure": "Medir",
+      "categorySelectAndEdit": "Selecionar e editar",
+      "categoryTransform": "Transformar",
+      "categoryViewport": "Viewport",
+      "clear": "Limpar atalho de {{label}}",
+      "pressKeys": "Pressione as teclas",
+      "pressPrompt": "Pressione um atalho para {{label}}.",
+      "reserved": "{{chord}} é reservado pelo navegador.",
+      "reset": "Redefinir atalho de {{label}}",
+      "resetAll": "Redefinir tudo",
+      "resetAllMessage": "Restaurar todos os atalhos de teclado para seus padrões?",
+      "resetAllTitle": "Redefinir atalhos",
+      "scopeCreasePattern": "padrão de vincos",
+      "scopeGlobal": "global",
+      "scopeViewport": "viewport",
+      "search": "Pesquisar atalhos",
+      "softReserved": "{{chord}} foi atribuído, mas alguns navegadores podem reservá-lo.",
+      "unassigned": "Não atribuído",
+      "viewportActualSize": "Tamanho real",
+      "viewportFit": "Ajustar à visualização"
+    },
+    "tab": {
+      "appearance": "Aparência",
+      "shortcuts": "Atalhos",
+      "workspace": "Workspace"
+    },
+    "title": "Configurações",
+    "workspace": {
+      "layout": "Layout",
+      "resetButton": "Redefinir layout do workspace",
+      "resetMessage": "Restaurar o layout padrão do workspace atual?",
+      "resetTitle": "Redefinir layout do workspace",
+      "showWelcome": "Mostrar a tela de boas-vindas ao iniciar",
+      "startup": "Inicialização"
+    }
+  },
+  "startScreen": {
+    "chooseBegin": "Escolha como você quer começar.",
+    "createCp": {
+      "description": "Abra um documento de padrão de vincos editável em branco com as ferramentas de desenho de CP prontas.",
+      "title": "Criar um CP"
+    },
+    "createDesign": {
+      "description": "Comece a partir de uma árvore em branco, depois otimize-a e gere um padrão de vincos.",
+      "title": "Criar um design"
+    },
+    "description": "Comece com um padrão de vincos, abra um arquivo existente ou esboce a estrutura da árvore para um novo design.",
+    "openFile": {
+      "description": "Abra projetos .osf ou importe arquivos .cp, .fold, .ori, .orh, .tmd, .tmd4 e .tmd5 pelo fluxo de arquivos compartilhado.",
+      "title": "Abrir um arquivo"
+    },
+    "preparing": "Preparando o editor...",
+    "showWelcomeOnStartup": "Mostrar boas-vindas ao iniciar",
+    "startOptions": "Opções de início",
+    "title": "Iniciar um novo workspace de origami"
+  }
+}

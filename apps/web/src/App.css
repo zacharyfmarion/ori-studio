@@ -355,6 +355,12 @@
 .workspace-shell {
   display: grid;
   grid-template-columns: 50px minmax(0, 1fr);
+  /* Explicit 1fr row (not the default content-sized `auto`) so the Dockview
+     cell tracks the container height in both directions. Without it the row
+     grows to Dockview's explicit pixel height and never shrinks back when the
+     window does (e.g. exiting fullscreen), pushing the bottom viewport toolbar
+     out of the clipped app-layout. */
+  grid-template-rows: minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
 }
