@@ -593,6 +593,18 @@ export const ORISTUDIO_BP_COMMANDS = [
     phase: 5,
   },
   {
+    id: 'bp.layout.unsubdivide',
+    capability: 'bp.layout.unsubdivide',
+    label: 'Un-subdivide BP Sheet',
+    group: 'layout',
+    placement: 'toolbar',
+    upstream: 'src/client/project/components/sheet.ts:subdivide',
+    status: 'ready',
+    disabledReason: 'Switch to the BP Editor before un-subdividing the sheet',
+    tooltip: 'Halve the BP sheet grid (disabled unless flaps sit on even lines)',
+    phase: 5,
+  },
+  {
     id: 'bp.layout.rotateRight',
     capability: 'bp.layout.rotateRight',
     label: 'Rotate BP Sheet Right',

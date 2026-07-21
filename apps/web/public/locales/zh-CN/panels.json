@@ -47,6 +47,7 @@
     "stretch": "拉伸 {{id}}",
     "stretchNav": "拉伸 {{id}} 图案导航",
     "subdivideSheet": "细分纸张",
+    "unsubdivideSheet": "取消细分纸张",
     "unsupportedOperation": "不支持的 BP 操作",
     "upstreamGap": "上游间隙",
     "viewportControls": "箱形褶皱排布视口控件",

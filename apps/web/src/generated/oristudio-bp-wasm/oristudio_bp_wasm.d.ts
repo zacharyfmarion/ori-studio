@@ -89,6 +89,8 @@ export function bp_switch_stretch_pattern(handle: number, id: string, delta: num
 
 export function bp_undo_project(handle: number): any;
 
+export function bp_unsubdivide_layout_sheet(handle: number): any;
+
 export function bp_update_layout_sheet(handle: number, grid_type: string, width: number, height: number): any;
 
 export function bp_update_tree_edge_length(handle: number, n1: number, n2: number, length: number, dragging: boolean): any;
@@ -143,6 +145,7 @@ export interface InitOutput {
     readonly bp_switch_stretch_config: (a: number, b: number, c: number, d: number) => [number, number, number];
     readonly bp_switch_stretch_pattern: (a: number, b: number, c: number, d: number) => [number, number, number];
     readonly bp_undo_project: (a: number) => [number, number, number];
+    readonly bp_unsubdivide_layout_sheet: (a: number) => [number, number, number];
     readonly bp_update_layout_sheet: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
     readonly bp_update_tree_edge_length: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
     readonly bp_validate_optimizer_packing: (a: any, b: any) => [number, number];

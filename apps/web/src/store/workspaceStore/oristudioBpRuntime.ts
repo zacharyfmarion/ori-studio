@@ -405,6 +405,14 @@ export async function subdivideOristudioBpLayoutSheet(
   );
 }
 
+export async function unsubdivideOristudioBpLayoutSheet(
+  options: OristudioBpMutationOptions = {}
+): Promise<OristudioBpDocumentState> {
+  return mutateActiveOristudioBpProject(options, (api, handle) =>
+    api.unsubdivideLayoutSheet(handle)
+  );
+}
+
 export async function rotateOristudioBpLayoutSheet(
   clockwise: boolean,
   options: OristudioBpMutationOptions = {}

@@ -45,6 +45,7 @@ export const bp_subdivide_layout_sheet: (a: number) => [number, number, number];
 export const bp_switch_stretch_config: (a: number, b: number, c: number, d: number) => [number, number, number];
 export const bp_switch_stretch_pattern: (a: number, b: number, c: number, d: number) => [number, number, number];
 export const bp_undo_project: (a: number) => [number, number, number];
+export const bp_unsubdivide_layout_sheet: (a: number) => [number, number, number];
 export const bp_update_layout_sheet: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
 export const bp_update_tree_edge_length: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
 export const bp_validate_optimizer_packing: (a: any, b: any) => [number, number];

@@ -47,6 +47,7 @@
     "stretch": "스트레치 {{id}}",
     "stretchNav": "스트레치 {{id}} 패턴 탐색",
     "subdivideSheet": "시트 세분화",
+    "unsubdivideSheet": "시트 병합",
     "unsupportedOperation": "지원되지 않는 BP 작업",
     "upstreamGap": "업스트림 간격",
     "viewportControls": "박스 플리츠 패킹 뷰포트 컨트롤",

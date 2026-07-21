@@ -19,6 +19,7 @@ import {
   oristudioBpError,
   rotateOristudioBpLayoutSheet as rotateRuntimeOristudioBpLayoutSheet,
   subdivideOristudioBpLayoutSheet as subdivideRuntimeOristudioBpLayoutSheet,
+  unsubdivideOristudioBpLayoutSheet as unsubdivideRuntimeOristudioBpLayoutSheet,
   updateOristudioBpLayoutSheet as updateRuntimeOristudioBpLayoutSheet,
   updateOristudioBpTreeEdgeLength as updateRuntimeOristudioBpTreeEdgeLength,
   switchOristudioBpStretchConfig as switchRuntimeOristudioBpStretchConfig,
@@ -752,6 +753,18 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     subdivideOristudioBpLayoutSheet: async () =>
       runBpTreeMutation('Subdivided BP sheet', (document) =>
         subdivideRuntimeOristudioBpLayoutSheet({
+          activeSurface: 'packing',
+          selection: document.selection,
+        })
+      ),
+
+    unsubdivideOristudioBpLayoutSheet: async () =>
+      // The engine no-ops (leaving the sheet unchanged) when the grid can't
+      // halve cleanly — dimensions not even, below the minimum, or a flap off an
+      // even line — so the button is also disabled in those cases (see the
+      // packing panel's canUnsubdivide).
+      runBpTreeMutation('Un-subdivided BP sheet', (document) =>
+        unsubdivideRuntimeOristudioBpLayoutSheet({
           activeSurface: 'packing',
           selection: document.selection,
         })

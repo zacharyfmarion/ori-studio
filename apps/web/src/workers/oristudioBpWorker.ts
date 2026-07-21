@@ -41,6 +41,7 @@ import init, {
   bp_rotate_layout_sheet,
   bp_split_tree_edge,
   bp_subdivide_layout_sheet,
+  bp_unsubdivide_layout_sheet,
   bp_switch_stretch_config,
   bp_switch_stretch_pattern,
   bp_undo_project,
@@ -216,6 +217,9 @@ const api = {
   },
   async subdivideLayoutSheet(handle: number): Promise<OristudioBpRawProject> {
     return call(() => bp_subdivide_layout_sheet(handle) as OristudioBpRawProject);
+  },
+  async unsubdivideLayoutSheet(handle: number): Promise<OristudioBpRawProject> {
+    return call(() => bp_unsubdivide_layout_sheet(handle) as OristudioBpRawProject);
   },
   async rotateLayoutSheet(handle: number, clockwise: boolean): Promise<OristudioBpRawProject> {
     return call(() => bp_rotate_layout_sheet(handle, clockwise) as OristudioBpRawProject);

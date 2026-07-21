@@ -1706,7 +1706,8 @@
     "dialogs:foldWarning.title": "e981ddae45d8",
     "errors:fold.contradiction": "19c5735b74bd",
     "errors:fold.layerSearch": "e0e416ab563a",
-    "errors:fold.sameParity": "e8c12c1c3aef"
+    "errors:fold.sameParity": "e8c12c1c3aef",
+    "panels:bpPacking.unsubdivideSheet": "0c07c8e24327"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -3415,7 +3416,8 @@
     "dialogs:foldWarning.title": "e981ddae45d8",
     "errors:fold.contradiction": "19c5735b74bd",
     "errors:fold.layerSearch": "e0e416ab563a",
-    "errors:fold.sameParity": "e8c12c1c3aef"
+    "errors:fold.sameParity": "e8c12c1c3aef",
+    "panels:bpPacking.unsubdivideSheet": "0c07c8e24327"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -5149,7 +5151,8 @@
     "dialogs:foldWarning.title": "e981ddae45d8",
     "errors:fold.contradiction": "19c5735b74bd",
     "errors:fold.layerSearch": "e0e416ab563a",
-    "errors:fold.sameParity": "e8c12c1c3aef"
+    "errors:fold.sameParity": "e8c12c1c3aef",
+    "panels:bpPacking.unsubdivideSheet": "0c07c8e24327"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -6883,7 +6886,8 @@
     "dialogs:foldWarning.title": "e981ddae45d8",
     "errors:fold.contradiction": "19c5735b74bd",
     "errors:fold.layerSearch": "e0e416ab563a",
-    "errors:fold.sameParity": "e8c12c1c3aef"
+    "errors:fold.sameParity": "e8c12c1c3aef",
+    "panels:bpPacking.unsubdivideSheet": "0c07c8e24327"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8617,7 +8621,8 @@
     "dialogs:foldWarning.title": "e981ddae45d8",
     "errors:fold.contradiction": "19c5735b74bd",
     "errors:fold.layerSearch": "e0e416ab563a",
-    "errors:fold.sameParity": "e8c12c1c3aef"
+    "errors:fold.sameParity": "e8c12c1c3aef",
+    "panels:bpPacking.unsubdivideSheet": "0c07c8e24327"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10351,7 +10356,8 @@
     "dialogs:foldWarning.title": "e981ddae45d8",
     "errors:fold.contradiction": "19c5735b74bd",
     "errors:fold.layerSearch": "e0e416ab563a",
-    "errors:fold.sameParity": "e8c12c1c3aef"
+    "errors:fold.sameParity": "e8c12c1c3aef",
+    "panels:bpPacking.unsubdivideSheet": "0c07c8e24327"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12085,7 +12091,8 @@
     "dialogs:foldWarning.title": "e981ddae45d8",
     "errors:fold.contradiction": "19c5735b74bd",
     "errors:fold.layerSearch": "e0e416ab563a",
-    "errors:fold.sameParity": "e8c12c1c3aef"
+    "errors:fold.sameParity": "e8c12c1c3aef",
+    "panels:bpPacking.unsubdivideSheet": "0c07c8e24327"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -13794,6 +13801,7 @@
     "dialogs:foldWarning.title": "e981ddae45d8",
     "errors:fold.contradiction": "19c5735b74bd",
     "errors:fold.layerSearch": "e0e416ab563a",
-    "errors:fold.sameParity": "e8c12c1c3aef"
+    "errors:fold.sameParity": "e8c12c1c3aef",
+    "panels:bpPacking.unsubdivideSheet": "0c07c8e24327"
   }
 }

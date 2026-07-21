@@ -185,7 +185,8 @@ first.
 - [x] 2. Send to Edit maps BP grid → Edit grid units
       (engine cp_scale export option; slice passes bpCells/editDivisions; rect
       exact — diagonal uses max(w,h) as an approximation, browser-verify)
-- [ ] 3. Un-subdivide: engine op + guard + wasm + runtime + store + button + command + tests
+- [x] 3. Un-subdivide: engine op + guard + wasm + runtime + store + button (+/−) +
+      command + tests + i18n
 - [x] 4. Symmetric length editing updates the mirror partner (single undo)
       (slice orchestration over the already-tested mirroring helper; integration
       is browser-verifiable)

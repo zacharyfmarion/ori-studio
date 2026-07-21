@@ -4,7 +4,7 @@ use crate::engine::{
 use crate::error::{BpError, BpResult};
 use crate::grid::{
     BpGrid, DiagonalGrid, RectangularGrid, TransformationMatrix, constrain_flap, flip_sheet,
-    get_dots, rotate_sheet, subdivide_sheet,
+    get_dots, rotate_sheet, subdivide_sheet, unsubdivide_sheet,
 };
 use crate::layout::{LayoutRepository, active_layout_repositories};
 use crate::model::{
@@ -566,6 +566,15 @@ impl BpProjectSession {
     pub fn subdivide_layout_sheet(&mut self) -> BpResult<UpdateModel> {
         let grid = BpGrid::new(self.project.design.layout.sheet.clone());
         let Some(transform) = subdivide_sheet(grid)? else {
+            return Ok(UpdateModel::default());
+        };
+        self.apply_layout_sheet_transform(transform.grid.to_sheet(), transform.matrix)
+    }
+
+    pub fn unsubdivide_layout_sheet(&mut self) -> BpResult<UpdateModel> {
+        let grid = BpGrid::new(self.project.design.layout.sheet.clone());
+        let anchors = self.layout_flap_anchors();
+        let Some(transform) = unsubdivide_sheet(grid, &anchors)? else {
             return Ok(UpdateModel::default());
         };
         self.apply_layout_sheet_transform(transform.grid.to_sheet(), transform.matrix)

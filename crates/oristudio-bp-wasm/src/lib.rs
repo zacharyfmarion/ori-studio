@@ -344,6 +344,14 @@ pub fn bp_subdivide_layout_sheet(handle: u32) -> Result<JsValue, JsValue> {
 }
 
 #[wasm_bindgen]
+pub fn bp_unsubdivide_layout_sheet(handle: u32) -> Result<JsValue, JsValue> {
+    with_session_mut(handle, |session| {
+        session.unsubdivide_layout_sheet().map_err(to_js_bp_error)?;
+        to_js_value(&session.project_for_export())
+    })
+}
+
+#[wasm_bindgen]
 pub fn bp_rotate_layout_sheet(handle: u32, clockwise: bool) -> Result<JsValue, JsValue> {
     with_session_mut(handle, |session| {
         session

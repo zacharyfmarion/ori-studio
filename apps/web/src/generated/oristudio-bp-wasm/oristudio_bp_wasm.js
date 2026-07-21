@@ -636,6 +636,18 @@ export function bp_undo_project(handle) {
 
 /**
  * @param {number} handle
+ * @returns {any}
+ */
+export function bp_unsubdivide_layout_sheet(handle) {
+    const ret = wasm.bp_unsubdivide_layout_sheet(handle);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {number} handle
  * @param {string} grid_type
  * @param {number} width
  * @param {number} height

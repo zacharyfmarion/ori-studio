@@ -47,6 +47,7 @@
     "stretch": "Étirement {{id}}",
     "stretchNav": "Navigation du motif de l'étirement {{id}}",
     "subdivideSheet": "Subdiviser la feuille",
+    "unsubdivideSheet": "Regrouper la feuille",
     "unsupportedOperation": "Opération BP non prise en charge",
     "upstreamGap": "Espace en amont",
     "viewportControls": "Commandes d'affichage de l'agencement du pliage en boîte",
