@@ -275,7 +275,7 @@
     "legendTerminal": "Terminal",
     "methodChooser": {
       "boxPleated": {
-        "description": "Author a tree, then pack flaps and rivers on a grid with Box Pleating Studio.",
+        "description": "Author a tree, then pack flaps and rivers on a grid.",
         "title": "Box-pleated"
       },
       "circlePacked": {

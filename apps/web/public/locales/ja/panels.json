@@ -267,7 +267,7 @@
     "legendTerminal": "終端",
     "methodChooser": {
       "boxPleated": {
-        "description": "ツリーを作成し、Box Pleating Studio でグリッド上にフラップとリバーをパッキングします。",
+        "description": "ツリーを作成し、グリッド上にフラップとリバーをパッキングします。",
         "title": "ボックスプリーツ"
       },
       "circlePacked": {

@@ -275,7 +275,7 @@
     "legendTerminal": "Endpunkt",
     "methodChooser": {
       "boxPleated": {
-        "description": "Erstellen Sie einen Baum und packen Sie dann Klappen und Flüsse mit Box Pleating Studio auf einem Raster.",
+        "description": "Erstellen Sie einen Baum und packen Sie dann Klappen und Flüsse auf einem Raster.",
         "title": "Box-Pleating"
       },
       "circlePacked": {

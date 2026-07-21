@@ -283,7 +283,7 @@
     "legendTerminal": "Terminal",
     "methodChooser": {
       "boxPleated": {
-        "description": "Créez un arbre, puis agencez les rabats et les rivières sur une grille avec Box Pleating Studio.",
+        "description": "Créez un arbre, puis agencez les rabats et les rivières sur une grille.",
         "title": "Pliage en boîte"
       },
       "circlePacked": {

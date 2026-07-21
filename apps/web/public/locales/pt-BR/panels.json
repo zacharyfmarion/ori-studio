@@ -283,7 +283,7 @@
     "legendTerminal": "Terminal",
     "methodChooser": {
       "boxPleated": {
-        "description": "Crie uma árvore e depois empacote abas e rios em uma grade com o Box Pleating Studio.",
+        "description": "Crie uma árvore e depois empacote abas e rios em uma grade.",
         "title": "Dobra em caixa"
       },
       "circlePacked": {

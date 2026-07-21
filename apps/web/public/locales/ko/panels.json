@@ -267,7 +267,7 @@
     "legendTerminal": "말단",
     "methodChooser": {
       "boxPleated": {
-        "description": "트리를 작성한 다음 Box Pleating Studio로 격자 위에 플랩과 리버를 패킹하세요.",
+        "description": "트리를 작성한 다음 격자 위에 플랩과 리버를 패킹하세요.",
         "title": "박스 플리츠"
       },
       "circlePacked": {

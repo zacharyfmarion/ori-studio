@@ -69,7 +69,6 @@
   },
   "file": {
     "detectCpImage": "Определить CP по изображению...",
-    "examples": "Примеры",
     "export": "Экспорт",
     "exportBps": "Экспорт .bps...",
     "exportCp": "Экспорт CP...",
@@ -104,7 +103,6 @@
     "strain": "Оптимизировать натяжение"
   },
   "view": {
-    "conditions": "Условия",
     "design": "Дизайн",
     "edit": "Правка",
     "resetLayout": "Сбросить макет",
