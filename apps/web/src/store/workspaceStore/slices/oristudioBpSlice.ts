@@ -28,6 +28,7 @@ import { recordSnapshot, snapshotEntry } from '../snapshotHistory';
 import {
   addBpTreeSymmetryPair,
   buildMirroredBpTreeUpdates,
+  bpTreeSymmetryDefaultLoc,
   filterBpTreeSymmetryPairs,
   mirrorBpTreeVertexId,
   BP_TREE_SYMMETRY_TOLERANCE,
@@ -147,7 +148,14 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       oristudioBpHistoryPast: [],
       oristudioBpHistoryFuture: [],
       // Ephemeral mirror-draw state is project-specific — reset it on every load.
-      oristudioBpSymmetry: { enabled: false, angle: 90, loc: { x: 0, y: 0 }, pairs: [] },
+      // Symmetry defaults ON with the axis centred on the sheet (angle 90 =
+      // vertical book axis), so box-pleat authoring is symmetric out of the box.
+      oristudioBpSymmetry: {
+        enabled: true,
+        angle: 90,
+        loc: bpTreeSymmetryDefaultLoc(document.snapshot.tree.sheet),
+        pairs: [],
+      },
       currentFileName: document.source.filename,
       currentFilePath: document.source.path,
       dirty: document.dirty,
@@ -249,9 +257,10 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     oristudioBpBusy: false,
     oristudioBpHistoryPast: [],
     oristudioBpHistoryFuture: [],
-    // Ephemeral mirror-draw state (never persisted). `loc` is set to the sheet centre
-    // when the panel enables symmetry; `angle` 90 is a vertical (book) axis.
-    oristudioBpSymmetry: { enabled: false, angle: 90, loc: { x: 0, y: 0 }, pairs: [] },
+    // Ephemeral mirror-draw state (never persisted). Defaults ON; `loc` is
+    // re-centred on the sheet on every document load (see createOristudioBpProject),
+    // so this pre-load {0,0} is a placeholder. `angle` 90 is a vertical (book) axis.
+    oristudioBpSymmetry: { enabled: true, angle: 90, loc: { x: 0, y: 0 }, pairs: [] },
 
     ensureBoxPleatProject: async () => {
       if (get().oristudioBpDocument || get().oristudioBpBusy) return;

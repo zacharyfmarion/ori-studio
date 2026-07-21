@@ -181,7 +181,7 @@ first.
 
 ## Checklist
 
-- [ ] 1. Default symmetry on (enabled + centered axis at creation/resize)
+- [x] 1. Default symmetry on (enabled + centered axis at creation/resize)
 - [ ] 2. Send to Edit maps BP grid → Edit grid units (rect + diagonal)
 - [ ] 3. Un-subdivide: engine op + guard + wasm + runtime + store + button + command + tests
 - [ ] 4. Symmetric length editing updates the mirror partner (single undo)
