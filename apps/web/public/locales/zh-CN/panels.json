@@ -41,7 +41,6 @@
     "selectFlapWithName": "选择 BP 瓣 {{id}}，{{name}}",
     "selectRiver": "选择 BP 河 {{id}}，长度 {{length}}",
     "selectRiverShort": "选择 BP 河 {{id}}",
-    "sheetDimensions": "{{width}} × {{height}}",
     "sheetSizeGrid": "纸张尺寸与网格",
     "size": "尺寸",
     "stretch": "拉伸 {{id}}",
@@ -73,7 +72,6 @@
     "selectLeafVertexWithLabel": "选择 BP 叶顶点 {{id}}，{{label}}",
     "selectVertex": "选择 BP 顶点 {{id}}",
     "selectVertexWithLabel": "选择 BP 顶点 {{id}}，{{label}}",
-    "sheetDimensions": "{{width}} × {{height}}",
     "viewportControls": "箱形褶皱树视口控件"
   },
   "conditions": {
@@ -241,6 +239,8 @@
     "xray": "透视"
   },
   "design": {
+    "attributionBoxPleating": "改编自 <2>Mu-Tsun Tsai's Box Pleating Studio</2> · MIT",
+    "attributionTreemaker": "改编自 <2>Robert J. Lang's TreeMaker</2> · GPL-2.0",
     "axis": "轴",
     "axisAngle": "角度",
     "axisAngleAria": "设计对称角度",

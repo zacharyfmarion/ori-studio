@@ -12,7 +12,7 @@ import {
 import { TransformComponent, TransformWrapper, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { Circle, FlipHorizontal2, Grid2X2, Layers, Minus, Plus, Tag, Waypoints } from 'lucide-react';
+import { FlipHorizontal2, Layers, Minus, Plus, Tag } from 'lucide-react';
 import type {
   OristudioBpDocumentState,
   OristudioBpTreeEdge,
@@ -51,7 +51,6 @@ import { registerViewportShortcutExecutor, setActiveShortcutViewportSurface } fr
 import type { ViewportShortcutId } from '../../keyboard/shortcuts';
 import { useBpLongPressInspector } from '../../hooks/useBpLongPressInspector';
 import {
-  formatViewportZoom,
   isTreeViewportKeyboardActivation,
   viewportRectToViewBox,
   viewportSizeFromElement,
@@ -1083,19 +1082,6 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
           onRename={(name) => void renameOristudioBpVertex(selectedFlapVertex.id, name)}
         />
       )}
-      <div className="design-status-readout">
-        <span>{formatViewportZoom(zoomPercent / 100)}</span>
-        {hoverPoint && (
-          <span>
-            {formatNumber(hoverPoint.x, 3)}, {formatNumber(hoverPoint.y, 3)}
-          </span>
-        )}
-      </div>
-      <div className="design-legend bp-tree-legend">
-        <span><Circle size={13} /> {tree.vertices.filter((vertex) => vertex.isLeaf).length}</span>
-        <span><Waypoints size={13} /> {tree.edges.length}</span>
-        <span><Grid2X2 size={13} /> {t('panels:bpTree.sheetDimensions', '{{width}} × {{height}}', { width: tree.sheet.width, height: tree.sheet.height })}</span>
-      </div>
     </div>
   );
 }

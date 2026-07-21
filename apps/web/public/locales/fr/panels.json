@@ -41,7 +41,6 @@
     "selectFlapWithName": "Sélectionner le rabat BP {{id}}, {{name}}",
     "selectRiver": "Sélectionner la rivière BP {{id}}, longueur {{length}}",
     "selectRiverShort": "Sélectionner la rivière BP {{id}}",
-    "sheetDimensions": "{{width}} × {{height}}",
     "sheetSizeGrid": "Taille de la feuille et grille",
     "size": "Taille",
     "stretch": "Étirement {{id}}",
@@ -73,7 +72,6 @@
     "selectLeafVertexWithLabel": "Sélectionner le sommet feuille BP {{id}}, {{label}}",
     "selectVertex": "Sélectionner le sommet BP {{id}}",
     "selectVertexWithLabel": "Sélectionner le sommet BP {{id}}, {{label}}",
-    "sheetDimensions": "{{width}} × {{height}}",
     "viewportControls": "Commandes d'affichage de l'arbre du pliage en boîte"
   },
   "conditions": {
@@ -257,6 +255,8 @@
     "xray": "Rayons X"
   },
   "design": {
+    "attributionBoxPleating": "Adapté de <2>Mu-Tsun Tsai's Box Pleating Studio</2> · MIT",
+    "attributionTreemaker": "Adapté de <2>Robert J. Lang's TreeMaker</2> · GPL-2.0",
     "axis": "Axe",
     "axisAngle": "Angle",
     "axisAngleAria": "Angle de symétrie de conception",

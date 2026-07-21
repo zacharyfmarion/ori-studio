@@ -3670,6 +3670,43 @@
   box-shadow: 0 8px 24px var(--shadow-overlay);
 }
 
+/* Quiet full-width attribution bar pinned to the bottom of a design pane. As a
+   flex child of `.panel-shell` (below the `flex: 1` canvas body) it spans the
+   pane and reserves its own height rather than overlaying the canvas. */
+.design-attribution {
+  z-index: 13;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 22px;
+  padding: 3px var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-primary);
+  color: var(--text-tertiary);
+  font-size: 0.66rem;
+  line-height: 1.3;
+  text-align: center;
+  user-select: none;
+}
+
+.design-attribution__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.design-attribution__link {
+  color: var(--text-secondary);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.design-attribution__link:hover {
+  color: var(--accent-primary);
+  text-decoration: underline;
+}
+
 .cp-context-panel {
   display: grid;
   width: 100%;

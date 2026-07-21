@@ -18,6 +18,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { MenuBar } from './MenuBar';
+import { DesignAttributionFooter } from './DesignAttributionFooter';
 import { panelComponents } from './panels/PanelComponents';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
@@ -214,6 +215,28 @@ function FixedDockTab(props: IDockviewPanelHeaderProps) {
 }
 
 /**
+ * The box-pleat design workspace's attribution bar, spanning the full width
+ * below both of its panes (the BP tree editor and the BP packing editor — both
+ * are Box Pleating Studio surfaces).
+ *
+ * Only the box-pleat variant gets a workspace-spanning bar. The TreeMaker
+ * variant has inspector/diagnostics/conditions tool panes on the right, which
+ * the attribution must not underline, so it renders a pane-level footer inside
+ * the design canvas instead (see DesignPanel). Edit/Simulate credit their own
+ * upstreams via the About dialog.
+ */
+function DesignWorkspaceFooter() {
+  const activeWorkspace = useLayoutStore((state) => state.activeWorkspace);
+  const pendingDesignChoice = useWorkspaceStore((state) => state.pendingDesignChoice);
+  const workflowTarget = useWorkspaceStore((state) => state.workflowTarget);
+
+  if (activeWorkspace !== 'design') return null;
+  const variant = deriveDesignVariant({ pendingDesignChoice, workflowTarget });
+  if (variant !== 'box-pleat') return null;
+  return <DesignAttributionFooter method="bp" />;
+}
+
+/**
  * The workspace chrome: toolbar, workspace rail, and the shared Dockview canvas.
  * Mounted for every workspace route (`/design`, `/edit`, `/simulate`) and their
  * sub-paths, so the Dockview instance persists across workspace switches. The
@@ -291,13 +314,16 @@ export function WorkspaceShell() {
       <Toolbar />
       <div className="workspace-shell">
         <WorkspaceRail />
-        <DockviewReact
-          components={panelComponents}
-          defaultTabComponent={FixedDockTab}
-          onReady={onReady}
-          className="dockview-theme-treemaker workspace-shell__dockview"
-          disableFloatingGroups
-        />
+        <div className="workspace-shell__canvas">
+          <DockviewReact
+            components={panelComponents}
+            defaultTabComponent={FixedDockTab}
+            onReady={onReady}
+            className="dockview-theme-treemaker workspace-shell__dockview"
+            disableFloatingGroups
+          />
+          <DesignWorkspaceFooter />
+        </div>
       </div>
       <Outlet />
     </div>

@@ -41,7 +41,6 @@
     "selectFlapWithName": "Selecionar aba BP {{id}}, {{name}}",
     "selectRiver": "Selecionar rio BP {{id}}, comprimento {{length}}",
     "selectRiverShort": "Selecionar rio BP {{id}}",
-    "sheetDimensions": "{{width}} × {{height}}",
     "sheetSizeGrid": "Tamanho da folha e grade",
     "size": "Tamanho",
     "stretch": "Estiramento {{id}}",
@@ -73,7 +72,6 @@
     "selectLeafVertexWithLabel": "Selecionar vértice folha BP {{id}}, {{label}}",
     "selectVertex": "Selecionar vértice BP {{id}}",
     "selectVertexWithLabel": "Selecionar vértice BP {{id}}, {{label}}",
-    "sheetDimensions": "{{width}} × {{height}}",
     "viewportControls": "Controles da viewport da árvore de dobra em caixa"
   },
   "conditions": {
@@ -257,6 +255,8 @@
     "xray": "Raio-X"
   },
   "design": {
+    "attributionBoxPleating": "Adaptado de <2>Mu-Tsun Tsai's Box Pleating Studio</2> · MIT",
+    "attributionTreemaker": "Adaptado de <2>Robert J. Lang's TreeMaker</2> · GPL-2.0",
     "axis": "Eixo",
     "axisAngle": "Ângulo",
     "axisAngleAria": "Ângulo de simetria do design",

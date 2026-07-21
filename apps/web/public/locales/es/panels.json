@@ -41,7 +41,6 @@
     "selectFlapWithName": "Seleccionar solapa BP {{id}}, {{name}}",
     "selectRiver": "Seleccionar río BP {{id}}, longitud {{length}}",
     "selectRiverShort": "Seleccionar río BP {{id}}",
-    "sheetDimensions": "{{width}} × {{height}}",
     "sheetSizeGrid": "Tamaño de la hoja y cuadrícula",
     "size": "Tamaño",
     "stretch": "Estiramiento {{id}}",
@@ -73,7 +72,6 @@
     "selectLeafVertexWithLabel": "Seleccionar vértice hoja BP {{id}}, {{label}}",
     "selectVertex": "Seleccionar vértice BP {{id}}",
     "selectVertexWithLabel": "Seleccionar vértice BP {{id}}, {{label}}",
-    "sheetDimensions": "{{width}} × {{height}}",
     "viewportControls": "Controles de la vista del árbol de plegado en caja"
   },
   "conditions": {
@@ -257,6 +255,8 @@
     "xray": "Rayos X"
   },
   "design": {
+    "attributionBoxPleating": "Adaptado de <2>Mu-Tsun Tsai's Box Pleating Studio</2> · MIT",
+    "attributionTreemaker": "Adaptado de <2>Robert J. Lang's TreeMaker</2> · GPL-2.0",
     "axis": "Eje",
     "axisAngle": "Ángulo",
     "axisAngleAria": "Ángulo de simetría del diseño",
