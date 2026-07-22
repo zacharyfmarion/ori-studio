@@ -487,6 +487,7 @@
     "blockHeading": "見出し",
     "blockSubheading": "小見出し",
     "bold": "太字",
+    "color": "文字色",
     "deleteText": "テキストを削除",
     "editText": "テキストを編集",
     "italic": "斜体",

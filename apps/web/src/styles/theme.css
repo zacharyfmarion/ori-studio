@@ -2234,7 +2234,8 @@
   gap: 6px;
 }
 
-.cp-text-toolbar__select {
+.cp-text-toolbar__select,
+.cp-text-toolbar__color-select {
   height: 24px;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm, 4px);
@@ -2265,6 +2266,12 @@
 .cp-text-toolbar__align-btn[data-active] {
   background: color-mix(in srgb, var(--accent-primary) 22%, transparent);
   color: var(--text-primary);
+}
+
+.cp-text-toolbar__color {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 /* In WebGL mode the SVG is covered by the canvas; hide it so the browser stops
