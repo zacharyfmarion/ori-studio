@@ -177,11 +177,16 @@ rules, and the tests cover pure helpers and the store.
       previous attempt to unify drag-adjacent camera state regressed marquee and
       multi-select (`bp-studio-audit-fixes.md` item 6, reverted). The shared part
       is now shared; the rest should wait for Phase 5's coverage.
-- [ ] 5. Interaction-rule component tests for the tree pane and the viewport
-      hook.
-- [ ] 6. Validation: `npx tsc --noEmit`, `npm run lint:web`,
-      `npm run test:web`, `npm run i18n:check`, production web build; browser
-      verification of select/add/Escape in both panes.
+- [x] 5. Interaction-rule component tests for the tree pane (12 tests:
+      add-anchoring, ghost/click agreement, Escape from canvas and from the name
+      field, focus-on-pick vs no-focus-on-add). Each was mutation-checked by
+      reintroducing the original bug — the root fallback fails 3, the
+      unconditional autofocus fails 1, removing the canvas Escape fails 1 — so
+      none passes vacuously. The first draft of the autofocus test *did* pass
+      vacuously (mocked actions never remount the field) and was rewritten.
+- [x] 6. Validation: `tsc --noEmit`, eslint, 695 web tests, `i18n:check`, and
+      the production web build all pass. Browser verification of
+      select/add/Escape in both panes is the author's.
 
 ## Open question
 
