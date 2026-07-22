@@ -68,19 +68,79 @@ type PlainCompactGeometry = {
   tail: CpGeometryTransport['tail'];
 };
 
-function toTypedGeometry(raw: PlainCompactGeometry): CpGeometryTransport {
+// Binary compact-geometry decode — the counterpart to Rust `CompactGeometry::to_bytes`
+// (crates/oristudio-cp/src/geometry_transport.rs). The native `cp_document_geometry`
+// returns one ArrayBuffer; slicing it into typed arrays avoids the JSON
+// serialize/parse that made large-doc selection laggy. Layout (little-endian):
+// magic | 10 element-counts (field order) | tail_byte_len | tail JSON | array data.
+const COMPACT_GEOMETRY_MAGIC = 0x4f_43_47_31; // "OCG1"
+const COMPACT_GEOMETRY_HEADER_U32S = 12;
+
+/** Decode a native compact-geometry ArrayBuffer into typed arrays. Throws (loudly)
+ * on a bad magic or a length that disagrees with the header. Exported for tests. */
+export function decodeCompactGeometryBytes(buffer: ArrayBuffer): CpGeometryTransport {
+  const fail = (message: string): never => {
+    throw { code: 'geometry_decode', message };
+  };
+  if (buffer.byteLength < COMPACT_GEOMETRY_HEADER_U32S * 4) {
+    fail('compact geometry buffer too small for header');
+  }
+  const view = new DataView(buffer);
+  if (view.getUint32(0, true) !== COMPACT_GEOMETRY_MAGIC) {
+    fail('compact geometry: bad magic/version');
+  }
+  const counts: number[] = [];
+  for (let i = 0; i < 10; i += 1) counts.push(view.getUint32(4 + i * 4, true));
+  const tailLen = view.getUint32(4 + 10 * 4, true);
+  const [segE, segA, segC, auxE, auxA, auxC, pt, circD, circA, circC] = counts;
+
+  const expected =
+    COMPACT_GEOMETRY_HEADER_U32S * 4 +
+    tailLen +
+    (segE + auxE + pt + circD) * 8 +
+    (segA + auxA + circA) * 4 +
+    segC +
+    auxC +
+    circC;
+  if (buffer.byteLength !== expected) {
+    fail(`compact geometry: length mismatch (expected ${expected}, got ${buffer.byteLength})`);
+  }
+
+  let offset = COMPACT_GEOMETRY_HEADER_U32S * 4;
+  const tail = JSON.parse(
+    new TextDecoder().decode(new Uint8Array(buffer, offset, tailLen))
+  ) as CpGeometryTransport['tail'];
+  offset += tailLen;
+
+  // `slice` returns a fresh, 0-aligned ArrayBuffer so the typed-array views are valid.
+  const f64 = (count: number): Float64Array => {
+    const array = new Float64Array(buffer.slice(offset, offset + count * 8));
+    offset += count * 8;
+    return array;
+  };
+  const i32 = (count: number): Int32Array => {
+    const array = new Int32Array(buffer.slice(offset, offset + count * 4));
+    offset += count * 4;
+    return array;
+  };
+  const u8 = (count: number): Uint8Array => {
+    const array = new Uint8Array(buffer.slice(offset, offset + count));
+    offset += count;
+    return array;
+  };
+
   return {
-    segEndpoints: new Float64Array(raw.segEndpoints),
-    segAttr: new Int32Array(raw.segAttr),
-    segCustomColor: new Uint8Array(raw.segCustomColor),
-    auxEndpoints: new Float64Array(raw.auxEndpoints),
-    auxAttr: new Int32Array(raw.auxAttr),
-    auxCustomColor: new Uint8Array(raw.auxCustomColor),
-    pointCoords: new Float64Array(raw.pointCoords),
-    circleData: new Float64Array(raw.circleData),
-    circleAttr: new Int32Array(raw.circleAttr),
-    circleCustomColor: new Uint8Array(raw.circleCustomColor),
-    tail: raw.tail,
+    segEndpoints: f64(segE),
+    segAttr: i32(segA),
+    segCustomColor: u8(segC),
+    auxEndpoints: f64(auxE),
+    auxAttr: i32(auxA),
+    auxCustomColor: u8(auxC),
+    pointCoords: f64(pt),
+    circleData: f64(circD),
+    circleAttr: i32(circA),
+    circleCustomColor: u8(circC),
+    tail,
   };
 }
 
@@ -130,8 +190,8 @@ export function createOristudioCpNativeClient(): OristudioCpWorkerApi {
       return call('cp_document_snapshot', { handle });
     },
     async documentGeometry(handle: number): Promise<CpGeometryTransport> {
-      const raw = await call<PlainCompactGeometry>('cp_document_geometry', { handle });
-      return toTypedGeometry(raw);
+      const buffer = await call<ArrayBuffer>('cp_document_geometry', { handle });
+      return decodeCompactGeometryBytes(buffer);
     },
     async restoreFromCompact(handle: number, geometry: CpGeometryTransport): Promise<void> {
       return call('cp_restore_from_compact', { handle, geometry: toPlainGeometry(geometry) });

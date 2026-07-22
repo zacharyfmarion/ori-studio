@@ -139,12 +139,23 @@ pub async fn cp_document_snapshot(
     run(state, move |session| session.document_snapshot(handle)).await
 }
 
+/// Returns the compact geometry as a single binary buffer (via `tauri::ipc::Response`,
+/// so the frontend receives one `ArrayBuffer`) rather than JSON — this is the hot
+/// per-selection/edit render path. The native client decodes it straight into
+/// typed arrays. See `CompactGeometry::to_bytes`.
 #[tauri::command]
 pub async fn cp_document_geometry(
     handle: u32,
     state: State<'_, CpEngine>,
-) -> Result<CompactGeometry, EngineError> {
-    run(state, move |session| session.document_geometry(handle)).await
+) -> Result<tauri::ipc::Response, EngineError> {
+    let bytes = run(state, move |session| {
+        session
+            .document_geometry(handle)?
+            .to_bytes()
+            .map_err(|error| EngineError::new("geometry_encode", error))
+    })
+    .await?;
+    Ok(tauri::ipc::Response::new(bytes))
 }
 
 #[tauri::command]
