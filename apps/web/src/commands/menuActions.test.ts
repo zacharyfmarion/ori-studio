@@ -58,6 +58,7 @@ function createDeps() {
       triangulateTree: vi.fn().mockResolvedValue(undefined),
       activeEditingContext: 'treemaker-tree' as import('../workspaces/editingContext').EditingContext,
       oristudioBpDocument: null,
+      oristudioBpSelection: { kind: 'bp-none' as const },
       deleteOristudioBpTreeNode: vi.fn().mockResolvedValue(true),
       oristudioCpDocument: null as OristudioCpDocumentState | null,
       oristudioCpSelection: {

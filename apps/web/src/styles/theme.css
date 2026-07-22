@@ -5330,15 +5330,14 @@
   stroke: var(--tree-edge);
 }
 
-.bp-tree-canvas g[role='button']:focus-visible {
-  outline: none;
-}
-
-.bp-tree-canvas g[role='button']:focus-visible .bp-tree-edge,
-.bp-tree-node:focus-visible {
-  outline: none;
-  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent-hover) 50%, transparent));
-  stroke: var(--accent-hover);
+/*
+ * A selected edge is just the edge, drawn in the accent colour and a little
+ * heavier — no ring, no halo. Scoped to the BP canvas so the TreeMaker design
+ * pane keeps its own selection weight.
+ */
+.bp-tree-edge.tree-edge--selected {
+  stroke: var(--accent-primary);
+  stroke-width: 7;
 }
 
 .bp-tree-node--root {
@@ -5505,8 +5504,15 @@
   pointer-events: none;
 }
 
-.bp-packing-conflict-group {
-  opacity: 0.6;
+/*
+ * One alpha for the whole layer, not per junction — Box Pleating Studio applies
+ * an AlphaFilter to `Layer.junction` itself (layout.ts), so overlapping
+ * junctions flatten first and then fade together. Fading each group separately
+ * compounds (two at 0.6 read as 0.84, three as 0.94) until the fill is opaque
+ * and hides the creases underneath.
+ */
+.bp-packing-conflicts {
+  opacity: 0.55;
 }
 
 .bp-packing-conflict {
@@ -5516,18 +5522,15 @@
   vector-effect: non-scaling-stroke;
 }
 
+/* Selected conflicts read fully saturated against the faded layer. */
 .bp-packing-conflict-group.bp-packing-conflict--selected {
-  opacity: 0.9;
+  opacity: 1;
 }
 
 .bp-packing-conflict-hit {
   fill: transparent;
   pointer-events: all;
   cursor: pointer;
-}
-
-.bp-packing-conflict-hits [role='button']:focus-visible {
-  outline: none;
 }
 
 .bp-packing-conflict-hits [role='button']:focus-visible .bp-packing-conflict-hit {

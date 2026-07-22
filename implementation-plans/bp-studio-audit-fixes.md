@@ -190,7 +190,12 @@ first.
 - [x] 4. Symmetric length editing updates the mirror partner (single undo)
       (slice orchestration over the already-tested mirroring helper; integration
       is browser-verifiable)
-- [x] 5. Selecting a node focuses (and select-alls) its name box
+- [~] 5. Selecting a node focuses (and select-alls) its name box — **reverted**.
+      Landed, then walked back in two steps on user feedback: first for adding a
+      node, then for selection entirely. While the field holds focus it owns the
+      keyboard, so Delete renamed instead of deleting the node and undo undid the
+      field's text instead of the edit. The field still appears on selection;
+      click into it to rename.
 - [ ] 6. Repro + stop viewport moving during flap drag — REVERTED, REOPENED.
       Root cause: SVG viewBox from getBpPackingWorldRect grows to include the
       dragged flap's rect+label, so the viewBox chased the flap. First fix froze

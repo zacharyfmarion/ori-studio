@@ -135,7 +135,7 @@ export function isBpInvalidJunctionSelected(
 }
 
 export function bpSelectionSize(selection: OristudioBpSelection): number {
-  if (selection.kind === 'bp-tree') return 0;
+  if (selection.kind === 'bp-none') return 0;
   if (selection.kind !== 'bp-multi') return 1;
   return (
     selection.vertices.length +
@@ -234,7 +234,7 @@ export function toggleBpDeviceSelection(
 }
 
 export function bpSelectionSummary(selection: OristudioBpSelection): string {
-  if (selection.kind === 'bp-tree') return 'Tree';
+  if (selection.kind === 'bp-none') return 'Nothing selected';
   if (selection.kind === 'bp-vertex') return `Vertex ${selection.id}`;
   if (selection.kind === 'bp-edge') return `Edge ${selection.id}`;
   if (selection.kind === 'bp-flap') return `Flap ${selection.id}`;
@@ -276,7 +276,7 @@ function normalizeBpMultiSelection(
   selection: Extract<OristudioBpSelection, { kind: 'bp-multi' }>
 ): OristudioBpSelection {
   const size = bpSelectionSize(selection);
-  if (size === 0) return { kind: 'bp-tree' };
+  if (size === 0) return { kind: 'bp-none' };
   if (
     size === 1 &&
     selection.vertices.length === 1 &&

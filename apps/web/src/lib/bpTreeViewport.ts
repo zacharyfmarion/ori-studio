@@ -3,6 +3,7 @@ import type {
   OristudioBpTreeView,
   OristudioBpTreeVertex,
 } from '../engine/oristudioBpTypes';
+import { bpFlapLabel } from './bpFlapLabel';
 import type { PlotRect, Point } from './geometry';
 
 export const BP_TREE_VIEWBOX_SIZE = 720;
@@ -262,7 +263,7 @@ export function getBpTreeWorldRect(
 }
 
 export function bpTreeVertexLabel(vertex: OristudioBpTreeVertex): string {
-  return vertex.name.trim() || String(vertex.id);
+  return bpFlapLabel(vertex.id, vertex.name);
 }
 
 function vertexLoc(vertex: OristudioBpTreeVertex, options: BpTreeViewportOptions): Point {

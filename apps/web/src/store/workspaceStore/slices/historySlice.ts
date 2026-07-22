@@ -107,7 +107,7 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
     try {
       const currentBps = await exportOristudioBpProjectAsBps();
       const current = snapshotEntry(
-        { bps: currentBps, selection: document.selection },
+        { bps: currentBps, selection: get().oristudioBpSelection },
         document.history.activeLabel ?? 'edit'
       );
       const step = pick(history, current);
@@ -117,7 +117,10 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
       }
       const restored = await restoreOristudioBpProjectSnapshot(step.restore.snapshot.bps);
       set({
-        oristudioBpDocument: { ...restored, selection: step.restore.snapshot.selection },
+        oristudioBpDocument: restored,
+        // Restored as presentation — showing what the step touched — not because
+        // the selection was stored as part of the document.
+        oristudioBpSelection: step.restore.snapshot.selection,
         oristudioBpHistoryPast: step.history.past,
         oristudioBpHistoryFuture: step.history.future,
         dirty: true,

@@ -1,18 +1,16 @@
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type PointerEvent,
   type ReactNode,
-  type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
-import { TransformComponent, TransformWrapper, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
+import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { FlipHorizontal2, Layers, Minus, Plus, Tag } from 'lucide-react';
+import { FlipHorizontal2, Minus, Plus, Tag } from 'lucide-react';
 import type {
   OristudioBpDocumentState,
   OristudioBpTreeEdge,
@@ -31,8 +29,14 @@ import {
   getBpTreeWorldRect,
   svgToBpTreePoint,
 } from '../../lib/bpTreeViewport';
+import { bpDefaultFlapLabel } from '../../lib/bpFlapLabel';
+import { hasPassedDragThreshold } from '../../lib/pointerGesture';
 import { formatNumber, type Point } from '../../lib/geometry';
-import { rotatePointsAround, translatePoints, unitLeafLocation } from '../../lib/bpTreeAuthoring';
+import {
+  bpTreeDragUpdates,
+  translatePoints,
+  unitLeafLocation,
+} from '../../lib/bpTreeAuthoring';
 import {
   bpTreeSymmetryDefaultLoc,
   mirrorBpTreeVertexId,
@@ -43,24 +47,18 @@ import {
   snapPointToSymmetryAxis,
 } from '../../lib/symmetryGeometry';
 import { type BpTreeViewLayerKey, type BpTreeViewLayers } from '../../lib/oristudioBpViewportSettings';
-import {
-  clientPointToDesignWorld,
-  getViewportFitScale,
-} from '../../lib/designViewport';
-import { registerViewportShortcutExecutor, setActiveShortcutViewportSurface } from '../../keyboard/shortcutRuntime';
-import type { ViewportShortcutId } from '../../keyboard/shortcuts';
+import { clientPointToDesignWorld } from '../../lib/designViewport';
+import { setActiveShortcutViewportSurface } from '../../keyboard/shortcutRuntime';
 import { useBpLongPressInspector } from '../../hooks/useBpLongPressInspector';
-import {
-  isTreeViewportKeyboardActivation,
-  viewportRectToViewBox,
-  viewportSizeFromElement,
-} from '../../lib/treeViewportPrimitives';
+import { useViewportSurface } from '../../hooks/useViewportSurface';
+import { viewportRectToViewBox } from '../../lib/treeViewportPrimitives';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { IconButton } from '../ui/IconButton';
 import { BpNameEditor } from './BpNameEditor';
 import {
   isViewportInteractiveTarget,
+  ViewportLayerMenu,
   ViewportToolbar,
   ViewportToolbarSeparator,
 } from './ViewportToolbar';
@@ -78,8 +76,6 @@ function bpTreeLayerLabel(t: TFunction, key: BpTreeViewLayerKey): string {
       return key;
   }
 }
-
-const BP_TREE_DRAG_START_THRESHOLD_PX = 4;
 
 // The rendered symmetry snap-lane width in SVG units — keep in sync with the CSS
 // `.symmetry-snap-lane { stroke-width }`. A leaf tip landing anywhere inside this
@@ -116,19 +112,6 @@ function BpTreeViewportToolbar({
   setZoomLevel: (scale: number) => void;
 }) {
   const { t } = useTranslation();
-  const [layersOpen, setLayersOpen] = useState(false);
-  const layersMenuRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!layersOpen) return undefined;
-    const onPointerDown = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (layersMenuRef.current?.contains(target)) return;
-      setLayersOpen(false);
-    };
-    document.addEventListener('mousedown', onPointerDown);
-    return () => document.removeEventListener('mousedown', onPointerDown);
-  }, [layersOpen]);
 
   return (
     <ViewportToolbar
@@ -154,32 +137,15 @@ function BpTreeViewportToolbar({
         <FlipHorizontal2 size={14} />
       </IconButton>
       <ViewportToolbarSeparator />
-      <div className="viewport-toolbar__menu-anchor" ref={layersMenuRef}>
-        <IconButton
-          size="sm"
-          variant="toolbar"
-          title={t('panels:bpTree.layers', 'Layers')}
-          isActive={layersOpen}
-          onClick={() => setLayersOpen((open) => !open)}
-        >
-          <Layers size={14} />
-        </IconButton>
-        {layersOpen && (
-          <div className="design-layer-menu" role="menu">
-            {LAYER_OPTIONS.map((option) => (
-              <label key={option.key} className="design-layer-option">
-                <input
-                  type="checkbox"
-                  checked={layers[option.key]}
-                  onChange={(event) => onLayerChange(option.key, event.target.checked)}
-                />
-                <span className="design-layer-option__icon">{option.icon}</span>
-                <span>{bpTreeLayerLabel(t, option.key)}</span>
-              </label>
-            ))}
-          </div>
-        )}
-      </div>
+      <ViewportLayerMenu
+        title={t('panels:bpTree.layers', 'Layers')}
+        options={LAYER_OPTIONS.map((option) => ({
+          ...option,
+          label: bpTreeLayerLabel(t, option.key),
+        }))}
+        visible={layers}
+        onChange={onLayerChange}
+      />
     </ViewportToolbar>
   );
 }
@@ -192,9 +158,11 @@ function BpTreeViewportToolbar({
 function BpTreeEdgeLengthEditor({
   edge,
   onSetLength,
+  onEscape,
 }: {
   edge: OristudioBpTreeEdge;
   onSetLength: (length: number) => void;
+  onEscape?: () => void;
 }) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState(() => formatNumber(edge.length, 2));
@@ -254,6 +222,7 @@ function BpTreeEdgeLengthEditor({
           } else if (event.key === 'Escape') {
             setDraft(formatNumber(edge.length, 2));
             event.currentTarget.blur();
+            onEscape?.();
           }
         }}
       />
@@ -278,8 +247,6 @@ function BpTreeEdgeLengthEditor({
 export function BpTreePanel({ document }: { document: OristudioBpDocumentState }) {
   const { t } = useTranslation();
   const svgRef = useRef<SVGSVGElement | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const transformRef = useRef<ReactZoomPanPinchRef | null>(null);
   const [dragging, setDragging] = useState<{
     id: number;
     start: Point;
@@ -288,13 +255,13 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     preview: Map<number, Point>;
   } | null>(null);
   const paperDownRef = useRef<{ clientX: number; clientY: number; point: Point } | null>(null);
-  const [zoomPercent, setZoomPercent] = useState(100);
-  const [spacePressed, setSpacePressed] = useState(false);
   const [hoverPoint, setHoverPoint] = useState<Point | null>(null);
   const scheduleLongPressInspector = useBpLongPressInspector();
   const layers = useSettingsStore((state) => state.bpTreeLayers);
   const setLayer = useSettingsStore((state) => state.setBpTreeLayer);
   const selectOristudioBp = useWorkspaceStore((state) => state.selectOristudioBp);
+  const selection = useWorkspaceStore((state) => state.oristudioBpSelection);
+  const clearSelection = useWorkspaceStore((state) => state.clearOristudioBpSelection);
   const moveOristudioBpTreeVertices = useWorkspaceStore(
     (state) => state.moveOristudioBpTreeVertices
   );
@@ -315,13 +282,13 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     (state) => state.moveOristudioBpTreeVerticesWithSymmetry
   );
   const tree = document.snapshot.tree;
-  const selectedVertexId = document.selection.kind === 'bp-vertex' ? document.selection.id : null;
+  const selectedVertexId = selection.kind === 'bp-vertex' ? selection.id : null;
   // The edge selected by clicking a tree segment — drives the length editor.
   const selectedEdge = useMemo(() => {
-    const id = document.selection.kind === 'bp-edge' ? document.selection.id : null;
+    const id = selection.kind === 'bp-edge' ? selection.id : null;
     if (id === null) return null;
     return tree.edges.find((edge) => edge.id === id) ?? null;
-  }, [document.selection, tree.edges]);
+  }, [selection, tree.edges]);
   // The selected leaf vertex (a flap) — drives the name editor. Only leaves are
   // nameable: internal vertices are rivers, which aren't worth labeling.
   const selectedFlapVertex = useMemo(() => {
@@ -360,6 +327,12 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     return { parent, children };
   }, [tree.vertices, tree.edges, tree.rootVertexId]);
 
+  // Vertex locations by id — the lookup the drag rule works from.
+  const vertexLocationsById = useMemo(
+    () => new Map(tree.vertices.map((vertex) => [vertex.id, vertex.loc] as const)),
+    [tree.vertices]
+  );
+
   const subtreeOf = useCallback(
     (id: number): number[] => {
       const out: number[] = [];
@@ -373,9 +346,14 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     },
     [topology]
   );
+  // The vertex a canvas click attaches a new leaf to. This is exactly the
+  // selected vertex — with no fallback to the root, so a tree opens inert and
+  // clearing the selection disarms adding, and the hover ghost and the click
+  // can't disagree about where the leaf would land.
+  const addAnchorId = selectedVertexId;
   const linkedSelection = useMemo(
-    () => bpLinkedSelection(document.selection, document),
-    [document]
+    () => bpLinkedSelection(selection, document),
+    [selection, document]
   );
   const paperRect = useMemo(() => bpTreePaperRect(tree.sheet), [tree.sheet]);
   const vertexLocations = useMemo(() => dragging?.preview, [dragging]);
@@ -385,6 +363,28 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     () => getBpTreeWorldRect(tree, { contentOnly: true, padding: 12 }),
     [tree]
   );
+
+  // Open at a fixed readable scale (1 tree unit ≈ TARGET_UNIT_PX) rather than
+  // filling the pane with a tiny tree; the shared surface only zooms further out
+  // when the tree no longer fits at that scale.
+  const maxFitScale = TARGET_UNIT_PX / bpTreeUnitToSvg(tree.sheet);
+  const {
+    containerRef,
+    transformRef,
+    zoomPercent,
+    spacePressed,
+    zoomIn,
+    zoomOut,
+    fitToView,
+    setZoomLevel,
+    onInit,
+    onTransformed,
+  } = useViewportSurface({
+    surface: 'tree',
+    worldRect,
+    fitKey: `${document.handle}:${document.source.filename}`,
+    maxFitScale,
+  });
 
   // Convert a target screen-pixel size into SVG units at the current zoom, so
   // dots/labels keep a constant on-screen size regardless of zoom.
@@ -463,7 +463,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
   // leaf; otherwise it reflects onto the parent's mirror.
   const symmetryHoverPreview = useMemo(() => {
     if (!symmetry.enabled || dragging || !hoverPoint) return null;
-    const parentId = selectedVertexId ?? tree.rootVertexId;
+    const parentId = addAnchorId;
     if (parentId === null) return null;
     const parent = findVertex(parentId);
     if (!parent) return null;
@@ -502,7 +502,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     symmetry.pairs,
     dragging,
     hoverPoint,
-    selectedVertexId,
+    addAnchorId,
     tree,
     paperRect,
     findVertex,
@@ -535,6 +535,13 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     [topology, findVertex, subtreeOf, setOristudioBpTreeEdgeLength]
   );
 
+  // Escape drops the selection and returns the keyboard to the canvas. Nothing in
+  // the tree stays selected, so the contextual length/name editors close too.
+  const dismissSelection = useCallback(() => {
+    clearSelection();
+    containerRef.current?.focus();
+  }, [clearSelection, containerRef]);
+
   const eventToTreePoint = useCallback(
     (event: PointerEvent): Point => {
       const svg = svgRef.current;
@@ -549,142 +556,22 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     [paperRect, tree.sheet, worldRect]
   );
 
-  const getViewportSize = useCallback(() => viewportSizeFromElement(containerRef.current), []);
-
-  const computeFitScale = useCallback(() => {
-    const viewport = getViewportSize();
-    if (!viewport) return 1;
-    // Default to a fixed, readable scale (1 tree unit ≈ TARGET_UNIT_PX on
-    // screen) rather than filling the pane with a tiny tree. Only zoom OUT (via
-    // getViewportFitScale) once the tree is too big to fit at that scale.
-    const targetScale = TARGET_UNIT_PX / bpTreeUnitToSvg(tree.sheet);
-    return getViewportFitScale(viewport, worldRect, undefined, targetScale);
-  }, [getViewportSize, worldRect, tree.sheet]);
-
-  const fitToView = useCallback(
-    (animationTime = 180) => {
-      transformRef.current?.centerView(computeFitScale(), animationTime);
-    },
-    [computeFitScale]
-  );
-
-  const setActualSize = useCallback(() => {
-    transformRef.current?.centerView(1, 160);
-  }, []);
-
-  const setZoomLevel = useCallback((scale: number) => {
-    transformRef.current?.centerView(scale, 160);
-  }, []);
-
-  const handleViewportShortcut = useCallback(
-    (id: ViewportShortcutId) => {
-      switch (id) {
-        case 'viewport.zoomIn':
-          transformRef.current?.zoomIn(0.35, 120);
-          break;
-        case 'viewport.zoomOut':
-          transformRef.current?.zoomOut(0.35, 120);
-          break;
-        case 'viewport.fit':
-          fitToView();
-          break;
-        case 'viewport.actualSize':
-          setActualSize();
-          break;
-      }
-    },
-    [fitToView, setActualSize]
-  );
-
-  useEffect(
-    () => registerViewportShortcutExecutor('tree', handleViewportShortcut),
-    [handleViewportShortcut]
-  );
-
-  const fitKey = `${document.handle}:${document.source.filename}`;
-  const lastFittedKeyRef = useRef<string | null>(null);
-  const fitLoadedDocument = useCallback(
-    (animationTime = 0) => {
-      if (lastFittedKeyRef.current === fitKey) return true;
-      const container = containerRef.current;
-      if (!container || !transformRef.current || container.clientWidth <= 0 || container.clientHeight <= 0) {
-        return false;
-      }
-      transformRef.current.centerView(computeFitScale(), animationTime);
-      lastFittedKeyRef.current = fitKey;
-      return true;
-    },
-    [computeFitScale, fitKey]
-  );
-  const fitLoadedDocumentRef = useRef(fitLoadedDocument);
-  useEffect(() => {
-    fitLoadedDocumentRef.current = fitLoadedDocument;
-  }, [fitLoadedDocument]);
-
-  useLayoutEffect(() => {
-    const frame = requestAnimationFrame(() => fitLoadedDocumentRef.current(0));
-    return () => cancelAnimationFrame(frame);
-  }, [fitKey]);
-
-  // Re-fit when the tree grows or shrinks (adding/deleting nodes), but not while
-  // rotating (which keeps the node count the same) so it doesn't fight a drag.
-  const vertexCount = tree.vertices.length;
-  const prevVertexCountRef = useRef(vertexCount);
-  useEffect(() => {
-    if (prevVertexCountRef.current === vertexCount) return undefined;
-    prevVertexCountRef.current = vertexCount;
-    const frame = requestAnimationFrame(() => fitToView());
-    return () => cancelAnimationFrame(frame);
-  }, [vertexCount, fitToView]);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    let frame = requestAnimationFrame(() => fitLoadedDocumentRef.current(0));
-    const observer =
-      typeof ResizeObserver === 'undefined' || !container
-        ? null
-        : new ResizeObserver(() => {
-            if (lastFittedKeyRef.current !== fitKey) {
-              cancelAnimationFrame(frame);
-              frame = requestAnimationFrame(() => fitLoadedDocumentRef.current(0));
-            }
-          });
-
-    if (observer && container) observer.observe(container);
-    return () => {
-      cancelAnimationFrame(frame);
-      observer?.disconnect();
-    };
-  }, [fitKey]);
-
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return undefined;
 
     const onKeyDown = (event: KeyboardEvent) => {
-      const interactive = isViewportInteractiveTarget(event.target);
-      if (event.key === ' ' && !interactive) {
+      // The contextual editors fire their own Escape (revert, then clear via
+      // onEscape), so only handle the canvas case here.
+      if (event.key === 'Escape' && !isViewportInteractiveTarget(event.target)) {
         event.preventDefault();
-        setSpacePressed(true);
+        dismissSelection();
       }
     };
 
-    const onKeyUp = (event: KeyboardEvent) => {
-      if (event.key === ' ') setSpacePressed(false);
-    };
-    const clearSpace = () => setSpacePressed(false);
-
     container.addEventListener('keydown', onKeyDown);
-    container.addEventListener('keyup', onKeyUp);
-    window.addEventListener('keyup', onKeyUp);
-    window.addEventListener('blur', clearSpace);
-    return () => {
-      container.removeEventListener('keydown', onKeyDown);
-      container.removeEventListener('keyup', onKeyUp);
-      window.removeEventListener('keyup', onKeyUp);
-      window.removeEventListener('blur', clearSpace);
-    };
-  }, []);
+    return () => container.removeEventListener('keydown', onKeyDown);
+  }, [dismissSelection, containerRef]);
 
   const onCanvasAddPointerDown = (event: PointerEvent<Element>) => {
     if (event.button !== 0 || spacePressed || isViewportInteractiveTarget(event.target)) {
@@ -702,11 +589,15 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     const down = paperDownRef.current;
     paperDownRef.current = null;
     if (!down || event.button !== 0 || spacePressed) return;
-    const movedPx = Math.hypot(event.clientX - down.clientX, event.clientY - down.clientY);
-    if (movedPx >= BP_TREE_DRAG_START_THRESHOLD_PX) return;
-    // A plain click on the sheet adds a unit-length leaf to the selected vertex
-    // (or the root), pointing toward the click.
-    const parentId = selectedVertexId ?? tree.rootVertexId;
+    const dragged = hasPassedDragThreshold(
+      { x: down.clientX, y: down.clientY },
+      { x: event.clientX, y: event.clientY }
+    );
+    if (dragged) return;
+    // A plain click on the sheet adds a unit-length leaf to the selected vertex,
+    // pointing toward the click. With nothing selected there's no anchor, so the
+    // click just falls through.
+    const parentId = addAnchorId;
     if (parentId === null) return;
     const parent = findVertex(parentId);
     if (!parent) return;
@@ -729,28 +620,17 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     paperDownRef.current = null;
     selectOristudioBp(
       event.shiftKey || event.metaKey || event.ctrlKey
-        ? toggleBpEdgeSelection(document.selection, edgeId)
+        ? toggleBpEdgeSelection(selection, edgeId)
         : { kind: 'bp-edge', id: edgeId }
     );
     scheduleLongPressInspector(event);
-  };
-
-  const onEdgeKeyDown = (event: ReactKeyboardEvent<SVGGElement>, edgeId: number) => {
-    if (!isTreeViewportKeyboardActivation(event)) return;
-    event.preventDefault();
-    event.stopPropagation();
-    selectOristudioBp(
-      event.shiftKey || event.metaKey || event.ctrlKey
-        ? toggleBpEdgeSelection(document.selection, edgeId)
-        : { kind: 'bp-edge', id: edgeId }
-    );
   };
 
   const onVertexPointerDown = (event: PointerEvent<SVGCircleElement>, vertexId: number) => {
     if (event.button !== 0 || spacePressed) return;
     event.stopPropagation();
     if (event.shiftKey || event.metaKey || event.ctrlKey) {
-      selectOristudioBp(toggleBpVertexSelection(document.selection, vertexId));
+      selectOristudioBp(toggleBpVertexSelection(selection, vertexId));
       return;
     }
     selectOristudioBp({ kind: 'bp-vertex', id: vertexId });
@@ -772,27 +652,20 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     event.stopPropagation();
     const target = constrainBpTreePoint(eventToTreePoint(event), tree.sheet);
     setHoverPoint(target);
-    const parentId = topology.parent.get(vertexId) ?? null;
-    let moved: Map<number, Point>;
-    if (parentId === null) {
-      // Root: translate the whole tree rigidly by the drag delta.
-      const points = tree.vertices.map((vertex) => [vertex.id, vertex.loc] as const);
-      moved = translatePoints(dragging.start, target, points);
-    } else {
-      // Rotate this vertex and its subtree rigidly around the parent, so every
-      // edge keeps its length.
-      const pivot = findVertex(parentId)?.loc ?? dragging.start;
-      const points = subtreeOf(vertexId)
-        .map((id) => findVertex(id))
-        .filter((vertex): vertex is NonNullable<typeof vertex> => Boolean(vertex))
-        .map((vertex) => [vertex.id, vertex.loc] as const);
-      moved = rotatePointsAround(pivot, dragging.start, target, points);
-    }
+    const moved = bpTreeDragUpdates({
+      vertexId,
+      parentId: topology.parent.get(vertexId) ?? null,
+      vertices: vertexLocationsById,
+      subtreeIds: subtreeOf(vertexId),
+      start: dragging.start,
+      target,
+    });
     const preview = new Map<number, Point>();
     for (const [id, loc] of moved) preview.set(id, constrainBpTreePoint(loc, tree.sheet));
-    const clientDx = event.clientX - dragging.clientStart.x;
-    const clientDy = event.clientY - dragging.clientStart.y;
-    const clientMoved = Math.hypot(clientDx, clientDy) >= BP_TREE_DRAG_START_THRESHOLD_PX;
+    const clientMoved = hasPassedDragThreshold(dragging.clientStart, {
+      x: event.clientX,
+      y: event.clientY,
+    });
     setDragging({
       id: vertexId,
       start: dragging.start,
@@ -860,11 +733,8 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
         }}
         pinch={{ step: 0.5 }}
         doubleClick={{ disabled: true }}
-        onInit={(ref) => {
-          transformRef.current = ref;
-          requestAnimationFrame(() => fitLoadedDocumentRef.current(0));
-        }}
-        onTransformed={(_ref, state) => setZoomPercent(Math.round(state.scale * 100))}
+        onInit={onInit}
+        onTransformed={onTransformed}
       >
         <TransformComponent
           wrapperStyle={{ width: '100%', height: '100%' }}
@@ -959,14 +829,17 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
               return (
                 <g
                   key={edge.id}
-                  role="button"
-                  tabIndex={0}
+                  // Intentionally not focusable (no role/tabIndex), matching the
+                  // node dots: the browser draws its own focus ring around the
+                  // group's box — which spans the edge *and* its length label —
+                  // so a click wrapped the edge in a capsule instead of just
+                  // highlighting it. Selection is by click; the tree's keyboard
+                  // actions live on the container.
                   aria-label={t('panels:bpTree.selectEdge', 'Select BP edge {{id}}, length {{length}}', {
                     id: edge.id,
                     length: formatNumber(edge.length, 2),
                   })}
                   onPointerDown={(event) => onEdgePointerDown(event, edge.id)}
-                  onKeyDown={(event) => onEdgeKeyDown(event, edge.id)}
                 >
                   <line
                     className={[
@@ -1058,8 +931,8 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
         onLayerChange={setLayer}
         symmetryEnabled={symmetry.enabled}
         onSymmetryToggle={handleToggleSymmetry}
-        zoomIn={() => transformRef.current?.zoomIn(0.35, 120)}
-        zoomOut={() => transformRef.current?.zoomOut(0.35, 120)}
+        zoomIn={zoomIn}
+        zoomOut={zoomOut}
         fitToView={() => fitToView()}
         setZoomLevel={setZoomLevel}
       />
@@ -1067,19 +940,22 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
         <BpTreeEdgeLengthEditor
           edge={selectedEdge}
           onSetLength={(length) => void setEdgeLength(selectedEdge, length)}
+          onEscape={dismissSelection}
         />
       )}
       {selectedFlapVertex && (
         <BpNameEditor
           key={selectedFlapVertex.id}
-          title={t('panels:bpTree.flapTitle', 'Flap {{id}}', { id: selectedFlapVertex.id })}
-          name={selectedFlapVertex.name}
-          placeholder={`f${selectedFlapVertex.id}`}
-          ariaLabel={t('panels:bpTree.flapNameAria', 'Name of flap {{id}}', {
-            id: selectedFlapVertex.id,
+          title={t('panels:bpTree.flapTitle', 'Flap {{id}}', {
+            id: bpDefaultFlapLabel(selectedFlapVertex.id),
           })}
-          autoFocus
+          name={selectedFlapVertex.name}
+          placeholder={bpDefaultFlapLabel(selectedFlapVertex.id)}
+          ariaLabel={t('panels:bpTree.flapNameAria', 'Name of flap {{id}}', {
+            id: bpDefaultFlapLabel(selectedFlapVertex.id),
+          })}
           onRename={(name) => void renameOristudioBpVertex(selectedFlapVertex.id, name)}
+          onEscape={dismissSelection}
         />
       )}
     </div>

@@ -23,7 +23,6 @@ import type {
   OristudioBpRawStretch,
   OristudioBpRawVertex,
   OristudioBpRiver,
-  OristudioBpSelection,
   OristudioBpSheet,
   OristudioBpSourceRef,
   OristudioBpStretch,
@@ -39,7 +38,6 @@ import type {
   OristudioBpWasmTreeData,
   OristudioBpWasmTreeNode,
 } from './oristudioBpTypes';
-import { emptyOristudioBpSelection } from './oristudioBpTypes';
 import type { Point } from '../lib/geometry';
 
 const MAX_TREE_HEIGHT = 11_586;
@@ -54,7 +52,6 @@ export interface OristudioBpStateFromRawInput {
   creasePatternSnapshot?: OristudioBpWasmCreasePatternSnapshot | null;
   source: OristudioBpSourceRef;
   activeSurface?: OristudioBpDocumentState['activeSurface'];
-  selection?: OristudioBpSelection;
   dirty?: boolean;
 }
 
@@ -76,7 +73,6 @@ export function oristudioBpProjectStateFromRaw(
       input.packingValidation ?? null,
       input.creasePatternSnapshot ?? null
     ),
-    selection: input.selection ?? emptyOristudioBpSelection(),
     history: historySummary(input.project),
     optimizer: defaultOptimizerState(),
     exportStatus: defaultExportStatus(),
@@ -335,7 +331,6 @@ function packingRivers(tree: OristudioBpTreeView): OristudioBpRiver[] {
       vertices: edge.vertices,
       width: edge.length,
       length: edge.length,
-      selected: false,
     }));
 }
 
@@ -466,7 +461,6 @@ function packingFlap(
     width: flap.width,
     height: flap.height,
     radius: radiusForFlap(flap.id, edges) ?? Math.max(flap.width, flap.height) / 2,
-    selected: false,
     constrained: true,
   };
 }
@@ -485,7 +479,6 @@ function packingStretch(stretch: OristudioBpRawStretch): OristudioBpStretch {
     patternIndex: configuration?.index ?? null,
     patternCount,
     patternFound: pattern ? true : patternCount === null ? null : false,
-    selected: false,
   };
 }
 
@@ -508,7 +501,6 @@ function packingDevices(
       range: deviceRange(position, rangeScalar, forward),
       rangeScalar,
       forward,
-      selected: false,
     };
   });
 }

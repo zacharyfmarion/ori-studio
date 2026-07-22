@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { rotatePointsAround, translatePoints, unitLeafLocation } from './bpTreeAuthoring';
+import {
+  bpTreeDragUpdates,
+  rotatePointsAround,
+  translatePoints,
+  unitLeafLocation,
+} from './bpTreeAuthoring';
 import type { Point } from './geometry';
 
 const near = (a: Point, b: Point, eps = 1e-9) =>
@@ -59,5 +64,77 @@ describe('translatePoints', () => {
     ]);
     expect(near(result.get(1) as Point, { x: 12, y: 7 })).toBe(true);
     expect(near(result.get(2) as Point, { x: 2, y: -3 })).toBe(true);
+  });
+});
+
+describe('bpTreeDragUpdates', () => {
+  //   0 (root) --- 1 --- 2
+  const vertices = new Map([
+    [0, { x: 0, y: 0 }],
+    [1, { x: 1, y: 0 }],
+    [2, { x: 2, y: 0 }],
+  ]);
+
+  it('translates the whole tree when the root is dragged', () => {
+    const moved = bpTreeDragUpdates({
+      vertexId: 0,
+      parentId: null,
+      vertices,
+      subtreeIds: [0, 1, 2],
+      start: { x: 0, y: 0 },
+      target: { x: 3, y: 5 },
+    });
+    expect(moved.get(0)).toEqual({ x: 3, y: 5 });
+    expect(moved.get(1)).toEqual({ x: 4, y: 5 });
+    expect(moved.get(2)).toEqual({ x: 5, y: 5 });
+  });
+
+  it('rotates a vertex and its subtree about its parent, preserving edge lengths', () => {
+    const moved = bpTreeDragUpdates({
+      vertexId: 1,
+      parentId: 0,
+      vertices,
+      subtreeIds: [1, 2],
+      start: { x: 1, y: 0 },
+      // A quarter turn about the root.
+      target: { x: 0, y: 4 },
+    });
+    const one = moved.get(1);
+    const two = moved.get(2);
+    expect(one?.x).toBeCloseTo(0);
+    expect(one?.y).toBeCloseTo(1);
+    expect(two?.x).toBeCloseTo(0);
+    expect(two?.y).toBeCloseTo(2);
+    // Untouched: rotation is scoped to the subtree.
+    expect(moved.has(0)).toBe(false);
+    // Every edge keeps its length — the invariant the whole rule exists for.
+    expect(Math.hypot(one!.x - 0, one!.y - 0)).toBeCloseTo(1);
+    expect(Math.hypot(two!.x - one!.x, two!.y - one!.y)).toBeCloseTo(1);
+  });
+
+  it('moves nothing when the parent is unknown', () => {
+    expect(
+      bpTreeDragUpdates({
+        vertexId: 1,
+        parentId: 99,
+        vertices,
+        subtreeIds: [1, 2],
+        start: { x: 1, y: 0 },
+        target: { x: 0, y: 1 },
+      }).size
+    ).toBe(0);
+  });
+
+  it('moves nothing when the dragged vertex is missing from its own subtree', () => {
+    expect(
+      bpTreeDragUpdates({
+        vertexId: 1,
+        parentId: 0,
+        vertices,
+        subtreeIds: [2],
+        start: { x: 1, y: 0 },
+        target: { x: 0, y: 1 },
+      }).size
+    ).toBe(0);
   });
 });

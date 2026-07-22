@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Maximize2, ZoomIn, ZoomOut } from 'lucide-react';
+import { Layers, Maximize2, ZoomIn, ZoomOut } from 'lucide-react';
 import { IconButton } from '../ui/IconButton';
 
 const ZOOM_PRESETS = [25, 50, 100, 200, 400];
@@ -97,4 +97,72 @@ export function ViewportToolbar({
 
 export function ViewportToolbarSeparator() {
   return <span className="viewport-toolbar__separator" />;
+}
+
+export interface ViewportLayerOption<Key extends string> {
+  key: Key;
+  icon: ReactNode;
+  label: string;
+}
+
+/**
+ * The toolbar's layer-visibility popover: a toggle button and a checkbox list
+ * that closes on an outside click.
+ *
+ * Both BP panes carried their own copy of this, including the outside-click
+ * effect. Only the option table and its labels differ, so those are the props;
+ * everything else lives here once.
+ */
+export function ViewportLayerMenu<Key extends string>({
+  title,
+  options,
+  visible,
+  onChange,
+}: {
+  title: string;
+  options: readonly ViewportLayerOption<Key>[];
+  visible: Record<Key, boolean>;
+  onChange: (key: Key, next: boolean) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const anchorRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onPointerDown = (event: MouseEvent) => {
+      if (anchorRef.current?.contains(event.target as Node)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, [open]);
+
+  return (
+    <div className="viewport-toolbar__menu-anchor" ref={anchorRef}>
+      <IconButton
+        size="sm"
+        variant="toolbar"
+        title={title}
+        isActive={open}
+        onClick={() => setOpen((wasOpen) => !wasOpen)}
+      >
+        <Layers size={14} />
+      </IconButton>
+      {open && (
+        <div className="design-layer-menu" role="menu">
+          {options.map((option) => (
+            <label key={option.key} className="design-layer-option">
+              <input
+                type="checkbox"
+                checked={visible[option.key]}
+                onChange={(event) => onChange(option.key, event.target.checked)}
+              />
+              <span className="design-layer-option__icon">{option.icon}</span>
+              <span>{option.label}</span>
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }

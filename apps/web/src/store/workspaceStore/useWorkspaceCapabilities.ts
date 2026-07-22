@@ -32,7 +32,7 @@ export function useWorkspaceCapabilities() {
   const bpHistoryPastCount = useWorkspaceStore((state) => state.oristudioBpHistoryPast.length);
   const bpHistoryFutureCount = useWorkspaceStore((state) => state.oristudioBpHistoryFuture.length);
   const hasDeletableBpSelection = useWorkspaceStore((state) => {
-    const selection = state.oristudioBpDocument?.selection;
+    const selection = state.oristudioBpSelection;
     const root = state.oristudioBpDocument?.snapshot?.tree?.rootVertexId;
     return (
       (selection?.kind === 'bp-vertex' && selection.id !== root) ||
