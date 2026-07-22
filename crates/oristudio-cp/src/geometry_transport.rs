@@ -26,7 +26,10 @@ const SEG_ATTR_STRIDE: usize = 4;
 const CIRCLE_ATTR_STRIDE: usize = 2;
 
 /// Flat geometry buffers (destined for JS typed arrays) plus a small structured tail.
-#[derive(Debug, Clone, PartialEq)]
+///
+/// `Serialize`/`Deserialize` support the native (Tauri) IPC path; the wasm bridge
+/// hand-builds typed arrays instead (`compact_to_js`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CompactGeometry {
     /// `[ax, ay, bx, by]` per line segment.
     pub seg_endpoints: Vec<f64>,

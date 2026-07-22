@@ -79,6 +79,7 @@ fn handle_opened_event(_app: &tauri::AppHandle, _event: tauri::RunEvent) {}
 pub fn run() {
     tauri::Builder::default()
         .manage(OpenedFiles::default())
+        .manage(cp_engine::new_state())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             platform_ping,
@@ -87,7 +88,40 @@ pub fn run() {
             write_text_file,
             write_binary_file,
             take_opened_files,
-            cp_engine::cp_operation_descriptors
+            // CP engine — keep in lockstep with cp_engine::NATIVE_CP_COMMAND_NAMES.
+            cp_engine::cp_operation_descriptors,
+            cp_engine::cp_load_cp,
+            cp_engine::cp_load_fold,
+            cp_engine::cp_load_fold_file,
+            cp_engine::cp_load_ori,
+            cp_engine::cp_load_orh,
+            cp_engine::cp_load_document,
+            cp_engine::cp_restore_document,
+            cp_engine::cp_document_snapshot,
+            cp_engine::cp_document_geometry,
+            cp_engine::cp_restore_from_compact,
+            cp_engine::cp_document_summary,
+            cp_engine::cp_free_document,
+            cp_engine::cp_execute_command,
+            cp_engine::cp_preview_command,
+            cp_engine::cp_insert_line_segments,
+            cp_engine::cp_deselect_all,
+            cp_engine::cp_import_add,
+            cp_engine::cp_replace_line_segments,
+            cp_engine::cp_export_cp,
+            cp_engine::cp_export_fold,
+            cp_engine::cp_export_fold_file,
+            cp_engine::cp_export_ori,
+            cp_engine::cp_export_orh,
+            cp_engine::cp_folded_figure_fold,
+            cp_engine::cp_folded_figure_fold_selected,
+            cp_engine::cp_folded_figure_snapshot,
+            cp_engine::cp_folded_figure_render_snapshot,
+            cp_engine::cp_folded_figure_set_model,
+            cp_engine::cp_folded_figure_duplicate,
+            cp_engine::cp_folded_figure_fold_another,
+            cp_engine::cp_folded_figure_fold_to_case,
+            cp_engine::cp_free_folded_figure,
         ])
         .build(tauri::generate_context!())
         .expect("error while building Ori Studio")

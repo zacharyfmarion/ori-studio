@@ -28,6 +28,46 @@ use crate::{
     execute_command, io, operation_descriptors, operations, preview_command,
 };
 
+/// Canonical CP engine command surface — the single source of truth for parity
+/// across the wasm bridge, the native Tauri commands, and the frontend clients.
+/// Each name maps to a [`CpSession`] operation. A bridge that adds or drops a
+/// command without updating this list fails its parity test.
+pub const CP_ENGINE_COMMANDS: &[&str] = &[
+    "operation_descriptors",
+    "load_cp",
+    "load_fold",
+    "load_fold_file",
+    "load_ori",
+    "load_orh",
+    "load_document",
+    "restore_document",
+    "document_snapshot",
+    "document_geometry",
+    "restore_from_compact",
+    "document_summary",
+    "free_document",
+    "execute_command",
+    "preview_command",
+    "insert_line_segments",
+    "deselect_all",
+    "import_add",
+    "replace_line_segments",
+    "export_cp",
+    "export_fold",
+    "export_fold_file",
+    "export_ori",
+    "export_orh",
+    "folded_figure_fold",
+    "folded_figure_fold_selected",
+    "folded_figure_snapshot",
+    "folded_figure_render_snapshot",
+    "folded_figure_set_model",
+    "folded_figure_duplicate",
+    "folded_figure_fold_another",
+    "folded_figure_fold_to_case",
+    "free_folded_figure",
+];
+
 /// Error envelope shared by both bridges. Serializes to `{ code, message }`,
 /// the shape the frontend's `WasmErrorEnvelope` already expects.
 #[derive(Debug, Clone, Serialize)]
