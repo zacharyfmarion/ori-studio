@@ -121,11 +121,19 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
   };
 
   const setLoadedBpProject = (
-    document: OristudioBpDocumentState,
+    loaded: OristudioBpDocumentState,
     message: string,
     options: { preserveEditCanvas?: boolean } = {}
   ) => {
     pendingHistory = null;
+    // Start anchored on the root. A canvas click attaches a leaf to the selected
+    // vertex and nothing else, so without this a fresh design would open with no
+    // anchor and the first click would do nothing.
+    const rootVertexId = loaded.snapshot.tree.rootVertexId;
+    const document: OristudioBpDocumentState =
+      rootVertexId === null
+        ? loaded
+        : { ...loaded, selection: { kind: 'bp-vertex', id: rootVertexId } };
     set({
       workflowTarget: 'box-pleat',
       pendingDesignChoice: false,

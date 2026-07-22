@@ -382,6 +382,11 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     },
     [topology]
   );
+  // The vertex a canvas click attaches a new leaf to. This is exactly the
+  // selected vertex — with no fallback to the root, so clearing the selection
+  // disarms adding, and the hover ghost and the click can't disagree about
+  // where the leaf would land.
+  const addAnchorId = selectedVertexId;
   const linkedSelection = useMemo(
     () => bpLinkedSelection(document.selection, document),
     [document]
@@ -472,7 +477,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
   // leaf; otherwise it reflects onto the parent's mirror.
   const symmetryHoverPreview = useMemo(() => {
     if (!symmetry.enabled || dragging || !hoverPoint) return null;
-    const parentId = selectedVertexId ?? tree.rootVertexId;
+    const parentId = addAnchorId;
     if (parentId === null) return null;
     const parent = findVertex(parentId);
     if (!parent) return null;
@@ -511,7 +516,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     symmetry.pairs,
     dragging,
     hoverPoint,
-    selectedVertexId,
+    addAnchorId,
     tree,
     paperRect,
     findVertex,
@@ -726,9 +731,10 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     if (!down || event.button !== 0 || spacePressed) return;
     const movedPx = Math.hypot(event.clientX - down.clientX, event.clientY - down.clientY);
     if (movedPx >= BP_TREE_DRAG_START_THRESHOLD_PX) return;
-    // A plain click on the sheet adds a unit-length leaf to the selected vertex
-    // (or the root), pointing toward the click.
-    const parentId = selectedVertexId ?? tree.rootVertexId;
+    // A plain click on the sheet adds a unit-length leaf to the selected vertex,
+    // pointing toward the click. With nothing selected there's no anchor, so the
+    // click just falls through.
+    const parentId = addAnchorId;
     if (parentId === null) return;
     const parent = findVertex(parentId);
     if (!parent) return;
