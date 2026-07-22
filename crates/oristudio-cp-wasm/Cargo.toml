@@ -13,10 +13,6 @@ include = ["Cargo.toml", "src/**", "tests/**", "!pkg/**"]
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-[features]
-# Console phase-timing + counters for fold-estimation perf diagnosis. No-op off.
-fold-profiling = ["oristudio-cp/fold-profiling"]
-
 # Keep function names in `wasm-pack build --profiling` output so browser
 # profiles show real symbols instead of `wasm-function[NNN]`.
 [package.metadata.wasm-pack.profile.profiling]

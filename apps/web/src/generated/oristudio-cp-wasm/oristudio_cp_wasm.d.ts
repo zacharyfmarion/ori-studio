@@ -4,21 +4,15 @@
 export function cp_operation_descriptors(): any;
 
 /**
- * Clear the document's selection flags. A non-command mutation (no undo entry):
- * the frontend selection is authoritative, and a UI deselect (Escape / click-off)
- * must clear the kernel too, or a later select/deselect re-derives the stale set.
+ * Clear the document's selection flags (a non-command mutation with no undo
+ * entry) so a UI deselect keeps the kernel selection in sync.
  */
 export function deselect_all(handle: number): number;
 
 /**
- * Compact, transfer-friendly geometry for the hot render/interaction path.
- *
- * Returns a plain JS object whose bulk-geometry fields are typed arrays (each
- * backed by its own transferable `ArrayBuffer`) plus a small serde `tail`. This
- * is the fast counterpart to [`document_snapshot`]: it skips the O(n)
- * JS-object-graph build and lets the worker `transfer` the buffers to the main
- * thread instead of structured-cloning them. Coordinates stay `f64`
- * (`Float64Array`), so nothing on this path loses precision.
+ * Compact, transfer-friendly geometry for the hot render/interaction path. The
+ * bulk-geometry fields become typed arrays (each backed by its own transferable
+ * `ArrayBuffer`) so the worker can `transfer` rather than structured-clone.
  */
 export function document_geometry(handle: number): any;
 
@@ -60,9 +54,7 @@ export function free_folded_figure(handle: number): void;
 
 /**
  * Oriedita import (add): merge the document behind `imported_handle` into the
- * document behind `handle`, mirroring `setSave_for_reading_tuika`. The imported
- * pattern is shifted to sit beside the existing one and divided against it.
- * Returns the resulting line-segment count.
+ * document behind `handle`. Returns the resulting line-segment count.
  */
 export function import_add(handle: number, imported_handle: number): number;
 
@@ -85,21 +77,14 @@ export function preview_cp_command(handle: number, operation: any, payload: any)
 export function replace_line_segments(handle: number, line_ids: any, segments: any): number;
 
 /**
- * Replace the document behind an existing handle in place.
- *
- * Unlike [`load_document`], which allocates a fresh handle, this mutates the
- * document already stored at `handle`. Undo/redo and whole-document edits use
- * this so the handle stays stable (mirroring Oriedita's in-place
- * `foldLineSet.setSave` restore), which keeps the editor's viewport from being
- * treated as a brand-new document load.
+ * Replace the document behind an existing handle in place (undo/redo,
+ * whole-document edits); keeps the handle stable, unlike [`load_document`].
  */
 export function restore_document(handle: number, document: any): void;
 
 /**
  * Restore a document in place from the compact geometry produced by
- * [`document_geometry`]. Used by undo/redo: `decode` is the exact inverse of
- * `encode`, so the restored model is identical to the one that was captured.
- * Keeps the handle stable, mirroring [`restore_document`].
+ * [`document_geometry`] (undo/redo). Keeps the handle stable.
  */
 export function restore_from_compact(handle: number, value: any): void;
 
