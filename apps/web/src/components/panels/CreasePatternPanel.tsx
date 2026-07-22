@@ -22,7 +22,6 @@ import {
   ImagePlus,
   ListChecks,
   Loader2,
-  Maximize2,
   Trash2,
 } from 'lucide-react';
 import {
@@ -40,6 +39,7 @@ import type {
   OristudioCpCommandResult,
   OristudioCpDiagnosticEntry,
   OristudioCpDocumentSnapshot,
+  FoldedFigurePlacement,
   OristudioCpFoldedFigureDisplayStyle,
   OristudioCpFoldedFigureEntry,
   OristudioCpFoldedFigureModel,
@@ -48,6 +48,7 @@ import type {
   OristudioCpLineColor,
   OristudioCpLineSegment,
 } from '../../engine/oristudioCpTypes';
+import { IDENTITY_FOLDED_PLACEMENT } from '../../engine/oristudioCpTypes';
 import type { Point } from '../../lib/geometry';
 import {
   cpDiagnosticEntryMessage,
@@ -123,7 +124,11 @@ import type { ContextMenuItem, ContextMenuRequest } from '../ui/contextMenuTypes
 import { vertexPointsFromTransport } from '../../engine/oristudioCpGeometry';
 import { CanvasObjectOverlay } from '../../cp-workspace/CanvasObjectOverlay';
 import type { CanvasObjectBoxUpdate } from '../../cp-workspace/CanvasObjectOverlay';
-import { annotationAsTransformable } from '../../cp-workspace/canvasObjects/transformableObject';
+import {
+  annotationAsTransformable,
+  foldedFigureAsTransformable,
+} from '../../cp-workspace/canvasObjects/transformableObject';
+import type { TransformableCanvasObject } from '../../cp-workspace/canvasObjects/transformableObject';
 import type { AnnotationResizeHandle } from '../../cp-workspace/annotations/annotationTransform';
 import { CpTextAnnotationLayer } from '../../cp-workspace/CpTextAnnotationLayer';
 import { CpImageInspector } from '../../cp-workspace/CpImageInspector';
@@ -171,7 +176,7 @@ import { resolveCpLineColor } from '../../cp-workspace/adapters/cpLineColor';
 import { readCssVarColor } from '../../cp-workspace/renderer/cssColor';
 import { useThemeStore } from '../../store/themeStore';
 import type { FoldedGeometry, Rgba, StrokeGeometry } from '../../cp-workspace/renderer/types';
-import { foldedGeometryFromShapes } from '../../cp-workspace/adapters/cpFoldedToScene';
+import { foldedFigureBox, foldedGeometryFromShapes } from '../../cp-workspace/adapters/cpFoldedToScene';
 import {
   allowsDirectEntitySelection,
   isCreaseToggleMvClickTool,
@@ -1073,6 +1078,9 @@ export function CreasePatternPanel() {
   const removeAnnotation = useWorkspaceStore((state) => state.removeAnnotation);
   const setSelectedAnnotation = useWorkspaceStore((state) => state.setSelectedAnnotation);
   const recordAnnotationHistory = useWorkspaceStore((state) => state.recordAnnotationHistory);
+  const recordFoldedFigureHistory = useWorkspaceStore(
+    (state) => state.recordFoldedFigureHistory
+  );
   const selectedAnnotation =
     oristudioCpAnnotations.find((a) => a.id === oristudioCpSelectedAnnotationId) ?? null;
   const selectedCpImage =
@@ -1447,6 +1455,132 @@ export function CreasePatternPanel() {
       ),
     [oristudioCpFoldedFigures]
   );
+  // Folded-figure state captured at the start of a gesture, so a whole drag
+  // records one undo entry — the same shape the annotation layer uses.
+  const preGestureFoldedFiguresRef = useRef<readonly OristudioCpFoldedFigureEntry[] | null>(null);
+  const preGestureActiveFoldedIdRef = useRef<string | null>(null);
+  const beginFoldedFigureGesture = useCallback(() => {
+    preGestureFoldedFiguresRef.current = useWorkspaceStore.getState().oristudioCpFoldedFigures;
+    preGestureActiveFoldedIdRef.current =
+      useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId;
+  }, []);
+  const commitFoldedFigureGesture = useCallback(
+    (label: string) => {
+      const previous = preGestureFoldedFiguresRef.current;
+      const previousActiveId = preGestureActiveFoldedIdRef.current;
+      preGestureFoldedFiguresRef.current = null;
+      if (previous) recordFoldedFigureHistory([...previous], label, previousActiveId);
+    },
+    [recordFoldedFigureHistory]
+  );
+  const foldedGestureLabel = useCallback(
+    (kind: 'move' | 'resize' | 'rotate' | 'crop') => {
+      switch (kind) {
+        case 'move':
+          return t('panels:creasePattern.moveFoldedForm', 'Move folded form');
+        case 'rotate':
+          return t('panels:creasePattern.rotateFoldedForm', 'Rotate folded form');
+        default:
+          // A folded figure has no crop affordance, so any handle drag resizes.
+          return t('panels:creasePattern.resizeFoldedForm', 'Resize folded form');
+      }
+    },
+    [t]
+  );
+
+  // Folded figures are the third canvas-object kind. They keep their own
+  // kernel-backed state, so only the box is shared with annotations; gestures
+  // write back through the figure's web-side placement.
+  const foldedFigureObjects = useMemo(
+    () =>
+      generatedFoldedFigures
+        .map(foldedFigureAsTransformable)
+        .filter((object): object is TransformableCanvasObject => object !== null),
+    [generatedFoldedFigures]
+  );
+  // One overlay for every canvas object, so chrome and hit-testing resolve in a
+  // single pass and the two kinds cannot both show handles at once.
+  const canvasObjects = useMemo(
+    () => [...annotationObjects, ...foldedFigureObjects],
+    [annotationObjects, foldedFigureObjects]
+  );
+  const isFoldedFigureId = useCallback(
+    (id: string) => foldedFigureObjects.some((object) => object.id === id),
+    [foldedFigureObjects]
+  );
+  // The canvas's single selection: whichever kind currently owns it. The store
+  // keeps the two ids mutually exclusive, so at most one is non-null.
+  const selectedCanvasObjectId = oristudioCpSelectedAnnotationId ?? oristudioCpActiveFoldedFigureId;
+  const selectCanvasObject = useCallback(
+    (id: string | null) => {
+      if (id === null) {
+        setSelectedAnnotation(null);
+        setOristudioCpActiveFoldedFigure(null);
+        return;
+      }
+      if (isFoldedFigureId(id)) setOristudioCpActiveFoldedFigure(id);
+      else setSelectedAnnotation(id);
+    },
+    [isFoldedFigureId, setSelectedAnnotation, setOristudioCpActiveFoldedFigure]
+  );
+  const handleFoldedFigureBoxUpdate = useCallback(
+    (id: string, patch: CanvasObjectBoxUpdate) => {
+      const figure = useWorkspaceStore
+        .getState()
+        .oristudioCpFoldedFigures.find((candidate) => candidate.id === id);
+      if (!figure) return;
+      const base = foldedFigureBox({ ...figure, placement: IDENTITY_FOLDED_PLACEMENT });
+      if (!base) return;
+      const next: Partial<FoldedFigurePlacement> = {};
+      if (patch.center) {
+        // The overlay reports an absolute centre; placement stores the offset
+        // from where the fold put the figure.
+        next.offset = {
+          x: patch.center.x - base.center.x,
+          y: patch.center.y - base.center.y,
+        };
+      }
+      if (patch.width !== undefined && base.width > 0) {
+        // Resize is always proportional for a folded figure, so either extent
+        // recovers the same scalar.
+        next.scale = patch.width / base.width;
+      }
+      if (patch.rotation !== undefined) next.rotation = patch.rotation;
+      setOristudioCpFoldedFigurePlacement(id, next);
+    },
+    [setOristudioCpFoldedFigurePlacement]
+  );
+
+  // Gesture dispatch: the overlay reports box updates by id, and the id decides
+  // which store the update belongs in.
+  const handleCanvasObjectUpdate = useCallback(
+    (id: string, patch: CanvasObjectBoxUpdate) => {
+      if (isFoldedFigureId(id)) handleFoldedFigureBoxUpdate(id, patch);
+      else handleAnnotationBoxUpdate(id, patch);
+    },
+    [isFoldedFigureId, handleFoldedFigureBoxUpdate, handleAnnotationBoxUpdate]
+  );
+  const beginCanvasObjectGesture = useCallback(
+    (id: string) => {
+      if (isFoldedFigureId(id)) beginFoldedFigureGesture();
+      else beginImageGesture();
+    },
+    [isFoldedFigureId, beginImageGesture, beginFoldedFigureGesture]
+  );
+  const commitCanvasObjectGesture = useCallback(
+    (id: string, kind: 'move' | 'resize' | 'rotate' | 'crop') => {
+      if (isFoldedFigureId(id)) commitFoldedFigureGesture(foldedGestureLabel(kind));
+      else commitImageGesture(annotationGestureLabel(kind));
+    },
+    [
+      isFoldedFigureId,
+      commitImageGesture,
+      annotationGestureLabel,
+      commitFoldedFigureGesture,
+      foldedGestureLabel,
+    ]
+  );
+
   const foldedFigureStatusLabel = activeFoldedFigure
     ? activeFoldedFigure.status === 'ready' || activeFoldedFigure.status === 'stale'
       ? t('panels:creasePattern.case', 'Case {{count}}', {
@@ -1519,8 +1653,6 @@ export function CreasePatternPanel() {
   // Right-click context menu for a folded form. Items act on the clicked figure by
   // id (not the active one), so they behave correctly even before selection settles.
   const [foldedContextMenu, setFoldedContextMenu] = useState<ContextMenuRequest | null>(null);
-  // The folded figure armed for a drag-to-scale gesture (chosen "Scale"), or null.
-  const [pendingScaleFigureId, setPendingScaleFigureId] = useState<string | null>(null);
   const buildFoldedFigureMenuItems = useCallback(
     (figure: OristudioCpFoldedFigureEntry): ContextMenuItem[] => {
       const ready =
@@ -1539,15 +1671,6 @@ export function CreasePatternPanel() {
             void updateOristudioCpFoldedFigureModel(figure.id, {
               state: flipFoldedState(currentState),
             }),
-        },
-        {
-          kind: 'action',
-          id: 'scale',
-          label: t('panels:creasePattern.scale', 'Scale'),
-          icon: <Maximize2 size={14} />,
-          disabled: !ready,
-          // Arm the canvas; the next drag scales this figure live.
-          onSelect: () => setPendingScaleFigureId(figure.id),
         },
         {
           kind: 'action',
@@ -3199,18 +3322,6 @@ export function CreasePatternPanel() {
                       circles: additive ? merge(base.circles, sets.circles) : sets.circles,
                     });
                   }}
-                  onMoveFoldedFigure={(figureId, delta) => {
-                    const figure = oristudioCpFoldedFigures.find(
-                      (candidate) => candidate.id === figureId
-                    );
-                    if (!figure) return;
-                    setOristudioCpFoldedFigurePlacement(figureId, {
-                      offset: {
-                        x: figure.placement.offset.x + delta.x,
-                        y: figure.placement.offset.y + delta.y,
-                      },
-                    });
-                  }}
                   onTranslateSelection={(delta) => {
                     void transformOristudioCpSelection({ kind: 'translate', delta });
                   }}
@@ -3267,11 +3378,6 @@ export function CreasePatternPanel() {
                   circles={editableCp.crease_pattern.circles}
                   circleRadiusToSvg={editableCircleRadiusToSvg}
                   foldedFigures={generatedFoldedFigures}
-                  scaleFoldedFigureId={pendingScaleFigureId}
-                  onScaleFoldedFigure={(figureId, scale) => {
-                    setOristudioCpFoldedFigurePlacement(figureId, { scale });
-                  }}
-                  onScaleFoldedFigureEnd={() => setPendingScaleFigureId(null)}
                   importedForms={cpImportedFoldedFormsGeometry}
                   grid={editableCpVisibleGrid}
                   gridVisible={oristudioCpViewport.gridVisible}
@@ -3296,19 +3402,19 @@ export function CreasePatternPanel() {
                     onSyncHeight={syncAnnotationHeight}
                   />
                 )}
-                {webglOverlayView && annotationObjects.length > 0 && (
+                {webglOverlayView && canvasObjects.length > 0 && (
                   <CanvasObjectOverlay
-                    objects={annotationObjects}
-                    selectedId={oristudioCpSelectedAnnotationId}
+                    objects={canvasObjects}
+                    selectedId={selectedCanvasObjectId}
                     suppressedId={editingTextId}
                     interactive={annotationsInteractive}
-                    onSelect={setSelectedAnnotation}
-                    onUpdate={handleAnnotationBoxUpdate}
+                    onSelect={selectCanvasObject}
+                    onUpdate={handleCanvasObjectUpdate}
                     onCropUpdate={handleAnnotationCrop}
                     onRequestEdit={handleRequestEditText}
                     canCrop={canCropAnnotation}
-                    onGestureStart={beginImageGesture}
-                    onGestureCommit={(_id, kind) => commitImageGesture(annotationGestureLabel(kind))}
+                    onGestureStart={beginCanvasObjectGesture}
+                    onGestureCommit={commitCanvasObjectGesture}
                   />
                 )}
                 {annotationsInteractive && selectedCpImage && !editingTextId && (

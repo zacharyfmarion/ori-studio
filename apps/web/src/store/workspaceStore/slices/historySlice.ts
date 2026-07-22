@@ -36,6 +36,7 @@ import type {
 } from '../../../engine/oristudioCpTypes';
 import type { OristudioCpSelection } from '../../../lib/creasePatternViewport';
 import type { BpHistorySnapshot } from '../types';
+import type { OristudioCpFoldedFigureEntry } from '../../../engine/oristudioCpTypes';
 import type { CanvasAnnotation } from '../../../cp-workspace/annotations/annotation';
 import { markGeneratedCpLineageStale } from '../../../lib/oristudioCpLineage';
 
@@ -53,16 +54,34 @@ function cpHistoryEntry(
   document: OristudioCpDocumentSnapshot,
   selection: OristudioCpSelection,
   annotations: CanvasAnnotation[],
+  foldedFigures: OristudioCpFoldedFigureEntry[],
+  activeFoldedFigureId: string | null,
   label = 'Edit',
-  annotationsOnly = false
+  overlayOnly = false
 ): OristudioCpHistoryEntry {
   return {
     document,
     selection,
     annotations,
-    annotationsOnly,
+    foldedFigures,
+    activeFoldedFigureId,
+    overlayOnly,
     label,
     timestamp: new Date().toISOString(),
+  };
+}
+
+/**
+ * The folded-figure state a history entry restores. Entries written before
+ * folded figures joined the undo stack have no `foldedFigures`, and restoring
+ * `undefined` over the live list would wipe the user's figures — so an entry
+ * that never captured them leaves them alone.
+ */
+function restoredFoldedFigureState(entry: OristudioCpHistoryEntry) {
+  if (!entry.foldedFigures) return {};
+  return {
+    oristudioCpFoldedFigures: entry.foldedFigures,
+    oristudioCpActiveFoldedFigureId: entry.activeFoldedFigureId ?? null,
   };
 }
 
@@ -188,17 +207,28 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
       if (!previous || !current || get().historyBusy) return false;
       const currentSelection = get().oristudioCpSelection;
       const currentAnnotations = get().oristudioCpAnnotations;
+      const currentFoldedFigures = get().oristudioCpFoldedFigures;
+      const currentActiveFoldedId = get().oristudioCpActiveFoldedFigureId;
       set({ historyBusy: true, error: null, oristudioCpError: null });
       try {
-        // Image-only edits: swap the image layer without reloading the (unchanged)
-        // wasm document, so image undo stays cheap.
-        if (previous.annotationsOnly) {
+        // Overlay-only edits (annotations, folded figures): swap those layers
+        // without reloading the (unchanged) wasm document, so they stay cheap.
+        if (previous.overlayOnly) {
           set({
             oristudioCpAnnotations: previous.annotations,
             oristudioCpSelectedAnnotationId: null,
+            ...restoredFoldedFigureState(previous),
             oristudioCpHistoryPast: past.slice(0, -1),
             oristudioCpHistoryFuture: [
-              cpHistoryEntry(current.document, currentSelection, currentAnnotations, previous.label, true),
+              cpHistoryEntry(
+                current.document,
+                currentSelection,
+                currentAnnotations,
+                currentFoldedFigures,
+                currentActiveFoldedId,
+                previous.label,
+                true
+              ),
               ...get().oristudioCpHistoryFuture,
             ].slice(0, MAX_HISTORY),
             dirty: true,
@@ -222,9 +252,18 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
           ),
           oristudioCpAnnotations: previous.annotations,
           oristudioCpSelectedAnnotationId: null,
+          ...restoredFoldedFigureState(previous),
           oristudioCpHistoryPast: past.slice(0, -1),
           oristudioCpHistoryFuture: [
-            cpHistoryEntry(current.document, currentSelection, currentAnnotations, previous.label, false),
+            cpHistoryEntry(
+              current.document,
+              currentSelection,
+              currentAnnotations,
+              currentFoldedFigures,
+              currentActiveFoldedId,
+              previous.label,
+              false
+            ),
             ...get().oristudioCpHistoryFuture,
           ].slice(0, MAX_HISTORY),
           ...staleFoldArtifactResourceState(get().foldArtifactRevision),
@@ -302,15 +341,26 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
       if (!next || !current || get().historyBusy) return false;
       const currentSelection = get().oristudioCpSelection;
       const currentAnnotations = get().oristudioCpAnnotations;
+      const currentFoldedFigures = get().oristudioCpFoldedFigures;
+      const currentActiveFoldedId = get().oristudioCpActiveFoldedFigureId;
       set({ historyBusy: true, error: null, oristudioCpError: null });
       try {
-        if (next.annotationsOnly) {
+        if (next.overlayOnly) {
           set({
             oristudioCpAnnotations: next.annotations,
             oristudioCpSelectedAnnotationId: null,
+            ...restoredFoldedFigureState(next),
             oristudioCpHistoryPast: [
               ...get().oristudioCpHistoryPast,
-              cpHistoryEntry(current.document, currentSelection, currentAnnotations, next.label, true),
+              cpHistoryEntry(
+                current.document,
+                currentSelection,
+                currentAnnotations,
+                currentFoldedFigures,
+                currentActiveFoldedId,
+                next.label,
+                true
+              ),
             ].slice(-MAX_HISTORY),
             oristudioCpHistoryFuture: future.slice(1),
             dirty: true,
@@ -328,9 +378,18 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
           ...setRestoredCreasePatternState(restored, next.selection, get().oristudioCpCamvResult),
           oristudioCpAnnotations: next.annotations,
           oristudioCpSelectedAnnotationId: null,
+          ...restoredFoldedFigureState(next),
           oristudioCpHistoryPast: [
             ...get().oristudioCpHistoryPast,
-            cpHistoryEntry(current.document, currentSelection, currentAnnotations, next.label, false),
+            cpHistoryEntry(
+              current.document,
+              currentSelection,
+              currentAnnotations,
+              currentFoldedFigures,
+              currentActiveFoldedId,
+              next.label,
+              false
+            ),
           ].slice(-MAX_HISTORY),
           oristudioCpHistoryFuture: future.slice(1),
           ...staleFoldArtifactResourceState(get().foldArtifactRevision),

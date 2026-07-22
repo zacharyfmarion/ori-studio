@@ -54,6 +54,7 @@ import {
   setOristudioCpFoldedFigureModel as setRuntimeOristudioCpFoldedFigureModel,
 } from '../oristudioCpRuntime';
 import type { CreasePatternSlice, WorkspaceSliceCreator } from '../types';
+import type { CanvasAnnotation } from '../../../cp-workspace/annotations/annotation';
 import { IDENTITY_FOLDED_PLACEMENT } from '../../../engine/oristudioCpTypes';
 import type {
   OristudioCpFoldedFigureDisplayStyle,
@@ -174,6 +175,38 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
   function refreshFoldedFigureSelectionMarkers(...ids: Array<string | null | undefined>) {
     const uniqueIds = [...new Set(ids.filter((id): id is string => Boolean(id)))];
     void Promise.all(uniqueIds.map((id) => refreshFoldedFigureSelectionMarker(id)));
+  }
+
+  /**
+   * Push one overlay-layer undo entry: the state *before* an action that touched
+   * only annotations and/or folded figures, never the wasm document. Shared by
+   * both overlay layers so the entry shape and the redo-stack clear can't drift.
+   */
+  function pushOverlayHistoryEntry(input: {
+    annotations: CanvasAnnotation[];
+    foldedFigures: OristudioCpFoldedFigureEntry[];
+    activeFoldedFigureId: string | null;
+    label: string;
+  }): void {
+    const document = get().oristudioCpDocument;
+    if (!document) return;
+    set({
+      oristudioCpHistoryPast: [
+        ...get().oristudioCpHistoryPast,
+        {
+          document: document.document,
+          selection: get().oristudioCpSelection,
+          annotations: input.annotations,
+          foldedFigures: input.foldedFigures,
+          activeFoldedFigureId: input.activeFoldedFigureId,
+          overlayOnly: true,
+          label: input.label,
+          timestamp: new Date().toISOString(),
+        },
+      ].slice(-MAX_CP_HISTORY),
+      oristudioCpHistoryFuture: [],
+      dirty: true,
+    });
   }
 
   function foldedFigureIndex(id: string): number {
@@ -668,7 +701,14 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
 
     setOristudioCpActiveFoldedFigure: (oristudioCpActiveFoldedFigureId) => {
       const previousActiveId = get().oristudioCpActiveFoldedFigureId;
-      set({ oristudioCpActiveFoldedFigureId });
+      set({
+        oristudioCpActiveFoldedFigureId,
+        // The other half of the canvas's single-selection rule: selecting a
+        // folded figure drops the annotation selection. See setSelectedAnnotation.
+        ...(oristudioCpActiveFoldedFigureId !== null
+          ? { oristudioCpSelectedAnnotationId: null }
+          : {}),
+      });
       refreshFoldedFigureSelectionMarkers(previousActiveId, oristudioCpActiveFoldedFigureId);
     },
 
@@ -1269,13 +1309,23 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         dirty: true,
       }),
 
-    setSelectedAnnotation: (id) =>
+    setSelectedAnnotation: (id) => {
+      const resolved =
+        id !== null && get().oristudioCpAnnotations.some((annotation) => annotation.id === id)
+          ? id
+          : null;
+      const previousFoldedId = get().oristudioCpActiveFoldedFigureId;
       set({
-        oristudioCpSelectedAnnotationId:
-          id !== null && get().oristudioCpAnnotations.some((annotation) => annotation.id === id)
-            ? id
-            : null,
-      }),
+        oristudioCpSelectedAnnotationId: resolved,
+        // The canvas has one selection. Selecting an annotation drops the folded
+        // figure's selection so two objects never show handles at once; enforced
+        // here rather than at the call sites so the invariant cannot drift.
+        ...(resolved !== null ? { oristudioCpActiveFoldedFigureId: null } : {}),
+      });
+      if (resolved !== null && previousFoldedId) {
+        refreshFoldedFigureSelectionMarkers(previousFoldedId);
+      }
+    },
 
     syncAnnotationHeight: (id, height) =>
       set({
@@ -1309,24 +1359,21 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
             : null,
       }),
 
-    recordAnnotationHistory: (previous, label) => {
-      const document = get().oristudioCpDocument;
-      if (!document) return;
-      set({
-        oristudioCpHistoryPast: [
-          ...get().oristudioCpHistoryPast,
-          {
-            document: document.document,
-            selection: get().oristudioCpSelection,
-            annotations: previous,
-            annotationsOnly: true,
-            label,
-            timestamp: new Date().toISOString(),
-          },
-        ].slice(-MAX_CP_HISTORY),
-        oristudioCpHistoryFuture: [],
-        dirty: true,
-      });
-    },
+    recordAnnotationHistory: (previous, label) =>
+      pushOverlayHistoryEntry({
+        annotations: previous,
+        foldedFigures: get().oristudioCpFoldedFigures,
+        activeFoldedFigureId: get().oristudioCpActiveFoldedFigureId,
+        label,
+      }),
+
+    recordFoldedFigureHistory: (previous, label, previousActiveId) =>
+      pushOverlayHistoryEntry({
+        annotations: get().oristudioCpAnnotations,
+        foldedFigures: previous,
+        activeFoldedFigureId:
+          previousActiveId === undefined ? get().oristudioCpActiveFoldedFigureId : previousActiveId,
+        label,
+      }),
   };
 };

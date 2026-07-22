@@ -68,11 +68,27 @@ export interface OristudioCpHistoryEntry {
   /** Annotation layer (images + text boxes) at the captured moment. */
   annotations: CanvasAnnotation[];
   /**
-   * True when the entry captures an annotation-layer-only change (add/move/
-   * resize/rotate/crop/edit/delete). Undo/redo then swaps the annotation layer
+   * Folded figures at the captured moment. Entries carry their own
+   * `renderSnapshot`, which is all that is needed to draw them, so restoring is
+   * a plain assignment — no re-fold and no kernel replay. (The wasm handle is
+   * only needed to run *further* kernel operations on a figure; a reopened
+   * `.osf` draws its figures with `handle: null` for exactly this reason.)
+   *
+   * Entries are immutable and the slice `.map()`s, so an unchanged figure's
+   * `renderSnapshot` is the *same object* across every history entry. That
+   * structural sharing is what keeps history memory bounded — the retained
+   * count is the number of rendering-changing actions, not the history depth.
+   */
+  foldedFigures: OristudioCpFoldedFigureEntry[];
+  activeFoldedFigureId: string | null;
+  /**
+   * True when the entry captures an *overlay-layer-only* change: annotations
+   * (add/move/resize/rotate/crop/edit/delete) and/or folded figures (place,
+   * recolour, refold, duplicate, delete). Folding never mutates the CP document,
+   * so every folded action qualifies. Undo/redo then swaps the overlay layers
    * without reloading the (unchanged) wasm document, keeping edits cheap.
    */
-  annotationsOnly?: boolean;
+  overlayOnly?: boolean;
   label: string;
   timestamp: string;
 }
@@ -469,6 +485,17 @@ export interface CreasePatternSliceActions {
    * state). Pushes an `annotationsOnly` history entry and clears the redo stack.
    */
   recordAnnotationHistory: (previous: CanvasAnnotation[], label: string) => void;
+  /**
+   * Record a folded-figure change into the CP undo history. `previous` is the
+   * figure list *before* the action (the store already holds the result).
+   * Pushes an `overlayOnly` entry and clears the redo stack — the counterpart of
+   * {@link recordAnnotationHistory} for the other overlay layer.
+   */
+  recordFoldedFigureHistory: (
+    previous: OristudioCpFoldedFigureEntry[],
+    label: string,
+    previousActiveId?: string | null
+  ) => void;
 }
 
 export type CreasePatternSlice = CreasePatternSliceState & CreasePatternSliceActions;

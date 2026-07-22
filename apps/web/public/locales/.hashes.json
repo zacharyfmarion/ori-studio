@@ -718,7 +718,6 @@
     "panels:creasePattern.noImportedCreasePattern": "0ce281afe8c3",
     "panels:creasePattern.none": "dc937b598926",
     "panels:creasePattern.optimizingScale": "5a0577a79c05",
-    "panels:creasePattern.scale": "f102986b39ef",
     "panels:creasePattern.selectedCount_other": "c7f761b38b19",
     "panels:creasePattern.sendImageToBack": "331b9c07d4ef",
     "panels:creasePattern.shadow": "4c764cb6248e",
@@ -1729,7 +1728,10 @@
     "panels:creasePattern.cropImage": "508ed9b9b866",
     "panels:creasePattern.moveAnnotation": "d84e90b3730f",
     "panels:creasePattern.resizeAnnotation": "c3352ccfd0c4",
-    "panels:creasePattern.rotateAnnotation": "cc7f294dd7a7"
+    "panels:creasePattern.rotateAnnotation": "cc7f294dd7a7",
+    "panels:creasePattern.moveFoldedForm": "996f77e83eaf",
+    "panels:creasePattern.resizeFoldedForm": "5bcce0ba8e93",
+    "panels:creasePattern.rotateFoldedForm": "bd9b2311ddd5"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -2450,7 +2452,6 @@
     "panels:creasePattern.noImportedCreasePattern": "0ce281afe8c3",
     "panels:creasePattern.none": "dc937b598926",
     "panels:creasePattern.optimizingScale": "5a0577a79c05",
-    "panels:creasePattern.scale": "f102986b39ef",
     "panels:creasePattern.selectedCount_other": "c7f761b38b19",
     "panels:creasePattern.sendImageToBack": "331b9c07d4ef",
     "panels:creasePattern.shadow": "4c764cb6248e",
@@ -3461,7 +3462,10 @@
     "panels:creasePattern.cropImage": "508ed9b9b866",
     "panels:creasePattern.moveAnnotation": "d84e90b3730f",
     "panels:creasePattern.resizeAnnotation": "c3352ccfd0c4",
-    "panels:creasePattern.rotateAnnotation": "cc7f294dd7a7"
+    "panels:creasePattern.rotateAnnotation": "cc7f294dd7a7",
+    "panels:creasePattern.moveFoldedForm": "996f77e83eaf",
+    "panels:creasePattern.resizeFoldedForm": "5bcce0ba8e93",
+    "panels:creasePattern.rotateFoldedForm": "bd9b2311ddd5"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -4201,7 +4205,6 @@
     "panels:creasePattern.noImportedCreasePattern": "0ce281afe8c3",
     "panels:creasePattern.none": "dc937b598926",
     "panels:creasePattern.optimizingScale": "5a0577a79c05",
-    "panels:creasePattern.scale": "f102986b39ef",
     "panels:creasePattern.selectedCount_one": "c7f761b38b19",
     "panels:creasePattern.selectedCount_other": "c7f761b38b19",
     "panels:creasePattern.sendImageToBack": "331b9c07d4ef",
@@ -5218,7 +5221,10 @@
     "panels:creasePattern.cropImage": "508ed9b9b866",
     "panels:creasePattern.moveAnnotation": "d84e90b3730f",
     "panels:creasePattern.resizeAnnotation": "c3352ccfd0c4",
-    "panels:creasePattern.rotateAnnotation": "cc7f294dd7a7"
+    "panels:creasePattern.rotateAnnotation": "cc7f294dd7a7",
+    "panels:creasePattern.moveFoldedForm": "996f77e83eaf",
+    "panels:creasePattern.resizeFoldedForm": "5bcce0ba8e93",
+    "panels:creasePattern.rotateFoldedForm": "bd9b2311ddd5"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -5958,7 +5964,6 @@
     "panels:creasePattern.noImportedCreasePattern": "0ce281afe8c3",
     "panels:creasePattern.none": "dc937b598926",
     "panels:creasePattern.optimizingScale": "5a0577a79c05",
-    "panels:creasePattern.scale": "f102986b39ef",
     "panels:creasePattern.selectedCount_one": "c7f761b38b19",
     "panels:creasePattern.selectedCount_other": "c7f761b38b19",
     "panels:creasePattern.sendImageToBack": "331b9c07d4ef",
@@ -6975,7 +6980,10 @@
     "panels:creasePattern.cropImage": "508ed9b9b866",
     "panels:creasePattern.moveAnnotation": "d84e90b3730f",
     "panels:creasePattern.resizeAnnotation": "c3352ccfd0c4",
-    "panels:creasePattern.rotateAnnotation": "cc7f294dd7a7"
+    "panels:creasePattern.rotateAnnotation": "cc7f294dd7a7",
+    "panels:creasePattern.moveFoldedForm": "996f77e83eaf",
+    "panels:creasePattern.resizeFoldedForm": "5bcce0ba8e93",
+    "panels:creasePattern.rotateFoldedForm": "bd9b2311ddd5"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -7715,7 +7723,6 @@
     "panels:creasePattern.noImportedCreasePattern": "0ce281afe8c3",
     "panels:creasePattern.none": "dc937b598926",
     "panels:creasePattern.optimizingScale": "5a0577a79c05",
-    "panels:creasePattern.scale": "f102986b39ef",
     "panels:creasePattern.selectedCount_one": "c7f761b38b19",
     "panels:creasePattern.selectedCount_other": "c7f761b38b19",
     "panels:creasePattern.sendImageToBack": "331b9c07d4ef",
@@ -8732,7 +8739,10 @@
     "panels:creasePattern.cropImage": "508ed9b9b866",
     "panels:creasePattern.moveAnnotation": "d84e90b3730f",
     "panels:creasePattern.resizeAnnotation": "c3352ccfd0c4",
-    "panels:creasePattern.rotateAnnotation": "cc7f294dd7a7"
+    "panels:creasePattern.rotateAnnotation": "cc7f294dd7a7",
+    "panels:creasePattern.moveFoldedForm": "996f77e83eaf",
+    "panels:creasePattern.resizeFoldedForm": "5bcce0ba8e93",
+    "panels:creasePattern.rotateFoldedForm": "bd9b2311ddd5"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -9472,7 +9482,6 @@
     "panels:creasePattern.noImportedCreasePattern": "0ce281afe8c3",
     "panels:creasePattern.none": "dc937b598926",
     "panels:creasePattern.optimizingScale": "5a0577a79c05",
-    "panels:creasePattern.scale": "f102986b39ef",
     "panels:creasePattern.selectedCount_one": "c7f761b38b19",
     "panels:creasePattern.selectedCount_other": "c7f761b38b19",
     "panels:creasePattern.sendImageToBack": "331b9c07d4ef",
@@ -10489,7 +10498,10 @@
     "panels:creasePattern.cropImage": "508ed9b9b866",
     "panels:creasePattern.moveAnnotation": "d84e90b3730f",
     "panels:creasePattern.resizeAnnotation": "c3352ccfd0c4",
-    "panels:creasePattern.rotateAnnotation": "cc7f294dd7a7"
+    "panels:creasePattern.rotateAnnotation": "cc7f294dd7a7",
+    "panels:creasePattern.moveFoldedForm": "996f77e83eaf",
+    "panels:creasePattern.resizeFoldedForm": "5bcce0ba8e93",
+    "panels:creasePattern.rotateFoldedForm": "bd9b2311ddd5"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -11229,7 +11241,6 @@
     "panels:creasePattern.noImportedCreasePattern": "0ce281afe8c3",
     "panels:creasePattern.none": "dc937b598926",
     "panels:creasePattern.optimizingScale": "5a0577a79c05",
-    "panels:creasePattern.scale": "f102986b39ef",
     "panels:creasePattern.selectedCount_one": "c7f761b38b19",
     "panels:creasePattern.selectedCount_other": "c7f761b38b19",
     "panels:creasePattern.sendImageToBack": "331b9c07d4ef",
@@ -12246,7 +12257,10 @@
     "panels:creasePattern.cropImage": "508ed9b9b866",
     "panels:creasePattern.moveAnnotation": "d84e90b3730f",
     "panels:creasePattern.resizeAnnotation": "c3352ccfd0c4",
-    "panels:creasePattern.rotateAnnotation": "cc7f294dd7a7"
+    "panels:creasePattern.rotateAnnotation": "cc7f294dd7a7",
+    "panels:creasePattern.moveFoldedForm": "996f77e83eaf",
+    "panels:creasePattern.resizeFoldedForm": "5bcce0ba8e93",
+    "panels:creasePattern.rotateFoldedForm": "bd9b2311ddd5"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12967,7 +12981,6 @@
     "panels:creasePattern.noImportedCreasePattern": "0ce281afe8c3",
     "panels:creasePattern.none": "dc937b598926",
     "panels:creasePattern.optimizingScale": "5a0577a79c05",
-    "panels:creasePattern.scale": "f102986b39ef",
     "panels:creasePattern.selectedCount_other": "c7f761b38b19",
     "panels:creasePattern.sendImageToBack": "331b9c07d4ef",
     "panels:creasePattern.shadow": "4c764cb6248e",
@@ -13978,6 +13991,9 @@
     "panels:creasePattern.cropImage": "508ed9b9b866",
     "panels:creasePattern.moveAnnotation": "d84e90b3730f",
     "panels:creasePattern.resizeAnnotation": "c3352ccfd0c4",
-    "panels:creasePattern.rotateAnnotation": "cc7f294dd7a7"
+    "panels:creasePattern.rotateAnnotation": "cc7f294dd7a7",
+    "panels:creasePattern.moveFoldedForm": "996f77e83eaf",
+    "panels:creasePattern.resizeFoldedForm": "5bcce0ba8e93",
+    "panels:creasePattern.rotateFoldedForm": "bd9b2311ddd5"
   }
 }

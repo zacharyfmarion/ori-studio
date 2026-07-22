@@ -116,23 +116,6 @@ import { useThemeStore } from '../store/themeStore';
 /** Cap DPR at 2 — matches the perf budget and avoids 3x/4x fill on hidpi. */
 const MAX_DPR = 2;
 
-/**
- * The figure list with one entry's placement scaled by `factor` — the live
- * preview for a drag-to-scale gesture, without writing to the store. Placement
- * already pivots on the figure's own centre, so this is the whole preview.
- */
-function withScaledPlacement(
-  figures: readonly OristudioCpFoldedFigureEntry[],
-  figureId: string,
-  factor: number
-): OristudioCpFoldedFigureEntry[] {
-  return figures.map((figure) =>
-    figure.id === figureId
-      ? { ...figure, placement: { ...figure.placement, scale: figure.placement.scale * factor } }
-      : figure
-  );
-}
-
 /** Stable empty image list so the upload effect doesn't re-run on every render. */
 const EMPTY_IMAGES: readonly CpImage[] = [];
 /** Stable empty text-box list so the bounds memo doesn't re-run each render. */
@@ -417,12 +400,6 @@ export interface CreasePatternWebglCanvasProps {
   /** Marquee (box) select callback with the touched ids by type. */
   onBoxSelect: (sets: CpBoxSelection, additive: boolean) => void;
   /**
-   * Drag a folded figure by `delta` SVG user units (cmd/ctrl-drag over it,
-   * mirroring Oriedita). Called repeatedly during the drag with incremental
-   * deltas.
-   */
-  onMoveFoldedFigure: (figureId: string, delta: { x: number; y: number }) => void;
-  /**
    * Commit a translation of the selected crease lines by `delta` (model coords),
    * on release of a selection move-drag. Line-based, matching the SVG selection
    * transform.
@@ -618,17 +595,6 @@ export interface CreasePatternWebglCanvasProps {
   circleRadiusToSvg: (radius: number) => number;
   /** Generated folded figures (render-snapshot primitives). */
   foldedFigures: readonly OristudioCpFoldedFigureEntry[];
-  /**
-   * The folded figure armed for a drag-to-scale gesture, or null. When set, the
-   * next canvas drag scales that figure live (previewing without a store write);
-   * on release the canvas reports the new absolute scale via
-   * {@link onScaleFoldedFigure} and clears the arm via {@link onScaleFoldedFigureEnd}.
-   */
-  scaleFoldedFigureId: string | null;
-  /** Commit a folded figure's new absolute `model.scale` (drag-to-scale release). */
-  onScaleFoldedFigure: (figureId: string, scale: number) => void;
-  /** The scale gesture ended (committed or cancelled); clear the armed state. */
-  onScaleFoldedFigureEnd: () => void;
   /** Imported `.fold` folded-form frames as fills + strokes (user coords), or null. */
   importedForms: FoldedGeometry | null;
   /** Grid parameters, or null when there is no grid. */
@@ -665,7 +631,6 @@ export function CreasePatternWebglCanvas({
   selectedCircleIds,
   onSelect,
   onBoxSelect,
-  onMoveFoldedFigure,
   onTranslateSelection,
   resolveMoveSnap,
   activeToolInputMode,
@@ -713,9 +678,6 @@ export function CreasePatternWebglCanvas({
   circles,
   circleRadiusToSvg,
   foldedFigures,
-  scaleFoldedFigureId,
-  onScaleFoldedFigure,
-  onScaleFoldedFigureEnd,
   importedForms,
   grid,
   gridVisible,
@@ -954,16 +916,12 @@ export function CreasePatternWebglCanvas({
     circleRadiusToSvg,
     foldedFigures,
     foldedBounds,
-    scaleFoldedFigureId,
-    onScaleFoldedFigure,
-    onScaleFoldedFigureEnd,
-    selectedLineSet,
+          selectedLineSet,
     buildStrokes,
     buildPoints,
     onSelect,
     onBoxSelect,
-    onMoveFoldedFigure,
-    onTranslateSelection,
+      onTranslateSelection,
     resolveMoveSnap,
     activeToolInputMode,
     activeToolStepKinds,
@@ -1209,10 +1167,6 @@ export function CreasePatternWebglCanvas({
       }
       return null;
     };
-
-    // The figure's committed placement scale, the base the preview factor multiplies.
-    const baseScaleFor = (figureId: string): number =>
-      liveRef.current.foldedFigures.find((figure) => figure.id === figureId)?.placement.scale ?? 1;
 
     const modelToleranceOf = (cssTol: number): number => {
       const cam = cameraRef.current;
@@ -1902,39 +1856,10 @@ export function CreasePatternWebglCanvas({
       );
       renderNow();
     };
-    // Active folded-figure drag: figure id + last cursor position in user coords.
-    let movingFigure: string | null = null;
-    // Active drag-to-scale of a folded figure: the armed figure, the press Y, its
-    // committed base scale, and the running preview factor. The gesture scales
-    // about the figure's own centre, which its placement already pivots on, so
-    // there is no separate pivot to track.
-    let scalingFigure: {
-      id: string;
-      startY: number;
-      baseScale: number;
-      factor: number;
-    } | null = null;
-    // Restore the folded geometry to its committed (unscaled-preview) state.
-    const clearScalePreview = () => {
-      rendererRef.current?.setFolded(cpFoldedToScene(liveRef.current.foldedFigures));
-      renderNow();
-    };
-    // Cancel an armed/active scale gesture: drop any preview + clear the arm.
-    const cancelScaling = () => {
-      if (!scalingFigure) {
-        if (liveRef.current.scaleFoldedFigureId) liveRef.current.onScaleFoldedFigureEnd();
-        return;
-      }
-      scalingFigure = null;
-      clearScalePreview();
-      liveRef.current.onScaleFoldedFigureEnd();
-    };
     // Active selection move-drag: press point (model) and running delta (model).
     let movingSelection = false;
     let moveStart: ModelPoint | null = null;
     let moveDelta: ModelPoint = { x: 0, y: 0 };
-    let lastUserX = 0;
-    let lastUserY = 0;
     let lastX = 0;
     let lastY = 0;
     let pressX = 0;
@@ -1944,27 +1869,6 @@ export function CreasePatternWebglCanvas({
       lastY = pressY = e.clientY;
       moved = false;
       const toolMode = liveRef.current.activeToolInputMode;
-      const armedScaleId = liveRef.current.scaleFoldedFigureId;
-      if (armedScaleId && e.button === 0) {
-        // A folded figure is armed for scaling (Scale chosen from its context menu):
-        // this primary drag scales it live about its centre. Right/other buttons
-        // below fall through to their normal gestures after disarming.
-        e.preventDefault();
-        if (liveRef.current.foldedFigures.some((figure) => figure.id === armedScaleId)) {
-          scalingFigure = {
-            id: armedScaleId,
-            startY: e.clientY,
-            baseScale: baseScaleFor(armedScaleId),
-            factor: 1,
-          };
-          canvas.setPointerCapture(e.pointerId);
-          return;
-        }
-        // Nothing to scale (figure vanished) — abandon the arm and carry on.
-        cancelScaling();
-        return;
-      }
-      if (armedScaleId) cancelScaling();
       if (e.button === 2) {
         // Right button: universal erase gesture, overrides any active tool.
         e.preventDefault();
@@ -1972,17 +1876,10 @@ export function CreasePatternWebglCanvas({
         eraseRuntime = createToolRuntime(toolEngineFor('drag-box'));
         feedErase('down', e.clientX, e.clientY);
       } else if (e.metaKey || e.ctrlKey) {
+        // cmd/ctrl pans. Folded figures are grabbed through the canvas-object
+        // overlay now, which sits above this canvas and takes the press first.
         e.preventDefault();
-        // cmd/ctrl over a folded figure grabs it to move; otherwise it pans.
-        const figureId = figureAt(e.clientX, e.clientY);
-        const u = figureId ? clientToUser(e.clientX, e.clientY) : null;
-        if (figureId && u) {
-          movingFigure = figureId;
-          lastUserX = u.x;
-          lastUserY = u.y;
-        } else {
-          panning = true;
-        }
+        panning = true;
       } else if (toolMode === 'sequence') {
         // Click-based tool: place a point / pick a crease (no drag). Hover previews.
         e.preventDefault();
@@ -2054,27 +1951,13 @@ export function CreasePatternWebglCanvas({
       ) {
         moved = true;
       }
-      if (scalingFigure) {
-        // Drag up to enlarge, down to shrink: an exponential map keeps the feel
-        // even across a wide range. Preview only — no store write until release.
-        const factor = Math.pow(2, (scalingFigure.startY - e.clientY) / 200);
-        scalingFigure.factor = factor;
-        rendererRef.current?.setFolded(
-          cpFoldedToScene(
-            withScaledPlacement(liveRef.current.foldedFigures, scalingFigure.id, factor)
-          )
-        );
-        renderNow();
-        return;
-      }
       if (erasing) {
         feedErase('move', e.clientX, e.clientY);
       } else if (drawing) {
         feedTool('move', e.clientX, e.clientY);
       } else if (
         liveRef.current.activeToolInputMode === 'lengthen' &&
-        !panning &&
-        !movingFigure
+        !panning 
       ) {
         // Lengthen: draw the selection line while dragging, or (in the extension
         // phase) track the target-point cursor. Fires on hover too.
@@ -2082,7 +1965,6 @@ export function CreasePatternWebglCanvas({
       } else if (
         liveRef.current.activeToolInputMode === 'angle-drag' &&
         !panning &&
-        !movingFigure &&
         !movingSelection &&
         !selecting
       ) {
@@ -2092,7 +1974,6 @@ export function CreasePatternWebglCanvas({
       } else if (
         liveRef.current.activeToolInputMode === 'sequence' &&
         !panning &&
-        !movingFigure &&
         !movingSelection &&
         !selecting
       ) {
@@ -2101,7 +1982,6 @@ export function CreasePatternWebglCanvas({
       } else if (
         liveRef.current.activeToolInputMode === 'line-entity' &&
         !panning &&
-        !movingFigure &&
         !movingSelection &&
         !selecting
       ) {
@@ -2110,7 +1990,6 @@ export function CreasePatternWebglCanvas({
       } else if (
         liveRef.current.activeToolInputMode === 'drag-line' &&
         !panning &&
-        !movingFigure &&
         !movingSelection &&
         !selecting
       ) {
@@ -2145,18 +2024,6 @@ export function CreasePatternWebglCanvas({
             renderNow();
           }
         }
-      } else if (movingFigure) {
-        const u = clientToUser(e.clientX, e.clientY);
-        if (u) {
-          liveRef.current.onMoveFoldedFigure(movingFigure, {
-            x: u.x - lastUserX,
-            y: u.y - lastUserY,
-          });
-          lastUserX = u.x;
-          lastUserY = u.y;
-          // The store update re-renders via the foldedFigures prop; no manual
-          // draw here (and the camera has not moved, so user coords stay valid).
-        }
       } else if (panning && cameraRef.current) {
         const ratio = dpr();
         panUserCamera(cameraRef.current, (e.clientX - lastX) * ratio, (e.clientY - lastY) * ratio);
@@ -2171,7 +2038,6 @@ export function CreasePatternWebglCanvas({
         textPressStarted &&
         moved &&
         !panning &&
-        !movingFigure &&
         !movingSelection
       ) {
         // Text tool press-drag: rubber-band the box the release will create.
@@ -2180,37 +2046,18 @@ export function CreasePatternWebglCanvas({
       }
     };
     const onPointerUp = (e: PointerEvent) => {
-      if (scalingFigure) {
-        const gesture = scalingFigure;
-        scalingFigure = null;
-        if (e.type === 'pointercancel' || !moved) {
-          // Cancelled, or a click with no drag: drop the preview, keep the scale.
-          clearScalePreview();
-        } else {
-          // Commit the previewed scale (kept > 0) to the figure's placement. The
-          // store update re-renders through the same path the preview used, so
-          // there is nothing to reconcile.
-          const nextScale = Math.max(0.05, gesture.baseScale * gesture.factor);
-          liveRef.current.onScaleFoldedFigure(gesture.id, nextScale);
-        }
-        liveRef.current.onScaleFoldedFigureEnd();
-        if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
-        return;
-      }
       if (
         liveRef.current.activeToolInputMode === 'lengthen' &&
         !erasing &&
-        !panning &&
-        !movingFigure
+        !panning 
       ) {
         feedLengthen(e.type === 'pointercancel' ? 'cancel' : 'up', e.clientX, e.clientY);
-      } else if (liveRef.current.activeToolInputMode === 'angle-drag' && !panning && !movingFigure) {
+      } else if (liveRef.current.activeToolInputMode === 'angle-drag' && !panning) {
         // Angle Restricted Line: release commits the [anchor, endpoint] segment.
         feedAngleDrag(e.type === 'pointercancel' ? 'cancel' : 'up', e.clientX, e.clientY);
       } else if (
         liveRef.current.activeToolInputMode === 'text' &&
-        !panning &&
-        !movingFigure
+        !panning 
       ) {
         // Text tool: a click (no drag) whose press started on the canvas starts an
         // inline-edit draft at that model point; a press-drag creates a text box of
@@ -2299,7 +2146,6 @@ export function CreasePatternWebglCanvas({
       marquee.style.display = 'none';
       panning = false;
       selecting = false;
-      movingFigure = null;
       movingSelection = false;
       moveStart = null;
       if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
@@ -2325,11 +2171,6 @@ export function CreasePatternWebglCanvas({
     // Escape abandons an in-progress point sequence or entity pick.
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
-      // Escape abandons an armed or in-progress folded-figure scale gesture.
-      if (scalingFigure || liveRef.current.scaleFoldedFigureId) {
-        cancelScaling();
-        return;
-      }
       if (liveRef.current.activeToolInputMode === 'sequence') {
         feedSequenceTool('cancel', 0, 0);
       } else if (liveRef.current.activeToolInputMode === 'line-entity') {
