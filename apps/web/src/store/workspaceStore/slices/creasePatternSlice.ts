@@ -1284,11 +1284,24 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
 
     syncAnnotationHeight: (id, height) =>
       set({
-        oristudioCpAnnotations: get().oristudioCpAnnotations.map((annotation) =>
-          annotation.id === id && annotation.kind === 'text'
-            ? { ...annotation, height }
-            : annotation
-        ),
+        oristudioCpAnnotations: get().oristudioCpAnnotations.map((annotation) => {
+          if (annotation.id !== id || annotation.kind !== 'text') return annotation;
+          // Keep the top edge fixed so the box grows *downward* with content
+          // rather than symmetrically about its center: shift the center by half
+          // the height delta along the box's local +y (down) axis. Purely in
+          // model space, so the top-center is invariant regardless of camera.
+          const delta = height - annotation.height;
+          const sin = Math.sin(annotation.rotation);
+          const cos = Math.cos(annotation.rotation);
+          return {
+            ...annotation,
+            height,
+            center: {
+              x: annotation.center.x + (delta / 2) * -sin,
+              y: annotation.center.y + (delta / 2) * cos,
+            },
+          };
+        }),
       }),
 
     setAnnotations: (annotations) =>
