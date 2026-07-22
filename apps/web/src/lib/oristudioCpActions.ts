@@ -24,6 +24,8 @@ export interface OristudioCpActionGroupDefinition {
   label: string;
   railLabel: string;
   order: number;
+  /** Rail renders the group behind a disclosure, closed until the user opens it. */
+  collapsedByDefault?: boolean;
 }
 
 export interface OristudioCpBaseActionDefinition {
@@ -93,6 +95,7 @@ export const ORISTUDIO_CP_ACTION_GROUPS: OristudioCpActionGroupDefinition[] = [
     label: group.label,
     railLabel: group.railLabel,
     order: group.order,
+    collapsedByDefault: group.id === 'advanced',
   })),
 ].sort((a, b) => a.order - b.order);
 

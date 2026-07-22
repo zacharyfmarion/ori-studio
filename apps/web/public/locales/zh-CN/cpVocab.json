@@ -51,6 +51,10 @@
     "file": {
       "label": "文件导入/导出",
       "railLabel": "文件"
+    },
+    "advanced": {
+      "label": "高级工具",
+      "railLabel": "高级"
     }
   },
   "action": {

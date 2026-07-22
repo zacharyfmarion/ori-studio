@@ -19,7 +19,6 @@ import {
   Copy,
   Eye,
   FlipHorizontal2,
-  GitBranch,
   ImagePlus,
   ListChecks,
   Loader2,
@@ -188,6 +187,7 @@ import {
   isCpMeasurementOperation,
   type CpMeasurementSlots,
 } from '../../cp-workspace/measure';
+import { FoldEstimateIcon } from '../ui/FoldEstimateIcon';
 import { IconButton } from '../ui/IconButton';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { Toggle } from '../ui/Toggle';
@@ -3303,11 +3303,12 @@ export function CreasePatternPanel() {
                       <IconButton
                         size="sm"
                         variant="toolbar"
+                        className="cp-fold-button"
                         title={t('panels:creasePattern.fold', 'Fold')}
                         disabled={!canFoldSelectedModel}
                         onClick={handleFoldModel}
                       >
-                        <GitBranch size={14} />
+                        <FoldEstimateIcon height={16} />
                       </IconButton>
                       <IconButton
                         size="sm"
