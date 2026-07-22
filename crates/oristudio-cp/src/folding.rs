@@ -3888,7 +3888,8 @@ fn equivalence_condition_candidates_from_parts(
         .iter()
         .map(|polygon| quad_tree::BBox::from_points(&polygon.vertices).unwrap_or(degenerate))
         .collect();
-    let face_tree = quad_tree::QuadTree::new(face_items, &folded.points, quad_tree::Comparator::Expand);
+    let face_tree =
+        quad_tree::QuadTree::new(face_items, &folded.points, quad_tree::Comparator::Expand);
     let line_items: Vec<quad_tree::BBox> = (0..graph.lines.len())
         .map(|line_index| {
             folded_segments
@@ -3897,18 +3898,22 @@ fn equivalence_condition_candidates_from_parts(
                 .unwrap_or(degenerate)
         })
         .collect();
-    let line_tree = quad_tree::QuadTree::new(line_items, &folded.points, quad_tree::Comparator::Shrink);
+    let line_tree =
+        quad_tree::QuadTree::new(line_items, &folded.points, quad_tree::Comparator::Shrink);
 
-    let mut triple_conditions = Vec::new();
-    for line_index in 0..graph.lines.len() {
+    // Each line's candidates are independent, so these map+flatten passes run in
+    // parallel on native builds (see `flat_map_conditions`). Order is preserved,
+    // so the produced set is byte-identical to the sequential scan.
+    let triple_conditions = flat_map_conditions(0..graph.lines.len(), |line_index| {
+        let mut out = Vec::new();
         let Some((first_face, second_face)) = graph.line_face_border(line_index) else {
-            continue;
+            return out;
         };
         if first_face == second_face {
-            continue;
+            return out;
         }
         let Some(segment) = folded_segments.get(line_index) else {
-            continue;
+            return out;
         };
         let query = quad_tree::BBox::from_segment(segment.a, segment.b);
         for face_index in face_tree.collect_rectangle(query) {
@@ -3920,7 +3925,7 @@ fn equivalence_condition_candidates_from_parts(
                 && polygon.convex_inside(segment)
             {
                 let (above, below) = normalized_pair(&hierarchy, first_face, second_face);
-                triple_conditions.push(EquivalenceCondition {
+                out.push(EquivalenceCondition {
                     a: face_index,
                     b: above,
                     c: face_index,
@@ -3928,44 +3933,69 @@ fn equivalence_condition_candidates_from_parts(
                 });
             }
         }
-    }
+        out
+    });
 
-    let mut quadruple_conditions = Vec::new();
-    for first_line in 0..graph.lines.len().saturating_sub(1) {
-        let Some((first_a, first_b)) = graph.line_face_border(first_line) else {
-            continue;
-        };
-        if first_a == first_b {
-            continue;
-        }
-        let Some(first_segment) = folded_segments.get(first_line) else {
-            continue;
-        };
-        for second_line in line_tree.collect_potential_collision(first_line) {
-            let Some((second_a, second_b)) = graph.line_face_border(second_line) else {
-                continue;
+    let quadruple_conditions =
+        flat_map_conditions(0..graph.lines.len().saturating_sub(1), |first_line| {
+            let mut out = Vec::new();
+            let Some((first_a, first_b)) = graph.line_face_border(first_line) else {
+                return out;
             };
-            if second_a == second_b {
-                continue;
+            if first_a == first_b {
+                return out;
             }
-            let Some(second_segment) = folded_segments.get(second_line) else {
-                continue;
+            let Some(first_segment) = folded_segments.get(first_line) else {
+                return out;
             };
-            if determine_line_segment_intersection(first_segment, second_segment)
-                .is_segment_overlapping()
-                && subfaces_contain_all(subfaces, [first_a, first_b, second_a, second_b])
-            {
-                let (a, b) = normalized_pair(&hierarchy, first_a, first_b);
-                let (c, d) = normalized_pair(&hierarchy, second_a, second_b);
-                quadruple_conditions.push(EquivalenceCondition { a, b, c, d });
+            for second_line in line_tree.collect_potential_collision(first_line) {
+                let Some((second_a, second_b)) = graph.line_face_border(second_line) else {
+                    continue;
+                };
+                if second_a == second_b {
+                    continue;
+                }
+                let Some(second_segment) = folded_segments.get(second_line) else {
+                    continue;
+                };
+                if determine_line_segment_intersection(first_segment, second_segment)
+                    .is_segment_overlapping()
+                    && subfaces_contain_all(subfaces, [first_a, first_b, second_a, second_b])
+                {
+                    let (a, b) = normalized_pair(&hierarchy, first_a, first_b);
+                    let (c, d) = normalized_pair(&hierarchy, second_a, second_b);
+                    out.push(EquivalenceCondition { a, b, c, d });
+                }
             }
-        }
-    }
+            out
+        });
 
     Ok(EquivalenceConditionSet {
         triple_conditions,
         quadruple_conditions,
     })
+}
+
+/// Map `range` to per-item equivalence-condition lists and flatten them, in
+/// sequential (index) order. On native builds with the `parallel` feature this
+/// runs across rayon's thread pool — the fold's condition generation is the
+/// dominant single-threaded cost — while the wasm path (and non-feature builds)
+/// stay sequential. Order preservation keeps the output byte-identical.
+#[cfg(all(feature = "parallel", not(target_arch = "wasm32")))]
+fn flat_map_conditions<F>(range: std::ops::Range<usize>, f: F) -> Vec<EquivalenceCondition>
+where
+    F: Fn(usize) -> Vec<EquivalenceCondition> + Sync + Send,
+{
+    use rayon::prelude::*;
+    range.into_par_iter().flat_map_iter(f).collect()
+}
+
+#[cfg(not(all(feature = "parallel", not(target_arch = "wasm32"))))]
+fn flat_map_conditions<F>(range: std::ops::Range<usize>, f: F) -> Vec<EquivalenceCondition>
+where
+    F: Fn(usize) -> Vec<EquivalenceCondition>,
+{
+    range.flat_map(f).collect()
 }
 
 fn wireframe_from_graph(
@@ -4281,8 +4311,9 @@ fn run_additional_estimation_remove(
             .unwrap_or(0) as u64,
     );
     crate::fold_profiling::bump_additional_estimation_pass();
-    let result = additional_estimation::AdditionalEstimation::new(reduced_subface_face_ids(subfaces))
-        .run_with_removal(table, triple_conditions, quadruple_conditions, 0);
+    let result =
+        additional_estimation::AdditionalEstimation::new(reduced_subface_face_ids(subfaces))
+            .run_with_removal(table, triple_conditions, quadruple_conditions, 0);
     fold_phase_timer!("removeMode reduced conditions");
     #[cfg(all(feature = "fold-profiling", not(target_arch = "wasm32")))]
     eprintln!(
