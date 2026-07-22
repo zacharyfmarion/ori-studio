@@ -67,6 +67,7 @@ import {
   constrainBpPackingFlapGroupTarget,
   getBpPackingWorldRect,
 } from '../../lib/bpPackingViewport';
+import { bpDefaultFlapLabel, bpFlapLabel } from '../../lib/bpFlapLabel';
 import { formatNumber, type Point } from '../../lib/geometry';
 import {
   isBpPackingLayerVisible,
@@ -1814,7 +1815,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                       {layers.dots && <circle className="bp-packing-flap-dot" cx={center.x} cy={center.y} r={4} />}
                       {layers.labels && (
                         <text className="bp-packing-label" x={center.x + 7} y={center.y - 7}>
-                          {flap.name || flap.id}
+                          {bpFlapLabel(flap.id, flap.name)}
                         </text>
                       )}
                     </g>
@@ -1852,12 +1853,16 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                         tabIndex={0}
                         data-bp-select={`flap:${flap.id}`}
                         aria-label={
+                          // `{{id}}` carries the flap's letter label, so what's
+                          // spoken matches what's drawn on the canvas.
                           flap.name
                             ? t('panels:bpPacking.selectFlapWithName', 'Select BP flap {{id}}, {{name}}', {
-                                id: flap.id,
+                                id: bpDefaultFlapLabel(flap.id),
                                 name: flap.name,
                               })
-                            : t('panels:bpPacking.selectFlap', 'Select BP flap {{id}}', { id: flap.id })
+                            : t('panels:bpPacking.selectFlap', 'Select BP flap {{id}}', {
+                                id: bpDefaultFlapLabel(flap.id),
+                              })
                         }
                         onPointerDown={(event) => onFlapPointerDown(event, flap.id)}
                         onPointerMove={(event) => onFlapPointerMove(event, flap)}
@@ -1968,11 +1973,13 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
       {singleSelectedFlap && (
         <BpNameEditor
           key={singleSelectedFlap.id}
-          title={t('panels:bpPacking.flapTitle', 'Flap {{id}}', { id: singleSelectedFlap.id })}
+          title={t('panels:bpPacking.flapTitle', 'Flap {{id}}', {
+            id: bpDefaultFlapLabel(singleSelectedFlap.id),
+          })}
           name={singleSelectedFlap.name}
-          placeholder={`f${singleSelectedFlap.id}`}
+          placeholder={bpDefaultFlapLabel(singleSelectedFlap.id)}
           ariaLabel={t('panels:bpPacking.flapNameAria', 'Name of flap {{id}}', {
-            id: singleSelectedFlap.id,
+            id: bpDefaultFlapLabel(singleSelectedFlap.id),
           })}
           autoFocus
           onRename={(name) => void renameOristudioBpVertex(singleSelectedFlap.vertexId, name)}
@@ -2186,7 +2193,11 @@ function primitiveAriaLabel(
     });
   }
   const flapId = flapIdFromPrimitiveId(primitive.id);
-  if (flapId !== null) return t('panels:bpPacking.selectFlap', 'Select BP flap {{id}}', { id: flapId });
+  if (flapId !== null) {
+    return t('panels:bpPacking.selectFlap', 'Select BP flap {{id}}', {
+      id: bpDefaultFlapLabel(flapId),
+    });
+  }
   const riverId = riverIdFromPrimitiveId(primitive.id, document);
   if (riverId !== null) return t('panels:bpPacking.selectRiverShort', 'Select BP river {{id}}', { id: riverId });
   return undefined;

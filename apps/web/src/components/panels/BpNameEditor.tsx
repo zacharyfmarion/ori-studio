@@ -23,6 +23,7 @@ export function BpNameEditor({
   ariaLabel,
   autoFocus = false,
   onRename,
+  onEscape,
 }: {
   title: string;
   name: string;
@@ -30,6 +31,12 @@ export function BpNameEditor({
   ariaLabel: string;
   autoFocus?: boolean;
   onRename: (name: string) => void;
+  /**
+   * Escape hook for the surrounding surface, fired after the draft is reverted
+   * and the field released. Lets a pane treat Escape as one gesture — abandon
+   * the edit and drop the selection — instead of needing a second press.
+   */
+  onEscape?: () => void;
 }) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState(() => name);
@@ -77,6 +84,7 @@ export function BpNameEditor({
           } else if (event.key === 'Escape') {
             setDraft(name);
             event.currentTarget.blur();
+            onEscape?.();
           }
         }}
       />

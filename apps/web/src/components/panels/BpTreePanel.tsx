@@ -19,6 +19,7 @@ import type {
 } from '../../engine/oristudioBpTypes';
 import {
   bpLinkedSelection,
+  bpSelectionSize,
   toggleBpEdgeSelection,
   toggleBpVertexSelection,
 } from '../../lib/oristudioBpSelection';
@@ -31,6 +32,7 @@ import {
   getBpTreeWorldRect,
   svgToBpTreePoint,
 } from '../../lib/bpTreeViewport';
+import { bpDefaultFlapLabel } from '../../lib/bpFlapLabel';
 import { formatNumber, type Point } from '../../lib/geometry';
 import { rotatePointsAround, translatePoints, unitLeafLocation } from '../../lib/bpTreeAuthoring';
 import {
@@ -192,9 +194,11 @@ function BpTreeViewportToolbar({
 function BpTreeEdgeLengthEditor({
   edge,
   onSetLength,
+  onEscape,
 }: {
   edge: OristudioBpTreeEdge;
   onSetLength: (length: number) => void;
+  onEscape?: () => void;
 }) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState(() => formatNumber(edge.length, 2));
@@ -254,6 +258,7 @@ function BpTreeEdgeLengthEditor({
           } else if (event.key === 'Escape') {
             setDraft(formatNumber(edge.length, 2));
             event.currentTarget.blur();
+            onEscape?.();
           }
         }}
       />
@@ -539,6 +544,13 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     [topology, findVertex, subtreeOf, setOristudioBpTreeEdgeLength]
   );
 
+  // Escape drops the selection and returns the keyboard to the canvas. Nothing in
+  // the tree stays selected, so the contextual length/name editors close too.
+  const clearSelection = useCallback(() => {
+    if (bpSelectionSize(document.selection) > 0) selectOristudioBp({ kind: 'bp-tree' });
+    containerRef.current?.focus();
+  }, [document.selection, selectOristudioBp]);
+
   const eventToTreePoint = useCallback(
     (event: PointerEvent): Point => {
       const svg = svgRef.current;
@@ -671,6 +683,12 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
         event.preventDefault();
         setSpacePressed(true);
       }
+      // The contextual editors fire their own Escape (revert, then clear via
+      // onEscape), so only handle the canvas case here.
+      if (event.key === 'Escape' && !interactive) {
+        event.preventDefault();
+        clearSelection();
+      }
     };
 
     const onKeyUp = (event: KeyboardEvent) => {
@@ -688,7 +706,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('blur', clearSpace);
     };
-  }, []);
+  }, [clearSelection]);
 
   const onCanvasAddPointerDown = (event: PointerEvent<Element>) => {
     if (event.button !== 0 || spacePressed || isViewportInteractiveTarget(event.target)) {
@@ -1076,19 +1094,23 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
         <BpTreeEdgeLengthEditor
           edge={selectedEdge}
           onSetLength={(length) => void setEdgeLength(selectedEdge, length)}
+          onEscape={clearSelection}
         />
       )}
       {selectedFlapVertex && (
         <BpNameEditor
           key={selectedFlapVertex.id}
-          title={t('panels:bpTree.flapTitle', 'Flap {{id}}', { id: selectedFlapVertex.id })}
+          title={t('panels:bpTree.flapTitle', 'Flap {{id}}', {
+            id: bpDefaultFlapLabel(selectedFlapVertex.id),
+          })}
           name={selectedFlapVertex.name}
-          placeholder={`f${selectedFlapVertex.id}`}
+          placeholder={bpDefaultFlapLabel(selectedFlapVertex.id)}
           ariaLabel={t('panels:bpTree.flapNameAria', 'Name of flap {{id}}', {
-            id: selectedFlapVertex.id,
+            id: bpDefaultFlapLabel(selectedFlapVertex.id),
           })}
           autoFocus={nameAutoFocus}
           onRename={(name) => void renameOristudioBpVertex(selectedFlapVertex.id, name)}
+          onEscape={clearSelection}
         />
       )}
     </div>
