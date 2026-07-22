@@ -255,16 +255,37 @@ export function bpArcPathToSvgPath(
     point.arc ? bpPackingPointToSvg(point.arc, sheet, rect) : null
   );
 
+  // A junction region is the intersection of two rounded rects — convex — so
+  // every arc on its boundary turns the same way. Take that direction once from
+  // the path's winding rather than from a per-corner cross product, which flips
+  // on a near-collinear corner and bulges that one arc outward, drawing the
+  // conflict outside the flap it belongs to. Upstream emits a constant sweep for
+  // the same reason (`svgGraphics.arcTo`); deriving it from the winding also
+  // survives a path handed to us in the opposite order.
+  // Walk the control polygon — each point followed by the anchor of the arc that
+  // leaves it — so the winding is well defined even for a two-vertex lens, whose
+  // points alone enclose no area.
+  const control: Point[] = [];
+  for (let i = 0; i < points.length; i++) {
+    control.push(points[i]);
+    const next = (i + 1) % points.length;
+    const anchor = anchors[next];
+    if (anchor) control.push(anchor);
+  }
+  let signedArea = 0;
+  for (let i = 0; i < control.length; i++) {
+    const from = control[i];
+    const to = control[(i + 1) % control.length];
+    signedArea += from.x * to.y - to.x * from.y;
+  }
+  // Screen space is y-down, so a positive signed area is a clockwise path.
+  const sweep = signedArea > 0 ? 1 : 0;
+
   const segment = (index: number, to: Point): string => {
-    const anchor = anchors[index];
     const radius = path[index].r;
-    const from = index === 0 ? points[points.length - 1] : points[index - 1];
-    if (!anchor || radius == null) return `L${round(to.x)},${round(to.y)}`;
-    const cross =
-      (anchor.x - from.x) * (to.y - anchor.y) - (anchor.y - from.y) * (to.x - anchor.x);
+    if (!anchors[index] || radius == null) return `L${round(to.x)},${round(to.y)}`;
     const radiusPx = radius * unit;
-    if (cross === 0 || radiusPx <= 0) return `L${round(to.x)},${round(to.y)}`;
-    const sweep = cross > 0 ? 1 : 0;
+    if (radiusPx <= 0) return `L${round(to.x)},${round(to.y)}`;
     return `A${round(radiusPx)},${round(radiusPx)},0,0,${sweep},${round(to.x)},${round(to.y)}`;
   };
 

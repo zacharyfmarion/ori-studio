@@ -221,6 +221,22 @@ describe('bpArcPathToSvgPath', () => {
     expect(sweeps(bpArcPathToSvgPath(mirrored, s))).toEqual(['1', '1']);
   });
 
+  it('turns every arc the same way, since a junction region is convex', () => {
+    // The region is an intersection of two rounded rects, so its boundary can
+    // only curve one way. A per-corner decision flips on a near-collinear corner
+    // and bulges that arc outward — drawing the conflict outside the flap.
+    const nearlyCollinear = [
+      { x: 2, y: 2, arc: { x: 2.5, y: 2.0001 }, r: 1 },
+      { x: 3, y: 2.0002, arc: { x: 3.5, y: 2.0003 }, r: 1 },
+      { x: 4, y: 2.0001, arc: { x: 3, y: 3 }, r: 1 },
+    ];
+    const sweeps = (d: string) =>
+      [...d.matchAll(/A([^AZL]*)/g)].map((match) => match[1].split(',')[4]);
+    const flags = sweeps(bpArcPathToSvgPath(nearlyCollinear, s));
+    expect(flags.length).toBeGreaterThan(1);
+    expect(new Set(flags).size).toBe(1);
+  });
+
   it('returns nothing for an empty path', () => {
     expect(bpArcPathToSvgPath([], s)).toBe('');
   });
