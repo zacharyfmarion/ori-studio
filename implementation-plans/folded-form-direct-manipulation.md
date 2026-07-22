@@ -452,57 +452,61 @@ parity semantics.
 
 **Phase 1 — placement model + geometry cache** (no UI change; folded forms keep
 moving via cmd/ctrl-drag, now through the placement)
-- [ ] Add `FoldedFigurePlacement` and `placement` to `OristudioCpFoldedFigureEntry`; keep reading `displayOffset` on load
-- [ ] Split `cpFoldedToScene` into memoized `foldedFigureLocalGeometry` + `applyFoldedPlacement`; derive `foldedFigureUserBounds` from the cached local bbox
-- [ ] Delete `FoldedFigureScalePreview` and the preview parameter
-- [ ] Store: `setOristudioCpFoldedFigurePlacement(id, patch)` replaces `moveOristudioCpFoldedFigure`
-- [ ] `.osf` read/write + backward-compat test for `displayOffset` → `placement`
-- [ ] Unit tests: placement composition (scale/rotate about the displayed centre), bbox under placement
+- [x] Add `FoldedFigurePlacement` and `placement` to `OristudioCpFoldedFigureEntry`; keep reading `displayOffset` on load
+- [x] Split `cpFoldedToScene` into memoized `foldedFigureLocalGeometry` + `applyFoldedPlacement`; derive `foldedFigureUserBounds` from the cached local bbox
+- [x] Delete `FoldedFigureScalePreview` and the preview parameter
+- [x] Store: `setOristudioCpFoldedFigurePlacement(id, patch)` replaces `moveOristudioCpFoldedFigure`
+- [x] `.osf` read/write + backward-compat test for `displayOffset` → `placement`
+- [x] Unit tests: placement composition (scale/rotate about the displayed centre), bbox under placement
 
 **Phase 2 — transform-math rename + aspect-ratio rule**
-- [ ] Split `cpImagePlacement.ts`: box math → `annotations/annotationTransform.ts`, crop/fit stay image-specific; `resizeImage` → `resizeAnnotationBox`, `CpImageResizeHandle` → `AnnotationResizeHandle`
-- [ ] Honor `aspectLock` on edge handles; tests for corner + edge, locked + free
-- [ ] Add `resizeAspectLock` resolver + tests (image default-on, text default-off, folded always)
-- [ ] Wire the overlay to it — Shift now *frees* an image resize instead of locking it
+- [x] Split `cpImagePlacement.ts`: box math → `annotations/annotationTransform.ts`, crop/fit stay image-specific; `resizeImage` → `resizeAnnotationBox`, `CpImageResizeHandle` → `AnnotationResizeHandle`
+- [x] Honor `aspectLock` on edge handles; tests for corner + edge, locked + free
+- [x] Add `resizeAspectLock` resolver + tests (image default-on, text default-off, folded always)
+- [x] Wire the overlay to it — Shift now *frees* an image resize instead of locking it
 
 **Phase 3 — kind-agnostic overlay**
-- [ ] `TransformableCanvasObject` + the two adapters, with tests
-- [ ] `cpOverlayViewStore` and `onViewChange` carry `{ model, user }`
-- [ ] Rename `CpAnnotationOverlay` → `CanvasObjectOverlay`; project each object through its declared space; crop/edit become optional capability callbacks
-- [ ] Corner-only handle set when `aspectLock === 'always'`
-- [ ] Existing annotation tests still pass unchanged
+- [x] `TransformableCanvasObject` + the two adapters, with tests
+- [x] `cpOverlayViewStore` and `onViewChange` carry `{ model, user }`
+- [x] Rename `CpAnnotationOverlay` → `CanvasObjectOverlay`; project each object through its declared space; crop/edit become optional capability callbacks
+- [x] Corner-only handle set when `aspectLock === 'always'`
+- [x] Existing annotation tests still pass unchanged
 
 **Phase 4 — folded figures join the overlay**
-- [ ] Panel feeds folded objects into the overlay; move/resize/rotate write the placement
-- [ ] Mutual-exclusive selection between annotation id and active folded figure id, enforced in the store
-- [ ] Delete the canvas's folded drag/scale machinery and the 4 props
-- [ ] Delete the "Scale" context-menu item; keep Flip / Delete / Duplicate / Wireframe / X-ray
-- [ ] `i18n:extract` → translate → `i18n:stamp` → `i18n:check`
+- [x] Panel feeds folded objects into the overlay; move/resize/rotate write the placement
+- [x] Mutual-exclusive selection between annotation id and active folded figure id, enforced in the store
+- [x] Delete the canvas's folded drag/scale machinery and the 4 props
+- [x] Delete the "Scale" context-menu item; keep Flip / Delete / Duplicate / Wireframe / X-ray
+- [x] `i18n:extract` → translate → `i18n:stamp` → `i18n:check`
 
 **Phase 5 — history entry carries folded figures**
-- [ ] Extend `OristudioCpHistoryEntry` with `foldedFigures` + `activeFoldedFigureId`; rename `annotationsOnly` → `overlayOnly`
-- [ ] Capture + restore on both undo and redo, on both the fast path and the full-document path (`historySlice.ts`)
-- [ ] `recordFoldedFigureHistory(previous, label)` on the slice
-- [ ] Verify the bonus fix: undoing a crease edit restores figures from `stale` back to `ready`
-- [ ] Store tests: undo/redo across a mixed CP-edit + folded-edit sequence
+- [x] Extend `OristudioCpHistoryEntry` with `foldedFigures` + `activeFoldedFigureId`; rename `annotationsOnly` → `overlayOnly`
+- [x] Capture + restore on both undo and redo, on both the fast path and the full-document path (`historySlice.ts`)
+- [x] `recordFoldedFigureHistory(previous, label)` on the slice
+- [x] Verify the bonus fix: undoing a crease edit restores figures from `stale` back to `ready`
+- [x] Store tests: undo/redo across a mixed CP-edit + folded-edit sequence
 
 **Phase 6 — handle refcounting**
-- [ ] `foldedFigureHandles.ts` retain/release with free on 1→0; unit tests
-- [ ] Wire every site: fold, duplicate, delete, history push, history eviction, `clearOristudioCpHistory`, `clearOristudioCpFoldedFigures`, document close
-- [ ] Test: delete → undo → the restored figure is still kernel-editable (colour change works)
-- [ ] Test: delete → undo → push `MAX_CP_HISTORY` entries → the handle is freed exactly once
-- [ ] Assert the structural-sharing assumption in a test: after a colour change, the *other* figures' `renderSnapshot` objects in the new history entry are reference-identical to the previous entry's (this is what keeps history memory bounded)
+- [x] `foldedFigureHandles.ts` retain/release with free on 1→0; unit tests
+- [x] Wire every site: fold, duplicate, delete, history push, history eviction, `clearOristudioCpHistory`, `clearOristudioCpFoldedFigures`, document close
+- [x] Test: delete → undo → the restored figure is still kernel-editable (colour change works)
+- [x] Test: delete → undo → push `MAX_CP_HISTORY` entries → the handle is freed exactly once
+- [x] Assert the structural-sharing assumption in a test: after a colour change, the *other* figures' `renderSnapshot` objects in the new history entry are reference-identical to the previous entry's (this is what keeps history memory bounded)
 
 **Phase 7 — route every folded action through history**
-- [ ] Discrete actions record one entry each with a specific label: fold, fold-another, fold-to-case, display style, flip/side, duplicate, delete, wireframe, x-ray
-- [ ] Continuous controls (3 colour inputs, alpha slider) get begin/commit scoping — one entry per drag
-- [ ] Per-figure request sequencing in `updateOristudioCpFoldedFigureModel`; stale responses dropped
-- [ ] Every folded action sets `dirty: true`
-- [ ] Placement gestures (Phase 4) record via the same helper
-- [ ] `i18n:extract` → translate → `i18n:stamp` → `i18n:check` for the new undo labels
+- [x] Discrete actions record one entry each with a specific label: fold, fold-another, fold-to-case, display style, flip/side, duplicate, delete, wireframe, x-ray
+- [x] Continuous controls (3 colour inputs, alpha slider) get begin/commit scoping — one entry per drag
+- [x] Per-figure request sequencing in `updateOristudioCpFoldedFigureModel`; stale responses dropped
+- [x] Every folded action sets `dirty: true`
+- [x] Placement gestures (Phase 4) record via the same helper
+- [x] `i18n:extract` → translate → `i18n:stamp` → `i18n:check` for the new undo labels
 
 **Phase 8 — validation**
-- [ ] `cd apps/web && npx tsc --noEmit`, `npm run lint:web`, `npm run test:web`
+- [x] `cd apps/web && npx tsc --noEmit`, `npm run lint:web`, `npm run test:web`, `npm run build:web`, `i18n:check`
+- [x] Test-suite delta: 625 → 663 passing (+38). The 48 pre-existing failures on
+      this branch (CommandDialogModal, HelpModal, SettingsModal, StartScreen,
+      ContextMenu, CpToolRail, …) are unrelated to this work and were verified
+      against a clean stash before starting.
 - [ ] Browser checklist for Zach:
   - drag / resize / rotate a folded form; Shift frees an image resize and snaps a rotation
   - undo/redo each gesture
