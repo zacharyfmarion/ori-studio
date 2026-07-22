@@ -4,6 +4,7 @@ import {
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
+  type RefObject,
 } from 'react';
 import type { CpOverlayView } from './CreasePatternWebglCanvas';
 import { IMAGE_ROTATION_SNAP_RADIANS } from './images/cpImage';
@@ -86,6 +87,7 @@ export function CpAnnotationOverlay({
   onRequestEditText,
   onGestureStart,
   onGestureCommit,
+  svgRef,
 }: {
   annotations: readonly CanvasAnnotation[];
   selectedId: string | null;
@@ -101,9 +103,18 @@ export function CpAnnotationOverlay({
   onGestureStart?: () => void;
   /** Called once a gesture actually changed the annotation, for undo/labeling. */
   onGestureCommit?: (id: string, label: string) => void;
+  /** The panel drives pan/zoom by transforming this SVG imperatively. */
+  svgRef?: RefObject<SVGSVGElement | null>;
 }) {
   const dragRef = useRef<Drag | null>(null);
   const containerRef = useRef<SVGSVGElement | null>(null);
+  const setContainer = useCallback(
+    (el: SVGSVGElement | null) => {
+      containerRef.current = el;
+      if (svgRef) svgRef.current = el;
+    },
+    [svgRef]
+  );
   // Crop mode (image only): handles adjust the crop rect instead of scaling.
   const [cropMode, setCropMode] = useState(false);
   useEffect(() => setCropMode(false), [selectedId]);
@@ -296,7 +307,7 @@ export function CpAnnotationOverlay({
 
   return (
     <svg
-      ref={containerRef}
+      ref={setContainer}
       className="cp-annotation-overlay"
       style={{
         position: 'absolute',
@@ -308,6 +319,11 @@ export function CpAnnotationOverlay({
         // Above the WebGL canvas (5), grid (6), and the text DOM layer (7) so
         // selection handles sit on top of every annotation kind.
         zIndex: 8,
+        // The panel maps base-view layout to the live camera with a composited
+        // transform anchored at the SVG's top-left (handles keep constant stroke
+        // via vector-effect; sizes track the transient zoom then reset on settle).
+        transformOrigin: '0 0',
+        willChange: 'transform',
       }}
       aria-hidden="true"
     >

@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, type CSSProperties } from 'react';
+import { useLayoutEffect, useRef, type CSSProperties, type RefObject } from 'react';
 import type { SerializedEditorState } from 'lexical';
 import type { CpOverlayView } from './CreasePatternWebglCanvas';
 import { overlayCssPerModel, overlayModelToCss } from './images/cpImagePlacement';
@@ -35,6 +35,7 @@ export function CpTextAnnotationLayer({
   view,
   editingTextId,
   toolbarAnchor,
+  layerRef,
   onChangeText,
   onExitEdit,
   onDelete,
@@ -44,6 +45,8 @@ export function CpTextAnnotationLayer({
   view: CpOverlayView;
   editingTextId: string | null;
   toolbarAnchor: FloatingAnchorRect | null;
+  /** The panel drives pan/zoom by transforming this container imperatively. */
+  layerRef?: RefObject<HTMLDivElement | null>;
   onChangeText: (id: string, doc: SerializedEditorState, plainText: string) => void;
   onExitEdit: (reason: 'blur' | 'escape') => void;
   onDelete: () => void;
@@ -54,6 +57,7 @@ export function CpTextAnnotationLayer({
 
   return (
     <div
+      ref={layerRef}
       className="cp-text-layer"
       style={{
         position: 'absolute',
@@ -64,6 +68,10 @@ export function CpTextAnnotationLayer({
         // and its handles sit just above this. Without a z-index the DOM text
         // paints behind the opaque canvas and is invisible.
         zIndex: 7,
+        // The panel maps base-view layout to the live camera with a composited
+        // transform anchored at the container's top-left.
+        transformOrigin: '0 0',
+        willChange: 'transform',
       }}
       aria-hidden={editingTextId ? undefined : true}
     >

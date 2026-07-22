@@ -974,11 +974,53 @@ export function CreasePatternPanel() {
     zoomPercentRef.current = percent;
     setZoomPercent(percent);
   }, []);
-  // The WebGL camera's model→CSS affine, for positioning the text-annotation overlay.
+  // The WebGL camera's model→CSS affine. The DOM overlays (text boxes + the SVG
+  // selection handles) are laid out once at this "base" view; pan/zoom between
+  // layouts is applied as a single composited CSS transform on their containers,
+  // driven imperatively per camera frame — so the whole panel doesn't re-render
+  // 60×/s and the overlays stay in sync with the GL canvas without per-node
+  // reflow. On settle we adopt the live view as the new base and reset the
+  // transform (crisp text + correct handle sizes at rest).
   const [webglOverlayView, setWebglOverlayView] = useState<CpOverlayView | null>(null);
-  const handleWebglViewChange = useCallback((view: CpOverlayView) => {
-    setWebglOverlayView(view);
+  const overlayBaseViewRef = useRef<CpOverlayView | null>(null);
+  const overlaySettleTimerRef = useRef<number | undefined>(undefined);
+  const textLayerRef = useRef<HTMLDivElement | null>(null);
+  const annotationOverlayRef = useRef<SVGSVGElement | null>(null);
+  const applyOverlayTransform = useCallback((live: CpOverlayView) => {
+    const base = overlayBaseViewRef.current;
+    if (!base) return;
+    // Uniform scale + translate mapping base-view CSS to live-view CSS (the CP
+    // camera never rotates). transform-origin is the container's top-left (0,0).
+    const k = base.ex[0] !== 0 ? live.ex[0] / base.ex[0] : 1;
+    const tx = live.origin[0] - k * base.origin[0];
+    const ty = live.origin[1] - k * base.origin[1];
+    const transform = `translate(${tx}px, ${ty}px) scale(${k})`;
+    if (textLayerRef.current) textLayerRef.current.style.transform = transform;
+    if (annotationOverlayRef.current) annotationOverlayRef.current.style.transform = transform;
   }, []);
+  const handleWebglViewChange = useCallback(
+    (view: CpOverlayView) => {
+      if (!overlayBaseViewRef.current) {
+        overlayBaseViewRef.current = view;
+        setWebglOverlayView(view);
+        return;
+      }
+      applyOverlayTransform(view);
+      window.clearTimeout(overlaySettleTimerRef.current);
+      overlaySettleTimerRef.current = window.setTimeout(() => {
+        overlayBaseViewRef.current = view;
+        setWebglOverlayView(view);
+      }, 120);
+    },
+    [applyOverlayTransform]
+  );
+  // After a settle re-layout commits (overlays now positioned at the new base),
+  // reset the container transforms to identity. A layout effect runs after the
+  // DOM mutation but before paint, so there's no flash back to the old position.
+  useLayoutEffect(() => {
+    if (textLayerRef.current) textLayerRef.current.style.transform = '';
+    if (annotationOverlayRef.current) annotationOverlayRef.current.style.transform = '';
+  }, [webglOverlayView]);
   const [spacePressed, setSpacePressed] = useState(false);
   const [cpToolState, setCpToolState] = useState(IDLE_ORISTUDIO_CP_TOOL_STATE);
   const [activeCpLineColor, setActiveCpLineColor] = useState<OristudioCpLineColor>('Red1');
@@ -3201,6 +3243,7 @@ export function CreasePatternPanel() {
                     view={webglOverlayView}
                     editingTextId={editingTextId}
                     toolbarAnchor={annotationToolbarAnchor}
+                    layerRef={textLayerRef}
                     onChangeText={handleTextContentChange}
                     onExitEdit={handleExitEditText}
                     onDelete={handleDeleteEditingText}
@@ -3214,6 +3257,7 @@ export function CreasePatternPanel() {
                     editingTextId={editingTextId}
                     view={webglOverlayView}
                     interactive={annotationsInteractive}
+                    svgRef={annotationOverlayRef}
                     onSelect={setSelectedAnnotation}
                     onUpdate={updateAnnotation}
                     onRequestEditText={handleRequestEditText}
