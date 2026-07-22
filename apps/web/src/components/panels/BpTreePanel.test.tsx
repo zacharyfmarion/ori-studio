@@ -387,11 +387,14 @@ describe('BP tree pane — Escape', () => {
   });
 });
 
-describe('BP tree pane — the name field does not steal focus on add', () => {
-  it('focuses the name field when an existing leaf is picked', () => {
+describe('BP tree pane — the name field never steals focus', () => {
+  it('shows the name field on selection without focusing it', () => {
     render(1);
     const input = container?.querySelector<HTMLInputElement>('.bp-name-editor__input');
-    expect(window.document.activeElement).toBe(input);
+    // While the field holds focus it owns the keyboard: Delete edits the name
+    // instead of deleting the node, and undo undoes the field's text.
+    expect(input).toBeTruthy();
+    expect(window.document.activeElement).not.toBe(input);
   });
 
   it('does not focus a name field that appears as a result of adding', () => {
@@ -407,7 +410,7 @@ describe('BP tree pane — the name field does not steal focus on add', () => {
     expect(window.document.activeElement).not.toBe(input);
   });
 
-  it('still focuses the field when the user picks a different leaf themselves', () => {
+  it('does not focus the field when the user picks a different leaf', () => {
     render(1);
     act(() => {
       const dot = container?.querySelectorAll<SVGCircleElement>('.bp-tree-node')[2];
@@ -415,6 +418,15 @@ describe('BP tree pane — the name field does not steal focus on add', () => {
       useWorkspaceStore.setState({ oristudioBpSelection: { kind: 'bp-vertex', id: 2 } });
     });
     const input = container?.querySelector<HTMLInputElement>('.bp-name-editor__input');
-    expect(window.document.activeElement).toBe(input);
+    expect(input).toBeTruthy();
+    expect(window.document.activeElement).not.toBe(input);
+  });
+
+  it('leaves keystrokes to the canvas, so Delete reaches the tree', () => {
+    const body = render(1);
+    // Nothing in the pane may hold focus on selection — that is what let the
+    // name field swallow Delete.
+    const focused = window.document.activeElement;
+    expect(focused === body || focused === window.document.body).toBe(true);
   });
 });

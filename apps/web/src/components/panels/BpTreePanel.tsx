@@ -256,10 +256,6 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
   } | null>(null);
   const paperDownRef = useRef<{ clientX: number; clientY: number; point: Point } | null>(null);
   const [hoverPoint, setHoverPoint] = useState<Point | null>(null);
-  // Whether the next name-editor mount should take focus. Picking an existing node
-  // means "I want to work on this one", so the name field focuses; adding a node
-  // does not (see onCanvasAddPointerUp).
-  const [nameAutoFocus, setNameAutoFocus] = useState(true);
   const scheduleLongPressInspector = useBpLongPressInspector();
   const layers = useSettingsStore((state) => state.bpTreeLayers);
   const setLayer = useSettingsStore((state) => state.setBpTreeLayer);
@@ -606,10 +602,6 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     const parent = findVertex(parentId);
     if (!parent) return;
     const loc = constrainBpTreePoint(unitLeafLocation(parent.loc, down.point), tree.sheet);
-    // Adding selects the new leaf, but don't pull focus into its name field: the
-    // field would swallow the undo shortcut (the browser undoes the input's text
-    // instead of the add), and drawing a run of flaps shouldn't keep taking focus.
-    setNameAutoFocus(false);
     if (symmetry.enabled) {
       // Match the axis-snap zone to the visible band's half-width, converted from
       // SVG units to tree units at the current sheet scale.
@@ -641,7 +633,6 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
       selectOristudioBp(toggleBpVertexSelection(selection, vertexId));
       return;
     }
-    setNameAutoFocus(true);
     selectOristudioBp({ kind: 'bp-vertex', id: vertexId });
     scheduleLongPressInspector(event);
     const vertex = findVertex(vertexId);
@@ -963,7 +954,6 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
           ariaLabel={t('panels:bpTree.flapNameAria', 'Name of flap {{id}}', {
             id: bpDefaultFlapLabel(selectedFlapVertex.id),
           })}
-          autoFocus={nameAutoFocus}
           onRename={(name) => void renameOristudioBpVertex(selectedFlapVertex.id, name)}
           onEscape={dismissSelection}
         />
