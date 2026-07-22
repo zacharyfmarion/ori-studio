@@ -225,6 +225,50 @@ function renderPacking() {
   return container;
 }
 
+/** Geometry of an SVG <rect>, as numbers. */
+function rectOf(element: Element) {
+  const num = (name: string) => Number(element.getAttribute(name) ?? '0');
+  const width = num('width');
+  const height = num('height');
+  const x = num('x');
+  const y = num('y');
+  return { x, y, width, height, cx: x + width / 2, cy: y + height / 2 };
+}
+
+describe('BP packing pane — the whole flap is draggable', () => {
+  it('covers the drawn flap footprint, not just its centre', () => {
+    const host = renderPacking();
+    const drawn = [...host.querySelectorAll('.bp-packing-flap')].map(rectOf);
+    const hits = [...host.querySelectorAll('.bp-packing-flap-hit')].map(rectOf);
+    expect(drawn.length).toBeGreaterThan(0);
+    expect(hits).toHaveLength(drawn.length);
+
+    for (const flap of drawn) {
+      // Pair by centre: the hit target is concentric with the flap it grabs.
+      const hit = hits.find(
+        (candidate) =>
+          Math.abs(candidate.cx - flap.cx) < 0.01 && Math.abs(candidate.cy - flap.cy) < 0.01
+      );
+      expect(hit).toBeDefined();
+      // BP Studio's hit target is the flap's filled contour — the drawn shape
+      // grown by its radius — so the target must strictly contain the flap.
+      expect(hit!.width).toBeGreaterThan(flap.width);
+      expect(hit!.height).toBeGreaterThan(flap.height);
+      expect(hit!.x).toBeLessThanOrEqual(flap.x);
+      expect(hit!.y).toBeLessThanOrEqual(flap.y);
+      expect(hit!.x + hit!.width).toBeGreaterThanOrEqual(flap.x + flap.width);
+      expect(hit!.y + hit!.height).toBeGreaterThanOrEqual(flap.y + flap.height);
+    }
+  });
+
+  it('scales the target with the flap instead of using a fixed centre dot', () => {
+    const host = renderPacking();
+    const hits = [...host.querySelectorAll('.bp-packing-flap-hit')].map(rectOf);
+    // 16px is the floor for a degenerate flap; a real one must beat it.
+    for (const hit of hits) expect(hit.width).toBeGreaterThan(16);
+  });
+});
+
 describe('BP packing pane — nothing in the canvas takes focus', () => {
   it('renders flap hit targets that are not focusable', () => {
     const host = renderPacking();

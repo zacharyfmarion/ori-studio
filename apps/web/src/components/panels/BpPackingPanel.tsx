@@ -1614,16 +1614,24 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                       paperRect
                     );
                     const center = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
-                    const half = Math.max(rect.width, rect.height, BP_PACKING_FLAP_HIT_MIN_PX) / 2;
+                    // Parity with BP Studio: the whole flap drags, not just its
+                    // centre. Its hit target is the filled hinge contour, which
+                    // for a box-pleat flap is the anchor rect grown by the flap
+                    // radius on every side — the footprint drawn on screen. The
+                    // anchor rect is empty for a unit flap, so sizing the target
+                    // from it alone left only a dot in the middle to grab.
+                    const reach = flap.radius * unit;
+                    const hitWidth = Math.max(rect.width + reach * 2, BP_PACKING_FLAP_HIT_MIN_PX);
+                    const hitHeight = Math.max(rect.height + reach * 2, BP_PACKING_FLAP_HIT_MIN_PX);
                     return (
                       <rect
                         key={flap.id}
                         className="bp-packing-flap-hit"
-                        x={center.x - half}
-                        y={center.y - half}
-                        width={half * 2}
-                        height={half * 2}
-                        rx={Math.min(6, half)}
+                        x={center.x - hitWidth / 2}
+                        y={center.y - hitHeight / 2}
+                        width={hitWidth}
+                        height={hitHeight}
+                        rx={Math.min(6, hitWidth / 2, hitHeight / 2)}
                         // Not focusable: the browser draws its own ring around
                         // the target's box, which sits over the flap and blocks
                         // the drag. Selection is by pointer; the pane's keyboard
