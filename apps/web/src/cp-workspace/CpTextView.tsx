@@ -1,4 +1,4 @@
-import { Fragment, type CSSProperties, type ReactNode } from 'react';
+import { Fragment, memo, type CSSProperties, type ReactNode } from 'react';
 import type { SerializedEditorState } from 'lexical';
 import { decodeInlineMarks, normalizeTextAlign, type TextAlign } from './annotations/textFormatting';
 
@@ -78,8 +78,15 @@ function renderBlock(node: SerializedNode, key: number): ReactNode {
   );
 }
 
-export function CpTextView({ state }: { state: SerializedEditorState }) {
+// Memoized: the text layer re-renders every camera frame to reposition boxes, but
+// the rich content only changes on edit — skip re-reconciling it when the doc ref
+// is unchanged (the box's `style` still updates for the new font size/position).
+export const CpTextView = memo(function CpTextView({
+  state,
+}: {
+  state: SerializedEditorState;
+}) {
   const root = (state as unknown as { root?: SerializedNode }).root;
   const blocks = Array.isArray(root?.children) ? root.children : [];
   return <>{blocks.map((block, i) => renderBlock(block, i))}</>;
-}
+});

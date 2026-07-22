@@ -1,6 +1,7 @@
-import { useLayoutEffect, useRef, type CSSProperties, type RefObject } from 'react';
+import { useLayoutEffect, useRef, type CSSProperties } from 'react';
 import type { SerializedEditorState } from 'lexical';
 import type { CpOverlayView } from './CreasePatternWebglCanvas';
+import { useCpOverlayView } from './cpOverlayViewStore';
 import { overlayCssPerModel, overlayModelToCss } from './images/cpImagePlacement';
 import { isTextAnnotation, type CanvasAnnotation } from './annotations/annotation';
 import type { TextAnnotation } from './annotations/textAnnotation';
@@ -32,32 +33,30 @@ function screenAngle(view: CpOverlayView, center: { x: number; y: number }, rota
 
 export function CpTextAnnotationLayer({
   annotations,
-  view,
   editingTextId,
   toolbarAnchor,
-  layerRef,
   onChangeText,
   onExitEdit,
   onDelete,
   onSyncHeight,
 }: {
   annotations: readonly CanvasAnnotation[];
-  view: CpOverlayView;
   editingTextId: string | null;
   toolbarAnchor: FloatingAnchorRect | null;
-  /** The panel drives pan/zoom by transforming this container imperatively. */
-  layerRef?: RefObject<HTMLDivElement | null>;
   onChangeText: (id: string, doc: SerializedEditorState, plainText: string) => void;
   onExitEdit: (reason: 'blur' | 'escape') => void;
   onDelete: () => void;
   onSyncHeight: (id: string, height: number) => void;
 }) {
-  const pxPerModel = overlayCssPerModel(view);
+  // Subscribe to the live camera directly so this small layer re-renders crisply
+  // every frame (real font size, no scaling blur) without re-rendering the panel.
+  const view = useCpOverlayView();
   const textAnnotations = annotations.filter(isTextAnnotation);
+  if (!view) return null;
+  const pxPerModel = overlayCssPerModel(view);
 
   return (
     <div
-      ref={layerRef}
       className="cp-text-layer"
       style={{
         position: 'absolute',
@@ -68,10 +67,6 @@ export function CpTextAnnotationLayer({
         // and its handles sit just above this. Without a z-index the DOM text
         // paints behind the opaque canvas and is invisible.
         zIndex: 7,
-        // The panel maps base-view layout to the live camera with a composited
-        // transform anchored at the container's top-left.
-        transformOrigin: '0 0',
-        willChange: 'transform',
       }}
       aria-hidden={editingTextId ? undefined : true}
     >
@@ -135,15 +130,24 @@ function TextBox({
   onSyncHeight: (id: string, height: number) => void;
 }) {
   const boxRef = useRef<HTMLDivElement | null>(null);
+  // The scale and current model height change every camera frame; read them from
+  // a ref so the ResizeObserver below is created once per box (on doc change),
+  // not torn down and rebuilt every frame during a zoom.
+  const measureRef = useRef({ pxPerModel, height: text.height });
+  useLayoutEffect(() => {
+    measureRef.current = { pxPerModel, height: text.height };
+  });
 
   // Keep the model height tracking the content so the selection box matches.
   useLayoutEffect(() => {
-    if (!text.autoHeight || pxPerModel <= 0) return;
+    if (!text.autoHeight) return;
     const el = boxRef.current;
     if (!el) return;
     const measure = () => {
-      const modelHeight = el.offsetHeight / pxPerModel;
-      if (Math.abs(modelHeight - text.height) * pxPerModel > 0.5) {
+      const { pxPerModel: px, height } = measureRef.current;
+      if (px <= 0) return;
+      const modelHeight = el.offsetHeight / px;
+      if (Math.abs(modelHeight - height) * px > 0.5) {
         onSyncHeight(text.id, modelHeight);
       }
     };
@@ -151,7 +155,7 @@ function TextBox({
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [text.id, text.autoHeight, text.height, pxPerModel, onSyncHeight, text.doc]);
+  }, [text.id, text.autoHeight, onSyncHeight, text.doc]);
 
   return (
     <div

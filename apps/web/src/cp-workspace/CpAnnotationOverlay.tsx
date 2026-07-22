@@ -4,9 +4,9 @@ import {
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
-  type RefObject,
 } from 'react';
 import type { CpOverlayView } from './CreasePatternWebglCanvas';
+import { useCpOverlayView } from './cpOverlayViewStore';
 import { IMAGE_ROTATION_SNAP_RADIANS } from './images/cpImage';
 import {
   cropImage,
@@ -80,20 +80,17 @@ export function CpAnnotationOverlay({
   annotations,
   selectedId,
   editingTextId,
-  view,
   interactive,
   onSelect,
   onUpdate,
   onRequestEditText,
   onGestureStart,
   onGestureCommit,
-  svgRef,
 }: {
   annotations: readonly CanvasAnnotation[];
   selectedId: string | null;
   /** Id of the text box currently being inline-edited (chrome suppressed). */
   editingTextId: string | null;
-  view: CpOverlayView;
   interactive: boolean;
   onSelect: (id: string | null) => void;
   onUpdate: (id: string, patch: AnnotationUpdate) => void;
@@ -103,18 +100,11 @@ export function CpAnnotationOverlay({
   onGestureStart?: () => void;
   /** Called once a gesture actually changed the annotation, for undo/labeling. */
   onGestureCommit?: (id: string, label: string) => void;
-  /** The panel drives pan/zoom by transforming this SVG imperatively. */
-  svgRef?: RefObject<SVGSVGElement | null>;
 }) {
+  // Live camera, subscribed directly so only this overlay re-renders per frame.
+  const view = useCpOverlayView();
   const dragRef = useRef<Drag | null>(null);
   const containerRef = useRef<SVGSVGElement | null>(null);
-  const setContainer = useCallback(
-    (el: SVGSVGElement | null) => {
-      containerRef.current = el;
-      if (svgRef) svgRef.current = el;
-    },
-    [svgRef]
-  );
   // Crop mode (image only): handles adjust the crop rect instead of scaling.
   const [cropMode, setCropMode] = useState(false);
   useEffect(() => setCropMode(false), [selectedId]);
@@ -141,7 +131,7 @@ export function CpAnnotationOverlay({
   const pointerToModel = useCallback(
     (event: ReactPointerEvent): Vec2 | null => {
       const rect = containerRef.current?.getBoundingClientRect();
-      if (!rect) return null;
+      if (!rect || !view) return null;
       return overlayCssToModel(view, { x: event.clientX - rect.left, y: event.clientY - rect.top });
     },
     [view]
@@ -215,7 +205,7 @@ export function CpAnnotationOverlay({
   const handlePointerMove = useCallback(
     (event: ReactPointerEvent<SVGElement>) => {
       const drag = dragRef.current;
-      if (!drag) return;
+      if (!drag || !view) return;
       if (drag.kind === 'move') {
         const dCss = { x: event.clientX - drag.startClient.x, y: event.clientY - drag.startClient.y };
         const dModel = overlayCssDeltaToModel(view, dCss);
@@ -305,9 +295,11 @@ export function CpAnnotationOverlay({
     return () => svg.removeEventListener('wheel', onWheel);
   }, []);
 
+  if (!view) return null;
+
   return (
     <svg
-      ref={setContainer}
+      ref={containerRef}
       className="cp-annotation-overlay"
       style={{
         position: 'absolute',
@@ -319,11 +311,6 @@ export function CpAnnotationOverlay({
         // Above the WebGL canvas (5), grid (6), and the text DOM layer (7) so
         // selection handles sit on top of every annotation kind.
         zIndex: 8,
-        // The panel maps base-view layout to the live camera with a composited
-        // transform anchored at the SVG's top-left (handles keep constant stroke
-        // via vector-effect; sizes track the transient zoom then reset on settle).
-        transformOrigin: '0 0',
-        willChange: 'transform',
       }}
       aria-hidden="true"
     >
