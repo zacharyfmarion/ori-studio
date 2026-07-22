@@ -28,8 +28,10 @@ const CIRCLE_ATTR_STRIDE: usize = 2;
 /// Flat geometry buffers (destined for JS typed arrays) plus a small structured tail.
 ///
 /// `Serialize`/`Deserialize` support the native (Tauri) IPC path; the wasm bridge
-/// hand-builds typed arrays instead (`compact_to_js`).
+/// hand-builds typed arrays instead (`compact_to_js`). `camelCase` keeps the JSON
+/// keys identical to the wasm-built object the frontend already consumes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CompactGeometry {
     /// `[ax, ay, bx, by]` per line segment.
     pub seg_endpoints: Vec<f64>,

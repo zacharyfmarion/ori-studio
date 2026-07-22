@@ -250,11 +250,16 @@ pub fn cp_folded_figure_fold(
     document_handle: u32,
     starting_face_id: i32,
     order: EstimationOrder,
-    model: FoldedFigureModel,
+    model: Option<FoldedFigureModel>,
     state: State<'_, CpEngine>,
 ) -> Result<FoldedFigureResult, EngineError> {
     locked(&state, |session| {
-        session.folded_figure_fold(document_handle, starting_face_id, order, model)
+        session.folded_figure_fold(
+            document_handle,
+            starting_face_id,
+            order,
+            model.unwrap_or_default(),
+        )
     })
 }
 
@@ -264,7 +269,7 @@ pub fn cp_folded_figure_fold_selected(
     selected_line_ids: Vec<usize>,
     starting_face_id: i32,
     order: EstimationOrder,
-    model: FoldedFigureModel,
+    model: Option<FoldedFigureModel>,
     state: State<'_, CpEngine>,
 ) -> Result<FoldedFigureResult, EngineError> {
     locked(&state, |session| {
@@ -273,7 +278,7 @@ pub fn cp_folded_figure_fold_selected(
             &selected_line_ids,
             starting_face_id,
             order,
-            model,
+            model.unwrap_or_default(),
         )
     })
 }
@@ -290,11 +295,11 @@ pub fn cp_folded_figure_snapshot(
 pub fn cp_folded_figure_render_snapshot(
     handle: u32,
     display_style: Option<DisplayStyle>,
-    options: FoldedFigureRenderOptions,
+    options: Option<FoldedFigureRenderOptions>,
     state: State<'_, CpEngine>,
 ) -> Result<Option<FoldedFigureRenderSnapshot>, EngineError> {
     locked(&state, |session| {
-        session.folded_figure_render_snapshot(handle, display_style, options)
+        session.folded_figure_render_snapshot(handle, display_style, options.unwrap_or_default())
     })
 }
 
