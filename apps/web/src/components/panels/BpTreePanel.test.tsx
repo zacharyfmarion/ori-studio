@@ -345,6 +345,14 @@ describe('BP tree pane — selecting an edge highlights the edge', () => {
     expect(selected[0].tagName.toLowerCase()).toBe('line');
   });
 
+  it('keeps the whole canvas out of the focus order, so no ring covers it', () => {
+    // Anything focusable inside the canvas gets the browser's own ring drawn
+    // over the geometry the user is trying to grab or read.
+    const body = render(null);
+    expect(body.querySelectorAll('.bp-tree-canvas [tabindex]')).toHaveLength(0);
+    expect(body.querySelectorAll('.bp-tree-canvas [role="button"]')).toHaveLength(0);
+  });
+
   it('keeps edges out of the focus order, so no focus ring wraps them', () => {
     // A focusable <g> gets the browser's own ring around its box — which spans
     // the edge and its length label — reading as a capsule around the edge

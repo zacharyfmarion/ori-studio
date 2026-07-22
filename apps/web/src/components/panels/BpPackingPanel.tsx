@@ -7,7 +7,6 @@ import {
   type MouseEvent as ReactMouseEvent,
   type PointerEvent,
   type ReactNode,
-  type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
 import { useTranslation } from 'react-i18next';
@@ -214,10 +213,6 @@ function bpPackingLayerLabel(t: TFunction, key: BpPackingViewLayerKey): string {
 
 function viewBox(rect: { x: number; y: number; width: number; height: number }): string {
   return `${rect.x} ${rect.y} ${rect.width} ${rect.height}`;
-}
-
-function isKeyboardActivation(event: { key: string }): boolean {
-  return event.key === 'Enter' || event.key === ' ';
 }
 
 function bpPackingNudgeDirectionFromKey(key: string): BpPackingNudgeDirection | null {
@@ -1214,17 +1209,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     if (moved) queueDragBackendUpdate({ ids: flapDragging.ids, loc });
   };
 
-  const onFlapKeyDown = (event: ReactKeyboardEvent<SVGGElement>, flapId: number) => {
-    if (!isKeyboardActivation(event)) return;
-    event.preventDefault();
-    event.stopPropagation();
-    selectOristudioBp(
-      event.shiftKey || event.metaKey || event.ctrlKey
-        ? toggleBpFlapSelection(selection, flapId)
-        : { kind: 'bp-flap', id: flapId }
-    );
-  };
-
   const finishFlapDrag = (event: PointerEvent<SVGGElement>, flap: OristudioBpFlap) => {
     if (flapDragging?.id !== flap.id) return;
     event.stopPropagation();
@@ -1251,17 +1235,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     scheduleLongPressInspector(event);
   };
 
-  const onRiverKeyDown = (event: ReactKeyboardEvent<SVGGElement>, riverId: number) => {
-    if (!isKeyboardActivation(event)) return;
-    event.preventDefault();
-    event.stopPropagation();
-    selectOristudioBp(
-      event.shiftKey || event.metaKey || event.ctrlKey
-        ? toggleBpRiverSelection(selection, riverId)
-        : { kind: 'bp-river', id: riverId }
-    );
-  };
-
   const onConflictPointerDown = (event: PointerEvent<SVGGElement>, id: string) => {
     if (event.button !== 0 || spacePressed) return;
     event.stopPropagation();
@@ -1271,17 +1244,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
         : { kind: 'bp-invalid-junction', id }
     );
     scheduleLongPressInspector(event);
-  };
-
-  const onConflictKeyDown = (event: ReactKeyboardEvent<SVGGElement>, id: string) => {
-    if (!isKeyboardActivation(event)) return;
-    event.preventDefault();
-    event.stopPropagation();
-    selectOristudioBp(
-      event.shiftKey || event.metaKey || event.ctrlKey
-        ? toggleBpInvalidJunctionSelection(selection, id)
-        : { kind: 'bp-invalid-junction', id }
-    );
   };
 
   const onPrimitivePointerDown = (event: PointerEvent<SVGGElement>, primitive: OristudioBpGraphicPrimitive) => {
@@ -1330,42 +1292,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     }
     const riverId = riverIdFromPrimitiveId(primitive.id, document);
     if (riverId !== null) onRiverPointerDown(event, riverId);
-  };
-
-  const onPrimitiveKeyDown = (
-    event: ReactKeyboardEvent<SVGGElement>,
-    primitive: OristudioBpGraphicPrimitive
-  ) => {
-    if (!isKeyboardActivation(event)) return;
-    const deviceInfo = deviceInfoFromPrimitiveId(primitive.id, document);
-    const flapId = flapIdFromPrimitiveId(primitive.id);
-    const riverId = riverIdFromPrimitiveId(primitive.id, document);
-    if (deviceInfo === null && flapId === null && riverId === null) return;
-    event.preventDefault();
-    event.stopPropagation();
-    if (deviceInfo !== null) {
-      selectOristudioBp(
-        event.shiftKey || event.metaKey || event.ctrlKey
-          ? toggleBpDeviceSelection(selection, deviceInfo.deviceId)
-          : { kind: 'bp-device', id: deviceInfo.deviceId }
-      );
-      return;
-    }
-    if (flapId !== null) {
-      selectOristudioBp(
-        event.shiftKey || event.metaKey || event.ctrlKey
-          ? toggleBpFlapSelection(selection, flapId)
-          : { kind: 'bp-flap', id: flapId }
-      );
-      return;
-    }
-    if (riverId !== null) {
-      selectOristudioBp(
-        event.shiftKey || event.metaKey || event.ctrlKey
-          ? toggleBpRiverSelection(selection, riverId)
-          : { kind: 'bp-river', id: riverId }
-      );
-    }
   };
 
   const onPrimitivePointerMove = (
@@ -1545,7 +1471,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                   onPointerDown={onPrimitivePointerDown}
                   onPointerMove={onPrimitivePointerMove}
                   onPointerUp={finishDeviceDrag}
-                  onKeyDown={onPrimitiveKeyDown}
                 />
               ) : null
             )}
@@ -1558,15 +1483,12 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                     <g
                       key={visual.river.id}
                       className={active ? 'bp-packing-river--selected' : undefined}
-                      role="button"
-                      tabIndex={0}
                       data-bp-select={`river:${visual.river.id}`}
                       aria-label={t('panels:bpPacking.selectRiver', 'Select BP river {{id}}, length {{length}}', {
                         id: visual.river.id,
                         length: formatNumber(visual.river.length, 2),
                       })}
                       onPointerDown={(event) => onRiverPointerDown(event, visual.river.id)}
-                      onKeyDown={(event) => onRiverKeyDown(event, visual.river.id)}
                     >
                       {layers.selectionShade && active && (
                         <rect
@@ -1599,15 +1521,12 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                     <g
                       key={junction.id}
                       className={active ? 'bp-packing-conflict--selected' : undefined}
-                      role="button"
-                      tabIndex={0}
                       data-bp-select={`conflict:${junction.id}`}
                       aria-label={t('panels:bpPacking.selectConflict', 'Select BP conflict {{id}}: {{message}}', {
                         id: junction.id,
                         message: junction.message,
                       })}
                       onPointerDown={(event) => onConflictPointerDown(event, junction.id)}
-                      onKeyDown={(event) => onConflictKeyDown(event, junction.id)}
                     >
                       {junction.polygons.map((polygon, index) => (
                         <polygon
@@ -1705,8 +1624,10 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                         width={half * 2}
                         height={half * 2}
                         rx={Math.min(6, half)}
-                        role="button"
-                        tabIndex={0}
+                        // Not focusable: the browser draws its own ring around
+                        // the target's box, which sits over the flap and blocks
+                        // the drag. Selection is by pointer; the pane's keyboard
+                        // actions (nudge) live on the container.
                         data-bp-select={`flap:${flap.id}`}
                         aria-label={
                           // `{{id}}` carries the flap's letter label, so what's
@@ -1724,7 +1645,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                         onPointerMove={(event) => onFlapPointerMove(event, flap)}
                         onPointerUp={(event) => finishFlapDrag(event, flap)}
                         onPointerCancel={(event) => finishFlapDrag(event, flap)}
-                        onKeyDown={(event) => onFlapKeyDown(event, flap.id)}
                       />
                     );
                   })}
@@ -1741,7 +1661,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                   onPointerDown={onPrimitivePointerDown}
                   onPointerMove={onPrimitivePointerMove}
                   onPointerUp={finishDeviceDrag}
-                  onKeyDown={onPrimitiveKeyDown}
                 />
               ) : null
             )}
@@ -1911,7 +1830,6 @@ function Primitive({
   onPointerDown,
   onPointerMove,
   onPointerUp,
-  onKeyDown,
 }: {
   primitive: OristudioBpGraphicPrimitive;
   document: OristudioBpDocumentState;
@@ -1920,10 +1838,6 @@ function Primitive({
   onPointerDown: (event: PointerEvent<SVGGElement>, primitive: OristudioBpGraphicPrimitive) => void;
   onPointerMove: (event: PointerEvent<SVGGElement>, primitive: OristudioBpGraphicPrimitive) => void;
   onPointerUp: (event: PointerEvent<SVGGElement>, primitive: OristudioBpGraphicPrimitive) => void;
-  onKeyDown: (
-    event: ReactKeyboardEvent<SVGGElement>,
-    primitive: OristudioBpGraphicPrimitive
-  ) => void;
 }) {
   const { t } = useTranslation();
   const sheet = document.snapshot.packing.sheet;
@@ -1937,13 +1851,12 @@ function Primitive({
     active ? 'bp-packing-primitive--selected' : '',
   ].join(' ');
   const ariaLabel = primitiveAriaLabel(primitive, document, t);
-  const keyboardProps = ariaLabel
+  // Labelled but not focusable — see the flap hit rects. A focus ring here
+  // would sit over the very geometry the user is trying to grab.
+  const labelProps = ariaLabel
     ? {
-        role: 'button' as const,
-        tabIndex: 0,
         'aria-label': ariaLabel,
         'data-bp-select': primitiveSelectToken(primitive, document),
-        onKeyDown: (event: ReactKeyboardEvent<SVGGElement>) => onKeyDown(event, primitive),
       }
     : {};
   if (primitive.kind === 'line') {
@@ -1951,7 +1864,7 @@ function Primitive({
     return (
       <g
         className={className}
-        {...keyboardProps}
+        {...labelProps}
         onPointerDown={(event) => onPointerDown(event, primitive)}
         onPointerMove={(event) => onPointerMove(event, primitive)}
         onPointerUp={(event) => onPointerUp(event, primitive)}
@@ -1968,7 +1881,7 @@ function Primitive({
     return (
       <g
         className={className}
-        {...keyboardProps}
+        {...labelProps}
         onPointerDown={(event) => onPointerDown(event, primitive)}
         onPointerMove={(event) => onPointerMove(event, primitive)}
         onPointerUp={(event) => onPointerUp(event, primitive)}
@@ -1991,7 +1904,7 @@ function Primitive({
     return (
       <g
         className={className}
-        {...keyboardProps}
+        {...labelProps}
         onPointerDown={(event) => onPointerDown(event, primitive)}
         onPointerMove={(event) => onPointerMove(event, primitive)}
         onPointerUp={(event) => onPointerUp(event, primitive)}
@@ -2007,7 +1920,7 @@ function Primitive({
     return (
       <g
         className={className}
-        {...keyboardProps}
+        {...labelProps}
         onPointerDown={(event) => onPointerDown(event, primitive)}
         onPointerMove={(event) => onPointerMove(event, primitive)}
         onPointerUp={(event) => onPointerUp(event, primitive)}
@@ -2021,7 +1934,7 @@ function Primitive({
   return (
     <g
       className={className}
-      {...keyboardProps}
+      {...labelProps}
       onPointerDown={(event) => onPointerDown(event, primitive)}
       onPointerMove={(event) => onPointerMove(event, primitive)}
       onPointerUp={(event) => onPointerUp(event, primitive)}
