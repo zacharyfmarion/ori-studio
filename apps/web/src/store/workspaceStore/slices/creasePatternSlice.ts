@@ -882,7 +882,10 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                   // Park it beside the crease pattern: the kernel folds into
                   // roughly the flat CP's own coordinates, so left alone the
                   // figure covers the pattern it came from.
-                  placement: placeFoldedFigureBesideCp(folded, existing, CP_PAPER_RECT.x + CP_PAPER_RECT.width),
+                  placement: placeFoldedFigureBesideCp(folded, existing, {
+                    right: CP_PAPER_RECT.x + CP_PAPER_RECT.width,
+                    top: CP_PAPER_RECT.y,
+                  }),
                 }
               : figure
           ),

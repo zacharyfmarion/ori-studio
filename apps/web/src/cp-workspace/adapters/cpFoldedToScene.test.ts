@@ -348,32 +348,49 @@ describe('cpContradictionFaceFills', () => {
 });
 
 describe('placeFoldedFigureBesideCp', () => {
-  const paperRight = 200;
+  const paper = { right: 200, top: 40 };
 
   it('parks the figure clear of the crease pattern', () => {
     const figure = polygonFigureNamed('a');
-    const placed = { ...figure, placement: placeFoldedFigureBesideCp(figure, [], paperRight) };
-    expect(foldedFigureUserBounds([placed])[0].bounds.minX).toBeGreaterThanOrEqual(paperRight);
+    const placed = { ...figure, placement: placeFoldedFigureBesideCp(figure, [], paper) };
+    expect(foldedFigureUserBounds([placed])[0].bounds.minX).toBeGreaterThanOrEqual(paper.right);
   });
 
-  it('keeps the kernel vertical placement, only moving it sideways', () => {
+  it('lines the figure top up with the paper top', () => {
     const figure = polygonFigureNamed('a');
-    const placement = placeFoldedFigureBesideCp(figure, [], paperRight);
-    expect(placement.offset.y).toBe(0);
+    const placed = { ...figure, placement: placeFoldedFigureBesideCp(figure, [], paper) };
+    expect(foldedFigureUserBounds([placed])[0].bounds.minY).toBeCloseTo(paper.top);
+  });
+
+  it('places without scaling or rotating', () => {
+    const placement = placeFoldedFigureBesideCp(polygonFigureNamed('a'), [], paper);
     expect(placement.scale).toBe(1);
     expect(placement.rotation).toBe(0);
+  });
+
+  it('keeps every figure in the row top-aligned', () => {
+    const first = polygonFigureNamed('a');
+    const firstPlaced = { ...first, placement: placeFoldedFigureBesideCp(first, [], paper) };
+    const second = polygonFigureNamed('b');
+    const secondPlaced = {
+      ...second,
+      placement: placeFoldedFigureBesideCp(second, [firstPlaced], paper),
+    };
+    expect(foldedFigureUserBounds([secondPlaced])[0].bounds.minY).toBeCloseTo(
+      foldedFigureUserBounds([firstPlaced])[0].bounds.minY
+    );
   });
 
   it('lines a second figure up beside the first instead of stacking', () => {
     const first = polygonFigureNamed('a');
     const firstPlaced = {
       ...first,
-      placement: placeFoldedFigureBesideCp(first, [], paperRight),
+      placement: placeFoldedFigureBesideCp(first, [], paper),
     };
     const second = polygonFigureNamed('b');
     const secondPlaced = {
       ...second,
-      placement: placeFoldedFigureBesideCp(second, [firstPlaced], paperRight),
+      placement: placeFoldedFigureBesideCp(second, [firstPlaced], paper),
     };
     const a = foldedFigureUserBounds([firstPlaced])[0].bounds;
     const b = foldedFigureUserBounds([secondPlaced])[0].bounds;
@@ -388,14 +405,14 @@ describe('placeFoldedFigureBesideCp', () => {
     const next = polygonFigureNamed('b');
     const placed = {
       ...next,
-      placement: placeFoldedFigureBesideCp(next, [turned], paperRight),
+      placement: placeFoldedFigureBesideCp(next, [turned], paper),
     };
     const turnedBounds = foldedFigureUserBounds([turned])[0].bounds;
     expect(foldedFigureUserBounds([placed])[0].bounds.minX).toBeGreaterThan(turnedBounds.maxX);
   });
 
   it('is identity for a figure that draws nothing', () => {
-    expect(placeFoldedFigureBesideCp(figure([]), [], paperRight)).toEqual(
+    expect(placeFoldedFigureBesideCp(figure([]), [], paper)).toEqual(
       IDENTITY_FOLDED_PLACEMENT
     );
   });

@@ -479,8 +479,9 @@ const FOLDED_FIGURE_GAP = 48;
  *
  * The kernel folds a figure into roughly the same coordinates as the flat CP
  * (Oriedita anchors it to the flat bounds), so left alone it lands *on top* of
- * the pattern it was folded from and hides it. Vertically it keeps the kernel's
- * own placement, so it reads as a sibling of the pattern rather than drifting.
+ * the pattern it was folded from and hides it. Both axes are placed here: the
+ * figure's top edge lines up with the paper's top edge, so the two read as a
+ * row rather than the figure floating at whatever height the fold produced.
  *
  * `existing` should be the figures already on the canvas; the new figure goes to
  * the right of whichever reaches furthest, so repeated folds line up in a row
@@ -489,14 +490,14 @@ const FOLDED_FIGURE_GAP = 48;
 export function placeFoldedFigureBesideCp(
   figure: OristudioCpFoldedFigureEntry,
   existing: readonly OristudioCpFoldedFigureEntry[],
-  paperRight: number
+  paper: { right: number; top: number }
 ): FoldedFigurePlacement {
   const snapshot = figure.renderSnapshot;
   if (!snapshot?.primitives.length) return IDENTITY_FOLDED_PLACEMENT;
   const local = foldedFigureLocalGeometry(snapshot);
   if (!local.bounds) return IDENTITY_FOLDED_PLACEMENT;
 
-  let clearOf = paperRight;
+  let clearOf = paper.right;
   for (const other of existing) {
     if (other.id === figure.id) continue;
     const box = foldedFigureBox(other);
@@ -510,7 +511,10 @@ export function placeFoldedFigureBesideCp(
   }
 
   return {
-    offset: { x: clearOf + FOLDED_FIGURE_GAP - local.bounds.minX, y: 0 },
+    offset: {
+      x: clearOf + FOLDED_FIGURE_GAP - local.bounds.minX,
+      y: paper.top - local.bounds.minY,
+    },
     scale: 1,
     rotation: 0,
   };
