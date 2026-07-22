@@ -142,6 +142,7 @@ import {
 import type { CanvasAnnotation } from '../../cp-workspace/annotations/annotation';
 import {
   createTextAnnotation,
+  textBoxFromDrag,
   DEFAULT_TEXT_BOX_WIDTH,
   DEFAULT_TEXT_FONT_SIZE,
 } from '../../cp-workspace/annotations/textAnnotation';
@@ -2775,6 +2776,36 @@ export function CreasePatternPanel() {
     ]
   );
 
+  // Text tool: a press-drag creates a fixed-size box (the dragged height seeds a
+  // minimum; content still grows it downward). Too small a drag falls back to the
+  // click-created auto-sizing box.
+  const handleTextCreateBox = useCallback(
+    (start: Point, end: Point) => {
+      if (!editableCp || activeCpCommand?.operationId !== 'Text' || !webglOverlayView) return;
+      const cssPerModel = overlayCssPerModel(webglOverlayView);
+      const minExtent = cssPerModel > 0 ? 12 / cssPerModel : DEFAULT_TEXT_FONT_SIZE;
+      const box = textBoxFromDrag(start, end, minExtent);
+      if (!box) {
+        handleTextCreate(start);
+        return;
+      }
+      const prev = useWorkspaceStore.getState().oristudioCpAnnotations;
+      const annotation = createTextAnnotation({
+        center: box.center,
+        width: box.width,
+        height: box.height,
+        minHeight: box.height,
+        fontSize: cssPerModel > 0 ? 16 / cssPerModel : DEFAULT_TEXT_FONT_SIZE,
+        z: topAnnotationZ(prev) + 1,
+      });
+      preGestureAnnotationsRef.current = prev;
+      editStartRef.current = { id: annotation.id, created: true };
+      addAnnotation(annotation);
+      setEditingTextId(annotation.id);
+    },
+    [activeCpCommand?.operationId, editableCp, webglOverlayView, addAnnotation, handleTextCreate]
+  );
+
   const handleTextContentChange = useCallback(
     (id: string, doc: SerializedEditorState, plainText: string) => {
       updateAnnotation(id, { doc, plainText });
@@ -3103,6 +3134,7 @@ export function CreasePatternPanel() {
                   activeToolVoronoi={webglActiveTool.voronoi}
                   activeToolDashedPreview={isCpMeasurementOperation(activeCpCommand?.operationId)}
                   onTextCreate={handleTextCreate}
+                  onTextCreateBox={handleTextCreateBox}
                   voronoiSeeds={cpToolPoints}
                   onVoronoiSeedsChange={handleWebglVoronoiSeeds}
                   activeToolRequireSnap={isRestrictedDrawOperation(activeCpCommand?.operationId)}

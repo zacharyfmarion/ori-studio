@@ -77,6 +77,9 @@ export function CpTextAnnotationLayer({
           left: center.x,
           top: center.y,
           width: text.width * pxPerModel,
+          // A drag-created box seeds a minimum height; content grows it downward
+          // past that but never shrinks below (the top stays fixed).
+          minHeight: text.minHeight > 0 ? text.minHeight * pxPerModel : undefined,
           transform: `translate(-50%, -50%) rotate(${angle}rad)`,
           transformOrigin: 'center center',
           fontSize: `${text.fontSize * pxPerModel}px`,

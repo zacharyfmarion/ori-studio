@@ -3,6 +3,7 @@ import {
   createTextAnnotation,
   emptyTextDoc,
   serializedStateToPlainText,
+  textBoxFromDrag,
   textDocFromPlainText,
   validateTextAnnotation,
   validateTextAnnotations,
@@ -43,6 +44,34 @@ describe('textDocFromPlainText round-trip', () => {
     for (const text of ['', 'one line', 'two\nlines', 'trailing\n']) {
       expect(serializedStateToPlainText(textDocFromPlainText(text))).toBe(text);
     }
+  });
+});
+
+describe('textBoxFromDrag', () => {
+  it('returns the centered box for a real drag', () => {
+    expect(textBoxFromDrag({ x: 1, y: 2 }, { x: 5, y: 8 }, 0.5)).toEqual({
+      center: { x: 3, y: 5 },
+      width: 4,
+      height: 6,
+    });
+  });
+
+  it('normalizes direction (drag up-left)', () => {
+    expect(textBoxFromDrag({ x: 5, y: 8 }, { x: 1, y: 2 }, 0.5)).toEqual({
+      center: { x: 3, y: 5 },
+      width: 4,
+      height: 6,
+    });
+  });
+
+  it('returns null when the drag is below the minimum on both axes', () => {
+    expect(textBoxFromDrag({ x: 0, y: 0 }, { x: 0.2, y: 0.2 }, 0.5)).toBeNull();
+  });
+
+  it('clamps a thin drag up to the minimum on the small axis', () => {
+    const box = textBoxFromDrag({ x: 0, y: 0 }, { x: 4, y: 0.1 }, 0.5);
+    expect(box?.width).toBe(4);
+    expect(box?.height).toBe(0.5);
   });
 });
 

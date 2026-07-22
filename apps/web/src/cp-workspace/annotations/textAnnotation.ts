@@ -38,6 +38,13 @@ export interface TextAnnotation extends AnnotationBase {
   fontSize: number;
   /** When true, the box height tracks its content instead of being fixed. */
   autoHeight: boolean;
+  /**
+   * Minimum box height in model units (0 = none). A drag-created box seeds this
+   * with the dragged height, so the box starts that tall and grows *downward*
+   * only if content overflows — content is never hidden. Click-created boxes
+   * leave it 0 and size purely to their content.
+   */
+  minHeight: number;
 }
 
 /** A partial update to a text box (its `id` and `kind` never change). */
@@ -157,17 +164,19 @@ export interface CreateTextAnnotationInput {
   locked?: boolean;
   hidden?: boolean;
   autoHeight?: boolean;
+  minHeight?: number;
   z?: number;
 }
 
 export function createTextAnnotation(input: CreateTextAnnotationInput): TextAnnotation {
   const doc = input.doc ?? emptyTextDoc();
+  const minHeight = input.minHeight ?? 0;
   return {
     kind: 'text',
     id: input.id ?? generateTextAnnotationId(),
     center: { x: input.center.x, y: input.center.y },
     width: input.width ?? DEFAULT_TEXT_BOX_WIDTH,
-    height: input.height ?? DEFAULT_TEXT_FONT_SIZE * 1.4,
+    height: input.height ?? Math.max(minHeight, DEFAULT_TEXT_FONT_SIZE * 1.4),
     rotation: input.rotation ?? 0,
     z: input.z ?? 0,
     opacity: input.opacity ?? 1,
@@ -177,6 +186,27 @@ export function createTextAnnotation(input: CreateTextAnnotationInput): TextAnno
     plainText: input.plainText ?? serializedStateToPlainText(doc),
     fontSize: input.fontSize ?? DEFAULT_TEXT_FONT_SIZE,
     autoHeight: input.autoHeight ?? true,
+    minHeight,
+  };
+}
+
+/**
+ * Box geometry for a Text-tool drag from `start` to `end` (crease-pattern model
+ * coordinates). Returns null when the drag is smaller than `minExtent` on both
+ * axes, so the caller can fall back to a click-created (auto-sizing) box.
+ */
+export function textBoxFromDrag(
+  start: { x: number; y: number },
+  end: { x: number; y: number },
+  minExtent: number
+): { center: { x: number; y: number }; width: number; height: number } | null {
+  const width = Math.abs(end.x - start.x);
+  const height = Math.abs(end.y - start.y);
+  if (width < minExtent && height < minExtent) return null;
+  return {
+    center: { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 },
+    width: Math.max(width, minExtent),
+    height: Math.max(height, minExtent),
   };
 }
 
@@ -225,6 +255,7 @@ export function validateTextAnnotation(value: unknown): TextAnnotation | null {
         : serializedStateToPlainText(doc),
     fontSize: positiveNumber(value.fontSize) ?? DEFAULT_TEXT_FONT_SIZE,
     autoHeight: value.autoHeight !== false,
+    minHeight: Math.max(0, finiteNumber(value.minHeight) ?? 0),
   };
 }
 

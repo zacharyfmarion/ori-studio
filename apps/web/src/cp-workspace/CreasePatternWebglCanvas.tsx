@@ -455,6 +455,12 @@ export interface CreasePatternWebglCanvasProps {
    * existing text is handled by the DOM overlay, so those clicks never reach here.
    */
   onTextCreate?: (modelPoint: ModelPoint) => void;
+  /**
+   * Text tool: a press-and-drag reports the drag's start + end model points so
+   * the panel can create a text box of that size (vs. the click above, which
+   * makes an auto-sizing box).
+   */
+  onTextCreateBox?: (start: ModelPoint, end: ModelPoint) => void;
   /** The current Voronoi click list (owned by the panel as `cpToolPoints`). */
   voronoiSeeds: readonly ModelPoint[];
   /** Report the updated Voronoi click list after a seed add / gesture reset. */
@@ -625,6 +631,7 @@ export function CreasePatternWebglCanvas({
   activeToolVoronoi,
   activeToolDashedPreview,
   onTextCreate,
+  onTextCreateBox,
   voronoiSeeds,
   onVoronoiSeedsChange,
   resolveFirstPickKind,
@@ -915,6 +922,7 @@ export function CreasePatternWebglCanvas({
     activeToolSquareBisector,
     activeToolVoronoi,
     onTextCreate,
+    onTextCreateBox,
     voronoiSeeds,
     onVoronoiSeedsChange,
     resolveFirstPickKind,
@@ -2104,6 +2112,18 @@ export function CreasePatternWebglCanvas({
         lastY = e.clientY;
         renderNow();
       } else if (selecting && moved) {
+        marquee.classList.remove('cp-webgl-marquee--text');
+        updateMarquee(e.clientX, e.clientY);
+      } else if (
+        liveRef.current.activeToolInputMode === 'text' &&
+        textPressStarted &&
+        moved &&
+        !panning &&
+        !movingFigure &&
+        !movingSelection
+      ) {
+        // Text tool press-drag: rubber-band the box the release will create.
+        marquee.classList.add('cp-webgl-marquee--text');
         updateMarquee(e.clientX, e.clientY);
       }
     };
@@ -2140,13 +2160,21 @@ export function CreasePatternWebglCanvas({
         !movingFigure
       ) {
         // Text tool: a click (no drag) whose press started on the canvas starts an
-        // inline-edit draft at that model point. A drag/pan, or a release whose press
-        // began on the overlay (dismissing an editor), does nothing.
-        if (textPressStarted && !moved && e.type !== 'pointercancel') {
-          const m = clientToModel(e.clientX, e.clientY);
-          if (m) liveRef.current.onTextCreate?.(m);
+        // inline-edit draft at that model point; a press-drag creates a text box of
+        // the dragged size. A pan, or a release whose press began on the overlay
+        // (dismissing an editor), does nothing.
+        if (textPressStarted && e.type !== 'pointercancel') {
+          if (moved) {
+            const start = clientToModel(pressX, pressY);
+            const end = clientToModel(e.clientX, e.clientY);
+            if (start && end) liveRef.current.onTextCreateBox?.(start, end);
+          } else {
+            const m = clientToModel(e.clientX, e.clientY);
+            if (m) liveRef.current.onTextCreate?.(m);
+          }
         }
         textPressStarted = false;
+        marquee.classList.remove('cp-webgl-marquee--text');
       } else if (erasing) {
         renderer.setPreview(null);
         const raw = clientToModel(e.clientX, e.clientY);

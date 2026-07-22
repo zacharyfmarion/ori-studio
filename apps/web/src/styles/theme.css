@@ -2027,6 +2027,12 @@
   background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
 }
 
+/* Text-tool drag: dashed outline (a box being drawn), no fill tint. */
+.cp-webgl-marquee--text {
+  border-style: dashed;
+  background: transparent;
+}
+
 /* Text-annotation labels over the WebGL surface: a DOM overlay (low glyph count,
    CSS-styled) that scales with zoom. Container is click-through; each label opts back
    into pointer events only when the active tool allows entity selection. */
