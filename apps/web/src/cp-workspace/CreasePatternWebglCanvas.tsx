@@ -25,9 +25,11 @@ import type {
   PointGeometry,
   Rgba,
   StrokeGeometry,
+  ViewTransform,
   Viewport,
   WedgeGeometry,
 } from './renderer/types';
+import type { CpOverlayViews } from './cpOverlayViewStore';
 import {
   cpSnapshotToScene,
   type CpLineSegmentInput,
@@ -585,8 +587,8 @@ export interface CreasePatternWebglCanvasProps {
   cameraCommand: CameraCommand | null;
   /** Report the camera's current zoom percent (100% = fit) so the toolbar reflects it. */
   onZoomPercentChange: (percent: number) => void;
-  /** Report the camera's model→CSS affine so DOM overlays (text) can position to it. */
-  onViewChange: (view: CpOverlayView) => void;
+  /** Report the camera's model→CSS and user→CSS affines so DOM overlays can position to them. */
+  onViewChange: (views: CpOverlayViews) => void;
   /**
    * Right-drag box erase (universal, overrides the active tool): delete every
    * crease inside the box given by its two opposite corners (model coords).
@@ -748,7 +750,7 @@ export function CreasePatternWebglCanvas({
   // Last zoom percent reported to the panel (dedupes the per-frame report).
   const lastReportedZoomRef = useRef<number | null>(null);
   // Last model→CSS affine reported to the panel (for the text overlay), to dedupe.
-  const lastReportedViewRef = useRef<CpOverlayView | null>(null);
+  const lastReportedViewRef = useRef<CpOverlayViews | null>(null);
   // Square Bisector's dual-mode accumulator: `mode` is chosen on the first pick
   // ('point' → collect 3 points then a destination; 'line' → collect 2 source crease
   // ids then a destination id). Null mode means the gesture hasn't started.
@@ -1122,23 +1124,25 @@ export function CreasePatternWebglCanvas({
 
       // Report the model→CSS affine (device view / dpr) for DOM overlays to project
       // against; deduped so it only fires when the camera actually moved.
-      const cssView: CpOverlayView = {
-        origin: [view.origin[0] / ratio, view.origin[1] / ratio],
-        ex: [view.ex[0] / ratio, view.ex[1] / ratio],
-        ey: [view.ey[0] / ratio, view.ey[1] / ratio],
-      };
-      const prevView = lastReportedViewRef.current;
-      if (
-        !prevView ||
-        prevView.origin[0] !== cssView.origin[0] ||
-        prevView.origin[1] !== cssView.origin[1] ||
-        prevView.ex[0] !== cssView.ex[0] ||
-        prevView.ex[1] !== cssView.ex[1] ||
-        prevView.ey[0] !== cssView.ey[0] ||
-        prevView.ey[1] !== cssView.ey[1]
-      ) {
-        lastReportedViewRef.current = cssView;
-        liveRef.current.onViewChange(cssView);
+      // Both spaces are reported: annotations place through `model`, folded
+      // figures through `user` (the space their render primitives land in).
+      const toCss = (v: ViewTransform): CpOverlayView => ({
+        origin: [v.origin[0] / ratio, v.origin[1] / ratio],
+        ex: [v.ex[0] / ratio, v.ex[1] / ratio],
+        ey: [v.ey[0] / ratio, v.ey[1] / ratio],
+      });
+      const cssViews: CpOverlayViews = { model: toCss(view), user: toCss(userView) };
+      const prev = lastReportedViewRef.current;
+      const sameView = (a: CpOverlayView, b: CpOverlayView) =>
+        a.origin[0] === b.origin[0] &&
+        a.origin[1] === b.origin[1] &&
+        a.ex[0] === b.ex[0] &&
+        a.ex[1] === b.ex[1] &&
+        a.ey[0] === b.ey[0] &&
+        a.ey[1] === b.ey[1];
+      if (!prev || !sameView(prev.model, cssViews.model) || !sameView(prev.user, cssViews.user)) {
+        lastReportedViewRef.current = cssViews;
+        liveRef.current.onViewChange(cssViews);
       }
 
       renderer.render({

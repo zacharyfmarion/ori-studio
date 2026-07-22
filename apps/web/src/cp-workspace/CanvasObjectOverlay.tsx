@@ -6,10 +6,10 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 import type { CpOverlayView } from './CreasePatternWebglCanvas';
-import { useCpOverlayView } from './cpOverlayViewStore';
+import { useCpOverlayViews } from './cpOverlayViewStore';
 import { IMAGE_ROTATION_SNAP_RADIANS } from './images/cpImage';
-import { cropImage } from './images/cpImagePlacement';
 import {
+  CORNER_RESIZE_HANDLES,
   boxCornersModel,
   overlayCssDeltaToModel,
   overlayCssToModel,
@@ -17,31 +17,32 @@ import {
   resizeAnnotationBox,
   resizeAspectLock,
   snapAngle,
+  type AnnotationBox,
   type AnnotationResizeHandle,
   type Vec2,
 } from './annotations/annotationTransform';
-import {
-  annotationAspectLockPolicy,
-  isImageAnnotation,
-  type AnnotationUpdate,
-  type CanvasAnnotation,
-} from './annotations/annotation';
+import type { TransformableCanvasObject } from './canvasObjects/transformableObject';
 
 /**
- * DOM overlay for direct-manipulating canvas annotations (images + text boxes)
- * on the WebGL surface. Images are drawn on the GPU and text on its own DOM
- * layer; this SVG layer draws the selection outline + handles and hosts the
- * select / move / resize / rotate pointer interactions shared by every kind.
+ * DOM overlay for direct-manipulating canvas objects — reference images, text
+ * boxes and folded figures — on the WebGL surface. Those are drawn variously on
+ * the GPU and on their own DOM layer; this SVG layer draws the selection outline
+ * and handles, and hosts the select / move / resize / rotate pointer gestures
+ * every kind shares.
  *
- * Kind-specific affordances layer on top: double-clicking an image toggles crop
- * mode (handles adjust the crop rect); double-clicking a text box requests
- * inline editing (`onRequestEditText`), during which that box's chrome is
- * suppressed so the Lexical editor receives events.
+ * The overlay knows nothing about the kinds themselves. It consumes
+ * {@link TransformableCanvasObject} — a rotated box plus an aspect-lock policy —
+ * and reports gestures back as box updates. Kind-specific affordances arrive as
+ * optional capability callbacks: `onToggleCrop` (an image's double-click puts its
+ * handles into crop mode) and `onRequestEdit` (a text box's double-click opens
+ * the inline editor, during which that box's chrome is suppressed so the Lexical
+ * editor receives events).
  *
- * Handle positions are projected from each box's model-space corners through the
- * camera {@link CpOverlayView}, so the chrome matches the object exactly under
- * rotation and non-uniform zoom; the transform math runs in model space
- * (annotationTransform) so it is camera-agnostic.
+ * Handle positions are projected from each box's corners through the camera
+ * affine for that object's space — {@link CpOverlayView} for model-space
+ * annotations, the user-space affine for folded figures — so chrome matches the
+ * object exactly under rotation and non-uniform zoom. The transform math runs in
+ * object space (annotationTransform), so it is camera-agnostic.
  */
 
 /** Rotation handle offset (CSS px) outward from each corner. */
@@ -49,13 +50,21 @@ const ROTATE_OFFSET_PX = 18;
 /** Resize handle square size (CSS px). */
 const HANDLE_SIZE_PX = 8;
 
+/** A box update produced by a gesture. Partial: a move only reports a centre. */
+export interface CanvasObjectBoxUpdate {
+  center?: Vec2;
+  width?: number;
+  height?: number;
+  rotation?: number;
+}
+
 type Drag =
   | { kind: 'move'; id: string; startClient: Vec2; startCenter: Vec2; moved: boolean }
   | {
       kind: 'resize';
       id: string;
       handle: AnnotationResizeHandle;
-      startBox: CanvasAnnotation;
+      startObject: TransformableCanvasObject;
       /** When true the handle crops instead of scaling (image only). */
       crop: boolean;
       moved: boolean;
@@ -69,40 +78,54 @@ type Drag =
       moved: boolean;
     };
 
-function annotationCornersCss(annotation: CanvasAnnotation, view: CpOverlayView): Vec2[] {
-  return boxCornersModel(annotation).map((corner) => overlayModelToCss(view, corner));
+function objectCornersCss(
+  object: TransformableCanvasObject,
+  views: { model: CpOverlayView; user: CpOverlayView }
+): Vec2[] {
+  const view = views[object.space];
+  return boxCornersModel(object.box).map((corner) => overlayModelToCss(view, corner));
 }
 
-export function CpAnnotationOverlay({
-  annotations,
+export function CanvasObjectOverlay({
+  objects,
   selectedId,
-  editingTextId,
+  suppressedId,
   interactive,
   onSelect,
   onUpdate,
-  onRequestEditText,
+  onCropUpdate,
+  onRequestEdit,
+  canCrop,
   onGestureStart,
   onGestureCommit,
 }: {
-  annotations: readonly CanvasAnnotation[];
+  objects: readonly TransformableCanvasObject[];
   selectedId: string | null;
-  /** Id of the text box currently being inline-edited (chrome suppressed). */
-  editingTextId: string | null;
+  /** Id whose chrome is hidden (a text box being inline-edited owns its events). */
+  suppressedId: string | null;
   interactive: boolean;
   onSelect: (id: string | null) => void;
-  onUpdate: (id: string, patch: AnnotationUpdate) => void;
-  /** Double-click on a text box requests inline editing. */
-  onRequestEditText: (id: string) => void;
+  onUpdate: (id: string, patch: CanvasObjectBoxUpdate) => void;
+  /**
+   * Crop drag for a croppable object. Given the dragged handle and the pointer
+   * in object space, the owner applies its own crop math (which needs the source
+   * pixels the overlay knows nothing about).
+   */
+  onCropUpdate?: (id: string, handle: AnnotationResizeHandle, pointer: Vec2) => void;
+  /** Double-click on an editable object (a text box) requests inline editing. */
+  onRequestEdit?: (id: string) => void;
+  /** Whether this object supports crop mode (double-click toggles it). */
+  canCrop?: (id: string) => boolean;
   /** Called at the start of a move/resize/rotate gesture (to snapshot for undo). */
-  onGestureStart?: () => void;
-  /** Called once a gesture actually changed the annotation, for undo/labeling. */
-  onGestureCommit?: (id: string, label: string) => void;
+  onGestureStart?: (id: string) => void;
+  /** Called once a gesture actually changed the object, for undo/labeling. */
+  onGestureCommit?: (id: string, kind: 'move' | 'resize' | 'rotate' | 'crop') => void;
 }) {
   // Live camera, subscribed directly so only this overlay re-renders per frame.
-  const view = useCpOverlayView();
+  const views = useCpOverlayViews();
   const dragRef = useRef<Drag | null>(null);
   const containerRef = useRef<SVGSVGElement | null>(null);
-  // Crop mode (image only): handles adjust the crop rect instead of scaling.
+  // Crop mode (croppable objects only): handles adjust the crop rect.
   const [cropMode, setCropMode] = useState(false);
   useEffect(() => setCropMode(false), [selectedId]);
 
@@ -111,7 +134,7 @@ export function CpAnnotationOverlay({
   // (CreasePatternPanel onSelect); this covers the keyboard. Ignored while
   // typing or inline-editing a text box.
   useEffect(() => {
-    if (!interactive || !selectedId || editingTextId) return;
+    if (!interactive || !selectedId || suppressedId) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       const target = event.target as HTMLElement | null;
@@ -123,15 +146,18 @@ export function CpAnnotationOverlay({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [interactive, selectedId, editingTextId, cropMode, onSelect]);
+  }, [interactive, selectedId, suppressedId, cropMode, onSelect]);
 
-  const pointerToModel = useCallback(
-    (event: ReactPointerEvent): Vec2 | null => {
+  const pointerToObject = useCallback(
+    (event: ReactPointerEvent, space: 'model' | 'user'): Vec2 | null => {
       const rect = containerRef.current?.getBoundingClientRect();
-      if (!rect || !view) return null;
-      return overlayCssToModel(view, { x: event.clientX - rect.left, y: event.clientY - rect.top });
+      if (!rect || !views) return null;
+      return overlayCssToModel(views[space], {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+      });
     },
-    [view]
+    [views]
   );
 
   const beginCapture = (event: ReactPointerEvent<SVGElement>) => {
@@ -141,16 +167,16 @@ export function CpAnnotationOverlay({
   };
 
   const handleBodyDown = useCallback(
-    (event: ReactPointerEvent<SVGPolygonElement>, annotation: CanvasAnnotation) => {
-      if (!interactive || annotation.locked) return;
+    (event: ReactPointerEvent<SVGPolygonElement>, object: TransformableCanvasObject) => {
+      if (!interactive || object.locked) return;
       beginCapture(event);
-      onSelect(annotation.id);
-      onGestureStart?.();
+      onSelect(object.id);
+      onGestureStart?.(object.id);
       dragRef.current = {
         kind: 'move',
-        id: annotation.id,
+        id: object.id,
         startClient: { x: event.clientX, y: event.clientY },
-        startCenter: { x: annotation.center.x, y: annotation.center.y },
+        startCenter: { x: object.box.center.x, y: object.box.center.y },
         moved: false,
       };
     },
@@ -160,78 +186,72 @@ export function CpAnnotationOverlay({
   const handleResizeDown = useCallback(
     (
       event: ReactPointerEvent<SVGRectElement>,
-      annotation: CanvasAnnotation,
+      object: TransformableCanvasObject,
       handle: AnnotationResizeHandle
     ) => {
-      if (!interactive || annotation.locked) return;
+      if (!interactive || object.locked) return;
       beginCapture(event);
-      onGestureStart?.();
+      onGestureStart?.(object.id);
       dragRef.current = {
         kind: 'resize',
-        id: annotation.id,
+        id: object.id,
         handle,
-        startBox: annotation,
-        crop: cropMode && isImageAnnotation(annotation),
+        startObject: object,
+        crop: cropMode && (canCrop?.(object.id) ?? false),
         moved: false,
       };
     },
-    [interactive, onGestureStart, cropMode]
+    [interactive, onGestureStart, cropMode, canCrop]
   );
 
   const handleRotateDown = useCallback(
-    (event: ReactPointerEvent<SVGCircleElement>, annotation: CanvasAnnotation) => {
-      if (!interactive || annotation.locked) return;
+    (event: ReactPointerEvent<SVGCircleElement>, object: TransformableCanvasObject) => {
+      if (!interactive || object.locked) return;
       beginCapture(event);
-      onGestureStart?.();
-      const pointer = pointerToModel(event);
+      onGestureStart?.(object.id);
+      const pointer = pointerToObject(event, object.space);
       const angle = pointer
-        ? Math.atan2(pointer.y - annotation.center.y, pointer.x - annotation.center.x)
-        : annotation.rotation;
+        ? Math.atan2(pointer.y - object.box.center.y, pointer.x - object.box.center.x)
+        : object.box.rotation;
       dragRef.current = {
         kind: 'rotate',
-        id: annotation.id,
-        startRotation: annotation.rotation,
+        id: object.id,
+        startRotation: object.box.rotation,
         startPointerAngle: angle,
-        center: { x: annotation.center.x, y: annotation.center.y },
+        center: { x: object.box.center.x, y: object.box.center.y },
         moved: false,
       };
     },
-    [interactive, pointerToModel, onGestureStart]
+    [interactive, pointerToObject, onGestureStart]
   );
 
   const handlePointerMove = useCallback(
-    (event: ReactPointerEvent<SVGElement>) => {
+    (event: ReactPointerEvent<SVGElement>, object: TransformableCanvasObject) => {
       const drag = dragRef.current;
-      if (!drag || !view) return;
+      if (!drag || !views) return;
       if (drag.kind === 'move') {
         const dCss = { x: event.clientX - drag.startClient.x, y: event.clientY - drag.startClient.y };
-        const dModel = overlayCssDeltaToModel(view, dCss);
-        if (!dModel) return;
+        const dObject = overlayCssDeltaToModel(views[object.space], dCss);
+        if (!dObject) return;
         if (!drag.moved && Math.hypot(dCss.x, dCss.y) > 1) drag.moved = true;
         onUpdate(drag.id, {
-          center: { x: drag.startCenter.x + dModel.x, y: drag.startCenter.y + dModel.y },
+          center: { x: drag.startCenter.x + dObject.x, y: drag.startCenter.y + dObject.y },
         });
         return;
       }
-      const pointer = pointerToModel(event);
+      const pointer = pointerToObject(event, object.space);
       if (!pointer) return;
       if (drag.kind === 'resize') {
         drag.moved = true;
-        if (drag.crop && isImageAnnotation(drag.startBox)) {
-          const next = cropImage(drag.startBox, drag.handle, pointer);
-          onUpdate(drag.id, {
-            center: next.center,
-            width: next.width,
-            height: next.height,
-            crop: next.crop,
-          });
+        if (drag.crop) {
+          onCropUpdate?.(drag.id, drag.handle, pointer);
           return;
         }
         const next = resizeAnnotationBox(
-          drag.startBox,
+          drag.startObject.box,
           drag.handle,
           pointer,
-          resizeAspectLock(annotationAspectLockPolicy(drag.startBox), event.shiftKey)
+          resizeAspectLock(drag.startObject.aspectLock, event.shiftKey)
         );
         onUpdate(drag.id, { center: next.center, width: next.width, height: next.height });
         return;
@@ -243,7 +263,7 @@ export function CpAnnotationOverlay({
       if (event.shiftKey) rotation = snapAngle(rotation, IMAGE_ROTATION_SNAP_RADIANS);
       onUpdate(drag.id, { rotation });
     },
-    [view, pointerToModel, onUpdate]
+    [views, pointerToObject, onUpdate, onCropUpdate]
   );
 
   const handlePointerUp = useCallback(
@@ -254,27 +274,22 @@ export function CpAnnotationOverlay({
         event.currentTarget.releasePointerCapture(event.pointerId);
       }
       if (drag?.moved) {
-        const label =
-          drag.kind === 'move'
-            ? 'Move annotation'
-            : drag.kind === 'rotate'
-              ? 'Rotate annotation'
-              : drag.crop
-                ? 'Crop image'
-                : 'Resize annotation';
-        onGestureCommit?.(drag.id, label);
+        onGestureCommit?.(
+          drag.id,
+          drag.kind === 'resize' && drag.crop ? 'crop' : drag.kind
+        );
       }
     },
     [onGestureCommit]
   );
 
-  const selected = annotations.find((annotation) => annotation.id === selectedId) ?? null;
+  const selected = objects.find((object) => object.id === selectedId) ?? null;
 
   // The interactive polygons/handles capture pointer events, which would
   // otherwise swallow the wheel and stop the canvas zooming while the cursor is
-  // over an annotation. Forward the wheel to the sibling WebGL canvas so zoom
-  // keeps working. A native, non-passive listener is used so preventDefault
-  // actually suppresses the page scroll (React's onWheel is registered passive).
+  // over an object. Forward the wheel to the sibling WebGL canvas so zoom keeps
+  // working. A native, non-passive listener is used so preventDefault actually
+  // suppresses the page scroll (React's onWheel is registered passive).
   useEffect(() => {
     const svg = containerRef.current;
     if (!svg) return;
@@ -297,7 +312,7 @@ export function CpAnnotationOverlay({
     return () => svg.removeEventListener('wheel', onWheel);
   }, []);
 
-  if (!view) return null;
+  if (!views) return null;
 
   return (
     <svg
@@ -311,23 +326,23 @@ export function CpAnnotationOverlay({
         pointerEvents: 'none',
         overflow: 'visible',
         // Above the WebGL canvas (5), grid (6), and the text DOM layer (7) so
-        // selection handles sit on top of every annotation kind.
+        // selection handles sit on top of every object kind.
         zIndex: 8,
       }}
       aria-hidden="true"
     >
-      {annotations.map((annotation) => {
-        if (annotation.hidden) return null;
-        // Suppress chrome for the text box being inline-edited so the editor
-        // owns pointer events.
-        if (annotation.id === editingTextId) return null;
-        const corners = annotationCornersCss(annotation, view);
+      {objects.map((object) => {
+        if (object.hidden) return null;
+        // Suppress chrome for the box being inline-edited so the editor owns
+        // pointer events.
+        if (object.id === suppressedId) return null;
+        const corners = objectCornersCss(object, views);
         const points = corners.map((corner) => `${corner.x},${corner.y}`).join(' ');
-        const isSelected = annotation.id === selectedId;
-        const cropping = isSelected && cropMode && isImageAnnotation(annotation);
+        const isSelected = object.id === selectedId;
+        const cropping = isSelected && cropMode && (canCrop?.(object.id) ?? false);
         return (
           <polygon
-            key={annotation.id}
+            key={object.id}
             points={points}
             fill="transparent"
             stroke={
@@ -340,72 +355,74 @@ export function CpAnnotationOverlay({
             strokeWidth={isSelected ? 1.5 : 0}
             strokeDasharray={cropping ? '4 3' : undefined}
             style={{
-              pointerEvents: interactive && !annotation.locked ? 'auto' : 'none',
+              pointerEvents: interactive && !object.locked ? 'auto' : 'none',
               cursor: interactive ? 'move' : 'default',
               vectorEffect: 'non-scaling-stroke',
             }}
-            onPointerDown={(event) => handleBodyDown(event, annotation)}
-            onPointerMove={handlePointerMove}
+            onPointerDown={(event) => handleBodyDown(event, object)}
+            onPointerMove={(event) => handlePointerMove(event, object)}
             onPointerUp={handlePointerUp}
             onDoubleClick={(event) => {
-              if (!interactive || annotation.locked) return;
+              if (!interactive || object.locked) return;
               event.stopPropagation();
-              onSelect(annotation.id);
-              if (isImageAnnotation(annotation)) setCropMode((mode) => !mode);
-              else onRequestEditText(annotation.id);
+              onSelect(object.id);
+              if (canCrop?.(object.id)) setCropMode((mode) => !mode);
+              else onRequestEdit?.(object.id);
             }}
           />
         );
       })}
 
-      {interactive &&
-        selected &&
-        !selected.hidden &&
-        !selected.locked &&
-        selected.id !== editingTextId && (
-          <SelectionHandles
-            annotation={selected}
-            view={view}
-            cropMode={cropMode && isImageAnnotation(selected)}
-            onResizeDown={handleResizeDown}
-            onRotateDown={handleRotateDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-          />
-        )}
+      {interactive && selected && !selected.hidden && !selected.locked && (
+        <SelectionHandles
+          object={selected}
+          views={views}
+          cropMode={cropMode && (canCrop?.(selected.id) ?? false)}
+          onResizeDown={handleResizeDown}
+          onRotateDown={handleRotateDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+        />
+      )}
     </svg>
   );
 }
 
-/** Resize squares (8) + rotation handles (4) for the selected annotation. */
+/** Resize squares + rotation handles for the selected object. */
 function SelectionHandles({
-  annotation,
-  view,
+  object,
+  views,
   cropMode,
   onResizeDown,
   onRotateDown,
   onPointerMove,
   onPointerUp,
 }: {
-  annotation: CanvasAnnotation;
-  view: CpOverlayView;
+  object: TransformableCanvasObject;
+  views: { model: CpOverlayView; user: CpOverlayView };
   cropMode: boolean;
   onResizeDown: (
     event: ReactPointerEvent<SVGRectElement>,
-    annotation: CanvasAnnotation,
+    object: TransformableCanvasObject,
     handle: AnnotationResizeHandle
   ) => void;
-  onRotateDown: (event: ReactPointerEvent<SVGCircleElement>, annotation: CanvasAnnotation) => void;
-  onPointerMove: (event: ReactPointerEvent<SVGElement>) => void;
+  onRotateDown: (
+    event: ReactPointerEvent<SVGCircleElement>,
+    object: TransformableCanvasObject
+  ) => void;
+  onPointerMove: (
+    event: ReactPointerEvent<SVGElement>,
+    object: TransformableCanvasObject
+  ) => void;
   onPointerUp: (event: ReactPointerEvent<SVGElement>) => void;
 }) {
   // Crop handles use the warning accent; resize/rotate the primary accent.
   const handleStroke = cropMode ? '#e0a020' : 'var(--accent-primary, #4c9aff)';
-  const [tl, tr, br, bl] = annotationCornersCss(annotation, view);
+  const [tl, tr, br, bl] = objectCornersCss(object, views);
   const mid = (a: Vec2, b: Vec2): Vec2 => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
   const center = { x: (tl.x + br.x) / 2, y: (tl.y + br.y) / 2 };
 
-  const resizePoints: { handle: AnnotationResizeHandle; at: Vec2 }[] = [
+  const allHandles: { handle: AnnotationResizeHandle; at: Vec2 }[] = [
     { handle: 'nw', at: tl },
     { handle: 'n', at: mid(tl, tr) },
     { handle: 'ne', at: tr },
@@ -415,6 +432,13 @@ function SelectionHandles({
     { handle: 'sw', at: bl },
     { handle: 'w', at: mid(bl, tl) },
   ];
+  // An always-proportional object (a folded figure) gets corners only: eight
+  // handles on something that cannot be stretched is misleading chrome. Crop is
+  // per-axis by nature, so cropping always offers all eight.
+  const resizePoints =
+    object.aspectLock === 'always' && !cropMode
+      ? allHandles.filter((point) => CORNER_RESIZE_HANDLES.includes(point.handle))
+      : allHandles;
 
   // Rotation handles sit just outside each corner (Affinity-style).
   const outward = (corner: Vec2): Vec2 => {
@@ -445,8 +469,8 @@ function SelectionHandles({
               stroke={handleStroke}
               strokeWidth={1.5}
               style={{ pointerEvents: 'auto', cursor: 'grab', vectorEffect: 'non-scaling-stroke' }}
-              onPointerDown={(event) => onRotateDown(event, annotation)}
-              onPointerMove={onPointerMove}
+              onPointerDown={(event) => onRotateDown(event, object)}
+              onPointerMove={(event) => onPointerMove(event, object)}
               onPointerUp={onPointerUp}
             />
           );
@@ -462,11 +486,14 @@ function SelectionHandles({
           stroke={handleStroke}
           strokeWidth={1.5}
           style={{ pointerEvents: 'auto', cursor: 'pointer', vectorEffect: 'non-scaling-stroke' }}
-          onPointerDown={(event) => onResizeDown(event, annotation, handle)}
-          onPointerMove={onPointerMove}
+          onPointerDown={(event) => onResizeDown(event, object, handle)}
+          onPointerMove={(event) => onPointerMove(event, object)}
           onPointerUp={onPointerUp}
         />
       ))}
     </g>
   );
 }
+
+/** Re-exported so callers can type their own box types against the overlay's. */
+export type { AnnotationBox };

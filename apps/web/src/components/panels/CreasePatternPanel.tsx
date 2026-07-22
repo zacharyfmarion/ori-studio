@@ -121,17 +121,21 @@ import { hexToRgbColor, rgbColorToHex } from '../../lib/rgbColor';
 import { ContextMenu } from '../ui/ContextMenu';
 import type { ContextMenuItem, ContextMenuRequest } from '../ui/contextMenuTypes';
 import { vertexPointsFromTransport } from '../../engine/oristudioCpGeometry';
-import { CpAnnotationOverlay } from '../../cp-workspace/CpAnnotationOverlay';
+import { CanvasObjectOverlay } from '../../cp-workspace/CanvasObjectOverlay';
+import type { CanvasObjectBoxUpdate } from '../../cp-workspace/CanvasObjectOverlay';
+import { annotationAsTransformable } from '../../cp-workspace/canvasObjects/transformableObject';
+import type { AnnotationResizeHandle } from '../../cp-workspace/annotations/annotationTransform';
 import { CpTextAnnotationLayer } from '../../cp-workspace/CpTextAnnotationLayer';
 import { CpImageInspector } from '../../cp-workspace/CpImageInspector';
 import { createCpImage } from '../../cp-workspace/images/cpImage';
 import { importImageFile, isSupportedImageFile } from '../../cp-workspace/images/cpImageImport';
-import { fitImageModelSize } from '../../cp-workspace/images/cpImagePlacement';
+import { cropImage, fitImageModelSize } from '../../cp-workspace/images/cpImagePlacement';
 import {
   overlayCssPerModel,
   overlayCssToModel,
 } from '../../cp-workspace/annotations/annotationTransform';
 import { cpOverlayViewStore } from '../../cp-workspace/cpOverlayViewStore';
+import type { CpOverlayViews } from '../../cp-workspace/cpOverlayViewStore';
 import { annotationScreenRect } from '../../cp-workspace/annotations/annotationAnchor';
 import {
   annotationAtModelPoint,
@@ -975,26 +979,26 @@ export function CreasePatternPanel() {
     zoomPercentRef.current = percent;
     setZoomPercent(percent);
   }, []);
-  // The WebGL camera's model→CSS affine. Every camera frame is published to the
-  // external cpOverlayViewStore, which the overlay components subscribe to
-  // directly — so pan/zoom re-renders only the small overlays (crisp, real font
-  // size) and never the giant panel. `webglOverlayView` is a *debounced* copy
-  // kept only for the toolbar anchors + on-demand handlers, which don't need to
-  // track every frame.
+  // The WebGL camera's affines. Every camera frame is published to the external
+  // cpOverlayViewStore, which the overlay components subscribe to directly — so
+  // pan/zoom re-renders only the small overlays (crisp, real font size) and never
+  // the giant panel. `webglOverlayView` is a *debounced* copy of the model-space
+  // affine, kept only for the toolbar anchors + on-demand handlers, which don't
+  // need to track every frame and only ever place model-space content.
   const [webglOverlayView, setWebglOverlayView] = useState<CpOverlayView | null>(null);
   const overlaySettleTimerRef = useRef<number | undefined>(undefined);
   const viewSeededRef = useRef(false);
-  const handleWebglViewChange = useCallback((view: CpOverlayView) => {
-    cpOverlayViewStore.set(view);
+  const handleWebglViewChange = useCallback((views: CpOverlayViews) => {
+    cpOverlayViewStore.set(views);
     if (!viewSeededRef.current) {
       // Seed the debounced copy on the first frame so toolbars/mounts don't wait
       // for the settle; afterwards it only updates on settle.
       viewSeededRef.current = true;
-      setWebglOverlayView(view);
+      setWebglOverlayView(views.model);
       return;
     }
     window.clearTimeout(overlaySettleTimerRef.current);
-    overlaySettleTimerRef.current = window.setTimeout(() => setWebglOverlayView(view), 100);
+    overlaySettleTimerRef.current = window.setTimeout(() => setWebglOverlayView(views.model), 100);
   }, []);
   const [spacePressed, setSpacePressed] = useState(false);
   const [cpToolState, setCpToolState] = useState(IDLE_ORISTUDIO_CP_TOOL_STATE);
@@ -1114,6 +1118,58 @@ export function CreasePatternPanel() {
       if (previous) recordAnnotationHistory([...previous], label);
     },
     [recordAnnotationHistory]
+  );
+
+  // --- Canvas objects: annotations projected onto the shared overlay contract ---
+  const annotationObjects = useMemo(
+    () => oristudioCpAnnotations.map(annotationAsTransformable),
+    [oristudioCpAnnotations]
+  );
+  const annotationById = useCallback(
+    (id: string) => useWorkspaceStore.getState().oristudioCpAnnotations.find((a) => a.id === id),
+    []
+  );
+  const handleAnnotationBoxUpdate = useCallback(
+    (id: string, patch: CanvasObjectBoxUpdate) => updateAnnotation(id, patch),
+    [updateAnnotation]
+  );
+  // Crop needs the image's source rect, which the overlay has no view of; it
+  // hands back the dragged handle and pointer and we apply the image math here.
+  const handleAnnotationCrop = useCallback(
+    (id: string, handle: AnnotationResizeHandle, pointer: { x: number; y: number }) => {
+      const annotation = annotationById(id);
+      if (!annotation || !isImageAnnotation(annotation)) return;
+      const next = cropImage(annotation, handle, pointer);
+      updateAnnotation(id, {
+        center: next.center,
+        width: next.width,
+        height: next.height,
+        crop: next.crop,
+      });
+    },
+    [annotationById, updateAnnotation]
+  );
+  const canCropAnnotation = useCallback(
+    (id: string) => {
+      const annotation = annotationById(id);
+      return !!annotation && isImageAnnotation(annotation);
+    },
+    [annotationById]
+  );
+  const annotationGestureLabel = useCallback(
+    (kind: 'move' | 'resize' | 'rotate' | 'crop') => {
+      switch (kind) {
+        case 'move':
+          return t('panels:creasePattern.moveAnnotation', 'Move annotation');
+        case 'rotate':
+          return t('panels:creasePattern.rotateAnnotation', 'Rotate annotation');
+        case 'crop':
+          return t('panels:creasePattern.cropImage', 'Crop image');
+        case 'resize':
+          return t('panels:creasePattern.resizeAnnotation', 'Resize annotation');
+      }
+    },
+    [t]
   );
 
   // Import an image file and add it as a reference image, placed at the given
@@ -3240,17 +3296,19 @@ export function CreasePatternPanel() {
                     onSyncHeight={syncAnnotationHeight}
                   />
                 )}
-                {webglOverlayView && oristudioCpAnnotations.length > 0 && (
-                  <CpAnnotationOverlay
-                    annotations={oristudioCpAnnotations}
+                {webglOverlayView && annotationObjects.length > 0 && (
+                  <CanvasObjectOverlay
+                    objects={annotationObjects}
                     selectedId={oristudioCpSelectedAnnotationId}
-                    editingTextId={editingTextId}
+                    suppressedId={editingTextId}
                     interactive={annotationsInteractive}
                     onSelect={setSelectedAnnotation}
-                    onUpdate={updateAnnotation}
-                    onRequestEditText={handleRequestEditText}
+                    onUpdate={handleAnnotationBoxUpdate}
+                    onCropUpdate={handleAnnotationCrop}
+                    onRequestEdit={handleRequestEditText}
+                    canCrop={canCropAnnotation}
                     onGestureStart={beginImageGesture}
-                    onGestureCommit={(_id, label) => commitImageGesture(label)}
+                    onGestureCommit={(_id, kind) => commitImageGesture(annotationGestureLabel(kind))}
                   />
                 )}
                 {annotationsInteractive && selectedCpImage && !editingTextId && (
