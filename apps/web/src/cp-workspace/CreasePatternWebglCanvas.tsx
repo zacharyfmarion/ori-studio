@@ -37,6 +37,7 @@ import { cpGeometryStrokesToScene } from './adapters/cpGeometryToScene';
 import type { CpGeometryTransport } from '../engine/oristudioCpGeometry';
 import type { CpImage } from './images/cpImage';
 import { imageCornersModel } from './images/cpImagePlacement';
+import { quadCornersModel } from './annotations/annotationAnchor';
 import { cpPointsToScene } from './adapters/cpPointsToScene';
 import { resolveCpLineColor } from './adapters/cpLineColor';
 import { resolveCpPointStyle } from './adapters/cpPointStyle';
@@ -115,6 +116,14 @@ const MAX_DPR = 2;
 
 /** Stable empty image list so the upload effect doesn't re-run on every render. */
 const EMPTY_IMAGES: readonly CpImage[] = [];
+/** Stable empty text-box list so the bounds memo doesn't re-run each render. */
+const EMPTY_TEXT_BOXES: readonly {
+  center: ModelPoint;
+  width: number;
+  height: number;
+  rotation: number;
+  hidden: boolean;
+}[] = [];
 
 /**
  * The editable SVG canvas is transparent, so the colour behind it is the panel
@@ -361,6 +370,17 @@ export interface CreasePatternWebglCanvasProps {
    * creases. Placement is in model coordinates.
    */
   images?: readonly CpImage[];
+  /**
+   * Text-annotation boxes (rendered on their own DOM layer, not here) folded into
+   * the framing bounds so open + fit-to-view include them. Model coords.
+   */
+  textBoxes?: readonly {
+    center: ModelPoint;
+    width: number;
+    height: number;
+    rotation: number;
+    hidden: boolean;
+  }[];
   /** Currently selected ids (lines/points/circles are 1-based). */
   selectedLineIds: readonly number[];
   selectedPointIds: readonly number[];
@@ -609,6 +629,7 @@ export function CreasePatternWebglCanvas({
   lineSegments,
   geometry,
   images,
+  textBoxes,
   modelToSvg,
   svgToModel,
   selectedLineIds,
@@ -774,8 +795,15 @@ export function CreasePatternWebglCanvas({
       if (image.hidden) continue;
       for (const corner of imageCornersModel(image)) extend(corner);
     }
+    // Text boxes are placed content too; fold their model-space box corners in.
+    for (const box of textBoxes ?? EMPTY_TEXT_BOXES) {
+      if (box.hidden) continue;
+      for (const corner of quadCornersModel(box.center, box.width, box.height, box.rotation)) {
+        extend(corner);
+      }
+    }
     return has ? { minX, minY, maxX, maxY } : null;
-  }, [lineSegments, images, modelToSvg]);
+  }, [lineSegments, images, textBoxes, modelToSvg]);
 
   // Spatial indices for click hit-testing. Points are indexed as zero-length
   // segments so the same distance query applies (id = index + 1). Vertices are

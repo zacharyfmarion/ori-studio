@@ -1079,6 +1079,12 @@ export function CreasePatternPanel() {
     () => oristudioCpAnnotations.filter(isImageAnnotation),
     [oristudioCpAnnotations]
   );
+  // Text boxes, passed to the canvas only so open + fit-to-view frame them too
+  // (they render on the DOM layer, not in GL).
+  const textAnnotations = useMemo(
+    () => oristudioCpAnnotations.filter(isTextAnnotation),
+    [oristudioCpAnnotations]
+  );
   // Viewport-space anchor for the selected annotation's floating toolbar.
   // Measured in a layout effect (the container's screen offset requires a ref
   // read, disallowed during render) and refreshed as the camera or box changes.
@@ -3105,6 +3111,7 @@ export function CreasePatternPanel() {
                   lineSegments={editableCp.crease_pattern.line_segments}
                   geometry={oristudioCpDocument?.geometry ?? null}
                   images={imageAnnotations}
+                  textBoxes={textAnnotations}
                   modelToSvg={editableModelToSvg}
                   svgToModel={editableSvgToModel}
                   selectedLineIds={oristudioCpSelection.lines}
