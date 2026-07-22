@@ -3112,6 +3112,7 @@ export function CreasePatternPanel() {
                   geometry={oristudioCpDocument?.geometry ?? null}
                   images={imageAnnotations}
                   textBoxes={textAnnotations}
+                  framingKey={`${projectLoadId}:${editableCpHandle ?? 'none'}`}
                   modelToSvg={editableModelToSvg}
                   svgToModel={editableSvgToModel}
                   selectedLineIds={oristudioCpSelection.lines}

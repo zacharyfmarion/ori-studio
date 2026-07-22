@@ -381,6 +381,14 @@ export interface CreasePatternWebglCanvasProps {
     rotation: number;
     hidden: boolean;
   }[];
+  /**
+   * Identity of the document being framed. The camera seeds itself once from
+   * `contentBounds`; when this changes (a new document loaded) the seed is
+   * discarded so the next frame re-fits against the *current* bounds — which by
+   * then include the document's annotations. Without this, opening frames from a
+   * snapshot taken before the annotation layer propagated.
+   */
+  framingKey?: string | number;
   /** Currently selected ids (lines/points/circles are 1-based). */
   selectedLineIds: readonly number[];
   selectedPointIds: readonly number[];
@@ -630,6 +638,7 @@ export function CreasePatternWebglCanvas({
   geometry,
   images,
   textBoxes,
+  framingKey,
   modelToSvg,
   svgToModel,
   selectedLineIds,
@@ -976,6 +985,14 @@ export function CreasePatternWebglCanvas({
     // Inputs affecting stroke thickness / mapping changed — redraw.
     renderNowRef.current();
   });
+
+  // A new document: drop the one-shot camera seed so the next frame re-fits
+  // against the current bounds (creases + images + text boxes). Declared after
+  // the liveRef effect so `contentBounds` is already up to date when it re-fits.
+  useEffect(() => {
+    cameraRef.current = null;
+    renderNowRef.current();
+  }, [framingKey]);
 
   // Force a grid rebuild when its params, visibility, or theme colour change.
   useEffect(() => {
