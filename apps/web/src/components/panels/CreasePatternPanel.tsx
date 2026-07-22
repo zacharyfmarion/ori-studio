@@ -1749,14 +1749,18 @@ export function CreasePatternPanel() {
       () => duplicateOristudioCpFoldedFigure(id)
     );
   }, [activeFoldedFigure, duplicateOristudioCpFoldedFigure, runFoldedFigureAction, t]);
-  const handleDeleteFoldedFigure = useCallback(() => {
-    if (!activeFoldedFigure) return;
-    const id = activeFoldedFigure.id;
-    runFoldedFigureAction(
-      t('panels:creasePattern.deleteFoldedModelAction', 'Delete folded model'),
-      () => deleteOristudioCpFoldedFigure(id)
-    );
-  }, [activeFoldedFigure, deleteOristudioCpFoldedFigure, runFoldedFigureAction, t]);
+  /** Delete a folded figure by id, defaulting to the one the menu is acting on. */
+  const handleDeleteFoldedFigure = useCallback(
+    (figureId?: string) => {
+      const id = figureId ?? activeFoldedFigure?.id;
+      if (!id) return;
+      runFoldedFigureAction(
+        t('panels:creasePattern.deleteFoldedModelAction', 'Delete folded model'),
+        () => deleteOristudioCpFoldedFigure(id)
+      );
+    },
+    [activeFoldedFigure, deleteOristudioCpFoldedFigure, runFoldedFigureAction, t]
+  );
 
   // Right-click context menu for a folded form. Items act on the clicked figure by
   // id (not the active one), so they behave correctly even before selection settles.
@@ -1946,10 +1950,11 @@ export function CreasePatternPanel() {
   const annotationsInteractive =
     cpToolState.phase !== 'active' || allowsDirectEntitySelection(activeCpCommand?.operationId);
 
-  // Delete/Backspace removes the selected annotation. Only while annotations are
-  // interactive, and ignored when typing in a field so it never eats text edits.
+  // Delete/Backspace removes the selected canvas object, whichever kind holds the
+  // selection. Only while objects are interactive, and ignored when typing in a
+  // field so it never eats text edits.
   useEffect(() => {
-    if (!annotationsInteractive || !oristudioCpSelectedAnnotationId) return;
+    if (!annotationsInteractive || !selectedCanvasObjectId) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Delete' && event.key !== 'Backspace') return;
       const target = event.target as HTMLElement | null;
@@ -1957,11 +1962,18 @@ export function CreasePatternPanel() {
         return;
       }
       event.preventDefault();
-      deleteSelectedImage();
+      if (oristudioCpSelectedAnnotationId) deleteSelectedImage();
+      else handleDeleteFoldedFigure(selectedCanvasObjectId);
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [annotationsInteractive, oristudioCpSelectedAnnotationId, deleteSelectedImage]);
+  }, [
+    annotationsInteractive,
+    selectedCanvasObjectId,
+    oristudioCpSelectedAnnotationId,
+    deleteSelectedImage,
+    handleDeleteFoldedFigure,
+  ]);
   const squareBisectorToolPrompt =
     isSquareBisectorOperation(activeCpCommand?.operationId) &&
     cpToolState.phase === 'active' &&
