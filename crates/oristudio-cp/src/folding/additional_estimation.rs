@@ -498,7 +498,9 @@ impl AdditionalEstimation {
             self.run_transitivity(table, completed)?;
             retain_checked(triple, |ec| {
                 if self.new_relations >= MAX_NEW_RELATIONS {
-                    return Ok::<RetainOutcome, AdditionalEstimationError>(RetainOutcome::KeepUnprocessed);
+                    return Ok::<RetainOutcome, AdditionalEstimationError>(
+                        RetainOutcome::KeepUnprocessed,
+                    );
                 }
                 let (changes, fired) = self.check_triple(table, *ec)?;
                 self.new_relations += changes;
@@ -510,7 +512,9 @@ impl AdditionalEstimation {
             })?;
             retain_checked(quadruple, |ec| {
                 if self.new_relations >= MAX_NEW_RELATIONS {
-                    return Ok::<RetainOutcome, AdditionalEstimationError>(RetainOutcome::KeepUnprocessed);
+                    return Ok::<RetainOutcome, AdditionalEstimationError>(
+                        RetainOutcome::KeepUnprocessed,
+                    );
                 }
                 let (changes, fired) = self.check_quad(table, *ec)?;
                 self.new_relations += changes;

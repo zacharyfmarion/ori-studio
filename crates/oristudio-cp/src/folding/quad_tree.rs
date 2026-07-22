@@ -220,10 +220,14 @@ impl QuadTree {
         let w = (r - l) / 2.0;
         let h = (t - b) / 2.0;
         let base = self.nodes.len();
-        self.nodes.push(Node::new(l, l + w, b, b + h, Some(node_idx)));
-        self.nodes.push(Node::new(l + w, r, b, b + h, Some(node_idx)));
-        self.nodes.push(Node::new(l, l + w, b + h, t, Some(node_idx)));
-        self.nodes.push(Node::new(l + w, r, b + h, t, Some(node_idx)));
+        self.nodes
+            .push(Node::new(l, l + w, b, b + h, Some(node_idx)));
+        self.nodes
+            .push(Node::new(l + w, r, b, b + h, Some(node_idx)));
+        self.nodes
+            .push(Node::new(l, l + w, b + h, t, Some(node_idx)));
+        self.nodes
+            .push(Node::new(l + w, r, b + h, t, Some(node_idx)));
         let children = [base, base + 1, base + 2, base + 3];
 
         // Redistribute the existing list into the children (one level down).
@@ -277,7 +281,12 @@ impl QuadTree {
         Some(node_idx)
     }
 
-    fn collect_node(&self, node_idx: usize, keep: &mut impl FnMut(usize) -> bool, out: &mut Vec<usize>) {
+    fn collect_node(
+        &self,
+        node_idx: usize,
+        keep: &mut impl FnMut(usize) -> bool,
+        out: &mut Vec<usize>,
+    ) {
         let mut cursor = self.nodes[node_idx].head;
         while cursor != -1 {
             let i = cursor as usize;
@@ -367,7 +376,12 @@ mod tests {
             }
         }
         let tree = QuadTree::new(items.clone(), &points, Comparator::Expand);
-        for &(qx, qy, qw) in &[(2.5, 3.5, 1.0), (0.0, 0.0, 0.5), (5.1, 5.1, 3.0), (9.0, 9.0, 2.0)] {
+        for &(qx, qy, qw) in &[
+            (2.5, 3.5, 1.0),
+            (0.0, 0.0, 0.5),
+            (5.1, 5.1, 3.0),
+            (9.0, 9.0, 2.0),
+        ] {
             let query = BBox::from_segment(pt(qx, qy), pt(qx + qw, qy + qw));
             let mut expected = brute_rectangle(&items, &query);
             expected.sort_unstable();
