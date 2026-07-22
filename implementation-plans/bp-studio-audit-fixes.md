@@ -191,6 +191,10 @@ first.
       (slice orchestration over the already-tested mirroring helper; integration
       is browser-verifiable)
 - [x] 5. Selecting a node focuses (and select-alls) its name box
+      (Refined after user feedback: focus only on picking an *existing* node.
+      Adding a node selects it but no longer focuses the name field — the input
+      was swallowing the undo shortcut, and drawing a run of flaps kept stealing
+      focus.)
 - [ ] 6. Repro + stop viewport moving during flap drag — REVERTED, REOPENED.
       Root cause: SVG viewBox from getBpPackingWorldRect grows to include the
       dragged flap's rect+label, so the viewBox chased the flap. First fix froze

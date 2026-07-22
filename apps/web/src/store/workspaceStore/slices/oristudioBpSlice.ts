@@ -439,7 +439,11 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
             selection: { kind: 'bp-vertex', id: created.id },
           });
         }
-        return created ? { ...next, selection: { kind: 'bp-vertex', id: created.id } } : next;
+        // Selection stays on the parent, not the new leaf: real trees branch like
+        // stars, so the common gesture is "give this node another child", and
+        // re-anchoring to the leaf would turn every click into a chain instead.
+        // Moving to a new branch node is an explicit click.
+        return created ? { ...next, selection: { kind: 'bp-vertex', id: parentId } } : next;
       });
     },
 
@@ -497,8 +501,10 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           primary.createdId != null && targetLoc && !snap.snapped && mirrorParentId != null
         );
         if (!shouldMirror || primary.createdId == null || mirrorParentId == null || !targetLoc) {
+          // Keep the parent selected so the next click adds another sibling —
+          // see addOristudioBpTreeLeaf.
           return primary.createdId != null
-            ? { ...primary.document, selection: { kind: 'bp-vertex', id: primary.createdId } }
+            ? { ...primary.document, selection: { kind: 'bp-vertex', id: parentId } }
             : primary.document;
         }
         const mirror = await addLeafAt(
@@ -514,7 +520,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           );
           set({ oristudioBpSymmetry: { ...get().oristudioBpSymmetry, pairs } });
         }
-        return { ...mirror.document, selection: { kind: 'bp-vertex', id: primary.createdId } };
+        return { ...mirror.document, selection: { kind: 'bp-vertex', id: parentId } };
       });
     },
 
