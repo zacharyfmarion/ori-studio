@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
@@ -10,6 +10,7 @@ import {
   BoxSelect,
   ChartNoAxesCombined,
   ChartPie,
+  ChevronDown,
   Circle,
   CircleDashed,
   CircleDot,
@@ -81,10 +82,12 @@ import {
   ORISTUDIO_CP_ACTION_GROUPS,
   cpActionsForGroup,
   type OristudioCpActionDefinition,
+  type OristudioCpActionGroupDefinition,
   type OristudioCpActionId,
 } from '../../lib/oristudioCpActions';
 import type { OristudioCpLineColor } from '../../engine/oristudioCpTypes';
-import { shortcutLabelForAction } from '../../keyboard/shortcuts';
+import { shortcutLabelForAction, type ShortcutOverrides } from '../../keyboard/shortcuts';
+import { readJson, storageKey, writeJson, STORAGE_KEYS } from '../../lib/storage';
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
 import { useShortcutStore } from '../../store/shortcutStore';
 import {
@@ -96,6 +99,23 @@ import {
   cpGroupRailLabel,
 } from '../../i18n/cpVocab';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/Tooltip';
+import { ProtractorIcon } from '../ui/ProtractorIcon';
+
+/** A rail icon: any lucide icon, or a local component with the same props. */
+type CpToolIcon = LucideIcon | typeof ProtractorIcon;
+
+const RAIL_GROUPS_STORAGE_KEY = storageKey(STORAGE_KEYS.cpToolRailGroups);
+
+/** Which collapsible rail groups the user has opened, keyed by group id. */
+function readRailGroupOpenState(): Record<string, boolean> {
+  const stored = readJson<unknown>(RAIL_GROUPS_STORAGE_KEY, {});
+  if (typeof stored !== 'object' || stored === null || Array.isArray(stored)) return {};
+  return stored as Record<string, boolean>;
+}
+
+function writeRailGroupOpenState(groupId: string, open: boolean): void {
+  writeJson(RAIL_GROUPS_STORAGE_KEY, { ...readRailGroupOpenState(), [groupId]: open });
+}
 
 interface CpToolRailProps {
   activeActionId: OristudioCpActionId | null;
@@ -104,7 +124,8 @@ interface CpToolRailProps {
   onSelectAction: (action: OristudioCpActionDefinition) => void;
 }
 
-const LUCIDE_ICONS: Record<string, LucideIcon> = {
+const LUCIDE_ICONS: Record<string, CpToolIcon> = {
+  ProtractorIcon,
   AlignJustify,
   BadgeAlert,
   BadgeCheck,
@@ -180,7 +201,7 @@ const LUCIDE_ICONS: Record<string, LucideIcon> = {
 };
 
 const ICON_ALIASES: Record<string, string> = {
-  angle: 'ChartNoAxesCombined',
+  angle: 'ProtractorIcon',
   compass: 'DraftingCompass',
   divide: 'Divide',
   frame: 'Scan',
@@ -300,11 +321,11 @@ const CP_TOOL_ICON_BY_OPERATION = Object.fromEntries(
     action.operationId,
     commandIcon(action.icon),
   ])
-) as Partial<Record<OristudioCpOperationId, LucideIcon>>;
+) as Partial<Record<OristudioCpOperationId, CpToolIcon>>;
 
 const CP_TOOL_ICON_BY_ACTION = Object.fromEntries(
   ORISTUDIO_CP_ACTIONS.map((action) => [action.id, commandIcon(action.icon)])
-) as Partial<Record<OristudioCpActionId, LucideIcon>>;
+) as Partial<Record<OristudioCpActionId, CpToolIcon>>;
 
 export const CpToolRail = memo(function CpToolRail({
   activeActionId,
@@ -327,31 +348,89 @@ export const CpToolRail = memo(function CpToolRail({
           if (actions.length === 0) return null;
 
           return (
-            <section key={group.id} className="cp-tool-rail__group" aria-label={cpGroupLabel(t, group)}>
-              <div className="cp-tool-rail__group-label">{cpGroupRailLabel(t, group)}</div>
-              <div className="cp-tool-rail__buttons">
-                {actions.map((action) => (
-                  <CpToolButton
-                    key={action.id}
-                    action={action}
-                    editable={editable}
-                    isActive={
-                      action.kind === 'line-type'
-                        ? activeLineColor === action.lineColor
-                        : activeActionId === action.id
-                    }
-                    onSelectAction={onSelectAction}
-                    shortcutLabel={shortcutLabelForAction(action.id, shortcutOverrides)}
-                  />
-                ))}
-              </div>
-            </section>
+            <CpToolRailGroup
+              key={group.id}
+              group={group}
+              actions={actions}
+              activeActionId={activeActionId}
+              activeLineColor={activeLineColor}
+              editable={editable}
+              onSelectAction={onSelectAction}
+              shortcutOverrides={shortcutOverrides}
+            />
           );
         })}
       </div>
     </aside>
   );
 });
+
+function CpToolRailGroup({
+  group,
+  actions,
+  activeActionId,
+  activeLineColor,
+  editable,
+  onSelectAction,
+  shortcutOverrides,
+}: {
+  group: OristudioCpActionGroupDefinition;
+  actions: OristudioCpActionDefinition[];
+  activeActionId: OristudioCpActionId | null;
+  activeLineColor: OristudioCpLineColor;
+  editable: boolean;
+  onSelectAction: (action: OristudioCpActionDefinition) => void;
+  shortcutOverrides: ShortcutOverrides;
+}) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(
+    () => readRailGroupOpenState()[group.id] ?? group.collapsedByDefault !== true
+  );
+  const buttonsId = `cp-tool-rail-group-${group.id}`;
+
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    writeRailGroupOpenState(group.id, next);
+  };
+
+  return (
+    <section
+      className="cp-tool-rail__group"
+      aria-label={cpGroupLabel(t, group)}
+      data-open={open || undefined}
+    >
+      <button
+        type="button"
+        className="cp-tool-rail__group-toggle"
+        aria-expanded={open}
+        aria-controls={buttonsId}
+        onClick={toggle}
+      >
+        <span className="cp-tool-rail__group-label">{cpGroupRailLabel(t, group)}</span>
+        <ChevronDown className="cp-tool-rail__group-chevron" size={10} aria-hidden="true" />
+      </button>
+      {open && (
+        <div className="cp-tool-rail__buttons" id={buttonsId}>
+          {actions.map((action) => (
+            <CpToolButton
+              key={action.id}
+              action={action}
+              editable={editable}
+              isActive={
+                action.kind === 'line-type'
+                  ? activeLineColor === action.lineColor
+                  : activeActionId === action.id
+              }
+              onSelectAction={onSelectAction}
+              shortcutLabel={shortcutLabelForAction(action.id, shortcutOverrides)}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
 
 const CpToolButton = memo(function CpToolButton({
   action,
@@ -419,7 +498,7 @@ const CpToolButton = memo(function CpToolButton({
   );
 });
 
-function commandIcon(icon: string): LucideIcon {
+function commandIcon(icon: string): CpToolIcon {
   const aliased = ICON_ALIASES[icon];
   const pascal = aliased ?? icon.split('-').map(capitalize).join('');
   return LUCIDE_ICONS[pascal] ?? CircleDashed;

@@ -195,6 +195,7 @@ describe('oristudio CP command registry', () => {
       'check-fix',
       'folding',
       'file',
+      'advanced',
     ]);
 
     for (const group of ORISTUDIO_CP_COMMAND_GROUPS) {

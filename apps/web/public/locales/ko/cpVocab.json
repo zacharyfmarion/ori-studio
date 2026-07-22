@@ -51,6 +51,10 @@
     "file": {
       "label": "파일 가져오기/내보내기",
       "railLabel": "파일"
+    },
+    "advanced": {
+      "label": "고급 도구",
+      "railLabel": "고급"
     }
   },
   "action": {
