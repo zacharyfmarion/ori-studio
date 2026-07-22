@@ -127,7 +127,8 @@ describe('oristudioBpProjectStateFromRaw', () => {
     expect(state.snapshot.packing.invalidJunctions[0]).toMatchObject({
       id: '2,3',
       flapIds: [2, 3],
-      polygon: [{ x: 2, y: 2 }, { x: 2.5, y: 2 }, { x: 2.5, y: 2.5 }],
+      overlap: -0.5,
+      paths: [[{ x: 2, y: 2 }, { x: 2.5, y: 2 }, { x: 2.5, y: 2.5 }]],
     });
     expect(state.snapshot.diagnostics.map((diagnostic) => diagnostic.kind)).toEqual([
       'pattern-not-found',

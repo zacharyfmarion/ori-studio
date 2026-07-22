@@ -20,6 +20,7 @@
     "grid": "Raster",
     "height": "Höhe",
     "layerAxis": "Achse",
+    "layerClearance": "Kreise",
     "layerConflicts": "Konflikte",
     "layerFlaps": "Klappen",
     "layerGrid": "Raster",

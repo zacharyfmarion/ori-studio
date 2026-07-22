@@ -20,6 +20,7 @@
     "grid": "Grid",
     "height": "Height",
     "layerAxis": "Axis",
+    "layerClearance": "Circles",
     "layerConflicts": "Conflicts",
     "layerFlaps": "Flaps",
     "layerGrid": "Grid",

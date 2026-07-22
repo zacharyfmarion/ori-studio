@@ -77,6 +77,9 @@ function main(): void {
   const out = {
     flaps: [...flaps].sort((a, b) => a.id - b.id),
     graphics: model.graphics ?? {},
+    // Invalid-junction outlines (ArcPolygon per "a,b" tag) — the ground truth for
+    // the conflict regions the packing canvas draws.
+    junctions: model.add?.junctions ?? {},
   };
   console.log(JSON.stringify(sortKeys(out), null, 2));
 }
