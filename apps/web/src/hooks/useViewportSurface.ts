@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import { getViewportFitScale } from '../lib/designViewport';
 import type { PlotRect } from '../lib/geometry';
+import { isPointerDown, trackPointerGestures } from '../lib/pointerGesture';
 import { viewportSizeFromElement } from '../lib/treeViewportPrimitives';
 import {
   registerViewportShortcutExecutor,
@@ -76,6 +77,12 @@ export function useViewportSurface({
   const [zoomPercent, setZoomPercent] = useState(100);
   const [spacePressed, setSpacePressed] = useState(false);
 
+  // Attach the pointer counter before the pane can be clicked, so the very first
+  // gesture is already visible to the fit guard below.
+  useEffect(() => {
+    trackPointerGestures();
+  }, []);
+
   const computeFitScale = useCallback(() => {
     const viewport = viewportSizeFromElement(containerRef.current);
     if (!viewport) return 1;
@@ -137,6 +144,13 @@ export function useViewportSurface({
   const fitLoadedDocument = useCallback(
     (animationTime = 0) => {
       if (lastFittedKeyRef.current === fitKey) return true;
+      // Never move the camera under a gesture in progress. A pane that mounts at
+      // zero size only gets its first fit once something gives it a size — and
+      // the thing that does that is often the user's own first click, whose
+      // reflow would land the fit in the middle of the drag they just started,
+      // leaving the drag running against a camera that moved beneath it. Stay
+      // unfitted; the release below retries.
+      if (isPointerDown()) return false;
       const container = containerRef.current;
       if (
         !container ||
@@ -160,6 +174,20 @@ export function useViewportSurface({
   useLayoutEffect(() => {
     const frame = requestAnimationFrame(() => fitLoadedDocumentRef.current(0));
     return () => cancelAnimationFrame(frame);
+  }, [fitKey]);
+
+  // Retry a fit that was skipped because the user was mid-gesture.
+  useEffect(() => {
+    const retry = () => {
+      if (lastFittedKeyRef.current === fitKey) return;
+      requestAnimationFrame(() => fitLoadedDocumentRef.current(0));
+    };
+    window.addEventListener('pointerup', retry);
+    window.addEventListener('pointercancel', retry);
+    return () => {
+      window.removeEventListener('pointerup', retry);
+      window.removeEventListener('pointercancel', retry);
+    };
   }, [fitKey]);
 
   // A pane can mount at zero size (a hidden Dockview tab). Keep retrying the

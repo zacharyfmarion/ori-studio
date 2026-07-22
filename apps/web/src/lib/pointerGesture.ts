@@ -38,7 +38,11 @@ function flushPending(): void {
   });
 }
 
-function ensureListening(): void {
+/**
+ * Start counting pointers. Call it before a gesture can begin — the count can
+ * only be right for presses that happen after the listeners are attached.
+ */
+export function trackPointerGestures(): void {
   if (listening) return;
   listening = true;
   // Capture phase, so the count is right even when a handler stops propagation.
@@ -70,12 +74,17 @@ function ensureListening(): void {
  *
  * With no pointer down (a menu command, a shortcut) this is a plain rAF.
  */
+/** Whether the user is currently holding a pointer down. */
+export function isPointerDown(): boolean {
+  return pointersDown > 0;
+}
+
 export function runAfterPointerGesture(run: () => void): void {
   if (typeof window === 'undefined') {
     run();
     return;
   }
-  ensureListening();
+  trackPointerGestures();
   if (pointersDown === 0) {
     requestAnimationFrame(run);
     return;
