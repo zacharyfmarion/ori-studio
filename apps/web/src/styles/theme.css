@@ -2160,11 +2160,19 @@
   outline: 1px solid var(--accent-primary, #4c9aff);
   border-radius: 2px;
   background: color-mix(in srgb, var(--bg-primary) 55%, transparent);
+  /* Let the editor fill the box so a click in the (empty) lower area of a
+     drag-sized box lands in the editable and places the cursor, rather than
+     blurring the editor and discarding the empty box. */
+  display: flex;
+  flex-direction: column;
 }
 
 .cp-text-editor__content {
   outline: none;
   min-height: 1em;
+  /* Fill the box (paired with .cp-text-box--editing's flex column) so the whole
+     box area is clickable/editable, not just the text's line height. */
+  flex: 1 1 auto;
   white-space: pre-wrap;
   caret-color: var(--accent-primary, #4c9aff);
   /* Override the box's inherited `cursor` (an inherited property) with the
