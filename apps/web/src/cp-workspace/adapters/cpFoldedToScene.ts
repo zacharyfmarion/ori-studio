@@ -525,9 +525,11 @@ export function cpUserAnchorForLineIds(
  * figure's top edge lines up with the paper's top edge, so the two read as a
  * row rather than the figure floating at whatever height the fold produced.
  *
- * `existing` should be the figures already on the canvas; the new figure goes to
- * the right of whichever reaches furthest, so repeated folds line up in a row
- * instead of stacking.
+ * `existing` should be the figures already on the canvas. Only those sharing the
+ * new figure's horizontal band can displace it, and the band is scanned left to
+ * right for the first slot wide enough — so repeated folds line up in a row,
+ * a figure parked above or below is correctly ignored, and a hole left by a
+ * deleted figure gets reused rather than the row growing forever.
  */
 export function placeFoldedFigureBesideCp(
   figure: OristudioCpFoldedFigureEntry,
@@ -539,24 +541,36 @@ export function placeFoldedFigureBesideCp(
   const local = foldedFigureLocalGeometry(snapshot);
   if (!local.bounds) return IDENTITY_FOLDED_PLACEMENT;
 
-  let clearOf = paper.right;
-  for (const other of existing) {
-    if (other.id === figure.id) continue;
-    const box = foldedFigureBox(other);
-    if (!box) continue;
-    // The rotated extent, so a turned neighbour still gets cleared.
-    const halfWidth =
-      (Math.abs(box.width * Math.cos(box.rotation)) +
-        Math.abs(box.height * Math.sin(box.rotation))) /
-      2;
-    clearOf = Math.max(clearOf, box.center.x + halfWidth);
+  // The figure is placed unrotated and unscaled, so its footprint is just its
+  // local extent, and its vertical band is fixed by the top alignment.
+  const width = local.bounds.maxX - local.bounds.minX;
+  const height = local.bounds.maxY - local.bounds.minY;
+  const top = paper.top;
+  const bottom = top + height;
+
+  // Only figures sharing this horizontal band can block it. One parked below or
+  // above is simply not in the way, and treating it as if it were is what used
+  // to fling a new figure far off to the right.
+  const blockers = existing
+    .filter((other) => other.id !== figure.id)
+    .map(foldedFigureUserAabb)
+    .filter((aabb): aabb is Aabb => aabb !== null)
+    .filter((aabb) => aabb.minY - FOLDED_FIGURE_GAP < bottom && aabb.maxY + FOLDED_FIGURE_GAP > top)
+    .sort((a, b) => a.minX - b.minX);
+
+  // First fit: walk the band left to right and take the first slot wide enough.
+  // Scanning rather than taking the far end means a figure deleted from the
+  // middle of a row leaves a hole the next fold reuses, so repeated folding
+  // stays put instead of marching off to the right forever.
+  let left = paper.right + FOLDED_FIGURE_GAP;
+  for (const blocker of blockers) {
+    if (blocker.maxX + FOLDED_FIGURE_GAP <= left) continue; // already behind us
+    if (blocker.minX - FOLDED_FIGURE_GAP >= left + width) break; // the slot fits here
+    left = blocker.maxX + FOLDED_FIGURE_GAP; // overlaps: move past it and re-check
   }
 
   return {
-    offset: {
-      x: clearOf + FOLDED_FIGURE_GAP - local.bounds.minX,
-      y: paper.top - local.bounds.minY,
-    },
+    offset: { x: left - local.bounds.minX, y: top - local.bounds.minY },
     scale: 1,
     rotation: 0,
   };
@@ -569,35 +583,45 @@ export function placeFoldedFigureBesideCp(
  * AABB is taken over the rotated corners. Figures with no drawable geometry are
  * omitted. Order follows `figures`, i.e. draw order — later entries render on top.
  */
+/**
+ * Axis-aligned bounding box (SVG user coords) of one folded figure *as placed*,
+ * taken over its rotated corners so a turned figure is fully enclosed. Null when
+ * the figure draws nothing.
+ */
+export function foldedFigureUserAabb(figure: OristudioCpFoldedFigureEntry): Aabb | null {
+  const box = foldedFigureBox(figure);
+  if (!box) return null;
+  const hw = box.width / 2;
+  const hh = box.height / 2;
+  const cos = Math.cos(box.rotation);
+  const sin = Math.sin(box.rotation);
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const [dx, dy] of [
+    [-hw, -hh],
+    [hw, -hh],
+    [hw, hh],
+    [-hw, hh],
+  ]) {
+    const x = box.center.x + dx * cos - dy * sin;
+    const y = box.center.y + dx * sin + dy * cos;
+    if (x < minX) minX = x;
+    if (y < minY) minY = y;
+    if (x > maxX) maxX = x;
+    if (y > maxY) maxY = y;
+  }
+  return { minX, minY, maxX, maxY };
+}
+
 export function foldedFigureUserBounds(
   figures: readonly OristudioCpFoldedFigureEntry[]
 ): FoldedFigureBounds[] {
   const result: FoldedFigureBounds[] = [];
   for (const figure of figures) {
-    const box = foldedFigureBox(figure);
-    if (!box) continue;
-    const hw = box.width / 2;
-    const hh = box.height / 2;
-    const cos = Math.cos(box.rotation);
-    const sin = Math.sin(box.rotation);
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-    for (const [dx, dy] of [
-      [-hw, -hh],
-      [hw, -hh],
-      [hw, hh],
-      [-hw, hh],
-    ]) {
-      const x = box.center.x + dx * cos - dy * sin;
-      const y = box.center.y + dx * sin + dy * cos;
-      if (x < minX) minX = x;
-      if (y < minY) minY = y;
-      if (x > maxX) maxX = x;
-      if (y > maxY) maxY = y;
-    }
-    result.push({ id: figure.id, bounds: { minX, minY, maxX, maxY } });
+    const bounds = foldedFigureUserAabb(figure);
+    if (bounds) result.push({ id: figure.id, bounds });
   }
   return result;
 }

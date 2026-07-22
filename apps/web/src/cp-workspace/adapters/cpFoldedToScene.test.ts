@@ -350,6 +350,8 @@ describe('cpContradictionFaceFills', () => {
 
 describe('placeFoldedFigureBesideCp', () => {
   const paper = { right: 200, top: 40 };
+  /** Mirrors FOLDED_FIGURE_GAP; kept local so the tests state their own setup. */
+  const FIGURE_GAP = 48;
 
   it('parks the figure clear of the crease pattern', () => {
     const figure = polygonFigureNamed('a');
@@ -398,18 +400,70 @@ describe('placeFoldedFigureBesideCp', () => {
     expect(b.minX).toBeGreaterThan(a.maxX);
   });
 
-  it('clears a rotated neighbour by its turned extent', () => {
-    const turned = {
-      ...polygonFigureNamed('a'),
-      placement: { offset: { x: 300, y: 0 }, scale: 1, rotation: Math.PI / 4 },
+  it('ignores a figure parked outside the row, instead of fleeing right of it', () => {
+    // The bug this replaced: any figure anywhere raised a high-water mark, so
+    // one dragged far below still flung the next fold off to the right.
+    const far = {
+      ...polygonFigureNamed('far'),
+      placement: { offset: { x: 5000, y: 5000 }, scale: 1, rotation: 0 },
     };
+    const next = polygonFigureNamed('b');
+    const alone = placeFoldedFigureBesideCp(next, [], paper);
+    const withFar = placeFoldedFigureBesideCp(next, [far], paper);
+    expect(withFar).toEqual(alone);
+  });
+
+  it('reuses a hole left in the middle of the row', () => {
+    const first = polygonFigureNamed('a');
+    const firstPlaced = { ...first, placement: placeFoldedFigureBesideCp(first, [], paper) };
+    const second = polygonFigureNamed('b');
+    const secondPlaced = {
+      ...second,
+      placement: placeFoldedFigureBesideCp(second, [firstPlaced], paper),
+    };
+    const third = polygonFigureNamed('c');
+    const thirdPlaced = {
+      ...third,
+      placement: placeFoldedFigureBesideCp(third, [firstPlaced, secondPlaced], paper),
+    };
+    // Delete the middle one; the next fold should take its slot back rather than
+    // landing past the third.
+    const refilled = placeFoldedFigureBesideCp(polygonFigureNamed('d'), [
+      firstPlaced,
+      thirdPlaced,
+    ], paper);
+    expect(refilled).toEqual(secondPlaced.placement);
+  });
+
+  it('skips a slot that is too narrow and takes the next one', () => {
+    // A neighbour leaving a real gap in front of it, but only half as wide as
+    // the figure needs — first-fit must pass it by rather than squeeze in.
+    const size = figureSize();
+    const tight = figureAt('tight', paper.right + FIGURE_GAP + size.width / 2, paper.top);
+    const placed = {
+      ...polygonFigureNamed('d'),
+      placement: placeFoldedFigureBesideCp(polygonFigureNamed('d'), [tight], paper),
+    };
+    const tightBounds = foldedFigureUserBounds([tight])[0].bounds;
+    expect(foldedFigureUserBounds([placed])[0].bounds.minX).toBeGreaterThanOrEqual(
+      tightBounds.maxX
+    );
+  });
+
+  it('clears a rotated neighbour in the row by its turned extent', () => {
+    const turned = figureAt('turned', paper.right + 200, paper.top, Math.PI / 4);
     const next = polygonFigureNamed('b');
     const placed = {
       ...next,
       placement: placeFoldedFigureBesideCp(next, [turned], paper),
     };
     const turnedBounds = foldedFigureUserBounds([turned])[0].bounds;
-    expect(foldedFigureUserBounds([placed])[0].bounds.minX).toBeGreaterThan(turnedBounds.maxX);
+    const placedBounds = foldedFigureUserBounds([placed])[0].bounds;
+    // Either it fits in the gap before the turned figure, or it clears it —
+    // never overlapping the turned figure's true (rotated) extent.
+    const clears =
+      placedBounds.maxX <= turnedBounds.minX || placedBounds.minX >= turnedBounds.maxX;
+    expect(clears).toBe(true);
   });
 
   it('is identity for a figure that draws nothing', () => {
@@ -418,6 +472,32 @@ describe('placeFoldedFigureBesideCp', () => {
     );
   });
 });
+
+/** The unplaced footprint of the test figure, in user units. */
+function figureSize(): { width: number; height: number } {
+  const local = foldedFigureLocalGeometry(polygonFigureNamed('m').renderSnapshot!);
+  const bounds = local.bounds!;
+  return { width: bounds.maxX - bounds.minX, height: bounds.maxY - bounds.minY };
+}
+
+/** A test figure whose unrotated top-left sits at (left, top) in user units. */
+function figureAt(
+  id: string,
+  left: number,
+  top: number,
+  rotation = 0
+): OristudioCpFoldedFigureEntry {
+  const entry = polygonFigureNamed(id);
+  const bounds = foldedFigureLocalGeometry(entry.renderSnapshot!).bounds!;
+  return {
+    ...entry,
+    placement: {
+      offset: { x: left - bounds.minX, y: top - bounds.minY },
+      scale: 1,
+      rotation,
+    },
+  };
+}
 
 function polygonFigureNamed(id: string): OristudioCpFoldedFigureEntry {
   return {
