@@ -114,6 +114,23 @@ import { useThemeStore } from '../store/themeStore';
 /** Cap DPR at 2 — matches the perf budget and avoids 3x/4x fill on hidpi. */
 const MAX_DPR = 2;
 
+/**
+ * The figure list with one entry's placement scaled by `factor` — the live
+ * preview for a drag-to-scale gesture, without writing to the store. Placement
+ * already pivots on the figure's own centre, so this is the whole preview.
+ */
+function withScaledPlacement(
+  figures: readonly OristudioCpFoldedFigureEntry[],
+  figureId: string,
+  factor: number
+): OristudioCpFoldedFigureEntry[] {
+  return figures.map((figure) =>
+    figure.id === figureId
+      ? { ...figure, placement: { ...figure.placement, scale: figure.placement.scale * factor } }
+      : figure
+  );
+}
+
 /** Stable empty image list so the upload effect doesn't re-run on every render. */
 const EMPTY_IMAGES: readonly CpImage[] = [];
 /** Stable empty text-box list so the bounds memo doesn't re-run each render. */
@@ -1191,18 +1208,9 @@ export function CreasePatternWebglCanvas({
       return null;
     };
 
-    // Pivot (folded-figure bbox centre, user coords) for the drag-to-scale gesture.
-    const scalePivotFor = (figureId: string): ModelPoint | null => {
-      const entry = liveRef.current.foldedBounds.find((b) => b.id === figureId);
-      if (!entry) return null;
-      const { minX, minY, maxX, maxY } = entry.bounds;
-      return { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
-    };
-
-    // The figure's committed `model.scale`, the base the preview factor multiplies.
+    // The figure's committed placement scale, the base the preview factor multiplies.
     const baseScaleFor = (figureId: string): number =>
-      liveRef.current.foldedFigures.find((figure) => figure.id === figureId)?.snapshot?.model
-        .scale ?? 1;
+      liveRef.current.foldedFigures.find((figure) => figure.id === figureId)?.placement.scale ?? 1;
 
     const modelToleranceOf = (cssTol: number): number => {
       const cam = cameraRef.current;
@@ -1895,12 +1903,13 @@ export function CreasePatternWebglCanvas({
     // Active folded-figure drag: figure id + last cursor position in user coords.
     let movingFigure: string | null = null;
     // Active drag-to-scale of a folded figure: the armed figure, the press Y, its
-    // committed base scale, its pivot (user coords), and the running preview factor.
+    // committed base scale, and the running preview factor. The gesture scales
+    // about the figure's own centre, which its placement already pivots on, so
+    // there is no separate pivot to track.
     let scalingFigure: {
       id: string;
       startY: number;
       baseScale: number;
-      pivot: ModelPoint;
       factor: number;
     } | null = null;
     // Restore the folded geometry to its committed (unscaled-preview) state.
@@ -1939,13 +1948,11 @@ export function CreasePatternWebglCanvas({
         // this primary drag scales it live about its centre. Right/other buttons
         // below fall through to their normal gestures after disarming.
         e.preventDefault();
-        const pivot = scalePivotFor(armedScaleId);
-        if (pivot) {
+        if (liveRef.current.foldedFigures.some((figure) => figure.id === armedScaleId)) {
           scalingFigure = {
             id: armedScaleId,
             startY: e.clientY,
             baseScale: baseScaleFor(armedScaleId),
-            pivot,
             factor: 1,
           };
           canvas.setPointerCapture(e.pointerId);
@@ -2051,11 +2058,9 @@ export function CreasePatternWebglCanvas({
         const factor = Math.pow(2, (scalingFigure.startY - e.clientY) / 200);
         scalingFigure.factor = factor;
         rendererRef.current?.setFolded(
-          cpFoldedToScene(liveRef.current.foldedFigures, {
-            figureId: scalingFigure.id,
-            factor,
-            pivot: scalingFigure.pivot,
-          })
+          cpFoldedToScene(
+            withScaledPlacement(liveRef.current.foldedFigures, scalingFigure.id, factor)
+          )
         );
         renderNow();
         return;
@@ -2180,8 +2185,9 @@ export function CreasePatternWebglCanvas({
           // Cancelled, or a click with no drag: drop the preview, keep the scale.
           clearScalePreview();
         } else {
-          // Commit the previewed scale (kept > 0). The store re-render regenerates
-          // the snapshot at this scale, replacing the preview geometry.
+          // Commit the previewed scale (kept > 0) to the figure's placement. The
+          // store update re-renders through the same path the preview used, so
+          // there is nothing to reconcile.
           const nextScale = Math.max(0.05, gesture.baseScale * gesture.factor);
           liveRef.current.onScaleFoldedFigure(gesture.id, nextScale);
         }

@@ -2,16 +2,23 @@ import { describe, expect, it } from 'vitest';
 import {
   cpContradictionFaceFills,
   cpFoldedToScene,
+  foldedFigureBox,
+  foldedFigureLocalGeometry,
   foldedFigureUserBounds,
 } from './cpFoldedToScene';
+import { IDENTITY_FOLDED_PLACEMENT } from '../../engine/oristudioCpTypes';
 import type {
+  FoldedFigurePlacement,
   OristudioCpContradictionFaceGeometry,
   OristudioCpFoldedFigureEntry,
   OristudioCpFoldedFigureSnapshot,
   OristudioCpFoldedRenderPrimitive,
 } from '../../engine/oristudioCpTypes';
 
-function figure(primitives: OristudioCpFoldedRenderPrimitive[]): OristudioCpFoldedFigureEntry {
+function figure(
+  primitives: OristudioCpFoldedRenderPrimitive[],
+  placement: FoldedFigurePlacement = IDENTITY_FOLDED_PLACEMENT
+): OristudioCpFoldedFigureEntry {
   return {
     id: 'f1',
     title: 'f1',
@@ -23,6 +30,7 @@ function figure(primitives: OristudioCpFoldedRenderPrimitive[]): OristudioCpFold
     status: 'ready',
     snapshot: null,
     renderSnapshot: { schema_version: 1, fixture: null, pass: null, primitives },
+    placement,
     error: null,
   };
 }
@@ -92,52 +100,143 @@ describe('cpFoldedToScene', () => {
   });
 });
 
-const strokeTriangle = () =>
-  figure([
-    {
-      sequence: 0,
-      kind: 'stroke_polygon',
-      style: {
-        paint: solid(0, 0, 0, 255),
-        stroke: { kind: 'basic', width: 1, end_cap: 0, line_join: 0, miter_limit: 4 },
-        antialias: 'default',
+const strokeTriangle = (placement: FoldedFigurePlacement = IDENTITY_FOLDED_PLACEMENT) =>
+  figure(
+    [
+      {
+        sequence: 0,
+        kind: 'stroke_polygon',
+        style: {
+          paint: solid(0, 0, 0, 255),
+          stroke: { kind: 'basic', width: 1, end_cap: 0, line_join: 0, miter_limit: 4 },
+          antialias: 'default',
+        },
+        geometry: {
+          kind: 'polygon',
+          points: [
+            { x: 0, y: 0 },
+            { x: 8, y: 0 },
+            { x: 8, y: 8 },
+          ],
+        },
       },
-      geometry: {
-        kind: 'polygon',
-        points: [
-          { x: 0, y: 0 },
-          { x: 8, y: 0 },
-          { x: 8, y: 8 },
-        ],
-      },
-    },
-  ]);
+    ],
+    placement
+  );
 
-describe('cpFoldedToScene scale preview', () => {
-  it('scales the targeted figure about the pivot (user coords)', () => {
+describe('folded figure placement', () => {
+  /** The centre of the rendered geometry, which placement pivots on. */
+  const drawnCenter = (entry: OristudioCpFoldedFigureEntry) => {
+    const geo = cpFoldedToScene([entry]);
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (let i = 0; i < geo.strokes.count * 2; i += 2) {
+      for (const [x, y] of [
+        [geo.strokes.a[i], geo.strokes.a[i + 1]],
+        [geo.strokes.b[i], geo.strokes.b[i + 1]],
+      ]) {
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+      }
+    }
+    return { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
+  };
+
+  it('translates by the placement offset', () => {
     const base = cpFoldedToScene([strokeTriangle()]);
-    const pivot = { x: 5, y: 5 };
-    const factor = 2;
-    const preview = cpFoldedToScene([strokeTriangle()], { figureId: 'f1', factor, pivot });
-
-    expect(preview.strokes.count).toBe(base.strokes.count);
+    const moved = cpFoldedToScene([
+      strokeTriangle({ offset: { x: 100, y: -25 }, scale: 1, rotation: 0 }),
+    ]);
     for (let i = 0; i < base.strokes.count * 2; i += 2) {
-      expect(preview.strokes.a[i]).toBeCloseTo(pivot.x + (base.strokes.a[i] - pivot.x) * factor);
-      expect(preview.strokes.a[i + 1]).toBeCloseTo(
-        pivot.y + (base.strokes.a[i + 1] - pivot.y) * factor
-      );
+      expect(moved.strokes.a[i]).toBeCloseTo(base.strokes.a[i] + 100);
+      expect(moved.strokes.a[i + 1]).toBeCloseTo(base.strokes.a[i + 1] - 25);
     }
   });
 
-  it('leaves a non-targeted figure unchanged', () => {
+  it('scales about the figure centre, so the centre does not move', () => {
+    const base = drawnCenter(strokeTriangle());
+    const scaled = drawnCenter(
+      strokeTriangle({ offset: { x: 0, y: 0 }, scale: 3, rotation: 0 })
+    );
+    expect(scaled.x).toBeCloseTo(base.x);
+    expect(scaled.y).toBeCloseTo(base.y);
+  });
+
+  it('rotates every vertex about the figure centre', () => {
+    // The pivot is preserved, not the bounding box: turning a triangle changes
+    // the box it occupies, so the invariant to assert is the per-vertex map
+    // v ↦ c0 + R(θ)(v − c0), with c0 the unplaced centre.
+    const angle = Math.PI / 3;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const pivot = foldedFigureBox(strokeTriangle())!.center;
     const base = cpFoldedToScene([strokeTriangle()]);
-    const preview = cpFoldedToScene([strokeTriangle()], {
-      figureId: 'other',
-      factor: 3,
-      pivot: { x: 0, y: 0 },
-    });
-    expect(Array.from(preview.strokes.a)).toEqual(Array.from(base.strokes.a));
-    expect(Array.from(preview.strokes.b)).toEqual(Array.from(base.strokes.b));
+    const rotated = cpFoldedToScene([
+      strokeTriangle({ offset: { x: 0, y: 0 }, scale: 1, rotation: angle }),
+    ]);
+    for (let i = 0; i < base.strokes.count * 2; i += 2) {
+      const dx = base.strokes.a[i] - pivot.x;
+      const dy = base.strokes.a[i + 1] - pivot.y;
+      expect(rotated.strokes.a[i]).toBeCloseTo(pivot.x + dx * cos - dy * sin);
+      expect(rotated.strokes.a[i + 1]).toBeCloseTo(pivot.y + dx * sin + dy * cos);
+    }
+  });
+
+  it('a half-turn maps every vertex to its reflection through the centre', () => {
+    const base = cpFoldedToScene([strokeTriangle()]);
+    const center = drawnCenter(strokeTriangle());
+    const turned = cpFoldedToScene([
+      strokeTriangle({ offset: { x: 0, y: 0 }, scale: 1, rotation: Math.PI }),
+    ]);
+    for (let i = 0; i < base.strokes.count * 2; i += 2) {
+      expect(turned.strokes.a[i]).toBeCloseTo(2 * center.x - base.strokes.a[i]);
+      expect(turned.strokes.a[i + 1]).toBeCloseTo(2 * center.y - base.strokes.a[i + 1]);
+    }
+  });
+
+  it('leaves other figures unaffected', () => {
+    const other = { ...strokeTriangle(), id: 'other' };
+    const base = cpFoldedToScene([other]);
+    const withPlaced = cpFoldedToScene([
+      other,
+      { ...strokeTriangle({ offset: { x: 500, y: 500 }, scale: 4, rotation: 1 }), id: 'placed' },
+    ]);
+    for (let i = 0; i < base.strokes.count * 2; i += 2) {
+      expect(withPlaced.strokes.a[i]).toBeCloseTo(base.strokes.a[i]);
+    }
+  });
+
+  it('caches local geometry per render snapshot so drags avoid re-triangulating', () => {
+    const entry = strokeTriangle();
+    const snapshot = entry.renderSnapshot!;
+    const first = foldedFigureLocalGeometry(snapshot);
+    const second = foldedFigureLocalGeometry(snapshot);
+    expect(second).toBe(first);
+    // A different snapshot object is a different cache entry.
+    expect(foldedFigureLocalGeometry({ ...snapshot })).not.toBe(first);
+  });
+});
+
+describe('foldedFigureBox', () => {
+  it('scales the box extents and carries the rotation', () => {
+    const base = foldedFigureBox(strokeTriangle())!;
+    const placed = foldedFigureBox(
+      strokeTriangle({ offset: { x: 10, y: 20 }, scale: 2, rotation: 0.5 })
+    )!;
+    expect(placed.width).toBeCloseTo(base.width * 2);
+    expect(placed.height).toBeCloseTo(base.height * 2);
+    expect(placed.rotation).toBeCloseTo(0.5);
+    expect(placed.center.x).toBeCloseTo(base.center.x + 10);
+    expect(placed.center.y).toBeCloseTo(base.center.y + 20);
+  });
+
+  it('is null for a figure that draws nothing', () => {
+    expect(foldedFigureBox(figure([]))).toBeNull();
+    expect(foldedFigureBox({ ...figure([]), renderSnapshot: null })).toBeNull();
   });
 });
 
@@ -168,10 +267,13 @@ describe('foldedFigureUserBounds', () => {
     expect(entry.bounds.maxY).toBeGreaterThan(entry.bounds.minY);
   });
 
-  it('shifts bounds by the display offset', () => {
+  it('shifts bounds by the placement offset', () => {
     const base = foldedFigureUserBounds([polygonFigure()])[0].bounds;
     const shifted = foldedFigureUserBounds([
-      { ...polygonFigure(), displayOffset: { x: 100, y: 50 } },
+      {
+        ...polygonFigure(),
+        placement: { offset: { x: 100, y: 50 }, scale: 1, rotation: 0 },
+      },
     ])[0].bounds;
     expect(shifted.minX - base.minX).toBeCloseTo(100);
     expect(shifted.maxX - base.maxX).toBeCloseTo(100);
@@ -182,6 +284,17 @@ describe('foldedFigureUserBounds', () => {
   it('omits figures with no drawable geometry', () => {
     expect(foldedFigureUserBounds([figure([])])).toHaveLength(0);
     expect(foldedFigureUserBounds([{ ...figure([]), renderSnapshot: null }])).toHaveLength(0);
+  });
+
+  it('takes the AABB over the rotated corners, so a rotated figure stays enclosed', () => {
+    const square = foldedFigureUserBounds([polygonFigure()])[0].bounds;
+    const side = square.maxX - square.minX;
+    const turned = foldedFigureUserBounds([
+      { ...polygonFigure(), placement: { offset: { x: 0, y: 0 }, scale: 1, rotation: Math.PI / 4 } },
+    ])[0].bounds;
+    // A square turned 45 degrees has a bounding box sqrt(2) times as wide.
+    expect(turned.maxX - turned.minX).toBeCloseTo(side * Math.SQRT2);
+    expect(turned.maxY - turned.minY).toBeCloseTo(side * Math.SQRT2);
   });
 });
 

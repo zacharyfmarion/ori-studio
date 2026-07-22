@@ -1,5 +1,7 @@
 import type { FoldArtifacts, FoldDocument } from '../engine/types';
+import { IDENTITY_FOLDED_PLACEMENT } from '../engine/oristudioCpTypes';
 import type {
+  FoldedFigurePlacement,
   OristudioCpDocumentSnapshot,
   OristudioCpFoldedFigureDisplayStyle,
   OristudioCpFoldedFigureEntry,
@@ -475,7 +477,6 @@ function validateFoldedFigure(value: unknown, index: number): OristudioCpFoldedF
   const snapshot = isRecord(entry.snapshot)
     ? (entry.snapshot as unknown as OristudioCpFoldedFigureEntry['snapshot'])
     : null;
-  const displayOffset = pointField(entry.displayOffset);
   return {
     id: stringField(entry.id, `document.viewState.foldedFigures[${index}].id`),
     title: stringField(entry.title, `document.viewState.foldedFigures[${index}].title`),
@@ -492,9 +493,37 @@ function validateFoldedFigure(value: unknown, index: number): OristudioCpFoldedF
     renderSnapshot: isRecord(entry.renderSnapshot)
       ? (entry.renderSnapshot as unknown as OristudioCpFoldedFigureEntry['renderSnapshot'])
       : null,
-    ...(displayOffset ? { displayOffset } : {}),
+    placement: foldedFigurePlacement(entry),
     error: typeof entry.error === 'string' ? entry.error : null,
   };
+}
+
+/**
+ * A folded figure's display placement, tolerating both shapes we have written:
+ * the current `placement` record, and the pre-placement `displayOffset` point,
+ * which is exactly an identity placement carrying that offset.
+ */
+function foldedFigurePlacement(entry: Record<string, unknown>): FoldedFigurePlacement {
+  const placement = isRecord(entry.placement) ? entry.placement : null;
+  if (placement) {
+    return {
+      offset: pointField(placement.offset) ?? { x: 0, y: 0 },
+      scale: positiveNumber(placement.scale) ?? 1,
+      rotation: finiteNumber(placement.rotation) ?? 0,
+    };
+  }
+  const legacyOffset = pointField(entry.displayOffset);
+  return legacyOffset ? { offset: legacyOffset, scale: 1, rotation: 0 } : IDENTITY_FOLDED_PLACEMENT;
+}
+
+function finiteNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+/** A scale must be finite and > 0, else the figure would collapse or invert. */
+function positiveNumber(value: unknown): number | null {
+  const number = finiteNumber(value);
+  return number !== null && number > 0 ? number : null;
 }
 
 function foldedFigureStatus(value: unknown): OristudioCpFoldedFigureStatus {

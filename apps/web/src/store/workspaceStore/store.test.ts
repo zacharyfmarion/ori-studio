@@ -24,6 +24,7 @@ import type {
   OristudioCpLineSegment,
   OristudioCpOperationDescriptor,
 } from '../../engine/oristudioCpTypes';
+import { IDENTITY_FOLDED_PLACEMENT } from '../../engine/oristudioCpTypes';
 import { projectFromSnapshot } from '../../engine/snapshotMapper';
 import type { FileService, SaveBinaryFileOptions, SaveTextFileOptions } from '../../platform/fileService';
 import { DEFAULT_CREASE_COLOR_MODE } from '../../lib/sampleProject';
@@ -1649,6 +1650,7 @@ describe('workspace store slices', () => {
             startingFaceId: 1,
             displayStyle: 'Paper5',
             status: 'ready',
+            placement: IDENTITY_FOLDED_PLACEMENT,
             snapshot: foldedFigureSnapshot(),
             renderSnapshot: foldedRenderSnapshot(),
             error: null,
@@ -1817,6 +1819,7 @@ describe('workspace store slices', () => {
           startingFaceId: 1,
           displayStyle: 'Transparent3',
           status: 'ready',
+          placement: IDENTITY_FOLDED_PLACEMENT,
           snapshot: foldedFigureSnapshot(),
           renderSnapshot: foldedRenderSnapshot(),
           error: null,
@@ -2317,6 +2320,7 @@ describe('workspace store slices', () => {
       startingFaceId: 1,
       displayStyle: 'Paper5',
       status: 'ready',
+      placement: IDENTITY_FOLDED_PLACEMENT,
       renderSnapshot: foldedRenderSnapshot(),
     });
     expect(useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId).toBe(foldedFigure.id);
@@ -2462,10 +2466,18 @@ describe('workspace store slices', () => {
     });
     useWorkspaceStore
       .getState()
-      .moveOristudioCpFoldedFigure(foldedFigure.id, { x: 12, y: -8 });
-    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]?.displayOffset).toEqual({
-      x: 12,
-      y: -8,
+      .setOristudioCpFoldedFigurePlacement(foldedFigure.id, { offset: { x: 12, y: -8 } });
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]?.placement).toEqual({
+      offset: { x: 12, y: -8 },
+      scale: 1,
+      rotation: 0,
+    });
+    // Placement patches are partial: setting a scale leaves the offset alone.
+    useWorkspaceStore.getState().setOristudioCpFoldedFigurePlacement(foldedFigure.id, { scale: 2 });
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]?.placement).toEqual({
+      offset: { x: 12, y: -8 },
+      scale: 2,
+      rotation: 0,
     });
 
     await expect(
@@ -2492,7 +2504,8 @@ describe('workspace store slices', () => {
       handle: 8,
       displayStyle: 'Transparent3',
       startingFaceId: 2,
-      displayOffset: { x: 12, y: -8 },
+      // A duplicate inherits the source's placement, so it lands on top of it.
+      placement: { offset: { x: 12, y: -8 }, scale: 2, rotation: 0 },
     });
 
     const duplicateId = useWorkspaceStore.getState().oristudioCpFoldedFigures[1]?.id;
@@ -2515,6 +2528,7 @@ describe('workspace store slices', () => {
       startingFaceId: 1,
       displayStyle: 'Paper5',
       status: 'ready',
+      placement: IDENTITY_FOLDED_PLACEMENT,
       snapshot: foldedFigureSnapshot(),
       renderSnapshot: foldedRenderSnapshot(),
       error: null,
@@ -2569,6 +2583,7 @@ describe('workspace store slices', () => {
       startingFaceId: 1,
       displayStyle: 'Paper5',
       status: 'ready',
+      placement: IDENTITY_FOLDED_PLACEMENT,
       snapshot: foldedFigureSnapshot(),
       renderSnapshot: foldedRenderSnapshot(),
       error: null,

@@ -338,6 +338,44 @@ export type OristudioCpFoldedFigureSourceKind =
   | 'imported-folded-form'
   | 'imported-preserved-frame';
 
+/**
+ * Where a folded figure sits on the crease-pattern canvas, in SVG **user**
+ * coordinates — the space its render primitives already land in.
+ *
+ * This is a web-side *display* transform, deliberately separate from the
+ * kernel's `OristudioCpFoldedFigureModel.scale` / `.rotation`. Those are folded
+ * into the render snapshot at fold time and are only ever seeded from imported
+ * Oriedita metadata; going back through the kernel to place a figure would cost
+ * an async round-trip per drag frame and would re-anchor the figure to its flat
+ * bounds (Oriedita's `fixToFlatBounds`), so a rotate or scale would drag the
+ * figure sideways. Placement here is the single thing the canvas gestures touch.
+ *
+ * Applied about the figure's *local* bbox centre `c0` — the centre of its render
+ * snapshot before placement — so scale and rotation both act about the centre
+ * the user sees:
+ *
+ *   p ↦ c0 + offset + R(rotation) · scale · (p − c0)
+ *
+ * At `scale: 1, rotation: 0` the offset is exactly the legacy `displayOffset`,
+ * which is what makes older `.osf` files load without a migration.
+ */
+export interface FoldedFigurePlacement {
+  /** Translation from the figure's folded-at-origin position. */
+  offset: Point;
+  /** Uniform scale about the displayed centre. A folded form has no meaningful
+   *  non-uniform scale, so this is a scalar rather than an x/y pair. */
+  scale: number;
+  /** Rotation about the displayed centre, radians counter-clockwise. */
+  rotation: number;
+}
+
+/** Identity placement: folded where the kernel put it, unscaled, unrotated. */
+export const IDENTITY_FOLDED_PLACEMENT: FoldedFigurePlacement = {
+  offset: { x: 0, y: 0 },
+  scale: 1,
+  rotation: 0,
+};
+
 export interface OristudioCpFoldedFigureEntry {
   id: string;
   title: string;
@@ -349,7 +387,8 @@ export interface OristudioCpFoldedFigureEntry {
   status: OristudioCpFoldedFigureStatus;
   snapshot: OristudioCpFoldedFigureSnapshot | null;
   renderSnapshot: OristudioCpFoldedRenderSnapshot | null;
-  displayOffset?: Point;
+  /** Display placement on the canvas. See {@link FoldedFigurePlacement}. */
+  placement: FoldedFigurePlacement;
   error: string | null;
   /**
    * Set when the fold concluded with a global flat-foldability contradiction.

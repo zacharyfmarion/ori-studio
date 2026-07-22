@@ -40,6 +40,7 @@ import type {
   OristudioCpDocumentSnapshot,
   OristudioCpDocumentState,
   OristudioCpEstimationOrder,
+  FoldedFigurePlacement,
   OristudioCpFoldedFigureDisplayStyle,
   OristudioCpFoldedFigureEntry,
   OristudioCpFoldedFigureModel,
@@ -429,7 +430,16 @@ export interface CreasePatternSliceActions {
   duplicateOristudioCpFoldedFigure: (id?: string) => Promise<boolean>;
   deleteOristudioCpFoldedFigure: (id: string) => Promise<void>;
   setOristudioCpActiveFoldedFigure: (id: string | null) => void;
-  moveOristudioCpFoldedFigure: (id: string, displayDelta: Point) => void;
+  /**
+   * Patch a folded figure's display placement (move / scale / rotate). Purely
+   * web-side and synchronous, so it is safe to call on every frame of a drag —
+   * see {@link FoldedFigurePlacement} for why placement does not go through the
+   * kernel model.
+   */
+  setOristudioCpFoldedFigurePlacement: (
+    id: string,
+    patch: Partial<FoldedFigurePlacement>
+  ) => void;
   clearOristudioCpFoldedFigures: () => Promise<void>;
   clearOristudioCpSelection: () => void;
   toggleOristudioCpLineSelection: (id: number, additive?: boolean) => void;

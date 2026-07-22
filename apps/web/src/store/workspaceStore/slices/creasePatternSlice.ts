@@ -54,6 +54,7 @@ import {
   setOristudioCpFoldedFigureModel as setRuntimeOristudioCpFoldedFigureModel,
 } from '../oristudioCpRuntime';
 import type { CreasePatternSlice, WorkspaceSliceCreator } from '../types';
+import { IDENTITY_FOLDED_PLACEMENT } from '../../../engine/oristudioCpTypes';
 import type {
   OristudioCpFoldedFigureDisplayStyle,
   OristudioCpFoldedFigureEntry,
@@ -671,20 +672,14 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       refreshFoldedFigureSelectionMarkers(previousActiveId, oristudioCpActiveFoldedFigureId);
     },
 
-    moveOristudioCpFoldedFigure: (id, displayDelta) => {
-      if (Math.abs(displayDelta.x) < 1e-9 && Math.abs(displayDelta.y) < 1e-9) return;
+    setOristudioCpFoldedFigurePlacement: (id, patch) => {
       set({
-        oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((figure) => {
-          if (figure.id !== id) return figure;
-          const displayOffset = figure.displayOffset ?? { x: 0, y: 0 };
-          return {
-            ...figure,
-            displayOffset: {
-              x: displayOffset.x + displayDelta.x,
-              y: displayOffset.y + displayDelta.y,
-            },
-          };
-        }),
+        oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((figure) =>
+          figure.id === id
+            ? { ...figure, placement: { ...figure.placement, ...patch } }
+            : figure
+        ),
+        dirty: true,
       });
     },
 
@@ -764,7 +759,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         status: 'loading',
         snapshot: null,
         renderSnapshot: null,
-        displayOffset: { x: 0, y: 0 },
+        placement: IDENTITY_FOLDED_PLACEMENT,
         error: null,
       };
 
@@ -1078,7 +1073,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         status: 'loading',
         snapshot: null,
         renderSnapshot: null,
-        displayOffset: source.displayOffset ?? { x: 0, y: 0 },
+        placement: source.placement,
         error: null,
       };
 

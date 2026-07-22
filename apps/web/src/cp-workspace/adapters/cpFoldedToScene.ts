@@ -2,11 +2,13 @@ import earcut from 'earcut';
 import { modelPointToCpSvg, ORIEDITA_PAPER_BOUNDS } from '../../lib/creasePatternViewport';
 import type { Point } from '../../lib/geometry';
 import type {
+  FoldedFigurePlacement,
   OristudioCpFoldedFigureEntry,
   OristudioCpFoldedRenderGeometry,
   OristudioCpFoldedRenderPaint,
   OristudioCpFoldedRenderPathCommand,
   OristudioCpFoldedRenderPrimitive,
+  OristudioCpFoldedRenderSnapshot,
   OristudioCpFoldedRenderStroke,
   OristudioCpRgbaColor,
 } from '../../engine/oristudioCpTypes';
@@ -181,75 +183,199 @@ class FoldedBuilder {
       },
     };
   }
+
+  /** Freeze into the cacheable local form, measuring the bbox over every vertex. */
+  buildLocal(): FoldedFigureLocalGeometry {
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    const measure = (x: number, y: number) => {
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+    };
+    for (let i = 0; i < this.fillPos.length; i += 2) measure(this.fillPos[i], this.fillPos[i + 1]);
+    for (let i = 0; i < this.strokeA.length; i += 2) {
+      measure(this.strokeA[i], this.strokeA[i + 1]);
+      measure(this.strokeB[i], this.strokeB[i + 1]);
+    }
+    const bounds = Number.isFinite(minX) ? { minX, minY, maxX, maxY } : null;
+    return {
+      fillPos: new Float32Array(this.fillPos),
+      fillColor: new Float32Array(this.fillColor),
+      strokeA: new Float32Array(this.strokeA),
+      strokeB: new Float32Array(this.strokeB),
+      strokeColor: new Float32Array(this.strokeColor),
+      strokeWidthMul: new Float32Array(this.strokeWidthMul),
+      bounds,
+      center: bounds
+        ? { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 }
+        : { x: 0, y: 0 },
+    };
+  }
 }
 
 /**
- * A live scale preview applied to one figure while it is being drag-scaled: its
- * user-space geometry is scaled by `factor` about `pivot` (both in SVG user
- * coordinates). Cheap and wasm-free — the committed `model.scale` is only written
- * on release. Other figures are unaffected.
+ * One folded figure's geometry in its *local* user space — mapped through
+ * {@link modelPointToCpSvg} but before any {@link FoldedFigurePlacement}.
+ *
+ * Curve flattening and earcut triangulation happen once per render snapshot and
+ * are cached ({@link foldedFigureLocalGeometry}); a drag then only has to run a
+ * similarity transform over these arrays, which is what keeps move/scale/rotate
+ * cheap at pointer rate.
  */
-export interface FoldedFigureScalePreview {
-  figureId: string;
-  factor: number;
-  pivot: Point;
+export interface FoldedFigureLocalGeometry {
+  fillPos: Float32Array;
+  fillColor: Float32Array;
+  strokeA: Float32Array;
+  strokeB: Float32Array;
+  strokeColor: Float32Array;
+  strokeWidthMul: Float32Array;
+  /** Bounding box of every emitted vertex, local user coords. Null when empty. */
+  bounds: Aabb | null;
+  /** Centre of {@link bounds} — the pivot placement scales and rotates about. */
+  center: Point;
+}
+
+/**
+ * Cache keyed by the render snapshot object. Snapshots are replaced wholesale
+ * whenever the kernel re-renders a figure, so object identity is exactly the
+ * right invalidation signal, and a `WeakMap` means a discarded snapshot's
+ * geometry is collectable with it.
+ */
+const localGeometryCache = new WeakMap<
+  OristudioCpFoldedRenderSnapshot,
+  FoldedFigureLocalGeometry
+>();
+
+/**
+ * Flatten + triangulate one figure's render snapshot into local user space,
+ * memoized on the snapshot's identity. Primitives are emitted in `sequence`
+ * order so overlapping, semi-transparent facets composite correctly.
+ *
+ * Solid colours only (gradients use their start colour); text is skipped.
+ */
+export function foldedFigureLocalGeometry(
+  snapshot: OristudioCpFoldedRenderSnapshot
+): FoldedFigureLocalGeometry {
+  const cached = localGeometryCache.get(snapshot);
+  if (cached) return cached;
+
+  const builder = new FoldedBuilder();
+  const toUser = (p: Point): Point => modelPointToCpSvg(p, ORIEDITA_PAPER_BOUNDS);
+  const primitives: OristudioCpFoldedRenderPrimitive[] = [...snapshot.primitives].sort(
+    (l, r) => l.sequence - r.sequence
+  );
+
+  for (const primitive of primitives) {
+    const color = paintColor(primitive.style.paint);
+    if (!color) continue;
+    const isFill = primitive.kind.startsWith('fill_');
+    const subpaths = geometrySubpaths(primitive.geometry).map((sp) => sp.map(toUser));
+
+    if (isFill) {
+      for (const ring of subpaths) builder.addFillRing(ring, color);
+    } else {
+      const width = strokeWidth(primitive.style.stroke);
+      for (const line of subpaths) builder.addStrokePolyline(line, color, width);
+    }
+  }
+
+  const local = builder.buildLocal();
+  localGeometryCache.set(snapshot, local);
+  return local;
+}
+
+/**
+ * The affine a placement applies to local user coordinates:
+ * `p ↦ c0 + offset + R(rotation) · scale · (p − c0)`, with `c0` the local bbox
+ * centre. Returned in the flat form the per-vertex loops want.
+ */
+function placementAffine(
+  placement: FoldedFigurePlacement,
+  center: Point
+): { a: number; b: number; tx: number; ty: number } {
+  const cos = Math.cos(placement.rotation) * placement.scale;
+  const sin = Math.sin(placement.rotation) * placement.scale;
+  return {
+    a: cos,
+    b: sin,
+    tx: center.x + placement.offset.x - center.x * cos + center.y * sin,
+    ty: center.y + placement.offset.y - center.x * sin - center.y * cos,
+  };
+}
+
+/** Map a single local user-space point through a placement. */
+export function applyFoldedPlacementToPoint(
+  point: Point,
+  placement: FoldedFigurePlacement,
+  center: Point
+): Point {
+  const { a, b, tx, ty } = placementAffine(placement, center);
+  return { x: a * point.x - b * point.y + tx, y: b * point.x + a * point.y + ty };
 }
 
 /**
  * Build folded-figure geometry (triangulated fills + edge strokes) in SVG user
- * coordinates from the figures' render snapshots, matching the SVG primitive
- * layer: points map through {@link modelPointToCpSvg} plus the figure's display
- * offset, and primitives are emitted in `sequence` order so overlapping,
- * semi-transparent facets composite correctly.
+ * coordinates from the figures' render snapshots and placements.
  *
- * When `scalePreview` targets a figure, that figure's user-space points are scaled
- * about the preview pivot (see {@link FoldedFigureScalePreview}).
- *
- * First cut: solid colours (gradients use their start colour); text is skipped.
+ * The expensive half (curve flattening, triangulation) is cached per render
+ * snapshot; this call only walks the cached vertices through each figure's
+ * placement affine, so it is safe to run on every frame of a drag.
  */
 export function cpFoldedToScene(
-  figures: readonly OristudioCpFoldedFigureEntry[],
-  scalePreview?: FoldedFigureScalePreview | null
+  figures: readonly OristudioCpFoldedFigureEntry[]
 ): FoldedGeometry {
-  const builder = new FoldedBuilder();
+  const fillPos: number[] = [];
+  const fillColor: number[] = [];
+  const strokeA: number[] = [];
+  const strokeB: number[] = [];
+  const strokeColor: number[] = [];
+  const strokeWidthMul: number[] = [];
 
   for (const figure of figures) {
     const snapshot = figure.renderSnapshot;
     if (!snapshot?.primitives.length) continue;
-    const offset = figure.displayOffset ?? { x: 0, y: 0 };
-    const preview =
-      scalePreview && scalePreview.figureId === figure.id ? scalePreview : null;
-    const toUser = (p: Point): Point => {
-      const u = modelPointToCpSvg(p, ORIEDITA_PAPER_BOUNDS);
-      const x = u.x + offset.x;
-      const y = u.y + offset.y;
-      if (!preview) return { x, y };
-      return {
-        x: preview.pivot.x + (x - preview.pivot.x) * preview.factor,
-        y: preview.pivot.y + (y - preview.pivot.y) * preview.factor,
-      };
-    };
+    const local = foldedFigureLocalGeometry(snapshot);
+    const { a, b, tx, ty } = placementAffine(figure.placement, local.center);
 
-    const primitives: OristudioCpFoldedRenderPrimitive[] = [...snapshot.primitives].sort(
-      (l, r) => l.sequence - r.sequence
-    );
+    for (let i = 0; i < local.fillPos.length; i += 2) {
+      const x = local.fillPos[i];
+      const y = local.fillPos[i + 1];
+      fillPos.push(a * x - b * y + tx, b * x + a * y + ty);
+    }
+    for (let i = 0; i < local.fillColor.length; i++) fillColor.push(local.fillColor[i]);
 
-    for (const primitive of primitives) {
-      const color = paintColor(primitive.style.paint);
-      if (!color) continue;
-      const isFill = primitive.kind.startsWith('fill_');
-      const subpaths = geometrySubpaths(primitive.geometry).map((sp) => sp.map(toUser));
-
-      if (isFill) {
-        for (const ring of subpaths) builder.addFillRing(ring, color);
-      } else {
-        const width = strokeWidth(primitive.style.stroke);
-        for (const line of subpaths) builder.addStrokePolyline(line, color, width);
-      }
+    for (let i = 0; i < local.strokeA.length; i += 2) {
+      const ax = local.strokeA[i];
+      const ay = local.strokeA[i + 1];
+      const bx = local.strokeB[i];
+      const by = local.strokeB[i + 1];
+      strokeA.push(a * ax - b * ay + tx, b * ax + a * ay + ty);
+      strokeB.push(a * bx - b * by + tx, b * bx + a * by + ty);
+    }
+    for (let i = 0; i < local.strokeColor.length; i++) strokeColor.push(local.strokeColor[i]);
+    for (let i = 0; i < local.strokeWidthMul.length; i++) {
+      strokeWidthMul.push(local.strokeWidthMul[i]);
     }
   }
 
-  return builder.build();
+  return {
+    fills: {
+      position: new Float32Array(fillPos),
+      color: new Float32Array(fillColor),
+      count: fillPos.length / 2,
+    },
+    strokes: {
+      a: new Float32Array(strokeA),
+      b: new Float32Array(strokeB),
+      color: new Float32Array(strokeColor),
+      widthMul: new Float32Array(strokeWidthMul),
+      count: strokeA.length / 2,
+    },
+  };
 }
 
 /**
@@ -315,39 +441,70 @@ export interface FoldedFigureBounds {
 }
 
 /**
- * Bounding box (SVG user coords) of each folded figure, using the same
- * model->user + display-offset mapping as {@link cpFoldedToScene} so the pick
- * box matches what is drawn. Figures with no drawable geometry are omitted.
- * Order follows `figures`, i.e. draw order — later entries render on top.
+ * The placed, rotated box of a folded figure: its local bbox carried through the
+ * placement. `width`/`height` are the *unrotated* extents (local size × scale)
+ * and `center`/`rotation` describe where that box sits, matching the shape the
+ * canvas-object overlay draws chrome for. Null when the figure draws nothing.
+ */
+export function foldedFigureBox(figure: OristudioCpFoldedFigureEntry): {
+  center: Point;
+  width: number;
+  height: number;
+  rotation: number;
+} | null {
+  const snapshot = figure.renderSnapshot;
+  if (!snapshot?.primitives.length) return null;
+  const local = foldedFigureLocalGeometry(snapshot);
+  if (!local.bounds) return null;
+  const { minX, minY, maxX, maxY } = local.bounds;
+  return {
+    // The local centre is the placement's pivot, so it only ever translates.
+    center: {
+      x: local.center.x + figure.placement.offset.x,
+      y: local.center.y + figure.placement.offset.y,
+    },
+    width: (maxX - minX) * figure.placement.scale,
+    height: (maxY - minY) * figure.placement.scale,
+    rotation: figure.placement.rotation,
+  };
+}
+
+/**
+ * Axis-aligned bounding box (SVG user coords) of each folded figure *as placed*,
+ * derived from the same cached local geometry {@link cpFoldedToScene} draws, so
+ * the pick box matches what is on screen — including under rotation, where the
+ * AABB is taken over the rotated corners. Figures with no drawable geometry are
+ * omitted. Order follows `figures`, i.e. draw order — later entries render on top.
  */
 export function foldedFigureUserBounds(
   figures: readonly OristudioCpFoldedFigureEntry[]
 ): FoldedFigureBounds[] {
   const result: FoldedFigureBounds[] = [];
   for (const figure of figures) {
-    const snapshot = figure.renderSnapshot;
-    if (!snapshot?.primitives.length) continue;
-    const offset = figure.displayOffset ?? { x: 0, y: 0 };
+    const box = foldedFigureBox(figure);
+    if (!box) continue;
+    const hw = box.width / 2;
+    const hh = box.height / 2;
+    const cos = Math.cos(box.rotation);
+    const sin = Math.sin(box.rotation);
     let minX = Infinity;
     let minY = Infinity;
     let maxX = -Infinity;
     let maxY = -Infinity;
-    for (const primitive of snapshot.primitives) {
-      for (const subpath of geometrySubpaths(primitive.geometry)) {
-        for (const p of subpath) {
-          const u = modelPointToCpSvg(p, ORIEDITA_PAPER_BOUNDS);
-          const x = u.x + offset.x;
-          const y = u.y + offset.y;
-          if (x < minX) minX = x;
-          if (y < minY) minY = y;
-          if (x > maxX) maxX = x;
-          if (y > maxY) maxY = y;
-        }
-      }
+    for (const [dx, dy] of [
+      [-hw, -hh],
+      [hw, -hh],
+      [hw, hh],
+      [-hw, hh],
+    ]) {
+      const x = box.center.x + dx * cos - dy * sin;
+      const y = box.center.y + dx * sin + dy * cos;
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
     }
-    if (Number.isFinite(minX)) {
-      result.push({ id: figure.id, bounds: { minX, minY, maxX, maxY } });
-    }
+    result.push({ id: figure.id, bounds: { minX, minY, maxX, maxY } });
   }
   return result;
 }

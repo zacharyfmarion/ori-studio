@@ -1247,8 +1247,8 @@ export function CreasePatternPanel() {
   const setOristudioCpActiveFoldedFigure = useWorkspaceStore(
     (state) => state.setOristudioCpActiveFoldedFigure
   );
-  const moveOristudioCpFoldedFigure = useWorkspaceStore(
-    (state) => state.moveOristudioCpFoldedFigure
+  const setOristudioCpFoldedFigurePlacement = useWorkspaceStore(
+    (state) => state.setOristudioCpFoldedFigurePlacement
   );
   const setOristudioCpFoldedFigureDisplayStyle = useWorkspaceStore(
     (state) => state.setOristudioCpFoldedFigureDisplayStyle
@@ -3144,7 +3144,16 @@ export function CreasePatternPanel() {
                     });
                   }}
                   onMoveFoldedFigure={(figureId, delta) => {
-                    moveOristudioCpFoldedFigure(figureId, delta);
+                    const figure = oristudioCpFoldedFigures.find(
+                      (candidate) => candidate.id === figureId
+                    );
+                    if (!figure) return;
+                    setOristudioCpFoldedFigurePlacement(figureId, {
+                      offset: {
+                        x: figure.placement.offset.x + delta.x,
+                        y: figure.placement.offset.y + delta.y,
+                      },
+                    });
                   }}
                   onTranslateSelection={(delta) => {
                     void transformOristudioCpSelection({ kind: 'translate', delta });
@@ -3204,7 +3213,7 @@ export function CreasePatternPanel() {
                   foldedFigures={generatedFoldedFigures}
                   scaleFoldedFigureId={pendingScaleFigureId}
                   onScaleFoldedFigure={(figureId, scale) => {
-                    void updateOristudioCpFoldedFigureModel(figureId, { scale });
+                    setOristudioCpFoldedFigurePlacement(figureId, { scale });
                   }}
                   onScaleFoldedFigureEnd={() => setPendingScaleFigureId(null)}
                   importedForms={cpImportedFoldedFormsGeometry}
