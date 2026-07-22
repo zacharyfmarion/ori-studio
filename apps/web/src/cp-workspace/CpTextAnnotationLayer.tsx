@@ -7,7 +7,6 @@ import { isTextAnnotation, type CanvasAnnotation } from './annotations/annotatio
 import type { TextAnnotation } from './annotations/textAnnotation';
 import { CpTextView } from './CpTextView';
 import { CpTextEditor } from './CpTextEditor';
-import type { FloatingAnchorRect } from '../components/ui/FloatingToolbar';
 
 /**
  * DOM layer that renders text-annotation boxes over the WebGL canvas. Text is
@@ -34,7 +33,7 @@ function screenAngle(view: CpOverlayView, center: { x: number; y: number }, rota
 export function CpTextAnnotationLayer({
   annotations,
   editingTextId,
-  toolbarAnchor,
+  toolbarContainer,
   onChangeText,
   onExitEdit,
   onDelete,
@@ -42,7 +41,8 @@ export function CpTextAnnotationLayer({
 }: {
   annotations: readonly CanvasAnnotation[];
   editingTextId: string | null;
-  toolbarAnchor: FloatingAnchorRect | null;
+  /** Element the canvas is positioned against, for toolbar anchoring. */
+  toolbarContainer: HTMLElement | null;
   onChangeText: (id: string, doc: SerializedEditorState, plainText: string) => void;
   onExitEdit: (reason: 'blur' | 'escape') => void;
   onDelete: () => void;
@@ -96,7 +96,7 @@ export function CpTextAnnotationLayer({
             editing={editing}
             style={style}
             pxPerModel={pxPerModel}
-            toolbarAnchor={toolbarAnchor}
+            toolbarContainer={toolbarContainer}
             onChangeText={onChangeText}
             onExitEdit={onExitEdit}
             onDelete={onDelete}
@@ -113,7 +113,7 @@ function TextBox({
   editing,
   style,
   pxPerModel,
-  toolbarAnchor,
+  toolbarContainer,
   onChangeText,
   onExitEdit,
   onDelete,
@@ -123,7 +123,8 @@ function TextBox({
   editing: boolean;
   style: CSSProperties;
   pxPerModel: number;
-  toolbarAnchor: FloatingAnchorRect | null;
+  /** Element the canvas is positioned against, for toolbar anchoring. */
+  toolbarContainer: HTMLElement | null;
   onChangeText: (id: string, doc: SerializedEditorState, plainText: string) => void;
   onExitEdit: (reason: 'blur' | 'escape') => void;
   onDelete: () => void;
@@ -166,7 +167,8 @@ function TextBox({
       {editing ? (
         <CpTextEditor
           doc={text.doc}
-          anchorRect={toolbarAnchor}
+          box={text}
+          container={toolbarContainer}
           onChange={(doc, plainText) => onChangeText(text.id, doc, plainText)}
           onExit={onExitEdit}
           onDelete={onDelete}

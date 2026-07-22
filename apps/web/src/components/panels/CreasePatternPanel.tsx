@@ -141,7 +141,6 @@ import {
 } from '../../cp-workspace/annotations/annotationTransform';
 import { cpOverlayViewStore } from '../../cp-workspace/cpOverlayViewStore';
 import type { CpOverlayViews } from '../../cp-workspace/cpOverlayViewStore';
-import { annotationScreenRect } from '../../cp-workspace/annotations/annotationAnchor';
 import {
   annotationAtModelPoint,
   isImageAnnotation,
@@ -156,7 +155,6 @@ import {
   DEFAULT_TEXT_FONT_SIZE,
 } from '../../cp-workspace/annotations/textAnnotation';
 import type { SerializedEditorState } from 'lexical';
-import type { FloatingAnchorRect } from '../../components/ui/FloatingToolbar';
 import {
   CpContextToolPanel,
   cpCommandRequiresContextApply,
@@ -1129,21 +1127,15 @@ export function CreasePatternPanel() {
     () => oristudioCpAnnotations.filter(isTextAnnotation),
     [oristudioCpAnnotations]
   );
-  // Viewport-space anchor for the selected annotation's floating toolbar.
-  // Measured in a layout effect (the container's screen offset requires a ref
-  // read, disallowed during render) and refreshed as the camera or box changes.
-  const [annotationToolbarAnchor, setAnnotationToolbarAnchor] =
-    useState<FloatingAnchorRect | null>(null);
+  // Object toolbars anchor themselves against the *live* camera (see
+  // useCanvasObjectAnchor); the panel only supplies the element they measure
+  // from. Anchoring off the panel's debounced camera copy left them behind
+  // during a zoom until the debounce fired. The element is stable for the
+  // panel's lifetime, so capture it once on mount.
+  const [toolbarContainer, setToolbarContainer] = useState<HTMLElement | null>(null);
   useLayoutEffect(() => {
-    if (!selectedAnnotation || !webglOverlayView) {
-      setAnnotationToolbarAnchor(null);
-      return;
-    }
-    const container = cpViewportRef.current?.getBoundingClientRect();
-    setAnnotationToolbarAnchor(
-      container ? annotationScreenRect(webglOverlayView, container, selectedAnnotation) : null
-    );
-  }, [selectedAnnotation, webglOverlayView]);
+    setToolbarContainer(cpViewportRef.current);
+  }, []);
   // Annotation-layer state captured at the start of a move/resize/rotate/edit
   // gesture, so the whole gesture records a single undo entry on commit.
   const preGestureAnnotationsRef = useRef<readonly CanvasAnnotation[] | null>(null);
@@ -3548,7 +3540,7 @@ export function CreasePatternPanel() {
                   <CpTextAnnotationLayer
                     annotations={oristudioCpAnnotations}
                     editingTextId={editingTextId}
-                    toolbarAnchor={annotationToolbarAnchor}
+                    toolbarContainer={toolbarContainer}
                     onChangeText={handleTextContentChange}
                     onExitEdit={handleExitEditText}
                     onDelete={handleDeleteEditingText}
@@ -3574,7 +3566,7 @@ export function CreasePatternPanel() {
                 {annotationsInteractive && selectedCpImage && !editingTextId && (
                   <CpImageInspector
                     image={selectedCpImage}
-                    anchorRect={annotationToolbarAnchor}
+                    container={toolbarContainer}
                     onUpdate={(patch) => updateAnnotation(selectedCpImage.id, patch)}
                     onGestureStart={beginImageGesture}
                     onGestureCommit={commitImageGesture}
