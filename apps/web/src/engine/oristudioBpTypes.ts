@@ -138,14 +138,29 @@ export interface OristudioBpRiver {
   length: number;
 }
 
+/**
+ * One point of an arc-aware outline, matching Box Pleating Studio's `ArcPoint`.
+ * `arc` is the tangent anchor of the arc that ends at this point (the canvas
+ * `arcTo` control point) and `r` its radius; a point without them is reached by
+ * a straight segment.
+ */
+export interface OristudioBpArcPoint {
+  x: number;
+  y: number;
+  arc?: Point | null;
+  r?: number | null;
+}
+
+export type OristudioBpArcPath = OristudioBpArcPoint[];
+
 export interface OristudioBpInvalidJunction {
   id: string;
   flapIds: number[];
   riverIds: number[];
-  polygon: Point[];
-  polygons: Point[][];
-  arcPolygons: OristudioBpWasmArcPoint[][];
-  narrowness: number | null;
+  /** Closed arc outlines of the overlap region between the two flaps. */
+  paths: OristudioBpArcPath[];
+  /** How far the two flaps overlap, in grid units (negative means overlapping). */
+  overlap: number;
   message: string;
 }
 
@@ -612,16 +627,15 @@ export interface OristudioBpWasmContourData {
 export interface OristudioBpWasmInvalidJunction {
   id: string;
   flapIds: [number, number];
+  /**
+   * Wire name kept as-is: the engine sends `InvalidJunction::distance_after_flap_radii`,
+   * which is the overlap distance, not Box Pleating Studio's per-path narrowness ratio.
+   */
   narrowness: number;
   polygon: OristudioBpWasmArcPoint[][];
 }
 
-export interface OristudioBpWasmArcPoint {
-  x: number;
-  y: number;
-  arc?: Point | null;
-  r?: number | null;
-}
+export type OristudioBpWasmArcPoint = OristudioBpArcPoint;
 
 export interface OristudioBpWasmWorkspaceProject {
   filename: string;

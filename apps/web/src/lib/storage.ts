@@ -23,6 +23,7 @@ export const STORAGE_KEYS = {
   locale: 'locale',
   showWelcomeOnStartup: 'show-welcome-on-startup',
   foldWarning: 'fold-warning',
+  cpToolRailGroups: 'cp-tool-rail-groups',
   layout: 'layout',
   layoutVersion: 'layout-version',
 } as const;

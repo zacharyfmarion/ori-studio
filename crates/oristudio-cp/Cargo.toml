@@ -11,8 +11,17 @@ keywords = ["origami", "crease-pattern", "fold", "oriedita"]
 categories = ["algorithms", "data-structures", "mathematics"]
 include = ["Cargo.toml", "README.md", "resources/**", "src/**", "tests/**"]
 
+[features]
+# Opt-in, coarse fold-estimation counters for perf diagnosis. No-op when off.
+fold-profiling = []
+# Parallelize fold-estimation hot loops with rayon (native builds only; the wasm
+# path always stays sequential via a `target_arch` guard). Enabled by the Tauri
+# desktop crate.
+parallel = ["dep:rayon"]
+
 [dependencies]
 encoding_rs.workspace = true
+rayon = { workspace = true, optional = true }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

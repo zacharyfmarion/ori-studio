@@ -51,6 +51,10 @@
     "file": {
       "label": "Datei-Import/-Export",
       "railLabel": "Datei"
+    },
+    "advanced": {
+      "label": "Erweiterte Werkzeuge",
+      "railLabel": "Erweitert"
     }
   },
   "action": {

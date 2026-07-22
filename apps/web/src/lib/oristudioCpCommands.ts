@@ -65,6 +65,12 @@ export const ORISTUDIO_CP_COMMAND_GROUPS = [
     railLabel: 'File',
     order: 110,
   },
+  {
+    id: 'advanced',
+    label: 'Advanced tools',
+    railLabel: 'Advanced',
+    order: 900,
+  },
 ] as const;
 
 export type OristudioCpCommandGroupId = (typeof ORISTUDIO_CP_COMMAND_GROUPS)[number]['id'];
@@ -409,10 +415,12 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
   ready('CircleDraw', 'Draw circle', 'annotations', 'circle', 'MouseHandlerCircleDraw', {
     toolSteps: ['Pick center point', 'Pick radius point'],
   }),
-  ready('CircleDrawThreePoint', 'Circle through three points', 'annotations', 'circle-dot', 'MouseHandlerCircleDrawThreePoint', {
+  // The Annotate group keeps only Draw circle and Text; the specialised circle
+  // constructions move to the collapsed Advanced group at the bottom of the rail.
+  ready('CircleDrawThreePoint', 'Circle through three points', 'advanced', 'circle-dot', 'MouseHandlerCircleDrawThreePoint', {
     toolSteps: ['Pick first point', 'Pick second point', 'Pick third point'],
   }),
-  ready('CircleDrawSeparate', 'Separate circle', 'annotations', 'circle-dashed', 'MouseHandlerCircleDrawSeparate', {
+  ready('CircleDrawSeparate', 'Separate circle', 'advanced', 'circle-dashed', 'MouseHandlerCircleDrawSeparate', {
     toolSteps: ['Pick center point', 'Pick radius start', 'Pick radius end'],
   }),
   ready('CircleDrawTangentLine', 'Circle tangent line', 'annotations', 'circle-slash', 'MouseHandlerCircleDrawTangentLine', {
@@ -421,22 +429,22 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     selectionRequirement: 'selected circle(s)',
     tooltip: 'Create tangent lines from two selected circles, or from one selected circle plus a clicked point',
   }),
-  ready('CircleDrawInverted', 'Inverted circle', 'annotations', 'refresh-cw', 'MouseHandlerCircleDrawInverted', {
+  ready('CircleDrawInverted', 'Inverted circle', 'advanced', 'refresh-cw', 'MouseHandlerCircleDrawInverted', {
     selectionRequirement: 'selected circle and circle or crease',
     tooltip: 'Invert a selected circle or crease through a selected circle',
   }),
-  ready('CircleDrawFree', 'Free circle', 'annotations', 'circle-plus', 'MouseHandlerCircleDrawFree', {
+  ready('CircleDrawFree', 'Free circle', 'advanced', 'circle-plus', 'MouseHandlerCircleDrawFree', {
     toolSteps: ['Pick center point', 'Pick radius point'],
   }),
-  ready('CircleDrawConcentric', 'Concentric circle', 'annotations', 'circle-dot-dashed', 'MouseHandlerCircleDrawConcentric', {
+  ready('CircleDrawConcentric', 'Concentric circle', 'advanced', 'circle-dot-dashed', 'MouseHandlerCircleDrawConcentric', {
     selectionRequirement: 'selected circle',
     toolSteps: ['Pick radius start', 'Pick radius end'],
   }),
-  ready('CircleDrawConcentricSelect', 'Concentric from selection', 'annotations', 'circle-dot', 'MouseHandlerCircleDrawConcentricSelect', {
+  ready('CircleDrawConcentricSelect', 'Concentric from selection', 'advanced', 'circle-dot', 'MouseHandlerCircleDrawConcentricSelect', {
     selectionRequirement: 'three selected circles',
     tooltip: 'Create a concentric circle from a target circle and two reference circle radii',
   }),
-  ready('CircleDrawConcentricTwoCircleSelect', 'Concentric from two circles', 'annotations', 'venetian-mask', 'MouseHandlerCircleDrawConcentricTwoCircleSelect', {
+  ready('CircleDrawConcentricTwoCircleSelect', 'Concentric from two circles', 'advanced', 'venetian-mask', 'MouseHandlerCircleDrawConcentricTwoCircleSelect', {
     selectionRequirement: 'two selected circles',
     tooltip: 'Create the two Oriedita concentric offset circles from selected circles',
   }),

@@ -51,6 +51,10 @@
     "file": {
       "label": "ファイルの入出力",
       "railLabel": "ファイル"
+    },
+    "advanced": {
+      "label": "高度なツール",
+      "railLabel": "高度"
     }
   },
   "action": {

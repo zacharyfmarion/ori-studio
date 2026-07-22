@@ -157,7 +157,24 @@ function packingDocument(): OristudioBpDocumentState {
           { id: 2, vertexId: 2, name: '', anchor: { x: 10, y: 10 }, width: 2, height: 2, radius: 1, constrained: true },
         ],
         rivers: [{ id: 1, edgeId: 2, vertices: [0, 2], width: 1, length: 1 }],
-        invalidJunctions: [],
+        // A conflict, so the merged conflict hit targets are covered too.
+        invalidJunctions: [
+          {
+            id: 'j1',
+            flapIds: [1, 2],
+            riverIds: [],
+            paths: [
+              [
+                { x: 5, y: 5 },
+                { x: 7, y: 5 },
+                { x: 7, y: 7 },
+                { x: 5, y: 7 },
+              ],
+            ],
+            overlap: -1,
+            message: 'Flaps 1 and 2 overlap',
+          },
+        ],
         stretches: [],
         devices: [],
         graphics: [

@@ -12,9 +12,8 @@ export function cp_operation_descriptors() {
 }
 
 /**
- * Clear the document's selection flags. A non-command mutation (no undo entry):
- * the frontend selection is authoritative, and a UI deselect (Escape / click-off)
- * must clear the kernel too, or a later select/deselect re-derives the stale set.
+ * Clear the document's selection flags (a non-command mutation with no undo
+ * entry) so a UI deselect keeps the kernel selection in sync.
  * @param {number} handle
  * @returns {number}
  */
@@ -27,14 +26,9 @@ export function deselect_all(handle) {
 }
 
 /**
- * Compact, transfer-friendly geometry for the hot render/interaction path.
- *
- * Returns a plain JS object whose bulk-geometry fields are typed arrays (each
- * backed by its own transferable `ArrayBuffer`) plus a small serde `tail`. This
- * is the fast counterpart to [`document_snapshot`]: it skips the O(n)
- * JS-object-graph build and lets the worker `transfer` the buffers to the main
- * thread instead of structured-cloning them. Coordinates stay `f64`
- * (`Float64Array`), so nothing on this path loses precision.
+ * Compact, transfer-friendly geometry for the hot render/interaction path. The
+ * bulk-geometry fields become typed arrays (each backed by its own transferable
+ * `ArrayBuffer`) so the worker can `transfer` rather than structured-clone.
  * @param {number} handle
  * @returns {any}
  */
@@ -329,9 +323,7 @@ export function free_folded_figure(handle) {
 
 /**
  * Oriedita import (add): merge the document behind `imported_handle` into the
- * document behind `handle`, mirroring `setSave_for_reading_tuika`. The imported
- * pattern is shifted to sit beside the existing one and divided against it.
- * Returns the resulting line-segment count.
+ * document behind `handle`. Returns the resulting line-segment count.
  * @param {number} handle
  * @param {number} imported_handle
  * @returns {number}
@@ -475,13 +467,8 @@ export function replace_line_segments(handle, line_ids, segments) {
 }
 
 /**
- * Replace the document behind an existing handle in place.
- *
- * Unlike [`load_document`], which allocates a fresh handle, this mutates the
- * document already stored at `handle`. Undo/redo and whole-document edits use
- * this so the handle stays stable (mirroring Oriedita's in-place
- * `foldLineSet.setSave` restore), which keeps the editor's viewport from being
- * treated as a brand-new document load.
+ * Replace the document behind an existing handle in place (undo/redo,
+ * whole-document edits); keeps the handle stable, unlike [`load_document`].
  * @param {number} handle
  * @param {any} document
  */
@@ -494,9 +481,7 @@ export function restore_document(handle, document) {
 
 /**
  * Restore a document in place from the compact geometry produced by
- * [`document_geometry`]. Used by undo/redo: `decode` is the exact inverse of
- * `encode`, so the restored model is identical to the one that was captured.
- * Keeps the handle stable, mirroring [`restore_document`].
+ * [`document_geometry`] (undo/redo). Keeps the handle stable.
  * @param {number} handle
  * @param {any} value
  */
@@ -508,14 +493,8 @@ export function restore_from_compact(handle, value) {
 }
 
 /**
- * Replace the kernel document's text elements wholesale.
- *
- * Rich text lives in a web-side annotation layer; the kernel `texts` vec is only
- * the Oriedita interchange representation. The frontend flattens each rich text
- * box to a plain `{x, y, text}` and pushes them here right before an `.ori` /
- * `.fold` export (restoring `[]` afterwards), and clears them (an empty call)
- * after inflating a loaded file's texts into web-side annotations. `coords` is a
- * flat `[x0, y0, x1, y1, ...]` paired with `texts` by index.
+ * Replace the kernel document's text elements wholesale. See
+ * [`CpSession::set_texts`] for the rich-text/interchange split this serves.
  * @param {number} handle
  * @param {Float64Array} coords
  * @param {string[]} texts

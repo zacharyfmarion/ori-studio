@@ -1722,7 +1722,10 @@
     "panels:textAnnotation.placeholder": "71cbad2cda40",
     "panels:textAnnotation.textControls": "0b1d5c714733",
     "panels:textAnnotation.textStyle": "8a929f303859",
-    "panels:textAnnotation.underline": "02f843261112"
+    "panels:textAnnotation.underline": "02f843261112",
+    "panels:bpPacking.layerClearance": "aa74f400e596",
+    "cpVocab:group.advanced.label": "514cc538596e",
+    "cpVocab:group.advanced.railLabel": "9f088dbebd6c"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -3447,7 +3450,10 @@
     "panels:textAnnotation.placeholder": "71cbad2cda40",
     "panels:textAnnotation.textControls": "0b1d5c714733",
     "panels:textAnnotation.textStyle": "8a929f303859",
-    "panels:textAnnotation.underline": "02f843261112"
+    "panels:textAnnotation.underline": "02f843261112",
+    "panels:bpPacking.layerClearance": "aa74f400e596",
+    "cpVocab:group.advanced.label": "514cc538596e",
+    "cpVocab:group.advanced.railLabel": "9f088dbebd6c"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -5197,7 +5203,10 @@
     "panels:textAnnotation.placeholder": "71cbad2cda40",
     "panels:textAnnotation.textControls": "0b1d5c714733",
     "panels:textAnnotation.textStyle": "8a929f303859",
-    "panels:textAnnotation.underline": "02f843261112"
+    "panels:textAnnotation.underline": "02f843261112",
+    "panels:bpPacking.layerClearance": "aa74f400e596",
+    "cpVocab:group.advanced.label": "514cc538596e",
+    "cpVocab:group.advanced.railLabel": "9f088dbebd6c"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -6947,7 +6956,10 @@
     "panels:textAnnotation.placeholder": "71cbad2cda40",
     "panels:textAnnotation.textControls": "0b1d5c714733",
     "panels:textAnnotation.textStyle": "8a929f303859",
-    "panels:textAnnotation.underline": "02f843261112"
+    "panels:textAnnotation.underline": "02f843261112",
+    "panels:bpPacking.layerClearance": "aa74f400e596",
+    "cpVocab:group.advanced.label": "514cc538596e",
+    "cpVocab:group.advanced.railLabel": "9f088dbebd6c"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8697,7 +8709,10 @@
     "panels:textAnnotation.placeholder": "71cbad2cda40",
     "panels:textAnnotation.textControls": "0b1d5c714733",
     "panels:textAnnotation.textStyle": "8a929f303859",
-    "panels:textAnnotation.underline": "02f843261112"
+    "panels:textAnnotation.underline": "02f843261112",
+    "panels:bpPacking.layerClearance": "aa74f400e596",
+    "cpVocab:group.advanced.label": "514cc538596e",
+    "cpVocab:group.advanced.railLabel": "9f088dbebd6c"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10447,7 +10462,10 @@
     "panels:textAnnotation.placeholder": "71cbad2cda40",
     "panels:textAnnotation.textControls": "0b1d5c714733",
     "panels:textAnnotation.textStyle": "8a929f303859",
-    "panels:textAnnotation.underline": "02f843261112"
+    "panels:textAnnotation.underline": "02f843261112",
+    "panels:bpPacking.layerClearance": "aa74f400e596",
+    "cpVocab:group.advanced.label": "514cc538596e",
+    "cpVocab:group.advanced.railLabel": "9f088dbebd6c"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12197,7 +12215,10 @@
     "panels:textAnnotation.placeholder": "71cbad2cda40",
     "panels:textAnnotation.textControls": "0b1d5c714733",
     "panels:textAnnotation.textStyle": "8a929f303859",
-    "panels:textAnnotation.underline": "02f843261112"
+    "panels:textAnnotation.underline": "02f843261112",
+    "panels:bpPacking.layerClearance": "aa74f400e596",
+    "cpVocab:group.advanced.label": "514cc538596e",
+    "cpVocab:group.advanced.railLabel": "9f088dbebd6c"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -13922,6 +13943,9 @@
     "panels:textAnnotation.placeholder": "71cbad2cda40",
     "panels:textAnnotation.textControls": "0b1d5c714733",
     "panels:textAnnotation.textStyle": "8a929f303859",
-    "panels:textAnnotation.underline": "02f843261112"
+    "panels:textAnnotation.underline": "02f843261112",
+    "panels:bpPacking.layerClearance": "aa74f400e596",
+    "cpVocab:group.advanced.label": "514cc538596e",
+    "cpVocab:group.advanced.railLabel": "9f088dbebd6c"
   }
 }

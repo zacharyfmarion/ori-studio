@@ -1,215 +1,125 @@
 //! `wasm-bindgen` wrapper around `oristudio-cp`.
 //!
-//! The wasm API stores editable crease-pattern documents behind integer
-//! handles so the web worker can keep command calls cheap and explicit.
+//! This is a thin marshaling layer: it (de)serializes `JsValue`s at the edge and
+//! delegates all engine work to a `thread_local` [`CpSession`], the shared,
+//! UI-agnostic session store. The desktop (Tauri) bridge owns the same
+//! `CpSession` behind managed state, so the two stay in lockstep by construction.
+//! See `implementation-plans/desktop-native-cp-engine-migration.md`.
 
 use js_sys::{Float64Array, Int32Array, Object, Reflect, Uint8Array};
 use oristudio_cp::folding::{
     DisplayStyle, EstimationOrder, FoldedFigureModel, FoldedFigureRenderOptions,
-    FoldedFigureSnapshot, FoldingEstimateError, FoldingEstimateSession, WorkerOverlapSearchError,
-    fold_another, folded_figure_render_snapshot_from_session, folded_figure_snapshot_from_session,
-    folding_estimate_to_case,
 };
-use oristudio_cp::geometry_transport::{self, CompactGeometry};
-use oristudio_cp::{
-    CommandError, CreasePatternCommand, CreasePatternCommandPayload, CreasePatternDocument,
-    OperationCategory, OperationDescriptor, OperationId, OperationStatus, execute_command, io,
-    operation_descriptors, preview_command,
-};
+use oristudio_cp::geometry::LineSegment;
+use oristudio_cp::geometry_transport::CompactGeometry;
+use oristudio_cp::session::{CpSession, EngineError};
+use oristudio_cp::{CreasePatternCommandPayload, CreasePatternDocument, OperationId};
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use std::cell::RefCell;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
 
 thread_local! {
-    static DOCUMENTS: RefCell<Vec<Option<CreasePatternDocument>>> = const { RefCell::new(Vec::new()) };
-    static FOLDED_FIGURES: RefCell<Vec<Option<WasmFoldedFigure>>> = const { RefCell::new(Vec::new()) };
+    static SESSION: RefCell<CpSession> = RefCell::new(CpSession::new());
 }
 
-#[derive(Serialize)]
-struct JsErrorEnvelope {
-    code: &'static str,
-    message: String,
+fn with_session<T>(f: impl FnOnce(&CpSession) -> Result<T, EngineError>) -> Result<T, JsValue> {
+    SESSION.with(|session| f(&session.borrow()).map_err(engine_error_to_js))
 }
 
-#[derive(Serialize)]
-struct JsOperationDescriptor {
-    id: OperationId,
-    upstream: &'static str,
-    target: &'static str,
-    category: OperationCategory,
-    stage: u8,
-    status: OperationStatus,
+fn with_session_mut<T>(
+    f: impl FnOnce(&mut CpSession) -> Result<T, EngineError>,
+) -> Result<T, JsValue> {
+    SESSION.with(|session| f(&mut session.borrow_mut()).map_err(engine_error_to_js))
 }
 
-impl From<&'static OperationDescriptor> for JsOperationDescriptor {
-    fn from(descriptor: &'static OperationDescriptor) -> Self {
-        Self {
-            id: descriptor.id,
-            upstream: descriptor.upstream,
-            target: descriptor.target,
-            category: descriptor.category,
-            stage: descriptor.stage,
-            status: descriptor.status,
-        }
-    }
-}
-
-#[derive(Serialize)]
-struct DocumentSummary {
-    title: Option<String>,
-    line_segments: usize,
-    circles: usize,
-    points: usize,
-    aux_line_segments: usize,
-    texts: usize,
-    can_save_as_cp: bool,
-    is_empty: bool,
-}
-
-struct WasmFoldedFigure {
-    session: FoldingEstimateSession,
-    model: FoldedFigureModel,
-}
-
-#[derive(Serialize)]
-struct JsFoldedFigureResult {
-    handle: u32,
-    snapshot: FoldedFigureSnapshot,
-}
-
-#[derive(Serialize)]
-struct JsFoldedFigureBatchResult {
-    snapshot: FoldedFigureSnapshot,
-    discovered_case_numbers: Vec<usize>,
-}
+// --- operation catalog ------------------------------------------------------
 
 #[wasm_bindgen]
 pub fn cp_operation_descriptors() -> Result<JsValue, JsValue> {
-    let descriptors = operation_descriptors()
-        .iter()
-        .map(JsOperationDescriptor::from)
-        .collect::<Vec<_>>();
+    let descriptors = with_session(|session| Ok(session.operation_descriptors()))?;
     to_js_value(&descriptors)
 }
 
+// --- document loading / construction ----------------------------------------
+
 #[wasm_bindgen]
 pub fn load_cp(text: &str, title: &str) -> Result<u32, JsValue> {
-    let model = io::cp::import_cp_str(text).map_err(to_js_io_error)?;
-    store_document(CreasePatternDocument {
-        title: title_from_js(title),
-        crease_pattern: model,
-        operation_frame: Default::default(),
-        metadata: Default::default(),
-    })
+    with_session_mut(|session| session.load_cp(text, title))
 }
 
 #[wasm_bindgen]
 pub fn load_fold(text: &str, title: &str) -> Result<u32, JsValue> {
-    let model = io::fold::import_fold_json(text).map_err(to_js_io_error)?;
-    store_document(CreasePatternDocument {
-        title: title_from_js(title),
-        crease_pattern: model,
-        operation_frame: Default::default(),
-        metadata: Default::default(),
-    })
+    with_session_mut(|session| session.load_fold(text, title))
 }
 
 #[wasm_bindgen]
 pub fn load_fold_file(text: &str) -> Result<u32, JsValue> {
-    let document = io::fold::import_fold_file_document_json(text).map_err(to_js_io_error)?;
-    store_document(document)
+    with_session_mut(|session| session.load_fold_file(text))
 }
 
 #[wasm_bindgen]
 pub fn load_ori(text: &str, accept_unknown_version: bool) -> Result<u32, JsValue> {
-    let document = io::ori::import_ori_json_with_unknown_version(text, accept_unknown_version)
-        .map_err(to_js_io_error)?;
-    store_document(document)
+    with_session_mut(|session| session.load_ori(text, accept_unknown_version))
 }
 
 #[wasm_bindgen]
 pub fn load_orh(text: &str) -> Result<u32, JsValue> {
-    let document = io::orh::import_orh_str(text).map_err(to_js_io_error)?;
-    store_document(document)
+    with_session_mut(|session| session.load_orh(text))
 }
 
 #[wasm_bindgen]
 pub fn load_document(document: JsValue) -> Result<u32, JsValue> {
-    let document: CreasePatternDocument =
-        serde_wasm_bindgen::from_value(document).map_err(to_js_value_error)?;
-    store_document(document)
+    let document: CreasePatternDocument = from_js(document)?;
+    with_session_mut(|session| Ok(session.load_document(document)))
 }
 
-/// Replace the document behind an existing handle in place.
-///
-/// Unlike [`load_document`], which allocates a fresh handle, this mutates the
-/// document already stored at `handle`. Undo/redo and whole-document edits use
-/// this so the handle stays stable (mirroring Oriedita's in-place
-/// `foldLineSet.setSave` restore), which keeps the editor's viewport from being
-/// treated as a brand-new document load.
+// --- document lifecycle / read ----------------------------------------------
+
+/// Replace the document behind an existing handle in place (undo/redo,
+/// whole-document edits); keeps the handle stable, unlike [`load_document`].
 #[wasm_bindgen]
 pub fn restore_document(handle: u32, document: JsValue) -> Result<(), JsValue> {
-    let document: CreasePatternDocument =
-        serde_wasm_bindgen::from_value(document).map_err(to_js_value_error)?;
-    with_document_mut(handle, |slot| {
-        *slot = document;
-        Ok(())
-    })
+    let document: CreasePatternDocument = from_js(document)?;
+    with_session_mut(|session| session.restore_document(handle, document))
 }
 
 #[wasm_bindgen]
 pub fn document_snapshot(handle: u32) -> Result<JsValue, JsValue> {
-    with_document(handle, to_js_value)
+    let document = with_session(|session| session.document_snapshot(handle))?;
+    to_js_value(&document)
 }
 
-/// Compact, transfer-friendly geometry for the hot render/interaction path.
-///
-/// Returns a plain JS object whose bulk-geometry fields are typed arrays (each
-/// backed by its own transferable `ArrayBuffer`) plus a small serde `tail`. This
-/// is the fast counterpart to [`document_snapshot`]: it skips the O(n)
-/// JS-object-graph build and lets the worker `transfer` the buffers to the main
-/// thread instead of structured-cloning them. Coordinates stay `f64`
-/// (`Float64Array`), so nothing on this path loses precision.
+/// Compact, transfer-friendly geometry for the hot render/interaction path. The
+/// bulk-geometry fields become typed arrays (each backed by its own transferable
+/// `ArrayBuffer`) so the worker can `transfer` rather than structured-clone.
 #[wasm_bindgen]
 pub fn document_geometry(handle: u32) -> Result<JsValue, JsValue> {
-    with_document(handle, |document| {
-        let compact = geometry_transport::encode(document);
-        compact_to_js(&compact)
-    })
+    let compact = with_session(|session| session.document_geometry(handle))?;
+    compact_to_js(&compact)
 }
 
 /// Restore a document in place from the compact geometry produced by
-/// [`document_geometry`]. Used by undo/redo: `decode` is the exact inverse of
-/// `encode`, so the restored model is identical to the one that was captured.
-/// Keeps the handle stable, mirroring [`restore_document`].
+/// [`document_geometry`] (undo/redo). Keeps the handle stable.
 #[wasm_bindgen]
 pub fn restore_from_compact(handle: u32, value: JsValue) -> Result<(), JsValue> {
     let compact = compact_from_js(&value)?;
-    let document =
-        geometry_transport::decode(&compact).map_err(|error| js_error("invalid_input", error))?;
-    with_document_mut(handle, |slot| {
-        *slot = document;
-        Ok(())
-    })
+    with_session_mut(|session| session.restore_from_compact(handle, &compact))
 }
 
 #[wasm_bindgen]
 pub fn document_summary(handle: u32) -> Result<JsValue, JsValue> {
-    with_document(handle, |document| {
-        let model = &document.crease_pattern;
-        to_js_value(&DocumentSummary {
-            title: document.title.clone(),
-            line_segments: model.line_segments.len(),
-            circles: model.circles.len(),
-            points: model.points.len(),
-            aux_line_segments: model.aux_line_segments.len(),
-            texts: model.texts.len(),
-            can_save_as_cp: model.can_save_as_cp(),
-            is_empty: model.is_empty(),
-        })
-    })
+    let summary = with_session(|session| session.document_summary(handle))?;
+    to_js_value(&summary)
 }
+
+#[wasm_bindgen]
+pub fn free_document(handle: u32) -> Result<(), JsValue> {
+    with_session_mut(|session| session.free_document(handle))
+}
+
+// --- editing commands -------------------------------------------------------
 
 #[wasm_bindgen]
 pub fn execute_cp_command(
@@ -217,18 +127,10 @@ pub fn execute_cp_command(
     operation: JsValue,
     payload: JsValue,
 ) -> Result<JsValue, JsValue> {
-    let operation: OperationId =
-        serde_wasm_bindgen::from_value(operation).map_err(to_js_value_error)?;
-    let payload: CreasePatternCommandPayload =
-        serde_wasm_bindgen::from_value(payload).map_err(to_js_value_error)?;
-    with_document_mut(handle, |document| {
-        let result = execute_command(
-            document,
-            CreasePatternCommand::new(operation).with_payload(payload),
-        )
-        .map_err(to_js_command_error)?;
-        to_js_value(&result)
-    })
+    let operation: OperationId = from_js(operation)?;
+    let payload: CreasePatternCommandPayload = from_js(payload)?;
+    let result = with_session_mut(|session| session.execute_command(handle, operation, payload))?;
+    to_js_value(&result)
 }
 
 #[wasm_bindgen]
@@ -237,62 +139,30 @@ pub fn preview_cp_command(
     operation: JsValue,
     payload: JsValue,
 ) -> Result<JsValue, JsValue> {
-    let operation: OperationId =
-        serde_wasm_bindgen::from_value(operation).map_err(to_js_value_error)?;
-    let payload: CreasePatternCommandPayload =
-        serde_wasm_bindgen::from_value(payload).map_err(to_js_value_error)?;
-    with_document(handle, |document| {
-        let result = preview_command(
-            document,
-            CreasePatternCommand::new(operation).with_payload(payload),
-        )
-        .map_err(to_js_command_error)?;
-        to_js_value(&result)
-    })
+    let operation: OperationId = from_js(operation)?;
+    let payload: CreasePatternCommandPayload = from_js(payload)?;
+    let result = with_session(|session| session.preview_command(handle, operation, payload))?;
+    to_js_value(&result)
 }
 
 #[wasm_bindgen]
 pub fn insert_line_segments(handle: u32, segments: JsValue) -> Result<u32, JsValue> {
-    let segments: Vec<oristudio_cp::geometry::LineSegment> =
-        serde_wasm_bindgen::from_value(segments).map_err(to_js_value_error)?;
-    with_document_mut(handle, |document| {
-        let changed = oristudio_cp::operations::transform::insert_line_segments(
-            &mut document.crease_pattern,
-            &segments,
-            true,
-        );
-        Ok(changed as u32)
-    })
+    let segments: Vec<LineSegment> = from_js(segments)?;
+    with_session_mut(|session| session.insert_line_segments(handle, &segments))
 }
 
-/// Clear the document's selection flags. A non-command mutation (no undo entry):
-/// the frontend selection is authoritative, and a UI deselect (Escape / click-off)
-/// must clear the kernel too, or a later select/deselect re-derives the stale set.
+/// Clear the document's selection flags (a non-command mutation with no undo
+/// entry) so a UI deselect keeps the kernel selection in sync.
 #[wasm_bindgen]
 pub fn deselect_all(handle: u32) -> Result<u32, JsValue> {
-    with_document_mut(handle, |document| {
-        let changed =
-            oristudio_cp::operations::selection::unselect_all(&mut document.crease_pattern);
-        Ok(changed as u32)
-    })
+    with_session_mut(|session| session.deselect_all(handle))
 }
 
 /// Oriedita import (add): merge the document behind `imported_handle` into the
-/// document behind `handle`, mirroring `setSave_for_reading_tuika`. The imported
-/// pattern is shifted to sit beside the existing one and divided against it.
-/// Returns the resulting line-segment count.
+/// document behind `handle`. Returns the resulting line-segment count.
 #[wasm_bindgen]
 pub fn import_add(handle: u32, imported_handle: u32) -> Result<u32, JsValue> {
-    let imported_pattern = with_document(imported_handle, |document| {
-        Ok(document.crease_pattern.clone())
-    })?;
-    with_document_mut(handle, |document| {
-        oristudio_cp::operations::arrangement::import_add(
-            &mut document.crease_pattern,
-            &imported_pattern,
-        );
-        Ok(document.crease_pattern.line_segments.len() as u32)
-    })
+    with_session_mut(|session| session.import_add(handle, imported_handle))
 }
 
 #[wasm_bindgen]
@@ -301,82 +171,46 @@ pub fn replace_line_segments(
     line_ids: JsValue,
     segments: JsValue,
 ) -> Result<u32, JsValue> {
-    let line_ids: Vec<usize> =
-        serde_wasm_bindgen::from_value(line_ids).map_err(to_js_value_error)?;
-    let segments: Vec<oristudio_cp::geometry::LineSegment> =
-        serde_wasm_bindgen::from_value(segments).map_err(to_js_value_error)?;
-    with_document_mut(handle, |document| {
-        let indices = resolved_line_indices(&document.crease_pattern, &line_ids)?;
-        let changed = oristudio_cp::operations::transform::replace_line_segments(
-            &mut document.crease_pattern,
-            &indices,
-            &segments,
-        );
-        Ok(changed as u32)
-    })
+    let line_ids: Vec<usize> = from_js(line_ids)?;
+    let segments: Vec<LineSegment> = from_js(segments)?;
+    with_session_mut(|session| session.replace_line_segments(handle, &line_ids, &segments))
 }
+
+// --- export -----------------------------------------------------------------
 
 #[wasm_bindgen]
 pub fn export_cp(handle: u32) -> Result<String, JsValue> {
-    with_document(handle, |document| {
-        Ok(io::cp::export_cp_string(&document.crease_pattern))
-    })
+    with_session(|session| session.export_cp(handle))
 }
 
 #[wasm_bindgen]
 pub fn export_fold(handle: u32) -> Result<String, JsValue> {
-    with_document(handle, |document| {
-        io::fold::export_fold_json(&document.crease_pattern, document.title.clone())
-            .map_err(to_js_io_error)
-    })
+    with_session(|session| session.export_fold(handle))
 }
 
 #[wasm_bindgen]
 pub fn export_fold_file(handle: u32) -> Result<String, JsValue> {
-    with_document(handle, |document| {
-        io::fold::export_fold_file_document_json(document).map_err(to_js_io_error)
-    })
+    with_session(|session| session.export_fold_file(handle))
 }
 
 #[wasm_bindgen]
 pub fn export_ori(handle: u32) -> Result<String, JsValue> {
-    with_document(handle, |document| {
-        io::ori::export_ori_json(document).map_err(to_js_io_error)
-    })
+    with_session(|session| session.export_ori(handle))
 }
 
 #[wasm_bindgen]
 pub fn export_orh(handle: u32) -> Result<String, JsValue> {
-    with_document(handle, |document| Ok(io::orh::export_orh_string(document)))
+    with_session(|session| session.export_orh(handle))
 }
 
-/// Replace the kernel document's text elements wholesale.
-///
-/// Rich text lives in a web-side annotation layer; the kernel `texts` vec is only
-/// the Oriedita interchange representation. The frontend flattens each rich text
-/// box to a plain `{x, y, text}` and pushes them here right before an `.ori` /
-/// `.fold` export (restoring `[]` afterwards), and clears them (an empty call)
-/// after inflating a loaded file's texts into web-side annotations. `coords` is a
-/// flat `[x0, y0, x1, y1, ...]` paired with `texts` by index.
+/// Replace the kernel document's text elements wholesale. See
+/// [`CpSession::set_texts`] for the rich-text/interchange split this serves.
 #[wasm_bindgen]
 pub fn set_texts(handle: u32, coords: Vec<f64>, texts: Vec<String>) -> Result<(), JsValue> {
-    with_document_mut(handle, |document| {
-        if coords.len() != texts.len() * 2 {
-            return Err(js_error(
-                "invalid_texts",
-                "coords length must be twice the number of texts",
-            ));
-        }
-        document.crease_pattern.texts = texts
-            .into_iter()
-            .enumerate()
-            .map(|(i, text)| {
-                oristudio_cp::model::TextElement::new(coords[i * 2], coords[i * 2 + 1], text)
-            })
-            .collect();
-        Ok(())
-    })
+    with_session_mut(|session| session.set_texts(handle, &coords, texts))
 }
+
+// --- folding ----------------------------------------------------------------
 
 #[wasm_bindgen]
 pub fn folded_figure_fold(
@@ -385,19 +219,12 @@ pub fn folded_figure_fold(
     order: JsValue,
     model: JsValue,
 ) -> Result<JsValue, JsValue> {
-    let order: EstimationOrder =
-        serde_wasm_bindgen::from_value(order).map_err(to_js_value_error)?;
+    let order: EstimationOrder = from_js(order)?;
     let model = folded_figure_model_from_js(model)?;
-    with_document(document_handle, |document| {
-        let mut session =
-            FoldingEstimateSession::new(&document.crease_pattern.line_segments, starting_face_id);
-        session
-            .folding_estimated(order)
-            .map_err(to_js_folding_error)?;
-        let snapshot = folded_figure_snapshot_from_session(&session, model.clone());
-        let handle = store_folded_figure(WasmFoldedFigure { session, model })?;
-        to_js_value(&JsFoldedFigureResult { handle, snapshot })
-    })
+    let result = with_session_mut(|session| {
+        session.folded_figure_fold(document_handle, starting_face_id, order, model)
+    })?;
+    to_js_value(&result)
 }
 
 #[wasm_bindgen]
@@ -408,37 +235,25 @@ pub fn folded_figure_fold_selected(
     order: JsValue,
     model: JsValue,
 ) -> Result<JsValue, JsValue> {
-    let selected_line_ids: Vec<usize> =
-        serde_wasm_bindgen::from_value(selected_line_ids).map_err(to_js_value_error)?;
-    let order: EstimationOrder =
-        serde_wasm_bindgen::from_value(order).map_err(to_js_value_error)?;
+    let selected_line_ids: Vec<usize> = from_js(selected_line_ids)?;
+    let order: EstimationOrder = from_js(order)?;
     let model = folded_figure_model_from_js(model)?;
-    with_document(document_handle, |document| {
-        let selected_segments =
-            selected_folding_segments(&document.crease_pattern.line_segments, &selected_line_ids);
-        let segments = if selected_segments.is_empty() {
-            document.crease_pattern.line_segments.as_slice()
-        } else {
-            selected_segments.as_slice()
-        };
-        let mut session = FoldingEstimateSession::new(segments, starting_face_id);
-        session
-            .folding_estimated(order)
-            .map_err(to_js_folding_error)?;
-        let snapshot = folded_figure_snapshot_from_session(&session, model.clone());
-        let handle = store_folded_figure(WasmFoldedFigure { session, model })?;
-        to_js_value(&JsFoldedFigureResult { handle, snapshot })
-    })
+    let result = with_session_mut(|session| {
+        session.folded_figure_fold_selected(
+            document_handle,
+            &selected_line_ids,
+            starting_face_id,
+            order,
+            model,
+        )
+    })?;
+    to_js_value(&result)
 }
 
 #[wasm_bindgen]
 pub fn folded_figure_snapshot(handle: u32) -> Result<JsValue, JsValue> {
-    with_folded_figure(handle, |folded| {
-        to_js_value(&folded_figure_snapshot_from_session(
-            &folded.session,
-            folded.model.clone(),
-        ))
-    })
+    let snapshot = with_session(|session| session.folded_figure_snapshot(handle))?;
+    to_js_value(&snapshot)
 }
 
 #[wasm_bindgen]
@@ -451,56 +266,32 @@ pub fn folded_figure_render_snapshot(
         if display_style.is_undefined() || display_style.is_null() {
             None
         } else {
-            Some(serde_wasm_bindgen::from_value(display_style).map_err(to_js_value_error)?)
+            Some(from_js(display_style)?)
         };
     let options = folded_figure_render_options_from_js(options)?;
-    with_folded_figure(handle, |folded| {
-        let display_style = display_style.unwrap_or(folded.session.estimate().display_style);
-        let snapshot = folded_figure_render_snapshot_from_session(
-            &folded.session,
-            display_style,
-            folded.model.clone(),
-            options,
-        )
-        .map_err(to_js_folding_error)?;
-        to_js_value(&snapshot)
-    })
+    let snapshot = with_session(|session| {
+        session.folded_figure_render_snapshot(handle, display_style, options)
+    })?;
+    to_js_value(&snapshot)
 }
 
 #[wasm_bindgen]
 pub fn folded_figure_set_model(handle: u32, model: JsValue) -> Result<JsValue, JsValue> {
     let model = folded_figure_model_from_js(model)?;
-    with_folded_figure_mut(handle, |folded| {
-        folded.model = model;
-        to_js_value(&folded_figure_snapshot_from_session(
-            &folded.session,
-            folded.model.clone(),
-        ))
-    })
+    let snapshot = with_session_mut(|session| session.folded_figure_set_model(handle, model))?;
+    to_js_value(&snapshot)
 }
 
 #[wasm_bindgen]
 pub fn folded_figure_duplicate(handle: u32) -> Result<JsValue, JsValue> {
-    let duplicate = with_folded_figure(handle, |folded| {
-        Ok(WasmFoldedFigure {
-            session: folded.session.clone(),
-            model: folded.model.clone(),
-        })
-    })?;
-    let snapshot = folded_figure_snapshot_from_session(&duplicate.session, duplicate.model.clone());
-    let handle = store_folded_figure(duplicate)?;
-    to_js_value(&JsFoldedFigureResult { handle, snapshot })
+    let result = with_session_mut(|session| session.folded_figure_duplicate(handle))?;
+    to_js_value(&result)
 }
 
 #[wasm_bindgen]
 pub fn folded_figure_fold_another(handle: u32) -> Result<JsValue, JsValue> {
-    with_folded_figure_mut(handle, |folded| {
-        fold_another(&mut folded.session).map_err(to_js_folding_error)?;
-        to_js_value(&folded_figure_snapshot_from_session(
-            &folded.session,
-            folded.model.clone(),
-        ))
-    })
+    let snapshot = with_session_mut(|session| session.folded_figure_fold_another(handle))?;
+    to_js_value(&snapshot)
 }
 
 #[wasm_bindgen]
@@ -509,67 +300,29 @@ pub fn folded_figure_fold_to_case(
     objective: u32,
     initial_order: JsValue,
 ) -> Result<JsValue, JsValue> {
-    let initial_order: EstimationOrder =
-        serde_wasm_bindgen::from_value(initial_order).map_err(to_js_value_error)?;
-    with_folded_figure_mut(handle, |folded| {
-        let batch =
-            folding_estimate_to_case(&mut folded.session, objective as usize, initial_order)
-                .map_err(to_js_folding_error)?;
-        let snapshot = folded_figure_snapshot_from_session(&folded.session, folded.model.clone());
-        to_js_value(&JsFoldedFigureBatchResult {
-            snapshot,
-            discovered_case_numbers: batch.discovered_case_numbers,
-        })
-    })
+    let initial_order: EstimationOrder = from_js(initial_order)?;
+    let result = with_session_mut(|session| {
+        session.folded_figure_fold_to_case(handle, objective as usize, initial_order)
+    })?;
+    to_js_value(&result)
 }
 
 #[wasm_bindgen]
 pub fn free_folded_figure(handle: u32) -> Result<(), JsValue> {
-    FOLDED_FIGURES.with(|folded_figures| {
-        let mut folded_figures = folded_figures.borrow_mut();
-        let slot = folded_figures
-            .get_mut(handle as usize)
-            .ok_or_else(|| js_error("invalid_handle", "invalid folded figure handle"))?;
-        *slot = None;
-        Ok(())
-    })
+    with_session_mut(|session| session.free_folded_figure(handle))
 }
 
-#[wasm_bindgen]
-pub fn free_document(handle: u32) -> Result<(), JsValue> {
-    DOCUMENTS.with(|documents| {
-        let mut documents = documents.borrow_mut();
-        let slot = documents
-            .get_mut(handle as usize)
-            .ok_or_else(|| js_error("invalid_handle", "invalid CreasePatternDocument handle"))?;
-        *slot = None;
-        Ok(())
-    })
-}
+// --- marshaling helpers -----------------------------------------------------
 
-fn selected_folding_segments(
-    segments: &[oristudio_cp::geometry::LineSegment],
-    selected_line_ids: &[usize],
-) -> Vec<oristudio_cp::geometry::LineSegment> {
-    if selected_line_ids.is_empty() {
-        return Vec::new();
-    }
-
-    segments
-        .iter()
-        .enumerate()
-        .filter(|(index, segment)| {
-            segment.color.is_folding_line() && selected_line_ids.contains(&(index + 1))
-        })
-        .map(|(_, segment)| segment.clone())
-        .collect()
+fn from_js<T: DeserializeOwned>(value: JsValue) -> Result<T, JsValue> {
+    serde_wasm_bindgen::from_value(value).map_err(to_js_value_error)
 }
 
 fn folded_figure_model_from_js(model: JsValue) -> Result<FoldedFigureModel, JsValue> {
     if model.is_undefined() || model.is_null() {
         Ok(FoldedFigureModel::default())
     } else {
-        serde_wasm_bindgen::from_value(model).map_err(to_js_value_error)
+        from_js(model)
     }
 }
 
@@ -579,164 +332,16 @@ fn folded_figure_render_options_from_js(
     if options.is_undefined() || options.is_null() {
         Ok(FoldedFigureRenderOptions::default())
     } else {
-        serde_wasm_bindgen::from_value(options).map_err(to_js_value_error)
+        from_js(options)
     }
 }
 
-fn store_document(document: CreasePatternDocument) -> Result<u32, JsValue> {
-    DOCUMENTS.with(|documents| {
-        let mut documents = documents.borrow_mut();
-        if let Some((index, slot)) = documents
-            .iter_mut()
-            .enumerate()
-            .find(|(_, slot)| slot.is_none())
-        {
-            *slot = Some(document);
-            Ok(index as u32)
-        } else {
-            documents.push(Some(document));
-            Ok((documents.len() - 1) as u32)
-        }
-    })
+fn engine_error_to_js(error: EngineError) -> JsValue {
+    serde_wasm_bindgen::to_value(&error).unwrap_or_else(|_| JsValue::from_str(&error.message))
 }
 
-fn store_folded_figure(folded_figure: WasmFoldedFigure) -> Result<u32, JsValue> {
-    FOLDED_FIGURES.with(|folded_figures| {
-        let mut folded_figures = folded_figures.borrow_mut();
-        if let Some((index, slot)) = folded_figures
-            .iter_mut()
-            .enumerate()
-            .find(|(_, slot)| slot.is_none())
-        {
-            *slot = Some(folded_figure);
-            Ok(index as u32)
-        } else {
-            folded_figures.push(Some(folded_figure));
-            Ok((folded_figures.len() - 1) as u32)
-        }
-    })
-}
-
-fn with_document<T>(
-    handle: u32,
-    f: impl FnOnce(&CreasePatternDocument) -> Result<T, JsValue>,
-) -> Result<T, JsValue> {
-    DOCUMENTS.with(|documents| {
-        let documents = documents.borrow();
-        let document = documents
-            .get(handle as usize)
-            .and_then(Option::as_ref)
-            .ok_or_else(|| js_error("invalid_handle", "invalid CreasePatternDocument handle"))?;
-        f(document)
-    })
-}
-
-fn with_document_mut<T>(
-    handle: u32,
-    f: impl FnOnce(&mut CreasePatternDocument) -> Result<T, JsValue>,
-) -> Result<T, JsValue> {
-    DOCUMENTS.with(|documents| {
-        let mut documents = documents.borrow_mut();
-        let document = documents
-            .get_mut(handle as usize)
-            .and_then(Option::as_mut)
-            .ok_or_else(|| js_error("invalid_handle", "invalid CreasePatternDocument handle"))?;
-        f(document)
-    })
-}
-
-fn with_folded_figure<T>(
-    handle: u32,
-    f: impl FnOnce(&WasmFoldedFigure) -> Result<T, JsValue>,
-) -> Result<T, JsValue> {
-    FOLDED_FIGURES.with(|folded_figures| {
-        let folded_figures = folded_figures.borrow();
-        let folded_figure = folded_figures
-            .get(handle as usize)
-            .and_then(Option::as_ref)
-            .ok_or_else(|| js_error("invalid_handle", "invalid folded figure handle"))?;
-        f(folded_figure)
-    })
-}
-
-fn with_folded_figure_mut<T>(
-    handle: u32,
-    f: impl FnOnce(&mut WasmFoldedFigure) -> Result<T, JsValue>,
-) -> Result<T, JsValue> {
-    FOLDED_FIGURES.with(|folded_figures| {
-        let mut folded_figures = folded_figures.borrow_mut();
-        let folded_figure = folded_figures
-            .get_mut(handle as usize)
-            .and_then(Option::as_mut)
-            .ok_or_else(|| js_error("invalid_handle", "invalid folded figure handle"))?;
-        f(folded_figure)
-    })
-}
-
-fn resolved_line_indices(
-    model: &oristudio_cp::CreasePatternModel,
-    line_ids: &[usize],
-) -> Result<Vec<usize>, JsValue> {
-    if line_ids.is_empty() {
-        return Err(js_error(
-            "invalid_input",
-            "at least one line id is required",
-        ));
-    }
-    let mut indices = Vec::with_capacity(line_ids.len());
-    for id in line_ids {
-        let Some(index) = id.checked_sub(1) else {
-            return Err(js_error("invalid_input", "line ids are one-based"));
-        };
-        if index >= model.line_segments.len() {
-            return Err(js_error("invalid_input", "line id is out of range"));
-        }
-        indices.push(index);
-    }
-    indices.sort_unstable();
-    indices.dedup();
-    Ok(indices)
-}
-
-fn title_from_js(title: &str) -> Option<String> {
-    let title = title.trim();
-    if title.is_empty() {
-        None
-    } else {
-        Some(title.to_owned())
-    }
-}
-
-fn to_js_command_error(error: CommandError) -> JsValue {
-    let code = match error {
-        CommandError::UnsupportedOperation { .. } => "unsupported_operation",
-        CommandError::NotImplemented { .. } => "not_implemented",
-        CommandError::InvalidInput { .. } => "invalid_input",
-    };
-    js_error(code, error.to_string())
-}
-
-fn to_js_io_error(error: io::IoError) -> JsValue {
-    js_error("invalid_input", error.to_string())
-}
-
-fn to_js_folding_error(error: FoldingEstimateError) -> JsValue {
-    // Stable per-cause code so the UI can show a human message; the Debug string
-    // is kept as the envelope message for detail/debugging. Layer-ordering
-    // contradictions are handled non-fatally upstream and normally never reach
-    // here, but keep a code for them in case one slips through a different path.
-    let code = match &error {
-        FoldingEstimateError::InitialHierarchy(_) => "fold_same_parity",
-        FoldingEstimateError::WorkerOverlap(worker) => match worker {
-            WorkerOverlapSearchError::InitialHierarchy(_) => "fold_same_parity",
-            WorkerOverlapSearchError::AdditionalEstimation(_) => "fold_contradiction",
-            WorkerOverlapSearchError::SubFace(_)
-            | WorkerOverlapSearchError::FinalAdditionalEstimationRequired { .. } => {
-                "fold_layer_search"
-            }
-        },
-    };
-    js_error(code, format!("{error:?}"))
+fn js_error(code: &'static str, message: impl Into<String>) -> JsValue {
+    engine_error_to_js(EngineError::new(code, message))
 }
 
 fn to_js_value_error(error: impl std::fmt::Display) -> JsValue {
@@ -820,12 +425,4 @@ fn compact_from_js(value: &JsValue) -> Result<CompactGeometry, JsValue> {
         circle_custom_color: get_u8_array(value, "circleCustomColor")?,
         tail,
     })
-}
-
-fn js_error(code: &'static str, message: impl Into<String>) -> JsValue {
-    serde_wasm_bindgen::to_value(&JsErrorEnvelope {
-        code,
-        message: message.into(),
-    })
-    .unwrap_or_else(|_| JsValue::from_str("failed to serialize wasm error"))
 }

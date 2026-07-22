@@ -426,6 +426,12 @@ impl WorkerOverlapEnumerator {
         &mut self,
         swap: bool,
     ) -> Result<WorkerOverlapSearch, WorkerOverlapSearchError> {
+        crate::fold_profiling::record_sizes(
+            self.hierarchy.faces_total as u64,
+            self.subface_total as u64,
+            self.valid_count as u64,
+            self.hierarchy.relations.len() as u64,
+        );
         let mut swapper = SubFaceSwapper::new();
         let mut realtime_additional_estimation = swap;
         let mut last_table = HierarchyTable::from_initial(&self.hierarchy);
@@ -433,6 +439,7 @@ impl WorkerOverlapEnumerator {
         let conditions = self.conditions.clone();
         let conditions = conditions.as_ref();
         while changed_subface != 0 {
+            crate::fold_profiling::bump_outer_iter();
             match inconsistent_subface_request(
                 &mut self.entries,
                 &self.order,
@@ -603,6 +610,7 @@ fn run_realtime_additional_estimation(
     valid_count: usize,
     conditions: Option<&EquivalenceConditionSet>,
 ) -> Result<(), AdditionalEstimationError> {
+    crate::fold_profiling::bump_realtime_estimation();
     let configuration = subface_configuration_from_entries(entries, order, valid_count);
     let empty_conditions = empty_conditions();
     let conditions = conditions.unwrap_or(&empty_conditions);
@@ -621,6 +629,7 @@ fn run_fast_realtime_additional_estimation(
     valid_count: usize,
     conditions: Option<&EquivalenceConditionSet>,
 ) -> Result<(), AdditionalEstimationError> {
+    crate::fold_profiling::bump_fast_realtime_estimation();
     let configuration = subface_configuration_from_entries(entries, order, valid_count);
     let empty_conditions = empty_conditions();
     let conditions = conditions.unwrap_or(&empty_conditions);
@@ -1000,6 +1009,7 @@ fn inconsistent_subface_request(
     mut swapper: Option<&mut SubFaceSwapper>,
     realtime_additional_estimation: &mut bool,
 ) -> Result<WorkerSearchStep, WorkerOverlapSearchError> {
+    crate::fold_profiling::bump_inconsistent_request();
     let mut table = HierarchyTable::from_initial(hierarchy);
     for index in 0..valid_count {
         let Some(entry_index) = order.get(index).copied() else {
@@ -1067,6 +1077,7 @@ fn advance_subface_permutations(
     subface_count: usize,
     active_count: usize,
 ) -> Result<usize, PermutationError> {
+    crate::fold_profiling::bump_perm_advance();
     let active_count = active_count.min(order.len());
     let subface_count = subface_count.min(active_count);
     for entry_index in order.iter().take(active_count).skip(subface_count) {
@@ -1567,8 +1578,6 @@ struct PairGuide {
     init_guide: Vec<usize>,
     init_entries: usize,
     is_source: Vec<bool>,
-    path: Vec<usize>,
-    visited: Vec<usize>,
 }
 
 impl PairGuide {
@@ -1587,8 +1596,6 @@ impl PairGuide {
             init_guide: vec![0; num_digits + 1],
             init_entries: 0,
             is_source: vec![false; num_digits + 1],
-            path: vec![0; num_digits + 1],
-            visited: vec![0; num_digits + 1],
         }
     }
 
@@ -1639,31 +1646,139 @@ impl PairGuide {
             self.init_guide[i] = self.guide[i];
         }
 
-        let mut result = None;
-        let mut max = 0usize;
-        for i in 1..=self.num_digits {
-            if self.is_source[i] {
-                self.dfs(i, 1);
-                if self.path[0] > max {
-                    max = self.path[0];
-                    result = Some(self.path.clone());
-                    self.path.fill(0);
-                }
+        // The memoized longest-path returns exactly what the original Oriedita
+        // DFS (`longest_source_path_reference`) does; that equivalence is covered
+        // by the unit tests plus the folding oracle tests, rather than a runtime
+        // cross-check (which would run the slow reference on every fold).
+        self.longest_source_path()
+    }
+
+    /// Longest source→sink path in the guide DAG, computed in O(V+E).
+    ///
+    /// Oriedita's `DFS` re-explores a node every time it is reached at a greater
+    /// depth, which is super-linear on deep guide graphs. But a node's best
+    /// continuation (`best_child`) and the length below it (`best_len`) depend
+    /// only on its subtree, not on the depth it is reached at — so they memoize.
+    /// The winner is the lowest-index source achieving the global maximum length,
+    /// and each step follows the first child (in guide-list order) that maximizes
+    /// the remaining length. This reproduces the reference DFS's exact path (see
+    /// `longest_source_path_reference` and the `debug_assert` in `lock`).
+    fn longest_source_path(&self) -> Option<Vec<usize>> {
+        let n = self.num_digits;
+        // best_len[id] == 0 means "not yet computed" (a real length is >= 1).
+        let mut best_len = vec![0usize; n + 1];
+        let mut best_child = vec![0usize; n + 1];
+        // 0 = unvisited, 1 = on the current stack (cycle guard), 2 = done.
+        let mut state = vec![0u8; n + 1];
+        for id in 1..=n {
+            if state[id] == 0 {
+                self.compute_best(id, &mut best_len, &mut best_child, &mut state);
             }
         }
 
+        // Lowest-index source achieving the global maximum length (strict `>`
+        // keeps the first one). Indexes several parallel arrays by node id.
+        let mut winner = 0usize;
+        let mut max_len = 0usize;
+        #[allow(clippy::needless_range_loop)]
+        for id in 1..=n {
+            if self.is_source[id] && best_len[id] > max_len {
+                max_len = best_len[id];
+                winner = id;
+            }
+        }
+        if winner == 0 {
+            return None;
+        }
+
+        let mut path = vec![0usize; n + 1];
+        path[0] = max_len;
+        let mut cursor = winner;
+        for step in path.iter_mut().take(max_len + 1).skip(1) {
+            *step = cursor;
+            cursor = best_child[cursor];
+        }
+        Some(path)
+    }
+
+    /// Memoized post-order: `best_len[id] = 1 + max_child_len`, `best_child[id] =`
+    /// the first child (guide-list order) achieving that max. Iterates children
+    /// in the same order as the reference DFS so ties resolve identically. The
+    /// `state` cycle guard is defensive — the guide graph is the acyclic "above"
+    /// partial order in practice.
+    fn compute_best(
+        &self,
+        id: usize,
+        best_len: &mut [usize],
+        best_child: &mut [usize],
+        state: &mut [u8],
+    ) -> usize {
+        if state[id] == 2 {
+            return best_len[id];
+        }
+        if state[id] == 1 {
+            // Back-edge (should not happen on a DAG): treat as a non-extending leaf.
+            return 0;
+        }
+        state[id] = 1;
+        let mut max_child = 0usize;
+        let mut chosen = 0usize;
+        let mut pos = self.guide[id];
+        while pos != 0 {
+            let entry = self.entries[pos];
+            let child = entry & Self::MASK;
+            let child_len = self.compute_best(child, best_len, best_child, state);
+            if child_len > max_child {
+                max_child = child_len;
+                chosen = child;
+            }
+            pos = entry >> 16;
+        }
+        best_len[id] = 1 + max_child;
+        best_child[id] = chosen;
+        state[id] = 2;
+        best_len[id]
+    }
+
+    /// The original Oriedita `PairGuide.lock`/`DFS`, kept as the correctness
+    /// oracle for [`Self::longest_source_path`]. Uses local scratch so it has no
+    /// persistent side effects. Debug-only (drives the `debug_assert` in `lock`).
+    #[cfg(test)]
+    fn longest_source_path_reference(&self) -> Option<Vec<usize>> {
+        let n = self.num_digits;
+        let mut path = vec![0usize; n + 1];
+        let mut visited = vec![0usize; n + 1];
+        let mut result = None;
+        let mut max = 0usize;
+        for i in 1..=n {
+            if self.is_source[i] {
+                self.dfs_reference(i, 1, &mut path, &mut visited);
+                if path[0] > max {
+                    max = path[0];
+                    result = Some(path.clone());
+                    path.fill(0);
+                }
+            }
+        }
         result
     }
 
-    fn dfs(&mut self, id: usize, depth: usize) -> bool {
-        if self.visited[id] > depth {
+    #[cfg(test)]
+    fn dfs_reference(
+        &self,
+        id: usize,
+        depth: usize,
+        path: &mut [usize],
+        visited: &mut [usize],
+    ) -> bool {
+        if visited[id] > depth {
             return false;
         }
-        self.visited[id] = depth;
+        visited[id] = depth;
 
-        if self.guide[id] == 0 && depth > self.path[0] {
-            self.path[0] = depth;
-            self.path[depth] = id;
+        if self.guide[id] == 0 && depth > path[0] {
+            path[0] = depth;
+            path[depth] = id;
             return true;
         }
 
@@ -1671,13 +1786,13 @@ impl PairGuide {
         let mut found = false;
         while pos != 0 {
             let entry = self.entries[pos];
-            if self.dfs(entry & Self::MASK, depth + 1) {
+            if self.dfs_reference(entry & Self::MASK, depth + 1, path, visited) {
                 found = true;
             }
             pos = entry >> 16;
         }
         if found {
-            self.path[depth] = id;
+            path[depth] = id;
         }
         found
     }
@@ -1698,6 +1813,43 @@ impl PairGuide {
         } else {
             self.is_source[upper_face_index] = true;
             self.is_source[face_index] = false;
+        }
+    }
+}
+
+#[cfg(test)]
+mod pair_guide_tests {
+    use super::PairGuide;
+
+    fn guide(num_digits: usize, edges: &[(usize, usize)]) -> PairGuide {
+        let mut g = PairGuide::new(num_digits);
+        for &(upper, lower) in edges {
+            g.add(upper, lower);
+        }
+        g
+    }
+
+    /// The memoized O(V+E) longest-path must return exactly what the original
+    /// Oriedita DFS (`longest_source_path_reference`) does — including on graphs
+    /// with re-converging paths (where the reference re-explores nodes) and
+    /// multiple sources. This replaces the former per-fold runtime cross-check.
+    #[test]
+    fn memoized_longest_path_matches_reference_dfs() {
+        let cases: &[(usize, &[(usize, usize)])] = &[
+            (1, &[]),
+            (3, &[(1, 2), (2, 3)]),                         // simple chain
+            (4, &[(1, 2), (1, 3), (2, 4), (3, 4)]),         // diamond (re-convergence)
+            (5, &[(1, 2), (2, 3), (3, 4), (4, 5), (1, 5)]), // long path + shortcut
+            (6, &[(1, 2), (1, 3), (2, 4), (3, 4), (4, 5), (4, 6), (5, 6)]),
+            (5, &[(1, 3), (2, 3), (3, 4), (3, 5)]), // multiple sources
+        ];
+        for (num_digits, edges) in cases {
+            let g = guide(*num_digits, edges);
+            assert_eq!(
+                g.longest_source_path(),
+                g.longest_source_path_reference(),
+                "memoized vs reference mismatch: {num_digits} digits, edges {edges:?}"
+            );
         }
     }
 }
