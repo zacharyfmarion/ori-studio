@@ -160,6 +160,10 @@ be scaled by `pxPerUnit` (`bpPackingUnitToSvg`).
 
 ### Phase 4 — styling
 
+- [x] Use BP's own junction colour. Resolved as a `--bp-junction` token holding BP's
+      pure red: the app's `--status-danger` (`#e06c75`) reads as muted brown at 60%
+      opacity. This is a deliberate exception to the "no `--bp-*` palette" rule in
+      `theme.css`, scoped to this one conflict colour.
 - [x] `.bp-packing-conflict { fill: <red>; stroke: <red>; stroke-width: 0;
       stroke-linejoin: bevel; vector-effect: non-scaling-stroke; }` with group
       `opacity: 0.6` dark / `0.4` light. Decide red source: BP's literal
@@ -187,3 +191,25 @@ be scaled by `pxPerUnit` (`bpPackingUnitToSvg`).
       red arc region above the flap rectangles, clipped at the sheet edge; a
       near-degenerate sliver still reads as a visible red stroke; clicking it
       still selects the conflict in the issues list.
+
+## Verified parity (2026-07-22)
+
+`tools/bp-studio-oracle/layout-graphics.ts` now also emits `junctions`
+(`UpdateResult`'s `add.junctions`), so BP Studio's own invalid-junction outlines
+can be diffed against ours. Three cases were checked and our engine's
+`InvalidJunctionSnapshot.polygon` came out **byte-identical to BP's ArcPolygon**
+each time:
+
+- two point flaps, equal radii (6-point all-arc lens)
+- one small + one large flap radius (4-point path, mixed radii, live in-app)
+- two 2×2 rectangular flaps (10-point path containing straight segments)
+
+The SVG conversion was verified independently by reconstructing each emitted
+arc's centre from the endpoint parameterisation and confirming it lands on the
+true circle centre, and by rasterising the result against the source circles.
+
+Note for future reports of "the conflict shape looks cropped": with flaps that
+have non-zero width/height the overlap region is the intersection of two rounded
+*rectangles*, so it legitimately has flat sides — the outline carries points with
+no `arc`, and BP draws exactly the same shape. Flat ends are not, by themselves,
+evidence of a clipping bug.

@@ -41,6 +41,9 @@
   --status-success: #77c383;
   --status-warning: #d7a85c;
   --status-danger: #e06c75;
+  /* Box Pleating Studio's junction colour (`styleService.junction`), used as-is:
+     the app's danger hue is too muted to read as a conflict at 60% opacity. */
+  --bp-junction: #ff0000;
   --status-info: #7db7e8;
 
   --shadow-overlay: rgba(0, 0, 0, 0.35);
@@ -5497,7 +5500,7 @@
 
 /* Box Pleating Studio's junction layer: one solid colour for both fill and stroke,
    translucent as a whole, with the stroke width set per path by the renderer and kept
-   in screen pixels. BP uses pure red; we keep the app's danger hue. */
+   in screen pixels. */
 .bp-packing-conflicts {
   pointer-events: none;
 }
@@ -5507,8 +5510,8 @@
 }
 
 .bp-packing-conflict {
-  fill: var(--status-danger);
-  stroke: var(--status-danger);
+  fill: var(--bp-junction);
+  stroke: var(--bp-junction);
   stroke-linejoin: bevel;
   vector-effect: non-scaling-stroke;
 }
