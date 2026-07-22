@@ -252,6 +252,35 @@ function rectOf(element: Element) {
   return { x, y, width, height, cx: x + width / 2, cy: y + height / 2 };
 }
 
+describe('BP packing pane — conflict fills sit behind the geometry', () => {
+  it('paints conflicts before the rivers, flaps and creases', () => {
+    const host = renderPacking();
+    const canvas = host.querySelector('.bp-packing-canvas');
+    expect(canvas).not.toBeNull();
+    const order = [...canvas!.children].map((child) => child.getAttribute('class') ?? '');
+    const conflicts = order.findIndex((c) => c.includes('bp-packing-conflicts'));
+    expect(conflicts).toBeGreaterThanOrEqual(0);
+    // SVG paints in document order, so "behind" means "earlier". Compare against
+    // whichever geometry layers this fixture actually renders.
+    const geometry = ['bp-packing-rivers', 'bp-packing-flaps', 'bp-packing-flap-hits']
+      .map((name) => order.findIndex((c) => c.includes(name)))
+      .filter((index) => index >= 0);
+    expect(geometry.length).toBeGreaterThan(0);
+    for (const index of geometry) expect(conflicts).toBeLessThan(index);
+  });
+
+  it('fades the conflict layer once, so overlaps cannot compound to opaque', () => {
+    const host = renderPacking();
+    // Per-group opacity would stack: two overlapping junctions at 0.6 read as
+    // 0.84, three as 0.94, until the fill hides the creases underneath.
+    const groups = host.querySelectorAll('.bp-packing-conflict-group');
+    expect(groups.length).toBeGreaterThan(0);
+    for (const group of groups) {
+      expect(group.getAttribute('style') ?? '').not.toContain('opacity');
+    }
+  });
+});
+
 describe('BP packing pane — the whole flap is draggable', () => {
   it('covers the drawn flap footprint, not just its centre', () => {
     const host = renderPacking();

@@ -1509,6 +1509,39 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                 />
               ) : null
             )}
+            {layers.conflicts && (
+              // Conflict fills sit *under* the creases, rivers and flaps, so an
+              // overlap never hides the geometry you need in order to fix it.
+              // (Box Pleating Studio draws its `Layer.junction` above them; on
+              // our canvas the fill obscured the creases, so this deviates
+              // deliberately.) Clipped to the sheet and non-interactive — the
+              // hit targets are a separate group below the flap hits.
+              <g
+                className="bp-packing-conflicts"
+                clipPath={`url(#${sheetClipId})`}
+                aria-hidden="true"
+              >
+                {conflictVisuals.map((visual) => (
+                  <g
+                    key={visual.junction.id}
+                    className={
+                      visual.active
+                        ? 'bp-packing-conflict-group bp-packing-conflict--selected'
+                        : 'bp-packing-conflict-group'
+                    }
+                  >
+                    {visual.paths.map((path, index) => (
+                      <path
+                        key={`${visual.junction.id}:${index}`}
+                        className="bp-packing-conflict"
+                        d={path.d}
+                        strokeWidth={path.strokeWidth}
+                      />
+                    ))}
+                  </g>
+                ))}
+              </g>
+            )}
             {layers.rivers && riverVisuals.length > 0 && (
               <g className="bp-packing-rivers">
                 {riverVisuals.map((visual) => {
@@ -1710,35 +1743,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                   onPointerUp={finishDeviceDrag}
                 />
               ) : null
-            )}
-            {layers.conflicts && (
-              // Box Pleating Studio's `Layer.junction`: above the flaps, rivers and
-              // ridges, clipped to the sheet, and non-interactive.
-              <g
-                className="bp-packing-conflicts"
-                clipPath={`url(#${sheetClipId})`}
-                aria-hidden="true"
-              >
-                {conflictVisuals.map((visual) => (
-                  <g
-                    key={visual.junction.id}
-                    className={
-                      visual.active
-                        ? 'bp-packing-conflict-group bp-packing-conflict--selected'
-                        : 'bp-packing-conflict-group'
-                    }
-                  >
-                    {visual.paths.map((path, index) => (
-                      <path
-                        key={`${visual.junction.id}:${index}`}
-                        className="bp-packing-conflict"
-                        d={path.d}
-                        strokeWidth={path.strokeWidth}
-                      />
-                    ))}
-                  </g>
-                ))}
-              </g>
             )}
             {layers.devices && (
               <g className="bp-packing-device-ranges" aria-hidden="true">
