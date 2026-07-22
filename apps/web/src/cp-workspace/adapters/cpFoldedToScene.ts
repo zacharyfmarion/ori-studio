@@ -1,5 +1,9 @@
 import earcut from 'earcut';
-import { modelPointToCpSvg, ORIEDITA_PAPER_BOUNDS } from '../../lib/creasePatternViewport';
+import {
+  CP_PAPER_RECT,
+  modelPointToCpSvg,
+  ORIEDITA_PAPER_BOUNDS,
+} from '../../lib/creasePatternViewport';
 import { IDENTITY_FOLDED_PLACEMENT } from '../../engine/oristudioCpTypes';
 import type { Point } from '../../lib/geometry';
 import type {
@@ -473,6 +477,44 @@ export function foldedFigureBox(figure: OristudioCpFoldedFigureEntry): {
 /** Gap (SVG user units) between the crease pattern and a figure parked beside it. */
 const FOLDED_FIGURE_GAP = 48;
 
+/** The edges a parked folded figure lines up against, in SVG user coordinates. */
+export interface FoldedFigureAnchor {
+  right: number;
+  top: number;
+}
+
+/**
+ * Where a fold's *source* creases sit, in SVG user coordinates — the edges a
+ * new folded figure parks against.
+ *
+ * Anchoring to the nominal paper square instead would leave the figure adrift
+ * whenever the pattern does not fill the sheet, which is the common case: a
+ * pattern can be drawn anywhere in it. Falls back to the paper square when the
+ * ids resolve to nothing, so a figure still lands somewhere sensible.
+ */
+export function cpUserAnchorForLineIds(
+  document: { crease_pattern: { line_segments: readonly { a: Point; b: Point }[] } },
+  lineIds: readonly number[]
+): FoldedFigureAnchor {
+  const segments = document.crease_pattern.line_segments;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  for (const id of lineIds) {
+    // Crease ids are 1-based.
+    const line = segments[id - 1];
+    if (!line) continue;
+    for (const point of [line.a, line.b]) {
+      const user = modelPointToCpSvg(point, ORIEDITA_PAPER_BOUNDS);
+      if (user.y < minY) minY = user.y;
+      if (user.x > maxX) maxX = user.x;
+    }
+  }
+  if (!Number.isFinite(minY) || !Number.isFinite(maxX)) {
+    return { right: CP_PAPER_RECT.x + CP_PAPER_RECT.width, top: CP_PAPER_RECT.y };
+  }
+  return { right: maxX, top: minY };
+}
+
 /**
  * Where to park a newly folded figure: just right of the crease pattern it came
  * from, clear of any figures already parked there.
@@ -490,7 +532,7 @@ const FOLDED_FIGURE_GAP = 48;
 export function placeFoldedFigureBesideCp(
   figure: OristudioCpFoldedFigureEntry,
   existing: readonly OristudioCpFoldedFigureEntry[],
-  paper: { right: number; top: number }
+  paper: FoldedFigureAnchor
 ): FoldedFigurePlacement {
   const snapshot = figure.renderSnapshot;
   if (!snapshot?.primitives.length) return IDENTITY_FOLDED_PLACEMENT;

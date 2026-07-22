@@ -43,8 +43,10 @@ import {
 import { importedCpLineage } from '../../lib/oristudioCpLineage';
 import { createStarterOristudioCpDocument } from '../../lib/oristudioCpStarterDocument';
 import { createCpImage } from '../../cp-workspace/images/cpImage';
-import { CP_PAPER_RECT } from '../../lib/creasePatternViewport';
-import { foldedFigureUserBounds } from '../../cp-workspace/adapters/cpFoldedToScene';
+import {
+  cpUserAnchorForLineIds,
+  foldedFigureUserBounds,
+} from '../../cp-workspace/adapters/cpFoldedToScene';
 import {
   resetFoldedFigureHandles,
   retainFoldedFigureHandle,
@@ -2333,11 +2335,16 @@ describe('workspace store slices', () => {
       status: 'ready',
       renderSnapshot: foldedRenderSnapshot(),
     });
-    // Parked clear of the crease pattern rather than on top of it: the kernel
-    // folds into roughly the flat CP's own coordinates, so an unplaced figure
-    // covers the pattern it came from.
+    // Parked clear of the creases it was folded from — not the nominal paper
+    // square — since the kernel folds into roughly the flat CP's own coords and
+    // an unplaced figure covers the pattern it came from.
+    const anchor = cpUserAnchorForLineIds(
+      useWorkspaceStore.getState().oristudioCpDocument!.document,
+      [1]
+    );
     const placedBounds = foldedFigureUserBounds([foldedFigure])[0].bounds;
-    expect(placedBounds.minX).toBeGreaterThanOrEqual(CP_PAPER_RECT.x + CP_PAPER_RECT.width);
+    expect(placedBounds.minX).toBeGreaterThanOrEqual(anchor.right);
+    expect(placedBounds.minY).toBeCloseTo(anchor.top);
     expect(foldedFigure.placement.scale).toBe(1);
     expect(foldedFigure.placement.rotation).toBe(0);
     // Not selected on arrival, so the delete key doesn't retarget to it.

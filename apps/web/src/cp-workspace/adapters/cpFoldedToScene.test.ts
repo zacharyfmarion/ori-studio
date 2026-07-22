@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   cpContradictionFaceFills,
+  cpUserAnchorForLineIds,
   placeFoldedFigureBesideCp,
   cpFoldedToScene,
   foldedFigureBox,
@@ -439,3 +440,45 @@ function polygonFigureNamed(id: string): OristudioCpFoldedFigureEntry {
     id,
   };
 }
+
+describe('cpUserAnchorForLineIds', () => {
+  const doc = (segments: { a: { x: number; y: number }; b: { x: number; y: number } }[]) => ({
+    crease_pattern: { line_segments: segments },
+  });
+
+  it('anchors to the folded creases, not the whole sheet', () => {
+    // Two patterns in the sheet; folding only the right-hand one must anchor to
+    // that one, so the figure lands beside what was folded.
+    const document = doc([
+      { a: { x: 0, y: 0 }, b: { x: 0.1, y: 0.1 } },
+      { a: { x: 0.6, y: 0.5 }, b: { x: 0.9, y: 0.8 } },
+    ]);
+    const left = cpUserAnchorForLineIds(document, [1]);
+    const right = cpUserAnchorForLineIds(document, [2]);
+    expect(right.right).toBeGreaterThan(left.right);
+    expect(right.top).toBeGreaterThan(left.top);
+  });
+
+  it('spans every folded crease', () => {
+    const document = doc([
+      { a: { x: 0.2, y: 0.4 }, b: { x: 0.3, y: 0.5 } },
+      { a: { x: 0.7, y: 0.1 }, b: { x: 0.8, y: 0.2 } },
+    ]);
+    const both = cpUserAnchorForLineIds(document, [1, 2]);
+    expect(both.right).toBe(cpUserAnchorForLineIds(document, [2]).right);
+    expect(both.top).toBe(cpUserAnchorForLineIds(document, [2]).top);
+  });
+
+  it('ignores ids that resolve to nothing', () => {
+    const document = doc([{ a: { x: 0.2, y: 0.2 }, b: { x: 0.4, y: 0.4 } }]);
+    expect(cpUserAnchorForLineIds(document, [1, 99])).toEqual(
+      cpUserAnchorForLineIds(document, [1])
+    );
+  });
+
+  it('falls back to the paper square when nothing resolves', () => {
+    const anchor = cpUserAnchorForLineIds(doc([]), [1]);
+    expect(Number.isFinite(anchor.right)).toBe(true);
+    expect(Number.isFinite(anchor.top)).toBe(true);
+  });
+});

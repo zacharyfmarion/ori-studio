@@ -1,7 +1,6 @@
 import { projectFromSnapshot } from '../../../engine/snapshotMapper';
 import type { FoldArtifacts, FoldDocument, OptimizationReport } from '../../../engine/types';
 import {
-  CP_PAPER_RECT,
   DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
   emptyOristudioCpSelection,
   toggleCpSelectionList,
@@ -21,7 +20,10 @@ import {
   stableTextDigest,
 } from '../../../lib/oristudioCpLineage';
 import { foldedFigureModelFromOrieditaMetadata } from '../../../lib/orieditaNativeMetadata';
-import { placeFoldedFigureBesideCp } from '../../../cp-workspace/adapters/cpFoldedToScene';
+import {
+  cpUserAnchorForLineIds,
+  placeFoldedFigureBesideCp,
+} from '../../../cp-workspace/adapters/cpFoldedToScene';
 import i18n from '../../../i18n';
 import { requestConfirmation, requestConfirmationWithOption } from '../../commandDialogStore';
 import { useLayoutStore } from '../../layoutStore';
@@ -863,6 +865,13 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         // free, and keep the fold out of the error toast path.
         const contradiction = result.snapshot.contradiction ?? null;
         retainFoldedFigureHandle(result.handle);
+        // Park the figure against the creases it was actually folded from, not
+        // against the nominal paper square — a pattern can sit anywhere in the
+        // sheet, and anchoring to the paper leaves the figure adrift from it.
+        const foldedSourceAnchor = cpUserAnchorForLineIds(
+          oristudioCpDocument.document,
+          selectedLineIds
+        );
         const existing = get().oristudioCpFoldedFigures;
         const folded: OristudioCpFoldedFigureEntry = {
           ...(existing.find((figure) => figure.id === figureId) ?? loadingEntry),
@@ -882,10 +891,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                   // Park it beside the crease pattern: the kernel folds into
                   // roughly the flat CP's own coordinates, so left alone the
                   // figure covers the pattern it came from.
-                  placement: placeFoldedFigureBesideCp(folded, existing, {
-                    right: CP_PAPER_RECT.x + CP_PAPER_RECT.width,
-                    top: CP_PAPER_RECT.y,
-                  }),
+                  placement: placeFoldedFigureBesideCp(folded, existing, foldedSourceAnchor),
                 }
               : figure
           ),
