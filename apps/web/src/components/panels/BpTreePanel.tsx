@@ -383,9 +383,9 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     [topology]
   );
   // The vertex a canvas click attaches a new leaf to. This is exactly the
-  // selected vertex — with no fallback to the root, so clearing the selection
-  // disarms adding, and the hover ghost and the click can't disagree about
-  // where the leaf would land.
+  // selected vertex — with no fallback to the root, so a tree opens inert and
+  // clearing the selection disarms adding, and the hover ghost and the click
+  // can't disagree about where the leaf would land.
   const addAnchorId = selectedVertexId;
   const linkedSelection = useMemo(
     () => bpLinkedSelection(document.selection, document),
