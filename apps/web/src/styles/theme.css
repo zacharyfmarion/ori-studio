@@ -2027,6 +2027,12 @@
   background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
 }
 
+/* Text-tool drag: dashed outline (a box being drawn), no fill tint. */
+.cp-webgl-marquee--text {
+  border-style: dashed;
+  background: transparent;
+}
+
 /* Text-annotation labels over the WebGL surface: a DOM overlay (low glyph count,
    CSS-styled) that scales with zoom. Container is click-through; each label opts back
    into pointer events only when the active tool allows entity selection. */
@@ -2106,11 +2112,9 @@
 }
 
 /* Floating controls for the selected reference image. */
-.cp-image-inspector {
-  position: absolute;
-  top: 8px;
-  left: 50%;
-  transform: translateX(-50%);
+/* Generic floating toolbar pill. Position/transform are set inline by
+   @floating-ui (fixed strategy, body-portaled), so this only styles the pill. */
+.floating-toolbar {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -2119,11 +2123,18 @@
   border: 1px solid var(--border-default);
   border-radius: 8px;
   box-shadow: 0 2px 8px rgb(0 0 0 / 30%);
-  z-index: 9;
+  z-index: var(--z-portaled-popover, 10000);
   pointer-events: auto;
 }
 
-.cp-image-inspector__opacity {
+.floating-toolbar__separator {
+  align-self: stretch;
+  width: 1px;
+  margin: 2px 2px;
+  background: var(--border-default);
+}
+
+.floating-toolbar__opacity {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -2132,8 +2143,135 @@
   white-space: nowrap;
 }
 
-.cp-image-inspector__opacity input {
+.floating-toolbar__opacity input {
   width: 90px;
+}
+
+/* --- Text annotations --------------------------------------------------- */
+
+.cp-text-box {
+  color: var(--text-primary);
+  line-height: 1.3;
+  word-break: break-word;
+  cursor: default;
+}
+
+.cp-text-box--editing {
+  outline: 1px solid var(--accent-primary, #4c9aff);
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--bg-primary) 55%, transparent);
+  /* Let the editor fill the box so a click in the (empty) lower area of a
+     drag-sized box lands in the editable and places the cursor, rather than
+     blurring the editor and discarding the empty box. */
+  display: flex;
+  flex-direction: column;
+}
+
+.cp-text-editor__content {
+  outline: none;
+  min-height: 1em;
+  /* Fill the box (paired with .cp-text-box--editing's flex column) so the whole
+     box area is clickable/editable, not just the text's line height. */
+  flex: 1 1 auto;
+  white-space: pre-wrap;
+  caret-color: var(--accent-primary, #4c9aff);
+  /* Override the box's inherited `cursor` (an inherited property) with the
+     text I-beam while editing. */
+  cursor: text;
+}
+
+.cp-text-editor__placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  color: var(--text-tertiary, #8a90a0);
+  user-select: none;
+}
+
+.cp-text-view__block {
+  margin: 0;
+}
+
+.cp-text-view__h1 {
+  margin: 0;
+  font-size: 1.75em;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.cp-text-view__h2 {
+  margin: 0;
+  font-size: 1.35em;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.cp-rt-bold {
+  font-weight: 700;
+}
+
+.cp-rt-italic {
+  font-style: italic;
+}
+
+.cp-rt-underline {
+  text-decoration: underline;
+}
+
+.cp-rt-strikethrough {
+  text-decoration: line-through;
+}
+
+.cp-rt-underline.cp-rt-strikethrough {
+  text-decoration: underline line-through;
+}
+
+/* Text toolbar controls */
+.cp-text-toolbar__group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cp-text-toolbar__select,
+.cp-text-toolbar__color-select {
+  height: 24px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 12px;
+  padding: 0 4px;
+}
+
+.cp-text-toolbar__align {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.cp-text-toolbar__align-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 4px);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.cp-text-toolbar__align-btn[data-active] {
+  background: color-mix(in srgb, var(--accent-primary) 22%, transparent);
+  color: var(--text-primary);
+}
+
+.cp-text-toolbar__color {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 /* In WebGL mode the SVG is covered by the canvas; hide it so the browser stops

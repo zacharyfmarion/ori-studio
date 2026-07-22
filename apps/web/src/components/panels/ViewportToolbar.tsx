@@ -6,7 +6,14 @@ import { IconButton } from '../ui/IconButton';
 const ZOOM_PRESETS = [25, 50, 100, 200, 400];
 
 export function isViewportInteractiveTarget(target: EventTarget | null): boolean {
-  return target instanceof Element && Boolean(target.closest('button, input, textarea, select, [role="menu"]'));
+  if (!(target instanceof Element)) return false;
+  // A focused rich-text editor (contenteditable) owns its keystrokes — space,
+  // arrows, delete — so the canvas must not treat them as shortcuts (e.g.
+  // space-to-pan swallowing the space bar mid-edit).
+  if (target instanceof HTMLElement && target.isContentEditable) return true;
+  return Boolean(
+    target.closest('button, input, textarea, select, [role="menu"], [contenteditable="true"]')
+  );
 }
 
 interface ViewportToolbarProps {

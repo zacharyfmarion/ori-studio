@@ -1,4 +1,7 @@
 {
+  "annotationActions": {
+    "delete": "削除"
+  },
   "bpEditor": {
     "emptyPacking": "手動で BP を編集する前に、レイアウトの最適化を実行するかパッキングを実体化してください。",
     "emptyProject": "フラップとリバーを編集するにはボックスプリーツプロジェクトを開いてください。",
@@ -175,8 +178,6 @@
     "display": "表示",
     "duplicate": "複製",
     "duplicateFoldedModel": "折りモデルを複製",
-    "editImages": "画像を編集",
-    "editingImagesClickToExit": "画像を編集中（クリックで終了）",
     "extraLineColors": "追加の線の色",
     "flip": "反転",
     "fold": "折る",
@@ -334,7 +335,6 @@
   "imageInspector": {
     "adjustOpacity": "不透明度を調整",
     "bringToFront": "最前面へ",
-    "deleteImage": "画像を削除",
     "imageControls": "画像コントロール",
     "opacity": "不透明度",
     "sendToBack": "最背面へ"
@@ -477,5 +477,24 @@
     "patternLabel": "パターン {{n}}",
     "patterns": "パターン",
     "patternTitle_other": "パターン {{n}} — {{count}} 面"
+  },
+  "textAnnotation": {
+    "addText": "テキストを追加",
+    "alignCenter": "中央揃え",
+    "alignLeft": "左揃え",
+    "alignment": "配置",
+    "alignRight": "右揃え",
+    "blockBody": "本文",
+    "blockHeading": "見出し",
+    "blockSubheading": "小見出し",
+    "bold": "太字",
+    "color": "文字色",
+    "deleteText": "テキストを削除",
+    "editText": "テキストを編集",
+    "italic": "斜体",
+    "placeholder": "入力…",
+    "textControls": "テキストコントロール",
+    "textStyle": "テキストスタイル",
+    "underline": "下線"
   }
 }

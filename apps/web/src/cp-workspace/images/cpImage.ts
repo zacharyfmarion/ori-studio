@@ -11,7 +11,12 @@
  *
  * Images live in a web-side layer, never in the `oristudio-cp` kernel, so every
  * Oriedita-format export omits them automatically.
+ *
+ * `CpImage` is the `'image'` variant of the shared {@link AnnotationBase}
+ * substrate (see `../annotations/annotation.ts`).
  */
+
+import type { AnnotationBase } from '../annotations/annotationBase';
 
 /**
  * Longest-edge cap applied when an image is imported (§1.1 of the plan). The
@@ -42,9 +47,9 @@ export interface CpImageCrop {
   h: number;
 }
 
-export interface CpImage {
-  /** Stable unique id. */
-  id: string;
+export interface CpImage extends AnnotationBase {
+  /** Discriminant marking this annotation as a reference image. */
+  kind: 'image';
   /**
    * The capped, re-encoded image as a base64 data URL — the single source of
    * truth. Feeds both the GPU texture and `.osf`; there is no separate original.
@@ -53,27 +58,12 @@ export interface CpImage {
   /** Capped-blob pixel dimensions (each ≤ {@link IMAGE_MAX_DIMENSION}). */
   naturalWidth: number;
   naturalHeight: number;
-  /** Placement center in crease-pattern *model* coordinates. */
-  center: { x: number; y: number };
-  /** Displayed size in model units (pre-rotation quad extent). */
-  width: number;
-  height: number;
-  /** Rotation about {@link center}, radians, counter-clockwise. */
-  rotation: number;
   /** Normalized crop into the source (default covers the whole image). */
   crop: CpImageCrop;
-  /** 0..1. */
-  opacity: number;
-  /** When locked, the image ignores hit-testing and edits. */
-  locked: boolean;
-  /** When hidden, the image is not drawn. */
-  hidden: boolean;
-  /** Draw order within the image layer (higher = in front). */
-  z: number;
 }
 
-/** A partial update to an existing image (its `id` never changes). */
-export type CpImageUpdate = Partial<Omit<CpImage, 'id'>>;
+/** A partial update to an existing image (its `id` and `kind` never change). */
+export type CpImageUpdate = Partial<Omit<CpImage, 'id' | 'kind'>>;
 
 export function defaultCpImageCrop(): CpImageCrop {
   return { x: 0, y: 0, w: 1, h: 1 };
@@ -108,6 +98,7 @@ export interface CreateCpImageInput {
 
 export function createCpImage(input: CreateCpImageInput): CpImage {
   return {
+    kind: 'image',
     id: input.id ?? generateCpImageId(),
     src: input.src,
     naturalWidth: input.naturalWidth,
@@ -167,6 +158,7 @@ function validateCpImage(value: unknown): CpImage | null {
     return null;
   }
   return {
+    kind: 'image',
     id: typeof value.id === 'string' && value.id.length > 0 ? value.id : generateCpImageId(),
     src,
     naturalWidth,

@@ -367,9 +367,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     oristudioCpFoldedFigures: [],
     oristudioCpActiveFoldedFigureId: null,
     oristudioCpViewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
-    oristudioCpImages: [],
-    oristudioCpSelectedImageId: null,
-    oristudioCpImageEditMode: false,
+    oristudioCpAnnotations: [],
+    oristudioCpSelectedAnnotationId: null,
     ...emptyFoldArtifactResourceState(),
     sequenceTarget: null,
     sequencePlan: null,
@@ -1245,56 +1244,77 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           : { ...emptyOristudioCpSelection(), texts: [id] },
       }),
 
-    // --- Reference images (superset feature; see docs/superset-features.md) ---
-    // These mutate the web-side image layer only. Undo integration lands in a
-    // later phase; a fresh document resets the layer via the load/create paths.
-    addCpImage: (image) =>
+    // --- Annotations: images + text boxes (superset feature; see
+    // docs/superset-features.md). Web-side layer only; a fresh document resets
+    // the layer via the load/create paths.
+    addAnnotation: (annotation) =>
       set({
-        oristudioCpImages: [...get().oristudioCpImages, image],
-        oristudioCpSelectedImageId: image.id,
+        oristudioCpAnnotations: [...get().oristudioCpAnnotations, annotation],
+        oristudioCpSelectedAnnotationId: annotation.id,
         dirty: true,
       }),
 
-    updateCpImage: (id, patch) =>
+    updateAnnotation: (id, patch) =>
       set({
-        oristudioCpImages: get().oristudioCpImages.map((image) =>
-          image.id === id ? { ...image, ...patch } : image
+        oristudioCpAnnotations: get().oristudioCpAnnotations.map((annotation) =>
+          annotation.id === id ? ({ ...annotation, ...patch } as typeof annotation) : annotation
         ),
         dirty: true,
       }),
 
-    removeCpImage: (id) =>
+    removeAnnotation: (id) =>
       set({
-        oristudioCpImages: get().oristudioCpImages.filter((image) => image.id !== id),
-        oristudioCpSelectedImageId:
-          get().oristudioCpSelectedImageId === id ? null : get().oristudioCpSelectedImageId,
+        oristudioCpAnnotations: get().oristudioCpAnnotations.filter(
+          (annotation) => annotation.id !== id
+        ),
+        oristudioCpSelectedAnnotationId:
+          get().oristudioCpSelectedAnnotationId === id
+            ? null
+            : get().oristudioCpSelectedAnnotationId,
         dirty: true,
       }),
 
-    setSelectedCpImage: (id) =>
+    setSelectedAnnotation: (id) =>
       set({
-        oristudioCpSelectedImageId:
-          id !== null && get().oristudioCpImages.some((image) => image.id === id) ? id : null,
-      }),
-
-    setOristudioCpImageEditMode: (active) =>
-      set({
-        oristudioCpImageEditMode: active,
-        // Leaving the tool clears any image selection so its handles don't linger.
-        oristudioCpSelectedImageId: active ? get().oristudioCpSelectedImageId : null,
-      }),
-
-    setCpImages: (images) =>
-      set({
-        oristudioCpImages: images,
-        oristudioCpSelectedImageId:
-          get().oristudioCpSelectedImageId !== null &&
-          images.some((image) => image.id === get().oristudioCpSelectedImageId)
-            ? get().oristudioCpSelectedImageId
+        oristudioCpSelectedAnnotationId:
+          id !== null && get().oristudioCpAnnotations.some((annotation) => annotation.id === id)
+            ? id
             : null,
       }),
 
-    recordCpImageHistory: (previousImages, label) => {
+    syncAnnotationHeight: (id, height) =>
+      set({
+        oristudioCpAnnotations: get().oristudioCpAnnotations.map((annotation) => {
+          if (annotation.id !== id || annotation.kind !== 'text') return annotation;
+          // Keep the top edge fixed so the box grows *downward* with content
+          // rather than symmetrically about its center: shift the center by half
+          // the height delta along the box's local +y (down) axis. Purely in
+          // model space, so the top-center is invariant regardless of camera.
+          const delta = height - annotation.height;
+          const sin = Math.sin(annotation.rotation);
+          const cos = Math.cos(annotation.rotation);
+          return {
+            ...annotation,
+            height,
+            center: {
+              x: annotation.center.x + (delta / 2) * -sin,
+              y: annotation.center.y + (delta / 2) * cos,
+            },
+          };
+        }),
+      }),
+
+    setAnnotations: (annotations) =>
+      set({
+        oristudioCpAnnotations: annotations,
+        oristudioCpSelectedAnnotationId:
+          get().oristudioCpSelectedAnnotationId !== null &&
+          annotations.some((annotation) => annotation.id === get().oristudioCpSelectedAnnotationId)
+            ? get().oristudioCpSelectedAnnotationId
+            : null,
+      }),
+
+    recordAnnotationHistory: (previous, label) => {
       const document = get().oristudioCpDocument;
       if (!document) return;
       set({
@@ -1303,8 +1323,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           {
             document: document.document,
             selection: get().oristudioCpSelection,
-            images: previousImages,
-            imageOnly: true,
+            annotations: previous,
+            annotationsOnly: true,
             label,
             timestamp: new Date().toISOString(),
           },

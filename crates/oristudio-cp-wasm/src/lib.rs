@@ -350,6 +350,34 @@ pub fn export_orh(handle: u32) -> Result<String, JsValue> {
     with_document(handle, |document| Ok(io::orh::export_orh_string(document)))
 }
 
+/// Replace the kernel document's text elements wholesale.
+///
+/// Rich text lives in a web-side annotation layer; the kernel `texts` vec is only
+/// the Oriedita interchange representation. The frontend flattens each rich text
+/// box to a plain `{x, y, text}` and pushes them here right before an `.ori` /
+/// `.fold` export (restoring `[]` afterwards), and clears them (an empty call)
+/// after inflating a loaded file's texts into web-side annotations. `coords` is a
+/// flat `[x0, y0, x1, y1, ...]` paired with `texts` by index.
+#[wasm_bindgen]
+pub fn set_texts(handle: u32, coords: Vec<f64>, texts: Vec<String>) -> Result<(), JsValue> {
+    with_document_mut(handle, |document| {
+        if coords.len() != texts.len() * 2 {
+            return Err(js_error(
+                "invalid_texts",
+                "coords length must be twice the number of texts",
+            ));
+        }
+        document.crease_pattern.texts = texts
+            .into_iter()
+            .enumerate()
+            .map(|(i, text)| {
+                oristudio_cp::model::TextElement::new(coords[i * 2], coords[i * 2 + 1], text)
+            })
+            .collect();
+        Ok(())
+    })
+}
+
 #[wasm_bindgen]
 pub fn folded_figure_fold(
     document_handle: u32,

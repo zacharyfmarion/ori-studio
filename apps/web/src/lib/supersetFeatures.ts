@@ -1,4 +1,5 @@
 import type { CpImage } from '../cp-workspace/images/cpImage';
+import type { TextAnnotation } from '../cp-workspace/annotations/textAnnotation';
 
 /**
  * Registry of *superset features* — capabilities Ori Studio's native `.osf`
@@ -16,6 +17,13 @@ export type ExportFormat = 'cp' | 'fold' | 'ori' | 'orh' | 'dxf' | 'obj' | 'svg'
 /** Current presence of every superset feature, sampled from the workspace. */
 export interface SupersetPresence {
   images: readonly CpImage[];
+  /**
+   * Rich-text boxes. Their content flattens to plain `{x, y, text}` in the
+   * Oriedita formats that support text (`.ori`/`.fold`/`.orh`), but the
+   * formatting, box, and reflow are always lost — so they count as a superset
+   * feature dropped by every non-`.osf` format.
+   */
+  richText: readonly TextAnnotation[];
 }
 
 interface SupersetFeature {
@@ -43,6 +51,12 @@ const SUPERSET_FEATURES: readonly SupersetFeature[] = [
     id: 'images',
     label: 'Images',
     count: (presence) => presence.images.length,
+    droppedByFormats: ALL_LOSSY_FORMATS,
+  },
+  {
+    id: 'richText',
+    label: 'Rich text formatting',
+    count: (presence) => presence.richText.length,
     droppedByFormats: ALL_LOSSY_FORMATS,
   },
 ];
