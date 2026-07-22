@@ -117,6 +117,7 @@ import {
   setOristudioCpDocumentSource,
 } from '../oristudioCpRuntime';
 import type { OristudioCpHistoryEntry, ProjectSlice, WorkspaceSliceCreator } from '../types';
+import { retainFoldedFigureHandles } from '../../../cp-workspace/foldedFigureHandles';
 import type { FoldDocument } from '../../../engine/types';
 import type {
   OristudioCpCommandResult,
@@ -160,6 +161,9 @@ function cpHistoryEntry(
   foldedFigures: OristudioCpFoldedFigureEntry[],
   activeFoldedFigureId: string | null
 ): OristudioCpHistoryEntry {
+  // The entry keeps these figures' wasm handles alive for as long as undo can
+  // reach it — see cp-workspace/foldedFigureHandles.
+  retainFoldedFigureHandles(foldedFigures);
   return {
     document,
     selection,

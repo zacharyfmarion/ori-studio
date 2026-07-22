@@ -55,6 +55,14 @@ import {
 } from '../oristudioCpRuntime';
 import type { CreasePatternSlice, WorkspaceSliceCreator } from '../types';
 import type { CanvasAnnotation } from '../../../cp-workspace/annotations/annotation';
+import {
+  releaseFoldedFigureHandle,
+  releaseFoldedFigureHandles,
+  resetFoldedFigureHandles,
+  retainFoldedFigureHandle,
+  retainFoldedFigureHandles,
+  setFoldedFigureHandleFree,
+} from '../../../cp-workspace/foldedFigureHandles';
 import { IDENTITY_FOLDED_PLACEMENT } from '../../../engine/oristudioCpTypes';
 import type {
   OristudioCpFoldedFigureDisplayStyle,
@@ -74,6 +82,10 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
   set,
   get
 ) => {
+  // Handles are owned by reachability (live list + history), not by the delete
+  // action — see cp-workspace/foldedFigureHandles.
+  setFoldedFigureHandleFree(freeOristudioCpFoldedFigure);
+
   const wholeSimulationFocus = { kind: 'whole' as const };
   let foldArtifactPromise: Promise<FoldArtifacts | null> | null = null;
   let foldArtifactPromiseRevision: number | null = null;
@@ -190,20 +202,29 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
   }): void {
     const document = get().oristudioCpDocument;
     if (!document) return;
+    // The new entry keeps its figures' handles alive for as long as undo can
+    // reach them; anything the cap or the cleared redo stack drops lets go.
+    retainFoldedFigureHandles(input.foldedFigures);
+    const grown = [
+      ...get().oristudioCpHistoryPast,
+      {
+        document: document.document,
+        selection: get().oristudioCpSelection,
+        annotations: input.annotations,
+        foldedFigures: input.foldedFigures,
+        activeFoldedFigureId: input.activeFoldedFigureId,
+        overlayOnly: true,
+        label: input.label,
+        timestamp: new Date().toISOString(),
+      },
+    ];
+    const evicted = grown.slice(0, Math.max(0, grown.length - MAX_CP_HISTORY));
+    for (const entry of evicted) releaseFoldedFigureHandles(entry.foldedFigures ?? []);
+    for (const entry of get().oristudioCpHistoryFuture) {
+      releaseFoldedFigureHandles(entry.foldedFigures ?? []);
+    }
     set({
-      oristudioCpHistoryPast: [
-        ...get().oristudioCpHistoryPast,
-        {
-          document: document.document,
-          selection: get().oristudioCpSelection,
-          annotations: input.annotations,
-          foldedFigures: input.foldedFigures,
-          activeFoldedFigureId: input.activeFoldedFigureId,
-          overlayOnly: true,
-          label: input.label,
-          timestamp: new Date().toISOString(),
-        },
-      ].slice(-MAX_CP_HISTORY),
+      oristudioCpHistoryPast: grown.slice(-MAX_CP_HISTORY),
       oristudioCpHistoryFuture: [],
       dirty: true,
     });
@@ -833,6 +854,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         // the entry so deleting/re-folding the figure clears the highlight for
         // free, and keep the fold out of the error toast path.
         const contradiction = result.snapshot.contradiction ?? null;
+        retainFoldedFigureHandle(result.handle);
         set({
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((figure) =>
             figure.id === figureId
@@ -1131,6 +1153,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           figureIndex,
           true
         );
+        retainFoldedFigureHandle(result.handle);
         set({
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((figure) =>
             figure.id === figureId
@@ -1170,9 +1193,10 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       const figure = figures.find((candidate) => candidate.id === id);
       if (!figure) return;
 
-      if (figure.handle !== null) {
-        await freeOristudioCpFoldedFigure(figure.handle);
-      }
+      // Drop the live list's reference. The handle is only actually freed if no
+      // history entry still holds it — otherwise undoing this delete would
+      // restore a figure that draws but can no longer be recoloured or refolded.
+      releaseFoldedFigureHandle(figure.handle);
       const remaining = get().oristudioCpFoldedFigures.filter((candidate) => candidate.id !== id);
       const activeId =
         get().oristudioCpActiveFoldedFigureId === id
@@ -1186,9 +1210,12 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     },
 
     clearOristudioCpFoldedFigures: async () => {
+      // Closing/replacing the document takes every figure with it, history
+      // included, so free outright rather than unwinding reference counts.
       const handles = get().oristudioCpFoldedFigures
         .map((figure) => figure.handle)
         .filter((handle): handle is number => handle !== null);
+      resetFoldedFigureHandles();
       await Promise.allSettled(handles.map((handle) => freeOristudioCpFoldedFigure(handle)));
       set({
         oristudioCpFoldedFigures: [],

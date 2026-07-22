@@ -43,6 +43,10 @@ import {
 import { importedCpLineage } from '../../lib/oristudioCpLineage';
 import { createStarterOristudioCpDocument } from '../../lib/oristudioCpStarterDocument';
 import { createCpImage } from '../../cp-workspace/images/cpImage';
+import {
+  resetFoldedFigureHandles,
+  retainFoldedFigureHandle,
+} from '../../cp-workspace/foldedFigureHandles';
 import { useLayoutStore } from '../layoutStore';
 import {
   registerCommandDialogHost,
@@ -1107,6 +1111,8 @@ function foldedRenderSnapshot(): OristudioCpFoldedRenderSnapshot {
 function resetStores(snapshot = makeSnapshot()) {
   localStorage.clear();
   savedSnapshots.clear();
+  // Handle ownership is module-level; isolate it between tests.
+  resetFoldedFigureHandles();
   useWorkspaceStore.setState(initialWorkspaceState, true);
   useLayoutStore.setState(initialLayoutState, true);
   const api = createMockEngineApi(snapshot);
@@ -2600,6 +2606,54 @@ describe('workspace store slices', () => {
     // Only the changed figure is a new object, and even it reuses the snapshot.
     expect(after[1]).not.toBe(before[1]);
     expect(after[1].renderSnapshot).toBe(before[1].renderSnapshot);
+  });
+
+  it('keeps a deleted folded figure kernel-editable while undo can still reach it', async () => {
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+    });
+    const figure: OristudioCpFoldedFigureEntry = {
+      id: 'generated-1',
+      title: 'Folded model 1',
+      handle: 7,
+      sourceKind: 'generated-from-current-cp',
+      sourceCpRevision: 0,
+      startingFaceId: 1,
+      displayStyle: 'Paper5',
+      status: 'ready',
+      placement: IDENTITY_FOLDED_PLACEMENT,
+      snapshot: foldedFigureSnapshot(),
+      renderSnapshot: foldedRenderSnapshot(),
+      error: null,
+    };
+    useWorkspaceStore.setState({
+      oristudioCpFoldedFigures: [figure],
+      oristudioCpHistoryPast: [],
+      oristudioCpHistoryFuture: [],
+    });
+    // The live list holds the handle (as fold/duplicate would have arranged).
+    retainFoldedFigureHandle(figure.handle);
+
+    const before = useWorkspaceStore.getState().oristudioCpFoldedFigures;
+    useWorkspaceStore.getState().recordFoldedFigureHistory([...before], 'Delete folded model');
+    await useWorkspaceStore.getState().deleteOristudioCpFoldedFigure(figure.id);
+
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures).toHaveLength(0);
+    // The history entry still refers to it, so the wasm slot must survive —
+    // otherwise undo would restore a figure that draws but cannot be recoloured.
+    expect(oristudioCpMocks.freeOristudioCpFoldedFigure).not.toHaveBeenCalled();
+
+    await useWorkspaceStore.getState().undo();
+    const restored = useWorkspaceStore.getState().oristudioCpFoldedFigures;
+    expect(restored).toHaveLength(1);
+    expect(restored[0].handle).toBe(7);
+
+    // And it really is editable again: a model update reaches the kernel.
+    await expect(
+      useWorkspaceStore.getState().updateOristudioCpFoldedFigureModel(figure.id, { state: 'Back1' })
+    ).resolves.toBe(true);
+    expect(oristudioCpMocks.setOristudioCpFoldedFigureModel).toHaveBeenCalled();
   });
 
   it('keeps the canvas selection exclusive between annotations and folded figures', () => {

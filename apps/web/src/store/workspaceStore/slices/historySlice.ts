@@ -39,6 +39,10 @@ import type { BpHistorySnapshot } from '../types';
 import type { OristudioCpFoldedFigureEntry } from '../../../engine/oristudioCpTypes';
 import type { CanvasAnnotation } from '../../../cp-workspace/annotations/annotation';
 import { markGeneratedCpLineageStale } from '../../../lib/oristudioCpLineage';
+import {
+  releaseFoldedFigureHandles,
+  retainFoldedFigureHandles,
+} from '../../../cp-workspace/foldedFigureHandles';
 
 const MAX_HISTORY = 100;
 
@@ -83,6 +87,26 @@ function restoredFoldedFigureState(entry: OristudioCpHistoryEntry) {
     oristudioCpFoldedFigures: entry.foldedFigures,
     oristudioCpActiveFoldedFigureId: entry.activeFoldedFigureId ?? null,
   };
+}
+
+/**
+ * Build a history entry that owns its figures' handles. Undo/redo move an entry
+ * from one stack to the other; the entry leaving releases (via
+ * {@link releasedFrom}) and the entry being pushed retains here, so a handle
+ * stays alive exactly as long as some stack still refers to it.
+ */
+function retainedCpHistoryEntry(
+  ...args: Parameters<typeof cpHistoryEntry>
+): OristudioCpHistoryEntry {
+  const entry = cpHistoryEntry(...args);
+  retainFoldedFigureHandles(entry.foldedFigures);
+  return entry;
+}
+
+/** Release the handles of an entry that has just left a stack. */
+function releasedFrom<T extends OristudioCpHistoryEntry[]>(remaining: T, leaving: OristudioCpHistoryEntry): T {
+  releaseFoldedFigureHandles(leaving.foldedFigures ?? []);
+  return remaining;
 }
 
 function setRestoredCreasePatternState(
@@ -189,7 +213,11 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
     });
   },
 
-  clearHistory: () =>
+  clearHistory: () => {
+    // Entries own their figures' wasm handles; dropping the stacks lets go.
+    for (const entry of [...get().oristudioCpHistoryPast, ...get().oristudioCpHistoryFuture]) {
+      releaseFoldedFigureHandles(entry.foldedFigures ?? []);
+    }
     set({
       historyPast: [],
       historyFuture: [],
@@ -197,7 +225,8 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
       oristudioCpHistoryFuture: [],
       oristudioCpActiveDiagnosticId: null,
       oristudioCpCamvResult: null,
-    }),
+    });
+  },
 
   undo: async () => {
     const undoCreasePattern = async () => {
@@ -218,9 +247,9 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
             oristudioCpAnnotations: previous.annotations,
             oristudioCpSelectedAnnotationId: null,
             ...restoredFoldedFigureState(previous),
-            oristudioCpHistoryPast: past.slice(0, -1),
+            oristudioCpHistoryPast: releasedFrom(past.slice(0, -1), previous),
             oristudioCpHistoryFuture: [
-              cpHistoryEntry(
+              retainedCpHistoryEntry(
                 current.document,
                 currentSelection,
                 currentAnnotations,
@@ -253,9 +282,9 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
           oristudioCpAnnotations: previous.annotations,
           oristudioCpSelectedAnnotationId: null,
           ...restoredFoldedFigureState(previous),
-          oristudioCpHistoryPast: past.slice(0, -1),
+          oristudioCpHistoryPast: releasedFrom(past.slice(0, -1), previous),
           oristudioCpHistoryFuture: [
-            cpHistoryEntry(
+            retainedCpHistoryEntry(
               current.document,
               currentSelection,
               currentAnnotations,
@@ -352,7 +381,7 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
             ...restoredFoldedFigureState(next),
             oristudioCpHistoryPast: [
               ...get().oristudioCpHistoryPast,
-              cpHistoryEntry(
+              retainedCpHistoryEntry(
                 current.document,
                 currentSelection,
                 currentAnnotations,
@@ -362,7 +391,7 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
                 true
               ),
             ].slice(-MAX_HISTORY),
-            oristudioCpHistoryFuture: future.slice(1),
+            oristudioCpHistoryFuture: releasedFrom(future.slice(1), next),
             dirty: true,
             historyBusy: false,
             projectMessage: `Redid ${next.label}`,
@@ -381,7 +410,7 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
           ...restoredFoldedFigureState(next),
           oristudioCpHistoryPast: [
             ...get().oristudioCpHistoryPast,
-            cpHistoryEntry(
+            retainedCpHistoryEntry(
               current.document,
               currentSelection,
               currentAnnotations,
@@ -391,7 +420,7 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
               false
             ),
           ].slice(-MAX_HISTORY),
-          oristudioCpHistoryFuture: future.slice(1),
+          oristudioCpHistoryFuture: releasedFrom(future.slice(1), next),
           ...staleFoldArtifactResourceState(get().foldArtifactRevision),
           historyBusy: false,
           projectMessage: `Redid ${next.label}`,
