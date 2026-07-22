@@ -22,7 +22,7 @@ export function historyCountForContext(
 
 export function workspaceCapabilityInput(state: WorkspaceState): WorkspaceCapabilityInput {
   const context = state.activeEditingContext;
-  const bpSelection = state.oristudioBpDocument?.selection;
+  const bpSelection = state.oristudioBpSelection;
   const bpRoot = state.oristudioBpDocument?.snapshot?.tree?.rootVertexId;
   const hasDeletableBpSelection =
     (bpSelection?.kind === 'bp-vertex' && bpSelection.id !== bpRoot) ||

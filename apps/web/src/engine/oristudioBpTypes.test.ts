@@ -12,17 +12,8 @@ describe('oristudio BP DTO contract', () => {
     expect(ORISTUDIO_BP_EDITING_SURFACES).toEqual(['tree', 'packing']);
   });
 
-  it('defaults to an empty multi-selection that can grow across BP surfaces', () => {
-    expect(emptyOristudioBpSelection()).toEqual({
-      kind: 'bp-multi',
-      vertices: [],
-      edges: [],
-      flaps: [],
-      rivers: [],
-      stretches: [],
-      devices: [],
-      invalidJunctions: [],
-    });
+  it('has exactly one encoding of "nothing selected"', () => {
+    expect(emptyOristudioBpSelection()).toEqual({ kind: 'bp-none' });
   });
 
   it('tracks the layers BP Studio needs for packing inspection', () => {
@@ -49,7 +40,6 @@ describe('oristudio BP DTO contract', () => {
       handle: 7,
       source: { format: 'generated', filename: 'Untitled.bps', path: null },
       activeSurface: 'packing',
-      selection: { kind: 'bp-flap', id: 3 },
       dirty: false,
       history: { pastCount: 0, futureCount: 0, activeLabel: null },
       optimizer: {

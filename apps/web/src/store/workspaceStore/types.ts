@@ -487,6 +487,13 @@ export interface OristudioBpSymmetryState {
 
 export interface OristudioBpSliceState {
   oristudioBpDocument: OristudioBpDocumentState | null;
+  /**
+   * What the user has selected in the BP surfaces. Session state, not document
+   * state — see the doc comment on {@link OristudioBpSelection}. It sits beside
+   * the document rather than inside it so its lifetime is visible, and so
+   * replacing the document after an edit doesn't have to carry it.
+   */
+  oristudioBpSelection: OristudioBpSelection;
   oristudioBpWorkspace: OristudioBpWorkspaceState | null;
   oristudioBpPortDescriptors: OristudioBpPortDescriptor[];
   oristudioBpError: string | null;
@@ -520,6 +527,8 @@ export interface OristudioBpSliceActions {
   ) => Promise<boolean>;
   /** Replace the active BP selection. */
   selectOristudioBp: (selection: OristudioBpSelection) => void;
+  /** Select nothing. The one way for a surface to clear the BP selection. */
+  clearOristudioBpSelection: () => void;
   /** Switch the BP editing surface intent (tree vs packing) and focus its pane. */
   setOristudioBpActiveSurface: (surface: OristudioBpEditingSurface) => void;
   /** Move a BP tree vertex; `dragging` coalesces intermediate drag updates. */

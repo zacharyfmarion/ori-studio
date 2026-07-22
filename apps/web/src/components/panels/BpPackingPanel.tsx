@@ -48,7 +48,6 @@ import {
   bpLinkedSelection,
   type OristudioBpLinkedSelection,
   bpSelectedFlapIds,
-  bpSelectionSize,
   toggleBpDeviceSelection,
   toggleBpFlapSelection,
   toggleBpInvalidJunctionSelection,
@@ -246,7 +245,7 @@ function bpPackingNudgeDirectionFromKey(key: string): BpPackingNudgeDirection | 
 }
 
 function selectedNudgeFlaps(
-  selection: OristudioBpDocumentState['selection'],
+  selection: OristudioBpSelection,
   flaps: OristudioBpFlap[]
 ): OristudioBpFlap[] {
   if (selection.kind === 'bp-flap') {
@@ -260,7 +259,7 @@ function selectedNudgeFlaps(
 }
 
 function selectedNudgeDevice(
-  selection: OristudioBpDocumentState['selection'],
+  selection: OristudioBpSelection,
   devices: OristudioBpDevice[]
 ): OristudioBpDevice | null {
   if (selection.kind === 'bp-device') {
@@ -735,6 +734,8 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   const layers = useSettingsStore((state) => state.bpPackingLayers);
   const setLayer = useSettingsStore((state) => state.setBpPackingLayer);
   const selectOristudioBp = useWorkspaceStore((state) => state.selectOristudioBp);
+  const selection = useWorkspaceStore((state) => state.oristudioBpSelection);
+  const clearSelection = useWorkspaceStore((state) => state.clearOristudioBpSelection);
   const setOristudioBpActiveSurface = useWorkspaceStore(
     (state) => state.setOristudioBpActiveSurface
   );
@@ -762,8 +763,8 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   );
   const packing = document.snapshot.packing;
   const linkedSelection = useMemo(
-    () => bpLinkedSelection(document.selection, document),
-    [document]
+    () => bpLinkedSelection(selection, document),
+    [selection, document]
   );
   // The stretch whose device/pattern is currently selected. Selecting a device
   // links its stretch (bpLinkedSelection.addDevice -> addStretch), so a single
@@ -796,10 +797,10 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   // The single selected flap, if exactly one flap is selected — the contextual
   // name editor only appears for a single flap (matches the edge-length editor).
   const singleSelectedFlap = useMemo(() => {
-    const id = document.selection.kind === 'bp-flap' ? document.selection.id : null;
+    const id = selection.kind === 'bp-flap' ? selection.id : null;
     if (id === null) return null;
     return packing.flaps.find((flap) => flap.id === id) ?? null;
-  }, [document.selection, packing.flaps]);
+  }, [selection, packing.flaps]);
   const paperRect = useMemo(() => bpPackingPaperRect(packing.sheet), [packing.sheet]);
   const shadowRect = useMemo(() => bpPackingShadowRect(packing.sheet), [packing.sheet]);
   // A diagonal sheet is the square rotated 45° into a diamond; render the paper,
@@ -843,12 +844,12 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     [document, packing.rivers, paperRect, unit]
   );
   const nudgeableFlaps = useMemo(
-    () => selectedNudgeFlaps(document.selection, packing.flaps),
-    [document.selection, packing.flaps]
+    () => selectedNudgeFlaps(selection, packing.flaps),
+    [selection, packing.flaps]
   );
   const nudgeableDevice = useMemo(
-    () => selectedNudgeDevice(document.selection, packing.devices),
-    [document.selection, packing.devices]
+    () => selectedNudgeDevice(selection, packing.devices),
+    [selection, packing.devices]
   );
   const packingAlerts = useMemo(
     () => bpPackingAlertDiagnostics(document.snapshot.diagnostics),
@@ -947,11 +948,11 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
 
   const nudgeSelection = useCallback(
     (direction: BpPackingNudgeDirection) => {
-      const flaps = selectedNudgeFlaps(document.selection, packing.flaps);
+      const flaps = selectedNudgeFlaps(selection, packing.flaps);
       const reference = flaps[0];
       const vector = BP_PACKING_NUDGE_VECTORS[direction];
       if (!reference) {
-        const device = selectedNudgeDevice(document.selection, packing.devices);
+        const device = selectedNudgeDevice(selection, packing.devices);
         if (!device || !device.rangeScalar || device.forward === null) return false;
         const index = deviceIndexFromId(device.id);
         if (index === null) return false;
@@ -979,7 +980,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
       return true;
     },
     [
-      document.selection,
+      selection,
       moveOristudioBpDevice,
       moveOristudioBpLayoutFlap,
       moveOristudioBpLayoutFlaps,
@@ -1175,10 +1176,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     };
   }, [nudgeSelection]);
 
-  const clearSelection = useCallback(() => {
-    if (bpSelectionSize(document.selection) > 0) selectOristudioBp({ kind: 'bp-tree' });
-  }, [document.selection, selectOristudioBp]);
-
   // Begin a potential rubberband selection on empty space. The selection is not
   // cleared yet: a plain click (no drag past the threshold) clears on pointer up,
   // while a drag turns into a marquee. Mirrors BP Studio's flow where clearing
@@ -1195,11 +1192,11 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
         startWorld: world,
         currentWorld: world,
         additive,
-        baseFlaps: additive ? bpSelectedFlapIds(document.selection) : [],
+        baseFlaps: additive ? bpSelectedFlapIds(selection) : [],
         active: false,
       });
     },
-    [spacePressed, eventToWorldPoint, document.selection]
+    [spacePressed, eventToWorldPoint, selection]
   );
 
   const onCanvasPointerDown = (event: PointerEvent<SVGSVGElement>) => {
@@ -1288,12 +1285,12 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     if (event.button !== 0 || spacePressed) return;
     event.stopPropagation();
     if (event.shiftKey || event.metaKey || event.ctrlKey) {
-      selectOristudioBp(toggleBpFlapSelection(document.selection, flapId));
+      selectOristudioBp(toggleBpFlapSelection(selection, flapId));
       return;
     }
     const flap = packing.flaps.find((candidate) => candidate.id === flapId);
     if (!flap) return;
-    const dragIds = selectedFlapDragIds(document.selection, flapId, packing.flaps);
+    const dragIds = selectedFlapDragIds(selection, flapId, packing.flaps);
     const baseFlaps = dragIds.flatMap((id) => {
       const source = packing.flaps.find((candidate) => candidate.id === id);
       return source ? [source] : [];
@@ -1362,7 +1359,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     event.stopPropagation();
     selectOristudioBp(
       event.shiftKey || event.metaKey || event.ctrlKey
-        ? toggleBpFlapSelection(document.selection, flapId)
+        ? toggleBpFlapSelection(selection, flapId)
         : { kind: 'bp-flap', id: flapId }
     );
   };
@@ -1387,7 +1384,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     event.stopPropagation();
     selectOristudioBp(
       event.shiftKey || event.metaKey || event.ctrlKey
-        ? toggleBpRiverSelection(document.selection, riverId)
+        ? toggleBpRiverSelection(selection, riverId)
         : { kind: 'bp-river', id: riverId }
     );
     scheduleLongPressInspector(event);
@@ -1399,7 +1396,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     event.stopPropagation();
     selectOristudioBp(
       event.shiftKey || event.metaKey || event.ctrlKey
-        ? toggleBpRiverSelection(document.selection, riverId)
+        ? toggleBpRiverSelection(selection, riverId)
         : { kind: 'bp-river', id: riverId }
     );
   };
@@ -1409,7 +1406,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     event.stopPropagation();
     selectOristudioBp(
       event.shiftKey || event.metaKey || event.ctrlKey
-        ? toggleBpInvalidJunctionSelection(document.selection, id)
+        ? toggleBpInvalidJunctionSelection(selection, id)
         : { kind: 'bp-invalid-junction', id }
     );
     scheduleLongPressInspector(event);
@@ -1421,7 +1418,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     event.stopPropagation();
     selectOristudioBp(
       event.shiftKey || event.metaKey || event.ctrlKey
-        ? toggleBpInvalidJunctionSelection(document.selection, id)
+        ? toggleBpInvalidJunctionSelection(selection, id)
         : { kind: 'bp-invalid-junction', id }
     );
   };
@@ -1434,7 +1431,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
       const device = packing.devices.find((candidate) => candidate.id === deviceInfo.deviceId);
       selectOristudioBp(
         event.shiftKey || event.metaKey || event.ctrlKey
-          ? toggleBpDeviceSelection(document.selection, deviceInfo.deviceId)
+          ? toggleBpDeviceSelection(selection, deviceInfo.deviceId)
           : { kind: 'bp-device', id: deviceInfo.deviceId }
       );
       scheduleLongPressInspector(event);
@@ -1488,7 +1485,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     if (deviceInfo !== null) {
       selectOristudioBp(
         event.shiftKey || event.metaKey || event.ctrlKey
-          ? toggleBpDeviceSelection(document.selection, deviceInfo.deviceId)
+          ? toggleBpDeviceSelection(selection, deviceInfo.deviceId)
           : { kind: 'bp-device', id: deviceInfo.deviceId }
       );
       return;
@@ -1496,7 +1493,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     if (flapId !== null) {
       selectOristudioBp(
         event.shiftKey || event.metaKey || event.ctrlKey
-          ? toggleBpFlapSelection(document.selection, flapId)
+          ? toggleBpFlapSelection(selection, flapId)
           : { kind: 'bp-flap', id: flapId }
       );
       return;
@@ -1504,7 +1501,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     if (riverId !== null) {
       selectOristudioBp(
         event.shiftKey || event.metaKey || event.ctrlKey
-          ? toggleBpRiverSelection(document.selection, riverId)
+          ? toggleBpRiverSelection(selection, riverId)
           : { kind: 'bp-river', id: riverId }
       );
     }
@@ -2304,7 +2301,7 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 function selectedFlapDragIds(
-  selection: OristudioBpDocumentState['selection'],
+  selection: OristudioBpSelection,
   activeId: number,
   flaps: OristudioBpFlap[]
 ): number[] {

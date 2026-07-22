@@ -246,8 +246,21 @@ export interface OristudioBpCreasePatternView {
   stale: boolean;
 }
 
+/**
+ * What the user currently has selected in a BP surface.
+ *
+ * This is **session state, not document state**: it is never serialized to
+ * `.bps`, it does not survive a reload, and it lives on the store
+ * (`oristudioBpSelection`) rather than on `OristudioBpDocumentState`. Undo/redo
+ * restores a selection from the engine's history tags as a presentation
+ * courtesy — showing you what the step touched — not because the selection was
+ * stored with the step.
+ *
+ * `bp-none` is the empty value. Reach for `emptyOristudioBpSelection()` rather
+ * than writing the literal.
+ */
 export type OristudioBpSelection =
-  | { kind: 'bp-tree' }
+  | { kind: 'bp-none' }
   | { kind: 'bp-vertex'; id: number }
   | { kind: 'bp-edge'; id: number }
   | { kind: 'bp-flap'; id: number }
@@ -266,17 +279,12 @@ export type OristudioBpSelection =
       invalidJunctions: string[];
     };
 
+/**
+ * The empty selection. There is one encoding of "nothing selected" — an empty
+ * `bp-multi` is normalized to this (see `normalizeBpMultiSelection`).
+ */
 export function emptyOristudioBpSelection(): OristudioBpSelection {
-  return {
-    kind: 'bp-multi',
-    vertices: [],
-    edges: [],
-    flaps: [],
-    rivers: [],
-    stretches: [],
-    devices: [],
-    invalidJunctions: [],
-  };
+  return { kind: 'bp-none' };
 }
 
 export type OristudioBpDiagnosticKind =
@@ -396,7 +404,6 @@ export interface OristudioBpDocumentState {
   source: OristudioBpSourceRef;
   activeSurface: OristudioBpEditingSurface;
   snapshot: OristudioBpProjectSnapshot;
-  selection: OristudioBpSelection;
   history: OristudioBpHistorySummary;
   optimizer: OristudioBpOptimizerState;
   exportStatus: OristudioBpExportStatus;

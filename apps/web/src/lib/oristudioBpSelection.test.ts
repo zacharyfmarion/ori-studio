@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { OristudioBpDocumentState } from '../engine/oristudioBpTypes';
+import {
+  emptyOristudioBpSelection,
+  type OristudioBpDocumentState,
+} from '../engine/oristudioBpTypes';
 import {
   bpLinkedSelection,
   bpSelectionSize,
@@ -41,8 +44,15 @@ describe('oristudio BP selection helpers', () => {
     },
   } as OristudioBpDocumentState;
 
+  it('collapses back to the single empty encoding when the last item is toggled off', () => {
+    const selected = toggleBpVertexSelection({ kind: 'bp-none' }, 2);
+    // Deselecting the last item must not leave an empty multi behind: there is
+    // one representation of "nothing selected" and every path funnels into it.
+    expect(toggleBpVertexSelection(selected, 2)).toEqual(emptyOristudioBpSelection());
+  });
+
   it('toggles BP vertex and edge selections into a compact multi-selection', () => {
-    const vertex = toggleBpVertexSelection({ kind: 'bp-tree' }, 2);
+    const vertex = toggleBpVertexSelection({ kind: 'bp-none' }, 2);
     expect(vertex).toEqual({ kind: 'bp-vertex', id: 2 });
     expect(isBpVertexSelected(vertex, 2)).toBe(true);
 
@@ -65,7 +75,7 @@ describe('oristudio BP selection helpers', () => {
   });
 
   it('toggles BP packing selections and summarizes them', () => {
-    const flap = toggleBpFlapSelection({ kind: 'bp-tree' }, 7);
+    const flap = toggleBpFlapSelection({ kind: 'bp-none' }, 7);
     expect(flap).toEqual({ kind: 'bp-flap', id: 7 });
     expect(isBpFlapSelected(flap, 7)).toBe(true);
 

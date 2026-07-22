@@ -19,7 +19,6 @@ import type {
 } from '../../engine/oristudioBpTypes';
 import {
   bpLinkedSelection,
-  bpSelectionSize,
   toggleBpEdgeSelection,
   toggleBpVertexSelection,
 } from '../../lib/oristudioBpSelection';
@@ -304,6 +303,8 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
   const layers = useSettingsStore((state) => state.bpTreeLayers);
   const setLayer = useSettingsStore((state) => state.setBpTreeLayer);
   const selectOristudioBp = useWorkspaceStore((state) => state.selectOristudioBp);
+  const selection = useWorkspaceStore((state) => state.oristudioBpSelection);
+  const clearSelection = useWorkspaceStore((state) => state.clearOristudioBpSelection);
   const moveOristudioBpTreeVertices = useWorkspaceStore(
     (state) => state.moveOristudioBpTreeVertices
   );
@@ -324,13 +325,13 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     (state) => state.moveOristudioBpTreeVerticesWithSymmetry
   );
   const tree = document.snapshot.tree;
-  const selectedVertexId = document.selection.kind === 'bp-vertex' ? document.selection.id : null;
+  const selectedVertexId = selection.kind === 'bp-vertex' ? selection.id : null;
   // The edge selected by clicking a tree segment — drives the length editor.
   const selectedEdge = useMemo(() => {
-    const id = document.selection.kind === 'bp-edge' ? document.selection.id : null;
+    const id = selection.kind === 'bp-edge' ? selection.id : null;
     if (id === null) return null;
     return tree.edges.find((edge) => edge.id === id) ?? null;
-  }, [document.selection, tree.edges]);
+  }, [selection, tree.edges]);
   // The selected leaf vertex (a flap) — drives the name editor. Only leaves are
   // nameable: internal vertices are rivers, which aren't worth labeling.
   const selectedFlapVertex = useMemo(() => {
@@ -388,8 +389,8 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
   // can't disagree about where the leaf would land.
   const addAnchorId = selectedVertexId;
   const linkedSelection = useMemo(
-    () => bpLinkedSelection(document.selection, document),
-    [document]
+    () => bpLinkedSelection(selection, document),
+    [selection, document]
   );
   const paperRect = useMemo(() => bpTreePaperRect(tree.sheet), [tree.sheet]);
   const vertexLocations = useMemo(() => dragging?.preview, [dragging]);
@@ -551,10 +552,10 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
 
   // Escape drops the selection and returns the keyboard to the canvas. Nothing in
   // the tree stays selected, so the contextual length/name editors close too.
-  const clearSelection = useCallback(() => {
-    if (bpSelectionSize(document.selection) > 0) selectOristudioBp({ kind: 'bp-tree' });
+  const dismissSelection = useCallback(() => {
+    clearSelection();
     containerRef.current?.focus();
-  }, [document.selection, selectOristudioBp]);
+  }, [clearSelection]);
 
   const eventToTreePoint = useCallback(
     (event: PointerEvent): Point => {
@@ -692,7 +693,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
       // onEscape), so only handle the canvas case here.
       if (event.key === 'Escape' && !interactive) {
         event.preventDefault();
-        clearSelection();
+        dismissSelection();
       }
     };
 
@@ -711,7 +712,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('blur', clearSpace);
     };
-  }, [clearSelection]);
+  }, [dismissSelection]);
 
   const onCanvasAddPointerDown = (event: PointerEvent<Element>) => {
     if (event.button !== 0 || spacePressed || isViewportInteractiveTarget(event.target)) {
@@ -761,7 +762,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     paperDownRef.current = null;
     selectOristudioBp(
       event.shiftKey || event.metaKey || event.ctrlKey
-        ? toggleBpEdgeSelection(document.selection, edgeId)
+        ? toggleBpEdgeSelection(selection, edgeId)
         : { kind: 'bp-edge', id: edgeId }
     );
     scheduleLongPressInspector(event);
@@ -773,7 +774,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     event.stopPropagation();
     selectOristudioBp(
       event.shiftKey || event.metaKey || event.ctrlKey
-        ? toggleBpEdgeSelection(document.selection, edgeId)
+        ? toggleBpEdgeSelection(selection, edgeId)
         : { kind: 'bp-edge', id: edgeId }
     );
   };
@@ -782,7 +783,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     if (event.button !== 0 || spacePressed) return;
     event.stopPropagation();
     if (event.shiftKey || event.metaKey || event.ctrlKey) {
-      selectOristudioBp(toggleBpVertexSelection(document.selection, vertexId));
+      selectOristudioBp(toggleBpVertexSelection(selection, vertexId));
       return;
     }
     setNameAutoFocus(true);
@@ -1100,7 +1101,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
         <BpTreeEdgeLengthEditor
           edge={selectedEdge}
           onSetLength={(length) => void setEdgeLength(selectedEdge, length)}
-          onEscape={clearSelection}
+          onEscape={dismissSelection}
         />
       )}
       {selectedFlapVertex && (
@@ -1116,7 +1117,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
           })}
           autoFocus={nameAutoFocus}
           onRename={(name) => void renameOristudioBpVertex(selectedFlapVertex.id, name)}
-          onEscape={clearSelection}
+          onEscape={dismissSelection}
         />
       )}
     </div>

@@ -490,7 +490,7 @@ export interface OristudioBpOptimizerRunSummary {
 
 export async function optimizeOristudioBpLayout(
   options: OristudioBpOptimizerOptions,
-  stateOptions: Pick<OristudioBpMutationOptions, 'selection' | 'activeSurface'> = {},
+  stateOptions: Pick<OristudioBpMutationOptions, 'activeSurface'> = {},
   onProgress?: (progress: OristudioBpOptimizerProgress) => void
 ): Promise<OristudioBpOptimizerRunSummary> {
   if (activeHandle === null) {
@@ -517,7 +517,6 @@ export async function optimizeOristudioBpLayout(
     const document = await buildOpenedProjectState(api, opened, source, {
       dirty: true,
       activeSurface: stateOptions.activeSurface ?? 'packing',
-      selection: stateOptions.selection,
     });
     return { document, eventCount: events.length, openedNew: true };
   }
@@ -529,16 +528,21 @@ export async function optimizeOristudioBpLayout(
     project,
     dirty: true,
     activeSurface: stateOptions.activeSurface ?? 'packing',
-    selection: stateOptions.selection,
   });
   return { document, eventCount: events.length, openedNew: false };
 }
 
-export async function undoOristudioBpProject(): Promise<OristudioBpDocumentState | null> {
+/** A history step: the restored document plus the selection it touched. */
+export interface OristudioBpHistoryNavigation {
+  document: OristudioBpDocumentState;
+  selection: OristudioBpSelection;
+}
+
+export async function undoOristudioBpProject(): Promise<OristudioBpHistoryNavigation | null> {
   return navigateOristudioBpHistory((api, handle) => api.undoProject(handle), 'tree');
 }
 
-export async function redoOristudioBpProject(): Promise<OristudioBpDocumentState | null> {
+export async function redoOristudioBpProject(): Promise<OristudioBpHistoryNavigation | null> {
   return navigateOristudioBpHistory((api, handle) => api.redoProject(handle), 'tree');
 }
 
@@ -562,7 +566,7 @@ export function activateOristudioBpProjectHandle(
 export async function cloneOristudioBpProjectHandle(
   handle: number,
   source: OristudioBpSourceRef,
-  options: Pick<OristudioBpStateFromRawInput, 'activeSurface' | 'selection'> = {}
+  options: Pick<OristudioBpStateFromRawInput, 'activeSurface'> = {}
 ): Promise<OristudioBpDocumentState> {
   if (!loadedHandles.has(handle)) {
     throw new Error('Box Pleat project handle is not loaded');
@@ -578,7 +582,6 @@ export async function cloneOristudioBpProjectHandle(
       source: cloneSource,
       dirty: true,
       activeSurface: options.activeSurface,
-      selection: options.selection,
     });
     loadedHandles = new Set([...loadedHandles, cloneHandle]);
     activeHandle = cloneHandle;
@@ -786,7 +789,7 @@ async function buildOpenedProjectState(
   api: OristudioBpClient,
   opened: OristudioBpWasmOpenedProject,
   source: OristudioBpSourceRef,
-  options: Pick<OristudioBpStateFromRawInput, 'dirty' | 'activeSurface' | 'selection'>
+  options: Pick<OristudioBpStateFromRawInput, 'dirty' | 'activeSurface'>
 ): Promise<OristudioBpDocumentState> {
   return oristudioBpProjectStateFromRaw({
     handle: opened.handle,
@@ -807,7 +810,7 @@ async function navigateOristudioBpHistory(
     handle: number
   ) => Promise<OristudioBpWasmHistoryNavigationProject>,
   fallbackSurface: OristudioBpEditingSurface
-): Promise<OristudioBpDocumentState | null> {
+): Promise<OristudioBpHistoryNavigation | null> {
   if (activeHandle === null) {
     throw new Error('No Box Pleat project is loaded');
   }
@@ -820,14 +823,13 @@ async function navigateOristudioBpHistory(
     dirty: true,
     activeSurface: navigated.project.design.mode === 'layout' ? 'packing' : fallbackSurface,
   });
-  return {
-    ...document,
-    selection: selectionFromHistoryTags(navigated.selection, document),
-  };
+  // The engine tags each step with what it touched. Hand that back beside the
+  // document — the caller decides whether to show it — rather than folding a
+  // selection into document state.
+  return { document, selection: selectionFromHistoryTags(navigated.selection, document) };
 }
 
 interface OristudioBpMutationOptions {
-  selection?: OristudioBpSelection;
   activeSurface?: OristudioBpEditingSurface;
   dragging?: boolean;
 }
@@ -853,7 +855,6 @@ async function mutateActiveOristudioBpProject(
       } satisfies OristudioBpSourceRef),
     dirty: true,
     activeSurface: options.activeSurface ?? 'tree',
-    selection: options.selection,
   });
 }
 
@@ -904,10 +905,10 @@ function selectionFromHistoryTags(
 ): OristudioBpSelection {
   const selections = tags
     .map((tag) => selectionFromHistoryTag(tag, document))
-    .filter((selection): selection is Exclude<OristudioBpSelection, { kind: 'bp-tree' }> =>
-      Boolean(selection && selection.kind !== 'bp-tree')
+    .filter((selection): selection is Exclude<OristudioBpSelection, { kind: 'bp-none' }> =>
+      Boolean(selection && selection.kind !== 'bp-none')
     );
-  if (selections.length === 0) return { kind: 'bp-tree' };
+  if (selections.length === 0) return { kind: 'bp-none' };
   if (selections.length === 1) return selections[0];
   return {
     kind: 'bp-multi',
@@ -933,7 +934,7 @@ function selectionFromHistoryTag(
   tag: string,
   document: OristudioBpDocumentState
 ): OristudioBpSelection | null {
-  if (tag === 'tree') return { kind: 'bp-tree' };
+  if (tag === 'tree') return { kind: 'bp-none' };
   const vertexId = prefixedNumericTag(tag, 'v');
   if (vertexId !== null) return { kind: 'bp-vertex', id: vertexId };
   const flapId = prefixedNumericTag(tag, 'f');

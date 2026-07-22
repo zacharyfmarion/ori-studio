@@ -23,7 +23,6 @@ import type {
   OristudioBpRawStretch,
   OristudioBpRawVertex,
   OristudioBpRiver,
-  OristudioBpSelection,
   OristudioBpSheet,
   OristudioBpSourceRef,
   OristudioBpStretch,
@@ -40,7 +39,6 @@ import type {
   OristudioBpWasmTreeData,
   OristudioBpWasmTreeNode,
 } from './oristudioBpTypes';
-import { emptyOristudioBpSelection } from './oristudioBpTypes';
 import type { Point } from '../lib/geometry';
 
 const MAX_TREE_HEIGHT = 11_586;
@@ -55,7 +53,6 @@ export interface OristudioBpStateFromRawInput {
   creasePatternSnapshot?: OristudioBpWasmCreasePatternSnapshot | null;
   source: OristudioBpSourceRef;
   activeSurface?: OristudioBpDocumentState['activeSurface'];
-  selection?: OristudioBpSelection;
   dirty?: boolean;
 }
 
@@ -77,7 +74,6 @@ export function oristudioBpProjectStateFromRaw(
       input.packingValidation ?? null,
       input.creasePatternSnapshot ?? null
     ),
-    selection: input.selection ?? emptyOristudioBpSelection(),
     history: historySummary(input.project),
     optimizer: defaultOptimizerState(),
     exportStatus: defaultExportStatus(),

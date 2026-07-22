@@ -148,8 +148,14 @@ rules, and the tests cover pure helpers and the store.
       share it (`5d4d63d5`).
 - [x] 0b. A tree opens with nothing selected — no default anchor.
 - [x] 1. Delete the inert `selected` DTO fields and their mapper writes.
-- [ ] 2. Decide selection ownership; move it to session state; add
-      `clearBpSelection`; replace `{ kind: 'bp-tree' }` with an explicit empty.
+- [x] 2. Decide selection ownership; move it to session state; add
+      `clearOristudioBpSelection`; replace `{ kind: 'bp-tree' }` with an explicit
+      empty. Decided: **selection is session state**. It now lives on the store
+      as `oristudioBpSelection`, off `OristudioBpDocumentState`; the runtime no
+      longer takes or returns it (history navigation hands it back beside the
+      document); undo/redo restores it as presentation. A third encoding of
+      empty — `emptyOristudioBpSelection()` returning an empty `bp-multi` — was
+      found and collapsed into `bp-none`.
 - [ ] 3. Audit both panes for policy-as-fallback; promote to named helpers with
       unit tests.
 - [ ] 4. Extract `useViewportSurface`, the layers popover, and the drag

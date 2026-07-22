@@ -17,7 +17,10 @@ import type { CpSelectionTransform } from '../lib/creasePatternClipboard';
 import type { Point } from '../lib/geometry';
 import type { OristudioCpOperationId } from '../lib/oristudioCpCommands';
 import type { EditingContext } from '../workspaces/editingContext';
-import type { OristudioBpDocumentState } from '../engine/oristudioBpTypes';
+import type {
+  OristudioBpDocumentState,
+  OristudioBpSelection,
+} from '../engine/oristudioBpTypes';
 import type { CreaseExportOptions } from '../lib/creaseExport';
 
 export const MENU_ACTION_IDS = [
@@ -159,6 +162,7 @@ export interface WorkspaceCommands {
   triangulateTree(): Promise<void>;
   activeEditingContext: EditingContext;
   oristudioBpDocument: OristudioBpDocumentState | null;
+  oristudioBpSelection: OristudioBpSelection;
   deleteOristudioBpTreeNode(id: number): Promise<boolean>;
   oristudioCpDocument: OristudioCpDocumentState | null;
   oristudioCpSelection: OristudioCpSelection;
@@ -270,9 +274,11 @@ export function isMenuActionId(id: string): id is MenuActionId {
  * the child endpoint of a selected edge. Returns null when nothing deletable is
  * selected or the target is the root (which can't be deleted).
  */
-function deletableBpNodeId(document: OristudioBpDocumentState | null): number | null {
+function deletableBpNodeId(
+  document: OristudioBpDocumentState | null,
+  selection: OristudioBpSelection
+): number | null {
   if (!document) return null;
-  const selection = document.selection;
   const tree = document.snapshot.tree;
   const root = tree.rootVertexId;
   if (selection.kind === 'bp-vertex') {
@@ -436,7 +442,10 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
           deps.workspace.activeEditingContext === 'bp-tree' ||
           deps.workspace.activeEditingContext === 'bp-packing';
         if (bpContext) {
-          const nodeId = deletableBpNodeId(deps.workspace.oristudioBpDocument);
+          const nodeId = deletableBpNodeId(
+            deps.workspace.oristudioBpDocument,
+            deps.workspace.oristudioBpSelection
+          );
           if (nodeId === null) return false;
           return deps.workspace.deleteOristudioBpTreeNode(nodeId);
         }
