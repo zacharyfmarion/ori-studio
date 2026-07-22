@@ -1,4 +1,5 @@
 import type {
+  OristudioBpArcPoint,
   OristudioBpFlap,
   OristudioBpGraphicPrimitive,
   OristudioBpPackingView,
@@ -189,6 +190,68 @@ export function bpPackingSheetShadowPoints(
     const len = Math.hypot(dx, dy) || 1;
     return { x: p.x + (dx / len) * SHADOW_INSET, y: p.y + (dy / len) * SHADOW_INSET };
   });
+}
+
+/**
+ * Box Pleating Studio's narrowness ratio for one invalid-junction outline
+ * (`client/project/components/layout/junction.ts#getNarrowness`): how flat the
+ * lens between two arcs is. Only two-arc paths have one — anything else is left
+ * unstroked, matching BP's `NaN` result for longer paths.
+ */
+export function bpArcPathNarrowness(path: readonly OristudioBpArcPoint[]): number | null {
+  if (path.length !== 2) return null;
+  const [first, second] = path;
+  if (!first.arc || !second.arc) return null;
+  const span = Math.hypot(second.x - first.x, second.y - first.y);
+  if (span === 0) return null;
+  return Math.hypot(second.arc.x - first.arc.x, second.arc.y - first.arc.y) / span;
+}
+
+/**
+ * Renders an arc outline as an SVG path `d`, mirroring BP's canvas drawing of an
+ * {@link https://github.com/MuTsunTsai/box-pleating-studio | InvalidJunction}:
+ * `moveTo`, then `arcTo(anchor, point, radius)` or `lineTo(point)` per point, and a
+ * closing arc when the first point carries one.
+ *
+ * BP draws in a y-up frame and can hard-code the SVG sweep flag; {@link
+ * bpPackingPointToSvg} flips y, so the flag is derived per segment from the turn
+ * direction in SVG space instead. Corner arcs of a rounded rectangle never exceed a
+ * quarter turn and the intersection sweep only subdivides them, so the large-arc flag
+ * is always 0.
+ */
+export function bpArcPathToSvgPath(
+  path: readonly OristudioBpArcPoint[],
+  sheet: OristudioBpSheet,
+  rect = bpPackingPaperRect(sheet)
+): string {
+  if (path.length === 0) return '';
+  const unit = bpPackingUnitToSvg(sheet, rect);
+  const points = path.map((point) => bpPackingPointToSvg(point, sheet, rect));
+  const anchors = path.map((point) =>
+    point.arc ? bpPackingPointToSvg(point.arc, sheet, rect) : null
+  );
+
+  const segment = (index: number, to: Point): string => {
+    const anchor = anchors[index];
+    const radius = path[index].r;
+    const from = index === 0 ? points[points.length - 1] : points[index - 1];
+    if (!anchor || radius == null) return `L${round(to.x)},${round(to.y)}`;
+    const cross =
+      (anchor.x - from.x) * (to.y - anchor.y) - (anchor.y - from.y) * (to.x - anchor.x);
+    const radiusPx = radius * unit;
+    if (cross === 0 || radiusPx <= 0) return `L${round(to.x)},${round(to.y)}`;
+    const sweep = cross > 0 ? 1 : 0;
+    return `A${round(radiusPx)},${round(radiusPx)},0,0,${sweep},${round(to.x)},${round(to.y)}`;
+  };
+
+  let d = `M${round(points[0].x)},${round(points[0].y)}`;
+  for (let i = 1; i < path.length; i++) d += segment(i, points[i]);
+  if (path[0].arc && path.length > 1) d += segment(0, points[0]);
+  return `${d}Z`;
+}
+
+function round(value: number): number {
+  return Math.round(value * 1000) / 1000;
 }
 
 export function bpPackingRectToSvg(
@@ -417,10 +480,13 @@ export function getBpPackingWorldRect(packing: OristudioBpPackingView): PlotRect
   }
 
   for (const junction of packing.invalidJunctions) {
-    for (const polygon of junction.polygons) {
+    for (const path of junction.paths) {
+      // Each arc stays inside the triangle formed by its endpoints and its tangent
+      // anchor, so including the anchors covers the bulge the endpoints alone miss.
+      const outline = path.flatMap((point) => (point.arc ? [point, point.arc] : [point]));
       includePoints(
         bounds,
-        polygon.map((point) => bpPackingPointToSvg(point, packing.sheet, paperRect))
+        outline.map((point) => bpPackingPointToSvg(point, packing.sheet, paperRect))
       );
     }
   }

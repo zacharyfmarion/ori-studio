@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import type { OristudioBpSheet, OristudioBpSheetKind } from '../engine/oristudioBpTypes';
+import type {
+  OristudioBpArcPath,
+  OristudioBpSheet,
+  OristudioBpSheetKind,
+} from '../engine/oristudioBpTypes';
 import {
+  bpArcPathNarrowness,
+  bpArcPathToSvgPath,
   bpPackingGridLines,
   bpPackingPaperRect,
   bpPackingPointToSvg,
@@ -105,6 +111,87 @@ describe('bpPackingGridLines (diagonal)', () => {
     // The middle horizontal line (y=8) spans the full diamond width; an edge line
     // (y=1) is much shorter.
     expect(spanOf('dh:8')).toBeGreaterThan(spanOf('dh:1'));
+  });
+});
+
+describe('bpArcPathNarrowness', () => {
+  it('is the anchor span over the endpoint span for a two-arc lens', () => {
+    const path: OristudioBpArcPath = [
+      { x: 0, y: 0, arc: { x: 1, y: 1 }, r: 1 },
+      { x: 4, y: 0, arc: { x: 2, y: 1 }, r: 1 },
+    ];
+    // anchors are 1 apart, endpoints 4 apart
+    expect(bpArcPathNarrowness(path)).toBeCloseTo(0.25);
+  });
+
+  it('has none for paths that are not a two-arc lens', () => {
+    expect(
+      bpArcPathNarrowness([
+        { x: 0, y: 0, arc: { x: 1, y: 1 }, r: 1 },
+        { x: 4, y: 0, arc: { x: 2, y: 1 }, r: 1 },
+        { x: 4, y: 4 },
+      ])
+    ).toBeNull();
+    expect(
+      bpArcPathNarrowness([
+        { x: 0, y: 0 },
+        { x: 4, y: 0 },
+      ])
+    ).toBeNull();
+  });
+});
+
+describe('bpArcPathToSvgPath', () => {
+  const s = sheet('rectangular', 8);
+  const lens: OristudioBpArcPath = [
+    { x: 2, y: 2, arc: { x: 1, y: 3 }, r: 1 },
+    { x: 3, y: 3, arc: { x: 4, y: 2 }, r: 1 },
+  ];
+
+  it('draws a two-arc lens as two arcs, including the closing one', () => {
+    const d = bpArcPathToSvgPath(lens, s);
+    expect(d.startsWith('M')).toBe(true);
+    expect(d.match(/A/g)).toHaveLength(2);
+    expect(d).not.toContain('L');
+    expect(d.endsWith('Z')).toBe(true);
+  });
+
+  it('scales the arc radius into SVG units', () => {
+    const rect = bpPackingPaperRect(s);
+    const unit = rect.width / 8;
+    const d = bpArcPathToSvgPath(lens, s, rect);
+    const radius = Number(d.slice(d.indexOf('A') + 1).split(',')[0]);
+    expect(approx(radius, Math.round(unit * 1000) / 1000, 1e-3)).toBe(true);
+  });
+
+  it('draws points without arcs as straight segments', () => {
+    const d = bpArcPathToSvgPath(
+      [
+        { x: 1, y: 1 },
+        { x: 3, y: 1 },
+        { x: 3, y: 3 },
+      ],
+      s
+    );
+    expect(d).not.toContain('A');
+    expect(d.match(/L/g)).toHaveLength(2);
+    expect(d.endsWith('Z')).toBe(true);
+  });
+
+  it('flips the sweep flag when the outline is mirrored', () => {
+    const mirrored = lens.map((point) => ({
+      ...point,
+      y: -point.y,
+      arc: point.arc ? { x: point.arc.x, y: -point.arc.y } : point.arc,
+    }));
+    const sweeps = (d: string) =>
+      [...d.matchAll(/A([^AZL]*)/g)].map((match) => match[1].split(',')[4]);
+    expect(sweeps(bpArcPathToSvgPath(lens, s))).toEqual(['0', '0']);
+    expect(sweeps(bpArcPathToSvgPath(mirrored, s))).toEqual(['1', '1']);
+  });
+
+  it('returns nothing for an empty path', () => {
+    expect(bpArcPathToSvgPath([], s)).toBe('');
   });
 });
 

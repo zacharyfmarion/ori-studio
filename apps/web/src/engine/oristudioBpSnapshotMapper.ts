@@ -30,7 +30,6 @@ import type {
   OristudioBpTreeEdge,
   OristudioBpTreeVertex,
   OristudioBpTreeView,
-  OristudioBpWasmArcPoint,
   OristudioBpWasmCreasePatternSnapshot,
   OristudioBpWasmGraphicsData,
   OristudioBpWasmInvalidJunction,
@@ -343,15 +342,12 @@ function packingRivers(tree: OristudioBpTreeView): OristudioBpRiver[] {
 function packingInvalidJunction(
   junction: OristudioBpWasmInvalidJunction
 ): OristudioBpInvalidJunction {
-  const polygons = junction.polygon.map((path) => path.map(arcPointToPoint));
   return {
     id: junction.id,
     flapIds: [...junction.flapIds],
     riverIds: [],
-    polygon: polygons[0] ?? [],
-    polygons,
-    arcPolygons: junction.polygon,
-    narrowness: junction.narrowness,
+    paths: junction.polygon,
+    overlap: junction.narrowness,
     message: `Flaps ${junction.flapIds.join(' and ')} overlap by ${formatSigned(Math.abs(junction.narrowness))}`,
   };
 }
@@ -646,10 +642,6 @@ function vertexDegrees(edges: OristudioBpRawEdge[]): Map<number, number> {
 function radiusForFlap(id: number, edges: OristudioBpRawEdge[]): number | null {
   const edge = edges.find((candidate) => candidate.n1 === id || candidate.n2 === id);
   return edge?.length ?? null;
-}
-
-function arcPointToPoint(point: OristudioBpWasmArcPoint) {
-  return { x: point.x, y: point.y };
 }
 
 function formatSigned(value: number): string {
