@@ -5,6 +5,8 @@ use std::sync::Mutex;
 use tauri::Emitter;
 use tauri::Manager;
 
+mod cp_engine;
+
 #[derive(Default)]
 struct OpenedFiles(Mutex<Vec<String>>);
 
@@ -84,7 +86,8 @@ pub fn run() {
             read_binary_file,
             write_text_file,
             write_binary_file,
-            take_opened_files
+            take_opened_files,
+            cp_engine::cp_operation_descriptors
         ])
         .build(tauri::generate_context!())
         .expect("error while building Ori Studio")

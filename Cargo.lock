@@ -2668,6 +2668,7 @@ dependencies = [
 name = "ori-studio"
 version = "0.1.2"
 dependencies = [
+ "oristudio-cp",
  "serde",
  "serde_json",
  "tauri",

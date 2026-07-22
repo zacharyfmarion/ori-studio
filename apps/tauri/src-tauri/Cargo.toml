@@ -10,6 +10,7 @@ homepage.workspace = true
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+oristudio-cp.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tauri = { version = "2", features = [] }
