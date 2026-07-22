@@ -13,6 +13,11 @@ include = ["Cargo.toml", "src/**", "tests/**", "!pkg/**"]
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+# Keep function names in `wasm-pack build --profiling` output so browser
+# profiles show real symbols instead of `wasm-function[NNN]`.
+[package.metadata.wasm-pack.profile.profiling]
+wasm-opt = ['-O2', '-g']
+
 [dependencies]
 js-sys.workspace = true
 oristudio-cp.workspace = true

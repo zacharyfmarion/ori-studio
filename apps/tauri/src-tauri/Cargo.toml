@@ -10,6 +10,8 @@ homepage.workspace = true
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+# Native desktop runs the fold with rayon-parallel condition generation.
+oristudio-cp = { workspace = true, features = ["parallel"] }
 serde.workspace = true
 serde_json.workspace = true
 tauri = { version = "2", features = [] }

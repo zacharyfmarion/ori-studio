@@ -26,6 +26,8 @@ import type { ImportedCreasePatternFormat } from '../../lib/creasePatternImport'
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
 import { createStarterOristudioCpDocument } from '../../lib/oristudioCpStarterDocument';
 import type { OristudioCpWorkerApi } from '../../workers/oristudioCpWorker';
+import { createOristudioCpNativeClient } from '../../engine/oristudioCpNativeClient';
+import { isDesktopRuntime } from '../../platform/runtime';
 
 export type OristudioCpClient = Remote<OristudioCpWorkerApi>;
 
@@ -59,6 +61,12 @@ export function oristudioCpError(error: unknown): WasmErrorEnvelope {
 
 export async function getOristudioCpClient(): Promise<OristudioCpClient> {
   if (client) return client;
+  if (isDesktopRuntime()) {
+    // Desktop: native Rust engine via Tauri commands (no wasm worker). The
+    // native client implements the same OristudioCpWorkerApi surface.
+    client = createOristudioCpNativeClient() as unknown as OristudioCpClient;
+    return client;
+  }
   worker = new Worker(new URL('../../workers/oristudioCpWorker.ts', import.meta.url), {
     type: 'module',
   });

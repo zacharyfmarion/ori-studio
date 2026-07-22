@@ -8,12 +8,14 @@
 pub mod canonical;
 pub mod checks;
 mod fold_graph;
+pub mod fold_profiling;
 pub mod folding;
 pub mod geometry;
 pub mod geometry_transport;
 pub mod io;
 pub mod model;
 pub mod operations;
+pub mod session;
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;

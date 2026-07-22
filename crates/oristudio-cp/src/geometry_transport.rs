@@ -26,7 +26,12 @@ const SEG_ATTR_STRIDE: usize = 4;
 const CIRCLE_ATTR_STRIDE: usize = 2;
 
 /// Flat geometry buffers (destined for JS typed arrays) plus a small structured tail.
-#[derive(Debug, Clone, PartialEq)]
+///
+/// `Serialize`/`Deserialize` support the native (Tauri) IPC path; the wasm bridge
+/// hand-builds typed arrays instead (`compact_to_js`). `camelCase` keeps the JSON
+/// keys identical to the wasm-built object the frontend already consumes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CompactGeometry {
     /// `[ax, ay, bx, by]` per line segment.
     pub seg_endpoints: Vec<f64>,
@@ -46,6 +51,188 @@ pub struct CompactGeometry {
     /// `[r, g, b]` per circle.
     pub circle_custom_color: Vec<u8>,
     pub tail: CompactTail,
+}
+
+/// Magic + version header for [`CompactGeometry::to_bytes`] ("OCG1"). Bumping
+/// the last byte is how the format version advances.
+const COMPACT_GEOMETRY_MAGIC: u32 = 0x4f_43_47_31;
+
+/// Single-buffer binary codec for the native (Tauri) IPC path.
+///
+/// The layout is a small, self-describing header followed by raw little-endian
+/// array bytes, so the frontend receives one `ArrayBuffer` and slices it straight
+/// into typed arrays — no JSON text serialize/parse (the hot desktop render
+/// path). The wasm/web path is unaffected (it uses `compact_to_js`).
+///
+/// Layout (all integers little-endian `u32`):
+/// ```text
+/// magic(=OCG1) | 10 array element-counts (field order) | tail_byte_len
+/// tail_bytes (serde_json of `CompactTail`)
+/// seg_endpoints(f64) seg_attr(i32) seg_custom_color(u8)
+/// aux_endpoints(f64) aux_attr(i32) aux_custom_color(u8)
+/// point_coords(f64) circle_data(f64) circle_attr(i32) circle_custom_color(u8)
+/// ```
+/// The header carries every length, so [`CompactGeometry::from_bytes`] recomputes
+/// the expected total and rejects any buffer whose size or magic disagrees —
+/// making a Rust/TS format mismatch a loud error, never silent corruption.
+impl CompactGeometry {
+    const HEADER_U32S: usize = 12; // magic + 10 lengths + tail_len
+
+    pub fn to_bytes(&self) -> Result<Vec<u8>, String> {
+        let tail = serde_json::to_vec(&self.tail).map_err(|error| error.to_string())?;
+        let counts = [
+            self.seg_endpoints.len(),
+            self.seg_attr.len(),
+            self.seg_custom_color.len(),
+            self.aux_endpoints.len(),
+            self.aux_attr.len(),
+            self.aux_custom_color.len(),
+            self.point_coords.len(),
+            self.circle_data.len(),
+            self.circle_attr.len(),
+            self.circle_custom_color.len(),
+        ];
+
+        let capacity = Self::HEADER_U32S * 4
+            + tail.len()
+            + (self.seg_endpoints.len()
+                + self.aux_endpoints.len()
+                + self.point_coords.len()
+                + self.circle_data.len())
+                * 8
+            + (self.seg_attr.len() + self.aux_attr.len() + self.circle_attr.len()) * 4
+            + self.seg_custom_color.len()
+            + self.aux_custom_color.len()
+            + self.circle_custom_color.len();
+        let mut out = Vec::with_capacity(capacity);
+
+        out.extend_from_slice(&COMPACT_GEOMETRY_MAGIC.to_le_bytes());
+        for count in counts {
+            out.extend_from_slice(&(count as u32).to_le_bytes());
+        }
+        out.extend_from_slice(&(tail.len() as u32).to_le_bytes());
+        out.extend_from_slice(&tail);
+
+        let write_f64 = |out: &mut Vec<u8>, data: &[f64]| {
+            for &v in data {
+                out.extend_from_slice(&v.to_le_bytes());
+            }
+        };
+        let write_i32 = |out: &mut Vec<u8>, data: &[i32]| {
+            for &v in data {
+                out.extend_from_slice(&v.to_le_bytes());
+            }
+        };
+        write_f64(&mut out, &self.seg_endpoints);
+        write_i32(&mut out, &self.seg_attr);
+        out.extend_from_slice(&self.seg_custom_color);
+        write_f64(&mut out, &self.aux_endpoints);
+        write_i32(&mut out, &self.aux_attr);
+        out.extend_from_slice(&self.aux_custom_color);
+        write_f64(&mut out, &self.point_coords);
+        write_f64(&mut out, &self.circle_data);
+        write_i32(&mut out, &self.circle_attr);
+        out.extend_from_slice(&self.circle_custom_color);
+        Ok(out)
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, String> {
+        let mut reader = ByteReader::new(bytes);
+        if reader.read_u32()? != COMPACT_GEOMETRY_MAGIC {
+            return Err("compact geometry: bad magic/version".to_string());
+        }
+        let counts: [usize; 10] = std::array::from_fn(|_| 0);
+        let mut counts = counts;
+        for count in &mut counts {
+            *count = reader.read_u32()? as usize;
+        }
+        let tail_len = reader.read_u32()? as usize;
+
+        // Validate the total length up front so a layout disagreement fails here.
+        let [
+            seg_e,
+            seg_a,
+            seg_c,
+            aux_e,
+            aux_a,
+            aux_c,
+            pt,
+            circ_d,
+            circ_a,
+            circ_c,
+        ] = counts;
+        let expected = Self::HEADER_U32S * 4
+            + tail_len
+            + (seg_e + aux_e + pt + circ_d) * 8
+            + (seg_a + aux_a + circ_a) * 4
+            + seg_c
+            + aux_c
+            + circ_c;
+        if bytes.len() != expected {
+            return Err(format!(
+                "compact geometry: length mismatch (expected {expected}, got {})",
+                bytes.len()
+            ));
+        }
+
+        let tail = serde_json::from_slice(reader.take(tail_len)?).map_err(|e| e.to_string())?;
+        Ok(Self {
+            seg_endpoints: reader.read_f64s(seg_e)?,
+            seg_attr: reader.read_i32s(seg_a)?,
+            seg_custom_color: reader.take(seg_c)?.to_vec(),
+            aux_endpoints: reader.read_f64s(aux_e)?,
+            aux_attr: reader.read_i32s(aux_a)?,
+            aux_custom_color: reader.take(aux_c)?.to_vec(),
+            point_coords: reader.read_f64s(pt)?,
+            circle_data: reader.read_f64s(circ_d)?,
+            circle_attr: reader.read_i32s(circ_a)?,
+            circle_custom_color: reader.take(circ_c)?.to_vec(),
+            tail,
+        })
+    }
+}
+
+struct ByteReader<'a> {
+    bytes: &'a [u8],
+    offset: usize,
+}
+
+impl<'a> ByteReader<'a> {
+    fn new(bytes: &'a [u8]) -> Self {
+        Self { bytes, offset: 0 }
+    }
+
+    fn take(&mut self, len: usize) -> Result<&'a [u8], String> {
+        let end = self
+            .offset
+            .checked_add(len)
+            .filter(|end| *end <= self.bytes.len())
+            .ok_or("compact geometry: unexpected end of buffer")?;
+        let slice = &self.bytes[self.offset..end];
+        self.offset = end;
+        Ok(slice)
+    }
+
+    fn read_u32(&mut self) -> Result<u32, String> {
+        let slice = self.take(4)?;
+        Ok(u32::from_le_bytes([slice[0], slice[1], slice[2], slice[3]]))
+    }
+
+    fn read_f64s(&mut self, count: usize) -> Result<Vec<f64>, String> {
+        let slice = self.take(count * 8)?;
+        Ok(slice
+            .chunks_exact(8)
+            .map(|c| f64::from_le_bytes(c.try_into().unwrap()))
+            .collect())
+    }
+
+    fn read_i32s(&mut self, count: usize) -> Result<Vec<i32>, String> {
+        let slice = self.take(count * 4)?;
+        Ok(slice
+            .chunks_exact(4)
+            .map(|c| i32::from_le_bytes(c.try_into().unwrap()))
+            .collect())
+    }
 }
 
 /// Low-count / non-numeric document remainder (serde-serialized; always small).
@@ -387,6 +574,76 @@ mod tests {
                 .unwrap_or_else(|err| panic!("battery doc {index} failed to decode: {err}"));
             assert_eq!(restored, doc, "battery doc {index} did not round-trip");
         }
+    }
+
+    #[test]
+    fn binary_codec_round_trips_the_battery_exactly() {
+        for (index, doc) in battery().into_iter().enumerate() {
+            let compact = encode(&doc);
+            let bytes = compact.to_bytes().expect("to_bytes");
+            let decoded = CompactGeometry::from_bytes(&bytes)
+                .unwrap_or_else(|err| panic!("battery doc {index} bytes failed to decode: {err}"));
+            assert_eq!(
+                decoded, compact,
+                "battery doc {index} binary codec mismatch"
+            );
+        }
+    }
+
+    #[test]
+    fn binary_codec_rejects_corrupt_buffers() {
+        let compact = encode(&battery()[1]);
+        let bytes = compact.to_bytes().expect("to_bytes");
+
+        // Wrong magic.
+        let mut bad_magic = bytes.clone();
+        bad_magic[0] ^= 0xff;
+        assert!(CompactGeometry::from_bytes(&bad_magic).is_err());
+
+        // Truncated (length no longer matches the header).
+        assert!(CompactGeometry::from_bytes(&bytes[..bytes.len() - 1]).is_err());
+
+        // Too short to even hold the header.
+        assert!(CompactGeometry::from_bytes(&[0u8; 4]).is_err());
+    }
+
+    /// Pins the on-the-wire layout the TS decoder relies on: magic, then the ten
+    /// element counts in field order, then the tail length, then the data.
+    #[test]
+    fn binary_codec_header_matches_the_spec() {
+        let compact = CompactGeometry {
+            seg_endpoints: vec![1.0, 2.0, 3.0, 4.0],
+            seg_attr: vec![5, 6, 7, 8],
+            seg_custom_color: vec![9, 10, 11],
+            aux_endpoints: vec![],
+            aux_attr: vec![],
+            aux_custom_color: vec![],
+            point_coords: vec![12.0, 13.0],
+            circle_data: vec![],
+            circle_attr: vec![],
+            circle_custom_color: vec![],
+            tail: CompactTail {
+                title: None,
+                texts: vec![],
+                grid: GridMetadata::default(),
+                operation_frame: OperationFrame::default(),
+                metadata: BTreeMap::new(),
+            },
+        };
+        let bytes = compact.to_bytes().expect("to_bytes");
+
+        assert_eq!(&bytes[0..4], &COMPACT_GEOMETRY_MAGIC.to_le_bytes());
+        let counts_at =
+            |i: usize| u32::from_le_bytes(bytes[4 + i * 4..8 + i * 4].try_into().unwrap()) as usize;
+        assert_eq!(counts_at(0), 4, "seg_endpoints count");
+        assert_eq!(counts_at(1), 4, "seg_attr count");
+        assert_eq!(counts_at(2), 3, "seg_custom_color count");
+        assert_eq!(counts_at(6), 2, "point_coords count");
+        // Round-trips regardless.
+        assert_eq!(
+            CompactGeometry::from_bytes(&bytes).expect("decode"),
+            compact
+        );
     }
 
     #[test]

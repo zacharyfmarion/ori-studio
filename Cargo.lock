@@ -2668,6 +2668,7 @@ dependencies = [
 name = "ori-studio"
 version = "0.1.2"
 dependencies = [
+ "oristudio-cp",
  "serde",
  "serde_json",
  "tauri",
@@ -2704,6 +2705,7 @@ name = "oristudio-cp"
 version = "0.1.2"
 dependencies = [
  "encoding_rs",
+ "rayon",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
