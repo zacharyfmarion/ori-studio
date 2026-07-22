@@ -1646,17 +1646,11 @@ impl PairGuide {
             self.init_guide[i] = self.guide[i];
         }
 
-        let result = self.longest_source_path();
-        // The memoized longest-path must return exactly what the original
-        // Oriedita DFS did. Cross-check on every call in debug/test builds; the
-        // reference is compiled out entirely in release.
-        #[cfg(debug_assertions)]
-        assert_eq!(
-            result,
-            self.longest_source_path_reference(),
-            "PairGuide memoized longest-path diverged from the reference DFS"
-        );
-        result
+        // The memoized longest-path returns exactly what the original Oriedita
+        // DFS (`longest_source_path_reference`) does; that equivalence is covered
+        // by the unit tests plus the folding oracle tests, rather than a runtime
+        // cross-check (which would run the slow reference on every fold).
+        self.longest_source_path()
     }
 
     /// Longest source→sink path in the guide DAG, computed in O(V+E).
@@ -1749,7 +1743,7 @@ impl PairGuide {
     /// The original Oriedita `PairGuide.lock`/`DFS`, kept as the correctness
     /// oracle for [`Self::longest_source_path`]. Uses local scratch so it has no
     /// persistent side effects. Debug-only (drives the `debug_assert` in `lock`).
-    #[cfg(debug_assertions)]
+    #[cfg(test)]
     fn longest_source_path_reference(&self) -> Option<Vec<usize>> {
         let n = self.num_digits;
         let mut path = vec![0usize; n + 1];
@@ -1769,7 +1763,7 @@ impl PairGuide {
         result
     }
 
-    #[cfg(debug_assertions)]
+    #[cfg(test)]
     fn dfs_reference(
         &self,
         id: usize,
@@ -1819,6 +1813,43 @@ impl PairGuide {
         } else {
             self.is_source[upper_face_index] = true;
             self.is_source[face_index] = false;
+        }
+    }
+}
+
+#[cfg(test)]
+mod pair_guide_tests {
+    use super::PairGuide;
+
+    fn guide(num_digits: usize, edges: &[(usize, usize)]) -> PairGuide {
+        let mut g = PairGuide::new(num_digits);
+        for &(upper, lower) in edges {
+            g.add(upper, lower);
+        }
+        g
+    }
+
+    /// The memoized O(V+E) longest-path must return exactly what the original
+    /// Oriedita DFS (`longest_source_path_reference`) does — including on graphs
+    /// with re-converging paths (where the reference re-explores nodes) and
+    /// multiple sources. This replaces the former per-fold runtime cross-check.
+    #[test]
+    fn memoized_longest_path_matches_reference_dfs() {
+        let cases: &[(usize, &[(usize, usize)])] = &[
+            (1, &[]),
+            (3, &[(1, 2), (2, 3)]),                         // simple chain
+            (4, &[(1, 2), (1, 3), (2, 4), (3, 4)]),         // diamond (re-convergence)
+            (5, &[(1, 2), (2, 3), (3, 4), (4, 5), (1, 5)]), // long path + shortcut
+            (6, &[(1, 2), (1, 3), (2, 4), (3, 4), (4, 5), (4, 6), (5, 6)]),
+            (5, &[(1, 3), (2, 3), (3, 4), (3, 5)]), // multiple sources
+        ];
+        for (num_digits, edges) in cases {
+            let g = guide(*num_digits, edges);
+            assert_eq!(
+                g.longest_source_path(),
+                g.longest_source_path_reference(),
+                "memoized vs reference mismatch: {num_digits} digits, edges {edges:?}"
+            );
         }
     }
 }

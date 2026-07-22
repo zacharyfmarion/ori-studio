@@ -79,3 +79,9 @@ opt-level = 2
 
 [profile.dev.package.oristudio-cp-detect]
 opt-level = 2
+
+# Fold estimation (condition generation, folding, geometry) is compute-heavy and
+# runs natively in the Tauri desktop build. Unoptimized it is ~20x slower
+# (iguana fold ~34s vs ~1.5s), so optimize it even in dev/`tauri dev`.
+[profile.dev.package.oristudio-cp]
+opt-level = 3
