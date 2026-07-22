@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   cpContradictionFaceFills,
+  placeFoldedFigureBesideCp,
   cpFoldedToScene,
   foldedFigureBox,
   foldedFigureLocalGeometry,
@@ -345,3 +346,79 @@ describe('cpContradictionFaceFills', () => {
     expect(geo.count).toBe(6);
   });
 });
+
+describe('placeFoldedFigureBesideCp', () => {
+  const paperRight = 200;
+
+  it('parks the figure clear of the crease pattern', () => {
+    const figure = polygonFigureNamed('a');
+    const placed = { ...figure, placement: placeFoldedFigureBesideCp(figure, [], paperRight) };
+    expect(foldedFigureUserBounds([placed])[0].bounds.minX).toBeGreaterThanOrEqual(paperRight);
+  });
+
+  it('keeps the kernel vertical placement, only moving it sideways', () => {
+    const figure = polygonFigureNamed('a');
+    const placement = placeFoldedFigureBesideCp(figure, [], paperRight);
+    expect(placement.offset.y).toBe(0);
+    expect(placement.scale).toBe(1);
+    expect(placement.rotation).toBe(0);
+  });
+
+  it('lines a second figure up beside the first instead of stacking', () => {
+    const first = polygonFigureNamed('a');
+    const firstPlaced = {
+      ...first,
+      placement: placeFoldedFigureBesideCp(first, [], paperRight),
+    };
+    const second = polygonFigureNamed('b');
+    const secondPlaced = {
+      ...second,
+      placement: placeFoldedFigureBesideCp(second, [firstPlaced], paperRight),
+    };
+    const a = foldedFigureUserBounds([firstPlaced])[0].bounds;
+    const b = foldedFigureUserBounds([secondPlaced])[0].bounds;
+    expect(b.minX).toBeGreaterThan(a.maxX);
+  });
+
+  it('clears a rotated neighbour by its turned extent', () => {
+    const turned = {
+      ...polygonFigureNamed('a'),
+      placement: { offset: { x: 300, y: 0 }, scale: 1, rotation: Math.PI / 4 },
+    };
+    const next = polygonFigureNamed('b');
+    const placed = {
+      ...next,
+      placement: placeFoldedFigureBesideCp(next, [turned], paperRight),
+    };
+    const turnedBounds = foldedFigureUserBounds([turned])[0].bounds;
+    expect(foldedFigureUserBounds([placed])[0].bounds.minX).toBeGreaterThan(turnedBounds.maxX);
+  });
+
+  it('is identity for a figure that draws nothing', () => {
+    expect(placeFoldedFigureBesideCp(figure([]), [], paperRight)).toEqual(
+      IDENTITY_FOLDED_PLACEMENT
+    );
+  });
+});
+
+function polygonFigureNamed(id: string): OristudioCpFoldedFigureEntry {
+  return {
+    ...figure([
+      {
+        sequence: 0,
+        kind: 'fill_polygon',
+        style: { paint: solid(255, 0, 0, 255), stroke: { kind: 'none' }, antialias: 'default' },
+        geometry: {
+          kind: 'polygon',
+          points: [
+            { x: 0, y: 0 },
+            { x: 10, y: 0 },
+            { x: 10, y: 10 },
+            { x: 0, y: 10 },
+          ],
+        },
+      },
+    ]),
+    id,
+  };
+}

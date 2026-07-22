@@ -1,5 +1,6 @@
 import earcut from 'earcut';
 import { modelPointToCpSvg, ORIEDITA_PAPER_BOUNDS } from '../../lib/creasePatternViewport';
+import { IDENTITY_FOLDED_PLACEMENT } from '../../engine/oristudioCpTypes';
 import type { Point } from '../../lib/geometry';
 import type {
   FoldedFigurePlacement,
@@ -466,6 +467,52 @@ export function foldedFigureBox(figure: OristudioCpFoldedFigureEntry): {
     width: (maxX - minX) * figure.placement.scale,
     height: (maxY - minY) * figure.placement.scale,
     rotation: figure.placement.rotation,
+  };
+}
+
+/** Gap (SVG user units) between the crease pattern and a figure parked beside it. */
+const FOLDED_FIGURE_GAP = 48;
+
+/**
+ * Where to park a newly folded figure: just right of the crease pattern it came
+ * from, clear of any figures already parked there.
+ *
+ * The kernel folds a figure into roughly the same coordinates as the flat CP
+ * (Oriedita anchors it to the flat bounds), so left alone it lands *on top* of
+ * the pattern it was folded from and hides it. Vertically it keeps the kernel's
+ * own placement, so it reads as a sibling of the pattern rather than drifting.
+ *
+ * `existing` should be the figures already on the canvas; the new figure goes to
+ * the right of whichever reaches furthest, so repeated folds line up in a row
+ * instead of stacking.
+ */
+export function placeFoldedFigureBesideCp(
+  figure: OristudioCpFoldedFigureEntry,
+  existing: readonly OristudioCpFoldedFigureEntry[],
+  paperRight: number
+): FoldedFigurePlacement {
+  const snapshot = figure.renderSnapshot;
+  if (!snapshot?.primitives.length) return IDENTITY_FOLDED_PLACEMENT;
+  const local = foldedFigureLocalGeometry(snapshot);
+  if (!local.bounds) return IDENTITY_FOLDED_PLACEMENT;
+
+  let clearOf = paperRight;
+  for (const other of existing) {
+    if (other.id === figure.id) continue;
+    const box = foldedFigureBox(other);
+    if (!box) continue;
+    // The rotated extent, so a turned neighbour still gets cleared.
+    const halfWidth =
+      (Math.abs(box.width * Math.cos(box.rotation)) +
+        Math.abs(box.height * Math.sin(box.rotation))) /
+      2;
+    clearOf = Math.max(clearOf, box.center.x + halfWidth);
+  }
+
+  return {
+    offset: { x: clearOf + FOLDED_FIGURE_GAP - local.bounds.minX, y: 0 },
+    scale: 1,
+    rotation: 0,
   };
 }
 

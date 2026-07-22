@@ -1,6 +1,7 @@
 import { projectFromSnapshot } from '../../../engine/snapshotMapper';
 import type { FoldArtifacts, FoldDocument, OptimizationReport } from '../../../engine/types';
 import {
+  CP_PAPER_RECT,
   DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
   emptyOristudioCpSelection,
   toggleCpSelectionList,
@@ -20,6 +21,7 @@ import {
   stableTextDigest,
 } from '../../../lib/oristudioCpLineage';
 import { foldedFigureModelFromOrieditaMetadata } from '../../../lib/orieditaNativeMetadata';
+import { placeFoldedFigureBesideCp } from '../../../cp-workspace/adapters/cpFoldedToScene';
 import i18n from '../../../i18n';
 import { requestConfirmation, requestConfirmationWithOption } from '../../commandDialogStore';
 import { useLayoutStore } from '../../layoutStore';
@@ -140,7 +142,9 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     const figures = get().oristudioCpFoldedFigures;
     return (
       figures.find((figure) => figure.id === activeId) ??
-      figures.find((figure) => figure.sourceKind === 'generated-from-current-cp') ??
+      // Nothing selected: act on the most recent generated figure, which is the
+      // one a just-completed fold produced.
+      [...figures].reverse().find((figure) => figure.sourceKind === 'generated-from-current-cp') ??
       null
     );
   }
@@ -844,11 +848,13 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           selectedLineIds
         );
         const displayStyle = result.snapshot.display_style;
+        // Rendered unselected: a fresh fold is not the canvas selection, so it
+        // must not carry the kernel's selection marker either.
         const renderSnapshot = await renderSnapshotForFoldedFigure(
           result.handle,
           displayStyle,
           figureIndex,
-          true
+          false
         );
         // A global layer-ordering contradiction is NOT an error: the estimate
         // still produced a (transparent) figure. Oriedita shows no dialog for
@@ -857,22 +863,36 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         // free, and keep the fold out of the error toast path.
         const contradiction = result.snapshot.contradiction ?? null;
         retainFoldedFigureHandle(result.handle);
+        const existing = get().oristudioCpFoldedFigures;
+        const folded: OristudioCpFoldedFigureEntry = {
+          ...(existing.find((figure) => figure.id === figureId) ?? loadingEntry),
+          handle: result.handle,
+          status: 'ready',
+          displayStyle,
+          snapshot: result.snapshot,
+          renderSnapshot,
+          error: null,
+          contradiction,
+        };
         set({
-          oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((figure) =>
+          oristudioCpFoldedFigures: existing.map((figure) =>
             figure.id === figureId
               ? {
-                  ...figure,
-                  handle: result.handle,
-                  status: 'ready',
-                  displayStyle,
-                  snapshot: result.snapshot,
-                  renderSnapshot,
-                  error: null,
-                  contradiction,
+                  ...folded,
+                  // Park it beside the crease pattern: the kernel folds into
+                  // roughly the flat CP's own coordinates, so left alone the
+                  // figure covers the pattern it came from.
+                  placement: placeFoldedFigureBesideCp(folded, existing, CP_PAPER_RECT.x + CP_PAPER_RECT.width),
                 }
               : figure
           ),
-          oristudioCpActiveFoldedFigureId: figureId,
+          // A fresh fold is not selected. Selecting it would put delete-key focus
+          // on the new figure the moment it appears, and the folded-figure menu
+          // targets the most recent figure anyway (activeGeneratedFoldedFigure).
+          oristudioCpActiveFoldedFigureId: null,
+          // The creases that were folded stay selected otherwise, so a delete
+          // right after folding would take them with it.
+          oristudioCpSelection: emptyOristudioCpSelection(),
           oristudioCpError: null,
           dirty: true,
           projectMessage: 'Folded model',

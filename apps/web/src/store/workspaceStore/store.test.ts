@@ -43,6 +43,8 @@ import {
 import { importedCpLineage } from '../../lib/oristudioCpLineage';
 import { createStarterOristudioCpDocument } from '../../lib/oristudioCpStarterDocument';
 import { createCpImage } from '../../cp-workspace/images/cpImage';
+import { CP_PAPER_RECT } from '../../lib/creasePatternViewport';
+import { foldedFigureUserBounds } from '../../cp-workspace/adapters/cpFoldedToScene';
 import {
   resetFoldedFigureHandles,
   retainFoldedFigureHandle,
@@ -2311,12 +2313,14 @@ describe('workspace store slices', () => {
       undefined,
       [1]
     );
+    // A fresh fold is neither selected on the canvas nor marked selected by the
+    // kernel renderer, so it doesn't steal delete-key focus the moment it lands.
     expect(oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot).toHaveBeenCalledWith(
       7,
       'Paper5',
       {
         display_mark: false,
-        selected: true,
+        selected: false,
         index: 1,
       }
     );
@@ -2327,10 +2331,20 @@ describe('workspace store slices', () => {
       startingFaceId: 1,
       displayStyle: 'Paper5',
       status: 'ready',
-      placement: IDENTITY_FOLDED_PLACEMENT,
       renderSnapshot: foldedRenderSnapshot(),
     });
-    expect(useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId).toBe(foldedFigure.id);
+    // Parked clear of the crease pattern rather than on top of it: the kernel
+    // folds into roughly the flat CP's own coordinates, so an unplaced figure
+    // covers the pattern it came from.
+    const placedBounds = foldedFigureUserBounds([foldedFigure])[0].bounds;
+    expect(placedBounds.minX).toBeGreaterThanOrEqual(CP_PAPER_RECT.x + CP_PAPER_RECT.width);
+    expect(foldedFigure.placement.scale).toBe(1);
+    expect(foldedFigure.placement.rotation).toBe(0);
+    // Not selected on arrival, so the delete key doesn't retarget to it.
+    expect(useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId).toBeNull();
+    // ...and the creases it was folded from are deselected, so a delete right
+    // after folding doesn't take them with it.
+    expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual([]);
 
     await expect(
       useWorkspaceStore.getState().insertOristudioCpLineSegments([

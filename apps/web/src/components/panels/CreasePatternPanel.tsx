@@ -1466,9 +1466,14 @@ export function CreasePatternPanel() {
   const activeFoldedFigure = useMemo(
     () =>
       oristudioCpFoldedFigures.find((figure) => figure.id === oristudioCpActiveFoldedFigureId) ??
-      oristudioCpFoldedFigures.find(
-        (figure) => figure.sourceKind === 'generated-from-current-cp' && figure.snapshot?.wireframe
-      ) ??
+      // Nothing selected: the toolbar acts on the most recent generated figure,
+      // which is the one a just-completed fold produced.
+      [...oristudioCpFoldedFigures]
+        .reverse()
+        .find(
+          (figure) =>
+            figure.sourceKind === 'generated-from-current-cp' && figure.snapshot?.wireframe
+        ) ??
       null,
     [oristudioCpActiveFoldedFigureId, oristudioCpFoldedFigures]
   );
