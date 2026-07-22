@@ -5495,26 +5495,42 @@
   stroke-width: 2;
 }
 
+/* Box Pleating Studio's junction layer: one solid colour for both fill and stroke,
+   translucent as a whole, with the stroke width set per path by the renderer and kept
+   in screen pixels. BP uses pure red; we keep the app's danger hue. */
+.bp-packing-conflicts {
+  pointer-events: none;
+}
+
+.bp-packing-conflict-group {
+  opacity: 0.6;
+}
+
 .bp-packing-conflict {
-  fill: color-mix(in srgb, var(--status-danger) 20%, transparent);
+  fill: var(--status-danger);
   stroke: var(--status-danger);
-  stroke-linejoin: round;
-  stroke-width: 2;
+  stroke-linejoin: bevel;
+  vector-effect: non-scaling-stroke;
+}
+
+.bp-packing-conflict-group.bp-packing-conflict--selected {
+  opacity: 0.9;
+}
+
+.bp-packing-conflict-hit {
+  fill: transparent;
+  pointer-events: all;
   cursor: pointer;
 }
 
-.bp-packing-conflict--selected .bp-packing-conflict {
-  fill: color-mix(in srgb, var(--status-danger) 32%, transparent);
-  stroke-width: 3;
-}
-
-.bp-packing-conflicts [role='button']:focus-visible {
+.bp-packing-conflict-hits [role='button']:focus-visible {
   outline: none;
 }
 
-.bp-packing-conflicts [role='button']:focus-visible .bp-packing-conflict {
+.bp-packing-conflict-hits [role='button']:focus-visible .bp-packing-conflict-hit {
   stroke: var(--accent-hover);
-  stroke-width: 3;
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
 }
 
 .bp-packing-flap-clearance {

@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -55,6 +56,8 @@ import {
   toggleBpRiverSelection,
 } from '../../lib/oristudioBpSelection';
 import {
+  bpArcPathNarrowness,
+  bpArcPathToSvgPath,
   bpPackingGridLines,
   bpPackingPaperRect,
   bpPackingPointToSvg,
@@ -853,6 +856,19 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     () => bpPackingAlertDiagnostics(document.snapshot.diagnostics),
     [document.snapshot.diagnostics]
   );
+  const conflictVisuals = useMemo(
+    () =>
+      packing.invalidJunctions.map((junction) => ({
+        junction,
+        active: linkedSelection.invalidJunctions.has(junction.id),
+        paths: junction.paths.map((path) => ({
+          d: bpArcPathToSvgPath(path, packing.sheet, paperRect),
+          strokeWidth: conflictStrokeWidth(bpArcPathNarrowness(path), unit),
+        })),
+      })),
+    [linkedSelection.invalidJunctions, packing.invalidJunctions, packing.sheet, paperRect, unit]
+  );
+  const sheetClipId = useId();
 
   const eventToPackingPoint = useCallback(
     (event: PointerEvent): Point => {
@@ -1620,6 +1636,20 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
             onPointerCancel={finishMarquee}
             onClick={onSelectionCycleClick}
           >
+            <defs>
+              <clipPath id={sheetClipId}>
+                {isDiagonalSheet ? (
+                  <polygon points={sheetPolygonPoints} />
+                ) : (
+                  <rect
+                    x={paperRect.x}
+                    y={paperRect.y}
+                    width={paperRect.width}
+                    height={paperRect.height}
+                  />
+                )}
+              </clipPath>
+            </defs>
             {isDiagonalSheet ? (
               <polygon className="paper-shadow" points={sheetShadowPolygonPoints} />
             ) : (
@@ -1735,33 +1765,32 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
               </g>
             )}
             {layers.conflicts && (
-              <g className="bp-packing-conflicts">
-                {packing.invalidJunctions.map((junction) => {
-                  const active = linkedSelection.invalidJunctions.has(junction.id);
-                  return (
-                    <g
-                      key={junction.id}
-                      className={active ? 'bp-packing-conflict--selected' : undefined}
-                      role="button"
-                      tabIndex={0}
-                      data-bp-select={`conflict:${junction.id}`}
-                      aria-label={t('panels:bpPacking.selectConflict', 'Select BP conflict {{id}}: {{message}}', {
-                        id: junction.id,
-                        message: junction.message,
-                      })}
-                      onPointerDown={(event) => onConflictPointerDown(event, junction.id)}
-                      onKeyDown={(event) => onConflictKeyDown(event, junction.id)}
-                    >
-                      {junction.polygons.map((polygon, index) => (
-                        <polygon
-                          key={`${junction.id}:${index}`}
-                          className="bp-packing-conflict"
-                          points={pointsAttr(polygon.map((point) => bpPackingPointToSvg(point, packing.sheet, paperRect)))}
-                        />
-                      ))}
-                    </g>
-                  );
-                })}
+              // Hit targets only — the conflict graphics render above the flaps (see
+              // below), but the click targets stay under the flap hits so a flap
+              // stays selectable where a conflict region overlaps it.
+              <g className="bp-packing-conflict-hits">
+                {conflictVisuals.map((visual) => (
+                  <g
+                    key={visual.junction.id}
+                    role="button"
+                    tabIndex={0}
+                    data-bp-select={`conflict:${visual.junction.id}`}
+                    aria-label={t('panels:bpPacking.selectConflict', 'Select BP conflict {{id}}: {{message}}', {
+                      id: visual.junction.id,
+                      message: visual.junction.message,
+                    })}
+                    onPointerDown={(event) => onConflictPointerDown(event, visual.junction.id)}
+                    onKeyDown={(event) => onConflictKeyDown(event, visual.junction.id)}
+                  >
+                    {visual.paths.map((path, index) => (
+                      <path
+                        key={`${visual.junction.id}:${index}`}
+                        className="bp-packing-conflict-hit"
+                        d={path.d}
+                      />
+                    ))}
+                  </g>
+                ))}
               </g>
             )}
             {layers.flaps && (
@@ -1883,6 +1912,35 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                   onKeyDown={onPrimitiveKeyDown}
                 />
               ) : null
+            )}
+            {layers.conflicts && (
+              // Box Pleating Studio's `Layer.junction`: above the flaps, rivers and
+              // ridges, clipped to the sheet, and non-interactive.
+              <g
+                className="bp-packing-conflicts"
+                clipPath={`url(#${sheetClipId})`}
+                aria-hidden="true"
+              >
+                {conflictVisuals.map((visual) => (
+                  <g
+                    key={visual.junction.id}
+                    className={
+                      visual.active
+                        ? 'bp-packing-conflict-group bp-packing-conflict--selected'
+                        : 'bp-packing-conflict-group'
+                    }
+                  >
+                    {visual.paths.map((path, index) => (
+                      <path
+                        key={`${visual.junction.id}:${index}`}
+                        className="bp-packing-conflict"
+                        d={path.d}
+                        strokeWidth={path.strokeWidth}
+                      />
+                    ))}
+                  </g>
+                ))}
+              </g>
             )}
             {layers.devices && (
               <g className="bp-packing-device-ranges" aria-hidden="true">
@@ -2204,6 +2262,18 @@ function primitiveSelectToken(
   const riverId = riverIdFromPrimitiveId(primitive.id, document);
   if (riverId !== null) return `river:${riverId}`;
   return undefined;
+}
+
+/**
+ * Box Pleating Studio strokes an invalid-junction outline only when it is too narrow
+ * to read as a filled shape (`Junction.$draw`): width `2 / narrowness` screen pixels,
+ * never wider than one grid cell. Everything else is fill-only.
+ */
+const CONFLICT_NARROWNESS_THRESHOLD = 0.4;
+
+function conflictStrokeWidth(narrowness: number | null, unit: number): number {
+  if (narrowness === null || narrowness >= CONFLICT_NARROWNESS_THRESHOLD) return 0;
+  return Math.min(2 / narrowness, unit);
 }
 
 /** Parse a `data-bp-select` token (`kind:id`) into a selection. */
