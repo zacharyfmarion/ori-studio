@@ -723,6 +723,7 @@ function FoldedFigureMenuButton({
   onSelectFigure,
   onDisplayStyle,
   onModelUpdate,
+  onModelGestureEnd,
   onFoldToCase,
   onDuplicate,
   onDelete,
@@ -735,7 +736,14 @@ function FoldedFigureMenuButton({
   onCaseDraftChange: (draft: string) => void;
   onSelectFigure: (id: string) => void;
   onDisplayStyle: (displayStyle: OristudioCpFoldedFigureDisplayStyle) => void;
-  onModelUpdate: (update: Partial<OristudioCpFoldedFigureModel>) => void;
+  /**
+   * Apply a model change. `scope` groups the stream of changes a single drag
+   * emits (colour picker, alpha slider) into one undo entry; omit it for
+   * discrete controls, which record immediately.
+   */
+  onModelUpdate: (update: Partial<OristudioCpFoldedFigureModel>, scope?: string) => void;
+  /** End a scoped run of {@link onModelUpdate} changes and record one entry. */
+  onModelGestureEnd: (scope: string, label: string) => void;
   onFoldToCase: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
@@ -865,7 +873,16 @@ function FoldedFigureMenuButton({
                   value={rgbColorToHex(model?.[field.key] ?? field.fallback)}
                   disabled={!activeReady}
                   onChange={(event) =>
-                    onModelUpdate({ [field.key]: hexToRgbColor(event.currentTarget.value) })
+                    onModelUpdate(
+                      { [field.key]: hexToRgbColor(event.currentTarget.value) },
+                      `color:${field.key}`
+                    )
+                  }
+                  onBlur={() =>
+                    onModelGestureEnd(
+                      `color:${field.key}`,
+                      t('panels:creasePattern.changeFoldedColor', 'Change folded model color')
+                    )
                   }
                 />
               </label>
@@ -927,12 +944,27 @@ function FoldedFigureMenuButton({
               value={model?.transparent_transparency ?? 16}
               disabled={!activeReady}
               onChange={(event) =>
-                onModelUpdate({
-                  transparent_transparency: Math.max(
-                    0,
-                    Math.min(255, Math.round(Number(event.currentTarget.value)))
-                  ),
-                })
+                onModelUpdate(
+                  {
+                    transparent_transparency: Math.max(
+                      0,
+                      Math.min(255, Math.round(Number(event.currentTarget.value)))
+                    ),
+                  },
+                  'alpha'
+                )
+              }
+              onPointerUp={() =>
+                onModelGestureEnd(
+                  'alpha',
+                  t('panels:creasePattern.changeFoldedAlpha', 'Change folded transparency')
+                )
+              }
+              onBlur={() =>
+                onModelGestureEnd(
+                  'alpha',
+                  t('panels:creasePattern.changeFoldedAlpha', 'Change folded transparency')
+                )
               }
             />
           </label>
@@ -1473,6 +1505,19 @@ export function CreasePatternPanel() {
     },
     [recordFoldedFigureHistory]
   );
+  /**
+   * Run a discrete folded-figure action as one undo step: snapshot, act, record.
+   * Every entry point that mutates a folded figure goes through this, so none of
+   * them can quietly skip the undo stack the way they all used to.
+   */
+  const runFoldedFigureAction = useCallback(
+    (label: string, action: () => void | Promise<unknown>) => {
+      beginFoldedFigureGesture();
+      void Promise.resolve(action()).finally(() => commitFoldedFigureGesture(label));
+    },
+    [beginFoldedFigureGesture, commitFoldedFigureGesture]
+  );
+
   const foldedGestureLabel = useCallback(
     (kind: 'move' | 'resize' | 'rotate' | 'crop') => {
       switch (kind) {
@@ -1608,15 +1653,28 @@ export function CreasePatternPanel() {
 
   const handleFoldModel = useCallback(() => {
     if (!canFoldSelectedModel) return;
-    void foldOristudioCpDocument({
-      startingFaceId: foldStartingFaceId,
-      lineIds: selectedEditableFoldLineIds,
-    });
-  }, [canFoldSelectedModel, foldOristudioCpDocument, foldStartingFaceId, selectedEditableFoldLineIds]);
+    runFoldedFigureAction(t('panels:creasePattern.foldModelAction', 'Fold model'), () =>
+      foldOristudioCpDocument({
+        startingFaceId: foldStartingFaceId,
+        lineIds: selectedEditableFoldLineIds,
+      })
+    );
+  }, [
+    canFoldSelectedModel,
+    foldOristudioCpDocument,
+    foldStartingFaceId,
+    selectedEditableFoldLineIds,
+    runFoldedFigureAction,
+    t,
+  ]);
   const handleFoldAnother = useCallback(() => {
     if (!activeFoldedFigure) return;
-    void foldAnotherOristudioCpFigure(activeFoldedFigure.id);
-  }, [activeFoldedFigure, foldAnotherOristudioCpFigure]);
+    const id = activeFoldedFigure.id;
+    runFoldedFigureAction(
+      t('panels:creasePattern.anotherSolutionAction', 'Show another solution'),
+      () => foldAnotherOristudioCpFigure(id)
+    );
+  }, [activeFoldedFigure, foldAnotherOristudioCpFigure, runFoldedFigureAction, t]);
   const handleFoldToCase = useCallback(() => {
     if (!activeFoldedFigure || activeFoldedFigure.status !== 'ready') return;
     const objective = Math.max(1, Math.round(Number(foldCaseDraft)));
@@ -1625,30 +1683,80 @@ export function CreasePatternPanel() {
       return;
     }
     setFoldCaseDraft(String(objective));
-    void foldOristudioCpFigureToCase(activeFoldedFigure.id, objective);
-  }, [activeFoldedFigure, foldCaseDraft, foldOristudioCpFigureToCase]);
+    const id = activeFoldedFigure.id;
+    runFoldedFigureAction(t('panels:creasePattern.changeFoldCase', 'Change fold case'), () =>
+      foldOristudioCpFigureToCase(id, objective)
+    );
+  }, [activeFoldedFigure, foldCaseDraft, foldOristudioCpFigureToCase, runFoldedFigureAction, t]);
   const handleFoldedDisplayStyle = useCallback(
     (displayStyle: OristudioCpFoldedFigureDisplayStyle) => {
       if (!activeFoldedFigure) return;
-      void setOristudioCpFoldedFigureDisplayStyle(activeFoldedFigure.id, displayStyle);
+      const id = activeFoldedFigure.id;
+      runFoldedFigureAction(
+        t('panels:creasePattern.changeFoldedDisplayStyle', 'Change folded display style'),
+        () => setOristudioCpFoldedFigureDisplayStyle(id, displayStyle)
+      );
     },
-    [activeFoldedFigure, setOristudioCpFoldedFigureDisplayStyle]
+    [activeFoldedFigure, setOristudioCpFoldedFigureDisplayStyle, runFoldedFigureAction, t]
   );
+  /**
+   * Model changes from the folded-figure menu. The colour pickers and the alpha
+   * slider fire a change per pointer move, so a single drag would otherwise push
+   * dozens of undo entries. `scope` marks the run of changes belonging to one
+   * gesture: the first change snapshots, and the matching
+   * {@link endFoldedModelGesture} (pointer-up / blur) records exactly one entry.
+   * Discrete controls pass no scope and record immediately.
+   */
+  const foldedModelGestureScopeRef = useRef<string | null>(null);
   const handleFoldedModelUpdate = useCallback(
-    (update: Partial<OristudioCpFoldedFigureModel>) => {
+    (update: Partial<OristudioCpFoldedFigureModel>, scope?: string) => {
       if (!activeFoldedFigure) return;
-      void updateOristudioCpFoldedFigureModel(activeFoldedFigure.id, update);
+      const id = activeFoldedFigure.id;
+      if (!scope) {
+        runFoldedFigureAction(
+          t('panels:creasePattern.changeFoldedModel', 'Change folded model'),
+          () => updateOristudioCpFoldedFigureModel(id, update)
+        );
+        return;
+      }
+      if (foldedModelGestureScopeRef.current !== scope) {
+        foldedModelGestureScopeRef.current = scope;
+        beginFoldedFigureGesture();
+      }
+      void updateOristudioCpFoldedFigureModel(id, update);
     },
-    [activeFoldedFigure, updateOristudioCpFoldedFigureModel]
+    [
+      activeFoldedFigure,
+      updateOristudioCpFoldedFigureModel,
+      runFoldedFigureAction,
+      beginFoldedFigureGesture,
+      t,
+    ]
+  );
+  const endFoldedModelGesture = useCallback(
+    (scope: string, label: string) => {
+      if (foldedModelGestureScopeRef.current !== scope) return;
+      foldedModelGestureScopeRef.current = null;
+      commitFoldedFigureGesture(label);
+    },
+    [commitFoldedFigureGesture]
   );
   const handleDuplicateFoldedFigure = useCallback(() => {
     if (!activeFoldedFigure) return;
-    void duplicateOristudioCpFoldedFigure(activeFoldedFigure.id);
-  }, [activeFoldedFigure, duplicateOristudioCpFoldedFigure]);
+    const id = activeFoldedFigure.id;
+    runFoldedFigureAction(
+      t('panels:creasePattern.duplicateFoldedModelAction', 'Duplicate folded model'),
+      () => duplicateOristudioCpFoldedFigure(id)
+    );
+  }, [activeFoldedFigure, duplicateOristudioCpFoldedFigure, runFoldedFigureAction, t]);
   const handleDeleteFoldedFigure = useCallback(() => {
     if (!activeFoldedFigure) return;
-    void deleteOristudioCpFoldedFigure(activeFoldedFigure.id);
-  }, [activeFoldedFigure, deleteOristudioCpFoldedFigure]);
+    const id = activeFoldedFigure.id;
+    runFoldedFigureAction(
+      t('panels:creasePattern.deleteFoldedModelAction', 'Delete folded model'),
+      () => deleteOristudioCpFoldedFigure(id)
+    );
+  }, [activeFoldedFigure, deleteOristudioCpFoldedFigure, runFoldedFigureAction, t]);
 
   // Right-click context menu for a folded form. Items act on the clicked figure by
   // id (not the active one), so they behave correctly even before selection settles.
@@ -1668,9 +1776,11 @@ export function CreasePatternPanel() {
           // Turn the paper over: Front <-> Back. The Both/Transparent overlay
           // states live on the toolbar's "Side" control, not here.
           onSelect: () =>
-            void updateOristudioCpFoldedFigureModel(figure.id, {
-              state: flipFoldedState(currentState),
-            }),
+            runFoldedFigureAction(t('panels:creasePattern.flipFoldedModel', 'Flip folded model'), () =>
+              updateOristudioCpFoldedFigureModel(figure.id, {
+                state: flipFoldedState(currentState),
+              })
+            ),
         },
         {
           kind: 'action',
@@ -1678,7 +1788,11 @@ export function CreasePatternPanel() {
           label: t('panels:creasePattern.delete', 'Delete'),
           icon: <Trash2 size={14} />,
           danger: true,
-          onSelect: () => void deleteOristudioCpFoldedFigure(figure.id),
+          onSelect: () =>
+            runFoldedFigureAction(
+              t('panels:creasePattern.deleteFoldedModelAction', 'Delete folded model'),
+              () => deleteOristudioCpFoldedFigure(figure.id)
+            ),
         },
         {
           kind: 'action',
@@ -1686,7 +1800,11 @@ export function CreasePatternPanel() {
           label: t('panels:creasePattern.duplicate', 'Duplicate'),
           icon: <Copy size={14} />,
           disabled: figure.handle === null,
-          onSelect: () => void duplicateOristudioCpFoldedFigure(figure.id),
+          onSelect: () =>
+            runFoldedFigureAction(
+              t('panels:creasePattern.duplicateFoldedModelAction', 'Duplicate folded model'),
+              () => duplicateOristudioCpFoldedFigure(figure.id)
+            ),
         },
         {
           kind: 'action',
@@ -1694,7 +1812,11 @@ export function CreasePatternPanel() {
           label: t('panels:creasePattern.wireframe', 'Wireframe'),
           icon: <Box size={14} />,
           disabled: !ready,
-          onSelect: () => void setOristudioCpFoldedFigureDisplayStyle(figure.id, 'Wire2'),
+          onSelect: () =>
+            runFoldedFigureAction(
+              t('panels:creasePattern.changeFoldedDisplayStyle', 'Change folded display style'),
+              () => setOristudioCpFoldedFigureDisplayStyle(figure.id, 'Wire2')
+            ),
         },
         {
           kind: 'action',
@@ -1703,7 +1825,10 @@ export function CreasePatternPanel() {
           icon: <Eye size={14} />,
           disabled: !ready,
           onSelect: () =>
-            void setOristudioCpFoldedFigureDisplayStyle(figure.id, 'Transparent3'),
+            runFoldedFigureAction(
+              t('panels:creasePattern.changeFoldedDisplayStyle', 'Change folded display style'),
+              () => setOristudioCpFoldedFigureDisplayStyle(figure.id, 'Transparent3')
+            ),
         },
       ];
     },
@@ -1712,6 +1837,7 @@ export function CreasePatternPanel() {
       deleteOristudioCpFoldedFigure,
       duplicateOristudioCpFoldedFigure,
       setOristudioCpFoldedFigureDisplayStyle,
+      runFoldedFigureAction,
       t,
     ]
   );
@@ -3502,6 +3628,7 @@ export function CreasePatternPanel() {
                         onSelectFigure={setOristudioCpActiveFoldedFigure}
                         onDisplayStyle={handleFoldedDisplayStyle}
                         onModelUpdate={handleFoldedModelUpdate}
+                        onModelGestureEnd={endFoldedModelGesture}
                         onFoldToCase={handleFoldToCase}
                         onDuplicate={handleDuplicateFoldedFigure}
                         onDelete={handleDeleteFoldedFigure}

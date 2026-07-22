@@ -2656,6 +2656,86 @@ describe('workspace store slices', () => {
     expect(oristudioCpMocks.setOristudioCpFoldedFigureModel).toHaveBeenCalled();
   });
 
+  it('marks the project dirty for folded figure edits so they cannot be lost silently', async () => {
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+    });
+    const figure: OristudioCpFoldedFigureEntry = {
+      id: 'generated-1',
+      title: 'Folded model 1',
+      handle: 7,
+      sourceKind: 'generated-from-current-cp',
+      sourceCpRevision: 0,
+      startingFaceId: 1,
+      displayStyle: 'Paper5',
+      status: 'ready',
+      placement: IDENTITY_FOLDED_PLACEMENT,
+      snapshot: foldedFigureSnapshot(),
+      renderSnapshot: foldedRenderSnapshot(),
+      error: null,
+    };
+
+    for (const act of [
+      () =>
+        useWorkspaceStore
+          .getState()
+          .updateOristudioCpFoldedFigureModel(figure.id, { state: 'Back1' }),
+      () =>
+        useWorkspaceStore
+          .getState()
+          .setOristudioCpFoldedFigureDisplayStyle(figure.id, 'Wire2'),
+      () => useWorkspaceStore.getState().deleteOristudioCpFoldedFigure(figure.id),
+    ]) {
+      useWorkspaceStore.setState({ oristudioCpFoldedFigures: [figure], dirty: false });
+      await act();
+      expect(useWorkspaceStore.getState().dirty).toBe(true);
+    }
+  });
+
+  it('drops a stale folded model response so a fast slider drag lands its last value', async () => {
+    resetStores(seedSnapshot());
+    const figure: OristudioCpFoldedFigureEntry = {
+      id: 'generated-1',
+      title: 'Folded model 1',
+      handle: 7,
+      sourceKind: 'generated-from-current-cp',
+      sourceCpRevision: 0,
+      startingFaceId: 1,
+      displayStyle: 'Paper5',
+      status: 'ready',
+      placement: IDENTITY_FOLDED_PLACEMENT,
+      snapshot: foldedFigureSnapshot(),
+      renderSnapshot: foldedRenderSnapshot(),
+      error: null,
+    };
+    useWorkspaceStore.setState({ oristudioCpFoldedFigures: [figure] });
+
+    // Two overlapping requests where the FIRST resolves last — without
+    // sequencing, the stale response would win and the slider would snap back.
+    const resolvers: Array<(value: OristudioCpFoldedFigureSnapshot) => void> = [];
+    oristudioCpMocks.setOristudioCpFoldedFigureModel.mockImplementation(
+      () => new Promise((resolve) => resolvers.push(resolve))
+    );
+
+    const first = useWorkspaceStore
+      .getState()
+      .updateOristudioCpFoldedFigureModel(figure.id, { transparent_transparency: 10 });
+    const second = useWorkspaceStore
+      .getState()
+      .updateOristudioCpFoldedFigureModel(figure.id, { transparent_transparency: 200 });
+
+    resolvers[1]({ ...foldedFigureSnapshot(), model: { ...foldedFigureSnapshot().model, transparent_transparency: 200 } });
+    await second;
+    resolvers[0]({ ...foldedFigureSnapshot(), model: { ...foldedFigureSnapshot().model, transparent_transparency: 10 } });
+    await first;
+
+    expect(
+      useWorkspaceStore.getState().oristudioCpFoldedFigures[0].snapshot?.model
+        .transparent_transparency
+    ).toBe(200);
+  });
+
   it('keeps the canvas selection exclusive between annotations and folded figures', () => {
     resetStores(seedSnapshot());
     const figure: OristudioCpFoldedFigureEntry = {

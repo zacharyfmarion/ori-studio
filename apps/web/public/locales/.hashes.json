@@ -1731,7 +1731,17 @@
     "panels:creasePattern.rotateAnnotation": "cc7f294dd7a7",
     "panels:creasePattern.moveFoldedForm": "996f77e83eaf",
     "panels:creasePattern.resizeFoldedForm": "5bcce0ba8e93",
-    "panels:creasePattern.rotateFoldedForm": "bd9b2311ddd5"
+    "panels:creasePattern.rotateFoldedForm": "bd9b2311ddd5",
+    "panels:creasePattern.anotherSolutionAction": "538aa2082763",
+    "panels:creasePattern.changeFoldCase": "21ec0ac52ccf",
+    "panels:creasePattern.changeFoldedAlpha": "511a1c0aa262",
+    "panels:creasePattern.changeFoldedColor": "07b13b860c68",
+    "panels:creasePattern.changeFoldedDisplayStyle": "eb424b07e2ec",
+    "panels:creasePattern.changeFoldedModel": "a73dc0c3482b",
+    "panels:creasePattern.deleteFoldedModelAction": "da2c5eab801d",
+    "panels:creasePattern.duplicateFoldedModelAction": "88437cf57abc",
+    "panels:creasePattern.flipFoldedModel": "e6c0e41ad1ef",
+    "panels:creasePattern.foldModelAction": "7734edbfc28a"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -3465,7 +3475,17 @@
     "panels:creasePattern.rotateAnnotation": "cc7f294dd7a7",
     "panels:creasePattern.moveFoldedForm": "996f77e83eaf",
     "panels:creasePattern.resizeFoldedForm": "5bcce0ba8e93",
-    "panels:creasePattern.rotateFoldedForm": "bd9b2311ddd5"
+    "panels:creasePattern.rotateFoldedForm": "bd9b2311ddd5",
+    "panels:creasePattern.anotherSolutionAction": "538aa2082763",
+    "panels:creasePattern.changeFoldCase": "21ec0ac52ccf",
+    "panels:creasePattern.changeFoldedAlpha": "511a1c0aa262",
+    "panels:creasePattern.changeFoldedColor": "07b13b860c68",
+    "panels:creasePattern.changeFoldedDisplayStyle": "eb424b07e2ec",
+    "panels:creasePattern.changeFoldedModel": "a73dc0c3482b",
+    "panels:creasePattern.deleteFoldedModelAction": "da2c5eab801d",
+    "panels:creasePattern.duplicateFoldedModelAction": "88437cf57abc",
+    "panels:creasePattern.flipFoldedModel": "e6c0e41ad1ef",
+    "panels:creasePattern.foldModelAction": "7734edbfc28a"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -5224,7 +5244,17 @@
     "panels:creasePattern.rotateAnnotation": "cc7f294dd7a7",
     "panels:creasePattern.moveFoldedForm": "996f77e83eaf",
     "panels:creasePattern.resizeFoldedForm": "5bcce0ba8e93",
-    "panels:creasePattern.rotateFoldedForm": "bd9b2311ddd5"
+    "panels:creasePattern.rotateFoldedForm": "bd9b2311ddd5",
+    "panels:creasePattern.anotherSolutionAction": "538aa2082763",
+    "panels:creasePattern.changeFoldCase": "21ec0ac52ccf",
+    "panels:creasePattern.changeFoldedAlpha": "511a1c0aa262",
+    "panels:creasePattern.changeFoldedColor": "07b13b860c68",
+    "panels:creasePattern.changeFoldedDisplayStyle": "eb424b07e2ec",
+    "panels:creasePattern.changeFoldedModel": "a73dc0c3482b",
+    "panels:creasePattern.deleteFoldedModelAction": "da2c5eab801d",
+    "panels:creasePattern.duplicateFoldedModelAction": "88437cf57abc",
+    "panels:creasePattern.flipFoldedModel": "e6c0e41ad1ef",
+    "panels:creasePattern.foldModelAction": "7734edbfc28a"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -6983,7 +7013,17 @@
     "panels:creasePattern.rotateAnnotation": "cc7f294dd7a7",
     "panels:creasePattern.moveFoldedForm": "996f77e83eaf",
     "panels:creasePattern.resizeFoldedForm": "5bcce0ba8e93",
-    "panels:creasePattern.rotateFoldedForm": "bd9b2311ddd5"
+    "panels:creasePattern.rotateFoldedForm": "bd9b2311ddd5",
+    "panels:creasePattern.anotherSolutionAction": "538aa2082763",
+    "panels:creasePattern.changeFoldCase": "21ec0ac52ccf",
+    "panels:creasePattern.changeFoldedAlpha": "511a1c0aa262",
+    "panels:creasePattern.changeFoldedColor": "07b13b860c68",
+    "panels:creasePattern.changeFoldedDisplayStyle": "eb424b07e2ec",
+    "panels:creasePattern.changeFoldedModel": "a73dc0c3482b",
+    "panels:creasePattern.deleteFoldedModelAction": "da2c5eab801d",
+    "panels:creasePattern.duplicateFoldedModelAction": "88437cf57abc",
+    "panels:creasePattern.flipFoldedModel": "e6c0e41ad1ef",
+    "panels:creasePattern.foldModelAction": "7734edbfc28a"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8742,7 +8782,17 @@
     "panels:creasePattern.rotateAnnotation": "cc7f294dd7a7",
     "panels:creasePattern.moveFoldedForm": "996f77e83eaf",
     "panels:creasePattern.resizeFoldedForm": "5bcce0ba8e93",
-    "panels:creasePattern.rotateFoldedForm": "bd9b2311ddd5"
+    "panels:creasePattern.rotateFoldedForm": "bd9b2311ddd5",
+    "panels:creasePattern.anotherSolutionAction": "538aa2082763",
+    "panels:creasePattern.changeFoldCase": "21ec0ac52ccf",
+    "panels:creasePattern.changeFoldedAlpha": "511a1c0aa262",
+    "panels:creasePattern.changeFoldedColor": "07b13b860c68",
+    "panels:creasePattern.changeFoldedDisplayStyle": "eb424b07e2ec",
+    "panels:creasePattern.changeFoldedModel": "a73dc0c3482b",
+    "panels:creasePattern.deleteFoldedModelAction": "da2c5eab801d",
+    "panels:creasePattern.duplicateFoldedModelAction": "88437cf57abc",
+    "panels:creasePattern.flipFoldedModel": "e6c0e41ad1ef",
+    "panels:creasePattern.foldModelAction": "7734edbfc28a"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10501,7 +10551,17 @@
     "panels:creasePattern.rotateAnnotation": "cc7f294dd7a7",
     "panels:creasePattern.moveFoldedForm": "996f77e83eaf",
     "panels:creasePattern.resizeFoldedForm": "5bcce0ba8e93",
-    "panels:creasePattern.rotateFoldedForm": "bd9b2311ddd5"
+    "panels:creasePattern.rotateFoldedForm": "bd9b2311ddd5",
+    "panels:creasePattern.anotherSolutionAction": "538aa2082763",
+    "panels:creasePattern.changeFoldCase": "21ec0ac52ccf",
+    "panels:creasePattern.changeFoldedAlpha": "511a1c0aa262",
+    "panels:creasePattern.changeFoldedColor": "07b13b860c68",
+    "panels:creasePattern.changeFoldedDisplayStyle": "eb424b07e2ec",
+    "panels:creasePattern.changeFoldedModel": "a73dc0c3482b",
+    "panels:creasePattern.deleteFoldedModelAction": "da2c5eab801d",
+    "panels:creasePattern.duplicateFoldedModelAction": "88437cf57abc",
+    "panels:creasePattern.flipFoldedModel": "e6c0e41ad1ef",
+    "panels:creasePattern.foldModelAction": "7734edbfc28a"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12260,7 +12320,17 @@
     "panels:creasePattern.rotateAnnotation": "cc7f294dd7a7",
     "panels:creasePattern.moveFoldedForm": "996f77e83eaf",
     "panels:creasePattern.resizeFoldedForm": "5bcce0ba8e93",
-    "panels:creasePattern.rotateFoldedForm": "bd9b2311ddd5"
+    "panels:creasePattern.rotateFoldedForm": "bd9b2311ddd5",
+    "panels:creasePattern.anotherSolutionAction": "538aa2082763",
+    "panels:creasePattern.changeFoldCase": "21ec0ac52ccf",
+    "panels:creasePattern.changeFoldedAlpha": "511a1c0aa262",
+    "panels:creasePattern.changeFoldedColor": "07b13b860c68",
+    "panels:creasePattern.changeFoldedDisplayStyle": "eb424b07e2ec",
+    "panels:creasePattern.changeFoldedModel": "a73dc0c3482b",
+    "panels:creasePattern.deleteFoldedModelAction": "da2c5eab801d",
+    "panels:creasePattern.duplicateFoldedModelAction": "88437cf57abc",
+    "panels:creasePattern.flipFoldedModel": "e6c0e41ad1ef",
+    "panels:creasePattern.foldModelAction": "7734edbfc28a"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -13994,6 +14064,16 @@
     "panels:creasePattern.rotateAnnotation": "cc7f294dd7a7",
     "panels:creasePattern.moveFoldedForm": "996f77e83eaf",
     "panels:creasePattern.resizeFoldedForm": "5bcce0ba8e93",
-    "panels:creasePattern.rotateFoldedForm": "bd9b2311ddd5"
+    "panels:creasePattern.rotateFoldedForm": "bd9b2311ddd5",
+    "panels:creasePattern.anotherSolutionAction": "538aa2082763",
+    "panels:creasePattern.changeFoldCase": "21ec0ac52ccf",
+    "panels:creasePattern.changeFoldedAlpha": "511a1c0aa262",
+    "panels:creasePattern.changeFoldedColor": "07b13b860c68",
+    "panels:creasePattern.changeFoldedDisplayStyle": "eb424b07e2ec",
+    "panels:creasePattern.changeFoldedModel": "a73dc0c3482b",
+    "panels:creasePattern.deleteFoldedModelAction": "da2c5eab801d",
+    "panels:creasePattern.duplicateFoldedModelAction": "88437cf57abc",
+    "panels:creasePattern.flipFoldedModel": "e6c0e41ad1ef",
+    "panels:creasePattern.foldModelAction": "7734edbfc28a"
   }
 }

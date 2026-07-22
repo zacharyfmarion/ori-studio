@@ -90,6 +90,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
   let foldArtifactPromise: Promise<FoldArtifacts | null> | null = null;
   let foldArtifactPromiseRevision: number | null = null;
   let foldedFigureRequestSequence = 0;
+  // Newest in-flight model request per figure, so a stale response is dropped.
+  const modelRequestSequence = new Map<string, number>();
 
   async function requireActiveTree() {
     const result = await ensureTreeHandle();
@@ -872,6 +874,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           ),
           oristudioCpActiveFoldedFigureId: figureId,
           oristudioCpError: null,
+          dirty: true,
           projectMessage: 'Folded model',
         });
         refreshFoldedFigureSelectionMarkers(previousActiveId);
@@ -937,6 +940,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           ),
           oristudioCpActiveFoldedFigureId: figure.id,
           oristudioCpError: null,
+          dirty: true,
           projectMessage: 'Advanced folded model',
         });
         return true;
@@ -1000,6 +1004,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           ),
           oristudioCpActiveFoldedFigureId: figure.id,
           oristudioCpError: null,
+          dirty: true,
           projectMessage: 'Folded model case updated',
         });
         return true;
@@ -1042,6 +1047,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           ),
           oristudioCpActiveFoldedFigureId: figure.id,
           oristudioCpError: null,
+          dirty: true,
         });
         return true;
       } catch (error) {
@@ -1074,6 +1080,12 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         ...figure.snapshot.model,
         ...update,
       };
+      // Continuous controls (the colour pickers, the alpha slider) fire a change
+      // per pointer move, so several round-trips can be in flight at once and
+      // could otherwise land out of order. Only the newest request for a figure
+      // is allowed to write.
+      const requestId = (modelRequestSequence.get(id) ?? 0) + 1;
+      modelRequestSequence.set(id, requestId);
       try {
         const snapshot = await setRuntimeOristudioCpFoldedFigureModel(figure.handle, model);
         const renderSnapshot = await renderSnapshotForFoldedFigure(
@@ -1082,6 +1094,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           foldedFigureIndex(figure.id),
           true
         );
+        if (modelRequestSequence.get(id) !== requestId) return true;
         set({
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
             candidate.id === figure.id
@@ -1090,6 +1103,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           ),
           oristudioCpActiveFoldedFigureId: figure.id,
           oristudioCpError: null,
+          dirty: true,
         });
         return true;
       } catch (error) {
@@ -1169,6 +1183,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           ),
           oristudioCpActiveFoldedFigureId: figureId,
           oristudioCpError: null,
+          dirty: true,
           projectMessage: 'Duplicated folded model',
         });
         refreshFoldedFigureSelectionMarkers(previousActiveId);
@@ -1205,6 +1220,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       set({
         oristudioCpFoldedFigures: remaining,
         oristudioCpActiveFoldedFigureId: activeId,
+        dirty: true,
       });
       refreshFoldedFigureSelectionMarkers(activeId);
     },
