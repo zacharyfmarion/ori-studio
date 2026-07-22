@@ -48,6 +48,7 @@ import {
   type OristudioBpSelection,
 } from '../../../engine/oristudioBpTypes';
 import { bpFlapSelection, bpSelectionSize } from '../../../lib/oristudioBpSelection';
+import { runAfterPointerGesture } from '../../../lib/pointerGesture';
 import type { BpHistorySnapshot, OristudioBpSlice, WorkspaceSliceCreator } from '../types';
 
 /**
@@ -404,11 +405,12 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       // mid-gesture, which makes toolbar mousedown land on a different element
       // than pointerdown so the browser never fires the click.
       set({ oristudioBpDocument: { ...document, activeSurface: surface } });
-      // Defer the Dockview panel activation out of the pointerdown handler so the
-      // reflow it causes can't drop the click that changed the surface. Packing
-      // lives in the BP Editor pane; tree in the design pane.
+      // Hold the Dockview panel activation until the pointer comes up. It
+      // reflows the pane, which swaps the DOM out from under an in-flight
+      // gesture — so activating here would drop the very first click or drag on
+      // an unfocused pane. Packing lives in the BP Editor pane; tree in design.
       const panel = surface === 'packing' ? 'bp-editor' : 'design';
-      requestAnimationFrame(() => useLayoutStore.getState().activatePanel(panel));
+      runAfterPointerGesture(() => useLayoutStore.getState().activatePanel(panel));
     },
 
     moveOristudioBpTreeVertex: async (id, loc, dragging = false) =>

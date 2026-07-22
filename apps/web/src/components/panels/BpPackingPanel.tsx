@@ -1837,7 +1837,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
           ariaLabel={t('panels:bpPacking.flapNameAria', 'Name of flap {{id}}', {
             id: bpDefaultFlapLabel(singleSelectedFlap.id),
           })}
-          autoFocus
           onRename={(name) => void renameOristudioBpVertex(singleSelectedFlap.vertexId, name)}
         />
       )}

@@ -24,3 +24,61 @@ export function hasPassedDragThreshold(
 ): boolean {
   return Math.hypot(to.x - from.x, to.y - from.y) >= threshold;
 }
+
+let pointersDown = 0;
+let listening = false;
+let pending: (() => void)[] = [];
+
+function flushPending(): void {
+  if (pending.length === 0) return;
+  const queued = pending;
+  pending = [];
+  requestAnimationFrame(() => {
+    for (const run of queued) run();
+  });
+}
+
+function ensureListening(): void {
+  if (listening) return;
+  listening = true;
+  // Capture phase, so the count is right even when a handler stops propagation.
+  window.addEventListener('pointerdown', () => {
+    pointersDown += 1;
+  }, true);
+  const release = () => {
+    pointersDown = Math.max(0, pointersDown - 1);
+    if (pointersDown === 0) flushPending();
+  };
+  window.addEventListener('pointerup', release, true);
+  window.addEventListener('pointercancel', release, true);
+  // A gesture interrupted by losing the window never delivers pointerup.
+  window.addEventListener('blur', () => {
+    pointersDown = 0;
+    flushPending();
+  });
+}
+
+/**
+ * Run `run` once no pointer is being held down.
+ *
+ * For work that reflows the layout — activating a Dockview panel, say. A reflow
+ * mid-gesture swaps out the DOM nodes the gesture is running against, so the
+ * element holding pointer capture stops receiving moves and the drag dies. It is
+ * not enough to defer by a frame: a click is over within one, but a drag lasts
+ * as long as the user holds the button, so the reflow just lands further inside
+ * it. Waiting for the button to come up is the only bound that covers both.
+ *
+ * With no pointer down (a menu command, a shortcut) this is a plain rAF.
+ */
+export function runAfterPointerGesture(run: () => void): void {
+  if (typeof window === 'undefined') {
+    run();
+    return;
+  }
+  ensureListening();
+  if (pointersDown === 0) {
+    requestAnimationFrame(run);
+    return;
+  }
+  pending.push(run);
+}
