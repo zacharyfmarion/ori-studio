@@ -25,7 +25,7 @@ import {
   HeadingNode,
   type HeadingTagType,
 } from '@lexical/rich-text';
-import { $setBlocksType, $patchStyleText } from '@lexical/selection';
+import { $setBlocksType } from '@lexical/selection';
 import { $createParagraphNode } from 'lexical';
 import { Bold, Italic, Trash2, Underline } from 'lucide-react';
 import { FloatingToolbar, type FloatingAnchorRect } from '../components/ui/FloatingToolbar';
@@ -43,16 +43,6 @@ const LEXICAL_THEME = {
     underlineStrikethrough: 'cp-rt-underline cp-rt-strikethrough',
   },
 };
-
-/** Swatches offered by the color control (English labels localized at call site). */
-const TEXT_COLORS = [
-  { value: '', label: 'Default' },
-  { value: '#e5484d', label: 'Red' },
-  { value: '#f5a623', label: 'Orange' },
-  { value: '#30a46c', label: 'Green' },
-  { value: '#4c9aff', label: 'Blue' },
-  { value: '#8e4ec6', label: 'Purple' },
-];
 
 export interface CpTextEditorProps {
   doc: SerializedEditorState;
@@ -138,7 +128,6 @@ interface ToolbarState {
   underline: boolean;
   block: TextBlockType;
   align: TextAlign;
-  color: string;
 }
 
 const INITIAL_TOOLBAR_STATE: ToolbarState = {
@@ -147,7 +136,6 @@ const INITIAL_TOOLBAR_STATE: ToolbarState = {
   underline: false,
   block: 'paragraph',
   align: 'left',
-  color: '',
 };
 
 function TextToolbar({
@@ -181,7 +169,6 @@ function TextToolbar({
           underline: selection.hasFormat('underline'),
           block: blockType,
           align,
-          color: selection.style.match(/color:\s*([^;]+)/)?.[1]?.trim() ?? '',
         });
       });
     });
@@ -205,16 +192,6 @@ function TextToolbar({
   const setAlign = useCallback(
     (align: TextAlign) => {
       editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, align as ElementFormatType);
-    },
-    [editor]
-  );
-
-  const setColor = useCallback(
-    (color: string) => {
-      editor.update(() => {
-        const selection = $getSelection();
-        if ($isRangeSelection(selection)) $patchStyleText(selection, { color: color || null });
-      });
     },
     [editor]
   );
@@ -299,26 +276,6 @@ function TextToolbar({
             </button>
           ))}
         </div>
-        <span className="floating-toolbar__separator" />
-        <label className="cp-text-toolbar__color" title={t('panels:textAnnotation.color', 'Text color')}>
-          <span
-            className="cp-text-toolbar__swatch"
-            style={{ background: state.color || 'var(--text-primary)' }}
-            aria-hidden="true"
-          />
-          <select
-            className="cp-text-toolbar__color-select"
-            value={state.color}
-            onChange={(event) => setColor(event.target.value)}
-            aria-label={t('panels:textAnnotation.color', 'Text color')}
-          >
-            {TEXT_COLORS.map((color) => (
-              <option key={color.value || 'default'} value={color.value}>
-                {color.label}
-              </option>
-            ))}
-          </select>
-        </label>
         <span className="floating-toolbar__separator" />
         <IconButton
           size="sm"
