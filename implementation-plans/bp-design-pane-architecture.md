@@ -165,8 +165,18 @@ rules, and the tests cover pure helpers and the store.
       subtree) now return "moves nothing" instead. The packing pane came out
       clean: its equivalents (`selectedFlapDragIds`,
       `constrainBpPackingFlapGroupTarget`) were already pure lib helpers.
-- [ ] 4. Extract `useViewportSurface`, the layers popover, and the drag
-      protocol; both panes consume them.
+- [x] 4. Extract `useViewportSurface` (camera, fit-on-open, resize refit,
+      viewport shortcuts, space-pan), `ViewportLayerMenu` (trigger, outside-click,
+      checkbox list), and the drag threshold (`hasPassedDragThreshold`, one
+      constant replacing two, five call sites). Both panes consume all three;
+      374 lines of duplicated pane code removed.
+- [~] 4b. The **full** drag-protocol hook is deferred. Beyond the threshold, the
+      two panes' gestures genuinely differ — the tree builds a preview map and
+      mirrors it across the symmetry axis, the packing pane carries a grab
+      offset, a frozen base-flap set, and rAF-coalesced backend updates. A
+      previous attempt to unify drag-adjacent camera state regressed marquee and
+      multi-select (`bp-studio-audit-fixes.md` item 6, reverted). The shared part
+      is now shared; the rest should wait for Phase 5's coverage.
 - [ ] 5. Interaction-rule component tests for the tree pane and the viewport
       hook.
 - [ ] 6. Validation: `npx tsc --noEmit`, `npm run lint:web`,

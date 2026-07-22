@@ -1,7 +1,6 @@
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -9,10 +8,10 @@ import {
   type ReactNode,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
-import { TransformComponent, TransformWrapper, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
+import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { FlipHorizontal2, Layers, Minus, Plus, Tag } from 'lucide-react';
+import { FlipHorizontal2, Minus, Plus, Tag } from 'lucide-react';
 import type {
   OristudioBpDocumentState,
   OristudioBpTreeEdge,
@@ -32,6 +31,7 @@ import {
   svgToBpTreePoint,
 } from '../../lib/bpTreeViewport';
 import { bpDefaultFlapLabel } from '../../lib/bpFlapLabel';
+import { hasPassedDragThreshold } from '../../lib/pointerGesture';
 import { formatNumber, type Point } from '../../lib/geometry';
 import {
   bpTreeDragUpdates,
@@ -48,17 +48,13 @@ import {
   snapPointToSymmetryAxis,
 } from '../../lib/symmetryGeometry';
 import { type BpTreeViewLayerKey, type BpTreeViewLayers } from '../../lib/oristudioBpViewportSettings';
-import {
-  clientPointToDesignWorld,
-  getViewportFitScale,
-} from '../../lib/designViewport';
-import { registerViewportShortcutExecutor, setActiveShortcutViewportSurface } from '../../keyboard/shortcutRuntime';
-import type { ViewportShortcutId } from '../../keyboard/shortcuts';
+import { clientPointToDesignWorld } from '../../lib/designViewport';
+import { setActiveShortcutViewportSurface } from '../../keyboard/shortcutRuntime';
 import { useBpLongPressInspector } from '../../hooks/useBpLongPressInspector';
+import { useViewportSurface } from '../../hooks/useViewportSurface';
 import {
   isTreeViewportKeyboardActivation,
   viewportRectToViewBox,
-  viewportSizeFromElement,
 } from '../../lib/treeViewportPrimitives';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
@@ -66,6 +62,7 @@ import { IconButton } from '../ui/IconButton';
 import { BpNameEditor } from './BpNameEditor';
 import {
   isViewportInteractiveTarget,
+  ViewportLayerMenu,
   ViewportToolbar,
   ViewportToolbarSeparator,
 } from './ViewportToolbar';
@@ -83,8 +80,6 @@ function bpTreeLayerLabel(t: TFunction, key: BpTreeViewLayerKey): string {
       return key;
   }
 }
-
-const BP_TREE_DRAG_START_THRESHOLD_PX = 4;
 
 // The rendered symmetry snap-lane width in SVG units — keep in sync with the CSS
 // `.symmetry-snap-lane { stroke-width }`. A leaf tip landing anywhere inside this
@@ -121,19 +116,6 @@ function BpTreeViewportToolbar({
   setZoomLevel: (scale: number) => void;
 }) {
   const { t } = useTranslation();
-  const [layersOpen, setLayersOpen] = useState(false);
-  const layersMenuRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!layersOpen) return undefined;
-    const onPointerDown = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (layersMenuRef.current?.contains(target)) return;
-      setLayersOpen(false);
-    };
-    document.addEventListener('mousedown', onPointerDown);
-    return () => document.removeEventListener('mousedown', onPointerDown);
-  }, [layersOpen]);
 
   return (
     <ViewportToolbar
@@ -159,32 +141,15 @@ function BpTreeViewportToolbar({
         <FlipHorizontal2 size={14} />
       </IconButton>
       <ViewportToolbarSeparator />
-      <div className="viewport-toolbar__menu-anchor" ref={layersMenuRef}>
-        <IconButton
-          size="sm"
-          variant="toolbar"
-          title={t('panels:bpTree.layers', 'Layers')}
-          isActive={layersOpen}
-          onClick={() => setLayersOpen((open) => !open)}
-        >
-          <Layers size={14} />
-        </IconButton>
-        {layersOpen && (
-          <div className="design-layer-menu" role="menu">
-            {LAYER_OPTIONS.map((option) => (
-              <label key={option.key} className="design-layer-option">
-                <input
-                  type="checkbox"
-                  checked={layers[option.key]}
-                  onChange={(event) => onLayerChange(option.key, event.target.checked)}
-                />
-                <span className="design-layer-option__icon">{option.icon}</span>
-                <span>{bpTreeLayerLabel(t, option.key)}</span>
-              </label>
-            ))}
-          </div>
-        )}
-      </div>
+      <ViewportLayerMenu
+        title={t('panels:bpTree.layers', 'Layers')}
+        options={LAYER_OPTIONS.map((option) => ({
+          ...option,
+          label: bpTreeLayerLabel(t, option.key),
+        }))}
+        visible={layers}
+        onChange={onLayerChange}
+      />
     </ViewportToolbar>
   );
 }
@@ -286,8 +251,6 @@ function BpTreeEdgeLengthEditor({
 export function BpTreePanel({ document }: { document: OristudioBpDocumentState }) {
   const { t } = useTranslation();
   const svgRef = useRef<SVGSVGElement | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const transformRef = useRef<ReactZoomPanPinchRef | null>(null);
   const [dragging, setDragging] = useState<{
     id: number;
     start: Point;
@@ -296,8 +259,6 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     preview: Map<number, Point>;
   } | null>(null);
   const paperDownRef = useRef<{ clientX: number; clientY: number; point: Point } | null>(null);
-  const [zoomPercent, setZoomPercent] = useState(100);
-  const [spacePressed, setSpacePressed] = useState(false);
   const [hoverPoint, setHoverPoint] = useState<Point | null>(null);
   // Whether the next name-editor mount should take focus. Picking an existing node
   // means "I want to work on this one", so the name field focuses; adding a node
@@ -410,6 +371,28 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     () => getBpTreeWorldRect(tree, { contentOnly: true, padding: 12 }),
     [tree]
   );
+
+  // Open at a fixed readable scale (1 tree unit ≈ TARGET_UNIT_PX) rather than
+  // filling the pane with a tiny tree; the shared surface only zooms further out
+  // when the tree no longer fits at that scale.
+  const maxFitScale = TARGET_UNIT_PX / bpTreeUnitToSvg(tree.sheet);
+  const {
+    containerRef,
+    transformRef,
+    zoomPercent,
+    spacePressed,
+    zoomIn,
+    zoomOut,
+    fitToView,
+    setZoomLevel,
+    onInit,
+    onTransformed,
+  } = useViewportSurface({
+    surface: 'tree',
+    worldRect,
+    fitKey: `${document.handle}:${document.source.filename}`,
+    maxFitScale,
+  });
 
   // Convert a target screen-pixel size into SVG units at the current zoom, so
   // dots/labels keep a constant on-screen size regardless of zoom.
@@ -565,7 +548,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
   const dismissSelection = useCallback(() => {
     clearSelection();
     containerRef.current?.focus();
-  }, [clearSelection]);
+  }, [clearSelection, containerRef]);
 
   const eventToTreePoint = useCallback(
     (event: PointerEvent): Point => {
@@ -581,148 +564,22 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     [paperRect, tree.sheet, worldRect]
   );
 
-  const getViewportSize = useCallback(() => viewportSizeFromElement(containerRef.current), []);
-
-  const computeFitScale = useCallback(() => {
-    const viewport = getViewportSize();
-    if (!viewport) return 1;
-    // Default to a fixed, readable scale (1 tree unit ≈ TARGET_UNIT_PX on
-    // screen) rather than filling the pane with a tiny tree. Only zoom OUT (via
-    // getViewportFitScale) once the tree is too big to fit at that scale.
-    const targetScale = TARGET_UNIT_PX / bpTreeUnitToSvg(tree.sheet);
-    return getViewportFitScale(viewport, worldRect, undefined, targetScale);
-  }, [getViewportSize, worldRect, tree.sheet]);
-
-  const fitToView = useCallback(
-    (animationTime = 180) => {
-      transformRef.current?.centerView(computeFitScale(), animationTime);
-    },
-    [computeFitScale]
-  );
-
-  const setActualSize = useCallback(() => {
-    transformRef.current?.centerView(1, 160);
-  }, []);
-
-  const setZoomLevel = useCallback((scale: number) => {
-    transformRef.current?.centerView(scale, 160);
-  }, []);
-
-  const handleViewportShortcut = useCallback(
-    (id: ViewportShortcutId) => {
-      switch (id) {
-        case 'viewport.zoomIn':
-          transformRef.current?.zoomIn(0.35, 120);
-          break;
-        case 'viewport.zoomOut':
-          transformRef.current?.zoomOut(0.35, 120);
-          break;
-        case 'viewport.fit':
-          fitToView();
-          break;
-        case 'viewport.actualSize':
-          setActualSize();
-          break;
-      }
-    },
-    [fitToView, setActualSize]
-  );
-
-  useEffect(
-    () => registerViewportShortcutExecutor('tree', handleViewportShortcut),
-    [handleViewportShortcut]
-  );
-
-  const fitKey = `${document.handle}:${document.source.filename}`;
-  const lastFittedKeyRef = useRef<string | null>(null);
-  const fitLoadedDocument = useCallback(
-    (animationTime = 0) => {
-      if (lastFittedKeyRef.current === fitKey) return true;
-      const container = containerRef.current;
-      if (!container || !transformRef.current || container.clientWidth <= 0 || container.clientHeight <= 0) {
-        return false;
-      }
-      transformRef.current.centerView(computeFitScale(), animationTime);
-      lastFittedKeyRef.current = fitKey;
-      return true;
-    },
-    [computeFitScale, fitKey]
-  );
-  const fitLoadedDocumentRef = useRef(fitLoadedDocument);
-  useEffect(() => {
-    fitLoadedDocumentRef.current = fitLoadedDocument;
-  }, [fitLoadedDocument]);
-
-  useLayoutEffect(() => {
-    const frame = requestAnimationFrame(() => fitLoadedDocumentRef.current(0));
-    return () => cancelAnimationFrame(frame);
-  }, [fitKey]);
-
-  // Re-fit when the tree grows or shrinks (adding/deleting nodes), but not while
-  // rotating (which keeps the node count the same) so it doesn't fight a drag.
-  const vertexCount = tree.vertices.length;
-  const prevVertexCountRef = useRef(vertexCount);
-  useEffect(() => {
-    if (prevVertexCountRef.current === vertexCount) return undefined;
-    prevVertexCountRef.current = vertexCount;
-    const frame = requestAnimationFrame(() => fitToView());
-    return () => cancelAnimationFrame(frame);
-  }, [vertexCount, fitToView]);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    let frame = requestAnimationFrame(() => fitLoadedDocumentRef.current(0));
-    const observer =
-      typeof ResizeObserver === 'undefined' || !container
-        ? null
-        : new ResizeObserver(() => {
-            if (lastFittedKeyRef.current !== fitKey) {
-              cancelAnimationFrame(frame);
-              frame = requestAnimationFrame(() => fitLoadedDocumentRef.current(0));
-            }
-          });
-
-    if (observer && container) observer.observe(container);
-    return () => {
-      cancelAnimationFrame(frame);
-      observer?.disconnect();
-    };
-  }, [fitKey]);
-
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return undefined;
 
     const onKeyDown = (event: KeyboardEvent) => {
-      const interactive = isViewportInteractiveTarget(event.target);
-      if (event.key === ' ' && !interactive) {
-        event.preventDefault();
-        setSpacePressed(true);
-      }
       // The contextual editors fire their own Escape (revert, then clear via
       // onEscape), so only handle the canvas case here.
-      if (event.key === 'Escape' && !interactive) {
+      if (event.key === 'Escape' && !isViewportInteractiveTarget(event.target)) {
         event.preventDefault();
         dismissSelection();
       }
     };
 
-    const onKeyUp = (event: KeyboardEvent) => {
-      if (event.key === ' ') setSpacePressed(false);
-    };
-    const clearSpace = () => setSpacePressed(false);
-
     container.addEventListener('keydown', onKeyDown);
-    container.addEventListener('keyup', onKeyUp);
-    window.addEventListener('keyup', onKeyUp);
-    window.addEventListener('blur', clearSpace);
-    return () => {
-      container.removeEventListener('keydown', onKeyDown);
-      container.removeEventListener('keyup', onKeyUp);
-      window.removeEventListener('keyup', onKeyUp);
-      window.removeEventListener('blur', clearSpace);
-    };
-  }, [dismissSelection]);
+    return () => container.removeEventListener('keydown', onKeyDown);
+  }, [dismissSelection, containerRef]);
 
   const onCanvasAddPointerDown = (event: PointerEvent<Element>) => {
     if (event.button !== 0 || spacePressed || isViewportInteractiveTarget(event.target)) {
@@ -740,8 +597,11 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     const down = paperDownRef.current;
     paperDownRef.current = null;
     if (!down || event.button !== 0 || spacePressed) return;
-    const movedPx = Math.hypot(event.clientX - down.clientX, event.clientY - down.clientY);
-    if (movedPx >= BP_TREE_DRAG_START_THRESHOLD_PX) return;
+    const dragged = hasPassedDragThreshold(
+      { x: down.clientX, y: down.clientY },
+      { x: event.clientX, y: event.clientY }
+    );
+    if (dragged) return;
     // A plain click on the sheet adds a unit-length leaf to the selected vertex,
     // pointing toward the click. With nothing selected there's no anchor, so the
     // click just falls through.
@@ -826,9 +686,10 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     });
     const preview = new Map<number, Point>();
     for (const [id, loc] of moved) preview.set(id, constrainBpTreePoint(loc, tree.sheet));
-    const clientDx = event.clientX - dragging.clientStart.x;
-    const clientDy = event.clientY - dragging.clientStart.y;
-    const clientMoved = Math.hypot(clientDx, clientDy) >= BP_TREE_DRAG_START_THRESHOLD_PX;
+    const clientMoved = hasPassedDragThreshold(dragging.clientStart, {
+      x: event.clientX,
+      y: event.clientY,
+    });
     setDragging({
       id: vertexId,
       start: dragging.start,
@@ -896,11 +757,8 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
         }}
         pinch={{ step: 0.5 }}
         doubleClick={{ disabled: true }}
-        onInit={(ref) => {
-          transformRef.current = ref;
-          requestAnimationFrame(() => fitLoadedDocumentRef.current(0));
-        }}
-        onTransformed={(_ref, state) => setZoomPercent(Math.round(state.scale * 100))}
+        onInit={onInit}
+        onTransformed={onTransformed}
       >
         <TransformComponent
           wrapperStyle={{ width: '100%', height: '100%' }}
@@ -1094,8 +952,8 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
         onLayerChange={setLayer}
         symmetryEnabled={symmetry.enabled}
         onSymmetryToggle={handleToggleSymmetry}
-        zoomIn={() => transformRef.current?.zoomIn(0.35, 120)}
-        zoomOut={() => transformRef.current?.zoomOut(0.35, 120)}
+        zoomIn={zoomIn}
+        zoomOut={zoomOut}
         fitToView={() => fitToView()}
         setZoomLevel={setZoomLevel}
       />

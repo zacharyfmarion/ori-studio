@@ -1,7 +1,6 @@
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -10,7 +9,7 @@ import {
   type ReactNode,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
-import { TransformComponent, TransformWrapper, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
+import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
@@ -22,7 +21,6 @@ import {
   ChevronRight,
   CircleDot,
   Grid2X2,
-  Layers,
   Minus,
   Plus,
   Route,
@@ -67,26 +65,24 @@ import {
   getBpPackingWorldRect,
 } from '../../lib/bpPackingViewport';
 import { bpDefaultFlapLabel, bpFlapLabel } from '../../lib/bpFlapLabel';
+import { hasPassedDragThreshold } from '../../lib/pointerGesture';
 import { formatNumber, type Point } from '../../lib/geometry';
 import {
   isBpPackingLayerVisible,
   type BpPackingViewLayerKey,
   type BpPackingViewLayers,
 } from '../../lib/oristudioBpViewportSettings';
-import {
-  clientPointToDesignWorld,
-  getViewportFitScale,
-  type ViewportSize,
-} from '../../lib/designViewport';
-import { registerViewportShortcutExecutor, setActiveShortcutViewportSurface } from '../../keyboard/shortcutRuntime';
-import type { ViewportShortcutId } from '../../keyboard/shortcuts';
+import { clientPointToDesignWorld } from '../../lib/designViewport';
+import { setActiveShortcutViewportSurface } from '../../keyboard/shortcutRuntime';
 import { useBpLongPressInspector } from '../../hooks/useBpLongPressInspector';
+import { useViewportSurface } from '../../hooks/useViewportSurface';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { IconButton } from '../ui/IconButton';
 import { BpNameEditor } from './BpNameEditor';
 import {
   isViewportInteractiveTarget,
+  ViewportLayerMenu,
   ViewportToolbar,
   ViewportToolbarSeparator,
 } from './ViewportToolbar';
@@ -98,7 +94,6 @@ const BP_MAX_SHEET_SIZE = 8192;
 // un-subdivide is disabled when halving would drop below these.
 const BP_MIN_RECT_SIZE = 4;
 const BP_MIN_DIAG_SIZE = 6;
-const BP_PACKING_DRAG_START_THRESHOLD_PX = 4;
 // Pointer travel before an empty-space drag becomes a rubberband selection,
 // matching Box Pleating Studio's SelectionController MOUSE_THRESHOLD.
 const BP_PACKING_DRAG_SELECT_THRESHOLD_PX = 5;
@@ -360,21 +355,8 @@ function BpPackingViewportToolbar({
   setZoomLevel: (scale: number) => void;
 }) {
   const { t } = useTranslation();
-  const [layersOpen, setLayersOpen] = useState(false);
-  const layersMenuRef = useRef<HTMLDivElement | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const sheetMenuRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!layersOpen) return undefined;
-    const onPointerDown = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (layersMenuRef.current?.contains(target)) return;
-      setLayersOpen(false);
-    };
-    document.addEventListener('mousedown', onPointerDown);
-    return () => document.removeEventListener('mousedown', onPointerDown);
-  }, [layersOpen]);
 
   useEffect(() => {
     if (!sheetOpen) return undefined;
@@ -474,32 +456,15 @@ function BpPackingViewportToolbar({
         )}
       </div>
       <ViewportToolbarSeparator />
-      <div className="viewport-toolbar__menu-anchor" ref={layersMenuRef}>
-        <IconButton
-          size="sm"
-          variant="toolbar"
-          title={t('panels:bpPacking.layers', 'Layers')}
-          isActive={layersOpen}
-          onClick={() => setLayersOpen((open) => !open)}
-        >
-          <Layers size={14} />
-        </IconButton>
-        {layersOpen && (
-          <div className="design-layer-menu" role="menu">
-            {LAYER_OPTIONS.map((option) => (
-              <label key={option.key} className="design-layer-option">
-                <input
-                  type="checkbox"
-                  checked={layers[option.key]}
-                  onChange={(event) => onLayerChange(option.key, event.target.checked)}
-                />
-                <span className="design-layer-option__icon">{option.icon}</span>
-                <span>{bpPackingLayerLabel(t, option.key)}</span>
-              </label>
-            ))}
-          </div>
-        )}
-      </div>
+      <ViewportLayerMenu
+        title={t('panels:bpPacking.layers', 'Layers')}
+        options={LAYER_OPTIONS.map((option) => ({
+          ...option,
+          label: bpPackingLayerLabel(t, option.key),
+        }))}
+        visible={layers}
+        onChange={onLayerChange}
+      />
     </ViewportToolbar>
   );
 }
@@ -717,10 +682,6 @@ function DPadButton({
 export function BpPackingPanel({ document }: { document: OristudioBpDocumentState }) {
   const { t } = useTranslation();
   const svgRef = useRef<SVGSVGElement | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const transformRef = useRef<ReactZoomPanPinchRef | null>(null);
-  const [zoomPercent, setZoomPercent] = useState(100);
-  const [spacePressed, setSpacePressed] = useState(false);
   const [flapDragging, setFlapDragging] = useState<BpPackingDragState | null>(null);
   const [marquee, setMarquee] = useState<BpPackingMarqueeState | null>(null);
   const dragBackendFrameRef = useRef<number | null>(null);
@@ -837,6 +798,23 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     [packing.sheet, paperRect]
   );
   const worldRect = useMemo(() => getBpPackingWorldRect(displayPacking), [displayPacking]);
+
+  const {
+    containerRef,
+    transformRef,
+    zoomPercent,
+    spacePressed,
+    zoomIn,
+    zoomOut,
+    fitToView,
+    setZoomLevel,
+    onInit,
+    onTransformed,
+  } = useViewportSurface({
+    surface: 'bp-editor',
+    worldRect,
+    fitKey: `${document.handle}:${document.source.filename}:packing`,
+  });
   const gridLines = useMemo(() => bpPackingGridLines(packing.sheet, paperRect), [paperRect, packing.sheet]);
   const unit = useMemo(() => bpPackingUnitToSvg(packing.sheet, paperRect), [packing.sheet, paperRect]);
   const riverVisuals = useMemo(
@@ -890,61 +868,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     [worldRect]
   );
 
-
-  const getViewportSize = useCallback((): ViewportSize | null => {
-    const viewport = containerRef.current;
-    if (!viewport) return null;
-    return {
-      width: viewport.clientWidth || viewport.offsetWidth,
-      height: viewport.clientHeight || viewport.offsetHeight,
-    };
-  }, []);
-
-  const computeFitScale = useCallback(() => {
-    const viewport = getViewportSize();
-    if (!viewport) return 1;
-    return getViewportFitScale(viewport, worldRect);
-  }, [getViewportSize, worldRect]);
-
-  const fitToView = useCallback(
-    (animationTime = 180) => {
-      transformRef.current?.centerView(computeFitScale(), animationTime);
-    },
-    [computeFitScale]
-  );
-
-  const setActualSize = useCallback(() => {
-    transformRef.current?.centerView(1, 160);
-  }, []);
-
-  const setZoomLevel = useCallback((scale: number) => {
-    transformRef.current?.centerView(scale, 160);
-  }, []);
-
-  const handleViewportShortcut = useCallback(
-    (id: ViewportShortcutId) => {
-      switch (id) {
-        case 'viewport.zoomIn':
-          transformRef.current?.zoomIn(0.35, 120);
-          break;
-        case 'viewport.zoomOut':
-          transformRef.current?.zoomOut(0.35, 120);
-          break;
-        case 'viewport.fit':
-          fitToView();
-          break;
-        case 'viewport.actualSize':
-          setActualSize();
-          break;
-      }
-    },
-    [fitToView, setActualSize]
-  );
-
-  useEffect(
-    () => registerViewportShortcutExecutor('bp-editor', handleViewportShortcut),
-    [handleViewportShortcut]
-  );
 
   const nudgeSelection = useCallback(
     (direction: BpPackingNudgeDirection) => {
@@ -1100,81 +1023,18 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     []
   );
 
-  const fitKey = `${document.handle}:${document.source.filename}:packing`;
-  const lastFittedKeyRef = useRef<string | null>(null);
-  const fitLoadedDocument = useCallback(
-    (animationTime = 0) => {
-      if (lastFittedKeyRef.current === fitKey) return true;
-      const container = containerRef.current;
-      if (!container || !transformRef.current || container.clientWidth <= 0 || container.clientHeight <= 0) {
-        return false;
-      }
-      transformRef.current.centerView(computeFitScale(), animationTime);
-      lastFittedKeyRef.current = fitKey;
-      return true;
-    },
-    [computeFitScale, fitKey]
-  );
-  const fitLoadedDocumentRef = useRef(fitLoadedDocument);
-  useEffect(() => {
-    fitLoadedDocumentRef.current = fitLoadedDocument;
-  }, [fitLoadedDocument]);
-
-  useLayoutEffect(() => {
-    const frame = requestAnimationFrame(() => fitLoadedDocumentRef.current(0));
-    return () => cancelAnimationFrame(frame);
-  }, [fitKey]);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    let frame = requestAnimationFrame(() => fitLoadedDocumentRef.current(0));
-    const observer =
-      typeof ResizeObserver === 'undefined' || !container
-        ? null
-        : new ResizeObserver(() => {
-            if (lastFittedKeyRef.current !== fitKey) {
-              cancelAnimationFrame(frame);
-              frame = requestAnimationFrame(() => fitLoadedDocumentRef.current(0));
-            }
-          });
-
-    if (observer && container) observer.observe(container);
-    return () => {
-      cancelAnimationFrame(frame);
-      observer?.disconnect();
-    };
-  }, [fitKey]);
-
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return undefined;
     const onKeyDown = (event: KeyboardEvent) => {
-      const interactive = isViewportInteractiveTarget(event.target);
-      if (event.key === ' ' && !interactive) {
-        event.preventDefault();
-        setSpacePressed(true);
-        return;
-      }
       const direction = bpPackingNudgeDirectionFromKey(event.key);
-      if (direction && !interactive && !event.metaKey && !event.ctrlKey && !event.altKey) {
-        if (nudgeSelection(direction)) event.preventDefault();
-      }
+      if (!direction || isViewportInteractiveTarget(event.target)) return;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (nudgeSelection(direction)) event.preventDefault();
     };
-    const onKeyUp = (event: KeyboardEvent) => {
-      if (event.key === ' ') setSpacePressed(false);
-    };
-    const clearSpace = () => setSpacePressed(false);
     container.addEventListener('keydown', onKeyDown);
-    container.addEventListener('keyup', onKeyUp);
-    window.addEventListener('keyup', onKeyUp);
-    window.addEventListener('blur', clearSpace);
-    return () => {
-      container.removeEventListener('keydown', onKeyDown);
-      container.removeEventListener('keyup', onKeyUp);
-      window.removeEventListener('keyup', onKeyUp);
-      window.removeEventListener('blur', clearSpace);
-    };
-  }, [nudgeSelection]);
+    return () => container.removeEventListener('keydown', onKeyDown);
+  }, [nudgeSelection, containerRef]);
 
   // Begin a potential rubberband selection on empty space. The selection is not
   // cleared yet: a plain click (no drag past the threshold) clears on pointer up,
@@ -1334,10 +1194,11 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     );
     const dx = loc.x - flapDragging.start.x;
     const dy = loc.y - flapDragging.start.y;
-    const clientDx = event.clientX - flapDragging.clientStart.x;
-    const clientDy = event.clientY - flapDragging.clientStart.y;
     const worldMoved = Math.hypot(dx, dy) > 0;
-    const clientMoved = Math.hypot(clientDx, clientDy) >= BP_PACKING_DRAG_START_THRESHOLD_PX;
+    const clientMoved = hasPassedDragThreshold(flapDragging.clientStart, {
+      x: event.clientX,
+      y: event.clientY,
+    });
     const moved = flapDragging.moved || (clientMoved && worldMoved);
     setFlapDragging({
       id: flap.id,
@@ -1518,10 +1379,11 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
       deviceDragging.start,
       eventToPackingPoint(event)
     );
-    const clientDx = event.clientX - deviceDragging.clientStart.x;
-    const clientDy = event.clientY - deviceDragging.clientStart.y;
     const worldMoved = Math.hypot(constrained.vector.x, constrained.vector.y) > 0;
-    const clientMoved = Math.hypot(clientDx, clientDy) >= BP_PACKING_DRAG_START_THRESHOLD_PX;
+    const clientMoved = hasPassedDragThreshold(deviceDragging.clientStart, {
+      x: event.clientX,
+      y: event.clientY,
+    });
     const moved =
       deviceDragging.moved || (clientMoved && worldMoved);
     setDeviceDragging({
@@ -1593,11 +1455,8 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
         }}
         pinch={{ step: 0.5 }}
         doubleClick={{ disabled: true }}
-        onInit={(ref) => {
-          transformRef.current = ref;
-          requestAnimationFrame(() => fitLoadedDocumentRef.current(0));
-        }}
-        onTransformed={(_ref, state) => setZoomPercent(Math.round(state.scale * 100))}
+        onInit={onInit}
+        onTransformed={onTransformed}
       >
         <TransformComponent
           wrapperStyle={{ width: '100%', height: '100%' }}
@@ -1958,8 +1817,8 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
         setSheet={(gridType, width, height) =>
           void setOristudioBpLayoutSheet(gridType, width, height)
         }
-        zoomIn={() => transformRef.current?.zoomIn(0.35, 120)}
-        zoomOut={() => transformRef.current?.zoomOut(0.35, 120)}
+        zoomIn={zoomIn}
+        zoomOut={zoomOut}
         fitToView={() => fitToView()}
         setZoomLevel={setZoomLevel}
       />
