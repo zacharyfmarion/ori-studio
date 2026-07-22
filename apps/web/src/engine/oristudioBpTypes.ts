@@ -127,7 +127,6 @@ export interface OristudioBpFlap {
   width: number;
   height: number;
   radius: number;
-  selected: boolean;
   constrained: boolean;
 }
 
@@ -137,7 +136,6 @@ export interface OristudioBpRiver {
   vertices: [number, number];
   width: number;
   length: number;
-  selected: boolean;
 }
 
 export interface OristudioBpInvalidJunction {
@@ -161,7 +159,6 @@ export interface OristudioBpStretch {
   patternIndex: number | null;
   patternCount: number | null;
   patternFound: boolean | null;
-  selected: boolean;
 }
 
 export interface OristudioBpDevice {
@@ -171,7 +168,6 @@ export interface OristudioBpDevice {
   range: [Point, Point] | null;
   rangeScalar: [number, number] | null;
   forward: boolean | null;
-  selected: boolean;
 }
 
 export type OristudioBpGraphicPrimitive =

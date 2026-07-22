@@ -147,7 +147,7 @@ rules, and the tests cover pure helpers and the store.
 - [x] 0. Add-anchor is the selection, with no root fallback; preview and click
       share it (`5d4d63d5`).
 - [x] 0b. A tree opens with nothing selected — no default anchor.
-- [ ] 1. Delete the inert `selected` DTO fields and their mapper writes.
+- [x] 1. Delete the inert `selected` DTO fields and their mapper writes.
 - [ ] 2. Decide selection ownership; move it to session state; add
       `clearBpSelection`; replace `{ kind: 'bp-tree' }` with an explicit empty.
 - [ ] 3. Audit both panes for policy-as-fallback; promote to named helpers with

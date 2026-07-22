@@ -154,7 +154,6 @@ describe('oristudio BP DTO contract', () => {
               width: 2,
               height: 2,
               radius: 1,
-              selected: true,
               constrained: true,
             },
           ],

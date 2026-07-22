@@ -336,7 +336,6 @@ function packingRivers(tree: OristudioBpTreeView): OristudioBpRiver[] {
       vertices: edge.vertices,
       width: edge.length,
       length: edge.length,
-      selected: false,
     }));
 }
 
@@ -470,7 +469,6 @@ function packingFlap(
     width: flap.width,
     height: flap.height,
     radius: radiusForFlap(flap.id, edges) ?? Math.max(flap.width, flap.height) / 2,
-    selected: false,
     constrained: true,
   };
 }
@@ -489,7 +487,6 @@ function packingStretch(stretch: OristudioBpRawStretch): OristudioBpStretch {
     patternIndex: configuration?.index ?? null,
     patternCount,
     patternFound: pattern ? true : patternCount === null ? null : false,
-    selected: false,
   };
 }
 
@@ -512,7 +509,6 @@ function packingDevices(
       range: deviceRange(position, rangeScalar, forward),
       rangeScalar,
       forward,
-      selected: false,
     };
   });
 }
