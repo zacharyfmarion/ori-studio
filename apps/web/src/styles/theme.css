@@ -5536,11 +5536,15 @@
   vector-effect: non-scaling-stroke;
 }
 
+/* The flap's circle: Box Pleating Studio draws it in the hinge layer as a plain
+   unfilled outline in the hinge colour (`Flap._draw` -> `lineStyle(shrink, hingeColor)`),
+   so the region reads as "the paper this flap needs" without competing with the
+   contours drawn inside it. */
 .bp-packing-flap-clearance {
-  fill: color-mix(in srgb, var(--fold-unassigned) 13%, transparent);
-  stroke: color-mix(in srgb, var(--fold-unassigned) 50%, transparent);
-  stroke-dasharray: 4 5;
-  stroke-width: 1.2;
+  fill: none;
+  stroke: var(--fold-hinge);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
   /* Visual guide only — the radius must not swallow clicks meant for flaps,
      devices, or creases that fall inside a large flap's clearance. */
   pointer-events: none;

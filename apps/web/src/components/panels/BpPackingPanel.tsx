@@ -21,6 +21,7 @@ import {
   ArrowUp,
   ChevronLeft,
   ChevronRight,
+  Circle,
   CircleDot,
   Grid2X2,
   Layers,
@@ -58,6 +59,7 @@ import {
 import {
   bpArcPathNarrowness,
   bpArcPathToSvgPath,
+  bpPackingFlapClearanceRect,
   bpPackingGridLines,
   bpPackingPaperRect,
   bpPackingPointToSvg,
@@ -188,6 +190,7 @@ const BP_DPAD_REPEAT_MS = 150;
 const LAYER_OPTIONS: { key: BpPackingViewLayerKey; icon: ReactNode }[] = [
   { key: 'grid', icon: <Grid2X2 size={13} /> },
   { key: 'flaps', icon: <CircleDot size={13} /> },
+  { key: 'clearance', icon: <Circle size={13} /> },
   { key: 'rivers', icon: <Route size={13} /> },
   { key: 'hinges', icon: <Waypoints size={13} /> },
   { key: 'ridges', icon: <Waypoints size={13} /> },
@@ -203,6 +206,8 @@ function bpPackingLayerLabel(t: TFunction, key: BpPackingViewLayerKey): string {
       return t('panels:bpPacking.layerGrid', 'Grid');
     case 'flaps':
       return t('panels:bpPacking.layerFlaps', 'Flaps');
+    case 'clearance':
+      return t('panels:bpPacking.layerClearance', 'Circles');
     case 'rivers':
       return t('panels:bpPacking.layerRivers', 'Rivers');
     case 'hinges':
@@ -1805,6 +1810,9 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                     x: rect.x + rect.width / 2,
                     y: rect.y + rect.height / 2,
                   };
+                  const clearance = layers.clearance
+                    ? bpPackingFlapClearanceRect(flap, packing.sheet, paperRect)
+                    : null;
                   const active = linkedSelection.flaps.has(flap.id);
                   return (
                     <g
@@ -1812,14 +1820,14 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                       className={active ? 'bp-packing-flap--selected' : undefined}
                       aria-hidden="true"
                     >
-                      {layers.clearance && (
+                      {layers.clearance && clearance && (
                         <rect
                           className="bp-packing-flap-clearance"
-                          x={center.x - flap.radius * unit}
-                          y={center.y - flap.radius * unit}
-                          width={flap.radius * unit * 2}
-                          height={flap.radius * unit * 2}
-                          rx={Math.min(rect.width, rect.height, flap.radius * unit)}
+                          x={clearance.x}
+                          y={clearance.y}
+                          width={clearance.width}
+                          height={clearance.height}
+                          rx={clearance.radius}
                         />
                       )}
                       <rect

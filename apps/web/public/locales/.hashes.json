@@ -1723,6 +1723,7 @@
     "panels:textAnnotation.textControls": "0b1d5c714733",
     "panels:textAnnotation.textStyle": "8a929f303859",
     "panels:textAnnotation.underline": "02f843261112",
+    "panels:bpPacking.layerClearance": "aa74f400e596",
     "cpVocab:group.advanced.label": "514cc538596e",
     "cpVocab:group.advanced.railLabel": "9f088dbebd6c"
   },
@@ -3450,6 +3451,7 @@
     "panels:textAnnotation.textControls": "0b1d5c714733",
     "panels:textAnnotation.textStyle": "8a929f303859",
     "panels:textAnnotation.underline": "02f843261112",
+    "panels:bpPacking.layerClearance": "aa74f400e596",
     "cpVocab:group.advanced.label": "514cc538596e",
     "cpVocab:group.advanced.railLabel": "9f088dbebd6c"
   },
@@ -5202,6 +5204,7 @@
     "panels:textAnnotation.textControls": "0b1d5c714733",
     "panels:textAnnotation.textStyle": "8a929f303859",
     "panels:textAnnotation.underline": "02f843261112",
+    "panels:bpPacking.layerClearance": "aa74f400e596",
     "cpVocab:group.advanced.label": "514cc538596e",
     "cpVocab:group.advanced.railLabel": "9f088dbebd6c"
   },
@@ -6954,6 +6957,7 @@
     "panels:textAnnotation.textControls": "0b1d5c714733",
     "panels:textAnnotation.textStyle": "8a929f303859",
     "panels:textAnnotation.underline": "02f843261112",
+    "panels:bpPacking.layerClearance": "aa74f400e596",
     "cpVocab:group.advanced.label": "514cc538596e",
     "cpVocab:group.advanced.railLabel": "9f088dbebd6c"
   },
@@ -8706,6 +8710,7 @@
     "panels:textAnnotation.textControls": "0b1d5c714733",
     "panels:textAnnotation.textStyle": "8a929f303859",
     "panels:textAnnotation.underline": "02f843261112",
+    "panels:bpPacking.layerClearance": "aa74f400e596",
     "cpVocab:group.advanced.label": "514cc538596e",
     "cpVocab:group.advanced.railLabel": "9f088dbebd6c"
   },
@@ -10458,6 +10463,7 @@
     "panels:textAnnotation.textControls": "0b1d5c714733",
     "panels:textAnnotation.textStyle": "8a929f303859",
     "panels:textAnnotation.underline": "02f843261112",
+    "panels:bpPacking.layerClearance": "aa74f400e596",
     "cpVocab:group.advanced.label": "514cc538596e",
     "cpVocab:group.advanced.railLabel": "9f088dbebd6c"
   },
@@ -12210,6 +12216,7 @@
     "panels:textAnnotation.textControls": "0b1d5c714733",
     "panels:textAnnotation.textStyle": "8a929f303859",
     "panels:textAnnotation.underline": "02f843261112",
+    "panels:bpPacking.layerClearance": "aa74f400e596",
     "cpVocab:group.advanced.label": "514cc538596e",
     "cpVocab:group.advanced.railLabel": "9f088dbebd6c"
   },
@@ -13937,6 +13944,7 @@
     "panels:textAnnotation.textControls": "0b1d5c714733",
     "panels:textAnnotation.textStyle": "8a929f303859",
     "panels:textAnnotation.underline": "02f843261112",
+    "panels:bpPacking.layerClearance": "aa74f400e596",
     "cpVocab:group.advanced.label": "514cc538596e",
     "cpVocab:group.advanced.railLabel": "9f088dbebd6c"
   }

@@ -193,6 +193,30 @@ export function bpPackingSheetShadowPoints(
 }
 
 /**
+ * A flap's "circle" in Box Pleating Studio's sense (`Flap.$drawCircle`): the flap
+ * rectangle grown by the flap's radius on every side, with a corner radius equal to
+ * that radius. It marks the minimum paper the flap needs, and degenerates to a true
+ * circle when the flap has no width or height.
+ */
+export function bpPackingFlapClearanceRect(
+  flap: Pick<OristudioBpFlap, 'anchor' | 'width' | 'height' | 'radius'>,
+  sheet: OristudioBpSheet,
+  paperRect = bpPackingPaperRect(sheet)
+): PlotRect & { radius: number } {
+  const grown = bpPackingRectToSvg(
+    {
+      x: flap.anchor.x - flap.radius,
+      y: flap.anchor.y - flap.radius,
+      width: flap.width + flap.radius * 2,
+      height: flap.height + flap.radius * 2,
+    },
+    sheet,
+    paperRect
+  );
+  return { ...grown, radius: flap.radius * bpPackingUnitToSvg(sheet, paperRect) };
+}
+
+/**
  * Box Pleating Studio's narrowness ratio for one invalid-junction outline
  * (`client/project/components/layout/junction.ts#getNarrowness`): how flat the
  * lens between two arcs is. Only two-arc paths have one — anything else is left

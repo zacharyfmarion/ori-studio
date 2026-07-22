@@ -7,6 +7,7 @@ import type {
 import {
   bpArcPathNarrowness,
   bpArcPathToSvgPath,
+  bpPackingFlapClearanceRect,
   bpPackingGridLines,
   bpPackingPaperRect,
   bpPackingPointToSvg,
@@ -111,6 +112,36 @@ describe('bpPackingGridLines (diagonal)', () => {
     // The middle horizontal line (y=8) spans the full diamond width; an edge line
     // (y=1) is much shorter.
     expect(spanOf('dh:8')).toBeGreaterThan(spanOf('dh:1'));
+  });
+});
+
+describe('bpPackingFlapClearanceRect', () => {
+  const s = sheet('rectangular', 16);
+  const unit = bpPackingPaperRect(s).width / 16;
+
+  it('grows a zero-size flap into a circle of its radius', () => {
+    const clearance = bpPackingFlapClearanceRect(
+      { anchor: { x: 8, y: 8 }, width: 0, height: 0, radius: 3 },
+      s
+    );
+    expect(approx(clearance.width, 6 * unit)).toBe(true);
+    expect(approx(clearance.height, 6 * unit)).toBe(true);
+    // A full circle: the corner radius is half of each side.
+    expect(approx(clearance.radius, clearance.width / 2)).toBe(true);
+  });
+
+  it('grows a sized flap on every side, keeping the corner radius', () => {
+    const clearance = bpPackingFlapClearanceRect(
+      { anchor: { x: 4, y: 4 }, width: 2, height: 2, radius: 3 },
+      s
+    );
+    const rect = bpPackingPaperRect(s);
+    // Grid (1,1)..(9,9) — the flap rect grown by 3 on each side.
+    expect(approx(clearance.x, bpPackingPointToSvg({ x: 1, y: 1 }, s, rect).x)).toBe(true);
+    expect(approx(clearance.y, bpPackingPointToSvg({ x: 1, y: 9 }, s, rect).y)).toBe(true);
+    expect(approx(clearance.width, 8 * unit)).toBe(true);
+    expect(approx(clearance.height, 8 * unit)).toBe(true);
+    expect(approx(clearance.radius, 3 * unit)).toBe(true);
   });
 });
 
