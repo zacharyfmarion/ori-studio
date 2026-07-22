@@ -6,7 +6,6 @@ import {
   useState,
   type PointerEvent,
   type ReactNode,
-  type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
 import { useTranslation } from 'react-i18next';
@@ -52,10 +51,7 @@ import { clientPointToDesignWorld } from '../../lib/designViewport';
 import { setActiveShortcutViewportSurface } from '../../keyboard/shortcutRuntime';
 import { useBpLongPressInspector } from '../../hooks/useBpLongPressInspector';
 import { useViewportSurface } from '../../hooks/useViewportSurface';
-import {
-  isTreeViewportKeyboardActivation,
-  viewportRectToViewBox,
-} from '../../lib/treeViewportPrimitives';
+import { viewportRectToViewBox } from '../../lib/treeViewportPrimitives';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { IconButton } from '../ui/IconButton';
@@ -638,17 +634,6 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     scheduleLongPressInspector(event);
   };
 
-  const onEdgeKeyDown = (event: ReactKeyboardEvent<SVGGElement>, edgeId: number) => {
-    if (!isTreeViewportKeyboardActivation(event)) return;
-    event.preventDefault();
-    event.stopPropagation();
-    selectOristudioBp(
-      event.shiftKey || event.metaKey || event.ctrlKey
-        ? toggleBpEdgeSelection(selection, edgeId)
-        : { kind: 'bp-edge', id: edgeId }
-    );
-  };
-
   const onVertexPointerDown = (event: PointerEvent<SVGCircleElement>, vertexId: number) => {
     if (event.button !== 0 || spacePressed) return;
     event.stopPropagation();
@@ -853,14 +838,17 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
               return (
                 <g
                   key={edge.id}
-                  role="button"
-                  tabIndex={0}
+                  // Intentionally not focusable (no role/tabIndex), matching the
+                  // node dots: the browser draws its own focus ring around the
+                  // group's box — which spans the edge *and* its length label —
+                  // so a click wrapped the edge in a capsule instead of just
+                  // highlighting it. Selection is by click; the tree's keyboard
+                  // actions live on the container.
                   aria-label={t('panels:bpTree.selectEdge', 'Select BP edge {{id}}, length {{length}}', {
                     id: edge.id,
                     length: formatNumber(edge.length, 2),
                   })}
                   onPointerDown={(event) => onEdgePointerDown(event, edge.id)}
-                  onKeyDown={(event) => onEdgeKeyDown(event, edge.id)}
                 >
                   <line
                     className={[

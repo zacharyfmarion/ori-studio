@@ -5283,15 +5283,14 @@
   stroke: var(--tree-edge);
 }
 
-.bp-tree-canvas g[role='button']:focus-visible {
-  outline: none;
-}
-
-.bp-tree-canvas g[role='button']:focus-visible .bp-tree-edge,
-.bp-tree-node:focus-visible {
-  outline: none;
-  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent-hover) 50%, transparent));
-  stroke: var(--accent-hover);
+/*
+ * A selected edge is just the edge, drawn in the accent colour and a little
+ * heavier — no ring, no halo. Scoped to the BP canvas so the TreeMaker design
+ * pane keeps its own selection weight.
+ */
+.bp-tree-edge.tree-edge--selected {
+  stroke: var(--accent-primary);
+  stroke-width: 7;
 }
 
 .bp-tree-node--root {

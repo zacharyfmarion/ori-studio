@@ -317,6 +317,48 @@ describe('BP tree pane — the hover ghost previews the click', () => {
   });
 });
 
+describe('BP tree pane — selecting an edge highlights the edge', () => {
+  it('draws the selection on the edge line itself', () => {
+    useWorkspaceStore.setState(
+      {
+        ...useWorkspaceStore.getInitialState(),
+        ...actions,
+        oristudioBpDocument: document_,
+        oristudioBpSelection: { kind: 'bp-edge', id: 1 },
+        oristudioBpSymmetry: { enabled: false, angle: 90, loc: { x: 10, y: 10 }, pairs: [] },
+      },
+      true
+    );
+    container = window.document.createElement('div');
+    window.document.body.append(container);
+    root = createRoot(container);
+    act(() => {
+      root?.render(
+        <TooltipProvider>
+          <BpTreePanel document={document_} />
+        </TooltipProvider>
+      );
+    });
+
+    const selected = container.querySelectorAll('.bp-tree-edge.tree-edge--selected');
+    expect(selected).toHaveLength(1);
+    expect(selected[0].tagName.toLowerCase()).toBe('line');
+  });
+
+  it('keeps edges out of the focus order, so no focus ring wraps them', () => {
+    // A focusable <g> gets the browser's own ring around its box — which spans
+    // the edge and its length label — reading as a capsule around the edge
+    // rather than a highlight on it.
+    const body = render(null);
+    const edgeGroups = body.querySelectorAll('.bp-tree-canvas > g');
+    expect(edgeGroups.length).toBeGreaterThan(0);
+    for (const group of edgeGroups) {
+      expect(group.hasAttribute('tabindex')).toBe(false);
+      expect(group.getAttribute('role')).not.toBe('button');
+    }
+  });
+});
+
 describe('BP tree pane — Escape', () => {
   it('clears the selection from the canvas', () => {
     const body = render(1);
