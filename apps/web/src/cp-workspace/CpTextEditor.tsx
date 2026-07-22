@@ -59,8 +59,11 @@ export interface CpTextEditorProps {
   anchorRect: FloatingAnchorRect | null;
   /** Content changed: persist the new doc + its plain-text projection. */
   onChange: (doc: SerializedEditorState, plainText: string) => void;
-  /** Leave inline-edit mode (blur outside / Escape). */
-  onExit: () => void;
+  /**
+   * Leave inline-edit mode. `'blur'` = a click outside committed the edit (that
+   * same click must not also spawn a new box); `'escape'` = keyboard exit.
+   */
+  onExit: (reason: 'blur' | 'escape') => void;
   onDelete: () => void;
 }
 
@@ -80,7 +83,7 @@ export function CpTextEditor({ doc, anchorRect, onChange, onExit, onDelete }: Cp
       // Keep editing when focus moves into the text toolbar (buttons/selects).
       const next = event.relatedTarget as HTMLElement | null;
       if (next && next.closest('[data-cp-text-toolbar]')) return;
-      onExit();
+      onExit('blur');
     },
     [onExit]
   );
@@ -89,7 +92,7 @@ export function CpTextEditor({ doc, anchorRect, onChange, onExit, onDelete }: Cp
     (event: React.KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
-        onExit();
+        onExit('escape');
       }
     },
     [onExit]

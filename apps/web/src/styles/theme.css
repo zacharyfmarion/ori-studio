@@ -2161,6 +2161,9 @@
   min-height: 1em;
   white-space: pre-wrap;
   caret-color: var(--accent-primary, #4c9aff);
+  /* Override the box's inherited `cursor` (an inherited property) with the
+     text I-beam while editing. */
+  cursor: text;
 }
 
 .cp-text-editor__placeholder {

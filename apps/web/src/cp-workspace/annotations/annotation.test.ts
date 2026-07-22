@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createCpImage } from '../images/cpImage';
 import {
+  annotationAtModelPoint,
   flattenTextAnnotations,
   isImageAnnotation,
   isTextAnnotation,
@@ -46,5 +47,31 @@ describe('flattenTextAnnotations', () => {
 
   it('returns an empty list when there are no text boxes', () => {
     expect(flattenTextAnnotations([image()])).toEqual([]);
+  });
+});
+
+describe('annotationAtModelPoint', () => {
+  const box = createTextAnnotation({ center: { x: 5, y: 5 }, width: 4, height: 2, z: 1 });
+
+  it('hits a box that contains the point', () => {
+    expect(annotationAtModelPoint([box], { x: 6, y: 5.5 })?.id).toBe(box.id);
+    expect(annotationAtModelPoint([box], { x: 5, y: 5 })?.id).toBe(box.id);
+  });
+
+  it('misses outside the box', () => {
+    expect(annotationAtModelPoint([box], { x: 8, y: 5 })).toBeNull();
+    expect(annotationAtModelPoint([box], { x: 5, y: 7 })).toBeNull();
+  });
+
+  it('returns the topmost (highest z) among overlapping boxes', () => {
+    const lower = createTextAnnotation({ center: { x: 5, y: 5 }, width: 4, height: 2, z: 0 });
+    const upper = createTextAnnotation({ center: { x: 5, y: 5 }, width: 4, height: 2, z: 5 });
+    expect(annotationAtModelPoint([lower, upper], { x: 5, y: 5 })?.id).toBe(upper.id);
+  });
+
+  it('skips hidden and locked annotations', () => {
+    const hidden = createTextAnnotation({ center: { x: 5, y: 5 }, width: 4, height: 2, hidden: true });
+    const locked = createTextAnnotation({ center: { x: 5, y: 5 }, width: 4, height: 2, locked: true });
+    expect(annotationAtModelPoint([hidden, locked], { x: 5, y: 5 })).toBeNull();
   });
 });

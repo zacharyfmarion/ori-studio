@@ -45,7 +45,7 @@ export function CpTextAnnotationLayer({
   editingTextId: string | null;
   toolbarAnchor: FloatingAnchorRect | null;
   onChangeText: (id: string, doc: SerializedEditorState, plainText: string) => void;
-  onExitEdit: () => void;
+  onExitEdit: (reason: 'blur' | 'escape') => void;
   onDelete: () => void;
   onSyncHeight: (id: string, height: number) => void;
 }) {
@@ -119,7 +119,7 @@ function TextBox({
   pxPerModel: number;
   toolbarAnchor: FloatingAnchorRect | null;
   onChangeText: (id: string, doc: SerializedEditorState, plainText: string) => void;
-  onExitEdit: () => void;
+  onExitEdit: (reason: 'blur' | 'escape') => void;
   onDelete: () => void;
   onSyncHeight: (id: string, height: number) => void;
 }) {

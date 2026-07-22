@@ -133,7 +133,12 @@ import {
   overlayCssToModel,
 } from '../../cp-workspace/images/cpImagePlacement';
 import { annotationScreenRect } from '../../cp-workspace/annotations/annotationAnchor';
-import { isImageAnnotation, topAnnotationZ } from '../../cp-workspace/annotations/annotation';
+import {
+  annotationAtModelPoint,
+  isImageAnnotation,
+  isTextAnnotation,
+  topAnnotationZ,
+} from '../../cp-workspace/annotations/annotation';
 import type { CanvasAnnotation } from '../../cp-workspace/annotations/annotation';
 import {
   createTextAnnotation,
@@ -990,6 +995,9 @@ export function CreasePatternPanel() {
   // roll back / label undo correctly.
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const editStartRef = useRef<{ id: string; created: boolean } | null>(null);
+  // Set when a text edit is committed by a click outside; that same click's
+  // create must be suppressed (it deselects instead of spawning a new box).
+  const suppressNextTextCreateRef = useRef(false);
   const [cpMeasurementSlots, setCpMeasurementSlots] = useState<CpMeasurementSlots>(
     createEmptyCpMeasurementSlots
   );
@@ -2711,13 +2719,40 @@ export function CreasePatternPanel() {
     [activeCpCommand?.operationId, cpToolState.phase, toggleOristudioCpCircleSelection]
   );
 
-  // Text tool: a click on empty canvas creates a text box there and drops
-  // straight into inline editing. The box is a web-side annotation (never a
-  // kernel text); Oriedita export flattens it back to {x,y,text} in Phase 3.
+  // Double-click a text box (via the annotation overlay), or a Text-tool click
+  // on one → inline editing.
+  const handleRequestEditText = useCallback(
+    (id: string) => {
+      preGestureAnnotationsRef.current = useWorkspaceStore.getState().oristudioCpAnnotations;
+      editStartRef.current = { id, created: false };
+      setSelectedAnnotation(id);
+      setEditingTextId(id);
+    },
+    [setSelectedAnnotation]
+  );
+
+  // Text tool: a click edits/selects whatever it lands on, or drops a new text
+  // box on empty canvas and enters inline editing. A click that commits an
+  // active edit (blur) must not also create — `suppressNextTextCreateRef`.
   const handleTextCreate = useCallback(
     (modelPoint: Point) => {
       if (!editableCp || activeCpCommand?.operationId !== 'Text' || !webglOverlayView) return;
       const prev = useWorkspaceStore.getState().oristudioCpAnnotations;
+      // A click over an existing annotation edits (text) or selects (image) it,
+      // rather than stacking a new box on top.
+      const hit = annotationAtModelPoint(prev, modelPoint);
+      if (hit) {
+        suppressNextTextCreateRef.current = false;
+        if (isTextAnnotation(hit)) handleRequestEditText(hit.id);
+        else setSelectedAnnotation(hit.id);
+        return;
+      }
+      // Empty canvas: if this click just committed an edit, it only deselects.
+      if (suppressNextTextCreateRef.current) {
+        suppressNextTextCreateRef.current = false;
+        setSelectedAnnotation(null);
+        return;
+      }
       const cssPerModel = overlayCssPerModel(webglOverlayView);
       const box = createTextAnnotation({
         center: { x: modelPoint.x, y: modelPoint.y },
@@ -2730,18 +2765,14 @@ export function CreasePatternPanel() {
       addAnnotation(box);
       setEditingTextId(box.id);
     },
-    [activeCpCommand?.operationId, editableCp, webglOverlayView, addAnnotation]
-  );
-
-  // Double-click a text box (via the annotation overlay) → inline editing.
-  const handleRequestEditText = useCallback(
-    (id: string) => {
-      preGestureAnnotationsRef.current = useWorkspaceStore.getState().oristudioCpAnnotations;
-      editStartRef.current = { id, created: false };
-      setSelectedAnnotation(id);
-      setEditingTextId(id);
-    },
-    [setSelectedAnnotation]
+    [
+      activeCpCommand?.operationId,
+      editableCp,
+      webglOverlayView,
+      addAnnotation,
+      handleRequestEditText,
+      setSelectedAnnotation,
+    ]
   );
 
   const handleTextContentChange = useCallback(
@@ -2752,8 +2783,11 @@ export function CreasePatternPanel() {
   );
 
   // Leave inline editing. An empty box is discarded (parity with Oriedita's
-  // blank-text GC); otherwise the whole edit records one undo entry.
-  const handleExitEditText = useCallback(() => {
+  // blank-text GC); otherwise the whole edit records one undo entry. A `'blur'`
+  // exit means the click outside committed it — flag so that same click, if it
+  // reaches the Text tool, deselects instead of spawning a new box.
+  const handleExitEditText = useCallback((reason: 'blur' | 'escape' = 'blur') => {
+    if (reason === 'blur') suppressNextTextCreateRef.current = true;
     const editing = editStartRef.current;
     setEditingTextId(null);
     editStartRef.current = null;

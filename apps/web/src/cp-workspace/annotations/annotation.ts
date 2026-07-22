@@ -39,6 +39,31 @@ export function isTextAnnotation(annotation: CanvasAnnotation): annotation is Te
   return annotation.kind === 'text';
 }
 
+/**
+ * The topmost annotation whose rotated box contains `model` (crease-pattern model
+ * coordinates), skipping hidden and locked ones. Higher `z` wins; ties resolve to
+ * the later entry (painted on top). Null when the point hits nothing.
+ */
+export function annotationAtModelPoint(
+  annotations: readonly CanvasAnnotation[],
+  model: { x: number; y: number }
+): CanvasAnnotation | null {
+  let best: CanvasAnnotation | null = null;
+  for (const annotation of annotations) {
+    if (annotation.hidden || annotation.locked) continue;
+    const dx = model.x - annotation.center.x;
+    const dy = model.y - annotation.center.y;
+    const cos = Math.cos(annotation.rotation);
+    const sin = Math.sin(annotation.rotation);
+    const localX = dx * cos + dy * sin;
+    const localY = -dx * sin + dy * cos;
+    if (Math.abs(localX) <= annotation.width / 2 && Math.abs(localY) <= annotation.height / 2) {
+      if (!best || annotation.z >= best.z) best = annotation;
+    }
+  }
+  return best;
+}
+
 /** The highest `z` across the annotations, or 0 for an empty layer. */
 export function topAnnotationZ(annotations: readonly CanvasAnnotation[]): number {
   return annotations.reduce((max, annotation) => Math.max(max, annotation.z), 0);
