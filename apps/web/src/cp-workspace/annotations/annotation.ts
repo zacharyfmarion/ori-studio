@@ -12,6 +12,7 @@
  */
 
 import type { CpImage, CpImageUpdate } from '../images/cpImage';
+import type { AspectLockPolicy } from './annotationTransform';
 import {
   serializedStateToPlainText,
   type TextAnnotation,
@@ -37,6 +38,15 @@ export function isImageAnnotation(annotation: CanvasAnnotation): annotation is I
 /** Narrow a {@link CanvasAnnotation} to the text variant. */
 export function isTextAnnotation(annotation: CanvasAnnotation): annotation is TextAnnotation {
   return annotation.kind === 'text';
+}
+
+/**
+ * How each annotation kind treats aspect ratio when resized. An image keeps its
+ * proportions unless Shift frees it; a text box reflows to its width, so free
+ * resize is the normal intent and Shift is what locks it.
+ */
+export function annotationAspectLockPolicy(annotation: CanvasAnnotation): AspectLockPolicy {
+  return isImageAnnotation(annotation) ? 'default-on' : 'default-off';
 }
 
 /**

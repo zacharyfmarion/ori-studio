@@ -37,7 +37,7 @@ import { cpGeometryStrokesToScene } from './adapters/cpGeometryToScene';
 import type { CpGeometryTransport } from '../engine/oristudioCpGeometry';
 import type { CpImage } from './images/cpImage';
 import { imageCornersModel } from './images/cpImagePlacement';
-import { quadCornersModel } from './annotations/annotationAnchor';
+import { boxCornersModel } from './annotations/annotationTransform';
 import { cpPointsToScene } from './adapters/cpPointsToScene';
 import { resolveCpLineColor } from './adapters/cpLineColor';
 import { resolveCpPointStyle } from './adapters/cpPointStyle';
@@ -824,9 +824,7 @@ export function CreasePatternWebglCanvas({
     // Text boxes are placed content too; fold their model-space box corners in.
     for (const box of textBoxes ?? EMPTY_TEXT_BOXES) {
       if (box.hidden) continue;
-      for (const corner of quadCornersModel(box.center, box.width, box.height, box.rotation)) {
-        extend(corner);
-      }
+      for (const corner of boxCornersModel(box)) extend(corner);
     }
     return has ? { minX, minY, maxX, maxY } : null;
   }, [lineSegments, images, textBoxes, modelToSvg]);

@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, type CSSProperties } from 'react';
 import type { SerializedEditorState } from 'lexical';
 import type { CpOverlayView } from './CreasePatternWebglCanvas';
 import { useCpOverlayView } from './cpOverlayViewStore';
-import { overlayCssPerModel, overlayModelToCss } from './images/cpImagePlacement';
+import { overlayCssPerModel, overlayModelToCss } from './annotations/annotationTransform';
 import { isTextAnnotation, type CanvasAnnotation } from './annotations/annotation';
 import type { TextAnnotation } from './annotations/textAnnotation';
 import { CpTextView } from './CpTextView';

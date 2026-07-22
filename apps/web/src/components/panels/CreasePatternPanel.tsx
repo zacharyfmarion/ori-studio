@@ -126,11 +126,11 @@ import { CpTextAnnotationLayer } from '../../cp-workspace/CpTextAnnotationLayer'
 import { CpImageInspector } from '../../cp-workspace/CpImageInspector';
 import { createCpImage } from '../../cp-workspace/images/cpImage';
 import { importImageFile, isSupportedImageFile } from '../../cp-workspace/images/cpImageImport';
+import { fitImageModelSize } from '../../cp-workspace/images/cpImagePlacement';
 import {
-  fitImageModelSize,
   overlayCssPerModel,
   overlayCssToModel,
-} from '../../cp-workspace/images/cpImagePlacement';
+} from '../../cp-workspace/annotations/annotationTransform';
 import { cpOverlayViewStore } from '../../cp-workspace/cpOverlayViewStore';
 import { annotationScreenRect } from '../../cp-workspace/annotations/annotationAnchor';
 import {

@@ -8,18 +8,20 @@ import {
 import type { CpOverlayView } from './CreasePatternWebglCanvas';
 import { useCpOverlayView } from './cpOverlayViewStore';
 import { IMAGE_ROTATION_SNAP_RADIANS } from './images/cpImage';
+import { cropImage } from './images/cpImagePlacement';
 import {
-  cropImage,
+  boxCornersModel,
   overlayCssDeltaToModel,
   overlayCssToModel,
   overlayModelToCss,
-  resizeImage,
+  resizeAnnotationBox,
+  resizeAspectLock,
   snapAngle,
-  type CpImageResizeHandle,
+  type AnnotationResizeHandle,
   type Vec2,
-} from './images/cpImagePlacement';
-import { quadCornersModel } from './annotations/annotationAnchor';
+} from './annotations/annotationTransform';
 import {
+  annotationAspectLockPolicy,
   isImageAnnotation,
   type AnnotationUpdate,
   type CanvasAnnotation,
@@ -39,7 +41,7 @@ import {
  * Handle positions are projected from each box's model-space corners through the
  * camera {@link CpOverlayView}, so the chrome matches the object exactly under
  * rotation and non-uniform zoom; the transform math runs in model space
- * (cpImagePlacement) so it is camera-agnostic.
+ * (annotationTransform) so it is camera-agnostic.
  */
 
 /** Rotation handle offset (CSS px) outward from each corner. */
@@ -52,7 +54,7 @@ type Drag =
   | {
       kind: 'resize';
       id: string;
-      handle: CpImageResizeHandle;
+      handle: AnnotationResizeHandle;
       startBox: CanvasAnnotation;
       /** When true the handle crops instead of scaling (image only). */
       crop: boolean;
@@ -68,12 +70,7 @@ type Drag =
     };
 
 function annotationCornersCss(annotation: CanvasAnnotation, view: CpOverlayView): Vec2[] {
-  return quadCornersModel(
-    annotation.center,
-    annotation.width,
-    annotation.height,
-    annotation.rotation
-  ).map((corner) => overlayModelToCss(view, corner));
+  return boxCornersModel(annotation).map((corner) => overlayModelToCss(view, corner));
 }
 
 export function CpAnnotationOverlay({
@@ -164,7 +161,7 @@ export function CpAnnotationOverlay({
     (
       event: ReactPointerEvent<SVGRectElement>,
       annotation: CanvasAnnotation,
-      handle: CpImageResizeHandle
+      handle: AnnotationResizeHandle
     ) => {
       if (!interactive || annotation.locked) return;
       beginCapture(event);
@@ -230,7 +227,12 @@ export function CpAnnotationOverlay({
           });
           return;
         }
-        const next = resizeImage(drag.startBox, drag.handle, pointer, event.shiftKey);
+        const next = resizeAnnotationBox(
+          drag.startBox,
+          drag.handle,
+          pointer,
+          resizeAspectLock(annotationAspectLockPolicy(drag.startBox), event.shiftKey)
+        );
         onUpdate(drag.id, { center: next.center, width: next.width, height: next.height });
         return;
       }
@@ -391,7 +393,7 @@ function SelectionHandles({
   onResizeDown: (
     event: ReactPointerEvent<SVGRectElement>,
     annotation: CanvasAnnotation,
-    handle: CpImageResizeHandle
+    handle: AnnotationResizeHandle
   ) => void;
   onRotateDown: (event: ReactPointerEvent<SVGCircleElement>, annotation: CanvasAnnotation) => void;
   onPointerMove: (event: ReactPointerEvent<SVGElement>) => void;
@@ -403,7 +405,7 @@ function SelectionHandles({
   const mid = (a: Vec2, b: Vec2): Vec2 => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
   const center = { x: (tl.x + br.x) / 2, y: (tl.y + br.y) / 2 };
 
-  const resizePoints: { handle: CpImageResizeHandle; at: Vec2 }[] = [
+  const resizePoints: { handle: AnnotationResizeHandle; at: Vec2 }[] = [
     { handle: 'nw', at: tl },
     { handle: 'n', at: mid(tl, tr) },
     { handle: 'ne', at: tr },
