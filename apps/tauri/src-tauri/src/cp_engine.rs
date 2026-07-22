@@ -286,6 +286,19 @@ pub async fn cp_export_orh(handle: u32, state: State<'_, CpEngine>) -> Result<St
     run(state, move |session| session.export_orh(handle)).await
 }
 
+#[tauri::command]
+pub async fn cp_set_texts(
+    handle: u32,
+    coords: Vec<f64>,
+    texts: Vec<String>,
+    state: State<'_, CpEngine>,
+) -> Result<(), EngineError> {
+    run(state, move |session| {
+        session.set_texts(handle, &coords, texts)
+    })
+    .await
+}
+
 // --- folding ----------------------------------------------------------------
 
 #[tauri::command]
@@ -435,6 +448,7 @@ const NATIVE_CP_COMMAND_NAMES: &[&str] = &[
     "cp_export_fold_file",
     "cp_export_ori",
     "cp_export_orh",
+    "cp_set_texts",
     "cp_folded_figure_fold",
     "cp_folded_figure_fold_selected",
     "cp_folded_figure_snapshot",

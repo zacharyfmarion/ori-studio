@@ -1,4 +1,5 @@
 import { wrap, type Remote } from 'comlink';
+import type { FlatText } from '../../cp-workspace/annotations/annotation';
 import type {
   OristudioCpCommandPayload,
   OristudioCpCommandPreview,
@@ -445,28 +446,40 @@ export async function exportOristudioCpDocumentAsCp(): Promise<string> {
   return api.exportCp(handle);
 }
 
-export async function exportOristudioCpDocumentAsFold(): Promise<string> {
+export async function exportOristudioCpDocumentAsFold(texts: FlatText[] = []): Promise<string> {
   if (handle === null) {
     throw new Error('No editable crease-pattern document is loaded');
   }
   const api = await getOristudioCpClient();
-  return api.exportFoldFile(handle);
+  return api.exportFoldFile(handle, texts);
 }
 
-export async function exportOristudioCpDocumentAsOri(): Promise<string> {
+export async function exportOristudioCpDocumentAsOri(texts: FlatText[] = []): Promise<string> {
   if (handle === null) {
     throw new Error('No editable crease-pattern document is loaded');
   }
   const api = await getOristudioCpClient();
-  return api.exportOri(handle);
+  return api.exportOri(handle, texts);
 }
 
-export async function exportOristudioCpDocumentAsOrh(): Promise<string> {
+export async function exportOristudioCpDocumentAsOrh(texts: FlatText[] = []): Promise<string> {
   if (handle === null) {
     throw new Error('No editable crease-pattern document is loaded');
   }
   const api = await getOristudioCpClient();
-  return api.exportOrh(handle);
+  return api.exportOrh(handle, texts);
+}
+
+/**
+ * Empty the kernel document's text elements. Rich text lives web-side, so after
+ * a loaded file's kernel texts are inflated into annotations the kernel copy is
+ * cleared — otherwise a later re-snapshot would carry them back and they would
+ * be double-counted on `.osf` save (once as kernel texts, once as annotations).
+ */
+export async function clearOristudioCpKernelTexts(): Promise<void> {
+  if (handle === null) return;
+  const api = await getOristudioCpClient();
+  await api.setTexts(handle, []);
 }
 
 export function setOristudioCpDocumentSource(source: OristudioCpDocumentState['source']): void {

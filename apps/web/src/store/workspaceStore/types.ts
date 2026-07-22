@@ -51,7 +51,7 @@ import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
 import type { OristudioCpActionId } from '../../lib/oristudioCpActions';
 import type { CpLineClipboardPayload, CpSelectionTransform } from '../../lib/creasePatternClipboard';
 import type { OristudioCpLineage } from '../../lib/oristudioCpLineage';
-import type { CpImage, CpImageUpdate } from '../../cp-workspace/images/cpImage';
+import type { CanvasAnnotation, AnnotationUpdate } from '../../cp-workspace/annotations/annotation';
 import type {
   OristudioBpDocumentState,
   OristudioBpEditingSurface,
@@ -64,14 +64,14 @@ import type {
 export interface OristudioCpHistoryEntry {
   document: OristudioCpDocumentSnapshot;
   selection: OristudioCpSelection;
-  /** Reference-image layer at the captured moment (superset feature). */
-  images: CpImage[];
+  /** Annotation layer (images + text boxes) at the captured moment. */
+  annotations: CanvasAnnotation[];
   /**
-   * True when the entry captures an image-layer-only change (add/move/resize/
-   * rotate/crop/delete). Undo/redo then swaps images without reloading the
-   * (unchanged) wasm document, keeping image edits cheap.
+   * True when the entry captures an annotation-layer-only change (add/move/
+   * resize/rotate/crop/edit/delete). Undo/redo then swaps the annotation layer
+   * without reloading the (unchanged) wasm document, keeping edits cheap.
    */
-  imageOnly?: boolean;
+  annotationsOnly?: boolean;
   label: string;
   timestamp: string;
 }
@@ -354,18 +354,13 @@ export interface CreasePatternSliceState {
   oristudioCpActiveFoldedFigureId: string | null;
   oristudioCpViewport: OristudioCpViewportOptions;
   /**
-   * Superset feature: reference images placed on the crease-pattern canvas.
-   * Web-side layer, never in the kernel; persisted only in `.osf`. See
-   * `apps/web/docs/superset-features.md`.
+   * Superset feature: annotations (reference images, rich-text boxes) placed on
+   * the crease-pattern canvas. Web-side layer, never in the kernel; the full
+   * model persists only in `.osf`. A single array so z-order and selection are
+   * shared across kinds. See `apps/web/docs/superset-features.md`.
    */
-  oristudioCpImages: CpImage[];
-  oristudioCpSelectedImageId: string | null;
-  /**
-   * Whether the Images tool is active (overlay interactive: select/move/resize/
-   * rotate/crop). Set atomically by the load transaction so a saved file's
-   * images are immediately editable — see projectSlice load/reset handlers.
-   */
-  oristudioCpImageEditMode: boolean;
+  oristudioCpAnnotations: CanvasAnnotation[];
+  oristudioCpSelectedAnnotationId: string | null;
   foldArtifacts: FoldArtifacts | null;
   foldArtifactError: string | null;
   foldArtifactStatus: FoldArtifactStatus;
@@ -442,24 +437,28 @@ export interface CreasePatternSliceActions {
   toggleOristudioCpCircleSelection: (id: number, additive?: boolean) => void;
   toggleOristudioCpTextSelection: (id: number, additive?: boolean) => void;
   transformOristudioCpSelection: (transform: CpSelectionTransform) => Promise<boolean>;
-  /** Append a reference image to the crease-pattern image layer and select it. */
-  addCpImage: (image: CpImage) => void;
-  /** Patch an existing image (transform, crop, opacity, lock/hide, z). */
-  updateCpImage: (id: string, patch: CpImageUpdate) => void;
-  /** Remove an image; clears the selection if it was selected. */
-  removeCpImage: (id: string) => void;
-  /** Select an image (or clear with `null`). */
-  setSelectedCpImage: (id: string | null) => void;
-  /** Toggle the Images tool (interactive overlay) on/off. */
-  setOristudioCpImageEditMode: (active: boolean) => void;
-  /** Replace the whole image layer (used by load and snapshot restore). */
-  setCpImages: (images: CpImage[]) => void;
+  /** Append an annotation to the layer and select it. */
+  addAnnotation: (annotation: CanvasAnnotation) => void;
+  /** Patch an existing annotation (transform, opacity, lock/hide, z, payload). */
+  updateAnnotation: (id: string, patch: AnnotationUpdate) => void;
+  /** Remove an annotation; clears the selection if it was selected. */
+  removeAnnotation: (id: string) => void;
+  /** Select an annotation (or clear with `null`). */
+  setSelectedAnnotation: (id: string | null) => void;
   /**
-   * Record an image-layer edit into the CP undo history. `previousImages` is the
-   * layer state *before* the gesture (the store already holds the post-gesture
-   * state). Pushes an `imageOnly` history entry and clears the redo stack.
+   * Update a text box's measured auto-height without dirtying the project or
+   * recording history — a pure layout sync driven by content reflow, so the
+   * selection handles match the rendered box.
    */
-  recordCpImageHistory: (previousImages: CpImage[], label: string) => void;
+  syncAnnotationHeight: (id: string, height: number) => void;
+  /** Replace the whole annotation layer (used by load and snapshot restore). */
+  setAnnotations: (annotations: CanvasAnnotation[]) => void;
+  /**
+   * Record an annotation-layer edit into the CP undo history. `previous` is the
+   * layer state *before* the gesture (the store already holds the post-gesture
+   * state). Pushes an `annotationsOnly` history entry and clears the redo stack.
+   */
+  recordAnnotationHistory: (previous: CanvasAnnotation[], label: string) => void;
 }
 
 export type CreasePatternSlice = CreasePatternSliceState & CreasePatternSliceActions;

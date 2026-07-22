@@ -1,4 +1,7 @@
 {
+  "annotationActions": {
+    "delete": "Supprimer"
+  },
   "bpEditor": {
     "emptyPacking": "Lancez Optimiser la disposition ou matérialisez un agencement avant l'édition BP manuelle.",
     "emptyProject": "Ouvrez un projet de pliage en boîte pour modifier les rabats et les rivières.",
@@ -187,8 +190,6 @@
     "display": "Affichage",
     "duplicate": "Dupliquer",
     "duplicateFoldedModel": "Dupliquer le modèle plié",
-    "editImages": "Modifier les images",
-    "editingImagesClickToExit": "Modification des images (cliquer pour quitter)",
     "extraLineColors": "Couleurs de ligne supplémentaires",
     "flip": "Retourner",
     "fold": "Plier",
@@ -354,7 +355,6 @@
   "imageInspector": {
     "adjustOpacity": "Ajuster lʼopacité",
     "bringToFront": "Mettre au premier plan",
-    "deleteImage": "Supprimer lʼimage",
     "imageControls": "Commandes dʼimage",
     "opacity": "Opacité",
     "sendToBack": "Envoyer à lʼarrière-plan"
@@ -503,5 +503,24 @@
     "patternTitle_one": "Patron {{n}} — {{count}} face",
     "patternTitle_many": "Patron {{n}} — {{count}} faces",
     "patternTitle_other": "Patron {{n}} — {{count}} faces"
+  },
+  "textAnnotation": {
+    "addText": "Ajouter du texte",
+    "alignCenter": "Centrer",
+    "alignLeft": "Aligner à gauche",
+    "alignment": "Alignement",
+    "alignRight": "Aligner à droite",
+    "blockBody": "Corps",
+    "blockHeading": "Titre",
+    "blockSubheading": "Sous-titre",
+    "bold": "Gras",
+    "color": "Couleur du texte",
+    "deleteText": "Supprimer le texte",
+    "editText": "Modifier le texte",
+    "italic": "Italique",
+    "placeholder": "Saisir…",
+    "textControls": "Contrôles de texte",
+    "textStyle": "Style de texte",
+    "underline": "Souligné"
   }
 }

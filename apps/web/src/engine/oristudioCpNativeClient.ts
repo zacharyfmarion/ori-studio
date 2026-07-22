@@ -27,6 +27,7 @@ import type { CpGeometryTransport } from './oristudioCpGeometry';
 import type { WasmErrorEnvelope } from './types';
 import type { OristudioCpOperationId } from '../lib/oristudioCpCommands';
 import type { OristudioCpWorkerApi } from '../workers/oristudioCpWorker';
+import type { FlatText } from '../cp-workspace/annotations/annotation';
 
 function normalizeError(error: unknown): WasmErrorEnvelope {
   if (
@@ -160,6 +161,38 @@ function toPlainGeometry(geometry: CpGeometryTransport): PlainCompactGeometry {
   };
 }
 
+async function setTextsNative(handle: number, texts: FlatText[]): Promise<void> {
+  const coords = new Array<number>(texts.length * 2);
+  for (let i = 0; i < texts.length; i += 1) {
+    coords[i * 2] = texts[i].x;
+    coords[i * 2 + 1] = texts[i].y;
+  }
+  return call('cp_set_texts', {
+    handle,
+    coords,
+    texts: texts.map((entry) => entry.text),
+  });
+}
+
+/**
+ * Native mirror of the worker's `exportWithTexts`: populate the kernel's text
+ * elements from the flattened rich-text boxes, export, then clear them again.
+ * The kernel `texts` vec is only the Oriedita interchange representation, so it
+ * stays empty during a session and is loaded transiently around an export.
+ */
+async function exportWithTexts(
+  handle: number,
+  texts: FlatText[],
+  exporter: () => Promise<string>
+): Promise<string> {
+  await setTextsNative(handle, texts);
+  try {
+    return await exporter();
+  } finally {
+    await setTextsNative(handle, []);
+  }
+}
+
 export function createOristudioCpNativeClient(): OristudioCpWorkerApi {
   return {
     async operationDescriptors(): Promise<OristudioCpOperationDescriptor[]> {
@@ -291,17 +324,20 @@ export function createOristudioCpNativeClient(): OristudioCpWorkerApi {
     async exportCp(handle: number): Promise<string> {
       return call('cp_export_cp', { handle });
     },
-    async exportFold(handle: number): Promise<string> {
-      return call('cp_export_fold', { handle });
+    async exportFold(handle: number, texts: FlatText[] = []): Promise<string> {
+      return exportWithTexts(handle, texts, () => call('cp_export_fold', { handle }));
     },
-    async exportFoldFile(handle: number): Promise<string> {
-      return call('cp_export_fold_file', { handle });
+    async exportFoldFile(handle: number, texts: FlatText[] = []): Promise<string> {
+      return exportWithTexts(handle, texts, () => call('cp_export_fold_file', { handle }));
     },
-    async exportOri(handle: number): Promise<string> {
-      return call('cp_export_ori', { handle });
+    async exportOri(handle: number, texts: FlatText[] = []): Promise<string> {
+      return exportWithTexts(handle, texts, () => call('cp_export_ori', { handle }));
     },
-    async exportOrh(handle: number): Promise<string> {
-      return call('cp_export_orh', { handle });
+    async exportOrh(handle: number, texts: FlatText[] = []): Promise<string> {
+      return exportWithTexts(handle, texts, () => call('cp_export_orh', { handle }));
+    },
+    async setTexts(handle: number, texts: FlatText[]): Promise<void> {
+      return setTextsNative(handle, texts);
     },
     async freeDocument(handle: number): Promise<void> {
       return call('cp_free_document', { handle });

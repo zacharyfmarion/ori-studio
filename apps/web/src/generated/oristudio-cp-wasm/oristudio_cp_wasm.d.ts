@@ -88,6 +88,12 @@ export function restore_document(handle: number, document: any): void;
  */
 export function restore_from_compact(handle: number, value: any): void;
 
+/**
+ * Replace the kernel document's text elements wholesale. See
+ * [`CpSession::set_texts`] for the rich-text/interchange split this serves.
+ */
+export function set_texts(handle: number, coords: Float64Array, texts: string[]): void;
+
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
@@ -125,6 +131,7 @@ export interface InitOutput {
     readonly replace_line_segments: (a: number, b: any, c: any) => [number, number, number];
     readonly restore_document: (a: number, b: any) => [number, number];
     readonly restore_from_compact: (a: number, b: any) => [number, number];
+    readonly set_texts: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_exn_store: (a: number) => void;

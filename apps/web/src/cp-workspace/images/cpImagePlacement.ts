@@ -90,7 +90,15 @@ export function imageCornersModel(image: CpImage): [Vec2, Vec2, Vec2, Vec2] {
   return [corner(-hw, -hh), corner(hw, -hh), corner(hw, hh), corner(-hw, hh)];
 }
 
-/** The eight resize handles, by compass position on the (unrotated) image. */
+/** A rotated, centered box — the transform shared by every annotation kind. */
+export interface AnnotationBox {
+  center: Vec2;
+  width: number;
+  height: number;
+  rotation: number;
+}
+
+/** The eight resize handles, by compass position on the (unrotated) box. */
 export type CpImageResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 
 /** Local-axis signs of a handle's dragged point: 0 = that axis is fixed (edge). */
@@ -115,44 +123,44 @@ export interface CpImageResizeResult {
 }
 
 /**
- * Resize an image by dragging one of its eight handles to `pointerModel`,
- * keeping the opposite corner/edge anchored. Corner handles scale both axes;
- * edge handles scale one. `aspectLock` (Shift on a corner) preserves the source
- * aspect ratio. Pure — returns the new center + extent.
+ * Resize a box by dragging one of its eight handles to `pointerModel`, keeping
+ * the opposite corner/edge anchored. Corner handles scale both axes; edge
+ * handles scale one. `aspectLock` (Shift on a corner) preserves the aspect
+ * ratio. Pure — returns the new center + extent. Works for any annotation kind.
  */
 export function resizeImage(
-  image: CpImage,
+  box: AnnotationBox,
   handle: CpImageResizeHandle,
   pointerModel: Vec2,
   aspectLock = false
 ): CpImageResizeResult {
   const { sx, sy } = HANDLE_SIGNS[handle];
-  const cos = Math.cos(image.rotation);
-  const sin = Math.sin(image.rotation);
+  const cos = Math.cos(box.rotation);
+  const sin = Math.sin(box.rotation);
   const u: Vec2 = { x: cos, y: sin }; // local +x (right) in model space
   const v: Vec2 = { x: -sin, y: cos }; // local +y (down) in model space
-  const hw = image.width / 2;
-  const hh = image.height / 2;
+  const hw = box.width / 2;
+  const hh = box.height / 2;
 
   // Anchor = the opposite corner/edge, fixed during the drag.
   const anchorLocalX = -sx * hw;
   const anchorLocalY = -sy * hh;
   const anchor: Vec2 = {
-    x: image.center.x + u.x * anchorLocalX + v.x * anchorLocalY,
-    y: image.center.y + u.y * anchorLocalX + v.y * anchorLocalY,
+    x: box.center.x + u.x * anchorLocalX + v.x * anchorLocalY,
+    y: box.center.y + u.y * anchorLocalX + v.y * anchorLocalY,
   };
   const dx = pointerModel.x - anchor.x;
   const dy = pointerModel.y - anchor.y;
   const du = dx * u.x + dy * u.y; // extent along local x
   const dv = dx * v.x + dy * v.y; // extent along local y
 
-  let width = sx !== 0 ? Math.abs(du) : image.width;
-  let height = sy !== 0 ? Math.abs(dv) : image.height;
+  let width = sx !== 0 ? Math.abs(du) : box.width;
+  let height = sy !== 0 ? Math.abs(dv) : box.height;
 
   if (aspectLock && sx !== 0 && sy !== 0) {
-    const scale = Math.max(Math.abs(du) / image.width, Math.abs(dv) / image.height);
-    width = image.width * scale;
-    height = image.height * scale;
+    const scale = Math.max(Math.abs(du) / box.width, Math.abs(dv) / box.height);
+    width = box.width * scale;
+    height = box.height * scale;
   }
 
   width = Math.max(width, MIN_IMAGE_EXTENT);

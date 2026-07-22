@@ -37,6 +37,7 @@ import { cpGeometryStrokesToScene } from './adapters/cpGeometryToScene';
 import type { CpGeometryTransport } from '../engine/oristudioCpGeometry';
 import type { CpImage } from './images/cpImage';
 import { imageCornersModel } from './images/cpImagePlacement';
+import { quadCornersModel } from './annotations/annotationAnchor';
 import { cpPointsToScene } from './adapters/cpPointsToScene';
 import { resolveCpLineColor } from './adapters/cpLineColor';
 import { resolveCpPointStyle } from './adapters/cpPointStyle';
@@ -115,6 +116,14 @@ const MAX_DPR = 2;
 
 /** Stable empty image list so the upload effect doesn't re-run on every render. */
 const EMPTY_IMAGES: readonly CpImage[] = [];
+/** Stable empty text-box list so the bounds memo doesn't re-run each render. */
+const EMPTY_TEXT_BOXES: readonly {
+  center: ModelPoint;
+  width: number;
+  height: number;
+  rotation: number;
+  hidden: boolean;
+}[] = [];
 
 /**
  * The editable SVG canvas is transparent, so the colour behind it is the panel
@@ -361,6 +370,25 @@ export interface CreasePatternWebglCanvasProps {
    * creases. Placement is in model coordinates.
    */
   images?: readonly CpImage[];
+  /**
+   * Text-annotation boxes (rendered on their own DOM layer, not here) folded into
+   * the framing bounds so open + fit-to-view include them. Model coords.
+   */
+  textBoxes?: readonly {
+    center: ModelPoint;
+    width: number;
+    height: number;
+    rotation: number;
+    hidden: boolean;
+  }[];
+  /**
+   * Identity of the document being framed. The camera seeds itself once from
+   * `contentBounds`; when this changes (a new document loaded) the seed is
+   * discarded so the next frame re-fits against the *current* bounds — which by
+   * then include the document's annotations. Without this, opening frames from a
+   * snapshot taken before the annotation layer propagated.
+   */
+  framingKey?: string | number;
   /** Currently selected ids (lines/points/circles are 1-based). */
   selectedLineIds: readonly number[];
   selectedPointIds: readonly number[];
@@ -455,6 +483,12 @@ export interface CreasePatternWebglCanvasProps {
    * existing text is handled by the DOM overlay, so those clicks never reach here.
    */
   onTextCreate?: (modelPoint: ModelPoint) => void;
+  /**
+   * Text tool: a press-and-drag reports the drag's start + end model points so
+   * the panel can create a text box of that size (vs. the click above, which
+   * makes an auto-sizing box).
+   */
+  onTextCreateBox?: (start: ModelPoint, end: ModelPoint) => void;
   /** The current Voronoi click list (owned by the panel as `cpToolPoints`). */
   voronoiSeeds: readonly ModelPoint[];
   /** Report the updated Voronoi click list after a seed add / gesture reset. */
@@ -603,6 +637,8 @@ export function CreasePatternWebglCanvas({
   lineSegments,
   geometry,
   images,
+  textBoxes,
+  framingKey,
   modelToSvg,
   svgToModel,
   selectedLineIds,
@@ -625,6 +661,7 @@ export function CreasePatternWebglCanvas({
   activeToolVoronoi,
   activeToolDashedPreview,
   onTextCreate,
+  onTextCreateBox,
   voronoiSeeds,
   onVoronoiSeedsChange,
   resolveFirstPickKind,
@@ -767,8 +804,15 @@ export function CreasePatternWebglCanvas({
       if (image.hidden) continue;
       for (const corner of imageCornersModel(image)) extend(corner);
     }
+    // Text boxes are placed content too; fold their model-space box corners in.
+    for (const box of textBoxes ?? EMPTY_TEXT_BOXES) {
+      if (box.hidden) continue;
+      for (const corner of quadCornersModel(box.center, box.width, box.height, box.rotation)) {
+        extend(corner);
+      }
+    }
     return has ? { minX, minY, maxX, maxY } : null;
-  }, [lineSegments, images, modelToSvg]);
+  }, [lineSegments, images, textBoxes, modelToSvg]);
 
   // Spatial indices for click hit-testing. Points are indexed as zero-length
   // segments so the same distance query applies (id = index + 1). Vertices are
@@ -915,6 +959,7 @@ export function CreasePatternWebglCanvas({
     activeToolSquareBisector,
     activeToolVoronoi,
     onTextCreate,
+    onTextCreateBox,
     voronoiSeeds,
     onVoronoiSeedsChange,
     resolveFirstPickKind,
@@ -940,6 +985,14 @@ export function CreasePatternWebglCanvas({
     // Inputs affecting stroke thickness / mapping changed — redraw.
     renderNowRef.current();
   });
+
+  // A new document: drop the one-shot camera seed so the next frame re-fits
+  // against the current bounds (creases + images + text boxes). Declared after
+  // the liveRef effect so `contentBounds` is already up to date when it re-fits.
+  useEffect(() => {
+    cameraRef.current = null;
+    renderNowRef.current();
+  }, [framingKey]);
 
   // Force a grid rebuild when its params, visibility, or theme colour change.
   useEffect(() => {
@@ -2104,6 +2157,18 @@ export function CreasePatternWebglCanvas({
         lastY = e.clientY;
         renderNow();
       } else if (selecting && moved) {
+        marquee.classList.remove('cp-webgl-marquee--text');
+        updateMarquee(e.clientX, e.clientY);
+      } else if (
+        liveRef.current.activeToolInputMode === 'text' &&
+        textPressStarted &&
+        moved &&
+        !panning &&
+        !movingFigure &&
+        !movingSelection
+      ) {
+        // Text tool press-drag: rubber-band the box the release will create.
+        marquee.classList.add('cp-webgl-marquee--text');
         updateMarquee(e.clientX, e.clientY);
       }
     };
@@ -2140,13 +2205,21 @@ export function CreasePatternWebglCanvas({
         !movingFigure
       ) {
         // Text tool: a click (no drag) whose press started on the canvas starts an
-        // inline-edit draft at that model point. A drag/pan, or a release whose press
-        // began on the overlay (dismissing an editor), does nothing.
-        if (textPressStarted && !moved && e.type !== 'pointercancel') {
-          const m = clientToModel(e.clientX, e.clientY);
-          if (m) liveRef.current.onTextCreate?.(m);
+        // inline-edit draft at that model point; a press-drag creates a text box of
+        // the dragged size. A pan, or a release whose press began on the overlay
+        // (dismissing an editor), does nothing.
+        if (textPressStarted && e.type !== 'pointercancel') {
+          if (moved) {
+            const start = clientToModel(pressX, pressY);
+            const end = clientToModel(e.clientX, e.clientY);
+            if (start && end) liveRef.current.onTextCreateBox?.(start, end);
+          } else {
+            const m = clientToModel(e.clientX, e.clientY);
+            if (m) liveRef.current.onTextCreate?.(m);
+          }
         }
         textPressStarted = false;
+        marquee.classList.remove('cp-webgl-marquee--text');
       } else if (erasing) {
         renderer.setPreview(null);
         const raw = clientToModel(e.clientX, e.clientY);

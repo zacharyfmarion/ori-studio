@@ -22,6 +22,7 @@ use crate::folding::{
 };
 use crate::geometry::LineSegment;
 use crate::geometry_transport::{self, CompactGeometry};
+use crate::model::TextElement;
 use crate::{
     CommandError, CreasePatternCommand, CreasePatternCommandPayload, CreasePatternDocument,
     CreasePatternModel, OperationCategory, OperationDescriptor, OperationId, OperationStatus,
@@ -57,6 +58,7 @@ pub const CP_ENGINE_COMMANDS: &[&str] = &[
     "export_fold_file",
     "export_ori",
     "export_orh",
+    "set_texts",
     "folded_figure_fold",
     "folded_figure_fold_selected",
     "folded_figure_snapshot",
@@ -454,6 +456,36 @@ impl CpSession {
 
     pub fn export_orh(&self, handle: u32) -> Result<String, EngineError> {
         Ok(io::orh::export_orh_string(self.document(handle)?))
+    }
+
+    /// Replace the document's text elements wholesale.
+    ///
+    /// Rich text lives in a web-side annotation layer; the kernel `texts` vec is
+    /// only the Oriedita interchange representation. The frontend flattens each
+    /// rich text box to a plain `{x, y, text}` and pushes them here right before
+    /// an `.ori` / `.fold` export (clearing them afterwards), and clears them (an
+    /// empty call) after inflating a loaded file's texts into web-side
+    /// annotations. `coords` is a flat `[x0, y0, x1, y1, ...]` paired with
+    /// `texts` by index.
+    pub fn set_texts(
+        &mut self,
+        handle: u32,
+        coords: &[f64],
+        texts: Vec<String>,
+    ) -> Result<(), EngineError> {
+        if coords.len() != texts.len() * 2 {
+            return Err(EngineError::new(
+                "invalid_texts",
+                "coords length must be twice the number of texts",
+            ));
+        }
+        let document = self.document_mut(handle)?;
+        document.crease_pattern.texts = texts
+            .into_iter()
+            .enumerate()
+            .map(|(i, text)| TextElement::new(coords[i * 2], coords[i * 2 + 1], text))
+            .collect();
+        Ok(())
     }
 
     // --- folding ----------------------------------------------------------------

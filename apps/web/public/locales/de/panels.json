@@ -1,4 +1,7 @@
 {
+  "annotationActions": {
+    "delete": "Löschen"
+  },
   "bpEditor": {
     "emptyPacking": "Führen Sie „Layout optimieren“ aus oder materialisieren Sie eine Packung, bevor Sie das BP manuell bearbeiten.",
     "emptyProject": "Öffnen Sie ein Box-Pleating-Projekt, um Klappen und Flüsse zu bearbeiten.",
@@ -181,8 +184,6 @@
     "display": "Anzeige",
     "duplicate": "Duplizieren",
     "duplicateFoldedModel": "Gefaltetes Modell duplizieren",
-    "editImages": "Bilder bearbeiten",
-    "editingImagesClickToExit": "Bilder werden bearbeitet (zum Beenden klicken)",
     "extraLineColors": "Zusätzliche Linienfarben",
     "flip": "Spiegeln",
     "fold": "Falten",
@@ -344,7 +345,6 @@
   "imageInspector": {
     "adjustOpacity": "Deckkraft anpassen",
     "bringToFront": "In den Vordergrund",
-    "deleteImage": "Bild löschen",
     "imageControls": "Bildsteuerung",
     "opacity": "Deckkraft",
     "sendToBack": "In den Hintergrund"
@@ -490,5 +490,24 @@
     "patterns": "Muster",
     "patternTitle_one": "Muster {{n}} — {{count}} Fläche",
     "patternTitle_other": "Muster {{n}} — {{count}} Flächen"
+  },
+  "textAnnotation": {
+    "addText": "Text hinzufügen",
+    "alignCenter": "Zentriert",
+    "alignLeft": "Linksbündig",
+    "alignment": "Ausrichtung",
+    "alignRight": "Rechtsbündig",
+    "blockBody": "Fließtext",
+    "blockHeading": "Überschrift",
+    "blockSubheading": "Unterüberschrift",
+    "bold": "Fett",
+    "color": "Textfarbe",
+    "deleteText": "Text löschen",
+    "editText": "Text bearbeiten",
+    "italic": "Kursiv",
+    "placeholder": "Eingeben…",
+    "textControls": "Textsteuerung",
+    "textStyle": "Textstil",
+    "underline": "Unterstrichen"
   }
 }

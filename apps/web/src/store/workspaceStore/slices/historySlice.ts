@@ -36,7 +36,7 @@ import type {
 } from '../../../engine/oristudioCpTypes';
 import type { OristudioCpSelection } from '../../../lib/creasePatternViewport';
 import type { BpHistorySnapshot } from '../types';
-import type { CpImage } from '../../../cp-workspace/images/cpImage';
+import type { CanvasAnnotation } from '../../../cp-workspace/annotations/annotation';
 import { markGeneratedCpLineageStale } from '../../../lib/oristudioCpLineage';
 
 const MAX_HISTORY = 100;
@@ -52,15 +52,15 @@ function historyEntry(text: string, label = 'Edit'): HistoryEntry {
 function cpHistoryEntry(
   document: OristudioCpDocumentSnapshot,
   selection: OristudioCpSelection,
-  images: CpImage[],
+  annotations: CanvasAnnotation[],
   label = 'Edit',
-  imageOnly = false
+  annotationsOnly = false
 ): OristudioCpHistoryEntry {
   return {
     document,
     selection,
-    images,
-    imageOnly,
+    annotations,
+    annotationsOnly,
     label,
     timestamp: new Date().toISOString(),
   };
@@ -184,18 +184,18 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
       const current = get().oristudioCpDocument;
       if (!previous || !current || get().historyBusy) return false;
       const currentSelection = get().oristudioCpSelection;
-      const currentImages = get().oristudioCpImages;
+      const currentAnnotations = get().oristudioCpAnnotations;
       set({ historyBusy: true, error: null, oristudioCpError: null });
       try {
         // Image-only edits: swap the image layer without reloading the (unchanged)
         // wasm document, so image undo stays cheap.
-        if (previous.imageOnly) {
+        if (previous.annotationsOnly) {
           set({
-            oristudioCpImages: previous.images,
-            oristudioCpSelectedImageId: null,
+            oristudioCpAnnotations: previous.annotations,
+            oristudioCpSelectedAnnotationId: null,
             oristudioCpHistoryPast: past.slice(0, -1),
             oristudioCpHistoryFuture: [
-              cpHistoryEntry(current.document, currentSelection, currentImages, previous.label, true),
+              cpHistoryEntry(current.document, currentSelection, currentAnnotations, previous.label, true),
               ...get().oristudioCpHistoryFuture,
             ].slice(0, MAX_HISTORY),
             dirty: true,
@@ -217,11 +217,11 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
             previous.selection,
             get().oristudioCpCamvResult
           ),
-          oristudioCpImages: previous.images,
-          oristudioCpSelectedImageId: null,
+          oristudioCpAnnotations: previous.annotations,
+          oristudioCpSelectedAnnotationId: null,
           oristudioCpHistoryPast: past.slice(0, -1),
           oristudioCpHistoryFuture: [
-            cpHistoryEntry(current.document, currentSelection, currentImages, previous.label, false),
+            cpHistoryEntry(current.document, currentSelection, currentAnnotations, previous.label, false),
             ...get().oristudioCpHistoryFuture,
           ].slice(0, MAX_HISTORY),
           ...staleFoldArtifactResourceState(get().foldArtifactRevision),
@@ -298,16 +298,16 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
       const current = get().oristudioCpDocument;
       if (!next || !current || get().historyBusy) return false;
       const currentSelection = get().oristudioCpSelection;
-      const currentImages = get().oristudioCpImages;
+      const currentAnnotations = get().oristudioCpAnnotations;
       set({ historyBusy: true, error: null, oristudioCpError: null });
       try {
-        if (next.imageOnly) {
+        if (next.annotationsOnly) {
           set({
-            oristudioCpImages: next.images,
-            oristudioCpSelectedImageId: null,
+            oristudioCpAnnotations: next.annotations,
+            oristudioCpSelectedAnnotationId: null,
             oristudioCpHistoryPast: [
               ...get().oristudioCpHistoryPast,
-              cpHistoryEntry(current.document, currentSelection, currentImages, next.label, true),
+              cpHistoryEntry(current.document, currentSelection, currentAnnotations, next.label, true),
             ].slice(-MAX_HISTORY),
             oristudioCpHistoryFuture: future.slice(1),
             dirty: true,
@@ -323,11 +323,11 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
         );
         set({
           ...setRestoredCreasePatternState(restored, next.selection, get().oristudioCpCamvResult),
-          oristudioCpImages: next.images,
-          oristudioCpSelectedImageId: null,
+          oristudioCpAnnotations: next.annotations,
+          oristudioCpSelectedAnnotationId: null,
           oristudioCpHistoryPast: [
             ...get().oristudioCpHistoryPast,
-            cpHistoryEntry(current.document, currentSelection, currentImages, next.label, false),
+            cpHistoryEntry(current.document, currentSelection, currentAnnotations, next.label, false),
           ].slice(-MAX_HISTORY),
           oristudioCpHistoryFuture: future.slice(1),
           ...staleFoldArtifactResourceState(get().foldArtifactRevision),

@@ -1,4 +1,7 @@
 {
+  "annotationActions": {
+    "delete": "Excluir"
+  },
   "bpEditor": {
     "emptyPacking": "Execute Otimizar Layout ou materialize um empacotamento antes da edição manual de BP.",
     "emptyProject": "Abra um projeto de dobra em caixa para editar abas e rios.",
@@ -187,8 +190,6 @@
     "display": "Exibição",
     "duplicate": "Duplicar",
     "duplicateFoldedModel": "Duplicar modelo dobrado",
-    "editImages": "Editar imagens",
-    "editingImagesClickToExit": "Editando imagens (clique para sair)",
     "extraLineColors": "Cores de linha extras",
     "flip": "Espelhar",
     "fold": "Dobrar",
@@ -354,7 +355,6 @@
   "imageInspector": {
     "adjustOpacity": "Ajustar opacidade",
     "bringToFront": "Trazer para frente",
-    "deleteImage": "Excluir imagem",
     "imageControls": "Controles de imagem",
     "opacity": "Opacidade",
     "sendToBack": "Enviar para trás"
@@ -503,5 +503,24 @@
     "patternTitle_one": "Padrão {{n}} — {{count}} face",
     "patternTitle_many": "Padrão {{n}} — {{count}} faces",
     "patternTitle_other": "Padrão {{n}} — {{count}} faces"
+  },
+  "textAnnotation": {
+    "addText": "Adicionar texto",
+    "alignCenter": "Centralizar",
+    "alignLeft": "Alinhar à esquerda",
+    "alignment": "Alinhamento",
+    "alignRight": "Alinhar à direita",
+    "blockBody": "Corpo",
+    "blockHeading": "Título",
+    "blockSubheading": "Subtítulo",
+    "bold": "Negrito",
+    "color": "Cor do texto",
+    "deleteText": "Excluir texto",
+    "editText": "Editar texto",
+    "italic": "Itálico",
+    "placeholder": "Digite…",
+    "textControls": "Controles de texto",
+    "textStyle": "Estilo do texto",
+    "underline": "Sublinhado"
   }
 }

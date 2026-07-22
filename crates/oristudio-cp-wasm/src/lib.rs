@@ -203,6 +203,13 @@ pub fn export_orh(handle: u32) -> Result<String, JsValue> {
     with_session(|session| session.export_orh(handle))
 }
 
+/// Replace the kernel document's text elements wholesale. See
+/// [`CpSession::set_texts`] for the rich-text/interchange split this serves.
+#[wasm_bindgen]
+pub fn set_texts(handle: u32, coords: Vec<f64>, texts: Vec<String>) -> Result<(), JsValue> {
+    with_session_mut(|session| session.set_texts(handle, &coords, texts))
+}
+
 // --- folding ----------------------------------------------------------------
 
 #[wasm_bindgen]

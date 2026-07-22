@@ -43,6 +43,32 @@ The layering rule:
 equivalent? If yes, it belongs in the kernel — port it there, don't make it a
 superset feature. Superset is only for concepts Oriedita genuinely lacks.
 
+### Variant: a superset feature that *flattens onto* a kernel concept
+
+Some features are a superset **wrapper** around a concept the kernel already
+has. **Rich text** is the worked example: Oriedita text is `TextElement
+{x, y, text}` (kernel-native), but Ori Studio's rich-text boxes add formatting
+(bold/italic/underline, block presets, color) and a resizable, reflowing box —
+none of which Oriedita can express.
+
+The rule is the same (keep the kernel pure), with one addition — a **codec** at
+the export/import boundary:
+
+- The rich model lives web-side (`cp-workspace/annotations/`, a `text` variant of
+  the unified `CanvasAnnotation`) and persists in full only in `.osf`.
+- On **export**, each box **flattens** to `{x, y, text}` (box center + plain
+  text, marks dropped) and is pushed into the kernel via the `set_texts` wasm
+  bridge just before the Oriedita export runs, then cleared — so the kernel
+  `texts` vec is used *only* as the interchange representation and stays empty
+  during a session. See `flattenTextAnnotations` +
+  [`oristudioCpWorker.ts`](../src/workers/oristudioCpWorker.ts) `exportWithTexts`.
+- On **import**, kernel `texts` **inflate** back into default-styled boxes, and
+  the kernel copy is cleared so a later `.osf` save doesn't double-count them.
+
+So unlike images (fully omitted), a flatten-onto-kernel feature **partially
+round-trips**: the content survives Oriedita export, the rich wrapper is lost —
+and `collectExportLossWarnings` reports that loss (`Rich text formatting`).
+
 ---
 
 ## The checklist

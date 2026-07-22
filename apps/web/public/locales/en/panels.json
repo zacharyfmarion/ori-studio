@@ -1,4 +1,7 @@
 {
+  "annotationActions": {
+    "delete": "Delete"
+  },
   "bpEditor": {
     "emptyPacking": "Run Optimize Layout or materialize a packing before manual BP editing.",
     "emptyProject": "Open a Box Pleat project to edit flaps and rivers.",
@@ -181,8 +184,6 @@
     "display": "Display",
     "duplicate": "Duplicate",
     "duplicateFoldedModel": "Duplicate folded model",
-    "editImages": "Edit images",
-    "editingImagesClickToExit": "Editing images (click to exit)",
     "extraLineColors": "Extra line colors",
     "flip": "Flip",
     "fold": "Fold",
@@ -344,7 +345,6 @@
   "imageInspector": {
     "adjustOpacity": "Adjust opacity",
     "bringToFront": "Bring to front",
-    "deleteImage": "Delete image",
     "imageControls": "Image controls",
     "opacity": "Opacity",
     "sendToBack": "Send to back"
@@ -490,5 +490,24 @@
     "patterns": "Patterns",
     "patternTitle_one": "Pattern {{n}} — {{count}} faces",
     "patternTitle_other": "Pattern {{n}} — {{count}} faces"
+  },
+  "textAnnotation": {
+    "addText": "Add text",
+    "alignCenter": "Align center",
+    "alignLeft": "Align left",
+    "alignment": "Alignment",
+    "alignRight": "Align right",
+    "blockBody": "Body",
+    "blockHeading": "Heading",
+    "blockSubheading": "Subheading",
+    "bold": "Bold",
+    "color": "Text color",
+    "deleteText": "Delete text",
+    "editText": "Edit text",
+    "italic": "Italic",
+    "placeholder": "Type…",
+    "textControls": "Text controls",
+    "textStyle": "Text style",
+    "underline": "Underline"
   }
 }

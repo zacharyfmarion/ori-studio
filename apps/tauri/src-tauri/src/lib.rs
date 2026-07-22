@@ -113,6 +113,7 @@ pub fn run() {
             cp_engine::cp_export_fold_file,
             cp_engine::cp_export_ori,
             cp_engine::cp_export_orh,
+            cp_engine::cp_set_texts,
             cp_engine::cp_folded_figure_fold,
             cp_engine::cp_folded_figure_fold_selected,
             cp_engine::cp_folded_figure_snapshot,

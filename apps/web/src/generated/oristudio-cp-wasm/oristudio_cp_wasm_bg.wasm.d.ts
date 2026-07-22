@@ -34,6 +34,7 @@ export const preview_cp_command: (a: number, b: any, c: any) => [number, number,
 export const replace_line_segments: (a: number, b: any, c: any) => [number, number, number];
 export const restore_document: (a: number, b: any) => [number, number];
 export const restore_from_compact: (a: number, b: any) => [number, number];
+export const set_texts: (a: number, b: number, c: number, d: number, e: number) => [number, number];
 export const __wbindgen_malloc: (a: number, b: number) => number;
 export const __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
 export const __wbindgen_exn_store: (a: number) => void;

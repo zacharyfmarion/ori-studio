@@ -24,16 +24,23 @@ import {
   normalizeOrieditaGridSize,
   normalizeOrieditaIntervalGridSize,
   ORIEDITA_GRID_SCALE_DEFAULTS,
+  textCoordinate,
 } from '../../../lib/creasePatternViewport';
 import {
   importedCpLineage,
   markCpLineageEdited,
 } from '../../../lib/oristudioCpLineage';
+import { IMAGE_TOTAL_BYTES_WARN, totalCpImageBytes } from '../../../cp-workspace/images/cpImage';
 import {
-  IMAGE_TOTAL_BYTES_WARN,
-  totalCpImageBytes,
-  type CpImage,
-} from '../../../cp-workspace/images/cpImage';
+  flattenTextAnnotations,
+  isImageAnnotation,
+  isTextAnnotation,
+} from '../../../cp-workspace/annotations/annotation';
+import {
+  createTextAnnotation,
+  textDocFromPlainText,
+} from '../../../cp-workspace/annotations/textAnnotation';
+import type { CanvasAnnotation } from '../../../cp-workspace/annotations/annotation';
 import { normalizeOristudioCpCommandPayload } from '../../../lib/oristudioCpCommandPayloads';
 import {
   activeNativeDocument,
@@ -95,6 +102,7 @@ import {
   exportOristudioCpDocumentAsFold,
   exportOristudioCpDocumentAsOri,
   exportOristudioCpDocumentAsOrh,
+  clearOristudioCpKernelTexts,
   createBlankOristudioCpDocument,
   getOristudioCpOperationDescriptors,
   loadOristudioCpDocumentFromText,
@@ -148,12 +156,12 @@ function cpHistoryEntry(
   document: Awaited<ReturnType<typeof loadOristudioCpDocumentFromText>>['document'],
   label: string,
   selection: OristudioCpSelection,
-  images: CpImage[]
+  annotations: CanvasAnnotation[]
 ) {
   return {
     document,
     selection,
-    images,
+    annotations,
     label,
     timestamp: nowIso(),
   };
@@ -498,7 +506,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         oristudioCpHistoryPast: previousDocument
           ? [
               ...get().oristudioCpHistoryPast,
-              cpHistoryEntry(previousDocument, label, previousSelection, get().oristudioCpImages),
+              cpHistoryEntry(previousDocument, label, previousSelection, get().oristudioCpAnnotations),
             ]
           : get().oristudioCpHistoryPast,
         oristudioCpHistoryFuture: [],
@@ -645,6 +653,31 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     // Simulation faces are inferred in JS by parseImportedCreasePattern (no
     // flat-folding), so imports with multiple crease patterns work.
     const result = parsed;
+    // Inflate any Oriedita text elements the file carried into web-side rich-text
+    // boxes (the kernel `texts` vec is only the interchange representation). The
+    // kernel copy is then cleared so a later re-snapshot / `.osf` save doesn't
+    // double-count them.
+    const importedTextAnnotations = oristudioCpDocument
+      ? oristudioCpDocument.document.crease_pattern.texts.map((element) =>
+          createTextAnnotation({
+            center: { x: textCoordinate(element.x), y: textCoordinate(element.y) },
+            doc: textDocFromPlainText(element.text),
+            plainText: element.text,
+          })
+        )
+      : [];
+    if (oristudioCpDocument && importedTextAnnotations.length > 0) {
+      oristudioCpDocument = {
+        ...oristudioCpDocument,
+        document: {
+          ...oristudioCpDocument.document,
+          crease_pattern: { ...oristudioCpDocument.document.crease_pattern, texts: [] },
+        },
+      };
+      // Keep the live kernel document free of the now-inflated texts so later
+      // snapshots and `.osf` saves don't re-introduce them.
+      await clearOristudioCpKernelTexts();
+    }
     const artifactRevision = get().foldArtifactRevision + 1;
     const artifactState = readyFoldArtifactResourceState(result.foldArtifacts, artifactRevision);
     set({
@@ -666,10 +699,10 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       oristudioCpError: oristudioCpRuntimeError,
       oristudioCpHistoryPast: [],
       oristudioCpHistoryFuture: [],
-      // A non-.osf crease pattern carries no superset data; reset the layer.
-      oristudioCpImages: [],
-      oristudioCpImageEditMode: false,
-      oristudioCpSelectedImageId: null,
+      // A non-.osf crease pattern carries no images; its Oriedita text elements
+      // are inflated into rich-text annotations above.
+      oristudioCpAnnotations: importedTextAnnotations,
+      oristudioCpSelectedAnnotationId: null,
       oristudioCpDocumentExtensions: {},
       nativeProjectExtensions: {},
       projectLoadId: get().projectLoadId + 1,
@@ -784,9 +817,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       importedCreasePattern: importedDocument,
       oristudioCpDocument: documentState,
       oristudioCpLineage: nativeDocument.creasePattern.lineage,
-      oristudioCpImages: nativeDocument.creasePattern.images,
-      oristudioCpImageEditMode: nativeDocument.creasePattern.images.length > 0,
-      oristudioCpSelectedImageId: null,
+      oristudioCpAnnotations: [...nativeDocument.creasePattern.images, ...nativeDocument.creasePattern.textAnnotations],
+      oristudioCpSelectedAnnotationId: null,
       oristudioCpDocumentExtensions: nativeDocument.extensions,
       oristudioCpCamvResult: checked.camvResult,
       oristudioCpOperationDescriptors: documentState.operationDescriptors,
@@ -843,9 +875,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     set({
       oristudioCpDocument: checked.documentState,
       oristudioCpLineage: nativeDocument.creasePattern.lineage,
-      oristudioCpImages: nativeDocument.creasePattern.images,
-      oristudioCpImageEditMode: nativeDocument.creasePattern.images.length > 0,
-      oristudioCpSelectedImageId: null,
+      oristudioCpAnnotations: [...nativeDocument.creasePattern.images, ...nativeDocument.creasePattern.textAnnotations],
+      oristudioCpSelectedAnnotationId: null,
       oristudioCpDocumentExtensions: nativeDocument.extensions,
       oristudioCpCamvResult: checked.camvResult,
       oristudioCpOperationDescriptors: checked.documentState.operationDescriptors,
@@ -966,7 +997,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     if (!result) return false;
     const document = get().oristudioBpDocument;
     // Soft, non-blocking notice when the file embeds a lot of image data.
-    const imageBytes = totalCpImageBytes(get().oristudioCpImages);
+    const imageBytes = totalCpImageBytes(get().oristudioCpAnnotations.filter(isImageAnnotation));
     const savedMessage =
       imageBytes > IMAGE_TOTAL_BYTES_WARN
         ? `Saved ${result.name} — embeds ~${Math.round(
@@ -1020,7 +1051,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       foldedFigures: get().oristudioCpFoldedFigures,
       activeFoldedFigureId: get().oristudioCpActiveFoldedFigureId,
       lineage: get().oristudioCpLineage ?? importedCpLineage(),
-      images: get().oristudioCpImages,
+      images: get().oristudioCpAnnotations.filter(isImageAnnotation),
+      textAnnotations: get().oristudioCpAnnotations.filter(isTextAnnotation),
       extensions: get().oristudioCpDocumentExtensions,
       appVersion: APP_VERSION,
     };
@@ -1033,7 +1065,10 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   // otherwise returns a Promise resolving to the user's choice. Callers use the
   // `gate !== true && !(await gate)` idiom so the no-loss path never awaits.
   const guardExportLoss = (format: ExportFormat): true | Promise<boolean> => {
-    const warnings = collectExportLossWarnings(format, { images: get().oristudioCpImages });
+    const warnings = collectExportLossWarnings(format, {
+      images: get().oristudioCpAnnotations.filter(isImageAnnotation),
+      richText: get().oristudioCpAnnotations.filter(isTextAnnotation),
+    });
     if (warnings.length === 0) return true;
     return requestConfirmation({
       title: 'Some features can’t be exported',
@@ -1050,7 +1085,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   const saveEditableCreasePatternAsOri = async (fileService: FileService) => {
     const documentState = get().oristudioCpDocument;
     if (!documentState) return false;
-    const contents = await exportOristudioCpDocumentAsOri();
+    const contents = await exportOristudioCpDocumentAsOri(
+      flattenTextAnnotations(get().oristudioCpAnnotations)
+    );
     const importedCreasePattern = get().importedCreasePattern;
     const result = await fileService.saveTextFile({
       title: 'Save Oriedita ORI Document',
@@ -1090,7 +1127,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     const documentState = get().oristudioCpDocument;
     if (!documentState) return false;
     if (!(await confirmLossyOrhWrite())) return false;
-    const contents = await exportOristudioCpDocumentAsOrh();
+    const contents = await exportOristudioCpDocumentAsOrh(
+      flattenTextAnnotations(get().oristudioCpAnnotations)
+    );
     const importedCreasePattern = get().importedCreasePattern;
     const result = await fileService.saveTextFile({
       title: 'Save Oriedita ORH Document',
@@ -1307,9 +1346,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
               oristudioCpRevision: 0,
               oristudioCpFoldedFigures: [],
               oristudioCpActiveFoldedFigureId: null,
-              oristudioCpImages: [],
-              oristudioCpImageEditMode: false,
-              oristudioCpSelectedImageId: null,
+              oristudioCpAnnotations: [],
+              oristudioCpSelectedAnnotationId: null,
               oristudioCpDocumentExtensions: {},
               creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
               ...emptyFoldArtifactResourceState(),
@@ -1526,7 +1564,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
                     previousDocument,
                     String(operationId),
                     previousSelection,
-                    get().oristudioCpImages
+                    get().oristudioCpAnnotations
                   ),
                 ]
               : get().oristudioCpHistoryPast
@@ -1662,7 +1700,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           oristudioCpError: null,
           oristudioCpHistoryPast: [
             ...get().oristudioCpHistoryPast,
-            cpHistoryEntry(previousDocument, label, previousSelection, get().oristudioCpImages),
+            cpHistoryEntry(previousDocument, label, previousSelection, get().oristudioCpAnnotations),
           ],
           oristudioCpHistoryFuture: [],
           error: null,
@@ -1892,7 +1930,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         if (foldLoss !== true && !(await foldLoss)) return false;
         const contents =
           get().oristudioCpDocument
-            ? await exportOristudioCpDocumentAsFold()
+            ? await exportOristudioCpDocumentAsFold(
+                flattenTextAnnotations(get().oristudioCpAnnotations)
+              )
             : get().importedCreasePattern
             ? JSON.stringify(get().importedCreasePattern?.fold, null, 2)
             : await (async () => {
@@ -1920,7 +1960,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         if (rejectDisabled('file.exportOri')) return false;
         const oriLoss = guardExportLoss('ori');
         if (oriLoss !== true && !(await oriLoss)) return false;
-        const contents = await exportOristudioCpDocumentAsOri();
+        const contents = await exportOristudioCpDocumentAsOri(
+          flattenTextAnnotations(get().oristudioCpAnnotations)
+        );
         const result = await fileService.saveTextFile({
           title: 'Export Oriedita ORI Document',
           contents,
@@ -1946,7 +1988,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         const orhLoss = guardExportLoss('orh');
         if (orhLoss !== true && !(await orhLoss)) return false;
         if (!(await confirmLossyOrhWrite())) return false;
-        const contents = await exportOristudioCpDocumentAsOrh();
+        const contents = await exportOristudioCpDocumentAsOrh(
+          flattenTextAnnotations(get().oristudioCpAnnotations)
+        );
         const result = await fileService.saveTextFile({
           title: 'Export Oriedita ORH Document',
           contents,
