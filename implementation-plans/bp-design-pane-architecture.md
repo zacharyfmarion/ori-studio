@@ -156,8 +156,15 @@ rules, and the tests cover pure helpers and the store.
       document); undo/redo restores it as presentation. A third encoding of
       empty — `emptyOristudioBpSelection()` returning an empty `bp-multi` — was
       found and collapsed into `bp-none`.
-- [ ] 3. Audit both panes for policy-as-fallback; promote to named helpers with
-      unit tests.
+- [x] 3. Audit both panes for policy-as-fallback; promote to named helpers with
+      unit tests. The tree's drag rule (root translates, anything else rotates
+      about its parent) was the remaining instance of policy living in a pointer
+      handler — extracted to `bpTreeDragUpdates` with tests, including the
+      edge-length invariant it exists to preserve. Its two silent fallbacks
+      (unknown parent → rotate about the drag start; vertex missing from its own
+      subtree) now return "moves nothing" instead. The packing pane came out
+      clean: its equivalents (`selectedFlapDragIds`,
+      `constrainBpPackingFlapGroupTarget`) were already pure lib helpers.
 - [ ] 4. Extract `useViewportSurface`, the layers popover, and the drag
       protocol; both panes consume them.
 - [ ] 5. Interaction-rule component tests for the tree pane and the viewport

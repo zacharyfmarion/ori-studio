@@ -51,3 +51,50 @@ export function translatePoints(
   for (const [id, point] of points) out.set(id, { x: point.x + dx, y: point.y + dy });
   return out;
 }
+
+export interface BpTreeDragInput {
+  /** The vertex under the cursor. */
+  vertexId: number;
+  /** Its parent, or null when it is the root. */
+  parentId: number | null;
+  /** Every vertex in the tree, by id. */
+  vertices: ReadonlyMap<number, Point>;
+  /** `vertexId` and everything hanging below it. */
+  subtreeIds: readonly number[];
+  /** Where the dragged vertex started, and where the cursor wants it. */
+  start: Point;
+  target: Point;
+}
+
+/**
+ * Every vertex a drag moves, and where to.
+ *
+ * The rule this encodes: **dragging the root translates the whole tree
+ * rigidly; dragging any other vertex rotates it and its subtree about its
+ * parent**, so no edge ever changes length. It is a pure function so the live
+ * preview and the committed move are the same computation rather than two
+ * copies that can drift apart.
+ *
+ * Returns an empty map when the drag can't be resolved (an unknown parent),
+ * which reads at the call site as "this drag moves nothing".
+ */
+export function bpTreeDragUpdates(input: BpTreeDragInput): Map<number, Point> {
+  const { vertexId, parentId, vertices, subtreeIds, start, target } = input;
+
+  if (parentId === null) {
+    return translatePoints(start, target, vertices);
+  }
+
+  const pivot = vertices.get(parentId);
+  if (!pivot) return new Map();
+
+  const subtree = subtreeIds.flatMap((id) => {
+    const loc = vertices.get(id);
+    return loc ? [[id, loc] as const] : [];
+  });
+  // The dragged vertex must be in the set it rotates with, or the cursor would
+  // pull the subtree while leaving the grabbed vertex behind.
+  if (!subtree.some(([id]) => id === vertexId)) return new Map();
+
+  return rotatePointsAround(pivot, start, target, subtree);
+}

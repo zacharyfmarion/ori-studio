@@ -33,7 +33,11 @@ import {
 } from '../../lib/bpTreeViewport';
 import { bpDefaultFlapLabel } from '../../lib/bpFlapLabel';
 import { formatNumber, type Point } from '../../lib/geometry';
-import { rotatePointsAround, translatePoints, unitLeafLocation } from '../../lib/bpTreeAuthoring';
+import {
+  bpTreeDragUpdates,
+  translatePoints,
+  unitLeafLocation,
+} from '../../lib/bpTreeAuthoring';
 import {
   bpTreeSymmetryDefaultLoc,
   mirrorBpTreeVertexId,
@@ -369,6 +373,12 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     }
     return { parent, children };
   }, [tree.vertices, tree.edges, tree.rootVertexId]);
+
+  // Vertex locations by id — the lookup the drag rule works from.
+  const vertexLocationsById = useMemo(
+    () => new Map(tree.vertices.map((vertex) => [vertex.id, vertex.loc] as const)),
+    [tree.vertices]
+  );
 
   const subtreeOf = useCallback(
     (id: number): number[] => {
@@ -806,22 +816,14 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     event.stopPropagation();
     const target = constrainBpTreePoint(eventToTreePoint(event), tree.sheet);
     setHoverPoint(target);
-    const parentId = topology.parent.get(vertexId) ?? null;
-    let moved: Map<number, Point>;
-    if (parentId === null) {
-      // Root: translate the whole tree rigidly by the drag delta.
-      const points = tree.vertices.map((vertex) => [vertex.id, vertex.loc] as const);
-      moved = translatePoints(dragging.start, target, points);
-    } else {
-      // Rotate this vertex and its subtree rigidly around the parent, so every
-      // edge keeps its length.
-      const pivot = findVertex(parentId)?.loc ?? dragging.start;
-      const points = subtreeOf(vertexId)
-        .map((id) => findVertex(id))
-        .filter((vertex): vertex is NonNullable<typeof vertex> => Boolean(vertex))
-        .map((vertex) => [vertex.id, vertex.loc] as const);
-      moved = rotatePointsAround(pivot, dragging.start, target, points);
-    }
+    const moved = bpTreeDragUpdates({
+      vertexId,
+      parentId: topology.parent.get(vertexId) ?? null,
+      vertices: vertexLocationsById,
+      subtreeIds: subtreeOf(vertexId),
+      start: dragging.start,
+      target,
+    });
     const preview = new Map<number, Point>();
     for (const [id, loc] of moved) preview.set(id, constrainBpTreePoint(loc, tree.sheet));
     const clientDx = event.clientX - dragging.clientStart.x;
