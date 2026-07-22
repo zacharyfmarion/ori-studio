@@ -503,10 +503,14 @@ moving via cmd/ctrl-drag, now through the placement)
 
 **Phase 8 — validation**
 - [x] `cd apps/web && npx tsc --noEmit`, `npm run lint:web`, `npm run test:web`, `npm run build:web`, `i18n:check`
-- [x] Test-suite delta: 625 → 663 passing (+38). The 48 pre-existing failures on
-      this branch (CommandDialogModal, HelpModal, SettingsModal, StartScreen,
-      ContextMenu, CpToolRail, …) are unrelated to this work and were verified
-      against a clean stash before starting.
+- [x] Test suite fully green: 711 passing, 0 failing.
+      The 48 failures seen during development were an environment fault, not a
+      branch fault: this worktree's cloned `node_modules` was missing
+      `react-i18next`/`i18next`, so resolution walked up to the primary
+      checkout's copy, which pulled the *primary's* React — two React instances,
+      and every `useTranslation` call returned a null context. `npm install` in
+      the worktree fixed it. Worth remembering when a fresh worktree shows
+      broad, unrelated-looking React failures (see AGENTS.md "Worktree setup").
 - [ ] Browser checklist for Zach:
   - drag / resize / rotate a folded form; Shift frees an image resize and snaps a rotation
   - undo/redo each gesture

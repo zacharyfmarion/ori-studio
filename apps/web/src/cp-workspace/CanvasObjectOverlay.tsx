@@ -95,6 +95,7 @@ export function CanvasObjectOverlay({
   onUpdate,
   onCropUpdate,
   onRequestEdit,
+  onContextMenu,
   canCrop,
   onGestureStart,
   onGestureCommit,
@@ -114,6 +115,12 @@ export function CanvasObjectOverlay({
   onCropUpdate?: (id: string, handle: AnnotationResizeHandle, pointer: Vec2) => void;
   /** Double-click on an editable object (a text box) requests inline editing. */
   onRequestEdit?: (id: string) => void;
+  /**
+   * Right-click on an object. The overlay sits above the canvas and takes the
+   * press first, so without this the canvas's own context-menu handling never
+   * runs and the browser's native menu wins.
+   */
+  onContextMenu?: (id: string, clientX: number, clientY: number) => void;
   /** Whether this object supports crop mode (double-click toggles it). */
   canCrop?: (id: string) => boolean;
   /** Called at the start of a move/resize/rotate gesture (to snapshot for undo). */
@@ -169,6 +176,15 @@ export function CanvasObjectOverlay({
   const handleBodyDown = useCallback(
     (event: ReactPointerEvent<SVGPolygonElement>, object: TransformableCanvasObject) => {
       if (!interactive || object.locked) return;
+      // Only the primary button drags. A secondary press selects and lets the
+      // context menu open: starting a move here would capture the pointer, and
+      // the release that dismisses the menu lands outside this element — leaving
+      // the drag live so the object then follows the cursor unbidden.
+      if (event.button !== 0) {
+        event.stopPropagation();
+        onSelect(object.id);
+        return;
+      }
       beginCapture(event);
       onSelect(object.id);
       onGestureStart?.(object.id);
@@ -189,7 +205,7 @@ export function CanvasObjectOverlay({
       object: TransformableCanvasObject,
       handle: AnnotationResizeHandle
     ) => {
-      if (!interactive || object.locked) return;
+      if (!interactive || object.locked || event.button !== 0) return;
       beginCapture(event);
       onGestureStart?.(object.id);
       dragRef.current = {
@@ -206,7 +222,7 @@ export function CanvasObjectOverlay({
 
   const handleRotateDown = useCallback(
     (event: ReactPointerEvent<SVGCircleElement>, object: TransformableCanvasObject) => {
-      if (!interactive || object.locked) return;
+      if (!interactive || object.locked || event.button !== 0) return;
       beginCapture(event);
       onGestureStart?.(object.id);
       const pointer = pointerToObject(event, object.space);
@@ -265,6 +281,19 @@ export function CanvasObjectOverlay({
     },
     [views, pointerToObject, onUpdate, onCropUpdate]
   );
+
+  /**
+   * A gesture that never gets its pointerup (pointer cancelled, capture lost)
+   * must not stay live, or the object silently follows the cursor afterwards.
+   * Drop it without recording — the store already holds the in-progress value,
+   * and no history entry means the next real edit still has a sane baseline.
+   */
+  const handlePointerCancel = useCallback((event: ReactPointerEvent<SVGElement>) => {
+    dragRef.current = null;
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }, []);
 
   const handlePointerUp = useCallback(
     (event: ReactPointerEvent<SVGElement>) => {
@@ -362,6 +391,13 @@ export function CanvasObjectOverlay({
             onPointerDown={(event) => handleBodyDown(event, object)}
             onPointerMove={(event) => handlePointerMove(event, object)}
             onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerCancel}
+            onContextMenu={(event) => {
+              if (!interactive || object.locked || !onContextMenu) return;
+              event.preventDefault();
+              event.stopPropagation();
+              onContextMenu(object.id, event.clientX, event.clientY);
+            }}
             onDoubleClick={(event) => {
               if (!interactive || object.locked) return;
               event.stopPropagation();
@@ -382,6 +418,7 @@ export function CanvasObjectOverlay({
           onRotateDown={handleRotateDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerCancel}
         />
       )}
     </svg>
@@ -397,6 +434,7 @@ function SelectionHandles({
   onRotateDown,
   onPointerMove,
   onPointerUp,
+  onPointerCancel,
 }: {
   object: TransformableCanvasObject;
   views: { model: CpOverlayView; user: CpOverlayView };
@@ -415,6 +453,7 @@ function SelectionHandles({
     object: TransformableCanvasObject
   ) => void;
   onPointerUp: (event: ReactPointerEvent<SVGElement>) => void;
+  onPointerCancel: (event: ReactPointerEvent<SVGElement>) => void;
 }) {
   // Crop handles use the warning accent; resize/rotate the primary accent.
   const handleStroke = cropMode ? '#e0a020' : 'var(--accent-primary, #4c9aff)';
@@ -472,6 +511,7 @@ function SelectionHandles({
               onPointerDown={(event) => onRotateDown(event, object)}
               onPointerMove={(event) => onPointerMove(event, object)}
               onPointerUp={onPointerUp}
+              onPointerCancel={onPointerCancel}
             />
           );
         })}
@@ -489,6 +529,7 @@ function SelectionHandles({
           onPointerDown={(event) => onResizeDown(event, object, handle)}
           onPointerMove={(event) => onPointerMove(event, object)}
           onPointerUp={onPointerUp}
+          onPointerCancel={onPointerCancel}
         />
       ))}
     </g>

@@ -1858,6 +1858,21 @@ export function CreasePatternPanel() {
     },
     [oristudioCpFoldedFigures, setOristudioCpActiveFoldedFigure, buildFoldedFigureMenuItems]
   );
+  /**
+   * Right-click on a canvas object. The overlay sits above the canvas and takes
+   * the press first, so the canvas's own right-click path never sees a click
+   * that lands on an object — this is what routes it to the folded menu.
+   * Annotations have no context menu yet and simply select.
+   */
+  const handleCanvasObjectContextMenu = useCallback(
+    (id: string, clientX: number, clientY: number) => {
+      const figure = oristudioCpFoldedFigures.find((candidate) => candidate.id === id);
+      if (!figure) return;
+      setOristudioCpActiveFoldedFigure(id);
+      setFoldedContextMenu({ x: clientX, y: clientY, items: buildFoldedFigureMenuItems(figure) });
+    },
+    [oristudioCpFoldedFigures, setOristudioCpActiveFoldedFigure, buildFoldedFigureMenuItems]
+  );
   // Vertex dots: dedup crease-segment endpoints — the top main-thread cost after an
   // edit on dense patterns. Dedup straight from the transport's typed arrays
   // (parity-proven identical to getCpVertexPoints); the structured fallback only runs
@@ -3426,11 +3441,11 @@ export function CreasePatternPanel() {
                   onSelect={(hit, additive) => {
                     if (!hit) {
                       if (!additive) clearOristudioCpSelection();
-                      // A click on empty canvas also deselects the active
-                      // annotation (mirrors how creases clear on a background
-                      // click). An annotation click is captured by its overlay and
-                      // never reaches here.
-                      setSelectedAnnotation(null);
+                      // A click on empty canvas also deselects the active canvas
+                      // object — annotation or folded figure (mirrors how creases
+                      // clear on a background click). A click on an object is
+                      // captured by the overlay and never reaches here.
+                      selectCanvasObject(null);
                       return;
                     }
                     if (hit.kind === 'line') handleEditableLineClick(hit.id, additive);
@@ -3538,6 +3553,7 @@ export function CreasePatternPanel() {
                     onUpdate={handleCanvasObjectUpdate}
                     onCropUpdate={handleAnnotationCrop}
                     onRequestEdit={handleRequestEditText}
+                    onContextMenu={handleCanvasObjectContextMenu}
                     canCrop={canCropAnnotation}
                     onGestureStart={beginCanvasObjectGesture}
                     onGestureCommit={commitCanvasObjectGesture}
