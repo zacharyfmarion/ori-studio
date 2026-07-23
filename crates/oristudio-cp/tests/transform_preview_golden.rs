@@ -168,11 +168,16 @@ fn assert_json_close(left: &Value, right: &Value, path: &str) {
             }
         }
         (Value::Object(l), Value::Object(r)) => {
-            assert_eq!(
-                l.keys().collect::<Vec<_>>(),
-                r.keys().collect::<Vec<_>>(),
-                "golden object keys differ at {path}"
-            );
+            // Key *sets*, not key order: whether a parsed map preserves file order or
+            // sorts depends on serde_json's `preserve_order` feature, which a workspace
+            // build turns on through feature unification and a single-crate build does
+            // not. Comparing order made this test pass under `-p oristudio-cp` and fail
+            // under `--workspace`.
+            let mut left_keys = l.keys().collect::<Vec<_>>();
+            let mut right_keys = r.keys().collect::<Vec<_>>();
+            left_keys.sort();
+            right_keys.sort();
+            assert_eq!(left_keys, right_keys, "golden object keys differ at {path}");
             for (key, l) in l {
                 assert_json_close(l, &r[key], &format!("{path}.{key}"));
             }
