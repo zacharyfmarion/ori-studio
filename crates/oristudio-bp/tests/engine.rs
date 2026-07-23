@@ -408,7 +408,7 @@ fn project_session_adds_leaf_at_bp_studio_empty_spot_and_tracks_history() {
 }
 
 #[test]
-fn project_session_moves_new_vertex_and_syncs_runtime_flap_without_persisting_is_new() {
+fn project_session_moves_vertex_without_disturbing_its_flap() {
     let mut project = sample_project();
     project.design.tree.nodes.push(Vertex {
         id: 3,
@@ -452,7 +452,8 @@ fn project_session_moves_new_vertex_and_syncs_runtime_flap_without_persisting_is
         .iter()
         .find(|flap| flap.id == 3)
         .unwrap();
-    assert_eq!((flap.x, flap.y), (4.0, 6.0));
+    // `isNew` buys the flap nothing: a tree-diagram move is not a layout edit.
+    assert_eq!((flap.x, flap.y), (2.0, 2.0));
     assert!(
         session
             .project_for_export()
