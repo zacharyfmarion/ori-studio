@@ -32,7 +32,8 @@
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "bench:sim": "vitest run --config vitest.bench.config.ts --disable-console-intercept",
-    "bench:cpu-ceiling": "vitest run --config vitest.bench.config.ts bench/cpuCeiling.bench.ts --disable-console-intercept"
+    "bench:cpu-ceiling": "vitest run --config vitest.bench.config.ts bench/cpuCeiling.bench.ts --disable-console-intercept",
+    "bench:upstream-parity": "vitest run --config vitest.bench.config.ts bench/upstreamParity.bench.ts --disable-console-intercept"
   },
   "dependencies": {
     "earcut": "^3.0.2"
@@ -46,6 +47,8 @@
     "@types/three": "^0.184.1",
     "three": "^0.184.0",
     "typescript": "~5.9.3",
-    "vitest": "^4.0.18"
+    "vitest": "^4.0.18",
+    "playwright": "^1.60.0",
+    "vite": "^7.1.7"
   }
 }

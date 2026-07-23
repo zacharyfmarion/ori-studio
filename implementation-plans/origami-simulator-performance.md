@@ -221,10 +221,13 @@ against its own past behaviour.
 Do this in Phase 0, before any porting, because it answers two questions we
 would otherwise be guessing at:
 
-- **Does our TypeScript port already diverge from upstream?** Nobody has ever
-  checked. If it does, everything built on top inherits the drift.
-- **What CPU-vs-GPU tolerance is actually achievable** for this algorithm?
-  That is precisely the Tier C threshold Phase 2 needs.
+- **Does our TypeScript port already diverge from upstream?** Nobody had ever
+  checked. **Answered 2026-07-23: no.** Across all 9 non-degenerate fixtures the
+  triangulated topology matches exactly (same vertex count, no mismatches) and
+  step-1 divergence is exactly one float32 ULP. The port is faithful, so
+  everything built on it starts from a sound base.
+- **What CPU-vs-GPU tolerance is actually achievable** for this algorithm? See
+  the measured table under Tier C below.
 
 Upstream's `saveFOLD.js` gives a clean extraction path, so this needs no
 patching of its internals; fixture injection goes through its file-import path.
@@ -238,10 +241,29 @@ patching of its internals; fixture injection goes through its file-import path.
 - **Tier C — behaviourally equivalent.** GPU backends. Vendor `atan2`/`acos`
   differ in the last bits, accumulation order is nondeterministic, and the
   crease-angle unwrap can amplify a ULP into a 2π branch divergence. Bit
-  comparison is meaningless; instead assert converged state matches Tier B after
-  settling, per-step divergence stays bounded over a 200-step horizon, and all
-  invariants below hold. **The actual threshold is measured in Phase 0**, not
-  guessed.
+  comparison is meaningless; instead assert divergence stays under the measured
+  threshold and all invariants below hold.
+
+  **Measured 2026-07-23** (`npm run bench:upstream-parity`, ReferenceSolver vs
+  upstream's GPU solver, 9 non-degenerate fixtures, `foldPercent: 60`):
+
+  | steps | worst max-abs divergence |
+  | --- | --- |
+  | 1 | 5.96e-8 (exactly 1 float32 ULP) |
+  | 10 | 9.54e-7 |
+  | 100 | 8.94e-6 |
+  | 1000 | 1.42e-5 |
+
+  Two things this settles. First, **divergence saturates**: 10× more steps from
+  100 to 1000 buys only 1.6× more divergence, because the damped system is
+  dissipative and pulls trajectories back together rather than amplifying
+  chaotically. A fixed threshold over a long horizon is therefore meaningful,
+  which is what makes Tier C viable at all. Second, step-1 divergence being
+  exactly one ULP means the two implementations are doing identical arithmetic —
+  the growth is float32 storage, not an algorithmic difference.
+
+  **Tier C threshold: 1e-4** (7× headroom over the measured 1000-step worst
+  case). Re-derive with the same command if the fixture set changes.
 
 **Backend-independent invariants** — property tests that catch what tolerance
 checks miss:

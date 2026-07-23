@@ -91,13 +91,16 @@ const g = window.globals;
 g.pattern.setFoldData(foldDocument, true); // stashes nextFold, defers the swap
 g.model.sync();                            // force the swap NOW (see below)
 g.model.pause();                           // stop the rAF animation loop
-g.foldPercent = 1.0;                       // NOTE: 0..1 upstream, 0..100 in our port
+
+g.creasePercent = 1.0;                     // fold percent, 0..1 (NOT `foldPercent`)
+g.shouldChangeCreasePercent = true;        // required latch, else the above is ignored
+
 g.model.reset();
 g.model.step(100);                         // deterministic; solver.solve(n) under the hood
 const positions = g.model.getPositionsArray(); // Float32Array, xyz per node
 ```
 
-Four things that will otherwise cost you an afternoon:
+Five things that will otherwise cost you an afternoon:
 
 1. **`buildModel` is deferred.** `setFoldData` → `processFold` → `model.buildModel`
    only stashes `nextFold` and sets `globals.needsSync`; the real swap happens in
@@ -105,10 +108,24 @@ Four things that will otherwise cost you an afternoon:
    fires `requestAnimationFrame`, so the model silently never changes. Call
    `model.sync()` explicitly rather than waiting — which is also what you want for
    determinism.
-2. **`foldPercent` is 0..1 here**, not the 0..100 our port uses.
-3. **Positions are radius-normalised** (unit square → ±0.7071), matching
+2. **Fold percent is `globals.creasePercent`, on a 0..1 scale.** There is no
+   `globals.foldPercent`; assigning one creates a property nothing reads, and the
+   model keeps folding to the 0.6 default while looking like it responded. Our
+   port's `foldPercent` is 0..100, so divide by 100.
+3. **Setting a material or fold value is not enough — it must be latched.** The
+   solver only pushes uniforms when it sees `shouldChangeCreasePercent`,
+   `materialHasChanged` or `creaseMaterialHasChanged` set at the top of `solve()`.
+   Name mapping, all read by the solver or `js/crease.js`:
+
+   | Ours | Upstream |
+   | --- | --- |
+   | `foldPercent` (0..100) | `creasePercent` (0..1) + `shouldChangeCreasePercent` |
+   | `damping` | `percentDamping` |
+   | `axialStiffness`, `creaseStiffness`, `panelStiffness`, `faceStiffness` | same names, + `materialHasChanged` |
+
+4. **Positions are radius-normalised** (unit square → ±0.7071), matching
    `normalizeSimulationPositions` in the port. Compare in that space.
-4. **`setFoldData` calls `gtag()`.** It is defined by the bundled analytics
+5. **`setFoldData` calls `gtag()`.** It is defined by the bundled analytics
    snippet, so it does not throw, but an offline harness should stub it if the
    analytics script is blocked.
 
