@@ -43,7 +43,16 @@ export interface SimulatorLoadOptions {
   convergenceEpsilon?: number;
   /** Force the CPU reference backend (debugging, or a known-bad driver). */
   preferGpu?: boolean;
+  /** GPU steps per tick (bounds async GPU work; overrides the default). */
+  gpuStepsPerTick?: number;
 }
+
+/**
+ * Steps per GPU tick. Small enough that one tick's shader passes finish well
+ * inside a frame (so the convergence readback barely stalls), large enough that
+ * the fold still converges in well under a second at 60 ticks/s.
+ */
+const GPU_STEPS_PER_TICK = 80;
 
 /** Orbit view + viewport + look, forwarded from the panel for worker-side rendering. */
 export interface SimulatorCamera {
@@ -270,10 +279,26 @@ const api = {
     const prepared = prepareFoldModel(fold, options.prepare ?? { triangulate: true });
     const model = new OrigamiModel(prepared);
     const { backend, backendId, gpuSolver } = createBackend(model, options, renderCanvas);
-    const clock = new SimulationClock({
-      budgetMs: options.budgetMs ?? 10,
-      convergenceEpsilon: options.convergenceEpsilon,
-    });
+    // The GPU tick is bounded by a fixed step COUNT, not a CPU-time budget. GPU
+    // commands are async, so a CPU-time budget queues an unbounded pile of work
+    // that the next convergence readback then has to flush in one synchronous
+    // stall -- which was turning ~60 small ticks/s into ~4 giant ones. A modest
+    // fixed count keeps each tick's GPU work small and the loop smooth. The CPU
+    // reference solver keeps the time budget, which is correct for synchronous
+    // work.
+    const clock = new SimulationClock(
+      gpuSolver
+        ? {
+            budgetMs: 1000, // effectively unlimited; the step cap is the real bound
+            maxStepsPerFrame: options.gpuStepsPerTick ?? GPU_STEPS_PER_TICK,
+            chunkSteps: 20,
+            convergenceEpsilon: options.convergenceEpsilon,
+          }
+        : {
+            budgetMs: options.budgetMs ?? 10,
+            convergenceEpsilon: options.convergenceEpsilon,
+          }
+    );
 
     session = {
       model,

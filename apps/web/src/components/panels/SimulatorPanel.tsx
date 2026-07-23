@@ -94,6 +94,8 @@ interface DepthSurface {
 }
 
 const PAPER_EDGE_DEPTH_EPSILON = 0.006;
+// Readouts (step/strain/fold%) update at most this often; see handleFrame.
+const READOUT_INTERVAL_MS = 66;
 const INITIAL_FOLD_PERCENT = 0;
 const DEFAULT_VIEW: SimulatorView = { yaw: 0, pitch: 0.38, zoom: 1 };
 const DEFAULT_VIEW_SETTINGS: SimulatorViewSettings = {
@@ -124,6 +126,7 @@ export function SimulatorPanel() {
   const dragRef = useRef<DragState | null>(null);
   const foldPercentRef = useRef(INITIAL_FOLD_PERCENT);
   const sourceKeyRef = useRef<string | null>(null);
+  const lastReadoutRef = useRef(0);
   // Tracks the runtime's gpuActive without a stale closure, so the pointer/draw
   // handlers can branch on it synchronously.
   const gpuActiveRef = useRef(false);
@@ -220,11 +223,22 @@ export function SimulatorPanel() {
   const handleFrame = useCallback(
     (frame: SimulatorFrameView) => {
       frameRef.current = frame;
-      setStep(frame.step);
-      setStrain(frame.maxEdgeStrain);
-      setFoldPercent(frame.foldPercent);
       foldPercentRef.current = frame.foldPercent;
-      drawCurrentFrame();
+      drawCurrentFrame(); // no-op in GPU mode; draws the frame in CPU mode
+
+      // Throttle the readout state to ~15Hz. These three setStates re-render the
+      // whole panel, and at 60fps that re-render was starving the main-thread rAF
+      // that drives the solver loop -- so the readouts, meant to *reflect*
+      // progress, were throttling it. A step counter and strain value do not need
+      // 60Hz; the frame itself (canvas) still updates every frame. Always flush
+      // the final converged frame so the readouts land on the settled values.
+      const now = performance.now();
+      if (frame.converged || now - lastReadoutRef.current > READOUT_INTERVAL_MS) {
+        lastReadoutRef.current = now;
+        setStep(frame.step);
+        setStrain(frame.maxEdgeStrain);
+        setFoldPercent(frame.foldPercent);
+      }
     },
     [drawCurrentFrame]
   );

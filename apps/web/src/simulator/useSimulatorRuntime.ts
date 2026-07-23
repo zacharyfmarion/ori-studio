@@ -38,11 +38,16 @@ export interface SimulatorFrameView {
   maxEdgeStrain: number;
 }
 
-// Main-thread camera-dispatch timing, read and reset by the perf logger.
+// Main-thread timing, read and reset by the perf logger.
 let cameraDispatchTotal = 0;
 let cameraDispatchCount = 0;
 function cameraDispatchAvg(): number {
   return cameraDispatchCount ? cameraDispatchTotal / cameraDispatchCount : 0;
+}
+let tickRoundTripTotal = 0;
+let tickRoundTripCount = 0;
+function tickRoundTripAvg(): number {
+  return tickRoundTripCount ? tickRoundTripTotal / tickRoundTripCount : 0;
 }
 
 /** True if this canvas can host the WebGL2 float-render-target GPU path. */
@@ -256,9 +261,18 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
       inFlightRef.current = true;
       const recycled = recycledRef.current;
       recycledRef.current = undefined;
+      const dispatched = performance.now();
       void client
         .tick(recycled ? { recycled } : {})
-        .then(publish)
+        .then((payload) => {
+          // Round-trip: dispatch -> worker tick -> reply. If the solver loop is
+          // slow because the worker tick is slow (e.g. a GPU pipeline stall),
+          // this is high; if it is fast but ticks are still infrequent, the
+          // throttle is on the main thread.
+          tickRoundTripTotal += performance.now() - dispatched;
+          tickRoundTripCount += 1;
+          publish(payload);
+        })
         .catch((cause: unknown) => {
           setError(cause instanceof Error ? cause.message : String(cause));
           setStatus('error');
@@ -365,10 +379,13 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
               `${perSec(s.ticks)} ticks/s, ${perSec(s.stepsTotal)} steps/s | ` +
               `render ${s.renderAvgMs.toFixed(2)}ms avg / ${s.renderMaxMs.toFixed(2)} max, ` +
               `${perSec(s.renders)} draws/s | ` +
-              `camera ${perSec(s.cameraCalls)} msg/s, main-dispatch ${cameraDispatchAvg().toFixed(2)}ms`
+              `camera ${perSec(s.cameraCalls)} msg/s, main-dispatch ${cameraDispatchAvg().toFixed(2)}ms | ` +
+              `tick round-trip ${tickRoundTripAvg().toFixed(1)}ms`
           );
           cameraDispatchTotal = 0;
           cameraDispatchCount = 0;
+          tickRoundTripTotal = 0;
+          tickRoundTripCount = 0;
         })
         .catch(() => undefined);
     }, 1000);
