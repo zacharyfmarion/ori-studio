@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
-import { FloatingToolbar, type FloatingAnchorRect } from '../components/ui/FloatingToolbar';
+import { FloatingToolbar } from '../components/ui/FloatingToolbar';
+import { useCanvasObjectAnchor } from './canvasObjects/useCanvasObjectAnchor';
 import { AnnotationActions } from './AnnotationActions';
 import type { CpImage, CpImageUpdate } from './images/cpImage';
 
@@ -13,7 +14,7 @@ import type { CpImage, CpImageUpdate } from './images/cpImage';
  */
 export function CpImageInspector({
   image,
-  anchorRect,
+  container,
   onUpdate,
   onGestureStart,
   onGestureCommit,
@@ -22,7 +23,8 @@ export function CpImageInspector({
   onDelete,
 }: {
   image: CpImage;
-  anchorRect: FloatingAnchorRect | null;
+  /** Element the canvas is positioned against — see {@link useCanvasObjectAnchor}. */
+  container: HTMLElement | null;
   onUpdate: (patch: CpImageUpdate) => void;
   onGestureStart: () => void;
   onGestureCommit: (label: string) => void;
@@ -31,6 +33,9 @@ export function CpImageInspector({
   onDelete: () => void;
 }) {
   const { t } = useTranslation();
+  // Subscribed here, not in the panel: the toolbar re-renders per camera frame
+  // so it stays glued to the image, while the (huge) panel does not.
+  const anchorRect = useCanvasObjectAnchor(image, 'model', container);
   return (
     <FloatingToolbar
       anchorRect={anchorRect}

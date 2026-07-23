@@ -28,7 +28,9 @@ import {
 import { $setBlocksType, $patchStyleText } from '@lexical/selection';
 import { $createParagraphNode } from 'lexical';
 import { Bold, Italic, Trash2, Underline } from 'lucide-react';
-import { FloatingToolbar, type FloatingAnchorRect } from '../components/ui/FloatingToolbar';
+import { FloatingToolbar } from '../components/ui/FloatingToolbar';
+import { useCanvasObjectAnchor } from './canvasObjects/useCanvasObjectAnchor';
+import type { AnnotationBox } from './annotations/annotationTransform';
 import { IconButton } from '../components/ui/IconButton';
 import { TEXT_BLOCK_PRESETS, type TextAlign, type TextBlockType } from './annotations/textFormatting';
 
@@ -56,7 +58,10 @@ const TEXT_COLORS = [
 
 export interface CpTextEditorProps {
   doc: SerializedEditorState;
-  anchorRect: FloatingAnchorRect | null;
+  /** The edited box, so the toolbar can anchor to it. */
+  box: AnnotationBox;
+  /** Element the canvas is positioned against. */
+  container: HTMLElement | null;
   /** Content changed: persist the new doc + its plain-text projection. */
   onChange: (doc: SerializedEditorState, plainText: string) => void;
   /**
@@ -67,7 +72,7 @@ export interface CpTextEditorProps {
   onDelete: () => void;
 }
 
-export function CpTextEditor({ doc, anchorRect, onChange, onExit, onDelete }: CpTextEditorProps) {
+export function CpTextEditor({ doc, box, container, onChange, onExit, onDelete }: CpTextEditorProps) {
   const { t } = useTranslation();
   const handleChange = useCallback(
     (editorState: EditorState) => {
@@ -127,7 +132,7 @@ export function CpTextEditor({ doc, anchorRect, onChange, onExit, onDelete }: Cp
       <HistoryPlugin />
       <AutoFocusPlugin />
       <OnChangePlugin onChange={handleChange} ignoreSelectionChange />
-      <TextToolbar anchorRect={anchorRect} onDelete={onDelete} />
+      <TextToolbar box={box} container={container} onDelete={onDelete} />
     </LexicalComposer>
   );
 }
@@ -151,14 +156,20 @@ const INITIAL_TOOLBAR_STATE: ToolbarState = {
 };
 
 function TextToolbar({
-  anchorRect,
+  box,
+  container,
   onDelete,
 }: {
-  anchorRect: FloatingAnchorRect | null;
+  /** The edited box, so the toolbar can anchor to it. */
+  box: AnnotationBox;
+  /** Element the canvas is positioned against. */
+  container: HTMLElement | null;
   onDelete: () => void;
 }) {
   const { t } = useTranslation();
   const [editor] = useLexicalComposerContext();
+  // Subscribed here, not in the panel — see CpImageInspector.
+  const anchorRect = useCanvasObjectAnchor(box, 'model', container);
   const [state, setState] = useState<ToolbarState>(INITIAL_TOOLBAR_STATE);
 
   useEffect(() => {

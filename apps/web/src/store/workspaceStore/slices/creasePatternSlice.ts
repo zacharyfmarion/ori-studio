@@ -20,6 +20,10 @@ import {
   stableTextDigest,
 } from '../../../lib/oristudioCpLineage';
 import { foldedFigureModelFromOrieditaMetadata } from '../../../lib/orieditaNativeMetadata';
+import {
+  cpUserAnchorForLineIds,
+  placeFoldedFigureBesideCp,
+} from '../../../cp-workspace/adapters/cpFoldedToScene';
 import i18n from '../../../i18n';
 import { requestConfirmation, requestConfirmationWithOption } from '../../commandDialogStore';
 import { useLayoutStore } from '../../layoutStore';
@@ -54,6 +58,16 @@ import {
   setOristudioCpFoldedFigureModel as setRuntimeOristudioCpFoldedFigureModel,
 } from '../oristudioCpRuntime';
 import type { CreasePatternSlice, WorkspaceSliceCreator } from '../types';
+import type { CanvasAnnotation } from '../../../cp-workspace/annotations/annotation';
+import {
+  releaseFoldedFigureHandle,
+  releaseFoldedFigureHandles,
+  resetFoldedFigureHandles,
+  retainFoldedFigureHandle,
+  retainFoldedFigureHandles,
+  setFoldedFigureHandleFree,
+} from '../../../cp-workspace/foldedFigureHandles';
+import { IDENTITY_FOLDED_PLACEMENT } from '../../../engine/oristudioCpTypes';
 import type {
   OristudioCpFoldedFigureDisplayStyle,
   OristudioCpFoldedFigureEntry,
@@ -72,10 +86,16 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
   set,
   get
 ) => {
+  // Handles are owned by reachability (live list + history), not by the delete
+  // action — see cp-workspace/foldedFigureHandles.
+  setFoldedFigureHandleFree(freeOristudioCpFoldedFigure);
+
   const wholeSimulationFocus = { kind: 'whole' as const };
   let foldArtifactPromise: Promise<FoldArtifacts | null> | null = null;
   let foldArtifactPromiseRevision: number | null = null;
   let foldedFigureRequestSequence = 0;
+  // Newest in-flight model request per figure, so a stale response is dropped.
+  const modelRequestSequence = new Map<string, number>();
 
   async function requireActiveTree() {
     const result = await ensureTreeHandle();
@@ -124,7 +144,9 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     const figures = get().oristudioCpFoldedFigures;
     return (
       figures.find((figure) => figure.id === activeId) ??
-      figures.find((figure) => figure.sourceKind === 'generated-from-current-cp') ??
+      // Nothing selected: act on the most recent generated figure, which is the
+      // one a just-completed fold produced.
+      [...figures].reverse().find((figure) => figure.sourceKind === 'generated-from-current-cp') ??
       null
     );
   }
@@ -173,6 +195,47 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
   function refreshFoldedFigureSelectionMarkers(...ids: Array<string | null | undefined>) {
     const uniqueIds = [...new Set(ids.filter((id): id is string => Boolean(id)))];
     void Promise.all(uniqueIds.map((id) => refreshFoldedFigureSelectionMarker(id)));
+  }
+
+  /**
+   * Push one overlay-layer undo entry: the state *before* an action that touched
+   * only annotations and/or folded figures, never the wasm document. Shared by
+   * both overlay layers so the entry shape and the redo-stack clear can't drift.
+   */
+  function pushOverlayHistoryEntry(input: {
+    annotations: CanvasAnnotation[];
+    foldedFigures: OristudioCpFoldedFigureEntry[];
+    activeFoldedFigureId: string | null;
+    label: string;
+  }): void {
+    const document = get().oristudioCpDocument;
+    if (!document) return;
+    // The new entry keeps its figures' handles alive for as long as undo can
+    // reach them; anything the cap or the cleared redo stack drops lets go.
+    retainFoldedFigureHandles(input.foldedFigures);
+    const grown = [
+      ...get().oristudioCpHistoryPast,
+      {
+        document: document.document,
+        selection: get().oristudioCpSelection,
+        annotations: input.annotations,
+        foldedFigures: input.foldedFigures,
+        activeFoldedFigureId: input.activeFoldedFigureId,
+        overlayOnly: true,
+        label: input.label,
+        timestamp: new Date().toISOString(),
+      },
+    ];
+    const evicted = grown.slice(0, Math.max(0, grown.length - MAX_CP_HISTORY));
+    for (const entry of evicted) releaseFoldedFigureHandles(entry.foldedFigures ?? []);
+    for (const entry of get().oristudioCpHistoryFuture) {
+      releaseFoldedFigureHandles(entry.foldedFigures ?? []);
+    }
+    set({
+      oristudioCpHistoryPast: grown.slice(-MAX_CP_HISTORY),
+      oristudioCpHistoryFuture: [],
+      dirty: true,
+    });
   }
 
   function foldedFigureIndex(id: string): number {
@@ -667,24 +730,25 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
 
     setOristudioCpActiveFoldedFigure: (oristudioCpActiveFoldedFigureId) => {
       const previousActiveId = get().oristudioCpActiveFoldedFigureId;
-      set({ oristudioCpActiveFoldedFigureId });
+      set({
+        oristudioCpActiveFoldedFigureId,
+        // The other half of the canvas's single-selection rule: selecting a
+        // folded figure drops the annotation selection. See setSelectedAnnotation.
+        ...(oristudioCpActiveFoldedFigureId !== null
+          ? { oristudioCpSelectedAnnotationId: null }
+          : {}),
+      });
       refreshFoldedFigureSelectionMarkers(previousActiveId, oristudioCpActiveFoldedFigureId);
     },
 
-    moveOristudioCpFoldedFigure: (id, displayDelta) => {
-      if (Math.abs(displayDelta.x) < 1e-9 && Math.abs(displayDelta.y) < 1e-9) return;
+    setOristudioCpFoldedFigurePlacement: (id, patch) => {
       set({
-        oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((figure) => {
-          if (figure.id !== id) return figure;
-          const displayOffset = figure.displayOffset ?? { x: 0, y: 0 };
-          return {
-            ...figure,
-            displayOffset: {
-              x: displayOffset.x + displayDelta.x,
-              y: displayOffset.y + displayDelta.y,
-            },
-          };
-        }),
+        oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((figure) =>
+          figure.id === id
+            ? { ...figure, placement: { ...figure.placement, ...patch } }
+            : figure
+        ),
+        dirty: true,
       });
     },
 
@@ -764,7 +828,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         status: 'loading',
         snapshot: null,
         renderSnapshot: null,
-        displayOffset: { x: 0, y: 0 },
+        placement: IDENTITY_FOLDED_PLACEMENT,
         error: null,
       };
 
@@ -786,11 +850,13 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           selectedLineIds
         );
         const displayStyle = result.snapshot.display_style;
+        // Rendered unselected: a fresh fold is not the canvas selection, so it
+        // must not carry the kernel's selection marker either.
         const renderSnapshot = await renderSnapshotForFoldedFigure(
           result.handle,
           displayStyle,
           figureIndex,
-          true
+          false
         );
         // A global layer-ordering contradiction is NOT an error: the estimate
         // still produced a (transparent) figure. Oriedita shows no dialog for
@@ -798,23 +864,46 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         // the entry so deleting/re-folding the figure clears the highlight for
         // free, and keep the fold out of the error toast path.
         const contradiction = result.snapshot.contradiction ?? null;
+        retainFoldedFigureHandle(result.handle);
+        // Park the figure against the creases it was actually folded from, not
+        // against the nominal paper square — a pattern can sit anywhere in the
+        // sheet, and anchoring to the paper leaves the figure adrift from it.
+        const foldedSourceAnchor = cpUserAnchorForLineIds(
+          oristudioCpDocument.document,
+          selectedLineIds
+        );
+        const existing = get().oristudioCpFoldedFigures;
+        const folded: OristudioCpFoldedFigureEntry = {
+          ...(existing.find((figure) => figure.id === figureId) ?? loadingEntry),
+          handle: result.handle,
+          status: 'ready',
+          displayStyle,
+          snapshot: result.snapshot,
+          renderSnapshot,
+          error: null,
+          contradiction,
+        };
         set({
-          oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((figure) =>
+          oristudioCpFoldedFigures: existing.map((figure) =>
             figure.id === figureId
               ? {
-                  ...figure,
-                  handle: result.handle,
-                  status: 'ready',
-                  displayStyle,
-                  snapshot: result.snapshot,
-                  renderSnapshot,
-                  error: null,
-                  contradiction,
+                  ...folded,
+                  // Park it beside the crease pattern: the kernel folds into
+                  // roughly the flat CP's own coordinates, so left alone the
+                  // figure covers the pattern it came from.
+                  placement: placeFoldedFigureBesideCp(folded, existing, foldedSourceAnchor),
                 }
               : figure
           ),
-          oristudioCpActiveFoldedFigureId: figureId,
+          // A fresh fold is not selected. Selecting it would put delete-key focus
+          // on the new figure the moment it appears, and the folded-figure menu
+          // targets the most recent figure anyway (activeGeneratedFoldedFigure).
+          oristudioCpActiveFoldedFigureId: null,
+          // The creases that were folded stay selected otherwise, so a delete
+          // right after folding would take them with it.
+          oristudioCpSelection: emptyOristudioCpSelection(),
           oristudioCpError: null,
+          dirty: true,
           projectMessage: 'Folded model',
         });
         refreshFoldedFigureSelectionMarkers(previousActiveId);
@@ -880,6 +969,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           ),
           oristudioCpActiveFoldedFigureId: figure.id,
           oristudioCpError: null,
+          dirty: true,
           projectMessage: 'Advanced folded model',
         });
         return true;
@@ -943,6 +1033,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           ),
           oristudioCpActiveFoldedFigureId: figure.id,
           oristudioCpError: null,
+          dirty: true,
           projectMessage: 'Folded model case updated',
         });
         return true;
@@ -985,6 +1076,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           ),
           oristudioCpActiveFoldedFigureId: figure.id,
           oristudioCpError: null,
+          dirty: true,
         });
         return true;
       } catch (error) {
@@ -1017,6 +1109,12 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         ...figure.snapshot.model,
         ...update,
       };
+      // Continuous controls (the colour pickers, the alpha slider) fire a change
+      // per pointer move, so several round-trips can be in flight at once and
+      // could otherwise land out of order. Only the newest request for a figure
+      // is allowed to write.
+      const requestId = (modelRequestSequence.get(id) ?? 0) + 1;
+      modelRequestSequence.set(id, requestId);
       try {
         const snapshot = await setRuntimeOristudioCpFoldedFigureModel(figure.handle, model);
         const renderSnapshot = await renderSnapshotForFoldedFigure(
@@ -1025,6 +1123,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           foldedFigureIndex(figure.id),
           true
         );
+        if (modelRequestSequence.get(id) !== requestId) return true;
         set({
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
             candidate.id === figure.id
@@ -1033,6 +1132,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           ),
           oristudioCpActiveFoldedFigureId: figure.id,
           oristudioCpError: null,
+          dirty: true,
         });
         return true;
       } catch (error) {
@@ -1078,7 +1178,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         status: 'loading',
         snapshot: null,
         renderSnapshot: null,
-        displayOffset: source.displayOffset ?? { x: 0, y: 0 },
+        placement: source.placement,
         error: null,
       };
 
@@ -1096,6 +1196,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           figureIndex,
           true
         );
+        retainFoldedFigureHandle(result.handle);
         set({
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((figure) =>
             figure.id === figureId
@@ -1111,6 +1212,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           ),
           oristudioCpActiveFoldedFigureId: figureId,
           oristudioCpError: null,
+          dirty: true,
           projectMessage: 'Duplicated folded model',
         });
         refreshFoldedFigureSelectionMarkers(previousActiveId);
@@ -1135,9 +1237,10 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       const figure = figures.find((candidate) => candidate.id === id);
       if (!figure) return;
 
-      if (figure.handle !== null) {
-        await freeOristudioCpFoldedFigure(figure.handle);
-      }
+      // Drop the live list's reference. The handle is only actually freed if no
+      // history entry still holds it — otherwise undoing this delete would
+      // restore a figure that draws but can no longer be recoloured or refolded.
+      releaseFoldedFigureHandle(figure.handle);
       const remaining = get().oristudioCpFoldedFigures.filter((candidate) => candidate.id !== id);
       const activeId =
         get().oristudioCpActiveFoldedFigureId === id
@@ -1146,14 +1249,18 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       set({
         oristudioCpFoldedFigures: remaining,
         oristudioCpActiveFoldedFigureId: activeId,
+        dirty: true,
       });
       refreshFoldedFigureSelectionMarkers(activeId);
     },
 
     clearOristudioCpFoldedFigures: async () => {
+      // Closing/replacing the document takes every figure with it, history
+      // included, so free outright rather than unwinding reference counts.
       const handles = get().oristudioCpFoldedFigures
         .map((figure) => figure.handle)
         .filter((handle): handle is number => handle !== null);
+      resetFoldedFigureHandles();
       await Promise.allSettled(handles.map((handle) => freeOristudioCpFoldedFigure(handle)));
       set({
         oristudioCpFoldedFigures: [],
@@ -1274,13 +1381,23 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         dirty: true,
       }),
 
-    setSelectedAnnotation: (id) =>
+    setSelectedAnnotation: (id) => {
+      const resolved =
+        id !== null && get().oristudioCpAnnotations.some((annotation) => annotation.id === id)
+          ? id
+          : null;
+      const previousFoldedId = get().oristudioCpActiveFoldedFigureId;
       set({
-        oristudioCpSelectedAnnotationId:
-          id !== null && get().oristudioCpAnnotations.some((annotation) => annotation.id === id)
-            ? id
-            : null,
-      }),
+        oristudioCpSelectedAnnotationId: resolved,
+        // The canvas has one selection. Selecting an annotation drops the folded
+        // figure's selection so two objects never show handles at once; enforced
+        // here rather than at the call sites so the invariant cannot drift.
+        ...(resolved !== null ? { oristudioCpActiveFoldedFigureId: null } : {}),
+      });
+      if (resolved !== null && previousFoldedId) {
+        refreshFoldedFigureSelectionMarkers(previousFoldedId);
+      }
+    },
 
     syncAnnotationHeight: (id, height) =>
       set({
@@ -1314,24 +1431,21 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
             : null,
       }),
 
-    recordAnnotationHistory: (previous, label) => {
-      const document = get().oristudioCpDocument;
-      if (!document) return;
-      set({
-        oristudioCpHistoryPast: [
-          ...get().oristudioCpHistoryPast,
-          {
-            document: document.document,
-            selection: get().oristudioCpSelection,
-            annotations: previous,
-            annotationsOnly: true,
-            label,
-            timestamp: new Date().toISOString(),
-          },
-        ].slice(-MAX_CP_HISTORY),
-        oristudioCpHistoryFuture: [],
-        dirty: true,
-      });
-    },
+    recordAnnotationHistory: (previous, label) =>
+      pushOverlayHistoryEntry({
+        annotations: previous,
+        foldedFigures: get().oristudioCpFoldedFigures,
+        activeFoldedFigureId: get().oristudioCpActiveFoldedFigureId,
+        label,
+      }),
+
+    recordFoldedFigureHistory: (previous, label, previousActiveId) =>
+      pushOverlayHistoryEntry({
+        annotations: get().oristudioCpAnnotations,
+        foldedFigures: previous,
+        activeFoldedFigureId:
+          previousActiveId === undefined ? get().oristudioCpActiveFoldedFigureId : previousActiveId,
+        label,
+      }),
   };
 };

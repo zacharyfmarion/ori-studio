@@ -26,7 +26,11 @@ export interface FloatingAnchorRect {
 export interface FloatingToolbarProps {
   /** Anchor in viewport CSS px; the toolbar hides while this is null. */
   anchorRect: FloatingAnchorRect | null;
-  /** Preferred side; flips automatically on collision. Defaults to `'top'`. */
+  /**
+   * Preferred side; flips automatically on collision. Defaults to `'top-start'`
+   * — the toolbar lines up with the object's leading edge rather than centring
+   * on it, so it stays put as the object resizes and reads as belonging to it.
+   */
   placement?: Placement;
   /** Gap between the anchor and the toolbar, in px. Defaults to 8. */
   offset?: number;
@@ -53,7 +57,7 @@ const EMPTY_RECT = { x: 0, y: 0, width: 0, height: 0, top: 0, left: 0, right: 0,
  */
 export function FloatingToolbar({
   anchorRect,
-  placement = 'top',
+  placement = 'top-start',
   offset: offsetPx = 8,
   ariaLabel,
   className,

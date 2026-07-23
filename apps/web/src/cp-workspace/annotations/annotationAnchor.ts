@@ -1,5 +1,10 @@
 import type { CpOverlayView } from '../CreasePatternWebglCanvas';
-import { overlayModelToCss, type Vec2 } from '../images/cpImagePlacement';
+import {
+  boxCornersModel,
+  overlayModelToCss,
+  type AnnotationBox,
+  type Vec2,
+} from './annotationTransform';
 import type { FloatingAnchorRect } from '../../components/ui/FloatingToolbar';
 
 /**
@@ -11,28 +16,6 @@ import type { FloatingAnchorRect } from '../../components/ui/FloatingToolbar';
  * (`css = origin + model.x*ex + model.y*ey`). A body-portaled toolbar needs
  * viewport coordinates, so we add the container's viewport-space top-left.
  */
-
-/**
- * The four corners of an axis-aligned box centered at `center` with the given
- * model-space `width`/`height`, rotated `rotation` radians CCW. Order TL, TR,
- * BR, BL (in the box's local frame, before rotation).
- */
-export function quadCornersModel(
-  center: Vec2,
-  width: number,
-  height: number,
-  rotation: number
-): [Vec2, Vec2, Vec2, Vec2] {
-  const hw = width / 2;
-  const hh = height / 2;
-  const cos = Math.cos(rotation);
-  const sin = Math.sin(rotation);
-  const corner = (dx: number, dy: number): Vec2 => ({
-    x: center.x + dx * cos - dy * sin,
-    y: center.y + dx * sin + dy * cos,
-  });
-  return [corner(-hw, -hh), corner(hw, -hh), corner(hw, hh), corner(-hw, hh)];
-}
 
 /**
  * Axis-aligned bounding rectangle (viewport CSS px) of a set of model-space
@@ -62,14 +45,13 @@ export function boundingScreenRect(
 
 /**
  * Viewport-space anchor rect for a box-shaped annotation (center + size +
- * rotation). Convenience wrapper over {@link quadCornersModel} +
+ * rotation). Convenience wrapper over {@link boxCornersModel} +
  * {@link boundingScreenRect}.
  */
 export function annotationScreenRect(
   view: CpOverlayView,
   container: { left: number; top: number },
-  box: { center: Vec2; width: number; height: number; rotation: number }
+  box: AnnotationBox
 ): FloatingAnchorRect | null {
-  const corners = quadCornersModel(box.center, box.width, box.height, box.rotation);
-  return boundingScreenRect(view, container, corners);
+  return boundingScreenRect(view, container, boxCornersModel(box));
 }

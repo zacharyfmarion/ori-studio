@@ -24,6 +24,7 @@ import type {
   OristudioCpLineSegment,
   OristudioCpOperationDescriptor,
 } from '../../engine/oristudioCpTypes';
+import { IDENTITY_FOLDED_PLACEMENT } from '../../engine/oristudioCpTypes';
 import { projectFromSnapshot } from '../../engine/snapshotMapper';
 import type { FileService, SaveBinaryFileOptions, SaveTextFileOptions } from '../../platform/fileService';
 import { DEFAULT_CREASE_COLOR_MODE } from '../../lib/sampleProject';
@@ -41,6 +42,15 @@ import {
 } from '../../lib/nativeProjectFile';
 import { importedCpLineage } from '../../lib/oristudioCpLineage';
 import { createStarterOristudioCpDocument } from '../../lib/oristudioCpStarterDocument';
+import { createCpImage } from '../../cp-workspace/images/cpImage';
+import {
+  cpUserAnchorForLineIds,
+  foldedFigureUserBounds,
+} from '../../cp-workspace/adapters/cpFoldedToScene';
+import {
+  resetFoldedFigureHandles,
+  retainFoldedFigureHandle,
+} from '../../cp-workspace/foldedFigureHandles';
 import { useLayoutStore } from '../layoutStore';
 import {
   registerCommandDialogHost,
@@ -1105,6 +1115,8 @@ function foldedRenderSnapshot(): OristudioCpFoldedRenderSnapshot {
 function resetStores(snapshot = makeSnapshot()) {
   localStorage.clear();
   savedSnapshots.clear();
+  // Handle ownership is module-level; isolate it between tests.
+  resetFoldedFigureHandles();
   useWorkspaceStore.setState(initialWorkspaceState, true);
   useLayoutStore.setState(initialLayoutState, true);
   const api = createMockEngineApi(snapshot);
@@ -1649,6 +1661,7 @@ describe('workspace store slices', () => {
             startingFaceId: 1,
             displayStyle: 'Paper5',
             status: 'ready',
+            placement: IDENTITY_FOLDED_PLACEMENT,
             snapshot: foldedFigureSnapshot(),
             renderSnapshot: foldedRenderSnapshot(),
             error: null,
@@ -1817,6 +1830,7 @@ describe('workspace store slices', () => {
           startingFaceId: 1,
           displayStyle: 'Transparent3',
           status: 'ready',
+          placement: IDENTITY_FOLDED_PLACEMENT,
           snapshot: foldedFigureSnapshot(),
           renderSnapshot: foldedRenderSnapshot(),
           error: null,
@@ -2301,12 +2315,14 @@ describe('workspace store slices', () => {
       undefined,
       [1]
     );
+    // A fresh fold is neither selected on the canvas nor marked selected by the
+    // kernel renderer, so it doesn't steal delete-key focus the moment it lands.
     expect(oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot).toHaveBeenCalledWith(
       7,
       'Paper5',
       {
         display_mark: false,
-        selected: true,
+        selected: false,
         index: 1,
       }
     );
@@ -2319,7 +2335,23 @@ describe('workspace store slices', () => {
       status: 'ready',
       renderSnapshot: foldedRenderSnapshot(),
     });
-    expect(useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId).toBe(foldedFigure.id);
+    // Parked clear of the creases it was folded from — not the nominal paper
+    // square — since the kernel folds into roughly the flat CP's own coords and
+    // an unplaced figure covers the pattern it came from.
+    const anchor = cpUserAnchorForLineIds(
+      useWorkspaceStore.getState().oristudioCpDocument!.document,
+      [1]
+    );
+    const placedBounds = foldedFigureUserBounds([foldedFigure])[0].bounds;
+    expect(placedBounds.minX).toBeGreaterThanOrEqual(anchor.right);
+    expect(placedBounds.minY).toBeCloseTo(anchor.top);
+    expect(foldedFigure.placement.scale).toBe(1);
+    expect(foldedFigure.placement.rotation).toBe(0);
+    // Not selected on arrival, so the delete key doesn't retarget to it.
+    expect(useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId).toBeNull();
+    // ...and the creases it was folded from are deselected, so a delete right
+    // after folding doesn't take them with it.
+    expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual([]);
 
     await expect(
       useWorkspaceStore.getState().insertOristudioCpLineSegments([
@@ -2462,10 +2494,18 @@ describe('workspace store slices', () => {
     });
     useWorkspaceStore
       .getState()
-      .moveOristudioCpFoldedFigure(foldedFigure.id, { x: 12, y: -8 });
-    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]?.displayOffset).toEqual({
-      x: 12,
-      y: -8,
+      .setOristudioCpFoldedFigurePlacement(foldedFigure.id, { offset: { x: 12, y: -8 } });
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]?.placement).toEqual({
+      offset: { x: 12, y: -8 },
+      scale: 1,
+      rotation: 0,
+    });
+    // Placement patches are partial: setting a scale leaves the offset alone.
+    useWorkspaceStore.getState().setOristudioCpFoldedFigurePlacement(foldedFigure.id, { scale: 2 });
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]?.placement).toEqual({
+      offset: { x: 12, y: -8 },
+      scale: 2,
+      rotation: 0,
     });
 
     await expect(
@@ -2492,7 +2532,8 @@ describe('workspace store slices', () => {
       handle: 8,
       displayStyle: 'Transparent3',
       startingFaceId: 2,
-      displayOffset: { x: 12, y: -8 },
+      // A duplicate inherits the source's placement, so it lands on top of it.
+      placement: { offset: { x: 12, y: -8 }, scale: 2, rotation: 0 },
     });
 
     const duplicateId = useWorkspaceStore.getState().oristudioCpFoldedFigures[1]?.id;
@@ -2502,6 +2543,263 @@ describe('workspace store slices', () => {
     expect(oristudioCpMocks.freeOristudioCpFoldedFigure).toHaveBeenCalledWith(8);
     expect(useWorkspaceStore.getState().oristudioCpFoldedFigures).toHaveLength(1);
     expect(useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId).toBe(foldedFigure.id);
+  });
+
+  it('undoes and redoes a folded figure placement without touching the wasm document', async () => {
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+    });
+    const figure: OristudioCpFoldedFigureEntry = {
+      id: 'generated-1',
+      title: 'Folded model 1',
+      handle: 7,
+      sourceKind: 'generated-from-current-cp',
+      sourceCpRevision: 0,
+      startingFaceId: 1,
+      displayStyle: 'Paper5',
+      status: 'ready',
+      placement: IDENTITY_FOLDED_PLACEMENT,
+      snapshot: foldedFigureSnapshot(),
+      renderSnapshot: foldedRenderSnapshot(),
+      error: null,
+    };
+    useWorkspaceStore.setState({
+      oristudioCpFoldedFigures: [figure],
+      oristudioCpHistoryPast: [],
+      oristudioCpHistoryFuture: [],
+    });
+
+    const before = useWorkspaceStore.getState().oristudioCpFoldedFigures;
+    useWorkspaceStore
+      .getState()
+      .setOristudioCpFoldedFigurePlacement(figure.id, { offset: { x: 40, y: 5 }, scale: 3 });
+    useWorkspaceStore.getState().recordFoldedFigureHistory([...before], 'Move folded form');
+
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0].placement).toMatchObject({
+      offset: { x: 40, y: 5 },
+      scale: 3,
+    });
+
+    await useWorkspaceStore.getState().undo();
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0].placement).toEqual(
+      IDENTITY_FOLDED_PLACEMENT
+    );
+    // Overlay-only: the wasm document is never reloaded to restore a placement.
+    expect(oristudioCpMocks.restoreOristudioCpDocumentInPlace).not.toHaveBeenCalled();
+
+    await useWorkspaceStore.getState().redo();
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0].placement).toMatchObject({
+      offset: { x: 40, y: 5 },
+      scale: 3,
+    });
+  });
+
+  it('shares renderSnapshot objects across history entries so undo memory stays bounded', () => {
+    resetStores(seedSnapshot());
+    const untouched: OristudioCpFoldedFigureEntry = {
+      id: 'generated-untouched',
+      title: 'Untouched',
+      handle: 9,
+      sourceKind: 'generated-from-current-cp',
+      sourceCpRevision: 0,
+      startingFaceId: 1,
+      displayStyle: 'Paper5',
+      status: 'ready',
+      placement: IDENTITY_FOLDED_PLACEMENT,
+      snapshot: foldedFigureSnapshot(),
+      renderSnapshot: foldedRenderSnapshot(),
+      error: null,
+    };
+    const moved: OristudioCpFoldedFigureEntry = { ...untouched, id: 'generated-moved', handle: 10 };
+    useWorkspaceStore.setState({ oristudioCpFoldedFigures: [untouched, moved] });
+
+    const before = useWorkspaceStore.getState().oristudioCpFoldedFigures;
+    useWorkspaceStore
+      .getState()
+      .setOristudioCpFoldedFigurePlacement(moved.id, { offset: { x: 1, y: 1 } });
+    const after = useWorkspaceStore.getState().oristudioCpFoldedFigures;
+
+    // The untouched figure is the *same object* before and after, so its (large)
+    // renderSnapshot is retained once rather than once per history entry.
+    expect(after[0]).toBe(before[0]);
+    expect(after[0].renderSnapshot).toBe(before[0].renderSnapshot);
+    // Only the changed figure is a new object, and even it reuses the snapshot.
+    expect(after[1]).not.toBe(before[1]);
+    expect(after[1].renderSnapshot).toBe(before[1].renderSnapshot);
+  });
+
+  it('keeps a deleted folded figure kernel-editable while undo can still reach it', async () => {
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+    });
+    const figure: OristudioCpFoldedFigureEntry = {
+      id: 'generated-1',
+      title: 'Folded model 1',
+      handle: 7,
+      sourceKind: 'generated-from-current-cp',
+      sourceCpRevision: 0,
+      startingFaceId: 1,
+      displayStyle: 'Paper5',
+      status: 'ready',
+      placement: IDENTITY_FOLDED_PLACEMENT,
+      snapshot: foldedFigureSnapshot(),
+      renderSnapshot: foldedRenderSnapshot(),
+      error: null,
+    };
+    useWorkspaceStore.setState({
+      oristudioCpFoldedFigures: [figure],
+      oristudioCpHistoryPast: [],
+      oristudioCpHistoryFuture: [],
+    });
+    // The live list holds the handle (as fold/duplicate would have arranged).
+    retainFoldedFigureHandle(figure.handle);
+
+    const before = useWorkspaceStore.getState().oristudioCpFoldedFigures;
+    useWorkspaceStore.getState().recordFoldedFigureHistory([...before], 'Delete folded model');
+    await useWorkspaceStore.getState().deleteOristudioCpFoldedFigure(figure.id);
+
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures).toHaveLength(0);
+    // The history entry still refers to it, so the wasm slot must survive —
+    // otherwise undo would restore a figure that draws but cannot be recoloured.
+    expect(oristudioCpMocks.freeOristudioCpFoldedFigure).not.toHaveBeenCalled();
+
+    await useWorkspaceStore.getState().undo();
+    const restored = useWorkspaceStore.getState().oristudioCpFoldedFigures;
+    expect(restored).toHaveLength(1);
+    expect(restored[0].handle).toBe(7);
+
+    // And it really is editable again: a model update reaches the kernel.
+    await expect(
+      useWorkspaceStore.getState().updateOristudioCpFoldedFigureModel(figure.id, { state: 'Back1' })
+    ).resolves.toBe(true);
+    expect(oristudioCpMocks.setOristudioCpFoldedFigureModel).toHaveBeenCalled();
+  });
+
+  it('marks the project dirty for folded figure edits so they cannot be lost silently', async () => {
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+    });
+    const figure: OristudioCpFoldedFigureEntry = {
+      id: 'generated-1',
+      title: 'Folded model 1',
+      handle: 7,
+      sourceKind: 'generated-from-current-cp',
+      sourceCpRevision: 0,
+      startingFaceId: 1,
+      displayStyle: 'Paper5',
+      status: 'ready',
+      placement: IDENTITY_FOLDED_PLACEMENT,
+      snapshot: foldedFigureSnapshot(),
+      renderSnapshot: foldedRenderSnapshot(),
+      error: null,
+    };
+
+    for (const act of [
+      () =>
+        useWorkspaceStore
+          .getState()
+          .updateOristudioCpFoldedFigureModel(figure.id, { state: 'Back1' }),
+      () =>
+        useWorkspaceStore
+          .getState()
+          .setOristudioCpFoldedFigureDisplayStyle(figure.id, 'Wire2'),
+      () => useWorkspaceStore.getState().deleteOristudioCpFoldedFigure(figure.id),
+    ]) {
+      useWorkspaceStore.setState({ oristudioCpFoldedFigures: [figure], dirty: false });
+      await act();
+      expect(useWorkspaceStore.getState().dirty).toBe(true);
+    }
+  });
+
+  it('drops a stale folded model response so a fast slider drag lands its last value', async () => {
+    resetStores(seedSnapshot());
+    const figure: OristudioCpFoldedFigureEntry = {
+      id: 'generated-1',
+      title: 'Folded model 1',
+      handle: 7,
+      sourceKind: 'generated-from-current-cp',
+      sourceCpRevision: 0,
+      startingFaceId: 1,
+      displayStyle: 'Paper5',
+      status: 'ready',
+      placement: IDENTITY_FOLDED_PLACEMENT,
+      snapshot: foldedFigureSnapshot(),
+      renderSnapshot: foldedRenderSnapshot(),
+      error: null,
+    };
+    useWorkspaceStore.setState({ oristudioCpFoldedFigures: [figure] });
+
+    // Two overlapping requests where the FIRST resolves last — without
+    // sequencing, the stale response would win and the slider would snap back.
+    const resolvers: Array<(value: OristudioCpFoldedFigureSnapshot) => void> = [];
+    oristudioCpMocks.setOristudioCpFoldedFigureModel.mockImplementation(
+      () => new Promise((resolve) => resolvers.push(resolve))
+    );
+
+    const first = useWorkspaceStore
+      .getState()
+      .updateOristudioCpFoldedFigureModel(figure.id, { transparent_transparency: 10 });
+    const second = useWorkspaceStore
+      .getState()
+      .updateOristudioCpFoldedFigureModel(figure.id, { transparent_transparency: 200 });
+
+    resolvers[1]({ ...foldedFigureSnapshot(), model: { ...foldedFigureSnapshot().model, transparent_transparency: 200 } });
+    await second;
+    resolvers[0]({ ...foldedFigureSnapshot(), model: { ...foldedFigureSnapshot().model, transparent_transparency: 10 } });
+    await first;
+
+    expect(
+      useWorkspaceStore.getState().oristudioCpFoldedFigures[0].snapshot?.model
+        .transparent_transparency
+    ).toBe(200);
+  });
+
+  it('keeps the canvas selection exclusive between annotations and folded figures', () => {
+    resetStores(seedSnapshot());
+    const figure: OristudioCpFoldedFigureEntry = {
+      id: 'generated-1',
+      title: 'Folded model 1',
+      handle: 7,
+      sourceKind: 'generated-from-current-cp',
+      sourceCpRevision: 0,
+      startingFaceId: 1,
+      displayStyle: 'Paper5',
+      status: 'ready',
+      placement: IDENTITY_FOLDED_PLACEMENT,
+      snapshot: foldedFigureSnapshot(),
+      renderSnapshot: foldedRenderSnapshot(),
+      error: null,
+    };
+    const annotation = createCpImage({
+      src: 'data:image/png;base64,AAAA',
+      naturalWidth: 10,
+      naturalHeight: 10,
+      center: { x: 0, y: 0 },
+      width: 1,
+      height: 1,
+    });
+    useWorkspaceStore.setState({
+      oristudioCpFoldedFigures: [figure],
+      oristudioCpAnnotations: [annotation],
+    });
+
+    // Selecting the folded figure drops any annotation selection...
+    useWorkspaceStore.getState().setSelectedAnnotation(annotation.id);
+    useWorkspaceStore.getState().setOristudioCpActiveFoldedFigure(figure.id);
+    expect(useWorkspaceStore.getState().oristudioCpSelectedAnnotationId).toBeNull();
+    expect(useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId).toBe(figure.id);
+
+    // ...and selecting the annotation drops the folded one.
+    useWorkspaceStore.getState().setSelectedAnnotation(annotation.id);
+    expect(useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId).toBeNull();
+    expect(useWorkspaceStore.getState().oristudioCpSelectedAnnotationId).toBe(annotation.id);
+
+    // Clearing one leaves the other alone rather than forcing a deselect.
+    useWorkspaceStore.getState().setSelectedAnnotation(null);
+    expect(useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId).toBeNull();
   });
 
   it('rerenders folded figure selected markers when the active figure changes', async () => {
@@ -2515,6 +2813,7 @@ describe('workspace store slices', () => {
       startingFaceId: 1,
       displayStyle: 'Paper5',
       status: 'ready',
+      placement: IDENTITY_FOLDED_PLACEMENT,
       snapshot: foldedFigureSnapshot(),
       renderSnapshot: foldedRenderSnapshot(),
       error: null,
@@ -2569,6 +2868,7 @@ describe('workspace store slices', () => {
       startingFaceId: 1,
       displayStyle: 'Paper5',
       status: 'ready',
+      placement: IDENTITY_FOLDED_PLACEMENT,
       snapshot: foldedFigureSnapshot(),
       renderSnapshot: foldedRenderSnapshot(),
       error: null,

@@ -76,7 +76,7 @@ function foldedFigure(): OristudioCpFoldedFigureEntry {
     startingFaceId: 3,
     displayStyle: 'Transparent3',
     status: 'ready',
-    displayOffset: { x: 12, y: -8 },
+    placement: { offset: { x: 12, y: -8 }, scale: 1.5, rotation: 0.25 },
     snapshot: {
       model: {
         front_color: { red: 255, green: 255, blue: 50 },
@@ -218,12 +218,105 @@ describe('native project file', () => {
           id: 'generated-1',
           handle: null,
           displayStyle: 'Transparent3',
-          displayOffset: { x: 12, y: -8 },
+          placement: { offset: { x: 12, y: -8 }, scale: 1.5, rotation: 0.25 },
           renderSnapshot: expect.objectContaining({ pass: 'transparent-color-back-full' }),
         }),
       ],
       activeFoldedFigureId: 'generated-1',
     });
+  });
+
+  it('reads a pre-placement folded figure by lifting displayOffset into an identity placement', () => {
+    // Files written before folded figures gained a full placement carry only a
+    // `displayOffset` point, which is exactly an unscaled, unrotated placement.
+    const file = createNativeCreasePatternProjectFile({
+      title: 'Legacy CP',
+      filename: 'legacy.osf',
+      path: null,
+      document: cpDocument(),
+      source: null,
+      foldProjection: null,
+      foldArtifacts: null,
+      creaseColorMode: 'mvf',
+      selection: emptyOristudioCpSelection(),
+      viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+      foldedFigures: [foldedFigure()],
+      activeFoldedFigureId: 'generated-1',
+      lineage: importedCpLineage(),
+      appVersion: '0.1.1',
+      now,
+    });
+    const serialized = JSON.parse(serializeNativeProjectFile(file));
+    const entry = serialized.workspace.documents[0].viewState.foldedFigures[0];
+    delete entry.placement;
+    entry.displayOffset = { x: 12, y: -8 };
+
+    const parsed = parseNativeProjectFile(JSON.stringify(serialized));
+    const document = activeNativeDocument(parsed);
+    if (document?.kind !== 'crease-pattern') throw new Error('expected CP document');
+    expect(document.viewState.foldedFigures[0].placement).toEqual({
+      offset: { x: 12, y: -8 },
+      scale: 1,
+      rotation: 0,
+    });
+  });
+
+  it('falls back to an identity placement when a folded figure carries neither shape', () => {
+    const file = createNativeCreasePatternProjectFile({
+      title: 'Bare CP',
+      filename: 'bare.osf',
+      path: null,
+      document: cpDocument(),
+      source: null,
+      foldProjection: null,
+      foldArtifacts: null,
+      creaseColorMode: 'mvf',
+      selection: emptyOristudioCpSelection(),
+      viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+      foldedFigures: [foldedFigure()],
+      activeFoldedFigureId: 'generated-1',
+      lineage: importedCpLineage(),
+      appVersion: '0.1.1',
+      now,
+    });
+    const serialized = JSON.parse(serializeNativeProjectFile(file));
+    delete serialized.workspace.documents[0].viewState.foldedFigures[0].placement;
+
+    const parsed = parseNativeProjectFile(JSON.stringify(serialized));
+    const document = activeNativeDocument(parsed);
+    if (document?.kind !== 'crease-pattern') throw new Error('expected CP document');
+    expect(document.viewState.foldedFigures[0].placement).toEqual({
+      offset: { x: 0, y: 0 },
+      scale: 1,
+      rotation: 0,
+    });
+  });
+
+  it('rejects a non-positive persisted scale rather than collapsing the figure', () => {
+    const file = createNativeCreasePatternProjectFile({
+      title: 'Bad scale CP',
+      filename: 'bad.osf',
+      path: null,
+      document: cpDocument(),
+      source: null,
+      foldProjection: null,
+      foldArtifacts: null,
+      creaseColorMode: 'mvf',
+      selection: emptyOristudioCpSelection(),
+      viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+      foldedFigures: [foldedFigure()],
+      activeFoldedFigureId: 'generated-1',
+      lineage: importedCpLineage(),
+      appVersion: '0.1.1',
+      now,
+    });
+    const serialized = JSON.parse(serializeNativeProjectFile(file));
+    serialized.workspace.documents[0].viewState.foldedFigures[0].placement.scale = 0;
+
+    const parsed = parseNativeProjectFile(JSON.stringify(serialized));
+    const document = activeNativeDocument(parsed);
+    if (document?.kind !== 'crease-pattern') throw new Error('expected CP document');
+    expect(document.viewState.foldedFigures[0].placement.scale).toBe(1);
   });
 
   it('stores generated CP companions inside tree projects', () => {
