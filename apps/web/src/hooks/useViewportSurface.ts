@@ -11,8 +11,20 @@ import {
 import type { ViewportShortcutId } from '../keyboard/shortcuts';
 import { isViewportInteractiveTarget } from '../components/panels/ViewportToolbar';
 
-const ZOOM_STEP = 0.35;
-const ZOOM_ANIMATION_MS = 120;
+/**
+ * How much one zoom command changes the scale. `zoomIn`/`zoomOut` are discrete —
+ * a button press or a shortcut — so a small step makes zooming feel like work.
+ */
+const ZOOM_STEP = 0.8;
+const ZOOM_ANIMATION_MS = 90;
+
+/**
+ * Zoom rates for the continuous gestures, shared so the two BP panes cannot
+ * drift apart. `wheelDisabled` keeps a plain wheel panning; the step applies to
+ * a trackpad pinch, which the browser reports as ctrl+wheel.
+ */
+export const VIEWPORT_WHEEL_ZOOM = { step: 0.9, wheelDisabled: true } as const;
+export const VIEWPORT_PINCH_ZOOM = { step: 0.9 } as const;
 const CENTER_ANIMATION_MS = 160;
 const FIT_ANIMATION_MS = 180;
 

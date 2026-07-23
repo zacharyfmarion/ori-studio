@@ -50,7 +50,11 @@ import { type BpTreeViewLayerKey, type BpTreeViewLayers } from '../../lib/oristu
 import { clientPointToDesignWorld } from '../../lib/designViewport';
 import { setActiveShortcutViewportSurface } from '../../keyboard/shortcutRuntime';
 import { useBpLongPressInspector } from '../../hooks/useBpLongPressInspector';
-import { useViewportSurface } from '../../hooks/useViewportSurface';
+import {
+  useViewportSurface,
+  VIEWPORT_PINCH_ZOOM,
+  VIEWPORT_WHEEL_ZOOM,
+} from '../../hooks/useViewportSurface';
 import { viewportRectToViewBox } from '../../lib/treeViewportPrimitives';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
@@ -724,14 +728,14 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
         maxScale={30}
         centerOnInit
         limitToBounds={false}
-        wheel={{ step: 0.5, wheelDisabled: true }}
+        wheel={VIEWPORT_WHEEL_ZOOM}
         panning={{
           velocityDisabled: true,
           wheelPanning: true,
           allowMiddleClickPan: true,
           allowLeftClickPan: spacePressed,
         }}
-        pinch={{ step: 0.5 }}
+        pinch={VIEWPORT_PINCH_ZOOM}
         doubleClick={{ disabled: true }}
         onInit={onInit}
         onTransformed={onTransformed}
