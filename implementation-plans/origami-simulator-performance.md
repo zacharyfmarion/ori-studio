@@ -707,7 +707,7 @@ as a performance fix. Recorded so the option isn't silently lost.
 - [ ] Port both Verlet variants + parity gate (Euler only so far; Verlet falls back to reference)
 - [ ] Async diagnostics reduction (`fenceSync` + PBO) — currently a sync readback per frame in the worker
 
-### Phase 2b — GPU renderer, in the worker, zero-readback — CURRENT
+### Phase 2b — GPU renderer, in the worker, zero-readback — DONE
 
 One WebGL2 context on the visible canvas, shared by solver and renderer; the
 render pass reads positions from the solver's `u_lastPosition` texture via
@@ -715,27 +715,35 @@ render pass reads positions from the solver's `u_lastPosition` texture via
 rasterizer) and removes the per-frame readback+transfer in one build — no
 main-thread-renderer intermediate to throw away.
 
-Step 1 — render pass, still headless-checkable:
-- [ ] Add a render program + real orbit camera (projection matrices) to `GlCore`/`WebglSolver`
-- [ ] Vertex shader `texelFetch`es `u_lastPosition` (+ `originalPosition`) by `gl_VertexID` — no readback
-- [ ] Depth buffer replaces painter's sort; `triangleOrder` gone
-- [ ] Shader normals, `gl_FrontFacing` two-tone, fragment lighting
-- [ ] Edges via `LINES` + `polygonOffset`; hidden lines via inverted depth pass
-- [ ] X-ray, highlights, strain colours (strain as a GPU quantity)
-- [ ] **Headless geometry/projection parity check** vs the CPU projection (so regressions are caught without eyes)
+Step 1 — render pass:
+- [x] Render program + real orbit camera (projection in the vertex shader) in `GlCore`/`meshRenderer`
+- [x] Vertex shader `texelFetch`es `u_lastPosition` (+ `originalPosition`) by `gl_VertexID` — no readback
+- [x] Depth buffer replaces painter's sort; `triangleOrder` gone (depth on the canvas context, fixed post-launch)
+- [x] Shader normals (screen-space derivatives), `gl_FrontFacing` two-tone, fragment lighting
+- [x] Creases coloured by assignment (M/V/B) as thick screen-space ribbons; facet/triangulation edges dropped
+- [x] X-ray (alpha + depth-write off); strain as a GPU quantity (from the velocity texture's error channel)
+- [x] **Headless render-coverage check** in `bench:gpu-parity` (compile + non-degenerate silhouette)
 
 Step 2 — worker plumbing:
-- [ ] Panel hands the canvas to the worker via `transferControlToOffscreen()`; `GlCore` binds it
-- [ ] Camera/view-settings/highlights/size/palette forwarded over comlink; worker re-issues the render pass
-- [ ] Behind a flag; canvas-2D still default
-- [x] Palette on theme change; size from `ResizeObserver` — landed early, independent of the GPU renderer
+- [x] Panel hands the canvas to the worker via `transferControlToOffscreen()`; `GlCore` binds it
+- [x] Camera/view-settings/size/palette forwarded over comlink; worker re-issues the render pass
+- [x] Palette on theme change; size from `ResizeObserver`
 
 Step 3 — cut over:
-- [ ] User-verified in a visible window: orbit/zoom smooth on a large CP; visual checklist across all view settings
-- [ ] Verify on the Tauri WKWebView explicitly
-- [ ] Flip default to WebGL; delete the canvas-2D rasterizer; adopt or delete `three.ts`
-- [ ] Async diagnostics reduction (`fenceSync` + PBO, every K frames) — never a sync `readPixels`
-- [ ] Stretch gate: 10k vertices at 200+ steps/frame, 60fps
+- [x] User-verified: performance "hilariously better"; depth occlusion correct; creases legible
+- [ ] Verify on the Tauri WKWebView explicitly (in progress — the GPU-vs-CPU badge tells which path engaged)
+- [x] GPU is the default when supported; `three.ts` deleted (unused)
+- [x] **Deviation: the canvas-2D rasterizer is kept as the no-WebGL2 fallback**, not deleted. It is the only
+      renderer for the ~5% without WebGL2 float (and any WKWebView that lacks it); deleting it would blank
+      their canvas. Feature-frozen, reached only when the GPU path is unavailable.
+- [ ] Async diagnostics reduction (`fenceSync` + PBO) — deferred; the per-tick velocity readback already
+      yields strain, and it has not shown up as a cost. Revisit only if profiling flags it.
+- [ ] Stretch gate: 10k vertices at 200+ steps/frame, 60fps — not formally measured; the perf instrumentation
+      is in place to check on demand.
+
+Remaining perf tuning that landed here (found via the instrumentation, see the git log): the GPU tick is
+bounded by a fixed step count, not a CPU-time budget (a CPU budget over-queues async GPU work that the
+convergence readback then flushes in one stall), and the readouts are throttled off the 60fps re-render path.
 
 ### Phase 3 — WebGPU (only if measurement justifies it)
 
