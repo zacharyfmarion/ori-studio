@@ -5398,12 +5398,6 @@
   filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent-primary) 42%, transparent));
 }
 
-.bp-packing-primitive[role='button']:focus-visible {
-  color: var(--accent-hover);
-  outline: none;
-  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent-hover) 50%, transparent));
-}
-
 .bp-packing-primitive-line,
 .bp-packing-primitive-polyline {
   fill: none;
@@ -5475,28 +5469,6 @@
   cursor: pointer;
 }
 
-.bp-packing-river-hit {
-  fill: transparent;
-  cursor: pointer;
-  pointer-events: all;
-}
-
-.bp-packing-river-shade {
-  fill: color-mix(in srgb, var(--fold-hinge) 16%, transparent);
-  stroke: color-mix(in srgb, var(--fold-hinge) 42%, transparent);
-  stroke-width: 1.5;
-  pointer-events: none;
-}
-
-.bp-packing-rivers [role='button']:focus-visible {
-  outline: none;
-}
-
-.bp-packing-rivers [role='button']:focus-visible .bp-packing-river-hit {
-  stroke: var(--accent-hover);
-  stroke-width: 2;
-}
-
 /* Box Pleating Studio's junction layer: one solid colour for both fill and stroke,
    translucent as a whole, with the stroke width set per path by the renderer and kept
    in screen pixels. */
@@ -5533,12 +5505,6 @@
   cursor: pointer;
 }
 
-.bp-packing-conflict-hits [role='button']:focus-visible .bp-packing-conflict-hit {
-  stroke: var(--accent-hover);
-  stroke-width: 2;
-  vector-effect: non-scaling-stroke;
-}
-
 /* The flap's circle: Box Pleating Studio draws it in the hinge layer as a plain
    unfilled outline in the hinge colour (`Flap._draw` -> `lineStyle(shrink, hingeColor)`),
    so the region reads as "the paper this flap needs" without competing with the
@@ -5562,13 +5528,6 @@
   cursor: pointer;
 }
 
-.bp-packing-flap-hit:focus-visible {
-  outline: none;
-  stroke: var(--accent-hover);
-  stroke-width: 2;
-  stroke-dasharray: 3 3;
-}
-
 .bp-packing-flap {
   fill: color-mix(in srgb, var(--bg-canvas) 82%, var(--text-primary));
   stroke: var(--text-primary);
@@ -5580,16 +5539,6 @@
   fill: color-mix(in srgb, var(--accent-primary) 24%, var(--bg-canvas));
   stroke: var(--accent-primary);
   stroke-width: 3;
-}
-
-.bp-packing-flaps [role='button']:focus-visible {
-  outline: none;
-}
-
-.bp-packing-flaps [role='button']:focus-visible .bp-packing-flap {
-  stroke: var(--accent-hover);
-  stroke-width: 3;
-  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent-hover) 48%, transparent));
 }
 
 .bp-packing-selection-shade {

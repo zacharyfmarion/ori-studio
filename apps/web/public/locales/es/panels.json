@@ -43,7 +43,6 @@
     "selectDevice": "Seleccionar dispositivo BP {{index}} para el estiramiento {{stretchId}}",
     "selectFlap": "Seleccionar solapa BP {{id}}",
     "selectFlapWithName": "Seleccionar solapa BP {{id}}, {{name}}",
-    "selectRiver": "Seleccionar río BP {{id}}, longitud {{length}}",
     "selectRiverShort": "Seleccionar río BP {{id}}",
     "sheetSizeGrid": "Tamaño de la hoja y cuadrícula",
     "size": "Tamaño",

@@ -43,7 +43,6 @@
     "selectDevice": "스트레치 {{stretchId}}의 BP 장치 {{index}} 선택",
     "selectFlap": "BP 플랩 {{id}} 선택",
     "selectFlapWithName": "BP 플랩 {{id}} 선택, {{name}}",
-    "selectRiver": "BP 리버 {{id}} 선택, 길이 {{length}}",
     "selectRiverShort": "BP 리버 {{id}} 선택",
     "sheetSizeGrid": "시트 크기 및 격자",
     "size": "크기",

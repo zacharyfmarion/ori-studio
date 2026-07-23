@@ -189,6 +189,21 @@ function packingDocument(): OristudioBpDocumentState {
             stroke: '#888888',
             width: 1,
           },
+          // The river's own contour — the target that selects it.
+          {
+            kind: 'polyline' as const,
+            id: 're0,2:contour',
+            layer: 'river' as const,
+            points: [
+              { x: 3, y: 3 },
+              { x: 7, y: 3 },
+              { x: 7, y: 7 },
+              { x: 3, y: 7 },
+            ],
+            stroke: '#888888',
+            width: 1,
+            closed: true,
+          },
         ],
         validity: 'valid',
       },
@@ -262,7 +277,7 @@ describe('BP packing pane — conflict fills sit behind the geometry', () => {
     expect(conflicts).toBeGreaterThanOrEqual(0);
     // SVG paints in document order, so "behind" means "earlier". Compare against
     // whichever geometry layers this fixture actually renders.
-    const geometry = ['bp-packing-rivers', 'bp-packing-flaps', 'bp-packing-flap-hits']
+    const geometry = ['bp-packing-flaps', 'bp-packing-flap-hits']
       .map((name) => order.findIndex((c) => c.includes(name)))
       .filter((index) => index >= 0);
     expect(geometry.length).toBeGreaterThan(0);
@@ -312,6 +327,28 @@ describe('BP packing pane — the whole flap is draggable', () => {
     const hits = [...host.querySelectorAll('.bp-packing-flap-hit')].map(rectOf);
     // 16px is the floor for a degenerate flap; a real one must beat it.
     for (const hit of hits) expect(hit.width).toBeGreaterThan(16);
+  });
+});
+
+describe('BP packing pane — a river is grabbed by its contour', () => {
+  it('draws no bounding-box overlay around the river', () => {
+    const host = renderPacking();
+    // The padded rect over the river's bounds was the focusable target's hit
+    // box. It swallowed presses meant for whatever sits inside the river and
+    // ringed the geometry once selected — the same treatment the flaps lost.
+    expect(host.querySelector('.bp-packing-rivers')).toBeNull();
+    expect(host.querySelector('.bp-packing-river-hit')).toBeNull();
+    expect(host.querySelector('.bp-packing-river-shade')).toBeNull();
+  });
+
+  it('selects the river when its contour is pressed', () => {
+    const host = renderPacking();
+    const contour = host.querySelector('[data-bp-select="river:1"]');
+    expect(contour).not.toBeNull();
+    act(() => {
+      contour?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }));
+    });
+    expect(useWorkspaceStore.getState().oristudioBpSelection).toEqual({ kind: 'bp-river', id: 1 });
   });
 });
 

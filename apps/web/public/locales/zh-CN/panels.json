@@ -43,7 +43,6 @@
     "selectDevice": "选择拉伸 {{stretchId}} 的 BP 装置 {{index}}",
     "selectFlap": "选择 BP 瓣 {{id}}",
     "selectFlapWithName": "选择 BP 瓣 {{id}}，{{name}}",
-    "selectRiver": "选择 BP 河 {{id}}，长度 {{length}}",
     "selectRiverShort": "选择 BP 河 {{id}}",
     "sheetSizeGrid": "纸张尺寸与网格",
     "size": "尺寸",

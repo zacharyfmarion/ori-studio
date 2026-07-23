@@ -43,7 +43,6 @@
     "selectDevice": "ストレッチ {{stretchId}} の BP デバイス {{index}} を選択",
     "selectFlap": "BP フラップ {{id}} を選択",
     "selectFlapWithName": "BP フラップ {{id}}、{{name}} を選択",
-    "selectRiver": "BP リバー {{id}}、長さ {{length}} を選択",
     "selectRiverShort": "BP リバー {{id}} を選択",
     "sheetSizeGrid": "用紙サイズとグリッド",
     "size": "サイズ",

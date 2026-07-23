@@ -36,7 +36,6 @@ import type {
   OristudioBpDocumentState,
   OristudioBpFlap,
   OristudioBpGraphicPrimitive,
-  OristudioBpRiver,
   OristudioBpSelection,
   OristudioBpSheet,
   OristudioBpSheetKind,
@@ -70,7 +69,7 @@ import {
 } from '../../lib/bpPackingViewport';
 import { bpDefaultFlapLabel, bpFlapLabel } from '../../lib/bpFlapLabel';
 import { hasPassedDragThreshold } from '../../lib/pointerGesture';
-import { formatNumber, type Point } from '../../lib/geometry';
+import { type Point } from '../../lib/geometry';
 import {
   isBpPackingLayerVisible,
   type BpPackingViewLayerKey,
@@ -108,11 +107,6 @@ const BP_PACKING_FLAP_HIT_MIN_PX = 16;
 // A repeat click within this many screen pixels of the previous one counts as
 // the "same spot" and advances the stacked-object selection cycle.
 const BP_PACKING_CYCLE_THRESHOLD_PX = 4;
-
-interface BpRiverVisual {
-  river: OristudioBpRiver;
-  bounds: { x: number; y: number; width: number; height: number };
-}
 
 interface BpPackingDragState {
   id: number;
@@ -820,10 +814,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   });
   const gridLines = useMemo(() => bpPackingGridLines(packing.sheet, paperRect), [paperRect, packing.sheet]);
   const unit = useMemo(() => bpPackingUnitToSvg(packing.sheet, paperRect), [packing.sheet, paperRect]);
-  const riverVisuals = useMemo(
-    () => packing.rivers.flatMap((river) => riverVisual(river, document, paperRect, unit) ?? []),
-    [document, packing.rivers, paperRect, unit]
-  );
   const nudgeableFlaps = useMemo(
     () => selectedNudgeFlaps(selection, packing.flaps),
     [selection, packing.flaps]
@@ -1245,6 +1235,11 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     }
   };
 
+  // A river is selected by pressing its own contour (see onPrimitivePointerDown),
+  // the way a flap is grabbed by its footprint. It used to also carry a padded
+  // rect over its whole bounding box, left from when that box was the focusable
+  // target: it swallowed presses meant for the creases, gadgets and paper inside
+  // the river, and drew a ring around the geometry once selected.
   const onRiverPointerDown = (event: PointerEvent<SVGGElement>, riverId: number) => {
     if (event.button !== 0 || spacePressed) return;
     event.stopPropagation();
@@ -1540,45 +1535,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                     ))}
                   </g>
                 ))}
-              </g>
-            )}
-            {layers.rivers && riverVisuals.length > 0 && (
-              <g className="bp-packing-rivers">
-                {riverVisuals.map((visual) => {
-                  const active = linkedSelection.rivers.has(visual.river.id);
-                  const pad = Math.max(8, unit * 0.12);
-                  return (
-                    <g
-                      key={visual.river.id}
-                      className={active ? 'bp-packing-river--selected' : undefined}
-                      data-bp-select={`river:${visual.river.id}`}
-                      aria-label={t('panels:bpPacking.selectRiver', 'Select BP river {{id}}, length {{length}}', {
-                        id: visual.river.id,
-                        length: formatNumber(visual.river.length, 2),
-                      })}
-                      onPointerDown={(event) => onRiverPointerDown(event, visual.river.id)}
-                    >
-                      {layers.selectionShade && active && (
-                        <rect
-                          className="bp-packing-river-shade"
-                          x={visual.bounds.x - pad}
-                          y={visual.bounds.y - pad}
-                          width={visual.bounds.width + pad * 2}
-                          height={visual.bounds.height + pad * 2}
-                          rx={Math.min(8, Math.max(2, unit * 0.12))}
-                        />
-                      )}
-                      <rect
-                        className="bp-packing-river-hit"
-                        x={visual.bounds.x - pad}
-                        y={visual.bounds.y - pad}
-                        width={visual.bounds.width + pad * 2}
-                        height={visual.bounds.height + pad * 2}
-                        rx={Math.min(8, Math.max(2, unit * 0.12))}
-                      />
-                    </g>
-                  );
-                })}
               </g>
             )}
             {layers.conflicts && (
@@ -2177,55 +2133,6 @@ function selectedFlapDragIds(
     return selection.flaps.filter((id) => available.has(id));
   }
   return [activeId];
-}
-
-function riverVisual(
-  river: OristudioBpRiver,
-  document: OristudioBpDocumentState,
-  paperRect: { x: number; y: number; width: number; height: number },
-  unit: number
-): BpRiverVisual | null {
-  const sheet = document.snapshot.packing.sheet;
-  const points = document.snapshot.packing.graphics
-    .filter((primitive) => riverIdFromPrimitiveId(primitive.id, document) === river.id)
-    .flatMap((primitive) => primitiveSvgPoints(primitive, sheet, paperRect, unit));
-  if (points.length === 0) return null;
-  const minX = Math.min(...points.map((point) => point.x));
-  const minY = Math.min(...points.map((point) => point.y));
-  const maxX = Math.max(...points.map((point) => point.x));
-  const maxY = Math.max(...points.map((point) => point.y));
-  return {
-    river,
-    bounds: {
-      x: minX,
-      y: minY,
-      width: Math.max(1, maxX - minX),
-      height: Math.max(1, maxY - minY),
-    },
-  };
-}
-
-function primitiveSvgPoints(
-  primitive: OristudioBpGraphicPrimitive,
-  sheet: OristudioBpDocumentState['snapshot']['packing']['sheet'],
-  paperRect: { x: number; y: number; width: number; height: number },
-  unit: number
-): Point[] {
-  if (primitive.kind === 'line') {
-    return primitive.points.map((point) => bpPackingPointToSvg(point, sheet, paperRect));
-  }
-  if (primitive.kind === 'polyline' || primitive.kind === 'polygon') {
-    return primitive.points.map((point) => bpPackingPointToSvg(point, sheet, paperRect));
-  }
-  if (primitive.kind === 'circle') {
-    const center = bpPackingPointToSvg(primitive.center, sheet, paperRect);
-    const radius = primitive.radius * unit;
-    return [
-      { x: center.x - radius, y: center.y - radius },
-      { x: center.x + radius, y: center.y + radius },
-    ];
-  }
-  return [bpPackingPointToSvg(primitive.loc, sheet, paperRect)];
 }
 
 function flapIdFromPrimitiveId(id: string): number | null {

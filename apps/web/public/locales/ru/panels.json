@@ -43,7 +43,6 @@
     "selectDevice": "Выбрать устройство BP {{index}} для растяжки {{stretchId}}",
     "selectFlap": "Выбрать клапан BP {{id}}",
     "selectFlapWithName": "Выбрать клапан BP {{id}}, {{name}}",
-    "selectRiver": "Выбрать реку BP {{id}}, длина {{length}}",
     "selectRiverShort": "Выбрать реку BP {{id}}",
     "sheetSizeGrid": "Размер листа и сетка",
     "size": "Размер",
