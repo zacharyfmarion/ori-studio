@@ -548,8 +548,9 @@ export interface CreasePatternWebglCanvasProps {
    */
   onToolPreviewInput: (points: readonly ModelPoint[], lineIds: readonly number[]) => void;
   /**
-   * Report how many creases a `line-entity` tool has picked so far (0 when reset),
-   * so the controller can advance the step prompt in lock-step with the picks.
+   * Report how many inputs the active tool has taken so far (0 when reset) — creases
+   * for a `line-entity` tool, placed points for a `sequence` one — so the controller
+   * can advance the step prompt in lock-step with them. Cumulative, not a delta.
    */
   onToolPickProgress: (picked: number) => void;
   /** Kernel-computed preview + pick-highlight segments for the active sequence tool. */
@@ -1454,6 +1455,7 @@ export function CreasePatternWebglCanvas({
         sequenceStepRef.current = 0;
         dynamicStepKindsRef.current = null;
         liveRef.current.onToolPreviewInput([], []);
+        liveRef.current.onToolPickProgress(0);
         liveRef.current.clearTransformPreview();
         renderer.setOverlayPoints(null);
         renderNow();
@@ -1559,7 +1561,14 @@ export function CreasePatternWebglCanvas({
           pendingGhostClearRef.current = transform.kind === 'copy';
         }
       } else {
-        if (kind === 'down') sequenceStepRef.current += 1;
+        if (kind === 'down') {
+          sequenceStepRef.current += 1;
+          // Advance the step prompt with the points actually placed, so a multi-step
+          // tool reads "Pick destination point" once its source is down. Reported as
+          // a cumulative count (not a delta) so the auto-advanced candidate steps
+          // above, which skip a pick, stay in sync.
+          liveRef.current.onToolPickProgress(sequenceStepRef.current);
+        }
         const live = out.livePoints ?? [];
         const placed = kind === 'move' ? live.slice(0, -1) : live;
         const ring = kind === 'move' && (point.x !== raw.x || point.y !== raw.y) ? point : null;

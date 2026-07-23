@@ -2552,10 +2552,11 @@ export function CreasePatternPanel() {
     ]
   );
 
-  // Drive the step prompt for a WebGL line-entity tool (Lengthen) in lock-step
-  // with the creases it has picked: derive the step from the pick count (reset,
-  // then advance once per pick) so the prompt reads "Select target line" after the
-  // first pick — parity with the SVG, whose `pendingLengthenLineId` advances it.
+  // Drive the step prompt in lock-step with the inputs a tool has taken: creases for
+  // a line-entity tool (Lengthen), placed points for a point-sequence one. Derive the
+  // step from the count (reset, then advance once per input) so a multi-step tool
+  // reads "Pick destination point" once its source point is down, instead of sitting
+  // on step one for the whole gesture.
   const handleWebglToolPickProgress = useCallback(
     (picked: number) => {
       const command = activeCpCommand;
