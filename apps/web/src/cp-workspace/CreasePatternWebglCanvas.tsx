@@ -31,9 +31,12 @@ import type {
 } from './renderer/types';
 import type { CpOverlayViews } from './cpOverlayViewStore';
 import {
+  applyAffine,
   cpSnapshotToScene,
+  translationMatrix,
+  type CpAffineMatrix,
   type CpLineSegmentInput,
-  type CpMovePreview,
+  type CpTransformPreview,
 } from './adapters/cpSnapshotToScene';
 import { cpGeometryStrokesToScene } from './adapters/cpGeometryToScene';
 import type { CpGeometryTransport } from '../engine/oristudioCpGeometry';
@@ -688,7 +691,7 @@ export function CreasePatternWebglCanvas({
   // Late-bound `buildStrokes` so effects declared before it (the tool-reset
   // effect) can rebuild strokes; assigned once `buildStrokes` is defined.
   const buildStrokesRef = useRef<
-    ((move?: CpMovePreview, pickedLineIds?: readonly number[]) => StrokeGeometry) | null
+    ((move?: CpTransformPreview, pickedLineIds?: readonly number[]) => StrokeGeometry) | null
   >(null);
   const gridKeyRef = useRef<string | null>(null);
   // Owned camera (Phase 2). Null until seeded from the SVG's current fit.
@@ -828,7 +831,7 @@ export function CreasePatternWebglCanvas({
   // an in-progress move-drag. Shared by the scene memo (no move) and the drag
   // handler (live delta), so the moved strokes are the real, highlighted lines.
   const buildStrokes = useCallback(
-    (move?: CpMovePreview, pickedLineIds?: readonly number[]): StrokeGeometry => {
+    (move?: CpTransformPreview, pickedLineIds?: readonly number[]): StrokeGeometry => {
       // Lines picked by an in-progress line-entity tool render in the selection
       // style too, so a picked crease reads as "selected". The picked set is passed
       // in by the imperative caller (event handler) — never read from a ref here,
@@ -861,17 +864,16 @@ export function CreasePatternWebglCanvas({
   }, [buildStrokes]);
 
   // Build the point buffer (crease points, derived vertices, circles). During a
-  // move-drag the derived vertices of the moved lines follow by `move.delta`;
-  // real points and circles do not move (line-only transform for now).
+  // move-drag or transform gesture the derived vertices of the moved lines follow
+  // through `move.matrix`; real points and circles do not move, matching the kernel
+  // ops, which transform line segments only.
   const buildPoints = useCallback(
-    (move?: CpMovePreview): PointGeometry => {
+    (move?: CpTransformPreview): PointGeometry => {
       const movedVertices =
         move === undefined
           ? vertices
           : vertices.map((v) =>
-              selectedEndpointKeys.has(cpVertexId(v))
-                ? { x: v.x + move.delta.x, y: v.y + move.delta.y }
-                : v
+              selectedEndpointKeys.has(cpVertexId(v)) ? applyAffine(move.matrix, v.x, v.y) : v
             );
       return cpPointsToScene(
         points,
@@ -2017,7 +2019,10 @@ export function CreasePatternWebglCanvas({
             // Redraw the selected lines shifted in place — the real strokes move,
             // no separate copy — and let their derived vertices follow. Only the
             // stroke + point buffers are re-uploaded per frame.
-            const move = { ids: liveRef.current.selectedLineSet, delta: moveDelta };
+            const move = {
+              ids: liveRef.current.selectedLineSet,
+              matrix: translationMatrix(moveDelta),
+            };
             renderer.setStrokes(liveRef.current.buildStrokes(move));
             renderer.setPoints(liveRef.current.buildPoints(move));
             renderNow();

@@ -19,7 +19,12 @@ import { initCpWasm, loadBatteryDocument } from '../../engine/oristudioCpTestSup
 import type { OristudioCpDocumentSnapshot } from '../../engine/oristudioCpTypes';
 import { getCpVertexPoints } from '../../lib/creasePatternViewport';
 import type { Rgba } from '../renderer/types';
-import { cpSnapshotToScene, type CpMovePreview, type CpSelectionStyle } from './cpSnapshotToScene';
+import {
+  cpSnapshotToScene,
+  translationMatrix,
+  type CpSelectionStyle,
+  type CpTransformPreview,
+} from './cpSnapshotToScene';
 import { cpGeometryStrokesToScene } from './cpGeometryToScene';
 
 beforeAll(initCpWasm);
@@ -85,7 +90,29 @@ describe('cpGeometryStrokesToScene parity with cpSnapshotToScene', () => {
       color: [0.1, 0.8, 0.3, 1],
       widthMul: 2,
     };
-    const move: CpMovePreview = { ids: new Set([2, 4]), delta: { x: 12.5, y: -3.25 } };
+    const move: CpTransformPreview = {
+      ids: new Set([2, 4]),
+      matrix: translationMatrix({ x: 12.5, y: -3.25 }),
+    };
+    expectStrokesEqual(
+      cpSnapshotToScene(segmentsInput(), colorFor, selection, move).strokes,
+      cpGeometryStrokesToScene(transport, colorFor, selection, move).strokes
+    );
+  });
+
+  it('with an in-progress four-point transform (rotate + scale)', () => {
+    const selection: CpSelectionStyle = {
+      selected: new Set([2, 4]),
+      color: [0.1, 0.8, 0.3, 1],
+      widthMul: 2,
+    };
+    // Non-trivial similarity: 30° rotation scaled by 1.75, plus a translation.
+    const c = Math.cos(Math.PI / 6) * 1.75;
+    const s = Math.sin(Math.PI / 6) * 1.75;
+    const move: CpTransformPreview = {
+      ids: new Set([2, 4]),
+      matrix: [c, -s, s, c, 3.5, -1.25],
+    };
     expectStrokesEqual(
       cpSnapshotToScene(segmentsInput(), colorFor, selection, move).strokes,
       cpGeometryStrokesToScene(transport, colorFor, selection, move).strokes
