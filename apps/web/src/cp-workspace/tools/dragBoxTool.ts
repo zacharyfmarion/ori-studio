@@ -42,9 +42,14 @@ export const dragBoxTool: ToolEngine<DragBoxState> = {
       case 'up': {
         const start = state.start;
         if (!start) return { state: IDLE, preview: null, commit: null };
-        // A degenerate (zero-area) box commits nothing.
+        // Only a zero-*length* gesture commits nothing, matching Oriedita's
+        // `BoxSelectStepNode` (`selectionStart.distance(mousePos) > 0`). A flat box
+        // still selects: the kernel predicate asks whether a crease touches the box,
+        // not whether it fits inside — and a straight vertical or horizontal drag
+        // holds one axis at exactly its press value, so rejecting per-axis dropped
+        // those drags entirely.
         const commit =
-          start.x === input.point.x || start.y === input.point.y
+          start.x === input.point.x && start.y === input.point.y
             ? null
             : { points: [start, input.point] };
         return { state: IDLE, preview: null, commit };

@@ -187,6 +187,7 @@ import {
   isSelectionCircleApplyOperation,
   isSquareBisectorOperation,
   isVariablePointSequenceOperation,
+  toolClickAction,
 } from '../../cp-workspace/tools/predicates';
 import {
   cpMeasurementSlotForOperation,
@@ -3489,8 +3490,7 @@ export function CreasePatternPanel() {
                   voronoiSeeds={cpToolPoints}
                   onVoronoiSeedsChange={handleWebglVoronoiSeeds}
                   activeToolRequireSnap={isRestrictedDrawOperation(activeCpCommand?.operationId)}
-                  activeToolClickSelects={isLineClickSelectionOperation(activeCpCommand?.operationId)}
-                  activeToolClickErases={isLineEraseClickTool(activeCpCommand?.operationId)}
+                  activeToolClickAction={toolClickAction(activeCpCommand?.operationId)}
                   resolveDrawPoint={resolveEditableDrawModelPoint}
                   resolveDrawPointOnCrease={resolveEditableDrawPointOnCrease}
                   resolveFirstPickKind={resolveEditableFirstPickKind}
