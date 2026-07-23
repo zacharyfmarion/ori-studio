@@ -10,6 +10,7 @@ import type {
 } from '@treemaker/origami-simulator';
 import { getSimulatorClient, type SimulatorClient } from '../store/workspaceStore/simulatorRuntime';
 import { inflateRenderModel, type SimulatorRenderModel } from './renderModel';
+import { readString, storageKey } from '../lib/storage';
 
 // Drives the simulator worker and exposes the latest frame to a renderer.
 //
@@ -35,6 +36,13 @@ export interface SimulatorFrameView {
   converged: boolean;
   foldPercent: number;
   maxEdgeStrain: number;
+}
+
+// Main-thread camera-dispatch timing, read and reset by the perf logger.
+let cameraDispatchTotal = 0;
+let cameraDispatchCount = 0;
+function cameraDispatchAvg(): number {
+  return cameraDispatchCount ? cameraDispatchTotal / cameraDispatchCount : 0;
 }
 
 /** True if this canvas can host the WebGL2 float-render-target GPU path. */
@@ -323,13 +331,49 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
   // happens on the worker's own schedule and must not block the pointer handler.
   const setCamera = useCallback((view: OrbitView, width: number, height: number) => {
     if (!gpuActiveRef.current) return;
+    // Time the synchronous main-thread cost of dispatching the camera message
+    // (comlink proxy + structured clone). If orbit lag lives on the main thread,
+    // it shows up here.
+    const started = performance.now();
     void clientRef.current?.setCamera({ view, width, height }).catch(() => undefined);
+    cameraDispatchTotal += performance.now() - started;
+    cameraDispatchCount += 1;
   }, []);
 
   const setRenderSettings = useCallback((settings: RenderSettings) => {
     if (!gpuActiveRef.current) return;
     void clientRef.current?.setRenderSettings(settings).catch(() => undefined);
   }, []);
+
+  // Opt-in perf logging: set `oristudio:sim-perf` to `1` in localStorage, then
+  // reload. Once a second it prints the worker's solve/render/camera timings
+  // plus the main thread's own camera-dispatch cost, so it is clear whether lag
+  // is the GPU draw, the solve, the message rate, or the main thread.
+  useEffect(() => {
+    if (status !== 'ready' || typeof window === 'undefined') return;
+    if (readString(storageKey('sim-perf')) !== '1') return;
+    const id = window.setInterval(() => {
+      const client = clientRef.current;
+      if (!client) return;
+      void client
+        .getPerfStats()
+        .then((s) => {
+          const perSec = (n: number) => (s.windowMs ? (n / s.windowMs) * 1000 : 0).toFixed(0);
+          console.log(
+            `[sim] ${s.backend}${s.gpuRender ? '+gpuRender' : '+cpuRender'} | ` +
+              `solve ${s.solveAvgMs.toFixed(1)}ms avg / ${s.solveMaxMs.toFixed(1)} max, ` +
+              `${perSec(s.ticks)} ticks/s, ${perSec(s.stepsTotal)} steps/s | ` +
+              `render ${s.renderAvgMs.toFixed(2)}ms avg / ${s.renderMaxMs.toFixed(2)} max, ` +
+              `${perSec(s.renders)} draws/s | ` +
+              `camera ${perSec(s.cameraCalls)} msg/s, main-dispatch ${cameraDispatchAvg().toFixed(2)}ms`
+          );
+          cameraDispatchTotal = 0;
+          cameraDispatchCount = 0;
+        })
+        .catch(() => undefined);
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [status]);
 
   return {
     status,

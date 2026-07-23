@@ -157,6 +157,53 @@ let session: Session | null = null;
  */
 let renderCanvas: OffscreenCanvas | null = null;
 
+export interface PerfSnapshot {
+  windowMs: number;
+  backend: SimulatorBackendId;
+  gpuRender: boolean;
+  /** GPU draws issued this window (settle/tick + every setCamera/setRenderSettings). */
+  renders: number;
+  renderAvgMs: number;
+  renderMaxMs: number;
+  /** setCamera calls this window — the orbit/zoom message rate. */
+  cameraCalls: number;
+  /** Solver ticks (budgeted frames) this window. */
+  ticks: number;
+  solveAvgMs: number;
+  solveMaxMs: number;
+  stepsTotal: number;
+}
+
+// Cheap counters, always on (a few adds per op). getPerfStats() reads and
+// resets them; the runtime only polls when the debug flag is set.
+const perf = {
+  windowStart: 0,
+  renders: 0,
+  renderTotalMs: 0,
+  renderMaxMs: 0,
+  cameraCalls: 0,
+  ticks: 0,
+  solveTotalMs: 0,
+  solveMaxMs: 0,
+  stepsTotal: 0,
+};
+
+function nowMs(): number {
+  return typeof performance !== 'undefined' ? performance.now() : Date.now();
+}
+
+function resetPerf(at: number): void {
+  perf.windowStart = at;
+  perf.renders = 0;
+  perf.renderTotalMs = 0;
+  perf.renderMaxMs = 0;
+  perf.cameraCalls = 0;
+  perf.ticks = 0;
+  perf.solveTotalMs = 0;
+  perf.solveMaxMs = 0;
+  perf.stepsTotal = 0;
+}
+
 function requireSession(): Session {
   if (!session) throw new Error('Simulator worker: no model loaded');
   return session;
@@ -356,6 +403,7 @@ const api = {
   setCamera(camera: SimulatorCamera): void {
     const active = requireSession();
     if (!active.gpuRender) return;
+    perf.cameraCalls += 1;
     active.gpuRender.view = camera.view;
     active.gpuRender.width = camera.width;
     active.gpuRender.height = camera.height;
@@ -370,6 +418,32 @@ const api = {
     renderGpu(active.gpuRender);
   },
 
+  /**
+   * Snapshot of timing counters since the last call, then reset them. Polled by
+   * the runtime when `localStorage.simPerf === '1'` and logged to the console.
+   * Everything is measured in the worker, where the solve and the GPU draw
+   * actually happen, so it reflects real cost rather than main-thread overhead.
+   */
+  getPerfStats(): PerfSnapshot {
+    const now = nowMs();
+    const windowMs = now - perf.windowStart;
+    const snapshot: PerfSnapshot = {
+      windowMs,
+      backend: session?.backendId ?? 'reference',
+      gpuRender: Boolean(session?.gpuRender),
+      renders: perf.renders,
+      renderAvgMs: perf.renders ? perf.renderTotalMs / perf.renders : 0,
+      renderMaxMs: perf.renderMaxMs,
+      cameraCalls: perf.cameraCalls,
+      ticks: perf.ticks,
+      solveAvgMs: perf.ticks ? perf.solveTotalMs / perf.ticks : 0,
+      solveMaxMs: perf.solveMaxMs,
+      stepsTotal: perf.stepsTotal,
+    };
+    resetPerf(now);
+    return snapshot;
+  },
+
   dispose(): void {
     session?.backend.dispose();
     session = null;
@@ -381,6 +455,11 @@ function readFrame(
   tick: { steps: number; elapsedMs: number; converged: boolean; maxVelocity: number },
   options: { withColors?: boolean; recycled?: ArrayBuffer }
 ): SimulatorFramePayload {
+  perf.ticks += 1;
+  perf.solveTotalMs += tick.elapsedMs;
+  perf.stepsTotal += tick.steps;
+  if (tick.elapsedMs > perf.solveMaxMs) perf.solveMaxMs = tick.elapsedMs;
+
   const scalars = {
     step: active.backend.stepCount,
     stepsThisTick: tick.steps,
@@ -433,7 +512,15 @@ function renderGpu(state: GpuRenderState): void {
     renderCanvas.height = state.height;
   }
   const camera = cameraUniforms(state.view, state.center, state.radius, state.width, state.height);
+  const started = nowMs();
   state.solver.render(camera, state.settings);
+  // render() issues GL commands but they run async on the GPU; this measures the
+  // CPU-side command cost, which is what would block the worker. A readPixels
+  // would be needed to time actual GPU work, and that would itself stall.
+  const elapsed = nowMs() - started;
+  perf.renders += 1;
+  perf.renderTotalMs += elapsed;
+  if (elapsed > perf.renderMaxMs) perf.renderMaxMs = elapsed;
 }
 
 /**
