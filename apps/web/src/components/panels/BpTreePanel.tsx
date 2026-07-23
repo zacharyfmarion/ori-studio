@@ -99,15 +99,15 @@ const TARGET_UNIT_PX = 56;
 // This applies to *chrome* only. A mark that stands for a distance in the model
 // — the symmetry snap lane, whose width is the snap tolerance — must scale with
 // the drawing instead, or it stops depicting the thing it measures.
-const EDGE_STROKE_PX = 5;
-const EDGE_SELECTED_STROKE_PX = 7;
+const EDGE_STROKE_PX = 7;
+const EDGE_SELECTED_STROKE_PX = 9;
 const NODE_STROKE_PX = 2;
 const SYMMETRY_LINE_PX = 2;
 const SYMMETRY_LANE_PX = 18;
 const LABEL_STROKE_PX = 3;
 const SYMMETRY_GHOST_PX = 3;
-const NODE_DOT_PX = 5;
-const LEAF_DOT_PX = 4;
+const NODE_DOT_PX = 7;
+const LEAF_DOT_PX = 6;
 const NODE_LABEL_PX = 12;
 
 function BpTreeViewportToolbar({
