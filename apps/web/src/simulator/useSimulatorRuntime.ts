@@ -25,6 +25,7 @@ export interface SimulatorFrameView {
   elapsedMs: number;
   converged: boolean;
   foldPercent: number;
+  maxEdgeStrain: number;
 }
 
 export interface SimulatorModelView extends SimulatorRenderModel {
@@ -66,6 +67,11 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
   const clientRef = useRef<SimulatorClient | null>(null);
   const rafRef = useRef<number | null>(null);
   const inFlightRef = useRef(false);
+  // Whether the model has settled at its current target. The loop idles when
+  // this is true and nothing is playing, so a converged simulator costs nothing
+  // while still restarting the instant a new target arrives.
+  const convergedRef = useRef(true);
+  const playingRef = useRef(false);
   const recycledRef = useRef<ArrayBuffer | undefined>(undefined);
   const generationRef = useRef(0);
   // Kept in a ref so the play loop does not have to tear down and rebuild every
@@ -86,7 +92,9 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
       elapsedMs: payload.elapsedMs,
       converged: payload.converged,
       foldPercent: payload.foldPercent,
+      maxEdgeStrain: payload.maxEdgeStrain,
     });
+    convergedRef.current = payload.converged;
     // Give the buffer straight back to the worker on the next request so the
     // steady-state loop allocates nothing.
     recycledRef.current = payload.positions;
@@ -123,9 +131,11 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
         });
         setStatus('ready');
 
-        // Settle to the opening state before the first paint, so the panel does
-        // not flash a flat sheet.
-        const first = await client.settle(4000, {});
+        // Settle the opening state before the first paint so the panel does not
+        // flash a flat sheet. Bounded deliberately: at foldPercent 0 this
+        // converges within a few dozen steps, and an unbounded settle would tie
+        // the worker up for seconds on a model that oscillates above epsilon.
+        const first = await client.settle(2000, {});
         if (cancelled || generation !== generationRef.current) return;
         publish(first);
       } catch (cause) {
@@ -141,26 +151,33 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fold, foldProfile, triangulate, publish]);
 
-  // The play loop. Never runs solver work on this thread.
   useEffect(() => {
-    if (!playing || status !== 'ready') return;
+    playingRef.current = playing;
+  }, [playing]);
+
+  // The work loop. Mounted for as long as a model is loaded, and does nothing
+  // on frames where the model has settled and playback is stopped -- so
+  // scrubbing the fold slider animates towards the new target instead of
+  // blocking anyone while it converges.
+  //
+  // Solver work never happens on this thread: the callback issues an async tick
+  // and returns.
+  useEffect(() => {
+    if (status !== 'ready' || typeof window === 'undefined') return;
 
     const tick = () => {
       rafRef.current = window.requestAnimationFrame(tick);
       const client = clientRef.current;
-      // One tick in flight at a time: the worker is the bottleneck, and queuing
-      // more would only add latency between simulated state and what is drawn.
       if (!client || inFlightRef.current) return;
-      inFlightRef.current = true;
+      // Idle: nothing to solve and nothing playing.
+      if (convergedRef.current && !playingRef.current) return;
 
+      inFlightRef.current = true;
       const recycled = recycledRef.current;
       recycledRef.current = undefined;
       void client
         .tick(recycled ? { recycled } : {})
-        .then((payload) => {
-          publish(payload);
-          if (payload.converged) setPlaying(false);
-        })
+        .then(publish)
         .catch((cause: unknown) => {
           setError(cause instanceof Error ? cause.message : String(cause));
           setStatus('error');
@@ -175,69 +192,58 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
       if (rafRef.current !== null) window.cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     };
-  }, [playing, status, publish]);
+  }, [status, publish]);
 
-  const runOnce = useCallback(
-    async (mutate: (client: SimulatorClient) => Promise<void>) => {
+  const retarget = useCallback(
+    (mutate: (client: SimulatorClient) => Promise<void>) => {
       const client = clientRef.current;
       if (!client) return;
-      try {
-        await mutate(client);
-        const recycled = recycledRef.current;
-        recycledRef.current = undefined;
-        publish(await client.tick(recycled ? { recycled } : {}));
-      } catch (cause) {
+      // Assume the change unsettles the model; the loop picks it up next frame
+      // and keeps working until the worker reports convergence again.
+      convergedRef.current = false;
+      void mutate(client).catch((cause: unknown) => {
         setError(cause instanceof Error ? cause.message : String(cause));
         setStatus('error');
-      }
+      });
     },
-    [publish]
+    []
   );
 
   const setFoldPercent = useCallback(
     (percent: number) => {
-      void runOnce(async (client) => {
-        await client.setFoldPercent(percent);
-      });
+      retarget((client) => client.setFoldPercent(percent));
     },
-    [runOnce]
+    [retarget]
   );
 
+  /**
+   * Move to a fold target. Named for the caller's intent, but it does not block:
+   * an earlier version ran the worker to convergence here, which could occupy
+   * it for seconds on a model that oscillates above the convergence epsilon,
+   * and showed the user nothing until it finished.
+   */
   const settleTo = useCallback(
     (percent: number) => {
-      const client = clientRef.current;
-      if (!client) return;
-      void (async () => {
-        try {
-          await client.setFoldPercent(percent);
-          const recycled = recycledRef.current;
-          recycledRef.current = undefined;
-          publish(await client.settle(20_000, recycled ? { recycled } : {}));
-        } catch (cause) {
-          setError(cause instanceof Error ? cause.message : String(cause));
-          setStatus('error');
-        }
-      })();
+      setFoldPercent(percent);
     },
-    [publish]
+    [setFoldPercent]
+  );
+
+  const setMaterial = useCallback(
+    (materialOptions: Partial<SimulatorOptions>) => {
+      retarget((client) => client.setMaterial(materialOptions));
+    },
+    [retarget]
   );
 
   const reset = useCallback(() => {
     setPlaying(false);
-    void runOnce(async (client) => {
+    retarget(async (client) => {
       await client.reset();
       await client.setFoldPercent(0);
     });
-  }, [runOnce]);
+  }, [retarget]);
 
-  const setMaterial = useCallback(
-    (materialOptions: Partial<SimulatorOptions>) => {
-      void runOnce(async (client) => {
-        await client.setMaterial(materialOptions);
-      });
-    },
-    [runOnce]
-  );
 
   return {
     status,

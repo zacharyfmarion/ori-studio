@@ -73,6 +73,12 @@ export interface SimulatorFramePayload {
   converged: boolean;
   maxVelocity: number;
   foldPercent: number;
+  /**
+   * Peak edge strain for this frame. Computed once per frame rather than per
+   * step -- it walks every edge, which is why it must not go in the step loop,
+   * but once per published frame is cheap and the panel displays it live.
+   */
+  maxEdgeStrain: number;
 }
 
 interface Session {
@@ -255,6 +261,7 @@ function readFrame(
       converged: tick.converged,
       maxVelocity: tick.maxVelocity,
       foldPercent: active.foldPercent,
+      maxEdgeStrain: active.backend.readDiagnostics().maxEdgeStrain ?? 0,
     },
     transferables
   );

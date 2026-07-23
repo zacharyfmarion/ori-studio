@@ -204,6 +204,7 @@ export function SimulatorPanel() {
     (frame: SimulatorFrameView) => {
       frameRef.current = frame;
       setStep(frame.step);
+      setStrain(frame.maxEdgeStrain);
       setFoldPercent(frame.foldPercent);
       foldPercentRef.current = frame.foldPercent;
       drawCurrentFrame();
@@ -225,7 +226,6 @@ export function SimulatorPanel() {
     modelRef.current = runtimeModel;
     if (runtimeModel) {
       setModelStats({ vertices: runtimeModel.vertexCount, triangles: runtimeModel.faceCount });
-      setStrain(runtimeModel.diagnostics.maxEdgeStrain ?? 0);
     } else {
       setModelStats({ vertices: 0, triangles: 0 });
     }
