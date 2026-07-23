@@ -6,8 +6,30 @@ import { createSampleProject } from '../../lib/sampleProject';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
 import { SimulatorPanel } from './SimulatorPanel';
+import { createSimulatorSession } from '../../simulator/simulatorSession';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+// The solver runs in a Worker, which jsdom does not provide. Rather than stub
+// out the simulator (which would stop these tests exercising triangulation and
+// the render path at all), run the real session in-process -- simulatorWorker
+// is only a comlink wrapper around it, so this is the same code the app runs.
+vi.mock('../../store/workspaceStore/simulatorRuntime', () => ({
+  getSimulatorClient: () => createSimulatorSession(),
+  releaseSimulatorWorker: () => {},
+}));
+
+/**
+ * Let the runtime's load -> settle -> first frame chain resolve. The worker API
+ * is async, so a rendered panel has no geometry until these microtasks flush.
+ */
+async function flushSimulator(): Promise<void> {
+  for (let i = 0; i < 12; i += 1) {
+    await act(async () => {
+      await Promise.resolve();
+    });
+  }
+}
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -45,8 +67,9 @@ afterEach(() => {
 });
 
 describe('SimulatorPanel', () => {
-  it('renders whole-mode labels by default', () => {
+  it('renders whole-mode labels by default', async () => {
     const rendered = renderPanel({ foldArtifacts: { fold: simpleFold() } });
+    await flushSimulator();
 
     expect(rendered.querySelector('[aria-label="Fold percent"]')).not.toBeNull();
     expect(rendered.querySelector('[aria-label="Simulator scope"]')?.textContent).toContain('Whole');
@@ -71,8 +94,9 @@ describe('SimulatorPanel', () => {
     expect(rendered.querySelector('.simulator-canvas')?.getAttribute('data-lighting')).toBeNull();
   });
 
-  it('triangulates polygonal fold faces before rendering', () => {
+  it('triangulates polygonal fold faces before rendering', async () => {
     const rendered = renderPanel({ foldArtifacts: { fold: quadFold() } });
+    await flushSimulator();
 
     expect(rendered.textContent).toContain('4 vertices | 2 triangles');
   });

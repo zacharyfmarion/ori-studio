@@ -24,17 +24,15 @@ import {
   Sun,
   Waves,
 } from 'lucide-react';
+import type { FoldDocument as SimulatorFoldDocument } from '@treemaker/origami-simulator';
 import {
-  createOrigamiSimulator,
-  prepareFoldModel,
-  type FoldDocument as SimulatorFoldDocument,
-  type OrigamiSimulatorController,
-  type PreparedOrigamiModel,
-  type SimulationFrame,
-} from '@treemaker/origami-simulator';
+  useSimulatorRuntime,
+  type SimulatorFrameView,
+  type SimulatorModelView,
+} from '../../simulator/useSimulatorRuntime';
+import type { SimulatorRenderModel } from '../../simulator/renderModel';
 import { buildSequenceStepSimulation } from '../../lib/sequenceSimulation';
 import { buildSegmentFold, resolveCpSegments } from '../../lib/creasePatternSegmentation';
-import { PreparedModelCache } from '../../lib/preparedModelCache';
 import { SimulatorSegmentsSidebar } from './SimulatorSegmentsPanel';
 import {
   STEP_SIMULATION_ACCURACY_OPTIONS,
@@ -92,7 +90,6 @@ interface DepthSurface {
   height: number;
 }
 
-const SETTLE_DELTA_EPSILON = 0.0002;
 const PAPER_EDGE_DEPTH_EPSILON = 0.006;
 const INITIAL_FOLD_PERCENT = 0;
 const DEFAULT_VIEW: SimulatorView = { yaw: 0, pitch: 0.38, zoom: 1 };
@@ -112,19 +109,18 @@ const EMPTY_HIGHLIGHTS: SimulatorHighlights = {
 export function SimulatorPanel() {
   const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const controllerRef = useRef<OrigamiSimulatorController | null>(null);
-  const modelRef = useRef<PreparedOrigamiModel | null>(null);
-  const frameRef = useRef<SimulationFrame | null>(null);
-  const rafRef = useRef<number | null>(null);
-  const settleRafRef = useRef<number | null>(null);
+  // The solver lives in a worker; this component only holds the latest frame it
+  // published and draws it. There is no controller, no model and no step loop on
+  // this thread any more.
+  const modelRef = useRef<SimulatorModelView | null>(null);
+  const frameRef = useRef<SimulatorFrameView | null>(null);
+  const playRafRef = useRef<number | null>(null);
   const viewRef = useRef<SimulatorView>({ ...DEFAULT_VIEW });
   const viewSettingsRef = useRef<SimulatorViewSettings>(DEFAULT_VIEW_SETTINGS);
   const highlightsRef = useRef<SimulatorHighlights>(EMPTY_HIGHLIGHTS);
   const dragRef = useRef<DragState | null>(null);
   const foldPercentRef = useRef(INITIAL_FOLD_PERCENT);
   const sourceKeyRef = useRef<string | null>(null);
-
-  const modelCacheRef = useRef<PreparedModelCache>(new PreparedModelCache(4));
 
   const creaseCount = useWorkspaceStore((state) => state.project.creases.length);
   // Editable (hand-drawn / imported) crease patterns live in the oristudio CP
@@ -144,7 +140,6 @@ export function SimulatorPanel() {
   const capabilities = useWorkspaceCapabilities();
 
   const [foldPercent, setFoldPercent] = useState(INITIAL_FOLD_PERCENT);
-  const [playing, setPlaying] = useState(false);
   const [loadState, setLoadState] = useState<LoadState>('idle');
   const [modelError, setModelError] = useState<string | null>(null);
   const [step, setStep] = useState(0);
@@ -203,95 +198,75 @@ export function SimulatorPanel() {
     const frame = frameRef.current;
     if (!canvas || !model || !frame) return;
     drawFrame(canvas, model, frame, viewRef.current, viewSettingsRef.current, highlightsRef.current);
-    setStep(frame.step);
-    setStrain(frame.diagnostics.maxEdgeStrain ?? 0);
   }, []);
+
+  const handleFrame = useCallback(
+    (frame: SimulatorFrameView) => {
+      frameRef.current = frame;
+      setStep(frame.step);
+      setFoldPercent(frame.foldPercent);
+      foldPercentRef.current = frame.foldPercent;
+      drawCurrentFrame();
+    },
+    [drawCurrentFrame]
+  );
+
+  const runtime = useSimulatorRuntime({
+    fold: simulationFold as SimulatorFoldDocument | null,
+    foldProfile: simulationFoldProfile,
+    solverOptions: runConfig.solverOptions,
+    triangulate: simulationFold ? foldNeedsTriangulation(simulationFold) : true,
+    onFrame: handleFrame,
+  });
+
+  const { status: runtimeStatus, model: runtimeModel, playing, setPlaying } = runtime;
+
+  useEffect(() => {
+    modelRef.current = runtimeModel;
+    if (runtimeModel) {
+      setModelStats({ vertices: runtimeModel.vertexCount, triangles: runtimeModel.faceCount });
+      setStrain(runtimeModel.diagnostics.maxEdgeStrain ?? 0);
+    } else {
+      setModelStats({ vertices: 0, triangles: 0 });
+    }
+    drawCurrentFrame();
+  }, [runtimeModel, drawCurrentFrame]);
 
   useEffect(() => {
     viewSettingsRef.current = viewSettings;
     drawCurrentFrame();
   }, [drawCurrentFrame, viewSettings]);
 
-  // Release cached prepared models when a new fold arrives (keys embed the
-  // revision, so stale entries would otherwise linger until evicted).
   useEffect(() => {
-    modelCacheRef.current.clear();
-  }, [foldArtifactRevision]);
-
-  const stepSimulation = useCallback(
-    (steps?: number): SimulationFrame | null => {
-      const controller = controllerRef.current;
-      if (!controller) return null;
-      frameRef.current = controller.step(steps);
-      drawCurrentFrame();
-      return frameRef.current;
-    },
-    [drawCurrentFrame]
-  );
-
-  const applyFoldPercent = useCallback((percent: number) => {
-    const next = clamp(percent, 0, 100);
-    foldPercentRef.current = next;
-    setFoldPercent(next);
-    controllerRef.current?.setFoldPercent(next);
-  }, []);
-
-  const clearPlayback = useCallback(() => {
-    if (rafRef.current !== null && typeof window !== 'undefined') {
-      window.cancelAnimationFrame(rafRef.current);
-    }
-    rafRef.current = null;
-  }, []);
-
-  const clearSettling = useCallback(() => {
-    if (settleRafRef.current !== null && typeof window !== 'undefined') {
-      window.cancelAnimationFrame(settleRafRef.current);
-    }
-    settleRafRef.current = null;
-  }, []);
-
-  const startSettling = useCallback(
-    (frames = runConfig.foldChangeSettleFrames) => {
-      if (typeof window === 'undefined') return;
-      clearSettling();
-      let remaining = frames;
-      let quietFrames = 0;
-
-      const tick = () => {
-        const previous = frameRef.current?.positions;
-        const next = stepSimulation(runConfig.foldChangeSettleBatch);
-        if (!next) {
-          settleRafRef.current = null;
-          return;
+    highlightsRef.current = activeStepSimulation
+      ? {
+          creases: new Set(activeStepSimulation.affectedCreases),
+          faces: new Set(activeStepSimulation.affectedFaces),
         }
+      : EMPTY_HIGHLIGHTS;
+    drawCurrentFrame();
+  }, [activeStepSimulation, drawCurrentFrame]);
 
-        const delta = previous ? maxPositionDelta(previous, next.positions) : Infinity;
-        quietFrames = delta < SETTLE_DELTA_EPSILON ? quietFrames + 1 : 0;
-        remaining -= 1;
+  // Reset the fold target when the source model genuinely changes, so switching
+  // segment or sequence step does not inherit the previous scrub position.
+  useEffect(() => {
+    if (sourceKeyRef.current === simulationSourceKey) return;
+    sourceKeyRef.current = simulationSourceKey;
+    foldPercentRef.current = INITIAL_FOLD_PERCENT;
+    setFoldPercent(INITIAL_FOLD_PERCENT);
+    setPlaying(false);
+  }, [simulationSourceKey, setPlaying]);
 
-        if (remaining > 0 && quietFrames < 3) {
-          settleRafRef.current = window.requestAnimationFrame(tick);
-        } else {
-          settleRafRef.current = null;
-        }
-      };
-
-      settleRafRef.current = window.requestAnimationFrame(tick);
-    },
-    [clearSettling, runConfig, stepSimulation]
-  );
-
+  // Load/error state is derived from the runtime plus the surrounding document
+  // state; there is no separate solver lifecycle to track any more.
   useEffect(() => {
     if (simulatorMode === 'step') {
-      clearPlayback();
-      clearSettling();
-      setPlaying(false);
       if (stepSimulationError) {
         setModelError(stepSimulationError);
         setLoadState('error');
       } else if (activeStepSimulation) {
         setModelError(null);
-        setLoadState('ready');
+        setLoadState(runtimeStatus === 'ready' ? 'ready' : 'loading');
       } else {
         setModelError(t('panels:simulator.stepSimulationUnavailable', 'Step simulation unavailable.'));
         setLoadState('error');
@@ -300,16 +275,25 @@ export function SimulatorPanel() {
     }
 
     if (creaseCount === 0 && !hasEditableCp) {
-      clearPlayback();
-      clearSettling();
       setPlaying(false);
       setModelError(null);
       setLoadState('empty');
       return;
     }
+
+    if (runtime.error) {
+      setModelError(runtime.error);
+      setLoadState('error');
+      return;
+    }
+
     if (foldArtifacts) {
       setModelError(simulationModelError ?? null);
-      setLoadState(simulationModelError ? 'error' : 'ready');
+      if (simulationModelError) {
+        setLoadState('error');
+        return;
+      }
+      setLoadState(runtimeStatus === 'ready' ? 'ready' : 'loading');
       return;
     }
 
@@ -326,8 +310,6 @@ export function SimulatorPanel() {
     setLoadState('loading');
     void ensureFoldArtifacts();
   }, [
-    clearPlayback,
-    clearSettling,
     creaseCount,
     hasEditableCp,
     foldArtifacts,
@@ -338,108 +320,23 @@ export function SimulatorPanel() {
     simulatorMode,
     activeStepSimulation,
     stepSimulationError,
+    runtimeStatus,
+    runtime.error,
+    setPlaying,
     t,
   ]);
 
-  useEffect(() => {
-    clearPlayback();
-    clearSettling();
-    controllerRef.current?.dispose();
-    controllerRef.current = null;
-    modelRef.current = null;
-    frameRef.current = null;
-    setModelError(null);
-    setModelStats({ vertices: 0, triangles: 0 });
-
-    highlightsRef.current = activeStepSimulation
-      ? {
-          creases: new Set(activeStepSimulation.affectedCreases),
-          faces: new Set(activeStepSimulation.affectedFaces),
-        }
-      : EMPTY_HIGHLIGHTS;
-
-    if (!simulationFold) {
-      if (simulationModelError) {
-        setPlaying(false);
-        setModelError(simulationModelError);
-        setLoadState('error');
-      }
-      return;
-    }
-
-    try {
-      if (simulationModelError) {
-        throw new Error(simulationModelError);
-      }
-      const sourceChanged = sourceKeyRef.current !== simulationSourceKey;
-      sourceKeyRef.current = simulationSourceKey;
-      const initialFoldPercent = sourceChanged ? INITIAL_FOLD_PERCENT : foldPercentRef.current;
-      if (sourceChanged) {
-        foldPercentRef.current = initialFoldPercent;
-        setFoldPercent(initialFoldPercent);
-        setPlaying(false);
-      }
-      const model = modelCacheRef.current.get(simulationSourceKey, () =>
-        prepareFoldModel(simulationFold as SimulatorFoldDocument, {
-          triangulate: foldNeedsTriangulation(simulationFold),
-        })
-      );
-      const controller = createOrigamiSimulator({
-        model,
-        options: {
-          ...runConfig.solverOptions,
-          foldPercent: initialFoldPercent,
-          foldProfile: simulationFoldProfile,
-        },
-      });
-      modelRef.current = model;
-      controllerRef.current = controller;
-      setModelStats({ vertices: model.vertexCount, triangles: model.faceCount });
-      frameRef.current = controller.step(runConfig.initialSettleSteps);
-      setLoadState('ready');
-      drawCurrentFrame();
-      if (initialFoldPercent !== 0) startSettling();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.warn('Failed to prepare simulator model', error);
-      setPlaying(false);
-      setModelError(message);
-      setModelStats({ vertices: 0, triangles: 0 });
-      setLoadState('error');
-    }
-
-    return () => {
-      clearPlayback();
-      clearSettling();
-      controllerRef.current?.dispose();
-      controllerRef.current = null;
-      modelRef.current = null;
-      frameRef.current = null;
-      setModelStats({ vertices: 0, triangles: 0 });
-    };
-  }, [
-    clearPlayback,
-    clearSettling,
-    drawCurrentFrame,
-    simulationFold,
-    simulationFoldProfile,
-    simulationModelError,
-    simulationSourceKey,
-    runConfig,
-    startSettling,
-    activeStepSimulation,
-  ]);
-
+  // Scrubbing the fold slider settles to the new target in the worker rather
+  // than stepping a fixed batch here.
   const setFoldTarget = useCallback(
     (percent: number) => {
-      clearPlayback();
+      const next = clamp(percent, 0, 100);
       setPlaying(false);
-      applyFoldPercent(percent);
-      if (stepSimulation(runConfig.foldChangeImmediateSteps)) {
-        startSettling();
-      }
+      foldPercentRef.current = next;
+      setFoldPercent(next);
+      runtime.settleTo(next);
     },
-    [applyFoldPercent, clearPlayback, runConfig, startSettling, stepSimulation]
+    [runtime, setPlaying]
   );
 
   const stepFoldTarget = useCallback(() => {
@@ -452,24 +349,21 @@ export function SimulatorPanel() {
   }, [runConfig.foldStepPercent, setFoldTarget]);
 
   const replayFromFlat = useCallback(() => {
-    clearPlayback();
-    clearSettling();
     setPlaying(false);
-    controllerRef.current?.reset();
-    applyFoldPercent(0);
-    frameRef.current = controllerRef.current?.step(runConfig.initialSettleSteps) ?? null;
-    drawCurrentFrame();
-  }, [applyFoldPercent, clearPlayback, clearSettling, drawCurrentFrame, runConfig.initialSettleSteps]);
+    foldPercentRef.current = 0;
+    setFoldPercent(0);
+    runtime.reset();
+  }, [runtime, setPlaying]);
 
+  // Play advances the fold target over time; the worker does the solving, so
+  // this callback only ever computes a number and hands it over.
   useEffect(() => {
-    if (!playing || typeof window === 'undefined') return;
-    clearSettling();
+    if (!playing || typeof window === 'undefined' || runtimeStatus !== 'ready') return;
 
     if (foldPercentRef.current >= 100) {
-      controllerRef.current?.reset();
-      applyFoldPercent(0);
-      frameRef.current = controllerRef.current?.step(runConfig.initialSettleSteps) ?? null;
-      drawCurrentFrame();
+      foldPercentRef.current = 0;
+      setFoldPercent(0);
+      runtime.reset();
     }
 
     let previousTime: number | null = null;
@@ -482,30 +376,23 @@ export function SimulatorPanel() {
         foldPercentRef.current + elapsedSeconds * runConfig.foldPlayPercentPerSecond
       );
 
-      applyFoldPercent(nextPercent);
-      stepSimulation(runConfig.foldPlayStepBatch);
+      foldPercentRef.current = nextPercent;
+      runtime.setFoldPercent(nextPercent);
 
       if (nextPercent >= 100) {
-        rafRef.current = null;
+        playRafRef.current = null;
         setPlaying(false);
-        startSettling();
         return;
       }
-
-      rafRef.current = window.requestAnimationFrame(tick);
+      playRafRef.current = window.requestAnimationFrame(tick);
     };
-    rafRef.current = window.requestAnimationFrame(tick);
-    return clearPlayback;
-  }, [
-    applyFoldPercent,
-    clearPlayback,
-    clearSettling,
-    drawCurrentFrame,
-    playing,
-    runConfig,
-    startSettling,
-    stepSimulation,
-  ]);
+
+    playRafRef.current = window.requestAnimationFrame(tick);
+    return () => {
+      if (playRafRef.current !== null) window.cancelAnimationFrame(playRafRef.current);
+      playRafRef.current = null;
+    };
+  }, [playing, runtime, runConfig.foldPlayPercentPerSecond, runtimeStatus, setPlaying]);
 
   useEffect(() => {
     if (typeof ResizeObserver === 'undefined') return;
@@ -749,8 +636,6 @@ export function SimulatorPanel() {
             title={t('panels:simulator.refresh', 'Refresh')}
             tooltipSide="top"
             onClick={() => {
-              clearPlayback();
-              clearSettling();
               setPlaying(false);
               setModelError(null);
               void refreshFoldArtifacts();
@@ -763,7 +648,7 @@ export function SimulatorPanel() {
             size="sm"
             title={playing ? t('panels:simulator.pause', 'Pause') : t('panels:simulator.play', 'Play')}
             tooltipSide="top"
-            onClick={() => setPlaying((value) => !value)}
+            onClick={() => setPlaying(!playing)}
             disabled={loadState !== 'ready'}
           >
             {playing ? <Pause size={14} /> : <Play size={14} />}
@@ -820,13 +705,6 @@ export function SimulatorPanel() {
   );
 }
 
-function maxPositionDelta(previous: Float32Array, next: Float32Array): number {
-  let max = 0;
-  for (let index = 0; index < Math.min(previous.length, next.length); index += 1) {
-    max = Math.max(max, Math.abs((next[index] ?? 0) - (previous[index] ?? 0)));
-  }
-  return max;
-}
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -849,8 +727,8 @@ function foldNeedsTriangulation(fold: SimulatorFoldDocument): boolean {
 
 function drawFrame(
   canvas: HTMLCanvasElement,
-  model: PreparedOrigamiModel,
-  frame: SimulationFrame,
+  model: SimulatorRenderModel,
+  frame: SimulatorFrameView,
   view: SimulatorView,
   settings: SimulatorViewSettings,
   highlights: SimulatorHighlights
@@ -1139,8 +1017,8 @@ function averageDepth(triangle: OrderedTriangle, projected: ProjectedPoint[]): n
 
 function drawPaperFacesWithDepth(
   ctx: CanvasRenderingContext2D,
-  model: PreparedOrigamiModel,
-  frame: SimulationFrame,
+  model: SimulatorRenderModel,
+  frame: SimulatorFrameView,
   triangles: OrderedTriangle[],
   projected: ProjectedPoint[],
   map: (point: ProjectedPoint) => { x: number; y: number },
@@ -1360,7 +1238,7 @@ function blendRgb(
 
 function drawTriangleEdges(
   ctx: CanvasRenderingContext2D,
-  model: PreparedOrigamiModel,
+  model: SimulatorRenderModel,
   triangle: OrderedTriangle,
   projected: ProjectedPoint[],
   map: (point: ProjectedPoint) => { x: number; y: number },
@@ -1396,7 +1274,7 @@ function drawTriangleEdges(
 
 function drawAllEdges(
   ctx: CanvasRenderingContext2D,
-  model: PreparedOrigamiModel,
+  model: SimulatorRenderModel,
   projected: ProjectedPoint[],
   map: (point: ProjectedPoint) => { x: number; y: number },
   dpr: number,
@@ -1415,7 +1293,7 @@ function drawAllEdges(
 
 function drawVisibleEdges(
   ctx: CanvasRenderingContext2D,
-  model: PreparedOrigamiModel,
+  model: SimulatorRenderModel,
   projected: ProjectedPoint[],
   map: (point: ProjectedPoint) => { x: number; y: number },
   dpr: number,
@@ -1446,7 +1324,7 @@ function drawVisibleEdges(
 
 function drawEdgeSegment(
   ctx: CanvasRenderingContext2D,
-  model: PreparedOrigamiModel,
+  model: SimulatorRenderModel,
   projected: ProjectedPoint[],
   map: (point: ProjectedPoint) => { x: number; y: number },
   from: number,
@@ -1475,7 +1353,7 @@ function drawEdgeSegment(
 
 function drawVisibleEdgeSegment(
   ctx: CanvasRenderingContext2D,
-  model: PreparedOrigamiModel,
+  model: SimulatorRenderModel,
   projected: ProjectedPoint[],
   map: (point: ProjectedPoint) => { x: number; y: number },
   from: number,
