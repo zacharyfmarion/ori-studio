@@ -262,8 +262,15 @@ patching of its internals; fixture injection goes through its file-import path.
   exactly one ULP means the two implementations are doing identical arithmetic —
   the growth is float32 storage, not an algorithmic difference.
 
-  **Tier C threshold: 1e-4** (7× headroom over the measured 1000-step worst
-  case). Re-derive with the same command if the fixture set changes.
+  A second sweep (`npm run bench:unwrap-spike`, 54 configurations across
+  `foldPercent` 80/99/100 and 200/1000 steps) pushed the worst case to
+  **1.30e-4** — fully-folded creases over long horizons drift slightly further
+  than the `foldPercent: 60` sweep above.
+
+  **Tier C threshold: 1e-3.** Set from the 1.30e-4 worst case with ~8× headroom,
+  and still two orders of magnitude below the 1e-2 catastrophe threshold, so the
+  gate can distinguish float32 noise from a real 2π flip. Re-derive with both
+  commands if the fixture set changes.
 
 **Backend-independent invariants** — property tests that catch what tolerance
 checks miss:
@@ -333,7 +340,7 @@ via `saveFOLD`. Then: check the existing port against upstream for the first
 time, fix any divergence found, and derive the empirical CPU-vs-GPU tolerance
 that sets the real Tier C threshold.
 
-### 0.4 De-risk `thetaCalc` before committing to Phase 2
+### 0.4 De-risk `thetaCalc` before committing to Phase 2 — RESOLVED, GO
 
 The known hazard in the whole plan is the crease-angle unwrap:
 
@@ -344,10 +351,23 @@ else if (diff > 5) diff -= TWO_PI;
 
 Vendor differences in `atan2` near that branch boundary can flip a crease by a
 full turn — a *visible catastrophic* divergence, not a small numerical one.
-Spike this one shader pass on real hardware across vendors before building
-anything else on the GPU. If it proves fragile, the mitigation (widening the
-hysteresis, or reformulating the unwrap) is a deviation from upstream that needs
-deciding deliberately and documenting, not discovering late.
+
+**Resolved 2026-07-23 by `npm run bench:unwrap-spike`: go.** The upstream oracle
+turned out to make this directly measurable without writing any new shader code,
+because upstream *is* the GPU implementation of this exact pass. A 2π flip would
+show as divergence of order the moment arm (~1e0); the noise floor is ~1e-5.
+
+54 configurations — every non-degenerate fixture × `foldPercent` 80/99/100
+(putting target angles at and just off the ±180° branch cut, where theta is
+pinned to the branch) × 200 and 1000 steps. Worst observed divergence
+**1.30e-4**, i.e. 77× below the 1e-2 catastrophe threshold. No flips anywhere.
+
+**Caveat, deliberately not papered over:** this is one GPU — Apple Silicon via
+Chromium/ANGLE-Metal. Cross-vendor (NVIDIA, AMD, Intel, Mali/Adreno) is
+unverified and cannot be verified on this machine. The spike is committed and
+runs anywhere, so re-run it on other hardware when available; the CI SwiftShader
+job (§2.7) gives a second, different implementation cheaply. Treat a
+catastrophic result there as a real finding, not a flaky test.
 
 ## Phase 1 — Unblock the main thread
 
