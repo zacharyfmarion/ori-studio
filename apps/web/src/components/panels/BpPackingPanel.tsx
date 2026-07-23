@@ -52,7 +52,7 @@ import {
   toggleBpRiverSelection,
 } from '../../lib/oristudioBpSelection';
 import {
-  bpArcPathNarrowness,
+  bpArcPathThickness,
   bpArcPathToSvgPath,
   bpPackingFlapClearanceRect,
   bpPackingGridLines,
@@ -78,7 +78,11 @@ import {
 import { clientPointToDesignWorld } from '../../lib/designViewport';
 import { setActiveShortcutViewportSurface } from '../../keyboard/shortcutRuntime';
 import { useBpLongPressInspector } from '../../hooks/useBpLongPressInspector';
-import { useViewportSurface } from '../../hooks/useViewportSurface';
+import {
+  useViewportSurface,
+  VIEWPORT_PINCH_ZOOM,
+  VIEWPORT_WHEEL_ZOOM,
+} from '../../hooks/useViewportSurface';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { IconButton } from '../ui/IconButton';
@@ -826,19 +830,34 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     () => bpPackingAlertDiagnostics(document.snapshot.diagnostics),
     [document.snapshot.diagnostics]
   );
-  const conflictVisuals = useMemo(
-    () =>
-      packing.invalidJunctions.map((junction) => ({
+  const conflictVisuals = useMemo(() => {
+    const thicknessPx = (thickness: number | null): number | null =>
+      thickness === null ? null : thickness * unit * (zoomPercent / 100);
+    return packing.invalidJunctions.map((junction) => ({
         junction,
         active: linkedSelection.invalidJunctions.has(junction.id),
         paths: junction.paths.map((path) => ({
           d: bpArcPathToSvgPath(path, packing.sheet, paperRect),
-          strokeWidth: conflictStrokeWidth(bpArcPathNarrowness(path), unit),
+          strokeWidth: conflictStrokeWidth(
+            // Rendered thickness: grid units → SVG units → screen pixels.
+            thicknessPx(bpArcPathThickness(path)),
+            // Screen pixels per grid cell: SVG user units scaled by the camera.
+            unit * (zoomPercent / 100)
+          ),
         })),
-      })),
-    [linkedSelection.invalidJunctions, packing.invalidJunctions, packing.sheet, paperRect, unit]
+    }));
+  }, [
+      linkedSelection.invalidJunctions,
+      packing.invalidJunctions,
+      packing.sheet,
+      paperRect,
+      unit,
+      // The stroke is in screen pixels, so it has to be recomputed as you zoom.
+      zoomPercent,
+    ]
   );
   const sheetClipId = useId();
+  const flapsClipId = useId();
 
   const eventToPackingPoint = useCallback(
     (event: PointerEvent): Point => {
@@ -1388,14 +1407,14 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
         maxScale={30}
         centerOnInit
         limitToBounds={false}
-        wheel={{ step: 0.5, wheelDisabled: true }}
+        wheel={VIEWPORT_WHEEL_ZOOM}
         panning={{
           velocityDisabled: true,
           wheelPanning: true,
           allowMiddleClickPan: true,
           allowLeftClickPan: spacePressed,
         }}
-        pinch={{ step: 0.5 }}
+        pinch={VIEWPORT_PINCH_ZOOM}
         doubleClick={{ disabled: true }}
         onInit={onInit}
         onTransformed={onTransformed}
@@ -1420,6 +1439,28 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
             onClick={onSelectionCycleClick}
           >
             <defs>
+              {/*
+                * A conflict lives inside the flaps it belongs to, so nothing in
+                * that layer may paint outside one. Its outline stroke is centred
+                * on the region's edge — and that edge *is* the flap circle — so
+                * without this half the stroke renders outside the flap and reads
+                * as the conflict being in the wrong place.
+                */}
+              <clipPath id={flapsClipId}>
+                {packing.flaps.map((flap) => {
+                  const shape = bpPackingFlapClearanceRect(flap, packing.sheet, paperRect);
+                  return (
+                    <rect
+                      key={flap.id}
+                      x={shape.x}
+                      y={shape.y}
+                      width={shape.width}
+                      height={shape.height}
+                      rx={shape.radius}
+                    />
+                  );
+                })}
+              </clipPath>
               <clipPath id={sheetClipId}>
                 {isDiagonalSheet ? (
                   <polygon points={sheetPolygonPoints} />
@@ -1516,25 +1557,27 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                 clipPath={`url(#${sheetClipId})`}
                 aria-hidden="true"
               >
-                {conflictVisuals.map((visual) => (
-                  <g
-                    key={visual.junction.id}
-                    className={
-                      visual.active
-                        ? 'bp-packing-conflict-group bp-packing-conflict--selected'
-                        : 'bp-packing-conflict-group'
-                    }
-                  >
-                    {visual.paths.map((path, index) => (
-                      <path
-                        key={`${visual.junction.id}:${index}`}
-                        className="bp-packing-conflict"
-                        d={path.d}
-                        strokeWidth={path.strokeWidth}
-                      />
-                    ))}
-                  </g>
-                ))}
+                <g clipPath={`url(#${flapsClipId})`}>
+                  {conflictVisuals.map((visual) => (
+                    <g
+                      key={visual.junction.id}
+                      className={
+                        visual.active
+                          ? 'bp-packing-conflict-group bp-packing-conflict--selected'
+                          : 'bp-packing-conflict-group'
+                      }
+                    >
+                      {visual.paths.map((path, index) => (
+                        <path
+                          key={`${visual.junction.id}:${index}`}
+                          className="bp-packing-conflict"
+                          d={path.d}
+                          strokeWidth={path.strokeWidth}
+                        />
+                      ))}
+                    </g>
+                  ))}
+                </g>
               </g>
             )}
             {layers.conflicts && (
@@ -2022,15 +2065,30 @@ function primitiveSelectToken(
 }
 
 /**
- * Box Pleating Studio strokes an invalid-junction outline only when it is too narrow
- * to read as a filled shape (`Junction.$draw`): width `2 / narrowness` screen pixels,
- * never wider than one grid cell. Everything else is fill-only.
+ * Smallest a conflict region may render before it needs help to be seen, in
+ * screen pixels.
  */
-const CONFLICT_NARROWNESS_THRESHOLD = 0.4;
+const MIN_CONFLICT_VISIBLE_PX = 2.5;
 
-function conflictStrokeWidth(narrowness: number | null, unit: number): number {
-  if (narrowness === null || narrowness >= CONFLICT_NARROWNESS_THRESHOLD) return 0;
-  return Math.min(2 / narrowness, unit);
+/**
+ * Stroke width for a conflict outline, in screen pixels — 0 for anything already
+ * thick enough to read as a filled shape.
+ *
+ * Box Pleating Studio strokes the outline when `narrowness` (the ratio of the
+ * arcs' anchor span to their chord) falls under a threshold, at width
+ * `2 / narrowness` (`Junction.$draw`). That ratio is a proxy for "this is too
+ * thin to see"; we measure the thing itself, because the stroke has a cost the
+ * ratio can't account for.
+ *
+ * The cost: the stroke is centred on the region's outline, and that outline's
+ * outer edge *is* the flap circle. Clipping it to the flap (which is what keeps
+ * it from painting outside) then truncates it at the region's tips, blunting
+ * points that should be sharp. So stroke only what would otherwise be invisible,
+ * and only by enough to reach that floor.
+ */
+function conflictStrokeWidth(thicknessPx: number | null, cellPx: number): number {
+  if (thicknessPx === null || thicknessPx >= MIN_CONFLICT_VISIBLE_PX) return 0;
+  return Math.min(MIN_CONFLICT_VISIBLE_PX - thicknessPx, cellPx);
 }
 
 /** Parse a `data-bp-select` token (`kind:id`) into a selection. */

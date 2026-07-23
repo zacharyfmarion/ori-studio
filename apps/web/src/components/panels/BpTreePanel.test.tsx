@@ -44,6 +44,7 @@ vi.mock('react-zoom-pan-pinch', async () => {
         if (didInit.current) return;
         didInit.current = true;
         onInit?.(api);
+        transformed.fn = onTransformed ?? null;
         onTransformed?.(api, { scale: 1 });
       }, [onInit, onTransformed]);
       return React.createElement('div', null, children);
@@ -54,6 +55,11 @@ vi.mock('react-zoom-pan-pinch', async () => {
 });
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+/** Last `onTransformed` the panel handed the pan/zoom wrapper. */
+const transformed: { fn: ((ref: unknown, state: { scale: number }) => void) | null } = {
+  fn: null,
+};
 
 // jsdom has no Pointer Events capture API; the pane captures the pointer when a
 // vertex drag starts. Stub it so a synthesized press reaches the real handler.
@@ -364,6 +370,68 @@ describe('BP tree pane — selecting an edge highlights the edge', () => {
       expect(group.hasAttribute('tabindex')).toBe(false);
       expect(group.getAttribute('role')).not.toBe('button');
     }
+  });
+});
+
+describe('BP tree pane — the drawing keeps its proportions when zoomed', () => {
+  it('counter-scales stroke widths, as it already does dots and labels', () => {
+    const body = render(1);
+    const edge = body.querySelector('.bp-tree-edge');
+    const node = body.querySelector('.bp-tree-node');
+    expect(edge).not.toBeNull();
+    expect(node).not.toBeNull();
+    // `non-scaling-stroke` only defends against the SVG's own viewBox — the
+    // pan/zoom wrapper scales with a CSS transform, which it cannot see. So the
+    // widths have to be counter-scaled explicitly, like the dot radii.
+    // Read the *effective* width: an SVG presentation attribute loses to author
+    // CSS (theme.css styles these classes), so only an inline style takes hold.
+    expect(Number((edge as SVGElement).style.strokeWidth)).toBeGreaterThan(0);
+    expect(Number((node as SVGElement).style.strokeWidth)).toBeGreaterThan(0);
+    expect(edge!.getAttribute('stroke-width')).toBeNull();
+    expect(edge!.getAttribute('vector-effect')).toBeNull();
+  });
+
+  it('thins the stroke in proportion as the camera zooms in', () => {
+    const body = render(1);
+    const widthAt = () =>
+      Number((body.querySelector('.bp-tree-edge') as SVGElement).style.strokeWidth);
+    const atRest = widthAt();
+    expect(atRest).toBeGreaterThan(0);
+
+    act(() => {
+      transformed.fn?.({}, { scale: 4 });
+    });
+    // Four times the camera scale means a quarter of the width in world units —
+    // the two cancel, so the line keeps the same weight on screen.
+    expect(widthAt()).toBeCloseTo(atRest / 4, 6);
+  });
+
+  it('counter-scales every mark in the canvas, not just the lines', () => {
+    const body = render(1, true);
+    const svg = body.querySelector('.bp-tree-canvas')!;
+    // Anything the camera would otherwise inflate: stroke widths (including the
+    // labels' halo, which is a stroke) and font sizes. A presentation attribute
+    // here would be overridden by theme.css, so each must be an inline style.
+    // theme.css gives all of these a stroke, and text a font size; both are
+    // inflated by the camera unless counter-scaled. A presentation attribute
+    // would lose to that CSS, so each must carry an inline style.
+    const marks = [...svg.querySelectorAll<SVGElement>('line, circle, text')];
+    expect(marks.length).toBeGreaterThan(3);
+    for (const mark of marks) {
+      expect(mark.style.strokeWidth).not.toBe('');
+      expect(mark.getAttribute('stroke-width')).toBeNull();
+      if (mark.tagName.toLowerCase() === 'text') expect(mark.style.fontSize).not.toBe('');
+    }
+  });
+
+  it('keeps line weight proportional to dot size at any zoom', () => {
+    const body = render(1);
+    const edge = Number((body.querySelector('.bp-tree-edge') as SVGElement).style.strokeWidth);
+    const dot = Number(body.querySelector('.bp-tree-node')!.getAttribute('r'));
+    // Both derive from the same counter-scale, so their ratio is fixed — which
+    // is what stops lines fattening while dots stay put.
+    expect(edge / dot).toBeGreaterThan(0.5);
+    expect(edge / dot).toBeLessThan(2);
   });
 });
 
