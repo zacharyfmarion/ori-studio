@@ -54,6 +54,7 @@ import {
 } from '../../lib/oristudioBpSelection';
 import {
   bpArcPathNarrowness,
+  bpArcPathThickness,
   bpArcPathToSvgPath,
   bpPackingFlapClearanceRect,
   bpPackingGridLines,
@@ -843,10 +844,23 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
         active: linkedSelection.invalidJunctions.has(junction.id),
         paths: junction.paths.map((path) => ({
           d: bpArcPathToSvgPath(path, packing.sheet, paperRect),
-          strokeWidth: conflictStrokeWidth(bpArcPathNarrowness(path), unit),
+          strokeWidth: conflictStrokeWidth(
+            bpArcPathNarrowness(path),
+            // Screen pixels per grid cell: SVG user units scaled by the camera.
+            unit * (zoomPercent / 100),
+            (bpArcPathThickness(path) ?? 0) * unit * (zoomPercent / 100) || null
+          ),
         })),
       })),
-    [linkedSelection.invalidJunctions, packing.invalidJunctions, packing.sheet, paperRect, unit]
+    [
+      linkedSelection.invalidJunctions,
+      packing.invalidJunctions,
+      packing.sheet,
+      paperRect,
+      unit,
+      // The stroke is in screen pixels, so it has to be recomputed as you zoom.
+      zoomPercent,
+    ]
   );
   const sheetClipId = useId();
 
@@ -2072,9 +2086,29 @@ function primitiveSelectToken(
  */
 const CONFLICT_NARROWNESS_THRESHOLD = 0.4;
 
-function conflictStrokeWidth(narrowness: number | null, unit: number): number {
+/**
+ * Stroke width for a conflict outline, in screen pixels.
+ *
+ * Two corrections over a naive read of `Junction.$draw`:
+ *
+ * - The cap is **one grid cell on screen**. Upstream passes `ProjectService.scale`
+ *   — screen pixels per grid unit at the current zoom — so the cap tracks zoom.
+ *   Passing SVG user units instead compares two different quantities, and grows
+ *   far too permissive as you zoom in.
+ * - The stroke is centred, so half of it renders outside the region — and that
+ *   region's outer edge is the flap's own circle. On a sliver a few pixels thick
+ *   an unbounded stroke reads as "the conflict is outside the flap". Cap it at
+ *   the region's own thickness so it can at most double the shape.
+ */
+function conflictStrokeWidth(
+  narrowness: number | null,
+  cellPx: number,
+  thicknessPx: number | null
+): number {
   if (narrowness === null || narrowness >= CONFLICT_NARROWNESS_THRESHOLD) return 0;
-  return Math.min(2 / narrowness, unit);
+  const bounds = [2 / narrowness, cellPx];
+  if (thicknessPx !== null) bounds.push(thicknessPx);
+  return Math.min(...bounds);
 }
 
 /** Parse a `data-bp-select` token (`kind:id`) into a selection. */

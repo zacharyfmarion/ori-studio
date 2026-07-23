@@ -6,6 +6,7 @@ import type {
 } from '../engine/oristudioBpTypes';
 import {
   bpArcPathNarrowness,
+  bpArcPathThickness,
   bpArcPathToSvgPath,
   bpPackingFlapClearanceRect,
   bpPackingGridLines,
@@ -256,5 +257,40 @@ describe('bpPackingSvgToPoint', () => {
         expect(approx(back.y, grid.y)).toBe(true);
       }
     }
+  });
+});
+
+describe('bpArcPathThickness', () => {
+  it('measures the lens across its middle, as the sum of both sagittas', () => {
+    // The real conflict from minimal_repro_circle_issue.osf: a sliver ~0.17
+    // grid units thick. The outline stroke must not dwarf it.
+    const path = [
+      { x: 9.9557, y: 7.7057, arc: { x: 9.8, y: 7.2 }, r: 1 },
+      { x: 9.2943, y: 7.0443, arc: { x: 9.5454545, y: 7.4545455 }, r: 2 },
+    ];
+    const thickness = bpArcPathThickness(path);
+    expect(thickness).not.toBeNull();
+    // r=1 sagitta 0.116 + r=2 sagitta 0.055
+    expect(thickness!).toBeGreaterThan(0.15);
+    expect(thickness!).toBeLessThan(0.19);
+  });
+
+  it('is null for paths that are not two arcs', () => {
+    expect(bpArcPathThickness([{ x: 0, y: 0 }])).toBeNull();
+    expect(
+      bpArcPathThickness([
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+      ])
+    ).toBeNull();
+  });
+
+  it('handles a degenerate arc whose radius cannot span the chord', () => {
+    expect(
+      bpArcPathThickness([
+        { x: 0, y: 0, arc: { x: 0, y: 1 }, r: 0.1 },
+        { x: 10, y: 0, arc: { x: 10, y: 1 }, r: 0.1 },
+      ])
+    ).toBe(0.2);
   });
 });

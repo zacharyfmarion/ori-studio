@@ -222,6 +222,24 @@ export function bpPackingFlapClearanceRect(
  * lens between two arcs is. Only two-arc paths have one — anything else is left
  * unstroked, matching BP's `NaN` result for longer paths.
  */
+/**
+ * Thickness of a two-arc conflict region across its middle, in grid units.
+ *
+ * The region is a lens: two arcs over a shared chord, bulging apart. Its widest
+ * point is the sum of the two arcs' sagittas. Used to keep the outline stroke
+ * from dwarfing the shape it is meant to make visible.
+ */
+export function bpArcPathThickness(path: readonly OristudioBpArcPoint[]): number | null {
+  if (path.length !== 2) return null;
+  const [first, second] = path;
+  if (first.r == null || second.r == null) return null;
+  const half = Math.hypot(second.x - first.x, second.y - first.y) / 2;
+  if (half === 0) return null;
+  const sagitta = (radius: number): number =>
+    radius <= half ? radius : radius - Math.sqrt(radius * radius - half * half);
+  return sagitta(Math.abs(first.r)) + sagitta(Math.abs(second.r));
+}
+
 export function bpArcPathNarrowness(path: readonly OristudioBpArcPoint[]): number | null {
   if (path.length !== 2) return null;
   const [first, second] = path;
