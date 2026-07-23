@@ -19,9 +19,11 @@
   --bg-canvas: #0c0f12;
   --bg-canvas-grid: #1d2a31;
   --bg-paper: #f2f0e7;
-  /* Two-tone origami paper in the simulator: gray front, light back. Gray so
-     the blue valley and red mountain crease lines both read clearly against it. */
-  --sim-paper-front: #98a0a8;
+  /* Two-tone origami paper in the simulator: yellow front, light back. The
+     yellow matches a generated folded figure in the edit pane (the CP engine's
+     default front colour, RgbColor(255,255,50)); the blue valley and red
+     mountain crease lines read clearly against it. */
+  --sim-paper-front: #ffff32;
   --sim-paper-back: #f2f0e7;
 
   --text-primary: #e8edf0;
