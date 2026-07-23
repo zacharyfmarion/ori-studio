@@ -863,6 +863,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     ]
   );
   const sheetClipId = useId();
+  const flapsClipId = useId();
 
   const eventToPackingPoint = useCallback(
     (event: PointerEvent): Point => {
@@ -1439,6 +1440,28 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
             onClick={onSelectionCycleClick}
           >
             <defs>
+              {/*
+                * A conflict lives inside the flaps it belongs to, so nothing in
+                * that layer may paint outside one. Its outline stroke is centred
+                * on the region's edge — and that edge *is* the flap circle — so
+                * without this half the stroke renders outside the flap and reads
+                * as the conflict being in the wrong place.
+                */}
+              <clipPath id={flapsClipId}>
+                {packing.flaps.map((flap) => {
+                  const shape = bpPackingFlapClearanceRect(flap, packing.sheet, paperRect);
+                  return (
+                    <rect
+                      key={flap.id}
+                      x={shape.x}
+                      y={shape.y}
+                      width={shape.width}
+                      height={shape.height}
+                      rx={shape.radius}
+                    />
+                  );
+                })}
+              </clipPath>
               <clipPath id={sheetClipId}>
                 {isDiagonalSheet ? (
                   <polygon points={sheetPolygonPoints} />
@@ -1535,25 +1558,27 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                 clipPath={`url(#${sheetClipId})`}
                 aria-hidden="true"
               >
-                {conflictVisuals.map((visual) => (
-                  <g
-                    key={visual.junction.id}
-                    className={
-                      visual.active
-                        ? 'bp-packing-conflict-group bp-packing-conflict--selected'
-                        : 'bp-packing-conflict-group'
-                    }
-                  >
-                    {visual.paths.map((path, index) => (
-                      <path
-                        key={`${visual.junction.id}:${index}`}
-                        className="bp-packing-conflict"
-                        d={path.d}
-                        strokeWidth={path.strokeWidth}
-                      />
-                    ))}
-                  </g>
-                ))}
+                <g clipPath={`url(#${flapsClipId})`}>
+                  {conflictVisuals.map((visual) => (
+                    <g
+                      key={visual.junction.id}
+                      className={
+                        visual.active
+                          ? 'bp-packing-conflict-group bp-packing-conflict--selected'
+                          : 'bp-packing-conflict-group'
+                      }
+                    >
+                      {visual.paths.map((path, index) => (
+                        <path
+                          key={`${visual.junction.id}:${index}`}
+                          className="bp-packing-conflict"
+                          d={path.d}
+                          strokeWidth={path.strokeWidth}
+                        />
+                      ))}
+                    </g>
+                  ))}
+                </g>
               </g>
             )}
             {layers.rivers && riverVisuals.length > 0 && (
