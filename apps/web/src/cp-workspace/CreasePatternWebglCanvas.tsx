@@ -2195,9 +2195,23 @@ export function CreasePatternWebglCanvas({
     };
     const onPointerUp = (e: PointerEvent) => {
       if (
+        liveRef.current.activeToolInputMode === 'sequence' &&
+        liveRef.current.activeToolTransform?.pointCount === 2 &&
+        sequenceStepRef.current === 1 &&
+        moved &&
+        !erasing &&
+        !panning &&
+        e.type !== 'pointercancel'
+      ) {
+        // Oriedita's two-point move/copy are press-drag-release, not click-click
+        // (BaseMouseHandlerLineTransform commits on mouseReleased). Release after a
+        // drag places the destination point and commits, so both gestures work: drag
+        // it there, or click twice.
+        feedSequenceTool('down', e.clientX, e.clientY);
+      } else if (
         liveRef.current.activeToolInputMode === 'lengthen' &&
         !erasing &&
-        !panning 
+        !panning
       ) {
         feedLengthen(e.type === 'pointercancel' ? 'cancel' : 'up', e.clientX, e.clientY);
       } else if (liveRef.current.activeToolInputMode === 'angle-drag' && !panning) {
