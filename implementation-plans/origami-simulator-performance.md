@@ -440,19 +440,35 @@ those paths before the refactor, not after**.
 
 ## Phase 2 — The GPU port (WebGL2)
 
-Split into three sub-phases. The original plan wrote solver and renderer as one
-inseparable phase (shared context, zero readback). Reality diverged for a good
-reason, recorded here so the split is deliberate, not drift:
+Split into two sub-phases:
 
 - **2a — GPU solver. DONE.** Built to fit the Phase 1 worker: the solve runs on
-  an `OffscreenCanvas` WebGL2 context *inside the worker*, and positions are
-  read back there — which the worker has to do anyway, because it transfers them
-  to the main thread for the renderer. So "no readback" is not achievable while
-  the renderer lives on the main thread; it belongs to 2c, not 2a.
-- **2b — WebGL renderer. THE FELT-PERFORMANCE FIX, and the current priority.**
-- **2c — Zero-readback, render-in-worker. Deferred, measurement-gated.**
+  an `OffscreenCanvas` WebGL2 context *inside the worker*, positions read back
+  there and transferred to the main thread for the canvas-2D renderer.
+- **2b — GPU renderer, in the worker, zero-readback. CURRENT.**
 
-### Why 2b is the priority (evidence, 2026-07-23)
+**Decision (2026-07-23): build the renderer directly in the worker, sharing the
+solver's GL context, rather than a main-thread renderer first.** An earlier draft
+had 2b as a main-thread WebGL renderer and 2c as a later move into the worker.
+That is throwaway rework — the vertex path (attribute upload vs `texelFetch`) and
+the host (main thread vs worker) both change between them. Going straight to
+render-in-worker delivers both wins in one build: rendering leaves the software
+rasterizer (fixes orbit/zoom), *and* positions never touch the CPU (removes the
+per-frame readback+transfer during play). Performance is the priority and the
+extra complexity is accepted.
+
+Honest calibration of the wins, so they are not oversold:
+
+- **Off the software rasterizer** is the large, felt win — it fixes the reported
+  orbit/zoom jank and general render slowness. Orbit/zoom need no new positions,
+  so they become a re-draw with a new camera uniform, near-free at any size.
+- **Zero-readback** is an *incremental* steady-state win on top: it removes one
+  `readPixels` stall + one transfer + one re-upload per frame **during play/fold
+  only** (orbit/zoom already have the positions on the GPU). Real, worth having,
+  largest at high vertex counts — but not a 10× of everything, and an earlier
+  note calling it that was wrong.
+
+### Why the renderer is the bottleneck (evidence, 2026-07-23)
 
 User report after 2a shipped: "still slow to zoom and rotate, slow in general on
 larger CPs." This is the decisive clue. **Zoom and rotate do not run the solver
@@ -474,81 +490,75 @@ A direct, verbatim port of upstream's five shader blocks
 layout, parity-gated against ReferenceSolver at 1.79e-7 in real Chromium. Lives
 in `src/webgl/` (`glCore`, `passes`, `packing`, `webglSolver`), selected by the
 worker's backend ladder. See the checklist for the exact done/remaining split
-(Euler done; Verlet and async diagnostics remain).
+(Euler done; Verlet remains).
 
-### 2b — WebGL renderer (regl, main thread)
+### 2b — GPU renderer, in the worker, zero-readback
 
-**Architecture decision: a main-thread WebGL renderer that reads the positions
-the worker already transfers.** Not render-in-worker (that is 2c). Rationale:
+The renderer moves into the worker and shares the solver's single WebGL2
+context, so there is one context and it lives on the **visible** canvas:
 
-- It directly fixes the reported problem. Camera changes need no new positions
-  and no solver work — upload the current positions once, then every orbit/zoom
-  is a re-draw with a new view matrix, which on the GPU is ~free regardless of
-  model size. The software rasterizer's per-event cost disappears.
-- It is contained and matches the existing data flow: the worker transfers
-  positions, the renderer draws them — on the GPU instead of canvas-2D. No new
-  cross-thread state (view, settings, pointer, theme all stay on the main
-  thread where they already live).
-- It is incrementally verifiable against the canvas-2D renderer, which stays as
-  the fallback until the WebGL path is proven.
-
-Use `regl` (already a dependency; `apps/web/src/cp-workspace/renderer/` is the
-in-repo pattern to follow). A `SimulatorRenderer` seam modelled on `CpRenderer`:
-static topology uploaded once, positions updated per frame via `subdata`, camera
-as a uniform.
+- The panel creates the canvas and hands it to the worker via
+  `transferControlToOffscreen()`. The worker's `GlCore` is created on that
+  canvas, not the current throwaway 2×2 one.
+- The solver's compute passes render to their FBOs (off-screen textures) exactly
+  as now. A new **render pass** draws to the default framebuffer — the visible
+  canvas — reading vertex positions straight from the solver's `u_lastPosition`
+  texture via `texelFetch(u_lastPosition, ...)` on `gl_VertexID`, adding
+  `originalPosition`. Positions never leave the GPU: no `readPixels`, no
+  transfer, no re-upload.
+- The main thread keeps ownership of interaction. Camera (orbit/zoom), view
+  settings, highlights, palette and canvas size are forwarded to the worker over
+  comlink; the worker re-issues the render pass. A camera-only change runs no
+  solver work and no readback — just one draw call — which is the fix for the
+  reported jank.
 
 Everything the software rasterizer does by hand comes free or nearly free:
 
-- **Depth buffer replaces the painter's-algorithm sort** — `triangleOrder`
-  disappears (it currently allocates an object-with-tuple per face and sorts
-  with a comparator that recomputes `averageDepth` via `reduce` at every
-  comparison).
-- **Normals in-shader** via derivatives; no CPU normal pass.
-- **Two-tone paper** via `gl_FrontFacing`.
-- **Lighting** in the fragment shader.
-- **Edges** as a `LINES` draw with `polygonOffset`; hidden-line mode is a second
-  pass with an inverted depth test at low alpha — cheaper and more correct than
-  the current depth-surface probe.
+- **Depth buffer replaces the painter's-algorithm sort** — `triangleOrder` and
+  its per-face allocation + `reduce`-in-comparator disappear.
+- **Two-tone paper** via `gl_FrontFacing`; **lighting** and **normals** in the
+  fragment shader (screen-space derivatives), no CPU normal pass.
+- **Edges** as a `LINES` draw with `polygonOffset`; hidden-line mode a second
+  pass with an inverted depth test — cheaper and more correct than the current
+  depth-surface probe.
 - **X-ray** via alpha blend with depth write off.
-- **Highlights** as a per-vertex attribute, updated only when the set changes.
-- **Strain colours** on the existing per-vertex colour attribute.
+- **Highlights** and **strain colours** as per-crease/vertex data the render pass
+  samples; strain becomes a GPU quantity rather than a CPU walk.
+- **Real orbit camera** with projection matrices, replacing the hand-rolled
+  yaw/pitch projection. (The per-frame `getComputedStyle`/`getBoundingClientRect`
+  stalls were already removed in the committed `perf(simulator): stop re-reading
+  layout, style and fit every frame`.)
 
-The per-frame style/layout stalls (`getComputedStyle`, `getBoundingClientRect`,
-per-frame refit) were already fixed independently — see the committed
-`perf(simulator): stop re-reading layout, style and fit every frame`. 2b keeps
-that and adds a real orbit camera with projection matrices, replacing the
-hand-rolled yaw/pitch projection.
+Reference model to follow for the WebGL2 host and draw structure: the existing
+`apps/web/src/cp-workspace/renderer/` (regl). The solver's `GlCore` already has
+the context, program and texture machinery, so the render pass is added there
+rather than via a second library.
 
-Because the renderer is on the main thread reading transferred positions, camera
-manipulation is decoupled from the solver entirely: an orbit or zoom re-draws
-the existing vertex buffer with a new view uniform and issues no worker traffic
-at all. That is the specific fix for the reported jank.
+**Sequencing that keeps the tree working at each commit:**
+
+1. Add the render pass + camera to `GlCore`/`WebglSolver`, still on the 2×2
+   canvas, and parity-check geometry headlessly (projected vertex positions vs
+   the CPU projection) — tool-checkable.
+2. Add the `transferControlToOffscreen` plumbing and the camera/settings comlink
+   surface; render to the visible canvas behind a flag, canvas-2D still default.
+3. Flip the default to WebGL once the user confirms the visual result and
+   orbit/zoom smoothness in a visible window; delete the canvas-2D rasterizer and
+   adopt-or-delete `three.ts`.
+
+Also enables **async diagnostics**: max/average strain as a reduction pass to a
+1×1 texture, read via `fenceSync` + PBO every K frames — never a synchronous
+`readPixels`, which would reintroduce the stall this phase removes.
 
 ### 2b verification
 
 The renderer's output is pixels, which the headless automation pane cannot
-verify (hidden → rAF throttled to zero, no reliable pixel readback). So 2b is
-verified in two layers: what is tool-checkable (compiles, no GL errors, geometry
-buffers correct, canvas-2D fallback intact) is checked here; the visual result
-and the felt smoothness of orbit/zoom are verified by the user in a visible
-window. The canvas-2D renderer stays as the fallback and is only deleted once
-the WebGL path is confirmed — do not keep two feature-complete renderers
-long-term (that is how `three.ts` ended up dead); adopt or delete `three.ts` in
-the same pass.
-
-### 2c — Zero-readback, render-in-worker (deferred, measurement-gated)
-
-Only if profiling after 2b shows the position readback+transfer is a bottleneck
-at scale. Move the renderer into the worker, sharing the solver's WebGL2 context
-on an `OffscreenCanvas` transferred from the main thread via
-`transferControlToOffscreen`. The render vertex shader then `texelFetch`es the
-position texture directly and positions never touch the CPU. This also enables
-async diagnostics (max/average strain as a reduction to a 1×1 texture, read via
-`fenceSync` + PBO every K frames, never a synchronous `readPixels`).
-
-The cost is real — view, settings, pointer, and theme state must cross into the
-worker — so it is not worth paying until measurement says the readback is what's
-limiting a 10k+ model. 2b removes the felt jank without it.
+verify (hidden → rAF throttled to zero, no reliable pixel readback). Two layers:
+tool-checkable here (compiles, no GL errors, geometry/projection parity vs the
+CPU path, canvas-2D fallback intact); visual result and orbit/zoom smoothness by
+the user in a visible window. Because this path is worker-hosted and cannot be
+smoke-tested from the panel test, the render pass must expose a headless
+geometry check (project a fixture's vertices through the camera and compare to
+the reference projection) so a regression is caught without eyes.
 
 ### GPU testing note
 
@@ -560,12 +570,13 @@ harness) — already in place for the solver (`bench:gpu-parity`).
 
 - **2a:** Tier C parity against the reference/upstream oracle across the fixture
   set (done: 1.79e-7). Automatic, tested fallback when WebGL2 is absent (done).
-- **2b:** orbit/zoom on a large CP is smooth (user-verified); canvas-2D
-  rasterizer deleted once the WebGL path is confirmed; visual checklist passes:
-  paper/x-ray, faces, edges, hidden lines, lighting, highlights, strain colours,
-  segment highlighting.
-- **2c (only if pursued):** 10k-vertex model sustains 200+ steps/frame at 60fps;
-  zero synchronous readbacks in the steady-state loop.
+- **2b:** orbit/zoom on a large CP is smooth (user-verified); geometry/projection
+  parity vs the CPU path passes headlessly; zero synchronous readbacks in the
+  steady-state loop; canvas-2D rasterizer deleted once the WebGL path is
+  confirmed; visual checklist passes: paper/x-ray, faces, edges, hidden lines,
+  lighting, highlights, strain colours, segment highlighting; verified on the
+  Tauri WKWebView.
+- **Stretch:** 10k-vertex model sustains 200+ steps/frame at 60fps.
 
 ## Phase 3 — WebGPU (conditional, deferred)
 
@@ -696,36 +707,35 @@ as a performance fix. Recorded so the option isn't silently lost.
 - [ ] Port both Verlet variants + parity gate (Euler only so far; Verlet falls back to reference)
 - [ ] Async diagnostics reduction (`fenceSync` + PBO) — currently a sync readback per frame in the worker
 
-### Phase 2b — The WebGL renderer (main thread, regl) — CURRENT
+### Phase 2b — GPU renderer, in the worker, zero-readback — CURRENT
 
-The felt-performance fix. Reads the positions the worker already transfers and
-draws them on the GPU, so orbit/zoom stop running the software rasterizer.
-Verified in two layers: tool-checkable here (compiles, no GL errors, geometry
-correct, canvas-2D fallback intact); visual result and orbit/zoom smoothness by
-the user in a visible window.
+One WebGL2 context on the visible canvas, shared by solver and renderer; the
+render pass reads positions from the solver's `u_lastPosition` texture via
+`texelFetch`, so they never touch the CPU. Fixes orbit/zoom (off the software
+rasterizer) and removes the per-frame readback+transfer in one build — no
+main-thread-renderer intermediate to throw away.
 
-- [ ] `SimulatorRenderer` seam modelled on `CpRenderer`
-- [ ] `reglSimulatorRenderer`: static topology uploaded once, positions per frame via `subdata`
-- [ ] Real orbit camera with projection matrices (replace hand-rolled yaw/pitch); camera-only redraw issues no worker traffic
-- [ ] Depth buffer replaces painter's sort; delete `triangleOrder`
+Step 1 — render pass, still headless-checkable:
+- [ ] Add a render program + real orbit camera (projection matrices) to `GlCore`/`WebglSolver`
+- [ ] Vertex shader `texelFetch`es `u_lastPosition` (+ `originalPosition`) by `gl_VertexID` — no readback
+- [ ] Depth buffer replaces painter's sort; `triangleOrder` gone
 - [ ] Shader normals, `gl_FrontFacing` two-tone, fragment lighting
 - [ ] Edges via `LINES` + `polygonOffset`; hidden lines via inverted depth pass
-- [ ] X-ray, highlights, strain colours
-- [x] Palette on theme change; size from `ResizeObserver` (no per-frame `getComputedStyle`/`getBoundingClientRect`) — landed early, independent of the GPU renderer
-- [ ] Wire into `SimulatorPanel` behind a seam; keep canvas-2D as fallback
-- [ ] Delete the canvas-2D rasterizer once confirmed; adopt or delete `three.ts`
-- [ ] Verify on the Tauri desktop shell explicitly (WKWebView WebGL2)
-- [ ] User-verified: orbit/zoom smooth on a large CP; visual checklist across all view settings
+- [ ] X-ray, highlights, strain colours (strain as a GPU quantity)
+- [ ] **Headless geometry/projection parity check** vs the CPU projection (so regressions are caught without eyes)
 
-### Phase 2c — Zero-readback, render-in-worker — DEFERRED (measurement-gated)
+Step 2 — worker plumbing:
+- [ ] Panel hands the canvas to the worker via `transferControlToOffscreen()`; `GlCore` binds it
+- [ ] Camera/view-settings/highlights/size/palette forwarded over comlink; worker re-issues the render pass
+- [ ] Behind a flag; canvas-2D still default
+- [x] Palette on theme change; size from `ResizeObserver` — landed early, independent of the GPU renderer
 
-Only if 2b profiling shows the readback+transfer is the bottleneck at scale.
-
-- [ ] Renderer into the worker; `OffscreenCanvas` via `transferControlToOffscreen`, shared with the solver context
-- [ ] Render vertex shader `texelFetch`es the position texture — no readback anywhere
-- [ ] Cross-thread view/settings/pointer/theme state
-- [ ] Async diagnostics reduction (`fenceSync` + PBO, every K frames)
-- [ ] Exit gate: 10k vertices at 200+ steps/frame, 60fps; zero synchronous readbacks in steady state
+Step 3 — cut over:
+- [ ] User-verified in a visible window: orbit/zoom smooth on a large CP; visual checklist across all view settings
+- [ ] Verify on the Tauri WKWebView explicitly
+- [ ] Flip default to WebGL; delete the canvas-2D rasterizer; adopt or delete `three.ts`
+- [ ] Async diagnostics reduction (`fenceSync` + PBO, every K frames) — never a sync `readPixels`
+- [ ] Stretch gate: 10k vertices at 200+ steps/frame, 60fps
 
 ### Phase 3 — WebGPU (only if measurement justifies it)
 
