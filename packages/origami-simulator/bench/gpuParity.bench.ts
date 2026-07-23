@@ -32,6 +32,15 @@ interface GpuParityRow {
   error?: string;
 }
 
+interface RenderCheckRow {
+  fixture: string;
+  vertices: number;
+  coverage: number;
+  distinctColors: number;
+  ok: boolean;
+  error?: string;
+}
+
 describe('GPU solver parity', () => {
   it('matches ReferenceSolver within Tier C on every fixture', async () => {
     const packageRoot = resolve(HARNESS_ROOT, '../..');
@@ -86,6 +95,28 @@ describe('GPU solver parity', () => {
 
       for (const row of supported) {
         expect(row.maxAbs, `${row.fixture} @ ${row.steps} steps diverged`).toBeLessThan(TIER_C);
+      }
+
+      // Headless render coverage. Not a visual check -- it only catches shaders
+      // that fail to compile/link and renders that draw nothing or one flat
+      // colour. The visual result is user-verified in a visible window.
+      const renderRows = (await page.evaluate(() =>
+        (window as unknown as { runRenderCheck: () => RenderCheckRow[] }).runRenderCheck()
+      )) as RenderCheckRow[];
+
+      const renderLines = renderRows.map(
+        (row) =>
+          `${row.fixture.padEnd(14)} v=${String(row.vertices).padStart(5)} | ` +
+          (row.error
+            ? `ERROR: ${row.error}`
+            : `coverage ${(row.coverage * 100).toFixed(1)}%  colors ${row.distinctColors}  ${row.ok ? 'ok' : 'FAIL'}`)
+      );
+      process.stdout.write(`render check:\n${renderLines.join('\n')}\n\n`);
+
+      const renderable = renderRows.filter((row) => !row.error);
+      expect(renderable.length, 'no fixtures rendered on the GPU').toBeGreaterThan(0);
+      for (const row of renderable) {
+        expect(row.ok, `${row.fixture} rendered an implausible frame (coverage ${row.coverage}, colors ${row.distinctColors})`).toBe(true);
       }
     } finally {
       await browser?.close();

@@ -3,6 +3,8 @@ import type { FoldProfile, SimulatorDiagnostics, SimulatorOptions } from '../typ
 import type { SolverBackend } from '../solverBackend.js';
 import { GlCore } from './glCore.js';
 import { NORMAL_CALC, THETA_CALC, CREASE_GEO_CALC, VELOCITY_CALC, POSITION_CALC } from './passes.js';
+import { MeshRenderer, type RenderSettings } from './meshRenderer.js';
+import type { CameraUniforms } from './camera.js';
 import {
   packModel,
   packBeamMeta,
@@ -39,6 +41,9 @@ export class WebglSolver implements SolverBackend {
   private readonly diagnostics: SimulatorDiagnostics;
   private readonly originalPositions: Float32Array;
   private readonly edgeRestLengths: Float32Array;
+  private readonly faceIndices: Uint32Array;
+  private readonly edgeIndices: Uint32Array;
+  private meshRenderer: MeshRenderer | null = null;
 
   static isSupported(canvas: HTMLCanvasElement | OffscreenCanvas): boolean {
     const probe = GlCore.create(canvas);
@@ -57,6 +62,12 @@ export class WebglSolver implements SolverBackend {
     this.edgeRestLengths = new Float32Array(
       model.prepared.edgesVertices.map((_, index) => model.edgeRestLength(index))
     );
+    this.faceIndices = model.prepared.indices.slice();
+    this.edgeIndices = new Uint32Array(model.prepared.edgesVertices.length * 2);
+    model.prepared.edgesVertices.forEach((edge, index) => {
+      this.edgeIndices[index * 2] = edge[0];
+      this.edgeIndices[index * 2 + 1] = edge[1];
+    });
 
     this.material = {
       axialStiffness: options.axialStiffness ?? 20,
@@ -157,7 +168,61 @@ export class WebglSolver implements SolverBackend {
     return this.currentStep;
   }
 
+  /**
+   * Draw the mesh straight from the position texture into `target` (null = the
+   * context's own canvas). Zero readback: the vertex shader `texelFetch`es the
+   * live positions, so nothing crosses to the CPU. The renderer shares this
+   * solver's GL context, so it must be called on the same thread the solver
+   * runs on.
+   */
+  render(camera: CameraUniforms, settings: RenderSettings, target: WebGLFramebuffer | null = null): void {
+    this.meshRenderer ??= new MeshRenderer(this.gl, {
+      faceIndices: this.faceIndices,
+      edgeIndices: this.edgeIndices,
+      textureDim: this.packed.dims.textureDim,
+    });
+    this.meshRenderer.render(camera, settings, target);
+  }
+
+  /**
+   * Render to an offscreen `width`×`height` RGBA8 buffer and read it back. For
+   * headless use (tests, thumbnails) where there is no visible canvas — the
+   * interactive path renders straight to the canvas via {@link render} with no
+   * readback. Returns RGBA rows top-to-bottom.
+   */
+  renderToImage(camera: CameraUniforms, settings: RenderSettings, width: number, height: number): Uint8Array {
+    const gl = this.gl.gl;
+    const texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    const depth = gl.createRenderbuffer();
+    gl.bindRenderbuffer(gl.RENDERBUFFER, depth);
+    gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, width, height);
+    const framebuffer = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, depth);
+    if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
+      throw new Error('Offscreen render target is incomplete');
+    }
+
+    this.render({ ...camera, width, height }, settings, framebuffer);
+
+    const pixels = new Uint8Array(width * height * 4);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.deleteFramebuffer(framebuffer);
+    gl.deleteRenderbuffer(depth);
+    gl.deleteTexture(texture);
+    return pixels;
+  }
+
   dispose(): void {
+    this.meshRenderer?.dispose();
     this.gl.dispose();
   }
 

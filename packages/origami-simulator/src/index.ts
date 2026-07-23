@@ -6,6 +6,14 @@ export type { SimulationClockOptions, SimulationTick } from './simulationClock.j
 export type { SolverBackend, SolverBackendInfo } from './solverBackend.js';
 export { WebglSolver } from './webgl/webglSolver.js';
 export { GlCore } from './webgl/glCore.js';
+export { MeshRenderer, type MeshTopology, type RenderSettings } from './webgl/meshRenderer.js';
+export {
+  cameraUniforms,
+  centroid,
+  boundingRadius,
+  type OrbitView,
+  type CameraUniforms,
+} from './webgl/camera.js';
 export { GpuMath, detectWebGlSupport } from './gpuMath.js';
 export { OrigamiModel } from './model.js';
 export { ORIGAMI_SIMULATOR_UPSTREAM } from './provenance.js';
