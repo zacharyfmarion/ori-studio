@@ -1167,16 +1167,16 @@ function toRenderSettings(
     rgb[1] / 255,
     rgb[2] / 255,
   ];
-  // Mountain/valley use fixed, vivid origami-convention colours (red / blue)
-  // rather than theme tokens: they must stay high-contrast against the paper in
-  // both light and dark themes, and the teal accent read poorly on the blue
-  // paper front. Border stays theme-derived (a quiet outline).
+  // Mountain/valley use fixed colours rather than theme tokens so they stay
+  // high-contrast against the paper in both themes. Mountains are vivid red;
+  // valleys are dark gray rather than the convention's blue, which blended into
+  // the blue paper front. Border stays theme-derived (a quiet outline).
   const dpr = Math.max(1, window.devicePixelRatio || 1);
   return {
     frontColor: norm(palette.paperFrontRgb),
     backColor: norm(palette.paperBackRgb),
     mountainColor: [0.86, 0.12, 0.14],
-    valleyColor: [0.11, 0.36, 0.85],
+    valleyColor: [0.24, 0.25, 0.28],
     borderColor: norm(parseCssRgb(palette.border, [232, 237, 240])),
     background: norm(parseCssRgb(palette.canvas, [12, 15, 18])),
     lightDir: [PAPER_LIGHT_DIRECTION.x, PAPER_LIGHT_DIRECTION.y, PAPER_LIGHT_DIRECTION.z],
