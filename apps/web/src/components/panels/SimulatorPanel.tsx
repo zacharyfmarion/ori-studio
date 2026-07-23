@@ -257,6 +257,31 @@ export function SimulatorPanel() {
     gpuActiveRef.current = gpuActive;
   }, [gpuActive]);
 
+  // Device-pixel drawing-buffer size of the canvas. In GPU mode the worker needs
+  // it to size its render; read from the element's box (which exists even once
+  // control is transferred). Declared before the effects that call it.
+  const deviceSize = useCallback(() => {
+    const canvas = canvasRef.current;
+    const rect = canvas?.getBoundingClientRect();
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    return {
+      width: Math.max(360, Math.floor((rect?.width || 720) * dpr)),
+      height: Math.max(360, Math.floor((rect?.height || 720) * dpr)),
+    };
+  }, []);
+
+  // Apply the current orbit view: forward it to the worker (GPU) or redraw on
+  // the main thread (CPU). This is what makes orbit/zoom cheap in GPU mode -- one
+  // small message and a texture-fed redraw, no solver work.
+  const pushView = useCallback(() => {
+    if (gpuActiveRef.current) {
+      const { width, height } = deviceSize();
+      pushCamera(viewRef.current, width, height);
+    } else {
+      drawCurrentFrame();
+    }
+  }, [deviceSize, drawCurrentFrame, pushCamera]);
+
   useEffect(() => {
     modelRef.current = runtimeModel;
     invalidateSimulatorSurface(canvasRef.current);
@@ -438,17 +463,18 @@ export function SimulatorPanel() {
   }, [playing, runtime, runConfig.foldPlayPercentPerSecond, runtimeStatus, setPlaying]);
 
   useEffect(() => {
-    if (typeof ResizeObserver === 'undefined') return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (typeof ResizeObserver === 'undefined' || !canvasEl) return;
     const observer = new ResizeObserver(() => {
-      // Size is cached, so the cache is what has to notice a resize.
-      invalidateSimulatorSurface(canvas);
-      drawCurrentFrame();
+      // Size is cached, so the cache is what has to notice a resize. The
+      // observer also fires once on observe, which is how the worker first
+      // learns the canvas's real (post-layout) size in GPU mode -- the
+      // transferred canvas starts at the default 300x150 otherwise.
+      invalidateSimulatorSurface(canvasEl);
+      pushView();
     });
-    observer.observe(canvas);
+    observer.observe(canvasEl);
     return () => observer.disconnect();
-  }, [drawCurrentFrame]);
+  }, [canvasEl, pushView]);
 
   // The palette is read from CSS custom properties, so it has to be re-read when
   // the theme flips. Watching the documentElement's class/data attributes covers
@@ -469,31 +495,6 @@ export function SimulatorPanel() {
   useEffect(() => {
     drawCurrentFrame();
   }, [drawCurrentFrame]);
-
-  // Device-pixel drawing-buffer size of the canvas. In GPU mode the worker
-  // needs it to size its render; read from the element's box (which exists even
-  // once control is transferred).
-  const deviceSize = useCallback(() => {
-    const canvas = canvasRef.current;
-    const rect = canvas?.getBoundingClientRect();
-    const dpr = Math.max(1, window.devicePixelRatio || 1);
-    return {
-      width: Math.max(360, Math.floor((rect?.width || 720) * dpr)),
-      height: Math.max(360, Math.floor((rect?.height || 720) * dpr)),
-    };
-  }, []);
-
-  // Apply the current orbit view: forward it to the worker (GPU) or redraw on
-  // the main thread (CPU). This is what makes orbit/zoom cheap in GPU mode --
-  // one small message and a texture-fed redraw, no solver work.
-  const pushView = useCallback(() => {
-    if (gpuActiveRef.current) {
-      const { width, height } = deviceSize();
-      pushCamera(viewRef.current, width, height);
-    } else {
-      drawCurrentFrame();
-    }
-  }, [deviceSize, drawCurrentFrame, pushCamera]);
 
   const resetView = useCallback(() => {
     viewRef.current = { ...DEFAULT_VIEW };
