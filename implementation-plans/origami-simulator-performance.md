@@ -659,32 +659,40 @@ as a performance fix. Recorded so the option isn't silently lost.
 - [ ] Decompose `SimulatorPanel.tsx`: `useSimulatorRuntime`, render module, UI
 - [ ] Exit gate: no main-thread task > 8 ms on the xl fixture during play
 
-### Phase 2 — The GPU port (WebGL2)
+### Phase 2a — The GPU solver (WebGL2) — DONE
 
-- [ ] WebGL2 + `EXT_color_buffer_float` capability detection
-- [ ] Port `GPUMath.js` semantics into `gpuMath.ts` (ping-pong FBO layer)
-- [ ] Pack state textures; pack CSR topology (`meta` / `meta2` + neighbour textures)
-- [ ] Port `normalCalc` + parity gate
-- [ ] Port `thetaCalc` (ping-ponged) + parity gate
-- [ ] Port `updateCreaseGeo` + parity gate
-- [ ] Port `velocityCalc` (beam + crease + face gather) + parity gate
-- [ ] Port `positionCalc` + parity gate
-- [ ] Port both Verlet variants + parity gate
+- [x] WebGL2 + `EXT_color_buffer_float` capability detection (`glCore`)
+- [x] Port `GPUMath.js` semantics into a ping-pong FBO layer (`glCore`, not the vestigial `gpuMath.ts`)
+- [x] Pack state textures; pack CSR topology (`meta` / `meta2` + neighbour textures) (`packing`)
+- [x] Port `normalCalc`, `thetaCalc` (ping-ponged), `updateCreaseGeo`, `velocityCalc`, `positionCalc` — verbatim from upstream (`passes`)
+- [x] `WebglSolver` implements `SolverBackend`; runs the five-pass solve loop
+- [x] **Parity gate: worst 1.79e-7 vs ReferenceSolver across 9 fixtures, ULP-level** (`bench:gpu-parity`, real Chromium)
+- [x] Backend ladder + `preferGpu` override + GPU/CPU indicator in the panel (i18n across 8 locales)
+- [x] Runs on `OffscreenCanvas` in the worker; WebGL2 + float FBO confirmed working there (ANGLE Metal)
+- [ ] Port both Verlet variants + parity gate (Euler only so far; Verlet falls back to reference)
+- [ ] Async diagnostics reduction (`fenceSync` + PBO) — currently a sync readback per frame in the worker
+
+### Phase 2b — The WebGL renderer — REMAINING
+
+Deliberately deferred: unlike the solver, the renderer's output is *pixels*,
+and it cannot be verified in the headless automation pane (hidden → rAF
+throttled to 0, no reliable pixel readback). It needs a visible browser to
+verify, so it is the right thing to build in a session where that is available.
+The canvas-2D renderer still works in the meantime, fed by the worker's readback.
+
+- [ ] `SimulatorRenderer` seam; `reglSimulatorRenderer`
 - [ ] Solver + renderer on one WebGL2 context, `OffscreenCanvas` in a worker
 - [ ] Vertex shader reads positions via `texelFetch` — no readback anywhere
 - [ ] Depth buffer replaces painter's sort; delete `triangleOrder`
 - [ ] Shader normals, `gl_FrontFacing` two-tone, fragment lighting
 - [ ] Edges via `LINES` + `polygonOffset`; hidden lines via inverted depth pass
 - [ ] X-ray, highlights, strain colours
-- [ ] Real orbit camera; fit on load + explicit refit (stop refitting per frame)
-- [ ] Palette on theme change; size from `ResizeObserver` (no per-frame `getComputedStyle`/`getBoundingClientRect`)
-- [ ] Async diagnostics reduction (`fenceSync` + PBO, every K frames)
-- [ ] Backend ladder + user override + UI backend/steps-per-sec indicator
+- [ ] Real orbit camera; fit on load + explicit refit
+- [x] Palette on theme change; size from `ResizeObserver` (no per-frame `getComputedStyle`/`getBoundingClientRect`) — landed early, independent of the GPU renderer
 - [ ] Delete the canvas-2D rasterizer; adopt or delete `three.ts`
 - [ ] Verify on the Tauri desktop shell explicitly
 - [ ] Visual regression checklist across all view settings
-- [ ] Exit gate: Tier C parity vs upstream oracle, all fixtures
-- [ ] Exit gate: 10k vertices at 200+ steps/frame, 60fps
+- [ ] Exit gate: 10k vertices at 200+ steps/frame, 60fps (needs the zero-readback render path)
 - [ ] Exit gate: zero synchronous readbacks in steady state
 
 ### Phase 3 — WebGPU (only if measurement justifies it)
