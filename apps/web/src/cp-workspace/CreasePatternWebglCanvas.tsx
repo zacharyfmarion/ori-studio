@@ -39,6 +39,13 @@ import {
   type CpTransformPreview,
 } from './adapters/cpSnapshotToScene';
 import { cpGeometryStrokesToScene } from './adapters/cpGeometryToScene';
+import { matrixFromPointPairs } from './tools/creaseTransform';
+import {
+  createTransformGhost,
+  ghostBaseFromGeometry,
+  ghostBaseFromSegments,
+  type CpTransformGhost,
+} from './tools/transformGhost';
 import type { CpGeometryTransport } from '../engine/oristudioCpGeometry';
 import type { CpImage } from './images/cpImage';
 import { imageCornersModel } from './images/cpImagePlacement';
@@ -169,6 +176,8 @@ const POINT_OUTLINE_CSS = 1.4;
 const SELECTION_COLOR_VAR = '--accent-primary';
 const SELECTION_FALLBACK: Rgba = [0.4, 0.6, 1, 1];
 const SELECTION_WIDTH_MUL = 2.6;
+/** Alpha of a copy gesture's ghost, so prospective creases read as not-yet-real. */
+const GHOST_ALPHA = 0.55;
 /** Click hit tolerances (CSS px). Points/vertices are small precise targets, so
     they win only on a tighter radius than the fatter line tolerance. */
 const HIT_TOLERANCE_CSS = 8;
@@ -478,6 +487,14 @@ export interface CreasePatternWebglCanvasProps {
   /** True for the measure tools: their guide line renders as a screen-space dash. */
   activeToolDashedPreview: boolean;
   /**
+   * Set for the crease transform tools (move/copy, two-point and four-point), which
+   * preview the selection at its prospective position while the gesture runs. A
+   * `move` shifts the real strokes in place; a `copy` leaves them and draws a ghost.
+   * The point count is the tool's own — two points is a translation, four is the
+   * similarity taking the source pair onto the target pair.
+   */
+  activeToolTransform: { kind: 'move' | 'copy'; pointCount: 2 | 4 } | null;
+  /**
    * Text tool: a plain click on empty canvas (no drag, no pan) reports its model
    * point so the panel can start an inline-edit draft there. Selecting/dragging an
    * existing text is handled by the DOM overlay, so those clicks never reach here.
@@ -647,6 +664,7 @@ export function CreasePatternWebglCanvas({
   activeToolSquareBisector,
   activeToolVoronoi,
   activeToolDashedPreview,
+  activeToolTransform,
   onTextCreate,
   onTextCreateBox,
   voronoiSeeds,
@@ -693,6 +711,37 @@ export function CreasePatternWebglCanvas({
   const buildStrokesRef = useRef<
     ((move?: CpTransformPreview, pickedLineIds?: readonly number[]) => StrokeGeometry) | null
   >(null);
+  const buildPointsRef = useRef<((move?: CpTransformPreview) => PointGeometry) | null>(null);
+  // In-progress crease transform (Move / Copy): which variant is previewing, and
+  // for a copy the ghost buffer plus the selection it snapshotted. Refs, not state:
+  // a gesture updates these every pointer move and must not re-render React.
+  const transformActiveRef = useRef<'move' | 'copy' | null>(null);
+  const transformGhostRef = useRef<CpTransformGhost | null>(null);
+  const transformGhostIdsRef = useRef<ReadonlySet<number> | null>(null);
+  // A committed copy leaves its ghost up until the document's own strokes arrive,
+  // so the new creases never blink out during the async command round trip.
+  const pendingGhostClearRef = useRef(false);
+
+  // Drop an in-progress transform preview and put the surface back as it was.
+  // Only the channel the gesture actually touched is restored: a move rebuilt the
+  // real strokes and points, a copy only wrote to the preview channel.
+  const clearTransformPreview = useCallback(() => {
+    const renderer = rendererRef.current;
+    const active = transformActiveRef.current;
+    transformActiveRef.current = null;
+    transformGhostRef.current = null;
+    transformGhostIdsRef.current = null;
+    if (!renderer || active === null) return;
+    if (active === 'move') {
+      const strokes = buildStrokesRef.current;
+      const pts = buildPointsRef.current;
+      if (strokes) renderer.setStrokes(strokes());
+      if (pts) renderer.setPoints(pts());
+    } else {
+      renderer.setPreview(null);
+    }
+  }, []);
+
   const gridKeyRef = useRef<string | null>(null);
   // Owned camera (Phase 2). Null until seeded from the SVG's current fit.
   const cameraRef = useRef<UserCamera | null>(null);
@@ -749,6 +798,7 @@ export function CreasePatternWebglCanvas({
     linePickHighlightRef.current = [];
     lengthenRef.current = { phase: 'select', a: null, b: null };
     rendererRef.current?.setOverlayPoints(null);
+    clearTransformPreview();
     const rebuild = buildStrokesRef.current;
     if (rebuild) rendererRef.current?.setStrokes(rebuild());
     renderNowRef.current();
@@ -759,6 +809,8 @@ export function CreasePatternWebglCanvas({
     activeToolDualMirror,
     activeToolConverging,
     activeToolSquareBisector,
+    activeToolTransform,
+    clearTransformPreview,
   ]);
 
   // Content bounds in SVG user coords, for the initial camera fit (independent
@@ -900,6 +952,26 @@ export function CreasePatternWebglCanvas({
       currentTheme,
     ]
   );
+  useEffect(() => {
+    buildPointsRef.current = buildPoints;
+  }, [buildPoints]);
+
+  // Snapshot the selected creases for a copy gesture's ghost. Each keeps its own
+  // M/V colour (as Oriedita's transform preview draws them) at a reduced alpha, so
+  // the prospective geometry reads as new rather than as more selection.
+  const createSelectionGhost = useCallback(
+    (ids: ReadonlySet<number>): CpTransformGhost | null => {
+      const colorFor = (color: string) => resolveCpLineColor(color, mode, document.documentElement);
+      const style = { alpha: GHOST_ALPHA, widthMul: SELECTION_WIDTH_MUL };
+      const base = geometry
+        ? ghostBaseFromGeometry(geometry, ids, colorFor, style)
+        : ghostBaseFromSegments(lineSegments, ids, colorFor, style);
+      return createTransformGhost(base, style);
+    },
+    // currentTheme drives DOM-resolved colours; rebuild on theme change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [geometry, lineSegments, mode, currentTheme]
+  );
 
   // Per-frame / per-interaction inputs the effect reads without re-subscribing.
   const live = {
@@ -934,6 +1006,9 @@ export function CreasePatternWebglCanvas({
     activeToolConverging,
     activeToolSquareBisector,
     activeToolVoronoi,
+    activeToolTransform,
+    createSelectionGhost,
+    clearTransformPreview,
     onTextCreate,
     onTextCreateBox,
     voronoiSeeds,
@@ -1317,6 +1392,55 @@ export function CreasePatternWebglCanvas({
       renderNow();
       if (out.commit) liveRef.current.onToolCommit({ ...out.commit, additive: dragShift });
     };
+    // --- Crease transform preview (Move / Copy, two-point and four-point) ---
+    // While the gesture runs, the selection is drawn where it would land. A `move`
+    // shifts the real strokes in place (their originals travel with them, as the
+    // ambient selection drag-move already does); a `copy` leaves the originals and
+    // draws a ghost of the new geometry on the preview channel.
+    //
+    // The transform is resolved from the live points — placed points plus the
+    // cursor — so a two-point tool previews from its first click and a four-point
+    // tool from its third. Before that the transform is underdetermined and only
+    // the placed dots show.
+    const transformMatrixFor = (
+      livePoints: readonly ModelPoint[],
+      pointCount: 2 | 4
+    ): CpAffineMatrix | null => {
+      if (pointCount === 2) {
+        if (livePoints.length < 2) return null;
+        const [from, to] = livePoints;
+        return translationMatrix({ x: to.x - from.x, y: to.y - from.y });
+      }
+      if (livePoints.length < 4) return null;
+      return matrixFromPointPairs(livePoints[0], livePoints[1], livePoints[2], livePoints[3]);
+    };
+    const updateTransformPreview = (
+      transform: { kind: 'move' | 'copy'; pointCount: 2 | 4 },
+      livePoints: readonly ModelPoint[]
+    ) => {
+      const ids = liveRef.current.selectedLineSet;
+      const matrix = transformMatrixFor(livePoints, transform.pointCount);
+      if (matrix === null) {
+        // Underdetermined (too few points) or degenerate (a coincident source or
+        // target pair) — show the placed dots alone rather than guessing.
+        liveRef.current.clearTransformPreview();
+        return;
+      }
+      if (transform.kind === 'move') {
+        transformActiveRef.current = 'move';
+        const move = { ids, matrix };
+        renderer.setStrokes(liveRef.current.buildStrokes(move));
+        renderer.setPoints(liveRef.current.buildPoints(move));
+        return;
+      }
+      // Copy: snapshot the selection once per gesture, then transform in place.
+      transformActiveRef.current = 'copy';
+      if (!transformGhostRef.current || transformGhostIdsRef.current !== ids) {
+        transformGhostRef.current = liveRef.current.createSelectionGhost(ids);
+        transformGhostIdsRef.current = ids;
+      }
+      renderer.setPreview(transformGhostRef.current?.update(matrix) ?? null);
+    };
     // Persistent click-based `sequence` tool: every step collects a point. A
     // 'crease' step snaps the point onto the nearest crease and highlights it
     // (the kernel resolves the crease from the point); a 'point' step snaps to
@@ -1330,6 +1454,7 @@ export function CreasePatternWebglCanvas({
         sequenceStepRef.current = 0;
         dynamicStepKindsRef.current = null;
         liveRef.current.onToolPreviewInput([], []);
+        liveRef.current.clearTransformPreview();
         renderer.setOverlayPoints(null);
         renderNow();
         return;
@@ -1417,12 +1542,22 @@ export function CreasePatternWebglCanvas({
           : -1;
       const highlight = hoverLine > 0 ? [hoverLine] : [];
       const out = runtime.feed({ kind, point });
+      const transform = liveRef.current.activeToolTransform;
       if (out.commit) {
         liveRef.current.onToolCommit(out.commit);
         liveRef.current.onToolPreviewInput([], []);
         renderer.setOverlayPoints(null);
         sequenceStepRef.current = 0;
         dynamicStepKindsRef.current = null;
+        if (transform) {
+          // Leave the previewed geometry up: the committed document re-renders it
+          // at exactly this position a moment later, so tearing it down here would
+          // blink the result out for the length of the async command. The scene
+          // upload takes the ghost down (a move's strokes are simply replaced).
+          transformActiveRef.current = null;
+          transformGhostIdsRef.current = null;
+          pendingGhostClearRef.current = transform.kind === 'copy';
+        }
       } else {
         if (kind === 'down') sequenceStepRef.current += 1;
         const live = out.livePoints ?? [];
@@ -1434,7 +1569,16 @@ export function CreasePatternWebglCanvas({
           ? liveRef.current.toolCommandPreviewSegments.flatMap((s) => [s.a, s.b])
           : [];
         renderer.setOverlayPoints(sequenceOverlayPoints(placed, ring, accent, candidateDots));
-        liveRef.current.onToolPreviewInput(live, highlight);
+        if (transform) {
+          // The transform tools own the preview channel: their ghost is built here
+          // from the live points, so the kernel preview is skipped entirely. Left
+          // on, it would re-transport the whole selection per mouse move and fight
+          // the ghost for the channel (its default arm draws a rubber-band segment
+          // between the last two points, which means nothing for these tools).
+          updateTransformPreview(transform, live);
+        } else {
+          liveRef.current.onToolPreviewInput(live, highlight);
+        }
       }
       renderNow();
     };
@@ -2216,6 +2360,14 @@ export function CreasePatternWebglCanvas({
     const renderer = rendererRef.current;
     if (!renderer) return;
     renderer.setScene(scene);
+    // A copy gesture's ghost was deliberately left up through the commit; now that
+    // the document's own strokes carry the new creases, take it down. Doing it here
+    // rather than at commit means the geometry never blinks out in between.
+    if (pendingGhostClearRef.current) {
+      pendingGhostClearRef.current = false;
+      transformGhostRef.current = null;
+      renderer.setPreview(null);
+    }
     renderNowRef.current();
   }, [scene]);
 
