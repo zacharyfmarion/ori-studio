@@ -224,6 +224,7 @@ export function SimulatorPanel() {
 
   useEffect(() => {
     modelRef.current = runtimeModel;
+    invalidateSimulatorSurface(canvasRef.current);
     if (runtimeModel) {
       setModelStats({ vertices: runtimeModel.vertexCount, triangles: runtimeModel.faceCount });
     } else {
@@ -398,8 +399,28 @@ export function SimulatorPanel() {
     if (typeof ResizeObserver === 'undefined') return;
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const observer = new ResizeObserver(drawCurrentFrame);
+    const observer = new ResizeObserver(() => {
+      // Size is cached, so the cache is what has to notice a resize.
+      invalidateSimulatorSurface(canvas);
+      drawCurrentFrame();
+    });
     observer.observe(canvas);
+    return () => observer.disconnect();
+  }, [drawCurrentFrame]);
+
+  // The palette is read from CSS custom properties, so it has to be re-read when
+  // the theme flips. Watching the documentElement's class/data attributes covers
+  // both the app's own toggle and an OS-level change.
+  useEffect(() => {
+    if (typeof MutationObserver === 'undefined') return;
+    const observer = new MutationObserver(() => {
+      invalidateSimulatorSurface(canvasRef.current);
+      drawCurrentFrame();
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class', 'data-theme'],
+    });
     return () => observer.disconnect();
   }, [drawCurrentFrame]);
 
@@ -725,6 +746,52 @@ function foldNeedsTriangulation(fold: SimulatorFoldDocument): boolean {
   return fold.faces_vertices.some((face) => face.length !== 3);
 }
 
+/**
+ * Per-canvas cache for the things `drawFrame` needs but that do not change per
+ * frame: drawing-buffer size (layout), palette (computed style), and the
+ * framing radius used by the auto-fit.
+ *
+ * Invalidated by the panel on resize and on theme change. This is deliberately
+ * keyed off the canvas element so it survives re-renders and dies with it.
+ */
+interface SimulatorSurface {
+  width: number;
+  height: number;
+  dpr: number;
+  palette: SimulatorPalette;
+  framingRadius: (positions: Float32Array) => number;
+}
+
+const surfaceCache = new WeakMap<HTMLCanvasElement, SimulatorSurface>();
+
+export function invalidateSimulatorSurface(canvas: HTMLCanvasElement | null): void {
+  if (canvas) surfaceCache.delete(canvas);
+}
+
+function surfaceFor(canvas: HTMLCanvasElement): SimulatorSurface {
+  const cached = surfaceCache.get(canvas);
+  if (cached) return cached;
+
+  const rect = canvas.getBoundingClientRect();
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  let radius: number | null = null;
+
+  const surface: SimulatorSurface = {
+    width: Math.max(360, Math.floor((rect.width || 720) * dpr)),
+    height: Math.max(360, Math.floor((rect.height || 720) * dpr)),
+    dpr,
+    palette: readSimulatorPalette(canvas),
+    framingRadius: (positions) => {
+      // Measured from the first frame after a (re)fit and held, so the folded
+      // form shrinks on screen as it actually shrinks.
+      radius ??= boundsRadius(positions);
+      return radius;
+    },
+  };
+  surfaceCache.set(canvas, surface);
+  return surface;
+}
+
 function drawFrame(
   canvas: HTMLCanvasElement,
   model: SimulatorRenderModel,
@@ -733,10 +800,13 @@ function drawFrame(
   settings: SimulatorViewSettings,
   highlights: SimulatorHighlights
 ): void {
-  const rect = canvas.getBoundingClientRect();
-  const dpr = Math.max(1, window.devicePixelRatio || 1);
-  const width = Math.max(360, Math.floor((rect.width || 720) * dpr));
-  const height = Math.max(360, Math.floor((rect.height || 720) * dpr));
+  // Canvas size and palette are cached rather than read per frame. Both used to
+  // be recomputed on every draw: getBoundingClientRect forces layout and
+  // getComputedStyle forces style recalc, so a 60fps loop was paying for two
+  // full style/layout flushes per frame purely to learn things that only change
+  // on resize and on theme change.
+  const surface = surfaceFor(canvas);
+  const { width, height, dpr } = surface;
   if (canvas.width !== width || canvas.height !== height) {
     canvas.width = width;
     canvas.height = height;
@@ -744,7 +814,7 @@ function drawFrame(
 
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
-  const palette = readSimulatorPalette(canvas);
+  const palette = surface.palette;
 
   ctx.clearRect(0, 0, width, height);
   ctx.fillStyle = palette.canvas;
@@ -753,7 +823,11 @@ function drawFrame(
   const projected = projectPositions(frame.positions, view);
   const padding = Math.max(28, Math.min(width, height) * 0.08);
   const availableSize = Math.max(1, Math.min(width, height) - padding * 2);
-  const scale = (availableSize / (2 * boundsRadius(frame.positions))) * view.zoom;
+  // Framing radius is measured once per model rather than per frame. Refitting
+  // every frame made the model visibly "breathe" as it folded -- the sheet gets
+  // smaller as it closes, so the auto-fit zoomed in to compensate -- and cost
+  // three extra full walks of the position array per draw.
+  const scale = (availableSize / (2 * surface.framingRadius(frame.positions))) * view.zoom;
   const map = (point: ProjectedPoint) => ({
     x: width / 2 + point.x * scale,
     y: height / 2 - point.y * scale,
