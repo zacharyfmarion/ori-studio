@@ -12,10 +12,18 @@ import type { ViewportShortcutId } from '../keyboard/shortcuts';
 import { isViewportInteractiveTarget } from '../components/panels/ViewportToolbar';
 
 /**
- * How much one zoom command changes the scale. `zoomIn`/`zoomOut` are discrete —
- * a button press or a shortcut — so a small step makes zooming feel like work.
+ * The two zoom paths in react-zoom-pan-pinch scale differently, so their steps
+ * are not comparable numbers:
+ *
+ * - Buttons and shortcuts run through `handleCalculateButtonZoom`, which with
+ *   `smooth` (its default) is **multiplicative**: `scale * exp(delta * step)`.
+ *   A step of 1.1 is roughly ×3 per press, at any zoom.
+ * - Wheel and trackpad pinch run through `handleCalculateWheelZoom`, which is
+ *   **additive**: `scale + delta * step`. A fixed increment, so the same step
+ *   feels coarse when zoomed out and sluggish when zoomed in. That asymmetry is
+ *   why the number below is so much larger.
  */
-const ZOOM_STEP = 0.8;
+const ZOOM_STEP = 1.1;
 const ZOOM_ANIMATION_MS = 90;
 
 /**
@@ -23,8 +31,8 @@ const ZOOM_ANIMATION_MS = 90;
  * drift apart. `wheelDisabled` keeps a plain wheel panning; the step applies to
  * a trackpad pinch, which the browser reports as ctrl+wheel.
  */
-export const VIEWPORT_WHEEL_ZOOM = { step: 0.9, wheelDisabled: true } as const;
-export const VIEWPORT_PINCH_ZOOM = { step: 0.9 } as const;
+export const VIEWPORT_WHEEL_ZOOM = { step: 2.2, wheelDisabled: true } as const;
+export const VIEWPORT_PINCH_ZOOM = { step: 2.2 } as const;
 const CENTER_ANIMATION_MS = 160;
 const FIT_ANIMATION_MS = 180;
 
