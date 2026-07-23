@@ -53,7 +53,6 @@ import {
   toggleBpRiverSelection,
 } from '../../lib/oristudioBpSelection';
 import {
-  bpArcPathNarrowness,
   bpArcPathThickness,
   bpArcPathToSvgPath,
   bpPackingFlapClearanceRect,
@@ -837,22 +836,23 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     () => bpPackingAlertDiagnostics(document.snapshot.diagnostics),
     [document.snapshot.diagnostics]
   );
-  const conflictVisuals = useMemo(
-    () =>
-      packing.invalidJunctions.map((junction) => ({
+  const conflictVisuals = useMemo(() => {
+    const thicknessPx = (thickness: number | null): number | null =>
+      thickness === null ? null : thickness * unit * (zoomPercent / 100);
+    return packing.invalidJunctions.map((junction) => ({
         junction,
         active: linkedSelection.invalidJunctions.has(junction.id),
         paths: junction.paths.map((path) => ({
           d: bpArcPathToSvgPath(path, packing.sheet, paperRect),
           strokeWidth: conflictStrokeWidth(
-            bpArcPathNarrowness(path),
+            // Rendered thickness: grid units → SVG units → screen pixels.
+            thicknessPx(bpArcPathThickness(path)),
             // Screen pixels per grid cell: SVG user units scaled by the camera.
-            unit * (zoomPercent / 100),
-            (bpArcPathThickness(path) ?? 0) * unit * (zoomPercent / 100) || null
+            unit * (zoomPercent / 100)
           ),
         })),
-      })),
-    [
+    }));
+  }, [
       linkedSelection.invalidJunctions,
       packing.invalidJunctions,
       packing.sheet,
@@ -2105,35 +2105,30 @@ function primitiveSelectToken(
 }
 
 /**
- * Box Pleating Studio strokes an invalid-junction outline only when it is too narrow
- * to read as a filled shape (`Junction.$draw`): width `2 / narrowness` screen pixels,
- * never wider than one grid cell. Everything else is fill-only.
+ * Smallest a conflict region may render before it needs help to be seen, in
+ * screen pixels.
  */
-const CONFLICT_NARROWNESS_THRESHOLD = 0.4;
+const MIN_CONFLICT_VISIBLE_PX = 2.5;
 
 /**
- * Stroke width for a conflict outline, in screen pixels.
+ * Stroke width for a conflict outline, in screen pixels — 0 for anything already
+ * thick enough to read as a filled shape.
  *
- * Two corrections over a naive read of `Junction.$draw`:
+ * Box Pleating Studio strokes the outline when `narrowness` (the ratio of the
+ * arcs' anchor span to their chord) falls under a threshold, at width
+ * `2 / narrowness` (`Junction.$draw`). That ratio is a proxy for "this is too
+ * thin to see"; we measure the thing itself, because the stroke has a cost the
+ * ratio can't account for.
  *
- * - The cap is **one grid cell on screen**. Upstream passes `ProjectService.scale`
- *   — screen pixels per grid unit at the current zoom — so the cap tracks zoom.
- *   Passing SVG user units instead compares two different quantities, and grows
- *   far too permissive as you zoom in.
- * - The stroke is centred, so half of it renders outside the region — and that
- *   region's outer edge is the flap's own circle. On a sliver a few pixels thick
- *   an unbounded stroke reads as "the conflict is outside the flap". Cap it at
- *   the region's own thickness so it can at most double the shape.
+ * The cost: the stroke is centred on the region's outline, and that outline's
+ * outer edge *is* the flap circle. Clipping it to the flap (which is what keeps
+ * it from painting outside) then truncates it at the region's tips, blunting
+ * points that should be sharp. So stroke only what would otherwise be invisible,
+ * and only by enough to reach that floor.
  */
-function conflictStrokeWidth(
-  narrowness: number | null,
-  cellPx: number,
-  thicknessPx: number | null
-): number {
-  if (narrowness === null || narrowness >= CONFLICT_NARROWNESS_THRESHOLD) return 0;
-  const bounds = [2 / narrowness, cellPx];
-  if (thicknessPx !== null) bounds.push(thicknessPx);
-  return Math.min(...bounds);
+function conflictStrokeWidth(thicknessPx: number | null, cellPx: number): number {
+  if (thicknessPx === null || thicknessPx >= MIN_CONFLICT_VISIBLE_PX) return 0;
+  return Math.min(MIN_CONFLICT_VISIBLE_PX - thicknessPx, cellPx);
 }
 
 /** Parse a `data-bp-select` token (`kind:id`) into a selection. */

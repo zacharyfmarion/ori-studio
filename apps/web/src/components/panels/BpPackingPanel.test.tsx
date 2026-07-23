@@ -312,6 +312,19 @@ describe('BP packing pane — conflicts never paint outside a flap', () => {
     }
   });
 
+  it('leaves a legible conflict unstroked, so its tips stay sharp', () => {
+    const host = renderPacking();
+    const paths = [...host.querySelectorAll('.bp-packing-conflict')];
+    expect(paths.length).toBeGreaterThan(0);
+    // This region renders ~6.6px thick — plainly visible. A stroke would be
+    // centred on its outline, and clipping that to the flap truncates the
+    // region's tips, blunting points that should be sharp.
+    for (const path of paths) {
+      const width = Number(path.getAttribute('stroke-width') ?? '0');
+      expect(width).toBe(0);
+    }
+  });
+
   it('paints a conflict path that stays on its flap circle', () => {
     const host = renderPacking();
     const paths = [...host.querySelectorAll('.bp-packing-conflict')];

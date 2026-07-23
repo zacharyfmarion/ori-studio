@@ -5,7 +5,6 @@ import type {
   OristudioBpSheetKind,
 } from '../engine/oristudioBpTypes';
 import {
-  bpArcPathNarrowness,
   bpArcPathThickness,
   bpArcPathToSvgPath,
   bpPackingFlapClearanceRect,
@@ -143,33 +142,6 @@ describe('bpPackingFlapClearanceRect', () => {
     expect(approx(clearance.width, 8 * unit)).toBe(true);
     expect(approx(clearance.height, 8 * unit)).toBe(true);
     expect(approx(clearance.radius, 3 * unit)).toBe(true);
-  });
-});
-
-describe('bpArcPathNarrowness', () => {
-  it('is the anchor span over the endpoint span for a two-arc lens', () => {
-    const path: OristudioBpArcPath = [
-      { x: 0, y: 0, arc: { x: 1, y: 1 }, r: 1 },
-      { x: 4, y: 0, arc: { x: 2, y: 1 }, r: 1 },
-    ];
-    // anchors are 1 apart, endpoints 4 apart
-    expect(bpArcPathNarrowness(path)).toBeCloseTo(0.25);
-  });
-
-  it('has none for paths that are not a two-arc lens', () => {
-    expect(
-      bpArcPathNarrowness([
-        { x: 0, y: 0, arc: { x: 1, y: 1 }, r: 1 },
-        { x: 4, y: 0, arc: { x: 2, y: 1 }, r: 1 },
-        { x: 4, y: 4 },
-      ])
-    ).toBeNull();
-    expect(
-      bpArcPathNarrowness([
-        { x: 0, y: 0 },
-        { x: 4, y: 0 },
-      ])
-    ).toBeNull();
   });
 });
 

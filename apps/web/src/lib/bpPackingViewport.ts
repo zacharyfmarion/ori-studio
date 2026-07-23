@@ -240,14 +240,6 @@ export function bpArcPathThickness(path: readonly OristudioBpArcPoint[]): number
   return sagitta(Math.abs(first.r)) + sagitta(Math.abs(second.r));
 }
 
-export function bpArcPathNarrowness(path: readonly OristudioBpArcPoint[]): number | null {
-  if (path.length !== 2) return null;
-  const [first, second] = path;
-  if (!first.arc || !second.arc) return null;
-  const span = Math.hypot(second.x - first.x, second.y - first.y);
-  if (span === 0) return null;
-  return Math.hypot(second.arc.x - first.arc.x, second.arc.y - first.arc.y) / span;
-}
 
 /**
  * Renders an arc outline as an SVG path `d`, mirroring BP's canvas drawing of an
