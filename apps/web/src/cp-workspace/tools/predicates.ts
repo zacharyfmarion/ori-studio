@@ -33,6 +33,21 @@ export function isLineEraseClickTool(operationId: OpId): boolean {
   return operationId === 'LineSegmentDelete';
 }
 
+/**
+ * What a click (press with no drag) does while a drag-box tool is active. Oriedita's
+ * `BoxSelectStepNode.runReleaseAction` runs the box action only for a gesture that
+ * actually moved, and otherwise applies the tool to the crease nearest the cursor —
+ * so every box tool below is equally a click tool.
+ */
+export type ToolClickAction = 'select' | 'crease' | 'erase';
+
+export function toolClickAction(operationId: OpId): ToolClickAction | null {
+  if (isLineClickSelectionOperation(operationId)) return 'select';
+  if (isCreaseToggleMvClickTool(operationId)) return 'crease';
+  if (isLineEraseClickTool(operationId)) return 'erase';
+  return null;
+}
+
 export function allowsDirectEntitySelection(operationId: OpId): boolean {
   return operationId === 'CreaseSelect';
 }

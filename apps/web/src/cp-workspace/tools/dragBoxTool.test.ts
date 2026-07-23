@@ -35,10 +35,18 @@ describe('dragBoxTool', () => {
     expect(outs[2].state).toEqual({ start: null });
   });
 
-  it('does not commit a zero-area box', () => {
+  it('commits a flat box from a straight drag along one axis', () => {
     const outs = run([
       { kind: 'down', point: { x: 1, y: 2 } },
-      { kind: 'up', point: { x: 1, y: 9 } }, // same x -> no area
+      { kind: 'up', point: { x: 1, y: 9 } }, // same x, zero width
+    ]);
+    expect(outs[1].commit).toEqual({ points: [{ x: 1, y: 2 }, { x: 1, y: 9 }] });
+  });
+
+  it('does not commit a zero-length gesture', () => {
+    const outs = run([
+      { kind: 'down', point: { x: 1, y: 2 } },
+      { kind: 'up', point: { x: 1, y: 2 } },
     ]);
     expect(outs[1].commit).toBeNull();
   });

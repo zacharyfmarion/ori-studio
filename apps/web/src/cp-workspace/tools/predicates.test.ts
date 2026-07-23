@@ -10,6 +10,7 @@ import {
   isLineEraseClickTool,
   isReflectSelectionOperation,
   isRestrictedDrawOperation,
+  toolClickAction,
   isSelectionCircleApplyOperation,
   isSquareBisectorOperation,
   isTextAnnotationOperation,
@@ -113,5 +114,18 @@ describe('isDefaultSelectionMode', () => {
     expect(
       isDefaultSelectionMode({ activeOperationId: 'CreaseSelect', phase: 'idle' }, 0, 0)
     ).toBe(false);
+  });
+});
+
+describe('toolClickAction', () => {
+  it('names the click behaviour of each box tool, and nothing else', () => {
+    expect(toolClickAction('CreaseSelect')).toBe('select');
+    expect(toolClickAction('CreaseUnselect')).toBe('select');
+    // Oriedita's CREASE_TOGGLE_MV_58 flips the crease under a bare click, so the
+    // flip tool must not need a drag first.
+    expect(toolClickAction('CreaseToggleMv')).toBe('crease');
+    expect(toolClickAction('LineSegmentDelete')).toBe('erase');
+    expect(toolClickAction('DrawCreaseFree')).toBeNull();
+    expect(toolClickAction(null)).toBeNull();
   });
 });

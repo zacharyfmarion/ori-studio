@@ -62,6 +62,7 @@ import { createToolRuntime, type ToolRuntime } from './tools/runtime';
 import { createStepSequenceTool } from './tools/stepSequenceTool';
 import { createLinePickTool } from './tools/linePickTool';
 import type { ToolCommit, ToolPreviewSegment } from './tools/types';
+import type { ToolClickAction } from './tools/predicates';
 
 /**
  * Draw modes the canvas routes: the drag engines, the click-based persistent
@@ -431,19 +432,19 @@ export interface CreasePatternWebglCanvasProps {
    */
   activeToolRequireSnap: boolean;
   /**
-   * True for click-or-box select tools (CreaseSelect / CreaseUnselect): a click
-   * (no drag) routes to {@link onSelect} — select/unselect the crease under the
-   * cursor, or clear on empty — while a drag runs the box command. Without this a
-   * click would commit a degenerate box that selects nothing.
+   * How a click (no drag) is routed while a drag-box tool is active. Oriedita's
+   * `BoxSelectStepNode` splits the release the same way: a dragged box runs the box
+   * action, a zero-length press runs the tool against the crease nearest the cursor.
+   * The drag-box engine commits nothing for that degenerate gesture, so tools with a
+   * click behaviour name it here.
+   * - `'select'` — CreaseSelect / CreaseUnselect: routes to {@link onSelect}, which
+   *   selects/unselects the crease under the cursor or clears on empty.
+   * - `'crease'` — CreaseToggleMv: only a crease hit routes to {@link onSelect} (the
+   *   panel dispatches the flip); a click on empty space leaves the selection alone.
+   * - `'erase'` — LineSegmentDelete: deletes the crease under the cursor via
+   *   {@link onEraseLine}. Mirrors Oriedita's LINE_SEGMENT_DELETE_3.
    */
-  activeToolClickSelects: boolean;
-  /**
-   * True for the Eraser (LineSegmentDelete). Like {@link activeToolClickSelects},
-   * its drag-box engine commits nothing for a zero-area box, so a plain click
-   * (no drag) is routed to {@link onEraseLine} — delete the crease under the
-   * cursor — while a drag box-erases. Mirrors Oriedita's LINE_SEGMENT_DELETE_3.
-   */
-  activeToolClickErases: boolean;
+  activeToolClickAction: ToolClickAction | null;
   /**
    * True for Mirror Line (SymmetricDraw), whose input is dual-mode: the first pick
    * decides between a 3-point sequence (pick lands on a vertex/point) and a 2-line
@@ -637,8 +638,7 @@ export function CreasePatternWebglCanvas({
   activeToolStepKinds,
   activeToolLineCount,
   activeToolRequireSnap,
-  activeToolClickSelects,
-  activeToolClickErases,
+  activeToolClickAction,
   activeToolDualMirror,
   activeToolConverging,
   activeToolSquareBisector,
@@ -927,8 +927,7 @@ export function CreasePatternWebglCanvas({
     activeToolStepKinds,
     activeToolLineCount,
     activeToolRequireSnap,
-    activeToolClickSelects,
-    activeToolClickErases,
+    activeToolClickAction,
     activeToolDualMirror,
     activeToolConverging,
     activeToolSquareBisector,
@@ -2107,19 +2106,19 @@ export function CreasePatternWebglCanvas({
         erasing = false;
         eraseRuntime = null;
       } else if (drawing) {
-        if (liveRef.current.activeToolClickSelects && !moved && e.type !== 'pointercancel') {
-          // A click (no drag) on a select tool: discard the degenerate box and
-          // route to the click handler (select/unselect the crease, or deselect on
-          // empty), matching the SVG's per-crease click select.
-          feedTool('cancel', e.clientX, e.clientY);
-          liveRef.current.onSelect(hitTest(e.clientX, e.clientY), e.shiftKey);
-        } else if (liveRef.current.activeToolClickErases && !moved && e.type !== 'pointercancel') {
-          // A click (no drag) on the eraser: discard the degenerate box and delete
-          // the crease under the cursor, matching Oriedita's LINE_SEGMENT_DELETE_3
-          // (and the right-button erase gesture's own degenerate-box fallback).
+        const clickAction =
+          !moved && e.type !== 'pointercancel' ? liveRef.current.activeToolClickAction : null;
+        if (clickAction) {
+          // A click (no drag) on a tool that defines one: discard the degenerate box
+          // and run the click behaviour against the crease under the cursor, matching
+          // Oriedita's press-vs-drag split in `BoxSelectStepNode.runReleaseAction`.
           feedTool('cancel', e.clientX, e.clientY);
           const hit = hitTest(e.clientX, e.clientY);
-          if (hit && hit.kind === 'line') liveRef.current.onEraseLine(hit.id);
+          if (clickAction === 'erase') {
+            if (hit && hit.kind === 'line') liveRef.current.onEraseLine(hit.id);
+          } else if (clickAction === 'select' || hit?.kind === 'line') {
+            liveRef.current.onSelect(hit, e.shiftKey);
+          }
         } else {
           feedTool(e.type === 'pointercancel' ? 'cancel' : 'up', e.clientX, e.clientY);
         }
