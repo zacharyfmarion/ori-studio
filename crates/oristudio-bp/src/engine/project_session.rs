@@ -23,25 +23,17 @@ const Y_DISPLACEMENT: f64 = 0.0625;
 pub struct BpProjectSession {
     project: Project,
     history: HistoryManager,
-    new_vertices: BTreeSet<NodeId>,
 }
 
 impl BpProjectSession {
     pub fn new(mut project: Project) -> BpResult<Self> {
-        let new_vertices = project
-            .design
-            .tree
-            .nodes
-            .iter_mut()
-            .filter_map(|vertex| {
-                if vertex.is_new.unwrap_or(false) {
-                    vertex.is_new = None;
-                    Some(vertex.id)
-                } else {
-                    None
-                }
-            })
-            .collect();
+        // `isNew` is a BP Studio flag meaning "this vertex's flap still tracks the
+        // tree diagram". We deliberately diverge: the tree diagram is a pure
+        // description of the model, never a flap placement, so the flag carries no
+        // behavior here. Drop it on the way in.
+        for vertex in &mut project.design.tree.nodes {
+            vertex.is_new = None;
+        }
         // BP Studio invariant: every leaf node has a flap. A design may arrive
         // with tree leaves that have no `layout.flaps` entry (e.g. the starter,
         // or a tree-only import); BP Studio's Core seeds each such leaf a default
@@ -53,11 +45,7 @@ impl BpProjectSession {
             None => HistoryManager::new(),
         };
         history.flush(project.design.mode, Vec::new());
-        Ok(Self {
-            project,
-            history,
-            new_vertices,
-        })
+        Ok(Self { project, history })
     }
 
     pub fn project(&self) -> &Project {
@@ -164,17 +152,13 @@ impl BpProjectSession {
             vertex.y = next.y;
         }
 
-        if self.new_vertices.contains(&id)
-            && let Some(relative) = self.relative_layout_point(next)
-        {
-            if let Some(flap) = self.flap_mut(id) {
-                flap.x = relative.x;
-                flap.y = relative.y;
-            } else {
-                self.new_vertices.remove(&id);
-            }
-        }
-
+        // Repositioning a vertex is a tree-diagram edit only: it never touches the
+        // layout. (BP Studio moves a freshly created vertex's flap along with it
+        // until you switch to layout mode — see `Vertex._move` /
+        // `layout.$flaps.$sync`. We diverge: our tree and layout editors are
+        // visible side by side, so there is no mode switch to end that coupling,
+        // and a flap silently jumping while you tidy the tree is not what the
+        // gesture means.)
         self.history.set_dragging(dragging);
         self.history.move_command(
             format!("v{id}"),
@@ -290,7 +274,6 @@ impl BpProjectSession {
         // BP Studio's flap ⟺ leaf invariant by dropping any flap it carried.
         self.project.design.layout.flaps.retain(|f| f.id != at);
         self.project.design.layout.flaps.push(flap);
-        self.new_vertices.insert(id);
         self.apply_tree_update(&update);
         self.record_structural_history(&update, old_root, vec![format!("v{id}")]);
         Ok(update)
@@ -330,9 +313,6 @@ impl BpProjectSession {
             .flaps
             .retain(|flap| !remove_set.contains(&flap.id));
         self.project.design.layout.flaps.extend(prototypes);
-        for id in &remove_ids {
-            self.new_vertices.remove(id);
-        }
         self.apply_tree_update(&update);
         self.record_structural_history(&update, old_root, Vec::new());
         Ok(update)
@@ -352,7 +332,6 @@ impl BpProjectSession {
             .tree
             .nodes
             .retain(|vertex| vertex.id != id);
-        self.new_vertices.remove(&id);
         self.apply_tree_update(&update);
         self.record_structural_history(&update, old_root, Vec::new());
         Ok(update)
@@ -383,7 +362,6 @@ impl BpProjectSession {
             name: String::new(),
             is_new: None,
         });
-        self.new_vertices.insert(id);
         self.apply_tree_update(&update);
         self.record_structural_history(&update, old_root, vec![format!("v{id}")]);
         Ok(update)
@@ -404,7 +382,6 @@ impl BpProjectSession {
                 .tree
                 .nodes
                 .retain(|vertex| vertex.id != *id);
-            self.new_vertices.remove(id);
         }
         self.apply_tree_update(&update);
         self.record_structural_history(&update, old_root, Vec::new());
@@ -471,14 +448,6 @@ impl BpProjectSession {
         if constrained.x == 0.0 && constrained.y == 0.0 {
             return Ok(UpdateModel::default());
         }
-
-        // The user is now arranging flaps directly, which in BP Studio means
-        // entering layout mode. There, `Design._onModeChanged` runs
-        // `layout.$flaps.$sync.clear()`, decoupling every flap from its tree
-        // vertex so that later tree-diagram edits never move a flap again. Mirror
-        // that here: once any flap is placed by hand, stop treating vertices as
-        // "new" (i.e. stop re-seeding their flap position from the tree).
-        self.new_vertices.clear();
 
         let mut next_flaps = Vec::with_capacity(moving_flaps.len());
         for (_, old_flap) in &moving_flaps {
@@ -1186,11 +1155,6 @@ impl BpProjectSession {
         }
         if let Some(id) = parse_prefixed_node_tag(tag, 'v')? {
             let vertex: Vertex = value_from_history(value, "vertex memento")?;
-            if vertex.is_new.unwrap_or(false) {
-                self.new_vertices.insert(id);
-            } else {
-                self.new_vertices.remove(&id);
-            }
             replace_or_push_vertex(&mut self.project.design.tree.nodes, id, vertex);
             return Ok(());
         }
@@ -1279,13 +1243,6 @@ impl BpProjectSession {
         if let Some(id) = parse_prefixed_node_tag(tag, 'v')? {
             self.vertex_mut(id)?.x = point.x;
             self.vertex_mut(id)?.y = point.y;
-            if self.new_vertices.contains(&id)
-                && let Some(relative) = self.relative_layout_point(point)
-                && let Some(flap) = self.flap_mut(id)
-            {
-                flap.x = relative.x;
-                flap.y = relative.y;
-            }
             return Ok(());
         }
         if let Some(id) = parse_prefixed_node_tag(tag, 'f')? {
@@ -1324,9 +1281,6 @@ impl BpProjectSession {
                 .layout
                 .flaps
                 .retain(|flap| !remove_set.contains(&flap.id));
-            for id in &remove_set {
-                self.new_vertices.remove(id);
-            }
         }
         self.apply_tree_update(&update);
         Ok(())
@@ -1416,15 +1370,6 @@ impl BpProjectSession {
             .iter_mut()
             .find(|vertex| vertex.id == id)
             .ok_or_else(|| BpError::InvalidInput(format!("missing BP tree vertex {id}")))
-    }
-
-    fn flap_mut(&mut self, id: NodeId) -> Option<&mut Flap> {
-        self.project
-            .design
-            .layout
-            .flaps
-            .iter_mut()
-            .find(|flap| flap.id == id)
     }
 
     fn flap_index(&self, id: NodeId) -> BpResult<usize> {

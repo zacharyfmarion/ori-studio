@@ -31,11 +31,11 @@ fn flap_pos(session: &BpProjectSession, id: u32) -> (f64, f64) {
     (flap.x, flap.y)
 }
 
-/// The reported bug: after arranging flaps in the packing view, moving a tree
-/// vertex (which changes neither length nor topology) must NOT move any flap.
-/// BP Studio decouples flaps from their vertices once you enter layout mode
-/// (`Design._onModeChanged` -> `$flaps.$sync.clear()`); we mirror that on the
-/// first manual flap placement.
+/// Moving a tree vertex changes neither length nor topology, so it must NOT
+/// move any flap. BP Studio couples a newly created vertex to its flap until
+/// you switch to layout mode (`Design._onModeChanged` -> `$flaps.$sync.clear()`);
+/// we show both editors at once and diverge outright — the tree diagram never
+/// places a flap.
 #[test]
 fn moving_a_tree_vertex_does_not_reset_arranged_flaps() {
     let project = bps::load_project_str(STARTER).expect("starter loads");
@@ -67,11 +67,11 @@ fn moving_a_tree_vertex_does_not_reset_arranged_flaps() {
     );
 }
 
-/// Control: before any layout arranging, a freshly added leaf's flap still
-/// follows its tree vertex (BP Studio's new-vertex behavior in tree mode). We
-/// only stop following once the user starts placing flaps by hand.
+/// The same holds for a leaf that was just added and whose flap nobody has
+/// touched yet: the flap keeps the position `add_leaf` seeded it with. (BP
+/// Studio would drag this one along — see `Vertex._move`. This is the divergence.)
 #[test]
-fn a_new_leaf_flap_follows_its_vertex_until_the_layout_is_touched() {
+fn a_new_leaf_flap_stays_put_when_its_vertex_moves() {
     let project = bps::load_project_str(STARTER).expect("starter loads");
     let mut session = BpProjectSession::new(project).expect("session builds");
     session.add_leaf(0, 1.0).expect("add leaf 2");
@@ -80,9 +80,36 @@ fn a_new_leaf_flap_follows_its_vertex_until_the_layout_is_touched() {
     session
         .move_vertex(2, Point { x: 3.0, y: 17.0 }, false)
         .expect("move vertex 2");
-    let after = flap_pos(&session, 2);
-    assert_ne!(
-        before, after,
-        "a still-new leaf's flap follows its tree vertex"
+    assert_eq!(
+        flap_pos(&session, 2),
+        before,
+        "a tree-diagram move never places a flap"
+    );
+}
+
+/// Undo/redo of a vertex move replays only the vertex, never the layout.
+#[test]
+fn undoing_a_vertex_move_leaves_flaps_alone() {
+    let project = bps::load_project_str(STARTER).expect("starter loads");
+    let mut session = BpProjectSession::new(project).expect("session builds");
+    session.add_leaf(0, 1.0).expect("add leaf 2");
+    session
+        .move_flap(2, Point { x: 5.0, y: 5.0 }, false)
+        .expect("place flap 2");
+
+    session
+        .move_vertex(2, Point { x: 3.0, y: 17.0 }, false)
+        .expect("move vertex 2");
+    session.undo().expect("undo the vertex move");
+    assert_eq!(
+        flap_pos(&session, 2),
+        (5.0, 5.0),
+        "undo must not move flaps"
+    );
+    session.redo().expect("redo the vertex move");
+    assert_eq!(
+        flap_pos(&session, 2),
+        (5.0, 5.0),
+        "redo must not move flaps"
     );
 }

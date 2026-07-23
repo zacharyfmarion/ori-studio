@@ -459,6 +459,10 @@ fn tree_authoring_commands_mutate_project_through_wasm_handle() {
         serde_wasm_bindgen::from_value(snapshot_value).expect("snapshot decodes");
     assert_eq!(snapshot.design.tree.nodes.len(), 4);
     assert_eq!(snapshot.design.layout.flaps[0].id, 3);
+    let seeded_flap = (
+        snapshot.design.layout.flaps[0].x,
+        snapshot.design.layout.flaps[0].y,
+    );
 
     let snapshot_value =
         oristudio_bp_wasm::bp_move_tree_vertex(handle, 3, 4.2, 5.8, false).expect("move vertex");
@@ -472,6 +476,8 @@ fn tree_authoring_commands_mutate_project_through_wasm_handle() {
         .find(|node| node.id == 3)
         .expect("new node exists");
     assert_eq!((moved.x, moved.y, moved.is_new), (4.2, 5.8, None));
+    // Moving the vertex in the tree diagram leaves its flap exactly where the
+    // layout had it.
     assert_eq!(
         snapshot
             .design
@@ -480,7 +486,7 @@ fn tree_authoring_commands_mutate_project_through_wasm_handle() {
             .iter()
             .find(|flap| flap.id == 3)
             .map(|flap| (flap.x, flap.y)),
-        Some((4.0, 6.0))
+        Some(seeded_flap)
     );
 
     let snapshot_value = oristudio_bp_wasm::bp_update_tree_edge_length(handle, 0, 2, 3.0, false)
