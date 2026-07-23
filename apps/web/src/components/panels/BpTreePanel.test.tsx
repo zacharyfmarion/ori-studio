@@ -44,6 +44,7 @@ vi.mock('react-zoom-pan-pinch', async () => {
         if (didInit.current) return;
         didInit.current = true;
         onInit?.(api);
+        transformed.fn = onTransformed ?? null;
         onTransformed?.(api, { scale: 1 });
       }, [onInit, onTransformed]);
       return React.createElement('div', null, children);
@@ -54,6 +55,11 @@ vi.mock('react-zoom-pan-pinch', async () => {
 });
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+/** Last `onTransformed` the panel handed the pan/zoom wrapper. */
+const transformed: { fn: ((ref: unknown, state: { scale: number }) => void) | null } = {
+  fn: null,
+};
 
 // jsdom has no Pointer Events capture API; the pane captures the pointer when a
 // vertex drag starts. Stub it so a synthesized press reaches the real handler.
@@ -380,6 +386,20 @@ describe('BP tree pane — the drawing keeps its proportions when zoomed', () =>
     expect(Number(edge!.getAttribute('stroke-width'))).toBeGreaterThan(0);
     expect(Number(node!.getAttribute('stroke-width'))).toBeGreaterThan(0);
     expect(edge!.getAttribute('vector-effect')).toBeNull();
+  });
+
+  it('thins the stroke in proportion as the camera zooms in', () => {
+    const body = render(1);
+    const widthAt = () => Number(body.querySelector('.bp-tree-edge')!.getAttribute('stroke-width'));
+    const atRest = widthAt();
+    expect(atRest).toBeGreaterThan(0);
+
+    act(() => {
+      transformed.fn?.({}, { scale: 4 });
+    });
+    // Four times the camera scale means a quarter of the width in world units —
+    // the two cancel, so the line keeps the same weight on screen.
+    expect(widthAt()).toBeCloseTo(atRest / 4, 6);
   });
 
   it('keeps line weight proportional to dot size at any zoom', () => {
