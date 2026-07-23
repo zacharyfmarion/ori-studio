@@ -43,7 +43,7 @@ export const VIEWPORT_PINCH_ZOOM = { step: 2.2 } as const;
  * Multiplicative, so a pinch covers the same proportion of zoom whether you are
  * at 50% or 800% — which the library's additive wheel path cannot do.
  */
-const PINCH_ZOOM_SENSITIVITY = 0.02;
+const PINCH_ZOOM_SENSITIVITY = 0.011;
 const CENTER_ANIMATION_MS = 160;
 const FIT_ANIMATION_MS = 180;
 

@@ -367,6 +367,32 @@ describe('BP tree pane — selecting an edge highlights the edge', () => {
   });
 });
 
+describe('BP tree pane — the drawing keeps its proportions when zoomed', () => {
+  it('counter-scales stroke widths, as it already does dots and labels', () => {
+    const body = render(1);
+    const edge = body.querySelector('.bp-tree-edge');
+    const node = body.querySelector('.bp-tree-node');
+    expect(edge).not.toBeNull();
+    expect(node).not.toBeNull();
+    // `non-scaling-stroke` only defends against the SVG's own viewBox — the
+    // pan/zoom wrapper scales with a CSS transform, which it cannot see. So the
+    // widths have to be counter-scaled explicitly, like the dot radii.
+    expect(Number(edge!.getAttribute('stroke-width'))).toBeGreaterThan(0);
+    expect(Number(node!.getAttribute('stroke-width'))).toBeGreaterThan(0);
+    expect(edge!.getAttribute('vector-effect')).toBeNull();
+  });
+
+  it('keeps line weight proportional to dot size at any zoom', () => {
+    const body = render(1);
+    const edge = Number(body.querySelector('.bp-tree-edge')!.getAttribute('stroke-width'));
+    const dot = Number(body.querySelector('.bp-tree-node')!.getAttribute('r'));
+    // Both derive from the same counter-scale, so their ratio is fixed — which
+    // is what stops lines fattening while dots stay put.
+    expect(edge / dot).toBeGreaterThan(0.5);
+    expect(edge / dot).toBeLessThan(2);
+  });
+});
+
 describe('BP tree pane — Escape', () => {
   it('clears the selection from the canvas', () => {
     const body = render(1);

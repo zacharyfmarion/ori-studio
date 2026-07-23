@@ -90,6 +90,15 @@ const SYMMETRY_AXIS_BAND_SVG = 18;
 // labels are drawn at fixed screen sizes (counter-scaled by the zoom) so they
 // stay small relative to the geometry at any zoom.
 const TARGET_UNIT_PX = 56;
+// Stroke widths in screen pixels. Counter-scaled like the dots and labels, so
+// the whole drawing keeps its proportions as you zoom — `non-scaling-stroke`
+// only defends against the SVG's own viewBox, not the pan/zoom wrapper's CSS
+// transform, so without this the lines fatten while the dots stay put.
+const EDGE_STROKE_PX = 5;
+const NODE_STROKE_PX = 2;
+const SYMMETRY_LINE_PX = 2;
+const SYMMETRY_LANE_PX = 18;
+const SYMMETRY_GHOST_PX = 3;
 const NODE_DOT_PX = 5;
 const LEAF_DOT_PX = 4;
 const NODE_LABEL_PX = 12;
@@ -758,6 +767,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
               <>
                 <line
                   className="symmetry-snap-lane"
+                  strokeWidth={chromePx(SYMMETRY_LANE_PX)}
                   x1={symmetryAxisLine.x1}
                   y1={symmetryAxisLine.y1}
                   x2={symmetryAxisLine.x2}
@@ -765,6 +775,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
                 />
                 <line
                   className="symmetry-line"
+                  strokeWidth={chromePx(SYMMETRY_LINE_PX)}
                   x1={symmetryAxisLine.x1}
                   y1={symmetryAxisLine.y1}
                   x2={symmetryAxisLine.x2}
@@ -784,6 +795,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
                           'symmetry-ghost-edge',
                           symmetryHoverPreview.unresolved ? 'symmetry-ghost-edge--unresolved' : '',
                         ].join(' ')}
+                        strokeWidth={chromePx(SYMMETRY_GHOST_PX)}
                         x1={from.x}
                         y1={from.y}
                         x2={to.x}
@@ -807,6 +819,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
                       <>
                         <line
                           className="symmetry-ghost-edge"
+                          strokeWidth={chromePx(SYMMETRY_GHOST_PX)}
                           x1={from.x}
                           y1={from.y}
                           x2={to.x}
@@ -852,7 +865,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
                       edge.isLeafEdge ? 'bp-tree-edge--leaf' : 'bp-tree-edge--river',
                       active ? 'tree-edge--selected' : '',
                     ].join(' ')}
-                    vectorEffect="non-scaling-stroke"
+                    strokeWidth={chromePx(EDGE_STROKE_PX)}
                     x1={p1.x}
                     y1={p1.y}
                     x2={p2.x}
@@ -898,7 +911,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
                       active ? 'tree-node--selected' : '',
                     ].join(' ')}
                     data-leaf={vertex.isLeaf || undefined}
-                    vectorEffect="non-scaling-stroke"
+                    strokeWidth={chromePx(NODE_STROKE_PX)}
                     cx={point.x}
                     cy={point.y}
                     r={chromePx(vertex.isLeaf ? LEAF_DOT_PX : NODE_DOT_PX)}
