@@ -1170,7 +1170,10 @@ function toRenderSettings(
   return {
     frontColor: norm(palette.paperFrontRgb),
     backColor: norm(palette.paperBackRgb),
-    edgeColor: norm(parseCssRgb(palette.border, [232, 237, 240])),
+    mountainColor: norm(parseCssRgb(palette.mountain, [224, 108, 117])),
+    valleyColor: norm(parseCssRgb(palette.valley, [95, 179, 165])),
+    borderColor: norm(parseCssRgb(palette.border, [232, 237, 240])),
+    facetColor: norm(parseCssRgb(palette.flat, [174, 185, 191])),
     background: norm(parseCssRgb(palette.canvas, [12, 15, 18])),
     lightDir: [PAPER_LIGHT_DIRECTION.x, PAPER_LIGHT_DIRECTION.y, PAPER_LIGHT_DIRECTION.z],
     showFaces: settings.showFaces,

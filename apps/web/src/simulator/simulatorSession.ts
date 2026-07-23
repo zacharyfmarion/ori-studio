@@ -148,7 +148,10 @@ interface GpuRenderState {
 const DEFAULT_RENDER_SETTINGS: RenderSettings = {
   frontColor: [0.31, 0.51, 0.84],
   backColor: [0.95, 0.94, 0.9],
-  edgeColor: [0.1, 0.12, 0.14],
+  mountainColor: [0.88, 0.42, 0.46],
+  valleyColor: [0.37, 0.7, 0.65],
+  borderColor: [0.1, 0.12, 0.14],
+  facetColor: [0.68, 0.72, 0.75],
   lightDir: [-0.45, 0.58, 0.68],
   background: [0.05, 0.06, 0.07],
   showFaces: true,

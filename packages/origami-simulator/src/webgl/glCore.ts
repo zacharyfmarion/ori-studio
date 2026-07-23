@@ -61,8 +61,12 @@ export class GlCore {
 
   static create(canvas: HTMLCanvasElement | OffscreenCanvas): GlCore | null {
     const gl = canvas.getContext('webgl2', {
-      antialias: false,
-      depth: false,
+      antialias: true,
+      // The default framebuffer (the visible canvas) needs a depth buffer so the
+      // mesh render pass can occlude far faces with near ones -- without it the
+      // paper renders see-through. The solver's compute passes render to their
+      // own depthless FBOs and are unaffected.
+      depth: true,
       premultipliedAlpha: false,
       preserveDrawingBuffer: false,
     });

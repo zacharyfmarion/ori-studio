@@ -18,6 +18,12 @@ export interface MeshTopology {
   faceIndices: Uint32Array;
   /** Edge vertex indices, 2 per edge. */
   edgeIndices: Uint32Array;
+  /**
+   * Per-edge fold assignment as a code: 0=B(order), 1=M, 2=V, 3=F(acet),
+   * matching EDGE_ASSIGNMENT_CODES. Drives crease colour so mountains and
+   * valleys read distinctly.
+   */
+  edgeAssignments: Uint8Array;
   /** Square texture edge length the solver packs vertices into. */
   textureDim: number;
 }
@@ -25,7 +31,11 @@ export interface MeshTopology {
 export interface RenderSettings {
   frontColor: [number, number, number];
   backColor: [number, number, number];
-  edgeColor: [number, number, number];
+  /** Crease colours by assignment; mountain/valley must differ to be legible. */
+  mountainColor: [number, number, number];
+  valleyColor: [number, number, number];
+  borderColor: [number, number, number];
+  facetColor: [number, number, number];
   lightDir: [number, number, number];
   background: [number, number, number];
   showFaces: boolean;
@@ -93,6 +103,11 @@ void main(){
 
 const EDGE_VERT = `#version 300 es
 precision highp float;
+// Per-endpoint attributes: which node to fetch, and this edge's assignment. An
+// explicit vertex buffer (not gl_VertexID) so each edge can carry its crease
+// type through to the fragment shader for colouring.
+in float a_nodeIndex;
+in float a_assignment;
 uniform sampler2D u_lastPosition;
 uniform sampler2D u_originalPosition;
 uniform int u_textureDim;
@@ -102,6 +117,7 @@ uniform vec2 u_pitch;
 uniform float u_scale;
 uniform vec2 u_viewport;
 uniform float u_depthRange;
+flat out int v_assignment;
 
 vec3 fetchPosition(int index){
   ivec2 texel = ivec2(index % u_textureDim, index / u_textureDim);
@@ -109,7 +125,8 @@ vec3 fetchPosition(int index){
 }
 
 void main(){
-  vec3 d = fetchPosition(gl_VertexID) - u_center;
+  v_assignment = int(a_assignment + 0.5);
+  vec3 d = fetchPosition(int(a_nodeIndex + 0.5)) - u_center;
   float yawX =  u_yaw.x*d.x + u_yaw.y*d.z;
   float yawZ = -u_yaw.y*d.x + u_yaw.x*d.z;
   float x = yawX;
@@ -120,27 +137,40 @@ void main(){
     y*u_scale/(u_viewport.y*0.5),
     // Nudge edges toward the viewer so they win the depth test against the
     // faces they sit on, the LINES analogue of polygonOffset.
-    clamp(-depth/u_depthRange, -1.0, 1.0) - 0.0002,
+    clamp(-depth/u_depthRange, -1.0, 1.0) - 0.0006,
     1.0
   );
 }`;
 
 const EDGE_FRAG = `#version 300 es
 precision highp float;
-uniform vec3 u_edgeColor;
+flat in int v_assignment;
+// Codes match EDGE_ASSIGNMENT_CODES: 0=B, 1=M, 2=V, 3=F.
+uniform vec3 u_mountainColor;
+uniform vec3 u_valleyColor;
+uniform vec3 u_borderColor;
+uniform vec3 u_facetColor;
 uniform float u_alpha;
 out vec4 fragColor;
-void main(){ fragColor = vec4(u_edgeColor, u_alpha); }`;
+void main(){
+  vec3 color = u_borderColor;
+  if (v_assignment == 1) color = u_mountainColor;
+  else if (v_assignment == 2) color = u_valleyColor;
+  else if (v_assignment == 3) color = u_facetColor;
+  fragColor = vec4(color, u_alpha);
+}`;
 
 export class MeshRenderer {
   private readonly gl: WebGL2RenderingContext;
   private readonly faceProgram: WebGLProgram;
   private readonly edgeProgram: WebGLProgram;
   private readonly faceElements: WebGLBuffer;
-  private readonly edgeElements: WebGLBuffer;
-  private readonly vao: WebGLVertexArrayObject;
+  private readonly edgeNodeBuffer: WebGLBuffer;
+  private readonly edgeAssignBuffer: WebGLBuffer;
+  private readonly faceVao: WebGLVertexArrayObject;
+  private readonly edgeVao: WebGLVertexArrayObject;
   private readonly faceCount: number;
-  private readonly edgeCount: number;
+  private readonly edgeVertexCount: number;
   private readonly textureDim: number;
   private readonly faceUniforms: Map<string, WebGLUniformLocation | null> = new Map();
   private readonly edgeUniforms: Map<string, WebGLUniformLocation | null> = new Map();
@@ -153,19 +183,40 @@ export class MeshRenderer {
     this.gl = gl;
     this.textureDim = topology.textureDim;
     this.faceCount = topology.faceIndices.length;
-    this.edgeCount = topology.edgeIndices.length;
+    const edgeCount = topology.edgeAssignments.length;
+    this.edgeVertexCount = edgeCount * 2;
 
     this.faceProgram = compile(gl, FACE_VERT, FACE_FRAG);
     this.edgeProgram = compile(gl, EDGE_VERT, EDGE_FRAG);
 
-    // A VAO is required in WebGL2 core, even though these draws use no vertex
-    // attributes (positions come from the texture, not a buffer).
-    const vao = gl.createVertexArray();
-    if (!vao) throw new Error('Unable to create VAO for the mesh renderer');
-    this.vao = vao;
-
+    // Face pass: positions come from the texture via gl_VertexID, so the VAO
+    // only holds the element buffer (no vertex attributes).
+    this.faceVao = createVao(gl);
     this.faceElements = uploadElements(gl, topology.faceIndices);
-    this.edgeElements = uploadElements(gl, topology.edgeIndices);
+    gl.bindVertexArray(this.faceVao);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.faceElements);
+
+    // Edge pass: one vertex per edge endpoint, drawn with drawArrays, carrying
+    // its node index (to fetch the position) and its crease assignment (to pick
+    // the colour). edgeIndices is already node-index-per-endpoint.
+    const nodeIndices = Float32Array.from(topology.edgeIndices);
+    const assignments = new Float32Array(this.edgeVertexCount);
+    for (let e = 0; e < edgeCount; e += 1) {
+      assignments[e * 2] = topology.edgeAssignments[e]!;
+      assignments[e * 2 + 1] = topology.edgeAssignments[e]!;
+    }
+    this.edgeVao = createVao(gl);
+    gl.bindVertexArray(this.edgeVao);
+    const nodeLoc = gl.getAttribLocation(this.edgeProgram, 'a_nodeIndex');
+    const assignLoc = gl.getAttribLocation(this.edgeProgram, 'a_assignment');
+    this.edgeNodeBuffer = uploadFloats(gl, nodeIndices);
+    gl.enableVertexAttribArray(nodeLoc);
+    gl.vertexAttribPointer(nodeLoc, 1, gl.FLOAT, false, 0, 0);
+    this.edgeAssignBuffer = uploadFloats(gl, assignments);
+    gl.enableVertexAttribArray(assignLoc);
+    gl.vertexAttribPointer(assignLoc, 1, gl.FLOAT, false, 0, 0);
+
+    gl.bindVertexArray(null);
   }
 
   render(camera: CameraUniforms, settings: RenderSettings, target: WebGLFramebuffer | null): void {
@@ -178,8 +229,6 @@ export class MeshRenderer {
     gl.clearDepth(1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    gl.bindVertexArray(this.vao);
-
     const translucent = settings.faceAlpha < 1;
     if (settings.showFaces) {
       if (translucent) {
@@ -190,6 +239,7 @@ export class MeshRenderer {
         gl.disable(gl.BLEND);
         gl.depthMask(true);
       }
+      gl.bindVertexArray(this.faceVao);
       gl.useProgram(this.faceProgram);
       this.bindCommon(this.faceProgram, this.faceUniforms, camera);
       this.setVec3(this.faceProgram, this.faceUniforms, 'u_frontColor', settings.frontColor);
@@ -197,19 +247,21 @@ export class MeshRenderer {
       this.setVec3(this.faceProgram, this.faceUniforms, 'u_lightDir', settings.lightDir);
       this.setFloat(this.faceProgram, this.faceUniforms, 'u_lighting', settings.lighting ? 1 : 0);
       this.setFloat(this.faceProgram, this.faceUniforms, 'u_alpha', settings.faceAlpha);
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.faceElements);
       gl.drawElements(gl.TRIANGLES, this.faceCount, gl.UNSIGNED_INT, 0);
     }
 
     if (settings.showEdges) {
       gl.disable(gl.BLEND);
       gl.depthMask(true);
+      gl.bindVertexArray(this.edgeVao);
       gl.useProgram(this.edgeProgram);
       this.bindCommon(this.edgeProgram, this.edgeUniforms, camera);
-      this.setVec3(this.edgeProgram, this.edgeUniforms, 'u_edgeColor', settings.edgeColor);
+      this.setVec3(this.edgeProgram, this.edgeUniforms, 'u_mountainColor', settings.mountainColor);
+      this.setVec3(this.edgeProgram, this.edgeUniforms, 'u_valleyColor', settings.valleyColor);
+      this.setVec3(this.edgeProgram, this.edgeUniforms, 'u_borderColor', settings.borderColor);
+      this.setVec3(this.edgeProgram, this.edgeUniforms, 'u_facetColor', settings.facetColor);
       this.setFloat(this.edgeProgram, this.edgeUniforms, 'u_alpha', 1);
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.edgeElements);
-      gl.drawElements(gl.LINES, this.edgeCount, gl.UNSIGNED_INT, 0);
+      gl.drawArrays(gl.LINES, 0, this.edgeVertexCount);
     }
 
     gl.depthMask(true);
@@ -221,8 +273,10 @@ export class MeshRenderer {
     gl.deleteProgram(this.faceProgram);
     gl.deleteProgram(this.edgeProgram);
     gl.deleteBuffer(this.faceElements);
-    gl.deleteBuffer(this.edgeElements);
-    gl.deleteVertexArray(this.vao);
+    gl.deleteBuffer(this.edgeNodeBuffer);
+    gl.deleteBuffer(this.edgeAssignBuffer);
+    gl.deleteVertexArray(this.faceVao);
+    gl.deleteVertexArray(this.edgeVao);
   }
 
   private bindCommon(
@@ -316,4 +370,18 @@ function uploadElements(gl: WebGL2RenderingContext, data: Uint32Array): WebGLBuf
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffer);
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, data, gl.STATIC_DRAW);
   return buffer;
+}
+
+function uploadFloats(gl: WebGL2RenderingContext, data: Float32Array): WebGLBuffer {
+  const buffer = gl.createBuffer();
+  if (!buffer) throw new Error('Unable to create attribute buffer');
+  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+  gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+  return buffer;
+}
+
+function createVao(gl: WebGL2RenderingContext): WebGLVertexArrayObject {
+  const vao = gl.createVertexArray();
+  if (!vao) throw new Error('Unable to create VAO for the mesh renderer');
+  return vao;
 }

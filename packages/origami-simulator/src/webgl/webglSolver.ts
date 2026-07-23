@@ -1,5 +1,18 @@
 import type { OrigamiModel } from '../model.js';
-import type { FoldProfile, SimulatorDiagnostics, SimulatorOptions } from '../types.js';
+import type { FoldAssignment, FoldProfile, SimulatorDiagnostics, SimulatorOptions } from '../types.js';
+
+// Assignment letter -> edge colour code the mesh renderer expects
+// (0=B, 1=M, 2=V, 3=F). Unassigned/other creases fall through to the border
+// colour, matching the canvas-2D renderer.
+const ASSIGNMENT_CODE: Record<FoldAssignment, number> = {
+  B: 0,
+  M: 1,
+  V: 2,
+  F: 3,
+  U: 0,
+  C: 0,
+  J: 0,
+};
 import type { SolverBackend } from '../solverBackend.js';
 import { GlCore } from './glCore.js';
 import { NORMAL_CALC, THETA_CALC, CREASE_GEO_CALC, VELOCITY_CALC, POSITION_CALC } from './passes.js';
@@ -43,6 +56,7 @@ export class WebglSolver implements SolverBackend {
   private readonly edgeRestLengths: Float32Array;
   private readonly faceIndices: Uint32Array;
   private readonly edgeIndices: Uint32Array;
+  private readonly edgeAssignments: Uint8Array;
   private meshRenderer: MeshRenderer | null = null;
 
   static isSupported(canvas: HTMLCanvasElement | OffscreenCanvas): boolean {
@@ -64,9 +78,11 @@ export class WebglSolver implements SolverBackend {
     );
     this.faceIndices = model.prepared.indices.slice();
     this.edgeIndices = new Uint32Array(model.prepared.edgesVertices.length * 2);
+    this.edgeAssignments = new Uint8Array(model.prepared.edgesVertices.length);
     model.prepared.edgesVertices.forEach((edge, index) => {
       this.edgeIndices[index * 2] = edge[0];
       this.edgeIndices[index * 2 + 1] = edge[1];
+      this.edgeAssignments[index] = ASSIGNMENT_CODE[model.prepared.edgesAssignment[index] ?? 'U'] ?? 0;
     });
 
     this.material = {
@@ -183,6 +199,7 @@ export class WebglSolver implements SolverBackend {
     this.meshRenderer ??= new MeshRenderer(this.gl, {
       faceIndices: this.faceIndices,
       edgeIndices: this.edgeIndices,
+      edgeAssignments: this.edgeAssignments,
       textureDim: this.packed.dims.textureDim,
     });
     this.meshRenderer.render(camera, settings, target);
