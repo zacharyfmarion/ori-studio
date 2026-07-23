@@ -17,7 +17,6 @@ You don't need to write code to help.
   [feature request](https://github.com/zacharyfmarion/ori-studio/issues/new/choose).
   Describe what you're trying to *do* — the underlying goal matters more than a
   specific solution.
-- **Fold something and show it off.** Post in the Discord `#showcase` channel.
 - **Write code.** The rest of this guide is for you.
 
 For questions and general discussion, the [Discord](https://discord.gg/9q836Wq6Q8)
