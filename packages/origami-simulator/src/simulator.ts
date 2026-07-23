@@ -1,4 +1,4 @@
-import { DynamicSolver } from './dynamicSolver.js';
+import { ReferenceSolver } from './referenceSolver.js';
 import { GpuMath } from './gpuMath.js';
 import { OrigamiModel } from './model.js';
 import type {
@@ -11,7 +11,7 @@ import type {
 
 export function createOrigamiSimulator(config: CreateSimulatorConfig): OrigamiSimulatorController {
   const model = new OrigamiModel(config.model);
-  const solver = new DynamicSolver(model, config.options);
+  const solver = new ReferenceSolver(model, config.options);
   const gpu = config.gl ? new GpuMath(config.gl) : config.canvas ? GpuMath.fromCanvas(config.canvas) : null;
   config.model.diagnostics.webglAvailable = Boolean(gpu);
   config.model.diagnostics.usedCpuFallback = !gpu;

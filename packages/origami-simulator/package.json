@@ -30,7 +30,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "bench:sim": "vitest run --config vitest.bench.config.ts --disable-console-intercept",
+    "bench:cpu-ceiling": "vitest run --config vitest.bench.config.ts bench/cpuCeiling.bench.ts --disable-console-intercept"
   },
   "dependencies": {
     "earcut": "^3.0.2"

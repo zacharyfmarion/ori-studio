@@ -1,14 +1,32 @@
 import { OrigamiModel } from './model.js';
 import type { CreaseFoldRange, CreaseParameter, SimulationFrame, SimulatorOptions } from './types.js';
 
-// TypeScript CPU port of Amanda Ghassaei's OrigamiSimulator dynamic solver.
+// TypeScript CPU port of Amanda Ghassaei's Origami Simulator dynamic solver.
+//
+// THIS IS THE ORACLE. It is the behavioural definition of the simulator, and it
+// is deliberately NOT optimised: it stays straightforward, allocation-happy and
+// easy to read against the upstream source, so that every other solver backend
+// (GPU, and any future one) can be validated against it. Optimise a new backend
+// behind the `SolverBackend` seam instead of changing this file.
+//
+// Consequences of that role:
+//   - It runs headlessly in Node, so it is what tests, golden traces and CI
+//     compare against. GPU backends cannot play this part.
+//   - Changing its output changes the definition of correct. Golden traces will
+//     fail loudly; re-bless them only deliberately.
+//   - It is also the no-WebGL2 fallback at runtime — a correctness guarantee,
+//     not a performance one.
 //
 // The method names below intentionally mirror the upstream WebGL passes in
-// index.html and js/dynamic/dynamicSolver.js:
+// third_party/origami-simulator (index.html shader blocks and
+// js/dynamic/dynamicSolver.js):
 // normalCalc -> thetaCalc -> updateCreaseGeo -> velocityCalc/positionCalc.
 // The upstream solver stores node displacements relative to originalPosition
 // textures; this port keeps the same state model and only writes absolute
 // positions back to OrigamiModel for consumers/renderers.
+//
+// Note upstream's `globals.foldPercent` is 0..1 where `SimulatorOptions
+// .foldPercent` here is 0..100; convert when comparing against the oracle.
 const EPSILON = 1e-6;
 const TWO_PI = Math.PI * 2;
 
@@ -27,7 +45,7 @@ const DEFAULT_OPTIONS: Required<SimulatorOptions> = {
   integrationType: 'euler',
 };
 
-export class DynamicSolver {
+export class ReferenceSolver {
   readonly model: OrigamiModel;
   options: Required<SimulatorOptions>;
   private currentStep = 0;
