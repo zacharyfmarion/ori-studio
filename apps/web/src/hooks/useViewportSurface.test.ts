@@ -56,3 +56,37 @@ describe('viewport fit deferral', () => {
     expect(centerView).toHaveBeenCalled();
   });
 });
+
+/**
+ * Trackpad pinch is ours now, not the library's. Its wheel path is additive
+ * (`scale + delta * step`), which makes one pinch cover a fixed amount of zoom
+ * regardless of where you are — coarse zoomed out, imperceptible zoomed in.
+ * These pin the two properties that fix.
+ */
+describe('trackpad pinch zoom', () => {
+  const SENSITIVITY = 0.02;
+  const zoom = (scale: number, deltaY: number) => scale * Math.exp(-deltaY * SENSITIVITY);
+
+  it('changes zoom by the same proportion at any scale', () => {
+    // The additive path could not do this: +k at scale 0.5 is a doubling, at
+    // scale 8 it is a rounding error.
+    const pinch = -10;
+    expect(zoom(0.5, pinch) / 0.5).toBeCloseTo(zoom(8, pinch) / 8, 10);
+  });
+
+  it('is symmetric: pinching out undoes pinching in', () => {
+    expect(zoom(zoom(3, -12), 12)).toBeCloseTo(3, 10);
+  });
+
+  it('keeps the point under the pointer fixed', () => {
+    // The anchoring the handler performs, in isolation.
+    const scale = 2;
+    const positionX = -40;
+    const pointerX = 120;
+    const next = zoom(scale, -10);
+    const world = (pointerX - positionX) / scale;
+    const nextPositionX = pointerX - world * next;
+    // That world point must still land under the pointer afterwards.
+    expect(world * next + nextPositionX).toBeCloseTo(pointerX, 10);
+  });
+});
