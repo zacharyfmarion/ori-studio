@@ -1,0 +1,151 @@
+import type { SolverBackend } from './solverBackend.js';
+
+/**
+ * Decides how much simulation to run per tick.
+ *
+ * This replaces the fixed step counts that made the simulator freeze. A count
+ * like `stepsPerFrame: 100` means a 10x bigger model produces a 10x longer
+ * frame, so the tab stops responding rather than the fold merely converging
+ * more slowly. A time budget inverts that: frames stay bounded and big models
+ * simply take more of them.
+ *
+ * The scheduler is backend-independent on purpose. A GPU backend driven by a
+ * fixed 900-step settle batch stalls just as badly as a CPU one; it only takes
+ * a larger model to get there.
+ */
+export interface SimulationClockOptions {
+  /**
+   * Wall-clock milliseconds of solver work per `runFrame` call. The default
+   * leaves room in a 16.6ms frame for everything else; a worker can afford
+   * more, since nothing else is competing for that thread.
+   */
+  budgetMs?: number;
+  /**
+   * Steps to run between budget checks. Checking the clock every step would
+   * cost more than stepping for small models; this is the granularity of
+   * overshoot.
+   */
+  chunkSteps?: number;
+  /** Hard ceiling per frame, so a fast backend cannot run away. */
+  maxStepsPerFrame?: number;
+  /**
+   * Max velocity below which the model counts as settled. Once converged the
+   * scheduler stops spending budget, which is what makes an idle simulator
+   * cost nothing.
+   */
+  convergenceEpsilon?: number;
+  /** Consecutive settled ticks required before reporting convergence. */
+  convergenceTicks?: number;
+  /** Injectable for tests. */
+  now?: () => number;
+}
+
+export interface SimulationTick {
+  /** Steps actually executed this tick. */
+  steps: number;
+  /** Milliseconds spent stepping. */
+  elapsedMs: number;
+  /** True once the model has been settled for `convergenceTicks` ticks. */
+  converged: boolean;
+  /** Max absolute velocity component at the end of the tick. */
+  maxVelocity: number;
+}
+
+const DEFAULTS = {
+  budgetMs: 8,
+  chunkSteps: 8,
+  maxStepsPerFrame: 4000,
+  convergenceEpsilon: 1e-5,
+  convergenceTicks: 3,
+};
+
+export class SimulationClock {
+  private readonly options: Required<Omit<SimulationClockOptions, 'now'>>;
+  private readonly now: () => number;
+  private settledTicks = 0;
+  private totalSteps = 0;
+
+  constructor(options: SimulationClockOptions = {}) {
+    this.options = {
+      budgetMs: options.budgetMs ?? DEFAULTS.budgetMs,
+      chunkSteps: Math.max(1, options.chunkSteps ?? DEFAULTS.chunkSteps),
+      maxStepsPerFrame: options.maxStepsPerFrame ?? DEFAULTS.maxStepsPerFrame,
+      convergenceEpsilon: options.convergenceEpsilon ?? DEFAULTS.convergenceEpsilon,
+      convergenceTicks: Math.max(1, options.convergenceTicks ?? DEFAULTS.convergenceTicks),
+    };
+    this.now = options.now ?? (() => performance.now());
+  }
+
+  /** Steps executed across all ticks since the last {@link reset}. */
+  get stepsRun(): number {
+    return this.totalSteps;
+  }
+
+  get converged(): boolean {
+    return this.settledTicks >= this.options.convergenceTicks;
+  }
+
+  /**
+   * Anything that changes the target state -- fold percent, material, a new
+   * model -- must call this, or a converged clock will refuse to spend budget
+   * on reaching the new target.
+   */
+  invalidate(): void {
+    this.settledTicks = 0;
+  }
+
+  reset(): void {
+    this.settledTicks = 0;
+    this.totalSteps = 0;
+  }
+
+  /**
+   * Run one frame's worth of simulation. Returns without stepping if the model
+   * is already converged, so a settled simulator costs nothing.
+   */
+  runFrame(backend: SolverBackend): SimulationTick {
+    if (this.converged) {
+      return { steps: 0, elapsedMs: 0, converged: true, maxVelocity: backend.maxVelocity() };
+    }
+
+    const started = this.now();
+    const deadline = started + this.options.budgetMs;
+    let steps = 0;
+
+    do {
+      backend.step(this.options.chunkSteps);
+      steps += this.options.chunkSteps;
+    } while (this.now() < deadline && steps < this.options.maxStepsPerFrame);
+
+    const elapsedMs = this.now() - started;
+    this.totalSteps += steps;
+
+    const maxVelocity = backend.maxVelocity();
+    if (maxVelocity < this.options.convergenceEpsilon) this.settledTicks += 1;
+    else this.settledTicks = 0;
+
+    return { steps, elapsedMs, converged: this.converged, maxVelocity };
+  }
+
+  /**
+   * Run until converged or `maxSteps` is reached, ignoring the frame budget.
+   * For headless callers (tests, CLI, export) where there is no frame to keep
+   * responsive. Never call this on a thread with a UI on it.
+   */
+  runToConvergence(backend: SolverBackend, maxSteps = 20_000): SimulationTick {
+    const started = this.now();
+    let steps = 0;
+    let maxVelocity = backend.maxVelocity();
+
+    while (steps < maxSteps && !this.converged) {
+      backend.step(this.options.chunkSteps);
+      steps += this.options.chunkSteps;
+      maxVelocity = backend.maxVelocity();
+      if (maxVelocity < this.options.convergenceEpsilon) this.settledTicks += 1;
+      else this.settledTicks = 0;
+    }
+
+    this.totalSteps += steps;
+    return { steps, elapsedMs: this.now() - started, converged: this.converged, maxVelocity };
+  }
+}

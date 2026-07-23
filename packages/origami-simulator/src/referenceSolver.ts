@@ -1,5 +1,12 @@
 import { OrigamiModel } from './model.js';
-import type { CreaseFoldRange, CreaseParameter, SimulationFrame, SimulatorOptions } from './types.js';
+import type {
+  CreaseFoldRange,
+  CreaseParameter,
+  SimulationFrame,
+  SimulatorDiagnostics,
+  SimulatorOptions,
+} from './types.js';
+import type { SolverBackend } from './solverBackend.js';
 
 // TypeScript CPU port of Amanda Ghassaei's Origami Simulator dynamic solver.
 //
@@ -45,10 +52,17 @@ const DEFAULT_OPTIONS: Required<SimulatorOptions> = {
   integrationType: 'euler',
 };
 
-export class ReferenceSolver {
+export class ReferenceSolver implements SolverBackend {
+  readonly id = 'reference';
   readonly model: OrigamiModel;
   options: Required<SimulatorOptions>;
   private currentStep = 0;
+  /**
+   * `timeStep()` is a max over every beam and only changes with
+   * `axialStiffness`, but used to be recomputed on every single step. Cached
+   * here and invalidated in {@link setMaterial}.
+   */
+  private cachedTimeStep: number | null = null;
   private readonly forces: Float32Array;
   private readonly relativePositions: Float32Array;
   private readonly lastRelativePositions: Float32Array;
@@ -98,6 +112,7 @@ export class ReferenceSolver {
     if ('foldProfile' in options) {
       this.foldProfileRanges = foldProfileRangeMap(options.foldProfile?.ranges ?? []);
     }
+    this.cachedTimeStep = null;
   }
 
   reset(): void {
@@ -111,15 +126,59 @@ export class ReferenceSolver {
     this.model.reset();
   }
 
-  step(numSteps = this.options.stepsPerFrame): SimulationFrame {
+  get stepCount(): number {
+    return this.currentStep;
+  }
+
+  /**
+   * Advance the simulation. Deliberately returns nothing and does no strain or
+   * diagnostic work: this runs hundreds of times per frame, and the old
+   * signature allocated two full copies of the model on every call via
+   * `readFrame`. Pull data out with {@link readPositions} / {@link readFrame}.
+   */
+  step(numSteps = this.options.stepsPerFrame): void {
     for (let i = 0; i < numSteps; i += 1) {
       this.solveStep();
     }
+  }
+
+  readPositions(into: Float32Array): number {
+    const length = Math.min(into.length, this.model.positions.length);
+    into.set(this.model.positions.subarray(0, length));
+    return length;
+  }
+
+  readColors(into: Float32Array): number {
+    // Strain colours are only computed when somebody actually asks for them;
+    // they used to be recomputed after every step batch whether displayed or
+    // not, walking every edge to do it.
     this.model.applyStrainColors(0.05);
-    return this.readFrame();
+    const length = Math.min(into.length, this.model.colors.length);
+    into.set(this.model.colors.subarray(0, length));
+    return length;
+  }
+
+  readDiagnostics(): SimulatorDiagnostics {
+    return this.model.diagnostics();
+  }
+
+  maxVelocity(): number {
+    let max = 0;
+    const velocities = this.model.velocities;
+    for (let i = 0; i < velocities.length; i += 1) {
+      const value = velocities[i]! < 0 ? -velocities[i]! : velocities[i]!;
+      if (value > max) max = value;
+    }
+    return max;
+  }
+
+  dispose(): void {
+    // Nothing to release: all state is plain typed arrays owned by this
+    // instance. Present so callers can treat every backend the same.
   }
 
   readFrame(): SimulationFrame {
+    this.model.applyStrainColors(0.05);
     return {
       positions: this.model.positions.slice(),
       colors: this.model.colors.slice(),
@@ -430,6 +489,12 @@ export class ReferenceSolver {
 
   private timeStep(): number {
     if (this.options.timeStep > 0) return this.options.timeStep;
+    if (this.cachedTimeStep !== null) return this.cachedTimeStep;
+    this.cachedTimeStep = this.computeTimeStep();
+    return this.cachedTimeStep;
+  }
+
+  private computeTimeStep(): number {
     let maxFrequency = 0;
     const axialStiffness = Math.max(0, this.options.axialStiffness);
     for (const beamRefs of this.nodeBeams) {

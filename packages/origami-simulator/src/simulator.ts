@@ -34,9 +34,9 @@ export function createOrigamiSimulator(config: CreateSimulatorConfig): OrigamiSi
     },
     step(numSteps?: number): SimulationFrame {
       if (disposed) throw new Error('Simulator has been disposed');
-      const frame = solver.step(numSteps);
+      solver.step(numSteps);
       render();
-      return frame;
+      return solver.readFrame();
     },
     start() {
       if (disposed || raf !== null || typeof requestAnimationFrame === 'undefined') return;
