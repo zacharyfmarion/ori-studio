@@ -216,22 +216,48 @@ cache — that exists because it draws on the CPU.
 
 ## Checklist
 
-- [ ] Phase 1: `CpTransformPreview` + affine apply in both scene adapters, `translationMatrix` shim, adapter parity gate green
-- [ ] Phase 1: `buildStrokes` / `buildPoints` take a matrix; existing drag-move unchanged in behaviour
-- [ ] Phase 2: `creaseTransform.ts` with `similarityFromPointPairs` + degenerate-pair guard
-- [ ] Phase 2: Rust golden test + committed fixture; Vitest asserts TS parity to 1e-12
-- [ ] Phase 3: `transformGhost.ts` builder with preallocated buffers + colour snapshot
-- [ ] Phase 3: copy ghost renders on the preview channel in real line colours at reduced alpha
-- [ ] Phase 4: `activeToolTransform` prop threaded panel → canvas
-- [ ] Phase 4: sequence feed drives the ghost for `CreaseMove` / `CreaseCopy` (2 points)
-- [ ] Phase 4: sequence feed drives the ghost for `CreaseMove4p` / `CreaseCopy4p` — live from the 3rd point on, cursor supplying the 4th; dots-only before that
-- [ ] Phase 4: degenerate source pair (`|o1o2| ≈ 0`) falls back to dots-only, never `NaN` geometry
-- [ ] Phase 4: kernel preview suppressed for the four ops; ghost cleared on commit/cancel/Escape/tool change/selection change
-- [ ] Phase 5: press-drag-release commits the 2-point variants (separate commit)
-- [ ] Phase 6: live delta / scale+rotation readout; `resolveMoveSnap` applied to the 2-point tools
-- [ ] Phase 7: prod-build perf check on a dense CP with a large selection
-- [ ] Validation: `cd apps/web && npx tsc --noEmit`, `npm run lint:web`, `npm run test:web`, `cargo test -p oristudio-cp`
+- [x] Phase 1: `CpTransformPreview` + affine apply in both scene adapters, `translationMatrix` shim, adapter parity gate green
+- [x] Phase 1: `buildStrokes` / `buildPoints` take a matrix; existing drag-move unchanged in behaviour
+- [x] Phase 2: `creaseTransform.ts` with `similarityFromPointPairs` + degenerate-pair guard
+- [x] Phase 2: Rust golden test + committed fixture; Vitest asserts TS parity to 1e-12
+- [x] Phase 3: `transformGhost.ts` builder with preallocated buffers + colour snapshot
+- [x] Phase 3: copy ghost renders on the preview channel in real line colours at reduced alpha
+- [x] Phase 4: `activeToolTransform` prop threaded panel → canvas
+- [x] Phase 4: sequence feed drives the ghost for `CreaseMove` / `CreaseCopy` (2 points)
+- [x] Phase 4: sequence feed drives the ghost for `CreaseMove4p` / `CreaseCopy4p` — live from the 3rd point on, cursor supplying the 4th; dots-only before that
+- [x] Phase 4: degenerate source pair (`|o1o2| ≈ 0`) falls back to dots-only, never `NaN` geometry
+- [x] Phase 4: kernel preview suppressed for the four ops; ghost cleared on commit/cancel/Escape/tool change/selection change
+- [x] Phase 5: press-drag-release commits the 2-point variants (separate commit)
+- [x] Phase 6: ~~`resolveMoveSnap` applied to the 2-point tools~~ — not needed, and would
+      double-snap: both point steps already snap through `resolveDrawPoint`
+      (`snapPerStep: ['point', 'point']`), which is the snapping Oriedita's own handler
+      does via `getClosestPoint`. Snapping the *delta* on top would diverge from the
+      points the kernel is given.
+- [ ] Phase 6: live delta / scale+rotation readout — **deliberately not done**. The
+      existing measurement slots are Oriedita's measure-tool registers, so a transform
+      readout needs its own surface plus new user-facing strings in 9 locales; that is
+      a product decision (placement + wording) worth its own change. The core ask —
+      see the result before committing — is delivered without it.
+- [x] Phase 7: perf measured on a 52k-segment full selection (see below)
+- [x] Validation: `npx tsc --noEmit`, eslint, full `vitest` (811 tests), `cargo fmt --check`,
+      `cargo clippy --workspace --all-targets -D warnings`, `cargo test -p oristudio-cp`
 - [ ] Browser check (author): move/copy 2-point and 4-point, ghost tracks the cursor, commit matches the ghost, Escape cancels cleanly, no stale ghost after switching tools
+
+### Measured cost
+
+On a 52,000-segment selection (everything selected — the worst case):
+
+| | cost |
+| --- | --- |
+| Ghost snapshot (copy) | 5.5 ms, once per gesture |
+| Ghost update (copy) | **0.17 ms per pointer move** |
+| Full stroke rebuild (move) | 2.75 ms per pointer move |
+
+The copy path is effectively free because only the selected endpoints are touched,
+into preallocated arrays. The move path costs a full stroke rebuild — but that is
+exactly what the shipped selection drag-move already did, unchanged by this work,
+and it still fits a 16 ms frame. Not measured headlessly: the GPU re-upload
+(`setData` recreates the instance buffers per call), which the browser check covers.
 
 ## Open decisions
 
