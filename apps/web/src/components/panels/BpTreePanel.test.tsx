@@ -383,14 +383,18 @@ describe('BP tree pane — the drawing keeps its proportions when zoomed', () =>
     // `non-scaling-stroke` only defends against the SVG's own viewBox — the
     // pan/zoom wrapper scales with a CSS transform, which it cannot see. So the
     // widths have to be counter-scaled explicitly, like the dot radii.
-    expect(Number(edge!.getAttribute('stroke-width'))).toBeGreaterThan(0);
-    expect(Number(node!.getAttribute('stroke-width'))).toBeGreaterThan(0);
+    // Read the *effective* width: an SVG presentation attribute loses to author
+    // CSS (theme.css styles these classes), so only an inline style takes hold.
+    expect(Number((edge as SVGElement).style.strokeWidth)).toBeGreaterThan(0);
+    expect(Number((node as SVGElement).style.strokeWidth)).toBeGreaterThan(0);
+    expect(edge!.getAttribute('stroke-width')).toBeNull();
     expect(edge!.getAttribute('vector-effect')).toBeNull();
   });
 
   it('thins the stroke in proportion as the camera zooms in', () => {
     const body = render(1);
-    const widthAt = () => Number(body.querySelector('.bp-tree-edge')!.getAttribute('stroke-width'));
+    const widthAt = () =>
+      Number((body.querySelector('.bp-tree-edge') as SVGElement).style.strokeWidth);
     const atRest = widthAt();
     expect(atRest).toBeGreaterThan(0);
 
@@ -404,7 +408,7 @@ describe('BP tree pane — the drawing keeps its proportions when zoomed', () =>
 
   it('keeps line weight proportional to dot size at any zoom', () => {
     const body = render(1);
-    const edge = Number(body.querySelector('.bp-tree-edge')!.getAttribute('stroke-width'));
+    const edge = Number((body.querySelector('.bp-tree-edge') as SVGElement).style.strokeWidth);
     const dot = Number(body.querySelector('.bp-tree-node')!.getAttribute('r'));
     // Both derive from the same counter-scale, so their ratio is fixed — which
     // is what stops lines fattening while dots stay put.
