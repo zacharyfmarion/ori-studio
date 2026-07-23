@@ -1,6 +1,6 @@
 import { lineColorName, SEG_ATTR_STRIDE, type CpGeometryTransport } from '../../engine/oristudioCpGeometry';
 import type { Rgba, StrokeGeometry } from '../renderer/types';
-import type { CpMovePreview, CpSelectionStyle } from './cpSnapshotToScene';
+import type { CpSelectionStyle, CpTransformPreview } from './cpSnapshotToScene';
 
 /**
  * Transport-driven mirror of {@link cpSnapshotToScene}: build GPU stroke geometry
@@ -19,7 +19,7 @@ export function cpGeometryStrokesToScene(
   transport: CpGeometryTransport,
   colorFor: (color: string) => Rgba,
   selection?: CpSelectionStyle,
-  move?: CpMovePreview
+  move?: CpTransformPreview
 ): { strokes: StrokeGeometry } {
   const endpoints = transport.segEndpoints;
   const attr = transport.segAttr;
@@ -33,15 +33,22 @@ export function cpGeometryStrokesToScene(
   // segments but only a handful of distinct assignments.
   const colorCache = new Map<number, Rgba>();
 
+  const m = move?.matrix;
+
   for (let i = 0; i < count; i++) {
     const e = i * 4;
-    const moved = move !== undefined && move.ids.has(i + 1);
-    const dx = moved ? move.delta.x : 0;
-    const dy = moved ? move.delta.y : 0;
-    a[i * 2] = endpoints[e] + dx;
-    a[i * 2 + 1] = endpoints[e + 1] + dy;
-    b[i * 2] = endpoints[e + 2] + dx;
-    b[i * 2 + 1] = endpoints[e + 3] + dy;
+    const moved = m !== undefined && move !== undefined && move.ids.has(i + 1);
+    if (moved) {
+      a[i * 2] = m[0] * endpoints[e] + m[1] * endpoints[e + 1] + m[4];
+      a[i * 2 + 1] = m[2] * endpoints[e] + m[3] * endpoints[e + 1] + m[5];
+      b[i * 2] = m[0] * endpoints[e + 2] + m[1] * endpoints[e + 3] + m[4];
+      b[i * 2 + 1] = m[2] * endpoints[e + 2] + m[3] * endpoints[e + 3] + m[5];
+    } else {
+      a[i * 2] = endpoints[e];
+      a[i * 2 + 1] = endpoints[e + 1];
+      b[i * 2] = endpoints[e + 2];
+      b[i * 2 + 1] = endpoints[e + 3];
+    }
 
     if (selection && selection.selected.has(i + 1)) {
       const c = selection.color;

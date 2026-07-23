@@ -177,6 +177,7 @@ import type { FoldedGeometry, Rgba, StrokeGeometry } from '../../cp-workspace/re
 import { foldedFigureBox, foldedGeometryFromShapes } from '../../cp-workspace/adapters/cpFoldedToScene';
 import {
   allowsDirectEntitySelection,
+  creaseTransformTool,
   isCreaseToggleMvClickTool,
   isDefaultSelectionMode,
   isLengthenCreaseOperation,
@@ -2551,10 +2552,11 @@ export function CreasePatternPanel() {
     ]
   );
 
-  // Drive the step prompt for a WebGL line-entity tool (Lengthen) in lock-step
-  // with the creases it has picked: derive the step from the pick count (reset,
-  // then advance once per pick) so the prompt reads "Select target line" after the
-  // first pick — parity with the SVG, whose `pendingLengthenLineId` advances it.
+  // Drive the step prompt in lock-step with the inputs a tool has taken: creases for
+  // a line-entity tool (Lengthen), placed points for a point-sequence one. Derive the
+  // step from the count (reset, then advance once per input) so a multi-step tool
+  // reads "Pick destination point" once its source point is down, instead of sitting
+  // on step one for the whole gesture.
   const handleWebglToolPickProgress = useCallback(
     (picked: number) => {
       const command = activeCpCommand;
@@ -2701,6 +2703,13 @@ export function CreasePatternPanel() {
   // rendered as pickable dots on the canvas, separate from candidate segments.
   const [webglToolPreviewPoints, setWebglToolPreviewPoints] = useState<readonly Point[]>([]);
   const webglPreviewRequestRef = useRef(0);
+  // The crease transform tools (Move / Copy, two- and four-point) preview by
+  // transforming the selection on the canvas itself, so they take no kernel
+  // preview — see `activeToolTransform` on the WebGL surface.
+  const webglActiveToolTransform = useMemo(
+    () => creaseTransformTool(activeCpCommand?.operationId),
+    [activeCpCommand?.operationId]
+  );
   const handleWebglToolPreviewInput = useCallback(
     (points: readonly Point[], highlightLineIds: readonly number[]) => {
       const command = activeCpCommand;
@@ -2785,14 +2794,17 @@ export function CreasePatternPanel() {
     [handleWebglToolPreviewInput]
   );
 
-  // Clear the WebGL point-sequence preview when that mode is no longer active.
+  // Clear the WebGL point-sequence preview when that mode is no longer active, or
+  // when a transform tool takes over the preview channel with its own ghost — the
+  // transform tools are `sequence` tools too, so without the second condition a
+  // previous tool's candidate segments would linger under the ghost.
   useEffect(() => {
-    if (webglActiveTool.mode !== 'sequence') {
+    if (webglActiveTool.mode !== 'sequence' || webglActiveToolTransform) {
       webglPreviewRequestRef.current += 1;
       setWebglToolPreviewSegments([]);
       setWebglToolPreviewPoints([]);
     }
-  }, [webglActiveTool.mode]);
+  }, [webglActiveTool.mode, webglActiveToolTransform]);
 
   const handleEditableLineClick = useCallback(
     (id: number, additive = false) => {
@@ -3485,6 +3497,7 @@ export function CreasePatternPanel() {
                   activeToolSquareBisector={webglActiveTool.squareBisector}
                   activeToolVoronoi={webglActiveTool.voronoi}
                   activeToolDashedPreview={isCpMeasurementOperation(activeCpCommand?.operationId)}
+                  activeToolTransform={webglActiveToolTransform}
                   onTextCreate={handleTextCreate}
                   onTextCreateBox={handleTextCreateBox}
                   voronoiSeeds={cpToolPoints}

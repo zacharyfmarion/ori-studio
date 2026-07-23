@@ -60,6 +60,33 @@ export function isReflectSelectionOperation(operationId: OpId): boolean {
   return operationId === 'DrawCreaseSymmetric';
 }
 
+/**
+ * The crease transform tools (Oriedita `CREASE_MOVE_21` / `CREASE_COPY_22` and
+ * their four-point variants), which preview the selection at its prospective
+ * position while the gesture runs.
+ *
+ * `kind` decides how the preview draws: a move shifts the real strokes in place,
+ * a copy leaves them and ghosts the new geometry. `pointCount` is the tool's own
+ * — two points is a translation, four resolves the similarity taking the source
+ * pair onto the target pair.
+ */
+export function creaseTransformTool(
+  operationId: OpId
+): { kind: 'move' | 'copy'; pointCount: 2 | 4 } | null {
+  switch (operationId) {
+    case 'CreaseMove':
+      return { kind: 'move', pointCount: 2 };
+    case 'CreaseCopy':
+      return { kind: 'copy', pointCount: 2 };
+    case 'CreaseMove4p':
+      return { kind: 'move', pointCount: 4 };
+    case 'CreaseCopy4p':
+      return { kind: 'copy', pointCount: 4 };
+    default:
+      return null;
+  }
+}
+
 export function isVariablePointSequenceOperation(operationId: OpId): boolean {
   return operationId === 'VoronoiCreate';
 }

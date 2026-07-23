@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { cpSnapshotToScene } from './cpSnapshotToScene';
+import { applyAffine, cpSnapshotToScene, translationMatrix } from './cpSnapshotToScene';
 import type { Rgba } from '../renderer/types';
 
 const RED: Rgba = [1, 0, 0, 1];
@@ -48,7 +48,7 @@ describe('cpSnapshotToScene move preview', () => {
   it('shifts only the moved lines in place and leaves others put', () => {
     const { strokes } = cpSnapshotToScene(segments, () => RED, selection, {
       ids: new Set([1, 3]),
-      delta: { x: 2, y: -3 },
+      matrix: translationMatrix({ x: 2, y: -3 }),
     });
     expect(strokes.count).toBe(3);
     // line 1 (index 0) shifted by (2,-3)
@@ -69,5 +69,24 @@ describe('cpSnapshotToScene move preview', () => {
     const { strokes } = cpSnapshotToScene(segments, () => RED, selection);
     expect(Array.from(strokes.a.slice(0, 2))).toEqual([0, 0]);
     expect(Array.from(strokes.a.slice(4, 6))).toEqual([20, 20]);
+  });
+
+  it('applies a rotate+scale matrix, not just a translation', () => {
+    // Quarter turn about the origin, doubled, then shifted — the shape a
+    // four-point move produces.
+    const matrix = [0, -2, 2, 0, 1, 1] as const;
+    const { strokes } = cpSnapshotToScene(segments, () => RED, selection, {
+      ids: new Set([1]),
+      matrix,
+    });
+    // line 1: (0,0)→(1,1), (10,0)→(1,21)
+    expect(Array.from(strokes.a.slice(0, 2))).toEqual([1, 1]);
+    expect(Array.from(strokes.b.slice(0, 2))).toEqual([1, 21]);
+    // untransformed lines are untouched
+    expect(Array.from(strokes.a.slice(2, 4))).toEqual([0, 5]);
+  });
+
+  it('translationMatrix round-trips through applyAffine', () => {
+    expect(applyAffine(translationMatrix({ x: 2, y: -3 }), 10, 20)).toEqual({ x: 12, y: 17 });
   });
 });
