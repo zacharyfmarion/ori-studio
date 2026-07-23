@@ -43,7 +43,6 @@
     "selectDevice": "Selecionar dispositivo BP {{index}} do estiramento {{stretchId}}",
     "selectFlap": "Selecionar aba BP {{id}}",
     "selectFlapWithName": "Selecionar aba BP {{id}}, {{name}}",
-    "selectRiver": "Selecionar rio BP {{id}}, comprimento {{length}}",
     "selectRiverShort": "Selecionar rio BP {{id}}",
     "sheetSizeGrid": "Tamanho da folha e grade",
     "size": "Tamanho",

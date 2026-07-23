@@ -43,7 +43,6 @@
     "selectDevice": "Sélectionner le dispositif BP {{index}} pour l'étirement {{stretchId}}",
     "selectFlap": "Sélectionner le rabat BP {{id}}",
     "selectFlapWithName": "Sélectionner le rabat BP {{id}}, {{name}}",
-    "selectRiver": "Sélectionner la rivière BP {{id}}, longueur {{length}}",
     "selectRiverShort": "Sélectionner la rivière BP {{id}}",
     "sheetSizeGrid": "Taille de la feuille et grille",
     "size": "Taille",

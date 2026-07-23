@@ -43,7 +43,6 @@
     "selectDevice": "BP-Element {{index}} für Streckung {{stretchId}} auswählen",
     "selectFlap": "BP-Klappe {{id}} auswählen",
     "selectFlapWithName": "BP-Klappe {{id}} auswählen, {{name}}",
-    "selectRiver": "BP-Fluss {{id}} auswählen, Länge {{length}}",
     "selectRiverShort": "BP-Fluss {{id}} auswählen",
     "sheetSizeGrid": "Blattgröße & Raster",
     "size": "Größe",

@@ -43,7 +43,6 @@
     "selectDevice": "Select BP device {{index}} for stretch {{stretchId}}",
     "selectFlap": "Select BP flap {{id}}",
     "selectFlapWithName": "Select BP flap {{id}}, {{name}}",
-    "selectRiver": "Select BP river {{id}}, length {{length}}",
     "selectRiverShort": "Select BP river {{id}}",
     "sheetSizeGrid": "Sheet size & grid",
     "size": "Size",
