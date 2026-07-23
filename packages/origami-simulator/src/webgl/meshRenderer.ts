@@ -107,6 +107,7 @@ uniform vec2 u_pitch; // cos, sin
 uniform float u_scale;
 uniform vec2 u_viewport;
 uniform float u_depthRange;
+uniform float u_camDist;
 out vec3 v_view;
 
 vec3 fetchPosition(int index){
@@ -122,9 +123,12 @@ void main(){
   float y = u_pitch.x*yawZ - u_pitch.y*d.y;
   float depth = u_pitch.y*yawZ + u_pitch.x*d.y;
   v_view = vec3(x, y, depth);
+  // One-point perspective: eye at +camDist along the view axis, so nearer points
+  // (larger depth) magnify and farther ones shrink -> parallels converge.
+  float persp = u_camDist / max(u_camDist - depth, 0.001);
   gl_Position = vec4(
-    x*u_scale/(u_viewport.x*0.5),
-    y*u_scale/(u_viewport.y*0.5),
+    x*persp*u_scale/(u_viewport.x*0.5),
+    y*persp*u_scale/(u_viewport.y*0.5),
     clamp(-depth/u_depthRange, -1.0, 1.0),
     1.0
   );
@@ -173,6 +177,7 @@ uniform vec2 u_pitch;
 uniform float u_scale;
 uniform vec2 u_viewport;
 uniform float u_depthRange;
+uniform float u_camDist;
 uniform float u_halfWidthPx;
 flat out int v_assignment;
 
@@ -187,7 +192,10 @@ vec2 projectNdc(int index){
   float yawZ = -u_yaw.y*d.x + u_yaw.x*d.z;
   float x = yawX;
   float y = u_pitch.x*yawZ - u_pitch.y*d.y;
-  return vec2(x*u_scale/(u_viewport.x*0.5), y*u_scale/(u_viewport.y*0.5));
+  float depth = u_pitch.y*yawZ + u_pitch.x*d.y;
+  // Same one-point perspective as the face pass, so creases sit on their faces.
+  float persp = u_camDist / max(u_camDist - depth, 0.001);
+  return vec2(x*persp*u_scale/(u_viewport.x*0.5), y*persp*u_scale/(u_viewport.y*0.5));
 }
 
 float projectDepth(int index){
@@ -364,6 +372,7 @@ export class MeshRenderer {
     this.setFloat(program, cache, 'u_scale', camera.scale);
     this.setVec2(program, cache, 'u_viewport', [camera.width, camera.height]);
     this.setFloat(program, cache, 'u_depthRange', camera.depthRange);
+    this.setFloat(program, cache, 'u_camDist', camera.camDist);
   }
 
   private location(

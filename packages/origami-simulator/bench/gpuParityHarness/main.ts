@@ -109,7 +109,7 @@ const RENDER_SETTINGS: RenderSettings = {
   frontColor: [0.31, 0.51, 0.84],
   backColor: [0.95, 0.94, 0.9],
   mountainColor: [0.86, 0.12, 0.14],
-  valleyColor: [0.24, 0.25, 0.28],
+  valleyColor: [0.11, 0.36, 0.85],
   borderColor: [0.16, 0.18, 0.2],
   lightDir: [-0.45, 0.58, 0.68],
   background: [0.05, 0.06, 0.07],

@@ -19,8 +19,9 @@
   --bg-canvas: #0c0f12;
   --bg-canvas-grid: #1d2a31;
   --bg-paper: #f2f0e7;
-  /* Two-tone origami paper in the simulator: colored front, light back. */
-  --sim-paper-front: #4f83d6;
+  /* Two-tone origami paper in the simulator: gray front, light back. Gray so
+     the blue valley and red mountain crease lines both read clearly against it. */
+  --sim-paper-front: #98a0a8;
   --sim-paper-back: #f2f0e7;
 
   --text-primary: #e8edf0;

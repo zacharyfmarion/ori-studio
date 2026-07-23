@@ -1,11 +1,10 @@
 // Orbit camera for the mesh renderer.
 //
-// This deliberately reproduces the exact projection the canvas-2D renderer uses
-// (SimulatorPanel's projectPositions + map): centre on the model centroid,
-// rotate by yaw about Y then pitch, orthographic, scale by a fit radius times
-// the zoom. Matching it exactly means the WebGL renderer looks identical to what
-// users see today. The projection itself lives only in the vertex shader
-// (meshRenderer.ts); this module just computes the uniforms the shader needs.
+// Centre on the model centroid, rotate by yaw about Y then pitch, scale by a fit
+// radius times the zoom -- then a mild one-point *perspective* divide (the
+// canvas-2D renderer was orthographic, which reads as reverse perspective:
+// receding parallels appear to diverge). The projection itself lives in the
+// vertex shader (meshRenderer.ts); this module computes the uniforms.
 
 export interface OrbitView {
   yaw: number;
@@ -26,9 +25,19 @@ export interface CameraUniforms {
   height: number;
   /** Half-range used to normalise depth into NDC z. */
   depthRange: number;
+  /**
+   * Distance from the eye to the model centre, in the same view-depth units. The
+   * vertex shader scales x/y by camDist/(camDist - depth): points nearer the eye
+   * grow, farther ones shrink, so receding parallels converge. A larger multiple
+   * of the radius is gentler perspective.
+   */
+  camDist: number;
 }
 
 const PADDING_FRACTION = 0.08;
+// Eye distance as a multiple of the model radius. ~3.2 gives a gentle,
+// architectural one-point perspective without fisheye distortion.
+const CAM_DISTANCE_FACTOR = 3.2;
 
 export function cameraUniforms(
   view: OrbitView,
@@ -39,7 +48,8 @@ export function cameraUniforms(
 ): CameraUniforms {
   const padding = Math.max(28, Math.min(width, height) * PADDING_FRACTION);
   const available = Math.max(1, Math.min(width, height) - padding * 2);
-  const scale = (available / (2 * Math.max(1e-3, radius))) * view.zoom;
+  const safeRadius = Math.max(1e-3, radius);
+  const scale = (available / (2 * safeRadius)) * view.zoom;
   return {
     center,
     cosYaw: Math.cos(view.yaw),
@@ -51,7 +61,8 @@ export function cameraUniforms(
     height,
     // Depth only has to preserve ordering for the depth test; a generous range
     // keeps the whole model inside NDC z without clipping.
-    depthRange: Math.max(1e-3, radius) * 2,
+    depthRange: safeRadius * 2,
+    camDist: safeRadius * CAM_DISTANCE_FACTOR,
   };
 }
 
