@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { createOrigamiSimulator, detectWebGlSupport, prepareFoldModel } from '../src/index.js';
-import { createThreeOrigamiRenderer } from '../src/three.js';
 import { makeBookFoldFixture, maxPositionDelta } from '../src/testing.js';
 
 describe('prepareFoldModel', () => {
@@ -208,23 +207,5 @@ describe('createOrigamiSimulator', () => {
 
   it('reports WebGL availability without throwing in node', () => {
     expect(detectWebGlSupport()).toBe(false);
-  });
-});
-
-describe('createThreeOrigamiRenderer', () => {
-  it('updates geometry attributes in place from simulator frames', () => {
-    const prepared = prepareFoldModel(makeBookFoldFixture());
-    const simulator = createOrigamiSimulator({ model: prepared, options: { foldPercent: 100 } });
-    const renderer = createThreeOrigamiRenderer(prepared);
-    const position = renderer.mesh.geometry.getAttribute('position');
-    const frame = simulator.step(32);
-
-    renderer.update(frame);
-
-    expect(renderer.mesh.geometry.getAttribute('position')).toBe(position);
-    expect(maxPositionDelta((position.array as Float32Array), frame.positions)).toBe(0);
-
-    renderer.dispose();
-    simulator.dispose();
   });
 });

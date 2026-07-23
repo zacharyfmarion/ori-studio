@@ -1167,18 +1167,23 @@ function toRenderSettings(
     rgb[1] / 255,
     rgb[2] / 255,
   ];
+  // Mountain/valley use fixed, vivid origami-convention colours (red / blue)
+  // rather than theme tokens: they must stay high-contrast against the paper in
+  // both light and dark themes, and the teal accent read poorly on the blue
+  // paper front. Border stays theme-derived (a quiet outline).
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
   return {
     frontColor: norm(palette.paperFrontRgb),
     backColor: norm(palette.paperBackRgb),
-    mountainColor: norm(parseCssRgb(palette.mountain, [224, 108, 117])),
-    valleyColor: norm(parseCssRgb(palette.valley, [95, 179, 165])),
+    mountainColor: [0.86, 0.12, 0.14],
+    valleyColor: [0.11, 0.36, 0.85],
     borderColor: norm(parseCssRgb(palette.border, [232, 237, 240])),
-    facetColor: norm(parseCssRgb(palette.flat, [174, 185, 191])),
     background: norm(parseCssRgb(palette.canvas, [12, 15, 18])),
     lightDir: [PAPER_LIGHT_DIRECTION.x, PAPER_LIGHT_DIRECTION.y, PAPER_LIGHT_DIRECTION.z],
     showFaces: settings.showFaces,
     showEdges: settings.showEdges,
     lighting: settings.lighting,
+    creaseWidthPx: Math.max(2, Math.round(1.6 * dpr)),
     faceAlpha: settings.renderMode === 'xray' ? 0.48 : 1,
   };
 }

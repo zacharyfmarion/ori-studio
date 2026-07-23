@@ -35,14 +35,65 @@ export interface RenderSettings {
   mountainColor: [number, number, number];
   valleyColor: [number, number, number];
   borderColor: [number, number, number];
-  facetColor: [number, number, number];
   lightDir: [number, number, number];
   background: [number, number, number];
   showFaces: boolean;
   showEdges: boolean;
   lighting: boolean;
+  /** Crease line width in device pixels. */
+  creaseWidthPx: number;
   /** 0..1; below 1 draws faces translucent with depth write off (x-ray). */
   faceAlpha: number;
+}
+
+// Interleaved edge-vertex layout: [this, a, b, side, assignment].
+const EDGE_STRIDE = 5;
+const EDGE_ATTRS: ReadonlyArray<readonly [string, number]> = [
+  ['a_this', 0],
+  ['a_a', 1],
+  ['a_b', 2],
+  ['a_side', 3],
+  ['a_assignment', 4],
+];
+
+/**
+ * Expand each drawn crease into a 2-triangle screen-space ribbon. Only border,
+ * mountain and valley edges are drawn (codes 0/1/2); facet edges from
+ * triangulation and unassigned edges are skipped. Returns the interleaved
+ * vertex buffer.
+ */
+function buildEdgeQuads(topology: MeshTopology): Float32Array {
+  const edgeCount = topology.edgeAssignments.length;
+  let drawn = 0;
+  for (let e = 0; e < edgeCount; e += 1) {
+    if (topology.edgeAssignments[e]! <= 2) drawn += 1;
+  }
+
+  const out = new Float32Array(drawn * 6 * EDGE_STRIDE);
+  let v = 0;
+  const emit = (thisIndex: number, a: number, b: number, side: number, assignment: number) => {
+    out[v] = thisIndex;
+    out[v + 1] = a;
+    out[v + 2] = b;
+    out[v + 3] = side;
+    out[v + 4] = assignment;
+    v += EDGE_STRIDE;
+  };
+
+  for (let e = 0; e < edgeCount; e += 1) {
+    const assignment = topology.edgeAssignments[e]!;
+    if (assignment > 2) continue;
+    const a = topology.edgeIndices[e * 2]!;
+    const b = topology.edgeIndices[e * 2 + 1]!;
+    // Two triangles: (Aleft, Aright, Bleft) and (Aright, Bright, Bleft).
+    emit(a, a, b, 1, assignment);
+    emit(a, a, b, -1, assignment);
+    emit(b, a, b, 1, assignment);
+    emit(a, a, b, -1, assignment);
+    emit(b, a, b, -1, assignment);
+    emit(b, a, b, 1, assignment);
+  }
+  return out;
 }
 
 const FACE_VERT = `#version 300 es
@@ -101,13 +152,18 @@ void main(){
   fragColor = vec4(base*shade, u_alpha);
 }`;
 
+// Creases are drawn as screen-space quads, not GL LINES: native line width is
+// clamped to 1px on Metal/ANGLE, which makes creases nearly invisible on a busy
+// model. Each edge becomes a camera-facing ribbon of constant pixel width. The
+// vertex shader projects both endpoints, takes the screen-space perpendicular,
+// and offsets this vertex by +/- half the width.
 const EDGE_VERT = `#version 300 es
 precision highp float;
-// Per-endpoint attributes: which node to fetch, and this edge's assignment. An
-// explicit vertex buffer (not gl_VertexID) so each edge can carry its crease
-// type through to the fragment shader for colouring.
-in float a_nodeIndex;
-in float a_assignment;
+in float a_this;       // node index to place this vertex at
+in float a_a;          // edge endpoint A (for direction)
+in float a_b;          // edge endpoint B
+in float a_side;       // +1 / -1 across the ribbon
+in float a_assignment; // crease type
 uniform sampler2D u_lastPosition;
 uniform sampler2D u_originalPosition;
 uniform int u_textureDim;
@@ -117,6 +173,7 @@ uniform vec2 u_pitch;
 uniform float u_scale;
 uniform vec2 u_viewport;
 uniform float u_depthRange;
+uniform float u_halfWidthPx;
 flat out int v_assignment;
 
 vec3 fetchPosition(int index){
@@ -124,39 +181,51 @@ vec3 fetchPosition(int index){
   return texelFetch(u_lastPosition, texel, 0).xyz + texelFetch(u_originalPosition, texel, 0).xyz;
 }
 
-void main(){
-  v_assignment = int(a_assignment + 0.5);
-  vec3 d = fetchPosition(int(a_nodeIndex + 0.5)) - u_center;
+vec2 projectNdc(int index){
+  vec3 d = fetchPosition(index) - u_center;
   float yawX =  u_yaw.x*d.x + u_yaw.y*d.z;
   float yawZ = -u_yaw.y*d.x + u_yaw.x*d.z;
   float x = yawX;
   float y = u_pitch.x*yawZ - u_pitch.y*d.y;
+  return vec2(x*u_scale/(u_viewport.x*0.5), y*u_scale/(u_viewport.y*0.5));
+}
+
+float projectDepth(int index){
+  vec3 d = fetchPosition(index) - u_center;
+  float yawZ = -u_yaw.y*d.x + u_yaw.x*d.z;
   float depth = u_pitch.y*yawZ + u_pitch.x*d.y;
-  gl_Position = vec4(
-    x*u_scale/(u_viewport.x*0.5),
-    y*u_scale/(u_viewport.y*0.5),
-    // Nudge edges toward the viewer so they win the depth test against the
-    // faces they sit on, the LINES analogue of polygonOffset.
-    clamp(-depth/u_depthRange, -1.0, 1.0) - 0.0006,
-    1.0
-  );
+  return clamp(-depth/u_depthRange, -1.0, 1.0);
+}
+
+void main(){
+  v_assignment = int(a_assignment + 0.5);
+  vec2 ndcThis = projectNdc(int(a_this + 0.5));
+  vec2 ndcA = projectNdc(int(a_a + 0.5));
+  vec2 ndcB = projectNdc(int(a_b + 0.5));
+  // Perpendicular in pixel space so the ribbon has constant on-screen width
+  // regardless of aspect ratio.
+  vec2 dirPx = (ndcB - ndcA) * u_viewport * 0.5;
+  float len = length(dirPx);
+  vec2 perpPx = len > 0.0001 ? vec2(-dirPx.y, dirPx.x) / len : vec2(0.0);
+  vec2 offsetNdc = (perpPx * u_halfWidthPx * a_side) / (u_viewport * 0.5);
+  // Bias toward the viewer so creases sit on top of the faces they lie on.
+  float depth = projectDepth(int(a_this + 0.5)) - 0.0008;
+  gl_Position = vec4(ndcThis + offsetNdc, depth, 1.0);
 }`;
 
 const EDGE_FRAG = `#version 300 es
 precision highp float;
 flat in int v_assignment;
-// Codes match EDGE_ASSIGNMENT_CODES: 0=B, 1=M, 2=V, 3=F.
+// Codes match EDGE_ASSIGNMENT_CODES: 0=B, 1=M, 2=V.
 uniform vec3 u_mountainColor;
 uniform vec3 u_valleyColor;
 uniform vec3 u_borderColor;
-uniform vec3 u_facetColor;
 uniform float u_alpha;
 out vec4 fragColor;
 void main(){
   vec3 color = u_borderColor;
   if (v_assignment == 1) color = u_mountainColor;
   else if (v_assignment == 2) color = u_valleyColor;
-  else if (v_assignment == 3) color = u_facetColor;
   fragColor = vec4(color, u_alpha);
 }`;
 
@@ -165,8 +234,7 @@ export class MeshRenderer {
   private readonly faceProgram: WebGLProgram;
   private readonly edgeProgram: WebGLProgram;
   private readonly faceElements: WebGLBuffer;
-  private readonly edgeNodeBuffer: WebGLBuffer;
-  private readonly edgeAssignBuffer: WebGLBuffer;
+  private readonly edgeBuffer: WebGLBuffer;
   private readonly faceVao: WebGLVertexArrayObject;
   private readonly edgeVao: WebGLVertexArrayObject;
   private readonly faceCount: number;
@@ -183,8 +251,6 @@ export class MeshRenderer {
     this.gl = gl;
     this.textureDim = topology.textureDim;
     this.faceCount = topology.faceIndices.length;
-    const edgeCount = topology.edgeAssignments.length;
-    this.edgeVertexCount = edgeCount * 2;
 
     this.faceProgram = compile(gl, FACE_VERT, FACE_FRAG);
     this.edgeProgram = compile(gl, EDGE_VERT, EDGE_FRAG);
@@ -196,25 +262,22 @@ export class MeshRenderer {
     gl.bindVertexArray(this.faceVao);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.faceElements);
 
-    // Edge pass: one vertex per edge endpoint, drawn with drawArrays, carrying
-    // its node index (to fetch the position) and its crease assignment (to pick
-    // the colour). edgeIndices is already node-index-per-endpoint.
-    const nodeIndices = Float32Array.from(topology.edgeIndices);
-    const assignments = new Float32Array(this.edgeVertexCount);
-    for (let e = 0; e < edgeCount; e += 1) {
-      assignments[e * 2] = topology.edgeAssignments[e]!;
-      assignments[e * 2 + 1] = topology.edgeAssignments[e]!;
-    }
+    // Edge pass: each drawn crease becomes a 2-triangle screen-space ribbon (6
+    // vertices), interleaved as [this, a, b, side, assignment]. Facet edges (the
+    // triangulation diagonals, assignment 3) are skipped -- they are not fold
+    // lines and only clutter the view; so are unassigned/other (>2).
+    const interleaved = buildEdgeQuads(topology);
+    this.edgeVertexCount = interleaved.length / EDGE_STRIDE;
     this.edgeVao = createVao(gl);
     gl.bindVertexArray(this.edgeVao);
-    const nodeLoc = gl.getAttribLocation(this.edgeProgram, 'a_nodeIndex');
-    const assignLoc = gl.getAttribLocation(this.edgeProgram, 'a_assignment');
-    this.edgeNodeBuffer = uploadFloats(gl, nodeIndices);
-    gl.enableVertexAttribArray(nodeLoc);
-    gl.vertexAttribPointer(nodeLoc, 1, gl.FLOAT, false, 0, 0);
-    this.edgeAssignBuffer = uploadFloats(gl, assignments);
-    gl.enableVertexAttribArray(assignLoc);
-    gl.vertexAttribPointer(assignLoc, 1, gl.FLOAT, false, 0, 0);
+    this.edgeBuffer = uploadFloats(gl, interleaved);
+    const stride = EDGE_STRIDE * 4;
+    for (const [name, offset] of EDGE_ATTRS) {
+      const loc = gl.getAttribLocation(this.edgeProgram, name);
+      if (loc < 0) continue;
+      gl.enableVertexAttribArray(loc);
+      gl.vertexAttribPointer(loc, 1, gl.FLOAT, false, stride, offset * 4);
+    }
 
     gl.bindVertexArray(null);
   }
@@ -250,7 +313,7 @@ export class MeshRenderer {
       gl.drawElements(gl.TRIANGLES, this.faceCount, gl.UNSIGNED_INT, 0);
     }
 
-    if (settings.showEdges) {
+    if (settings.showEdges && this.edgeVertexCount > 0) {
       gl.disable(gl.BLEND);
       gl.depthMask(true);
       gl.bindVertexArray(this.edgeVao);
@@ -259,9 +322,12 @@ export class MeshRenderer {
       this.setVec3(this.edgeProgram, this.edgeUniforms, 'u_mountainColor', settings.mountainColor);
       this.setVec3(this.edgeProgram, this.edgeUniforms, 'u_valleyColor', settings.valleyColor);
       this.setVec3(this.edgeProgram, this.edgeUniforms, 'u_borderColor', settings.borderColor);
-      this.setVec3(this.edgeProgram, this.edgeUniforms, 'u_facetColor', settings.facetColor);
+      // Crease width in device pixels; scaled up a touch on hi-dpi so it reads
+      // at the same on-screen weight. camera.width is device px.
+      const halfWidth = settings.creaseWidthPx * 0.5;
+      this.setFloat(this.edgeProgram, this.edgeUniforms, 'u_halfWidthPx', halfWidth);
       this.setFloat(this.edgeProgram, this.edgeUniforms, 'u_alpha', 1);
-      gl.drawArrays(gl.LINES, 0, this.edgeVertexCount);
+      gl.drawArrays(gl.TRIANGLES, 0, this.edgeVertexCount);
     }
 
     gl.depthMask(true);
@@ -273,8 +339,7 @@ export class MeshRenderer {
     gl.deleteProgram(this.faceProgram);
     gl.deleteProgram(this.edgeProgram);
     gl.deleteBuffer(this.faceElements);
-    gl.deleteBuffer(this.edgeNodeBuffer);
-    gl.deleteBuffer(this.edgeAssignBuffer);
+    gl.deleteBuffer(this.edgeBuffer);
     gl.deleteVertexArray(this.faceVao);
     gl.deleteVertexArray(this.edgeVao);
   }

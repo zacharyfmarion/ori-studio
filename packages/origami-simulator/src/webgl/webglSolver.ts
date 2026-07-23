@@ -49,6 +49,7 @@ export class WebglSolver implements SolverBackend {
   private foldPercent: number;
   private dt: number;
   private currentStep = 0;
+  private maxStrain = 0;
 
   private readonly positionScratch: Float32Array;
   private readonly diagnostics: SimulatorDiagnostics;
@@ -165,18 +166,26 @@ export class WebglSolver implements SolverBackend {
   }
 
   readDiagnostics(): SimulatorDiagnostics {
-    return { ...this.diagnostics };
+    return { ...this.diagnostics, maxEdgeStrain: this.maxStrain };
   }
 
   maxVelocity(): number {
+    // The velocity texture's alpha channel holds each node's error term, which
+    // velocityCalc computes as its mean axial (edge) strain -- so this one
+    // readback yields both max velocity (for convergence) and max strain (for
+    // the diagnostics readout), with no extra GPU stall.
     const raw = this.gl.readTexture('u_lastVelocity');
     let max = 0;
+    let maxStrain = 0;
     for (let i = 0; i < this.nodeCount; i += 1) {
       for (let axis = 0; axis < 3; axis += 1) {
         const value = Math.abs(raw[i * 4 + axis]!);
         if (value > max) max = value;
       }
+      const strain = raw[i * 4 + 3]!;
+      if (strain > maxStrain) maxStrain = strain;
     }
+    this.maxStrain = maxStrain;
     return max;
   }
 
