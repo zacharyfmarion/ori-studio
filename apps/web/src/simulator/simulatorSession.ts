@@ -3,6 +3,7 @@ import {
   OrigamiModel,
   ReferenceSolver,
   SimulationClock,
+  WebglSolver,
   prepareFoldModel,
   type FoldDocument,
   type FoldProfile,
@@ -27,12 +28,16 @@ import {
 // backend removes this transport entirely, so it only ever serves the
 // no-WebGL2 fallback and simple is the right trade.
 
+export type SimulatorBackendId = 'webgl2' | 'reference';
+
 export interface SimulatorLoadOptions {
   prepare?: PrepareFoldOptions;
   solver?: SimulatorOptions;
   /** Solver milliseconds per tick. Higher than the main thread could afford. */
   budgetMs?: number;
   convergenceEpsilon?: number;
+  /** Force the CPU reference backend (debugging, or a known-bad driver). */
+  preferGpu?: boolean;
 }
 
 /**
@@ -57,6 +62,8 @@ export interface SimulatorModelInfo {
   /** 3 edge indices per (triangulated) face; -1 where an edge was not found. */
   facesEdges: ArrayBuffer;
   diagnostics: SimulatorDiagnostics;
+  /** Which solver actually got selected, for the UI's backend indicator. */
+  backend: SimulatorBackendId;
 }
 
 /** Index -> FOLD assignment letter, shared with the render side. */
@@ -84,6 +91,7 @@ export interface SimulatorFramePayload {
 interface Session {
   model: OrigamiModel;
   backend: SolverBackend;
+  backendId: SimulatorBackendId;
   clock: SimulationClock;
   positionScratch: Float32Array;
   colorScratch: Float32Array;
@@ -95,6 +103,54 @@ let session: Session | null = null;
 function requireSession(): Session {
   if (!session) throw new Error('Simulator worker: no model loaded');
   return session;
+}
+
+/**
+ * Pick the solver backend. The GPU path is used whenever WebGL2 is available
+ * and the model uses the standard uniform fold target; a fold profile (our
+ * addition, which the GPU path does not express) or absent WebGL2 falls back to
+ * the reference solver. A caller can force the reference path via
+ * `preferGpu: false`, which the backend indicator in the UI also allows.
+ */
+function createBackend(
+  model: OrigamiModel,
+  options: SimulatorLoadOptions
+): { backend: SolverBackend; backendId: SimulatorBackendId } {
+  const solverOptions = options.solver ?? {};
+  const hasFoldProfile = Boolean(solverOptions.foldProfile?.ranges?.length);
+  const wantsVerlet = solverOptions.integrationType === 'verlet';
+
+  if (options.preferGpu !== false && !hasFoldProfile && !wantsVerlet && canUseWebgl()) {
+    try {
+      const canvas = acquireGlCanvas();
+      if (canvas && WebglSolver.isSupported(canvas)) {
+        return { backend: new WebglSolver(canvas, model, solverOptions), backendId: 'webgl2' };
+      }
+    } catch {
+      // Any GPU setup failure (driver bug, lost context) falls through to the
+      // reference solver rather than breaking the simulator.
+    }
+  }
+  return { backend: new ReferenceSolver(model, solverOptions), backendId: 'reference' };
+}
+
+let glCanvas: OffscreenCanvas | HTMLCanvasElement | null = null;
+
+function canUseWebgl(): boolean {
+  return typeof OffscreenCanvas !== 'undefined' || typeof document !== 'undefined';
+}
+
+/**
+ * One canvas reused across model loads. Each WebglSolver owns its own GL context
+ * on it; disposing a solver frees the context, and the next load makes a new
+ * one. A 2x2 canvas is enough -- the solver only ever renders to its own
+ * framebuffers, never to this canvas.
+ */
+function acquireGlCanvas(): OffscreenCanvas | HTMLCanvasElement | null {
+  if (glCanvas) return glCanvas;
+  if (typeof OffscreenCanvas !== 'undefined') glCanvas = new OffscreenCanvas(2, 2);
+  else if (typeof document !== 'undefined') glCanvas = document.createElement('canvas');
+  return glCanvas;
 }
 
 /**
@@ -115,7 +171,7 @@ const api = {
     // before a single solver step had run.
     const prepared = prepareFoldModel(fold, options.prepare ?? { triangulate: true });
     const model = new OrigamiModel(prepared);
-    const backend = new ReferenceSolver(model, options.solver ?? {});
+    const { backend, backendId } = createBackend(model, options);
     const clock = new SimulationClock({
       budgetMs: options.budgetMs ?? 10,
       convergenceEpsilon: options.convergenceEpsilon,
@@ -124,6 +180,7 @@ const api = {
     session = {
       model,
       backend,
+      backendId,
       clock,
       positionScratch: new Float32Array(prepared.vertexCount * 3),
       colorScratch: new Float32Array(prepared.vertexCount * 3),
@@ -162,6 +219,7 @@ const api = {
         edgesAssignment: edgesAssignment.buffer as ArrayBuffer,
         facesEdges: facesEdges.buffer as ArrayBuffer,
         diagnostics: backend.readDiagnostics(),
+        backend: backendId,
       },
       [
         indices.buffer as ArrayBuffer,

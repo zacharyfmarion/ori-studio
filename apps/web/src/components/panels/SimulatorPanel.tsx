@@ -145,6 +145,7 @@ export function SimulatorPanel() {
   const [step, setStep] = useState(0);
   const [strain, setStrain] = useState(0);
   const [modelStats, setModelStats] = useState({ vertices: 0, triangles: 0 });
+  const [backend, setBackend] = useState<'webgl2' | 'reference' | null>(null);
   const [viewSettings, setViewSettings] = useState<SimulatorViewSettings>(DEFAULT_VIEW_SETTINGS);
   const [stepAccuracy, setStepAccuracy] = useState<StepSimulationAccuracy>('fast');
   const refreshCapability = capabilities['simulator.refresh'];
@@ -227,8 +228,10 @@ export function SimulatorPanel() {
     invalidateSimulatorSurface(canvasRef.current);
     if (runtimeModel) {
       setModelStats({ vertices: runtimeModel.vertexCount, triangles: runtimeModel.faceCount });
+      setBackend(runtimeModel.backend);
     } else {
       setModelStats({ vertices: 0, triangles: 0 });
+      setBackend(null);
     }
     drawCurrentFrame();
   }, [runtimeModel, drawCurrentFrame]);
@@ -719,6 +722,19 @@ export function SimulatorPanel() {
           <span>{statusLabel}</span>
           <span>{t('panels:simulator.stepReadout', 'Step {{n}}', { n: step })}</span>
           <span>{t('panels:simulator.strain', 'Strain {{value}}', { value: strain.toFixed(4) })}</span>
+          {backend && (
+            <span
+              title={
+                backend === 'webgl2'
+                  ? t('panels:simulator.backendGpuTitle', 'Solving on the GPU (WebGL2)')
+                  : t('panels:simulator.backendCpuTitle', 'Solving on the CPU (WebGL2 unavailable)')
+              }
+            >
+              {backend === 'webgl2'
+                ? t('panels:simulator.backendGpu', 'GPU')
+                : t('panels:simulator.backendCpu', 'CPU')}
+            </span>
+          )}
         </div>
       </div>
       </section>

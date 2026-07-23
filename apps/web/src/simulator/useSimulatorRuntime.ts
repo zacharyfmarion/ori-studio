@@ -32,6 +32,7 @@ export interface SimulatorModelView extends SimulatorRenderModel {
   edgeCount: number;
   creaseCount: number;
   diagnostics: SimulatorDiagnostics;
+  backend: 'webgl2' | 'reference';
 }
 
 export interface UseSimulatorRuntimeOptions {
@@ -128,6 +129,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
           edgeCount: info.edgeCount,
           creaseCount: info.creaseCount,
           diagnostics: info.diagnostics,
+          backend: info.backend,
         });
         setStatus('ready');
 

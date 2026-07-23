@@ -576,7 +576,6 @@
     "panels:bpPacking.selectDevice": "a11046a5f281",
     "panels:bpPacking.selectFlap": "3d7d97d0a6d1",
     "panels:bpPacking.selectFlapWithName": "b7d12e038333",
-    "panels:bpPacking.selectRiver": "fb12d8dee62d",
     "panels:bpPacking.selectRiverShort": "913f344cd6a7",
     "panels:bpPacking.sheetSizeGrid": "ee7c3f80092e",
     "panels:bpPacking.size": "1af851907331",
@@ -1741,7 +1740,11 @@
     "panels:creasePattern.deleteFoldedModelAction": "da2c5eab801d",
     "panels:creasePattern.duplicateFoldedModelAction": "88437cf57abc",
     "panels:creasePattern.flipFoldedModel": "e6c0e41ad1ef",
-    "panels:creasePattern.foldModelAction": "7734edbfc28a"
+    "panels:creasePattern.foldModelAction": "7734edbfc28a",
+    "panels:simulator.backendCpu": "db9a4c7d4c19",
+    "panels:simulator.backendCpuTitle": "38405bf0c65b",
+    "panels:simulator.backendGpu": "ea49523d744c",
+    "panels:simulator.backendGpuTitle": "09c1c468f2b9"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -2320,7 +2323,6 @@
     "panels:bpPacking.selectDevice": "a11046a5f281",
     "panels:bpPacking.selectFlap": "3d7d97d0a6d1",
     "panels:bpPacking.selectFlapWithName": "b7d12e038333",
-    "panels:bpPacking.selectRiver": "fb12d8dee62d",
     "panels:bpPacking.selectRiverShort": "913f344cd6a7",
     "panels:bpPacking.sheetSizeGrid": "ee7c3f80092e",
     "panels:bpPacking.size": "1af851907331",
@@ -3485,7 +3487,11 @@
     "panels:creasePattern.deleteFoldedModelAction": "da2c5eab801d",
     "panels:creasePattern.duplicateFoldedModelAction": "88437cf57abc",
     "panels:creasePattern.flipFoldedModel": "e6c0e41ad1ef",
-    "panels:creasePattern.foldModelAction": "7734edbfc28a"
+    "panels:creasePattern.foldModelAction": "7734edbfc28a",
+    "panels:simulator.backendCpu": "db9a4c7d4c19",
+    "panels:simulator.backendCpuTitle": "38405bf0c65b",
+    "panels:simulator.backendGpu": "ea49523d744c",
+    "panels:simulator.backendGpuTitle": "09c1c468f2b9"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -4076,7 +4082,6 @@
     "panels:bpPacking.selectDevice": "a11046a5f281",
     "panels:bpPacking.selectFlap": "3d7d97d0a6d1",
     "panels:bpPacking.selectFlapWithName": "b7d12e038333",
-    "panels:bpPacking.selectRiver": "fb12d8dee62d",
     "panels:bpPacking.selectRiverShort": "913f344cd6a7",
     "panels:bpPacking.sheetSizeGrid": "ee7c3f80092e",
     "panels:bpPacking.size": "1af851907331",
@@ -5254,7 +5259,11 @@
     "panels:creasePattern.deleteFoldedModelAction": "da2c5eab801d",
     "panels:creasePattern.duplicateFoldedModelAction": "88437cf57abc",
     "panels:creasePattern.flipFoldedModel": "e6c0e41ad1ef",
-    "panels:creasePattern.foldModelAction": "7734edbfc28a"
+    "panels:creasePattern.foldModelAction": "7734edbfc28a",
+    "panels:simulator.backendCpu": "db9a4c7d4c19",
+    "panels:simulator.backendCpuTitle": "38405bf0c65b",
+    "panels:simulator.backendGpu": "ea49523d744c",
+    "panels:simulator.backendGpuTitle": "09c1c468f2b9"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -5845,7 +5854,6 @@
     "panels:bpPacking.selectDevice": "a11046a5f281",
     "panels:bpPacking.selectFlap": "3d7d97d0a6d1",
     "panels:bpPacking.selectFlapWithName": "b7d12e038333",
-    "panels:bpPacking.selectRiver": "fb12d8dee62d",
     "panels:bpPacking.selectRiverShort": "913f344cd6a7",
     "panels:bpPacking.sheetSizeGrid": "ee7c3f80092e",
     "panels:bpPacking.size": "1af851907331",
@@ -7023,7 +7031,11 @@
     "panels:creasePattern.deleteFoldedModelAction": "da2c5eab801d",
     "panels:creasePattern.duplicateFoldedModelAction": "88437cf57abc",
     "panels:creasePattern.flipFoldedModel": "e6c0e41ad1ef",
-    "panels:creasePattern.foldModelAction": "7734edbfc28a"
+    "panels:creasePattern.foldModelAction": "7734edbfc28a",
+    "panels:simulator.backendCpu": "db9a4c7d4c19",
+    "panels:simulator.backendCpuTitle": "38405bf0c65b",
+    "panels:simulator.backendGpu": "ea49523d744c",
+    "panels:simulator.backendGpuTitle": "09c1c468f2b9"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -7614,7 +7626,6 @@
     "panels:bpPacking.selectDevice": "a11046a5f281",
     "panels:bpPacking.selectFlap": "3d7d97d0a6d1",
     "panels:bpPacking.selectFlapWithName": "b7d12e038333",
-    "panels:bpPacking.selectRiver": "fb12d8dee62d",
     "panels:bpPacking.selectRiverShort": "913f344cd6a7",
     "panels:bpPacking.sheetSizeGrid": "ee7c3f80092e",
     "panels:bpPacking.size": "1af851907331",
@@ -8792,7 +8803,11 @@
     "panels:creasePattern.deleteFoldedModelAction": "da2c5eab801d",
     "panels:creasePattern.duplicateFoldedModelAction": "88437cf57abc",
     "panels:creasePattern.flipFoldedModel": "e6c0e41ad1ef",
-    "panels:creasePattern.foldModelAction": "7734edbfc28a"
+    "panels:creasePattern.foldModelAction": "7734edbfc28a",
+    "panels:simulator.backendCpu": "db9a4c7d4c19",
+    "panels:simulator.backendCpuTitle": "38405bf0c65b",
+    "panels:simulator.backendGpu": "ea49523d744c",
+    "panels:simulator.backendGpuTitle": "09c1c468f2b9"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -9383,7 +9398,6 @@
     "panels:bpPacking.selectDevice": "a11046a5f281",
     "panels:bpPacking.selectFlap": "3d7d97d0a6d1",
     "panels:bpPacking.selectFlapWithName": "b7d12e038333",
-    "panels:bpPacking.selectRiver": "fb12d8dee62d",
     "panels:bpPacking.selectRiverShort": "913f344cd6a7",
     "panels:bpPacking.sheetSizeGrid": "ee7c3f80092e",
     "panels:bpPacking.size": "1af851907331",
@@ -10561,7 +10575,11 @@
     "panels:creasePattern.deleteFoldedModelAction": "da2c5eab801d",
     "panels:creasePattern.duplicateFoldedModelAction": "88437cf57abc",
     "panels:creasePattern.flipFoldedModel": "e6c0e41ad1ef",
-    "panels:creasePattern.foldModelAction": "7734edbfc28a"
+    "panels:creasePattern.foldModelAction": "7734edbfc28a",
+    "panels:simulator.backendCpu": "db9a4c7d4c19",
+    "panels:simulator.backendCpuTitle": "38405bf0c65b",
+    "panels:simulator.backendGpu": "ea49523d744c",
+    "panels:simulator.backendGpuTitle": "09c1c468f2b9"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -11152,7 +11170,6 @@
     "panels:bpPacking.selectDevice": "a11046a5f281",
     "panels:bpPacking.selectFlap": "3d7d97d0a6d1",
     "panels:bpPacking.selectFlapWithName": "b7d12e038333",
-    "panels:bpPacking.selectRiver": "fb12d8dee62d",
     "panels:bpPacking.selectRiverShort": "913f344cd6a7",
     "panels:bpPacking.sheetSizeGrid": "ee7c3f80092e",
     "panels:bpPacking.size": "1af851907331",
@@ -12330,7 +12347,11 @@
     "panels:creasePattern.deleteFoldedModelAction": "da2c5eab801d",
     "panels:creasePattern.duplicateFoldedModelAction": "88437cf57abc",
     "panels:creasePattern.flipFoldedModel": "e6c0e41ad1ef",
-    "panels:creasePattern.foldModelAction": "7734edbfc28a"
+    "panels:creasePattern.foldModelAction": "7734edbfc28a",
+    "panels:simulator.backendCpu": "db9a4c7d4c19",
+    "panels:simulator.backendCpuTitle": "38405bf0c65b",
+    "panels:simulator.backendGpu": "ea49523d744c",
+    "panels:simulator.backendGpuTitle": "09c1c468f2b9"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12909,7 +12930,6 @@
     "panels:bpPacking.selectDevice": "a11046a5f281",
     "panels:bpPacking.selectFlap": "3d7d97d0a6d1",
     "panels:bpPacking.selectFlapWithName": "b7d12e038333",
-    "panels:bpPacking.selectRiver": "fb12d8dee62d",
     "panels:bpPacking.selectRiverShort": "913f344cd6a7",
     "panels:bpPacking.sheetSizeGrid": "ee7c3f80092e",
     "panels:bpPacking.size": "1af851907331",
@@ -14074,6 +14094,10 @@
     "panels:creasePattern.deleteFoldedModelAction": "da2c5eab801d",
     "panels:creasePattern.duplicateFoldedModelAction": "88437cf57abc",
     "panels:creasePattern.flipFoldedModel": "e6c0e41ad1ef",
-    "panels:creasePattern.foldModelAction": "7734edbfc28a"
+    "panels:creasePattern.foldModelAction": "7734edbfc28a",
+    "panels:simulator.backendCpu": "db9a4c7d4c19",
+    "panels:simulator.backendCpuTitle": "38405bf0c65b",
+    "panels:simulator.backendGpu": "ea49523d744c",
+    "panels:simulator.backendGpuTitle": "09c1c468f2b9"
   }
 }
