@@ -33,7 +33,6 @@ body:
         - Crease pattern editor
         - Box-pleating editor
         - TreeMaker / circle packing
-        - Crease pattern detection (from an image)
         - Import / export / files
         - Something else
     validations:
