@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { transfer } from 'comlink';
 import type {
   FoldDocument as SimulatorFoldDocument,
   FoldProfile,
+  OrbitView,
+  RenderSettings,
   SimulatorDiagnostics,
   SimulatorOptions,
 } from '@treemaker/origami-simulator';
@@ -10,15 +13,21 @@ import { inflateRenderModel, type SimulatorRenderModel } from './renderModel';
 
 // Drives the simulator worker and exposes the latest frame to a renderer.
 //
-// The load-bearing detail is that no solver work happens on this thread. The
-// rAF callback issues an async tick and returns immediately; when the worker
-// replies we hand the positions to the renderer. A slow model makes frames
-// arrive less often, it does not make them longer.
+// Two render paths, chosen per canvas:
+//   - GPU: the worker owns the canvas (transferControlToOffscreen) and draws the
+//     mesh straight from the solver's position texture. No positions cross to
+//     the main thread; orbit/zoom is a `setCamera` message and a redraw.
+//   - CPU fallback: the worker returns positions, the panel draws them on the
+//     main thread (canvas-2D). Used when WebGL2 is absent or the model needs a
+//     path the GPU renderer does not cover (fold profile, Verlet).
+//
+// Either way no solver work runs on this thread.
 
 export type SimulatorStatus = 'idle' | 'loading' | 'ready' | 'error';
 
 export interface SimulatorFrameView {
-  positions: Float32Array;
+  /** Null in GPU-render mode: the worker already drew, nothing to draw here. */
+  positions: Float32Array | null;
   step: number;
   stepsThisTick: number;
   /** Solver ms spent in the worker for this tick. */
@@ -26,6 +35,18 @@ export interface SimulatorFrameView {
   converged: boolean;
   foldPercent: number;
   maxEdgeStrain: number;
+}
+
+/** True if this canvas can host the WebGL2 float-render-target GPU path. */
+export function webglRenderSupported(): boolean {
+  if (typeof document === 'undefined' || typeof OffscreenCanvas === 'undefined') return false;
+  try {
+    const probe = document.createElement('canvas');
+    const gl = probe.getContext('webgl2');
+    return Boolean(gl && gl.getExtension('EXT_color_buffer_float'));
+  } catch {
+    return false;
+  }
 }
 
 export interface SimulatorModelView extends SimulatorRenderModel {
@@ -40,6 +61,14 @@ export interface UseSimulatorRuntimeOptions {
   foldProfile?: FoldProfile | null;
   solverOptions?: SimulatorOptions;
   triangulate?: boolean;
+  /**
+   * The canvas the mesh is drawn on. In GPU mode it is transferred to the worker
+   * (once) and the worker renders to it; in CPU mode the panel draws on it. Pass
+   * `null` to force the CPU path (e.g. a fold-profile simulation).
+   */
+  canvas?: HTMLCanvasElement | null;
+  /** Whether the GPU render path may be used for this source (no fold profile / Verlet). */
+  allowGpuRender?: boolean;
   /** Called on the main thread whenever a new frame is available. */
   onFrame?: (frame: SimulatorFrameView) => void;
 }
@@ -55,17 +84,37 @@ export interface SimulatorRuntime {
   settleTo: (percent: number) => void;
   reset: () => void;
   setMaterial: (options: Partial<SimulatorOptions>) => void;
+  /** True when the worker owns the canvas and renders on the GPU. */
+  gpuActive: boolean;
+  /** Push a new orbit camera to the worker (GPU mode); no-op in CPU mode. */
+  setCamera: (view: OrbitView, width: number, height: number) => void;
+  /** Push render settings to the worker (GPU mode); no-op in CPU mode. */
+  setRenderSettings: (settings: RenderSettings) => void;
 }
 
 export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): SimulatorRuntime {
-  const { fold, foldProfile = null, solverOptions, triangulate = true, onFrame } = options;
+  const {
+    fold,
+    foldProfile = null,
+    solverOptions,
+    triangulate = true,
+    canvas = null,
+    allowGpuRender = true,
+    onFrame,
+  } = options;
 
   const [status, setStatus] = useState<SimulatorStatus>('idle');
   const [error, setError] = useState<string | null>(null);
   const [model, setModel] = useState<SimulatorModelView | null>(null);
   const [playing, setPlaying] = useState(false);
+  const [gpuActive, setGpuActive] = useState(false);
 
   const clientRef = useRef<SimulatorClient | null>(null);
+  // The canvas element whose control was transferred to the worker. A canvas can
+  // only be transferred once, so this guards against a second attempt and lets a
+  // canvas swap (React key change) re-transfer the new element.
+  const transferredCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const gpuActiveRef = useRef(false);
   const rafRef = useRef<number | null>(null);
   const inFlightRef = useRef(false);
   // Whether the model has settled at its current target. The loop idles when
@@ -85,7 +134,10 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
   }, [onFrame]);
 
   const publish = useCallback((payload: Awaited<ReturnType<SimulatorClient['tick']>>) => {
-    const positions = new Float32Array(payload.positions);
+    // GPU-render mode: the worker already drew to the canvas and sent no
+    // positions. Still surface the scalars (step, strain, fold percent) so the
+    // readouts update; positions are null and there is nothing to draw here.
+    const positions = payload.positions ? new Float32Array(payload.positions) : null;
     onFrameRef.current?.({
       positions,
       step: payload.step,
@@ -97,8 +149,8 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     });
     convergedRef.current = payload.converged;
     // Give the buffer straight back to the worker on the next request so the
-    // steady-state loop allocates nothing.
-    recycledRef.current = payload.positions;
+    // steady-state CPU loop allocates nothing. (Null in GPU mode.)
+    recycledRef.current = payload.positions ?? undefined;
   }, []);
 
   // Load / reload whenever the source model changes.
@@ -114,16 +166,35 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     setStatus('loading');
     setError(null);
 
+    // Decide the render path before loading. GPU render needs WebGL2, a canvas,
+    // and a source the GPU path covers (no fold profile / Verlet). The canvas is
+    // transferred once; a later CPU-only source keeps the (already transferred)
+    // canvas but the worker falls back to positions, which the panel then cannot
+    // draw -- so the panel swaps the canvas element (React key) when the desired
+    // path changes, giving a fresh untransferred one.
+    const wantsGpu = Boolean(canvas && allowGpuRender && webglRenderSupported());
+
     void (async () => {
       try {
         const client = getSimulatorClient();
         clientRef.current = client;
+
+        if (wantsGpu && canvas && transferredCanvasRef.current !== canvas) {
+          const offscreen = canvas.transferControlToOffscreen();
+          await client.attachCanvas(transfer(offscreen, [offscreen]));
+          transferredCanvasRef.current = canvas;
+        }
+
         const info = await client.load(fold, {
           prepare: { triangulate },
           solver: { ...solverOptions, foldProfile },
+          preferGpu: wantsGpu,
         });
         if (cancelled || generation !== generationRef.current) return;
 
+        const gpu = info.backend === 'webgl2' && wantsGpu;
+        gpuActiveRef.current = gpu;
+        setGpuActive(gpu);
         setModel({
           ...inflateRenderModel(info),
           edgeCount: info.edgeCount,
@@ -151,7 +222,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fold, foldProfile, triangulate, publish]);
+  }, [fold, foldProfile, triangulate, canvas, allowGpuRender, publish]);
 
   useEffect(() => {
     playingRef.current = playing;
@@ -246,6 +317,19 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     });
   }, [retarget]);
 
+  // Orbit/zoom and view-setting changes forward to the worker, which redraws
+  // from the position texture. No solver work, no readback -- this is what makes
+  // camera manipulation cheap at any model size. Fire-and-forget: the draw
+  // happens on the worker's own schedule and must not block the pointer handler.
+  const setCamera = useCallback((view: OrbitView, width: number, height: number) => {
+    if (!gpuActiveRef.current) return;
+    void clientRef.current?.setCamera({ view, width, height }).catch(() => undefined);
+  }, []);
+
+  const setRenderSettings = useCallback((settings: RenderSettings) => {
+    if (!gpuActiveRef.current) return;
+    void clientRef.current?.setRenderSettings(settings).catch(() => undefined);
+  }, []);
 
   return {
     status,
@@ -257,5 +341,8 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     settleTo,
     reset,
     setMaterial,
+    gpuActive,
+    setCamera,
+    setRenderSettings,
   };
 }

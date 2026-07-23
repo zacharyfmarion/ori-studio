@@ -24,7 +24,10 @@ import {
   Sun,
   Waves,
 } from 'lucide-react';
-import type { FoldDocument as SimulatorFoldDocument } from '@treemaker/origami-simulator';
+import type {
+  FoldDocument as SimulatorFoldDocument,
+  RenderSettings,
+} from '@treemaker/origami-simulator';
 import {
   useSimulatorRuntime,
   type SimulatorFrameView,
@@ -121,6 +124,16 @@ export function SimulatorPanel() {
   const dragRef = useRef<DragState | null>(null);
   const foldPercentRef = useRef(INITIAL_FOLD_PERCENT);
   const sourceKeyRef = useRef<string | null>(null);
+  // Tracks the runtime's gpuActive without a stale closure, so the pointer/draw
+  // handlers can branch on it synchronously.
+  const gpuActiveRef = useRef(false);
+  // The mounted canvas element, as state (not just a ref) so the runtime hook
+  // re-runs once it exists and can transfer it to the worker.
+  const [canvasEl, setCanvasEl] = useState<HTMLCanvasElement | null>(null);
+  const setCanvas = useCallback((element: HTMLCanvasElement | null) => {
+    canvasRef.current = element;
+    setCanvasEl(element);
+  }, []);
 
   const creaseCount = useWorkspaceStore((state) => state.project.creases.length);
   // Editable (hand-drawn / imported) crease patterns live in the oristudio CP
@@ -193,11 +206,14 @@ export function SimulatorPanel() {
       ? `step-error:${sequenceSimulationFocus.stepId}:${stepSimulationError ?? 'unknown'}`
       : `whole:${foldArtifacts ? foldArtifactRevision : 'empty'}:${activeSegmentId ?? 'all'}`;
 
+  // In GPU-render mode the worker owns the canvas and draws; this no-ops. In CPU
+  // mode it rasterises the latest frame on the main thread.
   const drawCurrentFrame = useCallback(() => {
+    if (gpuActiveRef.current) return;
     const canvas = canvasRef.current;
     const model = modelRef.current;
     const frame = frameRef.current;
-    if (!canvas || !model || !frame) return;
+    if (!canvas || !model || !frame || !frame.positions) return;
     drawFrame(canvas, model, frame, viewRef.current, viewSettingsRef.current, highlightsRef.current);
   }, []);
 
@@ -213,15 +229,33 @@ export function SimulatorPanel() {
     [drawCurrentFrame]
   );
 
+  // A fold profile (segment/sequence-step simulation) uses a solver path the GPU
+  // renderer does not cover, so those keep the canvas-2D path.
+  const allowGpuRender = !simulationFoldProfile;
+
   const runtime = useSimulatorRuntime({
     fold: simulationFold as SimulatorFoldDocument | null,
     foldProfile: simulationFoldProfile,
     solverOptions: runConfig.solverOptions,
     triangulate: simulationFold ? foldNeedsTriangulation(simulationFold) : true,
+    canvas: canvasEl,
+    allowGpuRender,
     onFrame: handleFrame,
   });
 
-  const { status: runtimeStatus, model: runtimeModel, playing, setPlaying } = runtime;
+  const {
+    status: runtimeStatus,
+    model: runtimeModel,
+    playing,
+    setPlaying,
+    gpuActive,
+    setCamera: pushCamera,
+    setRenderSettings: pushRenderSettings,
+  } = runtime;
+
+  useEffect(() => {
+    gpuActiveRef.current = gpuActive;
+  }, [gpuActive]);
 
   useEffect(() => {
     modelRef.current = runtimeModel;
@@ -238,8 +272,13 @@ export function SimulatorPanel() {
 
   useEffect(() => {
     viewSettingsRef.current = viewSettings;
-    drawCurrentFrame();
-  }, [drawCurrentFrame, viewSettings]);
+    if (gpuActiveRef.current) {
+      const canvas = canvasRef.current;
+      if (canvas) pushRenderSettings(toRenderSettings(canvas, viewSettings));
+    } else {
+      drawCurrentFrame();
+    }
+  }, [drawCurrentFrame, pushRenderSettings, viewSettings]);
 
   useEffect(() => {
     highlightsRef.current = activeStepSimulation
@@ -431,10 +470,46 @@ export function SimulatorPanel() {
     drawCurrentFrame();
   }, [drawCurrentFrame]);
 
+  // Device-pixel drawing-buffer size of the canvas. In GPU mode the worker
+  // needs it to size its render; read from the element's box (which exists even
+  // once control is transferred).
+  const deviceSize = useCallback(() => {
+    const canvas = canvasRef.current;
+    const rect = canvas?.getBoundingClientRect();
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    return {
+      width: Math.max(360, Math.floor((rect?.width || 720) * dpr)),
+      height: Math.max(360, Math.floor((rect?.height || 720) * dpr)),
+    };
+  }, []);
+
+  // Apply the current orbit view: forward it to the worker (GPU) or redraw on
+  // the main thread (CPU). This is what makes orbit/zoom cheap in GPU mode --
+  // one small message and a texture-fed redraw, no solver work.
+  const pushView = useCallback(() => {
+    if (gpuActiveRef.current) {
+      const { width, height } = deviceSize();
+      pushCamera(viewRef.current, width, height);
+    } else {
+      drawCurrentFrame();
+    }
+  }, [deviceSize, drawCurrentFrame, pushCamera]);
+
   const resetView = useCallback(() => {
     viewRef.current = { ...DEFAULT_VIEW };
-    drawCurrentFrame();
-  }, [drawCurrentFrame]);
+    pushView();
+  }, [pushView]);
+
+  // When the GPU path becomes active (first load, or after a mode switch), send
+  // the worker the current camera and settings so it does not draw with
+  // defaults.
+  useEffect(() => {
+    if (!gpuActive) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    pushRenderSettings(toRenderSettings(canvas, viewSettingsRef.current));
+    pushView();
+  }, [gpuActive, pushRenderSettings, pushView]);
 
   const handleCanvasPointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     if (loadState !== 'ready') return;
@@ -455,7 +530,7 @@ export function SimulatorPanel() {
       x: event.clientX,
       y: event.clientY,
     });
-    drawCurrentFrame();
+    pushView();
   };
 
   const handleCanvasPointerEnd = (event: ReactPointerEvent<HTMLCanvasElement>) => {
@@ -473,7 +548,7 @@ export function SimulatorPanel() {
       ...viewRef.current,
       zoom: clamp(viewRef.current.zoom * Math.exp(-event.deltaY * 0.001), 0.45, 4),
     };
-    drawCurrentFrame();
+    pushView();
   };
 
   const errorDetail =
@@ -630,7 +705,11 @@ export function SimulatorPanel() {
       </div>
       <div className="panel-body simulator-panel__body">
         <canvas
-          ref={canvasRef}
+          // Keyed on the render path: a fold profile switches to the canvas-2D
+          // path, and a canvas whose control was transferred to the worker can
+          // never take a 2D context, so it must be a fresh element.
+          key={allowGpuRender ? 'gl' : '2d'}
+          ref={setCanvas}
           className="simulator-canvas"
           data-lighting={viewSettings.lighting || undefined}
           aria-label={t(
@@ -836,14 +915,19 @@ function drawFrame(
   ctx.fillStyle = palette.canvas;
   ctx.fillRect(0, 0, width, height);
 
-  const projected = projectPositions(frame.positions, view);
+  // Only the canvas-2D path calls this, and only with a frame that carries
+  // positions (GPU-render frames are null and drawn by the worker).
+  const positions = frame.positions;
+  if (!positions) return;
+
+  const projected = projectPositions(positions, view);
   const padding = Math.max(28, Math.min(width, height) * 0.08);
   const availableSize = Math.max(1, Math.min(width, height) - padding * 2);
   // Framing radius is measured once per model rather than per frame. Refitting
   // every frame made the model visibly "breathe" as it folded -- the sheet gets
   // smaller as it closes, so the auto-fit zoomed in to compensate -- and cost
   // three extra full walks of the position array per draw.
-  const scale = (availableSize / (2 * surface.framingRadius(frame.positions))) * view.zoom;
+  const scale = (availableSize / (2 * surface.framingRadius(positions))) * view.zoom;
   const map = (point: ProjectedPoint) => ({
     x: width / 2 + point.x * scale,
     y: height / 2 - point.y * scale,
@@ -1053,6 +1137,31 @@ function readSimulatorPalette(canvas: HTMLCanvasElement): SimulatorPalette {
     highlightFaceRgb: [240, 198, 116],
     paperFrontRgb: parseCssRgb(cssVar('--sim-paper-front', '#4f83d6'), [79, 131, 214]),
     paperBackRgb: parseCssRgb(cssVar('--sim-paper-back', '#f2f0e7'), [242, 240, 231]),
+  };
+}
+
+// Map the panel's view settings + theme palette into the GPU renderer's
+// settings. Colours are 0..1 there; the palette is 0..255 / CSS strings.
+function toRenderSettings(
+  canvas: HTMLCanvasElement,
+  settings: SimulatorViewSettings
+): RenderSettings {
+  const palette = readSimulatorPalette(canvas);
+  const norm = (rgb: [number, number, number]): [number, number, number] => [
+    rgb[0] / 255,
+    rgb[1] / 255,
+    rgb[2] / 255,
+  ];
+  return {
+    frontColor: norm(palette.paperFrontRgb),
+    backColor: norm(palette.paperBackRgb),
+    edgeColor: norm(parseCssRgb(palette.border, [232, 237, 240])),
+    background: norm(parseCssRgb(palette.canvas, [12, 15, 18])),
+    lightDir: [PAPER_LIGHT_DIRECTION.x, PAPER_LIGHT_DIRECTION.y, PAPER_LIGHT_DIRECTION.z],
+    showFaces: settings.showFaces,
+    showEdges: settings.showEdges,
+    lighting: settings.lighting,
+    faceAlpha: settings.renderMode === 'xray' ? 0.48 : 1,
   };
 }
 

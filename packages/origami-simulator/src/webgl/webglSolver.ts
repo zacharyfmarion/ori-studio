@@ -168,6 +168,10 @@ export class WebglSolver implements SolverBackend {
     return this.currentStep;
   }
 
+  get vertexCount(): number {
+    return this.nodeCount;
+  }
+
   /**
    * Draw the mesh straight from the position texture into `target` (null = the
    * context's own canvas). Zero readback: the vertex shader `texelFetch`es the

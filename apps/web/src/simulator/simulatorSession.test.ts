@@ -51,6 +51,14 @@ function maxAbsDelta(a: Float32Array, b: Float32Array): number {
   return max;
 }
 
+// These tests run in jsdom with no WebGL2, so the session always takes the CPU
+// path and returns positions. (The GPU render path, where positions are null, is
+// exercised by bench:gpu-parity in a real browser.)
+function positionsOf(payload: { positions: ArrayBuffer | null }): ArrayBuffer {
+  if (!payload.positions) throw new Error('expected CPU-path positions but got null');
+  return payload.positions;
+}
+
 describe('simulator session', () => {
   it('reports model topology for the renderer', () => {
     const session = createSimulatorSession();
@@ -72,14 +80,14 @@ describe('simulator session', () => {
     // burning its whole step allowance.
     const flat = session.settle(4000, {});
     expect(flat.converged).toBe(true);
-    const flatPositions = new Float32Array(flat.positions);
+    const flatPositions = new Float32Array(positionsOf(flat));
 
     // The regression this guards: a converged clock spends no budget, so
     // changing the fold target must un-converge it or the model never moves.
     session.setFoldPercent(90);
     let folded = session.tick({});
     for (let i = 0; i < 40 && !folded.converged; i += 1) folded = session.tick({});
-    const foldedPositions = new Float32Array(folded.positions);
+    const foldedPositions = new Float32Array(positionsOf(folded));
 
     expect(maxAbsDelta(flatPositions, foldedPositions)).toBeGreaterThan(0.01);
     session.dispose();
@@ -117,7 +125,7 @@ describe('simulator session', () => {
     const session = createSimulatorSession();
     session.load(miura(8, 8), {});
     const first = session.tick({});
-    const recycled = first.positions;
+    const recycled = positionsOf(first);
 
     const second = session.tick({ recycled });
     expect(second.positions).toBe(recycled);
@@ -127,14 +135,14 @@ describe('simulator session', () => {
   it('returns to flat on reset', () => {
     const session = createSimulatorSession();
     session.load(miura(8, 8), {});
-    const flat = new Float32Array(session.settle(4000, {}).positions);
+    const flat = new Float32Array(positionsOf(session.settle(4000, {})));
 
     session.setFoldPercent(90);
     for (let i = 0; i < 20; i += 1) session.tick({});
     session.reset();
     session.setFoldPercent(0);
 
-    const back = new Float32Array(session.tick({}).positions);
+    const back = new Float32Array(positionsOf(session.tick({})));
     expect(maxAbsDelta(flat, back)).toBeLessThan(1e-5);
     session.dispose();
   });

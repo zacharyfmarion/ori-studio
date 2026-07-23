@@ -4,10 +4,15 @@ import {
   ReferenceSolver,
   SimulationClock,
   WebglSolver,
+  cameraUniforms,
+  centroid,
+  boundingRadius,
   prepareFoldModel,
   type FoldDocument,
   type FoldProfile,
+  type OrbitView,
   type PrepareFoldOptions,
+  type RenderSettings,
   type SimulatorDiagnostics,
   type SimulatorOptions,
   type SolverBackend,
@@ -40,6 +45,14 @@ export interface SimulatorLoadOptions {
   preferGpu?: boolean;
 }
 
+/** Orbit view + viewport + look, forwarded from the panel for worker-side rendering. */
+export interface SimulatorCamera {
+  view: OrbitView;
+  /** Drawing-buffer size in device pixels. */
+  width: number;
+  height: number;
+}
+
 /**
  * Everything the render side needs about topology, as flat typed arrays.
  *
@@ -70,10 +83,16 @@ export interface SimulatorModelInfo {
 export const EDGE_ASSIGNMENT_CODES = ['B', 'M', 'V', 'F', 'U', 'C', 'J'] as const;
 
 export interface SimulatorFramePayload {
-  /** xyz per vertex. Transferred; hand it back via `recycled` to avoid churn. */
-  positions: ArrayBuffer;
+  /**
+   * xyz per vertex. Transferred; hand it back via `recycled` to avoid churn.
+   * Null in GPU-render mode — the worker drew straight to the canvas and the
+   * main thread needs no positions.
+   */
+  positions: ArrayBuffer | null;
   /** rgb per vertex, only present when colours were requested. */
   colors: ArrayBuffer | null;
+  /** True when the worker rendered this frame itself (GPU-render mode). */
+  renderedInWorker: boolean;
   step: number;
   stepsThisTick: number;
   elapsedMs: number;
@@ -96,9 +115,47 @@ interface Session {
   positionScratch: Float32Array;
   colorScratch: Float32Array;
   foldPercent: number;
+  /**
+   * Present only when the panel transferred its canvas and the GPU solver was
+   * selected: the solver renders straight to that canvas in the worker, so no
+   * positions are transferred to the main thread. Absent means the panel draws
+   * on the main thread from transferred positions (canvas-2D fallback).
+   */
+  gpuRender: GpuRenderState | null;
 }
 
+interface GpuRenderState {
+  solver: WebglSolver;
+  view: OrbitView;
+  width: number;
+  height: number;
+  settings: RenderSettings;
+  /** Camera fit, computed once from the settled model. */
+  center: [number, number, number];
+  radius: number;
+  fitted: boolean;
+}
+
+const DEFAULT_RENDER_SETTINGS: RenderSettings = {
+  frontColor: [0.31, 0.51, 0.84],
+  backColor: [0.95, 0.94, 0.9],
+  edgeColor: [0.1, 0.12, 0.14],
+  lightDir: [-0.45, 0.58, 0.68],
+  background: [0.05, 0.06, 0.07],
+  showFaces: true,
+  showEdges: true,
+  lighting: true,
+  faceAlpha: 1,
+};
+
 let session: Session | null = null;
+
+/**
+ * The panel's canvas, transferred once via `transferControlToOffscreen`. A
+ * canvas can only be transferred a single time, so it is held here and reused
+ * across model reloads — each new WebglSolver renders to the same canvas.
+ */
+let renderCanvas: OffscreenCanvas | null = null;
 
 function requireSession(): Session {
   if (!session) throw new Error('Simulator worker: no model loaded');
@@ -106,51 +163,40 @@ function requireSession(): Session {
 }
 
 /**
- * Pick the solver backend. The GPU path is used whenever WebGL2 is available
- * and the model uses the standard uniform fold target; a fold profile (our
- * addition, which the GPU path does not express) or absent WebGL2 falls back to
- * the reference solver. A caller can force the reference path via
- * `preferGpu: false`, which the backend indicator in the UI also allows.
+ * Pick the solver backend.
+ *
+ * When the panel transfers its canvas (`renderCanvas`) and the model uses the
+ * standard uniform fold target, the GPU solver runs *on that canvas* and renders
+ * to it in the worker — positions never touch the CPU. A fold profile (our
+ * addition, which the GPU path does not express), a Verlet request,
+ * `preferGpu: false`, or no canvas / no WebGL2 falls back to the reference
+ * solver with main-thread canvas-2D rendering.
  */
 function createBackend(
   model: OrigamiModel,
-  options: SimulatorLoadOptions
-): { backend: SolverBackend; backendId: SimulatorBackendId } {
+  options: SimulatorLoadOptions,
+  renderCanvas: OffscreenCanvas | null
+): { backend: SolverBackend; backendId: SimulatorBackendId; gpuSolver: WebglSolver | null } {
   const solverOptions = options.solver ?? {};
   const hasFoldProfile = Boolean(solverOptions.foldProfile?.ranges?.length);
   const wantsVerlet = solverOptions.integrationType === 'verlet';
 
-  if (options.preferGpu !== false && !hasFoldProfile && !wantsVerlet && canUseWebgl()) {
+  if (renderCanvas && options.preferGpu !== false && !hasFoldProfile && !wantsVerlet) {
     try {
-      const canvas = acquireGlCanvas();
-      if (canvas && WebglSolver.isSupported(canvas)) {
-        return { backend: new WebglSolver(canvas, model, solverOptions), backendId: 'webgl2' };
+      if (WebglSolver.isSupported(renderCanvas)) {
+        const solver = new WebglSolver(renderCanvas, model, solverOptions);
+        return { backend: solver, backendId: 'webgl2', gpuSolver: solver };
       }
     } catch {
       // Any GPU setup failure (driver bug, lost context) falls through to the
       // reference solver rather than breaking the simulator.
     }
   }
-  return { backend: new ReferenceSolver(model, solverOptions), backendId: 'reference' };
-}
-
-let glCanvas: OffscreenCanvas | HTMLCanvasElement | null = null;
-
-function canUseWebgl(): boolean {
-  return typeof OffscreenCanvas !== 'undefined' || typeof document !== 'undefined';
-}
-
-/**
- * One canvas reused across model loads. Each WebglSolver owns its own GL context
- * on it; disposing a solver frees the context, and the next load makes a new
- * one. A 2x2 canvas is enough -- the solver only ever renders to its own
- * framebuffers, never to this canvas.
- */
-function acquireGlCanvas(): OffscreenCanvas | HTMLCanvasElement | null {
-  if (glCanvas) return glCanvas;
-  if (typeof OffscreenCanvas !== 'undefined') glCanvas = new OffscreenCanvas(2, 2);
-  else if (typeof document !== 'undefined') glCanvas = document.createElement('canvas');
-  return glCanvas;
+  return {
+    backend: new ReferenceSolver(model, solverOptions),
+    backendId: 'reference',
+    gpuSolver: null,
+  };
 }
 
 /**
@@ -163,6 +209,11 @@ function scratchFrom(recycled: ArrayBuffer | undefined, floats: number): Float32
 }
 
 const api = {
+  /** Transfer the panel's canvas to the worker, once. */
+  attachCanvas(canvas: OffscreenCanvas): void {
+    renderCanvas = canvas;
+  },
+
   load(fold: FoldDocument, options: SimulatorLoadOptions = {}): SimulatorModelInfo {
     session?.backend.dispose();
 
@@ -171,7 +222,7 @@ const api = {
     // before a single solver step had run.
     const prepared = prepareFoldModel(fold, options.prepare ?? { triangulate: true });
     const model = new OrigamiModel(prepared);
-    const { backend, backendId } = createBackend(model, options);
+    const { backend, backendId, gpuSolver } = createBackend(model, options, renderCanvas);
     const clock = new SimulationClock({
       budgetMs: options.budgetMs ?? 10,
       convergenceEpsilon: options.convergenceEpsilon,
@@ -185,6 +236,19 @@ const api = {
       positionScratch: new Float32Array(prepared.vertexCount * 3),
       colorScratch: new Float32Array(prepared.vertexCount * 3),
       foldPercent: options.solver?.foldPercent ?? 0,
+      gpuRender:
+        gpuSolver && renderCanvas
+          ? {
+              solver: gpuSolver,
+              view: { yaw: 0, pitch: 0.38, zoom: 1 },
+              width: renderCanvas.width,
+              height: renderCanvas.height,
+              settings: DEFAULT_RENDER_SETTINGS,
+              center: [0, 0, 0],
+              radius: 1,
+              fitted: false,
+            }
+          : null,
     };
 
     const indices = prepared.indices.slice();
@@ -284,6 +348,28 @@ const api = {
     return requireSession().backend.readDiagnostics();
   },
 
+  /**
+   * Update the orbit camera (GPU-render mode only) and redraw. Called on every
+   * orbit/zoom: it runs no solver work and no readback — just a re-draw with a
+   * new view — which is what makes camera manipulation cheap at any model size.
+   */
+  setCamera(camera: SimulatorCamera): void {
+    const active = requireSession();
+    if (!active.gpuRender) return;
+    active.gpuRender.view = camera.view;
+    active.gpuRender.width = camera.width;
+    active.gpuRender.height = camera.height;
+    renderGpu(active.gpuRender);
+  },
+
+  /** Update render settings (colours, faces/edges/lighting, x-ray) and redraw. */
+  setRenderSettings(settings: RenderSettings): void {
+    const active = requireSession();
+    if (!active.gpuRender) return;
+    active.gpuRender.settings = settings;
+    renderGpu(active.gpuRender);
+  },
+
   dispose(): void {
     session?.backend.dispose();
     session = null;
@@ -295,6 +381,24 @@ function readFrame(
   tick: { steps: number; elapsedMs: number; converged: boolean; maxVelocity: number },
   options: { withColors?: boolean; recycled?: ArrayBuffer }
 ): SimulatorFramePayload {
+  const scalars = {
+    step: active.backend.stepCount,
+    stepsThisTick: tick.steps,
+    elapsedMs: tick.elapsedMs,
+    converged: tick.converged,
+    maxVelocity: tick.maxVelocity,
+    foldPercent: active.foldPercent,
+    maxEdgeStrain: active.backend.readDiagnostics().maxEdgeStrain ?? 0,
+  };
+
+  // GPU-render mode: the worker draws straight to the transferred canvas. No
+  // positions cross to the main thread at all -- the whole point of this path.
+  if (active.gpuRender) {
+    refitOnce(active.gpuRender);
+    renderGpu(active.gpuRender);
+    return { positions: null, colors: null, renderedInWorker: true, ...scalars };
+  }
+
   const floats = active.model.positions.length;
   const positions = scratchFrom(options.recycled, floats);
   active.backend.readPositions(positions);
@@ -313,16 +417,39 @@ function readFrame(
     {
       positions: positions.buffer as ArrayBuffer,
       colors: colors ? (colors.buffer as ArrayBuffer) : null,
-      step: active.backend.stepCount,
-      stepsThisTick: tick.steps,
-      elapsedMs: tick.elapsedMs,
-      converged: tick.converged,
-      maxVelocity: tick.maxVelocity,
-      foldPercent: active.foldPercent,
-      maxEdgeStrain: active.backend.readDiagnostics().maxEdgeStrain ?? 0,
+      renderedInWorker: false,
+      ...scalars,
     },
     transferables
   );
+}
+
+/** Draw the current GPU state to the transferred canvas. No readback. */
+function renderGpu(state: GpuRenderState): void {
+  // The drawing-buffer size lives on the canvas, not the GL viewport; keep it in
+  // step with the requested render size so a panel resize is not stretched.
+  if (renderCanvas && (renderCanvas.width !== state.width || renderCanvas.height !== state.height)) {
+    renderCanvas.width = state.width;
+    renderCanvas.height = state.height;
+  }
+  const camera = cameraUniforms(state.view, state.center, state.radius, state.width, state.height);
+  state.solver.render(camera, state.settings);
+}
+
+/**
+ * Fit the camera once, from the first settled frame. Matches the canvas-2D
+ * renderer, which also fits once (a folded model shrinks, and refitting every
+ * frame makes it visibly "breathe"). A readback of positions here is a one-off
+ * on load, not a per-frame cost.
+ */
+function refitOnce(state: GpuRenderState): void {
+  if (state.fitted) return;
+  const positions = new Float32Array(state.solver.vertexCount * 3);
+  state.solver.readPositions(positions);
+  const center = centroid(positions);
+  state.center = center;
+  state.radius = boundingRadius(positions, center);
+  state.fitted = true;
 }
 
 export type SimulatorWorkerApi = typeof api;
