@@ -81,10 +81,6 @@ function bpTreeLayerLabel(t: TFunction, key: BpTreeViewLayerKey): string {
   }
 }
 
-// The rendered symmetry snap-lane width in SVG units — keep in sync with the CSS
-// `.symmetry-snap-lane { stroke-width }`. A leaf tip landing anywhere inside this
-// band snaps onto the axis as a single centred leaf (matches what the user sees).
-const SYMMETRY_AXIS_BAND_SVG = 18;
 
 // Default so a unit-length edge is ~this many screen pixels. Node dots and
 // labels are drawn at fixed screen sizes (counter-scaled by the zoom) so they
@@ -107,6 +103,8 @@ const EDGE_STROKE_PX = 5;
 const EDGE_SELECTED_STROKE_PX = 7;
 const NODE_STROKE_PX = 2;
 const SYMMETRY_LINE_PX = 2;
+const SYMMETRY_LANE_PX = 18;
+const LABEL_STROKE_PX = 3;
 const SYMMETRY_GHOST_PX = 3;
 const NODE_DOT_PX = 5;
 const LEAF_DOT_PX = 4;
@@ -412,6 +410,12 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
   // dots/labels keep a constant on-screen size regardless of zoom.
   const svgPerScreenPx = Math.max(0.02, zoomPercent / 100);
   const chromePx = (px: number) => px / svgPerScreenPx;
+  // Half the visible snap band, in tree units. A tip landing inside it snaps onto
+  // the axis — so this is derived from the band's *drawn* width, keeping what the
+  // user sees and what the click does the same thing at every zoom.
+  const symmetryAxisTolerance =
+    chromePx(SYMMETRY_LANE_PX) / 2 / bpTreeUnitToSvg(tree.sheet, paperRect);
+
   const findVertex = useCallback(
     (id: number) => tree.vertices.find((vertex) => vertex.id === id),
     [tree.vertices]
@@ -490,7 +494,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     const parent = findVertex(parentId);
     if (!parent) return null;
     const axis = { loc: symmetry.loc, angle: symmetry.angle };
-    const axisTolerance = SYMMETRY_AXIS_BAND_SVG / 2 / bpTreeUnitToSvg(tree.sheet, paperRect);
+    const axisTolerance = symmetryAxisTolerance;
     const tip = constrainBpTreePoint(unitLeafLocation(parent.loc, hoverPoint), tree.sheet);
     const snap = snapPointToSymmetryAxis(tip, axis, axisTolerance);
     const primaryTip = snap.point;
@@ -525,8 +529,8 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     dragging,
     hoverPoint,
     addAnchorId,
+    symmetryAxisTolerance,
     tree,
-    paperRect,
     findVertex,
   ]);
 
@@ -625,11 +629,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     if (!parent) return;
     const loc = constrainBpTreePoint(unitLeafLocation(parent.loc, down.point), tree.sheet);
     if (symmetry.enabled) {
-      // Match the axis-snap zone to the visible band's half-width, converted from
-      // SVG units to tree units at the current sheet scale.
-      const axisTolerance =
-        SYMMETRY_AXIS_BAND_SVG / 2 / bpTreeUnitToSvg(tree.sheet, paperRect);
-      void addOristudioBpTreeLeafWithSymmetry(parentId, loc, axisTolerance);
+      void addOristudioBpTreeLeafWithSymmetry(parentId, loc, symmetryAxisTolerance);
     } else void addOristudioBpTreeLeaf(parentId, loc);
   };
 
@@ -780,6 +780,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
                   // drawing — a fixed screen width would show a zone the size of
                   // which no longer matches where a tip actually snaps.
                   className="symmetry-snap-lane"
+                  style={{ strokeWidth: chromePx(SYMMETRY_LANE_PX) }}
                   x1={symmetryAxisLine.x1}
                   y1={symmetryAxisLine.y1}
                   x2={symmetryAxisLine.x2}
@@ -890,7 +891,10 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
                       className="edge-label bp-tree-edge-label"
                       x={(p1.x + p2.x) / 2 + chromePx(6)}
                       y={(p1.y + p2.y) / 2 - chromePx(6)}
-                      style={{ fontSize: chromePx(NODE_LABEL_PX) }}
+                      style={{
+                        fontSize: chromePx(NODE_LABEL_PX),
+                        strokeWidth: chromePx(LABEL_STROKE_PX),
+                      }}
                     >
                       {formatNumber(edge.length, 2)}
                     </text>
@@ -945,7 +949,10 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
                       className="node-label bp-tree-node-label"
                       x={point.x + chromePx(NODE_DOT_PX + 4)}
                       y={point.y + chromePx(4)}
-                      style={{ fontSize: chromePx(NODE_LABEL_PX) }}
+                      style={{
+                        fontSize: chromePx(NODE_LABEL_PX),
+                        strokeWidth: chromePx(LABEL_STROKE_PX),
+                      }}
                     >
                       {label}
                     </text>

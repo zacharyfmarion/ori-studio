@@ -406,6 +406,24 @@ describe('BP tree pane — the drawing keeps its proportions when zoomed', () =>
     expect(widthAt()).toBeCloseTo(atRest / 4, 6);
   });
 
+  it('counter-scales every mark in the canvas, not just the lines', () => {
+    const body = render(1, true);
+    const svg = body.querySelector('.bp-tree-canvas')!;
+    // Anything the camera would otherwise inflate: stroke widths (including the
+    // labels' halo, which is a stroke) and font sizes. A presentation attribute
+    // here would be overridden by theme.css, so each must be an inline style.
+    // theme.css gives all of these a stroke, and text a font size; both are
+    // inflated by the camera unless counter-scaled. A presentation attribute
+    // would lose to that CSS, so each must carry an inline style.
+    const marks = [...svg.querySelectorAll<SVGElement>('line, circle, text')];
+    expect(marks.length).toBeGreaterThan(3);
+    for (const mark of marks) {
+      expect(mark.style.strokeWidth).not.toBe('');
+      expect(mark.getAttribute('stroke-width')).toBeNull();
+      if (mark.tagName.toLowerCase() === 'text') expect(mark.style.fontSize).not.toBe('');
+    }
+  });
+
   it('keeps line weight proportional to dot size at any zoom', () => {
     const body = render(1);
     const edge = Number((body.querySelector('.bp-tree-edge') as SVGElement).style.strokeWidth);
