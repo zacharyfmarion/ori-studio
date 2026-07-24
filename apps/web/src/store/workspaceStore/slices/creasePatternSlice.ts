@@ -486,6 +486,11 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         });
         if (!cpSlotGenerationIsCurrent(generation)) return;
         set(freshEditableCpState(document, get().projectLoadId));
+        // Seed the always-on diagnostics for the pattern just loaded. Without
+        // this the overlay is blank until the first edit, which matters here:
+        // the foldability lesson opens on a deliberately broken pattern and its
+        // prose says the editor is already flagging it.
+        get().scheduleOristudioCamvRefresh();
       } catch (error) {
         set({ oristudioCpError: engineError(error).message });
       }

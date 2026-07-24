@@ -21,6 +21,8 @@ import bisectorDone from './bisector-done.cp?raw';
 import quarters from './quarters.cp?raw';
 import mirrorStart from './mirror-start.cp?raw';
 import mirrorDone from './mirror-done.cp?raw';
+import maekawaBroken from './maekawa-broken.cp?raw';
+import preliminaryBase from './preliminary-base.cp?raw';
 import type { LessonTarget } from '../types';
 
 export const LESSON_TARGETS: readonly LessonTarget[] = [
@@ -38,6 +40,8 @@ export const LESSON_TARGETS: readonly LessonTarget[] = [
   { id: 'quarters', cp: quarters },
   { id: 'mirror-start', cp: mirrorStart },
   { id: 'mirror-done', cp: mirrorDone },
+  { id: 'maekawa-broken', cp: maekawaBroken },
+  { id: 'preliminary-base', cp: preliminaryBase },
 ];
 
 const TARGET_BY_ID = new Map(LESSON_TARGETS.map((target) => [target.id, target]));

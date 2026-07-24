@@ -9,6 +9,7 @@ import { lessonTarget } from '../../tutorial/targets';
 import blankPracticeCp from '../../tutorial/targets/blank-sheet.cp?raw';
 import { targetGeometry } from '../../tutorial/runtime/targetGeometry';
 import { useLessonCheck } from '../../tutorial/runtime/useLessonCheck';
+import { useLessonAction } from '../../tutorial/runtime/useLessonAction';
 import {
   stepIsSelfAdvancing,
   type Lesson,
@@ -50,7 +51,9 @@ export function LessonPanel() {
   useArmedTool(step);
 
   const drawStep = step?.kind === 'draw' ? step : null;
+  const actionStep = step?.kind === 'action' ? step : null;
   const comparison = useLessonCheck(drawStep);
+  const actionSatisfied = useLessonAction(actionStep);
   const [target, setTarget] = useState<OristudioCpModel | null>(null);
 
   useEffect(() => {
@@ -117,6 +120,33 @@ export function LessonPanel() {
 
         {step.image ? (
           <img className="lesson-panel__image" src={step.image.src} alt={step.image.alt} />
+        ) : null}
+
+        {actionStep ? (
+          <section className="lesson-panel__target">
+            <p
+              className={
+                actionSatisfied
+                  ? 'lesson-panel__feedback lesson-panel__feedback--ok'
+                  : 'lesson-panel__feedback'
+              }
+            >
+              {actionSatisfied ? (
+                <>
+                  <Check size={13} aria-hidden />{' '}
+                  {t('panels:tutorial.actionDone', 'Done — that worked.')}
+                </>
+              ) : (
+                <>
+                  <CircleDashed size={13} aria-hidden />{' '}
+                  {t('panels:tutorial.actionPending', 'Waiting for you to try it…')}
+                </>
+              )}
+            </p>
+            {!actionSatisfied && actionStep.hint ? (
+              <p className="lesson-panel__hint">{actionStep.hint}</p>
+            ) : null}
+          </section>
         ) : null}
 
         {drawStep ? (

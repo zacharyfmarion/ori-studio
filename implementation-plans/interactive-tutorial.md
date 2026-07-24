@@ -608,12 +608,29 @@ for whether a pattern folds.
 - [ ] Auxiliary-line lesson exercising the aux-inclusive check path (the
       `diagonal-with-guide` target exists but no lesson uses it yet).
 
-### Phase 5 — Chapters 5–6: Check/fix and folded form
+### Phase 5 — Chapter 3: Foldability ✅
 
-- [ ] Diagnostics lesson: start from a deliberately-broken CP, `action` step
-      checking the diagnostics come back clean.
-- [ ] Fold estimate lesson: `action` step satisfied when a folded figure exists.
-- [ ] Send-to-Simulate lesson; returning to `/learn/:lessonId` resumes the step.
+- [x] `action` step support: `useLessonAction` + a pure `evaluateLessonPredicate`
+      with unit tests. (`viewport-moved` was dropped from the predicate union —
+      nothing used it and it could not be observed honestly.)
+- [x] `loadPracticeCreasePattern` seeds the CAMV diagnostics, without which the
+      `camv-clean` step could never be satisfied.
+- [x] Diagnostics lesson: broken pattern → clear the violations → clean.
+      **Verified reachable in the browser** (4 issues → 0).
+- [x] Fold lesson: `action` step satisfied when a folded figure exists.
+      **Verified end to end** — select, fold, dismiss the foldability warning,
+      figure appears, step reports satisfied.
+- [ ] Send-to-Simulate lesson (deferred: Simulate keeps the learn slot, so the
+      plumbing is in place, but the lesson is not written).
+
+**Content note.** The chapter was rewritten after checking what the editor's
+CAMV pass actually reports. The first draft asserted Maekawa violations at a
+vertex where four mountain creases cross — but the checker evaluates vertices in
+the document's *topology*, and two creases that merely cross without being
+divided there do not form one. What it does flag in these patterns is creases
+meeting the paper's edge partway along. The lesson now teaches that, and the
+module carries a note telling the next author to verify against the running app
+rather than reason from the theory.
 
 ### Phase 6 — Discovery, i18n, and validation
 

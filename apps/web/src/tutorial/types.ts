@@ -60,9 +60,7 @@ export type LessonStatePredicate =
   /** At least one folded figure exists. */
   | 'folded-figure-exists'
   /** The always-on CAMV diagnostics report no violations. */
-  | 'camv-clean'
-  /** The user has changed the viewport (panned or zoomed). */
-  | 'viewport-moved';
+  | 'camv-clean';
 
 interface LessonStepBase {
   /** Stable within its lesson; used for progress and i18n keys. */
