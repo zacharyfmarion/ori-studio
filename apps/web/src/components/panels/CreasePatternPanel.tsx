@@ -131,6 +131,7 @@ import type { TransformableCanvasObject } from '../../cp-workspace/canvasObjects
 import type { AnnotationResizeHandle } from '../../cp-workspace/annotations/annotationTransform';
 import { CpTextAnnotationLayer } from '../../cp-workspace/CpTextAnnotationLayer';
 import { CpImageInspector } from '../../cp-workspace/CpImageInspector';
+import { CpSelectionToolbar } from '../../cp-workspace/CpSelectionToolbar';
 import { createCpImage } from '../../cp-workspace/images/cpImage';
 import { importImageFile, isSupportedImageFile } from '../../cp-workspace/images/cpImageImport';
 import { cropImage, fitImageModelSize } from '../../cp-workspace/images/cpImagePlacement';
@@ -3598,6 +3599,9 @@ export function CreasePatternPanel() {
                     onSendToBack={sendSelectedImageToBack}
                     onDelete={deleteSelectedImage}
                   />
+                )}
+                {annotationsInteractive && !editingTextId && !selectedCpImage && (
+                  <CpSelectionToolbar container={toolbarContainer} />
                 )}
                 </>
               ) : (
