@@ -35,6 +35,49 @@ function exportFold(): FoldDocument {
   };
 }
 
+/** Two disjoint squares, so segmentation yields two crease patterns. */
+function twoPatternExportFold(): FoldDocument {
+  return {
+    vertices_coords: [
+      [0, 0],
+      [1, 0],
+      [1, 1],
+      [0, 1],
+      [3, 0],
+      [4, 0],
+      [4, 1],
+      [3, 1],
+    ],
+    edges_vertices: [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [3, 0],
+      [0, 2],
+      [4, 5],
+      [5, 6],
+      [6, 7],
+      [7, 4],
+      [4, 6],
+    ],
+    edges_assignment: ['B', 'B', 'B', 'B', 'M', 'B', 'B', 'B', 'B', 'V'],
+    faces_vertices: [
+      [0, 1, 2],
+      [0, 2, 3],
+      [4, 5, 6],
+      [4, 6, 7],
+    ],
+  };
+}
+
+/** Set a controlled input's value the way React's onChange expects. */
+function setFieldValue(field: HTMLInputElement | HTMLTextAreaElement, value: string) {
+  const prototype = field instanceof HTMLTextAreaElement ? HTMLTextAreaElement : HTMLInputElement;
+  const setter = Object.getOwnPropertyDescriptor(prototype.prototype, 'value')?.set;
+  setter?.call(field, value);
+  field.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 if (!globalThis.ResizeObserver) {
@@ -162,6 +205,99 @@ describe('CommandDialogModal', () => {
       ...DEFAULT_CREASE_EXPORT_OPTIONS,
       includeUnassigned: false,
       showBackgroundColor: false,
+    });
+  });
+
+  it('lists rendered thumbnails for a multi-pattern document', async () => {
+    const rendered = renderModalHost();
+    const fold = twoPatternExportFold();
+    const segments = segmentFoldDocument(fold);
+    let result = Promise.resolve<CreaseExportOptions | null>(null);
+
+    act(() => {
+      result = requestCreasePatternExportOptions({
+        title: 'Export SVG',
+        format: 'svg',
+        fold,
+        segments,
+        initialOptions: { ...DEFAULT_CREASE_EXPORT_OPTIONS },
+        confirmLabel: 'Export SVG',
+      });
+    });
+
+    const cards = rendered.querySelectorAll('.export-modal__pattern-card');
+    // "All patterns" plus one card per pattern, each with a rendered thumbnail.
+    expect(cards).toHaveLength(segments.length + 1);
+    expect(rendered.querySelectorAll('.export-modal__pattern-thumb svg')).toHaveLength(
+      segments.length + 1
+    );
+
+    await act(async () => {
+      (cards[1] as HTMLButtonElement).click();
+    });
+    await act(async () => {
+      findButton('Export SVG').click();
+      await result;
+    });
+
+    await expect(result).resolves.toMatchObject({ segmentId: segments[0]!.id });
+  });
+
+  it('hides the thumbnail column for a single-pattern document', () => {
+    const rendered = renderModalHost();
+    const fold = exportFold();
+    const segments = segmentFoldDocument(fold);
+
+    act(() => {
+      void requestCreasePatternExportOptions({
+        title: 'Export SVG',
+        format: 'svg',
+        fold,
+        segments,
+        initialOptions: { ...DEFAULT_CREASE_EXPORT_OPTIONS },
+        confirmLabel: 'Export SVG',
+      });
+    });
+
+    expect(rendered.querySelector('.export-modal__patterns')).toBeNull();
+  });
+
+  it('resolves the export theme and caption', async () => {
+    const rendered = renderModalHost();
+    const fold = exportFold();
+    const segments = segmentFoldDocument(fold);
+    let result = Promise.resolve<CreaseExportOptions | null>(null);
+
+    act(() => {
+      result = requestCreasePatternExportOptions({
+        title: 'Export PNG',
+        format: 'png',
+        fold,
+        segments,
+        initialOptions: { ...DEFAULT_CREASE_EXPORT_OPTIONS },
+        confirmLabel: 'Export PNG',
+      });
+    });
+
+    await act(async () => {
+      findButton('Dark').click();
+    });
+    await act(async () => {
+      setFieldValue(rendered.querySelector('#export-title') as HTMLInputElement, 'Crane');
+      setFieldValue(rendered.querySelector('#export-subtitle') as HTMLInputElement, 'Traditional');
+      setFieldValue(
+        rendered.querySelector('#export-description') as HTMLTextAreaElement,
+        'Folded from a square.'
+      );
+    });
+    await act(async () => {
+      findButton('Export PNG').click();
+      await result;
+    });
+
+    await expect(result).resolves.toMatchObject({
+      theme: 'dark',
+      caption: { title: 'Crane', subtitle: 'Traditional', description: 'Folded from a square.' },
     });
   });
 

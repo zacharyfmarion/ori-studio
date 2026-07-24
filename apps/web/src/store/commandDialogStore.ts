@@ -53,11 +53,14 @@ export type CreasePatternExportDialogOptions = {
   cancelLabel?: string;
 };
 
+export type CreasePatternExportDialog = { id: number; type: 'crease-export' } &
+  CreasePatternExportDialogOptions;
+
 export type CommandDialog =
   | ({ id: number; type: 'confirm' } & ConfirmDialogOptions)
   | ({ id: number; type: 'confirm-option' } & ConfirmWithOptionDialogOptions)
   | ({ id: number; type: 'number' } & NumberDialogOptions)
-  | ({ id: number; type: 'crease-export' } & CreasePatternExportDialogOptions);
+  | CreasePatternExportDialog;
 
 interface CommandDialogState {
   dialog: CommandDialog | null;

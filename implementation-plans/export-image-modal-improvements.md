@@ -345,22 +345,22 @@ Rust engine, and the simulator.
 
 ## Checklist
 
-### Phase 1 — Renderer foundation
-- [ ] Add `CreaseExportTheme`, `CreaseExportCaption`, `CreaseExportContent`; extend `CreaseExportOptions` and `DEFAULT_CREASE_EXPORT_OPTIONS`
-- [ ] Introduce `CreaseExportPalette` (light = today's colors, dark = new); thread it through `edgeAppearance`, facets, points, and monochrome line-style inversion
-- [ ] Add `escapeXml` and use it for every user-supplied string
-- [ ] Add `layoutCreaseExport` + `wrapExportText`; emit root `width`/`height`; make `svgToPng` use the layout size
-- [ ] Render title/subtitle/description blocks
-- [ ] Unit tests: dark palette, monochrome inversion, caption escaping, empty-caption layout unchanged from today, wrapping
+### Phase 1 — Renderer foundation (done)
+- [x] Add `CreaseExportTheme`, `CreaseExportCaption`, `CreaseExportContent`; extend `CreaseExportOptions` and `DEFAULT_CREASE_EXPORT_OPTIONS`
+- [x] Introduce `CreaseExportPalette` (light = today's colors, dark = new); thread it through `edgeAppearance`, facets, points, and monochrome line-style inversion
+- [x] Add `escapeXml` and use it for every user-supplied string
+- [x] Add `layoutCreaseExport` + `wrapExportText`; emit root `width`/`height`; make `svgToPng` use the layout size
+- [x] Render title/subtitle/description blocks
+- [x] Unit tests: dark palette, monochrome inversion, caption escaping, empty-caption layout unchanged from today, wrapping
 
-### Phase 2 — Modal restructure + theme + captions
-- [ ] Generalize `segmentThumbnailSvg` → `cpThumbnailSvg(fold, segments[], { size, palette })`; keep the simulator wrapper
-- [ ] Three-column export modal with the scrolling thumbnail listbox (incl. "All patterns"); delete the pill list
-- [ ] Theme `SegmentedControl` wired to `options.theme`
-- [ ] Title / subtitle / description fields, title prefilled from the project title
-- [ ] Split preview memoization so typing does not re-serialize the CP
-- [ ] CSS: pattern column, wider document, non-square preview
-- [ ] Modal tests: thumbnail selection drives `segmentId`, captions reach the resolved payload
+### Phase 2 — Modal restructure + theme + captions (done)
+- [x] Generalize `segmentThumbnailSvg` → `cpThumbnailSvg(fold, segments[], { size, palette })`; keep the simulator wrapper
+- [x] Three-column export modal with the scrolling thumbnail listbox (incl. "All patterns"); delete the pill list
+- [x] Theme `SegmentedControl` wired to `options.theme`
+- [x] Title / subtitle / description fields, title prefilled from the project title
+- [x] Split preview memoization so typing does not re-serialize the CP
+- [x] CSS: pattern column, wider document, non-square preview
+- [x] Modal tests: thumbnail selection drives `segmentId`, captions reach the resolved payload
 
 ### Phase 3 — Folded figure
 - [ ] Extract shared folded-figure bounds from `cpFoldedToScene.ts`

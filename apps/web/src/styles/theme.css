@@ -1173,7 +1173,10 @@
 }
 
 .simple-modal__document--export {
-  width: min(720px, calc(100vw - var(--space-6)));
+  display: flex;
+  flex-direction: column;
+  width: min(980px, calc(100vw - var(--space-6)));
+  max-height: calc(100vh - var(--space-6));
 }
 
 .simple-modal__header,
@@ -1231,31 +1234,118 @@
 }
 
 .export-modal {
-  grid-template-columns: minmax(220px, 1fr) minmax(220px, 280px);
-  align-items: start;
+  flex: 1 1 auto;
+  grid-template-columns: minmax(220px, 1fr) minmax(240px, 300px);
+  grid-template-rows: minmax(0, 1fr) auto;
+  align-items: stretch;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.export-modal--with-patterns {
+  grid-template-columns: 132px minmax(220px, 1fr) minmax(240px, 300px);
+}
+
+.export-modal__patterns {
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
+  min-height: 0;
+  padding-right: 2px;
+  overflow-y: auto;
+}
+
+.export-modal__pattern-card {
+  display: grid;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.export-modal__pattern-card:hover {
+  border-color: var(--border-strong, var(--border-subtle));
+}
+
+.export-modal__pattern-card--selected {
+  border-color: var(--accent-primary);
+  background: var(--accent-soft, var(--bg-secondary));
+  color: var(--text-primary);
+}
+
+.export-modal__pattern-thumb {
+  display: block;
+  overflow: hidden;
+  border-radius: var(--radius-sm, 4px);
+}
+
+.export-modal__pattern-thumb svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.export-modal__pattern-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-align: center;
 }
 
 .export-modal__preview {
-  display: grid;
+  position: relative;
   min-height: 280px;
   overflow: hidden;
-  place-items: center;
   border: 1px solid var(--border-muted);
   border-radius: var(--radius-md);
   background: var(--bg-primary);
 }
 
+/* Absolute + auto margins: the preview page can be any aspect ratio, and a
+   percentage max-height only resolves against a definite containing block. */
 .export-modal__preview img {
+  position: absolute;
+  inset: var(--space-2);
   display: block;
-  width: min(100%, 360px);
-  aspect-ratio: 1;
+  width: auto;
+  height: auto;
+  max-width: calc(100% - 2 * var(--space-2));
+  max-height: calc(100% - 2 * var(--space-2));
+  margin: auto;
   object-fit: contain;
 }
 
 .export-modal__controls {
   display: grid;
+  align-content: start;
   gap: var(--space-4);
   min-width: 0;
+  min-height: 0;
+  padding-right: 2px;
+  overflow-y: auto;
+}
+
+.export-modal__input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.78rem;
+}
+
+.export-modal__input:focus-visible {
+  border-color: var(--accent-primary);
+  outline: none;
+}
+
+.export-modal__textarea {
+  resize: vertical;
+  line-height: 1.45;
 }
 
 .export-modal__control-group {
@@ -1268,32 +1358,6 @@
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0;
-}
-
-.export-modal__pattern-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-}
-
-.export-modal__pattern {
-  padding: 4px 10px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm, 4px);
-  background: var(--bg-primary);
-  color: var(--text-secondary);
-  font-size: 0.74rem;
-  cursor: pointer;
-}
-
-.export-modal__pattern:hover {
-  border-color: var(--border-strong, var(--border-subtle));
-}
-
-.export-modal__pattern--selected {
-  border-color: var(--accent-primary);
-  background: var(--accent-soft, var(--bg-secondary));
-  color: var(--text-primary);
 }
 
 .export-modal__select {
@@ -1690,8 +1754,19 @@
     width: min(100%, calc(100vw - var(--space-4)));
   }
 
-  .export-modal {
+  .export-modal,
+  .export-modal--with-patterns {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
+  }
+
+  /* Narrow screens have no room for a column of thumbnails: lay them out as a
+     horizontal strip above the preview. */
+  .export-modal__patterns {
+    grid-auto-flow: column;
+    grid-auto-columns: 104px;
+    overflow-x: auto;
+    overflow-y: hidden;
   }
 
   .export-modal__preview {

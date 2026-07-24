@@ -474,20 +474,35 @@ export function serializeCreasePatternSvg(
   segments: CpSegment[],
   options: CreaseExportOptions = DEFAULT_CREASE_EXPORT_OPTIONS
 ): string {
-  return buildCreasePatternExport(fold, segments, options).svg;
+  return composeCreaseExportSvg(
+    buildCreaseExportArtwork(fold, segments, options),
+    options.caption
+  ).svg;
 }
 
-interface CreaseExportDocument {
+export interface CreaseExportDocument {
   svg: string;
   width: number;
   height: number;
 }
 
-function buildCreasePatternExport(
+/**
+ * The drawn part of an export, independent of the caption.
+ *
+ * Kept separate so the dialog can re-run the cheap caption/layout pass on every
+ * keystroke without re-serializing a crease pattern that has not changed.
+ */
+export interface CreaseExportArtwork {
+  /** Crease-pattern body, in content-box coordinates. */
+  cp: string;
+  palette: CreaseExportPalette;
+}
+
+export function buildCreaseExportArtwork(
   fold: FoldDocument,
   segments: CpSegment[],
   options: CreaseExportOptions
-): CreaseExportDocument {
+): CreaseExportArtwork {
   const palette = creaseExportPalette(options.theme);
   const segment =
     options.segmentId != null ? segments.find((entry) => entry.id === options.segmentId) : undefined;
@@ -543,14 +558,22 @@ function buildCreasePatternExport(
     points = dots.join('\n');
   }
 
-  const layout = layoutCreaseExport(options.caption, palette);
-  const artwork = [backgrounds, lines, points].filter(Boolean).join('\n');
+  return { cp: [backgrounds, lines, points].filter(Boolean).join('\n'), palette };
+}
+
+/** Place artwork and caption on the page and emit the standalone SVG. */
+export function composeCreaseExportSvg(
+  artwork: CreaseExportArtwork,
+  caption: CreaseExportCaption
+): CreaseExportDocument {
+  const { palette } = artwork;
+  const layout = layoutCreaseExport(caption, palette);
   // Only wrap the artwork when it actually moves: an export with no caption is
   // byte-for-byte what it was before captions existed.
-  const placedArtwork =
+  const placedCp =
     layout.cp.x === 0 && layout.cp.y === 0
-      ? artwork
-      : `  <g transform="translate(${layout.cp.x.toFixed(2)}, ${layout.cp.y.toFixed(2)})">\n${artwork}\n  </g>`;
+      ? artwork.cp
+      : `  <g transform="translate(${layout.cp.x.toFixed(2)}, ${layout.cp.y.toFixed(2)})">\n${artwork.cp}\n  </g>`;
 
   const svg = [
     '<?xml version="1.0" encoding="UTF-8"?>',
@@ -558,7 +581,7 @@ function buildCreasePatternExport(
     `  <rect width="100%" height="100%" fill="${palette.canvas}"/>`,
     renderTextBlock(layout.title, layout.width),
     renderTextBlock(layout.subtitle, layout.width),
-    placedArtwork,
+    placedCp,
     renderTextBlock(layout.description, layout.width),
     '</svg>',
   ]
@@ -604,6 +627,9 @@ export function renderCreasePatternPng(
   segments: CpSegment[],
   options: CreaseExportOptions = DEFAULT_CREASE_EXPORT_OPTIONS
 ): Promise<Uint8Array> {
-  const document = buildCreasePatternExport(fold, segments, options);
-  return svgToPng(document.svg, document.width, document.height);
+  const page = composeCreaseExportSvg(
+    buildCreaseExportArtwork(fold, segments, options),
+    options.caption
+  );
+  return svgToPng(page.svg, page.width, page.height);
 }

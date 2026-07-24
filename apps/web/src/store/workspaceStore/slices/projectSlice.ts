@@ -4,6 +4,7 @@ import {
   serializeCreasePatternSvg,
   renderCreasePatternPng,
   DEFAULT_CREASE_EXPORT_OPTIONS,
+  EMPTY_CREASE_EXPORT_CAPTION,
   type CreaseExportFormat,
   type CreaseExportOptions,
 } from '../../../lib/creaseExport';
@@ -420,11 +421,17 @@ async function confirmDiscardDirty(dirty: boolean): Promise<boolean> {
   });
 }
 
-function defaultCreaseExportOptions(viewport: OristudioCpViewportOptions): CreaseExportOptions {
+function defaultCreaseExportOptions(
+  viewport: OristudioCpViewportOptions,
+  title: string
+): CreaseExportOptions {
   return {
     ...DEFAULT_CREASE_EXPORT_OPTIONS,
     lineStyle: viewport.lineStyle ?? DEFAULT_ORISTUDIO_CP_LINE_STYLE,
     lineWidth: viewport.lineWidth ?? DEFAULT_ORISTUDIO_CP_LINE_WIDTH,
+    // The project already has a name; the caption starts from it rather than
+    // making the user retype it.
+    caption: { ...EMPTY_CREASE_EXPORT_CAPTION, title },
   };
 }
 
@@ -465,7 +472,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       format,
       fold,
       segments,
-      initialOptions: defaultCreaseExportOptions(get().oristudioCpViewport),
+      initialOptions: defaultCreaseExportOptions(get().oristudioCpViewport, get().project.title),
       confirmLabel: `Export ${label}`,
     });
     return resolved ? { options: resolved, fold, segments } : null;
