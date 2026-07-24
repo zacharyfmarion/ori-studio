@@ -14,6 +14,13 @@ import diagonalsAfterDelete from './diagonals-after-delete.cp?raw';
 import firstCrease from './first-crease.cp?raw';
 import fourCreases from './four-creases.cp?raw';
 import inscribedSquare from './inscribed-square.cp?raw';
+import perpendicularStart from './perpendicular-start.cp?raw';
+import perpendicularDone from './perpendicular-done.cp?raw';
+import bisectorStart from './bisector-start.cp?raw';
+import bisectorDone from './bisector-done.cp?raw';
+import quarters from './quarters.cp?raw';
+import mirrorStart from './mirror-start.cp?raw';
+import mirrorDone from './mirror-done.cp?raw';
 import type { LessonTarget } from '../types';
 
 export const LESSON_TARGETS: readonly LessonTarget[] = [
@@ -24,6 +31,13 @@ export const LESSON_TARGETS: readonly LessonTarget[] = [
   { id: 'four-creases', cp: fourCreases },
   { id: 'diagonals-after-delete', cp: diagonalsAfterDelete },
   { id: 'inscribed-square', cp: inscribedSquare },
+  { id: 'perpendicular-start', cp: perpendicularStart },
+  { id: 'perpendicular-done', cp: perpendicularDone },
+  { id: 'bisector-start', cp: bisectorStart },
+  { id: 'bisector-done', cp: bisectorDone },
+  { id: 'quarters', cp: quarters },
+  { id: 'mirror-start', cp: mirrorStart },
+  { id: 'mirror-done', cp: mirrorDone },
 ];
 
 const TARGET_BY_ID = new Map(LESSON_TARGETS.map((target) => [target.id, target]));

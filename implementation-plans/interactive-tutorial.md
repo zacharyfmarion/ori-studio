@@ -594,10 +594,19 @@ writing it against a stub would have been throwaway work.
 - [ ] Images for the prose steps (none authored yet — the prose stands alone,
       but diagrams would help the mountain/valley explanation).
 
-### Phase 4 — Chapter 2: Drawing tools
+### Phase 4 — Chapter 2: Constructing creases ✅
 
-- [ ] One lesson per remaining tool in the `draw` group, each with target `.cp`.
-- [ ] Auxiliary-line lesson exercises the aux-inclusive check path.
+Retitled from "Drawing tools": the useful split is not *which* draw tool but
+hand-drawn vs. constructed-from-geometry, which is the distinction that matters
+for whether a pattern folds.
+
+- [x] Perpendiculars, angle bisectors, dividing a length, mirroring — four
+      lessons, each with a start and target `.cp`.
+- [x] Guard: every `teaches` id resolves to a real action.
+      `OristudioCpActionId` is `cp.action.${string}`, so any string typechecks —
+      all four ids in the first draft were wrong and compiled fine.
+- [ ] Auxiliary-line lesson exercising the aux-inclusive check path (the
+      `diagonal-with-guide` target exists but no lesson uses it yet).
 
 ### Phase 5 — Chapters 5–6: Check/fix and folded form
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { LESSON_CHAPTERS, LESSONS, lessonById, nextLesson } from './index';
 import { LESSON_TARGETS, lessonTarget } from '../targets';
 import { stepIsSelfAdvancing } from '../types';
+import { cpActionById } from '../../lib/oristudioCpActions';
 
 /**
  * Content integrity. These are the checks that stop a broken lesson from
@@ -61,6 +62,21 @@ describe('lesson content', () => {
       for (const step of lesson.steps) {
         if (step.kind !== 'draw') continue;
         expect(lessonTarget(step.targetId), `${lesson.id}/${step.id}`).toBeDefined();
+      }
+    }
+  });
+
+  /**
+   * `OristudioCpActionId` is a template-literal type (`cp.action.${string}`), so
+   * *any* string typechecks. A mistyped tool id would compile happily and then
+   * silently fail to arm anything — every id in the first draft of chapter 2 was
+   * wrong in exactly that way. This is the only thing that catches it.
+   */
+  it('names tools that actually exist', () => {
+    for (const lesson of LESSONS) {
+      for (const step of lesson.steps) {
+        if (step.kind !== 'draw' || !step.teaches) continue;
+        expect(cpActionById(step.teaches), `${lesson.id}/${step.id}: ${step.teaches}`).toBeDefined();
       }
     }
   });

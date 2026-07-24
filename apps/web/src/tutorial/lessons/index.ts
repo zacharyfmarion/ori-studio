@@ -7,10 +7,11 @@
  */
 import type { Lesson, LessonChapter } from '../types';
 import { BASICS_CHAPTER, BASICS_LESSONS } from './basics';
+import { CONSTRUCT_CHAPTER, CONSTRUCT_LESSONS } from './construct';
 
-export const LESSON_CHAPTERS: readonly LessonChapter[] = [BASICS_CHAPTER];
+export const LESSON_CHAPTERS: readonly LessonChapter[] = [BASICS_CHAPTER, CONSTRUCT_CHAPTER];
 
-export const LESSONS: readonly Lesson[] = [...BASICS_LESSONS];
+export const LESSONS: readonly Lesson[] = [...BASICS_LESSONS, ...CONSTRUCT_LESSONS];
 
 const LESSON_BY_ID = new Map(LESSONS.map((lesson) => [lesson.id, lesson]));
 
