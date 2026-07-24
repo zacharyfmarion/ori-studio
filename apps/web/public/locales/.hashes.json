@@ -576,7 +576,6 @@
     "panels:bpPacking.selectDevice": "a11046a5f281",
     "panels:bpPacking.selectFlap": "3d7d97d0a6d1",
     "panels:bpPacking.selectFlapWithName": "b7d12e038333",
-    "panels:bpPacking.selectRiver": "fb12d8dee62d",
     "panels:bpPacking.selectRiverShort": "913f344cd6a7",
     "panels:bpPacking.sheetSizeGrid": "ee7c3f80092e",
     "panels:bpPacking.size": "1af851907331",
@@ -1741,7 +1740,13 @@
     "panels:creasePattern.deleteFoldedModelAction": "da2c5eab801d",
     "panels:creasePattern.duplicateFoldedModelAction": "88437cf57abc",
     "panels:creasePattern.flipFoldedModel": "e6c0e41ad1ef",
-    "panels:creasePattern.foldModelAction": "7734edbfc28a"
+    "panels:creasePattern.foldModelAction": "7734edbfc28a",
+    "panels:bpPacking.flapHeight": "44bd7ae60f47",
+    "panels:bpPacking.flapHeightAria": "039b0b140b78",
+    "panels:bpPacking.flapRadius": "8c2574892063",
+    "panels:bpPacking.flapRadiusAria": "c70eefa27441",
+    "panels:bpPacking.flapWidth": "fcb5f40df9be",
+    "panels:bpPacking.flapWidthAria": "01701adc1c13"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -2320,7 +2325,6 @@
     "panels:bpPacking.selectDevice": "a11046a5f281",
     "panels:bpPacking.selectFlap": "3d7d97d0a6d1",
     "panels:bpPacking.selectFlapWithName": "b7d12e038333",
-    "panels:bpPacking.selectRiver": "fb12d8dee62d",
     "panels:bpPacking.selectRiverShort": "913f344cd6a7",
     "panels:bpPacking.sheetSizeGrid": "ee7c3f80092e",
     "panels:bpPacking.size": "1af851907331",
@@ -3485,7 +3489,13 @@
     "panels:creasePattern.deleteFoldedModelAction": "da2c5eab801d",
     "panels:creasePattern.duplicateFoldedModelAction": "88437cf57abc",
     "panels:creasePattern.flipFoldedModel": "e6c0e41ad1ef",
-    "panels:creasePattern.foldModelAction": "7734edbfc28a"
+    "panels:creasePattern.foldModelAction": "7734edbfc28a",
+    "panels:bpPacking.flapHeight": "44bd7ae60f47",
+    "panels:bpPacking.flapHeightAria": "039b0b140b78",
+    "panels:bpPacking.flapRadius": "8c2574892063",
+    "panels:bpPacking.flapRadiusAria": "c70eefa27441",
+    "panels:bpPacking.flapWidth": "fcb5f40df9be",
+    "panels:bpPacking.flapWidthAria": "01701adc1c13"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -4076,7 +4086,6 @@
     "panels:bpPacking.selectDevice": "a11046a5f281",
     "panels:bpPacking.selectFlap": "3d7d97d0a6d1",
     "panels:bpPacking.selectFlapWithName": "b7d12e038333",
-    "panels:bpPacking.selectRiver": "fb12d8dee62d",
     "panels:bpPacking.selectRiverShort": "913f344cd6a7",
     "panels:bpPacking.sheetSizeGrid": "ee7c3f80092e",
     "panels:bpPacking.size": "1af851907331",
@@ -5254,7 +5263,13 @@
     "panels:creasePattern.deleteFoldedModelAction": "da2c5eab801d",
     "panels:creasePattern.duplicateFoldedModelAction": "88437cf57abc",
     "panels:creasePattern.flipFoldedModel": "e6c0e41ad1ef",
-    "panels:creasePattern.foldModelAction": "7734edbfc28a"
+    "panels:creasePattern.foldModelAction": "7734edbfc28a",
+    "panels:bpPacking.flapHeight": "44bd7ae60f47",
+    "panels:bpPacking.flapHeightAria": "039b0b140b78",
+    "panels:bpPacking.flapRadius": "8c2574892063",
+    "panels:bpPacking.flapRadiusAria": "c70eefa27441",
+    "panels:bpPacking.flapWidth": "fcb5f40df9be",
+    "panels:bpPacking.flapWidthAria": "01701adc1c13"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -5845,7 +5860,6 @@
     "panels:bpPacking.selectDevice": "a11046a5f281",
     "panels:bpPacking.selectFlap": "3d7d97d0a6d1",
     "panels:bpPacking.selectFlapWithName": "b7d12e038333",
-    "panels:bpPacking.selectRiver": "fb12d8dee62d",
     "panels:bpPacking.selectRiverShort": "913f344cd6a7",
     "panels:bpPacking.sheetSizeGrid": "ee7c3f80092e",
     "panels:bpPacking.size": "1af851907331",
@@ -7023,7 +7037,13 @@
     "panels:creasePattern.deleteFoldedModelAction": "da2c5eab801d",
     "panels:creasePattern.duplicateFoldedModelAction": "88437cf57abc",
     "panels:creasePattern.flipFoldedModel": "e6c0e41ad1ef",
-    "panels:creasePattern.foldModelAction": "7734edbfc28a"
+    "panels:creasePattern.foldModelAction": "7734edbfc28a",
+    "panels:bpPacking.flapHeight": "44bd7ae60f47",
+    "panels:bpPacking.flapHeightAria": "039b0b140b78",
+    "panels:bpPacking.flapRadius": "8c2574892063",
+    "panels:bpPacking.flapRadiusAria": "c70eefa27441",
+    "panels:bpPacking.flapWidth": "fcb5f40df9be",
+    "panels:bpPacking.flapWidthAria": "01701adc1c13"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -7614,7 +7634,6 @@
     "panels:bpPacking.selectDevice": "a11046a5f281",
     "panels:bpPacking.selectFlap": "3d7d97d0a6d1",
     "panels:bpPacking.selectFlapWithName": "b7d12e038333",
-    "panels:bpPacking.selectRiver": "fb12d8dee62d",
     "panels:bpPacking.selectRiverShort": "913f344cd6a7",
     "panels:bpPacking.sheetSizeGrid": "ee7c3f80092e",
     "panels:bpPacking.size": "1af851907331",
@@ -8792,7 +8811,13 @@
     "panels:creasePattern.deleteFoldedModelAction": "da2c5eab801d",
     "panels:creasePattern.duplicateFoldedModelAction": "88437cf57abc",
     "panels:creasePattern.flipFoldedModel": "e6c0e41ad1ef",
-    "panels:creasePattern.foldModelAction": "7734edbfc28a"
+    "panels:creasePattern.foldModelAction": "7734edbfc28a",
+    "panels:bpPacking.flapHeight": "44bd7ae60f47",
+    "panels:bpPacking.flapHeightAria": "039b0b140b78",
+    "panels:bpPacking.flapRadius": "8c2574892063",
+    "panels:bpPacking.flapRadiusAria": "c70eefa27441",
+    "panels:bpPacking.flapWidth": "fcb5f40df9be",
+    "panels:bpPacking.flapWidthAria": "01701adc1c13"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -9383,7 +9408,6 @@
     "panels:bpPacking.selectDevice": "a11046a5f281",
     "panels:bpPacking.selectFlap": "3d7d97d0a6d1",
     "panels:bpPacking.selectFlapWithName": "b7d12e038333",
-    "panels:bpPacking.selectRiver": "fb12d8dee62d",
     "panels:bpPacking.selectRiverShort": "913f344cd6a7",
     "panels:bpPacking.sheetSizeGrid": "ee7c3f80092e",
     "panels:bpPacking.size": "1af851907331",
@@ -10561,7 +10585,13 @@
     "panels:creasePattern.deleteFoldedModelAction": "da2c5eab801d",
     "panels:creasePattern.duplicateFoldedModelAction": "88437cf57abc",
     "panels:creasePattern.flipFoldedModel": "e6c0e41ad1ef",
-    "panels:creasePattern.foldModelAction": "7734edbfc28a"
+    "panels:creasePattern.foldModelAction": "7734edbfc28a",
+    "panels:bpPacking.flapHeight": "44bd7ae60f47",
+    "panels:bpPacking.flapHeightAria": "039b0b140b78",
+    "panels:bpPacking.flapRadius": "8c2574892063",
+    "panels:bpPacking.flapRadiusAria": "c70eefa27441",
+    "panels:bpPacking.flapWidth": "fcb5f40df9be",
+    "panels:bpPacking.flapWidthAria": "01701adc1c13"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -11152,7 +11182,6 @@
     "panels:bpPacking.selectDevice": "a11046a5f281",
     "panels:bpPacking.selectFlap": "3d7d97d0a6d1",
     "panels:bpPacking.selectFlapWithName": "b7d12e038333",
-    "panels:bpPacking.selectRiver": "fb12d8dee62d",
     "panels:bpPacking.selectRiverShort": "913f344cd6a7",
     "panels:bpPacking.sheetSizeGrid": "ee7c3f80092e",
     "panels:bpPacking.size": "1af851907331",
@@ -12330,7 +12359,13 @@
     "panels:creasePattern.deleteFoldedModelAction": "da2c5eab801d",
     "panels:creasePattern.duplicateFoldedModelAction": "88437cf57abc",
     "panels:creasePattern.flipFoldedModel": "e6c0e41ad1ef",
-    "panels:creasePattern.foldModelAction": "7734edbfc28a"
+    "panels:creasePattern.foldModelAction": "7734edbfc28a",
+    "panels:bpPacking.flapHeight": "44bd7ae60f47",
+    "panels:bpPacking.flapHeightAria": "039b0b140b78",
+    "panels:bpPacking.flapRadius": "8c2574892063",
+    "panels:bpPacking.flapRadiusAria": "c70eefa27441",
+    "panels:bpPacking.flapWidth": "fcb5f40df9be",
+    "panels:bpPacking.flapWidthAria": "01701adc1c13"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12909,7 +12944,6 @@
     "panels:bpPacking.selectDevice": "a11046a5f281",
     "panels:bpPacking.selectFlap": "3d7d97d0a6d1",
     "panels:bpPacking.selectFlapWithName": "b7d12e038333",
-    "panels:bpPacking.selectRiver": "fb12d8dee62d",
     "panels:bpPacking.selectRiverShort": "913f344cd6a7",
     "panels:bpPacking.sheetSizeGrid": "ee7c3f80092e",
     "panels:bpPacking.size": "1af851907331",
@@ -14074,6 +14108,12 @@
     "panels:creasePattern.deleteFoldedModelAction": "da2c5eab801d",
     "panels:creasePattern.duplicateFoldedModelAction": "88437cf57abc",
     "panels:creasePattern.flipFoldedModel": "e6c0e41ad1ef",
-    "panels:creasePattern.foldModelAction": "7734edbfc28a"
+    "panels:creasePattern.foldModelAction": "7734edbfc28a",
+    "panels:bpPacking.flapHeight": "44bd7ae60f47",
+    "panels:bpPacking.flapHeightAria": "039b0b140b78",
+    "panels:bpPacking.flapRadius": "8c2574892063",
+    "panels:bpPacking.flapRadiusAria": "c70eefa27441",
+    "panels:bpPacking.flapWidth": "fcb5f40df9be",
+    "panels:bpPacking.flapWidthAria": "01701adc1c13"
   }
 }
