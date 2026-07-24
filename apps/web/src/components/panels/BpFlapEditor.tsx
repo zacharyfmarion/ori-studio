@@ -24,7 +24,6 @@ import { BpNameEditor } from './BpNameEditor';
  */
 export function BpFlapEditor({
   flap,
-  title,
   namePlaceholder,
   nameAriaLabel,
   sheet,
@@ -38,7 +37,6 @@ export function BpFlapEditor({
   onEscape,
 }: {
   flap: OristudioBpFlap;
-  title: string;
   namePlaceholder?: string;
   nameAriaLabel: string;
   sheet: OristudioBpSheet;
@@ -47,14 +45,13 @@ export function BpFlapEditor({
   radiusMax: number | null;
   radiusEditable: boolean;
   onRename: (name: string) => void;
-  onResize: (width: number, height: number) => void;
-  onRadius: (length: number) => void;
+  onResize: (width: number, height: number) => Promise<boolean>;
+  onRadius: (length: number) => Promise<boolean>;
   onEscape?: () => void;
 }) {
   const { t } = useTranslation();
   return (
     <BpNameEditor
-      title={title}
       name={flap.name}
       placeholder={namePlaceholder}
       ariaLabel={nameAriaLabel}
@@ -98,6 +95,11 @@ export function BpFlapEditor({
  * blur/Enter; reverts on Escape, on a non-numeric entry, or when `validate`
  * rejects the value (so an out-of-range resize snaps back). Reset on selection
  * is handled by keying the parent editor on the flap id.
+ *
+ * The commit is awaited: a successful edit updates `value` through props (the
+ * effect below re-syncs the display), and one the engine rejects snaps the
+ * field back to the real value — so the field can never show a value the model
+ * did not accept, even if the client pre-check and the engine ever disagree.
  */
 function BpFlapNumberField({
   label,
@@ -114,14 +116,14 @@ function BpFlapNumberField({
   min: number;
   max: number;
   validate?: (value: number) => boolean;
-  onCommit: (value: number) => void;
+  onCommit: (value: number) => Promise<boolean>;
 }) {
   const [draft, setDraft] = useState(() => String(value));
   useEffect(() => {
     setDraft(String(value));
   }, [value]);
 
-  const commit = () => {
+  const commit = async () => {
     const parsed = Number.parseInt(draft, 10);
     if (!Number.isFinite(parsed)) {
       setDraft(String(value));
@@ -132,7 +134,9 @@ function BpFlapNumberField({
       setDraft(String(value));
       return;
     }
-    onCommit(clamped);
+    setDraft(String(clamped));
+    const accepted = await onCommit(clamped);
+    if (!accepted) setDraft(String(value));
   };
 
   return (

@@ -789,8 +789,8 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   // leaf so the tree stays length-faithful (the subtree of a leaf is just the
   // leaf). Reuses the same single-undo edge-length path as the tree inspector.
   const setSelectedFlapRadius = useCallback(
-    (length: number) => {
-      if (!singleSelectedFlap || !singleSelectedFlapEdge) return;
+    (length: number): Promise<boolean> => {
+      if (!singleSelectedFlap || !singleSelectedFlapEdge) return Promise.resolve(false);
       const edge = singleSelectedFlapEdge;
       const leafId = singleSelectedFlap.vertexId;
       const [a, b] = edge.vertices;
@@ -798,11 +798,10 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
       const leaf = tree.vertices.find((vertex) => vertex.id === leafId);
       const parent = tree.vertices.find((vertex) => vertex.id === parentId);
       if (!leaf || !parent) {
-        void setOristudioBpTreeEdgeLength(edge.vertices, length);
-        return;
+        return setOristudioBpTreeEdgeLength(edge.vertices, length);
       }
       const target = unitLeafLocation(parent.loc, leaf.loc, length);
-      void setOristudioBpTreeEdgeLength(edge.vertices, length, [{ id: leafId, loc: target }]);
+      return setOristudioBpTreeEdgeLength(edge.vertices, length, [{ id: leafId, loc: target }]);
     },
     [singleSelectedFlap, singleSelectedFlapEdge, tree.vertices, setOristudioBpTreeEdgeLength]
   );
@@ -1871,9 +1870,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
         <BpFlapEditor
           key={singleSelectedFlap.id}
           flap={singleSelectedFlap}
-          title={t('panels:bpPacking.flapTitle', 'Flap {{id}}', {
-            id: bpDefaultFlapLabel(singleSelectedFlap.id),
-          })}
           namePlaceholder={bpDefaultFlapLabel(singleSelectedFlap.id)}
           nameAriaLabel={t('panels:bpPacking.flapNameAria', 'Name of flap {{id}}', {
             id: bpDefaultFlapLabel(singleSelectedFlap.id),
@@ -1885,7 +1881,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
           radiusEditable={singleSelectedFlapEdge !== null}
           onRename={(name) => void renameOristudioBpVertex(singleSelectedFlap.vertexId, name)}
           onResize={(width, height) =>
-            void resizeOristudioBpLayoutFlap(singleSelectedFlap.id, width, height)
+            resizeOristudioBpLayoutFlap(singleSelectedFlap.id, width, height)
           }
           onRadius={setSelectedFlapRadius}
         />

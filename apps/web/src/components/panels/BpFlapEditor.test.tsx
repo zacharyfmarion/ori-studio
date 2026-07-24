@@ -42,22 +42,21 @@ const sheet: OristudioBpSheet = {
 interface RenderProps {
   flap: OristudioBpFlap;
   radiusEditable: boolean;
-  onResize: (width: number, height: number) => void;
-  onRadius: (length: number) => void;
+  onResize: (width: number, height: number) => Promise<boolean>;
+  onRadius: (length: number) => Promise<boolean>;
   onRename: (name: string) => void;
 }
 
 function renderEditor(props: Partial<RenderProps> = {}) {
   const spies = {
-    onResize: props.onResize ?? vi.fn(),
-    onRadius: props.onRadius ?? vi.fn(),
+    onResize: props.onResize ?? vi.fn(async () => true),
+    onRadius: props.onRadius ?? vi.fn(async () => true),
     onRename: props.onRename ?? vi.fn(),
   };
   act(() => {
     root.render(
       <BpFlapEditor
         flap={props.flap ?? flap()}
-        title="Flap 1"
         namePlaceholder="1"
         nameAriaLabel="Name of flap 1"
         sheet={sheet}
@@ -143,6 +142,19 @@ describe('BpFlapEditor', () => {
     setValue(input, '8');
     commitField(input);
     expect(onResize).not.toHaveBeenCalled();
+    expect(input.value).toBe('2');
+  });
+
+  it('snaps back when the engine rejects the resize asynchronously', async () => {
+    const onResize = vi.fn(async () => false);
+    renderEditor({ onResize });
+    const input = field('Flap width');
+    setValue(input, '4');
+    // The commit awaits onResize; flush the microtasks so the revert runs.
+    await act(async () => {
+      input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' }));
+    });
+    expect(onResize).toHaveBeenCalledWith(4, 2);
     expect(input.value).toBe('2');
   });
 

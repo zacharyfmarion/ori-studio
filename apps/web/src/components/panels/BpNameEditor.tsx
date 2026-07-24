@@ -30,7 +30,7 @@ export function BpNameEditor({
   onEscape,
   children,
 }: {
-  title: string;
+  title?: string;
   name: string;
   placeholder?: string;
   ariaLabel: string;
@@ -55,7 +55,7 @@ export function BpNameEditor({
 
   return (
     <div className="bp-name-editor" role="group" aria-label={ariaLabel}>
-      <span className="bp-name-editor__title">{title}</span>
+      {title && <span className="bp-name-editor__title">{title}</span>}
       <span className="bp-name-editor__label">{t('panels:bpNameEditor.label', 'Name')}</span>
       <input
         className="bp-name-editor__input"
