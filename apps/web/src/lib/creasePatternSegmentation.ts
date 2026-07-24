@@ -172,13 +172,36 @@ export function segmentFoldDocument(fold: FoldDocument): CpSegment[] {
   return segments;
 }
 
-function buildAssignmentByKey(fold: FoldDocument): Map<string, string> {
+/**
+ * Precedence for creases sharing the same endpoints. Authors commonly lay down
+ * reference/auxiliary lines and then draw the real crease over them, so the same
+ * span can carry several assignments; taking whichever happened to be stored
+ * last is arbitrary. Border wins outright — it decides where a region ends, and
+ * a border overdrawn by a valley must still act as a wall — then real creases
+ * (M/V), then flat, then unassigned.
+ */
+const ASSIGNMENT_RANK: Record<string, number> = { B: 4, M: 3, V: 3, F: 2, U: 1 };
+
+function strongerAssignment(current: string | undefined, candidate: string): string {
+  if (!current) return candidate;
+  const currentRank = ASSIGNMENT_RANK[current] ?? 0;
+  const candidateRank = ASSIGNMENT_RANK[candidate] ?? 0;
+  return candidateRank > currentRank ? candidate : current;
+}
+
+/**
+ * Map each undirected edge to its effective assignment, resolving creases that
+ * share endpoints by {@link ASSIGNMENT_RANK}.
+ */
+export function buildAssignmentByKey(fold: FoldDocument): Map<string, string> {
   const map = new Map<string, string>();
   const edges = fold.edges_vertices ?? [];
   const assignments = fold.edges_assignment ?? [];
   edges.forEach((edge, index) => {
     const assignment = assignments[index];
-    if (assignment) map.set(edgeKey(edge[0], edge[1]), assignment);
+    if (!assignment) return;
+    const key = edgeKey(edge[0], edge[1]);
+    map.set(key, strongerAssignment(map.get(key), assignment));
   });
   return map;
 }
@@ -323,6 +346,7 @@ export function buildSegmentFold(fold: FoldDocument, segment: CpSegment): FoldDo
   const nextEdges: [number, number][] = [];
   const nextAssignment: string[] = [];
   const nextFoldAngle: Array<number | null> = [];
+  const keptEdges: number[] = [];
   edges.forEach((edge, index) => {
     const key = edgeKey(edge[0], edge[1]);
     if (!wantedEdgeKeys.has(key)) return;
@@ -331,6 +355,7 @@ export function buildSegmentFold(fold: FoldDocument, segment: CpSegment): FoldDo
     nextEdges.push([mapVertex(edge[0]), mapVertex(edge[1])]);
     if (assignments) nextAssignment.push(assignments[index] ?? 'U');
     if (foldAngles) nextFoldAngle.push(foldAngles[index] ?? null);
+    keptEdges.push(index);
   });
 
   const next: FoldDocument = {
@@ -339,6 +364,16 @@ export function buildSegmentFold(fold: FoldDocument, segment: CpSegment): FoldDo
     edges_vertices: nextEdges,
     faces_vertices: nextFaces,
   };
+
+  // Extension arrays are positional, so the blanket spread above pairs each kept
+  // edge with a different edge's data. Re-index them with the edges. This matters
+  // beyond cosmetics: the CP kernel's importer trusts
+  // `oristudio:edges_line_colors` over `edges_assignment`, so a stale array comes
+  // back as scrambled crease types (borders arriving as auxiliary lines, etc.).
+  remapEdgeExtras(next, fold, edges.length, keptEdges);
+  // Circles and texts are whole-document entities; keep only those inside this
+  // segment, or every exported region carries the entire sheet's annotations.
+  scopeAnnotationExtrasToSegment(next, fold, segment);
   if (assignments) next.edges_assignment = nextAssignment as FoldDocument['edges_assignment'];
   else delete next.edges_assignment;
   if (foldAngles) next.edges_foldAngle = nextFoldAngle;
@@ -348,6 +383,71 @@ export function buildSegmentFold(fold: FoldDocument, segment: CpSegment): FoldDo
   delete next.edges_faces;
   delete next.face_orders;
   return next;
+}
+
+/**
+ * Re-index every namespaced extension array that is positionally aligned with
+ * `edges_vertices` (`oristudio:edges_line_colors`, `oriedita:edges_colors`, …).
+ * Matching on the `:edges_` prefix and the source edge count keeps this correct
+ * for extensions added later without listing each key here.
+ *
+ * An array whose length no longer matches the source edges is already stale —
+ * inferred topology re-derives the edge list, leaving the kernel's original
+ * per-edge arrays describing a different graph. Drop those rather than carry
+ * them: `edges_assignment` is re-indexed correctly here, and the CP importer
+ * falls back to it when the line-colour extension is absent, so dropping yields
+ * correct crease types while keeping them yields scrambled ones.
+ */
+function remapEdgeExtras(
+  next: FoldDocument,
+  source: FoldDocument,
+  sourceEdgeCount: number,
+  keptEdges: number[]
+): void {
+  for (const [key, value] of Object.entries(source)) {
+    if (!key.includes(':edges_')) continue;
+    if (!Array.isArray(value)) continue;
+    if (value.length === sourceEdgeCount) next[key] = keptEdges.map((index) => value[index]);
+    else delete next[key];
+  }
+}
+
+/** Parallel arrays describing one annotation kind, keyed by its coordinate array. */
+const ANNOTATION_EXTRA_GROUPS: Array<{ coords: string; parallel: string[] }> = [
+  {
+    coords: 'oriedita:circles_coords',
+    parallel: [
+      'oriedita:circles_radii',
+      'oriedita:circles_colors',
+      'oriedita:circles_custom_colors',
+    ],
+  },
+  { coords: 'oriedita:texts_coords', parallel: ['oriedita:texts_text'] },
+];
+
+function scopeAnnotationExtrasToSegment(
+  next: FoldDocument,
+  source: FoldDocument,
+  segment: CpSegment
+): void {
+  for (const group of ANNOTATION_EXTRA_GROUPS) {
+    const coords = source[group.coords];
+    if (!Array.isArray(coords)) continue;
+    const kept: number[] = [];
+    coords.forEach((coord, index) => {
+      const point = Array.isArray(coord)
+        ? { x: Number(coord[0]) || 0, y: Number(coord[1]) || 0 }
+        : null;
+      if (point && pointInSegment(segment, point)) kept.push(index);
+    });
+    next[group.coords] = kept.map((index) => coords[index]);
+    for (const key of group.parallel) {
+      const value = source[key];
+      if (Array.isArray(value) && value.length === coords.length) {
+        next[key] = kept.map((index) => value[index]);
+      }
+    }
+  }
 }
 
 export interface SegmentThumbnailOptions {

@@ -131,6 +131,22 @@ describe('segmentFoldDocument', () => {
     expect(segment!.boundary[0]?.length).toBeGreaterThanOrEqual(3);
   });
 
+  it('keeps a border wall when another crease is drawn over it', () => {
+    // Authors lay down reference lines and draw the real crease on top, so the
+    // same span can carry two assignments. The border must still divide the two
+    // squares regardless of which one is stored last.
+    const a = unitSquare(0, 0);
+    const b = unitSquare(1, 0);
+    const fold: FoldDocument = {
+      vertices_coords: [...a.coords, ...b.coords],
+      edges_vertices: [...a.edges, ...b.edges, a.edges[1]!],
+      // The duplicate of the shared wall is stored last, as a valley.
+      edges_assignment: ['B', 'B', 'B', 'B', 'B', 'B', 'B', 'B', 'V'],
+      faces_vertices: [a.face, b.face],
+    };
+    expect(segmentFoldDocument(fold)).toHaveLength(2);
+  });
+
   it('returns no segments for an empty fold', () => {
     expect(segmentFoldDocument({ vertices_coords: [], edges_vertices: [], faces_vertices: [] })).toEqual(
       []
@@ -160,5 +176,30 @@ describe('buildSegmentFold', () => {
     // Whole-sheet derived arrays are dropped so prepareFoldModel rebuilds them.
     expect(sub.faces_edges).toBeUndefined();
     expect(sub.edges_faces).toBeUndefined();
+  });
+
+  it('re-indexes edge-aligned extension arrays alongside the edges', () => {
+    // The kernel's FOLD export carries per-edge extensions (line colors, custom
+    // colors) positionally. Carrying them into a sub-fold unchanged pairs each
+    // kept edge with a *different* edge's colour — and on re-import the line
+    // colour extension outranks edges_assignment, so the crease types come back
+    // scrambled.
+    const a = unitSquare(0, 0);
+    const b = unitSquare(2, 4);
+    const fold: FoldDocument = {
+      vertices_coords: [...a.coords, ...b.coords],
+      edges_vertices: [...a.edges, ...b.edges],
+      edges_assignment: ['M', 'M', 'M', 'M', 'B', 'B', 'B', 'B'],
+      faces_vertices: [a.face, b.face],
+      // Left square = mountains (1), right square = borders (0).
+      'oristudio:edges_line_colors': [1, 1, 1, 1, 0, 0, 0, 0],
+      'oriedita:edges_colors': ['', '', '', '', '#ff0000', '#ff0000', '#ff0000', '#ff0000'],
+    };
+    const segments = segmentFoldDocument(fold);
+    const sub = buildSegmentFold(fold, segments[1]!); // right square: edges 4..7
+
+    expect(sub.edges_assignment).toEqual(['B', 'B', 'B', 'B']);
+    expect(sub['oristudio:edges_line_colors']).toEqual([0, 0, 0, 0]);
+    expect(sub['oriedita:edges_colors']).toEqual(['#ff0000', '#ff0000', '#ff0000', '#ff0000']);
   });
 });

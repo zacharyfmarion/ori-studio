@@ -2,6 +2,7 @@ import type { FoldArtifacts, FoldDocument } from '../engine/types';
 import type { OristudioCpDocumentSnapshot } from '../engine/oristudioCpTypes';
 import {
   type CpSegment,
+  buildAssignmentByKey,
   pointInSegment,
   resolveCpSegments,
   simulationFoldOf,
@@ -99,11 +100,9 @@ function rimAssignmentCounts(fold: FoldDocument, segment: CpSegment): { rim: num
     }
   }
 
-  const assignmentByKey = new Map<string, string>();
-  const assignments = fold.edges_assignment ?? [];
-  (fold.edges_vertices ?? []).forEach((edge, index) => {
-    assignmentByKey.set(edgeKey(edge[0], edge[1]), assignments[index] ?? 'U');
-  });
+  // Shared with segmentation so a border overdrawn by another crease still reads
+  // as a border here too (see buildAssignmentByKey's precedence).
+  const assignmentByKey = buildAssignmentByKey(fold);
 
   let rim = 0;
   let nonBorder = 0;
