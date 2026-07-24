@@ -6,14 +6,23 @@ import { useTutorialStore } from '../../store/tutorialStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { lessonById, nextLesson } from '../../tutorial/lessons';
 import { lessonTarget } from '../../tutorial/targets';
+import blankPracticeCp from '../../tutorial/targets/blank-sheet.cp?raw';
 import { targetGeometry } from '../../tutorial/runtime/targetGeometry';
 import { useLessonCheck } from '../../tutorial/runtime/useLessonCheck';
-import { stepIsSelfAdvancing, type LessonDrawStep, type LessonStep } from '../../tutorial/types';
+import {
+  stepIsSelfAdvancing,
+  type Lesson,
+  type LessonDrawStep,
+  type LessonStep,
+} from '../../tutorial/types';
 import { cpActionById } from '../../lib/oristudioCpActions';
 import { LEARN_PATH, lessonPath } from '../../routing/paths';
 import { TargetCpPreview } from '../tutorial/TargetCpPreview';
 import { LessonIndexPanel } from './LessonIndexPanel';
 import type { OristudioCpModel } from '../../engine/oristudioCpTypes';
+
+/** A lesson with no starting pattern practises on a plain sheet of paper. */
+const BLANK_PRACTICE_CP = blankPracticeCp;
 
 /**
  * The tutorial's lesson pane. Sits beside the real crease-pattern editor and
@@ -37,7 +46,7 @@ export function LessonPanel() {
   const lesson = activeLessonId ? lessonById(activeLessonId) : undefined;
   const step: LessonStep | undefined = lesson?.steps[stepIndex];
 
-  useLessonPracticeDocument(lesson?.startTargetId);
+  useLessonPracticeDocument(lesson);
   useArmedTool(step);
 
   const drawStep = step?.kind === 'draw' ? step : null;
@@ -227,23 +236,33 @@ function CheckFeedback({
 }
 
 /**
- * Seed the practice canvas. The learn slot starts empty, so the first lesson
- * step to mount provisions it — from the lesson's starting pattern when it has
- * one, otherwise a blank sheet.
+ * Seed the practice canvas — from the lesson's starting pattern when it has one,
+ * otherwise a blank sheet.
+ *
+ * Reseeding is keyed on *which lesson* the canvas holds, not merely on whether a
+ * document exists. Presence alone is not enough: moving from one lesson to the
+ * next would leave the previous lesson's pattern in place, so a lesson that
+ * starts from a populated pattern would silently open on the wrong one. Keying on
+ * the lesson also means leaving a lesson and coming back preserves work in
+ * progress, because the id still matches.
  */
-function useLessonPracticeDocument(startTargetId: string | undefined): void {
+function useLessonPracticeDocument(lesson: Lesson | undefined): void {
   const document = useWorkspaceStore((state) => state.oristudioCpDocument);
+  const practiceLessonId = useTutorialStore((state) => state.practiceLessonId);
+  const markPracticeDocumentFor = useTutorialStore((state) => state.markPracticeDocumentFor);
+
+  const lessonId = lesson?.id;
+  const startTargetId = lesson?.startTargetId;
 
   useEffect(() => {
-    if (document) return;
+    if (!lessonId) return;
+    if (document && practiceLessonId === lessonId) return;
+
     const store = useWorkspaceStore.getState();
     const start = startTargetId ? lessonTarget(startTargetId) : undefined;
-    if (start) {
-      void store.loadCreasePatternText(start.cp, { filename: `${startTargetId}.cp` });
-      return;
-    }
-    void store.ensureEditCreasePattern();
-  }, [document, startTargetId]);
+    markPracticeDocumentFor(lessonId);
+    void store.loadPracticeCreasePattern(start?.cp ?? BLANK_PRACTICE_CP, startTargetId ?? lessonId);
+  }, [document, lessonId, markPracticeDocumentFor, practiceLessonId, startTargetId]);
 }
 
 /**

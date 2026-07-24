@@ -387,6 +387,12 @@ export type SequenceSimulationFocus =
   | { kind: 'sequence_step'; stepId: string };
 
 export interface CreasePatternSliceActions {
+  /**
+   * Seed a scratch practice canvas from `.cp` text (the tutorial's starting
+   * patterns). Scoped to the crease-pattern editor: it does not touch the
+   * project's filename, status, tree, or workspace.
+   */
+  loadPracticeCreasePattern: (text: string, label: string) => Promise<void>;
   optimizeScale: () => Promise<void>;
   optimizeEdges: () => Promise<void>;
   optimizeStrain: () => Promise<void>;

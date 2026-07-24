@@ -467,6 +467,30 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       );
     },
 
+    /**
+     * Seed a practice canvas from `.cp` text, for the tutorial.
+     *
+     * Deliberately *not* `loadCreasePatternText`: that is a project-level open —
+     * it renames the current file, rebuilds the tree projection, sets project
+     * status, and activates the Edit canvas. A lesson's starting pattern is none
+     * of those things; it is a scratch document that must leave the user's
+     * project completely alone.
+     */
+    loadPracticeCreasePattern: async (text, label) => {
+      const generation = cpSlotGeneration();
+      try {
+        const document = await loadOristudioCpDocumentFromText(text, {
+          format: 'cp',
+          filename: `${label}.cp`,
+          title: label,
+        });
+        if (!cpSlotGenerationIsCurrent(generation)) return;
+        set(freshEditableCpState(document, get().projectLoadId));
+      } catch (error) {
+        set({ oristudioCpError: engineError(error).message });
+      }
+    },
+
     // The Edit workspace's always-live canvas: seed a blank editable CP when the
     // workspace is entered with no crease pattern loaded, so it is never empty.
     ensureEditCreasePattern: async () => {

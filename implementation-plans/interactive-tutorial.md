@@ -581,13 +581,18 @@ writing it against a stub would have been throwaway work.
 - [x] Content-integrity tests: unique ids, non-empty prose, every referenced
       target exists and parses as `.cp`.
 
-### Phase 3 — Chapter 1: Basics
+### Phase 3 — Chapter 1: Basics ✅
 
-- [ ] Canvas & navigation (prose + image + explore).
-- [ ] Your first crease (segment tool, 1-line target).
-- [ ] Mountain, valley, auxiliary (`ignoreAssignment` feedback in action).
-- [ ] Select, undo, delete (starts from a populated CP; target is a subset).
-- [ ] Snapping and the grid.
+- [x] The paper and the canvas (prose + explore).
+- [x] Your first crease (segment tool, 1-crease target).
+- [x] Mountain, valley, auxiliary.
+- [x] Select, undo, delete (starts from a populated CP; deletes down to a subset).
+- [x] Snapping and the grid (inscribed square on grid midpoints).
+- [x] `lessonChecks.test.ts`: every draw step's target satisfies its own check,
+      and a lesson's starting pattern never already satisfies it (which would
+      make the step a no-op). Verified to fail when a target is mis-pointed.
+- [ ] Images for the prose steps (none authored yet — the prose stands alone,
+      but diagrams would help the mountain/valley explanation).
 
 ### Phase 4 — Chapter 2: Drawing tools
 

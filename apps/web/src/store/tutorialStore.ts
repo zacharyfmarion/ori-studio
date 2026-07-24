@@ -52,6 +52,13 @@ export interface StepFeedback {
 
 interface TutorialState {
   activeLessonId: string | null;
+  /**
+   * The lesson whose starting pattern the practice canvas currently holds.
+   * Tracked separately from `activeLessonId` so that leaving a lesson and coming
+   * back does not wipe work in progress, while *switching* lessons does load the
+   * new one's starting pattern.
+   */
+  practiceLessonId: string | null;
   stepIndex: number;
   stepStatus: StepStatus;
   feedback: StepFeedback | null;
@@ -65,6 +72,8 @@ interface TutorialState {
   previousStep: () => void;
   /** Report a check result for the active step. */
   reportStepResult: (satisfied: boolean, feedback: StepFeedback | null) => void;
+  /** Record that the practice canvas now holds `lessonId`'s starting pattern. */
+  markPracticeDocumentFor: (lessonId: string) => void;
   /** Escape hatch so a stuck user is never trapped on a step. */
   skipStep: () => void;
   markLessonComplete: (lessonId: string) => void;
@@ -87,6 +96,7 @@ export const useTutorialStore = create<TutorialState>()(
   devtools(
     (set, get) => ({
       activeLessonId: null,
+      practiceLessonId: null,
       stepIndex: 0,
       stepStatus: 'not-applicable',
       feedback: null,
@@ -108,6 +118,8 @@ export const useTutorialStore = create<TutorialState>()(
 
       closeLesson: () =>
         set({ activeLessonId: null, stepIndex: 0, stepStatus: 'not-applicable', feedback: null }),
+
+      markPracticeDocumentFor: (lessonId) => set({ practiceLessonId: lessonId }),
 
       goToStep: (index) => {
         const lesson = lessonById(get().activeLessonId ?? '');

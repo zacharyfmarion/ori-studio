@@ -270,10 +270,16 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
     applyDefaultLayout(dockviewApi, workspace);
   },
   activatePanel: (id) => {
-    const targetWorkspace = workspaceForPanelId(id);
-    if (targetWorkspace) get().activateWorkspace(targetWorkspace);
-    const panel = get().dockviewApi?.getPanel(id);
-    panel?.api.setActive();
+    // A panel can belong to more than one workspace — the crease-pattern canvas
+    // is mounted in both Edit and the tutorial. When it is already present in the
+    // current layout, activating it must *not* jump to the workspace that owns it
+    // by default, or focusing the canvas mid-lesson would eject the user to Edit.
+    const mounted = get().dockviewApi?.getPanel(id);
+    if (!mounted) {
+      const targetWorkspace = workspaceForPanelId(id);
+      if (targetWorkspace) get().activateWorkspace(targetWorkspace);
+    }
+    get().dockviewApi?.getPanel(id)?.api.setActive();
   },
   ensureDesignLayout: () => {
     const { dockviewApi, activeWorkspace } = get();
