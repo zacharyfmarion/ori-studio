@@ -1565,7 +1565,7 @@ function toRenderSettings(
     showFaces: settings.showFaces,
     showEdges: settings.showEdges,
     lighting: settings.lighting,
-    creaseWidthPx: Math.max(2, Math.round(1.6 * dpr)),
+    creaseWidthPx: Math.max(1, Math.round(1.1 * dpr)),
     faceAlpha: settings.renderMode === "xray" ? 0.48 : 1,
   };
 }

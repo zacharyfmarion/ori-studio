@@ -274,6 +274,12 @@ const api = {
   },
 
   load(fold: FoldDocument, options: SimulatorLoadOptions = {}): SimulatorModelInfo {
+    // Carry the panel's camera and render settings across reloads. The panel
+    // only pushes them when the GPU path first turns on, so a plain reset here
+    // would make every segment switch snap back to the default view and the
+    // default (blue) front colour until the next user interaction. Only the fit
+    // (center/radius) is model-specific and recomputed by refitOnce.
+    const previous = session?.gpuRender;
     session?.backend.dispose();
 
     // prepareFoldModel runs here rather than on the main thread: it is O(n)
@@ -315,10 +321,10 @@ const api = {
         gpuSolver && renderCanvas
           ? {
               solver: gpuSolver,
-              view: { yaw: 0, pitch: 0.38, zoom: 1 },
-              width: renderCanvas.width,
-              height: renderCanvas.height,
-              settings: DEFAULT_RENDER_SETTINGS,
+              view: previous?.view ?? { yaw: 0, pitch: 0.38, zoom: 1 },
+              width: previous?.width ?? renderCanvas.width,
+              height: previous?.height ?? renderCanvas.height,
+              settings: previous?.settings ?? DEFAULT_RENDER_SETTINGS,
               center: [0, 0, 0],
               radius: 1,
               fitted: false,
