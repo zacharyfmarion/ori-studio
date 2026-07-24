@@ -1333,24 +1333,33 @@
 
 .export-modal__section {
   display: grid;
-  gap: var(--space-2);
-  padding: var(--space-2);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--bg-primary);
+  gap: var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.export-modal__section:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
 }
 
 .export-modal__section-toggle {
   display: flex;
   align-items: center;
   gap: 4px;
+  margin-left: -17px;
   padding: 0;
   border: none;
   background: none;
   color: var(--text-tertiary);
   font-size: 0.72rem;
   font-weight: 700;
+  text-align: left;
   cursor: pointer;
+}
+
+.export-modal__section-toggle:hover {
+  color: var(--text-secondary);
 }
 
 .export-modal__section-chevron {
@@ -1363,7 +1372,7 @@
 
 .export-modal__section-body {
   display: grid;
-  gap: var(--space-3);
+  gap: var(--space-4);
 }
 
 .export-modal__colors {

@@ -100,6 +100,15 @@ function foldedSnapshot(): OristudioCpFoldedRenderSnapshot {
   };
 }
 
+/** Expand a collapsed controls section by clicking its caret. */
+function openSection(container: HTMLElement, title: string) {
+  const toggle = Array.from(
+    container.querySelectorAll<HTMLButtonElement>('.export-modal__section-toggle')
+  ).find((button) => button.textContent === title);
+  expect(toggle).toBeDefined();
+  if (toggle?.getAttribute('aria-expanded') === 'false') toggle.click();
+}
+
 /** Set a controlled input's value the way React's onChange expects. */
 function setFieldValue(field: HTMLInputElement | HTMLTextAreaElement, value: string) {
   const prototype = field instanceof HTMLTextAreaElement ? HTMLTextAreaElement : HTMLInputElement;
@@ -316,6 +325,10 @@ describe('CommandDialogModal', () => {
       });
     });
 
+    act(() => {
+      openSection(rendered, 'Appearance');
+      openSection(rendered, 'Text');
+    });
     await act(async () => {
       findButton('Dark').click();
     });
@@ -362,6 +375,9 @@ describe('CommandDialogModal', () => {
       });
     });
 
+    act(() => {
+      openSection(rendered, 'Folded figure');
+    });
     const toggle = rendered.querySelector(
       '[aria-label="Include folded figure"]'
     ) as HTMLButtonElement;
@@ -399,6 +415,9 @@ describe('CommandDialogModal', () => {
       });
     });
 
+    act(() => {
+      openSection(rendered, 'Folded figure');
+    });
     const toggle = rendered.querySelector('[aria-label="Include folded figure"]');
     expect(toggle?.hasAttribute('disabled')).toBe(true);
     expect(rendered.textContent).toContain('Open an editable crease pattern to fold it');
@@ -425,6 +444,9 @@ describe('CommandDialogModal', () => {
       });
     });
 
+    act(() => {
+      openSection(rendered, 'Folded figure');
+    });
     await act(async () => {
       (rendered.querySelector('[aria-label="Include folded figure"]') as HTMLButtonElement).click();
     });

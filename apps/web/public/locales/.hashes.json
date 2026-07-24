@@ -1752,7 +1752,6 @@
     "dialogs:export.foldedCasesFound_other": "b302307c7b55",
     "dialogs:export.foldedFigureNeedsCp": "dedb1b4550c3",
     "dialogs:export.foldedFigureNeedsOnePattern": "fb9e02008828",
-    "dialogs:export.foldedFigureOptions": "b8bed6799df8",
     "dialogs:export.foldedFrontColor": "a61759020289",
     "dialogs:export.foldedSide": "630ef00b7c4f",
     "dialogs:export.foldedSideBack": "76900f1bfd16",
@@ -1771,7 +1770,10 @@
     "dialogs:export.themeDark": "60acc53f13a5",
     "dialogs:export.themeLight": "dbcd5e7bb7a0",
     "dialogs:export.title": "7e8cd2056da7",
-    "dialogs:export.titlePlaceholder": "59be71333c96"
+    "dialogs:export.titlePlaceholder": "59be71333c96",
+    "dialogs:export.appearanceSection": "3907fa7f8072",
+    "dialogs:export.foldedFigureSection": "9c96ebaaae04",
+    "dialogs:export.textSection": "71988c4d8e08"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -3526,7 +3528,6 @@
     "dialogs:export.foldedCasesFound_other": "b302307c7b55",
     "dialogs:export.foldedFigureNeedsCp": "dedb1b4550c3",
     "dialogs:export.foldedFigureNeedsOnePattern": "fb9e02008828",
-    "dialogs:export.foldedFigureOptions": "b8bed6799df8",
     "dialogs:export.foldedFrontColor": "a61759020289",
     "dialogs:export.foldedSide": "630ef00b7c4f",
     "dialogs:export.foldedSideBack": "76900f1bfd16",
@@ -3545,7 +3546,10 @@
     "dialogs:export.themeDark": "60acc53f13a5",
     "dialogs:export.themeLight": "dbcd5e7bb7a0",
     "dialogs:export.title": "7e8cd2056da7",
-    "dialogs:export.titlePlaceholder": "59be71333c96"
+    "dialogs:export.titlePlaceholder": "59be71333c96",
+    "dialogs:export.appearanceSection": "3907fa7f8072",
+    "dialogs:export.foldedFigureSection": "9c96ebaaae04",
+    "dialogs:export.textSection": "71988c4d8e08"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -5326,7 +5330,6 @@
     "dialogs:export.foldedCasesFound_other": "b302307c7b55",
     "dialogs:export.foldedFigureNeedsCp": "dedb1b4550c3",
     "dialogs:export.foldedFigureNeedsOnePattern": "fb9e02008828",
-    "dialogs:export.foldedFigureOptions": "b8bed6799df8",
     "dialogs:export.foldedFrontColor": "a61759020289",
     "dialogs:export.foldedSide": "630ef00b7c4f",
     "dialogs:export.foldedSideBack": "76900f1bfd16",
@@ -5345,7 +5348,10 @@
     "dialogs:export.themeDark": "60acc53f13a5",
     "dialogs:export.themeLight": "dbcd5e7bb7a0",
     "dialogs:export.title": "7e8cd2056da7",
-    "dialogs:export.titlePlaceholder": "59be71333c96"
+    "dialogs:export.titlePlaceholder": "59be71333c96",
+    "dialogs:export.appearanceSection": "3907fa7f8072",
+    "dialogs:export.foldedFigureSection": "9c96ebaaae04",
+    "dialogs:export.textSection": "71988c4d8e08"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -7126,7 +7132,6 @@
     "dialogs:export.foldedCasesFound_other": "b302307c7b55",
     "dialogs:export.foldedFigureNeedsCp": "dedb1b4550c3",
     "dialogs:export.foldedFigureNeedsOnePattern": "fb9e02008828",
-    "dialogs:export.foldedFigureOptions": "b8bed6799df8",
     "dialogs:export.foldedFrontColor": "a61759020289",
     "dialogs:export.foldedSide": "630ef00b7c4f",
     "dialogs:export.foldedSideBack": "76900f1bfd16",
@@ -7145,7 +7150,10 @@
     "dialogs:export.themeDark": "60acc53f13a5",
     "dialogs:export.themeLight": "dbcd5e7bb7a0",
     "dialogs:export.title": "7e8cd2056da7",
-    "dialogs:export.titlePlaceholder": "59be71333c96"
+    "dialogs:export.titlePlaceholder": "59be71333c96",
+    "dialogs:export.appearanceSection": "3907fa7f8072",
+    "dialogs:export.foldedFigureSection": "9c96ebaaae04",
+    "dialogs:export.textSection": "71988c4d8e08"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8926,7 +8934,6 @@
     "dialogs:export.foldedCasesFound_other": "b302307c7b55",
     "dialogs:export.foldedFigureNeedsCp": "dedb1b4550c3",
     "dialogs:export.foldedFigureNeedsOnePattern": "fb9e02008828",
-    "dialogs:export.foldedFigureOptions": "b8bed6799df8",
     "dialogs:export.foldedFrontColor": "a61759020289",
     "dialogs:export.foldedSide": "630ef00b7c4f",
     "dialogs:export.foldedSideBack": "76900f1bfd16",
@@ -8945,7 +8952,10 @@
     "dialogs:export.themeDark": "60acc53f13a5",
     "dialogs:export.themeLight": "dbcd5e7bb7a0",
     "dialogs:export.title": "7e8cd2056da7",
-    "dialogs:export.titlePlaceholder": "59be71333c96"
+    "dialogs:export.titlePlaceholder": "59be71333c96",
+    "dialogs:export.appearanceSection": "3907fa7f8072",
+    "dialogs:export.foldedFigureSection": "9c96ebaaae04",
+    "dialogs:export.textSection": "71988c4d8e08"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10726,7 +10736,6 @@
     "dialogs:export.foldedCasesFound_other": "b302307c7b55",
     "dialogs:export.foldedFigureNeedsCp": "dedb1b4550c3",
     "dialogs:export.foldedFigureNeedsOnePattern": "fb9e02008828",
-    "dialogs:export.foldedFigureOptions": "b8bed6799df8",
     "dialogs:export.foldedFrontColor": "a61759020289",
     "dialogs:export.foldedSide": "630ef00b7c4f",
     "dialogs:export.foldedSideBack": "76900f1bfd16",
@@ -10745,7 +10754,10 @@
     "dialogs:export.themeDark": "60acc53f13a5",
     "dialogs:export.themeLight": "dbcd5e7bb7a0",
     "dialogs:export.title": "7e8cd2056da7",
-    "dialogs:export.titlePlaceholder": "59be71333c96"
+    "dialogs:export.titlePlaceholder": "59be71333c96",
+    "dialogs:export.appearanceSection": "3907fa7f8072",
+    "dialogs:export.foldedFigureSection": "9c96ebaaae04",
+    "dialogs:export.textSection": "71988c4d8e08"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12526,7 +12538,6 @@
     "dialogs:export.foldedCasesFound_other": "b302307c7b55",
     "dialogs:export.foldedFigureNeedsCp": "dedb1b4550c3",
     "dialogs:export.foldedFigureNeedsOnePattern": "fb9e02008828",
-    "dialogs:export.foldedFigureOptions": "b8bed6799df8",
     "dialogs:export.foldedFrontColor": "a61759020289",
     "dialogs:export.foldedSide": "630ef00b7c4f",
     "dialogs:export.foldedSideBack": "76900f1bfd16",
@@ -12545,7 +12556,10 @@
     "dialogs:export.themeDark": "60acc53f13a5",
     "dialogs:export.themeLight": "dbcd5e7bb7a0",
     "dialogs:export.title": "7e8cd2056da7",
-    "dialogs:export.titlePlaceholder": "59be71333c96"
+    "dialogs:export.titlePlaceholder": "59be71333c96",
+    "dialogs:export.appearanceSection": "3907fa7f8072",
+    "dialogs:export.foldedFigureSection": "9c96ebaaae04",
+    "dialogs:export.textSection": "71988c4d8e08"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -14300,7 +14314,6 @@
     "dialogs:export.foldedCasesFound_other": "b302307c7b55",
     "dialogs:export.foldedFigureNeedsCp": "dedb1b4550c3",
     "dialogs:export.foldedFigureNeedsOnePattern": "fb9e02008828",
-    "dialogs:export.foldedFigureOptions": "b8bed6799df8",
     "dialogs:export.foldedFrontColor": "a61759020289",
     "dialogs:export.foldedSide": "630ef00b7c4f",
     "dialogs:export.foldedSideBack": "76900f1bfd16",
@@ -14319,6 +14332,9 @@
     "dialogs:export.themeDark": "60acc53f13a5",
     "dialogs:export.themeLight": "dbcd5e7bb7a0",
     "dialogs:export.title": "7e8cd2056da7",
-    "dialogs:export.titlePlaceholder": "59be71333c96"
+    "dialogs:export.titlePlaceholder": "59be71333c96",
+    "dialogs:export.appearanceSection": "3907fa7f8072",
+    "dialogs:export.foldedFigureSection": "9c96ebaaae04",
+    "dialogs:export.textSection": "71988c4d8e08"
   }
 }

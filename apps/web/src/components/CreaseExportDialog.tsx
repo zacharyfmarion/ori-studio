@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { ChevronRight, Download, X } from 'lucide-react';
@@ -93,6 +93,42 @@ function foldedSideTitle(t: TFunction, value: OristudioCpFoldedFigureState): str
   }
 }
 
+type SectionId = 'appearance' | 'folded' | 'text';
+
+/** A titled group of controls that collapses from the caret beside its title. */
+function ExportSection({
+  id,
+  title,
+  open,
+  onToggle,
+  children,
+}: {
+  id: SectionId;
+  title: string;
+  open: boolean;
+  onToggle: (id: SectionId) => void;
+  children: ReactNode;
+}) {
+  return (
+    <section className="export-modal__section">
+      <button
+        type="button"
+        className="export-modal__section-toggle"
+        aria-expanded={open}
+        onClick={() => onToggle(id)}
+      >
+        <ChevronRight
+          size={13}
+          aria-hidden="true"
+          className={`export-modal__section-chevron${open ? ' export-modal__section-chevron--open' : ''}`}
+        />
+        {title}
+      </button>
+      {open && <div className="export-modal__section-body">{children}</div>}
+    </section>
+  );
+}
+
 interface PatternOption {
   /** Segment id, or null for "all patterns". */
   id: number | null;
@@ -107,7 +143,13 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
   const [folding, setFolding] = useState(false);
   const [foldError, setFoldError] = useState<string | null>(null);
   const [discoveredCases, setDiscoveredCases] = useState(1);
-  const [foldedOptionsOpen, setFoldedOptionsOpen] = useState(false);
+  const [openSections, setOpenSections] = useState<Record<SectionId, boolean>>({
+    appearance: true,
+    // Folding is the expensive, optional step: it stays out of the way until
+    // someone asks for it.
+    folded: false,
+    text: true,
+  });
   // The document cannot change while the dialog is open, so a pattern folded
   // with the same settings is reused instead of refolded.
   const foldCache = useRef(new Map<string, CreaseExportFoldResult>());
@@ -180,6 +222,9 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
       cancelled = true;
     };
   }, [includeFoldedFigure, canFold, foldSegment, segmentId, foldedSettings, dialog.segments]);
+
+  const toggleSection = (id: SectionId) =>
+    setOpenSections((current) => ({ ...current, [id]: !current[id] }));
 
   const patch = (next: Partial<CreaseExportOptions>) =>
     setOptions((current) => ({ ...current, ...next }));
@@ -313,261 +358,265 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
             <img src={previewSrc} alt="" />
           </div>
           <div className="export-modal__controls">
-            <div className="export-modal__control-group">
-              <span className="export-modal__label">
-                {t('dialogs:export.theme', 'Appearance')}
-              </span>
-              <SegmentedControl<CreaseExportTheme>
-                aria-label={t('dialogs:export.theme', 'Appearance')}
-                value={theme}
-                onChange={(next) => patch({ theme: next })}
-                options={[
-                  { value: 'light', label: t('dialogs:export.themeLight', 'Light') },
-                  { value: 'dark', label: t('dialogs:export.themeDark', 'Dark') },
-                ]}
-              />
-            </div>
-            <div className="export-modal__control-group">
-              <span className="export-modal__label">
-                {t('dialogs:export.lineStyle', 'Line style')}
-              </span>
-              <Select
-                value={lineStyle}
-                onValueChange={(next) =>
-                  patch({ lineStyle: next as CreaseExportOptions['lineStyle'] })
-                }
-              >
-                <SelectTrigger
-                  aria-label={t('dialogs:export.lineStyle', 'Line style')}
-                  className="export-modal__select"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ORISTUDIO_CP_LINE_STYLES.map((style) => (
-                    <SelectItem key={style} value={style}>
-                      {cpLineStyleLabel(t, style)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="export-modal__control-group">
-              <label className="export-modal__label" htmlFor="export-line-width">
-                {t('dialogs:export.lineWidth', 'Line width')}
-              </label>
-              <div className="export-modal__slider-row">
-                <Slider
-                  id="export-line-width"
-                  aria-label={t('dialogs:export.lineWidth', 'Line width')}
-                  min={ORISTUDIO_CP_MIN_LINE_WIDTH}
-                  max={ORISTUDIO_CP_MAX_LINE_WIDTH}
-                  value={lineWidth}
-                  onChange={(next) => patch({ lineWidth: next })}
-                />
-                <output>{lineWidth}</output>
-              </div>
-            </div>
-            <div className="export-modal__control-group">
-              <label className="export-modal__label" htmlFor="export-point-size">
-                {t('dialogs:export.pointSize', 'Point size')}
-              </label>
-              <div className="export-modal__slider-row">
-                <Slider
-                  id="export-point-size"
-                  aria-label={t('dialogs:export.pointSize', 'Point size')}
-                  min={ORISTUDIO_CP_MIN_POINT_SIZE}
-                  max={ORISTUDIO_CP_MAX_POINT_SIZE}
-                  value={pointSize}
-                  onChange={(next) => patch({ pointSize: next })}
-                />
-                <output>{pointSize}</output>
-              </div>
-            </div>
-            <div className="export-modal__toggle-row">
-              <div className="export-modal__toggle-copy">
-                <span>
-                  {t('dialogs:export.includeUnassigned', 'Include flat / unassigned creases')}
+            <ExportSection
+              id="appearance"
+              title={t('dialogs:export.appearanceSection', 'Appearance')}
+              open={openSections.appearance}
+              onToggle={toggleSection}
+            >
+              <div className="export-modal__control-group">
+                <span className="export-modal__label">
+                  {t('dialogs:export.theme', 'Appearance')}
                 </span>
+                <SegmentedControl<CreaseExportTheme>
+                  aria-label={t('dialogs:export.theme', 'Appearance')}
+                  value={theme}
+                  onChange={(next) => patch({ theme: next })}
+                  options={[
+                    { value: 'light', label: t('dialogs:export.themeLight', 'Light') },
+                    { value: 'dark', label: t('dialogs:export.themeDark', 'Dark') },
+                  ]}
+                />
               </div>
-              <Toggle
-                checked={includeUnassigned}
-                onChange={(next) => patch({ includeUnassigned: next })}
-                aria-label={t(
-                  'dialogs:export.includeUnassigned',
-                  'Include flat / unassigned creases'
-                )}
-              />
-            </div>
-            <div className="export-modal__toggle-row">
-              <div className="export-modal__toggle-copy">
-                <span>{t('dialogs:export.showBackgroundColor', 'Show background color')}</span>
-              </div>
-              <Toggle
-                checked={showBackgroundColor}
-                onChange={(next) => patch({ showBackgroundColor: next })}
-                aria-label={t('dialogs:export.showBackgroundColor', 'Show background color')}
-              />
-            </div>
-            <div className="export-modal__toggle-row">
-              <div className="export-modal__toggle-copy">
-                <span>{t('dialogs:export.includeFoldedFigure', 'Include folded figure')}</span>
-                {!canFold && (
-                  <small className="export-modal__hint">
-                    {dialog.foldSegment === null
-                      ? t(
-                          'dialogs:export.foldedFigureNeedsCp',
-                          'Open an editable crease pattern to fold it'
-                        )
-                      : t(
-                          'dialogs:export.foldedFigureNeedsOnePattern',
-                          'Select a single pattern to fold'
-                        )}
-                  </small>
-                )}
-                {folding && (
-                  <small className="export-modal__hint">
-                    {t('dialogs:export.folding', 'Folding…')}
-                  </small>
-                )}
-                {foldError && (
-                  <small className="export-modal__hint export-modal__hint--error" role="alert">
-                    {foldError}
-                  </small>
-                )}
-              </div>
-              <Toggle
-                checked={includeFoldedFigure}
-                disabled={!canFold}
-                onChange={(next) => {
-                  setFoldError(null);
-                  setFoldedOptionsOpen(next);
-                  patch({ includeFoldedFigure: next });
-                }}
-                aria-label={t('dialogs:export.includeFoldedFigure', 'Include folded figure')}
-              />
-            </div>
-            {includeFoldedFigure && canFold && (
-              <div className="export-modal__section">
-                <button
-                  type="button"
-                  className="export-modal__section-toggle"
-                  aria-expanded={foldedOptionsOpen}
-                  onClick={() => setFoldedOptionsOpen((open) => !open)}
+              <div className="export-modal__control-group">
+                <span className="export-modal__label">
+                  {t('dialogs:export.lineStyle', 'Line style')}
+                </span>
+                <Select
+                  value={lineStyle}
+                  onValueChange={(next) =>
+                    patch({ lineStyle: next as CreaseExportOptions['lineStyle'] })
+                  }
                 >
-                  <ChevronRight
-                    size={13}
-                    aria-hidden="true"
-                    className={`export-modal__section-chevron${foldedOptionsOpen ? ' export-modal__section-chevron--open' : ''}`}
-                  />
-                  {t('dialogs:export.foldedFigureOptions', 'Folded figure options')}
-                </button>
-                {foldedOptionsOpen && (
-                  <div className="export-modal__section-body">
-                    <div className="export-modal__control-group">
-                      <span className="export-modal__label">
-                        {t('dialogs:export.foldedSide', 'Side')}
-                      </span>
-                      <SegmentedControl<OristudioCpFoldedFigureState>
-                        aria-label={t('dialogs:export.foldedSide', 'Side')}
-                        value={foldedSettings.side}
-                        onChange={(side) => patchFolded({ side })}
-                        options={FOLDED_SIDE_OPTIONS.map((value) => ({
-                          value,
-                          label: foldedSideLabel(t, value),
-                          title: foldedSideTitle(t, value),
-                        }))}
-                      />
-                    </div>
-                    <div className="export-modal__colors">
-                      <label className="export-modal__color">
-                        <span>{t('dialogs:export.foldedFrontColor', 'Front')}</span>
-                        <input
-                          type="color"
-                          aria-label={t('dialogs:export.foldedFrontColor', 'Front')}
-                          value={foldedSettings.frontColor}
-                          onChange={(event) =>
-                            patchFolded({ frontColor: event.currentTarget.value })
-                          }
-                        />
-                      </label>
-                      <label className="export-modal__color">
-                        <span>{t('dialogs:export.foldedBackColor', 'Back')}</span>
-                        <input
-                          type="color"
-                          aria-label={t('dialogs:export.foldedBackColor', 'Back')}
-                          value={foldedSettings.backColor}
-                          onChange={(event) =>
-                            patchFolded({ backColor: event.currentTarget.value })
-                          }
-                        />
-                      </label>
-                    </div>
-                    <div className="export-modal__control-group">
-                      <label className="export-modal__label" htmlFor="export-fold-case">
-                        {t('dialogs:export.foldedCase', 'Fold case')}
-                      </label>
-                      <input
-                        id="export-fold-case"
-                        type="number"
-                        min={1}
-                        step={1}
-                        className="export-modal__input"
-                        value={foldedSettings.foldCase}
-                        onChange={(event) => {
-                          const next = Number.parseInt(event.currentTarget.value, 10);
-                          patchFolded({ foldCase: Number.isFinite(next) ? Math.max(1, next) : 1 });
-                        }}
-                      />
-                      <small className="export-modal__hint">
-                        {t('dialogs:export.foldedCasesFound', '{{count}} found so far', {
-                          count: discoveredCases,
-                        })}
-                      </small>
-                    </div>
-                  </div>
-                )}
+                  <SelectTrigger
+                    aria-label={t('dialogs:export.lineStyle', 'Line style')}
+                    className="export-modal__select"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ORISTUDIO_CP_LINE_STYLES.map((style) => (
+                      <SelectItem key={style} value={style}>
+                        {cpLineStyleLabel(t, style)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            )}
-            <div className="export-modal__control-group">
-              <label className="export-modal__label" htmlFor="export-title">
-                {t('dialogs:export.title', 'Title')}
-              </label>
-              <input
-                id="export-title"
-                type="text"
-                className="export-modal__input"
-                value={caption.title}
-                placeholder={t('dialogs:export.titlePlaceholder', 'Optional')}
-                onChange={(event) => patchCaption({ title: event.currentTarget.value })}
-              />
-            </div>
-            <div className="export-modal__control-group">
-              <label className="export-modal__label" htmlFor="export-subtitle">
-                {t('dialogs:export.subtitle', 'Subtitle')}
-              </label>
-              <input
-                id="export-subtitle"
-                type="text"
-                className="export-modal__input"
-                value={caption.subtitle}
-                placeholder={t('dialogs:export.subtitlePlaceholder', 'Optional')}
-                onChange={(event) => patchCaption({ subtitle: event.currentTarget.value })}
-              />
-            </div>
-            <div className="export-modal__control-group">
-              <label className="export-modal__label" htmlFor="export-description">
-                {t('dialogs:export.description', 'Description')}
-              </label>
-              <textarea
-                id="export-description"
-                rows={3}
-                className="export-modal__input export-modal__textarea"
-                value={caption.description}
-                placeholder={t('dialogs:export.descriptionPlaceholder', 'Optional')}
-                onChange={(event) => patchCaption({ description: event.currentTarget.value })}
-              />
-            </div>
+              <div className="export-modal__control-group">
+                <label className="export-modal__label" htmlFor="export-line-width">
+                  {t('dialogs:export.lineWidth', 'Line width')}
+                </label>
+                <div className="export-modal__slider-row">
+                  <Slider
+                    id="export-line-width"
+                    aria-label={t('dialogs:export.lineWidth', 'Line width')}
+                    min={ORISTUDIO_CP_MIN_LINE_WIDTH}
+                    max={ORISTUDIO_CP_MAX_LINE_WIDTH}
+                    value={lineWidth}
+                    onChange={(next) => patch({ lineWidth: next })}
+                  />
+                  <output>{lineWidth}</output>
+                </div>
+              </div>
+              <div className="export-modal__control-group">
+                <label className="export-modal__label" htmlFor="export-point-size">
+                  {t('dialogs:export.pointSize', 'Point size')}
+                </label>
+                <div className="export-modal__slider-row">
+                  <Slider
+                    id="export-point-size"
+                    aria-label={t('dialogs:export.pointSize', 'Point size')}
+                    min={ORISTUDIO_CP_MIN_POINT_SIZE}
+                    max={ORISTUDIO_CP_MAX_POINT_SIZE}
+                    value={pointSize}
+                    onChange={(next) => patch({ pointSize: next })}
+                  />
+                  <output>{pointSize}</output>
+                </div>
+              </div>
+              <div className="export-modal__toggle-row">
+                <div className="export-modal__toggle-copy">
+                  <span>
+                    {t('dialogs:export.includeUnassigned', 'Include flat / unassigned creases')}
+                  </span>
+                </div>
+                <Toggle
+                  checked={includeUnassigned}
+                  onChange={(next) => patch({ includeUnassigned: next })}
+                  aria-label={t(
+                    'dialogs:export.includeUnassigned',
+                    'Include flat / unassigned creases'
+                  )}
+                />
+              </div>
+              <div className="export-modal__toggle-row">
+                <div className="export-modal__toggle-copy">
+                  <span>{t('dialogs:export.showBackgroundColor', 'Show background color')}</span>
+                </div>
+                <Toggle
+                  checked={showBackgroundColor}
+                  onChange={(next) => patch({ showBackgroundColor: next })}
+                  aria-label={t('dialogs:export.showBackgroundColor', 'Show background color')}
+                />
+              </div>
+            </ExportSection>
+            <ExportSection
+              id="folded"
+              title={t('dialogs:export.foldedFigureSection', 'Folded figure')}
+              open={openSections.folded}
+              onToggle={toggleSection}
+            >
+              <div className="export-modal__toggle-row">
+                <div className="export-modal__toggle-copy">
+                  <span>{t('dialogs:export.includeFoldedFigure', 'Include folded figure')}</span>
+                  {!canFold && (
+                    <small className="export-modal__hint">
+                      {dialog.foldSegment === null
+                        ? t(
+                            'dialogs:export.foldedFigureNeedsCp',
+                            'Open an editable crease pattern to fold it'
+                          )
+                        : t(
+                            'dialogs:export.foldedFigureNeedsOnePattern',
+                            'Select a single pattern to fold'
+                          )}
+                    </small>
+                  )}
+                  {folding && (
+                    <small className="export-modal__hint">
+                      {t('dialogs:export.folding', 'Folding…')}
+                    </small>
+                  )}
+                  {foldError && (
+                    <small className="export-modal__hint export-modal__hint--error" role="alert">
+                      {foldError}
+                    </small>
+                  )}
+                </div>
+                <Toggle
+                  checked={includeFoldedFigure}
+                  disabled={!canFold}
+                  onChange={(next) => {
+                    setFoldError(null);
+                    patch({ includeFoldedFigure: next });
+                  }}
+                  aria-label={t('dialogs:export.includeFoldedFigure', 'Include folded figure')}
+                />
+              </div>
+              {includeFoldedFigure && canFold && (
+                <>
+                  <div className="export-modal__control-group">
+                    <span className="export-modal__label">
+                      {t('dialogs:export.foldedSide', 'Side')}
+                    </span>
+                    <SegmentedControl<OristudioCpFoldedFigureState>
+                      aria-label={t('dialogs:export.foldedSide', 'Side')}
+                      value={foldedSettings.side}
+                      onChange={(side) => patchFolded({ side })}
+                      options={FOLDED_SIDE_OPTIONS.map((value) => ({
+                        value,
+                        label: foldedSideLabel(t, value),
+                        title: foldedSideTitle(t, value),
+                      }))}
+                    />
+                  </div>
+                  <div className="export-modal__colors">
+                    <label className="export-modal__color">
+                      <span>{t('dialogs:export.foldedFrontColor', 'Front')}</span>
+                      <input
+                        type="color"
+                        aria-label={t('dialogs:export.foldedFrontColor', 'Front')}
+                        value={foldedSettings.frontColor}
+                        onChange={(event) =>
+                          patchFolded({ frontColor: event.currentTarget.value })
+                        }
+                      />
+                    </label>
+                    <label className="export-modal__color">
+                      <span>{t('dialogs:export.foldedBackColor', 'Back')}</span>
+                      <input
+                        type="color"
+                        aria-label={t('dialogs:export.foldedBackColor', 'Back')}
+                        value={foldedSettings.backColor}
+                        onChange={(event) =>
+                          patchFolded({ backColor: event.currentTarget.value })
+                        }
+                      />
+                    </label>
+                  </div>
+                  <div className="export-modal__control-group">
+                    <label className="export-modal__label" htmlFor="export-fold-case">
+                      {t('dialogs:export.foldedCase', 'Fold case')}
+                    </label>
+                    <input
+                      id="export-fold-case"
+                      type="number"
+                      min={1}
+                      step={1}
+                      className="export-modal__input"
+                      value={foldedSettings.foldCase}
+                      onChange={(event) => {
+                        const next = Number.parseInt(event.currentTarget.value, 10);
+                        patchFolded({ foldCase: Number.isFinite(next) ? Math.max(1, next) : 1 });
+                      }}
+                    />
+                    <small className="export-modal__hint">
+                      {t('dialogs:export.foldedCasesFound', '{{count}} found so far', {
+                        count: discoveredCases,
+                      })}
+                    </small>
+                  </div>
+                </>
+              )}
+            </ExportSection>
+            <ExportSection
+              id="text"
+              title={t('dialogs:export.textSection', 'Text')}
+              open={openSections.text}
+              onToggle={toggleSection}
+            >
+              <div className="export-modal__control-group">
+                <label className="export-modal__label" htmlFor="export-title">
+                  {t('dialogs:export.title', 'Title')}
+                </label>
+                <input
+                  id="export-title"
+                  type="text"
+                  className="export-modal__input"
+                  value={caption.title}
+                  placeholder={t('dialogs:export.titlePlaceholder', 'Optional')}
+                  onChange={(event) => patchCaption({ title: event.currentTarget.value })}
+                />
+              </div>
+              <div className="export-modal__control-group">
+                <label className="export-modal__label" htmlFor="export-subtitle">
+                  {t('dialogs:export.subtitle', 'Subtitle')}
+                </label>
+                <input
+                  id="export-subtitle"
+                  type="text"
+                  className="export-modal__input"
+                  value={caption.subtitle}
+                  placeholder={t('dialogs:export.subtitlePlaceholder', 'Optional')}
+                  onChange={(event) => patchCaption({ subtitle: event.currentTarget.value })}
+                />
+              </div>
+              <div className="export-modal__control-group">
+                <label className="export-modal__label" htmlFor="export-description">
+                  {t('dialogs:export.description', 'Description')}
+                </label>
+                <textarea
+                  id="export-description"
+                  rows={3}
+                  className="export-modal__input export-modal__textarea"
+                  value={caption.description}
+                  placeholder={t('dialogs:export.descriptionPlaceholder', 'Optional')}
+                  onChange={(event) => patchCaption({ description: event.currentTarget.value })}
+                />
+              </div>
+          
+            </ExportSection>
           </div>
           <footer className="simple-modal__footer">
             <Button size="sm" variant="ghost" onClick={() => cancelCommandDialog(dialog.id)}>

@@ -234,6 +234,16 @@ describe('export layout', () => {
     expect(layout.width).toBeGreaterThan(layout.cp.width + layout.folded!.width);
   });
 
+  it('counts the pattern\'s own margin toward the gap under the caption', () => {
+    const captioned = { ...emptyCaption, title: 'Crane' };
+    const noInset = layoutCreaseExport(captioned, palette, null, { top: 0, bottom: 0 });
+    const inset = layoutCreaseExport(captioned, palette, null, { top: 48, bottom: 48 });
+
+    // The drawn pattern sits the same distance below the title either way — the
+    // inset is absorbed, not added on top.
+    expect(inset.cp.y + 48).toBe(noInset.cp.y);
+  });
+
   it('grows the page when the folded figure is taller than the pattern', () => {
     const layout = layoutCreaseExport(emptyCaption, palette, { width: 600, height: 1400 });
 

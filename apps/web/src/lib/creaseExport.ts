@@ -34,8 +34,14 @@ const DESCRIPTION_LINE_HEIGHT = 1.5;
 const CAPTION_PADDING = 56;
 /** Title → subtitle. */
 const CAPTION_GAP = 12;
-/** Caption block → artwork. */
-const CONTENT_GAP = 32;
+/**
+ * Caption block → artwork. The crease pattern is drawn inside a margin of its
+ * own, which counts toward this gap (see {@link CreaseExportInset}), so the
+ * value is the *total* space a reader sees, not an extra band on top of it.
+ */
+const CONTENT_GAP = 72;
+/** Floor for that gap once the artwork's own inset is taken off it. */
+const MIN_CONTENT_GAP = 8;
 /** Fraction of the font size used as the first-line baseline offset. */
 const BASELINE_RATIO = 0.82;
 
@@ -334,6 +340,18 @@ export interface CreaseExportLayout {
   description: CreaseExportTextBlock | null;
 }
 
+/**
+ * Blank space the artwork already carries inside its own box, so the caption
+ * can sit a consistent distance from the *drawn* crease pattern rather than
+ * from the box edge — which is what made a lone title look adrift.
+ */
+export interface CreaseExportInset {
+  top: number;
+  bottom: number;
+}
+
+export const NO_CREASE_EXPORT_INSET: CreaseExportInset = { top: 0, bottom: 0 };
+
 /** Measured extent of a folded figure, in projected (content box) units. */
 export interface CreaseExportFoldedBox {
   width: number;
@@ -395,7 +413,8 @@ export function wrapExportText(text: string, maxWidth: number, fontSize: number)
 export function layoutCreaseExport(
   caption: CreaseExportCaption,
   palette: CreaseExportPalette,
-  foldedBox: CreaseExportFoldedBox | null = null
+  foldedBox: CreaseExportFoldedBox | null = null,
+  inset: CreaseExportInset = NO_CREASE_EXPORT_INSET
 ): CreaseExportLayout {
   // The crease pattern's box already ends in a margin, which becomes the gap to
   // the folded figure; the figure's own box is tight, so it takes a matching
@@ -440,7 +459,7 @@ export function layoutCreaseExport(
       };
       cursor += subtitleLines.length * subtitleAdvance;
     }
-    cursor += CONTENT_GAP;
+    cursor += Math.max(MIN_CONTENT_GAP, CONTENT_GAP - inset.top);
   }
 
   const contentTop = cursor;
@@ -448,7 +467,7 @@ export function layoutCreaseExport(
 
   let description: CreaseExportTextBlock | null = null;
   if (descriptionLines.length > 0) {
-    cursor += CONTENT_GAP;
+    cursor += Math.max(MIN_CONTENT_GAP, CONTENT_GAP - inset.bottom);
     description = {
       lines: descriptionLines,
       fontSize: DESCRIPTION_FONT_SIZE,
@@ -521,6 +540,8 @@ export interface CreaseExportDocument {
 export interface CreaseExportArtwork {
   /** Crease-pattern body, in content-box coordinates. */
   cp: string;
+  /** Blank space inside the content box, above and below the drawn pattern. */
+  inset: CreaseExportInset;
   /** Folded-figure body, drawn relative to its own box origin. */
   folded: string | null;
   foldedBox: CreaseExportFoldedBox | null;
@@ -625,7 +646,13 @@ export function buildCreaseExportArtwork(
     }
   }
 
-  return { cp: [backgrounds, lines, points].filter(Boolean).join('\n'), folded, foldedBox, palette };
+  return {
+    cp: [backgrounds, lines, points].filter(Boolean).join('\n'),
+    inset: { top: contentTop, bottom: contentTop },
+    folded,
+    foldedBox,
+    palette,
+  };
 }
 
 /** Place artwork and caption on the page and emit the standalone SVG. */
@@ -634,7 +661,7 @@ export function composeCreaseExportSvg(
   caption: CreaseExportCaption
 ): CreaseExportDocument {
   const { palette } = artwork;
-  const layout = layoutCreaseExport(caption, palette, artwork.foldedBox);
+  const layout = layoutCreaseExport(caption, palette, artwork.foldedBox, artwork.inset);
   // Only wrap the artwork when it actually moves: an export with no caption is
   // byte-for-byte what it was before captions existed.
   const placedCp =
