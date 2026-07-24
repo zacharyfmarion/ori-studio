@@ -120,6 +120,8 @@
   "viewport": {
     "fit": "Einpassen",
     "pan": "Schwenken",
+    "panWithModifier": "Schwenken – oder {{modifier}} halten und ziehen",
+    "panWithShortcut": "Schwenken ({{shortcut}}) – oder {{modifier}} halten und ziehen",
     "zoomIn": "Vergrößern",
     "zoomOut": "Verkleinern"
   }

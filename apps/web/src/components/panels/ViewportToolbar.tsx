@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Hand, Layers, Maximize2, ZoomIn, ZoomOut } from 'lucide-react';
 import { IconButton } from '../ui/IconButton';
+import { primaryModifierLabel } from '../../lib/platform';
 
 const ZOOM_PRESETS = [25, 50, 100, 200, 400];
 
@@ -29,6 +30,8 @@ interface ViewportToolbarProps {
    */
   panToolActive?: boolean;
   togglePanTool?: () => void;
+  /** Resolved chord for the pan toggle, shown in its tooltip. */
+  panShortcutLabel?: string;
   children?: ReactNode;
 }
 
@@ -41,6 +44,7 @@ export function ViewportToolbar({
   setZoomLevel,
   panToolActive,
   togglePanTool,
+  panShortcutLabel,
   children,
 }: ViewportToolbarProps) {
   const { t } = useTranslation();
@@ -102,7 +106,17 @@ export function ViewportToolbar({
         <IconButton
           size="sm"
           variant="toolbar"
-          title={t('tools:viewport.pan', 'Pan')}
+          title={
+            panShortcutLabel
+              ? t('tools:viewport.panWithShortcut', 'Pan ({{shortcut}}) — or hold {{modifier}} and drag', {
+                  shortcut: panShortcutLabel,
+                  modifier: primaryModifierLabel(),
+                })
+              : t('tools:viewport.panWithModifier', 'Pan — or hold {{modifier}} and drag', {
+                  modifier: primaryModifierLabel(),
+                })
+          }
+          aria-label={t('tools:viewport.pan', 'Pan')}
           isActive={panToolActive}
           onClick={togglePanTool}
         >

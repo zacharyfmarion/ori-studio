@@ -112,6 +112,8 @@
   "viewport": {
     "fit": "フィット",
     "pan": "パン",
+    "panWithModifier": "パン — または {{modifier}} を押しながらドラッグ",
+    "panWithShortcut": "パン ({{shortcut}}) — または {{modifier}} を押しながらドラッグ",
     "zoomIn": "拡大",
     "zoomOut": "縮小"
   }

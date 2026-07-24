@@ -1046,7 +1046,6 @@ export function CreasePatternPanel() {
     window.clearTimeout(overlaySettleTimerRef.current);
     overlaySettleTimerRef.current = window.setTimeout(() => setWebglOverlayView(views.model), 100);
   }, []);
-  const [spacePressed, setSpacePressed] = useState(false);
   const [cpToolState, setCpToolState] = useState(IDLE_ORISTUDIO_CP_TOOL_STATE);
   const [activeCpLineColor, setActiveCpLineColor] = useState<OristudioCpLineColor>('Red1');
   const [foldStartingFaceId, setFoldStartingFaceId] = useState(1);
@@ -1379,6 +1378,9 @@ export function CreasePatternPanel() {
     (state) => state.transformOristudioCpSelection
   );
   const shortcutOverrides = useShortcutStore((state) => state.overrides);
+  // The fold chord lands on FoldingEstimate (Fold is the deduped duplicate);
+  // `handleCpShortcutAction` routes both to the real fold path.
+  const foldShortcutLabel = shortcutLabelForAction('cp.action.folding-estimate', shortcutOverrides);
 
   useEffect(() => {
     if (typeof document === 'undefined') return undefined;
@@ -3348,28 +3350,11 @@ export function CreasePatternPanel() {
         }
       }
 
-      if (event.key === ' ' && !interactive) {
-        event.preventDefault();
-        setSpacePressed(true);
-        return;
-      }
-
     };
-
-    const onKeyUp = (event: KeyboardEvent) => {
-      if (event.key === ' ') setSpacePressed(false);
-    };
-    const clearSpace = () => setSpacePressed(false);
 
     container.addEventListener('keydown', onKeyDown);
-    container.addEventListener('keyup', onKeyUp);
-    window.addEventListener('keyup', onKeyUp);
-    window.addEventListener('blur', clearSpace);
     return () => {
       container.removeEventListener('keydown', onKeyDown);
-      container.removeEventListener('keyup', onKeyUp);
-      window.removeEventListener('keyup', onKeyUp);
-      window.removeEventListener('blur', clearSpace);
     };
   }, [
     activeCpCommand?.operationId,
@@ -3408,7 +3393,6 @@ export function CreasePatternPanel() {
           'panel-body cp-panel__body',
           editableCp ? 'cp-panel__body--with-tools' : '',
         ].join(' ')}
-        data-space-pan={spacePressed || undefined}
         tabIndex={-1}
         onPointerDownCapture={(event) => {
           setActiveShortcutViewportSurface('crease-pattern');
@@ -3652,6 +3636,7 @@ export function CreasePatternPanel() {
                 setZoomLevel={setZoomLevel}
                 panToolActive={panToolActive}
                 togglePanTool={() => setPanToolActive((active) => !active)}
+                panShortcutLabel={shortcutLabelForAction('viewport.pan', shortcutOverrides)}
               >
                 {editableCp && (
                   <>
@@ -3686,7 +3671,9 @@ export function CreasePatternPanel() {
                       <IconButton
                         size="sm"
                         variant="toolbar"
-                        title={t('panels:creasePattern.fold', 'Fold')}
+                        title={foldShortcutLabel
+                          ? `${t('panels:creasePattern.fold', 'Fold')} (${foldShortcutLabel})`
+                          : t('panels:creasePattern.fold', 'Fold')}
                         disabled={!canFoldSelectedModel}
                         onClick={handleFoldModel}
                       >

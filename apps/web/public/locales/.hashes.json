@@ -1741,7 +1741,9 @@
     "panels:creasePattern.duplicateFoldedModelAction": "88437cf57abc",
     "panels:creasePattern.flipFoldedModel": "e6c0e41ad1ef",
     "panels:creasePattern.foldModelAction": "7734edbfc28a",
-    "tools:viewport.pan": "fd92d952db92"
+    "tools:viewport.pan": "fd92d952db92",
+    "tools:viewport.panWithModifier": "52baacbc03c6",
+    "tools:viewport.panWithShortcut": "08bcfc8f0486"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -3485,7 +3487,9 @@
     "panels:creasePattern.duplicateFoldedModelAction": "88437cf57abc",
     "panels:creasePattern.flipFoldedModel": "e6c0e41ad1ef",
     "panels:creasePattern.foldModelAction": "7734edbfc28a",
-    "tools:viewport.pan": "fd92d952db92"
+    "tools:viewport.pan": "fd92d952db92",
+    "tools:viewport.panWithModifier": "52baacbc03c6",
+    "tools:viewport.panWithShortcut": "08bcfc8f0486"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -5254,7 +5258,9 @@
     "panels:creasePattern.duplicateFoldedModelAction": "88437cf57abc",
     "panels:creasePattern.flipFoldedModel": "e6c0e41ad1ef",
     "panels:creasePattern.foldModelAction": "7734edbfc28a",
-    "tools:viewport.pan": "fd92d952db92"
+    "tools:viewport.pan": "fd92d952db92",
+    "tools:viewport.panWithModifier": "52baacbc03c6",
+    "tools:viewport.panWithShortcut": "08bcfc8f0486"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -7023,7 +7029,9 @@
     "panels:creasePattern.duplicateFoldedModelAction": "88437cf57abc",
     "panels:creasePattern.flipFoldedModel": "e6c0e41ad1ef",
     "panels:creasePattern.foldModelAction": "7734edbfc28a",
-    "tools:viewport.pan": "fd92d952db92"
+    "tools:viewport.pan": "fd92d952db92",
+    "tools:viewport.panWithModifier": "52baacbc03c6",
+    "tools:viewport.panWithShortcut": "08bcfc8f0486"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8792,7 +8800,9 @@
     "panels:creasePattern.duplicateFoldedModelAction": "88437cf57abc",
     "panels:creasePattern.flipFoldedModel": "e6c0e41ad1ef",
     "panels:creasePattern.foldModelAction": "7734edbfc28a",
-    "tools:viewport.pan": "fd92d952db92"
+    "tools:viewport.pan": "fd92d952db92",
+    "tools:viewport.panWithModifier": "52baacbc03c6",
+    "tools:viewport.panWithShortcut": "08bcfc8f0486"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10561,7 +10571,9 @@
     "panels:creasePattern.duplicateFoldedModelAction": "88437cf57abc",
     "panels:creasePattern.flipFoldedModel": "e6c0e41ad1ef",
     "panels:creasePattern.foldModelAction": "7734edbfc28a",
-    "tools:viewport.pan": "fd92d952db92"
+    "tools:viewport.pan": "fd92d952db92",
+    "tools:viewport.panWithModifier": "52baacbc03c6",
+    "tools:viewport.panWithShortcut": "08bcfc8f0486"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12330,7 +12342,9 @@
     "panels:creasePattern.duplicateFoldedModelAction": "88437cf57abc",
     "panels:creasePattern.flipFoldedModel": "e6c0e41ad1ef",
     "panels:creasePattern.foldModelAction": "7734edbfc28a",
-    "tools:viewport.pan": "fd92d952db92"
+    "tools:viewport.pan": "fd92d952db92",
+    "tools:viewport.panWithModifier": "52baacbc03c6",
+    "tools:viewport.panWithShortcut": "08bcfc8f0486"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -14074,6 +14088,8 @@
     "panels:creasePattern.duplicateFoldedModelAction": "88437cf57abc",
     "panels:creasePattern.flipFoldedModel": "e6c0e41ad1ef",
     "panels:creasePattern.foldModelAction": "7734edbfc28a",
-    "tools:viewport.pan": "fd92d952db92"
+    "tools:viewport.pan": "fd92d952db92",
+    "tools:viewport.panWithModifier": "52baacbc03c6",
+    "tools:viewport.panWithShortcut": "08bcfc8f0486"
   }
 }

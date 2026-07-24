@@ -79,6 +79,10 @@ const ORIEDITA_DEFAULTS: Record<string, string> = {
 
   // -- Draw / construct --------------------------------------------------
   drawCreaseFreeAction: 'Z', // free line
+  // Ori Studio addition: upstream Oriedita has no Space handler at all, but the
+  // grid-restricted line is frequent enough to deserve the biggest key, and it
+  // pairs with Z for the free line.
+  drawCreaseRestrictedAction: 'SPACE',
   perpendicularDrawAction: 'Y',
   angleBisectorAction: 'B',
   lengthenCrease2Action: 'E',
@@ -89,8 +93,9 @@ const ORIEDITA_DEFAULTS: Record<string, string> = {
   continuousSymmetricDrawAction: 'ctrl R',
   doubleSymmetricDrawAction: 'ctrl G',
   reflectAction: 'ctrl M',
-  // `symmetricDrawAction` (Mirror Line) intentionally has no default: Brandon's
-  // layout claims R for radial snapping. It stays available from the tool rail.
+  // Brandon's layout claims R for radial snapping, so Mirror Line takes M —
+  // mnemonic, and freed when the line types moved onto the home row.
+  symmetricDrawAction: 'M',
 
   // -- Mountain / valley -------------------------------------------------
   senbun_henkan2Action: 'C', // flip M/V of the selection

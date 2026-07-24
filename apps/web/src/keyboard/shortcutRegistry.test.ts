@@ -85,6 +85,8 @@ const EXPECTED_SINGLE_KEY_LAYOUT: ReadonlyArray<[chord: string, actionId: string
   ['f', 'cp.action.line-type.auxiliary'],
   // Draw / construct
   ['z', 'cp.action.draw-crease'],
+  ['space', 'cp.action.draw-crease-restricted'],
+  ['m', 'cp.action.symmetric-draw'],
   ['y', 'cp.action.perpendicular-draw'],
   ['b', 'cp.action.square-bisector'],
   ['e', 'cp.action.lengthen-crease-same-color'],
@@ -119,8 +121,9 @@ describe('adopted single-key layout', () => {
   });
 
   it('leaves the keys the remap freed unbound', () => {
-    // M/V/L/P/N were the pre-adoption line-type and draw keys.
-    for (const freed of ['m', 'v', 'l', 'p', 'n']) {
+    // V/L/P/N were pre-adoption line-type and draw keys. M was too, and is now
+    // reused for Mirror Line (asserted above).
+    for (const freed of ['v', 'l', 'p', 'n']) {
       expect(byChord.get(freed)).toBeUndefined();
     }
   });

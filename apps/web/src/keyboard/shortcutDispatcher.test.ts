@@ -26,8 +26,9 @@ describe('shortcut dispatcher', () => {
 
   it('skips disabled shortcuts', () => {
     const cpAction = vi.fn();
+    // `a` is the mountain line type; clearing its override leaves the key unbound.
     const event = new KeyboardEvent('keydown', {
-      key: 'm',
+      key: 'a',
       bubbles: true,
       cancelable: true,
     });

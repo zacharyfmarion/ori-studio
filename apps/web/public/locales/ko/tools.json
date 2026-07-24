@@ -112,6 +112,8 @@
   "viewport": {
     "fit": "맞춤",
     "pan": "화면 이동",
+    "panWithModifier": "화면 이동 — 또는 {{modifier}} 를 누른 채 드래그",
+    "panWithShortcut": "화면 이동 ({{shortcut}}) — 또는 {{modifier}} 를 누른 채 드래그",
     "zoomIn": "확대",
     "zoomOut": "축소"
   }

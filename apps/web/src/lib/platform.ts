@@ -25,3 +25,11 @@ export function isPrimaryModifier(event: {
 }): boolean {
   return isApplePlatform() ? event.metaKey : event.ctrlKey;
 }
+
+/**
+ * Display name of the accel modifier, for prose in tooltips and help text.
+ * Matches the spelling `formatKeyChord` uses for chords.
+ */
+export function primaryModifierLabel(): string {
+  return isApplePlatform() ? 'Cmd' : 'Ctrl';
+}

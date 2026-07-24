@@ -120,6 +120,8 @@
   "viewport": {
     "fit": "Fit",
     "pan": "Pan",
+    "panWithModifier": "Pan — or hold {{modifier}} and drag",
+    "panWithShortcut": "Pan ({{shortcut}}) — or hold {{modifier}} and drag",
     "zoomIn": "Zoom In",
     "zoomOut": "Zoom Out"
   }
