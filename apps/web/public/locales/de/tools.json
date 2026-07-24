@@ -119,6 +119,7 @@
   },
   "viewport": {
     "fit": "Einpassen",
+    "pan": "Schwenken",
     "zoomIn": "Vergrößern",
     "zoomOut": "Verkleinern"
   }

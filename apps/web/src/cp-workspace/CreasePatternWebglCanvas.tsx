@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createReglRenderer } from './renderer/reglRenderer';
 import type { CpRenderer } from './renderer/CpRenderer';
 import { readCssVarColor } from './renderer/cssColor';
+import { isPrimaryModifier } from '../lib/platform';
 import {
   fitUserCamera,
   modelViewFromCamera,
@@ -439,6 +440,11 @@ export interface CreasePatternWebglCanvasProps {
    * a plain drag; `point-sequence` places a point per click and previews on hover.
    */
   activeToolInputMode: ActiveToolMode | null;
+  /**
+   * Hand-tool mode: a plain left drag pans instead of running the active tool.
+   * The accel-drag pan (Cmd on Apple, Ctrl elsewhere) works regardless.
+   */
+  panToolActive: boolean;
   /** Per-step input kinds for a `sequence` tool (free point vs picked crease). */
   activeToolStepKinds: readonly StepKind[];
   /** Number of crease picks a `line-entity` tool collects before committing. */
@@ -671,6 +677,7 @@ export function CreasePatternWebglCanvas({
   onTranslateSelection,
   resolveMoveSnap,
   activeToolInputMode,
+  panToolActive,
   activeToolStepKinds,
   activeToolLineCount,
   activeToolRequireSnap,
@@ -722,6 +729,9 @@ export function CreasePatternWebglCanvas({
   gridVisible,
 }: CreasePatternWebglCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  // Drives the hand tool's grab/grabbing cursor. State rather than a direct
+  // style write, so a re-render mid-drag cannot clobber it.
+  const [panDragging, setPanDragging] = useState(false);
   const rendererRef = useRef<CpRenderer | null>(null);
   const renderNowRef = useRef<() => void>(() => {});
   // Late-bound `buildStrokes` so effects declared before it (the tool-reset
@@ -1027,6 +1037,7 @@ export function CreasePatternWebglCanvas({
       onTranslateSelection,
     resolveMoveSnap,
     activeToolInputMode,
+    panToolActive,
     activeToolStepKinds,
     activeToolLineCount,
     activeToolRequireSnap,
@@ -2065,11 +2076,14 @@ export function CreasePatternWebglCanvas({
         erasing = true;
         eraseRuntime = createToolRuntime(toolEngineFor('drag-box'));
         feedErase('down', e.clientX, e.clientY);
-      } else if (e.metaKey || e.ctrlKey) {
-        // cmd/ctrl pans. Folded figures are grabbed through the canvas-object
-        // overlay now, which sits above this canvas and takes the press first.
+      } else if (isPrimaryModifier(e) || liveRef.current.panToolActive) {
+        // The platform accel (Cmd on Apple, Ctrl elsewhere) pans, as does a
+        // plain drag while the hand tool is on. Folded figures are grabbed
+        // through the canvas-object overlay now, which sits above this canvas
+        // and takes the press first.
         e.preventDefault();
         panning = true;
+        if (liveRef.current.panToolActive) setPanDragging(true);
       } else if (toolMode === 'sequence') {
         // Click-based tool: place a point / pick a crease (no drag). Hover previews.
         e.preventDefault();
@@ -2145,9 +2159,12 @@ export function CreasePatternWebglCanvas({
         feedErase('move', e.clientX, e.clientY);
       } else if (drawing) {
         feedTool('move', e.clientX, e.clientY);
+      } else if (liveRef.current.panToolActive && !panning) {
+        // Hand tool on but not dragging: suppress every tool hover preview, so
+        // no ghost snap indicator trails the grab cursor.
       } else if (
         liveRef.current.activeToolInputMode === 'lengthen' &&
-        !panning 
+        !panning
       ) {
         // Lengthen: draw the selection line while dragging, or (in the extension
         // phase) track the target-point cursor. Fires on hover too.
@@ -2351,6 +2368,7 @@ export function CreasePatternWebglCanvas({
       }
       marquee.style.display = 'none';
       panning = false;
+      setPanDragging(false);
       selecting = false;
       movingSelection = false;
       moveStart = null;
@@ -2568,5 +2586,12 @@ export function CreasePatternWebglCanvas({
     renderNowRef.current();
   }, [activeToolVoronoi, toolCommandPreviewPoints]);
 
-  return <canvas ref={canvasRef} className={className} aria-hidden="true" />;
+  return (
+    <canvas
+      ref={canvasRef}
+      className={className}
+      style={panToolActive ? { cursor: panDragging ? 'grabbing' : 'grab' } : undefined}
+      aria-hidden="true"
+    />
+  );
 }

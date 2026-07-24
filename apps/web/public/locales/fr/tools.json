@@ -127,6 +127,7 @@
   },
   "viewport": {
     "fit": "Ajuster",
+    "pan": "Panoramique",
     "zoomIn": "Zoom avant",
     "zoomOut": "Zoom arrière"
   }

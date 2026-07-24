@@ -111,6 +111,7 @@
   },
   "viewport": {
     "fit": "맞춤",
+    "pan": "화면 이동",
     "zoomIn": "확대",
     "zoomOut": "축소"
   }

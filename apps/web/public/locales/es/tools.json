@@ -127,6 +127,7 @@
   },
   "viewport": {
     "fit": "Ajustar",
+    "pan": "Desplazar",
     "zoomIn": "Acercar",
     "zoomOut": "Alejar"
   }

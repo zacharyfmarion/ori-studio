@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Layers, Maximize2, ZoomIn, ZoomOut } from 'lucide-react';
+import { Hand, Layers, Maximize2, ZoomIn, ZoomOut } from 'lucide-react';
 import { IconButton } from '../ui/IconButton';
 
 const ZOOM_PRESETS = [25, 50, 100, 200, 400];
@@ -23,6 +23,12 @@ interface ViewportToolbarProps {
   zoomOut: () => void;
   fitToView: () => void;
   setZoomLevel: (scale: number) => void;
+  /**
+   * Hand-tool state. Both are supplied together, or neither — a surface that
+   * has no pan mode simply omits them and the button is not rendered.
+   */
+  panToolActive?: boolean;
+  togglePanTool?: () => void;
   children?: ReactNode;
 }
 
@@ -33,6 +39,8 @@ export function ViewportToolbar({
   zoomOut,
   fitToView,
   setZoomLevel,
+  panToolActive,
+  togglePanTool,
   children,
 }: ViewportToolbarProps) {
   const { t } = useTranslation();
@@ -90,6 +98,17 @@ export function ViewportToolbar({
       <IconButton size="sm" variant="toolbar" title={t('tools:viewport.fit', 'Fit')} onClick={fitToView}>
         <Maximize2 size={14} />
       </IconButton>
+      {togglePanTool && (
+        <IconButton
+          size="sm"
+          variant="toolbar"
+          title={t('tools:viewport.pan', 'Pan')}
+          isActive={panToolActive}
+          onClick={togglePanTool}
+        >
+          <Hand size={14} />
+        </IconButton>
+      )}
       {children}
     </div>
   );

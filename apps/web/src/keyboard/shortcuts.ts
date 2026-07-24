@@ -10,7 +10,8 @@ export type ViewportShortcutId =
   | 'viewport.zoomIn'
   | 'viewport.zoomOut'
   | 'viewport.fit'
-  | 'viewport.actualSize';
+  | 'viewport.actualSize'
+  | 'viewport.pan';
 export type ShortcutActionId = MenuActionId | OristudioCpActionId | ViewportShortcutId;
 export type ShortcutTarget = 'menu' | 'cp-action' | 'viewport';
 export type ReservedKeyClassification = 'allowed' | 'soft-reserved' | 'hard-reserved';
@@ -151,10 +152,13 @@ const MENU_SHORTCUTS: ShortcutDefinition[] = [
 ];
 
 const VIEWPORT_SHORTCUTS: ShortcutDefinition[] = [
-  viewportShortcut('viewport.zoomIn', 'Zoom In', { primary: true, key: '=' }),
-  viewportShortcut('viewport.zoomOut', 'Zoom Out', { primary: true, key: '-' }),
+  // The bare 6/5 chords come from the Oriedita layout, so the left hand can
+  // zoom without reaching for a modifier.
+  viewportShortcut('viewport.zoomIn', 'Zoom In', [{ primary: true, key: '=' }, { key: '6' }]),
+  viewportShortcut('viewport.zoomOut', 'Zoom Out', [{ primary: true, key: '-' }, { key: '5' }]),
   viewportShortcut('viewport.fit', 'Fit To View', { primary: true, key: '0' }),
   viewportShortcut('viewport.actualSize', 'Actual Size', { primary: true, key: '1' }),
+  viewportShortcut('viewport.pan', 'Pan (hand tool)', { key: '1' }),
 ];
 
 export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
@@ -190,7 +194,7 @@ function menuShortcut(
 function viewportShortcut(
   id: ViewportShortcutId,
   label: string,
-  defaultChord: KeyChord
+  defaultChord: KeyChord | KeyChord[]
 ): ShortcutDefinition {
   const defaultChords = normalizeDefaultChords(defaultChord);
   return {

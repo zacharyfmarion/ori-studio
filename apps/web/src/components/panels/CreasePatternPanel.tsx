@@ -1011,6 +1011,9 @@ export function CreasePatternPanel() {
   // controls drive react-zoom-pan-pinch, which the GL camera ignores). A bumped nonce
   // re-fires the same command.
   const [webglCameraCommand, setWebglCameraCommand] = useState<CameraCommand | null>(null);
+  // Hand tool: a plain drag pans the canvas instead of running the active
+  // tool. Accel-drag pan stays available whether or not this is on.
+  const [panToolActive, setPanToolActive] = useState(false);
   const cameraCommandNonceRef = useRef(0);
   const sendWebglCameraCommand = useCallback(
     (kind: CameraCommand['kind'], percent?: number) => {
@@ -2146,6 +2149,9 @@ export function CreasePatternPanel() {
   const handleCpToolAction = useCallback(
     (action: OristudioCpActionDefinition) => {
       setPendingLengthenLineId(null);
+      // The hand tool and a crease tool are mutually exclusive, so the rail
+      // and the toolbar never both read as active.
+      setPanToolActive(false);
       if (action.kind === 'line-type') {
         setActiveCpLineColor(action.lineColor);
         return;
@@ -3272,6 +3278,9 @@ export function CreasePatternPanel() {
         case 'viewport.fit':
           sendWebglCameraCommand('fit');
           break;
+        case 'viewport.pan':
+          setPanToolActive((active) => !active);
+          break;
         case 'viewport.actualSize':
           sendWebglCameraCommand('set-percent', 100);
           break;
@@ -3299,6 +3308,13 @@ export function CreasePatternPanel() {
       // While typing in the inline text editor, let it own ESC (commit + deselect);
       // don't also run the panel's ESC (which would clear selection / cancel the tool).
       if (event.key === 'Escape' && editableCp && !interactive) {
+        // Leaving the hand tool comes first: it is a mode, and Escape is the
+        // expected way out of one.
+        if (panToolActive) {
+          event.preventDefault();
+          setPanToolActive(false);
+          return;
+        }
         // A selection takes priority: Escape deselects for *any* resting tool (not
         // just CreaseSelect) as long as no gesture is in progress — a second Escape
         // then cancels/deactivates the tool. Matches Oriedita, and fixes "select-all,
@@ -3364,6 +3380,7 @@ export function CreasePatternPanel() {
     editableCp,
     editableSelectionSize,
     hasCreasePattern,
+    panToolActive,
     pendingLengthenLineId,
     pendingSquareBisectorLineIds.length,
   ]);
@@ -3534,6 +3551,7 @@ export function CreasePatternPanel() {
                   operationFrame={cpOperationFrameStrokes}
                   focusModelBounds={cpDiagnosticFocusBounds}
                   cameraCommand={webglCameraCommand}
+                  panToolActive={panToolActive}
                   onZoomPercentChange={handleWebglZoomPercent}
                   onViewChange={handleWebglViewChange}
                   onEraseBox={(points) => {
@@ -3632,6 +3650,8 @@ export function CreasePatternPanel() {
                 zoomOut={() => sendWebglCameraCommand('zoom-out')}
                 fitToView={() => sendWebglCameraCommand('fit')}
                 setZoomLevel={setZoomLevel}
+                panToolActive={panToolActive}
+                togglePanTool={() => setPanToolActive((active) => !active)}
               >
                 {editableCp && (
                   <>

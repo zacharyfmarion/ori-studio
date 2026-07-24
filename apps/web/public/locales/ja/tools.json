@@ -111,6 +111,7 @@
   },
   "viewport": {
     "fit": "フィット",
+    "pan": "パン",
     "zoomIn": "拡大",
     "zoomOut": "縮小"
   }

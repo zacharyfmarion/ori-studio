@@ -111,6 +111,7 @@
   },
   "viewport": {
     "fit": "适应",
+    "pan": "平移",
     "zoomIn": "放大",
     "zoomOut": "缩小"
   }

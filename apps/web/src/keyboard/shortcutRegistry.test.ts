@@ -111,6 +111,13 @@ describe('adopted single-key layout', () => {
     expect(byChord.get(chord)).toEqual([actionId]);
   });
 
+  it('keeps the bare zoom chords alongside the accel ones', () => {
+    expect(byChord.get('6')).toEqual(['viewport.zoomIn']);
+    expect(byChord.get('5')).toEqual(['viewport.zoomOut']);
+    expect(byChord.get('primary+=')).toEqual(['viewport.zoomIn']);
+    expect(byChord.get('primary+-')).toEqual(['viewport.zoomOut']);
+  });
+
   it('leaves the keys the remap freed unbound', () => {
     // M/V/L/P/N were the pre-adoption line-type and draw keys.
     for (const freed of ['m', 'v', 'l', 'p', 'n']) {
