@@ -18,6 +18,7 @@ import type {
   OristudioCpOperationDescriptor,
 } from '../../engine/oristudioCpTypes';
 import type { WasmErrorEnvelope } from '../../engine/types';
+import type { CpDocumentSlotId } from './types';
 import {
   decodeCpGeometryToSnapshot,
   type CpGeometryTransport,
@@ -33,15 +34,62 @@ export type OristudioCpClient = Remote<OristudioCpWorkerApi>;
 
 let worker: Worker | null = null;
 let client: OristudioCpClient | null = null;
-let handle: number | null = null;
 let descriptorsPromise: Promise<OristudioCpOperationDescriptor[]> | null = null;
-let currentSource: OristudioCpDocumentState['source'] | null = null;
 // Monotonic identifier for a genuine document load (open/new/import/native/
 // generate-from-tree). It advances only when a fresh kernel handle is
 // allocated, never for edits, undo/redo, or in-place restores. The CP panel
 // keys its auto-fit on this so restoring history does not read as "a new
 // document was opened" and reset the viewport.
 let documentLoadSerial = 0;
+
+/**
+ * Per-slot kernel state. Each slot owns a live kernel document; both stay
+ * allocated at once, so switching slots re-points this module rather than
+ * freeing and re-parsing anything. The engine guarantees documents behind
+ * distinct handles are independent (`concurrent_handles_are_isolated` in
+ * `crates/oristudio-cp/src/session.rs`).
+ */
+interface CpSlotRuntime {
+  handle: number | null;
+  source: OristudioCpDocumentState['source'] | null;
+}
+
+const slots: Record<CpDocumentSlotId, CpSlotRuntime> = {
+  edit: { handle: null, source: null },
+  learn: { handle: null, source: null },
+};
+
+let activeSlot: CpDocumentSlotId = 'edit';
+
+function slotRuntime(): CpSlotRuntime {
+  return slots[activeSlot];
+}
+
+/**
+ * Point this module at another slot's kernel document. Callers outside the
+ * slot module should not need this — `enterCpDocumentSlot` sequences the store
+ * bundle swap around it.
+ */
+export function switchCpDocumentSlot(slot: CpDocumentSlotId): void {
+  activeSlot = slot;
+}
+
+export function activeCpDocumentSlot(): CpDocumentSlotId {
+  return activeSlot;
+}
+
+/** The live kernel handle for a slot, or `null` when it holds no document. */
+export function cpDocumentSlotHandle(slot: CpDocumentSlotId): number | null {
+  return slots[slot].handle;
+}
+
+/** Free a slot's kernel document. Used when tearing a slot down for good. */
+export async function releaseCpDocumentSlot(slot: CpDocumentSlotId): Promise<void> {
+  const staleHandle = slots[slot].handle;
+  slots[slot] = { handle: null, source: null };
+  if (!client || staleHandle === null) return;
+  await client.freeDocument(staleHandle).catch(() => undefined);
+}
 
 export function oristudioCpError(error: unknown): WasmErrorEnvelope {
   if (
@@ -83,14 +131,7 @@ export async function getOristudioCpOperationDescriptors(): Promise<
 }
 
 export async function releaseOristudioCpDocument(): Promise<void> {
-  if (!client || handle === null) {
-    handle = null;
-    return;
-  }
-  const staleHandle = handle;
-  handle = null;
-  currentSource = null;
-  await client.freeDocument(staleHandle).catch(() => undefined);
+  await releaseCpDocumentSlot(activeSlot);
 }
 
 export async function loadOristudioCpDocumentFromText(
@@ -122,7 +163,7 @@ export async function loadOristudioCpDocumentFromText(
     };
     const nextState = await buildDocumentState(api, nextHandle, nextSource, null);
     await replaceHandle(api, nextHandle);
-    currentSource = nextSource;
+    slotRuntime().source = nextSource;
     return nextState;
   } catch (error) {
     await api.freeDocument(nextHandle).catch(() => undefined);
@@ -148,7 +189,7 @@ export async function createBlankOristudioCpDocument(
   try {
     const nextState = await buildDocumentState(api, nextHandle, source, null);
     await replaceHandle(api, nextHandle);
-    currentSource = source;
+    slotRuntime().source = source;
     return nextState;
   } catch (error) {
     await api.freeDocument(nextHandle).catch(() => undefined);
@@ -177,6 +218,7 @@ async function fetchDocumentAndGeometry(
 export async function refreshOristudioCpDocument(
   lastCommandResult: OristudioCpCommandResult | null = null
 ): Promise<OristudioCpDocumentState | null> {
+  const handle = slotRuntime().handle;
   if (handle === null) return null;
   const api = await getOristudioCpClient();
   const { document, geometry } = await fetchDocumentAndGeometry(api, handle);
@@ -189,7 +231,7 @@ export async function refreshOristudioCpDocument(
     geometry,
     summary,
     source:
-      currentSource ??
+      slotRuntime().source ??
       ({
         format: 'cp',
         filename: document.title ? `${document.title}.cp` : 'Untitled.cp',
@@ -212,7 +254,7 @@ export async function restoreOristudioCpDocument(
   try {
     const nextState = await buildDocumentState(api, nextHandle, source, lastCommandResult);
     await replaceHandle(api, nextHandle);
-    currentSource = nextState.source;
+    slotRuntime().source = nextState.source;
     return nextState;
   } catch (error) {
     await api.freeDocument(nextHandle).catch(() => undefined);
@@ -233,11 +275,12 @@ export async function restoreOristudioCpDocumentInPlace(
   source?: OristudioCpDocumentState['source'],
   lastCommandResult: OristudioCpCommandResult | null = null
 ): Promise<OristudioCpDocumentState> {
+  const handle = slotRuntime().handle;
   if (handle === null) {
     return restoreOristudioCpDocument(
       document,
       source ??
-        currentSource ?? {
+        slotRuntime().source ?? {
           format: 'cp',
           filename: document.title ? `${document.title}.cp` : 'Untitled.cp',
           path: null,
@@ -247,9 +290,9 @@ export async function restoreOristudioCpDocumentInPlace(
   }
   const api = await getOristudioCpClient();
   await api.restoreDocument(handle, document);
-  const nextSource = source ?? currentSource ?? { format: 'cp', filename: 'Untitled.cp', path: null };
+  const nextSource = source ?? slotRuntime().source ?? { format: 'cp', filename: 'Untitled.cp', path: null };
   const nextState = await buildDocumentState(api, handle, nextSource, lastCommandResult);
-  currentSource = nextState.source;
+  slotRuntime().source = nextState.source;
   return nextState;
 }
 
@@ -257,6 +300,7 @@ export async function executeOristudioCpCommand(
   operationId: OristudioCpOperationId,
   payload: OristudioCpCommandPayload = {}
 ): Promise<OristudioCpDocumentState> {
+  const handle = slotRuntime().handle;
   if (handle === null) {
     throw new Error('No editable crease-pattern document is loaded');
   }
@@ -278,6 +322,7 @@ export async function runOristudioCpCheckCommand(
   operationId: OristudioCpOperationId,
   payload: OristudioCpCommandPayload = {}
 ): Promise<OristudioCpCommandResult> {
+  const handle = slotRuntime().handle;
   if (handle === null) {
     throw new Error('No editable crease-pattern document is loaded');
   }
@@ -289,6 +334,7 @@ export async function previewOristudioCpCommand(
   operationId: OristudioCpOperationId,
   payload: OristudioCpCommandPayload = {}
 ): Promise<OristudioCpCommandPreview> {
+  const handle = slotRuntime().handle;
   if (handle === null) {
     throw new Error('No editable crease-pattern document is loaded');
   }
@@ -299,6 +345,7 @@ export async function previewOristudioCpCommand(
 export async function insertOristudioCpLineSegments(
   segments: OristudioCpLineSegment[]
 ): Promise<OristudioCpDocumentState> {
+  const handle = slotRuntime().handle;
   if (handle === null) {
     throw new Error('No editable crease-pattern document is loaded');
   }
@@ -315,6 +362,7 @@ export async function insertOristudioCpLineSegments(
  * kernel in sync so a later select/deselect doesn't re-derive a stale selection.
  */
 export async function deselectAllOristudioCp(): Promise<OristudioCpDocumentState | null> {
+  const handle = slotRuntime().handle;
   if (handle === null) return null;
   const api = await getOristudioCpClient();
   await api.deselectAll(handle);
@@ -335,6 +383,7 @@ export async function importAddOristudioCpDocumentFromText(
     acceptUnknownVersion?: boolean;
   }
 ): Promise<OristudioCpDocumentState> {
+  const handle = slotRuntime().handle;
   if (handle === null) {
     throw new Error('No editable crease-pattern document is loaded');
   }
@@ -363,6 +412,7 @@ export async function replaceOristudioCpLineSegments(
   lineIds: number[],
   segments: OristudioCpLineSegment[]
 ): Promise<OristudioCpDocumentState> {
+  const handle = slotRuntime().handle;
   if (handle === null) {
     throw new Error('No editable crease-pattern document is loaded');
   }
@@ -379,6 +429,7 @@ export async function foldOristudioCpDocument(
   model?: OristudioCpFoldedFigureModel,
   selectedLineIds: number[] = []
 ): Promise<OristudioCpFoldedFigureResult> {
+  const handle = slotRuntime().handle;
   if (handle === null) {
     throw new Error('No editable crease-pattern document is loaded');
   }
@@ -439,6 +490,7 @@ export async function freeOristudioCpFoldedFigure(foldedFigureHandle: number): P
 }
 
 export async function exportOristudioCpDocumentAsCp(): Promise<string> {
+  const handle = slotRuntime().handle;
   if (handle === null) {
     throw new Error('No editable crease-pattern document is loaded');
   }
@@ -447,6 +499,7 @@ export async function exportOristudioCpDocumentAsCp(): Promise<string> {
 }
 
 export async function exportOristudioCpDocumentAsFold(texts: FlatText[] = []): Promise<string> {
+  const handle = slotRuntime().handle;
   if (handle === null) {
     throw new Error('No editable crease-pattern document is loaded');
   }
@@ -455,6 +508,7 @@ export async function exportOristudioCpDocumentAsFold(texts: FlatText[] = []): P
 }
 
 export async function exportOristudioCpDocumentAsOri(texts: FlatText[] = []): Promise<string> {
+  const handle = slotRuntime().handle;
   if (handle === null) {
     throw new Error('No editable crease-pattern document is loaded');
   }
@@ -463,6 +517,7 @@ export async function exportOristudioCpDocumentAsOri(texts: FlatText[] = []): Pr
 }
 
 export async function exportOristudioCpDocumentAsOrh(texts: FlatText[] = []): Promise<string> {
+  const handle = slotRuntime().handle;
   if (handle === null) {
     throw new Error('No editable crease-pattern document is loaded');
   }
@@ -477,20 +532,23 @@ export async function exportOristudioCpDocumentAsOrh(texts: FlatText[] = []): Pr
  * be double-counted on `.osf` save (once as kernel texts, once as annotations).
  */
 export async function clearOristudioCpKernelTexts(): Promise<void> {
+  const handle = slotRuntime().handle;
   if (handle === null) return;
   const api = await getOristudioCpClient();
   await api.setTexts(handle, []);
 }
 
 export function setOristudioCpDocumentSource(source: OristudioCpDocumentState['source']): void {
-  currentSource = source;
+  slotRuntime().source = source;
 }
 
+/** Swap in a freshly loaded document for the active slot, freeing the old one. */
 async function replaceHandle(api: OristudioCpClient, nextHandle: number) {
-  if (handle !== null) {
-    await api.freeDocument(handle).catch(() => undefined);
+  const staleHandle = slotRuntime().handle;
+  if (staleHandle !== null) {
+    await api.freeDocument(staleHandle).catch(() => undefined);
   }
-  handle = nextHandle;
+  slotRuntime().handle = nextHandle;
 }
 
 async function buildDocumentState(

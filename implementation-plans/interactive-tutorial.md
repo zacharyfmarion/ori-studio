@@ -384,23 +384,43 @@ after the tutorial UI is built on top.
 
 ### Decisions taken (override if you disagree — each is cheap to flip now)
 
-1. **The four fields the spike left open are all document-scoped**, i.e. they go
-   in the slot bundle:
-   - `dirty` — must be per-slot, or drawing in a lesson would falsely mark the
-     user's Edit document unsaved.
-   - `toolMode` and `symmetryAuthoringPairs` — a lesson arming a tool or
-     authoring symmetry pairs must not leak into the user's document.
-   - `projectLoadId` — drives the CP panel's auto-fit; per-slot means returning
-     to Edit restores the viewport instead of re-fitting, which is the behavior
-     we want.
-2. **The unload/discard guard reads the *edit* slot's `dirty`, not the active
-   one.** With `dirty` slot-scoped, closing the tab mid-lesson would otherwise
-   look clean and silently drop unsaved Edit work. The guard must consider every
-   slot, not just the foreground one.
-3. **Routes without a slot directive keep the current slot.** `/simulate` and
-   `/design` don't switch slots, so the Chapter 6 "send to Simulate" lesson
-   simulates the *lesson's* pattern and returns to it. Only `/edit` and
-   `/learn/*` assert a slot.
+1. **All four fields the spike left open stay global — corrected.** I first
+   assumed they were document-scoped from their names; checking actual usage
+   flipped three of them:
+   - `toolMode` is the **design** tool mode (`'select' | 'node' | 'edge' |
+     'symmetry'`), read only by `DesignPanel`. The CP canvas's `toolMode` is an
+     unrelated local. Global.
+   - `symmetryAuthoringPairs` is **tree** symmetry authoring, also `DesignPanel`
+     only. Global.
+   - `projectLoadId` is a project-wide load counter read by **both** the CP and
+     Design panels; slot-scoping it would desync `DesignPanel`'s fit logic. Global.
+   - `dirty` is project-wide (tree *and* CP). Slot-scoping it would mean a design
+     edit made while the learn slot is active gets restored away on the next
+     switch. Global.
+
+   So the doc-scoped group is exactly what the spike produced. **Lesson: classify
+   by usage, not by name.**
+2. **The learn slot suppresses dirty-marking instead.** Since `dirty` stays
+   global, the tutorial document — which is never part of the user's project and
+   can never be saved — simply does not mark it. One predicate
+   (`activeSlotTracksProjectDirty()`) consulted where CP edits set `dirty`; no
+   unload-guard change needed, because the flag keeps meaning "the user's project
+   has unsaved work" at all times.
+3. **Camera framing re-fits on slot switch; view *options* are restored.**
+   `oristudioCpViewport` (grid, display toggles) is slot-scoped and comes back.
+   Pan/zoom does not: the CP panel unmounts on every workspace switch and re-fits
+   on mount, which is already what `edit` ↔ `design` does today. An earlier draft
+   of this plan claimed exact pan/zoom restoration — that was wrong.
+3. **`/edit` and `/design` assert the edit slot; `/learn/*` asserts learn;
+   `/simulate` keeps whichever is current.** `/simulate` must keep it so the
+   Chapter 6 "send to Simulate" lesson simulates the *lesson's* pattern.
+
+   `/design` asserting the edit slot is what makes the dirty rule (below) safe:
+   design and tree edits *should* mark the project dirty, and if `/design` kept
+   an ephemeral slot they would be suppressed. With this rule the only surfaces
+   reachable under the learn slot are `/learn` and `/simulate`, neither of which
+   can edit the tree or a BP design — so "ephemeral slot ⇒ nothing marks the
+   project dirty" holds unconditionally.
 4. **Target `.cp` files are hand-authorable.** The format is one segment per
    line, so lesson targets can be written directly and reviewed as diffs; they
    still load through the engine, never a TypeScript parser. Visual confirmation
@@ -495,23 +515,26 @@ handles new routes).
       prefix assertion; zero read-site changes; both guards verified to fire.
 - [x] **Spike: singleton audit.** Nine hits classified; every genuine one is the
       same in-flight-async pattern.
-- [ ] Land the `types.ts` regrouping on its own (no behavior change, reviewable
-      in isolation): `CpDocumentScopedState`, `CP_DOCUMENT_SCOPED_KEYS`,
-      `CpFieldScopingIsExhaustive`.
-- [ ] Add `projectLoadId`, `toolMode`, `symmetryAuthoringPairs`, `dirty` to the
-      document-scoped group (see Decisions).
-- [ ] Unload/discard guard considers every slot's `dirty`, not just the active
-      slot's.
-- [ ] Slot generation counter primitive; apply at the four in-flight sites
-      (`ensureEditInFlight`, `foldArtifactPromise`, folded-figure sequences,
-      `camvRefreshTimer`).
-- [ ] Confirm `cpOverlayViewStore.current` repopulates on panel remount.
-- [ ] Slot-key `handle` / `currentSource` / `documentLoadSerial` inside
-      `oristudioCpRuntime`; export `switchCpDocumentSlot`.
-- [ ] `cpDocumentSlots.ts`: capture/install typed as `CpDocumentScopedState`,
-      `enterCpDocumentSlot`.
-- [ ] Round-trip isolation test: open in edit slot → switch to learn → draw,
-      undo, fold, select → switch back → edit bundle deep-equals the capture.
+- [x] `types.ts` regrouping: `CpDocumentScopedState`, `CP_DOCUMENT_SCOPED_KEYS`,
+      `CpFieldScopingIsExhaustive`, `CpDocumentSlotId`.
+- [x] Classified `projectLoadId`, `toolMode`, `symmetryAuthoringPairs`, `dirty`
+      by usage — all four stay **global** (see Decisions).
+- [x] `activeSlotTracksProjectDirty()` + a store-level invariant that clears
+      `dirty` when an ephemeral slot sets it (one place, not ~30 call sites).
+- [x] Slot generation counter applied at all four in-flight sites
+      (`ensureEditInFlight`, `foldArtifactPromise` → now keyed
+      `${generation}:${revision}`, folded-figure model requests, `camvRefreshTimer`).
+- [ ] Confirm `cpOverlayViewStore.current` repopulates on panel remount
+      (browser check — deferred to Phase 1b when a lesson can actually mount).
+- [x] Slot-keyed `handle` / `source` inside `oristudioCpRuntime` (`slots`,
+      `activeSlot`, `switchCpDocumentSlot`, `releaseCpDocumentSlot`).
+      `documentLoadSerial` stays global — it is a monotonic change-detection
+      counter, so sharing it across slots is correct.
+- [x] `cpDocumentSlots.ts`: capture/install typed as `CpDocumentScopedState`,
+      `enterCpDocumentSlot`, pristine bundle captured from the store at init
+      (not restated) so slice initial values cannot drift.
+- [x] Round-trip isolation test (7 cases), verified to fail when parking is
+      removed.
 - [ ] `/edit` enters the `edit` slot; behavior on `/edit` is unchanged with only
       one slot ever used (regression-check open, edit, undo, save, export).
 - [ ] Mask Save / Save As / Open / New in the learn editing context.

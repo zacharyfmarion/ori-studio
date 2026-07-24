@@ -98,7 +98,7 @@ export interface OristudioCpActionRequest {
   operationId: OristudioCpOperationId;
 }
 
-export interface ProjectSliceState {
+export interface ProjectSliceState extends CpDocumentOwnedByProjectSlice {
   project: TreeProject;
   workflowTarget: WorkflowTarget;
   /**
@@ -124,14 +124,6 @@ export interface ProjectSliceState {
    * menus, capabilities, history, and shortcut routing.
    */
   activeEditingContext: EditingContext;
-  importedCreasePattern: ImportedCreasePatternDocument | null;
-  oristudioCpDocument: OristudioCpDocumentState | null;
-  oristudioCpLineage: OristudioCpLineage | null;
-  oristudioCpOperationDescriptors: OristudioCpOperationDescriptor[];
-  oristudioCpError: string | null;
-  oristudioCpCamvResult: OristudioCpCommandResult | null;
-  oristudioCpHistoryPast: OristudioCpHistoryEntry[];
-  oristudioCpHistoryFuture: OristudioCpHistoryEntry[];
   /**
    * Extension bags carried forward from a loaded `.osf` and re-emitted on save,
    * so forward-compat data written by a newer app version survives a round-trip
@@ -139,7 +131,6 @@ export interface ProjectSliceState {
    * crease-pattern-document-level respectively; `{}` when none.
    */
   nativeProjectExtensions: Record<string, unknown>;
-  oristudioCpDocumentExtensions: Record<string, unknown>;
   projectLoadId: number;
   currentFilePath: string | null;
   currentFileName: string;
@@ -499,6 +490,107 @@ export interface CreasePatternSliceActions {
 }
 
 export type CreasePatternSlice = CreasePatternSliceState & CreasePatternSliceActions;
+
+// ---------------------------------------------------------------------------
+// Crease-pattern document scoping
+// ---------------------------------------------------------------------------
+
+/**
+ * Which crease-pattern document is in the foreground. Each slot owns a live
+ * kernel document and its own copy of {@link CpDocumentScopedState}, so the
+ * tutorial can hand the user a practice canvas without disturbing whatever they
+ * have open in the Edit workspace.
+ *
+ * Slots are asserted by routes only (`/edit`, `/learn/*`); nothing inside the
+ * editor should mention them. Routes that don't assert a slot (`/design`,
+ * `/simulate`) keep whichever is active.
+ */
+export type CpDocumentSlotId = 'edit' | 'learn';
+
+/**
+ * The CP-document-scoped fields that `ProjectSliceState` happens to own today.
+ * Declared here (and `Pick`ed back into that slice) so `CpDocumentScopedState`
+ * below is the single declaration site for every per-document field, without
+ * having to move initial values between slice creators.
+ */
+export interface CpDocumentOwnedByProjectSlice {
+  importedCreasePattern: ImportedCreasePatternDocument | null;
+  oristudioCpDocument: OristudioCpDocumentState | null;
+  oristudioCpLineage: OristudioCpLineage | null;
+  oristudioCpOperationDescriptors: OristudioCpOperationDescriptor[];
+  oristudioCpError: string | null;
+  oristudioCpCamvResult: OristudioCpCommandResult | null;
+  oristudioCpHistoryPast: OristudioCpHistoryEntry[];
+  oristudioCpHistoryFuture: OristudioCpHistoryEntry[];
+  oristudioCpDocumentExtensions: Record<string, unknown>;
+}
+
+/**
+ * Every piece of store state that belongs to *one* crease-pattern document
+ * rather than to the app. This is the type of a document slot's bundle: whatever
+ * is in here is captured and restored when the active document changes.
+ *
+ * `CreasePatternSliceState` is wholly document-scoped, so it is included whole.
+ */
+export interface CpDocumentScopedState
+  extends CreasePatternSliceState,
+    CpDocumentOwnedByProjectSlice {}
+
+/**
+ * Total key map over {@link CpDocumentScopedState}. `Record<K, true>` is
+ * exhaustive in both directions: omitting a key is a missing-property error and
+ * adding an unknown one is an excess-property error. Adding a field to
+ * `CpDocumentScopedState` therefore fails to compile until it is wired here.
+ */
+export const CP_DOCUMENT_SCOPED_KEYS: Record<keyof CpDocumentScopedState, true> = {
+  creaseColorMode: true,
+  oristudioCpSelection: true,
+  oristudioCpActionRequest: true,
+  oristudioCpActiveToolId: true,
+  oristudioCpActiveDiagnosticId: true,
+  oristudioCpRevision: true,
+  oristudioCpFoldedFigures: true,
+  oristudioCpActiveFoldedFigureId: true,
+  oristudioCpViewport: true,
+  oristudioCpAnnotations: true,
+  oristudioCpSelectedAnnotationId: true,
+  foldArtifacts: true,
+  foldArtifactError: true,
+  foldArtifactStatus: true,
+  foldArtifactRevision: true,
+  foldArtifactResolvedRevision: true,
+  foldArtifactRequestId: true,
+  selectedSegmentId: true,
+  sequenceTarget: true,
+  sequencePlan: true,
+  sequenceSimulationFocus: true,
+  sequencePlanning: true,
+  sequenceError: true,
+  importedCreasePattern: true,
+  oristudioCpDocument: true,
+  oristudioCpLineage: true,
+  oristudioCpOperationDescriptors: true,
+  oristudioCpError: true,
+  oristudioCpCamvResult: true,
+  oristudioCpHistoryPast: true,
+  oristudioCpHistoryFuture: true,
+  oristudioCpDocumentExtensions: true,
+};
+
+/**
+ * Second guardrail: no `oristudioCp*`-prefixed field may be declared on
+ * `WorkspaceState` outside the document-scoped group. Resolves to `never` when
+ * the invariant holds; otherwise the error names the offending key(s).
+ */
+type UnscopedCpField = Exclude<
+  Extract<keyof WorkspaceState, `oristudioCp${string}`>,
+  keyof CpDocumentScopedState
+>;
+export type CpFieldScopingIsExhaustive = [UnscopedCpField] extends [never]
+  ? true
+  : ['CP field declared outside CpDocumentScopedState:', UnscopedCpField];
+const _cpFieldScopingHolds: CpFieldScopingIsExhaustive = true;
+void _cpFieldScopingHolds;
 
 /**
  * A BP undo/redo snapshot: the serialized project (bps text) plus the selection

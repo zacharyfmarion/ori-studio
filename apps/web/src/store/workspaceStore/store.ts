@@ -8,6 +8,7 @@ import { createHistorySlice } from './slices/historySlice';
 import { createProjectSlice } from './slices/projectSlice';
 import { createOristudioBpSlice } from './slices/oristudioBpSlice';
 import { registerDesignVariantSource } from '../layoutStore';
+import { activeSlotTracksProjectDirty, rememberPristineCpDocumentState } from './cpDocumentSlots';
 import { resolveEditingContext } from '../../workspaces/editingContext';
 import { deriveDesignVariant } from './designVariant';
 import type { WorkspaceState } from './types';
@@ -26,6 +27,12 @@ export const useWorkspaceStore = create<WorkspaceState>()(
     { name: 'treemaker-workspace' }
   )
 );
+
+// Capture the pristine document-scoped state before anything can load a
+// document. A crease-pattern slot that has never been entered starts from this,
+// so the slot module never has to restate slice initial values (which would
+// drift the first time one changed).
+rememberPristineCpDocumentState(useWorkspaceStore.getState());
 
 // Let the layout store read the active Design layout variant so it can
 // materialize the NUX chooser, box-pleat split, or TreeMaker layout.
@@ -61,6 +68,26 @@ useWorkspaceStore.subscribe((state) => {
     state.oristudioBpDocument !== null ||
     state.project.edges.length > 0;
   if (hasDocument) useWorkspaceStore.setState({ projectEstablished: true });
+});
+
+// An ephemeral crease-pattern slot (the tutorial's practice canvas) is not part
+// of the user's project and can never be saved, so nothing done in it may claim
+// the project has unsaved work.
+//
+// Enforced here, as an invariant over the flag, rather than at the ~30 places
+// that set `dirty` — those are spread across the crease-pattern and history
+// slices, and a predicate repeated at each would rot the first time someone
+// added a thirty-first. This form also stays correct for edit paths that don't
+// exist yet.
+//
+// Blanket-clearing is safe because routes pin `/design` to the edit slot: the
+// only surfaces reachable under an ephemeral slot are the tutorial and the
+// simulator, and neither can edit the tree or a box-pleated design. If that
+// routing rule ever changes, this has to become context-aware.
+useWorkspaceStore.subscribe((state) => {
+  if (state.dirty && !activeSlotTracksProjectDirty()) {
+    useWorkspaceStore.setState({ dirty: false });
+  }
 });
 
 if (import.meta.env.DEV && typeof window !== 'undefined') {
