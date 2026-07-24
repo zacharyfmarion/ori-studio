@@ -623,6 +623,12 @@ export interface OristudioBpSliceActions {
   renameOristudioBpVertex: (id: number, name: string) => Promise<boolean>;
   /** Move a single BP flap in the packing. */
   moveOristudioBpLayoutFlap: (id: number, loc: Point, dragging?: boolean) => Promise<boolean>;
+  /**
+   * Resize a BP flap's rectangular footprint (width/height, both >= 0). The
+   * engine re-packs and rejects a size that would push more than one flap
+   * corner off the sheet. Recorded as a single undo entry.
+   */
+  resizeOristudioBpLayoutFlap: (id: number, width: number, height: number) => Promise<boolean>;
   /** Move a group of BP flaps in the packing. */
   moveOristudioBpLayoutFlaps: (ids: number[], loc: Point, dragging?: boolean) => Promise<boolean>;
   /** Move a BP device handle in the packing. */
