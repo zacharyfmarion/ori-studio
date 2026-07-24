@@ -6,10 +6,13 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
   type WheelEvent as ReactWheelEvent,
-} from 'react';
-import { useTranslation } from 'react-i18next';
-import { simulatorAccuracyLabel, simulatorAccuracyTitle } from '../../i18n/enumLabels';
-import type { TFunction } from 'i18next';
+} from "react";
+import { useTranslation } from "react-i18next";
+import {
+  simulatorAccuracyLabel,
+  simulatorAccuracyTitle,
+} from "../../i18n/enumLabels";
+import type { TFunction } from "i18next";
 import {
   AlertTriangle,
   Eye,
@@ -23,37 +26,40 @@ import {
   StepForward,
   Sun,
   Waves,
-} from 'lucide-react';
+} from "lucide-react";
 import type {
   FoldDocument as SimulatorFoldDocument,
   RenderSettings,
-} from '@treemaker/origami-simulator';
+} from "@treemaker/origami-simulator";
 import {
   useSimulatorRuntime,
   type SimulatorFrameView,
   type SimulatorModelView,
-} from '../../simulator/useSimulatorRuntime';
-import type { SimulatorRenderModel } from '../../simulator/renderModel';
-import { buildSequenceStepSimulation } from '../../lib/sequenceSimulation';
-import { buildSegmentFold, resolveCpSegments } from '../../lib/creasePatternSegmentation';
-import { SimulatorSegmentsSidebar } from './SimulatorSegmentsPanel';
+} from "../../simulator/useSimulatorRuntime";
+import type { SimulatorRenderModel } from "../../simulator/renderModel";
+import { buildSequenceStepSimulation } from "../../lib/sequenceSimulation";
+import {
+  buildSegmentFold,
+  resolveCpSegments,
+} from "../../lib/creasePatternSegmentation";
+import { SimulatorSegmentsSidebar } from "./SimulatorSegmentsPanel";
 import {
   STEP_SIMULATION_ACCURACY_OPTIONS,
   simulatorRunConfig,
   type StepSimulationAccuracy,
-} from '../../lib/simulatorRunConfig';
+} from "../../lib/simulatorRunConfig";
 import {
   nextSimulatorOrbitView,
   type SimulatorOrbitView as SimulatorView,
-} from '../../lib/simulatorOrbit';
-import { useWorkspaceStore } from '../../store/workspaceStore';
-import { useWorkspaceCapabilities } from '../../store/workspaceStore/useWorkspaceCapabilities';
-import { IconButton } from '../ui/IconButton';
-import { SegmentedControl } from '../ui/SegmentedControl';
-import { NextDocumentAction } from './NextDocumentAction';
+} from "../../lib/simulatorOrbit";
+import { useWorkspaceStore } from "../../store/workspaceStore";
+import { useWorkspaceCapabilities } from "../../store/workspaceStore/useWorkspaceCapabilities";
+import { IconButton } from "../ui/IconButton";
+import { SegmentedControl } from "../ui/SegmentedControl";
+import { NextDocumentAction } from "./NextDocumentAction";
 
-type LoadState = 'idle' | 'loading' | 'ready' | 'empty' | 'error';
-type SimulatorRenderMode = 'paper' | 'xray';
+type LoadState = "idle" | "loading" | "ready" | "empty" | "error";
+type SimulatorRenderMode = "paper" | "xray";
 
 interface SimulatorViewSettings {
   renderMode: SimulatorRenderMode;
@@ -104,9 +110,13 @@ const INITIAL_FOLD_PERCENT = 0;
 // the near edge is at the bottom and folds rise up (a positive pitch tilts the
 // far edge down, reading as the top facing toward you); cosPitch is unchanged by
 // the sign, so the lit yellow front still faces the camera.
-const DEFAULT_VIEW: SimulatorView = { yaw: Math.PI / 4, pitch: -0.955, zoom: 1 };
+const DEFAULT_VIEW: SimulatorView = {
+  yaw: Math.PI / 4,
+  pitch: -0.955,
+  zoom: 1.4,
+};
 const DEFAULT_VIEW_SETTINGS: SimulatorViewSettings = {
-  renderMode: 'paper',
+  renderMode: "paper",
   showFaces: true,
   showEdges: true,
   showHiddenLines: false,
@@ -145,76 +155,113 @@ export function SimulatorPanel() {
     setCanvasEl(element);
   }, []);
 
-  const creaseCount = useWorkspaceStore((state) => state.project.creases.length);
+  const creaseCount = useWorkspaceStore(
+    (state) => state.project.creases.length,
+  );
   // Editable (hand-drawn / imported) crease patterns live in the oristudio CP
   // document, not `project.creases`, so they are a valid simulation source even
   // when `creaseCount` is 0.
-  const hasEditableCp = useWorkspaceStore((state) => state.oristudioCpDocument !== null);
+  const hasEditableCp = useWorkspaceStore(
+    (state) => state.oristudioCpDocument !== null,
+  );
   const foldArtifacts = useWorkspaceStore((state) => state.foldArtifacts);
-  const foldArtifactRevision = useWorkspaceStore((state) => state.foldArtifactRevision);
-  const selectedSegmentId = useWorkspaceStore((state) => state.selectedSegmentId);
-  const foldArtifactError = useWorkspaceStore((state) => state.foldArtifactError);
-  const foldArtifactStatus = useWorkspaceStore((state) => state.foldArtifactStatus);
+  const foldArtifactRevision = useWorkspaceStore(
+    (state) => state.foldArtifactRevision,
+  );
+  const selectedSegmentId = useWorkspaceStore(
+    (state) => state.selectedSegmentId,
+  );
+  const foldArtifactError = useWorkspaceStore(
+    (state) => state.foldArtifactError,
+  );
+  const foldArtifactStatus = useWorkspaceStore(
+    (state) => state.foldArtifactStatus,
+  );
   const sequencePlan = useWorkspaceStore((state) => state.sequencePlan);
-  const sequenceSimulationFocus = useWorkspaceStore((state) => state.sequenceSimulationFocus);
-  const setSequenceSimulationFocus = useWorkspaceStore((state) => state.setSequenceSimulationFocus);
-  const ensureFoldArtifacts = useWorkspaceStore((state) => state.ensureFoldArtifacts);
-  const refreshFoldArtifacts = useWorkspaceStore((state) => state.refreshFoldArtifacts);
+  const sequenceSimulationFocus = useWorkspaceStore(
+    (state) => state.sequenceSimulationFocus,
+  );
+  const setSequenceSimulationFocus = useWorkspaceStore(
+    (state) => state.setSequenceSimulationFocus,
+  );
+  const ensureFoldArtifacts = useWorkspaceStore(
+    (state) => state.ensureFoldArtifacts,
+  );
+  const refreshFoldArtifacts = useWorkspaceStore(
+    (state) => state.refreshFoldArtifacts,
+  );
   const capabilities = useWorkspaceCapabilities();
 
   const [foldPercent, setFoldPercent] = useState(INITIAL_FOLD_PERCENT);
-  const [loadState, setLoadState] = useState<LoadState>('idle');
+  const [loadState, setLoadState] = useState<LoadState>("idle");
   const [modelError, setModelError] = useState<string | null>(null);
   const [step, setStep] = useState(0);
   const [strain, setStrain] = useState(0);
   const [modelStats, setModelStats] = useState({ vertices: 0, triangles: 0 });
-  const [backend, setBackend] = useState<'webgl2' | 'reference' | null>(null);
-  const [viewSettings, setViewSettings] = useState<SimulatorViewSettings>(DEFAULT_VIEW_SETTINGS);
-  const [stepAccuracy, setStepAccuracy] = useState<StepSimulationAccuracy>('fast');
-  const refreshCapability = capabilities['simulator.refresh'];
+  const [backend, setBackend] = useState<"webgl2" | "reference" | null>(null);
+  const [viewSettings, setViewSettings] = useState<SimulatorViewSettings>(
+    DEFAULT_VIEW_SETTINGS,
+  );
+  const [stepAccuracy, setStepAccuracy] =
+    useState<StepSimulationAccuracy>("fast");
+  const refreshCapability = capabilities["simulator.refresh"];
   const stepSimulationResult = useMemo(
     () =>
-      sequenceSimulationFocus.kind === 'sequence_step'
-        ? buildSequenceStepSimulation(sequencePlan, sequenceSimulationFocus.stepId)
+      sequenceSimulationFocus.kind === "sequence_step"
+        ? buildSequenceStepSimulation(
+            sequencePlan,
+            sequenceSimulationFocus.stepId,
+          )
         : null,
-    [sequencePlan, sequenceSimulationFocus]
+    [sequencePlan, sequenceSimulationFocus],
   );
-  const activeStepSimulation = stepSimulationResult?.ok ? stepSimulationResult.simulation : null;
+  const activeStepSimulation = stepSimulationResult?.ok
+    ? stepSimulationResult.simulation
+    : null;
   const stepSimulationError =
-    stepSimulationResult && !stepSimulationResult.ok ? stepSimulationResult.reason : null;
-  const simulatorMode = sequenceSimulationFocus.kind === 'sequence_step' ? 'step' : 'whole';
+    stepSimulationResult && !stepSimulationResult.ok
+      ? stepSimulationResult.reason
+      : null;
+  const simulatorMode =
+    sequenceSimulationFocus.kind === "sequence_step" ? "step" : "whole";
   const runConfig = useMemo(
     () => simulatorRunConfig(simulatorMode, stepAccuracy),
-    [simulatorMode, stepAccuracy]
+    [simulatorMode, stepAccuracy],
   );
   // Segment the whole document's fold and simulate only the selected pattern.
   // Memoized so a new sub-fold object is not produced on every render (which
   // would thrash the prepare/dispose effect). Sequence-step mode is unaffected.
   const activeSegmentId = useMemo(() => {
-    if (activeStepSimulation || simulatorMode !== 'whole') return null;
+    if (activeStepSimulation || simulatorMode !== "whole") return null;
     const segments = resolveCpSegments(foldArtifacts);
     if (segments.length <= 1) return null;
-    const segment = segments.find((candidate) => candidate.id === selectedSegmentId) ?? segments[0];
+    const segment =
+      segments.find((candidate) => candidate.id === selectedSegmentId) ??
+      segments[0];
     return segment?.id ?? null;
   }, [activeStepSimulation, foldArtifacts, selectedSegmentId, simulatorMode]);
   const simulationFold = useMemo(() => {
     if (activeStepSimulation) return activeStepSimulation.fold;
-    const wholeFold = foldArtifacts?.simulation_model?.fold ?? foldArtifacts?.fold ?? null;
+    const wholeFold =
+      foldArtifacts?.simulation_model?.fold ?? foldArtifacts?.fold ?? null;
     if (!wholeFold) return null;
     if (activeSegmentId !== null) {
-      const segment = resolveCpSegments(foldArtifacts).find((c) => c.id === activeSegmentId);
+      const segment = resolveCpSegments(foldArtifacts).find(
+        (c) => c.id === activeSegmentId,
+      );
       if (segment) return buildSegmentFold(wholeFold, segment);
     }
     return wholeFold;
   }, [activeStepSimulation, foldArtifacts, activeSegmentId]);
   const simulationFoldProfile = activeStepSimulation?.foldProfile ?? null;
   const simulationModelError =
-    stepSimulationError ?? (!activeStepSimulation ? foldArtifacts?.simulation_model_error : null);
+    stepSimulationError ??
+    (!activeStepSimulation ? foldArtifacts?.simulation_model_error : null);
   const simulationSourceKey = activeStepSimulation
     ? `step:${activeStepSimulation.step.id}:${activeStepSimulation.beforeState.id}:${activeStepSimulation.afterState.id}`
-    : sequenceSimulationFocus.kind === 'sequence_step'
-      ? `step-error:${sequenceSimulationFocus.stepId}:${stepSimulationError ?? 'unknown'}`
-      : `whole:${foldArtifacts ? foldArtifactRevision : 'empty'}:${activeSegmentId ?? 'all'}`;
+    : sequenceSimulationFocus.kind === "sequence_step"
+      ? `step-error:${sequenceSimulationFocus.stepId}:${stepSimulationError ?? "unknown"}`
+      : `whole:${foldArtifacts ? foldArtifactRevision : "empty"}:${activeSegmentId ?? "all"}`;
 
   // In GPU-render mode the worker owns the canvas and draws; this no-ops. In CPU
   // mode it rasterises the latest frame on the main thread.
@@ -224,7 +271,14 @@ export function SimulatorPanel() {
     const model = modelRef.current;
     const frame = frameRef.current;
     if (!canvas || !model || !frame || !frame.positions) return;
-    drawFrame(canvas, model, frame, viewRef.current, viewSettingsRef.current, highlightsRef.current);
+    drawFrame(
+      canvas,
+      model,
+      frame,
+      viewRef.current,
+      viewSettingsRef.current,
+      highlightsRef.current,
+    );
   }, []);
 
   const handleFrame = useCallback(
@@ -240,14 +294,17 @@ export function SimulatorPanel() {
       // 60Hz; the frame itself (canvas) still updates every frame. Always flush
       // the final converged frame so the readouts land on the settled values.
       const now = performance.now();
-      if (frame.converged || now - lastReadoutRef.current > READOUT_INTERVAL_MS) {
+      if (
+        frame.converged ||
+        now - lastReadoutRef.current > READOUT_INTERVAL_MS
+      ) {
         lastReadoutRef.current = now;
         setStep(frame.step);
         setStrain(frame.maxEdgeStrain);
         setFoldPercent(frame.foldPercent);
       }
     },
-    [drawCurrentFrame]
+    [drawCurrentFrame],
   );
 
   // A fold profile (segment/sequence-step simulation) uses a solver path the GPU
@@ -307,7 +364,10 @@ export function SimulatorPanel() {
     modelRef.current = runtimeModel;
     invalidateSimulatorSurface(canvasRef.current);
     if (runtimeModel) {
-      setModelStats({ vertices: runtimeModel.vertexCount, triangles: runtimeModel.faceCount });
+      setModelStats({
+        vertices: runtimeModel.vertexCount,
+        triangles: runtimeModel.faceCount,
+      });
       setBackend(runtimeModel.backend);
     } else {
       setModelStats({ vertices: 0, triangles: 0 });
@@ -349,16 +409,21 @@ export function SimulatorPanel() {
   // Load/error state is derived from the runtime plus the surrounding document
   // state; there is no separate solver lifecycle to track any more.
   useEffect(() => {
-    if (simulatorMode === 'step') {
+    if (simulatorMode === "step") {
       if (stepSimulationError) {
         setModelError(stepSimulationError);
-        setLoadState('error');
+        setLoadState("error");
       } else if (activeStepSimulation) {
         setModelError(null);
-        setLoadState(runtimeStatus === 'ready' ? 'ready' : 'loading');
+        setLoadState(runtimeStatus === "ready" ? "ready" : "loading");
       } else {
-        setModelError(t('panels:simulator.stepSimulationUnavailable', 'Step simulation unavailable.'));
-        setLoadState('error');
+        setModelError(
+          t(
+            "panels:simulator.stepSimulationUnavailable",
+            "Step simulation unavailable.",
+          ),
+        );
+        setLoadState("error");
       }
       return;
     }
@@ -366,37 +431,40 @@ export function SimulatorPanel() {
     if (creaseCount === 0 && !hasEditableCp) {
       setPlaying(false);
       setModelError(null);
-      setLoadState('empty');
+      setLoadState("empty");
       return;
     }
 
     if (runtime.error) {
       setModelError(runtime.error);
-      setLoadState('error');
+      setLoadState("error");
       return;
     }
 
     if (foldArtifacts) {
       setModelError(simulationModelError ?? null);
       if (simulationModelError) {
-        setLoadState('error');
+        setLoadState("error");
         return;
       }
-      setLoadState(runtimeStatus === 'ready' ? 'ready' : 'loading');
+      setLoadState(runtimeStatus === "ready" ? "ready" : "loading");
       return;
     }
 
     setModelError(null);
-    if (foldArtifactStatus === 'loading') {
-      setLoadState('loading');
+    if (foldArtifactStatus === "loading") {
+      setLoadState("loading");
       return;
     }
-    if (foldArtifactStatus === 'error') {
-      setModelError(foldArtifactError ?? t('panels:simulator.unavailable', 'Simulator unavailable'));
-      setLoadState('error');
+    if (foldArtifactStatus === "error") {
+      setModelError(
+        foldArtifactError ??
+          t("panels:simulator.unavailable", "Simulator unavailable"),
+      );
+      setLoadState("error");
       return;
     }
-    setLoadState('loading');
+    setLoadState("loading");
     void ensureFoldArtifacts();
   }, [
     creaseCount,
@@ -425,15 +493,16 @@ export function SimulatorPanel() {
       setFoldPercent(next);
       runtime.settleTo(next);
     },
-    [runtime, setPlaying]
+    [runtime, setPlaying],
   );
 
   const stepFoldTarget = useCallback(() => {
     setFoldTarget(
       Math.min(
         100,
-        Math.floor(foldPercentRef.current / runConfig.foldStepPercent + 1) * runConfig.foldStepPercent
-      )
+        Math.floor(foldPercentRef.current / runConfig.foldStepPercent + 1) *
+          runConfig.foldStepPercent,
+      ),
     );
   }, [runConfig.foldStepPercent, setFoldTarget]);
 
@@ -447,7 +516,8 @@ export function SimulatorPanel() {
   // Play advances the fold target over time; the worker does the solving, so
   // this callback only ever computes a number and hands it over.
   useEffect(() => {
-    if (!playing || typeof window === 'undefined' || runtimeStatus !== 'ready') return;
+    if (!playing || typeof window === "undefined" || runtimeStatus !== "ready")
+      return;
 
     if (foldPercentRef.current >= 100) {
       foldPercentRef.current = 0;
@@ -462,7 +532,8 @@ export function SimulatorPanel() {
       previousTime = time;
       const nextPercent = Math.min(
         100,
-        foldPercentRef.current + elapsedSeconds * runConfig.foldPlayPercentPerSecond
+        foldPercentRef.current +
+          elapsedSeconds * runConfig.foldPlayPercentPerSecond,
       );
 
       foldPercentRef.current = nextPercent;
@@ -478,13 +549,20 @@ export function SimulatorPanel() {
 
     playRafRef.current = window.requestAnimationFrame(tick);
     return () => {
-      if (playRafRef.current !== null) window.cancelAnimationFrame(playRafRef.current);
+      if (playRafRef.current !== null)
+        window.cancelAnimationFrame(playRafRef.current);
       playRafRef.current = null;
     };
-  }, [playing, runtime, runConfig.foldPlayPercentPerSecond, runtimeStatus, setPlaying]);
+  }, [
+    playing,
+    runtime,
+    runConfig.foldPlayPercentPerSecond,
+    runtimeStatus,
+    setPlaying,
+  ]);
 
   useEffect(() => {
-    if (typeof ResizeObserver === 'undefined' || !canvasEl) return;
+    if (typeof ResizeObserver === "undefined" || !canvasEl) return;
     const observer = new ResizeObserver(() => {
       // Size is cached, so the cache is what has to notice a resize. The
       // observer also fires once on observe, which is how the worker first
@@ -501,14 +579,14 @@ export function SimulatorPanel() {
   // the theme flips. Watching the documentElement's class/data attributes covers
   // both the app's own toggle and an OS-level change.
   useEffect(() => {
-    if (typeof MutationObserver === 'undefined') return;
+    if (typeof MutationObserver === "undefined") return;
     const observer = new MutationObserver(() => {
       invalidateSimulatorSurface(canvasRef.current);
       drawCurrentFrame();
     });
     observer.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ['class', 'data-theme'],
+      attributeFilter: ["class", "data-theme"],
     });
     return () => observer.disconnect();
   }, [drawCurrentFrame]);
@@ -522,6 +600,122 @@ export function SimulatorPanel() {
     pushView();
   }, [pushView]);
 
+  // Scrub the fold by a signed delta. setFoldTarget clamps 0-100 and pauses
+  // playback, so a manual scrub always stops an in-progress play.
+  const nudgeFold = useCallback(
+    (deltaPercent: number) => {
+      setFoldTarget(foldPercentRef.current + deltaPercent);
+    },
+    [setFoldTarget],
+  );
+
+  // Multiply the orbit zoom, mirroring the wheel handler's clamp.
+  const zoomBy = useCallback(
+    (factor: number) => {
+      viewRef.current = {
+        ...viewRef.current,
+        zoom: clamp(viewRef.current.zoom * factor, 0.45, 4),
+      };
+      pushView();
+    },
+    [pushView],
+  );
+
+  // Keyboard controls. Scoped to when the panel is mounted (only in the Simulate
+  // workspace), and inert while the user is typing in a field or holding a
+  // modifier that belongs to a menu/browser shortcut.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        (target.isContentEditable ||
+          /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))
+      ) {
+        return;
+      }
+      if (loadState !== "ready") return;
+
+      switch (event.key) {
+        // Space plays/pauses. preventDefault also suppresses the native
+        // activation of a focused toolbar button (which fires on Space), so the
+        // action has a single source of truth.
+        case " ":
+        case "Spacebar":
+          event.preventDefault();
+          setPlaying(!playing);
+          return;
+        // Left/right scrub the fold timeline; Shift jumps to the ends.
+        case "ArrowRight":
+          event.preventDefault();
+          if (event.shiftKey) setFoldTarget(100);
+          else nudgeFold(runConfig.foldStepPercent);
+          return;
+        case "ArrowLeft":
+          event.preventDefault();
+          if (event.shiftKey) setFoldTarget(0);
+          else nudgeFold(-runConfig.foldStepPercent);
+          return;
+        case "r":
+        case "R":
+          event.preventDefault();
+          replayFromFlat();
+          return;
+        case "0":
+        case "Home":
+          event.preventDefault();
+          resetView();
+          return;
+        // `+`/`=` and `-`/`_` cover the key whether or not Shift is needed to
+        // produce it; event.key is the resolved character.
+        case "+":
+        case "=":
+          event.preventDefault();
+          zoomBy(1.1);
+          return;
+        case "-":
+        case "_":
+          event.preventDefault();
+          zoomBy(1 / 1.1);
+          return;
+        case "f":
+        case "F":
+          setViewSettings((s) => ({ ...s, showFaces: !s.showFaces }));
+          return;
+        case "c":
+        case "C":
+          setViewSettings((s) => ({ ...s, showEdges: !s.showEdges }));
+          return;
+        case "h":
+        case "H":
+          setViewSettings((s) =>
+            s.showEdges ? { ...s, showHiddenLines: !s.showHiddenLines } : s,
+          );
+          return;
+        case "l":
+        case "L":
+          setViewSettings((s) => ({ ...s, lighting: !s.lighting }));
+          return;
+        default:
+          return;
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [
+    loadState,
+    playing,
+    setPlaying,
+    setFoldTarget,
+    nudgeFold,
+    runConfig.foldStepPercent,
+    replayFromFlat,
+    resetView,
+    zoomBy,
+    setViewSettings,
+  ]);
+
   // When the GPU path becomes active (first load, or after a mode switch), send
   // the worker the current camera and settings so it does not draw with
   // defaults.
@@ -533,8 +727,10 @@ export function SimulatorPanel() {
     pushView();
   }, [gpuActive, pushRenderSettings, pushView]);
 
-  const handleCanvasPointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    if (loadState !== 'ready') return;
+  const handleCanvasPointerDown = (
+    event: ReactPointerEvent<HTMLCanvasElement>,
+  ) => {
+    if (loadState !== "ready") return;
     event.currentTarget.setPointerCapture(event.pointerId);
     dragRef.current = {
       pointerId: event.pointerId,
@@ -545,7 +741,9 @@ export function SimulatorPanel() {
     };
   };
 
-  const handleCanvasPointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+  const handleCanvasPointerMove = (
+    event: ReactPointerEvent<HTMLCanvasElement>,
+  ) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     viewRef.current = nextSimulatorOrbitView(viewRef.current, drag, {
@@ -555,7 +753,9 @@ export function SimulatorPanel() {
     pushView();
   };
 
-  const handleCanvasPointerEnd = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+  const handleCanvasPointerEnd = (
+    event: ReactPointerEvent<HTMLCanvasElement>,
+  ) => {
     if (dragRef.current?.pointerId !== event.pointerId) return;
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
@@ -564,285 +764,386 @@ export function SimulatorPanel() {
   };
 
   const handleCanvasWheel = (event: ReactWheelEvent<HTMLCanvasElement>) => {
-    if (loadState !== 'ready') return;
+    if (loadState !== "ready") return;
     event.preventDefault();
     viewRef.current = {
       ...viewRef.current,
-      zoom: clamp(viewRef.current.zoom * Math.exp(-event.deltaY * 0.001), 0.45, 4),
+      zoom: clamp(
+        viewRef.current.zoom * Math.exp(-event.deltaY * 0.001),
+        0.45,
+        4,
+      ),
     };
     pushView();
   };
 
   const errorDetail =
-    stepSimulationError ?? modelError ?? foldArtifactError ?? t('panels:simulator.unavailable', 'Simulator unavailable');
+    stepSimulationError ??
+    modelError ??
+    foldArtifactError ??
+    t("panels:simulator.unavailable", "Simulator unavailable");
   const statusLabel =
-    loadState === 'ready'
-      ? t('panels:simulator.stats', '{{vertices}} vertices | {{triangles}} triangles', {
-          vertices: modelStats.vertices,
-          triangles: modelStats.triangles,
-        })
-      : loadState === 'loading'
-        ? t('panels:simulator.loading', 'Loading')
-        : loadState === 'empty'
-          ? t('panels:simulator.noCreasePattern', 'No crease pattern')
-          : loadState === 'error'
+    loadState === "ready"
+      ? t(
+          "panels:simulator.stats",
+          "{{vertices}} vertices | {{triangles}} triangles",
+          {
+            vertices: modelStats.vertices,
+            triangles: modelStats.triangles,
+          },
+        )
+      : loadState === "loading"
+        ? t("panels:simulator.loading", "Loading")
+        : loadState === "empty"
+          ? t("panels:simulator.noCreasePattern", "No crease pattern")
+          : loadState === "error"
             ? shortStatus(errorDetail, t)
-            : t('panels:simulator.idle', 'Idle');
+            : t("panels:simulator.idle", "Idle");
 
   return (
     <div className="simulator-workspace">
       <SimulatorSegmentsSidebar />
       <section className="panel-shell simulator-panel">
-      <div className="panel-toolbar">
-        <div className="panel-toolbar__group">
-          <Waves size={14} />
-          <span className="panel-title">{t('panels:simulator.title', 'Simulator')}</span>
+        <div className="panel-toolbar">
+          <div className="panel-toolbar__group">
+            <Waves size={14} />
+            <span className="panel-title">
+              {t("panels:simulator.title", "Simulator")}
+            </span>
+          </div>
+          {/* Scope controls hidden while the Sequence panel is hidden (always "whole"). */}
+          <div
+            className="panel-toolbar__group simulator-scope-controls"
+            style={{ display: "none" }}
+          >
+            <SegmentedControl
+              aria-label={t("panels:simulator.scope", "Simulator scope")}
+              value={simulatorMode}
+              onChange={(mode) => {
+                if (mode === "whole") {
+                  setSequenceSimulationFocus({ kind: "whole" });
+                  return;
+                }
+                if (sequenceSimulationFocus.kind === "sequence_step") return;
+                const firstStep = sequencePlan?.steps[0];
+                if (firstStep) {
+                  setSequenceSimulationFocus({
+                    kind: "sequence_step",
+                    stepId: firstStep.id,
+                  });
+                }
+              }}
+              options={[
+                {
+                  value: "whole",
+                  label: t("panels:simulator.scopeWhole", "Whole"),
+                  title: t(
+                    "panels:simulator.scopeWholeTitle",
+                    "Simulate the whole crease pattern",
+                  ),
+                },
+                {
+                  value: "step",
+                  label: t("panels:simulator.scopeStep", "Step"),
+                  title: t(
+                    "panels:simulator.scopeStepTitle",
+                    "Simulate the selected sequence step",
+                  ),
+                },
+              ]}
+            />
+            {activeStepSimulation && (
+              <span className="simulator-step-chip">
+                {t("panels:simulator.stepChip", "Step {{n}}: {{kind}}", {
+                  n: activeStepSimulation.stepIndex + 1,
+                  kind: formatKind(activeStepSimulation.step.kind),
+                })}
+              </span>
+            )}
+            {activeStepSimulation?.warning && (
+              <span className="simulator-step-chip simulator-step-chip--warn">
+                <AlertTriangle size={12} />
+                {t("panels:simulator.manualPreview", "Manual preview")}
+              </span>
+            )}
+            {simulatorMode === "step" && (
+              <div className="simulator-accuracy-controls">
+                <SegmentedControl
+                  aria-label={t(
+                    "panels:simulator.stepAccuracy",
+                    "Step simulation accuracy",
+                  )}
+                  value={stepAccuracy}
+                  onChange={setStepAccuracy}
+                  options={STEP_SIMULATION_ACCURACY_OPTIONS.map((option) => ({
+                    ...option,
+                    label: simulatorAccuracyLabel(t, option.value),
+                    title: simulatorAccuracyTitle(t, option.value),
+                  }))}
+                />
+              </div>
+            )}
+          </div>
+          <div
+            className="panel-toolbar__group simulator-view-settings"
+            aria-label={t(
+              "panels:simulator.viewSettings",
+              "Simulator view settings",
+            )}
+          >
+            <SegmentedControl
+              aria-label={t(
+                "panels:simulator.renderMode",
+                "Simulator render mode",
+              )}
+              value={viewSettings.renderMode}
+              onChange={(renderMode) =>
+                setViewSettings((current) => ({ ...current, renderMode }))
+              }
+              options={[
+                {
+                  value: "paper",
+                  label: t("panels:simulator.renderPaper", "Paper"),
+                  title: t(
+                    "panels:simulator.renderPaperTitle",
+                    "Paper rendering",
+                  ),
+                },
+                {
+                  value: "xray",
+                  label: t("panels:simulator.renderXray", "X-ray"),
+                  title: t(
+                    "panels:simulator.renderXrayTitle",
+                    "X-ray rendering",
+                  ),
+                },
+              ]}
+            />
+            <IconButton
+              size="sm"
+              variant="toolbar"
+              title={`${t("panels:simulator.faces", "Faces")} (F)`}
+              aria-label={t("panels:simulator.faces", "Faces")}
+              tooltipSide="bottom"
+              isActive={viewSettings.showFaces}
+              onClick={() =>
+                setViewSettings((current) => ({
+                  ...current,
+                  showFaces: !current.showFaces,
+                }))
+              }
+            >
+              <Square size={14} />
+            </IconButton>
+            <IconButton
+              size="sm"
+              variant="toolbar"
+              title={`${t("panels:simulator.creaseLines", "Crease Lines")} (C)`}
+              aria-label={t("panels:simulator.creaseLines", "Crease Lines")}
+              tooltipSide="bottom"
+              isActive={viewSettings.showEdges}
+              onClick={() =>
+                setViewSettings((current) => ({
+                  ...current,
+                  showEdges: !current.showEdges,
+                }))
+              }
+            >
+              {viewSettings.showEdges ? (
+                <Eye size={14} />
+              ) : (
+                <EyeOff size={14} />
+              )}
+            </IconButton>
+            <IconButton
+              size="sm"
+              variant="toolbar"
+              title={`${t("panels:simulator.hiddenLines", "Hidden Lines")} (H)`}
+              aria-label={t("panels:simulator.hiddenLines", "Hidden Lines")}
+              tooltipSide="bottom"
+              isActive={viewSettings.showHiddenLines}
+              onClick={() =>
+                setViewSettings((current) => ({
+                  ...current,
+                  showHiddenLines: !current.showHiddenLines,
+                }))
+              }
+              disabled={!viewSettings.showEdges}
+            >
+              <Layers3 size={14} />
+            </IconButton>
+            <IconButton
+              size="sm"
+              variant="toolbar"
+              title={`${t("panels:simulator.lighting", "Lighting")} (L)`}
+              aria-label={t("panels:simulator.lighting", "Lighting")}
+              tooltipSide="bottom"
+              isActive={viewSettings.lighting}
+              onClick={() =>
+                setViewSettings((current) => ({
+                  ...current,
+                  lighting: !current.lighting,
+                }))
+              }
+            >
+              <Sun size={14} />
+            </IconButton>
+          </div>
         </div>
-        {/* Scope controls hidden while the Sequence panel is hidden (always "whole"). */}
-        <div className="panel-toolbar__group simulator-scope-controls" style={{ display: 'none' }}>
-          <SegmentedControl
-            aria-label={t('panels:simulator.scope', 'Simulator scope')}
-            value={simulatorMode}
-            onChange={(mode) => {
-              if (mode === 'whole') {
-                setSequenceSimulationFocus({ kind: 'whole' });
-                return;
-              }
-              if (sequenceSimulationFocus.kind === 'sequence_step') return;
-              const firstStep = sequencePlan?.steps[0];
-              if (firstStep) {
-                setSequenceSimulationFocus({ kind: 'sequence_step', stepId: firstStep.id });
-              }
-            }}
-            options={[
-              {
-                value: 'whole',
-                label: t('panels:simulator.scopeWhole', 'Whole'),
-                title: t('panels:simulator.scopeWholeTitle', 'Simulate the whole crease pattern'),
-              },
-              {
-                value: 'step',
-                label: t('panels:simulator.scopeStep', 'Step'),
-                title: t('panels:simulator.scopeStepTitle', 'Simulate the selected sequence step'),
-              },
-            ]}
+        <div className="panel-body simulator-panel__body">
+          <canvas
+            // Keyed on the render path: a fold profile switches to the canvas-2D
+            // path, and a canvas whose control was transferred to the worker can
+            // never take a 2D context, so it must be a fresh element.
+            key={allowGpuRender ? "gl" : "2d"}
+            ref={setCanvas}
+            className="simulator-canvas"
+            data-lighting={viewSettings.lighting || undefined}
+            aria-label={t(
+              "panels:simulator.canvasAriaLabel",
+              "Origami folded-base simulator. Drag to rotate, scroll to zoom, double-click to reset view.",
+            )}
+            title={t(
+              "panels:simulator.canvasTitle",
+              "Drag to rotate, scroll to zoom, double-click to reset view",
+            )}
+            onPointerDown={handleCanvasPointerDown}
+            onPointerMove={handleCanvasPointerMove}
+            onPointerUp={handleCanvasPointerEnd}
+            onPointerCancel={handleCanvasPointerEnd}
+            onDoubleClick={resetView}
+            onWheel={handleCanvasWheel}
           />
-          {activeStepSimulation && (
-            <span className="simulator-step-chip">
-              {t('panels:simulator.stepChip', 'Step {{n}}: {{kind}}', {
-                n: activeStepSimulation.stepIndex + 1,
-                kind: formatKind(activeStepSimulation.step.kind),
-              })}
-            </span>
-          )}
-          {activeStepSimulation?.warning && (
-            <span className="simulator-step-chip simulator-step-chip--warn">
-              <AlertTriangle size={12} />
-              {t('panels:simulator.manualPreview', 'Manual preview')}
-            </span>
-          )}
-          {simulatorMode === 'step' && (
-            <div className="simulator-accuracy-controls">
-              <SegmentedControl
-                aria-label={t('panels:simulator.stepAccuracy', 'Step simulation accuracy')}
-                value={stepAccuracy}
-                onChange={setStepAccuracy}
-                options={STEP_SIMULATION_ACCURACY_OPTIONS.map((option) => ({
-                  ...option,
-                  label: simulatorAccuracyLabel(t, option.value),
-                  title: simulatorAccuracyTitle(t, option.value),
-                }))}
-              />
+          {loadState !== "ready" && (
+            <div className="simulator-panel__empty">
+              <span title={loadState === "error" ? errorDetail : undefined}>
+                {statusLabel}
+              </span>
+              {loadState === "error" && <small>{errorDetail}</small>}
+              {loadState === "empty" && <NextDocumentAction />}
             </div>
           )}
         </div>
-        <div
-          className="panel-toolbar__group simulator-view-settings"
-          aria-label={t('panels:simulator.viewSettings', 'Simulator view settings')}
-        >
-          <SegmentedControl
-            aria-label={t('panels:simulator.renderMode', 'Simulator render mode')}
-            value={viewSettings.renderMode}
-            onChange={(renderMode) => setViewSettings((current) => ({ ...current, renderMode }))}
-            options={[
-              {
-                value: 'paper',
-                label: t('panels:simulator.renderPaper', 'Paper'),
-                title: t('panels:simulator.renderPaperTitle', 'Paper rendering'),
-              },
-              {
-                value: 'xray',
-                label: t('panels:simulator.renderXray', 'X-ray'),
-                title: t('panels:simulator.renderXrayTitle', 'X-ray rendering'),
-              },
-            ]}
-          />
-          <IconButton
-            size="sm"
-            variant="toolbar"
-            title={t('panels:simulator.faces', 'Faces')}
-            tooltipSide="bottom"
-            isActive={viewSettings.showFaces}
-            onClick={() => setViewSettings((current) => ({ ...current, showFaces: !current.showFaces }))}
+        <div className="simulator-controls">
+          <div
+            className="simulator-transport"
+            aria-label={t("panels:simulator.controls", "Simulation controls")}
           >
-            <Square size={14} />
-          </IconButton>
-          <IconButton
-            size="sm"
-            variant="toolbar"
-            title={t('panels:simulator.creaseLines', 'Crease Lines')}
-            tooltipSide="bottom"
-            isActive={viewSettings.showEdges}
-            onClick={() => setViewSettings((current) => ({ ...current, showEdges: !current.showEdges }))}
-          >
-            {viewSettings.showEdges ? <Eye size={14} /> : <EyeOff size={14} />}
-          </IconButton>
-          <IconButton
-            size="sm"
-            variant="toolbar"
-            title={t('panels:simulator.hiddenLines', 'Hidden Lines')}
-            tooltipSide="bottom"
-            isActive={viewSettings.showHiddenLines}
-            onClick={() =>
-              setViewSettings((current) => ({
-                ...current,
-                showHiddenLines: !current.showHiddenLines,
-              }))
-            }
-            disabled={!viewSettings.showEdges}
-          >
-            <Layers3 size={14} />
-          </IconButton>
-          <IconButton
-            size="sm"
-            variant="toolbar"
-            title={t('panels:simulator.lighting', 'Lighting')}
-            tooltipSide="bottom"
-            isActive={viewSettings.lighting}
-            onClick={() => setViewSettings((current) => ({ ...current, lighting: !current.lighting }))}
-          >
-            <Sun size={14} />
-          </IconButton>
-        </div>
-      </div>
-      <div className="panel-body simulator-panel__body">
-        <canvas
-          // Keyed on the render path: a fold profile switches to the canvas-2D
-          // path, and a canvas whose control was transferred to the worker can
-          // never take a 2D context, so it must be a fresh element.
-          key={allowGpuRender ? 'gl' : '2d'}
-          ref={setCanvas}
-          className="simulator-canvas"
-          data-lighting={viewSettings.lighting || undefined}
-          aria-label={t(
-            'panels:simulator.canvasAriaLabel',
-            'Origami folded-base simulator. Drag to rotate, scroll to zoom, double-click to reset view.'
-          )}
-          title={t('panels:simulator.canvasTitle', 'Drag to rotate, scroll to zoom, double-click to reset view')}
-          onPointerDown={handleCanvasPointerDown}
-          onPointerMove={handleCanvasPointerMove}
-          onPointerUp={handleCanvasPointerEnd}
-          onPointerCancel={handleCanvasPointerEnd}
-          onDoubleClick={resetView}
-          onWheel={handleCanvasWheel}
-        />
-        {loadState !== 'ready' && (
-          <div className="simulator-panel__empty">
-            <span title={loadState === 'error' ? errorDetail : undefined}>{statusLabel}</span>
-            {loadState === 'error' && <small>{errorDetail}</small>}
-            {loadState === 'empty' && <NextDocumentAction />}
-          </div>
-        )}
-      </div>
-      <div className="simulator-controls">
-        <div className="simulator-transport" aria-label={t('panels:simulator.controls', 'Simulation controls')}>
-          <IconButton
-            size="sm"
-            title={t('panels:simulator.refresh', 'Refresh')}
-            tooltipSide="top"
-            onClick={() => {
-              setPlaying(false);
-              setModelError(null);
-              void refreshFoldArtifacts();
-            }}
-            disabled={!refreshCapability.enabled}
-          >
-            <RefreshCw size={14} />
-          </IconButton>
-          <IconButton
-            size="sm"
-            title={playing ? t('panels:simulator.pause', 'Pause') : t('panels:simulator.play', 'Play')}
-            tooltipSide="top"
-            onClick={() => setPlaying(!playing)}
-            disabled={loadState !== 'ready'}
-          >
-            {playing ? <Pause size={14} /> : <Play size={14} />}
-          </IconButton>
-          <IconButton
-            size="sm"
-            title={t('panels:simulator.step', 'Step')}
-            tooltipSide="top"
-            onClick={stepFoldTarget}
-            disabled={loadState !== 'ready'}
-          >
-            <StepForward size={14} />
-          </IconButton>
-          <IconButton
-            size="sm"
-            title={t('panels:simulator.reset', 'Reset')}
-            tooltipSide="top"
-            onClick={replayFromFlat}
-            disabled={loadState !== 'ready'}
-          >
-            <RotateCcw size={14} />
-          </IconButton>
-        </div>
-        <label className="simulator-slider">
-          <span>
-            {simulatorMode === 'step'
-              ? t('panels:simulator.step', 'Step')
-              : t('panels:simulator.fold', 'Fold')}
-          </span>
-          <input
-            aria-label={
-              simulatorMode === 'step'
-                ? t('panels:simulator.stepPercent', 'Step percent')
-                : t('panels:simulator.foldPercent', 'Fold percent')
-            }
-            type="range"
-            min="0"
-            max="100"
-            step="1"
-            value={Math.round(foldPercent)}
-            onChange={(event) => setFoldTarget(Number(event.currentTarget.value))}
-            disabled={loadState !== 'ready'}
-          />
-          <output>{t('panels:simulator.percent', '{{value}}%', { value: Math.round(foldPercent) })}</output>
-        </label>
-        <div className="simulator-readout">
-          <span>{statusLabel}</span>
-          <span>{t('panels:simulator.stepReadout', 'Step {{n}}', { n: step })}</span>
-          <span>{t('panels:simulator.strain', 'Strain {{value}}', { value: strain.toFixed(4) })}</span>
-          {backend && (
-            <span
-              title={
-                backend === 'webgl2'
-                  ? t('panels:simulator.backendGpuTitle', 'Solving on the GPU (WebGL2)')
-                  : t('panels:simulator.backendCpuTitle', 'Solving on the CPU (WebGL2 unavailable)')
-              }
+            <IconButton
+              size="sm"
+              title={t("panels:simulator.refresh", "Refresh")}
+              tooltipSide="top"
+              onClick={() => {
+                setPlaying(false);
+                setModelError(null);
+                void refreshFoldArtifacts();
+              }}
+              disabled={!refreshCapability.enabled}
             >
-              {backend === 'webgl2'
-                ? t('panels:simulator.backendGpu', 'GPU')
-                : t('panels:simulator.backendCpu', 'CPU')}
+              <RefreshCw size={14} />
+            </IconButton>
+            <IconButton
+              size="sm"
+              title={`${
+                playing
+                  ? t("panels:simulator.pause", "Pause")
+                  : t("panels:simulator.play", "Play")
+              } (Space)`}
+              aria-label={
+                playing
+                  ? t("panels:simulator.pause", "Pause")
+                  : t("panels:simulator.play", "Play")
+              }
+              tooltipSide="top"
+              onClick={() => setPlaying(!playing)}
+              disabled={loadState !== "ready"}
+            >
+              {playing ? <Pause size={14} /> : <Play size={14} />}
+            </IconButton>
+            <IconButton
+              size="sm"
+              title={`${t("panels:simulator.step", "Step")} (→)`}
+              aria-label={t("panels:simulator.step", "Step")}
+              tooltipSide="top"
+              onClick={stepFoldTarget}
+              disabled={loadState !== "ready"}
+            >
+              <StepForward size={14} />
+            </IconButton>
+            <IconButton
+              size="sm"
+              title={`${t("panels:simulator.reset", "Reset")} (R)`}
+              aria-label={t("panels:simulator.reset", "Reset")}
+              tooltipSide="top"
+              onClick={replayFromFlat}
+              disabled={loadState !== "ready"}
+            >
+              <RotateCcw size={14} />
+            </IconButton>
+          </div>
+          <label className="simulator-slider">
+            <span>
+              {simulatorMode === "step"
+                ? t("panels:simulator.step", "Step")
+                : t("panels:simulator.fold", "Fold")}
             </span>
-          )}
+            <input
+              aria-label={
+                simulatorMode === "step"
+                  ? t("panels:simulator.stepPercent", "Step percent")
+                  : t("panels:simulator.foldPercent", "Fold percent")
+              }
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              value={Math.round(foldPercent)}
+              onChange={(event) =>
+                setFoldTarget(Number(event.currentTarget.value))
+              }
+              disabled={loadState !== "ready"}
+            />
+            <output>
+              {t("panels:simulator.percent", "{{value}}%", {
+                value: Math.round(foldPercent),
+              })}
+            </output>
+          </label>
+          <div className="simulator-readout">
+            <span>{statusLabel}</span>
+            <span>
+              {t("panels:simulator.stepReadout", "Step {{n}}", { n: step })}
+            </span>
+            <span>
+              {t("panels:simulator.strain", "Strain {{value}}", {
+                value: strain.toFixed(4),
+              })}
+            </span>
+            {backend && (
+              <span
+                title={
+                  backend === "webgl2"
+                    ? t(
+                        "panels:simulator.backendGpuTitle",
+                        "Solving on the GPU (WebGL2)",
+                      )
+                    : t(
+                        "panels:simulator.backendCpuTitle",
+                        "Solving on the CPU (WebGL2 unavailable)",
+                      )
+                }
+              >
+                {backend === "webgl2"
+                  ? t("panels:simulator.backendGpu", "GPU")
+                  : t("panels:simulator.backendCpu", "CPU")}
+              </span>
+            )}
+          </div>
         </div>
-      </div>
       </section>
     </div>
   );
 }
-
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -850,13 +1151,14 @@ function clamp(value: number, min: number, max: number): number {
 
 function shortStatus(message: string, t: TFunction): string {
   const trimmed = message.trim();
-  if (!trimmed) return t('panels:simulator.unavailable', 'Simulator unavailable');
+  if (!trimmed)
+    return t("panels:simulator.unavailable", "Simulator unavailable");
   const sentence = trimmed.split(/[.;]\s+/u)[0] ?? trimmed;
   return sentence.length > 54 ? `${sentence.slice(0, 51)}...` : sentence;
 }
 
 function formatKind(kind: string): string {
-  return kind.replaceAll('_', ' ');
+  return kind.replaceAll("_", " ");
 }
 
 function foldNeedsTriangulation(fold: SimulatorFoldDocument): boolean {
@@ -881,7 +1183,9 @@ interface SimulatorSurface {
 
 const surfaceCache = new WeakMap<HTMLCanvasElement, SimulatorSurface>();
 
-export function invalidateSimulatorSurface(canvas: HTMLCanvasElement | null): void {
+export function invalidateSimulatorSurface(
+  canvas: HTMLCanvasElement | null,
+): void {
   if (canvas) surfaceCache.delete(canvas);
 }
 
@@ -915,7 +1219,7 @@ function drawFrame(
   frame: SimulatorFrameView,
   view: SimulatorView,
   settings: SimulatorViewSettings,
-  highlights: SimulatorHighlights
+  highlights: SimulatorHighlights,
 ): void {
   // Canvas size and palette are cached rather than read per frame. Both used to
   // be recomputed on every draw: getBoundingClientRect forces layout and
@@ -929,7 +1233,7 @@ function drawFrame(
     canvas.height = height;
   }
 
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext("2d");
   if (!ctx) return;
   const palette = surface.palette;
 
@@ -949,19 +1253,28 @@ function drawFrame(
   // every frame made the model visibly "breathe" as it folded -- the sheet gets
   // smaller as it closes, so the auto-fit zoomed in to compensate -- and cost
   // three extra full walks of the position array per draw.
-  const scale = (availableSize / (2 * surface.framingRadius(positions))) * view.zoom;
+  const scale =
+    (availableSize / (2 * surface.framingRadius(positions))) * view.zoom;
   const map = (point: ProjectedPoint) => ({
     x: width / 2 + point.x * scale,
     y: height / 2 - point.y * scale,
   });
 
   const triangles = triangleOrder(model.indices, projected);
-  const faceAlpha = settings.renderMode === 'xray' ? 0.48 : 1;
-  const surfaceEdgeAlpha = settings.renderMode === 'xray' ? 0.5 : 0.92;
+  const faceAlpha = settings.renderMode === "xray" ? 0.48 : 1;
+  const surfaceEdgeAlpha = settings.renderMode === "xray" ? 0.5 : 0.92;
 
-  if (settings.renderMode === 'paper' && settings.showFaces) {
+  if (settings.renderMode === "paper" && settings.showFaces) {
     if (settings.lighting) {
-      drawProjectedPaperShadow(ctx, triangles, projected, map, width, height, dpr);
+      drawProjectedPaperShadow(
+        ctx,
+        triangles,
+        projected,
+        map,
+        width,
+        height,
+        dpr,
+      );
     }
     const depthSurface = drawPaperFacesWithDepth(
       ctx,
@@ -974,13 +1287,33 @@ function drawFrame(
       height,
       palette,
       highlights,
-      settings.lighting
+      settings.lighting,
     );
     if (depthSurface) {
       if (settings.showEdges) {
-        drawVisibleEdges(ctx, model, projected, map, dpr, 0.94, palette, highlights, depthSurface);
+        drawVisibleEdges(
+          ctx,
+          model,
+          projected,
+          map,
+          dpr,
+          0.94,
+          palette,
+          highlights,
+          depthSurface,
+        );
         if (settings.showHiddenLines) {
-          drawAllEdges(ctx, model, projected, map, dpr, 0.26, true, palette, highlights);
+          drawAllEdges(
+            ctx,
+            model,
+            projected,
+            map,
+            dpr,
+            0.26,
+            true,
+            palette,
+            highlights,
+          );
         }
       }
       return;
@@ -990,9 +1323,15 @@ function drawFrame(
   for (const triangle of triangles) {
     if (settings.showFaces) {
       const highlighted = highlights.faces.has(triangle.faceIndex);
-      const a = map(projected[triangle.vertices[0]] ?? { x: 0, y: 0, depth: 0 });
-      const b = map(projected[triangle.vertices[1]] ?? { x: 0, y: 0, depth: 0 });
-      const c = map(projected[triangle.vertices[2]] ?? { x: 0, y: 0, depth: 0 });
+      const a = map(
+        projected[triangle.vertices[0]] ?? { x: 0, y: 0, depth: 0 },
+      );
+      const b = map(
+        projected[triangle.vertices[1]] ?? { x: 0, y: 0, depth: 0 },
+      );
+      const c = map(
+        projected[triangle.vertices[2]] ?? { x: 0, y: 0, depth: 0 },
+      );
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(b.x, b.y);
@@ -1003,7 +1342,7 @@ function drawFrame(
         palette,
         faceAlpha,
         projected,
-        settings.lighting
+        settings.lighting,
       );
       ctx.fill();
       if (highlighted) {
@@ -1017,7 +1356,17 @@ function drawFrame(
       }
     }
     if (settings.showEdges && settings.showFaces) {
-      drawTriangleEdges(ctx, model, triangle, projected, map, dpr, surfaceEdgeAlpha, palette, highlights);
+      drawTriangleEdges(
+        ctx,
+        model,
+        triangle,
+        projected,
+        map,
+        dpr,
+        surfaceEdgeAlpha,
+        palette,
+        highlights,
+      );
     }
   }
 
@@ -1029,14 +1378,18 @@ function drawFrame(
       map,
       dpr,
       settings.showFaces ? 0.34 : 0.95,
-      settings.showFaces && settings.renderMode === 'paper',
+      settings.showFaces && settings.renderMode === "paper",
       palette,
-      highlights
+      highlights,
     );
   }
 }
 
-function normalizeVector(vector: { x: number; y: number; z: number }): { x: number; y: number; z: number } {
+function normalizeVector(vector: { x: number; y: number; z: number }): {
+  x: number;
+  y: number;
+  z: number;
+} {
   const length = Math.hypot(vector.x, vector.y, vector.z);
   if (length < 0.0001) return { x: 0, y: 0, z: 1 };
   return {
@@ -1046,7 +1399,10 @@ function normalizeVector(vector: { x: number; y: number; z: number }): { x: numb
   };
 }
 
-function projectPositions(positions: Float32Array, view: SimulatorView): ProjectedPoint[] {
+function projectPositions(
+  positions: Float32Array,
+  view: SimulatorView,
+): ProjectedPoint[] {
   const center = boundsCenter(positions);
   const points: ProjectedPoint[] = [];
   const cosYaw = Math.cos(view.yaw);
@@ -1073,7 +1429,11 @@ function projectPositions(positions: Float32Array, view: SimulatorView): Project
 // the orbit pivot and framing sit on the object's visual center. For an
 // asymmetric folded shape the bbox midpoint is offset from the mass center,
 // which makes the model swing around an off-center point while orbiting.
-function boundsCenter(positions: Float32Array): { x: number; y: number; z: number } {
+function boundsCenter(positions: Float32Array): {
+  x: number;
+  y: number;
+  z: number;
+} {
   let sumX = 0;
   let sumY = 0;
   let sumZ = 0;
@@ -1097,8 +1457,8 @@ function boundsRadius(positions: Float32Array): number {
       Math.hypot(
         (positions[index] ?? 0) - center.x,
         (positions[index + 1] ?? 0) - center.y,
-        (positions[index + 2] ?? 0) - center.z
-      )
+        (positions[index + 2] ?? 0) - center.z,
+      ),
     );
   }
   return Math.max(0.001, radius);
@@ -1122,19 +1482,24 @@ interface SimulatorPalette {
   paperBackRgb: [number, number, number];
 }
 
-function parseCssRgb(value: string, fallback: [number, number, number]): [number, number, number] {
-  const hex = value.trim().replace('#', '');
+function parseCssRgb(
+  value: string,
+  fallback: [number, number, number],
+): [number, number, number] {
+  const hex = value.trim().replace("#", "");
   if (hex.length === 6) {
     const r = Number.parseInt(hex.slice(0, 2), 16);
     const g = Number.parseInt(hex.slice(2, 4), 16);
     const b = Number.parseInt(hex.slice(4, 6), 16);
-    if (Number.isFinite(r) && Number.isFinite(g) && Number.isFinite(b)) return [r, g, b];
+    if (Number.isFinite(r) && Number.isFinite(g) && Number.isFinite(b))
+      return [r, g, b];
   }
   if (hex.length === 3) {
     const r = Number.parseInt(hex[0]! + hex[0], 16);
     const g = Number.parseInt(hex[1]! + hex[1], 16);
     const b = Number.parseInt(hex[2]! + hex[2], 16);
-    if (Number.isFinite(r) && Number.isFinite(g) && Number.isFinite(b)) return [r, g, b];
+    if (Number.isFinite(r) && Number.isFinite(g) && Number.isFinite(b))
+      return [r, g, b];
   }
   const match = value.match(/-?\d+(\.\d+)?/g);
   if (match && match.length >= 3) {
@@ -1149,16 +1514,22 @@ function readSimulatorPalette(canvas: HTMLCanvasElement): SimulatorPalette {
     styles.getPropertyValue(name).trim() || fallback;
 
   return {
-    canvas: cssVar('--bg-canvas', '#0c0f12'),
-    mountain: cssVar('--status-danger', '#e06c75'),
-    valley: cssVar('--accent-primary', '#5fb3a5'),
-    border: cssVar('--text-primary', '#e8edf0'),
-    flat: cssVar('--text-secondary', '#aeb9bf'),
-    highlight: cssVar('--status-warning', '#f0c674'),
-    highlightFace: 'rgb(240 198 116 / 0.3)',
+    canvas: cssVar("--bg-canvas", "#0c0f12"),
+    mountain: cssVar("--status-danger", "#e06c75"),
+    valley: cssVar("--accent-primary", "#5fb3a5"),
+    border: cssVar("--text-primary", "#e8edf0"),
+    flat: cssVar("--text-secondary", "#aeb9bf"),
+    highlight: cssVar("--status-warning", "#f0c674"),
+    highlightFace: "rgb(240 198 116 / 0.3)",
     highlightFaceRgb: [240, 198, 116],
-    paperFrontRgb: parseCssRgb(cssVar('--sim-paper-front', '#4f83d6'), [79, 131, 214]),
-    paperBackRgb: parseCssRgb(cssVar('--sim-paper-back', '#f2f0e7'), [242, 240, 231]),
+    paperFrontRgb: parseCssRgb(
+      cssVar("--sim-paper-front", "#4f83d6"),
+      [79, 131, 214],
+    ),
+    paperBackRgb: parseCssRgb(
+      cssVar("--sim-paper-back", "#f2f0e7"),
+      [242, 240, 231],
+    ),
   };
 }
 
@@ -1166,7 +1537,7 @@ function readSimulatorPalette(canvas: HTMLCanvasElement): SimulatorPalette {
 // settings. Colours are 0..1 there; the palette is 0..255 / CSS strings.
 function toRenderSettings(
   canvas: HTMLCanvasElement,
-  settings: SimulatorViewSettings
+  settings: SimulatorViewSettings,
 ): RenderSettings {
   const palette = readSimulatorPalette(canvas);
   const norm = (rgb: [number, number, number]): [number, number, number] => [
@@ -1186,24 +1557,37 @@ function toRenderSettings(
     valleyColor: [0.11, 0.36, 0.85],
     borderColor: norm(parseCssRgb(palette.border, [232, 237, 240])),
     background: norm(parseCssRgb(palette.canvas, [12, 15, 18])),
-    lightDir: [PAPER_LIGHT_DIRECTION.x, PAPER_LIGHT_DIRECTION.y, PAPER_LIGHT_DIRECTION.z],
+    lightDir: [
+      PAPER_LIGHT_DIRECTION.x,
+      PAPER_LIGHT_DIRECTION.y,
+      PAPER_LIGHT_DIRECTION.z,
+    ],
     showFaces: settings.showFaces,
     showEdges: settings.showEdges,
     lighting: settings.lighting,
     creaseWidthPx: Math.max(2, Math.round(1.6 * dpr)),
-    faceAlpha: settings.renderMode === 'xray' ? 0.48 : 1,
+    faceAlpha: settings.renderMode === "xray" ? 0.48 : 1,
   };
 }
 
-function triangleOrder(indices: Uint32Array, projected: ProjectedPoint[]): OrderedTriangle[] {
+function triangleOrder(
+  indices: Uint32Array,
+  projected: ProjectedPoint[],
+): OrderedTriangle[] {
   const triangles: OrderedTriangle[] = [];
   for (let index = 0; index < indices.length; index += 3) {
     triangles.push({
       faceIndex: Math.floor(index / 3),
-      vertices: [indices[index] ?? 0, indices[index + 1] ?? 0, indices[index + 2] ?? 0],
+      vertices: [
+        indices[index] ?? 0,
+        indices[index + 1] ?? 0,
+        indices[index + 2] ?? 0,
+      ],
     });
   }
-  return triangles.sort((a, b) => averageDepth(a, projected) - averageDepth(b, projected));
+  return triangles.sort(
+    (a, b) => averageDepth(a, projected) - averageDepth(b, projected),
+  );
 }
 
 function drawProjectedPaperShadow(
@@ -1213,17 +1597,17 @@ function drawProjectedPaperShadow(
   map: (point: ProjectedPoint) => { x: number; y: number },
   width: number,
   height: number,
-  dpr: number
+  dpr: number,
 ): void {
   const size = Math.min(width, height);
   const shadowOffset = Math.max(5 * dpr, size * 0.018);
   const shadowBlur = Math.max(10 * dpr, size * 0.03);
   ctx.save();
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.24)';
+  ctx.shadowColor = "rgba(0, 0, 0, 0.24)";
   ctx.shadowBlur = shadowBlur;
   ctx.shadowOffsetX = shadowOffset;
   ctx.shadowOffsetY = shadowOffset * 1.15;
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
+  ctx.fillStyle = "rgba(0, 0, 0, 0.08)";
   ctx.beginPath();
 
   for (const triangle of triangles) {
@@ -1240,8 +1624,16 @@ function drawProjectedPaperShadow(
   ctx.restore();
 }
 
-function averageDepth(triangle: OrderedTriangle, projected: ProjectedPoint[]): number {
-  return triangle.vertices.reduce((total, vertex) => total + (projected[vertex]?.depth ?? 0), 0) / 3;
+function averageDepth(
+  triangle: OrderedTriangle,
+  projected: ProjectedPoint[],
+): number {
+  return (
+    triangle.vertices.reduce(
+      (total, vertex) => total + (projected[vertex]?.depth ?? 0),
+      0,
+    ) / 3
+  );
 }
 
 function drawPaperFacesWithDepth(
@@ -1255,7 +1647,7 @@ function drawPaperFacesWithDepth(
   height: number,
   palette: SimulatorPalette,
   highlights: SimulatorHighlights,
-  lighting: boolean
+  lighting: boolean,
 ): DepthSurface | null {
   let imageData: ImageData;
   try {
@@ -1282,7 +1674,7 @@ function drawPaperFacesWithDepth(
       highlights.faces.has(triangle.faceIndex),
       palette,
       projected,
-      lighting
+      lighting,
     );
     rasterizeDepthTriangle(imageData, depths, width, height, points, color);
   }
@@ -1297,7 +1689,7 @@ function rasterizeDepthTriangle(
   width: number,
   height: number,
   points: [ScreenPoint, ScreenPoint, ScreenPoint],
-  color: [number, number, number, number]
+  color: [number, number, number, number],
 ): void {
   const [a, b, c] = points;
   const area = edgeFunction(a, b, c);
@@ -1339,9 +1731,9 @@ function rasterizeDepthTriangle(
 }
 
 function edgeFunction(
-  a: Pick<ScreenPoint, 'sx' | 'sy'>,
-  b: Pick<ScreenPoint, 'sx' | 'sy'>,
-  point: Pick<ScreenPoint, 'sx' | 'sy'>
+  a: Pick<ScreenPoint, "sx" | "sy">,
+  b: Pick<ScreenPoint, "sx" | "sy">,
+  point: Pick<ScreenPoint, "sx" | "sy">,
 ): number {
   return (point.sx - a.sx) * (b.sy - a.sy) - (point.sy - a.sy) * (b.sx - a.sx);
 }
@@ -1354,14 +1746,16 @@ const PAPER_FRONT_WINDING: 1 | -1 = 1;
 function triangleFaceRgb(
   triangle: number[],
   projected: ProjectedPoint[],
-  palette: SimulatorPalette
+  palette: SimulatorPalette,
 ): [number, number, number] {
   const a = projected[triangle[0]];
   const b = projected[triangle[1]];
   const c = projected[triangle[2]];
   if (!a || !b || !c) return palette.paperFrontRgb;
   const winding = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
-  return winding * PAPER_FRONT_WINDING >= 0 ? palette.paperFrontRgb : palette.paperBackRgb;
+  return winding * PAPER_FRONT_WINDING >= 0
+    ? palette.paperFrontRgb
+    : palette.paperBackRgb;
 }
 
 function triangleColor(
@@ -1369,12 +1763,15 @@ function triangleColor(
   palette: SimulatorPalette,
   alpha = 1,
   projected?: ProjectedPoint[],
-  lighting = false
+  lighting = false,
 ): string {
-  const base = projected ? triangleFaceRgb(triangle, projected, palette) : palette.paperFrontRgb;
-  const [r, g, b] = lighting && projected
-    ? shadeRgb(base, triangleLightIntensity(triangle, projected))
-    : base;
+  const base = projected
+    ? triangleFaceRgb(triangle, projected, palette)
+    : palette.paperFrontRgb;
+  const [r, g, b] =
+    lighting && projected
+      ? shadeRgb(base, triangleLightIntensity(triangle, projected))
+      : base;
   return alpha >= 1 ? `rgb(${r} ${g} ${b})` : `rgb(${r} ${g} ${b} / ${alpha})`;
 }
 
@@ -1383,24 +1780,30 @@ function triangleRasterColor(
   highlighted: boolean,
   palette: SimulatorPalette,
   projected: ProjectedPoint[],
-  lighting: boolean
+  lighting: boolean,
 ): [number, number, number, number] {
   const base = triangleFaceRgb(triangle, projected, palette);
-  const shaded = lighting ? shadeRgb(base, triangleLightIntensity(triangle, projected)) : base;
-  const rgb = highlighted ? blendRgb(shaded, palette.highlightFaceRgb, 0.3) : shaded;
+  const shaded = lighting
+    ? shadeRgb(base, triangleLightIntensity(triangle, projected))
+    : base;
+  const rgb = highlighted
+    ? blendRgb(shaded, palette.highlightFaceRgb, 0.3)
+    : shaded;
   return [rgb[0], rgb[1], rgb[2], 255];
 }
 
-function triangleLightIntensity(triangle: number[], projected: ProjectedPoint[]): number {
+function triangleLightIntensity(
+  triangle: number[],
+  projected: ProjectedPoint[],
+): number {
   const a = projected[triangle[0]];
   const b = projected[triangle[1]];
   const c = projected[triangle[2]];
   if (!a || !b || !c) return 1;
   const normal = triangleNormal(a, b, c);
   if (!normal) return 1;
-  const oriented = normal.z < 0
-    ? { x: -normal.x, y: -normal.y, z: -normal.z }
-    : normal;
+  const oriented =
+    normal.z < 0 ? { x: -normal.x, y: -normal.y, z: -normal.z } : normal;
   const diffuse = Math.max(0, dotVector(oriented, PAPER_LIGHT_DIRECTION));
   return clamp(0.74 + diffuse * 0.3 + oriented.z * 0.04, 0.68, 1.08);
 }
@@ -1408,7 +1811,7 @@ function triangleLightIntensity(triangle: number[], projected: ProjectedPoint[])
 function triangleNormal(
   a: ProjectedPoint,
   b: ProjectedPoint,
-  c: ProjectedPoint
+  c: ProjectedPoint,
 ): { x: number; y: number; z: number } | null {
   const ux = b.x - a.x;
   const uy = b.y - a.y;
@@ -1432,12 +1835,15 @@ function triangleNormal(
 
 function dotVector(
   a: { x: number; y: number; z: number },
-  b: { x: number; y: number; z: number }
+  b: { x: number; y: number; z: number },
 ): number {
   return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
-function shadeRgb(color: [number, number, number], intensity: number): [number, number, number] {
+function shadeRgb(
+  color: [number, number, number],
+  intensity: number,
+): [number, number, number] {
   if (intensity <= 1) {
     return [
       Math.round(color[0] * intensity),
@@ -1456,7 +1862,7 @@ function shadeRgb(color: [number, number, number], intensity: number): [number, 
 function blendRgb(
   base: [number, number, number],
   overlay: [number, number, number],
-  alpha: number
+  alpha: number,
 ): [number, number, number] {
   return [
     Math.round(base[0] * (1 - alpha) + overlay[0] * alpha),
@@ -1474,7 +1880,7 @@ function drawTriangleEdges(
   dpr: number,
   alpha: number,
   palette: SimulatorPalette,
-  highlights: SimulatorHighlights
+  highlights: SimulatorHighlights,
 ): void {
   const faceEdges = model.facesEdges[triangle.faceIndex] ?? [];
   const pairs: Array<[number, number]> = [
@@ -1496,7 +1902,7 @@ function drawTriangleEdges(
       alpha,
       palette,
       highlights,
-      dpr
+      dpr,
     );
   });
 }
@@ -1510,12 +1916,24 @@ function drawAllEdges(
   alpha: number,
   dashed: boolean,
   palette: SimulatorPalette,
-  highlights: SimulatorHighlights
+  highlights: SimulatorHighlights,
 ): void {
   ctx.setLineDash(dashed ? [Math.max(3, dpr * 3), Math.max(3, dpr * 3)] : []);
   ctx.lineWidth = Math.max(1.5, dpr * 1.25);
   model.edgesVertices.forEach((edge, index) => {
-    drawEdgeSegment(ctx, model, projected, map, edge[0], edge[1], index, alpha, palette, highlights, dpr);
+    drawEdgeSegment(
+      ctx,
+      model,
+      projected,
+      map,
+      edge[0],
+      edge[1],
+      index,
+      alpha,
+      palette,
+      highlights,
+      dpr,
+    );
   });
   ctx.setLineDash([]);
 }
@@ -1529,7 +1947,7 @@ function drawVisibleEdges(
   alpha: number,
   palette: SimulatorPalette,
   highlights: SimulatorHighlights,
-  depthSurface: DepthSurface
+  depthSurface: DepthSurface,
 ): void {
   ctx.setLineDash([]);
   ctx.lineWidth = Math.max(1.5, dpr * 1.25);
@@ -1546,7 +1964,7 @@ function drawVisibleEdges(
       palette,
       highlights,
       dpr,
-      depthSurface
+      depthSurface,
     );
   });
 }
@@ -1562,7 +1980,7 @@ function drawEdgeSegment(
   alpha: number,
   palette: SimulatorPalette,
   highlights: SimulatorHighlights,
-  dpr: number
+  dpr: number,
 ): void {
   const a = map(projected[from] ?? { x: 0, y: 0, depth: 0 });
   const b = map(projected[to] ?? { x: 0, y: 0, depth: 0 });
@@ -1572,7 +1990,9 @@ function drawEdgeSegment(
   ctx.beginPath();
   ctx.moveTo(a.x, a.y);
   ctx.lineTo(b.x, b.y);
-  ctx.strokeStyle = highlighted ? palette.highlight : edgeColor(assignment, palette);
+  ctx.strokeStyle = highlighted
+    ? palette.highlight
+    : edgeColor(assignment, palette);
   ctx.globalAlpha = highlighted ? 1 : edgeAlpha(assignment, alpha);
   if (highlighted) ctx.lineWidth = Math.max(ctx.lineWidth, dpr * 3);
   ctx.stroke();
@@ -1592,7 +2012,7 @@ function drawVisibleEdgeSegment(
   palette: SimulatorPalette,
   highlights: SimulatorHighlights,
   dpr: number,
-  depthSurface: DepthSurface
+  depthSurface: DepthSurface,
 ): void {
   const fromProjected = projected[from] ?? { x: 0, y: 0, depth: 0 };
   const toProjected = projected[to] ?? { x: 0, y: 0, depth: 0 };
@@ -1605,7 +2025,9 @@ function drawVisibleEdgeSegment(
   let segmentStart: { x: number; y: number } | null = null;
   let previousVisible: { x: number; y: number } | null = null;
 
-  ctx.strokeStyle = highlighted ? palette.highlight : edgeColor(assignment, palette);
+  ctx.strokeStyle = highlighted
+    ? palette.highlight
+    : edgeColor(assignment, palette);
   ctx.globalAlpha = highlighted ? 1 : edgeAlpha(assignment, alpha);
   if (highlighted) ctx.lineWidth = Math.max(ctx.lineWidth, dpr * 3);
 
@@ -1622,7 +2044,8 @@ function drawVisibleEdgeSegment(
     const point = {
       x: a.x + (b.x - a.x) * t,
       y: a.y + (b.y - a.y) * t,
-      depth: fromProjected.depth + (toProjected.depth - fromProjected.depth) * t,
+      depth:
+        fromProjected.depth + (toProjected.depth - fromProjected.depth) * t,
     };
     if (edgePointIsVisible(point, depthSurface)) {
       segmentStart ??= point;
@@ -1641,11 +2064,12 @@ function drawVisibleEdgeSegment(
 
 function edgePointIsVisible(
   point: { x: number; y: number; depth: number },
-  depthSurface: DepthSurface
+  depthSurface: DepthSurface,
 ): boolean {
   const x = Math.round(point.x);
   const y = Math.round(point.y);
-  if (x < 0 || y < 0 || x >= depthSurface.width || y >= depthSurface.height) return false;
+  if (x < 0 || y < 0 || x >= depthSurface.width || y >= depthSurface.height)
+    return false;
   const surfaceDepth = depthSurface.depths[y * depthSurface.width + x];
   if (surfaceDepth === undefined || !Number.isFinite(surfaceDepth)) return true;
   return point.depth >= surfaceDepth - PAPER_EDGE_DEPTH_EPSILON;
@@ -1653,19 +2077,24 @@ function edgePointIsVisible(
 
 function findEdge(edges: [number, number][], from: number, to: number): number {
   return edges.findIndex(
-    (edge) => (edge[0] === from && edge[1] === to) || (edge[0] === to && edge[1] === from)
+    (edge) =>
+      (edge[0] === from && edge[1] === to) ||
+      (edge[0] === to && edge[1] === from),
   );
 }
 
-function edgeColor(assignment: string | undefined, palette: SimulatorPalette): string {
-  if (assignment === 'M') return palette.mountain;
-  if (assignment === 'V') return palette.valley;
-  if (assignment === 'B') return palette.border;
+function edgeColor(
+  assignment: string | undefined,
+  palette: SimulatorPalette,
+): string {
+  if (assignment === "M") return palette.mountain;
+  if (assignment === "V") return palette.valley;
+  if (assignment === "B") return palette.border;
   return palette.flat;
 }
 
 function edgeAlpha(assignment: string | undefined, alpha: number): number {
-  if (assignment === 'F') return alpha * 0.55;
+  if (assignment === "F") return alpha * 0.55;
   if (!assignment) return alpha * 0.32;
   return alpha;
 }

@@ -14,8 +14,22 @@ import { createSimulatorSession } from '../../simulator/simulatorSession';
 // out the simulator (which would stop these tests exercising triangulation and
 // the render path at all), run the real session in-process -- simulatorWorker
 // is only a comlink wrapper around it, so this is the same code the app runs.
+// comlink makes every session method async in production; the runtime relies on
+// that (client.tick(...).then, mutate(client).catch). Wrap the in-process
+// session so its methods return promises too, otherwise unsettling the model
+// (e.g. scrubbing the fold) would call .then/.catch on a sync return value.
+function asPromiseClient<T extends object>(session: T): T {
+  return new Proxy(session, {
+    get(target, prop, receiver) {
+      const value = Reflect.get(target, prop, receiver);
+      if (typeof value !== 'function') return value;
+      return (...args: unknown[]) => Promise.resolve(value.apply(target, args));
+    },
+  });
+}
+
 vi.mock('../../store/workspaceStore/simulatorRuntime', () => ({
-  getSimulatorClient: () => createSimulatorSession(),
+  getSimulatorClient: () => asPromiseClient(createSimulatorSession()),
   releaseSimulatorWorker: () => {},
 }));
 
@@ -136,7 +150,53 @@ describe('SimulatorPanel', () => {
     });
     expect(activeAccuracyButton(rendered)?.textContent).toBe('Accurate');
   });
+
+  it('drives the transport from the keyboard', async () => {
+    const rendered = renderPanel({ foldArtifacts: { fold: simpleFold() } });
+    await flushSimulator();
+
+    // Space toggles play/pause (observed via the button's accessible name).
+    expect(rendered.querySelector('[aria-label="Play"]')).not.toBeNull();
+    act(() => pressKey(' '));
+    expect(rendered.querySelector('[aria-label="Pause"]')).not.toBeNull();
+    act(() => pressKey(' '));
+    expect(rendered.querySelector('[aria-label="Play"]')).not.toBeNull();
+
+    // Shift+Arrow jumps the fold to the ends of the timeline.
+    act(() => pressKey('ArrowRight', { shiftKey: true }));
+    expect(rendered.querySelector('output')?.textContent).toBe('100%');
+    act(() => pressKey('ArrowLeft', { shiftKey: true }));
+    expect(rendered.querySelector('output')?.textContent).toBe('0%');
+
+    // A plain arrow scrubs by a step, so 0 -> right lands above 0.
+    act(() => pressKey('ArrowRight'));
+    const scrubbed = Number(rendered.querySelector('output')?.textContent?.replace('%', ''));
+    expect(scrubbed).toBeGreaterThan(0);
+
+    // Let the async settle the scrubs kicked off resolve before teardown, so the
+    // in-flight worker mutation is not rejected by unmount.
+    await flushSimulator();
+  });
+
+  it('ignores shortcuts while typing in a field', async () => {
+    const rendered = renderPanel({ foldArtifacts: { fold: simpleFold() } });
+    await flushSimulator();
+
+    const foldInput = rendered.querySelector<HTMLInputElement>('[aria-label="Fold percent"]');
+    expect(foldInput).not.toBeNull();
+
+    // A Space keydown originating from the range input must not toggle play.
+    act(() => {
+      foldInput?.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    });
+    expect(rendered.querySelector('[aria-label="Play"]')).not.toBeNull();
+    expect(rendered.querySelector('[aria-label="Pause"]')).toBeNull();
+  });
 });
+
+function pressKey(key: string, init: KeyboardEventInit = {}): void {
+  window.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init }));
+}
 
 function renderPanel(state: Partial<ReturnType<typeof useWorkspaceStore.getState>>) {
   useWorkspaceStore.setState(
