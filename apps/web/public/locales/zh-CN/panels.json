@@ -159,8 +159,8 @@
     "bringImageToFront": "将图像置于顶层",
     "buildingCreasePattern": "正在生成折痕图",
     "canvasDiagnostics": "画布诊断",
-    "caseLabel": "情形",
     "case_other": "情形 {{count}}",
+    "caseLabel": "情形",
     "changeFoldCase": "更改折叠情形",
     "changeFoldedAlpha": "更改折叠透明度",
     "changeFoldedColor": "更改折叠模型颜色",
@@ -197,8 +197,6 @@
     "flipFoldedModel": "翻转折叠模型",
     "fold": "折叠",
     "foldCase": "折叠情形",
-    "foldError": "折叠错误",
-    "foldModelAction": "折叠模型",
     "foldedColor": {
       "back": "背面",
       "backAria": "折叠背面颜色",
@@ -209,8 +207,8 @@
     },
     "foldedDisplayStyle": "折叠显示样式",
     "foldedModelControls": "折叠模型控件",
-    "foldedModelSide": "折叠模型侧面",
     "foldedModels": "折叠模型",
+    "foldedModelSide": "折叠模型侧面",
     "foldedState": {
       "back": "背面",
       "backShort": "B",
@@ -230,7 +228,9 @@
       "wire": "线框"
     },
     "foldedTransparency": "折叠透明度",
+    "foldError": "折叠错误",
     "folding": "正在折叠",
+    "foldModelAction": "折叠模型",
     "goToFoldedCase": "转到折叠情形",
     "insertImage": "插入图像...",
     "linesCount_other": "{{count}} 条线",

@@ -373,8 +373,8 @@ Rust engine, and the simulator.
 - [x] Collapsible folded-figure options: side, front/back colour, fold case (kernel model per fold; case reached with `fold_to_case` on the ephemeral handle)
 - [x] Fixed modal working height so a twenty-pattern document does not stretch it to the viewport
 
-### Phase 4 — i18n + validation
-- [ ] Inline English for all new strings; `npm run i18n:extract`
-- [ ] Translate the 8 locales; `npm run i18n:stamp`; `npm run i18n:check` passes
-- [ ] `cd apps/web && npx tsc --noEmit`, `npm run lint:web`, `npm run test:web`
+### Phase 4 — i18n + validation (done, browser check pending)
+- [x] Inline English for all new strings; `npm run i18n:extract`
+- [x] Translate the 8 locales; `npm run i18n:stamp`; `npm run i18n:check` passes
+- [x] `cd apps/web && npx tsc --noEmit`, `npm run lint:web`, `npm run test:web`
 - [ ] Browser check (Zach): multi-pattern thumbnails scroll + select; dark export; folded figure aligns and matches the preview; PNG renders caption text; single-pattern layout unchanged
