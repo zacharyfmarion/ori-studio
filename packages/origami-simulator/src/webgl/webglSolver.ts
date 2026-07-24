@@ -185,16 +185,23 @@ export class WebglSolver implements SolverBackend {
     const raw = this.gl.readTexture('u_lastVelocity');
     let max = 0;
     let maxStrain = 0;
+    // A NaN never satisfies `>`, so comparing naively would silently swallow it
+    // and report a blown-up model as velocity 0 -- i.e. *converged*, leaving the
+    // simulation stopped on an invisible NaN mesh. Track it explicitly instead so
+    // the caller can see the instability.
+    let nonFinite = false;
     for (let i = 0; i < this.nodeCount; i += 1) {
       for (let axis = 0; axis < 3; axis += 1) {
         const value = Math.abs(raw[i * 4 + axis]!);
-        if (value > max) max = value;
+        if (!Number.isFinite(value)) nonFinite = true;
+        else if (value > max) max = value;
       }
       const strain = raw[i * 4 + 3]!;
-      if (strain > maxStrain) maxStrain = strain;
+      if (!Number.isFinite(strain)) nonFinite = true;
+      else if (strain > maxStrain) maxStrain = strain;
     }
-    this.maxStrain = maxStrain;
-    return max;
+    this.maxStrain = nonFinite ? Number.NaN : maxStrain;
+    return nonFinite ? Number.NaN : max;
   }
 
   get stepCount(): number {

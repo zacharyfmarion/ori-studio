@@ -16,7 +16,12 @@ function fakeBackend(options: {
   let step = 0;
   let clock = 0;
   let arrests = 0;
-  const backend: SolverBackend & { elapsed(): number; arrests(): number } = {
+  let resets = 0;
+  const backend: SolverBackend & {
+    elapsed(): number;
+    arrests(): number;
+    resets(): number;
+  } = {
     step(count) {
       step += count;
       clock += count * options.msPerStep;
@@ -26,6 +31,7 @@ function fakeBackend(options: {
     setMaterial() {},
     reset() {
       step = 0;
+      resets += 1;
     },
     arrestDynamics() {
       arrests += 1;
@@ -48,6 +54,7 @@ function fakeBackend(options: {
     dispose() {},
     elapsed: () => clock,
     arrests: () => arrests,
+    resets: () => resets,
   };
   return { backend, now: () => clock };
 }
@@ -150,11 +157,22 @@ describe('SimulationClock blow-up guard', () => {
     expect((backend as unknown as { arrests(): number }).arrests()).toBeGreaterThan(0);
   });
 
-  it('always arrests on a non-finite velocity, even with the strain limit disabled', () => {
+  it('resets on a non-finite velocity, since draining velocity cannot repair NaN positions', () => {
     const { backend, now } = fakeBackend({ msPerStep: 0.01, velocity: () => Number.NaN });
     const clock = new SimulationClock({ budgetMs: 1, chunkSteps: 5, blowupStrain: 0, now });
     clock.runFrame(backend);
-    expect((backend as unknown as { arrests(): number }).arrests()).toBeGreaterThan(0);
+    const probe = backend as unknown as { arrests(): number; resets(): number };
+    expect(probe.resets()).toBeGreaterThan(0);
+    expect(probe.arrests()).toBe(0);
+  });
+
+  it('never reports a NaN model as converged', () => {
+    // A NaN velocity fails `< epsilon`, so it must not be mistaken for stillness.
+    // Otherwise the clock stops spending budget and the mesh stays invisible.
+    const { backend, now } = fakeBackend({ msPerStep: 0.01, velocity: () => Number.NaN });
+    const clock = new SimulationClock({ budgetMs: 1, chunkSteps: 5, convergenceTicks: 1, now });
+    clock.runFrame(backend);
+    expect(clock.converged).toBe(false);
   });
 
   it('leaves a healthy solve alone', () => {

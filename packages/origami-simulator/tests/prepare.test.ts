@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { createOrigamiSimulator, detectWebGlSupport, prepareFoldModel } from '../src/index.js';
+import {
+  OrigamiModel,
+  ReferenceSolver,
+  createOrigamiSimulator,
+  detectWebGlSupport,
+  prepareFoldModel,
+} from '../src/index.js';
 import { makeBookFoldFixture, maxPositionDelta } from '../src/testing.js';
 
 describe('prepareFoldModel', () => {
@@ -101,6 +107,19 @@ describe('prepareFoldModel', () => {
     const positions = simulator.step(64).positions;
     expect([...positions].every((value) => Number.isFinite(value))).toBe(true);
     simulator.dispose();
+  });
+
+  it('reports a NaN velocity instead of swallowing it as stillness', () => {
+    // NaN never satisfies `>`, so a naive max would report a blown-up model as
+    // velocity 0 -- i.e. converged -- and the simulation would stop on an
+    // invisible mesh instead of recovering.
+    const model = new OrigamiModel(prepareFoldModel(makeBookFoldFixture()));
+    const solver = new ReferenceSolver(model, { foldPercent: 100 });
+    solver.step(8);
+    expect(Number.isFinite(solver.maxVelocity())).toBe(true);
+
+    model.velocities[0] = Number.NaN;
+    expect(Number.isNaN(solver.maxVelocity())).toBe(true);
   });
 
   it('leaves clean geometry untouched', () => {

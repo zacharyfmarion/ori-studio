@@ -149,9 +149,22 @@ export class SimulationClock {
   private guardBlowup(backend: SolverBackend, maxVelocity: number): void {
     const limit = this.options.blowupStrain;
     const strain = backend.readDiagnostics().maxEdgeStrain ?? 0;
-    const nonFinite = !Number.isFinite(maxVelocity) || !Number.isFinite(strain);
-    const exceeds = limit > 0 && Number.isFinite(limit) && strain > limit;
-    if (nonFinite || exceeds) {
+
+    // Already NaN/Infinite: the positions themselves are unrecoverable, and
+    // draining velocity cannot repair them -- every later step keeps propagating
+    // the NaN, so the mesh would stay invisible forever (and, because a NaN
+    // velocity compares as "no movement", the clock would call it converged and
+    // stop). Restore the flat rest state; the fold target is untouched, so the
+    // model re-folds toward it instead of vanishing.
+    if (!Number.isFinite(maxVelocity) || !Number.isFinite(strain)) {
+      backend.reset();
+      this.settledTicks = 0;
+      return;
+    }
+
+    // Still finite but diverging: drain the runaway velocity early, which keeps
+    // the fold state and usually avoids reaching NaN at all.
+    if (limit > 0 && Number.isFinite(limit) && strain > limit) {
       backend.arrestDynamics();
       this.settledTicks = 0;
     }

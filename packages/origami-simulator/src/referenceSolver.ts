@@ -173,6 +173,9 @@ export class ReferenceSolver implements SolverBackend {
     const velocities = this.model.velocities;
     for (let i = 0; i < velocities.length; i += 1) {
       const value = velocities[i]! < 0 ? -velocities[i]! : velocities[i]!;
+      // NaN never satisfies `>`, so a naive comparison would swallow it and
+      // report a blown-up model as converged. See WebglSolver.maxVelocity.
+      if (!Number.isFinite(value)) return Number.NaN;
       if (value > max) max = value;
     }
     return max;

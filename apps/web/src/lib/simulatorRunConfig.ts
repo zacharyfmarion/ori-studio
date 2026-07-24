@@ -30,7 +30,7 @@ const WHOLE_RUN_CONFIG: SimulatorRunConfig = {
     // < 1 shrinks the integration step below the axial-only stability bound for
     // headroom against crease stiffness. The interactive worker runs many steps
     // per frame, so the extra steps cost little.
-    timeStepScale: 0.6,
+    timeStepScale: 0.5,
   },
 };
 
