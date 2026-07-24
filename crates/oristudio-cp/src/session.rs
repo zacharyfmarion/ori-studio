@@ -739,4 +739,62 @@ mod tests {
         let session = CpSession::new();
         assert!(!session.operation_descriptors().is_empty());
     }
+
+    /// Documents behind distinct handles are fully independent: editing one
+    /// leaves the others byte-identical. The web app relies on this to keep more
+    /// than one crease pattern live at once (the editor's document plus the
+    /// tutorial's practice document), so the isolation is asserted here rather
+    /// than assumed.
+    #[test]
+    fn concurrent_handles_are_isolated() {
+        use crate::geometry::{LineSegment, Point};
+
+        let mut session = CpSession::new();
+        let editor = session.load_cp(SQUARE_CP, "editor").expect("load editor");
+        let practice = session
+            .load_cp(SQUARE_CP, "practice")
+            .expect("load practice");
+        assert_ne!(editor, practice, "each load gets its own arena slot");
+
+        let editor_before = session.export_cp(editor).expect("export editor");
+
+        // Mutate only the practice document.
+        let diagonal = LineSegment::new(Point::new(0.0, 0.0), Point::new(1.0, 1.0));
+        session
+            .insert_line_segments(practice, &[diagonal])
+            .expect("insert into practice");
+
+        assert_eq!(
+            session.document_summary(practice).unwrap().line_segments,
+            5,
+            "the edited document gained the diagonal"
+        );
+        assert_eq!(
+            session.document_summary(editor).unwrap().line_segments,
+            4,
+            "the untouched document kept its own line count"
+        );
+        assert_eq!(
+            session.export_cp(editor).expect("re-export editor"),
+            editor_before,
+            "the untouched document is byte-identical after the other was edited"
+        );
+
+        // A transient third handle (how the tutorial parses a target pattern)
+        // neither disturbs the live documents nor invalidates them when freed.
+        let target = session.load_cp(SQUARE_CP, "target").expect("load target");
+        let geometry = session.document_geometry(target).expect("target geometry");
+        assert!(!geometry.seg_endpoints.is_empty());
+        session.free_document(target).expect("free target");
+
+        assert_eq!(
+            session.export_cp(editor).expect("editor survives"),
+            editor_before
+        );
+        assert_eq!(
+            session.document_summary(practice).unwrap().line_segments,
+            5,
+            "practice survives the transient handle's lifecycle"
+        );
+    }
 }
