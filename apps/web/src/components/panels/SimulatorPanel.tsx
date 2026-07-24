@@ -97,7 +97,12 @@ const PAPER_EDGE_DEPTH_EPSILON = 0.006;
 // Readouts (step/strain/fold%) update at most this often; see handleFrame.
 const READOUT_INTERVAL_MS = 66;
 const INITIAL_FOLD_PERCENT = 0;
-const DEFAULT_VIEW: SimulatorView = { yaw: 0, pitch: 0.38, zoom: 1 };
+// Isometric "lying on a table" view, matching upstream Origami Simulator's
+// initial camera (eye on the (1,1,1) diagonal looking at the origin). The paper
+// is flat in the XZ plane, so a 45deg yaw gives the diamond orientation and
+// ~0.955 rad pitch (35.26deg elevation) the iso foreshortening. Positive pitch
+// keeps the lit front face toward the camera.
+const DEFAULT_VIEW: SimulatorView = { yaw: Math.PI / 4, pitch: 0.955, zoom: 1 };
 const DEFAULT_VIEW_SETTINGS: SimulatorViewSettings = {
   renderMode: 'paper',
   showFaces: true,
