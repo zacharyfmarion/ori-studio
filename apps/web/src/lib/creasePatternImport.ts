@@ -171,6 +171,32 @@ export function foldArtifactsFromFold(
   };
 }
 
+/**
+ * Fold artifacts carrying only what crease-pattern *segmentation* needs — the
+ * base fold with faces — and deliberately **not** the simulation model.
+ *
+ * Building the simulation model (`prepareSimulationFold`: triangulation +
+ * adjacency + crease params) costs seconds on large documents, but segmentation
+ * only reads faces (which the kernel already computes on export). Segment ids are
+ * identical to the full artifacts' (same coordinates ⇒ same regions and
+ * top-left ordering), so callers can scope export/simulate by the resulting
+ * `segmentId` interchangeably. Use this anywhere a live selection needs segments
+ * without paying for the simulation mesh; the simulator still builds the full
+ * artifacts when it is actually entered.
+ */
+export function segmentationFoldArtifactsFromFold(
+  fold: FoldDocument,
+  diagnostics: ImportedCreasePatternDiagnostics = { warnings: [], errors: [] }
+): FoldArtifacts {
+  return {
+    fold: fold.faces_vertices?.length ? fold : inferTopology(fold, diagnostics),
+    folded_base: null,
+    folded_base_error: null,
+    simulation_model: null,
+    simulation_model_error: null,
+  };
+}
+
 function parseCpText(
   text: string,
   filename: string,

@@ -430,9 +430,10 @@ export interface CreasePatternSliceActions {
   setSelectedSegment: (id: number | null) => void;
   /**
    * Scope the simulator to one crease-pattern segment and switch to the Simulate
-   * workspace. Returns false when the id no longer resolves to a segment.
+   * workspace. Ensures the full fold artifacts first (the simulator needs the
+   * simulation mesh). Resolves false when the id no longer resolves to a segment.
    */
-  simulateOristudioCpSegment: (segmentId: number) => boolean;
+  simulateOristudioCpSegment: (segmentId: number) => Promise<boolean>;
   setSequenceSimulationFocus: (focus: SequenceSimulationFocus) => void;
   setOristudioCpViewportOption: <K extends OristudioCpViewportOptionKey>(
     key: K,

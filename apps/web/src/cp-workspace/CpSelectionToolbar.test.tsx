@@ -9,6 +9,12 @@ import { emptyOristudioCpSelection } from '../lib/creasePatternViewport';
 import { TooltipProvider } from '../components/ui/Tooltip';
 import { CpSelectionToolbar } from './CpSelectionToolbar';
 
+// The toolbar fetches segments-only artifacts via the kernel export; stub that
+// async source so the test drives the resolver with a fixed fold.
+vi.mock('./cpSegmentationArtifacts', () => ({
+  ensureCpSegmentationArtifacts: vi.fn(async () => ({ fold: makeFold(), simulation_model: null })),
+}));
+
 function renderToolbar(root: Root, container: HTMLElement): void {
   root.render(
     <TooltipProvider>
@@ -126,15 +132,15 @@ describe('CpSelectionToolbar', () => {
     container.remove();
   });
 
-  it('renders nothing when the selection is not a complete enclosed segment', () => {
+  it('renders nothing when the selection is not a complete enclosed segment', async () => {
     seedStore([7, 8]); // interior-only, partial
-    act(() => renderToolbar(root, container));
+    await act(async () => renderToolbar(root, container));
     expect(document.querySelector('[role="toolbar"]')).toBeNull();
   });
 
-  it('renders the action toolbar when the selection matches one segment', () => {
+  it('renders the action toolbar when the selection matches one segment', async () => {
     seedStore([1, 3, 5, 7, 8]); // the complete left region
-    act(() => renderToolbar(root, container));
+    await act(async () => renderToolbar(root, container));
     const toolbar = document.querySelector('[role="toolbar"]');
     expect(toolbar).not.toBeNull();
     // Fold, Export, Save to image, Simulate.
@@ -144,22 +150,22 @@ describe('CpSelectionToolbar', () => {
     expect(document.querySelector('button[aria-label="Export…"]')).not.toBeNull();
   });
 
-  it('dismisses itself when an action is invoked', () => {
+  it('dismisses itself when an action is invoked', async () => {
     seedStore([1, 3, 5, 7, 8]);
-    act(() => renderToolbar(root, container));
+    await act(async () => renderToolbar(root, container));
     const save = document.querySelector<HTMLButtonElement>('button[aria-label="Save to image"]');
     expect(save).not.toBeNull();
-    act(() => save!.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    await act(async () => save!.dispatchEvent(new MouseEvent('click', { bubbles: true })));
     // The action clears the selection, so the resolver no longer matches.
     expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual([]);
     expect(document.querySelector('[role="toolbar"]')).toBeNull();
   });
 
-  it('hides again when the selection is cleared', () => {
+  it('hides again when the selection is cleared', async () => {
     seedStore([1, 3, 5, 7, 8]);
-    act(() => renderToolbar(root, container));
+    await act(async () => renderToolbar(root, container));
     expect(document.querySelector('[role="toolbar"]')).not.toBeNull();
-    act(() => {
+    await act(async () => {
       useWorkspaceStore.setState({ oristudioCpSelection: emptyOristudioCpSelection() });
       renderToolbar(root, container);
     });

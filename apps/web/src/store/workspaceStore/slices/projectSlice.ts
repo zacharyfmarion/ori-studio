@@ -24,6 +24,7 @@ import {
   isSegmentImageFormat,
   type SegmentExportFormat,
 } from '../../../lib/creaseSegmentExport';
+import { ensureCpSegmentationArtifacts } from '../../../cp-workspace/cpSegmentationArtifacts';
 import {
   importedCreasePatternFormat,
   isCreasePatternFilename,
@@ -2223,9 +2224,10 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       fileService = getFileService()
     ) => {
       try {
-        // Capture the artifacts once so the segment id can't drift under a
-        // concurrent edit mid-export.
-        const foldArtifacts = get().foldArtifacts ?? (await get().ensureFoldArtifacts());
+        // Segments-only artifacts (no simulation mesh) keep per-region export off
+        // the multi-second prepareSimulationFold path; captured once so the segment
+        // id can't drift under a concurrent edit mid-export.
+        const foldArtifacts = await ensureCpSegmentationArtifacts(get().oristudioCpDocument?.document);
         if (!foldArtifacts) return false;
         const patternTitle = `${get().project.title} pattern ${segmentId + 1}`;
 

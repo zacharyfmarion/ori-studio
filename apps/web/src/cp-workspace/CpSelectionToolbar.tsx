@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
@@ -7,15 +7,12 @@ import { FloatingToolbar } from '../components/ui/FloatingToolbar';
 import { IconButton } from '../components/ui/IconButton';
 import { useCanvasObjectAnchor } from './canvasObjects/useCanvasObjectAnchor';
 import type { AnnotationBox } from './annotations/annotationTransform';
+import type { FoldArtifacts } from '../engine/types';
 import { useWorkspaceStore } from '../store/workspaceStore/store';
 import { cpLineSelectionBounds, selectedCpLineSegments } from '../lib/creasePatternClipboard';
 import { resolveSelectedSegment } from '../lib/creasePatternSelectionSegment';
 import { SEGMENT_EXPORT_FORMATS, type SegmentExportFormat } from '../lib/creaseSegmentExport';
-
-// Delay before pulling fold artifacts for a fresh selection. Segmentation needs a
-// CP→FOLD export + triangulation, so it must stay off the edit hot path; a short
-// settle keeps it from firing on every keystroke of a marquee drag.
-const ENSURE_ARTIFACTS_DELAY_MS = 200;
+import { ensureCpSegmentationArtifacts } from './cpSegmentationArtifacts';
 
 // Literal keys so the i18n extractor can see them (see apps/web/CLAUDE.md).
 function exportFormatLabel(format: SegmentExportFormat, t: TFunction): string {
@@ -87,27 +84,31 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
   const { t } = useTranslation();
   const selection = useWorkspaceStore((s) => s.oristudioCpSelection);
   const cpDocument = useWorkspaceStore((s) => s.oristudioCpDocument?.document ?? null);
-  const foldArtifacts = useWorkspaceStore((s) => s.foldArtifacts);
-  const ensureFoldArtifacts = useWorkspaceStore((s) => s.ensureFoldArtifacts);
   const foldOristudioCpDocument = useWorkspaceStore((s) => s.foldOristudioCpDocument);
   const exportSegment = useWorkspaceStore((s) => s.exportOristudioCpSegment);
   const simulateSegment = useWorkspaceStore((s) => s.simulateOristudioCpSegment);
   const clearSelection = useWorkspaceStore((s) => s.clearOristudioCpSelection);
 
-  // Only a line selection can form a segment. Ensure artifacts lazily (debounced)
-  // when one exists and none are cached — never forcing a recompute.
+  // Segments-only artifacts (no simulation mesh — see ensureCpSegmentationArtifacts):
+  // cheap enough to fetch on demand. Only a line selection can form a segment, and
+  // the document is stable while a selection is held, so the cache resolves this
+  // once per document without churning during a marquee.
+  const [segmentation, setSegmentation] = useState<FoldArtifacts | null>(null);
   const hasLineSelection = selection.lines.length > 0;
   useEffect(() => {
-    if (!hasLineSelection || foldArtifacts) return undefined;
-    const timer = window.setTimeout(() => {
-      void ensureFoldArtifacts();
-    }, ENSURE_ARTIFACTS_DELAY_MS);
-    return () => window.clearTimeout(timer);
-  }, [hasLineSelection, foldArtifacts, ensureFoldArtifacts]);
+    if (!hasLineSelection || !cpDocument) return undefined;
+    let cancelled = false;
+    void ensureCpSegmentationArtifacts(cpDocument).then((artifacts) => {
+      if (!cancelled) setSegmentation(artifacts);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [hasLineSelection, cpDocument]);
 
   const match = useMemo(
-    () => resolveSelectedSegment(cpDocument, selection, foldArtifacts),
-    [cpDocument, selection, foldArtifacts]
+    () => resolveSelectedSegment(cpDocument, selection, segmentation),
+    [cpDocument, selection, segmentation]
   );
 
   const box: AnnotationBox | null = useMemo(() => {
@@ -162,7 +163,7 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
         size="sm"
         variant="toolbar"
         title={t('panels:creasePattern.selectionToolbar.simulate', 'Simulate')}
-        onClick={() => runAndDismiss(() => simulateSegment(segmentId))}
+        onClick={() => runAndDismiss(() => void simulateSegment(segmentId))}
       >
         <Play size={14} />
       </IconButton>
