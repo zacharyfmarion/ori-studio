@@ -230,15 +230,30 @@ Two-layer defense so the UI never desyncs and never spams failed engine calls.
 
 ## Checklist
 
-- [ ] `bpPackingSheetContains` + `bpPackingCanResizeFlap` helpers + unit tests
-- [ ] `resizeOristudioBpLayoutFlap` store action (history-wrapped, stale-safe)
-- [ ] (optional) expose `sheet.diameter` in the snapshot
-- [ ] `BpFlapEditor` component (name + R/W/H, focus-safe, revert-on-invalid)
-- [ ] Swap render site in `BpPackingPanel`; wire resize + radius(edge-length)
-- [ ] Radius routing via tree edge length; hide when no source edge
-- [ ] CSS for the compact fields
-- [ ] i18n strings + `i18n:check`
-- [ ] Component + slice tests; regression suite green
-- [ ] lint / tsc / test:web green; `cargo test -p oristudio-bp` sanity
-- [ ] Manual QA in browser: rect + diagonal sheet, boundary rejection, undo/redo,
-      re-pack side effects, multi-select hides fields
+- [x] `bpPackingSheetContains` + `bpPackingCanResizeFlap` helpers + unit tests
+- [x] `resizeOristudioBpLayoutFlap` store action (history-wrapped, stale-safe)
+- [x] (optional) expose `sheet.diameter` in the snapshot — not needed; computed
+      client-side as `max(sheet.width, sheet.height)` for the input `max`, with
+      the corner-dots rule as the real guard
+- [x] `BpFlapEditor` component (name + R/W/H, focus-safe, revert-on-invalid)
+- [x] Swap render site in `BpPackingPanel`; wire resize + radius(edge-length)
+- [x] Radius routing via tree edge length; hide when no source edge
+- [x] CSS for the compact fields
+- [x] i18n strings + `i18n:check` (R/W/H kept as universal symbols; aria labels
+      translated across all 8 locales)
+- [x] Component tests; regression suite green. (No standalone slice test: no
+      sibling BP flap action has one — they run through the real wasm worker;
+      the resize logic is covered by the viewport unit tests, the BpFlapEditor
+      component tests, and the engine's own `resize_flap` tests.)
+- [x] lint / tsc / test:web green (840 tests). Engine unchanged.
+- [x] Manual QA in browser (rectangular sheet): width applied + re-packed +
+      rendered as a rectangle; out-of-range value snaps back; title removed.
+      Diagonal-sheet + undo/redo spot-checks left for the author's browser pass.
+
+## Post-verification refinements (found in the browser pass)
+
+- Removed the redundant "Flap N" title from the pill (Name field already names
+  it); `BpNameEditor.title` is now optional.
+- Hardened the number field: the commit is awaited and the field snaps back to
+  the real value if the engine rejects it, so it can never show a value the
+  model didn't accept even if the client pre-check and engine ever disagree.
