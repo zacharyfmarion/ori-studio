@@ -52,29 +52,61 @@ export interface ShortcutRegistryDiagnostics {
   }>;
 }
 
+/**
+ * Default keystrokes keyed by Oriedita `upstreamAction`.
+ *
+ * Only crease-pattern tool actions are *driven* by this table (see
+ * {@link defaultChordForCpAction}); the menu/global entries below are kept as
+ * upstream reference, since those chords are declared in {@link MENU_SHORTCUTS}.
+ *
+ * The single-key layout follows Robert Brandon Wong's Oriedita-optimized
+ * scheme: the left hand rests on the home row and drives the frequent tool and
+ * line-type switches while the right hand stays on the mouse. Departures from
+ * upstream Oriedita are marked "Ori Studio deviation".
+ */
 const ORIEDITA_DEFAULTS: Record<string, string> = {
-  lengthenCrease2Action: 'E',
+  // -- Tool / mode (left hand, upper row) --------------------------------
+  selectAction: 'Q',
+  moveAction: 'W',
+  copyAction: '2',
+
+  // -- Line types (left-hand home row) -----------------------------------
+  colRedAction: 'A', // Mountain
+  colBlueAction: 'S', // Valley
+  colBlackAction: 'D', // Edge
+  colCyanAction: 'F', // Auxiliary
+
+  // -- Draw / construct --------------------------------------------------
+  drawCreaseFreeAction: 'Z', // free line
+  perpendicularDrawAction: 'Y',
   angleBisectorAction: 'B',
+  lengthenCrease2Action: 'E',
+  makeFlatFoldableAction: 'T', // flat-foldable line (the rail-visible tool)
+  deg2Action: 'R', // radial / angle-restricted snapping (22.5, 30, 15 deg)
+  fishBoneDrawAction: 'H', // Oriedita labels this button "gridFill"
   rabbitEarAction: 'ctrl B',
-  perpendicularDrawAction: 'P',
-  symmetricDrawAction: 'R',
   continuousSymmetricDrawAction: 'ctrl R',
-  foldableLineDrawAction: 'N',
-  fishBoneDrawAction: 'G',
   doubleSymmetricDrawAction: 'ctrl G',
-  // Ori Studio deviation from Oriedita: bind L to the default Line tool.
-  drawCreaseFreeAction: 'L',
   reflectAction: 'ctrl M',
+  // `symmetricDrawAction` (Mirror Line) intentionally has no default: Brandon's
+  // layout claims R for radial snapping. It stays available from the tool rail.
+
+  // -- Mountain / valley -------------------------------------------------
+  senbun_henkan2Action: 'C', // flip M/V of the selection
+  in_L_col_changeAction: 'X', // alternate M/V along a line (ridges)
+
+  // -- Fold --------------------------------------------------------------
+  foldAction: 'G',
+
+  // -- Upstream reference (chords declared in MENU_SHORTCUTS) -------------
   selectAllAction: 'ctrl A',
   deleteSelectedLineSegmentAction: 'DELETE',
-  senbun_henkan2Action: 'C',
   v_del_allAction: 'ctrl shift V',
-  colRedAction: 'M',
-  colBlueAction: 'V',
+  // Unmapped: no CP action carries this upstream yet, so it yields no chord.
+  // Binding it would need a key other than G, which fold now owns.
   gridConfigureAction: 'G',
   undoAction: 'ctrl Z',
   redoAction: 'ctrl shift Z',
-  foldAction: 'F',
   foldedFigureFlipAction: 'ctrl alt F',
   haltAction: 'ESCAPE',
   foldedFigureTrashAction: 'ctrl F',

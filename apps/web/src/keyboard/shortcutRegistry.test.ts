@@ -67,3 +67,54 @@ describe('shortcut registry invariants', () => {
     }
   });
 });
+
+/**
+ * The adopted single-key layout, pinned key-by-key. `ORIEDITA_DEFAULTS` is
+ * matched by `upstreamAction`, so a command whose upstream changes would
+ * silently lose its key without this table.
+ */
+const EXPECTED_SINGLE_KEY_LAYOUT: ReadonlyArray<[chord: string, actionId: string]> = [
+  // Tool / mode
+  ['q', 'cp.action.crease-select'],
+  ['w', 'cp.action.crease-move'],
+  ['2', 'cp.action.crease-copy'],
+  // Line types (left-hand home row)
+  ['a', 'cp.action.line-type.mountain'],
+  ['s', 'cp.action.line-type.valley'],
+  ['d', 'cp.action.line-type.edge'],
+  ['f', 'cp.action.line-type.auxiliary'],
+  // Draw / construct
+  ['z', 'cp.action.draw-crease'],
+  ['y', 'cp.action.perpendicular-draw'],
+  ['b', 'cp.action.square-bisector'],
+  ['e', 'cp.action.lengthen-crease-same-color'],
+  ['t', 'cp.action.vertex-make-angularly-flat-foldable'],
+  ['r', 'cp.action.draw-crease-angle-restricted5'],
+  ['h', 'cp.action.fish-bone-draw'],
+  // Mountain / valley
+  ['c', 'cp.action.crease-toggle-mv'],
+  ['x', 'cp.action.crease-make-mv'],
+  // Fold
+  ['g', 'cp.action.folding-estimate'],
+];
+
+describe('adopted single-key layout', () => {
+  const byChord = new Map<string, string[]>();
+  for (const definition of SHORTCUT_DEFINITIONS) {
+    for (const chord of definition.defaultChords) {
+      const id = keyChordId(chord);
+      byChord.set(id, [...(byChord.get(id) ?? []), definition.id]);
+    }
+  }
+
+  it.each(EXPECTED_SINGLE_KEY_LAYOUT)('binds %s to %s', (chord, actionId) => {
+    expect(byChord.get(chord)).toEqual([actionId]);
+  });
+
+  it('leaves the keys the remap freed unbound', () => {
+    // M/V/L/P/N were the pre-adoption line-type and draw keys.
+    for (const freed of ['m', 'v', 'l', 'p', 'n']) {
+      expect(byChord.get(freed)).toBeUndefined();
+    }
+  });
+});
