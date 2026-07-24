@@ -157,6 +157,56 @@ describe('resolveSelectedSegment', () => {
     expect(resolveSelectedSegment(makeDocument(), selection(LEFT_LINE_IDS), null)).toBeNull();
   });
 
+  it('includes a crease that lies inside the region but bounds no face', () => {
+    // Real documents leave a slice of creases attributed to no face at all (face
+    // inference is imperfect). They are plainly inside the region on screen, so
+    // they belong to it and must be part of the expected set — otherwise
+    // selecting the region could never match.
+    const withOrphan: Array<[number, number, number, number, string]> = [
+      ...LINES,
+      [0.2, 0.5, 0.3, 0.5, 'Red1'], // id 10: floats inside the left square
+    ];
+    const doc = makeDocument(withOrphan);
+    // The fold is unchanged, so this crease is in no face's edge list.
+    expect(resolveSelectedSegment(doc, selection(LEFT_LINE_IDS), makeArtifacts())).toBeNull();
+    const match = resolveSelectedSegment(doc, selection([...LEFT_LINE_IDS, 10]), makeArtifacts());
+    expect(match?.segmentId).toBe(0);
+    expect(match?.cpLineIds).toEqual([...LEFT_LINE_IDS, 10]);
+  });
+
+  it('rejects a region whose rim is not entirely border creases', () => {
+    // Same single square, but one rim edge is a mountain crease: not a
+    // self-contained crease pattern, so it is not offered.
+    const fold: FoldDocument = {
+      vertices_coords: [
+        [0, 0],
+        [1, 0],
+        [0, 1],
+        [1, 1],
+      ],
+      edges_vertices: [
+        [0, 1],
+        [0, 2],
+        [1, 3],
+        [2, 3],
+        [0, 3],
+      ],
+      edges_assignment: ['B', 'B', 'B', 'M', 'M'],
+      faces_vertices: [
+        [0, 1, 3],
+        [0, 3, 2],
+      ],
+    };
+    const doc = makeDocument([
+      [0, 0, 1, 0, 'Black0'],
+      [0, 0, 0, 1, 'Black0'],
+      [1, 0, 1, 1, 'Black0'],
+      [0, 1, 1, 1, 'Red1'],
+      [0, 0, 1, 1, 'Red1'],
+    ]);
+    expect(resolveSelectedSegment(doc, selection([1, 2, 3, 4, 5]), makeArtifacts(fold))).toBeNull();
+  });
+
   it('treats a single whole-sheet region as a matchable segment', () => {
     // One square, four borders + one diagonal crease → a single segment whose
     // complete crease set (all 5 lines) triggers a match.

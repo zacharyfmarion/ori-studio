@@ -24,13 +24,18 @@ export function ensureCpSegmentationArtifacts(
   const cached = cache.get(document);
   if (cached) return cached;
   const pending = (async (): Promise<FoldArtifacts | null> => {
-    try {
-      const fold = JSON.parse(await exportOristudioCpDocumentAsFold()) as FoldDocument;
-      return segmentationFoldArtifactsFromFold(fold);
-    } catch {
-      return null;
-    }
-  })();
+    const fold = JSON.parse(await exportOristudioCpDocumentAsFold()) as FoldDocument;
+    return segmentationFoldArtifactsFromFold(fold);
+  })().catch((error: unknown) => {
+    // Never cache a failure: the document snapshot is stable across selection
+    // changes, so a single transient error (e.g. the kernel handle not yet ready)
+    // would otherwise disable the toolbar for the rest of the document's life.
+    // Drop the entry so the next selection retries, and report rather than
+    // swallow — a silently absent toolbar is indistinguishable from "no match".
+    cache.delete(document);
+    console.warn('Crease-pattern segmentation failed; selection actions unavailable.', error);
+    return null;
+  });
   cache.set(document, pending);
   return pending;
 }
