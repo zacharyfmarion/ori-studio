@@ -85,7 +85,7 @@ function edgeKey(a: number, b: number): string {
  * an ordinary mountain/valley crease is not a self-contained crease pattern, so
  * it is not offered for folding, export, or simulation.
  */
-function boundaryIsAllBorder(fold: FoldDocument, segment: CpSegment): boolean {
+function rimAssignmentCounts(fold: FoldDocument, segment: CpSegment): { rim: number; nonBorder: number } {
   const faces = fold.faces_vertices ?? [];
   const useCount = new Map<string, number>();
   for (const faceIndex of segment.faceIndices) {
@@ -105,12 +105,15 @@ function boundaryIsAllBorder(fold: FoldDocument, segment: CpSegment): boolean {
     assignmentByKey.set(edgeKey(edge[0], edge[1]), assignments[index] ?? 'U');
   });
 
+  let rim = 0;
+  let nonBorder = 0;
   for (const [key, count] of useCount) {
     // Used once by this region's faces ⇒ it is on the region's rim.
     if (count !== 1) continue;
-    if (assignmentByKey.get(key) !== BORDER_ASSIGNMENT) return false;
+    rim += 1;
+    if (assignmentByKey.get(key) !== BORDER_ASSIGNMENT) nonBorder += 1;
   }
-  return true;
+  return { rim, nonBorder };
 }
 
 interface SegmentContainment {
@@ -119,6 +122,8 @@ interface SegmentContainment {
   lineIds: number[][];
   /** `eligible[i]` = whether `segments[i]` is fully rimmed by border creases. */
   eligible: boolean[];
+  /** Rim edge totals per segment, retained for `explainSelectedSegment`. */
+  rim: Array<{ rim: number; nonBorder: number }>;
 }
 
 /**
@@ -140,7 +145,8 @@ function segmentContainment(
 
   const fold = simulationFoldOf(artifacts);
   const lineIds: number[][] = segments.map(() => []);
-  const eligible = segments.map((segment) => boundaryIsAllBorder(fold, segment));
+  const rim = segments.map((segment) => rimAssignmentCounts(fold, segment));
+  const eligible = rim.map((counts) => counts.nonBorder === 0);
 
   document.crease_pattern.line_segments.forEach((line, index) => {
     const midpoint = { x: (line.a.x + line.b.x) / 2, y: (line.a.y + line.b.y) / 2 };
@@ -161,7 +167,7 @@ function segmentContainment(
   });
 
   for (const ids of lineIds) ids.sort((a, b) => a - b);
-  const result: SegmentContainment = { document, lineIds, eligible };
+  const result: SegmentContainment = { document, lineIds, eligible, rim };
   containmentCache.set(artifacts, result);
   return result;
 }
@@ -173,6 +179,86 @@ function sameIdSet(selection: readonly number[], segmentIds: readonly number[]):
   return segmentIds.every((id) => seen.has(id));
 }
 
+export interface SelectionSegmentDiagnosis {
+  /** Why no match, when there is none — the first failing precondition. */
+  reason:
+    | 'matched'
+    | 'no-document'
+    | 'no-artifacts'
+    | 'empty-selection'
+    | 'no-segments'
+    | 'no-region-matches';
+  documentLines: number;
+  selectedLines: number;
+  foldFaces: number;
+  segments: number;
+  /** Per-region detail, ranked by how close the selection came to matching. */
+  regions: Array<{
+    id: number;
+    rimEdges: number;
+    rimNonBorder: number;
+    eligible: boolean;
+    containedLines: number;
+    /** Selected but not in this region. */
+    extraInSelection: number;
+    /** In this region but not selected. */
+    missingFromSelection: number;
+  }>;
+}
+
+/**
+ * Explain what the resolver saw. Every rejection path in
+ * {@link resolveSelectedSegment} collapses to `null`, which is indistinguishable
+ * from "no match" in the UI; this reports which precondition actually failed and
+ * how far each region was from matching. Intended for the dev console.
+ */
+export function explainSelectedSegment(
+  document: OristudioCpDocumentSnapshot | null | undefined,
+  selection: OristudioCpSelection,
+  artifacts: FoldArtifacts | null | undefined
+): SelectionSegmentDiagnosis {
+  const base: SelectionSegmentDiagnosis = {
+    reason: 'matched',
+    documentLines: document?.crease_pattern.line_segments.length ?? 0,
+    selectedLines: selection.lines.length,
+    foldFaces: artifacts ? (simulationFoldOf(artifacts).faces_vertices?.length ?? 0) : 0,
+    segments: 0,
+    regions: [],
+  };
+  if (!document) return { ...base, reason: 'no-document' };
+  if (!artifacts) return { ...base, reason: 'no-artifacts' };
+  if (selection.lines.length === 0) return { ...base, reason: 'empty-selection' };
+
+  const segments = resolveCpSegments(artifacts);
+  base.segments = segments.length;
+  if (segments.length === 0) return { ...base, reason: 'no-segments' };
+
+  const { lineIds, eligible, rim } = segmentContainment(artifacts, document, segments);
+  const selected = new Set(selection.lines);
+  const regions = segments.map((segment, s) => {
+    const ids = lineIds[s]!;
+    const contained = new Set(ids);
+    return {
+      id: segment.id,
+      rimEdges: rim[s]!.rim,
+      rimNonBorder: rim[s]!.nonBorder,
+      eligible: eligible[s]!,
+      containedLines: ids.length,
+      extraInSelection: [...selected].filter((id) => !contained.has(id)).length,
+      missingFromSelection: ids.filter((id) => !selected.has(id)).length,
+    };
+  });
+  regions.sort(
+    (a, b) =>
+      a.extraInSelection + a.missingFromSelection - (b.extraInSelection + b.missingFromSelection)
+  );
+
+  const matched = regions.some(
+    (r) => r.eligible && r.containedLines > 0 && r.extraInSelection === 0 && r.missingFromSelection === 0
+  );
+  return { ...base, reason: matched ? 'matched' : 'no-region-matches', regions };
+}
+
 /**
  * Resolve the current crease selection to the single border-enclosed crease
  * pattern it exactly constitutes, or `null` when the selection is empty, spans
@@ -181,6 +267,8 @@ function sameIdSet(selection: readonly number[], segmentIds: readonly number[]):
  * border creases — so the result is always a complete, self-contained pattern.
  *
  * Only `selection.lines` participates; selected points/circles/texts are ignored.
+ * When this returns `null` and you need to know why, see
+ * {@link explainSelectedSegment}.
  */
 export function resolveSelectedSegment(
   document: OristudioCpDocumentSnapshot | null | undefined,

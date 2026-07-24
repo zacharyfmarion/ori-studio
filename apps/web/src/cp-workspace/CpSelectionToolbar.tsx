@@ -13,6 +13,8 @@ import { cpLineSelectionBounds, selectedCpLineSegments } from '../lib/creasePatt
 import { resolveSelectedSegment } from '../lib/creasePatternSelectionSegment';
 import { SEGMENT_EXPORT_FORMATS, type SegmentExportFormat } from '../lib/creaseSegmentExport';
 import { ensureCpSegmentationArtifacts } from './cpSegmentationArtifacts';
+// Registers `__cpToolbarDebug()` in dev builds; no-op in production.
+import './cpSelectionToolbarDebug';
 
 // Literal keys so the i18n extractor can see them (see apps/web/CLAUDE.md).
 function exportFormatLabel(format: SegmentExportFormat, t: TFunction): string {
