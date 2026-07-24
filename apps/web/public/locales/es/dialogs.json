@@ -34,19 +34,19 @@
     "rectified": "Rectificado",
     "report": {
       "ambiguous": "ambiguo",
-      "assignmentChange_one": "{{count}} cambio de asignación",
       "assignmentChange_many": "{{count}} cambio de asignación",
+      "assignmentChange_one": "{{count}} cambio de asignación",
       "assignmentChange_other": "{{count}} cambio de asignación",
-      "assignmentChanges_one": "{{count}} cambios de asignación",
       "assignmentChanges_many": "{{count}} cambios de asignación",
+      "assignmentChanges_one": "{{count}} cambios de asignación",
       "assignmentChanges_other": "{{count}} cambios de asignación",
       "compilerFallback": "alternativa del compilador",
       "counts": "{{vertices}} vértices, {{edges}} aristas",
-      "topologyMove_one": "{{count}} movimiento de topología",
       "topologyMove_many": "{{count}} movimiento de topología",
+      "topologyMove_one": "{{count}} movimiento de topología",
       "topologyMove_other": "{{count}} movimiento de topología",
-      "topologyMoves_one": "{{count}} movimientos de topología",
       "topologyMoves_many": "{{count}} movimientos de topología",
+      "topologyMoves_one": "{{count}} movimientos de topología",
       "topologyMoves_other": "{{count}} movimientos de topología"
     },
     "runningModel": "Ejecutando el modelo",
@@ -174,8 +174,8 @@
     },
     "title": "Configuración",
     "workspace": {
-      "folding": "Plegado",
       "foldWarning": "Avisar antes de plegar un patrón de pliegues con errores de plegado plano",
+      "folding": "Plegado",
       "layout": "Disposición",
       "resetButton": "Restablecer disposición del espacio de trabajo",
       "resetMessage": "¿Restaurar la disposición predeterminada del espacio de trabajo actual?",
@@ -202,6 +202,10 @@
     "preparing": "Preparando el editor...",
     "showWelcomeOnStartup": "Mostrar bienvenida al iniciar",
     "startOptions": "Opciones de inicio",
-    "title": "Iniciar un nuevo espacio de trabajo de origami"
+    "title": "Iniciar un nuevo espacio de trabajo de origami",
+    "tutorial": {
+      "description": "Lecciones breves que enseñan el editor haciéndote dibujar en él. Tu propio trabajo permanece intacto.",
+      "title": "Hacer el tutorial"
+    }
   }
 }

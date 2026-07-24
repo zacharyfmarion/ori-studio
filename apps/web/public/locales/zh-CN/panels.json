@@ -283,8 +283,8 @@
     "layerCircles": "圆",
     "layerLabels": "标签",
     "layerPaths": "路径",
-    "layers": "图层",
     "layerSymmetry": "对称",
+    "layers": "图层",
     "legendActivePath": "当前路径",
     "legendScale": "比例 {{value}}",
     "legendTerminal": "端点",
@@ -496,15 +496,15 @@
   "simulatorSegments": {
     "creasePatterns": "折痕图",
     "patternLabel": "折痕图 {{n}}",
-    "patterns": "折痕图",
-    "patternTitle_other": "折痕图 {{n}} — {{count}} 个面"
+    "patternTitle_other": "折痕图 {{n}} — {{count}} 个面",
+    "patterns": "折痕图"
   },
   "textAnnotation": {
     "addText": "添加文本",
     "alignCenter": "居中对齐",
     "alignLeft": "左对齐",
-    "alignment": "对齐",
     "alignRight": "右对齐",
+    "alignment": "对齐",
     "blockBody": "正文",
     "blockHeading": "标题",
     "blockSubheading": "副标题",
@@ -517,5 +517,29 @@
     "textControls": "文本控件",
     "textStyle": "文本样式",
     "underline": "下划线"
+  },
+  "tutorial": {
+    "actionDone": "完成 — 成功了。",
+    "actionPending": "等待你的操作…",
+    "allLessons": "全部课程",
+    "back": "上一步",
+    "checking": "等待你的绘制…",
+    "extra_other": "有 {{count}} 条折痕不在目标中",
+    "finish": "完成课程",
+    "indexBlurb": "通过动手绘制来学习编辑器的简短课程。你在编辑工作区中的作品不会受到影响。",
+    "indexTitle": "学习 Ori Studio",
+    "matchProgress": "已匹配 {{expected}} 条折痕中的 {{matched}} 条",
+    "matched": "匹配成功。做得好。",
+    "missing_other": "还需绘制 {{count}} 条折痕",
+    "next": "下一步",
+    "resume": "从上次的位置继续",
+    "skip": "跳过",
+    "stepCounter": "第 {{current}} 步，共 {{total}} 步",
+    "targetHeading": "请绘制这个",
+    "targetPreview": {
+      "label": "目标折痕图",
+      "loading": "正在加载目标…"
+    },
+    "wrongAssignment_other": "有 {{count}} 条折痕位置正确但折法类型不对"
   }
 }

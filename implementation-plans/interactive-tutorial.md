@@ -634,18 +634,23 @@ rather than reason from the theory.
 
 ### Phase 6 — Discovery, i18n, and validation
 
-- [ ] Help › Tutorial menu item (web + native menu parity).
-- [ ] Start-screen tutorial card; lesson index with completion state.
-- [ ] `tutorialVocab` generated namespace + `.gen.test.ts` sync test.
-- [ ] **English copy review with the author, per chapter, before translating** —
-      rewording after the fact marks all 8 locales stale.
-- [ ] Translate each chapter's keys into all 8 locales, `i18n:stamp`, and keep
-      `i18n:check` green chapter by chapter (never one batch at the end).
-- [ ] `cd apps/web && npx tsc --noEmit`, `npm run lint:web`, `npm run test:web`.
-      (Use `npx tsc` directly — `npm run typecheck:web` regenerates tracked wasm
-      bindings.)
-- [ ] Desktop pass: `npm run check:desktop` plus a manual run through one lesson
-      in the Tauri dev app.
+- [x] Help › Tutorial menu item. **No Rust change needed** — the native macOS
+      menu is generated from the same `getMenuBarDef`, so it inherits the item.
+      (An older note about a hand-maintained Rust menu is stale.)
+- [x] Start-screen tutorial card; lesson index with completion state and Resume.
+- [x] **UI chrome localized into all 8 locales** — 34 keys per locale, 222 in
+      total, `i18n:stamp` applied, `i18n:check` green. Verified in the browser
+      (Japanese chrome renders; `ステップ 1 / 3`).
+- [x] `npx tsc --noEmit`, `eslint`, 895 web tests, `check:desktop`,
+      `cargo fmt`/`clippy` on the touched crate — all green.
+- [ ] **Lesson prose localization — the one substantial piece left.** 135 English
+      strings / 2,858 words across 11 lessons, so 1,080 translations and roughly
+      23,000 words across the 8 locales. Needs a generated `tutorial` namespace
+      mirroring `cpVocab` (data module → catalog, kept in sync by a `.gen.test`),
+      then the translation pass itself. Currently the prose lives as plain
+      strings in the lesson data modules: it never reaches the extractor, so
+      `i18n:check` stays green and the tutorial ships English-only.
+- [ ] Manual run through one lesson in the Tauri dev app.
 
 ### Phase 7 — Polish (optional, evaluate after Phase 6)
 

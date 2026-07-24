@@ -170,8 +170,8 @@
     },
     "title": "Einstellungen",
     "workspace": {
-      "folding": "Falten",
       "foldWarning": "Vor dem Falten eines Faltmusters mit Flachfaltbarkeitsfehlern warnen",
+      "folding": "Falten",
       "layout": "Layout",
       "resetButton": "Arbeitsbereichslayout zurücksetzen",
       "resetMessage": "Das Standardlayout für den aktuellen Arbeitsbereich wiederherstellen?",
@@ -198,6 +198,10 @@
     "preparing": "Editor wird vorbereitet...",
     "showWelcomeOnStartup": "Beim Start Willkommensseite anzeigen",
     "startOptions": "Startoptionen",
-    "title": "Einen neuen Origami-Arbeitsbereich starten"
+    "title": "Einen neuen Origami-Arbeitsbereich starten",
+    "tutorial": {
+      "description": "Kurze Lektionen, die den Editor vermitteln, indem Sie darin zeichnen. Ihre eigene Arbeit bleibt unberührt.",
+      "title": "Tutorial starten"
+    }
   }
 }

@@ -8,6 +8,8 @@ import { selectWorkspaceCapabilities } from '../store/workspaceStore/capabilitie
 import type { WorkspaceCapabilities, WorkspaceCapabilityId } from '../lib/workspaceCapabilities';
 import { requestPositiveNumber, type NumberDialogOptions } from '../store/commandDialogStore';
 import { requestStartScreen } from './startScreenController';
+import { navigateTo } from '../routing/appRouter';
+import { LEARN_PATH } from '../routing/paths';
 import type {
   OristudioCpCommandPayload,
   OristudioCpDocumentState,
@@ -106,6 +108,7 @@ export const MENU_ACTION_IDS = [
   'cp.fixInaccurate',
   'cp.changeCircleColor',
   'cp.organizeCircles',
+  'help.tutorial',
   'help.about',
 ] as const;
 
@@ -637,6 +640,11 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
       }
       case 'cp.organizeCircles':
         return deps.workspace.executeOristudioCpCommand('OrganizeCircles');
+      case 'help.tutorial':
+        // The tutorial is a route, not a dialog: it needs the learn workspace
+        // and its own document slot, both of which the route establishes.
+        navigateTo(LEARN_PATH);
+        return true;
       case 'help.about':
         deps.about?.();
         return true;

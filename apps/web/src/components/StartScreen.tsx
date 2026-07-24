@@ -1,4 +1,4 @@
-import { DraftingCompass, FilePlus, FolderOpen, PenTool } from 'lucide-react';
+import { DraftingCompass, FilePlus, FolderOpen, GraduationCap, PenTool } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AppStatus } from '../lib/sampleProject';
@@ -14,6 +14,7 @@ interface StartScreenProps {
   onCreateCreasePattern: () => void;
   onCreateDesign: () => void;
   onOpenFile: () => void;
+  onStartTutorial: () => void;
   showWelcomeOnStartup: boolean;
   onToggleShowWelcomeOnStartup: (value: boolean) => void;
 }
@@ -24,6 +25,7 @@ export function StartScreen({
   onCreateCreasePattern,
   onCreateDesign,
   onOpenFile,
+  onStartTutorial,
   showWelcomeOnStartup,
   onToggleShowWelcomeOnStartup,
 }: StartScreenProps) {
@@ -93,6 +95,16 @@ export function StartScreen({
             icon={<DraftingCompass size={20} />}
             disabled={disabled}
             onClick={onCreateDesign}
+          />
+          <StartAction
+            title={t('dialogs:startScreen.tutorial.title', 'Take the tutorial')}
+            description={t(
+              'dialogs:startScreen.tutorial.description',
+              'Short lessons that teach the editor by having you draw in it. Your own work stays untouched.'
+            )}
+            icon={<GraduationCap size={20} />}
+            disabled={disabled}
+            onClick={onStartTutorial}
           />
         </div>
 

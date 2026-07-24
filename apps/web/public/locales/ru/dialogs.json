@@ -34,23 +34,23 @@
     "rectified": "Выпрямлено",
     "report": {
       "ambiguous": "неоднозначно",
-      "assignmentChange_one": "{{count}} изменение назначения",
       "assignmentChange_few": "{{count}} изменения назначения",
       "assignmentChange_many": "{{count}} изменений назначения",
+      "assignmentChange_one": "{{count}} изменение назначения",
       "assignmentChange_other": "{{count}} изменения назначения",
-      "assignmentChanges_one": "{{count}} изменение назначения",
       "assignmentChanges_few": "{{count}} изменения назначения",
       "assignmentChanges_many": "{{count}} изменений назначения",
+      "assignmentChanges_one": "{{count}} изменение назначения",
       "assignmentChanges_other": "{{count}} изменения назначения",
       "compilerFallback": "запасной вариант компилятора",
       "counts": "{{vertices}} вершин, {{edges}} рёбер",
-      "topologyMove_one": "{{count}} изменение топологии",
       "topologyMove_few": "{{count}} изменения топологии",
       "topologyMove_many": "{{count}} изменений топологии",
+      "topologyMove_one": "{{count}} изменение топологии",
       "topologyMove_other": "{{count}} изменения топологии",
-      "topologyMoves_one": "{{count}} изменение топологии",
       "topologyMoves_few": "{{count}} изменения топологии",
       "topologyMoves_many": "{{count}} изменений топологии",
+      "topologyMoves_one": "{{count}} изменение топологии",
       "topologyMoves_other": "{{count}} изменения топологии"
     },
     "runningModel": "Выполнение модели",
@@ -178,8 +178,8 @@
     },
     "title": "Настройки",
     "workspace": {
-      "folding": "Складывание",
       "foldWarning": "Предупреждать перед складыванием паттерна складок с ошибками плоской складываемости",
+      "folding": "Складывание",
       "layout": "Макет",
       "resetButton": "Сбросить макет рабочего пространства",
       "resetMessage": "Восстановить макет по умолчанию для текущего рабочего пространства?",
@@ -206,6 +206,10 @@
     "preparing": "Подготовка редактора...",
     "showWelcomeOnStartup": "Показывать приветствие при запуске",
     "startOptions": "Варианты начала",
-    "title": "Начать новое рабочее пространство оригами"
+    "title": "Начать новое рабочее пространство оригами",
+    "tutorial": {
+      "description": "Короткие уроки, обучающие редактору через рисование в нём. Ваша собственная работа остаётся нетронутой.",
+      "title": "Пройти обучение"
+    }
   }
 }

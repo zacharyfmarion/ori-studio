@@ -254,6 +254,8 @@ export function getMenuBarDef(
     {
       label: t('menu:menubar.help', 'Help'),
       items: [
+        { type: 'action', id: 'help.tutorial', label: t('menu:help.tutorial', 'Tutorial') },
+        { type: 'separator' },
         { type: 'action', id: 'help.about', label: t('menu:help.about', 'About Ori Studio') },
       ],
     },

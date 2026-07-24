@@ -291,8 +291,8 @@
     "layerCircles": "Kreise",
     "layerLabels": "Beschriftungen",
     "layerPaths": "Pfade",
-    "layers": "Ebenen",
     "layerSymmetry": "Symmetrie",
+    "layers": "Ebenen",
     "legendActivePath": "Aktiver Pfad",
     "legendScale": "Maßstab {{value}}",
     "legendTerminal": "Endpunkt",
@@ -508,16 +508,16 @@
   "simulatorSegments": {
     "creasePatterns": "Faltmuster",
     "patternLabel": "Muster {{n}}",
-    "patterns": "Muster",
     "patternTitle_one": "Muster {{n}} — {{count}} Fläche",
-    "patternTitle_other": "Muster {{n}} — {{count}} Flächen"
+    "patternTitle_other": "Muster {{n}} — {{count}} Flächen",
+    "patterns": "Muster"
   },
   "textAnnotation": {
     "addText": "Text hinzufügen",
     "alignCenter": "Zentriert",
     "alignLeft": "Linksbündig",
-    "alignment": "Ausrichtung",
     "alignRight": "Rechtsbündig",
+    "alignment": "Ausrichtung",
     "blockBody": "Fließtext",
     "blockHeading": "Überschrift",
     "blockSubheading": "Unterüberschrift",
@@ -530,5 +530,32 @@
     "textControls": "Textsteuerung",
     "textStyle": "Textstil",
     "underline": "Unterstrichen"
+  },
+  "tutorial": {
+    "actionDone": "Fertig — das hat geklappt.",
+    "actionPending": "Warten auf Ihren Versuch…",
+    "allLessons": "Alle Lektionen",
+    "back": "Zurück",
+    "checking": "Warten auf Ihre Zeichnung…",
+    "extra_one": "{{count}} Falte, die nicht zur Vorlage gehört",
+    "extra_other": "{{count}} Falten, die nicht zur Vorlage gehören",
+    "finish": "Lektion abschließen",
+    "indexBlurb": "Kurze Lektionen, die den Editor vermitteln, indem Sie darin zeichnen. Ihre Arbeit im Bearbeiten-Arbeitsbereich bleibt unberührt.",
+    "indexTitle": "Ori Studio lernen",
+    "matchProgress": "{{matched}} von {{expected}} Falten stimmen überein",
+    "matched": "Das stimmt überein. Sehr gut.",
+    "missing_one": "Noch {{count}} Falte zu zeichnen",
+    "missing_other": "Noch {{count}} Falten zu zeichnen",
+    "next": "Weiter",
+    "resume": "Dort fortfahren, wo Sie aufgehört haben",
+    "skip": "Überspringen",
+    "stepCounter": "Schritt {{current}} von {{total}}",
+    "targetHeading": "Zeichnen Sie dies",
+    "targetPreview": {
+      "label": "Ziel-Faltmuster",
+      "loading": "Ziel wird geladen…"
+    },
+    "wrongAssignment_one": "{{count}} Falte ist an der richtigen Stelle, aber vom falschen Typ",
+    "wrongAssignment_other": "{{count}} Falten sind an der richtigen Stelle, aber vom falschen Typ"
   }
 }

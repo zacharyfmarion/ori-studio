@@ -530,5 +530,32 @@
     "textControls": "Text controls",
     "textStyle": "Text style",
     "underline": "Underline"
+  },
+  "tutorial": {
+    "actionDone": "Done — that worked.",
+    "actionPending": "Waiting for you to try it…",
+    "allLessons": "All lessons",
+    "back": "Back",
+    "checking": "Waiting for your drawing…",
+    "extra_one": "{{count}} crease that is not in the target",
+    "extra_other": "{{count}} creases that are not in the target",
+    "finish": "Finish lesson",
+    "indexBlurb": "Short lessons that teach the editor by having you draw in it. Your own work in the Edit workspace is untouched.",
+    "indexTitle": "Learn Ori Studio",
+    "matched": "That matches. Nice.",
+    "matchProgress": "{{matched}} of {{expected}} creases match",
+    "missing_one": "{{count}} crease still to draw",
+    "missing_other": "{{count}} creases still to draw",
+    "next": "Next",
+    "resume": "Resume where you left off",
+    "skip": "Skip",
+    "stepCounter": "Step {{current}} of {{total}}",
+    "targetHeading": "Draw this",
+    "targetPreview": {
+      "label": "Target crease pattern",
+      "loading": "Loading target…"
+    },
+    "wrongAssignment_one": "{{count}} crease is in the right place but the wrong fold type",
+    "wrongAssignment_other": "{{count}} creases are in the right place but the wrong fold type"
   }
 }

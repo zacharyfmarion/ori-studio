@@ -166,8 +166,8 @@
     },
     "title": "設定",
     "workspace": {
-      "folding": "折り",
       "foldWarning": "平坦折りエラーのある展開図を折る前に警告する",
+      "folding": "折り",
       "layout": "レイアウト",
       "resetButton": "ワークスペースレイアウトをリセット",
       "resetMessage": "現在のワークスペースの既定のレイアウトに戻しますか？",
@@ -194,6 +194,10 @@
     "preparing": "エディターを準備中...",
     "showWelcomeOnStartup": "起動時にようこそ画面を表示",
     "startOptions": "開始オプション",
-    "title": "新しい折り紙ワークスペースを開始"
+    "title": "新しい折り紙ワークスペースを開始",
+    "tutorial": {
+      "description": "実際に描きながらエディターを学ぶ短いレッスンです。ご自身の作業はそのまま保たれます。",
+      "title": "チュートリアルを始める"
+    }
   }
 }

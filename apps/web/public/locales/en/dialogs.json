@@ -198,6 +198,10 @@
     "preparing": "Preparing the editor...",
     "showWelcomeOnStartup": "Show welcome on startup",
     "startOptions": "Start options",
-    "title": "Start a new origami workspace"
+    "title": "Start a new origami workspace",
+    "tutorial": {
+      "description": "Short lessons that teach the editor by having you draw in it. Your own work stays untouched.",
+      "title": "Take the tutorial"
+    }
   }
 }

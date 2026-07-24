@@ -34,19 +34,19 @@
     "rectified": "Retificado",
     "report": {
       "ambiguous": "ambíguo",
-      "assignmentChange_one": "{{count}} alteração de atribuição",
       "assignmentChange_many": "{{count}} alteração de atribuição",
+      "assignmentChange_one": "{{count}} alteração de atribuição",
       "assignmentChange_other": "{{count}} alteração de atribuição",
-      "assignmentChanges_one": "{{count}} alterações de atribuição",
       "assignmentChanges_many": "{{count}} alterações de atribuição",
+      "assignmentChanges_one": "{{count}} alterações de atribuição",
       "assignmentChanges_other": "{{count}} alterações de atribuição",
       "compilerFallback": "recurso alternativo do compilador",
       "counts": "{{vertices}} vértices, {{edges}} arestas",
-      "topologyMove_one": "{{count}} movimento de topologia",
       "topologyMove_many": "{{count}} movimento de topologia",
+      "topologyMove_one": "{{count}} movimento de topologia",
       "topologyMove_other": "{{count}} movimento de topologia",
-      "topologyMoves_one": "{{count}} movimentos de topologia",
       "topologyMoves_many": "{{count}} movimentos de topologia",
+      "topologyMoves_one": "{{count}} movimentos de topologia",
       "topologyMoves_other": "{{count}} movimentos de topologia"
     },
     "runningModel": "Executando o modelo",
@@ -174,8 +174,8 @@
     },
     "title": "Configurações",
     "workspace": {
-      "folding": "Dobra",
       "foldWarning": "Avisar antes de dobrar um padrão de vincos com erros de dobradura plana",
+      "folding": "Dobra",
       "layout": "Layout",
       "resetButton": "Redefinir layout do workspace",
       "resetMessage": "Restaurar o layout padrão do workspace atual?",
@@ -202,6 +202,10 @@
     "preparing": "Preparando o editor...",
     "showWelcomeOnStartup": "Mostrar boas-vindas ao iniciar",
     "startOptions": "Opções de início",
-    "title": "Iniciar um novo workspace de origami"
+    "title": "Iniciar um novo workspace de origami",
+    "tutorial": {
+      "description": "Lições curtas que ensinam o editor fazendo você desenhar nele. Seu próprio trabalho permanece intacto.",
+      "title": "Fazer o tutorial"
+    }
   }
 }

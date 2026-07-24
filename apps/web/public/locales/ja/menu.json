@@ -87,7 +87,8 @@
     "settings": "設定"
   },
   "help": {
-    "about": "Ori Studio について"
+    "about": "Ori Studio について",
+    "tutorial": "チュートリアル"
   },
   "menubar": {
     "creasePattern": "展開図",
