@@ -186,5 +186,98 @@ window.runRenderCheck = () => {
   return rows;
 };
 
+// Long-run stability sweep. The parity check above only compares 1-100 steps at a
+// fixed fold percent; the interactive simulator runs tens of thousands of steps
+// while the fold target ramps, which is where the model was observed blowing up.
+// Runs the same ramp on both backends so a GPU-only instability is separable from
+// one the reference solver shares.
+interface StabilityRow {
+  fixture: string;
+  backend: 'webgl2' | 'reference';
+  vertices: number;
+  steps: number;
+  firstBadStep: number | null;
+  firstBadFoldPercent: number | null;
+  firstBadKind: 'nonfinite' | 'strain' | null;
+  maxStrainSeen: number;
+  error?: string;
+}
+
+declare global {
+  interface Window {
+    runStabilitySweep: (
+      fixtureNames: string[],
+      totalSteps: number,
+      chunk: number,
+      strainLimit: number
+    ) => StabilityRow[];
+  }
+}
+
+window.runStabilitySweep = (fixtureNames, totalSteps, chunk, strainLimit) => {
+  const rows: StabilityRow[] = [];
+
+  for (const name of fixtureNames) {
+    const fixture = FIXTURES.find((f) => f.name === name);
+    if (!fixture) continue;
+
+    for (const backendId of ['webgl2', 'reference'] as const) {
+      const model = new OrigamiModel(prepareFoldModel(fixture.build(), { triangulate: true }));
+      const row: StabilityRow = {
+        fixture: name,
+        backend: backendId,
+        vertices: model.prepared.vertexCount,
+        steps: totalSteps,
+        firstBadStep: null,
+        firstBadFoldPercent: null,
+        firstBadKind: null,
+        maxStrainSeen: 0,
+      };
+
+      try {
+        let solver: WebglSolver | ReferenceSolver;
+        if (backendId === 'webgl2') {
+          const canvas = document.createElement('canvas');
+          canvas.width = 2;
+          canvas.height = 2;
+          if (!WebglSolver.isSupported(canvas)) {
+            rows.push({ ...row, error: 'WebGL2 unsupported' });
+            continue;
+          }
+          solver = new WebglSolver(canvas, model, { foldPercent: 0 });
+        } else {
+          solver = new ReferenceSolver(model, { foldPercent: 0 });
+        }
+
+        for (let done = 0; done < totalSteps; done += chunk) {
+          // Ramp the fold target across the run, the way playback does.
+          const foldPercent = Math.min(100, (done / totalSteps) * 100);
+          solver.setFoldPercent(foldPercent);
+          solver.step(chunk);
+
+          const velocity = solver.maxVelocity();
+          const strain = solver.readDiagnostics().maxEdgeStrain ?? 0;
+          if (Number.isFinite(strain) && strain > row.maxStrainSeen) row.maxStrainSeen = strain;
+
+          const nonFinite = !Number.isFinite(velocity) || !Number.isFinite(strain);
+          const exceeds = Number.isFinite(strain) && strain > strainLimit;
+          if ((nonFinite || exceeds) && row.firstBadStep === null) {
+            row.firstBadStep = done + chunk;
+            row.firstBadFoldPercent = foldPercent;
+            row.firstBadKind = nonFinite ? 'nonfinite' : 'strain';
+            break; // the first failure is the datum; afterwards it is garbage
+          }
+        }
+        solver.dispose();
+      } catch (cause) {
+        row.error = cause instanceof Error ? cause.message : String(cause);
+      }
+      rows.push(row);
+    }
+  }
+
+  return rows;
+};
+
 // Signal readiness to the driver.
 document.title = 'gpu-parity-ready';

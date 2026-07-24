@@ -31,7 +31,8 @@
     "bench:cpu-ceiling": "vitest run --config vitest.bench.config.ts bench/cpuCeiling.bench.ts --disable-console-intercept",
     "bench:upstream-parity": "vitest run --config vitest.bench.config.ts bench/upstreamParity.bench.ts --disable-console-intercept",
     "bench:unwrap-spike": "vitest run --config vitest.bench.config.ts bench/unwrapSpike.bench.ts --disable-console-intercept",
-    "bench:gpu-parity": "vitest run --config vitest.bench.config.ts bench/gpuParity.bench.ts --disable-console-intercept"
+    "bench:gpu-parity": "vitest run --config vitest.bench.config.ts bench/gpuParity.bench.ts --disable-console-intercept",
+    "bench:gpu-stability": "vitest run --config vitest.bench.config.ts bench/gpuStability.bench.ts --disable-console-intercept"
   },
   "dependencies": {
     "earcut": "^3.0.2"
