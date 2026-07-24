@@ -99,10 +99,12 @@ const READOUT_INTERVAL_MS = 66;
 const INITIAL_FOLD_PERCENT = 0;
 // Isometric "lying on a table" view, matching upstream Origami Simulator's
 // initial camera (eye on the (1,1,1) diagonal looking at the origin). The paper
-// is flat in the XZ plane, so a 45deg yaw gives the diamond orientation and
-// ~0.955 rad pitch (35.26deg elevation) the iso foreshortening. Positive pitch
-// keeps the lit front face toward the camera.
-const DEFAULT_VIEW: SimulatorView = { yaw: Math.PI / 4, pitch: 0.955, zoom: 1 };
+// is flat in the XZ plane: 45deg yaw gives the diamond orientation and ~0.955
+// rad pitch (35.26deg elevation) the iso foreshortening. Pitch is NEGATIVE so
+// the near edge is at the bottom and folds rise up (a positive pitch tilts the
+// far edge down, reading as the top facing toward you); cosPitch is unchanged by
+// the sign, so the lit yellow front still faces the camera.
+const DEFAULT_VIEW: SimulatorView = { yaw: Math.PI / 4, pitch: -0.955, zoom: 1 };
 const DEFAULT_VIEW_SETTINGS: SimulatorViewSettings = {
   renderMode: 'paper',
   showFaces: true,
