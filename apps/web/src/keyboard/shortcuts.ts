@@ -3,6 +3,7 @@ import {
   ORISTUDIO_CP_ACTIONS,
   type OristudioCpActionId,
 } from '../lib/oristudioCpActions';
+import { isApplePlatform } from '../lib/platform';
 
 export type ShortcutScope = 'global' | 'crease-pattern' | 'viewport';
 export type ViewportShortcutId =
@@ -509,9 +510,4 @@ function isModifierKey(key: string): boolean {
     key === 'shift' ||
     key === 'alt'
   );
-}
-
-function isApplePlatform(): boolean {
-  if (typeof navigator === 'undefined') return false;
-  return /Mac|iPhone|iPad/u.test(navigator.platform);
 }
