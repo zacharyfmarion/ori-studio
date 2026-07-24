@@ -192,16 +192,48 @@ Browser checklist (author-owned):
 
 ## Checklist
 
-- [ ] Phase A: `isPrimaryModifier` present; registry invariant test added first
-- [ ] Phase B: line-type remap (A/S/D/F) + free-line Z + perpendicular Y +
+- [x] Phase A: `isPrimaryModifier` present; registry invariant test added first
+- [x] Phase B: line-type remap (A/S/D/F) + free-line Z + perpendicular Y +
       flat-foldable T + Mirror off R + radial on R
-- [ ] Phase B: F/G/H rotation (aux→F, fold→G, fish-bone→H)
-- [ ] Phase B: add select Q, move W, clone 2, ridges X
-- [ ] Phase B: diagnostics clean (no dup/reserved); fold routing verified
-- [ ] Phase C: Alt-hold M/V toggle (canvas, Alt not Ctrl) — after reading Oriedita
-- [ ] Phase C: Space restricted-draw — **after** Space-owner decision
-- [ ] Phase D: bare 5/6 zoom; 1 → pan (after pan tool lands)
+- [x] Phase B: F/G/H rotation (aux→F, fold→G, fish-bone→H)
+- [x] Phase B: add select Q, move W, clone 2, ridges X
+- [x] Phase B: diagnostics clean (no dup/reserved); fold routing verified
+- [ ] Phase C: Alt-hold M/V toggle — **BLOCKED, see below**
+- [ ] Phase C: Space restricted-draw — **BLOCKED, see below**
+- [x] Phase D: bare 5/6 zoom; hand tool + `1` → pan
 - [ ] Phase E tracked separately: rotate view (3/4), grid toggle + size ±,
       stop-calc
-- [ ] Orphaned-tool policy decided (Mirror etc.)
-- [ ] tsc / lint / test:web green; browser checklist passed
+- [x] Orphaned-tool policy: Mirror left unbound (available from the rail)
+- [x] tsc / lint / test:web / i18n:check green; browser checklist pending
+
+## Phase C blocker (needs a decision)
+
+Reading the vendored Oriedita source, neither held-modifier behavior in
+Brandon's diagram matches what that code actually does:
+
+- **"toggle mv: ctrl"** — Ctrl-hold sets `CanvasModel.toggleLineColor`
+  (`App.java:210`, `Canvas.java:245`), but its only behavioral consumer is
+  `MouseHandlerSelectLasso.java:25`, where it flips lasso select ↔ unselect.
+  The draw handlers pick their color purely from `d.getLineColor()` /
+  `getAuxLineColor()` (`MouseHandlerDrawCreaseFree.java:58,70`) — **no
+  M/V toggle path exists**. Separately, `BaseMouseHandlerLineSelect.java:51`
+  uses Ctrl-hold for *angle-system snapping*.
+- **"restricted line: space"** — there is **no Space handler at all** in the
+  vendored source; the only `VK_SPACE` reference disables Swing's default
+  space-activates-button behavior (`KeyStrokeUtil.java:21`).
+
+So both would be *invented* behavior, which the repo's porting discipline
+warns against. Worse for Space: `spacePressed` already drives
+`allowLeftClickPan` in `BpPackingPanel` and `DesignPanel` — **Space-hold =
+pan is this app's existing cross-panel convention**, and `CreasePatternPanel`
+still carries a vestigial `data-space-pan` hook from the SVG era (it no
+longer pans in the WebGL canvas). Giving Space to restricted-draw in the CP
+editor would break that consistency.
+
+Options, in rough preference order:
+1. Ask Brandon what his Oriedita build actually does for these two.
+2. Adopt app-consistent semantics instead: Space-hold = pan everywhere
+   (restoring CP to match BP/Design), and put restricted-draw on a
+   discrete key.
+3. Implement Brandon's labels as new behavior: Alt-hold flips the active
+   line color while drawing; Space-hold snaps the draw to the grid.
