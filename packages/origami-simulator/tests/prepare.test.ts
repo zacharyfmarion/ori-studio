@@ -24,6 +24,91 @@ describe('prepareFoldModel', () => {
     });
   });
 
+  it('drops a collinear (zero-area) triangle so the solve stays finite', () => {
+    // Faces [0,1,2] and [0,2,3] are a normal folding pair; [0,1,4] is collinear
+    // (all on the x-axis) so its normal would be normalize(0) -> NaN, which
+    // upstream's face-normal pass would then spread across the whole mesh.
+    const prepared = prepareFoldModel({
+      vertices_coords: [
+        [0, 0],
+        [1, 0],
+        [1, 1],
+        [0, 1],
+        [2, 0],
+      ],
+      edges_vertices: [
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 0],
+        [0, 2],
+        [1, 4],
+        [0, 4],
+      ],
+      edges_assignment: ['B', 'B', 'B', 'B', 'V', 'B', 'B'],
+      edges_foldAngle: [null, null, null, null, 180, null, null],
+      faces_vertices: [
+        [0, 1, 2],
+        [0, 2, 3],
+        [0, 1, 4],
+      ],
+    });
+
+    expect(prepared.faceCount).toBe(2);
+    expect(prepared.diagnostics.warnings.some((w) => w.includes('degenerate'))).toBe(true);
+
+    const simulator = createOrigamiSimulator({ model: prepared, options: { foldPercent: 100 } });
+    const positions = simulator.step(64).positions;
+    expect([...positions].every((value) => Number.isFinite(value))).toBe(true);
+    simulator.dispose();
+  });
+
+  it('drops a zero-length edge (coincident vertices) that would divide the axial beam by zero', () => {
+    const prepared = prepareFoldModel({
+      vertices_coords: [
+        [0, 0],
+        [1, 0],
+        [1, 1],
+        [0, 1],
+        [0, 0], // coincident with vertex 0
+      ],
+      edges_vertices: [
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 0],
+        [0, 2],
+        [0, 4], // zero-length
+      ],
+      edges_assignment: ['B', 'B', 'B', 'B', 'V', 'B'],
+      edges_foldAngle: [null, null, null, null, 180, null],
+      faces_vertices: [
+        [0, 1, 2],
+        [0, 2, 3],
+      ],
+    });
+
+    expect(prepared.edgeCount).toBe(5);
+    expect(
+      prepared.edgesVertices.every(([a, b]) => {
+        const pa = prepared.positions.slice(a * 3, a * 3 + 3);
+        const pb = prepared.positions.slice(b * 3, b * 3 + 3);
+        return Math.hypot(pa[0]! - pb[0]!, pa[1]! - pb[1]!, pa[2]! - pb[2]!) > 0;
+      })
+    ).toBe(true);
+
+    const simulator = createOrigamiSimulator({ model: prepared, options: { foldPercent: 100 } });
+    const positions = simulator.step(64).positions;
+    expect([...positions].every((value) => Number.isFinite(value))).toBe(true);
+    simulator.dispose();
+  });
+
+  it('leaves clean geometry untouched', () => {
+    const prepared = prepareFoldModel(makeBookFoldFixture());
+    expect(prepared.faceCount).toBe(2);
+    expect(prepared.diagnostics.warnings.some((w) => w.includes('degenerate'))).toBe(false);
+  });
+
   it('triangulates quads and adds flat facet edges', () => {
     const prepared = prepareFoldModel({
       vertices_coords: [

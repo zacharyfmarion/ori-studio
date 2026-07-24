@@ -28,6 +28,15 @@ export function prepareFoldModel(
   }
 
   const fold = normalizeFold(source, options, diagnostics);
+  // The dynamic solver assumes clean geometry, exactly as upstream Origami
+  // Simulator does: its `normalize(cross(...))` face-normal pass NaNs on a
+  // zero-area triangle, and its axial pass divides by a beam's rest length, so a
+  // zero-length edge (coincident vertices) NaNs too. Upstream never hits either
+  // because its inputs are hand-clean; ours are inferred from arbitrary crease
+  // graphs (and Oriedita FOLD exports), which can carry coincident vertices and
+  // collinear faces. One NaN contaminates the whole mesh -> a blank render. Drop
+  // the degenerate primitives here so the solve stays finite.
+  removeDegenerateGeometry(fold, diagnostics);
   const vertexCount = fold.vertices_coords.length;
   const positions = new Float32Array(vertexCount * 3);
   fold.vertices_coords.forEach((coord, index) => {
@@ -108,6 +117,77 @@ function normalizeFold(
   }
 
   return fold;
+}
+
+/**
+ * Drop degenerate primitives the solver cannot handle: zero-area triangles
+ * (whose face normal is `normalize(0)` -> NaN) and zero-length edges (whose
+ * axial beam divides by a zero rest length -> NaN). Thresholds are relative to
+ * the model's bounding-box diagonal so they mean the same thing regardless of
+ * the coordinate scale, and small enough to only catch truly-degenerate
+ * geometry, never a thin-but-real crease triangle. A no-op for clean inputs.
+ */
+function removeDegenerateGeometry(fold: FoldDocument, diagnostics: SimulatorDiagnostics): void {
+  const coords = fold.vertices_coords.map((coord) => normalizePoint(coord));
+  const min: [number, number, number] = [Infinity, Infinity, Infinity];
+  const max: [number, number, number] = [-Infinity, -Infinity, -Infinity];
+  for (const c of coords) {
+    for (let k = 0; k < 3; k += 1) {
+      if (c[k]! < min[k]!) min[k] = c[k]!;
+      if (c[k]! > max[k]!) max[k] = c[k]!;
+    }
+  }
+  const diagonal = Math.hypot(max[0] - min[0], max[1] - min[1], max[2] - min[2]) || 1;
+  // A crease triangle in a normalized sheet has cross-magnitude (2*area) far
+  // above diagonal^2 * 1e-9; a collinear/coincident one sits at ~0.
+  const minCrossMag = diagonal * diagonal * 1e-9;
+  const minEdgeLenSq = (diagonal * 1e-6) ** 2;
+
+  let droppedFaces = 0;
+  fold.faces_vertices = fold.faces_vertices.filter((face) => {
+    if (face.length < 3) return true; // validateFold already rejects these
+    const a = coords[face[0]!]!;
+    const b = coords[face[1]!]!;
+    const c = coords[face[2]!]!;
+    const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
+    const vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+    const cx = uy * vz - uz * vy;
+    const cy = uz * vx - ux * vz;
+    const cz = ux * vy - uy * vx;
+    if (Math.hypot(cx, cy, cz) < minCrossMag) {
+      droppedFaces += 1;
+      return false;
+    }
+    return true;
+  });
+
+  let droppedEdges = 0;
+  const assignments = fold.edges_assignment;
+  const foldAngles = fold.edges_foldAngle;
+  const keptEdges: [number, number][] = [];
+  const keptAssignment: FoldAssignment[] = [];
+  const keptFoldAngle: Array<number | null> = [];
+  fold.edges_vertices.forEach((edge, index) => {
+    const a = coords[edge[0]]!;
+    const b = coords[edge[1]]!;
+    const distSq = (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
+    if (distSq < minEdgeLenSq) {
+      droppedEdges += 1;
+      return;
+    }
+    keptEdges.push(edge);
+    if (assignments) keptAssignment.push(assignments[index] ?? 'U');
+    if (foldAngles) keptFoldAngle.push(foldAngles[index] ?? null);
+  });
+  fold.edges_vertices = keptEdges;
+  if (assignments) fold.edges_assignment = keptAssignment;
+  if (foldAngles) fold.edges_foldAngle = keptFoldAngle;
+
+  if (droppedFaces || droppedEdges) {
+    diagnostics.warnings.push(
+      `dropped ${droppedFaces} degenerate triangle(s) and ${droppedEdges} zero-length edge(s)`
+    );
+  }
 }
 
 function triangulateFold(fold: FoldDocument, diagnostics: SimulatorDiagnostics): void {
