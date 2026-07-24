@@ -249,17 +249,17 @@
     "rotateFoldedForm": "旋转折叠图",
     "selectedCount_other": "已选择 {{count}} 项",
     "selectionToolbar": {
-      "fold": "折叠",
       "export": "导出…",
       "exportCp": "CP",
       "exportFold": "FOLD",
-      "exportOri": "ORI",
       "exportOrh": "ORH",
-      "exportSvg": "SVG 图像",
+      "exportOri": "ORI",
       "exportPng": "PNG 图像",
+      "exportSvg": "SVG 图像",
+      "fold": "折叠",
+      "label": "折痕图操作",
       "saveImage": "保存为图像",
-      "simulate": "模拟",
-      "label": "折痕图操作"
+      "simulate": "模拟"
     },
     "sendImageToBack": "将图像置于底层",
     "shadow": "阴影",

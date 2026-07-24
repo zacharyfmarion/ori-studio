@@ -257,17 +257,17 @@
     "selectedCount_one": "{{count}} ausgewählt",
     "selectedCount_other": "{{count}} ausgewählt",
     "selectionToolbar": {
-      "fold": "Falten",
       "export": "Exportieren…",
       "exportCp": "CP",
       "exportFold": "FOLD",
-      "exportOri": "ORI",
       "exportOrh": "ORH",
-      "exportSvg": "SVG-Bild",
+      "exportOri": "ORI",
       "exportPng": "PNG-Bild",
+      "exportSvg": "SVG-Bild",
+      "fold": "Falten",
+      "label": "Aktionen für Faltmuster",
       "saveImage": "Als Bild speichern",
-      "simulate": "Simulieren",
-      "label": "Aktionen für Faltmuster"
+      "simulate": "Simulieren"
     },
     "sendImageToBack": "Bild in den Hintergrund senden",
     "shadow": "Schatten",

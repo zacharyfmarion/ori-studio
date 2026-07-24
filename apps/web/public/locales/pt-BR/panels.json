@@ -265,17 +265,17 @@
     "selectedCount_many": "{{count}} selecionados",
     "selectedCount_other": "{{count}} selecionados",
     "selectionToolbar": {
-      "fold": "Dobrar",
       "export": "Exportar…",
       "exportCp": "CP",
       "exportFold": "FOLD",
-      "exportOri": "ORI",
       "exportOrh": "ORH",
-      "exportSvg": "Imagem SVG",
+      "exportOri": "ORI",
       "exportPng": "Imagem PNG",
+      "exportSvg": "Imagem SVG",
+      "fold": "Dobrar",
+      "label": "Ações do padrão de vincos",
       "saveImage": "Salvar como imagem",
-      "simulate": "Simular",
-      "label": "Ações do padrão de vincos"
+      "simulate": "Simular"
     },
     "sendImageToBack": "Enviar imagem para trás",
     "shadow": "Sombra",

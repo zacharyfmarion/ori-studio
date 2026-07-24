@@ -249,17 +249,17 @@
     "rotateFoldedForm": "접힌 형태 회전",
     "selectedCount_other": "{{count}}개 선택됨",
     "selectionToolbar": {
-      "fold": "접기",
       "export": "내보내기…",
       "exportCp": "CP",
       "exportFold": "FOLD",
-      "exportOri": "ORI",
       "exportOrh": "ORH",
-      "exportSvg": "SVG 이미지",
+      "exportOri": "ORI",
       "exportPng": "PNG 이미지",
+      "exportSvg": "SVG 이미지",
+      "fold": "접기",
+      "label": "접힘 패턴 작업",
       "saveImage": "이미지로 저장",
-      "simulate": "시뮬레이션",
-      "label": "접힘 패턴 작업"
+      "simulate": "시뮬레이션"
     },
     "sendImageToBack": "이미지를 맨 뒤로 보내기",
     "shadow": "그림자",

@@ -249,17 +249,17 @@
     "rotateFoldedForm": "折り上がり図を回転",
     "selectedCount_other": "{{count}} 件選択",
     "selectionToolbar": {
-      "fold": "折る",
       "export": "エクスポート…",
       "exportCp": "CP",
       "exportFold": "FOLD",
-      "exportOri": "ORI",
       "exportOrh": "ORH",
-      "exportSvg": "SVG 画像",
+      "exportOri": "ORI",
       "exportPng": "PNG 画像",
+      "exportSvg": "SVG 画像",
+      "fold": "折る",
+      "label": "展開図の操作",
       "saveImage": "画像として保存",
-      "simulate": "シミュレート",
-      "label": "展開図の操作"
+      "simulate": "シミュレート"
     },
     "sendImageToBack": "画像を最背面へ",
     "shadow": "影",

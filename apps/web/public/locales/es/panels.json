@@ -265,17 +265,17 @@
     "selectedCount_many": "{{count}} seleccionados",
     "selectedCount_other": "{{count}} seleccionados",
     "selectionToolbar": {
-      "fold": "Plegar",
       "export": "Exportar…",
       "exportCp": "CP",
       "exportFold": "FOLD",
-      "exportOri": "ORI",
       "exportOrh": "ORH",
-      "exportSvg": "Imagen SVG",
+      "exportOri": "ORI",
       "exportPng": "Imagen PNG",
+      "exportSvg": "Imagen SVG",
+      "fold": "Plegar",
+      "label": "Acciones del patrón de pliegues",
       "saveImage": "Guardar como imagen",
-      "simulate": "Simular",
-      "label": "Acciones del patrón de pliegues"
+      "simulate": "Simular"
     },
     "sendImageToBack": "Enviar imagen al fondo",
     "shadow": "Sombra",

@@ -273,17 +273,17 @@
     "selectedCount_many": "Выбрано: {{count}}",
     "selectedCount_other": "Выбрано: {{count}}",
     "selectionToolbar": {
-      "fold": "Сложить",
       "export": "Экспорт…",
       "exportCp": "CP",
       "exportFold": "FOLD",
-      "exportOri": "ORI",
       "exportOrh": "ORH",
-      "exportSvg": "Изображение SVG",
+      "exportOri": "ORI",
       "exportPng": "Изображение PNG",
+      "exportSvg": "Изображение SVG",
+      "fold": "Сложить",
+      "label": "Действия с паттерном складок",
       "saveImage": "Сохранить как изображение",
-      "simulate": "Симулировать",
-      "label": "Действия с паттерном складок"
+      "simulate": "Симулировать"
     },
     "sendImageToBack": "Переместить изображение на задний план",
     "shadow": "Тень",
