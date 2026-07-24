@@ -5726,6 +5726,29 @@ button.bp-packing-alert:focus-visible {
   outline-offset: 1px;
 }
 
+/* Compact radius/width/height fields appended to the flap pill. */
+.bp-flap-editor__field {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.bp-flap-editor__input {
+  width: 48px;
+  padding: 3px 4px;
+  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 12px;
+  text-align: right;
+}
+
+.bp-flap-editor__input:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 1px;
+}
+
 .bp-packing-stretch-nav {
   position: absolute;
   top: var(--space-3);

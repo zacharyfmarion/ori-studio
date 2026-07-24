@@ -68,6 +68,7 @@ import {
   getBpPackingWorldRect,
 } from '../../lib/bpPackingViewport';
 import { bpDefaultFlapLabel, bpFlapLabel } from '../../lib/bpFlapLabel';
+import { unitLeafLocation } from '../../lib/bpTreeAuthoring';
 import { hasPassedDragThreshold } from '../../lib/pointerGesture';
 import { type Point } from '../../lib/geometry';
 import {
@@ -86,7 +87,7 @@ import {
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { IconButton } from '../ui/IconButton';
-import { BpNameEditor } from './BpNameEditor';
+import { BpFlapEditor } from './BpFlapEditor';
 import {
   isViewportInteractiveTarget,
   ViewportLayerMenu,
@@ -703,6 +704,12 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   );
   const moveOristudioBpLayoutFlap = useWorkspaceStore((state) => state.moveOristudioBpLayoutFlap);
   const moveOristudioBpLayoutFlaps = useWorkspaceStore((state) => state.moveOristudioBpLayoutFlaps);
+  const resizeOristudioBpLayoutFlap = useWorkspaceStore(
+    (state) => state.resizeOristudioBpLayoutFlap
+  );
+  const setOristudioBpTreeEdgeLength = useWorkspaceStore(
+    (state) => state.setOristudioBpTreeEdgeLength
+  );
   const renameOristudioBpVertex = useWorkspaceStore((state) => state.renameOristudioBpVertex);
   const moveOristudioBpDevice = useWorkspaceStore((state) => state.moveOristudioBpDevice);
   const switchOristudioBpStretchConfig = useWorkspaceStore(
@@ -763,6 +770,42 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     if (id === null) return null;
     return packing.flaps.find((flap) => flap.id === id) ?? null;
   }, [selection, packing.flaps]);
+  // A flap's radius is the length of its dual leaf edge in the tree, so radius
+  // editing routes through the edge-length action. Find that edge (there is only
+  // one — a flap's vertex is a leaf); when it is missing the radius field hides.
+  const tree = document.snapshot.tree;
+  const singleSelectedFlapEdge = useMemo(() => {
+    if (!singleSelectedFlap) return null;
+    const vertexId = singleSelectedFlap.vertexId;
+    return (
+      tree.edges.find(
+        (edge) => edge.vertices[0] === vertexId || edge.vertices[1] === vertexId
+      ) ?? null
+    );
+  }, [singleSelectedFlap, tree.edges]);
+  // Sheet "diameter" caps every dimension (matches BP Studio's flap panel max).
+  const flapMaxDimension = Math.max(packing.sheet.width, packing.sheet.height);
+  // Set the flap's radius by changing its leaf edge length, repositioning the
+  // leaf so the tree stays length-faithful (the subtree of a leaf is just the
+  // leaf). Reuses the same single-undo edge-length path as the tree inspector.
+  const setSelectedFlapRadius = useCallback(
+    (length: number) => {
+      if (!singleSelectedFlap || !singleSelectedFlapEdge) return;
+      const edge = singleSelectedFlapEdge;
+      const leafId = singleSelectedFlap.vertexId;
+      const [a, b] = edge.vertices;
+      const parentId = a === leafId ? b : a;
+      const leaf = tree.vertices.find((vertex) => vertex.id === leafId);
+      const parent = tree.vertices.find((vertex) => vertex.id === parentId);
+      if (!leaf || !parent) {
+        void setOristudioBpTreeEdgeLength(edge.vertices, length);
+        return;
+      }
+      const target = unitLeafLocation(parent.loc, leaf.loc, length);
+      void setOristudioBpTreeEdgeLength(edge.vertices, length, [{ id: leafId, loc: target }]);
+    },
+    [singleSelectedFlap, singleSelectedFlapEdge, tree.vertices, setOristudioBpTreeEdgeLength]
+  );
   const paperRect = useMemo(() => bpPackingPaperRect(packing.sheet), [packing.sheet]);
   const shadowRect = useMemo(() => bpPackingShadowRect(packing.sheet), [packing.sheet]);
   // A diagonal sheet is the square rotated 45° into a diamond; render the paper,
@@ -1825,17 +1868,26 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
         onNudge={nudgeSelection}
       />
       {singleSelectedFlap && (
-        <BpNameEditor
+        <BpFlapEditor
           key={singleSelectedFlap.id}
+          flap={singleSelectedFlap}
           title={t('panels:bpPacking.flapTitle', 'Flap {{id}}', {
             id: bpDefaultFlapLabel(singleSelectedFlap.id),
           })}
-          name={singleSelectedFlap.name}
-          placeholder={bpDefaultFlapLabel(singleSelectedFlap.id)}
-          ariaLabel={t('panels:bpPacking.flapNameAria', 'Name of flap {{id}}', {
+          namePlaceholder={bpDefaultFlapLabel(singleSelectedFlap.id)}
+          nameAriaLabel={t('panels:bpPacking.flapNameAria', 'Name of flap {{id}}', {
             id: bpDefaultFlapLabel(singleSelectedFlap.id),
           })}
+          sheet={packing.sheet}
+          maxDimension={flapMaxDimension}
+          radiusValue={singleSelectedFlapEdge?.length ?? singleSelectedFlap.radius}
+          radiusMax={singleSelectedFlapEdge?.maxLength ?? null}
+          radiusEditable={singleSelectedFlapEdge !== null}
           onRename={(name) => void renameOristudioBpVertex(singleSelectedFlap.vertexId, name)}
+          onResize={(width, height) =>
+            void resizeOristudioBpLayoutFlap(singleSelectedFlap.id, width, height)
+          }
+          onRadius={setSelectedFlapRadius}
         />
       )}
       {activeStretch && (
