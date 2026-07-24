@@ -37,7 +37,7 @@ export const BASICS_LESSONS: readonly Lesson[] = [
         title: 'The grid',
         body: [
           'Behind the paper is a grid. It is not part of the design — nothing in the grid gets folded — but it is what makes accurate drawing possible, because the editor snaps your creases to its intersections.',
-          'The default grid divides the paper into eighths. Many classic designs are built on divisions like this, and box-pleated designs in particular are drawn almost entirely on a grid. You can change the division later from the View panel.',
+          'The default grid divides the paper into eighths. Many classic designs are built on divisions like this, and box-pleated designs in particular are drawn almost entirely on a grid. The division is adjustable from the View panel, which the Edit workspace shows beside the canvas — it is hidden here so the lesson has room, but you will find it there once you leave the tutorial.',
         ],
       },
       {
@@ -45,8 +45,9 @@ export const BASICS_LESSONS: readonly Lesson[] = [
         kind: 'explore',
         title: 'Move around',
         body: [
-          'Scroll to zoom, and drag with the middle mouse button — or hold space and drag — to pan. The percentage in the bottom-left corner tells you the current zoom, and the button beside it fits the paper back into view.',
-          'Try it now. You cannot damage anything, and the fit button will always bring you home. When you are comfortable, move on.',
+          'Scroll to zoom. To pan, hold Cmd (Ctrl on Windows and Linux) and drag the canvas.',
+          'The same things are on the keyboard: Cmd + and Cmd − zoom in and out, Cmd 0 fits the whole paper back into view, and Cmd 1 returns to actual size. The percentage in the bottom-left corner tells you where you are, and the button beside it fits the view too.',
+          'Try it now. You cannot damage anything, and Cmd 0 will always bring you home. When you are comfortable, move on.',
         ],
       },
     ],
@@ -188,7 +189,7 @@ export const BASICS_LESSONS: readonly Lesson[] = [
         title: 'A square inside the square',
         body: [
           'Draw a valley-folded square joining the midpoints of the four edges of the paper. Each corner of your new square sits halfway along one edge of the old one.',
-          'You should not need to aim carefully: the midpoints are grid intersections, so each drag will snap to them. This is the moment snapping earns its keep — try drawing the same shape with snapping turned off in the View panel and the difference is obvious.',
+          'You should not need to aim carefully: the midpoints are grid intersections, so each drag will snap to them. This is the moment snapping earns its keep — in the Edit workspace you can switch it off from the View panel and try the same shape freehand, and the difference is obvious.',
         ],
         targetId: 'inscribed-square',
         teaches: 'cp.action.draw-crease',
