@@ -4,6 +4,12 @@ import {
   flatPlaneAxes,
   type CpSegment,
 } from './creasePatternSegmentation';
+import { escapeXml } from './xmlEscape';
+import { foldedFigureSvgBody, projectedFoldedFigureBounds } from './foldedFigureSvg';
+import type {
+  OristudioCpFoldedFigureState,
+  OristudioCpFoldedRenderSnapshot,
+} from '../engine/oristudioCpTypes';
 import {
   DEFAULT_ORISTUDIO_CP_LINE_STYLE,
   DEFAULT_ORISTUDIO_CP_LINE_WIDTH,
@@ -30,8 +36,6 @@ const CAPTION_PADDING = 56;
 const CAPTION_GAP = 12;
 /** Caption block → artwork. */
 const CONTENT_GAP = 32;
-/** Crease pattern → folded figure. */
-const FOLDED_GAP = 48;
 /** Fraction of the font size used as the first-line baseline offset. */
 const BASELINE_RATIO = 0.82;
 
@@ -52,6 +56,28 @@ export type CreaseExportFormat = 'svg' | 'png';
 
 /** Light or dark rendering of the exported image. */
 export type CreaseExportTheme = 'light' | 'dark';
+
+/**
+ * How the folded figure is folded and painted. These go to the kernel as a
+ * folded-figure model, so changing any of them means re-folding.
+ */
+export interface CreaseExportFoldedFigureSettings {
+  /** Which surface the figure shows: front, back, both, or see-through. */
+  side: OristudioCpFoldedFigureState;
+  /** Front / back paper colours, as `#rrggbb`. */
+  frontColor: string;
+  backColor: string;
+  /** 1-based layer-ordering solution to show. */
+  foldCase: number;
+}
+
+export const DEFAULT_CREASE_EXPORT_FOLDED_FIGURE: CreaseExportFoldedFigureSettings = {
+  side: 'Front0',
+  // The kernel's own FoldedFigureModel defaults.
+  frontColor: '#ffff32',
+  backColor: '#e9e9e9',
+  foldCase: 1,
+};
 
 /** Optional text drawn into the exported image. Empty strings draw nothing. */
 export interface CreaseExportCaption {
@@ -76,6 +102,7 @@ export interface CreaseExportOptions {
    * gates it and resolves the folded snapshot alongside these options.
    */
   includeFoldedFigure: boolean;
+  foldedFigure: CreaseExportFoldedFigureSettings;
   caption: CreaseExportCaption;
 }
 
@@ -97,6 +124,7 @@ export const DEFAULT_CREASE_EXPORT_OPTIONS: CreaseExportOptions = {
   // is what prints, embeds, and reads as a crease pattern everywhere else.
   theme: 'light',
   includeFoldedFigure: false,
+  foldedFigure: DEFAULT_CREASE_EXPORT_FOLDED_FIGURE,
   caption: EMPTY_CREASE_EXPORT_CAPTION,
 };
 
@@ -160,16 +188,6 @@ export const CREASE_EXPORT_PALETTES: Record<CreaseExportTheme, CreaseExportPalet
 
 export function creaseExportPalette(theme: CreaseExportTheme): CreaseExportPalette {
   return CREASE_EXPORT_PALETTES[theme] ?? CREASE_EXPORT_PALETTES.light;
-}
-
-/** Escape a string for use as SVG text or an attribute value. */
-export function escapeXml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
 }
 
 function assignmentColor(assignment: string, palette: CreaseExportPalette): string {
@@ -241,6 +259,10 @@ export interface CreaseExportProjector {
    * the same scale as the crease pattern rather than being fitted separately.
    */
   projectPoint: (point: { x: number; y: number }) => { x: number; y: number };
+  /** Page units per unit of the fold's own coordinates. */
+  scale: number;
+  /** Y of the top of the projected crease pattern inside the content box. */
+  contentTop: number;
 }
 
 export function foldProjector(fold: FoldDocument): CreaseExportProjector {
@@ -281,7 +303,7 @@ export function foldProjector(fold: FoldDocument): CreaseExportProjector {
     const coord = coords[vertex];
     return projectPoint({ x: coord?.[axes[0]] ?? 0, y: coord?.[axes[1]] ?? 0 });
   };
-  return { project, projectPoint };
+  return { project, projectPoint, scale, contentTop: offsetY };
 }
 
 export interface CreaseExportRect {
@@ -375,7 +397,10 @@ export function layoutCreaseExport(
   palette: CreaseExportPalette,
   foldedBox: CreaseExportFoldedBox | null = null
 ): CreaseExportLayout {
-  const contentWidth = CP_SIZE + (foldedBox ? FOLDED_GAP + foldedBox.width : 0);
+  // The crease pattern's box already ends in a margin, which becomes the gap to
+  // the folded figure; the figure's own box is tight, so it takes a matching
+  // margin on the outside edge.
+  const contentWidth = CP_SIZE + (foldedBox ? foldedBox.width + MARGIN : 0);
   const contentHeight = Math.max(CP_SIZE, foldedBox?.height ?? 0);
   const textWidth = contentWidth - MARGIN * 2;
 
@@ -441,7 +466,7 @@ export function layoutCreaseExport(
     cp: { x: 0, y: contentTop, width: CP_SIZE, height: CP_SIZE },
     folded: foldedBox
       ? {
-          x: CP_SIZE + FOLDED_GAP,
+          x: CP_SIZE,
           y: contentTop,
           width: foldedBox.width,
           height: foldedBox.height,
@@ -472,10 +497,11 @@ function renderTextBlock(block: CreaseExportTextBlock | null, pageWidth: number)
 export function serializeCreasePatternSvg(
   fold: FoldDocument,
   segments: CpSegment[],
-  options: CreaseExportOptions = DEFAULT_CREASE_EXPORT_OPTIONS
+  options: CreaseExportOptions = DEFAULT_CREASE_EXPORT_OPTIONS,
+  content: CreaseExportContent = EMPTY_CREASE_EXPORT_CONTENT
 ): string {
   return composeCreaseExportSvg(
-    buildCreaseExportArtwork(fold, segments, options),
+    buildCreaseExportArtwork(fold, segments, options, content),
     options.caption
   ).svg;
 }
@@ -495,19 +521,36 @@ export interface CreaseExportDocument {
 export interface CreaseExportArtwork {
   /** Crease-pattern body, in content-box coordinates. */
   cp: string;
+  /** Folded-figure body, drawn relative to its own box origin. */
+  folded: string | null;
+  foldedBox: CreaseExportFoldedBox | null;
   palette: CreaseExportPalette;
 }
+
+/**
+ * Resolved content the options alone cannot describe.
+ *
+ * The folded figure comes from an async kernel fold, so the dialog computes it
+ * for the preview and hands the same snapshot to the export — the file is then
+ * exactly what the preview showed, rather than a second fold that might differ.
+ */
+export interface CreaseExportContent {
+  foldedFigure: OristudioCpFoldedRenderSnapshot | null;
+}
+
+export const EMPTY_CREASE_EXPORT_CONTENT: CreaseExportContent = { foldedFigure: null };
 
 export function buildCreaseExportArtwork(
   fold: FoldDocument,
   segments: CpSegment[],
-  options: CreaseExportOptions
+  options: CreaseExportOptions,
+  content: CreaseExportContent = EMPTY_CREASE_EXPORT_CONTENT
 ): CreaseExportArtwork {
   const palette = creaseExportPalette(options.theme);
   const segment =
     options.segmentId != null ? segments.find((entry) => entry.id === options.segmentId) : undefined;
   const targetFold = segment ? buildSegmentFold(fold, segment) : fold;
-  const { project } = foldProjector(targetFold);
+  const { project, projectPoint, scale, contentTop } = foldProjector(targetFold);
 
   const faces = targetFold.faces_vertices ?? [];
   const edges = targetFold.edges_vertices ?? [];
@@ -558,7 +601,31 @@ export function buildCreaseExportArtwork(
     points = dots.join('\n');
   }
 
-  return { cp: [backgrounds, lines, points].filter(Boolean).join('\n'), palette };
+  // The folded figure is drawn through the crease pattern's own projector, so
+  // paper and folded form share a scale and read as the same model at the same
+  // size — then shifted to its own box origin, which the compose pass places.
+  let folded: string | null = null;
+  let foldedBox: CreaseExportFoldedBox | null = null;
+  const foldedSnapshot = options.includeFoldedFigure ? content.foldedFigure : null;
+  if (foldedSnapshot) {
+    const bounds = projectedFoldedFigureBounds(foldedSnapshot, projectPoint);
+    if (bounds) {
+      // Top edge of the figure lines up with the top edge of the drawn crease
+      // pattern — not with the content box, whose margin would leave the figure
+      // floating above the sheet it was folded from.
+      const height = bounds.maxY - bounds.minY;
+      foldedBox = { width: bounds.maxX - bounds.minX, height: contentTop + height };
+      folded = foldedFigureSvgBody(foldedSnapshot, {
+        project: (point) => {
+          const projected = projectPoint(point);
+          return { x: projected.x - bounds.minX, y: projected.y - bounds.minY + contentTop };
+        },
+        scale,
+      });
+    }
+  }
+
+  return { cp: [backgrounds, lines, points].filter(Boolean).join('\n'), folded, foldedBox, palette };
 }
 
 /** Place artwork and caption on the page and emit the standalone SVG. */
@@ -567,13 +634,17 @@ export function composeCreaseExportSvg(
   caption: CreaseExportCaption
 ): CreaseExportDocument {
   const { palette } = artwork;
-  const layout = layoutCreaseExport(caption, palette);
+  const layout = layoutCreaseExport(caption, palette, artwork.foldedBox);
   // Only wrap the artwork when it actually moves: an export with no caption is
   // byte-for-byte what it was before captions existed.
   const placedCp =
     layout.cp.x === 0 && layout.cp.y === 0
       ? artwork.cp
       : `  <g transform="translate(${layout.cp.x.toFixed(2)}, ${layout.cp.y.toFixed(2)})">\n${artwork.cp}\n  </g>`;
+  const placedFolded =
+    artwork.folded && layout.folded
+      ? `  <g transform="translate(${layout.folded.x.toFixed(2)}, ${layout.folded.y.toFixed(2)})">\n${artwork.folded}\n  </g>`
+      : '';
 
   const svg = [
     '<?xml version="1.0" encoding="UTF-8"?>',
@@ -582,6 +653,7 @@ export function composeCreaseExportSvg(
     renderTextBlock(layout.title, layout.width),
     renderTextBlock(layout.subtitle, layout.width),
     placedCp,
+    placedFolded,
     renderTextBlock(layout.description, layout.width),
     '</svg>',
   ]
@@ -625,10 +697,11 @@ async function svgToPng(svg: string, width: number, height: number): Promise<Uin
 export function renderCreasePatternPng(
   fold: FoldDocument,
   segments: CpSegment[],
-  options: CreaseExportOptions = DEFAULT_CREASE_EXPORT_OPTIONS
+  options: CreaseExportOptions = DEFAULT_CREASE_EXPORT_OPTIONS,
+  content: CreaseExportContent = EMPTY_CREASE_EXPORT_CONTENT
 ): Promise<Uint8Array> {
   const page = composeCreaseExportSvg(
-    buildCreaseExportArtwork(fold, segments, options),
+    buildCreaseExportArtwork(fold, segments, options, content),
     options.caption
   );
   return svgToPng(page.svg, page.width, page.height);

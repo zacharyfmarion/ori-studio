@@ -453,6 +453,37 @@ export function segmentThumbnailSvg(
   return cpThumbnailSvg(fold, [segment], options);
 }
 
+/**
+ * Whether `point` lies on one of the segment's boundary edges, within `epsilon`.
+ *
+ * The even-odd test below is undefined exactly on the boundary, and a crease
+ * that *is* the paper's edge has its midpoint precisely there — which is how a
+ * square loses half its border to a plain inside test.
+ */
+export function pointOnSegmentBoundary(
+  segment: CpSegment,
+  point: Point,
+  epsilon = 1e-6
+): boolean {
+  for (const ring of segment.boundary) {
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+      const a = ring[i]!;
+      const b = ring[j]!;
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const lengthSquared = dx * dx + dy * dy;
+      const t =
+        lengthSquared > 0
+          ? Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / lengthSquared))
+          : 0;
+      const closestX = a.x + t * dx;
+      const closestY = a.y + t * dy;
+      if (Math.hypot(point.x - closestX, point.y - closestY) <= epsilon) return true;
+    }
+  }
+  return false;
+}
+
 /** Even-odd point-in-segment test across all boundary rings (for export). */
 export function pointInSegment(segment: CpSegment, point: Point): boolean {
   let inside = false;

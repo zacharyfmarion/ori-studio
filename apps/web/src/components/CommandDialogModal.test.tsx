@@ -1,15 +1,17 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   requestConfirmation,
   requestCreasePatternExportOptions,
   requestPositiveNumber,
   useCommandDialogStore,
 } from '../store/commandDialogStore';
-import { DEFAULT_CREASE_EXPORT_OPTIONS, type CreaseExportOptions } from '../lib/creaseExport';
+import { DEFAULT_CREASE_EXPORT_OPTIONS } from '../lib/creaseExport';
+import type { CreaseExportDialogResult } from '../store/commandDialogStore';
 import { segmentFoldDocument } from '../lib/creasePatternSegmentation';
 import type { FoldDocument } from '../engine/types';
+import type { OristudioCpFoldedRenderSnapshot } from '../engine/oristudioCpTypes';
 import { CommandDialogModal } from './CommandDialogModal';
 
 function exportFold(): FoldDocument {
@@ -66,6 +68,34 @@ function twoPatternExportFold(): FoldDocument {
       [0, 2, 3],
       [4, 5, 6],
       [4, 6, 7],
+    ],
+  };
+}
+
+/** A minimal folded figure: one white facet. */
+function foldedSnapshot(): OristudioCpFoldedRenderSnapshot {
+  return {
+    schema_version: 1,
+    fixture: null,
+    pass: null,
+    primitives: [
+      {
+        sequence: 0,
+        kind: 'fill_polygon',
+        style: {
+          paint: { kind: 'color', color: { red: 255, green: 255, blue: 255, alpha: 255 } },
+          stroke: { kind: 'none' },
+          antialias: 'default',
+        },
+        geometry: {
+          kind: 'polygon',
+          points: [
+            { x: 0, y: 0 },
+            { x: 1, y: 0 },
+            { x: 1, y: 1 },
+          ],
+        },
+      },
     ],
   };
 }
@@ -174,7 +204,7 @@ describe('CommandDialogModal', () => {
     const rendered = renderModalHost();
     const fold = exportFold();
     const segments = segmentFoldDocument(fold);
-    let result = Promise.resolve<CreaseExportOptions | null>(null);
+    let result = Promise.resolve<CreaseExportDialogResult | null>(null);
 
     act(() => {
       result = requestCreasePatternExportOptions({
@@ -183,6 +213,7 @@ describe('CommandDialogModal', () => {
         fold,
         segments,
         initialOptions: { ...DEFAULT_CREASE_EXPORT_OPTIONS },
+        foldSegment: null,
         confirmLabel: 'Export SVG',
       });
     });
@@ -202,9 +233,12 @@ describe('CommandDialogModal', () => {
     });
 
     await expect(result).resolves.toEqual({
-      ...DEFAULT_CREASE_EXPORT_OPTIONS,
-      includeUnassigned: false,
-      showBackgroundColor: false,
+      options: {
+        ...DEFAULT_CREASE_EXPORT_OPTIONS,
+        includeUnassigned: false,
+        showBackgroundColor: false,
+      },
+      content: { foldedFigure: null },
     });
   });
 
@@ -212,7 +246,7 @@ describe('CommandDialogModal', () => {
     const rendered = renderModalHost();
     const fold = twoPatternExportFold();
     const segments = segmentFoldDocument(fold);
-    let result = Promise.resolve<CreaseExportOptions | null>(null);
+    let result = Promise.resolve<CreaseExportDialogResult | null>(null);
 
     act(() => {
       result = requestCreasePatternExportOptions({
@@ -221,6 +255,7 @@ describe('CommandDialogModal', () => {
         fold,
         segments,
         initialOptions: { ...DEFAULT_CREASE_EXPORT_OPTIONS },
+        foldSegment: null,
         confirmLabel: 'Export SVG',
       });
     });
@@ -240,7 +275,7 @@ describe('CommandDialogModal', () => {
       await result;
     });
 
-    await expect(result).resolves.toMatchObject({ segmentId: segments[0]!.id });
+    await expect(result).resolves.toMatchObject({ options: { segmentId: segments[0]!.id } });
   });
 
   it('hides the thumbnail column for a single-pattern document', () => {
@@ -255,6 +290,7 @@ describe('CommandDialogModal', () => {
         fold,
         segments,
         initialOptions: { ...DEFAULT_CREASE_EXPORT_OPTIONS },
+        foldSegment: null,
         confirmLabel: 'Export SVG',
       });
     });
@@ -266,7 +302,7 @@ describe('CommandDialogModal', () => {
     const rendered = renderModalHost();
     const fold = exportFold();
     const segments = segmentFoldDocument(fold);
-    let result = Promise.resolve<CreaseExportOptions | null>(null);
+    let result = Promise.resolve<CreaseExportDialogResult | null>(null);
 
     act(() => {
       result = requestCreasePatternExportOptions({
@@ -275,6 +311,7 @@ describe('CommandDialogModal', () => {
         fold,
         segments,
         initialOptions: { ...DEFAULT_CREASE_EXPORT_OPTIONS },
+        foldSegment: null,
         confirmLabel: 'Export PNG',
       });
     });
@@ -296,8 +333,111 @@ describe('CommandDialogModal', () => {
     });
 
     await expect(result).resolves.toMatchObject({
-      theme: 'dark',
-      caption: { title: 'Crane', subtitle: 'Traditional', description: 'Folded from a square.' },
+      options: {
+        theme: 'dark',
+        caption: { title: 'Crane', subtitle: 'Traditional', description: 'Folded from a square.' },
+      },
+    });
+  });
+
+  it('folds the selected pattern and resolves the previewed figure', async () => {
+    const rendered = renderModalHost();
+    const fold = exportFold();
+    const segments = segmentFoldDocument(fold);
+    const foldSegment = vi.fn(async () => ({
+      snapshot: foldedSnapshot(),
+      discoveredCases: 1,
+    }));
+    let result = Promise.resolve<CreaseExportDialogResult | null>(null);
+
+    act(() => {
+      result = requestCreasePatternExportOptions({
+        title: 'Export SVG',
+        format: 'svg',
+        fold,
+        segments,
+        initialOptions: { ...DEFAULT_CREASE_EXPORT_OPTIONS },
+        foldSegment,
+        confirmLabel: 'Export SVG',
+      });
+    });
+
+    const toggle = rendered.querySelector(
+      '[aria-label="Include folded figure"]'
+    ) as HTMLButtonElement;
+    expect(toggle.hasAttribute('disabled')).toBe(false);
+
+    await act(async () => {
+      toggle.click();
+    });
+    await act(async () => {
+      findButton('Export SVG').click();
+      await result;
+    });
+
+    expect(foldSegment).toHaveBeenCalledTimes(1);
+    await expect(result).resolves.toMatchObject({
+      options: { includeFoldedFigure: true },
+      content: { foldedFigure: { primitives: expect.any(Array) } },
+    });
+  });
+
+  it('disables the folded figure without an editable crease pattern', () => {
+    const rendered = renderModalHost();
+    const fold = exportFold();
+    const segments = segmentFoldDocument(fold);
+
+    act(() => {
+      void requestCreasePatternExportOptions({
+        title: 'Export SVG',
+        format: 'svg',
+        fold,
+        segments,
+        initialOptions: { ...DEFAULT_CREASE_EXPORT_OPTIONS },
+        foldSegment: null,
+        confirmLabel: 'Export SVG',
+      });
+    });
+
+    const toggle = rendered.querySelector('[aria-label="Include folded figure"]');
+    expect(toggle?.hasAttribute('disabled')).toBe(true);
+    expect(rendered.textContent).toContain('Open an editable crease pattern to fold it');
+  });
+
+  it('drops the folded figure when the fold fails, so preview and export agree', async () => {
+    const rendered = renderModalHost();
+    const fold = exportFold();
+    const segments = segmentFoldDocument(fold);
+    const foldSegment = vi.fn(async () => {
+      throw new Error('This crease pattern has no foldable creases');
+    });
+    let result = Promise.resolve<CreaseExportDialogResult | null>(null);
+
+    act(() => {
+      result = requestCreasePatternExportOptions({
+        title: 'Export SVG',
+        format: 'svg',
+        fold,
+        segments,
+        initialOptions: { ...DEFAULT_CREASE_EXPORT_OPTIONS },
+        foldSegment,
+        confirmLabel: 'Export SVG',
+      });
+    });
+
+    await act(async () => {
+      (rendered.querySelector('[aria-label="Include folded figure"]') as HTMLButtonElement).click();
+    });
+
+    expect(rendered.textContent).toContain('no foldable creases');
+    await act(async () => {
+      findButton('Export SVG').click();
+      await result;
+    });
+
+    await expect(result).resolves.toMatchObject({
+      options: { includeFoldedFigure: false },
+      content: { foldedFigure: null },
     });
   });
 

@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Download, X } from 'lucide-react';
+import type { TFunction } from 'i18next';
+import { ChevronRight, Download, X } from 'lucide-react';
 import {
   cancelCommandDialog,
   resolveCommandDialog,
@@ -12,11 +13,13 @@ import {
   creaseExportPalette,
   DEFAULT_CREASE_EXPORT_OPTIONS,
   type CreaseExportCaption,
+  type CreaseExportFoldedFigureSettings,
   type CreaseExportOptions,
   type CreaseExportPalette,
   type CreaseExportTheme,
 } from '../lib/creaseExport';
 import { cpThumbnailSvg, type CpSegment } from '../lib/creasePatternSegmentation';
+import type { CreaseExportFoldResult } from '../lib/creaseExportFold';
 import {
   ORISTUDIO_CP_LINE_STYLES,
   ORISTUDIO_CP_MIN_LINE_WIDTH,
@@ -25,6 +28,10 @@ import {
   ORISTUDIO_CP_MAX_POINT_SIZE,
 } from '../lib/creasePatternViewport';
 import type { FoldDocument } from '../engine/types';
+import type {
+  OristudioCpFoldedFigureState,
+  OristudioCpFoldedRenderSnapshot,
+} from '../engine/oristudioCpTypes';
 import { cpLineStyleLabel } from '../i18n/enumLabels';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
@@ -51,6 +58,41 @@ function thumbnailStrokes(palette: CreaseExportPalette): Record<string, string> 
   };
 }
 
+const FOLDED_SIDE_OPTIONS: OristudioCpFoldedFigureState[] = [
+  'Front0',
+  'Back1',
+  'Both2',
+  'Transparent3',
+];
+
+// Short labels for the segmented control; the full name is the tooltip. These
+// mirror the folded-figure menu in the crease-pattern panel.
+function foldedSideLabel(t: TFunction, value: OristudioCpFoldedFigureState): string {
+  switch (value) {
+    case 'Front0':
+      return t('dialogs:export.foldedSideFrontShort', 'F');
+    case 'Back1':
+      return t('dialogs:export.foldedSideBackShort', 'B');
+    case 'Both2':
+      return t('dialogs:export.foldedSideBoth', 'Both');
+    default:
+      return t('dialogs:export.foldedSideTransparentShort', 'T');
+  }
+}
+
+function foldedSideTitle(t: TFunction, value: OristudioCpFoldedFigureState): string {
+  switch (value) {
+    case 'Front0':
+      return t('dialogs:export.foldedSideFront', 'Front');
+    case 'Back1':
+      return t('dialogs:export.foldedSideBack', 'Back');
+    case 'Both2':
+      return t('dialogs:export.foldedSideBothTitle', 'Both sides');
+    default:
+      return t('dialogs:export.foldedSideTransparent', 'Transparent');
+  }
+}
+
 interface PatternOption {
   /** Segment id, or null for "all patterns". */
   id: number | null;
@@ -61,6 +103,14 @@ interface PatternOption {
 export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDialog }) {
   const { t } = useTranslation();
   const [options, setOptions] = useState<CreaseExportOptions>(dialog.initialOptions);
+  const [foldedFigure, setFoldedFigure] = useState<OristudioCpFoldedRenderSnapshot | null>(null);
+  const [folding, setFolding] = useState(false);
+  const [foldError, setFoldError] = useState<string | null>(null);
+  const [discoveredCases, setDiscoveredCases] = useState(1);
+  const [foldedOptionsOpen, setFoldedOptionsOpen] = useState(false);
+  // The document cannot change while the dialog is open, so a pattern folded
+  // with the same settings is reused instead of refolded.
+  const foldCache = useRef(new Map<string, CreaseExportFoldResult>());
 
   useEffect(() => {
     setOptions(dialog.initialOptions);
@@ -74,13 +124,72 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
     includeUnassigned,
     showBackgroundColor,
     theme,
+    includeFoldedFigure,
+    foldedFigure: foldedSettings,
     caption,
   } = options;
+
+  const multiPattern = dialog.segments.length > 1;
+  // Folding needs a kernel document, and one pattern at a time: "All patterns"
+  // has no single folded form to draw beside the sheet.
+  const canFold = dialog.foldSegment !== null && (!multiPattern || segmentId !== null);
+  const foldSegment = dialog.foldSegment;
+
+  useEffect(() => {
+    if (!includeFoldedFigure || !canFold || !foldSegment) {
+      setFoldedFigure(null);
+      setFolding(false);
+      return undefined;
+    }
+
+    const key = `${segmentId ?? 'all'}:${foldedSettings.side}:${foldedSettings.frontColor}:${foldedSettings.backColor}:${foldedSettings.foldCase}`;
+    const cached = foldCache.current.get(key);
+    if (cached) {
+      setFoldedFigure(cached.snapshot);
+      setDiscoveredCases(cached.discoveredCases);
+      setFoldError(null);
+      return undefined;
+    }
+
+    let cancelled = false;
+    setFolding(true);
+    setFoldError(null);
+    void foldSegment(
+      dialog.segments.find((entry) => entry.id === segmentId) ?? null,
+      foldedSettings
+    )
+      .then((result) => {
+        foldCache.current.set(key, result);
+        if (cancelled) return;
+        setFoldedFigure(result.snapshot);
+        setDiscoveredCases(result.discoveredCases);
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        // The preview is the contract: rather than export something the preview
+        // never showed, drop the figure and say why.
+        setFoldedFigure(null);
+        setFoldError(error instanceof Error ? error.message : String(error));
+        setOptions((current) => ({ ...current, includeFoldedFigure: false }));
+      })
+      .finally(() => {
+        if (!cancelled) setFolding(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [includeFoldedFigure, canFold, foldSegment, segmentId, foldedSettings, dialog.segments]);
 
   const patch = (next: Partial<CreaseExportOptions>) =>
     setOptions((current) => ({ ...current, ...next }));
   const patchCaption = (next: Partial<CreaseExportCaption>) =>
     setOptions((current) => ({ ...current, caption: { ...current.caption, ...next } }));
+  const patchFolded = (next: Partial<CreaseExportFoldedFigureSettings>) =>
+    setOptions((current) => ({
+      ...current,
+      foldedFigure: { ...current.foldedFigure, ...next },
+    }));
 
   const palette = creaseExportPalette(theme);
 
@@ -88,16 +197,22 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
   // title only re-runs the cheap layout/compose pass below.
   const artwork = useMemo(
     () =>
-      buildCreaseExportArtwork(dialog.fold, dialog.segments, {
-        ...DEFAULT_CREASE_EXPORT_OPTIONS,
-        segmentId,
-        lineStyle,
-        lineWidth,
-        pointSize,
-        includeUnassigned,
-        showBackgroundColor,
-        theme,
-      }),
+      buildCreaseExportArtwork(
+        dialog.fold,
+        dialog.segments,
+        {
+          ...DEFAULT_CREASE_EXPORT_OPTIONS,
+          segmentId,
+          lineStyle,
+          lineWidth,
+          pointSize,
+          includeUnassigned,
+          showBackgroundColor,
+          theme,
+          includeFoldedFigure,
+        },
+        { foldedFigure }
+      ),
     [
       dialog.fold,
       dialog.segments,
@@ -108,6 +223,8 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
       includeUnassigned,
       showBackgroundColor,
       theme,
+      includeFoldedFigure,
+      foldedFigure,
     ]
   );
 
@@ -117,7 +234,6 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
   }, [artwork, caption]);
 
   const patterns = usePatternOptions(dialog.fold, dialog.segments, palette, t);
-  const multiPattern = dialog.segments.length > 1;
 
   const confirmLabel =
     dialog.confirmLabel ??
@@ -154,7 +270,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
           className={`simple-modal__body export-modal${multiPattern ? ' export-modal--with-patterns' : ''}`}
           onSubmit={(event) => {
             event.preventDefault();
-            resolveCommandDialog(dialog.id, options);
+            resolveCommandDialog(dialog.id, { options, content: { foldedFigure } });
           }}
         >
           {multiPattern && (
@@ -172,7 +288,13 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
                   aria-label={pattern.label}
                   title={pattern.label}
                   className={`export-modal__pattern-card${segmentId === pattern.id ? ' export-modal__pattern-card--selected' : ''}`}
-                  onClick={() => patch({ segmentId: pattern.id })}
+                  onClick={() =>
+                    patch({
+                      segmentId: pattern.id,
+                      includeFoldedFigure:
+                        pattern.id === null ? false : options.includeFoldedFigure,
+                    })
+                  }
                 >
                   {/* Trusted, locally generated SVG string. */}
                   <span
@@ -287,6 +409,126 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
                 aria-label={t('dialogs:export.showBackgroundColor', 'Show background color')}
               />
             </div>
+            <div className="export-modal__toggle-row">
+              <div className="export-modal__toggle-copy">
+                <span>{t('dialogs:export.includeFoldedFigure', 'Include folded figure')}</span>
+                {!canFold && (
+                  <small className="export-modal__hint">
+                    {dialog.foldSegment === null
+                      ? t(
+                          'dialogs:export.foldedFigureNeedsCp',
+                          'Open an editable crease pattern to fold it'
+                        )
+                      : t(
+                          'dialogs:export.foldedFigureNeedsOnePattern',
+                          'Select a single pattern to fold'
+                        )}
+                  </small>
+                )}
+                {folding && (
+                  <small className="export-modal__hint">
+                    {t('dialogs:export.folding', 'Folding…')}
+                  </small>
+                )}
+                {foldError && (
+                  <small className="export-modal__hint export-modal__hint--error" role="alert">
+                    {foldError}
+                  </small>
+                )}
+              </div>
+              <Toggle
+                checked={includeFoldedFigure}
+                disabled={!canFold}
+                onChange={(next) => {
+                  setFoldError(null);
+                  setFoldedOptionsOpen(next);
+                  patch({ includeFoldedFigure: next });
+                }}
+                aria-label={t('dialogs:export.includeFoldedFigure', 'Include folded figure')}
+              />
+            </div>
+            {includeFoldedFigure && canFold && (
+              <div className="export-modal__section">
+                <button
+                  type="button"
+                  className="export-modal__section-toggle"
+                  aria-expanded={foldedOptionsOpen}
+                  onClick={() => setFoldedOptionsOpen((open) => !open)}
+                >
+                  <ChevronRight
+                    size={13}
+                    aria-hidden="true"
+                    className={`export-modal__section-chevron${foldedOptionsOpen ? ' export-modal__section-chevron--open' : ''}`}
+                  />
+                  {t('dialogs:export.foldedFigureOptions', 'Folded figure options')}
+                </button>
+                {foldedOptionsOpen && (
+                  <div className="export-modal__section-body">
+                    <div className="export-modal__control-group">
+                      <span className="export-modal__label">
+                        {t('dialogs:export.foldedSide', 'Side')}
+                      </span>
+                      <SegmentedControl<OristudioCpFoldedFigureState>
+                        aria-label={t('dialogs:export.foldedSide', 'Side')}
+                        value={foldedSettings.side}
+                        onChange={(side) => patchFolded({ side })}
+                        options={FOLDED_SIDE_OPTIONS.map((value) => ({
+                          value,
+                          label: foldedSideLabel(t, value),
+                          title: foldedSideTitle(t, value),
+                        }))}
+                      />
+                    </div>
+                    <div className="export-modal__colors">
+                      <label className="export-modal__color">
+                        <span>{t('dialogs:export.foldedFrontColor', 'Front')}</span>
+                        <input
+                          type="color"
+                          aria-label={t('dialogs:export.foldedFrontColor', 'Front')}
+                          value={foldedSettings.frontColor}
+                          onChange={(event) =>
+                            patchFolded({ frontColor: event.currentTarget.value })
+                          }
+                        />
+                      </label>
+                      <label className="export-modal__color">
+                        <span>{t('dialogs:export.foldedBackColor', 'Back')}</span>
+                        <input
+                          type="color"
+                          aria-label={t('dialogs:export.foldedBackColor', 'Back')}
+                          value={foldedSettings.backColor}
+                          onChange={(event) =>
+                            patchFolded({ backColor: event.currentTarget.value })
+                          }
+                        />
+                      </label>
+                    </div>
+                    <div className="export-modal__control-group">
+                      <label className="export-modal__label" htmlFor="export-fold-case">
+                        {t('dialogs:export.foldedCase', 'Fold case')}
+                      </label>
+                      <input
+                        id="export-fold-case"
+                        type="number"
+                        min={1}
+                        step={1}
+                        className="export-modal__input"
+                        value={foldedSettings.foldCase}
+                        onChange={(event) => {
+                          const next = Number.parseInt(event.currentTarget.value, 10);
+                          patchFolded({ foldCase: Number.isFinite(next) ? Math.max(1, next) : 1 });
+                        }}
+                      />
+                      <small className="export-modal__hint">
+                        {t('dialogs:export.foldedCasesFound', '{{count}} found so far', {
+                          count: discoveredCases,
+                        })}
+                      </small>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             <div className="export-modal__control-group">
               <label className="export-modal__label" htmlFor="export-title">
                 {t('dialogs:export.title', 'Title')}

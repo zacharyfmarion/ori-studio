@@ -1,9 +1,13 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import type {
-  CreaseExportFormat,
-  CreaseExportOptions,
+import {
+  EMPTY_CREASE_EXPORT_CONTENT,
+  type CreaseExportContent,
+  type CreaseExportFoldedFigureSettings,
+  type CreaseExportFormat,
+  type CreaseExportOptions,
 } from '../lib/creaseExport';
+import type { CreaseExportFoldResult } from '../lib/creaseExportFold';
 import type { FoldDocument } from '../engine/types';
 import type { CpSegment } from '../lib/creasePatternSegmentation';
 
@@ -49,8 +53,28 @@ export type CreasePatternExportDialogOptions = {
   fold: FoldDocument;
   segments: CpSegment[];
   initialOptions: CreaseExportOptions;
+  /**
+   * Folds one crease pattern for the preview, or null when this workspace
+   * cannot fold (no editable crease-pattern document). Injected rather than
+   * imported so the dialog stays free of the kernel runtime.
+   */
+  foldSegment:
+    | ((
+        segment: CpSegment | null,
+        settings: CreaseExportFoldedFigureSettings
+      ) => Promise<CreaseExportFoldResult>)
+    | null;
   confirmLabel?: string;
   cancelLabel?: string;
+};
+
+/**
+ * What the export dialog resolves: the declarative options plus the content the
+ * preview already resolved, so the exported file is exactly what was previewed.
+ */
+export type CreaseExportDialogResult = {
+  options: CreaseExportOptions;
+  content: CreaseExportContent;
 };
 
 export type CreasePatternExportDialog = { id: number; type: 'crease-export' } &
@@ -80,8 +104,8 @@ let pending:
     }
   | {
       id: number;
-      fallback: CreaseExportOptions | null;
-      resolve: (value: CreaseExportOptions | null) => void;
+      fallback: CreaseExportDialogResult | null;
+      resolve: (value: CreaseExportDialogResult | null) => void;
     }
   | null = null;
 
@@ -166,13 +190,18 @@ export function requestPositiveNumber(options: NumberDialogOptions): Promise<num
 
 export function requestCreasePatternExportOptions(
   options: CreasePatternExportDialogOptions
-): Promise<CreaseExportOptions | null> {
-  if (mountedHostCount === 0) return Promise.resolve(options.initialOptions);
+): Promise<CreaseExportDialogResult | null> {
+  if (mountedHostCount === 0) {
+    return Promise.resolve({
+      options: options.initialOptions,
+      content: EMPTY_CREASE_EXPORT_CONTENT,
+    });
+  }
 
   clearPendingWithFallback();
   const id = nextDialogId;
   nextDialogId += 1;
-  return new Promise<CreaseExportOptions | null>((resolve) => {
+  return new Promise<CreaseExportDialogResult | null>((resolve) => {
     pending = { id, fallback: null, resolve };
     useCommandDialogStore.getState().openDialog({
       id,
@@ -184,7 +213,7 @@ export function requestCreasePatternExportOptions(
 
 export function resolveCommandDialog(
   id: number,
-  value: boolean | number | ConfirmWithOptionResult | CreaseExportOptions | null
+  value: boolean | number | ConfirmWithOptionResult | CreaseExportDialogResult | null
 ): void {
   if (!pending || pending.id !== id) return;
   pending.resolve(value as never);

@@ -1238,6 +1238,9 @@
   grid-template-columns: minmax(220px, 1fr) minmax(240px, 300px);
   grid-template-rows: minmax(0, 1fr) auto;
   align-items: stretch;
+  /* A fixed working height: without it a document with twenty patterns makes
+     the thumbnail column — and the whole modal — as tall as the viewport. */
+  block-size: min(600px, calc(100vh - 160px));
   min-height: 0;
   overflow: hidden;
 }
@@ -1324,7 +1327,80 @@
   min-width: 0;
   min-height: 0;
   padding-right: 2px;
+  overflow-x: hidden;
   overflow-y: auto;
+}
+
+.export-modal__section {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+}
+
+.export-modal__section-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.export-modal__section-chevron {
+  transition: transform 120ms ease;
+}
+
+.export-modal__section-chevron--open {
+  transform: rotate(90deg);
+}
+
+.export-modal__section-body {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.export-modal__colors {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.export-modal__color {
+  display: grid;
+  gap: 4px;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.export-modal__color input[type='color'] {
+  width: 100%;
+  height: 28px;
+  padding: 2px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--bg-primary);
+  cursor: pointer;
+}
+
+.export-modal__hint {
+  color: var(--text-tertiary);
+  font-size: 0.68rem;
+  line-height: 1.35;
+  /* Kernel fold errors are long unbroken tokens; without this they set the
+     column's min-content width and push the toggles out of view. */
+  overflow-wrap: anywhere;
+}
+
+.export-modal__hint--error {
+  color: var(--status-danger);
 }
 
 .export-modal__input {

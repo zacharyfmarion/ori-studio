@@ -362,14 +362,16 @@ Rust engine, and the simulator.
 - [x] CSS: pattern column, wider document, non-square preview
 - [x] Modal tests: thumbnail selection drives `segmentId`, captions reach the resolved payload
 
-### Phase 3 — Folded figure
-- [ ] Extract shared folded-figure bounds from `cpFoldedToScene.ts`
-- [ ] `lib/foldedFigureSvg.ts` primitive → SVG serializer (+ tests)
-- [ ] `lib/creaseExportFold.ts`: segment → line ids, ephemeral fold, snapshot, guaranteed handle free (+ tests, including free-on-error)
-- [ ] Dialog options carry the fold callback; result becomes `{ options, content }`; update `commandDialogStore`, `projectSlice`, existing tests
-- [ ] Toggle + gating (no editable CP / All patterns), "Folding…" and error states, per-segment snapshot cache
-- [ ] Compose the folded figure into the export layout to the right of the CP; export reuses the previewed snapshot
-- [ ] Modal tests with a fake folder: enabled/disabled gating, error path turns the toggle off
+### Phase 3 — Folded figure (done)
+- [x] Folded-figure bounds computed from the render primitives in `foldedFigureSvg.ts` (the canvas path's cached geometry is tessellated for WebGL, so there was nothing worth sharing)
+- [x] `lib/foldedFigureSvg.ts` primitive → SVG serializer (+ tests)
+- [x] `lib/creaseExportFold.ts`: segment → line ids, ephemeral fold, snapshot, guaranteed handle free (+ tests, including free-on-error)
+- [x] Dialog options carry the fold callback; result becomes `{ options, content }`; update `commandDialogStore`, `projectSlice`, existing tests
+- [x] Toggle + gating (no editable CP / All patterns), "Folding…" and error states, per-segment snapshot cache
+- [x] Compose the folded figure into the export layout to the right of the CP; export reuses the previewed snapshot
+- [x] Modal tests with a fake folder: enabled/disabled gating, error path turns the toggle off
+- [x] Collapsible folded-figure options: side, front/back colour, fold case (kernel model per fold; case reached with `fold_to_case` on the ephemeral handle)
+- [x] Fixed modal working height so a twenty-pattern document does not stretch it to the viewport
 
 ### Phase 4 — i18n + validation
 - [ ] Inline English for all new strings; `npm run i18n:extract`

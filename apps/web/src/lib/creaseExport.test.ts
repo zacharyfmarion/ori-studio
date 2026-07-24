@@ -227,7 +227,9 @@ describe('export layout', () => {
     const layout = layoutCreaseExport(emptyCaption, palette, { width: 600, height: 800 });
 
     expect(layout.folded).not.toBeNull();
-    expect(layout.folded!.x).toBeGreaterThan(layout.cp.x + layout.cp.width);
+    // The figure starts where the crease pattern's box ends — that box's own
+    // margin is the gap — and the page adds a matching margin on the outside.
+    expect(layout.folded!.x).toBe(layout.cp.x + layout.cp.width);
     expect(layout.folded!.y).toBe(layout.cp.y);
     expect(layout.width).toBeGreaterThan(layout.cp.width + layout.folded!.width);
   });
