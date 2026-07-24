@@ -1,6 +1,22 @@
 import { useWorkspaceStore } from '../store/workspaceStore/store';
 import { explainSelectedSegment } from '../lib/creasePatternSelectionSegment';
 import { ensureCpSegmentationArtifacts } from './cpSegmentationArtifacts';
+import { cpOverlayViewStore } from './cpOverlayViewStore';
+
+/**
+ * Last render state published by the toolbar. A correct match still renders
+ * nothing if the component never mounts (the panel gates it) or if the floating
+ * anchor cannot be computed, so matching alone does not explain visibility.
+ * `renders === 0` means the component never mounted at all.
+ */
+export const toolbarRenderProbe = {
+  renders: 0,
+  hasMatch: false,
+  hasContainer: false,
+  hasBox: false,
+  hasAnchorRect: false,
+  hasSegmentation: false,
+};
 
 /**
  * Dev-only console hook: `await __cpToolbarDebug()`.
@@ -22,7 +38,15 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
     const artifacts = await ensureCpSegmentationArtifacts(document);
     const elapsedMs = Math.round(performance.now() - started);
     const diagnosis = explainSelectedSegment(document, state.oristudioCpSelection, artifacts);
-    const report = { ...diagnosis, segmentationMs: elapsedMs };
+    const report = {
+      ...diagnosis,
+      segmentationMs: elapsedMs,
+      render: { ...toolbarRenderProbe },
+      overlayViews: cpOverlayViewStore.get() !== null,
+      toolbarInDom: typeof globalThis.document !== 'undefined'
+        ? globalThis.document.querySelector('.cp-selection-toolbar') !== null
+        : false,
+    };
 
     console.log('[cp-toolbar]', report.reason, report);
     return report;

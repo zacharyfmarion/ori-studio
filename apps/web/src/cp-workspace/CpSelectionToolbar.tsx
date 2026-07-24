@@ -14,7 +14,7 @@ import { resolveSelectedSegment } from '../lib/creasePatternSelectionSegment';
 import { SEGMENT_EXPORT_FORMATS, type SegmentExportFormat } from '../lib/creaseSegmentExport';
 import { ensureCpSegmentationArtifacts } from './cpSegmentationArtifacts';
 // Registers `__cpToolbarDebug()` in dev builds; no-op in production.
-import './cpSelectionToolbarDebug';
+import { toolbarRenderProbe } from './cpSelectionToolbarDebug';
 
 // Literal keys so the i18n extractor can see them (see apps/web/CLAUDE.md).
 function exportFormatLabel(format: SegmentExportFormat, t: TFunction): string {
@@ -123,6 +123,16 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
   // Subscribed in this small component (not the panel) so the toolbar tracks the
   // camera live; see useCanvasObjectAnchor.
   const anchorRect = useCanvasObjectAnchor(box, 'model', container);
+
+  useEffect(() => {
+    toolbarRenderProbe.renders += 1;
+    toolbarRenderProbe.hasMatch = match !== null;
+    toolbarRenderProbe.hasContainer = container !== null;
+    toolbarRenderProbe.hasBox = box !== null;
+    toolbarRenderProbe.hasAnchorRect = anchorRect !== null;
+    toolbarRenderProbe.hasSegmentation = segmentation !== null;
+  });
+
   if (!match) return null;
 
   // Every action dismisses the toolbar by clearing the selection: it otherwise
