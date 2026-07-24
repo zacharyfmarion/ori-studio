@@ -705,6 +705,17 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       set({ selectedSegmentId: id });
     },
 
+    simulateOristudioCpSegment: (segmentId) => {
+      const segments = resolveCpSegments(get().foldArtifacts);
+      if (!segments.some((segment) => segment.id === segmentId)) return false;
+      // Set the scope before activating so the simulator reads it on mount.
+      // Mirrors sendTreeCreasePatternToEdit: switch workspace via the layout store
+      // (activatePanel resolves and activates the simulator's owning workspace).
+      set({ selectedSegmentId: segmentId });
+      useLayoutStore.getState().activatePanel('simulator');
+      return true;
+    },
+
     setSequenceSimulationFocus: (sequenceSimulationFocus) => set({ sequenceSimulationFocus }),
 
     setOristudioCpViewportOption: (key, value) =>

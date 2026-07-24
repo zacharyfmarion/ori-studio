@@ -20,6 +20,11 @@ import { hexToRgbColor } from '../../../lib/rgbColor';
 import { foldedFigureModelFromOrieditaMetadata } from '../../../lib/orieditaNativeMetadata';
 import type { OristudioCpFoldedFigureModel } from '../../../engine/oristudioCpTypes';
 import {
+  buildSegmentSubFold,
+  isSegmentImageFormat,
+  type SegmentExportFormat,
+} from '../../../lib/creaseSegmentExport';
+import {
   importedCreasePatternFormat,
   isCreasePatternFilename,
   parseImportedCreasePattern,
@@ -115,6 +120,7 @@ import {
   exportOristudioCpDocumentAsFold,
   exportOristudioCpDocumentAsOri,
   exportOristudioCpDocumentAsOrh,
+  exportFoldFrameAsFormat,
   clearOristudioCpKernelTexts,
   createBlankOristudioCpDocument,
   foldOristudioCpDocument,
@@ -2201,6 +2207,78 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           path: null,
           extensions: ['png'],
           mimeType: 'image/png',
+        });
+        if (!result) return false;
+        set({ projectMessage: `Exported ${result.name}` });
+        return true;
+      } catch (error) {
+        set({ status: 'error', error: engineError(error) });
+        return false;
+      }
+    },
+
+    exportOristudioCpSegment: async (
+      format: SegmentExportFormat,
+      segmentId: number,
+      fileService = getFileService()
+    ) => {
+      try {
+        // Capture the artifacts once so the segment id can't drift under a
+        // concurrent edit mid-export.
+        const foldArtifacts = get().foldArtifacts ?? (await get().ensureFoldArtifacts());
+        if (!foldArtifacts) return false;
+        const patternTitle = `${get().project.title} pattern ${segmentId + 1}`;
+
+        if (isSegmentImageFormat(format)) {
+          // Open the export-image modal pre-scoped to this segment.
+          const fold = foldArtifacts.fold;
+          const segments = segmentFoldDocument(fold);
+          const label = format.toUpperCase();
+          const options = await requestCreasePatternExportOptions({
+            title: `Export ${label}`,
+            format,
+            fold,
+            segments,
+            initialOptions: { ...defaultCreaseExportOptions(get().oristudioCpViewport), segmentId },
+            confirmLabel: `Export ${label}`,
+          });
+          if (!options) return false;
+          if (format === 'svg') {
+            const result = await fileService.saveTextFile({
+              title: 'Export Crease Pattern SVG',
+              contents: serializeCreasePatternSvg(fold, segments, options),
+              suggestedName: defaultFilename(patternTitle, 'svg'),
+              path: null,
+              extensions: ['svg'],
+            });
+            if (!result) return false;
+            set({ projectMessage: `Exported ${result.name}` });
+            return true;
+          }
+          const bytes = await renderCreasePatternPng(fold, segments, options);
+          const result = await fileService.saveBinaryFile({
+            title: 'Export Crease Pattern PNG',
+            bytes,
+            suggestedName: defaultFilename(patternTitle, 'png'),
+            path: null,
+            extensions: ['png'],
+            mimeType: 'image/png',
+          });
+          if (!result) return false;
+          set({ projectMessage: `Exported ${result.name}` });
+          return true;
+        }
+
+        // File formats: extract the sub-fold and serialize it through the kernel.
+        const subFold = buildSegmentSubFold(foldArtifacts, segmentId);
+        if (!subFold) return false;
+        const contents = await exportFoldFrameAsFormat(JSON.stringify(subFold), format);
+        const result = await fileService.saveTextFile({
+          title: `Export ${format.toUpperCase()}`,
+          contents,
+          suggestedName: defaultFilename(patternTitle, format),
+          path: null,
+          extensions: [format],
         });
         if (!result) return false;
         set({ projectMessage: `Exported ${result.name}` });
