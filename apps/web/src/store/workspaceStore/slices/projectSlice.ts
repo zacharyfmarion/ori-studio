@@ -3,6 +3,7 @@ import { APP_VERSION } from '../../../constants/release';
 import {
   serializeCreasePatternSvg,
   renderCreasePatternPng,
+  DEFAULT_CREASE_EXPORT_OPTIONS,
   type CreaseExportFormat,
   type CreaseExportOptions,
 } from '../../../lib/creaseExport';
@@ -421,13 +422,9 @@ async function confirmDiscardDirty(dirty: boolean): Promise<boolean> {
 
 function defaultCreaseExportOptions(viewport: OristudioCpViewportOptions): CreaseExportOptions {
   return {
-    segmentId: null,
+    ...DEFAULT_CREASE_EXPORT_OPTIONS,
     lineStyle: viewport.lineStyle ?? DEFAULT_ORISTUDIO_CP_LINE_STYLE,
     lineWidth: viewport.lineWidth ?? DEFAULT_ORISTUDIO_CP_LINE_WIDTH,
-    // Points off by default for exports.
-    pointSize: 0,
-    includeUnassigned: true,
-    showBackgroundColor: true,
   };
 }
 

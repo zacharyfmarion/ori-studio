@@ -97,6 +97,18 @@ const oristudioCpMocks = vi.hoisted(() => ({
 const exportMocks = vi.hoisted(() => ({
   renderCreasePatternPng: vi.fn(async () => new Uint8Array([1, 2, 3])),
   serializeCreasePatternSvg: vi.fn(() => '<svg role="img"></svg>'),
+  EMPTY_CREASE_EXPORT_CAPTION: { title: '', subtitle: '', description: '' },
+  DEFAULT_CREASE_EXPORT_OPTIONS: {
+    segmentId: null,
+    lineStyle: 'color',
+    lineWidth: 1,
+    pointSize: 0,
+    includeUnassigned: true,
+    showBackgroundColor: true,
+    theme: 'light',
+    includeFoldedFigure: false,
+    caption: { title: '', subtitle: '', description: '' },
+  },
 }));
 
 const bpMocks = vi.hoisted(() => ({

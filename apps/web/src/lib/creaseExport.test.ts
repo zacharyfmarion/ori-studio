@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import type { FoldDocument } from '../engine/types';
 import { segmentFoldDocument } from './creasePatternSegmentation';
-import { serializeCreasePatternSvg, DEFAULT_CREASE_EXPORT_OPTIONS } from './creaseExport';
+import {
+  serializeCreasePatternSvg,
+  layoutCreaseExport,
+  wrapExportText,
+  CREASE_EXPORT_PALETTES,
+  DEFAULT_CREASE_EXPORT_OPTIONS,
+  type CreaseExportCaption,
+  type CreaseExportOptions,
+} from './creaseExport';
 
 // A square (border) split by a mountain and a valley diagonal, plus a second
 // disjoint square, so segmentation yields two crease patterns.
@@ -108,5 +116,125 @@ describe('crease pattern export', () => {
 
     expect(withPoints).toContain('<circle');
     expect(noPoints).not.toContain('<circle');
+  });
+});
+
+describe('crease pattern export theme', () => {
+  it('paints the page and creases from the dark palette', () => {
+    const fold = twoPatternFold();
+    const segments = segmentFoldDocument(fold);
+    const svg = serializeCreasePatternSvg(fold, segments, {
+      ...DEFAULT_CREASE_EXPORT_OPTIONS,
+      theme: 'dark',
+    });
+
+    expect(svg).toContain(`fill="${CREASE_EXPORT_PALETTES.dark.canvas}"`);
+    expect(svg).toContain(`fill="${CREASE_EXPORT_PALETTES.dark.paper}"`);
+    expect(svg).toContain(`stroke="${CREASE_EXPORT_PALETTES.dark.mountain}"`);
+    expect(svg).not.toContain(`fill="${CREASE_EXPORT_PALETTES.light.canvas}"`);
+  });
+
+  it('inverts the monochrome styles so creases stay visible on a dark page', () => {
+    const fold = twoPatternFold();
+    const segments = segmentFoldDocument(fold);
+    const svg = serializeCreasePatternSvg(fold, segments, {
+      ...DEFAULT_CREASE_EXPORT_OPTIONS,
+      theme: 'dark',
+      lineStyle: 'black-white',
+    });
+
+    expect(svg).toContain(`stroke="${CREASE_EXPORT_PALETTES.dark.monochromeInk}"`);
+    expect(svg).not.toContain('stroke="#000000"');
+  });
+});
+
+describe('crease pattern export captions', () => {
+  const caption = (patch: Partial<CreaseExportCaption>): CreaseExportOptions => ({
+    ...DEFAULT_CREASE_EXPORT_OPTIONS,
+    caption: { title: '', subtitle: '', description: '', ...patch },
+  });
+
+  it('leaves an uncaptioned export at the bare content box', () => {
+    const fold = twoPatternFold();
+    const segments = segmentFoldDocument(fold);
+    const svg = serializeCreasePatternSvg(fold, segments, DEFAULT_CREASE_EXPORT_OPTIONS);
+
+    expect(svg).toContain('viewBox="0 0 1024.00 1024.00"');
+    expect(svg).not.toContain('<text');
+    expect(svg).not.toContain('<g transform');
+  });
+
+  it('draws title, subtitle and description and grows the page', () => {
+    const fold = twoPatternFold();
+    const segments = segmentFoldDocument(fold);
+    const svg = serializeCreasePatternSvg(
+      fold,
+      segments,
+      caption({ title: 'Crane', subtitle: 'Traditional', description: 'Folded from a square.' })
+    );
+
+    expect(svg).toContain('>Crane</text>');
+    expect(svg).toContain('>Traditional</text>');
+    expect(svg).toContain('>Folded from a square.</text>');
+    // The crease pattern is pushed below the header block.
+    expect(svg).toContain('<g transform="translate(0.00, ');
+    expect(svg).not.toContain('viewBox="0 0 1024.00 1024.00"');
+  });
+
+  it('escapes caption text', () => {
+    const fold = twoPatternFold();
+    const segments = segmentFoldDocument(fold);
+    const svg = serializeCreasePatternSvg(fold, segments, caption({ title: 'Bird & <base>' }));
+
+    expect(svg).toContain('>Bird &amp; &lt;base&gt;</text>');
+    expect(svg).not.toContain('<base>');
+  });
+});
+
+describe('export text wrapping', () => {
+  it('wraps on words and keeps hard breaks', () => {
+    const lines = wrapExportText('alpha beta\ngamma', 60, 20);
+
+    expect(lines.length).toBeGreaterThan(1);
+    expect(lines.at(-1)).toBe('gamma');
+  });
+
+  it('returns nothing for blank text', () => {
+    expect(wrapExportText('   ', 500, 20)).toEqual([]);
+  });
+
+  it('splits a word wider than the line rather than overflowing', () => {
+    const lines = wrapExportText('x'.repeat(60), 100, 20);
+
+    expect(lines.length).toBeGreaterThan(1);
+    expect(lines.every((line) => line.length <= 60)).toBe(true);
+  });
+});
+
+describe('export layout', () => {
+  const emptyCaption = { title: '', subtitle: '', description: '' };
+  const palette = CREASE_EXPORT_PALETTES.light;
+
+  it('is exactly the content box with no caption and no folded figure', () => {
+    const layout = layoutCreaseExport(emptyCaption, palette);
+
+    expect(layout).toMatchObject({ width: 1024, height: 1024 });
+    expect(layout.cp).toEqual({ x: 0, y: 0, width: 1024, height: 1024 });
+    expect(layout.folded).toBeNull();
+  });
+
+  it('places the folded figure to the right of the crease pattern', () => {
+    const layout = layoutCreaseExport(emptyCaption, palette, { width: 600, height: 800 });
+
+    expect(layout.folded).not.toBeNull();
+    expect(layout.folded!.x).toBeGreaterThan(layout.cp.x + layout.cp.width);
+    expect(layout.folded!.y).toBe(layout.cp.y);
+    expect(layout.width).toBeGreaterThan(layout.cp.width + layout.folded!.width);
+  });
+
+  it('grows the page when the folded figure is taller than the pattern', () => {
+    const layout = layoutCreaseExport(emptyCaption, palette, { width: 600, height: 1400 });
+
+    expect(layout.height).toBe(1400);
   });
 });
