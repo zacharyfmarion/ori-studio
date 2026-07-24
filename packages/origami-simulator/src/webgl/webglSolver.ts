@@ -144,6 +144,14 @@ export class WebglSolver implements SolverBackend {
     this.gl.updateTexture('u_lastTheta', this.packed.thetaInit);
   }
 
+  arrestDynamics(): void {
+    // Zero only the velocity textures; positions and crease angles are kept, so
+    // the fold state survives -- we are draining kinetic energy, not resetting.
+    const zeros = new Float32Array(this.packed.dims.textureDim * this.packed.dims.textureDim * 4);
+    this.gl.updateTexture('u_velocity', zeros);
+    this.gl.updateTexture('u_lastVelocity', zeros);
+  }
+
   readPositions(into: Float32Array): number {
     // The texture stores relative displacement; absolute = original + relative,
     // the same convention ReferenceSolver uses.

@@ -126,6 +126,12 @@ export class ReferenceSolver implements SolverBackend {
     this.model.reset();
   }
 
+  arrestDynamics(): void {
+    // Drain kinetic energy but keep positions/crease angles (the fold state).
+    this.model.velocities.fill(0);
+    this.lastVelocity.fill(0);
+  }
+
   get stepCount(): number {
     return this.currentStep;
   }

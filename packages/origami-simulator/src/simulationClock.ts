@@ -36,6 +36,14 @@ export interface SimulationClockOptions {
   convergenceEpsilon?: number;
   /** Consecutive settled ticks required before reporting convergence. */
   convergenceTicks?: number;
+  /**
+   * Edge-strain (stretch ratio) above which the explicit integrator is treated
+   * as blown up: the velocities are drained ({@link SolverBackend.arrestDynamics})
+   * so the mesh re-settles instead of exploding off-screen. Scale-invariant, so
+   * one value fits every model. A healthy fold stays well under 1; set to 0 (or
+   * Infinity) to disable the backstop.
+   */
+  blowupStrain?: number;
   /** Injectable for tests. */
   now?: () => number;
 }
@@ -57,6 +65,7 @@ const DEFAULTS = {
   maxStepsPerFrame: 4000,
   convergenceEpsilon: 1e-5,
   convergenceTicks: 3,
+  blowupStrain: 3,
 };
 
 export class SimulationClock {
@@ -72,6 +81,7 @@ export class SimulationClock {
       maxStepsPerFrame: options.maxStepsPerFrame ?? DEFAULTS.maxStepsPerFrame,
       convergenceEpsilon: options.convergenceEpsilon ?? DEFAULTS.convergenceEpsilon,
       convergenceTicks: Math.max(1, options.convergenceTicks ?? DEFAULTS.convergenceTicks),
+      blowupStrain: options.blowupStrain ?? DEFAULTS.blowupStrain,
     };
     this.now = options.now ?? (() => performance.now());
   }
@@ -123,8 +133,28 @@ export class SimulationClock {
     const maxVelocity = backend.maxVelocity();
     if (maxVelocity < this.options.convergenceEpsilon) this.settledTicks += 1;
     else this.settledTicks = 0;
+    this.guardBlowup(backend, maxVelocity);
 
     return { steps, elapsedMs, converged: this.converged, maxVelocity };
+  }
+
+  /**
+   * If the explicit integrator has destabilized -- velocity/strain non-finite,
+   * or edge strain past the configured limit -- drain the runaway velocity so
+   * the stable axial springs re-settle the mesh instead of it exploding
+   * off-screen. Strain is scale-invariant; a healthy fold never reaches the
+   * limit, so this is inert in the common case. NaN/Inf is always arrested even
+   * when the strain limit is disabled.
+   */
+  private guardBlowup(backend: SolverBackend, maxVelocity: number): void {
+    const limit = this.options.blowupStrain;
+    const strain = backend.readDiagnostics().maxEdgeStrain ?? 0;
+    const nonFinite = !Number.isFinite(maxVelocity) || !Number.isFinite(strain);
+    const exceeds = limit > 0 && Number.isFinite(limit) && strain > limit;
+    if (nonFinite || exceeds) {
+      backend.arrestDynamics();
+      this.settledTicks = 0;
+    }
   }
 
   /**
@@ -143,6 +173,7 @@ export class SimulationClock {
       maxVelocity = backend.maxVelocity();
       if (maxVelocity < this.options.convergenceEpsilon) this.settledTicks += 1;
       else this.settledTicks = 0;
+      this.guardBlowup(backend, maxVelocity);
     }
 
     this.totalSteps += steps;

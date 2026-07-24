@@ -8,10 +8,15 @@ import type { SimulatorDiagnostics } from '../src/types.js';
  * so budget behaviour can be asserted without depending on how fast the machine
  * running the tests happens to be.
  */
-function fakeBackend(options: { msPerStep: number; velocity?: (step: number) => number }) {
+function fakeBackend(options: {
+  msPerStep: number;
+  velocity?: (step: number) => number;
+  strain?: (step: number) => number;
+}) {
   let step = 0;
   let clock = 0;
-  const backend: SolverBackend & { elapsed(): number } = {
+  let arrests = 0;
+  const backend: SolverBackend & { elapsed(): number; arrests(): number } = {
     step(count) {
       step += count;
       clock += count * options.msPerStep;
@@ -22,6 +27,9 @@ function fakeBackend(options: { msPerStep: number; velocity?: (step: number) => 
     reset() {
       step = 0;
     },
+    arrestDynamics() {
+      arrests += 1;
+    },
     readPositions() {
       return 0;
     },
@@ -29,7 +37,7 @@ function fakeBackend(options: { msPerStep: number; velocity?: (step: number) => 
       return 0;
     },
     readDiagnostics(): SimulatorDiagnostics {
-      return { warnings: [], errors: [] };
+      return { warnings: [], errors: [], maxEdgeStrain: options.strain ? options.strain(step) : 0 };
     },
     maxVelocity() {
       return options.velocity ? options.velocity(step) : 1;
@@ -39,6 +47,7 @@ function fakeBackend(options: { msPerStep: number; velocity?: (step: number) => 
     },
     dispose() {},
     elapsed: () => clock,
+    arrests: () => arrests,
   };
   return { backend, now: () => clock };
 }
@@ -130,6 +139,29 @@ describe('SimulationClock convergence', () => {
     clock.invalidate();
     expect(clock.converged).toBe(false);
     expect(clock.runFrame(backend).steps).toBeGreaterThan(0);
+  });
+});
+
+describe('SimulationClock blow-up guard', () => {
+  it('arrests the solve when edge strain exceeds the limit', () => {
+    const { backend, now } = fakeBackend({ msPerStep: 0.01, strain: () => 9 });
+    const clock = new SimulationClock({ budgetMs: 1, chunkSteps: 5, blowupStrain: 3, now });
+    clock.runFrame(backend);
+    expect((backend as unknown as { arrests(): number }).arrests()).toBeGreaterThan(0);
+  });
+
+  it('always arrests on a non-finite velocity, even with the strain limit disabled', () => {
+    const { backend, now } = fakeBackend({ msPerStep: 0.01, velocity: () => Number.NaN });
+    const clock = new SimulationClock({ budgetMs: 1, chunkSteps: 5, blowupStrain: 0, now });
+    clock.runFrame(backend);
+    expect((backend as unknown as { arrests(): number }).arrests()).toBeGreaterThan(0);
+  });
+
+  it('leaves a healthy solve alone', () => {
+    const { backend, now } = fakeBackend({ msPerStep: 0.01, strain: () => 0.2, velocity: () => 0.1 });
+    const clock = new SimulationClock({ budgetMs: 1, chunkSteps: 5, blowupStrain: 3, now });
+    clock.runFrame(backend);
+    expect((backend as unknown as { arrests(): number }).arrests()).toBe(0);
   });
 });
 

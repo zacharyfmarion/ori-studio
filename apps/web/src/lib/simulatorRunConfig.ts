@@ -20,9 +20,18 @@ const WHOLE_RUN_CONFIG: SimulatorRunConfig = {
   foldChangeSettleBatch: 200,
   foldChangeSettleFrames: 40,
   foldPlayStepBatch: 160,
-  foldPlayPercentPerSecond: 28,
+  // Gentler than the old 28%/s: the explicit Euler solver injects energy as the
+  // fold is driven, and a slower drive plus a smaller timestep give the crease
+  // (bending) stiffness -- which the axial-only stable-dt does not account for --
+  // enough headroom to stay stable instead of exploding mid-fold.
+  foldPlayPercentPerSecond: 15,
   foldStepPercent: 5,
-  solverOptions: {},
+  solverOptions: {
+    // < 1 shrinks the integration step below the axial-only stability bound for
+    // headroom against crease stiffness. The interactive worker runs many steps
+    // per frame, so the extra steps cost little.
+    timeStepScale: 0.6,
+  },
 };
 
 const STEP_FAST_RUN_CONFIG: SimulatorRunConfig = {

@@ -29,6 +29,17 @@ export interface SolverBackend {
   reset(): void;
 
   /**
+   * Zero the dynamic velocities while keeping the current (folded) positions.
+   * A backstop for the explicit integrator going unstable mid-fold: crease
+   * (bending) stiffness is not in the axial-only stable-timestep bound, so a
+   * stiff fold can inject energy faster than damping removes it and the mesh
+   * explodes off-screen. Draining the runaway velocity lets the stable axial
+   * springs pull the mesh back instead. This is upstream Origami Simulator's
+   * `shouldZeroDynamicVelocity` hook. No-op semantics for a healthy solve.
+   */
+  arrestDynamics(): void;
+
+  /**
    * Copy current absolute vertex positions into `into` (length
    * `vertexCount * 3`). Returns the number of floats written.
    */
