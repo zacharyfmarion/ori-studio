@@ -12,6 +12,12 @@ export const DESIGN_TREEMAKER_PATH = '/design/treemaker';
 export const DESIGN_BP_PATH = '/design/bp';
 export const EDIT_PATH = '/edit';
 export const SIMULATE_PATH = '/simulate';
+export const LEARN_PATH = '/learn';
+
+/** Route for a single lesson. */
+export function lessonPath(lessonId: string): string {
+  return `${LEARN_PATH}/${lessonId}`;
+}
 
 /** Path for a Design workspace layout variant. */
 export function designVariantPath(variant: DesignLayoutVariant): string {
@@ -37,6 +43,8 @@ export function workspacePath(workspace: WorkspaceId, variant?: DesignLayoutVari
       return EDIT_PATH;
     case 'simulate':
       return SIMULATE_PATH;
+    case 'learn':
+      return LEARN_PATH;
   }
 }
 
@@ -53,6 +61,8 @@ export function parseWorkspacePath(
       return { workspace: 'edit' };
     case SIMULATE_PATH:
       return { workspace: 'simulate' };
+    case LEARN_PATH:
+      return { workspace: 'learn' };
     case DESIGN_PATH:
       return { workspace: 'design', variant: 'nux' };
     case DESIGN_TREEMAKER_PATH:
@@ -60,6 +70,7 @@ export function parseWorkspacePath(
     case DESIGN_BP_PATH:
       return { workspace: 'design', variant: 'box-pleat' };
     default:
-      return null;
+      // `/learn/:lessonId` — any lesson route builds the learn layout.
+      return pathname.startsWith(`${LEARN_PATH}/`) ? { workspace: 'learn' } : null;
   }
 }

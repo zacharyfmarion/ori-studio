@@ -103,6 +103,9 @@ export function applyDefaultLayout(
     case 'simulate':
       applySimulateLayout(api);
       return;
+    case 'learn':
+      applyLearnLayout(api);
+      return;
   }
 }
 
@@ -179,6 +182,31 @@ function applyEditLayout(api: DockviewApi): void {
     position: { referencePanel: 'crease-pattern', direction: 'right' },
     initialWidth: 260,
   });
+}
+
+/**
+ * The tutorial: a lesson pane beside the real crease-pattern editor. The canvas
+ * is the genuine `crease-pattern` panel — same tools, same rail — so what the
+ * user learns transfers directly to the Edit workspace. It draws into the learn
+ * document slot, which the route asserts.
+ */
+function applyLearnLayout(api: DockviewApi): void {
+  // The canvas is added first, as the area the lesson pane splits off. Dockview
+  // honours `initialWidth` on the panel being *added*, so the pane has to be the
+  // second one or it just takes half the workspace.
+  addHeaderlessPanel(api, {
+    id: 'crease-pattern',
+    component: 'crease-pattern',
+    title: 'Crease Pattern',
+  });
+  const lesson = api.addPanel({
+    id: 'lesson',
+    component: 'lesson',
+    title: 'Lesson',
+    position: { referencePanel: 'crease-pattern', direction: 'left' },
+    initialWidth: 400,
+  });
+  lesson.api.setActive();
 }
 
 function applySimulateLayout(api: DockviewApi): void {

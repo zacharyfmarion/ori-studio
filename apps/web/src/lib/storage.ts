@@ -26,6 +26,7 @@ export const STORAGE_KEYS = {
   cpToolRailGroups: 'cp-tool-rail-groups',
   layout: 'layout',
   layoutVersion: 'layout-version',
+  tutorialProgress: 'tutorial-progress',
 } as const;
 
 /** Build a namespaced key: `storageKey('layout', 'design') → 'oristudio:layout:design'`. */

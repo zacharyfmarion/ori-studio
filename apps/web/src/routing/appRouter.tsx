@@ -4,6 +4,8 @@ import { WorkspaceShell } from '../components/WorkspaceShell';
 import { readBoolean, storageKey, STORAGE_KEYS } from '../lib/storage';
 import { getRuntimeSurface } from '../platform/runtime';
 import { EDIT_PATH, WELCOME_PATH } from './paths';
+import { LearnIndexRoute } from './LearnIndexRoute';
+import { LessonRoute } from './LessonRoute';
 import { WelcomeRoute } from './WelcomeRoute';
 import { WorkspaceRoute } from './WorkspaceRoute';
 
@@ -63,14 +65,24 @@ export function createAppRouter(): AppRouter {
         {
           element: <WorkspaceShell />,
           children: [
-            { path: 'design', element: <WorkspaceRoute workspace="design" variant="nux" /> },
+            {
+              path: 'design',
+              element: <WorkspaceRoute workspace="design" variant="nux" slot="edit" />,
+            },
             {
               path: 'design/treemaker',
-              element: <WorkspaceRoute workspace="design" variant="treemaker" />,
+              element: <WorkspaceRoute workspace="design" variant="treemaker" slot="edit" />,
             },
-            { path: 'design/bp', element: <WorkspaceRoute workspace="design" variant="box-pleat" /> },
-            { path: 'edit', element: <WorkspaceRoute workspace="edit" /> },
+            {
+              path: 'design/bp',
+              element: <WorkspaceRoute workspace="design" variant="box-pleat" slot="edit" />,
+            },
+            { path: 'edit', element: <WorkspaceRoute workspace="edit" slot="edit" /> },
+            // No slot: Simulate folds whichever document is in the foreground,
+            // so a lesson can send its own pattern to the simulator.
             { path: 'simulate', element: <WorkspaceRoute workspace="simulate" /> },
+            { path: 'learn', element: <LearnIndexRoute /> },
+            { path: 'learn/:lessonId', element: <LessonRoute /> },
           ],
         },
         { path: '*', loader: startupRedirect },

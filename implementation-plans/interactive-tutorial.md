@@ -394,18 +394,23 @@ after the tutorial UI is built on top.
      only. Global.
    - `projectLoadId` is a project-wide load counter read by **both** the CP and
      Design panels; slot-scoping it would desync `DesignPanel`'s fit logic. Global.
-   - `dirty` is project-wide (tree *and* CP). Slot-scoping it would mean a design
-     edit made while the learn slot is active gets restored away on the next
-     switch. Global.
+   - `dirty` — **corrected twice.** First kept global, on the reasoning that a
+     design edit made under the learn slot would be restored away. Decision 3
+     (below) removes that case entirely by pinning `/design` to the edit slot, and
+     browser testing then showed keeping it global was actively wrong: suppressing
+     it for the tutorial *destroyed* the editor's copy, so a round trip through a
+     lesson silently reported the user's unsaved work as saved. It is now
+     **slot-scoped**, and the suppression only clears the ephemeral slot's copy.
 
    So the doc-scoped group is exactly what the spike produced. **Lesson: classify
    by usage, not by name.**
-2. **The learn slot suppresses dirty-marking instead.** Since `dirty` stays
-   global, the tutorial document — which is never part of the user's project and
-   can never be saved — simply does not mark it. One predicate
-   (`activeSlotTracksProjectDirty()`) consulted where CP edits set `dirty`; no
-   unload-guard change needed, because the flag keeps meaning "the user's project
-   has unsaved work" at all times.
+2. **The learn slot additionally suppresses dirty-marking.** A tutorial pattern
+   can never be saved, so showing "unsaved changes" during a lesson would be a
+   lie. Enforced as a single store-level invariant (clear `dirty` whenever an
+   ephemeral slot sets it) rather than a predicate repeated at the ~30 places that
+   set the flag — those span two slices, and a repeated check would rot the first
+   time someone added a thirty-first. Because `dirty` is slot-scoped, clearing it
+   touches only the lesson's copy.
 3. **Camera framing re-fits on slot switch; view *options* are restored.**
    `oristudioCpViewport` (grid, display toggles) is slot-scoped and comes back.
    Pan/zoom does not: the CP panel unmounts on every workspace switch and re-fits
@@ -541,35 +546,40 @@ handles new routes).
 - [ ] Enforce the invariant: `enterCpDocumentSlot` referenced only by route
       effects; no `slot` mention inside panels, slices, or commands.
 
-### Phase 1b — Tutorial framework
+### Phase 1b + 2 — Tutorial framework and comparison engine
 
-- [ ] `Lesson` / `LessonStep` / `CheckSpec` types.
-- [ ] `tutorialStore` — active lesson, step index, per-step check result,
+Built together: the lesson panel is only meaningful against a real checker, so
+writing it against a stub would have been throwaway work.
+
+- [x] `Lesson` / `LessonStep` / `LessonCheckSpec` types.
+- [x] `tutorialStore` — active lesson, step index, per-step check result,
       progress persisted via `lib/storage`.
-- [ ] `learn` workspace id + editing context reporting the CP context.
-- [ ] `applyLearnLayout`; register the `lesson` panel in `PanelComponents` and
-      map it in `WORKSPACE_BY_PANEL_ID`.
-- [ ] `/learn` and `/learn/:lessonId` routes; unknown `lessonId` → `/learn`.
-- [ ] `/learn/*` enters the `learn` slot; the lesson's `startCp` provisions into
-      that slot only. Lesson-to-lesson switches stay within it.
-- [ ] A `draw` step arms its `teaches` tool via `requestOristudioCpAction`.
-- [ ] `targetGeometry` loader with per-lesson memoization and handle cleanup.
-- [ ] `TargetCpPreview` static SVG, assignment colors from `cssColor`.
-- [ ] `LessonPanel` shell: prose, image, target, Next/Back, Skip step.
-- [ ] One end-to-end smoke lesson ("Your first crease") passing.
+- [x] `learn` workspace id (hidden from the rail) + CP editing context.
+- [x] `applyLearnLayout`; `lesson` panel registered and mapped.
+- [x] `/learn` and `/learn/:lessonId` routes; unknown `lessonId` → `/learn`.
+- [x] `/learn/*` enters the `learn` slot; the panel provisions into it.
+- [x] A `draw` step arms its `teaches` tool via `requestOristudioCpAction`.
+- [x] `targetGeometry` loader with per-target memoization and handle cleanup.
+- [x] `TargetCpPreview` static SVG using the `--fold-*` theme tokens.
+- [x] `LessonPanel`: prose, image, target, feedback, Next/Back/Skip; shows the
+      lesson index when no lesson is open.
+- [x] End-to-end verified in the browser: drew the diagonal, the check flipped
+      to satisfied, Next enabled.
 
 ### Phase 2 — Comparison engine
 
-- [ ] `canonicalize.ts`: boundary filter, quantize, collinear-run merge,
-      canonical keys. Unit tests incl. split-vs-whole equivalence.
-- [ ] `compare.ts`: multiset diff → `matched / missing / extra / wrongAssignment`.
-- [ ] Match modes `exact`, `subset`, `ignoreAssignment`.
-- [ ] `symmetry.ts`: best-of-8 D4 matching, opt-in per check.
-- [ ] `useLessonCheck`: debounced re-check on `oristudioCpRevision` using the
-      compact transport only — assert no full-document snapshot on this path.
-- [ ] Feedback UI: progress line + missing/extra highlighted in the preview.
-- [ ] Test that every lesson's own target satisfies its own check (a lesson
-      whose target fails its check is a CI failure).
+- [x] `canonicalize.ts` + tests incl. split-vs-whole equivalence.
+- [x] `compare.ts`: diff → `matched / missing / extra / wrongAssignment`.
+- [x] Match modes `exact`, `subset`, `ignoreAssignment`.
+- [x] `symmetry.ts`: best-of-8 D4 matching, opt-in per check.
+- [x] `useLessonCheck`: debounced re-check on `oristudioCpRevision`. Cheaper
+      than planned — the store already holds the decoded snapshot, so the check
+      is local and never touches the worker.
+- [x] Feedback UI: progress line + per-kind notes + hint.
+- [ ] Highlight missing creases *inside* the preview (plumbing exists via
+      `TargetCpPreview.highlight`; not yet wired).
+- [x] Content-integrity tests: unique ids, non-empty prose, every referenced
+      target exists and parses as `.cp`.
 
 ### Phase 3 — Chapter 1: Basics
 

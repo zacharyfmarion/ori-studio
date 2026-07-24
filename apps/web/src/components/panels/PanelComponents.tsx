@@ -9,6 +9,7 @@ import { SimulatorPanel } from './SimulatorPanel';
 import { DiagnosticsPanel } from './DiagnosticsPanel';
 import { ConditionsPanel } from './ConditionsPanel';
 import { SequencePanel } from './SequencePanel';
+import { LessonPanel } from './LessonPanel';
 
 export const panelComponents: Record<string, FC<IDockviewPanelProps>> = {
   design: DesignPanel,
@@ -20,4 +21,5 @@ export const panelComponents: Record<string, FC<IDockviewPanelProps>> = {
   diagnostics: DiagnosticsPanel,
   sequence: SequencePanel,
   conditions: ConditionsPanel,
+  lesson: LessonPanel,
 };

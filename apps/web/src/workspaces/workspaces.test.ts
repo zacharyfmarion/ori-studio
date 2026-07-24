@@ -1,18 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import {
+  SWITCHER_WORKSPACE_DEFINITIONS,
   WORKSPACE_DEFINITIONS,
   workspaceForCommandId,
   workspaceForPanelId,
 } from './workspaces';
 
 describe('workspace definitions', () => {
+  it('keeps the tutorial out of the workspace rail', () => {
+    expect(WORKSPACE_DEFINITIONS.map((workspace) => workspace.id)).toContain('learn');
+    expect(SWITCHER_WORKSPACE_DEFINITIONS.map((workspace) => workspace.id)).not.toContain('learn');
+  });
+
   it('defines the three primary workspaces in rail order', () => {
-    expect(WORKSPACE_DEFINITIONS.map((workspace) => workspace.id)).toEqual([
+    expect(SWITCHER_WORKSPACE_DEFINITIONS.map((workspace) => workspace.id)).toEqual([
       'edit',
       'design',
       'simulate',
     ]);
-    expect(WORKSPACE_DEFINITIONS.map((workspace) => workspace.label)).toEqual([
+    expect(SWITCHER_WORKSPACE_DEFINITIONS.map((workspace) => workspace.label)).toEqual([
       'Edit',
       'Design',
       'Simulate',

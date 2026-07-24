@@ -11,6 +11,7 @@ import {
   Download,
   FilePlus,
   FolderOpen,
+  GraduationCap,
   PenTool,
   Save,
   ScanLine,
@@ -32,12 +33,13 @@ import { useWorkspaceStore } from '../store/workspaceStore';
 import { deriveDesignVariant } from '../store/workspaceStore/designVariant';
 import { useWorkspaceCapabilities } from '../store/workspaceStore/useWorkspaceCapabilities';
 import { parseWorkspacePath, workspacePath } from '../routing/paths';
-import { WORKSPACE_DEFINITIONS, type WorkspaceId } from '../workspaces/workspaces';
+import { SWITCHER_WORKSPACE_DEFINITIONS, type WorkspaceId } from '../workspaces/workspaces';
 
 const workspaceIcons: Record<WorkspaceId, typeof DraftingCompass> = {
   design: DraftingCompass,
   edit: PenTool,
   simulate: Box,
+  learn: GraduationCap,
 };
 
 /**
@@ -61,6 +63,8 @@ function workspaceTooltip(t: TFunction, id: WorkspaceId): string {
       return t('common:workspaceRail.edit', 'Edit workspace');
     case 'simulate':
       return t('common:workspaceRail.simulate', 'Simulate workspace');
+    case 'learn':
+      return t('common:workspaceRail.learn', 'Tutorial');
   }
 }
 
@@ -72,7 +76,7 @@ function WorkspaceRail() {
   return (
     <aside className="workspace-rail" aria-label={t('common:workspaceRail.label', 'Workspaces')}>
       <div className="workspace-rail__items">
-        {WORKSPACE_DEFINITIONS.map((workspace) => {
+        {SWITCHER_WORKSPACE_DEFINITIONS.map((workspace) => {
           const Icon = workspaceIcons[workspace.id];
           return (
             <IconButton

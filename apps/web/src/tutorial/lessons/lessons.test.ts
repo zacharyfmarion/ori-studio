@@ -1,0 +1,113 @@
+import { describe, expect, it } from 'vitest';
+import { LESSON_CHAPTERS, LESSONS, lessonById, nextLesson } from './index';
+import { LESSON_TARGETS, lessonTarget } from '../targets';
+import { stepIsSelfAdvancing } from '../types';
+
+/**
+ * Content integrity. These are the checks that stop a broken lesson from
+ * reaching a user: a target that doesn't exist, a step that can never be
+ * satisfied, a duplicate id that makes progress ambiguous.
+ *
+ * They run against the data, not the UI, so they stay fast and keep failing for
+ * the right reason.
+ */
+describe('lesson content', () => {
+  it('has at least one chapter and one lesson', () => {
+    expect(LESSON_CHAPTERS.length).toBeGreaterThan(0);
+    expect(LESSONS.length).toBeGreaterThan(0);
+  });
+
+  it('gives every lesson a unique id', () => {
+    const ids = LESSONS.map((lesson) => lesson.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('gives every step a unique id within its lesson', () => {
+    for (const lesson of LESSONS) {
+      const ids = lesson.steps.map((step) => step.id);
+      expect(new Set(ids).size, `duplicate step id in ${lesson.id}`).toBe(ids.length);
+    }
+  });
+
+  it('puts every lesson in a chapter that exists', () => {
+    const chapterIds = new Set(LESSON_CHAPTERS.map((chapter) => chapter.id));
+    for (const lesson of LESSONS) {
+      expect(chapterIds.has(lesson.chapterId), `${lesson.id} → ${lesson.chapterId}`).toBe(true);
+    }
+  });
+
+  it('gives every lesson at least one step', () => {
+    for (const lesson of LESSONS) {
+      expect(lesson.steps.length, lesson.id).toBeGreaterThan(0);
+    }
+  });
+
+  it('writes body text for every step', () => {
+    for (const lesson of LESSONS) {
+      for (const step of lesson.steps) {
+        expect(step.body.length, `${lesson.id}/${step.id}`).toBeGreaterThan(0);
+        for (const paragraph of step.body) {
+          expect(paragraph.trim().length, `${lesson.id}/${step.id}`).toBeGreaterThan(0);
+        }
+      }
+    }
+  });
+
+  it('references only targets that exist', () => {
+    for (const lesson of LESSONS) {
+      if (lesson.startTargetId) {
+        expect(lessonTarget(lesson.startTargetId), `${lesson.id} start`).toBeDefined();
+      }
+      for (const step of lesson.steps) {
+        if (step.kind !== 'draw') continue;
+        expect(lessonTarget(step.targetId), `${lesson.id}/${step.id}`).toBeDefined();
+      }
+    }
+  });
+
+  it('gives every self-advancing step a way to be satisfied', () => {
+    for (const lesson of LESSONS) {
+      for (const step of lesson.steps) {
+        if (!stepIsSelfAdvancing(step)) continue;
+        if (step.kind === 'draw') {
+          expect(step.check.mode, `${lesson.id}/${step.id}`).toBeTruthy();
+        } else if (step.kind === 'action') {
+          expect(step.expect, `${lesson.id}/${step.id}`).toBeTruthy();
+        }
+      }
+    }
+  });
+
+  it('resolves lessons by id and walks them in order', () => {
+    const first = LESSONS[0];
+    expect(lessonById(first.id)).toBe(first);
+    expect(lessonById('does-not-exist')).toBeUndefined();
+    expect(nextLesson(LESSONS[LESSONS.length - 1].id)).toBeUndefined();
+  });
+});
+
+describe('lesson targets', () => {
+  it('gives every target a unique id', () => {
+    const ids = LESSON_TARGETS.map((target) => target.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('parses as .cp text with at least one segment', () => {
+    for (const target of LESSON_TARGETS) {
+      const lines = target.cp
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+      expect(lines.length, target.id).toBeGreaterThan(0);
+      for (const line of lines) {
+        const parts = line.split(/\s+/);
+        expect(parts, `${target.id}: "${line}"`).toHaveLength(5);
+        // Type 1 edge, 2 valley, 3 mountain, 4 auxiliary.
+        expect([1, 2, 3, 4], `${target.id}: "${line}"`).toContain(Number(parts[0]));
+        for (const coordinate of parts.slice(1)) {
+          expect(Number.isFinite(Number(coordinate)), `${target.id}: "${line}"`).toBe(true);
+        }
+      }
+    }
+  });
+});

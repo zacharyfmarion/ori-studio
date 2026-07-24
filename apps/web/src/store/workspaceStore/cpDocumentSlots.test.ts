@@ -112,6 +112,23 @@ describe('crease-pattern document slots', () => {
     expect(useWorkspaceStore.getState().dirty).toBe(true);
   });
 
+  /**
+   * Regression: suppressing `dirty` for the tutorial must not *destroy* the
+   * editor's copy of it. When `dirty` was global, a round trip through a lesson
+   * silently told the user their unsaved work was saved.
+   */
+  it('preserves unsaved-changes state across a round trip through learn', () => {
+    useWorkspaceStore.setState({ ...markDocumentState('editor'), dirty: true } as never);
+    expect(useWorkspaceStore.getState().dirty).toBe(true);
+
+    enterCpDocumentSlot('learn');
+    expect(useWorkspaceStore.getState().dirty).toBe(false);
+    useWorkspaceStore.setState(markDocumentState('lesson') as never);
+
+    enterCpDocumentSlot('edit');
+    expect(useWorkspaceStore.getState().dirty).toBe(true);
+  });
+
   it('captures every document-scoped field and nothing else', () => {
     const bundle = captureCpDocumentState(useWorkspaceStore.getState());
     expect(Object.keys(bundle).sort()).toEqual(Object.keys(CP_DOCUMENT_SCOPED_KEYS).sort());

@@ -136,7 +136,6 @@ export interface ProjectSliceState extends CpDocumentOwnedByProjectSlice {
   currentFileName: string;
   projectMessage: string | null;
   status: AppStatus;
-  dirty: boolean;
   engineReady: boolean;
   error: WasmErrorEnvelope | null;
   lastOptimization: OptimizationReport | null;
@@ -523,6 +522,14 @@ export interface CpDocumentOwnedByProjectSlice {
   oristudioCpHistoryPast: OristudioCpHistoryEntry[];
   oristudioCpHistoryFuture: OristudioCpHistoryEntry[];
   oristudioCpDocumentExtensions: Record<string, unknown>;
+  /**
+   * Unsaved-changes flag. Per-slot rather than global: a round trip through the
+   * tutorial must not lose the fact that the user's own document has unsaved
+   * work. This is safe because routes pin `/design` to the edit slot, so tree and
+   * box-pleated edits — which share this flag — always land on the edit slot's
+   * copy.
+   */
+  dirty: boolean;
 }
 
 /**
@@ -575,6 +582,7 @@ export const CP_DOCUMENT_SCOPED_KEYS: Record<keyof CpDocumentScopedState, true> 
   oristudioCpHistoryPast: true,
   oristudioCpHistoryFuture: true,
   oristudioCpDocumentExtensions: true,
+  dirty: true,
 };
 
 /**
